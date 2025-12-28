@@ -16,6 +16,34 @@
       // Initialisieren (idempotent)
       try{ window.firebase.app(); }catch(_){ window.firebase.initializeApp(window.firebaseConfig); }
       const auth = window.firebase.auth();
+      // Firestore optional (für User-Profil). Wenn Firestore nicht verfügbar ist,
+      // läuft Login/Registrierung trotzdem weiter.
+      let db = null;
+      try{ db = window.firebase.firestore ? window.firebase.firestore() : null; }catch(_){ db = null; }
+
+      const ORG_ID = (window.CLOUD_ORG_ID || 'doggystyle');
+
+      async function ensureUserProfile(currentUser, preferredName){
+        try{
+          if(!db || !currentUser) return;
+          const uid = currentUser.uid;
+          const email = (currentUser.email||'').toLowerCase();
+          const ref = db.collection('orgs').doc(ORG_ID).collection('users').doc(uid);
+          const snap = await ref.get();
+          if(snap.exists) return;
+          const dn = (preferredName||'').trim() || (email.split('@')[0]||'');
+          await ref.set({
+            uid,
+            email: currentUser.email||'',
+            displayName: dn,
+            role: 'customer',
+            createdAt: Date.now()
+          }, { merge:true });
+        }catch(e){
+          // Nicht blockieren (Rules/Offline/etc.)
+          console.warn('ensureUserProfile failed', e);
+        }
+      }
 
       // Optional: Login bei jedem Öffnen erzwingen (wenn window.firebaseForceLoginAlways = true)
       try{
@@ -35,6 +63,7 @@
         setMsg('Anmelden …');
         try{
           await auth.signInWithEmailAndPassword(email, pass);
+          await ensureUserProfile(auth.currentUser, '');
           location.href = 'app.html';
         }catch(e){
           setMsg('Anmelden fehlgeschlagen: ' + (e.code || e.message || e));
@@ -50,6 +79,7 @@
         try{
           await auth.createUserWithEmailAndPassword(email, pass);
           try{ if(name) localStorage.setItem('ds_pending_name', name); }catch(_){ }
+          await ensureUserProfile(auth.currentUser, name);
           location.href = 'app.html';
         }catch(e){
           setMsg('Registrierung fehlgeschlagen: ' + (e.code || e.message || e));
