@@ -213,6 +213,13 @@ body.page-login .topbar .brand__sub{ opacity:0.8; }
 .contract-wrap{display:grid;grid-template-columns: 1.6fr 1fr; gap:16px; align-items:start;}
 @media (max-width: 900px){ .contract-wrap{grid-template-columns: 1fr;} }
 
+/* --- Contract layout hardening (iOS) --- */
+.contract-wrap > *{min-width:0;}
+.contract-side, .contract-card{min-width:0; max-width:100%;}
+.checkline{width:100%; max-width:100%;}
+.checkline span{display:block;}
+
+
 .contract-doc{border-radius:18px;background:rgba(255,255,255,0.10);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,0.10);overflow:hidden;}
 .contract-head{padding:16px;border-bottom:1px solid rgba(255,255,255,0.10);}
 .contract-brand{display:flex;gap:12px;align-items:center;}

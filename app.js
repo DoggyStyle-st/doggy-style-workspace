@@ -400,6 +400,7 @@ async function initCustomerPortal(){
     const renderFieldSimple = (f, value, bucket)=>{
       const wrap=document.createElement('label');
       wrap.className='field'; wrap.style.minWidth='260px';
+      wrap.dataset.key = f.key;
       wrap.innerHTML=`<span>${escapeHtml(f.label)}${f.required?" *":""}</span>`;
       let input;
       if(f.type==='textarea'){ input=document.createElement('textarea'); input.value=value||''; }
@@ -410,6 +411,7 @@ async function initCustomerPortal(){
       }
       else if(f.type==='checkbox'){ input=document.createElement('input'); input.type='checkbox'; input.checked=!!value; input.style.width='22px'; input.style.height='22px'; }
       else { input=document.createElement('input'); input.type=f.type||'text'; input.value=value||''; }
+      input.dataset.key = f.key;
       input.oninput = ()=>{ bucket[f.key] = (f.type==='checkbox')?input.checked:input.value; scheduleDraftSave(); };
       input.onchange = ()=>{ bucket[f.key] = (f.type==='checkbox')?input.checked:input.value; scheduleDraftSave(); };
       wrap.appendChild(input);
@@ -943,23 +945,16 @@ function updateAutoHolidayFields(){
   const to = currentDoc.meta?.bis;
   const cnt = (from && to) ? countBavariaHolidaysBetween(from, to) : 0;
 
-  // Anzeige-Felder im Formular (falls vorhanden)
-  const cb = document.querySelector(`#formRoot [data-key="holiday"]`);
-  const num = document.querySelector(`#formRoot [data-key="holiday_days"]`);
+  // Immer automatisch – keine manuelle Auswahl
+  currentDoc.fields = currentDoc.fields || {};
+  currentDoc.fields.holiday_days = cnt || 0;
 
-  if(cb){
-    cb.checked = cnt > 0;
-    cb.disabled = true;
-  }
+  // UI: Anzahl-Feld (falls vorhanden) befüllen & sperren
+  const num = document.querySelector('input[data-key="holiday_days"]');
   if(num){
-    num.value = cnt ? String(cnt) : "";
+    num.value = String(currentDoc.fields.holiday_days || 0);
     num.disabled = true;
   }
-
-  // in fields spiegeln (für Alt-Kompatibilität / PDF)
-  currentDoc.fields = currentDoc.fields || {};
-  currentDoc.fields.holiday = cnt > 0;
-  currentDoc.fields.holiday_days = cnt || 0;
 }
 
 
@@ -2480,6 +2475,12 @@ function printInvoice(id){
       <td>Grundpreis</td>
       <td class="right">${inv.pricing.basePrice.toFixed(2)} €</td>
     </tr>
+    ${inv.pricing.holidayExtra && inv.pricing.holidayExtra>0 ? `
+    <tr>
+      <td>Feiertagszuschlag (10% • ${inv.pricing.holidayDays||0} Tag(e))</td>
+      <td class="right">${inv.pricing.holidayExtra.toFixed(2)} €</td>
+    </tr>` : ``}
+
     <tr>
       <td>Zuschläge (%)</td>
       <td class="right">${inv.pricing.percentExtra.toFixed(2)} €</td>
@@ -2987,6 +2988,32 @@ input.onchange = () => {
   if(f && (f.key==="von" || f.key==="bis")){
     try { updateAutoHolidayFields(); } catch(e){}
   }
+
+  // Manuelle Feiertags-Override (falls der Nutzer das Feld bedienen will)
+  if(f && (f.key==="holiday" || f.key==="holiday_days")){
+    try{
+      currentDoc.fields = currentDoc.fields || {};
+      currentDoc.fields.holiday_override = true;
+      if(f.key==="holiday"){
+        currentDoc.fields.holiday = !!input.checked;
+        if(!currentDoc.fields.holiday) currentDoc.fields.holiday_days = 0;
+        // wenn angehakt und noch keine Tage gesetzt: 1
+        if(currentDoc.fields.holiday && !currentDoc.fields.holiday_days){
+          currentDoc.fields.holiday_days = 1;
+        }
+        // sync number field if present
+        const numEl = document.querySelector(`#formRoot [data-key="holiday_days"]`);
+        if(numEl) numEl.value = currentDoc.fields.holiday_days ? String(currentDoc.fields.holiday_days) : "";
+      } else {
+        const v = parseInt(input.value,10);
+        currentDoc.fields.holiday_days = Number.isFinite(v) ? v : 0;
+        currentDoc.fields.holiday = currentDoc.fields.holiday_days > 0;
+        const cbEl = document.querySelector(`#formRoot [data-key="holiday"]`);
+        if(cbEl) cbEl.checked = currentDoc.fields.holiday;
+      }
+    }catch(e){}
+  }
+
 };
 if (currentDoc.saved) {
   input.disabled = true;
@@ -3175,7 +3202,20 @@ function createInvoiceFromDoc(doc){
       to: doc.meta.bis
     },
 
-    pricing: doc.pricing,
+    pricing: {
+      // Basis: Tage * Tagespreis
+      basePrice: Number(doc.pricing.base || 0),
+
+      // Feiertagszuschlag: 10% nur auf Feiertags-TAGE
+      holidayDays: Number(doc.pricing.holidayDays || 0),
+      holidayExtra: Number(doc.pricing.holidayValue || 0),
+
+      // Prozent-/Fixzuschläge (als Beträge)
+      percentExtra: Number(doc.pricing.percentValue || 0),
+      fixedExtra: Number(doc.pricing.fixedExtra || 0),
+
+      total: Number(doc.pricing.total || 0)
+    },
 
     status: "draft",
 
@@ -4112,13 +4152,25 @@ let _contractSig = {canvas:null, ctx:null, drawing:false, hasInk:false, last:nul
 // Verknüpft automatisch Kunde + Hund anhand der Aufenthaltsauswahl.
 function openContractFromStay(doc){
   if(!doc){ alert("Kein Aufenthalt."); return; }
-  const petId = doc.dogId || "";
-  if(!petId){
+
+  // In der App ist doc.dogId i.d.R. die Legacy-Dog-ID (aus der Hundeauswahl im Editor).
+  const legacyDogId = doc.dogId || "";
+  if(!legacyDogId){
     alert("Bitte zuerst einen Hund auswählen und speichern (oder zumindest im Formular auswählen).");
     return;
   }
-  const pet = getPet(petId);
-  const customerId = (pet && pet.customerId) ? pet.customerId : (doc.customerId || "");
+
+  // Mapping Legacy-Dog -> Pet/Customer (neue Datenstruktur)
+  const petObj = getPetByDogId(legacyDogId) || getPet(legacyDogId); // fallback falls dogId schon petId ist
+  const customerObj = getCustomerByDogId(legacyDogId) || (petObj ? getCustomer(petObj.customerId) : null);
+
+  const petId = petObj ? petObj.id : "";
+  const customerId = customerObj ? customerObj.id : (petObj && petObj.customerId ? petObj.customerId : (doc.customerId || ""));
+
+  if(!petId){
+    alert("Zu diesem Hund ist kein interner Hunde-Datensatz (Pets) verknüpft. Bitte im Bereich Hunde/Kunden den Hund einem Kunden zuordnen.");
+    return;
+  }
   if(!customerId){
     alert("Zu diesem Hund ist kein Kunde verknüpft. Bitte im Bereich Hunde/Kunden den Hund einem Kunden zuordnen.");
     return;
@@ -4137,6 +4189,7 @@ function openContractFromStay(doc){
 
   const cs = document.getElementById("contractCustomerSelect");
   const ps = document.getElementById("contractPetSelect");
+
   if(cs){
     cs.value = customerId;
     // trigger onchange to fill pets list
@@ -4144,7 +4197,9 @@ function openContractFromStay(doc){
   }
   if(ps){
     ps.value = petId;
+    if(typeof ps.onchange === "function") ps.onchange();
   }
+
   updateSignedInfo();
 
   // UI polish: acceptance unchecked (owner should tick)
