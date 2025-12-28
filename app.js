@@ -647,39 +647,54 @@ async function wireUserManagement(){
 
   const load = async ()=>{
     if(msgEl) msgEl.textContent = '… lädt …';
-    const snap = await cloudUsersCol().orderBy('createdAt','desc').limit(100).get();
-    const users = [];
-    snap.forEach(d=>users.push({id:d.id, ...d.data()}));
-    listEl.innerHTML = '';
-    users.forEach(u=>{
-      const row = document.createElement('div');
-      row.className = 'list-item';
-      const who = escapeHtml(u.email||u.uid||u.id);
-      const when = u.createdAt ? fmtDT(u.createdAt) : '';
-      row.innerHTML = `<div><strong>${who}</strong><small>${escapeHtml(u.role||'')}${when?(' · '+when):''}</small></div>`;
-      const actions = document.createElement('div');
-      actions.className = 'actions';
-      const sel = document.createElement('select');
-      sel.innerHTML = `
-        <option value="admin">admin</option>
-        <option value="staff">staff</option>
-        <option value="customer">customer</option>
-      `;
-      sel.value = u.role || 'customer';
-      sel.onchange = async ()=>{
-        try{
-          await cloudUserDoc(u.uid||u.id).set({role: sel.value}, {merge:true});
-          if(msgEl) msgEl.textContent = '✅ Rolle gespeichert.';
-        }catch(e){
-          console.error(e);
-          if(msgEl) msgEl.textContent = '❌ Fehler: '+(e.message||e);
-        }
-      };
-      actions.appendChild(sel);
-      row.appendChild(actions);
-      listEl.appendChild(row);
-    });
-    if(msgEl) msgEl.textContent = '';
+    try{
+      const snap = await cloudUsersCol().orderBy('createdAt','desc').limit(200).get();
+      const users = [];
+      snap.forEach(d=>users.push({id:d.id, ...d.data()}));
+      listEl.innerHTML = '';
+      users.forEach(u=>{
+        const row = document.createElement('div');
+        row.className = 'list-item';
+        const who = escapeHtml(u.email||u.uid||u.id);
+        const when = u.createdAt ? fmtDT(u.createdAt) : '';
+        row.innerHTML = `<div><strong>${who}</strong><small>${escapeHtml(u.role||'')}${when?(' · '+when):''}</small></div>`;
+        const actions = document.createElement('div');
+        actions.className = 'actions';
+        const sel = document.createElement('select');
+        sel.innerHTML = `
+          <option value="admin">admin</option>
+          <option value="staff">staff</option>
+          <option value="customer">customer</option>
+        `;
+        sel.value = u.role || 'customer';
+        sel.onchange = async ()=>{
+          try{
+            await cloudUserDoc(u.uid||u.id).set({role: sel.value}, {merge:true});
+            if(msgEl) msgEl.textContent = '✅ Rolle gespeichert.';
+          }catch(e){
+            console.error(e);
+            const code = e && (e.code || e.name) || '';
+            if(code && String(code).includes('permission')){
+              if(msgEl) msgEl.textContent = '❌ Keine Berechtigung (Rules). Admin darf Rollen setzen.';
+            } else {
+              if(msgEl) msgEl.textContent = '❌ Fehler: '+(e.message||e);
+            }
+          }
+        };
+        actions.appendChild(sel);
+        row.appendChild(actions);
+        listEl.appendChild(row);
+      });
+      if(msgEl) msgEl.textContent = users.length ? '' : '— keine Benutzer gefunden —';
+    }catch(e){
+      console.error(e);
+      const code = e && (e.code || e.name) || '';
+      if(code && String(code).includes('permission')){
+        if(msgEl) msgEl.textContent = '❌ Laden fehlgeschlagen (permission-denied). Firestore-Regeln erlauben Admin/Staff das Lesen von orgs/doggystyle/users noch nicht.';
+      } else {
+        if(msgEl) msgEl.textContent = '❌ Laden fehlgeschlagen: ' + (e.message||e);
+      }
+    }
   };
 
   if(btnRef) btnRef.onclick = ()=>load().catch(e=>{ console.error(e); if(msgEl) msgEl.textContent='❌ Laden fehlgeschlagen.'; });
