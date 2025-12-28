@@ -4031,6 +4031,20 @@ function renderContractPanel(){
   cs.onchange = fillPets;
   fillPets();
 
+  // Wenn ein Hund gewählt wird, Kunde automatisch übernehmen (falls verknüpft)
+  ps.onchange = ()=>{
+    const selectedPetId = ps.value;
+    const pet = getPet(selectedPetId);
+    const targetCustomerId = pet ? (pet.customerId || "") : "";
+    if(targetCustomerId && cs.value !== targetCustomerId){
+      cs.value = targetCustomerId;
+      fillPets();
+      ps.value = selectedPetId; // Auswahl beibehalten
+    }
+    updateSignedInfo();
+  };
+
+
   // signature pad
   initContractSignaturePad();
   $("#contractSigClear").onclick = ()=>{ clearContractSig(); };
@@ -4819,5 +4833,4 @@ function wfTodayPrint(){
   `;
   wfOpenPdf(wfPdfTemplate("Heute drucken", body));
 }
-
 

@@ -229,6 +229,8 @@ body.page-login .topbar .brand__sub{ opacity:0.8; }
 .contract-card{border-radius:18px;background:rgba(255,255,255,0.10);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,0.10);padding:16px;}
 .checkline{display:flex;gap:10px;align-items:flex-start;margin:10px 0;}
 .checkline input{margin-top:2px;}
+.checkline span{flex:1;min-width:0;white-space:normal;overflow-wrap:anywhere;}
+
 .sigbox{border-radius:14px;overflow:hidden;border:1px solid rgba(255,255,255,0.12);background:rgba(0,0,0,0.20);}
 #contractSig{display:block;width:100%;height:auto;touch-action:none; background:rgba(255,255,255,0.02);}
 
