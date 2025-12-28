@@ -2942,6 +2942,24 @@ sigCard.innerHTML = `
 `;
 
 root.appendChild(sigCard);
+
+  // Betreuungsvertrag – aus Aufenthalt erzeugen/öffnen
+  const contractCard = document.createElement("div");
+  contractCard.className = "card";
+  if(docObj.dogId){
+    contractCard.innerHTML = `
+      <h2>Betreuungsvertrag</h2>
+      <p class="muted">Erzeuge/öffne den Vertrag automatisch für den ausgewählten Hund.</p>
+      <button id="btnContractFromStay" class="btn">📄 Betreuungsvertrag öffnen</button>
+    `;
+  }else{
+    contractCard.innerHTML = `
+      <h2>Betreuungsvertrag</h2>
+      <p class="muted">Bitte zuerst einen Hund auswählen, dann kannst du den Vertrag erzeugen.</p>
+    `;
+  }
+  root.appendChild(contractCard);
+
 }
 function renderField(f,value,docObj){
   const wrap=document.createElement("label");
@@ -3041,6 +3059,33 @@ function validate(docObj,t){
 function updateCreateInvoiceButton(){
   const btn = document.getElementById("btnCreateInvoice");
   if(btn) btn.style.display = "none";
+
+// Sync currentDoc with current form inputs WITHOUT saving/re-rendering.
+// This prevents losing typed values when opening overlays (e.g., signature, contract).
+function syncCurrentDocFromForm(){
+  if(!currentDoc) return;
+  // If editor UI isn't present, nothing to sync.
+  const nameEl = document.getElementById("docName");
+  const dogEl  = document.getElementById("dogSelect");
+  if(!nameEl || !dogEl) return;
+
+  const t = getTemplate(currentDoc.templateId);
+  if(!t) return;
+
+  const { fields, meta } = collectForm();
+  currentDoc.title = (nameEl.value || "").trim() || currentDoc.templateName || currentDoc.title || "Dokument";
+  currentDoc.dogId = dogEl.value || currentDoc.dogId || "";
+  ensureDocLinks(currentDoc);
+  currentDoc.fields = fields;
+  currentDoc.meta = meta;
+
+  // pricing logic (keep consistent with saveCurrent)
+  if (currentDoc.meta?.betreuung && currentDoc.meta?.von && currentDoc.meta?.bis) {
+    calculateInvoicePricing(currentDoc);
+  }
+
+  dirty = true;
+}
 }
 
 function saveCurrent(alertOk){
@@ -3232,16 +3277,34 @@ function openSignatureOverlay(onDone){
 }
 
 document.addEventListener("click",(e)=>{
+
+  // Unterschrift im Aufenthalt erfassen (ohne Form-Reset)
   if(e.target && e.target.id==="btnSignatureOpen"){
     e.preventDefault();
-    openSignatureOverlay(data=>{ if(currentDoc){ currentDoc.signature = {
-  dataUrl: data,
-  signedAt: new Date().toISOString(),
-  dogId: currentDoc.dogId || null
-};
-dirty = true;
-renderForm(currentDoc);} });
+    syncCurrentDocFromForm(); // <- wichtige Zeile: typed values in currentDoc übernehmen
+    openSignatureOverlay(data=>{
+      if(!currentDoc) return;
+      currentDoc.signature = {
+        dataUrl: data,
+        signedAt: new Date().toISOString(),
+        dogId: currentDoc.dogId || null
+      };
+      dirty = true;
+      saveState(); // persist immediately
+      renderForm(currentDoc); // now safe (uses synced currentDoc)
+    });
+    return;
   }
+
+  // Betreuungsvertrag aus aktuellem Aufenthalt öffnen
+  if(e.target && e.target.id==="btnContractFromStay"){
+    e.preventDefault();
+    if(!currentDoc){ alert("Kein Aufenthalt geöffnet."); return; }
+    syncCurrentDocFromForm();
+    openContractFromStay(currentDoc);
+    return;
+  }
+
 });
 
 $("#btnPrint").addEventListener("click",()=>printDoc());
@@ -4030,6 +4093,50 @@ function renderContractPanel(){
 
 // --- Signature Pad (inline) ---
 let _contractSig = {canvas:null, ctx:null, drawing:false, hasInk:false, last:null};
+
+// Öffnet den Betreuungsvertrag direkt aus einem Aufenthalt heraus.
+// Verknüpft automatisch Kunde + Hund anhand der Aufenthaltsauswahl.
+function openContractFromStay(doc){
+  if(!doc){ alert("Kein Aufenthalt."); return; }
+  const petId = doc.dogId || "";
+  if(!petId){
+    alert("Bitte zuerst einen Hund auswählen und speichern (oder zumindest im Formular auswählen).");
+    return;
+  }
+  const pet = getPet(petId);
+  const customerId = (pet && pet.customerId) ? pet.customerId : (doc.customerId || "");
+  if(!customerId){
+    alert("Zu diesem Hund ist kein Kunde verknüpft. Bitte im Bereich Hunde/Kunden den Hund einem Kunden zuordnen.");
+    return;
+  }
+
+  // Merken am Dokument (hilft für spätere Auswertungen)
+  doc.meta = doc.meta || {};
+  doc.meta.contractCustomerId = customerId;
+  doc.meta.contractPetId = petId;
+  dirty = true;
+  saveState();
+
+  // Öffnen & vorauswählen
+  selectTab("contract");
+  renderContractPanel();
+
+  const cs = document.getElementById("contractCustomerSelect");
+  const ps = document.getElementById("contractPetSelect");
+  if(cs){
+    cs.value = customerId;
+    // trigger onchange to fill pets list
+    if(typeof cs.onchange === "function") cs.onchange();
+  }
+  if(ps){
+    ps.value = petId;
+  }
+  updateSignedInfo();
+
+  // UI polish: acceptance unchecked (owner should tick)
+  const chk = document.getElementById("contractAcceptChk");
+  if(chk) chk.checked = false;
+}
 
 function initContractSignaturePad(){
   const canvas = document.getElementById("contractSig");
