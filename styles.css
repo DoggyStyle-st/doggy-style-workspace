@@ -216,7 +216,23 @@ body.page-login .topbar .brand__sub{ opacity:0.8; }
 /* --- Contract layout hardening (iOS) --- */
 .contract-wrap > *{min-width:0;}
 .contract-side, .contract-card{min-width:0; max-width:100%;}
-.checkline{width:100%; max-width:100%;}
+.checkline{
+  display:grid;
+  grid-template-columns: 28px 1fr;
+  gap:12px;
+  align-items:start;
+  width:100%;
+  max-width:100%;
+  box-sizing:border-box;
+}
+.checkline input{ margin-top:2px; }
+.checkline span{
+  display:block;
+  white-space:normal;
+  word-break:break-word;
+  overflow-wrap:anywhere;
+  writing-mode: horizontal-tb !important;
+}
 .checkline span{display:block;}
 
 

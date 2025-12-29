@@ -140,6 +140,9 @@ async function cloudInit(){
       : window.firebase.initializeApp(window.firebaseConfig);
     CLOUD.auth = window.firebase.auth();
     CLOUD.db = window.firebase.firestore();
+    // Firestore Offline-Persistenz (A: Testmodus) – sorgt dafür, dass Daten auch nach Reload / ohne Netz bleiben
+    try{ await CLOUD.db.enablePersistence({synchronizeTabs:true}); }catch(e){ /* ignore (z.B. multiple tabs / Safari restrictions) */ }
+
     // iOS/PWA: Persistenz IMMER auf LOCAL setzen (sonst springt man gerne wieder ins Login)
     try {
       if (CLOUD.auth && CLOUD.auth.setPersistence) {
@@ -155,8 +158,9 @@ async function cloudInit(){
 }
 
 function cloudStateRef(){
-  // Ein Dokument pro "Org" (Hof/Workspace). Später kann man das auf mehrere Workspaces erweitern.
-  return CLOUD.db.collection("orgs").doc(CLOUD.orgId).collection("meta").doc("workspace_state");
+  // Ein Dokument pro eingeloggtem Nutzer. (Testmodus: jeder darf seinen Workspace lesen/schreiben)
+  if(!CLOUD.user) return null;
+  return CLOUD.db.collection("users").doc(CLOUD.user.uid).collection("meta").doc("workspace_state");
 }
 
 function cloudUsersCol(){
@@ -217,7 +221,9 @@ async function loadOrCreateUserProfile(user){
 
 async function cloudLoadState(){
   if(!CLOUD.enabled) return null;
-  const snap = await cloudStateRef().get();
+  const ref = cloudStateRef();
+  if(!ref) return null;
+  const snap = await ref.get();
   if(!snap.exists) return null;
   const data = snap.data();
   if(!data || !data.payload) return null;
@@ -229,7 +235,6 @@ async function cloudLoadState(){
 
 function cloudSchedulePush(){
   if(!CLOUD.enabled) return;
-  if(!isStaff()) return; // Kunden dürfen den Workspace-State nicht schreiben
   clearTimeout(CLOUD._pushTimer);
   SYNC.cloudPending = true;
   updateSyncUI();
@@ -239,7 +244,6 @@ function cloudSchedulePush(){
 async function cloudPushNow(){
   if(!CLOUD.enabled) return;
   if(!CLOUD.user) return;
-  if(!isStaff()) return; // Kunden dürfen den Workspace-State nicht schreiben
   SYNC.cloudPending = true;
   updateSyncUI();
   const stamp = Date.now();
@@ -247,7 +251,9 @@ async function cloudPushNow(){
   try{ state._cloudUpdatedAt = stamp; }catch(_){/* ignore */}
   // last write wins (v1). Später: echtes Merge pro Objekt.
   try{
-    await cloudStateRef().set({
+    const ref = cloudStateRef();
+  if(!ref) return;
+  await ref.set({
       payload: state,
       updatedAt: stamp,
       updatedBy: CLOUD.user.email || CLOUD.user.uid
@@ -1019,7 +1025,7 @@ function calculateInvoicePricing(doc){
   return doc.pricing;
 }
 // ===== ENDE PREISLOGIK =====
-const state=loadState();const COMPANY = {
+let state=loadState();const COMPANY = {
   name: "Doggy Style Hundepension",
   owner: "Raphael Boch",
   street: "Im Moos 4",
@@ -3011,6 +3017,10 @@ input.onchange = () => {
         const cbEl = document.querySelector(`#formRoot [data-key="holiday"]`);
         if(cbEl) cbEl.checked = currentDoc.fields.holiday;
       }
+      } else {
+        // Erstes Setup: lokaler Stand -> Cloud
+        try{ await cloudPushNow(); }catch(e){}
+      }
     }catch(e){}
   }
 
@@ -3529,7 +3539,8 @@ async function startApp(){
       // In dieser Version gibt es kein Login-Overlay mehr. Wenn nicht eingeloggt: auf Login-Seite umleiten.
       try{
         const p = (location && location.pathname) ? location.pathname.toLowerCase() : '';
-        if(!p.endsWith('login.html')) location.href = 'login.html';
+        // local/offline Nutzung erlauben: nicht hart auf login umleiten
+        // if(!p.endsWith('login.html')) location.href = 'login.html';
       }catch(e){}
       return;
     }
@@ -3593,7 +3604,7 @@ async function startApp(){
     }
 
     // Echtzeit-Listener (last-write-wins)
-    cloudStateRef().onSnapshot((snap)=>{
+    (cloudStateRef()||{onSnapshot:()=>{}}).onSnapshot((snap)=>{
       if(!snap.exists) return;
       const data = snap.data();
       const stamp = Number(data?.updatedAt||0);
