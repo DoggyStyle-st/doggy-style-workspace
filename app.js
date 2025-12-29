@@ -2994,36 +2994,6 @@ input.onchange = () => {
   if(f && (f.key==="von" || f.key==="bis")){
     try { updateAutoHolidayFields(); } catch(e){}
   }
-
-  // Manuelle Feiertags-Override (falls der Nutzer das Feld bedienen will)
-  if(f && (f.key==="holiday" || f.key==="holiday_days")){
-    try{
-      currentDoc.fields = currentDoc.fields || {};
-      currentDoc.fields.holiday_override = true;
-      if(f.key==="holiday"){
-        currentDoc.fields.holiday = !!input.checked;
-        if(!currentDoc.fields.holiday) currentDoc.fields.holiday_days = 0;
-        // wenn angehakt und noch keine Tage gesetzt: 1
-        if(currentDoc.fields.holiday && !currentDoc.fields.holiday_days){
-          currentDoc.fields.holiday_days = 1;
-        }
-        // sync number field if present
-        const numEl = document.querySelector(`#formRoot [data-key="holiday_days"]`);
-        if(numEl) numEl.value = currentDoc.fields.holiday_days ? String(currentDoc.fields.holiday_days) : "";
-      } else {
-        const v = parseInt(input.value,10);
-        currentDoc.fields.holiday_days = Number.isFinite(v) ? v : 0;
-        currentDoc.fields.holiday = currentDoc.fields.holiday_days > 0;
-        const cbEl = document.querySelector(`#formRoot [data-key="holiday"]`);
-        if(cbEl) cbEl.checked = currentDoc.fields.holiday;
-      }
-      } else {
-        // Erstes Setup: lokaler Stand -> Cloud
-        try{ await cloudPushNow(); }catch(e){}
-      }
-    }catch(e){}
-  }
-
 };
 if (currentDoc.saved) {
   input.disabled = true;
@@ -3037,13 +3007,6 @@ if (currentDoc.saved) {
 wrap.appendChild(input);
   return wrap;
 }
-
-$("#docName").addEventListener("input", () => {
-  if (currentDoc.saved) {
-    forkDocument();
-  }
-  dirty = true;
-});
 
 $("#dogSelect").addEventListener("change", () => {
   if (currentDoc.saved) {
@@ -4899,4 +4862,3 @@ function wfTodayPrint(){
   `;
   wfOpenPdf(wfPdfTemplate("Heute drucken", body));
 }
-
