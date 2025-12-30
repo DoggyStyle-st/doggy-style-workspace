@@ -111,18 +111,10 @@
       "title": "Aufschläge",
       "fields": [
         {
-          "key": "holiday",
-          "label": "Feiertage im Zeitraum (automatisch, +10% nur auf Feiertage)",
-          "type": "checkbox",
-          "required": false,
-          "readonly": true
-        },
-        {
           "key": "holiday_days",
-          "label": "Feiertage im Zeitraum (Anzahl)",
+          "label": "🎉 Feiertage im Zeitraum (Anzahl – automatisch)",
           "type": "number",
-          "required": false,
-          "readonly": true
+          "required": false
         },
         {
           "key": "special_times",
