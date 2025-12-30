@@ -390,3 +390,8 @@ body.page-login .topbar .brand__sub{ opacity:0.8; }
   overflow-wrap: anywhere !important;
 }
 
+
+
+/* --- Content additions (Schnellstart) --- */
+.bullets{margin:10px 0 0 0; padding-left:18px;}
+.bullets li{margin:8px 0; line-height:1.35;}
