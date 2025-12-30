@@ -158,8 +158,8 @@ async function cloudInit(){
 }
 
 function cloudStateRef(){
-  // Weg 2 (sauber): EIN gemeinsamer Workspace-State pro Org.
-  // Keine user/{uid}/meta Dokumente mehr nötig.
+  // EIN zentraler Workspace-State pro Orga: orgs/{orgId}/meta/workspace_state
+  if(!CLOUD.enabled) return null;
   return CLOUD.db.collection("orgs").doc(CLOUD.orgId).collection("meta").doc("workspace_state");
 }
 
@@ -223,27 +223,8 @@ async function cloudLoadState(){
   if(!CLOUD.enabled) return null;
   const ref = cloudStateRef();
   if(!ref) return null;
-
   const snap = await ref.get();
-
-  // Weg 2 (sauber): Wenn noch kein Workspace-State existiert, initialisieren wir ihn automatisch
-  // mit dem aktuellen lokalen Stand. Dadurch ist kein manuelles Anlegen von Dokumenten nötig.
-  if(!snap.exists){
-    const stamp = Date.now();
-    try{ state._cloudUpdatedAt = stamp; }catch(_){/* ignore */}
-    await ref.set({
-      payload: state,
-      updatedAt: stamp,
-      updatedBy: (CLOUD.user?.email || CLOUD.user?.uid || "init")
-    }, {merge: true});
-    CLOUD._lastRemoteStamp = stamp;
-    SYNC.cloudLastSeenAt = stamp;
-    SYNC.cloudLastOkAt = stamp;
-    SYNC.cloudLastError = "";
-    updateSyncUI();
-    return state;
-  }
-
+  if(!snap.exists) return null;
   const data = snap.data();
   if(!data || !data.payload) return null;
   CLOUD._lastRemoteStamp = Number(data.updatedAt || 0);
@@ -262,7 +243,7 @@ function cloudSchedulePush(){
 
 async function cloudPushNow(){
   if(!CLOUD.enabled) return;
-  if(!CLOUD.user) return;
+  if(!CLOUD.user) throw new Error("Nicht angemeldet");
   SYNC.cloudPending = true;
   updateSyncUI();
   const stamp = Date.now();
@@ -3636,6 +3617,27 @@ document.addEventListener("visibilitychange", () => {
       __wasHidden = nowHidden;
     });
 }
+
+
+// Manuelles Speichern (Einstellungen)
+(function bindManualSave(){
+  const btn = document.getElementById("manualSaveBtn");
+  const info = document.getElementById("manualSaveStatus");
+  if(!btn) return;
+  btn.addEventListener("click", async ()=>{
+    try{
+      if(info) info.textContent = "Speichere…";
+      // erzwingt sofortigen Cloud-Push (ohne 700ms Debounce)
+      await cloudPushNow();
+      if(info) info.textContent = "✅ In Cloud gespeichert";
+      setTimeout(()=>{ if(info) info.textContent=""; }, 2500);
+    }catch(e){
+      if(info) info.textContent = "❌ Cloud-Speichern fehlgeschlagen";
+      console.error(e);
+      setTimeout(()=>{ if(info) info.textContent=""; }, 3500);
+    }
+  });
+})();
 
 // Start
 startApp().catch(console.error);

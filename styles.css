@@ -368,3 +368,25 @@ body.page-login .topbar .brand__sub{ opacity:0.8; }
   box-shadow:none !important;
   padding:2px 6px !important;
 }
+
+
+
+/* ==== iPad/Safari Fix: Betreuungsvertrag Einverständnis (niemals vertikal/außerhalb) ==== */
+#contract .contract-card{width:100%; max-width:100%; overflow:hidden;}
+#contract .checkline{
+  display:grid !important;
+  grid-template-columns: 28px 1fr;
+  gap:12px;
+  align-items:start;
+  width:100% !important;
+  max-width:100% !important;
+  box-sizing:border-box;
+}
+#contract .checkline span{
+  display:block !important;
+  writing-mode: horizontal-tb !important;
+  white-space: normal !important;
+  word-break: break-word !important;
+  overflow-wrap: anywhere !important;
+}
+
