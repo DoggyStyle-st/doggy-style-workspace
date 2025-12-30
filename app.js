@@ -158,9 +158,9 @@ async function cloudInit(){
 }
 
 function cloudStateRef(){
-  // Ein Dokument pro eingeloggtem Nutzer. (Testmodus: jeder darf seinen Workspace lesen/schreiben)
-  if(!CLOUD.user) return null;
-  return CLOUD.db.collection("users").doc(CLOUD.user.uid).collection("meta").doc("workspace_state");
+  // Weg 2 (sauber): EIN gemeinsamer Workspace-State pro Org.
+  // Keine user/{uid}/meta Dokumente mehr nötig.
+  return CLOUD.db.collection("orgs").doc(CLOUD.orgId).collection("meta").doc("workspace_state");
 }
 
 function cloudUsersCol(){
@@ -223,8 +223,27 @@ async function cloudLoadState(){
   if(!CLOUD.enabled) return null;
   const ref = cloudStateRef();
   if(!ref) return null;
+
   const snap = await ref.get();
-  if(!snap.exists) return null;
+
+  // Weg 2 (sauber): Wenn noch kein Workspace-State existiert, initialisieren wir ihn automatisch
+  // mit dem aktuellen lokalen Stand. Dadurch ist kein manuelles Anlegen von Dokumenten nötig.
+  if(!snap.exists){
+    const stamp = Date.now();
+    try{ state._cloudUpdatedAt = stamp; }catch(_){/* ignore */}
+    await ref.set({
+      payload: state,
+      updatedAt: stamp,
+      updatedBy: (CLOUD.user?.email || CLOUD.user?.uid || "init")
+    }, {merge: true});
+    CLOUD._lastRemoteStamp = stamp;
+    SYNC.cloudLastSeenAt = stamp;
+    SYNC.cloudLastOkAt = stamp;
+    SYNC.cloudLastError = "";
+    updateSyncUI();
+    return state;
+  }
+
   const data = snap.data();
   if(!data || !data.payload) return null;
   CLOUD._lastRemoteStamp = Number(data.updatedAt || 0);
