@@ -2,6 +2,15 @@ window.addEventListener("error",(e)=>{console.error("APP_ERROR",e.error||e.messa
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
 const LS_KEY="ds_workspace_v1";
+
+// --- Datum (lokal) ohne UTC-Verschiebung ---
+// Wichtig für Kalender/"Heute" auf iPad (sonst springt es abends auf den nächsten Tag).
+function toISODateLocal(date = new Date()){
+  const d = new Date(date);
+  // Offset so korrigieren, dass toISOString() den lokalen Tag liefert
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0,10);
+}
 const CAPACITY = {
   Tagesbetreuung: 13,
   Urlaubsbetreuung: 10
@@ -42,7 +51,7 @@ function getMinCapacityForRange(type, fromISO, toISO){
   let minCap = Infinity;
   const cur = new Date(a);
   while(cur <= b){
-    const d = cur.toISOString().slice(0,10);
+    const d = toISODateLocal(cur);
     minCap = Math.min(minCap, getCapacity(type, d));
     cur.setDate(cur.getDate()+1);
     if(minCap === 0) break;
@@ -1304,7 +1313,7 @@ function monthLabel(year, month){
 }
 
 function dateISO(d){
-  return d.toISOString().slice(0,10);
+  return toISODateLocal(d);
 }
 
 function startOfCalendarGrid(year, month){
@@ -1330,7 +1339,7 @@ function renderCalendarPanel(){
   grid.innerHTML = dows.map(x=>`<div class="cal-dow">${x}</div>`).join('');
 
   const start = startOfCalendarGrid(CAL.year, CAL.month);
-  const todayIso = new Date().toISOString().slice(0,10);
+  const todayIso = toISODateLocal(new Date());
 
   for(let i=0;i<42;i++){
     const d = new Date(start);
@@ -1467,7 +1476,7 @@ function wireCalendarControls(){
     const d = new Date();
     CAL.year = d.getFullYear();
     CAL.month = d.getMonth();
-    CAL.selectedDay = d.toISOString().slice(0,10);
+    CAL.selectedDay = toISODateLocal(d);
     renderCalendarPanel();
     renderCalendarDayDetail(CAL.selectedDay);
   };
@@ -2100,7 +2109,7 @@ function getNextDays(n){
   for(let i = 0; i < n; i++){
     const x = new Date(d);
     x.setDate(d.getDate() + i);
-    days.push(x.toISOString().slice(0,10));
+    days.push(toISODateLocal(x));
   }
 
   return days;
@@ -2115,7 +2124,7 @@ function countForDay(type, day){
   }).length;
 }
 function countToday(type){
-  const today = new Date().toISOString().slice(0,10);
+  const today = toISODateLocal(new Date());
   return countForDay(type, today);
 }
 function renderTodayStatus(){
@@ -2317,7 +2326,7 @@ function openFreeInvoiceForm(){
   const customers = (state.customers||[]).slice().sort((a,b)=>(a.name||"").localeCompare(b.name||"","de"));
   const hasCustomers = customers.length>0;
 
-  const today = new Date().toISOString().slice(0,10);
+  const today = toISODateLocal(new Date());
 
   view.innerHTML = `
     <div class="card">
@@ -3435,7 +3444,7 @@ td.k{width:38%;background:#fafafa;font-weight:700}
 function doBackupExport(){
   const blob=new Blob([JSON.stringify(state,null,2)],{type:"application/json"});
   const a=document.createElement("a");
-  const stamp=new Date().toISOString().slice(0,10);
+  const stamp = toISODateLocal(new Date());
   a.href=URL.createObjectURL(blob);
   a.download=`DoggyStyleWorkspace_Backup_${stamp}.json`;
   a.click();
@@ -3727,7 +3736,7 @@ function renderInvoiceEditorB2(doc){
 
   // Basisfelder
   doc.items = Array.isArray(doc.items) ? doc.items : [];
-  doc.date = doc.date || new Date().toISOString().slice(0,10);
+  doc.date = doc.date || toISODateLocal(new Date());
 
   function recalc(){
     let net = 0;

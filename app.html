@@ -9,15 +9,25 @@
 <meta content="#101014" name="theme-color"/>
 <link href="assets/logo.png" rel="apple-touch-icon"/>
 <link href="styles.css?v=20251228c" rel="stylesheet"/>
+<style>
+  /* --- Hotfix: Logo mittig & größer (iPad/desktop) --- */
+  .topbar{position:sticky; top:0; z-index:50;}
+  .brand.brand--center{width:100%; justify-content:center; text-align:center; gap:14px;}
+  .brand.brand--center .brand__text{align-items:center;}
+  .brand.brand--center .brand__logo{width:72px; height:72px;}
+  @media (min-width: 900px){
+    .brand.brand--center .brand__logo{width:92px; height:92px;}
+  }
+</style>
 </head>
 <body class="bg-watermark page-app">
 <header class="topbar">
-<div class="brand">
-<img alt="Doggy Style" class="brand__logo brand__logo--prominent brand__logo--animated" src="assets/logo.png"/>
-<div class="brand__text">
-<div class="brand__title">Doggy Style Workspace</div>
-<div class="brand__sub">Formularmappe · Offline · iPad‑freundlich</div>
-</div>
+<div class="brand brand--center">
+  <img alt="Doggy Style" class="brand__logo brand__logo--prominent brand__logo--animated" src="assets/logo.png"/>
+  <div class="brand__text">
+    <div class="brand__title">Doggy Style Workspace</div>
+    <div class="brand__sub">Formularmappe · Offline · iPad‑freundlich</div>
+  </div>
 </div>
 
 <!-- Sync/Account Status (klein, oben rechts) -->
@@ -34,7 +44,6 @@
 <button class="tab" data-tab="contract">Betreuungsvertrag</button>
 <button class="tab" data-tab="workforms">Arbeitsblätter</button>
 <button class="tab" data-tab="settings">Einstellungen</button><button class="tab" data-tab="invoices">Rechnungen</button><button class="tab" data-tab="analytics" id="tabAnalytics">Auswertungen</button>
-<button class="tab" data-tab="analytics" id="tabAnalytics">Auswertungen</button>
 </nav>
 </header>
 <main class="shell">
