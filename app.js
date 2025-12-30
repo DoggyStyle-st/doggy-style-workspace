@@ -7,6 +7,50 @@ const CAPACITY = {
   Urlaubsbetreuung: 10
 };
 
+// === Dynamische Kapazitäten (Standard + Ausnahmen nach Zeitraum) ===
+// Ausnahme-Objekt: { from:"YYYY-MM-DD", to:"YYYY-MM-DD", Tagesbetreuung: 8, Urlaubsbetreuung: 6, note:"Event" }
+function getCapacity(type, dateISO){
+  try{
+    const caps = state && state.capacities;
+    if(!caps || !caps.default) return (CAPACITY[type] || 0);
+    const d = String(dateISO||"").slice(0,10);
+    const exs = Array.isArray(caps.exceptions) ? caps.exceptions : [];
+    for(const ex of exs){
+      if(!ex || !ex.from || !ex.to) continue;
+      const from = String(ex.from).slice(0,10);
+      const to   = String(ex.to).slice(0,10);
+      if(d >= from && d <= to){
+        const v = Number(ex[type]);
+        if(Number.isFinite(v) && v >= 0) return v;
+      }
+    }
+    const base = Number(caps.default[type]);
+    return (Number.isFinite(base) && base >= 0) ? base : (CAPACITY[type] || 0);
+  }catch(_){
+    return (CAPACITY[type] || 0);
+  }
+}
+
+// Für Plausibilitätswarnungen über einen Zeitraum: kleinste Kapazität im Zeitraum (sicherer als "ein Tag")
+function getMinCapacityForRange(type, fromISO, toISO){
+  const from = String(fromISO||"").slice(0,10);
+  const to = String(toISO||"").slice(0,10);
+  if(!from || !to) return getCapacity(type, from);
+  const a = new Date(from);
+  const b = new Date(to);
+  if(isNaN(a) || isNaN(b)) return getCapacity(type, from);
+  let minCap = Infinity;
+  const cur = new Date(a);
+  while(cur <= b){
+    const d = cur.toISOString().slice(0,10);
+    minCap = Math.min(minCap, getCapacity(type, d));
+    cur.setDate(cur.getDate()+1);
+    if(minCap === 0) break;
+  }
+  return (minCap === Infinity) ? getCapacity(type, from) : minCap;
+}
+
+
 /* ===== Weg 2B: Cloud Sync + Login (Firebase) =====
    - Wenn window.firebaseConfig gesetzt ist: Login anzeigen + State aus Cloud laden/syncen
    - Wenn nicht: App läuft wie bisher rein lokal/offline
@@ -1068,7 +1112,10 @@ function showPanel(id){
     renderWorkformsPanel();
   }
 
-  if(id === "calendar"){
+    if(id === "analytics"){
+    renderAnalyticsPanel();
+  }
+if(id === "calendar"){
     renderCalendarPanel();
   }
 }
@@ -1123,8 +1170,8 @@ function renderDashboard(){
   const todayDayUsed = countOccupancy("Tagesbetreuung", today, today);
   const todayBoardUsed = countOccupancy("Urlaubsbetreuung", today, today);
 
-  const dayMax = CAPACITY.Tagesbetreuung;
-  const boardMax = CAPACITY.Urlaubsbetreuung;
+  const dayMax = getCapacity("Tagesbetreuung", today);
+  const boardMax = getCapacity("Urlaubsbetreuung", today);
 
   const dayRatio = dayMax ? (todayDayUsed/dayMax) : 0;
   const boardRatio = boardMax ? (todayBoardUsed/boardMax) : 0;
@@ -1294,29 +1341,29 @@ function renderCalendarPanel(){
 
     const board = countForDay('Urlaubsbetreuung', iso);
     const dayc = countForDay('Tagesbetreuung', iso);
-    const over = (board > CAPACITY.Urlaubsbetreuung) || (dayc > CAPACITY.Tagesbetreuung);
+    const over = (board > getCapacity("Urlaubsbetreuung", iso)) || (dayc > getCapacity("Tagesbetreuung", iso));
 
     const cell = document.createElement('div');
     cell.className = 'cal-cell' + (inMonth ? '' : ' is-other') + (iso===todayIso ? ' is-today':'') + (iso===CAL.selectedDay ? ' is-selected':'') + (over ? ' is-over':'');
     cell.dataset.day = iso;
 
     const f = getCalFilters();
-    const freeU = CAPACITY.Urlaubsbetreuung - board;
-    const freeT = CAPACITY.Tagesbetreuung - dayc;
-    const uPct = clamp((board / CAPACITY.Urlaubsbetreuung) * 100, 0, 100);
-    const tPct = clamp((dayc / CAPACITY.Tagesbetreuung) * 100, 0, 100);
+    const freeU = getCapacity("Urlaubsbetreuung", iso) - board;
+    const freeT = getCapacity("Tagesbetreuung", iso) - dayc;
+    const uPct = clamp((board / Math.max(1,getCapacity("Urlaubsbetreuung", iso))) * 100, 0, 100);
+    const tPct = clamp((dayc / Math.max(1,getCapacity("Tagesbetreuung", iso))) * 100, 0, 100);
 
     const badges = [];
     const bars = [];
     const freeParts = [];
     if(f.urlaub){
-      badges.push(`<div class="cal-badge" title="Urlaubsbetreuung"><span>🏡 <strong>${board}</strong></span><span class="muted">/ ${CAPACITY.Urlaubsbetreuung}</span></div>`);
-      bars.push(`<div class="cal-bar" title="Urlaub: ${board}/${CAPACITY.Urlaubsbetreuung}"><div class="fill" style="width:${uPct}%;"></div></div>`);
+      badges.push(`<div class="cal-badge" title="Urlaubsbetreuung"><span>🏡 <strong>${board}</strong></span><span class="muted">/ ${getCapacity("Urlaubsbetreuung", iso)}</span></div>`);
+      bars.push(`<div class="cal-bar" title="Urlaub: ${board}/${getCapacity("Urlaubsbetreuung", iso)}"><div class="fill" style="width:${uPct}%;"></div></div>`);
       freeParts.push(`🏡 ${Math.max(0, freeU)}`);
     }
     if(f.tages){
-      badges.push(`<div class="cal-badge" title="Tagesbetreuung"><span>🐕 <strong>${dayc}</strong></span><span class="muted">/ ${CAPACITY.Tagesbetreuung}</span></div>`);
-      bars.push(`<div class="cal-bar" title="Tages: ${dayc}/${CAPACITY.Tagesbetreuung}"><div class="fill" style="width:${tPct}%;"></div></div>`);
+      badges.push(`<div class="cal-badge" title="Tagesbetreuung"><span>🐕 <strong>${dayc}</strong></span><span class="muted">/ ${getCapacity("Tagesbetreuung", iso)}</span></div>`);
+      bars.push(`<div class="cal-bar" title="Tages: ${dayc}/${getCapacity("Tagesbetreuung", iso)}"><div class="fill" style="width:${tPct}%;"></div></div>`);
       freeParts.push(`🐕 ${Math.max(0, freeT)}`);
     }
 
@@ -1353,12 +1400,12 @@ function renderCalendarDayDetail(iso){
 
   title.textContent = label;
   const f = getCalFilters();
-  const freeU = CAPACITY.Urlaubsbetreuung - board;
-  const freeT = CAPACITY.Tagesbetreuung - dayc;
+  const freeU = getCapacity("Urlaubsbetreuung", iso) - board;
+  const freeT = getCapacity("Tagesbetreuung", iso) - dayc;
   const parts = [];
   const freeParts = [];
-  if(f.urlaub){ parts.push(`🏡 ${board}/${CAPACITY.Urlaubsbetreuung}`); freeParts.push(`🏡 ${Math.max(0, freeU)} frei`); }
-  if(f.tages){ parts.push(`🐕 ${dayc}/${CAPACITY.Tagesbetreuung}`); freeParts.push(`🐕 ${Math.max(0, freeT)} frei`); }
+  if(f.urlaub){ parts.push(`🏡 ${board}/${getCapacity("Urlaubsbetreuung", iso)}`); freeParts.push(`🏡 ${Math.max(0, freeU)} frei`); }
+  if(f.tages){ parts.push(`🐕 ${dayc}/${getCapacity("Tagesbetreuung", iso)}`); freeParts.push(`🐕 ${Math.max(0, freeT)} frei`); }
   meta.textContent = `${parts.join(' · ')}  —  ${freeParts.join(' · ')}`;
 
   const stays = (state.docs||[]).filter(d=>{
@@ -1512,6 +1559,20 @@ function ensureStateShape(){
   // Rechnungsnummer beibehalten
   if(typeof state.nextInvoiceNumber !== "number"){
     state.nextInvoiceNumber = 1;
+  }
+  // Kapazitäten (dynamisch nach Zeitraum, rückwirkend) – Standard + Ausnahmen
+  if(!state.capacities || typeof state.capacities !== "object"){
+    state.capacities = {
+      default: { Tagesbetreuung: CAPACITY.Tagesbetreuung, Urlaubsbetreuung: CAPACITY.Urlaubsbetreuung },
+      exceptions: []
+    };
+  } else {
+    if(!state.capacities.default || typeof state.capacities.default !== "object"){
+      state.capacities.default = { Tagesbetreuung: CAPACITY.Tagesbetreuung, Urlaubsbetreuung: CAPACITY.Urlaubsbetreuung };
+    }
+    if(!Array.isArray(state.capacities.exceptions)) state.capacities.exceptions = [];
+    if(typeof state.capacities.default.Tagesbetreuung !== "number") state.capacities.default.Tagesbetreuung = CAPACITY.Tagesbetreuung;
+    if(typeof state.capacities.default.Urlaubsbetreuung !== "number") state.capacities.default.Urlaubsbetreuung = CAPACITY.Urlaubsbetreuung;
   }
 }
 
@@ -2068,11 +2129,11 @@ function renderTodayStatus(){
     <div class="status-cards">
       <div class="status-card">
         <strong>Urlaubsbetreuung</strong><br>
-        ${u} / ${CAPACITY.Urlaubsbetreuung} Hunde
+        ${u} / ${getCapacity("Urlaubsbetreuung", today)} Hunde
       </div>
       <div class="status-card">
         <strong>Tagesbetreuung</strong><br>
-        ${t} / ${CAPACITY.Tagesbetreuung} Hunde
+        ${t} / ${getCapacity("Tagesbetreuung", today)} Hunde
       </div>
     </div>
   `;
@@ -2099,8 +2160,8 @@ function renderOccupancy(){
           return `
             <tr>
               <td>${formatDateDE(day)}</td>
-              <td>${u} / ${CAPACITY.Urlaubsbetreuung}</td>
-              <td>${t} / ${CAPACITY.Tagesbetreuung}</td>
+              <td>${u} / ${getCapacity("Urlaubsbetreuung", day)}</td>
+              <td>${t} / ${getCapacity("Tagesbetreuung", day)}</td>
             </tr>
           `;
         }).join("")}
@@ -3118,7 +3179,7 @@ const from = currentDoc.meta.von;
 const to   = currentDoc.meta.bis;
 
 const used = countOccupancy(type, from, to, currentDoc.id);
-const limit = CAPACITY[type];
+const limit = getMinCapacityForRange(type, from, to);
 
 if (used >= limit) {
   alert(
