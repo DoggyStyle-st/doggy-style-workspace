@@ -66,6 +66,7 @@ function getMinCapacityForRange(type, fromISO, toISO){
 */
 const CLOUD = {
   enabled: false,
+  reason: '',
   app: null,
   auth: null,
   db: null,
@@ -145,35 +146,52 @@ function updateSyncUI(){
     }
   }
 
+  const netOnline = (typeof navigator !== 'undefined') ? !!navigator.onLine : false;
   const localLine = `Lokal gespeichert: ${fmtDT(SYNC.localSavedAt)}`;
 
-  let pillText = 'Offline';
+  // Internet-Status (nicht gleich Cloud!)
+  const netLine = `Internet: ${netOnline ? 'Online' : 'Offline'}`;
+
+  let pillText = netOnline ? 'Online' : 'Offline';
   let cloudLine = 'Cloud: aus';
-  if(CLOUD.enabled){
+
+  if(!cloudIsEnabled()){
+    // Cloud nicht möglich (SDK fehlt) – das ist der Hauptgrund für "immer Offline" in der Wahrnehmung
+    cloudLine = window.firebaseConfig ? 'Cloud: bereit (SDK nicht geladen)' : 'Cloud: aus';
+    if(window.firebaseConfig && CLOUD.reason){
+      cloudLine += ` · ${CLOUD.reason}`;
+    }
+  } else if(CLOUD.enabled){
     if(!CLOUD.user){
-      pillText = 'Cloud: Login nötig';
+      pillText = `${netOnline ? 'Online' : 'Offline'} · Cloud: Login nötig`;
       cloudLine = 'Cloud: nicht angemeldet';
     } else if(SYNC.cloudLastError){
-      pillText = 'Cloud: Fehler';
+      pillText = `${netOnline ? 'Online' : 'Offline'} · Cloud: Fehler`;
       cloudLine = `Cloud Fehler: ${SYNC.cloudLastError}`;
     } else if(SYNC.cloudPending){
-      pillText = 'Cloud: synchronisiert…';
+      pillText = `${netOnline ? 'Online' : 'Offline'} · Cloud: Sync…`;
       cloudLine = `Cloud Sync: läuft (letztes OK ${fmtDT(SYNC.cloudLastOkAt)})`;
     } else {
-      pillText = `Cloud: OK (${fmtDT(SYNC.cloudLastOkAt)})`;
-      cloudLine = `Cloud zuletzt OK: ${fmtDT(SYNC.cloudLastOkAt)} · Letzter Stand vom Server: ${fmtDT(SYNC.cloudLastSeenAt)}`;
+      pillText = `${netOnline ? 'Online' : 'Offline'} · Cloud: OK`;
+      cloudLine = `Cloud zuletzt OK: ${fmtDT(SYNC.cloudLastOkAt)} · Server: ${fmtDT(SYNC.cloudLastSeenAt)}`;
     }
   }
 
   if(pill) pill.textContent = `${pillText} · ${fmtDT(SYNC.localSavedAt)}`;
-  if(details) details.textContent = `${localLine}\n${cloudLine}`;
+  if(details) details.textContent = `${localLine}\n${netLine}\n${cloudLine}`;
 
   // Manual cloud save: only enable when Cloud is active + logged in
   if(manualBtn){
     const ok = !!(CLOUD.enabled && CLOUD.user);
-    manualBtn.disabled = !ok;
-    manualBtn.title = ok ? 'Jetzt sofort synchronisieren' : 'Cloud nicht aktiv oder nicht angemeldet';
-    manualBtn.style.opacity = ok ? '1' : '0.55';
+    // Wenn Cloud grundsätzlich nicht verfügbar: Button ausblenden (wirkt sonst "kaputt")
+    if(!cloudIsEnabled()){
+      manualBtn.style.display = 'none';
+    } else {
+      manualBtn.style.display = '';
+      manualBtn.disabled = !ok;
+      manualBtn.title = ok ? 'Jetzt sofort synchronisieren' : 'Cloud nicht aktiv oder nicht angemeldet';
+      manualBtn.style.opacity = ok ? '1' : '0.55';
+    }
   }
 }
 
@@ -351,7 +369,9 @@ function openHtmlInModal(title, html, hint){
 }
 
 function cloudIsEnabled(){
-  return !!(window.firebaseConfig && window.firebase && window.firebase.initializeApp);
+  // Cloud nur möglich, wenn Config vorhanden UND Firebase SDK geladen ist.
+  // (In PWA offline wird das SDK über ServiceWorker gecached.)
+  return !!(window.firebaseConfig && window.firebase && window.firebase.initializeApp && window.firebase.auth);
 }
 
 function showAuthGate(show){
@@ -366,9 +386,21 @@ function setAuthMsg(msg){
 }
 
 async function cloudInit(){
-  if(!cloudIsEnabled()) return false;
+  if(!cloudIsEnabled()){
+    // genauer Grund für UI
+    if(window.firebaseConfig && (!window.firebase || !window.firebase.initializeApp)){
+      CLOUD.reason = 'Firebase SDK nicht verfügbar (offline/blocked?)';
+    } else if(window.firebaseConfig && window.firebase && !window.firebase.auth){
+      CLOUD.reason = 'Firebase Auth SDK fehlt';
+    } else {
+      CLOUD.reason = '';
+    }
+    CLOUD.enabled = false;
+    return false;
+  }
   try{
     CLOUD.enabled = true;
+    CLOUD.reason = '';
     // initializeApp nur einmal (sonst Fehler bei Navigation/Reload)
     CLOUD.app = (window.firebase.apps && window.firebase.apps.length)
       ? window.firebase.apps[0]
