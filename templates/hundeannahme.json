@@ -68,6 +68,34 @@
       ]
     },
     {
+      "title": "Parasiten & Quarantäne",
+      "fields": [
+        {
+          "key": "parasiten_status",
+          "label": "Parasitenstatus bei Ankunft",
+          "type": "select",
+          "options": [
+            "unauffällig",
+            "Verdacht",
+            "Befall"
+          ],
+          "required": false
+        },
+        {
+          "key": "quarantine_required",
+          "label": "Quarantäne erforderlich",
+          "type": "checkbox",
+          "required": false
+        },
+        {
+          "key": "quarantine_reason",
+          "label": "Begründung / Hinweise (z.B. Flohbefall, Husten, Durchfall)",
+          "type": "textarea",
+          "required": false
+        }
+      ]
+    },
+    {
       "title": "Sonderfälle / Notizen",
       "fields": [
         {
