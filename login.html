@@ -20,36 +20,36 @@
     </div>
   </header>
 
-  <main class="shell">
+  <main class="shell shell--auth">
     <section class="panel is-active">
-      <div class="card" style="max-width:520px;margin:0 auto;">
-        <h1 style="margin:0 0 8px 0;">Anmelden</h1>
-        <p class="muted">Für geräteübergreifende Daten bitte anmelden.</p>
+      <div class="card auth-card">
+        <h1 class="auth-title">Anmelden</h1>
+        <p class="muted auth-sub">Für geräteübergreifende Daten bitte anmelden.</p>
 
-        <div class="row" style="flex-wrap:wrap; gap:12px; margin-top:14px">
-          <label class="field" style="min-width:260px; flex:1;">
+        <form id="authForm" class="auth-grid" autocomplete="on">
+          <label class="field">
             <span>Name (optional)</span>
-            <input id="regName" type="text" autocomplete="name" placeholder="z. B. Rex Mustermann"/>
+            <input id="regName" name="displayName" type="text" autocomplete="name" placeholder="z. B. Rex Mustermann"/>
           </label>
 
-          <label class="field" style="min-width:260px; flex:1;">
+          <label class="field">
             <span>E‑Mail</span>
-            <input id="loginEmail" type="email" autocomplete="username" inputmode="email" placeholder="name@domain.de"/>
+            <input id="loginEmail" name="email" type="email" autocomplete="username" inputmode="email" placeholder="name@domain.de"/>
           </label>
 
-          <label class="field" style="min-width:260px; flex:1;">
+          <label class="field">
             <span>Passwort</span>
-            <input id="loginPass" type="password" autocomplete="current-password" placeholder="••••••••"/>
+            <input id="loginPass" name="password" type="password" autocomplete="current-password" placeholder="••••••••"/>
           </label>
-        </div>
+        </form>
 
-        <div class="row" style="margin-top:14px; gap:10px; flex-wrap:wrap; align-items:center;">
+        <div class="auth-actions">
           <button id="btnLogin" class="primary">Anmelden</button>
-          <button id="btnRegister">Registrieren</button>
-          <button id="btnReset" type="button" style="margin-left:auto;" title="Passwort per E-Mail zurücksetzen">Passwort vergessen?</button>
+          <button id="btnRegister" type="button">Registrieren</button>
+          <button id="btnReset" type="button" class="link" title="Passwort per E-Mail zurücksetzen">Passwort vergessen?</button>
         </div>
 
-        <p id="authMsg" class="muted" style="margin-top:10px"></p>
+        <p id="authMsg" class="muted auth-msg"></p>
       </div>
     </section>
   </main>

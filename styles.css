@@ -455,3 +455,88 @@ body.page-login .topbar .brand__sub{ opacity:0.8; }
 .staff-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .staff-row .name{font-weight:700}
 .staff-row .meta{font-size:12px;color:rgba(255,255,255,.75)}
+
+
+/* ==============================
+   AUTH (Login/Register) polish
+   ============================== */
+.shell--auth{
+  min-height: calc(100vh - 140px);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding: 24px 16px 40px;
+}
+
+.auth-card{
+  width: min(720px, 96vw);
+  margin: 0 auto;
+  padding: 22px 22px 18px;
+}
+
+.auth-title{
+  margin: 0 0 8px 0;
+  font-size: clamp(28px, 3.3vw, 36px);
+  letter-spacing: .2px;
+}
+
+.auth-sub{
+  margin: 0 0 12px 0;
+  color: rgba(255,255,255,.78);
+}
+
+.auth-grid{
+  display:grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+@media (min-width: 760px){
+  .auth-grid{ grid-template-columns: 1fr 1fr; }
+  .auth-grid .span-2{ grid-column: 1 / -1; }
+}
+
+.auth-field label{
+  display:block;
+  font-weight: 700;
+  margin-bottom: 6px;
+  color: rgba(255,255,255,.9);
+}
+
+.auth-field input{
+  width:100%;
+}
+
+.auth-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  align-items:center;
+  justify-content: space-between;
+  margin-top: 14px;
+}
+
+.auth-actions .left{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+.auth-actions .right{ margin-left:auto; }
+
+.auth-actions .btn{
+  min-width: 120px;
+}
+
+.auth-msg{
+  margin: 12px 0 0;
+  font-weight: 700;
+  color: rgba(255,255,255,.86);
+}
+
+.auth-hint{
+  margin-top: 8px;
+  font-size: 12px;
+  color: rgba(255,255,255,.72);
+}
