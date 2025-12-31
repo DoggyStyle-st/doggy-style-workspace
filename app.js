@@ -1101,6 +1101,8 @@ let state=loadState();const COMPANY = {
 };;if(state.nextInvoiceNumber == null){
   state.nextInvoiceNumber = 1;
 }renderDashboard();renderRecent();
+try{ ensureStateShape(); }catch(_){ }
+try{ initProfiSettingsBindings(); renderStaffSettings(); renderPolicySettings(); renderComplianceInSettings(); }catch(_){ }
 function formatDateDE(dateStr){
   const d = new Date(dateStr);
   return d.toLocaleDateString("de-DE");
@@ -1113,6 +1115,10 @@ function showPanel(id){
 
   if(id === "invoices"){
     renderInvoiceList();
+  renderComplianceDashboard();
+  renderStaffSettings();
+  renderDocVersions();
+
   }
   if(id === "contract"){
     renderContractPanel();
@@ -1121,11 +1127,18 @@ function showPanel(id){
     renderWorkformsPanel();
   }
 
+  if(id === "hygiene"){
+    renderHygienePanel();
+  }
+
     if(id === "analytics"){
     renderAnalyticsPanel();
   }
 if(id === "calendar"){
     renderCalendarPanel();
+  }
+  if(id === "settings"){
+    try{ initProfiSettingsBindings(); renderStaffSettings(); renderPolicySettings(); renderComplianceInSettings(); }catch(_){ }
   }
 }
 
@@ -1153,6 +1166,64 @@ function openDogs(){ selectTab("dogs"); }
 function openCustomers(){ selectTab("dogs"); } // Kunden sind im Hunde/Kunden Bereich
 function openInvoices(){ selectTab("invoices"); }
 function openWorkforms(){ selectTab("workforms"); }
+function openHygiene(){ selectTab("hygiene"); }
+function openMedication(){ selectTab("medication"); }
+
+// Quicklink aus Aufenthalt -> Medikation (Hund vorauswählen)
+function openMedicationForDogId(dogId, opts={}){
+  try{
+    ensureStateShape();
+    const pet = getPetByDogId(dogId);
+    if(pet && pet.id){
+      state.medication = state.medication || {};
+      state.medication.ui = state.medication.ui || {};
+      state.medication.ui.selectedPetId = pet.id;
+      saveState();
+    }
+    openMedication();
+    setTimeout(()=>{
+      try{ renderMedicationPanel(); }catch(_){ }
+      if(opts.scrollToHealth){
+        const card = document.getElementById('healthNotesCard');
+        if(card) card.scrollIntoView({behavior:'smooth', block:'start'});
+        const ta = document.getElementById('hnText');
+        if(ta){ ta.focus(); }
+      }
+    }, 120);
+  }catch(e){ console.warn('openMedicationForDogId failed', e); }
+}
+
+function renderStayQuickLinks(doc){
+  const bar = document.getElementById('stayQuickLinks');
+  const btnMed = document.getElementById('btnStayOpenMedication');
+  const btnHn  = document.getElementById('btnStayAddHealthNote');
+  if(!bar || !btnMed || !btnHn) return;
+  if(!doc || doc.type === 'invoice'){
+    bar.style.display = 'none';
+    return;
+  }
+  // Nur sinnvoll, wenn ein Hund ausgewählt ist
+  const did = (doc.dogId || document.getElementById('dogSelect')?.value || "");
+  if(!did){ bar.style.display='none'; return; }
+  bar.style.display = 'flex';
+
+  if(!btnMed.dataset.bound){
+    btnMed.onclick = ()=>{
+      const dogId = document.getElementById('dogSelect')?.value || doc.dogId;
+      if(!dogId){ alert('Bitte zuerst einen Hund auswählen.'); return; }
+      openMedicationForDogId(dogId, {scrollToHealth:false});
+    };
+    btnMed.dataset.bound = '1';
+  }
+  if(!btnHn.dataset.bound){
+    btnHn.onclick = ()=>{
+      const dogId = document.getElementById('dogSelect')?.value || doc.dogId;
+      if(!dogId){ alert('Bitte zuerst einen Hund auswählen.'); return; }
+      openMedicationForDogId(dogId, {scrollToHealth:true});
+    };
+    btnHn.dataset.bound = '1';
+  }
+}
 
 // ==== Dashboard renderer (Start) ====
 function dashboardStatusText(ratio){
@@ -1253,17 +1324,1202 @@ function renderDashboard(){
   const endingToday = state.docs.filter(doc=>doc.saved && doc.meta?.bis===today).length;
   if(endingToday>0) warnings.unshift(`${endingToday} Aufenthalt(e) enden heute`);
 
+  // Medikamente: fällige Gaben heute
+  try{
+    const isoM = todayISO();
+    const inCareM = getPetIdsInCare(isoM);
+    const dueM = medDueOccurrences(isoM, (inCareM.length ? inCareM : null));
+    const openM = dueM.filter(x=>!x.done).length;
+    if(openM > 0) warnings.unshift(`💊 ${openM} Medikamenten‑Gabe(n) heute fällig${inCareM.length ? " (in Betreuung)" : ""}`);
+  }catch(e){ /* ignore */ }
+
+  // Gesundheitsnotizen heute (Info)
+  try{
+    const iso = todayISO();
+    const notes = (state.medication?.healthNotes||[]).filter(n=>n && n.date===iso);
+    if(notes.length>0) warnings.push(`🩺 ${notes.length} Gesundheitsnotiz(en) heute erfasst`);
+  }catch(e){ /* ignore */ }
+
   const warnBox = document.getElementById("dashboardWarnings");
   if(warnBox){
     if(warnings.length){
       warnBox.style.display = "block";
-      warnBox.innerHTML = `<h3>Hinweise</h3><div class="warning-list">${warnings.slice(0,6).map(w=>`<div>⚠️ ${escapeHtml(w)}</div>`).join("")}</div>`;
+      // Bei Medikamenten-Hinweis einen Direktlink anbieten
+      const rows = warnings.slice(0,6).map(w=>{
+        const isMed = String(w||"").includes("💊");
+        const isHyg = String(w||"").includes("🧼") || String(w||"").toLowerCase().includes("hygiene");
+        const btn = isMed ? `<button class="smallbtn" style="margin-left:8px" onclick="openMedication()">Öffnen</button>`
+                  : isHyg ? `<button class="smallbtn" style="margin-left:8px" onclick="openHygiene()">Öffnen</button>`
+                  : "";
+        return `<div>⚠️ ${escapeHtml(w)} ${btn}</div>`;
+      }).join("");
+      warnBox.innerHTML = `<h3>Hinweise</h3><div class="warning-list">${rows}</div>`;
     }else{
       warnBox.style.display = "none";
       warnBox.innerHTML = "";
     }
   }
+
+  // Hygiene Dashboard Card
+  renderHygieneDashboard();
+  // Medikamente Dashboard Card
+  renderMedicationDashboard();
+  // §11 Ampel
+  renderComplianceDashboard();
 }
+
+/* ===== Hygiene & Reinigung ===== */
+function todayISO(){
+  return toISODateLocal(new Date());
+}
+
+function hygieneGetLogsForDate(iso){
+  ensureStateShape();
+  const logs = state.hygiene?.logs || [];
+  return logs.filter(l => l.date === iso);
+}
+
+function hygieneTaskDueDate(task){
+  if(!task) return null;
+  const base = task.lastDone ? new Date(task.lastDone) : null;
+  if(!base){
+    // If never done, due immediately
+    return new Date();
+  }
+  const due = new Date(base);
+  due.setDate(due.getDate() + (task.intervalDays || 7));
+  due.setHours(0,0,0,0);
+  return due;
+}
+
+function hygieneTaskStatus(task){
+  const due = hygieneTaskDueDate(task);
+  const now = new Date(); now.setHours(0,0,0,0);
+  if(!due) return {code:"ok", label:"—"};
+  if(due.getTime() < now.getTime()) return {code:"overdue", label:"überfällig"};
+  // due today or within 1 day -> due soon
+  const diffDays = Math.round((due.getTime()-now.getTime())/86400000);
+  if(diffDays <= 1) return {code:"due", label:"fällig"};
+  return {code:"ok", label:"ok"};
+}
+
+function hygieneOverallStatus(){
+  const iso = todayISO();
+  const todayLogs = hygieneGetLogsForDate(iso);
+  const hasAnyDoneToday = todayLogs.some(l => String(l.status||'').toLowerCase() === 'erledigt');
+  const anyPendingToday = todayLogs.some(l => String(l.status||'').toLowerCase() === 'fällig');
+  const tasks = state.hygiene?.weeklyTasks || [];
+  const anyOverdue = tasks.some(t => hygieneTaskStatus(t).code === "overdue");
+  const anyDue = tasks.some(t => hygieneTaskStatus(t).code === "due");
+
+  if(!hasAnyDoneToday || anyOverdue || anyPendingToday) return {code:"red", label:"To‑do"};
+  if(anyDue) return {code:"yellow", label:"Achtung"};
+  return {code:"green", label:"OK"};
+}
+
+function hygieneStatusPill(el, status){
+  if(!el) return;
+  el.textContent = status.label;
+  el.style.borderColor = "rgba(255,255,255,.14)";
+  el.style.background = "rgba(255,255,255,.08)";
+  if(status.code === "green"){
+    el.style.background = "rgba(76,175,80,.18)";
+    el.style.borderColor = "rgba(76,175,80,.35)";
+  }
+  if(status.code === "yellow"){
+    el.style.background = "rgba(255,193,7,.18)";
+    el.style.borderColor = "rgba(255,193,7,.35)";
+  }
+  if(status.code === "red"){
+    el.style.background = "rgba(244,67,54,.18)";
+    el.style.borderColor = "rgba(244,67,54,.35)";
+  }
+}
+
+function renderHygieneDashboard(){
+  const card = document.getElementById("hygieneDashboardCard");
+  if(!card) return;
+  ensureStateShape();
+  const iso = todayISO();
+  const logs = hygieneGetLogsForDate(iso);
+  const status = hygieneOverallStatus();
+  const meta = document.getElementById("hygieneTodayMeta");
+  const pill = document.getElementById("hygieneTodayStatus");
+  const hint = document.getElementById("hygieneTodayHint");
+  if(meta) meta.textContent = `${new Date().toLocaleDateString('de-DE')} · ${logs.length} Eintrag(e)`;
+  hygieneStatusPill(pill, status);
+  if(hint){
+    const overdue = (state.hygiene.weeklyTasks||[]).filter(t=>hygieneTaskStatus(t).code==="overdue").length;
+    if(!logs.length) hint.innerHTML = `Heute noch nichts dokumentiert. <strong>Bitte kurz eintragen</strong> (z.B. Innenräume → Reinigung).`;
+    else if(overdue) hint.innerHTML = `Es gibt <strong>${overdue}</strong> überfällige Wochenaufgabe(n). Bitte nachtragen.`;
+    else hint.textContent = "Alles im grünen Bereich. Bei Bedarf weitere Einträge hinzufügen.";
+  }
+}
+
+
+// 🧼 Auto-Trigger: erzeugt Hygiene-Einträge aus Hundeannahme/Aufenthalt, wenn Parasiten/Quarantäne gesetzt ist
+function hygieneAutoFromStayDoc(doc){
+  if(!doc) return;
+  ensureStateShape();
+  const tId = doc.templateId || doc.template || doc.templateName || "";
+  if(String(tId).toLowerCase() !== "hundeannahme") return;
+
+  const f = doc.fields || {};
+  const meta = doc.meta || {};
+
+  const paras = (f.parasiten_status || "").trim();
+  const quarantine = !!f.quarantine_required;
+  const reason = (f.quarantine_reason || "").trim();
+  const infectiousConfirmed = (f.ev_gesund === true) || String(f.ev_gesund||'').toLowerCase()==='true' || String(f.ev_gesund||'').toLowerCase()==='on' || String(f.ev_gesund||'').toLowerCase()==='yes';
+
+  // Trigger-Kriterien: Quarantäne ODER Parasitenstatus nicht "unauffällig"
+  const parasTrigger = paras && paras.toLowerCase() !== "unauffällig";
+  const infectiousTrigger = !infectiousConfirmed;
+  if(!quarantine && !parasTrigger && !infectiousTrigger) return;
+
+  // Hundename ermitteln (Pets bevorzugt)
+  const dogId = doc.dogId;
+  const pet = (state.pets||[]).find(p=>p.id===dogId) || (state.dogs||[]).find(d=>d.id===dogId);
+  const dogName = (pet?.name || f.hund_name || "Unbekannt").trim();
+
+  // Dedupe: pro Doc nur einmal je Typ
+  const logs = state.hygiene.logs || [];
+  const has = (kind)=>logs.some(l=>l?.source?.docId===doc.id && l?.source?.kind===kind);
+  const date = todayISO();
+
+  const baseNoteParts = [];
+  if(dogName) baseNoteParts.push(`Hund: ${dogName}`);
+  if(meta.von || meta.bis) baseNoteParts.push(`Aufenthalt: ${(meta.von||'')} – ${(meta.bis||'')}`.trim());
+  if(parasTrigger) baseNoteParts.push(`Parasiten: ${paras}`);
+  if(reason) baseNoteParts.push(`Hinweis: ${reason}`);
+
+  const baseNote = baseNoteParts.join(" · ");
+
+  // Eintrag 1: Quarantäne/Desinfektion
+  if(quarantine && !has("auto-quarantine")){
+    logs.push({
+      id: uid(),
+      date,
+      area: "Quarantäne",
+      action: "Desinfektion",
+      status: "fällig",
+      reason: null,
+      staff: { preset: null, free: null },
+      note: `Auto: Quarantäne gesetzt → bitte Durchführung abhaken. ${baseNote}`.trim(),
+      createdAt: new Date().toISOString(),
+      source: { kind: "auto-quarantine", docId: doc.id }
+    });
+  }
+
+  // Eintrag 2: Parasiten-Sonderreinigung (Innen/Schlafplätze)
+  if(parasTrigger && !has("auto-parasites")){
+    logs.push({
+      id: uid(),
+      date,
+      area: "Schlafplätze",
+      action: "Grundreinigung",
+      status: "fällig",
+      reason: null,
+      staff: { preset: null, free: null },
+      note: `Auto: Parasitenstatus "${paras}" → Sonderreinigung fällig. ${baseNote}`.trim(),
+      createdAt: new Date().toISOString(),
+      source: { kind: "auto-parasites", docId: doc.id }
+    });
+  }
+
+  // Eintrag 3: Ansteckende Krankheiten nicht bestätigt → Hinweis/Prüfung + ggf. Quarantäne
+  if(infectiousTrigger && !has("auto-infectious")){
+    logs.push({
+      id: uid(),
+      date,
+      area: "Quarantäne",
+      action: "Reinigung",
+      status: "fällig",
+      reason: null,
+      staff: { preset: null, free: null },
+      note: `Auto: „frei von ansteckenden Krankheiten“ NICHT bestätigt → bitte prüfen/Quarantäne erwägen und Maßnahmen dokumentieren. ${baseNote}`.trim(),
+      createdAt: new Date().toISOString(),
+      source: { kind: "auto-infectious", docId: doc.id }
+    });
+  }
+
+  state.hygiene.logs = logs;
+}
+
+function renderHygienePanel(){
+  ensureStateShape();
+
+  // staff presets
+  const presetSel = document.getElementById('hygStaffPreset');
+  if(presetSel){
+    const presets = state.hygiene.staffPresets || ["Raphael","Anschi"];
+    presetSel.innerHTML = presets.map(n=>`<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('') + `<option value="">—</option>`;
+  }
+
+  // pending-only filter
+  const cbPending = document.getElementById('hygFilterPendingOnly');
+  if(cbPending){
+    cbPending.checked = !!(state.hygiene.ui && state.hygiene.ui.pendingOnly);
+    if(!cbPending._bound){
+      cbPending._bound = true;
+      cbPending.onchange = ()=>{
+        ensureStateShape();
+        state.hygiene.ui = state.hygiene.ui || {};
+        state.hygiene.ui.pendingOnly = !!cbPending.checked;
+        saveState && saveState(); // falls vorhanden
+        try{ localStorage.setItem('ds_hyg_pendingOnly', String(state.hygiene.ui.pendingOnly)); }catch(e){}
+        renderHygienePanel();
+        renderHygieneDashboard();
+      };
+    }
+  }
+
+  // bind add button once
+  const btnAdd = document.getElementById('btnHygieneAdd');
+  if(btnAdd && !btnAdd._bound){
+    btnAdd._bound = true;
+    btnAdd.onclick = ()=>{
+      const date = todayISO();
+      const area = (document.getElementById('hygArea')?.value || '').trim();
+      const action = (document.getElementById('hygAction')?.value || '').trim();
+      const status = (document.getElementById('hygStatus')?.value || '').trim();
+      const reason = (document.getElementById('hygReason')?.value || '').trim();
+      const preset = (document.getElementById('hygStaffPreset')?.value || '').trim();
+      const free = (document.getElementById('hygStaffFree')?.value || '').trim();
+      const note = (document.getElementById('hygNote')?.value || '').trim();
+
+      if(status === 'nicht durchgeführt' && !reason){
+        alert('Bitte eine Begründung angeben, wenn nicht durchgeführt.');
+        return;
+      }
+
+      const staff = { preset: preset || null, free: free || null };
+      const doneBy = (free || preset || '').trim();
+      if(!doneBy){
+        alert('Bitte „Durchgeführt von“ auswählen oder eintragen.');
+        return;
+      }
+
+      const entry = {
+        id: uid(),
+        date,
+        area,
+        action,
+        status,
+        reason: reason || null,
+        staff,
+        note: note || null,
+        createdAt: new Date().toISOString(),
+        updatedAt: null,
+        _deleted: false
+      };
+
+      state.hygiene.logs.unshift(entry);
+      saveState();
+
+      // Reset small fields
+      const r = document.getElementById('hygReason'); if(r) r.value='';
+      const n = document.getElementById('hygNote'); if(n) n.value='';
+      const f = document.getElementById('hygStaffFree'); if(f) f.value='';
+
+      renderHygienePanel();
+      renderHygieneDashboard();
+    };
+  }
+
+  // status pill on panel
+  hygieneStatusPill(document.getElementById('hygienePanelStatus'), hygieneOverallStatus());
+
+  // today list
+  const iso = todayISO();
+  const logsToday = hygieneGetLogsForDate(iso);
+  const pendingOnly = !!(state.hygiene.ui && state.hygiene.ui.pendingOnly);
+
+  const countEl = document.getElementById('hygTodayCount');
+  const logsShown = pendingOnly ? logsToday.filter(l=>String(l.status||'').toLowerCase()==='fällig') : logsToday;
+  if(countEl) countEl.textContent = pendingOnly ? `${logsShown.length} fällig / ${logsToday.length} gesamt` : `${logsToday.length} Eintrag(e)`;
+  const listEl = document.getElementById('hygTodayList');
+  if(listEl){
+    if(!logsShown.length){
+      listEl.innerHTML = `<div class="item"><div><strong>Noch keine Einträge</strong><small>Tippe oben auf „Speichern“ nach dem Ausfüllen.</small></div></div>`;
+    } else {
+      listEl.innerHTML = logsShown.map(l=>{
+        const who = (l.staff?.free || l.staff?.preset || '').trim();
+        const sub = `${escapeHtml(l.area)} · ${escapeHtml(l.action)} · ${escapeHtml(l.status)}`;
+        const extra = l.status === 'nicht durchgeführt' && l.reason ? ` · Grund: ${escapeHtml(l.reason)}` : '';
+        const note = l.note ? `<small>📝 ${escapeHtml(l.note)}</small>` : '';
+        const isPending = String(l.status||'').toLowerCase() === 'fällig';
+        return `
+          <div class="item">
+            <div>
+              <strong>${escapeHtml(who || '—')}</strong>
+              <small>${sub}${extra}</small>
+              ${note}
+            </div>
+            <div class="actions">
+              ${isPending ? `<button class="smallbtn" onclick="completeHygieneLog('${l.id}')">✅</button>` : ''}
+              <button class="smallbtn" onclick="editHygieneLog('${l.id}')">✏️</button>
+            </div>
+          </div>`;
+      }).join('');
+    }
+  }
+
+  // weekly list
+  const weeklyEl = document.getElementById('hygWeeklyList');
+  if(weeklyEl){
+    const tasks = state.hygiene.weeklyTasks || [];
+    weeklyEl.innerHTML = tasks.map(t=>{
+      const st = hygieneTaskStatus(t);
+      const last = t.lastDone ? new Date(t.lastDone).toLocaleDateString('de-DE') : '—';
+      const badge = st.code === 'overdue' ? '🔴 überfällig' : (st.code === 'due' ? '🟡 fällig' : '🟢 ok');
+      return `
+        <div class="item">
+          <div>
+            <strong>${escapeHtml(t.title)}</strong>
+            <small>Letztes Mal: ${escapeHtml(last)} · Intervall: ${t.intervalDays || 7} Tage · Status: ${badge}</small>
+          </div>
+          <div class="actions">
+            <button class="smallbtn" onclick="markWeeklyTaskDone('${t.id}')">✅ erledigt</button>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  // export
+  const btnExp = document.getElementById('btnHygieneExport');
+  if(btnExp && !btnExp._bound){
+    btnExp._bound = true;
+    btnExp.onclick = ()=>exportHygienePDF();
+  }
+}
+
+function completeHygieneLog(id){
+  ensureStateShape();
+  const log = (state.hygiene.logs||[]).find(x=>x.id===id);
+  if(!log) return;
+  // Staff aus Auswahl/Freitext übernehmen (wenn vorhanden)
+  const preset = (document.getElementById('hygStaffPreset')?.value || '').trim();
+  const free = (document.getElementById('hygStaffFree')?.value || '').trim();
+  const staffName = (free || preset || '').trim();
+  if(!staffName && !(log.staff?.free || log.staff?.preset)){
+    const entered = prompt('Wer hat es durchgeführt? (Name)', '');
+    if(entered === null) return;
+    log.staff = { preset: null, free: (entered||'').trim() || null };
+  } else if(staffName){
+    log.staff = { preset: preset || null, free: free || null };
+  }
+  log.status = 'erledigt';
+  log.updatedAt = new Date().toISOString();
+  saveState();
+  renderHygienePanel();
+  renderHygieneDashboard();
+}
+
+function editHygieneLog(id){
+  const log = (state.hygiene.logs||[]).find(x=>x.id===id);
+  if(!log) return;
+  const newNote = prompt('Notiz bearbeiten (leer lassen, um zu löschen):', log.note || '');
+  if(newNote === null) return;
+  log.note = (newNote || '').trim() || null;
+  log.updatedAt = new Date().toISOString();
+  saveState();
+  renderHygienePanel();
+  renderHygieneDashboard();
+}
+
+function markWeeklyTaskDone(taskId){
+  const t = (state.hygiene.weeklyTasks||[]).find(x=>x.id===taskId);
+  if(!t) return;
+  const now = new Date();
+  t.lastDone = now.toISOString();
+  // create auto log entry (wer hat es gemacht? -> Auswahl + Freitext)
+  const preset = (document.getElementById('hygStaffPreset')?.value || 'Raphael').trim();
+  const free = (document.getElementById('hygStaffFree')?.value || '').trim();
+  const staff = { preset: preset || null, free: free || null };
+  state.hygiene.logs.unshift({
+    id: uid(),
+    date: todayISO(),
+    area: "Außenbereich",
+    action: "Grundreinigung",
+    status: "erledigt",
+    reason: null,
+    staff,
+    note: `Wochenaufgabe: ${t.title}`,
+    createdAt: now.toISOString(),
+    updatedAt: null,
+    _deleted: false
+  });
+  saveState();
+  renderHygienePanel();
+  renderHygieneDashboard();
+}
+
+function exportHygienePDF(){
+  ensureStateShape();
+  const logs = (state.hygiene.logs||[]).slice().reverse();
+  const from = prompt('Export ab Datum (YYYY-MM-DD), leer = letzter Monat:', '');
+  let start;
+  if(from && /^\d{4}-\d{2}-\d{2}$/.test(from)){
+    start = new Date(from);
+  } else {
+    start = new Date();
+    start.setMonth(start.getMonth()-1);
+  }
+  start.setHours(0,0,0,0);
+  const end = new Date(); end.setHours(23,59,59,999);
+
+  const rows = logs.filter(l=>{
+    const d = new Date(l.date);
+    return d.getTime() >= start.getTime() && d.getTime() <= end.getTime();
+  });
+
+  const w = window.open('', '_blank');
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Hygiene-Export</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Arial; padding:18px;}
+    h1{margin:0 0 6px 0}
+    .muted{color:#555;margin:0 0 14px 0}
+    table{width:100%;border-collapse:collapse; font-size:12px}
+    th,td{border:1px solid #ccc; padding:8px; vertical-align:top}
+    th{background:#f3f3f3}
+  </style></head><body>
+  <h1>Hygiene- und Reinigungsnachweis</h1>
+  <p class="muted">Hundepension Doggy Style – Angelika &amp; Raphael Boch · Zeitraum: ${start.toLocaleDateString('de-DE')} – ${end.toLocaleDateString('de-DE')}</p>
+  <table>
+    <thead><tr><th>Datum</th><th>Bereich</th><th>Maßnahme</th><th>Status</th><th>Begründung</th><th>Durchgeführt von</th><th>Notiz</th></tr></thead>
+    <tbody>
+      ${rows.map(l=>{
+        const who = (l.staff?.free || l.staff?.preset || '').trim();
+        return `<tr>
+          <td>${escapeHtml(new Date(l.date).toLocaleDateString('de-DE'))}</td>
+          <td>${escapeHtml(l.area||'')}</td>
+          <td>${escapeHtml(l.action||'')}</td>
+          <td>${escapeHtml(l.status||'')}</td>
+          <td>${escapeHtml(l.reason||'')}</td>
+          <td>${escapeHtml(who||'')}</td>
+          <td>${escapeHtml(l.note||'')}</td>
+        </tr>`;
+      }).join('')}
+    </tbody>
+  </table>
+  <script>window.print(); window.onafterprint=()=>window.close();</script>
+  </body></html>`);
+  w.document.close();
+}
+
+
+/* === MEDIKAMENTE & GESUNDHEIT (Etappe 2) ==============================
+   - Dauerhafter Medikamentenplan pro Hund (Pet)
+   - Tagesliste: fällig / gegeben / nicht gegeben (+ Begründung)
+   - Gesundheitsnotizen (Tags + Freitext) exportfähig
+====================================================================== */
+
+function medISO(){ return toISODateLocal(new Date()); }
+
+function medGetPets(){
+  ensureStateShape();
+  // Primär neue Struktur: pets
+  if(Array.isArray(state.pets) && state.pets.length){
+    return state.pets.filter(p=>p && p.id);
+  }
+  // Fallback legacy dogs
+  ensureDefaultDog();
+  return (state.dogs||[]).filter(d=>d && !d.isPlaceholder).map(d=>({
+    id: d.id, name: d.name, customerId: null, _legacy: true
+  }));
+}
+
+function medPetName(petId){
+  const pets = medGetPets();
+  const p = pets.find(x=>x.id===petId);
+  return p ? (p.name || "Hund") : "Hund";
+}
+
+// Verknüpfung zu Aufenthalten: Welche Hunde sind an einem Tag in Betreuung?
+function getPetIdsInCare(dateISO){
+  try{
+    ensureStateShape();
+    const d = String(dateISO||"").slice(0,10);
+    if(!d) return [];
+    const set = new Set();
+    for(const doc of (state.docs||[])){
+      if(!doc || doc.type === 'invoice') continue;
+      const from = String(doc.meta?.von||"").slice(0,10);
+      const to = String(doc.meta?.bis||"").slice(0,10);
+      if(!from || !to) continue;
+      if(d < from || d > to) continue;
+      let pid = String(doc.petId||"");
+      if(!pid && doc.dogId){
+        const pet = getPetByDogId(doc.dogId);
+        pid = pet?.id || "";
+      }
+      if(pid) set.add(pid);
+    }
+    return Array.from(set);
+  }catch(_){
+    return [];
+  }
+}
+
+function medInitUI(){
+  ensureStateShape();
+
+  // Presets in Selects
+  const presets = state.medication.staffPresets || ["Raphael","Anschi"];
+
+  const hnByPreset = document.getElementById("hnByPreset");
+  if(hnByPreset && !hnByPreset.dataset.bound){
+    hnByPreset.innerHTML = presets.map(x=>`<option value="${escapeHtml(x)}">${escapeHtml(x)}</option>`).join("") + `<option value="__other__">Andere…</option>`;
+    hnByPreset.dataset.bound = "1";
+  }
+
+  const pendingOnly = document.getElementById("medPendingOnly");
+  if(pendingOnly && !pendingOnly.dataset.bound){
+    pendingOnly.checked = !!(state.medication.ui && state.medication.ui.pendingOnly);
+    pendingOnly.onchange = ()=>{
+      ensureStateShape();
+      state.medication.ui.pendingOnly = !!pendingOnly.checked;
+      try{ localStorage.setItem('ds_med_pendingOnly', String(state.medication.ui.pendingOnly)); }catch(e){}
+      saveState();
+      renderMedicationPanel();
+    };
+    pendingOnly.dataset.bound = "1";
+  }
+
+  // Pet select
+  const sel = document.getElementById("medPetSelect");
+  if(sel && !sel.dataset.bound){
+    sel.onchange = ()=>{
+      ensureStateShape();
+      state.medication.ui = state.medication.ui || {};
+      state.medication.ui.selectedPetId = sel.value || "";
+      saveState();
+      renderMedicationPanel();
+    };
+    sel.dataset.bound = "1";
+  }
+
+  // Add medication
+  const btnAdd = document.getElementById("btnMedAdd");
+  if(btnAdd && !btnAdd.dataset.bound){
+    btnAdd.onclick = ()=>{
+      medAddPlanFromForm();
+    };
+    btnAdd.dataset.bound = "1";
+  }
+
+  // Add health note
+  const btnHn = document.getElementById("btnHnAdd");
+  if(btnHn && !btnHn.dataset.bound){
+    btnHn.onclick = ()=>{
+      medAddHealthNoteFromForm();
+    };
+    btnHn.dataset.bound = "1";
+  }
+
+  // Export
+  const btnExp = document.getElementById("btnMedExport");
+  if(btnExp && !btnExp.dataset.bound){
+    btnExp.onclick = ()=> medExportPdf();
+    btnExp.dataset.bound = "1";
+  }
+}
+
+function medSelectedPetId(){
+  ensureStateShape();
+  return (state.medication.ui && state.medication.ui.selectedPetId) ? state.medication.ui.selectedPetId : "";
+}
+
+function medPopulatePetSelect(){
+  const sel = document.getElementById("medPetSelect");
+  if(!sel) return;
+  const pets = medGetPets().slice().sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"de"));
+  const cur = medSelectedPetId();
+  const opts = [`<option value="">— Bitte wählen —</option>`]
+    .concat(pets.map(p=>`<option value="${escapeHtml(p.id)}">${escapeHtml(p.name||"Hund")}</option>`));
+  sel.innerHTML = opts.join("");
+  if(cur && pets.some(p=>p.id===cur)) sel.value = cur;
+}
+
+function medParseTimes(s){
+  const raw = String(s||"").split(",").map(x=>x.trim()).filter(Boolean);
+  const out = [];
+  for(const t of raw){
+    const m = t.match(/^(\d{1,2})[:.](\d{2})$/);
+    if(!m) continue;
+    const hh = String(Math.min(23, Math.max(0, Number(m[1])))).padStart(2,'0');
+    const mi = String(Math.min(59, Math.max(0, Number(m[2])))).padStart(2,'0');
+    out.push(`${hh}:${mi}`);
+  }
+  // unique
+  return Array.from(new Set(out));
+}
+
+function medAddPlanFromForm(){
+  ensureStateShape();
+  const petId = medSelectedPetId();
+  if(!petId){
+    alert("Bitte zuerst einen Hund auswählen.");
+    return;
+  }
+  const name = (document.getElementById("medName")?.value || "").trim();
+  const dose = (document.getElementById("medDose")?.value || "").trim();
+  const unit = (document.getElementById("medUnit")?.value || "").trim();
+  const times = medParseTimes(document.getElementById("medTimes")?.value || "");
+  const notes = (document.getElementById("medNotes")?.value || "").trim();
+  const approval = !!document.getElementById("medOwnerApproval")?.checked;
+
+  if(!name){
+    alert("Bitte Medikamentenname eingeben.");
+    return;
+  }
+  if(!approval){
+    alert("Bitte bestätigen: Freigabe des Halters liegt vor.");
+    return;
+  }
+  if(times.length === 0){
+    alert("Bitte mindestens eine Uhrzeit angeben (z. B. 08:00).");
+    return;
+  }
+
+  const plan = {
+    id: uid(),
+    petId,
+    name,
+    dose,
+    unit,
+    times,
+    notes,
+    ownerApproval: true,
+    active: true,
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  };
+  state.medication.plans.unshift(plan);
+
+  // reset form
+  try{
+    document.getElementById("medName").value = "";
+    document.getElementById("medDose").value = "";
+    document.getElementById("medUnit").value = "";
+    document.getElementById("medTimes").value = "";
+    document.getElementById("medNotes").value = "";
+    document.getElementById("medOwnerApproval").checked = false;
+  }catch(_){}
+
+  saveState();
+  renderMedicationPanel();
+  renderMedicationDashboard();
+}
+
+function medPlansForPet(petId){
+  ensureStateShape();
+  return (state.medication.plans||[]).filter(p=>p && p.petId===petId);
+}
+
+function medRecordsFor(dateISO){
+  ensureStateShape();
+  const d = String(dateISO||"").slice(0,10);
+  return (state.medication.records||[]).filter(r=>r && r.date===d);
+}
+
+function medHasRecord(petId, planId, dateISO, time){
+  const d = String(dateISO||"").slice(0,10);
+  return (state.medication.records||[]).some(r =>
+    r && r.petId===petId && r.planId===planId && r.date===d && r.time===time
+  );
+}
+
+function medDueOccurrences(dateISO, onlyPetIds=null){
+  ensureStateShape();
+  const d = String(dateISO||"").slice(0,10);
+  const out = [];
+  const petFilter = Array.isArray(onlyPetIds) && onlyPetIds.length ? new Set(onlyPetIds) : null;
+  const pets = medGetPets().filter(p=> !petFilter || petFilter.has(p.id));
+  for(const pet of pets){
+    const plans = (state.medication.plans||[]).filter(p=>p && p.petId===pet.id && p.active !== false);
+    for(const pl of plans){
+      const times = Array.isArray(pl.times) ? pl.times : [];
+      for(const t of times){
+        const has = medHasRecord(pet.id, pl.id, d, t);
+        out.push({
+          key: `${pet.id}:${pl.id}:${d}:${t}`,
+          petId: pet.id,
+          petName: pet.name || "Hund",
+          planId: pl.id,
+          medName: pl.name || "Medikament",
+          dose: pl.dose || "",
+          unit: pl.unit || "",
+          time: t,
+          notes: pl.notes || "",
+          done: has
+        });
+      }
+    }
+  }
+  // sort by time then name
+  out.sort((a,b)=>{
+    const tcmp = String(a.time||"").localeCompare(String(b.time||""));
+    if(tcmp) return tcmp;
+    const ncmp = String(a.petName||"").localeCompare(String(b.petName||""),"de");
+    if(ncmp) return ncmp;
+    return String(a.medName||"").localeCompare(String(b.medName||""),"de");
+  });
+  return out;
+}
+
+function petIdsInCareOnDate(dateISO){
+  try{
+    ensureStateShape();
+    const d = String(dateISO||"").slice(0,10);
+    const set = new Set();
+    const docs = (state.docs||[]).filter(x=>x && x.type!=="invoice");
+    for(const doc of docs){
+      const from = String(doc.meta?.von||"").slice(0,10);
+      const to   = String(doc.meta?.bis||"").slice(0,10);
+      if(!from || !to) continue;
+      if(d < from || d > to) continue;
+      const pid = doc.petId || getPetByDogId(doc.dogId)?.id || "";
+      if(pid) set.add(pid);
+    }
+    return Array.from(set);
+  }catch(_){ return []; }
+}
+
+function medStatusPill(el, status){
+  if(!el) return;
+  el.textContent = status.text || "—";
+  el.classList.remove("warn");
+  if(status.code === "overdue" || status.code === "due") el.classList.add("warn");
+}
+
+function medOverallStatus(opts={}){
+  const iso = opts.dateISO ? String(opts.dateISO).slice(0,10) : medISO();
+  const only = Array.isArray(opts.onlyPetIds) ? opts.onlyPetIds : null;
+  const due = medDueOccurrences(iso, only);
+  const open = due.filter(x=>!x.done).length;
+  if(open === 0){
+    return { code:"ok", text:"OK" };
+  }
+  return { code:"due", text:`${open} fällig` };
+}
+
+function renderMedicationDashboard(){
+  const card = document.getElementById("medDashboardCard");
+  if(!card) return;
+  ensureStateShape();
+  const iso = medISO();
+  const inCare = getPetIdsInCare(iso);
+  const due = medDueOccurrences(iso, (inCare.length ? inCare : null));
+  const open = due.filter(x=>!x.done).length;
+
+  const meta = document.getElementById("medTodayMeta");
+  const pill = document.getElementById("medTodayStatus");
+  const hint = document.getElementById("medTodayHint");
+  const status = medOverallStatus({dateISO: iso, onlyPetIds: (inCare.length ? inCare : null)});
+  medStatusPill(pill, status);
+
+  if(meta) meta.textContent = (open===0)
+    ? "Keine Gaben offen."
+    : `${open} Gabe(n) offen${inCare.length ? " (nur Hunde in Betreuung)" : ""}.`;
+  if(hint){
+    hint.textContent = open===0
+      ? "Alles erledigt – super. Gesundheitsnotizen kannst du jederzeit ergänzen."
+      : "Bitte fällige Gaben abhaken (gegeben / nicht gegeben) – mit Begründung bei Abweichung.";
+  }
+}
+
+function renderMedicationPanel(){
+  ensureStateShape();
+  medInitUI();
+  medPopulatePetSelect();
+
+  // restore pendingOnly from localStorage if present
+  try{
+    const cb = document.getElementById("medPendingOnly");
+    if(cb) cb.checked = !!(state.medication.ui && state.medication.ui.pendingOnly);
+  }catch(_){}
+
+  const status = medOverallStatus();
+  medStatusPill(document.getElementById("medPanelStatus"), status);
+
+  renderMedicationDue();
+  renderMedicationPlans();
+  renderHealthNotes();
+
+  renderMedicationDashboard();
+}
+
+function renderMedicationDue(){
+  const iso = medISO();
+  const due = medDueOccurrences(iso);
+  const pendingOnly = !!(state.medication.ui && state.medication.ui.pendingOnly);
+  const list = document.getElementById("medDueList");
+  const meta = document.getElementById("medDueMeta");
+  if(!list) return;
+
+  const show = pendingOnly ? due.filter(x=>!x.done) : due;
+  const open = due.filter(x=>!x.done).length;
+
+  if(meta){
+    meta.textContent = pendingOnly
+      ? `${show.length} fällig · ${due.length} gesamt (heute)`
+      : `${open} fällig · ${due.length} gesamt (heute)`;
+  }
+
+  list.innerHTML = "";
+  if(show.length === 0){
+    list.innerHTML = `<div class="muted">Keine fälligen Gaben.</div>`;
+    return;
+  }
+
+  const presets = state.medication.staffPresets || ["Raphael","Anschi"];
+
+  for(const it of show){
+    const row = document.createElement("div");
+    row.className = "item";
+    const doneBadge = it.done ? `<span class="pill">✅ dokumentiert</span>` : `<span class="pill warn">⏳ fällig</span>`;
+    row.innerHTML = `
+      <div style="min-width:0;">
+        <strong>${escapeHtml(it.petName)} · ${escapeHtml(it.medName)}</strong>
+        <small>${escapeHtml(it.time)} ${escapeHtml((it.dose?(" · "+it.dose):""))}${escapeHtml((it.unit?(" "+it.unit):""))}${it.notes?(" · "+escapeHtml(it.notes)):""}</small>
+      </div>
+      <div class="actions" style="gap:6px; flex-wrap:wrap; justify-content:flex-end;">
+        ${doneBadge}
+        <select class="smallselect medByPreset">
+          ${presets.map(p=>`<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join("")}
+          <option value="__other__">Andere…</option>
+        </select>
+        <input class="smallinput medByText" placeholder="Zusatz" style="width:120px; display:none;" />
+        <button class="smallbtn primary" ${it.done?'disabled':''} data-act="given">✅ gegeben</button>
+        <button class="smallbtn" ${it.done?'disabled':''} data-act="missed">❌ nicht</button>
+      </div>
+    `;
+
+    const sel = row.querySelector(".medByPreset");
+    const txt = row.querySelector(".medByText");
+    if(sel && txt){
+      sel.onchange = ()=>{
+        if(sel.value === "__other__"){
+          txt.style.display = "inline-flex";
+          txt.focus();
+        } else {
+          txt.style.display = "none";
+          txt.value = "";
+        }
+      };
+    }
+
+    const btnGiven = row.querySelector('[data-act="given"]');
+    const btnMissed = row.querySelector('[data-act="missed"]');
+
+    const onMark = (status)=>{
+      const byPreset = (sel && sel.value && sel.value !== "__other__") ? sel.value : "";
+      const byText = (txt && txt.style.display !== "none") ? (txt.value||"").trim() : "";
+      let reason = "";
+      if(status === "missed"){
+        reason = prompt("Begründung (Pflicht, z. B. verweigert / erbrochen / Tierarzt):","") || "";
+        if(!reason.trim()){
+          alert("Begründung ist Pflicht, wenn nicht gegeben.");
+          return;
+        }
+      }
+      medAddRecord({
+        petId: it.petId,
+        planId: it.planId,
+        date: iso,
+        time: it.time,
+        status: (status === "given") ? "gegeben" : "nicht_gegeben",
+        reason: reason.trim(),
+        byPreset,
+        byText
+      });
+    };
+
+    if(btnGiven) btnGiven.onclick = ()=>onMark("given");
+    if(btnMissed) btnMissed.onclick = ()=>onMark("missed");
+
+    list.appendChild(row);
+  }
+}
+
+function medAddRecord({petId, planId, date, time, status, reason, byPreset, byText}){
+  ensureStateShape();
+  const iso = String(date||"").slice(0,10);
+  if(medHasRecord(petId, planId, iso, time)){
+    alert("Für diese Gabe existiert bereits ein Eintrag.");
+    return;
+  }
+  const rec = {
+    id: uid(),
+    petId,
+    planId,
+    date: iso,
+    time,
+    status,
+    reason: reason || "",
+    byPreset: byPreset || "",
+    byText: byText || "",
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  };
+  state.medication.records.unshift(rec);
+  saveState();
+  renderMedicationPanel();
+}
+
+function renderMedicationPlans(){
+  const petId = medSelectedPetId();
+  const list = document.getElementById("medPlanList");
+  if(!list) return;
+
+  if(!petId){
+    list.innerHTML = `<div class="muted">Bitte zuerst einen Hund auswählen.</div>`;
+    return;
+  }
+
+  const plans = medPlansForPet(petId);
+  list.innerHTML = "";
+  if(plans.length === 0){
+    list.innerHTML = `<div class="muted">Noch keine Medikamente hinterlegt.</div>`;
+    return;
+  }
+
+  for(const pl of plans){
+    const el = document.createElement("div");
+    el.className = "item";
+    const times = Array.isArray(pl.times) ? pl.times.join(", ") : "";
+    const active = (pl.active !== false);
+    el.innerHTML = `
+      <div style="min-width:0;">
+        <strong>${escapeHtml(pl.name||"Medikament")}</strong>
+        <small>${escapeHtml([pl.dose, pl.unit].filter(Boolean).join(" "))}${times?(" · "+escapeHtml(times)):""}${pl.notes?(" · "+escapeHtml(pl.notes)):""}</small>
+      </div>
+      <div class="actions" style="gap:6px; flex-wrap:wrap;">
+        <span class="pill ${active?'':'warn'}">${active?'aktiv':'inaktiv'}</span>
+        <button class="smallbtn" data-t="toggle">${active?'Deaktivieren':'Aktivieren'}</button>
+        <button class="smallbtn" data-t="del">Löschen</button>
+      </div>
+    `;
+    el.querySelector('[data-t="toggle"]').onclick = ()=>{
+      pl.active = !active;
+      pl.updatedAt = Date.now();
+      saveState();
+      renderMedicationPanel();
+    };
+    el.querySelector('[data-t="del"]').onclick = ()=>{
+      if(confirm("Medikament wirklich löschen? (Dokumentation bleibt erhalten, Plan wird entfernt)")){
+        state.medication.plans = (state.medication.plans||[]).filter(x=>x.id!==pl.id);
+        saveState();
+        renderMedicationPanel();
+      }
+    };
+    list.appendChild(el);
+  }
+}
+
+function medAddHealthNoteFromForm(){
+  ensureStateShape();
+  const petId = medSelectedPetId();
+  if(!petId){
+    alert("Bitte zuerst einen Hund auswählen.");
+    return;
+  }
+  const tags = Array.from(document.querySelectorAll(".hnTag")).filter(cb=>cb.checked).map(cb=>cb.value);
+  const text = (document.getElementById("hnText")?.value || "").trim();
+  if(!text){
+    alert("Bitte eine kurze Notiz eingeben.");
+    return;
+  }
+  const relatedToMeds = !!document.getElementById("hnRelatedMeds")?.checked;
+  const ownerInformed = !!document.getElementById("hnOwnerInformed")?.checked;
+  const byPresetSel = document.getElementById("hnByPreset");
+  const byPreset = (byPresetSel && byPresetSel.value && byPresetSel.value !== "__other__") ? byPresetSel.value : "";
+  const byText = (document.getElementById("hnByText")?.value || "").trim();
+
+  const note = {
+    id: uid(),
+    petId,
+    date: medISO(),
+    tags,
+    text,
+    relatedToMeds,
+    ownerInformed,
+    byPreset,
+    byText,
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  };
+  state.medication.healthNotes.unshift(note);
+
+  // reset
+  try{
+    document.getElementById("hnText").value = "";
+    document.querySelectorAll(".hnTag").forEach(cb=>cb.checked=false);
+    document.getElementById("hnRelatedMeds").checked = false;
+    document.getElementById("hnOwnerInformed").checked = false;
+    document.getElementById("hnByText").value = "";
+  }catch(_){}
+
+  saveState();
+  renderMedicationPanel();
+}
+
+function renderHealthNotes(){
+  const petId = medSelectedPetId();
+  const list = document.getElementById("hnList");
+  if(!list) return;
+
+  // fill presets
+  const presets = state.medication.staffPresets || ["Raphael","Anschi"];
+  const sel = document.getElementById("hnByPreset");
+  if(sel){
+    sel.innerHTML = presets.map(x=>`<option value="${escapeHtml(x)}">${escapeHtml(x)}</option>`).join("") + `<option value="__other__">Andere…</option>`;
+  }
+
+  if(!petId){
+    list.innerHTML = `<div class="muted">Bitte zuerst einen Hund auswählen.</div>`;
+    return;
+  }
+
+  const notes = (state.medication.healthNotes||[]).filter(n=>n && n.petId===petId).slice(0,25);
+  list.innerHTML = "";
+  if(notes.length === 0){
+    list.innerHTML = `<div class="muted">Noch keine Gesundheitsnotizen.</div>`;
+    return;
+  }
+  for(const n of notes){
+    const tags = (n.tags||[]).map(t=>`<span class="pill">${escapeHtml(t)}</span>`).join(" ");
+    const by = [n.byPreset, n.byText].filter(Boolean).join(" ");
+    const flags = [
+      n.relatedToMeds ? "💊 Medikation?" : "",
+      n.ownerInformed ? "📞 Halter informiert" : ""
+    ].filter(Boolean).join(" · ");
+    const el = document.createElement("div");
+    el.className = "item";
+    el.innerHTML = `
+      <div style="min-width:0;">
+        <strong>${escapeHtml(formatDateDE(n.date))}</strong>
+        <small>${tags} ${flags ? (" · "+escapeHtml(flags)) : ""}${by ? (" · "+escapeHtml(by)) : ""}</small>
+        <div style="margin-top:6px;">${escapeHtml(n.text)}</div>
+      </div>
+      <div class="actions" style="gap:6px; flex-wrap:wrap;">
+        <button class="smallbtn" data-del="1">Löschen</button>
+      </div>
+    `;
+    el.querySelector('[data-del="1"]').onclick = ()=>{
+      if(confirm("Notiz löschen? (nur wenn wirklich falsch)")){
+        state.medication.healthNotes = (state.medication.healthNotes||[]).filter(x=>x.id!==n.id);
+        saveState();
+        renderMedicationPanel();
+      }
+    };
+    list.appendChild(el);
+  }
+}
+
+function medExportPdf(){
+  ensureStateShape();
+  const startStr = prompt("Export ab Datum (YYYY-MM-DD) – leer = letzter Monat:", "");
+  const endStr = prompt("Export bis Datum (YYYY-MM-DD) – leer = heute:", "");
+  const endISO = (endStr && endStr.trim()) ? endStr.trim().slice(0,10) : medISO();
+  const end = new Date(endISO);
+  const start = (startStr && startStr.trim())
+    ? new Date(startStr.trim().slice(0,10))
+    : (()=>{
+        const d = new Date(end);
+        d.setMonth(d.getMonth()-1);
+        return d;
+      })();
+
+  const startISO = toISODateLocal(start);
+  const petId = medSelectedPetId(); // optional: if set, filter export
+  const pets = medGetPets();
+
+  const plans = (state.medication.plans||[]).filter(p=>{
+    if(!p) return false;
+    if(petId && p.petId !== petId) return false;
+    return true;
+  });
+
+  const records = (state.medication.records||[]).filter(r=>{
+    if(!r) return false;
+    if(petId && r.petId !== petId) return false;
+    return (r.date >= startISO && r.date <= endISO);
+  });
+
+  const notes = (state.medication.healthNotes||[]).filter(n=>{
+    if(!n) return false;
+    if(petId && n.petId !== petId) return false;
+    return (n.date >= startISO && n.date <= endISO);
+  });
+
+  const w = window.open('', '_blank');
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Medikation-Export</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Arial; padding:18px;}
+    h1{margin:0 0 6px 0}
+    .muted{color:#555;margin:0 0 14px 0}
+    table{width:100%;border-collapse:collapse; font-size:12px}
+    th,td{border:1px solid #ccc; padding:8px; vertical-align:top}
+    th{background:#f3f3f3}
+    .pill{display:inline-block;border:1px solid #ddd;border-radius:999px;padding:2px 8px;margin:2px 4px 2px 0;font-size:11px;}
+  </style></head><body>
+  <h1>Medikamenten- &amp; Gesundheitsnachweis</h1>
+  <p class="muted">Hundepension Doggy Style – Angelika &amp; Raphael Boch · Zeitraum: ${start.toLocaleDateString('de-DE')} – ${end.toLocaleDateString('de-DE')}</p>
+
+  <h2>Medikamentenpläne</h2>
+  <table>
+    <thead><tr><th>Hund</th><th>Medikament</th><th>Dosis</th><th>Uhrzeiten</th><th>Hinweise</th><th>Status</th></tr></thead>
+    <tbody>
+      ${plans.map(p=>{
+        const dog = medPetName(p.petId);
+        const dose = [p.dose,p.unit].filter(Boolean).join(" ");
+        const times = (p.times||[]).join(", ");
+        const st = (p.active===false) ? "inaktiv" : "aktiv";
+        return `<tr><td>${escapeHtml(dog)}</td><td>${escapeHtml(p.name||"")}</td><td>${escapeHtml(dose)}</td><td>${escapeHtml(times)}</td><td>${escapeHtml(p.notes||"")}</td><td>${escapeHtml(st)}</td></tr>`;
+      }).join("")}
+    </tbody>
+  </table>
+
+  <h2>Gaben-Protokoll</h2>
+  <table>
+    <thead><tr><th>Datum</th><th>Uhrzeit</th><th>Hund</th><th>Medikament</th><th>Status</th><th>Begründung</th><th>Durchgeführt von</th></tr></thead>
+    <tbody>
+      ${records.slice().reverse().map(r=>{
+        const dog = medPetName(r.petId);
+        const pl = (state.medication.plans||[]).find(p=>p.id===r.planId);
+        const med = pl ? pl.name : "—";
+        const by = [r.byPreset, r.byText].filter(Boolean).join(" ");
+        const st = (r.status==="gegeben") ? "gegeben" : "nicht gegeben";
+        return `<tr><td>${escapeHtml(formatDateDE(r.date))}</td><td>${escapeHtml(r.time||"")}</td><td>${escapeHtml(dog)}</td><td>${escapeHtml(med)}</td><td>${escapeHtml(st)}</td><td>${escapeHtml(r.reason||"")}</td><td>${escapeHtml(by)}</td></tr>`;
+      }).join("")}
+    </tbody>
+  </table>
+
+  <h2>Gesundheitsnotizen</h2>
+  <table>
+    <thead><tr><th>Datum</th><th>Hund</th><th>Tags</th><th>Notiz</th><th>Hinweise</th><th>Notiert von</th></tr></thead>
+    <tbody>
+      ${notes.slice().reverse().map(n=>{
+        const dog = medPetName(n.petId);
+        const tags = (n.tags||[]).map(t=>`<span class="pill">${escapeHtml(t)}</span>`).join(" ");
+        const flags = [
+          n.relatedToMeds ? "Medikation?" : "",
+          n.ownerInformed ? "Halter informiert" : ""
+        ].filter(Boolean).join(" · ");
+        const by = [n.byPreset, n.byText].filter(Boolean).join(" ");
+        return `<tr><td>${escapeHtml(formatDateDE(n.date))}</td><td>${escapeHtml(dog)}</td><td>${tags}</td><td>${escapeHtml(n.text||"")}</td><td>${escapeHtml(flags)}</td><td>${escapeHtml(by)}</td></tr>`;
+      }).join("")}
+    </tbody>
+  </table>
+
+  <script>window.print();window.onafterprint=()=>window.close();</script>
+  </body></html>`);
+  w.document.close();
+}
+
 
 function formatDateDE(iso){
   const dt = new Date(iso);
@@ -1427,7 +2683,95 @@ function renderCalendarDayDetail(iso){
     return (iso >= d.meta.von && iso <= d.meta.bis);
   }).slice().sort((a,b)=> String(a.meta?.von||'').localeCompare(String(b.meta?.von||'')));
 
+  // Etappe 4: Medikamente pro Aufenthaltstag (Kalender-Tag-Detail)
+  const stayPetIds = Array.from(new Set((stays||[]).map(s => (s.petId || s.dogId || "")).filter(Boolean)));
+  const medOcc = (stayPetIds.length ? medDueOccurrences(iso, stayPetIds) : []);
+  const medOpen = medOcc.filter(o=>!o.done);
+
+  // Etappe 4.1: Filter im Tagdetail – nur fällige
+  ensureStateShape();
+  if(!state.medication.ui) state.medication.ui = {};
+  if(typeof state.medication.ui.calDayPendingOnly !== 'boolean') state.medication.ui.calDayPendingOnly = false;
+  const calPendingOnly = !!state.medication.ui.calDayPendingOnly;
+
+
   list.innerHTML = '';
+
+  // Medikamente für den Tag anzeigen (falls es Pläne gibt)
+  if(medOcc.length){
+    const head = document.createElement('div');
+    head.className = 'item';
+    const openLabel = medOpen.length ? `<span class="pill warn" style="margin-left:8px;">${medOpen.length} fällig</span>` : `<span class="pill" style="margin-left:8px;">OK</span>`;
+    head.innerHTML = `<div><strong>💊 Medikamente</strong>${openLabel}<small>Fälligkeiten für Hunde mit Aufenthalt</small></div>
+                      <button class="btn" style="padding:8px 10px; font-size:12px;">Öffnen</button>`;
+    const btn = head.querySelector('button');
+    if(btn){
+      btn.onclick = ()=>{
+        try{
+          // Öffnet den Medikamenten-Tab; Details werden dort erledigt
+          openMedication();
+          setTimeout(()=>{ try{ renderMedicationPanel(); }catch(_){ } }, 120);
+        }catch(e){ console.warn(e); }
+      };
+    }
+    list.appendChild(head);
+
+    // Filterzeile (nur fällige)
+    const filter = document.createElement('div');
+    filter.className = 'item';
+    filter.innerHTML = `
+      <div style="min-width:0;">
+        <small><label style="display:inline-flex; gap:8px; align-items:center; cursor:pointer;">
+          <input type="checkbox" id="calMedPendingOnly" ${calPendingOnly ? 'checked' : ''} />
+          nur fällige
+        </label>
+        <span class="muted" style="margin-left:10px;">${medOpen.length} fällig / ${medOcc.length} gesamt</span></small>
+      </div>
+    `;
+    const cb = filter.querySelector('#calMedPendingOnly');
+    if(cb){
+      cb.onchange = ()=>{
+        try{
+          state.medication.ui.calDayPendingOnly = !!cb.checked;
+          saveState();
+        }catch(_){ }
+        renderCalendarDayDetail(iso);
+      };
+    }
+    list.appendChild(filter);
+
+    const occToShow = calPendingOnly ? medOpen : medOcc;
+    if(calPendingOnly && occToShow.length === 0){
+      const none = document.createElement('div');
+      none.className = 'muted';
+      none.style.margin = '6px 0 2px';
+      none.textContent = 'Keine fälligen Gaben.';
+      list.appendChild(none);
+    }
+
+    occToShow.forEach(o=>{
+      const it = document.createElement('div');
+      it.className = 'item';
+      const status = o.done ? '✅' : '⏳';
+      const dose = [o.dose, o.unit].filter(Boolean).join(' ').trim();
+      const note = o.notes ? ` · <span class="muted">${escapeHtml(o.notes)}</span>` : '';
+      it.innerHTML = `<div><strong>${status} ${escapeHtml(o.petName||'Hund')}</strong>
+                        <small>${escapeHtml(o.time||'')} · ${escapeHtml(o.medName||'Medikament')}${dose?` · ${escapeHtml(dose)}`:''}${note}</small>
+                      </div>`;
+      if(!o.done){
+        it.classList.add('warn');
+      }
+      list.appendChild(it);
+    });
+
+    // kleine Trennung zur Aufenthaltsliste
+    const sep = document.createElement('div');
+    sep.className = 'muted';
+    sep.style.margin = '6px 0 2px';
+    sep.textContent = 'Aufenthalte';
+    list.appendChild(sep);
+  }
+
   if(!stays.length){
     list.innerHTML = `<div class="muted">Keine Aufenthalte an diesem Tag.</div>`;
   } else {
@@ -1541,10 +2885,402 @@ const getTemplate=id=>templates.find(t=>t.id===id);
 function uid(){return Math.random().toString(16).slice(2)+Date.now().toString(16);}
 
 // ===== ETAPPE 1: Datenmodell v2 + Migration (Kunden/Hunde/Aufenthalte/Rechnungen) =====
+
+/* ===== Profi: Mitarbeiter, Vorlagen-Versionen, §11-Ampel, Monatsabschluss, Steuerberater-Export ===== */
+function uniq(arr){
+  const out=[]; const seen=new Set();
+  (arr||[]).forEach(x=>{ const k=String(x||"").trim(); if(!k) return; if(seen.has(k)) return; seen.add(k); out.push(k); });
+  return out;
+}
+
+function ensureProfiDefaults(){
+  if(!state || typeof state !== 'object') return;
+
+  // Kompatibilität: älterer Masterstand nutzt state.staff.people + state.compliance.docs/monthClosings.
+  if(!state.staff || typeof state.staff !== 'object') state.staff = {};
+  if(!Array.isArray(state.staff.people)) state.staff.people = [];
+  if(!Array.isArray(state.staff.presets)) state.staff.presets = ["Raphael","Anschi"];
+  // Raphael/Anschi immer vorhanden
+  const ensure = (name)=>{
+    if(!name) return;
+    let p = state.staff.people.find(x=>x && x.name===name);
+    if(!p){ state.staff.people.push({id: uid(), name, role:"", active:true, createdAt:Date.now()}); }
+    else if(typeof p.active !== 'boolean') p.active = true;
+  };
+  state.staff.presets.forEach(ensure);
+
+  // Alias für die neuen UI-Helper
+  state.staff.list = state.staff.people;
+  if(typeof state.staff.nextId !== 'number') state.staff.nextId = 1;
+
+  // Versionierung & Monatsabschluss: über state.compliance
+  if(!state.compliance || typeof state.compliance !== 'object') state.compliance = {};
+  if(!state.compliance.docs || typeof state.compliance.docs !== 'object') state.compliance.docs = {};
+  const today = toISODateLocal(new Date());
+  const ensureDoc = (key, title)=>{
+    if(!state.compliance.docs[key] || typeof state.compliance.docs[key] !== 'object'){
+      state.compliance.docs[key] = { title, version:"1.0", lastChanged: today, history: [] };
+    }
+    if(!Array.isArray(state.compliance.docs[key].history)) state.compliance.docs[key].history = [];
+  };
+  ensureDoc('hygiene', 'Hygieneplan');
+  ensureDoc('brand', 'Brandfall- & Evakuierungskonzept');
+  ensureDoc('notfall', 'Notfallplan');
+  ensureDoc('contract', 'Betreuungsvertrag');
+  state.compliance.monthClosings = Array.isArray(state.compliance.monthClosings) ? state.compliance.monthClosings : [];
+}
+
+function getActiveStaffNames(){
+  ensureProfiDefaults();
+  return uniq((state.staff.list||[]).filter(s=>s && s.active!==false).map(s=>s.name));
+}
+
+function staffSelectOptions(selected){
+  const names = getActiveStaffNames();
+  const sel = String(selected||'');
+  const opts = names.map(n=>`<option value="${escapeHtml(n)}" ${n===sel?'selected':''}>${escapeHtml(n)}</option>`).join('');
+  return `<option value="">(Auswahl)</option>${opts}`;
+}
+
+function complianceItem(label, status, detail){
+  const pillClass = status==='green' ? '' : (status==='yellow' ? 'warn' : 'danger');
+  const icon = status==='green' ? '🟢' : (status==='yellow' ? '🟡' : '🔴');
+  return {label, status, detail, icon, pillClass};
+}
+
+function computeCompliance(){
+  ensureStateShape();
+  ensureProfiDefaults();
+  const today = todayISO();
+
+  // Hygiene: offene Einträge heute oder überfällige Wochenaufgaben
+  const hygLogs = (state.hygiene?.logs||[]);
+  const openHygToday = hygLogs.filter(l=>l && l.date===today && l.status==='pending').length;
+  const weekly = (state.hygiene?.weeklyTasks||[]);
+  const overdueWeekly = weekly.filter(t=>{
+    const last = t?.lastDone ? String(t.lastDone).slice(0,10) : '';
+    if(!last) return true;
+    try{
+      const dLast = new Date(last);
+      const dNow = new Date(today);
+      const diff = Math.floor((dNow-dLast)/(1000*60*60*24));
+      return diff > Number(t.intervalDays||7);
+    }catch(_){ return true; }
+  }).length;
+  let hygStatus='green';
+  let hygDetail='Alles aktuell.';
+  if(openHygToday>0 || overdueWeekly>0){
+    hygStatus = (overdueWeekly>0) ? 'red' : 'yellow';
+    hygDetail = `${openHygToday} offen heute, ${overdueWeekly} Wochenaufgabe(n) überfällig.`;
+  }
+
+  // Medikation: fällige Gaben heute (nur Hunde in Betreuung)
+  let medStatus='green', medDetail='Keine fälligen Gaben.';
+  try{
+    const inCare = getPetIdsInCare(today);
+    const due = medDueOccurrences(today, (inCare.length ? inCare : null));
+    const open = due.filter(x=>!x.done).length;
+    if(open>0){ medStatus='yellow'; medDetail = `${open} Gabe(n) fällig.`; }
+  }catch(e){ /* ignore */ }
+
+  // Verträge: aktive Aufenthalte ohne unterschriebenen Vertrag
+  let conStatus='green', conDetail='Für aktive Aufenthalte liegt ein Vertrag vor.';
+  try{
+    const activeStays = (state.docs||[]).filter(d=>d && d.type==='hundeannahme' && d.saved && d.meta?.von && d.meta?.bis && (today>=d.meta.von && today<=d.meta.bis));
+    const missing = activeStays.filter(d=>!d.contractSigned && !(d.signatures && d.signatures.halter)).length;
+    if(missing>0){ conStatus='yellow'; conDetail = `${missing} aktiv ohne (vollständige) Unterschrift.`; }
+  }catch(e){ }
+
+  // Notfall/Brand: Vorlage vorhanden (Versionen gesetzt)
+  const docs = state.compliance?.docs || {};
+  const fireOk = !!docs.brand?.version;
+  const emergOk = !!docs.notfall?.version;
+  let nfStatus='green', nfDetail='Vorlagen vorhanden.';
+  if(!fireOk || !emergOk){ nfStatus='red'; nfDetail='Notfall/Brand Vorlagen fehlen.'; }
+
+  const items = [
+    complianceItem('Hygiene', hygStatus, hygDetail),
+    complianceItem('Medikation', medStatus, medDetail),
+    complianceItem('Verträge', conStatus, conDetail),
+    complianceItem('Notfall/Brand', nfStatus, nfDetail)
+  ];
+  const worst = items.reduce((a,i)=>{
+    const rank = (s)=> s==='red'?3 : (s==='yellow'?2:1);
+    return rank(i.status)>rank(a)?i.status:a;
+  }, 'green');
+  return {today, items, worst};
+}
+
+function renderComplianceDashboard(){
+  const card = document.getElementById('complianceDashboardCard');
+  if(!card) return;
+  const meta = document.getElementById('complianceMeta');
+  const pill = document.getElementById('complianceStatus');
+  const list = document.getElementById('complianceList');
+  const c = computeCompliance();
+  if(meta) meta.textContent = `Stand: ${formatDateDE(c.today)} · Tipp: Monat abschließen = Nachweis + Backup`;
+  if(pill){
+    pill.textContent = c.worst==='green' ? 'OK' : (c.worst==='yellow'?'Achtung':'Handlungsbedarf');
+    pill.classList.toggle('warn', c.worst==='yellow');
+    pill.classList.toggle('danger', c.worst==='red');
+  }
+  if(list){
+    list.innerHTML = c.items.map(i=>`
+      <div class="list-row">
+        <div>
+          <strong>${i.icon} ${escapeHtml(i.label)}</strong>
+          <div class="muted" style="margin-top:4px">${escapeHtml(i.detail||'')}</div>
+        </div>
+        <span class="pill ${i.pillClass}">${i.status==='green'?'OK':(i.status==='yellow'?'fällig':'überfällig')}</span>
+      </div>
+    `).join('');
+  }
+}
+
+function renderComplianceInSettings(){
+  const el = document.getElementById('complianceSettingsList');
+  if(!el) return;
+  const c = computeCompliance();
+  el.innerHTML = c.items.map(i=>`
+    <div class="list-row">
+      <div>
+        <strong>${i.icon} ${escapeHtml(i.label)}</strong>
+        <div class="muted" style="margin-top:4px">${escapeHtml(i.detail||'')}</div>
+      </div>
+      <span class="pill ${i.pillClass}">${i.status==='green'?'OK':(i.status==='yellow'?'fällig':'überfällig')}</span>
+    </div>
+  `).join('');
+}
+
+function renderStaffSettings(){
+  const list = document.getElementById('staffList');
+  if(!list) return;
+  ensureProfiDefaults();
+  list.innerHTML = (state.staff.list||[]).map(s=>{
+    const active = s.active!==false;
+    return `<div class="list-row">
+      <div>
+        <strong>${escapeHtml(s.name||'')}</strong>
+        <div class="muted" style="margin-top:4px">${escapeHtml(s.role||'')}</div>
+      </div>
+      <div class="row" style="gap:8px; flex-wrap:wrap; align-items:center;">
+        <button class="smallbtn" onclick="profiEditStaff('${escapeHtml(s.id)}')">Bearbeiten</button>
+        <button class="smallbtn ${active?'warn':'primary'}" onclick="profiToggleStaff('${escapeHtml(s.id)}')">${active?'Deaktivieren':'Aktivieren'}</button>
+      </div>
+    </div>`;
+  }).join('') || `<div class="muted">Keine Mitarbeitenden.</div>`;
+}
+
+function profiAddStaff(){
+  ensureProfiDefaults();
+  const name = (document.getElementById('staffNameInput')?.value||'').trim();
+  const role = (document.getElementById('staffRoleInput')?.value||'').trim();
+  if(!name){ alert('Bitte Name eingeben.'); return; }
+  const id = `staff_${state.staff.nextId++}`;
+  state.staff.list.push({id, name, role, active:true, createdAt:Date.now()});
+  // in Modul-Presets synchronisieren
+  const names = getActiveStaffNames();
+  state.hygiene.staffPresets = uniq([...(state.hygiene.staffPresets||[]), ...names]);
+  state.medication.staffPresets = uniq([...(state.medication.staffPresets||[]), ...names]);
+  saveState();
+  document.getElementById('staffNameInput').value='';
+  document.getElementById('staffRoleInput').value='';
+  renderStaffSettings();
+  // Refresh panels that use presets
+  try{ renderHygienePanel(); }catch(_){ }
+  try{ renderMedicationPanel(); }catch(_){ }
+}
+
+function profiToggleStaff(id){
+  ensureProfiDefaults();
+  const s = (state.staff.list||[]).find(x=>x.id===id);
+  if(!s) return;
+  s.active = !(s.active!==false);
+  // Presets neu setzen
+  const names = getActiveStaffNames();
+  state.hygiene.staffPresets = uniq([...(state.hygiene.staffPresets||[]).filter(n=>names.includes(n)), ...names]);
+  state.medication.staffPresets = uniq([...(state.medication.staffPresets||[]).filter(n=>names.includes(n)), ...names]);
+  saveState();
+  renderStaffSettings();
+}
+
+function profiEditStaff(id){
+  ensureProfiDefaults();
+  const s = (state.staff.list||[]).find(x=>x.id===id);
+  if(!s) return;
+  const newName = prompt('Name ändern (wirkt nur für zukünftige Auswahlen):', s.name||'');
+  if(newName==null) return;
+  const nn = String(newName).trim();
+  if(nn) s.name = nn;
+  const newRole = prompt('Rolle (optional):', s.role||'');
+  if(newRole!=null) s.role = String(newRole).trim();
+  // Presets neu aufbauen
+  const names = getActiveStaffNames();
+  state.hygiene.staffPresets = uniq([...(state.hygiene.staffPresets||[]), ...names]);
+  state.medication.staffPresets = uniq([...(state.medication.staffPresets||[]), ...names]);
+  saveState();
+  renderStaffSettings();
+}
+
+function renderPolicySettings(){
+  const el = document.getElementById('policyList');
+  if(!el) return;
+  ensureProfiDefaults();
+  const cur = state.compliance.docs;
+  const rows = [
+    {k:'hygiene', label:'Hygieneplan'},
+    {k:'notfall', label:'Notfallplan'},
+    {k:'brand', label:'Brandfall & Evakuierung'},
+    {k:'contract', label:'Betreuungsvertrag'}
+  ].map(r=>{
+    const v = cur[r.k]?.version || '1.0';
+    const dt = cur[r.k]?.lastChanged ? escapeHtml(cur[r.k].lastChanged) : '—';
+    return `<div class="list-row">
+      <div>
+        <strong>${escapeHtml(r.label)}</strong>
+        <div class="muted" style="margin-top:4px">Version ${escapeHtml(v)} · geändert: ${escapeHtml(dt)}</div>
+      </div>
+      <div class="row" style="gap:8px; flex-wrap:wrap;">
+        <button class="smallbtn" onclick="profiBumpPolicy('${escapeHtml(r.k)}')">Neue Version</button>
+      </div>
+    </div>`;
+  }).join('');
+  const count = Object.values(state.compliance.docs||{}).reduce((a,d)=>a+((d&&Array.isArray(d.history))?d.history.length:0),0);
+  el.innerHTML = rows + `<div class="hint" style="margin-top:10px">Archiv: ${count} Eintrag(e). (Inhalt bleibt in der App unverändert; Versionierung dient dem Nachweis.)</div>`;
+}
+
+function bumpVersionStr(v){
+  const m = String(v||'1.0').split('.').map(x=>parseInt(x,10));
+  const a = Number.isFinite(m[0])?m[0]:1;
+  const b = Number.isFinite(m[1])?m[1]:0;
+  return `${a}.${b+1}`;
+}
+
+function profiBumpPolicy(key){
+  ensureProfiDefaults();
+  const note = prompt('Änderung kurz beschreiben (für Archiv):','');
+  if(note==null) return;
+  const doc = state.compliance.docs[key] || {title:key, version:'1.0', lastChanged:toISODateLocal(new Date()), history:[]};
+  const toV = bumpVersionStr(doc.version);
+  doc.history = Array.isArray(doc.history) ? doc.history : [];
+  doc.history.push({fromVersion:doc.version, toVersion:toV, changedAt:toISODateLocal(new Date()), note:String(note||'').trim()});
+  doc.version = toV;
+  doc.lastChanged = toISODateLocal(new Date());
+  state.compliance.docs[key] = doc;
+  saveState();
+  renderPolicySettings();
+  renderComplianceDashboard();
+  renderComplianceInSettings();
+}
+
+function downloadBlob(filename, blob){
+  const a=document.createElement('a');
+  const url=URL.createObjectURL(blob);
+  a.href=url; a.download=filename;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 400);
+}
+
+function exportMonthJson(){
+  const today = new Date();
+  const ym = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
+  const blob = new Blob([JSON.stringify(state,null,2)], {type:'application/json'});
+  downloadBlob(`02_MonatsBackup_${ym}.json`, blob);
+}
+
+function buildMonthReportHtml(monthISO){
+  const ym = monthISO;
+  const c = computeCompliance();
+  const from = `${ym}-01`;
+  const to = `${ym}-31`;
+  const hyg = (state.hygiene?.logs||[]).filter(l=>l && l.date>=from && l.date<=to);
+  const medRec = (state.medication?.records||[]).filter(r=>r && r.date>=from && r.date<=to);
+  const hn = (state.medication?.healthNotes||[]).filter(n=>n && n.date>=from && n.date<=to);
+  const stays = (state.docs||[]).filter(d=>d && d.saved && d.meta?.von && d.meta?.von>=from && d.meta?.von<=to);
+
+  const rows = (arr, cols)=> arr.map(x=>`<tr>${cols.map(c=>`<td>${escapeHtml(String((typeof c==='function'?c(x):x[c])??''))}</td>`).join('')}</tr>`).join('') || `<tr><td colspan="${cols.length}">—</td></tr>`;
+
+  return `<!doctype html><html><head><meta charset="utf-8"><title>Monatsnachweis ${escapeHtml(ym)}</title>
+  <style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;margin:24px} h1,h2{margin:0 0 10px} .meta{color:#555;margin:0 0 16px} table{width:100%;border-collapse:collapse;margin:10px 0 18px} th,td{border:1px solid #ddd;padding:8px;font-size:12px} th{background:#f4f4f4;text-align:left} .pill{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid #bbb;font-size:12px} .warn{border-color:#d8a000} .danger{border-color:#c00} </style></head><body>
+  <h1>Doggy Style – Monatsnachweis ${escapeHtml(ym)}</h1>
+  <p class="meta">Erstellt: ${escapeHtml(new Date().toLocaleString('de-DE'))} · Betrieb: ${escapeHtml(COMPANY.name)} · Adresse: ${escapeHtml(COMPANY.street)}, ${escapeHtml(COMPANY.zipCity)}</p>
+
+  <h2>§11‑Ampel (Stand heute)</h2>
+  <table><tr><th>Bereich</th><th>Status</th><th>Detail</th></tr>
+    ${c.items.map(i=>`<tr><td>${escapeHtml(i.label)}</td><td><span class="pill ${i.pillClass}">${escapeHtml(i.icon)} ${escapeHtml(i.status)}</span></td><td>${escapeHtml(i.detail||'')}</td></tr>`).join('')}
+  </table>
+
+  <h2>01_Aufenthalte (Start im Monat)</h2>
+  <table><tr><th>Von</th><th>Bis</th><th>Hund</th><th>Betreuung</th></tr>
+    ${rows(stays, [x=>x.meta?.von||'', x=>x.meta?.bis||'', x=>(getPet(x.dogId||'')?.name||''), x=>x.meta?.betreuung||''])}
+  </table>
+
+  <h2>03_Medikation (Gaben-Protokoll)</h2>
+  <table><tr><th>Datum</th><th>Uhrzeit</th><th>Hund</th><th>Medikament</th><th>Status</th><th>Begründung</th><th>Von</th></tr>
+    ${rows(medRec, ['date','time', x=>(getPet(x.petId||'')?.name||''), 'medName','status','reason','by'])}
+  </table>
+
+  <h2>03_Gesundheit (Notizen)</h2>
+  <table><tr><th>Datum</th><th>Hund</th><th>Tags</th><th>Notiz</th><th>Von</th></tr>
+    ${rows(hn, ['date', x=>(getPet(x.petId||'')?.name||''), x=>(Array.isArray(x.tags)?x.tags.join(', '):''), 'text','by'])}
+  </table>
+
+  <h2>04_Hygiene (Protokoll)</h2>
+  <table><tr><th>Datum</th><th>Bereich</th><th>Maßnahme</th><th>Status</th><th>Von</th><th>Notiz</th></tr>
+    ${rows(hyg, ['date','area','action','status','by','note'])}
+  </table>
+
+  <p class="meta"><strong>Backup‑Hinweis:</strong> Speichere diese PDF und das Monats‑JSON (02_MonatsBackup_...) extern in <em>Dateien/DoggyStyle/Export</em>.</p>
+  <script>window.onload=()=>{ setTimeout(()=>{ try{window.print();}catch(e){} }, 200); };</script>
+  </body></html>`;
+}
+
+function monthClose(){
+  ensureProfiDefaults();
+  const now = new Date();
+  const ym = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const c = computeCompliance();
+  state.compliance.monthClosings.push({ym, closedAt:Date.now(), complianceWorst:c.worst});
+  saveState();
+  const html = buildMonthReportHtml(ym);
+  const w = window.open('', '_blank');
+  if(!w){ alert('Popup blockiert. Bitte in Safari Popups erlauben, dann erneut „Monat abschließen“ drücken.'); return; }
+  w.document.open(); w.document.write(html); w.document.close();
+  const msg = document.getElementById('monthCloseMsg');
+  if(msg) msg.textContent = `Monat ${ym} abgeschlossen – PDF Druckdialog öffnet sich.`;
+}
+
+function taxExportMonth(){
+  const now = new Date();
+  const ym = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const html = buildMonthReportHtml(ym);
+  const w = window.open('', '_blank');
+  if(!w){ alert('Popup blockiert. Bitte Popups erlauben.'); return; }
+  w.document.open(); w.document.write(html); w.document.close();
+  const msg = document.getElementById('taxExportMsg');
+  if(msg) msg.textContent = `PDF‑Report für ${ym} geöffnet (Dateiname‑Tipp: 01–05 in Dateien sortieren).`;
+}
+
+function initProfiSettingsBindings(){
+  const add = document.getElementById('btnStaffAdd');
+  if(add && !add.dataset.bound){ add.dataset.bound='1'; add.onclick = profiAddStaff; }
+  const ref = document.getElementById('btnComplianceRefresh');
+  if(ref && !ref.dataset.bound){ ref.dataset.bound='1'; ref.onclick = ()=>{ renderComplianceDashboard(); renderComplianceInSettings(); }; }
+  const mc = document.getElementById('btnMonthClose');
+  if(mc && !mc.dataset.bound){ mc.dataset.bound='1'; mc.onclick = monthClose; }
+  const t1 = document.getElementById('btnTaxExportMonth');
+  if(t1 && !t1.dataset.bound){ t1.dataset.bound='1'; t1.onclick = taxExportMonth; }
+  const t2 = document.getElementById('btnTaxExportJSON');
+  if(t2 && !t2.dataset.bound){ t2.dataset.bound='1'; t2.onclick = exportMonthJson; }
+}
+
 function ensureStateShape(){
   // Basis-Defaults (ohne UID-Erzeugung, damit es beim ersten Load robust bleibt)
   if(!state || typeof state !== "object") return;
   if(typeof state.schemaVersion !== "number") state.schemaVersion = 1;
+
+  // Profi-Defaults (Mitarbeiter, Versionen, Monatsabschlüsse)
+  try{ ensureProfiDefaults(); }catch(_){ }
 
   state.dogs = Array.isArray(state.dogs) ? state.dogs : [];
   state.docs = Array.isArray(state.docs) ? state.docs : [];
@@ -1555,7 +3291,101 @@ function ensureStateShape(){
   state.worklogs = Array.isArray(state.worklogs) ? state.worklogs : [];
   state.invoices = Array.isArray(state.invoices) ? state.invoices : [];
 
-  state._legacy = (state._legacy && typeof state._legacy === "object") ? state._legacy : {};
+  // Hygiene & Reinigung
+  if(!state.hygiene || typeof state.hygiene !== "object") state.hygiene = {};
+  state.hygiene.logs = Array.isArray(state.hygiene.logs) ? state.hygiene.logs : [];
+  state.hygiene.weeklyTasks = Array.isArray(state.hygiene.weeklyTasks) ? state.hygiene.weeklyTasks : [];
+  state.hygiene.staffPresets = Array.isArray(state.hygiene.staffPresets) ? state.hygiene.staffPresets : ["Raphael","Anschi"];
+  // Sync Presets mit Mitarbeiterliste (Raphael/Anschi + weitere)
+  try{ state.hygiene.staffPresets = uniq([...(state.hygiene.staffPresets||[]), ...getActiveStaffNames()]); }catch(_){ }
+  // UI preferences
+  if(!state.hygiene.ui || typeof state.hygiene.ui !== "object") state.hygiene.ui = {};
+  if(typeof state.hygiene.ui.pendingOnly !== "boolean") state.hygiene.ui.pendingOnly = false;
+  // Restore filter preference from localStorage (optional)
+  try{
+    const v = localStorage.getItem('ds_hyg_pendingOnly');
+    if(v === 'true') state.hygiene.ui.pendingOnly = true;
+    if(v === 'false') state.hygiene.ui.pendingOnly = false;
+  }catch(e){}
+
+
+
+  // Default Wochenaufgaben (nur einmal anlegen)
+  if(state.hygiene.weeklyTasks.length === 0){
+    state.hygiene.weeklyTasks = [
+      { id: "wk_outdoor_disinfect", title: "Desinfektion Außenbereich", intervalDays: 7, lastDone: null },
+      { id: "wk_runs_deepclean", title: "Grundreinigung Ausläufe", intervalDays: 7, lastDone: null },
+      { id: "wk_toilet_areas", title: "Desinfektion Toilettenbereiche", intervalDays: 7, lastDone: null },
+      { id: "wk_quarantine_zone", title: "Kontrolle/Reinigung Quarantänezone", intervalDays: 7, lastDone: null }
+    ];
+  }
+
+  // Medikamente & Gesundheit
+  if(!state.medication || typeof state.medication !== "object") state.medication = {};
+  state.medication.plans = Array.isArray(state.medication.plans) ? state.medication.plans : [];
+  state.medication.records = Array.isArray(state.medication.records) ? state.medication.records : [];
+  state.medication.healthNotes = Array.isArray(state.medication.healthNotes) ? state.medication.healthNotes : [];
+  state.medication.staffPresets = Array.isArray(state.medication.staffPresets) ? state.medication.staffPresets : ["Raphael","Anschi"];
+
+  // Presets mit aktuiver Mitarbeiterliste synchronisieren (Raphael/Anschi fest, weitere aus Einstellungen)
+  try{
+    const names = getActiveStaffNames();
+    state.hygiene.staffPresets = uniq([...(state.hygiene.staffPresets||[]), ...names]);
+    state.medication.staffPresets = uniq([...(state.medication.staffPresets||[]), ...names]);
+  }catch(_){ }
+  try{ state.medication.staffPresets = uniq([...(state.medication.staffPresets||[]), ...getActiveStaffNames()]); }catch(_){ }
+  if(!state.medication.ui || typeof state.medication.ui !== "object") state.medication.ui = {};
+  if(typeof state.medication.ui.pendingOnly !== "boolean") state.medication.ui.pendingOnly = false;
+  if(typeof state.medication.ui.selectedPetId !== "string") state.medication.ui.selectedPetId = "";
+  try{
+    const v = localStorage.getItem('ds_med_pendingOnly');
+    if(v === 'true') state.medication.ui.pendingOnly = true;
+    if(v === 'false') state.medication.ui.pendingOnly = false;
+  }catch(e){}
+
+  
+  // Mitarbeiter (global) – Voreinstellung: Raphael & Anschi
+  if(!state.staff || typeof state.staff !== "object") state.staff = {};
+  state.staff.people = Array.isArray(state.staff.people) ? state.staff.people : [];
+  if(!Array.isArray(state.staff.presets)) state.staff.presets = ["Raphael","Anschi"];
+  // Ensure presets always included as active people
+  const ensurePerson = (name)=>{
+    if(!name) return;
+    const exists = state.staff.people.find(p=>p && p.name===name);
+    if(!exists) state.staff.people.push({ id: uid("stf"), name, active: true, createdAt: Date.now() });
+    else if(exists && typeof exists.active !== "boolean") exists.active = true;
+  };
+  state.staff.presets.forEach(ensurePerson);
+  // Backward-compat: keep hygiene/medication presets in sync
+  if(!state.hygiene.staffPresets || !Array.isArray(state.hygiene.staffPresets)) state.hygiene.staffPresets = ["Raphael","Anschi"];
+  if(!state.medication.staffPresets || !Array.isArray(state.medication.staffPresets)) state.medication.staffPresets = ["Raphael","Anschi"];
+  // Merge unique presets
+  const mergedPresets = Array.from(new Set([...(state.staff.presets||[]), ...(state.hygiene.staffPresets||[]), ...(state.medication.staffPresets||[])]));
+  state.staff.presets = mergedPresets;
+  state.hygiene.staffPresets = mergedPresets;
+  state.medication.staffPresets = mergedPresets;
+
+  // Compliance / Versionierung
+  if(!state.compliance || typeof state.compliance !== "object") state.compliance = {};
+  if(!state.compliance.docs || typeof state.compliance.docs !== "object") state.compliance.docs = {};
+  const _nowISO = toISODateLocal(new Date());
+  const ensureDoc = (key, title)=>{
+    if(!state.compliance.docs[key] || typeof state.compliance.docs[key] !== "object"){
+      state.compliance.docs[key] = { title, version: "1.0", lastChanged: _nowISO, history: [] };
+    }else{
+      if(!state.compliance.docs[key].title) state.compliance.docs[key].title = title;
+      if(!state.compliance.docs[key].version) state.compliance.docs[key].version = "1.0";
+      if(!state.compliance.docs[key].lastChanged) state.compliance.docs[key].lastChanged = _nowISO;
+      if(!Array.isArray(state.compliance.docs[key].history)) state.compliance.docs[key].history = [];
+    }
+  };
+  ensureDoc("hygiene", "Hygieneplan");
+  ensureDoc("brand", "Brandfall- & Evakuierungskonzept");
+  ensureDoc("notfall", "Notfallplan");
+  ensureDoc("contract", "Betreuungsvertrag");
+  state.compliance.monthClosings = Array.isArray(state.compliance.monthClosings) ? state.compliance.monthClosings : [];
+
+state._legacy = (state._legacy && typeof state._legacy === "object") ? state._legacy : {};
   state._legacy.dogIdToCustomerId = (state._legacy.dogIdToCustomerId && typeof state._legacy.dogIdToCustomerId === "object") ? state._legacy.dogIdToCustomerId : {};
   state._legacy.dogIdToPetId = (state._legacy.dogIdToPetId && typeof state._legacy.dogIdToPetId === "object") ? state._legacy.dogIdToPetId : {};
   state._legacy.docIdToStayId = (state._legacy.docIdToStayId && typeof state._legacy.docIdToStayId === "object") ? state._legacy.docIdToStayId : {};
@@ -2977,6 +4807,9 @@ normalizeMeta(currentDoc);
   updateContractWarnBanner(currentDoc);
   autofillHundeannahmeFieldsFromMaster($("#dogSelect").value, { overwrite:false });
 renderVersions(currentDoc);
+
+  // Quicklinks im Aufenthalt (Medikation/Gesundheit)
+  try{ renderStayQuickLinks(currentDoc); }catch(e){ console.warn('renderStayQuickLinks failed', e); }
   
   $("#dsGvoText").textContent=getTemplate(currentDoc.templateId)?.dsGvoNote||"";
   dirty=false;
@@ -3089,6 +4922,7 @@ $("#dogSelect").addEventListener("change", () => {
   renderCustomerInfoForDogId(currentDoc.dogId);
   updateContractWarnBanner(currentDoc);
   autofillHundeannahmeFieldsFromMaster(currentDoc.dogId, { overwrite:false });
+  try{ renderStayQuickLinks(currentDoc); }catch(e){}
   dirty = true;
 });
 
@@ -3212,6 +5046,9 @@ if(currentDoc.pricing){
   }
 }
      // sauberer Zeitstempel
+
+// 🧼 Auto-Trigger: Quarantäne/Parasiten aus Aufenthalt ins Hygieneprotokoll schreiben
+try{ hygieneAutoFromStayDoc(currentDoc); }catch(e){ console.warn('hygieneAutoFromStayDoc failed', e); }
 
 saveState();renderDashboard(); renderTodayStatus();                                         // EINMAL speichern
 dirty = false;
@@ -3456,6 +5293,42 @@ if(_btnExportAll) _btnExportAll.addEventListener("click", doBackupExport);
 
 const _btnBackupExport = document.getElementById('btnBackupExport');
 if(_btnBackupExport) _btnBackupExport.addEventListener('click', doBackupExport);
+
+
+const _btnMonthExport = document.getElementById('btnMonthExport');
+if(_btnMonthExport) _btnMonthExport.addEventListener('click', exportMonthBundle);
+
+const _btnMonthClose = document.getElementById('btnMonthClose');
+if(_btnMonthClose) _btnMonthClose.addEventListener('click', closeMonth);
+
+const _btnSteuerExport = document.getElementById('btnSteuerExport');
+if(_btnSteuerExport) _btnSteuerExport.addEventListener('click', showSteuerberaterExportInfo);
+
+const _btnExportMonthNow = document.getElementById('btnExportMonthNow');
+if(_btnExportMonthNow) _btnExportMonthNow.addEventListener('click', exportMonthBundle);
+
+const _btnExportSteuerNow = document.getElementById('btnExportSteuerNow');
+if(_btnExportSteuerNow) _btnExportSteuerNow.addEventListener('click', showSteuerberaterExportInfo);
+
+const _btnStaffAdd = document.getElementById('btnStaffAdd');
+if(_btnStaffAdd) _btnStaffAdd.addEventListener('click', ()=>{
+  ensureStateShape();
+  const inp = document.getElementById('staffNewName');
+  const name = inp && inp.value ? inp.value.trim() : "";
+  if(!name) return alert("Bitte Name eingeben.");
+  state.staff.people.push({ id: uid("stf"), name, active: true, createdAt: Date.now() });
+  if(inp) inp.value="";
+  syncStaffPresets();
+  saveState();
+  renderStaffSettings();
+  renderAll();
+});
+
+const _btnDocVersionsEdit = document.getElementById('btnDocVersionsEdit');
+if(_btnDocVersionsEdit) _btnDocVersionsEdit.addEventListener('click', ()=>{
+  alert("Tipp: Nutze „Version erhöhen“ bei den Dokumenten. Alte Versionen werden automatisch archiviert.");
+});
+
 
 const _btnBackupImport = document.getElementById('btnBackupImport');
 const _fileBackupImport = document.getElementById('fileBackupImport');

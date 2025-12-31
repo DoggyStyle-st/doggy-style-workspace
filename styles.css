@@ -74,6 +74,10 @@ textarea{min-height:88px;resize:vertical}
 .grid2{display:grid;grid-template-columns:1fr;gap:12px}
 @media (min-width:900px){.grid2{grid-template-columns:1fr 1fr}}
 
+/* Hygiene: einfache 2‑Spalten Grid Utility */
+.grid-2{display:grid;grid-template-columns:1fr;gap:12px}
+@media (min-width:900px){.grid-2{grid-template-columns:1fr 1fr}}
+
 
 .req{color:#d00;font-weight:700;margin-left:4px;}
 .opt{margin-top:10px;}
@@ -395,3 +399,21 @@ body.page-login .topbar .brand__sub{ opacity:0.8; }
 /* --- Content additions (Schnellstart) --- */
 .bullets{margin:10px 0 0 0; padding-left:18px;}
 .bullets li{margin:8px 0; line-height:1.35;}
+
+/* --- Medikation UI helpers --- */
+.smallselect{padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-weight:700;max-width:160px;}
+.smallinput{padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--text);font-weight:700;}
+
+
+/* Profi-Status */
+.compliance-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid rgba(255,255,255,.10);border-radius:12px;background:rgba(255,255,255,.05)}
+.compliance-item .left{display:flex;flex-direction:column;gap:2px}
+.compliance-item .title{font-weight:700}
+.compliance-item .sub{font-size:12px;color:rgba(255,255,255,.75)}
+.pill{display:inline-flex;align-items:center;gap:6px;border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:4px 10px;font-size:12px;white-space:nowrap}
+.pill.ok{background:rgba(0,255,160,.10)}
+.pill.warn{background:rgba(255,200,0,.12)}
+.pill.bad{background:rgba(255,80,80,.12)}
+.staff-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.staff-row .name{font-weight:700}
+.staff-row .meta{font-size:12px;color:rgba(255,255,255,.75)}

@@ -43,6 +43,8 @@
 <button class="tab" data-tab="dogs">Hunde/Kunden</button>
 <button class="tab" data-tab="contract">Betreuungsvertrag</button>
 <button class="tab" data-tab="workforms">Arbeitsblätter</button>
+<button class="tab" data-tab="hygiene" id="tabHygiene">Hygiene</button>
+<button class="tab" data-tab="medication" id="tabMedication">💊 Medikamente</button>
 <button class="tab" data-tab="analytics" id="tabAnalytics">Auswertungen</button>
 <button class="tab" data-tab="settings">Einstellungen</button>
 </nav>
@@ -89,6 +91,25 @@
 <button class="btn" onclick="openDogs()">🐶 Hunde/Kunden</button>
 <button class="btn" onclick="openInvoices()">🧾 Rechnungen</button>
 <button class="btn" onclick="selectTab('settings')">⚙️ Einstellungen</button>
+
+</div>
+</div>
+
+<!-- Profi-Status -->
+<div class="card" id="complianceCard" style="margin-top:12px">
+  <h2>Profi-Status (§11 &amp; Betrieb)</h2>
+  <div class="muted" id="complianceMeta" style="margin-top:6px">—</div>
+  <div class="list" id="complianceList" style="margin-top:10px"></div>
+  <div class="row" style="flex-wrap:wrap; gap:10px; margin-top:12px">
+    <button class="btn primary" id="btnMonthClose" type="button">🗓️ Monat abschließen</button>
+    <button class="btn" id="btnMonthExport" type="button">📦 Monats-Export (PDFs)</button>
+    <button class="btn" id="btnSteuerExport" type="button">📁 Export für Steuerberater</button>
+  </div>
+  <div class="hint" id="complianceHint" style="margin-top:10px">
+    Tipp: Speichere Monats-Exporte extern (PC/Cloud) – z. B. Ordner <strong>DoggyStyle/Export</strong>.
+  </div>
+</div>
+
 </div>
 <!-- Hidden legacy controls (kept for compatibility) -->
 <div class="row" style="display:none">
@@ -102,6 +123,51 @@
 <strong>Tipp:</strong> Installiere die App als PWA: In Safari <em>Teilen → Zum Home‑Bildschirm</em>.
       </div>
 
+</div>
+
+<div class="card" id="hygieneDashboardCard">
+  <div class="row between" style="gap:10px; flex-wrap:wrap; align-items:center;">
+    <div>
+      <h2 style="margin:0">🧼 Hygiene heute</h2>
+      <div class="muted" id="hygieneTodayMeta" style="margin-top:6px">—</div>
+    </div>
+    <div class="row" style="gap:8px; align-items:center; flex-wrap:wrap;">
+      <span class="sync-pill" id="hygieneTodayStatus" title="Status Hygiene heute">—</span>
+      <button class="btn" onclick="openHygiene()">Öffnen</button>
+    </div>
+  </div>
+  <div class="hint" id="hygieneTodayHint" style="margin-top:10px;">Dokumentiere Reinigung/Desinfektion – jederzeit exportierbar für §11.</div>
+</div>
+
+
+<div class="card" id="medDashboardCard">
+  <div class="row between" style="gap:10px; flex-wrap:wrap; align-items:center;">
+    <div>
+      <h2 style="margin:0">💊 Medikamente heute</h2>
+      <div class="muted" id="medTodayMeta" style="margin-top:6px">—</div>
+    </div>
+    <div class="row" style="gap:8px; align-items:center; flex-wrap:wrap;">
+      <span class="sync-pill" id="medTodayStatus" title="Status Medikamente heute">—</span>
+      <button class="btn" onclick="openMedication()">Öffnen</button>
+    </div>
+  </div>
+  <div class="hint" id="medTodayHint" style="margin-top:10px;">Fällige Medikamentengaben abhaken – plus Gesundheitsnotizen (Export‑fähig).</div>
+</div>
+
+<!-- §11 / Betriebssicherheit (Ampel) -->
+<div class="card" id="complianceDashboardCard">
+  <div class="row between" style="gap:10px; flex-wrap:wrap; align-items:center;">
+    <div>
+      <h2 style="margin:0">🟢 §11‑Status (Ampel)</h2>
+      <div class="muted" id="complianceMeta" style="margin-top:6px">—</div>
+    </div>
+    <div class="row" style="gap:8px; align-items:center; flex-wrap:wrap;">
+      <span class="sync-pill" id="complianceStatus" title="Gesamtstatus">—</span>
+      <button class="btn" onclick="selectTab('settings')">Details</button>
+    </div>
+  </div>
+  <div class="list" id="complianceList" style="margin-top:10px"></div>
+  <div class="hint" id="complianceHint" style="margin-top:10px">Tipp: Nutze „Monat abschließen“ für einen sauberen Monatsnachweis (PDF + Backup‑Hinweise).</div>
 </div>
 
 <div class="card">
@@ -170,6 +236,102 @@
       </div>
     </div>
     <div class="list" id="calDayList" style="margin-top:10px"></div>
+  </div>
+</section>
+
+<!-- HYGIENE & REINIGUNG -->
+<section class="panel" id="hygiene">
+  <div class="card">
+    <div class="row between" style="gap:10px; flex-wrap:wrap; align-items:flex-start;">
+      <div>
+        <h1 style="margin:0">🧼 Hygiene &amp; Reinigung</h1>
+        <p class="muted" style="margin:6px 0 0 0">Tagesprotokoll · Wochenaufgaben · Export (PDF) · §11‑tauglich</p>
+      </div>
+      <div class="row" style="gap:8px; flex-wrap:wrap; align-items:center;">
+        <span class="sync-pill" id="hygienePanelStatus" title="Status heute">—</span>
+        <button class="btn" id="btnHygieneExport">Export (PDF)</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Eintrag hinzufügen (heute)</h2>
+    <div class="grid-2">
+      <label class="field">
+        <span>Bereich</span>
+        <select id="hygArea">
+          <option value="Innenräume">Innenräume</option>
+          <option value="Schlafplätze">Schlafplätze</option>
+          <option value="Näpfe">Näpfe</option>
+          <option value="Außenbereich">Außenbereich</option>
+          <option value="Auslauf">Auslauf</option>
+          <option value="Quarantäne">Quarantäne</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>Maßnahme</span>
+        <select id="hygAction">
+          <option value="Reinigung">Reinigung</option>
+          <option value="Desinfektion">Desinfektion</option>
+          <option value="Kot entfernt">Kot entfernt</option>
+          <option value="Grundreinigung">Grundreinigung</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="grid-2">
+      <label class="field">
+        <span>Status</span>
+        <select id="hygStatus">
+          <option value="erledigt" selected>erledigt</option>
+          <option value="fällig">fällig</option>
+          <option value="nicht durchgeführt">nicht durchgeführt</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>Begründung (nur wenn nicht durchgeführt)</span>
+        <input id="hygReason" placeholder="z.B. Bereich nicht genutzt / Hund nicht anwesend" type="text"/>
+      </label>
+    </div>
+
+    <div class="grid-2">
+      <label class="field">
+        <span>Durchgeführt von</span>
+        <div class="row" style="gap:8px; align-items:center; flex-wrap:wrap;">
+          <select id="hygStaffPreset" style="min-width:180px"></select>
+          <input id="hygStaffFree" placeholder="optional (Aushilfe/Vertretung)" type="text" style="flex:1; min-width:220px"/>
+        </div>
+      </label>
+      <label class="field">
+        <span>Notiz (optional)</span>
+        <input id="hygNote" placeholder="z.B. Wischwasser gewechselt / Auffälligkeit" type="text"/>
+      </label>
+    </div>
+
+    <div class="row" style="gap:10px; flex-wrap:wrap; margin-top:10px;">
+      <button class="btn primary" id="btnHygieneAdd">Speichern</button>
+      <div class="muted" id="hygAddHint">Einträge sind nachträglich korrigierbar, aber nicht löschbar.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row between" style="gap:10px; flex-wrap:wrap; align-items:center;">
+      <h2 style="margin:0">Heute</h2>
+      <div class="row" style="gap:12px; align-items:center; flex-wrap:wrap;">
+        <label class="check" style="display:flex; gap:8px; align-items:center; user-select:none;">
+          <input type="checkbox" id="hygFilterPendingOnly"/>
+          <span>nur fällige</span>
+        </label>
+        <div class="muted" id="hygTodayCount">—</div>
+      </div>
+    </div>
+    <div class="list" id="hygTodayList" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card">
+    <h2>Wochenaufgaben</h2>
+    <div class="hint">Diese Aufgaben helfen euch, die regelmäßigen Punkte aus dem Hygieneplan sauber nachzuweisen.</div>
+    <div class="list" id="hygWeeklyList" style="margin-top:10px"></div>
   </div>
 </section>
 
@@ -541,6 +703,51 @@
   <div class="hint" id="backupHint">Tipp: Backup-Dateien am besten in <strong>Dateien</strong> ablegen (z. B. <em>DoggyStyle/Backups</em>).</div>
 </div>
 
+<div class="card" style="margin-top:12px" id="profiComplianceCard">
+  <h2>§11‑Ampel &amp; Monatsabschluss</h2>
+  <p class="muted" style="margin-top:6px">Schnellcheck für Kontrollen + 1‑Klick Monatsnachweis (PDF‑Report) inkl. Backup‑Hinweis.</p>
+  <div class="row" style="flex-wrap:wrap; gap:10px; margin-top:10px; align-items:center;">
+    <button class="btn" id="btnComplianceRefresh" type="button">🟢 Ampel aktualisieren</button>
+    <button class="btn primary" id="btnMonthClose" type="button">🗓️ Monat abschließen</button>
+    <span class="muted" id="monthCloseMsg"></span>
+  </div>
+  <div class="list" id="complianceSettingsList" style="margin-top:10px"></div>
+</div>
+
+<div class="card" style="margin-top:12px" id="staffCard">
+  <h2>Mitarbeiter</h2>
+  <p class="muted" style="margin-top:6px">Standard: Raphael &amp; Anschi. Du kannst weitere Mitarbeitende anlegen. Alte Einträge bleiben revisionssicher.</p>
+  <div class="row" style="gap:10px; flex-wrap:wrap; align-items:flex-end; margin-top:10px;">
+    <label class="field" style="min-width:240px; flex:1;">
+      <span>Name</span>
+      <input id="staffNameInput" placeholder="z. B. Max Mustermann" />
+    </label>
+    <label class="field" style="min-width:220px;">
+      <span>Rolle (optional)</span>
+      <input id="staffRoleInput" placeholder="z. B. Aushilfe" />
+    </label>
+    <button class="btn" id="btnStaffAdd" type="button">➕ Hinzufügen</button>
+  </div>
+  <div class="list" id="staffList" style="margin-top:10px"></div>
+</div>
+
+<div class="card" style="margin-top:12px" id="policyVersionsCard">
+  <h2>Vorlagen‑Versionen (Archiv)</h2>
+  <p class="muted" style="margin-top:6px">Für Kontrollen hilfreich: Version + Änderungsdatum für Konzepte und Vertrag. Änderungen erzeugen automatisch einen Archiv‑Eintrag.</p>
+  <div class="list" id="policyList" style="margin-top:10px"></div>
+</div>
+
+<div class="card" style="margin-top:12px" id="taxExportCard">
+  <h2>Steuerberater‑Exports</h2>
+  <p class="muted" style="margin-top:6px">Erstellt PDF‑Reports mit Dateinamen‑Prefix (01–05), damit du sie in Dateien sauber sortieren kannst.</p>
+  <div class="row" style="flex-wrap:wrap; gap:10px; margin-top:10px;">
+    <button class="btn" id="btnTaxExportMonth" type="button">📁 Monats‑Export (PDF‑Report)</button>
+    <button class="btn" id="btnTaxExportJSON" type="button">📁 Monats‑Backup (JSON)</button>
+    <span class="muted" id="taxExportMsg"></span>
+  </div>
+  <div class="hint" style="margin-top:10px">Tipp: Lege in <strong>Dateien</strong> einen Ordner <em>DoggyStyle/Export</em> an und speichere dort monatlich (01_Aufenthalte, 02_Rechnungen, …).</div>
+</div>
+
 <div class="card" style="margin-top:12px">
   <h2>Cloud &amp; Konto</h2>
   <div class="row">
@@ -565,6 +772,135 @@
 <div id="invoiceList"></div>
 <div id="invoiceView"></div>
 </section>
+
+<!-- MEDIKAMENTE & GESUNDHEIT -->
+<section class="panel" id="medication">
+  <div class="card">
+    <div class="row between" style="gap:10px; flex-wrap:wrap; align-items:flex-start;">
+      <div>
+        <h1 style="margin:0">💊 Medikamente &amp; Gesundheit</h1>
+        <p class="muted" style="margin:6px 0 0 0">Medikamentenpläne pro Hund · Gaben-Protokoll (fällig/gegeben) · Gesundheitsnotizen · Export</p>
+      </div>
+      <div class="row" style="gap:8px; flex-wrap:wrap; align-items:center;">
+        <span class="sync-pill" id="medPanelStatus" title="Status heute">—</span>
+        <button class="btn" id="btnMedExport">Export PDF</button>
+      </div>
+    </div>
+
+    <div class="row" style="gap:10px; flex-wrap:wrap; margin-top:12px; align-items:center;">
+      <label class="field" style="min-width:240px; flex:1;">
+        <span>Hund auswählen</span>
+        <select id="medPetSelect"></select>
+      </label>
+
+      <label class="field" style="min-width:220px;">
+        <span>Filter</span>
+        <div class="row" style="gap:10px; align-items:center; flex-wrap:wrap;">
+          <label class="pill" style="display:flex; gap:8px; align-items:center;">
+            <input type="checkbox" id="medPendingOnly" />
+            <span>nur fällige</span>
+          </label>
+        </div>
+      </label>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">Heute fällig</h2>
+    <div class="muted" id="medDueMeta" style="margin-top:6px">—</div>
+    <div class="list" id="medDueList" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">Medikamentenplan (dauerhaft pro Hund)</h2>
+    <div class="muted" style="margin-top:6px">Hinterlege Stammmedikamente einmal – bei jedem Aufenthalt automatisch verfügbar.</div>
+    <div id="medPlanList" class="list" style="margin-top:10px"></div>
+
+    <div class="divider" style="margin:14px 0"></div>
+
+    <h3 style="margin:0 0 10px 0">Neues Medikament</h3>
+    <div class="row" style="gap:10px; flex-wrap:wrap; align-items:flex-end;">
+      <label class="field" style="flex:1; min-width:220px;">
+        <span>Medikament</span>
+        <input id="medName" placeholder="z. B. Carprofen" />
+      </label>
+      <label class="field" style="min-width:150px;">
+        <span>Dosis</span>
+        <input id="medDose" placeholder="z. B. 50" />
+      </label>
+      <label class="field" style="min-width:160px;">
+        <span>Einheit</span>
+        <input id="medUnit" placeholder="mg / Tablette / ml" />
+      </label>
+      <label class="field" style="min-width:240px;">
+        <span>Uhrzeiten (Komma)</span>
+        <input id="medTimes" placeholder="08:00, 20:00" />
+      </label>
+    </div>
+    <label class="field" style="margin-top:10px;">
+      <span>Hinweise</span>
+      <textarea id="medNotes" rows="2" placeholder="z. B. mit Futter geben, nicht nüchtern"></textarea>
+    </label>
+    <label class="pill" style="display:flex; gap:8px; align-items:center; margin-top:10px;">
+      <input type="checkbox" id="medOwnerApproval" />
+      <span>Freigabe des Halters liegt vor</span>
+    </label>
+    <div class="row" style="gap:10px; margin-top:10px; flex-wrap:wrap;">
+      <button class="btn primary" id="btnMedAdd">➕ Speichern</button>
+      <div class="hint">Tipp: Zeiten als <em>08:00, 18:30</em>. Ein Eintrag pro Medikament.</div>
+    </div>
+  </div>
+
+  <div class="card" id="healthNotesCard">
+    <h2 style="margin-top:0">🩺 Gesundheitsnotizen</h2>
+    <div class="muted" style="margin-top:6px">Kurz dokumentieren (z. B. Durchfall, Erbrechen, Lahmheit) – exportierbar &amp; haftungssicher.</div>
+
+    <div class="row" style="gap:10px; flex-wrap:wrap; margin-top:12px;">
+      <div class="row" style="gap:10px; flex-wrap:wrap; align-items:center;">
+        <label class="pill"><input type="checkbox" class="hnTag" value="Durchfall"> Durchfall</label>
+        <label class="pill"><input type="checkbox" class="hnTag" value="Erbrechen"> Erbrechen</label>
+        <label class="pill"><input type="checkbox" class="hnTag" value="Lahmheit"> Lahmheit</label>
+        <label class="pill"><input type="checkbox" class="hnTag" value="Appetitlosigkeit"> Appetitlosigkeit</label>
+        <label class="pill"><input type="checkbox" class="hnTag" value="Husten/Niesen"> Husten/Niesen</label>
+        <label class="pill"><input type="checkbox" class="hnTag" value="Verletzung"> Verletzung</label>
+        <label class="pill"><input type="checkbox" class="hnTag" value="Sonstiges"> Sonstiges</label>
+      </div>
+    </div>
+
+    <label class="field" style="margin-top:10px;">
+      <span>Notiz</span>
+      <textarea id="hnText" rows="2" placeholder="Kurzer Eintrag (was ist passiert / wann / Besonderheiten)"></textarea>
+    </label>
+
+    <div class="row" style="gap:10px; flex-wrap:wrap; align-items:center; margin-top:10px;">
+      <label class="pill" style="display:flex; gap:8px; align-items:center;">
+        <input type="checkbox" id="hnRelatedMeds" />
+        <span>möglicher Zusammenhang mit Medikation</span>
+      </label>
+      <label class="pill" style="display:flex; gap:8px; align-items:center;">
+        <input type="checkbox" id="hnOwnerInformed" />
+        <span>Halter informiert</span>
+      </label>
+    </div>
+
+    <div class="row" style="gap:10px; flex-wrap:wrap; align-items:flex-end; margin-top:10px;">
+      <label class="field" style="min-width:180px;">
+        <span>Notiert von</span>
+        <select id="hnByPreset"></select>
+      </label>
+      <label class="field" style="flex:1; min-width:220px;">
+        <span>Zusatz</span>
+        <input id="hnByText" placeholder="optional: Aushilfe/Vertretung" />
+      </label>
+      <button class="btn primary" id="btnHnAdd">➕ Notiz speichern</button>
+    </div>
+
+    <div class="divider" style="margin:14px 0"></div>
+    <h3 style="margin:0 0 10px 0">Letzte Notizen</h3>
+    <div class="list" id="hnList"></div>
+  </div>
+</section>
+
 <section class="panel" id="analytics">
   <h2>Auswertungen</h2>
 
@@ -639,6 +975,11 @@
 <span>Dokument‑Name</span>
 <input id="docName" placeholder="z.B. Hundeannahme_Müller_Bello" type="text"/>
 </label>
+</div>
+
+<div class="row" id="stayQuickLinks" style="gap:10px; flex-wrap:wrap; margin-top:10px; display:none;">
+  <button class="btn" id="btnStayOpenMedication">💊 Medikation öffnen</button>
+  <button class="btn" id="btnStayAddHealthNote">🩺 Gesundheitsnotiz</button>
 </div>
 </div>
 <div id="editorContent">
