@@ -55,10 +55,35 @@
       // Button-Handler
       const btnLogin = $('btnLogin');
       const btnRegister = $('btnRegister');
+      const btnReset = $('btnReset');
+
+      function normalizeEmail(v){
+        return (v||'').trim().toLowerCase();
+      }
+
+      function prettyAuthError(e){
+        const code = (e && e.code) ? String(e.code) : '';
+        switch(code){
+          case 'auth/invalid-credential':
+          case 'auth/wrong-password':
+          case 'auth/user-not-found':
+            return 'E‑Mail oder Passwort ist falsch.';
+          case 'auth/email-already-in-use':
+            return 'Diese E‑Mail ist bereits registriert. Bitte anmelden oder „Passwort vergessen“ nutzen.';
+          case 'auth/weak-password':
+            return 'Passwort zu schwach. Bitte mind. 6 Zeichen.';
+          case 'auth/invalid-email':
+            return 'Ungültige E‑Mail-Adresse.';
+          case 'auth/network-request-failed':
+            return 'Netzwerkfehler. Prüfe Internetverbindung.';
+          default:
+            return (code || (e && e.message) || String(e));
+        }
+      }
 
       const doLogin = async ()=>{
-        const email = ($('loginEmail').value||'').trim();
-        const pass  = ($('loginPass').value||'').trim();
+        const email = normalizeEmail($('loginEmail').value);
+        const pass  = ($('loginPass').value||''); // Passwort nicht trimmen
         if(!email || !pass){ setMsg('Bitte E‑Mail und Passwort eingeben.'); return; }
         setMsg('Anmelden …');
         try{
@@ -66,13 +91,13 @@
           await ensureUserProfile(auth.currentUser, '');
           location.href = 'app.html';
         }catch(e){
-          setMsg('Anmelden fehlgeschlagen: ' + (e.code || e.message || e));
+          setMsg(prettyAuthError(e));
         }
       };
 
       const doRegister = async ()=>{
-        const email = ($('loginEmail').value||'').trim();
-        const pass  = ($('loginPass').value||'').trim();
+        const email = normalizeEmail($('loginEmail').value);
+        const pass  = ($('loginPass').value||''); // Passwort nicht trimmen
         const name  = (($('regName') && $('regName').value) || '').trim();
         if(!email || !pass){ setMsg('Bitte E‑Mail und Passwort eingeben.'); return; }
         setMsg('Registrieren …');
@@ -82,12 +107,28 @@
           await ensureUserProfile(auth.currentUser, name);
           location.href = 'app.html';
         }catch(e){
-          setMsg('Registrierung fehlgeschlagen: ' + (e.code || e.message || e));
+          // Wenn E-Mail schon existiert: Hinweis + optional Reset
+          setMsg(prettyAuthError(e));
+        }
+      };
+
+      const doReset = async ()=>{
+        const email = normalizeEmail($('loginEmail').value);
+        if(!email){ setMsg('Bitte E‑Mail eintragen, dann „Passwort vergessen“ drücken.'); return; }
+        setMsg('Sende Passwort-Reset …');
+        try{
+          await auth.sendPasswordResetEmail(email);
+          setMsg('Reset-Link wurde gesendet (prüfe auch Spam).');
+        }catch(e){
+          setMsg(prettyAuthError(e));
         }
       };
 
       btnLogin.addEventListener('click', (e)=>{ e.preventDefault(); doLogin(); });
       btnRegister.addEventListener('click', (e)=>{ e.preventDefault(); doRegister(); });
+      if(btnReset){
+        btnReset.addEventListener('click', (e)=>{ e.preventDefault(); doReset(); });
+      }
 
       // Enter-Taste
       $('loginPass').addEventListener('keydown', (e)=>{ if(e.key==='Enter') doLogin(); });
