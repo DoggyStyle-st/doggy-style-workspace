@@ -773,6 +773,27 @@
 <div id="invoiceView"></div>
 </section>
 
+<!-- Dokument / PDF Viewer (Modal) -->
+<div class="doc-modal" id="docModal" aria-hidden="true">
+  <div class="doc-modal__backdrop" id="docModalBackdrop"></div>
+  <div class="doc-modal__panel" role="dialog" aria-modal="true" aria-label="Dokument">
+    <div class="doc-modal__bar">
+      <div class="doc-modal__left">
+        <div class="doc-modal__title" id="docModalTitle">Dokument</div>
+        <div class="doc-modal__meta" id="docModalMeta"></div>
+      </div>
+      <div class="doc-modal__actions">
+        <button class="btn" type="button" id="docModalPrint">🖨️ Drucken/Speichern</button>
+        <button class="btn" type="button" id="docModalOpen">↗︎ In neuem Tab</button>
+        <button class="btn" type="button" id="docModalShare" style="display:none">📤 Teilen</button>
+        <button class="btn danger" type="button" id="docModalClose">✕ Schließen</button>
+      </div>
+    </div>
+    <iframe class="doc-modal__frame" id="docModalFrame" title="Dokument"></iframe>
+    <div class="hint" id="docModalHint" style="margin-top:10px">Tipp: iPad/iPhone → „Drucken/Speichern“ → Teilen → „In Dateien sichern“.</div>
+  </div>
+</div>
+
 <!-- MEDIKAMENTE & GESUNDHEIT -->
 <section class="panel" id="medication">
   <div class="card">

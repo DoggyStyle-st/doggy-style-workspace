@@ -134,6 +134,7 @@ function updateSyncUI(){
   const pill = document.getElementById('syncStatus');
   const userEl = document.getElementById('syncUser');
   const details = document.getElementById('syncDetails');
+  const manualBtn = document.getElementById('manualSaveBtn');
   if(userEl){
     if(CLOUD.enabled && CLOUD.user){
       userEl.style.display = 'inline-flex';
@@ -166,6 +167,187 @@ function updateSyncUI(){
 
   if(pill) pill.textContent = `${pillText} · ${fmtDT(SYNC.localSavedAt)}`;
   if(details) details.textContent = `${localLine}\n${cloudLine}`;
+
+  // Manual cloud save: only enable when Cloud is active + logged in
+  if(manualBtn){
+    const ok = !!(CLOUD.enabled && CLOUD.user);
+    manualBtn.disabled = !ok;
+    manualBtn.title = ok ? 'Jetzt sofort synchronisieren' : 'Cloud nicht aktiv oder nicht angemeldet';
+    manualBtn.style.opacity = ok ? '1' : '0.55';
+  }
+}
+
+/* ===== Dokument/PDF Modal (PWA/iPad-friendly) ===== */
+const DOCMOD = { url: null, filename: null };
+
+// Mini Toast helper (kurzes Feedback bei Kopieren/Teilen)
+let __toastTimer = null;
+function showMiniToast(msg){
+  try{
+    let t = document.getElementById('miniToast');
+    if(!t){
+      t = document.createElement('div');
+      t.id = 'miniToast';
+      t.className = 'mini-toast';
+      document.body.appendChild(t);
+    }
+    t.textContent = String(msg||'');
+    t.classList.add('is-on');
+    clearTimeout(__toastTimer);
+    __toastTimer = setTimeout(()=> t.classList.remove('is-on'), 1400);
+  }catch(_){/* ignore */}
+}
+
+function sanitizeFilename(name){
+  const base = String(name||'Dokument').trim();
+  // Keep it iOS/Windows friendly
+  return base
+    .replace(/[\\/:*?\"<>|]/g,'-')
+    .replace(/\s+/g,'_')
+    .replace(/_+/g,'_')
+    .replace(/[^\w\-\.äöüÄÖÜß]/g,'')
+    .slice(0, 80) || 'Dokument';
+}
+
+function suggestFilename(title){
+  const t = String(title||'').toLowerCase();
+  const now = new Date();
+  const ym = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  if(t.includes('monatsnachweis')) return `01_Monatsnachweis_${ym}.pdf`;
+  if(t.includes('monats') && t.includes('export')) return `01_MonatsExport_${ym}.pdf`;
+  if(t.includes('vertrag')) return `Betreuungsvertrag.pdf`;
+  return `${sanitizeFilename(title||'Dokument')}.pdf`;
+}
+function initDocModal(){
+  const modal = document.getElementById('docModal');
+  if(!modal || modal.dataset.bound) return;
+  modal.dataset.bound = '1';
+  const close = ()=> closeDocModal();
+  const btnClose = document.getElementById('docModalClose');
+  const backdrop = document.getElementById('docModalBackdrop');
+  const btnPrint = document.getElementById('docModalPrint');
+  const btnOpen = document.getElementById('docModalOpen');
+  const btnShare = document.getElementById('docModalShare');
+  const meta = document.getElementById('docModalMeta');
+  if(btnClose) btnClose.onclick = close;
+  if(backdrop) backdrop.onclick = close;
+  // Keyboard: ESC schließt, TAB bleibt im Modal
+  document.addEventListener('keydown', (e)=>{
+    if(!modal.classList.contains('is-open')) return;
+    if(e.key==='Escape') { e.preventDefault(); close(); return; }
+    if(e.key==='Tab'){
+      const focusables = modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+      const list = Array.from(focusables).filter(el=> !el.disabled && el.offsetParent!==null);
+      if(!list.length) return;
+      const first = list[0], last = list[list.length-1];
+      const active = document.activeElement;
+      if(e.shiftKey && active===first){ e.preventDefault(); last.focus(); }
+      else if(!e.shiftKey && active===last){ e.preventDefault(); first.focus(); }
+    }
+  });
+  if(btnPrint) btnPrint.onclick = ()=>{
+    try{
+      const fr = document.getElementById('docModalFrame');
+      if(fr && fr.contentWindow) fr.contentWindow.print();
+    }catch(e){ alert('Drucken/Speichern ist auf diesem Gerät nicht verfügbar.'); }
+  };
+  if(btnOpen) btnOpen.onclick = ()=>{
+    if(DOCMOD.url) window.open(DOCMOD.url, '_blank');
+  };
+
+  // Share (iOS/Android, wenn verfügbar)
+  if(btnShare){
+    const canShare = !!navigator.share;
+    btnShare.style.display = canShare ? '' : 'none';
+    btnShare.onclick = async ()=>{
+      if(!navigator.share) return;
+      try{
+        // Für Blob-URLs teilen wir den Titel + Dateiname (iOS PWA kann Files teils nicht direkt)
+        await navigator.share({
+          title: document.getElementById('docModalTitle')?.textContent || 'Dokument',
+          text: `Dateiname: ${DOCMOD.filename || ''}`
+        });
+        showMiniToast('Teilen geöffnet');
+      }catch(_){ /* user cancelled */ }
+    };
+  }
+
+  // Copy filename tip
+  if(meta && !meta.dataset.bound){
+    meta.dataset.bound = '1';
+    meta.addEventListener('click', (e)=>{
+      const t = e.target;
+      if(t && t.id==='docModalCopyName'){
+        const name = DOCMOD.filename || '';
+        if(!name) return;
+        try{
+          navigator.clipboard?.writeText(name);
+          showMiniToast('Dateiname kopiert');
+          t.textContent = 'Kopiert ✓';
+          setTimeout(()=>{ t.textContent = 'Kopieren'; }, 1200);
+        }catch(_){
+          alert(name);
+        }
+      }
+    });
+  }
+}
+
+function openDocModal(url, title, hint, filename){
+  initDocModal();
+  const modal = document.getElementById('docModal');
+  const frame = document.getElementById('docModalFrame');
+  const ttl = document.getElementById('docModalTitle');
+  const h = document.getElementById('docModalHint');
+  const meta = document.getElementById('docModalMeta');
+  if(!modal || !frame) return;
+  // Focus restore
+  DOCMOD.__prevFocus = document.activeElement;
+  // cleanup old
+  if(DOCMOD.url){ try{ URL.revokeObjectURL(DOCMOD.url); }catch(_){ } }
+  DOCMOD.url = url;
+  DOCMOD.filename = filename || suggestFilename(title);
+  if(ttl) ttl.textContent = title || 'Dokument';
+  if(meta){
+    const fn = escapeHtml(DOCMOD.filename);
+    meta.innerHTML = `Dateiname‑Tipp: <code>${fn}</code> <button class="btn mini" type="button" id="docModalCopyName">Kopieren</button>`;
+  }
+  if(h) h.textContent = hint || 'Tipp: iPad/iPhone → „Drucken/Speichern“ → Teilen → „In Dateien sichern“. (So landet das PDF im gewünschten Ordner.)';
+  frame.title = title || 'Dokument';
+  frame.src = url;
+  modal.classList.add('is-open');
+  modal.setAttribute('aria-hidden','false');
+  document.body.style.overflow = 'hidden';
+  // Focus first action for iPad keyboard users
+  setTimeout(()=>{ document.getElementById('docModalClose')?.focus(); }, 0);
+}
+
+function closeDocModal(){
+  const modal = document.getElementById('docModal');
+  const frame = document.getElementById('docModalFrame');
+  if(frame) frame.src = 'about:blank';
+  if(modal){
+    modal.classList.remove('is-open');
+    modal.setAttribute('aria-hidden','true');
+  }
+  document.body.style.overflow = '';
+  // restore focus
+  try{ DOCMOD.__prevFocus?.focus(); }catch(_){ }
+  if(DOCMOD.url){ try{ URL.revokeObjectURL(DOCMOD.url); }catch(_){ } }
+  DOCMOD.url = null;
+  DOCMOD.filename = null;
+}
+
+function openHtmlInModal(title, html, hint){
+  // Ensure title is present inside the document so iOS/print dialogs show a helpful name
+  let content = String(html||'');
+  if(!/<title>/i.test(content)){
+    const safe = escapeHtml(title||'Dokument');
+    content = content.replace(/<head>/i, `<head><title>${safe}</title>`);
+  }
+  const blob = new Blob([content], {type:'text/html'});
+  const url = URL.createObjectURL(blob);
+  openDocModal(url, title, hint, suggestFilename(title));
 }
 
 function cloudIsEnabled(){
@@ -3141,6 +3323,7 @@ function renderPolicySettings(){
         <div class="muted" style="margin-top:4px">Version ${escapeHtml(v)} · geändert: ${escapeHtml(dt)}</div>
       </div>
       <div class="row" style="gap:8px; flex-wrap:wrap;">
+        <button class="smallbtn" onclick="openPolicyDoc('${escapeHtml(r.k)}')">Öffnen</button>
         <button class="smallbtn" onclick="profiBumpPolicy('${escapeHtml(r.k)}')">Neue Version</button>
       </div>
     </div>`;
@@ -3171,6 +3354,115 @@ function profiBumpPolicy(key){
   renderPolicySettings();
   renderComplianceDashboard();
   renderComplianceInSettings();
+}
+
+// Öffnen/Bearbeiten der Vorlagen (revisionssicher über Versionssprung)
+const POLICY_DEFAULTS = {
+  hygiene: `Hygieneplan (Kurzvorlage)\n\n- Reinigungs-/Desinfektionsplan je Bereich\n- Frequenzen (täglich/wöchentlich/monatlich)\n- Mittel & Dosierung\n- Durchführung/Verantwortung\n- Dokumentation im Hygiene-Modul\n\nHinweis: Diese Vorlage kannst du an euren Betrieb anpassen. Änderungen immer über „Neue Version“ dokumentieren.`,
+  notfall: `Notfallplan (Kurzvorlage)\n\n- Tierarzt (Adresse/Telefon)\n- Nächste Klinik\n- Verantwortlichkeiten (Raphael / Anschi / Mitarbeitende)\n- Ablauf bei Verletzung/akutem Notfall\n- Transport & Sicherung\n- Dokumentation (Gesundheitsnotizen + ggf. Fotos)`,
+  brand: `Brandfall & Evakuierung (Kurzvorlage)\n\n- Sammelplatz & Fluchtwege\n- Prioritäten: Menschen → Hunde → Dokumente\n- Leinen/Boxen bereit\n- Feuerwehr informieren\n- Dokumentation der Evakuierung (Zeit, Anzahl, Beteiligte)`,
+  contract: `Betreuungsvertrag (Kurzvorlage)\n\n- Halterdaten\n- Hundedaten\n- Zeitraum & Leistung\n- Notfallregelung & Vollmacht\n- Medikationsfreigabe\n- Unterschriften (Halter / Betrieb)\n\nHinweis: Die vollständige, unterschriebene Version wird pro Aufenthalt im Bereich „Aufenthalte/Betreuungsvertrag“ abgelegt.`
+};
+
+function getPolicyContent(key){
+  ensureProfiDefaults();
+  const doc = state.compliance?.docs?.[key] || {};
+  const txt = (doc.content!=null) ? String(doc.content) : (POLICY_DEFAULTS[key] || '');
+  return txt;
+}
+
+function ensurePolicyModal(){
+  if(document.getElementById('policyModal')) return;
+  const wrap = document.createElement('div');
+  wrap.id = 'policyModal';
+  wrap.style.cssText = 'position:fixed;inset:0;z-index:10000;display:none;';
+  wrap.innerHTML = `
+    <div id="policyModalBackdrop" style="position:absolute;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(6px);"></div>
+    <div style="position:absolute;inset:14px;border-radius:18px;border:1px solid rgba(255,255,255,.12);background:rgba(20,20,22,.92);box-shadow:0 18px 60px rgba(0,0,0,.55);display:flex;flex-direction:column;overflow:hidden;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.04);flex-wrap:wrap;">
+        <div style="font-weight:900;letter-spacing:.2px;max-width:70vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" id="policyModalTitle">Vorlage</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+          <button class="btn" type="button" id="policyModalEdit">✍️ Neue Version & bearbeiten</button>
+          <button class="btn" type="button" id="policyModalSave" style="display:none">💾 Speichern</button>
+          <button class="btn danger" type="button" id="policyModalClose">✕ Schließen</button>
+        </div>
+      </div>
+      <textarea id="policyModalText" style="flex:1;width:100%;border:0;resize:none;padding:14px;background:rgba(255,255,255,.06);color:var(--text);font:13px/1.4 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;outline:none;white-space:pre-wrap;overflow-wrap:anywhere;" readonly></textarea>
+      <div class="hint" style="margin:10px 12px 12px 12px;">Hinweis: Änderungen bitte immer über „Neue Version & bearbeiten“ – so bleibt alles revisionssicher.</div>
+    </div>`;
+  document.body.appendChild(wrap);
+
+  const close = ()=>{
+    wrap.style.display = 'none';
+    document.body.style.overflow = '';
+  };
+  wrap.querySelector('#policyModalBackdrop').onclick = close;
+  wrap.querySelector('#policyModalClose').onclick = close;
+  document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') close(); });
+}
+
+let _policyCurrentKey = null;
+function openPolicyDoc(key){
+  ensurePolicyModal();
+  ensureProfiDefaults();
+  _policyCurrentKey = key;
+  const doc = state.compliance.docs[key] || {title:key, version:'1.0'};
+  const title = `${doc.title || key} · Version ${doc.version || '1.0'}`;
+  const wrap = document.getElementById('policyModal');
+  const ttl = document.getElementById('policyModalTitle');
+  const ta = document.getElementById('policyModalText');
+  const btnEdit = document.getElementById('policyModalEdit');
+  const btnSave = document.getElementById('policyModalSave');
+  if(ttl) ttl.textContent = title;
+  if(ta){ ta.value = getPolicyContent(key); ta.readOnly = true; }
+  if(btnSave) btnSave.style.display = 'none';
+  if(btnEdit) btnEdit.style.display = 'inline-flex';
+  if(btnEdit && !btnEdit.dataset.bound){
+    btnEdit.dataset.bound = '1';
+    btnEdit.onclick = ()=>{
+      if(!_policyCurrentKey) return;
+      const note = prompt('Änderung kurz beschreiben (für Archiv):','');
+      if(note==null) return;
+      // Versionssprung + Archiv
+      const k = _policyCurrentKey;
+      const d = state.compliance.docs[k] || {title:k, version:'1.0', lastChanged:toISODateLocal(new Date()), history:[]};
+      const toV = bumpVersionStr(d.version);
+      d.history = Array.isArray(d.history) ? d.history : [];
+      d.history.push({fromVersion:d.version, toVersion:toV, changedAt:toISODateLocal(new Date()), note:String(note||'').trim()});
+      d.version = toV;
+      d.lastChanged = toISODateLocal(new Date());
+      state.compliance.docs[k] = d;
+      // Editor öffnen
+      if(ta){ ta.readOnly = false; ta.focus(); }
+      if(btnSave) btnSave.style.display = 'inline-flex';
+      btnEdit.style.display = 'none';
+      if(ttl) ttl.textContent = `${d.title || k} · Version ${d.version}`;
+      saveState();
+      renderPolicySettings();
+      renderComplianceDashboard();
+      renderComplianceInSettings();
+    };
+  }
+  const saveBtn = document.getElementById('policyModalSave');
+  if(saveBtn && !saveBtn.dataset.bound){
+    saveBtn.dataset.bound = '1';
+    saveBtn.onclick = ()=>{
+      if(!_policyCurrentKey) return;
+      const k = _policyCurrentKey;
+      const d = state.compliance.docs[k] || {title:k, version:'1.0'};
+      d.content = (ta ? String(ta.value||'') : '').trim();
+      state.compliance.docs[k] = d;
+      saveState();
+      if(ta) ta.readOnly = true;
+      saveBtn.style.display = 'none';
+      const eBtn = document.getElementById('policyModalEdit');
+      if(eBtn) eBtn.style.display = 'inline-flex';
+      renderPolicySettings();
+      alert('Gespeichert (revisionssicher über neue Version).');
+    };
+  }
+  wrap.style.display = 'block';
+  document.body.style.overflow = 'hidden';
 }
 
 function downloadBlob(filename, blob){
@@ -3231,7 +3523,6 @@ function buildMonthReportHtml(monthISO){
   </table>
 
   <p class="meta"><strong>Backup‑Hinweis:</strong> Speichere diese PDF und das Monats‑JSON (02_MonatsBackup_...) extern in <em>Dateien/DoggyStyle/Export</em>.</p>
-  <script>window.onload=()=>{ setTimeout(()=>{ try{window.print();}catch(e){} }, 200); };</script>
   </body></html>`;
 }
 
@@ -3243,20 +3534,16 @@ function monthClose(){
   state.compliance.monthClosings.push({ym, closedAt:Date.now(), complianceWorst:c.worst});
   saveState();
   const html = buildMonthReportHtml(ym);
-  const w = window.open('', '_blank');
-  if(!w){ alert('Popup blockiert. Bitte in Safari Popups erlauben, dann erneut „Monat abschließen“ drücken.'); return; }
-  w.document.open(); w.document.write(html); w.document.close();
+  openHtmlInModal(`Monatsnachweis ${ym}`, html, 'Schließen mit ✕. iPad/iPhone → „Drucken/Speichern“ → Teilen → „In Dateien sichern“ (am besten: Dateien/DoggyStyle/Export).');
   const msg = document.getElementById('monthCloseMsg');
-  if(msg) msg.textContent = `Monat ${ym} abgeschlossen – PDF Druckdialog öffnet sich.`;
+  if(msg) msg.textContent = `Monat ${ym} abgeschlossen – Vorschau geöffnet (Drucken/Speichern = PDF).`;
 }
 
 function taxExportMonth(){
   const now = new Date();
   const ym = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
   const html = buildMonthReportHtml(ym);
-  const w = window.open('', '_blank');
-  if(!w){ alert('Popup blockiert. Bitte Popups erlauben.'); return; }
-  w.document.open(); w.document.write(html); w.document.close();
+  openHtmlInModal(`Monats‑Export ${ym}`, html, 'Tipp: iPad/iPhone → „Drucken/Speichern“ → Teilen → „In Dateien sichern“ → Dateien/DoggyStyle/Export.');
   const msg = document.getElementById('taxExportMsg');
   if(msg) msg.textContent = `PDF‑Report für ${ym} geöffnet (Dateiname‑Tipp: 01–05 in Dateien sortieren).`;
 }
@@ -5234,11 +5521,7 @@ function printDoc(){
   const t=getTemplate(currentDoc.templateId);
   const dog=state.dogs.find(d=>d.id===currentDoc.dogId) || null;
   const html=buildPrintHtml(currentDoc,t,dog);
-  const win=window.open("","_blank");
-  if(!win){ alert("Popup blockiert. Bitte Popups erlauben."); return; }
-  win.document.open(); win.document.write(html); win.document.close();
-  win.focus();
-  setTimeout(()=>win.print(),300);
+  openHtmlInModal('Druckvorschau', html, 'Schließen mit ✕. Für PDF: Drucken/Speichern → „Als PDF“ → in Dateien speichern.');
 }
 
 function buildPrintHtml(docObj,t,dog){
@@ -5940,16 +6223,9 @@ function openContractPdfWindow(customerId, petId){
       <p class="small">Hinweis: Speichern als PDF über „Drucken“ (Teilen → Drucken / als PDF sichern) je nach Gerät.</p>
     </div>
 
-    <script>
-      // Auto-open print dialog for easy Save as PDF
-      setTimeout(()=>{ try{ window.print(); }catch(e){} }, 350);
-    </script>
   </body></html>`;
 
-  const win = window.open("", "_blank");
-  if(!win){ alert("Popup blockiert. Bitte Popups erlauben."); return; }
-  win.document.open(); win.document.write(html); win.document.close();
-  win.focus();
+  openHtmlInModal('Betreuungsvertrag (Vorschau)', html, 'Schließen mit ✕. Für PDF: Drucken/Speichern → „Als PDF“ → in Dateien ablegen.');
 }
 
 function renderContractPanel(){
@@ -6303,12 +6579,7 @@ function wfArchiveAdd(entry){
 }
 
 function wfOpenPdf(html){
-  const w = window.open("", "_blank");
-  if(!w) { alert("Popup blockiert – bitte Popups erlauben."); return; }
-  w.document.open();
-  w.document.write(html);
-  w.document.close();
-  setTimeout(()=>{ try{ w.focus(); w.print(); }catch(_){} }, 300);
+  openHtmlInModal('Dokument (Vorschau)', html, 'Schließen mit ✕. Für PDF: Drucken/Speichern → „Als PDF“ → in Dateien ablegen.');
 }
 
 function wfPdfTemplate(title, bodyHtml){

@@ -23,6 +23,44 @@ background:radial-gradient(900px 600px at 20% 0%, rgba(255,204,102,.18), transpa
 .sync-pill{font-size:12px; font-weight:800; padding:8px 10px; border-radius:999px; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.08); color:var(--text); white-space:nowrap; max-width:72vw; overflow:hidden; text-overflow:ellipsis;}
 .sync-user{font-size:12px; color:var(--muted); font-weight:750; padding:8px 10px; border-radius:999px; border:1px solid rgba(255,255,255,.10); background:rgba(0,0,0,.12); white-space:nowrap; max-width:72vw; overflow:hidden; text-overflow:ellipsis;}
 .sync-box{padding:12px; border-radius:14px; border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.06); color:var(--text); font-size:13px; line-height:1.4;}
+.sync-box{white-space:pre-line; overflow-wrap:anywhere; word-break:break-word;}
+
+/* Dokument/PDF Modal (iPad/PWA-friendly, kein "Festhängen" in neuem Tab) */
+.doc-modal{position:fixed; inset:0; z-index:9999; display:none;}
+.doc-modal.is-open{display:block;}
+.doc-modal__backdrop{position:absolute; inset:0; background:rgba(0,0,0,.55); backdrop-filter:blur(6px);}
+.doc-modal__panel{position:absolute; inset:max(14px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left)); border-radius:18px; border:1px solid rgba(255,255,255,.12); background:rgba(20,20,22,.92); box-shadow:0 18px 60px rgba(0,0,0,.55); display:flex; flex-direction:column; overflow:hidden;}
+.doc-modal__bar{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 12px; padding-top:calc(10px + env(safe-area-inset-top)); border-bottom:1px solid rgba(255,255,255,.10); background:rgba(255,255,255,.04);}
+.doc-modal__left{min-width:0; display:flex; flex-direction:column; gap:4px;}
+.doc-modal__title{font-weight:900; letter-spacing:.2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:54vw;}
+.doc-modal__meta{font-size:12px; line-height:1.2; color:rgba(255,255,255,.78); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:54vw;}
+.doc-modal__meta code{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace; font-size:12px; padding:2px 6px; border-radius:8px; background:rgba(0,0,0,.25); border:1px solid rgba(255,255,255,.12);}
+.doc-modal__meta .mini{margin-left:6px; padding:4px 8px; border-radius:10px; font-size:12px;}
+.doc-modal__actions{display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;}
+
+/* 2% Profi-Polish: kompakter Header + bessere Bedienbarkeit auf iPad */
+@media (max-width: 1024px){
+  .doc-modal__bar{padding:8px 10px; gap:10px;}
+  .doc-modal__actions .btn{padding:8px 10px; font-size:13px;}
+  .doc-modal__title{max-width:60vw;}
+  .doc-modal__meta{max-width:60vw;}
+}
+
+@media (max-width: 560px){
+  .doc-modal__bar{align-items:flex-start;}
+  .doc-modal__actions{gap:6px;}
+  .doc-modal__actions .btn{padding:8px 9px; font-size:12px;}
+}
+.doc-modal__frame{flex:1; width:100%; border:0; background:#fff; border-bottom-left-radius:18px; border-bottom-right-radius:18px;}
+
+/* Mini Toast (für Kopieren/Teilen Feedback) */
+.mini-toast{position:fixed; left:50%; bottom:16px; transform:translateX(-50%); z-index:10000;
+  background:rgba(20,20,22,.92); border:1px solid rgba(255,255,255,.14); color:var(--text);
+  padding:10px 12px; border-radius:14px; box-shadow:0 14px 45px rgba(0,0,0,.55);
+  font-size:13px; font-weight:800; letter-spacing:.2px; opacity:0; pointer-events:none;
+  transition:opacity .18s ease, transform .18s ease;
+}
+.mini-toast.is-on{opacity:1; transform:translateX(-50%) translateY(-4px);}
 .brand{display:flex;gap:12px;align-items:center;margin-bottom:10px}
 .brand__logo{width:48px;height:48px;border-radius:14px;background:rgba(255,255,255,.10);padding:7px;object-fit:contain;filter:drop-shadow(0 8px 22px rgba(0,0,0,.35));border:1px solid rgba(255,255,255,.10)}
 .brand__title{font-weight:800;font-size:16px}
@@ -410,7 +448,7 @@ body.page-login .topbar .brand__sub{ opacity:0.8; }
 .compliance-item .left{display:flex;flex-direction:column;gap:2px}
 .compliance-item .title{font-weight:700}
 .compliance-item .sub{font-size:12px;color:rgba(255,255,255,.75)}
-.pill{display:inline-flex;align-items:center;gap:6px;border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:4px 10px;font-size:12px;white-space:nowrap}
+.pill{display:inline-flex;align-items:center;gap:6px;border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:4px 10px;font-size:12px;white-space:normal;max-width:100%;overflow-wrap:anywhere}
 .pill.ok{background:rgba(0,255,160,.10)}
 .pill.warn{background:rgba(255,200,0,.12)}
 .pill.bad{background:rgba(255,80,80,.12)}
