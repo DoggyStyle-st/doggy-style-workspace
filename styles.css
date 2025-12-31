@@ -540,3 +540,43 @@ body.page-login .topbar .brand__sub{ opacity:0.8; }
   font-size: 12px;
   color: rgba(255,255,255,.72);
 }
+
+
+/* --- LOGIN UI TUNING (2025-12-31) --- */
+body.auth-page .topbar{
+  min-height: 120px;
+  padding: 12px 18px;
+}
+body.auth-page .topbar .brand{
+  width: 100%;
+  justify-content: center;
+}
+body.auth-page .brand__logo--big{
+  width: 112px;
+  height: 112px;
+  border-radius: 22px;
+  overflow: hidden;
+}
+body.auth-page .brand__logo,
+body.auth-page .brand__logo img{
+  border-radius: 22px;
+}
+body.auth-page .auth-card{
+  max-width: 560px;
+  width: min(560px, 94vw);
+}
+body.auth-page .auth-buttons{
+  gap: 10px;
+  flex-wrap: wrap;
+}
+body.auth-page .auth-forgot{
+  margin-top: 10px;
+  display: flex;
+  justify-content: flex-end;
+}
+body.auth-page .auth-forgot .btn-link{
+  padding: 6px 10px;
+  font-size: 0.95rem;
+  opacity: 0.9;
+}
+
