@@ -813,3 +813,7 @@ body.page-login .btnLink--text:hover{
 
 /* Build badge (debug/version) */
 .build-badge{position:fixed;left:10px;bottom:8px;z-index:9999;font-size:12px;letter-spacing:.2px;opacity:.55;padding:4px 8px;border-radius:999px;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.18);backdrop-filter: blur(10px);-webkit-backdrop-filter: blur(10px);pointer-events:none;color:rgba(255,255,255,.85);} 
+
+
+/* v6.3 UX: Status-Pills sind Labels, keine Buttons */
+.sync-pill{cursor:default; pointer-events:none; user-select:none;}

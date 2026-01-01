@@ -1,94 +1,84 @@
-/* Doggy Style – Service Worker v6 (final) */
+/* Doggy Style – Service Worker v6.3 (offline-first, update-safe) */
 
-const SW_VERSION = "v6.2-2026-01-02";
+const SW_VERSION = "v6.3-2026-01-01";
 const CACHE_NAME = `ds-cache-${SW_VERSION}`;
 
-// Nur Grunddateien vorcachen (klein halten!)
+// Wichtig:
+// - KEIN hartes Caching von app.js/app.html als "alt"-Falle
+// - HTML: network-first
+// - Assets: stale-while-revalidate
+// - Install darf NICHT fehlschlagen, wenn ein Asset fehlt
+
 const CORE_ASSETS = [
-  "/",
-  "/index.html",
-  "/login.html",
-  "/styles.css",
-  "/styles.css?v=20260101v62",
-  "/app.js",
-  "/app.js?v=20260101v62",
-  "/manifest.webmanifest",
-  "/assets/logo.png"
+  "index.html",
+  "login.html",
+  "app.html",
+  "styles.css",
+  "app.js",
+  "manifest.json",
+  "assets/logo.png"
 ];
 
-// INSTALL: Core Assets cachen + sofort aktiv werden
 self.addEventListener("install", (event) => {
   self.skipWaiting();
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(CORE_ASSETS))
-  );
+  event.waitUntil((async ()=>{
+    const cache = await caches.open(CACHE_NAME);
+    for(const p of CORE_ASSETS){
+      try{
+        const r = await fetch(p, {cache:"no-store"});
+        if(r.ok) await cache.put(p, r.clone());
+      }catch(e){
+        // fehlende Datei darf Installation nicht verhindern
+      }
+    }
+  })());
 });
 
-// ACTIVATE: alle alten Caches löschen + Kontrolle übernehmen
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys
-          .filter((key) => key.startsWith("ds-cache-") && key !== CACHE_NAME)
-          .map((key) => caches.delete(key))
-      )
-    ).then(() => self.clients.claim())
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(k => k.startsWith("ds-cache-") && k !== CACHE_NAME).map(k => caches.delete(k)))
+    ).then(()=> self.clients.claim())
   );
 });
 
-// Helpers
-async function cachePut(request, response) {
+async function cachePut(req, res){
   const cache = await caches.open(CACHE_NAME);
-  await cache.put(request, response.clone());
+  await cache.put(req, res.clone());
 }
 
-// FETCH STRATEGY
 self.addEventListener("fetch", (event) => {
   const req = event.request;
-
-  // Nur GET Requests cachen
-  if (req.method !== "GET") return;
+  if(req.method !== "GET") return;
 
   const url = new URL(req.url);
+  if(url.origin !== self.location.origin) return;
 
-  // Nur eigene Origin behandeln (GitHub Pages Domain)
-  if (url.origin !== self.location.origin) return;
+  const isHTML = req.mode === "navigate" || (req.headers.get("accept")||"").includes("text/html");
 
-  const isHTML =
-    req.mode === "navigate" ||
-    (req.headers.get("accept") || "").includes("text/html");
-
-  // 1) HTML: network-first (damit Updates sofort kommen)
-  if (isHTML) {
-    event.respondWith(
-      (async () => {
-        try {
-          const fresh = await fetch(req, { cache: "no-store" });
-          await cachePut(req, fresh);
-          return fresh;
-        } catch (e) {
-          const cached = await caches.match(req);
-          return cached || caches.match("/index.html");
-        }
-      })()
-    );
+  // HTML: network-first (damit Updates sofort kommen)
+  if(isHTML){
+    event.respondWith((async ()=>{
+      try{
+        const fresh = await fetch(req, {cache:"no-store"});
+        await cachePut(req, fresh);
+        return fresh;
+      }catch(e){
+        const cached = await caches.match(req);
+        return cached || caches.match("index.html");
+      }
+    })());
     return;
   }
 
-  // 2) Assets (CSS/JS/PNG): stale-while-revalidate
-  event.respondWith(
-    (async () => {
-      const cached = await caches.match(req);
-      const fetchPromise = fetch(req)
-        .then(async (fresh) => {
-          await cachePut(req, fresh);
-          return fresh;
-        })
-        .catch(() => null);
+  // Assets: stale-while-revalidate
+  event.respondWith((async ()=>{
+    const cached = await caches.match(req);
+    const fetchPromise = fetch(req).then(async fresh => {
+      await cachePut(req, fresh);
+      return fresh;
+    }).catch(()=>null);
 
-      // sofort cached liefern, parallel neu holen
-      return cached || (await fetchPromise) || cached;
-    })()
-  );
+    return cached || (await fetchPromise) || cached;
+  })());
 });

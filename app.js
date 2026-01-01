@@ -1,4 +1,4 @@
-const APP_BUILD = "v6.2";
+const APP_BUILD = "v6.3";
 window.addEventListener("error",(e)=>{console.error("APP_ERROR",e.error||e.message);});
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
@@ -516,7 +516,7 @@ async function cloudPushNow(){
   updateSyncUI();
   const stamp = Date.now();
   // Marker im State, damit wir Remote-Updates sauber vergleichen können
-  try{ state._cloudUpdatedAt = stamp; }catch(_){/* ignore */}
+  try{ state._cloudUpdatedAt = stamp; state._localUpdatedAt = stamp; }catch(_){/* ignore */}
   // last write wins (v1). Später: echtes Merge pro Objekt.
   try{
     const ref = cloudStateRef();
@@ -3081,11 +3081,32 @@ function normalizeTemplate(t){
 }
 
 async function loadTemplates(){
-  const res1 = await fetch("templates/hundeannahme.json");
-  if(!res1.ok) throw new Error("Konnte templates/hundeannahme.json nicht laden ("+res1.status+")");
+  templates = [];
+  const files = [
+    {path: "templates/hundeannahme.json", label: "Hundeannahme"},
+    {path: "templates/rechnung.json", label: "Rechnung"}
+  ];
 
-  const t1 = normalizeTemplate(await res1.json());
-  templates = [t1];
+  for(const f of files){
+    try{
+      const res = await fetch(f.path, {cache: "no-store"});
+      if(!res.ok) throw new Error(res.status);
+      const t = normalizeTemplate(await res.json());
+      templates.push(t);
+    }catch(e){
+      console.warn("Template konnte nicht geladen werden:", f.path, e);
+    }
+  }
+
+  // Fallback: Wenn gar nichts geladen werden konnte, App trotzdem startbar lassen
+  if(!templates.length){
+    templates = [{
+      id: "hundeannahme_fallback",
+      name: "Hundeannahme (Fallback)",
+      fields: [],
+      meta: {}
+    }];
+  }
 
   const sel = document.getElementById("templateSelect");
   if (sel) {
@@ -3095,6 +3116,7 @@ async function loadTemplates(){
   }
 }
 const getTemplate=id=>templates.find(t=>t.id===id);
+=id=>templates.find(t=>t.id===id);
 
 
 function uid(){return Math.random().toString(16).slice(2)+Date.now().toString(16);}
@@ -4743,11 +4765,16 @@ function printInvoice(id){
 }
 function loadState(){try{const raw=localStorage.getItem(LS_KEY);return raw?JSON.parse(raw):{dogs:[],docs:[]};}catch{return {dogs:[],docs:[]};}}
 function saveState(){
-  localStorage.setItem(LS_KEY,JSON.stringify(state));
-  SYNC.localSavedAt = Date.now();
+  try{
+    state._localUpdatedAt = Date.now();
+    localStorage.setItem(LS_KEY,JSON.stringify(state));
+  }catch(e){
+    console.error("Local save failed", e);
+  }
+  SYNC.localSavedAt = (state && state._localUpdatedAt) ? state._localUpdatedAt : Date.now();
   updateSyncUI();
   // Cloud Sync (Weg 2B): Änderungen nach außen spiegeln
-  if(CLOUD.enabled) cloudSchedulePush();
+  if(CLOUD.enabled && CLOUD.user) cloudSchedulePush();
 }
 
 function ensureDefaultDog(){
@@ -5803,14 +5830,36 @@ async function startApp(){
 
     try{
       const remote = await cloudLoadState();
-      if(remote){
-        // v1: Remote gewinnt, wenn neuer (oder lokal leer)
-        const localStamp = Number(state._cloudUpdatedAt||0);
-        const remoteStamp = Number(remote._cloudUpdatedAt||CLOUD._lastRemoteStamp||0);
-        if(remoteStamp && remoteStamp >= localStamp){
+
+      // Merge-Entscheidung (robust):
+      // - Lokal ist IMMER die Offline-Quelle.
+      // - Remote darf NICHT lokale, neuere Änderungen überschreiben.
+      const localUpdated = Number(state && state._localUpdatedAt || 0);
+      const localCloudStamp = Number(state && state._cloudUpdatedAt || 0);
+
+      if(!remote){
+        // Kein Workspace in Cloud vorhanden -> lokalen Stand (wenn sinnvoll) einmalig hochladen
+        const hasLocalData =
+          (Array.isArray(state.pets) && state.pets.filter(p=>p && !p.isPlaceholder).length>0) ||
+          (Array.isArray(state.docs) && state.docs.length>0) ||
+          (Array.isArray(state.dogs) && state.dogs.filter(d=>d && !d.isPlaceholder).length>0);
+
+        if(hasLocalData && CLOUD.user){
+          try{ await cloudPushNow(); }catch(e){ console.warn('Initial cloud push failed', e); }
+        }
+      } else {
+        const remoteUpdated = Number(remote._cloudUpdatedAt || CLOUD._lastRemoteStamp || 0);
+
+        // Wenn lokal neuer ist: lokal behalten und in die Cloud pushen
+        if(localUpdated && localUpdated > remoteUpdated){
+          if(CLOUD.user){
+            try{ cloudSchedulePush(); }catch(_){ }
+          }
+        } else if(remoteUpdated && remoteUpdated >= localCloudStamp){
+          // Remote ist neuer/gleich -> übernehmen
           state = remote;
           ensureStateShape();
-  ensureContractDefaults();
+          ensureContractDefaults();
           migrateToV2();
           pruneInvoiceDocs();
           ensureDefaultDog();
@@ -5831,7 +5880,12 @@ async function startApp(){
       const data = snap.data();
       const stamp = Number(data?.updatedAt||0);
       if(stamp) { SYNC.cloudLastSeenAt = stamp; updateSyncUI(); }
-      if(!stamp || stamp <= Number(state._cloudUpdatedAt||0)) return;
+      if(!stamp) return;
+      const localUpdated = Number(state && state._localUpdatedAt || 0);
+      const localCloudStamp = Number(state && state._cloudUpdatedAt || 0);
+      // Wenn wir lokal neuere Änderungen haben (noch nicht gepusht): Remote nicht drüberbügeln
+      if(localUpdated && stamp <= localUpdated) return;
+      if(stamp <= localCloudStamp) return;
       // Nicht unsere eigene Änderung nochmal einspielen
       if(CLOUD.user && (data.updatedBy === (CLOUD.user.email||CLOUD.user.uid))) return;
       if(data.payload){
