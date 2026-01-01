@@ -1293,7 +1293,13 @@ function calculateInvoicePricing(doc){
   return doc.pricing;
 }
 // ===== ENDE PREISLOGIK =====
-let state=loadState();const COMPANY = {
+let state=loadState();
+// Wichtig: State-Shape sofort sicherstellen, bevor irgendein Render läuft.
+// Sonst kann renderDashboard()/renderRecent() bei frischem / teildefektem LocalStorage
+// (z.B. nach Neustart/Reload) mit state.docs === undefined abbrechen und die komplette
+// UI wirkt dann "eingefroren" (keine Handler werden mehr gebunden).
+try{ ensureStateShape(); }catch(_){ }
+const COMPANY = {
   name: "Doggy Style Hundepension",
   owner: "Raphael Boch",
   street: "Im Moos 4",
