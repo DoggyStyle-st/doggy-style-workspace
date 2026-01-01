@@ -73,7 +73,7 @@ background:radial-gradient(900px 600px at 20% 0%, rgba(255,204,102,.18), transpa
 }
 
 .brand__sub{color:var(--muted);font-size:12px;margin-top:2px}
-.tabs{display:flex;gap:8px;flex-wrap:wrap}
+.tabs{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;align-items:center;max-width:1100px;margin:0 auto}
 .tab{border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.06);color:var(--text);padding:10px 12px;border-radius:999px;cursor:pointer;font-weight:650}
 .tab.is-active{border-color:rgba(255,204,102,.35);background:rgba(255,204,102,.12)}
 .shell{max-width:980px;margin:16px auto;padding:0 14px 60px}
@@ -218,7 +218,7 @@ body.bg-watermark::after {
   margin: 8px 0 10px 0;
 }
 .dashboard-brand__logo{
-  width: clamp(120px, 18vw, 220px);
+  width: clamp(220px, 28vw, 440px);
   height: auto;
   opacity: 0.98;
   filter: drop-shadow(0 8px 20px rgba(0,0,0,0.35));
@@ -809,23 +809,3 @@ body.page-login .btnLink--text:hover{
   color: #fff;
 }
 
-
-
-/* === LOGIN: E-Mail + Passwort nebeneinander (Freigabe A) === */
-body.page-login .loginFields{
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-}
-
-/* Name-Feld (Registrieren) immer volle Breite */
-body.page-login #regNameField{
-  grid-column: 1 / -1;
-}
-
-/* Mobile: untereinander */
-@media (max-width: 720px){
-  body.page-login .loginFields{
-    grid-template-columns: 1fr;
-  }
-}

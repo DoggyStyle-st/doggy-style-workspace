@@ -10,26 +10,19 @@
 <link href="assets/logo.png" rel="apple-touch-icon"/>
 <link href="styles.css?v=20251228c" rel="stylesheet"/>
 <style>
-  /* --- Hotfix: Logo mittig & größer (iPad/desktop) --- */
+  /* Startseite/Topbar Optik: kleine Logo-Zeile raus, Tabs übersichtlicher */
   .topbar{position:sticky; top:0; z-index:50;}
-  .brand.brand--center{width:100%; justify-content:center; text-align:center; gap:14px;}
-  .brand.brand--center .brand__text{align-items:center;}
-  .brand.brand--center .brand__logo{width:72px; height:72px;}
+  .tabs{flex-wrap:wrap; justify-content:center; gap:10px; padding:10px 12px 14px;}
+  .tab{white-space:nowrap;}
+  .topbar__right{position:absolute; right:12px; top:12px;}
   @media (min-width: 900px){
-    .brand.brand--center .brand__logo{width:92px; height:92px;}
+    .tabs{gap:12px; padding-bottom:16px;}
+    .topbar__right{right:16px; top:14px;}
   }
 </style>
 </head>
 <body class="bg-watermark page-app">
 <header class="topbar">
-<div class="brand brand--center">
-  <img alt="Doggy Style" class="brand__logo brand__logo--prominent brand__logo--animated" src="assets/logo.png"/>
-  <div class="brand__text">
-    <div class="brand__title">Doggy Style Workspace</div>
-    <div class="brand__sub">Formularmappe · Offline · iPad‑freundlich</div>
-  </div>
-</div>
-
 <!-- Sync/Account Status (klein, oben rechts) -->
 <div class="topbar__right">
   <div class="sync-pill" id="syncStatus" title="Speicher- & Sync-Status">Offline</div>
@@ -170,18 +163,7 @@
   <div class="hint" id="complianceHint" style="margin-top:10px">Tipp: Nutze „Monat abschließen“ für einen sauberen Monatsnachweis (PDF + Backup‑Hinweise).</div>
 </div>
 
-<div class="card">
-  <h2>Schnellstart</h2>
-  <ul class="bullets">
-    <li><strong>Neuer Aufenthalt:</strong> Start → <em>Neuer Aufenthalt</em> → Hund auswählen/neu anlegen → Zeitraum setzen.</li>
-    <li><strong>Betreuungsvertrag:</strong> Im Aufenthalt <em>Vertrag erzeugen</em> (oder Tab <em>Betreuungsvertrag</em>) → prüfen → unterschreiben lassen.</li>
-    <li><strong>Arbeitsblätter:</strong> Für Annahme/Übergabe, Medikationsplan &amp; Notizen – alles am Aufenthalt dran.</li>
-    <li><strong>Rechnung:</strong> Nach Abschluss → Rechnung erstellen → speichern/teilen.</li>
-  </ul>
-  <div class="hint" style="margin-top:10px">
-    <strong>Offline?</strong> Kein Problem: alles wird lokal gespeichert. Sobald du wieder online bist und angemeldet bist, kannst du per <em>„Manuell in Cloud speichern“</em> synchronisieren.
-  </div>
-</div>
+
 </div>
 <!-- Warnings -->
 <div class="card warning" id="dashboardWarnings" style="display:none"></div>
