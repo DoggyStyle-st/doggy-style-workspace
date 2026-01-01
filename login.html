@@ -7,38 +7,34 @@
   <link href="manifest.json" rel="manifest"/>
   <meta name="theme-color" content="#101014"/>
   <link href="assets/logo.png" rel="apple-touch-icon"/>
-  <link href="styles.css?v=20251227h" rel="stylesheet"/>
+  <link href="styles.css?v=20260101a" rel="stylesheet"/>
 </head>
 <body class="bg-watermark page-login">
   <header class="topbar">
-    <div class="brand">
+    <div class="brand brand--login">
       <img alt="Doggy Style" class="brand__logo brand__logo--big brand__logo--animated" src="assets/logo.png"/>
-      <div class="brand__text">
-        <div class="brand__title">Doggy Style Workspace</div>
-</div>
     </div>
   </header>
 
   <main class="shell">
     <section class="panel is-active">
-      <div class="card" style="max-width:520px;margin:0 auto;">
-        <h1 style="margin:0 0 8px 0;">Anmelden</h1>
-        <p class="muted">Für geräteübergreifende Daten bitte anmelden.</p>
+      <div class="card loginCard">
+        <h1 style="margin:0 0 10px 0;">Anmelden</h1>
 
-        <div class="row" style="flex-wrap:wrap; gap:12px; margin-top:14px">
+        <div class="row" style="flex-wrap:wrap; gap:12px; margin-top:10px">
           <label class="field" style="min-width:260px; flex:1;">
             <span>Name (optional)</span>
-            <input id="regName" type="text" autocomplete="name" placeholder="z. B. Rex Mustermann"/>
+            <input id="regName" type="text" autocomplete="off" autocapitalize="words" placeholder="z. B. Rex Mustermann"/>
           </label>
 
           <label class="field" style="min-width:260px; flex:1;">
             <span>E‑Mail</span>
-            <input id="loginEmail" type="email" autocomplete="username" inputmode="email" placeholder="name@domain.de"/>
+            <input id="loginEmail" type="email" inputmode="email" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="name@domain.de"/>
           </label>
 
           <label class="field" style="min-width:260px; flex:1;">
             <span>Passwort</span>
-            <input id="loginPass" type="password" autocomplete="current-password" placeholder="••••••••"/>
+            <input id="loginPass" type="password" autocomplete="new-password" autocapitalize="none" spellcheck="false" placeholder="••••••••"/>
           </label>
         </div>
 
