@@ -809,3 +809,23 @@ body.page-login .btnLink--text:hover{
   color: #fff;
 }
 
+
+
+/* === LOGIN: E-Mail + Passwort nebeneinander (Freigabe A) === */
+body.page-login .loginFields{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+/* Name-Feld (Registrieren) immer volle Breite */
+body.page-login #regNameField{
+  grid-column: 1 / -1;
+}
+
+/* Mobile: untereinander */
+@media (max-width: 720px){
+  body.page-login .loginFields{
+    grid-template-columns: 1fr;
+  }
+}
