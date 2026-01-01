@@ -5732,12 +5732,20 @@ async function boot(){
   showPanel("home");
 }
 
+
+let __BOOT_DONE = false;
+async function bootOnce(){
+  if(__BOOT_DONE) return;
+  __BOOT_DONE = true;
+  await boot();
+}
+
 async function startApp(){
   // 1) Wenn Cloud aktiviert: Login + Sync
   const cloudOk = await cloudInit();
   if(!cloudOk){
     showAuthGate(false);
-    await boot();
+    await bootOnce();
     return;
   }
 
@@ -5832,7 +5840,7 @@ async function startApp(){
     updateSyncUI();
 
     // Erstes Boot lokal (stellt state sicher), danach Remote laden und übernehmen
-    await boot();
+    await bootOnce();
 
     try{
       const remote = await cloudLoadState();
