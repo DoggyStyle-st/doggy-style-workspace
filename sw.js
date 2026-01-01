@@ -1,134 +1,92 @@
-// sw.js – Offline‑First + Cloud‑Ready
-// Ziel:
-// 1) App-Shell offline verfügbar
-// 2) Firebase CDN Scripts einmal laden & dann offline cachebar machen
-// 3) Keine "harten" Redirect-Schleifen, wenn Netz weg ist
+/* Doggy Style – Service Worker v6 (final) */
 
-// Bump this when UI/assets change so Safari/PWA reliably picks up updates.
-const VERSION = '2026-01-01_ui_v1';
-const CACHE_APP = `ds-app-${VERSION}`;
-const CACHE_EXT = `ds-ext-${VERSION}`;
+const SW_VERSION = "v6-2026-01-01";
+const CACHE_NAME = `ds-cache-${SW_VERSION}`;
 
-// App-Shell (same-origin)
-const APP_ASSETS = [
-  './',
-  './index.html',
-  './login.html',
-  './app.html',
-  './styles.css',
-  './app.js',
-  './auth.js',
-  './firebase-config.js',
-  './manifest.json',
-  './assets/logo.png'
+// Nur Grunddateien vorcachen (klein halten!)
+const CORE_ASSETS = [
+  "/",
+  "/index.html",
+  "/login.html",
+  "/styles.css",
+  "/app.js",
+  "/manifest.webmanifest",
+  "/assets/logo.png"
 ];
 
-// Firebase compat (cross-origin)
-const FIREBASE_CDN = [
-  'https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js',
-  'https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js',
-  'https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js'
-];
-
-self.addEventListener('install', (event) => {
-  event.waitUntil((async () => {
-    self.skipWaiting();
-
-    // App shell
-    const appCache = await caches.open(CACHE_APP);
-    await appCache.addAll(APP_ASSETS.map(u => new Request(u, { cache: 'reload' })));
-
-    // External libs (best effort)
-    const extCache = await caches.open(CACHE_EXT);
-    await Promise.allSettled(FIREBASE_CDN.map(async (u) => {
-      try {
-        const req = new Request(u, { mode: 'cors', cache: 'reload' });
-        const res = await fetch(req);
-        if (res && res.ok) await extCache.put(u, res.clone());
-      } catch (_) {
-        // Wenn offline beim Install: später im Fetch-Handler nachziehen.
-      }
-    }));
-  })());
+// INSTALL: Core Assets cachen + sofort aktiv werden
+self.addEventListener("install", (event) => {
+  self.skipWaiting();
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(CORE_ASSETS))
+  );
 });
 
-self.addEventListener('activate', (event) => {
-  event.waitUntil((async () => {
-    const keys = await caches.keys();
-    await Promise.all(keys.map((k) => {
-      if (![CACHE_APP, CACHE_EXT].includes(k)) return caches.delete(k);
-    }));
-    await self.clients.claim();
-  })());
+// ACTIVATE: alle alten Caches löschen + Kontrolle übernehmen
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(
+        keys
+          .filter((key) => key.startsWith("ds-cache-") && key !== CACHE_NAME)
+          .map((key) => caches.delete(key))
+      )
+    ).then(() => self.clients.claim())
+  );
 });
 
-function isSameOrigin(req){
-  try{ return new URL(req.url).origin === self.location.origin; }catch(_){ return false; }
+// Helpers
+async function cachePut(request, response) {
+  const cache = await caches.open(CACHE_NAME);
+  await cache.put(request, response.clone());
 }
 
-function isFirebaseCdn(req){
-  return FIREBASE_CDN.includes(req.url);
-}
-
-self.addEventListener('fetch', (event) => {
+// FETCH STRATEGY
+self.addEventListener("fetch", (event) => {
   const req = event.request;
 
-  // Nur GET cachen
-  if (req.method !== 'GET') {
-    event.respondWith(fetch(req));
-    return;
-  }
+  // Nur GET Requests cachen
+  if (req.method !== "GET") return;
 
-  // Firebase CDN: cache-first
-  if (isFirebaseCdn(req)) {
-    event.respondWith((async () => {
-      const cache = await caches.open(CACHE_EXT);
-      const hit = await cache.match(req.url);
-      if (hit) return hit;
-      try {
-        const res = await fetch(req);
-        if (res && res.ok) await cache.put(req.url, res.clone());
-        return res;
-      } catch (e) {
-        // Offline und nix im Cache
-        return new Response('', { status: 503, statusText: 'Offline' });
-      }
-    })());
-    return;
-  }
+  const url = new URL(req.url);
 
-  // Same-origin: network-first für HTML, cache-first für Assets
-  if (isSameOrigin(req)) {
-    const url = new URL(req.url);
-    const isHtml = req.headers.get('accept')?.includes('text/html') || url.pathname.endsWith('.html') || url.pathname === '/';
+  // Nur eigene Origin behandeln (GitHub Pages Domain)
+  if (url.origin !== self.location.origin) return;
 
-    event.respondWith((async () => {
-      const cache = await caches.open(CACHE_APP);
-      if (isHtml) {
+  const isHTML =
+    req.mode === "navigate" ||
+    (req.headers.get("accept") || "").includes("text/html");
+
+  // 1) HTML: network-first (damit Updates sofort kommen)
+  if (isHTML) {
+    event.respondWith(
+      (async () => {
         try {
-          const res = await fetch(req);
-          if (res && res.ok) cache.put(req, res.clone());
-          return res;
-        } catch (_) {
-          const fallback = await cache.match(req) || await cache.match('./app.html') || await cache.match('./index.html');
-          return fallback || new Response('Offline', { status: 503 });
+          const fresh = await fetch(req, { cache: "no-store" });
+          await cachePut(req, fresh);
+          return fresh;
+        } catch (e) {
+          const cached = await caches.match(req);
+          return cached || caches.match("/index.html");
         }
-      }
-
-      // assets: cache-first
-      const hit = await cache.match(req);
-      if (hit) return hit;
-      try {
-        const res = await fetch(req);
-        if (res && res.ok) cache.put(req, res.clone());
-        return res;
-      } catch (_) {
-        return new Response('', { status: 503, statusText: 'Offline' });
-      }
-    })());
+      })()
+    );
     return;
   }
 
-  // Sonst: normal fetch
-  event.respondWith(fetch(req));
+  // 2) Assets (CSS/JS/PNG): stale-while-revalidate
+  event.respondWith(
+    (async () => {
+      const cached = await caches.match(req);
+      const fetchPromise = fetch(req)
+        .then(async (fresh) => {
+          await cachePut(req, fresh);
+          return fresh;
+        })
+        .catch(() => null);
+
+      // sofort cached liefern, parallel neu holen
+      return cached || (await fetchPromise) || cached;
+    })()
+  );
 });
