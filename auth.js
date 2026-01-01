@@ -1,7 +1,11 @@
-// Login-Seite (stabil auf iPad/PWA): keine Overlays, keine globalen Touch-Hacks.
+// Login / Registrierung (stabil auf iPad/PWA)
 (function(){
-  function $(id){ return document.getElementById(id); }
-  function setMsg(t){ const el=$('authMsg'); if(el) el.textContent = t||''; }
+  const $ = (id)=>document.getElementById(id);
+
+  function setMsg(text){
+    const el = $('authMsg');
+    if(el) el.textContent = text || '';
+  }
 
   function firebaseReady(){
     return (window.firebase && window.firebase.initializeApp && window.firebaseConfig);
@@ -9,15 +13,15 @@
 
   async function init(){
     if(!firebaseReady()){
-      setMsg('Firebase nicht konfiguriert. Prüfe firebase-config.js');
+      setMsg('Firebase ist nicht konfiguriert. Prüfe firebase-config.js');
       return;
     }
+
     try{
       // Initialisieren (idempotent)
       try{ window.firebase.app(); }catch(_){ window.firebase.initializeApp(window.firebaseConfig); }
+
       const auth = window.firebase.auth();
-      // Firestore optional (für User-Profil). Wenn Firestore nicht verfügbar ist,
-      // läuft Login/Registrierung trotzdem weiter.
       let db = null;
       try{ db = window.firebase.firestore ? window.firebase.firestore() : null; }catch(_){ db = null; }
 
@@ -27,38 +31,46 @@
         try{
           if(!db || !currentUser) return;
           const uid = currentUser.uid;
-          const email = (currentUser.email||'').toLowerCase();
+          const email = (currentUser.email || '').toLowerCase();
           const ref = db.collection('orgs').doc(ORG_ID).collection('users').doc(uid);
           const snap = await ref.get();
           if(snap.exists) return;
-          const dn = (preferredName||'').trim() || (email.split('@')[0]||'');
+          const dn = (preferredName || '').trim() || (email.split('@')[0] || '');
           await ref.set({
             uid,
-            email: currentUser.email||'',
+            email: currentUser.email || '',
             displayName: dn,
             role: 'customer',
             createdAt: Date.now()
-          }, { merge:true });
+          }, { merge: true });
         }catch(e){
-          // Nicht blockieren (Rules/Offline/etc.)
           console.warn('ensureUserProfile failed', e);
         }
       }
 
-      // Optional: Login bei jedem Öffnen erzwingen (wenn window.firebaseForceLoginAlways = true)
-      try{
-        if(window.firebaseForceLoginAlways){
-          await auth.signOut();
-        }
-      }catch(_){}
-
-      // Button-Handler
+      const regNameField = $('regNameField');
+      const regNameInput = $('regName');
+      const elEmail = $('loginEmail');
+      const elPass  = $('loginPass');
       const btnLogin = $('btnLogin');
       const btnRegister = $('btnRegister');
+      const btnForgot = $('btnForgot');
 
-      const doLogin = async ()=>{
-        const email = ($('loginEmail').value||'').trim();
-        const pass  = ($('loginPass').value||'').trim();
+      let registerMode = false;
+      function setRegisterMode(on){
+        registerMode = !!on;
+        if(regNameField){
+          regNameField.style.display = registerMode ? '' : 'none';
+        }
+        if(!registerMode && regNameInput){
+          regNameInput.value = '';
+        }
+      }
+      setRegisterMode(false);
+
+      async function doLogin(){
+        const email = (elEmail.value || '').trim();
+        const pass  = (elPass.value || '').trim();
         if(!email || !pass){ setMsg('Bitte E‑Mail und Passwort eingeben.'); return; }
         setMsg('Anmelden …');
         try{
@@ -66,31 +78,79 @@
           await ensureUserProfile(auth.currentUser, '');
           location.href = 'app.html';
         }catch(e){
-          setMsg('Anmelden fehlgeschlagen: ' + (e.code || e.message || e));
+          const code = e && e.code ? String(e.code) : '';
+          if(code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found'){
+            setMsg('E‑Mail oder Passwort ist falsch.');
+          } else if(code === 'auth/too-many-requests'){
+            setMsg('Zu viele Versuche. Bitte kurz warten oder Passwort zurücksetzen.');
+          } else {
+            setMsg('Anmelden fehlgeschlagen: ' + (code || e.message || e));
+          }
         }
-      };
+      }
 
-      const doRegister = async ()=>{
-        const email = ($('loginEmail').value||'').trim();
-        const pass  = ($('loginPass').value||'').trim();
-        const name  = (($('regName') && $('regName').value) || '').trim();
+      async function doRegister(){
+        const email = (elEmail.value || '').trim();
+        const pass  = (elPass.value || '').trim();
+        const name  = (regNameInput ? (regNameInput.value || '').trim() : '');
         if(!email || !pass){ setMsg('Bitte E‑Mail und Passwort eingeben.'); return; }
         setMsg('Registrieren …');
         try{
           await auth.createUserWithEmailAndPassword(email, pass);
-          try{ if(name) localStorage.setItem('ds_pending_name', name); }catch(_){ }
           await ensureUserProfile(auth.currentUser, name);
           location.href = 'app.html';
         }catch(e){
-          setMsg('Registrierung fehlgeschlagen: ' + (e.code || e.message || e));
+          const code = e && e.code ? String(e.code) : '';
+          if(code === 'auth/email-already-in-use'){
+            setMsg('Diese E‑Mail ist schon registriert. Bitte anmelden oder Passwort zurücksetzen.');
+          } else if(code === 'auth/weak-password'){
+            setMsg('Passwort ist zu schwach (mindestens 6 Zeichen).');
+          } else if(code === 'auth/invalid-email'){
+            setMsg('Bitte eine gültige E‑Mail eingeben.');
+          } else {
+            setMsg('Registrierung fehlgeschlagen: ' + (code || e.message || e));
+          }
         }
-      };
+      }
 
       btnLogin.addEventListener('click', (e)=>{ e.preventDefault(); doLogin(); });
-      btnRegister.addEventListener('click', (e)=>{ e.preventDefault(); doRegister(); });
 
-      // Enter-Taste
-      $('loginPass').addEventListener('keydown', (e)=>{ if(e.key==='Enter') doLogin(); });
+      btnRegister.addEventListener('click', (e)=>{
+        e.preventDefault();
+        if(!registerMode){
+          setRegisterMode(true);
+          setMsg('Registrieren: optional Name eintragen und erneut „Registrieren“ tippen.');
+          try{ regNameInput && regNameInput.focus(); }catch(_){ }
+          return;
+        }
+        doRegister();
+      });
+
+      // Enter-Taste: im Login-Modus anmelden
+      elPass.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') doLogin(); });
+
+      // Passwort-Reset
+      if(btnForgot){
+        btnForgot.addEventListener('click', async ()=>{
+          try{
+            const email = (elEmail.value || '').trim();
+            if(!email){
+              setMsg('Bitte zuerst die E‑Mail eintragen.');
+              try{ elEmail.focus(); }catch(_){ }
+              return;
+            }
+            await auth.sendPasswordResetEmail(email);
+            setMsg('Passwort-Reset-Link wurde per E‑Mail gesendet.');
+          }catch(e){
+            const code = e && e.code ? String(e.code) : '';
+            if(code === 'auth/user-not-found'){
+              setMsg('Diese E‑Mail ist nicht registriert.');
+            } else {
+              setMsg('Passwort-Reset fehlgeschlagen: ' + (code || e.message || e));
+            }
+          }
+        });
+      }
 
       setMsg('');
     }catch(err){
@@ -104,22 +164,3 @@
     init();
   }
 })();
-
-// Passwort-Reset (für Kunden/Staff hilfreich, damit man nicht aus Versehen "Registrieren" drückt)
-const btnForgot = document.getElementById("btnForgot");
-if (btnForgot) {
-  btnForgot.addEventListener("click", async () => {
-    try {
-      const email = (elEmail?.value || "").trim();
-      if (!email) {
-        setMsg("Bitte E-Mail eintragen, dann kannst du das Passwort zurücksetzen.", "warn");
-        elEmail?.focus();
-        return;
-      }
-      await auth.sendPasswordResetEmail(email);
-      setMsg("Passwort-Reset-Link wurde per E-Mail gesendet.", "ok");
-    } catch (e) {
-      setMsg("Passwort-Reset fehlgeschlagen: " + (e?.code || e?.message || e), "err");
-    }
-  });
-}
