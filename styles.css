@@ -9,7 +9,7 @@ background:radial-gradient(900px 600px at 20% 0%, rgba(255,204,102,.18), transpa
    Fix: Overlay darf Tabs/Brand nicht "blocken" (pointer-events) und auf kleineren
    Screens wird der Block in den Flow verschoben.
 */
-.topbar__right{position:absolute; top:14px; right:14px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end; pointer-events:none;}
+.topbar__right{ display:flex; gap:8px; align-items:center; justify-content:flex-end; padding: 6px 12px 0; margin-left:auto; position:static; }
 .topbar__right > *{pointer-events:auto;}
 
 /* Reserve space so brand text doesn't sit under the pills (desktop) */
@@ -809,3 +809,7 @@ body.page-login .btnLink--text:hover{
   color: #fff;
 }
 
+
+
+/* Build badge (debug/version) */
+.build-badge{position:fixed;left:10px;bottom:8px;z-index:9999;font-size:12px;letter-spacing:.2px;opacity:.55;padding:4px 8px;border-radius:999px;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.18);backdrop-filter: blur(10px);-webkit-backdrop-filter: blur(10px);pointer-events:none;color:rgba(255,255,255,.85);} 

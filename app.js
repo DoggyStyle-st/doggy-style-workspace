@@ -1,3 +1,4 @@
+const APP_BUILD = "v6.2";
 window.addEventListener("error",(e)=>{console.error("APP_ERROR",e.error||e.message);});
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
@@ -7129,3 +7130,4 @@ function wfTodayPrint(){
   `;
   wfOpenPdf(wfPdfTemplate("Heute drucken", body));
 }
+try{ const bb=document.getElementById('buildBadge'); if(bb) bb.textContent = 'Build ' + APP_BUILD; }catch(e){}
