@@ -1,28 +1,43 @@
-/* Doggy Style – Service Worker v6 (final) */
+/* Doggy Style – Service Worker v6.1 (cache-safe, GitHub Pages friendly) */
 
-const SW_VERSION = "v6-2026-01-01";
+const SW_VERSION = "v6.1-2026-01-01";
 const CACHE_NAME = `ds-cache-${SW_VERSION}`;
 
-// Nur Grunddateien vorcachen (klein halten!)
+// GitHub Pages / Unterordner-freundlich: KEINE führenden "/" verwenden.
+// Alles relativ zur SW-Scope (z.B. /DoggyStyleApp/)
 const CORE_ASSETS = [
-  "/",
-  "/index.html",
-  "/login.html",
-  "/styles.css",
-  "/app.js",
-  "/manifest.webmanifest",
-  "/assets/logo.png"
+  "./",
+  "./index.html",
+  "./login.html",
+  "./app.html",
+  "./styles.css",
+  "./app.js",
+  "./auth.js",
+  "./login_override.css",
+  "./manifest.json",
+  "./assets/logo.png"
 ];
 
-// INSTALL: Core Assets cachen + sofort aktiv werden
+// INSTALL: Core Assets cachen (ohne bei fehlenden Dateien zu crashen)
 self.addEventListener("install", (event) => {
   self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(CORE_ASSETS))
+    (async () => {
+      const cache = await caches.open(CACHE_NAME);
+      // cache.addAll bricht bei 404 ab -> daher einzeln fetchen
+      await Promise.allSettled(
+        CORE_ASSETS.map(async (url) => {
+          try {
+            const res = await fetch(url, { cache: "no-store" });
+            if (res && res.ok) await cache.put(url, res);
+          } catch (_) {}
+        })
+      );
+    })()
   );
 });
 
-// ACTIVATE: alle alten Caches löschen + Kontrolle übernehmen
+// ACTIVATE: alte Caches löschen + Kontrolle übernehmen
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
@@ -35,7 +50,7 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-// Helpers
+// Helper
 async function cachePut(request, response) {
   const cache = await caches.open(CACHE_NAME);
   await cache.put(request, response.clone());
@@ -44,20 +59,17 @@ async function cachePut(request, response) {
 // FETCH STRATEGY
 self.addEventListener("fetch", (event) => {
   const req = event.request;
-
-  // Nur GET Requests cachen
   if (req.method !== "GET") return;
 
   const url = new URL(req.url);
 
-  // Nur eigene Origin behandeln (GitHub Pages Domain)
+  // Nur eigene Origin behandeln
   if (url.origin !== self.location.origin) return;
 
-  const isHTML =
-    req.mode === "navigate" ||
-    (req.headers.get("accept") || "").includes("text/html");
+  const accept = req.headers.get("accept") || "";
+  const isHTML = req.mode === "navigate" || accept.includes("text/html");
 
-  // 1) HTML: network-first (damit Updates sofort kommen)
+  // 1) HTML: network-first (Updates sofort)
   if (isHTML) {
     event.respondWith(
       (async () => {
@@ -65,27 +77,27 @@ self.addEventListener("fetch", (event) => {
           const fresh = await fetch(req, { cache: "no-store" });
           await cachePut(req, fresh);
           return fresh;
-        } catch (e) {
+        } catch (_) {
+          // Fallback: index.html aus Cache innerhalb der Scope
           const cached = await caches.match(req);
-          return cached || caches.match("/index.html");
+          return cached || caches.match("./index.html") || caches.match("./app.html");
         }
       })()
     );
     return;
   }
 
-  // 2) Assets (CSS/JS/PNG): stale-while-revalidate
+  // 2) Assets: stale-while-revalidate (schnell + aktualisiert im Hintergrund)
   event.respondWith(
     (async () => {
       const cached = await caches.match(req);
       const fetchPromise = fetch(req)
         .then(async (fresh) => {
-          await cachePut(req, fresh);
+          if (fresh && fresh.ok) await cachePut(req, fresh);
           return fresh;
         })
         .catch(() => null);
 
-      // sofort cached liefern, parallel neu holen
       return cached || (await fetchPromise) || cached;
     })()
   );

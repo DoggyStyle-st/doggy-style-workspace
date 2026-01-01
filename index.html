@@ -8,5 +8,12 @@
 </head>
 <body>
   <p>Weiterleitung… Falls nichts passiert: <a href="login.html">Login öffnen</a></p>
+
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js?v=20260101_v61').catch(()=>{});
+  }
+</script>
+
 </body>
 </html>
