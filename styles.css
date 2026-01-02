@@ -864,8 +864,8 @@ body.page-login .btnLink--text:hover{
   background: rgba(255,255,255,.25);
   box-shadow: 0 0 0 2px rgba(255,255,255,.10);
 }
-.sync-pill.is-online::before{ background: rgba(140,255,170,.95); box-shadow: 0 0 0 2px rgba(140,255,170,.25); }
-.sync-pill.is-offline::before{ background: rgba(255,120,120,.95); box-shadow: 0 0 0 2px rgba(255,120,120,.25); }
+.sync-pill.is-online::before{ background: #34c759; box-shadow: 0 0 0 2px rgba(52,199,89,.25); }
+.sync-pill.is-offline::before{ background: #ff3b30; box-shadow: 0 0 0 2px rgba(255,59,48,.25); }
 
 .sync-time{
   font-size:12px;
@@ -892,3 +892,32 @@ body.page-login .btnLink--text:hover{
 }
 .btn--logout:hover{ background: rgba(0,0,0,.36); }
 
+
+
+/* Paw Start Button (prominent) */
+.paw-start{
+  width:92px; height:92px;
+  border-radius:28px;
+  display:grid;
+  place-items:center;
+  border:1px solid rgba(255,255,255,.14);
+  background:
+    radial-gradient(circle at 50% 45%, rgba(255,255,255,.10), rgba(0,0,0,.18)),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cg fill='white'%3E%3Ccircle cx='30' cy='38' r='12'/%3E%3Ccircle cx='50' cy='26' r='11'/%3E%3Ccircle cx='70' cy='26' r='11'/%3E%3Ccircle cx='90' cy='38' r='12'/%3E%3Cpath d='M60 52c-20 0-36 14-36 30 0 14 12 24 36 24s36-10 36-24c0-16-16-30-36-30z'/%3E%3C/g%3E%3C/svg%3E") center/78px 78px no-repeat;
+  filter: drop-shadow(0 10px 28px rgba(0,0,0,.45));
+}
+.paw-start span{
+  font-weight:900;
+  letter-spacing:.2px;
+  font-size:14px;
+  padding-top:34px;
+  text-shadow: 0 2px 8px rgba(0,0,0,.65);
+}
+.paw-start:hover{ background:
+    radial-gradient(circle at 50% 45%, rgba(255,255,255,.14), rgba(0,0,0,.20)),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cg fill='white'%3E%3Ccircle cx='30' cy='38' r='12'/%3E%3Ccircle cx='50' cy='26' r='11'/%3E%3Ccircle cx='70' cy='26' r='11'/%3E%3Ccircle cx='90' cy='38' r='12'/%3E%3Cpath d='M60 52c-20 0-36 14-36 30 0 14 12 24 36 24s36-10 36-24c0-16-16-30-36-30z'/%3E%3C/g%3E%3C/svg%3E") center/78px 78px no-repeat; }
+.paw-start:active{ transform: translateY(1px); }
+@media (max-width: 520px){
+  .paw-start{ width:82px; height:82px; }
+  .paw-start span{ padding-top:30px; font-size:13px; }
+}

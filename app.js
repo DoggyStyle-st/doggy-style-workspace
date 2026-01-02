@@ -5788,6 +5788,7 @@ async function startApp(){
   const btnRegister = document.getElementById("btnRegister");
   const btnLogout = document.getElementById("btnLogout");
   const btnLogoutApp = document.getElementById("btnLogoutApp");
+  const btnLogoutBottom = document.getElementById("btnLogoutBottom");
   const loginEmail = document.getElementById("loginEmail");
   const loginPass = document.getElementById("loginPass");
 
@@ -5818,6 +5819,9 @@ async function startApp(){
   if(btnLogoutApp) btnLogoutApp.onclick = async ()=>{
     try{ await CLOUD.auth.signOut(); }catch(e){}
   };
+  if(btnLogoutBottom) btnLogoutBottom.onclick = async ()=>{
+    try{ await CLOUD.auth.signOut(); }catch(e){}
+  };
 
   // Auth state
   CLOUD.auth.onAuthStateChanged(async (user)=>{
@@ -5825,6 +5829,7 @@ async function startApp(){
     if(!user){
       CLOUD.role = 'guest';
       try{ if(btnLogoutApp) btnLogoutApp.style.display = 'none'; }catch(e){}
+      try{ if(btnLogoutBottom) btnLogoutBottom.style.display = 'none'; }catch(e){}
       try{ if(btnLogout) btnLogout.style.display = 'none'; }catch(e){}
       updateSyncUI();
       // In dieser Version gibt es kein Login-Overlay mehr. Wenn nicht eingeloggt: auf Login-Seite umleiten.

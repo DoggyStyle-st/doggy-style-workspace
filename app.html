@@ -3,7 +3,7 @@
 <html lang="de">
 <head>
 
-  <meta name="app-version" content="2026-01-02-02">
+  <meta name="app-version" content="2026-01-02-03">
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <title>Doggy Style Workspace · App</title>
@@ -32,11 +32,11 @@
 <body class="bg-watermark page-app">
 <header class="topbar">
   <div class="topbar__inner">
-    <nav class="tabs" role="tablist" aria-label="Navigation">
+        <button class="tab paw-start is-active" data-tab="home" id="pawStart" title="Start" aria-label="Start"><span>Start</span></button>
+<nav class="tabs" role="tablist" aria-label="Navigation">
       <div class="tabs__row tabs__row--main">
         <button class="tab" data-tab="dogs">Hunde/Kunden</button>
-        <button class="tab tab--start is-active" data-tab="home" title="Start">Start</button>
-        <button class="tab" data-tab="workforms">Arbeitsblätter</button>
+<button class="tab" data-tab="workforms">Arbeitsblätter</button>
         <button class="tab" data-tab="hygiene" id="tabHygiene">Hygiene</button>
         <button class="tab" data-tab="medication" id="tabMedication">💊 Medikamente</button>
         <button class="tab" data-tab="analytics" id="tabAnalytics">Auswertungen</button>
@@ -77,7 +77,7 @@
 
   <div class="dashboard-brand">
     <img src="assets/logo.png" alt="Doggy Style" class="dashboard-brand__logo"/>
-    <div class="dashboard-brand__quote">„Arbeit macht nicht frei – Freiheit ist, was wir brauchen.<br/>Das Leben geht so schnell vorbei, das kannst du mir ruhig glauben.“</div>
+    <div class="dashboard-brand__quote">„Arbeit macht nicht frei – Freiheit ist, was wir brauchen.<br>Das Leben geht so schnell vorbei, das kannst du mir ruhig glauben.“</div>
   </div>
 
   <div class="hero-card hero-card--side">
@@ -754,7 +754,7 @@
       <span>Status</span>
       <div class="sync-box" id="syncDetails">—</div>
     </div>
-    <button class="btn" id="btnLogoutApp" style="display:none">Abmelden</button>
+    <button class="btn" id="btnLogoutApp" style="display:none">Ausloggen / Logout</button>
   </div>
 </div>
 
@@ -1024,7 +1024,7 @@
 <script>
 (function () {
   if (!('serviceWorker' in navigator)) return;
-  const SW_URL = './sw.js?v=2026-01-02-02';
+  const SW_URL = './sw.js?v=2026-01-02-03';
   navigator.serviceWorker.register(SW_URL).catch(console.error);
 
   // Safari/iOS: bei neuem SW einmalig neu laden (verhindert Update-Schleifen)
@@ -1038,6 +1038,9 @@
 </script>
 <!-- Dummy für Legacy-Signatur -->
 <canvas height="1" id="sigPad" style="display:none" width="1"></canvas>
-  <div class="build-badge" id="buildBadge">Build</div>
+    <div class="bottom-actions">
+    <button class="btn btn--mini btn--logout" id="btnLogoutBottom" type="button" title="Ausloggen / Logout">Ausloggen / Logout</button>
+  </div>
+<div class="build-badge" id="buildBadge">Build</div>
 </body>
 </html>
