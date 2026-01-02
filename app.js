@@ -1,4 +1,4 @@
-const APP_BUILD = "v6.4-startfix-2026-01-02";
+const APP_BUILD = "v6.3";
 window.addEventListener("error",(e)=>{console.error("APP_ERROR",e.error||e.message);});
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
@@ -132,6 +132,12 @@ function fmtDT(ts){
   }catch(_){ return "—"; }
 }
 
+async function performLogout(){
+  try{ if(CLOUD && CLOUD.enabled && CLOUD.auth){ await CLOUD.auth.signOut(); } }catch(e){}
+  try{ sessionStorage.removeItem("ds_sw_reloaded"); }catch(e){}
+  try{ location.href = "login.html"; }catch(e){}
+}
+
 function updateSyncUI(){
   const pill = document.getElementById('syncStatus');
   const userEl = document.getElementById('syncUser');
@@ -142,12 +148,14 @@ function updateSyncUI(){
       userEl.style.display = 'inline-flex';
       userEl.textContent = (CLOUD.user.email || 'eingeloggt');
     } else {
+      try{ const ba=document.querySelector(".bottom-actions"); if(ba) ba.style.display="block"; }catch(e){}
       userEl.style.display = 'none';
       userEl.textContent = '';
     }
   }
 
   const netOnline = (typeof navigator !== 'undefined') ? !!navigator.onLine : false;
+  try{ if(pill){ pill.classList.toggle('is-online', !!netOnline); pill.classList.toggle('is-offline', !netOnline); } }catch(e){}
   const localLine = `Lokal gespeichert: ${fmtDT(SYNC.localSavedAt)}`;
 
   // Internet-Status (nicht gleich Cloud!)
@@ -178,26 +186,8 @@ function updateSyncUI(){
     }
   }
 
-  if(pill){
-    // Ampel + klarer Text (nur Online/Offline oben)
-    pill.textContent = netOnline ? 'Online' : 'Offline';
-    pill.classList.toggle('is-online', !!netOnline);
-    pill.classList.toggle('is-offline', !netOnline);
-  }
-  const timeEl = document.getElementById('syncTime');
-  if(timeEl){
-    // Zeit nur anzeigen, wenn Internet online ist (wirkt sonst "komisch")
-    if(netOnline){
-      timeEl.style.display = 'inline-flex';
-      timeEl.textContent = fmtDT(SYNC.localSavedAt);
-    } else {
-      timeEl.style.display = 'none';
-      timeEl.textContent = '';
-    }
-  }
-  if(details) details.textContent = `${localLine}
-${netLine}
-${cloudLine}`;
+  if(pill) pill.textContent = `${pillText} · ${fmtDT(SYNC.localSavedAt)}`;
+  if(details) details.textContent = `${localLine}\n${netLine}\n${cloudLine}`;
 
   // Manual cloud save: only enable when Cloud is active + logged in
   if(manualBtn){
@@ -213,23 +203,6 @@ ${cloudLine}`;
     }
   }
 }
-
-async function performLogout(){
-  // Robust: funktioniert auch wenn Cloud/Auth gerade nicht verfügbar ist
-  try{
-    if(cloudIsEnabled() && CLOUD.auth && typeof CLOUD.auth.signOut === 'function'){
-      await CLOUD.auth.signOut();
-    }
-  }catch(e){}
-  try{ localStorage.removeItem('ds_sw_reloaded'); }catch(e){}
-  try{ sessionStorage.removeItem('ds_sw_reloaded'); }catch(e){}
-  // optional: lokale "Session" Marker löschen (falls vorhanden)
-  try{ localStorage.removeItem('ds_user'); }catch(e){}
-  try{ localStorage.removeItem('ds_lastUser'); }catch(e){}
-  try{ localStorage.removeItem('ds_auth'); }catch(e){}
-  try{ window.location.href = 'login.html?logout=1'; }catch(e){}
-}
-
 
 /* ===== Dokument/PDF Modal (PWA/iPad-friendly) ===== */
 const DOCMOD = { url: null, filename: null };
@@ -1406,25 +1379,16 @@ function selectTab(tabId){
 }
 
 function createStay(){
-  // Neuer Aufenthalt (Hundeannahme) – direkt Vorlage suchen & Dokument anlegen
-  try{
-    const t = (templates||[]).find(x=>{
-      const id = String(x.id||"").toLowerCase();
-      const nm = String(x.name||x.title||"").toLowerCase();
-      return id.includes("hundeannahme") || nm.includes("hundeannahme") || nm.includes("hunde annahme") || nm.includes("aufnahme");
-    });
-    if(!t){
-      alert("Vorlage 'Hundeannahme' nicht gefunden.");
-      return;
-    }
-    const newId = createDoc(t.id); // createDoc liefert docId
-    selectTab("documents");
-    try{ renderDocs(); }catch(e){}
-    if(newId) try{ openDoc(newId); }catch(e){}
-  }catch(e){
-    console.error(e);
-    alert("Neuer Aufenthalt konnte nicht erstellt werden.");
+  // Neuer Aufenthalt (Hundeannahme)
+  const sel = document.getElementById("templateSelect");
+  const btn = document.getElementById("btnNewDoc");
+  if(sel){
+    // try to select hundeannahme template
+    const opt = Array.from(sel.options).find(o => (o.value||"").toLowerCase().includes("hundeannahme") || (o.textContent||"").toLowerCase().includes("hundeannahme"));
+    if(opt) sel.value = opt.value;
   }
+  if(btn) btn.click();
+  else selectTab("documents");
 }
 
 function openDogs(){ selectTab("dogs"); }
@@ -5161,7 +5125,6 @@ versionOf: null,meta: {
   state.docs.unshift(docObj);
   saveState();
   openDoc(docObj.id);
-  return docObj.id;
 }
 
 let currentDoc=null, dirty=false;
@@ -5693,9 +5656,6 @@ function doBackupExport(){
 
 const _btnExportAll = $("#btnExportAll");
 if(_btnExportAll) _btnExportAll.addEventListener("click", doBackupExport);
-const _btnNewStay = document.getElementById('btnNewStay');
-if(_btnNewStay) _btnNewStay.addEventListener('click', ()=>{ try{ createStay(); }catch(e){ console.error(e); } });
-
 
 const _btnBackupExport = document.getElementById('btnBackupExport');
 if(_btnBackupExport) _btnBackupExport.addEventListener('click', doBackupExport);
@@ -5819,6 +5779,7 @@ async function startApp(){
   const btnLogout = document.getElementById("btnLogout");
   const btnLogoutApp = document.getElementById("btnLogoutApp");
   const btnLogoutBottom = document.getElementById("btnLogoutBottom");
+  const btnNewStayTop = document.getElementById("btnNewStayTop");
   const loginEmail = document.getElementById("loginEmail");
   const loginPass = document.getElementById("loginPass");
 
@@ -5849,16 +5810,17 @@ async function startApp(){
   if(btnLogoutApp) btnLogoutApp.onclick = async ()=>{
     try{ await CLOUD.auth.signOut(); }catch(e){}
   };
-  if(btnLogoutBottom) btnLogoutBottom.onclick = ()=>performLogout(); }catch(e){}
-  };
+  if(btnLogoutBottom) btnLogoutBottom.onclick = ()=>performLogout();
+  if(btnNewStayTop) btnNewStayTop.onclick = ()=>{ try{ createStay(); }catch(e){ selectTab("documents"); } };
 
   // Auth state
   CLOUD.auth.onAuthStateChanged(async (user)=>{
     CLOUD.user = user || null;
     if(!user){
+      try{ const ba=document.querySelector(".bottom-actions"); if(ba) ba.style.display="none"; }catch(e){}
+
       CLOUD.role = 'guest';
       try{ if(btnLogoutApp) btnLogoutApp.style.display = 'none'; }catch(e){}
-      try{ if(btnLogoutBottom) btnLogoutBottom.style.display = 'none'; }catch(e){}
       try{ if(btnLogout) btnLogout.style.display = 'none'; }catch(e){}
       updateSyncUI();
       // In dieser Version gibt es kein Login-Overlay mehr. Wenn nicht eingeloggt: auf Login-Seite umleiten.
