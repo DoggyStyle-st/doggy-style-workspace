@@ -1,4 +1,4 @@
-const APP_BUILD = "v6.3";
+const APP_BUILD = "v9.0";
 window.addEventListener("error",(e)=>{console.error("APP_ERROR",e.error||e.message);});
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
@@ -1381,16 +1381,56 @@ function selectTab(tabId){
 }
 
 function createStay(){
-  // Neuer Aufenthalt (Hundeannahme)
-  const sel = document.getElementById("templateSelect");
-  const btn = document.getElementById("btnNewDoc");
-  if(sel){
-    // try to select hundeannahme template
-    const opt = Array.from(sel.options).find(o => (o.value||"").toLowerCase().includes("hundeannahme") || (o.textContent||"").toLowerCase().includes("hundeannahme"));
-    if(opt) sel.value = opt.value;
-  }
-  if(btn) btn.click();
-  else selectTab("documents");
+  // Neuer Aufenthalt (Hundeannahme) – robust:
+  // 1) Auf "Dokumente/Vorlagen" wechseln (damit der Editor sichtbar ist)
+  // 2) Template sicher finden (id bevorzugt, sonst Name)
+  // 3) Direkt createDoc(templateId) ausführen
+  try{ selectTab("documents"); }catch(_){}
+
+  const pickTemplateId = () => {
+    // Prefer exact id
+    if (typeof getTemplate === "function") {
+      const direct = getTemplate("hundeannahme");
+      if (direct && direct.id) return direct.id;
+    }
+    // From loaded templates array
+    try{
+      if (Array.isArray(templates) && templates.length){
+        const t = templates.find(x => (x && (x.id === "hundeannahme" || (x.name||"").toLowerCase().includes("hundeannahme"))));
+        if (t && t.id) return t.id;
+      }
+    }catch(_){}
+    // From select options
+    const sel = document.getElementById("templateSelect");
+    if (sel) {
+      const opt = Array.from(sel.options || []).find(o =>
+        ((o.value||"").toLowerCase() === "hundeannahme") ||
+        ((o.textContent||"").toLowerCase().includes("hundeannahme"))
+      );
+      if (opt) return opt.value || "hundeannahme";
+      // fallback: keep current selection if any
+      if (sel.value) return sel.value;
+    }
+    return "hundeannahme";
+  };
+
+  const go = () => {
+    const tid = pickTemplateId();
+    // Ensure select reflects the choice (nice-to-have)
+    const sel = document.getElementById("templateSelect");
+    if (sel) sel.value = tid;
+
+    if (typeof createDoc === "function") {
+      createDoc(tid);
+      return;
+    }
+    // Fallback: click the existing "Neues Dokument" button
+    const btn = document.getElementById("btnNewDoc");
+    if (btn) btn.click();
+  };
+
+  // If templates still loading, wait a tick
+  setTimeout(go, 50);
 }
 
 function openDogs(){ selectTab("dogs"); }
