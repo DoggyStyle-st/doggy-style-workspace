@@ -139,10 +139,12 @@ async function performLogout(){
 }
 
 function updateSyncUI(){
-  const pill = document.getElementById('syncStatus');
+  const dot = document.getElementById('syncDot');
+  const textEl = document.getElementById('syncStatusText');
   const userEl = document.getElementById('syncUser');
   const details = document.getElementById('syncDetails');
   const manualBtn = document.getElementById('manualSaveBtn');
+
   if(userEl){
     if(CLOUD.enabled && CLOUD.user){
       userEl.style.display = 'inline-flex';
@@ -155,17 +157,23 @@ function updateSyncUI(){
   }
 
   const netOnline = (typeof navigator !== 'undefined') ? !!navigator.onLine : false;
-  try{ if(pill){ pill.classList.toggle('is-online', !!netOnline); pill.classList.toggle('is-offline', !netOnline); } }catch(e){}
-  const localLine = `Lokal gespeichert: ${fmtDT(SYNC.localSavedAt)}`;
 
-  // Internet-Status (nicht gleich Cloud!)
+  // Ampel: nur Internet-Status (Cloud-Status steht in Details)
+  if(dot){
+    dot.classList.toggle('online', !!netOnline);
+    dot.classList.toggle('offline', !netOnline);
+  }
+  if(textEl){
+    textEl.textContent = netOnline ? 'Online' : 'Offline';
+  }
+
+  const localLine = `Lokal gespeichert: ${fmtDT(SYNC.localSavedAt)}`;
   const netLine = `Internet: ${netOnline ? 'Online' : 'Offline'}`;
 
   let pillText = netOnline ? 'Online' : 'Offline';
   let cloudLine = 'Cloud: aus';
 
   if(!cloudIsEnabled()){
-    // Cloud nicht möglich (SDK fehlt) – das ist der Hauptgrund für "immer Offline" in der Wahrnehmung
     cloudLine = window.firebaseConfig ? 'Cloud: bereit (SDK nicht geladen)' : 'Cloud: aus';
     if(window.firebaseConfig && CLOUD.reason){
       cloudLine += ` · ${CLOUD.reason}`;
@@ -186,13 +194,21 @@ function updateSyncUI(){
     }
   }
 
-  if(pill) pill.textContent = `${pillText} · ${fmtDT(SYNC.localSavedAt)}`;
-  if(details) details.textContent = `${localLine}\n${netLine}\n${cloudLine}`;
+  // Details-Panel bleibt ausführlich
+  if(details) details.textContent = `${localLine}
+${netLine}
+${cloudLine}`;
+
+  // Tooltip am Status (optional)
+  try{
+    const title = `${pillText} · ${fmtDT(SYNC.localSavedAt)}`;
+    if(textEl) textEl.title = title;
+    if(dot) dot.title = title;
+  }catch(e){}
 
   // Manual cloud save: only enable when Cloud is active + logged in
   if(manualBtn){
     const ok = !!(CLOUD.enabled && CLOUD.user);
-    // Wenn Cloud grundsätzlich nicht verfügbar: Button ausblenden (wirkt sonst "kaputt")
     if(!cloudIsEnabled()){
       manualBtn.style.display = 'none';
     } else {
@@ -5776,10 +5792,10 @@ async function startApp(){
   // Login UI wiring
   const btnLogin = document.getElementById("btnLogin");
   const btnRegister = document.getElementById("btnRegister");
-  const btnLogout = document.getElementById("btnLogout");
-  const btnLogoutApp = document.getElementById("btnLogoutApp");
+    const btnLogoutApp = document.getElementById("btnLogoutApp");
   const btnLogoutBottom = document.getElementById("btnLogoutBottom");
   const btnNewStayTop = document.getElementById("btnNewStayTop");
+  const btnNewStayDocs = document.getElementById("btnNewStayDocs");
   const loginEmail = document.getElementById("loginEmail");
   const loginPass = document.getElementById("loginPass");
 
@@ -5804,14 +5820,13 @@ async function startApp(){
       try{ alert('Registrierung fehlgeschlagen: '+(e.code||e.message||e)); }catch(_){ }
     }
   };
-  if(btnLogout) btnLogout.onclick = async ()=>{
-    await CLOUD.auth.signOut();
-  };
+    };
   if(btnLogoutApp) btnLogoutApp.onclick = async ()=>{
     try{ await CLOUD.auth.signOut(); }catch(e){}
   };
   if(btnLogoutBottom) btnLogoutBottom.onclick = ()=>performLogout();
   if(btnNewStayTop) btnNewStayTop.onclick = ()=>{ try{ createStay(); }catch(e){ selectTab("documents"); } };
+  if(btnNewStayDocs) btnNewStayDocs.onclick = ()=>{ try{ selectTab("documents"); createStay(); }catch(e){ selectTab("documents"); } };
 
   // Auth state
   CLOUD.auth.onAuthStateChanged(async (user)=>{
