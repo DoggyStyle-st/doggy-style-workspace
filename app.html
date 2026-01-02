@@ -2,6 +2,8 @@
 
 <html lang="de">
 <head>
+
+  <meta name="app-version" content="2026-01-02-01">
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <title>Doggy Style Workspace · App</title>
@@ -10,67 +12,85 @@
 <link href="assets/logo.png" rel="apple-touch-icon"/>
 <link href="styles.css?v=20260101v62" rel="stylesheet"/>
 <style>
-  /* Startseite/Topbar Optik: kleine Logo-Zeile raus, Tabs übersichtlicher */
+  /* Topbar Layout (iPad & Desktop stabil) */
   .topbar{position:sticky; top:0; z-index:50;}
-  .tabs{flex-wrap:wrap; justify-content:center; gap:10px; padding:10px 12px 14px;}
+  .topbar__inner{display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding:10px 12px 14px;}
+  .tabs{flex:1; display:flex; flex-direction:column; gap:10px; align-items:center;}
+  .tabs__row{display:flex; flex-wrap:wrap; justify-content:center; gap:10px;}
+  .tabs__row--quick{gap:8px;}
   .tab{white-space:nowrap;}
-  .topbar__right{position:absolute; right:12px; top:12px;}
+  .topbar__right{display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:flex-end;}
+  .sync-indicator{display:flex; align-items:center; gap:8px;}
+  .sync-label{font-size:12px; opacity:.75;}
   @media (min-width: 900px){
-    .tabs{gap:12px; padding-bottom:16px;}
-    .topbar__right{right:16px; top:14px;}
+    .topbar__inner{gap:16px; padding:10px 16px 16px;}
+    .tabs__row{gap:12px;}
+    .tabs__row--quick{gap:10px;}
   }
 </style>
 </head>
 <body class="bg-watermark page-app">
 <header class="topbar">
-<!-- Sync/Account Status (klein, oben rechts) -->
-<div class="topbar__right">
-  <div class="sync-pill" id="syncStatus" title="Speicher- & Sync-Status">Offline</div>
-  <div class="sync-user" id="syncUser" title="Aktiver Benutzer" style="display:none"></div>
-</div>
-<nav class="tabs" role="tablist">
-<button class="tab is-active" data-tab="home">Start</button>
-<button class="tab" data-tab="calendar" id="tabCalendar">Kalender</button>
-<button class="tab" data-tab="inbox" id="tabInbox">Eingänge</button>
-<button class="tab" data-tab="documents">Aufenthalte</button>
-<button class="tab" data-tab="dogs">Hunde/Kunden</button>
-<button class="tab" data-tab="contract">Betreuungsvertrag</button>
-<button class="tab" data-tab="workforms">Arbeitsblätter</button>
-<button class="tab" data-tab="hygiene" id="tabHygiene">Hygiene</button>
-<button class="tab" data-tab="medication" id="tabMedication">💊 Medikamente</button>
-<button class="tab" data-tab="analytics" id="tabAnalytics">Auswertungen</button>
-<button class="tab" data-tab="settings">Einstellungen</button>
-</nav>
+  <div class="topbar__inner">
+    <nav class="tabs" role="tablist" aria-label="Navigation">
+      <div class="tabs__row tabs__row--main">
+        <button class="tab" data-tab="dogs">Hunde/Kunden</button>
+        <button class="tab" data-tab="contract">Betreuungsvertrag</button>
+        <button class="tab" data-tab="workforms">Arbeitsblätter</button>
+        <button class="tab" data-tab="hygiene" id="tabHygiene">Hygiene</button>
+        <button class="tab" data-tab="medication" id="tabMedication">💊 Medikamente</button>
+        <button class="tab" data-tab="analytics" id="tabAnalytics">Auswertungen</button>
+      </div>
+
+      <div class="tabs__row tabs__row--quick">
+        <button class="tab is-active" data-tab="home">Start</button>
+        <button class="tab" data-tab="calendar" id="tabCalendar">Kalender</button>
+        <button class="tab" data-tab="inbox" id="tabInbox">Eingänge</button>
+        <button class="tab" data-tab="documents">Aufenthalte</button>
+        <button class="tab" data-tab="settings" id="tabSettings">Einstellungen</button>
+      </div>
+    </nav>
+
+    <div class="topbar__right">
+      <div class="sync-indicator">
+        <span class="sync-label" id="syncStatusLabel" aria-hidden="true">Status:</span>
+        <span class="sync-pill" id="syncStatus" title="Speicher- &amp; Sync-Status">Offline</span>
+      </div>
+      <button class="btn btn--mini" id="btnLogout" type="button" title="Abmelden">Logout</button>
+      <div class="sync-user" id="syncUser" title="Aktiver Benutzer" style="display:none"></div>
+    </div>
+  </div>
 </header>
 <main class="shell">
 <section class="panel is-active" id="home">
 <section class="dashboard">
-<div class="dashboard-brand">
-  <img src="assets/logo.png" alt="Doggy Style" class="dashboard-brand__logo"/>
-  <div class="dashboard-brand__title">Doggy Style Workspace</div>
+<div class="dashboard-top">
+  <div class="hero-card hero-card--side">
+    <div class="hero-header">
+      <span class="hero-icon">🐕</span>
+      <span class="hero-title">Tagesbetreuung</span>
+    </div>
+    <div class="hero-value" id="todayDaycareValue">0 / 13</div>
+    <div class="hero-bar"><div class="hero-bar-fill" id="todayDaycareBar"></div></div>
+    <div class="hero-sub" id="todayDaycareText">Ruhiger Tag</div>
+  </div>
+
+  <div class="dashboard-brand">
+    <img src="assets/logo.png" alt="Doggy Style" class="dashboard-brand__logo"/>
+    <div class="dashboard-brand__title">Doggy Style Workspace</div>
+  </div>
+
+  <div class="hero-card hero-card--side">
+    <div class="hero-header">
+      <span class="hero-icon">🏡</span>
+      <span class="hero-title">Urlaubsbetreuung</span>
+    </div>
+    <div class="hero-value" id="todayBoardingValue">0 / 10</div>
+    <div class="hero-bar"><div class="hero-bar-fill" id="todayBoardingBar"></div></div>
+    <div class="hero-sub" id="todayBoardingText">Ruhiger Tag</div>
+  </div>
 </div>
 
-<!-- HERO -->
-<div class="hero-cards">
-<div class="hero-card">
-<div class="hero-header">
-<span class="hero-icon">🐕</span>
-<span class="hero-title">Tagesbetreuung</span>
-</div>
-<div class="hero-value" id="todayDaycareValue">0 / 13</div>
-<div class="hero-bar"><div class="hero-bar-fill" id="todayDaycareBar"></div></div>
-<div class="hero-sub" id="todayDaycareText">Ruhiger Tag</div>
-</div>
-<div class="hero-card">
-<div class="hero-header">
-<span class="hero-icon">🏡</span>
-<span class="hero-title">Urlaubsbetreuung</span>
-</div>
-<div class="hero-value" id="todayBoardingValue">0 / 10</div>
-<div class="hero-bar"><div class="hero-bar-fill" id="todayBoardingBar"></div></div>
-<div class="hero-sub" id="todayBoardingText">Ruhiger Tag</div>
-</div>
-</div>
 <!-- Forecast -->
 <div class="card">
 <h2>Auslastung – nächste 14 Tage</h2>
@@ -122,6 +142,7 @@
     </div>
     <div class="row" style="gap:8px; align-items:center; flex-wrap:wrap;">
       <span class="sync-pill" id="hygieneTodayStatus" title="Status Hygiene heute">—</span>
+      <button class="btn" onclick="openHygieneTodo()">To-do</button>
       <button class="btn" onclick="openHygiene()">Öffnen</button>
     </div>
   </div>
@@ -1001,8 +1022,20 @@
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <script defer="defer" src="app.js?v=20260101v63b"></script>
 <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=20251227e');
-  </script>
+(function () {
+  if (!('serviceWorker' in navigator)) return;
+  const SW_URL = './sw.js?v=2026-01-02-01';
+  navigator.serviceWorker.register(SW_URL).catch(console.error);
+
+  // Safari/iOS: bei neuem SW einmalig neu laden (verhindert Update-Schleifen)
+  let reloaded = sessionStorage.getItem('ds_sw_reloaded');
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (reloaded) return;
+    sessionStorage.setItem('ds_sw_reloaded', '1');
+    window.location.reload();
+  });
+})();
+</script>
 <!-- Dummy für Legacy-Signatur -->
 <canvas height="1" id="sigPad" style="display:none" width="1"></canvas>
   <div class="build-badge" id="buildBadge">Build</div>

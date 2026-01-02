@@ -1,12 +1,29 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="utf-8"/>
+  
+  <meta name="app-version" content="2026-01-02-01">
+<meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
   <title>Doggy Style Workspace</title>
   <meta http-equiv="refresh" content="0; url=login.html"/>
 </head>
 <body>
   <p>Weiterleitung… Falls nichts passiert: <a href="login.html">Login öffnen</a></p>
+<script>
+(function () {
+  if (!('serviceWorker' in navigator)) return;
+  const SW_URL = './sw.js?v=2026-01-02-01';
+  navigator.serviceWorker.register(SW_URL).catch(console.error);
+
+  // Safari/iOS: bei neuem SW einmalig neu laden (verhindert Update-Schleifen)
+  let reloaded = sessionStorage.getItem('ds_sw_reloaded');
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (reloaded) return;
+    sessionStorage.setItem('ds_sw_reloaded', '1');
+    window.location.reload();
+  });
+})();
+</script>
 </body>
 </html>

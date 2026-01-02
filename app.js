@@ -1388,6 +1388,16 @@ function openCustomers(){ selectTab("dogs"); } // Kunden sind im Hunde/Kunden Be
 function openInvoices(){ selectTab("invoices"); }
 function openWorkforms(){ selectTab("workforms"); }
 function openHygiene(){ selectTab("hygiene"); }
+function openHygieneTodo(){
+  try{
+    ensureStateShape();
+    state.hygiene = state.hygiene || {};
+    state.hygiene.ui = state.hygiene.ui || {};
+    state.hygiene.ui.pendingOnly = true;
+    saveState();
+  }catch(e){ /* ignore */ }
+  selectTab("hygiene");
+}
 function openMedication(){ selectTab("medication"); }
 
 // Quicklink aus Aufenthalt -> Medikation (Hund vorauswählen)
@@ -5797,6 +5807,7 @@ async function startApp(){
     if(!user){
       CLOUD.role = 'guest';
       try{ if(btnLogoutApp) btnLogoutApp.style.display = 'none'; }catch(e){}
+      try{ if(btnLogout) btnLogout.style.display = 'none'; }catch(e){}
       updateSyncUI();
       // In dieser Version gibt es kein Login-Overlay mehr. Wenn nicht eingeloggt: auf Login-Seite umleiten.
       try{
@@ -5804,7 +5815,9 @@ async function startApp(){
         // local/offline Nutzung erlauben: nicht hart auf login umleiten
         // if(!p.endsWith('login.html')) location.href = 'login.html';
       }catch(e){}
-      return;
+      
+    try{ if(btnLogout) btnLogout.style.display = 'inline-flex'; }catch(e){}
+return;
     }
 
     // Login bei jedem Start erzwingen: wird beim Start durch signOut() erzwungen (kein Auto-Logout nach erfolgreichem Login)

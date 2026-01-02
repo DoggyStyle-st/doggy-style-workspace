@@ -141,6 +141,13 @@ textarea{min-height:88px;resize:vertical}
 
 /* === Dashboard (Start) === */
 .dashboard{display:flex;flex-direction:column;gap:18px}
+
+.dashboard-top{display:grid; grid-template-columns:1fr; gap:16px; align-items:center;}
+@media (min-width: 900px){
+  .dashboard-top{grid-template-columns:minmax(260px,1fr) auto minmax(260px,1fr);}
+  .dashboard-top .dashboard-brand{justify-self:center;}
+  .hero-card--side{max-width:420px;}
+}
 .hero-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px}
 .hero-card{padding:18px;border-radius:18px;background:rgba(255,255,255,0.14);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,0.12)}
 .hero-header{display:flex;align-items:center;gap:8px;font-size:16px;opacity:.9}
@@ -817,3 +824,8 @@ body.page-login .btnLink--text:hover{
 
 /* v6.3 UX: Status-Pills sind Labels, keine Buttons */
 .sync-pill{cursor:default; pointer-events:none; user-select:none;}
+
+
+/* === Topbar Status + Logout === */
+.topbar__right .sync-pill{pointer-events:none; cursor:default; padding:6px 9px; font-size:12px;}
+.btn--mini{padding:6px 10px; font-size:12px; border-radius:999px;}

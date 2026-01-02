@@ -1,5 +1,5 @@
 {
-  "name": "Doggy Style Workspace (Stand 27.12.2025)",
+  "name": "Doggy Style Workspace",
   "short_name": "DoggyStyle",
   "start_url": "./index.html",
   "display": "standalone",
@@ -16,5 +16,6 @@
       "sizes": "512x512",
       "type": "image/png"
     }
-  ]
+  ],
+  "description": "Build 2026-01-02-01"
 }
