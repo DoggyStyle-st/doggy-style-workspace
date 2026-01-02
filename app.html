@@ -44,22 +44,21 @@
         </svg>
       </span>
       <span class="paw-start__label">Start</span>
-    <
     <nav class="tabs" role="tablist" aria-label="Navigation">
       <div class="tabs__row tabs__row--main">
-        <button class="tab" data-tab="dogs">Hunde/Kunden<
-        <button class="tab" data-tab="contract">Betreuungsvertrag<
-        <button class="tab" data-tab="workforms">Arbeitsblätter<
-        <button class="tab" data-tab="hygiene" id="tabHygiene">Hygiene<
-        <button class="tab" data-tab="medication" id="tabMedication">💊 Medikamente<
-        <button class="tab" data-tab="analytics" id="tabAnalytics">Auswertungen<
+        <button class="tab" data-tab="dogs">Hunde/Kunden</button>
+        <button class="tab" data-tab="contract">Betreuungsvertrag</button>
+        <button class="tab" data-tab="workforms">Arbeitsblätter</button>
+        <button class="tab" data-tab="hygiene" id="tabHygiene">Hygiene</button>
+        <button class="tab" data-tab="medication" id="tabMedication">💊 Medikamente</button>
+        <button class="tab" data-tab="analytics" id="tabAnalytics">Auswertungen</button>
       </div>
 
       <div class="tabs__row tabs__row--quick">
-<button class="tab" data-tab="calendar" id="tabCalendar">Kalender<
-        <button class="tab" data-tab="inbox" id="tabInbox">Eingänge<
-        <button class="tab" data-tab="documents">Aufenthalte<
-        <button class="tab" data-tab="settings" id="tabSettings">Einstellungen<
+<button class="tab" data-tab="calendar" id="tabCalendar">Kalender</button>
+        <button class="tab" data-tab="inbox" id="tabInbox">Eingänge</button>
+        <button class="tab" data-tab="documents">Aufenthalte</button>
+        <button class="tab" data-tab="settings" id="tabSettings">Einstellungen</button>
       </div>
     </nav>
 
@@ -112,11 +111,11 @@
 <div class="card">
 <h2>Schnellaktionen</h2>
 <div class="quick-actions">
-<button class="btn primary" id="btnNewStayTop" type="button">➕ Neuer Aufenthalt<
-<button class="btn" id="btnQuickDogs" type="button">🐶 Hunde/Kunden<
+<button class="btn primary" id="btnNewStayTop" type="button">➕ Neuer Aufenthalt</button>
+<button class="btn" id="btnQuickDogs" type="button">🐶 Hunde/Kunden</button>
 
-<button class="btn" id="btnQuickInvoices" type="button">🧾 Rechnungen<
-<button class="btn" onclick="selectTab('settings')">⚙️ Einstellungen<
+<button class="btn" id="btnQuickInvoices" type="button">🧾 Rechnungen</button>
+<button class="btn" onclick="selectTab('settings')">⚙️ Einstellungen</button>
 
 </div>
 </div>
@@ -127,9 +126,9 @@
   <div class="muted" id="complianceMeta" style="margin-top:6px">—</div>
   <div class="list" id="complianceList" style="margin-top:10px"></div>
   <div class="row" style="flex-wrap:wrap; gap:10px; margin-top:12px">
-    <button class="btn primary" id="btnMonthClose" type="button">🗓️ Monat abschließen<
-    <button class="btn" id="btnMonthExport" type="button">📦 Monats-Export (PDFs)<
-    <button class="btn" id="btnSteuerExport" type="button">📁 Export für Steuerberater<
+    <button class="btn primary" id="btnMonthClose" type="button">🗓️ Monat abschließen</button>
+    <button class="btn" id="btnMonthExport" type="button">📦 Monats-Export (PDFs)</button>
+    <button class="btn" id="btnSteuerExport" type="button">📁 Export für Steuerberater</button>
   </div>
   <div class="hint" id="complianceHint" style="margin-top:10px">
     Tipp: Speichere Monats-Exporte extern (PC/Cloud) – z. B. Ordner <strong>DoggyStyle/Export</strong>.
@@ -143,7 +142,7 @@
 <span>Vorlage</span>
 <select id="templateSelect"></select>
 </label>
-<button class="btn primary" id="btnNewDoc">Aufenthalt erstellen<
+<button class="btn primary" id="btnNewDoc">Aufenthalt erstellen</button>
 </div>
 </div>
 
@@ -155,8 +154,8 @@
     </div>
     <div class="row" style="gap:8px; align-items:center; flex-wrap:wrap;">
       <span class="sync-pill" id="hygieneTodayStatus" title="Status Hygiene heute">—</span>
-      <button class="btn" onclick="openHygieneTodo()">To-do<
-      <button class="btn" onclick="openHygiene()">Öffnen<
+      <button class="btn" onclick="openHygieneTodo()">To-do</button>
+      <button class="btn" onclick="openHygiene()">Öffnen</button>
     </div>
   </div>
   <div class="hint" id="hygieneTodayHint" style="margin-top:10px;">Dokumentiere Reinigung/Desinfektion – jederzeit exportierbar für §11.</div>
@@ -171,7 +170,7 @@
     </div>
     <div class="row" style="gap:8px; align-items:center; flex-wrap:wrap;">
       <span class="sync-pill" id="medTodayStatus" title="Status Medikamente heute">—</span>
-      <button class="btn" onclick="openMedication()">Öffnen<
+      <button class="btn" onclick="openMedication()">Öffnen</button>
     </div>
   </div>
   <div class="hint" id="medTodayHint" style="margin-top:10px;">Fällige Medikamentengaben abhaken – plus Gesundheitsnotizen (Export‑fähig).</div>
@@ -186,7 +185,7 @@
     </div>
     <div class="row" style="gap:8px; align-items:center; flex-wrap:wrap;">
       <span class="sync-pill" id="complianceStatus" title="Gesamtstatus">—</span>
-      <button class="btn" onclick="selectTab('settings')">Details<
+      <button class="btn" onclick="selectTab('settings')">Details</button>
     </div>
   </div>
   <div class="list" id="complianceList" style="margin-top:10px"></div>
@@ -214,18 +213,18 @@
         <p class="muted" style="margin:6px 0 0 0">Monatsansicht · Tagesbetreuung &amp; Urlaubsbetreuung · Kapazitätswarnungen</p>
       </div>
       <div class="row" style="gap:8px; flex-wrap:wrap; align-items:center;">
-        <button class="btn" id="btnCalPrev">◀<
+        <button class="btn" id="btnCalPrev">◀</button>
         <div class="cal-month" id="calMonthLabel">—</div>
-        <button class="btn" id="btnCalNext">▶<
-        <button class="btn" id="btnCalToday">Heute<
+        <button class="btn" id="btnCalNext">▶</button>
+        <button class="btn" id="btnCalToday">Heute</button>
       </div>
     </div>
 
     
     <div class="row" style="gap:10px; flex-wrap:wrap; margin-top:10px;">
       <div class="muted" style="font-weight:800;">Filter:</div>
-      <button class="pill toggle" id="calFilterUrlaub" type="button">🏡 Urlaub<
-      <button class="pill toggle" id="calFilterTages" type="button">🐕 Tages<
+      <button class="pill toggle" id="calFilterUrlaub" type="button">🏡 Urlaub</button>
+      <button class="pill toggle" id="calFilterTages" type="button">🐕 Tages</button>
       <div class="muted" id="calFreeHint" style="margin-left:auto;">Freie Plätze werden pro Tag angezeigt.</div>
     </div>
 <div class="cal-legend" style="margin-top:10px;">
@@ -244,7 +243,7 @@
         <div class="muted" id="calDayMeta" style="margin-top:6px"></div>
       </div>
       <div class="row" style="gap:8px; flex-wrap:wrap;">
-        <button class="btn" id="btnCalCloseDay">Schließen<
+        <button class="btn" id="btnCalCloseDay">Schließen</button>
       </div>
     </div>
     <div class="list" id="calDayList" style="margin-top:10px"></div>
@@ -261,7 +260,7 @@
       </div>
       <div class="row" style="gap:8px; flex-wrap:wrap; align-items:center;">
         <span class="sync-pill" id="hygienePanelStatus" title="Status heute">—</span>
-        <button class="btn" id="btnHygieneExport">Export (PDF)<
+        <button class="btn" id="btnHygieneExport">Export (PDF)</button>
       </div>
     </div>
   </div>
@@ -321,7 +320,7 @@
     </div>
 
     <div class="row" style="gap:10px; flex-wrap:wrap; margin-top:10px;">
-      <button class="btn primary" id="btnHygieneAdd">Speichern<
+      <button class="btn primary" id="btnHygieneAdd">Speichern</button>
       <div class="muted" id="hygAddHint">Einträge sind nachträglich korrigierbar, aber nicht löschbar.</div>
     </div>
   </div>
@@ -355,7 +354,7 @@
         <h1 style="margin:0">Kundenportal</h1>
         <p class="muted" id="customerPortalSubtitle" style="margin:6px 0 0 0;">Aktuell liegen keine Aufgaben für dich vor.</p>
       </div>
-      <button class="btn" id="btnCustomerLogout">Abmelden<
+      <button class="btn" id="btnCustomerLogout">Abmelden</button>
     </div>
     <div class="hint" style="margin-top:10px">
       <strong>Hinweis:</strong> Hier siehst du nur Aufgaben/Formulare, die Doggy Style Hundepension für dich freigegeben hat.
@@ -374,8 +373,8 @@
         <div class="muted" id="customerTaskMeta" style="margin-top:6px"></div>
       </div>
       <div class="row" style="gap:10px; flex-wrap:wrap;">
-        <button class="btn" id="btnCustomerTaskBack">Zurück<
-        <button class="btn primary" id="btnCustomerTaskSubmit">Absenden<
+        <button class="btn" id="btnCustomerTaskBack">Zurück</button>
+        <button class="btn primary" id="btnCustomerTaskSubmit">Absenden</button>
       </div>
     </div>
     <div id="customerTaskFormRoot" style="margin-top:12px"></div>
@@ -391,7 +390,7 @@
         <h1 style="margin:0">Eingänge</h1>
         <p class="muted" style="margin:6px 0 0 0;">Kundenformulare, die eingereicht wurden.</p>
       </div>
-      <button class="btn" id="btnInboxRefresh">Aktualisieren<
+      <button class="btn" id="btnInboxRefresh">Aktualisieren</button>
     </div>
     <div class="list" id="inboxList" style="margin-top:10px"></div>
   </div>
@@ -403,9 +402,9 @@
         <div class="muted" id="inboxDetailMeta" style="margin-top:6px"></div>
       </div>
       <div class="row" style="gap:10px; flex-wrap:wrap;">
-        <button class="btn" id="btnInboxBack">Zurück<
-        <button class="btn" id="btnInboxClose">Schließen<
-        <button class="btn primary" id="btnInboxAdopt">In Workspace übernehmen<
+        <button class="btn" id="btnInboxBack">Zurück</button>
+        <button class="btn" id="btnInboxClose">Schließen</button>
+        <button class="btn primary" id="btnInboxAdopt">In Workspace übernehmen</button>
       </div>
     </div>
     <div id="inboxDetailForm" style="margin-top:12px"></div>
@@ -424,7 +423,7 @@
       </label>
     </div>
     <div class="row" style="margin-top:12px; gap:10px; flex-wrap:wrap;">
-      <button class="btn primary" id="btnAssignTask">Aufgabe erstellen<
+      <button class="btn primary" id="btnAssignTask">Aufgabe erstellen</button>
       <div class="muted" id="assignMsg"></div>
     </div>
   </div>
@@ -435,9 +434,9 @@
 <div class="row between">
 <h1>Aufenthalte</h1>
 <div class="row" style="gap:10px;flex-wrap:wrap;justify-content:flex-end;">
-  <button class="btn primary" id="btnNewStayOnPage" type="button">➕ Neuer Aufenthalt<
+  <button class="btn primary" id="btnNewStayOnPage" type="button">➕ Neuer Aufenthalt</button>
 </div>
-<button class="btn" id="btnExportAll">Export: Backup (JSON)<
+<button class="btn" id="btnExportAll">Export: Backup (JSON)</button>
 </div>
 <div class="list" id="docList"></div>
 </div>
@@ -446,7 +445,7 @@
 <div class="card">
 <div class="row between">
 <h1>Hunde/Kunden</h1>
-<button class="btn primary" id="btnAddDog">Neu anlegen<
+<button class="btn primary" id="btnAddDog">Neu anlegen</button>
 </div>
 <div class="card" id="cpEditor" style="display:none; margin-top:12px;">
 <h2 id="cpEditorTitle">Kunde &amp; Hund</h2>
@@ -541,8 +540,8 @@
 </div>
 </div>
 <div class="row" style="gap:10px; margin-top:10px;">
-<button class="btn primary" id="btnCpSave">Speichern<
-<button class="btn" id="btnCpCancel">Abbrechen<
+<button class="btn primary" id="btnCpSave">Speichern</button>
+<button class="btn" id="btnCpCancel">Abbrechen</button>
 </div>
 <div class="hint" id="cpHint" style="margin-top:10px;"></div>
 </div>
@@ -593,9 +592,9 @@
           </div>
 
           <div class="actions">
-            <button class="smallbtn" id="contractSigClear">Unterschrift löschen<
-            <button class="primary" id="contractSignBtn">Unterschreiben<
-            <button class="btn" id="contractPdfBtn" type="button">📄 PDF<
+            <button class="smallbtn" id="contractSigClear">Unterschrift löschen</button>
+            <button class="primary" id="contractSignBtn">Unterschreiben</button>
+            <button class="btn" id="contractPdfBtn" type="button">📄 PDF</button>
           </div>
 
           <div class="muted" id="contractSignedInfo" style="margin-top:10px;"></div>
@@ -609,8 +608,8 @@
             <textarea id="contractEditText" rows="10"></textarea>
           </div>
           <div class="actions">
-            <button class="smallbtn" id="contractResetEdit">Zurücksetzen<
-            <button class="primary" id="contractPublish">Neue Version veröffentlichen<
+            <button class="smallbtn" id="contractResetEdit">Zurücksetzen</button>
+            <button class="primary" id="contractPublish">Neue Version veröffentlichen</button>
           </div>
         </div>
 
@@ -630,27 +629,22 @@
     <button class="glass-card" id="wfBtnTodayPrint">
       <div class="glass-card__title">Heute drucken</div>
       <div class="glass-card__sub">Sammel-PDF: Heute-Übersicht, Kommen/Gehen, Hundeblätter, Schichtblatt</div>
-    <
 
     <button class="glass-card" id="wfBtnHygiene">
       <div class="glass-card__title">Hygiene-Nachweis</div>
       <div class="glass-card__sub">Täglicher Nachweis mit Unterschrift & Archiv</div>
-    <
 
     <button class="glass-card" id="wfBtnShift">
       <div class="glass-card__title">Übergabe / Schichtblatt</div>
       <div class="glass-card__sub">Heute aufgefallen · Morgen beachten · Unterschrift</div>
-    <
 
     <button class="glass-card" id="wfBtnIncident">
       <div class="glass-card__title">Ereignisprotokoll</div>
       <div class="glass-card__sub">Nur bei Bedarf – für Vorfälle/Notfälle</div>
-    <
 
     <button class="glass-card" id="wfBtnArchive">
       <div class="glass-card__title">Archiv</div>
       <div class="glass-card__sub">Alle abgeschlossenen Nachweise – PDF jederzeit</div>
-    <
   </div>
 
   <div id="workformsView" class="workforms-view"></div>
@@ -661,7 +655,7 @@
 <h1>Einstellungen</h1>
 <p>Speichern passiert automatisch – lokal (Offline‑First) und optional zusätzlich in der Cloud (wenn Firebase aktiv ist).</p>
 <div class="row" style="flex-wrap:wrap; gap:10px; margin-top:10px;">
-  <button class="primary" id="manualSaveBtn" type="button">☁️ Manuell in Cloud speichern<
+  <button class="primary" id="manualSaveBtn" type="button">☁️ Manuell in Cloud speichern</button>
   <span class="muted" id="manualSaveStatus"></span>
 </div>
 
@@ -679,7 +673,7 @@
       <select id="taskCustomerSelect"></select>
     </label>
     <div class="row" style="gap:10px; align-items:flex-end; margin-top:0; flex-wrap:wrap;">
-      <button class="btn" id="btnCustomersMore" type="button">Mehr laden<
+      <button class="btn" id="btnCustomersMore" type="button">Mehr laden</button>
       <span class="muted" id="taskCustomerCount"></span>
     </div>
 
@@ -693,7 +687,7 @@
     </label>
   </div>
   <div class="row" style="gap:10px; margin-top:10px; flex-wrap:wrap;">
-    <button class="btn primary" id="btnTaskCreate">Aufgabe freigeben<
+    <button class="btn primary" id="btnTaskCreate">Aufgabe freigeben</button>
     <span class="muted" id="taskCreateMsg"></span>
   </div>
 </div>
@@ -702,7 +696,7 @@
   <h2>Benutzer &amp; Rollen</h2>
   <p class="muted" style="margin-top:6px">Admin kann Rollen setzen (admin / staff / customer).</p>
   <div class="row between" style="gap:12px; flex-wrap:wrap; margin-top:10px;">
-    <button class="btn" id="btnUsersRefresh">Aktualisieren<
+    <button class="btn" id="btnUsersRefresh">Aktualisieren</button>
     <span class="muted" id="usersMsg"></span>
   </div>
   <div class="list" id="usersList" style="margin-top:10px"></div>
@@ -711,8 +705,8 @@
 <div class="card" style="margin-top:12px">
   <h2>Speicher &amp; Backup</h2>
   <div class="row">
-    <button class="btn" id="btnBackupExport">⬇️ Backup exportieren (JSON)<
-    <button class="btn" id="btnBackupImport">⬆️ Backup importieren<
+    <button class="btn" id="btnBackupExport">⬇️ Backup exportieren (JSON)</button>
+    <button class="btn" id="btnBackupImport">⬆️ Backup importieren</button>
     <input id="fileBackupImport" type="file" accept="application/json" style="display:none"/>
   </div>
   <div class="hint" id="backupHint">Tipp: Backup-Dateien am besten in <strong>Dateien</strong> ablegen (z. B. <em>DoggyStyle/Backups</em>).</div>
@@ -722,8 +716,8 @@
   <h2>§11‑Ampel &amp; Monatsabschluss</h2>
   <p class="muted" style="margin-top:6px">Schnellcheck für Kontrollen + 1‑Klick Monatsnachweis (PDF‑Report) inkl. Backup‑Hinweis.</p>
   <div class="row" style="flex-wrap:wrap; gap:10px; margin-top:10px; align-items:center;">
-    <button class="btn" id="btnComplianceRefresh" type="button">🟢 Ampel aktualisieren<
-    <button class="btn primary" id="btnMonthClose" type="button">🗓️ Monat abschließen<
+    <button class="btn" id="btnComplianceRefresh" type="button">🟢 Ampel aktualisieren</button>
+    <button class="btn primary" id="btnMonthClose" type="button">🗓️ Monat abschließen</button>
     <span class="muted" id="monthCloseMsg"></span>
   </div>
   <div class="list" id="complianceSettingsList" style="margin-top:10px"></div>
@@ -741,7 +735,7 @@
       <span>Rolle (optional)</span>
       <input id="staffRoleInput" placeholder="z. B. Aushilfe" />
     </label>
-    <button class="btn" id="btnStaffAdd" type="button">➕ Hinzufügen<
+    <button class="btn" id="btnStaffAdd" type="button">➕ Hinzufügen</button>
   </div>
   <div class="list" id="staffList" style="margin-top:10px"></div>
 </div>
@@ -756,8 +750,8 @@
   <h2>Steuerberater‑Exports</h2>
   <p class="muted" style="margin-top:6px">Erstellt PDF‑Reports mit Dateinamen‑Prefix (01–05), damit du sie in Dateien sauber sortieren kannst.</p>
   <div class="row" style="flex-wrap:wrap; gap:10px; margin-top:10px;">
-    <button class="btn" id="btnTaxExportMonth" type="button">📁 Monats‑Export (PDF‑Report)<
-    <button class="btn" id="btnTaxExportJSON" type="button">📁 Monats‑Backup (JSON)<
+    <button class="btn" id="btnTaxExportMonth" type="button">📁 Monats‑Export (PDF‑Report)</button>
+    <button class="btn" id="btnTaxExportJSON" type="button">📁 Monats‑Backup (JSON)</button>
     <span class="muted" id="taxExportMsg"></span>
   </div>
   <div class="hint" style="margin-top:10px">Tipp: Lege in <strong>Dateien</strong> einen Ordner <em>DoggyStyle/Export</em> an und speichere dort monatlich (01_Aufenthalte, 02_Rechnungen, …).</div>
@@ -770,12 +764,12 @@
       <span>Status</span>
       <div class="sync-box" id="syncDetails">—</div>
     </div>
-    <button class="btn" id="btnLogoutApp" style="display:none">Abmelden<
+    <button class="btn" id="btnLogoutApp" style="display:none">Abmelden</button>
   </div>
 </div>
 
 <div class="row" style="margin-top:12px">
-  <button class="btn danger" id="btnWipe">Alle lokalen Daten löschen<
+  <button class="btn danger" id="btnWipe">Alle lokalen Daten löschen</button>
 </div>
 <div class="hint">
           PDFs archivierst du am besten in <strong>Dateien</strong> in einem Ordner z. B. <em>DoggyStyle/Docs</em>.
@@ -798,10 +792,10 @@
         <div class="doc-modal__meta" id="docModalMeta"></div>
       </div>
       <div class="doc-modal__actions">
-        <button class="btn" type="button" id="docModalPrint">🖨️ Drucken/Speichern<
-        <button class="btn" type="button" id="docModalOpen">↗︎ In neuem Tab<
-        <button class="btn" type="button" id="docModalShare" style="display:none">📤 Teilen<
-        <button class="btn danger" type="button" id="docModalClose">✕ Schließen<
+        <button class="btn" type="button" id="docModalPrint">🖨️ Drucken/Speichern</button>
+        <button class="btn" type="button" id="docModalOpen">↗︎ In neuem Tab</button>
+        <button class="btn" type="button" id="docModalShare" style="display:none">📤 Teilen</button>
+        <button class="btn danger" type="button" id="docModalClose">✕ Schließen</button>
       </div>
     </div>
     <iframe class="doc-modal__frame" id="docModalFrame" title="Dokument"></iframe>
@@ -819,7 +813,7 @@
       </div>
       <div class="row" style="gap:8px; flex-wrap:wrap; align-items:center;">
         <span class="sync-pill" id="medPanelStatus" title="Status heute">—</span>
-        <button class="btn" id="btnMedExport">Export PDF<
+        <button class="btn" id="btnMedExport">Export PDF</button>
       </div>
     </div>
 
@@ -882,7 +876,7 @@
       <span>Freigabe des Halters liegt vor</span>
     </label>
     <div class="row" style="gap:10px; margin-top:10px; flex-wrap:wrap;">
-      <button class="btn primary" id="btnMedAdd">➕ Speichern<
+      <button class="btn primary" id="btnMedAdd">➕ Speichern</button>
       <div class="hint">Tipp: Zeiten als <em>08:00, 18:30</em>. Ein Eintrag pro Medikament.</div>
     </div>
   </div>
@@ -928,7 +922,7 @@
         <span>Zusatz</span>
         <input id="hnByText" placeholder="optional: Aushilfe/Vertretung" />
       </label>
-      <button class="btn primary" id="btnHnAdd">➕ Notiz speichern<
+      <button class="btn primary" id="btnHnAdd">➕ Notiz speichern</button>
     </div>
 
     <div class="divider" style="margin:14px 0"></div>
@@ -991,12 +985,11 @@
 <div class="warn-banner" id="contractWarnBanner" style="display:none; margin-top:10px;"></div>
 </div>
 <div class="row">
-<button class="btn" id="btnSave">Speichern<
+<button class="btn" id="btnSave">Speichern</button>
 <button class="btn secondary" id="btnCreateInvoice">
   🧾 Rechnung erstellen
-<
-<button class="btn" id="btnPrint">Als PDF speichern (Drucken)<
-<button class="btn" id="btnClose">Schließen<
+<button class="btn" id="btnPrint">Als PDF speichern (Drucken)</button>
+<button class="btn" id="btnClose">Schließen</button>
 </div>
 </div>
 </div>
@@ -1014,8 +1007,8 @@
 </div>
 
 <div class="row" id="stayQuickLinks" style="gap:10px; flex-wrap:wrap; margin-top:10px; display:none;">
-  <button class="btn" id="btnStayOpenMedication">💊 Medikation öffnen<
-  <button class="btn" id="btnStayAddHealthNote">🩺 Gesundheitsnotiz<
+  <button class="btn" id="btnStayOpenMedication">💊 Medikation öffnen</button>
+  <button class="btn" id="btnStayAddHealthNote">🩺 Gesundheitsnotiz</button>
 </div>
 </div>
 <div id="editorContent">
@@ -1038,13 +1031,14 @@
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <script defer="defer" src="app.js?v=20260101v63b"></script>
 <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=2026-01-02_v10');
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=TEST_OPTIK_01_2026-01-03');
   </script>
 <!-- Dummy für Legacy-Signatur -->
 <canvas height="1" id="sigPad" style="display:none" width="1"></canvas>
   <div class="bottom-actions">
-  <button class="btn btn--mini btn--logout" id="btnLogoutBottom" type="button" title="Ausloggen / Logout">Ausloggen / Logout<
+  <button class="btn btn--mini btn--logout" id="btnLogoutBottom" type="button" title="Ausloggen / Logout">Ausloggen / Logout</button>
 </div>
+<div class="test-badge" id="testBadge">TESTVERSION · Optik</div>
 <div class="build-badge" id="buildBadge">Build</div>
 </body>
 </html>

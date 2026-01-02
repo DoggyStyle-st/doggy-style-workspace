@@ -1,8 +1,8 @@
-const APP_BUILD = "v9.0";
+const APP_BUILD = "v11-TEST-OPTIK-01";
 window.addEventListener("error",(e)=>{console.error("APP_ERROR",e.error||e.message);});
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
-const LS_KEY="ds_workspace_v1";
+const LS_KEY="ds_workspace_test_optik_01";
 
 // --- Datum (lokal) ohne UTC-Verschiebung ---
 // Wichtig für Kalender/"Heute" auf iPad (sonst springt es abends auf den nächsten Tag).
@@ -134,7 +134,7 @@ function fmtDT(ts){
 
 async function performLogout(){
   try{ if(CLOUD && CLOUD.enabled && CLOUD.auth){ await CLOUD.auth.signOut(); } }catch(e){}
-  try{ sessionStorage.removeItem("ds_sw_reloaded"); }catch(e){}
+  try{ sessionStorage.removeItem("dstest_sw_reloaded"); }catch(e){}
   try{ location.href = "login.html"; }catch(e){}
 }
 
@@ -468,8 +468,8 @@ async function loadOrCreateUserProfile(user){
   if(!snap || !snap.exists){
     const role = isAdminEmail ? ROLES.ADMIN : ROLES.CUSTOMER;
     let pendingName = '';
-    try{ pendingName = (localStorage.getItem('ds_pending_name')||'').trim(); }catch(_){ }
-    if(pendingName){ try{ localStorage.removeItem('ds_pending_name'); }catch(_){ } }
+    try{ pendingName = (localStorage.getItem('dstest_pending_name')||'').trim(); }catch(_){ }
+    if(pendingName){ try{ localStorage.removeItem('dstest_pending_name'); }catch(_){ } }
     const displayName = pendingName || ((user.email||'').split('@')[0]||'');
     const profile = {
       uid,
@@ -1848,7 +1848,7 @@ function renderHygienePanel(){
         state.hygiene.ui = state.hygiene.ui || {};
         state.hygiene.ui.pendingOnly = !!cbPending.checked;
         saveState && saveState(); // falls vorhanden
-        try{ localStorage.setItem('ds_hyg_pendingOnly', String(state.hygiene.ui.pendingOnly)); }catch(e){}
+        try{ localStorage.setItem('dstest_hyg_pendingOnly', String(state.hygiene.ui.pendingOnly)); }catch(e){}
         renderHygienePanel();
         renderHygieneDashboard();
       };
@@ -2161,7 +2161,7 @@ function medInitUI(){
     pendingOnly.onchange = ()=>{
       ensureStateShape();
       state.medication.ui.pendingOnly = !!pendingOnly.checked;
-      try{ localStorage.setItem('ds_med_pendingOnly', String(state.medication.ui.pendingOnly)); }catch(e){}
+      try{ localStorage.setItem('dstest_med_pendingOnly', String(state.medication.ui.pendingOnly)); }catch(e){}
       saveState();
       renderMedicationPanel();
     };
@@ -3710,7 +3710,7 @@ function ensureStateShape(){
   if(typeof state.hygiene.ui.pendingOnly !== "boolean") state.hygiene.ui.pendingOnly = false;
   // Restore filter preference from localStorage (optional)
   try{
-    const v = localStorage.getItem('ds_hyg_pendingOnly');
+    const v = localStorage.getItem('dstest_hyg_pendingOnly');
     if(v === 'true') state.hygiene.ui.pendingOnly = true;
     if(v === 'false') state.hygiene.ui.pendingOnly = false;
   }catch(e){}
@@ -3745,7 +3745,7 @@ function ensureStateShape(){
   if(typeof state.medication.ui.pendingOnly !== "boolean") state.medication.ui.pendingOnly = false;
   if(typeof state.medication.ui.selectedPetId !== "string") state.medication.ui.selectedPetId = "";
   try{
-    const v = localStorage.getItem('ds_med_pendingOnly');
+    const v = localStorage.getItem('dstest_med_pendingOnly');
     if(v === 'true') state.medication.ui.pendingOnly = true;
     if(v === 'false') state.medication.ui.pendingOnly = false;
   }catch(e){}

@@ -1,7 +1,7 @@
-/* Doggy Style – Service Worker 20260102v9b (offline-first, update-safe) */
+/* Doggy Style – Service Worker TEST-OPTIK-01-2026-01-03 (offline-first, update-safe) */
 
-P260102v9b";
-const CACHE_NAME = `ds-cache-${SW_VERSION}`;
+const SW_VERSION = "TEST-OPTIK-01-2026-01-03";
+const CACHE_NAME = `ds-test-cache-${SW_VERSION}`;
 
 // Wichtig:
 // - KEIN hartes Caching von app.js/app.html als "alt"-Falle
@@ -37,7 +37,7 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k.startsWith("ds-cache-") && k !== CACHE_NAME).map(k => caches.delete(k)))
+      Promise.all(keys.filter(k => k.startsWith("ds-test-cache-") && k !== CACHE_NAME).map(k => caches.delete(k)))
     ).then(()=> self.clients.claim())
   );
 });
