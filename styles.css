@@ -929,3 +929,13 @@ body.page-login .btnLink--text:hover{
 /* Logout unten rechts dauerhaft sichtbar */
 #btnLogoutBottom{position:fixed;right:18px;bottom:18px;z-index:9999;opacity:.95}
 .panel-actions{display:flex;justify-content:flex-end;margin:10px 0;}
+
+
+/* Status indicator (dot + text, not a button) */
+.sync-indicator{display:flex;align-items:center;gap:10px;}
+.status-dot{width:12px;height:12px;border-radius:50%;background:#6b6b6b;box-shadow:0 0 0 2px rgba(255,255,255,.06) inset, 0 0 10px rgba(0,0,0,.35);}
+.status-dot.online{background:#39d353;}
+.status-dot.offline{background:#f85149;}
+.sync-text{font-weight:600;letter-spacing:.2px;color:rgba(255,255,255,.85);}
+.sync-text.is-online{color:rgba(255,255,255,.9);}
+.sync-text.is-offline{color:rgba(255,255,255,.85);}
