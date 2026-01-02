@@ -920,3 +920,44 @@ body.page-login .btnLink--text:hover{
   box-shadow: 0 0 0 2px rgba(255,59,48,.25);
 }
 
+
+
+/* --- V7 fixes: status dot, paw start, plain quote --- */
+.sync-indicator{ display:flex; align-items:center; gap:10px; }
+.status-dot{
+  width:10px; height:10px; border-radius:50%;
+  background:#777; box-shadow: 0 0 0 2px rgba(255,255,255,0.08) inset;
+}
+.status-dot.online{ background:#2ecc71; }
+.status-dot.offline{ background:#e74c3c; }
+.status-text{ font-weight:600; opacity:0.95; }
+
+.paw-start{
+  display:flex; flex-direction:column; justify-content:center; align-items:center;
+  width:86px; height:86px; border-radius:18px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.10);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.35);
+  gap:6px;
+}
+.paw-start .paw-icon{ line-height:0; }
+.paw-start svg{ display:block; }
+.paw-start{ color: rgba(255,255,255,0.70); }
+.paw-start.is-active{ border-color: rgba(255,215,0,0.28); }
+
+.paw-start .paw-text{
+  font-size:14px; font-weight:700; letter-spacing:0.2px;
+}
+
+.dashboard-brand__quote.quote-plain{
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin-top: 10px;
+  font-size: 20px;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.35;
+  text-shadow: 0 2px 10px rgba(0,0,0,0.55);
+}

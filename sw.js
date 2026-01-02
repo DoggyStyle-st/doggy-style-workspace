@@ -1,6 +1,6 @@
 /* Doggy Style – Service Worker v6.3 (offline-first, update-safe) */
 
-const SW_VERSION = "v6.5-2026-01-02-13";
+const SW_VERSION = "v7-2026-01-02-01";
 const CACHE_NAME = `ds-cache-${SW_VERSION}`;
 
 // Wichtig:
