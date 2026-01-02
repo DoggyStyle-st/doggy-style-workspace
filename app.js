@@ -3122,7 +3122,6 @@ async function loadTemplates(){
   }
 }
 const getTemplate=id=>templates.find(t=>t.id===id);
-=id=>templates.find(t=>t.id===id);
 
 
 function uid(){return Math.random().toString(16).slice(2)+Date.now().toString(16);}
