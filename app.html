@@ -3,7 +3,7 @@
 <html lang="de">
 <head>
 
-  <meta name="app-version" content="2026-01-02-01">
+  <meta name="app-version" content="2026-01-02-02">
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <title>Doggy Style Workspace · App</title>
@@ -35,7 +35,7 @@
     <nav class="tabs" role="tablist" aria-label="Navigation">
       <div class="tabs__row tabs__row--main">
         <button class="tab" data-tab="dogs">Hunde/Kunden</button>
-        <button class="tab" data-tab="contract">Betreuungsvertrag</button>
+        <button class="tab tab--start is-active" data-tab="home" title="Start">Start</button>
         <button class="tab" data-tab="workforms">Arbeitsblätter</button>
         <button class="tab" data-tab="hygiene" id="tabHygiene">Hygiene</button>
         <button class="tab" data-tab="medication" id="tabMedication">💊 Medikamente</button>
@@ -43,7 +43,7 @@
       </div>
 
       <div class="tabs__row tabs__row--quick">
-        <button class="tab is-active" data-tab="home">Start</button>
+        <button class="tab" data-tab="contract">Betreuungsvertrag</button>
         <button class="tab" data-tab="calendar" id="tabCalendar">Kalender</button>
         <button class="tab" data-tab="inbox" id="tabInbox">Eingänge</button>
         <button class="tab" data-tab="documents">Aufenthalte</button>
@@ -54,9 +54,9 @@
     <div class="topbar__right">
       <div class="sync-indicator">
         <span class="sync-label" id="syncStatusLabel" aria-hidden="true">Status:</span>
-        <span class="sync-pill" id="syncStatus" title="Speicher- &amp; Sync-Status">Offline</span>
+        <span class="sync-pill" id="syncStatus" title="Internet/Cloud Status">Offline</span>
+        <span class="sync-time" id="syncTime" aria-hidden="true" style="display:none"></span>
       </div>
-      <button class="btn btn--mini" id="btnLogout" type="button" title="Abmelden">Logout</button>
       <div class="sync-user" id="syncUser" title="Aktiver Benutzer" style="display:none"></div>
     </div>
   </div>
@@ -77,7 +77,7 @@
 
   <div class="dashboard-brand">
     <img src="assets/logo.png" alt="Doggy Style" class="dashboard-brand__logo"/>
-    <div class="dashboard-brand__title">Doggy Style Workspace</div>
+    <div class="dashboard-brand__quote">„Arbeit macht nicht frei – Freiheit ist, was wir brauchen.<br/>Das Leben geht so schnell vorbei, das kannst du mir ruhig glauben.“</div>
   </div>
 
   <div class="hero-card hero-card--side">
@@ -1024,7 +1024,7 @@
 <script>
 (function () {
   if (!('serviceWorker' in navigator)) return;
-  const SW_URL = './sw.js?v=2026-01-02-01';
+  const SW_URL = './sw.js?v=2026-01-02-02';
   navigator.serviceWorker.register(SW_URL).catch(console.error);
 
   // Safari/iOS: bei neuem SW einmalig neu laden (verhindert Update-Schleifen)

@@ -178,8 +178,26 @@ function updateSyncUI(){
     }
   }
 
-  if(pill) pill.textContent = `${pillText} · ${fmtDT(SYNC.localSavedAt)}`;
-  if(details) details.textContent = `${localLine}\n${netLine}\n${cloudLine}`;
+  if(pill){
+    // Ampel + klarer Text (nur Online/Offline oben)
+    pill.textContent = netOnline ? 'Online' : 'Offline';
+    pill.classList.toggle('is-online', !!netOnline);
+    pill.classList.toggle('is-offline', !netOnline);
+  }
+  const timeEl = document.getElementById('syncTime');
+  if(timeEl){
+    // Zeit nur anzeigen, wenn Internet online ist (wirkt sonst "komisch")
+    if(netOnline){
+      timeEl.style.display = 'inline-flex';
+      timeEl.textContent = fmtDT(SYNC.localSavedAt);
+    } else {
+      timeEl.style.display = 'none';
+      timeEl.textContent = '';
+    }
+  }
+  if(details) details.textContent = `${localLine}
+${netLine}
+${cloudLine}`;
 
   // Manual cloud save: only enable when Cloud is active + logged in
   if(manualBtn){
