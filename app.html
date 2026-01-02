@@ -32,7 +32,20 @@
 <body class="bg-watermark page-app">
 <header class="topbar">
   <div class="topbar__inner">
-        <button class="tab paw-start is-active" data-tab="home" id="pawStart" title="Start" aria-label="Start"><span>Start</span></button>
+        <button class="tab paw-start is-active" data-tab="home" id="pawStart" title="Start" aria-label="Start">
+  <span class="paw-start__icon" aria-hidden="true">
+    <svg viewBox="0 0 64 64" width="46" height="46" role="img" aria-label="">
+      <g fill="currentColor">
+        <circle cx="16" cy="22" r="6"/>
+        <circle cx="30" cy="14" r="6"/>
+        <circle cx="44" cy="14" r="6"/>
+        <circle cx="56" cy="22" r="6"/>
+        <path d="M32 28c-9 0-16 7-16 16 0 8 7 14 16 14s16-6 16-14c0-9-7-16-16-16z"/>
+      </g>
+    </svg>
+  </span>
+  <span class="paw-start__label">Start</span>
+</button>
 <nav class="tabs" role="tablist" aria-label="Navigation">
       <div class="tabs__row tabs__row--main">
         <button class="tab" data-tab="dogs">Hunde/Kunden</button>
@@ -77,7 +90,7 @@
 
   <div class="dashboard-brand">
     <img src="assets/logo.png" alt="Doggy Style" class="dashboard-brand__logo"/>
-    <div class="dashboard-brand__quote">„Arbeit macht nicht frei – Freiheit ist, was wir brauchen.<br>Das Leben geht so schnell vorbei, das kannst du mir ruhig glauben.“</div>
+    <div class="dashboard-brand__quote handwriting">„Arbeit macht nicht frei – Freiheit ist, was wir brauchen.<br>Das Leben geht so schnell vorbei, das kannst du mir ruhig glauben.“</div>
   </div>
 
   <div class="hero-card hero-card--side">
@@ -420,8 +433,11 @@
 <section class="panel" id="documents">
 <div class="card">
 <div class="row between">
-<h1>Aufenthalte</h1>
-<button class="btn" id="btnExportAll">Export: Backup (JSON)</button>
+  <h1>Aufenthalte</h1>
+  <div class="row" style="gap:10px;flex-wrap:wrap;justify-content:flex-end">
+    <button class="btn primary" id="btnNewStay">+ Neuer Aufenthalt</button>
+    <button class="btn" id="btnExportAll">Export: Backup (JSON)</button>
+  </div>
 </div>
 <div class="list" id="docList"></div>
 </div>

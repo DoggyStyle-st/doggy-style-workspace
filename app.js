@@ -1,4 +1,4 @@
-const APP_BUILD = "v6.3";
+const APP_BUILD = "v6.4-startfix-2026-01-02";
 window.addEventListener("error",(e)=>{console.error("APP_ERROR",e.error||e.message);});
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
@@ -213,6 +213,23 @@ ${cloudLine}`;
     }
   }
 }
+
+async function performLogout(){
+  // Robust: funktioniert auch wenn Cloud/Auth gerade nicht verfügbar ist
+  try{
+    if(cloudIsEnabled() && CLOUD.auth && typeof CLOUD.auth.signOut === 'function'){
+      await CLOUD.auth.signOut();
+    }
+  }catch(e){}
+  try{ localStorage.removeItem('ds_sw_reloaded'); }catch(e){}
+  try{ sessionStorage.removeItem('ds_sw_reloaded'); }catch(e){}
+  // optional: lokale "Session" Marker löschen (falls vorhanden)
+  try{ localStorage.removeItem('ds_user'); }catch(e){}
+  try{ localStorage.removeItem('ds_lastUser'); }catch(e){}
+  try{ localStorage.removeItem('ds_auth'); }catch(e){}
+  try{ window.location.href = 'login.html?logout=1'; }catch(e){}
+}
+
 
 /* ===== Dokument/PDF Modal (PWA/iPad-friendly) ===== */
 const DOCMOD = { url: null, filename: null };
@@ -1389,16 +1406,25 @@ function selectTab(tabId){
 }
 
 function createStay(){
-  // Neuer Aufenthalt (Hundeannahme)
-  const sel = document.getElementById("templateSelect");
-  const btn = document.getElementById("btnNewDoc");
-  if(sel){
-    // try to select hundeannahme template
-    const opt = Array.from(sel.options).find(o => (o.value||"").toLowerCase().includes("hundeannahme") || (o.textContent||"").toLowerCase().includes("hundeannahme"));
-    if(opt) sel.value = opt.value;
+  // Neuer Aufenthalt (Hundeannahme) – direkt Vorlage suchen & Dokument anlegen
+  try{
+    const t = (templates||[]).find(x=>{
+      const id = String(x.id||"").toLowerCase();
+      const nm = String(x.name||x.title||"").toLowerCase();
+      return id.includes("hundeannahme") || nm.includes("hundeannahme") || nm.includes("hunde annahme") || nm.includes("aufnahme");
+    });
+    if(!t){
+      alert("Vorlage 'Hundeannahme' nicht gefunden.");
+      return;
+    }
+    const newId = createDoc(t.id); // createDoc liefert docId
+    selectTab("documents");
+    try{ renderDocs(); }catch(e){}
+    if(newId) try{ openDoc(newId); }catch(e){}
+  }catch(e){
+    console.error(e);
+    alert("Neuer Aufenthalt konnte nicht erstellt werden.");
   }
-  if(btn) btn.click();
-  else selectTab("documents");
 }
 
 function openDogs(){ selectTab("dogs"); }
@@ -5135,6 +5161,7 @@ versionOf: null,meta: {
   state.docs.unshift(docObj);
   saveState();
   openDoc(docObj.id);
+  return docObj.id;
 }
 
 let currentDoc=null, dirty=false;
@@ -5666,6 +5693,9 @@ function doBackupExport(){
 
 const _btnExportAll = $("#btnExportAll");
 if(_btnExportAll) _btnExportAll.addEventListener("click", doBackupExport);
+const _btnNewStay = document.getElementById('btnNewStay');
+if(_btnNewStay) _btnNewStay.addEventListener('click', ()=>{ try{ createStay(); }catch(e){ console.error(e); } });
+
 
 const _btnBackupExport = document.getElementById('btnBackupExport');
 if(_btnBackupExport) _btnBackupExport.addEventListener('click', doBackupExport);
@@ -5819,8 +5849,7 @@ async function startApp(){
   if(btnLogoutApp) btnLogoutApp.onclick = async ()=>{
     try{ await CLOUD.auth.signOut(); }catch(e){}
   };
-  if(btnLogoutBottom) btnLogoutBottom.onclick = async ()=>{
-    try{ await CLOUD.auth.signOut(); }catch(e){}
+  if(btnLogoutBottom) btnLogoutBottom.onclick = ()=>performLogout(); }catch(e){}
   };
 
   // Auth state
