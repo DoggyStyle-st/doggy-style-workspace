@@ -1,9 +1,7 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  
-  <meta name="app-version" content="2026-01-02-03">
-<meta charset="utf-8"/>
+  <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
   <title>Doggy Style · Login</title>
   <link href="manifest.json" rel="manifest"/>
@@ -60,20 +58,5 @@
   <script defer src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script defer src="auth.js?v=20260101b"></script>
   <div class="build-badge" id="buildBadge">Build</div>
-<script>
-(function () {
-  if (!('serviceWorker' in navigator)) return;
-  const SW_URL = './sw.js?v=2026-01-02-03';
-  navigator.serviceWorker.register(SW_URL).catch(console.error);
-
-  // Safari/iOS: bei neuem SW einmalig neu laden (verhindert Update-Schleifen)
-  let reloaded = sessionStorage.getItem('ds_sw_reloaded');
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (reloaded) return;
-    sessionStorage.setItem('ds_sw_reloaded', '1');
-    window.location.reload();
-  });
-})();
-</script>
 </body>
 </html>
