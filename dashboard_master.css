@@ -1,0 +1,147 @@
+/* =========================================================
+   Doggy Style – Dashboard Master Override (App only)
+   Ziel: Premium-Ruhe, saubere Hierarchie, iPad-taugliche UX
+   Wichtig: Wird nur in app.html eingebunden (nicht login.html)
+========================================================= */
+
+/* --- Allgemeine Ruhe / Lesbarkeit (nur App) --- */
+.page-app .shell{
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 12px 12px 28px;
+}
+
+.page-app .card{
+  border-radius: 18px;
+}
+
+/* --- Statusanzeige oben rechts entschärfen (nicht alarmierend) --- */
+.page-app .status-dot.offline{ background: rgba(248,81,73,.65) !important; }
+.page-app .sync-text{ opacity: .78; font-weight: 600; }
+.page-app .sync-label{ opacity: .70; }
+
+/* --- Dashboard Layout: saubere Führung --- */
+.page-app .dashboard{
+  gap: 16px;
+}
+
+/* Obere Reihe: Cards + Brand stabiler, weniger „wild“ */
+.page-app .dashboard-top{
+  gap: 14px;
+  align-items: stretch;
+}
+
+@media (min-width: 900px){
+  .page-app .dashboard-top{
+    gap: 18px;
+  }
+}
+
+/* --- Hero Cards: Fokus auf Zahlen, weniger „Lautstärke“ --- */
+.page-app .hero-card{
+  padding: 18px 18px 16px;
+  border-radius: 18px;
+}
+
+.page-app .hero-header{
+  font-size: 15px;
+  opacity: .92;
+}
+
+.page-app .hero-value{
+  font-size: 36px;
+  margin: 10px 0 10px;
+  letter-spacing: -0.4px;
+}
+
+@media (max-width: 420px){
+  .page-app .hero-value{ font-size: 32px; }
+}
+
+.page-app .hero-sub{
+  font-size: 13px;
+  opacity: .78;
+}
+
+/* --- Branding: Logo weniger dominant, mehr „App“-Gefühl --- */
+.page-app .dashboard-brand{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 8px 6px;
+}
+
+.page-app .dashboard-brand__logo{
+  width: min(280px, 70vw);
+  height: auto;
+  border-radius: 18px;
+  box-shadow: 0 12px 36px rgba(0,0,0,.28);
+}
+
+.page-app .dashboard-brand__quote{
+  max-width: 520px;
+  text-align: center;
+  line-height: 1.25;
+  font-size: 15px;
+  opacity: .88;
+}
+
+/* --- Forecast Block: ruhiger, weniger „wuchtig“ --- */
+.page-app .forecast-list{
+  gap: 10px;
+}
+
+.page-app .forecast-row{
+  padding: 10px 12px;
+  border-radius: 14px;
+}
+
+.page-app .forecast-row .muted{
+  opacity: .78;
+}
+
+/* --- Quick Actions: echte Arbeitsbuttons, iPad-tauglich --- */
+.page-app .quick-actions{
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+@media (min-width: 900px){
+  .page-app .quick-actions{
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+  }
+}
+
+/* Buttons: größer, klarer, weniger „webby“ */
+.page-app .quick-actions .btn{
+  min-height: 48px;
+  border-radius: 14px;
+  font-weight: 600;
+  letter-spacing: .15px;
+}
+
+/* Primärbutton: deutlicher, aber nicht grell */
+.page-app .quick-actions .btn.primary{
+  box-shadow: 0 10px 24px rgba(0,0,0,.20);
+}
+
+/* --- „Klickgefühl“: subtil, nicht verspielt --- */
+.page-app .btn:active,
+.page-app .tab:active{
+  transform: scale(0.99);
+}
+
+/* --- Tab-Buttons: einheitlicher, ruhiger --- */
+.page-app .tab{
+  border-radius: 999px;
+}
+
+/* Optional: etwas mehr Luft unter dem Dashboard */
+.page-app .panel#home{
+  padding-bottom: 18px;
+}
