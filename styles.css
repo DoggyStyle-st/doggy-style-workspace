@@ -941,68 +941,27 @@ body.page-login .btnLink--text:hover{
 .sync-text{font-weight:600;letter-spacing:.2px;color:rgba(255,255,255,.85);}
 .sync-text.is-online{color:rgba(255,255,255,.9);}
 .sync-text.is-offline{color:rgba(255,255,255,.85);}
+/* === OPTIK STEP 1 (Header & Navigation) v2 2026-01-03 === */
+/* Fokus: weniger Header-Höhe, klarere Hierarchie (Main > Quick), mehr Platz für Inhalt */
 
+/* Topbar: etwas flacher */
+.topbar{padding:10px 12px 8px;}
+.brand{margin-bottom:6px;}
 
-/* === OPTIK STEP 1: Header & Navigation (TEST) === */
+/* Tabs: kompakter */
+.tabs{gap:8px;}
+.tabs__row{gap:8px;}
 
-/* Ziel: mehr Inhalt im Viewport, weniger kopflastig (iPad/Tablet/ Desktop) */
+/* Hauptnavigation minimal kompakter */
+.tabs__row--main .tab{padding:8px 11px; font-weight:700;}
 
-/* 1) Topbar insgesamt etwas schlanker */
-.topbar{
-  padding: 10px 14px 8px !important; /* überschreibt ggf. spätere Regeln ohne !important */
-}
+/* Quick-Navigation: kleiner & ruhiger */
+.tabs__row--quick .tab{padding:7px 10px; font-size:13px; opacity:.82;}
+.tabs__row--quick .tab.is-active{opacity:1;}
 
-/* 2) Inneres Layout: weniger Luft, saubere Ausrichtung */
-.topbar__inner{
-  gap: 10px !important;
-  padding: 8px 12px 10px !important;
-  align-items: flex-start !important;
-}
+/* Status rechts: kompakter */
+.topbar__right{padding:4px 10px 0;}
+.topbar__right .sync-pill{padding:6px 9px; font-size:12px;}
 
-/* 3) Tabs: Reihen optisch hierarchisieren */
-.tabs{gap: 8px !important;}
-.tabs__row{gap: 8px !important;}
-
-/* Hauptnavigation bleibt „kräftiger“ */
-.tabs__row--main .tab{
-  font-size: 0.95rem;
-  padding: 9px 12px;
-}
-
-/* Schnellzugriff: kleiner, ruhiger, aber weiterhin klickbar */
-.tabs__row--quick{
-  gap: 6px !important;
-}
-.tabs__row--quick .tab{
-  font-size: 0.85rem;
-  padding: 7px 10px;
-  opacity: 0.80;
-}
-.tabs__row--quick .tab.is-active{
-  opacity: 1;
-}
-
-/* 4) Start/Home-Button als Home klarer (ohne Funktion zu ändern) */
-.paw-start{
-  padding: 10px 10px !important;
-  border-radius: 16px;
-}
-.paw-start__label{letter-spacing: .2px;}
-
-/* 5) Status rechts: ruhiger & kompakter */
-.sync-indicator{gap: 6px !important;}
-.sync-label{
-  font-size: 11px !important;
-  opacity: .70 !important;
-}
-.sync-text{
-  font-size: 12px;
-}
-
-/* 6) Desktop/large iPad: noch etwas kompakter */
-@media (min-width: 900px){
-  .topbar{padding: 10px 16px 8px !important;}
-  .topbar__inner{padding: 8px 16px 10px !important; gap: 12px !important;}
-  .tabs__row{gap: 10px !important;}
-  .tabs__row--quick{gap: 8px !important;}
-}
+/* Sticky-Panels (rechte Spalte) an neue Headerhöhe anpassen */
+.sticky{top:104px;}
