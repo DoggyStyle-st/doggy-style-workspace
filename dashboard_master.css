@@ -704,3 +704,63 @@
   text-orientation: mixed !important;
   transform: none !important;
 }
+
+
+/* =========================================================
+   HYGIENE – Toggle/Filter Label Lesbarkeit (Patch v4)
+   Fix für "nur fällige Einträge(e)" und ähnliche Labels
+========================================================= */
+.page-app .panel#hygiene,
+.page-app .panel[data-panel="hygiene"]{
+  --hy-label: rgba(255,255,255,0.82);
+}
+
+/* Container (falls vorhanden) */
+.page-app .panel#hygiene .filter,
+.page-app .panel#hygiene .filters,
+.page-app .panel#hygiene .toggle-row,
+.page-app .panel[data-panel="hygiene"] .filter,
+.page-app .panel[data-panel="hygiene"] .filters,
+.page-app .panel[data-panel="hygiene"] .toggle-row{
+  display:flex !important;
+  align-items:center !important;
+  gap:10px !important;
+  flex-wrap:wrap !important;
+}
+
+/* Label nicht vertikal/zerhackt */
+.page-app .panel#hygiene label,
+.page-app .panel#hygiene .toggle-label,
+.page-app .panel#hygiene .chip-label,
+.page-app .panel#hygiene .pill-label,
+.page-app .panel#hygiene .label,
+.page-app .panel[data-panel="hygiene"] label,
+.page-app .panel[data-panel="hygiene"] .toggle-label,
+.page-app .panel[data-panel="hygiene"] .chip-label,
+.page-app .panel[data-panel="hygiene"] .pill-label,
+.page-app .panel[data-panel="hygiene"] .label{
+  white-space:nowrap !important;
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+  letter-spacing: 0.2px !important;
+  color: var(--hy-label) !important;
+}
+
+/* Wenn Label innerhalb des Toggles sitzt */
+.page-app .panel#hygiene .pill,
+.page-app .panel#hygiene .toggle,
+.page-app .panel#hygiene .chip,
+.page-app .panel[data-panel="hygiene"] .pill,
+.page-app .panel[data-panel="hygiene"] .toggle,
+.page-app .panel[data-panel="hygiene"] .chip{
+  display:inline-flex !important;
+  align-items:center !important;
+  gap:10px !important;
+}
+
+/* Checkbox/Switch im Hygiene-Filter kompakt */
+.page-app .panel#hygiene input[type="checkbox"],
+.page-app .panel[data-panel="hygiene"] input[type="checkbox"]{
+  width:22px !important;
+  height:22px !important;
+}
