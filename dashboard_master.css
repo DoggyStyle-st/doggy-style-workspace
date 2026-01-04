@@ -447,3 +447,121 @@
   color: rgba(255,255,255,0.85) !important;
 }
 
+
+/* =========================================================
+   MEDIKAMENTE – LABELS / FILTER-CHIPS FIX (PATCH v2)
+   Problem: vertikale/zerhackte Beschriftungen ("D u r c h f a l l")
+   Ursache meist: zu kleine Breite + harte Zeilenumbrüche / transform / writing-mode
+   Lösung: horizontale Textorientierung erzwingen + sinnvolle Breiten
+========================================================= */
+
+/* 1) In der Medikamente-Ansicht grundsätzlich keine vertikale Schreibrichtung */
+.page-app .panel#medication *,
+.page-app .panel[data-panel="medication"] *{
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+}
+
+/* 2) Alle "Label-artigen" Elemente robust abfangen */
+.page-app .panel#medication label,
+.page-app .panel#medication .label,
+.page-app .panel#medication .lbl,
+.page-app .panel#medication .chip-label,
+.page-app .panel#medication .pill-label,
+.page-app .panel#medication [class*="label"],
+.page-app .panel#medication [class*="Label"],
+.page-app .panel#medication [class*="lbl"],
+.page-app .panel[data-panel="medication"] label,
+.page-app .panel[data-panel="medication"] .label,
+.page-app .panel[data-panel="medication"] .lbl,
+.page-app .panel[data-panel="medication"] .chip-label,
+.page-app .panel[data-panel="medication"] .pill-label,
+.page-app .panel[data-panel="medication"] [class*="label"],
+.page-app .panel[data-panel="medication"] [class*="Label"],
+.page-app .panel[data-panel="medication"] [class*="lbl"]{
+  transform: none !important;
+  white-space: nowrap !important;
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+  letter-spacing: 0.1px !important;
+  line-height: 1.1 !important;
+  max-width: 140px !important;
+}
+
+/* 3) Wenn ein Label aus Layoutgründen doch umbrechen muss: Wortweise statt buchstabenweise */
+.page-app .panel#medication .wrap,
+.page-app .panel#medication .wrap-label,
+.page-app .panel#medication .label-wrap,
+.page-app .panel[data-panel="medication"] .wrap,
+.page-app .panel[data-panel="medication"] .wrap-label,
+.page-app .panel[data-panel="medication"] .label-wrap{
+  white-space: normal !important;
+  word-break: keep-all !important;
+  overflow-wrap: anywhere !important;
+}
+
+/* 4) Runde Toggle/Chip-Reihe im Gesundheitsnotizen-Bereich: zentriert, nicht "seitlich" */
+.page-app .panel#medication .symptom-row,
+.page-app .panel#medication .symptoms,
+.page-app .panel#medication .chips,
+.page-app .panel#medication .pill-row,
+.page-app .panel[data-panel="medication"] .symptom-row,
+.page-app .panel[data-panel="medication"] .symptoms,
+.page-app .panel[data-panel="medication"] .chips,
+.page-app .panel[data-panel="medication"] .pill-row{
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  gap: 10px !important;
+}
+
+/* 5) Ein einzelner Chip/Toggle: untereinander (Kreis oben, Text unten) falls möglich */
+.page-app .panel#medication .chip,
+.page-app .panel#medication .pill,
+.page-app .panel#medication .symptom,
+.page-app .panel#medication .toggle-item,
+.page-app .panel[data-panel="medication"] .chip,
+.page-app .panel[data-panel="medication"] .pill,
+.page-app .panel[data-panel="medication"] .symptom,
+.page-app .panel[data-panel="medication"] .toggle-item{
+  display: inline-flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  min-width: 78px !important;
+}
+
+/* 6) Label direkt unter dem Kreis etwas kleiner, aber sauber lesbar */
+.page-app .panel#medication .chip label,
+.page-app .panel#medication .pill label,
+.page-app .panel#medication .symptom label,
+.page-app .panel#medication .toggle-item label,
+.page-app .panel#medication .chip .label,
+.page-app .panel#medication .pill .label,
+.page-app .panel#medication .symptom .label,
+.page-app .panel#medication .toggle-item .label,
+.page-app .panel[data-panel="medication"] .chip label,
+.page-app .panel[data-panel="medication"] .pill label,
+.page-app .panel[data-panel="medication"] .symptom label,
+.page-app .panel[data-panel="medication"] .toggle-item label,
+.page-app .panel[data-panel="medication"] .chip .label,
+.page-app .panel[data-panel="medication"] .pill .label,
+.page-app .panel[data-panel="medication"] .symptom .label,
+.page-app .panel[data-panel="medication"] .toggle-item .label{
+  margin-top: 6px !important;
+  font-size: 12px !important;
+  opacity: 0.85 !important;
+  text-align: center !important;
+  max-width: 120px !important;
+}
+
+/* 7) Spezialfall: vertikale Randbeschriftung beim Filter (z.B. 'nur fällige') */
+.page-app .panel#medication [style*="writing-mode"],
+.page-app .panel#medication [style*="vertical"],
+.page-app .panel[data-panel="medication"] [style*="writing-mode"],
+.page-app .panel[data-panel="medication"] [style*="vertical"]{
+  writing-mode: horizontal-tb !important;
+  transform: none !important;
+  white-space: nowrap !important;
+}
+
