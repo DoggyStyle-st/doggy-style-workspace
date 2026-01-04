@@ -59,7 +59,7 @@ function diagSetWorkspace(msg){
 window.addEventListener("error",(e)=>{console.error("APP_ERROR",e.error||e.message);});
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
-const LS_KEY="ds_workspace_test_optik_01";
+const LS_KEY="ds_workspace_prod_01";
 
 // --- Datum (lokal) ohne UTC-Verschiebung ---
 // Wichtig für Kalender/"Heute" auf iPad (sonst springt es abends auf den nächsten Tag).
