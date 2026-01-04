@@ -511,7 +511,65 @@ async function cloudLoadState(){
   return data.payload;
 }
 
-function cloudSchedulePush(){
+
+// --- Robust Startup Sync Helpers ---
+// In iOS/Safari kann es vorkommen, dass beim Reload der erste Firestore-Read leer/zu früh ist.
+// Diese Helper sorgen dafür, dass Remote-State zuverlässig übernommen und lokal gespeichert wird.
+
+function isStateEffectivelyEmpty(s){
+  try{
+    const pets = Array.isArray(s?.pets) ? s.pets.filter(x=>x && !x.isPlaceholder) : [];
+    const customers = Array.isArray(s?.customers) ? s.customers.filter(x=>x) : [];
+    const docs = Array.isArray(s?.docs) ? s.docs.filter(x=>x) : [];
+    const dogs = Array.isArray(s?.dogs) ? s.dogs.filter(x=>x && !x.isPlaceholder) : [];
+    return (pets.length===0 && customers.length===0 && docs.length===0 && dogs.length===0);
+  }catch(_){
+    return true;
+  }
+}
+
+function applyRemoteState(remote, remoteStamp, source){
+  if(!remote) return false;
+  try{
+    state = remote;
+    // Falls der Remote-State keinen Stempel trägt: konservativ setzen
+    if(remoteStamp && (!state._cloudUpdatedAt || Number(state._cloudUpdatedAt) < Number(remoteStamp))){
+      state._cloudUpdatedAt = Number(remoteStamp);
+    }
+    ensureStateShape();
+    ensureContractDefaults();
+    migrateToV2();
+    pruneInvoiceDocs();
+    ensureDefaultDog();
+    saveState(); // schreibt in localStorage + setzt _localUpdatedAt
+    renderDogs();
+    renderDocs();
+    renderInvoiceList();
+    // Home/Panel nicht erzwingen – wir lassen die aktuelle Ansicht
+    try{ console.log("[SYNC] Applied remote state from", source||"unknown", "stamp", remoteStamp||0); }catch(_){ }
+    return true;
+  }catch(e){
+    console.error("applyRemoteState failed", e);
+    return false;
+  }
+}
+
+async function cloudLoadStateWithRetry(maxTries=3){
+  let lastErr = null;
+  for(let i=0;i<maxTries;i++){
+    try{
+      const remote = await cloudLoadState();
+      if(remote) return {remote, err:null};
+    }catch(e){
+      lastErr = e;
+    }
+    // kurzer Backoff – Safari/iOS braucht manchmal einen Tick nach Auth/Persistenz
+    await new Promise(r=>setTimeout(r, 250 + i*250));
+  }
+  return {remote:null, err:lastErr};
+}
+
+{
   if(!CLOUD.enabled) return;
   clearTimeout(CLOUD._pushTimer);
   SYNC.cloudPending = true;
@@ -5916,82 +5974,92 @@ return;
     SYNC.cloudLastError = String(CLOUD.lastPushError||"");
     updateSyncUI();
 
-    // Erstes Boot lokal (stellt state sicher), danach Remote laden und übernehmen
-    await bootOnce();
+    
+// Erstes Boot lokal (stellt state sicher), dann Remote zuverlässig einspielen
+await bootOnce();
 
-    try{
-      const remote = await cloudLoadState();
+// Echtzeit-Listener (robust, inkl. erstem Snapshot)
+// Wichtig: Listener so früh wie möglich setzen, damit der initiale State auch bei iOS/Safari sicher kommt.
+try{
+  if(CLOUD._unsubWorkspace){ try{ CLOUD._unsubWorkspace(); }catch(_){ } }
+}catch(_){ }
+try{
+  const ref = cloudStateRef();
+  if(ref && ref.onSnapshot){
+    CLOUD._unsubWorkspace = ref.onSnapshot((snap)=>{
+      if(!snap || !snap.exists) return;
+      const data = snap.data() || {};
+      const stamp = Number(data.updatedAt || 0);
+      if(stamp){ SYNC.cloudLastSeenAt = stamp; updateSyncUI(); }
 
-      // Merge-Entscheidung (robust):
-      // - Lokal ist IMMER die Offline-Quelle.
-      // - Remote darf NICHT lokale, neuere Änderungen überschreiben.
+      const remotePayload = data.payload || null;
       const localUpdated = Number(state && state._localUpdatedAt || 0);
       const localCloudStamp = Number(state && state._cloudUpdatedAt || 0);
+      const localEmpty = isStateEffectivelyEmpty(state);
 
-      if(!remote){
-        // Kein Workspace in Cloud vorhanden -> lokalen Stand (wenn sinnvoll) einmalig hochladen
-        const hasLocalData =
-          (Array.isArray(state.pets) && state.pets.filter(p=>p && !p.isPlaceholder).length>0) ||
-          (Array.isArray(state.docs) && state.docs.length>0) ||
-          (Array.isArray(state.dogs) && state.dogs.filter(d=>d && !d.isPlaceholder).length>0);
-
-        if(hasLocalData && CLOUD.user){
-          try{ await cloudPushNow(); }catch(e){ console.warn('Initial cloud push failed', e); }
-        }
-      } else {
-        const remoteUpdated = Number(remote._cloudUpdatedAt || CLOUD._lastRemoteStamp || 0);
-
-        // Wenn lokal neuer ist: lokal behalten und in die Cloud pushen
-        if(localUpdated && localUpdated > remoteUpdated){
-          if(CLOUD.user){
-            try{ cloudSchedulePush(); }catch(_){ }
-          }
-        } else if(remoteUpdated && remoteUpdated >= localCloudStamp){
-          // Remote ist neuer/gleich -> übernehmen
-          state = remote;
-          ensureStateShape();
-          ensureContractDefaults();
-          migrateToV2();
-          pruneInvoiceDocs();
-          ensureDefaultDog();
-          saveState();
-          renderDogs();
-          renderDocs();
-          renderInvoiceList();
-        }
+      // Falls lokal leer (z.B. LocalStorage von iOS geleert) -> Remote sofort übernehmen.
+      if(localEmpty && remotePayload){
+        applyRemoteState(remotePayload, stamp, "snapshot-initial");
+        return;
       }
-    }catch(e){
-      console.error("Cloud load failed", e);
-      setAuthMsg("Cloud Sync konnte nicht geladen werden. App läuft lokal weiter.");
-    }
 
-    // Echtzeit-Listener (last-write-wins)
-    (cloudStateRef()||{onSnapshot:()=>{}}).onSnapshot((snap)=>{
-      if(!snap.exists) return;
-      const data = snap.data();
-      const stamp = Number(data?.updatedAt||0);
-      if(stamp) { SYNC.cloudLastSeenAt = stamp; updateSyncUI(); }
-      if(!stamp) return;
-      const localUpdated = Number(state && state._localUpdatedAt || 0);
-      const localCloudStamp = Number(state && state._cloudUpdatedAt || 0);
       // Wenn wir lokal neuere Änderungen haben (noch nicht gepusht): Remote nicht drüberbügeln
-      if(localUpdated && stamp <= localUpdated) return;
-      if(stamp <= localCloudStamp) return;
-      // Nicht unsere eigene Änderung nochmal einspielen
-      if(CLOUD.user && (data.updatedBy === (CLOUD.user.email||CLOUD.user.uid))) return;
-      if(data.payload){
-        state = data.payload;
-        ensureStateShape();
-  ensureContractDefaults();
-        migrateToV2();
-        pruneInvoiceDocs();
-        ensureDefaultDog();
-        saveState();
-        renderDogs();
-        renderDocs();
-        renderInvoiceList();
+      if(localUpdated && stamp && stamp <= localUpdated) return;
+      if(stamp && stamp <= localCloudStamp) return;
+
+      // Nicht unsere eigene Änderung nochmal einspielen (aber nur, wenn lokal NICHT leer ist)
+      if(!localEmpty && CLOUD.user && (data.updatedBy === (CLOUD.user.email||CLOUD.user.uid))) return;
+
+      if(remotePayload){
+        applyRemoteState(remotePayload, stamp, "snapshot");
       }
     });
+  }
+}catch(e){
+  console.warn("Workspace onSnapshot failed", e);
+}
+
+// Initialer Remote-Read (mit Retry) + Merge-Entscheidung
+try{
+  const {remote, err} = await cloudLoadStateWithRetry(3);
+
+  const localUpdated = Number(state && state._localUpdatedAt || 0);
+  const localCloudStamp = Number(state && state._cloudUpdatedAt || 0);
+
+  if(!remote){
+    // Kein Remote gefunden oder Read zu früh/fehlgeschlagen -> bei lokalem Inhalt einmalig pushen
+    const hasLocalData =
+      (Array.isArray(state.pets) && state.pets.filter(p=>p && !p.isPlaceholder).length>0) ||
+      (Array.isArray(state.customers) && state.customers.length>0) ||
+      (Array.isArray(state.docs) && state.docs.length>0) ||
+      (Array.isArray(state.dogs) && state.dogs.filter(d=>d && !d.isPlaceholder).length>0);
+
+    if(hasLocalData && CLOUD.user){
+      try{ await cloudPushNow(); }catch(e){ console.warn('Initial cloud push failed', e); }
+    } else if(err){
+      console.warn("Initial cloud read failed (no remote), continuing local", err);
+    }
+  } else {
+    const remoteUpdated = Number(remote._cloudUpdatedAt || CLOUD._lastRemoteStamp || 0);
+    const localEmpty = isStateEffectivelyEmpty(state);
+
+    // Wenn lokal leer: Remote immer übernehmen
+    if(localEmpty){
+      applyRemoteState(remote, remoteUpdated, "initial-read-empty-local");
+    } else if(localUpdated && localUpdated > remoteUpdated){
+      // Lokal ist neuer -> lokal behalten und pushen
+      if(CLOUD.user){
+        try{ cloudSchedulePush(); }catch(_){ }
+      }
+    } else if(remoteUpdated && remoteUpdated >= localCloudStamp){
+      // Remote ist neuer/gleich -> übernehmen
+      applyRemoteState(remote, remoteUpdated, "initial-read");
+    }
+  }
+}catch(e){
+  console.error("Cloud load failed", e);
+  setAuthMsg("Cloud Sync konnte nicht geladen werden. App läuft lokal weiter.");
+}
   });
 }
 
