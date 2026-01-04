@@ -406,3 +406,109 @@
 ){
   transform: scale(0.96);
 }
+/* =========================================================
+   START-BUTTON: Pfote aus /images/pfote.png (robust)
+   Ziel: IMMER sichtbar – unabhängig vom internen Icon
+========================================================= */
+
+/* 1) Start/Home Button finden (mehrere mögliche Muster) */
+.page-app :is(
+  /* häufige Tab-Patterns */
+  .tab.start,
+  .tab[data-tab="home"],
+  .tab[data-tab="start"],
+
+  /* häufige Klassen/IDs */
+  .nav-start,
+  .start-btn,
+  #start,
+  #Start,
+  #startBtn,
+  #btnStart,
+  #home,
+  #homeBtn,
+
+  /* Falls es ein Link ist */
+  a[href="#home"],
+  a[href="#start"],
+  a[href*="home"],
+  a[href*="start"],
+
+  /* Falls es ein Button mit Label ist */
+  button[title="Start"],
+  button[aria-label="Start"],
+  button[title="Home"],
+  button[aria-label="Home"]
+){
+  width: 58px !important;
+  height: 58px !important;
+  min-width: 58px !important;
+  min-height: 58px !important;
+  padding: 0 !important;
+  border-radius: 50% !important;
+
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  /* Pfote als Background */
+  background:
+    radial-gradient(circle at top, rgba(255,255,255,.18), rgba(0,0,0,.48)),
+    url("./images/pfote.png") center/30px 30px no-repeat !important;
+
+  border: 1px solid rgba(255,255,255,.20) !important;
+
+  box-shadow:
+    inset 0 1px 2px rgba(255,255,255,.22),
+    0 6px 18px rgba(0,0,0,.55) !important;
+}
+
+/* 2) Alles im Start-Button ausblenden (Text/Icon), damit nur die Pfote sichtbar bleibt */
+.page-app :is(
+  .tab.start,
+  .tab[data-tab="home"],
+  .tab[data-tab="start"],
+  .nav-start,
+  .start-btn,
+  #start,
+  #Start,
+  #startBtn,
+  #btnStart,
+  #home,
+  #homeBtn
+) *{
+  display: none !important;
+}
+
+/* 3) Active/Pressed */
+.page-app :is(
+  .tab.start.active,
+  .tab[data-tab="home"].active,
+  .tab[data-tab="start"].active,
+  .nav-start.active,
+  .start-btn.active,
+  #start.active,
+  #startBtn.active,
+  #btnStart.active,
+  #home.active,
+  #homeBtn.active
+){
+  box-shadow:
+    inset 0 2px 4px rgba(255,255,255,.30),
+    0 8px 22px rgba(0,0,0,.65) !important;
+}
+
+.page-app :is(
+  .tab.start:active,
+  .tab[data-tab="home"]:active,
+  .tab[data-tab="start"]:active,
+  .nav-start:active,
+  .start-btn:active,
+  #start:active,
+  #startBtn:active,
+  #btnStart:active,
+  #home:active,
+  #homeBtn:active
+){
+  transform: scale(0.96);
+}
