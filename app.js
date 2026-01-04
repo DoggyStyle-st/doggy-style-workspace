@@ -4847,6 +4847,18 @@ function saveState(stamp=true, push=true){
   if(push && CLOUD.enabled && CLOUD.user) cloudSchedulePush();
 }
 
+
+// Prüft, ob im State echte Nutzdaten vorhanden sind (nicht nur Defaults/Platzhalter)
+function hasRealData(s){
+  try{
+    if(!s) return false;
+    if(Array.isArray(s.pets) && s.pets.some(p=>p && !p.isPlaceholder)) return true;
+    if(Array.isArray(s.dogs) && s.dogs.some(d=>d && !d.isPlaceholder)) return true;
+    if(Array.isArray(s.docs) && s.docs.length>0) return true;
+    return false;
+  }catch(_){ return false; }
+}
+
 function ensureDefaultDog(){
   if(!state.dogs || state.dogs.length===0){
     state.dogs=[{id:uid(),name:"— Bitte auswählen —",owner:"",phone:"",isPlaceholder:true}];
@@ -5789,7 +5801,7 @@ async function boot(){
   migrateToV2();
   pruneInvoiceDocs();
   ensureDefaultDog();
-  saveState();
+  saveState(false,false);
   renderDogs();
   renderDocs();
   renderInvoiceList();
@@ -5932,13 +5944,6 @@ return;
       // - Remote darf NICHT lokale, neuere Änderungen überschreiben.
       const localUpdated = Number(state && state._localUpdatedAt || 0);
       const localCloudStamp = Number(state && state._cloudUpdatedAt || 0);
-
-      // Prüfen, ob im State echte Nutzdaten vorhanden sind (nicht nur Defaults/Platzhalter)
-      const hasRealData = (s)=>(
-        (Array.isArray(s.pets) && s.pets.filter(p=>p && !p.isPlaceholder).length>0) ||
-        (Array.isArray(s.docs) && s.docs.length>0) ||
-        (Array.isArray(s.dogs) && s.dogs.filter(d=>d && !d.isPlaceholder).length>0)
-      );
       const hasLocalData = hasRealData(state);
 
       if(!remote){
