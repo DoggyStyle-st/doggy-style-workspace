@@ -220,7 +220,7 @@
 
   background:
     radial-gradient(circle at top, rgba(255,255,255,.18), rgba(0,0,0,.48)),
-    url("/doggy-style-workspace/images/pfote.png?v=3")
+    url("assets/pfote.png?v=10")
 
   border: 1px solid rgba(255,255,255,.20) !important;
 
@@ -261,7 +261,7 @@
   /* Pfotenbild */
   background:
     radial-gradient(circle at top, rgba(255,255,255,.18), rgba(0,0,0,.48)),
-    url("/doggy-style-workspace/images/pfote.png?v=7")
+    url("assets/pfote.png?v=10")
       center / 30px 30px no-repeat !important;
 
   border: 1px solid rgba(255,255,255,.20) !important;
@@ -280,97 +280,170 @@
 .page-app button.tab.paw-start#pawStartBtn:active{
   transform: scale(0.96);
 }
+
 /* =========================================================
-   MEDIKAMENTE – LESBARKEIT / KONTRAST (iPad/Safari)
-   Ziel: Inputs, Placeholder, Selects, Textareas + runde Filter-Labels
+   PATCH v11: Start-Button Pfote WEISS (iPad/Safari sicher)
+   Technik: -webkit-mask (kein PNG-Edit nötig)
+   Quelle: assets/pfote.png
 ========================================================= */
 
-/* 1) Form-Felder: Kontrast erhöhen */
-.page-app input[type="text"],
-.page-app input[type="number"],
-.page-app input[type="email"],
-.page-app input[type="date"],
-.page-app input[type="time"],
-.page-app input[type="search"],
-.page-app select,
-.page-app textarea {
-  color: rgba(255,255,255,0.96) !important;
-  background: rgba(10,10,12,0.60) !important;     /* dunkles Feld, aber klar abgegrenzt */
-  border: 1px solid rgba(255,255,255,0.22) !important;
-  box-shadow: inset 0 1px 2px rgba(0,0,0,0.55) !important;
-  -webkit-text-fill-color: rgba(255,255,255,0.96) !important; /* iOS Safari Fix */
+.page-app button.tab.paw-start#pawStartBtn{
+  position: relative !important;
+  overflow: hidden !important;
+
+  /* Nur Hintergrund-Glas, die Pfote kommt als Maske darüber */
+  background:
+    radial-gradient(circle at top, rgba(255,255,255,.18), rgba(0,0,0,.48)) !important;
 }
 
-/* Placeholder lesbar */
-.page-app input::placeholder,
-.page-app textarea::placeholder {
-  color: rgba(255,255,255,0.55) !important;
-  opacity: 1 !important; /* iOS */
+/* SVG + Text im Start-Button ausblenden */
+.page-app button.tab.paw-start#pawStartBtn > *{
+  display: none !important;
 }
 
-/* Fokus klar sichtbar */
-.page-app input:focus,
-.page-app select:focus,
-.page-app textarea:focus {
+/* Weiße Pfote als Overlay */
+.page-app button.tab.paw-start#pawStartBtn::before{
+  content: "" !important;
+  position: absolute !important;
+  left: 50% !important;
+  top: 50% !important;
+
+  width: 32px !important;
+  height: 32px !important;
+  transform: translate(-50%, -50%) !important;
+
+  background: rgba(255,255,255,0.92) !important;
+
+  -webkit-mask-image: url("assets/pfote.png?v=11") !important;
+  -webkit-mask-repeat: no-repeat !important;
+  -webkit-mask-position: center !important;
+  -webkit-mask-size: contain !important;
+
+  mask-image: url("assets/pfote.png?v=11") !important;
+  mask-repeat: no-repeat !important;
+  mask-position: center !important;
+  mask-size: contain !important;
+
+  pointer-events: none !important;
+}
+
+.page-app button.tab.paw-start#pawStartBtn.is-active::before{
+  background: rgba(255,255,255,0.98) !important;
+}
+
+/* =========================================================
+   TAB-ICONS (Emoji) – einheitlich & dezent
+========================================================= */
+.page-app .tab .tab-ico{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.15em;
+  margin-right: 6px;
+  font-size: 14px;
+  line-height: 1;
+  opacity: 0.92;
+  vertical-align: -2px;
+}
+
+
+/* =========================================================
+   TOPBAR: Abmelden-Button
+========================================================= */
+.page-app .topbar__right{
+  align-items: center;
+}
+
+.page-app .btn.btn-logout{
+  min-height: 34px;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.16);
+  color: rgba(255,255,255,.92);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.page-app .btn.btn-logout:active{
+  transform: scale(0.98);
+}
+
+.page-app .btn.btn-logout:hover{
+  background: rgba(255,255,255,.12);
+  border-color: rgba(255,255,255,.22);
+}
+
+/* =========================================================
+   MEDIKAMENTE – LESBARKEIT & KONTRAST (PATCH)
+   Gilt nur für App, nicht Login
+========================================================= */
+
+.page-app .panel#medication,
+.page-app .panel[data-panel="medication"]{
+  --field-bg: rgba(255,255,255,0.08);
+  --field-bg-focus: rgba(255,255,255,0.12);
+  --field-border: rgba(255,255,255,0.18);
+  --field-border-focus: rgba(212,175,55,0.75); /* Gold */
+  --field-text: rgba(255,255,255,0.95);
+  --field-placeholder: rgba(255,255,255,0.55);
+}
+
+/* Inputs, Selects, Textareas */
+.page-app .panel#medication input,
+.page-app .panel#medication select,
+.page-app .panel#medication textarea,
+.page-app .panel[data-panel="medication"] input,
+.page-app .panel[data-panel="medication"] select,
+.page-app .panel[data-panel="medication"] textarea{
+  background: var(--field-bg) !important;
+  color: var(--field-text) !important;
+  border: 1px solid var(--field-border) !important;
+  border-radius: 12px !important;
+  font-size: 15px !important;
+}
+
+/* Placeholder besser sichtbar */
+.page-app .panel#medication input::placeholder,
+.page-app .panel#medication textarea::placeholder,
+.page-app .panel[data-panel="medication"] input::placeholder,
+.page-app .panel[data-panel="medication"] textarea::placeholder{
+  color: var(--field-placeholder) !important;
+  opacity: 1 !important;
+}
+
+/* Fokus-Zustand */
+.page-app .panel#medication input:focus,
+.page-app .panel#medication select:focus,
+.page-app .panel#medication textarea:focus,
+.page-app .panel[data-panel="medication"] input:focus,
+.page-app .panel[data-panel="medication"] select:focus,
+.page-app .panel[data-panel="medication"] textarea:focus{
   outline: none !important;
-  border-color: rgba(255,255,255,0.40) !important;
-  box-shadow:
-    0 0 0 3px rgba(255,255,255,0.10),
-    inset 0 1px 2px rgba(0,0,0,0.55) !important;
+  background: var(--field-bg-focus) !important;
+  border-color: var(--field-border-focus) !important;
+  box-shadow: 0 0 0 2px rgba(212,175,55,0.25) !important;
 }
 
-/* Select / Options auf iOS: Text nicht grau auf grau */
-.page-app select,
-.page-app option {
-  color: rgba(255,255,255,0.96) !important;
-  background: rgba(18,18,22,0.98) !important;
+/* Labels / Feldtitel */
+.page-app .panel#medication label,
+.page-app .panel#medication .label,
+.page-app .panel[data-panel="medication"] label{
+  color: rgba(255,255,255,0.9) !important;
+  font-weight: 600;
 }
 
-/* 2) Kleine Hilfstexte/Labels in Formularen leicht heller */
-.page-app label,
-.page-app .help,
-.page-app .hint,
-.page-app .subtext,
-.page-app .muted {
-  color: rgba(255,255,255,0.72) !important;
+/* Toggle-Beschriftungen (z. B. Durchfall, Erbrechen etc.) */
+.page-app .panel#medication .toggle-label,
+.page-app .panel[data-panel="medication"] .toggle-label{
+  color: rgba(255,255,255,0.85) !important;
 }
 
-/* 3) Runde Filter/Schalter: Label wieder horizontal + lesbar
-   (wir fangen mehrere mögliche Strukturen ab, ohne Funktion zu ändern)
-*/
-.page-app .filter,
-.page-app .filters,
-.page-app .symptoms,
-.page-app .chips,
-.page-app .pill-row {
-  gap: 10px !important;
-}
-
-/* Häufiger Fehler: Label bricht in Einzelbuchstaben um -> verhindern */
-.page-app .filter label,
-.page-app .filters label,
-.page-app .symptoms label,
-.page-app .chips label,
-.page-app .pill-row label,
-.page-app .chip-label,
-.page-app .pill-label {
-  white-space: nowrap !important;
-  writing-mode: horizontal-tb !important;
-  text-orientation: mixed !important;
-  letter-spacing: 0.2px !important;
-  font-size: 13px !important;
-  color: rgba(255,255,255,0.80) !important;
-}
-
-/* Falls Text neben/auf Kreis sitzt: vertikale Darstellung verhindern */
-.page-app .filter .label,
-.page-app .filters .label,
-.page-app .symptoms .label {
-  white-space: nowrap !important;
-}
-
-/* 4) Buttons wie "Export PDF" minimal besser lesbar (optional) */
-.page-app button,
-.page-app .btn {
-  color: rgba(255,255,255,0.92);
-}
