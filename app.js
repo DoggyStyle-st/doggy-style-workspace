@@ -511,25 +511,6 @@ async function cloudLoadState(){
   return data.payload;
 }
 
-
-// --- Feinschliff F1.5: Empty-State Detection (iOS/Safari Reload) ---
-// Problem: bootOnce() kann einen leeren Default-State speichern und damit _localUpdatedAt "neu" machen.
-// Dann blockiert die Merge-Logik das Übernehmen des Remote-States nach Reload.
-// Lösung: wenn der lokale State effektiv leer ist, wird Remote immer bevorzugt.
-
-function isStateEffectivelyEmpty(s){
-  try{
-    const dogs = Array.isArray(s?.dogs) ? s.dogs.filter(d=>d && !d.isPlaceholder) : [];
-    const pets = Array.isArray(s?.pets) ? s.pets.filter(p=>p && !p.isPlaceholder) : [];
-    const customers = Array.isArray(s?.customers) ? s.customers.filter(c=>c) : [];
-    const docs = Array.isArray(s?.docs) ? s.docs.filter(d=>d) : [];
-    return (dogs.length===0 && pets.length===0 && customers.length===0 && docs.length===0);
-  }catch(_){
-    return true;
-  }
-}
-
-
 function cloudSchedulePush(){
   if(!CLOUD.enabled) return;
   clearTimeout(CLOUD._pushTimer);
@@ -1134,7 +1115,8 @@ async function wireInbox(){
     ensureDocLinks(docObj);
     state.docs = state.docs || [];
     state.docs.unshift(docObj);
-    saveState();
+    // Startup-Persistenz ohne lokalen Zeitstempel (verhindert, dass Reload den Cloud-Merge blockiert)
+  saveState(false,false);
     renderDocs();
     // Eingang schließen
     try{ await cloudTasksCol().doc(currentTask.id).set({status:'closed', closedAt: Date.now(), adoptedDocId: docObj.id, updatedAt: Date.now()}, {merge:true}); }catch(_){ }
@@ -4848,9 +4830,9 @@ function printInvoice(id){
   w.document.close();
 }
 function loadState(){try{const raw=localStorage.getItem(LS_KEY);return raw?JSON.parse(raw):{dogs:[],docs:[]};}catch{return {dogs:[],docs:[]};}}
-function saveState(){
+function saveState(stamp=true, push=true){
   try{
-    state._localUpdatedAt = Date.now();
+    if(stamp) state._localUpdatedAt = Date.now();
     localStorage.setItem(LS_KEY,JSON.stringify(state));
   }catch(e){
     console.error("Local save failed", e);
@@ -4858,7 +4840,7 @@ function saveState(){
   SYNC.localSavedAt = (state && state._localUpdatedAt) ? state._localUpdatedAt : Date.now();
   updateSyncUI();
   // Cloud Sync (Weg 2B): Änderungen nach außen spiegeln
-  if(CLOUD.enabled && CLOUD.user) cloudSchedulePush();
+  if(push && CLOUD.enabled && CLOUD.user) cloudSchedulePush();
 }
 
 function ensureDefaultDog(){
@@ -5946,7 +5928,6 @@ return;
       // - Remote darf NICHT lokale, neuere Änderungen überschreiben.
       const localUpdated = Number(state && state._localUpdatedAt || 0);
       const localCloudStamp = Number(state && state._cloudUpdatedAt || 0);
-      const localEmpty = isStateEffectivelyEmpty(state);
 
       if(!remote){
         // Kein Workspace in Cloud vorhanden -> lokalen Stand (wenn sinnvoll) einmalig hochladen
@@ -5960,23 +5941,6 @@ return;
         }
       } else {
         const remoteUpdated = Number(remote._cloudUpdatedAt || CLOUD._lastRemoteStamp || 0);
-
-        // F1.5: Wenn lokal effektiv leer ist (z.B. nach iOS/Safari Reload), Remote immer übernehmen
-        if(localEmpty){
-          state = remote;
-          ensureStateShape();
-          ensureContractDefaults();
-          migrateToV2();
-          pruneInvoiceDocs();
-          ensureDefaultDog();
-          saveState();
-          renderDogs();
-          renderDocs();
-          renderInvoiceList();
-          // optional: sofortiger UI-Update
-          updateSyncUI();
-          return;
-        }
 
         // Wenn lokal neuer ist: lokal behalten und in die Cloud pushen
         if(localUpdated && localUpdated > remoteUpdated){
@@ -6011,22 +5975,6 @@ return;
       if(!stamp) return;
       const localUpdated = Number(state && state._localUpdatedAt || 0);
       const localCloudStamp = Number(state && state._cloudUpdatedAt || 0);
-      const localEmpty = isStateEffectivelyEmpty(state);
-      // F1.5: Wenn lokal leer, Remote sofort übernehmen
-      if(localEmpty && data.payload){
-        state = data.payload;
-        ensureStateShape();
-        ensureContractDefaults();
-        migrateToV2();
-        pruneInvoiceDocs();
-        ensureDefaultDog();
-        saveState();
-        renderDogs();
-        renderDocs();
-        renderInvoiceList();
-        return;
-      }
-
       // Wenn wir lokal neuere Änderungen haben (noch nicht gepusht): Remote nicht drüberbügeln
       if(localUpdated && stamp <= localUpdated) return;
       if(stamp <= localCloudStamp) return;
