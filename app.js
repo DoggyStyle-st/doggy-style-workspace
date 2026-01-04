@@ -569,7 +569,7 @@ async function cloudLoadStateWithRetry(maxTries=3){
   return {remote:null, err:lastErr};
 }
 
-{
+function cloudSchedulePush(){
   if(!CLOUD.enabled) return;
   clearTimeout(CLOUD._pushTimer);
   SYNC.cloudPending = true;
