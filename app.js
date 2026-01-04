@@ -1,4 +1,35 @@
-const APP_BUILD = "v11-TEST-OPTIK-01";
+const APP_BUILD = "v11-DIAG-WS-01";
+// --- DIAG (F1.5) ----------------------------------------------------------
+const DIAG = { workspace: '' };
+
+function diagEnsureEl(){
+  try{
+    const host = document.querySelector('.sync-indicator');
+    if(!host) return null;
+    let el = document.getElementById('diagWorkspace');
+    if(!el){
+      el = document.createElement('span');
+      el.id = 'diagWorkspace';
+      el.className = 'sync-text';
+      el.style.display = 'block';
+      el.style.fontSize = '11px';
+      el.style.opacity = '0.85';
+      el.style.marginTop = '2px';
+      host.appendChild(el);
+    }
+    return el;
+  }catch(_){ return null; }
+}
+
+function diagSetWorkspace(msg){
+  DIAG.workspace = msg || '';
+  try{
+    const el = diagEnsureEl();
+    if(el) el.textContent = DIAG.workspace;
+  }catch(_){}
+}
+// -------------------------------------------------------------------------
+
 window.addEventListener("error",(e)=>{console.error("APP_ERROR",e.error||e.message);});
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
@@ -143,6 +174,9 @@ function updateSyncUI(){
   const userEl = document.getElementById('syncUser');
   const details = document.getElementById('syncDetails');
   const manualBtn = document.getElementById('manualSaveBtn');
+  // DIAG UI
+  try{ diagEnsureEl(); }catch(_){}
+
   if(userEl){
     if(CLOUD.enabled && CLOUD.user){
       userEl.style.display = 'inline-flex';
@@ -466,7 +500,7 @@ async function loadOrCreateUserProfile(user){
   try{ snap = await ref.get(); }catch(e){ console.warn('User profile read failed', e); }
 
   if(!snap || !snap.exists){
-    const role = isAdminEmail ? ROLES.ADMIN : ROLES.STAFF;
+    const role = isAdminEmail ? ROLES.ADMIN : ROLES.CUSTOMER;
     let pendingName = '';
     try{ pendingName = (localStorage.getItem('dstest_pending_name')||'').trim(); }catch(_){ }
     if(pendingName){ try{ localStorage.removeItem('dstest_pending_name'); }catch(_){ } }
@@ -488,17 +522,11 @@ async function loadOrCreateUserProfile(user){
     try{ await ref.set({role: ROLES.ADMIN}, {merge:true}); }catch(_){ }
     data.role = ROLES.ADMIN;
   }
-  // Workspace ist für interne Nutzung: falls ein Profil noch "customer" ist, auf staff heben (User darf eigenes Profil updaten).
-  if(!isAdminEmail && data.role === ROLES.CUSTOMER){
-    try{ await ref.set({role: ROLES.STAFF}, {merge:true}); }catch(_){ }
-    data.role = ROLES.STAFF;
-  }
-
   return {
     uid,
     email: data.email || user.email || "",
     displayName: (data.displayName || ((user.email||'').split('@')[0]||'')),
-    role: data.role || (isAdminEmail ? ROLES.ADMIN : ROLES.STAFF),
+    role: data.role || (isAdminEmail ? ROLES.ADMIN : ROLES.CUSTOMER),
     createdAt: data.createdAt || 0
   };
 }
@@ -507,7 +535,12 @@ async function cloudLoadState(){
   if(!CLOUD.enabled) return null;
   const ref = cloudStateRef();
   if(!ref) return null;
-  const snap = await ref.get();
+  let snap = null;
+  try{ snap = await ref.get(); }
+  catch(err){
+    try{ diagSetWorkspace("Workspace: READ FAIL (" + (err && (err.code||err.message) ? (err.code||err.message) : "error") + ")"); }catch(_){ }
+    throw err;
+  }
   if(!snap.exists) return null;
   const data = snap.data();
   if(!data || !data.payload) return null;
@@ -1121,7 +1154,7 @@ async function wireInbox(){
     ensureDocLinks(docObj);
     state.docs = state.docs || [];
     state.docs.unshift(docObj);
-    saveState(false,false);
+    saveState();
     renderDocs();
     // Eingang schließen
     try{ await cloudTasksCol().doc(currentTask.id).set({status:'closed', closedAt: Date.now(), adoptedDocId: docObj.id, updatedAt: Date.now()}, {merge:true}); }catch(_){ }
@@ -4835,14 +4868,9 @@ function printInvoice(id){
   w.document.close();
 }
 function loadState(){try{const raw=localStorage.getItem(LS_KEY);return raw?JSON.parse(raw):{dogs:[],docs:[]};}catch{return {dogs:[],docs:[]};}}
-function saveState(stamp=true, push=true){
+function saveState(){
   try{
-    if(stamp){
-      state._localUpdatedAt = Date.now();
-    } else {
-      // falls nicht gestempelt wird: sicherstellen, dass wir keinen "neuen" Stand vortäuschen
-      if(!state._localUpdatedAt) state._localUpdatedAt = 0;
-    }
+    state._localUpdatedAt = Date.now();
     localStorage.setItem(LS_KEY,JSON.stringify(state));
   }catch(e){
     console.error("Local save failed", e);
@@ -4850,19 +4878,7 @@ function saveState(stamp=true, push=true){
   SYNC.localSavedAt = (state && state._localUpdatedAt) ? state._localUpdatedAt : Date.now();
   updateSyncUI();
   // Cloud Sync (Weg 2B): Änderungen nach außen spiegeln
-  if(push && CLOUD.enabled && CLOUD.user) cloudSchedulePush();
-}
-
-
-// Prüft, ob im State echte Nutzdaten vorhanden sind (nicht nur Defaults/Platzhalter)
-function hasRealData(s){
-  try{
-    if(!s) return false;
-    if(Array.isArray(s.pets) && s.pets.some(p=>p && !p.isPlaceholder)) return true;
-    if(Array.isArray(s.dogs) && s.dogs.some(d=>d && !d.isPlaceholder)) return true;
-    if(Array.isArray(s.docs) && s.docs.length>0) return true;
-    return false;
-  }catch(_){ return false; }
+  if(CLOUD.enabled && CLOUD.user) cloudSchedulePush();
 }
 
 function ensureDefaultDog(){
@@ -5807,7 +5823,7 @@ async function boot(){
   migrateToV2();
   pruneInvoiceDocs();
   ensureDefaultDog();
-  saveState(false,false);
+  saveState();
   renderDogs();
   renderDocs();
   renderInvoiceList();
@@ -5944,36 +5960,49 @@ return;
 
     try{
       const remote = await cloudLoadState();
+      try{
+        const rStamp = Number((CLOUD && CLOUD._lastRemoteStamp) || 0);
+        const lUpd = Number(state && state._localUpdatedAt || 0);
+        const lC  = Number(state && state._cloudUpdatedAt || 0);
+        if(remote){ diagSetWorkspace(`Workspace: READ OK (remote=${rStamp}, local=${lUpd}, lc=${lC})`); }
+        else { diagSetWorkspace(`Workspace: READ OK (empty/not-found) (remote=${rStamp}, local=${lUpd})`); }
+      }catch(_){ }
+
 
       // Merge-Entscheidung (robust):
       // - Lokal ist IMMER die Offline-Quelle.
       // - Remote darf NICHT lokale, neuere Änderungen überschreiben.
       const localUpdated = Number(state && state._localUpdatedAt || 0);
       const localCloudStamp = Number(state && state._cloudUpdatedAt || 0);
-      const hasLocalData = hasRealData(state);
 
       if(!remote){
         // Kein Workspace in Cloud vorhanden -> lokalen Stand (wenn sinnvoll) einmalig hochladen
+        const hasLocalData =
+          (Array.isArray(state.pets) && state.pets.filter(p=>p && !p.isPlaceholder).length>0) ||
+          (Array.isArray(state.docs) && state.docs.length>0) ||
+          (Array.isArray(state.dogs) && state.dogs.filter(d=>d && !d.isPlaceholder).length>0);
+
         if(hasLocalData && CLOUD.user){
-          try{ await cloudPushNow(); }catch(e){ console.warn('Initial cloud push failed', e); }
+          try{ await cloudPushNow(); diagSetWorkspace('Workspace: READ OK (empty) → PUSH local to cloud'); }catch(e){ diagSetWorkspace('Workspace: READ OK (empty) → PUSH failed: '+(e&&e.code?e.code:'error')); console.warn('Initial cloud push failed', e); }
         }
       } else {
         const remoteUpdated = Number(remote._cloudUpdatedAt || CLOUD._lastRemoteStamp || 0);
 
         // Wenn lokal neuer ist: lokal behalten und in die Cloud pushen
-        if(hasLocalData && localUpdated && localUpdated > remoteUpdated){
+        if(localUpdated && localUpdated > remoteUpdated){
           if(CLOUD.user){
-            try{ cloudSchedulePush(); }catch(_){ }
+            try{ cloudSchedulePush(); diagSetWorkspace('Workspace: READ OK → KEEP LOCAL (local newer)'); }catch(_){ diagSetWorkspace('Workspace: READ OK → KEEP LOCAL (local newer)'); }
           }
         } else if(remoteUpdated && remoteUpdated >= localCloudStamp){
           // Remote ist neuer/gleich -> übernehmen
+          diagSetWorkspace('Workspace: READ OK → APPLY REMOTE');
           state = remote;
           ensureStateShape();
           ensureContractDefaults();
           migrateToV2();
           pruneInvoiceDocs();
           ensureDefaultDog();
-          saveState(false,false);
+          saveState();
           renderDogs();
           renderDocs();
           renderInvoiceList();
@@ -5981,6 +6010,7 @@ return;
       }
     }catch(e){
       console.error("Cloud load failed", e);
+      try{ diagSetWorkspace("Workspace: READ FAIL (" + (e && (e.code||e.message) ? (e.code||e.message) : "error") + ")"); }catch(_){ }
       setAuthMsg("Cloud Sync konnte nicht geladen werden. App läuft lokal weiter.");
     }
 
@@ -5994,7 +6024,7 @@ return;
       const localUpdated = Number(state && state._localUpdatedAt || 0);
       const localCloudStamp = Number(state && state._cloudUpdatedAt || 0);
       // Wenn wir lokal neuere Änderungen haben (noch nicht gepusht): Remote nicht drüberbügeln
-      if(hasRealData(state) && localUpdated && stamp <= localUpdated) return;
+      if(localUpdated && stamp <= localUpdated) return;
       if(stamp <= localCloudStamp) return;
       // Nicht unsere eigene Änderung nochmal einspielen
       if(CLOUD.user && (data.updatedBy === (CLOUD.user.email||CLOUD.user.uid))) return;
@@ -6005,7 +6035,7 @@ return;
         migrateToV2();
         pruneInvoiceDocs();
         ensureDefaultDog();
-        saveState(false,false);
+        saveState();
         renderDogs();
         renderDocs();
         renderInvoiceList();
