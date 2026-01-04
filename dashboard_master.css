@@ -280,3 +280,53 @@
 .page-app button.tab.paw-start#pawStartBtn:active{
   transform: scale(0.96);
 }
+
+/* =========================================================
+   PATCH v11: Start-Button Pfote WEISS (iPad/Safari sicher)
+   Technik: -webkit-mask (kein PNG-Edit nötig)
+   Quelle: assets/pfote.png
+========================================================= */
+
+.page-app button.tab.paw-start#pawStartBtn{
+  position: relative !important;
+  overflow: hidden !important;
+
+  /* Nur Hintergrund-Glas, die Pfote kommt als Maske darüber */
+  background:
+    radial-gradient(circle at top, rgba(255,255,255,.18), rgba(0,0,0,.48)) !important;
+}
+
+/* SVG + Text im Start-Button ausblenden */
+.page-app button.tab.paw-start#pawStartBtn > *{
+  display: none !important;
+}
+
+/* Weiße Pfote als Overlay */
+.page-app button.tab.paw-start#pawStartBtn::before{
+  content: "" !important;
+  position: absolute !important;
+  left: 50% !important;
+  top: 50% !important;
+
+  width: 32px !important;
+  height: 32px !important;
+  transform: translate(-50%, -50%) !important;
+
+  background: rgba(255,255,255,0.92) !important;
+
+  -webkit-mask-image: url("assets/pfote.png?v=11") !important;
+  -webkit-mask-repeat: no-repeat !important;
+  -webkit-mask-position: center !important;
+  -webkit-mask-size: contain !important;
+
+  mask-image: url("assets/pfote.png?v=11") !important;
+  mask-repeat: no-repeat !important;
+  mask-position: center !important;
+  mask-size: contain !important;
+
+  pointer-events: none !important;
+}
+
+.page-app button.tab.paw-start#pawStartBtn.is-active::before{
+  background: rgba(255,255,255,0.98) !important;
+}
