@@ -345,3 +345,39 @@
   opacity: 0.92;
   vertical-align: -2px;
 }
+
+
+/* =========================================================
+   TOPBAR: Abmelden-Button
+========================================================= */
+.page-app .topbar__right{
+  align-items: center;
+}
+
+.page-app .btn.btn-logout{
+  min-height: 34px;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.16);
+  color: rgba(255,255,255,.92);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.page-app .btn.btn-logout:active{
+  transform: scale(0.98);
+}
+
+.page-app .btn.btn-logout:hover{
+  background: rgba(255,255,255,.12);
+  border-color: rgba(255,255,255,.22);
+}

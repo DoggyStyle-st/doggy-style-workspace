@@ -9,7 +9,7 @@
 <meta content="#101014" name="theme-color"/>
 <link href="assets/logo.png" rel="apple-touch-icon"/>
 <link href="styles.css?v=20260103v01" rel="stylesheet"/>
-<link href="dashboard_master.css?v=20260104v12icons" rel="stylesheet"/>
+<link href="dashboard_master.css?v=20260104v13logout" rel="stylesheet"/>
 <style>
   /* Topbar Layout (iPad & Desktop stabil) */
   .topbar{position:sticky; top:0; z-index:50;}
@@ -70,7 +70,8 @@
         <span class="sync-text" id="syncStatus" title="Speicher- &amp; Sync-Status">Offline</span>
       </div>
       <div class="sync-user" id="syncUser" title="Aktiver Benutzer" style="display:none"></div>
-    </div>
+          <button class="btn btn-logout" id="btnLogoutTop" type="button" style="display:none" aria-label="Abmelden">Abmelden</button>
+</div>
   </div>
 </header>
 <main class="shell">
@@ -1031,6 +1032,47 @@
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <script defer="defer" src="app.js?v=20260101v63b"></script>
+<script>
+(function(){
+  const btn = document.getElementById('btnLogoutTop');
+  if(!btn) return;
+
+  const show = (on) => { btn.style.display = on ? 'inline-flex' : 'none'; };
+
+  const doLogout = () => {
+    const appBtn = document.getElementById('btnLogoutApp');
+    // If the app already has its own logout handler wired up, reuse it
+    if(appBtn && appBtn.style.display !== 'none'){
+      appBtn.click();
+      return;
+    }
+    // Fallback: Firebase Auth signOut (compat)
+    try{
+      if(window.firebase && firebase.auth){
+        firebase.auth().signOut()
+          .then(() => { location.href = location.href.split('#')[0]; })
+          .catch(() => location.reload());
+        return;
+      }
+    }catch(e){}
+    location.reload();
+  };
+
+  btn.addEventListener('click', doLogout);
+
+  // Only show when a user is logged in
+  try{
+    if(window.firebase && firebase.auth){
+      firebase.auth().onAuthStateChanged((u) => show(!!u));
+    }else{
+      show(true);
+    }
+  }catch(e){
+    show(true);
+  }
+})();
+</script>
+
 <script>
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=TEST_OPTIK_01_2026-01-03');
   </script>
