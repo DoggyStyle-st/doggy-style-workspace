@@ -7,7 +7,14 @@
     if(el) el.textContent = text || '';
   }
 
-  function firebaseReady(){
+  
+  function isAdminEmail(email){
+    try{
+      const list = (window.firebaseAdminEmails||[]).map(x=>String(x).toLowerCase());
+      return list.includes(String(email||"").toLowerCase());
+    }catch(_){ return false; }
+  }
+function firebaseReady(){
     return (window.firebase && window.firebase.initializeApp && window.firebaseConfig);
   }
 
@@ -40,7 +47,7 @@
             uid,
             email: currentUser.email || '',
             displayName: dn,
-            role: 'customer',
+            role: (isAdminEmail(currentUser.email) ? 'admin' : 'staff'),
             createdAt: Date.now()
           }, { merge: true });
         }catch(e){

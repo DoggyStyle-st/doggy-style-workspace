@@ -466,7 +466,7 @@ async function loadOrCreateUserProfile(user){
   try{ snap = await ref.get(); }catch(e){ console.warn('User profile read failed', e); }
 
   if(!snap || !snap.exists){
-    const role = isAdminEmail ? ROLES.ADMIN : ROLES.STAFF; // default: staff for workspace app
+    const role = isAdminEmail ? ROLES.ADMIN : ROLES.STAFF;
     let pendingName = '';
     try{ pendingName = (localStorage.getItem('dstest_pending_name')||'').trim(); }catch(_){ }
     if(pendingName){ try{ localStorage.removeItem('dstest_pending_name'); }catch(_){ } }
@@ -487,18 +487,18 @@ async function loadOrCreateUserProfile(user){
   if(isAdminEmail && data.role !== ROLES.ADMIN){
     try{ await ref.set({role: ROLES.ADMIN}, {merge:true}); }catch(_){ }
     data.role = ROLES.ADMIN;
-
-  // Workspace-Standard: Betreiber/Team arbeitet als staff. Falls ein Profil fälschlich als customer angelegt wurde, upgraden.
-  if(!isAdminEmail && (data.role === ROLES.CUSTOMER || data.role === 'customer')){
+  }
+  // Workspace ist für interne Nutzung: falls ein Profil noch "customer" ist, auf staff heben (User darf eigenes Profil updaten).
+  if(!isAdminEmail && data.role === ROLES.CUSTOMER){
     try{ await ref.set({role: ROLES.STAFF}, {merge:true}); }catch(_){ }
     data.role = ROLES.STAFF;
   }
-  }
+
   return {
     uid,
     email: data.email || user.email || "",
     displayName: (data.displayName || ((user.email||'').split('@')[0]||'')),
-    role: data.role || (isAdminEmail ? ROLES.ADMIN : ROLES.CUSTOMER),
+    role: data.role || (isAdminEmail ? ROLES.ADMIN : ROLES.STAFF),
     createdAt: data.createdAt || 0
   };
 }
