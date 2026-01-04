@@ -240,3 +240,43 @@
 .page-app .tab[data-tab="home"]:active{
   transform: scale(0.96) !important;
 }
+/* =========================================================
+   START-BUTTON (paw-start) – Pfotenabdruck
+   Ziel: button.tab.paw-start#pawStartBtn
+   Project Pages: /doggy-style-workspace/
+========================================================= */
+
+.page-app button.tab.paw-start#pawStartBtn{
+  width: 58px !important;
+  height: 58px !important;
+  min-width: 58px !important;
+  min-height: 58px !important;
+  padding: 0 !important;
+  border-radius: 50% !important;
+
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  /* Pfotenbild */
+  background:
+    radial-gradient(circle at top, rgba(255,255,255,.18), rgba(0,0,0,.48)),
+    url("/doggy-style-workspace/images/pfote.png?v=7")
+      center / 30px 30px no-repeat !important;
+
+  border: 1px solid rgba(255,255,255,.20) !important;
+
+  box-shadow:
+    inset 0 1px 2px rgba(255,255,255,.22),
+    0 6px 18px rgba(0,0,0,.55) !important;
+}
+
+/* SVG + Text im Start-Button ausblenden */
+.page-app button.tab.paw-start#pawStartBtn > *{
+  display: none !important;
+}
+
+/* Touch-Feedback */
+.page-app button.tab.paw-start#pawStartBtn:active{
+  transform: scale(0.96);
+}
