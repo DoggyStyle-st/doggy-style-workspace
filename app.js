@@ -1115,8 +1115,7 @@ async function wireInbox(){
     ensureDocLinks(docObj);
     state.docs = state.docs || [];
     state.docs.unshift(docObj);
-    // Startup-Persistenz ohne lokalen Zeitstempel (verhindert, dass Reload den Cloud-Merge blockiert)
-  saveState(false,false);
+    saveState(false,false);
     renderDocs();
     // Eingang schließen
     try{ await cloudTasksCol().doc(currentTask.id).set({status:'closed', closedAt: Date.now(), adoptedDocId: docObj.id, updatedAt: Date.now()}, {merge:true}); }catch(_){ }
@@ -4832,7 +4831,12 @@ function printInvoice(id){
 function loadState(){try{const raw=localStorage.getItem(LS_KEY);return raw?JSON.parse(raw):{dogs:[],docs:[]};}catch{return {dogs:[],docs:[]};}}
 function saveState(stamp=true, push=true){
   try{
-    if(stamp) state._localUpdatedAt = Date.now();
+    if(stamp){
+      state._localUpdatedAt = Date.now();
+    } else {
+      // falls nicht gestempelt wird: sicherstellen, dass wir keinen "neuen" Stand vortäuschen
+      if(!state._localUpdatedAt) state._localUpdatedAt = 0;
+    }
     localStorage.setItem(LS_KEY,JSON.stringify(state));
   }catch(e){
     console.error("Local save failed", e);
@@ -5929,13 +5933,16 @@ return;
       const localUpdated = Number(state && state._localUpdatedAt || 0);
       const localCloudStamp = Number(state && state._cloudUpdatedAt || 0);
 
+      // Prüfen, ob im State echte Nutzdaten vorhanden sind (nicht nur Defaults/Platzhalter)
+      const hasRealData = (s)=>(
+        (Array.isArray(s.pets) && s.pets.filter(p=>p && !p.isPlaceholder).length>0) ||
+        (Array.isArray(s.docs) && s.docs.length>0) ||
+        (Array.isArray(s.dogs) && s.dogs.filter(d=>d && !d.isPlaceholder).length>0)
+      );
+      const hasLocalData = hasRealData(state);
+
       if(!remote){
         // Kein Workspace in Cloud vorhanden -> lokalen Stand (wenn sinnvoll) einmalig hochladen
-        const hasLocalData =
-          (Array.isArray(state.pets) && state.pets.filter(p=>p && !p.isPlaceholder).length>0) ||
-          (Array.isArray(state.docs) && state.docs.length>0) ||
-          (Array.isArray(state.dogs) && state.dogs.filter(d=>d && !d.isPlaceholder).length>0);
-
         if(hasLocalData && CLOUD.user){
           try{ await cloudPushNow(); }catch(e){ console.warn('Initial cloud push failed', e); }
         }
@@ -5943,7 +5950,7 @@ return;
         const remoteUpdated = Number(remote._cloudUpdatedAt || CLOUD._lastRemoteStamp || 0);
 
         // Wenn lokal neuer ist: lokal behalten und in die Cloud pushen
-        if(localUpdated && localUpdated > remoteUpdated){
+        if(hasLocalData && localUpdated && localUpdated > remoteUpdated){
           if(CLOUD.user){
             try{ cloudSchedulePush(); }catch(_){ }
           }
@@ -5955,7 +5962,7 @@ return;
           migrateToV2();
           pruneInvoiceDocs();
           ensureDefaultDog();
-          saveState();
+          saveState(false,false);
           renderDogs();
           renderDocs();
           renderInvoiceList();
@@ -5976,7 +5983,7 @@ return;
       const localUpdated = Number(state && state._localUpdatedAt || 0);
       const localCloudStamp = Number(state && state._cloudUpdatedAt || 0);
       // Wenn wir lokal neuere Änderungen haben (noch nicht gepusht): Remote nicht drüberbügeln
-      if(localUpdated && stamp <= localUpdated) return;
+      if(hasRealData(state) && localUpdated && stamp <= localUpdated) return;
       if(stamp <= localCloudStamp) return;
       // Nicht unsere eigene Änderung nochmal einspielen
       if(CLOUD.user && (data.updatedBy === (CLOUD.user.email||CLOUD.user.uid))) return;
@@ -5987,7 +5994,7 @@ return;
         migrateToV2();
         pruneInvoiceDocs();
         ensureDefaultDog();
-        saveState();
+        saveState(false,false);
         renderDogs();
         renderDocs();
         renderInvoiceList();
