@@ -565,3 +565,142 @@
   white-space: nowrap !important;
 }
 
+
+/* =========================================================
+   MEDIKAMENTE – PILL/TEXT FEINTUNING (PATCH v3)
+   Fixes:
+   - Pill-Checkboxen kompakt (kein riesiger Kreis)
+   - Pill-Texte dürfen umbrechen (z. B. "Freigabe des Halters liegt vor")
+   - Feld-/Pill-Labels nicht künstlich abgeschnitten
+========================================================= */
+
+/* 1) Pills in Medikamente: kompakte horizontale Chips */
+.page-app .panel#medication label.pill,
+.page-app .panel[data-panel="medication"] label.pill{
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
+  padding: 8px 10px !important;
+  border-radius: 999px !important;
+  min-width: auto !important;
+  max-width: 100% !important;
+  white-space: normal !important;
+}
+
+/* 2) Der Text in Pills darf sauber umbrechen */
+.page-app .panel#medication label.pill span,
+.page-app .panel[data-panel="medication"] label.pill span{
+  white-space: normal !important;
+  line-height: 1.2 !important;
+  opacity: 0.9 !important;
+}
+
+/* 3) Checkbox in Pills: klein, stabil, ohne Layout-Sprünge */
+.page-app .panel#medication label.pill input[type="checkbox"],
+.page-app .panel[data-panel="medication"] label.pill input[type="checkbox"]{
+  width: 18px !important;
+  height: 18px !important;
+  margin: 0 !important;
+  flex: 0 0 auto !important;
+  accent-color: var(--accent, #d4af37) !important;
+}
+
+/* 4) Die v2-Regel (max-width: 140px) ist für Feld-/Pill-Titel zu hart → hier aufheben */
+.page-app .panel#medication .field > span,
+.page-app .panel[data-panel="medication"] .field > span{
+  max-width: none !important;
+  white-space: nowrap !important; /* Feldtitel bleiben einzeilig */
+}
+
+.page-app .panel#medication label.pill span,
+.page-app .panel[data-panel="medication"] label.pill span{
+  max-width: none !important;
+}
+
+/* 5) Gesundheitsnotizen: Chips hübsch in einer Reihe, aber nicht zu breit */
+.page-app .panel#medication .pill-row,
+.page-app .panel[data-panel="medication"] .pill-row{
+  gap: 8px !important;
+}
+
+.page-app .panel#medication .pill-row label.pill,
+.page-app .panel[data-panel="medication"] .pill-row label.pill{
+  padding: 7px 10px !important;
+  background: rgba(255,255,255,0.06) !important;
+  border: 1px solid rgba(255,255,255,0.10) !important;
+}
+
+/* 6) Verhindert "Buchstaben-Säule" bei schmalen Elementen */
+.page-app .panel#medication label.pill,
+.page-app .panel[data-panel="medication"] label.pill{
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+  transform: none !important;
+}
+
+/* 1) Pills in Medikamente: kompakte horizontale Chips */
+.page-app .panel#medication label.pill,
+.page-app .panel[data-panel="medication"] label.pill{
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
+  padding: 8px 10px !important;
+  border-radius: 999px !important;
+  min-width: auto !important;
+  max-width: 100% !important;
+  white-space: normal !important;
+}
+
+/* 2) Der Text in Pills darf sauber umbrechen */
+.page-app .panel#medication label.pill span,
+.page-app .panel[data-panel="medication"] label.pill span{
+  white-space: normal !important;
+  line-height: 1.2 !important;
+  opacity: 0.9 !important;
+}
+
+/* 3) Checkbox in Pills: klein, stabil, ohne Layout-Sprünge */
+.page-app .panel#medication label.pill input[type="checkbox"],
+.page-app .panel[data-panel="medication"] label.pill input[type="checkbox"]{
+  width: 18px !important;
+  height: 18px !important;
+  margin: 0 !important;
+  flex: 0 0 auto !important;
+  accent-color: var(--accent, #d4af37) !important;
+}
+
+/* 4) v2-Regel (max-width: 140px) für Feldtitel aufheben */
+.page-app .panel#medication .field > span,
+.page-app .panel[data-panel="medication"] .field > span{
+  max-width: none !important;
+  white-space: nowrap !important;
+}
+
+.page-app .panel#medication label.pill span{
+  max-width: none !important;
+}
+
+/* 5) Gesundheitsnotizen: Chips homogener */
+.page-app .panel#medication .pill-row,
+.page-app .panel[data-panel="medication"] .pill-row{
+  gap: 8px !important;
+}
+
+.page-app .panel#medication .pill-row label.pill,
+.page-app .panel[data-panel="medication"] .pill-row label.pill{
+  padding: 7px 10px !important;
+  background: rgba(255,255,255,0.06) !important;
+  border: 1px solid rgba(255,255,255,0.10) !important;
+}
+
+/* 6) Verhindert "Buchstaben-Säule" */
+.page-app .panel#medication label.pill,
+.page-app .panel[data-panel="medication"] label.pill{
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+  transform: none !important;
+}
