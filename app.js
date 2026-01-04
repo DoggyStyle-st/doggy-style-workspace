@@ -1,4 +1,4 @@
-const APP_BUILD = "v11-DIAG-WS-01";
+const APP_BUILD = "v11-PROD-01";
 // --- DIAG (F1.5) ----------------------------------------------------------
 const DIAG = { workspace: '' };
 
