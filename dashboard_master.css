@@ -145,3 +145,134 @@
 .page-app .panel#home{
   padding-bottom: 18px;
 }
+/* ===== PATCH v2: Start-Button, Kartenhöhe, Logo, Quote ===== */
+
+/* 1) Start-Button ruhiger & tab-ähnlich */
+.page-app .tab.start,
+.page-app .tab[data-tab="home"]{
+  border-radius: 18px !important;
+  min-height: 44px !important;
+  padding: 10px 14px !important;
+  box-shadow: none !important;
+}
+.page-app .tab.start .icon,
+.page-app .tab[data-tab="home"] .icon{
+  width: 18px !important;
+  height: 18px !important;
+  opacity: .92 !important;
+}
+.page-app .tab.start,
+.page-app .tab[data-tab="home"]{
+  background: rgba(255,255,255,.06) !important;
+  border: 1px solid rgba(255,255,255,.12) !important;
+}
+
+/* 2) Kapazitätskarten: weniger Leerfläche, kompakter */
+.page-app .hero-card,
+.page-app .card.capacity,
+.page-app .card.hero{
+  padding: 14px 14px 12px !important;
+  border-radius: 18px !important;
+}
+.page-app .hero-value{
+  font-size: 38px !important;
+  margin: 8px 0 8px !important;
+}
+.page-app .hero-sub{
+  font-size: 14px !important;
+  opacity: .82 !important;
+}
+
+/* Progress/Trenner (falls vorhanden) kompakter */
+.page-app .progress,
+.page-app .progressbar,
+.page-app .bar{
+  height: 6px !important;
+  border-radius: 999px !important;
+  margin-top: 10px !important;
+}
+
+/* 3) Logo größer (iPad), ohne Dominanz */
+.page-app .dashboard-brand__logo{
+  width: min(380px, 78vw) !important;
+  border-radius: 18px !important;
+}
+
+/* 4) Quote: größer, besser lesbar, über volle Breite */
+.page-app .dashboard-brand__quote{
+  max-width: 980px !important;
+  font-size: 17px !important;
+  line-height: 1.35 !important;
+  opacity: .92 !important;
+  padding: 10px 14px !important;
+  border-radius: 14px !important;
+  background: rgba(0,0,0,.18) !important;
+  border: 1px solid rgba(255,255,255,.10) !important;
+}
+
+/* Layout: Quote unter die Top-Reihe, wenn möglich */
+@media (min-width: 900px){
+  .page-app .dashboard-brand{
+    gap: 12px !important;
+  }
+}
+/* ===== Start-Button als echte Hundepfote ===== */
+
+/* Grundform */
+.page-app .tab.start,
+.page-app .tab[data-tab="home"]{
+  width: 56px !important;
+  height: 56px !important;
+  min-height: 56px !important;
+  padding: 0 !important;
+  border-radius: 50% !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  background: radial-gradient(
+    circle at top,
+    rgba(255,255,255,.18),
+    rgba(0,0,0,.35)
+  ) !important;
+
+  border: 1px solid rgba(255,255,255,.18) !important;
+  box-shadow:
+    inset 0 1px 2px rgba(255,255,255,.25),
+    0 6px 16px rgba(0,0,0,.45) !important;
+}
+
+/* Text ausblenden */
+.page-app .tab.start span,
+.page-app .tab[data-tab="home"] span{
+  display: none !important;
+}
+
+/* Pfoten-Icon groß & klar */
+.page-app .tab.start .icon,
+.page-app .tab[data-tab="home"] .icon{
+  width: 30px !important;
+  height: 30px !important;
+  opacity: .95 !important;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,.6));
+}
+
+/* Aktiver Zustand */
+.page-app .tab.start.active,
+.page-app .tab[data-tab="home"].active{
+  background: radial-gradient(
+    circle at top,
+    rgba(255,255,255,.28),
+    rgba(0,0,0,.45)
+  ) !important;
+  box-shadow:
+    inset 0 2px 4px rgba(255,255,255,.35),
+    0 8px 20px rgba(0,0,0,.55) !important;
+}
+
+/* Touch-Feedback */
+.page-app .tab.start:active,
+.page-app .tab[data-tab="home"]:active{
+  transform: scale(0.96);
+}
