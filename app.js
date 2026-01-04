@@ -4,17 +4,43 @@ const DIAG = { workspace: '' };
 
 function diagEnsureEl(){
   try{
-    const host = document.querySelector('.sync-indicator');
-    if(!host) return null;
+    // Prefer an existing status container if present, otherwise fall back to a fixed overlay.
+    let host =
+      document.querySelector('.sync-indicator') ||
+      document.querySelector('.sync-text')?.parentElement ||
+      document.querySelector('[data-sync-indicator]') ||
+      document.querySelector('header') ||
+      document.body;
+
     let el = document.getElementById('diagWorkspace');
     if(!el){
-      el = document.createElement('span');
+      el = document.createElement('div');
       el.id = 'diagWorkspace';
       el.className = 'sync-text';
-      el.style.display = 'block';
       el.style.fontSize = '11px';
-      el.style.opacity = '0.85';
-      el.style.marginTop = '2px';
+      el.style.opacity = '0.88';
+      el.style.pointerEvents = 'none';
+      el.style.whiteSpace = 'nowrap';
+
+      // If we don't have a dedicated host (most layouts), show as a small fixed overlay near the status area.
+      const needsOverlay = !(document.querySelector('.sync-indicator') || document.querySelector('.sync-text'));
+      if(needsOverlay){
+        el.style.position = 'fixed';
+        el.style.top = '76px';
+        el.style.right = '18px';
+        el.style.zIndex = '99999';
+        el.style.background = 'rgba(0,0,0,0.35)';
+        el.style.border = '1px solid rgba(255,255,255,0.12)';
+        el.style.borderRadius = '10px';
+        el.style.padding = '6px 10px';
+        el.style.maxWidth = '75vw';
+        el.style.overflow = 'hidden';
+        el.style.textOverflow = 'ellipsis';
+      }else{
+        el.style.display = 'block';
+        el.style.marginTop = '2px';
+      }
+
       host.appendChild(el);
     }
     return el;
