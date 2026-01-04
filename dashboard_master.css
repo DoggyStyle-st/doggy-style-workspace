@@ -220,7 +220,7 @@
 
   background:
     radial-gradient(circle at top, rgba(255,255,255,.18), rgba(0,0,0,.48)),
-    url("images/pfote.png") center/30px 30px no-repeat !important;
+    url("/doggy-style-workspace/images/pfote.png?v=3")
 
   border: 1px solid rgba(255,255,255,.20) !important;
 
