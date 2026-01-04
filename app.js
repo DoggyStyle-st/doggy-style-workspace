@@ -528,6 +528,19 @@ function isStateEffectivelyEmpty(s){
   }
 }
 
+
+function hasRealData(s){
+  try{
+    const pets = Array.isArray(s?.pets) ? s.pets.filter(x=>x && !x.isPlaceholder) : [];
+    const customers = Array.isArray(s?.customers) ? s.customers.filter(x=>x) : [];
+    const docs = Array.isArray(s?.docs) ? s.docs.filter(x=>x) : [];
+    const dogs = Array.isArray(s?.dogs) ? s.dogs.filter(x=>x && !x.isPlaceholder) : [];
+    return (pets.length>0 || customers.length>0 || docs.length>0 || dogs.length>0);
+  }catch(_){
+    return false;
+  }
+}
+
 function applyRemoteState(remote, remoteStamp, source){
   if(!remote) return false;
   try{
@@ -569,7 +582,7 @@ async function cloudLoadStateWithRetry(maxTries=3){
   return {remote:null, err:lastErr};
 }
 
-function cloudSchedulePush(){
+{
   if(!CLOUD.enabled) return;
   clearTimeout(CLOUD._pushTimer);
   SYNC.cloudPending = true;
@@ -5996,9 +6009,11 @@ try{
       const localUpdated = Number(state && state._localUpdatedAt || 0);
       const localCloudStamp = Number(state && state._cloudUpdatedAt || 0);
       const localEmpty = isStateEffectivelyEmpty(state);
+    const localHasData = hasRealData(state);
+      const localHasData = hasRealData(state);
 
       // Falls lokal leer (z.B. LocalStorage von iOS geleert) -> Remote sofort übernehmen.
-      if(localEmpty && remotePayload){
+      if((localEmpty || !localHasData) && remotePayload){
         applyRemoteState(remotePayload, stamp, "snapshot-initial");
         return;
       }
@@ -6042,9 +6057,10 @@ try{
   } else {
     const remoteUpdated = Number(remote._cloudUpdatedAt || CLOUD._lastRemoteStamp || 0);
     const localEmpty = isStateEffectivelyEmpty(state);
+      const localHasData = hasRealData(state);
 
     // Wenn lokal leer: Remote immer übernehmen
-    if(localEmpty){
+    if(localEmpty || !localHasData){
       applyRemoteState(remote, remoteUpdated, "initial-read-empty-local");
     } else if(localUpdated && localUpdated > remoteUpdated){
       // Lokal ist neuer -> lokal behalten und pushen
