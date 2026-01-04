@@ -145,27 +145,8 @@
 .page-app .panel#home{
   padding-bottom: 18px;
 }
-/* ===== PATCH v2: Start-Button, Kartenhöhe, Logo, Quote ===== */
 
-/* 1) Start-Button ruhiger & tab-ähnlich */
-.page-app .tab.start,
-.page-app .tab[data-tab="home"]{
-  border-radius: 18px !important;
-  min-height: 44px !important;
-  padding: 10px 14px !important;
-  box-shadow: none !important;
-}
-.page-app .tab.start .icon,
-.page-app .tab[data-tab="home"] .icon{
-  width: 18px !important;
-  height: 18px !important;
-  opacity: .92 !important;
-}
-.page-app .tab.start,
-.page-app .tab[data-tab="home"]{
-  background: rgba(255,255,255,.06) !important;
-  border: 1px solid rgba(255,255,255,.12) !important;
-}
+/* ===== PATCH v2: Kartenhöhe, Logo, Quote ===== */
 
 /* 2) Kapazitätskarten: weniger Leerfläche, kompakter */
 .page-app .hero-card,
@@ -216,299 +197,46 @@
     gap: 12px !important;
   }
 }
-/* ===== Start-Button als echte Hundepfote ===== */
 
-/* Grundform */
+/* =========================================================
+   START-BUTTON: Pfote aus images/pfote.png (SAFE)
+   WICHTIG: NUR Tab-Selektor – KEIN #home, KEINE Links
+========================================================= */
+
+/* Der Start-Tab ist bei dir die linke runde Scheibe.
+   Wir stylen nur .tab.start und als Fallback data-tab="home". */
 .page-app .tab.start,
 .page-app .tab[data-tab="home"]{
-  width: 56px !important;
-  height: 56px !important;
-  min-height: 56px !important;
+  width: 58px !important;
+  height: 58px !important;
+  min-width: 58px !important;
+  min-height: 58px !important;
   padding: 0 !important;
   border-radius: 50% !important;
 
-  display: flex !important;
+  display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
 
-  background: radial-gradient(
-    circle at top,
-    rgba(255,255,255,.18),
-    rgba(0,0,0,.35)
-  ) !important;
+  background:
+    radial-gradient(circle at top, rgba(255,255,255,.18), rgba(0,0,0,.48)),
+    url("images/pfote.png") center/30px 30px no-repeat !important;
 
-  border: 1px solid rgba(255,255,255,.18) !important;
+  border: 1px solid rgba(255,255,255,.20) !important;
+
   box-shadow:
-    inset 0 1px 2px rgba(255,255,255,.25),
-    0 6px 16px rgba(0,0,0,.45) !important;
+    inset 0 1px 2px rgba(255,255,255,.22),
+    0 6px 18px rgba(0,0,0,.55) !important;
 }
 
-/* Text ausblenden */
-.page-app .tab.start span,
-.page-app .tab[data-tab="home"] span{
+/* Alles im Start-Tab ausblenden (Text/Icon), damit nur die Pfote sichtbar bleibt */
+.page-app .tab.start > *,
+.page-app .tab[data-tab="home"] > *{
   display: none !important;
-}
-
-/* Pfoten-Icon groß & klar */
-.page-app .tab.start .icon,
-.page-app .tab[data-tab="home"] .icon{
-  width: 30px !important;
-  height: 30px !important;
-  opacity: .95 !important;
-  filter: drop-shadow(0 2px 4px rgba(0,0,0,.6));
-}
-
-/* Aktiver Zustand */
-.page-app .tab.start.active,
-.page-app .tab[data-tab="home"].active{
-  background: radial-gradient(
-    circle at top,
-    rgba(255,255,255,.28),
-    rgba(0,0,0,.45)
-  ) !important;
-  box-shadow:
-    inset 0 2px 4px rgba(255,255,255,.35),
-    0 8px 20px rgba(0,0,0,.55) !important;
 }
 
 /* Touch-Feedback */
 .page-app .tab.start:active,
 .page-app .tab[data-tab="home"]:active{
-  transform: scale(0.96);
-}
-/* ===== Start-Button: Pfote als Background (robust) ===== */
-.page-app .tab.start,
-.page-app .tab[data-tab="home"]{
-  width: 56px !important;
-  height: 56px !important;
-  min-height: 56px !important;
-  padding: 0 !important;
-  border-radius: 50% !important;
-
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-
-  background:
-    radial-gradient(circle at top, rgba(255,255,255,.18), rgba(0,0,0,.38)),
-    url("images/paw.png") center/28px 28px no-repeat !important;
-
-  border: 1px solid rgba(255,255,255,.18) !important;
-  box-shadow:
-    inset 0 1px 2px rgba(255,255,255,.25),
-    0 6px 16px rgba(0,0,0,.45) !important;
-}
-
-/* Text/alte Icons im Start-Button ausblenden */
-.page-app .tab.start * ,
-.page-app .tab[data-tab="home"] *{
-  display: none !important;
-}
-
-/* Active/press feedback */
-.page-app .tab.start.active,
-.page-app .tab[data-tab="home"].active{
-  background:
-    radial-gradient(circle at top, rgba(255,255,255,.28), rgba(0,0,0,.48)),
-    url("images/paw.png") center/30px 30px no-repeat !important;
-}
-.page-app .tab.start:active,
-.page-app .tab[data-tab="home"]:active{
-  transform: scale(0.96);
-}
-/* =========================================================
-   START-BUTTON: Pfotenabdruck aus images/logo.png
-   Robust gegen unterschiedliche HTML-Strukturen
-========================================================= */
-
-/* 1) Start-Button als runder Icon-Button (mehrere mögliche Selektoren) */
-.page-app :is(
-  .tab.start,
-  .tab[data-tab="home"],
-  .tab[data-tab="start"],
-  .nav-start,
-  .start-btn,
-  #btnStart,
-  #startBtn,
-  #homeBtn,
-  a[href*="home"],
-  a[href*="start"]
-){
-  width: 58px !important;
-  height: 58px !important;
-  min-width: 58px !important;
-  min-height: 58px !important;
-  padding: 0 !important;
-  border-radius: 50% !important;
-
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-
-  /* Pfote aus Logo "herausschneiden" über Zoom + Position */
-  background:
-    radial-gradient(circle at top, rgba(255,255,255,.18), rgba(0,0,0,.48)),
-    url("images/logo.png") no-repeat !important;
-
-  /* Diese beiden Werte steuern "Zoom" und Ausschnitt der Pfote */
-  background-size: 520px auto !important;     /* Zoom */
-  background-position: 18% 55% !important;    /* Ziel: linke Pfote */
-
-  border: 1px solid rgba(255,255,255,.20) !important;
-
-  box-shadow:
-    inset 0 1px 2px rgba(255,255,255,.22),
-    0 6px 18px rgba(0,0,0,.55) !important;
-}
-
-/* 2) Inhalt im Start-Button ausblenden (damit nur die Pfote sichtbar ist)
-   Achtung: nur für den Start-Button Bereich, nicht global */
-.page-app :is(
-  .tab.start,
-  .tab[data-tab="home"],
-  .tab[data-tab="start"],
-  .nav-start,
-  .start-btn,
-  #btnStart,
-  #startBtn,
-  #homeBtn
-) *{
-  display: none !important;
-}
-
-/* 3) Aktiv-Zustand (optional etwas kräftiger) */
-.page-app :is(
-  .tab.start.active,
-  .tab[data-tab="home"].active,
-  .tab[data-tab="start"].active,
-  .nav-start.active,
-  .start-btn.active,
-  #btnStart.active,
-  #startBtn.active,
-  #homeBtn.active
-){
-  background-position: 18% 53% !important;
-  box-shadow:
-    inset 0 2px 4px rgba(255,255,255,.30),
-    0 8px 22px rgba(0,0,0,.65) !important;
-}
-
-/* 4) Tap-Feedback */
-.page-app :is(
-  .tab.start:active,
-  .tab[data-tab="home"]:active,
-  .tab[data-tab="start"]:active,
-  .nav-start:active,
-  .start-btn:active,
-  #btnStart:active,
-  #startBtn:active,
-  #homeBtn:active
-){
-  transform: scale(0.96);
-}
-/* =========================================================
-   START-BUTTON: Pfote aus /images/pfote.png (robust)
-   Ziel: IMMER sichtbar – unabhängig vom internen Icon
-========================================================= */
-
-/* 1) Start/Home Button finden (mehrere mögliche Muster) */
-.page-app :is(
-  /* häufige Tab-Patterns */
-  .tab.start,
-  .tab[data-tab="home"],
-  .tab[data-tab="start"],
-
-  /* häufige Klassen/IDs */
-  .nav-start,
-  .start-btn,
-  #start,
-  #Start,
-  #startBtn,
-  #btnStart,
-  #home,
-  #homeBtn,
-
-  /* Falls es ein Link ist */
-  a[href="#home"],
-  a[href="#start"],
-  a[href*="home"],
-  a[href*="start"],
-
-  /* Falls es ein Button mit Label ist */
-  button[title="Start"],
-  button[aria-label="Start"],
-  button[title="Home"],
-  button[aria-label="Home"]
-){
-  width: 58px !important;
-  height: 58px !important;
-  min-width: 58px !important;
-  min-height: 58px !important;
-  padding: 0 !important;
-  border-radius: 50% !important;
-
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-
-  /* Pfote als Background */
-  background:
-    radial-gradient(circle at top, rgba(255,255,255,.18), rgba(0,0,0,.48)),
-    url("./images/pfote.png") center/30px 30px no-repeat !important;
-
-  border: 1px solid rgba(255,255,255,.20) !important;
-
-  box-shadow:
-    inset 0 1px 2px rgba(255,255,255,.22),
-    0 6px 18px rgba(0,0,0,.55) !important;
-}
-
-/* 2) Alles im Start-Button ausblenden (Text/Icon), damit nur die Pfote sichtbar bleibt */
-.page-app :is(
-  .tab.start,
-  .tab[data-tab="home"],
-  .tab[data-tab="start"],
-  .nav-start,
-  .start-btn,
-  #start,
-  #Start,
-  #startBtn,
-  #btnStart,
-  #home,
-  #homeBtn
-) *{
-  display: none !important;
-}
-
-/* 3) Active/Pressed */
-.page-app :is(
-  .tab.start.active,
-  .tab[data-tab="home"].active,
-  .tab[data-tab="start"].active,
-  .nav-start.active,
-  .start-btn.active,
-  #start.active,
-  #startBtn.active,
-  #btnStart.active,
-  #home.active,
-  #homeBtn.active
-){
-  box-shadow:
-    inset 0 2px 4px rgba(255,255,255,.30),
-    0 8px 22px rgba(0,0,0,.65) !important;
-}
-
-.page-app :is(
-  .tab.start:active,
-  .tab[data-tab="home"]:active,
-  .tab[data-tab="start"]:active,
-  .nav-start:active,
-  .start-btn:active,
-  #start:active,
-  #startBtn:active,
-  #btnStart:active,
-  #home:active,
-  #homeBtn:active
-){
-  transform: scale(0.96);
+  transform: scale(0.96) !important;
 }
