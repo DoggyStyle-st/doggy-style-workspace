@@ -2,6 +2,10 @@ const APP_BUILD = "v4.3-PROD-SYNCSTART-01";
 window.addEventListener("error",(e)=>{console.error("APP_ERROR",e.error||e.message);});
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
+
+// Phase 1: Beim Verlassen/Neuladen versuchen wir einen letzten Cloud-Push auszuführen.
+// (Best effort – Firestore ist async, aber hilft gegen "Reload zu schnell" auf iPad.)
+window.addEventListener("pagehide", ()=>{ try{ if(CLOUD.enabled && CLOUD.user){ cloudPushNow().catch(()=>{}); } }catch(_){ } });
 const LS_KEY="ds_workspace_prod_01";
 
 // --- Datum (lokal) ohne UTC-Verschiebung ---
@@ -486,18 +490,6 @@ async function cloudLoadDogs() {
   return (snap.docs || []).map(d => ({ id: d.id, ...(d.data() || {}) }));
 }
 
-async function cloudLoadPets() {
-  if (!CLOUD.enabled) return [];
-  const snap = await CLOUD.db
-    .collection("orgs")
-    .doc(CLOUD.orgId)
-    .collection("pets")
-    .orderBy("name")
-    .get();
-  return (snap.docs || []).map(d => ({ id: d.id, ...(d.data() || {}) }));
-}
-
-
 
 async function loadOrCreateUserProfile(user){
   if(!CLOUD.enabled || !user) return null;
@@ -562,61 +554,18 @@ function cloudSchedulePush(){
   clearTimeout(CLOUD._pushTimer);
   SYNC.cloudPending = true;
   updateSyncUI();
-  CLOUD._pushTimer = setTimeout(()=>cloudPushNow().catch(console.error), 700);
+  // Phase 1: schneller und zuverlässiger Cloud-Push (iPad Reload darf nicht "zu früh" sein)
+  // Wir debouncen nur minimal, damit mehrere schnelle Änderungen gebündelt werden,
+  // aber nicht verloren gehen, wenn direkt danach ein Reload passiert.
+  CLOUD._pushTimer = setTimeout(()=>cloudPushNow().catch(console.error), 50);
 }
 
-
-async function cloudUpsertCustomersPets(customers, pets){
-  if(!CLOUD.enabled) return;
-  if(!CLOUD.user) return;
-  const cs = Array.isArray(customers) ? customers : [];
-  const ps = Array.isArray(pets) ? pets : [];
-
-  const stripId = (obj)=>{ const o={...(obj||{})}; delete o.id; return o; };
-
-  const commitBatch = async (batch)=>{
-    if(batch) await batch.commit();
-  };
-
-  let batch = CLOUD.db.batch();
-  let ops = 0;
-
-  const flushIfNeeded = async ()=>{
-    if(ops >= 400){
-      await commitBatch(batch);
-      batch = CLOUD.db.batch();
-      ops = 0;
-    }
-  };
-
-  const orgRef = CLOUD.db.collection("orgs").doc(CLOUD.orgId);
-
-  // customers
-  for(const c of cs){
-    if(!c || !c.id) continue;
-    const ref = orgRef.collection("customers").doc(String(c.id));
-    batch.set(ref, stripId(c), {merge:true});
-    ops++; await flushIfNeeded();
-  }
-
-  // pets
-  for(const p of ps){
-    if(!p || !p.id) continue;
-    const ref = orgRef.collection("pets").doc(String(p.id));
-    batch.set(ref, stripId(p), {merge:true});
-    ops++; await flushIfNeeded();
-  }
-
-  if(ops>0) await commitBatch(batch);
-}
 async function cloudPushNow(){
   if(!CLOUD.enabled) return;
   if(!CLOUD.user) throw new Error("Nicht angemeldet");
   SYNC.cloudPending = true;
   updateSyncUI();
   const stamp = Date.now();
-  // Phase 1: Masterdaten (customers/pets) separat in Collections spiegeln (Cloud = Wahrheit)
-  try{ await cloudUpsertCustomersPets(state.customers, state.pets); }catch(e){ console.warn('cloudUpsertCustomersPets failed', e); }
   // Marker im State, damit wir Remote-Updates sauber vergleichen können
   try{ state._cloudUpdatedAt = stamp; state._localUpdatedAt = stamp; }catch(_){/* ignore */}
   // last write wins (v1). Später: echtes Merge pro Objekt.
@@ -6002,31 +5951,22 @@ return;
 
     // staff/admin Features (Rollen, Aufgaben, Inbox)
     try{ await initStaffFeatures(); 
-// === PHASE 1.1: Kunden & Hunde IMMER live aus Cloud laden (Reload-sicher) ===
+// === PHASE 1.1: Hunde & Kunden IMMER aus Cloud laden (Reload-sicher) ===
 try {
-  const [customers, pets, legacyDogs] = await Promise.all([
+  const [customers, dogs] = await Promise.all([
     cloudLoadCustomers(),
-    cloudLoadPets(),
-    cloudLoadDogs() // optional: nur für Legacy-Fallbacks
+    cloudLoadDogs()
   ]);
 
-  // Merke Masterdaten (Cloud = Wahrheit)
-  CLOUD._masterCustomers = customers;
-  CLOUD._masterPets = pets;
-
-  // State nur für UI; kein saveState() hier!
   state.customers = customers;
-  state.pets = pets;
+  state.dogs = dogs;
 
-  // Legacy (nur falls irgendwo noch benötigt)
-  state.dogs = Array.isArray(legacyDogs) ? legacyDogs : (state.dogs || []);
-
+  // WICHTIG: nicht saveState() hier! Nur UI aktualisieren.
   try { renderDogs(); } catch (e) { console.warn('renderDogs failed', e); }
   try { refreshCustomerSelect(); } catch (e) { /* ignore */ }
-  try { syncDogSelect(); } catch (e) { /* ignore */ }
 
 } catch (e) {
-  console.error("Cloud load customers/pets failed", e);
+  console.error("Cloud load dogs/customers failed", e);
 }
 
 }catch(e){ console.warn(e); }
@@ -6066,16 +6006,13 @@ try {
         } else if(remoteUpdated && (remoteUpdated >= localCloudStamp || !hasRealData(state))){
           // Remote ist neuer/gleich -> übernehmen
           state = remote;
-          // Phase 1: Masterdaten aus Collections dürfen niemals durch workspace_state überschrieben werden
-          if(Array.isArray(CLOUD._masterCustomers)) state.customers = CLOUD._masterCustomers;
-          if(Array.isArray(CLOUD._masterPets)) state.pets = CLOUD._masterPets;
           ensureStateShape();
           ensureContractDefaults();
           migrateToV2();
           pruneInvoiceDocs();
           ensureDefaultDog();
           saveState();
-          // renderDogs(); // Phase 1: Hunde/Kunden werden aus Collections gerendert
+          renderDogs();
           renderDocs();
           renderInvoiceList();
         }
@@ -6084,16 +6021,6 @@ try {
       console.error("Cloud load failed", e);
       setAuthMsg("Cloud Sync konnte nicht geladen werden. App läuft lokal weiter.");
     }
-
-
-    // Phase 1: finaler Render aus Collections (stellt sicher, dass Reload immer Cloud-Wahrheit zeigt)
-    try{
-      if(Array.isArray(CLOUD._masterCustomers)) state.customers = CLOUD._masterCustomers;
-      if(Array.isArray(CLOUD._masterPets)) state.pets = CLOUD._masterPets;
-      renderDogs();
-      refreshCustomerSelect();
-      syncDogSelect();
-    }catch(e){ console.warn('final render failed', e); }
 
     // Echtzeit-Listener (last-write-wins)
     (cloudStateRef()||{onSnapshot:()=>{}}).onSnapshot((snap)=>{
@@ -6117,7 +6044,7 @@ try {
         pruneInvoiceDocs();
         ensureDefaultDog();
         saveState();
-        // renderDogs(); // Phase 1: Hunde/Kunden werden aus Collections gerendert
+        renderDogs();
         renderDocs();
         renderInvoiceList();
       }
