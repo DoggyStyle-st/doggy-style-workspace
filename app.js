@@ -3304,8 +3304,11 @@ function normalizeTemplate(t){
 async function loadTemplates(){
   templates = [];
   const files = [
+    // Achtung: GitHub Pages ist case-sensitiv. Wir versuchen daher beide Ordnernamen (templates / Templates).
     {path: "templates/hundeannahme.json", label: "Hundeannahme"},
-    {path: "templates/rechnung.json", label: "Rechnung"}
+    {path: "Templates/hundeannahme.json", label: "Hundeannahme"},
+    {path: "templates/rechnung.json", label: "Rechnung"},
+    {path: "Templates/rechnung.json", label: "Rechnung"}
   ];
 
   for(const f of files){
@@ -3313,7 +3316,7 @@ async function loadTemplates(){
       const res = await fetch(f.path, {cache: "no-store"});
       if(!res.ok) throw new Error(res.status);
       const t = normalizeTemplate(await res.json());
-      templates.push(t);
+      if(!templates.some(x=>x.id===t.id)) templates.push(t);
     }catch(e){
       console.warn("Template konnte nicht geladen werden:", f.path, e);
     }
