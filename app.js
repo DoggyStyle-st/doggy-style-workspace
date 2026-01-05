@@ -1,4 +1,4 @@
-const APP_BUILD = "v11-PROD-01";
+const APP_BUILD = "v11-DIAG-WS-01";
 // --- DIAG (F1.5) ----------------------------------------------------------
 const DIAG = { workspace: '' };
 
@@ -526,7 +526,7 @@ async function loadOrCreateUserProfile(user){
   try{ snap = await ref.get(); }catch(e){ console.warn('User profile read failed', e); }
 
   if(!snap || !snap.exists){
-    const role = isAdminEmail ? ROLES.ADMIN : ROLES.CUSTOMER;
+    const role = isAdminEmail ? ROLES.ADMIN : ROLES.STAFF;  // default staff for internal workspace
     let pendingName = '';
     try{ pendingName = (localStorage.getItem('dstest_pending_name')||'').trim(); }catch(_){ }
     if(pendingName){ try{ localStorage.removeItem('dstest_pending_name'); }catch(_){ } }
@@ -543,6 +543,15 @@ async function loadOrCreateUserProfile(user){
   }
 
   const data = snap.data()||{};
+  // Ensure staff access for internal workspace (needed for /meta/workspace_state rules)
+  try{
+    const current = data.role || '';
+    if(!isAdminEmail && current !== ROLES.STAFF && current !== ROLES.ADMIN){
+      await ref.set({ role: ROLES.STAFF }, { merge:true });
+      data.role = ROLES.STAFF;
+    }
+  }catch(_){ /* ignore */ }
+
   // falls jemand in Whitelist ist: immer admin
   if(isAdminEmail && data.role !== ROLES.ADMIN){
     try{ await ref.set({role: ROLES.ADMIN}, {merge:true}); }catch(_){ }
@@ -552,7 +561,7 @@ async function loadOrCreateUserProfile(user){
     uid,
     email: data.email || user.email || "",
     displayName: (data.displayName || ((user.email||'').split('@')[0]||'')),
-    role: data.role || (isAdminEmail ? ROLES.ADMIN : ROLES.CUSTOMER),
+    role: data.role || (isAdminEmail ? ROLES.ADMIN : ROLES.STAFF),
     createdAt: data.createdAt || 0
   };
 }
