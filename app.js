@@ -5994,6 +5994,18 @@ async function startApp(){
   if(btnQuickInvoices) btnQuickInvoices.onclick = ()=>selectTab("workforms");
   if(btnQuickSettings) btnQuickSettings.onclick = ()=>selectTab("settings");
 
+  // Safari/iPad: Manche Buttons werden durch Re-Renders (innerHTML) ersetzt und verlieren
+  // dann ihren direkten onclick. Daher zusätzlich event delegation.
+  document.addEventListener('click', (ev)=>{
+    const t = ev.target;
+    const hit = t && (t.closest ? (t.closest('#btnNewStayTop') || t.closest('#btnNewStayOnPage')) : null);
+    if(!hit) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    try { createStay(); }
+    catch(e) { try{ selectTab('documents'); }catch(_e){} }
+  }, true);
+
 
   // Auth state
   CLOUD.auth.onAuthStateChanged(async (user)=>{
