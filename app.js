@@ -1,4 +1,4 @@
-const APP_BUILD = "DIAG-VIS-20260105-121928";
+const APP_BUILD = "v11-TEST-OPTIK-01";
 window.addEventListener("error",(e)=>{console.error("APP_ERROR",e.error||e.message);});
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
@@ -528,10 +528,62 @@ function isStateEffectivelyEmpty(s){
   }
 }
 
+
+// --- Phase 1: Cloud-Datenfluss Merge-Strategie ---
+// Ziel: Remote darf lokale Stammdaten (Hunde/Kunden) nicht "leer" überschreiben.
+function _mergeById(remoteArr, localArr){
+  const m = new Map();
+  for (const it of (remoteArr||[])) {
+    if (it && it.id) m.set(it.id, it);
+  }
+  for (const it of (localArr||[])) {
+    if (!it || !it.id) continue;
+    const r = m.get(it.id);
+    if (!r) { m.set(it.id, it); continue; }
+    const rt = Number(r.updatedAt || r._updatedAt || 0);
+    const lt = Number(it.updatedAt || it._updatedAt || 0);
+    if (lt > rt) m.set(it.id, it);
+  }
+  return Array.from(m.values());
+}
+
+function _shallowMergeObj(a, b){
+  if (a && typeof a === 'object' && !Array.isArray(a) && b && typeof b === 'object' && !Array.isArray(b)){
+    return { ...a, ...b };
+  }
+  return (a !== undefined) ? a : b;
+}
+
+function mergeStatePreferRemote(remoteRaw, localRaw){
+  const remote = remoteRaw || {};
+  const local = localRaw || {};
+  const out = { ...local, ...remote };
+
+  // Arrays: ID-basiert mergen (remote + lokale Ergänzungen, pro Item jüngeres gewinnt)
+  const idArrays = [
+    'customers','pets','dogs','stays','invoices','docs','meds','medications','hygieneLogs','tasks','worksheets','entries'
+  ];
+  for (const k of idArrays){
+    if (Array.isArray(remote[k]) || Array.isArray(local[k])){
+      out[k] = _mergeById(remote[k], local[k]);
+    }
+  }
+
+  // Objekte: remote überschreibt, aber lokale Defaults bleiben erhalten
+  const objKeys = ['settings','templates','company','meta','roles'];
+  for (const k of objKeys){
+    out[k] = _shallowMergeObj(remote[k], local[k]);
+  }
+
+  return out;
+}
+// --- /Merge-Strategie ---
+
 function applyRemoteState(remote, remoteStamp, source){
   if(!remote) return false;
   try{
-    state = remote;
+    // Merge: Remote ist nicht alleinige Wahrheit, lokale Stammdaten dürfen nicht verschwinden
+    state = mergeStatePreferRemote(remote, state);
     // Falls der Remote-State keinen Stempel trägt: konservativ setzen
     if(remoteStamp && (!state._cloudUpdatedAt || Number(state._cloudUpdatedAt) < Number(remoteStamp))){
       state._cloudUpdatedAt = Number(remoteStamp);
@@ -569,7 +621,7 @@ async function cloudLoadStateWithRetry(maxTries=3){
   return {remote:null, err:lastErr};
 }
 
-{
+function cloudPushQueued(){
   if(!CLOUD.enabled) return;
   clearTimeout(CLOUD._pushTimer);
   SYNC.cloudPending = true;
@@ -1367,6 +1419,12 @@ let state=loadState();
 // (z.B. nach Neustart/Reload) mit state.docs === undefined abbrechen und die komplette
 // UI wirkt dann "eingefroren" (keine Handler werden mehr gebunden).
 try{ ensureStateShape(); }catch(_){ }
+
+// WICHTIG: Migration (legacy state.dogs -> state.customers/state.pets) muss auch
+// im reinen LocalStorage-Betrieb passieren – nicht nur nach einem Cloud-Pull.
+// Sonst ist nach Reload die Hunde/Kunden-Liste leer, obwohl Daten (legacy) vorhanden sind.
+try{ migrateToV2(); }catch(_){ }
+try{ ensureStateShape(); }catch(_){ }
 const COMPANY = {
   name: "Doggy Style Hundepension",
   owner: "Raphael Boch",
@@ -1402,12 +1460,14 @@ function showPanel(id){
     p.classList.toggle("is-active", p.id === id);
   });
 
+  // IMPORTANT: Each panel must trigger its renderer when activated.
+  // Otherwise, after Reload/Login the panel can remain empty because its DOM
+  // was never hydrated from state/cloud.
+  if(id === "dogs"){
+    try{ renderDogs(); }catch(_){ }
+  }
   if(id === "invoices"){
-    renderInvoiceList();
-  renderComplianceDashboard();
-  renderStaffSettings();
-  renderDocVersions();
-
+    try{ renderInvoiceList(); }catch(_){ }
   }
   if(id === "contract"){
     renderContractPanel();
@@ -1427,7 +1487,13 @@ if(id === "calendar"){
     renderCalendarPanel();
   }
   if(id === "settings"){
-    try{ initProfiSettingsBindings(); renderStaffSettings(); renderPolicySettings(); renderComplianceInSettings(); }catch(_){ }
+    try{
+      initProfiSettingsBindings();
+      renderStaffSettings();
+      renderPolicySettings();
+      renderComplianceInSettings();
+      renderDocVersions();
+    }catch(_){ }
   }
 }
 
@@ -7344,47 +7410,3 @@ function wfTodayPrint(){
   wfOpenPdf(wfPdfTemplate("Heute drucken", body));
 }
 try{ const bb=document.getElementById('buildBadge'); if(bb) bb.textContent = 'Build ' + APP_BUILD; }catch(e){}
-
-// === DIAG: Visible build/asset provenance (Phase 1 verification) ===
-(function ensureVisibleBuildProvenance(){
-  function inject(){
-    try{
-      // Existing badge (if present in HTML)
-      const bb = document.getElementById('buildBadge');
-      if(bb){
-        bb.textContent = APP_BUILD;
-        bb.style.display = 'inline-flex';
-        bb.style.opacity = '1';
-      }
-      // Always-on overlay (independent of existing layout)
-      let el = document.getElementById('__build_provenance');
-      if(!el){
-        el = document.createElement('div');
-        el.id = '__build_provenance';
-        el.style.position = 'fixed';
-        el.style.left = '10px';
-        el.style.bottom = '10px';
-        el.style.zIndex = '999999';
-        el.style.background = 'rgba(0,0,0,0.75)';
-        el.style.color = '#fff';
-        el.style.padding = '8px 10px';
-        el.style.borderRadius = '10px';
-        el.style.fontSize = '12px';
-        el.style.lineHeight = '1.25';
-        el.style.maxWidth = '80vw';
-        el.style.pointerEvents = 'none';
-        document.body.appendChild(el);
-      }
-      const sw = (navigator.serviceWorker && navigator.serviceWorker.controller) ? 'SW:on' : 'SW:off';
-      const ts = new Date().toISOString();
-      el.textContent = `BUILD ${APP_BUILD} | ${sw} | ${ts}`;
-      console.log('[BUILD]', APP_BUILD, sw, ts, location.href);
-    }catch(e){ /* ignore */ }
-  }
-  if(document.readyState === 'loading'){
-    document.addEventListener('DOMContentLoaded', inject, { once:true });
-  } else {
-    inject();
-  }
-  window.addEventListener('focus', inject);
-})();
