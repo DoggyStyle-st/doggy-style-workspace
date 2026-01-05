@@ -1,61 +1,4 @@
-const APP_BUILD = "v11-DIAG-WS-01";
-// --- DIAG (F1.5) ----------------------------------------------------------
-const DIAG = { workspace: '' };
-
-function diagEnsureEl(){
-  try{
-    // Prefer an existing status container if present, otherwise fall back to a fixed overlay.
-    let host =
-      document.querySelector('.sync-indicator') ||
-      document.querySelector('.sync-text')?.parentElement ||
-      document.querySelector('[data-sync-indicator]') ||
-      document.querySelector('header') ||
-      document.body;
-
-    let el = document.getElementById('diagWorkspace');
-    if(!el){
-      el = document.createElement('div');
-      el.id = 'diagWorkspace';
-      el.className = 'sync-text';
-      el.style.fontSize = '11px';
-      el.style.opacity = '0.88';
-      el.style.pointerEvents = 'none';
-      el.style.whiteSpace = 'nowrap';
-
-      // If we don't have a dedicated host (most layouts), show as a small fixed overlay near the status area.
-      const needsOverlay = !(document.querySelector('.sync-indicator') || document.querySelector('.sync-text'));
-      if(needsOverlay){
-        el.style.position = 'fixed';
-        el.style.top = '76px';
-        el.style.right = '18px';
-        el.style.zIndex = '99999';
-        el.style.background = 'rgba(0,0,0,0.35)';
-        el.style.border = '1px solid rgba(255,255,255,0.12)';
-        el.style.borderRadius = '10px';
-        el.style.padding = '6px 10px';
-        el.style.maxWidth = '75vw';
-        el.style.overflow = 'hidden';
-        el.style.textOverflow = 'ellipsis';
-      }else{
-        el.style.display = 'block';
-        el.style.marginTop = '2px';
-      }
-
-      host.appendChild(el);
-    }
-    return el;
-  }catch(_){ return null; }
-}
-
-function diagSetWorkspace(msg){
-  DIAG.workspace = msg || '';
-  try{
-    const el = diagEnsureEl();
-    if(el) el.textContent = DIAG.workspace;
-  }catch(_){}
-}
-// -------------------------------------------------------------------------
-
+const APP_BUILD = "v11-PROD-WS-04.1";
 window.addEventListener("error",(e)=>{console.error("APP_ERROR",e.error||e.message);});
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
@@ -200,9 +143,6 @@ function updateSyncUI(){
   const userEl = document.getElementById('syncUser');
   const details = document.getElementById('syncDetails');
   const manualBtn = document.getElementById('manualSaveBtn');
-  // DIAG UI
-  try{ diagEnsureEl(); }catch(_){}
-
   if(userEl){
     if(CLOUD.enabled && CLOUD.user){
       userEl.style.display = 'inline-flex';
@@ -495,6 +435,17 @@ async function cloudInit(){
   }
 }
 
+
+function hasRealData(s){
+  try{
+    if(!s) return false;
+    const pets = Array.isArray(s.pets)? s.pets.filter(p=>p && !p.isPlaceholder):[];
+    const dogs = Array.isArray(s.dogs)? s.dogs.filter(d=>d && !d.isPlaceholder):[];
+    const docs = Array.isArray(s.docs)? s.docs:[];
+    const cust = Array.isArray(s.customers)? s.customers:[];
+    return pets.length>0 || dogs.length>0 || docs.length>0 || cust.length>0;
+  }catch(_){ return false; }
+}
 function cloudStateRef(){
   // EIN zentraler Workspace-State pro Orga: orgs/{orgId}/meta/workspace_state
   if(!CLOUD.enabled) return null;
@@ -526,7 +477,7 @@ async function loadOrCreateUserProfile(user){
   try{ snap = await ref.get(); }catch(e){ console.warn('User profile read failed', e); }
 
   if(!snap || !snap.exists){
-    const role = isAdminEmail ? ROLES.ADMIN : ROLES.STAFF;  // default staff for internal workspace
+    const role = isAdminEmail ? ROLES.ADMIN : ROLES.CUSTOMER;
     let pendingName = '';
     try{ pendingName = (localStorage.getItem('dstest_pending_name')||'').trim(); }catch(_){ }
     if(pendingName){ try{ localStorage.removeItem('dstest_pending_name'); }catch(_){ } }
@@ -543,15 +494,6 @@ async function loadOrCreateUserProfile(user){
   }
 
   const data = snap.data()||{};
-  // Ensure staff access for internal workspace (needed for /meta/workspace_state rules)
-  try{
-    const current = data.role || '';
-    if(!isAdminEmail && current !== ROLES.STAFF && current !== ROLES.ADMIN){
-      await ref.set({ role: ROLES.STAFF }, { merge:true });
-      data.role = ROLES.STAFF;
-    }
-  }catch(_){ /* ignore */ }
-
   // falls jemand in Whitelist ist: immer admin
   if(isAdminEmail && data.role !== ROLES.ADMIN){
     try{ await ref.set({role: ROLES.ADMIN}, {merge:true}); }catch(_){ }
@@ -561,7 +503,7 @@ async function loadOrCreateUserProfile(user){
     uid,
     email: data.email || user.email || "",
     displayName: (data.displayName || ((user.email||'').split('@')[0]||'')),
-    role: data.role || (isAdminEmail ? ROLES.ADMIN : ROLES.STAFF),
+    role: data.role || (isAdminEmail ? ROLES.ADMIN : ROLES.CUSTOMER),
     createdAt: data.createdAt || 0
   };
 }
@@ -570,12 +512,7 @@ async function cloudLoadState(){
   if(!CLOUD.enabled) return null;
   const ref = cloudStateRef();
   if(!ref) return null;
-  let snap = null;
-  try{ snap = await ref.get(); }
-  catch(err){
-    try{ diagSetWorkspace("Workspace: READ FAIL (" + (err && (err.code||err.message) ? (err.code||err.message) : "error") + ")"); }catch(_){ }
-    throw err;
-  }
+  const snap = await ref.get();
   if(!snap.exists) return null;
   const data = snap.data();
   if(!data || !data.payload) return null;
@@ -5852,7 +5789,6 @@ $("#btnWipe").addEventListener("click",()=>{
 });
 
 async function boot(){
-  try{ if(typeof cloudLoadState==='function'){ await cloudLoadState(true); } }catch(e){}
   await loadTemplates();
   ensureStateShape();
   ensureContractDefaults();
@@ -5996,14 +5932,6 @@ return;
 
     try{
       const remote = await cloudLoadState();
-      try{
-        const rStamp = Number((CLOUD && CLOUD._lastRemoteStamp) || 0);
-        const lUpd = Number(state && state._localUpdatedAt || 0);
-        const lC  = Number(state && state._cloudUpdatedAt || 0);
-        if(remote){ diagSetWorkspace(`Workspace: READ OK (remote=${rStamp}, local=${lUpd}, lc=${lC})`); }
-        else { diagSetWorkspace(`Workspace: READ OK (empty/not-found) (remote=${rStamp}, local=${lUpd})`); }
-      }catch(_){ }
-
 
       // Merge-Entscheidung (robust):
       // - Lokal ist IMMER die Offline-Quelle.
@@ -6019,19 +5947,18 @@ return;
           (Array.isArray(state.dogs) && state.dogs.filter(d=>d && !d.isPlaceholder).length>0);
 
         if(hasLocalData && CLOUD.user){
-          try{ await cloudPushNow(); diagSetWorkspace('Workspace: READ OK (empty) → PUSH local to cloud'); }catch(e){ diagSetWorkspace('Workspace: READ OK (empty) → PUSH failed: '+(e&&e.code?e.code:'error')); console.warn('Initial cloud push failed', e); }
+          try{ await cloudPushNow(); }catch(e){ console.warn('Initial cloud push failed', e); }
         }
       } else {
         const remoteUpdated = Number(remote._cloudUpdatedAt || CLOUD._lastRemoteStamp || 0);
 
         // Wenn lokal neuer ist: lokal behalten und in die Cloud pushen
-        if(localUpdated && localUpdated > remoteUpdated){
+        if(localUpdated && localUpdated > remoteUpdated && hasRealData(state)){
           if(CLOUD.user){
-            try{ cloudSchedulePush(); diagSetWorkspace('Workspace: READ OK → KEEP LOCAL (local newer)'); }catch(_){ diagSetWorkspace('Workspace: READ OK → KEEP LOCAL (local newer)'); }
+            try{ cloudSchedulePush(); }catch(_){ }
           }
-        } else if(remoteUpdated && remoteUpdated >= localCloudStamp){
+        } else if(remoteUpdated && (remoteUpdated >= localCloudStamp || !hasRealData(state))){
           // Remote ist neuer/gleich -> übernehmen
-          diagSetWorkspace('Workspace: READ OK → APPLY REMOTE');
           state = remote;
           ensureStateShape();
           ensureContractDefaults();
@@ -6046,7 +5973,6 @@ return;
       }
     }catch(e){
       console.error("Cloud load failed", e);
-      try{ diagSetWorkspace("Workspace: READ FAIL (" + (e && (e.code||e.message) ? (e.code||e.message) : "error") + ")"); }catch(_){ }
       setAuthMsg("Cloud Sync konnte nicht geladen werden. App läuft lokal weiter.");
     }
 
@@ -7361,10 +7287,3 @@ function wfTodayPrint(){
   wfOpenPdf(wfPdfTemplate("Heute drucken", body));
 }
 try{ const bb=document.getElementById('buildBadge'); if(bb) bb.textContent = 'Build ' + APP_BUILD; }catch(e){}
-// v4 SYNCFIX fallback
-
-try{
-  if(state && Array.isArray(state.customers) && state.customers.length===0 && typeof loadCustomersFromCloud==='function'){
-    await loadCustomersFromCloud();
-  }
-}catch(e){}
