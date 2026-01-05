@@ -5852,6 +5852,7 @@ $("#btnWipe").addEventListener("click",()=>{
 });
 
 async function boot(){
+  try{ if(typeof cloudLoadState==='function'){ await cloudLoadState(true); } }catch(e){}
   await loadTemplates();
   ensureStateShape();
   ensureContractDefaults();
@@ -7360,3 +7361,10 @@ function wfTodayPrint(){
   wfOpenPdf(wfPdfTemplate("Heute drucken", body));
 }
 try{ const bb=document.getElementById('buildBadge'); if(bb) bb.textContent = 'Build ' + APP_BUILD; }catch(e){}
+// v4 SYNCFIX fallback
+
+try{
+  if(state && Array.isArray(state.customers) && state.customers.length===0 && typeof loadCustomersFromCloud==='function'){
+    await loadCustomersFromCloud();
+  }
+}catch(e){}
