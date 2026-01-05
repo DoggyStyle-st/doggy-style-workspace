@@ -1511,16 +1511,21 @@ function createStay(){
   // 3) Direkt createDoc(templateId) ausführen
   try{ selectTab("documents"); }catch(_){}
 
+  // Sichtbares Feedback (wichtig bei Safari/iPad, wenn der Tab bereits offen ist)
+  try{ if (typeof showMiniToast === "function") showMiniToast("Öffne Aufenthalt-Editor …"); }catch(_){}
+
   const pickTemplateId = () => {
     // Prefer exact id
     if (typeof getTemplate === "function") {
       const direct = getTemplate("hundeannahme");
       if (direct && direct.id) return direct.id;
     }
-    // From loaded templates array
+    // From loaded templates array (state.templates ist die Quelle der Wahrheit)
     try{
-      if (Array.isArray(templates) && templates.length){
-        const t = templates.find(x => (x && (x.id === "hundeannahme" || (x.name||"").toLowerCase().includes("hundeannahme"))));
+      const tplArr = (typeof state !== "undefined" && Array.isArray(state.templates)) ? state.templates
+                   : (Array.isArray(globalThis.templates) ? globalThis.templates : []);
+      if (tplArr.length){
+        const t = tplArr.find(x => (x && (x.id === "hundeannahme" || (x.name||"").toLowerCase().includes("hundeannahme"))));
         if (t && t.id) return t.id;
       }
     }catch(_){}
@@ -1553,8 +1558,34 @@ function createStay(){
     if (btn) btn.click();
   };
 
-  // If templates still loading, wait a tick
-  setTimeout(go, 50);
+  // Safari/iPad rendert DOM/Select teils verzögert – robust warten.
+  // Zusätzlich: Templates werden ggf. erst asynchron geladen (Init/Cache). Ohne Templates
+  // kann der Editor nicht öffnen, daher hier explizit sicherstellen, dass Templates geladen sind.
+  let tries = 0;
+  const tick = () => {
+    tries++;
+
+    // 1) Templates sicherstellen
+    const tplList = (state.templates && state.templates.length) ? state.templates : (globalThis.templates || []);
+    if(!tplList.length){
+      // Falls möglich, Templates aktiv laden
+      if(typeof loadTemplates === 'function'){
+        Promise.resolve(loadTemplates())
+          .catch(()=>{})
+          .finally(()=>{ if(tries < 40) setTimeout(tick, 80); });
+        return;
+      }
+      if(tries < 40){ setTimeout(tick, 80); return; }
+    }
+    const sel = document.getElementById("templateSelect");
+    // Wenn der Select noch nicht da ist, kurz warten und erneut versuchen
+    if (!sel && tries < 25) {
+      setTimeout(tick, 80);
+      return;
+    }
+    go();
+  };
+  setTimeout(tick, 0);
 }
 
 function openDogs(){ selectTab("dogs"); }
@@ -5332,13 +5363,6 @@ updateCreateInvoiceButton();
   if(!currentDoc) return;
   ensureDocLinks(currentDoc);
   updateDocCustomerPetFromDogId(currentDoc);
-  // Phase 2.1: Aufenthalt immer mit Vertrags-Instanz versehen
-  try{
-    if(isStayDoc(currentDoc)){
-      ensureContractInstanceForStay(currentDoc);
-    }
-  }catch(e){}
-
 normalizeMeta(currentDoc);
   $("#editorTitle").textContent=currentDoc.title||"Dokument";
   $("#editorMeta").textContent=currentDoc.templateName;
@@ -5994,18 +6018,6 @@ async function startApp(){
   if(btnQuickInvoices) btnQuickInvoices.onclick = ()=>selectTab("workforms");
   if(btnQuickSettings) btnQuickSettings.onclick = ()=>selectTab("settings");
 
-  // Safari/iPad: Manche Buttons werden durch Re-Renders (innerHTML) ersetzt und verlieren
-  // dann ihren direkten onclick. Daher zusätzlich event delegation.
-  document.addEventListener('click', (ev)=>{
-    const t = ev.target;
-    const hit = t && (t.closest ? (t.closest('#btnNewStayTop') || t.closest('#btnNewStayOnPage')) : null);
-    if(!hit) return;
-    ev.preventDefault();
-    ev.stopPropagation();
-    try { createStay(); }
-    catch(e) { try{ selectTab('documents'); }catch(_e){} }
-  }, true);
-
 
   // Auth state
   CLOUD.auth.onAuthStateChanged(async (user)=>{
@@ -6447,75 +6459,6 @@ function getContractSignature(customerId, petId){
   const v = state.contract?.version || "";
   return (state.contractSignatures||[]).find(s=>s.customerId===customerId && s.petId===petId && s.contractVersion===v) || null;
 }
-function isStayDoc(doc){
-  if(!doc) return false;
-  return (doc.templateId === "hundeannahme" || doc.templateName === "Hundeannahme" || doc.type === "stay");
-}
-
-function getActiveStayDoc(){
-  try{
-    return (typeof currentDoc !== "undefined" && isStayDoc(currentDoc)) ? currentDoc : null;
-  }catch(e){ return null; }
-}
-
-function getContractInstanceForStay(stayId){
-  if(!stayId) return null;
-  const ver = (state.contract && state.contract.version) ? state.contract.version : "1.0";
-  const arr = state.contractInstances || [];
-  return arr.find(x => x.stayId === stayId && (x.contractVersion||"") === ver) || null;
-}
-
-function ensureContractInstanceForStay(doc){
-  if(!doc || !doc.id) return null;
-  const ver = (state.contract && state.contract.version) ? state.contract.version : "1.0";
-
-  state.contractInstances = state.contractInstances || [];
-  let ci = state.contractInstances.find(x => x.stayId === doc.id && (x.contractVersion||"") === ver);
-
-  if(!ci){
-    ci = {
-      id: uid(),
-      stayId: doc.id,
-      customerId: doc.customerId || (doc.meta ? doc.meta.contractCustomerId : "") || "",
-      petId: doc.petId || (doc.meta ? doc.meta.contractPetId : "") || "",
-      contractVersion: ver,
-      templateVersions: { agb: "1.0", contract: ver },
-      status: "draft",
-      agbAccepted: false,
-      agbAcceptedAt: null,
-      signedAt: null,
-      signatureId: null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    state.contractInstances.push(ci);
-    // doc.meta spiegeln (hilft anderen Stellen)
-    doc.meta = doc.meta || {};
-    doc.meta.contractStayId = doc.id;
-    doc.meta.contractCustomerId = ci.customerId || "";
-    doc.meta.contractPetId = ci.petId || "";
-    doc.meta.contractVersion = ver;
-    doc.meta.contractStatus = ci.status;
-    dirty = true;
-    saveState();
-  }else{
-    // Sync IDs, falls sie inzwischen gesetzt wurden
-    const cid = doc.customerId || (doc.meta ? doc.meta.contractCustomerId : "") || ci.customerId || "";
-    const pid = doc.petId || (doc.meta ? doc.meta.contractPetId : "") || ci.petId || "";
-    if(cid && cid !== ci.customerId) ci.customerId = cid;
-    if(pid && pid !== ci.petId) ci.petId = pid;
-    ci.updatedAt = new Date().toISOString();
-
-    doc.meta = doc.meta || {};
-    doc.meta.contractStayId = doc.id;
-    doc.meta.contractCustomerId = ci.customerId || "";
-    doc.meta.contractPetId = ci.petId || "";
-    doc.meta.contractVersion = ver;
-    doc.meta.contractStatus = ci.status;
-  }
-  return ci;
-}
-
 function hasValidContract(customerId, petId){
   return !!getContractSignature(customerId, petId);
 }
@@ -6685,45 +6628,6 @@ function renderContractPanel(){
   cs.onchange = fillPets;
   fillPets();
 
-  // Phase 2.1: Wenn ein Aufenthalt im Editor aktiv ist, Vertrag 1:1 an Aufenthalt koppeln
-  const stayDoc = getActiveStayDoc();
-  if(stayDoc){
-    const ci = ensureContractInstanceForStay(stayDoc);
-    if(ci){
-      if(ci.customerId){
-        cs.value = ci.customerId;
-        fillPets();
-      }
-      if(ci.petId){
-        ps.value = ci.petId;
-        if(typeof ps.onchange === "function") ps.onchange();
-      }
-      const chk0 = document.getElementById("contractAcceptChk");
-      if(chk0) chk0.checked = !!ci.agbAccepted;
-    }
-  }
-
-  // AGB/Vertragsannahme persistieren (pro Aufenthalt/Vertragsversion)
-  const acceptChk = document.getElementById("contractAcceptChk");
-  if(acceptChk){
-    acceptChk.onchange = ()=>{
-      const sd = getActiveStayDoc();
-      if(!sd) return; // nur im Kontext Aufenthalt persistieren
-      const ci = ensureContractInstanceForStay(sd);
-      if(!ci) return;
-      ci.agbAccepted = !!acceptChk.checked;
-      ci.agbAcceptedAt = ci.agbAccepted ? new Date().toISOString() : null;
-      ci.updatedAt = new Date().toISOString();
-      sd.meta = sd.meta || {};
-      sd.meta.contractAgbAcceptedAt = ci.agbAcceptedAt;
-      sd.meta.contractStatus = ci.status;
-      dirty = true;
-      saveState();
-      updateSignedInfo();
-    };
-  }
-
-
   // Wenn ein Hund gewählt wird, Kunde automatisch übernehmen (falls verknüpft)
   ps.onchange = ()=>{
     const selectedPetId = ps.value;
@@ -6774,31 +6678,6 @@ function renderContractPanel(){
     // Replace existing for this combo/version
     state.contractSignatures = (state.contractSignatures||[]).filter(s=>!(s.customerId===customerId && s.petId===petId && s.contractVersion===sig.contractVersion));
     state.contractSignatures.push(sig);
-
-    // Phase 2.1: im Kontext eines Aufenthalts Vertrag als "signed" markieren
-    const sd = getActiveStayDoc();
-    if(sd){
-      const ci = ensureContractInstanceForStay(sd);
-      if(ci){
-        ci.customerId = customerId;
-        ci.petId = petId;
-        ci.signatureId = sig.id;
-        ci.signedAt = sig.signedAt;
-        ci.status = "signed";
-        ci.updatedAt = new Date().toISOString();
-
-        sd.meta = sd.meta || {};
-        sd.meta.contractCustomerId = customerId;
-        sd.meta.contractPetId = petId;
-        sd.meta.contractVersion = state.contract.version;
-        sd.meta.contractStatus = "signed";
-        sd.meta.contractSignedAt = sig.signedAt;
-        sd.meta.contractSignatureId = sig.id;
-        sd.meta.contractAgbAcceptedAt = (ci.agbAcceptedAt || new Date().toISOString());
-        dirty = true;
-      }
-    }
-
     saveState();
     clearContractSig();
     chk.checked = false;
@@ -6858,13 +6737,6 @@ function openContractFromStay(doc){
   doc.meta = doc.meta || {};
   doc.meta.contractCustomerId = customerId;
   doc.meta.contractPetId = petId;
-  // Phase 2.1: Vertrag 1:1 an Aufenthalt koppeln (Instanz anlegen)
-  try{
-    doc.customerId = customerId;
-    doc.petId = petId;
-    ensureContractInstanceForStay(doc);
-  }catch(e){}
-
   dirty = true;
   saveState();
 
