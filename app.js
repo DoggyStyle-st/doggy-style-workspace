@@ -1,4 +1,4 @@
-const APP_BUILD = "v11-TEST-OPTIK-01";
+const APP_BUILD = "v11-TEST-OPTIK-01-PATCH-AUFENTHALT-01";
 window.addEventListener("error",(e)=>{console.error("APP_ERROR",e.error||e.message);});
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
@@ -1504,80 +1504,88 @@ function selectTab(tabId){
   showPanel(tabId);
 }
 
-async function createStay(){
-  // Neuer Aufenthalt = Template "hundeannahme"
-  // Problem in der Praxis: Wenn Templates (fetch) nicht geladen sind, macht createDoc() nichts -> wirkt wie "Button tot".
-  // Daher: hier erzwingen wir ein Load + geben eine sichtbare Fehlermeldung, falls das Template nicht gefunden wird.
-
+function createStay(){
+  // Neuer Aufenthalt (Hundeannahme) – robust:
+  // 1) Auf "Dokumente/Vorlagen" wechseln (damit der Editor sichtbar ist)
+  // 2) Template sicher finden (id bevorzugt, sonst Name)
+  // 3) Direkt createDoc(templateId) ausführen
   try{ selectTab("documents"); }catch(_){}
+
+  // Sichtbares Feedback (wichtig bei Safari/iPad, wenn der Tab bereits offen ist)
   try{ if (typeof showMiniToast === "function") showMiniToast("Öffne Aufenthalt-Editor …"); }catch(_){}
 
-  // 1) Templates sicher laden (hart, ohne Cache)
-  try{
-    if (typeof loadTemplates === "function") {
-      await loadTemplates();
+  const pickTemplateId = () => {
+    // Prefer exact id
+    if (typeof getTemplate === "function") {
+      const direct = getTemplate("hundeannahme");
+      if (direct && direct.id) return direct.id;
     }
-  }catch(e){
-    console.error("loadTemplates failed", e);
-  }
-
-  // 2) Template auflösen
-  const resolveTemplate = ()=>{
-    try{
-      if (typeof getTemplate === "function") {
-        const t = getTemplate("hundeannahme");
-        if (t && t.id) return t;
-      }
-    }catch(_){}
+    // From loaded templates array (state.templates ist die Quelle der Wahrheit)
     try{
       const tplArr = (typeof state !== "undefined" && Array.isArray(state.templates)) ? state.templates
                    : (Array.isArray(globalThis.templates) ? globalThis.templates : []);
       if (tplArr.length){
-        const t = tplArr.find(x => x && (x.id === "hundeannahme" || (x.name||"").toLowerCase().includes("hundeannahme")));
-        if (t) return t;
+        const t = tplArr.find(x => (x && (x.id === "hundeannahme" || (x.name||"").toLowerCase().includes("hundeannahme"))));
+        if (t && t.id) return t.id;
       }
     }catch(_){}
-    return null;
+    // From select options
+    const sel = document.getElementById("templateSelect");
+    if (sel) {
+      const opt = Array.from(sel.options || []).find(o =>
+        ((o.value||"").toLowerCase() === "hundeannahme") ||
+        ((o.textContent||"").toLowerCase().includes("hundeannahme"))
+      );
+      if (opt) return opt.value || "hundeannahme";
+      // fallback: keep current selection if any
+      if (sel.value) return sel.value;
+    }
+    return "hundeannahme";
   };
 
-  const t = resolveTemplate();
-
-  // 3) Wenn Template fehlt: sichtbarer Fehler + Diagnosehinweis
-  if(!t){
-    const msg =
-      "Aufenthalt-Editor konnte nicht geöffnet werden, weil die Vorlage 'hundeannahme.json' nicht geladen wurde.\n\n" +
-      "Bitte prüfen:\n" +
-      "1) Existiert der Ordner /templates/ (kleines t) im gleichen Verzeichnis wie app.html?\n" +
-      "2) Liegt dort hundeannahme.json?\n" +
-      "3) Öffne diag.html und nutze 'app.js fetch (no-store)' – wenn 404/HTML kommt, ist der Pfad falsch.\n";
-    console.warn(msg);
-    try{ alert(msg); }catch(_){}
-    return;
-  }
-
-  // 4) TemplateSelect setzen (falls vorhanden)
-  try{
+  const go = () => {
+    const tid = pickTemplateId();
+    // Ensure select reflects the choice (nice-to-have)
     const sel = document.getElementById("templateSelect");
-    if (sel) sel.value = t.id || "hundeannahme";
-  }catch(_){}
+    if (sel) sel.value = tid;
 
-  // 5) Editor öffnen – bevorzugt createDoc, ansonsten UI-Button
-  try{
     if (typeof createDoc === "function") {
-      createDoc(t.id || "hundeannahme");
+      createDoc(tid);
       return;
     }
-  }catch(e){
-    console.error("createDoc failed", e);
-  }
+    // Fallback: click the existing "Neues Dokument" button
+    const btn = document.getElementById("btnNewDoc");
+    if (btn) btn.click();
+  };
 
-  // Fallback: klick auf "Neues Dokument"
-  const btn = document.getElementById("btnNewDoc");
-  if (btn) {
-    try{ btn.click(); }catch(_){}
-  } else {
-    try{ alert("Interner Fehler: Button btnNewDoc nicht gefunden."); }catch(_){}
-  }
+  // Safari/iPad rendert DOM/Select teils verzögert – robust warten.
+  // Zusätzlich: Templates werden ggf. erst asynchron geladen (Init/Cache). Ohne Templates
+  // kann der Editor nicht öffnen, daher hier explizit sicherstellen, dass Templates geladen sind.
+  let tries = 0;
+  const tick = () => {
+    tries++;
+
+    // 1) Templates sicherstellen
+    const tplList = (state.templates && state.templates.length) ? state.templates : (globalThis.templates || []);
+    if(!tplList.length){
+      // Falls möglich, Templates aktiv laden
+      if(typeof loadTemplates === 'function'){
+        Promise.resolve(loadTemplates())
+          .catch(()=>{})
+          .finally(()=>{ if(tries < 40) setTimeout(tick, 80); });
+        return;
+      }
+      if(tries < 40){ setTimeout(tick, 80); return; }
+    }
+    const sel = document.getElementById("templateSelect");
+    // Wenn der Select noch nicht da ist, kurz warten und erneut versuchen
+    if (!sel && tries < 25) {
+      setTimeout(tick, 80);
+      return;
+    }
+    go();
+  };
+  setTimeout(tick, 0);
 }
 
 function openDogs(){ selectTab("dogs"); }
@@ -3296,11 +3304,17 @@ function normalizeTemplate(t){
 async function loadTemplates(){
   templates = [];
   const files = [
-    // Achtung: GitHub Pages ist case-sensitiv. Wir versuchen daher beide Ordnernamen (templates / Templates).
+    // GitHub Pages ist case-sensitiv (Ordner + Dateiname). Daher probieren wir robuste Varianten.
+    // Aufenthalte (Hundeannahme)
     {path: "templates/hundeannahme.json", label: "Hundeannahme"},
+    {path: "templates/Hundeannahme.json", label: "Hundeannahme"},
     {path: "Templates/hundeannahme.json", label: "Hundeannahme"},
+    {path: "Templates/Hundeannahme.json", label: "Hundeannahme"},
+    // Rechnungen
     {path: "templates/rechnung.json", label: "Rechnung"},
-    {path: "Templates/rechnung.json", label: "Rechnung"}
+    {path: "templates/Rechnung.json", label: "Rechnung"},
+    {path: "Templates/rechnung.json", label: "Rechnung"},
+    {path: "Templates/Rechnung.json", label: "Rechnung"}
   ];
 
   for(const f of files){
@@ -3317,8 +3331,8 @@ async function loadTemplates(){
   // Fallback: Wenn gar nichts geladen werden konnte, App trotzdem startbar lassen
   if(!templates.length){
     templates = [{
-      id: "hundeannahme_fallback",
-      name: "Hundeannahme (Fallback)",
+      id: "hundeannahme",
+      name: "Hundeannahme",
       fields: [],
       meta: {}
     }];
