@@ -464,6 +464,29 @@ function cloudTasksCol(){
   return CLOUD.db.collection("orgs").doc(CLOUD.orgId).collection("tasks");
 }
 
+async function cloudLoadCustomers() {
+  if (!CLOUD.enabled) return [];
+  const snap = await CLOUD.db
+    .collection("orgs")
+    .doc(CLOUD.orgId)
+    .collection("customers")
+    .orderBy("name")
+    .get();
+  return (snap.docs || []).map(d => ({ id: d.id, ...(d.data() || {}) }));
+}
+
+async function cloudLoadDogs() {
+  if (!CLOUD.enabled) return [];
+  const snap = await CLOUD.db
+    .collection("orgs")
+    .doc(CLOUD.orgId)
+    .collection("dogs")
+    .orderBy("name")
+    .get();
+  return (snap.docs || []).map(d => ({ id: d.id, ...(d.data() || {}) }));
+}
+
+
 async function loadOrCreateUserProfile(user){
   if(!CLOUD.enabled || !user) return null;
   const uid = user.uid;
@@ -5769,7 +5792,7 @@ if(_btnBackupImport && _fileBackupImport){
       pruneInvoiceDocs();
       ensureDefaultDog();
       saveState();
-      renderDogs();
+      // renderDogs();
       renderDocs();
       renderInvoiceList();
       alert('✅ Backup importiert.');
@@ -5920,7 +5943,26 @@ return;
     if(btnLogoutApp) btnLogoutApp.style.display = "inline-block";
 
     // staff/admin Features (Rollen, Aufgaben, Inbox)
-    try{ await initStaffFeatures(); }catch(e){ console.warn(e); }
+    try{ await initStaffFeatures(); 
+// === PHASE 1.1: Hunde & Kunden IMMER aus Cloud laden (Reload-sicher) ===
+try {
+  const [customers, dogs] = await Promise.all([
+    cloudLoadCustomers(),
+    cloudLoadDogs()
+  ]);
+
+  state.customers = customers;
+  state.dogs = dogs;
+
+  // WICHTIG: nicht saveState() hier! Nur UI aktualisieren.
+  try { renderDogs(); } catch (e) { console.warn('renderDogs failed', e); }
+  try { refreshCustomerSelect(); } catch (e) { /* ignore */ }
+
+} catch (e) {
+  console.error("Cloud load dogs/customers failed", e);
+}
+
+}catch(e){ console.warn(e); }
 
     // Sync UI initial
     SYNC.cloudLastOkAt = Number(CLOUD.lastPushOkAt||0);
