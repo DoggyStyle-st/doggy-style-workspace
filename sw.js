@@ -1,6 +1,6 @@
-/* Doggy Style – Service Worker TEST-OPTIK-01-2026-01-03b (offline-first, update-safe) */
+/* Doggy Style – Service Worker PATCH_OPTIK_02_2026-01-06a (offline-first, update-safe) */
 
-const SW_VERSION = "TEST-OPTIK-01-2026-01-03b";
+const SW_VERSION = "PATCH_OPTIK_02_2026-01-06a";
 const CACHE_NAME = `ds-test-cache-${SW_VERSION}`;
 
 // Wichtig:
@@ -14,7 +14,7 @@ const CORE_ASSETS = [
   "login.html",
   "app.html",
   "styles.css",
-  "app.js",
+  "app.js?v=PATCH_OPTIK_02_2026-01-06a",
   "manifest.json",
   "assets/logo.png"
 ];
@@ -66,6 +66,21 @@ self.addEventListener("fetch", (event) => {
       }catch(e){
         const cached = await caches.match(req);
         return cached || caches.match("index.html");
+      }
+    })());
+    return;
+  }
+
+  // app.js: immer network-first (Cache-Bust + Update-Sicherheit)
+  if(url.pathname.endsWith("/app.js")) {
+    event.respondWith((async ()=>{
+      try{
+        const fresh = await fetch(req, {cache:"no-store"});
+        await cachePut(req, fresh);
+        return fresh;
+      }catch(e){
+        const cached = await caches.match(req);
+        return cached || new Response("console.error(\"offline\");", {headers:{"content-type":"application/javascript"}});
       }
     })());
     return;
