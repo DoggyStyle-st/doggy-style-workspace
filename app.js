@@ -1,3 +1,13 @@
+console.log("APP.JS BOOT START");
+
+window.onerror = function (msg, url, line, col, error) {
+  alert(
+    "JS-FEHLER:\n" +
+    msg + "\n\n" +
+    "Datei:\n" + url + "\n\n" +
+    "Zeile: " + line
+  );
+};
 const APP_BUILD = "v11-TEST-OPTIK-01-PATCH-AUFENTHALT-02";
 window.addEventListener("error",(e)=>{console.error("APP_ERROR",e.error||e.message);});
 const $=s=>document.querySelector(s);
