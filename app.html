@@ -113,10 +113,10 @@
 <div class="card">
 <h2>Schnellaktionen</h2>
 <div class="quick-actions">
-<button class="btn primary" id="btnNewStayTop" type="button">➕ Neuer Aufenthalt</button>
-<button class="btn" id="btnQuickDogs" type="button">🐶 Hunde/Kunden</button>
+<button class="btn primary" id="btnNewStayTop" type="button" onclick="try{createStay()}catch(e){try{selectTab('documents')}catch(_){}}">➕ Neuer Aufenthalt</button>
+<button class="btn" id="btnQuickDogs" type="button" onclick="try{selectTab('dogs')}catch(e){}">🐶 Hunde/Kunden</button>
 
-<button class="btn" id="btnQuickInvoices" type="button">🧾 Rechnungen</button>
+<button class="btn" id="btnQuickInvoices" type="button" onclick="try{selectTab('workforms')}catch(e){}">🧾 Rechnungen</button>
 <button class="btn" onclick="selectTab('settings')">⚙️ Einstellungen</button>
 
 </div>
@@ -436,7 +436,7 @@
 <div class="row between">
 <h1>Aufenthalte</h1>
 <div class="row" style="gap:10px;flex-wrap:wrap;justify-content:flex-end;">
-  <button class="btn primary" id="btnNewStayOnPage" type="button">➕ Neuer Aufenthalt</button>
+  <button class="btn primary" id="btnNewStayOnPage" type="button" onclick="try{createStay()}catch(e){try{selectTab('documents')}catch(_){}}">➕ Neuer Aufenthalt</button>
 </div>
 <button class="btn" id="btnExportAll">Export: Backup (JSON)</button>
 </div>
@@ -1031,7 +1031,7 @@
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-<script defer="defer" src="app.js?v=PATCH_OPTIK_02_2026-01-06a"></script>
+<script defer="defer" src="app.js?v=PATCH_OPTIK_03_2026-01-06b"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1074,7 +1074,7 @@
 </script>
 
 <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=PATCH_OPTIK_02_2026-01-06a');
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=PATCH_OPTIK_03_2026-01-06b');
   </script>
 
 <script>
