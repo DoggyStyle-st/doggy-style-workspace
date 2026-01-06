@@ -1,4 +1,4 @@
-const APP_BUILD = "v11-TEST-OPTIK-01-PATCH-AUFENTHALT-01";
+const APP_BUILD = "v11-TEST-OPTIK-01-PATCH-AUFENTHALT-02";
 window.addEventListener("error",(e)=>{console.error("APP_ERROR",e.error||e.message);});
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
@@ -1503,6 +1503,22 @@ function selectTab(tabId){
   $$(".tab").forEach(b=>b.classList.toggle("is-active", b.dataset.tab===tabId));
   showPanel(tabId);
 }
+
+function wireQuickActions(){
+  try{
+    const btnNewStayTop = document.getElementById("btnNewStayTop");
+    const btnNewStayOnPage = document.getElementById("btnNewStayOnPage");
+    const btnQuickDogs = document.getElementById("btnQuickDogs");
+    const btnQuickInvoices = document.getElementById("btnQuickInvoices");
+    if(btnNewStayTop) btnNewStayTop.onclick = ()=>{ try{ createStay(); }catch(e){ selectTab("documents"); } };
+    if(btnNewStayOnPage) btnNewStayOnPage.onclick = ()=>{ try{ createStay(); }catch(e){ selectTab("documents"); } };
+    if(btnQuickDogs) btnQuickDogs.onclick = ()=>selectTab("dogs");
+    if(btnQuickInvoices) btnQuickInvoices.onclick = ()=>selectTab("workforms");
+  }catch(e){
+    console.error("wireQuickActions failed", e);
+  }
+}
+
 
 function createStay(){
   // Neuer Aufenthalt (Hundeannahme) – robust:
@@ -5964,6 +5980,8 @@ async function bootOnce(){
 }
 
 async function startApp(){
+  // UI wiring (auch im Offline-Modus)
+  try{ wireQuickActions(); }catch(e){}
   // 1) Wenn Cloud aktiviert: Login + Sync
   const cloudOk = await cloudInit();
   if(!cloudOk){
