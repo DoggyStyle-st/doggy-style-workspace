@@ -1,4 +1,5 @@
-const APP_BUILD = "v11-TEST-OPTIK-01-PATCH-AUFENTHALT-02";
+// Sichtbarer Build-Zähler (Variante A)
+const APP_BUILD = "V10FIX6-A-001";
 window.addEventListener("error",(e)=>{console.error("APP_ERROR",e.error||e.message);});
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
@@ -7498,7 +7499,13 @@ function wfTodayPrint(){
   `;
   wfOpenPdf(wfPdfTemplate("Heute drucken", body));
 }
-try{ const bb=document.getElementById('buildBadge'); if(bb) bb.textContent = 'Build ' + APP_BUILD; }catch(e){}
+try{
+  const bb=document.getElementById('buildBadge');
+  if(bb){
+    const v = new URLSearchParams(location.search).get('v');
+    bb.textContent = `Build: ${APP_BUILD}${v ? ` · ?v=${v}` : ''}`;
+  }
+}catch(e){}
 // Export helper for inline HTML onclick handlers
 try{ window.createStay = createStay; }catch(e){}
 
