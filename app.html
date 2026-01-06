@@ -1139,5 +1139,28 @@
 </div>
 <div class="test-badge" id="testBadge">PRODUKTIV</div>
 <div class="build-badge" id="buildBadge">Build</div>
+
+<!-- V10 Modal Editor -->
+<style>
+.editor-modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:9999}
+.editor-modal.hidden{display:none}
+.editor-modal .panel{background:#111;border-radius:12px;max-width:95vw;max-height:90vh;width:900px;box-shadow:0 20px 60px rgba(0,0,0,.6);overflow:auto}
+.editor-modal .panel header{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid #222}
+.editor-modal .panel header h3{margin:0;font-size:16px}
+.editor-modal .panel header button{background:#333;color:#fff;border:0;border-radius:8px;padding:6px 10px}
+.editor-modal .panel .content{padding:16px}
+</style>
+<div id="editorModal" class="editor-modal hidden" aria-hidden="true">
+  <div class="panel">
+    <header>
+      <h3>Editor – Neuer Aufenthalt (V10)</h3>
+      <button onclick="closeEditorModal()">Schließen</button>
+    </header>
+    <div id="editorRoot" class="content">
+      <p>Editor wird geladen…</p>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>

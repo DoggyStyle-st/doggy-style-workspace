@@ -1520,10 +1520,7 @@ function wireQuickActions(){
 }
 
 
-function createStay(){
-  // Neuer Aufenthalt: Öffnet zuverlässig den Editor aus einem Template.
-  // Strategie: auf "Arbeitsblätter" (workforms) wechseln und dann (mit kurzem Delay) createDoc(templateId) ausführen.
-  try{ if (typeof showMiniToast === "function") showMiniToast("Öffne Aufenthalt-Editor …"); }catch(_){}
+function createStay(){ openEditorModal('neueraufenthalt'); }catch(_){}
 
   // 1) Tab wechseln (dort existiert der Editor-Container sicher)
   try{ if (typeof selectTab === "function") selectTab("workforms"); }catch(_){}
@@ -7530,3 +7527,19 @@ function wfTodayPrint(){
   wfOpenPdf(wfPdfTemplate("Heute drucken", body));
 }
 try{ const bb=document.getElementById('buildBadge'); if(bb) bb.textContent = 'Build ' + APP_BUILD; }catch(e){}
+
+// V10 Modal Editor helpers
+function openEditorModal(templateId){
+  const m = document.getElementById('editorModal');
+  const r = document.getElementById('editorRoot');
+  if(!m || !r){ console.error('Modal container missing'); return; }
+  r.innerHTML = '<p><strong>V10 Modal aktiv.</strong></p>' +
+                '<p>Template: <code>' + (templateId||'neueraufenthalt') + '</code></p>' +
+                '<p>Hier rendert der Aufenthalt-Editor unabhängig von Tabs.</p>';
+  m.classList.remove('hidden');
+  m.setAttribute('aria-hidden','false');
+}
+function closeEditorModal(){
+  const m = document.getElementById('editorModal');
+  if(m){ m.classList.add('hidden'); m.setAttribute('aria-hidden','true'); }
+}
