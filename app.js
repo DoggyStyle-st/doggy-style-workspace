@@ -1,13 +1,3 @@
-console.log("APP.JS BOOT START");
-
-window.onerror = function (msg, url, line, col, error) {
-  alert(
-    "JS-FEHLER:\n" +
-    msg + "\n\n" +
-    "Datei:\n" + url + "\n\n" +
-    "Zeile: " + line
-  );
-};
 const APP_BUILD = "v11-TEST-OPTIK-01-PATCH-AUFENTHALT-02";
 window.addEventListener("error",(e)=>{console.error("APP_ERROR",e.error||e.message);});
 const $=s=>document.querySelector(s);
@@ -1530,59 +1520,8 @@ function wireQuickActions(){
 }
 
 
-function createStay(){ openEditorModal('neueraufenthalt'); }catch(_){}
+function createStay(){ openEditorModal('neueraufenthalt','Neuer Aufenthalt'); }
 
-  // 1) Tab wechseln (dort existiert der Editor-Container sicher)
-  try{ if (typeof selectTab === "function") selectTab("workforms"); }catch(_){}
-
-  // 2) Template-ID robust ermitteln
-  const resolveTemplateId = () => {
-    try{
-      if (typeof getTemplate === "function") {
-        const t = getTemplate("neueraufenthalt") || getTemplate("NeuerAufenthalt") || getTemplate("hundeannahme") || getTemplate("Hundeannahme");
-        if (t && t.id) return t.id;
-      }
-    }catch(_){}
-    try{
-      const arr = (typeof state !== "undefined" && Array.isArray(state.templates)) ? state.templates : [];
-      const t = arr.find(x => x && (x.id === "neueraufenthalt" || x.id === "NeuerAufenthalt" || x.id === "hundeannahme" || x.id === "Hundeannahme" ||
-                                   (String(x.name||"").toLowerCase().includes("neuer") && String(x.name||"").toLowerCase().includes("aufenthalt")) ||
-                                   String(x.name||"").toLowerCase().includes("hundeannahme")));
-      if (t && t.id) return t.id;
-    }catch(_){}
-    // Fallback: Template-Select
-    try{
-      const sel = document.getElementById("templateSelect");
-      if (sel) {
-        const opt = Array.from(sel.options||[]).find(o => {
-          const v = String(o.value||"").toLowerCase();
-          const t = String(o.textContent||"").toLowerCase();
-          return v==="neueraufenthalt" || v==="hundeannahme" || t.includes("neuer aufenthalt") || t.includes("hundeannahme");
-        });
-        if (opt) return opt.value;
-      }
-    }catch(_){}
-    return "neueraufenthalt";
-  };
-
-  const templateId = resolveTemplateId();
-
-  // 3) Öffnen verzögert (DOM/Tab-Render auf iPad Safari)
-  const tryOpen = () => {
-    try{
-      if (typeof createDoc === "function") return createDoc(templateId);
-      if (typeof openTemplate === "function") return openTemplate(templateId);
-      if (typeof openDoc === "function") return openDoc({ id: uid(), type: "doc", templateId });
-    }catch(e){
-      console.error("createStay.open_failed", e);
-      try{ if (typeof showMiniToast === "function") showMiniToast("Editor konnte nicht geöffnet werden (siehe Konsole)."); }catch(_){}
-    }
-  };
-
-  // Zwei Versuche: sofort + nach 250ms
-  tryOpen();
-  setTimeout(tryOpen, 250);
-}
 
 function openDogs(){ selectTab("dogs"); }
 function openCustomers(){ selectTab("dogs"); } // Kunden sind im Hunde/Kunden Bereich
@@ -7537,19 +7476,20 @@ function wfTodayPrint(){
   wfOpenPdf(wfPdfTemplate("Heute drucken", body));
 }
 try{ const bb=document.getElementById('buildBadge'); if(bb) bb.textContent = 'Build ' + APP_BUILD; }catch(e){}
-
-// V10 Modal Editor helpers
-function openEditorModal(templateId){
-  const m = document.getElementById('editorModal');
-  const r = document.getElementById('editorRoot');
-  if(!m || !r){ console.error('Modal container missing'); return; }
-  r.innerHTML = '<p><strong>V10 Modal aktiv.</strong></p>' +
-                '<p>Template: <code>' + (templateId||'neueraufenthalt') + '</code></p>' +
-                '<p>Hier rendert der Aufenthalt-Editor unabhängig von Tabs.</p>';
+// --- V10 Modal Editor helpers (tab-independent) ---
+function openEditorModal(templateId, title){
+  const m=document.getElementById('editorModal');
+  const root=document.getElementById('editorRoot');
+  const t=document.getElementById('editorModalTitle');
+  if(!m || !root){ console.error('Modal container missing'); return; }
+  if(t) t.textContent = title || 'Editor';
+  root.innerHTML = '<div style="padding:8px 0"><strong>Modal-Editor aktiv (V10).</strong></div>' +
+                   '<div>Template: <code>' + (templateId||'neueraufenthalt') + '</code></div>' +
+                   '<div style="opacity:.8;margin-top:8px">Nächster Schritt: echten Aufenthalt-Editor hier rendern.</div>';
   m.classList.remove('hidden');
   m.setAttribute('aria-hidden','false');
 }
 function closeEditorModal(){
-  const m = document.getElementById('editorModal');
+  const m=document.getElementById('editorModal');
   if(m){ m.classList.add('hidden'); m.setAttribute('aria-hidden','true'); }
 }
