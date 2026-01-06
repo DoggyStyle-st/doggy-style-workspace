@@ -1513,14 +1513,37 @@ function wireQuickActions(){
     if(btnNewStayTop) btnNewStayTop.onclick = ()=>{ try{ createStay(); }catch(e){ selectTab("documents"); } };
     if(btnNewStayOnPage) btnNewStayOnPage.onclick = ()=>{ try{ createStay(); }catch(e){ selectTab("documents"); } };
     if(btnQuickDogs) btnQuickDogs.onclick = ()=>selectTab("dogs");
-    if(btnQuickInvoices) btnQuickInvoices.onclick = ()=>selectTab("workforms");
+    // Schnellaktion "Rechnungen" darf nicht auf "Arbeitsblätter" springen.
+    if(btnQuickInvoices) btnQuickInvoices.onclick = ()=>selectTab("invoices");
   }catch(e){
     console.error("wireQuickActions failed", e);
   }
 }
 
 
-function createStay(){ openEditorModal('neueraufenthalt','Neuer Aufenthalt'); }
+function createStay(){
+  // Aufenthalte sind im Tab "documents".
+  // Wir wechseln dorthin und erstellen dann ein Dokument aus der Vorlage.
+  try{
+    selectTab("documents");
+
+    // Warten bis der Tab sichtbar ist, dann Doc erzeugen.
+    setTimeout(()=>{
+      try{
+        const preferred = "neueraufenthalt";
+        const fallback = "hundeannahme";
+        const hasPreferred = Array.isArray(state?.templates) && state.templates.some(t=>t.id===preferred);
+        createDoc(hasPreferred ? preferred : fallback);
+      }catch(err){
+        console.error("createStay->createDoc failed", err);
+        toast("Aufenthalt-Editor konnte nicht geöffnet werden (siehe Konsole).", 3500);
+      }
+    }, 0);
+  }catch(e){
+    console.error("createStay failed", e);
+    toast("Aufenthalt-Editor konnte nicht geöffnet werden (siehe Konsole).", 3500);
+  }
+}
 
 
 function openDogs(){ selectTab("dogs"); }
@@ -7476,44 +7499,5 @@ function wfTodayPrint(){
   wfOpenPdf(wfPdfTemplate("Heute drucken", body));
 }
 try{ const bb=document.getElementById('buildBadge'); if(bb) bb.textContent = 'Build ' + APP_BUILD; }catch(e){}
-// --- V10 Modal Editor helpers (tab-independent) ---
-function openEditorModal(templateId, title){
-  const m=document.getElementById('editorModal');
-  const root=document.getElementById('editorRoot');
-  const t=document.getElementById('editorModalTitle');
-  if(!m || !root){ console.error('Modal container missing'); return; }
-  if(t) t.textContent = title || 'Editor';
-  root.innerHTML = '<div style="padding:8px 0"><strong>Modal-Editor aktiv (V10).</strong></div>' +
-                   '<div>Template: <code>' + (templateId||'neueraufenthalt') + '</code></div>' +
-                   '<div style="opacity:.8;margin-top:8px">Nächster Schritt: echten Aufenthalt-Editor hier rendern.</div>';
-  m.classList.remove('hidden');
-  m.setAttribute('aria-hidden','false');
-}
-function closeEditorModal(){
-  const m=document.getElementById('editorModal');
-  if(m){ m.classList.add('hidden'); m.setAttribute('aria-hidden','true'); }
-}
-
-
-// V10 Modal Editor helpers (robust)
-function openEditorModal(templateId){
-  const m = document.getElementById('editorModal');
-  const r = document.getElementById('editorRoot');
-  const t = document.getElementById('editorModalTitle');
-  if(!m || !r){ console.error('Modal container missing'); return; }
-  if(t){ t.textContent = 'Neuer Aufenthalt'; }
-  r.innerHTML =
-    '<p><strong>Modal geöffnet.</strong></p>' +
-    '<p>Template: <code>' + (templateId||'neueraufenthalt') + '</code></p>' +
-    '<p>(Nächster Schritt: echten Aufenthalt-Editor hier rendern.)</p>';
-  m.classList.remove('ds-hidden');
-  m.setAttribute('aria-hidden','false');
-}
-function closeEditorModal(){
-  const m = document.getElementById('editorModal');
-  if(m){ m.classList.add('ds-hidden'); m.setAttribute('aria-hidden','true'); }
-}
-
-
-// V10 hook: ensure + Aufenthalt opens modal
-window.createStay = function(){ openEditorModal('neueraufenthalt'); };
+// Export helper for inline HTML onclick handlers
+try{ window.createStay = createStay; }catch(e){}

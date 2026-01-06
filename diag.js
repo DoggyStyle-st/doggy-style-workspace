@@ -1,6 +1,6 @@
 (() => {
   // ÄNDERE NUR DIESE ZEILE, um sofort zu sehen ob neue Version ankommt
-  const DIAG_BUILD = "DIAG-A-007";
+const DIAG_BUILD = "DIAG-A-008";
 
   // Token für harte Cache-Busting-Reloads
   const url = new URL(location.href);

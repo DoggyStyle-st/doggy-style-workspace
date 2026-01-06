@@ -59,6 +59,7 @@
 <button class="tab" data-tab="calendar" id="tabCalendar"><span class="tab-ico" aria-hidden="true">📅</span>Kalender</button>
         <button class="tab" data-tab="inbox" id="tabInbox"><span class="tab-ico" aria-hidden="true">📥</span>Eingänge</button>
         <button class="tab" data-tab="documents"><span class="tab-ico" aria-hidden="true">🏠</span>Aufenthalte</button>
+        <button class="tab" data-tab="invoices" id="tabInvoices"><span class="tab-ico" aria-hidden="true">🧾</span>Rechnungen</button>
         <button class="tab" data-tab="settings" id="tabSettings"><span class="tab-ico" aria-hidden="true">⚙️</span>Einstellungen</button>
       </div>
     </nav>
@@ -116,7 +117,7 @@
 <button class="btn primary" id="btnNewStayTop" type="button" onclick="try{createStay()}catch(e){try{selectTab('documents')}catch(_){}}">➕ Neuer Aufenthalt</button>
 <button class="btn" id="btnQuickDogs" type="button" onclick="try{selectTab('dogs')}catch(e){}">🐶 Hunde/Kunden</button>
 
-<button class="btn" id="btnQuickInvoices" type="button" onclick="try{selectTab('workforms')}catch(e){}">🧾 Rechnungen</button>
+<button class="btn" id="btnQuickInvoices" type="button" onclick="try{selectTab('invoices')}catch(e){}">🧾 Rechnungen</button>
 <button class="btn" onclick="selectTab('settings')">⚙️ Einstellungen</button>
 
 </div>
