@@ -4694,9 +4694,23 @@ function openInvoice(id){
         ${escapeHtml(inv.period?.from||"")} – ${escapeHtml(inv.period?.to||"")}
       </p>
 
-      <p>Grundpreis: ${inv.pricing.basePrice.toFixed(2)} €</p>
-      <p>Zuschläge (%): ${inv.pricing.percentExtra.toFixed(2)} €</p>
-      <p>Zuschläge (fix): ${inv.pricing.fixedExtra.toFixed(2)} €</p>
+      ${(()=>{ 
+        const isFree = !inv.sourceDocId;
+        const lines = [];
+        const baseLabel = isFree ? "Betrag" : "Grundpreis";
+        lines.push(`<p>${baseLabel}: ${inv.pricing.basePrice.toFixed(2)} €</p>`);
+        if(!isFree && (inv.pricing.percentExtra||0)!==0){
+          lines.push(`<p>Zuschläge (%): ${inv.pricing.percentExtra.toFixed(2)} €</p>`);
+        }
+        if(!isFree && (inv.pricing.fixedExtra||0)!==0){
+          lines.push(`<p>Zuschläge (fix): ${inv.pricing.fixedExtra.toFixed(2)} €</p>`);
+        }
+        if(isFree && (inv.note||"").trim()){
+          lines.push(`<p><strong>Beschreibung:</strong> ${escapeHtml(inv.note.trim())}</p>`);
+        }
+        return lines.join("");
+      })()}
+
 
       <hr>
       <h3 style="margin:10px 0 8px">Gesamt: ${inv.pricing.total.toFixed(2)} €</h3>
@@ -4773,7 +4787,7 @@ function openFreeInvoiceForm(){
         </label>
         <label class="field" style="min-width:200px">
           <span>Betrag (€) *</span>
-          <input id="freeInvAmount" type="number" step="0.01" min="0" placeholder="0,00">
+          <input id="freeInvAmount" type="text" inputmode="decimal" placeholder="0,00">
         </label>
       </div>
 
@@ -4835,7 +4849,8 @@ function createFreeInvoice(){
   const from = document.getElementById("freeInvFrom")?.value || "";
   const to = document.getElementById("freeInvTo")?.value || "";
   const note = (document.getElementById("freeInvNote")?.value || "").trim();
-  const amount = parseFloat(document.getElementById("freeInvAmount")?.value || "0");
+  const amountRaw = (document.getElementById("freeInvAmount")?.value || "0").trim();
+  const amount = parseFloat(amountRaw.replace(",", "."));
 
   if(!customerId){ alert("Bitte Kunde auswählen."); return; }
   if(!(amount>0)){ alert("Bitte einen Betrag > 0 eingeben."); return; }
@@ -4940,7 +4955,7 @@ function printInvoice(id){
   <p class="small">
     <strong>Rechnungsnummer:</strong> ${inv.invoiceNumber || "-"}<br>
     <strong>Rechnungsdatum:</strong> ${new Date(inv.invoiceDate||Date.now()).toLocaleDateString("de-DE")}<br>
-    <strong>Leistungszeitraum:</strong> ${escapeHtml(inv.period?.from||"")} – ${escapeHtml(inv.period?.to||"")}
+    ${(()=>{ const f=String(inv.period?.from||""); const to=String(inv.period?.to||""); if(!f && !to) return ""; return `<strong>Leistungszeitraum:</strong> ${escapeHtml(f)} – ${escapeHtml(to)}<br>`; })()}
   </p>
 
   <table>
@@ -4949,7 +4964,7 @@ function printInvoice(id){
       <th class="right">Betrag</th>
     </tr>
     <tr>
-      <td>Grundpreis</td>
+      <td>${!inv.sourceDocId ? ("Betrag" + ((inv.note||"").trim()? "<br><span class=\"small\">"+escapeHtml(inv.note.trim())+"</span>":"")) : "Grundpreis"}</td>
       <td class="right">${inv.pricing.basePrice.toFixed(2)} €</td>
     </tr>
     ${inv.pricing.holidayExtra && inv.pricing.holidayExtra>0 ? `
