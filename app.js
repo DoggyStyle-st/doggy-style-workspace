@@ -1,5 +1,5 @@
 // Sichtbarer Build-Zähler (Variante A)
-const APP_BUILD = "V10FIX6-A-001";
+const APP_BUILD = "V10FIX6-A-002";
 window.addEventListener("error",(e)=>{console.error("APP_ERROR",e.error||e.message);});
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
@@ -532,6 +532,19 @@ function isStateEffectivelyEmpty(s){
 
 // --- Phase 1: Cloud-Datenfluss Merge-Strategie ---
 // Ziel: Remote darf lokale Stammdaten (Hunde/Kunden) nicht "leer" überschreiben.
+function _stampOf(it){
+  if(!it) return 0;
+  const v = (it._updatedAt ?? it.updatedAt ?? it.updated_at ?? it.modifiedAt ?? it.changedAt);
+  if(typeof v === 'number' && isFinite(v)) return v;
+  if(typeof v === 'string'){
+    const n = Number(v);
+    if(isFinite(n) && n>0) return n;
+    const p = Date.parse(v);
+    if(isFinite(p) && p>0) return p;
+  }
+  return 0;
+}
+
 function _mergeById(remoteArr, localArr){
   const m = new Map();
   for (const it of (remoteArr||[])) {
@@ -541,8 +554,8 @@ function _mergeById(remoteArr, localArr){
     if (!it || !it.id) continue;
     const r = m.get(it.id);
     if (!r) { m.set(it.id, it); continue; }
-    const rt = Number(r.updatedAt || r._updatedAt || 0);
-    const lt = Number(it.updatedAt || it._updatedAt || 0);
+    const rt = _stampOf(r);
+    const lt = _stampOf(it);
     if (lt > rt) m.set(it.id, it);
   }
   return Array.from(m.values());
@@ -630,6 +643,12 @@ function cloudPushQueued(){
   CLOUD._pushTimer = setTimeout(()=>cloudPushNow().catch(console.error), 700);
 }
 
+// Alias: wird von saveState() verwendet (ältere Namen kompatibel halten)
+function cloudSchedulePush(){
+  try{ return cloudPushQueued(); }catch(e){ console.warn('cloudSchedulePush', e); }
+}
+
+
 async function cloudPushNow(){
   if(!CLOUD.enabled) return;
   if(!CLOUD.user) throw new Error("Nicht angemeldet");
@@ -647,6 +666,14 @@ async function cloudPushNow(){
       updatedAt: stamp,
       updatedBy: CLOUD.user.email || CLOUD.user.uid
     }, {merge: true});
+    // C1: Wenn Push erfolgreich war, pending-Flags für Rechnungsstatus löschen
+    try{
+      if(Array.isArray(state?.invoices)){
+        state.invoices.forEach(iv=>{ if(iv) iv._pendingStatusSync = false; });
+      }
+      saveState();
+    }catch(_){ }
+
     CLOUD.lastPushOkAt = stamp;
     CLOUD.lastPushError = "";
     SYNC.cloudLastOkAt = stamp;
@@ -4723,9 +4750,23 @@ function setInvoiceStatus(id, status){
   const inv = getInvoiceById(id);
   if(!inv) return;
 
+  const now = Date.now();
   inv.status = status;
-  inv.updatedAt = new Date().toISOString();
+  // Für Merge/Synchronisierung: numerischer Timestamp + ISO für Anzeige
+  inv._updatedAt = now;
+  inv.statusUpdatedAt = now;
+  inv.updatedAt = new Date(now).toISOString();
+
+  // Offline-Änderung merken, damit beim nächsten Online-Sync nichts verloren geht
+  const netOnline = (typeof navigator !== 'undefined') ? !!navigator.onLine : false;
+  inv._pendingStatusSync = !!(CLOUD.enabled && CLOUD.user && !netOnline);
+
   saveState();
+
+  // Wenn online + Cloud aktiv: Sync anstoßen (C1: nur Status/Metadaten, aber wir pushen den State)
+  if(CLOUD.enabled && CLOUD.user && netOnline){
+    try{ cloudSchedulePush(); }catch(_){ }
+  }
 
   openInvoice(id);
   renderInvoiceList();
@@ -6280,7 +6321,16 @@ document.addEventListener("visibilitychange", () => {
 startApp().catch(console.error);
 // UI: Sync-Status regelmäßig auffrischen (auch bei Tab-Wechsel/PWA)
 setInterval(()=>{ try{ updateSyncUI(); }catch(_){ } }, 1500);
-window.addEventListener('online', ()=>{ try{ updateSyncUI(); }catch(_){ } });
+window.addEventListener('online', ()=>{
+  try{ updateSyncUI(); }catch(_){ }
+  // C1: Falls Rechnungs-Statusänderungen offline erfolgt sind, jetzt automatisch syncen
+  try{
+    const pending = Array.isArray(state?.invoices) && state.invoices.some(iv=>iv && iv._pendingStatusSync);
+    if(pending && CLOUD.enabled && CLOUD.user){
+      setTimeout(()=>{ try{ cloudSchedulePush(); }catch(_){ } }, 300);
+    }
+  }catch(_){ }
+});
 window.addEventListener('offline', ()=>{ try{ updateSyncUI(); }catch(_){ } });
 
 /* ===== B2.2a Freier Rechnungs-Editor ===== */
