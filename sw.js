@@ -1,6 +1,6 @@
-/* Doggy Style – Service Worker PATCH_OPTIK_02_2026-01-06a (offline-first, update-safe) */
+/* Doggy Style – Service Worker PATCH_OPTIK_07_2026-01-06e (offline-first, update-safe) */
 
-const SW_VERSION = "PATCH_OPTIK_03_2026-01-06b";
+const SW_VERSION = "PATCH_OPTIK_07_2026-01-06e";
 const CACHE_NAME = `ds-test-cache-${SW_VERSION}`;
 
 // Wichtig:
@@ -14,7 +14,7 @@ const CORE_ASSETS = [
   "login.html",
   "app.html",
   "styles.css",
-  "app.js?v=PATCH_OPTIK_02_2026-01-06a",
+  "app.js?v=PATCH_OPTIK_07_2026-01-06e",
   "manifest.json",
   "assets/logo.png"
 ];
