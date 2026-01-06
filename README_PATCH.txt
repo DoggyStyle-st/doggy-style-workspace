@@ -16,3 +16,6 @@ Was wurde NICHT geändert?
 Einspielen
 - Den kompletten Ordner auf GitHub Pages hochladen (neuer Ordnername hilft gegen Cache).
 - Danach Safari ggf. Website-Daten löschen oder URL mit neuem Ordner aufrufen.
+
+
+V9: createStay() neu geschrieben (robust + Delayed Open). Fix für abgebrochene Template-Suche.

@@ -1521,87 +1521,60 @@ function wireQuickActions(){
 
 
 function createStay(){
-  // Neuer Aufenthalt (Hundeannahme) – robust:
-  // 1) Auf "Dokumente/Vorlagen" wechseln (damit der Editor sichtbar ist)
-  // 2) Template sicher finden (id bevorzugt, sonst Name)
-  // 3) Direkt createDoc(templateId) ausführen
-  try{ selectTab("workforms"); }catch(_){ }
+  // Neuer Aufenthalt: Öffnet zuverlässig den Editor aus einem Template.
+  // Strategie: auf "Arbeitsblätter" (workforms) wechseln und dann (mit kurzem Delay) createDoc(templateId) ausführen.
+  try{ if (typeof showMiniToast === "function") showMiniToast("Öffne Aufenthalt-Editor …"); }catch(_){}
 
-  // Sichtbares Feedback (wichtig bei Safari/iPad, wenn der Tab bereits offen ist)
-  try{ if (typeof showMiniToast === "function") showMiniToast("Öffne NeuerAufenthalt-Editor …"); }catch(_){}
+  // 1) Tab wechseln (dort existiert der Editor-Container sicher)
+  try{ if (typeof selectTab === "function") selectTab("workforms"); }catch(_){}
 
-  const pickTemplateId = () => {
-    // Prefer exact id
-    if (typeof getTemplate === "function") {
-      const direct = getTemplate("neueraufenthalt") || getTemplate("hundeannahme");
-      if (direct && direct.id) return direct.id;
-    }
-    // From loaded templates array (state.templates ist die Quelle der Wahrheit)
+  // 2) Template-ID robust ermitteln
+  const resolveTemplateId = () => {
     try{
-      const tplArr = (typeof state !== "undefined" && Array.isArray(state.templates)) ? state.templates
-                   : (Array.isArray(globalThis.templates) ? globalThis.templates : []);
-      if (tplArr.length){
-        const t = tplArr.find(x => (x && (x.id === "neueraufenthalt" || (x.name||"").toLowerCase().includes("neuer aufenthalt") || (x.name||"").toLowerCase().includes("hundeannahme"))));
+      if (typeof getTemplate === "function") {
+        const t = getTemplate("neueraufenthalt") || getTemplate("NeuerAufenthalt") || getTemplate("hundeannahme") || getTemplate("Hundeannahme");
         if (t && t.id) return t.id;
       }
     }catch(_){}
-    // From select options
-    const sel = document.getElementById("templateSelect");
-    if (sel) {
-      const opt = Array.from(sel.options || []).find(o =>
-        ((o.value||"").toLowerCase() === "hundeannahme") ||
-        ((o.textContent||"").toLowerCase().includes("hundeannahme"))
-      );
-      if (opt) return opt.value || "hundeannahme";
-      // fallback: keep current selection if any
-      if (sel.value) return sel.value;
-    }
-    return "hundeannahme";
-  };
-
-  const go = () => {
-    const tid = pickTemplateId();
-    // Ensure select reflects the choice (nice-to-have)
-    const sel = document.getElementById("templateSelect");
-    if (sel) sel.value = tid;
-
-    if (typeof createDoc === "function") {
-      createDoc(tid);
-      return;
-    }
-    // Fallback: click the existing "Neues Dokument" button
-    const btn = document.getElementById("btnNewDoc");
-    if (btn) btn.click();
-  };
-
-  // Safari/iPad rendert DOM/Select teils verzögert – robust warten.
-  // Zusätzlich: Templates werden ggf. erst asynchron geladen (Init/Cache). Ohne Templates
-  // kann der Editor nicht öffnen, daher hier explizit sicherstellen, dass Templates geladen sind.
-  let tries = 0;
-  const tick = () => {
-    tries++;
-
-    // 1) Templates sicherstellen
-    const tplList = (state.templates && state.templates.length) ? state.templates : (globalThis.templates || []);
-    if(!tplList.length){
-      // Falls möglich, Templates aktiv laden
-      if(typeof loadTemplates === 'function'){
-        Promise.resolve(loadTemplates())
-          .catch(()=>{})
-          .finally(()=>{ if(tries < 40) setTimeout(tick, 80); });
-        return;
+    try{
+      const arr = (typeof state !== "undefined" && Array.isArray(state.templates)) ? state.templates : [];
+      const t = arr.find(x => x && (x.id === "neueraufenthalt" || x.id === "NeuerAufenthalt" || x.id === "hundeannahme" || x.id === "Hundeannahme" ||
+                                   (String(x.name||"").toLowerCase().includes("neuer") && String(x.name||"").toLowerCase().includes("aufenthalt")) ||
+                                   String(x.name||"").toLowerCase().includes("hundeannahme")));
+      if (t && t.id) return t.id;
+    }catch(_){}
+    // Fallback: Template-Select
+    try{
+      const sel = document.getElementById("templateSelect");
+      if (sel) {
+        const opt = Array.from(sel.options||[]).find(o => {
+          const v = String(o.value||"").toLowerCase();
+          const t = String(o.textContent||"").toLowerCase();
+          return v==="neueraufenthalt" || v==="hundeannahme" || t.includes("neuer aufenthalt") || t.includes("hundeannahme");
+        });
+        if (opt) return opt.value;
       }
-      if(tries < 40){ setTimeout(tick, 80); return; }
-    }
-    const sel = document.getElementById("templateSelect");
-    // Wenn der Select noch nicht da ist, kurz warten und erneut versuchen
-    if (!sel && tries < 25) {
-      setTimeout(tick, 80);
-      return;
-    }
-    go();
+    }catch(_){}
+    return "neueraufenthalt";
   };
-  setTimeout(tick, 0);
+
+  const templateId = resolveTemplateId();
+
+  // 3) Öffnen verzögert (DOM/Tab-Render auf iPad Safari)
+  const tryOpen = () => {
+    try{
+      if (typeof createDoc === "function") return createDoc(templateId);
+      if (typeof openTemplate === "function") return openTemplate(templateId);
+      if (typeof openDoc === "function") return openDoc({ id: uid(), type: "doc", templateId });
+    }catch(e){
+      console.error("createStay.open_failed", e);
+      try{ if (typeof showMiniToast === "function") showMiniToast("Editor konnte nicht geöffnet werden (siehe Konsole)."); }catch(_){}
+    }
+  };
+
+  // Zwei Versuche: sofort + nach 250ms
+  tryOpen();
+  setTimeout(tryOpen, 250);
 }
 
 function openDogs(){ selectTab("dogs"); }
