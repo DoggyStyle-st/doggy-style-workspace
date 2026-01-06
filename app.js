@@ -7501,3 +7501,17 @@ function wfTodayPrint(){
 try{ const bb=document.getElementById('buildBadge'); if(bb) bb.textContent = 'Build ' + APP_BUILD; }catch(e){}
 // Export helper for inline HTML onclick handlers
 try{ window.createStay = createStay; }catch(e){}
+
+// V10FIX6_INVOICE_DEFAULTS
+function applyInvoiceDateDefaults(form){
+  try{
+    const today = new Date().toISOString().slice(0,10);
+    const von = form.querySelector('[name="von"]');
+    const bis = form.querySelector('[name="bis"]');
+    const rechnungsdatum = form.querySelector('[name="rechnungsdatum"]');
+    if(von && !von.value) von.value = today;
+    if(bis && bis.value === "" && rechnungsdatum && von){
+      rechnungsdatum.value = von.value;
+    }
+  }catch(e){}
+}
