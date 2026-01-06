@@ -3291,28 +3291,63 @@ $$(".tab").forEach(b=>b.addEventListener("click",()=>{
 
 let templates=[];
 function normalizeTemplate(t){
-  // Unterstützt sowohl Schema (name/key) als auch (title/id)
+  // Unterstützt verschiedene Schemas (alt/neu):
+  // - name/title
+  // - sections[].fields[] (neu)
+  // - fields[] (alt, ohne sections)
+  // - meta[] (neu) oder metaFields[] (alt)
   if(!t || typeof t !== "object") return t;
 
   if(!t.name && t.title) t.name = t.title;
+  if(!t.id && t.key) t.id = t.key;
 
-  // sections[].fields[]: id -> key
+  // 1) fields: id -> key (für beide Ebenen)
+  if(Array.isArray(t.fields)){
+    t.fields.forEach(f=>{
+      if(f && !f.key && f.id) f.key = f.id;
+    });
+  }
+
   if(Array.isArray(t.sections)){
     t.sections.forEach(sec=>{
       if(Array.isArray(sec.fields)){
         sec.fields.forEach(f=>{
           if(f && !f.key && f.id) f.key = f.id;
         });
+      } else {
+        sec.fields = [];
       }
+      if(!sec.title) sec.title = t.name || "Formular";
     });
   }
 
-  // top-level fields[]: id -> key
-  if(Array.isArray(t.fields)){
-    t.fields.forEach(f=>{
+  // 2) Kompatibilität: wenn keine sections vorhanden sind, aber fields existieren → in eine Standard-Section packen
+  if(!Array.isArray(t.sections) || !t.sections.length){
+    const fld = Array.isArray(t.fields) ? t.fields : [];
+    t.sections = [{ title: t.name || "Formular", fields: fld }];
+  }
+
+  // 3) meta: immer als Array vorhalten
+  if(Array.isArray(t.meta)){
+    // ok
+  } else if(Array.isArray(t.metaFields)){
+    t.meta = t.metaFields;
+  } else if(t.meta && typeof t.meta === "object" && Array.isArray(t.meta.fields)){
+    // seltenes Schema: meta: {fields:[...]}
+    t.meta = t.meta.fields;
+  } else {
+    t.meta = [];
+  }
+
+  // meta fields: id -> key
+  if(Array.isArray(t.meta)){
+    t.meta.forEach(f=>{
       if(f && !f.key && f.id) f.key = f.id;
     });
   }
+
+  // DS-GVO Note Alias (optional)
+  if(!t.dsGvoNote && t.dsGVO) t.dsGvoNote = t.dsGVO;
 
   return t;
 }
@@ -3346,12 +3381,13 @@ async function loadTemplates(){
 
   // Fallback: Wenn gar nichts geladen werden konnte, App trotzdem startbar lassen
   if(!templates.length){
-    templates = [{
+    templates = [normalizeTemplate({
       id: "hundeannahme",
       name: "Hundeannahme",
-      fields: [],
-      meta: {}
-    }];
+      sections: [{ title: "Hundeannahme", fields: [] }],
+      meta: [],
+      dsGvoNote: ""
+    })];
   }
 
   const sel = document.getElementById("templateSelect");
