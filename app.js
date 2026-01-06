@@ -7493,3 +7493,27 @@ function closeEditorModal(){
   const m=document.getElementById('editorModal');
   if(m){ m.classList.add('hidden'); m.setAttribute('aria-hidden','true'); }
 }
+
+
+// V10 Modal Editor helpers (robust)
+function openEditorModal(templateId){
+  const m = document.getElementById('editorModal');
+  const r = document.getElementById('editorRoot');
+  const t = document.getElementById('editorModalTitle');
+  if(!m || !r){ console.error('Modal container missing'); return; }
+  if(t){ t.textContent = 'Neuer Aufenthalt'; }
+  r.innerHTML =
+    '<p><strong>Modal geöffnet.</strong></p>' +
+    '<p>Template: <code>' + (templateId||'neueraufenthalt') + '</code></p>' +
+    '<p>(Nächster Schritt: echten Aufenthalt-Editor hier rendern.)</p>';
+  m.classList.remove('ds-hidden');
+  m.setAttribute('aria-hidden','false');
+}
+function closeEditorModal(){
+  const m = document.getElementById('editorModal');
+  if(m){ m.classList.add('ds-hidden'); m.setAttribute('aria-hidden','true'); }
+}
+
+
+// V10 hook: ensure + Aufenthalt opens modal
+window.createStay = function(){ openEditorModal('neueraufenthalt'); };
