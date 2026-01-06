@@ -1525,15 +1525,15 @@ function createStay(){
   // 1) Auf "Dokumente/Vorlagen" wechseln (damit der Editor sichtbar ist)
   // 2) Template sicher finden (id bevorzugt, sonst Name)
   // 3) Direkt createDoc(templateId) ausführen
-  try{ selectTab("documents"); }catch(_){}
+  try{ selectTab("workforms"); }catch(_){ }
 
   // Sichtbares Feedback (wichtig bei Safari/iPad, wenn der Tab bereits offen ist)
-  try{ if (typeof showMiniToast === "function") showMiniToast("Öffne Aufenthalt-Editor …"); }catch(_){}
+  try{ if (typeof showMiniToast === "function") showMiniToast("Öffne NeuerAufenthalt-Editor …"); }catch(_){}
 
   const pickTemplateId = () => {
     // Prefer exact id
     if (typeof getTemplate === "function") {
-      const direct = getTemplate("hundeannahme");
+      const direct = getTemplate("neueraufenthalt") || getTemplate("hundeannahme");
       if (direct && direct.id) return direct.id;
     }
     // From loaded templates array (state.templates ist die Quelle der Wahrheit)
@@ -1541,7 +1541,7 @@ function createStay(){
       const tplArr = (typeof state !== "undefined" && Array.isArray(state.templates)) ? state.templates
                    : (Array.isArray(globalThis.templates) ? globalThis.templates : []);
       if (tplArr.length){
-        const t = tplArr.find(x => (x && (x.id === "hundeannahme" || (x.name||"").toLowerCase().includes("hundeannahme"))));
+        const t = tplArr.find(x => (x && (x.id === "neueraufenthalt" || (x.name||"").toLowerCase().includes("neuer aufenthalt") || (x.name||"").toLowerCase().includes("hundeannahme"))));
         if (t && t.id) return t.id;
       }
     }catch(_){}
@@ -3361,7 +3361,12 @@ async function loadTemplates(){
     {path: "templates/Hundeannahme.json", label: "Hundeannahme"},
     {path: "Templates/hundeannahme.json", label: "Hundeannahme"},
     {path: "Templates/Hundeannahme.json", label: "Hundeannahme"},
-    // Rechnungen
+        // Neuer Aufenthalt (neues Template)
+    {path: "templates/neueraufenthalt.json", label: "Neuer Aufenthalt"},
+    {path: "templates/NeuerAufenthalt.json", label: "Neuer Aufenthalt"},
+    {path: "Templates/neueraufenthalt.json", label: "Neuer Aufenthalt"},
+    {path: "Templates/NeuerAufenthalt.json", label: "Neuer Aufenthalt"},
+// Rechnungen
     {path: "templates/rechnung.json", label: "Rechnung"},
     {path: "templates/Rechnung.json", label: "Rechnung"},
     {path: "Templates/rechnung.json", label: "Rechnung"},
@@ -5427,6 +5432,7 @@ function renderVersions(doc){
   `;
 }
 function openDoc(id){
+  try{
 updateCreateInvoiceButton();
   currentDoc=(state.docs||[]).find(d=>d.id===id);
   if(!currentDoc) return;
@@ -5467,6 +5473,23 @@ normalizeMeta(currentDoc);
   dirty=false;
   showPanel("editor");
   window.scrollTo({top:0,behavior:"smooth"});
+
+  }catch(e){
+    console.error("openDoc failed", e);
+    const root = document.getElementById("formRoot");
+    if(root){
+      const msg = String(e && (e.stack||e.message||e));
+      root.innerHTML = `
+        <div class="card">
+          <h2 style="color:#ff6b6b">Editor-Fehler (openDoc)</h2>
+          <p class="muted">Der Editor konnte nicht geöffnet werden. Das ist meist ein DOM-/State-Problem oder ein JavaScript-Fehler, der vor dem Rendern auftritt.</p>
+          <pre style="white-space:pre-wrap; word-break:break-word; opacity:.9">${escapeHtml(msg)}</pre>
+          <p class="muted">Bitte Screenshot davon schicken – dann fixen wir es gezielt.</p>
+        </div>
+      `;
+    }
+    try{ toast("Editor-Fehler: "+(e?.message||e)); }catch(_){}
+  }
 }
 
 function renderForm(docObj){
