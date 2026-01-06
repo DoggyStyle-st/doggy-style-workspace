@@ -5356,7 +5356,15 @@ function createStayFromExisting(docId){
 $("#btnNewDoc").addEventListener("click",()=>createDoc($("#templateSelect").value));
 function createDoc(tid){
   const t=getTemplate(tid);
-  if(!t) return;
+  if(!t){
+    try{
+      const ids = (Array.isArray(globalThis.templates)?globalThis.templates:[]).map(x=>x&&x.id).filter(Boolean).join(", ");
+      toast("Vorlage nicht gefunden: "+tid+(ids?(" (geladen: "+ids+")"):""));
+    }catch(_){
+      toast("Vorlage nicht gefunden: "+tid);
+    }
+    return;
+  }
   ensureStateShape();
   ensureContractDefaults();
   // Etappe 3: Standardauswahl = erster Hund aus neuem Stamm (falls vorhanden)
@@ -5431,15 +5439,31 @@ normalizeMeta(currentDoc);
   syncDogSelect();
   $("#dogSelect").value=currentDoc.dogId||state.dogs?.[0]?.id||"";
   renderCustomerInfoForDogId($("#dogSelect").value);
-  renderEditor(currentDoc);
+  try{
+    renderEditor(currentDoc);
+  }catch(e){
+    console.error("openDoc/renderEditor failed", e);
+    const root = document.getElementById("formRoot");
+    if(root){
+      root.innerHTML = `
+        <div class="card">
+          <h2 style="color:#ff6b6b">Editor-Fehler</h2>
+          <p class="muted">Der Aufenthalts-Editor konnte nicht gerendert werden. Das ist meist ein Vorlagen-Formatproblem oder ein JavaScript-Fehler.</p>
+          <pre style="white-space:pre-wrap; word-break:break-word; font-size:12px; opacity:.9">${escapeHtml(String(e && (e.stack||e.message||e)))}</pre>
+          <p class="muted">Bitte Screenshot davon schicken – dann fixen wir es gezielt.</p>
+        </div>
+      `;
+    }
+    try{ toast("Editor-Fehler: "+(e?.message||e)); }catch(_){}
+  }
   updateContractWarnBanner(currentDoc);
-  autofillHundeannahmeFieldsFromMaster($("#dogSelect").value, { overwrite:false });
-renderVersions(currentDoc);
+  try{ autofillHundeannahmeFieldsFromMaster($("#dogSelect").value, { overwrite:false }); }catch(_){}
+  try{ renderVersions(currentDoc); }catch(_){}
 
   // Quicklinks im Aufenthalt (Medikation/Gesundheit)
   try{ renderStayQuickLinks(currentDoc); }catch(e){ console.warn('renderStayQuickLinks failed', e); }
-  
-  $("#dsGvoText").textContent=getTemplate(currentDoc.templateId)?.dsGvoNote||"";
+
+  try{ $("#dsGvoText").textContent=getTemplate(currentDoc.templateId)?.dsGvoNote||""; }catch(_){}
   dirty=false;
   showPanel("editor");
   window.scrollTo({top:0,behavior:"smooth"});
@@ -6410,7 +6434,13 @@ if(template.id === "rechnung"){
 }
 
   // 🐶 Standard-Dokumente (z. B. Hundeannahme)
-  renderForm(doc);
+  try{
+    if(typeof safeRenderEditor === 'function') safeRenderEditor(template, doc);
+    else renderForm(doc);
+  }catch(e){
+    console.error('renderEditor failed', e);
+    try{ toast('Editor-Fehler: '+(e?.message||e)); }catch(_){ }
+  }
 }
 
 function renderInvoiceEditor(doc, template){
