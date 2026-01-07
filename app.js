@@ -1,5 +1,5 @@
 // Sichtbarer Build-Zähler (Variante A)
-const APP_BUILD = "V10FIX6-A-ANA-005";
+const APP_BUILD = "V10FIX6-A-ANA-003";
 window.addEventListener("error",(e)=>{console.error("APP_ERROR",e.error||e.message);});
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
@@ -188,10 +188,7 @@ function updateSyncUI(){
     }
   }
 
-  if(pill){
-    const ts = SYNC.localSavedAt || (netOnline ? (SYNC.netProbeOkAt || Date.now()) : null);
-    pill.textContent = `${pillText} · ${fmtDT(ts)}`;
-  }
+  if(pill) pill.textContent = `${pillText} · ${fmtDT(SYNC.localSavedAt)}`;
   const dot=document.getElementById('syncDot');
   if(dot){ dot.classList.toggle('online', !!netOnline); dot.classList.toggle('offline', !netOnline); }
   if(details) details.textContent = `${localLine}\n${netLine}\n${cloudLine}`;
