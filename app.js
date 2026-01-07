@@ -1,5 +1,5 @@
 // Sichtbarer Build-Zähler (Variante A)
-const APP_BUILD = "V10FIX6-A-ANA-003";
+const APP_BUILD = "V10FIX6-A-ANA-004";
 window.addEventListener("error",(e)=>{console.error("APP_ERROR",e.error||e.message);});
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
@@ -118,7 +118,9 @@ const SYNC = {
   cloudPending: false,
   cloudLastOkAt: 0,
   cloudLastError: "",
-  _cloudFirstSnap: false
+  _cloudFirstSnap: false,
+  netProbeOkAt: 0,
+  netProbeLastError: ""
 };
 
 function fmtDT(ts){
@@ -133,6 +135,38 @@ function fmtDT(ts){
     return `${dd}.${mm}.${yy} ${hh}:${mi}`;
   }catch(_){ return "—"; }
 }
+
+// Robust online detection (iPad/Safari can report navigator.onLine=false even when reachable)
+async function probeInternet(timeoutMs=2500){
+  try{
+    const ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    const to = ctrl ? setTimeout(()=>ctrl.abort(), timeoutMs) : null;
+    // small same-origin request; bypass caches
+    const url = `./manifest.json?ping=${Date.now()}`;
+    const res = await fetch(url, {cache:'no-store', signal: ctrl ? ctrl.signal : undefined});
+    if(to) clearTimeout(to);
+    if(res && res.ok){
+      SYNC.netProbeOkAt = Date.now();
+      SYNC.netProbeLastError = "";
+      updateSyncUI();
+      return true;
+    }
+    SYNC.netProbeLastError = `HTTP ${res ? res.status : 'ERR'}`;
+    updateSyncUI();
+    return false;
+  }catch(err){
+    SYNC.netProbeLastError = (err && err.name) ? err.name : String(err||'ERR');
+    updateSyncUI();
+    return false;
+  }
+}
+
+function netSeemsOnline(){
+  const nav = (typeof navigator !== 'undefined') ? !!navigator.onLine : false;
+  const freshProbe = SYNC.netProbeOkAt && (Date.now() - SYNC.netProbeOkAt) < 60000;
+  return nav || freshProbe;
+}
+
 
 async function performLogout(){
   try{ if(CLOUD && CLOUD.enabled && CLOUD.auth){ await CLOUD.auth.signOut(); } }catch(e){}
@@ -156,12 +190,12 @@ function updateSyncUI(){
     }
   }
 
-  const netOnline = (typeof navigator !== 'undefined') ? !!navigator.onLine : false;
+  const netOnline = netSeemsOnline();
   try{ if(pill){ pill.classList.toggle('is-online', !!netOnline); pill.classList.toggle('is-offline', !netOnline); } }catch(e){}
   const localLine = `Lokal gespeichert: ${fmtDT(SYNC.localSavedAt)}`;
 
   // Internet-Status (nicht gleich Cloud!)
-  const netLine = `Internet: ${netOnline ? 'Online' : 'Offline'}`;
+  const netLine = `Internet: ${netOnline ? 'Online' : 'Offline'}${SYNC.netProbeLastError ? ` (Probe: ${SYNC.netProbeLastError})` : ``}`;
 
   let pillText = netOnline ? 'Online' : 'Offline';
   let cloudLine = 'Cloud: aus';
@@ -393,6 +427,14 @@ function showAuthGate(show){
   el.style.display = show ? "flex" : "none";
 }
 
+// Keep the online indicator fresh even without "Speichern"
+try{
+  window.addEventListener('online', ()=>{ try{ probeInternet(); }catch(e){} updateSyncUI(); });
+  window.addEventListener('offline', ()=>{ updateSyncUI(); });
+  setTimeout(()=>{ try{ probeInternet(); }catch(e){} }, 900);
+  setInterval(()=>{ try{ if(document.visibilityState === 'visible') probeInternet(); }catch(e){} }, 30000);
+}catch(e){}
+
 function setAuthMsg(msg){
   const el = document.getElementById("authMsg");
   if(el) el.textContent = msg || "";
@@ -446,6 +488,31 @@ function cloudStateRef(){
 function cloudUsersCol(){
   return CLOUD.db.collection("orgs").doc(CLOUD.orgId).collection("users");
 }
+
+async function cloudProbe(timeoutMs=4000){
+  // Attempts a single read of the workspace document to confirm reachability/permissions.
+  try{
+    if(!CLOUD.enabled || !CLOUD.user) return false;
+    const ref = cloudStateRef();
+    if(!ref || !ref.get) return false;
+    const p = ref.get();
+    const timed = new Promise((_,rej)=>setTimeout(()=>rej(new Error("timeout")), timeoutMs));
+    await Promise.race([p, timed]);
+    SYNC.cloudPending = false;
+    SYNC.cloudLastOkAt = Date.now();
+    SYNC.cloudLastError = "";
+    // network is reachable as well
+    SYNC.netProbeOkAt = Date.now();
+    SYNC.netProbeLastError = "";
+    updateSyncUI();
+    return true;
+  }catch(e){
+    SYNC.cloudLastError = (e && e.message) ? e.message : String(e||"cloud probe failed");
+    updateSyncUI();
+    return false;
+  }
+}
+
 
 function cloudUserDoc(uid){
   return cloudUsersCol().doc(uid);
@@ -6172,6 +6239,10 @@ return;
 
     // Auto-Online: direkt nach erfolgreichem Login Sync als "pending" markieren (auch ohne Speichern)
     try{ SYNC.cloudPending = true; SYNC.cloudLastError = ""; updateSyncUI(); }catch(e){}
+
+    // ANA-004: nach Login einmal aktiv Internet+Cloud prüfen (zeigt schneller "Online" auch ohne Save)
+    try{ await probeInternet(); }catch(e){}
+    try{ await cloudProbe(); }catch(e){}
 
     if(btnLogoutApp) btnLogoutApp.style.display = "inline-block";
     updateSyncUI();
