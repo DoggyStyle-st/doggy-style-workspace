@@ -661,7 +661,6 @@ async function cloudLoadStateWithRetry(maxTries=3){
   }catch(_){}
   return {remote:null, err:lastErr};
 }
-}
 
 function cloudPushQueued(){
   if(!CLOUD.enabled) return;
