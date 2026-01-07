@@ -7589,403 +7589,485 @@ function applyInvoiceDateDefaults(form){
 }
 
 
-/* ===== Auswertungen (Variante 1: Tabs Allgemein / Rechnungen) ===== */
+/* ===== Auswertungen: Tabs Allgemein / Rechnungen + PDF-Report (Variante 1, Fix Overlay/Duplikat) =====
+   - Erzeugt die Tabs dynamisch im bestehenden #analytics Panel.
+   - Verschiebt den bestehenden Auswertungs-Inhalt in den "Allgemein"-Container.
+   - Baut "Rechnungen"-Auswertung inkl. Zeitraum, KPIs, Liste und PDF-Report (Print-to-PDF) mit Logo assets/logo.png.
+*/
 (function(){
-  function _qs(id){ return document.getElementById(id); }
-  function _fmtEUR(v){
-    try{
-      const n = Number(v||0);
-      return n.toLocaleString('de-DE',{minimumFractionDigits:2, maximumFractionDigits:2}) + " €";
-    }catch(_){ return (v||0) + " €"; }
+  const _qs = (sel, root=document)=>root.querySelector(sel);
+  const _qsa = (sel, root=document)=>Array.from(root.querySelectorAll(sel));
+
+  function fmtEUR(n){
+    const x = Number(n||0);
+    try{ return x.toLocaleString('de-DE',{minimumFractionDigits:2, maximumFractionDigits:2}) + " €"; }
+    catch(_){ return (Math.round(x*100)/100) + " €"; }
   }
-  function _toDateOnlyISO(d){
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth()+1).padStart(2,'0');
-    const dd = String(d.getDate()).padStart(2,'0');
+  function toISO(d){
+    const yyyy=d.getFullYear();
+    const mm=String(d.getMonth()+1).padStart(2,'0');
+    const dd=String(d.getDate()).padStart(2,'0');
     return `${yyyy}-${mm}-${dd}`;
   }
-  function _parseISODate(s){
-    if(!s) return null;
-    const d = new Date(s);
-    return isNaN(d.getTime()) ? null : d;
+  function startOfWeek(d){
+    const x=new Date(d); x.setHours(0,0,0,0);
+    const day=(x.getDay()+6)%7; // Mo=0
+    x.setDate(x.getDate()-day);
+    return x;
   }
-  function _startOfDay(d){ const x = new Date(d); x.setHours(0,0,0,0); return x; }
-  function _endOfDay(d){ const x = new Date(d); x.setHours(23,59,59,999); return x; }
-  function _getInvoices(){
+  function startOfMonth(d){
+    const x=new Date(d); x.setHours(0,0,0,0);
+    x.setDate(1); return x;
+  }
+  function startOfYear(d){
+    const x=new Date(d); x.setHours(0,0,0,0);
+    x.setMonth(0,1); return x;
+  }
+
+  function ensureAnalyticsTabs(){
+    const panel = document.getElementById('analytics');
+    if(!panel || panel.__anaEnhanced) return;
+    panel.__anaEnhanced = true;
+
+    // Locate H2 and existing content
+    const h2 = _qs('h2', panel);
+    if(!h2) return;
+
+    // Collect nodes after h2 (existing analytics UI)
+    const existing = [];
+    let n = h2.nextSibling;
+    while(n){
+      const next = n.nextSibling;
+      existing.push(n);
+      n = next;
+    }
+
+    // Tabs row
+    const tabs = document.createElement('div');
+    tabs.className = 'row';
+    tabs.style.cssText = 'gap:10px; margin: 6px 0 14px 0; flex-wrap:wrap; position:relative; z-index:5; pointer-events:auto;';
+    tabs.innerHTML = `
+      <button class="btn btn--ghost btn--sm" id="anaTabGeneral" type="button">Allgemein</button>
+      <button class="btn btn--ghost btn--sm" id="anaTabInvoices" type="button">Rechnungen</button>
+    `;
+
+    // Containers
+    const general = document.createElement('div');
+    general.id = 'anaViewGeneral';
+    general.style.cssText = 'position:relative; z-index:1;';
+    const invoices = document.createElement('div');
+    invoices.id = 'anaViewInvoices';
+    invoices.style.display = 'none';
+    invoices.style.cssText = 'position:relative; z-index:1;';
+
+    // Move old nodes into general container
+    existing.forEach(node => general.appendChild(node));
+
+    // Build invoices UI
+    invoices.innerHTML = `
+      <div class="card" style="margin-bottom:14px;">
+        <div class="row between" style="gap:12px; flex-wrap:wrap;">
+          <div class="row" style="gap:8px; flex-wrap:wrap;">
+            <button class="btn btn--ghost btn--sm" data-ana-range="today" type="button">Heute</button>
+            <button class="btn btn--ghost btn--sm" data-ana-range="week" type="button">Diese Woche</button>
+            <button class="btn btn--ghost btn--sm" data-ana-range="month" type="button">Dieser Monat</button>
+            <button class="btn btn--ghost btn--sm" data-ana-range="lastMonth" type="button">Letzter Monat</button>
+            <button class="btn btn--ghost btn--sm" data-ana-range="year" type="button">Dieses Jahr</button>
+          </div>
+          <div class="row" style="gap:8px; align-items:end; flex-wrap:wrap;">
+            <div>
+              <div class="muted" style="font-size:12px;">Von</div>
+              <input id="anaInvFrom" type="date" class="input" style="min-width:160px;">
+            </div>
+            <div>
+              <div class="muted" style="font-size:12px;">Bis</div>
+              <input id="anaInvTo" type="date" class="input" style="min-width:160px;">
+            </div>
+            <button class="btn btn--primary btn--sm" id="anaInvApply" type="button">Anwenden</button>
+          </div>
+        </div>
+
+        <div class="row" style="gap:8px; flex-wrap:wrap; margin-top:10px;">
+          <button class="btn btn--ghost btn--sm" data-ana-status="all" type="button">Alle</button>
+          <button class="btn btn--ghost btn--sm" data-ana-status="open" type="button">Offen</button>
+          <button class="btn btn--ghost btn--sm" data-ana-status="paid" type="button">Bezahlt</button>
+          <button class="btn btn--ghost btn--sm" data-ana-status="storno" type="button">Storniert</button>
+
+          <span style="flex:1 1 auto;"></span>
+          <button class="btn btn--ghost btn--sm" id="anaInvPdf" type="button">PDF-Report erstellen</button>
+        </div>
+      </div>
+
+      <div class="row" style="gap:12px; flex-wrap:wrap; margin-bottom:12px;">
+        <div class="card" style="min-width:220px; flex:1 1 220px;">
+          <div class="muted">Umsatz bezahlt</div>
+          <div style="font-size:26px; font-weight:800;" id="anaInvPaidSum">–</div>
+          <div class="muted" id="anaInvPaidCnt">–</div>
+        </div>
+        <div class="card" style="min-width:220px; flex:1 1 220px;">
+          <div class="muted">Offen</div>
+          <div style="font-size:26px; font-weight:800;" id="anaInvOpenSum">–</div>
+          <div class="muted" id="anaInvOpenCnt">–</div>
+        </div>
+        <div class="card" style="min-width:220px; flex:1 1 220px;">
+          <div class="muted">Storniert</div>
+          <div style="font-size:26px; font-weight:800;" id="anaInvStornoSum">–</div>
+          <div class="muted" id="anaInvStornoCnt">–</div>
+        </div>
+        <div class="card" style="min-width:220px; flex:1 1 220px;">
+          <div class="muted">Anzahl gesamt</div>
+          <div style="font-size:26px; font-weight:800;" id="anaInvTotalCnt">–</div>
+          <div class="muted">nach Rechnungsdatum</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="muted" style="margin-bottom:8px;">Rechnungen im Zeitraum</div>
+        <div style="overflow:auto;">
+          <table class="table" style="width:100%;">
+            <thead>
+              <tr>
+                <th>Datum</th>
+                <th>Nr.</th>
+                <th>Kunde/Hund</th>
+                <th style="text-align:right;">Betrag</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="anaInvTbody">
+              <tr><td colspan="5" class="muted">Keine Daten.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+
+    // Insert into panel: after h2 -> tabs -> general+invoices
+    h2.insertAdjacentElement('afterend', tabs);
+    tabs.insertAdjacentElement('afterend', general);
+    general.insertAdjacentElement('afterend', invoices);
+
+    // Wire tab switching
+    const bGen = document.getElementById('anaTabGeneral');
+    const bInv = document.getElementById('anaTabInvoices');
+    function setActive(which){
+      if(which==='general'){
+        general.style.display='';
+        invoices.style.display='none';
+        bGen.classList.add('is-active');
+        bInv.classList.remove('is-active');
+      }else{
+        general.style.display='none';
+        invoices.style.display='';
+        bInv.classList.add('is-active');
+        bGen.classList.remove('is-active');
+        renderInvoiceAnalytics();
+      }
+    }
+    bGen?.addEventListener('click', ()=>setActive('general'));
+    bInv?.addEventListener('click', ()=>setActive('invoices'));
+
+    // Default active
+    setActive('general');
+
+    // Ensure clickability even with glass overlays
+    tabs.style.pointerEvents = 'auto';
+  }
+
+  const ANA = { range:'month', from:null, to:null, status:'all' };
+
+  function computeRange(range){
+    const now=new Date();
+    const start = (()=> {
+      if(range==='today'){ const d=new Date(now); d.setHours(0,0,0,0); return d; }
+      if(range==='week'){ return startOfWeek(now); }
+      if(range==='month'){ return startOfMonth(now); }
+      if(range==='lastMonth'){ const d=new Date(now); d.setMonth(d.getMonth()-1,1); d.setHours(0,0,0,0); return startOfMonth(d); }
+      if(range==='year'){ return startOfYear(now); }
+      return null;
+    })();
+    const end = (()=> {
+      if(range==='today'){ const d=new Date(now); d.setHours(23,59,59,999); return d; }
+      if(range==='week'){ const d=startOfWeek(now); d.setDate(d.getDate()+6); d.setHours(23,59,59,999); return d; }
+      if(range==='month'){ const d=startOfMonth(now); d.setMonth(d.getMonth()+1,0); d.setHours(23,59,59,999); return d; }
+      if(range==='lastMonth'){ const d=new Date(now); d.setDate(0); d.setHours(23,59,59,999); return d; }
+      if(range==='year'){ const d=new Date(now); d.setMonth(11,31); d.setHours(23,59,59,999); return d; }
+      return null;
+    })();
+    return {start, end};
+  }
+
+  function getInvoices(){
     try{
-      if(typeof state !== "undefined" && Array.isArray(state.invoices)) return state.invoices;
+      // state ist im bestehenden Code global
+      if(typeof state !== 'undefined' && Array.isArray(state.invoices)) return state.invoices;
     }catch(_){}
     return [];
   }
-  function _getInvTotal(inv){
-    if(!inv) return 0;
-    if(inv.totals && inv.totals.total != null) return Number(inv.totals.total)||0;
-    if(inv.total != null) return Number(inv.total)||0;
-    if(inv.amount != null) return Number(inv.amount)||0;
-    return 0;
-  }
-  function _normStatus(s){
-    const v = String(s||"").toLowerCase();
-    if(v==="paid" || v==="bezahlt") return "paid";
-    if(v==="canceled" || v==="cancelled" || v==="storniert") return "canceled";
-    if(v==="open" || v==="offen") return "open";
-    if(v==="draft") return "open"; // draft behandeln wir wie offen
-    return v || "open";
-  }
-  function _invDate(inv){
-    const d = _parseISODate(inv.invoiceDate || inv.date || inv.createdAt || inv.updatedAt);
-    return d || new Date(0);
-  }
-  function _invNr(inv){ return inv.invoiceNumber || inv.nr || inv.number || ""; }
-  function _invKundeHund(inv){
-    // best effort: Kunde / Hund aus Feldern oder IDs
-    let kunde = inv.customerName || inv.kundeName || "";
-    let hund = inv.petName || inv.hundName || "";
-    try{
-      // falls helper existieren
-      if(!kunde && typeof getCustomerById==="function" && inv.customerId){
-        const c = getCustomerById(inv.customerId);
-        if(c) kunde = c.name || c.title || "";
-      }
-      if(!hund && typeof getPetById==="function" && inv.petId){
-        const p = getPetById(inv.petId);
-        if(p) hund = p.name || p.title || "";
-      }
-    }catch(_){}
-    const a = (kunde||"").trim();
-    const b = (hund||"").trim();
-    if(a && b) return `${a} · ${b}`;
-    if(a) return a;
-    if(b) return b;
-    return (inv.customerId||"") + (inv.petId?(" · "+inv.petId):"");
+
+  function invoiceDate(inv){
+    // E1: Rechnungsdatum
+    const s = inv?.date || inv?.rechnungsdatum || inv?.invoiceDate || inv?.createdAt || inv?._createdAt;
+    const d = s ? new Date(s) : null;
+    return (d && !isNaN(d.getTime())) ? d : null;
   }
 
-  // State für Filter
-  const ANA = {
-    range: "month",
-    from: null,
-    to: null,
-    status: "all"
-  };
-
-  function _applyPresetRange(kind){
-    const now = new Date();
-    let from, to;
-    if(kind==="today"){
-      from = _startOfDay(now); to = _endOfDay(now);
-    }else if(kind==="week"){
-      const day = now.getDay(); // 0=So
-      const diff = (day===0?6:day-1); // Mo=0
-      from = _startOfDay(new Date(now.getFullYear(), now.getMonth(), now.getDate()-diff));
-      to = _endOfDay(new Date(from.getFullYear(), from.getMonth(), from.getDate()+6));
-    }else if(kind==="month"){
-      from = _startOfDay(new Date(now.getFullYear(), now.getMonth(), 1));
-      to = _endOfDay(new Date(now.getFullYear(), now.getMonth()+1, 0));
-    }else if(kind==="lastmonth"){
-      from = _startOfDay(new Date(now.getFullYear(), now.getMonth()-1, 1));
-      to = _endOfDay(new Date(now.getFullYear(), now.getMonth(), 0));
-    }else if(kind==="year"){
-      from = _startOfDay(new Date(now.getFullYear(), 0, 1));
-      to = _endOfDay(new Date(now.getFullYear(), 11, 31));
-    }else{
-      return;
-    }
-    ANA.range = kind;
-    ANA.from = from;
-    ANA.to = to;
-    const fromEl = _qs("anaInvFrom");
-    const toEl = _qs("anaInvTo");
-    if(fromEl) fromEl.value = _toDateOnlyISO(from);
-    if(toEl) toEl.value = _toDateOnlyISO(to);
+  function invoiceAmount(inv){
+    const a = inv?.total ?? inv?.betrag ?? inv?.amount ?? 0;
+    const n = Number(String(a).replace(',','.'));
+    return isNaN(n) ? 0 : n;
   }
 
-  function _filterInvoices(){
-    const all = _getInvoices();
-    const from = ANA.from ? _startOfDay(ANA.from) : null;
-    const to = ANA.to ? _endOfDay(ANA.to) : null;
-    return all.filter(inv=>{
-      const d = _invDate(inv);
-      if(from && d < from) return false;
-      if(to && d > to) return false;
-      if(ANA.status && ANA.status!=="all"){
-        return _normStatus(inv.status) === ANA.status;
-      }
-      return true;
-    });
+  function invoiceStatus(inv){
+    const s = (inv?.status || inv?.state || 'open').toString().toLowerCase();
+    if(s==='bezahlt') return 'paid';
+    if(s==='storniert' || s==='storno') return 'storno';
+    if(s==='paid') return 'paid';
+    if(s==='open' || s==='offen') return 'open';
+    return s;
   }
 
   function renderInvoiceAnalytics(){
-    const invs = _filterInvoices();
-    let paidSum=0, openSum=0, canceledSum=0;
-    let paidCnt=0, openCnt=0, canceledCnt=0;
-    invs.forEach(inv=>{
-      const st = _normStatus(inv.status);
-      const t = _getInvTotal(inv);
-      if(st==="paid"){ paidSum += t; paidCnt++; }
-      else if(st==="canceled"){ canceledSum += t; canceledCnt++; }
-      else { openSum += t; openCnt++; }
+    // Ensure DOM exists
+    ensureAnalyticsTabs();
+
+    const fromEl = document.getElementById('anaInvFrom');
+    const toEl = document.getElementById('anaInvTo');
+
+    // Apply default month if empty
+    const {start, end} = computeRange(ANA.range || 'month');
+    if(!ANA.from) ANA.from = start;
+    if(!ANA.to) ANA.to = end;
+
+    if(fromEl && !fromEl.value) fromEl.value = toISO(ANA.from);
+    if(toEl && !toEl.value) toEl.value = toISO(ANA.to);
+
+    const invs = getInvoices()
+      .map(inv => ({inv, d: invoiceDate(inv), amt: invoiceAmount(inv), st: invoiceStatus(inv)}))
+      .filter(x => x.d);
+
+    const filtered = invs.filter(x => {
+      if(ANA.from && x.d < ANA.from) return false;
+      if(ANA.to && x.d > ANA.to) return false;
+      if(ANA.status && ANA.status !== 'all' && x.st !== ANA.status) return false;
+      return true;
+    }).sort((a,b)=>a.d-b.d);
+
+    // KPIs by status (always based on current timeframe but independent of status filter)
+    const base = invs.filter(x => {
+      if(ANA.from && x.d < ANA.from) return false;
+      if(ANA.to && x.d > ANA.to) return false;
+      return true;
     });
 
-    const paidSumEl=_qs("anaInvPaidSum");
-    const openSumEl=_qs("anaInvOpenSum");
-    const cancSumEl=_qs("anaInvCanceledSum");
-    const totCntEl=_qs("anaInvTotalCount");
-    const paidCntEl=_qs("anaInvPaidCount");
-    const openCntEl=_qs("anaInvOpenCount");
-    const cancCntEl=_qs("anaInvCanceledCount");
-    const rangeEl=_qs("anaInvRangeLabel");
+    const sumPaid = base.filter(x=>x.st==='paid').reduce((s,x)=>s+x.amt,0);
+    const cntPaid = base.filter(x=>x.st==='paid').length;
+    const sumOpen = base.filter(x=>x.st==='open').reduce((s,x)=>s+x.amt,0);
+    const cntOpen = base.filter(x=>x.st==='open').length;
+    const sumSto = base.filter(x=>x.st==='storno').reduce((s,x)=>s+x.amt,0);
+    const cntSto = base.filter(x=>x.st==='storno').length;
 
-    if(paidSumEl) paidSumEl.textContent = _fmtEUR(paidSum);
-    if(openSumEl) openSumEl.textContent = _fmtEUR(openSum);
-    if(cancSumEl) cancSumEl.textContent = _fmtEUR(canceledSum);
-    if(totCntEl) totCntEl.textContent = String(invs.length);
-    if(paidCntEl) paidCntEl.textContent = `${paidCnt} Belege`;
-    if(openCntEl) openCntEl.textContent = `${openCnt} Belege`;
-    if(cancCntEl) cancCntEl.textContent = `${canceledCnt} Belege`;
+    const setTxt=(id,txt)=>{ const el=document.getElementById(id); if(el) el.textContent=txt; };
 
-    if(rangeEl){
-      const f = ANA.from ? _toDateOnlyISO(ANA.from) : "–";
-      const t = ANA.to ? _toDateOnlyISO(ANA.to) : "–";
-      rangeEl.textContent = `Zeitraum: ${f} bis ${t} (Rechnungsdatum)`;
-    }
+    setTxt('anaInvPaidSum', fmtEUR(sumPaid)); setTxt('anaInvPaidCnt', `${cntPaid} Belege`);
+    setTxt('anaInvOpenSum', fmtEUR(sumOpen)); setTxt('anaInvOpenCnt', `${cntOpen} Belege`);
+    setTxt('anaInvStornoSum', fmtEUR(sumSto)); setTxt('anaInvStornoCnt', `${cntSto} Belege`);
+    setTxt('anaInvTotalCnt', String(base.length));
 
-    // Tabelle
-    const tbody = _qs("anaInvTable")?.querySelector("tbody");
+    // Rows
+    const tbody = document.getElementById('anaInvTbody');
     if(tbody){
-      const rows = invs
-        .slice()
-        .sort((a,b)=>_invDate(a)-_invDate(b))
-        .map(inv=>{
-          const d = _invDate(inv);
-          const dateStr = d.toLocaleDateString('de-DE');
-          const nr = _invNr(inv);
-          const kh = _invKundeHund(inv);
-          const amt = _fmtEUR(_getInvTotal(inv));
-          const st = _normStatus(inv.status);
-          const stLabel = (st==="paid"?"paid":(st==="canceled"?"canceled":"open"));
-          const openFn = (typeof openInvoice==="function") ? `openInvoice('${inv.id}')` : '';
-          return `<tr style="cursor:${openFn?'pointer':'default'}" ${openFn?`onclick="${openFn}"`:''}>
-            <td>${dateStr}</td>
+      if(!filtered.length){
+        tbody.innerHTML = `<tr><td colspan="5" class="muted">Keine Rechnungen im Zeitraum.</td></tr>`;
+      }else{
+        tbody.innerHTML = filtered.map(x=>{
+          const inv=x.inv;
+          const nr = inv?.nr || inv?.number || inv?.invoiceNo || inv?.id || '';
+          const cust = inv?.customerName || inv?.kunde || inv?.customer || '';
+          const dog  = inv?.dogName || inv?.hund || inv?.dog || '';
+          const label = [cust, dog].filter(Boolean).join(' · ') || '–';
+          const st = x.st;
+          const stLabel = (st==='paid'?'paid':st==='open'?'open':st==='storno'?'storno':st);
+          return `<tr>
+            <td>${toISO(x.d)}</td>
             <td>${nr}</td>
-            <td>${kh}</td>
-            <td style="text-align:right;">${amt}</td>
+            <td>${label}</td>
+            <td style="text-align:right;">${fmtEUR(x.amt)}</td>
             <td>${stLabel}</td>
           </tr>`;
-        }).join("");
-      tbody.innerHTML = rows || `<tr><td colspan="5" class="muted">Keine Rechnungen im Zeitraum.</td></tr>`;
+        }).join('');
+      }
     }
   }
 
-  function generateInvoicePdfReport(){
-    const invsAll = _getInvoices();
-    const from = ANA.from ? _startOfDay(ANA.from) : null;
-    const to = ANA.to ? _endOfDay(ANA.to) : null;
+  function bindInvoiceUI(){
+    ensureAnalyticsTabs();
+    const root = document.getElementById('anaViewInvoices');
+    if(!root || root.__bound) return;
+    root.__bound = true;
 
-    // Für PDF-Report: immer alle Status im Zeitraum (unabhängig vom Tabellen-Statusfilter)
-    const invs = invsAll.filter(inv=>{
-      const d = _invDate(inv);
-      if(from && d < from) return false;
-      if(to && d > to) return false;
-      return true;
-    }).slice().sort((a,b)=>_invDate(a)-_invDate(b));
-
-    const sums = {paid:{sum:0,cnt:0}, open:{sum:0,cnt:0}, canceled:{sum:0,cnt:0}};
-    invs.forEach(inv=>{
-      const st=_normStatus(inv.status);
-      const t=_getInvTotal(inv);
-      if(st==="paid"){ sums.paid.sum+=t; sums.paid.cnt++; }
-      else if(st==="canceled"){ sums.canceled.sum+=t; sums.canceled.cnt++; }
-      else { sums.open.sum+=t; sums.open.cnt++; }
+    _qsa('[data-ana-range]', root).forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        ANA.range = btn.getAttribute('data-ana-range');
+        const {start,end} = computeRange(ANA.range);
+        ANA.from = start; ANA.to = end;
+        const fromEl = document.getElementById('anaInvFrom');
+        const toEl = document.getElementById('anaInvTo');
+        if(fromEl) fromEl.value = toISO(start);
+        if(toEl) toEl.value = toISO(end);
+        renderInvoiceAnalytics();
+      });
     });
 
-    const f = ANA.from ? _toDateOnlyISO(ANA.from) : "";
-    const t = ANA.to ? _toDateOnlyISO(ANA.to) : "";
+    _qsa('[data-ana-status]', root).forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        ANA.status = btn.getAttribute('data-ana-status') || 'all';
+        renderInvoiceAnalytics();
+      });
+    });
+
+    const applyBtn = document.getElementById('anaInvApply');
+    applyBtn?.addEventListener('click', ()=>{
+      const f = document.getElementById('anaInvFrom')?.value;
+      const t = document.getElementById('anaInvTo')?.value;
+      ANA.from = f ? new Date(f+'T00:00:00') : null;
+      ANA.to = t ? new Date(t+'T23:59:59') : null;
+      ANA.range = 'custom';
+      renderInvoiceAnalytics();
+    });
+
+    const pdfBtn = document.getElementById('anaInvPdf');
+    pdfBtn?.addEventListener('click', ()=>openInvoiceReportPrint());
+  }
+
+  function openInvoiceReportPrint(){
+    // Build dataset for current view
+    const invs = getInvoices()
+      .map(inv => ({inv, d: invoiceDate(inv), amt: invoiceAmount(inv), st: invoiceStatus(inv)}))
+      .filter(x=>x.d);
+
+    const base = invs.filter(x=>{
+      if(ANA.from && x.d < ANA.from) return false;
+      if(ANA.to && x.d > ANA.to) return false;
+      return true;
+    }).sort((a,b)=>a.d-b.d);
+
+    const byStatus = {
+      paid: base.filter(x=>x.st==='paid'),
+      open: base.filter(x=>x.st==='open'),
+      storno: base.filter(x=>x.st==='storno')
+    };
+
+    const sum = arr => arr.reduce((s,x)=>s+x.amt,0);
+
+    const period = `${ANA.from?toISO(ANA.from):'–'} bis ${ANA.to?toISO(ANA.to):'–'}`;
     const created = new Date();
     const createdStr = created.toLocaleString('de-DE');
 
-    function section(title, rowsHtml){
-      if(!rowsHtml) return "";
-      return `<h3 style="margin:18px 0 6px 0;">${title}</h3>
-        <table style="width:100%; border-collapse:collapse; font-size:12px;">
+    const makeRows = (arr) => arr.map(x=>{
+      const inv=x.inv;
+      const nr = inv?.nr || inv?.number || inv?.invoiceNo || inv?.id || '';
+      const cust = inv?.customerName || inv?.kunde || inv?.customer || '';
+      const dog  = inv?.dogName || inv?.hund || inv?.dog || '';
+      const range = inv?.range || inv?.zeitraum || inv?.period || '';
+      const desc = inv?.description || inv?.beschreibung || '';
+      return `<tr>
+        <td>${toISO(x.d)}</td>
+        <td>${nr}</td>
+        <td>${cust||''}</td>
+        <td>${dog||''}</td>
+        <td>${range||''}</td>
+        <td style="text-align:right;">${fmtEUR(x.amt)}</td>
+        <td>${desc||''}</td>
+      </tr>`;
+    }).join('');
+
+    const w = window.open('', '_blank');
+    if(!w){ alert('Popup blockiert. Bitte Popups erlauben.'); return; }
+
+    const section = (title, arr) => {
+      if(!arr.length) return '';
+      return `
+        <h3>${title}</h3>
+        <table>
           <thead>
             <tr>
-              <th style="text-align:left; border-bottom:1px solid #bbb; padding:6px 4px;">Datum</th>
-              <th style="text-align:left; border-bottom:1px solid #bbb; padding:6px 4px;">Nr.</th>
-              <th style="text-align:left; border-bottom:1px solid #bbb; padding:6px 4px;">Kunde</th>
-              <th style="text-align:left; border-bottom:1px solid #bbb; padding:6px 4px;">Hund</th>
-              <th style="text-align:left; border-bottom:1px solid #bbb; padding:6px 4px;">Leistungszeitraum</th>
-              <th style="text-align:right; border-bottom:1px solid #bbb; padding:6px 4px;">Betrag</th>
-              <th style="text-align:left; border-bottom:1px solid #bbb; padding:6px 4px;">Beschreibung</th>
+              <th>Datum</th><th>Nr.</th><th>Kunde</th><th>Hund</th><th>Zeitraum</th><th style="text-align:right;">Betrag</th><th>Beschreibung</th>
             </tr>
           </thead>
-          <tbody>${rowsHtml}</tbody>
-        </table>`;
-    }
+          <tbody>${makeRows(arr)}</tbody>
+        </table>
+      `;
+    };
 
-    function makeRows(filterStatus){
-      const sel = invs.filter(inv=>_normStatus(inv.status)===filterStatus);
-      if(!sel.length) return "";
-      return sel.map(inv=>{
-        const d=_invDate(inv).toLocaleDateString('de-DE');
-        const nr=_invNr(inv);
-        let kunde="", hund="";
-        try{
-          const kh=_invKundeHund(inv);
-          if(kh.includes("·")){
-            const parts=kh.split("·").map(x=>x.trim());
-            kunde=parts[0]||""; hund=parts[1]||"";
-          }else{
-            kunde=kh; hund="";
-          }
-        }catch(_){}
-        const lz = (inv.periodFrom && inv.periodTo) ? `${inv.periodFrom} – ${inv.periodTo}` : (inv.period || inv.leistungszeitraum || "");
-        const amt=_fmtEUR(_getInvTotal(inv));
-        const desc = (inv.description || inv.note || inv.desc || "").toString().replace(/\n/g," ");
-        return `<tr>
-          <td style="border-bottom:1px solid #e5e5e5; padding:6px 4px;">${d}</td>
-          <td style="border-bottom:1px solid #e5e5e5; padding:6px 4px;">${nr}</td>
-          <td style="border-bottom:1px solid #e5e5e5; padding:6px 4px;">${kunde}</td>
-          <td style="border-bottom:1px solid #e5e5e5; padding:6px 4px;">${hund}</td>
-          <td style="border-bottom:1px solid #e5e5e5; padding:6px 4px;">${lz}</td>
-          <td style="border-bottom:1px solid #e5e5e5; padding:6px 4px; text-align:right;">${amt}</td>
-          <td style="border-bottom:1px solid #e5e5e5; padding:6px 4px;">${desc}</td>
-        </tr>`;
-      }).join("");
-    }
-
-    const html = `<!doctype html>
-<html lang="de"><head>
-<meta charset="utf-8"/>
+    w.document.write(`
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
 <title>Rechnungsübersicht</title>
 <style>
-  @page { margin: 18mm; }
-  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; color:#111; }
-  .header { display:flex; justify-content:space-between; align-items:flex-start; gap:18px; }
-  .logo { height: 50px; }
-  .kpis { margin-top:12px; display:flex; gap:14px; flex-wrap:wrap; }
-  .kpi { border:1px solid #ddd; border-radius:10px; padding:10px 12px; min-width:180px; }
-  .kpi .t { font-size:12px; color:#555; }
-  .kpi .v { font-size:18px; font-weight:700; margin-top:4px; }
-  .muted { color:#666; font-size:12px; }
+  body{ font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; padding:24px; color:#111; }
+  .head{ display:flex; justify-content:space-between; align-items:flex-start; gap:16px; }
+  .logo{ max-height:70px; max-width:220px; object-fit:contain; }
+  h1{ margin:0; font-size:24px; }
+  .meta{ margin-top:6px; font-size:12px; color:#444; }
+  .kpis{ display:flex; gap:12px; flex-wrap:wrap; margin:18px 0 10px; }
+  .kpi{ border:1px solid #ddd; border-radius:10px; padding:10px 12px; min-width:220px; }
+  .kpi .lbl{ font-size:12px; color:#555; }
+  .kpi .val{ font-size:18px; font-weight:800; margin-top:4px; }
+  table{ width:100%; border-collapse:collapse; margin:10px 0 18px; }
+  th,td{ border:1px solid #ddd; padding:6px 8px; font-size:12px; vertical-align:top; }
+  th{ background:#f4f4f4; text-align:left; }
+  h3{ margin:18px 0 6px; }
+  .foot{ margin-top:20px; font-size:11px; color:#666; }
+  @media print{ body{ padding:0; } .kpi{ break-inside:avoid; } table{ break-inside:auto; } tr{ break-inside:avoid; break-after:auto; } }
 </style>
 </head>
 <body>
-  <div class="header">
+  <div class="head">
     <div>
-      <h1 style="margin:0;">Rechnungsübersicht</h1>
-      <div class="muted">Zeitraum: ${f} bis ${t} (Rechnungsdatum)</div>
-      <div class="muted">Erstellt am: ${createdStr}</div>
-      <div class="muted">Betrieb: Doggy Style Hundepension</div>
+      <h1>Rechnungsübersicht</h1>
+      <div class="meta">Zeitraum: ${period}</div>
+      <div class="meta">Erstellt am: ${createdStr}</div>
+      <div class="meta">Quelle: Rechnungsdatum</div>
     </div>
-    <div style="text-align:right;">
-      <img class="logo" src="assets/logo.png" alt="Logo"/>
+    <div>
+      <img class="logo" src="assets/logo.png" alt="Logo">
     </div>
   </div>
 
   <div class="kpis">
-    <div class="kpi"><div class="t">Umsatz bezahlt</div><div class="v">${_fmtEUR(sums.paid.sum)}</div><div class="muted">${sums.paid.cnt} Belege</div></div>
-    <div class="kpi"><div class="t">Offen</div><div class="v">${_fmtEUR(sums.open.sum)}</div><div class="muted">${sums.open.cnt} Belege</div></div>
-    <div class="kpi"><div class="t">Storniert</div><div class="v">${_fmtEUR(sums.canceled.sum)}</div><div class="muted">${sums.canceled.cnt} Belege</div></div>
-    <div class="kpi"><div class="t">Anzahl gesamt</div><div class="v">${invs.length}</div><div class="muted">&nbsp;</div></div>
+    <div class="kpi"><div class="lbl">Umsatz bezahlt</div><div class="val">${fmtEUR(sum(byStatus.paid))}</div><div class="meta">${byStatus.paid.length} Belege</div></div>
+    <div class="kpi"><div class="lbl">Offen</div><div class="val">${fmtEUR(sum(byStatus.open))}</div><div class="meta">${byStatus.open.length} Belege</div></div>
+    <div class="kpi"><div class="lbl">Storniert</div><div class="val">${fmtEUR(sum(byStatus.storno))}</div><div class="meta">${byStatus.storno.length} Belege</div></div>
+    <div class="kpi"><div class="lbl">Anzahl gesamt</div><div class="val">${base.length}</div><div class="meta">&nbsp;</div></div>
   </div>
 
-  ${section("Bezahlt", makeRows("paid"))}
-  ${section("Offen", makeRows("open"))}
-  ${section("Storniert", makeRows("canceled"))}
+  ${section('Bezahlt', byStatus.paid)}
+  ${section('Offen', byStatus.open)}
+  ${section('Storniert', byStatus.storno)}
 
-  <script>
-    window.onload = () => { setTimeout(()=>{ window.print(); }, 250); };
-  </script>
-</body></html>`;
-
-    const w = window.open("", "_blank");
-    if(!w){ alert("Popup blockiert – bitte Popups erlauben."); return; }
-    w.document.open();
-    w.document.write(html);
+  <div class="foot">Automatisch generierter Bericht.</div>
+  <script>window.onload=()=>{ setTimeout(()=>window.print(), 200); };</script>
+</body>
+</html>
+    `);
     w.document.close();
   }
 
-  function showAnaSubTab(which){
-    const gen = _qs("analyticsGeneral");
-    const inv = _qs("analyticsInvoices");
-    const bGen = _qs("anaTabGeneral");
-    const bInv = _qs("anaTabInvoices");
-    if(gen) gen.style.display = (which==="general") ? "" : "none";
-    if(inv) inv.style.display = (which==="invoices") ? "" : "none";
-    // simple active style
-    if(bGen) bGen.style.opacity = (which==="general") ? "1" : "0.6";
-    if(bInv) bInv.style.opacity = (which==="invoices") ? "1" : "0.6";
-    if(which==="invoices"){
-      // default range
-      if(!ANA.from || !ANA.to) _applyPresetRange("month");
-      renderInvoiceAnalytics();
+  // Hook into existing navigation: when analytics panel shown, ensure tabs and bind
+  document.addEventListener('click', (e)=>{
+    const t = e.target;
+    if(t && t.matches && t.matches('[data-tab="analytics"], #tabAnalytics, #tabAnalyticsTop, #tabAnalyticsBottom')){
+      setTimeout(()=>{ ensureAnalyticsTabs(); bindInvoiceUI(); }, 50);
     }
-  }
+  });
 
-  function initAnalyticsInvoiceUI(){
-    const bGen=_qs("anaTabGeneral");
-    const bInv=_qs("anaTabInvoices");
-    if(bGen && !bGen.__bound){
-      bGen.__bound=true;
-      bGen.addEventListener("click", ()=>showAnaSubTab("general"));
-    }
-    if(bInv && !bInv.__bound){
-      bInv.__bound=true;
-      bInv.addEventListener("click", ()=>showAnaSubTab("invoices"));
-    }
+  // Also init on boot (safe)
+  window.addEventListener('load', ()=>{
+    ensureAnalyticsTabs();
+    bindInvoiceUI();
+  });
 
-    document.querySelectorAll('[data-ana-range]').forEach(btn=>{
-      if(btn.__bound) return;
-      btn.__bound=true;
-      btn.addEventListener('click', ()=>{
-        _applyPresetRange(btn.getAttribute('data-ana-range'));
-        renderInvoiceAnalytics();
-      });
-    });
-
-    document.querySelectorAll('[data-ana-status]').forEach(btn=>{
-      if(btn.__bound) return;
-      btn.__bound=true;
-      btn.addEventListener('click', ()=>{
-        ANA.status = btn.getAttribute('data-ana-status') || "all";
-        renderInvoiceAnalytics();
-      });
-    });
-
-    const applyBtn=_qs("anaInvApply");
-    if(applyBtn && !applyBtn.__bound){
-      applyBtn.__bound=true;
-      applyBtn.addEventListener('click', ()=>{
-        const f=_qs("anaInvFrom")?.value;
-        const t=_qs("anaInvTo")?.value;
-        ANA.from = f ? new Date(f+"T00:00:00") : null;
-        ANA.to = t ? new Date(t+"T00:00:00") : null;
-        ANA.range = "custom";
-        renderInvoiceAnalytics();
-      });
-    }
-
-    const pdfBtn=_qs("anaInvPdf");
-    if(pdfBtn && !pdfBtn.__bound){
-      pdfBtn.__bound=true;
-      pdfBtn.addEventListener('click', generateInvoicePdfReport);
-    }
-  }
-
-  // Falls bisher nicht vorhanden: Render-Funktion für Auswertungen
-  if(typeof window.renderAnalyticsPanel !== "function"){
-    window.renderAnalyticsPanel = function(){
-      initAnalyticsInvoiceUI();
-      // Standard: Allgemein
-      showAnaSubTab("general");
-    };
-  } else {
-    // existiert bereits – wir hängen unsere UI trotzdem an
-    const _old = window.renderAnalyticsPanel;
-    window.renderAnalyticsPanel = function(){
-      try{ _old(); }catch(_){}
-      initAnalyticsInvoiceUI();
-      showAnaSubTab("general");
-    };
-  }
 })();
