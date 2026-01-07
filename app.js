@@ -1,5 +1,5 @@
 // Sichtbarer Build-Zähler (Variante A)
-const APP_BUILD = "V10FIX6-A-ANA-003";
+const APP_BUILD = "V10FIX6-A-ANA-007";
 window.addEventListener("error",(e)=>{console.error("APP_ERROR",e.error||e.message);});
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
@@ -157,6 +157,8 @@ function updateSyncUI(){
   }
 
   const netOnline = (typeof navigator !== 'undefined') ? !!navigator.onLine : false;
+  const cloudOnline = !!SYNC.cloudLastOkAt && (Date.now() - SYNC.cloudLastOkAt < 1000*60*60*24*7);
+  const effectiveOnline = netOnline || cloudOnline;
   try{ if(pill){ pill.classList.toggle('is-online', !!netOnline); pill.classList.toggle('is-offline', !netOnline); } }catch(e){}
   const localLine = `Lokal gespeichert: ${fmtDT(SYNC.localSavedAt)}`;
 
@@ -635,6 +637,27 @@ async function cloudLoadStateWithRetry(maxTries=3){
   }
   return {remote:null, err:lastErr};
 }
+
+// ANA-007: quick cloud "ping" so the status can turn Online right after login
+async function cloudPing(timeoutMs=3500){
+  if(!CLOUD.enabled || !CLOUD.user) return false;
+  const ref = cloudStateRef();
+  if(!ref) return false;
+
+  const timeout = new Promise((_, reject)=>setTimeout(()=>reject(new Error('timeout')), timeoutMs));
+  try{
+    await Promise.race([ref.get(), timeout]); // even a missing doc counts as a successful cloud roundtrip
+    SYNC.cloudLastOkAt = Date.now();
+    SYNC.cloudLastError = '';
+    updateSyncUI();
+    return true;
+  }catch(e){
+    SYNC.cloudLastError = String(e && (e.message||e.code) || e);
+    updateSyncUI();
+    return false;
+  }
+}
+
 
 function cloudPushQueued(){
   if(!CLOUD.enabled) return;
@@ -6170,8 +6193,8 @@ return;
     showAuthGate(false);
     if(btnLogout) btnLogout.style.display = "inline-block";
 
-    // Auto-Online: direkt nach erfolgreichem Login Sync als "pending" markieren (auch ohne Speichern)
-    try{ SYNC.cloudPending = true; SYNC.cloudLastError = ""; updateSyncUI(); }catch(e){}
+    // ANA-007: Cloud-Ping direkt nach erfolgreichem Login (Status sofort Online möglich)
+    try{ await cloudPing(); }catch(e){}
 
     if(btnLogoutApp) btnLogoutApp.style.display = "inline-block";
     updateSyncUI();
