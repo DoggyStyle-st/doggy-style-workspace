@@ -1,6 +1,6 @@
 // Sichtbarer Build-Zähler (Variante A)
 // Build-Counter (sichtbar unten links in der App)
-const APP_BUILD = "V10FIX6-A-ANA014";
+const APP_BUILD = "V10FIX6-A-ANA015";
 window.addEventListener("error",(e)=>{console.error("APP_ERROR",e.error||e.message);});
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
@@ -6207,8 +6207,21 @@ return;
     try{ await initStaffFeatures(); }catch(e){ console.warn(e); }
 
     // Sync UI initial
-    SYNC.cloudLastOkAt = Number(CLOUD.lastPushOkAt||0);
-    SYNC.cloudLastError = String(CLOUD.lastPushError||"");
+    // WICHTIG: Cloud-Ping / erster Snapshot setzt cloudLastOkAt bereits.
+    // NICHT mit 0 überschreiben (sonst bleibt die UI "Offline" bis zum ersten Push).
+    try{
+      const prevOk = Number(SYNC.cloudLastOkAt || 0);
+      const pushOk = Number(CLOUD.lastPushOkAt || 0);
+      SYNC.cloudLastOkAt = Math.max(prevOk, pushOk);
+      const pushErr = String(CLOUD.lastPushError || "");
+      if(pushErr) SYNC.cloudLastError = pushErr;
+    }catch(_){
+      // Fallback: never reset to 0
+      const pushOk = Number(CLOUD.lastPushOkAt || 0);
+      if(pushOk) SYNC.cloudLastOkAt = pushOk;
+      const pushErr = String(CLOUD.lastPushError || "");
+      if(pushErr) SYNC.cloudLastError = pushErr;
+    }
     updateSyncUI();
 
     
