@@ -1,6 +1,6 @@
 // Sichtbarer Build-Zähler (Variante A)
 // Build-Counter (sichtbar unten links in der App)
-const APP_BUILD = "V10FIX6-A-ANA015";
+const APP_BUILD = "V10FIX6-A-ANA017";
 window.addEventListener("error",(e)=>{console.error("APP_ERROR",e.error||e.message);});
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
@@ -115,6 +115,8 @@ function can(action){
 
 const SYNC = {
   localSavedAt: 0,
+  // echter Netz-Ping (iOS/WebKit): letzter erfolgreicher Roundtrip
+  netLastOkAt: 0,
   cloudLastSeenAt: 0,
   cloudPending: false,
   cloudLastOkAt: 0,
@@ -157,7 +159,10 @@ function updateSyncUI(){
     }
   }
 
-  const netOnline = (typeof navigator !== 'undefined') ? !!navigator.onLine : false;
+  // iOS/WebKit: navigator.onLine ist teils falsch (insb. PWA). Deshalb zusätzlich einen echten Netz-Ping verwenden.
+  const pingOnline = !!SYNC.netLastOkAt && (Date.now() - SYNC.netLastOkAt < 1000*45);
+  const navOnline = (typeof navigator !== 'undefined') ? !!navigator.onLine : false;
+  const netOnline = pingOnline || navOnline;
   const cloudOnline = !!SYNC.cloudLastOkAt && (Date.now() - SYNC.cloudLastOkAt < 1000*60*60*24*7);
   // iOS/Safari/PWA: navigator.onLine ist nicht immer zuverlässig -> UI-Status auf "effektiv online" stützen.
   const effectiveOnline = netOnline || cloudOnline;
@@ -659,6 +664,46 @@ async function cloudPing(timeoutMs=3500){
     updateSyncUI();
     return false;
   }
+}
+
+// ANA016: echter Netz-Ping (gegen iOS/WebKit navigator.onLine-Bugs)
+async function netPing(timeoutMs=2500){
+  const timeout = new Promise((_, reject)=>setTimeout(()=>reject(new Error('timeout')), timeoutMs));
+  try{
+    // kleines, stabiles Asset – immer no-store, damit es wirklich ein Roundtrip ist
+    const url = `manifest.json?ping=${Date.now()}`;
+    const res = await Promise.race([
+      fetch(url, { cache: 'no-store' }),
+      timeout
+    ]);
+    if(res && res.ok){
+      SYNC.netLastOkAt = Date.now();
+      return true;
+    }
+    return false;
+  }catch(e){
+    return false;
+  }
+}
+
+// ANA016: hält den Status nach Login stabil "Online"
+function startOnlineWatchdog(){
+  try{
+    if(window.__dsOnlineWatchdog){ clearInterval(window.__dsOnlineWatchdog); }
+  }catch(_){ }
+
+  // sofort einmal markieren: nach erfolgreichem Login gilt die Sitzung als online
+  try{ SYNC.cloudLastOkAt = Date.now(); SYNC.cloudLastError = ""; }catch(_){ }
+  updateSyncUI();
+
+  window.__dsOnlineWatchdog = setInterval(async ()=>{
+    // wenn abgemeldet -> stoppen
+    if(!(CLOUD && CLOUD.enabled && CLOUD.user)) return;
+    try{ await netPing(); }catch(_){ }
+    // Cloud-Ping ist optional: wenn SDK/Rules zicken, soll UI trotzdem "Online" zeigen, solange Netz ok
+    try{ await cloudPing(2500); }catch(_){ }
+    updateSyncUI();
+  }, 15000);
 }
 
 
@@ -6199,6 +6244,9 @@ return;
     // ANA-007: Cloud-Ping direkt nach erfolgreichem Login (Status sofort Online möglich)
     try{ await cloudPing(); }catch(e){}
 
+    // ANA016: Online-Status nach Login sofort setzen und durch Watchdog stabil halten
+    try{ startOnlineWatchdog(); }catch(e){}
+
     if(btnLogoutApp) btnLogoutApp.style.display = "inline-block";
     updateSyncUI();
     if(btnLogoutApp) btnLogoutApp.style.display = "inline-block";
@@ -8046,3 +8094,498 @@ function applyInvoiceDateDefaults(form){
     };
   }
 })();
+
+
+
+// =========================
+// Auswertungen V2 (ANA017)
+// Standard: Nächte (Check-out − Check-in)
+// =========================
+(function(){
+  const _id = (x)=>document.getElementById(x);
+
+  function anaPad(n){ return String(n).padStart(2,"0"); }
+  function anaDateStr(d){ return `${d.getFullYear()}-${anaPad(d.getMonth()+1)}-${anaPad(d.getDate())}`; }
+  function anaParseYMD(s){
+    if(!s) return null;
+    const m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if(!m) return null;
+    const y=+m[1], mo=+m[2]-1, da=+m[3];
+    const d=new Date(y,mo,da);
+    if(isNaN(d.getTime())) return null;
+    return d;
+  }
+  function anaAddDays(d, days){
+    const x=new Date(d.getTime());
+    x.setDate(x.getDate()+days);
+    return x;
+  }
+  function anaDiffDays(a,b){
+    const ms = b.getTime() - a.getTime();
+    return Math.round(ms / 86400000);
+  }
+  function anaMax(a,b){ return (a>b)?a:b; }
+  function anaMin(a,b){ return (a<b)?a:b; }
+
+  function anaGetInvoiceTotal(inv){
+    const t = inv?.pricing?.total;
+    const n = Number(t);
+    return isFinite(n) ? n : 0;
+  }
+
+  function anaNormalizeCustomerName(c){
+    const n = (c?.name || c?.fullName || c?.kunde_name || "").trim();
+    return n || "—";
+  }
+  function anaNormalizeDogName(p){
+    const n = (p?.name || p?.hund_name || "").trim();
+    return n || "—";
+  }
+
+  function anaGetRange(){
+    const preset = (_id("anaRangePreset")?.value) || "month";
+    const today = new Date();
+    const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+    let from=null, to=null; // inclusive
+    if(preset==="month"){
+      from = new Date(today.getFullYear(), today.getMonth(), 1);
+      to = new Date(today.getFullYear(), today.getMonth()+1, 0);
+    }else if(preset==="year"){
+      from = new Date(today.getFullYear(), 0, 1);
+      to = new Date(today.getFullYear(), 11, 31);
+    }else if(preset==="last30"){
+      to = startOfToday;
+      from = anaAddDays(to, -29);
+    }else{
+      from = anaParseYMD(_id("anaFrom")?.value) || new Date(today.getFullYear(), today.getMonth(), 1);
+      to = anaParseYMD(_id("anaTo")?.value) || startOfToday;
+    }
+
+    const inFrom=_id("anaFrom"), inTo=_id("anaTo");
+    if(inFrom) inFrom.value = anaDateStr(from);
+    if(inTo) inTo.value = anaDateStr(to);
+
+    const toExcl = anaAddDays(to, 1);
+    return { from, to, toExcl };
+  }
+
+  function anaStayIds(stay){
+    const meta = stay?.meta || {};
+    const customerId = meta.contractCustomerId || meta.customerId || stay.customerId || "";
+    const petId = meta.contractPetId || meta.petId || stay.petId || "";
+    const dogId = stay.dogId || meta.dogId || "";
+    return { customerId, petId, dogId };
+  }
+
+  function anaStayDates(stay){
+    const meta = stay?.meta || {};
+    const von = meta.von || stay.von || stay.from || "";
+    const bis = meta.bis || stay.bis || stay.to || "";
+    const dFrom = anaParseYMD(von);
+    const dTo = anaParseYMD(bis);
+    return { dFrom, dTo };
+  }
+
+  function anaIsCancelled(obj){
+    const s = String(obj?.status || obj?.meta?.status || "").toLowerCase();
+    return s === "cancelled" || s === "canceled" || s === "storno" || s === "storniert";
+  }
+
+  function anaCompute(range){
+    const res = {
+      nights: 0,
+      stays: 0,
+      avgStayNights: 0,
+      revenue: 0,
+      invoices: 0,
+      customersByNights: {},
+      customersByRevenue: {},
+      dogsByNights: {},
+      weekdayNights: [0,0,0,0,0,0,0], // Mo..So
+    };
+
+    const customers = Array.isArray(state?.customers) ? state.customers : [];
+    const pets = Array.isArray(state?.pets) ? state.pets : [];
+    const stays = Array.isArray(state?.stays) ? state.stays : [];
+    const invoices = Array.isArray(state?.invoices) ? state.invoices : [];
+
+    stays.forEach(st=>{
+      if(!st) return;
+      if(anaIsCancelled(st)) return;
+
+      const { dFrom, dTo } = anaStayDates(st);
+      if(!dFrom || !dTo) return;
+
+      const oFrom = anaMax(dFrom, range.from);
+      const oTo = anaMin(dTo, range.toExcl);
+      const n = anaDiffDays(oFrom, oTo);
+      if(!(n>0)) return;
+
+      res.nights += n;
+      res.stays += 1;
+
+      const ids = anaStayIds(st);
+      const cid = ids.customerId || "—";
+      if(!res.customersByNights[cid]) res.customersByNights[cid] = { nights:0, stays:0 };
+      res.customersByNights[cid].nights += n;
+      res.customersByNights[cid].stays += 1;
+
+      const pid = ids.petId || ids.dogId || "—";
+      res.dogsByNights[pid] = (res.dogsByNights[pid]||0) + n;
+
+      for(let k=0;k<n;k++){
+        const day = anaAddDays(oFrom, k);
+        const js = day.getDay(); // 0=So..6=Sa
+        const idx = (js===0) ? 6 : (js-1);
+        res.weekdayNights[idx] += 1;
+      }
+    });
+
+    res.avgStayNights = res.stays ? (res.nights / res.stays) : 0;
+
+    invoices.forEach(inv=>{
+      if(!inv) return;
+      if(anaIsCancelled(inv)) return;
+
+      const d = new Date(inv.invoiceDate || inv.createdAt || "");
+      if(isNaN(d.getTime())) return;
+      const only = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      if(only < range.from || only > range.to) return;
+
+      const t = anaGetInvoiceTotal(inv);
+      res.revenue += t;
+      res.invoices += 1;
+
+      const cid = inv.customerId || "—";
+      res.customersByRevenue[cid] = (res.customersByRevenue[cid]||0) + t;
+    });
+
+    function custName(cid){
+      const c = customers.find(x=>x.id===cid);
+      return c ? anaNormalizeCustomerName(c) : (cid==="—" ? "Unbekannt" : cid);
+    }
+    function dogName(pid){
+      const p = pets.find(x=>x.id===pid) || (state?.dogs||[]).find(x=>x.id===pid);
+      return p ? anaNormalizeDogName(p) : (pid==="—" ? "Unbekannt" : pid);
+    }
+
+    const topCustomersNights = Object.entries(res.customersByNights)
+      .map(([cid,v])=>({ cid, name: custName(cid), nights: v.nights, stays: v.stays }))
+      .sort((a,b)=> b.nights - a.nights)
+      .slice(0,8);
+
+    const topCustomersRevenue = Object.entries(res.customersByRevenue)
+      .map(([cid,val])=>({ cid, name: custName(cid), revenue: val }))
+      .sort((a,b)=> b.revenue - a.revenue)
+      .slice(0,8);
+
+    const topDogs = Object.entries(res.dogsByNights)
+      .map(([pid,n])=>({ pid, name: dogName(pid), nights: n }))
+      .sort((a,b)=> b.nights - a.nights)
+      .slice(0,10);
+
+    return { res, topCustomersNights, topCustomersRevenue, topDogs };
+  }
+
+  function anaFmtEUR(x){
+    const n = Number(x)||0;
+    try{
+      return n.toLocaleString("de-DE", { style:"currency", currency:"EUR" });
+    }catch(_){
+      return (Math.round(n*100)/100).toFixed(2)+" €";
+    }
+  }
+  function anaFmt1(x){
+    const n = Number(x)||0;
+    return (Math.round(n*10)/10).toFixed(1).replace(".",",");
+  }
+
+  function escapeHtml(s){
+    return String(s||"").replace(/[&<>"']/g, c=>({
+      "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"
+    }[c]));
+  }
+
+  function anaTableTopCustomersNights(rows){
+    if(!rows || !rows.length) return `<div class="muted">Keine Daten im Zeitraum.</div>`;
+    const tr = rows.map(r=>`
+      <tr>
+        <td style="padding:6px 8px;">${escapeHtml(r.name)}</td>
+        <td style="padding:6px 8px; text-align:right; font-weight:700;">${r.nights}</td>
+        <td style="padding:6px 8px; text-align:right;" class="muted">${r.stays}</td>
+      </tr>`).join("");
+    return `
+      <table style="width:100%; border-collapse:collapse;">
+        <thead>
+          <tr>
+            <th style="text-align:left; padding:6px 8px;" class="muted">Kunde</th>
+            <th style="text-align:right; padding:6px 8px;" class="muted">Nächte</th>
+            <th style="text-align:right; padding:6px 8px;" class="muted">Aufenthalte</th>
+          </tr>
+        </thead>
+        <tbody>${tr}</tbody>
+      </table>`;
+  }
+
+  function anaTableTopCustomersRevenue(rows){
+    if(!rows || !rows.length) return `<div class="muted">Keine Daten im Zeitraum.</div>`;
+    const tr = rows.map(r=>`
+      <tr>
+        <td style="padding:6px 8px;">${escapeHtml(r.name)}</td>
+        <td style="padding:6px 8px; text-align:right; font-weight:700;">${anaFmtEUR(r.revenue)}</td>
+      </tr>`).join("");
+    return `
+      <table style="width:100%; border-collapse:collapse;">
+        <thead>
+          <tr>
+            <th style="text-align:left; padding:6px 8px;" class="muted">Kunde</th>
+            <th style="text-align:right; padding:6px 8px;" class="muted">Umsatz</th>
+          </tr>
+        </thead>
+        <tbody>${tr}</tbody>
+      </table>`;
+  }
+
+  function anaTableTopDogs(rows){
+    if(!rows || !rows.length) return `<div class="muted">Keine Daten im Zeitraum.</div>`;
+    const tr = rows.map(r=>`
+      <tr>
+        <td style="padding:6px 8px;">${escapeHtml(r.name)}</td>
+        <td style="padding:6px 8px; text-align:right; font-weight:700;">${r.nights}</td>
+      </tr>`).join("");
+    return `
+      <table style="width:100%; border-collapse:collapse;">
+        <thead>
+          <tr>
+            <th style="text-align:left; padding:6px 8px;" class="muted">Hund</th>
+            <th style="text-align:right; padding:6px 8px;" class="muted">Nächte</th>
+          </tr>
+        </thead>
+        <tbody>${tr}</tbody>
+      </table>`;
+  }
+
+  function anaSetActiveView(which){
+    const map = {
+      dashboard: ["anaViewDashboard","anaViewBtnDashboard"],
+      occupancy: ["anaViewOccupancy","anaViewBtnOccupancy"],
+      revenue: ["anaViewRevenue","anaViewBtnRevenue"],
+      customers: ["anaViewCustomers","anaViewBtnCustomers"],
+      dogs: ["anaViewDogs","anaViewBtnDogs"],
+      patterns: ["anaViewPatterns","anaViewBtnPatterns"]
+    };
+
+    Object.keys(map).forEach(k=>{
+      const [viewId, btnId] = map[k];
+      const v=_id(viewId), b=_id(btnId);
+      if(v) v.style.display = (k===which) ? "" : "none";
+      if(b) b.classList.toggle("is-active", k===which);
+    });
+
+    state._ana = state._ana || {};
+    state._ana.lastView = which;
+    try{ saveState(); }catch(_){ }
+  }
+
+  function anaRenderAll(){
+    const range = anaGetRange();
+    const out = anaCompute(range);
+    const { res, topCustomersNights, topCustomersRevenue, topDogs } = out;
+
+    const dash=_id("anaViewDashboard");
+    if(dash){
+      dash.innerHTML = `
+        <h3 style="margin-top:0;">Übersicht</h3>
+        <div class="grid-3" style="gap:12px;">
+          <div class="card" style="margin:0;">
+            <div class="muted">Hundetage (Nächte)</div>
+            <div style="font-size:26px; font-weight:800;">${res.nights}</div>
+          </div>
+          <div class="card" style="margin:0;">
+            <div class="muted">Aufenthalte</div>
+            <div style="font-size:26px; font-weight:800;">${res.stays}</div>
+          </div>
+          <div class="card" style="margin:0;">
+            <div class="muted">Ø Aufenthaltsdauer</div>
+            <div style="font-size:26px; font-weight:800;">${anaFmt1(res.avgStayNights)} Nächte</div>
+          </div>
+          <div class="card" style="margin:0;">
+            <div class="muted">Umsatz (Rechnungen)</div>
+            <div style="font-size:26px; font-weight:800;">${anaFmtEUR(res.revenue)}</div>
+          </div>
+          <div class="card" style="margin:0;">
+            <div class="muted">Rechnungen</div>
+            <div style="font-size:26px; font-weight:800;">${res.invoices}</div>
+          </div>
+          <div class="card" style="margin:0;">
+            <div class="muted">Umsatz / Nacht</div>
+            <div style="font-size:26px; font-weight:800;">${anaFmtEUR(res.nights ? (res.revenue/res.nights) : 0)}</div>
+          </div>
+        </div>
+
+        <div class="row" style="gap:14px; margin-top:14px; align-items:flex-start; flex-wrap:wrap;">
+          <div style="flex:1; min-width:280px;">
+            <h3 style="margin:6px 0 8px 0;">Top Kunden (Nächte)</h3>
+            ${anaTableTopCustomersNights(topCustomersNights)}
+          </div>
+          <div style="flex:1; min-width:280px;">
+            <h3 style="margin:6px 0 8px 0;">Top Kunden (Umsatz)</h3>
+            ${anaTableTopCustomersRevenue(topCustomersRevenue)}
+          </div>
+        </div>
+
+        <div style="margin-top:12px;">
+          <h3 style="margin:6px 0 8px 0;">Top Hunde (Nächte)</h3>
+          ${anaTableTopDogs(topDogs)}
+        </div>
+      `;
+    }
+
+    const occ=_id("anaViewOccupancy");
+    if(occ){
+      occ.innerHTML = `
+        <h3 style="margin-top:0;">Belegung</h3>
+        <p class="muted">Berechnung: Summe Nächte (Check-out − Check-in) aller Aufenthalte, die den Zeitraum schneiden.</p>
+        <div class="row" style="gap:16px; flex-wrap:wrap;">
+          <div class="card" style="margin:0; flex:1; min-width:240px;">
+            <div class="muted">Hundetage (Nächte)</div>
+            <div style="font-size:26px; font-weight:800;">${res.nights}</div>
+          </div>
+          <div class="card" style="margin:0; flex:1; min-width:240px;">
+            <div class="muted">Aufenthalte</div>
+            <div style="font-size:26px; font-weight:800;">${res.stays}</div>
+          </div>
+        </div>
+        <div style="margin-top:12px;">
+          <h3 style="margin:6px 0 8px 0;">Top Kunden nach Nächten</h3>
+          ${anaTableTopCustomersNights(topCustomersNights)}
+        </div>
+      `;
+    }
+
+    const rev=_id("anaViewRevenue");
+    if(rev){
+      rev.innerHTML = `
+        <h3 style="margin-top:0;">Umsatz</h3>
+        <p class="muted">Quelle: Rechnungen im Zeitraum (nicht storniert). Betrag = pricing.total.</p>
+        <div class="row" style="gap:16px; flex-wrap:wrap;">
+          <div class="card" style="margin:0; flex:1; min-width:240px;">
+            <div class="muted">Umsatz</div>
+            <div style="font-size:26px; font-weight:800;">${anaFmtEUR(res.revenue)}</div>
+          </div>
+          <div class="card" style="margin:0; flex:1; min-width:240px;">
+            <div class="muted">Rechnungen</div>
+            <div style="font-size:26px; font-weight:800;">${res.invoices}</div>
+          </div>
+          <div class="card" style="margin:0; flex:1; min-width:240px;">
+            <div class="muted">Ø Rechnung</div>
+            <div style="font-size:26px; font-weight:800;">${anaFmtEUR(res.invoices ? (res.revenue/res.invoices) : 0)}</div>
+          </div>
+        </div>
+        <div style="margin-top:12px;">
+          <h3 style="margin:6px 0 8px 0;">Top Kunden nach Umsatz</h3>
+          ${anaTableTopCustomersRevenue(topCustomersRevenue)}
+        </div>
+      `;
+    }
+
+    const cus=_id("anaViewCustomers");
+    if(cus){
+      cus.innerHTML = `
+        <h3 style="margin-top:0;">Kunden</h3>
+        <p class="muted">Ranking nach Nächten und nach Umsatz (Rechnungen).</p>
+        <div class="row" style="gap:14px; align-items:flex-start; flex-wrap:wrap;">
+          <div style="flex:1; min-width:280px;">
+            <h3 style="margin:6px 0 8px 0;">Top (Nächte)</h3>
+            ${anaTableTopCustomersNights(topCustomersNights)}
+          </div>
+          <div style="flex:1; min-width:280px;">
+            <h3 style="margin:6px 0 8px 0;">Top (Umsatz)</h3>
+            ${anaTableTopCustomersRevenue(topCustomersRevenue)}
+          </div>
+        </div>
+      `;
+    }
+
+    const dogs=_id("anaViewDogs");
+    if(dogs){
+      dogs.innerHTML = `
+        <h3 style="margin-top:0;">Hunde</h3>
+        <p class="muted">Ranking nach Nächten (aus Aufenthalten).</p>
+        ${anaTableTopDogs(topDogs)}
+      `;
+    }
+
+    const pat=_id("anaViewPatterns");
+    if(pat){
+      const labels=["Mo","Di","Mi","Do","Fr","Sa","So"];
+      const max=Math.max(1, ...res.weekdayNights);
+      const bars = res.weekdayNights.map((v,i)=>{
+        const w = Math.round((v/max)*100);
+        return `<div class="row" style="gap:10px; align-items:center; margin:6px 0;">
+          <div style="width:32px; font-weight:700;">${labels[i]}</div>
+          <div style="flex:1; height:10px; border-radius:999px; background:rgba(255,255,255,.12); overflow:hidden;">
+            <div style="width:${w}%; height:10px; background:rgba(245,182,46,.9);"></div>
+          </div>
+          <div class="muted" style="width:60px; text-align:right;">${v}</div>
+        </div>`;
+      }).join("");
+      pat.innerHTML = `
+        <h3 style="margin-top:0;">Muster</h3>
+        <p class="muted">Nächte nach Wochentag (Mo–So) im gewählten Zeitraum.</p>
+        <div>${bars}</div>
+      `;
+    }
+  }
+
+  function anaBindOnce(){
+    const root = _id("analytics");
+    if(!root || root.__anaBound) return;
+    root.__anaBound = true;
+
+    const preset=_id("anaRangePreset");
+    if(preset){
+      preset.addEventListener("change", ()=>{
+        const v=preset.value;
+        const custom = (v==="custom");
+        const inFrom=_id("anaFrom"), inTo=_id("anaTo");
+        if(inFrom) inFrom.disabled = !custom;
+        if(inTo) inTo.disabled = !custom;
+        anaRenderAll();
+      });
+    }
+
+    const btnApply=_id("anaApply");
+    if(btnApply) btnApply.addEventListener("click", anaRenderAll);
+
+    const bindView = (id, which)=>{
+      const b=_id(id);
+      if(b && !b.__bound){
+        b.__bound=true;
+        b.addEventListener("click", ()=>{
+          anaSetActiveView(which);
+          anaRenderAll();
+        });
+      }
+    };
+    bindView("anaViewBtnDashboard","dashboard");
+    bindView("anaViewBtnOccupancy","occupancy");
+    bindView("anaViewBtnRevenue","revenue");
+    bindView("anaViewBtnCustomers","customers");
+    bindView("anaViewBtnDogs","dogs");
+    bindView("anaViewBtnPatterns","patterns");
+
+    const inFrom=_id("anaFrom"), inTo=_id("anaTo");
+    if(inFrom) inFrom.disabled = true;
+    if(inTo) inTo.disabled = true;
+  }
+
+  window.renderAnalyticsPanel = function(){
+    try{ anaBindOnce(); }catch(_){}
+    const last = (state?._ana?.lastView) || "dashboard";
+    anaSetActiveView(last);
+    anaRenderAll();
+  };
+})();
+
