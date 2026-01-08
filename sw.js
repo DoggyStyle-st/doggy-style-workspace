@@ -1,6 +1,6 @@
 /* Doggy Style – Service Worker PATCH_OPTIK_07_2026-01-06e (offline-first, update-safe) */
 
-const SW_VERSION = "ANA015_2026-01-08";
+const SW_VERSION = "ANA016_2026-01-08";
 const CACHE_NAME = `ds-test-cache-${SW_VERSION}`;
 
 // Wichtig:
@@ -12,9 +12,8 @@ const CACHE_NAME = `ds-test-cache-${SW_VERSION}`;
 const CORE_ASSETS = [
   "index.html",
   "login.html",
-  "app.html",
   "styles.css",
-  "app.js?v=ANA015",
+  "app_ANA016.js?v=ANA016",
   "manifest.json",
   "assets/logo.png"
 ];
@@ -71,8 +70,8 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // app.js: immer network-first (Cache-Bust + Update-Sicherheit)
-  if(url.pathname.endsWith("/app.js")) {
+  // app.js + versionierte App-Builds: immer network-first (Cache-Bust + Update-Sicherheit)
+  if(url.pathname.endsWith("/app.js") || /\/app_ANA\d+\.js$/.test(url.pathname)) {
     event.respondWith((async ()=>{
       try{
         const fresh = await fetch(req, {cache:"no-store"});
