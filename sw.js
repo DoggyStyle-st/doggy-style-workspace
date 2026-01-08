@@ -1,6 +1,6 @@
 /* Doggy Style – Service Worker PATCH_OPTIK_07_2026-01-06e (offline-first, update-safe) */
 
-const SW_VERSION = "ANA008_2026-01-08a";
+const SW_VERSION = "ANA011_2026-01-08";
 const CACHE_NAME = `ds-test-cache-${SW_VERSION}`;
 
 // Wichtig:
@@ -14,7 +14,7 @@ const CORE_ASSETS = [
   "login.html",
   "app.html",
   "styles.css",
-  "app.js?v=ANA008",
+  "app.js?v=ANA011",
   "manifest.json",
   "assets/logo.png"
 ];

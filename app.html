@@ -1170,7 +1170,7 @@
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-<script defer="defer" src="app.js?v=ANA008"></script>
+<script defer="defer" src="app.js?v=ANA011"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1213,7 +1213,13 @@
 </script>
 
 <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=ANA008');
+    // ANA011: PWA/SW vorübergehend deaktiviert (Safari/iPad Cache-Probleme).
+    // Wir entfernen ggf. alte Registrierungen, damit wirklich der aktuelle Stand geladen wird.
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations()
+        .then(rs => rs.forEach(r => r.unregister()))
+        .catch(() => {});
+    }
   </script>
 
 <script>
@@ -1277,7 +1283,7 @@
   <button class="btn btn--mini btn--logout" id="btnLogoutBottom" type="button" title="Ausloggen / Logout">Ausloggen / Logout</button>
 </div>
 <!-- Sichtbarer Build-Zähler (Variante A) -->
-<div class="build-badge" id="buildBadge" title="Build-Zähler">Build: V10FIX6-A-ANA008</div>
+<div class="build-badge" id="buildBadge" title="Build-Zähler">Build: V10FIX6-A-ANA011</div>
 
 <!-- V10 Modal Editor (stable, tab-independent) -->
 <style>
