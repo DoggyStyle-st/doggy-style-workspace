@@ -1,5 +1,5 @@
 // Sichtbarer Build-Zähler (Variante A)
-const APP_BUILD = "V10FIX6-A-ANA-007";
+const APP_BUILD = "V10FIX6-A-ANA008";
 window.addEventListener("error",(e)=>{console.error("APP_ERROR",e.error||e.message);});
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
