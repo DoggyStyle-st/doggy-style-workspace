@@ -165,7 +165,7 @@ function updateSyncUI(){
   const netOnline = pingOnline || navOnline;
   const cloudOnline = !!SYNC.cloudLastOkAt && (Date.now() - SYNC.cloudLastOkAt < 1000*60*60*24*7);
   // iOS/Safari/PWA: navigator.onLine ist nicht immer zuverlässig -> UI-Status auf "effektiv online" stützen.
-  const effectiveOnline = netOnline || cloudOnline;
+  const effectiveOnline = netOnline || cloudOnline || (CLOUD && CLOUD.enabled && CLOUD.user);
   const uiOnline = effectiveOnline;
   try{ if(pill){ pill.classList.toggle('is-online', !!uiOnline); pill.classList.toggle('is-offline', !uiOnline); } }catch(e){}
   const localLine = `Lokal gespeichert: ${fmtDT(SYNC.localSavedAt)}`;
