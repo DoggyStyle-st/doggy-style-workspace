@@ -1,6 +1,6 @@
 // Sichtbarer Build-Zähler (Variante A)
 // Build-Counter (sichtbar unten links in der App)
-const APP_BUILD = "V10FIX6-A-ANA011";
+const APP_BUILD = "V10FIX6-A-ANA013";
 window.addEventListener("error",(e)=>{console.error("APP_ERROR",e.error||e.message);});
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
@@ -159,12 +159,14 @@ function updateSyncUI(){
 
   const netOnline = (typeof navigator !== 'undefined') ? !!navigator.onLine : false;
   const cloudOnline = !!SYNC.cloudLastOkAt && (Date.now() - SYNC.cloudLastOkAt < 1000*60*60*24*7);
+  // iOS/Safari/PWA: navigator.onLine ist nicht immer zuverlässig -> UI-Status auf "effektiv online" stützen.
   const effectiveOnline = netOnline || cloudOnline;
-  try{ if(pill){ pill.classList.toggle('is-online', !!netOnline); pill.classList.toggle('is-offline', !netOnline); } }catch(e){}
+  const uiOnline = effectiveOnline;
+  try{ if(pill){ pill.classList.toggle('is-online', !!uiOnline); pill.classList.toggle('is-offline', !uiOnline); } }catch(e){}
   const localLine = `Lokal gespeichert: ${fmtDT(SYNC.localSavedAt)}`;
 
-  // Internet-Status (nicht gleich Cloud!)
-  const netLine = `Internet: ${netOnline ? 'Online' : 'Offline'}`;
+  // Verbindung (Internet/Cloud-Effektivität)
+  const netLine = `Verbindung: ${uiOnline ? 'Online' : 'Offline'}`;
 
   let pillText = effectiveOnline ? 'Online' : 'Offline';
   let cloudLine = 'Cloud: aus';
@@ -177,23 +179,23 @@ function updateSyncUI(){
     }
   } else if(CLOUD.enabled){
     if(!CLOUD.user){
-      pillText = `${netOnline ? 'Online' : 'Offline'} · Cloud: Login nötig`;
+      pillText = `${uiOnline ? 'Online' : 'Offline'} · Cloud: Login nötig`;
       cloudLine = 'Cloud: nicht angemeldet';
     } else if(SYNC.cloudLastError){
-      pillText = `${netOnline ? 'Online' : 'Offline'} · Cloud: Fehler`;
+      pillText = `${uiOnline ? 'Online' : 'Offline'} · Cloud: Fehler`;
       cloudLine = `Cloud Fehler: ${SYNC.cloudLastError}`;
     } else if(SYNC.cloudPending){
-      pillText = `${netOnline ? 'Online' : 'Offline'} · Cloud: Sync…`;
+      pillText = `${uiOnline ? 'Online' : 'Offline'} · Cloud: Sync…`;
       cloudLine = `Cloud Sync: läuft (letztes OK ${fmtDT(SYNC.cloudLastOkAt)})`;
     } else {
-      pillText = `${netOnline ? 'Online' : 'Offline'} · Cloud: OK`;
+      pillText = `${uiOnline ? 'Online' : 'Offline'} · Cloud: OK`;
       cloudLine = `Cloud zuletzt OK: ${fmtDT(SYNC.cloudLastOkAt)} · Server: ${fmtDT(SYNC.cloudLastSeenAt)}`;
     }
   }
 
   if(pill) pill.textContent = `${pillText} · ${fmtDT(SYNC.localSavedAt)}`;
   const dot=document.getElementById('syncDot');
-  if(dot){ dot.classList.toggle('online', !!netOnline); dot.classList.toggle('offline', !netOnline); }
+  if(dot){ dot.classList.toggle('online', !!uiOnline); dot.classList.toggle('offline', !uiOnline); }
   if(details) details.textContent = `${localLine}\n${netLine}\n${cloudLine}`;
 
   // Manual cloud save: only enable when Cloud is active + logged in
