@@ -165,7 +165,7 @@ function updateSyncUI(){
   // Internet-Status (nicht gleich Cloud!)
   const netLine = `Internet: ${netOnline ? 'Online' : 'Offline'}`;
 
-  let pillText = netOnline ? 'Online' : 'Offline';
+  let pillText = effectiveOnline ? 'Online' : 'Offline';
   let cloudLine = 'Cloud: aus';
 
   if(!cloudIsEnabled()){
