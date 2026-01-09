@@ -1,6 +1,6 @@
 // Sichtbarer Build-Zähler (Variante A)
 // Build-Counter (sichtbar unten links in der App)
-const APP_BUILD = "V10FIX6-A-ANA026";
+const APP_BUILD = "V10FIX6-A-ANA027";
 window.addEventListener("error",(e)=>{console.error("APP_ERROR",e.error||e.message);});
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
@@ -8186,7 +8186,7 @@ function initCapacitySettingsBindings(){
    ========================= */
 (function(){
   try{
-    const BUILD_MARK = "V10FIX6-A-ANA026";
+    const BUILD_MARK = "V10FIX6-A-ANA027";
 
     // --- helpers
     const pad2 = (n)=>String(n).padStart(2,"0");
@@ -9056,5 +9056,77 @@ function initCapacitySettingsBindings(){
 
   }catch(e){
     console.warn("PHASE_B_ANALYTICS_V4 failed", e);
+  }
+})();
+
+// =========================
+// ANA027 GLOBAL OVERLAY PROBE – proves JS runs + receives touch/click anywhere
+// =========================
+(function(){
+  try{
+    function ensure(){
+      let d=document.getElementById("__anaOverlayProbe");
+      if(d) return d;
+      d=document.createElement("div");
+      d.id="__anaOverlayProbe";
+      d.style.cssText=[
+        "position:fixed",
+        "right:12px",
+        "bottom:12px",
+        "z-index:999999",
+        "background:rgba(0,0,0,0.55)",
+        "color:#fff",
+        "border:1px solid rgba(255,255,255,0.18)",
+        "border-radius:12px",
+        "padding:10px 12px",
+        "font:12px/1.25 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif",
+        "backdrop-filter:blur(6px)",
+        "max-width:240px"
+      ].join(";");
+      d.innerHTML="<div><strong>ANA027 Probe</strong></div><div id='__anaOverlayProbeLine' style='opacity:.85;margin-top:4px;'>geladen</div>";
+      document.body.appendChild(d);
+      return d;
+    }
+
+    function setLine(txt){
+      const d=ensure();
+      const line=d.querySelector("#__anaOverlayProbeLine");
+      if(line) line.textContent=txt;
+    }
+
+    const start=Date.now();
+    function t(){ return Math.round((Date.now()-start)/100)/10 + "s"; }
+
+    // show alive after DOM ready
+    if(document.readyState==="loading"){
+      document.addEventListener("DOMContentLoaded", ()=>setLine("DOM ready ("+t()+")"), {once:true});
+    }else{
+      setLine("DOM ready ("+t()+")");
+    }
+
+    // capture ANY interaction
+    function onAny(ev){
+      setLine(ev.type+" @ "+t());
+    }
+    ["touchstart","touchend","pointerdown","pointerup","mousedown","mouseup","click"].forEach(type=>{
+      document.addEventListener(type, onAny, true);
+    });
+
+    // now bind Aktualisieren button by direct query (no reliance on ids)
+    function bindUpdate(){
+      // find a button with text 'Aktualisieren' in the analytics section
+      const btns=[...document.querySelectorAll("button, [role='button'], .btn, .button")];
+      const upd=btns.find(b=>((b.textContent||"").trim().toLowerCase()==="aktualisieren"));
+      if(upd && !upd.__anaBound){
+        upd.__anaBound=true;
+        upd.addEventListener("click", ()=>setLine("Aktualisieren klick ("+t()+")"), true);
+        upd.addEventListener("touchend", ()=>setLine("Aktualisieren touchend ("+t()+")"), true);
+        setLine("Aktualisieren gebunden ("+t()+")");
+      }
+    }
+    setInterval(bindUpdate, 800);
+
+  }catch(e){
+    try{ console.warn("ANA027 overlay probe failed", e); }catch(_){}
   }
 })();
