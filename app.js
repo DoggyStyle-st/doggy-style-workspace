@@ -8186,7 +8186,125 @@ function initCapacitySettingsBindings(){
    ========================= */
 (function(){
   try{
-    const BUILD_MARK = "V10FIX6-A-ANA026";
+    const BUILD_MARK = "V10FIX6-A-ANA031_DEBUG";
+
+
+// === ANA031_DEBUG helpers ===
+const __DBG = { buffer: [], max: 140 };
+
+function safeJson(v){ try{return JSON.stringify(v);}catch(e){ return String(v);} }
+
+function dbg(msg, data) {
+  try {
+    const ts = new Date().toLocaleTimeString();
+    const line = `[${ts}] ${msg}` + (data !== undefined ? ` | ${safeJson(data)}` : "");
+    __DBG.buffer.push(line);
+    if (__DBG.buffer.length > __DBG.max) __DBG.buffer.shift();
+    const el = document.getElementById("dbgPanelLines");
+    if (el) el.textContent = __DBG.buffer.slice(-18).join("\n");
+    const badge = document.getElementById("dbgPanelBadge");
+    if (badge) badge.textContent = `DBG ${__DBG.buffer.length}`;
+    if (/^(CLICK|ERR|ANA|STAY)/.test(msg)) toast(msg.length>72 ? msg.slice(0,72)+"…" : msg, 2000);
+  } catch(_) {}
+}
+
+function ensureDbgPanel() {
+  if (document.getElementById("dbgPanel")) return;
+  const wrap = document.createElement("div");
+  wrap.id = "dbgPanel";
+  wrap.style.cssText = [
+    "position:fixed","right:12px","top:84px","z-index:999999",
+    "max-width:46vw","min-width:240px",
+    "background:rgba(0,0,0,.55)","border:1px solid rgba(255,255,255,.18)",
+    "border-radius:12px","padding:10px 12px",
+    "backdrop-filter: blur(8px)","-webkit-backdrop-filter: blur(8px)",
+    "color:#fff","font-family: ui-monospace, SFMono-Regular, Menlo, monospace",
+    "font-size:12px","line-height:1.25","pointer-events:auto"
+  ].join(";");
+  wrap.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+      <div id="dbgPanelBadge" style="padding:2px 8px;border-radius:10px;background:rgba(255,255,255,.12);font-weight:700;">DBG</div>
+      <button id="dbgPanelClear" style="margin-left:auto;padding:4px 8px;border-radius:10px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#fff;">Clear</button>
+    </div>
+    <pre id="dbgPanelLines" style="margin:0;white-space:pre-wrap;word-break:break-word;max-height:160px;overflow:auto;"></pre>
+  `;
+  document.body.appendChild(wrap);
+  document.getElementById("dbgPanelClear")?.addEventListener("click", (e)=>{
+    e.preventDefault(); e.stopPropagation();
+    __DBG.buffer = [];
+    dbg("ANA031_DEBUG cleared");
+  }, {passive:false});
+  dbg("ANA031_DEBUG panel ready");
+}
+
+window.addEventListener("error", (ev)=>{
+  dbg("ERR window.error", {message: ev.message, file: ev.filename, line: ev.lineno, col: ev.colno});
+});
+window.addEventListener("unhandledrejection", (ev)=>{
+  const r = ev.reason && (ev.reason.stack || ev.reason.message || String(ev.reason));
+  dbg("ERR unhandledrejection", r);
+});
+
+document.addEventListener("click", (e)=>{
+  try{
+    const t = e.target;
+    const id = t?.id || "";
+    const cls = (t?.className && typeof t.className==="string") ? t.className.split(/\s+/).slice(0,3).join(".") : "";
+    const txt = (t?.innerText || "").trim().slice(0,40);
+    dbg(`CLICK id=${id} class=${cls} text=${txt}`);
+  }catch(_){}
+}, true);
+
+const __observer = new MutationObserver(()=>{
+  try{
+    ensureDbgPanel();
+
+    const ana = document.getElementById("anaApply");
+    if (ana && !ana.__dbgWired){
+      ana.__dbgWired = true;
+      ana.addEventListener("click", ()=>dbg("ANA apply clicked"), {passive:true});
+      try{ if (typeof analyticsApply==="function") ana.addEventListener("click", analyticsApply);}catch(_){}
+      dbg("ANA apply wired");
+    }
+
+    ["btnNewStayTop","btnNewStayOnPage"].forEach((bid)=>{
+      const b = document.getElementById(bid);
+      if (b && !b.__dbgWired){
+        b.__dbgWired = true;
+        b.addEventListener("click", (ev)=>{
+          dbg(`STAY +Aufenthalt (${bid})`);
+          try{ if (typeof window.createStay==="function") window.createStay(); }catch(err){ dbg("ERR createStay()", err?.message||String(err)); }
+        }, {passive:false});
+        dbg(`STAY wired ${bid}`);
+      }
+    });
+  }catch(_){}
+});
+
+window.addEventListener("DOMContentLoaded", ()=>{
+  ensureDbgPanel();
+  __observer.observe(document.documentElement || document.body, {childList:true, subtree:true});
+  dbg("ANA031_DEBUG observer active");
+
+  // wrap createStay to surface errors in UI
+  try{
+    if (typeof window.createStay==="function" && !window.createStay.__dbgWrapped){
+      const __orig = window.createStay;
+      const wrapped = function(){
+        dbg("STAY createStay() call");
+        try { return __orig.apply(this, arguments); }
+        catch(err){
+          dbg("ERR createStay", err && (err.stack || err.message || String(err)));
+          toast("Fehler beim Öffnen Aufenthalt-Editor (siehe DBG Panel)", 4500);
+        }
+      };
+      wrapped.__dbgWrapped = true;
+      window.createStay = wrapped;
+      dbg("STAY createStay wrapped");
+    }
+  }catch(_){}
+});
+// === /ANA031_DEBUG helpers ===
 
     // --- helpers
     const pad2 = (n)=>String(n).padStart(2,"0");
