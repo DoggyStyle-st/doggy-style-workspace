@@ -1,6 +1,6 @@
 // Sichtbarer Build-Zähler (Variante A)
 // Build-Counter (sichtbar unten links in der App)
-const APP_BUILD = "V10FIX6-A-ANA019";
+const APP_BUILD = "V10FIX6-A-ANA016";
 window.addEventListener("error",(e)=>{console.error("APP_ERROR",e.error||e.message);});
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
@@ -26,7 +26,17 @@ function getCapacity(type, dateISO){
     const caps = state && state.capacities;
     if(!caps || !caps.default) return (CAPACITY[type] || 0);
     const d = String(dateISO||"").slice(0,10);
-    const exs = Array.isArray(caps.exceptions) ? caps.exceptions : [];
+    
+    // Sonntag-Regel (Basis): falls gesetzt, gilt diese Kapazität am Sonntag
+    try{
+      const dt = new Date(d + "T00:00:00");
+      if(dt && dt.getDay && dt.getDay() === 0){
+        const sv = Number(caps.sundayTotal);
+        if(Number.isFinite(sv) && sv >= 0) return sv;
+      }
+    }catch(_){}
+
+const exs = Array.isArray(caps.exceptions) ? caps.exceptions : [];
     for(const ex of exs){
       if(!ex || !ex.from || !ex.to) continue;
       const from = String(ex.from).slice(0,10);
@@ -36,19 +46,7 @@ function getCapacity(type, dateISO){
         if(Number.isFinite(v) && v >= 0) return v;
       }
     }
-    
-    // Sonntag-Regel: keine An-/Abreise -> Gesamt-Kapazität reduziert (nur Tagesbetreuung relevant)
-    try{
-      if(type === "Tagesbetreuung" && state && state.capacityRules && state.capacityRules.sundayNoArrDep){
-        const d0 = String(dateISO||"").slice(0,10);
-        const dd = new Date(d0 + "T00:00:00");
-        if(!isNaN(dd.getTime()) && dd.getDay() === 0){ // 0 = Sonntag
-          const sv = Number(state.capacityRules.sundayTotal);
-          if(Number.isFinite(sv) && sv >= 0) return sv;
-        }
-      }
-    }catch(_){}
-const base = Number(caps.default[type]);
+    const base = Number(caps.default[type]);
     return (Number.isFinite(base) && base >= 0) ? base : (CAPACITY[type] || 0);
   }catch(_){
     return (CAPACITY[type] || 0);
@@ -269,32 +267,7 @@ function suggestFilename(title){
   if(t.includes('monatsnachweis')) return `01_Monatsnachweis_${ym}.pdf`;
   if(t.includes('monats') && t.includes('export')) return `01_MonatsExport_${ym}.pdf`;
   if(t.includes('vertrag')) return `Betreuungsvertrag.pdf`;
-  r
-  // Kapazitäts-Regeln (Mo–Sa Gesamt, Overnight, Sonntag ohne An-/Abreise)
-  if(!state.capacityRules || typeof state.capacityRules !== "object"){
-    state.capacityRules = {
-      totalDefault: Number(CAPACITY.Tagesbetreuung || 13),
-      overnightMax: Number(CAPACITY.Urlaubsbetreuung || 10),
-      sundayTotal: Number(CAPACITY.Urlaubsbetreuung || 10),
-      sundayNoArrDep: true
-    };
-  }else{
-    // defensive defaults
-    if(!Number.isFinite(Number(state.capacityRules.totalDefault))) state.capacityRules.totalDefault = Number(CAPACITY.Tagesbetreuung || 13);
-    if(!Number.isFinite(Number(state.capacityRules.overnightMax))) state.capacityRules.overnightMax = Number(CAPACITY.Urlaubsbetreuung || 10);
-    if(!Number.isFinite(Number(state.capacityRules.sundayTotal))) state.capacityRules.sundayTotal = Number(CAPACITY.Urlaubsbetreuung || 10);
-    if(typeof state.capacityRules.sundayNoArrDep !== "boolean") state.capacityRules.sundayNoArrDep = !!(_id("capSundayNoArrDep") ? _id("capSundayNoArrDep").checked : true);
-  }
-
-  // Sync Default-Kapazitäten (für Kalender/Forecast) mit Kapazitäts-Regeln, falls leer
-  try{
-    if(state.capacities && state.capacities.default){
-      if(!Number.isFinite(Number(state.capacities.default.Tagesbetreuung))) state.capacities.default.Tagesbetreuung = Number(state.capacityRules.totalDefault);
-      if(!Number.isFinite(Number(state.capacities.default.Urlaubsbetreuung))) state.capacities.default.Urlaubsbetreuung = Number(state.capacityRules.overnightMax);
-    }
-  }catch(_){}
-
-}turn `${sanitizeFilename(title||'Dokument')}.pdf`;
+  return `${sanitizeFilename(title||'Dokument')}.pdf`;
 }
 function initDocModal(){
   const modal = document.getElementById('docModal');
@@ -8132,437 +8105,70 @@ function applyInvoiceDateDefaults(form){
   }
 })();
 
-
-
 // =========================
-// Kapazität UI (Einstellungen) + Auslastung in Auswertungen (ANA018)
+// Kapazität – Settings Bindings (Phase A, stabiler ANA016-Stand)
 // =========================
+function initCapacitySettingsBindings(){
+  try{
+    const card = document.getElementById("capacityCard");
+    if(!card || card.dataset.bound) return;
+    card.dataset.bound = "1";
+
+    const elTotal = document.getElementById("capTotalDefault");
+    const elOver  = document.getElementById("capOvernightMax");
+    const elSun   = document.getElementById("capSundayTotal");
+    const elNoAD  = document.getElementById("capSundayNoArrDep");
+    const btnSave = document.getElementById("btnCapacitySave");
+
+    // Defaults (falls noch nichts gesetzt)
+    const caps = (state.capacities = state.capacities || {});
+    caps.default = caps.default || {};
+    if(caps.default["Tagesbetreuung"] == null) caps.default["Tagesbetreuung"] = (CAPACITY["Tagesbetreuung"] || 13);
+    if(caps.default["Urlaubsbetreuung"] == null) caps.default["Urlaubsbetreuung"] = (CAPACITY["Urlaubsbetreuung"] || 10);
+    if(caps.sundayTotal == null) caps.sundayTotal = 10;
+    if(caps.sundayNoArrivalDeparture == null) caps.sundayNoArrivalDeparture = true;
+
+    // UI füllen
+    if(elTotal) elTotal.value = String(caps.default["Tagesbetreuung"] ?? "");
+    if(elOver)  elOver.value  = String(caps.default["Urlaubsbetreuung"] ?? "");
+    if(elSun)   elSun.value   = String(caps.sundayTotal ?? "");
+    if(elNoAD)  elNoAD.checked = !!caps.sundayNoArrivalDeparture;
+
+    const save = ()=>{
+      try{
+        const vTotal = Number(elTotal && elTotal.value);
+        const vOver  = Number(elOver && elOver.value);
+        const vSun   = Number(elSun && elSun.value);
+
+        if(Number.isFinite(vTotal) && vTotal >= 0) caps.default["Tagesbetreuung"] = Math.round(vTotal);
+        if(Number.isFinite(vOver)  && vOver  >= 0) caps.default["Urlaubsbetreuung"] = Math.round(vOver);
+        if(Number.isFinite(vSun)   && vSun   >= 0) caps.sundayTotal = Math.round(vSun);
+
+        caps.sundayNoArrivalDeparture = !!(elNoAD && elNoAD.checked);
+
+        saveState();
+        try{ showMiniToast("Kapazität gespeichert."); }catch(_){}
+      }catch(_e){
+        try{ showMiniToast("Kapazität konnte nicht gespeichert werden."); }catch(__){}
+      }
+    };
+
+    if(btnSave && !btnSave.dataset.bound){
+      btnSave.dataset.bound = "1";
+      btnSave.onclick = save;
+    }
+  }catch(_){}
+}
+
+// Init-Profi-Settings erweitern, ohne bestehende Logik zu verändern
 (function(){
-  const _id = (x)=>document.getElementById(x);
-
-  function numVal(id, fallback){
-    const el=_id(id);
-    const v = el ? Number(el.value) : NaN;
-    return (Number.isFinite(v) && v>=0) ? v : fallback;
-  }
-
-  function capEnsureDefaults(){
-    try{ ensureStateShape(); }catch(_){}
-    state.capacityRules = state.capacityRules || { totalDefault:13, overnightMax:10, sundayTotal:10, sundayNoArrDep:true };
-    // keep state.capacities default aligned
-    try{
-      state.capacities = state.capacities || { default:{}, exceptions:[] };
-      state.capacities.default = state.capacities.default || {};
-      if(!Number.isFinite(Number(state.capacities.default.Tagesbetreuung))) state.capacities.default.Tagesbetreuung = Number(state.capacityRules.totalDefault||13);
-      if(!Number.isFinite(Number(state.capacities.default.Urlaubsbetreuung))) state.capacities.default.Urlaubsbetreuung = Number(state.capacityRules.overnightMax||10);
-    }catch(_){}
-  }
-
-  function capFillUI(){
-    capEnsureDefaults();
-    const r = state.capacityRules;
-    const a=_id("capTotalDefault"), b=_id("capOvernightMax"), c=_id("capSundayTotal"), cb=_id("capSundayNoArrDep");
-    if(a) a.value = String(Number(r.totalDefault||13));
-    if(b) b.value = String(Number(r.overnightMax||10));
-    if(c) c.value = String(Number(r.sundayTotal||10));
-    if(cb) cb.checked = !!r.sundayNoArrDep;
-  }
-
-  function capBindOnce(){
-    const card=_id("capacityRulesCard");
-    if(!card || card.__bound) return;
-    card.__bound=true;
-
-    capFillUI();
-
-    const btn=_id("btnSaveCapacityRules");
-    const msg=_id("capSaveMsg");
-    if(btn){
-      btn.addEventListener("click", ()=>{
-        capEnsureDefaults();
-        const total = numVal("capTotalDefault", 13);
-        const over  = numVal("capOvernightMax", 10);
-        const sun   = numVal("capSundayTotal", 10);
-
-        state.capacityRules.totalDefault = total;
-        state.capacityRules.overnightMax = over;
-        state.capacityRules.sundayTotal = sun;
-        state.capacityRules.sundayNoArrDep = !!(_id("capSundayNoArrDep") ? _id("capSundayNoArrDep").checked : true);
-
-        try{
-          state.capacities = state.capacities || { default:{}, exceptions:[] };
-          state.capacities.default = state.capacities.default || {};
-          state.capacities.default.Tagesbetreuung = total;
-          state.capacities.default.Urlaubsbetreuung = over;
-        }catch(_){}
-
-        try{ saveState(); }catch(_){}
-        if(msg){
-          msg.textContent = "✅ gespeichert";
-          setTimeout(()=>{ msg.textContent=""; }, 2000);
-        }
-      });
+  try{
+    const _old = initProfiSettingsBindings;
+    if(typeof _old === "function"){
+      initProfiSettingsBindings = function(){
+        try{ _old(); }catch(_){}
+        try{ initCapacitySettingsBindings(); }catch(_){}
+      };
     }
-  }
-
-  // Utilities for analytics
-  function pad2(n){ return String(n).padStart(2,"0"); }
-  function ymd(d){ return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; }
-  function parseYMD(s){
-    const m=String(s||"").match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    if(!m) return null;
-    const d=new Date(+m[1], +m[2]-1, +m[3]);
-    return isNaN(d.getTime()) ? null : d;
-  }
-  function addDays(d,n){ const x=new Date(d.getTime()); x.setDate(x.getDate()+n); return x; }
-  function diffDays(a,b){ return Math.round((b.getTime()-a.getTime())/86400000); }
-  function isCancelled(obj){
-    const s=String(obj?.status || obj?.meta?.status || "").toLowerCase();
-    return s==="storno" || s==="storniert" || s==="cancelled" || s==="canceled";
-  }
-  function fmtEUR(x){
-    const n=Number(x)||0;
-    try{ return n.toLocaleString("de-DE",{style:"currency",currency:"EUR"}); }catch(_){ return n.toFixed(2)+" €"; }
-  }
-  function escapeHtml(s){
-    return String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
-  }
-
-  function anaGetRange(){
-    const preset = (_id("anaRangePreset")?.value) || "month";
-    const today = new Date();
-    const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    let from=null, to=null;
-
-    if(preset==="month"){
-      from = new Date(today.getFullYear(), today.getMonth(), 1);
-      to = new Date(today.getFullYear(), today.getMonth()+1, 0);
-    }else if(preset==="year"){
-      from = new Date(today.getFullYear(), 0, 1);
-      to = new Date(today.getFullYear(), 11, 31);
-    }else if(preset==="last30"){
-      to = startOfToday;
-      from = addDays(to, -29);
-    }else{
-      from = parseYMD(_id("anaFrom")?.value) || new Date(today.getFullYear(), today.getMonth(), 1);
-      to = parseYMD(_id("anaTo")?.value) || startOfToday;
-    }
-
-    if(_id("anaFrom")) _id("anaFrom").value = ymd(from);
-    if(_id("anaTo")) _id("anaTo").value = ymd(to);
-
-    const toExcl = addDays(to, 1);
-    return { from, to, toExcl };
-  }
-
-  function stayDates(st){
-    const m=st?.meta||{};
-    const dFrom=parseYMD(m.von||st.von||st.from||"");
-    const dTo=parseYMD(m.bis||st.bis||st.to||"");
-    return { dFrom, dTo };
-  }
-  function stayIds(st){
-    const m=st?.meta||{};
-    const customerId = m.contractCustomerId || m.customerId || st.customerId || "";
-    const petId = m.contractPetId || m.petId || st.petId || st.dogId || "";
-    return { customerId, petId };
-  }
-
-  function computeUtilization(range){
-    const stays = Array.isArray(state?.stays) ? state.stays : [];
-    // Prepare daily loop
-    let maxDogDays=0;
-    let istDogDays=0;
-    let peak=0;
-
-    for(let d=new Date(range.from.getTime()); d < range.toExcl; d=addDays(d,1)){
-      const iso=ymd(d);
-      const cap = getCapacity("Tagesbetreuung", iso); // includes Sunday rule
-      maxDogDays += Number(cap)||0;
-
-      let count=0;
-      for(const st of stays){
-        if(!st || isCancelled(st)) continue;
-        const {dFrom,dTo}=stayDates(st);
-        if(!dFrom || !dTo) continue;
-        // presence nights: [dFrom, dTo)
-        if(d >= dFrom && d < dTo) count++;
-      }
-      istDogDays += count;
-      if(count>peak) peak=count;
-    }
-    const pct = maxDogDays ? Math.round((istDogDays/maxDogDays)*100) : 0;
-    return { maxDogDays, istDogDays, pct, peak };
-  }
-
-  function computeNights(range){
-    const stays = Array.isArray(state?.stays) ? state.stays : [];
-    let nights=0, staysCount=0;
-    const weekday=[0,0,0,0,0,0,0];
-    const byCust={}, byDog={};
-
-    for(const st of stays){
-      if(!st || isCancelled(st)) continue;
-      const {dFrom,dTo}=stayDates(st);
-      if(!dFrom || !dTo) continue;
-      const oFrom = dFrom > range.from ? dFrom : range.from;
-      const oTo = dTo < range.toExcl ? dTo : range.toExcl;
-      const n = diffDays(oFrom,oTo);
-      if(!(n>0)) continue;
-      nights += n;
-      staysCount += 1;
-
-      const ids=stayIds(st);
-      const cid=ids.customerId || "—";
-      byCust[cid] = (byCust[cid]||0) + n;
-      const did=ids.petId || "—";
-      byDog[did] = (byDog[did]||0) + n;
-
-      for(let k=0;k<n;k++){
-        const day=addDays(oFrom,k);
-        const js=day.getDay(); // 0=So..6=Sa
-        const idx=(js===0)?6:(js-1);
-        weekday[idx]+=1;
-      }
-    }
-
-    return { nights, staysCount, weekday, byCust, byDog };
-  }
-
-  function computeRevenue(range){
-    const invs = Array.isArray(state?.invoices) ? state.invoices : [];
-    let revenue=0, invoices=0;
-    const byCust={};
-    for(const inv of invs){
-      if(!inv || isCancelled(inv)) continue;
-      const d = new Date(inv.invoiceDate || inv.createdAt || "");
-      if(isNaN(d.getTime())) continue;
-      const only = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-      if(only < range.from || only > range.to) continue;
-      const t = Number(inv?.pricing?.total);
-      const val = Number.isFinite(t) ? t : 0;
-      revenue += val;
-      invoices += 1;
-      const cid = inv.customerId || "—";
-      byCust[cid]=(byCust[cid]||0)+val;
-    }
-    return { revenue, invoices, byCust };
-  }
-
-  function custName(cid){
-    const cs=Array.isArray(state?.customers)?state.customers:[];
-    const c=cs.find(x=>x.id===cid);
-    return c ? (c.name||c.fullName||"—") : (cid==="—"?"Unbekannt":cid);
-  }
-  function dogName(did){
-    const ps=Array.isArray(state?.pets)?state.pets:(Array.isArray(state?.dogs)?state.dogs:[]);
-    const p=ps.find(x=>x.id===did);
-    return p ? (p.name||"—") : (did==="—"?"Unbekannt":did);
-  }
-
-  function tableTopSimple(rows, headers){
-    const th = headers.map(h=>`<th style="text-align:${h.align||"left"}; padding:6px 8px;" class="muted">${escapeHtml(h.label)}</th>`).join("");
-    const tr = rows.map(r=>`<tr>${r.map((c,i)=>`<td style="padding:6px 8px; text-align:${headers[i].align||"left"}; ${headers[i].bold?"font-weight:700;":""}">${c}</td>`).join("")}</tr>`).join("");
-    return `<table style="width:100%; border-collapse:collapse;"><thead><tr>${th}</tr></thead><tbody>${tr}</tbody></table>`;
-  }
-
-  function anaSetView(which){
-    const map = {
-      dashboard:["anaViewDashboard","anaViewBtnDashboard"],
-      occupancy:["anaViewOccupancy","anaViewBtnOccupancy"],
-      revenue:["anaViewRevenue","anaViewBtnRevenue"],
-      customers:["anaViewCustomers","anaViewBtnCustomers"],
-      dogs:["anaViewDogs","anaViewBtnDogs"],
-      patterns:["anaViewPatterns","anaViewBtnPatterns"]
-    };
-    Object.keys(map).forEach(k=>{
-      const [vId,bId]=map[k];
-      const v=_id(vId), b=_id(bId);
-      if(v) v.style.display = (k===which) ? "" : "none";
-      if(b) b.classList.toggle("is-active", k===which);
-    });
-    state._ana = state._ana || {};
-    state._ana.lastView = which;
-    try{ saveState(); }catch(_){}
-  }
-
-  function anaRender(){
-    capEnsureDefaults();
-    const range=anaGetRange();
-    const util=computeUtilization(range);
-    const occ=computeNights(range);
-    const rev=computeRevenue(range);
-
-    const dash=_id("anaViewDashboard");
-    if(dash){
-      dash.innerHTML = `
-        <h3 style="margin-top:0;">Übersicht</h3>
-        <div class="grid-3" style="gap:12px;">
-          <div class="card" style="margin:0;">
-            <div class="muted">Auslastung (Hundetage)</div>
-            <div style="font-size:26px; font-weight:800;">${util.pct}%</div>
-            <div class="muted" style="margin-top:6px;">${util.istDogDays} / ${util.maxDogDays}</div>
-          </div>
-          <div class="card" style="margin:0;">
-            <div class="muted">Hundetage (Nächte)</div>
-            <div style="font-size:26px; font-weight:800;">${occ.nights}</div>
-          </div>
-          <div class="card" style="margin:0;">
-            <div class="muted">Aufenthalte</div>
-            <div style="font-size:26px; font-weight:800;">${occ.staysCount}</div>
-          </div>
-          <div class="card" style="margin:0;">
-            <div class="muted">Umsatz (Rechnungen)</div>
-            <div style="font-size:26px; font-weight:800;">${fmtEUR(rev.revenue)}</div>
-          </div>
-          <div class="card" style="margin:0;">
-            <div class="muted">Rechnungen</div>
-            <div style="font-size:26px; font-weight:800;">${rev.invoices}</div>
-          </div>
-          <div class="card" style="margin:0;">
-            <div class="muted">Spitzentag Belegung</div>
-            <div style="font-size:26px; font-weight:800;">${util.peak}</div>
-            <div class="muted" style="margin-top:6px;">Kapazität je Tag variabel (So=10)</div>
-          </div>
-        </div>
-      `;
-    }
-
-    const occView=_id("anaViewOccupancy");
-    if(occView){
-      occView.innerHTML = `
-        <h3 style="margin-top:0;">Belegung &amp; Auslastung</h3>
-        <p class="muted">Auslastung wird tagesgenau berechnet (Mo–Sa ${Number(state.capacityRules.totalDefault)||13}, So ${Number(state.capacityRules.sundayTotal)||10}).</p>
-        <div class="row" style="gap:16px; flex-wrap:wrap;">
-          <div class="card" style="margin:0; flex:1; min-width:240px;">
-            <div class="muted">Auslastung</div>
-            <div style="font-size:26px; font-weight:800;">${util.pct}%</div>
-            <div class="muted" style="margin-top:6px;">${util.istDogDays} / ${util.maxDogDays} Hundetage</div>
-          </div>
-          <div class="card" style="margin:0; flex:1; min-width:240px;">
-            <div class="muted">Hundetage (Nächte)</div>
-            <div style="font-size:26px; font-weight:800;">${occ.nights}</div>
-          </div>
-          <div class="card" style="margin:0; flex:1; min-width:240px;">
-            <div class="muted">Aufenthalte</div>
-            <div style="font-size:26px; font-weight:800;">${occ.staysCount}</div>
-          </div>
-        </div>
-      `;
-    }
-
-    const revView=_id("anaViewRevenue");
-    if(revView){
-      revView.innerHTML = `
-        <h3 style="margin-top:0;">Umsatz</h3>
-        <p class="muted">Quelle: Rechnungen im Zeitraum (nicht storniert).</p>
-        <div class="row" style="gap:16px; flex-wrap:wrap;">
-          <div class="card" style="margin:0; flex:1; min-width:240px;">
-            <div class="muted">Umsatz</div>
-            <div style="font-size:26px; font-weight:800;">${fmtEUR(rev.revenue)}</div>
-          </div>
-          <div class="card" style="margin:0; flex:1; min-width:240px;">
-            <div class="muted">Rechnungen</div>
-            <div style="font-size:26px; font-weight:800;">${rev.invoices}</div>
-          </div>
-        </div>
-      `;
-    }
-
-    const custView=_id("anaViewCustomers");
-    if(custView){
-      const topN = Object.entries(occ.byCust).map(([cid,n])=>({cid, n})).sort((a,b)=>b.n-a.n).slice(0,10);
-      const topR = Object.entries(rev.byCust).map(([cid,v])=>({cid, v})).sort((a,b)=>b.v-a.v).slice(0,10);
-      const tableN = tableTopSimple(topN.map(x=>[escapeHtml(custName(x.cid)), `<span style="font-weight:700;">${x.n}</span>`]), [{label:"Kunde"},{label:"Nächte",align:"right"}]);
-      const tableR = tableTopSimple(topR.map(x=>[escapeHtml(custName(x.cid)), `<span style="font-weight:700;">${fmtEUR(x.v)}</span>`]), [{label:"Kunde"},{label:"Umsatz",align:"right"}]);
-      custView.innerHTML = `
-        <h3 style="margin-top:0;">Kunden</h3>
-        <div class="row" style="gap:14px; align-items:flex-start; flex-wrap:wrap;">
-          <div style="flex:1; min-width:280px;">
-            <h3 style="margin:6px 0 8px 0;">Top (Nächte)</h3>
-            ${tableN}
-          </div>
-          <div style="flex:1; min-width:280px;">
-            <h3 style="margin:6px 0 8px 0;">Top (Umsatz)</h3>
-            ${tableR}
-          </div>
-        </div>
-      `;
-    }
-
-    const dogView=_id("anaViewDogs");
-    if(dogView){
-      const topD = Object.entries(occ.byDog).map(([did,n])=>({did,n})).sort((a,b)=>b.n-a.n).slice(0,12);
-      const tableD = tableTopSimple(topD.map(x=>[escapeHtml(dogName(x.did)), `<span style="font-weight:700;">${x.n}</span>`]), [{label:"Hund"},{label:"Nächte",align:"right"}]);
-      dogView.innerHTML = `<h3 style="margin-top:0;">Hunde</h3>${tableD}`;
-    }
-
-    const patView=_id("anaViewPatterns");
-    if(patView){
-      const labels=["Mo","Di","Mi","Do","Fr","Sa","So"];
-      const max=Math.max(1,...occ.weekday);
-      const bars = occ.weekday.map((v,i)=>{
-        const w=Math.round((v/max)*100);
-        return `<div class="row" style="gap:10px; align-items:center; margin:6px 0;">
-          <div style="width:32px; font-weight:700;">${labels[i]}</div>
-          <div style="flex:1; height:10px; border-radius:999px; background:rgba(255,255,255,.12); overflow:hidden;">
-            <div style="width:${w}%; height:10px; background:rgba(245,182,46,.9);"></div>
-          </div>
-          <div class="muted" style="width:60px; text-align:right;">${v}</div>
-        </div>`;
-      }).join("");
-      patView.innerHTML = `<h3 style="margin-top:0;">Muster</h3><p class="muted">Nächte nach Wochentag (Mo–So).</p>${bars}`;
-    }
-  }
-
-  function anaBindOnce(){
-    const panel=_id("analytics");
-    if(!panel || panel.__bound) return;
-    panel.__bound=true;
-
-    const preset=_id("anaRangePreset");
-    if(preset){
-      preset.addEventListener("change", ()=>{
-        const custom=(preset.value==="custom");
-        if(_id("anaFrom")) _id("anaFrom").disabled = !custom;
-        if(_id("anaTo")) _id("anaTo").disabled = !custom;
-        anaRender();
-      });
-    }
-    if(_id("anaApply")) _id("anaApply").addEventListener("click", anaRender);
-
-    const bindView=(btnId, which)=>{
-      const b=_id(btnId);
-      if(b && !b.__b){
-        b.__b=true;
-        b.addEventListener("click", ()=>{ anaSetView(which); anaRender(); });
-      }
-    };
-    bindView("anaViewBtnDashboard","dashboard");
-    bindView("anaViewBtnOccupancy","occupancy");
-    bindView("anaViewBtnRevenue","revenue");
-    bindView("anaViewBtnCustomers","customers");
-    bindView("anaViewBtnDogs","dogs");
-    bindView("anaViewBtnPatterns","patterns");
-
-    if(_id("anaFrom")) _id("anaFrom").disabled = true;
-    if(_id("anaTo")) _id("anaTo").disabled = true;
-  }
-
-  // Hook into panel rendering
-  const _origShowPanel = window.showPanel;
-  window.showPanel = function(panelId){
-    const r = _origShowPanel ? _origShowPanel(panelId) : undefined;
-    try{
-      if(panelId === "settings") capBindOnce();
-      if(panelId === "analytics"){
-        anaBindOnce();
-        const last=(state?._ana?.lastView)||"dashboard";
-        anaSetView(last);
-        anaRender();
-      }
-    }catch(_){}
-    return r;
-  };
+  }catch(_){}
 })();
-

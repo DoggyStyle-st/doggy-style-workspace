@@ -80,7 +80,38 @@
     </div>
 
     <div class="card" style="margin-top:14px;">
-      <div class="row between" style="gap:12px; flex-wrap:wrap;">
+      <div class="row between" style="gap:12<div class="card" id="capacityCard" style="margin-top:12px;">
+  <h2>Kapazität &amp; Regeln</h2>
+  <div class="muted" style="margin:-6px 0 10px 0;">
+    Basis-Kapazitäten für Auslastung/Planung. (Noch ohne automatische Warnungen.)
+  </div>
+
+  <div class="row" style="gap:12px; flex-wrap:wrap; align-items:flex-end;">
+    <div style="min-width:200px;">
+      <div class="muted">Max. Hunde gesamt (Mo–Sa)</div>
+      <input id="capTotalDefault" class="input" type="number" min="0" step="1" placeholder="13" />
+    </div>
+
+    <div style="min-width:200px;">
+      <div class="muted">Max. Übernachtung (Urlaubsbetreuung)</div>
+      <input id="capOvernightMax" class="input" type="number" min="0" step="1" placeholder="10" />
+    </div>
+
+    <div style="min-width:200px;">
+      <div class="muted">Sonntag Kapazität (gesamt)</div>
+      <input id="capSundayTotal" class="input" type="number" min="0" step="1" placeholder="10" />
+    </div>
+
+    <button class="btn primary" id="btnCapacitySave" type="button">Speichern</button>
+  </div>
+
+  <label class="row" style="gap:10px; align-items:center; margin-top:10px;">
+    <input id="capSundayNoArrDep" type="checkbox" />
+    <span>Sonntag: keine An-/Abreise (Info, Warnung kommt später)</span>
+  </label>
+</div>
+
+px; flex-wrap:wrap;">
         <div>
           <div class="muted">Umsatz bezahlt</div>
           <div style="font-size:30px; font-weight:800;" id="anaInvPaidSum">–</div>
@@ -138,8 +169,8 @@
 <link href="manifest.json" rel="manifest"/>
 <meta content="#101014" name="theme-color"/>
 <link href="assets/logo.png" rel="apple-touch-icon"/>
-<link href="styles_ANA019.css?v=20260103v01" rel="stylesheet"/>
-<link href="dashboard_master_ANA019.css?v=20260104v13logout" rel="stylesheet"/>
+<link href="styles_ANA012.css?v=20260103v01" rel="stylesheet"/>
+<link href="dashboard_master_ANA012.css?v=20260104v13logout" rel="stylesheet"/>
 <style>
   /* Topbar Layout (iPad & Desktop stabil) */
   .topbar{position:sticky; top:0; z-index:50;}
@@ -804,42 +835,6 @@
   <span class="muted" id="manualSaveStatus"></span>
 </div>
 
-<div class="card" id="capacityRulesCard" style="margin-top:12px">
-  <h2>Kapazität &amp; Auslastung</h2>
-  <p class="muted" style="margin-top:6px;">
-    Grundlage für Auslastung und Warnungen. Standard: Mo–Sa max. Gesamt‑Hunde, Sonntag ohne An-/Abreise (reduzierte Kapazität).
-  </p>
-
-  <div class="row" style="flex-wrap:wrap; gap:12px; margin-top:10px;">
-    <label class="field" style="min-width:240px; flex:1;">
-      <span>Max. Hunde gesamt (Mo–Sa)</span>
-      <input id="capTotalDefault" class="input" type="number" min="0" step="1" inputmode="numeric"/>
-    </label>
-
-    <label class="field" style="min-width:240px; flex:1;">
-      <span>Max. Übernachtungsgäste</span>
-      <input id="capOvernightMax" class="input" type="number" min="0" step="1" inputmode="numeric"/>
-    </label>
-
-    <label class="field" style="min-width:240px; flex:1;">
-      <span>Sonntag Kapazität</span>
-      <input id="capSundayTotal" class="input" type="number" min="0" step="1" inputmode="numeric"/>
-    </label>
-  </div>
-
-  <label class="row" style="gap:10px; margin-top:10px; align-items:center;">
-    <input id="capSundayNoArrDep" type="checkbox" />
-    <span>Sonntag: keine An-/Abreise (Kapazität reduziert)</span>
-  </label>
-
-  <div class="row between" style="gap:12px; flex-wrap:wrap; margin-top:10px;">
-    <button class="btn primary" id="btnSaveCapacityRules" type="button">Speichern</button>
-    <span class="muted" id="capSaveMsg"></span>
-  </div>
-</div>
-
-
-
 
 <div class="card" id="adminTaskCard" style="margin-top:12px; display:none;">
   <h2>Kundenaufgabe freigeben</h2>
@@ -1210,7 +1205,7 @@
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-<script defer="defer" src="app_ANA019_v2.js"></script>
+<script defer="defer" src="app.js?v=ANA015"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1253,9 +1248,12 @@
 </script>
 
 <script>
-    // ANA019: PWA/SW vorübergehend deaktiviert (Safari/iPad Cache-Probleme).
+    // ANA011: PWA/SW vorübergehend deaktiviert (Safari/iPad Cache-Probleme).
     // Wir entfernen ggf. alte Registrierungen, damit wirklich der aktuelle Stand geladen wird.
-    );
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations()
+        .then(rs => rs.forEach(r => r.unregister()))
+        .catch(() => {});
     }
   </script>
 
@@ -1317,7 +1315,7 @@
 <!-- Dummy für Legacy-Signatur -->
 <canvas height="1" id="sigPad" style="display:none" width="1"></canvas>
 <!-- Sichtbarer Build-Zähler (Variante A) -->
-<div class="build-badge" id="buildBadge" title="Build-Zähler">Build: V10FIX6-A-ANA019</div>
+<div class="build-badge" id="buildBadge" title="Build-Zähler">Build: V10FIX6-A-ANA016</div>
 
 <!-- V10 Modal Editor (stable, tab-independent) -->
 <style>
