@@ -8180,3 +8180,101 @@ function initCapacitySettingsBindings(){
     try { window.renderAnalyticsPanel(); } catch(e) { console.warn("renderAnalyticsPanel failed", e); }
   }
 
+
+
+// =========================
+// PHASE_B_ANALYTICS (ANA016) – Dashboard + Belegung
+// =========================
+(function(){
+  function dateRange(fromISO, toISO){
+    const res=[];
+    try{
+      let d=new Date(fromISO+"T00:00:00");
+      const end=new Date(toISO+"T00:00:00");
+      while(d<=end){
+        res.push(d.toISOString().slice(0,10));
+        d.setDate(d.getDate()+1);
+      }
+    }catch(_){}
+    return res;
+  }
+
+  function isOvernightStay(s){
+    const t = (s.type||s.betreuungsart||"").toLowerCase();
+    return t.includes("urlaub") || t.includes("übernacht");
+  }
+
+  function countDogsByDay(dateISO){
+    let total=0, overnight=0;
+    (state?.stays||state?.aufenthalte||[]).forEach(s=>{
+      const from = (s.fromDate||s.startDate||s.betreuungVon||"").slice(0,10);
+      const to   = (s.toDate||s.endDate||s.betreuungBis||"").slice(0,10);
+      if(!from||!to) return;
+      if(dateISO>=from && dateISO<to){
+        total++;
+        if(isOvernightStay(s)) overnight++;
+      }
+    });
+    return {total, overnight};
+  }
+
+  function capacityForDay(dateISO){
+    try{
+      const d=new Date(dateISO+"T00:00:00");
+      if(d.getDay()===0){
+        const sv=Number(state?.capacities?.sundayTotal);
+        if(Number.isFinite(sv)) return sv;
+        return 10;
+      }
+    }catch(_){}
+    return Number(state?.capacities?.default?.Tagesbetreuung)||13;
+  }
+
+  function renderDashboard(fromISO, toISO){
+    const days=dateRange(fromISO,toISO);
+    let ist=0, max=0, peak=0, peakON=0;
+    days.forEach(d=>{
+      const c=capacityForDay(d);
+      const cnt=countDogsByDay(d);
+      ist += cnt.total;
+      max += c;
+      peak = Math.max(peak, cnt.total);
+      peakON = Math.max(peakON, cnt.overnight);
+    });
+    const pct = max>0 ? Math.round((ist/max)*100) : 0;
+    const el=document.getElementById("anaViewDashboard");
+    if(!el) return;
+    el.innerHTML = `
+      <div class="grid">
+        <div class="card"><div class="k">Auslastung (Hundetage)</div><div class="v">${pct}%</div><div class="s">${ist} / ${max}</div></div>
+        <div class="card"><div class="k">Spitzentag gesamt</div><div class="v">${peak}</div></div>
+        <div class="card"><div class="k">Spitzentag Übernachtung</div><div class="v">${peakON} / 10</div></div>
+      </div>`;
+  }
+
+  function renderOccupancy(fromISO, toISO){
+    const days=dateRange(fromISO,toISO);
+    let sumPct=0;
+    days.forEach(d=>{
+      const c=capacityForDay(d);
+      const cnt=countDogsByDay(d);
+      sumPct += c>0 ? (cnt.total/c) : 0;
+    });
+    const avg = days.length ? Math.round((sumPct/days.length)*100) : 0;
+    let level = avg<40 ? "ruhig" : (avg<70 ? "normal" : "hoch");
+    const el=document.getElementById("anaViewOccupancy");
+    if(!el) return;
+    el.innerHTML = `
+      <div class="k">Ø Auslastung</div>
+      <div class="v">${avg}%</div>
+      <div class="s">Einstufung: ${level}</div>`;
+  }
+
+  window.renderAnalyticsPanel = function(){
+    const from = document.getElementById("anaFrom")?.value;
+    const to   = document.getElementById("anaTo")?.value;
+    if(!from||!to) return;
+    renderDashboard(from,to);
+    renderOccupancy(from,to);
+  };
+})();
