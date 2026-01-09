@@ -1,6 +1,6 @@
 // Sichtbarer Build-Zähler (Variante A)
 // Build-Counter (sichtbar unten links in der App)
-const APP_BUILD = "V10FIX6-A-ANA017";
+const APP_BUILD = "V10FIX6-A-ANA018";
 window.addEventListener("error",(e)=>{console.error("APP_ERROR",e.error||e.message);});
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
@@ -8098,7 +8098,7 @@ function applyInvoiceDateDefaults(form){
 
 
 // =========================
-// Auswertungen V2 (ANA017)
+// Auswertungen V2 (ANA018)
 // Standard: Nächte (Check-out − Check-in)
 // =========================
 (function(){
