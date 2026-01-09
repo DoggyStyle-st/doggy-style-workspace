@@ -1,6 +1,6 @@
 // Sichtbarer Build-Zähler (Variante A)
 // Build-Counter (sichtbar unten links in der App)
-const APP_BUILD = "V10FIX6-A-ANA021";
+const APP_BUILD = "V10FIX6-A-ANA022";
 window.addEventListener("error",(e)=>{console.error("APP_ERROR",e.error||e.message);});
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
@@ -23,7 +23,7 @@ const CAPACITY = {
 // Ausnahme-Objekt: { from:"YYYY-MM-DD", to:"YYYY-MM-DD", Tagesbetreuung: 8, Urlaubsbetreuung: 6, note:"Event" }
 function getCapacity(type, dateISO){
   try{
-    const caps = state && S.capacities;
+    const caps = state && state.capacities;
     if(!caps || !caps.default) return (CAPACITY[type] || 0);
     const d = String(dateISO||"").slice(0,10);
     
@@ -620,8 +620,8 @@ function applyRemoteState(remote, remoteStamp, source){
     // Merge: Remote ist nicht alleinige Wahrheit, lokale Stammdaten dürfen nicht verschwinden
     state = mergeStatePreferRemote(remote, state);
     // Falls der Remote-State keinen Stempel trägt: konservativ setzen
-    if(remoteStamp && (!S._cloudUpdatedAt || Number(S._cloudUpdatedAt) < Number(remoteStamp))){
-      S._cloudUpdatedAt = Number(remoteStamp);
+    if(remoteStamp && (!state._cloudUpdatedAt || Number(state._cloudUpdatedAt) < Number(remoteStamp))){
+      state._cloudUpdatedAt = Number(remoteStamp);
     }
     ensureStateShape();
     ensureContractDefaults();
@@ -738,7 +738,7 @@ async function cloudPushNow(){
   updateSyncUI();
   const stamp = Date.now();
   // Marker im State, damit wir Remote-Updates sauber vergleichen können
-  try{ S._cloudUpdatedAt = stamp; S._localUpdatedAt = stamp; }catch(_){/* ignore */}
+  try{ state._cloudUpdatedAt = stamp; state._localUpdatedAt = stamp; }catch(_){/* ignore */}
   // last write wins (v1). Später: echtes Merge pro Objekt.
   try{
     const ref = cloudStateRef();
@@ -751,7 +751,7 @@ async function cloudPushNow(){
     // C1: Wenn Push erfolgreich war, pending-Flags für Rechnungsstatus löschen
     try{
       if(Array.isArray(state?.invoices)){
-        S.invoices.forEach(iv=>{ if(iv) iv._pendingStatusSync = false; });
+        state.invoices.forEach(iv=>{ if(iv) iv._pendingStatusSync = false; });
       }
       saveState();
     }catch(_){ }
@@ -1321,7 +1321,7 @@ async function wireInbox(){
       templateId,
       templateName: t.name || templateId,
       title: currentTask.title || (t.name||'Dokument'),
-      dogId: S.dogs?.[0]?.id || "",
+      dogId: state.dogs?.[0]?.id || "",
       petId: "",
       customerId: "",
       fields: payload.fields || {},
@@ -1333,8 +1333,8 @@ async function wireInbox(){
       updatedAt: now
     };
     ensureDocLinks(docObj);
-    S.docs = S.docs || [];
-    S.docs.unshift(docObj);
+    state.docs = state.docs || [];
+    state.docs.unshift(docObj);
     saveState();
     renderDocs();
     // Eingang schließen
@@ -1526,11 +1526,11 @@ function calculateInvoicePricing(doc){
 let state=loadState();
 // Wichtig: State-Shape sofort sicherstellen, bevor irgendein Render läuft.
 // Sonst kann renderDashboard()/renderRecent() bei frischem / teildefektem LocalStorage
-// (z.B. nach Neustart/Reload) mit S.docs === undefined abbrechen und die komplette
+// (z.B. nach Neustart/Reload) mit state.docs === undefined abbrechen und die komplette
 // UI wirkt dann "eingefroren" (keine Handler werden mehr gebunden).
 try{ ensureStateShape(); }catch(_){ }
 
-// WICHTIG: Migration (legacy S.dogs -> S.customers/S.pets) muss auch
+// WICHTIG: Migration (legacy state.dogs -> state.customers/state.pets) muss auch
 // im reinen LocalStorage-Betrieb passieren – nicht nur nach einem Cloud-Pull.
 // Sonst ist nach Reload die Hunde/Kunden-Liste leer, obwohl Daten (legacy) vorhanden sind.
 try{ migrateToV2(); }catch(_){ }
@@ -1555,8 +1555,8 @@ const COMPANY = {
   },
 
   paymentTargetDays: 14
-};;if(S.nextInvoiceNumber == null){
-  S.nextInvoiceNumber = 1;
+};;if(state.nextInvoiceNumber == null){
+  state.nextInvoiceNumber = 1;
 }renderDashboard();renderRecent();
 try{ ensureStateShape(); }catch(_){ }
 try{ initProfiSettingsBindings(); renderStaffSettings(); renderPolicySettings(); renderComplianceInSettings(); }catch(_){ }
@@ -1642,7 +1642,7 @@ function createStay(){
       try{
         const preferred = "neueraufenthalt";
         const fallback = "hundeannahme";
-        const hasPreferred = Array.isArray(state?.templates) && S.templates.some(t=>t.id===preferred);
+        const hasPreferred = Array.isArray(state?.templates) && state.templates.some(t=>t.id===preferred);
         createDoc(hasPreferred ? preferred : fallback);
       }catch(err){
         console.error("createStay->createDoc failed", err);
@@ -1664,9 +1664,9 @@ function openHygiene(){ selectTab("hygiene"); }
 function openHygieneTodo(){
   try{
     ensureStateShape();
-    S.hygiene = S.hygiene || {};
-    S.hygiene.ui = S.hygiene.ui || {};
-    S.hygiene.ui.pendingOnly = true;
+    state.hygiene = state.hygiene || {};
+    state.hygiene.ui = state.hygiene.ui || {};
+    state.hygiene.ui.pendingOnly = true;
     saveState();
   }catch(e){ /* ignore */ }
   selectTab("hygiene");
@@ -1679,9 +1679,9 @@ function openMedicationForDogId(dogId, opts={}){
     ensureStateShape();
     const pet = getPetByDogId(dogId);
     if(pet && pet.id){
-      S.medication = S.medication || {};
-      S.medication.ui = S.medication.ui || {};
-      S.medication.ui.selectedPetId = pet.id;
+      state.medication = state.medication || {};
+      state.medication.ui = state.medication.ui || {};
+      state.medication.ui.selectedPetId = pet.id;
       saveState();
     }
     openMedication();
@@ -1825,7 +1825,7 @@ function renderDashboard(){
     }
   });
   // stays ending today
-  const endingToday = S.docs.filter(doc=>doc.saved && doc.meta?.bis===today).length;
+  const endingToday = state.docs.filter(doc=>doc.saved && doc.meta?.bis===today).length;
   if(endingToday>0) warnings.unshift(`${endingToday} Aufenthalt(e) enden heute`);
 
   // Medikamente: fällige Gaben heute
@@ -1840,7 +1840,7 @@ function renderDashboard(){
   // Gesundheitsnotizen heute (Info)
   try{
     const iso = todayISO();
-    const notes = (S.medication?.healthNotes||[]).filter(n=>n && n.date===iso);
+    const notes = (state.medication?.healthNotes||[]).filter(n=>n && n.date===iso);
     if(notes.length>0) warnings.push(`🩺 ${notes.length} Gesundheitsnotiz(en) heute erfasst`);
   }catch(e){ /* ignore */ }
 
@@ -1879,7 +1879,7 @@ function todayISO(){
 
 function hygieneGetLogsForDate(iso){
   ensureStateShape();
-  const logs = S.hygiene?.logs || [];
+  const logs = state.hygiene?.logs || [];
   return logs.filter(l => l.date === iso);
 }
 
@@ -1912,7 +1912,7 @@ function hygieneOverallStatus(){
   const todayLogs = hygieneGetLogsForDate(iso);
   const hasAnyDoneToday = todayLogs.some(l => String(l.status||'').toLowerCase() === 'erledigt');
   const anyPendingToday = todayLogs.some(l => String(l.status||'').toLowerCase() === 'fällig');
-  const tasks = S.hygiene?.weeklyTasks || [];
+  const tasks = state.hygiene?.weeklyTasks || [];
   const anyOverdue = tasks.some(t => hygieneTaskStatus(t).code === "overdue");
   const anyDue = tasks.some(t => hygieneTaskStatus(t).code === "due");
 
@@ -1953,7 +1953,7 @@ function renderHygieneDashboard(){
   if(meta) meta.textContent = `${new Date().toLocaleDateString('de-DE')} · ${logs.length} Eintrag(e)`;
   hygieneStatusPill(pill, status);
   if(hint){
-    const overdue = (S.hygiene.weeklyTasks||[]).filter(t=>hygieneTaskStatus(t).code==="overdue").length;
+    const overdue = (state.hygiene.weeklyTasks||[]).filter(t=>hygieneTaskStatus(t).code==="overdue").length;
     if(!logs.length) hint.innerHTML = `Heute noch nichts dokumentiert. <strong>Bitte kurz eintragen</strong> (z.B. Innenräume → Reinigung).`;
     else if(overdue) hint.innerHTML = `Es gibt <strong>${overdue}</strong> überfällige Wochenaufgabe(n). Bitte nachtragen.`;
     else hint.textContent = "Alles im grünen Bereich. Bei Bedarf weitere Einträge hinzufügen.";
@@ -1983,11 +1983,11 @@ function hygieneAutoFromStayDoc(doc){
 
   // Hundename ermitteln (Pets bevorzugt)
   const dogId = doc.dogId;
-  const pet = (S.pets||[]).find(p=>p.id===dogId) || (S.dogs||[]).find(d=>d.id===dogId);
+  const pet = (state.pets||[]).find(p=>p.id===dogId) || (state.dogs||[]).find(d=>d.id===dogId);
   const dogName = (pet?.name || f.hund_name || "Unbekannt").trim();
 
   // Dedupe: pro Doc nur einmal je Typ
-  const logs = S.hygiene.logs || [];
+  const logs = state.hygiene.logs || [];
   const has = (kind)=>logs.some(l=>l?.source?.docId===doc.id && l?.source?.kind===kind);
   const date = todayISO();
 
@@ -2047,7 +2047,7 @@ function hygieneAutoFromStayDoc(doc){
     });
   }
 
-  S.hygiene.logs = logs;
+  state.hygiene.logs = logs;
 }
 
 function renderHygienePanel(){
@@ -2056,22 +2056,22 @@ function renderHygienePanel(){
   // staff presets
   const presetSel = document.getElementById('hygStaffPreset');
   if(presetSel){
-    const presets = S.hygiene.staffPresets || ["Raphael","Anschi"];
+    const presets = state.hygiene.staffPresets || ["Raphael","Anschi"];
     presetSel.innerHTML = presets.map(n=>`<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('') + `<option value="">—</option>`;
   }
 
   // pending-only filter
   const cbPending = document.getElementById('hygFilterPendingOnly');
   if(cbPending){
-    cbPending.checked = !!(S.hygiene.ui && S.hygiene.ui.pendingOnly);
+    cbPending.checked = !!(state.hygiene.ui && state.hygiene.ui.pendingOnly);
     if(!cbPending._bound){
       cbPending._bound = true;
       cbPending.onchange = ()=>{
         ensureStateShape();
-        S.hygiene.ui = S.hygiene.ui || {};
-        S.hygiene.ui.pendingOnly = !!cbPending.checked;
+        state.hygiene.ui = state.hygiene.ui || {};
+        state.hygiene.ui.pendingOnly = !!cbPending.checked;
         saveState && saveState(); // falls vorhanden
-        try{ localStorage.setItem('dstest_hyg_pendingOnly', String(S.hygiene.ui.pendingOnly)); }catch(e){}
+        try{ localStorage.setItem('dstest_hyg_pendingOnly', String(state.hygiene.ui.pendingOnly)); }catch(e){}
         renderHygienePanel();
         renderHygieneDashboard();
       };
@@ -2118,7 +2118,7 @@ function renderHygienePanel(){
         _deleted: false
       };
 
-      S.hygiene.logs.unshift(entry);
+      state.hygiene.logs.unshift(entry);
       saveState();
 
       // Reset small fields
@@ -2137,7 +2137,7 @@ function renderHygienePanel(){
   // today list
   const iso = todayISO();
   const logsToday = hygieneGetLogsForDate(iso);
-  const pendingOnly = !!(S.hygiene.ui && S.hygiene.ui.pendingOnly);
+  const pendingOnly = !!(state.hygiene.ui && state.hygiene.ui.pendingOnly);
 
   const countEl = document.getElementById('hygTodayCount');
   const logsShown = pendingOnly ? logsToday.filter(l=>String(l.status||'').toLowerCase()==='fällig') : logsToday;
@@ -2172,7 +2172,7 @@ function renderHygienePanel(){
   // weekly list
   const weeklyEl = document.getElementById('hygWeeklyList');
   if(weeklyEl){
-    const tasks = S.hygiene.weeklyTasks || [];
+    const tasks = state.hygiene.weeklyTasks || [];
     weeklyEl.innerHTML = tasks.map(t=>{
       const st = hygieneTaskStatus(t);
       const last = t.lastDone ? new Date(t.lastDone).toLocaleDateString('de-DE') : '—';
@@ -2200,7 +2200,7 @@ function renderHygienePanel(){
 
 function completeHygieneLog(id){
   ensureStateShape();
-  const log = (S.hygiene.logs||[]).find(x=>x.id===id);
+  const log = (state.hygiene.logs||[]).find(x=>x.id===id);
   if(!log) return;
   // Staff aus Auswahl/Freitext übernehmen (wenn vorhanden)
   const preset = (document.getElementById('hygStaffPreset')?.value || '').trim();
@@ -2221,7 +2221,7 @@ function completeHygieneLog(id){
 }
 
 function editHygieneLog(id){
-  const log = (S.hygiene.logs||[]).find(x=>x.id===id);
+  const log = (state.hygiene.logs||[]).find(x=>x.id===id);
   if(!log) return;
   const newNote = prompt('Notiz bearbeiten (leer lassen, um zu löschen):', log.note || '');
   if(newNote === null) return;
@@ -2233,7 +2233,7 @@ function editHygieneLog(id){
 }
 
 function markWeeklyTaskDone(taskId){
-  const t = (S.hygiene.weeklyTasks||[]).find(x=>x.id===taskId);
+  const t = (state.hygiene.weeklyTasks||[]).find(x=>x.id===taskId);
   if(!t) return;
   const now = new Date();
   t.lastDone = now.toISOString();
@@ -2241,7 +2241,7 @@ function markWeeklyTaskDone(taskId){
   const preset = (document.getElementById('hygStaffPreset')?.value || 'Raphael').trim();
   const free = (document.getElementById('hygStaffFree')?.value || '').trim();
   const staff = { preset: preset || null, free: free || null };
-  S.hygiene.logs.unshift({
+  state.hygiene.logs.unshift({
     id: uid(),
     date: todayISO(),
     area: "Außenbereich",
@@ -2261,7 +2261,7 @@ function markWeeklyTaskDone(taskId){
 
 function exportHygienePDF(){
   ensureStateShape();
-  const logs = (S.hygiene.logs||[]).slice().reverse();
+  const logs = (state.hygiene.logs||[]).slice().reverse();
   const from = prompt('Export ab Datum (YYYY-MM-DD), leer = letzter Monat:', '');
   let start;
   if(from && /^\d{4}-\d{2}-\d{2}$/.test(from)){
@@ -2324,12 +2324,12 @@ function medISO(){ return toISODateLocal(new Date()); }
 function medGetPets(){
   ensureStateShape();
   // Primär neue Struktur: pets
-  if(Array.isArray(S.pets) && S.pets.length){
-    return S.pets.filter(p=>p && p.id);
+  if(Array.isArray(state.pets) && state.pets.length){
+    return state.pets.filter(p=>p && p.id);
   }
   // Fallback legacy dogs
   ensureDefaultDog();
-  return (S.dogs||[]).filter(d=>d && !d.isPlaceholder).map(d=>({
+  return (state.dogs||[]).filter(d=>d && !d.isPlaceholder).map(d=>({
     id: d.id, name: d.name, customerId: null, _legacy: true
   }));
 }
@@ -2347,7 +2347,7 @@ function getPetIdsInCare(dateISO){
     const d = String(dateISO||"").slice(0,10);
     if(!d) return [];
     const set = new Set();
-    for(const doc of (S.docs||[])){
+    for(const doc of (state.docs||[])){
       if(!doc || doc.type === 'invoice') continue;
       const from = String(doc.meta?.von||"").slice(0,10);
       const to = String(doc.meta?.bis||"").slice(0,10);
@@ -2370,7 +2370,7 @@ function medInitUI(){
   ensureStateShape();
 
   // Presets in Selects
-  const presets = S.medication.staffPresets || ["Raphael","Anschi"];
+  const presets = state.medication.staffPresets || ["Raphael","Anschi"];
 
   const hnByPreset = document.getElementById("hnByPreset");
   if(hnByPreset && !hnByPreset.dataset.bound){
@@ -2380,11 +2380,11 @@ function medInitUI(){
 
   const pendingOnly = document.getElementById("medPendingOnly");
   if(pendingOnly && !pendingOnly.dataset.bound){
-    pendingOnly.checked = !!(S.medication.ui && S.medication.ui.pendingOnly);
+    pendingOnly.checked = !!(state.medication.ui && state.medication.ui.pendingOnly);
     pendingOnly.onchange = ()=>{
       ensureStateShape();
-      S.medication.ui.pendingOnly = !!pendingOnly.checked;
-      try{ localStorage.setItem('dstest_med_pendingOnly', String(S.medication.ui.pendingOnly)); }catch(e){}
+      state.medication.ui.pendingOnly = !!pendingOnly.checked;
+      try{ localStorage.setItem('dstest_med_pendingOnly', String(state.medication.ui.pendingOnly)); }catch(e){}
       saveState();
       renderMedicationPanel();
     };
@@ -2396,8 +2396,8 @@ function medInitUI(){
   if(sel && !sel.dataset.bound){
     sel.onchange = ()=>{
       ensureStateShape();
-      S.medication.ui = S.medication.ui || {};
-      S.medication.ui.selectedPetId = sel.value || "";
+      state.medication.ui = state.medication.ui || {};
+      state.medication.ui.selectedPetId = sel.value || "";
       saveState();
       renderMedicationPanel();
     };
@@ -2432,7 +2432,7 @@ function medInitUI(){
 
 function medSelectedPetId(){
   ensureStateShape();
-  return (S.medication.ui && S.medication.ui.selectedPetId) ? S.medication.ui.selectedPetId : "";
+  return (state.medication.ui && state.medication.ui.selectedPetId) ? state.medication.ui.selectedPetId : "";
 }
 
 function medPopulatePetSelect(){
@@ -2500,7 +2500,7 @@ function medAddPlanFromForm(){
     createdAt: Date.now(),
     updatedAt: Date.now()
   };
-  S.medication.plans.unshift(plan);
+  state.medication.plans.unshift(plan);
 
   // reset form
   try{
@@ -2519,18 +2519,18 @@ function medAddPlanFromForm(){
 
 function medPlansForPet(petId){
   ensureStateShape();
-  return (S.medication.plans||[]).filter(p=>p && p.petId===petId);
+  return (state.medication.plans||[]).filter(p=>p && p.petId===petId);
 }
 
 function medRecordsFor(dateISO){
   ensureStateShape();
   const d = String(dateISO||"").slice(0,10);
-  return (S.medication.records||[]).filter(r=>r && r.date===d);
+  return (state.medication.records||[]).filter(r=>r && r.date===d);
 }
 
 function medHasRecord(petId, planId, dateISO, time){
   const d = String(dateISO||"").slice(0,10);
-  return (S.medication.records||[]).some(r =>
+  return (state.medication.records||[]).some(r =>
     r && r.petId===petId && r.planId===planId && r.date===d && r.time===time
   );
 }
@@ -2542,7 +2542,7 @@ function medDueOccurrences(dateISO, onlyPetIds=null){
   const petFilter = Array.isArray(onlyPetIds) && onlyPetIds.length ? new Set(onlyPetIds) : null;
   const pets = medGetPets().filter(p=> !petFilter || petFilter.has(p.id));
   for(const pet of pets){
-    const plans = (S.medication.plans||[]).filter(p=>p && p.petId===pet.id && p.active !== false);
+    const plans = (state.medication.plans||[]).filter(p=>p && p.petId===pet.id && p.active !== false);
     for(const pl of plans){
       const times = Array.isArray(pl.times) ? pl.times : [];
       for(const t of times){
@@ -2578,7 +2578,7 @@ function petIdsInCareOnDate(dateISO){
     ensureStateShape();
     const d = String(dateISO||"").slice(0,10);
     const set = new Set();
-    const docs = (S.docs||[]).filter(x=>x && x.type!=="invoice");
+    const docs = (state.docs||[]).filter(x=>x && x.type!=="invoice");
     for(const doc of docs){
       const from = String(doc.meta?.von||"").slice(0,10);
       const to   = String(doc.meta?.bis||"").slice(0,10);
@@ -2642,7 +2642,7 @@ function renderMedicationPanel(){
   // restore pendingOnly from localStorage if present
   try{
     const cb = document.getElementById("medPendingOnly");
-    if(cb) cb.checked = !!(S.medication.ui && S.medication.ui.pendingOnly);
+    if(cb) cb.checked = !!(state.medication.ui && state.medication.ui.pendingOnly);
   }catch(_){}
 
   const status = medOverallStatus();
@@ -2658,7 +2658,7 @@ function renderMedicationPanel(){
 function renderMedicationDue(){
   const iso = medISO();
   const due = medDueOccurrences(iso);
-  const pendingOnly = !!(S.medication.ui && S.medication.ui.pendingOnly);
+  const pendingOnly = !!(state.medication.ui && state.medication.ui.pendingOnly);
   const list = document.getElementById("medDueList");
   const meta = document.getElementById("medDueMeta");
   if(!list) return;
@@ -2678,7 +2678,7 @@ function renderMedicationDue(){
     return;
   }
 
-  const presets = S.medication.staffPresets || ["Raphael","Anschi"];
+  const presets = state.medication.staffPresets || ["Raphael","Anschi"];
 
   for(const it of show){
     const row = document.createElement("div");
@@ -2768,7 +2768,7 @@ function medAddRecord({petId, planId, date, time, status, reason, byPreset, byTe
     createdAt: Date.now(),
     updatedAt: Date.now()
   };
-  S.medication.records.unshift(rec);
+  state.medication.records.unshift(rec);
   saveState();
   renderMedicationPanel();
 }
@@ -2814,7 +2814,7 @@ function renderMedicationPlans(){
     };
     el.querySelector('[data-t="del"]').onclick = ()=>{
       if(confirm("Medikament wirklich löschen? (Dokumentation bleibt erhalten, Plan wird entfernt)")){
-        S.medication.plans = (S.medication.plans||[]).filter(x=>x.id!==pl.id);
+        state.medication.plans = (state.medication.plans||[]).filter(x=>x.id!==pl.id);
         saveState();
         renderMedicationPanel();
       }
@@ -2855,7 +2855,7 @@ function medAddHealthNoteFromForm(){
     createdAt: Date.now(),
     updatedAt: Date.now()
   };
-  S.medication.healthNotes.unshift(note);
+  state.medication.healthNotes.unshift(note);
 
   // reset
   try{
@@ -2876,7 +2876,7 @@ function renderHealthNotes(){
   if(!list) return;
 
   // fill presets
-  const presets = S.medication.staffPresets || ["Raphael","Anschi"];
+  const presets = state.medication.staffPresets || ["Raphael","Anschi"];
   const sel = document.getElementById("hnByPreset");
   if(sel){
     sel.innerHTML = presets.map(x=>`<option value="${escapeHtml(x)}">${escapeHtml(x)}</option>`).join("") + `<option value="__other__">Andere…</option>`;
@@ -2887,7 +2887,7 @@ function renderHealthNotes(){
     return;
   }
 
-  const notes = (S.medication.healthNotes||[]).filter(n=>n && n.petId===petId).slice(0,25);
+  const notes = (state.medication.healthNotes||[]).filter(n=>n && n.petId===petId).slice(0,25);
   list.innerHTML = "";
   if(notes.length === 0){
     list.innerHTML = `<div class="muted">Noch keine Gesundheitsnotizen.</div>`;
@@ -2914,7 +2914,7 @@ function renderHealthNotes(){
     `;
     el.querySelector('[data-del="1"]').onclick = ()=>{
       if(confirm("Notiz löschen? (nur wenn wirklich falsch)")){
-        S.medication.healthNotes = (S.medication.healthNotes||[]).filter(x=>x.id!==n.id);
+        state.medication.healthNotes = (state.medication.healthNotes||[]).filter(x=>x.id!==n.id);
         saveState();
         renderMedicationPanel();
       }
@@ -2941,19 +2941,19 @@ function medExportPdf(){
   const petId = medSelectedPetId(); // optional: if set, filter export
   const pets = medGetPets();
 
-  const plans = (S.medication.plans||[]).filter(p=>{
+  const plans = (state.medication.plans||[]).filter(p=>{
     if(!p) return false;
     if(petId && p.petId !== petId) return false;
     return true;
   });
 
-  const records = (S.medication.records||[]).filter(r=>{
+  const records = (state.medication.records||[]).filter(r=>{
     if(!r) return false;
     if(petId && r.petId !== petId) return false;
     return (r.date >= startISO && r.date <= endISO);
   });
 
-  const notes = (S.medication.healthNotes||[]).filter(n=>{
+  const notes = (state.medication.healthNotes||[]).filter(n=>{
     if(!n) return false;
     if(petId && n.petId !== petId) return false;
     return (n.date >= startISO && n.date <= endISO);
@@ -2993,7 +2993,7 @@ function medExportPdf(){
     <tbody>
       ${records.slice().reverse().map(r=>{
         const dog = medPetName(r.petId);
-        const pl = (S.medication.plans||[]).find(p=>p.id===r.planId);
+        const pl = (state.medication.plans||[]).find(p=>p.id===r.planId);
         const med = pl ? pl.name : "—";
         const by = [r.byPreset, r.byText].filter(Boolean).join(" ");
         const st = (r.status==="gegeben") ? "gegeben" : "nicht gegeben";
@@ -3177,7 +3177,7 @@ function renderCalendarDayDetail(iso){
   if(f.tages){ parts.push(`🐕 ${dayc}/${getCapacity("Tagesbetreuung", iso)}`); freeParts.push(`🐕 ${Math.max(0, freeT)} frei`); }
   meta.textContent = `${parts.join(' · ')}  —  ${freeParts.join(' · ')}`;
 
-  const stays = (S.docs||[]).filter(d=>{
+  const stays = (state.docs||[]).filter(d=>{
     if(!d.saved) return false;
     if(d.type==='invoice') return false;
     if(!d.meta?.von || !d.meta?.bis) return false;
@@ -3194,9 +3194,9 @@ function renderCalendarDayDetail(iso){
 
   // Etappe 4.1: Filter im Tagdetail – nur fällige
   ensureStateShape();
-  if(!S.medication.ui) S.medication.ui = {};
-  if(typeof S.medication.ui.calDayPendingOnly !== 'boolean') S.medication.ui.calDayPendingOnly = false;
-  const calPendingOnly = !!S.medication.ui.calDayPendingOnly;
+  if(!state.medication.ui) state.medication.ui = {};
+  if(typeof state.medication.ui.calDayPendingOnly !== 'boolean') state.medication.ui.calDayPendingOnly = false;
+  const calPendingOnly = !!state.medication.ui.calDayPendingOnly;
 
 
   list.innerHTML = '';
@@ -3236,7 +3236,7 @@ function renderCalendarDayDetail(iso){
     if(cb){
       cb.onchange = ()=>{
         try{
-          S.medication.ui.calDayPendingOnly = !!cb.checked;
+          state.medication.ui.calDayPendingOnly = !!cb.checked;
           saveState();
         }catch(_){ }
         renderCalendarDayDetail(iso);
@@ -3471,43 +3471,43 @@ function uniq(arr){
 function ensureProfiDefaults(){
   if(!state || typeof state !== 'object') return;
 
-  // Kompatibilität: älterer Masterstand nutzt S.staff.people + S.compliance.docs/monthClosings.
-  if(!S.staff || typeof S.staff !== 'object') S.staff = {};
-  if(!Array.isArray(S.staff.people)) S.staff.people = [];
-  if(!Array.isArray(S.staff.presets)) S.staff.presets = ["Raphael","Anschi"];
+  // Kompatibilität: älterer Masterstand nutzt state.staff.people + state.compliance.docs/monthClosings.
+  if(!state.staff || typeof state.staff !== 'object') state.staff = {};
+  if(!Array.isArray(state.staff.people)) state.staff.people = [];
+  if(!Array.isArray(state.staff.presets)) state.staff.presets = ["Raphael","Anschi"];
   // Raphael/Anschi immer vorhanden
   const ensure = (name)=>{
     if(!name) return;
-    let p = S.staff.people.find(x=>x && x.name===name);
-    if(!p){ S.staff.people.push({id: uid(), name, role:"", active:true, createdAt:Date.now()}); }
+    let p = state.staff.people.find(x=>x && x.name===name);
+    if(!p){ state.staff.people.push({id: uid(), name, role:"", active:true, createdAt:Date.now()}); }
     else if(typeof p.active !== 'boolean') p.active = true;
   };
-  S.staff.presets.forEach(ensure);
+  state.staff.presets.forEach(ensure);
 
   // Alias für die neuen UI-Helper
-  S.staff.list = S.staff.people;
-  if(typeof S.staff.nextId !== 'number') S.staff.nextId = 1;
+  state.staff.list = state.staff.people;
+  if(typeof state.staff.nextId !== 'number') state.staff.nextId = 1;
 
-  // Versionierung & Monatsabschluss: über S.compliance
-  if(!S.compliance || typeof S.compliance !== 'object') S.compliance = {};
-  if(!S.compliance.docs || typeof S.compliance.docs !== 'object') S.compliance.docs = {};
+  // Versionierung & Monatsabschluss: über state.compliance
+  if(!state.compliance || typeof state.compliance !== 'object') state.compliance = {};
+  if(!state.compliance.docs || typeof state.compliance.docs !== 'object') state.compliance.docs = {};
   const today = toISODateLocal(new Date());
   const ensureDoc = (key, title)=>{
-    if(!S.compliance.docs[key] || typeof S.compliance.docs[key] !== 'object'){
-      S.compliance.docs[key] = { title, version:"1.0", lastChanged: today, history: [] };
+    if(!state.compliance.docs[key] || typeof state.compliance.docs[key] !== 'object'){
+      state.compliance.docs[key] = { title, version:"1.0", lastChanged: today, history: [] };
     }
-    if(!Array.isArray(S.compliance.docs[key].history)) S.compliance.docs[key].history = [];
+    if(!Array.isArray(state.compliance.docs[key].history)) state.compliance.docs[key].history = [];
   };
   ensureDoc('hygiene', 'Hygieneplan');
   ensureDoc('brand', 'Brandfall- & Evakuierungskonzept');
   ensureDoc('notfall', 'Notfallplan');
   ensureDoc('contract', 'Betreuungsvertrag');
-  S.compliance.monthClosings = Array.isArray(S.compliance.monthClosings) ? S.compliance.monthClosings : [];
+  state.compliance.monthClosings = Array.isArray(state.compliance.monthClosings) ? state.compliance.monthClosings : [];
 }
 
 function getActiveStaffNames(){
   ensureProfiDefaults();
-  return uniq((S.staff.list||[]).filter(s=>s && s.active!==false).map(s=>s.name));
+  return uniq((state.staff.list||[]).filter(s=>s && s.active!==false).map(s=>s.name));
 }
 
 function staffSelectOptions(selected){
@@ -3529,9 +3529,9 @@ function computeCompliance(){
   const today = todayISO();
 
   // Hygiene: offene Einträge heute oder überfällige Wochenaufgaben
-  const hygLogs = (S.hygiene?.logs||[]);
+  const hygLogs = (state.hygiene?.logs||[]);
   const openHygToday = hygLogs.filter(l=>l && l.date===today && l.status==='pending').length;
-  const weekly = (S.hygiene?.weeklyTasks||[]);
+  const weekly = (state.hygiene?.weeklyTasks||[]);
   const overdueWeekly = weekly.filter(t=>{
     const last = t?.lastDone ? String(t.lastDone).slice(0,10) : '';
     if(!last) return true;
@@ -3561,13 +3561,13 @@ function computeCompliance(){
   // Verträge: aktive Aufenthalte ohne unterschriebenen Vertrag
   let conStatus='green', conDetail='Für aktive Aufenthalte liegt ein Vertrag vor.';
   try{
-    const activeStays = (S.docs||[]).filter(d=>d && d.type==='hundeannahme' && d.saved && d.meta?.von && d.meta?.bis && (today>=d.meta.von && today<=d.meta.bis));
+    const activeStays = (state.docs||[]).filter(d=>d && d.type==='hundeannahme' && d.saved && d.meta?.von && d.meta?.bis && (today>=d.meta.von && today<=d.meta.bis));
     const missing = activeStays.filter(d=>!d.contractSigned && !(d.signatures && d.signatures.halter)).length;
     if(missing>0){ conStatus='yellow'; conDetail = `${missing} aktiv ohne (vollständige) Unterschrift.`; }
   }catch(e){ }
 
   // Notfall/Brand: Vorlage vorhanden (Versionen gesetzt)
-  const docs = S.compliance?.docs || {};
+  const docs = state.compliance?.docs || {};
   const fireOk = !!docs.brand?.version;
   const emergOk = !!docs.notfall?.version;
   let nfStatus='green', nfDetail='Vorlagen vorhanden.';
@@ -3631,7 +3631,7 @@ function renderStaffSettings(){
   const list = document.getElementById('staffList');
   if(!list) return;
   ensureProfiDefaults();
-  list.innerHTML = (S.staff.list||[]).map(s=>{
+  list.innerHTML = (state.staff.list||[]).map(s=>{
     const active = s.active!==false;
     return `<div class="list-row">
       <div>
@@ -3651,12 +3651,12 @@ function profiAddStaff(){
   const name = (document.getElementById('staffNameInput')?.value||'').trim();
   const role = (document.getElementById('staffRoleInput')?.value||'').trim();
   if(!name){ alert('Bitte Name eingeben.'); return; }
-  const id = `staff_${S.staff.nextId++}`;
-  S.staff.list.push({id, name, role, active:true, createdAt:Date.now()});
+  const id = `staff_${state.staff.nextId++}`;
+  state.staff.list.push({id, name, role, active:true, createdAt:Date.now()});
   // in Modul-Presets synchronisieren
   const names = getActiveStaffNames();
-  S.hygiene.staffPresets = uniq([...(S.hygiene.staffPresets||[]), ...names]);
-  S.medication.staffPresets = uniq([...(S.medication.staffPresets||[]), ...names]);
+  state.hygiene.staffPresets = uniq([...(state.hygiene.staffPresets||[]), ...names]);
+  state.medication.staffPresets = uniq([...(state.medication.staffPresets||[]), ...names]);
   saveState();
   document.getElementById('staffNameInput').value='';
   document.getElementById('staffRoleInput').value='';
@@ -3668,20 +3668,20 @@ function profiAddStaff(){
 
 function profiToggleStaff(id){
   ensureProfiDefaults();
-  const s = (S.staff.list||[]).find(x=>x.id===id);
+  const s = (state.staff.list||[]).find(x=>x.id===id);
   if(!s) return;
   s.active = !(s.active!==false);
   // Presets neu setzen
   const names = getActiveStaffNames();
-  S.hygiene.staffPresets = uniq([...(S.hygiene.staffPresets||[]).filter(n=>names.includes(n)), ...names]);
-  S.medication.staffPresets = uniq([...(S.medication.staffPresets||[]).filter(n=>names.includes(n)), ...names]);
+  state.hygiene.staffPresets = uniq([...(state.hygiene.staffPresets||[]).filter(n=>names.includes(n)), ...names]);
+  state.medication.staffPresets = uniq([...(state.medication.staffPresets||[]).filter(n=>names.includes(n)), ...names]);
   saveState();
   renderStaffSettings();
 }
 
 function profiEditStaff(id){
   ensureProfiDefaults();
-  const s = (S.staff.list||[]).find(x=>x.id===id);
+  const s = (state.staff.list||[]).find(x=>x.id===id);
   if(!s) return;
   const newName = prompt('Name ändern (wirkt nur für zukünftige Auswahlen):', s.name||'');
   if(newName==null) return;
@@ -3691,8 +3691,8 @@ function profiEditStaff(id){
   if(newRole!=null) s.role = String(newRole).trim();
   // Presets neu aufbauen
   const names = getActiveStaffNames();
-  S.hygiene.staffPresets = uniq([...(S.hygiene.staffPresets||[]), ...names]);
-  S.medication.staffPresets = uniq([...(S.medication.staffPresets||[]), ...names]);
+  state.hygiene.staffPresets = uniq([...(state.hygiene.staffPresets||[]), ...names]);
+  state.medication.staffPresets = uniq([...(state.medication.staffPresets||[]), ...names]);
   saveState();
   renderStaffSettings();
 }
@@ -3701,7 +3701,7 @@ function renderPolicySettings(){
   const el = document.getElementById('policyList');
   if(!el) return;
   ensureProfiDefaults();
-  const cur = S.compliance.docs;
+  const cur = state.compliance.docs;
   const rows = [
     {k:'hygiene', label:'Hygieneplan'},
     {k:'notfall', label:'Notfallplan'},
@@ -3721,7 +3721,7 @@ function renderPolicySettings(){
       </div>
     </div>`;
   }).join('');
-  const count = Object.values(S.compliance.docs||{}).reduce((a,d)=>a+((d&&Array.isArray(d.history))?d.history.length:0),0);
+  const count = Object.values(state.compliance.docs||{}).reduce((a,d)=>a+((d&&Array.isArray(d.history))?d.history.length:0),0);
   el.innerHTML = rows + `<div class="hint" style="margin-top:10px">Archiv: ${count} Eintrag(e). (Inhalt bleibt in der App unverändert; Versionierung dient dem Nachweis.)</div>`;
 }
 
@@ -3736,13 +3736,13 @@ function profiBumpPolicy(key){
   ensureProfiDefaults();
   const note = prompt('Änderung kurz beschreiben (für Archiv):','');
   if(note==null) return;
-  const doc = S.compliance.docs[key] || {title:key, version:'1.0', lastChanged:toISODateLocal(new Date()), history:[]};
+  const doc = state.compliance.docs[key] || {title:key, version:'1.0', lastChanged:toISODateLocal(new Date()), history:[]};
   const toV = bumpVersionStr(doc.version);
   doc.history = Array.isArray(doc.history) ? doc.history : [];
   doc.history.push({fromVersion:doc.version, toVersion:toV, changedAt:toISODateLocal(new Date()), note:String(note||'').trim()});
   doc.version = toV;
   doc.lastChanged = toISODateLocal(new Date());
-  S.compliance.docs[key] = doc;
+  state.compliance.docs[key] = doc;
   saveState();
   renderPolicySettings();
   renderComplianceDashboard();
@@ -3759,7 +3759,7 @@ const POLICY_DEFAULTS = {
 
 function getPolicyContent(key){
   ensureProfiDefaults();
-  const doc = S.compliance?.docs?.[key] || {};
+  const doc = state.compliance?.docs?.[key] || {};
   const txt = (doc.content!=null) ? String(doc.content) : (POLICY_DEFAULTS[key] || '');
   return txt;
 }
@@ -3799,7 +3799,7 @@ function openPolicyDoc(key){
   ensurePolicyModal();
   ensureProfiDefaults();
   _policyCurrentKey = key;
-  const doc = S.compliance.docs[key] || {title:key, version:'1.0'};
+  const doc = state.compliance.docs[key] || {title:key, version:'1.0'};
   const title = `${doc.title || key} · Version ${doc.version || '1.0'}`;
   const wrap = document.getElementById('policyModal');
   const ttl = document.getElementById('policyModalTitle');
@@ -3818,13 +3818,13 @@ function openPolicyDoc(key){
       if(note==null) return;
       // Versionssprung + Archiv
       const k = _policyCurrentKey;
-      const d = S.compliance.docs[k] || {title:k, version:'1.0', lastChanged:toISODateLocal(new Date()), history:[]};
+      const d = state.compliance.docs[k] || {title:k, version:'1.0', lastChanged:toISODateLocal(new Date()), history:[]};
       const toV = bumpVersionStr(d.version);
       d.history = Array.isArray(d.history) ? d.history : [];
       d.history.push({fromVersion:d.version, toVersion:toV, changedAt:toISODateLocal(new Date()), note:String(note||'').trim()});
       d.version = toV;
       d.lastChanged = toISODateLocal(new Date());
-      S.compliance.docs[k] = d;
+      state.compliance.docs[k] = d;
       // Editor öffnen
       if(ta){ ta.readOnly = false; ta.focus(); }
       if(btnSave) btnSave.style.display = 'inline-flex';
@@ -3842,9 +3842,9 @@ function openPolicyDoc(key){
     saveBtn.onclick = ()=>{
       if(!_policyCurrentKey) return;
       const k = _policyCurrentKey;
-      const d = S.compliance.docs[k] || {title:k, version:'1.0'};
+      const d = state.compliance.docs[k] || {title:k, version:'1.0'};
       d.content = (ta ? String(ta.value||'') : '').trim();
-      S.compliance.docs[k] = d;
+      state.compliance.docs[k] = d;
       saveState();
       if(ta) ta.readOnly = true;
       saveBtn.style.display = 'none';
@@ -3878,10 +3878,10 @@ function buildMonthReportHtml(monthISO){
   const c = computeCompliance();
   const from = `${ym}-01`;
   const to = `${ym}-31`;
-  const hyg = (S.hygiene?.logs||[]).filter(l=>l && l.date>=from && l.date<=to);
-  const medRec = (S.medication?.records||[]).filter(r=>r && r.date>=from && r.date<=to);
-  const hn = (S.medication?.healthNotes||[]).filter(n=>n && n.date>=from && n.date<=to);
-  const stays = (S.docs||[]).filter(d=>d && d.saved && d.meta?.von && d.meta?.von>=from && d.meta?.von<=to);
+  const hyg = (state.hygiene?.logs||[]).filter(l=>l && l.date>=from && l.date<=to);
+  const medRec = (state.medication?.records||[]).filter(r=>r && r.date>=from && r.date<=to);
+  const hn = (state.medication?.healthNotes||[]).filter(n=>n && n.date>=from && n.date<=to);
+  const stays = (state.docs||[]).filter(d=>d && d.saved && d.meta?.von && d.meta?.von>=from && d.meta?.von<=to);
 
   const rows = (arr, cols)=> arr.map(x=>`<tr>${cols.map(c=>`<td>${escapeHtml(String((typeof c==='function'?c(x):x[c])??''))}</td>`).join('')}</tr>`).join('') || `<tr><td colspan="${cols.length}">—</td></tr>`;
 
@@ -3924,7 +3924,7 @@ function monthClose(){
   const now = new Date();
   const ym = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
   const c = computeCompliance();
-  S.compliance.monthClosings.push({ym, closedAt:Date.now(), complianceWorst:c.worst});
+  state.compliance.monthClosings.push({ym, closedAt:Date.now(), complianceWorst:c.worst});
   saveState();
   const html = buildMonthReportHtml(ym);
   openHtmlInModal(`Monatsnachweis ${ym}`, html, 'Schließen mit ✕. iPad/iPhone → „Drucken/Speichern“ → Teilen → „In Dateien sichern“ (am besten: Dateien/DoggyStyle/Export).');
@@ -3957,42 +3957,42 @@ function initProfiSettingsBindings(){
 function ensureStateShape(){
   // Basis-Defaults (ohne UID-Erzeugung, damit es beim ersten Load robust bleibt)
   if(!state || typeof state !== "object") return;
-  if(typeof S.schemaVersion !== "number") S.schemaVersion = 1;
+  if(typeof state.schemaVersion !== "number") state.schemaVersion = 1;
 
   // Profi-Defaults (Mitarbeiter, Versionen, Monatsabschlüsse)
   try{ ensureProfiDefaults(); }catch(_){ }
 
-  S.dogs = Array.isArray(S.dogs) ? S.dogs : [];
-  S.docs = Array.isArray(S.docs) ? S.docs : [];
+  state.dogs = Array.isArray(state.dogs) ? state.dogs : [];
+  state.docs = Array.isArray(state.docs) ? state.docs : [];
 
-  S.customers = Array.isArray(S.customers) ? S.customers : [];
-  S.pets = Array.isArray(S.pets) ? S.pets : [];
-  S.stays = Array.isArray(S.stays) ? S.stays : [];
-  S.worklogs = Array.isArray(S.worklogs) ? S.worklogs : [];
-  S.invoices = Array.isArray(S.invoices) ? S.invoices : [];
+  state.customers = Array.isArray(state.customers) ? state.customers : [];
+  state.pets = Array.isArray(state.pets) ? state.pets : [];
+  state.stays = Array.isArray(state.stays) ? state.stays : [];
+  state.worklogs = Array.isArray(state.worklogs) ? state.worklogs : [];
+  state.invoices = Array.isArray(state.invoices) ? state.invoices : [];
 
   // Hygiene & Reinigung
-  if(!S.hygiene || typeof S.hygiene !== "object") S.hygiene = {};
-  S.hygiene.logs = Array.isArray(S.hygiene.logs) ? S.hygiene.logs : [];
-  S.hygiene.weeklyTasks = Array.isArray(S.hygiene.weeklyTasks) ? S.hygiene.weeklyTasks : [];
-  S.hygiene.staffPresets = Array.isArray(S.hygiene.staffPresets) ? S.hygiene.staffPresets : ["Raphael","Anschi"];
+  if(!state.hygiene || typeof state.hygiene !== "object") state.hygiene = {};
+  state.hygiene.logs = Array.isArray(state.hygiene.logs) ? state.hygiene.logs : [];
+  state.hygiene.weeklyTasks = Array.isArray(state.hygiene.weeklyTasks) ? state.hygiene.weeklyTasks : [];
+  state.hygiene.staffPresets = Array.isArray(state.hygiene.staffPresets) ? state.hygiene.staffPresets : ["Raphael","Anschi"];
   // Sync Presets mit Mitarbeiterliste (Raphael/Anschi + weitere)
-  try{ S.hygiene.staffPresets = uniq([...(S.hygiene.staffPresets||[]), ...getActiveStaffNames()]); }catch(_){ }
+  try{ state.hygiene.staffPresets = uniq([...(state.hygiene.staffPresets||[]), ...getActiveStaffNames()]); }catch(_){ }
   // UI preferences
-  if(!S.hygiene.ui || typeof S.hygiene.ui !== "object") S.hygiene.ui = {};
-  if(typeof S.hygiene.ui.pendingOnly !== "boolean") S.hygiene.ui.pendingOnly = false;
+  if(!state.hygiene.ui || typeof state.hygiene.ui !== "object") state.hygiene.ui = {};
+  if(typeof state.hygiene.ui.pendingOnly !== "boolean") state.hygiene.ui.pendingOnly = false;
   // Restore filter preference from localStorage (optional)
   try{
     const v = localStorage.getItem('dstest_hyg_pendingOnly');
-    if(v === 'true') S.hygiene.ui.pendingOnly = true;
-    if(v === 'false') S.hygiene.ui.pendingOnly = false;
+    if(v === 'true') state.hygiene.ui.pendingOnly = true;
+    if(v === 'false') state.hygiene.ui.pendingOnly = false;
   }catch(e){}
 
 
 
   // Default Wochenaufgaben (nur einmal anlegen)
-  if(S.hygiene.weeklyTasks.length === 0){
-    S.hygiene.weeklyTasks = [
+  if(state.hygiene.weeklyTasks.length === 0){
+    state.hygiene.weeklyTasks = [
       { id: "wk_outdoor_disinfect", title: "Desinfektion Außenbereich", intervalDays: 7, lastDone: null },
       { id: "wk_runs_deepclean", title: "Grundreinigung Ausläufe", intervalDays: 7, lastDone: null },
       { id: "wk_toilet_areas", title: "Desinfektion Toilettenbereiche", intervalDays: 7, lastDone: null },
@@ -4001,104 +4001,104 @@ function ensureStateShape(){
   }
 
   // Medikamente & Gesundheit
-  if(!S.medication || typeof S.medication !== "object") S.medication = {};
-  S.medication.plans = Array.isArray(S.medication.plans) ? S.medication.plans : [];
-  S.medication.records = Array.isArray(S.medication.records) ? S.medication.records : [];
-  S.medication.healthNotes = Array.isArray(S.medication.healthNotes) ? S.medication.healthNotes : [];
-  S.medication.staffPresets = Array.isArray(S.medication.staffPresets) ? S.medication.staffPresets : ["Raphael","Anschi"];
+  if(!state.medication || typeof state.medication !== "object") state.medication = {};
+  state.medication.plans = Array.isArray(state.medication.plans) ? state.medication.plans : [];
+  state.medication.records = Array.isArray(state.medication.records) ? state.medication.records : [];
+  state.medication.healthNotes = Array.isArray(state.medication.healthNotes) ? state.medication.healthNotes : [];
+  state.medication.staffPresets = Array.isArray(state.medication.staffPresets) ? state.medication.staffPresets : ["Raphael","Anschi"];
 
   // Presets mit aktuiver Mitarbeiterliste synchronisieren (Raphael/Anschi fest, weitere aus Einstellungen)
   try{
     const names = getActiveStaffNames();
-    S.hygiene.staffPresets = uniq([...(S.hygiene.staffPresets||[]), ...names]);
-    S.medication.staffPresets = uniq([...(S.medication.staffPresets||[]), ...names]);
+    state.hygiene.staffPresets = uniq([...(state.hygiene.staffPresets||[]), ...names]);
+    state.medication.staffPresets = uniq([...(state.medication.staffPresets||[]), ...names]);
   }catch(_){ }
-  try{ S.medication.staffPresets = uniq([...(S.medication.staffPresets||[]), ...getActiveStaffNames()]); }catch(_){ }
-  if(!S.medication.ui || typeof S.medication.ui !== "object") S.medication.ui = {};
-  if(typeof S.medication.ui.pendingOnly !== "boolean") S.medication.ui.pendingOnly = false;
-  if(typeof S.medication.ui.selectedPetId !== "string") S.medication.ui.selectedPetId = "";
+  try{ state.medication.staffPresets = uniq([...(state.medication.staffPresets||[]), ...getActiveStaffNames()]); }catch(_){ }
+  if(!state.medication.ui || typeof state.medication.ui !== "object") state.medication.ui = {};
+  if(typeof state.medication.ui.pendingOnly !== "boolean") state.medication.ui.pendingOnly = false;
+  if(typeof state.medication.ui.selectedPetId !== "string") state.medication.ui.selectedPetId = "";
   try{
     const v = localStorage.getItem('dstest_med_pendingOnly');
-    if(v === 'true') S.medication.ui.pendingOnly = true;
-    if(v === 'false') S.medication.ui.pendingOnly = false;
+    if(v === 'true') state.medication.ui.pendingOnly = true;
+    if(v === 'false') state.medication.ui.pendingOnly = false;
   }catch(e){}
 
   
   // Mitarbeiter (global) – Voreinstellung: Raphael & Anschi
-  if(!S.staff || typeof S.staff !== "object") S.staff = {};
-  S.staff.people = Array.isArray(S.staff.people) ? S.staff.people : [];
-  if(!Array.isArray(S.staff.presets)) S.staff.presets = ["Raphael","Anschi"];
+  if(!state.staff || typeof state.staff !== "object") state.staff = {};
+  state.staff.people = Array.isArray(state.staff.people) ? state.staff.people : [];
+  if(!Array.isArray(state.staff.presets)) state.staff.presets = ["Raphael","Anschi"];
   // Ensure presets always included as active people
   const ensurePerson = (name)=>{
     if(!name) return;
-    const exists = S.staff.people.find(p=>p && p.name===name);
-    if(!exists) S.staff.people.push({ id: uid("stf"), name, active: true, createdAt: Date.now() });
+    const exists = state.staff.people.find(p=>p && p.name===name);
+    if(!exists) state.staff.people.push({ id: uid("stf"), name, active: true, createdAt: Date.now() });
     else if(exists && typeof exists.active !== "boolean") exists.active = true;
   };
-  S.staff.presets.forEach(ensurePerson);
+  state.staff.presets.forEach(ensurePerson);
   // Backward-compat: keep hygiene/medication presets in sync
-  if(!S.hygiene.staffPresets || !Array.isArray(S.hygiene.staffPresets)) S.hygiene.staffPresets = ["Raphael","Anschi"];
-  if(!S.medication.staffPresets || !Array.isArray(S.medication.staffPresets)) S.medication.staffPresets = ["Raphael","Anschi"];
+  if(!state.hygiene.staffPresets || !Array.isArray(state.hygiene.staffPresets)) state.hygiene.staffPresets = ["Raphael","Anschi"];
+  if(!state.medication.staffPresets || !Array.isArray(state.medication.staffPresets)) state.medication.staffPresets = ["Raphael","Anschi"];
   // Merge unique presets
-  const mergedPresets = Array.from(new Set([...(S.staff.presets||[]), ...(S.hygiene.staffPresets||[]), ...(S.medication.staffPresets||[])]));
-  S.staff.presets = mergedPresets;
-  S.hygiene.staffPresets = mergedPresets;
-  S.medication.staffPresets = mergedPresets;
+  const mergedPresets = Array.from(new Set([...(state.staff.presets||[]), ...(state.hygiene.staffPresets||[]), ...(state.medication.staffPresets||[])]));
+  state.staff.presets = mergedPresets;
+  state.hygiene.staffPresets = mergedPresets;
+  state.medication.staffPresets = mergedPresets;
 
   // Compliance / Versionierung
-  if(!S.compliance || typeof S.compliance !== "object") S.compliance = {};
-  if(!S.compliance.docs || typeof S.compliance.docs !== "object") S.compliance.docs = {};
+  if(!state.compliance || typeof state.compliance !== "object") state.compliance = {};
+  if(!state.compliance.docs || typeof state.compliance.docs !== "object") state.compliance.docs = {};
   const _nowISO = toISODateLocal(new Date());
   const ensureDoc = (key, title)=>{
-    if(!S.compliance.docs[key] || typeof S.compliance.docs[key] !== "object"){
-      S.compliance.docs[key] = { title, version: "1.0", lastChanged: _nowISO, history: [] };
+    if(!state.compliance.docs[key] || typeof state.compliance.docs[key] !== "object"){
+      state.compliance.docs[key] = { title, version: "1.0", lastChanged: _nowISO, history: [] };
     }else{
-      if(!S.compliance.docs[key].title) S.compliance.docs[key].title = title;
-      if(!S.compliance.docs[key].version) S.compliance.docs[key].version = "1.0";
-      if(!S.compliance.docs[key].lastChanged) S.compliance.docs[key].lastChanged = _nowISO;
-      if(!Array.isArray(S.compliance.docs[key].history)) S.compliance.docs[key].history = [];
+      if(!state.compliance.docs[key].title) state.compliance.docs[key].title = title;
+      if(!state.compliance.docs[key].version) state.compliance.docs[key].version = "1.0";
+      if(!state.compliance.docs[key].lastChanged) state.compliance.docs[key].lastChanged = _nowISO;
+      if(!Array.isArray(state.compliance.docs[key].history)) state.compliance.docs[key].history = [];
     }
   };
   ensureDoc("hygiene", "Hygieneplan");
   ensureDoc("brand", "Brandfall- & Evakuierungskonzept");
   ensureDoc("notfall", "Notfallplan");
   ensureDoc("contract", "Betreuungsvertrag");
-  S.compliance.monthClosings = Array.isArray(S.compliance.monthClosings) ? S.compliance.monthClosings : [];
+  state.compliance.monthClosings = Array.isArray(state.compliance.monthClosings) ? state.compliance.monthClosings : [];
 
-S._legacy = (S._legacy && typeof S._legacy === "object") ? S._legacy : {};
-  S._legacy.dogIdToCustomerId = (S._legacy.dogIdToCustomerId && typeof S._legacy.dogIdToCustomerId === "object") ? S._legacy.dogIdToCustomerId : {};
-  S._legacy.dogIdToPetId = (S._legacy.dogIdToPetId && typeof S._legacy.dogIdToPetId === "object") ? S._legacy.dogIdToPetId : {};
-  S._legacy.docIdToStayId = (S._legacy.docIdToStayId && typeof S._legacy.docIdToStayId === "object") ? S._legacy.docIdToStayId : {};
-  S._legacy.docIdToInvoiceId = (S._legacy.docIdToInvoiceId && typeof S._legacy.docIdToInvoiceId === "object") ? S._legacy.docIdToInvoiceId : {};
+state._legacy = (state._legacy && typeof state._legacy === "object") ? state._legacy : {};
+  state._legacy.dogIdToCustomerId = (state._legacy.dogIdToCustomerId && typeof state._legacy.dogIdToCustomerId === "object") ? state._legacy.dogIdToCustomerId : {};
+  state._legacy.dogIdToPetId = (state._legacy.dogIdToPetId && typeof state._legacy.dogIdToPetId === "object") ? state._legacy.dogIdToPetId : {};
+  state._legacy.docIdToStayId = (state._legacy.docIdToStayId && typeof state._legacy.docIdToStayId === "object") ? state._legacy.docIdToStayId : {};
+  state._legacy.docIdToInvoiceId = (state._legacy.docIdToInvoiceId && typeof state._legacy.docIdToInvoiceId === "object") ? state._legacy.docIdToInvoiceId : {};
 
   // Vertrag
-  S.contract = (S.contract && typeof S.contract === "object") ? S.contract : null;
-  S.contractSignatures = Array.isArray(S.contractSignatures) ? S.contractSignatures : [];
+  state.contract = (state.contract && typeof state.contract === "object") ? state.contract : null;
+  state.contractSignatures = Array.isArray(state.contractSignatures) ? state.contractSignatures : [];
 
   // Rechnungsnummer beibehalten
-  if(typeof S.nextInvoiceNumber !== "number"){
-    S.nextInvoiceNumber = 1;
+  if(typeof state.nextInvoiceNumber !== "number"){
+    state.nextInvoiceNumber = 1;
   }
   // Kapazitäten (dynamisch nach Zeitraum, rückwirkend) – Standard + Ausnahmen
-  if(!S.capacities || typeof S.capacities !== "object"){
-    S.capacities = {
+  if(!state.capacities || typeof state.capacities !== "object"){
+    state.capacities = {
       default: { Tagesbetreuung: CAPACITY.Tagesbetreuung, Urlaubsbetreuung: CAPACITY.Urlaubsbetreuung },
       exceptions: []
     };
   } else {
-    if(!S.capacities.default || typeof S.capacities.default !== "object"){
-      S.capacities.default = { Tagesbetreuung: CAPACITY.Tagesbetreuung, Urlaubsbetreuung: CAPACITY.Urlaubsbetreuung };
+    if(!state.capacities.default || typeof state.capacities.default !== "object"){
+      state.capacities.default = { Tagesbetreuung: CAPACITY.Tagesbetreuung, Urlaubsbetreuung: CAPACITY.Urlaubsbetreuung };
     }
-    if(!Array.isArray(S.capacities.exceptions)) S.capacities.exceptions = [];
-    if(typeof S.capacities.default.Tagesbetreuung !== "number") S.capacities.default.Tagesbetreuung = CAPACITY.Tagesbetreuung;
-    if(typeof S.capacities.default.Urlaubsbetreuung !== "number") S.capacities.default.Urlaubsbetreuung = CAPACITY.Urlaubsbetreuung;
+    if(!Array.isArray(state.capacities.exceptions)) state.capacities.exceptions = [];
+    if(typeof state.capacities.default.Tagesbetreuung !== "number") state.capacities.default.Tagesbetreuung = CAPACITY.Tagesbetreuung;
+    if(typeof state.capacities.default.Urlaubsbetreuung !== "number") state.capacities.default.Urlaubsbetreuung = CAPACITY.Urlaubsbetreuung;
   }
 }
 
 
 function ensureContractDefaults(){
-  if(!S.contract || typeof S.contract !== "object"){
-    S.contract = {
+  if(!state.contract || typeof state.contract !== "object"){
+    state.contract = {
       title: "Betreuungsvertrag für Hunde",
       provider: "Doggy Style Hundepension",
       version: "v1.0",
@@ -4107,7 +4107,7 @@ function ensureContractDefaults(){
       updatedAt: new Date().toISOString()
     };
   }
-  if(!Array.isArray(S.contractSignatures)) S.contractSignatures = [];
+  if(!Array.isArray(state.contractSignatures)) state.contractSignatures = [];
 }
 
 // Vertragstext (v1.0) – App-geeignet (ohne Beträge)
@@ -4154,9 +4154,9 @@ const DEFAULT_CONTRACT_TEXT = `
 `;
 
 function migrateToV2(){
-  // Migration ist bewusst "additiv": wir verlieren NICHTS aus S.dogs/S.docs,
+  // Migration ist bewusst "additiv": wir verlieren NICHTS aus state.dogs/state.docs,
   // sondern spiegeln alles zusätzlich sauber in customers/pets/stays/invoices.
-  if(S.schemaVersion >= 2) return;
+  if(state.schemaVersion >= 2) return;
 
   ensureStateShape();
   ensureContractDefaults();
@@ -4171,7 +4171,7 @@ function migrateToV2(){
   const customers = [];
   const pets = [];
 
-  (S.dogs||[]).forEach(d=>{
+  (state.dogs||[]).forEach(d=>{
     if(!d || d.isPlaceholder) return;
 
     const owner = String(d.owner||"").trim();
@@ -4223,7 +4223,7 @@ function migrateToV2(){
   const stays = [];
   const invoices = [];
 
-  (S.docs||[]).forEach(doc=>{
+  (state.docs||[]).forEach(doc=>{
     if(!doc || !doc.id) return;
 
     if(doc.type === "invoice"){
@@ -4274,45 +4274,45 @@ function migrateToV2(){
   });
 
   // Nur setzen, wenn wir tatsächlich etwas erzeugt haben – sonst nichts überschreiben.
-  if(customers.length) S.customers = customers;
-  if(pets.length) S.pets = pets;
-  if(stays.length) S.stays = stays;
-  if(invoices.length) S.invoices = invoices;
+  if(customers.length) state.customers = customers;
+  if(pets.length) state.pets = pets;
+  if(stays.length) state.stays = stays;
+  if(invoices.length) state.invoices = invoices;
 
-  S._legacy.dogIdToCustomerId = dogIdToCustomerId;
-  S._legacy.dogIdToPetId = dogIdToPetId;
-  S._legacy.docIdToStayId = docIdToStayId;
-  S._legacy.docIdToInvoiceId = docIdToInvoiceId;
+  state._legacy.dogIdToCustomerId = dogIdToCustomerId;
+  state._legacy.dogIdToPetId = dogIdToPetId;
+  state._legacy.docIdToStayId = docIdToStayId;
+  state._legacy.docIdToInvoiceId = docIdToInvoiceId;
 
-  S.schemaVersion = 2;
+  state.schemaVersion = 2;
   saveState();
 }
 
 
 function pruneInvoiceDocs(){
-  // Variante A: Rechnungen gehören ausschließlich in S.invoices (Rechnungs-Tab),
-  // nicht in S.docs (Aufenthalte). Damit bleibt "Aufenthalte" übersichtlich.
-  if(!Array.isArray(S.docs)) S.docs = [];
-  const invDocs = S.docs.filter(d=>d && d.type==="invoice");
+  // Variante A: Rechnungen gehören ausschließlich in state.invoices (Rechnungs-Tab),
+  // nicht in state.docs (Aufenthalte). Damit bleibt "Aufenthalte" übersichtlich.
+  if(!Array.isArray(state.docs)) state.docs = [];
+  const invDocs = state.docs.filter(d=>d && d.type==="invoice");
   if(invDocs.length){
-    S.worklogs = Array.isArray(S.worklogs) ? S.worklogs : [];
-  S.invoices = Array.isArray(S.invoices) ? S.invoices : [];
+    state.worklogs = Array.isArray(state.worklogs) ? state.worklogs : [];
+  state.invoices = Array.isArray(state.invoices) ? state.invoices : [];
     invDocs.forEach(inv=>{
-      if(!S.invoices.some(x=>x.id===inv.id)){
-        S.invoices.push(inv);
+      if(!state.invoices.some(x=>x.id===inv.id)){
+        state.invoices.push(inv);
       }
     });
-    S.docs = S.docs.filter(d=>!(d && d.type==="invoice"));
+    state.docs = state.docs.filter(d=>!(d && d.type==="invoice"));
   }
 }
 // ===== ETAPPE 2 Helpers (Customer/Pet Editor) =====
 const cpEdit = { mode: "new", petId: "" };
 
 function getCustomer(id){
-  return (S.customers||[]).find(c=>c.id===id) || null;
+  return (state.customers||[]).find(c=>c.id===id) || null;
 }
 function getPet(id){
-  return (S.pets||[]).find(p=>p.id===id) || null;
+  return (state.pets||[]).find(p=>p.id===id) || null;
 }
 
 function setCustomerFieldsDisabled(disabled){
@@ -4325,7 +4325,7 @@ function setCustomerFieldsDisabled(disabled){
 function refreshCustomerSelect(){
   const sel = document.getElementById("customerSelect");
   if(!sel) return;
-  const customers = (S.customers||[]).slice().sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"de"));
+  const customers = (state.customers||[]).slice().sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"de"));
   sel.innerHTML = customers.map(c=>`<option value="${c.id}">${escapeHtml(c.name||"Kunde")}${c.phone?(" · "+escapeHtml(c.phone)):""}</option>`).join("");
 }
 
@@ -4427,7 +4427,7 @@ function upsertLegacyDogForPet(pet, customer){
 
   // 1) Existierendes Legacy-Dog finden (Mapping)
   let dogId = null;
-  const map = S._legacy?.dogIdToPetId || {};
+  const map = state._legacy?.dogIdToPetId || {};
   for(const did of Object.keys(map)){
     if(map[did] === pet.id){ dogId = did; break; }
   }
@@ -4435,11 +4435,11 @@ function upsertLegacyDogForPet(pet, customer){
   // 2) Falls nicht vorhanden: neu anlegen
   if(!dogId){
     dogId = "d_"+uid();
-    S.dogs.push({ id: dogId, name: pet.name||"", owner: customer?.name||"", phone: customer?.phone||"", note: pet.note||"" });
+    state.dogs.push({ id: dogId, name: pet.name||"", owner: customer?.name||"", phone: customer?.phone||"", note: pet.note||"" });
   }
 
   // 3) Update Legacy-Dog
-  const d = (S.dogs||[]).find(x=>x.id===dogId);
+  const d = (state.dogs||[]).find(x=>x.id===dogId);
   if(d){
     d.name = pet.name || d.name;
     d.owner = (customer?.name ?? d.owner) || "";
@@ -4448,11 +4448,11 @@ function upsertLegacyDogForPet(pet, customer){
   }
 
   // 4) Mapping aktualisieren
-  S._legacy = S._legacy || {};
-  S._legacy.dogIdToPetId = S._legacy.dogIdToPetId || {};
-  S._legacy.dogIdToCustomerId = S._legacy.dogIdToCustomerId || {};
-  S._legacy.dogIdToPetId[dogId] = pet.id;
-  S._legacy.dogIdToCustomerId[dogId] = pet.customerId;
+  state._legacy = state._legacy || {};
+  state._legacy.dogIdToPetId = state._legacy.dogIdToPetId || {};
+  state._legacy.dogIdToCustomerId = state._legacy.dogIdToCustomerId || {};
+  state._legacy.dogIdToPetId[dogId] = pet.id;
+  state._legacy.dogIdToCustomerId[dogId] = pet.customerId;
 
   return dogId;
 }
@@ -4461,19 +4461,19 @@ function upsertLegacyDogForPet(pet, customer){
 function getPetByDogId(dogId){
   ensureStateShape();
   ensureContractDefaults();
-  const pid = S._legacy?.dogIdToPetId?.[dogId] || "";
+  const pid = state._legacy?.dogIdToPetId?.[dogId] || "";
   return pid ? getPet(pid) : null;
 }
 function getCustomerByDogId(dogId){
   ensureStateShape();
   ensureContractDefaults();
-  const cid = S._legacy?.dogIdToCustomerId?.[dogId] || "";
+  const cid = state._legacy?.dogIdToCustomerId?.[dogId] || "";
   return cid ? getCustomer(cid) : null;
 }
 function getLegacyDogIdForPet(petId){
   ensureStateShape();
   ensureContractDefaults();
-  const map = S._legacy?.dogIdToPetId || {};
+  const map = state._legacy?.dogIdToPetId || {};
   for(const did of Object.keys(map)){
     if(map[did] === petId) return did;
   }
@@ -4484,8 +4484,8 @@ function ensureDocLinks(doc){
   ensureStateShape();
   ensureContractDefaults();
   // Falls noch alte docs ohne petId/customerId existieren: aus dogId ableiten
-  if(!doc.petId && doc.dogId) doc.petId = S._legacy?.dogIdToPetId?.[doc.dogId] || "";
-  if(!doc.customerId && doc.dogId) doc.customerId = S._legacy?.dogIdToCustomerId?.[doc.dogId] || "";
+  if(!doc.petId && doc.dogId) doc.petId = state._legacy?.dogIdToPetId?.[doc.dogId] || "";
+  if(!doc.customerId && doc.dogId) doc.customerId = state._legacy?.dogIdToCustomerId?.[doc.dogId] || "";
 }
 function updateDocCustomerPetFromDogId(doc){
   if(!doc || !doc.dogId) return;
@@ -4496,8 +4496,8 @@ function updateDocCustomerPetFromDogId(doc){
   if(pet) doc.petId = pet.id;
   if(cust) doc.customerId = cust.id;
   // Fallback auf legacy mapping
-  if(!doc.petId) doc.petId = S._legacy?.dogIdToPetId?.[dogId] || doc.petId || "";
-  if(!doc.customerId) doc.customerId = S._legacy?.dogIdToCustomerId?.[dogId] || doc.customerId || "";
+  if(!doc.petId) doc.petId = state._legacy?.dogIdToPetId?.[dogId] || doc.petId || "";
+  if(!doc.customerId) doc.customerId = state._legacy?.dogIdToCustomerId?.[dogId] || doc.customerId || "";
 }
 
 function renderCustomerInfoForDogId(dogId){
@@ -4603,7 +4603,7 @@ function overlaps(aFrom, aTo, bFrom, bTo){
 }
 
 function countOccupancy(type, from, to, excludeDocId){
-  return S.docs.filter(d=>{
+  return state.docs.filter(d=>{
     if(!d.saved) return false;
     if(d.id === excludeDocId) return false;
     if(d.meta?.betreuung !== type) return false;
@@ -4625,7 +4625,7 @@ function getNextDays(n){
   return days;
 }
 function countForDay(type, day){
-  return S.docs.filter(d=>{
+  return state.docs.filter(d=>{
     if(!d.saved) return false;
     if(d.meta?.betreuung !== type) return false;
     if(!d.meta?.von || !d.meta?.bis) return false;
@@ -4691,13 +4691,13 @@ function renderOccupancy(){
 function getInvoices(){
   ensureStateShape();
   ensureContractDefaults();
-  return (S.invoices||[]).slice().sort((a,b)=> (b.updatedAt||"").localeCompare(a.updatedAt||""));
+  return (state.invoices||[]).slice().sort((a,b)=> (b.updatedAt||"").localeCompare(a.updatedAt||""));
 }
 
 function getInvoiceById(id){
   ensureStateShape();
   ensureContractDefaults();
-  return (S.invoices||[]).find(x=>x.id===id) || null;
+  return (state.invoices||[]).find(x=>x.id===id) || null;
 }
 
 function resolveInvoiceParties(inv){
@@ -4705,7 +4705,7 @@ function resolveInvoiceParties(inv){
   ensureContractDefaults();
   const cust = inv?.customerId ? getCustomer(inv.customerId) : (inv?.dogId ? getCustomerByDogId(inv.dogId) : null);
   const pet  = inv?.petId ? getPet(inv.petId) : (inv?.dogId ? getPetByDogId(inv.dogId) : null);
-  const legacyDog = inv?.dogId ? (S.dogs||[]).find(d=>d.id===inv.dogId) : null;
+  const legacyDog = inv?.dogId ? (state.dogs||[]).find(d=>d.id===inv.dogId) : null;
   return { cust, pet, legacyDog };
 }
 
@@ -4861,7 +4861,7 @@ function openFreeInvoiceForm(){
   const view = document.getElementById("invoiceView");
   if(!view) return;
 
-  const customers = (S.customers||[]).slice().sort((a,b)=>(a.name||"").localeCompare(b.name||"","de"));
+  const customers = (state.customers||[]).slice().sort((a,b)=>(a.name||"").localeCompare(b.name||"","de"));
   const hasCustomers = customers.length>0;
 
   const today = toISODateLocal(new Date());
@@ -4930,7 +4930,7 @@ function renderFreeInvoicePetOptions(){
   const petSel = document.getElementById("freeInvPet");
   if(!petSel) return;
 
-  const pets = (S.pets||[]).filter(p=>p.customerId===customerId).slice()
+  const pets = (state.pets||[]).filter(p=>p.customerId===customerId).slice()
     .sort((a,b)=>(a.name||"").localeCompare(b.name||"","de"));
 
   petSel.innerHTML = `<option value="">—</option>` + pets.map(p=>`<option value="${p.id}">${escapeHtml(p.name||"Hund")}</option>`).join("");
@@ -4941,7 +4941,7 @@ function ensureLegacyDogForPetId(petId, customerId){
   ensureContractDefaults();
   if(!petId || !customerId) return "";
 
-  const map = S._legacy?.dogIdToPetId || {};
+  const map = state._legacy?.dogIdToPetId || {};
   for(const dogId of Object.keys(map)){
     if(map[dogId] === petId) return dogId;
   }
@@ -4950,8 +4950,8 @@ function ensureLegacyDogForPetId(petId, customerId){
   const cust = getCustomer(customerId);
 
   const dogId = uid();
-  S.dogs = S.dogs || [];
-  S.dogs.push({
+  state.dogs = state.dogs || [];
+  state.dogs.push({
     id: dogId,
     name: pet?.name || "Hund",
     owner: cust?.name || "",
@@ -4959,8 +4959,8 @@ function ensureLegacyDogForPetId(petId, customerId){
     note: ""
   });
 
-  S._legacy.dogIdToPetId[dogId] = petId;
-  S._legacy.dogIdToCustomerId[dogId] = customerId;
+  state._legacy.dogIdToPetId[dogId] = petId;
+  state._legacy.dogIdToCustomerId[dogId] = customerId;
   return dogId;
 }
 
@@ -4979,7 +4979,7 @@ function createFreeInvoice(){
   if(!(amount>0)){ alert("Bitte einen Betrag > 0 eingeben."); return; }
 
   const year = new Date().getFullYear();
-  const number = String(S.nextInvoiceNumber).padStart(4, "0");
+  const number = String(state.nextInvoiceNumber).padStart(4, "0");
   const dogId = petId ? ensureLegacyDogForPetId(petId, customerId) : "";
 
   const invoice = {
@@ -5011,11 +5011,11 @@ function createFreeInvoice(){
     updatedAt: new Date().toISOString()
   };
 
-  S.worklogs = Array.isArray(S.worklogs) ? S.worklogs : [];
-  S.invoices = Array.isArray(S.invoices) ? S.invoices : [];
-  S.invoices.push(invoice);
+  state.worklogs = Array.isArray(state.worklogs) ? state.worklogs : [];
+  state.invoices = Array.isArray(state.invoices) ? state.invoices : [];
+  state.invoices.push(invoice);
 
-  S.nextInvoiceNumber++;
+  state.nextInvoiceNumber++;
 
   saveState();
   renderInvoiceList();
@@ -5133,25 +5133,25 @@ function printInvoice(id){
 function loadState(){try{const raw=localStorage.getItem(LS_KEY);return raw?JSON.parse(raw):{dogs:[],docs:[]};}catch{return {dogs:[],docs:[]};}}
 function saveState(){
   try{
-    S._localUpdatedAt = Date.now();
+    state._localUpdatedAt = Date.now();
     localStorage.setItem(LS_KEY,JSON.stringify(state));
   }catch(e){
     console.error("Local save failed", e);
   }
-  SYNC.localSavedAt = (state && S._localUpdatedAt) ? S._localUpdatedAt : Date.now();
+  SYNC.localSavedAt = (state && state._localUpdatedAt) ? state._localUpdatedAt : Date.now();
   updateSyncUI();
   // Cloud Sync (Weg 2B): Änderungen nach außen spiegeln
   if(CLOUD.enabled && CLOUD.user) cloudSchedulePush();
 }
 
 function ensureDefaultDog(){
-  if(!S.dogs || S.dogs.length===0){
-    S.dogs=[{id:uid(),name:"— Bitte auswählen —",owner:"",phone:"",isPlaceholder:true}];
+  if(!state.dogs || state.dogs.length===0){
+    state.dogs=[{id:uid(),name:"— Bitte auswählen —",owner:"",phone:"",isPlaceholder:true}];
   }
 }
 function syncDogSelect(){
   ensureDefaultDog();
-  $("#dogSelect").innerHTML=S.dogs.map(d=>{
+  $("#dogSelect").innerHTML=state.dogs.map(d=>{
     const label=d.isPlaceholder?d.name:`${d.owner?d.owner+" – ":""}${d.name}`;
     return `<option value="${d.id}">${escapeHtml(label)}</option>`;
   }).join("");
@@ -5164,7 +5164,7 @@ function renderDogs(){
   if(!list) return;
   list.innerHTML = "";
 
-  const pets = (S.pets||[]).slice().sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"de"));
+  const pets = (state.pets||[]).slice().sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"de"));
 
   if(pets.length){
     pets.forEach(p=>{
@@ -5178,12 +5178,12 @@ function renderDogs(){
       el.querySelector('[data-e="1"]').onclick = ()=>openCpEditor("edit", p.id);
       el.querySelector('[data-d="1"]').onclick = ()=>{
         if(confirm("Hund wirklich löschen? (Aufenthalte/Rechnungen bleiben als Historie bestehen)")){
-          S.pets = S.pets.filter(x=>x.id!==p.id);
+          state.pets = state.pets.filter(x=>x.id!==p.id);
           // legacy dog nicht automatisch löschen (Sicherheit), aber Mapping entfernen
-          for(const dogId of Object.keys(S._legacy?.dogIdToPetId||{})){
-            if(S._legacy.dogIdToPetId[dogId]===p.id){
-              delete S._legacy.dogIdToPetId[dogId];
-              delete S._legacy.dogIdToCustomerId[dogId];
+          for(const dogId of Object.keys(state._legacy?.dogIdToPetId||{})){
+            if(state._legacy.dogIdToPetId[dogId]===p.id){
+              delete state._legacy.dogIdToPetId[dogId];
+              delete state._legacy.dogIdToCustomerId[dogId];
             }
           }
           saveState(); renderDogs(); syncDogSelect();
@@ -5194,7 +5194,7 @@ function renderDogs(){
   } else {
     // fallback legacy
     ensureDefaultDog();
-    const dogs = S.dogs.filter(d=>!d.isPlaceholder);
+    const dogs = state.dogs.filter(d=>!d.isPlaceholder);
     dogs.forEach(d=>{
       const el=document.createElement("div");
       el.className="item";
@@ -5203,7 +5203,7 @@ function renderDogs(){
       el.querySelector('[data-e="1"]').onclick=()=>openCpEditor("new"); // legacy fallback: einfach neu anlegen
       el.querySelector('[data-d="1"]').onclick=()=>{
         if(confirm("Hund/Kunde wirklich löschen?")){
-          S.dogs=S.dogs.filter(x=>x.id!==d.id);
+          state.dogs=state.dogs.filter(x=>x.id!==d.id);
           saveState(); renderDogs();
         }
       };
@@ -5225,7 +5225,7 @@ $("#btnCpSave").addEventListener("click",()=>{
   ensureContractDefaults();
 
   const mode = cpEdit.mode;
-  const useExisting = $("#useExistingCustomer").checked && (S.customers||[]).length>0;
+  const useExisting = $("#useExistingCustomer").checked && (state.customers||[]).length>0;
 
   let customer = null;
   let customerId = "";
@@ -5253,7 +5253,7 @@ $("#btnCpSave").addEventListener("click",()=>{
       createdAt: Date.now(),
       updatedAt: Date.now()
     };
-    S.customers.push(customer);
+    state.customers.push(customer);
     customerId = customer.id;
   }
 
@@ -5333,11 +5333,11 @@ $("#btnCpSave").addEventListener("click",()=>{
     createdAt: Date.now(),
     updatedAt: Date.now()
   };
-  S.pets.push(pet);
+  state.pets.push(pet);
 
   upsertLegacyDogForPet(pet, getCustomer(customerId));
 
-  S.schemaVersion = Math.max(S.schemaVersion||1, 2);
+  state.schemaVersion = Math.max(state.schemaVersion||1, 2);
   saveState();
   closeCpEditor();
   renderDogs();
@@ -5347,14 +5347,14 @@ $("#btnCpSave").addEventListener("click",()=>{
 function renderDocs(){
   const list=$("#docList");
   list.innerHTML="";
-  const docs=(S.docs||[]).filter(d=>d.type!=="invoice").slice().sort((a,b)=> (b.updatedAt||"").localeCompare(a.updatedAt||""));
+  const docs=(state.docs||[]).filter(d=>d.type!=="invoice").slice().sort((a,b)=> (b.updatedAt||"").localeCompare(a.updatedAt||""));
   docs.forEach(d=>list.appendChild(docItem(d)));
   if(!docs.length) list.innerHTML=`<div class="muted">Noch keine Aufenthalte erstellt.</div>`;
   renderRecent();
 }
 function renderRecent(){
   const list=$("#recentList");
-  const docs=(S.docs||[]).filter(d=>d.type!=="invoice").slice().sort((a,b)=> (b.updatedAt||"").localeCompare(a.updatedAt||"")).slice(0,3);
+  const docs=(state.docs||[]).filter(d=>d.type!=="invoice").slice().sort((a,b)=> (b.updatedAt||"").localeCompare(a.updatedAt||"")).slice(0,3);
   list.innerHTML="";
   docs.forEach(d=>list.appendChild(docItem(d)));
   if(!docs.length) list.innerHTML=`<div class="muted">Noch keine Aufenthalte.</div>`;
@@ -5382,7 +5382,7 @@ function docItem(d){
   btnDelete.textContent = "Löschen";
   btnDelete.onclick = ()=>{
     if(confirm("Aufenthalt wirklich löschen?")){
-      S.docs=S.docs.filter(x=>x.id!==d.id);
+      state.docs=state.docs.filter(x=>x.id!==d.id);
       saveState(); renderDocs();
     }
   };
@@ -5409,7 +5409,7 @@ function docItem(d){
 }
 
 function createStayFromExisting(docId){
-  const src = (S.docs||[]).find(x=>x.id===docId);
+  const src = (state.docs||[]).find(x=>x.id===docId);
   if(!src) return;
 
   const t = getTemplate(src.templateId);
@@ -5435,7 +5435,7 @@ function createStayFromExisting(docId){
   copy.updatedAt = now;
   copy.title = (t?.name || src.title || "Aufenthalt");
 
-  S.docs.unshift(copy);
+  state.docs.unshift(copy);
   saveState();
   openDoc(copy.id);
 }
@@ -5454,9 +5454,9 @@ function createDoc(tid){
   ensureStateShape();
   ensureContractDefaults();
   // Etappe 3: Standardauswahl = erster Hund aus neuem Stamm (falls vorhanden)
-  let defaultDogId = S.dogs?.[0]?.id || "";
-  if((S.pets||[]).length){
-    const pet = S.pets[0];
+  let defaultDogId = state.dogs?.[0]?.id || "";
+  if((state.pets||[]).length){
+    const pet = state.pets[0];
     const legacyDogId = getLegacyDogIdForPet(pet.id);
     if(legacyDogId){
       defaultDogId = legacyDogId;
@@ -5473,8 +5473,8 @@ versionOf: null,meta: {
   bis: ""
 },createdAt:now,updatedAt:now};
   ensureDocLinks(docObj);
-  S.docs=S.docs||[];
-  S.docs.unshift(docObj);
+  state.docs=state.docs||[];
+  state.docs.unshift(docObj);
   saveState();
   openDoc(docObj.id);
 }
@@ -5515,7 +5515,7 @@ function renderVersions(doc){
 function openDoc(id){
   try{
 updateCreateInvoiceButton();
-  currentDoc=(S.docs||[]).find(d=>d.id===id);
+  currentDoc=(state.docs||[]).find(d=>d.id===id);
   if(!currentDoc) return;
   ensureDocLinks(currentDoc);
   updateDocCustomerPetFromDogId(currentDoc);
@@ -5524,7 +5524,7 @@ normalizeMeta(currentDoc);
   $("#editorMeta").textContent=currentDoc.templateName;
   $("#docName").value=currentDoc.title||"";
   syncDogSelect();
-  $("#dogSelect").value=currentDoc.dogId||S.dogs?.[0]?.id||"";
+  $("#dogSelect").value=currentDoc.dogId||state.dogs?.[0]?.id||"";
   renderCustomerInfoForDogId($("#dogSelect").value);
   try{
     renderEditor(currentDoc);
@@ -5703,7 +5703,7 @@ function collectForm(){
 function validate(docObj,t){
   const errs=[];
   // Etappe 3: Hund muss gewählt sein (nicht Placeholder)
-  const d = (S.dogs||[]).find(x=>x.id===docObj.dogId);
+  const d = (state.dogs||[]).find(x=>x.id===docObj.dogId);
   if(!docObj.dogId || (d && d.isPlaceholder)) errs.push("Hund");
   t.sections.forEach(sec=>sec.fields.forEach(f=>{
     if(!f.required) return;
@@ -5796,7 +5796,7 @@ currentDoc.updatedAt = new Date().toISOString();
 
 // 🧾 Variante A: Rechnung automatisch beim Abschließen erstellen
 if(currentDoc.pricing){
-  const exists = (S.invoices||[]).some(x=>x.sourceDocId===currentDoc.id);
+  const exists = (state.invoices||[]).some(x=>x.sourceDocId===currentDoc.id);
   if(!exists){
     createInvoiceFromDoc(currentDoc);
   }
@@ -5820,7 +5820,7 @@ function createInvoiceFromDoc(doc){
   if(!doc || !doc.pricing) return;
 
   const year = new Date().getFullYear();
-  const number = String(S.nextInvoiceNumber).padStart(4, "0");
+  const number = String(state.nextInvoiceNumber).padStart(4, "0");
 
   const invoice = {
     id: uid(),
@@ -5862,10 +5862,10 @@ function createInvoiceFromDoc(doc){
     updatedAt: new Date().toISOString()
   };
 
-  S.worklogs = Array.isArray(S.worklogs) ? S.worklogs : [];
-  S.invoices = Array.isArray(S.invoices) ? S.invoices : [];
-  S.invoices.push(invoice);
-  S.nextInvoiceNumber++;
+  state.worklogs = Array.isArray(state.worklogs) ? state.worklogs : [];
+  state.invoices = Array.isArray(state.invoices) ? state.invoices : [];
+  state.invoices.push(invoice);
+  state.nextInvoiceNumber++;
 
   saveState();
   renderInvoiceList();
@@ -5886,7 +5886,7 @@ function forkDocument() {
   // neue Version → neue Unterschrift erforderlich
   fork.signature = null;
 
-  S.docs.unshift(fork);
+  state.docs.unshift(fork);
   currentDoc = fork;
 
   saveState();
@@ -5894,7 +5894,7 @@ function forkDocument() {
 function getDocumentVersions(doc){
   const rootId = doc.versionOf || doc.id;
 
-  return (S.docs || [])
+  return (state.docs || [])
     .filter(d => d.id === rootId || d.versionOf === rootId)
     .sort((a,b)=> new Date(a.createdAt) - new Date(b.createdAt));
 }
@@ -5988,7 +5988,7 @@ function printDoc(){
   if(!currentDoc) return;
   if(!saveCurrent(false)) return;
   const t=getTemplate(currentDoc.templateId);
-  const dog=S.dogs.find(d=>d.id===currentDoc.dogId) || null;
+  const dog=state.dogs.find(d=>d.id===currentDoc.dogId) || null;
   const html=buildPrintHtml(currentDoc,t,dog);
   openHtmlInModal('Druckvorschau', html, 'Schließen mit ✕. Für PDF: Drucken/Speichern → „Als PDF“ → in Dateien speichern.');
 }
@@ -6068,7 +6068,7 @@ if(_btnStaffAdd) _btnStaffAdd.addEventListener('click', ()=>{
   const inp = document.getElementById('staffNewName');
   const name = inp && inp.value ? inp.value.trim() : "";
   if(!name) return alert("Bitte Name eingeben.");
-  S.staff.people.push({ id: uid("stf"), name, active: true, createdAt: Date.now() });
+  state.staff.people.push({ id: uid("stf"), name, active: true, createdAt: Date.now() });
   if(inp) inp.value="";
   syncStaffPresets();
   saveState();
@@ -6310,8 +6310,8 @@ try{
       if(stamp){ SYNC.cloudLastSeenAt = stamp; updateSyncUI(); }
 
       const remotePayload = data.payload || null;
-      const localUpdated = Number(state && S._localUpdatedAt || 0);
-      const localCloudStamp = Number(state && S._cloudUpdatedAt || 0);
+      const localUpdated = Number(state && state._localUpdatedAt || 0);
+      const localCloudStamp = Number(state && state._cloudUpdatedAt || 0);
       const localEmpty = isStateEffectivelyEmpty(state);
 
       // Falls lokal leer (z.B. LocalStorage von iOS geleert) -> Remote sofort übernehmen.
@@ -6340,16 +6340,16 @@ try{
 try{
   const {remote, err} = await cloudLoadStateWithRetry(3);
 
-  const localUpdated = Number(state && S._localUpdatedAt || 0);
-  const localCloudStamp = Number(state && S._cloudUpdatedAt || 0);
+  const localUpdated = Number(state && state._localUpdatedAt || 0);
+  const localCloudStamp = Number(state && state._cloudUpdatedAt || 0);
 
   if(!remote){
     // Kein Remote gefunden oder Read zu früh/fehlgeschlagen -> bei lokalem Inhalt einmalig pushen
     const hasLocalData =
-      (Array.isArray(S.pets) && S.pets.filter(p=>p && !p.isPlaceholder).length>0) ||
-      (Array.isArray(S.customers) && S.customers.length>0) ||
-      (Array.isArray(S.docs) && S.docs.length>0) ||
-      (Array.isArray(S.dogs) && S.dogs.filter(d=>d && !d.isPlaceholder).length>0);
+      (Array.isArray(state.pets) && state.pets.filter(p=>p && !p.isPlaceholder).length>0) ||
+      (Array.isArray(state.customers) && state.customers.length>0) ||
+      (Array.isArray(state.docs) && state.docs.length>0) ||
+      (Array.isArray(state.dogs) && state.dogs.filter(d=>d && !d.isPlaceholder).length>0);
 
     if(hasLocalData && CLOUD.user){
       try{ await cloudPushNow(); }catch(e){ console.warn('Initial cloud push failed', e); }
@@ -6440,7 +6440,7 @@ window.addEventListener('online', ()=>{
   try{ updateSyncUI(); }catch(_){ }
   // C1: Falls Rechnungs-Statusänderungen offline erfolgt sind, jetzt automatisch syncen
   try{
-    const pending = Array.isArray(state?.invoices) && S.invoices.some(iv=>iv && iv._pendingStatusSync);
+    const pending = Array.isArray(state?.invoices) && state.invoices.some(iv=>iv && iv._pendingStatusSync);
     if(pending && CLOUD.enabled && CLOUD.user){
       setTimeout(()=>{ try{ cloudSchedulePush(); }catch(_){ } }, 300);
     }
@@ -6459,7 +6459,7 @@ function renderInvoiceEditorB2(doc){
 
   if(!doc.invoiceNumber || String(doc.invoiceNumber).trim()===""){
     const year = new Date().getFullYear();
-    const count = (S.docs||[]).filter(d=>d.type==="invoice").length + 1;
+    const count = (state.docs||[]).filter(d=>d.type==="invoice").length + 1;
     doc.invoiceNumber = `${year}-${String(count).padStart(4,"0")}`;
   }
 
@@ -6695,8 +6695,8 @@ function formatEuroFromCent(cent){
 
 // ===== Contract (Etappe 7B) =====
 function getContractSignature(customerId, petId){
-  const v = S.contract?.version || "";
-  return (S.contractSignatures||[]).find(s=>s.customerId===customerId && s.petId===petId && s.contractVersion===v) || null;
+  const v = state.contract?.version || "";
+  return (state.contractSignatures||[]).find(s=>s.customerId===customerId && s.petId===petId && s.contractVersion===v) || null;
 }
 function hasValidContract(customerId, petId){
   return !!getContractSignature(customerId, petId);
@@ -6755,7 +6755,7 @@ function updateContractWarnBanner(doc){
 
 function openContractPdfWindow(customerId, petId){
   ensureContractDefaults();
-  const c = S.contract;
+  const c = state.contract;
   const sig = getContractSignature(customerId, petId);
   if(!c || !sig){ alert("Für diese Auswahl liegt keine gültige Unterschrift vor."); return; }
   const customer = getCustomer(customerId) || {};
@@ -6817,7 +6817,7 @@ function renderContractPanel(){
   const metaEl = $("#contractMeta");
   if(!t) return;
 
-  const c = S.contract;
+  const c = state.contract;
   titleEl.textContent = c.title || "Betreuungsvertrag";
   metaEl.textContent = `${c.provider || "Doggy Style Hundepension"} · Version ${c.version} · Gültig ab ${formatDateDE(c.validFrom||"2025-12-27")}`;
   t.innerHTML = c.text || DEFAULT_CONTRACT_TEXT;
@@ -6844,7 +6844,7 @@ function renderContractPanel(){
       c.version = `v${major}.${minor}`;
       c.text = newText;
       c.updatedAt = new Date().toISOString();
-      S.contract = c;
+      state.contract = c;
       saveState();
       alert(`Neue Version veröffentlicht: ${c.version}. Kunden müssen neu unterschreiben.`);
       renderContractPanel();
@@ -6854,12 +6854,12 @@ function renderContractPanel(){
   // customer/pet selects
   const cs = $("#contractCustomerSelect");
   const ps = $("#contractPetSelect");
-  const customers = (S.customers||[]).slice().sort((a,b)=>String(a.lastName||"").localeCompare(String(b.lastName||""),"de"));
+  const customers = (state.customers||[]).slice().sort((a,b)=>String(a.lastName||"").localeCompare(String(b.lastName||""),"de"));
   cs.innerHTML = customers.map(x=>`<option value="${x.id}">${escapeHtml((x.lastName? x.lastName+', ':'') + (x.firstName||''))}</option>`).join("") || `<option value="">(keine Kunden)</option>`;
 
   function fillPets(){
     const cid = cs.value;
-    const pets = (S.pets||[]).filter(p=>p.customerId===cid).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"de"));
+    const pets = (state.pets||[]).filter(p=>p.customerId===cid).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"de"));
     ps.innerHTML = pets.map(p=>`<option value="${p.id}">${escapeHtml(p.name||"Hund")}</option>`).join("") || `<option value="">(keine Hunde)</option>`;
     updateSignedInfo();
   }
@@ -6909,14 +6909,14 @@ function renderContractPanel(){
     const sig = {
       id: uid(),
       customerId, petId,
-      contractVersion: S.contract.version,
+      contractVersion: state.contract.version,
       signedAt: new Date().toISOString(),
       signatureDataUrl: dataUrl
     };
 
     // Replace existing for this combo/version
-    S.contractSignatures = (S.contractSignatures||[]).filter(s=>!(s.customerId===customerId && s.petId===petId && s.contractVersion===sig.contractVersion));
-    S.contractSignatures.push(sig);
+    state.contractSignatures = (state.contractSignatures||[]).filter(s=>!(s.customerId===customerId && s.petId===petId && s.contractVersion===sig.contractVersion));
+    state.contractSignatures.push(sig);
     saveState();
     clearContractSig();
     chk.checked = false;
@@ -6936,7 +6936,7 @@ function renderContractPanel(){
     if(s){
       info.innerHTML = `🟢 Gültig unterschrieben am ${new Date(s.signedAt).toLocaleString("de-DE")} (Version ${escapeHtml(s.contractVersion)})`;
     }else{
-      info.innerHTML = `🔴 Noch keine gültige Unterschrift für Version ${escapeHtml(S.contract.version)}.`;
+      info.innerHTML = `🔴 Noch keine gültige Unterschrift für Version ${escapeHtml(state.contract.version)}.`;
     }
   }
 }
@@ -7156,7 +7156,7 @@ function wfSigDataUrl(){
 }
 
 function wfArchiveAdd(entry){
-  S.worklogs.unshift(entry);
+  state.worklogs.unshift(entry);
   cloudSchedulePush();
 }
 
@@ -7401,9 +7401,9 @@ function wfShowIncident(){
 
   // populate dog list from state
   const sel = document.getElementById("wfIncDog");
-  sel.innerHTML = `<option value="">— auswählen —</option>` + (S.dogs||[]).map(d=>`<option value="${d.id}">${escapeHtml(d.name||"Hund")}</option>`).join("");
+  sel.innerHTML = `<option value="">— auswählen —</option>` + (state.dogs||[]).map(d=>`<option value="${d.id}">${escapeHtml(d.name||"Hund")}</option>`).join("");
   sel.onchange = ()=>{
-    const dog = (S.dogs||[]).find(d=>d.id===sel.value);
+    const dog = (state.dogs||[]).find(d=>d.id===sel.value);
     const owner = dog ? (getCustomer(dog.customerId)?.name || "") : "";
     document.getElementById("wfIncOwner").value = owner;
   };
@@ -7442,7 +7442,7 @@ function wfCloseIncident(){
 function wfShowArchive(silent){
   const host = document.getElementById("workformsView");
   host.dataset.view="archive";
-  const items = S.worklogs || [];
+  const items = state.worklogs || [];
   const rows = items.map(it=>{
     const title = it.type==="hygiene" ? "Hygiene-Nachweis" : (it.type==="shift" ? "Schichtblatt" : "Ereignisprotokoll");
     const date = it.date || "";
@@ -7488,7 +7488,7 @@ function wfShowArchive(silent){
 }
 
 function wfShowEntry(id){
-  const it = (S.worklogs||[]).find(x=>x.id===id);
+  const it = (state.worklogs||[]).find(x=>x.id===id);
   if(!it) return;
   const host = document.getElementById("workformsView");
   const title = it.type==="hygiene" ? "Hygiene-Nachweis" : (it.type==="shift" ? "Übergabe / Schichtblatt" : "Ereignisprotokoll");
@@ -7559,7 +7559,7 @@ function wfShowEntry(id){
 }
 
 function wfEntryPdf(id){
-  const it = (S.worklogs||[]).find(x=>x.id===id);
+  const it = (state.worklogs||[]).find(x=>x.id===id);
   if(!it) return;
   const title = it.type==="hygiene" ? "Hygiene-Nachweis" : (it.type==="shift" ? "Übergabe / Schichtblatt" : "Ereignisprotokoll");
   const body = `
@@ -7647,7 +7647,7 @@ function wfTodayPrint(){
   // simple: reuse existing today dashboard pdf builder if present; otherwise fallback
   // build a minimal overview from stays
   const today = wfTodayKey();
-  const staysToday = (S.stays||[]).filter(s=>{
+  const staysToday = (state.stays||[]).filter(s=>{
     const from = s.fromDate || s.startDate || s.betreuungVon || "";
     const to = s.toDate || s.endDate || s.betreuungBis || "";
     if(!from || !to) return false;
@@ -7706,9 +7706,6 @@ function applyInvoiceDateDefaults(form){
 
 /* ===== Auswertungen (Variante 1: Tabs Allgemein / Rechnungen) ===== */
 (function(){
-  try {
-  const S = window.state || {};
-
   function _qs(id){ return document.getElementById(id); }
   function _fmtEUR(v){
     try{
@@ -7731,7 +7728,7 @@ function applyInvoiceDateDefaults(form){
   function _endOfDay(d){ const x = new Date(d); x.setHours(23,59,59,999); return x; }
   function _getInvoices(){
     try{
-      if(typeof state !== "undefined" && Array.isArray(S.invoices)) return S.invoices;
+      if(typeof state !== "undefined" && Array.isArray(state.invoices)) return state.invoices;
     }catch(_){}
     return [];
   }
@@ -8124,7 +8121,7 @@ function initCapacitySettingsBindings(){
     const btnSave = document.getElementById("btnCapacitySave");
 
     // Defaults (falls noch nichts gesetzt)
-    const caps = (S.capacities = S.capacities || {});
+    const caps = (state.capacities = state.capacities || {});
     caps.default = caps.default || {};
     if(caps.default["Tagesbetreuung"] == null) caps.default["Tagesbetreuung"] = (CAPACITY["Tagesbetreuung"] || 13);
     if(caps.default["Urlaubsbetreuung"] == null) caps.default["Urlaubsbetreuung"] = (CAPACITY["Urlaubsbetreuung"] || 10);
@@ -8183,222 +8180,234 @@ function initCapacitySettingsBindings(){
     try { window.renderAnalyticsPanel(); } catch(e) { console.warn("renderAnalyticsPanel failed", e); }
   }
 
-// =========================
-// PHASE_B_ANALYTICS (ANA016) – Dashboard + Belegung (Hook-Fix)
-// =========================
+/* =========================
+   ANA022 – Phase B (Variante 2): Auslastung im Dashboard + Belegung
+   Safe-Addon: greift NICHT in Navigation/Buttons ein (nur Auswertungen)
+   ========================= */
 (function(){
-  let __anaPhaseBHooked = false;
+  try{
+    const BUILD_MARK = "V10FIX6-A-ANA022";
 
-  function pad2(n){ return String(n).padStart(2,"0"); }
-  function iso(d){ return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate()); }
-  function startOfMonth(d){ return new Date(d.getFullYear(), d.getMonth(), 1); }
-  function endOfMonth(d){ return new Date(d.getFullYear(), d.getMonth()+1, 0); }
+    // --- helpers
+    const pad2 = (n)=>String(n).padStart(2,"0");
+    const iso = (d)=>`${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+    const startOfMonth = (d)=>new Date(d.getFullYear(), d.getMonth(), 1);
+    const endOfMonth = (d)=>new Date(d.getFullYear(), d.getMonth()+1, 0);
 
-  function dateRange(fromISO, toISO){
-    const res=[];
-    try{
-      let d=new Date(fromISO+"T00:00:00");
-      const end=new Date(toISO+"T00:00:00");
-      while(d<=end){
-        res.push(d.toISOString().slice(0,10));
-        d.setDate(d.getDate()+1);
-      }
-    }catch(_){}
-    return res;
-  }
-
-  function getStaysArray(){
-    // Support multiple historical shapes
-    return (window.state && (S.stays || S.aufenthalte || S.Aufenthalte || [])) || [];
-  }
-
-  function isOvernightStay(s){
-    const t = String(s.type || s.betreuungsart || s.art || "").toLowerCase();
-    return t.includes("urlaub") || t.includes("übernacht") || t.includes("overnight");
-  }
-
-  function stayDates(s){
-    const from = (s.fromDate||s.startDate||s.von||s.checkIn||s.betreuungVon||"").slice(0,10);
-    const to   = (s.toDate||s.endDate||s.bis||s.checkOut||s.betreuungBis||"").slice(0,10);
-    return {from,to};
-  }
-
-  function countDogsByDay(dateISO){
-    let total=0, overnight=0;
-    const arr=getStaysArray();
-    arr.forEach(s=>{
-      const {from,to}=stayDates(s);
-      if(!from||!to) return;
-      // day counts if dateISO in [from, to)  (nights model)
-      if(dateISO>=from && dateISO<to){
-        total++;
-        if(isOvernightStay(s)) overnight++;
-      }
-    });
-    return {total, overnight};
-  }
-
-  function readCapacitySettings(){
-    // Prefer settings stored by Settings panel. Fall back to defaults.
-    const cap = (window.state && (S.capacity || S.capacities || S.settings?.capacity || {})) || {};
-    const totalDefault = Number(cap.totalDefault ?? cap.total ?? cap.totalMoSa ?? 13) || 13;
-    const overnightMax = Number(cap.overnightMax ?? cap.overnight ?? 10) || 10;
-    const sundayTotal  = Number(cap.sundayTotal ?? cap.sunday?.total ?? 10) || 10;
-    const sundayNoAD   = (cap.sundayNoArrivalDeparture ?? cap.sunday?.noArrivalDeparture);
-    return { totalDefault, overnightMax, sundayTotal, sundayNoAD: !!sundayNoAD };
-  }
-
-  function capacityForDay(dateISO){
-    const { totalDefault, sundayTotal } = readCapacitySettings();
-    try{
-      const d=new Date(dateISO+"T00:00:00");
-      if(d.getDay()===0) return sundayTotal; // Sunday
-    }catch(_){}
-    return totalDefault;
-  }
-
-  function ensureDefaultDates(){
-    const preset = document.getElementById("anaRangePreset");
-    const fromEl = document.getElementById("anaFrom");
-    const toEl   = document.getElementById("anaTo");
-    if(!preset || !fromEl || !toEl) return;
-
-    if(fromEl.value && toEl.value) return;
-
-    const now = new Date();
-    let from, to;
-    const val = preset.value || "month";
-    if(val === "last30"){
-      to = now;
-      from = new Date(now); from.setDate(from.getDate()-29);
-    } else if(val === "year"){
-      from = new Date(now.getFullYear(),0,1);
-      to   = new Date(now.getFullYear(),11,31);
-    } else {
-      from = startOfMonth(now);
-      to   = endOfMonth(now);
+    function getCapacity(){
+      // Try read from various settings keys; fall back to your defaults
+      const S = window.state || window.APP_STATE || {};
+      const cap = (S.capacity || S.capacities || S.settings?.capacity || S.settings?.capacities || {});
+      const totalDefault = Number(cap.totalDefault ?? cap.total ?? cap.totalMoSa ?? cap.totalWeekdays ?? 13) || 13;
+      const overnightMax = Number(cap.overnightMax ?? cap.overnight ?? 10) || 10;
+      const sundayTotal  = Number(cap.sundayTotal ?? cap.sunday?.total ?? cap.totalSunday ?? 10) || 10;
+      const sundayNoAD   = !!(cap.sundayNoArrivalDeparture ?? cap.sunday?.noArrivalDeparture ?? cap.noArrivalDepartureSunday);
+      return { totalDefault, overnightMax, sundayTotal, sundayNoAD };
     }
-    fromEl.value = iso(from);
-    toEl.value   = iso(to);
-  }
 
-  function renderDashboard(fromISO, toISO){
-    const days=dateRange(fromISO,toISO);
-    let ist=0, max=0, peak=0, peakON=0;
-    days.forEach(d=>{
-      const c=capacityForDay(d);
-      const cnt=countDogsByDay(d);
-      ist += cnt.total;
-      max += c;
-      peak = Math.max(peak, cnt.total);
-      peakON = Math.max(peakON, cnt.overnight);
-    });
-    const { overnightMax } = readCapacitySettings();
-    const pct = max>0 ? Math.round((ist/max)*100) : 0;
+    function dayCapacity(dateISO){
+      const { totalDefault, sundayTotal } = getCapacity();
+      try{
+        const d = new Date(dateISO+"T00:00:00");
+        if(d.getDay()===0) return sundayTotal; // Sunday
+      }catch(_){}
+      return totalDefault;
+    }
 
-    const el=document.getElementById("anaViewDashboard");
-    if(!el) return;
+    function dateRange(fromISO, toISO){
+      const res=[];
+      try{
+        let d=new Date(fromISO+"T00:00:00");
+        const end=new Date(toISO+"T00:00:00");
+        while(d<=end){
+          res.push(d.toISOString().slice(0,10));
+          d.setDate(d.getDate()+1);
+        }
+      }catch(_){}
+      return res;
+    }
 
-    // Build marker (visual)
-    el.setAttribute("data-build","ANA020");
-
-    const warn = peakON > overnightMax ? `<div class="muted" style="margin-top:6px;">Hinweis: Overnight-Peak ${peakON} über Limit ${overnightMax}.</div>` : "";
-
-    el.innerHTML = `
-      <div class="row" style="gap:10px; flex-wrap:wrap;">
-        <div class="card" style="min-width:220px;">
-          <div class="muted">Auslastung (Hundetage)</div>
-          <div style="font-size:34px; font-weight:800; margin-top:4px;">${pct}%</div>
-          <div class="muted">${ist} / ${max}</div>
-        </div>
-        <div class="card" style="min-width:200px;">
-          <div class="muted">Spitzentag gesamt</div>
-          <div style="font-size:34px; font-weight:800; margin-top:4px;">${peak}</div>
-        </div>
-        <div class="card" style="min-width:220px;">
-          <div class="muted">Spitzentag Übernachtung</div>
-          <div style="font-size:34px; font-weight:800; margin-top:4px;">${peakON} / ${overnightMax}</div>
-          ${warn}
-        </div>
-      </div>`;
-  }
-
-  function renderOccupancy(fromISO, toISO){
-    const days=dateRange(fromISO,toISO);
-    let sumPct=0;
-    days.forEach(d=>{
-      const c=capacityForDay(d);
-      const cnt=countDogsByDay(d);
-      sumPct += c>0 ? (cnt.total/c) : 0;
-    });
-    const avg = days.length ? Math.round((sumPct/days.length)*100) : 0;
-    const level = avg<40 ? "ruhig" : (avg<70 ? "normal" : "hoch");
-
-    const el=document.getElementById("anaViewOccupancy");
-    if(!el) return;
-    el.innerHTML = `
-      <div class="row" style="gap:10px; flex-wrap:wrap;">
-        <div class="card" style="min-width:240px;">
-          <div class="muted">Ø Auslastung pro Tag</div>
-          <div style="font-size:34px; font-weight:800; margin-top:4px;">${avg}%</div>
-          <div class="muted">Einstufung: <strong>${level}</strong></div>
-        </div>
-      </div>`;
-  }
-
-  window.renderAnalyticsPanel = function(){
-    ensureDefaultDates();
-    const from = document.getElementById("anaFrom")?.value;
-    const to   = document.getElementById("anaTo")?.value;
-    if(!from||!to) return;
-    renderDashboard(from,to);
-    renderOccupancy(from,to);
-  };
-
-  function hook(){
-    if(__anaPhaseBHooked) return;
-    const btn = document.getElementById("anaApply");
-    const preset = document.getElementById("anaRangePreset");
-    const dashBtn = document.getElementById("anaViewBtnDashboard");
-    const occBtn  = document.getElementById("anaViewBtnOccupancy");
-
-    if(!btn || !preset) return;
-
-    btn.addEventListener("click", ()=>{
-      ensureDefaultDates();
-      setTimeout(()=>{ try{ window.renderAnalyticsPanel(); }catch(e){ console.warn(e);} }, 0);
-    });
-
-    preset.addEventListener("change", ()=>{
-      // clear dates to recalc then render
-      const fromEl=document.getElementById("anaFrom");
-      const toEl=document.getElementById("anaTo");
-      if(fromEl) fromEl.value="";
-      if(toEl) toEl.value="";
-      ensureDefaultDates();
-      setTimeout(()=>{ try{ window.renderAnalyticsPanel(); }catch(e){ console.warn(e);} }, 0);
-    });
-
-    if(dashBtn) dashBtn.addEventListener("click", ()=>setTimeout(()=>window.renderAnalyticsPanel(), 0));
-    if(occBtn)  occBtn.addEventListener("click", ()=>setTimeout(()=>window.renderAnalyticsPanel(), 0));
-
-    // initial render once when analytics is first visible
-    setTimeout(()=>{ try{ window.renderAnalyticsPanel(); }catch(e){ console.warn(e);} }, 250);
-
-    __anaPhaseBHooked = true;
-  }
-
-  // Poll until Analytics elements exist (since panels are swapped dynamically)
-  const t = setInterval(()=>{
-    try{
-      if(document.getElementById("anaApply") && document.getElementById("anaViewDashboard")){
-        hook();
-        clearInterval(t);
+    function getStays(){
+      // Heuristics: stays / aufenthalte / entries
+      const S = window.state || window.APP_STATE || {};
+      const cands = [
+        S.stays, S.aufenthalte, S.Aufenthalte, S.boardings, S.entries, S.eingaenge,
+        window.stays, window.aufenthalte
+      ];
+      for(const a of cands){
+        if(Array.isArray(a)) return a;
       }
-    }catch(_){}
-  }, 300);
-  } catch(e){ console.warn('PHASE_B_ANALYTICS failed', e); }
-})();;
+      return [];
+    }
 
-// ANA020 marker
-window.__ANA_BUILD_MARKER = "ANA020_PHASEB";
+    function getDates(stay){
+      const from = (stay.fromDate||stay.startDate||stay.von||stay.checkIn||stay.betreuungVon||stay.arrival||stay.begin||"").slice(0,10);
+      const to   = (stay.toDate||stay.endDate||stay.bis||stay.checkOut||stay.betreuungBis||stay.departure||stay.ende||"").slice(0,10);
+      return {from,to};
+    }
+
+    function isOvernight(stay){
+      const t = String(stay.type||stay.betreuungsart||stay.art||stay.kind||"").toLowerCase();
+      return t.includes("urlaub") || t.includes("übernacht") || t.includes("overnight");
+    }
+
+    function countByDay(dateISO){
+      let total=0, overnight=0;
+      for(const s of getStays()){
+        const {from,to}=getDates(s);
+        if(!from||!to) continue;
+        // nights model: dateISO in [from, to)
+        if(dateISO>=from && dateISO<to){
+          total++;
+          if(isOvernight(s)) overnight++;
+        }
+      }
+      return {total, overnight};
+    }
+
+    function ensureDefaultDates(){
+      const preset = document.getElementById("anaRangePreset");
+      const fromEl = document.getElementById("anaFrom");
+      const toEl   = document.getElementById("anaTo");
+      if(!fromEl || !toEl) return;
+
+      if(fromEl.value && toEl.value) return;
+
+      const now = new Date();
+      let from, to;
+      const val = preset?.value || "month";
+      if(val === "last30"){
+        to = now; from = new Date(now); from.setDate(from.getDate()-29);
+      } else if(val === "year"){
+        from = new Date(now.getFullYear(),0,1); to = new Date(now.getFullYear(),11,31);
+      } else {
+        from = startOfMonth(now); to = endOfMonth(now);
+      }
+      fromEl.value = iso(from);
+      toEl.value = iso(to);
+    }
+
+    function renderDashboard(fromISO, toISO){
+      const dash = document.getElementById("anaViewDashboard");
+      if(!dash) return;
+
+      const days = dateRange(fromISO, toISO);
+      let ist=0, max=0, peak=0, peakON=0;
+
+      for(const d of days){
+        const cap = dayCapacity(d);
+        const cnt = countByDay(d);
+        ist += cnt.total;
+        max += cap;
+        peak = Math.max(peak, cnt.total);
+        peakON = Math.max(peakON, cnt.overnight);
+      }
+      const { overnightMax } = getCapacity();
+      const pct = max>0 ? Math.round((ist/max)*100) : 0;
+
+      const warn = (peakON>overnightMax)
+        ? `<div class="muted" style="margin-top:6px;">Hinweis: Overnight-Peak ${peakON} über Limit ${overnightMax} (Warnung beim Speichern kommt später).</div>`
+        : "";
+
+      dash.innerHTML = `
+        <div class="row" style="gap:10px; flex-wrap:wrap;">
+          <div class="card" style="min-width:230px;">
+            <div class="muted">Auslastung (Hundetage)</div>
+            <div style="font-size:34px; font-weight:800; margin-top:4px;">${pct}%</div>
+            <div class="muted">${ist} / ${max}</div>
+          </div>
+          <div class="card" style="min-width:200px;">
+            <div class="muted">Spitzentag gesamt</div>
+            <div style="font-size:34px; font-weight:800; margin-top:4px;">${peak}</div>
+          </div>
+          <div class="card" style="min-width:240px;">
+            <div class="muted">Spitzentag Übernachtung</div>
+            <div style="font-size:34px; font-weight:800; margin-top:4px;">${peakON} / ${overnightMax}</div>
+            ${warn}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderOccupancy(fromISO, toISO){
+      const occ = document.getElementById("anaViewOccupancy");
+      if(!occ) return;
+
+      const days = dateRange(fromISO, toISO);
+      let sum=0;
+      for(const d of days){
+        const cap = dayCapacity(d);
+        const cnt = countByDay(d);
+        sum += cap>0 ? (cnt.total/cap) : 0;
+      }
+      const avg = days.length ? Math.round((sum/days.length)*100) : 0;
+      const level = avg<40 ? "ruhig" : (avg<70 ? "normal" : "hoch");
+
+      occ.innerHTML = `
+        <div class="row" style="gap:10px; flex-wrap:wrap;">
+          <div class="card" style="min-width:260px;">
+            <div class="muted">Ø Auslastung pro Tag</div>
+            <div style="font-size:34px; font-weight:800; margin-top:4px;">${avg}%</div>
+            <div class="muted">Einstufung: <strong>${level}</strong></div>
+          </div>
+        </div>
+      `;
+    }
+
+    function run(){
+      ensureDefaultDates();
+      const from = document.getElementById("anaFrom")?.value;
+      const to   = document.getElementById("anaTo")?.value;
+      if(!from || !to) return;
+      renderDashboard(from,to);
+      renderOccupancy(from,to);
+    }
+
+    // Don't break existing analytics renderer: extend it safely
+    const prev = window.renderAnalyticsPanel;
+    window.renderAnalyticsPanel = function(){
+      try{ if(typeof prev === "function") prev(); }catch(e){ console.warn("prev renderAnalyticsPanel failed", e); }
+      try{ run(); }catch(e){ console.warn("ANA022 analytics failed", e); }
+    };
+
+    // hook buttons (only if they exist)
+    function hook(){
+      const apply = document.getElementById("anaApply");
+      const preset = document.getElementById("anaRangePreset");
+      if(apply && !apply.__ana022){
+        apply.__ana022 = true;
+        apply.addEventListener("click", ()=>setTimeout(()=>window.renderAnalyticsPanel(),0));
+      }
+      if(preset && !preset.__ana022){
+        preset.__ana022 = true;
+        preset.addEventListener("change", ()=>{
+          const fromEl=document.getElementById("anaFrom");
+          const toEl=document.getElementById("anaTo");
+          if(fromEl) fromEl.value="";
+          if(toEl) toEl.value="";
+          setTimeout(()=>window.renderAnalyticsPanel(),0);
+        });
+      }
+      // initial
+      setTimeout(()=>window.renderAnalyticsPanel(), 200);
+    }
+
+    // poll for analytics DOM only; no global UI changes
+    const t = setInterval(()=>{
+      try{
+        if(document.getElementById("anaViewDashboard") && document.getElementById("anaApply")){
+          hook();
+          clearInterval(t);
+        }
+      }catch(_){}
+    }, 300);
+
+    // Also set build marker if there is a global build element (non-fatal)
+    try{
+      const el = document.getElementById("buildLabel") || document.querySelector("[data-build]");
+      if(el) el.textContent = BUILD_MARK;
+    }catch(_){}
+  }catch(e){
+    console.warn("ANA022 addon failed", e);
+  }
+})();
