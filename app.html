@@ -6,8 +6,133 @@
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
 
+<section class="panel" id="analytics">
+  <h2>Auswertungen</h2>
 
-/>
+  <div class="row" style="gap:10px; margin: 6px 0 14px 0; flex-wrap:wrap;">
+    <button class="pill" id="anaTabGeneral" type="button">Allgemein</button>
+    <button class="pill" id="anaTabInvoices" type="button">Rechnungen</button>
+  </div>
+
+  <div id="analyticsGeneral">
+
+
+  <div class="card">
+    <div class="row between" style="gap:12px; flex-wrap:wrap;">
+      <div>
+        <div class="muted">Umsatz (ohne Feiertagszuschlag)</div>
+        <div style="font-size:34px; font-weight:800;" id="anaRevenueNet">–</div>
+      </div>
+      <div>
+        <div class="muted">Feiertagsumsatz</div>
+        <div style="font-size:22px; font-weight:700;" id="anaRevenueHoliday">–</div>
+        <label class="row" style="gap:10px; margin-top:8px;">
+          <input type="checkbox" id="anaIncludeHoliday"/>
+          <span class="muted">Feiertagsumsatz standardmäßig <strong>nicht</strong> mitzählen (Opt‑in)</span>
+        </label>
+      </div>
+      <div>
+        <div class="muted">Storno</div>
+        <div style="font-size:22px; font-weight:700;" id="anaCancelled">–</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Umsatz nach Monat (letzte 12 Monate)</h3>
+    <div style="overflow:auto;">
+      <table style="width:100%; border-collapse:collapse;" id="anaTable">
+        <thead>
+          <tr>
+            <th style="text-align:left; padding:8px 6px; border-bottom:1px solid rgba(255,255,255,.12);">Monat</th>
+            <th style="text-align:right; padding:8px 6px; border-bottom:1px solid rgba(255,255,255,.12);">Umsatz (netto*)</th>
+            <th style="text-align:right; padding:8px 6px; border-bottom:1px solid rgba(255,255,255,.12);">Feiertag</th>
+            <th style="text-align:right; padding:8px 6px; border-bottom:1px solid rgba(255,255,255,.12);">Belege</th>
+            <th style="text-align:right; padding:8px 6px; border-bottom:1px solid rgba(255,255,255,.12);">Storno</th>
+          </tr>
+        </thead>
+        <tbody id="anaTbody"></tbody>
+      </table>
+    </div>
+    <p class="muted" style="margin-top:10px;">* „netto“ bedeutet hier: <strong>Gesamtbetrag ohne Feiertagszuschlag</strong> (wie gewünscht standardmäßig).</p>
+  </div>
+
+  </div>
+
+  <div id="analyticsInvoices" style="display:none;">
+    <div class="card">
+      <div class="row between" style="gap:12px; flex-wrap:wrap; align-items:flex-end;">
+        <div class="row" style="gap:8px; flex-wrap:wrap;">
+          <button class="pill" type="button" data-ana-range="today">Heute</button>
+          <button class="pill" type="button" data-ana-range="week">Diese Woche</button>
+          <button class="pill" type="button" data-ana-range="month">Dieser Monat</button>
+          <button class="pill" type="button" data-ana-range="lastmonth">Letzter Monat</button>
+          <button class="pill" type="button" data-ana-range="year">Dieses Jahr</button>
+        </div>
+        <div class="row" style="gap:8px; flex-wrap:wrap; align-items:center;">
+          <label class="muted" for="anaInvFrom">Von</label>
+          <input id="anaInvFrom" type="date" class="input" style="max-width:160px;"/>
+          <label class="muted" for="anaInvTo">Bis</label>
+          <input id="anaInvTo" type="date" class="input" style="max-width:160px;"/>
+          <button class="pill" id="anaInvApply" type="button">Anwenden</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px;">
+      <div class="row between" style="gap:12px; flex-wrap:wrap;">
+        <div>
+          <div class="muted">Umsatz bezahlt</div>
+          <div style="font-size:30px; font-weight:800;" id="anaInvPaidSum">–</div>
+          <div class="muted" id="anaInvPaidCount"> </div>
+        </div>
+        <div>
+          <div class="muted">Offen</div>
+          <div style="font-size:24px; font-weight:800;" id="anaInvOpenSum">–</div>
+          <div class="muted" id="anaInvOpenCount"> </div>
+        </div>
+        <div>
+          <div class="muted">Storniert</div>
+          <div style="font-size:24px; font-weight:800;" id="anaInvCanceledSum">–</div>
+          <div class="muted" id="anaInvCanceledCount"> </div>
+        </div>
+        <div style="text-align:right;">
+          <div class="muted">Anzahl gesamt</div>
+          <div style="font-size:24px; font-weight:800;" id="anaInvTotalCount">–</div>
+          <button class="pill" id="anaInvPdf" type="button" style="margin-top:8px;">PDF-Report erstellen</button>
+        </div>
+      </div>
+      <div class="muted" id="anaInvRangeLabel" style="margin-top:10px;"></div>
+    </div>
+
+    <div class="card" style="margin-top:14px;">
+      <div class="row between" style="gap:10px; flex-wrap:wrap; align-items:center;">
+        <div style="font-weight:700;">Rechnungen (gefiltert)</div>
+        <div class="row" style="gap:8px; flex-wrap:wrap;">
+          <button class="pill" type="button" data-ana-status="all">Alle</button>
+          <button class="pill" type="button" data-ana-status="paid">Bezahlt</button>
+          <button class="pill" type="button" data-ana-status="open">Offen</button>
+          <button class="pill" type="button" data-ana-status="canceled">Storniert</button>
+        </div>
+      </div>
+      <div class="tablewrap" style="margin-top:10px;">
+        <table class="table" id="anaInvTable">
+          <thead>
+            <tr>
+              <th>Datum</th>
+              <th>Nr.</th>
+              <th>Kunde / Hund</th>
+              <th style="text-align:right;">Betrag</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</section>/>
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <title>Doggy Style Workspace · App</title>
 <link href="manifest.json" rel="manifest"/>
@@ -679,6 +804,42 @@
   <span class="muted" id="manualSaveStatus"></span>
 </div>
 
+<div class="card" id="capacityRulesCard" style="margin-top:12px">
+  <h2>Kapazität &amp; Auslastung</h2>
+  <p class="muted" style="margin-top:6px;">
+    Grundlage für Auslastung und Warnungen. Standard: Mo–Sa max. Gesamt‑Hunde, Sonntag ohne An-/Abreise (reduzierte Kapazität).
+  </p>
+
+  <div class="row" style="flex-wrap:wrap; gap:12px; margin-top:10px;">
+    <label class="field" style="min-width:240px; flex:1;">
+      <span>Max. Hunde gesamt (Mo–Sa)</span>
+      <input id="capTotalDefault" class="input" type="number" min="0" step="1" inputmode="numeric"/>
+    </label>
+
+    <label class="field" style="min-width:240px; flex:1;">
+      <span>Max. Übernachtungsgäste</span>
+      <input id="capOvernightMax" class="input" type="number" min="0" step="1" inputmode="numeric"/>
+    </label>
+
+    <label class="field" style="min-width:240px; flex:1;">
+      <span>Sonntag Kapazität</span>
+      <input id="capSundayTotal" class="input" type="number" min="0" step="1" inputmode="numeric"/>
+    </label>
+  </div>
+
+  <label class="row" style="gap:10px; margin-top:10px; align-items:center;">
+    <input id="capSundayNoArrDep" type="checkbox" />
+    <span>Sonntag: keine An-/Abreise (Kapazität reduziert)</span>
+  </label>
+
+  <div class="row between" style="gap:12px; flex-wrap:wrap; margin-top:10px;">
+    <button class="btn primary" id="btnSaveCapacityRules" type="button">Speichern</button>
+    <span class="muted" id="capSaveMsg"></span>
+  </div>
+</div>
+
+
+
 
 <div class="card" id="adminTaskCard" style="margin-top:12px; display:none;">
   <h2>Kundenaufgabe freigeben</h2>
@@ -955,52 +1116,43 @@
   <h2>Auswertungen</h2>
 
   <div class="card">
-    <div class="row" style="gap:10px; flex-wrap:wrap; align-items:flex-end;">
-      <div style="min-width:170px;">
-        <div class="muted">Zeitraum</div>
-        <select id="anaRangePreset" class="input" style="width:100%;">
-          <option value="month">Dieser Monat</option>
-          <option value="last30">Letzte 30 Tage</option>
-          <option value="year">Dieses Jahr</option>
-          <option value="custom">Benutzerdefiniert</option>
-        </select>
+    <div class="row between" style="gap:12px; flex-wrap:wrap;">
+      <div>
+        <div class="muted">Umsatz (ohne Feiertagszuschlag)</div>
+        <div style="font-size:34px; font-weight:800;" id="anaRevenueNet">–</div>
       </div>
-
-      <div style="min-width:160px;">
-        <div class="muted">Von</div>
-        <input id="anaFrom" class="input" type="date" />
+      <div>
+        <div class="muted">Feiertagsumsatz</div>
+        <div style="font-size:22px; font-weight:700;" id="anaRevenueHoliday">–</div>
+        <label class="row" style="gap:10px; margin-top:8px;">
+          <input type="checkbox" id="anaIncludeHoliday"/>
+          <span class="muted">Feiertagsumsatz standardmäßig <strong>nicht</strong> mitzählen (Opt‑in)</span>
+        </label>
       </div>
-
-      <div style="min-width:160px;">
-        <div class="muted">Bis</div>
-        <input id="anaTo" class="input" type="date" />
+      <div>
+        <div class="muted">Storno</div>
+        <div style="font-size:22px; font-weight:700;" id="anaCancelled">–</div>
       </div>
-
-      <button class="btn primary" id="anaApply" type="button">Aktualisieren</button>
     </div>
-    <div class="muted" style="margin-top:8px;" id="anaRangeHint">Rechnung &amp; Belegung werden nach <strong>Nächten</strong> (Check-out − Check-in) ausgewertet.</div>
   </div>
 
-  <div class="row" style="gap:10px; margin: 6px 0 14px 0; flex-wrap:wrap;">
-    <button class="pill" id="anaViewBtnDashboard" type="button">Dashboard</button>
-    <button class="pill" id="anaViewBtnOccupancy" type="button">Belegung</button>
-    <button class="pill" id="anaViewBtnRevenue" type="button">Umsatz</button>
-    <button class="pill" id="anaViewBtnCustomers" type="button">Kunden</button>
-    <button class="pill" id="anaViewBtnDogs" type="button">Hunde</button>
-    <button class="pill" id="anaViewBtnPatterns" type="button">Muster</button>
-  </div>
-
-  <!-- Views -->
-  <div id="anaViewDashboard" class="card" style="margin-bottom:12px;"></div>
-
-  <div id="anaViewOccupancy" class="card" style="display:none; margin-bottom:12px;"></div>
-  <div id="anaViewRevenue" class="card" style="display:none; margin-bottom:12px;"></div>
-  <div id="anaViewCustomers" class="card" style="display:none; margin-bottom:12px;"></div>
-  <div id="anaViewDogs" class="card" style="display:none; margin-bottom:12px;"></div>
-  <div id="anaViewPatterns" class="card" style="display:none; margin-bottom:12px;"></div>
-
-  <div class="muted" style="margin-top:10px;">
-    Hinweis: Umsatz wird standardmäßig aus <strong>Rechnungen</strong> (nicht storniert) berechnet. Belegung aus <strong>Aufenthalten</strong> anhand Nächte.
+  <div class="card">
+    <h3>Umsatz nach Monat (letzte 12 Monate)</h3>
+    <div style="overflow:auto;">
+      <table style="width:100%; border-collapse:collapse;" id="anaTable">
+        <thead>
+          <tr>
+            <th style="text-align:left; padding:8px 6px; border-bottom:1px solid rgba(255,255,255,.12);">Monat</th>
+            <th style="text-align:right; padding:8px 6px; border-bottom:1px solid rgba(255,255,255,.12);">Umsatz (netto*)</th>
+            <th style="text-align:right; padding:8px 6px; border-bottom:1px solid rgba(255,255,255,.12);">Feiertag</th>
+            <th style="text-align:right; padding:8px 6px; border-bottom:1px solid rgba(255,255,255,.12);">Belege</th>
+            <th style="text-align:right; padding:8px 6px; border-bottom:1px solid rgba(255,255,255,.12);">Storno</th>
+          </tr>
+        </thead>
+        <tbody id="anaTbody"></tbody>
+      </table>
+    </div>
+    <p class="muted" style="margin-top:10px;">* „netto“ bedeutet hier: <strong>Gesamtbetrag ohne Feiertagszuschlag</strong> (wie gewünscht standardmäßig).</p>
   </div>
 </section>
 
