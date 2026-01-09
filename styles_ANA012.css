@@ -965,3 +965,38 @@ body.page-login .btnLink--text:hover{
 
 /* Sticky-Panels (rechte Spalte) an neue Headerhöhe anpassen */
 .sticky{top:104px;}
+
+/* ================================
+   ANA016 Patch: Auswertungen – Date-Inputs (Safari iPad)
+   Fix: zu großer/überlappender Rahmen auch ohne Fokus
+   ================================ */
+#analytics input[type="date"].input{
+  -webkit-appearance: none;
+  appearance: none;
+  box-shadow: none !important;
+  outline: none !important;
+
+  height: 38px !important;
+  padding: 6px 10px !important;
+  line-height: 24px !important;
+
+  border: 1px solid rgba(255,255,255,.18) !important;
+  border-radius: 12px !important;
+  background-clip: padding-box;
+}
+
+#analytics input[type="date"].input:focus{
+  outline: 2px solid rgba(245,182,46,.55) !important;
+  outline-offset: 2px !important;
+  box-shadow: none !important;
+}
+
+/* Abstand in der Filterzeile, damit nichts "klebt" */
+#analytics .card .row{ gap: 12px !important; }
+
+/* Optional: feste Breite für Von/Bis im Header */
+#analytics #anaFrom,
+#analytics #anaTo{
+  width: 160px !important;
+  max-width: 160px !important;
+}
