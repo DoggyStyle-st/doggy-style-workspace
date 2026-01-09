@@ -1,6 +1,6 @@
 // Sichtbarer Build-Zähler (Variante A)
 // Build-Counter (sichtbar unten links in der App)
-const APP_BUILD = "V10FIX6-A-ANA025";
+const APP_BUILD = "V10FIX6-A-ANA026";
 window.addEventListener("error",(e)=>{console.error("APP_ERROR",e.error||e.message);});
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
@@ -8186,7 +8186,7 @@ function initCapacitySettingsBindings(){
    ========================= */
 (function(){
   try{
-    const BUILD_MARK = "V10FIX6-A-ANA025";
+    const BUILD_MARK = "V10FIX6-A-ANA026";
 
     // --- helpers
     const pad2 = (n)=>String(n).padStart(2,"0");
@@ -8979,6 +8979,80 @@ function initCapacitySettingsBindings(){
         setTimeout(()=>run("tabOpen"), 250);
       }
     }, true);
+
+  }catch(e){
+    console.warn("PHASE_B_ANALYTICS_V4 failed", e);
+  }
+})();
+
+// =========================
+// PHASE_B_ANALYTICS_V4 (ANA026) – iOS Touch/Pointer Capture (Click-proof)
+// =========================
+(function(){
+  try{
+    function nowTxt(){
+      const d=new Date();
+      return d.toLocaleTimeString ? d.toLocaleTimeString() : (""+d);
+    }
+
+    function ensureProofBox(){
+      let box=document.getElementById("anaProofBox");
+      if(!box){
+        box=document.createElement("div");
+        box.id="anaProofBox";
+        box.style.cssText="margin-top:10px;padding:10px;border-radius:12px;background:rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:14px;";
+      }
+      const host=document.getElementById("anaViewDashboard") || document.querySelector("#anaPanel .subpanel") || document.querySelector(".analyticsView") || document.body;
+      if(host && !box.parentElement) host.prepend(box);
+      return box;
+    }
+
+    function mark(msg){
+      const box=ensureProofBox();
+      box.innerHTML = `<div><strong>ANA026 Proof:</strong> ${msg}</div><div class="muted" style="opacity:.85;margin-top:4px;">${nowTxt()}</div>`;
+    }
+
+    function isAnalyticsArea(node){
+      // try to detect we are in Auswertungen panel; safest: presence of anaRangePreset or anaApply
+      return !!(document.getElementById("anaRangePreset") || document.getElementById("anaApply"));
+    }
+
+    function isUpdateTarget(t){
+      if(!t) return false;
+      // by id
+      if(t.id==="anaApply") return true;
+      // by closest button with the label "Aktualisieren"
+      const btn = (t.closest && t.closest("button")) ? t.closest("button") : null;
+      if(btn && (btn.id==="anaApply" || (btn.textContent||"").trim().toLowerCase()==="aktualisieren")) return true;
+      // also allow clickable divs/spans styled as button
+      const any = (t.closest && t.closest("[role='button'], .btn, .button")) ? t.closest("[role='button'], .btn, .button") : null;
+      if(any && ((any.textContent||"").trim().toLowerCase()==="aktualisieren")) return true;
+      return false;
+    }
+
+    function handler(evt){
+      try{
+        if(!isAnalyticsArea(evt.target)) return;
+        if(isUpdateTarget(evt.target)){
+          mark(`Trigger erkannt via <code>${evt.type}</code> auf „Aktualisieren“.`);
+        }
+      }catch(e){
+        console.warn("ANA026 handler error", e);
+      }
+    }
+
+    // Capture multiple event types (iOS Safari often fires touchend without click)
+    ["touchend","pointerup","mouseup","click"].forEach(type=>{
+      document.addEventListener(type, handler, true);
+    });
+
+    // Also show that the hook is alive when analytics area exists
+    const t=setInterval(()=>{
+      if(isAnalyticsArea(document.body)){
+        clearInterval(t);
+        mark("Hook aktiv. Bitte auf „Aktualisieren“ tippen.");
+      }
+    }, 300);
 
   }catch(e){
     console.warn("PHASE_B_ANALYTICS_V4 failed", e);
