@@ -965,3 +965,36 @@ body.page-login .btnLink--text:hover{
 
 /* Sticky-Panels (rechte Spalte) an neue Headerhöhe anpassen */
 .sticky{top:104px;}
+
+/* ================================
+   Auswertungen (Safari iPad) – Date-Inputs entschärfen
+   wirkt auch OHNE Fokus
+   ================================ */
+#analytics input[type="date"].input{
+  height: 38px;
+  padding: 6px 10px;
+  line-height: 24px;
+
+  -webkit-appearance: none;
+  appearance: none;
+  box-shadow: none !important;
+  outline: none;
+
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: 12px;
+  background-clip: padding-box;
+}
+
+#analytics input[type="date"].input:focus{
+  outline: 2px solid rgba(245,182,46,.55);
+  outline-offset: 2px;
+  box-shadow: none !important;
+}
+
+#analytics .card .row{ gap: 12px !important; }
+
+#analytics #anaFrom,
+#analytics #anaTo{
+  width: 160px;
+  max-width: 160px;
+}
