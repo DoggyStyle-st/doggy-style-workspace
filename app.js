@@ -8095,8 +8095,6 @@ function applyInvoiceDateDefaults(form){
   }
 })();
 
-
-
 // =========================
 // Auswertungen V2 (ANA018)
 // Standard: Nächte (Check-out − Check-in)
