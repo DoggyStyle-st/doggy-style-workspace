@@ -1,6 +1,6 @@
 // Sichtbarer Build-Zähler (Variante A)
 // Build-Counter (sichtbar unten links in der App)
-const APP_BUILD = "ANA029";
+const APP_BUILD = "V10FIX6-A-ANA026";
 window.addEventListener("error",(e)=>{console.error("APP_ERROR",e.error||e.message);});
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
@@ -8180,81 +8180,1144 @@ function initCapacitySettingsBindings(){
     try { window.renderAnalyticsPanel(); } catch(e) { console.warn("renderAnalyticsPanel failed", e); }
   }
 
-
-/* === ANA029: Analytics Refresh Binding (safe) === */
+/* =========================
+   ANA022 – Phase B (Variante 2): Auslastung im Dashboard + Belegung
+   Safe-Addon: greift NICHT in Navigation/Buttons ein (nur Auswertungen)
+   ========================= */
 (function(){
-  function isAnalyticsContext(el){
-    if(!el) return false;
-    return !!(el.closest && (el.closest('#tabAnalytics') || el.closest('[data-view="analytics"]') || el.closest('[data-page="analytics"]') || el.closest('.analytics') ));
-  }
+  try{
+    const BUILD_MARK = "V10FIX6-A-ANA026";
 
-  function bindOnce(btn){
-    if(!btn || btn.__ana029Bound) return;
-    btn.__ana029Bound = true;
-    btn.addEventListener('click', function(ev){
+    // --- helpers
+    const pad2 = (n)=>String(n).padStart(2,"0");
+    const iso = (d)=>`${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+    const startOfMonth = (d)=>new Date(d.getFullYear(), d.getMonth(), 1);
+    const endOfMonth = (d)=>new Date(d.getFullYear(), d.getMonth()+1, 0);
+
+    function getCapacity(){
+      // Try read from various settings keys; fall back to your defaults
+      const S = window.state || window.APP_STATE || {};
+      const cap = (S.capacity || S.capacities || S.settings?.capacity || S.settings?.capacities || {});
+      const totalDefault = Number(cap.totalDefault ?? cap.total ?? cap.totalMoSa ?? cap.totalWeekdays ?? 13) || 13;
+      const overnightMax = Number(cap.overnightMax ?? cap.overnight ?? 10) || 10;
+      const sundayTotal  = Number(cap.sundayTotal ?? cap.sunday?.total ?? cap.totalSunday ?? 10) || 10;
+      const sundayNoAD   = !!(cap.sundayNoArrivalDeparture ?? cap.sunday?.noArrivalDeparture ?? cap.noArrivalDepartureSunday);
+      return { totalDefault, overnightMax, sundayTotal, sundayNoAD };
+    }
+
+    function dayCapacity(dateISO){
+      const { totalDefault, sundayTotal } = getCapacity();
       try{
-        // If this is NOT the analytics refresh, do nothing
-        if(!/aktualisieren/i.test((btn.textContent||'').trim())) return;
-        // Only act if button is likely inside analytics page/area
-        if(!isAnalyticsContext(btn)){
-          // fallback: if page title contains "Auswertungen" and the button is in the top filter bar
-          const h = document.querySelector('h1,h2');
-          if(!(h && /auswertungen/i.test(h.textContent||''))) return;
-        }
+        const d = new Date(dateISO+"T00:00:00");
+        if(d.getDay()===0) return sundayTotal; // Sunday
+      }catch(_){}
+      return totalDefault;
+    }
 
-        ev.preventDefault();
-        ev.stopPropagation();
+    function dateRange(fromISO, toISO){
+      const res=[];
+      try{
+        let d=new Date(fromISO+"T00:00:00");
+        const end=new Date(toISO+"T00:00:00");
+        while(d<=end){
+          res.push(d.toISOString().slice(0,10));
+          d.setDate(d.getDate()+1);
+        }
+      }catch(_){}
+      return res;
+    }
 
-        if(typeof showMiniToast === 'function'){
-          showMiniToast('Auswertungen: lade Daten…');
-        }
+    function getStays(){
+      // Heuristics: stays / aufenthalte / entries
+      const S = window.state || window.APP_STATE || {};
+      const cands = [
+        S.stays, S.aufenthalte, S.Aufenthalte, S.boardings, S.entries, S.eingaenge,
+        window.stays, window.aufenthalte
+      ];
+      for(const a of cands){
+        if(Array.isArray(a)) return a;
+      }
+      return [];
+    }
 
-        // Try to run the existing renderer
-        if(typeof renderInvoiceAnalytics === 'function'){
-          Promise.resolve(renderInvoiceAnalytics()).then(function(){
-            if(typeof showMiniToast === 'function'){
-              showMiniToast('Auswertungen aktualisiert ✅');
-            }
-          }).catch(function(err){
-            console.error('[ANA029] renderInvoiceAnalytics failed', err);
-            if(typeof showMiniToast === 'function'){
-              showMiniToast('Auswertungen: Fehler (Konsole)');
-            }
-          });
-        } else {
-          console.warn('[ANA029] renderInvoiceAnalytics not found');
-          if(typeof showMiniToast === 'function'){
-            showMiniToast('Auswertungen: Hook fehlt (renderInvoiceAnalytics)');
-          }
+    function getDates(stay){
+      const from = (stay.fromDate||stay.startDate||stay.von||stay.checkIn||stay.betreuungVon||stay.arrival||stay.begin||"").slice(0,10);
+      const to   = (stay.toDate||stay.endDate||stay.bis||stay.checkOut||stay.betreuungBis||stay.departure||stay.ende||"").slice(0,10);
+      return {from,to};
+    }
+
+    function isOvernight(stay){
+      const t = String(stay.type||stay.betreuungsart||stay.art||stay.kind||"").toLowerCase();
+      return t.includes("urlaub") || t.includes("übernacht") || t.includes("overnight");
+    }
+
+    function countByDay(dateISO){
+      let total=0, overnight=0;
+      for(const s of getStays()){
+        const {from,to}=getDates(s);
+        if(!from||!to) continue;
+        // nights model: dateISO in [from, to)
+        if(dateISO>=from && dateISO<to){
+          total++;
+          if(isOvernight(s)) overnight++;
         }
-      }catch(e){
-        console.error('[ANA029] analytics refresh handler error', e);
-        if(typeof showMiniToast === 'function'){
-          showMiniToast('Auswertungen: Fehler (Konsole)');
+      }
+      return {total, overnight};
+    }
+
+    function ensureDefaultDates(){
+      const preset = document.getElementById("anaRangePreset");
+      const fromEl = document.getElementById("anaFrom");
+      const toEl   = document.getElementById("anaTo");
+      if(!fromEl || !toEl) return;
+
+      if(fromEl.value && toEl.value) return;
+
+      const now = new Date();
+      let from, to;
+      const val = preset?.value || "month";
+      if(val === "last30"){
+        to = now; from = new Date(now); from.setDate(from.getDate()-29);
+      } else if(val === "year"){
+        from = new Date(now.getFullYear(),0,1); to = new Date(now.getFullYear(),11,31);
+      } else {
+        from = startOfMonth(now); to = endOfMonth(now);
+      }
+      fromEl.value = iso(from);
+      toEl.value = iso(to);
+    }
+
+    function renderDashboard(fromISO, toISO){
+      const dash = document.getElementById("anaViewDashboard");
+      if(!dash) return;
+
+      const days = dateRange(fromISO, toISO);
+      let ist=0, max=0, peak=0, peakON=0;
+
+      for(const d of days){
+        const cap = dayCapacity(d);
+        const cnt = countByDay(d);
+        ist += cnt.total;
+        max += cap;
+        peak = Math.max(peak, cnt.total);
+        peakON = Math.max(peakON, cnt.overnight);
+      }
+      const { overnightMax } = getCapacity();
+      const pct = max>0 ? Math.round((ist/max)*100) : 0;
+
+      const warn = (peakON>overnightMax)
+        ? `<div class="muted" style="margin-top:6px;">Hinweis: Overnight-Peak ${peakON} über Limit ${overnightMax} (Warnung beim Speichern kommt später).</div>`
+        : "";
+
+      dash.innerHTML = `
+        <div class="row" style="gap:10px; flex-wrap:wrap;">
+          <div class="card" style="min-width:230px;">
+            <div class="muted">Auslastung (Hundetage)</div>
+            <div style="font-size:34px; font-weight:800; margin-top:4px;">${pct}%</div>
+            <div class="muted">${ist} / ${max}</div>
+          </div>
+          <div class="card" style="min-width:200px;">
+            <div class="muted">Spitzentag gesamt</div>
+            <div style="font-size:34px; font-weight:800; margin-top:4px;">${peak}</div>
+          </div>
+          <div class="card" style="min-width:240px;">
+            <div class="muted">Spitzentag Übernachtung</div>
+            <div style="font-size:34px; font-weight:800; margin-top:4px;">${peakON} / ${overnightMax}</div>
+            ${warn}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderOccupancy(fromISO, toISO){
+      const occ = document.getElementById("anaViewOccupancy");
+      if(!occ) return;
+
+      const days = dateRange(fromISO, toISO);
+      let sum=0;
+      for(const d of days){
+        const cap = dayCapacity(d);
+        const cnt = countByDay(d);
+        sum += cap>0 ? (cnt.total/cap) : 0;
+      }
+      const avg = days.length ? Math.round((sum/days.length)*100) : 0;
+      const level = avg<40 ? "ruhig" : (avg<70 ? "normal" : "hoch");
+
+      occ.innerHTML = `
+        <div class="row" style="gap:10px; flex-wrap:wrap;">
+          <div class="card" style="min-width:260px;">
+            <div class="muted">Ø Auslastung pro Tag</div>
+            <div style="font-size:34px; font-weight:800; margin-top:4px;">${avg}%</div>
+            <div class="muted">Einstufung: <strong>${level}</strong></div>
+          </div>
+        </div>
+      `;
+    }
+
+    function run(){
+      ensureDefaultDates();
+      const from = document.getElementById("anaFrom")?.value;
+      const to   = document.getElementById("anaTo")?.value;
+      if(!from || !to) return;
+      renderDashboard(from,to);
+      renderOccupancy(from,to);
+    }
+
+    // Don't break existing analytics renderer: extend it safely
+    const prev = window.renderAnalyticsPanel;
+    window.renderAnalyticsPanel = function(){
+      try{ if(typeof prev === "function") prev(); }catch(e){ console.warn("prev renderAnalyticsPanel failed", e); }
+      try{ run(); }catch(e){ console.warn("ANA022 analytics failed", e); }
+    };
+
+    // hook buttons (only if they exist)
+    function hook(){
+      const apply = document.getElementById("anaApply");
+      const preset = document.getElementById("anaRangePreset");
+      if(apply && !apply.__ana022){
+        apply.__ana022 = true;
+        apply.addEventListener("click", ()=>setTimeout(()=>window.renderAnalyticsPanel(),0));
+      }
+      if(preset && !preset.__ana022){
+        preset.__ana022 = true;
+        preset.addEventListener("change", ()=>{
+          const fromEl=document.getElementById("anaFrom");
+          const toEl=document.getElementById("anaTo");
+          if(fromEl) fromEl.value="";
+          if(toEl) toEl.value="";
+          setTimeout(()=>window.renderAnalyticsPanel(),0);
+        });
+      }
+      // initial
+      setTimeout(()=>window.renderAnalyticsPanel(), 200);
+    }
+
+    // poll for analytics DOM only; no global UI changes
+    const t = setInterval(()=>{
+      try{
+        if(document.getElementById("anaViewDashboard") && document.getElementById("anaApply")){
+          hook();
+          clearInterval(t);
         }
+      }catch(_){}
+    }, 300);
+
+    // Also set build marker if there is a global build element (non-fatal)
+    try{
+      const el = document.getElementById("buildLabel") || document.querySelector("[data-build]");
+      if(el) el.textContent = BUILD_MARK;
+    }catch(_){}
+  }catch(e){
+    console.warn("ANA022 addon failed", e);
+  }
+})();
+
+// =========================
+// PHASE_B_ANALYTICS_V2 (ANA023) – Auto-Dates + Render Hooks + Debug Count
+// =========================
+(function(){
+  try{
+    function pad2(n){ return String(n).padStart(2,"0"); }
+    function iso(d){ return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate()); }
+    function startOfMonth(d){ return new Date(d.getFullYear(), d.getMonth(), 1); }
+    function endOfMonth(d){ return new Date(d.getFullYear(), d.getMonth()+1, 0); }
+
+    function ensureDefaultDates(){
+      const preset = document.getElementById("anaRangePreset");
+      const fromEl = document.getElementById("anaFrom");
+      const toEl   = document.getElementById("anaTo");
+      if(!preset || !fromEl || !toEl) return false;
+
+      if(fromEl.value && toEl.value) return true;
+
+      const now = new Date();
+      let from, to;
+      const val = preset.value || "month";
+      if(val === "last30"){
+        to = now;
+        from = new Date(now); from.setDate(from.getDate()-29);
+      } else if(val === "year"){
+        from = new Date(now.getFullYear(),0,1);
+        to   = new Date(now.getFullYear(),11,31);
+      } else {
+        from = startOfMonth(now);
+        to   = endOfMonth(now);
+      }
+      fromEl.value = iso(from);
+      toEl.value   = iso(to);
+      return true;
+    }
+
+    function dateRange(fromISO, toISO){
+      const res=[];
+      try{
+        let d=new Date(fromISO+"T00:00:00");
+        const end=new Date(toISO+"T00:00:00");
+        while(d<=end){
+          res.push(d.toISOString().slice(0,10));
+          d.setDate(d.getDate()+1);
+        }
+      }catch(_){}
+      return res;
+    }
+
+    function getState(){
+      return window.state || window.__APP_STATE__ || window.APP_STATE || {};
+    }
+
+    function getStaysArray(){
+      const S=getState();
+      // Try multiple known shapes
+      return (
+        S.stays ||
+        S.aufenthalte ||
+        S.Aufenthalte ||
+        S.data?.stays ||
+        S.data?.aufenthalte ||
+        S.db?.stays ||
+        S.db?.aufenthalte ||
+        []
+      ) || [];
+    }
+
+    function isOvernightStay(s){
+      const t = String(s.type || s.betreuungsart || s.art || "").toLowerCase();
+      return t.includes("urlaub") || t.includes("übernacht") || t.includes("overnight");
+    }
+
+    function stayDates(s){
+      const from = (s.fromDate||s.startDate||s.von||s.checkIn||s.betreuungVon||s.dateFrom||"").slice(0,10);
+      const to   = (s.toDate||s.endDate||s.bis||s.checkOut||s.betreuungBis||s.dateTo||"").slice(0,10);
+      return {from,to};
+    }
+
+    function readCapacitySettings(){
+      const S=getState();
+      const cap = (S.capacity || S.capacities || S.settings?.capacity || {}) || {};
+      const totalDefault = Number(cap.totalDefault ?? cap.total ?? cap.totalMoSa ?? 13) || 13;
+      const overnightMax = Number(cap.overnightMax ?? cap.overnight ?? 10) || 10;
+      const sundayTotal  = Number(cap.sundayTotal ?? cap.sunday?.total ?? 10) || 10;
+      return { totalDefault, overnightMax, sundayTotal };
+    }
+
+    function capacityForDay(dateISO){
+      const { totalDefault, sundayTotal } = readCapacitySettings();
+      try{
+        const d=new Date(dateISO+"T00:00:00");
+        if(d.getDay()===0) return sundayTotal;
+      }catch(_){}
+      return totalDefault;
+    }
+
+    function countDogsByDay(dateISO){
+      let total=0, overnight=0;
+      const arr=getStaysArray();
+      arr.forEach(s=>{
+        const {from,to}=stayDates(s);
+        if(!from||!to) return;
+        if(dateISO>=from && dateISO<to){
+          total++;
+          if(isOvernightStay(s)) overnight++;
+        }
+      });
+      return {total, overnight};
+    }
+
+    function renderDashboard(fromISO,toISO){
+      const el=document.getElementById("anaViewDashboard");
+      if(!el) return;
+      const arr=getStaysArray();
+      const days=dateRange(fromISO,toISO);
+      const { overnightMax } = readCapacitySettings();
+
+      if(!days.length){
+        el.innerHTML = `<div class="muted">Bitte Zeitraum wählen und Aktualisieren.</div>`;
+        return;
+      }
+
+      let ist=0, max=0, peak=0, peakON=0;
+      days.forEach(d=>{
+        const c=capacityForDay(d);
+        const cnt=countDogsByDay(d);
+        ist += cnt.total;
+        max += c;
+        peak = Math.max(peak, cnt.total);
+        peakON = Math.max(peakON, cnt.overnight);
+      });
+
+      const pct = max>0 ? Math.round((ist/max)*100) : 0;
+
+      const debug = `<div class="muted" style="margin-top:10px;">Debug: Aufenthalte gefunden: <strong>${arr.length}</strong></div>`;
+      const hintZero = arr.length===0 ? `<div class="muted" style="margin-top:6px;">Hinweis: Es wurden keine Aufenthalte im erwarteten Speicher gefunden – dann passe ich das Mapping an deinen Ist-Stand an.</div>` : "";
+
+      el.innerHTML = `
+        <div class="row" style="gap:10px; flex-wrap:wrap;">
+          <div class="card" style="min-width:220px;">
+            <div class="muted">Auslastung (Hundetage)</div>
+            <div style="font-size:34px; font-weight:800; margin-top:4px;">${pct}%</div>
+            <div class="muted">${ist} / ${max}</div>
+          </div>
+          <div class="card" style="min-width:200px;">
+            <div class="muted">Spitzentag gesamt</div>
+            <div style="font-size:34px; font-weight:800; margin-top:4px;">${peak}</div>
+          </div>
+          <div class="card" style="min-width:220px;">
+            <div class="muted">Spitzentag Übernachtung</div>
+            <div style="font-size:34px; font-weight:800; margin-top:4px;">${peakON} / ${overnightMax}</div>
+          </div>
+        </div>
+        ${debug}
+        ${hintZero}
+      `;
+    }
+
+    function renderOccupancy(fromISO,toISO){
+      const el=document.getElementById("anaViewOccupancy");
+      if(!el) return;
+      const days=dateRange(fromISO,toISO);
+      if(!days.length){
+        el.innerHTML = `<div class="muted">Bitte Zeitraum wählen und Aktualisieren.</div>`;
+        return;
+      }
+      let sumPct=0;
+      days.forEach(d=>{
+        const c=capacityForDay(d);
+        const cnt=countDogsByDay(d);
+        sumPct += c>0 ? (cnt.total/c) : 0;
+      });
+      const avg = days.length ? Math.round((sumPct/days.length)*100) : 0;
+      const level = avg<40 ? "ruhig" : (avg<70 ? "normal" : "hoch");
+      el.innerHTML = `
+        <div class="row" style="gap:10px; flex-wrap:wrap;">
+          <div class="card" style="min-width:240px;">
+            <div class="muted">Ø Auslastung pro Tag</div>
+            <div style="font-size:34px; font-weight:800; margin-top:4px;">${avg}%</div>
+            <div class="muted">Einstufung: <strong>${level}</strong></div>
+          </div>
+        </div>`;
+    }
+
+    function run(){
+      ensureDefaultDates();
+      const from=document.getElementById("anaFrom")?.value;
+      const to=document.getElementById("anaTo")?.value;
+      if(!from||!to) return;
+      renderDashboard(from,to);
+      renderOccupancy(from,to);
+    }
+
+    function hook(){
+      const btn=document.getElementById("anaApply");
+      const preset=document.getElementById("anaRangePreset");
+      if(btn) btn.addEventListener("click", ()=>setTimeout(run,0));
+      if(preset) preset.addEventListener("change", ()=>{
+        const fromEl=document.getElementById("anaFrom");
+        const toEl=document.getElementById("anaTo");
+        if(fromEl) fromEl.value="";
+        if(toEl) toEl.value="";
+        setTimeout(run,0);
+      });
+
+      // Initial render when panel is opened
+      setTimeout(run, 300);
+    }
+
+    // Poll until analytics DOM exists, then hook
+    const t=setInterval(()=>{
+      if(document.getElementById("anaApply") && document.getElementById("anaViewDashboard")){
+        clearInterval(t);
+        hook();
+      }
+    }, 250);
+
+  }catch(e){
+    console.warn("PHASE_B_ANALYTICS_V2 failed", e);
+  }
+})();
+
+// =========================
+// PHASE_B_ANALYTICS_V3 (ANA024) – Event Delegation (Fix for dynamic panels)
+// =========================
+(function(){
+  try{
+    function pad2(n){ return String(n).padStart(2,"0"); }
+    function iso(d){ return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate()); }
+    function startOfMonth(d){ return new Date(d.getFullYear(), d.getMonth(), 1); }
+    function endOfMonth(d){ return new Date(d.getFullYear(), d.getMonth()+1, 0); }
+
+    function ensureDefaultDates(){
+      const preset = document.getElementById("anaRangePreset");
+      const fromEl = document.getElementById("anaFrom");
+      const toEl   = document.getElementById("anaTo");
+      if(!preset || !fromEl || !toEl) return false;
+
+      if(fromEl.value && toEl.value) return true;
+
+      const now = new Date();
+      let from, to;
+      const val = preset.value || "month";
+      if(val === "last30"){
+        to = now;
+        from = new Date(now); from.setDate(from.getDate()-29);
+      } else if(val === "year"){
+        from = new Date(now.getFullYear(),0,1);
+        to   = new Date(now.getFullYear(),11,31);
+      } else {
+        from = startOfMonth(now);
+        to   = endOfMonth(now);
+      }
+      fromEl.value = iso(from);
+      toEl.value   = iso(to);
+      return true;
+    }
+
+    function dateRange(fromISO, toISO){
+      const res=[];
+      try{
+        let d=new Date(fromISO+"T00:00:00");
+        const end=new Date(toISO+"T00:00:00");
+        while(d<=end){
+          res.push(d.toISOString().slice(0,10));
+          d.setDate(d.getDate()+1);
+        }
+      }catch(_){}
+      return res;
+    }
+
+    function getState(){
+      return window.state || window.__APP_STATE__ || window.APP_STATE || {};
+    }
+
+    function getStaysArray(){
+      const S=getState();
+      return (
+        S.stays ||
+        S.aufenthalte ||
+        S.Aufenthalte ||
+        S.data?.stays ||
+        S.data?.aufenthalte ||
+        S.db?.stays ||
+        S.db?.aufenthalte ||
+        []
+      ) || [];
+    }
+
+    function isOvernightStay(s){
+      const t = String(s.type || s.betreuungsart || s.art || "").toLowerCase();
+      return t.includes("urlaub") || t.includes("übernacht") || t.includes("overnight");
+    }
+
+    function stayDates(s){
+      const from = (s.fromDate||s.startDate||s.von||s.checkIn||s.betreuungVon||s.dateFrom||"").slice(0,10);
+      const to   = (s.toDate||s.endDate||s.bis||s.checkOut||s.betreuungBis||s.dateTo||"").slice(0,10);
+      return {from,to};
+    }
+
+    function readCapacitySettings(){
+      const S=getState();
+      const cap = (S.capacity || S.capacities || S.settings?.capacity || {}) || {};
+      const totalDefault = Number(cap.totalDefault ?? cap.total ?? cap.totalMoSa ?? 13) || 13;
+      const overnightMax = Number(cap.overnightMax ?? cap.overnight ?? 10) || 10;
+      const sundayTotal  = Number(cap.sundayTotal ?? cap.sunday?.total ?? 10) || 10;
+      return { totalDefault, overnightMax, sundayTotal };
+    }
+
+    function capacityForDay(dateISO){
+      const { totalDefault, sundayTotal } = readCapacitySettings();
+      try{
+        const d=new Date(dateISO+"T00:00:00");
+        if(d.getDay()===0) return sundayTotal;
+      }catch(_){}
+      return totalDefault;
+    }
+
+    function countDogsByDay(dateISO){
+      let total=0, overnight=0;
+      const arr=getStaysArray();
+      arr.forEach(s=>{
+        const {from,to}=stayDates(s);
+        if(!from||!to) return;
+        if(dateISO>=from && dateISO<to){
+          total++;
+          if(isOvernightStay(s)) overnight++;
+        }
+      });
+      return {total, overnight};
+    }
+
+    function renderDashboard(fromISO,toISO){
+      const el=document.getElementById("anaViewDashboard");
+      if(!el) return;
+      const arr=getStaysArray();
+      const days=dateRange(fromISO,toISO);
+      const { overnightMax } = readCapacitySettings();
+
+      if(!days.length){
+        el.innerHTML = `<div class="muted">Bitte Zeitraum wählen und Aktualisieren.</div>`;
+        return;
+      }
+
+      let ist=0, max=0, peak=0, peakON=0;
+      days.forEach(d=>{
+        const c=capacityForDay(d);
+        const cnt=countDogsByDay(d);
+        ist += cnt.total;
+        max += c;
+        peak = Math.max(peak, cnt.total);
+        peakON = Math.max(peakON, cnt.overnight);
+      });
+
+      const pct = max>0 ? Math.round((ist/max)*100) : 0;
+
+      const debug = `<div class="muted" style="margin-top:10px;">Debug: Aufenthalte gefunden: <strong>${arr.length}</strong></div>`;
+      const hintZero = arr.length===0 ? `<div class="muted" style="margin-top:6px;">Hinweis: Es wurden keine Aufenthalte im erwarteten Speicher gefunden – dann passe ich das Mapping an deinen Ist-Stand an.</div>` : "";
+
+      el.innerHTML = `
+        <div class="row" style="gap:10px; flex-wrap:wrap;">
+          <div class="card" style="min-width:220px;">
+            <div class="muted">Auslastung (Hundetage)</div>
+            <div style="font-size:34px; font-weight:800; margin-top:4px;">${pct}%</div>
+            <div class="muted">${ist} / ${max}</div>
+          </div>
+          <div class="card" style="min-width:200px;">
+            <div class="muted">Spitzentag gesamt</div>
+            <div style="font-size:34px; font-weight:800; margin-top:4px;">${peak}</div>
+          </div>
+          <div class="card" style="min-width:220px;">
+            <div class="muted">Spitzentag Übernachtung</div>
+            <div style="font-size:34px; font-weight:800; margin-top:4px;">${peakON} / ${overnightMax}</div>
+          </div>
+        </div>
+        ${debug}
+        ${hintZero}
+      `;
+    }
+
+    function renderOccupancy(fromISO,toISO){
+      const el=document.getElementById("anaViewOccupancy");
+      if(!el) return;
+      const days=dateRange(fromISO,toISO);
+      if(!days.length){
+        el.innerHTML = `<div class="muted">Bitte Zeitraum wählen und Aktualisieren.</div>`;
+        return;
+      }
+      let sumPct=0;
+      days.forEach(d=>{
+        const c=capacityForDay(d);
+        const cnt=countDogsByDay(d);
+        sumPct += c>0 ? (cnt.total/c) : 0;
+      });
+      const avg = days.length ? Math.round((sumPct/days.length)*100) : 0;
+      const level = avg<40 ? "ruhig" : (avg<70 ? "normal" : "hoch");
+      el.innerHTML = `
+        <div class="row" style="gap:10px; flex-wrap:wrap;">
+          <div class="card" style="min-width:240px;">
+            <div class="muted">Ø Auslastung pro Tag</div>
+            <div style="font-size:34px; font-weight:800; margin-top:4px;">${avg}%</div>
+            <div class="muted">Einstufung: <strong>${level}</strong></div>
+          </div>
+        </div>`;
+    }
+
+    function run(){
+      ensureDefaultDates();
+      const from=document.getElementById("anaFrom")?.value;
+      const to=document.getElementById("anaTo")?.value;
+      if(!from||!to) return;
+      renderDashboard(from,to);
+      renderOccupancy(from,to);
+    }
+
+    // ---- Event delegation: works even if panel is rebuilt dynamically ----
+    document.addEventListener("click", (e)=>{
+      const t = e.target;
+      if(!t) return;
+      if(t.closest && t.closest("#anaApply")){
+        setTimeout(run,0);
       }
     }, true);
-  }
 
-  function scanAndBind(){
-    const buttons = Array.from(document.querySelectorAll('button, a, .btn'));
-    for(const el of buttons){
-      const txt = (el.textContent||'').trim();
-      if(/aktualisieren/i.test(txt)){
-        bindOnce(el);
+    document.addEventListener("change", (e)=>{
+      const t=e.target;
+      if(!t) return;
+      if(t.id==="anaRangePreset"){
+        const fromEl=document.getElementById("anaFrom");
+        const toEl=document.getElementById("anaTo");
+        if(fromEl) fromEl.value="";
+        if(toEl) toEl.value="";
+        setTimeout(run,0);
+      }
+    }, true);
+
+    // Try initial run shortly after load
+    setTimeout(run, 600);
+
+  }catch(e){
+    console.warn("PHASE_B_ANALYTICS_V3 failed", e);
+  }
+})();
+
+// =========================
+// PHASE_B_ANALYTICS_V4 (ANA025) – Visible click proof + timestamp + stays count
+// =========================
+(function(){
+  try{
+    function nowStamp(){
+      const d=new Date();
+      return d.toLocaleString();
+    }
+    function pad2(n){ return String(n).padStart(2,"0"); }
+    function iso(d){ return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate()); }
+    function startOfMonth(d){ return new Date(d.getFullYear(), d.getMonth(), 1); }
+    function endOfMonth(d){ return new Date(d.getFullYear(), d.getMonth()+1, 0); }
+
+    function getEls(){
+      return {
+        root: document.getElementById("analytics"),
+        preset: document.getElementById("anaRangePreset"),
+        from: document.getElementById("anaFrom"),
+        to: document.getElementById("anaTo"),
+        dash: document.getElementById("anaViewDashboard"),
+        occ: document.getElementById("anaViewOccupancy"),
+        apply: document.getElementById("anaApply")
+      };
+    }
+
+    function getState(){
+      return window.state || window.__APP_STATE__ || window.APP_STATE || {};
+    }
+    function getStaysArray(){
+      const S=getState();
+      return (
+        S.stays ||
+        S.aufenthalte ||
+        S.Aufenthalte ||
+        S.data?.stays ||
+        S.data?.aufenthalte ||
+        S.db?.stays ||
+        S.db?.aufenthalte ||
+        []
+      ) || [];
+    }
+
+    function ensureDefaultDates(){
+      const {preset, from, to} = getEls();
+      if(!preset || !from || !to) return false;
+      if(from.value && to.value) return true;
+
+      const now=new Date();
+      let f,t;
+      const val=preset.value || "month";
+      if(val==="last30"){
+        t=now; f=new Date(now); f.setDate(f.getDate()-29);
+      } else if(val==="year"){
+        f=new Date(now.getFullYear(),0,1); t=new Date(now.getFullYear(),11,31);
+      } else {
+        f=startOfMonth(now); t=endOfMonth(now);
+      }
+      from.value=iso(f);
+      to.value=iso(t);
+      return true;
+    }
+
+    function run(source){
+      const {dash, occ, from, to} = getEls();
+      const stays=getStaysArray();
+      // Immediate visible proof
+      if(dash){
+        dash.innerHTML = `
+          <div class="card">
+            <div style="font-weight:700;">Phase B läuft (${source})</div>
+            <div class="muted">Zeit: ${nowStamp()}</div>
+            <div class="muted">Debug: Aufenthalte gefunden: <strong>${stays.length}</strong></div>
+          </div>`;
+      }
+      ensureDefaultDates();
+
+      const f=from?.value;
+      const t=to?.value;
+      if(!f || !t){
+        if(dash){
+          dash.innerHTML += `<div class="muted" style="margin-top:8px;">Von/Bis nicht verfügbar (DOM noch nicht bereit).</div>`;
+        }
+        return;
+      }
+
+      // If later we compute, we'll do it in V5 after we know click works reliably.
+    }
+
+    // Event delegation – trigger only inside Analytics area
+    document.addEventListener("click",(e)=>{
+      const t=e.target;
+      if(!t) return;
+      const root=document.getElementById("analytics");
+      if(!root) return;
+
+      const inside = (t.closest && t.closest("#analytics"));
+      if(!inside) return;
+
+      // primary trigger: #anaApply
+      if(t.closest && t.closest("#anaApply")){
+        run("anaApply");
+        return;
+      }
+
+      // fallback: button text "Aktualisieren" within analytics filter bar
+      const btn = t.closest ? t.closest("button") : null;
+      if(btn && /aktualisieren/i.test(btn.textContent||"")){
+        // only if it's within analytics, not inbox
+        run("buttonText");
+        return;
+      }
+    }, true);
+
+    // Also try an initial proof render when analytics tab is opened (click on tab)
+    document.addEventListener("click",(e)=>{
+      const t=e.target;
+      if(!t) return;
+      if(t.closest && t.closest("#tabAnalytics")){
+        setTimeout(()=>run("tabOpen"), 250);
+      }
+    }, true);
+
+  }catch(e){
+    console.warn("PHASE_B_ANALYTICS_V4 failed", e);
+  }
+})();
+
+// =========================
+// PHASE_B_ANALYTICS_V4 (ANA026) – iOS Touch/Pointer Capture (Click-proof)
+// =========================
+(function(){
+  try{
+    function nowTxt(){
+      const d=new Date();
+      return d.toLocaleTimeString ? d.toLocaleTimeString() : (""+d);
+    }
+
+    function ensureProofBox(){
+      let box=document.getElementById("anaProofBox");
+      if(!box){
+        box=document.createElement("div");
+        box.id="anaProofBox";
+        box.style.cssText="margin-top:10px;padding:10px;border-radius:12px;background:rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:14px;";
+      }
+      const host=document.getElementById("anaViewDashboard") || document.querySelector("#anaPanel .subpanel") || document.querySelector(".analyticsView") || document.body;
+      if(host && !box.parentElement) host.prepend(box);
+      return box;
+    }
+
+    function mark(msg){
+      const box=ensureProofBox();
+      box.innerHTML = `<div><strong>ANA026 Proof:</strong> ${msg}</div><div class="muted" style="opacity:.85;margin-top:4px;">${nowTxt()}</div>`;
+    }
+
+    function isAnalyticsArea(node){
+      // try to detect we are in Auswertungen panel; safest: presence of anaRangePreset or anaApply
+      return !!(document.getElementById("anaRangePreset") || document.getElementById("anaApply"));
+    }
+
+    function isUpdateTarget(t){
+      if(!t) return false;
+      // by id
+      if(t.id==="anaApply") return true;
+      // by closest button with the label "Aktualisieren"
+      const btn = (t.closest && t.closest("button")) ? t.closest("button") : null;
+      if(btn && (btn.id==="anaApply" || (btn.textContent||"").trim().toLowerCase()==="aktualisieren")) return true;
+      // also allow clickable divs/spans styled as button
+      const any = (t.closest && t.closest("[role='button'], .btn, .button")) ? t.closest("[role='button'], .btn, .button") : null;
+      if(any && ((any.textContent||"").trim().toLowerCase()==="aktualisieren")) return true;
+      return false;
+    }
+
+    function handler(evt){
+      try{
+        if(!isAnalyticsArea(evt.target)) return;
+        if(isUpdateTarget(evt.target)){
+          mark(`Trigger erkannt via <code>${evt.type}</code> auf „Aktualisieren“.`);
+        }
+      }catch(e){
+        console.warn("ANA026 handler error", e);
       }
     }
+
+    // Capture multiple event types (iOS Safari often fires touchend without click)
+    ["touchend","pointerup","mouseup","click"].forEach(type=>{
+      document.addEventListener(type, handler, true);
+    });
+
+    // Also show that the hook is alive when analytics area exists
+    const t=setInterval(()=>{
+      if(isAnalyticsArea(document.body)){
+        clearInterval(t);
+        mark("Hook aktiv. Bitte auf „Aktualisieren“ tippen.");
+      }
+    }, 300);
+
+  }catch(e){
+    console.warn("PHASE_B_ANALYTICS_V4 failed", e);
+  }
+})();
+
+/* ===============================
+   ANA030_DEBUG – Analytics Fix + Debug
+   =============================== */
+(() => {
+  'use strict';
+  const BUILD = 'ANA030_DEBUG';
+
+  // Visible toast (bottom-right)
+  function toast(msg, ms=2400){
+    try{
+      let el = document.getElementById('__anaToast');
+      if(!el){
+        el = document.createElement('div');
+        el.id='__anaToast';
+        el.style.cssText=[
+          'position:fixed','right:14px','bottom:14px','z-index:2147483647',
+          'padding:10px 12px','border-radius:12px','max-width:70vw',
+          'background:rgba(20,20,20,.88)','color:#fff','font:12px -apple-system,system-ui',
+          'box-shadow:0 8px 28px rgba(0,0,0,.35)','white-space:pre-wrap',
+          'pointer-events:none','opacity:0','transition:opacity .15s ease'
+        ].join(';');
+        document.body.appendChild(el);
+      }
+      el.textContent = `[${BUILD}] ${msg}`;
+      el.style.opacity='1';
+      clearTimeout(el.__t);
+      el.__t=setTimeout(()=>{ el.style.opacity='0'; }, ms);
+    }catch(_){/* ignore */}
   }
 
-  // Bind repeatedly for SPA navigation / late rendering
-  const start = Date.now();
-  const timer = setInterval(function(){
-    scanAndBind();
-    if(Date.now() - start > 15000) clearInterval(timer);
-  }, 500);
+  // Global error capture
+  window.addEventListener('error', (e)=>{
+    toast(`JS ERROR: ${e.message}`);
+  });
+  window.addEventListener('unhandledrejection', (e)=>{
+    const m = (e && e.reason && (e.reason.message||String(e.reason))) || 'unknown';
+    toast(`PROMISE ERROR: ${m}`);
+  });
 
-  // Also bind on clicks that might switch tabs/views
-  document.addEventListener('click', function(){
-    scanAndBind();
-  }, true);
+  function $(id){ return document.getElementById(id); }
+  function val(id){ const el=$(id); return el? el.value : ''; }
+
+  function iso(d){
+    const pad=n=>String(n).padStart(2,'0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  }
+  function startOfMonth(d){ return new Date(d.getFullYear(), d.getMonth(), 1); }
+  function endOfMonth(d){ return new Date(d.getFullYear(), d.getMonth()+1, 0); }
+
+  function presetToRange(preset){
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    if(preset==='thisMonth') return [startOfMonth(today), endOfMonth(today)];
+    if(preset==='lastMonth'){
+      const d = new Date(today.getFullYear(), today.getMonth()-1, 1);
+      return [startOfMonth(d), endOfMonth(d)];
+    }
+    if(preset==='last30'){
+      const from = new Date(today); from.setDate(from.getDate()-29);
+      return [from, today];
+    }
+    if(preset==='thisYear'){
+      return [new Date(today.getFullYear(),0,1), new Date(today.getFullYear(),11,31)];
+    }
+    return [null,null]; // custom
+  }
+
+  function parseDateInput(s){
+    if(!s) return null;
+    const m = /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/.exec(s);
+    if(!m) return null;
+    return new Date(Number(m[1]), Number(m[2])-1, Number(m[3]));
+  }
+
+  function money(n){
+    try{ return (n||0).toLocaleString('de-DE',{style:'currency',currency:'EUR'}); }
+    catch(_){ return String(n||0); }
+  }
+
+  // --- Core render into NEW Auswertungen UI (Dashboard/Umsatz)
+  function renderAnalyticsNew(){
+    const state = window.state || {};
+    const invoices = Array.isArray(state.invoices) ? state.invoices : [];
+
+    // read range
+    const preset = val('anaRangePreset') || 'thisMonth';
+    let from = parseDateInput(val('anaFrom'));
+    let to   = parseDateInput(val('anaTo'));
+
+    if(preset !== 'custom'){
+      const [pFrom,pTo] = presetToRange(preset);
+      if(pFrom && pTo){
+        from = pFrom; to = pTo;
+        const f = $('anaFrom'); const t = $('anaTo');
+        if(f) f.value = iso(from);
+        if(t) t.value = iso(to);
+      }
+    }
+
+    const fromMs = from? from.getTime() : -Infinity;
+    const toMs = to? (new Date(to.getFullYear(),to.getMonth(),to.getDate(),23,59,59,999)).getTime() : Infinity;
+
+    const normStatus = (s)=>String(s||'').toLowerCase();
+    const isCanceled = (inv)=>['canceled','cancelled','storno','void'].includes(normStatus(inv.status));
+    const isPaid = (inv)=>['paid','bezahlt'].includes(normStatus(inv.status));
+
+    const pickDate = (inv)=>{
+      const d = inv.invoiceDate || inv.date || inv.createdAt || inv.updatedAt;
+      const dd = d ? new Date(d) : null;
+      return (dd && !isNaN(dd.getTime())) ? dd : null;
+    };
+
+    const inRange = [];
+    for(const inv of invoices){
+      const d = pickDate(inv);
+      if(!d) continue;
+      const ms = d.getTime();
+      if(ms < fromMs || ms > toMs) continue;
+      inRange.push(inv);
+    }
+
+    let sumGross=0, sumHoliday=0, sumNoHoliday=0;
+    let cnt=0, cntPaid=0, cntCanceled=0;
+
+    for(const inv of inRange){
+      cnt++;
+      if(isPaid(inv)) cntPaid++;
+      if(isCanceled(inv)) cntCanceled++;
+
+      const pricing = inv.pricing || {};
+      const gross = Number(pricing.total ?? inv.total ?? inv.amount ?? 0) || 0;
+      const holiday = Number(pricing.holidaySurcharge ?? inv.holidaySurcharge ?? 0) || 0;
+      const noHoliday = gross - holiday;
+      if(!isCanceled(inv)){
+        sumGross += gross;
+        sumHoliday += holiday;
+        sumNoHoliday += noHoliday;
+      }
+    }
+
+    // Render dashboard
+    const dash = $('anaViewDashboard');
+    if(dash){
+      dash.innerHTML = `
+        <div style="display:flex;gap:12px;flex-wrap:wrap">
+          <div style="flex:1;min-width:220px;padding:12px;border-radius:14px;background:rgba(0,0,0,.25)">
+            <div style="opacity:.85;font-size:12px">Umsatz (ohne Feiertagszuschlag)</div>
+            <div style="font-size:26px;font-weight:700;margin-top:6px">${money(sumNoHoliday)}</div>
+            <div style="opacity:.7;font-size:12px;margin-top:6px">Belege: ${cnt} (bezahlt: ${cntPaid})</div>
+          </div>
+          <div style="flex:1;min-width:220px;padding:12px;border-radius:14px;background:rgba(0,0,0,.25)">
+            <div style="opacity:.85;font-size:12px">Feiertagsumsatz</div>
+            <div style="font-size:26px;font-weight:700;margin-top:6px">${money(sumHoliday)}</div>
+            <div style="opacity:.7;font-size:12px;margin-top:6px">(aus nicht stornierten Belegen)</div>
+          </div>
+          <div style="flex:1;min-width:220px;padding:12px;border-radius:14px;background:rgba(0,0,0,.25)">
+            <div style="opacity:.85;font-size:12px">Storno</div>
+            <div style="font-size:26px;font-weight:700;margin-top:6px">${cntCanceled}</div>
+            <div style="opacity:.7;font-size:12px;margin-top:6px">stornierte Belege im Zeitraum</div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Render Umsatz view (simple list)
+    const ums = $('anaViewUmsatz');
+    if(ums){
+      const rows = inRange
+        .sort((a,b)=> (pickDate(a)?.getTime()||0) - (pickDate(b)?.getTime()||0))
+        .slice(-60)
+        .reverse()
+        .map(inv=>{
+          const d = pickDate(inv);
+          const pricing = inv.pricing||{};
+          const gross = Number(pricing.total ?? inv.total ?? inv.amount ?? 0) || 0;
+          const st = String(inv.status||'').toLowerCase();
+          return `<tr>
+            <td style="padding:6px 8px;opacity:.85">${d? d.toLocaleDateString('de-DE'):''}</td>
+            <td style="padding:6px 8px;opacity:.85">${(inv.number||inv.invoiceNumber||inv.id||'').toString().slice(-12)}</td>
+            <td style="padding:6px 8px;opacity:.85">${money(gross)}</td>
+            <td style="padding:6px 8px;opacity:.75">${st}</td>
+          </tr>`;
+        }).join('');
+      ums.innerHTML = `
+        <div style="opacity:.85;margin:6px 0 10px 0">Letzte Belege im Zeitraum (max 60)</div>
+        <div style="overflow:auto;border-radius:12px;background:rgba(0,0,0,.22)">
+          <table style="width:100%;border-collapse:collapse;font-size:13px">
+            <thead style="position:sticky;top:0;background:rgba(0,0,0,.35)">
+              <tr>
+                <th style="text-align:left;padding:8px">Datum</th>
+                <th style="text-align:left;padding:8px">Nr.</th>
+                <th style="text-align:left;padding:8px">Betrag</th>
+                <th style="text-align:left;padding:8px">Status</th>
+              </tr>
+            </thead>
+            <tbody>${rows || '<tr><td style="padding:10px" colspan="4">Keine Belege im Zeitraum.</td></tr>'}</tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    toast(`Auswertungen aktualisiert: ${cnt} Belege (${money(sumNoHoliday)} ohne Feiertag)`);
+  }
+
+  function wireTabs(){
+    const tabWrap = $('anaTabs');
+    if(!tabWrap) return;
+    const views = Array.from(document.querySelectorAll('.ana-view'));
+    const show = (id)=>{
+      views.forEach(v=>{ v.style.display = (v.id===id)? 'block':'none'; });
+      Array.from(tabWrap.querySelectorAll('button')).forEach(b=>{
+        const active = b.getAttribute('data-ana-view')===id;
+        b.style.opacity = active ? '1' : '.55';
+      });
+    };
+    tabWrap.addEventListener('click', (e)=>{
+      const btn = e.target.closest('button[data-ana-view]');
+      if(!btn) return;
+      show(btn.getAttribute('data-ana-view'));
+    });
+    // default
+    const first = tabWrap.querySelector('button[data-ana-view]');
+    if(first) show(first.getAttribute('data-ana-view'));
+  }
+
+  function wireApply(){
+    const btn = $('anaApply');
+    if(!btn){ toast('WARN: anaApply Button nicht gefunden'); return; }
+    btn.addEventListener('click', (e)=>{
+      e.preventDefault();
+      renderAnalyticsNew();
+    });
+  }
+
+  function wirePreset(){
+    const sel = $('anaRangePreset');
+    if(!sel) return;
+    sel.addEventListener('change', ()=>{
+      if(sel.value !== 'custom'){
+        const [f,t] = presetToRange(sel.value);
+        const fi = $('anaFrom'); const ti = $('anaTo');
+        if(f && t){ if(fi) fi.value = iso(f); if(ti) ti.value = iso(t); }
+      }
+    });
+  }
+
+  function boot(){
+    // only on Auswertungen page
+    if(!document.getElementById('page-analytics') && !document.getElementById('anaApply')) return;
+    wireTabs();
+    wirePreset();
+    wireApply();
+    // initial render (non-blocking)
+    setTimeout(()=>{ try{ renderAnalyticsNew(); }catch(e){ toast('Render-Fehler: '+(e?.message||e)); } }, 250);
+  }
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
 })();
