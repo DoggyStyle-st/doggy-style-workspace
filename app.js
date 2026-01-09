@@ -1,6 +1,6 @@
 // Sichtbarer Build-Zähler (Variante A)
 // Build-Counter (sichtbar unten links in der App)
-const APP_BUILD = "V10FIX6-A-ANA016";
+const APP_BUILD = "V10FIX6-A-ANA020";
 window.addEventListener("error",(e)=>{console.error("APP_ERROR",e.error||e.message);});
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
@@ -8296,6 +8296,9 @@ function initCapacitySettingsBindings(){
     const el=document.getElementById("anaViewDashboard");
     if(!el) return;
 
+    // Build marker (visual)
+    el.setAttribute("data-build","ANA020");
+
     const warn = peakON > overnightMax ? `<div class="muted" style="margin-top:6px;">Hinweis: Overnight-Peak ${peakON} über Limit ${overnightMax}.</div>` : "";
 
     el.innerHTML = `
@@ -8392,3 +8395,6 @@ function initCapacitySettingsBindings(){
     }catch(_){}
   }, 300);
 })();
+
+// ANA020 marker
+window.__ANA_BUILD_MARKER = "ANA020_PHASEB";
