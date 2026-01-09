@@ -1,6 +1,6 @@
 // Sichtbarer Build-Zähler (Variante A)
 // Build-Counter (sichtbar unten links in der App)
-const APP_BUILD = "V10FIX6-A-ANA024";
+const APP_BUILD = "V10FIX6-A-ANA025";
 window.addEventListener("error",(e)=>{console.error("APP_ERROR",e.error||e.message);});
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
@@ -8186,7 +8186,7 @@ function initCapacitySettingsBindings(){
    ========================= */
 (function(){
   try{
-    const BUILD_MARK = "V10FIX6-A-ANA024";
+    const BUILD_MARK = "V10FIX6-A-ANA025";
 
     // --- helpers
     const pad2 = (n)=>String(n).padStart(2,"0");
@@ -8854,5 +8854,133 @@ function initCapacitySettingsBindings(){
 
   }catch(e){
     console.warn("PHASE_B_ANALYTICS_V3 failed", e);
+  }
+})();
+
+// =========================
+// PHASE_B_ANALYTICS_V4 (ANA025) – Visible click proof + timestamp + stays count
+// =========================
+(function(){
+  try{
+    function nowStamp(){
+      const d=new Date();
+      return d.toLocaleString();
+    }
+    function pad2(n){ return String(n).padStart(2,"0"); }
+    function iso(d){ return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate()); }
+    function startOfMonth(d){ return new Date(d.getFullYear(), d.getMonth(), 1); }
+    function endOfMonth(d){ return new Date(d.getFullYear(), d.getMonth()+1, 0); }
+
+    function getEls(){
+      return {
+        root: document.getElementById("analytics"),
+        preset: document.getElementById("anaRangePreset"),
+        from: document.getElementById("anaFrom"),
+        to: document.getElementById("anaTo"),
+        dash: document.getElementById("anaViewDashboard"),
+        occ: document.getElementById("anaViewOccupancy"),
+        apply: document.getElementById("anaApply")
+      };
+    }
+
+    function getState(){
+      return window.state || window.__APP_STATE__ || window.APP_STATE || {};
+    }
+    function getStaysArray(){
+      const S=getState();
+      return (
+        S.stays ||
+        S.aufenthalte ||
+        S.Aufenthalte ||
+        S.data?.stays ||
+        S.data?.aufenthalte ||
+        S.db?.stays ||
+        S.db?.aufenthalte ||
+        []
+      ) || [];
+    }
+
+    function ensureDefaultDates(){
+      const {preset, from, to} = getEls();
+      if(!preset || !from || !to) return false;
+      if(from.value && to.value) return true;
+
+      const now=new Date();
+      let f,t;
+      const val=preset.value || "month";
+      if(val==="last30"){
+        t=now; f=new Date(now); f.setDate(f.getDate()-29);
+      } else if(val==="year"){
+        f=new Date(now.getFullYear(),0,1); t=new Date(now.getFullYear(),11,31);
+      } else {
+        f=startOfMonth(now); t=endOfMonth(now);
+      }
+      from.value=iso(f);
+      to.value=iso(t);
+      return true;
+    }
+
+    function run(source){
+      const {dash, occ, from, to} = getEls();
+      const stays=getStaysArray();
+      // Immediate visible proof
+      if(dash){
+        dash.innerHTML = `
+          <div class="card">
+            <div style="font-weight:700;">Phase B läuft (${source})</div>
+            <div class="muted">Zeit: ${nowStamp()}</div>
+            <div class="muted">Debug: Aufenthalte gefunden: <strong>${stays.length}</strong></div>
+          </div>`;
+      }
+      ensureDefaultDates();
+
+      const f=from?.value;
+      const t=to?.value;
+      if(!f || !t){
+        if(dash){
+          dash.innerHTML += `<div class="muted" style="margin-top:8px;">Von/Bis nicht verfügbar (DOM noch nicht bereit).</div>`;
+        }
+        return;
+      }
+
+      // If later we compute, we'll do it in V5 after we know click works reliably.
+    }
+
+    // Event delegation – trigger only inside Analytics area
+    document.addEventListener("click",(e)=>{
+      const t=e.target;
+      if(!t) return;
+      const root=document.getElementById("analytics");
+      if(!root) return;
+
+      const inside = (t.closest && t.closest("#analytics"));
+      if(!inside) return;
+
+      // primary trigger: #anaApply
+      if(t.closest && t.closest("#anaApply")){
+        run("anaApply");
+        return;
+      }
+
+      // fallback: button text "Aktualisieren" within analytics filter bar
+      const btn = t.closest ? t.closest("button") : null;
+      if(btn && /aktualisieren/i.test(btn.textContent||"")){
+        // only if it's within analytics, not inbox
+        run("buttonText");
+        return;
+      }
+    }, true);
+
+    // Also try an initial proof render when analytics tab is opened (click on tab)
+    document.addEventListener("click",(e)=>{
+      const t=e.target;
+      if(!t) return;
+      if(t.closest && t.closest("#tabAnalytics")){
+        setTimeout(()=>run("tabOpen"), 250);
+      }
+    }, true);
+
+  }catch(e){
+    console.warn("PHASE_B_ANALYTICS_V4 failed", e);
   }
 })();
