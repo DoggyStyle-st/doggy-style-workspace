@@ -1,6 +1,6 @@
 // Sichtbarer Build-Zähler (Variante A)
 // Build-Counter (sichtbar unten links in der App)
-const APP_BUILD = "V10FIX6-A-ANA023";
+const APP_BUILD = "V10FIX6-A-ANA024";
 window.addEventListener("error",(e)=>{console.error("APP_ERROR",e.error||e.message);});
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
@@ -8186,7 +8186,7 @@ function initCapacitySettingsBindings(){
    ========================= */
 (function(){
   try{
-    const BUILD_MARK = "V10FIX6-A-ANA023";
+    const BUILD_MARK = "V10FIX6-A-ANA024";
 
     // --- helpers
     const pad2 = (n)=>String(n).padStart(2,"0");
@@ -8632,5 +8632,227 @@ function initCapacitySettingsBindings(){
 
   }catch(e){
     console.warn("PHASE_B_ANALYTICS_V2 failed", e);
+  }
+})();
+
+// =========================
+// PHASE_B_ANALYTICS_V3 (ANA024) – Event Delegation (Fix for dynamic panels)
+// =========================
+(function(){
+  try{
+    function pad2(n){ return String(n).padStart(2,"0"); }
+    function iso(d){ return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate()); }
+    function startOfMonth(d){ return new Date(d.getFullYear(), d.getMonth(), 1); }
+    function endOfMonth(d){ return new Date(d.getFullYear(), d.getMonth()+1, 0); }
+
+    function ensureDefaultDates(){
+      const preset = document.getElementById("anaRangePreset");
+      const fromEl = document.getElementById("anaFrom");
+      const toEl   = document.getElementById("anaTo");
+      if(!preset || !fromEl || !toEl) return false;
+
+      if(fromEl.value && toEl.value) return true;
+
+      const now = new Date();
+      let from, to;
+      const val = preset.value || "month";
+      if(val === "last30"){
+        to = now;
+        from = new Date(now); from.setDate(from.getDate()-29);
+      } else if(val === "year"){
+        from = new Date(now.getFullYear(),0,1);
+        to   = new Date(now.getFullYear(),11,31);
+      } else {
+        from = startOfMonth(now);
+        to   = endOfMonth(now);
+      }
+      fromEl.value = iso(from);
+      toEl.value   = iso(to);
+      return true;
+    }
+
+    function dateRange(fromISO, toISO){
+      const res=[];
+      try{
+        let d=new Date(fromISO+"T00:00:00");
+        const end=new Date(toISO+"T00:00:00");
+        while(d<=end){
+          res.push(d.toISOString().slice(0,10));
+          d.setDate(d.getDate()+1);
+        }
+      }catch(_){}
+      return res;
+    }
+
+    function getState(){
+      return window.state || window.__APP_STATE__ || window.APP_STATE || {};
+    }
+
+    function getStaysArray(){
+      const S=getState();
+      return (
+        S.stays ||
+        S.aufenthalte ||
+        S.Aufenthalte ||
+        S.data?.stays ||
+        S.data?.aufenthalte ||
+        S.db?.stays ||
+        S.db?.aufenthalte ||
+        []
+      ) || [];
+    }
+
+    function isOvernightStay(s){
+      const t = String(s.type || s.betreuungsart || s.art || "").toLowerCase();
+      return t.includes("urlaub") || t.includes("übernacht") || t.includes("overnight");
+    }
+
+    function stayDates(s){
+      const from = (s.fromDate||s.startDate||s.von||s.checkIn||s.betreuungVon||s.dateFrom||"").slice(0,10);
+      const to   = (s.toDate||s.endDate||s.bis||s.checkOut||s.betreuungBis||s.dateTo||"").slice(0,10);
+      return {from,to};
+    }
+
+    function readCapacitySettings(){
+      const S=getState();
+      const cap = (S.capacity || S.capacities || S.settings?.capacity || {}) || {};
+      const totalDefault = Number(cap.totalDefault ?? cap.total ?? cap.totalMoSa ?? 13) || 13;
+      const overnightMax = Number(cap.overnightMax ?? cap.overnight ?? 10) || 10;
+      const sundayTotal  = Number(cap.sundayTotal ?? cap.sunday?.total ?? 10) || 10;
+      return { totalDefault, overnightMax, sundayTotal };
+    }
+
+    function capacityForDay(dateISO){
+      const { totalDefault, sundayTotal } = readCapacitySettings();
+      try{
+        const d=new Date(dateISO+"T00:00:00");
+        if(d.getDay()===0) return sundayTotal;
+      }catch(_){}
+      return totalDefault;
+    }
+
+    function countDogsByDay(dateISO){
+      let total=0, overnight=0;
+      const arr=getStaysArray();
+      arr.forEach(s=>{
+        const {from,to}=stayDates(s);
+        if(!from||!to) return;
+        if(dateISO>=from && dateISO<to){
+          total++;
+          if(isOvernightStay(s)) overnight++;
+        }
+      });
+      return {total, overnight};
+    }
+
+    function renderDashboard(fromISO,toISO){
+      const el=document.getElementById("anaViewDashboard");
+      if(!el) return;
+      const arr=getStaysArray();
+      const days=dateRange(fromISO,toISO);
+      const { overnightMax } = readCapacitySettings();
+
+      if(!days.length){
+        el.innerHTML = `<div class="muted">Bitte Zeitraum wählen und Aktualisieren.</div>`;
+        return;
+      }
+
+      let ist=0, max=0, peak=0, peakON=0;
+      days.forEach(d=>{
+        const c=capacityForDay(d);
+        const cnt=countDogsByDay(d);
+        ist += cnt.total;
+        max += c;
+        peak = Math.max(peak, cnt.total);
+        peakON = Math.max(peakON, cnt.overnight);
+      });
+
+      const pct = max>0 ? Math.round((ist/max)*100) : 0;
+
+      const debug = `<div class="muted" style="margin-top:10px;">Debug: Aufenthalte gefunden: <strong>${arr.length}</strong></div>`;
+      const hintZero = arr.length===0 ? `<div class="muted" style="margin-top:6px;">Hinweis: Es wurden keine Aufenthalte im erwarteten Speicher gefunden – dann passe ich das Mapping an deinen Ist-Stand an.</div>` : "";
+
+      el.innerHTML = `
+        <div class="row" style="gap:10px; flex-wrap:wrap;">
+          <div class="card" style="min-width:220px;">
+            <div class="muted">Auslastung (Hundetage)</div>
+            <div style="font-size:34px; font-weight:800; margin-top:4px;">${pct}%</div>
+            <div class="muted">${ist} / ${max}</div>
+          </div>
+          <div class="card" style="min-width:200px;">
+            <div class="muted">Spitzentag gesamt</div>
+            <div style="font-size:34px; font-weight:800; margin-top:4px;">${peak}</div>
+          </div>
+          <div class="card" style="min-width:220px;">
+            <div class="muted">Spitzentag Übernachtung</div>
+            <div style="font-size:34px; font-weight:800; margin-top:4px;">${peakON} / ${overnightMax}</div>
+          </div>
+        </div>
+        ${debug}
+        ${hintZero}
+      `;
+    }
+
+    function renderOccupancy(fromISO,toISO){
+      const el=document.getElementById("anaViewOccupancy");
+      if(!el) return;
+      const days=dateRange(fromISO,toISO);
+      if(!days.length){
+        el.innerHTML = `<div class="muted">Bitte Zeitraum wählen und Aktualisieren.</div>`;
+        return;
+      }
+      let sumPct=0;
+      days.forEach(d=>{
+        const c=capacityForDay(d);
+        const cnt=countDogsByDay(d);
+        sumPct += c>0 ? (cnt.total/c) : 0;
+      });
+      const avg = days.length ? Math.round((sumPct/days.length)*100) : 0;
+      const level = avg<40 ? "ruhig" : (avg<70 ? "normal" : "hoch");
+      el.innerHTML = `
+        <div class="row" style="gap:10px; flex-wrap:wrap;">
+          <div class="card" style="min-width:240px;">
+            <div class="muted">Ø Auslastung pro Tag</div>
+            <div style="font-size:34px; font-weight:800; margin-top:4px;">${avg}%</div>
+            <div class="muted">Einstufung: <strong>${level}</strong></div>
+          </div>
+        </div>`;
+    }
+
+    function run(){
+      ensureDefaultDates();
+      const from=document.getElementById("anaFrom")?.value;
+      const to=document.getElementById("anaTo")?.value;
+      if(!from||!to) return;
+      renderDashboard(from,to);
+      renderOccupancy(from,to);
+    }
+
+    // ---- Event delegation: works even if panel is rebuilt dynamically ----
+    document.addEventListener("click", (e)=>{
+      const t = e.target;
+      if(!t) return;
+      if(t.closest && t.closest("#anaApply")){
+        setTimeout(run,0);
+      }
+    }, true);
+
+    document.addEventListener("change", (e)=>{
+      const t=e.target;
+      if(!t) return;
+      if(t.id==="anaRangePreset"){
+        const fromEl=document.getElementById("anaFrom");
+        const toEl=document.getElementById("anaTo");
+        if(fromEl) fromEl.value="";
+        if(toEl) toEl.value="";
+        setTimeout(run,0);
+      }
+    }, true);
+
+    // Try initial run shortly after load
+    setTimeout(run, 600);
+
+  }catch(e){
+    console.warn("PHASE_B_ANALYTICS_V3 failed", e);
   }
 })();
