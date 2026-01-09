@@ -1111,43 +1111,52 @@ px; flex-wrap:wrap;">
   <h2>Auswertungen</h2>
 
   <div class="card">
-    <div class="row between" style="gap:12px; flex-wrap:wrap;">
-      <div>
-        <div class="muted">Umsatz (ohne Feiertagszuschlag)</div>
-        <div style="font-size:34px; font-weight:800;" id="anaRevenueNet">–</div>
+    <div class="row" style="gap:10px; flex-wrap:wrap; align-items:flex-end;">
+      <div style="min-width:170px;">
+        <div class="muted">Zeitraum</div>
+        <select id="anaRangePreset" class="input" style="width:100%;">
+          <option value="month">Dieser Monat</option>
+          <option value="last30">Letzte 30 Tage</option>
+          <option value="year">Dieses Jahr</option>
+          <option value="custom">Benutzerdefiniert</option>
+        </select>
       </div>
-      <div>
-        <div class="muted">Feiertagsumsatz</div>
-        <div style="font-size:22px; font-weight:700;" id="anaRevenueHoliday">–</div>
-        <label class="row" style="gap:10px; margin-top:8px;">
-          <input type="checkbox" id="anaIncludeHoliday"/>
-          <span class="muted">Feiertagsumsatz standardmäßig <strong>nicht</strong> mitzählen (Opt‑in)</span>
-        </label>
+
+      <div style="min-width:160px;">
+        <div class="muted">Von</div>
+        <input id="anaFrom" class="input" type="date" />
       </div>
-      <div>
-        <div class="muted">Storno</div>
-        <div style="font-size:22px; font-weight:700;" id="anaCancelled">–</div>
+
+      <div style="min-width:160px;">
+        <div class="muted">Bis</div>
+        <input id="anaTo" class="input" type="date" />
       </div>
+
+      <button class="btn primary" id="anaApply" type="button">Aktualisieren</button>
     </div>
+    <div class="muted" style="margin-top:8px;" id="anaRangeHint">Rechnung &amp; Belegung werden nach <strong>Nächten</strong> (Check-out − Check-in) ausgewertet.</div>
   </div>
 
-  <div class="card">
-    <h3>Umsatz nach Monat (letzte 12 Monate)</h3>
-    <div style="overflow:auto;">
-      <table style="width:100%; border-collapse:collapse;" id="anaTable">
-        <thead>
-          <tr>
-            <th style="text-align:left; padding:8px 6px; border-bottom:1px solid rgba(255,255,255,.12);">Monat</th>
-            <th style="text-align:right; padding:8px 6px; border-bottom:1px solid rgba(255,255,255,.12);">Umsatz (netto*)</th>
-            <th style="text-align:right; padding:8px 6px; border-bottom:1px solid rgba(255,255,255,.12);">Feiertag</th>
-            <th style="text-align:right; padding:8px 6px; border-bottom:1px solid rgba(255,255,255,.12);">Belege</th>
-            <th style="text-align:right; padding:8px 6px; border-bottom:1px solid rgba(255,255,255,.12);">Storno</th>
-          </tr>
-        </thead>
-        <tbody id="anaTbody"></tbody>
-      </table>
-    </div>
-    <p class="muted" style="margin-top:10px;">* „netto“ bedeutet hier: <strong>Gesamtbetrag ohne Feiertagszuschlag</strong> (wie gewünscht standardmäßig).</p>
+  <div class="row" style="gap:10px; margin: 6px 0 14px 0; flex-wrap:wrap;">
+    <button class="pill" id="anaViewBtnDashboard" type="button">Dashboard</button>
+    <button class="pill" id="anaViewBtnOccupancy" type="button">Belegung</button>
+    <button class="pill" id="anaViewBtnRevenue" type="button">Umsatz</button>
+    <button class="pill" id="anaViewBtnCustomers" type="button">Kunden</button>
+    <button class="pill" id="anaViewBtnDogs" type="button">Hunde</button>
+    <button class="pill" id="anaViewBtnPatterns" type="button">Muster</button>
+  </div>
+
+  <!-- Views -->
+  <div id="anaViewDashboard" class="card" style="margin-bottom:12px;"></div>
+
+  <div id="anaViewOccupancy" class="card" style="display:none; margin-bottom:12px;"></div>
+  <div id="anaViewRevenue" class="card" style="display:none; margin-bottom:12px;"></div>
+  <div id="anaViewCustomers" class="card" style="display:none; margin-bottom:12px;"></div>
+  <div id="anaViewDogs" class="card" style="display:none; margin-bottom:12px;"></div>
+  <div id="anaViewPatterns" class="card" style="display:none; margin-bottom:12px;"></div>
+
+  <div class="muted" style="margin-top:10px;">
+    Hinweis: Umsatz wird standardmäßig aus <strong>Rechnungen</strong> (nicht storniert) berechnet. Belegung aus <strong>Aufenthalten</strong> anhand Nächte.
   </div>
 </section>
 

@@ -8172,3 +8172,11 @@ function initCapacitySettingsBindings(){
     }
   }catch(_){}
 })();
+
+
+
+  // Analytics render hook (V2)
+  if (panelId === "analytics" && typeof window.renderAnalyticsPanel === "function") {
+    try { window.renderAnalyticsPanel(); } catch(e) { console.warn("renderAnalyticsPanel failed", e); }
+  }
+
