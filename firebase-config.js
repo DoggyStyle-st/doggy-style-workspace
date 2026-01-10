@@ -1,11 +1,10 @@
 // firebase-config.js
-// WICHTIG: Deine echte Firebase Web-App-Konfiguration hier einfügen.
-// Muss window.FIREBASE_CONFIG = { ... } setzen.
-window.FIREBASE_CONFIG = window.FIREBASE_CONFIG || {
-  apiKey: "REPLACE_ME",
-  authDomain: "REPLACE_ME",
-  projectId: "REPLACE_ME",
-  storageBucket: "REPLACE_ME",
-  messagingSenderId: "REPLACE_ME",
-  appId: "REPLACE_ME"
+// Doggy Style Hundepension – Web-App Config
+window.FIREBASE_CONFIG = {
+  apiKey: "AIzaSyD7Os8vl8FEFquyy5nEj27Q-NaF1BA8IJ8",
+  authDomain: "doggy-style-hundepension.firebaseapp.com",
+  projectId: "doggy-style-hundepension",
+  storageBucket: "doggy-style-hundepension.firebasestorage.app",
+  messagingSenderId: "407371827200",
+  appId: "1:407371827200:web:b51a856d20617dd9f070e5"
 };
