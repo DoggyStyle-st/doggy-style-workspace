@@ -45,8 +45,6 @@
 </head>
 
 <body class="bg-watermark page-app">
-<div id=\"authGate\" style=\"display:none\"></div>
-<div id=\"appShell\">
 <header class="topbar">
   <div class="topbar__inner">
 
@@ -1055,11 +1053,11 @@
 </footer>
 </div>
 <!-- Firebase (optional) + Config -->
-<script defer="defer" src="firebase-config.js?v=ANA036A"></script>
+<script defer="defer" src="firebase-config.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-<script defer="defer" src="app.js?v=ANA036A"></script>
+<script defer="defer" src="app.js"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1078,7 +1076,9 @@
     try{
       if(window.firebase && firebase.auth){
         firebase.auth().signOut()
-          .then(() => { location.href = location.href.split('#')[0]; })
+          .then(() => { // FIX: GitHub Pages nutzt einen Unterpfad (/repo/). Absolute/unklare Redirects können 404 auslösen.
+// Wir bleiben deshalb IMMER in diesem Ordner und laden die App neu (zeigt dann wieder Login).
+window.location.replace('./app.html?v=' + Date.now()); })
           .catch(() => location.reload());
         return;
       }
@@ -1169,7 +1169,7 @@
 <!-- Dummy für Legacy-Signatur -->
 <canvas height="1" id="sigPad" style="display:none" width="1"></canvas>
 <!-- Sichtbarer Build-Zähler (Variante A) -->
-<div class="build-badge" id="buildBadge" title="Build-Zähler">Build: ANA036_WORKSPACE_LOGINMERGE_ANA036A</div>
+<div class="build-badge" id="buildBadge" title="Build-Zähler">Build: V10FIX6-A-ANA034_CLEAN</div>
 
 <!-- V10 Modal Editor (stable, tab-independent) -->
 <style>
@@ -1221,6 +1221,5 @@
   </div>
 </div>
 
-</div>
 </body>
 </html>
