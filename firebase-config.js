@@ -1,7 +1,9 @@
 // firebase-config.js
-// Doggy Style Hundepension – Web-App Config
+// Wird von app.js / ANA035_MINLOGIN genutzt.
+// Enthält die Firebase Web-App Konfiguration (aus Firebase Console -> Projekteinstellungen -> SDK-Konfiguration).
+
 window.FIREBASE_CONFIG = {
-  apiKey: "AIzaSyD7Os8vl8FEFquyy5nEj27Q-NaF1BA8IJ8",
+  apiKey: "AIzaSyD70s8yl8EEFguvy5nEi27Q-NaF1BA8IJ8",
   authDomain: "doggy-style-hundepension.firebaseapp.com",
   projectId: "doggy-style-hundepension",
   storageBucket: "doggy-style-hundepension.firebasestorage.app",
