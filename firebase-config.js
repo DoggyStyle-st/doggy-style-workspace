@@ -1,15 +1,16 @@
 // firebase-config.js
-// WICHTIG: Diese Datei enthält die Firebase Web-App Konfiguration.
-// Sie ist NICHT geheim, aber muss korrekt sein.
+// WICHTIG: Hier gehören DEINE Firebase Keys rein.
+// Diese Datei wird von app.html geladen und muss im Repo liegen.
+// Du kannst hier die Werte aus Firebase Console -> Projekteinstellungen -> Allgemein -> "Firebase SDK Snippet (Konfiguration)" eintragen.
 
 window.FIREBASE_CONFIG = {
-  apiKey: "AIzaSyD7Os8yl8FEFquvv5nEj270-NaF1BA8IJ8",
-  authDomain: "doggy-style-hundepension.firebaseapp.com",
-  projectId: "doggy-style-hundepension",
-  storageBucket: "doggy-style-hundepension.firebasestorage.app",
-  messagingSenderId: "407371827200",
-  appId: "1:407371827200:web:b51a856d20617dd9f070e5"
+  apiKey: "REPLACE_ME",
+  authDomain: "REPLACE_ME",
+  projectId: "REPLACE_ME",
+  storageBucket: "REPLACE_ME",
+  messagingSenderId: "REPLACE_ME",
+  appId: "REPLACE_ME"
 };
 
-// (Optional) Kompatibilität: falls irgendwas noch window.firebaseConfig erwartet
+// Kompatibilität (ältere Builds):
 window.firebaseConfig = window.FIREBASE_CONFIG;

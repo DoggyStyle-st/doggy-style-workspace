@@ -1,10 +1,10 @@
 {
-  "name": "DoggyStyle Workspace",
+  "name": "Doggy Style Workspace",
   "short_name": "DoggyStyle",
-  "start_url": "./app.html",
+  "start_url": "./app.html?v=ANA034_CLEAN",
   "display": "standalone",
-  "background_color": "#0b0c10",
-  "theme_color": "#0b0c10",
+  "background_color": "#0b0b0f",
+  "theme_color": "#0b0b0f",
   "icons": [
     {
       "src": "icons/icon-192.png",
