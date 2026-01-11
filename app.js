@@ -6220,16 +6220,12 @@ async function startApp(){
       try{ if(btnLogoutApp) btnLogoutApp.style.display = 'none'; }catch(e){}
       try{ if(btnLogout) btnLogout.style.display = 'none'; }catch(e){}
       updateSyncUI();
-      // In dieser Version gibt es kein Login-Overlay mehr. Wenn nicht eingeloggt: auf Login-Seite umleiten.
-      try{
-        const p = (location && location.pathname) ? location.pathname.toLowerCase() : '';
-        // local/offline Nutzung erlauben: nicht hart auf login umleiten
-        // if(!p.endsWith('login.html')) location.href = 'login.html';
-      }catch(e){}
-      
-    try{ if(btnLogout) btnLogout.style.display = 'inline-flex'; }catch(e){}
-return;
+      // Nicht eingeloggt: Login-Overlay anzeigen (kein Redirect/404)
+      try{ showLoginOverlay(true); }catch(e){}
+      return;
     }
+
+    try{ showLoginOverlay(false); }catch(e){}
 
     // Login bei jedem Start erzwingen: wird beim Start durch signOut() erzwungen (kein Auto-Logout nach erfolgreichem Login)
 
@@ -8187,26 +8183,72 @@ function initCapacitySettingsBindings(){
   function el(id){ return document.getElementById(id); }
 
   function showLoginOverlay(show, msg){
-    const ov = el('loginOverlay');
-    const err = el('loginError');
-    if(!ov) return;
-    if(show){
-      ov.classList.remove('hidden');
-      ov.setAttribute('aria-hidden','false');
-      document.body.classList.add('auth-locked');
-      if(err){
-        if(msg){ err.textContent = msg; err.style.display='block'; }
-        else { err.textContent=''; err.style.display='none'; }
+  const ov = document.getElementById('loginOverlay');
+  if(!ov) return;
+
+  // make sure it's actually visible (even if CSS file is missing)
+  ov.style.position = 'fixed';
+  ov.style.inset = '0';
+  ov.style.zIndex = '9999';
+  ov.style.display = show ? 'flex' : 'none';
+  ov.style.alignItems = 'center';
+  ov.style.justifyContent = 'center';
+  ov.style.background = 'rgba(10,10,10,0.55)';
+  ov.style.backdropFilter = 'blur(6px)';
+
+  const emailEl = document.getElementById('loginEmail');
+  const passEl  = document.getElementById('loginPassword');
+  const errEl   = document.getElementById('loginError') || document.getElementById('loginMsg');
+
+  const btnDo    = document.getElementById('btnLoginDo') || document.getElementById('loginBtn');
+  const btnClear = document.getElementById('btnLoginClear');
+  const btnLogout= document.getElementById('btnLogout') || document.getElementById('logoutBtn');
+
+  if(errEl) errEl.textContent = '';
+
+  if(btnDo && !btnDo.__wired){
+    btnDo.__wired = true;
+    btnDo.addEventListener('click', async () => {
+      try{
+        const email = (emailEl?.value||'').trim();
+        const pass  = (passEl?.value||'');
+        if(!email || !pass){
+          if(errEl) errEl.textContent = 'Bitte E‑Mail und Passwort eingeben.';
+          return;
+        }
+        await CLOUD.auth.signInWithEmailAndPassword(email, pass);
+        // onAuthStateChanged macht dann den Rest (Overlay schließen)
+      }catch(e){
+        if(errEl) errEl.textContent = (e && (e.message||e.code)) ? String(e.message||e.code) : 'Login fehlgeschlagen';
+        console.error(e);
       }
-      // focus email
-      setTimeout(()=>{ const e=el('loginEmail'); if(e) e.focus(); }, 50);
-    }else{
-      ov.classList.add('hidden');
-      ov.setAttribute('aria-hidden','true');
-      document.body.classList.remove('auth-locked');
-      if(err){ err.textContent=''; err.style.display='none'; }
-    }
+    });
   }
+
+  if(btnClear && !btnClear.__wired){
+    btnClear.__wired = true;
+    btnClear.addEventListener('click', () => {
+      if(emailEl) emailEl.value = '';
+      if(passEl) passEl.value = '';
+      if(errEl) errEl.textContent = '';
+    });
+  }
+
+  // Logout button inside overlay (optional)
+  if(btnLogout && !btnLogout.__wired){
+    btnLogout.__wired = true;
+    btnLogout.addEventListener('click', async () => {
+      try{
+        await CLOUD.auth.signOut();
+        // stays on page, overlay remains visible
+        showLoginOverlay(true);
+      }catch(e){
+        if(errEl) errEl.textContent = String(e.message||e.code||e);
+      }
+    });
+  }
+}
+
 
   async function doLogin(){
     const email = (el('loginEmail')?.value || '').trim();
@@ -8252,7 +8294,7 @@ function initCapacitySettingsBindings(){
     btnLogout.addEventListener('click', async (ev)=>{
       ev.preventDefault();
       try{
-        await firebase.auth().signOut();
+        await CLOUD.auth.signOut();
       }catch(e){
         console.warn('signOut failed', e);
       }finally{
