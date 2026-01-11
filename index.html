@@ -1,12 +1,28 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <meta http-equiv="refresh" content="0; url=app.html?v=ANA036A"/>
-  <title>Doggy Style Workspace (ANA036A)</title>
+<meta charset="UTF-8">
+<title>DoggyStyle Workspace</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="style.css">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="firebase-config.js"></script>
 </head>
 <body>
-  <p>Weiterleitung… <a href="app.html?v=ANA036A">öffnen</a></p>
+
+<div id="loginOverlay" class="overlay">
+  <h2>Login</h2>
+  <input id="email" placeholder="E-Mail">
+  <input id="password" type="password" placeholder="Passwort">
+  <button onclick="login()">Anmelden</button>
+</div>
+
+<div id="workspace" class="hidden">
+  <button onclick="logout()">Abmelden</button>
+  <h1>Workspace</h1>
+</div>
+
+<script src="app.js"></script>
 </body>
 </html>
