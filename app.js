@@ -147,18 +147,10 @@ function fmtDT(ts){
   }catch(_){ return "—"; }
 }
 
-async async function performLogout(){
-  try{
-    if(window.CLOUD && CLOUD.auth){
-      await CLOUD.auth.signOut();
-    }
-  }catch(err){
-    console.error("Logout Fehler", err);
-    try{ log("ERROR: Logout Fehler: " + (err && err.message ? err.message : err)); }catch(_){}
-  }
-  // Kein Redirect (vermeidet 404 auf GitHub Pages)
-  // UI wird über onAuthStateChanged sauber umgeschaltet.
-  try{ showAuthGate(true); }catch(_){}
+async function performLogout(){
+  try{ if(CLOUD && CLOUD.enabled && CLOUD.auth){ await CLOUD.auth.signOut(); } }catch(e){}
+  try{ sessionStorage.removeItem("dstest_sw_reloaded"); }catch(e){}
+  try{ location.href = "login.html"; }catch(e){}
 }
 
 function updateSyncUI(){
@@ -8188,3 +8180,112 @@ function initCapacitySettingsBindings(){
     try { window.renderAnalyticsPanel(); } catch(e) { console.warn("renderAnalyticsPanel failed", e); }
   }
 
+
+
+// ===== ANA036A2_LOGIN_PATCH =====
+(function(){
+  function el(id){ return document.getElementById(id); }
+
+  function showLoginOverlay(show, msg){
+    const ov = el('loginOverlay');
+    const err = el('loginError');
+    if(!ov) return;
+    if(show){
+      ov.classList.remove('hidden');
+      ov.setAttribute('aria-hidden','false');
+      document.body.classList.add('auth-locked');
+      if(err){
+        if(msg){ err.textContent = msg; err.style.display='block'; }
+        else { err.textContent=''; err.style.display='none'; }
+      }
+      // focus email
+      setTimeout(()=>{ const e=el('loginEmail'); if(e) e.focus(); }, 50);
+    }else{
+      ov.classList.add('hidden');
+      ov.setAttribute('aria-hidden','true');
+      document.body.classList.remove('auth-locked');
+      if(err){ err.textContent=''; err.style.display='none'; }
+    }
+  }
+
+  async function doLogin(){
+    const email = (el('loginEmail')?.value || '').trim();
+    const pass  = (el('loginPassword')?.value || '');
+    if(!email || !pass){
+      showLoginOverlay(true, 'Bitte E-Mail und Passwort eingeben.');
+      return;
+    }
+    try{
+      showLoginOverlay(true, 'Login läuft …');
+      await firebase.auth().signInWithEmailAndPassword(email, pass);
+      // onAuthStateChanged übernimmt ab hier
+    }catch(e){
+      console.error('Login failed', e);
+      showLoginOverlay(true, (e && e.message) ? e.message : 'Login fehlgeschlagen.');
+    }
+  }
+
+  function initLoginUI(){
+    const btn = el('btnLoginDo');
+    const clr = el('btnLoginClear');
+    if(btn) btn.addEventListener('click', doLogin);
+    if(clr) clr.addEventListener('click', ()=>{
+      if(el('loginEmail')) el('loginEmail').value='';
+      if(el('loginPassword')) el('loginPassword').value='';
+      showLoginOverlay(true);
+    });
+    // Enter = Login
+    ['loginEmail','loginPassword'].forEach(id=>{
+      const i = el(id);
+      if(i) i.addEventListener('keydown', (ev)=>{
+        if(ev.key === 'Enter'){ ev.preventDefault(); doLogin(); }
+      });
+    });
+  }
+
+  // Fix Logout button: signOut ohne Redirect/Reload
+  function patchLogoutButton(){
+    const btnLogout = el('btnLogout') || el('logoutBtn') || el('btnAbmelden');
+    if(!btnLogout) return;
+    // remove inline href navigation if any
+    btnLogout.removeAttribute('href');
+    btnLogout.addEventListener('click', async (ev)=>{
+      ev.preventDefault();
+      try{
+        await firebase.auth().signOut();
+      }catch(e){
+        console.warn('signOut failed', e);
+      }finally{
+        showLoginOverlay(true);
+      }
+    }, {capture:true});
+  }
+
+  // Patch auth state: if no user -> show overlay, keep UI disabled
+  function patchAuthState(){
+    if(!firebase || !firebase.auth) return;
+    firebase.auth().onAuthStateChanged((user)=>{
+      try{
+        if(!user){
+          showLoginOverlay(true);
+          // Statusanzeige falls vorhanden
+          const st = el('connectionStatus') || el('statusText') || el('statusIndicator');
+          if(st && st.textContent !== undefined){
+            // don't overwrite complex components
+          }
+          return;
+        }
+        // logged in
+        showLoginOverlay(false);
+      }catch(e){
+        console.error('patchAuthState error', e);
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', ()=>{
+    initLoginUI();
+    patchLogoutButton();
+    patchAuthState();
+  });
+})();

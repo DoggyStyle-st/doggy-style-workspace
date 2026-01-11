@@ -30,6 +30,31 @@
     .tabs__row{gap:12px;}
     .tabs__row--quick{gap:10px;}
   }
+
+/* ANA036A2 Login Overlay */
+.login-overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+  background:rgba(0,0,0,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  z-index:9999;padding:18px}
+.login-overlay.hidden{display:none}
+.login-card{width:min(560px,92vw);background:rgba(18,18,18,.78);border:1px solid rgba(255,255,255,.15);
+  border-radius:18px;box-shadow:0 22px 80px rgba(0,0,0,.5);padding:18px;color:#fff}
+.login-title{font-size:22px;font-weight:800;margin-bottom:6px}
+.login-sub{opacity:.85;margin-bottom:14px}
+.login-label{display:block;margin-top:10px;margin-bottom:6px;opacity:.9;font-size:13px}
+.login-input{width:100%;padding:12px 14px;border-radius:14px;border:1px solid rgba(255,255,255,.18);
+  background:rgba(255,255,255,.08);color:#fff;font-size:16px;outline:none}
+.login-input:focus{border-color:rgba(245,182,46,.65);box-shadow:0 0 0 3px rgba(245,182,46,.18)}
+.login-actions{display:flex;gap:10px;margin-top:14px}
+.login-error{margin-top:12px;color:#ffb6b6;background:rgba(255,0,0,.10);border:1px solid rgba(255,0,0,.25);
+  padding:10px 12px;border-radius:12px;font-size:13px}
+.login-foot{margin-top:12px;opacity:.65;font-size:12px}
+
+
+/* ANA036A2 auth lock */
+body.auth-locked #app, body.auth-locked .app, body.auth-locked .main, body.auth-locked .container{
+  filter: blur(1px);
+}
+
 </style>
 
 <style>
@@ -1153,7 +1178,7 @@
     try{ sessionStorage.clear(); }catch(e){}
 
     // Nach Logout zur Login-Seite
-    try{ window.// location.href="login.html"; // disabled (use inline auth gate) }catch(e){}
+    try{ window.location.href = 'login.html'; }catch(e){}
   }
 
   [btnTop, btnBottom].forEach(btn => {
@@ -1216,6 +1241,29 @@
     <div id="editorRoot" class="ds-body">
       <p>Editor wird geladen…</p>
     </div>
+  </div>
+</div>
+
+
+<!-- ANA036A2: Login Overlay (inline) -->
+<div id="loginOverlay" class="login-overlay hidden" aria-hidden="true">
+  <div class="login-card">
+    <div class="login-title">Login</div>
+    <div class="login-sub">Bitte anmelden, um die App zu nutzen.</div>
+
+    <label class="login-label" for="loginEmail">E-Mail</label>
+    <input id="loginEmail" class="login-input" type="email" autocomplete="username" inputmode="email" />
+
+    <label class="login-label" for="loginPassword">Passwort</label>
+    <input id="loginPassword" class="login-input" type="password" autocomplete="current-password" />
+
+    <div class="login-actions">
+      <button id="btnLoginDo" class="btn primary" type="button">Anmelden</button>
+      <button id="btnLoginClear" class="btn" type="button">Leeren</button>
+    </div>
+
+    <div id="loginError" class="login-error" style="display:none;"></div>
+    <div class="login-foot">Build: <span id="loginBuildTag">ANA036A2</span></div>
   </div>
 </div>
 
