@@ -6202,7 +6202,7 @@ async function startApp(){
 
   
 
-  // ANA036.2 AUTH_READY_GUARD (v8 compat)
+  // ANA036.3 AUTH_READY_GUARD+FALLBACK (v8 compat)
   let __authReadyResolved = false;
   let __authReadyUser = null;
   let __postAuthInitDone = false;
@@ -6361,6 +6361,27 @@ async function startApp(){
   }
 
 // Auth state
+
+  // ANA036.3: Safety – ensure CLOUD.auth exists before we attach listeners (v8 compat)
+  try{
+    if(!CLOUD.auth && window.firebase && typeof firebase.auth === 'function'){
+      CLOUD.auth = firebase.auth();
+    }
+  }catch(_e){}
+
+  // ANA036.3: Fallback – if iOS/Safari never fires onAuthStateChanged, resolve after a short timeout
+  // (prevents "UI is visible but dead" because startApp waits forever).
+  try{
+    setTimeout(()=>{
+      if(!__authReadyResolved){
+        __authReadyResolved = true;
+        try{
+          __authReadyUser = (CLOUD.auth && CLOUD.auth.currentUser) ? CLOUD.auth.currentUser : null;
+          __authReadyResolve(__authReadyUser);
+        }catch(_e){}
+      }
+    }, 2000);
+  }catch(_e){}
   CLOUD.auth.onAuthStateChanged(async (user)=>{
     CLOUD.user = user || null;
     // ANA036.2: resolve auth-ready exactly once
