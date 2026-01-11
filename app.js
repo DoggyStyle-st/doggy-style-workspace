@@ -6322,6 +6322,7 @@ async function startApp(){
   if(btnLogoutApp) btnLogoutApp.onclick = async ()=>{
     try{ await CLOUD.auth.signOut(); }catch(e){}
   };
+  if(btnLogoutTop) btnLogoutTop.onclick = ()=>performLogout();
   if(btnLogoutBottom) btnLogoutBottom.onclick = ()=>performLogout();
   if(btnNewStayTop) btnNewStayTop.onclick = ()=>{ try{ createStay(); }catch(e){ selectTab("documents"); } };
   if(btnNewStayOnPage) btnNewStayOnPage.onclick = ()=>{ try{ createStay(); }catch(e){ selectTab("documents"); } };

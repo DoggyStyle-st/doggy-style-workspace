@@ -783,7 +783,7 @@
       <span>Status</span>
       <div class="sync-box" id="syncDetails">—</div>
     </div>
-    <button class="btn" id="btnLogoutApp" style="display:none">Abmelden</button>
+    <button class="btn" id="btnLogoutApp" type="button" style="display:none">Abmelden</button>
   </div>
 </div>
 
@@ -1058,48 +1058,9 @@
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <script defer="defer" src="app.js"></script>
-<script>
-(function(){
-  const btn = document.getElementById('btnLogoutTop');
-  if(!btn) return;
 
-  const show = (on) => { btn.style.display = on ? 'inline-flex' : 'none'; };
+<!-- Logout handled in app.js (A.1: ohne Reload) -->
 
-  const doLogout = () => {
-    const appBtn = document.getElementById('btnLogoutApp');
-    // If the app already has its own logout handler wired up, reuse it
-    if(appBtn && appBtn.style.display !== 'none'){
-      appBtn.click();
-      return;
-    }
-    // Fallback: Firebase Auth signOut (compat)
-    try{
-      if(window.firebase && firebase.auth){
-        firebase.auth().signOut()
-          .then(() => { // FIX: GitHub Pages nutzt einen Unterpfad (/repo/). Absolute/unklare Redirects können 404 auslösen.
-// Wir bleiben deshalb IMMER in diesem Ordner und laden die App neu (zeigt dann wieder Login).
-window.location.replace('./app.html?v=' + Date.now()); })
-          .catch(() => location.reload());
-        return;
-      }
-    }catch(e){}
-    location.reload();
-  };
-
-  btn.addEventListener('click', doLogout);
-
-  // Only show when a user is logged in
-  try{
-    if(window.firebase && firebase.auth){
-      firebase.auth().onAuthStateChanged((u) => show(!!u));
-    }else{
-      show(true);
-    }
-  }catch(e){
-    show(true);
-  }
-})();
-</script>
 
 <script>
     // ANA011: PWA/SW vorübergehend deaktiviert (Safari/iPad Cache-Probleme).
@@ -1111,60 +1072,9 @@ window.location.replace('./app.html?v=' + Date.now()); })
     }
   </script>
 
-<script>
-/* Logout-Fix: verhindert Tab-Navigation (Startseite) und führt echtes SignOut aus */
-(function(){
-  const btnTop = document.getElementById('btnLogoutTop');
-  const btnBottom = document.getElementById('btnLogoutBottom');
 
-  async function doLogout(ev){
-    if(ev){
-      ev.preventDefault();
-      ev.stopPropagation();
-    }
+<!-- removed legacy script redirecting to login -->
 
-    try{
-      // 1) Projekt-spezifische Wrapper (falls vorhanden)
-      if (window.DS && window.DS.auth && typeof window.DS.auth.signOut === 'function'){
-        await window.DS.auth.signOut();
-      } else if (window.DS && window.DS.auth && typeof window.DS.auth.logout === 'function'){
-        await window.DS.auth.logout();
-      }
-      // 2) Globaler Logout-Handler (Legacy)
-      else if (typeof window.logout === 'function'){
-        await window.logout();
-      }
-      // 3) Firebase Auth (typisch)
-      else if (window.firebase && firebase.auth){
-        await firebase.auth().signOut();
-      }
-      // 4) Falls auth-Instanz global verfügbar ist
-      else if (window.auth && typeof window.auth.signOut === 'function'){
-        await window.auth.signOut();
-      }
-      // 5) signOut(auth) (modular) wenn global verfügbar
-      else if (typeof window.signOut === 'function' && window.auth){
-        await window.signOut(window.auth);
-      }
-    }catch(err){
-      console.error('Logout failed:', err);
-    }
-
-    // Optional: lokale Session-Spuren entfernen
-    try{ localStorage.removeItem('ds_user'); }catch(e){}
-    try{ sessionStorage.clear(); }catch(e){}
-
-    // Nach Logout zur Login-Seite
-    try{ window.location.href = 'login.html'; }catch(e){}
-  }
-
-  [btnTop, btnBottom].forEach(btn => {
-    if(btn){
-      btn.addEventListener('click', doLogout, { passive:false });
-    }
-  });
-})();
-</script>
 
 <!-- Dummy für Legacy-Signatur -->
 <canvas height="1" id="sigPad" style="display:none" width="1"></canvas>
