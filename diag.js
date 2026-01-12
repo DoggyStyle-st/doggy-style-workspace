@@ -1,118 +1,59 @@
+// ANA037 Phase 2 — diag.js
 (() => {
-  // ÄNDERE NUR DIESE ZEILE, um sofort zu sehen ob neue Version ankommt
-const DIAG_BUILD = "DIAG-A-008";
-
-  // Token für harte Cache-Busting-Reloads
-  const url = new URL(location.href);
-  const v = url.searchParams.get("v") || "(kein ?v=… gesetzt)";
-  const token = Math.random().toString(16).slice(2);
-
+  const BUILD = "ANA037P2-DIAG";
   const $ = (id) => document.getElementById(id);
+  const set = (id, t) => { const el = $(id); if (el) el.textContent = t; };
 
-  function setText(id, txt) {
-    const el = $(id);
-    if (el) el.textContent = txt;
-  }
-
-  // Sichtkontrolle (groß + Badge)
-  setText("buildId", DIAG_BUILD);
-  setText("buildBadge", `BUILD: ${DIAG_BUILD}`);
-  setText("urlInfo", `?v=${v} | token=${token}`);
-  setText("now", new Date().toLocaleString());
-
-  // UA
+  set("build", BUILD);
+  set("url", location.href);
   const ua = navigator.userAgent || "";
-  setText("ua", ua.slice(0, 800));
-  setText("uaShort", ua.includes("iPad") ? "iPad" : (ua.includes("iPhone") ? "iPhone" : "Other"));
+  set("uaShort", ua.includes("iPad") ? "iPad" : (ua.includes("iPhone") ? "iPhone" : "Browser"));
 
-  // Service Worker Status
   async function swStatus() {
-    if (!("serviceWorker" in navigator)) {
-      setText("sw", "nicht unterstützt");
-      return;
-    }
+    if (!("serviceWorker" in navigator)) { set("sw","nicht unterstützt"); return; }
+    const regs = await navigator.serviceWorker.getRegistrations();
+    if (!regs.length) { set("sw","kein Service Worker"); return; }
+    const list = regs.map(r => (r.active ? r.active.scriptURL : (r.installing ? r.installing.scriptURL : "SW"))).join(" | ");
+    set("sw", "aktiv: " + list);
+  }
+
+  async function unregisterAll() {
+    const regs = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(regs.map(r => r.unregister()));
     try {
-      const regs = await navigator.serviceWorker.getRegistrations();
-      if (!regs.length) {
-        setText("sw", "kein Service Worker registriert");
-        return;
-      }
-      const lines = regs.map((r, i) => {
-        const scope = r.scope || "";
-        const active = r.active?.scriptURL || "(kein active)";
-        return `${i + 1}) scope=${scope}\n   active=${active}`;
-      });
-      setText("sw", `registriert:\n${lines.join("\n")}`);
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+    } catch (e) {}
+    await swStatus();
+    set("out","Service Worker abgemeldet + Caches gelöscht.");
+  }
+
+  function hardReload() {
+    const u = new URL(location.href);
+    u.searchParams.set("v", String(Date.now()));
+    location.href = u.toString();
+  }
+
+  async function fetchNoStore(url) {
+    const res = await fetch(url, { cache: "no-store" });
+    const txt = await res.text();
+    return { ok: res.ok, status: res.status, head: txt.slice(0, 240) };
+  }
+
+  async function test(url) {
+    set("out","Lade: " + url + " ...");
+    try {
+      const r = await fetchNoStore(url);
+      set("out", `Status: ${r.status}\nOK: ${r.ok}\n--- HEAD ---\n${r.head}`);
     } catch (e) {
-      setText("sw", `Fehler: ${String(e)}`);
+      set("out","Fehler: " + (e && e.message ? e.message : String(e)));
     }
   }
 
-  // Fetch helper (no-store + Cache-Control)
-  async function fetchText(path) {
-    const u = new URL(path, location.href);
-    u.searchParams.set("_t", Date.now().toString());
-    u.searchParams.set("_r", token);
+  $("btnUnreg")?.addEventListener("click", () => { unregisterAll(); });
+  $("btnHard")?.addEventListener("click", () => { hardReload(); });
+  $("btnFetchApp")?.addEventListener("click", () => { test("./app.js?v=" + Date.now()); });
+  $("btnFetchCss")?.addEventListener("click", () => { test("./styles.css?v=" + Date.now()); });
 
-    const res = await fetch(u.toString(), {
-      cache: "no-store",
-      headers: { "Cache-Control": "no-store" }
-    });
-
-    const text = await res.text();
-    return {
-      ok: res.ok,
-      status: res.status,
-      url: res.url,
-      head: text.slice(0, 400)
-    };
-  }
-
-  async function run() {
-    await swStatus();
-
-    $("btnUnreg")?.addEventListener("click", async () => {
-      if (!("serviceWorker" in navigator)) return;
-      const regs = await navigator.serviceWorker.getRegistrations();
-      let n = 0;
-      for (const r of regs) {
-        const ok = await r.unregister();
-        if (ok) n++;
-      }
-      setText("out", `SW unregister: ${n} Registrierung(en) entfernt. Jetzt "Hart neu laden" drücken.`);
-      await swStatus();
-    });
-
-    $("btnHard")?.addEventListener("click", () => {
-      const u = new URL(location.href);
-      u.searchParams.set("v", `${Date.now()}`); // erzwingt neuen Request
-      location.replace(u.toString());
-    });
-
-    $("btnFetchJs")?.addEventListener("click", async () => {
-      try {
-        const r = await fetchText("diag.js");
-        setText(
-          "out",
-          `FETCH diag.js\nok=${r.ok} status=${r.status}\nurl=${r.url}\n--- head ---\n${r.head}`
-        );
-      } catch (e) {
-        setText("out", `FETCH diag.js FEHLER: ${String(e)}`);
-      }
-    });
-
-    $("btnFetchApp")?.addEventListener("click", async () => {
-      try {
-        const r = await fetchText("app.js");
-        setText(
-          "out",
-          `FETCH app.js\nok=${r.ok} status=${r.status}\nurl=${r.url}\n--- head ---\n${r.head}`
-        );
-      } catch (e) {
-        setText("out", `FETCH app.js FEHLER: ${String(e)}`);
-      }
-    });
-  }
-
-  run();
+  swStatus();
 })();
