@@ -1,69 +1,79 @@
-/* ANA037P4 - resilient loader for app runtime
-   Purpose: load the main app bundle regardless of whether it is in /js or root.
-   This avoids "UI shows but nothing works" when app.js path changes during GitHub uploads.
-*/
-(function () {
-  var BUILD = "ANA037P4";
-  var badgeId = "ds-appjs-badge";
-
-  function ensureBadge() {
-    var el = document.getElementById(badgeId);
-    if (!el) {
-      el = document.createElement("div");
-      el.id = badgeId;
-      el.style.position = "fixed";
-      el.style.left = "12px";
-      el.style.bottom = "12px";
-      el.style.zIndex = "999999";
-      el.style.padding = "6px 10px";
-      el.style.borderRadius = "10px";
-      el.style.background = "rgba(0,0,0,0.55)";
-      el.style.color = "#fff";
-      el.style.font = "12px/1.2 -apple-system, system-ui, Segoe UI, Roboto, Arial, sans-serif";
-      el.style.backdropFilter = "blur(8px)";
-      el.style.webkitBackdropFilter = "blur(8px)";
-      el.style.pointerEvents = "none";
-      el.textContent = "JS: loading… (" + BUILD + ")";
-      document.body.appendChild(el);
-    }
-    return el;
+/* ANA037P5 Boot Loader + Health Badge
+   Purpose: Ensure app.js is loaded in GitHub Pages regardless of /js folder structure
+   and show visible diagnostics if JS fails early. */
+(function(){
+  const badge = document.getElementById('bootBadge');
+  function setBadge(txt, ok){
+    if(!badge) return;
+    badge.textContent = txt;
+    badge.style.background = ok ? 'rgba(0,128,0,.55)' : 'rgba(180,0,0,.55)';
   }
 
-  function setBadge(text) {
-    try { ensureBadge().textContent = text; } catch(e) {}
-  }
+  // capture JS errors early
+  window.addEventListener('error', function(ev){
+    const msg = (ev && ev.message) ? ev.message : 'Script error';
+    setBadge('JS ERROR: ' + msg, false);
+  });
+  window.addEventListener('unhandledrejection', function(ev){
+    let msg = 'Promise rejection';
+    try{
+      if(ev && ev.reason){
+        msg = (ev.reason && ev.reason.message) ? ev.reason.message : String(ev.reason);
+      }
+    }catch(_){}
+    setBadge('JS REJECT: ' + msg, false);
+  });
 
-  // Cache-bust token so Service Worker cannot serve a stale file after path reshuffles.
-  var bust = "v=" + encodeURIComponent(BUILD + "-" + Date.now());
+  // mark initial boot
+  setBadge('BOOT: loader', true);
 
-  // Try common locations in priority order.
-  var candidates = ["js/app.js","./js/app.js","app.js","./app.js"];
-  candidates = candidates.filter(function(v, idx) { return candidates.indexOf(v) === idx; });
-
-  function loadScript(src) {
-    return new Promise(function(resolve, reject) {
-      var s = document.createElement("script");
-      s.src = src + (src.indexOf("?") >= 0 ? "&" : "?") + bust;
+  // helper to load a script with callbacks
+  function loadScript(src){
+    return new Promise((resolve, reject)=>{
+      const s = document.createElement('script');
+      s.src = src;
       s.defer = true;
-      s.onload = function() { resolve(src); };
-      s.onerror = function() { reject(new Error("Failed to load " + src)); };
+      s.onload = ()=>resolve(src);
+      s.onerror = ()=>reject(new Error('Failed to load ' + src));
       document.head.appendChild(s);
     });
   }
 
-  (function run() {
-    setBadge("JS: loading… (" + BUILD + ")");
-    var p = Promise.reject();
-    candidates.forEach(function(src) {
-      p = p.catch(function() { return loadScript(src); });
-    });
-    p.then(function(src) {
-      setBadge("JS: OK (" + BUILD + ") – " + src);
-      window.__DS_APP_MAIN_SRC__ = src;
-      window.__DS_APP_BOOT_BUILD__ = BUILD;
-    }).catch(function(err) {
-      setBadge("JS: FEHLT (" + BUILD + ")");
-      try { console.error(err); } catch(e) {}
-    });
+  // try multiple candidate paths (root first to match existing app.html)
+  const v = 'ANA037P5';
+  const candidates = [
+    'app.js?v=' + v,
+    'js/app.js?v=' + v,
+    './app.js?v=' + v,
+    './js/app.js?v=' + v
+  ];
+
+  // If Firebase libs are missing, show it explicitly
+  function firebaseOk(){
+    return typeof window.firebase !== 'undefined' || (typeof window.firebase !== 'undefined');
+  }
+
+  (async function(){
+    // Wait a tick so defer scripts (firebase) have executed
+    await new Promise(r=>setTimeout(r, 0));
+
+    // Basic check: Firebase compat should attach global firebase namespace
+    // If not, app.js will fail. We still try, but badge will tell.
+    if(typeof window.firebase === 'undefined'){
+      setBadge('BOOT: firebase not ready (loading app anyway)', false);
+    }
+
+    for(const src of candidates){
+      try{
+        setBadge('BOOT: load ' + src, true);
+        await loadScript(src);
+        // If app.js sets a known marker, prefer it; otherwise consider loaded ok.
+        setBadge('JS OK (' + src.replace(/\?v=.*/, '') + ')', true);
+        return;
+      }catch(e){
+        // continue
+      }
+    }
+    setBadge('BOOT FAIL: app.js not found', false);
   })();
 })();
