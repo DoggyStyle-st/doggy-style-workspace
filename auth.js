@@ -1,166 +1,106 @@
-// Login / Registrierung (stabil auf iPad/PWA)
-(function(){
-  const $ = (id)=>document.getElementById(id);
+// auth.js — Login/Register/Forgot handler (Phase 1 restore)
+// Ziel: robust funktionieren, auch wenn andere Module/Styles variieren.
 
-  function setMsg(text){
+(function () {
+  'use strict';
+
+  const BUILD = window.APP_BUILD || 'ANA037_PHASE1';
+
+  function $(id){ return document.getElementById(id); }
+  function setMsg(text, isError){
     const el = $('authMsg');
-    if(el) el.textContent = text || '';
+    if (!el) return;
+    el.textContent = text || '';
+    el.style.color = isError ? '#ff6b6b' : '#9fe29f';
   }
 
-  function firebaseReady(){
-    return (window.firebase && window.firebase.initializeApp && window.firebaseConfig);
-  }
-
-  async function init(){
-    if(!firebaseReady()){
-      setMsg('Firebase ist nicht konfiguriert. Prüfe firebase-config.js');
-      return;
+  function ensureFirebase(){
+    // firebase-app-compat + firebase-auth-compat müssen geladen sein
+    if (!window.firebase || !firebase.apps) {
+      throw new Error('Firebase nicht geladen (firebase-app-compat / firebase-auth-compat).');
     }
+    // firebase-config.js sollte firebase.initializeApp(...) enthalten.
+    if (!firebase.apps.length) {
+      throw new Error('Firebase nicht initialisiert (firebase.initializeApp fehlt).');
+    }
+    if (!firebase.auth) {
+      throw new Error('Firebase Auth nicht verfügbar.');
+    }
+    return firebase.auth();
+  }
 
-    try{
-      // Initialisieren (idempotent)
-      try{ window.firebase.app(); }catch(_){ window.firebase.initializeApp(window.firebaseConfig); }
-
-      const auth = window.firebase.auth();
-      let db = null;
-      try{ db = window.firebase.firestore ? window.firebase.firestore() : null; }catch(_){ db = null; }
-
-      const ORG_ID = (window.CLOUD_ORG_ID || 'doggystyle');
-
-      async function ensureUserProfile(currentUser, preferredName){
-        try{
-          if(!db || !currentUser) return;
-          const uid = currentUser.uid;
-          const email = (currentUser.email || '').toLowerCase();
-          const ref = db.collection('orgs').doc(ORG_ID).collection('users').doc(uid);
-          const snap = await ref.get();
-          if(snap.exists) return;
-          const dn = (preferredName || '').trim() || (email.split('@')[0] || '');
-          await ref.set({
-            uid,
-            email: currentUser.email || '',
-            displayName: dn,
-            role: 'customer',
-            createdAt: Date.now()
-          }, { merge: true });
-        }catch(e){
-          console.warn('ensureUserProfile failed', e);
-        }
+  async function onLogin(){
+    setMsg('', false);
+    try {
+      const email = ($('loginEmail')?.value || '').trim();
+      const pw = ($('loginPass')?.value || '').trim();
+      if (!email || !pw) {
+        setMsg('Bitte E‑Mail und Passwort eingeben.', true);
+        return;
       }
-
-      const regNameField = $('regNameField');
-      const regNameInput = $('regName');
-      const elEmail = $('loginEmail');
-      const elPass  = $('loginPass');
-      const btnLogin = $('btnLogin');
-      const btnRegister = $('btnRegister');
-      const btnForgot = $('btnForgot');
-
-      let registerMode = false;
-      function setRegisterMode(on){
-        registerMode = !!on;
-        if(regNameField){
-          regNameField.style.display = registerMode ? '' : 'none';
-        }
-        if(!registerMode && regNameInput){
-          regNameInput.value = '';
-        }
-      }
-      setRegisterMode(false);
-
-      async function doLogin(){
-        const email = (elEmail.value || '').trim();
-        const pass  = (elPass.value || '').trim();
-        if(!email || !pass){ setMsg('Bitte E‑Mail und Passwort eingeben.'); return; }
-        setMsg('Anmelden …');
-        try{
-          await auth.signInWithEmailAndPassword(email, pass);
-          await ensureUserProfile(auth.currentUser, '');
-          location.href = 'app.html';
-        }catch(e){
-          const code = e && e.code ? String(e.code) : '';
-          if(code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found'){
-            setMsg('E‑Mail oder Passwort ist falsch.');
-          } else if(code === 'auth/too-many-requests'){
-            setMsg('Zu viele Versuche. Bitte kurz warten oder Passwort zurücksetzen.');
-          } else {
-            setMsg('Anmelden fehlgeschlagen: ' + (code || e.message || e));
-          }
-        }
-      }
-
-      async function doRegister(){
-        const email = (elEmail.value || '').trim();
-        const pass  = (elPass.value || '').trim();
-        const name  = (regNameInput ? (regNameInput.value || '').trim() : '');
-        if(!email || !pass){ setMsg('Bitte E‑Mail und Passwort eingeben.'); return; }
-        setMsg('Registrieren …');
-        try{
-          await auth.createUserWithEmailAndPassword(email, pass);
-          await ensureUserProfile(auth.currentUser, name);
-          location.href = 'app.html';
-        }catch(e){
-          const code = e && e.code ? String(e.code) : '';
-          if(code === 'auth/email-already-in-use'){
-            setMsg('Diese E‑Mail ist schon registriert. Bitte anmelden oder Passwort zurücksetzen.');
-          } else if(code === 'auth/weak-password'){
-            setMsg('Passwort ist zu schwach (mindestens 6 Zeichen).');
-          } else if(code === 'auth/invalid-email'){
-            setMsg('Bitte eine gültige E‑Mail eingeben.');
-          } else {
-            setMsg('Registrierung fehlgeschlagen: ' + (code || e.message || e));
-          }
-        }
-      }
-
-      btnLogin.addEventListener('click', (e)=>{ e.preventDefault(); doLogin(); });
-
-      btnRegister.addEventListener('click', (e)=>{
-        e.preventDefault();
-        if(!registerMode){
-          setRegisterMode(true);
-          setMsg('Registrieren: optional Name eintragen und erneut „Registrieren“ tippen.');
-          try{ regNameInput && regNameInput.focus(); }catch(_){ }
-          return;
-        }
-        doRegister();
-      });
-
-      // Enter-Taste: im Login-Modus anmelden
-      elPass.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') doLogin(); });
-
-      // Passwort-Reset
-      if(btnForgot){
-        btnForgot.addEventListener('click', async ()=>{
-          try{
-            const email = (elEmail.value || '').trim();
-            if(!email){
-              setMsg('Bitte zuerst die E‑Mail eintragen.');
-              try{ elEmail.focus(); }catch(_){ }
-              return;
-            }
-            await auth.sendPasswordResetEmail(email);
-            setMsg('Passwort-Reset-Link wurde per E‑Mail gesendet.');
-          }catch(e){
-            const code = e && e.code ? String(e.code) : '';
-            if(code === 'auth/user-not-found'){
-              setMsg('Diese E‑Mail ist nicht registriert.');
-            } else {
-              setMsg('Passwort-Reset fehlgeschlagen: ' + (code || e.message || e));
-            }
-          }
-        });
-      }
-
-      setMsg('');
-    }catch(err){
-      setMsg('Fehler beim Initialisieren: ' + (err.message || err));
+      const auth = ensureFirebase();
+      await auth.signInWithEmailAndPassword(email, pw);
+      // Redirect auf App (Token zum Cache-Busting)
+      const url = new URL('app.html', window.location.href);
+      url.searchParams.set('v', String(Date.now()));
+      window.location.href = url.toString();
+    } catch (e) {
+      console.error('LOGIN_ERROR', e);
+      setMsg('Anmelden fehlgeschlagen: ' + (e?.message || e), true);
     }
   }
 
-  if(document.readyState === 'loading'){
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
+  async function onRegister(){
+    setMsg('', false);
+    try {
+      const email = ($('loginEmail')?.value || '').trim();
+      const pw = ($('loginPass')?.value || '').trim();
+      if (!email || !pw) {
+        setMsg('Bitte E‑Mail und Passwort eingeben.', true);
+        return;
+      }
+      const auth = ensureFirebase();
+      await auth.createUserWithEmailAndPassword(email, pw);
+      setMsg('Registriert. Du kannst dich jetzt anmelden.', false);
+      // Optional: direkt angemeldet lassen oder abmelden – hier abmelden für sauberen Flow
+      await auth.signOut();
+    } catch (e) {
+      console.error('REGISTER_ERROR', e);
+      setMsg('Registrieren fehlgeschlagen: ' + (e?.message || e), true);
+    }
   }
+
+  async function onForgot(){
+    setMsg('', false);
+    try {
+      const email = ($('loginEmail')?.value || '').trim();
+      if (!email) {
+        setMsg('Bitte E‑Mail eingeben (für Passwort‑Reset).', true);
+        return;
+      }
+      const auth = ensureFirebase();
+      await auth.sendPasswordResetEmail(email);
+      setMsg('E‑Mail zum Zurücksetzen wurde gesendet.', false);
+    } catch (e) {
+      console.error('FORGOT_ERROR', e);
+      setMsg('Passwort‑Reset fehlgeschlagen: ' + (e?.message || e), true);
+    }
+  }
+
+  function wire(){
+    // Build badge
+    const b = $('buildBadge');
+    if (b) b.textContent = 'Build ' + BUILD;
+
+    $('btnLogin')?.addEventListener('click', (ev)=>{ ev.preventDefault(); onLogin(); });
+    $('btnRegister')?.addEventListener('click', (ev)=>{ ev.preventDefault(); onRegister(); });
+    $('btnForgot')?.addEventListener('click', (ev)=>{ ev.preventDefault(); onForgot(); });
+
+    // Enter in password triggers login
+    $('loginPass')?.addEventListener('keydown', (ev)=>{
+      if (ev.key === 'Enter') { ev.preventDefault(); onLogin(); }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', wire);
 })();
