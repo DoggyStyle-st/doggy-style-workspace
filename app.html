@@ -1198,5 +1198,34 @@
     </div>
   </div>
 </div>
+      <script>
+(function(){
+  // Sichtbarer Proof, dass mindestens 1 Script aus app.html ausgeführt wird
+  function badge(txt, bg){
+    var el = document.getElementById('ds_js_badge');
+    if(!el){
+      el = document.createElement('div');
+      el.id = 'ds_js_badge';
+      el.style.cssText =
+        'position:fixed;left:10px;bottom:10px;z-index:999999;' +
+        'padding:6px 10px;border-radius:10px;font:12px system-ui;' +
+        'background:'+(bg||'#2b8a3e')+';color:#fff;opacity:.95';
+      document.body.appendChild(el);
+    }
+    el.textContent = txt;
+  }
+
+  window.addEventListener('error', function(e){
+    badge('JS ERROR: ' + (e.message || 'unknown'), '#b02a37');
+  });
+
+  window.addEventListener('unhandledrejection', function(e){
+    var msg = (e.reason && (e.reason.message || String(e.reason))) || 'promise rejection';
+    badge('JS REJECT: ' + msg, '#b02a37');
+  });
+
+  badge('BOOT: app.html inline OK', '#2b8a3e');
+})();
+</script>
 </body>
 </html>
