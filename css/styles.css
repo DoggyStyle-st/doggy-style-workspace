@@ -193,7 +193,7 @@ body.bg-watermark::before {
   content: "";
   position: fixed;
   inset: -12vh -12vw;
-  background: url("assets/logo.png") center center / min(92vw, 920px) no-repeat;
+  background: url("../assets/logo.png") center center / min(92vw, 920px) no-repeat;
   opacity: 0.085;
   filter: blur(0.6px) saturate(0.95);
   transform: translateZ(0);
