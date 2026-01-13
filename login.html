@@ -1,62 +1,66 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+<meta http-equiv="Pragma" content="no-cache" />
+<meta http-equiv="Expires" content="0" />
+
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
-  <meta http-equiv="Pragma" content="no-cache"/>
-  <meta http-equiv="Expires" content="0"/>
-  <title>Doggy Style · Login</title>
-
-  <link rel="manifest" href="./manifest.json"/>
+  <title>Doggy Style · Login · TEST</title>
+  <link href="manifest.json" rel="manifest"/>
   <meta name="theme-color" content="#101014"/>
-  <link rel="apple-touch-icon" href="./assets/logo.png"/>
-
-  <link rel="stylesheet" href="./styles.css?v=ANA037P2"/>
-  <link rel="stylesheet" href="./login_override.css?v=ANA037P2"/>
+  <link href="assets/logo.png" rel="apple-touch-icon"/>
+  <link href="styles.css?v=20260101v62" rel="stylesheet"/>
+  <!-- Login-spezifische Overrides (nach styles.css laden) -->
+  <link href="login_override.css?v=20260101b" rel="stylesheet"/>
 </head>
+<body class="bg-watermark page-login">
+  <header class="topbar">
+    <div class="brand brand--login">
+      <img alt="Doggy Style" class="brand__logo brand__logo--big brand__logo--animated" src="assets/logo.png"/>
+    </div>
+  </header>
 
-<body class="bg">
-  <main class="wrap" style="min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;">
-    <section class="card" style="width:min(520px, 100%); padding:22px;">
-      <div style="display:flex; gap:14px; align-items:center; margin-bottom:14px;">
-        <img src="./assets/logo.png" alt="Doggy Style" style="width:54px; height:54px; border-radius:14px; object-fit:cover;"/>
-        <div>
-          <div style="font-weight:900; font-size:20px; line-height:1.1;">Doggy Style Workspace</div>
-          <div class="muted" style="margin-top:4px;">Anmelden</div>
+  <main class="shell">
+    <section class="panel is-active">
+      <div class="card loginCard" aria-label="Anmeldung">
+
+        <div class="row loginFields">
+          <label class="field field--reg" id="regNameField" style="display:none">
+            <span>Name (optional)</span>
+            <input id="regName" type="text" autocomplete="name" autocapitalize="words" placeholder="z. B. Rex Mustermann"/>
+          </label>
+
+          <label class="field" id="emailField">
+            <span>E‑Mail</span>
+            <input id="loginEmail" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" placeholder="name@domain.de"/>
+          </label>
+
+          <label class="field" id="pwField">
+            <span>Passwort</span>
+            <input id="loginPass" type="password" autocomplete="current-password" autocapitalize="none" spellcheck="false" placeholder="••••••••"/>
+          </label>
         </div>
+
+        <div class="authActions">
+          <div class="authActions__left">
+            <button id="btnLogin" class="primary" type="button">Anmelden</button>
+            <button id="btnRegister" class="btnSecondary" type="button">Registrieren</button>
+          </div>
+          <button id="btnForgot" class="btnLink btnLink--text" type="button">Passwort vergessen?</button>
+        </div>
+
+        <p id="authMsg" class="muted" style="margin-top:10px"></p>
       </div>
-
-      <form id="loginForm" autocomplete="on">
-        <label class="muted" for="loginEmail">E‑Mail</label>
-        <input id="loginEmail" type="email" inputmode="email" autocomplete="email" required
-               style="width:100%; margin:6px 0 12px 0;"/>
-
-        <label class="muted" for="loginPass">Passwort</label>
-        <input id="loginPass" type="password" autocomplete="current-password" required
-               style="width:100%; margin:6px 0 14px 0;"/>
-
-        <button id="btnLogin" class="primary" type="submit" style="width:100%;">Anmelden</button>
-
-        <div style="display:flex; gap:10px; justify-content:space-between; margin-top:12px; flex-wrap:wrap;">
-          <button id="btnForgot" class="pill" type="button">Passwort vergessen</button>
-          <button id="btnRegister" class="pill" type="button">Registrieren</button>
-        </div>
-
-        <p id="authMsg" class="muted" style="margin-top:12px; min-height:1.2em;"></p>
-      </form>
     </section>
   </main>
 
-  <!-- Firebase (compat) -->
-  <script defer src="./firebase-config.js?v=ANA037P2"></script>
+  <script defer src="firebase-config.js?v=ANA0362"></script>
   <script defer src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-
-  <!-- Login handler -->
-  <script defer src="./auth.js?v=ANA037P2"></script>
-
-  <div class="build-badge" id="buildBadge">ANA037P2</div>
+  <script defer src="auth.js?v=ANA0362"></script>
+<div class="build-badge" id="buildBadge">Build v11-TEST-OPTIK-01</div>
 </body>
 </html>

@@ -2,55 +2,97 @@
 <html lang="de">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>DoggyStyle – DIAG</title>
 
+  <!-- WICHTIG: verhindert iOS/Safari Cache so gut wie möglich -->
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
 
-  <link rel="stylesheet" href="./styles.css?v=ANA037P2" />
   <style>
-    body{background:#0b0c0f}
-    .wrap{max-width:980px;margin:0 auto;padding:16px}
-    .card{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.10);border-radius:14px;padding:14px;margin:12px 0}
-    .k{opacity:.75;font-size:12px}
-    .v{font-size:18px;font-weight:800;margin-top:4px;word-break:break-word}
-    .row{display:grid;grid-template-columns:1fr;gap:12px}
-    @media(min-width:860px){.row{grid-template-columns:1fr 1fr}}
-    button{padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);color:#e9eef6;font-weight:800}
-    button:active{transform:scale(.98)}
-    pre{white-space:pre-wrap;background:rgba(0,0,0,.35);padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,.10)}
+    body { font-family: -apple-system, system-ui, Arial; margin: 0; background: #0b0c0f; color: #e9eef6; }
+    header { padding: 14px 16px; background: #121420; position: sticky; top: 0; z-index: 10; border-bottom: 1px solid rgba(255,255,255,.08); }
+    .wrap { padding: 16px; max-width: 980px; margin: 0 auto; }
+    .card { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.10); border-radius: 12px; padding: 14px; margin: 12px 0; }
+    .k { opacity: .75; font-size: 12px; }
+    .v { font-size: 18px; font-weight: 700; margin-top: 4px; word-break: break-word; }
+    .row { display: grid; grid-template-columns: 1fr; gap: 12px; }
+    @media (min-width: 860px) { .row { grid-template-columns: 1fr 1fr; } }
+    button { padding: 12px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,.15); background: rgba(255,255,255,.08); color: #fff; font-weight: 700; }
+    button:active { transform: scale(.99); }
+    pre { white-space: pre-wrap; word-break: break-word; margin: 0; font-size: 12px; line-height: 1.35; }
+    .badge {
+      position: fixed; right: 12px; bottom: 12px;
+      background: #ffcc00; color: #000; font-weight: 900;
+      padding: 10px 12px; border-radius: 999px; box-shadow: 0 10px 30px rgba(0,0,0,.35);
+      border: 2px solid rgba(0,0,0,.15);
+      z-index: 999999;
+    }
   </style>
 </head>
-<body>
-  <div class="wrap">
-    <h1 style="margin:8px 0 0 0;">DIAG</h1>
-    <div class="muted" style="margin-top:6px;">Build: <span id="build">…</span></div>
 
+<body>
+  <header>
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+      <div>
+        <div class="k">DoggyStyle Workspace</div>
+        <div class="v">DIAG – Sichtkontrolle</div>
+      </div>
+      <div class="k" id="now"></div>
+    </div>
+  </header>
+
+  <!-- FETTER, IMMER SICHTBARER BUILD-BADGE -->
+  <div class="badge" id="buildBadge">BUILD: …</div>
+
+  <div class="wrap">
     <div class="row">
       <div class="card">
-        <div class="k">URL</div><div class="v" id="url">…</div>
-        <div class="k" style="margin-top:10px;">User-Agent</div><div class="v" id="uaShort">…</div>
-        <div class="k" style="margin-top:10px;">Service Worker</div><div class="v" id="sw">…</div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
-          <button id="btnUnreg">Service Worker abmelden</button>
-          <button id="btnHard">Hart neu laden (?v=neu)</button>
-        </div>
+        <div class="k">Build-ID (muss sichtbar sein)</div>
+        <div class="v" id="buildId">…</div>
+        <div class="k" style="margin-top:10px;">URL-Parameter</div>
+        <div class="v" id="urlInfo">…</div>
       </div>
 
       <div class="card">
-        <div class="k">Fetch-Tests</div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;">
-          <button id="btnFetchApp">app.js fetch</button>
-          <button id="btnFetchCss">styles.css fetch</button>
-        </div>
-        <div class="k" style="margin-top:10px;">Ergebnis</div>
-        <pre id="out">—</pre>
+        <div class="k">Browser / Plattform</div>
+        <div class="v" id="uaShort">…</div>
+        <div class="k" style="margin-top:10px;">User-Agent (gekürzt)</div>
+        <pre id="ua">…</pre>
       </div>
+    </div>
+
+    <div class="card">
+      <div class="k">Service Worker Status</div>
+      <div class="v" id="sw">…</div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;">
+        <button id="btnUnreg">Service Worker abmelden</button>
+        <button id="btnHard">Hart neu laden (neuer Token)</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="k">Fetch-Test (zeigt ob Cache greift)</div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">
+        <button id="btnFetchJs">diag.js fetch (no-store)</button>
+        <button id="btnFetchApp">app.js fetch (no-store)</button>
+      </div>
+      <div class="k" style="margin-top:10px;">Ergebnis</div>
+      <pre id="out">—</pre>
+    </div>
+
+    <div class="card">
+      <div class="k">Anleitung</div>
+      <pre>
+1) Öffne diese Seite im Safari: /doggy-style-workspace/diag.html?v=IRGENDEINWERT
+2) BUILD muss unten rechts sofort sichtbar sein.
+3) Wenn BUILD nicht sichtbar ist: du bekommst NICHT die neue Datei.
+4) Drücke "Service Worker abmelden", dann "Hart neu laden".
+      </pre>
     </div>
   </div>
 
-  <script src="./diag.js?v=ANA037P2"></script>
+  <script src="diag.js?v=__TS__"></script>
 </body>
 </html>

@@ -1,49 +1,72 @@
+/* ANA037P2 app_init.js
+   Shows a small status badge bottom-left so we know JS is alive.
+   Also reports early boot errors captured in window.__bootErrors.
+*/
 (function(){
-  if (window.__APP_INIT_BOOTED__) return;
-  window.__APP_INIT_BOOTED__ = true;
-
-  function ready(fn){
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', fn, { once:true });
-    } else {
-      fn();
-    }
+  function el(tag, attrs, txt){
+    var n=document.createElement(tag);
+    if(attrs) for(var k in attrs) n.setAttribute(k, attrs[k]);
+    if(txt!=null) n.textContent=txt;
+    return n;
+  }
+  function ensureBadge(){
+    var b=document.getElementById('bootBadge');
+    if(b) return b;
+    b=el('div',{id:'bootBadge',style:[
+      'position:fixed','left:12px','bottom:12px','z-index:99999',
+      'padding:6px 10px','border-radius:999px',
+      'background:rgba(0,0,0,.55)','border:1px solid rgba(255,255,255,.18)',
+      'font:12px/1.2 -apple-system,BlinkMacSystemFont,system-ui,Segoe UI,Roboto,Arial',
+      'color:#fff','backdrop-filter:blur(8px)'
+    ].join(';')},'Boot: …');
+    document.body.appendChild(b);
+    return b;
   }
 
-  function showInitBadge(ok){
-    try{
-      var el = document.getElementById('build');
-      if (!el) return;
-      var span = document.createElement('span');
-      span.style.marginLeft = '8px';
-      span.style.fontWeight = '600';
-      span.textContent = ok ? 'INIT: OK' : 'INIT: FAIL';
-      el.appendChild(span);
-    }catch(e){}
+  function setBadge(text, ok){
+    var b=ensureBadge();
+    b.textContent=text;
+    b.style.background = ok ? 'rgba(0,120,0,.55)' : 'rgba(120,0,0,.55)';
   }
 
-  ready(function(){
-    try{
-      // Ensure essential globals exist
-      if (!window.firebase || !window.CLOUD) {
-        console.warn('INIT waiting for firebase/CLOUD');
-      }
+  function summarizeErrors(){
+    var arr = (window.__bootErrors||[]).slice(-3);
+    if(!arr.length) return '';
+    return arr.map(function(e){
+      if(!e) return '';
+      var s = (e.type==='rejection'?'REJ: ':'ERR: ') + (e.msg||'');
+      if(e.src) s += ' @'+e.src.split('/').slice(-1)[0]+':'+(e.line||'')+':'+(e.col||'');
+      return s;
+    }).filter(Boolean).join(' | ');
+  }
 
-      // Force-call legacy init if present
-      if (typeof window.initApp === 'function') {
-        window.initApp();
-      } else if (typeof window.boot === 'function') {
-        window.boot();
-      }
-
-      // Enable pointer events if a guard blocked UI
-      document.body.style.pointerEvents = 'auto';
-
-      showInitBadge(true);
-      console.log('APP_INIT_OK');
-    } catch(e){
-      console.error('APP_INIT_FAIL', e);
-      showInitBadge(false);
+  function check(){
+    // If app.js sets window.__APP_READY = true we are good.
+    var ready = !!window.__APP_READY;
+    var errs = summarizeErrors();
+    if(ready && !errs){
+      setBadge('JS OK', true);
+      return true;
     }
+    if(errs){
+      setBadge('JS FEHLER: '+errs, false);
+      return true;
+    }
+    return false;
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    ensureBadge();
+    // Give app.js a moment to boot
+    var tries=0;
+    var t=setInterval(function(){
+      tries++;
+      if(check() || tries>40){ // ~10s
+        if(tries>40 && !check()){
+          setBadge('JS nicht bereit (timeout)', false);
+        }
+        clearInterval(t);
+      }
+    }, 250);
   });
 })();

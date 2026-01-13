@@ -220,7 +220,7 @@
 
   background:
     radial-gradient(circle at top, rgba(255,255,255,.18), rgba(0,0,0,.48)),
-    url("assets/pfote.png?v=10")
+    url("../assets/pfote.png?v=10")
 
   border: 1px solid rgba(255,255,255,.20) !important;
 
@@ -261,7 +261,7 @@
   /* Pfotenbild */
   background:
     radial-gradient(circle at top, rgba(255,255,255,.18), rgba(0,0,0,.48)),
-    url("assets/pfote.png?v=10")
+    url("../assets/pfote.png?v=10")
       center / 30px 30px no-repeat !important;
 
   border: 1px solid rgba(255,255,255,.20) !important;
@@ -314,12 +314,12 @@
 
   background: rgba(255,255,255,0.92) !important;
 
-  -webkit-mask-image: url("assets/pfote.png?v=11") !important;
+  -webkit-mask-image: url("../assets/pfote.png?v=11") !important;
   -webkit-mask-repeat: no-repeat !important;
   -webkit-mask-position: center !important;
   -webkit-mask-size: contain !important;
 
-  mask-image: url("assets/pfote.png?v=11") !important;
+  mask-image: url("../assets/pfote.png?v=11") !important;
   mask-repeat: no-repeat !important;
   mask-position: center !important;
   mask-size: contain !important;

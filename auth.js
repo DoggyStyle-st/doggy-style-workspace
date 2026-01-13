@@ -1,125 +1,106 @@
-// ANA037 Phase 2 — auth.js (compat, iPad-safe)
-(() => {
-  const BUILD = "ANA037P2";
+// auth.js — Login/Register/Forgot handler (Phase 1 restore)
+// Ziel: robust funktionieren, auch wenn andere Module/Styles variieren.
 
-  const $ = (id) => document.getElementById(id);
-  const setMsg = (t) => { const el = $("authMsg"); if (el) el.textContent = t || ""; };
-  const setBuild = () => { const b = $("buildBadge"); if (b) b.textContent = BUILD; };
+(function () {
+  'use strict';
 
-  function ensureFirebase() {
-    // waits for compat SDK + config
-    return new Promise((resolve, reject) => {
-      const started = Date.now();
-      (function poll() {
-        try {
-          if (window.firebase && typeof firebase.initializeApp === "function" && window.firebaseConfig) {
-            // init once
-            if (!firebase.apps || firebase.apps.length === 0) {
-              firebase.initializeApp(window.firebaseConfig);
-            }
-            resolve(firebase);
-            return;
-          }
-        } catch (e) { /* ignore */ }
-        if (Date.now() - started > 8000) {
-          reject(new Error("Firebase SDK nicht bereit (Timeout)"));
-          return;
-        }
-        setTimeout(poll, 60);
-      })();
-    });
+  const BUILD = window.APP_BUILD || 'ANA037_PHASE1';
+
+  function $(id){ return document.getElementById(id); }
+  function setMsg(text, isError){
+    const el = $('authMsg');
+    if (!el) return;
+    el.textContent = text || '';
+    el.style.color = isError ? '#ff6b6b' : '#9fe29f';
   }
 
-  async function doLogin(email, pass) {
-    const fb = await ensureFirebase();
-    return fb.auth().signInWithEmailAndPassword(email, pass);
+  function ensureFirebase(){
+    // firebase-app-compat + firebase-auth-compat müssen geladen sein
+    if (!window.firebase || !firebase.apps) {
+      throw new Error('Firebase nicht geladen (firebase-app-compat / firebase-auth-compat).');
+    }
+    // firebase-config.js sollte firebase.initializeApp(...) enthalten.
+    if (!firebase.apps.length) {
+      throw new Error('Firebase nicht initialisiert (firebase.initializeApp fehlt).');
+    }
+    if (!firebase.auth) {
+      throw new Error('Firebase Auth nicht verfügbar.');
+    }
+    return firebase.auth();
   }
 
-  async function doRegister(email, pass) {
-    const fb = await ensureFirebase();
-    return fb.auth().createUserWithEmailAndPassword(email, pass);
-  }
-
-  async function doForgot(email) {
-    const fb = await ensureFirebase();
-    return fb.auth().sendPasswordResetEmail(email);
-  }
-
-  function bind() {
-    setBuild();
-
-    const form = $("loginForm");
-    const btnLogin = $("btnLogin");
-    const btnReg = $("btnRegister");
-    const btnForgot = $("btnForgot");
-    const emailEl = $("loginEmail");
-    const passEl = $("loginPass");
-
-    if (!form || !emailEl || !passEl) return false;
-
-    form.addEventListener("submit", async (ev) => {
-      ev.preventDefault();
-      setMsg("");
-
-      const email = (emailEl.value || "").trim();
-      const pass = (passEl.value || "").trim();
-
-      if (!email || !pass) {
-        setMsg("Bitte E‑Mail und Passwort eingeben.");
+  async function onLogin(){
+    setMsg('', false);
+    try {
+      const email = ($('loginEmail')?.value || '').trim();
+      const pw = ($('loginPass')?.value || '').trim();
+      if (!email || !pw) {
+        setMsg('Bitte E‑Mail und Passwort eingeben.', true);
         return;
       }
-
-      // UX
-      if (btnLogin) btnLogin.disabled = true;
-
-      try {
-        await doLogin(email, pass);
-        // Hard cache bust to avoid stale app.html
-        location.href = "./app.html?v=" + Date.now();
-      } catch (e) {
-        const msg = (e && e.message) ? e.message : String(e);
-        setMsg("Login fehlgeschlagen: " + msg);
-      } finally {
-        if (btnLogin) btnLogin.disabled = false;
-      }
-    });
-
-    if (btnReg) btnReg.addEventListener("click", async () => {
-      setMsg("");
-      const email = (emailEl.value || "").trim();
-      const pass = (passEl.value || "").trim();
-      if (!email || !pass) { setMsg("Für Registrierung E‑Mail + Passwort eingeben."); return; }
-      btnReg.disabled = true;
-      try {
-        await doRegister(email, pass);
-        setMsg("Registriert. Du kannst dich jetzt anmelden.");
-      } catch (e) {
-        setMsg("Registrierung fehlgeschlagen: " + ((e && e.message) ? e.message : String(e)));
-      } finally {
-        btnReg.disabled = false;
-      }
-    });
-
-    if (btnForgot) btnForgot.addEventListener("click", async () => {
-      setMsg("");
-      const email = (emailEl.value || "").trim();
-      if (!email) { setMsg("Bitte E‑Mail für Passwort-Reset eingeben."); return; }
-      btnForgot.disabled = true;
-      try {
-        await doForgot(email);
-        setMsg("Reset-E‑Mail wurde gesendet (wenn die Adresse existiert).");
-      } catch (e) {
-        setMsg("Reset fehlgeschlagen: " + ((e && e.message) ? e.message : String(e)));
-      } finally {
-        btnForgot.disabled = false;
-      }
-    });
-
-    return true;
+      const auth = ensureFirebase();
+      await auth.signInWithEmailAndPassword(email, pw);
+      // Redirect auf App (Token zum Cache-Busting)
+      const url = new URL('app.html', window.location.href);
+      url.searchParams.set('v', String(Date.now()));
+      window.location.href = url.toString();
+    } catch (e) {
+      console.error('LOGIN_ERROR', e);
+      setMsg('Anmelden fehlgeschlagen: ' + (e?.message || e), true);
+    }
   }
 
-  // bind now or after DOM ready
-  if (!bind()) {
-    document.addEventListener("DOMContentLoaded", () => { bind(); }, { once: true });
+  async function onRegister(){
+    setMsg('', false);
+    try {
+      const email = ($('loginEmail')?.value || '').trim();
+      const pw = ($('loginPass')?.value || '').trim();
+      if (!email || !pw) {
+        setMsg('Bitte E‑Mail und Passwort eingeben.', true);
+        return;
+      }
+      const auth = ensureFirebase();
+      await auth.createUserWithEmailAndPassword(email, pw);
+      setMsg('Registriert. Du kannst dich jetzt anmelden.', false);
+      // Optional: direkt angemeldet lassen oder abmelden – hier abmelden für sauberen Flow
+      await auth.signOut();
+    } catch (e) {
+      console.error('REGISTER_ERROR', e);
+      setMsg('Registrieren fehlgeschlagen: ' + (e?.message || e), true);
+    }
   }
+
+  async function onForgot(){
+    setMsg('', false);
+    try {
+      const email = ($('loginEmail')?.value || '').trim();
+      if (!email) {
+        setMsg('Bitte E‑Mail eingeben (für Passwort‑Reset).', true);
+        return;
+      }
+      const auth = ensureFirebase();
+      await auth.sendPasswordResetEmail(email);
+      setMsg('E‑Mail zum Zurücksetzen wurde gesendet.', false);
+    } catch (e) {
+      console.error('FORGOT_ERROR', e);
+      setMsg('Passwort‑Reset fehlgeschlagen: ' + (e?.message || e), true);
+    }
+  }
+
+  function wire(){
+    // Build badge
+    const b = $('buildBadge');
+    if (b) b.textContent = 'Build ' + BUILD;
+
+    $('btnLogin')?.addEventListener('click', (ev)=>{ ev.preventDefault(); onLogin(); });
+    $('btnRegister')?.addEventListener('click', (ev)=>{ ev.preventDefault(); onRegister(); });
+    $('btnForgot')?.addEventListener('click', (ev)=>{ ev.preventDefault(); onForgot(); });
+
+    // Enter in password triggers login
+    $('loginPass')?.addEventListener('keydown', (ev)=>{
+      if (ev.key === 'Enter') { ev.preventDefault(); onLogin(); }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', wire);
 })();

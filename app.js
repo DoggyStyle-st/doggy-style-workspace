@@ -67,6 +67,7 @@ function getMinCapacityForRange(type, fromISO, toISO){
    - Wenn window.firebaseConfig gesetzt ist: Login anzeigen + State aus Cloud laden/syncen
    - Wenn nicht: App läuft wie bisher rein lokal/offline
 */
+window.__APP_READY = true; // set when app.js executed
 const CLOUD = {
   enabled: false,
   reason: '',
