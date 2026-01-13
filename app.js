@@ -1,6 +1,6 @@
 // Sichtbarer Build-Zähler (Variante A)
 // Build-Counter (sichtbar unten links in der App)
-const APP_BUILD = "V10FIX6-A-ANA0363";
+const APP_BUILD = "ANA037P3_FIREBASE_INIT_FIX";
 window.addEventListener("error",(e)=>{console.error("APP_ERROR",e.error||e.message);});
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));

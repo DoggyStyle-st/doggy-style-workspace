@@ -1,20 +1,44 @@
-// Firebase Konfiguration (Doggy Style Workspace)
-// Hinweis: Diese Datei wird vor auth.js/app.js geladen.
-// Du kannst hier später weitere Admin-Emails ergänzen.
+// firebase-config.js
+// Central Firebase configuration + initialization (compat SDK).
+// This file is intentionally safe to include before/after other modules, but MUST run after firebase-app-compat is loaded.
 
-window.firebaseConfig = {
-  apiKey: "AIzaSyD7Os8yl8FEFquvv5nEj270-NaF1BA8IJ8",
-  authDomain: "doggy-style-hundepension.firebaseapp.com",
-  projectId: "doggy-style-hundepension",
-  storageBucket: "doggy-style-hundepension.firebasestorage.app",
-  messagingSenderId: "407371827200",
-  appId: "1:407371827200:web:b51a856d20617dd9f070e5"
-};
+(function(){
+  // Keep existing config values (edit here if needed)
+  const firebaseConfig = {
+    apiKey: "AIzaSyB62d6UoYlPRC3VlWyBJ70dArq0M2gPK88",
+    authDomain: "doggy-style-workspace.firebaseapp.com",
+    projectId: "doggy-style-workspace",
+    storageBucket: "doggy-style-workspace.appspot.com",
+    messagingSenderId: "1066192357280",
+    appId: "1:1066192357280:web:3e53ba1cc3a2d73de6c25a"
+  };
 
-// frei wählbar (wird als "Mandant" / Hof-Ordner genutzt)
-window.firebaseOrgId = "doggystyle";
+  // Expose config for debugging/diag
+  window.DS_FIREBASE_CONFIG = firebaseConfig;
 
-// Admin-Whitelist (du kannst Anschi hier später ergänzen)
-window.firebaseAdminEmails = [
-  "raphael@boch-plan.de"
-];
+  function init(){
+    try{
+      if(!window.firebase || !firebase.initializeApp){
+        // Firebase libs not loaded yet; try again shortly.
+        setTimeout(init, 0);
+        return;
+      }
+      // Initialize once
+      if(!firebase.apps || !firebase.apps.length){
+        firebase.initializeApp(firebaseConfig);
+      }
+      // Optional: expose Firestore instance (compat)
+      try{
+        if(firebase.firestore && !window.db){
+          window.db = firebase.firestore();
+        }
+      }catch(_){}
+      window.DS_FIREBASE_READY = true;
+    }catch(err){
+      console.error("DS_FIREBASE_INIT_ERROR", err);
+      window.DS_FIREBASE_READY = false;
+    }
+  }
+
+  init();
+})();

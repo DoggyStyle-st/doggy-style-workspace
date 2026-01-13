@@ -1349,5 +1349,13 @@
 
 <!-- ANA036.2 AUTH_READY_GUARD_FIX -->
   <script defer src="./app_init.js?v=ANA037P2"></script>
+
+  <!-- Firebase (compat) -->
+  <script defer src="https://www.gstatic.com/firebasejs/9.6.11/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/9.6.11/firebase-auth-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/9.6.11/firebase-firestore-compat.js"></script>
+  <!-- Must run AFTER firebase-* scripts -->
+  <script defer src="firebase-config.js?v=__TS__"></script>
+
 </body>
 </html>
