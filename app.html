@@ -1,185 +1,18 @@
 <!DOCTYPE html>
-
 <html lang="de">
 <head>
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-<meta http-equiv="Pragma" content="no-cache" />
-<meta http-equiv="Expires" content="0" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Doggy Style Workspace</title>
 
-<section class="panel" id="analytics">
-  <h2>Auswertungen</h2>
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="apple-touch-icon" href="./assets/logo.png" />
+  <link rel="icon" href="./assets/logo.png" />
 
-  <div class="row" style="gap:10px; margin: 6px 0 14px 0; flex-wrap:wrap;">
-    <button class="pill" id="anaTabGeneral" type="button">Allgemein</button>
-    <button class="pill" id="anaTabInvoices" type="button">Rechnungen</button>
-  </div>
-
-  <div id="analyticsGeneral">
-
-
-  <div class="card">
-    <div class="row between" style="gap:12px; flex-wrap:wrap;">
-      <div>
-        <div class="muted">Umsatz (ohne Feiertagszuschlag)</div>
-        <div style="font-size:34px; font-weight:800;" id="anaRevenueNet">–</div>
-      </div>
-      <div>
-        <div class="muted">Feiertagsumsatz</div>
-        <div style="font-size:22px; font-weight:700;" id="anaRevenueHoliday">–</div>
-        <label class="row" style="gap:10px; margin-top:8px;">
-          <input type="checkbox" id="anaIncludeHoliday"/>
-          <span class="muted">Feiertagsumsatz standardmäßig <strong>nicht</strong> mitzählen (Opt‑in)</span>
-        </label>
-      </div>
-      <div>
-        <div class="muted">Storno</div>
-        <div style="font-size:22px; font-weight:700;" id="anaCancelled">–</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="card">
-    <h3>Umsatz nach Monat (letzte 12 Monate)</h3>
-    <div style="overflow:auto;">
-      <table style="width:100%; border-collapse:collapse;" id="anaTable">
-        <thead>
-          <tr>
-            <th style="text-align:left; padding:8px 6px; border-bottom:1px solid rgba(255,255,255,.12);">Monat</th>
-            <th style="text-align:right; padding:8px 6px; border-bottom:1px solid rgba(255,255,255,.12);">Umsatz (netto*)</th>
-            <th style="text-align:right; padding:8px 6px; border-bottom:1px solid rgba(255,255,255,.12);">Feiertag</th>
-            <th style="text-align:right; padding:8px 6px; border-bottom:1px solid rgba(255,255,255,.12);">Belege</th>
-            <th style="text-align:right; padding:8px 6px; border-bottom:1px solid rgba(255,255,255,.12);">Storno</th>
-          </tr>
-        </thead>
-        <tbody id="anaTbody"></tbody>
-      </table>
-    </div>
-    <p class="muted" style="margin-top:10px;">* „netto“ bedeutet hier: <strong>Gesamtbetrag ohne Feiertagszuschlag</strong> (wie gewünscht standardmäßig).</p>
-  </div>
-
-  </div>
-
-  <div id="analyticsInvoices" style="display:none;">
-    <div class="card">
-      <div class="row between" style="gap:12px; flex-wrap:wrap; align-items:flex-end;">
-        <div class="row" style="gap:8px; flex-wrap:wrap;">
-          <button class="pill" type="button" data-ana-range="today">Heute</button>
-          <button class="pill" type="button" data-ana-range="week">Diese Woche</button>
-          <button class="pill" type="button" data-ana-range="month">Dieser Monat</button>
-          <button class="pill" type="button" data-ana-range="lastmonth">Letzter Monat</button>
-          <button class="pill" type="button" data-ana-range="year">Dieses Jahr</button>
-        </div>
-        <div class="row" style="gap:8px; flex-wrap:wrap; align-items:center;">
-          <label class="muted" for="anaInvFrom">Von</label>
-          <input id="anaInvFrom" type="date" class="input" style="max-width:160px;"/>
-          <label class="muted" for="anaInvTo">Bis</label>
-          <input id="anaInvTo" type="date" class="input" style="max-width:160px;"/>
-          <button class="pill" id="anaInvApply" type="button">Anwenden</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="card" style="margin-top:14px;">
-      <div class="row between" style="gap:12px; flex-wrap:wrap;">
-        <div>
-          <div class="muted">Umsatz bezahlt</div>
-          <div style="font-size:30px; font-weight:800;" id="anaInvPaidSum">–</div>
-          <div class="muted" id="anaInvPaidCount"> </div>
-        </div>
-        <div>
-          <div class="muted">Offen</div>
-          <div style="font-size:24px; font-weight:800;" id="anaInvOpenSum">–</div>
-          <div class="muted" id="anaInvOpenCount"> </div>
-        </div>
-        <div>
-          <div class="muted">Storniert</div>
-          <div style="font-size:24px; font-weight:800;" id="anaInvCanceledSum">–</div>
-          <div class="muted" id="anaInvCanceledCount"> </div>
-        </div>
-        <div style="text-align:right;">
-          <div class="muted">Anzahl gesamt</div>
-          <div style="font-size:24px; font-weight:800;" id="anaInvTotalCount">–</div>
-          <button class="pill" id="anaInvPdf" type="button" style="margin-top:8px;">PDF-Report erstellen</button>
-        </div>
-      </div>
-      <div class="muted" id="anaInvRangeLabel" style="margin-top:10px;"></div>
-    </div>
-
-    <div class="card" style="margin-top:14px;">
-      <div class="row between" style="gap:10px; flex-wrap:wrap; align-items:center;">
-        <div style="font-weight:700;">Rechnungen (gefiltert)</div>
-        <div class="row" style="gap:8px; flex-wrap:wrap;">
-          <button class="pill" type="button" data-ana-status="all">Alle</button>
-          <button class="pill" type="button" data-ana-status="paid">Bezahlt</button>
-          <button class="pill" type="button" data-ana-status="open">Offen</button>
-          <button class="pill" type="button" data-ana-status="canceled">Storniert</button>
-        </div>
-      </div>
-      <div class="tablewrap" style="margin-top:10px;">
-        <table class="table" id="anaInvTable">
-          <thead>
-            <tr>
-              <th>Datum</th>
-              <th>Nr.</th>
-              <th>Kunde / Hund</th>
-              <th style="text-align:right;">Betrag</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-</section>/>
-<meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
-<title>Doggy Style Workspace · App</title>
-<link href="manifest.json" rel="manifest"/>
-<meta content="#101014" name="theme-color"/>
-<link href="assets/logo.png" rel="apple-touch-icon"/>
-<link href="styles.css?v=20260103v01" rel="stylesheet"/>
-<link href="dashboard_master.css?v=20260104v13logout" rel="stylesheet"/>
-<style>
-  /* Topbar Layout (iPad & Desktop stabil) */
-  .topbar{position:sticky; top:0; z-index:50;}
-  .topbar__inner{display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding:10px 12px 14px;}
-  .tabs{flex:1; display:flex; flex-direction:column; gap:10px; align-items:center;}
-  .tabs__row{display:flex; flex-wrap:wrap; justify-content:center; gap:10px;}
-  .tabs__row--quick{gap:8px;}
-  .tab{white-space:nowrap;}
-  .topbar__right{display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:flex-end;}
-  .sync-indicator{display:flex; align-items:center; gap:8px;}
-  .sync-label{font-size:12px; opacity:.75;}
-  @media (min-width: 900px){
-    .topbar__inner{gap:16px; padding:10px 16px 16px;}
-    .tabs__row{gap:12px;}
-    .tabs__row--quick{gap:10px;}
-  }
-</style>
-
-<style>
-/* V10FIX6_INVOICE_UI */
-.invoice-form .row{margin-bottom:8px}
-.invoice-form label{font-size:13px}
-.invoice-form input, .invoice-form select{padding:6px 8px;font-size:14px}
-.status-pill{display:inline-block;padding:4px 10px;border-radius:20px;font-size:13px;font-weight:600}
-.status-open{background:#f5c542;color:#000}
-.status-paid{background:#3cb371;color:#fff}
-.status-storno{background:#c0392b;color:#fff}
-</style>
-  <script>
-    // Boot diagnostics (captures early JS errors)
-    window.__bootErrors = [];
-    window.addEventListener('error', function(e){
-      try{ window.__bootErrors.push({type:'error', msg:String(e.message||e.error), src:e.filename, line:e.lineno, col:e.colno}); }catch(_){}
-    });
-    window.addEventListener('unhandledrejection', function(e){
-      try{ window.__bootErrors.push({type:'rejection', msg:String(e.reason)}); }catch(_){}
-    });
-  </script>
+  <link rel="stylesheet" href="./css/styles.css?v=ANA037P9" />
+  <link rel="stylesheet" href="./css/login_override.css?v=ANA037P9" />
+  <link rel="stylesheet" href="./css/dashboard_master.css?v=ANA037P9" />
 </head>
-
 <body class="bg-watermark page-app">
 <header class="topbar">
   <div class="topbar__inner">
@@ -331,35 +164,6 @@
   <div class="hint" id="medTodayHint" style="margin-top:10px;">Fällige Medikamentengaben abhaken – plus Gesundheitsnotizen (Export‑fähig).</div>
 </div>
 
-<!-- §11 / Betriebssicherheit (Ampel) -->
-<div class="card" id="complianceDashboardCard">
-  <div class="row between" style="gap:10px; flex-wrap:wrap; align-items:center;">
-    <div>
-      <h2 style="margin:0">🟢 §11‑Status (Ampel)</h2>
-      <div class="muted" id="complianceMeta" style="margin-top:6px">—</div>
-    </div>
-    <div class="row" style="gap:8px; align-items:center; flex-wrap:wrap;">
-      <span class="sync-pill" id="complianceStatus" title="Gesamtstatus">—</span>
-      <button class="btn" onclick="selectTab('settings')">Details</button>
-    </div>
-  </div>
-  <div class="list" id="complianceList" style="margin-top:10px"></div>
-  <div class="hint" id="complianceHint" style="margin-top:10px">Tipp: Nutze „Monat abschließen“ für einen sauberen Monatsnachweis (PDF + Backup‑Hinweise).</div>
-</div>
-
-
-</div>
-<!-- Warnings -->
-<div class="card warning" id="dashboardWarnings" style="display:none"></div>
-<!-- Recent -->
-<div class="card">
-<h2>Zuletzt</h2>
-<div class="list" id="recentList"></div>
-</div>
-</section>
-</section>
-
-<!-- KALENDER (Monatsansicht) -->
 <section class="panel" id="calendar">
   <div class="card">
     <div class="row between" style="gap:10px; flex-wrap:wrap; align-items:center;">
@@ -1174,17 +978,147 @@
 <p class="muted" id="dsGvoText"></p>
 </div>
 </section>
+
+    <!-- Analytics (restored from head) -->
+    <section class="panel" id="analytics">
+  <h2>Auswertungen</h2>
+
+  <div class="row" style="gap:10px; margin: 6px 0 14px 0; flex-wrap:wrap;">
+    <button class="pill" id="anaTabGeneral" type="button">Allgemein</button>
+    <button class="pill" id="anaTabInvoices" type="button">Rechnungen</button>
+  </div>
+
+  <div id="analyticsGeneral">
+
+
+  <div class="card">
+    <div class="row between" style="gap:12px; flex-wrap:wrap;">
+      <div>
+        <div class="muted">Umsatz (ohne Feiertagszuschlag)</div>
+        <div style="font-size:34px; font-weight:800;" id="anaRevenueNet">–</div>
+      </div>
+      <div>
+        <div class="muted">Feiertagsumsatz</div>
+        <div style="font-size:22px; font-weight:700;" id="anaRevenueHoliday">–</div>
+        <label class="row" style="gap:10px; margin-top:8px;">
+          <input type="checkbox" id="anaIncludeHoliday"/>
+          <span class="muted">Feiertagsumsatz standardmäßig <strong>nicht</strong> mitzählen (Opt‑in)</span>
+        </label>
+      </div>
+      <div>
+        <div class="muted">Storno</div>
+        <div style="font-size:22px; font-weight:700;" id="anaCancelled">–</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Umsatz nach Monat (letzte 12 Monate)</h3>
+    <div style="overflow:auto;">
+      <table style="width:100%; border-collapse:collapse;" id="anaTable">
+        <thead>
+          <tr>
+            <th style="text-align:left; padding:8px 6px; border-bottom:1px solid rgba(255,255,255,.12);">Monat</th>
+            <th style="text-align:right; padding:8px 6px; border-bottom:1px solid rgba(255,255,255,.12);">Umsatz (netto*)</th>
+            <th style="text-align:right; padding:8px 6px; border-bottom:1px solid rgba(255,255,255,.12);">Feiertag</th>
+            <th style="text-align:right; padding:8px 6px; border-bottom:1px solid rgba(255,255,255,.12);">Belege</th>
+            <th style="text-align:right; padding:8px 6px; border-bottom:1px solid rgba(255,255,255,.12);">Storno</th>
+          </tr>
+        </thead>
+        <tbody id="anaTbody"></tbody>
+      </table>
+    </div>
+    <p class="muted" style="margin-top:10px;">* „netto“ bedeutet hier: <strong>Gesamtbetrag ohne Feiertagszuschlag</strong> (wie gewünscht standardmäßig).</p>
+  </div>
+
+  </div>
+
+  <div id="analyticsInvoices" style="display:none;">
+    <div class="card">
+      <div class="row between" style="gap:12px; flex-wrap:wrap; align-items:flex-end;">
+        <div class="row" style="gap:8px; flex-wrap:wrap;">
+          <button class="pill" type="button" data-ana-range="today">Heute</button>
+          <button class="pill" type="button" data-ana-range="week">Diese Woche</button>
+          <button class="pill" type="button" data-ana-range="month">Dieser Monat</button>
+          <button class="pill" type="button" data-ana-range="lastmonth">Letzter Monat</button>
+          <button class="pill" type="button" data-ana-range="year">Dieses Jahr</button>
+        </div>
+        <div class="row" style="gap:8px; flex-wrap:wrap; align-items:center;">
+          <label class="muted" for="anaInvFrom">Von</label>
+          <input id="anaInvFrom" type="date" class="input" style="max-width:160px;"/>
+          <label class="muted" for="anaInvTo">Bis</label>
+          <input id="anaInvTo" type="date" class="input" style="max-width:160px;"/>
+          <button class="pill" id="anaInvApply" type="button">Anwenden</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px;">
+      <div class="row between" style="gap:12px; flex-wrap:wrap;">
+        <div>
+          <div class="muted">Umsatz bezahlt</div>
+          <div style="font-size:30px; font-weight:800;" id="anaInvPaidSum">–</div>
+          <div class="muted" id="anaInvPaidCount"> </div>
+        </div>
+        <div>
+          <div class="muted">Offen</div>
+          <div style="font-size:24px; font-weight:800;" id="anaInvOpenSum">–</div>
+          <div class="muted" id="anaInvOpenCount"> </div>
+        </div>
+        <div>
+          <div class="muted">Storniert</div>
+          <div style="font-size:24px; font-weight:800;" id="anaInvCanceledSum">–</div>
+          <div class="muted" id="anaInvCanceledCount"> </div>
+        </div>
+        <div style="text-align:right;">
+          <div class="muted">Anzahl gesamt</div>
+          <div style="font-size:24px; font-weight:800;" id="anaInvTotalCount">–</div>
+          <button class="pill" id="anaInvPdf" type="button" style="margin-top:8px;">PDF-Report erstellen</button>
+        </div>
+      </div>
+      <div class="muted" id="anaInvRangeLabel" style="margin-top:10px;"></div>
+    </div>
+
+    <div class="card" style="margin-top:14px;">
+      <div class="row between" style="gap:10px; flex-wrap:wrap; align-items:center;">
+        <div style="font-weight:700;">Rechnungen (gefiltert)</div>
+        <div class="row" style="gap:8px; flex-wrap:wrap;">
+          <button class="pill" type="button" data-ana-status="all">Alle</button>
+          <button class="pill" type="button" data-ana-status="paid">Bezahlt</button>
+          <button class="pill" type="button" data-ana-status="open">Offen</button>
+          <button class="pill" type="button" data-ana-status="canceled">Storniert</button>
+        </div>
+      </div>
+      <div class="tablewrap" style="margin-top:10px;">
+        <table class="table" id="anaInvTable">
+          <thead>
+            <tr>
+              <th>Datum</th>
+              <th>Nr.</th>
+              <th>Kunde / Hund</th>
+              <th style="text-align:right;">Betrag</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</section>
+
 </main>
 <footer class="footer">
 <span>© Doggy Style Workspace · Offline‑PWA</span>
 </footer>
 </div>
 <!-- Firebase (optional) + Config -->
-<script defer="defer" src="firebase-config.js?v=ANA0362"></script>
+<script defer="defer" src="firebase-config.js?v=20251228a"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-<script defer="defer" src="app.js?v=ANA0362"></script>
+<script defer="defer" src="js/app.js?v=ANA0364"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1294,7 +1228,7 @@
 <!-- Dummy für Legacy-Signatur -->
 <canvas height="1" id="sigPad" style="display:none" width="1"></canvas>
 <!-- Sichtbarer Build-Zähler (Variante A) -->
-<div class="build-badge" id="buildBadge" title="Build-Zähler">Build: ANA037P2</div>
+<div class="build-badge" id="buildBadge" title="Build-Zähler">Build: V10FIX6-A-ANA0364</div>
 
 <!-- V10 Modal Editor (stable, tab-independent) -->
 <style>
@@ -1346,16 +1280,21 @@
   </div>
 </div>
 
-
-<!-- ANA036.2 AUTH_READY_GUARD_FIX -->
-  <script defer src="./app_init.js?v=ANA037P2"></script>
-
   <!-- Firebase (compat) -->
-  <script defer src="https://www.gstatic.com/firebasejs/9.6.11/firebase-app-compat.js"></script>
-  <script defer src="https://www.gstatic.com/firebasejs/9.6.11/firebase-auth-compat.js"></script>
-  <script defer src="https://www.gstatic.com/firebasejs/9.6.11/firebase-firestore-compat.js"></script>
-  <!-- Must run AFTER firebase-* scripts -->
-  <script defer src="firebase-config.js?v=__TS__"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+
+  <!-- Projekt-Config (WICHTIG: richtige Keys/Domain) -->
+  <script src="./firebase-config.js?v=ANA037P9"></script>
+
+  <!-- App-Code -->
+  <script defer src="./js/auth.js?v=ANA037P9"></script>
+  <script defer src="./js/app.js?v=ANA037P9"></script>
+  <script defer src="./app_init.js?v=ANA037P9"></script>
 
 </body>
+</html>
+
 </html>

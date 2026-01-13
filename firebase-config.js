@@ -1,44 +1,40 @@
-// firebase-config.js
-// Central Firebase configuration + initialization (compat SDK).
-// This file is intentionally safe to include before/after other modules, but MUST run after firebase-app-compat is loaded.
+// firebase-config.js (ANA037P9)
+// Diese Datei enthält NUR die Projekt-Konfiguration + robustes Init (Compat SDK).
+// Wichtig: Werte müssen zu deinem Firebase-Projekt passen.
 
-(function(){
-  // Keep existing config values (edit here if needed)
-  const firebaseConfig = {
-    apiKey: "AIzaSyB62d6UoYlPRC3VlWyBJ70dArq0M2gPK88",
-    authDomain: "doggy-style-workspace.firebaseapp.com",
-    projectId: "doggy-style-workspace",
-    storageBucket: "doggy-style-workspace.appspot.com",
-    messagingSenderId: "1066192357280",
-    appId: "1:1066192357280:web:3e53ba1cc3a2d73de6c25a"
+(function () {
+  // === Firebase Web Config (aus deiner Firebase Console) ===
+  window.FIREBASE_CONFIG = {
+    apiKey: "AIzaSyD7Os8yl8FEFquvv5nEj270-NaF1BA8IJ8",
+    authDomain: "doggy-style-hundepension.firebaseapp.com",
+    projectId: "doggy-style-hundepension",
+    storageBucket: "doggy-style-hundepension.firebasestorage.app",
+    messagingSenderId: "407371827200",
+    appId: "1:407371827200:web:b51a856d20617dd9f070e5"
   };
 
-  // Expose config for debugging/diag
-  window.DS_FIREBASE_CONFIG = firebaseConfig;
+  // === Robust Init: wartet bis window.firebase (compat) verfügbar ist ===
+  function tryInit() {
+    try {
+      if (!window.firebase || !window.firebase.initializeApp) return false;
 
-  function init(){
-    try{
-      if(!window.firebase || !firebase.initializeApp){
-        // Firebase libs not loaded yet; try again shortly.
-        setTimeout(init, 0);
-        return;
-      }
-      // Initialize once
-      if(!firebase.apps || !firebase.apps.length){
-        firebase.initializeApp(firebaseConfig);
-      }
-      // Optional: expose Firestore instance (compat)
-      try{
-        if(firebase.firestore && !window.db){
-          window.db = firebase.firestore();
-        }
-      }catch(_){}
-      window.DS_FIREBASE_READY = true;
-    }catch(err){
-      console.error("DS_FIREBASE_INIT_ERROR", err);
-      window.DS_FIREBASE_READY = false;
+      // Schon initialisiert?
+      if (window.firebase.apps && window.firebase.apps.length) return true;
+
+      window.firebase.initializeApp(window.FIREBASE_CONFIG);
+
+      // kleine Guard-Flags für Debug
+      window.__FIREBASE_READY__ = true;
+      return true;
+    } catch (e) {
+      console.error("FIREBASE_INIT_ERROR", e);
+      window.__FIREBASE_READY__ = false;
+      return false;
     }
   }
 
-  init();
+  (function loop() {
+    if (tryInit()) return;
+    setTimeout(loop, 50);
+  })();
 })();
