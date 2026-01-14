@@ -1,4 +1,1 @@
-(function () {
-  'use strict';
-  console.log('[auth.js] loaded');
-})();
+(function(){'use strict';function $(i){return document.getElementById(i);}function msg(t){var m=$('authMsg');if(m)m.textContent=t||'';}function ready(){return window.firebase&&firebase.auth;}function val(i){var e=$(i);return e&&e.value?e.value.trim():'';}function login(){if(!ready())return msg('Firebase nicht bereit');var e=val('loginEmail'),p=val('loginPass');if(!e||!p)return msg('E-Mail & Passwort nötig');firebase.auth().signInWithEmailAndPassword(e,p).then(()=>msg('Login OK')).catch(r=>msg(r.message));}function reg(){if(!ready())return msg('Firebase nicht bereit');var e=val('loginEmail'),p=val('loginPass');firebase.auth().createUserWithEmailAndPassword(e,p).then(()=>msg('Registriert')).catch(r=>msg(r.message));}function forgot(){var e=val('loginEmail');if(!e)return msg('E-Mail fehlt');firebase.auth().sendPasswordResetEmail(e).then(()=>msg('Mail gesendet')).catch(r=>msg(r.message));}document.addEventListener('DOMContentLoaded',function(){if($('btnLogin'))$('btnLogin').onclick=login;if($('btnRegister'))$('btnRegister').onclick=reg;if($('btnForgot'))$('btnForgot').onclick=forgot;});})();
