@@ -69,4 +69,27 @@
       }
     }, 250);
   });
+   // ---- START-HOOK für den Safari-Loader ----
+  // Der Loader sucht u.a. window.startApp. Wir stellen ihn bereit
+  // und leiten dann auf die echte Init-Funktion weiter (falls vorhanden).
+  window.startApp = function () {
+    try {
+      // Wenn irgendwo bereits eine echte Boot-Funktion existiert, rufen wir sie auf:
+      var candidates = ['bootApp','initApp','appInit','DS_BOOT','DS_init'];
+      for (var i=0; i<candidates.length; i++) {
+        var h = candidates[i];
+        if (typeof window[h] === 'function') {
+          return window[h]();
+        }
+      }
+
+      // Falls es keinen echten Boot gibt, markieren wir wenigstens "bereit"
+      // (damit du siehst, dass JS läuft) – aber UI baut sich dann nicht von selbst.
+      window.__APP_READY = true;
+      setBadge('JS OK (kein Boot gefunden)', true);
+    } catch (e) {
+      setBadge('JS FEHLER: ' + (e && e.message ? e.message : String(e)), false);
+      throw e;
+    }
+  };  
 })();
