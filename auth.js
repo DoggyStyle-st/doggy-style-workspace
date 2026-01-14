@@ -1,237 +1,164 @@
 /* ANA037_AUTH_ES5_FIX
- * auth.js (ES5) – iPad/Safari/PWA safe
- * - exposes window.startApp(), window.initAuth(), window.showLogin()
- * - no async/await, no const/let, no optional chaining
- */
+   ES5/ES2015-kompatibel (kein async/await, keine arrow functions).
+   Erwartet Firebase compat libs:
+     https://www.gstatic.com/firebasejs/9.6.11/firebase-app-compat.js
+     https://www.gstatic.com/firebasejs/9.6.11/firebase-auth-compat.js
+   firebase-config.js (ROOT) soll window.firebaseConfig setzen und idealerweise firebase.initializeApp(...) ausführen.
+
+   Exportiert:
+     - window.initAuth(): Guard für app.html (wenn nicht eingeloggt -> login.html)
+     - window.showLogin(): Erzwungen zu login.html
+     - window.doLogout(): SignOut
+*/
 (function(){
   'use strict';
 
   function $(id){ return document.getElementById(id); }
 
-  function log(){
-    try { console.log.apply(console, arguments); } catch(e) {}
-  }
-
-  function toast(text, ok){
+  function toast(msg, ok){
     try{
-      if(typeof window.toast === 'function') return window.toast(text, ok);
+      // Wenn dein app.js Loader/Badge bereits toast() anbietet, nutzen wir das.
+      if (typeof window.toast === 'function') { window.toast(msg, !!ok); return; }
     }catch(e){}
-    var m = $('authMsg');
-    if(m) m.textContent = text || '';
+    // Fallback: kleine Statuszeile
+    var el = $('authMsg');
+    if (el) el.textContent = msg;
   }
 
-  function hasFirebaseCompat(){
-    return !!(window.firebase && window.firebase.initializeApp && window.firebase.auth);
-  }
-
-  function ensureFirebaseApp(){
-    if(!hasFirebaseCompat()){
-      toast('Firebase libs fehlen (compat).', false);
+  function ensureFirebase(){
+    if (!window.firebase || !window.firebase.auth) {
+      toast('Firebase libs fehlen (firebase-auth-compat.js?)', false);
       return false;
     }
-    if(!window.firebaseConfig){
+    // Config sollte in firebase-config.js gesetzt werden
+    if (!window.firebaseConfig) {
       toast('firebaseConfig fehlt (firebase-config.js nicht geladen)', false);
       return false;
     }
+
+    // Falls firebase-config.js NICHT initialisiert hat, hier defensiv initialisieren
     try{
-      if(!window.firebase.apps || !window.firebase.apps.length){
+      if (!window.firebase.apps || !window.firebase.apps.length) {
         window.firebase.initializeApp(window.firebaseConfig);
-        log('[auth] firebase initialized');
       }
-      return true;
     }catch(e){
-      toast('Firebase init Fehler: ' + (e && e.message ? e.message : String(e)), false);
-      return false;
+      // already exists / init error
     }
+    return true;
   }
 
-  function isLoginPage(){
-    return !!($('btnLogin') || $('loginEmail') || $('loginPass'));
-  }
-
-  function gotoLogin(){
-    try{ window.location.href = 'login.html'; }catch(e){}
-  }
-
-  function gotoApp(){
-    try{ window.location.href = 'app.html'; }catch(e){}
-  }
-
-  function bindLoginHandlers(){
+  function bindLoginUI(){
     var btnLogin = $('btnLogin');
-    var btnRegister = $('btnRegister');
-    var btnForgot = $('btnForgot');
+    if (!btnLogin) return;
 
-    function getEmail(){
-      var v = $('loginEmail') ? $('loginEmail').value : '';
-      return (v || '').trim();
-    }
-    function getPass(){
-      return $('loginPass') ? $('loginPass').value : '';
-    }
+    btnLogin.addEventListener('click', function(){
+      if (!ensureFirebase()) return;
 
-    function disableAll(dis){
-      if(btnLogin) btnLogin.disabled = !!dis;
-      if(btnRegister) btnRegister.disabled = !!dis;
-      if(btnForgot) btnForgot.disabled = !!dis;
-    }
+      var emailEl = $('loginEmail');
+      var passEl  = $('loginPass');
+      var email = emailEl ? String(emailEl.value || '').trim() : '';
+      var pass  = passEl ? String(passEl.value || '') : '';
 
-    function doLogin(){
-      if(!ensureFirebaseApp()) return;
-      var email = getEmail();
-      var pass = getPass();
-      if(!email || !pass){
-        toast('Bitte E‑Mail und Passwort eingeben.', false);
+      if (!email || !pass){
+        toast('Bitte E-Mail + Passwort eingeben', false);
         return;
       }
-      disableAll(true);
-      toast('Anmelden…', true);
+
+      btnLogin.disabled = true;
+      toast('Anmelden...', true);
+
       window.firebase.auth().signInWithEmailAndPassword(email, pass)
         .then(function(){
-          toast('Angemeldet ✓', true);
-          setTimeout(gotoApp, 200);
+          toast('OK – weiter...', true);
+          // Nach Login immer in die App
+          window.location.href = 'app.html';
         })
         .catch(function(err){
           var msg = (err && err.message) ? err.message : String(err);
           toast('Login fehlgeschlagen: ' + msg, false);
         })
         .then(function(){
-          // runs after then OR catch
-          disableAll(false);
+          btnLogin.disabled = false;
         });
-    }
 
-    function doRegister(){
-      if(!ensureFirebaseApp()) return;
-      var email = getEmail();
-      var pass = getPass();
-      if(!email || !pass){
-        toast('Bitte E‑Mail und Passwort eingeben.', false);
-        return;
-      }
-      disableAll(true);
-      toast('Registrieren…', true);
-      window.firebase.auth().createUserWithEmailAndPassword(email, pass)
-        .then(function(){
-          toast('Account erstellt ✓ (jetzt angemeldet)', true);
-          setTimeout(gotoApp, 200);
-        })
-        .catch(function(err){
-          var msg = (err && err.message) ? err.message : String(err);
-          toast('Registrierung fehlgeschlagen: ' + msg, false);
-        })
-        .then(function(){
-          disableAll(false);
-        });
-    }
+    });
 
-    function doForgot(){
-      if(!ensureFirebaseApp()) return;
-      var email = getEmail();
-      if(!email){
-        toast('Bitte E‑Mail eingeben.', false);
-        return;
-      }
-      disableAll(true);
-      toast('Sende Passwort‑Mail…', true);
-      window.firebase.auth().sendPasswordResetEmail(email)
-        .then(function(){
-          toast('Mail verschickt ✓', true);
-        })
-        .catch(function(err){
-          var msg = (err && err.message) ? err.message : String(err);
-          toast('Fehler: ' + msg, false);
-        })
-        .then(function(){
-          disableAll(false);
-        });
-    }
-
-    if(btnLogin) btnLogin.addEventListener('click', doLogin);
-    if(btnRegister) btnRegister.addEventListener('click', doRegister);
-    if(btnForgot) btnForgot.addEventListener('click', doForgot);
-
-    // enter key triggers login
-    var emailEl = $('loginEmail');
-    var passEl = $('loginPass');
-    function onKey(e){
-      e = e || window.event;
-      var code = e.keyCode || e.which;
-      if(code === 13){
-        doLogin();
-      }
-    }
-    if(emailEl) emailEl.addEventListener('keydown', onKey);
-    if(passEl) passEl.addEventListener('keydown', onKey);
-  }
-
-  function showLogin(){
-    // If we are already logged in, go to app
-    if(!ensureFirebaseApp()) return;
-    try{
-      window.firebase.auth().onAuthStateChanged(function(user){
-        if(user){
-          toast('Schon angemeldet ✓', true);
-          setTimeout(gotoApp, 200);
-        }
+    var btnForgot = $('btnForgot');
+    if (btnForgot){
+      btnForgot.addEventListener('click', function(){
+        if (!ensureFirebase()) return;
+        var emailEl = $('loginEmail');
+        var email = emailEl ? String(emailEl.value || '').trim() : '';
+        if (!email){ toast('Bitte E-Mail eintragen', false); return; }
+        window.firebase.auth().sendPasswordResetEmail(email)
+          .then(function(){ toast('Reset-Mail gesendet', true); })
+          .catch(function(err){
+            toast('Reset fehlgeschlagen: ' + ((err&&err.message)||String(err)), false);
+          });
       });
-    }catch(e){}
-    bindLoginHandlers();
-    toast('Bitte anmelden.', true);
-    window.__APP_READY = true;
-  }
-
-  function initAuth(){
-    if(!ensureFirebaseApp()){
-      // retry once after a short delay – helps on iOS when scripts arrive late
-      setTimeout(function(){ ensureFirebaseApp(); }, 300);
-      return;
     }
 
-    if(isLoginPage()){
-      showLogin();
-      return;
-    }
-
-    // App page: enforce login
-    try{
-      window.firebase.auth().onAuthStateChanged(function(user){
-        if(!user){
-          toast('Nicht angemeldet → Login', false);
-          setTimeout(gotoLogin, 150);
-          return;
-        }
-        // Mark auth as ready for the loader
-        window.__AUTH_READY = true;
-        window.__APP_READY = true;
-        toast('Auth OK ✓', true);
-
-        // If the legacy app exposes an init hook, call it.
-        var hooks = ['bootApp','initApp','appInit','DS_BOOT','DS_init','app_start'];
-        for(var i=0;i<hooks.length;i++){
-          var h = hooks[i];
-          if(typeof window[h] === 'function'){
-            try{
-              window[h]();
-              toast('App gestartet: '+h, true);
-            }catch(e){
-              toast('App‑Hook Fehler ('+h+'): ' + (e && e.message ? e.message : String(e)), false);
-            }
-            break;
-          }
-        }
+    var btnRegister = $('btnRegister');
+    if (btnRegister){
+      btnRegister.addEventListener('click', function(){
+        toast('Registrieren ist in dieser Version deaktiviert.', false);
       });
-    }catch(e){
-      toast('Auth listener Fehler: ' + (e && e.message ? e.message : String(e)), false);
     }
   }
 
-  // ---- expose hooks for app.js loader ----
-  window.showLogin = showLogin;
-  window.initAuth = initAuth;
-  // The loader looks for startApp as a final hook
-  window.startApp = function(){
-    initAuth();
+  function bindLogoutUI(){
+    var btn = $('btnLogout') || $('btnAbmelden') || $('btnSignOut');
+    if (!btn) return;
+    btn.addEventListener('click', function(){
+      if (!ensureFirebase()) { window.location.href='login.html'; return; }
+      window.firebase.auth().signOut().then(function(){
+        window.location.href='login.html';
+      }).catch(function(){
+        window.location.href='login.html';
+      });
+    });
+  }
+
+  // ---- Exports for app.html guard ----
+  window.showLogin = function(){
+    window.location.href = 'login.html';
   };
 
+  window.initAuth = function(){
+    if (!ensureFirebase()) return false;
+
+    try{
+      window.firebase.auth().onAuthStateChanged(function(user){
+        if (!user){
+          // Nicht eingeloggt -> login
+          window.location.href = 'login.html';
+          return;
+        }
+        // eingeloggt -> UI freigeben
+        try{ window.__AUTH_OK = true; }catch(e){}
+        bindLogoutUI();
+      });
+      return true;
+    }catch(e){
+      toast('Auth init Fehler: ' + (e && e.message ? e.message : String(e)), false);
+      return false;
+    }
+  };
+
+  window.doLogout = function(){
+    if (!ensureFirebase()) { window.location.href='login.html'; return; }
+    window.firebase.auth().signOut().then(function(){
+      window.location.href='login.html';
+    }).catch(function(){
+      window.location.href='login.html';
+    });
+  };
+
+  // Auto-bind, wenn wir auf login.html sind
+  document.addEventListener('DOMContentLoaded', function(){
+    // Nur binden, wenn Login-Form existiert
+    if ($('btnLogin') || $('loginEmail') || $('loginPass')) {
+      bindLoginUI();
+    }
+  });
 })();
