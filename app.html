@@ -11,18 +11,22 @@
   <div id="appRoot"></div>
 
   <!-- Firebase config from ROOT -->
-  <script defer src="./firebase-config.js?v=ANA037_FIXPACK"></script>
+  <script defer src="./firebase-config.js?v=ANA037_APP_CFG1"></script>
 
-  <!-- Firebase compat libs (keep consistent) -->
+  <!-- Firebase compat libs (keep one version line) -->
   <script defer src="https://www.gstatic.com/firebasejs/9.6.11/firebase-app-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/9.6.11/firebase-auth-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/9.6.11/firebase-firestore-compat.js"></script>
 
-  <!-- Auth + boot badge + loader -->
-  <script defer src="./auth.js?v=ANA037_FIXPACK"></script>
-  <script defer src="./app_init.js?v=ANA037_FIXPACK"></script>
-  <script defer src="./app.js?v=ANA037_FIXPACK"></script>
+  <!-- Auth routing + login/app bridge -->
+  <script defer src="./auth.js?v=ANA037_AUTH_ES5"></script>
 
-  <div class="build-badge" id="buildBadge">Build ANA037-FIXPACK</div>
+  <!-- Main app (exports start hooks) -->
+  <script defer src="./app.js?v=ANA037_APP_START_HOOK2"></script>
+
+  <!-- Boot badge (optional) - keep AFTER app.js so it sees hooks -->
+  <script defer src="./app_init.js?v=ANA037_APP_INIT2"></script>
+
+  <div class="build-badge" id="buildBadge">Build ANA037-START-HOOK</div>
 </body>
 </html>

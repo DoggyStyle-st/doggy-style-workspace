@@ -1,26 +1,57 @@
-/* ANA037 auth.js (ES5)
-   Provides: window.initAuth(), window.showLogin(), window.DSAuth.*
-   Works with Firebase compat (9.6.11). No async/await.
+/* ANA037 AUTH (ES5, ROOT)
+   Provides global hooks: initAuth(), showLogin(), doLogin().
+   Works on Safari/iPad, GitHub Pages, Firebase compat (9.x / 10.x).
 */
 (function(){
   'use strict';
 
+  // --- tiny log helpers (no console crashes) ---
   function log(){ try{ console.log.apply(console, arguments); }catch(e){} }
   function warn(){ try{ console.warn.apply(console, arguments); }catch(e){} }
 
+  // --- UI message helper (optional) ---
+  function setMsg(id, txt, ok){
+    try{
+      var el = document.getElementById(id);
+      if(!el) return;
+      el.textContent = txt || '';
+      el.style.color = ok ? '#7CFF7C' : '#FF7C7C';
+    }catch(e){}
+  }
+
+  // --- wait until firebase compat libs are present ---
+  function waitForFirebase(cb){
+    var tries = 0;
+    var t = setInterval(function(){
+      tries++;
+      var ok = !!(window.firebase && window.firebase.initializeApp && window.firebase.auth);
+      if(ok){
+        clearInterval(t);
+        cb(true);
+        return;
+      }
+      if(tries > 200){ // ~20s
+        clearInterval(t);
+        cb(false);
+      }
+    }, 100);
+  }
+
   function ensureFirebaseInit(){
     try{
-      if(!window.firebaseConfig){
-        warn('[auth] firebaseConfig missing (firebase-config.js not loaded)');
-        return false;
+      if(window.firebase && window.firebase.apps && window.firebase.apps.length){
+        return true;
       }
       if(!window.firebase || !window.firebase.initializeApp){
         return false;
       }
-      if(!firebase.apps || !firebase.apps.length){
-        firebase.initializeApp(window.firebaseConfig);
-        log('[auth] firebase initialized');
+      if(!window.firebaseConfig){
+        // firebase-config.js should set window.firebaseConfig
+        warn('[auth] firebaseConfig missing');
+        return false;
       }
+      window.firebase.initializeApp(window.firebaseConfig);
+      log('[auth] firebase initialized');
       return true;
     }catch(e){
       warn('[auth] init error', e);
@@ -28,109 +59,148 @@
     }
   }
 
-  function ensureAuth(){
+  function pageName(){
+    var p = (location.pathname || '').toLowerCase();
+    if(p.indexOf('login.html') !== -1) return 'login';
+    if(p.indexOf('app.html') !== -1) return 'app';
+    return 'other';
+  }
+
+  function gotoLogin(){
+    // Preserve target so we can return after login
     try{
-      if(!ensureFirebaseInit()) return null;
-      if(!firebase.auth) return null;
-      return firebase.auth();
+      var next = encodeURIComponent('app.html');
+      location.replace('login.html?next='+next);
     }catch(e){
-      warn('[auth] auth missing', e);
-      return null;
+      location.href='login.html';
     }
   }
 
-  function friendlyError(err){
-    if(!err) return '';
-    var c = err.code || '';
-    var m = err.message || String(err);
-    if(c === 'auth/invalid-email') return 'E-Mail ungültig.';
-    if(c === 'auth/user-not-found') return 'Benutzer nicht gefunden.';
-    if(c === 'auth/wrong-password') return 'Passwort falsch.';
-    if(c === 'auth/too-many-requests') return 'Zu viele Versuche – bitte später erneut.';
-    return m;
-  }
-
-  function showLogin(){
+  function gotoApp(){
     try{
-      var p = (location.pathname||'').toLowerCase();
-      if(p.indexOf('login.html') !== -1) return;
+      var url = new URL(location.href);
+      var next = url.searchParams.get('next');
+      if(next){ location.replace(next); return; }
     }catch(e){}
-    location.href = './login.html';
+    location.replace('app.html');
   }
 
-  function initAuth(opts){
-    opts = opts || {};
-    var tries = 0;
-    function tick(){
-      tries++;
-      var auth = ensureAuth();
-      if(!auth){
-        if(tries < 40) return setTimeout(tick, 100);
-        warn('[auth] firebase/auth not ready (timeout)');
-        if(opts.onError) opts.onError('Firebase/Auth nicht bereit.');
+  function bindLoginForm(){
+    var btn = document.getElementById('btnLogin') || document.getElementById('loginBtn') || document.querySelector('button[type="submit"]');
+    var emailEl = document.getElementById('loginEmail') || document.getElementById('email') || document.querySelector('input[type="email"]');
+    var passEl  = document.getElementById('loginPass')  || document.getElementById('password') || document.querySelector('input[type="password"]');
+    var msgId   = 'authMsg';
+
+    if(!btn || !emailEl || !passEl){
+      // Some builds use different ids; don't hard-fail.
+      warn('[auth] login form elements missing', {btn:!!btn, email:!!emailEl, pass:!!passEl});
+    }
+
+    function doLogin(ev){
+      if(ev && ev.preventDefault) ev.preventDefault();
+      var email = (emailEl && emailEl.value || '').trim();
+      var pass  = (passEl && passEl.value || '');
+      if(!email || !pass){
+        setMsg(msgId, 'Bitte E‑Mail und Passwort eingeben.', false);
+        return;
+      }
+      setMsg(msgId, 'Anmeldung…', true);
+
+      try{
+        var auth = window.firebase.auth();
+        auth.signInWithEmailAndPassword(email, pass)
+          .then(function(){
+            setMsg(msgId, 'Login OK – weiter…', true);
+            // onAuthStateChanged will redirect; but do a small fallback:
+            setTimeout(function(){ gotoApp(); }, 250);
+          })
+          .catch(function(err){
+            setMsg(msgId, (err && err.message) ? err.message : 'Login fehlgeschlagen', false);
+          });
+      }catch(e){
+        setMsg(msgId, 'Login-Fehler: ' + (e && e.message ? e.message : String(e)), false);
+      }
+    }
+
+    // make available for legacy hooks
+    window.doLogin = doLogin;
+
+    if(btn){
+      btn.addEventListener('click', doLogin, false);
+      // iOS Safari sometimes needs touchstart
+      btn.addEventListener('touchstart', function(){}, false);
+    }
+    if(passEl){
+      passEl.addEventListener('keydown', function(ev){
+        var k = ev && (ev.key || ev.keyCode);
+        if(k === 'Enter' || k === 13){
+          doLogin(ev);
+        }
+      }, false);
+    }
+  }
+
+  function initAuth(){
+    // This is the requested global hook.
+    // It sets up auth-state routing for login/app pages.
+    waitForFirebase(function(ok){
+      if(!ok){
+        setMsg('authMsg', 'Firebase nicht bereit (libs fehlen)', false);
+        return;
+      }
+      if(!ensureFirebaseInit()){
+        setMsg('authMsg', 'Firebase Config fehlt/Init fehlgeschlagen', false);
         return;
       }
 
+      var where = pageName();
       try{
+        var auth = window.firebase.auth();
         auth.onAuthStateChanged(function(user){
-          if(user){
-            window.__AUTH_USER = user;
-            if(opts.onAuthed) opts.onAuthed(user);
-          } else {
-            if(opts.mode === 'login'){
-              if(opts.onNotAuthed) opts.onNotAuthed();
-            } else {
-              showLogin();
-              if(opts.onNotAuthed) opts.onNotAuthed();
+          // expose user
+          window.__AUTH_USER = user || null;
+
+          if(where === 'login'){
+            if(user){
+              // Already logged in -> go to app
+              gotoApp();
+            }else{
+              bindLoginForm();
+              setMsg('authMsg', 'Bereit', true);
+            }
+          }else if(where === 'app'){
+            if(!user){
+              gotoLogin();
+            }else{
+              // Auth ok: start app if there is a hook
+              try{
+                if(typeof window.startApp === 'function'){
+                  window.startApp();
+                }
+              }catch(e){}
             }
           }
         }, function(err){
-          var msg = friendlyError(err);
-          if(opts.onError) opts.onError(msg);
+          setMsg('authMsg', (err && err.message) ? err.message : 'Auth Fehler', false);
         });
       }catch(e){
-        if(opts.onError) opts.onError(friendlyError(e));
+        setMsg('authMsg', 'Auth init error: ' + (e && e.message ? e.message : String(e)), false);
       }
-    }
-    tick();
+    });
   }
 
-  window.DSAuth = window.DSAuth || {};
+  function showLogin(){
+    gotoLogin();
+  }
 
-  window.DSAuth.login = function(email, pass, cb){
-    cb = cb || function(){};
-    var auth = ensureAuth();
-    if(!auth) return cb('Firebase/Auth nicht bereit.');
-    auth.signInWithEmailAndPassword(email, pass)
-      .then(function(){ cb(null); })
-      .catch(function(err){ cb(friendlyError(err)); });
-  };
-
-  window.DSAuth.register = function(email, pass, cb){
-    cb = cb || function(){};
-    var auth = ensureAuth();
-    if(!auth) return cb('Firebase/Auth nicht bereit.');
-    auth.createUserWithEmailAndPassword(email, pass)
-      .then(function(){ cb(null); })
-      .catch(function(err){ cb(friendlyError(err)); });
-  };
-
-  window.DSAuth.resetPassword = function(email, cb){
-    cb = cb || function(){};
-    var auth = ensureAuth();
-    if(!auth) return cb('Firebase/Auth nicht bereit.');
-    auth.sendPasswordResetEmail(email)
-      .then(function(){ cb(null); })
-      .catch(function(err){ cb(friendlyError(err)); });
-  };
-
-  window.DSAuth.logout = function(cb){
-    cb = cb || function(){};
-    var auth = ensureAuth();
-    if(!auth) return cb('Firebase/Auth nicht bereit.');
-    auth.signOut().then(function(){ cb(null); }).catch(function(err){ cb(friendlyError(err)); });
-  };
-
+  // Export globals (legacy)
   window.initAuth = initAuth;
   window.showLogin = showLogin;
+
+  // Auto-run on both pages (safe)
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ try{ initAuth(); }catch(e){} }, false);
+  }else{
+    try{ initAuth(); }catch(e){}
+  }
 })();
