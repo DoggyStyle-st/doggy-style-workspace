@@ -16,6 +16,16 @@
     el.className = 'status ' + (ok ? 'ok' : 'err');
   }
 
+  function setButtonsEnabled(enabled){
+    var ids = ['btnLogin','btnRegister','btnReset'];
+    for(var i=0;i<ids.length;i++){
+      var b = qs(ids[i]);
+      if(!b) continue;
+      b.disabled = !enabled;
+      b.style.opacity = enabled ? '1' : '0.6';
+    }
+  }
+
   function isFirebaseReady(){
     try{ return !!(window.firebase && firebase.auth && firebase.auth()); }catch(e){ return false; }
   }
@@ -24,8 +34,10 @@
     var tries = 0;
     (function tick(){
       tries++;
-      if(isFirebaseReady()) return cb();
-      if(tries > 200) { setStatus('Firebase nicht bereit (Timeout).', false); return; }
+      if(isFirebaseReady()) return cb(true);
+      // Safari/iPad + GitHub Pages: Firebase-Libs können verzögert laden.
+      // Deshalb geben wir hier mehr Zeit, bevor wir mit "Timeout" abbrechen.
+      if(tries > 600) { return cb(false); }
       setTimeout(tick, 50);
     })();
   }
@@ -58,9 +70,23 @@
       if(btnReset) btnReset.disabled = v;
     }
 
+    // Startzustand: Buttons erst freigeben, wenn Firebase wirklich geladen ist.
+    disable(true);
+    setStatus('Lade Firebase…', false);
+    waitFirebase(function(ok){
+      if(!ok){
+        setStatus('Firebase nicht bereit (Timeout).', false);
+        disable(false);
+        return;
+      }
+      disable(false);
+      setStatus('Bereit', true);
+    });
+
     function doLogin(ev){
       if(ev && ev.preventDefault) ev.preventDefault();
-      waitFirebase(function(){
+      waitFirebase(function(ok){
+        if(!ok){ setStatus('Firebase nicht bereit (Timeout).', false); return; }
         var email = valEmail();
         var pass  = valPass();
         if(!email || !pass){ setStatus('Bitte E‑Mail & Passwort eingeben.', false); return; }
@@ -80,7 +106,8 @@
 
     function doRegister(ev){
       if(ev && ev.preventDefault) ev.preventDefault();
-      waitFirebase(function(){
+      waitFirebase(function(ok){
+        if(!ok){ setStatus('Firebase nicht bereit (Timeout).', false); disable(false); return; }
         var email = valEmail();
         var pass  = valPass();
         if(!email || !pass){ setStatus('Bitte E‑Mail & Passwort eingeben.', false); return; }
@@ -99,7 +126,8 @@
 
     function doReset(ev){
       if(ev && ev.preventDefault) ev.preventDefault();
-      waitFirebase(function(){
+      waitFirebase(function(ok){
+        if(!ok){ setStatus('Firebase nicht bereit (Timeout).', false); disable(false); return; }
         var email = valEmail();
         if(!email){ setStatus('Bitte E‑Mail eingeben.', false); return; }
         disable(true);
