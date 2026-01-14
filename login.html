@@ -1,24 +1,55 @@
 <!doctype html>
 <html lang="de">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>DoggyStyle Workspace – Login</title>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <title>Login – DoggyStyle Workspace</title>
   <link rel="stylesheet" href="./css/styles.css">
   <link rel="stylesheet" href="./css/dashboard_master.css">
+  <style>
+    body{ margin:0; min-height:100vh; display:flex; align-items:flex-start; justify-content:center; }
+    .login-wrap{ width:min(1100px, calc(100vw - 24px)); margin:24px 12px; padding:18px; border-radius:18px;
+      background:rgba(255,255,255,.10); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      border:1px solid rgba(255,255,255,.14);
+    }
+    .row{ display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+    .row label{ color:#ddd; font-family:system-ui; font-size:14px; }
+    .row input{ flex:1; min-width:240px; padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,.22);
+      background:rgba(0,0,0,.25); color:#fff; outline:none;
+    }
+    .btn{ padding:8px 14px; border-radius:999px; border:1px solid rgba(255,255,255,.22);
+      background:rgba(255,255,255,.85); color:#111; font-weight:600;
+    }
+    .btn.secondary{ background:rgba(255,255,255,.65); }
+    .btn.link{ background:transparent; color:#ddd; border-color:rgba(255,255,255,.22); }
+    .meta{ margin-top:8px; display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap; }
+    .small{ font-family:system-ui; font-size:12px; opacity:.85; }
+    .build-badge{ position:fixed; left:10px; bottom:10px; }
+  </style>
 </head>
 <body>
-  <div id="loginRoot"></div>
-  <div class="build-badge" id="buildBadge">Build …</div>
+  <form id="loginForm" class="login-wrap" autocomplete="on">
+    <div class="row">
+      <label for="loginEmail">E‑Mail</label>
+      <input id="loginEmail" type="email" autocomplete="username" placeholder="name@domain.de" />
+      <label for="loginPass">Passwort</label>
+      <input id="loginPass" type="password" autocomplete="current-password" placeholder="••••••••" />
+      <button id="btnLogin" class="btn" type="submit">Anmelden</button>
+      <button id="btnRegister" class="btn secondary" type="button">Registrieren</button>
+      <button id="btnReset" class="btn link" type="button">Passwort vergessen?</button>
+    </div>
+    <div class="meta">
+      <div id="loginStatus" class="small" style="color:#6df58a;">Bereit</div>
+    </div>
+  </form>
 
-  <!-- Firebase config from ROOT -->
-  <script defer src="./firebase-config.js?v=ANA037_LOGIN_CFG"></script>
-  <!-- Firebase compat libs -->
+  <script defer src="./firebase-config.js?v=ANA037_BOOTFIX_CFG1"></script>
   <script defer src="https://www.gstatic.com/firebasejs/9.6.11/firebase-app-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/9.6.11/firebase-auth-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/9.6.11/firebase-firestore-compat.js"></script>
+  <script defer src="./app.js?v=ANA037_BOOTFIX_APP1"></script>
+  <script defer src="./auth.js?v=ANA037_BOOTFIX_AUTH1"></script>
 
-  <!-- Auth controller -->
-  <script defer src="./auth.js?v=ANA037_AUTH_STABLE"></script>
+  <div class="build-badge" id="buildBadge">Build ANA037-BOOTFIX</div>
 </body>
 </html>

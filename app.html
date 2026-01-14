@@ -1,28 +1,56 @@
 <!doctype html>
 <html lang="de">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
   <title>DoggyStyle Workspace</title>
   <link rel="stylesheet" href="./css/styles.css">
   <link rel="stylesheet" href="./css/dashboard_master.css">
 </head>
 <body>
-  <!-- legacy UI will render into #appRoot -->
   <div id="appRoot"></div>
-  <div class="build-badge" id="buildBadge">Build ANA037-STARTAPP-FINAL</div>
 
-  <!-- Firebase config from ROOT -->
-  <script defer src="./firebase-config.js?v=ANA037_APP_CFG"></script>
-  <!-- Firebase compat libs -->
-  <script defer src="https://www.gstatic.com/firebasejs/9.6.11/firebase-app-compat.js"></script>
-  <script defer src="https://www.gstatic.com/firebasejs/9.6.11/firebase-auth-compat.js"></script>
-  <script defer src="https://www.gstatic.com/firebasejs/9.6.11/firebase-firestore-compat.js"></script>
+  <div class="build-badge" id="buildBadge">Build ANA037-BOOTFIX-V3</div>
 
-  <!-- Auth guard (redirects to login.html if not logged in) -->
-  <script defer src="./auth.js?v=ANA037_AUTH_STABLE"></script>
+  <!-- 1) Firebase config (ROOT) -->
+  <script src="./firebase-config.js?v=ANA037_BOOTFIX_V3_CFG"></script>
 
-  <!-- Main loader (loads legacy scripts + starts app) -->
-  <script defer src="./app.js?v=ANA037_APP_LOADER"></script>
+  <!-- 2) Firebase compat libs -->
+  <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-firestore-compat.js"></script>
+
+  <!-- 3) Legacy bootstrap / glue -->
+  <script src="./app_init.js?v=ANA037_BOOTFIX_V3_INIT"></script>
+
+  <!-- 4) App loader (ensures execution even if caching/defer issues) -->
+  <script>
+  (function(){
+    var root = document.getElementById('appRoot');
+    if (root && !root.innerHTML) {
+      root.innerHTML = '<div style="padding:16px;color:#fff;opacity:.85">Boot…</div>';
+    }
+
+    function loadScript(src, cb){
+      var s=document.createElement('script');
+      s.src=src;
+      s.async=false;
+      s.onload=function(){ cb && cb(); };
+      s.onerror=function(){ 
+        if(root){ root.innerHTML='<div style="padding:16px;color:#ff8080">Fehler: '+src+' konnte nicht geladen werden.</div>'; }
+      };
+      document.body.appendChild(s);
+    }
+
+    // Always cache-bust app.js, because GitHub Pages + Safari can keep old JS.
+    loadScript('./app.js?v=' + Date.now(), function(){
+      try{
+        if (window.DS_startApp) window.DS_startApp();
+      }catch(e){
+        if(root){ root.innerHTML='<pre style="padding:16px;color:#ff8080;white-space:pre-wrap">Start-Fehler: '+(e && e.message ? e.message : e)+'</pre>'; }
+      }
+    });
+  })();
+  </script>
 </body>
 </html>
