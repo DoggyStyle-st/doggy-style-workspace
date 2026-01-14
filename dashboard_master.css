@@ -764,3 +764,40 @@
   width:22px !important;
   height:22px !important;
 }
+/* =========================================================
+   LOGIN CLICK FIX – iOS / Safari (FINAL)
+   ========================================================= */
+
+/* Login-Card MUSS klickbar sein */
+.loginCard,
+.loginCard * {
+  pointer-events: auto !important;
+}
+
+/* Login-Card über alle Overlays legen */
+.loginCard {
+  position: relative !important;
+  z-index: 999999 !important;
+}
+
+/* Typische Fullscreen- / Blur-Overlays deaktivieren */
+.panel,
+.panel::before,
+.panel::after,
+.blur,
+.backdrop,
+.background,
+.background *,
+main::before,
+main::after {
+  pointer-events: none !important;
+}
+
+/* Falls main alles blockiert */
+main {
+  pointer-events: none;
+}
+
+main .loginCard {
+  pointer-events: auto;
+}
