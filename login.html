@@ -1,55 +1,109 @@
 <!doctype html>
 <html lang="de">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-  <meta http-equiv="Pragma" content="no-cache" />
-  <meta http-equiv="Expires" content="0" />
-
-  <!-- IMPORTANT (GitHub Pages Project Site): force correct base path -->
-  <base href="/doggy-style-workspace/" />
-
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
   <title>Login – DoggyStyle Workspace</title>
-
-  <link rel="stylesheet" href="./css/styles.css" />
-  <link rel="stylesheet" href="./css/dashboard_master.css" />
+  <link rel="stylesheet" href="./css/styles.css">
+  <link rel="stylesheet" href="./css/dashboard_master.css">
+  <style>
+    body{min-height:100vh;}
+  </style>
 </head>
 <body>
-  <main class="panel is-active" style="min-height:100vh; display:flex; align-items:center; justify-content:center; padding:22px;">
-    <section class="card loginCard" aria-label="Anmeldung" style="max-width:900px; width:100%;">
-      <div class="row loginFields" style="gap:12px; flex-wrap:wrap;">
-        <label class="field" id="emailField" style="flex:1 1 320px;">
-          <span>E‑Mail</span>
-          <input id="loginEmail" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" />
-        </label>
-        <label class="field" id="pwField" style="flex:1 1 320px;">
-          <span>Passwort</span>
-          <input id="loginPass" type="password" autocomplete="current-password" autocapitalize="none" spellcheck="false" />
-        </label>
-      </div>
+  <main class="loginWrap">
+    <section class="panel is-active">
+      <div class="card loginCard" aria-label="Anmeldung">
+        <div class="row loginFields">
+          <label class="field" id="emailField">
+            <span>E-Mail</span>
+            <input id="loginEmail" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" />
+          </label>
 
-      <div class="authActions" style="margin-top:12px; display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center;">
-        <div class="authActions__left" style="display:flex; gap:10px; flex-wrap:wrap;">
-          <button id="btnLogin" class="primary" type="button">Anmelden</button>
-          <button id="btnRegister" class="btnSecondary" type="button">Registrieren</button>
+          <label class="field" id="pwField">
+            <span>Passwort</span>
+            <input id="loginPass" type="password" autocomplete="current-password" autocapitalize="none" spellcheck="false" />
+          </label>
         </div>
-        <button id="btnForgot" class="btnLink btnLink--text" type="button">Passwort vergessen?</button>
-      </div>
 
-      <p id="authMsg" class="muted" style="margin-top:12px;"></p>
-      <div class="build-badge" id="buildBadge">Build ANA037-BASEFIX</div>
+        <div class="authActions">
+          <div class="authActions__left">
+            <button id="btnLogin" class="primary" type="button">Anmelden</button>
+            <button id="btnRegister" class="btnSecondary" type="button">Registrieren</button>
+          </div>
+          <button id="btnForgot" class="btnLink btnLink--text" type="button">Passwort vergessen?</button>
+        </div>
+
+        <p id="authMsg" class="muted" style="margin-top:10px"></p>
+      </div>
     </section>
   </main>
 
-  <!-- Firebase config from repo root -->
-  <script defer src="./firebase-config.js?v=ANA037_BASEFIX1"></script>
-
-  <!-- Firebase compat libs (must match your codebase) -->
+  <script defer src="./firebase-config.js?v=ANA037_FIXPACK"></script>
   <script defer src="https://www.gstatic.com/firebasejs/9.6.11/firebase-app-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/9.6.11/firebase-auth-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/9.6.11/firebase-firestore-compat.js"></script>
+  <script defer src="./auth.js?v=ANA037_FIXPACK"></script>
 
-  <script defer src="./auth.js?v=ANA037_BASEFIX1"></script>
+  <script>
+  (function(){
+    function $(id){ return document.getElementById(id); }
+    function msg(t, ok){
+      var p = $('authMsg');
+      if(!p) return;
+      p.textContent = t || '';
+      p.style.color = ok ? '#2aa34a' : '#e05b5b';
+    }
+    function onReady(fn){
+      if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn);
+      else fn();
+    }
+    onReady(function(){
+      if(!window.initAuth){
+        msg('Auth-Lib fehlt (auth.js nicht geladen)', false);
+        return;
+      }
+      window.initAuth({
+        mode: 'login',
+        onAuthed: function(){
+          msg('Schon angemeldet – weiter...', true);
+          setTimeout(function(){ window.location.href = './app.html'; }, 250);
+        }
+      });
+
+      var btn = $('btnLogin');
+      if(btn) btn.addEventListener('click', function(){
+        if(!window.DSAuth || !window.DSAuth.login){
+          msg('Login-Funktion fehlt (DSAuth.login)', false);
+          return;
+        }
+        var email = ($('loginEmail') && $('loginEmail').value) || '';
+        var pass  = ($('loginPass') && $('loginPass').value) || '';
+        msg('Anmelden…', true);
+        window.DSAuth.login(email, pass, function(err){
+          if(err){
+            msg(err, false);
+          } else {
+            msg('Login OK – weiter…', true);
+            setTimeout(function(){ window.location.href = './app.html'; }, 250);
+          }
+        });
+      });
+
+      var forgot = $('btnForgot');
+      if(forgot) forgot.addEventListener('click', function(){
+        if(!window.DSAuth || !window.DSAuth.resetPassword){
+          msg('Reset-Funktion fehlt', false);
+          return;
+        }
+        var email = ($('loginEmail') && $('loginEmail').value) || '';
+        window.DSAuth.resetPassword(email, function(err){
+          if(err) msg(err, false);
+          else msg('E-Mail zum Zurücksetzen gesendet (wenn Konto existiert).', true);
+        });
+      });
+    });
+  })();
+  </script>
 </body>
 </html>

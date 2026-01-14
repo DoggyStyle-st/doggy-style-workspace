@@ -1,11 +1,8 @@
-/* ANA037 app_init.js
-   Shows a small status badge bottom-left so we know JS is alive.
-   Also reports early boot errors captured in window.__bootErrors.
-*/
+/* ANA037 app_init.js – small boot badge + early errors (ES5) */
 (function(){
   function el(tag, attrs, txt){
     var n=document.createElement(tag);
-    if(attrs) for(var k in attrs) n.setAttribute(k, attrs[k]);
+    if(attrs){ for(var k in attrs){ n.setAttribute(k, attrs[k]); } }
     if(txt!=null) n.textContent=txt;
     return n;
   }
@@ -22,51 +19,22 @@
     document.body.appendChild(b);
     return b;
   }
-
   function setBadge(text, ok){
     var b=ensureBadge();
     b.textContent=text;
     b.style.background = ok ? 'rgba(0,120,0,.55)' : 'rgba(120,0,0,.55)';
   }
 
-  function summarizeErrors(){
-    var arr = (window.__bootErrors||[]).slice(-3);
-    if(!arr.length) return '';
-    return arr.map(function(e){
-      if(!e) return '';
-      var s = (e.type==='rejection'?'REJ: ':'ERR: ') + (e.msg||'');
-      if(e.src) s += ' @'+e.src.split('/').slice(-1)[0]+':'+(e.line||'')+':'+(e.col||'');
-      return s;
-    }).filter(Boolean).join(' | ');
-  }
-
-  function check(){
-    // If app.js sets window.__APP_READY = true we are good.
-    var ready = !!window.__APP_READY;
-    var errs = summarizeErrors();
-    if(ready && !errs){
-      setBadge('JS OK', true);
-      return true;
-    }
-    if(errs){
-      setBadge('JS FEHLER: '+errs, false);
-      return true;
-    }
-    return false;
-  }
+  window.__bootErrors = window.__bootErrors || [];
+  window.addEventListener('error', function(ev){
+    try{ window.__bootErrors.push({type:'error', msg: ev && ev.message, src: ev && ev.filename, line: ev && ev.lineno, col: ev && ev.colno}); }catch(e){}
+  });
+  window.addEventListener('unhandledrejection', function(ev){
+    try{ var r = ev && ev.reason; window.__bootErrors.push({type:'rejection', msg: (r && (r.message||r.code)) || String(r||'')}); }catch(e){}
+  });
 
   document.addEventListener('DOMContentLoaded', function(){
     ensureBadge();
-    // Give app.js a moment to boot
-    var tries=0;
-    var t=setInterval(function(){
-      tries++;
-      if(check() || tries>40){ // ~10s
-        if(tries>40 && !check()){
-          setBadge('JS nicht bereit (timeout)', false);
-        }
-        clearInterval(t);
-      }
-    }, 250);
+    setBadge('Boot: JS läuft', true);
   });
-})(); 
+})();

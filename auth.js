@@ -1,100 +1,136 @@
+/* ANA037 auth.js (ES5)
+   Provides: window.initAuth(), window.showLogin(), window.DSAuth.*
+   Works with Firebase compat (9.6.11). No async/await.
+*/
 (function(){
-  function byId(id){ return document.getElementById(id); }
-  function setMsg(t, ok){
-    var el = byId('authMsg');
-    if(!el) return;
-    el.textContent = t || '';
-    el.style.color = ok ? '#0a0' : '#a00';
-  }
+  'use strict';
+
   function log(){ try{ console.log.apply(console, arguments); }catch(e){} }
+  function warn(){ try{ console.warn.apply(console, arguments); }catch(e){} }
 
   function ensureFirebaseInit(){
     try{
-      if(!window.firebase || !firebase.initializeApp) return false;
       if(!window.firebaseConfig){
-        log('[AUTH] firebaseConfig fehlt');
+        warn('[auth] firebaseConfig missing (firebase-config.js not loaded)');
+        return false;
+      }
+      if(!window.firebase || !window.firebase.initializeApp){
         return false;
       }
       if(!firebase.apps || !firebase.apps.length){
         firebase.initializeApp(window.firebaseConfig);
-        log('[AUTH] firebase.initializeApp ok');
+        log('[auth] firebase initialized');
       }
       return true;
     }catch(e){
-      log('[AUTH] init error', e);
+      warn('[auth] init error', e);
       return false;
     }
   }
 
-  function bind(){
-    var btn = byId('btnLogin');
-    if(!btn){ setMsg('Login UI fehlt (btnLogin)', false); return false; }
-
-    // Nur einmal binden
-    if(btn.__bound) return true;
-    btn.__bound = true;
-
-    btn.addEventListener('click', function(){
-      var email = (byId('loginEmail') && byId('loginEmail').value || '').trim();
-      var pass  = (byId('loginPass')  && byId('loginPass').value  || '');
-
-      if(!email || !pass){
-        setMsg('Bitte E-Mail und Passwort eingeben', false);
-        return;
-      }
-
-      if(!ensureFirebaseInit()){
-        setMsg('Firebase noch nicht bereit…', false);
-        // kurzer Retry
-        setTimeout(function(){
-          if(!ensureFirebaseInit()){
-            setMsg('Firebase nicht geladen (Script/Cache?)', false);
-            return;
-          }
-          doLogin(email, pass);
-        }, 400);
-        return;
-      }
-
-      doLogin(email, pass);
-    });
-
-    setMsg('Bereit', true);
-    return true;
-  }
-
-  function doLogin(email, pass){
+  function ensureAuth(){
     try{
-      if(!firebase.auth){ setMsg('Firebase Auth fehlt', false); return; }
-      setMsg('Anmelden…', true);
-      firebase.auth().signInWithEmailAndPassword(email, pass)
-        .then(function(){
-          setMsg('Login OK – weiter…', true);
-          window.location.href = 'app.html';
-        })
-        .catch(function(err){
-          setMsg((err && err.message) ? err.message : 'Login fehlgeschlagen', false);
-        });
+      if(!ensureFirebaseInit()) return null;
+      if(!firebase.auth) return null;
+      return firebase.auth();
     }catch(e){
-      setMsg('Login Fehler: ' + (e && e.message ? e.message : String(e)), false);
+      warn('[auth] auth missing', e);
+      return null;
     }
   }
 
-  // Auto-init
-  function boot(){
-    // wir binden sofort; wenn Firebase noch nicht da ist, ist das egal – der Click macht Retry
-    bind();
-    // zusätzlich: falls der User sofort klickt bevor defer fertig ist, versuchen wir nachzuladen
-    setTimeout(function(){ ensureFirebaseInit(); }, 300);
+  function friendlyError(err){
+    if(!err) return '';
+    var c = err.code || '';
+    var m = err.message || String(err);
+    if(c === 'auth/invalid-email') return 'E-Mail ungültig.';
+    if(c === 'auth/user-not-found') return 'Benutzer nicht gefunden.';
+    if(c === 'auth/wrong-password') return 'Passwort falsch.';
+    if(c === 'auth/too-many-requests') return 'Zu viele Versuche – bitte später erneut.';
+    return m;
   }
 
-  if(document.readyState === 'loading'){
-    document.addEventListener('DOMContentLoaded', boot);
-  }else{
-    boot();
+  function showLogin(){
+    try{
+      var p = (location.pathname||'').toLowerCase();
+      if(p.indexOf('login.html') !== -1) return;
+    }catch(e){}
+    location.href = './login.html';
   }
 
-  // Optionaler Hook für app.js (falls genutzt)
-  window.initAuth = function(){ boot(); };
-  window.showLogin = function(){ /* noop – login.html ist die Login-Seite */ };
+  function initAuth(opts){
+    opts = opts || {};
+    var tries = 0;
+    function tick(){
+      tries++;
+      var auth = ensureAuth();
+      if(!auth){
+        if(tries < 40) return setTimeout(tick, 100);
+        warn('[auth] firebase/auth not ready (timeout)');
+        if(opts.onError) opts.onError('Firebase/Auth nicht bereit.');
+        return;
+      }
+
+      try{
+        auth.onAuthStateChanged(function(user){
+          if(user){
+            window.__AUTH_USER = user;
+            if(opts.onAuthed) opts.onAuthed(user);
+          } else {
+            if(opts.mode === 'login'){
+              if(opts.onNotAuthed) opts.onNotAuthed();
+            } else {
+              showLogin();
+              if(opts.onNotAuthed) opts.onNotAuthed();
+            }
+          }
+        }, function(err){
+          var msg = friendlyError(err);
+          if(opts.onError) opts.onError(msg);
+        });
+      }catch(e){
+        if(opts.onError) opts.onError(friendlyError(e));
+      }
+    }
+    tick();
+  }
+
+  window.DSAuth = window.DSAuth || {};
+
+  window.DSAuth.login = function(email, pass, cb){
+    cb = cb || function(){};
+    var auth = ensureAuth();
+    if(!auth) return cb('Firebase/Auth nicht bereit.');
+    auth.signInWithEmailAndPassword(email, pass)
+      .then(function(){ cb(null); })
+      .catch(function(err){ cb(friendlyError(err)); });
+  };
+
+  window.DSAuth.register = function(email, pass, cb){
+    cb = cb || function(){};
+    var auth = ensureAuth();
+    if(!auth) return cb('Firebase/Auth nicht bereit.');
+    auth.createUserWithEmailAndPassword(email, pass)
+      .then(function(){ cb(null); })
+      .catch(function(err){ cb(friendlyError(err)); });
+  };
+
+  window.DSAuth.resetPassword = function(email, cb){
+    cb = cb || function(){};
+    var auth = ensureAuth();
+    if(!auth) return cb('Firebase/Auth nicht bereit.');
+    auth.sendPasswordResetEmail(email)
+      .then(function(){ cb(null); })
+      .catch(function(err){ cb(friendlyError(err)); });
+  };
+
+  window.DSAuth.logout = function(cb){
+    cb = cb || function(){};
+    var auth = ensureAuth();
+    if(!auth) return cb('Firebase/Auth nicht bereit.');
+    auth.signOut().then(function(){ cb(null); }).catch(function(err){ cb(friendlyError(err)); });
+  };
+
+  window.initAuth = initAuth;
+  window.showLogin = showLogin;
 })();
