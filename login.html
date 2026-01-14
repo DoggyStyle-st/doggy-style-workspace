@@ -2,27 +2,20 @@
 <html lang="de">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="theme-color" content="#0b0b10" />
-  <title>DoggyStyle Workspace — Login</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0d12" />
+  <title>DoggyStyle – Login</title>
 
-  <!-- CSS (wenn du es im Root hast, sonst anpassen) -->
-  <link rel="stylesheet" href="./dashboard_master.css" />
-  <link rel="stylesheet" href="./styles.css" />
+  <!-- Styles: keep original paths, but provide safe fallbacks -->
+  <link rel="stylesheet" href="css/dashboard_master.css" onerror="this.removeAttribute('onerror');this.href='dashboard_master.css'" />
+  <link rel="stylesheet" href="css/styles.css" onerror="this.removeAttribute('onerror');this.href='styles.css'" />
+  <link rel="stylesheet" href="css/login_override.css" onerror="this.removeAttribute('onerror');this.href='login_override.css'" />
 </head>
-
 <body>
-  <!-- Login Panel -->
-  <main id="loginPanel" class="panel is-active">
+  <main>
     <section class="panel is-active">
       <div class="card loginCard" aria-label="Anmeldung">
-
         <div class="row loginFields">
-          <label class="field field--reg" id="regNameField" style="display:none">
-            <span>Name (optional)</span>
-            <input id="regName" type="text" autocomplete="name" autocapitalize="words" placeholder="z. B. Rex Mustermann" />
-          </label>
-
           <label class="field" id="emailField">
             <span>E-Mail</span>
             <input id="loginEmail" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" />
@@ -39,7 +32,6 @@
             <button id="btnLogin" class="primary" type="button">Anmelden</button>
             <button id="btnRegister" class="btnSecondary" type="button">Registrieren</button>
           </div>
-
           <button id="btnForgot" class="btnLink btnLink--text" type="button">Passwort vergessen?</button>
         </div>
 
@@ -48,29 +40,17 @@
     </section>
   </main>
 
-  <!-- Optionales App-Root (wenn du später Login + App in einer Seite willst) -->
-  <div id="appRoot" style="display:none"></div>
+  <!-- Firebase config must be ROOT -->
+  <script defer src="firebase-config.js?v=ANA037_AUTH_ES5_FIX"></script>
 
-  <div class="build-badge" id="buildBadge">Build v11-LOGIN-FINAL</div>
+  <!-- Firebase (compat) libs – single version only -->
+  <script defer src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 
-  <!-- 1) Firebase Config (ROOT!) -->
-  <script defer src="./firebase-config.js"></script>
+  <!-- Auth handler (ES5) -->
+  <script defer src="auth.js?v=ANA037_AUTH_ES5_FIX"></script>
 
-  <!-- 2) Firebase COMPAT SDKs (global "firebase") -->
-  <script defer src="https://www.gstatic.com/firebasejs/9.6.11/firebase-app-compat.js"></script>
-  <script defer src="https://www.gstatic.com/firebasejs/9.6.11/firebase-auth-compat.js"></script>
-  <script defer src="https://www.gstatic.com/firebasejs/9.6.11/firebase-firestore-compat.js"></script>
-
-  <!-- 3) Auth (stellt window.startApp bereit) -->
-  <script defer src="./auth.js"></script>
-
-  <!-- 4) Optional Loader (nur wenn du Badge/Loader-Logik brauchst) -->
-  <!-- Wenn du app.js auf login.html NICHT brauchst, kannst du diese Zeile auch weglassen -->
-  <script defer src="./app.js"></script>
-
-  <script>
-    // Marker: loader vorhanden (verhindert doppelten Start in auth.js)
-    window.__LOADER_PRESENT = true;
-  </script>
+  <div class="build-badge" id="buildBadge">Build v11-LOGIN-ES5</div>
 </body>
 </html>
