@@ -1,183 +1,176 @@
-/* ANA037_BOOTFIX auth.js (ES5)
-   - Ensures Firebase is initialized (compat)
-   - login.html: binds buttons and signs in / registers / reset
-   - app.html: if not signed in -> go to login.html; if signed in -> call start hook
+/* ANA037 AUTH - Option A (stabil, ohne App.js anzufassen)
+   - bietet window.initAuth() + window.showLogin() (damit Legacy-Aufrufer nicht crashen)
+   - Login-Seite: Klick-Handler sauber (type=button, preventDefault), Redirect NUR wenn user wirklich eingeloggt ist
+   - App-Seite: wenn nicht eingeloggt -> login.html (mit return)
 */
 (function(){
   'use strict';
-  var BUILD = 'ANA037-BOOTFIX';
 
-  function $(id){ return document.getElementById(id); }
+  function log(){ try{ console.log.apply(console, arguments); }catch(e){} }
+  function qs(id){ return document.getElementById(id); }
 
-  function toast(msg, good){
-    try{
-      var el = document.createElement('div');
-      el.textContent = String(msg);
-      el.style.position='fixed';
-      el.style.left='10px';
-      el.style.bottom='10px';
-      el.style.zIndex='99999';
-      el.style.padding='8px 10px';
-      el.style.borderRadius='10px';
-      el.style.fontSize='13px';
-      el.style.fontFamily='system-ui, -apple-system, Segoe UI, Roboto, Arial';
-      el.style.color = good ? '#0b3d0b' : '#fff';
-      el.style.background = good ? 'rgba(80,220,120,.95)' : 'rgba(180,40,40,.95)';
-      el.style.boxShadow='0 6px 18px rgba(0,0,0,.35)';
-      document.body.appendChild(el);
-      setTimeout(function(){ try{ el.remove(); }catch(e){} }, 3500);
-    }catch(e){}
+  function setStatus(txt, ok){
+    var el = qs('status');
+    if(!el) return;
+    el.textContent = txt;
+    el.className = 'status ' + (ok ? 'ok' : 'err');
   }
 
-  function ensureFirebase(cb){
-    // Wait for firebase compat to exist
-    var t0 = Date.now();
+  function isFirebaseReady(){
+    try{ return !!(window.firebase && firebase.auth && firebase.auth()); }catch(e){ return false; }
+  }
+
+  function waitFirebase(cb){
+    var tries = 0;
     (function tick(){
-      if(window.firebase && window.firebase.initializeApp && window.firebase.auth){
-        // Init if needed, using window.firebaseConfig (provided by firebase-config.js)
-        try{
-          if(!firebase.apps || !firebase.apps.length){
-            if(window.firebaseConfig){
-              firebase.initializeApp(window.firebaseConfig);
-            }
-          }
-        }catch(e){}
-        cb(true);
-        return;
-      }
-      if(Date.now() - t0 > 8000){
-        toast('Firebase libs nicht geladen', false);
-        cb(false);
-        return;
-      }
+      tries++;
+      if(isFirebaseReady()) return cb();
+      if(tries > 200) { setStatus('Firebase nicht bereit (Timeout).', false); return; }
       setTimeout(tick, 50);
     })();
   }
 
-  function isLoginPage(){
-    return /login\.html/i.test(location.pathname) || !!$('loginEmail') || !!$('btnLogin');
+  function safeRedirect(url){
+    try{
+      // Avoid endless redirect loops on iOS cache glitches
+      if(location.href.indexOf(url) !== -1) return;
+    }catch(e){}
+    location.href = url;
   }
 
-  function go(url){
-    try{ location.replace(url); }catch(e){ location.href=url; }
+  function onLoginPage(){
+    return /login\.html/i.test(location.pathname) || /login/i.test(location.href);
   }
 
-  function callStartHook(){
-    // Try known hooks in order
-    if(typeof window.startApp === 'function'){ window.startApp(); return true; }
-    if(typeof window.DS_initApp === 'function'){ window.DS_initApp(); return true; }
-    if(typeof window.initApp === 'function'){ window.initApp(); return true; }
-    if(typeof window.appInit === 'function'){ window.appInit(); return true; }
-    return false;
-  }
+  function bindLoginHandlers(){
+    var emailEl = qs('email');
+    var passEl  = qs('password');
+    var btnLogin = qs('btnLogin');
+    var btnReg   = qs('btnRegister');
+    var btnReset = qs('btnReset');
 
-  function bindLoginUI(){
-    var emailEl = $('loginEmail') || $('email') || $('emailInput');
-    var passEl  = $('loginPass')  || $('password') || $('passInput');
-    var btnLogin = $('btnLogin') || $('loginBtn') || $('btnAnmelden');
-    var btnReg   = $('btnRegister') || $('registerBtn') || $('btnRegistrieren');
-    var btnReset = $('btnReset') || $('resetBtn') || $('btnPassReset');
-    var statusEl = $('loginStatus') || $('status') || $('loginMsg');
-    var badgeEl  = $('buildBadge');
-    if(badgeEl) badgeEl.textContent = 'Build ' + BUILD;
+    function valEmail(){ return (emailEl && emailEl.value || '').trim(); }
+    function valPass(){ return (passEl && passEl.value || ''); }
 
-    function setStatus(msg, good){
-      if(statusEl){ statusEl.textContent = msg; statusEl.style.color = good ? '#6df58a' : '#ff9a9a'; }
-      toast(msg, good);
+    function disable(v){
+      if(btnLogin) btnLogin.disabled = v;
+      if(btnReg) btnReg.disabled = v;
+      if(btnReset) btnReset.disabled = v;
     }
 
-    function getEmail(){ return emailEl ? String(emailEl.value||'').trim() : ''; }
-    function getPass(){ return passEl ? String(passEl.value||'') : ''; }
-
-    function onLogin(ev){
+    function doLogin(ev){
       if(ev && ev.preventDefault) ev.preventDefault();
-      var email = getEmail(), pass = getPass();
-      if(!email || !pass){ setStatus('Bitte E-Mail + Passwort eingeben', false); return; }
-      setStatus('Anmelden...', true);
-      firebase.auth().signInWithEmailAndPassword(email, pass)
-        .then(function(){
-          setStatus('Login OK – weiter...', true);
-          go('./app.html');
-        })
-        .catch(function(err){
-          setStatus('Login Fehler: ' + (err && err.message ? err.message : err), false);
-        });
-      return false;
+      waitFirebase(function(){
+        var email = valEmail();
+        var pass  = valPass();
+        if(!email || !pass){ setStatus('Bitte E‑Mail & Passwort eingeben.', false); return; }
+        disable(true);
+        setStatus('Login…', true);
+        firebase.auth().signInWithEmailAndPassword(email, pass)
+          .then(function(){
+            setStatus('Login OK – weiter…', true);
+            // Redirect is done by onAuthStateChanged below (more stable on iOS)
+          })
+          .catch(function(err){
+            setStatus('Login fehlgeschlagen: ' + (err && err.message ? err.message : err), false);
+            disable(false);
+          });
+      });
     }
 
-    function onRegister(ev){
+    function doRegister(ev){
       if(ev && ev.preventDefault) ev.preventDefault();
-      var email = getEmail(), pass = getPass();
-      if(!email || !pass){ setStatus('Bitte E-Mail + Passwort eingeben', false); return; }
-      setStatus('Registrieren...', true);
-      firebase.auth().createUserWithEmailAndPassword(email, pass)
-        .then(function(){
-          setStatus('Registrierung OK – weiter...', true);
-          go('./app.html');
-        })
-        .catch(function(err){
-          setStatus('Registrierung Fehler: ' + (err && err.message ? err.message : err), false);
-        });
-      return false;
+      waitFirebase(function(){
+        var email = valEmail();
+        var pass  = valPass();
+        if(!email || !pass){ setStatus('Bitte E‑Mail & Passwort eingeben.', false); return; }
+        disable(true);
+        setStatus('Registrieren…', true);
+        firebase.auth().createUserWithEmailAndPassword(email, pass)
+          .then(function(){
+            setStatus('Registriert – weiter…', true);
+          })
+          .catch(function(err){
+            setStatus('Registrieren fehlgeschlagen: ' + (err && err.message ? err.message : err), false);
+            disable(false);
+          });
+      });
     }
 
-    function onReset(ev){
+    function doReset(ev){
       if(ev && ev.preventDefault) ev.preventDefault();
-      var email = getEmail();
-      if(!email){ setStatus('Bitte E-Mail eingeben', false); return; }
-      setStatus('Sende Reset-Mail...', true);
-      firebase.auth().sendPasswordResetEmail(email)
-        .then(function(){ setStatus('Reset-Mail gesendet', true); })
-        .catch(function(err){ setStatus('Reset Fehler: ' + (err && err.message ? err.message : err), false); });
-      return false;
+      waitFirebase(function(){
+        var email = valEmail();
+        if(!email){ setStatus('Bitte E‑Mail eingeben.', false); return; }
+        disable(true);
+        setStatus('Sende Reset‑Mail…', true);
+        firebase.auth().sendPasswordResetEmail(email)
+          .then(function(){ setStatus('Reset‑Mail gesendet.', true); disable(false); })
+          .catch(function(err){
+            setStatus('Reset fehlgeschlagen: ' + (err && err.message ? err.message : err), false);
+            disable(false);
+          });
+      });
     }
 
-    // Bind (supports both click + submit)
-    if(btnLogin) btnLogin.onclick = onLogin;
-    if(btnReg) btnReg.onclick = onRegister;
-    if(btnReset) btnReset.onclick = onReset;
+    if(btnLogin){ btnLogin.addEventListener('click', doLogin, false); }
+    if(btnReg){ btnReg.addEventListener('click', doRegister, false); }
+    if(btnReset){ btnReset.addEventListener('click', doReset, false); }
 
-    var form = $('loginForm');
-    if(form) form.onsubmit = onLogin;
-
-    // If already logged in, go straight to app.html
-    firebase.auth().onAuthStateChanged(function(user){
-      if(user){ go('./app.html'); }
-    });
-
-    setStatus('Bereit', true);
+    // Enter = Login
+    if(passEl){
+      passEl.addEventListener('keydown', function(e){
+        var k = e && (e.key || e.keyCode);
+        if(k === 'Enter' || k === 13) doLogin(e);
+      }, false);
+    }
   }
 
-  function guardApp(){
-    ensureFirebase(function(ok){
-      if(!ok) return;
+  function setupAuthRedirects(mode){
+    waitFirebase(function(){
       firebase.auth().onAuthStateChanged(function(user){
-        if(!user){
-          // not signed in -> login
-          go('./login.html');
-          return;
-        }
-        // signed in -> start app (no redirect loop)
-        var started = callStartHook();
-        if(!started){
-          toast('Kein Start-Hook gefunden (startApp/initApp fehlt).', false);
+        if(onLoginPage()){
+          if(user){
+            // If a return target exists, honor it, else go to app.html
+            var ret = '';
+            try{
+              ret = (new URL(location.href)).searchParams.get('return') || '';
+            }catch(e){}
+            safeRedirect(ret || 'app.html');
+          }else{
+            // stay on login
+          }
+        }else{
+          // app.html or other protected pages
+          if(!user){
+            var returnTo = '';
+            try{ returnTo = location.pathname.split('/').pop() || 'app.html'; }catch(e){ returnTo='app.html'; }
+            safeRedirect('login.html?return=' + encodeURIComponent(returnTo));
+          }else{
+            // logged in -> let app boot
+            try{ if(window.__ds_onAuthed) window.__ds_onAuthed(user); }catch(e){}
+          }
         }
       });
+      if(mode === 'login'){ bindLoginHandlers(); }
     });
   }
 
-  function init(){
-    ensureFirebase(function(ok){
-      if(!ok) return;
-      if(isLoginPage()) bindLoginUI();
-      else guardApp();
-    });
-  }
+  // Public API (legacy compatibility)
+  window.showLogin = function(){
+    safeRedirect('login.html?return=' + encodeURIComponent('app.html'));
+  };
 
-  window.__ANA037_AUTH_BUILD = BUILD;
-  if(document.readyState === 'loading'){
-    document.addEventListener('DOMContentLoaded', init, false);
-  } else {
-    init();
+  window.initAuth = function(opts){
+    opts = opts || {};
+    setupAuthRedirects(opts.mode || (onLoginPage() ? 'login' : 'app'));
+  };
+
+  // Auto-init
+  try{
+    // If login page: init now; if app page: init now as well
+    window.initAuth({ mode: onLoginPage() ? 'login' : 'app' });
+  }catch(e){
+    log('[auth] init error', e);
   }
 })();

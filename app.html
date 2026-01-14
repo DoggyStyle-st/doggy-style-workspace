@@ -10,47 +10,24 @@
 <body>
   <div id="appRoot"></div>
 
-  <div class="build-badge" id="buildBadge">Build ANA037-BOOTFIX-V3</div>
+  <!-- Firebase config from ROOT -->
+  <script defer src="./firebase-config.js?v=ANA037_A_CFG"></script>
 
-  <!-- 1) Firebase config (ROOT) -->
-  <script src="./firebase-config.js?v=ANA037_BOOTFIX_V3_CFG"></script>
+  <!-- Firebase compat libs -->
+  <script defer src="https://www.gstatic.com/firebasejs/9.6.11/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/9.6.11/firebase-auth-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/9.6.11/firebase-firestore-compat.js"></script>
 
-  <!-- 2) Firebase compat libs -->
-  <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-firestore-compat.js"></script>
+  <!-- Auth gate -->
+  <script defer src="./auth.js?v=ANA037_A_AUTH"></script>
 
-  <!-- 3) Legacy bootstrap / glue -->
-  <script src="./app_init.js?v=ANA037_BOOTFIX_V3_INIT"></script>
+  <!-- Your original app loader/scripts (DO NOT overwrite your existing app.js!) -->
+  <script defer src="./app_init.js?v=ANA037_A_INIT"></script>
+  <script defer src="./app.js?v=ANA037_A_APP"></script>
 
-  <!-- 4) App loader (ensures execution even if caching/defer issues) -->
-  <script>
-  (function(){
-    var root = document.getElementById('appRoot');
-    if (root && !root.innerHTML) {
-      root.innerHTML = '<div style="padding:16px;color:#fff;opacity:.85">Boot…</div>';
-    }
+  <!-- Start hook shim (only adds missing exports) -->
+  <script defer src="./start_hook.js?v=ANA037_A_START"></script>
 
-    function loadScript(src, cb){
-      var s=document.createElement('script');
-      s.src=src;
-      s.async=false;
-      s.onload=function(){ cb && cb(); };
-      s.onerror=function(){ 
-        if(root){ root.innerHTML='<div style="padding:16px;color:#ff8080">Fehler: '+src+' konnte nicht geladen werden.</div>'; }
-      };
-      document.body.appendChild(s);
-    }
-
-    // Always cache-bust app.js, because GitHub Pages + Safari can keep old JS.
-    loadScript('./app.js?v=' + Date.now(), function(){
-      try{
-        if (window.DS_startApp) window.DS_startApp();
-      }catch(e){
-        if(root){ root.innerHTML='<pre style="padding:16px;color:#ff8080;white-space:pre-wrap">Start-Fehler: '+(e && e.message ? e.message : e)+'</pre>'; }
-      }
-    });
-  })();
-  </script>
+  <div class="build-badge" id="buildBadge">Build ANA037‑A‑STABLE</div>
 </body>
 </html>

@@ -3,53 +3,101 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
-  <title>Login – DoggyStyle Workspace</title>
+  <title>DoggyStyle Login</title>
+
+  <!-- Keep existing project styles -->
   <link rel="stylesheet" href="./css/styles.css">
   <link rel="stylesheet" href="./css/dashboard_master.css">
-  <style>
-    body{ margin:0; min-height:100vh; display:flex; align-items:flex-start; justify-content:center; }
-    .login-wrap{ width:min(1100px, calc(100vw - 24px)); margin:24px 12px; padding:18px; border-radius:18px;
-      background:rgba(255,255,255,.10); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-      border:1px solid rgba(255,255,255,.14);
-    }
-    .row{ display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
-    .row label{ color:#ddd; font-family:system-ui; font-size:14px; }
-    .row input{ flex:1; min-width:240px; padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,.22);
-      background:rgba(0,0,0,.25); color:#fff; outline:none;
-    }
-    .btn{ padding:8px 14px; border-radius:999px; border:1px solid rgba(255,255,255,.22);
-      background:rgba(255,255,255,.85); color:#111; font-weight:600;
-    }
-    .btn.secondary{ background:rgba(255,255,255,.65); }
-    .btn.link{ background:transparent; color:#ddd; border-color:rgba(255,255,255,.22); }
-    .meta{ margin-top:8px; display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap; }
-    .small{ font-family:system-ui; font-size:12px; opacity:.85; }
-    .build-badge{ position:fixed; left:10px; bottom:10px; }
-  </style>
-</head>
-<body>
-  <form id="loginForm" class="login-wrap" autocomplete="on">
-    <div class="row">
-      <label for="loginEmail">E‑Mail</label>
-      <input id="loginEmail" type="email" autocomplete="username" placeholder="name@domain.de" />
-      <label for="loginPass">Passwort</label>
-      <input id="loginPass" type="password" autocomplete="current-password" placeholder="••••••••" />
-      <button id="btnLogin" class="btn" type="submit">Anmelden</button>
-      <button id="btnRegister" class="btn secondary" type="button">Registrieren</button>
-      <button id="btnReset" class="btn link" type="button">Passwort vergessen?</button>
-    </div>
-    <div class="meta">
-      <div id="loginStatus" class="small" style="color:#6df58a;">Bereit</div>
-    </div>
-  </form>
 
-  <script defer src="./firebase-config.js?v=ANA037_BOOTFIX_CFG1"></script>
+  <style>
+    /* Minimal fallback so Login always looks like the “Glas-Leiste”, even if CSS cache is weird */
+    body{ margin:0; min-height:100vh; background:#05060a; }
+    .bg{ position:fixed; inset:0; background:radial-gradient(1200px 700px at 10% 10%, rgba(160,120,30,.45), transparent 55%),
+                           radial-gradient(1000px 600px at 90% 20%, rgba(40,90,150,.45), transparent 60%),
+                           radial-gradient(900px 700px at 70% 90%, rgba(20,20,30,.85), rgba(5,6,10,1) 70%); }
+    .topbar{
+      position:relative;
+      margin:12vh auto 0;
+      width:min(1180px, calc(100% - 32px));
+      padding:14px 16px;
+      border-radius:16px;
+      background:rgba(24,26,32,.62);
+      border:1px solid rgba(255,255,255,.08);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      box-shadow: 0 20px 60px rgba(0,0,0,.55);
+      color:#eaeaea;
+    }
+    .row{ display:flex; gap:14px; align-items:flex-end; flex-wrap:wrap; }
+    label{ display:block; font-size:13px; opacity:.8; margin:0 0 6px 2px; }
+    input{
+      width: min(520px, calc(100vw - 90px));
+      max-width: 520px;
+      height:40px;
+      border-radius:10px;
+      border:1px solid rgba(255,255,255,.12);
+      background:rgba(0,0,0,.28);
+      color:#f4f4f4;
+      padding:0 12px;
+      outline:none;
+    }
+    input:focus{ border-color: rgba(255,255,255,.28); }
+    .btn{
+      height:34px;
+      border-radius:18px;
+      border:1px solid rgba(255,255,255,.18);
+      background:rgba(255,255,255,.10);
+      color:#fff;
+      padding:0 14px;
+    }
+    .btn:active{ transform: translateY(1px); }
+    .btn.primary{ background:rgba(255,255,255,.16); }
+    .spacer{ flex:1; }
+    .link{ background:transparent; border:1px solid rgba(255,255,255,.18); }
+    .status{ margin-top:10px; font-size:13px; opacity:.9; }
+    .status.ok{ color:#7CFF8A; }
+    .status.err{ color:#ff7c7c; }
+    .build{ font-size:12px; opacity:.55; margin-top:4px; }
+  </style>
+
+  <!-- Firebase config must be ROOT -->
+  <script defer src="./firebase-config.js?v=ANA037_A_CFG"></script>
+
+  <!-- Firebase compat libs (same as app.html) -->
   <script defer src="https://www.gstatic.com/firebasejs/9.6.11/firebase-app-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/9.6.11/firebase-auth-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/9.6.11/firebase-firestore-compat.js"></script>
-  <script defer src="./app.js?v=ANA037_BOOTFIX_APP1"></script>
-  <script defer src="./auth.js?v=ANA037_BOOTFIX_AUTH1"></script>
 
-  <div class="build-badge" id="buildBadge">Build ANA037-BOOTFIX</div>
+  <!-- Auth controller -->
+  <script defer src="./auth.js?v=ANA037_A_AUTH"></script>
+</head>
+<body>
+  <div class="bg"></div>
+
+  <div class="topbar" role="main">
+    <div class="row">
+      <div>
+        <label for="email">E‑Mail</label>
+        <input id="email" type="email" inputmode="email" autocomplete="email" placeholder="name@domain.de"/>
+      </div>
+
+      <div>
+        <label for="password">Passwort</label>
+        <input id="password" type="password" autocomplete="current-password" placeholder="••••••••"/>
+      </div>
+
+      <div style="display:flex; gap:10px; padding-bottom:2px;">
+        <button id="btnLogin" class="btn primary" type="button">Anmelden</button>
+        <button id="btnRegister" class="btn" type="button">Registrieren</button>
+      </div>
+
+      <div class="spacer"></div>
+
+      <button id="btnReset" class="btn link" type="button">Passwort vergessen?</button>
+    </div>
+
+    <div id="status" class="status ok">Bereit</div>
+    <div class="build">Build ANA037‑A‑LOGIN</div>
+  </div>
 </body>
 </html>
