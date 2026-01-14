@@ -1,34 +1,55 @@
 <!doctype html>
 <html lang="de">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
-  <title>DoggyStyle – Login</title>
-  <link rel="stylesheet" href="./css/dashboard_master.css">
-  <style>
-    /* Minimal fallback, falls CSS nicht greift */
-    body{margin:0;min-height:100vh;display:flex;align-items:flex-start;justify-content:flex-start;background:#fff;}
-  </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+
+  <!-- IMPORTANT (GitHub Pages Project Site): force correct base path -->
+  <base href="/doggy-style-workspace/" />
+
+  <title>Login – DoggyStyle Workspace</title>
+
+  <link rel="stylesheet" href="./css/styles.css" />
+  <link rel="stylesheet" href="./css/dashboard_master.css" />
 </head>
 <body>
-  <main style="padding:10px; width:100%;">
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-      <label>E-Mail <input id="loginEmail" type="email" autocomplete="email" style="background:#ffffb5;"/></label>
-      <label>Passwort <input id="loginPass" type="password" autocomplete="current-password" style="background:#ffffb5;"/></label>
-      <button id="btnLogin" type="button">Anmelden</button>
-      <span id="authMsg" style="margin-left:8px;"></span>
-    </div>
+  <main class="panel is-active" style="min-height:100vh; display:flex; align-items:center; justify-content:center; padding:22px;">
+    <section class="card loginCard" aria-label="Anmeldung" style="max-width:900px; width:100%;">
+      <div class="row loginFields" style="gap:12px; flex-wrap:wrap;">
+        <label class="field" id="emailField" style="flex:1 1 320px;">
+          <span>E‑Mail</span>
+          <input id="loginEmail" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" />
+        </label>
+        <label class="field" id="pwField" style="flex:1 1 320px;">
+          <span>Passwort</span>
+          <input id="loginPass" type="password" autocomplete="current-password" autocapitalize="none" spellcheck="false" />
+        </label>
+      </div>
+
+      <div class="authActions" style="margin-top:12px; display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center;">
+        <div class="authActions__left" style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button id="btnLogin" class="primary" type="button">Anmelden</button>
+          <button id="btnRegister" class="btnSecondary" type="button">Registrieren</button>
+        </div>
+        <button id="btnForgot" class="btnLink btnLink--text" type="button">Passwort vergessen?</button>
+      </div>
+
+      <p id="authMsg" class="muted" style="margin-top:12px;"></p>
+      <div class="build-badge" id="buildBadge">Build ANA037-BASEFIX</div>
+    </section>
   </main>
 
-  <!-- Firebase config (ROOT) -->
-  <script defer src="./firebase-config.js?v=ANA037_LOGIN_BTN1"></script>
+  <!-- Firebase config from repo root -->
+  <script defer src="./firebase-config.js?v=ANA037_BASEFIX1"></script>
 
-  <!-- Firebase compat libs -->
+  <!-- Firebase compat libs (must match your codebase) -->
   <script defer src="https://www.gstatic.com/firebasejs/9.6.11/firebase-app-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/9.6.11/firebase-auth-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/9.6.11/firebase-firestore-compat.js"></script>
 
-  <!-- Auth handler -->
-  <script defer src="./auth.js?v=ANA037_LOGIN_BTN1"></script>
+  <script defer src="./auth.js?v=ANA037_BASEFIX1"></script>
 </body>
 </html>

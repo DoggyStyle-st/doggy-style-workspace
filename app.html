@@ -1,32 +1,37 @@
 <!doctype html>
 <html lang="de">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+
+  <!-- IMPORTANT (GitHub Pages Project Site): force correct base path -->
+  <base href="/doggy-style-workspace/" />
+
   <title>DoggyStyle Workspace</title>
-  <link rel="stylesheet" href="./css/styles.css">
-  <link rel="stylesheet" href="./css/dashboard_master.css">
+
+  <link rel="stylesheet" href="./css/styles.css" />
+  <link rel="stylesheet" href="./css/dashboard_master.css" />
 </head>
 <body>
   <div id="appRoot"></div>
 
-  <!-- Firebase config from ROOT -->
-  <script defer src="./firebase-config.js?v=ANA037_APP_CFG2"></script>
+  <!-- Firebase config from repo root -->
+  <script defer src="./firebase-config.js?v=ANA037_BASEFIX1"></script>
 
-  <!-- Firebase compat libs (keep consistent) -->
+  <!-- Firebase compat libs (must match your codebase) -->
   <script defer src="https://www.gstatic.com/firebasejs/9.6.11/firebase-app-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/9.6.11/firebase-auth-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/9.6.11/firebase-firestore-compat.js"></script>
 
-  <!-- Boot badge (optional) -->
-  <script defer src="./app_init.js?v=ANA037_APP_INIT2"></script>
+  <!-- Boot badge (safe) -->
+  <script defer src="./app_init.js?v=ANA037_BASEFIX1"></script>
 
-  <!-- Auth hooks (must exist for loader) -->
-  <script defer src="./auth.js?v=ANA037_AUTH_ES5_HOOK"></script>
+  <!-- Loader / App bootstrap -->
+  <script defer src="./app.js?v=ANA037_BASEFIX1"></script>
 
-  <!-- Main loader/app -->
-  <script defer src="./app.js?v=ANA037_APP_LOADER2"></script>
-
-  <div class="build-badge" id="buildBadge">Build ANA037-AUTH-HOOK</div>
+  <div class="build-badge" id="buildBadge">Build ANA037-BASEFIX</div>
 </body>
 </html>
