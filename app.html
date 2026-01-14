@@ -2,40 +2,34 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Doggy Style Workspace</title>
+  <title>DoggyStyle Workspace</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  <!-- ========================= -->
-  <!-- CSS (alles deaktiviert)   -->
-  <!-- ========================= -->
-  <!--
-  <link rel="stylesheet" href="./styles.css">
-  <link rel="stylesheet" href="./dashboard_master.css">
-  <link rel="stylesheet" href="./login_override.css">
-  -->
-
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #0b0e14;
+      color: #fff;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial;
+    }
+    body.loading {
+      pointer-events: none;
+      opacity: 0.6;
+    }
+  </style>
 </head>
-<body>
 
-  <!-- ========================= -->
-  <!-- APP ROOT                  -->
-  <!-- ========================= -->
+<body class="loading">
+
+  <!-- App Root -->
   <div id="app"></div>
 
-  <!-- ========================= -->
-  <!-- SCRIPTS                   -->
-  <!-- ========================= -->
-
-  <!-- ❌ ALLE SCRIPTS DEAKTIVIERT -->
-  <!--
+  <!-- Bootstrap Reihenfolge ist KRITISCH -->
+  <script src="./firebase-config.js"></script>
   <script src="./auth.js"></script>
-  <script src="./auswertungen.js"></script>
-  <script src="./diag.js"></script>
-  <script src="./pdf-report.js"></script>
-  -->
-
-  <!-- ✅ NUR app.js AKTIV -->
   <script src="./app.js"></script>
+  <script src="./app_init.js"></script>
 
 </body>
 </html>
