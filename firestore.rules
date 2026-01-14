@@ -1,0 +1,35 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+
+    function userDoc(orgId) {
+      return get(/databases/$(database)/documents/orgs/$(orgId)/users/$(request.auth.uid));
+    }
+
+    function role(orgId) {
+      return (signedIn() && userDoc(orgId).exists()) ? userDoc(orgId).data.role : 'guest';
+    }
+
+    function isAdmin(orgId) { return role(orgId) == 'admin'; }
+    function isStaff(orgId) { return role(orgId) == 'admin' || role(orgId) == 'staff'; }
+
+    match /orgs/{orgId}/users/{uid} {
+      allow read: if signedIn() && (isStaff(orgId) || request.auth.uid == uid);
+      allow create: if signedIn() && request.auth.uid == uid;
+      allow update, delete: if signedIn() && (isAdmin(orgId) || request.auth.uid == uid);
+    }
+
+    match /orgs/{orgId}/meta/{docId} {
+      allow read, write: if signedIn() && isStaff(orgId);
+    }
+
+    match /orgs/{orgId}/tasks/{taskId} {
+      allow create, update, delete: if signedIn() && isStaff(orgId);
+      allow read: if signedIn() && (isStaff(orgId) || (resource.data.customerUid == request.auth.uid));
+    }
+
+    match /{document=**} { allow read, write: if false; }
+  }
+}
