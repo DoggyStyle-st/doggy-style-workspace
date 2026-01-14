@@ -1,50 +1,26 @@
 <!doctype html>
 <html lang="de">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
-  <title>Login – DoggyStyle Workspace</title>
-  <link rel="stylesheet" href="./css/styles.css">
-  <link rel="stylesheet" href="./css/dashboard_master.css">
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Login</title>
+<link rel="stylesheet" href="./css/dashboard_master.css">
 </head>
 <body>
-  <main class="loginWrap">
-    <section class="panel is-active">
-      <div class="card loginCard" aria-label="Anmeldung">
-        <div class="row loginFields">
-          <label class="field" id="emailField">
-            <span>E-Mail</span>
-            <input id="loginEmail" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" />
-          </label>
-          <label class="field" id="pwField">
-            <span>Passwort</span>
-            <input id="loginPass" type="password" autocomplete="current-password" autocapitalize="none" spellcheck="false" />
-          </label>
-        </div>
+<main>
+  <label>E-Mail <input id="loginEmail" type="email"></label>
+  <label>Passwort <input id="loginPass" type="password"></label>
+  <button id="btnLogin" type="button">Anmelden</button>
+</main>
 
-        <div class="authActions">
-          <div class="authActions__left">
-            <button id="btnLogin" class="primary" type="button">Anmelden</button>
-            <button id="btnRegister" class="btnSecondary" type="button">Registrieren</button>
-          </div>
-          <button id="btnForgot" class="btnLink btnLink--text" type="button">Passwort vergessen?</button>
-        </div>
-        <p id="authMsg" class="muted" style="margin-top:10px"></p>
-      </div>
-    </section>
-  </main>
-
-  <script defer src="./firebase-config.js?v=ANA037_LOGIN_CFG2"></script>
-  <script defer src="https://www.gstatic.com/firebasejs/9.6.11/firebase-app-compat.js"></script>
-  <script defer src="https://www.gstatic.com/firebasejs/9.6.11/firebase-auth-compat.js"></script>
-  <script defer src="https://www.gstatic.com/firebasejs/9.6.11/firebase-firestore-compat.js"></script>
-  <script defer src="./auth.js?v=ANA037_AUTH_ES5_HOOK"></script>
-  <script defer>
-    document.addEventListener('DOMContentLoaded', function(){
-      if (window.initAuth) window.initAuth('login');
-    });
-  </script>
-
-  <div class="build-badge" id="buildBadge">Build ANA037-LOGIN-HOOK</div>
+<script src="./firebase-config.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-auth-compat.js"></script>
+<script src="./auth.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  if(window.initAuth) window.initAuth();
+});
+</script>
 </body>
 </html>
