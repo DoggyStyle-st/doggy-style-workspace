@@ -1,103 +1,56 @@
 <!doctype html>
 <html lang="de">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
-  <title>DoggyStyle Login</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0d12" />
+  <title>DoggyStyle – Login</title>
 
-  <!-- Keep existing project styles -->
-  <link rel="stylesheet" href="./css/styles.css">
-  <link rel="stylesheet" href="./css/dashboard_master.css">
-
-  <style>
-    /* Minimal fallback so Login always looks like the “Glas-Leiste”, even if CSS cache is weird */
-    body{ margin:0; min-height:100vh; background:#05060a; }
-    .bg{ position:fixed; inset:0; background:radial-gradient(1200px 700px at 10% 10%, rgba(160,120,30,.45), transparent 55%),
-                           radial-gradient(1000px 600px at 90% 20%, rgba(40,90,150,.45), transparent 60%),
-                           radial-gradient(900px 700px at 70% 90%, rgba(20,20,30,.85), rgba(5,6,10,1) 70%); }
-    .topbar{
-      position:relative;
-      margin:12vh auto 0;
-      width:min(1180px, calc(100% - 32px));
-      padding:14px 16px;
-      border-radius:16px;
-      background:rgba(24,26,32,.62);
-      border:1px solid rgba(255,255,255,.08);
-      backdrop-filter: blur(18px);
-      -webkit-backdrop-filter: blur(18px);
-      box-shadow: 0 20px 60px rgba(0,0,0,.55);
-      color:#eaeaea;
-    }
-    .row{ display:flex; gap:14px; align-items:flex-end; flex-wrap:wrap; }
-    label{ display:block; font-size:13px; opacity:.8; margin:0 0 6px 2px; }
-    input{
-      width: min(520px, calc(100vw - 90px));
-      max-width: 520px;
-      height:40px;
-      border-radius:10px;
-      border:1px solid rgba(255,255,255,.12);
-      background:rgba(0,0,0,.28);
-      color:#f4f4f4;
-      padding:0 12px;
-      outline:none;
-    }
-    input:focus{ border-color: rgba(255,255,255,.28); }
-    .btn{
-      height:34px;
-      border-radius:18px;
-      border:1px solid rgba(255,255,255,.18);
-      background:rgba(255,255,255,.10);
-      color:#fff;
-      padding:0 14px;
-    }
-    .btn:active{ transform: translateY(1px); }
-    .btn.primary{ background:rgba(255,255,255,.16); }
-    .spacer{ flex:1; }
-    .link{ background:transparent; border:1px solid rgba(255,255,255,.18); }
-    .status{ margin-top:10px; font-size:13px; opacity:.9; }
-    .status.ok{ color:#7CFF8A; }
-    .status.err{ color:#ff7c7c; }
-    .build{ font-size:12px; opacity:.55; margin-top:4px; }
-  </style>
-
-  <!-- Firebase config must be ROOT -->
-  <script defer src="./firebase-config.js?v=ANA037_A_CFG"></script>
-
-  <!-- Firebase compat libs (same as app.html) -->
-  <script defer src="https://www.gstatic.com/firebasejs/9.6.11/firebase-app-compat.js"></script>
-  <script defer src="https://www.gstatic.com/firebasejs/9.6.11/firebase-auth-compat.js"></script>
-  <script defer src="https://www.gstatic.com/firebasejs/9.6.11/firebase-firestore-compat.js"></script>
-
-  <!-- Auth controller -->
-  <script defer src="./auth.js?v=ANA037_A_AUTH"></script>
+  <!-- Styles: keep original paths, but provide safe fallbacks -->
+  <link rel="stylesheet" href="css/dashboard_master.css" onerror="this.removeAttribute('onerror');this.href='dashboard_master.css'" />
+  <link rel="stylesheet" href="css/styles.css" onerror="this.removeAttribute('onerror');this.href='styles.css'" />
+  <link rel="stylesheet" href="css/login_override.css" onerror="this.removeAttribute('onerror');this.href='login_override.css'" />
 </head>
 <body>
-  <div class="bg"></div>
+  <main>
+    <section class="panel is-active">
+      <div class="card loginCard" aria-label="Anmeldung">
+        <div class="row loginFields">
+          <label class="field" id="emailField">
+            <span>E-Mail</span>
+            <input id="loginEmail" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" />
+          </label>
 
-  <div class="topbar" role="main">
-    <div class="row">
-      <div>
-        <label for="email">E‑Mail</label>
-        <input id="email" type="email" inputmode="email" autocomplete="email" placeholder="name@domain.de"/>
+          <label class="field" id="pwField">
+            <span>Passwort</span>
+            <input id="loginPass" type="password" autocomplete="current-password" autocapitalize="none" spellcheck="false" />
+          </label>
+        </div>
+
+        <div class="authActions">
+          <div class="authActions__left">
+            <button id="btnLogin" class="primary" type="button">Anmelden</button>
+            <button id="btnRegister" class="btnSecondary" type="button">Registrieren</button>
+          </div>
+          <button id="btnForgot" class="btnLink btnLink--text" type="button">Passwort vergessen?</button>
+        </div>
+
+        <p id="authMsg" class="muted" style="margin-top:10px"></p>
       </div>
+    </section>
+  </main>
 
-      <div>
-        <label for="password">Passwort</label>
-        <input id="password" type="password" autocomplete="current-password" placeholder="••••••••"/>
-      </div>
+  <!-- Firebase config must be ROOT -->
+  <script defer src="firebase-config.js?v=ANA037_AUTH_ES5_FIX"></script>
 
-      <div style="display:flex; gap:10px; padding-bottom:2px;">
-        <button id="btnLogin" class="btn primary" type="button">Anmelden</button>
-        <button id="btnRegister" class="btn" type="button">Registrieren</button>
-      </div>
+  <!-- Firebase (compat) libs – single version only -->
+  <script defer src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 
-      <div class="spacer"></div>
+  <!-- Auth handler (ES5) -->
+  <script defer src="auth.js?v=ANA037_AUTH_ES5_FIX"></script>
 
-      <button id="btnReset" class="btn link" type="button">Passwort vergessen?</button>
-    </div>
-
-    <div id="status" class="status ok">Bereit</div>
-    <div class="build">Build ANA037‑A‑LOGIN</div>
-  </div>
+  <div class="build-badge" id="buildBadge">Build v11-LOGIN-ES5</div>
 </body>
 </html>
