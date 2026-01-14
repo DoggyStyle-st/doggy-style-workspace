@@ -1,56 +1,130 @@
 <!doctype html>
 <html lang="de">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <meta name="theme-color" content="#0b0d12" />
-  <title>DoggyStyle – Login</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Login – DoggyStyle</title>
 
-  <!-- Styles: keep original paths, but provide safe fallbacks -->
-  <link rel="stylesheet" href="css/dashboard_master.css" onerror="this.removeAttribute('onerror');this.href='dashboard_master.css'" />
-  <link rel="stylesheet" href="css/styles.css" onerror="this.removeAttribute('onerror');this.href='styles.css'" />
-  <link rel="stylesheet" href="css/login_override.css" onerror="this.removeAttribute('onerror');this.href='login_override.css'" />
+  <!-- Dein normales CSS -->
+  <link rel="stylesheet" href="dashboard_master.css?v=LOGIN_FIX_01">
+  <link rel="stylesheet" href="styles.css?v=LOGIN_FIX_01">
 </head>
+
 <body>
-  <main>
-    <section class="panel is-active">
-      <div class="card loginCard" aria-label="Anmeldung">
-        <div class="row loginFields">
-          <label class="field" id="emailField">
-            <span>E-Mail</span>
-            <input id="loginEmail" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" />
-          </label>
+  <main class="panel is-active">
+    <div class="card loginCard" aria-label="Anmeldung" style="max-width:1100px;margin:40px auto;padding:22px;">
+      <div class="row loginFields" style="display:flex;gap:16px;flex-wrap:wrap;">
+        <label class="field" id="emailField" style="flex:1;min-width:280px;">
+          <span>E-Mail</span>
+          <input id="loginEmail" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false">
+        </label>
 
-          <label class="field" id="pwField">
-            <span>Passwort</span>
-            <input id="loginPass" type="password" autocomplete="current-password" autocapitalize="none" spellcheck="false" />
-          </label>
-        </div>
-
-        <div class="authActions">
-          <div class="authActions__left">
-            <button id="btnLogin" class="primary" type="button">Anmelden</button>
-            <button id="btnRegister" class="btnSecondary" type="button">Registrieren</button>
-          </div>
-          <button id="btnForgot" class="btnLink btnLink--text" type="button">Passwort vergessen?</button>
-        </div>
-
-        <p id="authMsg" class="muted" style="margin-top:10px"></p>
+        <label class="field" id="pwField" style="flex:1;min-width:280px;">
+          <span>Passwort</span>
+          <input id="loginPass" type="password" autocomplete="current-password" autocapitalize="none" spellcheck="false">
+        </label>
       </div>
-    </section>
+
+      <div class="authActions" style="margin-top:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <button id="btnLogin" class="primary" type="button">Anmelden</button>
+        <button id="btnRegister" class="btnSecondary" type="button">Registrieren</button>
+        <button id="btnForgot" class="btnLink btnLink--text" type="button">Passwort vergessen?</button>
+        <span id="authMsg" style="margin-left:10px;opacity:.9;"></span>
+      </div>
+
+      <div style="margin-top:12px;font-size:12px;opacity:.8;">
+        Build <b>LOGIN_FIX_DIRECT_01</b>
+      </div>
+    </div>
   </main>
 
-  <!-- Firebase config must be ROOT -->
-  <script defer src="firebase-config.js?v=ANA037_AUTH_ES5_FIX"></script>
+  <!-- 1) Config (ROOT) -->
+  <script src="firebase-config.js?v=LOGIN_FIX_01"></script>
 
-  <!-- Firebase (compat) libs – single version only -->
-  <script defer src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
-  <script defer src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
-  <script defer src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+  <!-- 2) Firebase compat libs -->
+  <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-auth-compat.js"></script>
 
-  <!-- Auth handler (ES5) -->
-  <script defer src="auth.js?v=ANA037_AUTH_ES5_FIX"></script>
+  <!-- 3) DIRECT ES5 LOGIN (ohne auth.js) -->
+  <script>
+  (function(){
+    function $(id){ return document.getElementById(id); }
+    function msg(t, ok){
+      var el = $('authMsg');
+      if(!el) return;
+      el.textContent = t || '';
+      el.style.color = ok ? '#b7ffb7' : '#ffb7b7';
+    }
 
-  <div class="build-badge" id="buildBadge">Build v11-LOGIN-ES5</div>
+    function ensureFirebase(){
+      try{
+        if(!window.firebaseConfig){
+          msg('FEHLER: firebaseConfig fehlt (firebase-config.js?)', false);
+          return false;
+        }
+        if(!window.firebase || !firebase.initializeApp){
+          msg('FEHLER: Firebase libs nicht geladen', false);
+          return false;
+        }
+        if(!firebase.apps || !firebase.apps.length){
+          firebase.initializeApp(window.firebaseConfig);
+        }
+        return true;
+      }catch(e){
+        msg('FEHLER beim Firebase-Init: ' + (e && e.message ? e.message : String(e)), false);
+        return false;
+      }
+    }
+
+    function wire(){
+      var b = $('btnLogin');
+      if(!b){
+        msg('FEHLER: btnLogin nicht gefunden', false);
+        return;
+      }
+
+      b.onclick = function(){
+        msg('Klick erkannt…', true);
+
+        if(!ensureFirebase()) return;
+
+        var email = ($('loginEmail') && $('loginEmail').value || '').trim();
+        var pass  = ($('loginPass') && $('loginPass').value || '');
+
+        if(!email || !pass){
+          msg('Bitte E-Mail + Passwort eingeben.', false);
+          return;
+        }
+
+        try{
+          // iOS-sicher: Promise chain ohne async/await
+          firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+            .then(function(){
+              msg('Anmeldung läuft…', true);
+              return firebase.auth().signInWithEmailAndPassword(email, pass);
+            })
+            .then(function(){
+              msg('OK! Weiterleiten…', true);
+              window.location.href = 'app.html';
+            })
+            .catch(function(err){
+              msg('LOGIN FEHLER: ' + (err && err.message ? err.message : String(err)), false);
+            });
+        }catch(e){
+          msg('LOGIN CRASH: ' + (e && e.message ? e.message : String(e)), false);
+        }
+      };
+
+      // Mini-Diagnose:
+      msg('Bereit. Tippe auf „Anmelden“.', true);
+    }
+
+    if(document.readyState === 'loading'){
+      document.addEventListener('DOMContentLoaded', wire);
+    } else {
+      wire();
+    }
+  })();
+  </script>
 </body>
 </html>
