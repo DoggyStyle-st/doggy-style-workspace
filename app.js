@@ -1,97 +1,288 @@
-/* ANA037 APP (START-HOOK FIX)
-   Goal: after login, app.html must not show "Kein Start-Hook gefunden".
-   We provide a stable startApp() hook and a minimal boot that can run without other legacy modules.
-*/
-(function(){
+/*!
+ * DoggyStyle Workspace - Safari-Fix Loader (robust boot)
+ * Build: ANA037_SAFARI_FIX_LOADER_01
+ *
+ * Ziel:
+ * - App "lebt" wieder (keine White/Dead UI), auch wenn Pfade / Caches zicken.
+ * - Zeigt unten links einen grünen "JS bereit" Hinweis und fängt JS-Errors ab.
+ * - Lädt vorhandene Legacy-Skripte (root oder /js) automatisch nach.
+ *
+ * Hinweis:
+ * - ES5/ES2015-kompatibel (kein async/await, keine optional chaining).
+ */
+
+(function () {
   'use strict';
+
+  var BUILD = 'ANA037_SAFARI_FIX_LOADER_01';
   var startTs = Date.now();
 
-  function log(){ try{ console.log.apply(console, arguments); }catch(e){} }
-  function setChip(msg, ok){
-    try{
-      var badge = document.getElementById('bootBadge') || document.getElementById('bootBadge2');
-      if(badge){
-        badge.textContent = msg;
-        badge.style.background = ok ? 'rgba(0,120,0,.55)' : 'rgba(120,0,0,.55)';
-      }
-    }catch(e){}
-  }
-
-  function markReady(){
-    window.__APP_READY = true;
-    var ms = Date.now() - startTs;
-    setChip('JS OK ('+ms+'ms)', true);
-  }
-
-  // ---- REAL start hook: called once after auth is OK ----
-  function realStart(){
-    if(window.__APP_STARTED) return;
-    window.__APP_STARTED = true;
-
-    // If the old app exposes something, call it; otherwise show a safe placeholder.
-    var called = false;
-    var candidates = [
-      'startLegacy', 'initApp', 'AppInit', 'bootApp', 'workspaceInit',
-      'renderApp', 'initDashboard', 'startWorkspace'
-    ];
-    for(var i=0;i<candidates.length;i++){
-      try{
-        var fn = window[candidates[i]];
-        if(typeof fn === 'function'){
-          called = true;
-          fn();
-          break;
+  // ---------- Minimal UI helpers ----------
+  function el(tag, attrs, children) {
+    var n = document.createElement(tag);
+    if (attrs) {
+      for (var k in attrs) {
+        if (!Object.prototype.hasOwnProperty.call(attrs, k)) continue;
+        if (k === 'style') {
+          for (var sk in attrs.style) n.style[sk] = attrs.style[sk];
+        } else if (k === 'class') {
+          n.className = attrs[k];
+        } else if (k === 'text') {
+          n.textContent = attrs[k];
+        } else {
+          n.setAttribute(k, attrs[k]);
         }
-      }catch(e){}
-    }
-
-    // Ensure there is at least something visible / interactive.
-    try{
-      var root = document.getElementById('appRoot') || document.getElementById('app') || document.body;
-      if(root && !called){
-        var div = document.createElement('div');
-        div.id = 'ana037Placeholder';
-        div.style.cssText = 'position:fixed;left:0;top:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;color:#fff;font:16px/1.4 -apple-system,BlinkMacSystemFont,system-ui,Segoe UI,Roboto,Arial;';
-        div.innerHTML = '<div style="padding:16px 18px;border-radius:14px;background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.15);backdrop-filter:blur(8px)">' +
-                        '<div style="font-weight:700;margin-bottom:6px">Workspace geladen</div>' +
-                        '<div style="opacity:.85">Auth OK. Start-Hook ist vorhanden. (Nächster Schritt: Legacy-UI wieder anbinden.)</div>' +
-                        '</div>';
-        // Don't cover existing UI if it exists
-        if(!document.getElementById('ana037Placeholder')) document.body.appendChild(div);
       }
-    }catch(e){}
-
-    markReady();
+    }
+    if (children && children.length) {
+      for (var i = 0; i < children.length; i++) {
+        if (children[i] == null) continue;
+        n.appendChild(typeof children[i] === 'string' ? document.createTextNode(children[i]) : children[i]);
+      }
+    }
+    return n;
   }
 
-  // Expose stable hooks (some builds look for different names)
-  window.startApp = realStart;
-  window.initApp  = realStart;
-  window.bootApp  = realStart;
+  function ensureStatusChip() {
+    var id = 'ds_js_status_chip';
+    var chip = document.getElementById(id);
+    if (chip) return chip;
 
-  // "Legacy export" fallbacks (because some loaders look for these names)
-  window.startAppLegacy = realStart;
-  window.startLegacy    = realStart;
-  window.legacyStart    = realStart;
-  window.__LEGACY_EXPORT_OK = true;
+    chip = el('div', {
+      id: id,
+      style: {
+        position: 'fixed',
+        left: '10px',
+        bottom: '10px',
+        zIndex: '2147483647',
+        padding: '6px 10px',
+        borderRadius: '10px',
+        border: '1px solid rgba(255,255,255,.18)',
+        background: 'rgba(0,0,0,.55)',
+        color: '#fff',
+        fontFamily: 'ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial',
+        fontSize: '12px',
+        lineHeight: '1.25',
+        maxWidth: '70vw',
+        backdropFilter: 'blur(6px)',
+        WebkitBackdropFilter: 'blur(6px)'
+      }
+    });
 
-  function boot(){
-    // If auth.js is present it will call startApp() after user is logged-in.
-    // But we also call initAuth here if it exists (app.html includes auth.js in this fix).
-    if(typeof window.initAuth === 'function'){
-      try{ window.initAuth(); }catch(e){}
-      setChip('Build ANA037-START-HOOK – warte auf Login…', true);
-      return;
+    chip.appendChild(el('div', { style: { fontWeight: '700' }, text: 'Build: ' + BUILD }));
+    chip.appendChild(el('div', { id: id + '_line', style: { opacity: '0.9' }, text: 'Boot…' }));
+
+    document.documentElement.appendChild(chip);
+    return chip;
+  }
+
+  function setChip(text, ok) {
+    var chip = ensureStatusChip();
+    var line = document.getElementById('ds_js_status_chip_line');
+    if (line) line.textContent = text;
+    chip.style.borderColor = ok ? 'rgba(120,255,120,.35)' : 'rgba(255,120,120,.35)';
+    chip.style.boxShadow = ok ? '0 0 0 1px rgba(120,255,120,.12), 0 8px 30px rgba(0,0,0,.35)'
+                              : '0 0 0 1px rgba(255,120,120,.12), 0 8px 30px rgba(0,0,0,.35)';
+  }
+
+  function toast(msg, ok) {
+    var t = el('div', {
+      style: {
+        position: 'fixed',
+        left: '10px',
+        bottom: '52px',
+        zIndex: '2147483647',
+        padding: '8px 10px',
+        borderRadius: '12px',
+        border: '1px solid ' + (ok ? 'rgba(120,255,120,.35)' : 'rgba(255,120,120,.35)'),
+        background: 'rgba(10,10,12,.72)',
+        color: '#fff',
+        fontFamily: 'ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial',
+        fontSize: '12px',
+        lineHeight: '1.25',
+        maxWidth: '78vw',
+        backdropFilter: 'blur(6px)',
+        WebkitBackdropFilter: 'blur(6px)'
+      }
+    }, [msg]);
+
+    document.documentElement.appendChild(t);
+    setTimeout(function () {
+      try { t.parentNode && t.parentNode.removeChild(t); } catch (e) {}
+    }, 6500);
+  }
+
+  // ---------- Global error hooks ----------
+  window.addEventListener('error', function (e) {
+    try {
+      var m = (e && (e.message || (e.error && e.error.message))) || 'Unbekannter JS-Fehler';
+      toast('JS ERROR: ' + m, false);
+      setChip('JS Fehler: ' + m, false);
+    } catch (err) {}
+  });
+
+  window.addEventListener('unhandledrejection', function (e) {
+    try {
+      var r = e && e.reason;
+      var m = (r && (r.message || String(r))) || 'Promise Rejection';
+      toast('JS REJECTION: ' + m, false);
+      setChip('JS Rejection: ' + m, false);
+    } catch (err) {}
+  });
+
+  // ---------- Path / loader helpers ----------
+  function cacheBust(url) {
+    var sep = url.indexOf('?') >= 0 ? '&' : '?';
+    return url + sep + 'v=' + Date.now();
+  }
+
+  function headOk(url, cb) {
+    // Use XHR (more compatible than fetch for some Safari edge cases)
+    try {
+      var xhr = new XMLHttpRequest();
+      xhr.open('GET', cacheBust(url), true);
+      xhr.responseType = 'text';
+      xhr.onload = function () {
+        // GitHub Pages sometimes returns 200 with HTML 404 page.
+        // Heuristic: if content looks like HTML doctype, treat as missing.
+        var txt = String(xhr.responseText || '');
+        var looksHtml = /<\s*html/i.test(txt) || /<!doctype/i.test(txt);
+        cb(xhr.status >= 200 && xhr.status < 300 && !looksHtml);
+      };
+      xhr.onerror = function () { cb(false); };
+      xhr.send();
+    } catch (e) { cb(false); }
+  }
+
+  function loadScript(url, cb) {
+    var s = document.createElement('script');
+    s.src = cacheBust(url);
+    s.defer = false;
+    s.async = false;
+    s.onload = function () { cb && cb(true); };
+    s.onerror = function () { cb && cb(false); };
+    document.head.appendChild(s);
+  }
+
+  function loadCss(url) {
+    try {
+      var l = document.createElement('link');
+      l.rel = 'stylesheet';
+      l.href = cacheBust(url);
+      document.head.appendChild(l);
+    } catch (e) {}
+  }
+
+  function tryPaths(paths, loaderFn, cb) {
+    var i = 0;
+    function next() {
+      if (i >= paths.length) return cb(false, null);
+      var p = paths[i++];
+      headOk(p, function (ok) {
+        if (!ok) return next();
+        loaderFn(p, function (loadedOk) {
+          if (loadedOk) return cb(true, p);
+          next();
+        });
+      });
+    }
+    next();
+  }
+
+  // ---------- Boot sequence ----------
+  function boot() {
+  if (window.__DS_BOOT_RUNNING) { return; }
+  window.__DS_BOOT_RUNNING = true;
+    ensureStatusChip();
+    setChip('JS bereit – Loader startet…', true);
+
+    // Always try to attach base CSS if app.html removed links
+    loadCss('./css/styles.css');
+    loadCss('./css/dashboard_master.css');
+    loadCss('./styles.css'); // fallback root
+
+    // 1) Try to load firebase-config / firebase init if present (root or /js)
+    var candidatesFirebaseCfg = ['./firebase-config.js', './js/firebase-config.js', './firebase_config.js', './js/firebase_config.js'];
+    tryPaths(candidatesFirebaseCfg, loadScript, function (ok, used) {
+      if (ok) {
+        toast('Firebase config geladen: ' + used, true);
+      } else {
+        // Not fatal, some builds inline config elsewhere
+        toast('Hinweis: firebase-config.js nicht gefunden (ok, falls inline).', true);
+      }
+
+      // 2) Load auth.js if present
+      var candidatesAuth = ['./auth.js', './js/auth.js'];
+      tryPaths(candidatesAuth, loadScript, function (ok2, used2) {
+        if (ok2) toast('auth.js geladen: ' + used2, true);
+
+        // 3) Load remaining modules that often exist
+        var modules = [
+          { name: 'auswertungen.js', paths: ['./auswertungen.js', './js/auswertungen.js'] },
+          { name: 'pdf-report.js', paths: ['./pdf-report.js', './js/pdf-report.js'] }
+        ];
+
+        function loadModules(idx) {
+          if (idx >= modules.length) return startLegacy();
+          tryPaths(modules[idx].paths, loadScript, function (okm, usedm) {
+            if (okm) toast(modules[idx].name + ' geladen: ' + usedm, true);
+            loadModules(idx + 1);
+          });
+        }
+        loadModules(0);
+      });
+    });
+  }
+
+  function startLegacy() {
+    // Start hook – we call the first known init function we find.
+    // We purposely keep this very defensive.
+    var started = false;
+    var hooks = [
+      'bootApp',
+      'initApp',
+      'startApp',
+      'appInit',
+      'DS_BOOT',
+      'DS_init'
+    ];
+
+    for (var i = 0; i < hooks.length; i++) {
+      var h = hooks[i];
+      if (typeof window[h] === 'function') {
+        try {
+          window[h]();
+          started = true;
+        window.__APP_READY = true;
+          toast('App gestartet über Hook: ' + h, true);
+          break;
+        } catch (e) {
+          toast('Hook ' + h + ' Fehler: ' + (e && e.message ? e.message : String(e)), false);
+        }
+      }
     }
 
-    // No auth available: still mark ready and keep page usable
-    setChip('JS OK – Auth-Modul fehlt (auth.js nicht geladen)', false);
-    markReady();
+    // If nothing to call, at least show that JS is alive and clickable overlay isn't blocking
+    if (!started) {
+      toast('JS läuft. Kein Start-Hook gefunden → Bitte sagen, wie deine Init-Funktion heißt.', false);
+      // Make sure the page can be interacted with (some overlays block taps)
+      try {
+        document.documentElement.style.pointerEvents = 'auto';
+        document.body && (document.body.style.pointerEvents = 'auto');
+      } catch (e) {}
+    }
+
+    var ms = Date.now() - startTs;
+    setChip('JS bereit (' + ms + 'ms) – UI sollte bedienbar sein.', true);
   }
 
-  if(document.readyState === 'loading'){
-    document.addEventListener('DOMContentLoaded', boot, false);
-  }else{
+  // DOM ready
+  if (document.readyState === 'loading') {
+      // Expose a stable global hook for legacy boot (requested)
+  // Some older parts of the app expect window.startApp() to exist.
+  window.startApp = function(){ boot(); };
+document.addEventListener('DOMContentLoaded', boot);
+  } else {
     boot();
   }
 })();

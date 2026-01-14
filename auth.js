@@ -1,206 +1,210 @@
-/* ANA037 AUTH (ES5, ROOT)
-   Provides global hooks: initAuth(), showLogin(), doLogin().
-   Works on Safari/iPad, GitHub Pages, Firebase compat (9.x / 10.x).
+/* ANA037 auth.js (root) - ES5 compat
+   - Works on Safari iOS/iPadOS
+   - Guards app.html (requires logged in)
+   - Powers login.html (email/pass sign-in)
 */
 (function(){
   'use strict';
 
-  // --- tiny log helpers (no console crashes) ---
-  function log(){ try{ console.log.apply(console, arguments); }catch(e){} }
-  function warn(){ try{ console.warn.apply(console, arguments); }catch(e){} }
+  var BUILD = 'ANA037-AUTH-STABLE';
+  function $(id){ return document.getElementById(id); }
 
-  // --- UI message helper (optional) ---
-  function setMsg(id, txt, ok){
+  function log(){ try{ console.log.apply(console, arguments);}catch(e){} }
+
+  function toast(msg, ok){
     try{
-      var el = document.getElementById(id);
-      if(!el) return;
-      el.textContent = txt || '';
-      el.style.color = ok ? '#7CFF7C' : '#FF7C7C';
+      var box = document.getElementById('statusToast');
+      if(!box){
+        box = document.createElement('div');
+        box.id = 'statusToast';
+        box.style.position='fixed';
+        box.style.left='10px';
+        box.style.bottom='10px';
+        box.style.zIndex='99999';
+        box.style.padding='8px 10px';
+        box.style.borderRadius='10px';
+        box.style.font='12px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Arial';
+        box.style.boxShadow='0 8px 24px rgba(0,0,0,.35)';
+        box.style.background= ok ? 'rgba(10,120,40,.85)' : 'rgba(140,20,20,.85)';
+        box.style.color='#fff';
+        document.body.appendChild(box);
+      }
+      box.style.background= ok ? 'rgba(10,120,40,.85)' : 'rgba(140,20,20,.85)';
+      box.textContent = msg;
     }catch(e){}
   }
 
-  // --- wait until firebase compat libs are present ---
-  function waitForFirebase(cb){
+  function setBuildBadge(){
+    try{
+      var badge = document.getElementById('buildBadge');
+      if(badge){ badge.textContent = 'Build ' + BUILD; }
+    }catch(e){}
+  }
+
+  function isLoginPage(){
+    return /login\.html/i.test(location.pathname) || document.body.getAttribute('data-page')==='login';
+  }
+
+  function redirectToLogin(){
+    try{
+      var base = location.href.split('#')[0].split('?')[0];
+      var root = base.replace(/\/[^\/]*$/,'/');
+      location.href = root + 'login.html?from=' + encodeURIComponent(location.pathname + location.search);
+    }catch(e){
+      location.href = './login.html';
+    }
+  }
+
+  function redirectToApp(){
+    try{
+      var base = location.href.split('#')[0].split('?')[0];
+      var root = base.replace(/\/[^\/]*$/,'/');
+      location.href = root + 'app.html';
+    }catch(e){
+      location.href = './app.html';
+    }
+  }
+
+  function ensureFirebaseReady(cb){
     var tries = 0;
-    var t = setInterval(function(){
+    function tick(){
       tries++;
-      var ok = !!(window.firebase && window.firebase.initializeApp && window.firebase.auth);
-      if(ok){
-        clearInterval(t);
+      if(window.firebase && window.firebase.auth && window.firebase.apps){
+        // Ensure initialized
+        try{
+          if(!firebase.apps.length){
+            if(window.firebaseConfig){ firebase.initializeApp(window.firebaseConfig); }
+          }
+        }catch(e){
+          // ignore
+        }
         cb(true);
         return;
       }
-      if(tries > 200){ // ~20s
-        clearInterval(t);
-        cb(false);
-      }
-    }, 100);
-  }
-
-  function ensureFirebaseInit(){
-    try{
-      if(window.firebase && window.firebase.apps && window.firebase.apps.length){
-        return true;
-      }
-      if(!window.firebase || !window.firebase.initializeApp){
-        return false;
-      }
-      if(!window.firebaseConfig){
-        // firebase-config.js should set window.firebaseConfig
-        warn('[auth] firebaseConfig missing');
-        return false;
-      }
-      window.firebase.initializeApp(window.firebaseConfig);
-      log('[auth] firebase initialized');
-      return true;
-    }catch(e){
-      warn('[auth] init error', e);
-      return false;
+      if(tries > 80){ cb(false); return; } // ~8s
+      setTimeout(tick, 100);
     }
+    tick();
   }
 
-  function pageName(){
-    var p = (location.pathname || '').toLowerCase();
-    if(p.indexOf('login.html') !== -1) return 'login';
-    if(p.indexOf('app.html') !== -1) return 'app';
-    return 'other';
-  }
+  function bindLoginUI(){
+    var emailEl = $('email');
+    var passEl  = $('password');
+    var btnLogin = $('btnLogin');
+    var btnRegister = $('btnRegister');
+    var btnReset = $('btnReset');
 
-  function gotoLogin(){
-    // Preserve target so we can return after login
-    try{
-      var next = encodeURIComponent('app.html');
-      location.replace('login.html?next='+next);
-    }catch(e){
-      location.href='login.html';
-    }
-  }
-
-  function gotoApp(){
-    try{
-      var url = new URL(location.href);
-      var next = url.searchParams.get('next');
-      if(next){ location.replace(next); return; }
-    }catch(e){}
-    location.replace('app.html');
-  }
-
-  function bindLoginForm(){
-    var btn = document.getElementById('btnLogin') || document.getElementById('loginBtn') || document.querySelector('button[type="submit"]');
-    var emailEl = document.getElementById('loginEmail') || document.getElementById('email') || document.querySelector('input[type="email"]');
-    var passEl  = document.getElementById('loginPass')  || document.getElementById('password') || document.querySelector('input[type="password"]');
-    var msgId   = 'authMsg';
-
-    if(!btn || !emailEl || !passEl){
-      // Some builds use different ids; don't hard-fail.
-      warn('[auth] login form elements missing', {btn:!!btn, email:!!emailEl, pass:!!passEl});
-    }
+    function getEmail(){ return (emailEl && emailEl.value || '').trim(); }
+    function getPass(){ return (passEl && passEl.value || ''); }
 
     function doLogin(ev){
       if(ev && ev.preventDefault) ev.preventDefault();
-      var email = (emailEl && emailEl.value || '').trim();
-      var pass  = (passEl && passEl.value || '');
-      if(!email || !pass){
-        setMsg(msgId, 'Bitte E‑Mail und Passwort eingeben.', false);
-        return;
-      }
-      setMsg(msgId, 'Anmeldung…', true);
-
-      try{
-        var auth = window.firebase.auth();
-        auth.signInWithEmailAndPassword(email, pass)
+      toast('Anmelden…', true);
+      var email = getEmail();
+      var pass  = getPass();
+      if(!email || !pass){ toast('Bitte E-Mail + Passwort eingeben.', false); return false; }
+      ensureFirebaseReady(function(ok){
+        if(!ok){ toast('Firebase nicht bereit (libs/config).', false); return; }
+        firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL)
           .then(function(){
-            setMsg(msgId, 'Login OK – weiter…', true);
-            // onAuthStateChanged will redirect; but do a small fallback:
-            setTimeout(function(){ gotoApp(); }, 250);
+            return firebase.auth().signInWithEmailAndPassword(email, pass);
+          })
+          .then(function(){
+            toast('Login OK – weiter…', true);
+            setTimeout(redirectToApp, 250);
           })
           .catch(function(err){
-            setMsg(msgId, (err && err.message) ? err.message : 'Login fehlgeschlagen', false);
+            toast('Login Fehler: ' + (err && err.message ? err.message : err), false);
           });
-      }catch(e){
-        setMsg(msgId, 'Login-Fehler: ' + (e && e.message ? e.message : String(e)), false);
-      }
+      });
+      return false;
     }
 
-    // make available for legacy hooks
-    window.doLogin = doLogin;
-
-    if(btn){
-      btn.addEventListener('click', doLogin, false);
-      // iOS Safari sometimes needs touchstart
-      btn.addEventListener('touchstart', function(){}, false);
+    function doRegister(ev){
+      if(ev && ev.preventDefault) ev.preventDefault();
+      toast('Registrieren…', true);
+      var email = getEmail();
+      var pass  = getPass();
+      if(!email || !pass){ toast('Bitte E-Mail + Passwort eingeben.', false); return false; }
+      ensureFirebaseReady(function(ok){
+        if(!ok){ toast('Firebase nicht bereit (libs/config).', false); return; }
+        firebase.auth().createUserWithEmailAndPassword(email, pass)
+          .then(function(){ toast('Registriert – weiter…', true); setTimeout(redirectToApp, 300); })
+          .catch(function(err){ toast('Registrieren Fehler: ' + (err && err.message ? err.message : err), false); });
+      });
+      return false;
     }
+
+    function doReset(ev){
+      if(ev && ev.preventDefault) ev.preventDefault();
+      var email = getEmail();
+      if(!email){ toast('Bitte E-Mail eingeben.', false); return false; }
+      ensureFirebaseReady(function(ok){
+        if(!ok){ toast('Firebase nicht bereit (libs/config).', false); return; }
+        firebase.auth().sendPasswordResetEmail(email)
+          .then(function(){ toast('Reset-Mail gesendet.', true); })
+          .catch(function(err){ toast('Reset Fehler: ' + (err && err.message ? err.message : err), false); });
+      });
+      return false;
+    }
+
+    // Important: explicit listeners (Safari sometimes ignores inline handlers depending on overlays)
+    if(btnLogin){ btnLogin.addEventListener('click', doLogin, false); }
+    if(btnRegister){ btnRegister.addEventListener('click', doRegister, false); }
+    if(btnReset){ btnReset.addEventListener('click', doReset, false); }
+
+    // Enter key submits login
     if(passEl){
-      passEl.addEventListener('keydown', function(ev){
-        var k = ev && (ev.key || ev.keyCode);
-        if(k === 'Enter' || k === 13){
-          doLogin(ev);
-        }
+      passEl.addEventListener('keydown', function(e){
+        var k = e && (e.key || e.keyCode);
+        if(k === 'Enter' || k === 13){ doLogin(e); }
       }, false);
     }
   }
 
-  function initAuth(){
-    // This is the requested global hook.
-    // It sets up auth-state routing for login/app pages.
-    waitForFirebase(function(ok){
-      if(!ok){
-        setMsg('authMsg', 'Firebase nicht bereit (libs fehlen)', false);
-        return;
-      }
-      if(!ensureFirebaseInit()){
-        setMsg('authMsg', 'Firebase Config fehlt/Init fehlgeschlagen', false);
-        return;
-      }
-
-      var where = pageName();
+  function guardApp(){
+    ensureFirebaseReady(function(ok){
+      if(!ok){ toast('Firebase nicht bereit – Login nicht prüfbar.', false); return; }
       try{
-        var auth = window.firebase.auth();
-        auth.onAuthStateChanged(function(user){
-          // expose user
-          window.__AUTH_USER = user || null;
-
-          if(where === 'login'){
-            if(user){
-              // Already logged in -> go to app
-              gotoApp();
-            }else{
-              bindLoginForm();
-              setMsg('authMsg', 'Bereit', true);
-            }
-          }else if(where === 'app'){
-            if(!user){
-              gotoLogin();
-            }else{
-              // Auth ok: start app if there is a hook
-              try{
-                if(typeof window.startApp === 'function'){
-                  window.startApp();
-                }
-              }catch(e){}
-            }
+        firebase.auth().onAuthStateChanged(function(user){
+          if(user){
+            toast('JS OK (' + (Math.round(performance.now()) || 0) + 'ms)', true);
+          } else {
+            toast('Nicht angemeldet – weiter zum Login…', false);
+            setTimeout(redirectToLogin, 200);
           }
-        }, function(err){
-          setMsg('authMsg', (err && err.message) ? err.message : 'Auth Fehler', false);
         });
       }catch(e){
-        setMsg('authMsg', 'Auth init error: ' + (e && e.message ? e.message : String(e)), false);
+        toast('Auth Guard Fehler: ' + e, false);
       }
     });
   }
 
-  function showLogin(){
-    gotoLogin();
+  function init(){
+    setBuildBadge();
+    if(isLoginPage()){
+      toast('Bereit', true);
+      bindLoginUI();
+      // If already logged in, go app
+      ensureFirebaseReady(function(ok){
+        if(!ok) return;
+        try{
+          firebase.auth().onAuthStateChanged(function(user){
+            if(user){ redirectToApp(); }
+          });
+        }catch(e){}
+      });
+    } else {
+      guardApp();
+    }
   }
 
-  // Export globals (legacy)
-  window.initAuth = initAuth;
-  window.showLogin = showLogin;
+  window.initAuth = init;
+  window.__ANA037_AUTH_BUILD = BUILD;
 
-  // Auto-run on both pages (safe)
   if(document.readyState === 'loading'){
-    document.addEventListener('DOMContentLoaded', function(){ try{ initAuth(); }catch(e){} }, false);
-  }else{
-    try{ initAuth(); }catch(e){}
+    document.addEventListener('DOMContentLoaded', init, false);
+  } else {
+    init();
   }
 })();
