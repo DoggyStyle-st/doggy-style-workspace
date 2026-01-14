@@ -1,135 +1,123 @@
-/* auth.js – Minimal, Safari-safe, Firebase compat
-   Exposes window.initAuth() and window.showLogin().
+/* auth.js (ROOT)
+   Login/Register/Reset for Safari + GitHub Pages.
+   Depends on:
+     - firebase-config.js (root)
+     - Firebase compat libs (gstatic)
 */
-(function () {
+(function(){
   'use strict';
 
   function $(id){ return document.getElementById(id); }
-
   function setMsg(txt, ok){
-    var el = $('authMsg');
-    if(!el) return;
-    el.textContent = txt || '';
-    el.style.color = ok ? '#b9ffb9' : '#ffb9b9';
+    var p = $('authMsg');
+    if(!p) return;
+    p.textContent = txt || '';
+    p.style.color = ok ? '#8ff0a4' : '#ff7b7b';
   }
 
-  function ensureFirebase(){
-    if(!window.firebase){ throw new Error('firebase global fehlt (compat scripts nicht geladen)'); }
-    if(!window.firebaseConfig){ throw new Error('firebaseConfig fehlt (firebase-config.js nicht geladen)'); }
+  function ensureFirebaseReady(){
+    if (!window.firebaseConfig) return { ok:false, msg:"firebaseConfig fehlt (firebase-config.js nicht geladen)" };
+    if (!window.firebase || !window.firebase.initializeApp) return { ok:false, msg:"Firebase SDK nicht geladen (gstatic compat)" };
     try{
-      if(!firebase.apps || !firebase.apps.length){
-        firebase.initializeApp(window.firebaseConfig);
-      }
+      if (!firebase.apps || !firebase.apps.length) firebase.initializeApp(window.firebaseConfig);
+      if (!firebase.auth) return { ok:false, msg:"firebase.auth nicht verfügbar" };
+      return { ok:true };
     }catch(e){
-      // ignore "already exists"
+      return { ok:false, msg:String(e && e.message || e) };
     }
   }
 
-  function wireButtons(){
+  function bind(){
+    var emailEl = $('loginEmail');
+    var passEl  = $('loginPass');
     var btnLogin = $('btnLogin');
-    var btnRegister = $('btnRegister');
-    var btnForgot = $('btnForgot');
+    var btnReg   = $('btnRegister');
+    var btnForgot= $('btnForgot');
 
-    if(btnLogin){
-      btnLogin.addEventListener('click', function(){
-        doLogin();
-      });
+    function getCred(){
+      var email = (emailEl && emailEl.value || '').trim();
+      var pass  = (passEl && passEl.value || '');
+      return { email: email, pass: pass };
     }
-    if(btnRegister){
-      btnRegister.addEventListener('click', function(){
-        doRegister();
-      });
-    }
-    if(btnForgot){
-      btnForgot.addEventListener('click', function(){
-        doForgot();
-      });
-    }
-  }
 
-  function doLogin(){
-    try{
-      ensureFirebase();
-      var email = ($('loginEmail')||{}).value || '';
-      var pass  = ($('loginPass')||{}).value || '';
-      setMsg('Anmelden…', true);
-      firebase.auth().signInWithEmailAndPassword(email.trim(), pass)
+    function disableAll(disabled){
+      [btnLogin, btnReg, btnForgot].forEach(function(b){
+        if(b) b.disabled = !!disabled;
+      });
+    }
+
+    if(btnLogin) btnLogin.addEventListener('click', function(){
+      var st = ensureFirebaseReady();
+      if(!st.ok){ setMsg("JS FEHLER: " + st.msg, false); return; }
+      var c = getCred();
+      if(!c.email || !c.pass){ setMsg("Bitte E-Mail und Passwort eingeben.", false); return; }
+      disableAll(true);
+      setMsg("Anmelden…", true);
+      firebase.auth().signInWithEmailAndPassword(c.email, c.pass)
         .then(function(){
-          setMsg('Login OK. Lade Workspace…', true);
-          // redirect to app.html after login
-          setTimeout(function(){ window.location.href = './app.html'; }, 250);
+          setMsg("OK – angemeldet.", true);
+          // to main app
+          window.location.href = "./app.html";
         })
         .catch(function(err){
-          setMsg('Login fehlgeschlagen: ' + (err && err.message ? err.message : String(err)), false);
-        });
-    }catch(e){
-      setMsg('Login nicht möglich: ' + (e && e.message ? e.message : String(e)), false);
-    }
-  }
-
-  function doRegister(){
-    try{
-      ensureFirebase();
-      var email = ($('loginEmail')||{}).value || '';
-      var pass  = ($('loginPass')||{}).value || '';
-      if(pass.length < 6){
-        setMsg('Passwort muss mindestens 6 Zeichen haben.', false);
-        return;
-      }
-      setMsg('Registrieren…', true);
-      firebase.auth().createUserWithEmailAndPassword(email.trim(), pass)
-        .then(function(){
-          setMsg('Registrierung OK. Du bist eingeloggt.', true);
-          setTimeout(function(){ window.location.href = './app.html'; }, 250);
+          setMsg("Anmelden fehlgeschlagen: " + (err && err.message ? err.message : String(err)), false);
         })
-        .catch(function(err){
-          setMsg('Registrierung fehlgeschlagen: ' + (err && err.message ? err.message : String(err)), false);
-        });
-    }catch(e){
-      setMsg('Registrierung nicht möglich: ' + (e && e.message ? e.message : String(e)), false);
-    }
-  }
-
-  function doForgot(){
-    try{
-      ensureFirebase();
-      var email = ($('loginEmail')||{}).value || '';
-      if(!email){
-        setMsg('Bitte E‑Mail eintragen, dann Passwort-Reset.', false);
-        return;
-      }
-      setMsg('Sende Reset-Mail…', true);
-      firebase.auth().sendPasswordResetEmail(email.trim())
-        .then(function(){ setMsg('Reset-Mail gesendet.', true); })
-        .catch(function(err){
-          setMsg('Reset fehlgeschlagen: ' + (err && err.message ? err.message : String(err)), false);
-        });
-    }catch(e){
-      setMsg('Reset nicht möglich: ' + (e && e.message ? e.message : String(e)), false);
-    }
-  }
-
-  function showLogin(){
-    // login.html is already the login UI; this is a no-op but keeps compatibility.
-    wireButtons();
-  }
-
-  function initAuth(){
-    ensureFirebase();
-    wireButtons();
-
-    // If already logged in, jump to app.html
-    firebase.auth().onAuthStateChanged(function(user){
-      if(user){
-        setMsg('Bereits eingeloggt. Lade Workspace…', true);
-        setTimeout(function(){ window.location.href = './app.html'; }, 150);
-      }else{
-        setMsg('', true);
-      }
+        .finally(function(){ disableAll(false); });
     });
+
+    if(btnReg) btnReg.addEventListener('click', function(){
+      var st = ensureFirebaseReady();
+      if(!st.ok){ setMsg("JS FEHLER: " + st.msg, false); return; }
+      var c = getCred();
+      if(!c.email || !c.pass){ setMsg("Bitte E-Mail und Passwort eingeben.", false); return; }
+      disableAll(true);
+      setMsg("Registrieren…", true);
+      firebase.auth().createUserWithEmailAndPassword(c.email, c.pass)
+        .then(function(){
+          setMsg("OK – registriert & angemeldet.", true);
+          window.location.href = "./app.html";
+        })
+        .catch(function(err){
+          setMsg("Registrieren fehlgeschlagen: " + (err && err.message ? err.message : String(err)), false);
+        })
+        .finally(function(){ disableAll(false); });
+    });
+
+    if(btnForgot) btnForgot.addEventListener('click', function(){
+      var st = ensureFirebaseReady();
+      if(!st.ok){ setMsg("JS FEHLER: " + st.msg, false); return; }
+      var c = getCred();
+      if(!c.email){ setMsg("Bitte E-Mail eingeben (für Passwort-Reset).", false); return; }
+      disableAll(true);
+      setMsg("Reset-Mail wird gesendet…", true);
+      firebase.auth().sendPasswordResetEmail(c.email)
+        .then(function(){
+          setMsg("OK – Reset-Mail gesendet.", true);
+        })
+        .catch(function(err){
+          setMsg("Reset fehlgeschlagen: " + (err && err.message ? err.message : String(err)), false);
+        })
+        .finally(function(){ disableAll(false); });
+    });
+
+    // Auto-redirect if already logged in
+    try{
+      var st = ensureFirebaseReady();
+      if(st.ok){
+        firebase.auth().onAuthStateChanged(function(user){
+          if(user) window.location.href = "./app.html";
+        });
+      } else {
+        setMsg("JS FEHLER: " + st.msg, false);
+      }
+    }catch(e){
+      setMsg("JS FEHLER: " + (e && e.message ? e.message : String(e)), false);
+    }
   }
 
-  window.showLogin = showLogin;
-  window.initAuth = initAuth;
-
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', bind);
+  } else {
+    bind();
+  }
 })();

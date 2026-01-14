@@ -1,63 +1,57 @@
 <!doctype html>
 <html lang="de">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <title>Doggy Style Workspace – Login</title>
-  <style>
-    html,body{height:100%;margin:0;background:#0b0b0f;color:#fff;font-family:-apple-system,BlinkMacSystemFont,system-ui,Segoe UI,Roboto,Arial}
-    .wrap{min-height:100%;display:flex;align-items:center;justify-content:center;padding:24px}
-    .card{width:min(720px,92vw);background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);
-      border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.55);backdrop-filter:blur(12px);padding:18px 18px 14px}
-    .row{display:flex;gap:14px;flex-wrap:wrap}
-    .field{flex:1 1 260px;display:flex;flex-direction:column;gap:6px;margin:8px 0}
-    .field span{font-size:12px;opacity:.85}
-    input{padding:12px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);color:#fff;font-size:15px;outline:none}
-    .actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px}
-    button{border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.10);color:#fff;
-      padding:10px 14px;border-radius:999px;font-size:14px}
-    button.primary{background:rgba(255,255,255,.16)}
-    button.link{background:transparent;border:none;text-decoration:underline;opacity:.85}
-    #authMsg{margin-top:10px;min-height:18px;font-size:13px;opacity:.9}
-    .badge{position:fixed;left:12px;bottom:12px;z-index:99999;padding:6px 10px;border-radius:999px;
-      background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.18);font:12px/1.2 -apple-system,BlinkMacSystemFont,system-ui,Segoe UI,Roboto,Arial;
-      color:#fff;backdrop-filter:blur(8px)}
-  </style>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <title>DoggyStyle – Login</title>
+
+  <!-- Styles: keep your existing css links if you want; this is a minimal safe base -->
+  <link rel="stylesheet" href="./css/styles.css">
+  <link rel="stylesheet" href="./css/dashboard_master.css">
 </head>
 <body>
-  <div class="wrap">
-    <div class="card" aria-label="Anmeldung">
-      <div class="row">
-        <label class="field">
+
+<main class="authWrap">
+  <section class="panel is-active">
+    <div class="card loginCard" aria-label="Anmeldung">
+      <div class="row loginFields">
+        <label class="field" id="emailField">
           <span>E‑Mail</span>
-          <input id="loginEmail" type="email" autocomplete="email" autocapitalize="none" spellcheck="false" placeholder="name@domain.de">
+          <input id="loginEmail" type="email" inputmode="email" autocomplete="email"
+                 autocapitalize="none" spellcheck="false" placeholder="dein.name@email.de"/>
         </label>
-        <label class="field">
+
+        <label class="field" id="pwField">
           <span>Passwort</span>
-          <input id="loginPass" type="password" autocomplete="current-password" autocapitalize="none" spellcheck="false" placeholder="••••••••">
+          <input id="loginPass" type="password" autocomplete="current-password"
+                 autocapitalize="none" spellcheck="false" placeholder="••••••••"/>
         </label>
       </div>
-      <div class="actions">
-        <button id="btnLogin" class="primary" type="button">Anmelden</button>
-        <button id="btnRegister" type="button">Registrieren</button>
-        <button id="btnForgot" class="link" type="button">Passwort vergessen?</button>
+
+      <div class="authActions">
+        <div class="authActions__left">
+          <button id="btnLogin" class="primary" type="button">Anmelden</button>
+          <button id="btnRegister" class="btnSecondary" type="button">Registrieren</button>
+        </div>
+        <button id="btnForgot" class="btnLink btnLink--text" type="button">Passwort vergessen?</button>
       </div>
-      <div id="authMsg"></div>
+
+      <p id="authMsg" class="muted" style="margin-top:10px"></p>
     </div>
-  </div>
+  </section>
+</main>
 
-  <div class="badge" id="buildBadge">Build v11-LOGIN-MINFIX-A</div>
+<!-- 1) Your config MUST be from ROOT -->
+<script defer src="./firebase-config.js?v=ANA037_LOGIN_CFG1"></script>
 
-  <!-- Firebase config (your keys live here) -->
-  <script src="./firebase-config.js?v=LOGIN_MINFIX_A"></script>
+<!-- 2) Firebase compat SDKs -->
+<script defer src="https://www.gstatic.com/firebasejs/9.6.11/firebase-app-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/9.6.11/firebase-auth-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/9.6.11/firebase-firestore-compat.js"></script>
 
-  <!-- Firebase compat (works without ESM/import) -->
-  <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-firestore-compat.js"></script>
+<!-- 3) Auth logic (ROOT) -->
+<script defer src="./auth.js?v=ANA037_LOGIN_AUTH1"></script>
 
-  <!-- App bootstrap (must be last) -->
-  <script src="./auth.js?v=LOGIN_MINFIX_A"></script>
-  <script src="./app.js?v=LOGIN_MINFIX_A"></script>
+<div class="build-badge" id="buildBadge">Build v11-LOGIN-MINFIX-A</div>
 </body>
 </html>

@@ -1,35 +1,30 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
   <title>DoggyStyle Workspace</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-
-  <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      background: #0b0e14;
-      color: #fff;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial;
-    }
-    body.loading {
-      pointer-events: none;
-      opacity: 0.6;
-    }
-  </style>
+  <link rel="stylesheet" href="./css/styles.css">
+  <link rel="stylesheet" href="./css/dashboard_master.css">
 </head>
+<body>
+  <!-- Existing UI is built by legacy scripts. We keep only required containers. -->
+  <div id="appRoot"></div>
 
-<body class="loading">
+  <!-- Firebase config from ROOT -->
+  <script defer src="./firebase-config.js?v=ANA037_APP_CFG1"></script>
 
-  <!-- App Root -->
-  <div id="app"></div>
+  <!-- Firebase compat libs (needed by old code, keep consistent) -->
+  <script defer src="https://www.gstatic.com/firebasejs/9.6.11/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/9.6.11/firebase-auth-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/9.6.11/firebase-firestore-compat.js"></script>
 
-  <!-- Bootstrap Reihenfolge ist KRITISCH -->
-  <script src="./firebase-config.js"></script>
-  <script src="./auth.js"></script>
-  <script src="./app.js"></script>
-  <script src="./app_init.js"></script>
+  <!-- Boot badge (optional, safe) -->
+  <script defer src="./app_init.js?v=ANA037_APP_INIT1"></script>
 
+  <!-- Main loader/app -->
+  <script defer src="./app.js?v=ANA037_APP_LOADER1"></script>
+
+  <div class="build-badge" id="buildBadge">Build ANA037-ROOTFIX</div>
 </body>
 </html>
