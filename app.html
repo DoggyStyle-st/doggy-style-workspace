@@ -8,23 +8,25 @@
   <link rel="stylesheet" href="./css/dashboard_master.css">
 </head>
 <body>
-  <!-- Existing UI is built by legacy scripts. We keep only required containers. -->
   <div id="appRoot"></div>
 
   <!-- Firebase config from ROOT -->
-  <script defer src="./firebase-config.js?v=ANA037_APP_CFG1"></script>
+  <script defer src="./firebase-config.js?v=ANA037_APP_CFG2"></script>
 
-  <!-- Firebase compat libs (needed by old code, keep consistent) -->
+  <!-- Firebase compat libs (keep consistent) -->
   <script defer src="https://www.gstatic.com/firebasejs/9.6.11/firebase-app-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/9.6.11/firebase-auth-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/9.6.11/firebase-firestore-compat.js"></script>
 
-  <!-- Boot badge (optional, safe) -->
-  <script defer src="./app_init.js?v=ANA037_APP_INIT1"></script>
+  <!-- Boot badge (optional) -->
+  <script defer src="./app_init.js?v=ANA037_APP_INIT2"></script>
+
+  <!-- Auth hooks (must exist for loader) -->
+  <script defer src="./auth.js?v=ANA037_AUTH_ES5_HOOK"></script>
 
   <!-- Main loader/app -->
-  <script defer src="./app.js?v=ANA037_APP_LOADER1"></script>
+  <script defer src="./app.js?v=ANA037_APP_LOADER2"></script>
 
-  <div class="build-badge" id="buildBadge">Build ANA037-ROOTFIX</div>
+  <div class="build-badge" id="buildBadge">Build ANA037-AUTH-HOOK</div>
 </body>
 </html>

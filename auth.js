@@ -1,62 +1,95 @@
-/* ANA037_AUTH_HOTFIX_ES5
-   Zweck: Safari/iOS stabiler Login (ES5), stellt globale Hooks bereit:
-   - window.initAuth()
-   - window.showLogin()
-   - window.signOut()
-   - window.isLoggedIn(cb)
-   Erwartet: firebase-config.js im ROOT + Firebase compat libs (9.6.11).
+/* ANA037_AUTH_ES5_HOOK
+   ES5/ES2015-safe Auth layer for Safari/PWA.
+   Exposes:
+     - window.initAuth(mode)
+     - window.showLogin()
+     - window.doLogout()
+
+   Modes:
+     initAuth('app')   -> ensures signed-in, otherwise redirects to ./login.html
+     initAuth('login') -> wires login UI, redirects to ./app.html on success
 */
-(function () {
+(function(){
   'use strict';
 
-  var BUILD = 'ANA037_AUTH_HOTFIX_ES5_01';
+  function byId(id){ return document.getElementById(id); }
 
-  function log(){ try{ console.log.apply(console, arguments); }catch(e){} }
-
-  function toast(msg, ok){
+  function toast(text, ok){
     try{
-      var id='ds_toast';
-      var el=document.getElementById(id);
-      if(!el){
-        el=document.createElement('div');
-        el.id=id;
-        el.style.cssText=[
-          'position:fixed','left:12px','bottom:12px','z-index:99999',
-          'padding:8px 12px','border-radius:12px',
-          'background:rgba(0,0,0,.55)','border:1px solid rgba(255,255,255,.18)',
-          'font:12px/1.25 -apple-system,BlinkMacSystemFont,system-ui,Segoe UI,Roboto,Arial',
-          'color:#fff','backdrop-filter:blur(8px)','max-width:80vw'
-        ].join(';');
-        document.body.appendChild(el);
-      }
-      el.textContent=msg;
-      el.style.background = ok ? 'rgba(0,120,0,.55)' : 'rgba(120,0,0,.55)';
+      if (typeof window.toast === 'function') return window.toast(text, !!ok);
     }catch(e){}
+    // fallback (small bottom-left chip)
+    var id = 'ds_auth_toast';
+    var el = document.getElementById(id);
+    if(!el){
+      el = document.createElement('div');
+      el.id = id;
+      el.style.position = 'fixed';
+      el.style.left = '12px';
+      el.style.bottom = '44px';
+      el.style.zIndex = '99999';
+      el.style.padding = '6px 10px';
+      el.style.borderRadius = '999px';
+      el.style.background = 'rgba(0,0,0,.55)';
+      el.style.border = '1px solid rgba(255,255,255,.18)';
+      el.style.font = '12px/1.2 -apple-system,BlinkMacSystemFont,system-ui,Segoe UI,Roboto,Arial';
+      el.style.color = '#fff';
+      el.style.backdropFilter = 'blur(8px)';
+      document.body.appendChild(el);
+    }
+    el.textContent = String(text || '');
+    el.style.background = ok ? 'rgba(0,120,0,.55)' : 'rgba(120,0,0,.55)';
   }
 
   function ensureFirebaseInit(){
-    if(!window.firebase){
-      toast('Firebase SDK fehlt (libs nicht geladen).', false);
-      return false;
-    }
     if(!window.firebaseConfig){
-      toast('firebaseConfig fehlt (firebase-config.js nicht geladen).', false);
-      return false;
+      toast('Auth: firebaseConfig fehlt', false);
+      return null;
+    }
+    if(!window.firebase || !window.firebase.initializeApp){
+      toast('Auth: Firebase libs fehlen', false);
+      return null;
     }
     try{
-      if(!firebase.apps || !firebase.apps.length){
-        firebase.initializeApp(window.firebaseConfig);
-        log('[auth]', 'firebase initialized');
+      if(!window.firebase.apps || !window.firebase.apps.length){
+        window.firebase.initializeApp(window.firebaseConfig);
       }
-      return true;
     }catch(e){
-      toast('Firebase init Fehler: '+ (e && e.message ? e.message : String(e)), false);
-      return false;
+      // ignore "already exists" and similar
+    }
+    return window.firebase;
+  }
+
+  function redirectTo(path){
+    try{
+      var here = window.location.pathname || '';
+      if(here.indexOf(path) !== -1) return;
+      window.location.replace(path);
+    }catch(e){
+      window.location.href = path;
     }
   }
 
-  function qs(sel){ return document.querySelector(sel); }
-  function byId(id){ return document.getElementById(id); }
+  function showLogin(){
+    redirectTo('./login.html');
+  }
+
+  function doLogout(){
+    var fb = ensureFirebaseInit();
+    if(!fb) return;
+    try{
+      fb.auth().signOut().then(function(){
+        toast('Abgemeldet', true);
+        showLogin();
+      }).catch(function(err){
+        toast('Logout Fehler: ' + (err && err.message ? err.message : String(err)), false);
+        showLogin();
+      });
+    }catch(e){
+      toast('Logout Fehler: ' + String(e), false);
+      showLogin();
+    }
+  }
 
   function wireLoginUI(){
     var btnLogin = byId('btnLogin');
@@ -64,180 +97,139 @@
     var btnForgot = byId('btnForgot');
     var emailEl = byId('loginEmail');
     var passEl = byId('loginPass');
-    var msgEl  = byId('authMsg');
+    var msgEl = byId('authMsg');
 
     function setMsg(t, ok){
-      if(msgEl){ msgEl.textContent = t || ''; msgEl.style.color = ok ? '#dfffe0' : '#ffd0d0'; }
+      if(msgEl) msgEl.textContent = t || '';
       toast(t, ok);
     }
 
-    function getCreds(){
-      var email = emailEl ? (emailEl.value||'').trim() : '';
-      var pass  = passEl ? (passEl.value||'') : '';
-      return { email: email, pass: pass };
+    function getEmail(){ return emailEl ? String(emailEl.value || '').trim() : ''; }
+    function getPass(){ return passEl ? String(passEl.value || '') : ''; }
+
+    function disable(dis){
+      if(btnLogin) btnLogin.disabled = !!dis;
+      if(btnRegister) btnRegister.disabled = !!dis;
+      if(btnForgot) btnForgot.disabled = !!dis;
     }
 
-    function doLogin(){
-      if(!ensureFirebaseInit()) return;
-      var c = getCreds();
-      if(!c.email || !c.pass){
-        setMsg('Bitte E-Mail und Passwort eingeben.', false);
-        return;
-      }
-      setMsg('Anmelden…', true);
-      try{
-        firebase.auth().signInWithEmailAndPassword(c.email, c.pass)
-          .then(function(){
-            setMsg('Erfolgreich angemeldet.', true);
-            // Zur App
-            try{ window.location.href = './app.html'; }catch(e){}
-          })
-          .catch(function(err){
-            setMsg('Login fehlgeschlagen: ' + (err && err.message ? err.message : String(err)), false);
-          });
-      }catch(e){
-        setMsg('Login Exception: ' + (e && e.message ? e.message : String(e)), false);
-      }
-    }
-
-    function doRegister(){
-      if(!ensureFirebaseInit()) return;
-      var c = getCreds();
-      if(!c.email || !c.pass){
-        setMsg('Bitte E-Mail und Passwort eingeben.', false);
-        return;
-      }
-      setMsg('Registrieren…', true);
-      try{
-        firebase.auth().createUserWithEmailAndPassword(c.email, c.pass)
-          .then(function(){
-            setMsg('Registrierung ok. Du bist angemeldet.', true);
-            try{ window.location.href = './app.html'; }catch(e){}
-          })
-          .catch(function(err){
-            setMsg('Registrierung fehlgeschlagen: ' + (err && err.message ? err.message : String(err)), false);
-          });
-      }catch(e){
-        setMsg('Register Exception: ' + (e && e.message ? e.message : String(e)), false);
-      }
-    }
-
-    function doForgot(){
-      if(!ensureFirebaseInit()) return;
-      var c = getCreds();
-      if(!c.email){
-        setMsg('Bitte E-Mail eingeben.', false);
-        return;
-      }
-      setMsg('Sende Reset-Mail…', true);
-      try{
-        firebase.auth().sendPasswordResetEmail(c.email)
-          .then(function(){ setMsg('Reset-Mail gesendet.', true); })
-          .catch(function(err){ setMsg('Reset fehlgeschlagen: '+ (err && err.message ? err.message : String(err)), false); });
-      }catch(e){
-        setMsg('Reset Exception: '+ (e && e.message ? e.message : String(e)), false);
-      }
-    }
-
-    if(btnLogin){
-      btnLogin.onclick = function(ev){ if(ev && ev.preventDefault) ev.preventDefault(); doLogin(); return false; };
-    }
-    if(btnRegister){
-      btnRegister.onclick = function(ev){ if(ev && ev.preventDefault) ev.preventDefault(); doRegister(); return false; };
-    }
-    if(btnForgot){
-      btnForgot.onclick = function(ev){ if(ev && ev.preventDefault) ev.preventDefault(); doForgot(); return false; };
-    }
-
-    // Enter = login
-    function onKey(ev){
-      ev = ev || window.event;
-      if(ev && ev.keyCode === 13){ doLogin(); }
-    }
-    if(emailEl) emailEl.onkeydown = onKey;
-    if(passEl) passEl.onkeydown  = onKey;
-
-    setMsg('Login bereit. ('+BUILD+')', true);
-  }
-
-  function redirectToLogin(){
-    try{ window.location.href = './login.html'; }catch(e){}
-  }
-
-  function initAuth(opts){
-    opts = opts || {};
-    var page = opts.page || '';
-    // if called before DOM is ready, delay
-    if(document.readyState !== 'complete' && document.readyState !== 'interactive'){
-      document.addEventListener('DOMContentLoaded', function(){ initAuth(opts); });
-      return;
-    }
-
-    if(!ensureFirebaseInit()) return;
-
-    try{
-      firebase.auth().onAuthStateChanged(function(user){
-        if(page === 'login'){
-          // On login page: if already logged in -> app
-          if(user){
-            toast('Schon angemeldet → App…', true);
-            try{ window.location.href = './app.html'; }catch(e){}
-          }else{
-            wireLoginUI();
-          }
-          return;
-        }
-
-        // On app page: if not logged in -> login
-        if(!user){
-          toast('Nicht angemeldet → Login…', false);
-          redirectToLogin();
-          return;
-        }
-
-        // Logged in: expose user
-        window.__dsUser = user;
-        toast('Angemeldet: ' + (user.email || user.uid), true);
-      });
-    }catch(e){
-      toast('Auth watcher Fehler: '+ (e && e.message ? e.message : String(e)), false);
-    }
-  }
-
-  function showLogin(){
-    redirectToLogin();
-  }
-
-  function signOut(){
-    if(!ensureFirebaseInit()) return;
-    try{
-      firebase.auth().signOut().then(function(){
-        toast('Abgemeldet.', true);
-        redirectToLogin();
+    function login(){
+      var fb = ensureFirebaseInit();
+      if(!fb) return;
+      var email = getEmail();
+      var pass = getPass();
+      if(!email || !pass){ setMsg('Bitte E-Mail und Passwort eingeben.', false); return; }
+      disable(true);
+      setMsg('Anmeldung läuft…', true);
+      fb.auth().signInWithEmailAndPassword(email, pass).then(function(){
+        setMsg('Angemeldet – lade App…', true);
+        redirectTo('./app.html');
       }).catch(function(err){
-        toast('Logout fehlgeschlagen: '+ (err && err.message ? err.message : String(err)), false);
+        disable(false);
+        setMsg('Login fehlgeschlagen: ' + (err && err.message ? err.message : String(err)), false);
+      });
+    }
+
+    function register(){
+      var fb = ensureFirebaseInit();
+      if(!fb) return;
+      var email = getEmail();
+      var pass = getPass();
+      if(!email || !pass){ setMsg('Bitte E-Mail und Passwort eingeben.', false); return; }
+      disable(true);
+      setMsg('Registrierung läuft…', true);
+      fb.auth().createUserWithEmailAndPassword(email, pass).then(function(){
+        setMsg('Registriert – lade App…', true);
+        redirectTo('./app.html');
+      }).catch(function(err){
+        disable(false);
+        setMsg('Registrierung fehlgeschlagen: ' + (err && err.message ? err.message : String(err)), false);
+      });
+    }
+
+    function forgot(){
+      var fb = ensureFirebaseInit();
+      if(!fb) return;
+      var email = getEmail();
+      if(!email){ setMsg('Bitte E-Mail eingeben.', false); return; }
+      disable(true);
+      setMsg('Sende Mail…', true);
+      fb.auth().sendPasswordResetEmail(email).then(function(){
+        disable(false);
+        setMsg('Reset-Mail gesendet (wenn Konto existiert).', true);
+      }).catch(function(err){
+        disable(false);
+        setMsg('Reset fehlgeschlagen: ' + (err && err.message ? err.message : String(err)), false);
+      });
+    }
+
+    if(btnLogin) btnLogin.addEventListener('click', function(ev){ if(ev) ev.preventDefault(); login(); });
+    if(btnRegister) btnRegister.addEventListener('click', function(ev){ if(ev) ev.preventDefault(); register(); });
+    if(btnForgot) btnForgot.addEventListener('click', function(ev){ if(ev) ev.preventDefault(); forgot(); });
+
+    if(passEl){
+      passEl.addEventListener('keydown', function(ev){
+        ev = ev || window.event;
+        if(ev && (ev.key === 'Enter' || ev.keyCode === 13)){
+          try{ ev.preventDefault(); }catch(e){}
+          login();
+        }
+      });
+    }
+  }
+
+  function initAuth(mode){
+    var fb = ensureFirebaseInit();
+    if(!fb) return false;
+
+    // expose auth instance for legacy code
+    try{ window.__AUTH = fb.auth(); }catch(e){}
+
+    // Watch auth state once.
+    try{
+      fb.auth().onAuthStateChanged(function(user){
+        window.__AUTH_USER = user || null;
+        // If app-mode and signed out -> to login
+        if(mode === 'app'){
+          if(!user){
+            toast('Bitte anmelden…', false);
+            // small delay so toast is visible
+            setTimeout(function(){ showLogin(); }, 150);
+          }
+        }
       });
     }catch(e){
-      toast('Logout Exception: '+ (e && e.message ? e.message : String(e)), false);
+      toast('Auth State Fehler: ' + String(e), false);
     }
+
+    if(mode === 'login'){
+      // If already signed in -> jump directly to app
+      try{
+        var u = fb.auth().currentUser;
+        if(u){ redirectTo('./app.html'); return true; }
+      }catch(e){}
+      wireLoginUI();
+      return true;
+    }
+
+    if(mode === 'app'){
+      // If already signed in -> allow app bootstrap
+      try{
+        var u2 = fb.auth().currentUser;
+        if(u2){ toast('Auth OK', true); return true; }
+      }catch(e){}
+      // no currentUser yet -> onAuthStateChanged will redirect if needed
+      return true;
+    }
+
+    // default: decide by presence of login form
+    if(byId('btnLogin') || byId('loginEmail') || byId('loginPass')){
+      return initAuth('login');
+    }
+    return initAuth('app');
   }
 
-  function isLoggedIn(cb){
-    cb = cb || function(){};
-    if(!ensureFirebaseInit()){ cb(false); return; }
-    try{
-      var u = firebase.auth().currentUser;
-      cb(!!u, u || null);
-    }catch(e){
-      cb(false, null);
-    }
-  }
-
-  // Expose global hooks expected by loader
   window.initAuth = initAuth;
   window.showLogin = showLogin;
-  window.signOut = signOut;
-  window.isLoggedIn = isLoggedIn;
-  window.__AUTH_BUILD = BUILD;
-
+  window.doLogout = doLogout;
 })();

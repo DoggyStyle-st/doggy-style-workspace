@@ -3,63 +3,48 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
-  <title>DoggyStyle – Login</title>
+  <title>Login – DoggyStyle Workspace</title>
   <link rel="stylesheet" href="./css/styles.css">
   <link rel="stylesheet" href="./css/dashboard_master.css">
-  <style>
-    /* Minimal fallback, falls CSS nicht greift */
-    body{margin:0;min-height:100vh;display:flex;align-items:flex-start;justify-content:center;background:#0b0e16;color:#fff}
-    .loginWrap{width:min(980px,96vw);margin-top:24px;padding:18px;border-radius:18px;
-      background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);backdrop-filter:blur(10px)}
-    .row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-    label{font:12px/1.2 -apple-system,BlinkMacSystemFont,system-ui,Segoe UI,Roboto,Arial;opacity:.9}
-    input{width:100%;box-sizing:border-box;border-radius:12px;padding:12px 14px;border:1px solid rgba(255,255,255,.18);
-      background:rgba(0,0,0,.35);color:#fff;font-size:14px}
-    .actions{display:flex;gap:10px;align-items:center;margin-top:12px}
-    button{border-radius:999px;padding:10px 14px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);color:#fff}
-    #authMsg{margin-top:10px;font:12px/1.2 -apple-system,BlinkMacSystemFont,system-ui,Segoe UI,Roboto,Arial;opacity:.95}
-    @media (max-width:720px){ .row{grid-template-columns:1fr} }
-  </style>
 </head>
 <body>
-  <div class="loginWrap" role="main" aria-label="Anmeldung">
-    <div class="row">
-      <div>
-        <label for="loginEmail">E-Mail</label>
-        <input id="loginEmail" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" />
-      </div>
-      <div>
-        <label for="loginPass">Passwort</label>
-        <input id="loginPass" type="password" autocomplete="current-password" autocapitalize="none" spellcheck="false" />
-      </div>
-    </div>
-    <div class="actions">
-      <button id="btnLogin" type="button">Anmelden</button>
-      <button id="btnRegister" type="button">Registrieren</button>
-      <button id="btnForgot" type="button">Passwort vergessen?</button>
-    </div>
-    <div id="authMsg"></div>
-    <div style="margin-top:10px;opacity:.6;font:12px/1.2 -apple-system,BlinkMacSystemFont,system-ui,Segoe UI,Roboto,Arial;">
-      Build v11-LOGIN-HOTFIX
-    </div>
-  </div>
+  <main class="loginWrap">
+    <section class="panel is-active">
+      <div class="card loginCard" aria-label="Anmeldung">
+        <div class="row loginFields">
+          <label class="field" id="emailField">
+            <span>E-Mail</span>
+            <input id="loginEmail" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" />
+          </label>
+          <label class="field" id="pwField">
+            <span>Passwort</span>
+            <input id="loginPass" type="password" autocomplete="current-password" autocapitalize="none" spellcheck="false" />
+          </label>
+        </div>
 
-  <!-- Firebase config (ROOT) -->
-  <script defer src="./firebase-config.js?v=ANA037_LOGIN_CFG1"></script>
+        <div class="authActions">
+          <div class="authActions__left">
+            <button id="btnLogin" class="primary" type="button">Anmelden</button>
+            <button id="btnRegister" class="btnSecondary" type="button">Registrieren</button>
+          </div>
+          <button id="btnForgot" class="btnLink btnLink--text" type="button">Passwort vergessen?</button>
+        </div>
+        <p id="authMsg" class="muted" style="margin-top:10px"></p>
+      </div>
+    </section>
+  </main>
 
-  <!-- Firebase compat libs (keep consistent with app.html) -->
+  <script defer src="./firebase-config.js?v=ANA037_LOGIN_CFG2"></script>
   <script defer src="https://www.gstatic.com/firebasejs/9.6.11/firebase-app-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/9.6.11/firebase-auth-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/9.6.11/firebase-firestore-compat.js"></script>
-
-  <!-- Auth logic -->
-  <script defer src="./auth.js?v=ANA037_AUTH_HOTFIX_ES5_01"></script>
-
-  <script>
-    // Start auth on login page (ES5, no async)
+  <script defer src="./auth.js?v=ANA037_AUTH_ES5_HOOK"></script>
+  <script defer>
     document.addEventListener('DOMContentLoaded', function(){
-      if(window.initAuth){ window.initAuth({page:'login'}); }
+      if (window.initAuth) window.initAuth('login');
     });
   </script>
+
+  <div class="build-badge" id="buildBadge">Build ANA037-LOGIN-HOOK</div>
 </body>
 </html>
