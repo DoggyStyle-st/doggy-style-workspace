@@ -1,13 +1,13 @@
-/* Doggy Style – Service Worker TEST-OPTIK-01-2026-01-03b (offline-first, update-safe) */
+/* Doggy Style – Service Worker (update-safe) */
 
-const SW_VERSION = "P1-1C-TAPFIX-2026-01-15";
+const SW_VERSION = "P1-1D-TAPFIX-2026-01-15";
 const CACHE_NAME = `ds-test-cache-${SW_VERSION}`;
 
-// Wichtig:
-// - KEIN hartes Caching von app.js/app.html als "alt"-Falle
+// Prinzip:
 // - HTML: network-first
-// - Assets: stale-while-revalidate
-// - Install darf NICHT fehlschlagen, wenn ein Asset fehlt
+// - Critical JS (app.js): network-first
+// - Rest: stale-while-revalidate
+// - Install darf nicht fehlschlagen, wenn ein Asset fehlt
 
 const CORE_ASSETS = [
   "index.html",
@@ -55,8 +55,10 @@ self.addEventListener("fetch", (event) => {
   if(url.origin !== self.location.origin) return;
 
   const isHTML = req.mode === "navigate" || (req.headers.get("accept")||"").includes("text/html");
+  const path = url.pathname.replace(/^\//, "");
+  const isCriticalJS = (path === "app.js");
 
-  // HTML: network-first (damit Updates sofort kommen)
+  // HTML: network-first
   if(isHTML){
     event.respondWith((async ()=>{
       try{
@@ -71,7 +73,22 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Assets: stale-while-revalidate
+  // Critical JS: network-first
+  if(isCriticalJS){
+    event.respondWith((async ()=>{
+      try{
+        const fresh = await fetch(req, {cache:"no-store"});
+        await cachePut(req, fresh);
+        return fresh;
+      }catch(e){
+        const cached = await caches.match(req);
+        return cached || caches.match("app.js");
+      }
+    })());
+    return;
+  }
+
+  // Rest: stale-while-revalidate
   event.respondWith((async ()=>{
     const cached = await caches.match(req);
     const fetchPromise = fetch(req).then(async fresh => {
@@ -79,6 +96,8 @@ self.addEventListener("fetch", (event) => {
       return fresh;
     }).catch(()=>null);
 
-    return cached || (await fetchPromise) || cached;
+    if(cached) return cached;
+    const net = await fetchPromise;
+    return net || cached || new Response("", {status:504});
   })());
 });

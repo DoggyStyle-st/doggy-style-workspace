@@ -193,13 +193,7 @@ function updateSyncUI(){
   if(pill) pill.textContent = `${pillText} · ${fmtDT(SYNC.localSavedAt)}`;
   const dot=document.getElementById('syncDot');
   if(dot){ dot.classList.toggle('online', !!netOnline); dot.classList.toggle('offline', !netOnline); }
-  const detailsText = `${localLine}
-${netLine}
-${cloudLine}
-Cloud-Ping: ${fmtDT(SYNC.cloudReachCheckedAt)}${SYNC.cloudReachError ? ' · '+SYNC.cloudReachError : ''}`;
-  if(details) details.textContent = detailsText;
-  const inline = ensureSyncInline();
-  if(inline) inline.textContent = detailsText;
+  if(details) details.textContent = `${localLine}\n${netLine}\n${cloudLine}\nCloud-Ping: ${fmtDT(SYNC.cloudReachCheckedAt)}${SYNC.cloudReachError ? ' · '+SYNC.cloudReachError : ''}`;
 
   // Manual cloud save: only enable when Cloud is active + logged in
   if(manualBtn){
@@ -6290,66 +6284,6 @@ document.addEventListener("visibilitychange", () => {
   });
 })();
 
-
-// --- DS: Sync inline details + tap-toggle (iOS friendly) ---
-function ensureSyncInline(){
-  try{
-    let el = document.getElementById('syncDetailsInline');
-    if(el) return el;
-    const status = document.getElementById('syncStatus');
-    if(!status) return null;
-    el = document.createElement('div');
-    el.id = 'syncDetailsInline';
-    el.style.display = 'none';
-    el.style.marginTop = '6px';
-    el.style.maxWidth = '420px';
-    el.style.whiteSpace = 'pre-line';
-    el.style.fontSize = '12px';
-    el.style.color = 'rgba(255,255,255,.78)';
-    el.style.lineHeight = '1.35';
-    const parent = status.parentElement;
-    if(parent){
-      parent.appendChild(el);
-      try{ parent.style.cursor = 'pointer'; }catch(_e){}
-    }
-    return el;
-  }catch(e){
-    return null;
-  }
-}
-
-function bindSyncTapToggle(){
-  try{
-    const targets = [
-      document.getElementById('syncIndicator'),
-      document.getElementById('syncStatus'),
-      document.getElementById('syncDot'),
-      document.getElementById('syncStatusLabel')
-    ].filter(Boolean);
-    const inline = ensureSyncInline();
-    if(!targets.length || !inline) return;
-    const toggle = (ev)=>{
-      // Quick tap/click toggles details. Long-press selection can still work.
-      try{
-        if(ev && ev.type === 'click'){
-          ev.preventDefault();
-          ev.stopPropagation();
-        }
-      }catch(_e){}
-      inline.style.display = (inline.style.display === 'none' || !inline.style.display) ? 'block' : 'none';
-    };
-    for(const t of targets){
-      try{ t.style.cursor = 'pointer'; }catch(_e){}
-      t.addEventListener('click', toggle);
-      t.addEventListener('touchend', (ev)=>{ try{ ev.preventDefault(); ev.stopPropagation(); }catch(_e){} toggle(ev); }, {passive:false});
-      t.title = (t.title || '') + ' (Tippen fuer Details)';
-    }
-  }catch(e){}
-}
-
-// bind once
-document.addEventListener('DOMContentLoaded', ()=>{ try{ bindSyncTapToggle(); }catch(e){} });
-
 // Start
 startApp().catch(console.error);
 // UI: Sync-Status regelmäßig auffrischen (auch bei Tab-Wechsel/PWA)
@@ -7583,3 +7517,69 @@ function wfTodayPrint(){
   wfOpenPdf(wfPdfTemplate("Heute drucken", body));
 }
 try{ const bb=document.getElementById('buildBadge'); if(bb) bb.textContent = 'Build ' + APP_BUILD; }catch(e){}
+
+// __DS_SYNC_INLINE_TOGGLE__
+(function(){
+  function ensureInline(){
+    let el=document.getElementById('syncDetailsInline');
+    if(el) return el;
+    const statusEl=document.getElementById('syncStatus');
+    if(!statusEl) return null;
+    el=document.createElement('div');
+    el.id='syncDetailsInline';
+    el.style.display='none';
+    el.style.marginTop='6px';
+    el.style.maxWidth='420px';
+    el.style.whiteSpace='pre-line';
+    el.style.fontSize='12px';
+    el.style.color='rgba(255,255,255,.78)';
+    el.style.lineHeight='1.35';
+    // Insert after the status text (within the same topbar area)
+    statusEl.parentElement.insertBefore(el, statusEl.nextSibling);
+    return el;
+  }
+
+  function toggleInline(){
+    const inline=ensureInline();
+    if(!inline) return;
+    const hidden = (inline.style.display==='none' || inline.style.display==='');
+    inline.style.display = hidden ? 'block' : 'none';
+    // Optional one-time visual confirmation without console
+    if(hidden && !window.__dsTapConfirmed){
+      window.__dsTapConfirmed = true;
+      // Tiny non-blocking hint: update build badge if present
+      try{
+        const bb=document.getElementById('buildBadge');
+        if(bb && bb.textContent.indexOf('TAPOK')===-1){ bb.textContent = bb.textContent + ' TAPOK'; }
+      }catch(_e){}
+    }
+  }
+
+  function bind(el){
+    if(!el) return;
+    try{ el.style.cursor='pointer'; }catch(_e){}
+    // iOS Safari: touchend is the reliable tap signal
+    el.addEventListener('touchend', function(ev){
+      try{ ev.preventDefault(); ev.stopPropagation(); }catch(_e){}
+      toggleInline();
+    }, {passive:false});
+    // fallback
+    el.addEventListener('click', function(ev){
+      try{ ev.preventDefault(); ev.stopPropagation(); }catch(_e){}
+      toggleInline();
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    // Visible build stamp to prove this file is loaded
+    try{
+      const bb=document.getElementById('buildBadge');
+      if(bb){ bb.textContent = 'Build P1-1D-TAPFIX'; }
+    }catch(_e){}
+
+    bind(document.getElementById('syncStatus'));
+    bind(document.getElementById('syncDot'));
+    bind(document.getElementById('syncStatusLabel'));
+    bind(document.getElementById('syncIndicator'));
+  });
+})();
