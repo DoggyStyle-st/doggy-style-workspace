@@ -7525,15 +7525,20 @@ try{ const bb=document.getElementById('buildBadge'); if(bb) bb.textContent = 'Bu
 // __DS_SYNC_INLINE_TOGGLE__
 document.addEventListener('DOMContentLoaded', ()=>{
   try{
-    const si=document.getElementById('syncIndicator');
-    const inline=document.getElementById('syncDetailsInline');
-    if(si && inline){
-      si.style.cursor='pointer';
-      si.addEventListener('click', (ev)=>{
-        try{ ev.preventDefault(); ev.stopPropagation(); }catch(e){}
-        const isHidden = (inline.style.display==='none' || !inline.style.display);
-        inline.style.display = isHidden ? 'block' : 'none';
-      }, {passive:false});
-    }
+    const trigger = document.getElementById('syncIndicatorBtn') || document.getElementById('syncIndicator');
+    const inline = document.getElementById('syncDetailsInline');
+    if(!trigger || !inline) return;
+
+    const toggle = (ev)=>{
+      try{ ev.preventDefault(); ev.stopPropagation(); }catch(e){}
+      const hidden = (inline.style.display==='none' || inline.style.display==='');
+      inline.style.display = hidden ? 'block' : 'none';
+    };
+
+    // iOS Safari: click can be swallowed depending on overlays; add touch/pointer events as well.
+    trigger.addEventListener('click', toggle, {passive:false});
+    trigger.addEventListener('touchend', toggle, {passive:false});
+    trigger.addEventListener('pointerup', toggle, {passive:false});
   }catch(e){}
 });
+

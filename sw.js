@@ -1,6 +1,6 @@
 /* Doggy Style – Service Worker P1-1B (update-safe, network-first for core) */
 
-const SW_VERSION = "P1-1B-SYNCDETAILS-2026-01-15a";
+const SW_VERSION = "P1-1C-STATUSBTN-2026-01-15a";
 const CACHE_NAME = `ds-test-cache-${SW_VERSION}`;
 
 // Wichtig:
