@@ -1,6 +1,6 @@
 /* Doggy Style – Service Worker TEST-OPTIK-01-2026-01-03b (offline-first, update-safe) */
 
-const SW_VERSION = "P1-1A-STATUS-2026-01-15a";
+const SW_VERSION = "P1-1A-STATUS-2026-01-15b";
 const CACHE_NAME = `ds-test-cache-${SW_VERSION}`;
 
 // Wichtig:
