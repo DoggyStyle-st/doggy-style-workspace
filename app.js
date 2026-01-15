@@ -1,4 +1,4 @@
-const APP_BUILD = "v11-P1-1B-INLINE";
+const APP_BUILD = "v11-P1-1E-SYNCMODAL";
 window.addEventListener("error",(e)=>{console.error("APP_ERROR",e.error||e.message);});
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
@@ -194,10 +194,32 @@ function updateSyncUI(){
   const dot=document.getElementById('syncDot');
   if(dot){ dot.classList.toggle('online', !!netOnline); dot.classList.toggle('offline', !netOnline); }
   const detailsText = `${localLine}\n${netLine}\n${cloudLine}\nCloud-Ping: ${fmtDT(SYNC.cloudReachCheckedAt)}${SYNC.cloudReachError ? ' · '+SYNC.cloudReachError : ''}`;
+  // Global ablegen, damit wir es auch ohne Konsole anzeigen können (Modal)
+  try{ window.__ds_lastSyncDetails = detailsText; }catch(e){}
   if(details) details.textContent = detailsText;
   const detailsInline = document.getElementById('syncDetailsInline');
   if(detailsInline) detailsInline.textContent = detailsText;
 
+  // Immer sichtbare Diagnosefläche (Topbar-Hit-Testing ist auf iOS/Safari teils unzuverlässig).
+  // Diese Box wird dynamisch erstellt und ist garantiert tappbar.
+  try{
+    ensureFloatingSyncDiag(detailsText, {
+      netOnline,
+      cloudOk,
+      hasUser: !!(CLOUD && CLOUD.user),
+      cloudEnabled: !!(CLOUD && CLOUD.enabled),
+      sdkReady: !!cloudIsEnabled()
+    });
+  }catch(e){}
+
+  // Wenn Modal offen ist: Inhalt live aktualisieren
+  try{
+    const modal = document.getElementById('syncDiagModal');
+    const pre = document.getElementById('syncDiagText');
+    if(modal && pre && modal.style.display !== 'none'){
+      pre.textContent = detailsText;
+    }
+  }catch(e){}
 
   // Manual cloud save: only enable when Cloud is active + logged in
   if(manualBtn){
@@ -7556,5 +7578,91 @@ document.addEventListener('DOMContentLoaded', ()=>{
     document.addEventListener('touchend', cap, true);
     document.addEventListener('click', cap, true);
   }catch(e){}
+
+  // P1.1E: Floating Sync-Diagnose Modal (iOS-sicher)
+  try{
+    const btn = document.getElementById('btnSyncDiagFloat');
+    const modal = document.getElementById('syncDiagModal');
+    const close = document.getElementById('btnSyncDiagClose');
+    const pre = document.getElementById('syncDiagText');
+    if(btn && modal && close && pre){
+      const open = (ev)=>{
+        try{ ev.preventDefault(); ev.stopPropagation(); }catch(e){}
+        pre.textContent = (window.__ds_lastSyncDetails || '(noch keine Daten)');
+        modal.style.display = 'flex';
+      };
+      const shut = (ev)=>{
+        try{ ev.preventDefault(); ev.stopPropagation(); }catch(e){}
+        modal.style.display = 'none';
+      };
+      btn.addEventListener('click', open, {passive:false});
+      btn.addEventListener('touchend', open, {passive:false});
+      close.addEventListener('click', shut, {passive:false});
+      close.addEventListener('touchend', shut, {passive:false});
+      // Tap on backdrop closes
+      modal.addEventListener('click', (ev)=>{ if(ev.target === modal) shut(ev); }, {passive:false});
+    }
+  }catch(e){}
 });
+
+/* ===== Floating Sync-Diagnose (immer tappbar) =====
+   Hintergrund: iOS Safari kann Clicks in der Topbar verschlucken (Overlays/Hit-Testing).
+   Diese Box sitzt fix unten links und zeigt die gleichen Details an.
+*/
+function ensureFloatingSyncDiag(detailsText, meta = {}){
+  let box = document.getElementById('dsFloatingSyncDiag');
+  if(!box){
+    box = document.createElement('div');
+    box.id = 'dsFloatingSyncDiag';
+    box.setAttribute('role','button');
+    box.setAttribute('aria-label','Sync-Diagnose');
+    box.style.position = 'fixed';
+    box.style.left = '10px';
+    box.style.bottom = '10px';
+    box.style.zIndex = '2147483647';
+    box.style.maxWidth = 'min(420px, calc(100vw - 20px))';
+    box.style.background = 'rgba(0,0,0,0.75)';
+    box.style.border = '1px solid rgba(255,255,255,0.18)';
+    box.style.borderRadius = '12px';
+    box.style.padding = '8px 10px';
+    box.style.color = '#fff';
+    box.style.fontSize = '12px';
+    box.style.lineHeight = '1.3';
+    box.style.whiteSpace = 'pre-wrap';
+    box.style.pointerEvents = 'auto';
+    box.style.webkitUserSelect = 'none';
+    box.style.userSelect = 'none';
+    box.style.cursor = 'pointer';
+    box.style.boxShadow = '0 8px 30px rgba(0,0,0,0.35)';
+    box.dataset.expanded = '0';
+
+    const toggle = (ev)=>{
+      try{ ev && ev.preventDefault && ev.preventDefault(); }catch(e){}
+      try{ ev && ev.stopPropagation && ev.stopPropagation(); }catch(e){}
+      box.dataset.expanded = (box.dataset.expanded === '1') ? '0' : '1';
+      // Re-render with the last known details
+      try{ renderFloatingSyncDiag(box, window.__ds_lastSyncDetails || detailsText, meta); }catch(e){}
+      return false;
+    };
+    box.addEventListener('click', toggle, {passive:false});
+    box.addEventListener('touchend', toggle, {passive:false});
+    box.addEventListener('pointerup', toggle, {passive:false});
+    document.body.appendChild(box);
+  }
+  renderFloatingSyncDiag(box, detailsText, meta);
+}
+
+function renderFloatingSyncDiag(box, detailsText, meta = {}){
+  const short = `SYNC-INFO (tippen für Details)\n` +
+    `Internet: ${meta.netOnline ? 'Online' : 'Offline'} | ` +
+    `Cloud: ${meta.cloudOk ? 'OK' : 'OFF'} | ` +
+    `User: ${meta.hasUser ? 'ja' : 'nein'} | ` +
+    `SDK: ${meta.sdkReady ? 'ja' : 'nein'}`;
+
+  if(box.dataset.expanded === '1'){
+    box.textContent = `${short}\n\n${detailsText}`;
+  } else {
+    box.textContent = short;
+  }
+}
 
