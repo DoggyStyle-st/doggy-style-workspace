@@ -1,22 +1,31 @@
-/* Doggy Style – Service Worker (update-safe) */
+/* Doggy Style – Service Worker P1-1B (update-safe, network-first for core) */
 
-const SW_VERSION = "P1-1D-TAPFIX-2026-01-15";
+const SW_VERSION = "P1-1B-SYNCDETAILS-2026-01-15a";
 const CACHE_NAME = `ds-test-cache-${SW_VERSION}`;
 
-// Prinzip:
+// Wichtig:
+// - KEIN hartes Caching von app.js/app.html als "alt"-Falle
 // - HTML: network-first
-// - Critical JS (app.js): network-first
-// - Rest: stale-while-revalidate
-// - Install darf nicht fehlschlagen, wenn ein Asset fehlt
+// - Assets: stale-while-revalidate
+// - Install darf NICHT fehlschlagen, wenn ein Asset fehlt
 
 const CORE_ASSETS = [
   "index.html",
   "login.html",
   "app.html",
   "styles.css",
+  "dashboard_master.css",
   "app.js",
+  "auth.js",
+  "firebase-config.js",
+  "diag.html",
+  "diag.js",
   "manifest.json",
-  "assets/logo.png"
+  "assets/logo.png",
+  "assets/pfote.png",
+  "login_override.css",
+  "templates/rechnung.json",
+  "templates/hundeannahme.json"
 ];
 
 self.addEventListener("install", (event) => {
@@ -54,11 +63,11 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(req.url);
   if(url.origin !== self.location.origin) return;
 
-  const isHTML = req.mode === "navigate" || (req.headers.get("accept")||"").includes("text/html");
-  const path = url.pathname.replace(/^\//, "");
-  const isCriticalJS = (path === "app.js");
+  const CRITICAL_ASSETS = new Set(["/app.js","/styles.css","/dashboard_master.css","/auth.js","/firebase-config.js"]);
 
-  // HTML: network-first
+  const isHTML = req.mode === "navigate" || (req.headers.get("accept")||"").includes("text/html");
+
+  // HTML: network-first (damit Updates sofort kommen)
   if(isHTML){
     event.respondWith((async ()=>{
       try{
@@ -73,22 +82,23 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Critical JS: network-first
-  if(isCriticalJS){
+  // Critical core assets: network-first (damit JS/CSS Updates sofort kommen)
+  const path = url.pathname;
+  if(CRITICAL_ASSETS.has(path) || CRITICAL_ASSETS.has('/'+path.split('/').pop())){
     event.respondWith((async ()=>{
       try{
-        const fresh = await fetch(req, {cache:"no-store"});
-        await cachePut(req, fresh);
+        const fresh = await fetch(req, {cache:'no-store'});
+        if(fresh && fresh.ok) await cachePut(req, fresh);
         return fresh;
       }catch(e){
         const cached = await caches.match(req);
-        return cached || caches.match("app.js");
+        return cached || caches.match('app.js') || caches.match('styles.css');
       }
     })());
     return;
   }
 
-  // Rest: stale-while-revalidate
+  // Assets: stale-while-revalidate
   event.respondWith((async ()=>{
     const cached = await caches.match(req);
     const fetchPromise = fetch(req).then(async fresh => {
@@ -96,8 +106,6 @@ self.addEventListener("fetch", (event) => {
       return fresh;
     }).catch(()=>null);
 
-    if(cached) return cached;
-    const net = await fetchPromise;
-    return net || cached || new Response("", {status:504});
+    return cached || (await fetchPromise) || cached;
   })());
 });

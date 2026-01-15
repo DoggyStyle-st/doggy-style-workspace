@@ -1,4 +1,4 @@
-const APP_BUILD = "v11-TEST-OPTIK-01";
+const APP_BUILD = "v11-P1-1B-INLINE";
 window.addEventListener("error",(e)=>{console.error("APP_ERROR",e.error||e.message);});
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
@@ -193,7 +193,11 @@ function updateSyncUI(){
   if(pill) pill.textContent = `${pillText} · ${fmtDT(SYNC.localSavedAt)}`;
   const dot=document.getElementById('syncDot');
   if(dot){ dot.classList.toggle('online', !!netOnline); dot.classList.toggle('offline', !netOnline); }
-  if(details) details.textContent = `${localLine}\n${netLine}\n${cloudLine}\nCloud-Ping: ${fmtDT(SYNC.cloudReachCheckedAt)}${SYNC.cloudReachError ? ' · '+SYNC.cloudReachError : ''}`;
+  const detailsText = `${localLine}\n${netLine}\n${cloudLine}\nCloud-Ping: ${fmtDT(SYNC.cloudReachCheckedAt)}${SYNC.cloudReachError ? ' · '+SYNC.cloudReachError : ''}`;
+  if(details) details.textContent = detailsText;
+  const detailsInline = document.getElementById('syncDetailsInline');
+  if(detailsInline) detailsInline.textContent = detailsText;
+
 
   // Manual cloud save: only enable when Cloud is active + logged in
   if(manualBtn){
@@ -7519,67 +7523,17 @@ function wfTodayPrint(){
 try{ const bb=document.getElementById('buildBadge'); if(bb) bb.textContent = 'Build ' + APP_BUILD; }catch(e){}
 
 // __DS_SYNC_INLINE_TOGGLE__
-(function(){
-  function ensureInline(){
-    let el=document.getElementById('syncDetailsInline');
-    if(el) return el;
-    const statusEl=document.getElementById('syncStatus');
-    if(!statusEl) return null;
-    el=document.createElement('div');
-    el.id='syncDetailsInline';
-    el.style.display='none';
-    el.style.marginTop='6px';
-    el.style.maxWidth='420px';
-    el.style.whiteSpace='pre-line';
-    el.style.fontSize='12px';
-    el.style.color='rgba(255,255,255,.78)';
-    el.style.lineHeight='1.35';
-    // Insert after the status text (within the same topbar area)
-    statusEl.parentElement.insertBefore(el, statusEl.nextSibling);
-    return el;
-  }
-
-  function toggleInline(){
-    const inline=ensureInline();
-    if(!inline) return;
-    const hidden = (inline.style.display==='none' || inline.style.display==='');
-    inline.style.display = hidden ? 'block' : 'none';
-    // Optional one-time visual confirmation without console
-    if(hidden && !window.__dsTapConfirmed){
-      window.__dsTapConfirmed = true;
-      // Tiny non-blocking hint: update build badge if present
-      try{
-        const bb=document.getElementById('buildBadge');
-        if(bb && bb.textContent.indexOf('TAPOK')===-1){ bb.textContent = bb.textContent + ' TAPOK'; }
-      }catch(_e){}
+document.addEventListener('DOMContentLoaded', ()=>{
+  try{
+    const si=document.getElementById('syncIndicator');
+    const inline=document.getElementById('syncDetailsInline');
+    if(si && inline){
+      si.style.cursor='pointer';
+      si.addEventListener('click', (ev)=>{
+        try{ ev.preventDefault(); ev.stopPropagation(); }catch(e){}
+        const isHidden = (inline.style.display==='none' || !inline.style.display);
+        inline.style.display = isHidden ? 'block' : 'none';
+      }, {passive:false});
     }
-  }
-
-  function bind(el){
-    if(!el) return;
-    try{ el.style.cursor='pointer'; }catch(_e){}
-    // iOS Safari: touchend is the reliable tap signal
-    el.addEventListener('touchend', function(ev){
-      try{ ev.preventDefault(); ev.stopPropagation(); }catch(_e){}
-      toggleInline();
-    }, {passive:false});
-    // fallback
-    el.addEventListener('click', function(ev){
-      try{ ev.preventDefault(); ev.stopPropagation(); }catch(_e){}
-      toggleInline();
-    });
-  }
-
-  document.addEventListener('DOMContentLoaded', function(){
-    // Visible build stamp to prove this file is loaded
-    try{
-      const bb=document.getElementById('buildBadge');
-      if(bb){ bb.textContent = 'Build P1-1D-TAPFIX'; }
-    }catch(_e){}
-
-    bind(document.getElementById('syncStatus'));
-    bind(document.getElementById('syncDot'));
-    bind(document.getElementById('syncStatusLabel'));
-    bind(document.getElementById('syncIndicator'));
-  });
-})();
+  }catch(e){}
+});

@@ -8,8 +8,8 @@
 <link href="manifest.json" rel="manifest"/>
 <meta content="#101014" name="theme-color"/>
 <link href="assets/logo.png" rel="apple-touch-icon"/>
-<link href="styles.css?v=20260103v01" rel="stylesheet"/>
-<link href="dashboard_master.css?v=20260104v13logout" rel="stylesheet"/>
+<link href="styles.css" rel="stylesheet"/>
+<link href="dashboard_master.css" rel="stylesheet"/>
 <style>
   /* Topbar Layout (iPad & Desktop stabil) */
   .topbar{position:sticky; top:0; z-index:50;}
@@ -46,6 +46,7 @@
         </svg>
       </span>
       <span class="paw-start__label">Start</span>
+    </button>
     <nav class="tabs" role="tablist" aria-label="Navigation">
       <div class="tabs__row tabs__row--main">
         <button class="tab" data-tab="dogs"><span class="tab-ico" aria-hidden="true">🐶</span>Hunde/Kunden</button>
@@ -65,13 +66,13 @@
     </nav>
 
     <div class="topbar__right">
-      <div class="sync-indicator" aria-label="Status" id="syncIndicator">
+      <div class="sync-indicator" id="syncIndicator" aria-label="Status">
         <span class="sync-label" id="syncStatusLabel" aria-hidden="true">Status:</span>
         <span class="status-dot offline" id="syncDot" aria-hidden="true"></span>
         <span class="sync-text" id="syncStatus" title="Speicher- &amp; Sync-Status">Offline</span>
-      </div>
-      <!-- Optional: Detailzeile für Cloud-Ping (auf Klick auf Status ein/ausblendbar) -->
       <div class="sync-details-inline" id="syncDetailsInline" style="display:none"></div>
+
+      </div>
       <div class="sync-user" id="syncUser" title="Aktiver Benutzer" style="display:none"></div>
           <button class="btn btn-logout" id="btnLogoutTop" type="button" style="display:none" aria-label="Abmelden">Abmelden</button>
 </div>
@@ -1034,7 +1035,7 @@
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-<script defer="defer" src="app.js?v=20260101v63b"></script>
+<script defer="defer" src="app.js"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1141,6 +1142,6 @@
   <button class="btn btn--mini btn--logout" id="btnLogoutBottom" type="button" title="Ausloggen / Logout">Ausloggen / Logout</button>
 </div>
 <div class="test-badge" id="testBadge">PRODUKTIV</div>
-<div class="build-badge" id="buildBadge">Build</div>
+<div class="build-badge" id="buildBadge">Build P1-1B</div>
 </body>
 </html>
