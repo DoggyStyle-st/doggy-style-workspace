@@ -7539,6 +7539,22 @@ document.addEventListener('DOMContentLoaded', ()=>{
     trigger.addEventListener('click', toggle, {passive:false});
     trigger.addEventListener('touchend', toggle, {passive:false});
     trigger.addEventListener('pointerup', toggle, {passive:false});
+
+    // Ultra-robust fallback: capture taps anywhere and toggle if the tap happened inside the trigger's bounding box.
+    // This fixes cases where an invisible overlay steals the actual target element.
+    const inRect = (x,y,rect)=> (x>=rect.left && x<=rect.right && y>=rect.top && y<=rect.bottom);
+    const cap = (ev)=>{
+      try{
+        const r = trigger.getBoundingClientRect();
+        let x=null, y=null;
+        if(ev.changedTouches && ev.changedTouches[0]){ x = ev.changedTouches[0].clientX; y = ev.changedTouches[0].clientY; }
+        else if(typeof ev.clientX==='number'){ x = ev.clientX; y = ev.clientY; }
+        if(x===null || y===null) return;
+        if(inRect(x,y,r)) toggle(ev);
+      }catch(e){}
+    };
+    document.addEventListener('touchend', cap, true);
+    document.addEventListener('click', cap, true);
   }catch(e){}
 });
 

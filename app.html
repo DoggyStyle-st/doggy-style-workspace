@@ -39,6 +39,8 @@
   pointer-events:auto;
   position:relative;
   z-index:9999;
+  user-select:none;
+  -webkit-user-select:none;
 }
 .sync-indicator-btn:active{opacity:.85}
 #syncDetailsInline{
@@ -63,6 +65,8 @@
     z-index: 9999;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
   }
   .sync-indicator-btn:focus{ outline: none; }
   .sync-details-inline{
