@@ -1032,56 +1032,23 @@
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <script defer="defer" src="app.js"></script>
-<script>
-(function(){
-  const btn = document.getElementById('btnLogoutTop');
-  if(!btn) return;
 
-  const show = (on) => { btn.style.display = on ? 'inline-flex' : 'none'; };
-
-  const doLogout = () => {
-    const appBtn = document.getElementById('btnLogoutApp');
-    // If the app already has its own logout handler wired up, reuse it
-    if(appBtn && appBtn.style.display !== 'none'){
-      appBtn.click();
-      return;
-    }
-    // Fallback: Firebase Auth signOut (compat)
-    try{
-      if(window.firebase && firebase.auth){
-        firebase.auth().signOut()
-          .then(() => { location.href = location.href.split('#')[0]; })
-          .catch(() => location.reload());
-        return;
-      }
-    }catch(e){}
-    location.reload();
-  };
-
-  btn.addEventListener('click', doLogout);
-
-  // Only show when a user is logged in
-  try{
-    if(window.firebase && firebase.auth){
-      firebase.auth().onAuthStateChanged((u) => show(!!u));
-    }else{
-      show(true);
-    }
-  }catch(e){
-    show(true);
-  }
-})();
-</script>
 
 <script>
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
   </script>
 
 <script>
-/* Logout-Fix: verhindert Tab-Navigation (Startseite) und führt echtes SignOut aus */
+/* Logout (vereinheitlicht): genau ein Handler, keine doppelten Listener */
 (function(){
   const btnTop = document.getElementById('btnLogoutTop');
   const btnBottom = document.getElementById('btnLogoutBottom');
+
+  function setVisible(on){
+    [btnTop, btnBottom].forEach(btn => {
+      if(btn) btn.style.display = on ? 'inline-flex' : 'none';
+    });
+  }
 
   async function doLogout(ev){
     if(ev){
@@ -1100,7 +1067,7 @@
       else if (typeof window.logout === 'function'){
         await window.logout();
       }
-      // 3) Firebase Auth (typisch)
+      // 3) Firebase Auth (compat)
       else if (window.firebase && firebase.auth){
         await firebase.auth().signOut();
       }
@@ -1112,8 +1079,9 @@
       else if (typeof window.signOut === 'function' && window.auth){
         await window.signOut(window.auth);
       }
-    }catch(err){
-      console.error('Logout failed:', err);
+    }catch(e){
+      // best-effort: weiter zum Redirect
+      try{ console.warn('Logout warning:', e); }catch(_){}
     }
 
     // Optional: lokale Session-Spuren entfernen
@@ -1129,8 +1097,21 @@
       btn.addEventListener('click', doLogout, { passive:false });
     }
   });
+
+  // Sichtbarkeit: nur zeigen, wenn User eingeloggt ist (falls Firebase vorhanden)
+  try{
+    if(window.firebase && firebase.auth){
+      firebase.auth().onAuthStateChanged((u) => setVisible(!!u));
+    }else{
+      // Ohne Auth-Event: nicht erzwingen, aber sichtbar lassen (Baseline-Verhalten)
+      setVisible(true);
+    }
+  }catch(e){
+    setVisible(true);
+  }
 })();
 </script>
+
 
 <!-- Dummy für Legacy-Signatur -->
 <canvas height="1" id="sigPad" style="display:none" width="1"></canvas>
