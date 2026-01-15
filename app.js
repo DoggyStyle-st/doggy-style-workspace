@@ -116,7 +116,10 @@ const SYNC = {
   cloudLastSeenAt: 0,
   cloudPending: false,
   cloudLastOkAt: 0,
-  cloudLastError: ""
+  cloudLastError: "",
+  cloudReachable: false,
+  cloudReachCheckedAt: 0,
+  cloudReachError: ""
 };
 
 function fmtDT(ts){
@@ -155,13 +158,14 @@ function updateSyncUI(){
   }
 
   const netOnline = (typeof navigator !== 'undefined') ? !!navigator.onLine : false;
-  try{ if(pill){ pill.classList.toggle('is-online', !!netOnline); pill.classList.toggle('is-offline', !netOnline); } }catch(e){}
+  const cloudOk = !!(netOnline && cloudIsEnabled() && CLOUD && CLOUD.enabled && CLOUD.user && SYNC.cloudReachable);
+  try{ if(pill){ pill.classList.toggle('is-online', !!cloudOk); pill.classList.toggle('is-offline', !cloudOk); } }catch(e){}
   const localLine = `Lokal gespeichert: ${fmtDT(SYNC.localSavedAt)}`;
 
   // Internet-Status (nicht gleich Cloud!)
-  const netLine = `Internet: ${netOnline ? 'Online' : 'Offline'}`;
+  const netLine = `Internet: ${cloudOk ? 'Online' : 'Offline'}`;
 
-  let pillText = netOnline ? 'Online' : 'Offline';
+  let pillText = cloudOk ? 'Online' : 'Offline';
   let cloudLine = 'Cloud: aus';
 
   if(!cloudIsEnabled()){
@@ -172,16 +176,16 @@ function updateSyncUI(){
     }
   } else if(CLOUD.enabled){
     if(!CLOUD.user){
-      pillText = `${netOnline ? 'Online' : 'Offline'} · Cloud: Login nötig`;
+      pillText = `${cloudOk ? 'Online' : 'Offline'} · Cloud: Login nötig`;
       cloudLine = 'Cloud: nicht angemeldet';
     } else if(SYNC.cloudLastError){
-      pillText = `${netOnline ? 'Online' : 'Offline'} · Cloud: Fehler`;
+      pillText = `${cloudOk ? 'Online' : 'Offline'} · Cloud: Fehler`;
       cloudLine = `Cloud Fehler: ${SYNC.cloudLastError}`;
     } else if(SYNC.cloudPending){
-      pillText = `${netOnline ? 'Online' : 'Offline'} · Cloud: Sync…`;
+      pillText = `${cloudOk ? 'Online' : 'Offline'} · Cloud: Sync…`;
       cloudLine = `Cloud Sync: läuft (letztes OK ${fmtDT(SYNC.cloudLastOkAt)})`;
     } else {
-      pillText = `${netOnline ? 'Online' : 'Offline'} · Cloud: OK`;
+      pillText = `${cloudOk ? 'Online' : 'Offline'} · Cloud: OK`;
       cloudLine = `Cloud zuletzt OK: ${fmtDT(SYNC.cloudLastOkAt)} · Server: ${fmtDT(SYNC.cloudLastSeenAt)}`;
     }
   }
@@ -189,7 +193,7 @@ function updateSyncUI(){
   if(pill) pill.textContent = `${pillText} · ${fmtDT(SYNC.localSavedAt)}`;
   const dot=document.getElementById('syncDot');
   if(dot){ dot.classList.toggle('online', !!netOnline); dot.classList.toggle('offline', !netOnline); }
-  if(details) details.textContent = `${localLine}\n${netLine}\n${cloudLine}`;
+  if(details) details.textContent = `${localLine}\n${netLine}\n${cloudLine}\nCloud-Ping: ${fmtDT(SYNC.cloudReachCheckedAt)}${SYNC.cloudReachError ? ' · '+SYNC.cloudReachError : ''}`;
 
   // Manual cloud save: only enable when Cloud is active + logged in
   if(manualBtn){
@@ -383,6 +387,73 @@ function cloudIsEnabled(){
   // Cloud nur möglich, wenn Config vorhanden UND Firebase SDK geladen ist.
   // (In PWA offline wird das SDK über ServiceWorker gecached.)
   return !!(window.firebaseConfig && window.firebase && window.firebase.initializeApp && window.firebase.auth);
+}
+
+
+function withTimeout(promise, ms){
+  return new Promise((resolve, reject)=>{
+    const t = setTimeout(()=>reject(new Error("timeout")), ms);
+    Promise.resolve(promise).then((v)=>{ clearTimeout(t); resolve(v); }).catch((e)=>{ clearTimeout(t); reject(e); });
+  });
+}
+
+async function checkCloudReachability(reason){
+  const netOnline = (typeof navigator !== 'undefined') ? !!navigator.onLine : false;
+  SYNC.cloudReachCheckedAt = Date.now();
+  SYNC.cloudReachError = "";
+
+  // Default: nicht erreichbar
+  SYNC.cloudReachable = false;
+
+  if(!netOnline){
+    SYNC.cloudReachError = "kein Internet";
+    return false;
+  }
+  if(!cloudIsEnabled() || !CLOUD || !CLOUD.enabled || !CLOUD.db){
+    SYNC.cloudReachError = "Cloud nicht bereit";
+    return false;
+  }
+  if(!CLOUD.user){
+    SYNC.cloudReachError = "nicht angemeldet";
+    return false;
+  }
+
+  const ref = (typeof cloudStateRef === 'function') ? cloudStateRef() : null;
+  if(!ref || !ref.get){
+    SYNC.cloudReachError = "State-Ref fehlt";
+    return false;
+  }
+
+  try{
+    // erzwinge Serverzugriff, damit wir echte Erreichbarkeit messen
+    const p = ref.get({ source: 'server' });
+    await withTimeout(p, 4000);
+    SYNC.cloudReachable = true;
+    SYNC.cloudReachError = "";
+    return true;
+  }catch(err){
+    const code = (err && (err.code || err.name)) ? String(err.code || err.name) : "";
+    // Permission denied bedeutet: Cloud erreichbar, nur Rechte fehlen
+    if(code.includes("permission") || code.includes("PERMISSION")){
+      SYNC.cloudReachable = true;
+      SYNC.cloudReachError = "keine Rechte";
+      return true;
+    }
+    SYNC.cloudReachable = false;
+    SYNC.cloudReachError = (code || "nicht erreichbar");
+    return false;
+  }
+}
+
+let _cloudPingTimer = null;
+function scheduleCloudPing(delayMs=0, reason=""){
+  try{
+    if(_cloudPingTimer) clearTimeout(_cloudPingTimer);
+    _cloudPingTimer = setTimeout(async ()=>{
+      await checkCloudReachability(reason);
+      updateSyncUI();
+    }, Math.max(0, delayMs));
+  }catch(e){}
 }
 
 function showAuthGate(show){
@@ -6061,6 +6132,8 @@ return;
     }
 
     showAuthGate(false);
+    // Cloud-Erreichbarkeit prüfen, damit Status nicht erst nach einer Aktion auf Online springt
+    try{ scheduleCloudPing(50,'auth-login'); }catch(e){}
     if(btnLogout) btnLogout.style.display = "inline-block";
     if(btnLogoutApp) btnLogoutApp.style.display = "inline-block";
     updateSyncUI();
@@ -6215,8 +6288,8 @@ document.addEventListener("visibilitychange", () => {
 startApp().catch(console.error);
 // UI: Sync-Status regelmäßig auffrischen (auch bei Tab-Wechsel/PWA)
 setInterval(()=>{ try{ updateSyncUI(); }catch(_){ } }, 1500);
-window.addEventListener('online', ()=>{ try{ updateSyncUI(); }catch(_){ } });
-window.addEventListener('offline', ()=>{ try{ updateSyncUI(); }catch(_){ } });
+window.addEventListener('online', ()=>{ try{ scheduleCloudPing(0,'online-event'); }catch(_){ try{ updateSyncUI(); }catch(__){} } });
+window.addEventListener('offline', ()=>{ try{ SYNC.cloudReachable=false; SYNC.cloudReachError='kein Internet'; SYNC.cloudReachCheckedAt=Date.now(); }catch(_){ } try{ updateSyncUI(); }catch(__){} });
 
 /* ===== B2.2a Freier Rechnungs-Editor ===== */
 function renderInvoiceEditorB2(doc){
