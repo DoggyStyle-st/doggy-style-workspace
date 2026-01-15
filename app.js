@@ -1,4 +1,4 @@
-const APP_BUILD = "v11-P1-1E-SYNCMODAL";
+const APP_BUILD = "v11-P1-2-SYNC-LABEL";
 window.addEventListener("error",(e)=>{console.error("APP_ERROR",e.error||e.message);});
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
@@ -158,68 +158,44 @@ function updateSyncUI(){
   }
 
   const netOnline = (typeof navigator !== 'undefined') ? !!navigator.onLine : false;
-  const cloudOk = !!(netOnline && cloudIsEnabled() && CLOUD && CLOUD.enabled && CLOUD.user && SYNC.cloudReachable);
-  try{ if(pill){ pill.classList.toggle('is-online', !!cloudOk); pill.classList.toggle('is-offline', !cloudOk); } }catch(e){}
+  // Passiver Sync-Indikator: "erfolgreich" erst nach bestaetigtem Cloud-Write
+  const syncOk = !!(cloudIsEnabled() && CLOUD && CLOUD.enabled && CLOUD.user && SYNC.cloudLastOkAt && !SYNC.cloudLastError && !SYNC.cloudPending);
+  try{ if(pill){ pill.classList.toggle('is-online', !!syncOk); pill.classList.toggle('is-offline', !syncOk); } }catch(e){}
+
   const localLine = `Lokal gespeichert: ${fmtDT(SYNC.localSavedAt)}`;
+  const netLine = `Internet: ${netOnline ? 'Online' : 'Offline'}`;
 
-  // Internet-Status (nicht gleich Cloud!)
-  const netLine = `Internet: ${cloudOk ? 'Online' : 'Offline'}`;
-
-  let pillText = cloudOk ? 'Online' : 'Offline';
-  let cloudLine = 'Cloud: aus';
+  let pillText = syncOk ? 'Sync: erfolgreich' : 'Sync: ausstehend';
+  let cloudLine = 'Noch kein erfolgreicher Sync.';
 
   if(!cloudIsEnabled()){
-    // Cloud nicht möglich (SDK fehlt) – das ist der Hauptgrund für "immer Offline" in der Wahrnehmung
     cloudLine = window.firebaseConfig ? 'Cloud: bereit (SDK nicht geladen)' : 'Cloud: aus';
-    if(window.firebaseConfig && CLOUD.reason){
-      cloudLine += ` · ${CLOUD.reason}`;
-    }
-  } else if(CLOUD.enabled){
+    if(window.firebaseConfig && CLOUD && CLOUD.reason){ cloudLine += ` · ${CLOUD.reason}`; }
+    pillText = 'Sync: ausstehend';
+  } else if(CLOUD && CLOUD.enabled){
     if(!CLOUD.user){
-      pillText = `${cloudOk ? 'Online' : 'Offline'} · Cloud: Login nötig`;
-      cloudLine = 'Cloud: nicht angemeldet';
+      cloudLine = 'Cloud: Login nötig';
+      pillText = 'Sync: ausstehend';
     } else if(SYNC.cloudLastError){
-      pillText = `${cloudOk ? 'Online' : 'Offline'} · Cloud: Fehler`;
-      cloudLine = `Cloud Fehler: ${SYNC.cloudLastError}`;
+      cloudLine = `Letzter Sync-Fehler: ${SYNC.cloudLastError}`;
+      pillText = 'Sync: ausstehend';
     } else if(SYNC.cloudPending){
-      pillText = `${cloudOk ? 'Online' : 'Offline'} · Cloud: Sync…`;
-      cloudLine = `Cloud Sync: läuft (letztes OK ${fmtDT(SYNC.cloudLastOkAt)})`;
-    } else {
-      pillText = `${cloudOk ? 'Online' : 'Offline'} · Cloud: OK`;
-      cloudLine = `Cloud zuletzt OK: ${fmtDT(SYNC.cloudLastOkAt)} · Server: ${fmtDT(SYNC.cloudLastSeenAt)}`;
+      cloudLine = `Sync läuft… (letztes OK ${fmtDT(SYNC.cloudLastOkAt)})`;
+      pillText = 'Sync: ausstehend';
+    } else if(SYNC.cloudLastOkAt){
+      cloudLine = `Letzter Sync OK: ${fmtDT(SYNC.cloudLastOkAt)} · Server: ${fmtDT(SYNC.cloudLastSeenAt)}`;
+      pillText = 'Sync: erfolgreich';
     }
   }
-
-  if(pill) pill.textContent = `${pillText} · ${fmtDT(SYNC.localSavedAt)}`;
+  if(pill) pill.textContent = `${pillText} · ${fmtDT(syncOk ? SYNC.cloudLastOkAt : SYNC.localSavedAt)}`;
   const dot=document.getElementById('syncDot');
-  if(dot){ dot.classList.toggle('online', !!netOnline); dot.classList.toggle('offline', !netOnline); }
+  if(dot){ dot.classList.toggle('online', !!syncOk); dot.classList.toggle('offline', !syncOk); }
   const detailsText = `${localLine}\n${netLine}\n${cloudLine}\nCloud-Ping: ${fmtDT(SYNC.cloudReachCheckedAt)}${SYNC.cloudReachError ? ' · '+SYNC.cloudReachError : ''}`;
   // Global ablegen, damit wir es auch ohne Konsole anzeigen können (Modal)
   try{ window.__ds_lastSyncDetails = detailsText; }catch(e){}
   if(details) details.textContent = detailsText;
   const detailsInline = document.getElementById('syncDetailsInline');
   if(detailsInline) detailsInline.textContent = detailsText;
-
-  // Immer sichtbare Diagnosefläche (Topbar-Hit-Testing ist auf iOS/Safari teils unzuverlässig).
-  // Diese Box wird dynamisch erstellt und ist garantiert tappbar.
-  try{
-    ensureFloatingSyncDiag(detailsText, {
-      netOnline,
-      cloudOk,
-      hasUser: !!(CLOUD && CLOUD.user),
-      cloudEnabled: !!(CLOUD && CLOUD.enabled),
-      sdkReady: !!cloudIsEnabled()
-    });
-  }catch(e){}
-
-  // Wenn Modal offen ist: Inhalt live aktualisieren
-  try{
-    const modal = document.getElementById('syncDiagModal');
-    const pre = document.getElementById('syncDiagText');
-    if(modal && pre && modal.style.display !== 'none'){
-      pre.textContent = detailsText;
-    }
-  }catch(e){}
 
   // Manual cloud save: only enable when Cloud is active + logged in
   if(manualBtn){
