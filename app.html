@@ -8,8 +8,8 @@
 <link href="manifest.json" rel="manifest"/>
 <meta content="#101014" name="theme-color"/>
 <link href="assets/logo.png" rel="apple-touch-icon"/>
-<link href="styles.css" rel="stylesheet"/>
-<link href="dashboard_master.css" rel="stylesheet"/>
+<link href="styles.css?v=20260103v01" rel="stylesheet"/>
+<link href="dashboard_master.css?v=20260104v13logout" rel="stylesheet"/>
 <style>
   /* Topbar Layout (iPad & Desktop stabil) */
   .topbar{position:sticky; top:0; z-index:50;}
@@ -20,6 +20,7 @@
   .tab{white-space:nowrap;}
   .topbar__right{display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:flex-end;}
   .sync-indicator{display:flex; align-items:center; gap:8px;}
+  .sync-details-inline{margin-top:6px; max-width:420px; white-space:pre-line; font-size:12px; color:rgba(255,255,255,.78); line-height:1.35;}
   .sync-label{font-size:12px; opacity:.75;}
   @media (min-width: 900px){
     .topbar__inner{gap:16px; padding:10px 16px 16px;}
@@ -64,11 +65,13 @@
     </nav>
 
     <div class="topbar__right">
-      <div class="sync-indicator" aria-label="Status">
+      <div class="sync-indicator" aria-label="Status" id="syncIndicator">
         <span class="sync-label" id="syncStatusLabel" aria-hidden="true">Status:</span>
         <span class="status-dot offline" id="syncDot" aria-hidden="true"></span>
         <span class="sync-text" id="syncStatus" title="Speicher- &amp; Sync-Status">Offline</span>
       </div>
+      <!-- Optional: Detailzeile für Cloud-Ping (auf Klick auf Status ein/ausblendbar) -->
+      <div class="sync-details-inline" id="syncDetailsInline" style="display:none"></div>
       <div class="sync-user" id="syncUser" title="Aktiver Benutzer" style="display:none"></div>
           <button class="btn btn-logout" id="btnLogoutTop" type="button" style="display:none" aria-label="Abmelden">Abmelden</button>
 </div>
@@ -1027,28 +1030,61 @@
 </footer>
 </div>
 <!-- Firebase (optional) + Config -->
-<script defer="defer" src="firebase-config.js"></script>
+<script defer="defer" src="firebase-config.js?v=20251228a"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-<script defer="defer" src="app.js"></script>
+<script defer="defer" src="app.js?v=20260101v63b"></script>
+<script>
+(function(){
+  const btn = document.getElementById('btnLogoutTop');
+  if(!btn) return;
 
+  const show = (on) => { btn.style.display = on ? 'inline-flex' : 'none'; };
+
+  const doLogout = () => {
+    const appBtn = document.getElementById('btnLogoutApp');
+    // If the app already has its own logout handler wired up, reuse it
+    if(appBtn && appBtn.style.display !== 'none'){
+      appBtn.click();
+      return;
+    }
+    // Fallback: Firebase Auth signOut (compat)
+    try{
+      if(window.firebase && firebase.auth){
+        firebase.auth().signOut()
+          .then(() => { location.href = location.href.split('#')[0]; })
+          .catch(() => location.reload());
+        return;
+      }
+    }catch(e){}
+    location.reload();
+  };
+
+  btn.addEventListener('click', doLogout);
+
+  // Only show when a user is logged in
+  try{
+    if(window.firebase && firebase.auth){
+      firebase.auth().onAuthStateChanged((u) => show(!!u));
+    }else{
+      show(true);
+    }
+  }catch(e){
+    show(true);
+  }
+})();
+</script>
 
 <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=TEST_OPTIK_01_2026-01-03');
   </script>
 
 <script>
-/* Logout (vereinheitlicht): genau ein Handler, keine doppelten Listener */
+/* Logout-Fix: verhindert Tab-Navigation (Startseite) und führt echtes SignOut aus */
 (function(){
   const btnTop = document.getElementById('btnLogoutTop');
   const btnBottom = document.getElementById('btnLogoutBottom');
-
-  function setVisible(on){
-    [btnTop, btnBottom].forEach(btn => {
-      if(btn) btn.style.display = on ? 'inline-flex' : 'none';
-    });
-  }
 
   async function doLogout(ev){
     if(ev){
@@ -1067,7 +1103,7 @@
       else if (typeof window.logout === 'function'){
         await window.logout();
       }
-      // 3) Firebase Auth (compat)
+      // 3) Firebase Auth (typisch)
       else if (window.firebase && firebase.auth){
         await firebase.auth().signOut();
       }
@@ -1079,9 +1115,8 @@
       else if (typeof window.signOut === 'function' && window.auth){
         await window.signOut(window.auth);
       }
-    }catch(e){
-      // best-effort: weiter zum Redirect
-      try{ console.warn('Logout warning:', e); }catch(_){}
+    }catch(err){
+      console.error('Logout failed:', err);
     }
 
     // Optional: lokale Session-Spuren entfernen
@@ -1097,21 +1132,8 @@
       btn.addEventListener('click', doLogout, { passive:false });
     }
   });
-
-  // Sichtbarkeit: nur zeigen, wenn User eingeloggt ist (falls Firebase vorhanden)
-  try{
-    if(window.firebase && firebase.auth){
-      firebase.auth().onAuthStateChanged((u) => setVisible(!!u));
-    }else{
-      // Ohne Auth-Event: nicht erzwingen, aber sichtbar lassen (Baseline-Verhalten)
-      setVisible(true);
-    }
-  }catch(e){
-    setVisible(true);
-  }
 })();
 </script>
-
 
 <!-- Dummy für Legacy-Signatur -->
 <canvas height="1" id="sigPad" style="display:none" width="1"></canvas>
