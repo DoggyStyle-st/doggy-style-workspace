@@ -1,4 +1,4 @@
-const APP_BUILD = "v11-TEST-OPTIK-01";
+const APP_BUILD = "v11-P1-2A-SYNC-SUCCESS";
 window.addEventListener("error",(e)=>{console.error("APP_ERROR",e.error||e.message);});
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
@@ -113,6 +113,8 @@ function can(action){
 
 const SYNC = {
   localSavedAt: 0,
+  // P1.2a: "Sync: erfolgreich" nach erstem erfolgreichen Speichern (lokal oder Cloud)
+  sessionOkAt: 0,
   cloudLastSeenAt: 0,
   cloudPending: false,
   cloudLastOkAt: 0,
@@ -158,42 +160,44 @@ function updateSyncUI(){
   }
 
   const netOnline = (typeof navigator !== 'undefined') ? !!navigator.onLine : false;
-  const cloudOk = !!(netOnline && cloudIsEnabled() && CLOUD && CLOUD.enabled && CLOUD.user && SYNC.cloudReachable);
-  try{ if(pill){ pill.classList.toggle('is-online', !!cloudOk); pill.classList.toggle('is-offline', !cloudOk); } }catch(e){}
+  // Passiver Sync-Indikator (P1.2a): "erfolgreich" sobald mindestens ein Save bestaetigt ist
+  // - lokal: sobald saveState() gelaufen ist
+  // - cloud: sobald ein Cloud-Write bestaetigt wurde
+  const cloudOk = !!(cloudIsEnabled() && CLOUD && CLOUD.enabled && CLOUD.user && SYNC.cloudLastOkAt && !SYNC.cloudLastError && !SYNC.cloudPending);
+  const syncOk = !!(SYNC.sessionOkAt || cloudOk);
+  try{ if(pill){ pill.classList.toggle('is-online', !!syncOk); pill.classList.toggle('is-offline', !syncOk); } }catch(e){}
+
   const localLine = `Lokal gespeichert: ${fmtDT(SYNC.localSavedAt)}`;
+  const netLine = `Internet: ${netOnline ? 'Online' : 'Offline'}`;
 
-  // Internet-Status (nicht gleich Cloud!)
-  const netLine = `Internet: ${cloudOk ? 'Online' : 'Offline'}`;
-
-  let pillText = cloudOk ? 'Online' : 'Offline';
-  let cloudLine = 'Cloud: aus';
+  // Hinweis: Das Label "Sync:" steht bereits im Header. Hier nur der Zustand.
+  let pillText = syncOk ? 'erfolgreich' : 'ausstehend';
+  let cloudLine = 'Noch kein erfolgreicher Sync.';
 
   if(!cloudIsEnabled()){
-    // Cloud nicht möglich (SDK fehlt) – das ist der Hauptgrund für "immer Offline" in der Wahrnehmung
     cloudLine = window.firebaseConfig ? 'Cloud: bereit (SDK nicht geladen)' : 'Cloud: aus';
-    if(window.firebaseConfig && CLOUD.reason){
-      cloudLine += ` · ${CLOUD.reason}`;
-    }
-  } else if(CLOUD.enabled){
+    if(window.firebaseConfig && CLOUD && CLOUD.reason){ cloudLine += ` · ${CLOUD.reason}`; }
+  } else if(CLOUD && CLOUD.enabled){
     if(!CLOUD.user){
-      pillText = `${cloudOk ? 'Online' : 'Offline'} · Cloud: Login nötig`;
-      cloudLine = 'Cloud: nicht angemeldet';
+      cloudLine = 'Cloud: Login nötig';
     } else if(SYNC.cloudLastError){
-      pillText = `${cloudOk ? 'Online' : 'Offline'} · Cloud: Fehler`;
-      cloudLine = `Cloud Fehler: ${SYNC.cloudLastError}`;
+      cloudLine = `Letzter Sync-Fehler: ${SYNC.cloudLastError}`;
     } else if(SYNC.cloudPending){
-      pillText = `${cloudOk ? 'Online' : 'Offline'} · Cloud: Sync…`;
-      cloudLine = `Cloud Sync: läuft (letztes OK ${fmtDT(SYNC.cloudLastOkAt)})`;
-    } else {
-      pillText = `${cloudOk ? 'Online' : 'Offline'} · Cloud: OK`;
-      cloudLine = `Cloud zuletzt OK: ${fmtDT(SYNC.cloudLastOkAt)} · Server: ${fmtDT(SYNC.cloudLastSeenAt)}`;
+      cloudLine = `Sync läuft… (letztes OK ${fmtDT(SYNC.cloudLastOkAt)})`;
+    } else if(SYNC.cloudLastOkAt){
+      cloudLine = `Letzter Sync OK: ${fmtDT(SYNC.cloudLastOkAt)} · Server: ${fmtDT(SYNC.cloudLastSeenAt)}`;
     }
   }
-
-  if(pill) pill.textContent = `${pillText} · ${fmtDT(SYNC.localSavedAt)}`;
+  const shownTs = SYNC.cloudLastOkAt || SYNC.sessionOkAt || SYNC.localSavedAt;
+  if(pill) pill.textContent = `${pillText} · ${fmtDT(shownTs)}`;
   const dot=document.getElementById('syncDot');
-  if(dot){ dot.classList.toggle('online', !!netOnline); dot.classList.toggle('offline', !netOnline); }
-  if(details) details.textContent = `${localLine}\n${netLine}\n${cloudLine}\nCloud-Ping: ${fmtDT(SYNC.cloudReachCheckedAt)}${SYNC.cloudReachError ? ' · '+SYNC.cloudReachError : ''}`;
+  if(dot){ dot.classList.toggle('online', !!syncOk); dot.classList.toggle('offline', !syncOk); }
+  const detailsText = `${localLine}\n${netLine}\n${cloudLine}\nCloud-Ping: ${fmtDT(SYNC.cloudReachCheckedAt)}${SYNC.cloudReachError ? ' · '+SYNC.cloudReachError : ''}`;
+  // Global ablegen, damit wir es auch ohne Konsole anzeigen können (Modal)
+  try{ window.__ds_lastSyncDetails = detailsText; }catch(e){}
+  if(details) details.textContent = detailsText;
+  const detailsInline = document.getElementById('syncDetailsInline');
+  if(detailsInline) detailsInline.textContent = detailsText;
 
   // Manual cloud save: only enable when Cloud is active + logged in
   if(manualBtn){
@@ -5066,6 +5070,10 @@ function saveState(){
     console.error("Local save failed", e);
   }
   SYNC.localSavedAt = (state && state._localUpdatedAt) ? state._localUpdatedAt : Date.now();
+  // P1.2a: erstes erfolgreiches Speichern in dieser Session markiert "Sync: erfolgreich"
+  if(!SYNC.sessionOkAt){
+    SYNC.sessionOkAt = SYNC.localSavedAt;
+  }
   updateSyncUI();
   // Cloud Sync (Weg 2B): Änderungen nach außen spiegeln
   if(CLOUD.enabled && CLOUD.user) cloudSchedulePush();
@@ -6692,13 +6700,27 @@ function renderContractPanel(){
   const cs = $("#contractCustomerSelect");
   const ps = $("#contractPetSelect");
   const customers = (state.customers||[]).slice().sort((a,b)=>String(a.lastName||"").localeCompare(String(b.lastName||""),"de"));
-  cs.innerHTML = customers.map(x=>`<option value="${x.id}">${escapeHtml((x.lastName? x.lastName+', ':'') + (x.firstName||''))}</option>`).join("") || `<option value="">(keine Kunden)</option>`;
+  const customerLabel = (x)=>{
+    const ln = String(x.lastName||"").trim();
+    const fn = String(x.firstName||"").trim();
+    const name = String(x.name||x.customerName||x.displayName||"").trim();
+    const phone = String(x.phone||x.tel||x.mobile||"").trim();
+    let base = "";
+    if(ln || fn) base = (ln ? (ln+", ") : "") + fn;
+    else if(name) base = name;
+    else base = "(Kunde)";
+    return phone ? (base + " · " + phone) : base;
+  };
+  cs.innerHTML = customers.length
+    ? [`<option value="">(Kunde wählen)</option>`].concat(customers.map(x=>`<option value="${x.id}">${escapeHtml(customerLabel(x))}</option>`)).join("")
+    : `<option value="">(keine Kunden)</option>`;
 
   function fillPets(){
     const cid = cs.value;
     const pets = (state.pets||[]).filter(p=>p.customerId===cid).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"de"));
     ps.innerHTML = pets.map(p=>`<option value="${p.id}">${escapeHtml(p.name||"Hund")}</option>`).join("") || `<option value="">(keine Hunde)</option>`;
-    updateSignedInfo();
+  // updateSignedInfo is local to renderContractPanel; onchange handlers refresh the info
+  // (no direct call here to avoid ReferenceError)
   }
 
   cs.onchange = fillPets;
@@ -6714,13 +6736,13 @@ function renderContractPanel(){
       fillPets();
       ps.value = selectedPetId; // Auswahl beibehalten
     }
-    updateSignedInfo();
+  // updateSignedInfo is local to renderContractPanel; onchange handlers refresh the info
+  // (no direct call here to avoid ReferenceError)
   };
 
 
   // signature pad
   initContractSignaturePad();
-  // Guarded bindings: avoid hard crash if an element id changes (Safari would otherwise stop the whole panel init)
   const btnClear = $("#contractSigClear");
   if(btnClear) btnClear.onclick = ()=>{ clearContractSig(); };
   const pdfBtn = document.getElementById("contractPdfBtn");
@@ -6735,8 +6757,7 @@ function renderContractPanel(){
     };
   }
 
-  // app.html uses id="contractSigBtn". Some older builds used "contractSignBtn".
-  // Bind to both and guard against null to avoid breaking the whole contract panel.
+  // app.html uses id="contractSigBtn"; some older builds used "contractSignBtn"
   const btnSign = $("#contractSigBtn") || $("#contractSignBtn");
   if(btnSign) btnSign.onclick = ()=>{
     const customerId = cs.value;
@@ -6762,7 +6783,8 @@ function renderContractPanel(){
     saveState();
     clearContractSig();
     chk.checked = false;
-    updateSignedInfo();
+  // updateSignedInfo is local to renderContractPanel; onchange handlers refresh the info
+  // (no direct call here to avoid ReferenceError)
     $("#contractStatusBanner").textContent = "✅ Vertrag gespeichert.";
     setTimeout(()=>{ const b=$("#contractStatusBanner"); if(b) b.textContent=""; }, 1500);
     // refresh lists where badges appear
@@ -6838,7 +6860,8 @@ function openContractFromStay(doc){
     if(typeof ps.onchange === "function") ps.onchange();
   }
 
-  updateSignedInfo();
+  // updateSignedInfo is local to renderContractPanel; onchange handlers refresh the info
+  // (no direct call here to avoid ReferenceError)
 
   // UI polish: acceptance unchecked (owner should tick)
   const chk = document.getElementById("contractAcceptChk");
@@ -6851,6 +6874,9 @@ function initContractSignaturePad(){
   if(_contractSig.canvas === canvas) return;
   _contractSig.canvas = canvas;
   _contractSig.ctx = canvas.getContext("2d");
+  canvas.style.touchAction = "none"; // iOS/Safari: allow drawing without scroll/zoom
+  canvas.style.webkitUserSelect = "none";
+  canvas.style.userSelect = "none";
   clearContractSig();
 
   const getPos = (e)=>{
@@ -7522,3 +7548,126 @@ function wfTodayPrint(){
   wfOpenPdf(wfPdfTemplate("Heute drucken", body));
 }
 try{ const bb=document.getElementById('buildBadge'); if(bb) bb.textContent = 'Build ' + APP_BUILD; }catch(e){}
+
+// __DS_SYNC_INLINE_TOGGLE__
+document.addEventListener('DOMContentLoaded', ()=>{
+  try{
+    const trigger = document.getElementById('syncIndicatorBtn') || document.getElementById('syncIndicator');
+    const inline = document.getElementById('syncDetailsInline');
+    if(!trigger || !inline) return;
+
+    const toggle = (ev)=>{
+      try{ ev.preventDefault(); ev.stopPropagation(); }catch(e){}
+      const hidden = (inline.style.display==='none' || inline.style.display==='');
+      inline.style.display = hidden ? 'block' : 'none';
+    };
+
+    // iOS Safari: click can be swallowed depending on overlays; add touch/pointer events as well.
+    trigger.addEventListener('click', toggle, {passive:false});
+    trigger.addEventListener('touchend', toggle, {passive:false});
+    trigger.addEventListener('pointerup', toggle, {passive:false});
+
+    // Ultra-robust fallback: capture taps anywhere and toggle if the tap happened inside the trigger's bounding box.
+    // This fixes cases where an invisible overlay steals the actual target element.
+    const inRect = (x,y,rect)=> (x>=rect.left && x<=rect.right && y>=rect.top && y<=rect.bottom);
+    const cap = (ev)=>{
+      try{
+        const r = trigger.getBoundingClientRect();
+        let x=null, y=null;
+        if(ev.changedTouches && ev.changedTouches[0]){ x = ev.changedTouches[0].clientX; y = ev.changedTouches[0].clientY; }
+        else if(typeof ev.clientX==='number'){ x = ev.clientX; y = ev.clientY; }
+        if(x===null || y===null) return;
+        if(inRect(x,y,r)) toggle(ev);
+      }catch(e){}
+    };
+    document.addEventListener('touchend', cap, true);
+    document.addEventListener('click', cap, true);
+  }catch(e){}
+
+  // P1.1E: Floating Sync-Diagnose Modal (iOS-sicher)
+  try{
+    const btn = document.getElementById('btnSyncDiagFloat');
+    const modal = document.getElementById('syncDiagModal');
+    const close = document.getElementById('btnSyncDiagClose');
+    const pre = document.getElementById('syncDiagText');
+    if(btn && modal && close && pre){
+      const open = (ev)=>{
+        try{ ev.preventDefault(); ev.stopPropagation(); }catch(e){}
+        pre.textContent = (window.__ds_lastSyncDetails || '(noch keine Daten)');
+        modal.style.display = 'flex';
+      };
+      const shut = (ev)=>{
+        try{ ev.preventDefault(); ev.stopPropagation(); }catch(e){}
+        modal.style.display = 'none';
+      };
+      btn.addEventListener('click', open, {passive:false});
+      btn.addEventListener('touchend', open, {passive:false});
+      close.addEventListener('click', shut, {passive:false});
+      close.addEventListener('touchend', shut, {passive:false});
+      // Tap on backdrop closes
+      modal.addEventListener('click', (ev)=>{ if(ev.target === modal) shut(ev); }, {passive:false});
+    }
+  }catch(e){}
+});
+
+/* ===== Floating Sync-Diagnose (immer tappbar) =====
+   Hintergrund: iOS Safari kann Clicks in der Topbar verschlucken (Overlays/Hit-Testing).
+   Diese Box sitzt fix unten links und zeigt die gleichen Details an.
+*/
+function ensureFloatingSyncDiag(detailsText, meta = {}){
+  let box = document.getElementById('dsFloatingSyncDiag');
+  if(!box){
+    box = document.createElement('div');
+    box.id = 'dsFloatingSyncDiag';
+    box.setAttribute('role','button');
+    box.setAttribute('aria-label','Sync-Diagnose');
+    box.style.position = 'fixed';
+    box.style.left = '10px';
+    box.style.bottom = '10px';
+    box.style.zIndex = '2147483647';
+    box.style.maxWidth = 'min(420px, calc(100vw - 20px))';
+    box.style.background = 'rgba(0,0,0,0.75)';
+    box.style.border = '1px solid rgba(255,255,255,0.18)';
+    box.style.borderRadius = '12px';
+    box.style.padding = '8px 10px';
+    box.style.color = '#fff';
+    box.style.fontSize = '12px';
+    box.style.lineHeight = '1.3';
+    box.style.whiteSpace = 'pre-wrap';
+    box.style.pointerEvents = 'auto';
+    box.style.webkitUserSelect = 'none';
+    box.style.userSelect = 'none';
+    box.style.cursor = 'pointer';
+    box.style.boxShadow = '0 8px 30px rgba(0,0,0,0.35)';
+    box.dataset.expanded = '0';
+
+    const toggle = (ev)=>{
+      try{ ev && ev.preventDefault && ev.preventDefault(); }catch(e){}
+      try{ ev && ev.stopPropagation && ev.stopPropagation(); }catch(e){}
+      box.dataset.expanded = (box.dataset.expanded === '1') ? '0' : '1';
+      // Re-render with the last known details
+      try{ renderFloatingSyncDiag(box, window.__ds_lastSyncDetails || detailsText, meta); }catch(e){}
+      return false;
+    };
+    box.addEventListener('click', toggle, {passive:false});
+    box.addEventListener('touchend', toggle, {passive:false});
+    box.addEventListener('pointerup', toggle, {passive:false});
+    document.body.appendChild(box);
+  }
+  renderFloatingSyncDiag(box, detailsText, meta);
+}
+
+function renderFloatingSyncDiag(box, detailsText, meta = {}){
+  const short = `SYNC-INFO (tippen für Details)\n` +
+    `Internet: ${meta.netOnline ? 'Online' : 'Offline'} | ` +
+    `Cloud: ${meta.cloudOk ? 'OK' : 'OFF'} | ` +
+    `User: ${meta.hasUser ? 'ja' : 'nein'} | ` +
+    `SDK: ${meta.sdkReady ? 'ja' : 'nein'}`;
+
+  if(box.dataset.expanded === '1'){
+    box.textContent = `${short}\n\n${detailsText}`;
+  } else {
+    box.textContent = short;
+  }
+}
+
