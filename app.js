@@ -1,22 +1,6 @@
-const APP_BUILD = "v11-P2-4F-SELECTOR_HELPER";
+const APP_BUILD = "v11-TEST-OPTIK-01";
 window.addEventListener("error",(e)=>{console.error("APP_ERROR",e.error||e.message);});
-// Selector helper:
-// - existing code sometimes calls $("someId") (without '#') expecting getElementById
-// - other places use CSS selectors like $("#id"), $(".class"), etc.
-const $ = (s) => {
-  if (!s) return null;
-  const str = String(s);
-  // Heuristics: if it looks like a CSS selector, use querySelector; otherwise treat as element id.
-  const looksLikeSelector =
-    str.startsWith('#') ||
-    str.startsWith('.') ||
-    str.startsWith('[') ||
-    str.includes(' ') ||
-    str.includes('>') ||
-    str.includes(':') ||
-    str.includes(',');
-  return looksLikeSelector ? document.querySelector(str) : document.getElementById(str);
-};
+const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
 const LS_KEY="ds_workspace_test_optik_01";
 
@@ -6707,8 +6691,24 @@ function renderContractPanel(){
   // customer/pet selects
   const cs = $("#contractCustomerSelect");
   const ps = $("#contractPetSelect");
-  const customers = (state.customers||[]).slice().sort((a,b)=>String(a.lastName||"").localeCompare(String(b.lastName||""),"de"));
-  cs.innerHTML = customers.map(x=>`<option value="${x.id}">${escapeHtml((x.lastName? x.lastName+', ':'') + (x.firstName||''))}</option>`).join("") || `<option value="">(keine Kunden)</option>`;
+  // Kundenliste: robustes Label (unterstützt alte Feldnamen lastName/firstName
+  // ebenso wie das neue Modell name/company/email/phone).
+  const customers = (state.customers || []).slice();
+  const customerLabel = (c) => {
+    if (!c) return "Kunde";
+    const name = (c.name || c.company || "").trim();
+    const full = `${(c.lastName || "").trim()} ${(c.firstName || "").trim()}`.trim();
+    const base = (name || full || c.email || "Kunde").trim();
+    const phone = (c.phone || "").trim();
+    return phone ? `${base} · ${phone}` : base;
+  };
+  customers.sort((a, b) => customerLabel(a).localeCompare(customerLabel(b), "de"));
+  cs.innerHTML = customers.length
+    ? (`<option value="">(Kunde wählen)</option>` + customers.map(c => {
+        const id = String(c.id || "");
+        return `<option value="${escapeHtml(id)}">${escapeHtml(customerLabel(c))}</option>`;
+      }).join(""))
+    : `<option value="">(keine Kunden)</option>`;
 
   function fillPets(){
     const cid = cs.value;
@@ -6749,7 +6749,10 @@ function renderContractPanel(){
     };
   }
 
-  $("#contractSignBtn").onclick = ()=>{
+  // Buttons: HTML nutzt id="contractSigBtn". Wir unterstützen auch
+  // das alte/abweichende "contractSignBtn", falls irgendwo noch vorhanden.
+  const signBtn = document.getElementById("contractSigBtn") || document.getElementById("contractSignBtn");
+  if(signBtn) signBtn.onclick = ()=>{
     const customerId = cs.value;
     const petId = ps.value;
     if(!customerId || !petId){ alert("Bitte Kunde und Hund auswählen."); return; }
@@ -6849,7 +6852,8 @@ function openContractFromStay(doc){
     if(typeof ps.onchange === "function") ps.onchange();
   }
 
-  updateSignedInfo();
+  // updateSignedInfo() ist eine lokale Hilfsfunktion innerhalb von renderContractPanel.
+  // Die onchange()-Trigger oben aktualisieren bereits Status/Info.
 
   // UI polish: acceptance unchecked (owner should tick)
   const chk = document.getElementById("contractAcceptChk");
