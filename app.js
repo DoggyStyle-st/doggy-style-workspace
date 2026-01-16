@@ -1,4 +1,4 @@
-const APP_BUILD = "v11-P2-2-CONTRACT-SIGN";
+const APP_BUILD = "v11-P2.4a-SIGNFIX";
 window.addEventListener("error",(e)=>{console.error("APP_ERROR",e.error||e.message);});
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
@@ -113,8 +113,6 @@ function can(action){
 
 const SYNC = {
   localSavedAt: 0,
-  // P1.2a: "Sync: erfolgreich" nach erstem erfolgreichen Speichern (lokal oder Cloud)
-  sessionOkAt: 0,
   cloudLastSeenAt: 0,
   cloudPending: false,
   cloudLastOkAt: 0,
@@ -160,44 +158,42 @@ function updateSyncUI(){
   }
 
   const netOnline = (typeof navigator !== 'undefined') ? !!navigator.onLine : false;
-  // Passiver Sync-Indikator (P1.2a): "erfolgreich" sobald mindestens ein Save bestaetigt ist
-  // - lokal: sobald saveState() gelaufen ist
-  // - cloud: sobald ein Cloud-Write bestaetigt wurde
-  const cloudOk = !!(cloudIsEnabled() && CLOUD && CLOUD.enabled && CLOUD.user && SYNC.cloudLastOkAt && !SYNC.cloudLastError && !SYNC.cloudPending);
-  const syncOk = !!(SYNC.sessionOkAt || cloudOk);
-  try{ if(pill){ pill.classList.toggle('is-online', !!syncOk); pill.classList.toggle('is-offline', !syncOk); } }catch(e){}
-
+  const cloudOk = !!(netOnline && cloudIsEnabled() && CLOUD && CLOUD.enabled && CLOUD.user && SYNC.cloudReachable);
+  try{ if(pill){ pill.classList.toggle('is-online', !!cloudOk); pill.classList.toggle('is-offline', !cloudOk); } }catch(e){}
   const localLine = `Lokal gespeichert: ${fmtDT(SYNC.localSavedAt)}`;
-  const netLine = `Internet: ${netOnline ? 'Online' : 'Offline'}`;
 
-  // Hinweis: Das Label "Sync:" steht bereits im Header. Hier nur der Zustand.
-  let pillText = syncOk ? 'erfolgreich' : 'ausstehend';
-  let cloudLine = 'Noch kein erfolgreicher Sync.';
+  // Internet-Status (nicht gleich Cloud!)
+  const netLine = `Internet: ${cloudOk ? 'Online' : 'Offline'}`;
+
+  let pillText = cloudOk ? 'Online' : 'Offline';
+  let cloudLine = 'Cloud: aus';
 
   if(!cloudIsEnabled()){
+    // Cloud nicht möglich (SDK fehlt) – das ist der Hauptgrund für "immer Offline" in der Wahrnehmung
     cloudLine = window.firebaseConfig ? 'Cloud: bereit (SDK nicht geladen)' : 'Cloud: aus';
-    if(window.firebaseConfig && CLOUD && CLOUD.reason){ cloudLine += ` · ${CLOUD.reason}`; }
-  } else if(CLOUD && CLOUD.enabled){
+    if(window.firebaseConfig && CLOUD.reason){
+      cloudLine += ` · ${CLOUD.reason}`;
+    }
+  } else if(CLOUD.enabled){
     if(!CLOUD.user){
-      cloudLine = 'Cloud: Login nötig';
+      pillText = `${cloudOk ? 'Online' : 'Offline'} · Cloud: Login nötig`;
+      cloudLine = 'Cloud: nicht angemeldet';
     } else if(SYNC.cloudLastError){
-      cloudLine = `Letzter Sync-Fehler: ${SYNC.cloudLastError}`;
+      pillText = `${cloudOk ? 'Online' : 'Offline'} · Cloud: Fehler`;
+      cloudLine = `Cloud Fehler: ${SYNC.cloudLastError}`;
     } else if(SYNC.cloudPending){
-      cloudLine = `Sync läuft… (letztes OK ${fmtDT(SYNC.cloudLastOkAt)})`;
-    } else if(SYNC.cloudLastOkAt){
-      cloudLine = `Letzter Sync OK: ${fmtDT(SYNC.cloudLastOkAt)} · Server: ${fmtDT(SYNC.cloudLastSeenAt)}`;
+      pillText = `${cloudOk ? 'Online' : 'Offline'} · Cloud: Sync…`;
+      cloudLine = `Cloud Sync: läuft (letztes OK ${fmtDT(SYNC.cloudLastOkAt)})`;
+    } else {
+      pillText = `${cloudOk ? 'Online' : 'Offline'} · Cloud: OK`;
+      cloudLine = `Cloud zuletzt OK: ${fmtDT(SYNC.cloudLastOkAt)} · Server: ${fmtDT(SYNC.cloudLastSeenAt)}`;
     }
   }
-  const shownTs = SYNC.cloudLastOkAt || SYNC.sessionOkAt || SYNC.localSavedAt;
-  if(pill) pill.textContent = `${pillText} · ${fmtDT(shownTs)}`;
+
+  if(pill) pill.textContent = `${pillText} · ${fmtDT(SYNC.localSavedAt)}`;
   const dot=document.getElementById('syncDot');
-  if(dot){ dot.classList.toggle('online', !!syncOk); dot.classList.toggle('offline', !syncOk); }
-  const detailsText = `${localLine}\n${netLine}\n${cloudLine}\nCloud-Ping: ${fmtDT(SYNC.cloudReachCheckedAt)}${SYNC.cloudReachError ? ' · '+SYNC.cloudReachError : ''}`;
-  // Global ablegen, damit wir es auch ohne Konsole anzeigen können (Modal)
-  try{ window.__ds_lastSyncDetails = detailsText; }catch(e){}
-  if(details) details.textContent = detailsText;
-  const detailsInline = document.getElementById('syncDetailsInline');
-  if(detailsInline) detailsInline.textContent = detailsText;
+  if(dot){ dot.classList.toggle('online', !!netOnline); dot.classList.toggle('offline', !netOnline); }
+  if(details) details.textContent = `${localLine}\n${netLine}\n${cloudLine}\nCloud-Ping: ${fmtDT(SYNC.cloudReachCheckedAt)}${SYNC.cloudReachError ? ' · '+SYNC.cloudReachError : ''}`;
 
   // Manual cloud save: only enable when Cloud is active + logged in
   if(manualBtn){
@@ -5070,10 +5066,6 @@ function saveState(){
     console.error("Local save failed", e);
   }
   SYNC.localSavedAt = (state && state._localUpdatedAt) ? state._localUpdatedAt : Date.now();
-  // P1.2a: erstes erfolgreiches Speichern in dieser Session markiert "Sync: erfolgreich"
-  if(!SYNC.sessionOkAt){
-    SYNC.sessionOkAt = SYNC.localSavedAt;
-  }
   updateSyncUI();
   // Cloud Sync (Weg 2B): Änderungen nach außen spiegeln
   if(CLOUD.enabled && CLOUD.user) cloudSchedulePush();
@@ -6699,10 +6691,8 @@ function renderContractPanel(){
   // customer/pet selects
   const cs = $("#contractCustomerSelect");
   const ps = $("#contractPetSelect");
-  const customers = (state.customers||[]).slice().sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"de"));
-  cs.innerHTML = customers.map(x=>`<option value="${x.id}">${escapeHtml(x.name||"Kunde")}${x.phone?(' · '+escapeHtml(x.phone)):''}</option>`).join("") || `<option value="">(keine Kunden)</option>`;
-  // Auto-select first customer if none selected
-  if(customers.length && !cs.value){ cs.value = customers[0].id; }
+  const customers = (state.customers||[]).slice().sort((a,b)=>String(a.lastName||"").localeCompare(String(b.lastName||""),"de"));
+  cs.innerHTML = customers.map(x=>`<option value="${x.id}">${escapeHtml((x.lastName? x.lastName+', ':'') + (x.firstName||''))}</option>`).join("") || `<option value="">(keine Kunden)</option>`;
 
   function fillPets(){
     const cid = cs.value;
@@ -6728,13 +6718,15 @@ function renderContractPanel(){
   };
 
 
-  // signature pad (robust iOS binding)
-  try{ initContractSignaturePad(true); }catch(_){ /* ignore */ }
-  try{ setTimeout(()=>{ initContractSignaturePad(true); }, 0); }catch(_){ /* ignore */ }
+  // signature pad
+  initContractSignaturePad();
+
+  // Buttons are slightly inconsistent across builds (historical refactors):
+  // - current layout:  contractSigBtn
+  // - older layout:    contractSignBtn
+  // We bind whichever exists and guard nulls so the panel never breaks.
   const sigClearBtn = document.getElementById("contractSigClear");
-  if(sigClearBtn){
-    sigClearBtn.onclick = (e)=>{ if(e) e.preventDefault(); clearContractSig(); };
-  }
+  if(sigClearBtn) sigClearBtn.onclick = ()=>{ clearContractSig(); };
   const pdfBtn = document.getElementById("contractPdfBtn");
   if(pdfBtn){
     pdfBtn.onclick = ()=>{
@@ -6747,9 +6739,8 @@ function renderContractPanel(){
     };
   }
 
-  const signBtn = document.getElementById("contractSignBtn");
-  if(signBtn) signBtn.onclick = (e)=>{
-    if(e) e.preventDefault();
+  const signBtn = document.getElementById("contractSigBtn") || document.getElementById("contractSignBtn");
+  if(signBtn) signBtn.onclick = ()=>{
     const customerId = cs.value;
     const petId = ps.value;
     if(!customerId || !petId){ alert("Bitte Kunde und Hund auswählen."); return; }
@@ -6856,95 +6847,60 @@ function openContractFromStay(doc){
   if(chk) chk.checked = false;
 }
 
-function initContractSignaturePad(force){
+function initContractSignaturePad(){
   const canvas = document.getElementById("contractSig");
   if(!canvas) return;
-
-  // Force re-init (useful after tab switches / iOS layout quirks)
-  if(force){
-    try{ delete canvas.dataset.sigInit; }catch(_){ /* ignore */ }
-  }
-
-  // If we already initialized this specific element, still ensure it is properly scaled.
-  const isSame = (_contractSig.canvas === canvas);
+  if(_contractSig.canvas === canvas) return;
   _contractSig.canvas = canvas;
   _contractSig.ctx = canvas.getContext("2d");
+  // iOS Safari: avoid page scroll / selection while drawing
+  try{
+    canvas.style.touchAction = "none";
+    canvas.style.userSelect = "none";
+    canvas.style.webkitUserSelect = "none";
+    canvas.style.webkitTouchCallout = "none";
+  }catch(_){ }
+  clearContractSig();
 
-  // iOS/Safari: ensure the canvas backing store matches the rendered size (HiDPI)
-  const resizeForDpr = ()=>{
-    try{
-      const rect = canvas.getBoundingClientRect();
-      const dpr = (window.devicePixelRatio || 1);
-      const w = Math.max(1, Math.round(rect.width * dpr));
-      const h = Math.max(1, Math.round(rect.height * dpr));
-      if(canvas.width !== w || canvas.height !== h){
-        canvas.width = w;
-        canvas.height = h;
-      }
-    }catch(_){ /* ignore */ }
-  };
-  resizeForDpr();
-
-  // Ensure touch/pointer events reach the canvas
-  canvas.style.touchAction = "none";
-  canvas.style.pointerEvents = "auto";
-
-  if(!isSame) clearContractSig();
-
-  const getPos = (evt)=>{
+  const getPos = (e)=>{
     const rect = canvas.getBoundingClientRect();
-    const e = evt.touches && evt.touches[0] ? evt.touches[0] : evt;
-    const x = (e.clientX - rect.left);
-    const y = (e.clientY - rect.top);
-    // Map to backing store
-    return {
-      x: x * (canvas.width / Math.max(1, rect.width)),
-      y: y * (canvas.height / Math.max(1, rect.height))
-    };
+    const pt = (e.touches && e.touches[0]) ? e.touches[0] : e;
+    return {x:(pt.clientX-rect.left)*(canvas.width/rect.width), y:(pt.clientY-rect.top)*(canvas.height/rect.height)};
   };
 
   const start = (e)=>{
-    // prevent page scroll while signing
-    if(e && typeof e.preventDefault === "function") e.preventDefault();
-    resizeForDpr();
-    _contractSig.drawing = true;
-    _contractSig.last = getPos(e);
+    e.preventDefault();
+    _contractSig.drawing=true;
+    _contractSig.last=getPos(e);
   };
   const move = (e)=>{
     if(!_contractSig.drawing) return;
-    if(e && typeof e.preventDefault === "function") e.preventDefault();
-    const p = getPos(e);
-    const ctx = _contractSig.ctx;
-    if(!ctx || !_contractSig.last) return;
-    ctx.strokeStyle = "rgba(255,255,255,0.92)";
-    ctx.lineWidth = 3;
-    ctx.lineCap = "round";
+    e.preventDefault();
+    const p=getPos(e);
+    const ctx=_contractSig.ctx;
+    ctx.strokeStyle="rgba(255,255,255,0.92)";
+    ctx.lineWidth=3;
+    ctx.lineCap="round";
     ctx.beginPath();
-    ctx.moveTo(_contractSig.last.x, _contractSig.last.y);
-    ctx.lineTo(p.x, p.y);
+    ctx.moveTo(_contractSig.last.x,_contractSig.last.y);
+    ctx.lineTo(p.x,p.y);
     ctx.stroke();
-    _contractSig.last = p;
-    _contractSig.hasInk = true;
+    _contractSig.last=p;
+    _contractSig.hasInk=true;
   };
   const end = (e)=>{
     if(!_contractSig.drawing) return;
-    if(e && typeof e.preventDefault === "function") e.preventDefault();
-    _contractSig.drawing = false;
+    e.preventDefault();
+    _contractSig.drawing=false;
   };
 
-  // Avoid double-binding
-  if(!canvas.dataset.sigInit){
-    canvas.dataset.sigInit = "1";
-    canvas.addEventListener("pointerdown", start, {passive:false});
-    canvas.addEventListener("pointermove", move, {passive:false});
-    canvas.addEventListener("pointerup", end, {passive:false});
-    canvas.addEventListener("pointercancel", end, {passive:false});
-    canvas.addEventListener("touchstart", start, {passive:false});
-    canvas.addEventListener("touchmove", move, {passive:false});
-    canvas.addEventListener("touchend", end, {passive:false});
-    canvas.addEventListener("touchcancel", end, {passive:false});
-    window.addEventListener("resize", ()=>{ resizeForDpr(); }, {passive:true});
-  }
+  canvas.addEventListener("pointerdown", start, {passive:false});
+  canvas.addEventListener("pointermove", move, {passive:false});
+  canvas.addEventListener("pointerup", end, {passive:false});
+  canvas.addEventListener("pointercancel", end, {passive:false});
+  canvas.addEventListener("touchstart", start, {passive:false});
+  canvas.addEventListener("touchmove", move, {passive:false});
+  canvas.addEventListener("touchend", end, {passive:false});
 }
 
 function clearContractSig(){
@@ -7575,216 +7531,3 @@ function wfTodayPrint(){
   wfOpenPdf(wfPdfTemplate("Heute drucken", body));
 }
 try{ const bb=document.getElementById('buildBadge'); if(bb) bb.textContent = 'Build ' + APP_BUILD; }catch(e){}
-
-// __DS_SYNC_INLINE_TOGGLE__
-document.addEventListener('DOMContentLoaded', ()=>{
-  try{
-    const trigger = document.getElementById('syncIndicatorBtn') || document.getElementById('syncIndicator');
-    const inline = document.getElementById('syncDetailsInline');
-    if(!trigger || !inline) return;
-
-    const toggle = (ev)=>{
-      try{ ev.preventDefault(); ev.stopPropagation(); }catch(e){}
-      const hidden = (inline.style.display==='none' || inline.style.display==='');
-      inline.style.display = hidden ? 'block' : 'none';
-    };
-
-    // iOS Safari: click can be swallowed depending on overlays; add touch/pointer events as well.
-    trigger.addEventListener('click', toggle, {passive:false});
-    trigger.addEventListener('touchend', toggle, {passive:false});
-    trigger.addEventListener('pointerup', toggle, {passive:false});
-
-    // Ultra-robust fallback: capture taps anywhere and toggle if the tap happened inside the trigger's bounding box.
-    // This fixes cases where an invisible overlay steals the actual target element.
-    const inRect = (x,y,rect)=> (x>=rect.left && x<=rect.right && y>=rect.top && y<=rect.bottom);
-    const cap = (ev)=>{
-      try{
-        const r = trigger.getBoundingClientRect();
-        let x=null, y=null;
-        if(ev.changedTouches && ev.changedTouches[0]){ x = ev.changedTouches[0].clientX; y = ev.changedTouches[0].clientY; }
-        else if(typeof ev.clientX==='number'){ x = ev.clientX; y = ev.clientY; }
-        if(x===null || y===null) return;
-        if(inRect(x,y,r)) toggle(ev);
-      }catch(e){}
-    };
-    document.addEventListener('touchend', cap, true);
-    document.addEventListener('click', cap, true);
-  }catch(e){}
-
-  // P1.1E: Floating Sync-Diagnose Modal (iOS-sicher)
-  try{
-    const btn = document.getElementById('btnSyncDiagFloat');
-    const modal = document.getElementById('syncDiagModal');
-    const close = document.getElementById('btnSyncDiagClose');
-    const pre = document.getElementById('syncDiagText');
-    if(btn && modal && close && pre){
-      const open = (ev)=>{
-        try{ ev.preventDefault(); ev.stopPropagation(); }catch(e){}
-        pre.textContent = (window.__ds_lastSyncDetails || '(noch keine Daten)');
-        modal.style.display = 'flex';
-      };
-      const shut = (ev)=>{
-        try{ ev.preventDefault(); ev.stopPropagation(); }catch(e){}
-        modal.style.display = 'none';
-      };
-      btn.addEventListener('click', open, {passive:false});
-      btn.addEventListener('touchend', open, {passive:false});
-      close.addEventListener('click', shut, {passive:false});
-      close.addEventListener('touchend', shut, {passive:false});
-      // Tap on backdrop closes
-      modal.addEventListener('click', (ev)=>{ if(ev.target === modal) shut(ev); }, {passive:false});
-    }
-  }catch(e){}
-});
-
-/* ===== Floating Sync-Diagnose (immer tappbar) =====
-   Hintergrund: iOS Safari kann Clicks in der Topbar verschlucken (Overlays/Hit-Testing).
-   Diese Box sitzt fix unten links und zeigt die gleichen Details an.
-*/
-function ensureFloatingSyncDiag(detailsText, meta = {}){
-  let box = document.getElementById('dsFloatingSyncDiag');
-  if(!box){
-    box = document.createElement('div');
-    box.id = 'dsFloatingSyncDiag';
-    box.setAttribute('role','button');
-    box.setAttribute('aria-label','Sync-Diagnose');
-    box.style.position = 'fixed';
-    box.style.left = '10px';
-    box.style.bottom = '10px';
-    box.style.zIndex = '2147483647';
-    box.style.maxWidth = 'min(420px, calc(100vw - 20px))';
-    box.style.background = 'rgba(0,0,0,0.75)';
-    box.style.border = '1px solid rgba(255,255,255,0.18)';
-    box.style.borderRadius = '12px';
-    box.style.padding = '8px 10px';
-    box.style.color = '#fff';
-    box.style.fontSize = '12px';
-    box.style.lineHeight = '1.3';
-    box.style.whiteSpace = 'pre-wrap';
-    box.style.pointerEvents = 'auto';
-    box.style.webkitUserSelect = 'none';
-    box.style.userSelect = 'none';
-    box.style.cursor = 'pointer';
-    box.style.boxShadow = '0 8px 30px rgba(0,0,0,0.35)';
-    box.dataset.expanded = '0';
-
-    const toggle = (ev)=>{
-      try{ ev && ev.preventDefault && ev.preventDefault(); }catch(e){}
-      try{ ev && ev.stopPropagation && ev.stopPropagation(); }catch(e){}
-      box.dataset.expanded = (box.dataset.expanded === '1') ? '0' : '1';
-      // Re-render with the last known details
-      try{ renderFloatingSyncDiag(box, window.__ds_lastSyncDetails || detailsText, meta); }catch(e){}
-      return false;
-    };
-    box.addEventListener('click', toggle, {passive:false});
-    box.addEventListener('touchend', toggle, {passive:false});
-    box.addEventListener('pointerup', toggle, {passive:false});
-    document.body.appendChild(box);
-  }
-  renderFloatingSyncDiag(box, detailsText, meta);
-}
-
-function renderFloatingSyncDiag(box, detailsText, meta = {}){
-  const short = `SYNC-INFO (tippen für Details)\n` +
-    `Internet: ${meta.netOnline ? 'Online' : 'Offline'} | ` +
-    `Cloud: ${meta.cloudOk ? 'OK' : 'OFF'} | ` +
-    `User: ${meta.hasUser ? 'ja' : 'nein'} | ` +
-    `SDK: ${meta.sdkReady ? 'ja' : 'nein'}`;
-
-  if(box.dataset.expanded === '1'){
-    box.textContent = `${short}\n\n${detailsText}`;
-  } else {
-    box.textContent = short;
-    // ================================
-// P2.4a – Minimal Canvas Signature
-// ================================
-(function initContractSignature() {
-  const canvas = document.getElementById("contractSig");
-  if (!canvas) return;
-
-  const ctx = canvas.getContext("2d");
-  canvas.style.touchAction = "none";
-
-  let drawing = false;
-  let hasDrawn = false;
-
-  ctx.lineWidth = 2;
-  ctx.lineCap = "round";
-  ctx.strokeStyle = "#000";
-
-  function getPos(e) {
-    const r = canvas.getBoundingClientRect();
-    return {
-      x: e.clientX - r.left,
-      y: e.clientY - r.top
-    };
-  }
-
-  canvas.addEventListener("pointerdown", e => {
-    drawing = true;
-    hasDrawn = true;
-    const p = getPos(e);
-    ctx.beginPath();
-    ctx.moveTo(p.x, p.y);
-  });
-
-  canvas.addEventListener("pointermove", e => {
-    if (!drawing) return;
-    const p = getPos(e);
-    ctx.lineTo(p.x, p.y);
-    ctx.stroke();
-  });
-
-  window.addEventListener("pointerup", () => {
-    drawing = false;
-  });
-
-  // --- Buttons ---
-  const btnClear = document.getElementById("contractSigClear");
-  const btnSign  = document.getElementById("contractSigBtn");
-
-  if (btnClear) {
-    btnClear.onclick = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      hasDrawn = false;
-      if (state.contract) {
-        state.contract.hasSignature = false;
-        state.contract.signatureBase64 = null;
-        state.contract.signedAt = null;
-      }
-      setContractInfo("Unterschrift gelöscht.", "muted");
-    };
-  }
-
-  if (btnSign) {
-    btnSign.onclick = () => {
-      if (!hasDrawn) {
-        alert("Bitte zuerst unterschreiben.");
-        return;
-      }
-      if (!document.getElementById("contractAcceptChk")?.checked) {
-        alert("Bitte Vertrag akzeptieren.");
-        return;
-      }
-
-      const dataUrl = canvas.toDataURL("image/png");
-
-      state.contract = state.contract || {};
-      state.contract.hasSignature = true;
-      state.contract.signatureBase64 = dataUrl;
-      state.contract.signedAt = new Date().toISOString();
-
-      setContractInfo("🟢 Unterschrift erfasst (Session)", "success");
-    };
-  }
-
-  function setContractInfo(text, type) {
-    const el = document.getElementById("contractSignedInfo");
-    if (!el) return;
-    el.textContent = text;
-    el.className = type === "success" ? "ok" : "muted";
-  }
-})();
-  }
-}
-
