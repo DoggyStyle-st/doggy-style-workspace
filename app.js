@@ -6699,8 +6699,10 @@ function renderContractPanel(){
   // customer/pet selects
   const cs = $("#contractCustomerSelect");
   const ps = $("#contractPetSelect");
-  const customers = (state.customers||[]).slice().sort((a,b)=>String(a.lastName||"").localeCompare(String(b.lastName||""),"de"));
-  cs.innerHTML = customers.map(x=>`<option value="${x.id}">${escapeHtml((x.lastName? x.lastName+', ':'') + (x.firstName||''))}</option>`).join("") || `<option value="">(keine Kunden)</option>`;
+  const customers = (state.customers||[]).slice().sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"de"));
+  cs.innerHTML = customers.map(x=>`<option value="${x.id}">${escapeHtml(x.name||"Kunde")}${x.phone?(' · '+escapeHtml(x.phone)):''}</option>`).join("") || `<option value="">(keine Kunden)</option>`;
+  // Auto-select first customer if none selected
+  if(customers.length && !cs.value){ cs.value = customers[0].id; }
 
   function fillPets(){
     const cid = cs.value;
