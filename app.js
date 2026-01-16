@@ -7695,6 +7695,96 @@ function renderFloatingSyncDiag(box, detailsText, meta = {}){
     box.textContent = `${short}\n\n${detailsText}`;
   } else {
     box.textContent = short;
+    // ================================
+// P2.4a – Minimal Canvas Signature
+// ================================
+(function initContractSignature() {
+  const canvas = document.getElementById("contractSig");
+  if (!canvas) return;
+
+  const ctx = canvas.getContext("2d");
+  canvas.style.touchAction = "none";
+
+  let drawing = false;
+  let hasDrawn = false;
+
+  ctx.lineWidth = 2;
+  ctx.lineCap = "round";
+  ctx.strokeStyle = "#000";
+
+  function getPos(e) {
+    const r = canvas.getBoundingClientRect();
+    return {
+      x: e.clientX - r.left,
+      y: e.clientY - r.top
+    };
+  }
+
+  canvas.addEventListener("pointerdown", e => {
+    drawing = true;
+    hasDrawn = true;
+    const p = getPos(e);
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y);
+  });
+
+  canvas.addEventListener("pointermove", e => {
+    if (!drawing) return;
+    const p = getPos(e);
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+  });
+
+  window.addEventListener("pointerup", () => {
+    drawing = false;
+  });
+
+  // --- Buttons ---
+  const btnClear = document.getElementById("contractSigClear");
+  const btnSign  = document.getElementById("contractSigBtn");
+
+  if (btnClear) {
+    btnClear.onclick = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      hasDrawn = false;
+      if (state.contract) {
+        state.contract.hasSignature = false;
+        state.contract.signatureBase64 = null;
+        state.contract.signedAt = null;
+      }
+      setContractInfo("Unterschrift gelöscht.", "muted");
+    };
+  }
+
+  if (btnSign) {
+    btnSign.onclick = () => {
+      if (!hasDrawn) {
+        alert("Bitte zuerst unterschreiben.");
+        return;
+      }
+      if (!document.getElementById("contractAcceptChk")?.checked) {
+        alert("Bitte Vertrag akzeptieren.");
+        return;
+      }
+
+      const dataUrl = canvas.toDataURL("image/png");
+
+      state.contract = state.contract || {};
+      state.contract.hasSignature = true;
+      state.contract.signatureBase64 = dataUrl;
+      state.contract.signedAt = new Date().toISOString();
+
+      setContractInfo("🟢 Unterschrift erfasst (Session)", "success");
+    };
+  }
+
+  function setContractInfo(text, type) {
+    const el = document.getElementById("contractSignedInfo");
+    if (!el) return;
+    el.textContent = text;
+    el.className = type === "success" ? "ok" : "muted";
+  }
+})();
   }
 }
 
