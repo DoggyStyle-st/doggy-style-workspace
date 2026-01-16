@@ -1,4 +1,4 @@
-const APP_BUILD = "v11-P2.4a-SIGNFIX";
+const APP_BUILD = "v11-TEST-OPTIK-01";
 window.addEventListener("error",(e)=>{console.error("APP_ERROR",e.error||e.message);});
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
@@ -6720,13 +6720,9 @@ function renderContractPanel(){
 
   // signature pad
   initContractSignaturePad();
-
-  // Buttons are slightly inconsistent across builds (historical refactors):
-  // - current layout:  contractSigBtn
-  // - older layout:    contractSignBtn
-  // We bind whichever exists and guard nulls so the panel never breaks.
-  const sigClearBtn = document.getElementById("contractSigClear");
-  if(sigClearBtn) sigClearBtn.onclick = ()=>{ clearContractSig(); };
+  // Guarded bindings: avoid hard crash if an element id changes (Safari would otherwise stop the whole panel init)
+  const btnClear = $("#contractSigClear");
+  if(btnClear) btnClear.onclick = ()=>{ clearContractSig(); };
   const pdfBtn = document.getElementById("contractPdfBtn");
   if(pdfBtn){
     pdfBtn.onclick = ()=>{
@@ -6739,8 +6735,10 @@ function renderContractPanel(){
     };
   }
 
-  const signBtn = document.getElementById("contractSigBtn") || document.getElementById("contractSignBtn");
-  if(signBtn) signBtn.onclick = ()=>{
+  // app.html uses id="contractSigBtn". Some older builds used "contractSignBtn".
+  // Bind to both and guard against null to avoid breaking the whole contract panel.
+  const btnSign = $("#contractSigBtn") || $("#contractSignBtn");
+  if(btnSign) btnSign.onclick = ()=>{
     const customerId = cs.value;
     const petId = ps.value;
     if(!customerId || !petId){ alert("Bitte Kunde und Hund auswählen."); return; }
@@ -6853,13 +6851,6 @@ function initContractSignaturePad(){
   if(_contractSig.canvas === canvas) return;
   _contractSig.canvas = canvas;
   _contractSig.ctx = canvas.getContext("2d");
-  // iOS Safari: avoid page scroll / selection while drawing
-  try{
-    canvas.style.touchAction = "none";
-    canvas.style.userSelect = "none";
-    canvas.style.webkitUserSelect = "none";
-    canvas.style.webkitTouchCallout = "none";
-  }catch(_){ }
   clearContractSig();
 
   const getPos = (e)=>{
