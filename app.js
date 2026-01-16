@@ -1,4 +1,4 @@
-const APP_BUILD = "v11-P1-2A-SYNC-SUCCESS";
+const APP_BUILD = "v11-P2-4d-CONTRACT-SIGNPAD-BIND";
 window.addEventListener("error",(e)=>{console.error("APP_ERROR",e.error||e.message);});
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
@@ -6700,27 +6700,13 @@ function renderContractPanel(){
   const cs = $("#contractCustomerSelect");
   const ps = $("#contractPetSelect");
   const customers = (state.customers||[]).slice().sort((a,b)=>String(a.lastName||"").localeCompare(String(b.lastName||""),"de"));
-  const customerLabel = (x)=>{
-    const ln = String(x.lastName||"").trim();
-    const fn = String(x.firstName||"").trim();
-    const name = String(x.name||x.customerName||x.displayName||"").trim();
-    const phone = String(x.phone||x.tel||x.mobile||"").trim();
-    let base = "";
-    if(ln || fn) base = (ln ? (ln+", ") : "") + fn;
-    else if(name) base = name;
-    else base = "(Kunde)";
-    return phone ? (base + " · " + phone) : base;
-  };
-  cs.innerHTML = customers.length
-    ? [`<option value="">(Kunde wählen)</option>`].concat(customers.map(x=>`<option value="${x.id}">${escapeHtml(customerLabel(x))}</option>`)).join("")
-    : `<option value="">(keine Kunden)</option>`;
+  cs.innerHTML = customers.map(x=>`<option value="${x.id}">${escapeHtml((x.lastName? x.lastName+', ':'') + (x.firstName||''))}</option>`).join("") || `<option value="">(keine Kunden)</option>`;
 
   function fillPets(){
     const cid = cs.value;
     const pets = (state.pets||[]).filter(p=>p.customerId===cid).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"de"));
     ps.innerHTML = pets.map(p=>`<option value="${p.id}">${escapeHtml(p.name||"Hund")}</option>`).join("") || `<option value="">(keine Hunde)</option>`;
-  // updateSignedInfo is local to renderContractPanel; onchange handlers refresh the info
-  // (no direct call here to avoid ReferenceError)
+    updateSignedInfo();
   }
 
   cs.onchange = fillPets;
@@ -6736,15 +6722,17 @@ function renderContractPanel(){
       fillPets();
       ps.value = selectedPetId; // Auswahl beibehalten
     }
-  // updateSignedInfo is local to renderContractPanel; onchange handlers refresh the info
-  // (no direct call here to avoid ReferenceError)
+    updateSignedInfo();
   };
 
 
   // signature pad
   initContractSignaturePad();
-  const btnClear = $("#contractSigClear");
+
+  // Buttons (robust: support both historical IDs)
+  const btnClear = document.getElementById("contractSigClear");
   if(btnClear) btnClear.onclick = ()=>{ clearContractSig(); };
+
   const pdfBtn = document.getElementById("contractPdfBtn");
   if(pdfBtn){
     pdfBtn.onclick = ()=>{
@@ -6757,8 +6745,7 @@ function renderContractPanel(){
     };
   }
 
-  // app.html uses id="contractSigBtn"; some older builds used "contractSignBtn"
-  const btnSign = $("#contractSigBtn") || $("#contractSignBtn");
+  const btnSign = document.getElementById("contractSigBtn") || document.getElementById("contractSignBtn");
   if(btnSign) btnSign.onclick = ()=>{
     const customerId = cs.value;
     const petId = ps.value;
@@ -6783,8 +6770,7 @@ function renderContractPanel(){
     saveState();
     clearContractSig();
     chk.checked = false;
-  // updateSignedInfo is local to renderContractPanel; onchange handlers refresh the info
-  // (no direct call here to avoid ReferenceError)
+    updateSignedInfo();
     $("#contractStatusBanner").textContent = "✅ Vertrag gespeichert.";
     setTimeout(()=>{ const b=$("#contractStatusBanner"); if(b) b.textContent=""; }, 1500);
     // refresh lists where badges appear
@@ -6860,8 +6846,7 @@ function openContractFromStay(doc){
     if(typeof ps.onchange === "function") ps.onchange();
   }
 
-  // updateSignedInfo is local to renderContractPanel; onchange handlers refresh the info
-  // (no direct call here to avoid ReferenceError)
+  updateSignedInfo();
 
   // UI polish: acceptance unchecked (owner should tick)
   const chk = document.getElementById("contractAcceptChk");
@@ -6874,9 +6859,6 @@ function initContractSignaturePad(){
   if(_contractSig.canvas === canvas) return;
   _contractSig.canvas = canvas;
   _contractSig.ctx = canvas.getContext("2d");
-  canvas.style.touchAction = "none"; // iOS/Safari: allow drawing without scroll/zoom
-  canvas.style.webkitUserSelect = "none";
-  canvas.style.userSelect = "none";
   clearContractSig();
 
   const getPos = (e)=>{
