@@ -1,4 +1,4 @@
-const APP_BUILD = "v11-P2-2-CONTRACT-SIGN";
+const APP_BUILD = "v11-P2-3-CONTRACT-SIGNPAD";
 window.addEventListener("error",(e)=>{console.error("APP_ERROR",e.error||e.message);});
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
@@ -6728,13 +6728,13 @@ function renderContractPanel(){
   };
 
 
-  // signature pad (robust iOS binding)
-  try{ initContractSignaturePad(true); }catch(_){ /* ignore */ }
-  try{ setTimeout(()=>{ initContractSignaturePad(true); }, 0); }catch(_){ /* ignore */ }
-  const sigClearBtn = document.getElementById("contractSigClear");
-  if(sigClearBtn){
-    sigClearBtn.onclick = (e)=>{ if(e) e.preventDefault(); clearContractSig(); };
-  }
+  // signature pad
+  initContractSignaturePad();
+  // ensure buttons are tappable on iOS
+  const _cb = $("#contractSigClear"); if(_cb){ _cb.disabled = false; _cb.style.pointerEvents = "auto"; }
+  const _sb = $("#contractSignBtn"); if(_sb){ _sb.disabled = false; _sb.style.pointerEvents = "auto"; }
+  const _pb = document.getElementById("contractPdfBtn"); if(_pb){ _pb.disabled = false; _pb.style.pointerEvents = "auto"; }
+  $("#contractSigClear").onclick = ()=>{ clearContractSig(); };
   const pdfBtn = document.getElementById("contractPdfBtn");
   if(pdfBtn){
     pdfBtn.onclick = ()=>{
@@ -6747,9 +6747,7 @@ function renderContractPanel(){
     };
   }
 
-  const signBtn = document.getElementById("contractSignBtn");
-  if(signBtn) signBtn.onclick = (e)=>{
-    if(e) e.preventDefault();
+  $("#contractSignBtn").onclick = ()=>{
     const customerId = cs.value;
     const petId = ps.value;
     if(!customerId || !petId){ alert("Bitte Kunde und Hund auswählen."); return; }
@@ -6856,57 +6854,68 @@ function openContractFromStay(doc){
   if(chk) chk.checked = false;
 }
 
-function initContractSignaturePad(force){
+function initContractSignaturePad(){
   const canvas = document.getElementById("contractSig");
   if(!canvas) return;
 
-  // Force re-init (useful after tab switches / iOS layout quirks)
-  if(force){
-    try{ delete canvas.dataset.sigInit; }catch(_){ /* ignore */ }
-  }
+  // ensure canvas is actually hittable on iOS Safari
+  try{
+    canvas.style.touchAction = "none";
+    canvas.style.webkitTouchCallout = "none";
+    canvas.style.webkitUserSelect = "none";
+    canvas.style.userSelect = "none";
+    canvas.style.pointerEvents = "auto";
+  }catch(_e){}
 
-  // If we already initialized this specific element, still ensure it is properly scaled.
-  const isSame = (_contractSig.canvas === canvas);
+  // (re)bind even if the same canvas instance exists – iOS sometimes loses handlers after re-render
   _contractSig.canvas = canvas;
   _contractSig.ctx = canvas.getContext("2d");
 
-  // iOS/Safari: ensure the canvas backing store matches the rendered size (HiDPI)
-  const resizeForDpr = ()=>{
-    try{
-      const rect = canvas.getBoundingClientRect();
-      const dpr = (window.devicePixelRatio || 1);
-      const w = Math.max(1, Math.round(rect.width * dpr));
-      const h = Math.max(1, Math.round(rect.height * dpr));
-      if(canvas.width !== w || canvas.height !== h){
-        canvas.width = w;
-        canvas.height = h;
-      }
-    }catch(_){ /* ignore */ }
-  };
-  resizeForDpr();
-
-  // Ensure touch/pointer events reach the canvas
-  canvas.style.touchAction = "none";
-  canvas.style.pointerEvents = "auto";
-
-  if(!isSame) clearContractSig();
-
-  const getPos = (evt)=>{
+  const dpr = (window.devicePixelRatio || 1);
+  const resize = ()=>{
     const rect = canvas.getBoundingClientRect();
-    const e = evt.touches && evt.touches[0] ? evt.touches[0] : evt;
-    const x = (e.clientX - rect.left);
-    const y = (e.clientY - rect.top);
-    // Map to backing store
+    const w = Math.max(1, Math.round(rect.width * dpr));
+    const h = Math.max(1, Math.round(rect.height * dpr));
+    if(canvas.width !== w || canvas.height !== h){
+      canvas.width = w;
+      canvas.height = h;
+      _contractSig.ctx = canvas.getContext("2d");
+      clearContractSig();
+    }
+  };
+
+  // Run resize twice (now + next tick) to survive layout timing on iPad
+  resize();
+  setTimeout(resize, 0);
+
+  const getPos = (e)=>{
+    const rect = canvas.getBoundingClientRect();
+    const pt = (e.touches && e.touches[0]) ? e.touches[0] : e;
+    const cx = (pt.clientX - rect.left);
+    const cy = (pt.clientY - rect.top);
     return {
-      x: x * (canvas.width / Math.max(1, rect.width)),
-      y: y * (canvas.height / Math.max(1, rect.height))
+      x: cx * (canvas.width / Math.max(1, rect.width)),
+      y: cy * (canvas.height / Math.max(1, rect.height))
     };
   };
 
+  // Remove old handlers if present
+  if(_contractSig._handlers){
+    const h = _contractSig._handlers;
+    canvas.removeEventListener("pointerdown", h.start);
+    canvas.removeEventListener("pointermove", h.move);
+    canvas.removeEventListener("pointerup", h.end);
+    canvas.removeEventListener("pointercancel", h.end);
+    canvas.removeEventListener("touchstart", h.start);
+    canvas.removeEventListener("touchmove", h.move);
+    canvas.removeEventListener("touchend", h.end);
+    window.removeEventListener("resize", h.onResize);
+    window.removeEventListener("orientationchange", h.onResize);
+  }
+
   const start = (e)=>{
-    // prevent page scroll while signing
+    // IMPORTANT: prevent scrolling on iOS
     if(e && typeof e.preventDefault === "function") e.preventDefault();
-    resizeForDpr();
     _contractSig.drawing = true;
     _contractSig.last = getPos(e);
   };
@@ -6915,7 +6924,7 @@ function initContractSignaturePad(force){
     if(e && typeof e.preventDefault === "function") e.preventDefault();
     const p = getPos(e);
     const ctx = _contractSig.ctx;
-    if(!ctx || !_contractSig.last) return;
+    if(!ctx) return;
     ctx.strokeStyle = "rgba(255,255,255,0.92)";
     ctx.lineWidth = 3;
     ctx.lineCap = "round";
@@ -6932,19 +6941,19 @@ function initContractSignaturePad(force){
     _contractSig.drawing = false;
   };
 
-  // Avoid double-binding
-  if(!canvas.dataset.sigInit){
-    canvas.dataset.sigInit = "1";
-    canvas.addEventListener("pointerdown", start, {passive:false});
-    canvas.addEventListener("pointermove", move, {passive:false});
-    canvas.addEventListener("pointerup", end, {passive:false});
-    canvas.addEventListener("pointercancel", end, {passive:false});
-    canvas.addEventListener("touchstart", start, {passive:false});
-    canvas.addEventListener("touchmove", move, {passive:false});
-    canvas.addEventListener("touchend", end, {passive:false});
-    canvas.addEventListener("touchcancel", end, {passive:false});
-    window.addEventListener("resize", ()=>{ resizeForDpr(); }, {passive:true});
-  }
+  const onResize = ()=>{ resize(); };
+  window.addEventListener("resize", onResize);
+  window.addEventListener("orientationchange", onResize);
+
+  canvas.addEventListener("pointerdown", start, {passive:false});
+  canvas.addEventListener("pointermove", move, {passive:false});
+  canvas.addEventListener("pointerup", end, {passive:false});
+  canvas.addEventListener("pointercancel", end, {passive:false});
+  canvas.addEventListener("touchstart", start, {passive:false});
+  canvas.addEventListener("touchmove", move, {passive:false});
+  canvas.addEventListener("touchend", end, {passive:false});
+
+  _contractSig._handlers = {start, move, end, onResize};
 }
 
 function clearContractSig(){
