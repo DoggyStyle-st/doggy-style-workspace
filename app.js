@@ -1,4 +1,4 @@
-const APP_BUILD = "v11-P1-2-SYNC-LABEL";
+const APP_BUILD = "v11-P1-2A-SYNC-SUCCESS";
 window.addEventListener("error",(e)=>{console.error("APP_ERROR",e.error||e.message);});
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
@@ -113,6 +113,8 @@ function can(action){
 
 const SYNC = {
   localSavedAt: 0,
+  // P1.2a: "Sync: erfolgreich" nach erstem erfolgreichen Speichern (lokal oder Cloud)
+  sessionOkAt: 0,
   cloudLastSeenAt: 0,
   cloudPending: false,
   cloudLastOkAt: 0,
@@ -158,36 +160,36 @@ function updateSyncUI(){
   }
 
   const netOnline = (typeof navigator !== 'undefined') ? !!navigator.onLine : false;
-  // Passiver Sync-Indikator: "erfolgreich" erst nach bestaetigtem Cloud-Write
-  const syncOk = !!(cloudIsEnabled() && CLOUD && CLOUD.enabled && CLOUD.user && SYNC.cloudLastOkAt && !SYNC.cloudLastError && !SYNC.cloudPending);
+  // Passiver Sync-Indikator (P1.2a): "erfolgreich" sobald mindestens ein Save bestaetigt ist
+  // - lokal: sobald saveState() gelaufen ist
+  // - cloud: sobald ein Cloud-Write bestaetigt wurde
+  const cloudOk = !!(cloudIsEnabled() && CLOUD && CLOUD.enabled && CLOUD.user && SYNC.cloudLastOkAt && !SYNC.cloudLastError && !SYNC.cloudPending);
+  const syncOk = !!(SYNC.sessionOkAt || cloudOk);
   try{ if(pill){ pill.classList.toggle('is-online', !!syncOk); pill.classList.toggle('is-offline', !syncOk); } }catch(e){}
 
   const localLine = `Lokal gespeichert: ${fmtDT(SYNC.localSavedAt)}`;
   const netLine = `Internet: ${netOnline ? 'Online' : 'Offline'}`;
 
-  let pillText = syncOk ? 'Sync: erfolgreich' : 'Sync: ausstehend';
+  // Hinweis: Das Label "Sync:" steht bereits im Header. Hier nur der Zustand.
+  let pillText = syncOk ? 'erfolgreich' : 'ausstehend';
   let cloudLine = 'Noch kein erfolgreicher Sync.';
 
   if(!cloudIsEnabled()){
     cloudLine = window.firebaseConfig ? 'Cloud: bereit (SDK nicht geladen)' : 'Cloud: aus';
     if(window.firebaseConfig && CLOUD && CLOUD.reason){ cloudLine += ` · ${CLOUD.reason}`; }
-    pillText = 'Sync: ausstehend';
   } else if(CLOUD && CLOUD.enabled){
     if(!CLOUD.user){
       cloudLine = 'Cloud: Login nötig';
-      pillText = 'Sync: ausstehend';
     } else if(SYNC.cloudLastError){
       cloudLine = `Letzter Sync-Fehler: ${SYNC.cloudLastError}`;
-      pillText = 'Sync: ausstehend';
     } else if(SYNC.cloudPending){
       cloudLine = `Sync läuft… (letztes OK ${fmtDT(SYNC.cloudLastOkAt)})`;
-      pillText = 'Sync: ausstehend';
     } else if(SYNC.cloudLastOkAt){
       cloudLine = `Letzter Sync OK: ${fmtDT(SYNC.cloudLastOkAt)} · Server: ${fmtDT(SYNC.cloudLastSeenAt)}`;
-      pillText = 'Sync: erfolgreich';
     }
   }
-  if(pill) pill.textContent = `${pillText} · ${fmtDT(syncOk ? SYNC.cloudLastOkAt : SYNC.localSavedAt)}`;
+  const shownTs = SYNC.cloudLastOkAt || SYNC.sessionOkAt || SYNC.localSavedAt;
+  if(pill) pill.textContent = `${pillText} · ${fmtDT(shownTs)}`;
   const dot=document.getElementById('syncDot');
   if(dot){ dot.classList.toggle('online', !!syncOk); dot.classList.toggle('offline', !syncOk); }
   const detailsText = `${localLine}\n${netLine}\n${cloudLine}\nCloud-Ping: ${fmtDT(SYNC.cloudReachCheckedAt)}${SYNC.cloudReachError ? ' · '+SYNC.cloudReachError : ''}`;
@@ -5068,6 +5070,10 @@ function saveState(){
     console.error("Local save failed", e);
   }
   SYNC.localSavedAt = (state && state._localUpdatedAt) ? state._localUpdatedAt : Date.now();
+  // P1.2a: erstes erfolgreiches Speichern in dieser Session markiert "Sync: erfolgreich"
+  if(!SYNC.sessionOkAt){
+    SYNC.sessionOkAt = SYNC.localSavedAt;
+  }
   updateSyncUI();
   // Cloud Sync (Weg 2B): Änderungen nach außen spiegeln
   if(CLOUD.enabled && CLOUD.user) cloudSchedulePush();
