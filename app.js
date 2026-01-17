@@ -1,7 +1,22 @@
-const APP_BUILD = "v11-TEST-OPTIK-01";
+const APP_BUILD = "P2.6a_CONTRACT_SELECTOR_HELPER_FIX";
 window.addEventListener("error",(e)=>{console.error("APP_ERROR",e.error||e.message);});
-const $=s=>document.querySelector(s);
-const $$=s=>Array.from(document.querySelectorAll(s));
+// Selector helper:
+// - Supports old usage $("#id") as querySelector
+// - Also supports frequent shorthand $("id") as getElementById
+//   (falls back to querySelector for tag/class/complex selectors)
+const $ = (s) => {
+  try {
+    if (typeof s !== "string") return null;
+    // Most of our code uses id-shorthand like $("contractSig")
+    // so we first try getElementById.
+    const byId = document.getElementById(s);
+    if (byId) return byId;
+    return document.querySelector(s);
+  } catch (_) {
+    return null;
+  }
+};
+const $$ = (s) => Array.from(document.querySelectorAll(s));
 const LS_KEY="ds_workspace_test_optik_01";
 
 // --- Datum (lokal) ohne UTC-Verschiebung ---
@@ -6691,37 +6706,14 @@ function renderContractPanel(){
   // customer/pet selects
   const cs = $("#contractCustomerSelect");
   const ps = $("#contractPetSelect");
-  // Kunden-Modelle sind historisch gemischt (z.B. {name, phone} vs. {firstName,lastName}).
-  // Deshalb: Label & Sortierung robust ableiten.
-  const customersRaw = (state.customers||[]).slice();
-  const customerLabel = (c)=>{
-    if(!c) return "";
-    const name = String(c.name||"").trim();
-    const full = String(c.fullName||"").trim();
-    const fn = String(c.firstName||"").trim();
-    const ln = String(c.lastName||"").trim();
-    const base = name || full || [fn, ln].filter(Boolean).join(" ");
-    const phone = String(c.phone||c.tel||c.mobile||"").trim();
-    return phone ? `${base} · ${phone}` : base;
-  };
-  const customers = customersRaw
-    .sort((a,b)=>customerLabel(a).localeCompare(customerLabel(b),"de"));
-  cs.innerHTML = [`<option value="">(Kunde wählen)</option>`]
-    .concat(customers.map(c=>`<option value="${c.id}">${escapeHtml(customerLabel(c) || 'Kunde')}</option>`))
-    .join("");
+  const customers = (state.customers||[]).slice().sort((a,b)=>String(a.lastName||"").localeCompare(String(b.lastName||""),"de"));
+  cs.innerHTML = customers.map(x=>`<option value="${x.id}">${escapeHtml((x.lastName? x.lastName+', ':'') + (x.firstName||''))}</option>`).join("") || `<option value="">(keine Kunden)</option>`;
 
   function fillPets(){
     const cid = cs.value;
-    const pets = (state.pets||[])
-      .filter(p=>{
-        const owner = p.customerId || p.ownerId || p.customer || p.kundeId || "";
-        return cid ? (owner === cid) : true;
-      })
-      .sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"de"));
-    ps.innerHTML = [`<option value="">(Hund wählen)</option>`]
-      .concat(pets.map(p=>`<option value="${p.id}">${escapeHtml(p.name||"Hund")}</option>`))
-      .join("");
-    contractUpdateSignedInfo(cs, ps);
+    const pets = (state.pets||[]).filter(p=>p.customerId===cid).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"de"));
+    ps.innerHTML = pets.map(p=>`<option value="${p.id}">${escapeHtml(p.name||"Hund")}</option>`).join("") || `<option value="">(keine Hunde)</option>`;
+    updateSignedInfo();
   }
 
   cs.onchange = fillPets;
@@ -6737,7 +6729,7 @@ function renderContractPanel(){
       fillPets();
       ps.value = selectedPetId; // Auswahl beibehalten
     }
-    contractUpdateSignedInfo(cs, ps);
+    updateSignedInfo();
   };
 
 
@@ -6780,32 +6772,25 @@ function renderContractPanel(){
     saveState();
     clearContractSig();
     chk.checked = false;
-    contractUpdateSignedInfo();
+    updateSignedInfo();
     $("#contractStatusBanner").textContent = "✅ Vertrag gespeichert.";
     setTimeout(()=>{ const b=$("#contractStatusBanner"); if(b) b.textContent=""; }, 1500);
     // refresh lists where badges appear
     renderDogs();
   };
 
-}
-
-// Statuszeile rechts unten im Vertrag (robust gegenüber leeren Selektionen)
-function contractUpdateSignedInfo(){
-  try{
-    const cs = document.getElementById('contractCustomerSelect');
-    const ps = document.getElementById('contractPetSelect');
-    const info = document.getElementById('contractSignedInfo');
-    if(!cs || !ps || !info) return;
-    const customerId = cs.value || "";
-    const petId = ps.value || "";
+  function updateSignedInfo(){
+    const customerId = cs.value;
+    const petId = ps.value;
+    const info = $("#contractSignedInfo");
     const s = getContractSignature(customerId, petId);
+    if(!info) return;
     if(s){
-      info.innerHTML = `🟢 Gültig unterschrieben am ${new Date(s.signedAt).toLocaleString('de-DE')} (Version ${escapeHtml(s.contractVersion)})`;
+      info.innerHTML = `🟢 Gültig unterschrieben am ${new Date(s.signedAt).toLocaleString("de-DE")} (Version ${escapeHtml(s.contractVersion)})`;
     }else{
-      const ver = (state.contract && state.contract.version) ? state.contract.version : (state.contractVersion || 'v1.0');
-      info.innerHTML = `🔴 Noch keine gültige Unterschrift für Version ${escapeHtml(ver)}.`;
+      info.innerHTML = `🔴 Noch keine gültige Unterschrift für Version ${escapeHtml(state.contract.version)}.`;
     }
-  }catch(_e){ /* noop */ }
+  }
 }
 
 // --- Signature Pad (inline) ---
@@ -6863,7 +6848,7 @@ function openContractFromStay(doc){
     if(typeof ps.onchange === "function") ps.onchange();
   }
 
-  contractUpdateSignedInfo();
+  updateSignedInfo();
 
   // UI polish: acceptance unchecked (owner should tick)
   const chk = document.getElementById("contractAcceptChk");
@@ -6874,37 +6859,8 @@ function initContractSignaturePad(){
   const canvas = document.getElementById("contractSig");
   if(!canvas) return;
   if(_contractSig.canvas === canvas) return;
-
-  // iOS/Safari: verhindern, dass ein skaliertes Canvas andere Controls überlagert
-  // (ein häufiger Grund für "Buttons reagieren nicht").
-  try{
-    canvas.style.display = "block";
-    canvas.style.width = "100%";
-    canvas.style.maxWidth = "100%";
-    canvas.style.height = "180px";
-    canvas.style.pointerEvents = "auto";
-    canvas.style.touchAction = "none";
-    const box = canvas.parentElement;
-    if(box){
-      box.style.position = "relative";
-      box.style.overflow = "hidden";
-    }
-    const actions = document.getElementById("contractSigClear")?.closest(".actions");
-    if(actions){
-      actions.style.position = "relative";
-      actions.style.zIndex = "5";
-    }
-  }catch(e){}
-
   _contractSig.canvas = canvas;
   _contractSig.ctx = canvas.getContext("2d");
-
-  // Canvas auf sichtbare Größe setzen (sonst stimmen Pointer-Koordinaten nicht)
-  const rect0 = canvas.getBoundingClientRect();
-  if(rect0.width && rect0.height){
-    canvas.width = Math.max(240, Math.round(rect0.width));
-    canvas.height = Math.max(120, Math.round(rect0.height));
-  }
   clearContractSig();
 
   const getPos = (e)=>{
