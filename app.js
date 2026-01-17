@@ -6780,7 +6780,7 @@ function renderContractPanel(){
     setTimeout(()=>{ const b=$("#contractStatusBanner"); if(b) b.textContent=""; }, 1500);
     // refresh lists where badges appear
     renderDogs();
-  };
+  });
 
   function updateSignedInfo(){
     const customerId = cs.value;
