@@ -297,15 +297,7 @@ body.page-login .topbar .brand__sub{ opacity:0.8; }
 .contract-text p, .contract-text li{opacity:.92;}
 .contract-text ul{margin:6px 0 10px 18px;}
 
-.contract-side{display:flex;flex-direction:column;gap:14px; position:relative;}
-
-/* iOS Safari: prevent invisible overlays from swallowing taps in the signature area */
-.contract-side::before,
-.contract-side::after{ pointer-events:none; }
-.sigbox,
-.actions,
-#contractSig,
-#contractSignedInfo{ position:relative; z-index:5; pointer-events:auto; }
+.contract-side{display:flex;flex-direction:column;gap:14px;}
 .contract-card{border-radius:18px;background:rgba(255,255,255,0.10);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,0.10);padding:16px;}
 .checkline{display:flex;gap:10px;align-items:flex-start;margin:10px 0;}
 .checkline input{margin-top:2px;}
@@ -973,3 +965,21 @@ body.page-login .btnLink--text:hover{
 
 /* Sticky-Panels (rechte Spalte) an neue Headerhöhe anpassen */
 .sticky{top:104px;}
+
+/* P2.8 – Contract interaction hardening (iOS Safari tap layers)
+   Ensure canvas + action buttons are always above any accidental overlay layers. */
+#contract .contract-side,
+#contract .contract-card,
+#contract .sigbox,
+#contract #contractSig,
+#contract .actions,
+#contract .actions button{
+  position: relative;
+  z-index: 50;
+  pointer-events: auto;
+}
+
+#contract #contractSig{
+  -webkit-user-select: none;
+  user-select: none;
+}
