@@ -6688,9 +6688,14 @@ function renderContractPanel(){
     };
   }
 
-  // customer/pet selects
-  const cs = $("#contractCustomerSelect");
-  const ps = $("#contractPetSelect");
+  // customer/pet selects (robust: unterschiedliche Selector-Helper / HTML-Varianten)
+  const cs = document.getElementById("contractCustomerSelect") || document.querySelector("#contractCustomerSelect");
+  const ps = document.getElementById("contractPetSelect") || document.querySelector("#contractPetSelect");
+  if(!cs || !ps){
+    // Wenn diese Elemente nicht vorhanden sind, stoppen wir hier – damit das restliche UI nicht "abstürzt".
+    return;
+  }
+
   const customers = (state.customers||[]).slice().sort((a,b)=>String(a.lastName||"").localeCompare(String(b.lastName||""),"de"));
   cs.innerHTML = customers.map(x=>`<option value="${x.id}">${escapeHtml((x.lastName? x.lastName+', ':'') + (x.firstName||''))}</option>`).join("") || `<option value="">(keine Kunden)</option>`;
 
@@ -6720,30 +6725,37 @@ function renderContractPanel(){
 
   // signature pad
   initContractSignaturePad();
-  // Bind by explicit IDs (Safari/iOS issues + avoid differing helper semantics)
-  const _cClear = document.getElementById("contractSigClear");
-  if(_cClear){
-    _cClear.onclick = (e)=>{ if(e){ e.preventDefault(); e.stopPropagation(); } clearContractSig(); };
-  }
-  const pdfBtn = document.getElementById("contractPdfBtn");
-  if(pdfBtn){
-    pdfBtn.onclick = ()=>{
-      const customerId = cs.value;
-      const petId = ps.value;
-      if(!customerId || !petId){ alert("Bitte Kunde und Hund auswählen."); return; }
-      const s = getContractSignature(customerId, petId);
-      if(!s){ alert("Für diese Auswahl liegt noch keine gültige Unterschrift vor."); return; }
-      openContractPdfWindow(customerId, petId);
-    };
-  }
 
-  const _cSign = document.getElementById("contractSignBtn");
-  if(_cSign) _cSign.onclick = (e)=>{
-    if(e){ e.preventDefault(); e.stopPropagation(); }
+  // Robust Tap-Bindings (iOS Safari): wir binden sowohl click als auch touchend.
+  const bindTap = (el, fn) => {
+    if (!el) return;
+    // mehrfaches Binden verhindern
+    if (el.dataset && el.dataset.tapBound === "1") return;
+    if (el.dataset) el.dataset.tapBound = "1";
+    el.addEventListener("click", (e)=>{ e.preventDefault(); fn(e); }, {passive:false});
+    el.addEventListener("touchend", (e)=>{ e.preventDefault(); fn(e); }, {passive:false});
+  };
+
+  const btnClear = document.getElementById("contractSigClear");
+  const btnPdf = document.getElementById("contractPdfBtn");
+  // Historisch zwei mögliche IDs für den Sign-Button
+  const btnSign = document.getElementById("contractSignBtn") || document.getElementById("contractSigBtn");
+
+  bindTap(btnClear, ()=> clearContractSig());
+  bindTap(btnPdf, ()=>{
     const customerId = cs.value;
     const petId = ps.value;
     if(!customerId || !petId){ alert("Bitte Kunde und Hund auswählen."); return; }
-    const chk = document.getElementById("contractAcceptChk");
+    const s = getContractSignature(customerId, petId);
+    if(!s){ alert("Für diese Auswahl liegt noch keine gültige Unterschrift vor."); return; }
+    openContractPdfWindow(customerId, petId);
+  });
+
+  bindTap(btnSign, ()=>{
+    const customerId = cs.value;
+    const petId = ps.value;
+    if(!customerId || !petId){ alert("Bitte Kunde und Hund auswählen."); return; }
+    const chk = $("#contractAcceptChk");
     if(!chk.checked){ alert("Bitte zuerst bestätigen, dass du den Vertrag gelesen und akzeptiert hast."); return; }
     const dataUrl = getContractSigData();
     if(!dataUrl){ alert("Bitte unterschreiben (Unterschriftsfeld)."); return; }

@@ -966,16 +966,37 @@ body.page-login .btnLink--text:hover{
 /* Sticky-Panels (rechte Spalte) an neue Headerhöhe anpassen */
 .sticky{top:104px;}
 
-/* ===== P2.9a: Contract interaction hardening (iOS Safari) =====
-   Symptom: select/checkbox work, but signature canvas + buttons are non-responsive.
-   Root cause is typically a stacking-context overlap from blur/glass layers.
-*/
-#contract .contract-wrap{ position: relative; }
-#contract .contract-doc{ position: relative; z-index: 1; }
-#contract .contract-side{ position: relative; z-index: 20; }
-#contract .contract-side .contract-card{ position: relative; z-index: 21; }
-#contract .contract-side .sigbox,
-#contract .contract-side .actions,
-#contract .contract-side #contractSignedInfo{ position: relative; z-index: 22; }
-#contractSig{ position: relative; z-index: 23; pointer-events: auto; }
-#contractSigClear,#contractSignBtn,#contractPdfBtn{ position: relative; z-index: 23; pointer-events: auto; }
+
+/* P2.10 CONTRACT INTERACTION FIX */
+.contract-wrap{position:relative;z-index:2;}
+.contract-doc,.contract-side{position:relative;z-index:3;}
+.contract-side{pointer-events:auto;}
+.contract-side *{pointer-events:auto;}
+.contract-card{position:relative;z-index:4;}
+.contract-card .actions{position:relative;z-index:6;}
+.contract-card .sigbox{position:relative;z-index:5;}
+#contractSig{position:relative;z-index:6;display:block;touch-action:none;-webkit-user-select:none;user-select:none;}
+#contractSig:active{cursor:crosshair;}
+#contractSig, #contractSig *{pointer-events:auto;}
+#contractSigClear, #contractSignBtn, #contractPdfBtn{pointer-events:auto;}
+/* Prevent any accidental overlays in contract area */
+.contract-side::before,.contract-side::after,.contract-card::before,.contract-card::after,.sigbox::before,.sigbox::after{pointer-events:none !important;}
+
+/* --- Contract Signature: Tap/Pointer Robustness (iOS Safari) --- */
+.contract-side,
+.contract-side .contract-card,
+.contract-side .sigbox,
+.contract-side .actions{
+  position: relative;
+  z-index: 5;
+}
+#contractSig{
+  pointer-events: auto !important;
+  touch-action: none;
+}
+#contractSigClear,
+#contractPdfBtn,
+#contractSignBtn,
+#contractSigBtn{
+  pointer-events: auto !important;
+}

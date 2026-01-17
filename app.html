@@ -33,7 +33,7 @@
   <div class="topbar__inner">
 
     
-    <button class="tab paw-start is-active" data-tab="home" id="pawStartBtn" aria-label="Start" type="button">
+    <button class="tab paw-start is-active" data-tab="home" id="pawStartBtn" aria-label="Start">
       <span class="paw-start__icon" aria-hidden="true">
         <svg viewBox="0 0 64 64" width="40" height="40" focusable="false" aria-hidden="true">
           <circle cx="18" cy="20" r="6" fill="currentColor"/>
@@ -45,8 +45,6 @@
         </svg>
       </span>
       <span class="paw-start__label">Start</span>
-    </button>
-
     <nav class="tabs" role="tablist" aria-label="Navigation">
       <div class="tabs__row tabs__row--main">
         <button class="tab" data-tab="dogs"><span class="tab-ico" aria-hidden="true">🐶</span>Hunde/Kunden</button>
@@ -630,30 +628,25 @@
   </div>
 
   <div class="glass-grid">
-    <button class="glass-card" id="wfBtnTodayPrint" type="button">
+    <button class="glass-card" id="wfBtnTodayPrint">
       <div class="glass-card__title">Heute drucken</div>
       <div class="glass-card__sub">Sammel-PDF: Heute-Übersicht, Kommen/Gehen, Hundeblätter, Schichtblatt</div>
-    </button>
 
-    <button class="glass-card" id="wfBtnHygiene" type="button">
+    <button class="glass-card" id="wfBtnHygiene">
       <div class="glass-card__title">Hygiene-Nachweis</div>
       <div class="glass-card__sub">Täglicher Nachweis mit Unterschrift & Archiv</div>
-    </button>
 
-    <button class="glass-card" id="wfBtnShift" type="button">
+    <button class="glass-card" id="wfBtnShift">
       <div class="glass-card__title">Übergabe / Schichtblatt</div>
       <div class="glass-card__sub">Heute aufgefallen · Morgen beachten · Unterschrift</div>
-    </button>
 
-    <button class="glass-card" id="wfBtnIncident" type="button">
+    <button class="glass-card" id="wfBtnIncident">
       <div class="glass-card__title">Ereignisprotokoll</div>
       <div class="glass-card__sub">Nur bei Bedarf – für Vorfälle/Notfälle</div>
-    </button>
 
-    <button class="glass-card" id="wfBtnArchive" type="button">
+    <button class="glass-card" id="wfBtnArchive">
       <div class="glass-card__title">Archiv</div>
       <div class="glass-card__sub">Alle abgeschlossenen Nachweise – PDF jederzeit</div>
-    </button>
   </div>
 
   <div id="workformsView" class="workforms-view"></div>
@@ -994,10 +987,11 @@
 <div class="warn-banner" id="contractWarnBanner" style="display:none; margin-top:10px;"></div>
 </div>
 <div class="row">
-  <button class="btn" id="btnSave" type="button">Speichern</button>
-  <button class="btn secondary" id="btnCreateInvoice" type="button">🧾 Rechnung erstellen</button>
-  <button class="btn" id="btnPrint" type="button">Als PDF speichern (Drucken)</button>
-  <button class="btn" id="btnClose" type="button">Schließen</button>
+<button class="btn" id="btnSave">Speichern</button>
+<button class="btn secondary" id="btnCreateInvoice">
+  🧾 Rechnung erstellen
+<button class="btn" id="btnPrint">Als PDF speichern (Drucken)</button>
+<button class="btn" id="btnClose">Schließen</button>
 </div>
 </div>
 </div>
