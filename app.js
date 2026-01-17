@@ -6691,6 +6691,7 @@ function renderContractPanel(){
   // customer/pet selects
   const cs = $("#contractCustomerSelect");
   const ps = $("#contractPetSelect");
+  if(!cs || !ps){ console.warn("Contract panel elements missing", {cs:!!cs, ps:!!ps}); return; }
   const customers = (state.customers||[]).slice().sort((a,b)=>String(a.lastName||"").localeCompare(String(b.lastName||""),"de"));
   cs.innerHTML = customers.map(x=>`<option value="${x.id}">${escapeHtml((x.lastName? x.lastName+', ':'') + (x.firstName||''))}</option>`).join("") || `<option value="">(keine Kunden)</option>`;
 
@@ -6922,6 +6923,8 @@ function renderContractPanel(){
       if(sigbox){
         sigbox.style.position = 'relative';
         // tap layer inside sigbox (does not cover buttons)
+        const r = inlineCanvas.getBoundingClientRect();
+        // limit tap-layer to the visible canvas height (iOS: avoid blocking buttons below)
         let tap = sigbox.querySelector('.sig-taplayer');
         if(!tap){
           tap = document.createElement('div');
@@ -6930,7 +6933,8 @@ function renderContractPanel(){
           tap.style.left = '0';
           tap.style.top = '0';
           tap.style.right = '0';
-          tap.style.bottom = '0';
+          tap.style.bottom = 'auto';
+          tap.style.height = Math.max(1, r.height) + 'px';
           tap.style.cursor = 'pointer';
           tap.style.borderRadius = '10px';
           tap.style.background = 'transparent';
@@ -6944,7 +6948,7 @@ function renderContractPanel(){
   }catch(_){}
 
   // Buttons
-  const clearBtn = $("#contractSigClear");
+  const clearBtn = $("#contractSigClear") || $("#contractClearBtn") || document.getElementById("contractSigClear");
   if(clearBtn){
     const doClear = ()=>{
       removeCurrentSignature();
@@ -6958,7 +6962,7 @@ function renderContractPanel(){
     clearBtn.ontouchend = (e)=>{ e.preventDefault(); doClear(); };
   }
 
-  const pdfBtn = document.getElementById("contractPdfBtn");
+  const pdfBtn = document.getElementById("contractPdfBtn") || document.getElementById("contractPdf") || $("#contractPdfBtn");
   if(pdfBtn){
     const doPdf = ()=>{
       const customerId = cs.value;
@@ -6972,10 +6976,11 @@ function renderContractPanel(){
     pdfBtn.ontouchend = (e)=>{ e.preventDefault(); doPdf(); };
   }
 
-  const signBtn = $("#contractSignBtn");
+  const signBtn = $("#contractSigBtn") || $("#contractSignBtn");
   if(signBtn){
-    signBtn.onclick = openSignatureModal;
-    signBtn.ontouchend = (e)=>{ e.preventDefault(); openSignatureModal(); };
+    const doSign = ()=>openSignatureModal();
+    signBtn.onclick = doSign;
+    signBtn.ontouchend = (e)=>{ e.preventDefault(); doSign(); };
   }
 
   function updateSignedInfo(){
