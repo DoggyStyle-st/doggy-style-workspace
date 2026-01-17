@@ -6535,14 +6535,6 @@ function getContractSignature(customerId, petId){
   const v = state.contract?.version || "";
   return (state.contractSignatures||[]).find(s=>s.customerId===customerId && s.petId===petId && s.contractVersion===v) || null;
 }
-
-function saveContractSignature(sig){
-  if(!sig || !sig.customerId || !sig.petId) return;
-  // Replace existing for this customer/pet/version
-  state.contractSignatures = (state.contractSignatures||[]).filter(s=>!(s.customerId===sig.customerId && s.petId===sig.petId && s.contractVersion===sig.contractVersion));
-  state.contractSignatures.unshift(sig);
-  try{ saveState(); }catch(_){ }
-}
 function hasValidContract(customerId, petId){
   return !!getContractSignature(customerId, petId);
 }
@@ -6696,33 +6688,11 @@ function renderContractPanel(){
     };
   }
 
-  // customer/pet selects (robust: tolerate missing DOM and mixed data shapes)
+  // customer/pet selects
   const cs = $("#contractCustomerSelect");
   const ps = $("#contractPetSelect");
-  if(!cs || !ps){
-    // Contract section not mounted yet; avoid breaking the whole app.
-    return;
-  }
-
-  const customers = (state.customers||[]).slice().sort((a,b)=>{
-    const an = String(a.lastName || a.name || "");
-    const bn = String(b.lastName || b.name || "");
-    return an.localeCompare(bn, "de");
-  });
-
-  function customerLabel(c){
-    if(!c) return "";
-    const last = c.lastName || "";
-    const first = c.firstName || "";
-    const name = (last || first) ? ((last? last + ", " : "") + first).trim() : (c.name || "");
-    const phone = c.phone || c.tel || c.mobile || "";
-    return String([name, phone].filter(Boolean).join(" · ") || "Kunde");
-  }
-
-  cs.innerHTML = (
-    `<option value="">(Kunde wählen)</option>` +
-    customers.map(x=>`<option value="${x.id}">${escapeHtml(customerLabel(x))}</option>`).join("")
-  ) || `<option value="">(keine Kunden)</option>`;
+  const customers = (state.customers||[]).slice().sort((a,b)=>String(a.lastName||"").localeCompare(String(b.lastName||""),"de"));
+  cs.innerHTML = customers.map(x=>`<option value="${x.id}">${escapeHtml((x.lastName? x.lastName+', ':'') + (x.firstName||''))}</option>`).join("") || `<option value="">(keine Kunden)</option>`;
 
   function fillPets(){
     const cid = cs.value;
@@ -6750,34 +6720,11 @@ function renderContractPanel(){
 
   // signature pad
   initContractSignaturePad();
-  const clearBtn = document.getElementById("contractSigClear");
-  if(clearBtn) clearBtn.onclick = ()=>{ clearContractSig(); };
-
-  // Robust: app.html uses id="contractSigBtn" (older patches used "contractSignBtn")
-  function onContractSignClick(){
-    const customerId = cs.value;
-    const petId = ps.value;
-    if(!customerId || !petId){ alert("Bitte Kunde und Hund auswählen."); return; }
-    const chk = $("#contractAcceptChk");
-    if(!chk || !chk.checked){ alert("Bitte zuerst bestätigen, dass du den Vertrag gelesen und akzeptiert hast."); return; }
-    const dataUrl = getContractSigData();
-    if(!dataUrl){ alert("Bitte unterschreiben (Unterschriftsfeld)."); return; }
-
-    // Session-State setzen (minimal, ohne Firestore-Abhängigkeit)
-    state.contract = state.contract || {};
-    state.contract.hasSignature = true;
-    state.contract.signatureBase64 = dataUrl;
-    state.contract.signedAt = new Date().toISOString();
-
-    // Persistieren pro Kunde/Hund
-    saveContractSignature(customerId, petId, dataUrl);
-    updateSignedInfo();
-    toast("Unterschrift gespeichert.");
+  // Bind by explicit IDs (Safari/iOS issues + avoid differing helper semantics)
+  const _cClear = document.getElementById("contractSigClear");
+  if(_cClear){
+    _cClear.onclick = (e)=>{ if(e){ e.preventDefault(); e.stopPropagation(); } clearContractSig(); };
   }
-
-  const signBtn = document.getElementById("contractSigBtn") || document.getElementById("contractSignBtn");
-  if(signBtn) signBtn.onclick = onContractSignClick;
-
   const pdfBtn = document.getElementById("contractPdfBtn");
   if(pdfBtn){
     pdfBtn.onclick = ()=>{
@@ -6789,6 +6736,39 @@ function renderContractPanel(){
       openContractPdfWindow(customerId, petId);
     };
   }
+
+  const _cSign = document.getElementById("contractSignBtn");
+  if(_cSign) _cSign.onclick = (e)=>{
+    if(e){ e.preventDefault(); e.stopPropagation(); }
+    const customerId = cs.value;
+    const petId = ps.value;
+    if(!customerId || !petId){ alert("Bitte Kunde und Hund auswählen."); return; }
+    const chk = document.getElementById("contractAcceptChk");
+    if(!chk.checked){ alert("Bitte zuerst bestätigen, dass du den Vertrag gelesen und akzeptiert hast."); return; }
+    const dataUrl = getContractSigData();
+    if(!dataUrl){ alert("Bitte unterschreiben (Unterschriftsfeld)."); return; }
+
+    // Save signature
+    const sig = {
+      id: uid(),
+      customerId, petId,
+      contractVersion: state.contract.version,
+      signedAt: new Date().toISOString(),
+      signatureDataUrl: dataUrl
+    };
+
+    // Replace existing for this combo/version
+    state.contractSignatures = (state.contractSignatures||[]).filter(s=>!(s.customerId===customerId && s.petId===petId && s.contractVersion===sig.contractVersion));
+    state.contractSignatures.push(sig);
+    saveState();
+    clearContractSig();
+    chk.checked = false;
+    updateSignedInfo();
+    $("#contractStatusBanner").textContent = "✅ Vertrag gespeichert.";
+    setTimeout(()=>{ const b=$("#contractStatusBanner"); if(b) b.textContent=""; }, 1500);
+    // refresh lists where badges appear
+    renderDogs();
+  };
 
   function updateSignedInfo(){
     const customerId = cs.value;
