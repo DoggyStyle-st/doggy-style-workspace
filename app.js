@@ -6691,15 +6691,37 @@ function renderContractPanel(){
   // customer/pet selects
   const cs = $("#contractCustomerSelect");
   const ps = $("#contractPetSelect");
-  if(!cs || !ps){ console.warn("Contract panel elements missing", {cs:!!cs, ps:!!ps}); return; }
-  const customers = (state.customers||[]).slice().sort((a,b)=>String(a.lastName||"").localeCompare(String(b.lastName||""),"de"));
-  cs.innerHTML = customers.map(x=>`<option value="${x.id}">${escapeHtml((x.lastName? x.lastName+', ':'') + (x.firstName||''))}</option>`).join("") || `<option value="">(keine Kunden)</option>`;
+  // Kunden-Modelle sind historisch gemischt (z.B. {name, phone} vs. {firstName,lastName}).
+  // Deshalb: Label & Sortierung robust ableiten.
+  const customersRaw = (state.customers||[]).slice();
+  const customerLabel = (c)=>{
+    if(!c) return "";
+    const name = String(c.name||"").trim();
+    const full = String(c.fullName||"").trim();
+    const fn = String(c.firstName||"").trim();
+    const ln = String(c.lastName||"").trim();
+    const base = name || full || [fn, ln].filter(Boolean).join(" ");
+    const phone = String(c.phone||c.tel||c.mobile||"").trim();
+    return phone ? `${base} · ${phone}` : base;
+  };
+  const customers = customersRaw
+    .sort((a,b)=>customerLabel(a).localeCompare(customerLabel(b),"de"));
+  cs.innerHTML = [`<option value="">(Kunde wählen)</option>`]
+    .concat(customers.map(c=>`<option value="${c.id}">${escapeHtml(customerLabel(c) || 'Kunde')}</option>`))
+    .join("");
 
   function fillPets(){
     const cid = cs.value;
-    const pets = (state.pets||[]).filter(p=>p.customerId===cid).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"de"));
-    ps.innerHTML = pets.map(p=>`<option value="${p.id}">${escapeHtml(p.name||"Hund")}</option>`).join("") || `<option value="">(keine Hunde)</option>`;
-    updateSignedInfo();
+    const pets = (state.pets||[])
+      .filter(p=>{
+        const owner = p.customerId || p.ownerId || p.customer || p.kundeId || "";
+        return cid ? (owner === cid) : true;
+      })
+      .sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"de"));
+    ps.innerHTML = [`<option value="">(Hund wählen)</option>`]
+      .concat(pets.map(p=>`<option value="${p.id}">${escapeHtml(p.name||"Hund")}</option>`))
+      .join("");
+    contractUpdateSignedInfo(cs, ps);
   }
 
   cs.onchange = fillPets;
@@ -6715,286 +6737,75 @@ function renderContractPanel(){
       fillPets();
       ps.value = selectedPetId; // Auswahl beibehalten
     }
-    updateSignedInfo();
+    contractUpdateSignedInfo(cs, ps);
   };
 
 
-  // signature pad (minimal + iOS safe)
+  // signature pad
   initContractSignaturePad();
-
-  // Helper: remove stored signature for current selection/version
-  function removeCurrentSignature(){
-    const customerId = cs.value;
-    const petId = ps.value;
-    if(!customerId || !petId) return;
-    const v = (state.contract && state.contract.version) ? state.contract.version : 'v1.0';
-    state.contractSignatures = (state.contractSignatures||[]).filter(x => !(x.customerId===customerId && x.petId===petId && x.contractVersion===v));
-    saveState();
-  }
-
-  // iOS: we do NOT rely on inline drawing. We open a modal canvas that is guaranteed to receive touch events.
-  function openSignatureModal(){
-    const customerId = cs.value;
-    const petId = ps.value;
-    if(!customerId || !petId){ alert('Bitte Kunde und Hund auswählen.'); return; }
-    const chk = $("#contractAcceptChk");
-    if(chk && !chk.checked){ alert('Bitte zuerst bestätigen, dass du den Vertrag gelesen und akzeptiert hast.'); return; }
-
-    const v = (state.contract && state.contract.version) ? state.contract.version : 'v1.0';
-
-    // overlay
-    const ov = document.createElement('div');
-    ov.id = 'contractSigModal';
-    ov.style.position = 'fixed';
-    ov.style.left = '0';
-    ov.style.top = '0';
-    ov.style.right = '0';
-    ov.style.bottom = '0';
-    ov.style.zIndex = '99999';
-    ov.style.background = 'rgba(0,0,0,0.65)';
-    ov.style.display = 'flex';
-    ov.style.alignItems = 'center';
-    ov.style.justifyContent = 'center';
-    ov.style.padding = '14px';
-
-    const box = document.createElement('div');
-    box.style.width = 'min(760px, 96vw)';
-    box.style.background = 'rgba(30,30,30,0.92)';
-    box.style.border = '1px solid rgba(255,255,255,0.12)';
-    box.style.borderRadius = '14px';
-    box.style.boxShadow = '0 10px 40px rgba(0,0,0,0.55)';
-    box.style.padding = '14px';
-
-    const title = document.createElement('div');
-    title.textContent = 'Unterschrift';
-    title.style.fontSize = '18px';
-    title.style.fontWeight = '700';
-    title.style.marginBottom = '10px';
-
-    const hint = document.createElement('div');
-    hint.textContent = 'Bitte im Feld unterschreiben und dann speichern.';
-    hint.style.opacity = '0.8';
-    hint.style.marginBottom = '10px';
-
-    const c = document.createElement('canvas');
-    c.width = 900;
-    c.height = 320;
-    c.style.width = '100%';
-    c.style.height = '220px';
-    c.style.borderRadius = '10px';
-    c.style.background = 'rgba(255,255,255,0.06)';
-    c.style.border = '1px solid rgba(255,255,255,0.14)';
-    c.style.touchAction = 'none';
-
-    const ctx = c.getContext('2d');
-    ctx.lineWidth = 2.2;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.strokeStyle = '#ffffff';
-
-    let drawing = false;
-    let hasInk = false;
-    let last = null;
-
-    function pt(ev){
-      const r = c.getBoundingClientRect();
-      const x = (ev.clientX - r.left) * (c.width / r.width);
-      const y = (ev.clientY - r.top) * (c.height / r.height);
-      return {x,y};
-    }
-
-    function down(ev){
-      drawing = true;
-      last = pt(ev);
-      ev.preventDefault();
-    }
-    function move(ev){
-      if(!drawing) return;
-      const p = pt(ev);
-      ctx.beginPath();
-      ctx.moveTo(last.x,last.y);
-      ctx.lineTo(p.x,p.y);
-      ctx.stroke();
-      last = p;
-      hasInk = true;
-      ev.preventDefault();
-    }
-    function up(ev){
-      drawing = false;
-      last = null;
-      if(ev) ev.preventDefault();
-    }
-
-    c.addEventListener('pointerdown', down, {passive:false});
-    c.addEventListener('pointermove', move, {passive:false});
-    window.addEventListener('pointerup', up, {passive:false, once:true});
-
-    // actions
-    const actions = document.createElement('div');
-    actions.style.display = 'flex';
-    actions.style.gap = '10px';
-    actions.style.marginTop = '12px';
-    actions.style.justifyContent = 'flex-end';
-
-    function mkBtn(label){
-      const b = document.createElement('button');
-      b.textContent = label;
-      b.type = 'button';
-      b.style.padding = '10px 14px';
-      b.style.borderRadius = '999px';
-      b.style.border = '1px solid rgba(255,255,255,0.18)';
-      b.style.background = 'rgba(255,255,255,0.08)';
-      b.style.color = '#fff';
-      b.style.fontWeight = '600';
-      return b;
-    }
-
-    const btnCancel = mkBtn('Abbrechen');
-    const btnClear = mkBtn('Loeschen');
-    const btnSave = mkBtn('Speichern');
-    btnSave.style.background = 'rgba(90,150,255,0.25)';
-    btnSave.style.border = '1px solid rgba(90,150,255,0.55)';
-
-    btnCancel.onclick = ()=>{ document.body.removeChild(ov); };
-    btnClear.onclick = ()=>{ ctx.clearRect(0,0,c.width,c.height); hasInk=false; };
-    btnSave.onclick = ()=>{
-      if(!hasInk){ alert('Bitte zuerst unterschreiben.'); return; }
-      const dataUrl = c.toDataURL('image/png');
-
-      // store signature
-      const sig = {
-        id: uid(),
-        customerId,
-        petId,
-        contractVersion: v,
-        signedAt: new Date().toISOString(),
-        signatureDataUrl: dataUrl
-      };
-      state.contractSignatures = (state.contractSignatures||[]).filter(x => !(x.customerId===customerId && x.petId===petId && x.contractVersion===v));
-      state.contractSignatures.push(sig);
-      saveState();
-
-      // mirror into inline canvas for visual feedback
-      try{
-        const inline = document.getElementById('contractSig');
-        if(inline){
-          const ic = inline.getContext('2d');
-          const img = new Image();
-          img.onload = ()=>{
-            ic.clearRect(0,0,inline.width,inline.height);
-            // fit
-            const scale = Math.min(inline.width/img.width, inline.height/img.height);
-            const w = img.width*scale;
-            const h = img.height*scale;
-            ic.drawImage(img, (inline.width-w)/2, (inline.height-h)/2, w, h);
-          };
-          img.src = dataUrl;
-        }
-      }catch(_){}
-
-      // reset accept checkbox after successful signing (optional)
-      if(chk) chk.checked = false;
-      updateSignedInfo();
-      const banner = $("#contractStatusBanner");
-      if(banner){ banner.textContent = '✅ Vertrag gespeichert.'; setTimeout(()=>{ if(banner) banner.textContent=''; }, 1500); }
-      renderDogs();
-      document.body.removeChild(ov);
-    };
-
-    actions.appendChild(btnCancel);
-    actions.appendChild(btnClear);
-    actions.appendChild(btnSave);
-
-    box.appendChild(title);
-    box.appendChild(hint);
-    box.appendChild(c);
-    box.appendChild(actions);
-    ov.appendChild(box);
-    ov.addEventListener('click', (e)=>{ if(e.target===ov) document.body.removeChild(ov); });
-    document.body.appendChild(ov);
-  }
-
-  // Make the inline canvas non-interactive to avoid iOS hitbox issues.
-  try{
-    const inlineCanvas = document.getElementById('contractSig');
-    if(inlineCanvas){
-      inlineCanvas.style.pointerEvents = 'none';
-      const sigbox = inlineCanvas.parentElement;
-      if(sigbox){
-        sigbox.style.position = 'relative';
-        // tap layer inside sigbox (does not cover buttons)
-        const r = inlineCanvas.getBoundingClientRect();
-        // limit tap-layer to the visible canvas height (iOS: avoid blocking buttons below)
-        let tap = sigbox.querySelector('.sig-taplayer');
-        if(!tap){
-          tap = document.createElement('div');
-          tap.className = 'sig-taplayer';
-          tap.style.position = 'absolute';
-          tap.style.left = '0';
-          tap.style.top = '0';
-          tap.style.right = '0';
-          tap.style.bottom = 'auto';
-          tap.style.height = Math.max(1, r.height) + 'px';
-          tap.style.cursor = 'pointer';
-          tap.style.borderRadius = '10px';
-          tap.style.background = 'transparent';
-          tap.title = 'Tippen zum Unterschreiben';
-          sigbox.appendChild(tap);
-        }
-        tap.onclick = openSignatureModal;
-        tap.ontouchend = (e)=>{ e.preventDefault(); openSignatureModal(); };
-      }
-    }
-  }catch(_){}
-
-  // Buttons
-  const clearBtn = $("#contractSigClear") || $("#contractClearBtn") || document.getElementById("contractSigClear");
-  if(clearBtn){
-    const doClear = ()=>{
-      removeCurrentSignature();
-      clearContractSig();
-      updateSignedInfo();
-      const banner = $("#contractStatusBanner");
-      if(banner){ banner.textContent = 'Unterschrift geloescht.'; setTimeout(()=>{ if(banner) banner.textContent=''; }, 1200); }
-      renderDogs();
-    };
-    clearBtn.onclick = doClear;
-    clearBtn.ontouchend = (e)=>{ e.preventDefault(); doClear(); };
-  }
-
-  const pdfBtn = document.getElementById("contractPdfBtn") || document.getElementById("contractPdf") || $("#contractPdfBtn");
+  $("#contractSigClear").onclick = ()=>{ clearContractSig(); };
+  const pdfBtn = document.getElementById("contractPdfBtn");
   if(pdfBtn){
-    const doPdf = ()=>{
+    pdfBtn.onclick = ()=>{
       const customerId = cs.value;
       const petId = ps.value;
-      if(!customerId || !petId){ alert('Bitte Kunde und Hund auswählen.'); return; }
-      const sig = getContractSignature(customerId, petId);
-      if(!sig){ alert('Für diese Auswahl liegt noch keine gültige Unterschrift vor.'); return; }
+      if(!customerId || !petId){ alert("Bitte Kunde und Hund auswählen."); return; }
+      const s = getContractSignature(customerId, petId);
+      if(!s){ alert("Für diese Auswahl liegt noch keine gültige Unterschrift vor."); return; }
       openContractPdfWindow(customerId, petId);
     };
-    pdfBtn.onclick = doPdf;
-    pdfBtn.ontouchend = (e)=>{ e.preventDefault(); doPdf(); };
   }
 
-  const signBtn = $("#contractSigBtn") || $("#contractSignBtn");
-  if(signBtn){
-    const doSign = ()=>openSignatureModal();
-    signBtn.onclick = doSign;
-    signBtn.ontouchend = (e)=>{ e.preventDefault(); doSign(); };
-  }
-
-  function updateSignedInfo(){
+  $("#contractSignBtn").onclick = ()=>{
     const customerId = cs.value;
     const petId = ps.value;
-    const info = $("#contractSignedInfo");
+    if(!customerId || !petId){ alert("Bitte Kunde und Hund auswählen."); return; }
+    const chk = $("#contractAcceptChk");
+    if(!chk.checked){ alert("Bitte zuerst bestätigen, dass du den Vertrag gelesen und akzeptiert hast."); return; }
+    const dataUrl = getContractSigData();
+    if(!dataUrl){ alert("Bitte unterschreiben (Unterschriftsfeld)."); return; }
+
+    // Save signature
+    const sig = {
+      id: uid(),
+      customerId, petId,
+      contractVersion: state.contract.version,
+      signedAt: new Date().toISOString(),
+      signatureDataUrl: dataUrl
+    };
+
+    // Replace existing for this combo/version
+    state.contractSignatures = (state.contractSignatures||[]).filter(s=>!(s.customerId===customerId && s.petId===petId && s.contractVersion===sig.contractVersion));
+    state.contractSignatures.push(sig);
+    saveState();
+    clearContractSig();
+    chk.checked = false;
+    contractUpdateSignedInfo();
+    $("#contractStatusBanner").textContent = "✅ Vertrag gespeichert.";
+    setTimeout(()=>{ const b=$("#contractStatusBanner"); if(b) b.textContent=""; }, 1500);
+    // refresh lists where badges appear
+    renderDogs();
+  };
+
+}
+
+// Statuszeile rechts unten im Vertrag (robust gegenüber leeren Selektionen)
+function contractUpdateSignedInfo(){
+  try{
+    const cs = document.getElementById('contractCustomerSelect');
+    const ps = document.getElementById('contractPetSelect');
+    const info = document.getElementById('contractSignedInfo');
+    if(!cs || !ps || !info) return;
+    const customerId = cs.value || "";
+    const petId = ps.value || "";
     const s = getContractSignature(customerId, petId);
-    if(!info) return;
     if(s){
-      info.innerHTML = `🟢 Gültig unterschrieben am ${new Date(s.signedAt).toLocaleString("de-DE")} (Version ${escapeHtml(s.contractVersion)})`;
+      info.innerHTML = `🟢 Gültig unterschrieben am ${new Date(s.signedAt).toLocaleString('de-DE')} (Version ${escapeHtml(s.contractVersion)})`;
     }else{
-      info.innerHTML = `🔴 Noch keine gültige Unterschrift für Version ${escapeHtml(state.contract.version)}.`;
+      const ver = (state.contract && state.contract.version) ? state.contract.version : (state.contractVersion || 'v1.0');
+      info.innerHTML = `🔴 Noch keine gültige Unterschrift für Version ${escapeHtml(ver)}.`;
     }
-  }
+  }catch(_e){ /* noop */ }
 }
 
 // --- Signature Pad (inline) ---
@@ -7052,7 +6863,7 @@ function openContractFromStay(doc){
     if(typeof ps.onchange === "function") ps.onchange();
   }
 
-  updateSignedInfo();
+  contractUpdateSignedInfo();
 
   // UI polish: acceptance unchecked (owner should tick)
   const chk = document.getElementById("contractAcceptChk");
@@ -7063,8 +6874,37 @@ function initContractSignaturePad(){
   const canvas = document.getElementById("contractSig");
   if(!canvas) return;
   if(_contractSig.canvas === canvas) return;
+
+  // iOS/Safari: verhindern, dass ein skaliertes Canvas andere Controls überlagert
+  // (ein häufiger Grund für "Buttons reagieren nicht").
+  try{
+    canvas.style.display = "block";
+    canvas.style.width = "100%";
+    canvas.style.maxWidth = "100%";
+    canvas.style.height = "180px";
+    canvas.style.pointerEvents = "auto";
+    canvas.style.touchAction = "none";
+    const box = canvas.parentElement;
+    if(box){
+      box.style.position = "relative";
+      box.style.overflow = "hidden";
+    }
+    const actions = document.getElementById("contractSigClear")?.closest(".actions");
+    if(actions){
+      actions.style.position = "relative";
+      actions.style.zIndex = "5";
+    }
+  }catch(e){}
+
   _contractSig.canvas = canvas;
   _contractSig.ctx = canvas.getContext("2d");
+
+  // Canvas auf sichtbare Größe setzen (sonst stimmen Pointer-Koordinaten nicht)
+  const rect0 = canvas.getBoundingClientRect();
+  if(rect0.width && rect0.height){
+    canvas.width = Math.max(240, Math.round(rect0.width));
+    canvas.height = Math.max(120, Math.round(rect0.height));
+  }
   clearContractSig();
 
   const getPos = (e)=>{
