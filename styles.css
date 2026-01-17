@@ -966,20 +966,16 @@ body.page-login .btnLink--text:hover{
 /* Sticky-Panels (rechte Spalte) an neue Headerhöhe anpassen */
 .sticky{top:104px;}
 
-/* P2.8 – Contract interaction hardening (iOS Safari tap layers)
-   Ensure canvas + action buttons are always above any accidental overlay layers. */
-#contract .contract-side,
-#contract .contract-card,
-#contract .sigbox,
-#contract #contractSig,
-#contract .actions,
-#contract .actions button{
-  position: relative;
-  z-index: 50;
-  pointer-events: auto;
-}
-
-#contract #contractSig{
-  -webkit-user-select: none;
-  user-select: none;
-}
+/* ===== P2.9a: Contract interaction hardening (iOS Safari) =====
+   Symptom: select/checkbox work, but signature canvas + buttons are non-responsive.
+   Root cause is typically a stacking-context overlap from blur/glass layers.
+*/
+#contract .contract-wrap{ position: relative; }
+#contract .contract-doc{ position: relative; z-index: 1; }
+#contract .contract-side{ position: relative; z-index: 20; }
+#contract .contract-side .contract-card{ position: relative; z-index: 21; }
+#contract .contract-side .sigbox,
+#contract .contract-side .actions,
+#contract .contract-side #contractSignedInfo{ position: relative; z-index: 22; }
+#contractSig{ position: relative; z-index: 23; pointer-events: auto; }
+#contractSigClear,#contractSignBtn,#contractPdfBtn{ position: relative; z-index: 23; pointer-events: auto; }
