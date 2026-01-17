@@ -1,4 +1,4 @@
-const APP_BUILD = "v11-TEST-OPTIK-01";
+const APP_BUILD = "v11-P1-2A-SYNC-SUCCESS";
 window.addEventListener("error",(e)=>{console.error("APP_ERROR",e.error||e.message);});
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
@@ -113,6 +113,8 @@ function can(action){
 
 const SYNC = {
   localSavedAt: 0,
+  // P1.2a: "Sync: erfolgreich" nach erstem erfolgreichen Speichern (lokal oder Cloud)
+  sessionOkAt: 0,
   cloudLastSeenAt: 0,
   cloudPending: false,
   cloudLastOkAt: 0,
@@ -158,42 +160,44 @@ function updateSyncUI(){
   }
 
   const netOnline = (typeof navigator !== 'undefined') ? !!navigator.onLine : false;
-  const cloudOk = !!(netOnline && cloudIsEnabled() && CLOUD && CLOUD.enabled && CLOUD.user && SYNC.cloudReachable);
-  try{ if(pill){ pill.classList.toggle('is-online', !!cloudOk); pill.classList.toggle('is-offline', !cloudOk); } }catch(e){}
+  // Passiver Sync-Indikator (P1.2a): "erfolgreich" sobald mindestens ein Save bestaetigt ist
+  // - lokal: sobald saveState() gelaufen ist
+  // - cloud: sobald ein Cloud-Write bestaetigt wurde
+  const cloudOk = !!(cloudIsEnabled() && CLOUD && CLOUD.enabled && CLOUD.user && SYNC.cloudLastOkAt && !SYNC.cloudLastError && !SYNC.cloudPending);
+  const syncOk = !!(SYNC.sessionOkAt || cloudOk);
+  try{ if(pill){ pill.classList.toggle('is-online', !!syncOk); pill.classList.toggle('is-offline', !syncOk); } }catch(e){}
+
   const localLine = `Lokal gespeichert: ${fmtDT(SYNC.localSavedAt)}`;
+  const netLine = `Internet: ${netOnline ? 'Online' : 'Offline'}`;
 
-  // Internet-Status (nicht gleich Cloud!)
-  const netLine = `Internet: ${cloudOk ? 'Online' : 'Offline'}`;
-
-  let pillText = cloudOk ? 'Online' : 'Offline';
-  let cloudLine = 'Cloud: aus';
+  // Hinweis: Das Label "Sync:" steht bereits im Header. Hier nur der Zustand.
+  let pillText = syncOk ? 'erfolgreich' : 'ausstehend';
+  let cloudLine = 'Noch kein erfolgreicher Sync.';
 
   if(!cloudIsEnabled()){
-    // Cloud nicht möglich (SDK fehlt) – das ist der Hauptgrund für "immer Offline" in der Wahrnehmung
     cloudLine = window.firebaseConfig ? 'Cloud: bereit (SDK nicht geladen)' : 'Cloud: aus';
-    if(window.firebaseConfig && CLOUD.reason){
-      cloudLine += ` · ${CLOUD.reason}`;
-    }
-  } else if(CLOUD.enabled){
+    if(window.firebaseConfig && CLOUD && CLOUD.reason){ cloudLine += ` · ${CLOUD.reason}`; }
+  } else if(CLOUD && CLOUD.enabled){
     if(!CLOUD.user){
-      pillText = `${cloudOk ? 'Online' : 'Offline'} · Cloud: Login nötig`;
-      cloudLine = 'Cloud: nicht angemeldet';
+      cloudLine = 'Cloud: Login nötig';
     } else if(SYNC.cloudLastError){
-      pillText = `${cloudOk ? 'Online' : 'Offline'} · Cloud: Fehler`;
-      cloudLine = `Cloud Fehler: ${SYNC.cloudLastError}`;
+      cloudLine = `Letzter Sync-Fehler: ${SYNC.cloudLastError}`;
     } else if(SYNC.cloudPending){
-      pillText = `${cloudOk ? 'Online' : 'Offline'} · Cloud: Sync…`;
-      cloudLine = `Cloud Sync: läuft (letztes OK ${fmtDT(SYNC.cloudLastOkAt)})`;
-    } else {
-      pillText = `${cloudOk ? 'Online' : 'Offline'} · Cloud: OK`;
-      cloudLine = `Cloud zuletzt OK: ${fmtDT(SYNC.cloudLastOkAt)} · Server: ${fmtDT(SYNC.cloudLastSeenAt)}`;
+      cloudLine = `Sync läuft… (letztes OK ${fmtDT(SYNC.cloudLastOkAt)})`;
+    } else if(SYNC.cloudLastOkAt){
+      cloudLine = `Letzter Sync OK: ${fmtDT(SYNC.cloudLastOkAt)} · Server: ${fmtDT(SYNC.cloudLastSeenAt)}`;
     }
   }
-
-  if(pill) pill.textContent = `${pillText} · ${fmtDT(SYNC.localSavedAt)}`;
+  const shownTs = SYNC.cloudLastOkAt || SYNC.sessionOkAt || SYNC.localSavedAt;
+  if(pill) pill.textContent = `${pillText} · ${fmtDT(shownTs)}`;
   const dot=document.getElementById('syncDot');
-  if(dot){ dot.classList.toggle('online', !!netOnline); dot.classList.toggle('offline', !netOnline); }
-  if(details) details.textContent = `${localLine}\n${netLine}\n${cloudLine}\nCloud-Ping: ${fmtDT(SYNC.cloudReachCheckedAt)}${SYNC.cloudReachError ? ' · '+SYNC.cloudReachError : ''}`;
+  if(dot){ dot.classList.toggle('online', !!syncOk); dot.classList.toggle('offline', !syncOk); }
+  const detailsText = `${localLine}\n${netLine}\n${cloudLine}\nCloud-Ping: ${fmtDT(SYNC.cloudReachCheckedAt)}${SYNC.cloudReachError ? ' · '+SYNC.cloudReachError : ''}`;
+  // Global ablegen, damit wir es auch ohne Konsole anzeigen können (Modal)
+  try{ window.__ds_lastSyncDetails = detailsText; }catch(e){}
+  if(details) details.textContent = detailsText;
+  const detailsInline = document.getElementById('syncDetailsInline');
+  if(detailsInline) detailsInline.textContent = detailsText;
 
   // Manual cloud save: only enable when Cloud is active + logged in
   if(manualBtn){
@@ -4285,6 +4289,2503 @@ function refreshCustomerSelect(){
   sel.innerHTML = customers.map(c=>`<option value="${c.id}">${escapeHtml(c.name||"Kunde")}${c.phone?(" · "+escapeHtml(c.phone)):""}</option>`).join("");
 }
 
+function clearCpEditor(){
+  ["c_name","c_phone","c_email","c_street","c_zip","c_city","c_em_name","c_em_phone","c_pickup_auth","c_note","p_name","p_breed","p_chipNumber","p_vet","p_vetPhone","p_food","p_feeding","p_compat","p_note","p_allergies","p_meds","p_behavior"].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value="";
+  });
+  const bd=document.getElementById("p_birthdate"); if(bd) bd.value="";
+  const cs=document.getElementById("p_chipStatus"); if(cs) cs.value="";
+  const use=document.getElementById("useExistingCustomer"); if(use) use.checked=false;
+  const hint=document.getElementById("cpHint"); if(hint) hint.textContent="";
+  setCustomerFieldsDisabled(false);
+}
+
+function fillCpEditorForPet(pet){
+  const c = getCustomer(pet.customerId);
+  if(c){
+    $("#c_name").value = c.name||"";
+    $("#c_phone").value = c.phone||"";
+    $("#c_email").value = c.email||"";
+    $("#c_street").value = c.street||"";
+    $("#c_zip").value = c.zip||"";
+    $("#c_city").value = c.city||"";
+    $("#c_em_name").value = c.emergencyName||"";
+    $("#c_em_phone").value = c.emergencyPhone||"";
+    $("#c_pickup_auth").value = c.pickupAuth||"";
+    $("#c_note").value = c.note||"";
+  }
+  $("#p_name").value = pet.name||"";
+  $("#p_breed").value = pet.breed||"";
+  $("#p_birthdate").value = pet.birthdate||"";
+  const cs=document.getElementById("p_chipStatus");
+  if(cs) cs.value = pet.chip ? "yes" : "no";
+  $("#p_chipNumber").value = pet.chipNumber||"";
+  $("#p_vet").value = pet.vet||"";
+  $("#p_vetPhone").value = pet.vetPhone||"";
+  $("#p_allergies").value = pet.allergies||"";
+  $("#p_meds").value = pet.meds||"";
+  $("#p_food").value = pet.food||"";
+  $("#p_feeding").value = pet.feeding||"";
+  $("#p_compat").value = pet.compat||"";
+  $("#p_behavior").value = pet.behavior||"";
+  $("#p_note").value = pet.note||"";
+}
+
+function openCpEditor(mode, petId){
+  ensureStateShape();
+  ensureContractDefaults();
+  cpEdit.mode = mode || "new";
+  cpEdit.petId = petId || "";
+
+  const box = document.getElementById("cpEditor");
+  if(box) box.style.display="block";
+  const title = document.getElementById("cpEditorTitle");
+  if(title) title.textContent = (mode==="edit") ? "Kunde & Hund bearbeiten" : "Kunde & Hund anlegen";
+
+  refreshCustomerSelect();
+  clearCpEditor();
+
+  // Toggle handler
+  const use = document.getElementById("useExistingCustomer");
+  if(use){
+    use.onchange = ()=>{
+      const useExisting = use.checked;
+      setCustomerFieldsDisabled(useExisting);
+    };
+  }
+
+  if(mode==="edit" && petId){
+    const pet = getPet(petId);
+    if(pet){
+      // Bei Edit: bestehenden Kunden nutzen + auswählen
+      const useExisting = document.getElementById("useExistingCustomer");
+      if(useExisting) useExisting.checked = true;
+      refreshCustomerSelect();
+      const sel = document.getElementById("customerSelect");
+      if(sel) sel.value = pet.customerId || "";
+      setCustomerFieldsDisabled(false); // beim Edit darfst du den Kunden auch korrigieren
+      fillCpEditorForPet(pet);
+    }
+  } else {
+    // New: wenn Kunden vorhanden, Auswahl anbieten, aber standardmäßig aus
+    setCustomerFieldsDisabled(false);
+  }
+
+  const list = document.getElementById("dogList");
+  if(list) list.scrollIntoView({behavior:"smooth", block:"start"});
+}
+
+function closeCpEditor(){
+  const box = document.getElementById("cpEditor");
+  if(box) box.style.display="none";
+  clearCpEditor();
+}
+
+function upsertLegacyDogForPet(pet, customer){
+  ensureDefaultDog();
+  if(!pet) return;
+
+  // 1) Existierendes Legacy-Dog finden (Mapping)
+  let dogId = null;
+  const map = state._legacy?.dogIdToPetId || {};
+  for(const did of Object.keys(map)){
+    if(map[did] === pet.id){ dogId = did; break; }
+  }
+
+  // 2) Falls nicht vorhanden: neu anlegen
+  if(!dogId){
+    dogId = "d_"+uid();
+    state.dogs.push({ id: dogId, name: pet.name||"", owner: customer?.name||"", phone: customer?.phone||"", note: pet.note||"" });
+  }
+
+  // 3) Update Legacy-Dog
+  const d = (state.dogs||[]).find(x=>x.id===dogId);
+  if(d){
+    d.name = pet.name || d.name;
+    d.owner = (customer?.name ?? d.owner) || "";
+    d.phone = (customer?.phone ?? d.phone) || "";
+    d.note = pet.note || d.note || "";
+  }
+
+  // 4) Mapping aktualisieren
+  state._legacy = state._legacy || {};
+  state._legacy.dogIdToPetId = state._legacy.dogIdToPetId || {};
+  state._legacy.dogIdToCustomerId = state._legacy.dogIdToCustomerId || {};
+  state._legacy.dogIdToPetId[dogId] = pet.id;
+  state._legacy.dogIdToCustomerId[dogId] = pet.customerId;
+
+  return dogId;
+}
+
+// ===== ETAPPE 3 Helpers: Hund auswählen -> Halter automatisch =====
+function getPetByDogId(dogId){
+  ensureStateShape();
+  ensureContractDefaults();
+  const pid = state._legacy?.dogIdToPetId?.[dogId] || "";
+  return pid ? getPet(pid) : null;
+}
+function getCustomerByDogId(dogId){
+  ensureStateShape();
+  ensureContractDefaults();
+  const cid = state._legacy?.dogIdToCustomerId?.[dogId] || "";
+  return cid ? getCustomer(cid) : null;
+}
+function getLegacyDogIdForPet(petId){
+  ensureStateShape();
+  ensureContractDefaults();
+  const map = state._legacy?.dogIdToPetId || {};
+  for(const did of Object.keys(map)){
+    if(map[did] === petId) return did;
+  }
+  return "";
+}
+function ensureDocLinks(doc){
+  if(!doc) return;
+  ensureStateShape();
+  ensureContractDefaults();
+  // Falls noch alte docs ohne petId/customerId existieren: aus dogId ableiten
+  if(!doc.petId && doc.dogId) doc.petId = state._legacy?.dogIdToPetId?.[doc.dogId] || "";
+  if(!doc.customerId && doc.dogId) doc.customerId = state._legacy?.dogIdToCustomerId?.[doc.dogId] || "";
+}
+function updateDocCustomerPetFromDogId(doc){
+  if(!doc || !doc.dogId) return;
+  // Immer konsistent halten: dogId -> (customerId, petId)
+  const dogId = doc.dogId;
+  const pet = getPetByDogId(dogId);
+  const cust = getCustomerByDogId(dogId);
+  if(pet) doc.petId = pet.id;
+  if(cust) doc.customerId = cust.id;
+  // Fallback auf legacy mapping
+  if(!doc.petId) doc.petId = state._legacy?.dogIdToPetId?.[dogId] || doc.petId || "";
+  if(!doc.customerId) doc.customerId = state._legacy?.dogIdToCustomerId?.[dogId] || doc.customerId || "";
+}
+
+function renderCustomerInfoForDogId(dogId){
+  const box = document.getElementById("customerInfo");
+  if(!box) return;
+  const pet = getPetByDogId(dogId);
+  const cust = getCustomerByDogId(dogId);
+  if(!pet && !cust){ box.textContent = ""; return; }
+
+  const parts = [];
+  if(cust){
+    const addr = [cust.street, [cust.zip, cust.city].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+    parts.push(`${cust.name||""}${cust.phone?" · "+cust.phone:""}${cust.email?" · "+cust.email:""}`.trim());
+    if(addr) parts.push(addr);
+  }
+  if(pet){
+    const chip = pet.chip ? (`Chip: ${pet.chipNumber||"ja"}`) : "kein Chip";
+    const breed = pet.breed ? ` · ${pet.breed}` : "";
+    parts.push(`${pet.name||"Hund"}${breed} · ${chip}`);
+  }
+  box.textContent = parts.filter(Boolean).join(" | ");
+}
+
+
+function autofillHundeannahmeFieldsFromMaster(dogId, { overwrite = false } = {}){
+  if(!currentDoc) return;
+  const t = getTemplate(currentDoc.templateId);
+  if(!t) return;
+
+  // Nur für Templates, die diese Keys haben (Hundeannahme)
+  const wants = new Set(["halter_name","halter_adresse","halter_telefon","halter_email","halter_notfall","hund_name","hund_rasse","hund_geburt","hund_chip"]);
+  const hasAny = Array.isArray(t.sections) && t.sections.some(sec => (sec.fields||[]).some(f => wants.has(f.key)));
+  if(!hasAny) return;
+
+  const pet = getPetByDogId(dogId);
+  const cust = getCustomerByDogId(dogId);
+
+  // Mapping: Stamm -> Formular
+  const addr = cust ? [cust.street||"", [cust.zip, cust.city].filter(Boolean).join(" ")].filter(Boolean).join("\n") : "";
+  const map = {
+    halter_name: cust?.name || "",
+    halter_adresse: addr,
+    halter_telefon: cust?.phone || "",
+    halter_email: cust?.email || "",
+    halter_notfall: (cust ? [cust.emergencyName, cust.emergencyPhone].filter(Boolean).join(" · ") : "") || (pet?.emergencyContact || ""),
+    hund_name: pet?.name || "",
+    hund_rasse: pet?.breed || "",
+    hund_geburt: pet?.birthdate || "",
+    hund_chip: pet?.chipNumber || ""
+  };
+
+  // Smart-Overwrite:
+  // Wenn vorher schon automatisch befüllt wurde und der Hund gewechselt wird,
+  // überschreiben wir NUR die Felder, die noch exakt den alten Auto-Wert haben.
+  const autoMeta = currentDoc.meta || (currentDoc.meta = {});
+  const prevAutoDogId = autoMeta._autoDogId || "";
+  let prevAutoMap = null;
+  if(!overwrite && prevAutoDogId && prevAutoDogId !== dogId){
+    try { prevAutoMap = JSON.parse(autoMeta._autoSnapshot || "null"); } catch(e){ prevAutoMap = null; }
+  }
+
+  let touched = false;
+
+  Object.entries(map).forEach(([key, val]) => {
+    const inp = document.querySelector(`#formRoot [data-key="${key}"]`);
+    if(!inp) return;
+
+    if(!overwrite){
+      // Wenn wir einen Hund-Wechsel haben: nur überschreiben, wenn Feld noch alter Auto-Wert ist
+      if(prevAutoMap && Object.prototype.hasOwnProperty.call(prevAutoMap, key)){
+        const cur = (inp.dataset.ftype==="checkbox") ? String(!!inp.checked) : String(inp.value||"");
+        const old = (inp.dataset.ftype==="checkbox") ? String(!!prevAutoMap[key]) : String(prevAutoMap[key] ?? "");
+        if(cur !== old){
+          return; // Nutzer hat manuell geändert -> nicht überschreiben
+        }
+      } else {
+        // sonst: nur befüllen, wenn leer
+        const isEmpty = (inp.dataset.ftype==="checkbox") ? (!inp.checked) : (String(inp.value||"").trim()==="");
+        if(!isEmpty) return;
+      }
+    }
+
+    if(inp.dataset.ftype==="checkbox"){
+      inp.checked = !!val;
+    } else {
+      inp.value = val;
+    }
+    touched = true;
+  });
+
+  // Auto-Snapshot merken, damit Hundwechsel sauber funktioniert
+  autoMeta._autoDogId = dogId || "";
+  try { autoMeta._autoSnapshot = JSON.stringify(map); } catch(e){}
+
+  if(touched) dirty = true;
+}
+
+
+// ===== Ende Etappe 1 =====
+function escapeHtml(s){return String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");}
+function overlaps(aFrom, aTo, bFrom, bTo){
+  return !(aTo < bFrom || aFrom > bTo);
+}
+
+function countOccupancy(type, from, to, excludeDocId){
+  return state.docs.filter(d=>{
+    if(!d.saved) return false;
+    if(d.id === excludeDocId) return false;
+    if(d.meta?.betreuung !== type) return false;
+    if(!d.meta?.von || !d.meta?.bis) return false;
+
+    return overlaps(d.meta.von, d.meta.bis, from, to);
+  }).length;
+}
+function getNextDays(n){
+  const days = [];
+  const d = new Date();
+
+  for(let i = 0; i < n; i++){
+    const x = new Date(d);
+    x.setDate(d.getDate() + i);
+    days.push(toISODateLocal(x));
+  }
+
+  return days;
+}
+function countForDay(type, day){
+  return state.docs.filter(d=>{
+    if(!d.saved) return false;
+    if(d.meta?.betreuung !== type) return false;
+    if(!d.meta?.von || !d.meta?.bis) return false;
+
+    return day >= d.meta.von && day <= d.meta.bis;
+  }).length;
+}
+function countToday(type){
+  const today = toISODateLocal(new Date());
+  return countForDay(type, today);
+}
+function renderTodayStatus(){
+  const el = document.getElementById("todayStatus");
+  if(!el) return;
+
+  const u = countToday("Urlaubsbetreuung");
+  const t = countToday("Tagesbetreuung");
+
+  el.innerHTML = `
+    <div class="status-cards">
+      <div class="status-card">
+        <strong>Urlaubsbetreuung</strong><br>
+        ${u} / ${getCapacity("Urlaubsbetreuung", today)} Hunde
+      </div>
+      <div class="status-card">
+        <strong>Tagesbetreuung</strong><br>
+        ${t} / ${getCapacity("Tagesbetreuung", today)} Hunde
+      </div>
+    </div>
+  `;
+}
+function renderOccupancy(){
+  const el = document.getElementById("occupancy");
+  if(!el) return;
+
+  const days = getNextDays(14);
+
+  el.innerHTML = `
+    <table class="occ-table">
+      <thead>
+        <tr>
+          <th>Datum</th>
+          <th>Urlaubsbetreuung</th>
+          <th>Tagesbetreuung</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${days.map(day=>{
+          const u = countForDay("Urlaubsbetreuung", day);
+          const t = countForDay("Tagesbetreuung", day);
+          return `
+            <tr>
+              <td>${formatDateDE(day)}</td>
+              <td>${u} / ${getCapacity("Urlaubsbetreuung", day)}</td>
+              <td>${t} / ${getCapacity("Tagesbetreuung", day)}</td>
+            </tr>
+          `;
+        }).join("")}
+      </tbody>
+    </table>
+  `;
+}
+function getInvoices(){
+  ensureStateShape();
+  ensureContractDefaults();
+  return (state.invoices||[]).slice().sort((a,b)=> (b.updatedAt||"").localeCompare(a.updatedAt||""));
+}
+
+function getInvoiceById(id){
+  ensureStateShape();
+  ensureContractDefaults();
+  return (state.invoices||[]).find(x=>x.id===id) || null;
+}
+
+function resolveInvoiceParties(inv){
+  ensureStateShape();
+  ensureContractDefaults();
+  const cust = inv?.customerId ? getCustomer(inv.customerId) : (inv?.dogId ? getCustomerByDogId(inv.dogId) : null);
+  const pet  = inv?.petId ? getPet(inv.petId) : (inv?.dogId ? getPetByDogId(inv.dogId) : null);
+  const legacyDog = inv?.dogId ? (state.dogs||[]).find(d=>d.id===inv.dogId) : null;
+  return { cust, pet, legacyDog };
+}
+
+function formatCustomerLine(cust, legacyDog){
+  const name = cust?.name || legacyDog?.owner || "";
+  const phone = cust?.phone || legacyDog?.phone || "";
+  const email = cust?.email || "";
+  const parts = [name, phone, email].filter(Boolean);
+  return parts.join(" · ");
+}
+function formatCustomerAddressBlock(cust){
+  if(!cust) return "";
+  const l1 = cust.name || "";
+  const l2 = cust.street || "";
+  const l3 = [cust.zip, cust.city].filter(Boolean).join(" ");
+  return [l1,l2,l3].filter(Boolean).map(escapeHtml).join("<br>");
+}
+function renderInvoiceList(){
+  const el = document.getElementById("invoiceList");
+  if(!el) return;
+
+  const invoices = getInvoices();
+
+  const actionBar = `
+    <div class="row" style="gap:10px;flex-wrap:wrap;margin:10px 0 14px">
+      <button class="btn" onclick="openFreeInvoiceForm()">➕ Freie Rechnung</button>
+    </div>
+  `;
+
+  if(!invoices.length){
+    el.innerHTML = actionBar + "<p class='muted'>Noch keine Rechnungen vorhanden.</p>";
+    const view = document.getElementById("invoiceView");
+    if(view) view.innerHTML = "";
+    return;
+  }
+
+  el.innerHTML = actionBar + `
+    <table class="invoice-table">
+      <thead>
+        <tr>
+          <th>Nr.</th>
+          <th>Kunde / Hund</th>
+          <th>Zeitraum</th>
+          <th>Betrag</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${invoices.map(inv=>`
+          <tr onclick="openInvoice('${inv.id}')">
+            <td>${inv.invoiceNumber || "-"}</td>
+            <td>${escapeHtml((resolveInvoiceParties(inv).cust?.name || resolveInvoiceParties(inv).legacyDog?.owner || "—"))} · ${escapeHtml((resolveInvoiceParties(inv).pet?.name || resolveInvoiceParties(inv).legacyDog?.name || "—"))}</td>
+            <td>${escapeHtml(inv.period?.from||"")} – ${escapeHtml(inv.period?.to||"")}</td>
+            <td>${(inv.pricing?.total||0).toFixed(2)} €</td>
+            <td>${escapeHtml(inv.status||"")}</td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+  `;
+}
+function openInvoice(id){
+  const inv = getInvoiceById(id);
+  if(!inv) return;
+
+  const el = document.getElementById("invoiceView");
+  if(!el) return;
+
+  const {cust, pet, legacyDog} = resolveInvoiceParties(inv);
+  const custLine = escapeHtml(formatCustomerLine(cust, legacyDog) || "—");
+  const petLine = escapeHtml(pet?.name || (legacyDog?.name||"—"));
+
+  el.innerHTML = `
+    <div class="card">
+      <div class="row between" style="gap:10px;flex-wrap:wrap">
+        <h3 style="margin:0">Rechnung</h3>
+        <div class="row" style="gap:8px;flex-wrap:wrap">
+          <button class="smallbtn" onclick="setInvoiceStatus('${inv.id}','open')">Offen</button>
+          <button class="smallbtn" onclick="setInvoiceStatus('${inv.id}','paid')">Bezahlt</button>
+          <button class="smallbtn" onclick="setInvoiceStatus('${inv.id}','cancelled')">Storniert</button>
+        </div>
+      </div>
+
+      <p class="muted" style="margin-top:6px">
+        <strong>Nr.:</strong> ${escapeHtml(inv.invoiceNumber||"-")} ·
+        <strong>Datum:</strong> ${escapeHtml(new Date(inv.invoiceDate||Date.now()).toLocaleDateString("de-DE"))} ·
+        <strong>Status:</strong> ${escapeHtml(inv.status||"")}
+      </p>
+
+      <p><strong>Kunde:</strong> ${custLine}<br>
+         <strong>Hund:</strong> ${petLine}
+      </p>
+
+      <p><strong>Zeitraum:</strong>
+        ${escapeHtml(inv.period?.from||"")} – ${escapeHtml(inv.period?.to||"")}
+      </p>
+
+      <p>Grundpreis: ${inv.pricing.basePrice.toFixed(2)} €</p>
+      <p>Zuschläge (%): ${inv.pricing.percentExtra.toFixed(2)} €</p>
+      <p>Zuschläge (fix): ${inv.pricing.fixedExtra.toFixed(2)} €</p>
+
+      <hr>
+      <h3 style="margin:10px 0 8px">Gesamt: ${inv.pricing.total.toFixed(2)} €</h3>
+
+      <button class="btn" onclick="printInvoice('${inv.id}')">🖨️ Rechnung drucken / PDF</button>
+    </div>
+  `;
+}
+function setInvoiceStatus(id, status){
+  const inv = getInvoiceById(id);
+  if(!inv) return;
+
+  inv.status = status;
+  inv.updatedAt = new Date().toISOString();
+  saveState();
+
+  openInvoice(id);
+  renderInvoiceList();
+}
+
+// ===== ETAPPE 4: Freie Rechnung (Kunde/Hund auswählen statt tippen) =====
+function openFreeInvoiceForm(){
+  ensureStateShape();
+  ensureContractDefaults();
+  const view = document.getElementById("invoiceView");
+  if(!view) return;
+
+  const customers = (state.customers||[]).slice().sort((a,b)=>(a.name||"").localeCompare(b.name||"","de"));
+  const hasCustomers = customers.length>0;
+
+  const today = toISODateLocal(new Date());
+
+  view.innerHTML = `
+    <div class="card">
+      <div class="row between" style="gap:10px;flex-wrap:wrap">
+        <h3 style="margin:0">Freie Rechnung</h3>
+        <button class="smallbtn" onclick="document.getElementById('invoiceView').innerHTML=''">Schließen</button>
+      </div>
+
+      ${hasCustomers ? "" : "<p class='muted'>Noch kein Kundenstamm vorhanden. Bitte zuerst unter Hunde/Kunden einen Kunden & Hund anlegen.</p>"}
+
+      <div class="row" style="gap:12px;flex-wrap:wrap;margin-top:10px">
+        <label class="field" style="min-width:260px">
+          <span>Kunde *</span>
+          <select id="freeInvCustomer" onchange="renderFreeInvoicePetOptions()">
+            <option value="">— Bitte auswählen —</option>
+            ${customers.map(c=>`<option value="${c.id}">${escapeHtml(c.name||"Kunde")}</option>`).join("")}
+          </select>
+        </label>
+
+        <label class="field" style="min-width:260px">
+          <span>Hund (optional)</span>
+          <select id="freeInvPet">
+            <option value="">—</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="row" style="gap:12px;flex-wrap:wrap">
+        <label class="field" style="min-width:200px">
+          <span>Von</span>
+          <input id="freeInvFrom" type="date" value="${today}">
+        </label>
+        <label class="field" style="min-width:200px">
+          <span>Bis</span>
+          <input id="freeInvTo" type="date" value="${today}">
+        </label>
+      </div>
+
+      <div class="row" style="gap:12px;flex-wrap:wrap">
+        <label class="field" style="min-width:260px">
+          <span>Beschreibung</span>
+          <input id="freeInvNote" type="text" placeholder="z.B. Gutschein / Training / Sonstiges">
+        </label>
+        <label class="field" style="min-width:200px">
+          <span>Betrag (€) *</span>
+          <input id="freeInvAmount" type="number" step="0.01" min="0" placeholder="0,00">
+        </label>
+      </div>
+
+      <div class="row" style="gap:10px;flex-wrap:wrap;margin-top:10px">
+        <button class="btn" onclick="createFreeInvoice()">🧾 Rechnung erstellen</button>
+      </div>
+    </div>
+  `;
+
+  renderFreeInvoicePetOptions();
+}
+
+function renderFreeInvoicePetOptions(){
+  ensureStateShape();
+  ensureContractDefaults();
+  const customerId = document.getElementById("freeInvCustomer")?.value || "";
+  const petSel = document.getElementById("freeInvPet");
+  if(!petSel) return;
+
+  const pets = (state.pets||[]).filter(p=>p.customerId===customerId).slice()
+    .sort((a,b)=>(a.name||"").localeCompare(b.name||"","de"));
+
+  petSel.innerHTML = `<option value="">—</option>` + pets.map(p=>`<option value="${p.id}">${escapeHtml(p.name||"Hund")}</option>`).join("");
+}
+
+function ensureLegacyDogForPetId(petId, customerId){
+  ensureStateShape();
+  ensureContractDefaults();
+  if(!petId || !customerId) return "";
+
+  const map = state._legacy?.dogIdToPetId || {};
+  for(const dogId of Object.keys(map)){
+    if(map[dogId] === petId) return dogId;
+  }
+
+  const pet = getPet(petId);
+  const cust = getCustomer(customerId);
+
+  const dogId = uid();
+  state.dogs = state.dogs || [];
+  state.dogs.push({
+    id: dogId,
+    name: pet?.name || "Hund",
+    owner: cust?.name || "",
+    phone: cust?.phone || "",
+    note: ""
+  });
+
+  state._legacy.dogIdToPetId[dogId] = petId;
+  state._legacy.dogIdToCustomerId[dogId] = customerId;
+  return dogId;
+}
+
+function createFreeInvoice(){
+  ensureStateShape();
+  ensureContractDefaults();
+  const customerId = document.getElementById("freeInvCustomer")?.value || "";
+  const petId = document.getElementById("freeInvPet")?.value || "";
+  const from = document.getElementById("freeInvFrom")?.value || "";
+  const to = document.getElementById("freeInvTo")?.value || "";
+  const note = (document.getElementById("freeInvNote")?.value || "").trim();
+  const amount = parseFloat(document.getElementById("freeInvAmount")?.value || "0");
+
+  if(!customerId){ alert("Bitte Kunde auswählen."); return; }
+  if(!(amount>0)){ alert("Bitte einen Betrag > 0 eingeben."); return; }
+
+  const year = new Date().getFullYear();
+  const number = String(state.nextInvoiceNumber).padStart(4, "0");
+  const dogId = petId ? ensureLegacyDogForPetId(petId, customerId) : "";
+
+  const invoice = {
+    id: uid(),
+    type: "invoice",
+
+    sourceDocId: "", // freie Rechnung
+    dogId,
+
+    customerId,
+    petId,
+
+    period: { from: from || "", to: to || "" },
+
+    pricing: {
+      basePrice: amount,
+      percentExtra: 0,
+      fixedExtra: 0,
+      total: amount
+    },
+
+    status: "draft",
+    note,
+
+    invoiceNumber: `${year}-${number}`,
+    invoiceDate: new Date().toISOString(),
+
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+
+  state.worklogs = Array.isArray(state.worklogs) ? state.worklogs : [];
+  state.invoices = Array.isArray(state.invoices) ? state.invoices : [];
+  state.invoices.push(invoice);
+
+  state.nextInvoiceNumber++;
+
+  saveState();
+  renderInvoiceList();
+  openInvoice(invoice.id);
+}
+
+function printInvoice(id){
+  const inv = getInvoiceById(id);
+  if(!inv) return;
+
+  const {cust, pet, legacyDog} = resolveInvoiceParties(inv);
+
+  const recipient = formatCustomerAddressBlock(cust) || escapeHtml(cust?.name || legacyDog?.owner || "—");
+  const recipientSub = [
+    (cust?.phone || legacyDog?.phone) ? `Tel: ${escapeHtml(cust?.phone || legacyDog?.phone)}` : "",
+    cust?.email ? `Mail: ${escapeHtml(cust.email)}` : "",
+    (pet?.name || legacyDog?.name) ? `Hund: ${escapeHtml(pet?.name || legacyDog?.name)}` : "",
+    (pet?.chip || (pet?.chipNumber)) ? `Chip: ${escapeHtml(pet?.chipNumber || "ja")}` : ""
+  ].filter(Boolean).join("<br>");
+
+  const w = window.open("", "_blank");
+  w.document.write(`
+<html>
+<head>
+  <title>Rechnung</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 40px; }
+    h1 { margin-top: 26px; }
+    .header { margin-bottom: 20px; display:flex; justify-content:space-between; gap:20px; }
+    .block { font-size: 12px; color: #111; line-height:1.35; }
+    .company { font-size: 12px; color: #444; text-align:right; line-height:1.35; }
+    .small { font-size: 12px; color: #444; }
+    table { width: 100%; border-collapse: collapse; margin-top: 18px; }
+    td, th { border: 1px solid #ccc; padding: 8px; }
+    th { background: #f5f5f5; }
+    .right { text-align: right; }
+    .muted { color:#666; font-size:11px; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="block">
+      ${recipient}<br>
+      <span class="muted">${recipientSub}</span>
+    </div>
+    <div class="company">
+      <strong>${COMPANY.name}</strong><br>
+      ${COMPANY.owner}<br>
+      ${COMPANY.street}<br>
+      ${COMPANY.zipCity}<br>
+      Tel: ${COMPANY.phone}<br>
+      ${COMPANY.email}<br>
+      ${COMPANY.tax.vatId ? "USt-ID: " + COMPANY.tax.vatId + "<br>" : ""}
+      ${COMPANY.tax.taxNumber ? "Steuernr.: " + COMPANY.tax.taxNumber + "<br>" : ""}
+    </div>
+  </div>
+
+  <h1>Rechnung</h1>
+  <p class="small">
+    <strong>Rechnungsnummer:</strong> ${inv.invoiceNumber || "-"}<br>
+    <strong>Rechnungsdatum:</strong> ${new Date(inv.invoiceDate||Date.now()).toLocaleDateString("de-DE")}<br>
+    <strong>Leistungszeitraum:</strong> ${escapeHtml(inv.period?.from||"")} – ${escapeHtml(inv.period?.to||"")}
+  </p>
+
+  <table>
+    <tr>
+      <th>Position</th>
+      <th class="right">Betrag</th>
+    </tr>
+    <tr>
+      <td>Grundpreis</td>
+      <td class="right">${inv.pricing.basePrice.toFixed(2)} €</td>
+    </tr>
+    ${inv.pricing.holidayExtra && inv.pricing.holidayExtra>0 ? `
+    <tr>
+      <td>Feiertagszuschlag (10% • ${inv.pricing.holidayDays||0} Tag(e))</td>
+      <td class="right">${inv.pricing.holidayExtra.toFixed(2)} €</td>
+    </tr>` : ``}
+
+    <tr>
+      <td>Zuschläge (%)</td>
+      <td class="right">${inv.pricing.percentExtra.toFixed(2)} €</td>
+    </tr>
+    <tr>
+      <td>Zuschläge (fix)</td>
+      <td class="right">${inv.pricing.fixedExtra.toFixed(2)} €</td>
+    </tr>
+    <tr>
+      <th>Gesamt</th>
+      <th class="right">${inv.pricing.total.toFixed(2)} €</th>
+    </tr>
+  </table>
+
+  <p class="small" style="margin-top:18px">
+    Bitte überweise den Rechnungsbetrag unter Angabe der Rechnungsnummer auf folgendes Konto:<br>
+    <strong>${COMPANY.bank.name}</strong><br>
+    IBAN: ${COMPANY.bank.iban}<br>
+    BIC: ${COMPANY.bank.bic}<br>
+    <br>
+    Vielen Dank!
+  </p>
+
+  <script>
+    window.print();
+    window.onafterprint = () => window.close();
+  </script>
+
+</body>
+</html>
+  `);
+
+  w.document.close();
+}
+function loadState(){try{const raw=localStorage.getItem(LS_KEY);return raw?JSON.parse(raw):{dogs:[],docs:[]};}catch{return {dogs:[],docs:[]};}}
+function saveState(){
+  try{
+    state._localUpdatedAt = Date.now();
+    localStorage.setItem(LS_KEY,JSON.stringify(state));
+  }catch(e){
+    console.error("Local save failed", e);
+  }
+  SYNC.localSavedAt = (state && state._localUpdatedAt) ? state._localUpdatedAt : Date.now();
+  // P1.2a: erstes erfolgreiches Speichern in dieser Session markiert "Sync: erfolgreich"
+  if(!SYNC.sessionOkAt){
+    SYNC.sessionOkAt = SYNC.localSavedAt;
+  }
+  updateSyncUI();
+  // Cloud Sync (Weg 2B): Änderungen nach außen spiegeln
+  if(CLOUD.enabled && CLOUD.user) cloudSchedulePush();
+}
+
+function ensureDefaultDog(){
+  if(!state.dogs || state.dogs.length===0){
+    state.dogs=[{id:uid(),name:"— Bitte auswählen —",owner:"",phone:"",isPlaceholder:true}];
+  }
+}
+function syncDogSelect(){
+  ensureDefaultDog();
+  $("#dogSelect").innerHTML=state.dogs.map(d=>{
+    const label=d.isPlaceholder?d.name:`${d.owner?d.owner+" – ":""}${d.name}`;
+    return `<option value="${d.id}">${escapeHtml(label)}</option>`;
+  }).join("");
+}
+function renderDogs(){
+  // Etappe 2: primär pets/customers anzeigen, fallback auf legacy dogs
+  ensureStateShape();
+  ensureContractDefaults();
+  const list = $("#dogList");
+  if(!list) return;
+  list.innerHTML = "";
+
+  const pets = (state.pets||[]).slice().sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"de"));
+
+  if(pets.length){
+    pets.forEach(p=>{
+      const c = getCustomer(p.customerId);
+      const el = document.createElement("div");
+      el.className = "item";
+      const chipTxt = p.chip ? (` · Chip: ${escapeHtml(p.chipNumber||"ja")}`) : "";
+      const badge = contractBadge(p.customerId, p.id);
+      el.innerHTML = `<div><strong>${escapeHtml(p.name||"Hund")}</strong><small>${escapeHtml(c?.name||"")} · ${escapeHtml(c?.phone||"")}${chipTxt}${badge}</small></div>
+        <div class="actions"><button class="smallbtn" data-e="1">Bearbeiten</button><button class="smallbtn" data-d="1">Löschen</button></div>`;
+      el.querySelector('[data-e="1"]').onclick = ()=>openCpEditor("edit", p.id);
+      el.querySelector('[data-d="1"]').onclick = ()=>{
+        if(confirm("Hund wirklich löschen? (Aufenthalte/Rechnungen bleiben als Historie bestehen)")){
+          state.pets = state.pets.filter(x=>x.id!==p.id);
+          // legacy dog nicht automatisch löschen (Sicherheit), aber Mapping entfernen
+          for(const dogId of Object.keys(state._legacy?.dogIdToPetId||{})){
+            if(state._legacy.dogIdToPetId[dogId]===p.id){
+              delete state._legacy.dogIdToPetId[dogId];
+              delete state._legacy.dogIdToCustomerId[dogId];
+            }
+          }
+          saveState(); renderDogs(); syncDogSelect();
+        }
+      };
+      list.appendChild(el);
+    });
+  } else {
+    // fallback legacy
+    ensureDefaultDog();
+    const dogs = state.dogs.filter(d=>!d.isPlaceholder);
+    dogs.forEach(d=>{
+      const el=document.createElement("div");
+      el.className="item";
+      el.innerHTML=`<div><strong>${escapeHtml(d.name)}</strong><small>${escapeHtml(d.owner||"")} · ${escapeHtml(d.phone||"")}</small></div>
+        <div class="actions"><button class="smallbtn" data-e="1">Bearbeiten</button><button class="smallbtn" data-d="1">Löschen</button></div>`;
+      el.querySelector('[data-e="1"]').onclick=()=>openCpEditor("new"); // legacy fallback: einfach neu anlegen
+      el.querySelector('[data-d="1"]').onclick=()=>{
+        if(confirm("Hund/Kunde wirklich löschen?")){
+          state.dogs=state.dogs.filter(x=>x.id!==d.id);
+          saveState(); renderDogs();
+        }
+      };
+      list.appendChild(el);
+    });
+    if(!dogs.length) list.innerHTML=`<div class="muted">Noch keine Hunde/Kunden angelegt.</div>`;
+  }
+
+  refreshCustomerSelect();
+  syncDogSelect();
+}
+
+$("#btnAddDog").addEventListener("click",()=>openCpEditor("new"));
+
+$("#btnCpCancel").addEventListener("click",()=>closeCpEditor());
+
+$("#btnCpSave").addEventListener("click",()=>{
+  ensureStateShape();
+  ensureContractDefaults();
+
+  const mode = cpEdit.mode;
+  const useExisting = $("#useExistingCustomer").checked && (state.customers||[]).length>0;
+
+  let customer = null;
+  let customerId = "";
+
+  if(useExisting && $("#customerSelect").value){
+    customerId = $("#customerSelect").value;
+    customer = getCustomer(customerId);
+  } else {
+    const name = $("#c_name").value.trim();
+    if(!name){ alert("Bitte Kundennamen eintragen."); return; }
+    const phone = $("#c_phone").value.trim();
+    if(!phone){ alert("Bitte eine Telefonnummer eintragen."); return; }
+    customer = {
+      id: uid(),
+      name,
+      phone: $("#c_phone").value.trim(),
+      email: $("#c_email").value.trim(),
+      street: $("#c_street").value.trim(),
+      zip: $("#c_zip").value.trim(),
+      city: $("#c_city").value.trim(),
+      emergencyName: $("#c_em_name").value.trim(),
+      emergencyPhone: $("#c_em_phone").value.trim(),
+      pickupAuth: $("#c_pickup_auth").value.trim(),
+      note: $("#c_note").value.trim(),
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
+    state.customers.push(customer);
+    customerId = customer.id;
+  }
+
+  const petName = $("#p_name").value.trim();
+  if(!petName){ alert("Bitte Hundename eintragen."); return; }
+  const csNew = $("#p_chipStatus").value;
+  if(!csNew){ alert("Bitte bei „Gechippt?“ Ja oder Nein wählen."); return; }
+  const chipNew = (csNew==="yes");
+  const chipNrNew = $("#p_chipNumber").value.trim();
+  if(chipNew && !chipNrNew){ alert("Bitte die Chipnummer eintragen."); return; }
+
+  if(mode==="edit" && cpEdit.petId){
+    const pet = getPet(cpEdit.petId);
+    if(!pet){ alert("Hund nicht gefunden."); return; }
+
+    // Update customer (wenn Felder aktiv / edit)
+    if(customer && customer.id){
+      customer.name = $("#c_name").value.trim() || customer.name;
+      customer.phone = $("#c_phone").value.trim();
+      if(!customer.phone){ alert("Bitte eine Telefonnummer eintragen."); return; }
+      customer.email = $("#c_email").value.trim();
+      customer.street = $("#c_street").value.trim();
+      customer.zip = $("#c_zip").value.trim();
+      customer.city = $("#c_city").value.trim();
+      customer.emergencyName = $("#c_em_name").value.trim();
+      customer.emergencyPhone = $("#c_em_phone").value.trim();
+      customer.pickupAuth = $("#c_pickup_auth").value.trim();
+      customer.note = $("#c_note").value.trim();
+      customer.updatedAt = Date.now();
+    }
+
+    pet.customerId = customerId || pet.customerId;
+    pet.name = petName;
+    pet.breed = $("#p_breed").value.trim();
+    pet.birthdate = $("#p_birthdate").value;
+    const cs = $("#p_chipStatus").value;
+    if(!cs){ alert("Bitte bei „Gechippt?“ Ja oder Nein wählen."); return; }
+    pet.chip = (cs==="yes");
+    pet.chipNumber = $("#p_chipNumber").value.trim();
+    if(pet.chip && !pet.chipNumber){ alert("Bitte die Chipnummer eintragen."); return; }
+    pet.vet = $("#p_vet").value.trim();
+    pet.vetPhone = $("#p_vetPhone").value.trim();
+    pet.allergies = $("#p_allergies").value.trim();
+    pet.meds = $("#p_meds").value.trim();
+    pet.food = $("#p_food").value.trim();
+    pet.feeding = $("#p_feeding").value.trim();
+    pet.compat = $("#p_compat").value.trim();
+    pet.behavior = $("#p_behavior").value.trim();
+    pet.note = $("#p_note").value.trim();
+    pet.updatedAt = Date.now();
+
+    upsertLegacyDogForPet(pet, getCustomer(pet.customerId));
+    saveState();
+    closeCpEditor();
+    renderDogs();
+    return;
+  }
+
+  // mode new: create pet
+  const pet = {
+    id: uid(),
+    customerId,
+    name: petName,
+    breed: $("#p_breed").value.trim(),
+    birthdate: $("#p_birthdate").value,
+    chip: chipNew,
+    chipNumber: chipNrNew,
+    vet: $("#p_vet").value.trim(),
+    vetPhone: $("#p_vetPhone").value.trim(),
+    allergies: $("#p_allergies").value.trim(),
+    meds: $("#p_meds").value.trim(),
+    food: $("#p_food").value.trim(),
+    feeding: $("#p_feeding").value.trim(),
+    compat: $("#p_compat").value.trim(),
+    behavior: $("#p_behavior").value.trim(),
+    note: $("#p_note").value.trim(),
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  };
+  state.pets.push(pet);
+
+  upsertLegacyDogForPet(pet, getCustomer(customerId));
+
+  state.schemaVersion = Math.max(state.schemaVersion||1, 2);
+  saveState();
+  closeCpEditor();
+  renderDogs();
+});
+
+
+function renderDocs(){
+  const list=$("#docList");
+  list.innerHTML="";
+  const docs=(state.docs||[]).filter(d=>d.type!=="invoice").slice().sort((a,b)=> (b.updatedAt||"").localeCompare(a.updatedAt||""));
+  docs.forEach(d=>list.appendChild(docItem(d)));
+  if(!docs.length) list.innerHTML=`<div class="muted">Noch keine Aufenthalte erstellt.</div>`;
+  renderRecent();
+}
+function renderRecent(){
+  const list=$("#recentList");
+  const docs=(state.docs||[]).filter(d=>d.type!=="invoice").slice().sort((a,b)=> (b.updatedAt||"").localeCompare(a.updatedAt||"")).slice(0,3);
+  list.innerHTML="";
+  docs.forEach(d=>list.appendChild(docItem(d)));
+  if(!docs.length) list.innerHTML=`<div class="muted">Noch keine Aufenthalte.</div>`;
+}
+function docItem(d){
+  const el=document.createElement("div");
+  el.className="item";
+  const dt=new Date(d.updatedAt).toLocaleString("de-DE");
+  const subtitle = `${escapeHtml(d.templateName||"")}${d.saved ? " · abgeschlossen" : " · offen"} · zuletzt: ${dt}`;
+  const actions = document.createElement("div");
+  actions.className = "actions";
+
+  const btnOpen = document.createElement("button");
+  btnOpen.className = "smallbtn";
+  btnOpen.textContent = "Öffnen";
+  btnOpen.onclick = ()=>openDoc(d.id);
+
+  const btnPdf = document.createElement("button");
+  btnPdf.className = "smallbtn";
+  btnPdf.textContent = "PDF";
+  btnPdf.onclick = ()=>{openDoc(d.id); setTimeout(()=>printDoc(),150);};
+
+  const btnDelete = document.createElement("button");
+  btnDelete.className = "smallbtn";
+  btnDelete.textContent = "Löschen";
+  btnDelete.onclick = ()=>{
+    if(confirm("Aufenthalt wirklich löschen?")){
+      state.docs=state.docs.filter(x=>x.id!==d.id);
+      saveState(); renderDocs();
+    }
+  };
+
+  actions.appendChild(btnOpen);
+  actions.appendChild(btnPdf);
+
+  // Abschluss: Schnell neuen Aufenthalt als Kopie anlegen
+  if(d.saved){
+    const btnNew = document.createElement("button");
+    btnNew.className = "smallbtn";
+    btnNew.textContent = "➕ Neuer Aufenthalt";
+    btnNew.onclick = ()=>{
+      createStayFromExisting(d.id);
+    };
+    actions.appendChild(btnNew);
+  }
+
+  actions.appendChild(btnDelete);
+
+  el.innerHTML = `<div><strong>${escapeHtml(d.title||"Aufenthalt")}</strong><small>${subtitle}</small></div>`;
+  el.appendChild(actions);
+  return el;
+}
+
+function createStayFromExisting(docId){
+  const src = (state.docs||[]).find(x=>x.id===docId);
+  if(!src) return;
+
+  const t = getTemplate(src.templateId);
+  const now = new Date().toISOString();
+  const copy = JSON.parse(JSON.stringify(src));
+
+  copy.id = uid();
+  copy.saved = false;
+  copy.signature = null;
+  copy.versionOf = null;
+
+  // Zeitraum/Meta neu
+  copy.meta = copy.meta || {};
+  copy.meta.von = "";
+  copy.meta.bis = "";
+  // Betreuungstyp mitnehmen (spart Klicks)
+  copy.meta.betreuung = src.meta?.betreuung || "";
+
+  // Preis neu berechnen wenn Zeitraum gesetzt wird
+  delete copy.pricing;
+
+  copy.createdAt = now;
+  copy.updatedAt = now;
+  copy.title = (t?.name || src.title || "Aufenthalt");
+
+  state.docs.unshift(copy);
+  saveState();
+  openDoc(copy.id);
+}
+$("#btnNewDoc").addEventListener("click",()=>createDoc($("#templateSelect").value));
+function createDoc(tid){
+  const t=getTemplate(tid);
+  if(!t) return;
+  ensureStateShape();
+  ensureContractDefaults();
+  // Etappe 3: Standardauswahl = erster Hund aus neuem Stamm (falls vorhanden)
+  let defaultDogId = state.dogs?.[0]?.id || "";
+  if((state.pets||[]).length){
+    const pet = state.pets[0];
+    const legacyDogId = getLegacyDogIdForPet(pet.id);
+    if(legacyDogId){
+      defaultDogId = legacyDogId;
+    } else {
+      const cust = getCustomer(pet.customerId);
+      defaultDogId = upsertLegacyDogForPet(pet, cust) || defaultDogId;
+    }
+  }
+  const now = new Date().toISOString();
+  const docObj={id:uid(),templateId:t.id,templateName:t.name,title:t.name,dogId:defaultDogId,petId:"",customerId:"",fields:{},signature: null,saved: false,
+versionOf: null,meta: {
+  betreuung: "",
+  von: "",
+  bis: ""
+},createdAt:now,updatedAt:now};
+  ensureDocLinks(docObj);
+  state.docs=state.docs||[];
+  state.docs.unshift(docObj);
+  saveState();
+  openDoc(docObj.id);
+}
+
+let currentDoc=null, dirty=false;
+function normalizeMeta(doc){
+  doc.meta = doc.meta || {};
+  doc.meta.betreuung = doc.meta.betreuung || "";
+  doc.meta.von = doc.meta.von || "";
+  doc.meta.bis = doc.meta.bis || "";
+}
+function renderVersions(doc){
+  const box = document.getElementById("versionBox");
+  if(!box) return;
+
+  const versions = getDocumentVersions(doc);
+
+  if(versions.length <= 1){
+    box.innerHTML = "<strong>Versionen:</strong> Nur diese Version vorhanden.";
+    return;
+  }
+
+  box.innerHTML = `
+    <strong>Versionen:</strong>
+    <ul style="margin:6px 0 0 16px">
+      ${versions.map((v,i)=>`
+        <li>
+          ${v.id === doc.id ? "➡️ <strong>" : ""}
+          Version ${i+1}
+          (${new Date(v.createdAt).toLocaleString("de-DE")})
+          ${v.saved ? "✔️" : "✏️"}
+          ${v.id === doc.id ? "</strong>" : ""}
+        </li>
+      `).join("")}
+    </ul>
+  `;
+}
+function openDoc(id){
+updateCreateInvoiceButton();
+  currentDoc=(state.docs||[]).find(d=>d.id===id);
+  if(!currentDoc) return;
+  ensureDocLinks(currentDoc);
+  updateDocCustomerPetFromDogId(currentDoc);
+normalizeMeta(currentDoc);
+  $("#editorTitle").textContent=currentDoc.title||"Dokument";
+  $("#editorMeta").textContent=currentDoc.templateName;
+  $("#docName").value=currentDoc.title||"";
+  syncDogSelect();
+  $("#dogSelect").value=currentDoc.dogId||state.dogs?.[0]?.id||"";
+  renderCustomerInfoForDogId($("#dogSelect").value);
+  renderEditor(currentDoc);
+  updateContractWarnBanner(currentDoc);
+  autofillHundeannahmeFieldsFromMaster($("#dogSelect").value, { overwrite:false });
+renderVersions(currentDoc);
+
+  // Quicklinks im Aufenthalt (Medikation/Gesundheit)
+  try{ renderStayQuickLinks(currentDoc); }catch(e){ console.warn('renderStayQuickLinks failed', e); }
+  
+  $("#dsGvoText").textContent=getTemplate(currentDoc.templateId)?.dsGvoNote||"";
+  dirty=false;
+  showPanel("editor");
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+
+function renderForm(docObj){
+  const root=$("#formRoot"); root.innerHTML="";
+  const t=getTemplate(docObj.templateId);
+  t.sections.forEach(sec=>{
+    const card=document.createElement("div");
+    card.className="card";
+    card.innerHTML=`<h2>${escapeHtml(sec.title)}</h2>`;
+    sec.fields.forEach(f=>card.appendChild(renderField(f, docObj.fields[f.key], docObj)));
+    root.appendChild(card);
+  });
+  const meta=document.createElement("div");
+  meta.className="card";
+  meta.innerHTML=`<h2>Ort / Datum</h2>`;
+  t.meta.forEach(f=>meta.appendChild(renderField(f, docObj.meta[f.key], docObj)));
+  root.appendChild(meta);
+  updateAutoHolidayFields();
+const sigCard = document.createElement("div");
+sigCard.className = "card";
+
+const sig = docObj.signature;
+
+sigCard.innerHTML = `
+  <h2>Unterschrift</h2>
+  ${
+    sig
+      ? `<p class="muted">
+           ✔ Unterschrieben am ${new Date(sig.signedAt).toLocaleString("de-DE")}
+         </p>`
+      : `<button id="btnSignatureOpen" class="primary">
+           ✍️ Unterschrift erfassen
+         </button>`
+  }
+`;
+
+root.appendChild(sigCard);
+
+  // Betreuungsvertrag – aus Aufenthalt erzeugen/öffnen
+  const contractCard = document.createElement("div");
+  contractCard.className = "card";
+  if(docObj.dogId){
+    contractCard.innerHTML = `
+      <h2>Betreuungsvertrag</h2>
+      <p class="muted">Erzeuge/öffne den Vertrag automatisch für den ausgewählten Hund.</p>
+      <button id="btnContractFromStay" class="btn">📄 Betreuungsvertrag öffnen</button>
+    `;
+  }else{
+    contractCard.innerHTML = `
+      <h2>Betreuungsvertrag</h2>
+      <p class="muted">Bitte zuerst einen Hund auswählen, dann kannst du den Vertrag erzeugen.</p>
+    `;
+  }
+  root.appendChild(contractCard);
+
+}
+function renderField(f,value,docObj){
+  const wrap=document.createElement("label");
+  wrap.className="field"; wrap.style.minWidth="260px";
+  wrap.innerHTML=`<span>${escapeHtml(f.label)}${f.required?" *":""}</span>`;
+  let input;
+  if(f.type==="textarea"){ input=document.createElement("textarea"); input.value=value||""; }
+  else if(f.type==="select"){ input=document.createElement("select"); input.innerHTML=(f.options||[]).map(o=>`<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join(""); input.value=value||(f.options?.[0]||""); }
+  else if(f.type==="checkbox"){ input=document.createElement("input"); input.type="checkbox"; input.checked=!!value; input.style.width="22px"; input.style.height="22px"; }
+  else { input=document.createElement("input"); input.type=f.type||"text"; input.value=value||""; }
+  input.dataset.key=f.key; input.dataset.ftype=f.type;
+  input.oninput = () => {
+  if (currentDoc.saved) {
+    forkDocument();
+  }
+  dirty = true;
+};
+
+input.onchange = () => {
+  if (currentDoc.saved) {
+    forkDocument();
+  }
+  dirty = true;
+  // Auto-Feiertage neu berechnen, wenn Zeitraum geändert wird
+  if(f && (f.key==="von" || f.key==="bis")){
+    try { updateAutoHolidayFields(); } catch(e){}
+  }
+};
+if (currentDoc.saved) {
+  input.disabled = true;
+}
+  // readonly/auto fields (z.B. Feiertage)
+  if(f.readonly){
+    input.disabled = true;
+    input.classList.add("is-readonly");
+  }
+  
+wrap.appendChild(input);
+  return wrap;
+}
+
+$("#dogSelect").addEventListener("change", () => {
+  if (currentDoc.saved) {
+    forkDocument();
+  }
+  // Etappe 3: Halter-/Hund-Info anzeigen + doc verknüpfen
+  currentDoc.dogId = $("#dogSelect").value;
+  ensureDocLinks(currentDoc);
+  updateDocCustomerPetFromDogId(currentDoc);
+  renderCustomerInfoForDogId(currentDoc.dogId);
+  updateContractWarnBanner(currentDoc);
+  autofillHundeannahmeFieldsFromMaster(currentDoc.dogId, { overwrite:false });
+  try{ renderStayQuickLinks(currentDoc); }catch(e){}
+  dirty = true;
+});
+
+$("#btnSave").addEventListener("click",()=>saveCurrent(true));
+$("#btnClose").addEventListener("click",()=>{
+  if(dirty && !confirm("Änderungen sind nicht gespeichert. Schließen?")) return;
+  $$(".tab").forEach((t,i)=>t.classList.toggle("is-active", i===0));
+  showPanel("home");
+  renderDocs();
+});
+
+function collectForm(){
+  const t=getTemplate(currentDoc.templateId);
+  const fields={}, meta={};
+  $$("#formRoot [data-key]").forEach(inp=>{
+    const key=inp.dataset.key, type=inp.dataset.ftype;
+    const val=(type==="checkbox")?inp.checked:inp.value;
+    if(t.meta.some(m=>m.key===key)) meta[key]=val; else fields[key]=val;
+  });
+  return {fields, meta};
+}
+function validate(docObj,t){
+  const errs=[];
+  // Etappe 3: Hund muss gewählt sein (nicht Placeholder)
+  const d = (state.dogs||[]).find(x=>x.id===docObj.dogId);
+  if(!docObj.dogId || (d && d.isPlaceholder)) errs.push("Hund");
+  t.sections.forEach(sec=>sec.fields.forEach(f=>{
+    if(!f.required) return;
+    const v=docObj.fields[f.key];
+    if(f.type==="checkbox"){ if(!v) errs.push(f.label); }
+    else { if(!v || String(v).trim()==="") errs.push(f.label); }
+  }));
+  t.meta.forEach(f=>{ if(f.required){const v=docObj.meta[f.key]; if(!v||String(v).trim()==="") errs.push(f.label);} });
+  if(!docObj.signature || !docObj.signature.dataUrl)
+  errs.push("Unterschrift");
+  return errs;
+}
+function updateCreateInvoiceButton(){
+  const btn = document.getElementById("btnCreateInvoice");
+  if(btn) btn.style.display = "none";
+
+// Sync currentDoc with current form inputs WITHOUT saving/re-rendering.
+// This prevents losing typed values when opening overlays (e.g., signature, contract).
+function syncCurrentDocFromForm(){
+  if(!currentDoc) return;
+  // If editor UI isn't present, nothing to sync.
+  const nameEl = document.getElementById("docName");
+  const dogEl  = document.getElementById("dogSelect");
+  if(!nameEl || !dogEl) return;
+
+  const t = getTemplate(currentDoc.templateId);
+  if(!t) return;
+
+  const { fields, meta } = collectForm();
+  currentDoc.title = (nameEl.value || "").trim() || currentDoc.templateName || currentDoc.title || "Dokument";
+  currentDoc.dogId = dogEl.value || currentDoc.dogId || "";
+  ensureDocLinks(currentDoc);
+  currentDoc.fields = fields;
+  currentDoc.meta = meta;
+
+  // pricing logic (keep consistent with saveCurrent)
+  if (currentDoc.meta?.betreuung && currentDoc.meta?.von && currentDoc.meta?.bis) {
+    calculateInvoicePricing(currentDoc);
+  }
+
+  dirty = true;
+}
+}
+
+function saveCurrent(alertOk){
+updateCreateInvoiceButton();
+  if(!currentDoc) return false;
+  const t=getTemplate(currentDoc.templateId);
+  const {fields, meta}=collectForm();
+  currentDoc.title=$("#docName").value.trim()||currentDoc.templateName;
+  currentDoc.dogId=$("#dogSelect").value;
+  ensureDocLinks(currentDoc);
+  currentDoc.fields=fields;
+currentDoc.meta=meta;
+
+// 🔢 Preislogik anwenden
+if (currentDoc.meta?.betreuung && currentDoc.meta?.von && currentDoc.meta?.bis) {
+  calculateInvoicePricing(currentDoc);
+}
+
+  currentDoc.meta=meta;
+$("#docName").disabled = currentDoc.saved;
+$("#dogSelect").disabled = currentDoc.saved;
+  
+  const errs=validate(currentDoc,t);
+  if(errs.length){
+    alert("Bitte noch ausfüllen/abhaken:\n\n• "+errs.join("\n• "));
+    return false;
+  }
+const type = currentDoc.meta.betreuung;
+const from = currentDoc.meta.von;
+const to   = currentDoc.meta.bis;
+
+const used = countOccupancy(type, from, to, currentDoc.id);
+const limit = getMinCapacityForRange(type, from, to);
+
+if (used >= limit) {
+  alert(
+    `⚠️ Achtung:\n\n` +
+    `${used} von ${limit} Plätzen für "${type}" ` +
+    `im Zeitraum ${from} – ${to} sind bereits belegt.`
+  );
+}
+if (!currentDoc.signature){
+  alert("Bitte unterschreiben");
+  return false;
+}
+  currentDoc.saved = true;                             // 🔐 Dokument abschließen
+currentDoc.updatedAt = new Date().toISOString();
+
+// 🧾 Variante A: Rechnung automatisch beim Abschließen erstellen
+if(currentDoc.pricing){
+  const exists = (state.invoices||[]).some(x=>x.sourceDocId===currentDoc.id);
+  if(!exists){
+    createInvoiceFromDoc(currentDoc);
+  }
+}
+     // sauberer Zeitstempel
+
+// 🧼 Auto-Trigger: Quarantäne/Parasiten aus Aufenthalt ins Hygieneprotokoll schreiben
+try{ hygieneAutoFromStayDoc(currentDoc); }catch(e){ console.warn('hygieneAutoFromStayDoc failed', e); }
+
+saveState();renderDashboard(); renderTodayStatus();                                         // EINMAL speichern
+dirty = false;
+
+$("#editorTitle").textContent = currentDoc.title;
+if(alertOk) alert("Gespeichert");
+renderDocs();
+
+return true;
+
+}
+function createInvoiceFromDoc(doc){
+  if(!doc || !doc.pricing) return;
+
+  const year = new Date().getFullYear();
+  const number = String(state.nextInvoiceNumber).padStart(4, "0");
+
+  const invoice = {
+    id: uid(),
+    type: "invoice",
+
+    sourceDocId: doc.id,
+    dogId: doc.dogId,
+
+    // Etappe 4: Verknüpfung zum Kundenstamm (für Druck/Archiv)
+    customerId: (doc.customerId || getCustomerByDogId(doc.dogId)?.id || ""),
+    petId: (doc.petId || getPetByDogId(doc.dogId)?.id || ""),
+
+    period: {
+      from: doc.meta.von,
+      to: doc.meta.bis
+    },
+
+    pricing: {
+      // Basis: Tage * Tagespreis
+      basePrice: Number(doc.pricing.base || 0),
+
+      // Feiertagszuschlag: 10% nur auf Feiertags-TAGE
+      holidayDays: Number(doc.pricing.holidayDays || 0),
+      holidayExtra: Number(doc.pricing.holidayValue || 0),
+
+      // Prozent-/Fixzuschläge (als Beträge)
+      percentExtra: Number(doc.pricing.percentValue || 0),
+      fixedExtra: Number(doc.pricing.fixedExtra || 0),
+
+      total: Number(doc.pricing.total || 0)
+    },
+
+    status: "draft",
+
+    invoiceNumber: `${year}-${number}`,
+    invoiceDate: new Date().toISOString(),
+
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+
+  state.worklogs = Array.isArray(state.worklogs) ? state.worklogs : [];
+  state.invoices = Array.isArray(state.invoices) ? state.invoices : [];
+  state.invoices.push(invoice);
+  state.nextInvoiceNumber++;
+
+  saveState();
+  renderInvoiceList();
+}
+function forkDocument() {
+  if (!currentDoc || !currentDoc.saved) return;
+
+  const originalId = currentDoc.versionOf || currentDoc.id;
+
+  const fork = JSON.parse(JSON.stringify(currentDoc));
+
+  fork.id = uid();
+  fork.saved = false;
+  fork.versionOf = originalId;
+  fork.createdAt = new Date().toISOString();
+  fork.updatedAt = fork.createdAt;
+
+  // neue Version → neue Unterschrift erforderlich
+  fork.signature = null;
+
+  state.docs.unshift(fork);
+  currentDoc = fork;
+
+  saveState();
+}
+function getDocumentVersions(doc){
+  const rootId = doc.versionOf || doc.id;
+
+  return (state.docs || [])
+    .filter(d => d.id === rootId || d.versionOf === rootId)
+    .sort((a,b)=> new Date(a.createdAt) - new Date(b.createdAt));
+}
+
+// ===== Overlay-Signatur (Weg A) =====
+function openSignatureOverlay(onDone){
+  const overlay=document.createElement("div");
+  overlay.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center";
+  overlay.innerHTML=`
+    <div style="background:#fff;border-radius:14px;padding:12px;width:92%;max-width:560px">
+      <canvas id="sigCanvas" style="width:100%;height:180px;background:#fff;border:1px solid #ccc;border-radius:10px"></canvas>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+        <button id="sigClear">Löschen</button>
+        <button id="sigCancel">Abbrechen</button>
+        <button id="sigOk">Übernehmen</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  document.body.style.overflow="hidden";
+
+  const canvas=overlay.querySelector("#sigCanvas");
+  const ctx=canvas.getContext("2d");
+  const ratio=Math.max(window.devicePixelRatio||1,1);
+  const w=canvas.clientWidth,h=canvas.clientHeight;
+  canvas.width=w*ratio; canvas.height=h*ratio;
+  ctx.setTransform(ratio,0,0,ratio,0,0);
+  ctx.lineWidth=2.5; ctx.lineCap="round";
+
+  let draw=false,lx=0,ly=0;
+  const pos=e=>{
+    const r=canvas.getBoundingClientRect();
+    const p=e.touches?e.touches[0]:e;
+    return {x:p.clientX-r.left,y:p.clientY-r.top};
+  };
+  const start=e=>{draw=true;({x:lx,y:ly}=pos(e)); e.preventDefault();};
+  const move=e=>{
+    if(!draw) return;
+    const p=pos(e);
+    ctx.beginPath(); ctx.moveTo(lx,ly); ctx.lineTo(p.x,p.y); ctx.stroke();
+    lx=p.x; ly=p.y; e.preventDefault();
+  };
+  const end=()=>draw=false;
+
+  canvas.addEventListener("mousedown",start);
+  canvas.addEventListener("mousemove",move);
+  window.addEventListener("mouseup",end);
+  canvas.addEventListener("touchstart",start,{passive:false});
+  canvas.addEventListener("touchmove",move,{passive:false});
+  canvas.addEventListener("touchend",end);
+
+  overlay.querySelector("#sigClear").onclick=()=>ctx.clearRect(0,0,canvas.width,canvas.height);
+  overlay.querySelector("#sigCancel").onclick=close;
+  overlay.querySelector("#sigOk").onclick=()=>{onDone(canvas.toDataURL("image/png")); close();};
+
+  function close(){document.body.style.overflow=""; overlay.remove();}
+}
+
+document.addEventListener("click",(e)=>{
+
+  // Unterschrift im Aufenthalt erfassen (ohne Form-Reset)
+  if(e.target && e.target.id==="btnSignatureOpen"){
+    e.preventDefault();
+    syncCurrentDocFromForm(); // <- wichtige Zeile: typed values in currentDoc übernehmen
+    openSignatureOverlay(data=>{
+      if(!currentDoc) return;
+      currentDoc.signature = {
+        dataUrl: data,
+        signedAt: new Date().toISOString(),
+        dogId: currentDoc.dogId || null
+      };
+      dirty = true;
+      saveState(); // persist immediately
+      renderForm(currentDoc); // now safe (uses synced currentDoc)
+    });
+    return;
+  }
+
+  // Betreuungsvertrag aus aktuellem Aufenthalt öffnen
+  if(e.target && e.target.id==="btnContractFromStay"){
+    e.preventDefault();
+    if(!currentDoc){ alert("Kein Aufenthalt geöffnet."); return; }
+    syncCurrentDocFromForm();
+    openContractFromStay(currentDoc);
+    return;
+  }
+
+});
+
+$("#btnPrint").addEventListener("click",()=>printDoc());
+function printDoc(){
+  if(!currentDoc) return;
+  if(!saveCurrent(false)) return;
+  const t=getTemplate(currentDoc.templateId);
+  const dog=state.dogs.find(d=>d.id===currentDoc.dogId) || null;
+  const html=buildPrintHtml(currentDoc,t,dog);
+  openHtmlInModal('Druckvorschau', html, 'Schließen mit ✕. Für PDF: Drucken/Speichern → „Als PDF“ → in Dateien speichern.');
+}
+
+function buildPrintHtml(docObj,t,dog){
+  const dt=new Date(docObj.updatedAt).toLocaleString("de-DE");
+  const dogLine=dog && !dog.isPlaceholder ? `${dog.owner?escapeHtml(dog.owner)+" – ":""}${escapeHtml(dog.name)}` : "—";
+  const sigImg = docObj.signature
+  ? `<img class="sig" src="${docObj.signature.dataUrl}" alt="Unterschrift" />`
+  : "";
+  let out=`<div class="head"><div><h1>${escapeHtml(docObj.title||t.name)}</h1><div class="meta">Hund/Kunde: ${dogLine} · Stand: ${dt}</div></div><img class="logo" src="assets/logo.png" /></div>`;
+  t.sections.forEach(sec=>{
+    out+=`<h2>${escapeHtml(sec.title)}</h2><table>`;
+    sec.fields.forEach(f=>{
+      let v=docObj.fields[f.key];
+      if(f.type==="checkbox") v=v?"Ja":"Nein";
+      out+=`<tr><td class="k">${escapeHtml(f.label)}</td><td class="v">${escapeHtml(String(v??""))}</td></tr>`;
+    });
+    out+=`</table>`;
+  });
+  out+=`<h2>Ort / Datum</h2><table><tr><td class="k">Ort / Datum</td><td class="v">${escapeHtml(docObj.meta.ort_datum||"")}</td></tr></table>`;
+  out+=`<h2>Unterschrift Hundehalter</h2><div class="sigbox">${sigImg}</div>`;
+  out+=`<h2>Datenschutz (DSGVO)</h2><p class="note">${escapeHtml(t.dsGvoNote||"")}</p>`;
+  return `<!doctype html><html lang="de"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>${escapeHtml(docObj.title||"Dokument")}</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Arial,sans-serif;margin:28px;color:#111}
+.head{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:18px}
+.logo{height:44px}
+h1{margin:0;font-size:20px}
+.meta{color:#555;font-size:12px;margin-top:2px}
+h2{margin:18px 0 8px;font-size:14px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+td{padding:8px 10px;border:1px solid #ddd;vertical-align:top}
+td.k{width:38%;background:#fafafa;font-weight:700}
+.sigbox{border:1px solid #ddd;border-radius:12px;height:120px;display:flex;align-items:center;justify-content:center;background:#fff}
+.sig{max-height:105px;max-width:95%}
+.note{font-size:11px;color:#444;line-height:1.35}
+@media print{body{margin:16mm}}
+</style></head><body>${out}</body></html>`;
+}
+
+function doBackupExport(){
+  const blob=new Blob([JSON.stringify(state,null,2)],{type:"application/json"});
+  const a=document.createElement("a");
+  const stamp = toISODateLocal(new Date());
+  a.href=URL.createObjectURL(blob);
+  a.download=`DoggyStyleWorkspace_Backup_${stamp}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+const _btnExportAll = $("#btnExportAll");
+if(_btnExportAll) _btnExportAll.addEventListener("click", doBackupExport);
+
+const _btnBackupExport = document.getElementById('btnBackupExport');
+if(_btnBackupExport) _btnBackupExport.addEventListener('click', doBackupExport);
+
+
+const _btnMonthExport = document.getElementById('btnMonthExport');
+if(_btnMonthExport) _btnMonthExport.addEventListener('click', exportMonthBundle);
+
+const _btnMonthClose = document.getElementById('btnMonthClose');
+if(_btnMonthClose) _btnMonthClose.addEventListener('click', closeMonth);
+
+const _btnSteuerExport = document.getElementById('btnSteuerExport');
+if(_btnSteuerExport) _btnSteuerExport.addEventListener('click', showSteuerberaterExportInfo);
+
+const _btnExportMonthNow = document.getElementById('btnExportMonthNow');
+if(_btnExportMonthNow) _btnExportMonthNow.addEventListener('click', exportMonthBundle);
+
+const _btnExportSteuerNow = document.getElementById('btnExportSteuerNow');
+if(_btnExportSteuerNow) _btnExportSteuerNow.addEventListener('click', showSteuerberaterExportInfo);
+
+const _btnStaffAdd = document.getElementById('btnStaffAdd');
+if(_btnStaffAdd) _btnStaffAdd.addEventListener('click', ()=>{
+  ensureStateShape();
+  const inp = document.getElementById('staffNewName');
+  const name = inp && inp.value ? inp.value.trim() : "";
+  if(!name) return alert("Bitte Name eingeben.");
+  state.staff.people.push({ id: uid("stf"), name, active: true, createdAt: Date.now() });
+  if(inp) inp.value="";
+  syncStaffPresets();
+  saveState();
+  renderStaffSettings();
+  renderAll();
+});
+
+const _btnDocVersionsEdit = document.getElementById('btnDocVersionsEdit');
+if(_btnDocVersionsEdit) _btnDocVersionsEdit.addEventListener('click', ()=>{
+  alert("Tipp: Nutze „Version erhöhen“ bei den Dokumenten. Alte Versionen werden automatisch archiviert.");
+});
+
+
+const _btnBackupImport = document.getElementById('btnBackupImport');
+const _fileBackupImport = document.getElementById('fileBackupImport');
+
+if(_btnBackupImport && _fileBackupImport){
+  _btnBackupImport.addEventListener('click', ()=> _fileBackupImport.click());
+  _fileBackupImport.addEventListener('change', async (ev)=>{
+    const file = ev.target.files && ev.target.files[0];
+    if(!file) return;
+    try{
+      const txt = await file.text();
+      const data = JSON.parse(txt);
+      if(!data || typeof data !== 'object') throw new Error('Ungültiges Backup.');
+      if(!confirm('Backup importieren? Dies überschreibt den aktuellen Stand (lokal + Cloud).')) return;
+      state = data;
+      ensureStateShape();
+      ensureContractDefaults();
+      migrateToV2();
+      pruneInvoiceDocs();
+      ensureDefaultDog();
+      saveState();
+      renderDogs();
+      renderDocs();
+      renderInvoiceList();
+      alert('✅ Backup importiert.');
+    }catch(e){
+      console.error(e);
+      alert('❌ Import fehlgeschlagen: '+(e.message||e));
+    }finally{
+      try{ _fileBackupImport.value = ''; }catch(_){ }
+    }
+  });
+}
+
+$("#btnWipe").addEventListener("click",()=>{
+  if(!confirm("Wirklich alle lokalen Daten löschen?")) return;
+  localStorage.removeItem(LS_KEY);
+  location.reload();
+});
+
+async function boot(){
+  await loadTemplates();
+  ensureStateShape();
+  ensureContractDefaults();
+  migrateToV2();
+  pruneInvoiceDocs();
+  ensureDefaultDog();
+  saveState();
+  renderDogs();
+  renderDocs();
+  renderInvoiceList();
+  showPanel("home");
+}
+
+
+let __BOOT_DONE = false;
+async function bootOnce(){
+  if(__BOOT_DONE) return;
+  __BOOT_DONE = true;
+  await boot();
+}
+
+async function startApp(){
+  // 1) Wenn Cloud aktiviert: Login + Sync
+  const cloudOk = await cloudInit();
+  if(!cloudOk){
+    showAuthGate(false);
+    await bootOnce();
+    return;
+  }
+
+  // Option C: immer Login erzwingen (Session bei jedem Start beenden)
+  if(CLOUD.forceLoginAlways){
+    try{ await CLOUD.auth.signOut(); }catch(e){}
+    showAuthGate(true);
+  }
+
+
+  // Login UI wiring
+  const btnLogin = document.getElementById("btnLogin");
+  const btnRegister = document.getElementById("btnRegister");
+  const btnLogout = document.getElementById("btnLogout");
+  const btnLogoutApp = document.getElementById("btnLogoutApp");
+  const btnLogoutBottom = document.getElementById("btnLogoutBottom");
+  const btnNewStayTop = document.getElementById("btnNewStayTop");
+  const btnNewStayOnPage = document.getElementById("btnNewStayOnPage");
+  const btnQuickDogs = document.getElementById("btnQuickDogs");
+  const btnQuickInvoices = document.getElementById("btnQuickInvoices");
+  const btnQuickSettings = document.getElementById("btnQuickSettings");
+  const loginEmail = document.getElementById("loginEmail");
+  const loginPass = document.getElementById("loginPass");
+
+  if(btnLogin) btnLogin.onclick = async ()=>{
+    setAuthMsg("");
+    try{
+      await CLOUD.auth.signInWithEmailAndPassword((loginEmail?.value||"").trim(), loginPass?.value||"");
+    }catch(e){
+      console.error(e);
+      setAuthMsg(e.message||"Login fehlgeschlagen");
+      try{ alert('Login fehlgeschlagen: '+(e.code||e.message||e)); }catch(_){ }
+    }
+  };
+  if(btnRegister) btnRegister.onclick = async ()=>{
+    setAuthMsg("");
+    try{
+      await CLOUD.auth.createUserWithEmailAndPassword((loginEmail?.value||"").trim(), loginPass?.value||"");
+      setAuthMsg("Account erstellt. Bitte anmelden.");
+    }catch(e){
+      console.error(e);
+      setAuthMsg(e.message||"Registrierung fehlgeschlagen");
+      try{ alert('Registrierung fehlgeschlagen: '+(e.code||e.message||e)); }catch(_){ }
+    }
+  };
+  if(btnLogout) btnLogout.onclick = async ()=>{
+    await CLOUD.auth.signOut();
+  };
+  if(btnLogoutApp) btnLogoutApp.onclick = async ()=>{
+    try{ await CLOUD.auth.signOut(); }catch(e){}
+  };
+  if(btnLogoutBottom) btnLogoutBottom.onclick = ()=>performLogout();
+  if(btnNewStayTop) btnNewStayTop.onclick = ()=>{ try{ createStay(); }catch(e){ selectTab("documents"); } };
+  if(btnNewStayOnPage) btnNewStayOnPage.onclick = ()=>{ try{ createStay(); }catch(e){ selectTab("documents"); } };
+  if(btnQuickDogs) btnQuickDogs.onclick = ()=>selectTab("dogs");
+  if(btnQuickInvoices) btnQuickInvoices.onclick = ()=>selectTab("workforms");
+  if(btnQuickSettings) btnQuickSettings.onclick = ()=>selectTab("settings");
+
+
+  // Auth state
+  CLOUD.auth.onAuthStateChanged(async (user)=>{
+    CLOUD.user = user || null;
+    if(!user){
+      try{ const ba=document.querySelector(".bottom-actions"); if(ba) ba.style.display="none"; }catch(e){}
+
+      CLOUD.role = 'guest';
+      try{ if(btnLogoutApp) btnLogoutApp.style.display = 'none'; }catch(e){}
+      try{ if(btnLogout) btnLogout.style.display = 'none'; }catch(e){}
+      updateSyncUI();
+      // In dieser Version gibt es kein Login-Overlay mehr. Wenn nicht eingeloggt: auf Login-Seite umleiten.
+      try{
+        const p = (location && location.pathname) ? location.pathname.toLowerCase() : '';
+        // local/offline Nutzung erlauben: nicht hart auf login umleiten
+        // if(!p.endsWith('login.html')) location.href = 'login.html';
+      }catch(e){}
+      
+    try{ if(btnLogout) btnLogout.style.display = 'inline-flex'; }catch(e){}
+return;
+    }
+
+    // Login bei jedem Start erzwingen: wird beim Start durch signOut() erzwungen (kein Auto-Logout nach erfolgreichem Login)
+
+    // Rolle (v2): aus Firestore (mit Whitelist-Override)
+    try{
+      CLOUD.userProfile = await loadOrCreateUserProfile(user);
+      CLOUD.role = (CLOUD.userProfile && CLOUD.userProfile.role) ? CLOUD.userProfile.role : ROLES.STAFF;
+    }catch(e){
+      console.warn('Role load failed, fallback to staff', e);
+      CLOUD.role = ROLES.STAFF;
+    }
+
+    // Kunden-Portal: kein Workspace-State, keine Tabs
+    if(CLOUD.role === ROLES.CUSTOMER){
+      try{ await initCustomerPortal(); }catch(e){ console.error(e); }
+      return;
+    }
+
+    showAuthGate(false);
+    // Cloud-Erreichbarkeit prüfen, damit Status nicht erst nach einer Aktion auf Online springt
+    try{ scheduleCloudPing(50,'auth-login'); }catch(e){}
+    if(btnLogout) btnLogout.style.display = "inline-block";
+    if(btnLogoutApp) btnLogoutApp.style.display = "inline-block";
+    updateSyncUI();
+    if(btnLogoutApp) btnLogoutApp.style.display = "inline-block";
+
+    // staff/admin Features (Rollen, Aufgaben, Inbox)
+    try{ await initStaffFeatures(); }catch(e){ console.warn(e); }
+
+    // Sync UI initial
+    SYNC.cloudLastOkAt = Number(CLOUD.lastPushOkAt||0);
+    SYNC.cloudLastError = String(CLOUD.lastPushError||"");
+    updateSyncUI();
+
+    
+// Erstes Boot lokal (stellt state sicher), dann Remote zuverlässig einspielen
+await bootOnce();
+
+// Echtzeit-Listener (robust, inkl. erstem Snapshot)
+// Wichtig: Listener so früh wie möglich setzen, damit der initiale State auch bei iOS/Safari sicher kommt.
+try{
+  if(CLOUD._unsubWorkspace){ try{ CLOUD._unsubWorkspace(); }catch(_){ } }
+}catch(_){ }
+try{
+  const ref = cloudStateRef();
+  if(ref && ref.onSnapshot){
+    CLOUD._unsubWorkspace = ref.onSnapshot((snap)=>{
+      if(!snap || !snap.exists) return;
+      const data = snap.data() || {};
+      const stamp = Number(data.updatedAt || 0);
+      if(stamp){ SYNC.cloudLastSeenAt = stamp; updateSyncUI(); }
+
+      const remotePayload = data.payload || null;
+      const localUpdated = Number(state && state._localUpdatedAt || 0);
+      const localCloudStamp = Number(state && state._cloudUpdatedAt || 0);
+      const localEmpty = isStateEffectivelyEmpty(state);
+
+      // Falls lokal leer (z.B. LocalStorage von iOS geleert) -> Remote sofort übernehmen.
+      if(localEmpty && remotePayload){
+        applyRemoteState(remotePayload, stamp, "snapshot-initial");
+        return;
+      }
+
+      // Wenn wir lokal neuere Änderungen haben (noch nicht gepusht): Remote nicht drüberbügeln
+      if(localUpdated && stamp && stamp <= localUpdated) return;
+      if(stamp && stamp <= localCloudStamp) return;
+
+      // Nicht unsere eigene Änderung nochmal einspielen (aber nur, wenn lokal NICHT leer ist)
+      if(!localEmpty && CLOUD.user && (data.updatedBy === (CLOUD.user.email||CLOUD.user.uid))) return;
+
+      if(remotePayload){
+        applyRemoteState(remotePayload, stamp, "snapshot");
+      }
+    });
+  }
+}catch(e){
+  console.warn("Workspace onSnapshot failed", e);
+}
+
+// Initialer Remote-Read (mit Retry) + Merge-Entscheidung
+try{
+  const {remote, err} = await cloudLoadStateWithRetry(3);
+
+  const localUpdated = Number(state && state._localUpdatedAt || 0);
+  const localCloudStamp = Number(state && state._cloudUpdatedAt || 0);
+
+  if(!remote){
+    // Kein Remote gefunden oder Read zu früh/fehlgeschlagen -> bei lokalem Inhalt einmalig pushen
+    const hasLocalData =
+      (Array.isArray(state.pets) && state.pets.filter(p=>p && !p.isPlaceholder).length>0) ||
+      (Array.isArray(state.customers) && state.customers.length>0) ||
+      (Array.isArray(state.docs) && state.docs.length>0) ||
+      (Array.isArray(state.dogs) && state.dogs.filter(d=>d && !d.isPlaceholder).length>0);
+
+    if(hasLocalData && CLOUD.user){
+      try{ await cloudPushNow(); }catch(e){ console.warn('Initial cloud push failed', e); }
+    } else if(err){
+      console.warn("Initial cloud read failed (no remote), continuing local", err);
+    }
+  } else {
+    const remoteUpdated = Number(remote._cloudUpdatedAt || CLOUD._lastRemoteStamp || 0);
+    const localEmpty = isStateEffectivelyEmpty(state);
+
+    // Wenn lokal leer: Remote immer übernehmen
+    if(localEmpty){
+      applyRemoteState(remote, remoteUpdated, "initial-read-empty-local");
+    } else if(localUpdated && localUpdated > remoteUpdated){
+      // Lokal ist neuer -> lokal behalten und pushen
+      if(CLOUD.user){
+        try{ cloudSchedulePush(); }catch(_){ }
+      }
+    } else if(remoteUpdated && remoteUpdated >= localCloudStamp){
+      // Remote ist neuer/gleich -> übernehmen
+      applyRemoteState(remote, remoteUpdated, "initial-read");
+    }
+  }
+}catch(e){
+  console.error("Cloud load failed", e);
+  setAuthMsg("Cloud Sync konnte nicht geladen werden. App läuft lokal weiter.");
+}
+  });
+}
+
+
+  // Option C (iPad/PWA): auch beim "Wieder-Öffnen" (ohne Reload) Login erzwingen
+  if (CLOUD.forceLoginAlways) {
+    let _forcing = false;
+    const forceLoginNow = async () => {
+      if (_forcing) return;
+      _forcing = true;
+      try {
+        const u = CLOUD.auth && CLOUD.auth.currentUser;
+        if (u) {
+          await CLOUD.auth.signOut();
+        }
+      } catch (e) { /* ignore */ }
+      try { showAuthGate(true); } catch(e) {}
+      _forcing = false;
+    };
+
+        let __wasHidden = document.hidden;
+// Wenn die App wieder in den Vordergrund kommt (iPad PWA lädt oft nicht neu)
+    window.addEventListener("pageshow", () => { forceLoginNow(); });
+document.addEventListener("visibilitychange", () => {
+      const nowHidden = document.hidden;
+      if (__wasHidden && !nowHidden) forceLoginNow();
+      __wasHidden = nowHidden;
+    });
+}
+
+
+// Manuelles Speichern (Einstellungen)
+(function bindManualSave(){
+  const btn = document.getElementById("manualSaveBtn");
+  const info = document.getElementById("manualSaveStatus");
+  if(!btn) return;
+  btn.addEventListener("click", async ()=>{
+    try{
+      if(info) info.textContent = "Speichere…";
+      // erzwingt sofortigen Cloud-Push (ohne 700ms Debounce)
+      await cloudPushNow();
+      if(info) info.textContent = "✅ In Cloud gespeichert";
+      setTimeout(()=>{ if(info) info.textContent=""; }, 2500);
+    }catch(e){
+      if(info) info.textContent = "❌ Cloud-Speichern fehlgeschlagen";
+      console.error(e);
+      setTimeout(()=>{ if(info) info.textContent=""; }, 3500);
+    }
+  });
+})();
+
+// Start
+startApp().catch(console.error);
+// UI: Sync-Status regelmäßig auffrischen (auch bei Tab-Wechsel/PWA)
+setInterval(()=>{ try{ updateSyncUI(); }catch(_){ } }, 1500);
+window.addEventListener('online', ()=>{ try{ scheduleCloudPing(0,'online-event'); }catch(_){ try{ updateSyncUI(); }catch(__){} } });
+window.addEventListener('offline', ()=>{ try{ SYNC.cloudReachable=false; SYNC.cloudReachError='kein Internet'; SYNC.cloudReachCheckedAt=Date.now(); }catch(_){ } try{ updateSyncUI(); }catch(__){} });
+
+/* ===== B2.2a Freier Rechnungs-Editor ===== */
+function renderInvoiceEditorB2(doc){
+  // ===== B2.2c Rechnungsnummer (Pflichtfeld) =====
+
+  // ===== B2.3 Zahlungsstatus =====
+  if(!doc.paymentStatus){
+    doc.paymentStatus = "offen"; // offen | bezahlt | storniert
+  }
+
+  if(!doc.invoiceNumber || String(doc.invoiceNumber).trim()===""){
+    const year = new Date().getFullYear();
+    const count = (state.docs||[]).filter(d=>d.type==="invoice").length + 1;
+    doc.invoiceNumber = `${year}-${String(count).padStart(4,"0")}`;
+  }
+
+  const root = document.getElementById("formRoot");
+  if(!root) return;
+
+  // Basisfelder
+  doc.items = Array.isArray(doc.items) ? doc.items : [];
+  doc.date = doc.date || toISODateLocal(new Date());
+
+  function recalc(){
+    let net = 0;
+    doc.items.forEach(it=>{
+      const q = Number(it.qty)||0;
+      const p = Number(it.unitPrice)||0;
+      it.sum = Math.round(q*p*100)/100;
+      net += it.sum;
+    });
+    doc.net = Math.round(net*100)/100;
+    doc.tax = Math.round(doc.net*0.19*100)/100;
+    doc.total = Math.round((doc.net+doc.tax)*100)/100;
+  }
+
+  function redraw(){
+    recalc();
+    renderInvoiceEditorB2(doc);
+  }
+
+  recalc();
+
+  root.innerHTML = `
+    <h2>Freie Rechnung</h2>
+    <label class="field"><span>Rechnungsnummer *</span>
+      <input id="invoiceNumberInput" required />
+    </label>
+    <label class="field"><span>Zahlungsstatus</span>
+      <select id="paymentStatusSelect">
+        <option value="offen">offen</option>
+        <option value="bezahlt">bezahlt</option>
+        <option value="storniert">storniert</option>
+      </select>
+    </label>
+    <p><strong>Datum:</strong> ${doc.date}</p>
+
+    <table class="invoice-table">
+      <thead>
+        <tr>
+          <th>Position</th>
+          <th>Menge</th>
+          <th>Einzelpreis</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="invItems"></tbody>
+    </table>
+
+    <button id="addInvItem">+ Position hinzufügen</button>
+    <hr>
+    <p>Netto: ${doc.net.toFixed(2)} €</p>
+    <p>MwSt (19%): ${doc.tax.toFixed(2)} €</p>
+    <p><strong>Brutto: ${doc.total.toFixed(2)} €</strong></p>
+  `;
+
+  const numInput = document.getElementById("invoiceNumberInput");
+  const paySel = document.getElementById("paymentStatusSelect");
+  if(paySel){
+    paySel.value = doc.paymentStatus || "offen";
+    paySel.onchange = e=>{ doc.paymentStatus = e.target.value; };
+  }
+
+  if(numInput){
+    numInput.value = doc.invoiceNumber;
+    numInput.oninput = e=>{ doc.invoiceNumber = e.target.value.trim(); };
+  }
+const tbody = document.getElementById("invItems");
+  doc.items.forEach((it,i)=>{
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td><input value="${it.text||""}"></td>
+      <td><input type="number" step="1" value="${it.qty||1}"></td>
+      <td><input type="number" step="0.01" value="${it.unitPrice||0}"></td>
+      <td><button>x</button></td>
+    `;
+    const inputs = tr.querySelectorAll("input");
+    inputs[0].oninput=e=>{it.text=e.target.value;};
+    inputs[1].oninput=e=>{it.qty=e.target.value; redraw();};
+    inputs[2].oninput=e=>{it.unitPrice=e.target.value; redraw();};
+    tr.querySelector("button").onclick=()=>{doc.items.splice(i,1); redraw();};
+    tbody.appendChild(tr);
+  });
+
+  document.getElementById("addInvItem").onclick=()=>{
+    doc.items.push({text:"", qty:1, unitPrice:0});
+    redraw();
+  };
+}
+/* ===== Ende B2.2a ===== */
+
+
+// ===== AKTIVER Editor-Switch (B2.x) =====
+function renderEditor(doc){
+  const template = getTemplate(doc.templateId);
+  if(!template){
+    toast("Vorlage nicht gefunden");
+    return;
+  }
+
+  // 📄 Rechnung aus Betreuung → Anzeige
+  if(template.id === "rechnung" && doc.sourceDocId){
+    openInvoice(doc.id);
+    return;
+  }
+
+  // 📄 Rechnung Editor (falls genutzt)
+if(template.id === "rechnung"){
+  renderInvoiceEditorB2(doc);
+  return;
+}
+
+  // 🐶 Standard-Dokumente (z. B. Hundeannahme)
+  renderForm(doc);
+}
+
+function renderInvoiceEditor(doc, template){
+  const root = document.getElementById("formRoot");
+  if(!root) return;
+
+  root.innerHTML = "";
+
+  const data = doc.fields || {};
+  doc.fields = data;
+
+  const card = document.createElement("div");
+  card.className = "card";
+  card.innerHTML = "<h2>Rechnung</h2>";
+  root.appendChild(card);
+
+  template.fields.forEach(field=>{
+    const wrap = document.createElement("label");
+    wrap.className = "field";
+    wrap.style.minWidth = "260px";
+
+    wrap.innerHTML = `<span>${escapeHtml(field.label)}</span>`;
+
+    let input;
+    if(field.type === "select"){
+      input = document.createElement("select");
+      field.options.forEach(o=>{
+        const opt = document.createElement("option");
+        opt.value = o.value;
+        opt.textContent = o.label;
+        input.appendChild(opt);
+      });
+      input.value = data[field.key] || field.options[0].value;
+      input.onchange = ()=>{ data[field.key] = input.value; };
+    } else {
+      input = document.createElement("input");
+      input.type = field.type || "text";
+      input.value = data[field.key] || "";
+      input.oninput = ()=>{ data[field.key] = input.value; };
+    }
+
+    wrap.appendChild(input);
+    card.appendChild(wrap);
+  });
+
+  const price = document.createElement("div");
+  price.className = "card";
+  price.innerHTML = `
+    <h2>Gesamtbetrag</h2>
+    <strong id="invoiceTotal">
+      ${doc.pricing?.total?.toFixed(2) || "0.00"} €
+    </strong>
+  `;
+  root.appendChild(price);
+}
+
+function updatePriceBlock(){
+  const el=document.getElementById("total-price");
+  if(el) el.textContent="wird berechnet…";
+}
+// ===== Ende B1 =====
+
+
+// ===== Phase C: Safe Editor Wrapper =====
+function safeRenderEditor(template, doc){
+  try{
+    if(template && Array.isArray(template.sections)){
+      renderSectionsEditor(template, doc);
+    } else {
+      renderForm(doc);
+    }
+  } catch(e){
+    console.error("Editor-Fehler:", e);
+    const root = document.getElementById("formRoot");
+    if(root){
+      root.innerHTML = "<p style='color:red'>Dieses Dokument kann derzeit nicht angezeigt werden.</p>";
+    }
+  }
+}
+
+
+/* ===== Rechnung: Cent-basierte Rechenlogik ===== */
+function calculateInvoiceTotals(invoice){
+  if(!invoice || invoice.type !== "rechnung") return invoice;
+  let netto = 0;
+  (invoice.positionen || []).forEach(pos => {
+    const menge = Number(pos.menge || 0);
+    const preis = Number(pos.einzelpreisCent || 0);
+    netto += menge * preis;
+  });
+  const mwst = Math.round(netto * 0.19);
+  const brutto = netto + mwst;
+  invoice.summen = {
+    nettoCent: netto,
+    mwstCent: mwst,
+    bruttoCent: brutto
+  };
+  return invoice;
+}
+
+function formatEuroFromCent(cent){
+  const v = Number(cent||0) / 100;
+  return v.toFixed(2).replace(".", ",") + " €";
+}
+
+
+// ===== Contract (Etappe 7B) =====
+function getContractSignature(customerId, petId){
+  const v = state.contract?.version || "";
+  return (state.contractSignatures||[]).find(s=>s.customerId===customerId && s.petId===petId && s.contractVersion===v) || null;
+}
+function hasValidContract(customerId, petId){
+  return !!getContractSignature(customerId, petId);
+}
+function contractBadge(customerId, petId){
+  if(!customerId || !petId) return "";
+  return hasValidContract(customerId, petId) ? " · Vertrag: 🟢" : " · Vertrag: 🔴";
+}
+
+function updateContractWarnBanner(doc){
+  const box = document.getElementById("contractWarnBanner");
+  if(!box) return;
+
+  // Standard: aus
+  box.style.display = "none";
+  box.innerHTML = "";
+
+  if(!doc) return;
+
+  // nur bei Aufenthalten (hundeannahme)
+  const isStay = (doc.templateId === "hundeannahme" || doc.templateName === "Hundeannahme" || doc.type === "stay");
+  if(!isStay) return;
+
+  const customerId = doc.customerId || "";
+  const petId = doc.petId || "";
+  if(!customerId || !petId) return;
+
+  const valid = hasValidContract(customerId, petId);
+
+  box.style.display = "flex";
+  box.innerHTML = valid ? `
+    <div>✅ <strong>Betreuungsvertrag gültig.</strong> Du kannst den Vertrag jederzeit als PDF speichern.</div>
+    <div class="btnrow">
+      <button class="btn" type="button" id="btnPdfContract">📄 PDF</button>
+      <button class="btn ghost" type="button" id="btnGoContract">Vertrag ansehen</button>
+    </div>
+  ` : `
+    <div>⚠️ <strong>Betreuungsvertrag fehlt oder ist veraltet.</strong> Bitte vor Beginn unterschreiben lassen.</div>
+    <div class="btnrow">
+      <button class="btn" type="button" id="btnGoContract">Zum Vertrag</button>
+      <button class="btn ghost" type="button" id="btnPdfContract" disabled title="PDF erst nach gültiger Unterschrift verfügbar">📄 PDF</button>
+    </div>
+  `;
+
+  const go = document.getElementById("btnGoContract");
+  if(go){
+    go.onclick = ()=>{ selectTab("contract"); window.scrollTo({top:0,behavior:"smooth"}); };
+  }
+
+  const pdf = document.getElementById("btnPdfContract");
+  if(pdf && valid){
+    pdf.onclick = ()=>{ openContractPdfWindow(customerId, petId); };
+  }
+}
+
+
+function openContractPdfWindow(customerId, petId){
+  ensureContractDefaults();
+  const c = state.contract;
+  const sig = getContractSignature(customerId, petId);
+  if(!c || !sig){ alert("Für diese Auswahl liegt keine gültige Unterschrift vor."); return; }
+  const customer = getCustomer(customerId) || {};
+  const pet = getPet(petId) || {};
+  const signedAt = new Date(sig.signedAt || new Date().toISOString()).toLocaleString("de-DE");
+
+  const html = `<!doctype html>
+  <html lang="de"><head><meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${escapeHtml(c.title||"Betreuungsvertrag")} – PDF</title>
+  <style>
+    body{font-family: -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif; margin:24px; color:#111;}
+    .head{display:flex; align-items:center; gap:14px; margin-bottom:14px;}
+    .logo{width:64px; height:64px; object-fit:contain;}
+    .meta{color:#444; font-size:13px;}
+    .doc{margin-top:14px; line-height:1.45;}
+    h1{font-size:18px; margin:0;}
+    h2{font-size:15px; margin:18px 0 8px;}
+    .sig{margin-top:22px; padding-top:12px; border-top:1px solid #ddd;}
+    .sigrow{display:flex; gap:18px; align-items:flex-start; flex-wrap:wrap;}
+    .sigimg{width:320px; max-width:100%; border:1px solid #ddd; border-radius:10px; padding:6px;}
+    .small{font-size:12px; color:#444;}
+    @media print{ body{margin:10mm;} }
+  </style>
+  </head><body>
+    <div class="head">
+      <img class="logo" src="assets/logo.png" alt="Doggy Style"/>
+      <div>
+        <h1>${escapeHtml(c.title||"Betreuungsvertrag")}</h1>
+        <div class="meta">${escapeHtml(c.provider||"Doggy Style Hundepension")} · Version ${escapeHtml(c.version||"v1.0")} · Gültig ab ${escapeHtml(formatDateDE(c.validFrom||"2025-12-27"))}</div>
+        <div class="meta">Kunde: ${escapeHtml((customer.name||"")+" "+(customer.lastName||"")).trim() || escapeHtml(customer.email||"")} · Hund: ${escapeHtml(pet.name||"")}</div>
+        <div class="meta">Adresse: ${escapeHtml(formatCustomerAddress(customer) || "—")}</div>
+      </div>
+    </div>
+
+    <div class="doc">${c.text || DEFAULT_CONTRACT_TEXT}</div>
+
+    <div class="sig">
+      <h2>Digitale Unterschrift</h2>
+      <div class="sigrow">
+        <div>
+          <div class="small">Unterschrieben am: <strong>${escapeHtml(signedAt)}</strong></div>
+          <div class="small">Vertragsversion: <strong>${escapeHtml(sig.contractVersion)}</strong></div>
+        </div>
+        <img class="sigimg" src="${sig.signatureDataUrl}" alt="Unterschrift"/>
+      </div>
+      <p class="small">Hinweis: Speichern als PDF über „Drucken“ (Teilen → Drucken / als PDF sichern) je nach Gerät.</p>
+    </div>
+
+  </body></html>`;
+
+  openHtmlInModal('Betreuungsvertrag (Vorschau)', html, 'Schließen mit ✕. Für PDF: Drucken/Speichern → „Als PDF“ → in Dateien ablegen.');
+}
+
+function renderContractPanel(){
+  ensureContractDefaults();
+  const t = $("#contractText");
+  const titleEl = $("#contractTitle");
+  const metaEl = $("#contractMeta");
+  if(!t) return;
+
+  const c = state.contract;
+  titleEl.textContent = c.title || "Betreuungsvertrag";
+  metaEl.textContent = `${c.provider || "Doggy Style Hundepension"} · Version ${c.version} · Gültig ab ${formatDateDE(c.validFrom||"2025-12-27")}`;
+  t.innerHTML = c.text || DEFAULT_CONTRACT_TEXT;
+
+  // Admin box
+  const isAdmin = (CLOUD.role === "admin");
+  const adminBox = $("#contractAdminBox");
+  if(adminBox) adminBox.style.display = isAdmin ? "block" : "none";
+  if(isAdmin){
+    const edit = $("#contractEditText");
+    if(edit && !edit.value) edit.value = c.text || DEFAULT_CONTRACT_TEXT;
+    const btnReset = $("#contractResetEdit");
+    if(btnReset) btnReset.onclick = ()=>{ if(edit) edit.value = c.text || DEFAULT_CONTRACT_TEXT; };
+    const btnPub = $("#contractPublish");
+    if(btnPub) btnPub.onclick = ()=>{
+      if(!edit) return;
+      const newText = String(edit.value||"").trim();
+      if(newText.length < 200){ alert("Bitte einen vollständigen Vertragstext einfügen."); return; }
+      // bump minor version: v1.0 -> v1.1
+      const m = String(c.version||"v1.0").match(/^v(\d+)\.(\d+)$/);
+      let major=1, minor=0;
+      if(m){ major=parseInt(m[1],10); minor=parseInt(m[2],10); }
+      minor += 1;
+      c.version = `v${major}.${minor}`;
+      c.text = newText;
+      c.updatedAt = new Date().toISOString();
+      state.contract = c;
+      saveState();
+      alert(`Neue Version veröffentlicht: ${c.version}. Kunden müssen neu unterschreiben.`);
+      renderContractPanel();
+    };
+  }
+
+  // customer/pet selects
+  const cs = $("#contractCustomerSelect");
+  const ps = $("#contractPetSelect");
+  const customers = (state.customers||[]).slice().sort((a,b)=>String(a.lastName||"").localeCompare(String(b.lastName||""),"de"));
+  cs.innerHTML = customers.map(x=>`<option value="${x.id}">${escapeHtml((x.lastName? x.lastName+', ':'') + (x.firstName||''))}</option>`).join("") || `<option value="">(keine Kunden)</option>`;
+
+  function fillPets(){
+    const cid = cs.value;
+    const pets = (state.pets||[]).filter(p=>p.customerId===cid).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"de"));
+    ps.innerHTML = pets.map(p=>`<option value="${p.id}">${escapeHtml(p.name||"Hund")}</option>`).join("") || `<option value="">(keine Hunde)</option>`;
+    updateSignedInfo();
+  }
+
+  cs.onchange = fillPets;
+  fillPets();
+
+  // Wenn ein Hund gewählt wird, Kunde automatisch übernehmen (falls verknüpft)
+  ps.onchange = ()=>{
+    const selectedPetId = ps.value;
+    const pet = getPet(selectedPetId);
+    const targetCustomerId = pet ? (pet.customerId || "") : "";
+    if(targetCustomerId && cs.value !== targetCustomerId){
+      cs.value = targetCustomerId;
+      fillPets();
+      ps.value = selectedPetId; // Auswahl beibehalten
+    }
+    updateSignedInfo();
+  };
+
+
+  // signature pad
+  initContractSignaturePad();
+  $("#contractSigClear").onclick = ()=>{ clearContractSig(); };
+  const pdfBtn = document.getElementById("contractPdfBtn");
+  if(pdfBtn){
+    pdfBtn.onclick = ()=>{
+      const customerId = cs.value;
+      const petId = ps.value;
+      if(!customerId || !petId){ alert("Bitte Kunde und Hund auswählen."); return; }
+      const s = getContractSignature(customerId, petId);
+      if(!s){ alert("Für diese Auswahl liegt noch keine gültige Unterschrift vor."); return; }
+      openContractPdfWindow(customerId, petId);
+    };
+  }
+
+  $("#contractSignBtn").onclick = ()=>{
+    const customerId = cs.value;
+    const petId = ps.value;
+    if(!customerId || !petId){ alert("Bitte Kunde und Hund auswählen."); return; }
+    const chk = $("#contractAcceptChk");
+    if(!chk.checked){ alert("Bitte zuerst bestätigen, dass du den Vertrag gelesen und akzeptiert hast."); return; }
+    const dataUrl = getContractSigData();
+    if(!dataUrl){ alert("Bitte unterschreiben (Unterschriftsfeld)."); return; }
+
+    // Save signature
+    const sig = {
+      id: uid(),
+      customerId, petId,
+      contractVersion: state.contract.version,
+      signedAt: new Date().toISOString(),
+      signatureDataUrl: dataUrl
+    };
+
+    // Replace existing for this combo/version
+    state.contractSignatures = (state.contractSignatures||[]).filter(s=>!(s.customerId===customerId && s.petId===petId && s.contractVersion===sig.contractVersion));
+    state.contractSignatures.push(sig);
+    saveState();
+    clearContractSig();
+    chk.checked = false;
+    updateSignedInfo();
+    $("#contractStatusBanner").textContent = "✅ Vertrag gespeichert.";
+    setTimeout(()=>{ const b=$("#contractStatusBanner"); if(b) b.textContent=""; }, 1500);
+    // refresh lists where badges appear
+    renderDogs();
+  };
+
+  function updateSignedInfo(){
+    const customerId = cs.value;
+    const petId = ps.value;
+    const info = $("#contractSignedInfo");
+    const s = getContractSignature(customerId, petId);
+    if(!info) return;
+    if(s){
+      info.innerHTML = `🟢 Gültig unterschrieben am ${new Date(s.signedAt).toLocaleString("de-DE")} (Version ${escapeHtml(s.contractVersion)})`;
+    }else{
+      info.innerHTML = `🔴 Noch keine gültige Unterschrift für Version ${escapeHtml(state.contract.version)}.`;
+    }
+  }
+}
+
 // --- Signature Pad (inline) ---
 let _contractSig = {canvas:null, ctx:null, drawing:false, hasInk:false, last:null};
 
@@ -4345,35 +6846,6 @@ function openContractFromStay(doc){
   // UI polish: acceptance unchecked (owner should tick)
   const chk = document.getElementById("contractAcceptChk");
   if(chk) chk.checked = false;
-}
-
-
-function renderContractPanel(){
-  // Minimal, robust contract panel renderer: populates Kunde/Hund selects and ensures signature pad is active.
-  const cs = document.getElementById('contractCustomerSelect');
-  const ps = document.getElementById('contractPetSelect');
-  if(!cs || !ps) return;
-
-  const customers = (state.customers||[]).slice().sort((a,b)=>String(customerLabel(a)).localeCompare(String(customerLabel(b)), 'de'));
-  cs.innerHTML = ['<option value="">(Kunde wählen)</option>']
-    .concat(customers.map(c=>`<option value="${c.id}">${escapeHtml(customerLabel(c))}</option>`))
-    .join('');
-
-  const allPets = (state.pets||[]).slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''), 'de'));
-
-  function refreshPets(){
-    const cid = cs.value || '';
-    const pets = cid ? allPets.filter(p=>String(p.customerId||'')===String(cid)) : [];
-    ps.innerHTML = pets.length
-      ? pets.map(p=>`<option value="${p.id}">${escapeHtml(p.name||'Hund')}</option>`).join('')
-      : '<option value="">(keine Hunde)</option>';
-  }
-
-  cs.onchange = ()=>{ refreshPets(); };
-  refreshPets();
-
-  // Ensure signature pad + buttons are actually bound.
-  try{ initContractSignaturePad(); }catch(e){ console.warn('initContractSignaturePad failed', e); }
 }
 
 function initContractSignaturePad(){
@@ -5053,3 +7525,411 @@ function wfTodayPrint(){
   wfOpenPdf(wfPdfTemplate("Heute drucken", body));
 }
 try{ const bb=document.getElementById('buildBadge'); if(bb) bb.textContent = 'Build ' + APP_BUILD; }catch(e){}
+
+// __DS_SYNC_INLINE_TOGGLE__
+document.addEventListener('DOMContentLoaded', ()=>{
+  try{
+    const trigger = document.getElementById('syncIndicatorBtn') || document.getElementById('syncIndicator');
+    const inline = document.getElementById('syncDetailsInline');
+    if(!trigger || !inline) return;
+
+    const toggle = (ev)=>{
+      try{ ev.preventDefault(); ev.stopPropagation(); }catch(e){}
+      const hidden = (inline.style.display==='none' || inline.style.display==='');
+      inline.style.display = hidden ? 'block' : 'none';
+    };
+
+    // iOS Safari: click can be swallowed depending on overlays; add touch/pointer events as well.
+    trigger.addEventListener('click', toggle, {passive:false});
+    trigger.addEventListener('touchend', toggle, {passive:false});
+    trigger.addEventListener('pointerup', toggle, {passive:false});
+
+    // Ultra-robust fallback: capture taps anywhere and toggle if the tap happened inside the trigger's bounding box.
+    // This fixes cases where an invisible overlay steals the actual target element.
+    const inRect = (x,y,rect)=> (x>=rect.left && x<=rect.right && y>=rect.top && y<=rect.bottom);
+    const cap = (ev)=>{
+      try{
+        const r = trigger.getBoundingClientRect();
+        let x=null, y=null;
+        if(ev.changedTouches && ev.changedTouches[0]){ x = ev.changedTouches[0].clientX; y = ev.changedTouches[0].clientY; }
+        else if(typeof ev.clientX==='number'){ x = ev.clientX; y = ev.clientY; }
+        if(x===null || y===null) return;
+        if(inRect(x,y,r)) toggle(ev);
+      }catch(e){}
+    };
+    document.addEventListener('touchend', cap, true);
+    document.addEventListener('click', cap, true);
+  }catch(e){}
+
+  // P1.1E: Floating Sync-Diagnose Modal (iOS-sicher)
+  try{
+    const btn = document.getElementById('btnSyncDiagFloat');
+    const modal = document.getElementById('syncDiagModal');
+    const close = document.getElementById('btnSyncDiagClose');
+    const pre = document.getElementById('syncDiagText');
+    if(btn && modal && close && pre){
+      const open = (ev)=>{
+        try{ ev.preventDefault(); ev.stopPropagation(); }catch(e){}
+        pre.textContent = (window.__ds_lastSyncDetails || '(noch keine Daten)');
+        modal.style.display = 'flex';
+      };
+      const shut = (ev)=>{
+        try{ ev.preventDefault(); ev.stopPropagation(); }catch(e){}
+        modal.style.display = 'none';
+      };
+      btn.addEventListener('click', open, {passive:false});
+      btn.addEventListener('touchend', open, {passive:false});
+      close.addEventListener('click', shut, {passive:false});
+      close.addEventListener('touchend', shut, {passive:false});
+      // Tap on backdrop closes
+      modal.addEventListener('click', (ev)=>{ if(ev.target === modal) shut(ev); }, {passive:false});
+    }
+  }catch(e){}
+});
+
+/* ===== Floating Sync-Diagnose (immer tappbar) =====
+   Hintergrund: iOS Safari kann Clicks in der Topbar verschlucken (Overlays/Hit-Testing).
+   Diese Box sitzt fix unten links und zeigt die gleichen Details an.
+*/
+function ensureFloatingSyncDiag(detailsText, meta = {}){
+  let box = document.getElementById('dsFloatingSyncDiag');
+  if(!box){
+    box = document.createElement('div');
+    box.id = 'dsFloatingSyncDiag';
+    box.setAttribute('role','button');
+    box.setAttribute('aria-label','Sync-Diagnose');
+    box.style.position = 'fixed';
+    box.style.left = '10px';
+    box.style.bottom = '10px';
+    box.style.zIndex = '2147483647';
+    box.style.maxWidth = 'min(420px, calc(100vw - 20px))';
+    box.style.background = 'rgba(0,0,0,0.75)';
+    box.style.border = '1px solid rgba(255,255,255,0.18)';
+    box.style.borderRadius = '12px';
+    box.style.padding = '8px 10px';
+    box.style.color = '#fff';
+    box.style.fontSize = '12px';
+    box.style.lineHeight = '1.3';
+    box.style.whiteSpace = 'pre-wrap';
+    box.style.pointerEvents = 'auto';
+    box.style.webkitUserSelect = 'none';
+    box.style.userSelect = 'none';
+    box.style.cursor = 'pointer';
+    box.style.boxShadow = '0 8px 30px rgba(0,0,0,0.35)';
+    box.dataset.expanded = '0';
+
+    const toggle = (ev)=>{
+      try{ ev && ev.preventDefault && ev.preventDefault(); }catch(e){}
+      try{ ev && ev.stopPropagation && ev.stopPropagation(); }catch(e){}
+      box.dataset.expanded = (box.dataset.expanded === '1') ? '0' : '1';
+      // Re-render with the last known details
+      try{ renderFloatingSyncDiag(box, window.__ds_lastSyncDetails || detailsText, meta); }catch(e){}
+      return false;
+    };
+    box.addEventListener('click', toggle, {passive:false});
+    box.addEventListener('touchend', toggle, {passive:false});
+    box.addEventListener('pointerup', toggle, {passive:false});
+    document.body.appendChild(box);
+  }
+  renderFloatingSyncDiag(box, detailsText, meta);
+}
+
+function renderFloatingSyncDiag(box, detailsText, meta = {}){
+  const short = `SYNC-INFO (tippen für Details)\n` +
+    `Internet: ${meta.netOnline ? 'Online' : 'Offline'} | ` +
+    `Cloud: ${meta.cloudOk ? 'OK' : 'OFF'} | ` +
+    `User: ${meta.hasUser ? 'ja' : 'nein'} | ` +
+    `SDK: ${meta.sdkReady ? 'ja' : 'nein'}`;
+
+  if(box.dataset.expanded === '1'){
+    box.textContent = `${short}\n\n${detailsText}`;
+  } else {
+    box.textContent = short;
+  }
+}
+
+
+/* ===== P2.12 CONTRACT SIGNATURE - EVENT DELEGATION MODAL (iOS SAFE) =====
+   Ziel: Buttons/Canvas im Betreuungsvertrag IMMER klickbar machen (auch nach Re-Render).
+   - Keine Abhängigkeit von früheren initContract* Funktionen
+   - Delegierte Click-Handler (document) -> robust gegen DOM-Rebuild
+   - Signatur in Modal mit eigenem Canvas + Touch/Pointer Handling
+*/
+(function(){
+  const log = (...a)=>{ try{ console.log('[P2.12][contract]',...a);}catch(_){}};
+
+  function $(sel, root){ return (root||document).querySelector(sel); }
+  function ensureModal(){
+    let m = $('#dsSigModal');
+    if(m) return m;
+    m = document.createElement('div');
+    m.id = 'dsSigModal';
+    m.style.cssText = [
+      'position:fixed','inset:0','z-index:99999',
+      'background:rgba(0,0,0,.55)','display:none',
+      'align-items:center','justify-content:center',
+      'padding:16px'
+    ].join(';');
+
+    const box = document.createElement('div');
+    box.style.cssText = [
+      'width:min(720px, 96vw)','background:#2b2b2f','border-radius:14px',
+      'box-shadow:0 12px 40px rgba(0,0,0,.45)','padding:14px',
+      'border:1px solid rgba(255,255,255,.08)'
+    ].join(';');
+
+    box.innerHTML = `
+      <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <div style="font-weight:700">Unterschrift erfassen</div>
+        <button id="dsSigClose" type="button" class="smallbtn">Schließen</button>
+      </div>
+      <div style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:10px;">
+        <canvas id="dsSigCanvas" width="900" height="320" style="width:100%;height:180px;display:block;border-radius:10px;background:rgba(255,255,255,.04);touch-action:none"></canvas>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:10px;flex-wrap:wrap;">
+        <button id="dsSigClear" type="button" class="smallbtn">Löschen</button>
+        <button id="dsSigSave" type="button" class="primary">Übernehmen</button>
+      </div>
+      <div id="dsSigHint" class="muted" style="margin-top:8px;">Mit dem Finger oder Stift unterschreiben.</div>
+    `;
+
+    m.appendChild(box);
+    document.body.appendChild(m);
+
+    // Close handlers
+    m.addEventListener('click', (e)=>{ if(e.target === m) hideModal(); });
+    box.addEventListener('click', (e)=> e.stopPropagation());
+
+    $('#dsSigClose', m).addEventListener('click', hideModal);
+
+    return m;
+  }
+
+  let pad = null;
+  function getPad(){
+    const m = ensureModal();
+    const canvas = $('#dsSigCanvas', m);
+    if(pad && pad.canvas === canvas) return pad;
+
+    const ctx = canvas.getContext('2d');
+    const state = { drawing:false, hasDrawn:false, last:null };
+
+    function resizeHiDPI(){
+      // Keep CSS size, scale buffer for crisp lines
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      const w = Math.max(1, Math.round(rect.width * dpr));
+      const h = Math.max(1, Math.round(rect.height * dpr));
+      if(canvas.width !== w || canvas.height !== h){
+        canvas.width = w; canvas.height = h;
+        ctx.setTransform(1,0,0,1,0,0);
+        ctx.scale(dpr, dpr);
+        clear();
+      }
+    }
+
+    function clear(){
+      const rect = canvas.getBoundingClientRect();
+      ctx.clearRect(0,0,rect.width,rect.height);
+      state.hasDrawn = false;
+      state.last = null;
+    }
+
+    function pointFromEvent(ev){
+      const rect = canvas.getBoundingClientRect();
+      const x = (ev.clientX - rect.left);
+      const y = (ev.clientY - rect.top);
+      return {x,y};
+    }
+
+    function drawLine(a,b){
+      ctx.lineWidth = 2.4;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = '#eaeaea';
+      ctx.beginPath();
+      ctx.moveTo(a.x,a.y);
+      ctx.lineTo(b.x,b.y);
+      ctx.stroke();
+    }
+
+    function onDown(ev){
+      ev.preventDefault();
+      resizeHiDPI();
+      state.drawing = true;
+      state.last = pointFromEvent(ev);
+    }
+    function onMove(ev){
+      if(!state.drawing) return;
+      ev.preventDefault();
+      const p = pointFromEvent(ev);
+      if(state.last) drawLine(state.last,p);
+      state.last = p;
+      state.hasDrawn = true;
+    }
+    function onUp(ev){
+      if(!state.drawing) return;
+      ev.preventDefault();
+      state.drawing = false;
+      state.last = null;
+    }
+
+    // Pointer events preferred; fallback to touch
+    canvas.addEventListener('pointerdown', onDown, {passive:false});
+    canvas.addEventListener('pointermove', onMove, {passive:false});
+    canvas.addEventListener('pointerup', onUp, {passive:false});
+    canvas.addEventListener('pointercancel', onUp, {passive:false});
+
+    canvas.addEventListener('touchstart', (e)=>{ if(e.touches && e.touches[0]) onDown(e.touches[0]); }, {passive:false});
+    canvas.addEventListener('touchmove', (e)=>{ if(e.touches && e.touches[0]) onMove(e.touches[0]); }, {passive:false});
+    canvas.addEventListener('touchend', (e)=>{ onUp(e.changedTouches && e.changedTouches[0] ? e.changedTouches[0] : e); }, {passive:false});
+
+    // Buttons inside modal
+    $('#dsSigClear', m).addEventListener('click', ()=>{ clear(); $('#dsSigHint', m).textContent='Unterschrift gelöscht.'; });
+
+    pad = { canvas, ctx, state, clear, resizeHiDPI,
+      toDataURL(){
+        // Export at device pixel ratio already in buffer
+        return canvas.toDataURL('image/png');
+      }
+    };
+
+    // initial
+    setTimeout(()=>{ try{ resizeHiDPI(); }catch(_){}} , 50);
+
+    return pad;
+  }
+
+  function showModal(){
+    const m = ensureModal();
+    m.style.display = 'flex';
+    try{ const p=getPad(); p.resizeHiDPI(); }catch(_){ }
+  }
+  function hideModal(){
+    const m = $('#dsSigModal');
+    if(m) m.style.display = 'none';
+  }
+
+  function setContractInfo(text, type){
+    const el = document.getElementById('contractSignedInfo');
+    if(!el) return;
+    el.textContent = text || '';
+    el.className = (type === 'success') ? 'ok' : 'muted';
+  }
+
+  function getSelectedIds(){
+    const custSel = document.getElementById('contractCustomerSelect');
+    const petSel  = document.getElementById('contractPetSelect');
+    return {
+      customerId: custSel && custSel.value ? String(custSel.value) : '',
+      petId: petSel && petSel.value ? String(petSel.value) : ''
+    };
+  }
+
+  function acceptChecked(){
+    const chk = document.getElementById('contractAcceptChk');
+    return !!(chk && chk.checked);
+  }
+
+  // Delegated handlers (robust)
+  document.addEventListener('click', function(e){
+    const t = e.target;
+    const btnSign  = t && t.closest ? t.closest('#contractSignBtn') : null;
+    const btnClear = t && t.closest ? t.closest('#contractSigClear') : null;
+    const btnPdf   = t && t.closest ? t.closest('#contractPdfBtn') : null;
+
+    if(btnSign){
+      e.preventDefault();
+      const ids = getSelectedIds();
+      if(!ids.customerId){ alert('Bitte zuerst einen Kunden wählen.'); return; }
+      if(!ids.petId){ alert('Bitte zuerst einen Hund wählen.'); return; }
+      if(!acceptChecked()){ alert('Bitte Vertrag akzeptieren.'); return; }
+
+      // Open modal and hook save
+      showModal();
+      const m = ensureModal();
+      const saveBtn = $('#dsSigSave', m);
+      // Replace handler safely
+      saveBtn.onclick = function(){
+        const p = getPad();
+        if(!p.state.hasDrawn){ alert('Bitte zuerst unterschreiben.'); return; }
+        const dataUrl = p.toDataURL();
+        try{
+          window.state = window.state || {};
+          window.state.contract = window.state.contract || {};
+          window.state.contract.hasSignature = true;
+          window.state.contract.signatureBase64 = dataUrl;
+          window.state.contract.signedAt = new Date().toISOString();
+          window.state.contract.customerId = ids.customerId;
+          window.state.contract.petId = ids.petId;
+        }catch(err){
+          console.error('contract signature state error', err);
+        }
+
+        setContractInfo('🟢 Unterschrift erfasst (Session)', 'success');
+        hideModal();
+      };
+
+      return;
+    }
+
+    if(btnClear){
+      e.preventDefault();
+      // Clear session signature
+      try{
+        if(window.state && window.state.contract){
+          window.state.contract.hasSignature = false;
+          window.state.contract.signatureBase64 = null;
+          window.state.contract.signedAt = null;
+        }
+      }catch(_){ }
+      // Clear small preview canvas (in panel)
+      const canvas = document.getElementById('contractSig');
+      if(canvas){
+        try{
+          const ctx = canvas.getContext('2d');
+          ctx.clearRect(0,0,canvas.width,canvas.height);
+        }catch(_){ }
+      }
+      setContractInfo('Unterschrift gelöscht.', 'muted');
+      return;
+    }
+
+    if(btnPdf){
+      e.preventDefault();
+      // If existing PDF handler exists, prefer it; otherwise show the same guard
+      try{
+        const hasSig = !!(window.state && window.state.contract && window.state.contract.hasSignature);
+        if(!hasSig){ alert('Für diese Auswahl liegt noch keine gültige Unterschrift vor.'); return; }
+        if(typeof window.generateContractPdf === 'function'){
+          window.generateContractPdf();
+          return;
+        }
+        // fallback: if old function name exists
+        if(typeof window.renderContractPdf === 'function'){
+          window.renderContractPdf();
+          return;
+        }
+        alert('PDF-Funktion ist in diesem Build nicht verfügbar.');
+      }catch(err){
+        console.error(err);
+        alert('PDF konnte nicht erstellt werden.');
+      }
+      return;
+    }
+  }, true);
+
+  // Ensure the contract-side area is not blocked by accidental overlays (defensive)
+  function nudgePointerEvents(){
+    const side = document.querySelector('.contract-side');
+    if(side) side.style.pointerEvents = 'auto';
+    const sigbox = document.querySelector('.sigbox');
+    if(sigbox) sigbox.style.pointerEvents = 'auto';
+    const actions = document.querySelector('#contract .actions');
+    if(actions) actions.style.pointerEvents = 'auto';
+  }
+  setTimeout(nudgePointerEvents, 300);
+
+  log('installed');
+})();
+/* ===== END P2.12 ===== */
