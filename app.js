@@ -1,7 +1,19 @@
 const APP_BUILD = "v11-TEST-OPTIK-01";
-window.addEventListener("error",(e)=>{console.error("APP_ERROR",e.error||e.message);});
-const $=s=>document.querySelector(s);
-const $$=s=>Array.from(document.querySelectorAll(s));
+// Selector helpers
+// $: accepts either an element id (e.g. 'contractSig') or a CSS selector (e.g. '#contractSig', '.btn')
+const $ = (sel) => {
+  if (sel == null) return null;
+  if (typeof sel !== 'string') return null;
+  const s = sel.trim();
+  if (!s) return null;
+  // Heuristic: if it looks like a selector, use querySelector; otherwise treat as id
+  const looksLikeSelector = ['#','.', '[', ':', '>', '+', '~', '*'].includes(s[0]) || s.includes(' ') || s.includes('	');
+  return looksLikeSelector ? document.querySelector(s) : document.getElementById(s);
+};
+const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+window.addEventListener('error', (e) => {
+  console.error('APP_ERROR', e.error || e.message);
+});
 const LS_KEY="ds_workspace_test_optik_01";
 
 // --- Datum (lokal) ohne UTC-Verschiebung ---
@@ -116,7 +128,10 @@ const SYNC = {
   cloudLastSeenAt: 0,
   cloudPending: false,
   cloudLastOkAt: 0,
-  cloudLastError: ""
+  cloudLastError: "",
+  cloudReachable: false,
+  cloudReachCheckedAt: 0,
+  cloudReachError: ""
 };
 
 function fmtDT(ts){
@@ -155,13 +170,14 @@ function updateSyncUI(){
   }
 
   const netOnline = (typeof navigator !== 'undefined') ? !!navigator.onLine : false;
-  try{ if(pill){ pill.classList.toggle('is-online', !!netOnline); pill.classList.toggle('is-offline', !netOnline); } }catch(e){}
+  const cloudOk = !!(netOnline && cloudIsEnabled() && CLOUD && CLOUD.enabled && CLOUD.user && SYNC.cloudReachable);
+  try{ if(pill){ pill.classList.toggle('is-online', !!cloudOk); pill.classList.toggle('is-offline', !cloudOk); } }catch(e){}
   const localLine = `Lokal gespeichert: ${fmtDT(SYNC.localSavedAt)}`;
 
   // Internet-Status (nicht gleich Cloud!)
-  const netLine = `Internet: ${netOnline ? 'Online' : 'Offline'}`;
+  const netLine = `Internet: ${cloudOk ? 'Online' : 'Offline'}`;
 
-  let pillText = netOnline ? 'Online' : 'Offline';
+  let pillText = cloudOk ? 'Online' : 'Offline';
   let cloudLine = 'Cloud: aus';
 
   if(!cloudIsEnabled()){
@@ -172,16 +188,16 @@ function updateSyncUI(){
     }
   } else if(CLOUD.enabled){
     if(!CLOUD.user){
-      pillText = `${netOnline ? 'Online' : 'Offline'} · Cloud: Login nötig`;
+      pillText = `${cloudOk ? 'Online' : 'Offline'} · Cloud: Login nötig`;
       cloudLine = 'Cloud: nicht angemeldet';
     } else if(SYNC.cloudLastError){
-      pillText = `${netOnline ? 'Online' : 'Offline'} · Cloud: Fehler`;
+      pillText = `${cloudOk ? 'Online' : 'Offline'} · Cloud: Fehler`;
       cloudLine = `Cloud Fehler: ${SYNC.cloudLastError}`;
     } else if(SYNC.cloudPending){
-      pillText = `${netOnline ? 'Online' : 'Offline'} · Cloud: Sync…`;
+      pillText = `${cloudOk ? 'Online' : 'Offline'} · Cloud: Sync…`;
       cloudLine = `Cloud Sync: läuft (letztes OK ${fmtDT(SYNC.cloudLastOkAt)})`;
     } else {
-      pillText = `${netOnline ? 'Online' : 'Offline'} · Cloud: OK`;
+      pillText = `${cloudOk ? 'Online' : 'Offline'} · Cloud: OK`;
       cloudLine = `Cloud zuletzt OK: ${fmtDT(SYNC.cloudLastOkAt)} · Server: ${fmtDT(SYNC.cloudLastSeenAt)}`;
     }
   }
@@ -189,7 +205,7 @@ function updateSyncUI(){
   if(pill) pill.textContent = `${pillText} · ${fmtDT(SYNC.localSavedAt)}`;
   const dot=document.getElementById('syncDot');
   if(dot){ dot.classList.toggle('online', !!netOnline); dot.classList.toggle('offline', !netOnline); }
-  if(details) details.textContent = `${localLine}\n${netLine}\n${cloudLine}`;
+  if(details) details.textContent = `${localLine}\n${netLine}\n${cloudLine}\nCloud-Ping: ${fmtDT(SYNC.cloudReachCheckedAt)}${SYNC.cloudReachError ? ' · '+SYNC.cloudReachError : ''}`;
 
   // Manual cloud save: only enable when Cloud is active + logged in
   if(manualBtn){
@@ -383,6 +399,73 @@ function cloudIsEnabled(){
   // Cloud nur möglich, wenn Config vorhanden UND Firebase SDK geladen ist.
   // (In PWA offline wird das SDK über ServiceWorker gecached.)
   return !!(window.firebaseConfig && window.firebase && window.firebase.initializeApp && window.firebase.auth);
+}
+
+
+function withTimeout(promise, ms){
+  return new Promise((resolve, reject)=>{
+    const t = setTimeout(()=>reject(new Error("timeout")), ms);
+    Promise.resolve(promise).then((v)=>{ clearTimeout(t); resolve(v); }).catch((e)=>{ clearTimeout(t); reject(e); });
+  });
+}
+
+async function checkCloudReachability(reason){
+  const netOnline = (typeof navigator !== 'undefined') ? !!navigator.onLine : false;
+  SYNC.cloudReachCheckedAt = Date.now();
+  SYNC.cloudReachError = "";
+
+  // Default: nicht erreichbar
+  SYNC.cloudReachable = false;
+
+  if(!netOnline){
+    SYNC.cloudReachError = "kein Internet";
+    return false;
+  }
+  if(!cloudIsEnabled() || !CLOUD || !CLOUD.enabled || !CLOUD.db){
+    SYNC.cloudReachError = "Cloud nicht bereit";
+    return false;
+  }
+  if(!CLOUD.user){
+    SYNC.cloudReachError = "nicht angemeldet";
+    return false;
+  }
+
+  const ref = (typeof cloudStateRef === 'function') ? cloudStateRef() : null;
+  if(!ref || !ref.get){
+    SYNC.cloudReachError = "State-Ref fehlt";
+    return false;
+  }
+
+  try{
+    // erzwinge Serverzugriff, damit wir echte Erreichbarkeit messen
+    const p = ref.get({ source: 'server' });
+    await withTimeout(p, 4000);
+    SYNC.cloudReachable = true;
+    SYNC.cloudReachError = "";
+    return true;
+  }catch(err){
+    const code = (err && (err.code || err.name)) ? String(err.code || err.name) : "";
+    // Permission denied bedeutet: Cloud erreichbar, nur Rechte fehlen
+    if(code.includes("permission") || code.includes("PERMISSION")){
+      SYNC.cloudReachable = true;
+      SYNC.cloudReachError = "keine Rechte";
+      return true;
+    }
+    SYNC.cloudReachable = false;
+    SYNC.cloudReachError = (code || "nicht erreichbar");
+    return false;
+  }
+}
+
+let _cloudPingTimer = null;
+function scheduleCloudPing(delayMs=0, reason=""){
+  try{
+    if(_cloudPingTimer) clearTimeout(_cloudPingTimer);
+    _cloudPingTimer = setTimeout(async ()=>{
+      await checkCloudReachability(reason);
+      updateSyncUI();
+    }, Math.max(0, delayMs));
+  }catch(e){}
 }
 
 function showAuthGate(show){
@@ -6061,6 +6144,8 @@ return;
     }
 
     showAuthGate(false);
+    // Cloud-Erreichbarkeit prüfen, damit Status nicht erst nach einer Aktion auf Online springt
+    try{ scheduleCloudPing(50,'auth-login'); }catch(e){}
     if(btnLogout) btnLogout.style.display = "inline-block";
     if(btnLogoutApp) btnLogoutApp.style.display = "inline-block";
     updateSyncUI();
@@ -6215,8 +6300,8 @@ document.addEventListener("visibilitychange", () => {
 startApp().catch(console.error);
 // UI: Sync-Status regelmäßig auffrischen (auch bei Tab-Wechsel/PWA)
 setInterval(()=>{ try{ updateSyncUI(); }catch(_){ } }, 1500);
-window.addEventListener('online', ()=>{ try{ updateSyncUI(); }catch(_){ } });
-window.addEventListener('offline', ()=>{ try{ updateSyncUI(); }catch(_){ } });
+window.addEventListener('online', ()=>{ try{ scheduleCloudPing(0,'online-event'); }catch(_){ try{ updateSyncUI(); }catch(__){} } });
+window.addEventListener('offline', ()=>{ try{ SYNC.cloudReachable=false; SYNC.cloudReachError='kein Internet'; SYNC.cloudReachCheckedAt=Date.now(); }catch(_){ } try{ updateSyncUI(); }catch(__){} });
 
 /* ===== B2.2a Freier Rechnungs-Editor ===== */
 function renderInvoiceEditorB2(doc){
@@ -6575,158 +6660,418 @@ function openContractPdfWindow(customerId, petId){
 }
 
 function renderContractPanel(){
-  ensureContractDefaults();
-  const t = $("#contractText");
-  const titleEl = $("#contractTitle");
-  const metaEl = $("#contractMeta");
-  if(!t) return;
+  // Robust Contract UI init (iOS-safe):
+  // - Delegated click handlers (buttons work even after re-render)
+  // - Retry population of customer/dog selects after async load/sync
+  // - Modal signature pad fallback if inline canvas is not interactive
 
-  const c = state.contract;
-  titleEl.textContent = c.title || "Betreuungsvertrag";
-  metaEl.textContent = `${c.provider || "Doggy Style Hundepension"} · Version ${c.version} · Gültig ab ${formatDateDE(c.validFrom||"2025-12-27")}`;
-  t.innerHTML = c.text || DEFAULT_CONTRACT_TEXT;
+  // 1) Render text/meta
+  const txtEl = $("contractText");
+  if (txtEl) txtEl.innerHTML = state.contractText || "";
+  const metaEl = $("contractMeta");
+  if (metaEl) metaEl.textContent = `Doggy Style Hundepension · Version ${state.contractVersion||'v1.0'} · Gültig ab 27.12.`;
 
-  // Admin box
-  const isAdmin = (CLOUD.role === "admin");
-  const adminBox = $("#contractAdminBox");
-  if(adminBox) adminBox.style.display = isAdmin ? "block" : "none";
-  if(isAdmin){
-    const edit = $("#contractEditText");
-    if(edit && !edit.value) edit.value = c.text || DEFAULT_CONTRACT_TEXT;
-    const btnReset = $("#contractResetEdit");
-    if(btnReset) btnReset.onclick = ()=>{ if(edit) edit.value = c.text || DEFAULT_CONTRACT_TEXT; };
-    const btnPub = $("#contractPublish");
-    if(btnPub) btnPub.onclick = ()=>{
-      if(!edit) return;
-      const newText = String(edit.value||"").trim();
-      if(newText.length < 200){ alert("Bitte einen vollständigen Vertragstext einfügen."); return; }
-      // bump minor version: v1.0 -> v1.1
-      const m = String(c.version||"v1.0").match(/^v(\d+)\.(\d+)$/);
-      let major=1, minor=0;
-      if(m){ major=parseInt(m[1],10); minor=parseInt(m[2],10); }
-      minor += 1;
-      c.version = `v${major}.${minor}`;
-      c.text = newText;
-      c.updatedAt = new Date().toISOString();
-      state.contract = c;
-      saveState();
-      alert(`Neue Version veröffentlicht: ${c.version}. Kunden müssen neu unterschreiben.`);
-      renderContractPanel();
-    };
+  // 2) Resolve elements
+  const cs = $("contractCustomerSelect");
+  const ps = $("contractPetSelect");
+  const accept = $("contractAcceptChk");
+  const canvas = $("contractSig");
+  const info = $("contractSignedInfo");
+
+  function setInfo(text, type){
+    if (!info) return;
+    info.textContent = text || "";
+    info.className = (type === 'ok') ? 'ok' : 'muted';
   }
 
-  // customer/pet selects
-  const cs = $("#contractCustomerSelect");
-  const ps = $("#contractPetSelect");
-  const customers = (state.customers||[]).slice().sort((a,b)=>String(a.lastName||"").localeCompare(String(b.lastName||""),"de"));
-  cs.innerHTML = customers.map(x=>`<option value="${x.id}">${escapeHtml((x.lastName? x.lastName+', ':'') + (x.firstName||''))}</option>`).join("") || `<option value="">(keine Kunden)</option>`;
-
-  function fillPets(){
-    const cid = cs.value;
-    const pets = (state.pets||[]).filter(p=>p.customerId===cid).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"de"));
-    ps.innerHTML = pets.map(p=>`<option value="${p.id}">${escapeHtml(p.name||"Hund")}</option>`).join("") || `<option value="">(keine Hunde)</option>`;
-    updateSignedInfo();
+  function sigKey(customerId, petId){
+    const v = state.contractVersion || 'v1.0';
+    return `${v}__${customerId||''}__${petId||''}`;
   }
 
-  cs.onchange = fillPets;
-  fillPets();
+  function getSelectedIds(){
+    const customerId = cs ? (cs.value||"") : "";
+    const petId = ps ? (ps.value||"") : "";
+    return {customerId, petId};
+  }
 
-  // Wenn ein Hund gewählt wird, Kunde automatisch übernehmen (falls verknüpft)
-  ps.onchange = ()=>{
-    const selectedPetId = ps.value;
-    const pet = getPet(selectedPetId);
-    const targetCustomerId = pet ? (pet.customerId || "") : "";
-    if(targetCustomerId && cs.value !== targetCustomerId){
-      cs.value = targetCustomerId;
-      fillPets();
-      ps.value = selectedPetId; // Auswahl beibehalten
+  function ensureSigStore(){
+    state.contractSignatures = state.contractSignatures || {};
+  }
+
+  function updateSignedInfo(){
+    ensureSigStore();
+    const {customerId, petId} = getSelectedIds();
+    if (!customerId || !petId){
+      setInfo("⚠ Bitte zuerst Kunde und Hund wählen.", 'muted');
+      return;
     }
-    updateSignedInfo();
-  };
-
-
-  // signature pad
-  initContractSignaturePad();
-
-  // iOS/Safari: clicks can be swallowed by selection/overlay; bind both click and touchend
-  function bindTap(el, handler){
-    if(!el || !handler) return;
-    // remove prior listeners added via bindTap
-    try{
-      if(el.__tapClick){ el.removeEventListener('click', el.__tapClick); }
-      if(el.__tapTouch){ el.removeEventListener('touchend', el.__tapTouch); }
-    }catch(_){ }
-
-    // also clear legacy inline handlers
-    el.onclick = null;
-    el.onmousedown = null;
-    el.ontouchstart = null;
-    el.ontouchend = null;
-
-    el.__tapClick = (e)=>{ handler(e); };
-    el.__tapTouch = (e)=>{ try{ e.preventDefault(); }catch(_){ } handler(e); };
-    el.addEventListener('click', el.__tapClick);
-    el.addEventListener('touchend', el.__tapTouch, {passive:false});
+    const rec = state.contractSignatures[sigKey(customerId, petId)];
+    if (rec && rec.dataUrl){
+      const ts = rec.signedAt ? new Date(rec.signedAt) : null;
+      const when = ts ? ` · ${ts.toLocaleString()}` : "";
+      setInfo(`✅ Unterschrift vorhanden (${state.contractVersion||'v1.0'}${when})`, 'ok');
+    } else {
+      setInfo(`🔴 Noch keine gültige Unterschrift für Version ${state.contractVersion||'v1.0'}.`, 'muted');
+    }
   }
 
-  bindTap($("#contractSigClear"), ()=>{ clearContractSig(); });
+  // 3) Populate selectors (with retries if data arrives later)
+  function populateCustomerSelect(){
+    if (!cs) return;
+    const prev = cs.value;
+    cs.innerHTML = '';
+    const opt0 = document.createElement('option');
+    opt0.value = '';
+    opt0.textContent = '(Kunde wählen)';
+    cs.appendChild(opt0);
 
-  const pdfBtn = document.getElementById("contractPdfBtn");
-  if(pdfBtn){
-    bindTap(pdfBtn, ()=>{
-      const customerId = cs.value;
-      const petId = ps.value;
-      if(!customerId || !petId){ alert("Bitte Kunde und Hund auswählen."); return; }
-      const s = getContractSignature(customerId, petId);
-      if(!s){ alert("Für diese Auswahl liegt noch keine gültige Unterschrift vor."); return; }
-      openContractPdfWindow(customerId, petId);
+    const customers = Array.isArray(state.customers) ? state.customers.slice() : [];
+    customers.sort((a,b)=>String(a.lastName||a.name||'').localeCompare(String(b.lastName||b.name||'')));
+
+    for (const c of customers){
+      const id = c.id || c.customerId || c.uid || c.key || '';
+      if (!id) continue;
+      const labelBase = (c.lastName || c.name || c.firstName || 'Kunde').toString().trim();
+      const label = c.phone ? `${labelBase} · ${c.phone}` : labelBase;
+      const o = document.createElement('option');
+      o.value = id;
+      o.textContent = label;
+      cs.appendChild(o);
+    }
+
+    // restore selection if possible
+    if (prev && [...cs.options].some(o=>o.value===prev)) cs.value = prev;
+    // If a customerId is already in state.contractSelection, prefer it
+    if (!cs.value && state.contractSelection && state.contractSelection.customerId){
+      const want = state.contractSelection.customerId;
+      if ([...cs.options].some(o=>o.value===want)) cs.value = want;
+    }
+  }
+
+  function populatePetSelect(){
+    if (!ps) return;
+    const prev = ps.value;
+    ps.innerHTML = '';
+
+    const {customerId} = getSelectedIds();
+
+    // pets might be stored as state.pets, state.dogs, or embedded on customers
+    let pets = [];
+    if (Array.isArray(state.pets)) pets = state.pets;
+    else if (Array.isArray(state.dogs)) pets = state.dogs;
+
+    if (customerId){
+      const customer = (Array.isArray(state.customers) ? state.customers : []).find(c => (c.id||c.customerId||c.uid||c.key) === customerId);
+      if (customer && Array.isArray(customer.pets)) pets = customer.pets;
+    }
+
+    pets = Array.isArray(pets) ? pets.slice() : [];
+
+    if (!pets.length){
+      const o = document.createElement('option');
+      o.value = '';
+      o.textContent = '(keine Hunde)';
+      ps.appendChild(o);
+      return;
+    }
+
+    const o0 = document.createElement('option');
+    o0.value = '';
+    o0.textContent = '(Hund wählen)';
+    ps.appendChild(o0);
+
+    pets.sort((a,b)=>String(a.name||a.petName||'').localeCompare(String(b.name||b.petName||'')));
+    for (const d of pets){
+      const id = d.id || d.petId || d.uid || d.key || d.name || '';
+      if (!id) continue;
+      const name = d.name || d.petName || 'Hund';
+      const o = document.createElement('option');
+      o.value = id;
+      o.textContent = name;
+      ps.appendChild(o);
+    }
+
+    if (prev && [...ps.options].some(o=>o.value===prev)) ps.value = prev;
+    if (!ps.value && state.contractSelection && state.contractSelection.petId){
+      const want = state.contractSelection.petId;
+      if ([...ps.options].some(o=>o.value===want)) ps.value = want;
+    }
+  }
+
+  function refreshSelectors(){
+    try{
+      populateCustomerSelect();
+      populatePetSelect();
+      updateSignedInfo();
+    }catch(e){
+      console.error('contract refreshSelectors error', e);
+      setInfo('⚠ Contract UI Fehler (Selectors).', 'muted');
+    }
+  }
+
+  // retry if data is not yet there
+  let tries = 0;
+  (function retry(){
+    refreshSelectors();
+    const customers = Array.isArray(state.customers) ? state.customers : [];
+    const pets = Array.isArray(state.pets) ? state.pets : (Array.isArray(state.dogs)?state.dogs:[]);
+    if ((customers.length>0) || (++tries>=10)) return;
+    setTimeout(retry, 400);
+  })();
+
+  if (cs && !cs.dataset.bound){
+    cs.dataset.bound = '1';
+    cs.addEventListener('change', ()=>{
+      state.contractSelection = state.contractSelection || {};
+      state.contractSelection.customerId = cs.value||'';
+      saveState();
+      populatePetSelect();
+      updateSignedInfo();
     });
   }
 
-  bindTap($("#contractSignBtn"), ()=>{
-    const customerId = cs.value;
-    const petId = ps.value;
-    if(!customerId || !petId){ alert("Bitte Kunde und Hund auswählen."); return; }
-    const chk = $("#contractAcceptChk");
-    if(!chk.checked){ alert("Bitte zuerst bestätigen, dass du den Vertrag gelesen und akzeptiert hast."); return; }
-    const dataUrl = getContractSigData();
-    if(!dataUrl){ alert("Bitte unterschreiben (Unterschriftsfeld)."); return; }
+  if (ps && !ps.dataset.bound){
+    ps.dataset.bound = '1';
+    ps.addEventListener('change', ()=>{
+      state.contractSelection = state.contractSelection || {};
+      state.contractSelection.petId = ps.value||'';
+      saveState();
+      updateSignedInfo();
+    });
+  }
 
-    // Save signature
-    const sig = {
-      id: uid(),
-      customerId, petId,
-      contractVersion: state.contract.version,
-      signedAt: new Date().toISOString(),
-      signatureDataUrl: dataUrl
+  // 4) Signature pad (inline) + Modal fallback
+  function clearInlineCanvas(){
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+  }
+
+  function snapshotInlineCanvas(){
+    if (!canvas) return null;
+    try{ return canvas.toDataURL('image/png'); }catch(e){ return null; }
+  }
+
+  function openSignatureModal(onSave){
+    const modalId = 'sigModal';
+    let modal = document.getElementById(modalId);
+    if (modal) modal.remove();
+
+    modal = document.createElement('div');
+    modal.id = modalId;
+    modal.style.position='fixed';
+    modal.style.inset='0';
+    modal.style.background='rgba(0,0,0,0.65)';
+    modal.style.zIndex='99999';
+    modal.style.display='flex';
+    modal.style.alignItems='center';
+    modal.style.justifyContent='center';
+    modal.style.padding='16px';
+
+    const card = document.createElement('div');
+    card.style.width='min(900px, 100%)';
+    card.style.background='rgba(40,40,45,0.98)';
+    card.style.border='1px solid rgba(255,255,255,0.12)';
+    card.style.borderRadius='16px';
+    card.style.padding='14px';
+    card.style.boxShadow='0 20px 60px rgba(0,0,0,0.4)';
+
+    const title = document.createElement('div');
+    title.textContent='Unterschrift';
+    title.style.fontWeight='700';
+    title.style.margin='4px 0 10px 0';
+
+    const c = document.createElement('canvas');
+    c.width = 900;
+    c.height = 340;
+    c.style.width='100%';
+    c.style.height='auto';
+    c.style.background='rgba(255,255,255,0.06)';
+    c.style.borderRadius='12px';
+    c.style.touchAction='none';
+
+    const row = document.createElement('div');
+    row.style.display='flex';
+    row.style.gap='10px';
+    row.style.justifyContent='flex-end';
+    row.style.marginTop='12px';
+
+    const btnCancel = document.createElement('button');
+    btnCancel.className='smallbtn';
+    btnCancel.type='button';
+    btnCancel.textContent='Abbrechen';
+
+    const btnClear = document.createElement('button');
+    btnClear.className='smallbtn';
+    btnClear.type='button';
+    btnClear.textContent='Löschen';
+
+    const btnSave = document.createElement('button');
+    btnSave.className='btn primary';
+    btnSave.type='button';
+    btnSave.textContent='Speichern';
+
+    row.appendChild(btnCancel);
+    row.appendChild(btnClear);
+    row.appendChild(btnSave);
+
+    card.appendChild(title);
+    card.appendChild(c);
+    card.appendChild(row);
+    modal.appendChild(card);
+    document.body.appendChild(modal);
+
+    // simple pen
+    const ctx = c.getContext('2d');
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#ffffff';
+
+    let drawing=false, hasDrawn=false, last=null;
+    function pt(e){
+      const r=c.getBoundingClientRect();
+      const x=(e.clientX - r.left) * (c.width / r.width);
+      const y=(e.clientY - r.top) * (c.height / r.height);
+      return {x,y};
+    }
+    function down(e){ drawing=True; }
+
+    function start(e){
+      drawing=true; last=pt(e); ctx.beginPath(); ctx.moveTo(last.x,last.y); hasDrawn=true;
+      e.preventDefault();
+    }
+    function move(e){
+      if(!drawing) return;
+      const p=pt(e);
+      ctx.lineTo(p.x,p.y); ctx.stroke();
+      e.preventDefault();
+    }
+    function end(e){ drawing=false; last=null; e.preventDefault(); }
+
+    c.addEventListener('pointerdown', start);
+    c.addEventListener('pointermove', move);
+    c.addEventListener('pointerup', end);
+    c.addEventListener('pointercancel', end);
+
+    btnClear.onclick = ()=>{ ctx.clearRect(0,0,c.width,c.height); hasDrawn=false; };
+    btnCancel.onclick = ()=> modal.remove();
+    btnSave.onclick = ()=>{
+      if (!hasDrawn){ alert('Bitte zuerst unterschreiben.'); return; }
+      const dataUrl = c.toDataURL('image/png');
+      onSave(dataUrl);
+      modal.remove();
+    };
+  }
+
+  // 5) Delegated button handling (single listener)
+  const side = document.querySelector('.contract-side');
+  if (side && !side.dataset.bound){
+    side.dataset.bound='1';
+    side.addEventListener('click', (ev)=>{
+      const t = ev.target;
+      if (!t) return;
+      const id = t.id || '';
+      if (id !== 'contractSigClear' && id !== 'contractSignBtn' && id !== 'contractSigBtn' && id !== 'contractPdfBtn') return;
+      ev.preventDefault();
+
+      try{
+        ensureSigStore();
+        const {customerId, petId} = getSelectedIds();
+        if (!customerId){ alert('Bitte zuerst Kunde wählen.'); return; }
+        if (!petId){ alert('Bitte zuerst Hund wählen.'); return; }
+        if (accept && !accept.checked){ alert('Bitte Vertrag akzeptieren.'); return; }
+
+        if (id === 'contractSigClear'){
+          // Clear signature
+          clearInlineCanvas();
+          delete state.contractSignatures[sigKey(customerId, petId)];
+          saveState();
+          setInfo('Unterschrift gelöscht.', 'muted');
+          updateSignedInfo();
+          return;
+        }
+
+        if (id === 'contractSignBtn' || id === 'contractSigBtn'){
+          // Prefer modal signature (most reliable on iOS)
+          openSignatureModal((dataUrl)=>{
+            state.contractSignatures[sigKey(customerId, petId)] = {dataUrl, signedAt: new Date().toISOString()};
+            // also paint into inline canvas for visual feedback
+            if (canvas){
+              const img = new Image();
+              img.onload = ()=>{ const ctx = canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height); ctx.drawImage(img,0,0,canvas.width,canvas.height); };
+              img.src = dataUrl;
+            }
+            saveState();
+            updateSignedInfo();
+          });
+          return;
+        }
+
+        if (id === 'contractPdfBtn'){
+          const rec = state.contractSignatures[sigKey(customerId, petId)];
+          if (!rec || !rec.dataUrl){
+            alert('Für diese Auswahl liegt noch keine gültige Unterschrift vor.');
+            return;
+          }
+          openContractPdfWindow(customerId, petId);
+          return;
+        }
+      }catch(e){
+        console.error('contract button handler error', e);
+        alert('Fehler in Betreuungsvertrag. Bitte erneut versuchen.');
+      }
+    }, {capture:true});
+  }
+
+  // 6) Inline canvas: make it always interactive (when possible)
+  if (canvas && !canvas.dataset.bound){
+    canvas.dataset.bound='1';
+    canvas.style.touchAction = 'none';
+    const ctx = canvas.getContext('2d');
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#ffffff';
+
+    let drawing=false, hasDrawn=false;
+    const getPos = (e)=>{
+      const r = canvas.getBoundingClientRect();
+      const x = (e.clientX - r.left) * (canvas.width / r.width);
+      const y = (e.clientY - r.top) * (canvas.height / r.height);
+      return {x,y};
     };
 
-    // Replace existing for this combo/version
-    state.contractSignatures = (state.contractSignatures||[]).filter(s=>!(s.customerId===customerId && s.petId===petId && s.contractVersion===sig.contractVersion));
-    state.contractSignatures.push(sig);
-    saveState();
-    clearContractSig();
-    chk.checked = false;
-    updateSignedInfo();
-    $("#contractStatusBanner").textContent = "✅ Vertrag gespeichert.";
-    setTimeout(()=>{ const b=$("#contractStatusBanner"); if(b) b.textContent=""; }, 1500);
-    // refresh lists where badges appear
-    renderDogs();
-  });
+    const startDraw=(e)=>{ drawing=true; hasDrawn=true; const p=getPos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); e.preventDefault(); };
+    const moveDraw=(e)=>{ if(!drawing) return; const p=getPos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); e.preventDefault(); };
+    const endDraw=(e)=>{ drawing=false; e.preventDefault(); };
 
-  function updateSignedInfo(){
-    const customerId = cs.value;
-    const petId = ps.value;
-    const info = $("#contractSignedInfo");
-    const s = getContractSignature(customerId, petId);
-    if(!info) return;
-    if(s){
-      info.innerHTML = `🟢 Gültig unterschrieben am ${new Date(s.signedAt).toLocaleString("de-DE")} (Version ${escapeHtml(s.contractVersion)})`;
-    }else{
-      info.innerHTML = `🔴 Noch keine gültige Unterschrift für Version ${escapeHtml(state.contract.version)}.`;
-    }
+    canvas.addEventListener('pointerdown', startDraw);
+    canvas.addEventListener('pointermove', moveDraw);
+    canvas.addEventListener('pointerup', endDraw);
+    canvas.addEventListener('pointercancel', endDraw);
+
+    // Tap opens modal if drawing fails (user feedback)
+    canvas.addEventListener('click', ()=>{
+      // offer modal only if no drawing happened yet
+      if (!hasDrawn) {
+        openSignatureModal((dataUrl)=>{
+          state.contractSelection = state.contractSelection || {};
+          const {customerId, petId} = getSelectedIds();
+          if (!customerId || !petId) return;
+          state.contractSignatures[sigKey(customerId, petId)] = {dataUrl, signedAt: new Date().toISOString()};
+          const img = new Image();
+          img.onload = ()=>{ ctx.clearRect(0,0,canvas.width,canvas.height); ctx.drawImage(img,0,0,canvas.width,canvas.height); };
+          img.src = dataUrl;
+          saveState();
+          updateSignedInfo();
+        });
+      }
+    });
   }
+
+  updateSignedInfo();
 }
+
 
 // --- Signature Pad (inline) ---
 let _contractSig = {canvas:null, ctx:null, drawing:false, hasInk:false, last:null};
