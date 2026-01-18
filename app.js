@@ -6777,7 +6777,8 @@ function renderContractPanel(){
 
 
   // signature pad
-  initContractSignaturePad();
+  // Init signature pad when visible
+  requestAnimationFrame(() => initContractSignaturePad());
   $("#contractSigClear").onclick = ()=>{ clearContractSig(); };
   const pdfBtn = document.getElementById("contractPdfBtn");
   if(pdfBtn){
@@ -6945,130 +6946,180 @@ function openContractFromStay(doc){
 }
 
 function initContractSignaturePad(){
-  const canvas = $("#contractSig");
-  if(!canvas) return;
+  const canvas = document.getElementById('contractSig');
+  if (!canvas) return;
 
-  // Make sure canvas can actually receive touch/pointer events (iOS Safari can be picky)
-  try{
-    canvas.style.pointerEvents = 'auto';
-    canvas.style.touchAction = 'none';
-    canvas.style.position = canvas.style.position || 'relative';
-    canvas.style.zIndex = canvas.style.zIndex || '5';
-  }catch(e){}
+  // Ensure the canvas has a proper backing store size (retina) and correct mapping.
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
 
-  // Re-bind if element changed (re-render)
-  if(_contractSig.canvas === canvas && _contractSig._bound) return;
-  _contractSig.canvas = canvas;
-  _contractSig.ctx = canvas.getContext('2d');
-  _contractSig.ctx.lineWidth = 2;
-  _contractSig.ctx.lineCap = 'round';
-  _contractSig.ctx.strokeStyle = '#fff';
+  // iOS: avoid scroll/zoom taking the gesture
+  canvas.style.touchAction = 'none';
+  canvas.style.webkitUserSelect = 'none';
+  canvas.style.userSelect = 'none';
 
-  const getPos = (ev)=>{
+  function resizeToCss(){
     const rect = canvas.getBoundingClientRect();
-    const cx = (ev.clientX - rect.left) * (canvas.width / rect.width);
-    const cy = (ev.clientY - rect.top) * (canvas.height / rect.height);
-    return {x: cx, y: cy};
-  };
 
-  const begin = (x,y)=>{
-    _contractSig.drawing = true;
-    _contractSig.hasInk = true;
-    _contractSig.last = {x,y};
-  };
+  // If the panel is still hidden when this runs (e.g., first app boot), the
+  // canvas gets a 0x0 rect on iOS and becomes non-drawable. Retry shortly.
+  _contractSig._initTries = (_contractSig._initTries || 0) + 1;
+  if ((rect.width < 20 || rect.height < 20) && _contractSig._initTries < 10) {
+    setTimeout(initContractSignaturePad, 120);
+    return;
+  }
+  _contractSig._initTries = 0;
 
-  const strokeTo = (x,y)=>{
-    if(!_contractSig.drawing || !_contractSig.last) return;
-    const ctx=_contractSig.ctx;
+    const dpr = window.devicePixelRatio || 1;
+    // If rect is 0 (hidden), fall back to attributes
+    const cssW = Math.max(1, Math.round(rect.width || canvas.width || 600));
+    const cssH = Math.max(1, Math.round(rect.height || canvas.height || 180));
+
+    // Only resize if necessary (resizing clears the canvas)
+    const targetW = Math.round(cssW * dpr);
+    const targetH = Math.round(cssH * dpr);
+    if (canvas.width !== targetW || canvas.height !== targetH){
+      const prev = canvas.toDataURL('image/png');
+      canvas.width = targetW;
+      canvas.height = targetH;
+      // keep drawing in CSS pixels
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      // restore previous drawing (best-effort)
+      const img = new Image();
+      img.onload = () => {
+        try { ctx.drawImage(img, 0, 0, cssW, cssH); } catch(e){}
+      };
+      img.src = prev;
+    } else {
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#ffffff';
+  }
+
+  resizeToCss();
+  // Re-check after layout settles (iOS sometimes reports 0 width on first paint)
+  setTimeout(resizeToCss, 50);
+  window.addEventListener('resize', resizeToCss);
+
+  let drawing = false;
+  let lastX = 0;
+  let lastY = 0;
+
+  function pointFromEvent(e){
+    const rect = canvas.getBoundingClientRect();
+    const t = (e.touches && e.touches[0]) ? e.touches[0] : null;
+    const cx = t ? t.clientX : (e.clientX ?? 0);
+    const cy = t ? t.clientY : (e.clientY ?? 0);
+    const x = cx - rect.left;
+    const y = cy - rect.top;
+    return {x, y};
+  }
+
+  function onDown(e){
+    if (e && e.cancelable) e.preventDefault();
+    resizeToCss();
+    drawing = true;
+    const p = pointFromEvent(e);
+    lastX = p.x; lastY = p.y;
     ctx.beginPath();
-    ctx.moveTo(_contractSig.last.x,_contractSig.last.y);
-    ctx.lineTo(x,y);
+    ctx.moveTo(lastX, lastY);
+    try {
+      if (e.pointerId != null && canvas.setPointerCapture) canvas.setPointerCapture(e.pointerId);
+    } catch(_){ }
+  }
+
+  function onMove(e){
+    if (!drawing) return;
+    if (e && e.cancelable) e.preventDefault();
+    const p = pointFromEvent(e);
+    ctx.lineTo(p.x, p.y);
     ctx.stroke();
-    _contractSig.last = {x,y};
+    lastX = p.x; lastY = p.y;
+    window.__contractSigDirty = true;
+  }
+
+  function onUp(e){
+    if (e && e.cancelable) e.preventDefault();
+    drawing = false;
+    ctx.closePath();
+    try {
+      if (e.pointerId != null && canvas.releasePointerCapture) canvas.releasePointerCapture(e.pointerId);
+    } catch(_){ }
+  }
+
+  // Remove any previous handlers (if module re-rendered)
+  if (canvas.__sigHandlers){
+    const h = canvas.__sigHandlers;
+    canvas.removeEventListener('pointerdown', h.pd);
+    canvas.removeEventListener('pointermove', h.pm);
+    canvas.removeEventListener('pointerup', h.pu);
+    canvas.removeEventListener('pointercancel', h.pu);
+    canvas.removeEventListener('touchstart', h.td);
+    canvas.removeEventListener('touchmove', h.tm);
+    canvas.removeEventListener('touchend', h.tu);
+    canvas.removeEventListener('mousedown', h.md);
+    canvas.removeEventListener('mousemove', h.mm);
+    canvas.removeEventListener('mouseup', h.mu);
+    canvas.__sigHandlers = null;
+  }
+
+  const handlers = {
+    pd: onDown,
+    pm: onMove,
+    pu: onUp,
+    td: onDown,
+    tm: onMove,
+    tu: onUp,
+    md: onDown,
+    mm: onMove,
+    mu: onUp,
   };
+  canvas.__sigHandlers = handlers;
 
-  const end = ()=>{ _contractSig.drawing = false; _contractSig.last = null; };
+  // Prefer pointer events, but keep fallbacks for older iOS
+  canvas.addEventListener('pointerdown', handlers.pd);
+  canvas.addEventListener('pointermove', handlers.pm);
+  canvas.addEventListener('pointerup', handlers.pu);
+  canvas.addEventListener('pointercancel', handlers.pu);
 
-  // Pointer events (modern browsers)
-  const onPointerDown = (e)=>{
-    try{ e.preventDefault(); }catch(_e){}
-    const p = getPos(e);
-    _contractSig.drawing = true;
-    _contractSig.hasInk = true;
-    _contractSig.last = p;
-  };
-  const onPointerMove = (e)=>{
-    if(!_contractSig.drawing) return;
-    try{ e.preventDefault(); }catch(_e){}
-    const p = getPos(e);
-    strokeTo(p.x,p.y);
-  };
-  const onPointerUp = (e)=>{ try{ e.preventDefault(); }catch(_e){}; end(); };
+  canvas.addEventListener('touchstart', handlers.td, {passive:false});
+  canvas.addEventListener('touchmove', handlers.tm, {passive:false});
+  canvas.addEventListener('touchend', handlers.tu, {passive:false});
 
-  // Touch events (fallback – iOS Safari reliability)
-  const touchPoint = (t)=>{
-    const rect = canvas.getBoundingClientRect();
-    const x = (t.clientX - rect.left) * (canvas.width / rect.width);
-    const y = (t.clientY - rect.top) * (canvas.height / rect.height);
-    return {x,y};
-  };
-  const onTouchStart = (e)=>{
-    try{ e.preventDefault(); }catch(_e){}
-    const t = e.touches && e.touches[0];
-    if(!t) return;
-    const p = touchPoint(t);
-    _contractSig.drawing = true;
-    _contractSig.hasInk = true;
-    _contractSig.last = p;
-  };
-  const onTouchMove = (e)=>{
-    if(!_contractSig.drawing) return;
-    try{ e.preventDefault(); }catch(_e){}
-    const t = e.touches && e.touches[0];
-    if(!t) return;
-    const p = touchPoint(t);
-    strokeTo(p.x,p.y);
-  };
-  const onTouchEnd = (e)=>{ try{ e.preventDefault(); }catch(_e){}; end(); };
-
-  // Remove previous handlers (if any)
-  canvas.onpointerdown = null;
-  canvas.onpointermove = null;
-  canvas.onpointerup = null;
-  canvas.onpointercancel = null;
-
-  canvas.addEventListener('pointerdown', onPointerDown);
-  canvas.addEventListener('pointermove', onPointerMove);
-  window.addEventListener('pointerup', onPointerUp);
-  window.addEventListener('pointercancel', onPointerUp);
-
-  canvas.addEventListener('touchstart', onTouchStart, {passive:false});
-  canvas.addEventListener('touchmove', onTouchMove, {passive:false});
-  canvas.addEventListener('touchend', onTouchEnd, {passive:false});
-  canvas.addEventListener('touchcancel', onTouchEnd, {passive:false});
-
-  _contractSig._bound = true;
+  canvas.addEventListener('mousedown', handlers.md);
+  canvas.addEventListener('mousemove', handlers.mm);
+  document.addEventListener('mouseup', handlers.mu);
 }
 
+
 function clearContractSig(){
-  if(!_contractSig.canvas || !_contractSig.ctx) return;
-  const c=_contractSig.canvas, ctx=_contractSig.ctx;
+  const c = document.getElementById("contractSig");
+  if(!c) return;
+  const ctx = c.getContext("2d");
+  // Clear at device pixel resolution
+  ctx.save();
+  ctx.setTransform(1,0,0,1,0,0);
   ctx.clearRect(0,0,c.width,c.height);
-  // subtle grid
-  ctx.fillStyle="rgba(0,0,0,0.18)";
-  ctx.fillRect(0,0,c.width,c.height);
-  ctx.strokeStyle="rgba(255,255,255,0.10)";
-  ctx.lineWidth=1;
-  ctx.beginPath();
-  ctx.moveTo(20, c.height-28);
-  ctx.lineTo(c.width-20, c.height-28);
-  ctx.stroke();
-  _contractSig.hasInk=false;
+  ctx.restore();
 }
 
 function getContractSigData(){
-  if(!_contractSig.canvas || !_contractSig.hasInk) return null;
-  return _contractSig.canvas.toDataURL("image/png");
+  const c = document.getElementById("contractSig");
+  if(!c) return null;
+  const ctx = c.getContext("2d");
+  // Detect if anything was drawn
+  const img = ctx.getImageData(0,0,c.width,c.height).data;
+  let hasInk = false;
+  // sample sparsely for performance
+  for(let i=0;i<img.length;i+=16){
+    if(img[i+3] !== 0){ hasInk = true; break; }
+  }
+  if(!hasInk) return null;
+  try{ return c.toDataURL("image/png"); }catch(e){ return null; }
 }
 
 // ==== Arbeitsblätter (Etappe 9) ====
