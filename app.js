@@ -1,16 +1,19 @@
 const APP_BUILD = "v11-TEST-OPTIK-01";
-window.addEventListener("error",(e)=>{console.error("APP_ERROR",e.error||e.message);});
-// Selector helpers (backward compatible):
-// $("id") works (getElementById), and $("#id"/".class"/"div > span") works (querySelector).
+// Selector helpers
+// $: accepts either an element id (e.g. 'contractSig') or a CSS selector (e.g. '#contractSig', '.btn')
 const $ = (sel) => {
   if (sel == null) return null;
-  if (typeof sel !== "string") return null;
+  if (typeof sel !== 'string') return null;
   const s = sel.trim();
   if (!s) return null;
-  const looksLikeSelector = ["#",".","[",":",">","+","~","*"].includes(s[0]) || s.includes(" ") || s.includes("	");
+  // Heuristic: if it looks like a selector, use querySelector; otherwise treat as id
+  const looksLikeSelector = ['#','.', '[', ':', '>', '+', '~', '*'].includes(s[0]) || s.includes(' ') || s.includes('	');
   return looksLikeSelector ? document.querySelector(s) : document.getElementById(s);
 };
 const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+window.addEventListener('error', (e) => {
+  console.error('APP_ERROR', e.error || e.message);
+});
 const LS_KEY="ds_workspace_test_optik_01";
 
 // --- Datum (lokal) ohne UTC-Verschiebung ---
@@ -4039,8 +4042,6 @@ state._legacy = (state._legacy && typeof state._legacy === "object") ? state._le
   // Vertrag
   state.contract = (state.contract && typeof state.contract === "object") ? state.contract : null;
   state.contractSignatures = Array.isArray(state.contractSignatures) ? state.contractSignatures : [];
-  // Betreuungsvertrag-Speicher (Kunde+Hund+Version+Unterschrift) – getrennt von der reinen Unterschrift
-  state.contractRecords = Array.isArray(state.contractRecords) ? state.contractRecords : [];
 
   // Rechnungsnummer beibehalten
   if(typeof state.nextInvoiceNumber !== "number"){
@@ -4075,7 +4076,6 @@ function ensureContractDefaults(){
     };
   }
   if(!Array.isArray(state.contractSignatures)) state.contractSignatures = [];
-  if(!Array.isArray(state.contractRecords)) state.contractRecords = [];
 }
 
 // Vertragstext (v1.0) – App-geeignet (ohne Beträge)
@@ -6547,21 +6547,8 @@ function getContractSignature(customerId, petId){
   const v = state.contract?.version || "";
   return (state.contractSignatures||[]).find(s=>s.customerId===customerId && s.petId===petId && s.contractVersion===v) || null;
 }
-function getContractRecord(customerId, petId){
-  const v = state.contract?.version || "";
-  return (state.contractRecords||[]).find(r=>r.customerId===customerId && r.petId===petId && r.contractVersion===v) || null;
-}
-function upsertContractRecord(rec){
-  if(!rec || !rec.customerId || !rec.petId) return;
-  const v = rec.contractVersion || (state.contract?.version || "");
-  rec.contractVersion = v;
-  state.contractRecords = Array.isArray(state.contractRecords) ? state.contractRecords : [];
-  const idx = state.contractRecords.findIndex(r=>r.customerId===rec.customerId && r.petId===rec.petId && r.contractVersion===v);
-  if(idx>=0) state.contractRecords[idx] = rec; else state.contractRecords.push(rec);
-}
 function hasValidContract(customerId, petId){
-  // "gültig" bedeutet: ein gespeicherter Betreuungsvertrag existiert
-  return !!getContractRecord(customerId, petId);
+  return !!getContractSignature(customerId, petId);
 }
 function contractBadge(customerId, petId){
   if(!customerId || !petId) return "";
@@ -6673,215 +6660,432 @@ function openContractPdfWindow(customerId, petId){
 }
 
 function renderContractPanel(){
-  ensureContractDefaults();
-  const t = $("#contractText");
-  const titleEl = $("#contractTitle");
-  const metaEl = $("#contractMeta");
-  if(!t) return;
+  // Robust Contract UI init (iOS-safe):
+  // - Delegated click handlers (buttons work even after re-render)
+  // - Retry population of customer/dog selects after async load/sync
+  // - Modal signature pad fallback if inline canvas is not interactive
 
-  const c = state.contract;
-  titleEl.textContent = c.title || "Betreuungsvertrag";
-  metaEl.textContent = `${c.provider || "Doggy Style Hundepension"} · Version ${c.version} · Gültig ab ${formatDateDE(c.validFrom||"2025-12-27")}`;
-  t.innerHTML = c.text || DEFAULT_CONTRACT_TEXT;
-
-  // Admin box
-  const isAdmin = (CLOUD.role === "admin");
-  const adminBox = $("#contractAdminBox");
-  if(adminBox) adminBox.style.display = isAdmin ? "block" : "none";
-  if(isAdmin){
-    const edit = $("#contractEditText");
-    if(edit && !edit.value) edit.value = c.text || DEFAULT_CONTRACT_TEXT;
-    const btnReset = $("#contractResetEdit");
-    if(btnReset) btnReset.onclick = ()=>{ if(edit) edit.value = c.text || DEFAULT_CONTRACT_TEXT; };
-    const btnPub = $("#contractPublish");
-    if(btnPub) btnPub.onclick = ()=>{
-      if(!edit) return;
-      const newText = String(edit.value||"").trim();
-      if(newText.length < 200){ alert("Bitte einen vollständigen Vertragstext einfügen."); return; }
-      // bump minor version: v1.0 -> v1.1
-      const m = String(c.version||"v1.0").match(/^v(\d+)\.(\d+)$/);
-      let major=1, minor=0;
-      if(m){ major=parseInt(m[1],10); minor=parseInt(m[2],10); }
-      minor += 1;
-      c.version = `v${major}.${minor}`;
-      c.text = newText;
-      c.updatedAt = new Date().toISOString();
-      state.contract = c;
-      saveState();
-      alert(`Neue Version veröffentlicht: ${c.version}. Kunden müssen neu unterschreiben.`);
-      renderContractPanel();
-    };
+  // 1) Render text/meta
+  // Contract text is stored in state.contract.text (HTML) with a safe fallback.
+  const txtEl = $("contractText");
+  const contractObj = state.contract || {};
+  if (txtEl) {
+    const html = (contractObj && contractObj.text) ? contractObj.text : (typeof DEFAULT_CONTRACT_TEXT === "string" ? DEFAULT_CONTRACT_TEXT : "");
+    txtEl.innerHTML = html;
+  }
+  const metaEl = $("contractMeta");
+  if (metaEl) {
+    const v = contractObj.version || state.contractVersion || "v1.0";
+    const vf = contractObj.validFrom || contractObj.valid_from || "2025-12-27";
+    const vfTxt = (typeof formatDateDE === "function") ? formatDateDE(vf) : "27.12.";
+    metaEl.textContent = `Doggy Style Hundepension · Version ${v} · Gültig ab ${vfTxt}.`;
   }
 
-  // customer/pet selects (robust: state can differ by version / load order)
-  const cs = $("#contractCustomerSelect");
-  const ps = $("#contractPetSelect");
-  if(!cs || !ps){
-    console.warn("[contract] Missing select elements", { cs: !!cs, ps: !!ps });
-    return;
+  // 2) Resolve elements
+  const cs = $("contractCustomerSelect");
+  const ps = $("contractPetSelect");
+  const accept = $("contractAcceptChk");
+  const canvas = $("contractSig");
+  const info = $("contractSignedInfo");
+
+  function setInfo(text, type){
+    if (!info) return;
+    info.textContent = text || "";
+    info.className = (type === 'ok') ? 'ok' : 'muted';
   }
 
-  const safeArr = (v)=> Array.isArray(v) ? v : [];
-  const customersRaw = safeArr(state?.customers).length ? safeArr(state?.customers)
-                    : safeArr(state?.kunden).length ? safeArr(state?.kunden)
-                    : safeArr(state?.clients);
-
-  const customerLabel = (c)=>{
-    const ln = String(c?.lastName || c?.nachname || c?.surname || "").trim();
-    const fn = String(c?.firstName || c?.vorname || c?.givenName || "").trim();
-    const name = String(c?.name || c?.displayName || c?.fullName || "").trim();
-    const nr = String(c?.customerNumber || c?.kundennummer || c?.number || c?.nr || "").trim();
-
-    const base = (ln || fn) ? `${ln}${ln && fn ? ", " : ""}${fn}` : name;
-    return nr ? `${base || "Kunde"} · ${nr}` : (base || "Kunde");
-  };
-
-  const customers = customersRaw.slice().sort((a,b)=>customerLabel(a).localeCompare(customerLabel(b),"de"));
-  cs.innerHTML = customers.map(x=>`<option value="${escapeHtml(String(x.id||x.uid||x.key||""))}">${escapeHtml(customerLabel(x))}</option>`).join("")
-    || `<option value="">(keine Kunden)</option>`;
-
-  function fillPets(){
-    const cid = cs.value;
-    const petsRaw = safeArr(state?.pets).length ? safeArr(state?.pets)
-                 : safeArr(state?.hunde).length ? safeArr(state?.hunde)
-                 : safeArr(state?.dogs);
-
-    const pets = petsRaw
-      .filter(p=>String(p.customerId||p.ownerId||p.kundeId||"")===String(cid||""))
-      .sort((a,b)=>String(a.name||a.hundename||"").localeCompare(String(b.name||b.hundename||""),"de"));
-
-    ps.innerHTML = pets.map(p=>{
-      const pid = String(p.id||p.uid||p.key||"");
-      const nm = String(p.name||p.hundename||"Hund");
-      return `<option value="${escapeHtml(pid)}">${escapeHtml(nm)}</option>`;
-    }).join("") || `<option value="">(keine Hunde)</option>`;
-
-    updateSignedInfo();
+  function sigKey(customerId, petId){
+    const v = state.contractVersion || 'v1.0';
+    return `${v}__${customerId||''}__${petId||''}`;
   }
 
-  cs.onchange = fillPets;
-  fillPets();
-
-  // Wenn ein Hund gewählt wird, Kunde automatisch übernehmen (falls verknüpft)
-  ps.onchange = ()=>{
-    const selectedPetId = ps.value;
-    const pet = getPet(selectedPetId);
-    const targetCustomerId = pet ? (pet.customerId || "") : "";
-    if(targetCustomerId && cs.value !== targetCustomerId){
-      cs.value = targetCustomerId;
-      fillPets();
-      ps.value = selectedPetId; // Auswahl beibehalten
-    }
-    updateSignedInfo();
-  };
-
-
-  // signature pad
-  // Init signature pad when visible
-  requestAnimationFrame(() => initContractSignaturePad());
-  $("#contractSigClear").onclick = ()=>{ clearContractSig(); };
-  const pdfBtn = document.getElementById("contractPdfBtn");
-  if(pdfBtn){
-    pdfBtn.onclick = ()=>{
-      const customerId = cs.value;
-      const petId = ps.value;
-      if(!customerId || !petId){ alert("Bitte Kunde und Hund auswählen."); return; }
-      const r = getContractRecord(customerId, petId);
-      if(!r){
-        alert("Für diese Auswahl ist der Betreuungsvertrag noch nicht gespeichert. Bitte zuerst \"Speichern\".");
-        return;
-      }
-      openContractPdfWindow(customerId, petId);
-    };
+  function getSelectedIds(){
+    const customerId = cs ? (cs.value||"") : "";
+    const petId = ps ? (ps.value||"") : "";
+    return {customerId, petId};
   }
 
-  $("#contractSignBtn").onclick = ()=>{
-    const customerId = cs.value;
-    const petId = ps.value;
-    if(!customerId || !petId){ alert("Bitte Kunde und Hund auswählen."); return; }
-    const chk = $("#contractAcceptChk");
-    if(!chk.checked){ alert("Bitte zuerst bestätigen, dass du den Vertrag gelesen und akzeptiert hast."); return; }
-    const dataUrl = getContractSigData();
-    if(!dataUrl){ alert("Bitte unterschreiben (Unterschriftsfeld)."); return; }
-
-    // Save signature
-    const sig = {
-      id: uid(),
-      customerId, petId,
-      contractVersion: state.contract.version,
-      signedAt: new Date().toISOString(),
-      signatureDataUrl: dataUrl
-    };
-
-    // Replace existing for this combo/version
-    state.contractSignatures = (state.contractSignatures||[]).filter(s=>!(s.customerId===customerId && s.petId===petId && s.contractVersion===sig.contractVersion));
-    state.contractSignatures.push(sig);
-    saveState();
-    clearContractSig();
-    chk.checked = false;
-    updateSignedInfo();
-    $("#contractStatusBanner").textContent = "✅ Unterschrift gespeichert.";
-    setTimeout(()=>{ const b=$("#contractStatusBanner"); if(b) b.textContent=""; }, 1500);
-    // refresh lists where badges appear
-    renderDogs();
-  };
-
-  // Vertrag (Kunde+Hund+Version+Unterschrift) speichern
-  const saveBtn = document.getElementById("contractSaveBtn");
-  if(saveBtn){
-    saveBtn.onclick = ()=>{
-      const customerId = cs.value;
-      const petId = ps.value;
-      if(!customerId || !petId){ alert("Bitte Kunde und Hund auswählen."); return; }
-      const sig = getContractSignature(customerId, petId);
-      if(!sig){ alert("Bitte zuerst unterschreiben."); return; }
-
-      const rec = {
-        id: uid(),
-        customerId,
-        petId,
-        contractVersion: sig.contractVersion,
-        signedAt: sig.signedAt,
-        signatureDataUrl: sig.signatureDataUrl,
-        savedAt: new Date().toISOString()
-      };
-
-      // Replace existing record for combo/version
-      state.contractRecords = (state.contractRecords||[]).filter(r=>!(r.customerId===customerId && r.petId===petId && r.contractVersion===rec.contractVersion));
-      state.contractRecords.push(rec);
-      saveState();
-      updateSignedInfo();
-      const b = $("#contractStatusBanner");
-      if(b) b.textContent = "💾 Betreuungsvertrag gespeichert.";
-      setTimeout(()=>{ const bb=$("#contractStatusBanner"); if(bb) bb.textContent=""; }, 1500);
-    };
+  function ensureSigStore(){
+    state.contractSignatures = state.contractSignatures || {};
   }
 
   function updateSignedInfo(){
-    const customerId = cs.value;
-    const petId = ps.value;
-    const info = $("#contractSignedInfo");
-    const savedInfo = $("#contractSavedInfo");
-    const s = getContractSignature(customerId, petId);
-    const r = getContractRecord(customerId, petId);
-    if(!info) return;
-    if(s){
-      info.innerHTML = `🟢 Gültig unterschrieben am ${new Date(s.signedAt).toLocaleString("de-DE")} (Version ${escapeHtml(s.contractVersion)})`;
-    }else{
-      info.innerHTML = `🔴 Noch keine gültige Unterschrift für Version ${escapeHtml(state.contract.version)}.`;
+    ensureSigStore();
+    const {customerId, petId} = getSelectedIds();
+    if (!customerId || !petId){
+      setInfo("⚠ Bitte zuerst Kunde und Hund wählen.", 'muted');
+      return;
     }
-
-    if(savedInfo){
-      if(r){
-        savedInfo.className = "ok";
-        savedInfo.innerHTML = `💾 Vertrag gespeichert am ${new Date(r.savedAt).toLocaleString("de-DE")} (Version ${escapeHtml(r.contractVersion)})`;
-      }else{
-        savedInfo.className = "muted";
-        savedInfo.innerHTML = `ℹ️ Vertrag noch nicht gespeichert.`;
-      }
+    const rec = state.contractSignatures[sigKey(customerId, petId)];
+    if (rec && rec.dataUrl){
+      const ts = rec.signedAt ? new Date(rec.signedAt) : null;
+      const when = ts ? ` · ${ts.toLocaleString()}` : "";
+      setInfo(`✅ Unterschrift vorhanden (${state.contractVersion||'v1.0'}${when})`, 'ok');
+    } else {
+      setInfo(`🔴 Noch keine gültige Unterschrift für Version ${state.contractVersion||'v1.0'}.`, 'muted');
     }
   }
+
+  // 3) Populate selectors (with retries if data arrives later)
+  function populateCustomerSelect(){
+    if (!cs) return;
+    const prev = cs.value;
+    cs.innerHTML = '';
+    const opt0 = document.createElement('option');
+    opt0.value = '';
+    opt0.textContent = '(Kunde wählen)';
+    cs.appendChild(opt0);
+
+    const customers = Array.isArray(state.customers) ? state.customers.slice() : [];
+    customers.sort((a,b)=>String(a.lastName||a.name||'').localeCompare(String(b.lastName||b.name||'')));
+
+    for (const c of customers){
+      const id = c.id || c.customerId || c.uid || c.key || '';
+      if (!id) continue;
+      const labelBase = (c.lastName || c.name || c.firstName || 'Kunde').toString().trim();
+      const label = c.phone ? `${labelBase} · ${c.phone}` : labelBase;
+      const o = document.createElement('option');
+      o.value = id;
+      o.textContent = label;
+      cs.appendChild(o);
+    }
+
+    // restore selection if possible
+    if (prev && [...cs.options].some(o=>o.value===prev)) cs.value = prev;
+    // If a customerId is already in state.contractSelection, prefer it
+    if (!cs.value && state.contractSelection && state.contractSelection.customerId){
+      const want = state.contractSelection.customerId;
+      if ([...cs.options].some(o=>o.value===want)) cs.value = want;
+    }
+  }
+
+  function populatePetSelect(){
+    if (!ps) return;
+    const prev = ps.value;
+    ps.innerHTML = '';
+
+    const {customerId} = getSelectedIds();
+
+    // pets might be stored as state.pets, state.dogs, or embedded on customers
+    let pets = [];
+    if (Array.isArray(state.pets)) pets = state.pets;
+    else if (Array.isArray(state.dogs)) pets = state.dogs;
+
+    if (customerId){
+      const customer = (Array.isArray(state.customers) ? state.customers : []).find(c => (c.id||c.customerId||c.uid||c.key) === customerId);
+      if (customer && Array.isArray(customer.pets)) pets = customer.pets;
+    }
+
+    pets = Array.isArray(pets) ? pets.slice() : [];
+
+    if (!pets.length){
+      const o = document.createElement('option');
+      o.value = '';
+      o.textContent = '(keine Hunde)';
+      ps.appendChild(o);
+      return;
+    }
+
+    const o0 = document.createElement('option');
+    o0.value = '';
+    o0.textContent = '(Hund wählen)';
+    ps.appendChild(o0);
+
+    pets.sort((a,b)=>String(a.name||a.petName||'').localeCompare(String(b.name||b.petName||'')));
+    for (const d of pets){
+      const id = d.id || d.petId || d.uid || d.key || d.name || '';
+      if (!id) continue;
+      const name = d.name || d.petName || 'Hund';
+      const o = document.createElement('option');
+      o.value = id;
+      o.textContent = name;
+      ps.appendChild(o);
+    }
+
+    if (prev && [...ps.options].some(o=>o.value===prev)) ps.value = prev;
+    if (!ps.value && state.contractSelection && state.contractSelection.petId){
+      const want = state.contractSelection.petId;
+      if ([...ps.options].some(o=>o.value===want)) ps.value = want;
+    }
+  }
+
+  function refreshSelectors(){
+    try{
+      populateCustomerSelect();
+      populatePetSelect();
+      updateSignedInfo();
+    }catch(e){
+      console.error('contract refreshSelectors error', e);
+      setInfo('⚠ Contract UI Fehler (Selectors).', 'muted');
+    }
+  }
+
+  // retry if data is not yet there
+  let tries = 0;
+  (function retry(){
+    refreshSelectors();
+    const customers = Array.isArray(state.customers) ? state.customers : [];
+    const pets = Array.isArray(state.pets) ? state.pets : (Array.isArray(state.dogs)?state.dogs:[]);
+    if ((customers.length>0) || (++tries>=10)) return;
+    setTimeout(retry, 400);
+  })();
+
+  if (cs && !cs.dataset.bound){
+    cs.dataset.bound = '1';
+    cs.addEventListener('change', ()=>{
+      state.contractSelection = state.contractSelection || {};
+      state.contractSelection.customerId = cs.value||'';
+      saveState();
+      populatePetSelect();
+      updateSignedInfo();
+    });
+  }
+
+  if (ps && !ps.dataset.bound){
+    ps.dataset.bound = '1';
+    ps.addEventListener('change', ()=>{
+      state.contractSelection = state.contractSelection || {};
+      state.contractSelection.petId = ps.value||'';
+      saveState();
+      updateSignedInfo();
+    });
+  }
+
+  // 4) Signature pad (inline) + Modal fallback
+  function clearInlineCanvas(){
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+  }
+
+  function snapshotInlineCanvas(){
+    if (!canvas) return null;
+    try{ return canvas.toDataURL('image/png'); }catch(e){ return null; }
+  }
+
+  function openSignatureModal(onSave){
+    const modalId = 'sigModal';
+    let modal = document.getElementById(modalId);
+    if (modal) modal.remove();
+
+    modal = document.createElement('div');
+    modal.id = modalId;
+    modal.style.position='fixed';
+    modal.style.inset='0';
+    modal.style.background='rgba(0,0,0,0.65)';
+    modal.style.zIndex='99999';
+    modal.style.display='flex';
+    modal.style.alignItems='center';
+    modal.style.justifyContent='center';
+    modal.style.padding='16px';
+
+    const card = document.createElement('div');
+    card.style.width='min(900px, 100%)';
+    card.style.background='rgba(40,40,45,0.98)';
+    card.style.border='1px solid rgba(255,255,255,0.12)';
+    card.style.borderRadius='16px';
+    card.style.padding='14px';
+    card.style.boxShadow='0 20px 60px rgba(0,0,0,0.4)';
+
+    const title = document.createElement('div');
+    title.textContent='Unterschrift';
+    title.style.fontWeight='700';
+    title.style.margin='4px 0 10px 0';
+
+    const c = document.createElement('canvas');
+    c.width = 900;
+    c.height = 340;
+    c.style.width='100%';
+    c.style.height='auto';
+    c.style.background='rgba(255,255,255,0.06)';
+    c.style.borderRadius='12px';
+    c.style.touchAction='none';
+
+    const row = document.createElement('div');
+    row.style.display='flex';
+    row.style.gap='10px';
+    row.style.justifyContent='flex-end';
+    row.style.marginTop='12px';
+
+    const btnCancel = document.createElement('button');
+    btnCancel.className='smallbtn';
+    btnCancel.type='button';
+    btnCancel.textContent='Abbrechen';
+
+    const btnClear = document.createElement('button');
+    btnClear.className='smallbtn';
+    btnClear.type='button';
+    btnClear.textContent='Löschen';
+
+    const btnSave = document.createElement('button');
+    btnSave.className='btn primary';
+    btnSave.type='button';
+    btnSave.textContent='Speichern';
+
+    row.appendChild(btnCancel);
+    row.appendChild(btnClear);
+    row.appendChild(btnSave);
+
+    card.appendChild(title);
+    card.appendChild(c);
+    card.appendChild(row);
+    modal.appendChild(card);
+    document.body.appendChild(modal);
+
+    // simple pen
+    const ctx = c.getContext('2d');
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#ffffff';
+
+    let drawing=false, hasDrawn=false, last=null;
+    function pt(e){
+      const r=c.getBoundingClientRect();
+      const x=(e.clientX - r.left) * (c.width / r.width);
+      const y=(e.clientY - r.top) * (c.height / r.height);
+      return {x,y};
+    }
+    function down(e){ drawing=True; }
+
+    function start(e){
+      drawing=true; last=pt(e); ctx.beginPath(); ctx.moveTo(last.x,last.y); hasDrawn=true;
+      e.preventDefault();
+    }
+    function move(e){
+      if(!drawing) return;
+      const p=pt(e);
+      ctx.lineTo(p.x,p.y); ctx.stroke();
+      e.preventDefault();
+    }
+    function end(e){ drawing=false; last=null; e.preventDefault(); }
+
+    c.addEventListener('pointerdown', start);
+    c.addEventListener('pointermove', move);
+    c.addEventListener('pointerup', end);
+    c.addEventListener('pointercancel', end);
+
+    btnClear.onclick = ()=>{ ctx.clearRect(0,0,c.width,c.height); hasDrawn=false; };
+    btnCancel.onclick = ()=> modal.remove();
+    btnSave.onclick = ()=>{
+      if (!hasDrawn){ alert('Bitte zuerst unterschreiben.'); return; }
+      const dataUrl = c.toDataURL('image/png');
+      onSave(dataUrl);
+      modal.remove();
+    };
+  }
+
+  // 5) Delegated button handling (single listener)
+  // Bind on document (capture) to work reliably on iOS Safari and to override
+  // any legacy per-button handlers that may still be attached elsewhere.
+  if (!document.documentElement.dataset.contractBtnsBound){
+    document.documentElement.dataset.contractBtnsBound = '1';
+    document.addEventListener('click', (ev)=>{
+      const t = ev.target;
+      if (!t) return;
+      const id = t.id || '';
+      if (id !== 'contractSigClear' && id !== 'contractSignBtn' && id !== 'contractSigBtn' && id !== 'contractPdfBtn') return;
+      ev.preventDefault();
+      // Stop other handlers (old bindings) from firing.
+      try { ev.stopImmediatePropagation(); } catch(_) {}
+      try { ev.stopPropagation(); } catch(_) {}
+
+      try{
+        ensureSigStore();
+        const {customerId, petId} = getSelectedIds();
+        if (!customerId){ alert('Bitte zuerst Kunde wählen.'); return; }
+        if (!petId){ alert('Bitte zuerst Hund wählen.'); return; }
+        if (accept && !accept.checked){ alert('Bitte Vertrag akzeptieren.'); return; }
+
+        if (id === 'contractSigClear'){
+          // Clear signature
+          clearInlineCanvas();
+          delete state.contractSignatures[sigKey(customerId, petId)];
+          saveState();
+          setInfo('Unterschrift gelöscht.', 'muted');
+          updateSignedInfo();
+          return;
+        }
+
+        if (id === 'contractSignBtn' || id === 'contractSigBtn'){
+          // Prefer modal signature (most reliable on iOS)
+          openSignatureModal((dataUrl)=>{
+            state.contractSignatures[sigKey(customerId, petId)] = {dataUrl, signedAt: new Date().toISOString()};
+            // also paint into inline canvas for visual feedback
+            if (canvas){
+              const img = new Image();
+              img.onload = ()=>{ const ctx = canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height); ctx.drawImage(img,0,0,canvas.width,canvas.height); };
+              img.src = dataUrl;
+            }
+            saveState();
+            updateSignedInfo();
+          });
+          return;
+        }
+
+        if (id === 'contractPdfBtn'){
+          const rec = state.contractSignatures[sigKey(customerId, petId)];
+          if (!rec || !rec.dataUrl){
+            alert('Für diese Auswahl liegt noch keine gültige Unterschrift vor.');
+            return;
+          }
+          openContractPdfWindow(customerId, petId);
+          return;
+        }
+      }catch(e){
+        console.error('contract button handler error', e);
+        alert('Fehler in Betreuungsvertrag. Bitte erneut versuchen.');
+      }
+    }, {capture:true});
+  }
+
+  // 6) Inline canvas: make it always interactive (when possible)
+  if (canvas && !canvas.dataset.bound){
+    canvas.dataset.bound='1';
+    canvas.style.touchAction = 'none';
+    const ctx = canvas.getContext('2d');
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#ffffff';
+
+    let drawing=false, hasDrawn=false;
+    const getPos = (e)=>{
+      const r = canvas.getBoundingClientRect();
+      const x = (e.clientX - r.left) * (canvas.width / r.width);
+      const y = (e.clientY - r.top) * (canvas.height / r.height);
+      return {x,y};
+    };
+
+    const startDraw=(e)=>{ drawing=true; hasDrawn=true; const p=getPos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); e.preventDefault(); };
+    const moveDraw=(e)=>{ if(!drawing) return; const p=getPos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); e.preventDefault(); };
+    const endDraw=(e)=>{ drawing=false; e.preventDefault(); };
+
+    canvas.addEventListener('pointerdown', startDraw);
+    canvas.addEventListener('pointermove', moveDraw);
+    canvas.addEventListener('pointerup', endDraw);
+    canvas.addEventListener('pointercancel', endDraw);
+
+    // Tap opens modal if drawing fails (user feedback)
+    canvas.addEventListener('click', ()=>{
+      // offer modal only if no drawing happened yet
+      if (!hasDrawn) {
+        openSignatureModal((dataUrl)=>{
+          state.contractSelection = state.contractSelection || {};
+          const {customerId, petId} = getSelectedIds();
+          if (!customerId || !petId) return;
+          state.contractSignatures[sigKey(customerId, petId)] = {dataUrl, signedAt: new Date().toISOString()};
+          const img = new Image();
+          img.onload = ()=>{ ctx.clearRect(0,0,canvas.width,canvas.height); ctx.drawImage(img,0,0,canvas.width,canvas.height); };
+          img.src = dataUrl;
+          saveState();
+          updateSignedInfo();
+        });
+      }
+    });
+  }
+
+  updateSignedInfo();
 }
+
 
 // --- Signature Pad (inline) ---
 let _contractSig = {canvas:null, ctx:null, drawing:false, hasInk:false, last:null};
@@ -6946,180 +7150,73 @@ function openContractFromStay(doc){
 }
 
 function initContractSignaturePad(){
-  const canvas = document.getElementById('contractSig');
-  if (!canvas) return;
+  const canvas = document.getElementById("contractSig");
+  if(!canvas) return;
+  if(_contractSig.canvas === canvas) return;
+  _contractSig.canvas = canvas;
+  _contractSig.ctx = canvas.getContext("2d");
+  clearContractSig();
 
-  // Ensure the canvas has a proper backing store size (retina) and correct mapping.
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
-
-  // iOS: avoid scroll/zoom taking the gesture
-  canvas.style.touchAction = 'none';
-  canvas.style.webkitUserSelect = 'none';
-  canvas.style.userSelect = 'none';
-
-  function resizeToCss(){
+  const getPos = (e)=>{
     const rect = canvas.getBoundingClientRect();
-
-  // If the panel is still hidden when this runs (e.g., first app boot), the
-  // canvas gets a 0x0 rect on iOS and becomes non-drawable. Retry shortly.
-  _contractSig._initTries = (_contractSig._initTries || 0) + 1;
-  if ((rect.width < 20 || rect.height < 20) && _contractSig._initTries < 10) {
-    setTimeout(initContractSignaturePad, 120);
-    return;
-  }
-  _contractSig._initTries = 0;
-
-    const dpr = window.devicePixelRatio || 1;
-    // If rect is 0 (hidden), fall back to attributes
-    const cssW = Math.max(1, Math.round(rect.width || canvas.width || 600));
-    const cssH = Math.max(1, Math.round(rect.height || canvas.height || 180));
-
-    // Only resize if necessary (resizing clears the canvas)
-    const targetW = Math.round(cssW * dpr);
-    const targetH = Math.round(cssH * dpr);
-    if (canvas.width !== targetW || canvas.height !== targetH){
-      const prev = canvas.toDataURL('image/png');
-      canvas.width = targetW;
-      canvas.height = targetH;
-      // keep drawing in CSS pixels
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      // restore previous drawing (best-effort)
-      const img = new Image();
-      img.onload = () => {
-        try { ctx.drawImage(img, 0, 0, cssW, cssH); } catch(e){}
-      };
-      img.src = prev;
-    } else {
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    }
-
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = '#ffffff';
-  }
-
-  resizeToCss();
-  // Re-check after layout settles (iOS sometimes reports 0 width on first paint)
-  setTimeout(resizeToCss, 50);
-  window.addEventListener('resize', resizeToCss);
-
-  let drawing = false;
-  let lastX = 0;
-  let lastY = 0;
-
-  function pointFromEvent(e){
-    const rect = canvas.getBoundingClientRect();
-    const t = (e.touches && e.touches[0]) ? e.touches[0] : null;
-    const cx = t ? t.clientX : (e.clientX ?? 0);
-    const cy = t ? t.clientY : (e.clientY ?? 0);
-    const x = cx - rect.left;
-    const y = cy - rect.top;
-    return {x, y};
-  }
-
-  function onDown(e){
-    if (e && e.cancelable) e.preventDefault();
-    resizeToCss();
-    drawing = true;
-    const p = pointFromEvent(e);
-    lastX = p.x; lastY = p.y;
-    ctx.beginPath();
-    ctx.moveTo(lastX, lastY);
-    try {
-      if (e.pointerId != null && canvas.setPointerCapture) canvas.setPointerCapture(e.pointerId);
-    } catch(_){ }
-  }
-
-  function onMove(e){
-    if (!drawing) return;
-    if (e && e.cancelable) e.preventDefault();
-    const p = pointFromEvent(e);
-    ctx.lineTo(p.x, p.y);
-    ctx.stroke();
-    lastX = p.x; lastY = p.y;
-    window.__contractSigDirty = true;
-  }
-
-  function onUp(e){
-    if (e && e.cancelable) e.preventDefault();
-    drawing = false;
-    ctx.closePath();
-    try {
-      if (e.pointerId != null && canvas.releasePointerCapture) canvas.releasePointerCapture(e.pointerId);
-    } catch(_){ }
-  }
-
-  // Remove any previous handlers (if module re-rendered)
-  if (canvas.__sigHandlers){
-    const h = canvas.__sigHandlers;
-    canvas.removeEventListener('pointerdown', h.pd);
-    canvas.removeEventListener('pointermove', h.pm);
-    canvas.removeEventListener('pointerup', h.pu);
-    canvas.removeEventListener('pointercancel', h.pu);
-    canvas.removeEventListener('touchstart', h.td);
-    canvas.removeEventListener('touchmove', h.tm);
-    canvas.removeEventListener('touchend', h.tu);
-    canvas.removeEventListener('mousedown', h.md);
-    canvas.removeEventListener('mousemove', h.mm);
-    canvas.removeEventListener('mouseup', h.mu);
-    canvas.__sigHandlers = null;
-  }
-
-  const handlers = {
-    pd: onDown,
-    pm: onMove,
-    pu: onUp,
-    td: onDown,
-    tm: onMove,
-    tu: onUp,
-    md: onDown,
-    mm: onMove,
-    mu: onUp,
+    const pt = (e.touches && e.touches[0]) ? e.touches[0] : e;
+    return {x:(pt.clientX-rect.left)*(canvas.width/rect.width), y:(pt.clientY-rect.top)*(canvas.height/rect.height)};
   };
-  canvas.__sigHandlers = handlers;
 
-  // Prefer pointer events, but keep fallbacks for older iOS
-  canvas.addEventListener('pointerdown', handlers.pd);
-  canvas.addEventListener('pointermove', handlers.pm);
-  canvas.addEventListener('pointerup', handlers.pu);
-  canvas.addEventListener('pointercancel', handlers.pu);
+  const start = (e)=>{
+    e.preventDefault();
+    _contractSig.drawing=true;
+    _contractSig.last=getPos(e);
+  };
+  const move = (e)=>{
+    if(!_contractSig.drawing) return;
+    e.preventDefault();
+    const p=getPos(e);
+    const ctx=_contractSig.ctx;
+    ctx.strokeStyle="rgba(255,255,255,0.92)";
+    ctx.lineWidth=3;
+    ctx.lineCap="round";
+    ctx.beginPath();
+    ctx.moveTo(_contractSig.last.x,_contractSig.last.y);
+    ctx.lineTo(p.x,p.y);
+    ctx.stroke();
+    _contractSig.last=p;
+    _contractSig.hasInk=true;
+  };
+  const end = (e)=>{
+    if(!_contractSig.drawing) return;
+    e.preventDefault();
+    _contractSig.drawing=false;
+  };
 
-  canvas.addEventListener('touchstart', handlers.td, {passive:false});
-  canvas.addEventListener('touchmove', handlers.tm, {passive:false});
-  canvas.addEventListener('touchend', handlers.tu, {passive:false});
-
-  canvas.addEventListener('mousedown', handlers.md);
-  canvas.addEventListener('mousemove', handlers.mm);
-  document.addEventListener('mouseup', handlers.mu);
+  canvas.addEventListener("pointerdown", start, {passive:false});
+  canvas.addEventListener("pointermove", move, {passive:false});
+  canvas.addEventListener("pointerup", end, {passive:false});
+  canvas.addEventListener("pointercancel", end, {passive:false});
+  canvas.addEventListener("touchstart", start, {passive:false});
+  canvas.addEventListener("touchmove", move, {passive:false});
+  canvas.addEventListener("touchend", end, {passive:false});
 }
 
-
 function clearContractSig(){
-  const c = document.getElementById("contractSig");
-  if(!c) return;
-  const ctx = c.getContext("2d");
-  // Clear at device pixel resolution
-  ctx.save();
-  ctx.setTransform(1,0,0,1,0,0);
+  if(!_contractSig.canvas || !_contractSig.ctx) return;
+  const c=_contractSig.canvas, ctx=_contractSig.ctx;
   ctx.clearRect(0,0,c.width,c.height);
-  ctx.restore();
+  // subtle grid
+  ctx.fillStyle="rgba(0,0,0,0.18)";
+  ctx.fillRect(0,0,c.width,c.height);
+  ctx.strokeStyle="rgba(255,255,255,0.10)";
+  ctx.lineWidth=1;
+  ctx.beginPath();
+  ctx.moveTo(20, c.height-28);
+  ctx.lineTo(c.width-20, c.height-28);
+  ctx.stroke();
+  _contractSig.hasInk=false;
 }
 
 function getContractSigData(){
-  const c = document.getElementById("contractSig");
-  if(!c) return null;
-  const ctx = c.getContext("2d");
-  // Detect if anything was drawn
-  const img = ctx.getImageData(0,0,c.width,c.height).data;
-  let hasInk = false;
-  // sample sparsely for performance
-  for(let i=0;i<img.length;i+=16){
-    if(img[i+3] !== 0){ hasInk = true; break; }
-  }
-  if(!hasInk) return null;
-  try{ return c.toDataURL("image/png"); }catch(e){ return null; }
+  if(!_contractSig.canvas || !_contractSig.hasInk) return null;
+  return _contractSig.canvas.toDataURL("image/png");
 }
 
 // ==== Arbeitsblätter (Etappe 9) ====
