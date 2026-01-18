@@ -6709,6 +6709,74 @@ function renderContractPanel(){
     state.contractSignatures = state.contractSignatures || {};
   }
 
+  function ensureContractStore(){
+    state.contractAgreements = state.contractAgreements || {};
+  }
+
+  function agreementKey(customerId, petId){
+    return sigKey(customerId, petId) + '::' + (state.contractVersion||'v1.0');
+  }
+
+  function setSaveInfo(msg, tone){
+    const el = document.getElementById('contractSaveInfo')
+      || document.getElementById('contractSaveStatus')
+      || document.getElementById('contractSavedInfo');
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.remove('ok','warn','muted');
+    if (tone) el.classList.add(tone);
+  }
+
+  function isAgreementSaved(customerId, petId){
+    ensureContractStore();
+    return !!state.contractAgreements[agreementKey(customerId, petId)];
+  }
+
+  function updateSaveInfo(){
+    const {customerId, petId} = getSelectedIds();
+    if (!customerId || !petId){
+      setSaveInfo('ℹ Vertrag noch nicht gespeichert.', 'muted');
+      return;
+    }
+    if (isAgreementSaved(customerId, petId)){
+      const rec = state.contractAgreements[agreementKey(customerId, petId)];
+      const ts = rec && rec.savedAt ? new Date(rec.savedAt) : null;
+      const when = ts ? ` · ${ts.toLocaleString()}` : '';
+      setSaveInfo(`✅ Vertrag gespeichert (${state.contractVersion||'v1.0'}${when})`, 'ok');
+    } else {
+      setSaveInfo('ℹ Vertrag noch nicht gespeichert.', 'muted');
+    }
+  }
+
+  function saveAgreement(){
+    const {customerId, petId} = getSelectedIds();
+    if (!customerId || !petId){
+      alert('Bitte zuerst Kunde und Hund wählen.');
+      return;
+    }
+    if (!chk || !chk.checked){
+      alert('Bitte bestätigen: "Ich habe den Betreuungsvertrag gelesen und akzeptiere ihn."');
+      return;
+    }
+    ensureSigStore();
+    const rec = state.contractSignatures[sigKey(customerId, petId)];
+    if (!rec || !rec.dataUrl){
+      alert('Bitte zuerst unterschreiben.');
+      return;
+    }
+    ensureContractStore();
+    state.contractAgreements[agreementKey(customerId, petId)] = {
+      customerId,
+      petId,
+      version: (state.contractVersion||'v1.0'),
+      accepted: true,
+      signatureAt: rec.signedAt || Date.now(),
+      savedAt: Date.now()
+    };
+    try { saveState(); } catch(e) {}
+    updateSaveInfo();
+  }
+
   function updateSignedInfo(){
     ensureSigStore();
     const {customerId, petId} = getSelectedIds();
@@ -6945,7 +7013,7 @@ function renderContractPanel(){
       const y=(e.clientY - r.top) * (c.height / r.height);
       return {x,y};
     }
-    function down(e){ drawing=True; }
+    function down(e){ drawing=true; }
 
     function start(e){
       drawing=true; last=pt(e); ctx.beginPath(); ctx.moveTo(last.x,last.y); hasDrawn=true;
@@ -6981,9 +7049,18 @@ function renderContractPanel(){
     document.documentElement.dataset.contractBtnsBound = '1';
     document.addEventListener('click', (ev)=>{
       const t = ev.target;
-      if (!t) return;
-      const id = t.id || '';
-      if (id !== 'contractSigClear' && id !== 'contractSignBtn' && id !== 'contractSigBtn' && id !== 'contractPdfBtn') return;
+      if (!t || !t.closest) return;
+      const btn = t.closest('button');
+      if (!btn) return;
+      const id = btn.id || '';
+      const txt = (btn.textContent||'').trim().toLowerCase();
+
+      const isClearBtn = (id === 'contractSigClear' || txt.includes('unterschrift löschen'));
+      const isSignBtn = (id === 'contractSignBtn' || id === 'contractSigBtn' || txt.includes('unterschreiben'));
+      const isPdfBtn  = (id === 'contractPdfBtn' || txt === 'pdf' || txt.includes(' pdf'));
+      const isSaveBtn = (id === 'contractSaveBtn' || id === 'btnContractSave' || id === 'contractSave' || id === 'contractSaveButton' || txt === 'speichern' || txt.includes(' speichern'));
+
+      if (!isClearBtn && !isSignBtn && !isPdfBtn && !isSaveBtn) return;
       ev.preventDefault();
       // Stop other handlers (old bindings) from firing.
       try { ev.stopImmediatePropagation(); } catch(_) {}
@@ -6996,17 +7073,18 @@ function renderContractPanel(){
         if (!petId){ alert('Bitte zuerst Hund wählen.'); return; }
         if (accept && !accept.checked){ alert('Bitte Vertrag akzeptieren.'); return; }
 
-        if (id === 'contractSigClear'){
+        if (isClearBtn){
           // Clear signature
           clearInlineCanvas();
           delete state.contractSignatures[sigKey(customerId, petId)];
           saveState();
           setInfo('Unterschrift gelöscht.', 'muted');
           updateSignedInfo();
+          updateSaveInfo();
           return;
         }
 
-        if (id === 'contractSignBtn' || id === 'contractSigBtn'){
+        if (isSignBtn){
           // Prefer modal signature (most reliable on iOS)
           openSignatureModal((dataUrl)=>{
             state.contractSignatures[sigKey(customerId, petId)] = {dataUrl, signedAt: new Date().toISOString()};
@@ -7018,15 +7096,31 @@ function renderContractPanel(){
             }
             saveState();
             updateSignedInfo();
+            updateSaveInfo();
           });
           return;
         }
 
-        if (id === 'contractPdfBtn'){
+        if (isSaveBtn){
+          saveContractSelection();
+          return;
+        }
+
+        if (isPdfBtn){
           const rec = state.contractSignatures[sigKey(customerId, petId)];
           if (!rec || !rec.dataUrl){
             alert('Für diese Auswahl liegt noch keine gültige Unterschrift vor.');
             return;
+          }
+          // If a save button exists in the UI, require explicit contract save before PDF.
+          const saveBtnEl = document.getElementById('contractSaveBtn') || document.getElementById('btnContractSave') || document.getElementById('contractSave') || [...document.querySelectorAll('button')].find(b=>/speichern/i.test((b.textContent||'')));
+          if (saveBtnEl){
+            ensureContractStore();
+            const key = agreementKey(customerId, petId);
+            if (!state.contractAgreements[key]){
+              alert('Vertrag noch nicht gespeichert. Bitte zuerst auf Speichern klicken.');
+              return;
+            }
           }
           openContractPdfWindow(customerId, petId);
           return;
