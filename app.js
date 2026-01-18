@@ -7052,6 +7052,9 @@ function renderContractPanel(){
       if (!t || !t.closest) return;
       const btn = t.closest('button');
       if (!btn) return;
+	      // IMPORTANT: Scope this delegated handler strictly to the contract module.
+	      // Otherwise any "Speichern" button elsewhere (e.g. Kunden/Hunde) would be intercepted.
+	      if (!btn.closest('#contract')) return;
       const id = btn.id || '';
       const txt = (btn.textContent||'').trim().toLowerCase();
 
