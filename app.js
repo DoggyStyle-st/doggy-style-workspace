@@ -6666,10 +6666,20 @@ function renderContractPanel(){
   // - Modal signature pad fallback if inline canvas is not interactive
 
   // 1) Render text/meta
+  // Contract text is stored in state.contract.text (HTML) with a safe fallback.
   const txtEl = $("contractText");
-  if (txtEl) txtEl.innerHTML = state.contractText || "";
+  const contractObj = state.contract || {};
+  if (txtEl) {
+    const html = (contractObj && contractObj.text) ? contractObj.text : (typeof DEFAULT_CONTRACT_TEXT === "string" ? DEFAULT_CONTRACT_TEXT : "");
+    txtEl.innerHTML = html;
+  }
   const metaEl = $("contractMeta");
-  if (metaEl) metaEl.textContent = `Doggy Style Hundepension · Version ${state.contractVersion||'v1.0'} · Gültig ab 27.12.`;
+  if (metaEl) {
+    const v = contractObj.version || state.contractVersion || "v1.0";
+    const vf = contractObj.validFrom || contractObj.valid_from || "2025-12-27";
+    const vfTxt = (typeof formatDateDE === "function") ? formatDateDE(vf) : "27.12.";
+    metaEl.textContent = `Doggy Style Hundepension · Version ${v} · Gültig ab ${vfTxt}.`;
+  }
 
   // 2) Resolve elements
   const cs = $("contractCustomerSelect");
