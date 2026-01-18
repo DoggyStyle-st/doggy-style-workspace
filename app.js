@@ -1,4 +1,4 @@
-const APP_BUILD = "v11-TEST-OPTIK-01";
+const APP_BUILD = "v11B_SAVE_PDF_01";
 // Selector helpers
 // $: accepts either an element id (e.g. 'contractSig') or a CSS selector (e.g. '#contractSig', '.btn')
 const $ = (sel) => {
@@ -5314,7 +5314,17 @@ function docItem(d){
   const btnPdf = document.createElement("button");
   btnPdf.className = "smallbtn";
   btnPdf.textContent = "PDF";
-  btnPdf.onclick = ()=>{openDoc(d.id); setTimeout(()=>printDoc(),150);};
+  btnPdf.disabled = !d.saved;
+  btnPdf.title = d.saved ? "" : "PDF erst nach Speichern verfügbar";
+  btnPdf.onclick = ()=>{
+    if(!d.saved){
+      openDoc(d.id);
+      alert("Dieser Aufenthalt ist noch nicht gespeichert. Bitte zuerst im Editor auf Speichern klicken. Danach kannst du das PDF erzeugen.");
+      return;
+    }
+    openDoc(d.id);
+    setTimeout(()=>printDoc(),150);
+  };
 
   const btnDelete = document.createElement("button");
   btnDelete.className = "smallbtn";
@@ -5411,6 +5421,15 @@ versionOf: null,meta: {
 }
 
 let currentDoc=null, dirty=false;
+
+function setPdfButtonState(doc){
+  const btn = document.getElementById("btnPrint");
+  if(!btn) return;
+  const d = doc || currentDoc;
+  const ok = !!(d && d.saved);
+  btn.disabled = !ok;
+  btn.title = ok ? "" : "PDF erst nach Speichern verfügbar";
+}
 function normalizeMeta(doc){
   doc.meta = doc.meta || {};
   doc.meta.betreuung = doc.meta.betreuung || "";
@@ -5460,6 +5479,7 @@ normalizeMeta(currentDoc);
   updateContractWarnBanner(currentDoc);
   autofillHundeannahmeFieldsFromMaster($("#dogSelect").value, { overwrite:false });
 renderVersions(currentDoc);
+  setPdfButtonState(currentDoc);
 
   // Quicklinks im Aufenthalt (Medikation/Gesundheit)
   try{ renderStayQuickLinks(currentDoc); }catch(e){ console.warn('renderStayQuickLinks failed', e); }
@@ -5883,7 +5903,14 @@ document.addEventListener("click",(e)=>{
 $("#btnPrint").addEventListener("click",()=>printDoc());
 function printDoc(){
   if(!currentDoc) return;
-  if(!saveCurrent(false)) return;
+  if(!currentDoc.saved){
+    alert("Bitte zuerst speichern. Danach kannst du das PDF aus dem gespeicherten Datensatz erzeugen.");
+    return;
+  }
+  if(typeof dirty!=="undefined" && dirty){
+    alert("Es gibt ungespeicherte Änderungen. Bitte zuerst speichern, dann PDF erzeugen.");
+    return;
+  }
   const t=getTemplate(currentDoc.templateId);
   const dog=state.dogs.find(d=>d.id===currentDoc.dogId) || null;
   const html=buildPrintHtml(currentDoc,t,dog);
