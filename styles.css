@@ -306,6 +306,20 @@ body.page-login .topbar .brand__sub{ opacity:0.8; }
 .sigbox{border-radius:14px;overflow:hidden;border:1px solid rgba(255,255,255,0.12);background:rgba(0,0,0,0.20);}
 #contractSig{display:block;width:100%;height:auto;touch-action:none; background:rgba(255,255,255,0.02);}
 
+/* --- iOS/Safari Tap-Fix (Betreuungsvertrag: Unterschrift & Buttons) ---
+   In iOS/Safari kann es vorkommen, dass der Bereich unterhalb der Zustimmung
+   Touch-/Klick-Events nicht sauber erhält (Text-Selektion/Overlay-Effekt).
+   Wir ziehen die rechte Spalte nach vorne und deaktivieren dort Text-Selektion.
+*/
+.contract-side{position:relative;z-index:20;-webkit-user-select:none;user-select:none;}
+.contract-side *{-webkit-user-select:none;user-select:none;}
+.contract-side select,.contract-side option{ -webkit-user-select:text; user-select:text; }
+.contract-card{position:relative;z-index:20;}
+.sigbox{position:relative;z-index:25;}
+#contractSig{position:relative;z-index:26;pointer-events:auto;}
+.actions{position:relative;z-index:30;}
+.actions button{pointer-events:auto;}
+
 
 /* Contract warning banner */
 .warn-banner{
@@ -965,38 +979,3 @@ body.page-login .btnLink--text:hover{
 
 /* Sticky-Panels (rechte Spalte) an neue Headerhöhe anpassen */
 .sticky{top:104px;}
-
-
-/* P2.10 CONTRACT INTERACTION FIX */
-.contract-wrap{position:relative;z-index:2;}
-.contract-doc,.contract-side{position:relative;z-index:3;}
-.contract-side{pointer-events:auto;}
-.contract-side *{pointer-events:auto;}
-.contract-card{position:relative;z-index:4;}
-.contract-card .actions{position:relative;z-index:6;}
-.contract-card .sigbox{position:relative;z-index:5;}
-#contractSig{position:relative;z-index:6;display:block;touch-action:none;-webkit-user-select:none;user-select:none;}
-#contractSig:active{cursor:crosshair;}
-#contractSig, #contractSig *{pointer-events:auto;}
-#contractSigClear, #contractSignBtn, #contractPdfBtn{pointer-events:auto;}
-/* Prevent any accidental overlays in contract area */
-.contract-side::before,.contract-side::after,.contract-card::before,.contract-card::after,.sigbox::before,.sigbox::after{pointer-events:none !important;}
-
-/* --- Contract Signature: Tap/Pointer Robustness (iOS Safari) --- */
-.contract-side,
-.contract-side .contract-card,
-.contract-side .sigbox,
-.contract-side .actions{
-  position: relative;
-  z-index: 5;
-}
-#contractSig{
-  pointer-events: auto !important;
-  touch-action: none;
-}
-#contractSigClear,
-#contractPdfBtn,
-#contractSignBtn,
-#contractSigBtn{
-  pointer-events: auto !important;
-}

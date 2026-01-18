@@ -1,6 +1,6 @@
-/* Doggy Style – Service Worker P1-1B (update-safe, network-first for core) */
+/* Doggy Style – Service Worker TEST-OPTIK-01-2026-01-03b (offline-first, update-safe) */
 
-const SW_VERSION = "P1-2A-SYNC-SUCCESS-2026-01-16a";
+const SW_VERSION = "TEST-OPTIK-01-2026-01-03b";
 const CACHE_NAME = `ds-test-cache-${SW_VERSION}`;
 
 // Wichtig:
@@ -14,18 +14,9 @@ const CORE_ASSETS = [
   "login.html",
   "app.html",
   "styles.css",
-  "dashboard_master.css",
   "app.js",
-  "auth.js",
-  "firebase-config.js",
-  "diag.html",
-  "diag.js",
   "manifest.json",
-  "assets/logo.png",
-  "assets/pfote.png",
-  "login_override.css",
-  "templates/rechnung.json",
-  "templates/hundeannahme.json"
+  "assets/logo.png"
 ];
 
 self.addEventListener("install", (event) => {
@@ -63,8 +54,6 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(req.url);
   if(url.origin !== self.location.origin) return;
 
-  const CRITICAL_ASSETS = new Set(["/app.js","/styles.css","/dashboard_master.css","/auth.js","/firebase-config.js"]);
-
   const isHTML = req.mode === "navigate" || (req.headers.get("accept")||"").includes("text/html");
 
   // HTML: network-first (damit Updates sofort kommen)
@@ -77,22 +66,6 @@ self.addEventListener("fetch", (event) => {
       }catch(e){
         const cached = await caches.match(req);
         return cached || caches.match("index.html");
-      }
-    })());
-    return;
-  }
-
-  // Critical core assets: network-first (damit JS/CSS Updates sofort kommen)
-  const path = url.pathname;
-  if(CRITICAL_ASSETS.has(path) || CRITICAL_ASSETS.has('/'+path.split('/').pop())){
-    event.respondWith((async ()=>{
-      try{
-        const fresh = await fetch(req, {cache:'no-store'});
-        if(fresh && fresh.ok) await cachePut(req, fresh);
-        return fresh;
-      }catch(e){
-        const cached = await caches.match(req);
-        return cached || caches.match('app.js') || caches.match('styles.css');
       }
     })());
     return;

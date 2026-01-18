@@ -1,4 +1,4 @@
-const APP_BUILD = "v11-P1-2A-SYNC-SUCCESS";
+const APP_BUILD = "v11-TEST-OPTIK-01";
 window.addEventListener("error",(e)=>{console.error("APP_ERROR",e.error||e.message);});
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
@@ -113,15 +113,10 @@ function can(action){
 
 const SYNC = {
   localSavedAt: 0,
-  // P1.2a: "Sync: erfolgreich" nach erstem erfolgreichen Speichern (lokal oder Cloud)
-  sessionOkAt: 0,
   cloudLastSeenAt: 0,
   cloudPending: false,
   cloudLastOkAt: 0,
-  cloudLastError: "",
-  cloudReachable: false,
-  cloudReachCheckedAt: 0,
-  cloudReachError: ""
+  cloudLastError: ""
 };
 
 function fmtDT(ts){
@@ -160,44 +155,41 @@ function updateSyncUI(){
   }
 
   const netOnline = (typeof navigator !== 'undefined') ? !!navigator.onLine : false;
-  // Passiver Sync-Indikator (P1.2a): "erfolgreich" sobald mindestens ein Save bestaetigt ist
-  // - lokal: sobald saveState() gelaufen ist
-  // - cloud: sobald ein Cloud-Write bestaetigt wurde
-  const cloudOk = !!(cloudIsEnabled() && CLOUD && CLOUD.enabled && CLOUD.user && SYNC.cloudLastOkAt && !SYNC.cloudLastError && !SYNC.cloudPending);
-  const syncOk = !!(SYNC.sessionOkAt || cloudOk);
-  try{ if(pill){ pill.classList.toggle('is-online', !!syncOk); pill.classList.toggle('is-offline', !syncOk); } }catch(e){}
-
+  try{ if(pill){ pill.classList.toggle('is-online', !!netOnline); pill.classList.toggle('is-offline', !netOnline); } }catch(e){}
   const localLine = `Lokal gespeichert: ${fmtDT(SYNC.localSavedAt)}`;
+
+  // Internet-Status (nicht gleich Cloud!)
   const netLine = `Internet: ${netOnline ? 'Online' : 'Offline'}`;
 
-  // Hinweis: Das Label "Sync:" steht bereits im Header. Hier nur der Zustand.
-  let pillText = syncOk ? 'erfolgreich' : 'ausstehend';
-  let cloudLine = 'Noch kein erfolgreicher Sync.';
+  let pillText = netOnline ? 'Online' : 'Offline';
+  let cloudLine = 'Cloud: aus';
 
   if(!cloudIsEnabled()){
+    // Cloud nicht möglich (SDK fehlt) – das ist der Hauptgrund für "immer Offline" in der Wahrnehmung
     cloudLine = window.firebaseConfig ? 'Cloud: bereit (SDK nicht geladen)' : 'Cloud: aus';
-    if(window.firebaseConfig && CLOUD && CLOUD.reason){ cloudLine += ` · ${CLOUD.reason}`; }
-  } else if(CLOUD && CLOUD.enabled){
+    if(window.firebaseConfig && CLOUD.reason){
+      cloudLine += ` · ${CLOUD.reason}`;
+    }
+  } else if(CLOUD.enabled){
     if(!CLOUD.user){
-      cloudLine = 'Cloud: Login nötig';
+      pillText = `${netOnline ? 'Online' : 'Offline'} · Cloud: Login nötig`;
+      cloudLine = 'Cloud: nicht angemeldet';
     } else if(SYNC.cloudLastError){
-      cloudLine = `Letzter Sync-Fehler: ${SYNC.cloudLastError}`;
+      pillText = `${netOnline ? 'Online' : 'Offline'} · Cloud: Fehler`;
+      cloudLine = `Cloud Fehler: ${SYNC.cloudLastError}`;
     } else if(SYNC.cloudPending){
-      cloudLine = `Sync läuft… (letztes OK ${fmtDT(SYNC.cloudLastOkAt)})`;
-    } else if(SYNC.cloudLastOkAt){
-      cloudLine = `Letzter Sync OK: ${fmtDT(SYNC.cloudLastOkAt)} · Server: ${fmtDT(SYNC.cloudLastSeenAt)}`;
+      pillText = `${netOnline ? 'Online' : 'Offline'} · Cloud: Sync…`;
+      cloudLine = `Cloud Sync: läuft (letztes OK ${fmtDT(SYNC.cloudLastOkAt)})`;
+    } else {
+      pillText = `${netOnline ? 'Online' : 'Offline'} · Cloud: OK`;
+      cloudLine = `Cloud zuletzt OK: ${fmtDT(SYNC.cloudLastOkAt)} · Server: ${fmtDT(SYNC.cloudLastSeenAt)}`;
     }
   }
-  const shownTs = SYNC.cloudLastOkAt || SYNC.sessionOkAt || SYNC.localSavedAt;
-  if(pill) pill.textContent = `${pillText} · ${fmtDT(shownTs)}`;
+
+  if(pill) pill.textContent = `${pillText} · ${fmtDT(SYNC.localSavedAt)}`;
   const dot=document.getElementById('syncDot');
-  if(dot){ dot.classList.toggle('online', !!syncOk); dot.classList.toggle('offline', !syncOk); }
-  const detailsText = `${localLine}\n${netLine}\n${cloudLine}\nCloud-Ping: ${fmtDT(SYNC.cloudReachCheckedAt)}${SYNC.cloudReachError ? ' · '+SYNC.cloudReachError : ''}`;
-  // Global ablegen, damit wir es auch ohne Konsole anzeigen können (Modal)
-  try{ window.__ds_lastSyncDetails = detailsText; }catch(e){}
-  if(details) details.textContent = detailsText;
-  const detailsInline = document.getElementById('syncDetailsInline');
-  if(detailsInline) detailsInline.textContent = detailsText;
+  if(dot){ dot.classList.toggle('online', !!netOnline); dot.classList.toggle('offline', !netOnline); }
+  if(details) details.textContent = `${localLine}\n${netLine}\n${cloudLine}`;
 
   // Manual cloud save: only enable when Cloud is active + logged in
   if(manualBtn){
@@ -391,73 +383,6 @@ function cloudIsEnabled(){
   // Cloud nur möglich, wenn Config vorhanden UND Firebase SDK geladen ist.
   // (In PWA offline wird das SDK über ServiceWorker gecached.)
   return !!(window.firebaseConfig && window.firebase && window.firebase.initializeApp && window.firebase.auth);
-}
-
-
-function withTimeout(promise, ms){
-  return new Promise((resolve, reject)=>{
-    const t = setTimeout(()=>reject(new Error("timeout")), ms);
-    Promise.resolve(promise).then((v)=>{ clearTimeout(t); resolve(v); }).catch((e)=>{ clearTimeout(t); reject(e); });
-  });
-}
-
-async function checkCloudReachability(reason){
-  const netOnline = (typeof navigator !== 'undefined') ? !!navigator.onLine : false;
-  SYNC.cloudReachCheckedAt = Date.now();
-  SYNC.cloudReachError = "";
-
-  // Default: nicht erreichbar
-  SYNC.cloudReachable = false;
-
-  if(!netOnline){
-    SYNC.cloudReachError = "kein Internet";
-    return false;
-  }
-  if(!cloudIsEnabled() || !CLOUD || !CLOUD.enabled || !CLOUD.db){
-    SYNC.cloudReachError = "Cloud nicht bereit";
-    return false;
-  }
-  if(!CLOUD.user){
-    SYNC.cloudReachError = "nicht angemeldet";
-    return false;
-  }
-
-  const ref = (typeof cloudStateRef === 'function') ? cloudStateRef() : null;
-  if(!ref || !ref.get){
-    SYNC.cloudReachError = "State-Ref fehlt";
-    return false;
-  }
-
-  try{
-    // erzwinge Serverzugriff, damit wir echte Erreichbarkeit messen
-    const p = ref.get({ source: 'server' });
-    await withTimeout(p, 4000);
-    SYNC.cloudReachable = true;
-    SYNC.cloudReachError = "";
-    return true;
-  }catch(err){
-    const code = (err && (err.code || err.name)) ? String(err.code || err.name) : "";
-    // Permission denied bedeutet: Cloud erreichbar, nur Rechte fehlen
-    if(code.includes("permission") || code.includes("PERMISSION")){
-      SYNC.cloudReachable = true;
-      SYNC.cloudReachError = "keine Rechte";
-      return true;
-    }
-    SYNC.cloudReachable = false;
-    SYNC.cloudReachError = (code || "nicht erreichbar");
-    return false;
-  }
-}
-
-let _cloudPingTimer = null;
-function scheduleCloudPing(delayMs=0, reason=""){
-  try{
-    if(_cloudPingTimer) clearTimeout(_cloudPingTimer);
-    _cloudPingTimer = setTimeout(async ()=>{
-      await checkCloudReachability(reason);
-      updateSyncUI();
-    }, Math.max(0, delayMs));
-  }catch(e){}
 }
 
 function showAuthGate(show){
@@ -5070,10 +4995,6 @@ function saveState(){
     console.error("Local save failed", e);
   }
   SYNC.localSavedAt = (state && state._localUpdatedAt) ? state._localUpdatedAt : Date.now();
-  // P1.2a: erstes erfolgreiches Speichern in dieser Session markiert "Sync: erfolgreich"
-  if(!SYNC.sessionOkAt){
-    SYNC.sessionOkAt = SYNC.localSavedAt;
-  }
   updateSyncUI();
   // Cloud Sync (Weg 2B): Änderungen nach außen spiegeln
   if(CLOUD.enabled && CLOUD.user) cloudSchedulePush();
@@ -6140,8 +6061,6 @@ return;
     }
 
     showAuthGate(false);
-    // Cloud-Erreichbarkeit prüfen, damit Status nicht erst nach einer Aktion auf Online springt
-    try{ scheduleCloudPing(50,'auth-login'); }catch(e){}
     if(btnLogout) btnLogout.style.display = "inline-block";
     if(btnLogoutApp) btnLogoutApp.style.display = "inline-block";
     updateSyncUI();
@@ -6296,8 +6215,8 @@ document.addEventListener("visibilitychange", () => {
 startApp().catch(console.error);
 // UI: Sync-Status regelmäßig auffrischen (auch bei Tab-Wechsel/PWA)
 setInterval(()=>{ try{ updateSyncUI(); }catch(_){ } }, 1500);
-window.addEventListener('online', ()=>{ try{ scheduleCloudPing(0,'online-event'); }catch(_){ try{ updateSyncUI(); }catch(__){} } });
-window.addEventListener('offline', ()=>{ try{ SYNC.cloudReachable=false; SYNC.cloudReachError='kein Internet'; SYNC.cloudReachCheckedAt=Date.now(); }catch(_){ } try{ updateSyncUI(); }catch(__){} });
+window.addEventListener('online', ()=>{ try{ updateSyncUI(); }catch(_){ } });
+window.addEventListener('offline', ()=>{ try{ updateSyncUI(); }catch(_){ } });
 
 /* ===== B2.2a Freier Rechnungs-Editor ===== */
 function renderInvoiceEditorB2(doc){
@@ -6728,20 +6647,43 @@ function renderContractPanel(){
 
   // signature pad
   initContractSignaturePad();
-  $("#contractSigClear").onclick = ()=>{ clearContractSig(); };
+
+  // iOS/Safari: clicks can be swallowed by selection/overlay; bind both click and touchend
+  function bindTap(el, handler){
+    if(!el || !handler) return;
+    // remove prior listeners added via bindTap
+    try{
+      if(el.__tapClick){ el.removeEventListener('click', el.__tapClick); }
+      if(el.__tapTouch){ el.removeEventListener('touchend', el.__tapTouch); }
+    }catch(_){ }
+
+    // also clear legacy inline handlers
+    el.onclick = null;
+    el.onmousedown = null;
+    el.ontouchstart = null;
+    el.ontouchend = null;
+
+    el.__tapClick = (e)=>{ handler(e); };
+    el.__tapTouch = (e)=>{ try{ e.preventDefault(); }catch(_){ } handler(e); };
+    el.addEventListener('click', el.__tapClick);
+    el.addEventListener('touchend', el.__tapTouch, {passive:false});
+  }
+
+  bindTap($("#contractSigClear"), ()=>{ clearContractSig(); });
+
   const pdfBtn = document.getElementById("contractPdfBtn");
   if(pdfBtn){
-    pdfBtn.onclick = ()=>{
+    bindTap(pdfBtn, ()=>{
       const customerId = cs.value;
       const petId = ps.value;
       if(!customerId || !petId){ alert("Bitte Kunde und Hund auswählen."); return; }
       const s = getContractSignature(customerId, petId);
       if(!s){ alert("Für diese Auswahl liegt noch keine gültige Unterschrift vor."); return; }
       openContractPdfWindow(customerId, petId);
-    };
+    });
   }
 
-  $("#contractSignBtn").onclick = ()=>{
+  bindTap($("#contractSignBtn"), ()=>{
     const customerId = cs.value;
     const petId = ps.value;
     if(!customerId || !petId){ alert("Bitte Kunde und Hund auswählen."); return; }
@@ -6770,7 +6712,7 @@ function renderContractPanel(){
     setTimeout(()=>{ const b=$("#contractStatusBanner"); if(b) b.textContent=""; }, 1500);
     // refresh lists where badges appear
     renderDogs();
-  };
+  });
 
   function updateSignedInfo(){
     const customerId = cs.value;
@@ -7525,411 +7467,3 @@ function wfTodayPrint(){
   wfOpenPdf(wfPdfTemplate("Heute drucken", body));
 }
 try{ const bb=document.getElementById('buildBadge'); if(bb) bb.textContent = 'Build ' + APP_BUILD; }catch(e){}
-
-// __DS_SYNC_INLINE_TOGGLE__
-document.addEventListener('DOMContentLoaded', ()=>{
-  try{
-    const trigger = document.getElementById('syncIndicatorBtn') || document.getElementById('syncIndicator');
-    const inline = document.getElementById('syncDetailsInline');
-    if(!trigger || !inline) return;
-
-    const toggle = (ev)=>{
-      try{ ev.preventDefault(); ev.stopPropagation(); }catch(e){}
-      const hidden = (inline.style.display==='none' || inline.style.display==='');
-      inline.style.display = hidden ? 'block' : 'none';
-    };
-
-    // iOS Safari: click can be swallowed depending on overlays; add touch/pointer events as well.
-    trigger.addEventListener('click', toggle, {passive:false});
-    trigger.addEventListener('touchend', toggle, {passive:false});
-    trigger.addEventListener('pointerup', toggle, {passive:false});
-
-    // Ultra-robust fallback: capture taps anywhere and toggle if the tap happened inside the trigger's bounding box.
-    // This fixes cases where an invisible overlay steals the actual target element.
-    const inRect = (x,y,rect)=> (x>=rect.left && x<=rect.right && y>=rect.top && y<=rect.bottom);
-    const cap = (ev)=>{
-      try{
-        const r = trigger.getBoundingClientRect();
-        let x=null, y=null;
-        if(ev.changedTouches && ev.changedTouches[0]){ x = ev.changedTouches[0].clientX; y = ev.changedTouches[0].clientY; }
-        else if(typeof ev.clientX==='number'){ x = ev.clientX; y = ev.clientY; }
-        if(x===null || y===null) return;
-        if(inRect(x,y,r)) toggle(ev);
-      }catch(e){}
-    };
-    document.addEventListener('touchend', cap, true);
-    document.addEventListener('click', cap, true);
-  }catch(e){}
-
-  // P1.1E: Floating Sync-Diagnose Modal (iOS-sicher)
-  try{
-    const btn = document.getElementById('btnSyncDiagFloat');
-    const modal = document.getElementById('syncDiagModal');
-    const close = document.getElementById('btnSyncDiagClose');
-    const pre = document.getElementById('syncDiagText');
-    if(btn && modal && close && pre){
-      const open = (ev)=>{
-        try{ ev.preventDefault(); ev.stopPropagation(); }catch(e){}
-        pre.textContent = (window.__ds_lastSyncDetails || '(noch keine Daten)');
-        modal.style.display = 'flex';
-      };
-      const shut = (ev)=>{
-        try{ ev.preventDefault(); ev.stopPropagation(); }catch(e){}
-        modal.style.display = 'none';
-      };
-      btn.addEventListener('click', open, {passive:false});
-      btn.addEventListener('touchend', open, {passive:false});
-      close.addEventListener('click', shut, {passive:false});
-      close.addEventListener('touchend', shut, {passive:false});
-      // Tap on backdrop closes
-      modal.addEventListener('click', (ev)=>{ if(ev.target === modal) shut(ev); }, {passive:false});
-    }
-  }catch(e){}
-});
-
-/* ===== Floating Sync-Diagnose (immer tappbar) =====
-   Hintergrund: iOS Safari kann Clicks in der Topbar verschlucken (Overlays/Hit-Testing).
-   Diese Box sitzt fix unten links und zeigt die gleichen Details an.
-*/
-function ensureFloatingSyncDiag(detailsText, meta = {}){
-  let box = document.getElementById('dsFloatingSyncDiag');
-  if(!box){
-    box = document.createElement('div');
-    box.id = 'dsFloatingSyncDiag';
-    box.setAttribute('role','button');
-    box.setAttribute('aria-label','Sync-Diagnose');
-    box.style.position = 'fixed';
-    box.style.left = '10px';
-    box.style.bottom = '10px';
-    box.style.zIndex = '2147483647';
-    box.style.maxWidth = 'min(420px, calc(100vw - 20px))';
-    box.style.background = 'rgba(0,0,0,0.75)';
-    box.style.border = '1px solid rgba(255,255,255,0.18)';
-    box.style.borderRadius = '12px';
-    box.style.padding = '8px 10px';
-    box.style.color = '#fff';
-    box.style.fontSize = '12px';
-    box.style.lineHeight = '1.3';
-    box.style.whiteSpace = 'pre-wrap';
-    box.style.pointerEvents = 'auto';
-    box.style.webkitUserSelect = 'none';
-    box.style.userSelect = 'none';
-    box.style.cursor = 'pointer';
-    box.style.boxShadow = '0 8px 30px rgba(0,0,0,0.35)';
-    box.dataset.expanded = '0';
-
-    const toggle = (ev)=>{
-      try{ ev && ev.preventDefault && ev.preventDefault(); }catch(e){}
-      try{ ev && ev.stopPropagation && ev.stopPropagation(); }catch(e){}
-      box.dataset.expanded = (box.dataset.expanded === '1') ? '0' : '1';
-      // Re-render with the last known details
-      try{ renderFloatingSyncDiag(box, window.__ds_lastSyncDetails || detailsText, meta); }catch(e){}
-      return false;
-    };
-    box.addEventListener('click', toggle, {passive:false});
-    box.addEventListener('touchend', toggle, {passive:false});
-    box.addEventListener('pointerup', toggle, {passive:false});
-    document.body.appendChild(box);
-  }
-  renderFloatingSyncDiag(box, detailsText, meta);
-}
-
-function renderFloatingSyncDiag(box, detailsText, meta = {}){
-  const short = `SYNC-INFO (tippen für Details)\n` +
-    `Internet: ${meta.netOnline ? 'Online' : 'Offline'} | ` +
-    `Cloud: ${meta.cloudOk ? 'OK' : 'OFF'} | ` +
-    `User: ${meta.hasUser ? 'ja' : 'nein'} | ` +
-    `SDK: ${meta.sdkReady ? 'ja' : 'nein'}`;
-
-  if(box.dataset.expanded === '1'){
-    box.textContent = `${short}\n\n${detailsText}`;
-  } else {
-    box.textContent = short;
-  }
-}
-
-
-/* ===== P2.12 CONTRACT SIGNATURE - EVENT DELEGATION MODAL (iOS SAFE) =====
-   Ziel: Buttons/Canvas im Betreuungsvertrag IMMER klickbar machen (auch nach Re-Render).
-   - Keine Abhängigkeit von früheren initContract* Funktionen
-   - Delegierte Click-Handler (document) -> robust gegen DOM-Rebuild
-   - Signatur in Modal mit eigenem Canvas + Touch/Pointer Handling
-*/
-(function(){
-  const log = (...a)=>{ try{ console.log('[P2.12][contract]',...a);}catch(_){}};
-
-  function $(sel, root){ return (root||document).querySelector(sel); }
-  function ensureModal(){
-    let m = $('#dsSigModal');
-    if(m) return m;
-    m = document.createElement('div');
-    m.id = 'dsSigModal';
-    m.style.cssText = [
-      'position:fixed','inset:0','z-index:99999',
-      'background:rgba(0,0,0,.55)','display:none',
-      'align-items:center','justify-content:center',
-      'padding:16px'
-    ].join(';');
-
-    const box = document.createElement('div');
-    box.style.cssText = [
-      'width:min(720px, 96vw)','background:#2b2b2f','border-radius:14px',
-      'box-shadow:0 12px 40px rgba(0,0,0,.45)','padding:14px',
-      'border:1px solid rgba(255,255,255,.08)'
-    ].join(';');
-
-    box.innerHTML = `
-      <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;margin-bottom:10px;">
-        <div style="font-weight:700">Unterschrift erfassen</div>
-        <button id="dsSigClose" type="button" class="smallbtn">Schließen</button>
-      </div>
-      <div style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:10px;">
-        <canvas id="dsSigCanvas" width="900" height="320" style="width:100%;height:180px;display:block;border-radius:10px;background:rgba(255,255,255,.04);touch-action:none"></canvas>
-      </div>
-      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:10px;flex-wrap:wrap;">
-        <button id="dsSigClear" type="button" class="smallbtn">Löschen</button>
-        <button id="dsSigSave" type="button" class="primary">Übernehmen</button>
-      </div>
-      <div id="dsSigHint" class="muted" style="margin-top:8px;">Mit dem Finger oder Stift unterschreiben.</div>
-    `;
-
-    m.appendChild(box);
-    document.body.appendChild(m);
-
-    // Close handlers
-    m.addEventListener('click', (e)=>{ if(e.target === m) hideModal(); });
-    box.addEventListener('click', (e)=> e.stopPropagation());
-
-    $('#dsSigClose', m).addEventListener('click', hideModal);
-
-    return m;
-  }
-
-  let pad = null;
-  function getPad(){
-    const m = ensureModal();
-    const canvas = $('#dsSigCanvas', m);
-    if(pad && pad.canvas === canvas) return pad;
-
-    const ctx = canvas.getContext('2d');
-    const state = { drawing:false, hasDrawn:false, last:null };
-
-    function resizeHiDPI(){
-      // Keep CSS size, scale buffer for crisp lines
-      const rect = canvas.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
-      const w = Math.max(1, Math.round(rect.width * dpr));
-      const h = Math.max(1, Math.round(rect.height * dpr));
-      if(canvas.width !== w || canvas.height !== h){
-        canvas.width = w; canvas.height = h;
-        ctx.setTransform(1,0,0,1,0,0);
-        ctx.scale(dpr, dpr);
-        clear();
-      }
-    }
-
-    function clear(){
-      const rect = canvas.getBoundingClientRect();
-      ctx.clearRect(0,0,rect.width,rect.height);
-      state.hasDrawn = false;
-      state.last = null;
-    }
-
-    function pointFromEvent(ev){
-      const rect = canvas.getBoundingClientRect();
-      const x = (ev.clientX - rect.left);
-      const y = (ev.clientY - rect.top);
-      return {x,y};
-    }
-
-    function drawLine(a,b){
-      ctx.lineWidth = 2.4;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.strokeStyle = '#eaeaea';
-      ctx.beginPath();
-      ctx.moveTo(a.x,a.y);
-      ctx.lineTo(b.x,b.y);
-      ctx.stroke();
-    }
-
-    function onDown(ev){
-      ev.preventDefault();
-      resizeHiDPI();
-      state.drawing = true;
-      state.last = pointFromEvent(ev);
-    }
-    function onMove(ev){
-      if(!state.drawing) return;
-      ev.preventDefault();
-      const p = pointFromEvent(ev);
-      if(state.last) drawLine(state.last,p);
-      state.last = p;
-      state.hasDrawn = true;
-    }
-    function onUp(ev){
-      if(!state.drawing) return;
-      ev.preventDefault();
-      state.drawing = false;
-      state.last = null;
-    }
-
-    // Pointer events preferred; fallback to touch
-    canvas.addEventListener('pointerdown', onDown, {passive:false});
-    canvas.addEventListener('pointermove', onMove, {passive:false});
-    canvas.addEventListener('pointerup', onUp, {passive:false});
-    canvas.addEventListener('pointercancel', onUp, {passive:false});
-
-    canvas.addEventListener('touchstart', (e)=>{ if(e.touches && e.touches[0]) onDown(e.touches[0]); }, {passive:false});
-    canvas.addEventListener('touchmove', (e)=>{ if(e.touches && e.touches[0]) onMove(e.touches[0]); }, {passive:false});
-    canvas.addEventListener('touchend', (e)=>{ onUp(e.changedTouches && e.changedTouches[0] ? e.changedTouches[0] : e); }, {passive:false});
-
-    // Buttons inside modal
-    $('#dsSigClear', m).addEventListener('click', ()=>{ clear(); $('#dsSigHint', m).textContent='Unterschrift gelöscht.'; });
-
-    pad = { canvas, ctx, state, clear, resizeHiDPI,
-      toDataURL(){
-        // Export at device pixel ratio already in buffer
-        return canvas.toDataURL('image/png');
-      }
-    };
-
-    // initial
-    setTimeout(()=>{ try{ resizeHiDPI(); }catch(_){}} , 50);
-
-    return pad;
-  }
-
-  function showModal(){
-    const m = ensureModal();
-    m.style.display = 'flex';
-    try{ const p=getPad(); p.resizeHiDPI(); }catch(_){ }
-  }
-  function hideModal(){
-    const m = $('#dsSigModal');
-    if(m) m.style.display = 'none';
-  }
-
-  function setContractInfo(text, type){
-    const el = document.getElementById('contractSignedInfo');
-    if(!el) return;
-    el.textContent = text || '';
-    el.className = (type === 'success') ? 'ok' : 'muted';
-  }
-
-  function getSelectedIds(){
-    const custSel = document.getElementById('contractCustomerSelect');
-    const petSel  = document.getElementById('contractPetSelect');
-    return {
-      customerId: custSel && custSel.value ? String(custSel.value) : '',
-      petId: petSel && petSel.value ? String(petSel.value) : ''
-    };
-  }
-
-  function acceptChecked(){
-    const chk = document.getElementById('contractAcceptChk');
-    return !!(chk && chk.checked);
-  }
-
-  // Delegated handlers (robust)
-  document.addEventListener('click', function(e){
-    const t = e.target;
-    const btnSign  = t && t.closest ? t.closest("#contractSignBtn, #contractSigBtn") : null;
-    const btnClear = t && t.closest ? t.closest('#contractSigClear') : null;
-    const btnPdf   = t && t.closest ? t.closest('#contractPdfBtn') : null;
-
-    if(btnSign){
-      e.preventDefault();
-      const ids = getSelectedIds();
-      if(!ids.customerId){ alert('Bitte zuerst einen Kunden wählen.'); return; }
-      if(!ids.petId){ alert('Bitte zuerst einen Hund wählen.'); return; }
-      if(!acceptChecked()){ alert('Bitte Vertrag akzeptieren.'); return; }
-
-      // Open modal and hook save
-      showModal();
-      const m = ensureModal();
-      const saveBtn = $('#dsSigSave', m);
-      // Replace handler safely
-      saveBtn.onclick = function(){
-        const p = getPad();
-        if(!p.state.hasDrawn){ alert('Bitte zuerst unterschreiben.'); return; }
-        const dataUrl = p.toDataURL();
-        try{
-          window.state = window.state || {};
-          window.state.contract = window.state.contract || {};
-          window.state.contract.hasSignature = true;
-          window.state.contract.signatureBase64 = dataUrl;
-          window.state.contract.signedAt = new Date().toISOString();
-          window.state.contract.customerId = ids.customerId;
-          window.state.contract.petId = ids.petId;
-        }catch(err){
-          console.error('contract signature state error', err);
-        }
-
-        setContractInfo('🟢 Unterschrift erfasst (Session)', 'success');
-        hideModal();
-      };
-
-      return;
-    }
-
-    if(btnClear){
-      e.preventDefault();
-      // Clear session signature
-      try{
-        if(window.state && window.state.contract){
-          window.state.contract.hasSignature = false;
-          window.state.contract.signatureBase64 = null;
-          window.state.contract.signedAt = null;
-        }
-      }catch(_){ }
-      // Clear small preview canvas (in panel)
-      const canvas = document.getElementById('contractSig');
-      if(canvas){
-        try{
-          const ctx = canvas.getContext('2d');
-          ctx.clearRect(0,0,canvas.width,canvas.height);
-        }catch(_){ }
-      }
-      setContractInfo('Unterschrift gelöscht.', 'muted');
-      return;
-    }
-
-    if(btnPdf){
-      e.preventDefault();
-      // If existing PDF handler exists, prefer it; otherwise show the same guard
-      try{
-        const hasSig = !!(window.state && window.state.contract && window.state.contract.hasSignature);
-        if(!hasSig){ alert('Für diese Auswahl liegt noch keine gültige Unterschrift vor.'); return; }
-        if(typeof window.generateContractPdf === 'function'){
-          window.generateContractPdf();
-          return;
-        }
-        // fallback: if old function name exists
-        if(typeof window.renderContractPdf === 'function'){
-          window.renderContractPdf();
-          return;
-        }
-        alert('PDF-Funktion ist in diesem Build nicht verfügbar.');
-      }catch(err){
-        console.error(err);
-        alert('PDF konnte nicht erstellt werden.');
-      }
-      return;
-    }
-  }, true);
-
-  // Ensure the contract-side area is not blocked by accidental overlays (defensive)
-  function nudgePointerEvents(){
-    const side = document.querySelector('.contract-side');
-    if(side) side.style.pointerEvents = 'auto';
-    const sigbox = document.querySelector('.sigbox');
-    if(sigbox) sigbox.style.pointerEvents = 'auto';
-    const actions = document.querySelector('#contract .actions');
-    if(actions) actions.style.pointerEvents = 'auto';
-  }
-  setTimeout(nudgePointerEvents, 300);
-
-  log('installed');
-})();
-/* ===== END P2.12 ===== */
