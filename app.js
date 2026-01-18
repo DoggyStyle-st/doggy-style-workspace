@@ -6748,6 +6748,12 @@ function renderContractPanel(){
     }
   }
 
+  // Backward-compat wrapper: earlier patches referenced `saveContractSelection()`.
+  // The canonical implementation is `saveAgreement()` (persists contract+signature relation).
+  function saveContractSelection(){
+    return saveAgreement();
+  }
+
   function saveAgreement(){
     const {customerId, petId} = getSelectedIds();
     if (!customerId || !petId){
