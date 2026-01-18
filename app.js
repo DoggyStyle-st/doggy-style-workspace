@@ -6713,16 +6713,49 @@ function renderContractPanel(){
     };
   }
 
-  // customer/pet selects
+  // customer/pet selects (robust: state can differ by version / load order)
   const cs = $("#contractCustomerSelect");
   const ps = $("#contractPetSelect");
-  const customers = (state.customers||[]).slice().sort((a,b)=>String(a.lastName||"").localeCompare(String(b.lastName||""),"de"));
-  cs.innerHTML = customers.map(x=>`<option value="${x.id}">${escapeHtml((x.lastName? x.lastName+', ':'') + (x.firstName||''))}</option>`).join("") || `<option value="">(keine Kunden)</option>`;
+  if(!cs || !ps){
+    console.warn("[contract] Missing select elements", { cs: !!cs, ps: !!ps });
+    return;
+  }
+
+  const safeArr = (v)=> Array.isArray(v) ? v : [];
+  const customersRaw = safeArr(state?.customers).length ? safeArr(state?.customers)
+                    : safeArr(state?.kunden).length ? safeArr(state?.kunden)
+                    : safeArr(state?.clients);
+
+  const customerLabel = (c)=>{
+    const ln = String(c?.lastName || c?.nachname || c?.surname || "").trim();
+    const fn = String(c?.firstName || c?.vorname || c?.givenName || "").trim();
+    const name = String(c?.name || c?.displayName || c?.fullName || "").trim();
+    const nr = String(c?.customerNumber || c?.kundennummer || c?.number || c?.nr || "").trim();
+
+    const base = (ln || fn) ? `${ln}${ln && fn ? ", " : ""}${fn}` : name;
+    return nr ? `${base || "Kunde"} · ${nr}` : (base || "Kunde");
+  };
+
+  const customers = customersRaw.slice().sort((a,b)=>customerLabel(a).localeCompare(customerLabel(b),"de"));
+  cs.innerHTML = customers.map(x=>`<option value="${escapeHtml(String(x.id||x.uid||x.key||""))}">${escapeHtml(customerLabel(x))}</option>`).join("")
+    || `<option value="">(keine Kunden)</option>`;
 
   function fillPets(){
     const cid = cs.value;
-    const pets = (state.pets||[]).filter(p=>p.customerId===cid).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"de"));
-    ps.innerHTML = pets.map(p=>`<option value="${p.id}">${escapeHtml(p.name||"Hund")}</option>`).join("") || `<option value="">(keine Hunde)</option>`;
+    const petsRaw = safeArr(state?.pets).length ? safeArr(state?.pets)
+                 : safeArr(state?.hunde).length ? safeArr(state?.hunde)
+                 : safeArr(state?.dogs);
+
+    const pets = petsRaw
+      .filter(p=>String(p.customerId||p.ownerId||p.kundeId||"")===String(cid||""))
+      .sort((a,b)=>String(a.name||a.hundename||"").localeCompare(String(b.name||b.hundename||""),"de"));
+
+    ps.innerHTML = pets.map(p=>{
+      const pid = String(p.id||p.uid||p.key||"");
+      const nm = String(p.name||p.hundename||"Hund");
+      return `<option value="${escapeHtml(pid)}">${escapeHtml(nm)}</option>`;
+    }).join("") || `<option value="">(keine Hunde)</option>`;
+
     updateSignedInfo();
   }
 
