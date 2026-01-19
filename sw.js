@@ -1,7 +1,7 @@
-/* Doggy Style – Service Worker v11B_SAVE_PDF_15_STAY_POINTER_FIX (offline-first, update-safe) */
+/* Doggy Style – Service Worker v11B_SAVE_PDF_17_STAY_DEBUG_OVERLAY (offline-first, update-safe) */
 
 // Version bump forces clients to pick up updated assets reliably.
-const SW_VERSION = "v11B_SAVE_PDF_15_STAY_POINTER_FIX";
+const SW_VERSION = "v11B_SAVE_PDF_17_STAY_DEBUG_OVERLAY";
 const CACHE_NAME = `ds-test-cache-${SW_VERSION}`;
 
 // Wichtig:
@@ -16,6 +16,7 @@ const CORE_ASSETS = [
   "app.html",
   "styles.css",
   "app.js",
+  "app.js?v=1117",
   "manifest.json",
   "assets/logo.png"
 ];

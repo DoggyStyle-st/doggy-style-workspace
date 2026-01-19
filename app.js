@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = "v11B_SAVE_PDF_15_STAY_POINTER_FIX";
+const APP_BUILD = "v11B_SAVE_PDF_17_STAY_DEBUG_OVERLAY";
 // Selector helpers
 // $: accepts either an element id (e.g. 'contractSig') or a CSS selector (e.g. '#contractSig', '.btn')
 const $ = (sel) => {
@@ -1593,7 +1593,8 @@ function createStay(){
   // 1) Auf "Dokumente/Vorlagen" wechseln (damit der Editor sichtbar ist)
   // 2) Template sicher finden (id bevorzugt, sonst Name)
   // 3) Direkt createDoc(templateId) ausführen
-  try{ selectTab("documents"); }catch(_){}
+  try{ __dbg("createStay(): gestartet"); }catch(_){ }
+  try{ selectTab("documents"); __dbg("createStay(): Tab documents aktiv"); }catch(_){}
 
   // Sichtbares Feedback (wichtig bei Safari/iPad, wenn der Tab bereits offen ist)
   try{ if (typeof showMiniToast === "function") showMiniToast("Öffne Aufenthalt-Editor …"); }catch(_){}
@@ -1628,7 +1629,9 @@ function createStay(){
   };
 
   const go = () => {
+    try{ __dbg('createStay(): go()'); }catch(_){ }
     const tid = pickTemplateId();
+    try{ __dbg('createStay(): templateId='+tid); }catch(_){ }
     // Ensure select reflects the choice (nice-to-have)
     const sel = document.getElementById("templateSelect");
     if (sel) sel.value = tid;
@@ -1639,16 +1642,25 @@ function createStay(){
         if(!t){
           throw new Error('Vorlage nicht geladen: '+tid);
         }
+        try{ __dbg('createStay(): createDoc('+tid+')'); }catch(_){ }
         createDoc(tid);
+        try{ __dbg('createStay(): openDoc() sollte jetzt im Editor sein'); }catch(_){ }
         return;
       }catch(e){
         console.warn('createStay: createDoc failed', e);
+        try{ __dbg('createStay(): FEHLER '+(e.message||e)); }catch(_){ }
         try{ alert('❌ Aufenthalt-Editor konnte nicht geöffnet werden.\nGrund: '+(e.message||e)); }catch(_){ }
       }
     }
     // Fallback: click the existing "Neues Dokument" button
     const btn = document.getElementById("btnNewDoc");
-    if (btn) btn.click();
+    if (btn){
+      try{ __dbg('createStay(): fallback btnNewDoc.click()'); }catch(_){ }
+      btn.click();
+    }else{
+      try{ __dbg('createStay(): Weder createDoc() noch btnNewDoc vorhanden'); }catch(_){ }
+      try{ alert('❌ Editor kann nicht geöffnet werden: createDoc() fehlt und btnNewDoc nicht gefunden.'); }catch(_){ }
+    }
   };
 
   // Safari/iPad rendert DOM/Select teils verzögert – robust warten.
@@ -1658,11 +1670,18 @@ function createStay(){
   const tick = () => {
     tries++;
 
+    try{
+      const tplListDbg = (state.templates && state.templates.length) ? state.templates : (globalThis.templates || []);
+      __dbg('createStay(): tick '+tries+' templates='+(tplListDbg?.length||0));
+    }catch(_){ }
+    try{ if(tries===1) __dbg('createStay(): tick() startet'); }catch(_){ }
+
     // 1) Templates sicherstellen
     const tplList = (state.templates && state.templates.length) ? state.templates : (globalThis.templates || []);
     if(!tplList.length){
       // Falls möglich, Templates aktiv laden
       if(typeof loadTemplates === 'function'){
+        try{ __dbg('createStay(): loadTemplates()'); }catch(_){ }
         Promise.resolve(loadTemplates())
           .catch(()=>{})
           .finally(()=>{ if(tries < 40) setTimeout(tick, 80); });
@@ -1676,10 +1695,14 @@ function createStay(){
       setTimeout(tick, 80);
       return;
     }
+    try{ __dbg('createStay(): templateSelect='+(!!sel)); }catch(_){ }
     go();
   };
   setTimeout(tick, 0);
 }
+
+// expose for inline onclick (iOS Safari reliability)
+try{ window.createStay = createStay; }catch(_){ }
 
 function openDogs(){ selectTab("dogs"); }
 function openCustomers(){ selectTab("dogs"); } // Kunden sind im Hunde/Kunden Bereich
@@ -3436,6 +3459,37 @@ const getTemplate=id=>templates.find(t=>t.id===id);
 
 
 function uid(){return Math.random().toString(16).slice(2)+Date.now().toString(16);}
+
+// ===== iPad/Safari Debug Overlay (sichtbar, ohne Konsole) =====
+// Ziel: Wenn ein Button "nichts macht", sehen wir trotzdem, ob der Handler läuft
+// und wo er aussteigt.
+function __dbg(msg){
+  try{
+    let el = document.getElementById('dbgOverlay');
+    if(!el){
+      el = document.createElement('div');
+      el.id = 'dbgOverlay';
+      el.style.position = 'fixed';
+      el.style.left = '10px';
+      el.style.right = '10px';
+      el.style.bottom = '10px';
+      el.style.zIndex = '99999';
+      el.style.background = 'rgba(0,0,0,0.75)';
+      el.style.color = '#fff';
+      el.style.padding = '10px 12px';
+      el.style.borderRadius = '12px';
+      el.style.fontSize = '12px';
+      el.style.lineHeight = '1.25';
+      el.style.backdropFilter = 'blur(6px)';
+      el.style.webkitBackdropFilter = 'blur(6px)';
+      el.style.pointerEvents = 'none';
+      el.textContent = 'DBG bereit.';
+      document.body.appendChild(el);
+    }
+    const ts = new Date().toLocaleTimeString('de-DE');
+    el.textContent = `DBG ${ts}: ${msg}`;
+  }catch(_){ }
+}
 
 // ===== ETAPPE 1: Datenmodell v2 + Migration (Kunden/Hunde/Aufenthalte/Rechnungen) =====
 
