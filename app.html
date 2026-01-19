@@ -113,7 +113,7 @@
 <div class="card">
 <h2>Schnellaktionen</h2>
 <div class="quick-actions">
-<button class="btn primary" id="btnNewStayTop" type="button" onclick="(window.safeCreateStay?window.safeCreateStay():window.createStay&&window.createStay());return false;">➕ Neuer Aufenthalt</button>
+<button class="btn primary" id="btnNewStayTop" type="button">➕ Neuer Aufenthalt</button>
 <button class="btn" id="btnQuickDogs" type="button">🐶 Hunde/Kunden</button>
 
 <button class="btn" id="btnQuickInvoices" type="button">🧾 Rechnungen</button>
@@ -436,7 +436,7 @@
 <div class="row between">
 <h1>Aufenthalte</h1>
 <div class="row" style="gap:10px;flex-wrap:wrap;justify-content:flex-end;">
-  <button class="btn primary" id="btnNewStayOnPage" type="button" onclick="(window.safeCreateStay?window.safeCreateStay():window.createStay&&window.createStay());return false;">➕ Neuer Aufenthalt</button>
+  <button class="btn primary" id="btnNewStayOnPage" type="button">➕ Neuer Aufenthalt</button>
 </div>
 <button class="btn" id="btnExportAll">Export: Backup (JSON)</button>
 </div>
@@ -1043,13 +1043,29 @@
 -->
 <script>
   (function(){
+    var BUILD = 'v11B_SAVE_PDF_20_STAGE_B_STABLE';
     var qs = window.location.search || '';
-    // Fallback: wenn app.html ohne Query geöffnet wird, trotzdem eindeutige Version erzwingen
-    if(!qs) qs = '?v=v11B_SAVE_PDF_18_STAY_EMBEDDED_TEMPLATE';
+
+    // 1) Wenn app.html ohne Query geöffnet wird: stabile Build-Version erzwingen.
+    if(!qs) qs = '?v=' + encodeURIComponent(BUILD);
+
+    // 2) Wenn ein Query existiert, aber kein v= Parameter enthalten ist: v=BUILD ergänzen.
+    if(qs && !/[?&]v=/.test(qs)){
+      qs = qs + (qs.indexOf('?') >= 0 ? '&' : '?') + 'v=' + encodeURIComponent(BUILD);
+    }
+
+    // 3) app.js immer mit gleichem Query laden wie app.html -> Safari/PWA Cache wird zuverlässig gebustet.
     var s = document.createElement('script');
     s.defer = true;
     s.src = 'app.js' + qs;
     document.head.appendChild(s);
+
+    // Optional: ServiceWorker Update triggern (ohne Unregister).
+    if('serviceWorker' in navigator){
+      navigator.serviceWorker.getRegistrations().then(function(rs){
+        rs.forEach(function(r){ try{ r.update(); }catch(e){} });
+      }).catch(function(){});
+    }
   })();
 </script>
 <script>

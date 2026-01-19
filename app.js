@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = "v11B_SAVE_PDF_18_STAY_EMBEDDED_TEMPLATE_BTN_FIX";
+const APP_BUILD = "v11B_SAVE_PDF_20_STAGE_B_STABLE";
 // Selector helpers
 // $: accepts either an element id (e.g. 'contractSig') or a CSS selector (e.g. '#contractSig', '.btn')
 const $ = (sel) => {
@@ -1614,25 +1614,8 @@ function createStay(){
     console.warn('createStay failed', e);
   }
 }
-
-// Robust wrapper: ensures the "Neuer Aufenthalt" button always triggers an action
-// (even if event bubbling is blocked or createStay throws).
-async function safeCreateStay(){
-  try{
-    // createStay is sync in this build; wrap to also tolerate future async changes.
-    await Promise.resolve(createStay());
-  }catch(err){
-    console.error('[safeCreateStay] createStay failed', err);
-    try{ toast('Fehler: Neuer Aufenthalt konnte nicht geöffnet werden.'); }catch(_){ /* ignore */ }
-    try{ alert('Fehler: Neuer Aufenthalt konnte nicht geöffnet werden. Details in Konsole/Diagnose.'); }catch(_){ /* ignore */ }
-  }
-}
-window.safeCreateStay = safeCreateStay;
 // iOS/Safari: Inline onclick benötigt globalen Zugriff
-try{
-  window.createStay = createStay;
-  window.safeCreateStay = safeCreateStay;
-}catch(_){ }
+try{ window.createStay = createStay; }catch(_){ }
 
 function openDogs(){ selectTab("dogs"); }
 function openCustomers(){ selectTab("dogs"); } // Kunden sind im Hunde/Kunden Bereich
@@ -6124,8 +6107,8 @@ async function startApp(){
   if(btnLogoutBottom) btnLogoutBottom.onclick = ()=>performLogout();
   // Wichtig: Buttons werden in einigen Render-Pfaden neu in den DOM geschrieben.
   // Daher zusätzlich Delegation (capture=true), damit der Klick immer greift.
-  if(btnNewStayTop) btnNewStayTop.onclick = ()=>safeCreateStay();
-  if(btnNewStayOnPage) btnNewStayOnPage.onclick = ()=>safeCreateStay();
+  if(btnNewStayTop) btnNewStayTop.onclick = ()=>createStay();
+  if(btnNewStayOnPage) btnNewStayOnPage.onclick = ()=>createStay();
   try{
     if(!window.__DELEGATED_NEW_STAY__){
       window.__DELEGATED_NEW_STAY__ = true;
@@ -6135,7 +6118,7 @@ async function startApp(){
         if(!btn) return;
         ev.preventDefault();
         ev.stopPropagation();
-        safeCreateStay();
+        createStay();
       }, true);
       // iOS Safari fallback: some setups do not fire click reliably.
       // Therefore also listen to pointerup/touchend in capture phase for the same buttons.
@@ -6145,7 +6128,7 @@ async function startApp(){
         if(!btn) return;
         try{ ev.preventDefault(); }catch(_){}
         try{ ev.stopPropagation(); }catch(_){}
-        safeCreateStay();
+        createStay();
       }, true);
       document.addEventListener("touchend", (ev)=>{
         const t = ev.target;
@@ -6153,7 +6136,7 @@ async function startApp(){
         if(!btn) return;
         try{ ev.preventDefault(); }catch(_){}
         try{ ev.stopPropagation(); }catch(_){}
-        safeCreateStay();
+        createStay();
       }, {capture:true, passive:false});
 
     }
@@ -6494,17 +6477,21 @@ function renderStayEditorEmbedded(doc){
         <span>Kunde</span>
         <select id="stayCustomerSelect"></select>
       </label>
-      <label class="field">
+      <label class="field" style="max-width:260px;">
         <span>Von</span>
-        <input id="stayVon" type="date" />
+        <input id="stayVon" type="date" style="max-width:240px;" />
       </label>
-      <label class="field">
+      <label class="field" style="max-width:260px;">
         <span>Bis</span>
-        <input id="stayBis" type="date" />
+        <input id="stayBis" type="date" style="max-width:240px;" />
       </label>
       <label class="field">
         <span>Betreuung</span>
-        <input id="stayBetreuung" placeholder="z.B. Urlaub / Tagesbetreuung" />
+        <select id="stayBetreuung">
+          <option value="">(bitte wählen)</option>
+          <option value="Tagesbetreuung">Tagesbetreuung</option>
+          <option value="Urlaubsbetreuung">Urlaubsbetreuung</option>
+        </select>
       </label>
       <label class="field" style="grid-column: 1 / -1;">
         <span>Notizen</span>
@@ -6545,7 +6532,7 @@ function renderStayEditorEmbedded(doc){
   const bet = document.getElementById('stayBetreuung');
   if(bet){
     bet.value = doc.meta.betreuung || "";
-    bet.oninput = e=>{ doc.meta.betreuung = e.target.value; dirty = true; };
+    bet.onchange = e=>{ doc.meta.betreuung = e.target.value; dirty = true; };
   }
   const notes = document.getElementById('stayNotes');
   if(notes){
