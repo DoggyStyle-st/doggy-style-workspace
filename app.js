@@ -5685,15 +5685,21 @@ const used = countOccupancy(type, from, to, currentDoc.id);
 const limit = getMinCapacityForRange(type, from, to);
 
 if (used >= limit) {
-  alert(
-    `⚠️ Achtung:\n\n` +
-    `${used} von ${limit} Plätzen für "${type}" ` +
-    `im Zeitraum ${from} – ${to} sind bereits belegt.`
-  );
+  const msg =
+    `⚠️ Kapazitätswarnung\n\n`+
+    `${used} von ${limit} Plätzen für "${type}" `+
+    `im Zeitraum ${from} – ${to} sind bereits belegt.\n\n`+
+    `Trotzdem speichern?`;
+  if(!confirm(msg)) return false;
 }
+// Unterschrift ist NICHT zwingend zum Speichern, aber wir warnen.
 if (!currentDoc.signature){
-  alert("Bitte unterschreiben");
-  return false;
+  currentDoc.signatureMissing = true;
+  if(alertOk){
+    alert("⚠️ Unterschrift muss für diesen Aufenthalt noch erfolgen.");
+  }
+}else{
+  currentDoc.signatureMissing = false;
 }
   currentDoc.saved = true;                             // 🔐 Dokument abschließen
 currentDoc.updatedAt = new Date().toISOString();
@@ -6479,11 +6485,11 @@ function renderStayEditorEmbedded(doc){
       </label>
       <label class="field">
         <span>Von</span>
-        <input id="stayVon" type="date" />
+        <input id="stayVon" type="date" style="height:44px; padding:10px 12px;" />
       </label>
       <label class="field">
         <span>Bis</span>
-        <input id="stayBis" type="date" />
+        <input id="stayBis" type="date" style="height:44px; padding:10px 12px;" />
       </label>
       <label class="field">
         <span>Betreuung</span>
@@ -6539,6 +6545,54 @@ function renderStayEditorEmbedded(doc){
     </div>
   `;
   root.appendChild(legal);
+
+  // AGB / DSGVO Inhalte (Ansehen)
+  const legalTexts = document.createElement('div');
+  legalTexts.className = 'card';
+  legalTexts.innerHTML = `
+    <h2>AGB & Datenschutz</h2>
+    <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:flex-start;">
+      <div style="flex:1 1 320px; min-width:280px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+          <div style="font-weight:800;">AGB</div>
+          <button type="button" id="btnViewAgb" class="btn">Ansehen</button>
+        </div>
+        <div style="opacity:.9; line-height:1.4; margin-top:6px;">
+          Die vollständigen AGB kannst du hier in der App einsehen.
+        </div>
+      </div>
+      <div style="flex:1 1 320px; min-width:280px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+          <div style="font-weight:800;">Datenschutz (DSGVO)</div>
+          <button type="button" id="btnViewDsgvo" class="btn">Ansehen</button>
+        </div>
+        <div style="opacity:.9; line-height:1.4; margin-top:6px;">
+          Die Datenschutzhinweise (DSGVO) kannst du hier in der App einsehen.
+        </div>
+      </div>
+    </div>
+  `;
+  root.appendChild(legalTexts);
+
+  // Unterschrift (erfassen / löschen / Vorschau)
+  const sigCard = document.createElement('div');
+  sigCard.className = 'card';
+  sigCard.innerHTML = `
+    <h2>Unterschrift</h2>
+    <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:space-between;">
+      <div style="flex:1 1 340px; min-width:280px;">
+        <div style="opacity:.9; line-height:1.35;">
+          Unterschrift ist zum Speichern nicht zwingend notwendig. Bitte später nachholen.
+        </div>
+      </div>
+      <div style="display:flex; gap:10px; flex:0 0 auto;">
+        <button type="button" id="btnStaySig" class="primary">Unterschreiben</button>
+        <button type="button" id="btnStaySigClear" class="btn">Löschen</button>
+      </div>
+    </div>
+    <div id="staySigPreview" style="margin-top:12px; border:1px solid rgba(255,255,255,.18); border-radius:12px; min-height:110px; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.22); overflow:hidden;"></div>
+  `;
+  root.appendChild(sigCard);
 
   // Hinweis Unterschrift (nicht blockierend) – nur anzeigen, wenn noch keine Unterschrift vorhanden ist
   const hasSignature = !!(doc && doc.signature && (doc.signature.dataUrl || doc.signature.signatureDataUrl));
@@ -6611,6 +6665,60 @@ function renderStayEditorEmbedded(doc){
   if(chkDsgvo){ chkDsgvo.checked = !!doc.fields.privacyAccepted; chkDsgvo.onchange = e=>{ doc.fields.privacyAccepted = !!e.target.checked; dirty = true; }; }
   if(chkVet){ chkVet.checked = !!doc.fields.vetPermission; chkVet.onchange = e=>{ doc.fields.vetPermission = !!e.target.checked; dirty = true; }; }
   if(chkTruth){ chkTruth.checked = !!doc.fields.truthConfirmed; chkTruth.onchange = e=>{ doc.fields.truthConfirmed = !!e.target.checked; dirty = true; }; }
+
+  // Vorschau Unterschrift
+  const prev = document.getElementById('staySigPreview');
+  if(prev){
+    const dataUrl = (doc && doc.signature && (doc.signature.dataUrl || doc.signature.signatureDataUrl)) || null;
+    prev.innerHTML = dataUrl
+      ? `<img src="${dataUrl}" alt="Unterschrift" style="max-height:100px; max-width:100%;"/>`
+      : `<div style="opacity:.7;">Keine Unterschrift hinterlegt.</div>`;
+  }
+
+  // AGB / DSGVO – Modal anzeigen (Text ist bewusst als Platzhalter gehalten; kann später in Einstellungen gepflegt werden)
+  const DEFAULT_AGB_TEXT = `Allgemeine Geschäftsbedingungen (Kurzfassung)\n\nBitte hinterlege hier deine vollständigen AGB.\n\nHinweis: Dieser Text dient als Platzhalter.`;
+  const DEFAULT_DSGVO_TEXT = `Datenschutz (DSGVO) – Hinweise (Kurzfassung)\n\nBitte hinterlege hier deine vollständigen Datenschutzhinweise.\n\nHinweis: Dieser Text dient als Platzhalter.`;
+  const btnAgb = document.getElementById('btnViewAgb');
+  if(btnAgb){
+    btnAgb.onclick = ()=>{
+      const text = (state && state.settings && state.settings.agbText) ? state.settings.agbText : DEFAULT_AGB_TEXT;
+      openHtmlInModal('AGB', `<pre style="white-space:pre-wrap; font-family:inherit; line-height:1.45; margin:0;">${escapeHtml(text)}</pre>`, 'Schließen');
+    };
+  }
+  const btnDsgvo = document.getElementById('btnViewDsgvo');
+  if(btnDsgvo){
+    btnDsgvo.onclick = ()=>{
+      const text = (state && state.settings && state.settings.dsgvoText) ? state.settings.dsgvoText : DEFAULT_DSGVO_TEXT;
+      openHtmlInModal('Datenschutz (DSGVO)', `<pre style="white-space:pre-wrap; font-family:inherit; line-height:1.45; margin:0;">${escapeHtml(text)}</pre>`, 'Schließen');
+    };
+  }
+
+  // Unterschrift erfassen (im embedded Aufenthalt-Editor)
+  const btnSig = document.getElementById('btnStaySig');
+  if(btnSig){
+    btnSig.onclick = (ev)=>{
+      ev.preventDefault();
+      // iOS-sicher: Overlay verwenden
+      openSignatureOverlay((dataUrl)=>{
+        doc.signature = { dataUrl, signedAt: new Date().toISOString(), dogId: doc.dogId || null };
+        dirty = true;
+        saveState();
+        renderStayEditorEmbedded(doc);
+      });
+    };
+  }
+  const btnSigClear = document.getElementById('btnStaySigClear');
+  if(btnSigClear){
+    btnSigClear.onclick = (ev)=>{
+      ev.preventDefault();
+      if(doc.signature){
+        doc.signature = null;
+        dirty = true;
+        saveState();
+        renderStayEditorEmbedded(doc);
+      }
+    };
+  }
 }
 
 function renderEditor(doc){
