@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = "v11B_SAVE_PDF_20_STAGE_B_FIX";
+const APP_BUILD = "v11B_SAVE_PDF_18_STAY_EMBEDDED_TEMPLATE_BTN_FIX";
 // Selector helpers
 // $: accepts either an element id (e.g. 'contractSig') or a CSS selector (e.g. '#contractSig', '.btn')
 const $ = (sel) => {
@@ -1614,8 +1614,25 @@ function createStay(){
     console.warn('createStay failed', e);
   }
 }
+
+// Robust wrapper: ensures the "Neuer Aufenthalt" button always triggers an action
+// (even if event bubbling is blocked or createStay throws).
+async function safeCreateStay(){
+  try{
+    // createStay is sync in this build; wrap to also tolerate future async changes.
+    await Promise.resolve(createStay());
+  }catch(err){
+    console.error('[safeCreateStay] createStay failed', err);
+    try{ toast('Fehler: Neuer Aufenthalt konnte nicht geöffnet werden.'); }catch(_){ /* ignore */ }
+    try{ alert('Fehler: Neuer Aufenthalt konnte nicht geöffnet werden. Details in Konsole/Diagnose.'); }catch(_){ /* ignore */ }
+  }
+}
+window.safeCreateStay = safeCreateStay;
 // iOS/Safari: Inline onclick benötigt globalen Zugriff
-try{ window.createStay = createStay; }catch(_){ }
+try{
+  window.createStay = createStay;
+  window.safeCreateStay = safeCreateStay;
+}catch(_){ }
 
 function openDogs(){ selectTab("dogs"); }
 function openCustomers(){ selectTab("dogs"); } // Kunden sind im Hunde/Kunden Bereich
@@ -5606,7 +5623,6 @@ function collectForm(){
 }
 function validate(docObj,t){
   const errs=[];
-  const warnings=[];
   // Etappe 3: Hund muss gewählt sein (nicht Placeholder)
   const d = (state.dogs||[]).find(x=>x.id===docObj.dogId);
   if(!docObj.dogId || (d && d.isPlaceholder)) errs.push("Hund");
@@ -5617,120 +5633,9 @@ function validate(docObj,t){
     else { if(!v || String(v).trim()==="") errs.push(f.label); }
   }));
   t.meta.forEach(f=>{ if(f.required){const v=docObj.meta[f.key]; if(!v||String(v).trim()==="") errs.push(f.label);} });
-  if(!docObj.signature || !docObj.signature.dataUrl){
-    if(isStayDoc(docObj)){
-      warnings.push("Unterschrift muss für diesen Aufenthalt noch erfolgen.");
-    } else {
-      errs.push("Unterschrift");
-    }
-  }
-  // Duplikate entfernen
-  const uniq = arr => Array.from(new Set(arr));
-  return { errors: uniq(errs), warnings: uniq(warnings) };
-}
-
-// Heuristik: "Aufenthalt/Hundeannahme"-Dokumente sollen in Stage B ohne
-// zwingende Unterschrift speicherbar sein.
-function isStayDoc(docObj){
-  if(!docObj) return false;
-  if(docObj.templateId === "hundeannahme") return true;
-  const m = docObj.meta||{};
-  const f = docObj.fields||{};
-  return ("von" in m || "bis" in m || "betreuung" in m || "von" in f || "bis" in f || "betreuung" in f);
-}
-
-// Kleine Warnleiste im Editor (non-blocking)
-function showInlineWarn(msg){
-  const host = document.getElementById("editor") || document.getElementById("stayEditor") || document.querySelector(".editor") || document.body;
-  let box = document.getElementById("inlineWarnBox");
-  if(!box){
-    box = document.createElement("div");
-    box.id = "inlineWarnBox";
-    box.style.margin = "12px 0";
-    box.style.padding = "10px 12px";
-    box.style.borderRadius = "10px";
-    box.style.background = "rgba(245,182,46,0.18)";
-    box.style.border = "1px solid rgba(245,182,46,0.35)";
-    box.style.color = "#fff";
-    box.style.fontSize = "14px";
-    // möglichst oben im Editor platzieren
-    const first = host.firstElementChild;
-    if(first) host.insertBefore(box, first); else host.appendChild(box);
-  }
-  box.textContent = msg;
-  box.style.display = "block";
-}
-
-function setupSignatureCanvas(canvas, doc){
-  if(!canvas) return;
-  const ctx = canvas.getContext("2d");
-  // scale for high-DPI
-  const dpr = window.devicePixelRatio || 1;
-  const rect = canvas.getBoundingClientRect();
-  canvas.width = Math.max(1, Math.floor(rect.width * dpr));
-  canvas.height = Math.max(1, Math.floor(rect.height * dpr));
-  ctx.scale(dpr, dpr);
-  ctx.lineWidth = 2;
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
-  ctx.strokeStyle = "#111";
-
-  // draw existing
-  if(doc?.signature?.dataUrl){
-    const img = new Image();
-    img.onload = () => {
-      ctx.clearRect(0,0,rect.width,rect.height);
-      ctx.drawImage(img, 0, 0, rect.width, rect.height);
-    };
-    img.src = doc.signature.dataUrl;
-  }
-
-  let drawing = false;
-  let last = null;
-  const pos = (ev) => {
-    const r = canvas.getBoundingClientRect();
-    const x = (ev.clientX - r.left);
-    const y = (ev.clientY - r.top);
-    return {x,y};
-  };
-
-  const start = (ev) => {
-    drawing = true;
-    last = pos(ev);
-    ev.preventDefault();
-  };
-  const move = (ev) => {
-    if(!drawing) return;
-    const p = pos(ev);
-    ctx.beginPath();
-    ctx.moveTo(last.x, last.y);
-    ctx.lineTo(p.x, p.y);
-    ctx.stroke();
-    last = p;
-    // persist
-    try{
-      const tmp = document.createElement("canvas");
-      tmp.width = canvas.width;
-      tmp.height = canvas.height;
-      tmp.getContext("2d").drawImage(canvas, 0, 0);
-      doc.signature = { dataUrl: canvas.toDataURL("image/png") };
-    }catch(e){}
-    ev.preventDefault();
-  };
-  const end = (ev) => { drawing = false; last = null; ev?.preventDefault?.(); };
-
-  canvas.onpointerdown = start;
-  canvas.onpointermove = move;
-  canvas.onpointerup = end;
-  canvas.onpointercancel = end;
-}
-
-function clearSignatureCanvas(canvas, doc){
-  if(!canvas) return;
-  const ctx = canvas.getContext("2d");
-  const r = canvas.getBoundingClientRect();
-  ctx.clearRect(0,0,r.width,r.height);
-  if(doc) doc.signature = null;
+  if(!docObj.signature || !docObj.signature.dataUrl)
+  errs.push("Unterschrift");
+  return errs;
 }
 function updateCreateInvoiceButton(){
   const btn = document.getElementById("btnCreateInvoice");
@@ -5784,17 +5689,10 @@ if (currentDoc.meta?.betreuung && currentDoc.meta?.von && currentDoc.meta?.bis) 
 $("#docName").disabled = currentDoc.saved;
 $("#dogSelect").disabled = currentDoc.saved;
   
-  const v = validate(currentDoc,t);
-  const errs = Array.isArray(v) ? v : (v.errors||[]);
-  const warns = Array.isArray(v) ? [] : (v.warnings||[]);
+  const errs=validate(currentDoc,t);
   if(errs.length){
-    // Auch wenn saveCurrent von "Drucken" kommt, braucht der Nutzer eine Rückmeldung.
     alert("Bitte noch ausfüllen/abhaken:\n\n• "+errs.join("\n• "));
     return false;
-  }
-  // Warnungen (z.B. fehlende Unterschrift) blockieren NICHT.
-  if(warns.length){
-    try{ showInlineWarn(warns.join("\n")); }catch(e){ /* noop */ }
   }
 const type = currentDoc.meta.betreuung;
 const from = currentDoc.meta.von;
@@ -5811,13 +5709,8 @@ if (used >= limit) {
   );
 }
 if (!currentDoc.signature){
-  if(isStayDoc(currentDoc)){
-    // Stage B: Unterschrift ist zum Speichern nicht zwingend notwendig.
-    try{ showInlineWarn("⚠️ Unterschrift muss für diesen Aufenthalt noch erfolgen."); }catch(e){ /* noop */ }
-  } else {
-    alert("Bitte unterschreiben");
-    return false;
-  }
+  alert("Bitte unterschreiben");
+  return false;
 }
   currentDoc.saved = true;                             // 🔐 Dokument abschließen
 currentDoc.updatedAt = new Date().toISOString();
@@ -6231,8 +6124,8 @@ async function startApp(){
   if(btnLogoutBottom) btnLogoutBottom.onclick = ()=>performLogout();
   // Wichtig: Buttons werden in einigen Render-Pfaden neu in den DOM geschrieben.
   // Daher zusätzlich Delegation (capture=true), damit der Klick immer greift.
-  if(btnNewStayTop) btnNewStayTop.onclick = ()=>createStay();
-  if(btnNewStayOnPage) btnNewStayOnPage.onclick = ()=>createStay();
+  if(btnNewStayTop) btnNewStayTop.onclick = ()=>safeCreateStay();
+  if(btnNewStayOnPage) btnNewStayOnPage.onclick = ()=>safeCreateStay();
   try{
     if(!window.__DELEGATED_NEW_STAY__){
       window.__DELEGATED_NEW_STAY__ = true;
@@ -6242,7 +6135,7 @@ async function startApp(){
         if(!btn) return;
         ev.preventDefault();
         ev.stopPropagation();
-        createStay();
+        safeCreateStay();
       }, true);
       // iOS Safari fallback: some setups do not fire click reliably.
       // Therefore also listen to pointerup/touchend in capture phase for the same buttons.
@@ -6252,7 +6145,7 @@ async function startApp(){
         if(!btn) return;
         try{ ev.preventDefault(); }catch(_){}
         try{ ev.stopPropagation(); }catch(_){}
-        createStay();
+        safeCreateStay();
       }, true);
       document.addEventListener("touchend", (ev)=>{
         const t = ev.target;
@@ -6260,7 +6153,7 @@ async function startApp(){
         if(!btn) return;
         try{ ev.preventDefault(); }catch(_){}
         try{ ev.stopPropagation(); }catch(_){}
-        createStay();
+        safeCreateStay();
       }, {capture:true, passive:false});
 
     }
@@ -6588,30 +6481,10 @@ function renderStayEditorEmbedded(doc){
   // Sicherstellen, dass Meta-Felder existieren
   normalizeMeta(doc);
 
-  // --- Header / Aktionen (Speichern / PDF / Schließen) ---
-  const header = document.createElement("div");
-  header.className = "card";
-  header.innerHTML = `
-    <div style="display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap;">
-      <div>
-        <h2 style="margin:0">Hundeannahme</h2>
-        <div class="muted" style="margin-top:4px">Versionen: Nur diese Version vorhanden.</div>
-      </div>
-      <div style="display:flex; gap:10px; align-items:center;">
-        <button class="btn" id="staySaveBtn">Speichern</button>
-        <button class="btn" id="stayPdfBtn">Als PDF speichern (Drucken)</button>
-        <button class="btn" id="stayCloseBtn">Schließen</button>
-      </div>
-    </div>
-    <div id="stayInlineWarn" style="display:none; margin-top:10px" class="notice warn"></div>
-  `;
-  root.appendChild(header);
-
-  // --- Aufenthalt ---
   const card = document.createElement("div");
   card.className = "card";
   card.innerHTML = `
-    <h3 style="margin-top:0">Aufenthalt</h3>
+    <h2>Aufenthalt</h2>
     <div class="grid" style="gap:12px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
       <label class="field">
         <span>Hund</span>
@@ -6621,25 +6494,17 @@ function renderStayEditorEmbedded(doc){
         <span>Kunde</span>
         <select id="stayCustomerSelect"></select>
       </label>
-      <label class="field" style="max-width:260px;">
+      <label class="field">
         <span>Von</span>
-        <input id="stayVon" type="date" style="max-width:240px;" />
+        <input id="stayVon" type="date" />
       </label>
-      <label class="field" style="max-width:260px;">
+      <label class="field">
         <span>Bis</span>
-        <input id="stayBis" type="date" style="max-width:240px;" />
+        <input id="stayBis" type="date" />
       </label>
       <label class="field">
         <span>Betreuung</span>
-        <select id="stayBetreuung">
-          <option value="">(bitte wählen)</option>
-          <option value="Tagesbetreuung">Tagesbetreuung</option>
-          <option value="Urlaubsbetreuung">Urlaubsbetreuung</option>
-        </select>
-      </label>
-      <label class="field">
-        <span>Notfallkontakt</span>
-        <input id="stayNotfall" placeholder="Name + Telefonnummer" />
+        <input id="stayBetreuung" placeholder="z.B. Urlaub / Tagesbetreuung" />
       </label>
       <label class="field" style="grid-column: 1 / -1;">
         <span>Notizen</span>
@@ -6648,41 +6513,6 @@ function renderStayEditorEmbedded(doc){
     </div>
   `;
   root.appendChild(card);
-
-  // --- Pflichtangaben (AGB/DSGVO/Tierarzt/Angaben) ---
-  const req = document.createElement("div");
-  req.className = "card";
-  req.innerHTML = `
-    <h3 style="margin-top:0">Pflichtangaben</h3>
-    <div class="grid" style="grid-template-columns: 1fr; gap:12px;">
-      <label class="check"><input type="checkbox" id="chkAgb"/> <b>AGB</b> – Ich habe die Allgemeinen Geschäftsbedingungen gelesen und akzeptiere diese.</label>
-      <label class="check"><input type="checkbox" id="chkDs"/> <b>Datenschutz (DSGVO)</b> – Ich habe die Datenschutzhinweise gelesen und akzeptiere diese.</label>
-      <label class="check"><input type="checkbox" id="chkVet"/> <b>Tierarzt-Erlaubnis</b> – Ich erteile die Erlaubnis, mein Tier im Notfall tierärztlich behandeln zu lassen.</label>
-      <label class="check"><input type="checkbox" id="chkTruth"/> <b>Angaben</b> – Ich bestätige, dass alle Angaben wahrheitsgemäß und vollständig sind.</label>
-    </div>
-    <div style="display:flex; gap:10px; margin-top:12px; flex-wrap:wrap;">
-      <button class="btn" id="btnViewAgb">AGB ansehen</button>
-      <button class="btn" id="btnViewDs">Datenschutz (DSGVO) ansehen</button>
-    </div>
-  `;
-  root.appendChild(req);
-
-  // --- Unterschrift (nicht zwingend zum Speichern) ---
-  const sig = document.createElement("div");
-  sig.className = "card";
-  sig.innerHTML = `
-    <h3 style="margin-top:0">Unterschrift</h3>
-    <div class="muted" style="margin-bottom:10px">Unterschrift ist zum Speichern nicht zwingend notwendig. Bitte später nachholen.</div>
-    <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:10px;">
-      <button class="btn" id="staySignBtn">Unterschreiben</button>
-      <button class="btn" id="staySignClearBtn">Löschen</button>
-      <span id="staySignStatus" class="muted"></span>
-    </div>
-    <div style="border:1px solid rgba(255,255,255,.12); border-radius:12px; overflow:hidden;">
-      <canvas id="staySigCanvas" style="width:100%; height:140px; display:block;"></canvas>
-    </div>
-  `;
-  root.appendChild(sig);
 
   // Hunde
   const dogSel = document.getElementById('stayDogSelect');
@@ -6715,13 +6545,7 @@ function renderStayEditorEmbedded(doc){
   const bet = document.getElementById('stayBetreuung');
   if(bet){
     bet.value = doc.meta.betreuung || "";
-    bet.onchange = e=>{ doc.meta.betreuung = e.target.value; dirty = true; };
-  }
-  const nf = document.getElementById('stayNotfall');
-  if(nf){
-    doc.fields = doc.fields || {};
-    nf.value = doc.fields.notfall || "";
-    nf.oninput = e=>{ doc.fields.notfall = e.target.value; dirty = true; };
+    bet.oninput = e=>{ doc.meta.betreuung = e.target.value; dirty = true; };
   }
   const notes = document.getElementById('stayNotes');
   if(notes){
@@ -6729,61 +6553,6 @@ function renderStayEditorEmbedded(doc){
     notes.value = doc.fields.notes || "";
     notes.oninput = e=>{ doc.fields.notes = e.target.value; dirty = true; };
   }
-
-  // Pflichtangaben binden
-  doc.fields = doc.fields || {};
-  const bindChk = (id, key) => {
-    const el = document.getElementById(id);
-    if(!el) return;
-    el.checked = !!doc.fields[key];
-    el.onchange = e=>{ doc.fields[key] = !!e.target.checked; dirty = true; };
-  };
-  bindChk('chkAgb','agbAccepted');
-  bindChk('chkDs','dsAccepted');
-  bindChk('chkVet','vetConsent');
-  bindChk('chkTruth','truthConfirmed');
-
-  // AGB/DSGVO ansehen
-  const openTextModal = (title, text) => {
-    const body = (text && String(text).trim()) ? String(text) : "Noch kein Text hinterlegt. Du kannst den vollständigen Text in den Einstellungen hinterlegen.";
-    openModal(title, `<div style="white-space:pre-wrap; line-height:1.4; max-height:70vh; overflow:auto;">${escapeHtml(body)}</div>`);
-  };
-  const viewAgb = document.getElementById('btnViewAgb');
-  if(viewAgb) viewAgb.onclick = ()=>openTextModal('AGB', (state?.settings?.agbText||""));
-  const viewDs = document.getElementById('btnViewDs');
-  if(viewDs) viewDs.onclick = ()=>openTextModal('Datenschutz (DSGVO)', (state?.settings?.dsgvoText||""));
-
-  // Unterschrift Canvas (einfaches Draw)
-  const c = document.getElementById('staySigCanvas');
-  const status = document.getElementById('staySignStatus');
-  if(c){
-    setupSignatureCanvas(c, (dataUrl)=>{
-      doc.signature = doc.signature || {};
-      doc.signature.dataUrl = dataUrl;
-      dirty = true;
-      if(status) status.textContent = dataUrl ? "✅ vorhanden" : "⚠️ fehlt";
-    }, doc.signature?.dataUrl || null);
-    if(status) status.textContent = (doc.signature && doc.signature.dataUrl) ? "✅ vorhanden" : "⚠️ fehlt";
-  }
-  const signBtn = document.getElementById('staySignBtn');
-  if(signBtn) signBtn.onclick = ()=>{ /* Fokus aufs Canvas */ if(c) c.scrollIntoView({behavior:'smooth', block:'center'}); };
-  const signClr = document.getElementById('staySignClearBtn');
-  if(signClr) signClr.onclick = ()=>{
-    if(c){
-      clearSignatureCanvas(c);
-      doc.signature = null;
-      dirty = true;
-      if(status) status.textContent = "⚠️ fehlt";
-    }
-  };
-
-  // Aktionen
-  const saveBtn = document.getElementById('staySaveBtn');
-  if(saveBtn) saveBtn.onclick = ()=>{ currentDoc = doc; saveCurrent(true); };
-  const pdfBtn = document.getElementById('stayPdfBtn');
-  if(pdfBtn) pdfBtn.onclick = ()=>{ currentDoc = doc; printDoc(); };
-  const closeBtn = document.getElementById('stayCloseBtn');
-  if(closeBtn) closeBtn.onclick = ()=>{ if(dirty && !confirm('Ungespeicherte Änderungen verwerfen?')) return; openSection('stays'); };
 }
 
 function renderEditor(doc){
