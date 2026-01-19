@@ -114,7 +114,7 @@
 <div class="card">
 <h2>Schnellaktionen</h2>
 <div class="quick-actions">
-<button class="btn primary" id="btnNewStayTop" type="button">➕ Neuer Aufenthalt</button>
+<button class="btn primary" id="btnNewStayTop" type="button" onclick="try{createStay();}catch(e){alert('createStay Fehler: '+(e&&e.message?e.message:e));}" style="pointer-events:auto; position:relative; z-index:5;">➕ Neuer Aufenthalt</button>
 <button class="btn" id="btnQuickDogs" type="button">🐶 Hunde/Kunden</button>
 
 <button class="btn" id="btnQuickInvoices" type="button">🧾 Rechnungen</button>
@@ -437,7 +437,7 @@
 <div class="row between">
 <h1>Aufenthalte</h1>
 <div class="row" style="gap:10px;flex-wrap:wrap;justify-content:flex-end;">
-  <button class="btn primary" id="btnNewStayOnPage" type="button">➕ Neuer Aufenthalt</button>
+  <button class="btn primary" id="btnNewStayOnPage" type="button" onclick="try{createStay();}catch(e){alert('createStay Fehler: '+(e&&e.message?e.message:e));}" style="pointer-events:auto; position:relative; z-index:5;">➕ Neuer Aufenthalt</button>
 </div>
 <button class="btn" id="btnExportAll">Export: Backup (JSON)</button>
 </div>
