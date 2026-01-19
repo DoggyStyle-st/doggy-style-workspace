@@ -1,7 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = "v11B_SAVE_PDF_21_STAGE_B_CACHE_FORCE";
-// expose for diagnostics
-try{ window.__APP_BUILD = APP_BUILD; }catch(e){}
+const APP_BUILD = "v11B_SAVE_PDF_18_STAGE_B_PAWBTN_FIX";
 // Selector helpers
 // $: accepts either an element id (e.g. 'contractSig') or a CSS selector (e.g. '#contractSig', '.btn')
 const $ = (sel) => {
@@ -4562,6 +4560,11 @@ function autofillHundeannahmeFieldsFromMaster(dogId, { overwrite = false } = {})
 
 // ===== Ende Etappe 1 =====
 function escapeHtml(s){return String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");}
+
+function openTextDocModal(title, text){
+  const html = `<pre style="white-space:pre-wrap;line-height:1.35;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.10);border-radius:12px;padding:12px;margin:0;">${escapeHtml(text||'')}</pre>`;
+  openOverlayModal(title, html);
+}
 function overlaps(aFrom, aTo, bFrom, bTo){
   return !(aTo < bFrom || aFrom > bTo);
 }
@@ -6479,21 +6482,17 @@ function renderStayEditorEmbedded(doc){
         <span>Kunde</span>
         <select id="stayCustomerSelect"></select>
       </label>
-      <label class="field" style="max-width:260px;">
+      <label class="field">
         <span>Von</span>
-        <input id="stayVon" type="date" style="max-width:240px;" />
+        <input id="stayVon" type="date" />
       </label>
-      <label class="field" style="max-width:260px;">
+      <label class="field">
         <span>Bis</span>
-        <input id="stayBis" type="date" style="max-width:240px;" />
+        <input id="stayBis" type="date" />
       </label>
       <label class="field">
         <span>Betreuung</span>
-        <select id="stayBetreuung">
-          <option value="">(bitte wählen)</option>
-          <option value="Tagesbetreuung">Tagesbetreuung</option>
-          <option value="Urlaubsbetreuung">Urlaubsbetreuung</option>
-        </select>
+        <input id="stayBetreuung" placeholder="z.B. Urlaub / Tagesbetreuung" />
       </label>
       <label class="field" style="grid-column: 1 / -1;">
         <span>Notizen</span>
@@ -6534,7 +6533,7 @@ function renderStayEditorEmbedded(doc){
   const bet = document.getElementById('stayBetreuung');
   if(bet){
     bet.value = doc.meta.betreuung || "";
-    bet.onchange = e=>{ doc.meta.betreuung = e.target.value; dirty = true; };
+    bet.oninput = e=>{ doc.meta.betreuung = e.target.value; dirty = true; };
   }
   const notes = document.getElementById('stayNotes');
   if(notes){

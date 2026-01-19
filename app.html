@@ -3,10 +3,6 @@
 <html lang="de">
 <head>
 <meta charset="utf-8"/>
-<!-- Aggressive cache-busting for iOS Safari / GitHub Pages (prevents old builds sticking) -->
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
-<meta http-equiv="Pragma" content="no-cache"/>
-<meta http-equiv="Expires" content="0"/>
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <title>Doggy Style Workspace · App</title>
 <link href="manifest.json" rel="manifest"/>
@@ -49,6 +45,7 @@
         </svg>
       </span>
       <span class="paw-start__label">Start</span>
+    </button>
     <nav class="tabs" role="tablist" aria-label="Navigation">
       <div class="tabs__row tabs__row--main">
         <button class="tab" data-tab="dogs"><span class="tab-ico" aria-hidden="true">🐶</span>Hunde/Kunden</button>
@@ -1047,77 +1044,13 @@
 -->
 <script>
   (function(){
-    // IMPORTANT: This BUILD must match the app.js build string.
-    var BUILD = 'v11B_SAVE_PDF_21_STAGE_B_CACHE_FORCE';
-
-    // 0) Force the URL to carry the active build (prevents Safari from serving a cached app.html/app.js pair).
-    try{
-      var p = new URLSearchParams(window.location.search || '');
-      var v = p.get('v');
-      if(v !== BUILD){
-        p.set('v', BUILD);
-        p.set('ts', String(Date.now()));
-        var target = window.location.pathname + '?' + p.toString() + (window.location.hash || '');
-        window.location.replace(target);
-        return;
-      }
-    }catch(e){}
-
-    var qs = window.location.search || ('?v=' + encodeURIComponent(BUILD));
-
-    // 1) Best-effort: Unregister ServiceWorkers + clear CacheStorage once per build.
-    // This is the only reliable way to stop iOS Safari/PWA from sticking to an old build.
-    try{
-      var key = 'dsws_last_build';
-      var last = localStorage.getItem(key);
-      if(last !== BUILD){
-        localStorage.setItem(key, BUILD);
-        if('serviceWorker' in navigator){
-          navigator.serviceWorker.getRegistrations().then(function(rs){
-            rs.forEach(function(r){ try{ r.unregister(); }catch(e){} });
-          }).catch(function(){});
-        }
-        if(window.caches && caches.keys){
-          caches.keys().then(function(keys){
-            return Promise.all(keys.map(function(k){ try{ return caches.delete(k); }catch(e){ return Promise.resolve(); } }));
-          }).catch(function(){});
-        }
-      }
-    }catch(e){}
-
-    // 2) Best-effort: unregister any ServiceWorker + clear CacheStorage when build changes.
-    //    This prevents iOS Safari/PWA from sticking to an old JS bundle.
-    var prev = null;
-    try{ prev = localStorage.getItem('ds_build') || null; }catch(e){}
-    try{ localStorage.setItem('ds_build', BUILD); }catch(e){}
-
-    var clearPwaCachesIfNeeded = function(){
-      if(!prev || prev === BUILD) return Promise.resolve();
-      var tasks = [];
-      try{
-        if(navigator.serviceWorker && navigator.serviceWorker.getRegistrations){
-          tasks.push(navigator.serviceWorker.getRegistrations().then(function(regs){
-            return Promise.all(regs.map(function(r){ return r.unregister(); }));
-          }));
-        }
-      }catch(e){}
-      try{
-        if(window.caches && caches.keys){
-          tasks.push(caches.keys().then(function(keys){
-            return Promise.all(keys.map(function(k){ return caches.delete(k); }));
-          }));
-        }
-      }catch(e){}
-      return Promise.all(tasks).catch(function(){/* ignore */});
-    };
-
-    clearPwaCachesIfNeeded().finally(function(){
-      // 3) Always load app.js with the same query string as app.html.
-      var s = document.createElement('script');
-      s.defer = true;
-      s.src = 'app.js' + qs;
-      document.head.appendChild(s);
-    });
+    var qs = window.location.search || '';
+    // Fallback: wenn app.html ohne Query geöffnet wird, trotzdem eindeutige Version erzwingen
+    if(!qs) qs = '?v=v11B_SAVE_PDF_18_STAY_EMBEDDED_TEMPLATE';
+    var s = document.createElement('script');
+    s.defer = true;
+    s.src = 'app.js' + qs;
+    document.head.appendChild(s);
   })();
 </script>
 <script>
