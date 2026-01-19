@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = "v11B_SAVE_PDF_14_STAY_EDITOR_FIX";
+const APP_BUILD = "v11B_SAVE_PDF_15_STAY_POINTER_FIX";
 // Selector helpers
 // $: accepts either an element id (e.g. 'contractSig') or a CSS selector (e.g. '#contractSig', '.btn')
 const $ = (sel) => {
@@ -1604,13 +1604,6 @@ function createStay(){
       const direct = getTemplate("hundeannahme");
       if (direct && direct.id) return direct.id;
     }
-    // Also consider module-scope templates[] (source of truth for getTemplate)
-    try{
-      if (Array.isArray(templates) && templates.length){
-        const t = templates.find(x => (x && (x.id === "hundeannahme" || (x.name||"").toLowerCase().includes("hundeannahme"))));
-        if (t && t.id) return t.id;
-      }
-    }catch(_){ }
     // From loaded templates array (state.templates ist die Quelle der Wahrheit)
     try{
       const tplArr = (typeof state !== "undefined" && Array.isArray(state.templates)) ? state.templates
@@ -1642,20 +1635,11 @@ function createStay(){
 
     if (typeof createDoc === "function") {
       try{
-        let useId = tid;
-        const t0 = (typeof getTemplate === 'function') ? getTemplate(useId) : null;
-        if(!t0){
-          // Robuster Fallback: wenn "hundeannahme" nicht geladen ist, nimm die erste verfügbare Vorlage
-          try{
-            if(Array.isArray(templates) && templates.length) useId = templates[0].id;
-          }catch(_){ }
-        }
-        // Wenn immer noch nichts: bewusst abbrechen, damit der Fehler sichtbar wird
-        const t = (typeof getTemplate === 'function') ? getTemplate(useId) : null;
+        const t = (typeof getTemplate === 'function') ? getTemplate(tid) : null;
         if(!t){
-          throw new Error('Vorlage nicht geladen (auch kein Fallback verfügbar).');
+          throw new Error('Vorlage nicht geladen: '+tid);
         }
-        createDoc(useId);
+        createDoc(tid);
         return;
       }catch(e){
         console.warn('createStay: createDoc failed', e);
@@ -1675,7 +1659,7 @@ function createStay(){
     tries++;
 
     // 1) Templates sicherstellen
-    const tplList = (Array.isArray(templates) && templates.length) ? templates : ((state.templates && state.templates.length) ? state.templates : (globalThis.templates || []));
+    const tplList = (state.templates && state.templates.length) ? state.templates : (globalThis.templates || []);
     if(!tplList.length){
       // Falls möglich, Templates aktiv laden
       if(typeof loadTemplates === 'function'){
@@ -6170,6 +6154,25 @@ async function startApp(){
         ev.stopPropagation();
         createStay();
       }, true);
+      // iOS Safari fallback: some setups do not fire click reliably.
+      // Therefore also listen to pointerup/touchend in capture phase for the same buttons.
+      document.addEventListener("pointerup", (ev)=>{
+        const t = ev.target;
+        const btn = t && t.closest ? t.closest("#btnNewStayTop, #btnNewStayOnPage") : null;
+        if(!btn) return;
+        try{ ev.preventDefault(); }catch(_){}
+        try{ ev.stopPropagation(); }catch(_){}
+        createStay();
+      }, true);
+      document.addEventListener("touchend", (ev)=>{
+        const t = ev.target;
+        const btn = t && t.closest ? t.closest("#btnNewStayTop, #btnNewStayOnPage") : null;
+        if(!btn) return;
+        try{ ev.preventDefault(); }catch(_){}
+        try{ ev.stopPropagation(); }catch(_){}
+        createStay();
+      }, {capture:true, passive:false});
+
     }
   }catch(_){ }
   if(btnQuickDogs) btnQuickDogs.onclick = ()=>selectTab("dogs");
