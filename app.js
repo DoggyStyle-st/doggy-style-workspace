@@ -1,4 +1,4 @@
-const APP_BUILD = "v11B_SAVE_PDF_07";
+const APP_BUILD = "v11B_SAVE_PDF_08";
 // Selector helpers
 // $: accepts either an element id (e.g. 'contractSig') or a CSS selector (e.g. '#contractSig', '.btn')
 const $ = (sel) => {
@@ -6681,41 +6681,110 @@ function updateContractWarnBanner(doc){
 }
 
 
-function openContractPdfWindow(customerId, petId){
+async function _assetToDataUrl(path){
+  try{
+    const res = await fetch(path, {cache:'no-store'});
+    if(!res.ok) throw new Error('fetch '+res.status);
+    const blob = await res.blob();
+    return await new Promise((resolve, reject)=>{
+      const fr = new FileReader();
+      fr.onload = ()=>resolve(fr.result);
+      fr.onerror = ()=>reject(new Error('filereader'));
+      fr.readAsDataURL(blob);
+    });
+  }catch(e){
+    return null;
+  }
+}
+
+// In der UI wird oft mit weißer Tinte auf dunklem Hintergrund unterschrieben.
+// Für die PDF (weißer Hintergrund) wandeln wir die Signatur auf dunkle Tinte um.
+async function _normalizeSignatureForPdf(dataUrl){
+  try{
+    if(!dataUrl || typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image')) return dataUrl;
+    const img = await new Promise((resolve, reject)=>{
+      const i = new Image();
+      i.onload = ()=>resolve(i);
+      i.onerror = ()=>reject(new Error('img'));
+      i.src = dataUrl;
+    });
+    const c = document.createElement('canvas');
+    c.width = img.naturalWidth || img.width;
+    c.height = img.naturalHeight || img.height;
+    const ctx = c.getContext('2d');
+    ctx.clearRect(0,0,c.width,c.height);
+    ctx.drawImage(img,0,0);
+    const id = ctx.getImageData(0,0,c.width,c.height);
+    const d = id.data;
+    for(let p=0; p<d.length; p+=4){
+      const a = d[p+3];
+      if(a===0) continue;
+      const r=d[p], g=d[p+1], b=d[p+2];
+      const lum = (r+g+b)/3;
+      // helle (weiße) Tinte -> schwarz; Hintergrund bleibt transparent
+      if(lum > 160){
+        d[p]=0; d[p+1]=0; d[p+2]=0; d[p+3]=255;
+      }else{
+        // bereits dunkle Tinte beibehalten
+        d[p+3]=255;
+      }
+    }
+    ctx.putImageData(id,0,0);
+    return c.toDataURL('image/png');
+  }catch(e){
+    return dataUrl;
+  }
+}
+
+async function openContractPdfWindow(customerId, petId){
   ensureContractDefaults();
   const c = state.contract;
   const sig = getContractSignature(customerId, petId);
-  if(!c || !sig || !hasValidContract(customerId, petId)){ alert("Für diese Auswahl liegt keine gültige Unterschrift vor."); return; }
+  if(!c || !sig || !hasValidContract(customerId, petId)){
+    alert("Für diese Auswahl liegt keine gültige Unterschrift vor.");
+    return;
+  }
   const customer = getCustomer(customerId) || {};
   const pet = getPet(petId) || {};
   const signedAt = new Date(sig.signedAt || new Date().toISOString()).toLocaleString("de-DE");
+
+  const logoDataUrl = await _assetToDataUrl('assets/logo.png');
+  const sigForPdf = await _normalizeSignatureForPdf(sig.signatureDataUrl || sig.dataUrl || sig.signature);
 
   const html = `<!doctype html>
   <html lang="de"><head><meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${escapeHtml(c.title||"Betreuungsvertrag")} – PDF</title>
   <style>
-    body{font-family: -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif; margin:24px; color:#111;}
-    .head{display:flex; align-items:center; gap:14px; margin-bottom:14px;}
-    .logo{width:64px; height:64px; object-fit:contain;}
-    .meta{color:#444; font-size:13px;}
-    .doc{margin-top:14px; line-height:1.45;}
-    h1{font-size:18px; margin:0;}
-    h2{font-size:15px; margin:18px 0 8px;}
-    .sig{margin-top:22px; padding-top:12px; border-top:1px solid #ddd;}
-    .sigrow{display:flex; gap:18px; align-items:flex-start; flex-wrap:wrap;}
-    .sigimg{width:320px; max-width:100%; border:1px solid #ddd; border-radius:10px; padding:6px;}
-    .small{font-size:12px; color:#444;}
-    @media print{ body{margin:10mm;} }
+    body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif;margin:24px;color:#111;}
+    .toolbar{position:sticky;top:0;background:#fff;border-bottom:1px solid #eee;padding:10px 0;margin:-24px -24px 18px;display:flex;gap:10px;align-items:center;justify-content:flex-end;}
+    .toolbar a,.toolbar button{font:inherit;border:1px solid #ddd;background:#f7f7f7;border-radius:10px;padding:8px 12px;text-decoration:none;color:#111;}
+    .toolbar .spacer{flex:1;}
+    .head{display:flex;align-items:center;gap:14px;margin-bottom:14px;}
+    .logo{width:64px;height:64px;object-fit:contain;background:#fff;}
+    .meta{color:#444;font-size:13px;}
+    .doc{margin-top:14px;line-height:1.45;}
+    h1{font-size:18px;margin:0;}
+    h2{font-size:15px;margin:18px 0 8px;}
+    .sig{margin-top:22px;padding-top:12px;border-top:1px solid #ddd;}
+    .sigrow{display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap;}
+    .sigimg{width:360px;max-width:100%;border:1px solid #ddd;border-radius:10px;padding:6px;background:#fff;}
+    .small{font-size:12px;color:#444;}
+    @media print{ .toolbar{display:none;} body{margin:10mm;} }
   </style>
   </head><body>
+    <div class="toolbar">
+      <span class="spacer"></span>
+      <button onclick="window.print()">Drucken / Speichern</button>
+      <a href="javascript:history.back()">Zurück</a>
+    </div>
     <div class="head">
-      <img class="logo" src="assets/logo.png" alt="Doggy Style"/>
+      <img class="logo" src="${logoDataUrl || ''}" alt="Doggy Style"/>
       <div>
         <h1>${escapeHtml(c.title||"Betreuungsvertrag")}</h1>
         <div class="meta">${escapeHtml(c.provider||"Doggy Style Hundepension")} · Version ${escapeHtml(c.version||"v1.0")} · Gültig ab ${escapeHtml(formatDateDE(c.validFrom||"2025-12-27"))}</div>
         <div class="meta">Kunde: ${escapeHtml((customer.name||"")+" "+(customer.lastName||"")).trim() || escapeHtml(customer.email||"")} · Hund: ${escapeHtml(pet.name||"")}</div>
-        <div class="meta">Adresse: ${escapeHtml(formatCustomerAddress(customer) || "—")}</div>
+        <div class="meta">Adresse: ${escapeHtml((typeof formatCustomerAddress==='function'?formatCustomerAddress(customer):formatCustomerAddressBlock(customer)) || "—")}</div>
       </div>
     </div>
 
@@ -6728,14 +6797,25 @@ function openContractPdfWindow(customerId, petId){
           <div class="small">Unterschrieben am: <strong>${escapeHtml(signedAt)}</strong></div>
           <div class="small">Vertragsversion: <strong>${escapeHtml(sig.contractVersion || sig.version || (state.contractVersion||"v1.0"))}</strong></div>
         </div>
-        <img class="sigimg" src="${sig.signatureDataUrl || sig.dataUrl || sig.signature}" alt="Unterschrift"/>
+        <img class="sigimg" src="${sigForPdf || ''}" alt="Unterschrift"/>
       </div>
-      <p class="small">Hinweis: Speichern als PDF über „Drucken“ (Teilen → Drucken / als PDF sichern) je nach Gerät.</p>
+      <p class="small">Tipp iPad/iPhone: Button „Drucken / Speichern“ → Teilen → „In Dateien sichern“ (oder per Mail/WhatsApp teilen).</p>
     </div>
 
   </body></html>`;
 
-  openHtmlInModal('Betreuungsvertrag (Vorschau)', html, 'Schließen mit ✕. Für PDF: Drucken/Speichern → „Als PDF“ → in Dateien ablegen.');
+  // iOS: für Teilen/Speichern ist ein eigener Tab am zuverlässigsten.
+  // Fallback: Doc-Modal.
+  try{
+    const blob = new Blob([html], {type:'text/html'});
+    const url = URL.createObjectURL(blob);
+    const w = window.open(url, '_blank');
+    if(!w) throw new Error('popup blocked');
+    // Revoke später (Tab lädt das Dokument ohnehin)
+    setTimeout(()=>{ try{ URL.revokeObjectURL(url); }catch(_){} }, 15000);
+  }catch(e){
+    openHtmlInModal('Betreuungsvertrag (Vorschau)', html, 'Schließen mit ✕. Für PDF: „Drucken / Speichern“ → Teilen → „In Dateien sichern“.');
+  }
 }
 
 function renderContractPanel(){
