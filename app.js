@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = "v11B_SAVE_PDF_17_STAY_DEBUG_OVERLAY";
+const APP_BUILD = "v11B_SAVE_PDF_18_STAY_EMBEDDED_TEMPLATE";
 // Selector helpers
 // $: accepts either an element id (e.g. 'contractSig') or a CSS selector (e.g. '#contractSig', '.btn')
 const $ = (sel) => {
@@ -1589,119 +1589,32 @@ function selectTab(tabId){
 }
 
 function createStay(){
-  // Neuer Aufenthalt (Hundeannahme) – robust:
-  // 1) Auf "Dokumente/Vorlagen" wechseln (damit der Editor sichtbar ist)
-  // 2) Template sicher finden (id bevorzugt, sonst Name)
-  // 3) Direkt createDoc(templateId) ausführen
-  try{ __dbg("createStay(): gestartet"); }catch(_){ }
-  try{ selectTab("documents"); __dbg("createStay(): Tab documents aktiv"); }catch(_){}
+  // v18: Neuer Aufenthalt (Hundeannahme) – immer zuverlässig, ohne externes Template-Fetch.
+  // Wir stellen die embedded Vorlage sicher und öffnen dann wie gewohnt den Dokument-Editor.
+  try{ selectTab("documents"); }catch(_){ }
 
-  // Sichtbares Feedback (wichtig bei Safari/iPad, wenn der Tab bereits offen ist)
-  try{ if (typeof showMiniToast === "function") showMiniToast("Öffne Aufenthalt-Editor …"); }catch(_){}
+  try{ ensureEmbeddedTemplates(); }catch(_){ }
 
-  const pickTemplateId = () => {
-    // Prefer exact id
-    if (typeof getTemplate === "function") {
-      const direct = getTemplate("hundeannahme");
-      if (direct && direct.id) return direct.id;
-    }
-    // From loaded templates array (state.templates ist die Quelle der Wahrheit)
-    try{
-      const tplArr = (typeof state !== "undefined" && Array.isArray(state.templates)) ? state.templates
-                   : (Array.isArray(globalThis.templates) ? globalThis.templates : []);
-      if (tplArr.length){
-        const t = tplArr.find(x => (x && (x.id === "hundeannahme" || (x.name||"").toLowerCase().includes("hundeannahme"))));
-        if (t && t.id) return t.id;
-      }
-    }catch(_){}
-    // From select options
+  const tid = "hundeannahme";
+  try{
     const sel = document.getElementById("templateSelect");
-    if (sel) {
-      const opt = Array.from(sel.options || []).find(o =>
-        ((o.value||"").toLowerCase() === "hundeannahme") ||
-        ((o.textContent||"").toLowerCase().includes("hundeannahme"))
-      );
-      if (opt) return opt.value || "hundeannahme";
-      // fallback: keep current selection if any
-      if (sel.value) return sel.value;
+    if(sel) sel.value = tid;
+  }catch(_){ }
+
+  try{
+    if(typeof getTemplate === 'function' && !getTemplate(tid)){
+      ensureEmbeddedTemplates();
     }
-    return "hundeannahme";
-  };
-
-  const go = () => {
-    try{ __dbg('createStay(): go()'); }catch(_){ }
-    const tid = pickTemplateId();
-    try{ __dbg('createStay(): templateId='+tid); }catch(_){ }
-    // Ensure select reflects the choice (nice-to-have)
-    const sel = document.getElementById("templateSelect");
-    if (sel) sel.value = tid;
-
-    if (typeof createDoc === "function") {
-      try{
-        const t = (typeof getTemplate === 'function') ? getTemplate(tid) : null;
-        if(!t){
-          throw new Error('Vorlage nicht geladen: '+tid);
-        }
-        try{ __dbg('createStay(): createDoc('+tid+')'); }catch(_){ }
-        createDoc(tid);
-        try{ __dbg('createStay(): openDoc() sollte jetzt im Editor sein'); }catch(_){ }
-        return;
-      }catch(e){
-        console.warn('createStay: createDoc failed', e);
-        try{ __dbg('createStay(): FEHLER '+(e.message||e)); }catch(_){ }
-        try{ alert('❌ Aufenthalt-Editor konnte nicht geöffnet werden.\nGrund: '+(e.message||e)); }catch(_){ }
-      }
-    }
-    // Fallback: click the existing "Neues Dokument" button
-    const btn = document.getElementById("btnNewDoc");
-    if (btn){
-      try{ __dbg('createStay(): fallback btnNewDoc.click()'); }catch(_){ }
-      btn.click();
-    }else{
-      try{ __dbg('createStay(): Weder createDoc() noch btnNewDoc vorhanden'); }catch(_){ }
-      try{ alert('❌ Editor kann nicht geöffnet werden: createDoc() fehlt und btnNewDoc nicht gefunden.'); }catch(_){ }
-    }
-  };
-
-  // Safari/iPad rendert DOM/Select teils verzögert – robust warten.
-  // Zusätzlich: Templates werden ggf. erst asynchron geladen (Init/Cache). Ohne Templates
-  // kann der Editor nicht öffnen, daher hier explizit sicherstellen, dass Templates geladen sind.
-  let tries = 0;
-  const tick = () => {
-    tries++;
-
-    try{
-      const tplListDbg = (state.templates && state.templates.length) ? state.templates : (globalThis.templates || []);
-      __dbg('createStay(): tick '+tries+' templates='+(tplListDbg?.length||0));
-    }catch(_){ }
-    try{ if(tries===1) __dbg('createStay(): tick() startet'); }catch(_){ }
-
-    // 1) Templates sicherstellen
-    const tplList = (state.templates && state.templates.length) ? state.templates : (globalThis.templates || []);
-    if(!tplList.length){
-      // Falls möglich, Templates aktiv laden
-      if(typeof loadTemplates === 'function'){
-        try{ __dbg('createStay(): loadTemplates()'); }catch(_){ }
-        Promise.resolve(loadTemplates())
-          .catch(()=>{})
-          .finally(()=>{ if(tries < 40) setTimeout(tick, 80); });
-        return;
-      }
-      if(tries < 40){ setTimeout(tick, 80); return; }
-    }
-    const sel = document.getElementById("templateSelect");
-    // Wenn der Select noch nicht da ist, kurz warten und erneut versuchen
-    if (!sel && tries < 25) {
-      setTimeout(tick, 80);
+    if(typeof createDoc === "function"){
+      createDoc(tid);
       return;
     }
-    try{ __dbg('createStay(): templateSelect='+(!!sel)); }catch(_){ }
-    go();
-  };
-  setTimeout(tick, 0);
+  }catch(e){
+    try{ alert("❌ Aufenthalt-Editor konnte nicht geöffnet werden.\nGrund: "+(e.message||e)); }catch(_){ }
+    console.warn('createStay failed', e);
+  }
 }
-
-// expose for inline onclick (iOS Safari reliability)
+// iOS/Safari: Inline onclick benötigt globalen Zugriff
 try{ window.createStay = createStay; }catch(_){ }
 
 function openDogs(){ selectTab("dogs"); }
@@ -3390,6 +3303,38 @@ $$(".tab").forEach(b=>b.addEventListener("click",()=>{
 }));
 
 let templates=[];
+
+// ===============================
+// v18: Aufenthalte – eingebettete Hundeannahme (ohne externes Template-Fetch)
+// ===============================
+// Hintergrund: In bestimmten iOS/Safari + Service-Worker Konstellationen kann das
+// Laden von templates/hundeannahme.json blockieren. Der Aufenthalt-Editor darf davon
+// nicht abhängig sein.
+
+const EMBEDDED_HUNDEANNAHME_TEMPLATE = {
+  id: "hundeannahme",
+  name: "Hundeannahme",
+  // Die App nutzt für Aufenthalte primär doc.meta (von/bis/betreuung) + doc.dogId/petId/customerId.
+  // fields[] ist hier nur ein leichter Hinweis für die UI (wir rendern dafür einen eigenen Editor).
+  fields: [
+    { key: "dogId", label: "Hund", type: "dog" },
+    { key: "customerId", label: "Kunde", type: "customer" },
+    { key: "von", label: "Von", type: "date" },
+    { key: "bis", label: "Bis", type: "date" },
+    { key: "betreuung", label: "Betreuung", type: "text" },
+    { key: "notes", label: "Notizen", type: "textarea" }
+  ],
+  meta: { embedded: true }
+};
+
+function ensureEmbeddedTemplates(){
+  try{
+    if(!Array.isArray(templates)) templates = [];
+    if(!templates.some(t=>t && t.id === EMBEDDED_HUNDEANNAHME_TEMPLATE.id)){
+      templates.unshift(EMBEDDED_HUNDEANNAHME_TEMPLATE);
+    }
+  }catch(_){ /* ignore */ }
+}
 function normalizeTemplate(t){
   // Unterstützt sowohl Schema (name/key) als auch (title/id)
   if(!t || typeof t !== "object") return t;
@@ -3438,14 +3383,12 @@ async function loadTemplates(){
     }
   }
 
+  // Immer sicherstellen: Hundeannahme ist verfügbar (embedded)
+  ensureEmbeddedTemplates();
+
   // Fallback: Wenn gar nichts geladen werden konnte, App trotzdem startbar lassen
   if(!templates.length){
-    templates = [{
-      id: "hundeannahme_fallback",
-      name: "Hundeannahme (Fallback)",
-      fields: [],
-      meta: {}
-    }];
+    templates = [EMBEDDED_HUNDEANNAHME_TEMPLATE];
   }
 
   const sel = document.getElementById("templateSelect");
@@ -3459,37 +3402,6 @@ const getTemplate=id=>templates.find(t=>t.id===id);
 
 
 function uid(){return Math.random().toString(16).slice(2)+Date.now().toString(16);}
-
-// ===== iPad/Safari Debug Overlay (sichtbar, ohne Konsole) =====
-// Ziel: Wenn ein Button "nichts macht", sehen wir trotzdem, ob der Handler läuft
-// und wo er aussteigt.
-function __dbg(msg){
-  try{
-    let el = document.getElementById('dbgOverlay');
-    if(!el){
-      el = document.createElement('div');
-      el.id = 'dbgOverlay';
-      el.style.position = 'fixed';
-      el.style.left = '10px';
-      el.style.right = '10px';
-      el.style.bottom = '10px';
-      el.style.zIndex = '99999';
-      el.style.background = 'rgba(0,0,0,0.75)';
-      el.style.color = '#fff';
-      el.style.padding = '10px 12px';
-      el.style.borderRadius = '12px';
-      el.style.fontSize = '12px';
-      el.style.lineHeight = '1.25';
-      el.style.backdropFilter = 'blur(6px)';
-      el.style.webkitBackdropFilter = 'blur(6px)';
-      el.style.pointerEvents = 'none';
-      el.textContent = 'DBG bereit.';
-      document.body.appendChild(el);
-    }
-    const ts = new Date().toLocaleTimeString('de-DE');
-    el.textContent = `DBG ${ts}: ${msg}`;
-  }catch(_){ }
-}
 
 // ===== ETAPPE 1: Datenmodell v2 + Migration (Kunden/Hunde/Aufenthalte/Rechnungen) =====
 
@@ -6544,9 +6456,96 @@ const tbody = document.getElementById("invItems");
 
 
 // ===== AKTIVER Editor-Switch (B2.x) =====
+function renderStayEditorEmbedded(doc){
+  const root = document.getElementById("formRoot");
+  if(!root) return;
+  root.innerHTML = "";
+
+  // Sicherstellen, dass Meta-Felder existieren
+  normalizeMeta(doc);
+
+  const card = document.createElement("div");
+  card.className = "card";
+  card.innerHTML = `
+    <h2>Aufenthalt</h2>
+    <div class="grid" style="gap:12px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+      <label class="field">
+        <span>Hund</span>
+        <select id="stayDogSelect"></select>
+      </label>
+      <label class="field">
+        <span>Kunde</span>
+        <select id="stayCustomerSelect"></select>
+      </label>
+      <label class="field">
+        <span>Von</span>
+        <input id="stayVon" type="date" />
+      </label>
+      <label class="field">
+        <span>Bis</span>
+        <input id="stayBis" type="date" />
+      </label>
+      <label class="field">
+        <span>Betreuung</span>
+        <input id="stayBetreuung" placeholder="z.B. Urlaub / Tagesbetreuung" />
+      </label>
+      <label class="field" style="grid-column: 1 / -1;">
+        <span>Notizen</span>
+        <textarea id="stayNotes" rows="4" placeholder="Zusatzinfos …"></textarea>
+      </label>
+    </div>
+  `;
+  root.appendChild(card);
+
+  // Hunde
+  const dogSel = document.getElementById('stayDogSelect');
+  if(dogSel){
+    const dogs = Array.isArray(state?.dogs) ? state.dogs : [];
+    dogSel.innerHTML = `<option value="">(Auswahl)</option>` + dogs.map(d=>`<option value="${escapeHtml(d.id)}">${escapeHtml(d.name||d.dogName||d.id)}</option>`).join('');
+    dogSel.value = doc.dogId || "";
+    dogSel.onchange = e=>{ doc.dogId = e.target.value; dirty = true; };
+  }
+
+  // Kunden
+  const custSel = document.getElementById('stayCustomerSelect');
+  if(custSel){
+    const customers = Array.isArray(state?.customers) ? state.customers : [];
+    custSel.innerHTML = `<option value="">(Auswahl)</option>` + customers.map(c=>`<option value="${escapeHtml(c.id)}">${escapeHtml(c.name||c.fullName||c.id)}</option>`).join('');
+    custSel.value = doc.customerId || "";
+    custSel.onchange = e=>{ doc.customerId = e.target.value; dirty = true; };
+  }
+
+  const von = document.getElementById('stayVon');
+  if(von){
+    von.value = doc.meta.von || "";
+    von.oninput = e=>{ doc.meta.von = e.target.value; dirty = true; };
+  }
+  const bis = document.getElementById('stayBis');
+  if(bis){
+    bis.value = doc.meta.bis || "";
+    bis.oninput = e=>{ doc.meta.bis = e.target.value; dirty = true; };
+  }
+  const bet = document.getElementById('stayBetreuung');
+  if(bet){
+    bet.value = doc.meta.betreuung || "";
+    bet.oninput = e=>{ doc.meta.betreuung = e.target.value; dirty = true; };
+  }
+  const notes = document.getElementById('stayNotes');
+  if(notes){
+    doc.fields = doc.fields || {};
+    notes.value = doc.fields.notes || "";
+    notes.oninput = e=>{ doc.fields.notes = e.target.value; dirty = true; };
+  }
+}
+
 function renderEditor(doc){
   const template = getTemplate(doc.templateId);
   if(!template){
+    // Aufenthalte dürfen nicht am Template-Laden scheitern
+    if(String(doc.templateId||"").startsWith('hundeannahme')){
+      renderStayEditorEmbedded(doc);
+      return;
+    }
     toast("Vorlage nicht gefunden");
     return;
   }
@@ -6563,7 +6562,13 @@ if(template.id === "rechnung"){
   return;
 }
 
-  // 🐶 Standard-Dokumente (z. B. Hundeannahme)
+  // 🐶 Hundeannahme / Aufenthalt: eigener Editor, wenn embedded Vorlage verwendet wird
+  if(template.id === 'hundeannahme' && template.meta && template.meta.embedded){
+    renderStayEditorEmbedded(doc);
+    return;
+  }
+
+  // 🐶 Standard-Dokumente
   renderForm(doc);
 }
 
