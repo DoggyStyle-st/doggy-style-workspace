@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = "v11B_SAVE_PDF_13_STAY_BTN_FIX";
+const APP_BUILD = "v11B_SAVE_PDF_14_STAY_EDITOR_FIX";
 // Selector helpers
 // $: accepts either an element id (e.g. 'contractSig') or a CSS selector (e.g. '#contractSig', '.btn')
 const $ = (sel) => {
@@ -1604,6 +1604,13 @@ function createStay(){
       const direct = getTemplate("hundeannahme");
       if (direct && direct.id) return direct.id;
     }
+    // Also consider module-scope templates[] (source of truth for getTemplate)
+    try{
+      if (Array.isArray(templates) && templates.length){
+        const t = templates.find(x => (x && (x.id === "hundeannahme" || (x.name||"").toLowerCase().includes("hundeannahme"))));
+        if (t && t.id) return t.id;
+      }
+    }catch(_){ }
     // From loaded templates array (state.templates ist die Quelle der Wahrheit)
     try{
       const tplArr = (typeof state !== "undefined" && Array.isArray(state.templates)) ? state.templates
@@ -1635,11 +1642,20 @@ function createStay(){
 
     if (typeof createDoc === "function") {
       try{
-        const t = (typeof getTemplate === 'function') ? getTemplate(tid) : null;
-        if(!t){
-          throw new Error('Vorlage nicht geladen: '+tid);
+        let useId = tid;
+        const t0 = (typeof getTemplate === 'function') ? getTemplate(useId) : null;
+        if(!t0){
+          // Robuster Fallback: wenn "hundeannahme" nicht geladen ist, nimm die erste verfügbare Vorlage
+          try{
+            if(Array.isArray(templates) && templates.length) useId = templates[0].id;
+          }catch(_){ }
         }
-        createDoc(tid);
+        // Wenn immer noch nichts: bewusst abbrechen, damit der Fehler sichtbar wird
+        const t = (typeof getTemplate === 'function') ? getTemplate(useId) : null;
+        if(!t){
+          throw new Error('Vorlage nicht geladen (auch kein Fallback verfügbar).');
+        }
+        createDoc(useId);
         return;
       }catch(e){
         console.warn('createStay: createDoc failed', e);
@@ -1659,7 +1675,7 @@ function createStay(){
     tries++;
 
     // 1) Templates sicherstellen
-    const tplList = (state.templates && state.templates.length) ? state.templates : (globalThis.templates || []);
+    const tplList = (Array.isArray(templates) && templates.length) ? templates : ((state.templates && state.templates.length) ? state.templates : (globalThis.templates || []));
     if(!tplList.length){
       // Falls möglich, Templates aktiv laden
       if(typeof loadTemplates === 'function'){

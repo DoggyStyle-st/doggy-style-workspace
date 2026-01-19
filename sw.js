@@ -1,7 +1,7 @@
-/* Doggy Style – Service Worker v11B_SAVE_PDF_13_STAY_BTN_FIX (offline-first, update-safe) */
+/* Doggy Style – Service Worker v11B_SAVE_PDF_14_STAY_EDITOR_FIX (offline-first, update-safe) */
 
 // Version bump forces clients to pick up updated assets reliably.
-const SW_VERSION = "v11B_SAVE_PDF_13_STAY_BTN_FIX";
+const SW_VERSION = "v11B_SAVE_PDF_14_STAY_EDITOR_FIX";
 const CACHE_NAME = `ds-test-cache-${SW_VERSION}`;
 
 // Wichtig:
