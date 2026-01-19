@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = "v11B_SAVE_PDF_19_STAY_LEGAL_FIX";
+const APP_BUILD = "v11B_SAVE_PDF_19_STAY_LEGAL_LAYOUT_FIX";
 // Selector helpers
 // $: accepts either an element id (e.g. 'contractSig') or a CSS selector (e.g. '#contractSig', '.btn')
 const $ = (sel) => {
@@ -5606,54 +5606,18 @@ function collectForm(){
 }
 function validate(docObj,t){
   const errs=[];
-
   // Etappe 3: Hund muss gewählt sein (nicht Placeholder)
   const d = (state.dogs||[]).find(x=>x.id===docObj.dogId);
   if(!docObj.dogId || (d && d.isPlaceholder)) errs.push("Hund");
-
-  const isStay = (docObj.templateId === "hundeannahme" || docObj.templateName === "Hundeannahme" || docObj.type === "stay");
-
-  // Robustheit: Embedded-Templates können keine sections/meta haben
-  const sections = Array.isArray(t?.sections) ? t.sections : [];
-  const metaArr  = Array.isArray(t?.meta) ? t.meta : [];
-
-  sections.forEach(sec => (sec.fields||[]).forEach(f=>{
-    if(!f || !f.required) return;
-    const v = (docObj.fields||{})[f.key];
-    if(f.type === "checkbox"){
-      if(!v) errs.push(f.label);
-    }else{
-      if(!v || String(v).trim()==="") errs.push(f.label);
-    }
+  t.sections.forEach(sec=>sec.fields.forEach(f=>{
+    if(!f.required) return;
+    const v=docObj.fields[f.key];
+    if(f.type==="checkbox"){ if(!v) errs.push(f.label); }
+    else { if(!v || String(v).trim()==="") errs.push(f.label); }
   }));
-
-  metaArr.forEach(f=>{
-    if(!f || !f.required) return;
-    const v = (docObj.meta||{})[f.key];
-    if(!v || String(v).trim()==="") errs.push(f.label);
-  });
-
-  // Aufenthalte: Pflichtangaben hart prüfen (Unterschrift bleibt weich)
-  if(isStay){
-    const m = docObj.meta || {};
-    const f = docObj.fields || {};
-    if(!docObj.customerId) errs.push("Kunde");
-    if(!m.von) errs.push("Von");
-    if(!m.bis) errs.push("Bis");
-    if(m.von && m.bis && String(m.von) > String(m.bis)) errs.push("Zeitraum");
-    if(!m.betreuung) errs.push("Betreuung");
-    if(!m.emergencyContact || String(m.emergencyContact).trim()==="") errs.push("Notfallkontakt");
-    if(!f.agbAccepted) errs.push("AGB");
-    if(!f.privacyAccepted) errs.push("Datenschutz (DSGVO)");
-    if(!f.vetPermission) errs.push("Tierarzt-Erlaubnis");
-    if(!f.truthConfirmed) errs.push("Angaben wahrheitsgemäß");
-  }
-
-  // Unterschrift: bei Aufenthalten NICHT zwingend zum Speichern
-  if(!isStay){
-    if(!docObj.signature || !docObj.signature.dataUrl) errs.push("Unterschrift");
-  }
-
+  t.meta.forEach(f=>{ if(f.required){const v=docObj.meta[f.key]; if(!v||String(v).trim()==="") errs.push(f.label);} });
+  if(!docObj.signature || !docObj.signature.dataUrl)
+  errs.push("Unterschrift");
   return errs;
 }
 function updateCreateInvoiceButton(){
@@ -6537,34 +6501,62 @@ function renderStayEditorEmbedded(doc){
         <span>Notizen</span>
         <textarea id="stayNotes" rows="4" placeholder="Zusatzinfos …"></textarea>
       </label>
-
-      <div class="field" style="grid-column: 1 / -1;">
-        <span>Pflichtangaben</span>
-        <div style="display:grid; gap:10px; margin-top:8px;">
-          <label style="display:flex; gap:10px; align-items:flex-start;">
-            <input type="checkbox" id="stayChkAgb" />
-            <div><strong>AGB</strong> – Ich habe die Allgemeinen Geschäftsbedingungen gelesen und akzeptiere diese.</div>
-          </label>
-          <label style="display:flex; gap:10px; align-items:flex-start;">
-            <input type="checkbox" id="stayChkDsgvo" />
-            <div><strong>Datenschutz (DSGVO)</strong> – Ich habe die Datenschutzhinweise gelesen und akzeptiere diese.</div>
-          </label>
-          <label style="display:flex; gap:10px; align-items:flex-start;">
-            <input type="checkbox" id="stayChkVet" />
-            <div><strong>Tierarzt-Erlaubnis</strong> – Ich erteile die Erlaubnis, mein Tier im Notfall tierärztlich behandeln zu lassen.</div>
-          </label>
-          <label style="display:flex; gap:10px; align-items:flex-start;">
-            <input type="checkbox" id="stayChkTruth" />
-            <div><strong>Angaben</strong> – Ich bestätige, dass alle Angaben wahrheitsgemäß und vollständig sind.</div>
-          </label>
-          <div id="staySigHint" style="display:none; padding:10px; border-radius:10px; background:rgba(255,170,0,0.15);">
-            ⚠️ Unterschrift muss für diesen Aufenthalt noch erfolgen.
-          </div>
-        </div>
-      </div>
     </div>
   `;
   root.appendChild(card);
+
+  // Pflichtangaben (Stufe B)
+  doc.fields = doc.fields || {};
+  const legal = document.createElement('div');
+  legal.className = 'card';
+  legal.innerHTML = `
+    <h2>Pflichtangaben</h2>
+    <div style="display:grid; grid-template-columns: 26px 1fr; gap:12px 14px; align-items:start;">
+
+      <input id="stayChkAgb" type="checkbox" style="width:22px;height:22px;" />
+      <div>
+        <div style="font-weight:700;">AGB</div>
+        <div style="opacity:.9; line-height:1.35;">Ich habe die Allgemeinen Geschäftsbedingungen gelesen und akzeptiere diese.</div>
+      </div>
+
+      <input id="stayChkDsgvo" type="checkbox" style="width:22px;height:22px;" />
+      <div>
+        <div style="font-weight:700;">Datenschutz (DSGVO)</div>
+        <div style="opacity:.9; line-height:1.35;">Ich habe die Datenschutzhinweise gelesen und akzeptiere diese.</div>
+      </div>
+
+      <input id="stayChkVet" type="checkbox" style="width:22px;height:22px;" />
+      <div>
+        <div style="font-weight:700;">Tierarzt-Erlaubnis</div>
+        <div style="opacity:.9; line-height:1.35;">Ich erteile die Erlaubnis, mein Tier im Notfall tierärztlich behandeln zu lassen.</div>
+      </div>
+
+      <input id="stayChkTruth" type="checkbox" style="width:22px;height:22px;" />
+      <div>
+        <div style="font-weight:700;">Angaben</div>
+        <div style="opacity:.9; line-height:1.35;">Ich bestätige, dass alle Angaben wahrheitsgemäß und vollständig sind.</div>
+      </div>
+    </div>
+  `;
+  root.appendChild(legal);
+
+  // Hinweis Unterschrift (nicht blockierend) – nur anzeigen, wenn noch keine Unterschrift vorhanden ist
+  const hasSignature = !!(doc && doc.signature && (doc.signature.dataUrl || doc.signature.signatureDataUrl));
+  if(!hasSignature){
+    const sigWarn = document.createElement('div');
+    sigWarn.className = 'card';
+    sigWarn.style.borderLeft = '6px solid #b08a2b';
+    sigWarn.innerHTML = `
+      <div style="display:flex; gap:10px; align-items:flex-start;">
+        <div style="font-size:18px; line-height:1;">⚠️</div>
+        <div>
+          <div style="font-weight:700;">Unterschrift</div>
+          <div style="opacity:.9; line-height:1.35;">Unterschrift muss für diesen Aufenthalt noch erfolgen.</div>
+        </div>
+      </div>
+    `;
+    root.appendChild(sigWarn);
+  }
 
   // Hunde
   const dogSel = document.getElementById('stayDogSelect');
@@ -6599,10 +6591,8 @@ function renderStayEditorEmbedded(doc){
     bet.value = doc.meta.betreuung || "";
     bet.onchange = e=>{ doc.meta.betreuung = e.target.value; dirty = true; };
   }
-
   const em = document.getElementById('stayEmergency');
   if(em){
-    doc.meta = doc.meta || {};
     em.value = doc.meta.emergencyContact || "";
     em.oninput = e=>{ doc.meta.emergencyContact = e.target.value; dirty = true; };
   }
@@ -6613,35 +6603,14 @@ function renderStayEditorEmbedded(doc){
     notes.oninput = e=>{ doc.fields.notes = e.target.value; dirty = true; };
   }
 
-  // Pflicht-Checkboxen
-  doc.fields = doc.fields || {};
   const chkAgb = document.getElementById('stayChkAgb');
-  if(chkAgb){
-    chkAgb.checked = !!doc.fields.agbAccepted;
-    chkAgb.onchange = e=>{ doc.fields.agbAccepted = !!e.target.checked; dirty = true; };
-  }
   const chkDsgvo = document.getElementById('stayChkDsgvo');
-  if(chkDsgvo){
-    chkDsgvo.checked = !!doc.fields.privacyAccepted;
-    chkDsgvo.onchange = e=>{ doc.fields.privacyAccepted = !!e.target.checked; dirty = true; };
-  }
   const chkVet = document.getElementById('stayChkVet');
-  if(chkVet){
-    chkVet.checked = !!doc.fields.vetPermission;
-    chkVet.onchange = e=>{ doc.fields.vetPermission = !!e.target.checked; dirty = true; };
-  }
   const chkTruth = document.getElementById('stayChkTruth');
-  if(chkTruth){
-    chkTruth.checked = !!doc.fields.truthConfirmed;
-    chkTruth.onchange = e=>{ doc.fields.truthConfirmed = !!e.target.checked; dirty = true; };
-  }
-
-  // Unterschrift-Hinweis (weiche Validierung)
-  const sigHint = document.getElementById('staySigHint');
-  if(sigHint){
-    const hasSig = !!(doc.signature && (doc.signature.dataUrl || doc.signature));
-    sigHint.style.display = hasSig ? 'none' : 'block';
-  }
+  if(chkAgb){ chkAgb.checked = !!doc.fields.agbAccepted; chkAgb.onchange = e=>{ doc.fields.agbAccepted = !!e.target.checked; dirty = true; }; }
+  if(chkDsgvo){ chkDsgvo.checked = !!doc.fields.privacyAccepted; chkDsgvo.onchange = e=>{ doc.fields.privacyAccepted = !!e.target.checked; dirty = true; }; }
+  if(chkVet){ chkVet.checked = !!doc.fields.vetPermission; chkVet.onchange = e=>{ doc.fields.vetPermission = !!e.target.checked; dirty = true; }; }
+  if(chkTruth){ chkTruth.checked = !!doc.fields.truthConfirmed; chkTruth.onchange = e=>{ doc.fields.truthConfirmed = !!e.target.checked; dirty = true; }; }
 }
 
 function renderEditor(doc){
