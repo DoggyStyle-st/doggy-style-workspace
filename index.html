@@ -2,12 +2,31 @@
 <html lang="de">
 <head>
   <meta charset="utf-8"/>
-  <meta name="app-version" content="2026-01-03-v11-TEST-OPTIK-01"/>
+  <meta name="app-version" content="2026-01-19-v11B-INDEX-QUERY-PASS-01"/>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
-  <title>Doggy Style Workspace · TEST</title>
-  <meta http-equiv="refresh" content="0; url=login.html"/>
+  <title>Doggy Style Workspace</title>
+
+  <!-- FIX:
+       Query-Parameter (?v=1118 etc.) und Hash werden beim Redirect erhalten.
+       Verhindert, dass Safari/PWA immer den alten Cache lädt.
+  -->
+  <script>
+    (function () {
+      var target =
+        "login.html" +
+        (window.location.search || "") +
+        (window.location.hash || "");
+      window.location.replace(target);
+    })();
+  </script>
 </head>
+
 <body>
-  <p>Weiterleitung… Falls nichts passiert: <a href="login.html">Login öffnen</a></p>
+  <p>Weiterleitung…</p>
+
+  <!-- Fallback (ebenfalls mit Query/Hash) -->
+  <noscript>
+    <a href="login.html">Login öffnen</a>
+  </noscript>
 </body>
 </html>
