@@ -4595,48 +4595,6 @@ function countForDay(type, day){
     return day >= d.meta.von && day <= d.meta.bis;
   }).length;
 }
-
-// Stufe B: Belegung pro Tag prüfen (mit Exclude-ID, z. B. beim Bearbeiten eines bestehenden Aufenthalts)
-function countForDayExcluding(type, day, excludeDocId){
-  return state.docs.filter(d=>{
-    if(!d.saved) return false;
-    if(excludeDocId && d.id === excludeDocId) return false;
-    if(d.meta?.betreuung !== type) return false;
-    if(!d.meta?.von || !d.meta?.bis) return false;
-    return day >= d.meta.von && day <= d.meta.bis;
-  }).length;
-}
-
-function _eachISODateInRange(fromISO, toISO, fn){
-  const from = String(fromISO||"").slice(0,10);
-  const to   = String(toISO||"").slice(0,10);
-  if(!from || !to) return;
-  const a = new Date(from);
-  const b = new Date(to);
-  if(isNaN(a) || isNaN(b)) return;
-  const cur = new Date(a);
-  while(cur <= b){
-    fn(toISODateLocal(cur));
-    cur.setDate(cur.getDate()+1);
-  }
-}
-
-// Stufe B: Overnight-Limit (Urlaubsbetreuung) je Tag validieren.
-// Rückgabe: null wenn ok, sonst {date, usedAfter, limit}
-function checkOvernightLimit(fromISO, toISO, excludeDocId){
-  const type = "Urlaubsbetreuung";
-  let hit = null;
-  _eachISODateInRange(fromISO, toISO, (day)=>{
-    if(hit) return;
-    const existing = countForDayExcluding(type, day, excludeDocId);
-    const usedAfter = existing + 1; // aktueller Aufenthalt wird neu gespeichert
-    const limit = getCapacity(type, day); // Standard 10, ggf. Ausnahmen
-    if(usedAfter > limit){
-      hit = { date: day, usedAfter, limit };
-    }
-  });
-  return hit;
-}
 function countToday(type){
   const today = toISODateLocal(new Date());
   return countForDay(type, today);
@@ -5658,11 +5616,8 @@ function validate(docObj,t){
     else { if(!v || String(v).trim()==="") errs.push(f.label); }
   }));
   t.meta.forEach(f=>{ if(f.required){const v=docObj.meta[f.key]; if(!v||String(v).trim()==="") errs.push(f.label);} });
-  // Unterschrift: bei Aufenthalten NICHT zwingend zum Speichern (Workflow: Kunde unterschreibt später)
-  const isStay = (docObj.templateId === "hundeannahme" || docObj.templateName === "Hundeannahme" || docObj.type === "stay");
-  if(!isStay){
-    if(!docObj.signature || !docObj.signature.dataUrl) errs.push("Unterschrift");
-  }
+  if(!docObj.signature || !docObj.signature.dataUrl)
+  errs.push("Unterschrift");
   return errs;
 }
 function updateCreateInvoiceButton(){
@@ -5736,34 +5691,9 @@ if (used >= limit) {
     `im Zeitraum ${from} – ${to} sind bereits belegt.`
   );
 }
-
-// Stufe B: Overnight-Limit (Urlaubsbetreuung) darf NICHT überschritten werden.
-// Prüft taggenau über den Zeitraum und blockiert das Speichern, wenn an einem Tag das Limit überschritten würde.
-try{
-  const isStay = (currentDoc.templateId === "hundeannahme" || currentDoc.templateName === "Hundeannahme" || currentDoc.type === "stay");
-  if(isStay && String(type||"") === "Urlaubsbetreuung"){
-    const hit = checkOvernightLimit(from, to, currentDoc.id);
-    if(hit){
-      alert(
-        `❌ Overnight-Limit überschritten.\n\n`+
-        `Am ${hit.date} wären ${hit.usedAfter} von ${hit.limit} Plätzen belegt.\n\n`+
-        `Bitte Zeitraum anpassen oder einen anderen Aufenthalt verschieben.`
-      );
-      return false;
-    }
-  }
-}catch(e){ console.warn('checkOvernightLimit failed', e); }
-
-// Unterschrift: bei Aufenthalten nur Hinweis (nicht blockierend)
 if (!currentDoc.signature){
-  const isStay = (currentDoc.templateId === "hundeannahme" || currentDoc.templateName === "Hundeannahme" || currentDoc.type === "stay");
-  if(isStay){
-    try{ toast("⚠️ Unterschrift muss für diesen Aufenthalt noch erfolgen."); }catch(_){ alert("⚠️ Unterschrift muss für diesen Aufenthalt noch erfolgen."); }
-    currentDoc.signatureMissing = true;
-  } else {
-    alert("Bitte unterschreiben");
-    return false;
-  }
+  alert("Bitte unterschreiben");
+  return false;
 }
   currentDoc.saved = true;                             // 🔐 Dokument abschließen
 currentDoc.updatedAt = new Date().toISOString();
@@ -6632,8 +6562,8 @@ if(template.id === "rechnung"){
   return;
 }
 
-  // 🐶 Hundeannahme / Aufenthalt: eigener Editor, wenn embedded Vorlage verwendet wird
-  if(template.id === 'hundeannahme' && template.meta && template.meta.embedded){
+  // 🐶 Hundeannahme / Aufenthalt: immer eigener Editor (robust – unabhängig von Template-Struktur)
+  if(template.id === 'hundeannahme'){
     renderStayEditorEmbedded(doc);
     return;
   }
