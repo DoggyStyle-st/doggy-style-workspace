@@ -1,5 +1,7 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = "v11B_SAVE_PDF_20_STAGE_B_STABLE";
+const APP_BUILD = "v11B_SAVE_PDF_21_STAGE_B_CACHE_FORCE";
+// expose for diagnostics
+try{ window.__APP_BUILD = APP_BUILD; }catch(e){}
 // Selector helpers
 // $: accepts either an element id (e.g. 'contractSig') or a CSS selector (e.g. '#contractSig', '.btn')
 const $ = (sel) => {
