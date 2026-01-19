@@ -1,4 +1,5 @@
-const APP_BUILD = "v11B_SAVE_PDF_08";
+// Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
+const APP_BUILD = "v11B_SAVE_PDF_12";
 // Selector helpers
 // $: accepts either an element id (e.g. 'contractSig') or a CSS selector (e.g. '#contractSig', '.btn')
 const $ = (sel) => {
@@ -5139,7 +5140,12 @@ function renderDogs(){
       const chipTxt = p.chip ? (` · Chip: ${escapeHtml(p.chipNumber||"ja")}`) : "";
       const badge = contractBadge(p.customerId, p.id);
       el.innerHTML = `<div><strong>${escapeHtml(p.name||"Hund")}</strong><small>${escapeHtml(c?.name||"")} · ${escapeHtml(c?.phone||"")}${chipTxt}${badge}</small></div>
-        <div class="actions"><button class="smallbtn" data-e="1">Bearbeiten</button><button class="smallbtn" data-d="1">Löschen</button></div>`;
+        <div class="actions">
+          <button class="smallbtn" data-v="1">Vertrag</button>
+          <button class="smallbtn" data-e="1">Bearbeiten</button>
+          <button class="smallbtn" data-d="1">Löschen</button>
+        </div>`;
+      el.querySelector('[data-v="1"]').onclick = ()=>openContractForPet(p.customerId, p.id);
       el.querySelector('[data-e="1"]').onclick = ()=>openCpEditor("edit", p.id);
       el.querySelector('[data-d="1"]').onclick = ()=>{
         if(confirm("Hund wirklich löschen? (Aufenthalte/Rechnungen bleiben als Historie bestehen)")){
@@ -6766,11 +6772,13 @@ async function openContractPdfWindow(customerId, petId){
   <style>
     :root{--tb-h:56px;}
     body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif;margin:0;color:#111;
-         padding:calc(18px + var(--tb-h) + env(safe-area-inset-top)) 24px 24px; background:#fff;}
+         padding:calc(22px + var(--tb-h) + env(safe-area-inset-top)) calc(24px + env(safe-area-inset-right)) 24px calc(24px + env(safe-area-inset-left));
+         background:#fff;}
     /* iOS/Safari: sticky in iframe is unreliable. Use a fixed toolbar that is always visible/clickable. */
     .toolbar{position:fixed;top:0;left:0;right:0;z-index:9999;background:#fff;border-bottom:1px solid #eee;
              height:var(--tb-h);display:flex;gap:10px;align-items:center;justify-content:flex-end;
-             padding:10px 24px; padding-top:calc(10px + env(safe-area-inset-top)); box-sizing:border-box;}
+             padding:10px calc(24px + env(safe-area-inset-right)) 10px calc(24px + env(safe-area-inset-left));
+             padding-top:calc(10px + env(safe-area-inset-top)); box-sizing:border-box;}
     .toolbar a,.toolbar button{font:inherit;border:1px solid #ddd;background:#f7f7f7;border-radius:10px;padding:8px 12px;text-decoration:none;color:#111;}
     .toolbar .spacer{flex:1;}
     .head{display:flex;align-items:center;gap:14px;margin-bottom:14px;}
@@ -6789,7 +6797,7 @@ async function openContractPdfWindow(customerId, petId){
     <div class="toolbar">
       <span class="spacer"></span>
       <button onclick="window.print()">Drucken / Speichern</button>
-      <a href="javascript:history.back()">Zurück</a>
+      <a href="javascript:window.close()">Zurück</a>
     </div>
     <div class="head">
       <img class="logo" src="${logoDataUrl || ''}" alt="Doggy Style"/>
@@ -7376,6 +7384,34 @@ let _contractSig = {canvas:null, ctx:null, drawing:false, hasInk:false, last:nul
 
 // Öffnet den Betreuungsvertrag direkt aus einem Aufenthalt heraus.
 // Verknüpft automatisch Kunde + Hund anhand der Aufenthaltsauswahl.
+function openContractForPet(customerId, petId){
+  ensureStateShape();
+  ensureContractDefaults();
+  if(!customerId || !petId){
+    alert("Bitte zuerst Kunde und Hund auswählen.");
+    return;
+  }
+
+  selectTab("contract");
+  renderContractPanel();
+
+  const cs = document.getElementById("contractCustomerSelect");
+  const ps = document.getElementById("contractPetSelect");
+  if(cs){
+    cs.value = customerId;
+    if(typeof cs.onchange === "function") cs.onchange();
+  }
+  if(ps){
+    ps.value = petId;
+    if(typeof ps.onchange === "function") ps.onchange();
+  }
+
+  try{ updateSignedInfo(); }catch(_){/* updateSignedInfo is scoped inside renderContractPanel; safe to ignore */}
+
+  const chk = document.getElementById("contractAcceptChk");
+  if(chk) chk.checked = false;
+}
+
 function openContractFromStay(doc){
   if(!doc){ alert("Kein Aufenthalt."); return; }
 

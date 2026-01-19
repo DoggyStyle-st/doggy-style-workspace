@@ -1,6 +1,7 @@
-/* Doggy Style – Service Worker TEST-OPTIK-01-2026-01-03b (offline-first, update-safe) */
+/* Doggy Style – Service Worker v11B_SAVE_PDF_12 (offline-first, update-safe) */
 
-const SW_VERSION = "TEST-OPTIK-01-2026-01-03b";
+// Version bump forces clients to pick up updated assets reliably.
+const SW_VERSION = "v11B_SAVE_PDF_12";
 const CACHE_NAME = `ds-test-cache-${SW_VERSION}`;
 
 // Wichtig:
