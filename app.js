@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = "v11B_SAVE_PDF_12";
+const APP_BUILD = "v11B_SAVE_PDF_13_STAY_BTN_FIX";
 // Selector helpers
 // $: accepts either an element id (e.g. 'contractSig') or a CSS selector (e.g. '#contractSig', '.btn')
 const $ = (sel) => {
@@ -1634,8 +1634,17 @@ function createStay(){
     if (sel) sel.value = tid;
 
     if (typeof createDoc === "function") {
-      createDoc(tid);
-      return;
+      try{
+        const t = (typeof getTemplate === 'function') ? getTemplate(tid) : null;
+        if(!t){
+          throw new Error('Vorlage nicht geladen: '+tid);
+        }
+        createDoc(tid);
+        return;
+      }catch(e){
+        console.warn('createStay: createDoc failed', e);
+        try{ alert('❌ Aufenthalt-Editor konnte nicht geöffnet werden.\nGrund: '+(e.message||e)); }catch(_){ }
+      }
     }
     // Fallback: click the existing "Neues Dokument" button
     const btn = document.getElementById("btnNewDoc");
@@ -6130,8 +6139,23 @@ async function startApp(){
     try{ await CLOUD.auth.signOut(); }catch(e){}
   };
   if(btnLogoutBottom) btnLogoutBottom.onclick = ()=>performLogout();
-  if(btnNewStayTop) btnNewStayTop.onclick = ()=>{ try{ createStay(); }catch(e){ selectTab("documents"); } };
-  if(btnNewStayOnPage) btnNewStayOnPage.onclick = ()=>{ try{ createStay(); }catch(e){ selectTab("documents"); } };
+  // Wichtig: Buttons werden in einigen Render-Pfaden neu in den DOM geschrieben.
+  // Daher zusätzlich Delegation (capture=true), damit der Klick immer greift.
+  if(btnNewStayTop) btnNewStayTop.onclick = ()=>createStay();
+  if(btnNewStayOnPage) btnNewStayOnPage.onclick = ()=>createStay();
+  try{
+    if(!window.__DELEGATED_NEW_STAY__){
+      window.__DELEGATED_NEW_STAY__ = true;
+      document.addEventListener('click', (ev)=>{
+        const t = ev.target;
+        const btn = t && t.closest ? t.closest('#btnNewStayTop, #btnNewStayOnPage') : null;
+        if(!btn) return;
+        ev.preventDefault();
+        ev.stopPropagation();
+        createStay();
+      }, true);
+    }
+  }catch(_){ }
   if(btnQuickDogs) btnQuickDogs.onclick = ()=>selectTab("dogs");
   if(btnQuickInvoices) btnQuickInvoices.onclick = ()=>selectTab("workforms");
   if(btnQuickSettings) btnQuickSettings.onclick = ()=>selectTab("settings");
