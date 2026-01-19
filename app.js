@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = "v11B_SAVE_PDF_18_STAY_EMBEDDED_TEMPLATE";
+const APP_BUILD = "v11B_SAVE_PDF_20_STAGE_B_FIX";
 // Selector helpers
 // $: accepts either an element id (e.g. 'contractSig') or a CSS selector (e.g. '#contractSig', '.btn')
 const $ = (sel) => {
@@ -268,26 +268,6 @@ function initDocModal(){
   const modal = document.getElementById('docModal');
   if(!modal || modal.dataset.bound) return;
   modal.dataset.bound = '1';
-
-  // iPad/iOS Safari: keep modal action buttons visible (Drucken/Speichern/Teilen/Schließen).
-  // Some Safari layouts cause the modal to scroll with the page; this fixes the modal to the viewport
-  // and makes the top bar sticky.
-  if(!document.getElementById('docModalFixStyle')){
-    const st = document.createElement('style');
-    st.id = 'docModalFixStyle';
-    st.textContent = `
-      .doc-modal{position:fixed;inset:0;z-index:9999;display:none;}
-      .doc-modal.is-open{display:block;}
-      .doc-modal__backdrop{position:fixed;inset:0;}
-      .doc-modal__panel{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(980px, calc(100vw - 24px));height:min(92vh, calc(100vh - 24px));display:flex;flex-direction:column;}
-      /* Action bar always visible (bottom, with safe-area) */
-      .doc-modal__bar{position:fixed;left:12px;right:12px;bottom:max(12px, env(safe-area-inset-bottom));z-index:3;flex:0 0 auto;}
-      .doc-modal__panel{padding-bottom:72px;}
-      .doc-modal__framewrap{flex:1 1 auto;min-height:0;}
-      .doc-modal__framewrap iframe{width:100%;height:100%;border:0;}
-    `;
-    document.head.appendChild(st);
-  }
   const close = ()=> closeDocModal();
   const btnClose = document.getElementById('docModalClose');
   const backdrop = document.getElementById('docModalBackdrop');
@@ -404,49 +384,13 @@ function closeDocModal(){
   DOCMOD.filename = null;
 }
 
-// Allow embedded documents (iframes) to request modal closing
-// via postMessage({type:'DOC_MODAL_CLOSE'})
-if(!window.__docModalMsgHookInstalled){
-  window.__docModalMsgHookInstalled = true;
-  window.addEventListener('message', (ev)=>{
-    try{
-      if(ev && ev.data && ev.data.type==='DOC_MODAL_CLOSE'){
-        closeDocModal();
-      }
-    }catch(_){ }
-  });
-}
-
 function openHtmlInModal(title, html, hint){
-  // Wrap raw HTML inside a minimal document with an always-visible toolbar
-  // (iOS Safari sometimes hides the modal action bar; this keeps Print/Save reachable.)
-  const safeTitle = escapeHtml(title||'Dokument');
-  let body = String(html||'');
-  // If caller passed a full HTML document, try to extract <body> contents for embedding.
-  const mBody = body.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-  if(mBody) body = mBody[1];
-
-  const content = `<!doctype html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${safeTitle}</title>
-<style>
-  :root{color-scheme:light dark;}
-  body{margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;}
-  .docToolbar{position:fixed;left:12px;right:12px;bottom:max(12px, env(safe-area-inset-bottom));z-index:9999;display:flex;gap:10px;justify-content:flex-end;align-items:center;background:rgba(0,0,0,0.08);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(0,0,0,0.18);border-radius:14px;padding:10px 12px;}
-  .docToolbar button{font:inherit;border:0;border-radius:12px;padding:10px 14px;cursor:pointer;}
-  .docToolbar .primary{background:#1f7aec;color:white;}
-  .docToolbar .ghost{background:rgba(255,255,255,0.75);}
-  .docBody{padding:18px 18px 96px 18px;}
-  @media print{.docToolbar{display:none !important;} .docBody{padding:0;}}
-</style></head>
-<body>
-  <div class="docBody">${body}</div>
-  <div class="docToolbar" role="toolbar" aria-label="Dokument Aktionen">
-    <button class="ghost" type="button" onclick="try{window.print()}catch(e){}">Drucken / Speichern</button>
-    <button class="primary" type="button" onclick="try{parent.postMessage({type:'DOC_MODAL_CLOSE'}, '*')}catch(e){}">Schließen</button>
-  </div>
-</body></html>`;
-
+  // Ensure title is present inside the document so iOS/print dialogs show a helpful name
+  let content = String(html||'');
+  if(!/<title>/i.test(content)){
+    const safe = escapeHtml(title||'Dokument');
+    content = content.replace(/<head>/i, `<head><title>${safe}</title>`);
+  }
   const blob = new Blob([content], {type:'text/html'});
   const url = URL.createObjectURL(blob);
   openDocModal(url, title, hint, suggestFilename(title));
@@ -1570,8 +1514,8 @@ const COMPANY = {
   owner: "Raphael Boch",
   street: "Im Moos 4",
   zipCity: "88167 Stiefenhofen",
-  phone: "0170/7313587",
-  email: "info@doggy-style.de",
+  phone: "0170 7313587",
+  email: "info@doggy-style-hundepension.de",
 
   bank: {
     name: "Musterbank",
@@ -3775,8 +3719,6 @@ function ensurePolicyModal(){
       <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.04);flex-wrap:wrap;">
         <div style="font-weight:900;letter-spacing:.2px;max-width:70vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" id="policyModalTitle">Vorlage</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
-          <button class="btn" type="button" id="policyModalPrint">🖨️ Drucken / Als PDF</button>
-          <button class="btn" type="button" id="policyModalShare">📤 Teilen</button>
           <button class="btn" type="button" id="policyModalEdit">✍️ Neue Version & bearbeiten</button>
           <button class="btn" type="button" id="policyModalSave" style="display:none">💾 Speichern</button>
           <button class="btn danger" type="button" id="policyModalClose">✕ Schließen</button>
@@ -3856,52 +3798,6 @@ function openPolicyDoc(key){
       alert('Gespeichert (revisionssicher über neue Version).');
     };
   }
-
-  // Drucken / Teilen
-  const btnPrint = document.getElementById('policyModalPrint');
-  if(btnPrint && !btnPrint.dataset.bound){
-    btnPrint.dataset.bound = '1';
-    btnPrint.onclick = ()=>{
-      if(!_policyCurrentKey) return;
-      const k = _policyCurrentKey;
-      const doc = state.compliance.docs[k] || {title:k, version:'1.0'};
-      const content = getPolicyContent(k);
-      const w = window.open('', '_blank');
-      if(!w) { alert('Popup blockiert. Bitte Popups erlauben.'); return; }
-      const safeTitle = `${doc.title || k} · Version ${doc.version || '1.0'}`;
-      w.document.open();
-      w.document.write(`<!doctype html><html><head><meta charset="utf-8"/><title>${escapeHtml(safeTitle)}</title>`+
-        `<style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial; padding:24px; line-height:1.4;} pre{white-space:pre-wrap; word-break:break-word;}</style>`+
-        `</head><body><h1 style="margin:0 0 12px 0; font-size:20px;">${escapeHtml(safeTitle)}</h1><pre>${escapeHtml(content)}</pre></body></html>`);
-      w.document.close();
-      w.focus();
-      w.print();
-    };
-  }
-  const btnShare = document.getElementById('policyModalShare');
-  if(btnShare && !btnShare.dataset.bound){
-    btnShare.dataset.bound = '1';
-    btnShare.onclick = async ()=>{
-      if(!_policyCurrentKey) return;
-      const k = _policyCurrentKey;
-      const doc = state.compliance.docs[k] || {title:k, version:'1.0'};
-      const content = getPolicyContent(k);
-      const filename = `${String(doc.title||k).replace(/[^a-z0-9\-_ ]/gi,'').trim().replace(/\s+/g,'_')||k}_v${doc.version||'1.0'}.txt`;
-      try{
-        const blob = new Blob([content], {type:'text/plain;charset=utf-8'});
-        const file = new File([blob], filename, {type: blob.type});
-        if(navigator.share && navigator.canShare && navigator.canShare({files:[file]})){
-          await navigator.share({title: doc.title||k, text: `${doc.title||k} (Version ${doc.version||'1.0'})`, files:[file]});
-        }else{
-          downloadBlob(filename, blob);
-        }
-      }catch(e){
-        console.warn('share failed', e);
-        alert('Teilen/Download nicht möglich.');
-      }
-    };
-  }
-
   wrap.style.display = 'block';
   document.body.style.overflow = 'hidden';
 }
@@ -5710,6 +5606,7 @@ function collectForm(){
 }
 function validate(docObj,t){
   const errs=[];
+  const warnings=[];
   // Etappe 3: Hund muss gewählt sein (nicht Placeholder)
   const d = (state.dogs||[]).find(x=>x.id===docObj.dogId);
   if(!docObj.dogId || (d && d.isPlaceholder)) errs.push("Hund");
@@ -5720,9 +5617,120 @@ function validate(docObj,t){
     else { if(!v || String(v).trim()==="") errs.push(f.label); }
   }));
   t.meta.forEach(f=>{ if(f.required){const v=docObj.meta[f.key]; if(!v||String(v).trim()==="") errs.push(f.label);} });
-  if(!docObj.signature || !docObj.signature.dataUrl)
-  errs.push("Unterschrift");
-  return errs;
+  if(!docObj.signature || !docObj.signature.dataUrl){
+    if(isStayDoc(docObj)){
+      warnings.push("Unterschrift muss für diesen Aufenthalt noch erfolgen.");
+    } else {
+      errs.push("Unterschrift");
+    }
+  }
+  // Duplikate entfernen
+  const uniq = arr => Array.from(new Set(arr));
+  return { errors: uniq(errs), warnings: uniq(warnings) };
+}
+
+// Heuristik: "Aufenthalt/Hundeannahme"-Dokumente sollen in Stage B ohne
+// zwingende Unterschrift speicherbar sein.
+function isStayDoc(docObj){
+  if(!docObj) return false;
+  if(docObj.templateId === "hundeannahme") return true;
+  const m = docObj.meta||{};
+  const f = docObj.fields||{};
+  return ("von" in m || "bis" in m || "betreuung" in m || "von" in f || "bis" in f || "betreuung" in f);
+}
+
+// Kleine Warnleiste im Editor (non-blocking)
+function showInlineWarn(msg){
+  const host = document.getElementById("editor") || document.getElementById("stayEditor") || document.querySelector(".editor") || document.body;
+  let box = document.getElementById("inlineWarnBox");
+  if(!box){
+    box = document.createElement("div");
+    box.id = "inlineWarnBox";
+    box.style.margin = "12px 0";
+    box.style.padding = "10px 12px";
+    box.style.borderRadius = "10px";
+    box.style.background = "rgba(245,182,46,0.18)";
+    box.style.border = "1px solid rgba(245,182,46,0.35)";
+    box.style.color = "#fff";
+    box.style.fontSize = "14px";
+    // möglichst oben im Editor platzieren
+    const first = host.firstElementChild;
+    if(first) host.insertBefore(box, first); else host.appendChild(box);
+  }
+  box.textContent = msg;
+  box.style.display = "block";
+}
+
+function setupSignatureCanvas(canvas, doc){
+  if(!canvas) return;
+  const ctx = canvas.getContext("2d");
+  // scale for high-DPI
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+  canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+  ctx.scale(dpr, dpr);
+  ctx.lineWidth = 2;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.strokeStyle = "#111";
+
+  // draw existing
+  if(doc?.signature?.dataUrl){
+    const img = new Image();
+    img.onload = () => {
+      ctx.clearRect(0,0,rect.width,rect.height);
+      ctx.drawImage(img, 0, 0, rect.width, rect.height);
+    };
+    img.src = doc.signature.dataUrl;
+  }
+
+  let drawing = false;
+  let last = null;
+  const pos = (ev) => {
+    const r = canvas.getBoundingClientRect();
+    const x = (ev.clientX - r.left);
+    const y = (ev.clientY - r.top);
+    return {x,y};
+  };
+
+  const start = (ev) => {
+    drawing = true;
+    last = pos(ev);
+    ev.preventDefault();
+  };
+  const move = (ev) => {
+    if(!drawing) return;
+    const p = pos(ev);
+    ctx.beginPath();
+    ctx.moveTo(last.x, last.y);
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+    last = p;
+    // persist
+    try{
+      const tmp = document.createElement("canvas");
+      tmp.width = canvas.width;
+      tmp.height = canvas.height;
+      tmp.getContext("2d").drawImage(canvas, 0, 0);
+      doc.signature = { dataUrl: canvas.toDataURL("image/png") };
+    }catch(e){}
+    ev.preventDefault();
+  };
+  const end = (ev) => { drawing = false; last = null; ev?.preventDefault?.(); };
+
+  canvas.onpointerdown = start;
+  canvas.onpointermove = move;
+  canvas.onpointerup = end;
+  canvas.onpointercancel = end;
+}
+
+function clearSignatureCanvas(canvas, doc){
+  if(!canvas) return;
+  const ctx = canvas.getContext("2d");
+  const r = canvas.getBoundingClientRect();
+  ctx.clearRect(0,0,r.width,r.height);
+  if(doc) doc.signature = null;
 }
 function updateCreateInvoiceButton(){
   const btn = document.getElementById("btnCreateInvoice");
@@ -5776,10 +5784,17 @@ if (currentDoc.meta?.betreuung && currentDoc.meta?.von && currentDoc.meta?.bis) 
 $("#docName").disabled = currentDoc.saved;
 $("#dogSelect").disabled = currentDoc.saved;
   
-  const errs=validate(currentDoc,t);
+  const v = validate(currentDoc,t);
+  const errs = Array.isArray(v) ? v : (v.errors||[]);
+  const warns = Array.isArray(v) ? [] : (v.warnings||[]);
   if(errs.length){
+    // Auch wenn saveCurrent von "Drucken" kommt, braucht der Nutzer eine Rückmeldung.
     alert("Bitte noch ausfüllen/abhaken:\n\n• "+errs.join("\n• "));
     return false;
+  }
+  // Warnungen (z.B. fehlende Unterschrift) blockieren NICHT.
+  if(warns.length){
+    try{ showInlineWarn(warns.join("\n")); }catch(e){ /* noop */ }
   }
 const type = currentDoc.meta.betreuung;
 const from = currentDoc.meta.von;
@@ -5796,8 +5811,13 @@ if (used >= limit) {
   );
 }
 if (!currentDoc.signature){
-  alert("Bitte unterschreiben");
-  return false;
+  if(isStayDoc(currentDoc)){
+    // Stage B: Unterschrift ist zum Speichern nicht zwingend notwendig.
+    try{ showInlineWarn("⚠️ Unterschrift muss für diesen Aufenthalt noch erfolgen."); }catch(e){ /* noop */ }
+  } else {
+    alert("Bitte unterschreiben");
+    return false;
+  }
 }
   currentDoc.saved = true;                             // 🔐 Dokument abschließen
 currentDoc.updatedAt = new Date().toISOString();
@@ -6568,10 +6588,30 @@ function renderStayEditorEmbedded(doc){
   // Sicherstellen, dass Meta-Felder existieren
   normalizeMeta(doc);
 
+  // --- Header / Aktionen (Speichern / PDF / Schließen) ---
+  const header = document.createElement("div");
+  header.className = "card";
+  header.innerHTML = `
+    <div style="display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap;">
+      <div>
+        <h2 style="margin:0">Hundeannahme</h2>
+        <div class="muted" style="margin-top:4px">Versionen: Nur diese Version vorhanden.</div>
+      </div>
+      <div style="display:flex; gap:10px; align-items:center;">
+        <button class="btn" id="staySaveBtn">Speichern</button>
+        <button class="btn" id="stayPdfBtn">Als PDF speichern (Drucken)</button>
+        <button class="btn" id="stayCloseBtn">Schließen</button>
+      </div>
+    </div>
+    <div id="stayInlineWarn" style="display:none; margin-top:10px" class="notice warn"></div>
+  `;
+  root.appendChild(header);
+
+  // --- Aufenthalt ---
   const card = document.createElement("div");
   card.className = "card";
   card.innerHTML = `
-    <h2>Aufenthalt</h2>
+    <h3 style="margin-top:0">Aufenthalt</h3>
     <div class="grid" style="gap:12px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
       <label class="field">
         <span>Hund</span>
@@ -6581,17 +6621,25 @@ function renderStayEditorEmbedded(doc){
         <span>Kunde</span>
         <select id="stayCustomerSelect"></select>
       </label>
-      <label class="field">
+      <label class="field" style="max-width:260px;">
         <span>Von</span>
-        <input id="stayVon" type="date" style="max-width:180px;width:180px" />
+        <input id="stayVon" type="date" style="max-width:240px;" />
       </label>
-      <label class="field">
+      <label class="field" style="max-width:260px;">
         <span>Bis</span>
-        <input id="stayBis" type="date" style="max-width:180px;width:180px" />
+        <input id="stayBis" type="date" style="max-width:240px;" />
       </label>
       <label class="field">
         <span>Betreuung</span>
-        <input id="stayBetreuung" placeholder="z.B. Urlaub / Tagesbetreuung" />
+        <select id="stayBetreuung">
+          <option value="">(bitte wählen)</option>
+          <option value="Tagesbetreuung">Tagesbetreuung</option>
+          <option value="Urlaubsbetreuung">Urlaubsbetreuung</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>Notfallkontakt</span>
+        <input id="stayNotfall" placeholder="Name + Telefonnummer" />
       </label>
       <label class="field" style="grid-column: 1 / -1;">
         <span>Notizen</span>
@@ -6600,6 +6648,41 @@ function renderStayEditorEmbedded(doc){
     </div>
   `;
   root.appendChild(card);
+
+  // --- Pflichtangaben (AGB/DSGVO/Tierarzt/Angaben) ---
+  const req = document.createElement("div");
+  req.className = "card";
+  req.innerHTML = `
+    <h3 style="margin-top:0">Pflichtangaben</h3>
+    <div class="grid" style="grid-template-columns: 1fr; gap:12px;">
+      <label class="check"><input type="checkbox" id="chkAgb"/> <b>AGB</b> – Ich habe die Allgemeinen Geschäftsbedingungen gelesen und akzeptiere diese.</label>
+      <label class="check"><input type="checkbox" id="chkDs"/> <b>Datenschutz (DSGVO)</b> – Ich habe die Datenschutzhinweise gelesen und akzeptiere diese.</label>
+      <label class="check"><input type="checkbox" id="chkVet"/> <b>Tierarzt-Erlaubnis</b> – Ich erteile die Erlaubnis, mein Tier im Notfall tierärztlich behandeln zu lassen.</label>
+      <label class="check"><input type="checkbox" id="chkTruth"/> <b>Angaben</b> – Ich bestätige, dass alle Angaben wahrheitsgemäß und vollständig sind.</label>
+    </div>
+    <div style="display:flex; gap:10px; margin-top:12px; flex-wrap:wrap;">
+      <button class="btn" id="btnViewAgb">AGB ansehen</button>
+      <button class="btn" id="btnViewDs">Datenschutz (DSGVO) ansehen</button>
+    </div>
+  `;
+  root.appendChild(req);
+
+  // --- Unterschrift (nicht zwingend zum Speichern) ---
+  const sig = document.createElement("div");
+  sig.className = "card";
+  sig.innerHTML = `
+    <h3 style="margin-top:0">Unterschrift</h3>
+    <div class="muted" style="margin-bottom:10px">Unterschrift ist zum Speichern nicht zwingend notwendig. Bitte später nachholen.</div>
+    <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:10px;">
+      <button class="btn" id="staySignBtn">Unterschreiben</button>
+      <button class="btn" id="staySignClearBtn">Löschen</button>
+      <span id="staySignStatus" class="muted"></span>
+    </div>
+    <div style="border:1px solid rgba(255,255,255,.12); border-radius:12px; overflow:hidden;">
+      <canvas id="staySigCanvas" style="width:100%; height:140px; display:block;"></canvas>
+    </div>
+  `;
+  root.appendChild(sig);
 
   // Hunde
   const dogSel = document.getElementById('stayDogSelect');
@@ -6632,7 +6715,13 @@ function renderStayEditorEmbedded(doc){
   const bet = document.getElementById('stayBetreuung');
   if(bet){
     bet.value = doc.meta.betreuung || "";
-    bet.oninput = e=>{ doc.meta.betreuung = e.target.value; dirty = true; };
+    bet.onchange = e=>{ doc.meta.betreuung = e.target.value; dirty = true; };
+  }
+  const nf = document.getElementById('stayNotfall');
+  if(nf){
+    doc.fields = doc.fields || {};
+    nf.value = doc.fields.notfall || "";
+    nf.oninput = e=>{ doc.fields.notfall = e.target.value; dirty = true; };
   }
   const notes = document.getElementById('stayNotes');
   if(notes){
@@ -6640,6 +6729,61 @@ function renderStayEditorEmbedded(doc){
     notes.value = doc.fields.notes || "";
     notes.oninput = e=>{ doc.fields.notes = e.target.value; dirty = true; };
   }
+
+  // Pflichtangaben binden
+  doc.fields = doc.fields || {};
+  const bindChk = (id, key) => {
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.checked = !!doc.fields[key];
+    el.onchange = e=>{ doc.fields[key] = !!e.target.checked; dirty = true; };
+  };
+  bindChk('chkAgb','agbAccepted');
+  bindChk('chkDs','dsAccepted');
+  bindChk('chkVet','vetConsent');
+  bindChk('chkTruth','truthConfirmed');
+
+  // AGB/DSGVO ansehen
+  const openTextModal = (title, text) => {
+    const body = (text && String(text).trim()) ? String(text) : "Noch kein Text hinterlegt. Du kannst den vollständigen Text in den Einstellungen hinterlegen.";
+    openModal(title, `<div style="white-space:pre-wrap; line-height:1.4; max-height:70vh; overflow:auto;">${escapeHtml(body)}</div>`);
+  };
+  const viewAgb = document.getElementById('btnViewAgb');
+  if(viewAgb) viewAgb.onclick = ()=>openTextModal('AGB', (state?.settings?.agbText||""));
+  const viewDs = document.getElementById('btnViewDs');
+  if(viewDs) viewDs.onclick = ()=>openTextModal('Datenschutz (DSGVO)', (state?.settings?.dsgvoText||""));
+
+  // Unterschrift Canvas (einfaches Draw)
+  const c = document.getElementById('staySigCanvas');
+  const status = document.getElementById('staySignStatus');
+  if(c){
+    setupSignatureCanvas(c, (dataUrl)=>{
+      doc.signature = doc.signature || {};
+      doc.signature.dataUrl = dataUrl;
+      dirty = true;
+      if(status) status.textContent = dataUrl ? "✅ vorhanden" : "⚠️ fehlt";
+    }, doc.signature?.dataUrl || null);
+    if(status) status.textContent = (doc.signature && doc.signature.dataUrl) ? "✅ vorhanden" : "⚠️ fehlt";
+  }
+  const signBtn = document.getElementById('staySignBtn');
+  if(signBtn) signBtn.onclick = ()=>{ /* Fokus aufs Canvas */ if(c) c.scrollIntoView({behavior:'smooth', block:'center'}); };
+  const signClr = document.getElementById('staySignClearBtn');
+  if(signClr) signClr.onclick = ()=>{
+    if(c){
+      clearSignatureCanvas(c);
+      doc.signature = null;
+      dirty = true;
+      if(status) status.textContent = "⚠️ fehlt";
+    }
+  };
+
+  // Aktionen
+  const saveBtn = document.getElementById('staySaveBtn');
+  if(saveBtn) saveBtn.onclick = ()=>{ currentDoc = doc; saveCurrent(true); };
+  const pdfBtn = document.getElementById('stayPdfBtn');
+  if(pdfBtn) pdfBtn.onclick = ()=>{ currentDoc = doc; printDoc(); };
+  const closeBtn = document.getElementById('stayCloseBtn');
+  if(closeBtn) closeBtn.onclick = ()=>{ if(dirty && !confirm('Ungespeicherte Änderungen verwerfen?')) return; openSection('stays'); };
 }
 
 function renderEditor(doc){
@@ -8352,93 +8496,3 @@ function wfTodayPrint(){
   wfOpenPdf(wfPdfTemplate("Heute drucken", body));
 }
 try{ const bb=document.getElementById('buildBadge'); if(bb) bb.textContent = 'Build ' + APP_BUILD; }catch(e){}
-
-// __PF_DOC_ENHANCER__
-// Move the "Ansehen" buttons for AGB/DSGVO directly into the Pflichtangaben rows
-// (keeps existing behavior by reusing the already-wired buttons).
-(function(){
-  try{
-    if(window.__pfDocEnhancerInstalled) return;
-    window.__pfDocEnhancerInstalled = true;
-
-    function norm(s){ return (s||"").replace(/\s+/g,' ').trim(); }
-    function findByText(root, needle){
-      const els = root.querySelectorAll('*');
-      for(const el of els){
-        if(el.children && el.children.length) continue;
-        const t = norm(el.textContent);
-        if(t && t.includes(needle)) return el;
-      }
-      return null;
-    }
-
-    function enhance(){
-      const body = document.body;
-      if(!body) return;
-
-      // locate the existing "AGB & Datenschutz" block with the working buttons
-      let strip = null;
-      const candidates = [...body.querySelectorAll('section,div,article')];
-      for(const c of candidates){
-        const t = norm(c.textContent);
-        if(t.includes('AGB & Datenschutz') && [...c.querySelectorAll('button')].some(b=>norm(b.textContent)==='Ansehen')){ strip = c; break; }
-      }
-      if(!strip) return;
-
-      // pick buttons (prefer those inside sub-blocks that mention AGB vs Datenschutz)
-      const allBtns = [...strip.querySelectorAll('button')].filter(b=>norm(b.textContent)==='Ansehen');
-      if(allBtns.length < 1) return;
-
-      let agbBtn = null;
-      let dsgvoBtn = null;
-      for(const b of allBtns){
-        const parentText = norm((b.closest('div,section,article')||strip).textContent);
-        if(!agbBtn && parentText.includes('AGB')) agbBtn = b;
-        if(!dsgvoBtn && (parentText.includes('Datenschutz') || parentText.includes('DSGVO'))) dsgvoBtn = b;
-      }
-      // fallback
-      if(!agbBtn) agbBtn = allBtns[0] || null;
-      if(!dsgvoBtn) dsgvoBtn = allBtns[1] || allBtns[0] || null;
-
-      // find Pflichtangaben area
-      const pfHead = findByText(body, 'Pflichtangaben');
-      if(!pfHead) return;
-      const pfBox = pfHead.closest('section,div,article') || pfHead.parentElement;
-      if(!pfBox) return;
-
-      function placeButton(labelNeedle, btn){
-        if(!btn) return;
-        const lbl = findByText(pfBox, labelNeedle);
-        if(!lbl) return;
-        const row = lbl.closest('label,div,li') || lbl.parentElement;
-        if(!row) return;
-        if(row.querySelector('.pf-doc-btn')) return;
-
-        const clone = btn.cloneNode(true);
-        clone.classList.add('pf-doc-btn');
-        clone.style.marginLeft = '10px';
-        clone.style.padding = '6px 10px';
-        clone.style.borderRadius = '999px';
-        clone.style.fontSize = '12px';
-        clone.style.cursor = 'pointer';
-        // keep original behavior
-        clone.onclick = () => btn.click();
-
-        // try to append near end of the row
-        row.appendChild(clone);
-      }
-
-      placeButton('AGB', agbBtn);
-      placeButton('Datenschutz', dsgvoBtn);
-      placeButton('DSGVO', dsgvoBtn);
-
-      // hide the old strip (user asked to remove that extra block)
-      strip.style.display = 'none';
-    }
-
-    const mo = new MutationObserver(()=>{ try{ enhance(); }catch(e){} });
-    mo.observe(document.documentElement || document.body, {subtree:true, childList:true});
-    // run once now
-    enhance();
-  }catch(e){}
-})();
