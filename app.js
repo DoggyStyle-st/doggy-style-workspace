@@ -1,4 +1,4 @@
-const APP_BUILD = "v11B_SAVE_PDF_06";
+const APP_BUILD = "v11B_SAVE_PDF_07";
 // Selector helpers
 // $: accepts either an element id (e.g. 'contractSig') or a CSS selector (e.g. '#contractSig', '.btn')
 const $ = (sel) => {
@@ -4709,6 +4709,14 @@ function formatCustomerAddressBlock(cust){
   const l3 = [cust.zip, cust.city].filter(Boolean).join(" ");
   return [l1,l2,l3].filter(Boolean).map(escapeHtml).join("<br>");
 }
+function formatCustomerAddress(cust){
+  if(!cust) return '';
+  const street = cust.street || cust.address || '';
+  const city = [cust.zip, cust.city].filter(Boolean).join(' ');
+  const country = cust.country || '';
+  return [street, city, country].filter(Boolean).join(', ');
+}
+
 function renderInvoiceList(){
   const el = document.getElementById("invoiceList");
   if(!el) return;
@@ -6917,8 +6925,15 @@ function renderContractPanel(){
     else if (Array.isArray(state.dogs)) pets = state.dogs;
 
     if (customerId){
-      const customer = (Array.isArray(state.customers) ? state.customers : []).find(c => (c.id||c.customerId||c.uid||c.key) === customerId);
-      if (customer && Array.isArray(customer.pets)) pets = customer.pets;
+      // Prefer canonical pets list (state.pets) filtered by customerId;
+      // only fall back to embedded customer.pets if no canonical pets exist.
+      const allPets = Array.isArray(state.pets) ? state.pets : [];
+      const filtered = allPets.filter(p=> (p && (p.customerId||p.ownerId||'')===customerId));
+      if (filtered.length) pets = filtered;
+      else {
+        const customer = (Array.isArray(state.customers) ? state.customers : []).find(c => (c.id||c.customerId||c.uid||c.key) === customerId);
+        if (customer && Array.isArray(customer.pets)) pets = customer.pets;
+      }
     }
 
     pets = Array.isArray(pets) ? pets.slice() : [];
