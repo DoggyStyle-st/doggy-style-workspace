@@ -6737,10 +6737,18 @@ async function _normalizeSignatureForPdf(dataUrl){
 }
 
 async function openContractPdfWindow(customerId, petId){
+  // IMPORTANT (iOS/Safari): A new tab/window must be opened synchronously
+  // in the user gesture handler. If we wait for async work first (await),
+  // Safari will block the popup and we end up in a modal preview where fixed
+  // UI can be covered by the app chrome.
+  let previewWin = null;
+  try{ previewWin = window.open('about:blank', '_blank'); }catch(_){ previewWin = null; }
+
   ensureContractDefaults();
   const c = state.contract;
   const sig = getContractSignature(customerId, petId);
   if(!c || !sig || !hasValidContract(customerId, petId)){
+    try{ if(previewWin && !previewWin.closed) previewWin.close(); }catch(_){}
     alert("Für diese Auswahl liegt keine gültige Unterschrift vor.");
     return;
   }
@@ -6809,15 +6817,17 @@ async function openContractPdfWindow(customerId, petId){
 
   </body></html>`;
 
-  // iOS: für Teilen/Speichern ist ein eigener Tab am zuverlässigsten.
-  // Fallback: Doc-Modal.
+  // iOS: for sharing/saving, a dedicated tab is the most reliable.
+  // Because we already opened the window synchronously, writing is allowed.
   try{
-    const blob = new Blob([html], {type:'text/html'});
-    const url = URL.createObjectURL(blob);
-    const w = window.open(url, '_blank');
-    if(!w) throw new Error('popup blocked');
-    // Revoke später (Tab lädt das Dokument ohnehin)
-    setTimeout(()=>{ try{ URL.revokeObjectURL(url); }catch(_){} }, 15000);
+    if(previewWin && !previewWin.closed){
+      previewWin.document.open();
+      previewWin.document.write(html);
+      previewWin.document.close();
+      try{ previewWin.focus(); }catch(_){}
+    }else{
+      throw new Error('popup blocked');
+    }
   }catch(e){
     openHtmlInModal('Betreuungsvertrag (Vorschau)', html, 'Schließen mit ✕. Für PDF: „Drucken / Speichern“ → Teilen → „In Dateien sichern“.');
   }
