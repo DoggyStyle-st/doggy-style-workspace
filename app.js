@@ -1,4 +1,4 @@
-const APP_BUILD = "v11B_SAVE_PDF_05";
+const APP_BUILD = "v11B_SAVE_PDF_06";
 // Selector helpers
 // $: accepts either an element id (e.g. 'contractSig') or a CSS selector (e.g. '#contractSig', '.btn')
 const $ = (sel) => {
@@ -4041,7 +4041,9 @@ state._legacy = (state._legacy && typeof state._legacy === "object") ? state._le
 
   // Vertrag
   state.contract = (state.contract && typeof state.contract === "object") ? state.contract : null;
-  state.contractSignatures = Array.isArray(state.contractSignatures) ? state.contractSignatures : [];
+  // Vertrags-Unterschriften: akzeptiere Map (neues Format) oder Array (Legacy).
+  // NICHT auf Array zuruecksetzen, sonst gehen Map-Signaturen verloren.
+  state.contractSignatures = (Array.isArray(state.contractSignatures) || (state.contractSignatures && typeof state.contractSignatures === 'object')) ? state.contractSignatures : {};
 
   // Rechnungsnummer beibehalten
   if(typeof state.nextInvoiceNumber !== "number"){
@@ -4067,7 +4069,7 @@ state._legacy = (state._legacy && typeof state._legacy === "object") ? state._le
 function ensureContractDefaults(){
   if(!state.contract || typeof state.contract !== "object"){
     state.contract = {
-      title: "Betreuungsvertrag für Hunde",
+      title: "Betreuungsvertrag fuer Hunde",
       provider: "Doggy Style Hundepension",
       version: "v1.0",
       validFrom: "2025-12-27",
@@ -4075,7 +4077,23 @@ function ensureContractDefaults(){
       updatedAt: new Date().toISOString()
     };
   }
-  if(!Array.isArray(state.contractSignatures)) state.contractSignatures = [];
+  // Normalize signatures store: keep map; convert legacy array to map.
+  if(!state.contractSignatures || typeof state.contractSignatures !== 'object'){
+    state.contractSignatures = {};
+  }
+  if(Array.isArray(state.contractSignatures)){
+    const arr = state.contractSignatures;
+    const map = {};
+    arr.forEach(rec=>{
+      if(!rec) return;
+      const v = rec.contractVersion || rec.version || (state.contract && state.contract.version) || 'v1.0';
+      const k = `${v}__${rec.customerId||''}__${rec.petId||''}`;
+      const dataUrl = rec.signatureDataUrl || rec.dataUrl || rec.signature || null;
+      if(!dataUrl) return;
+      map[k] = { dataUrl, signedAt: rec.signedAt || rec.signatureAt || rec.ts || Date.now() };
+    });
+    state.contractSignatures = map;
+  }
 }
 
 // Vertragstext (v1.0) – App-geeignet (ohne Beträge)
