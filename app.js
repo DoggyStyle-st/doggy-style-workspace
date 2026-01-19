@@ -1,4 +1,4 @@
-const APP_BUILD = "v11B_SAVE_PDF_04";
+const APP_BUILD = "v11B_SAVE_PDF_05";
 // Selector helpers
 // $: accepts either an element id (e.g. 'contractSig') or a CSS selector (e.g. '#contractSig', '.btn')
 const $ = (sel) => {
@@ -6542,80 +6542,71 @@ function formatEuroFromCent(cent){
 }
 
 
-// ===== Contract (Etappe 7B / Option B) =====
-// In this codebase there are TWO historic formats:
-// 1) state.contractSignatures as ARRAY   [{customerId, petId, contractVersion, signatureDataUrl, signedAt}, ...]
-// 2) state.contractSignatures as OBJECT  { "v1.0__<cid>__<pid>": {dataUrl, signedAt}, ... }
-// Additionally, Option B requires an explicit saved agreement record (state.contractAgreements).
-function _contractVersion(){
-  return (state.contractVersion || state.contract?.version || 'v1.0');
-}
-function _sigKey(customerId, petId, version){
-  const v = version || _contractVersion();
+
+// ===== Contract (Etappe 7B) =====
+function _contractSigKey(customerId, petId, version){
+  const v = version || state.contractVersion || state.contract?.version || 'v1.0';
   return `${v}__${customerId||''}__${petId||''}`;
 }
-function _agreementKey(customerId, petId, version){
-  const v = version || _contractVersion();
-  // matches the existing contract module's agreementKey() logic
-  return _sigKey(customerId, petId, v) + '::' + v;
-}
 
+// Returns a normalized signature record or null.
+// Supports legacy array format and current map/object format.
 function getContractSignature(customerId, petId){
-  const v = _contractVersion();
-  const sigs = state.contractSignatures || null;
-  if (!customerId || !petId || !sigs) return null;
+  const v = state.contractVersion || state.contract?.version || 'v1.0';
+  const store = state.contractSignatures;
 
-  // Format 1: legacy array
-  if (Array.isArray(sigs)){
-    const hit = sigs.find(s=>s.customerId===customerId && s.petId===petId && (s.contractVersion||s.version||'')===v) || null;
-    if (!hit) return null;
-    return {
-      customerId,
-      petId,
-      contractVersion: (hit.contractVersion||hit.version||v),
-      signatureDataUrl: hit.signatureDataUrl || hit.dataUrl || hit.signature || null,
-      signedAt: hit.signedAt || hit.signatureAt || null
-    };
+  // New format: object/map keyed by `${version}__${customerId}__${petId}`
+  if(store && !Array.isArray(store) && typeof store === 'object'){
+    const rec = store[_contractSigKey(customerId, petId, v)];
+    if(rec && (rec.dataUrl || rec.signatureDataUrl)){
+      return {
+        customerId,
+        petId,
+        contractVersion: v,
+        signedAt: rec.signedAt || rec.signatureAt || rec.ts || null,
+        signatureDataUrl: rec.signatureDataUrl || rec.dataUrl
+      };
+    }
   }
 
-  // Format 2: map/object
-  const key = _sigKey(customerId, petId, v);
-  const rec = sigs[key] || null;
-  if (!rec) return null;
-  const dataUrl = rec.dataUrl || rec.signatureDataUrl || rec.signature || null;
-  if (!dataUrl) return null;
-  return {
-    customerId,
-    petId,
-    contractVersion: v,
-    signatureDataUrl: dataUrl,
-    signedAt: rec.signedAt || rec.signatureAt || null
-  };
+  // Legacy format: array of records
+  if(Array.isArray(store)){
+    const rec = store.find(s=>s && s.customerId===customerId && s.petId===petId && (s.contractVersion||s.version||'v1.0')===v);
+    if(rec && (rec.signatureDataUrl || rec.dataUrl)){
+      return {
+        customerId,
+        petId,
+        contractVersion: rec.contractVersion || rec.version || v,
+        signedAt: rec.signedAt || rec.signatureAt || rec.ts || null,
+        signatureDataUrl: rec.signatureDataUrl || rec.dataUrl
+      };
+    }
+  }
+
+  return null;
 }
 
-function getContractAgreement(customerId, petId){
-  const v = _contractVersion();
-  const ag = state.contractAgreements || null;
-  if (!customerId || !petId || !ag) return null;
-  // Primary key (current)
-  const k1 = _agreementKey(customerId, petId, v);
-  if (ag[k1]) return ag[k1];
-  // Fallbacks (older experiments)
-  const k2 = _sigKey(customerId, petId, v);
-  if (ag[k2]) return ag[k2];
-  const vals = Object.values(ag);
-  return vals.find(r=>r && r.customerId===customerId && r.petId===petId && (r.version||r.contractVersion||'')===v) || null;
+function _agreementKey(customerId, petId, version){
+  const v = version || state.contractVersion || 'v1.0';
+  return _contractSigKey(customerId, petId, v) + '::' + v;
 }
 
+// Option B validity: signature exists AND agreement has been saved.
 function hasValidContract(customerId, petId){
-  // Option B: signature exists AND agreement explicitly saved.
-  return !!(getContractSignature(customerId, petId) && getContractAgreement(customerId, petId));
+  const sig = getContractSignature(customerId, petId);
+  if(!sig) return false;
+  const ag = state.contractAgreements;
+  if(ag && typeof ag === 'object'){
+    return !!ag[_agreementKey(customerId, petId, sig.contractVersion)];
+  }
+  return false;
 }
 
 function contractBadge(customerId, petId){
   if(!customerId || !petId) return "";
   return hasValidContract(customerId, petId) ? " · Vertrag: 🟢" : " · Vertrag: 🔴";
 }
+
 
 function updateContractWarnBanner(doc){
   const box = document.getElementById("contractWarnBanner");
@@ -6668,13 +6659,7 @@ function openContractPdfWindow(customerId, petId){
   ensureContractDefaults();
   const c = state.contract;
   const sig = getContractSignature(customerId, petId);
-  if(!c || !sig){ alert("Für diese Auswahl liegt keine gültige Unterschrift vor."); return; }
-  // Option B: require an explicitly saved agreement before allowing PDF
-  const ag = getContractAgreement(customerId, petId);
-  if(!ag){
-    alert('Vertrag noch nicht gespeichert. Bitte zuerst auf Speichern klicken.');
-    return;
-  }
+  if(!c || !sig || !hasValidContract(customerId, petId)){ alert("Für diese Auswahl liegt keine gültige Unterschrift vor."); return; }
   const customer = getCustomer(customerId) || {};
   const pet = getPet(petId) || {};
   const signedAt = new Date(sig.signedAt || new Date().toISOString()).toLocaleString("de-DE");
@@ -6715,9 +6700,9 @@ function openContractPdfWindow(customerId, petId){
       <div class="sigrow">
         <div>
           <div class="small">Unterschrieben am: <strong>${escapeHtml(signedAt)}</strong></div>
-          <div class="small">Vertragsversion: <strong>${escapeHtml(sig.contractVersion)}</strong></div>
+          <div class="small">Vertragsversion: <strong>${escapeHtml(sig.contractVersion || sig.version || (state.contractVersion||"v1.0"))}</strong></div>
         </div>
-        <img class="sigimg" src="${sig.signatureDataUrl}" alt="Unterschrift"/>
+        <img class="sigimg" src="${sig.signatureDataUrl || sig.dataUrl || sig.signature}" alt="Unterschrift"/>
       </div>
       <p class="small">Hinweis: Speichern als PDF über „Drucken“ (Teilen → Drucken / als PDF sichern) je nach Gerät.</p>
     </div>
@@ -6828,7 +6813,7 @@ function renderContractPanel(){
       alert('Bitte zuerst Kunde und Hund wählen.');
       return;
     }
-    if (accept && !accept.checked){
+    if (!accept || !accept.checked){
       alert('Bitte bestätigen: "Ich habe den Betreuungsvertrag gelesen und akzeptiere ihn."');
       return;
     }
