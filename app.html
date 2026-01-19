@@ -113,7 +113,7 @@
 <div class="card">
 <h2>Schnellaktionen</h2>
 <div class="quick-actions">
-<button class="btn primary" id="btnNewStayTop" type="button">➕ Neuer Aufenthalt</button>
+<button class="btn primary" id="btnNewStayTop" type="button" onclick="createStay()">➕ Neuer Aufenthalt</button>
 <button class="btn" id="btnQuickDogs" type="button">🐶 Hunde/Kunden</button>
 
 <button class="btn" id="btnQuickInvoices" type="button">🧾 Rechnungen</button>
@@ -436,7 +436,7 @@
 <div class="row between">
 <h1>Aufenthalte</h1>
 <div class="row" style="gap:10px;flex-wrap:wrap;justify-content:flex-end;">
-  <button class="btn primary" id="btnNewStayOnPage" type="button">➕ Neuer Aufenthalt</button>
+  <button class="btn primary" id="btnNewStayOnPage" type="button" onclick="createStay()">➕ Neuer Aufenthalt</button>
 </div>
 <button class="btn" id="btnExportAll">Export: Backup (JSON)</button>
 </div>
@@ -1094,33 +1094,7 @@
 </script>
 
 <script>
-    // Service-Worker Hard-Reset (iOS/Safari Cache-Falle):
-    // Öffne app.html?nosw=1&v=1118 -> unregister + caches löschen, dann neu laden.
-    (async function(){
-      try{
-        if(!('serviceWorker' in navigator)) return;
-        const qs = window.location.search || '';
-
-        if(qs.includes('nosw=1')){
-          const regs = await navigator.serviceWorker.getRegistrations();
-          for(const r of regs){ try{ await r.unregister(); }catch(_){ } }
-          if(window.caches && caches.keys){
-            const keys = await caches.keys();
-            await Promise.all(keys.map(k => caches.delete(k)));
-          }
-          // Wichtig: nicht automatisch reloaden (sonst Loop möglich) – Nutzer lädt danach manuell neu.
-          console.log('[SW] unregistered + caches cleared (nosw=1)');
-          return;
-        }
-
-        // Normalbetrieb: SW-Version an Query koppeln, damit ?v=... auch SW sauber updated.
-        var swUrl = 'sw.js' + (qs || '?v=v11B_SAVE_PDF_18_STAY_EMBEDDED_TEMPLATE');
-        const reg = await navigator.serviceWorker.register(swUrl);
-        try{ await reg.update(); }catch(_){ }
-      }catch(e){
-        console.warn('[SW] register/reset failed', e);
-      }
-    })();
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=TEST_OPTIK_01_2026-01-03');
   </script>
 
 <script>
