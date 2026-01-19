@@ -6756,8 +6756,13 @@ async function openContractPdfWindow(customerId, petId){
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${escapeHtml(c.title||"Betreuungsvertrag")} – PDF</title>
   <style>
-    body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif;margin:24px;color:#111;}
-    .toolbar{position:sticky;top:0;background:#fff;border-bottom:1px solid #eee;padding:10px 0;margin:-24px -24px 18px;display:flex;gap:10px;align-items:center;justify-content:flex-end;}
+    :root{--tb-h:56px;}
+    body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif;margin:0;color:#111;
+         padding:calc(18px + var(--tb-h) + env(safe-area-inset-top)) 24px 24px; background:#fff;}
+    /* iOS/Safari: sticky in iframe is unreliable. Use a fixed toolbar that is always visible/clickable. */
+    .toolbar{position:fixed;top:0;left:0;right:0;z-index:9999;background:#fff;border-bottom:1px solid #eee;
+             height:var(--tb-h);display:flex;gap:10px;align-items:center;justify-content:flex-end;
+             padding:10px 24px; padding-top:calc(10px + env(safe-area-inset-top)); box-sizing:border-box;}
     .toolbar a,.toolbar button{font:inherit;border:1px solid #ddd;background:#f7f7f7;border-radius:10px;padding:8px 12px;text-decoration:none;color:#111;}
     .toolbar .spacer{flex:1;}
     .head{display:flex;align-items:center;gap:14px;margin-bottom:14px;}
@@ -6770,7 +6775,7 @@ async function openContractPdfWindow(customerId, petId){
     .sigrow{display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap;}
     .sigimg{width:360px;max-width:100%;border:1px solid #ddd;border-radius:10px;padding:6px;background:#fff;}
     .small{font-size:12px;color:#444;}
-    @media print{ .toolbar{display:none;} body{margin:10mm;} }
+    @media print{ .toolbar{display:none;} body{margin:10mm; padding:0;} }
   </style>
   </head><body>
     <div class="toolbar">
