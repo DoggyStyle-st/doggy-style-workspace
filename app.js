@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = "v11B_SAVE_PDF_19_STAY_LEGAL_LAYOUT_FIX";
+const APP_BUILD = "v11B_SAVE_PDF_18_STAY_EMBEDDED_TEMPLATE";
 // Selector helpers
 // $: accepts either an element id (e.g. 'contractSig') or a CSS selector (e.g. '#contractSig', '.btn')
 const $ = (sel) => {
@@ -1690,6 +1690,93 @@ function renderStayQuickLinks(doc){
   }
 }
 
+// ===============================
+// Aufenthalt (embedded Hundeannahme) – Speichern & PDF
+// ===============================
+function validateStayEmbedded(doc){
+  const errs = [];
+  const dog = (state.dogs||[]).find(x=>x.id===doc.dogId);
+  if(!doc.dogId || (dog && dog.isPlaceholder)) errs.push('Hund');
+  if(!doc.customerId) errs.push('Kunde');
+  if(!doc.meta?.von) errs.push('Von');
+  if(!doc.meta?.bis) errs.push('Bis');
+  if(!doc.meta?.betreuung) errs.push('Betreuung');
+  const f = doc.fields||{};
+  if(!f.agbOk) errs.push('AGB');
+  if(!f.dsgvoOk) errs.push('Datenschutz (DSGVO)');
+  if(!f.vetOk) errs.push('Tierarzt-Erlaubnis');
+  if(!f.angabenOk) errs.push('Angaben wahrheitsgemäß');
+  return errs;
+}
+
+function saveStayEmbedded(doc, alertOk){
+  const errs = validateStayEmbedded(doc);
+  if(errs.length){
+    alert('Bitte ergänzen/bestätigen: ' + errs.join(', '));
+    return false;
+  }
+  doc.updatedAt = Date.now();
+  doc.createdAt = doc.createdAt || doc.updatedAt;
+  doc.type = doc.type || 'stay';
+  doc.templateId = doc.templateId || 'hundeannahme';
+  doc.templateName = doc.templateName || 'Hundeannahme';
+  doc.saved = true;
+
+  // Unterschrift ist optional → Warnhinweis, aber kein Blocker
+  if(!doc.signature || !doc.signature.dataUrl){
+    try{ document.getElementById('staySigWarn')?.style && (document.getElementById('staySigWarn').style.display='block'); }catch(_){ }
+  }
+
+  dirty = true;
+  try{ saveState(); }catch(e){ console.error(e); }
+  if(alertOk) toast('Gespeichert');
+  return true;
+}
+
+function buildStayPrintHtml(doc){
+  const t = getTemplate(doc.templateId) || EMBEDDED_HUNDEANNAHME_TEMPLATE;
+  const dog = (state.dogs||[]).find(d=>d.id===doc.dogId) || null;
+  const customer = (state.customers||[]).find(c=>c.id===doc.customerId) || null;
+  const sigImg = (doc.signature && doc.signature.dataUrl) ? `<img style="max-width:320px;max-height:120px" src="${doc.signature.dataUrl}" alt="Unterschrift"/>` : '<span class="muted">(keine Unterschrift)</span>';
+  const esc = escapeHtml;
+  return `<!doctype html><html lang="de"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Hundeannahme</title>
+  <style>
+    body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Arial,sans-serif;margin:28px;color:#111}
+    h1{margin:0 0 8px 0;font-size:20px}
+    h2{margin:18px 0 8px 0;font-size:14px}
+    table{width:100%;border-collapse:collapse}
+    td{padding:6px 8px;border-bottom:1px solid #eee;vertical-align:top}
+    td.k{width:38%;color:#444}
+    .note{font-size:12px;color:#333}
+    .muted{color:#666}
+  </style>
+  </head><body>
+    <h1>Hundeannahme / Aufenthalt</h1>
+    <table>
+      <tr><td class="k">Hund</td><td>${esc(dog ? (dog.name||dog.dogName||dog.id) : '')}</td></tr>
+      <tr><td class="k">Kunde</td><td>${esc(customer ? (customer.name||customer.fullName||customer.id) : '')}</td></tr>
+      <tr><td class="k">Von</td><td>${esc(doc.meta?.von||'')}</td></tr>
+      <tr><td class="k">Bis</td><td>${esc(doc.meta?.bis||'')}</td></tr>
+      <tr><td class="k">Betreuung</td><td>${esc(doc.meta?.betreuung||'')}</td></tr>
+      <tr><td class="k">Notizen</td><td>${esc(doc.fields?.notes||'')}</td></tr>
+    </table>
+
+    <h2>Unterschrift Hundehalter</h2>
+    <div>${sigImg}</div>
+
+    ${t.agbNote ? `<h2>AGB</h2><p class="note">${esc(t.agbNote)}</p>` : ''}
+    <h2>Datenschutz (DSGVO)</h2>
+    <p class="note">${esc(t.dsGvoNote||'')}</p>
+  </body></html>`;
+}
+
+function printStayEmbedded(doc){
+  if(!saveStayEmbedded(doc, false)) return;
+  const html = buildStayPrintHtml(doc);
+  openHtmlInModal('Druckvorschau', html, 'Für PDF: Drucken/Speichern → „Als PDF“ → In Dateien sichern.');
+}
+
 // ==== Dashboard renderer (Start) ====
 function dashboardStatusText(ratio){
   if(!isFinite(ratio)) return "Ruhiger Tag";
@@ -3314,6 +3401,12 @@ let templates=[];
 const EMBEDDED_HUNDEANNAHME_TEMPLATE = {
   id: "hundeannahme",
   name: "Hundeannahme",
+  signatureRequired: false,
+  // Volltexte nur in der App (Ansehen/Drucken/Teilen) – im PDF nur Hinweis.
+  agbNote: "AGB: Die vollständigen Allgemeinen Geschäftsbedingungen sind in der App einsehbar.",
+  dsGvoNote: "Datenschutz: Die Datenschutzhinweise gemäß Art. 13 DSGVO sind in der App einsehbar. Daten werden ausschließlich zur Betreuung des Hundes verarbeitet; Weitergabe nur an Tierärzte im Notfall.",
+  agbHtml: "",
+  dsgvoHtml: "",
   // Die App nutzt für Aufenthalte primär doc.meta (von/bis/betreuung) + doc.dogId/petId/customerId.
   // fields[] ist hier nur ein leichter Hinweis für die UI (wir rendern dafür einen eigenen Editor).
   fields: [
@@ -3321,11 +3414,152 @@ const EMBEDDED_HUNDEANNAHME_TEMPLATE = {
     { key: "customerId", label: "Kunde", type: "customer" },
     { key: "von", label: "Von", type: "date" },
     { key: "bis", label: "Bis", type: "date" },
-    { key: "betreuung", label: "Betreuung", type: "text" },
+    { key: "betreuung", label: "Betreuung", type: "select", required: true, options: ["Tagesbetreuung","Urlaubsbetreuung"] },
     { key: "notes", label: "Notizen", type: "textarea" }
   ],
   meta: { embedded: true }
 };
+
+// ===============================
+// Rechtstexte (final angepasst) – Doggy Style Hundepension
+// ===============================
+// Hinweis: Keine Rechtsberatung. Für 100% Rechtssicherheit bitte rechtlich prüfen lassen.
+const LEGAL_BASE_STYLE = `
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;line-height:1.4;margin:24px;max-width:920px}
+    h1{margin:0 0 10px 0;font-size:22px}
+    h2{margin:18px 0 8px 0;font-size:16px}
+    p,li{font-size:13px}
+    .muted{color:#666}
+    .box{border:1px solid #ddd;border-radius:12px;padding:14px;margin:12px 0}
+    @media print{body{margin:10mm} .no-print{display:none}}
+  </style>
+`;
+
+const LEGAL_OPERATOR = {
+  business: "Doggy Style Hundepension – Urlaub auf dem Wauernhof",
+  owner: "Raphael Boch",
+  addressPlaceholder: "[Adresse eintragen]",
+  emailPlaceholder: "[E-Mail eintragen]",
+  phonePlaceholder: "[Telefon eintragen]"
+};
+
+function legalStamp(){
+  return new Date().toLocaleDateString('de-DE');
+}
+
+function buildAgbFinalHtml(){
+  const op = LEGAL_OPERATOR;
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">${LEGAL_BASE_STYLE}</head><body>
+    <h1>Allgemeine Geschäftsbedingungen (AGB)</h1>
+    <p><strong>${escapeHtml(op.business)}</strong><br>
+    Betreiber: ${escapeHtml(op.owner)}<br>
+    Adresse: ${escapeHtml(op.addressPlaceholder)} · Kontakt: ${escapeHtml(op.emailPlaceholder)} · ${escapeHtml(op.phonePlaceholder)}</p>
+    <p class="muted">Stand: ${escapeHtml(legalStamp())}</p>
+    <div class="box">
+      <h2>1. Geltungsbereich</h2>
+      <p>Diese AGB gelten für alle Betreuungsleistungen (Tagesbetreuung und Urlaubsbetreuung/Übernachtung) der Hundepension gegenüber dem Hundehalter (Kunde). Abweichende Bedingungen gelten nur bei ausdrücklicher Bestätigung in Textform.</p>
+
+      <h2>2. Aufnahmevoraussetzungen</h2>
+      <ul>
+        <li>Der Hund ist gesund, frei von ansteckenden Krankheiten und Parasitenbefall bzw. entsprechend behandelt.</li>
+        <li>Der Kunde macht vollständige und wahrheitsgemäße Angaben zu Verhalten, Ängsten, Aggressionen/Beißvorfällen, Läufigkeit, Allergien, Medikamenten und besonderen Risiken.</li>
+        <li>Erforderliche Nachweise (z. B. Impfstatus) sind auf Verlangen vorzulegen.</li>
+      </ul>
+
+      <h2>3. Leistungsumfang</h2>
+      <ul>
+        <li>Die Betreuung erfolgt nach betrieblichem Ablauf (Fütterung, Ruhezeiten, Auslauf) unter Berücksichtigung des Tierwohls.</li>
+        <li>Der Betreiber darf die Betreuungsform aus Sicherheits- oder Tierwohlgründen anpassen (z. B. Trennung, Einzelhaltung, Leinenführung), wenn dies erforderlich ist.</li>
+        <li><strong>Kein Anspruch auf bestimmte Gruppe/Platz:</strong> Es besteht kein Anspruch auf eine bestimmte Unterbringung, Gruppe oder einen bestimmten „Spielpartner“. Die Einteilung erfolgt ausschließlich nach Eignung/Verträglichkeit und Sicherheitslage.</li>
+      </ul>
+
+      <h2>4. Bring- und Abholzeiten</h2>
+      <p>Bring- und Abholzeiten erfolgen nach Vereinbarung. Verspätete Abholung kann Mehrkosten verursachen.</p>
+
+      <h2>5. Preise und Zahlung</h2>
+      <p>Es gelten die vereinbarten Preise/Preislisten. Zusatzkosten (z. B. Tierarzt, Medikamente, Fahrtkosten) trägt der Kunde.</p>
+
+      <h2>6. Tierarzt / Notfall</h2>
+      <p>Im Notfall darf der Betreiber – sofern der Kunde nicht erreichbar ist – notwendige Maßnahmen zur Abwendung akuter Gefahren veranlassen und einen Tierarzt aufsuchen. Die Kosten trägt der Kunde.</p>
+
+      <h2>7. Haftung</h2>
+      <ul>
+        <li>Der Betreiber haftet für Vorsatz und grobe Fahrlässigkeit sowie bei Verletzung von Leben, Körper oder Gesundheit.</li>
+        <li>Bei leichter Fahrlässigkeit haftet der Betreiber nur bei Verletzung wesentlicher Vertragspflichten und begrenzt auf den typischerweise vorhersehbaren Schaden.</li>
+        <li>Der Kunde haftet für Schäden, die sein Hund verursacht. Eine Hundehalter-Haftpflichtversicherung wird empfohlen und kann Voraussetzung sein.</li>
+      </ul>
+
+      <h2>8. Abbruch des Aufenthalts</h2>
+      <p>Bei Verhalten, das eine sichere Betreuung unmöglich macht (z. B. erhebliche Aggression, massive Unruhe, Ausbruchsversuche), kann der Betreiber den Aufenthalt abbrechen. Der Kunde holt den Hund umgehend ab; bis dahin entstehende Kosten trägt der Kunde.</p>
+
+      <h2>9. Datenschutz</h2>
+      <p>Es gelten die Datenschutzhinweise (DSGVO) des Betreibers, abrufbar in der App. Im PDF wird ein Kurz-Hinweis ausgegeben.</p>
+
+      <h2>10. Schlussbestimmungen</h2>
+      <p>Sollten einzelne Bestimmungen unwirksam sein, bleibt der Vertrag im Übrigen wirksam. Es gilt deutsches Recht.</p>
+    </div>
+    <p class="no-print muted">Tipp: Teilen → Drucken → „Als PDF“ → In Dateien sichern.</p>
+  </body></html>`;
+}
+
+function buildDsgvoFinalHtml(){
+  const op = LEGAL_OPERATOR;
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">${LEGAL_BASE_STYLE}</head><body>
+    <h1>Datenschutzhinweise (DSGVO)</h1>
+    <p><strong>${escapeHtml(op.business)}</strong><br>
+    Verantwortlicher: ${escapeHtml(op.owner)} · ${escapeHtml(op.addressPlaceholder)}<br>
+    Kontakt: ${escapeHtml(op.emailPlaceholder)} · ${escapeHtml(op.phonePlaceholder)}</p>
+    <p class="muted">Stand: ${escapeHtml(legalStamp())}</p>
+    <div class="box">
+      <h2>1. Zwecke der Verarbeitung</h2>
+      <ul>
+        <li>Durchführung der Betreuung (Buchung, Kommunikation, Aufenthalt, Notfallkontakt).</li>
+        <li>Dokumentation notwendiger Angaben zur sicheren Betreuung (z. B. Medikamente, Besonderheiten).</li>
+        <li>Abrechnung und Erfüllung gesetzlicher Pflichten (z. B. steuerliche Aufbewahrung).</li>
+      </ul>
+
+      <h2>2. Rechtsgrundlagen</h2>
+      <ul>
+        <li>Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung).</li>
+        <li>Art. 6 Abs. 1 lit. c DSGVO (gesetzliche Pflichten).</li>
+        <li>Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse, z. B. IT-Sicherheit, Nachweisführung).</li>
+      </ul>
+
+      <h2>3. Kategorien von Daten</h2>
+      <ul>
+        <li>Kundendaten: Name, Kontakt, Notfallkontakt, ggf. Rechnungsdaten.</li>
+        <li>Hundedaten: Name, Besonderheiten, ggf. Gesundheits-/Medikamentenangaben.</li>
+        <li>Aufenthaltsdaten: Betreuungszeitraum, Betreuungsart, Einwilligungen/Bestätigungen.</li>
+      </ul>
+
+      <h2>4. Empfänger</h2>
+      <p>Eine Weitergabe erfolgt nur, soweit erforderlich. Im Notfall können notwendige Daten an Tierärzte/Tierkliniken weitergegeben werden. IT-/Hostingdienstleister können als Auftragsverarbeiter eingesetzt werden.</p>
+
+      <h2>5. Speicherdauer</h2>
+      <p>Daten werden nur so lange gespeichert, wie es für die Zwecke erforderlich ist oder gesetzliche Aufbewahrungsfristen bestehen (regelmäßig 6–10 Jahre für abrechnungsrelevante Unterlagen).</p>
+
+      <h2>6. Rechte der betroffenen Personen</h2>
+      <p>Recht auf Auskunft, Berichtigung, Löschung, Einschränkung, Datenübertragbarkeit sowie Widerspruch. Zudem besteht ein Beschwerderecht bei einer Datenschutzaufsichtsbehörde.</p>
+
+      <h2>7. Sicherheit</h2>
+      <p>Die App ist zugangsgeschützt. Es werden angemessene technische und organisatorische Maßnahmen zum Schutz der Daten eingesetzt.</p>
+    </div>
+    <p class="no-print muted">Tipp: Teilen → Drucken → „Als PDF“ → In Dateien sichern.</p>
+  </body></html>`;
+}
+
+// Default: in App verfügbar machen
+EMBEDDED_HUNDEANNAHME_TEMPLATE.agbHtml = buildAgbFinalHtml();
+EMBEDDED_HUNDEANNAHME_TEMPLATE.dsgvoHtml = buildDsgvoFinalHtml();
+
+function openLegalDoc(kind){
+  const t = EMBEDDED_HUNDEANNAHME_TEMPLATE;
+  const title = (kind==='agb') ? 'AGB – Hundepension' : 'Datenschutzhinweise (DSGVO)';
+  const html  = (kind==='agb') ? (t.agbHtml||'') : (t.dsgvoHtml||'');
+  if(!html){ alert('Kein Text hinterlegt.'); return; }
+  openHtmlInModal(title, html, 'Lesen / Drucken / Teilen');
+}
 
 function ensureEmbeddedTemplates(){
   try{
@@ -5606,18 +5840,32 @@ function collectForm(){
 }
 function validate(docObj,t){
   const errs=[];
+  const sections = Array.isArray(t?.sections) ? t.sections : [];
+  const metaFields = Array.isArray(t?.meta) ? t.meta : [];
   // Etappe 3: Hund muss gewählt sein (nicht Placeholder)
   const d = (state.dogs||[]).find(x=>x.id===docObj.dogId);
   if(!docObj.dogId || (d && d.isPlaceholder)) errs.push("Hund");
-  t.sections.forEach(sec=>sec.fields.forEach(f=>{
+  sections.forEach(sec=>sec.fields.forEach(f=>{
     if(!f.required) return;
     const v=docObj.fields[f.key];
     if(f.type==="checkbox"){ if(!v) errs.push(f.label); }
     else { if(!v || String(v).trim()==="") errs.push(f.label); }
   }));
-  t.meta.forEach(f=>{ if(f.required){const v=docObj.meta[f.key]; if(!v||String(v).trim()==="") errs.push(f.label);} });
-  if(!docObj.signature || !docObj.signature.dataUrl)
-  errs.push("Unterschrift");
+  metaFields.forEach(f=>{ if(f.required){const v=docObj.meta[f.key]; if(!v||String(v).trim()==="") errs.push(f.label);} });
+
+  // Stufe B: Aufenthalt/Hundeannahme – Pflichtbestätigungen
+  if(t && t.id === 'hundeannahme'){
+    const f = docObj.fields || {};
+    if(!f.agbOk) errs.push('AGB');
+    if(!f.dsgvoOk) errs.push('Datenschutz (DSGVO)');
+    if(!f.vetOk) errs.push('Tierarzt-Erlaubnis');
+    if(!f.angabenOk) errs.push('Angaben wahrheitsgemäß');
+  }
+
+  // Unterschrift nur verlangen, wenn Template das explizit fordert
+  if(t?.signatureRequired !== false){
+    if(!docObj.signature || !docObj.signature.dataUrl) errs.push("Unterschrift");
+  }
   return errs;
 }
 function updateCreateInvoiceButton(){
@@ -5685,21 +5933,15 @@ const used = countOccupancy(type, from, to, currentDoc.id);
 const limit = getMinCapacityForRange(type, from, to);
 
 if (used >= limit) {
-  const msg =
-    `⚠️ Kapazitätswarnung\n\n`+
-    `${used} von ${limit} Plätzen für "${type}" `+
-    `im Zeitraum ${from} – ${to} sind bereits belegt.\n\n`+
-    `Trotzdem speichern?`;
-  if(!confirm(msg)) return false;
+  alert(
+    `⚠️ Achtung:\n\n` +
+    `${used} von ${limit} Plätzen für "${type}" ` +
+    `im Zeitraum ${from} – ${to} sind bereits belegt.`
+  );
 }
-// Unterschrift ist NICHT zwingend zum Speichern, aber wir warnen.
 if (!currentDoc.signature){
-  currentDoc.signatureMissing = true;
-  if(alertOk){
-    alert("⚠️ Unterschrift muss für diesen Aufenthalt noch erfolgen.");
-  }
-}else{
-  currentDoc.signatureMissing = false;
+  alert("Bitte unterschreiben");
+  return false;
 }
   currentDoc.saved = true;                             // 🔐 Dokument abschließen
 currentDoc.updatedAt = new Date().toISOString();
@@ -5921,6 +6163,9 @@ function buildPrintHtml(docObj,t,dog){
   });
   out+=`<h2>Ort / Datum</h2><table><tr><td class="k">Ort / Datum</td><td class="v">${escapeHtml(docObj.meta.ort_datum||"")}</td></tr></table>`;
   out+=`<h2>Unterschrift Hundehalter</h2><div class="sigbox">${sigImg}</div>`;
+  if(t.agbNote){
+    out+=`<h2>AGB</h2><p class="note">${escapeHtml(t.agbNote||"")}</p>`;
+  }
   out+=`<h2>Datenschutz (DSGVO)</h2><p class="note">${escapeHtml(t.dsGvoNote||"")}</p>`;
   return `<!doctype html><html lang="de"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>${escapeHtml(docObj.title||"Dokument")}</title>
 <style>
@@ -6473,8 +6718,18 @@ function renderStayEditorEmbedded(doc){
   const card = document.createElement("div");
   card.className = "card";
   card.innerHTML = `
-    <h2>Aufenthalt</h2>
-    <div class="grid" style="gap:12px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+    <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+      <div>
+        <h2 style="margin:0 0 4px 0;">Aufenthalt (Hundeannahme)</h2>
+        <div class="muted" style="font-size:13px;">AGB & Datenschutz: Volltext nur in der App (Ansehen/Drucken/Teilen). Im PDF nur Hinweis.</div>
+      </div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="primary" id="stayAgbShow">AGB anzeigen</button>
+        <button class="primary" id="stayDsgvoShow">Datenschutz anzeigen</button>
+      </div>
+    </div>
+
+    <div class="grid" style="gap:12px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-top:12px;">
       <label class="field">
         <span>Hund</span>
         <select id="stayDogSelect"></select>
@@ -6483,13 +6738,13 @@ function renderStayEditorEmbedded(doc){
         <span>Kunde</span>
         <select id="stayCustomerSelect"></select>
       </label>
-      <label class="field">
+      <label class="field" style="max-width:260px;">
         <span>Von</span>
-        <input id="stayVon" type="date" style="height:44px; padding:10px 12px;" />
+        <input id="stayVon" type="date" style="max-width:260px;" />
       </label>
-      <label class="field">
+      <label class="field" style="max-width:260px;">
         <span>Bis</span>
-        <input id="stayBis" type="date" style="height:44px; padding:10px 12px;" />
+        <input id="stayBis" type="date" style="max-width:260px;" />
       </label>
       <label class="field">
         <span>Betreuung</span>
@@ -6499,118 +6754,44 @@ function renderStayEditorEmbedded(doc){
           <option value="Urlaubsbetreuung">Urlaubsbetreuung</option>
         </select>
       </label>
-      <label class="field">
-        <span>Notfallkontakt</span>
-        <input id="stayEmergency" placeholder="Name + Telefonnummer" />
-      </label>
       <label class="field" style="grid-column: 1 / -1;">
         <span>Notizen</span>
         <textarea id="stayNotes" rows="4" placeholder="Zusatzinfos …"></textarea>
       </label>
     </div>
+
+    <div class="card" style="margin-top:14px; padding:12px;">
+      <h3 style="margin:0 0 10px 0;">Pflichtangaben</h3>
+      <label class="field" style="display:flex; align-items:flex-start; gap:10px;">
+        <input id="stayAgbOk" type="checkbox" style="margin-top:4px;" />
+        <span>Ich habe die AGB gelesen und akzeptiere diese.</span>
+      </label>
+      <label class="field" style="display:flex; align-items:flex-start; gap:10px;">
+        <input id="stayDsgvoOk" type="checkbox" style="margin-top:4px;" />
+        <span>Ich habe die Datenschutzhinweise (DSGVO) gelesen und akzeptiere diese.</span>
+      </label>
+      <label class="field" style="display:flex; align-items:flex-start; gap:10px;">
+        <input id="stayVetOk" type="checkbox" style="margin-top:4px;" />
+        <span>Ich erteile die Tierarzt-Erlaubnis im Notfall.</span>
+      </label>
+      <label class="field" style="display:flex; align-items:flex-start; gap:10px;">
+        <input id="stayAngabenOk" type="checkbox" style="margin-top:4px;" />
+        <span>Ich bestätige, dass alle Angaben wahrheitsgemäß und vollständig sind.</span>
+      </label>
+    </div>
+
+    <div class="card" style="margin-top:14px; padding:12px;">
+      <h3 style="margin:0 0 10px 0;">Unterschrift (optional)</h3>
+      <div class="muted" style="font-size:13px; margin-bottom:10px;">Zum Speichern nicht zwingend notwendig. Bitte später nachholen.</div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="primary" id="staySigCapture">Unterschrift erfassen</button>
+        <button class="primary" id="staySigClear">Unterschrift löschen</button>
+      </div>
+      <div id="staySigPreview" style="margin-top:10px;"></div>
+      <div id="staySigWarn" class="warn" style="margin-top:10px; display:none;">⚠️ Unterschrift muss für diesen Aufenthalt noch erfolgen.</div>
+    </div>
   `;
   root.appendChild(card);
-
-  // Pflichtangaben (Stufe B)
-  doc.fields = doc.fields || {};
-  const legal = document.createElement('div');
-  legal.className = 'card';
-  legal.innerHTML = `
-    <h2>Pflichtangaben</h2>
-    <div style="display:grid; grid-template-columns: 26px 1fr; gap:12px 14px; align-items:start;">
-
-      <input id="stayChkAgb" type="checkbox" style="width:22px;height:22px;" />
-      <div>
-        <div style="font-weight:700;">AGB</div>
-        <div style="opacity:.9; line-height:1.35;">Ich habe die Allgemeinen Geschäftsbedingungen gelesen und akzeptiere diese.</div>
-      </div>
-
-      <input id="stayChkDsgvo" type="checkbox" style="width:22px;height:22px;" />
-      <div>
-        <div style="font-weight:700;">Datenschutz (DSGVO)</div>
-        <div style="opacity:.9; line-height:1.35;">Ich habe die Datenschutzhinweise gelesen und akzeptiere diese.</div>
-      </div>
-
-      <input id="stayChkVet" type="checkbox" style="width:22px;height:22px;" />
-      <div>
-        <div style="font-weight:700;">Tierarzt-Erlaubnis</div>
-        <div style="opacity:.9; line-height:1.35;">Ich erteile die Erlaubnis, mein Tier im Notfall tierärztlich behandeln zu lassen.</div>
-      </div>
-
-      <input id="stayChkTruth" type="checkbox" style="width:22px;height:22px;" />
-      <div>
-        <div style="font-weight:700;">Angaben</div>
-        <div style="opacity:.9; line-height:1.35;">Ich bestätige, dass alle Angaben wahrheitsgemäß und vollständig sind.</div>
-      </div>
-    </div>
-  `;
-  root.appendChild(legal);
-
-  // AGB / DSGVO Inhalte (Ansehen)
-  const legalTexts = document.createElement('div');
-  legalTexts.className = 'card';
-  legalTexts.innerHTML = `
-    <h2>AGB & Datenschutz</h2>
-    <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:flex-start;">
-      <div style="flex:1 1 320px; min-width:280px;">
-        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
-          <div style="font-weight:800;">AGB</div>
-          <button type="button" id="btnViewAgb" class="btn">Ansehen</button>
-        </div>
-        <div style="opacity:.9; line-height:1.4; margin-top:6px;">
-          Die vollständigen AGB kannst du hier in der App einsehen.
-        </div>
-      </div>
-      <div style="flex:1 1 320px; min-width:280px;">
-        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
-          <div style="font-weight:800;">Datenschutz (DSGVO)</div>
-          <button type="button" id="btnViewDsgvo" class="btn">Ansehen</button>
-        </div>
-        <div style="opacity:.9; line-height:1.4; margin-top:6px;">
-          Die Datenschutzhinweise (DSGVO) kannst du hier in der App einsehen.
-        </div>
-      </div>
-    </div>
-  `;
-  root.appendChild(legalTexts);
-
-  // Unterschrift (erfassen / löschen / Vorschau)
-  const sigCard = document.createElement('div');
-  sigCard.className = 'card';
-  sigCard.innerHTML = `
-    <h2>Unterschrift</h2>
-    <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:space-between;">
-      <div style="flex:1 1 340px; min-width:280px;">
-        <div style="opacity:.9; line-height:1.35;">
-          Unterschrift ist zum Speichern nicht zwingend notwendig. Bitte später nachholen.
-        </div>
-      </div>
-      <div style="display:flex; gap:10px; flex:0 0 auto;">
-        <button type="button" id="btnStaySig" class="primary">Unterschreiben</button>
-        <button type="button" id="btnStaySigClear" class="btn">Löschen</button>
-      </div>
-    </div>
-    <div id="staySigPreview" style="margin-top:12px; border:1px solid rgba(255,255,255,.18); border-radius:12px; min-height:110px; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.22); overflow:hidden;"></div>
-  `;
-  root.appendChild(sigCard);
-
-  // Hinweis Unterschrift (nicht blockierend) – nur anzeigen, wenn noch keine Unterschrift vorhanden ist
-  const hasSignature = !!(doc && doc.signature && (doc.signature.dataUrl || doc.signature.signatureDataUrl));
-  if(!hasSignature){
-    const sigWarn = document.createElement('div');
-    sigWarn.className = 'card';
-    sigWarn.style.borderLeft = '6px solid #b08a2b';
-    sigWarn.innerHTML = `
-      <div style="display:flex; gap:10px; align-items:flex-start;">
-        <div style="font-size:18px; line-height:1;">⚠️</div>
-        <div>
-          <div style="font-weight:700;">Unterschrift</div>
-          <div style="opacity:.9; line-height:1.35;">Unterschrift muss für diesen Aufenthalt noch erfolgen.</div>
-        </div>
-      </div>
-    `;
-    root.appendChild(sigWarn);
-  }
 
   // Hunde
   const dogSel = document.getElementById('stayDogSelect');
@@ -6643,12 +6824,7 @@ function renderStayEditorEmbedded(doc){
   const bet = document.getElementById('stayBetreuung');
   if(bet){
     bet.value = doc.meta.betreuung || "";
-    bet.onchange = e=>{ doc.meta.betreuung = e.target.value; dirty = true; };
-  }
-  const em = document.getElementById('stayEmergency');
-  if(em){
-    em.value = doc.meta.emergencyContact || "";
-    em.oninput = e=>{ doc.meta.emergencyContact = e.target.value; dirty = true; };
+    bet.oninput = e=>{ doc.meta.betreuung = e.target.value; dirty = true; };
   }
   const notes = document.getElementById('stayNotes');
   if(notes){
@@ -6657,68 +6833,59 @@ function renderStayEditorEmbedded(doc){
     notes.oninput = e=>{ doc.fields.notes = e.target.value; dirty = true; };
   }
 
-  const chkAgb = document.getElementById('stayChkAgb');
-  const chkDsgvo = document.getElementById('stayChkDsgvo');
-  const chkVet = document.getElementById('stayChkVet');
-  const chkTruth = document.getElementById('stayChkTruth');
-  if(chkAgb){ chkAgb.checked = !!doc.fields.agbAccepted; chkAgb.onchange = e=>{ doc.fields.agbAccepted = !!e.target.checked; dirty = true; }; }
-  if(chkDsgvo){ chkDsgvo.checked = !!doc.fields.privacyAccepted; chkDsgvo.onchange = e=>{ doc.fields.privacyAccepted = !!e.target.checked; dirty = true; }; }
-  if(chkVet){ chkVet.checked = !!doc.fields.vetPermission; chkVet.onchange = e=>{ doc.fields.vetPermission = !!e.target.checked; dirty = true; }; }
-  if(chkTruth){ chkTruth.checked = !!doc.fields.truthConfirmed; chkTruth.onchange = e=>{ doc.fields.truthConfirmed = !!e.target.checked; dirty = true; }; }
+  // Pflichtangaben
+  doc.fields = doc.fields || {};
+  const bindChk = (id, key)=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.checked = !!doc.fields[key];
+    el.onchange = e=>{ doc.fields[key] = !!e.target.checked; dirty = true; };
+  };
+  bindChk('stayAgbOk','agbOk');
+  bindChk('stayDsgvoOk','dsgvoOk');
+  bindChk('stayVetOk','vetOk');
+  bindChk('stayAngabenOk','angabenOk');
 
-  // Vorschau Unterschrift
-  const prev = document.getElementById('staySigPreview');
-  if(prev){
-    const dataUrl = (doc && doc.signature && (doc.signature.dataUrl || doc.signature.signatureDataUrl)) || null;
-    prev.innerHTML = dataUrl
-      ? `<img src="${dataUrl}" alt="Unterschrift" style="max-height:100px; max-width:100%;"/>`
-      : `<div style="opacity:.7;">Keine Unterschrift hinterlegt.</div>`;
-  }
+  // Rechtstexte anzeigen
+  const bA = document.getElementById('stayAgbShow');
+  if(bA) bA.onclick = ()=> openLegalDoc('agb');
+  const bD = document.getElementById('stayDsgvoShow');
+  if(bD) bD.onclick = ()=> openLegalDoc('dsgvo');
 
-  // AGB / DSGVO – Modal anzeigen (Text ist bewusst als Platzhalter gehalten; kann später in Einstellungen gepflegt werden)
-  const DEFAULT_AGB_TEXT = `Allgemeine Geschäftsbedingungen (Kurzfassung)\n\nBitte hinterlege hier deine vollständigen AGB.\n\nHinweis: Dieser Text dient als Platzhalter.`;
-  const DEFAULT_DSGVO_TEXT = `Datenschutz (DSGVO) – Hinweise (Kurzfassung)\n\nBitte hinterlege hier deine vollständigen Datenschutzhinweise.\n\nHinweis: Dieser Text dient als Platzhalter.`;
-  const btnAgb = document.getElementById('btnViewAgb');
-  if(btnAgb){
-    btnAgb.onclick = ()=>{
-      const text = (state && state.settings && state.settings.agbText) ? state.settings.agbText : DEFAULT_AGB_TEXT;
-      openHtmlInModal('AGB', `<pre style="white-space:pre-wrap; font-family:inherit; line-height:1.45; margin:0;">${escapeHtml(text)}</pre>`, 'Schließen');
-    };
-  }
-  const btnDsgvo = document.getElementById('btnViewDsgvo');
-  if(btnDsgvo){
-    btnDsgvo.onclick = ()=>{
-      const text = (state && state.settings && state.settings.dsgvoText) ? state.settings.dsgvoText : DEFAULT_DSGVO_TEXT;
-      openHtmlInModal('Datenschutz (DSGVO)', `<pre style="white-space:pre-wrap; font-family:inherit; line-height:1.45; margin:0;">${escapeHtml(text)}</pre>`, 'Schließen');
-    };
-  }
+  // Unterschrift (optional) – Warnung, wenn fehlt
+  const warnEl = document.getElementById('staySigWarn');
+  const prevEl = document.getElementById('staySigPreview');
+  const refreshSig = ()=>{
+    const has = !!(doc.signature && doc.signature.dataUrl);
+    if(prevEl){
+      prevEl.innerHTML = has ? `<img alt="Unterschrift" src="${doc.signature.dataUrl}" style="max-width:520px; width:100%; border:1px solid #ddd; border-radius:10px; padding:6px; background:#fff;" />` : `<div class="muted" style="font-size:13px;">Keine Unterschrift hinterlegt.</div>`;
+    }
+    if(warnEl) warnEl.style.display = has ? 'none' : 'block';
+  };
+  refreshSig();
 
-  // Unterschrift erfassen (im embedded Aufenthalt-Editor)
-  const btnSig = document.getElementById('btnStaySig');
-  if(btnSig){
-    btnSig.onclick = (ev)=>{
-      ev.preventDefault();
-      // iOS-sicher: Overlay verwenden
-      openSignatureOverlay((dataUrl)=>{
-        doc.signature = { dataUrl, signedAt: new Date().toISOString(), dogId: doc.dogId || null };
-        dirty = true;
-        saveState();
-        renderStayEditorEmbedded(doc);
-      });
-    };
-  }
-  const btnSigClear = document.getElementById('btnStaySigClear');
-  if(btnSigClear){
-    btnSigClear.onclick = (ev)=>{
-      ev.preventDefault();
-      if(doc.signature){
-        doc.signature = null;
-        dirty = true;
-        saveState();
-        renderStayEditorEmbedded(doc);
-      }
-    };
-  }
+  const sigCap = document.getElementById('staySigCapture');
+  if(sigCap) sigCap.onclick = ()=>{
+    openSignatureOverlay((dataUrl)=>{
+      if(!dataUrl) return;
+      doc.signature = { dataUrl, signedAt: new Date().toISOString() };
+      dirty = true;
+      refreshSig();
+    });
+  };
+  const sigClr = document.getElementById('staySigClear');
+  if(sigClr) sigClr.onclick = ()=>{
+    if(!confirm('Unterschrift wirklich löschen?')) return;
+    delete doc.signature;
+    dirty = true;
+    refreshSig();
+  };
+
+  // Global-Buttons (Header) für den eingebetteten Editor sauber binden
+  const btnSave = document.getElementById('btnSave');
+  if(btnSave) btnSave.onclick = ()=> saveStayEmbedded(doc, true);
+  const btnPrint = document.getElementById('btnPrint');
+  if(btnPrint) btnPrint.onclick = ()=> printStayEmbedded(doc);
 }
 
 function renderEditor(doc){
