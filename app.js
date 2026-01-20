@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = "v11B_STAGE_B_CACHEFIX_20260120";
+const APP_BUILD = "v11B_STAGE_B_BOOTFIX_20260120B";
 // Selector helpers
 // $: accepts either an element id (e.g. 'contractSig') or a CSS selector (e.g. '#contractSig', '.btn')
 const $ = (sel) => {
@@ -5385,21 +5385,7 @@ function createStayFromExisting(docId){
   saveState();
   openDoc(copy.id);
 }
-// Robust: iOS/Safari + aggressive caching kann dazu führen, dass ein alter DOM/Overlay-Zustand
-// Clicks schluckt oder das Element beim initialen Bind nicht existiert.
-// -> defensives Binding + Capturing-Delegation.
-try {
-  const btn = $("#btnNewDoc");
-  if(btn) btn.addEventListener("click", (e)=>{ e.preventDefault(); createDoc($("#templateSelect").value); });
-} catch(_){}
-
-document.addEventListener('click', (e)=>{
-  const t = e.target && (e.target.closest?.('#btnNewDoc') || e.target.closest?.('#btnNewStayTop') || e.target.closest?.('[data-action="newStay"]'));
-  if(!t) return;
-  e.preventDefault();
-  e.stopPropagation();
-  try { createDoc($("#templateSelect").value); } catch(_){}
-}, true);
+$("#btnNewDoc").addEventListener("click",()=>createDoc($("#templateSelect").value));
 function createDoc(tid){
   const t=getTemplate(tid);
   if(!t) return;
@@ -8262,31 +8248,6 @@ function wfTodayPrint(){
   wfOpenPdf(wfPdfTemplate("Heute drucken", body));
 }
 try{ const bb=document.getElementById('buildBadge'); if(bb) bb.textContent = 'Build ' + APP_BUILD; }catch(e){}
+// boot marker
+window.__APP_READY__ = true;
 
-// ---------------------------------------------------------------------------
-// BOOTSTRAP
-// In manchen Deployments wird zwar app.js geladen, aber startApp() nie gestartet
-// (z.B. wenn vorherige Builds init-Code ausgelagert hatten). Ergebnis: Buttons
-// wie "+ Neuer Aufenthalt" reagieren nicht. Wir starten daher robust genau
-// einmal nach DOMReady.
-// ---------------------------------------------------------------------------
-(function(){
-  if (window.__APP_BOOTED__) return;
-  window.__APP_BOOTED__ = true;
-
-  function safeStart(){
-    try{
-      if (typeof startApp === 'function') startApp();
-      else console.error('[BOOT] startApp() not found');
-    }catch(err){
-      console.error('[BOOT] startApp failed', err);
-      // Keine alert()-Spams, nur Log. UI bleibt ansonsten nutzbar.
-    }
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', safeStart, { once:true });
-  } else {
-    safeStart();
-  }
-})();
