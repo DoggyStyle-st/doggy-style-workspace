@@ -5385,7 +5385,21 @@ function createStayFromExisting(docId){
   saveState();
   openDoc(copy.id);
 }
-$("#btnNewDoc").addEventListener("click",()=>createDoc($("#templateSelect").value));
+// Robust: iOS/Safari + aggressive caching kann dazu führen, dass ein alter DOM/Overlay-Zustand
+// Clicks schluckt oder das Element beim initialen Bind nicht existiert.
+// -> defensives Binding + Capturing-Delegation.
+try {
+  const btn = $("#btnNewDoc");
+  if(btn) btn.addEventListener("click", (e)=>{ e.preventDefault(); createDoc($("#templateSelect").value); });
+} catch(_){}
+
+document.addEventListener('click', (e)=>{
+  const t = e.target && (e.target.closest?.('#btnNewDoc') || e.target.closest?.('#btnNewStayTop') || e.target.closest?.('[data-action="newStay"]'));
+  if(!t) return;
+  e.preventDefault();
+  e.stopPropagation();
+  try { createDoc($("#templateSelect").value); } catch(_){}
+}, true);
 function createDoc(tid){
   const t=getTemplate(tid);
   if(!t) return;

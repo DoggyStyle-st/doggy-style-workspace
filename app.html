@@ -1033,66 +1033,25 @@
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-  <!--
-    ------------------------------------------------------------
-    iOS/Safari Cache-/ServiceWorker-Falle (GitHub Pages)
-    ------------------------------------------------------------
-    Problem: Wenn einmal ein Service Worker aktiv war, kann er alte Dateien (app.js) aus dem Cache
-    liefern – selbst bei "Website-Daten löschen".
+<!--
+  Cache-Buster Fix:
+  app.html wurde bisher mit fester app.js-Version geladen (z.B. app.js?v=v11B_SAVE_PDF_10).
+  Dadurch blieb Safari/PWA oft auf alten Ständen hängen, auch wenn app.html mit ?v=... geöffnet wurde.
 
-    Lösung (robust): 1x "Clean-Run" erzwingen -> SW unregister + Caches leeren -> Reload.
-    Danach wird app.js mit dem gleichen Query-String geladen wie app.html.
-
-    Beispiel: app.html?v=v11B_STAGE_B_CACHEFIX_20260120
-             -> (Clean) app.html?v=v11B_STAGE_B_CACHEFIX_20260120&clean=1&ts=...
-             -> app.js?v=v11B_STAGE_B_CACHEFIX_20260120&clean=1&ts=...
-  -->
-  <script>
-    (function(){
-      try{
-        var params = new URLSearchParams(location.search || '');
-        var isClean = params.get('clean') === '1';
-        if(!isClean && 'serviceWorker' in navigator){
-          // Clean-Run: SW + Caches entfernen, dann einmal neu laden.
-          Promise.resolve()
-            .then(function(){ return navigator.serviceWorker.getRegistrations(); })
-            .then(function(regs){
-              regs = regs || [];
-              return Promise.all(regs.map(function(r){ try{ return r.unregister(); }catch(e){ return Promise.resolve(false);} }));
-            })
-            .then(function(){
-              if(!('caches' in window)) return [];
-              return caches.keys().then(function(keys){
-                return Promise.all(keys.map(function(k){ return caches.delete(k); }));
-              });
-            })
-            .catch(function(){ /* ignore */ })
-            .finally(function(){
-              try{
-                params.set('clean','1');
-                params.set('ts', String(Date.now()));
-                location.replace(location.pathname + '?' + params.toString() + location.hash);
-              }catch(e){
-                location.reload();
-              }
-            });
-          return; // stop here, reload will continue
-        }
-      }catch(e){ /* ignore */ }
-    })();
-  </script>
-
-  <script>
-    (function(){
-      var qs = window.location.search || '';
-      // Fallback: wenn app.html ohne Query geöffnet wird, trotzdem eindeutige Version erzwingen
-      if(!qs) qs = '?v=v11B_STAGE_B_CACHEFIX_20260120';
-      var s = document.createElement('script');
-      s.defer = true;
-      s.src = 'app.js' + qs;
-      document.head.appendChild(s);
-    })();
-  </script>
+  Ab jetzt: app.js wird mit dem gleichen Query-String geladen wie app.html selbst.
+  Beispiel: app.html?v=1118  ->  app.js?v=1118
+-->
+<script>
+  (function(){
+    var qs = window.location.search || '';
+    // Fallback: wenn app.html ohne Query geöffnet wird, trotzdem eindeutige Version erzwingen
+    if(!qs) qs = '?v=v11B_STAGE_B_CACHEFIX_20260120';
+    var s = document.createElement('script');
+    s.defer = true;
+    s.src = 'app.js' + qs;
+    document.head.appendChild(s);
+  })();
+</script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1134,11 +1093,25 @@
 })();
 </script>
 
-  <!-- ServiceWorker aktuell deaktiviert (Stabilität + Cache-Probleme auf iOS). -->
-  <script>
-    // If you want SW later: enable explicitly and version it hard.
-    // if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=v11B_STAGE_B_CACHEFIX_20260120');
-  </script>
+<script>
+  // iOS/Safari kann App-Shell extrem aggressiv cachen (inkl. ServiceWorker/Caches API).
+  // Wenn ?clean=1 gesetzt ist, räumen wir hart auf.
+  (function(){
+    try{
+      const p = new URLSearchParams(location.search);
+      if(p.get('clean') !== '1') return;
+      if('serviceWorker' in navigator){
+        navigator.serviceWorker.getRegistrations()
+          .then((regs)=>Promise.all(regs.map(r=>r.unregister())))
+          .catch(()=>{});
+      }
+      if(window.caches && caches.keys){
+        caches.keys().then((keys)=>Promise.all(keys.map(k=>caches.delete(k)))).catch(()=>{});
+      }
+    }catch(e){}
+  })();
+  // ServiceWorker bewusst NICHT registrieren, um Cache-Stände stabil zu halten.
+</script>
 
 <script>
 /* Logout-Fix: verhindert Tab-Navigation (Startseite) und führt echtes SignOut aus */
