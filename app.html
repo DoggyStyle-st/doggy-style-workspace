@@ -436,7 +436,11 @@
 <div class="row between">
 <h1>Aufenthalte</h1>
 <div class="row" style="gap:10px;flex-wrap:wrap;justify-content:flex-end;">
-  <button class="btn primary" id="btnNewStayOnPage" type="button">➕ Neuer Aufenthalt</button>
+      <!-- Dieses Panel ist NICHT die Aufenthalte-Liste.
+           Der Button hatte versehentlich die gleiche ID wie der echte Aufenthalte-Button,
+           wodurch in Safari/iPad der Click-Handler am falschen Element hing.
+           Deshalb hier eigene ID. -->
+      <button class="btn primary" id="btnNewStayOnPage" type="button">➕ Neuer Aufenthalt</button>
 </div>
 <button class="btn" id="btnExportAll">Export: Backup (JSON)</button>
 </div>
