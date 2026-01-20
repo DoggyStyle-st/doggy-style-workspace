@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = "v11B_STAGE_B_BOOTFIX_20260120B";
+const APP_BUILD = "v11B_STAGE_B_RESET_20260120C";
 // Selector helpers
 // $: accepts either an element id (e.g. 'contractSig') or a CSS selector (e.g. '#contractSig', '.btn')
 const $ = (sel) => {
@@ -3816,6 +3816,12 @@ function exportMonthJson(){
   const blob = new Blob([JSON.stringify(state,null,2)], {type:'application/json'});
   downloadBlob(`02_MonatsBackup_${ym}.json`, blob);
 }
+
+// Backward-compat alias: some UI bindings call exportMonthBundle (older name)
+function exportMonthBundle(){
+  try { return exportMonthJson(); } catch(e){ console.error(e); alert('Export fehlgeschlagen: '+(e?.message||e)); }
+}
+
 
 function buildMonthReportHtml(monthISO){
   const ym = monthISO;
@@ -8248,6 +8254,3 @@ function wfTodayPrint(){
   wfOpenPdf(wfPdfTemplate("Heute drucken", body));
 }
 try{ const bb=document.getElementById('buildBadge'); if(bb) bb.textContent = 'Build ' + APP_BUILD; }catch(e){}
-// boot marker
-window.__APP_READY__ = true;
-

@@ -5,6 +5,48 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <title>Doggy Style Workspace · App</title>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <script>
+  (function(){
+    const RESET_VER = "v11B_STAGE_B_RESET_20260120C";
+    const FLAG = "ds_cache_cleared_" + RESET_VER;
+    const params = new URLSearchParams(location.search);
+
+    async function clearAll(){
+      try {
+        if ("serviceWorker" in navigator) {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(regs.map(r => r.unregister()));
+        }
+      } catch(e) {}
+      try {
+        if ("caches" in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map(k => caches.delete(k)));
+        }
+      } catch(e) {}
+    }
+
+    (async () => {
+      if (!localStorage.getItem(FLAG)) {
+        localStorage.setItem(FLAG, "1");
+        await clearAll();
+        params.set("v", RESET_VER);
+        params.set("clean", "1");
+        params.set("ts", String(Date.now()));
+        location.replace(location.pathname + "?" + params.toString());
+        return;
+      }
+      // always keep a stable version parameter (helps iOS Safari)
+      if (!params.get("v")) {
+        params.set("v", RESET_VER);
+        location.replace(location.pathname + "?" + params.toString());
+      }
+    })();
+  })();
+  </script>
 <link href="manifest.json" rel="manifest"/>
 <meta content="#101014" name="theme-color"/>
 <link href="assets/logo.png" rel="apple-touch-icon"/>
@@ -45,7 +87,9 @@
         </svg>
       </span>
       <span class="paw-start__label">Start</span>
-    <nav class="tabs" role="tablist" aria-label="Navigation">
+    </button>
+
+<nav class="tabs" role="tablist" aria-label="Navigation">
       <div class="tabs__row tabs__row--main">
         <button class="tab" data-tab="dogs"><span class="tab-ico" aria-hidden="true">🐶</span>Hunde/Kunden</button>
         <button class="tab" data-tab="contract"><span class="tab-ico" aria-hidden="true">📄</span>Betreuungsvertrag</button>
@@ -1043,273 +1087,13 @@
 -->
 <script>
   (function(){
-    // v11B Stage B - Bootfix
-    window.__APP_BOOT_VERSION__ = 'v11B_STAGE_B_BOOTFIX_20260120B';
-    window.__APP_JS_LOADED__ = false;
-
-    window.addEventListener('error', function(e){
-      try {
-        var msg = (e && e.message) ? e.message : 'Unknown error';
-        alert('JS Fehler: ' + msg);
-      } catch (_) {}
-    });
-
-    window.addEventListener('unhandledrejection', function(e){
-      try {
-        var r = e && e.reason;
-        var msg = r ? (r.message || String(r)) : 'Unknown promise rejection';
-        alert('JS Fehler (Promise): ' + msg);
-      } catch (_) {}
-    });
-
     var qs = window.location.search || '';
-    if (!qs) {
-      qs = '?v=' + window.__APP_BOOT_VERSION__;
-    }
-    qs += (qs.indexOf('?') >= 0 ? '&' : '?') + 'ts=' + Date.now();
-
+    // Fallback: wenn app.html ohne Query geöffnet wird, trotzdem eindeutige Version erzwingen
+    if(!qs) qs = '?v=v11B_SAVE_PDF_18_STAY_EMBEDDED_TEMPLATE';
     var s = document.createElement('script');
-    s.src = 'app.js' + qs;
-    s.async = false;
-    s.onload = function(){ window.__APP_JS_LOADED__ = true; };
-    s.onerror = function(){ alert('app.js konnte nicht geladen werden. Bitte Upload/Cache pruefen.'); };
-    document.body.appendChild(s);
-
-    setTimeout(function(){
-      if (!window.__APP_JS_LOADED__) {
-        console.warn('app.js not loaded after 4s');
-      }
-    }, 4000);
-  })();
-</script>
-<script>
-  (function(){
-    // v11B Stage B - Bootfix
-    window.__APP_BOOT_VERSION__ = 'v11B_STAGE_B_BOOTFIX_20260120B';
-    window.__APP_JS_LOADED__ = false;
-
-    window.addEventListener('error', function(e){
-      try {
-        var msg = (e && e.message) ? e.message : 'Unknown error';
-        alert('JS Fehler: ' + msg);
-      } catch (_) {}
-    });
-
-    window.addEventListener('unhandledrejection', function(e){
-      try {
-        var reason = (e && e.reason) ? e.reason : 'Unknown promise rejection';
-        var msg2 = (reason && reason.message) ? reason.message : String(reason);
-        alert('JS Fehler (Promise): ' + msg2);
-      } catch (_) {}
-    });
-
-    var qs = window.location.search || '';
-    if (!qs) qs = '?v=' + window.__APP_BOOT_VERSION__;
-    // Always add a fresh timestamp
-    qs += (qs.indexOf('?') >= 0 ? '&' : '?') + 'ts=' + Date.now();
-
-    var s = document.createElement('script');
-    s.src = 'app.js' + qs;
-    s.async = false;
-    s.onload = function(){ window.__APP_JS_LOADED__ = true; };
-    s.onerror = function(){
-      alert('app.js konnte nicht geladen werden. Bitte Upload/Cache pruefen.');
-    };
-    document.body.appendChild(s);
-
-    setTimeout(function(){
-      if (!window.__APP_JS_LOADED__) {
-        console.warn('app.js not loaded after timeout');
-      }
-    }, 4000);
-  })();
-</script>
-    });
-
-    window.addEventListener('unhandledrejection', function(e){
-      try {
-        var r = e && e.reason;
-        var msg = r ? (r.message || String(r)) : 'Unknown promise rejection';
-        alert('JS Fehler (Promise): ' + msg);
-      } catch(_) {}
-    });
-
-    var qs = window.location.search || '';
-    if(!qs) {
-      qs = '?v=' + encodeURIComponent(window.__APP_BOOT_VERSION__);
-    }
-
-    // Always append a timestamp to defeat sticky caches
-    qs = qs + (qs.indexOf('?') >= 0 ? '&' : '?') + 'ts=' + Date.now();
-
-    var s = document.createElement('script');
-    s.src = 'app.js' + qs;
-    s.async = false;
-    s.onload = function(){ window.__APP_JS_LOADED__ = true; };
-    s.onerror = function(){ alert('app.js konnte nicht geladen werden. Bitte Upload/Cache pruefen.'); };
-    document.body.appendChild(s);
-
-    setTimeout(function(){
-      if(!window.__APP_JS_LOADED__){
-        console.warn('app.js not loaded after timeout');
-      }
-    }, 4000);
-  })();
-</script>
-    });
-
-    window.addEventListener('unhandledrejection', function(e){
-      try {
-        var r = e && e.reason;
-        var msg2 = r ? (r.message || String(r)) : 'Unknown promise rejection';
-        alert('JS Fehler (Promise): ' + msg2);
-      } catch(_) {}
-    });
-
-    var qs = window.location.search || '';
-    if (!qs) qs = '?v=' + window.__APP_BOOT_VERSION__;
-    qs += (qs.indexOf('?') >= 0 ? '&' : '?') + 'ts=' + Date.now();
-
-    var s = document.createElement('script');
-    s.src = 'app.js' + qs;
-    s.async = false;
-    s.onload = function(){ window.__APP_JS_LOADED__ = true; };
-    s.onerror = function(){
-      alert('app.js konnte nicht geladen werden. Bitte Upload/Cache pruefen.');
-    };
-    document.body.appendChild(s);
-
-    setTimeout(function(){
-      if (!window.__APP_JS_LOADED__) {
-        console.warn('app.js not loaded after timeout');
-      }
-    }, 4000);
-  })();
-</script>
-    });
-
-    window.addEventListener('unhandledrejection', function(e){
-      try {
-        var r = (e && e.reason) ? e.reason : 'Unknown promise rejection';
-        var msg = (r && r.message) ? r.message : String(r);
-        alert('JS Fehler (Promise): ' + msg);
-      } catch(_) {}
-    });
-
-    var qs = window.location.search || '';
-    if (!qs) qs = '?v=' + window.__APP_BOOT_VERSION__;
-    var sep = (qs.indexOf('?') >= 0) ? '&' : '?';
-    qs = qs + sep + 'ts=' + Date.now();
-
-    var s = document.createElement('script');
-    s.src = 'app.js' + qs;
-    s.async = false;
-    s.onload = function(){ window.__APP_JS_LOADED__ = true; };
-    s.onerror = function(){ alert('app.js konnte nicht geladen werden. Bitte Upload/Cache pruefen.'); };
-    document.body.appendChild(s);
-
-    setTimeout(function(){
-      if (!window.__APP_JS_LOADED__) {
-        console.warn('app.js not loaded after 4s - likely cache/upload issue');
-      }
-    }, 4000);
-  })();
-</script>
-    });
-
-    window.addEventListener('unhandledrejection', function(e){
-      try {
-        var r = (e && e.reason) ? e.reason : 'Unknown promise rejection';
-        var msg = (r && r.message) ? r.message : String(r);
-        alert('JS Fehler (Promise): ' + msg);
-      } catch(_) {}
-    });
-
-    var qs = window.location.search || '';
-    if (!qs) qs = '?v=' + window.__APP_BOOT_VERSION__;
-    qs = qs + (qs.indexOf('?') >= 0 ? '&' : '?') + 'ts=' + Date.now();
-
-    var s = document.createElement('script');
-    s.src = 'app.js' + qs;
-    s.async = false;
-    s.onload = function(){ window.__APP_JS_LOADED__ = true; };
-    s.onerror = function(){ alert('app.js konnte nicht geladen werden. Bitte Upload/Cache pruefen.'); };
-    document.body.appendChild(s);
-
-    setTimeout(function(){
-      if (!window.__APP_JS_LOADED__) {
-        console.warn('app.js not loaded after timeout');
-      }
-    }, 4000);
-  })();
-</script>
-    });
-
-    window.addEventListener('unhandledrejection', function(e){
-      try {
-        var r = (e && e.reason) ? e.reason : 'Unknown rejection';
-        var msg = (r && r.message) ? r.message : String(r);
-        alert('JS Fehler (Promise): ' + msg);
-      } catch(_) {}
-    });
-
-    var qs = window.location.search || '';
-    if (!qs) qs = '?v=' + window.__APP_BOOT_VERSION__;
-    var sep = (qs.indexOf('?') >= 0) ? '&' : '?';
-    qs = qs + sep + 'ts=' + Date.now();
-
-    var s = document.createElement('script');
-    s.src = 'app.js' + qs;
-    s.async = false;
-    s.onload = function(){ window.__APP_JS_LOADED__ = true; };
-    s.onerror = function(){ alert('app.js konnte nicht geladen werden. Bitte Upload/Cache pruefen.'); };
-    document.body.appendChild(s);
-
-    setTimeout(function(){
-      if (!window.__APP_JS_LOADED__) {
-        console.warn('app.js not loaded after 4s');
-      }
-    }, 4000);
-  })();
-</script>
-    });
-    window.addEventListener('unhandledrejection', function(e){
-      var msg = (e && e.reason) ? (e.reason.message || String(e.reason)) : 'unhandledrejection';
-      try { alert('JS-Promise-Fehler: ' + msg); } catch(_) {}
-    });
-
-    var DEFAULT_V = 'v11B_STAGE_B_BOOTFIX_20260120B';
-    var qs = window.location.search || '';
-
-    // Ensure we always have a version
-    if(!qs || qs === '?') {
-      qs = '?v=' + encodeURIComponent(DEFAULT_V);
-      // Keep hash
-      var h = window.location.hash || '';
-      window.location.replace(window.location.pathname + qs + h);
-      return;
-    }
-
-    // Always add a timestamp to defeat stale caches
-    if(qs.indexOf('ts=') === -1) {
-      qs += (qs.indexOf('?') === -1 ? '?' : '&') + 'ts=' + Date.now();
-    }
-
-    // Load app.js with same qs
-    var s = document.createElement('script');
-    s.src = 'app.js' + qs;
     s.defer = true;
-    s.onload = function(){ window.__APP_JS_LOADED__ = true; };
+    s.src = 'app.js' + qs;
     document.head.appendChild(s);
-
-    // If app.js did not load within 3s, show a clear message
-    setTimeout(function(){
-      if(!window.__APP_JS_LOADED__) {
-        try {
-          alert('app.js wurde nicht geladen (Cache/Upload). Bitte GitHub Dateien pruefen und dann URL mit ?v=' + DEFAULT_V + ' oeffnen.');
-        } catch(_) {}
-      }
-    }, 3000);
   })();
 </script>
 <script>
@@ -1354,7 +1138,7 @@
 </script>
 
 <script>
-    if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(function(rs){return Promise.all(rs.map(function(r){return r.unregister();}));}).then(function(){if(window.caches){return caches.keys().then(function(keys){return Promise.all(keys.map(function(k){return caches.delete(k);}));});}}).catch(function(){});} 
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=v11B_STAGE_B_RESET_20260120C');
   </script>
 
 <script>
@@ -1418,6 +1202,6 @@
   <button class="btn btn--mini btn--logout" id="btnLogoutBottom" type="button" title="Ausloggen / Logout">Ausloggen / Logout</button>
 </div>
 <div class="test-badge" id="testBadge">PRODUKTIV</div>
-<div class="build-badge" id="buildBadge">Build v11B_STAGE_B_BOOTFIX_20260120B</div>
+<div class="build-badge" id="buildBadge">Build v11B_STAGE_B_RESET_20260120C</div>
 </body>
 </html>
