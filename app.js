@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = "v11B_STAGE_B_RESET_20260120C";
+const APP_BUILD = "v11B_STAGE_B_RESET_20260120D";
 // Selector helpers
 // $: accepts either an element id (e.g. 'contractSig') or a CSS selector (e.g. '#contractSig', '.btn')
 const $ = (sel) => {
@@ -12,6 +12,14 @@ const $ = (sel) => {
   return looksLikeSelector ? document.querySelector(s) : document.getElementById(s);
 };
 const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+
+// --- SAFETY STUB: avoids crash if Monats-Export is not implemented in this build
+function exportMonthBundle(){
+  try {
+    alert('Monats-Export ist in diesem Build noch nicht verfuegbar.');
+  } catch(e) {}
+}
+
 window.addEventListener('error', (e) => {
   console.error('APP_ERROR', e.error || e.message);
 });
@@ -3816,12 +3824,6 @@ function exportMonthJson(){
   const blob = new Blob([JSON.stringify(state,null,2)], {type:'application/json'});
   downloadBlob(`02_MonatsBackup_${ym}.json`, blob);
 }
-
-// Backward-compat alias: some UI bindings call exportMonthBundle (older name)
-function exportMonthBundle(){
-  try { return exportMonthJson(); } catch(e){ console.error(e); alert('Export fehlgeschlagen: '+(e?.message||e)); }
-}
-
 
 function buildMonthReportHtml(monthISO){
   const ym = monthISO;

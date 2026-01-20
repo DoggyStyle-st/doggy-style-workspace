@@ -5,48 +5,6 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <title>Doggy Style Workspace · App</title>
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-  <meta http-equiv="Pragma" content="no-cache" />
-  <meta http-equiv="Expires" content="0" />
-  <script>
-  (function(){
-    const RESET_VER = "v11B_STAGE_B_RESET_20260120C";
-    const FLAG = "ds_cache_cleared_" + RESET_VER;
-    const params = new URLSearchParams(location.search);
-
-    async function clearAll(){
-      try {
-        if ("serviceWorker" in navigator) {
-          const regs = await navigator.serviceWorker.getRegistrations();
-          await Promise.all(regs.map(r => r.unregister()));
-        }
-      } catch(e) {}
-      try {
-        if ("caches" in window) {
-          const keys = await caches.keys();
-          await Promise.all(keys.map(k => caches.delete(k)));
-        }
-      } catch(e) {}
-    }
-
-    (async () => {
-      if (!localStorage.getItem(FLAG)) {
-        localStorage.setItem(FLAG, "1");
-        await clearAll();
-        params.set("v", RESET_VER);
-        params.set("clean", "1");
-        params.set("ts", String(Date.now()));
-        location.replace(location.pathname + "?" + params.toString());
-        return;
-      }
-      // always keep a stable version parameter (helps iOS Safari)
-      if (!params.get("v")) {
-        params.set("v", RESET_VER);
-        location.replace(location.pathname + "?" + params.toString());
-      }
-    })();
-  })();
-  </script>
 <link href="manifest.json" rel="manifest"/>
 <meta content="#101014" name="theme-color"/>
 <link href="assets/logo.png" rel="apple-touch-icon"/>
@@ -87,9 +45,7 @@
         </svg>
       </span>
       <span class="paw-start__label">Start</span>
-    </button>
-
-<nav class="tabs" role="tablist" aria-label="Navigation">
+    <nav class="tabs" role="tablist" aria-label="Navigation">
       <div class="tabs__row tabs__row--main">
         <button class="tab" data-tab="dogs"><span class="tab-ico" aria-hidden="true">🐶</span>Hunde/Kunden</button>
         <button class="tab" data-tab="contract"><span class="tab-ico" aria-hidden="true">📄</span>Betreuungsvertrag</button>
@@ -1089,7 +1045,7 @@
   (function(){
     var qs = window.location.search || '';
     // Fallback: wenn app.html ohne Query geöffnet wird, trotzdem eindeutige Version erzwingen
-    if(!qs) qs = '?v=v11B_SAVE_PDF_18_STAY_EMBEDDED_TEMPLATE';
+    if(!qs) qs = '?v=v11B_STAGE_B_RESET_20260120D';
     var s = document.createElement('script');
     s.defer = true;
     s.src = 'app.js' + qs;
@@ -1138,7 +1094,7 @@
 </script>
 
 <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=v11B_STAGE_B_RESET_20260120C');
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=TEST_OPTIK_01_2026-01-03');
   </script>
 
 <script>
@@ -1202,6 +1158,6 @@
   <button class="btn btn--mini btn--logout" id="btnLogoutBottom" type="button" title="Ausloggen / Logout">Ausloggen / Logout</button>
 </div>
 <div class="test-badge" id="testBadge">PRODUKTIV</div>
-<div class="build-badge" id="buildBadge">Build v11B_STAGE_B_RESET_20260120C</div>
+<div class="build-badge" id="buildBadge">Build v11B_STAGE_B_RESET_20260120D</div>
 </body>
 </html>
