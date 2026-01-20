@@ -10,9 +10,6 @@
 <link href="assets/logo.png" rel="apple-touch-icon"/>
 <link href="styles.css?v=20260103v01" rel="stylesheet"/>
 <link href="dashboard_master.css?v=20260104v13logout" rel="stylesheet"/>
-<meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate" />
-<meta http-equiv="pragma" content="no-cache" />
-<meta http-equiv="expires" content="0" />
 <style>
   /* Topbar Layout (iPad & Desktop stabil) */
   .topbar{position:sticky; top:0; z-index:50;}
@@ -30,36 +27,6 @@
     .tabs__row--quick{gap:10px;}
   }
 </style>
-
-<script>
-  // Cache-Busting + SW-Reset (iPad Safari / GitHub Pages)
-  // If app.html is opened without ?v=..., force a deterministic version token.
-  (function(){
-    var BUILD_V = 'v11B_STAGE_B_CACHEFIX_20260120';
-    try {
-      var u = new URL(location.href);
-      if (!u.searchParams.get('v')) {
-        u.searchParams.set('v', BUILD_V);
-        location.replace(u.toString());
-        return;
-      }
-    } catch(e) {}
-
-    // Unregister any service worker and clear caches to avoid stale JS.
-    try {
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(function(regs){
-          regs.forEach(function(r){ try{ r.unregister(); }catch(e){} });
-        });
-      }
-      if (window.caches && caches.keys) {
-        caches.keys().then(function(keys){
-          keys.forEach(function(k){ try{ caches.delete(k); }catch(e){} });
-        });
-      }
-    } catch(e) {}
-  })();
-</script>
 </head>
 <body class="bg-watermark page-app">
 <header class="topbar">
@@ -78,8 +45,6 @@
         </svg>
       </span>
       <span class="paw-start__label">Start</span>
-    </button>
-
     <nav class="tabs" role="tablist" aria-label="Navigation">
       <div class="tabs__row tabs__row--main">
         <button class="tab" data-tab="dogs"><span class="tab-ico" aria-hidden="true">🐶</span>Hunde/Kunden</button>
@@ -1068,25 +1033,66 @@
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-<!--
-  Cache-Buster Fix:
-  app.html wurde bisher mit fester app.js-Version geladen (z.B. app.js?v=v11B_SAVE_PDF_10).
-  Dadurch blieb Safari/PWA oft auf alten Ständen hängen, auch wenn app.html mit ?v=... geöffnet wurde.
+  <!--
+    ------------------------------------------------------------
+    iOS/Safari Cache-/ServiceWorker-Falle (GitHub Pages)
+    ------------------------------------------------------------
+    Problem: Wenn einmal ein Service Worker aktiv war, kann er alte Dateien (app.js) aus dem Cache
+    liefern – selbst bei "Website-Daten löschen".
 
-  Ab jetzt: app.js wird mit dem gleichen Query-String geladen wie app.html selbst.
-  Beispiel: app.html?v=1118  ->  app.js?v=1118
--->
-<script>
-  (function(){
-    var qs = window.location.search || '';
-    // Fallback: wenn app.html ohne Query geöffnet wird, trotzdem eindeutige Version erzwingen
-    if(!qs) qs = '?v=v11B_SAVE_PDF_18_STAY_EMBEDDED_TEMPLATE';
-    var s = document.createElement('script');
-    s.defer = true;
-    s.src = 'app.js' + qs;
-    document.head.appendChild(s);
-  })();
-</script>
+    Lösung (robust): 1x "Clean-Run" erzwingen -> SW unregister + Caches leeren -> Reload.
+    Danach wird app.js mit dem gleichen Query-String geladen wie app.html.
+
+    Beispiel: app.html?v=v11B_STAGE_B_CACHEFIX_20260120
+             -> (Clean) app.html?v=v11B_STAGE_B_CACHEFIX_20260120&clean=1&ts=...
+             -> app.js?v=v11B_STAGE_B_CACHEFIX_20260120&clean=1&ts=...
+  -->
+  <script>
+    (function(){
+      try{
+        var params = new URLSearchParams(location.search || '');
+        var isClean = params.get('clean') === '1';
+        if(!isClean && 'serviceWorker' in navigator){
+          // Clean-Run: SW + Caches entfernen, dann einmal neu laden.
+          Promise.resolve()
+            .then(function(){ return navigator.serviceWorker.getRegistrations(); })
+            .then(function(regs){
+              regs = regs || [];
+              return Promise.all(regs.map(function(r){ try{ return r.unregister(); }catch(e){ return Promise.resolve(false);} }));
+            })
+            .then(function(){
+              if(!('caches' in window)) return [];
+              return caches.keys().then(function(keys){
+                return Promise.all(keys.map(function(k){ return caches.delete(k); }));
+              });
+            })
+            .catch(function(){ /* ignore */ })
+            .finally(function(){
+              try{
+                params.set('clean','1');
+                params.set('ts', String(Date.now()));
+                location.replace(location.pathname + '?' + params.toString() + location.hash);
+              }catch(e){
+                location.reload();
+              }
+            });
+          return; // stop here, reload will continue
+        }
+      }catch(e){ /* ignore */ }
+    })();
+  </script>
+
+  <script>
+    (function(){
+      var qs = window.location.search || '';
+      // Fallback: wenn app.html ohne Query geöffnet wird, trotzdem eindeutige Version erzwingen
+      if(!qs) qs = '?v=v11B_STAGE_B_CACHEFIX_20260120';
+      var s = document.createElement('script');
+      s.defer = true;
+      s.src = 'app.js' + qs;
+      document.head.appendChild(s);
+    })();
+  </script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1128,8 +1134,10 @@
 })();
 </script>
 
-<script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=TEST_OPTIK_01_2026-01-03');
+  <!-- ServiceWorker aktuell deaktiviert (Stabilität + Cache-Probleme auf iOS). -->
+  <script>
+    // If you want SW later: enable explicitly and version it hard.
+    // if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=v11B_STAGE_B_CACHEFIX_20260120');
   </script>
 
 <script>
