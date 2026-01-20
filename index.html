@@ -2,31 +2,58 @@
 <html lang="de">
 <head>
   <meta charset="utf-8"/>
-  <meta name="app-version" content="2026-01-19-v11B-INDEX-QUERY-PASS-01"/>
+  <!-- IMPORTANT: This file is the GitHub Pages entrypoint.
+       We enforce a cache-busting query param so iPad Safari won't keep serving stale app.html/app.js. -->
+  <meta name="app-version" content="2026-01-20-v11B-STAGE-B-CACHEFIX"/>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
   <title>Doggy Style Workspace</title>
+  <meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate"/>
+  <meta http-equiv="pragma" content="no-cache"/>
+  <meta http-equiv="expires" content="0"/>
 
-  <!-- FIX:
-       Query-Parameter (?v=1118 etc.) und Hash werden beim Redirect erhalten.
-       Verhindert, dass Safari/PWA immer den alten Cache lädt.
-  -->
   <script>
     (function () {
-      var target =
-        "login.html" +
-        (window.location.search || "") +
-        (window.location.hash || "");
-      window.location.replace(target);
+      // Build token: bump this whenever you publish a new build.
+      var BUILD = 'v11B_STAGE_B_20260120_01';
+
+      // Ensure we always have a cache-busting query.
+      var url = new URL(window.location.href);
+      if (!url.searchParams.get('v')) {
+        url.searchParams.set('v', BUILD);
+        // Replace (so back button doesn't jump between variants)
+        window.location.replace(url.toString());
+        return;
+      }
+
+      // Aggressively unregister service workers + clear caches (Safari/iOS can be sticky).
+      try {
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function (regs) {
+            regs.forEach(function (r) { r.unregister(); });
+          });
+        }
+      } catch (e) {}
+
+      try {
+        if (window.caches && caches.keys) {
+          caches.keys().then(function (keys) {
+            keys.forEach(function (k) { caches.delete(k); });
+          });
+        }
+      } catch (e2) {}
+
+      // Forward to login, preserving the query string (?v=...)
+      window.location.replace('login.html' + window.location.search);
     })();
   </script>
 </head>
-
 <body>
-  <p>Weiterleitung…</p>
-
-  <!-- Fallback (ebenfalls mit Query/Hash) -->
-  <noscript>
-    <a href="login.html">Login öffnen</a>
-  </noscript>
+  <p>Weiterleitung… Falls nichts passiert: <a id="manualLink" href="login.html">Login öffnen</a></p>
+  <script>
+    // Update fallback link to include the cache-busting query.
+    try {
+      document.getElementById('manualLink').href = 'login.html' + window.location.search;
+    } catch (e) {}
+  </script>
 </body>
 </html>

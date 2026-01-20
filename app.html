@@ -10,6 +10,9 @@
 <link href="assets/logo.png" rel="apple-touch-icon"/>
 <link href="styles.css?v=20260103v01" rel="stylesheet"/>
 <link href="dashboard_master.css?v=20260104v13logout" rel="stylesheet"/>
+<meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate" />
+<meta http-equiv="pragma" content="no-cache" />
+<meta http-equiv="expires" content="0" />
 <style>
   /* Topbar Layout (iPad & Desktop stabil) */
   .topbar{position:sticky; top:0; z-index:50;}
@@ -21,17 +24,42 @@
   .topbar__right{display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:flex-end;}
   .sync-indicator{display:flex; align-items:center; gap:8px;}
   .sync-label{font-size:12px; opacity:.75;}
-
-  /* Editor-Feinschliff */
-  .dateInput{max-width:240px; width:240px;}
-  .warnBanner{background:rgba(245,182,46,.18); border:1px solid rgba(245,182,46,.35); color:#f5b62e; padding:10px 12px; border-radius:12px;}
-
   @media (min-width: 900px){
     .topbar__inner{gap:16px; padding:10px 16px 16px;}
     .tabs__row{gap:12px;}
     .tabs__row--quick{gap:10px;}
   }
 </style>
+
+<script>
+  // Cache-Busting + SW-Reset (iPad Safari / GitHub Pages)
+  // If app.html is opened without ?v=..., force a deterministic version token.
+  (function(){
+    var BUILD_V = 'v11B_STAGE_B_CACHEFIX_20260120';
+    try {
+      var u = new URL(location.href);
+      if (!u.searchParams.get('v')) {
+        u.searchParams.set('v', BUILD_V);
+        location.replace(u.toString());
+        return;
+      }
+    } catch(e) {}
+
+    // Unregister any service worker and clear caches to avoid stale JS.
+    try {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(regs){
+          regs.forEach(function(r){ try{ r.unregister(); }catch(e){} });
+        });
+      }
+      if (window.caches && caches.keys) {
+        caches.keys().then(function(keys){
+          keys.forEach(function(k){ try{ caches.delete(k); }catch(e){} });
+        });
+      }
+    } catch(e) {}
+  })();
+</script>
 </head>
 <body class="bg-watermark page-app">
 <header class="topbar">
@@ -51,6 +79,7 @@
       </span>
       <span class="paw-start__label">Start</span>
     </button>
+
     <nav class="tabs" role="tablist" aria-label="Navigation">
       <div class="tabs__row tabs__row--main">
         <button class="tab" data-tab="dogs"><span class="tab-ico" aria-hidden="true">🐶</span>Hunde/Kunden</button>
@@ -442,7 +471,7 @@
 <div class="row between">
 <h1>Aufenthalte</h1>
 <div class="row" style="gap:10px;flex-wrap:wrap;justify-content:flex-end;">
-  <button class="btn primary" id="btnNewStayOnPage" data-action="newStay" type="button">➕ Neuer Aufenthalt</button>
+  <button class="btn primary" id="btnNewStayOnPage" type="button">➕ Neuer Aufenthalt</button>
 </div>
 <button class="btn" id="btnExportAll">Export: Backup (JSON)</button>
 </div>
