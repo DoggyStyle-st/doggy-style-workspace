@@ -3321,8 +3321,23 @@ const EMBEDDED_HUNDEANNAHME_TEMPLATE = {
     { key: "customerId", label: "Kunde", type: "customer" },
     { key: "von", label: "Von", type: "date" },
     { key: "bis", label: "Bis", type: "date" },
-    { key: "betreuung", label: "Betreuung", type: "text" },
-    { key: "notes", label: "Notizen", type: "textarea" }
+    {
+      key: "betreuung",
+      label: "Betreuung",
+      type: "select",
+      options: [
+        { value: "Tagesbetreuung", label: "Tagesbetreuung" },
+        { value: "Urlaubsbetreuung", label: "Urlaubsbetreuung" }
+      ]
+    },
+    { key: "notfallkontakt", label: "Notfallkontakt", type: "text" },
+    { key: "notes", label: "Notizen", type: "textarea" },
+
+    // Pflichtangaben (Validierung: Unterschrift ist NICHT zwingend)
+    { key: "accept_agb", label: "AGB", type: "checkbox", required: true },
+    { key: "accept_dsgvo", label: "Datenschutz (DSGVO)", type: "checkbox", required: true },
+    { key: "allow_vet", label: "Tierarzt-Erlaubnis", type: "checkbox", required: true },
+    { key: "confirm_truth", label: "Angaben", type: "checkbox", required: true }
   ],
   meta: { embedded: true }
 };
@@ -5409,12 +5424,24 @@ function createDoc(tid){
     }
   }
   const now = new Date().toISOString();
+  const todayIso = new Date().toISOString().slice(0,10);
+  const baseMeta = {
+    betreuung: "",
+    von: "",
+    bis: "",
+    notfallkontakt: "",
+    accept_agb: false,
+    accept_dsgvo: false,
+    allow_vet: false,
+    confirm_truth: false
+  };
+  // Defaults fuer "Hundeannahme"
+  if(t.id === "hundeannahme"){
+    baseMeta.betreuung = "Tagesbetreuung";
+    baseMeta.von = todayIso;
+  }
   const docObj={id:uid(),templateId:t.id,templateName:t.name,title:t.name,dogId:defaultDogId,petId:"",customerId:"",fields:{},signature: null,saved: false,
-versionOf: null,meta: {
-  betreuung: "",
-  von: "",
-  bis: ""
-},createdAt:now,updatedAt:now};
+versionOf: null,meta: baseMeta,createdAt:now,updatedAt:now};
   ensureDocLinks(docObj);
   state.docs=state.docs||[];
   state.docs.unshift(docObj);
@@ -5428,6 +5455,11 @@ function normalizeMeta(doc){
   doc.meta.betreuung = doc.meta.betreuung || "";
   doc.meta.von = doc.meta.von || "";
   doc.meta.bis = doc.meta.bis || "";
+  doc.meta.notfallkontakt = doc.meta.notfallkontakt || "";
+  doc.meta.accept_agb = !!doc.meta.accept_agb;
+  doc.meta.accept_dsgvo = !!doc.meta.accept_dsgvo;
+  doc.meta.allow_vet = !!doc.meta.allow_vet;
+  doc.meta.confirm_truth = !!doc.meta.confirm_truth;
 }
 function renderVersions(doc){
   const box = document.getElementById("versionBox");
@@ -5506,6 +5538,11 @@ const sig = docObj.signature;
 sigCard.innerHTML = `
   <h2>Unterschrift</h2>
   ${
+    !sig
+      ? `<div class="warnBanner" style="margin:10px 0;">⚠️ Unterschrift muss für diesen Aufenthalt noch erfolgen.</div>`
+      : ``
+  }
+  ${
     sig
       ? `<p class="muted">
            ✔ Unterschrieben am ${new Date(sig.signedAt).toLocaleString("de-DE")}
@@ -5542,6 +5579,7 @@ function renderField(f,value,docObj){
   wrap.innerHTML=`<span>${escapeHtml(f.label)}${f.required?" *":""}</span>`;
   let input;
   if(f.type==="textarea"){ input=document.createElement("textarea"); input.value=value||""; }
+  else if(f.type==="date"){ input=document.createElement("input"); input.type="date"; input.value=value||""; input.classList.add("dateInput"); }
   else if(f.type==="select"){ input=document.createElement("select"); input.innerHTML=(f.options||[]).map(o=>`<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join(""); input.value=value||(f.options?.[0]||""); }
   else if(f.type==="checkbox"){ input=document.createElement("input"); input.type="checkbox"; input.checked=!!value; input.style.width="22px"; input.style.height="22px"; }
   else { input=document.createElement("input"); input.type=f.type||"text"; input.value=value||""; }
@@ -5621,8 +5659,7 @@ function validate(docObj,t){
     else { if(!v || String(v).trim()==="") errs.push(f.label); }
   }));
   t.meta.forEach(f=>{ if(f.required){const v=docObj.meta[f.key]; if(!v||String(v).trim()==="") errs.push(f.label);} });
-  if(!docObj.signature || !docObj.signature.dataUrl)
-  errs.push("Unterschrift");
+  // Unterschrift ist zum Speichern nicht zwingend.
   return errs;
 }
 function updateCreateInvoiceButton(){
@@ -5696,10 +5733,7 @@ if (used >= limit) {
     `im Zeitraum ${from} – ${to} sind bereits belegt.`
   );
 }
-if (!currentDoc.signature){
-  alert("Bitte unterschreiben");
-  return false;
-}
+// Unterschrift ist optional (Hinweis wird im Editor angezeigt).
   currentDoc.saved = true;                             // 🔐 Dokument abschließen
 currentDoc.updatedAt = new Date().toISOString();
 
@@ -6119,7 +6153,7 @@ async function startApp(){
       window.__DELEGATED_NEW_STAY__ = true;
       document.addEventListener('click', (ev)=>{
         const t = ev.target;
-        const btn = t && t.closest ? t.closest('#btnNewStayTop, #btnNewStayOnPage') : null;
+        const btn = t && t.closest ? t.closest('#btnNewStayTop, #btnNewStayOnPage, #btnNewDoc, [data-action="newStay"]') : null;
         if(!btn) return;
         ev.preventDefault();
         ev.stopPropagation();
@@ -6129,7 +6163,7 @@ async function startApp(){
       // Therefore also listen to pointerup/touchend in capture phase for the same buttons.
       document.addEventListener("pointerup", (ev)=>{
         const t = ev.target;
-        const btn = t && t.closest ? t.closest("#btnNewStayTop, #btnNewStayOnPage") : null;
+        const btn = t && t.closest ? t.closest("#btnNewStayTop, #btnNewStayOnPage, #btnNewDoc, [data-action=\"newStay\"]") : null;
         if(!btn) return;
         try{ ev.preventDefault(); }catch(_){}
         try{ ev.stopPropagation(); }catch(_){}
@@ -6137,7 +6171,7 @@ async function startApp(){
       }, true);
       document.addEventListener("touchend", (ev)=>{
         const t = ev.target;
-        const btn = t && t.closest ? t.closest("#btnNewStayTop, #btnNewStayOnPage") : null;
+        const btn = t && t.closest ? t.closest("#btnNewStayTop, #btnNewStayOnPage, #btnNewDoc, [data-action=\"newStay\"]") : null;
         if(!btn) return;
         try{ ev.preventDefault(); }catch(_){}
         try{ ev.stopPropagation(); }catch(_){}

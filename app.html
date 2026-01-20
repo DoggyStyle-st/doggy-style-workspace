@@ -21,6 +21,11 @@
   .topbar__right{display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:flex-end;}
   .sync-indicator{display:flex; align-items:center; gap:8px;}
   .sync-label{font-size:12px; opacity:.75;}
+
+  /* Editor-Feinschliff */
+  .dateInput{max-width:240px; width:240px;}
+  .warnBanner{background:rgba(245,182,46,.18); border:1px solid rgba(245,182,46,.35); color:#f5b62e; padding:10px 12px; border-radius:12px;}
+
   @media (min-width: 900px){
     .topbar__inner{gap:16px; padding:10px 16px 16px;}
     .tabs__row{gap:12px;}
@@ -437,7 +442,7 @@
 <div class="row between">
 <h1>Aufenthalte</h1>
 <div class="row" style="gap:10px;flex-wrap:wrap;justify-content:flex-end;">
-  <button class="btn primary" id="btnNewStayOnPage" type="button">➕ Neuer Aufenthalt</button>
+  <button class="btn primary" id="btnNewStayOnPage" data-action="newStay" type="button">➕ Neuer Aufenthalt</button>
 </div>
 <button class="btn" id="btnExportAll">Export: Backup (JSON)</button>
 </div>
