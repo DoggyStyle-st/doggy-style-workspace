@@ -8262,3 +8262,31 @@ function wfTodayPrint(){
   wfOpenPdf(wfPdfTemplate("Heute drucken", body));
 }
 try{ const bb=document.getElementById('buildBadge'); if(bb) bb.textContent = 'Build ' + APP_BUILD; }catch(e){}
+
+// ---------------------------------------------------------------------------
+// BOOTSTRAP
+// In manchen Deployments wird zwar app.js geladen, aber startApp() nie gestartet
+// (z.B. wenn vorherige Builds init-Code ausgelagert hatten). Ergebnis: Buttons
+// wie "+ Neuer Aufenthalt" reagieren nicht. Wir starten daher robust genau
+// einmal nach DOMReady.
+// ---------------------------------------------------------------------------
+(function(){
+  if (window.__APP_BOOTED__) return;
+  window.__APP_BOOTED__ = true;
+
+  function safeStart(){
+    try{
+      if (typeof startApp === 'function') startApp();
+      else console.error('[BOOT] startApp() not found');
+    }catch(err){
+      console.error('[BOOT] startApp failed', err);
+      // Keine alert()-Spams, nur Log. UI bleibt ansonsten nutzbar.
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', safeStart, { once:true });
+  } else {
+    safeStart();
+  }
+})();
