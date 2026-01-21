@@ -5772,7 +5772,8 @@ const to   = currentDoc.meta.bis;
 const used = countOccupancy(type, from, to, currentDoc.id);
 const limit = getMinCapacityForRange(type, from, to);
 
-if (used >= limit) {
+// Wenn kein Limit konfiguriert ist (0/undefined), keine Kapazitätswarnung anzeigen.
+if (Number(limit||0) > 0 && used >= limit) {
   alert(
     `⚠️ Achtung:\n\n` +
     `${used} von ${limit} Plätzen für "${type}" ` +
@@ -5966,7 +5967,8 @@ document.addEventListener("click",(e)=>{
       };
       dirty = true;
       saveState(); // persist immediately
-      renderForm(currentDoc); // now safe (uses synced currentDoc)
+      // Nach dem Signieren den passenden Editor erneut rendern (Aufenthalt kann im Embedded-Modus laufen)
+      try{ renderEditor(currentDoc); }catch(_){ renderForm(currentDoc); }
     });
     return;
   }
@@ -5987,9 +5989,63 @@ function printDoc(){
   if(!currentDoc) return;
   if(!saveCurrent(false)) return;
   const t=getTemplate(currentDoc.templateId);
+
+  // Aufenthalte laufen teils im Embedded-Modus (Template kann fehlen) → robustes PDF-Preview.
+  const isStay = (!t && String(currentDoc.templateId||"").startsWith('hundeannahme'))
+    || (t && t.id === 'hundeannahme')
+    || currentDoc.templateId === 'hundeannahme'
+    || currentDoc.templateName === 'Hundeannahme'
+    || currentDoc.type === 'stay';
+
   const dog=state.dogs.find(d=>d.id===currentDoc.dogId) || null;
+  if(isStay && (!t || !Array.isArray(t.sections))){
+    const html = buildStayPrintHtml(currentDoc, dog);
+    openHtmlInModal('Druckvorschau', html, 'Schließen mit ✕. Für PDF: Drucken/Speichern → „Als PDF“ → in Dateien speichern.');
+    return;
+  }
+
   const html=buildPrintHtml(currentDoc,t,dog);
   openHtmlInModal('Druckvorschau', html, 'Schließen mit ✕. Für PDF: Drucken/Speichern → „Als PDF“ → in Dateien speichern.');
+}
+
+function buildStayPrintHtml(docObj, dog){
+  const dt=new Date(docObj.updatedAt || Date.now()).toLocaleString("de-DE");
+  const dogLine=dog && !dog.isPlaceholder ? `${dog.owner?escapeHtml(dog.owner)+" – ":""}${escapeHtml(dog.name)}` : "—";
+  const m = docObj.meta || {};
+  const notes = (docObj.fields && docObj.fields.notes) ? String(docObj.fields.notes) : "";
+  const sigImg = (docObj.signature && docObj.signature.dataUrl)
+    ? `<img class="sig" src="${docObj.signature.dataUrl}" alt="Unterschrift" />`
+    : "";
+
+  let out=`<div class="head"><div><h1>${escapeHtml(docObj.title||'Hundeannahme / Aufenthalt')}</h1><div class="meta">Hund/Kunde: ${dogLine} · Stand: ${dt}</div></div><img class="logo" src="assets/logo.png" /></div>`;
+  out+=`<h2>Aufenthalt</h2><table>`;
+  out+=`<tr><td class="k">Von</td><td class="v">${escapeHtml(m.von||"")}</td></tr>`;
+  out+=`<tr><td class="k">Bis</td><td class="v">${escapeHtml(m.bis||"")}</td></tr>`;
+  out+=`<tr><td class="k">Betreuung</td><td class="v">${escapeHtml(m.betreuung||"")}</td></tr>`;
+  out+=`<tr><td class="k">Notizen</td><td class="v">${escapeHtml(notes)}</td></tr>`;
+  out+=`</table>`;
+
+  out+=`<h2>Unterschrift Hundehalter</h2><div class="sigbox">${sigImg || '<div class="muted">— noch keine Unterschrift —</div>'}</div>`;
+  out+=`<h2>Datenschutz (DSGVO)</h2><p class="note">${escapeHtml(getTemplate(docObj.templateId)?.dsGvoNote || '')}</p>`;
+
+  return `<!doctype html><html lang="de"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>${escapeHtml(docObj.title||"Aufenthalt")}</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Arial,sans-serif;margin:28px;color:#111}
+.head{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:18px}
+.logo{height:44px}
+h1{margin:0;font-size:20px}
+.meta{color:#555;font-size:12px;margin-top:2px}
+h2{margin:18px 0 8px;font-size:14px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+td{padding:8px 10px;border:1px solid #ddd;vertical-align:top}
+td.k{width:38%;background:#fafafa;font-weight:700}
+.sigbox{border:1px solid #ddd;border-radius:12px;min-height:120px;display:flex;align-items:center;justify-content:center;background:#fff;padding:8px}
+.sig{max-height:105px;max-width:95%}
+.note{font-size:11px;color:#444;line-height:1.35}
+.muted{color:#666;font-size:11px}
+@media print{body{margin:16mm}}
+</style></head><body>${out}</body></html>`;
 }
 
 function buildPrintHtml(docObj,t,dog){
@@ -6594,6 +6650,18 @@ function renderStayEditorEmbedded(doc){
         <textarea id="stayNotes" rows="4" placeholder="Zusatzinfos …"></textarea>
       </label>
     </div>
+
+    <div class="card" style="margin-top:14px;">
+      <h3 style="margin:0 0 8px;">Unterschrift</h3>
+      <div id="staySigBox" class="muted" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <span id="staySigStatus">— noch keine Unterschrift —</span>
+        <button id="btnSignatureOpen" class="primary" type="button">✍️ Unterschrift erfassen</button>
+        <button id="btnSignatureClear" class="btn" type="button" style="display:none;">Unterschrift löschen</button>
+      </div>
+      <div id="staySigPreview" style="margin-top:10px;display:none;">
+        <img id="staySigImg" alt="Unterschrift" style="max-height:110px;max-width:100%;border:1px solid rgba(255,255,255,.12);border-radius:12px;background:#fff;padding:6px;" />
+      </div>
+    </div>
   `;
   root.appendChild(card);
 
@@ -6639,6 +6707,38 @@ function renderStayEditorEmbedded(doc){
     notes.value = doc.fields.notes || "";
     notes.oninput = e=>{ doc.fields.notes = e.target.value; dirty = true; };
   }
+
+  // Unterschrift-UI (Aufenthalt)
+  try{
+    const statusEl = document.getElementById('staySigStatus');
+    const imgWrap  = document.getElementById('staySigPreview');
+    const imgEl    = document.getElementById('staySigImg');
+    const btnClear = document.getElementById('btnSignatureClear');
+    const btnOpen  = document.getElementById('btnSignatureOpen');
+    const sig = doc.signature && doc.signature.dataUrl ? doc.signature : null;
+
+    if(statusEl){
+      statusEl.textContent = sig
+        ? `✔ Unterschrieben am ${new Date(sig.signedAt || Date.now()).toLocaleString('de-DE')}`
+        : '— noch keine Unterschrift —';
+      statusEl.className = sig ? 'muted ok' : 'muted';
+    }
+    if(imgWrap && imgEl){
+      if(sig){ imgEl.src = sig.dataUrl; imgWrap.style.display = 'block'; }
+      else { imgEl.removeAttribute('src'); imgWrap.style.display = 'none'; }
+    }
+    if(btnClear) btnClear.style.display = sig ? '' : 'none';
+    if(btnOpen) btnOpen.style.display = sig ? 'none' : '';
+    if(btnClear){
+      btnClear.onclick = ()=>{
+        if(!confirm('Unterschrift wirklich löschen?')) return;
+        doc.signature = null;
+        dirty = true;
+        saveState();
+        renderStayEditorEmbedded(doc);
+      };
+    }
+  }catch(_){ /* ignore */ }
 }
 
 function renderEditor(doc){
