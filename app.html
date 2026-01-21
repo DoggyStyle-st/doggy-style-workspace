@@ -50,7 +50,6 @@
         <button class="tab" data-tab="dogs"><span class="tab-ico" aria-hidden="true">🐶</span>Hunde/Kunden</button>
         <button class="tab" data-tab="contract"><span class="tab-ico" aria-hidden="true">📄</span>Betreuungsvertrag</button>
         <button class="tab" data-tab="workforms"><span class="tab-ico" aria-hidden="true">📝</span>Arbeitsblätter</button>
-        <button class="tab" data-tab="invoices"><span class="tab-ico" aria-hidden="true">🧾</span>Rechnungen</button>
         <button class="tab" data-tab="hygiene" id="tabHygiene"><span class="tab-ico" aria-hidden="true">🧼</span>Hygiene</button>
         <button class="tab" data-tab="medication" id="tabMedication"><span class="tab-ico" aria-hidden="true">💊</span>Medikamente</button>
         <button class="tab" data-tab="analytics" id="tabAnalytics"><span class="tab-ico" aria-hidden="true">📊</span>Auswertungen</button>
@@ -114,10 +113,10 @@
 <div class="card">
 <h2>Schnellaktionen</h2>
 <div class="quick-actions">
-<button class="btn primary" id="btnNewStayTop" type="button" onclick="createStay()">➕ Neuer Aufenthalt</button>
-<button class="btn" id="btnQuickDogs" type="button" onclick="selectTab('dogs')">🐶 Hunde/Kunden</button>
+<button class="btn primary" id="btnNewStayTop" type="button">➕ Neuer Aufenthalt</button>
+<button class="btn" id="btnQuickDogs" type="button">🐶 Hunde/Kunden</button>
 
-<button class="btn" id="btnQuickInvoices" type="button" onclick="selectTab('invoices')">🧾 Rechnungen</button>
+<button class="btn" id="btnQuickInvoices" type="button">🧾 Rechnungen</button>
 <button class="btn" onclick="selectTab('settings')">⚙️ Einstellungen</button>
 
 </div>
@@ -441,7 +440,7 @@
            Der Button hatte versehentlich die gleiche ID wie der echte Aufenthalte-Button,
            wodurch in Safari/iPad der Click-Handler am falschen Element hing.
            Deshalb hier eigene ID. -->
-      <button class="btn primary" id="btnNewStayOnPage" type="button" onclick="createStay()">➕ Neuer Aufenthalt</button>
+      <button class="btn primary" id="btnNewStayOnPage" type="button">➕ Neuer Aufenthalt</button>
 </div>
 <button class="btn" id="btnExportAll">Export: Backup (JSON)</button>
 </div>
@@ -992,7 +991,6 @@
 <div class="card" id="versionBox" style="margin-top:12px"></div>
 <div class="muted" id="editorMeta"></div>
 <div class="warn-banner" id="contractWarnBanner" style="display:none; margin-top:10px;"></div>
-<div class="warn-banner" id="signatureWarnBanner" style="display:none; margin-top:10px;"></div>
 </div>
 <div class="row">
 <button class="btn" id="btnSave">Speichern</button>
@@ -1024,14 +1022,15 @@
 <div id="editorContent">
 <div id="formRoot"></div>
 </div>
-<div class="card">
+<div class="card" id="dsgvoCard">
 <h2>Datenschutz (DSGVO)</h2>
 <p class="muted" id="dsGvoText"></p>
 </div>
-<div class="card">
+<div class="card" id="agbCard">
 <h2>AGB</h2>
 <p class="muted" id="agbText"></p>
 </div>
+
 </section>
 </main>
 <footer class="footer">
@@ -1168,6 +1167,6 @@
   <button class="btn btn--mini btn--logout" id="btnLogoutBottom" type="button" title="Ausloggen / Logout">Ausloggen / Logout</button>
 </div>
 <div class="test-badge" id="testBadge">PRODUKTIV</div>
-<div class="build-badge" id="buildBadge">Build v11B_STAGE_B_RESET_20260121Q2</div>
+<div class="build-badge" id="buildBadge">Build v11B_STAGE_B_RESET_20260120D</div>
 </body>
 </html>

@@ -888,6 +888,20 @@ async function initCustomerPortal(){
       wrap.className='field'; wrap.style.minWidth='260px';
       wrap.dataset.key = f.key;
       wrap.innerHTML=`<span>${escapeHtml(f.label)}${f.required?" *":""}</span>`;
+  // Optional: "Ansehen"-Button (z.B. DSGVO/AGB) springt zu einem Ziel-Card
+  if(f && f.viewTarget){
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn tiny";
+    btn.textContent = "Ansehen";
+    btn.style.marginLeft = "10px";
+    btn.addEventListener("click",(e)=>{
+      e.preventDefault(); e.stopPropagation();
+      const el = document.getElementById(f.viewTarget);
+      if(el) el.scrollIntoView({behavior:"smooth", block:"start"});
+    });
+    wrap.appendChild(btn);
+  }
       let input;
       if(f.type==='textarea'){ input=document.createElement('textarea'); input.value=value||''; }
       else if(f.type==='select'){
@@ -3322,17 +3336,35 @@ let templates=[];
 const EMBEDDED_HUNDEANNAHME_TEMPLATE = {
   id: "hundeannahme",
   name: "Hundeannahme",
-  // Die App nutzt für Aufenthalte primär doc.meta (von/bis/betreuung) + doc.dogId/petId/customerId.
-  // fields[] ist hier nur ein leichter Hinweis für die UI (wir rendern dafür einen eigenen Editor).
-  fields: [
-    { key: "dogId", label: "Hund", type: "dog" },
-    { key: "customerId", label: "Kunde", type: "customer" },
-    { key: "von", label: "Von", type: "date" },
-    { key: "bis", label: "Bis", type: "date" },
-    { key: "betreuung", label: "Art der Betreuung", type: "select", required: true, options: ["Tagesbetreuung","Urlaubsbetreuung"] },
-    { key: "notes", label: "Notizen", type: "textarea" }
+  version: "embedded",
+  // Meta (Aufenthaltsdaten)
+  meta: [
+    { key: "von", label: "Von", type: "date", required: true },
+    { key: "bis", label: "Bis", type: "date", required: true },
+    { key: "betreuung", label: "Betreuung", type: "select", options:["Tagesbetreuung","Urlaubsbetreuung"], required: true }
   ],
-  meta: { embedded: true }
+  // Formulareingaben (optional)
+  sections: [
+    {
+      id: "notizen",
+      title: "Notizen",
+      fields: [
+        { key: "notes", label: "Notizen", type: "textarea", required: false }
+      ]
+    },
+    {
+      id: "einverstaendnisse",
+      title: "Einverständnisse",
+      fields: [
+        { key: "ev_dsgvo", label: "DSGVO zur Kenntnis genommen", type: "checkbox", required: true, viewTarget: "dsgvoCard" },
+        { key: "ev_agb", label: "AGB gelesen & akzeptiert", type: "checkbox", required: true, viewTarget: "agbCard" }
+      ]
+    }
+  ],
+  // Kurzhinweise in der Editor-Ansicht (voller Text in der App/Anzeige)
+  dsGvoNote: "Datenschutz: Die vollständige Datenschutzerklärung kann in der App angezeigt, gedruckt oder geteilt werden.",
+  agbNote: "AGB: Die vollständigen AGB können in der App angezeigt, gedruckt oder geteilt werden.",
+  embedded: true
 };
 
 function ensureEmbeddedTemplates(){
@@ -4603,41 +4635,6 @@ function countForDay(type, day){
     return day >= d.meta.von && day <= d.meta.bis;
   }).length;
 }
-
-function countForDayExcluding(type, day, excludeDocId){
-  return (state.docs||[]).filter(d=>{
-    if(!d || !d.saved) return false;
-    if(excludeDocId && d.id === excludeDocId) return false;
-    if(d.meta?.betreuung !== type) return false;
-    if(!d.meta?.von || !d.meta?.bis) return false;
-    return day >= d.meta.von && day <= d.meta.bis;
-  }).length;
-}
-
-function checkCapacityForRange(type, fromISO, toISO, excludeDocId){
-  const from = String(fromISO||"").slice(0,10);
-  const to   = String(toISO||"").slice(0,10);
-  if(!from || !to) return { ok:true };
-  const a = new Date(from);
-  const b = new Date(to);
-  if(isNaN(a) || isNaN(b)) return { ok:true };
-  let worst = null;
-  const cur = new Date(a);
-  while(cur <= b){
-    const d = toISODateLocal(cur);
-    const cap = getCapacity(type, d);
-    const used = countForDayExcluding(type, d, excludeDocId);
-    const would = used + 1; // wir speichern den aktuellen Aufenthalt gerade
-    if(would > cap){
-      worst = { date: d, cap, used, would };
-      break;
-    }
-    cur.setDate(cur.getDate()+1);
-  }
-  if(worst) return { ok:false, exceeded:true, ...worst };
-  return { ok:true };
-}
-
 function countToday(type){
   const today = toISODateLocal(new Date());
   return countForDay(type, today);
@@ -5508,15 +5505,16 @@ normalizeMeta(currentDoc);
   renderCustomerInfoForDogId($("#dogSelect").value);
   renderEditor(currentDoc);
   updateContractWarnBanner(currentDoc);
-  try{ showSignatureWarn(false); }catch(_){ }
   autofillHundeannahmeFieldsFromMaster($("#dogSelect").value, { overwrite:false });
 renderVersions(currentDoc);
 
   // Quicklinks im Aufenthalt (Medikation/Gesundheit)
   try{ renderStayQuickLinks(currentDoc); }catch(e){ console.warn('renderStayQuickLinks failed', e); }
   
-  $("#dsGvoText").textContent=getTemplate(currentDoc.templateId)?.dsGvoNote||"";
-  try{ $("#agbText").textContent=getTemplate(currentDoc.templateId)?.agbNote||""; }catch(_){ }
+  const tplX = getTemplate(currentDoc.templateId)||{};
+  $("#dsGvoText").textContent=tplX.dsGvoNote||"";
+  const agbEl = document.getElementById("agbText");
+  if(agbEl) agbEl.textContent = tplX.agbNote||"";
   dirty=false;
   showPanel("editor");
   window.scrollTo({top:0,behavior:"smooth"});
@@ -5580,6 +5578,20 @@ function renderField(f,value,docObj){
   const wrap=document.createElement("label");
   wrap.className="field"; wrap.style.minWidth="260px";
   wrap.innerHTML=`<span>${escapeHtml(f.label)}${f.required?" *":""}</span>`;
+  // Optional: "Ansehen"-Button (z.B. DSGVO/AGB) springt zu einem Ziel-Card
+  if(f && f.viewTarget){
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn tiny";
+    btn.textContent = "Ansehen";
+    btn.style.marginLeft = "10px";
+    btn.addEventListener("click",(e)=>{
+      e.preventDefault(); e.stopPropagation();
+      const el = document.getElementById(f.viewTarget);
+      if(el) el.scrollIntoView({behavior:"smooth", block:"start"});
+    });
+    wrap.appendChild(btn);
+  }
   let input;
   if(f.type==="textarea"){ input=document.createElement("textarea"); input.value=value||""; }
   else if(f.type==="select"){ input=document.createElement("select"); input.innerHTML=(f.options||[]).map(o=>`<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join(""); input.value=value||(f.options?.[0]||""); }
@@ -5613,28 +5625,6 @@ if (currentDoc.saved) {
   }
   
 wrap.appendChild(input);
-
-  // Pflicht-Info direkt am Punkt: AGB/DSGVO anzeigen
-  if(f && (f.key==="ev_agb" || f.key==="ev_dsgvo")){
-    const actions=document.createElement("div");
-    actions.style.marginTop="6px";
-    actions.style.display="flex";
-    actions.style.gap="8px";
-    actions.style.flexWrap="wrap";
-    const btn=document.createElement("button");
-    btn.type="button";
-    btn.className="btn mini";
-    btn.textContent="Ansehen";
-    btn.onclick=()=>{
-      try{
-        const id = (f.key==="ev_agb") ? "agbText" : "dsGvoText";
-        const el=document.getElementById(id);
-        if(el) el.scrollIntoView({behavior:"smooth", block:"start"});
-      }catch(_){ }
-    };
-    actions.appendChild(btn);
-    wrap.appendChild(actions);
-  }
   return wrap;
 }
 
@@ -5648,7 +5638,6 @@ $("#dogSelect").addEventListener("change", () => {
   updateDocCustomerPetFromDogId(currentDoc);
   renderCustomerInfoForDogId(currentDoc.dogId);
   updateContractWarnBanner(currentDoc);
-  try{ showSignatureWarn(false); }catch(_){ }
   autofillHundeannahmeFieldsFromMaster(currentDoc.dogId, { overwrite:false });
   try{ renderStayQuickLinks(currentDoc); }catch(e){}
   dirty = true;
@@ -5683,12 +5672,8 @@ function validate(docObj,t){
     if(f.type==="checkbox"){ if(!v) errs.push(f.label); }
     else { if(!v || String(v).trim()==="") errs.push(f.label); }
   }));
-  t.meta.forEach(f=>{
-    if(!f.required) return;
-    const v=docObj.meta[f.key];
-    if(!v || String(v).trim()==="") errs.push(f.label);
-  });
-  // Unterschrift ist nicht zwingend zum Speichern – wird separat als Hinweis behandelt.
+  t.meta.forEach(f=>{ if(f.required){const v=docObj.meta[f.key]; if(!v||String(v).trim()==="") errs.push(f.label);} });
+  // Unterschrift ist NICHT zwingend zum Speichern (Stufe A). Hinweis wird beim Speichern angezeigt.
   return errs;
 }
 function updateCreateInvoiceButton(){
@@ -5752,26 +5737,78 @@ const type = currentDoc.meta.betreuung;
 const from = currentDoc.meta.von;
 const to   = currentDoc.meta.bis;
 
-const capCheck = checkCapacityForRange(type, from, to, currentDoc.id);
-if(capCheck && capCheck.exceeded){
-  const msg =
-    `⚠️ Kapazität überschritten\n\n` +
-    `Betreuung: ${type}\n` +
-    `Datum: ${capCheck.date}\n` +
-    `Belegt: ${capCheck.used} (würde ${capCheck.would}) von ${capCheck.cap}`;
-  // Stufe B: Overnight-Limit (Urlaubsbetreuung) ist hart
-  if(String(type||"").toLowerCase().includes("urlaub")){
-    alert(msg + `\n\nSpeichern nicht möglich: Overnight-Limit (max. ${capCheck.cap}) würde überschritten.`); 
+// -------------------------------
+// Stufe B: Kapazitäts-Validierung
+// -------------------------------
+// Tagesbetreuung: Warnung bei voller Belegung
+// Urlaubsbetreuung (Overnight): Speichern blocken, wenn an einem Tag > Limit wäre
+
+const countForDayEx = (typ, day, excludeId)=>{
+  return (state.docs||[]).filter(d=>{
+    if(!d || !d.saved) return false;
+    if(excludeId && d.id === excludeId) return false;
+    if(d.meta?.betreuung !== typ) return false;
+    if(!d.meta?.von || !d.meta?.bis) return false;
+    return day >= d.meta.von && day <= d.meta.bis;
+  }).length;
+};
+
+const iterateDays = (a,b)=>{
+  const out=[];
+  if(!a || !b) return out;
+  const d0 = new Date(a+'T00:00:00');
+  const d1 = new Date(b+'T00:00:00');
+  if(isNaN(d0) || isNaN(d1)) return out;
+  for(let d=new Date(d0); d<=d1; d.setDate(d.getDate()+1)){
+    out.push(toISODateLocal(d));
+  }
+  return out;
+};
+
+if(type==="Urlaubsbetreuung" && from && to){
+  const days = iterateDays(from, to);
+  const overDays = [];
+  for(const day of days){
+    const cap = getCapacity("Urlaubsbetreuung", day);
+    const used = countForDayEx("Urlaubsbetreuung", day, currentDoc.id) + 1; // inkl. diesem Aufenthalt
+    if(used > cap){
+      overDays.push(`${formatDateDE(day)} (${used}/${cap})`);
+    }
+  }
+  if(overDays.length){
+    alert(
+      "⚠️ Overnight-Limit überschritten (max. 10 Übernachtungshunde)
+
+" +
+      "An folgenden Tagen wäre die Urlaubsbetreuung über dem Limit:
+" +
+      overDays.map(x=>"• "+x).join("
+") +
+      "
+
+Bitte Zeitraum anpassen oder Aufenthalt verschieben."
+    );
     return false;
-  } else {
-    alert(msg);
+  }
+}else if(type && from && to){
+  // Tagesbetreuung/sonstiges: Warnung, aber nicht blocken
+  const used = countOccupancy(type, from, to, currentDoc.id);
+  const limit = getMinCapacityForRange(type, from, to);
+  if (used >= limit) {
+    alert(
+      `⚠️ Achtung:
+
+` +
+      `${used} von ${limit} Plätzen für "${type}" ` +
+      `im Zeitraum ${from} – ${to} sind bereits belegt.`
+    );
   }
 }
-if(!currentDoc.signature || !currentDoc.signature.dataUrl){
-  // Hinweis: Speichern ist erlaubt, aber Unterschrift muss nachgeholt werden
-  try{ showSignatureWarn(true); }catch(_){ }
-  alert("Hinweis: Unterschrift fehlt für diesen Aufenthalt. Du kannst trotzdem speichern und später nachträglich unterschreiben.");
-}
+
+// -------------------------------
+// Unterschrift: nicht blockierend
+// -------------------------------
+const missingSig = !(currentDoc.signature && currentDoc.signature.dataUrl);
   currentDoc.saved = true;                             // 🔐 Dokument abschließen
 currentDoc.updatedAt = new Date().toISOString();
 
@@ -5791,6 +5828,9 @@ saveState();renderDashboard(); renderTodayStatus();                             
 dirty = false;
 
 $("#editorTitle").textContent = currentDoc.title;
+if(missingSig){
+  try{ showToast("Hinweis: Unterschrift fehlt für diesen Aufenthalt (kann später nachgeholt werden)."); }catch(e){ alert("Hinweis: Unterschrift fehlt für diesen Aufenthalt (kann später nachgeholt werden)."); }
+}
 if(alertOk) alert("Gespeichert");
 renderDocs();
 
@@ -6124,94 +6164,7 @@ async function bootOnce(){
   await boot();
 }
 
-function wireCoreUI(){
-  try{
-    if(window.__CORE_UI_WIRED__) return;
-    window.__CORE_UI_WIRED__ = true;
-
-    const btnLogin = document.getElementById("btnLogin");
-    const btnRegister = document.getElementById("btnRegister");
-    const btnLogout = document.getElementById("btnLogout");
-    const btnLogoutApp = document.getElementById("btnLogoutApp");
-    const btnLogoutBottom = document.getElementById("btnLogoutBottom");
-
-    const btnNewStayTop = document.getElementById("btnNewStayTop");
-    const btnNewStayOnPage = document.getElementById("btnNewStayOnPage");
-
-    const btnQuickDogs = document.getElementById("btnQuickDogs");
-    const btnQuickInvoices = document.getElementById("btnQuickInvoices");
-
-    const loginEmail = document.getElementById("loginEmail");
-    const loginPass = document.getElementById("loginPass");
-
-    // Login/Register only if Cloud Auth is available
-    if(btnLogin) btnLogin.onclick = async ()=>{
-      setAuthMsg("");
-      try{
-        if(!CLOUD || !CLOUD.auth) throw new Error("Cloud/Auth nicht verfügbar");
-        await CLOUD.auth.signInWithEmailAndPassword((loginEmail?.value||"").trim(), loginPass?.value||"");
-      }catch(e){
-        console.error(e);
-        setAuthMsg(e.message||"Login fehlgeschlagen");
-        try{ alert('Login fehlgeschlagen: '+(e.code||e.message||e)); }catch(_){ }
-      }
-    };
-    if(btnRegister) btnRegister.onclick = async ()=>{
-      setAuthMsg("");
-      try{
-        if(!CLOUD || !CLOUD.auth) throw new Error("Cloud/Auth nicht verfügbar");
-        await CLOUD.auth.createUserWithEmailAndPassword((loginEmail?.value||"").trim(), loginPass?.value||"");
-        setAuthMsg("Account erstellt. Bitte anmelden.");
-      }catch(e){
-        console.error(e);
-        setAuthMsg(e.message||"Registrierung fehlgeschlagen");
-        try{ alert('Registrierung fehlgeschlagen: '+(e.code||e.message||e)); }catch(_){ }
-      }
-    };
-
-    if(btnLogout) btnLogout.onclick = async ()=>{ try{ await CLOUD?.auth?.signOut(); }catch(e){} };
-    if(btnLogoutApp) btnLogoutApp.onclick = async ()=>{ try{ await CLOUD?.auth?.signOut(); }catch(e){} };
-    if(btnLogoutBottom) btnLogoutBottom.onclick = ()=>performLogout();
-
-    if(btnNewStayTop) btnNewStayTop.onclick = ()=>createStay();
-    if(btnNewStayOnPage) btnNewStayOnPage.onclick = ()=>createStay();
-
-    if(btnQuickDogs) btnQuickDogs.onclick = ()=>selectTab("dogs");
-    if(btnQuickInvoices) btnQuickInvoices.onclick = ()=>selectTab("invoices");
-
-    // Delegation: Buttons werden in einigen Render-Pfaden neu in den DOM geschrieben.
-    // Daher zusätzlich Delegation (capture=true), damit der Klick immer greift (iOS/Safari inkl.).
-    if(!window.__DELEGATED_CORE_UI__){
-      window.__DELEGATED_CORE_UI__ = true;
-
-      const handle = (ev)=>{
-        const t = ev.target;
-        const btn = t && t.closest ? t.closest('#btnNewStayTop, #btnNewStayOnPage, #btnQuickDogs, #btnQuickInvoices') : null;
-        if(!btn) return;
-
-        try{ ev.preventDefault(); }catch(_){ }
-        try{ ev.stopPropagation(); }catch(_){ }
-
-        const id = btn.id;
-        if(id === "btnNewStayTop" || id === "btnNewStayOnPage") return createStay();
-        if(id === "btnQuickDogs") return selectTab("dogs");
-        if(id === "btnQuickInvoices") return selectTab("invoices");
-      };
-
-      document.addEventListener("click", handle, true);
-      document.addEventListener("pointerup", handle, true);
-      document.addEventListener("touchend", handle, {capture:true, passive:false});
-    }
-  }catch(e){
-    console.error("wireCoreUI failed", e);
-  }
-}
-
-
-
 async function startApp(){
-  // Core UI wiring muss immer aktiv sein (auch wenn Cloud/Offline Pfad aktiv ist)
-  wireCoreUI();
   // 1) Wenn Cloud aktiviert: Login + Sync
   const cloudOk = await cloudInit();
   if(!cloudOk){
@@ -6226,7 +6179,89 @@ async function startApp(){
     showAuthGate(true);
   }
 
-  // (UI wiring erfolgt zentral in wireCoreUI())
+
+  // Login UI wiring
+  const btnLogin = document.getElementById("btnLogin");
+  const btnRegister = document.getElementById("btnRegister");
+  const btnLogout = document.getElementById("btnLogout");
+  const btnLogoutApp = document.getElementById("btnLogoutApp");
+  const btnLogoutBottom = document.getElementById("btnLogoutBottom");
+  const btnNewStayTop = document.getElementById("btnNewStayTop");
+  const btnNewStayOnPage = document.getElementById("btnNewStayOnPage");
+  const btnQuickDogs = document.getElementById("btnQuickDogs");
+  const btnQuickInvoices = document.getElementById("btnQuickInvoices");
+  const btnQuickSettings = document.getElementById("btnQuickSettings");
+  const loginEmail = document.getElementById("loginEmail");
+  const loginPass = document.getElementById("loginPass");
+
+  if(btnLogin) btnLogin.onclick = async ()=>{
+    setAuthMsg("");
+    try{
+      await CLOUD.auth.signInWithEmailAndPassword((loginEmail?.value||"").trim(), loginPass?.value||"");
+    }catch(e){
+      console.error(e);
+      setAuthMsg(e.message||"Login fehlgeschlagen");
+      try{ alert('Login fehlgeschlagen: '+(e.code||e.message||e)); }catch(_){ }
+    }
+  };
+  if(btnRegister) btnRegister.onclick = async ()=>{
+    setAuthMsg("");
+    try{
+      await CLOUD.auth.createUserWithEmailAndPassword((loginEmail?.value||"").trim(), loginPass?.value||"");
+      setAuthMsg("Account erstellt. Bitte anmelden.");
+    }catch(e){
+      console.error(e);
+      setAuthMsg(e.message||"Registrierung fehlgeschlagen");
+      try{ alert('Registrierung fehlgeschlagen: '+(e.code||e.message||e)); }catch(_){ }
+    }
+  };
+  if(btnLogout) btnLogout.onclick = async ()=>{
+    await CLOUD.auth.signOut();
+  };
+  if(btnLogoutApp) btnLogoutApp.onclick = async ()=>{
+    try{ await CLOUD.auth.signOut(); }catch(e){}
+  };
+  if(btnLogoutBottom) btnLogoutBottom.onclick = ()=>performLogout();
+  // Wichtig: Buttons werden in einigen Render-Pfaden neu in den DOM geschrieben.
+  // Daher zusätzlich Delegation (capture=true), damit der Klick immer greift.
+  if(btnNewStayTop) btnNewStayTop.onclick = ()=>createStay();
+  if(btnNewStayOnPage) btnNewStayOnPage.onclick = ()=>createStay();
+  try{
+    if(!window.__DELEGATED_NEW_STAY__){
+      window.__DELEGATED_NEW_STAY__ = true;
+      document.addEventListener('click', (ev)=>{
+        const t = ev.target;
+        const btn = t && t.closest ? t.closest('#btnNewStayTop, #btnNewStayOnPage') : null;
+        if(!btn) return;
+        ev.preventDefault();
+        ev.stopPropagation();
+        createStay();
+      }, true);
+      // iOS Safari fallback: some setups do not fire click reliably.
+      // Therefore also listen to pointerup/touchend in capture phase for the same buttons.
+      document.addEventListener("pointerup", (ev)=>{
+        const t = ev.target;
+        const btn = t && t.closest ? t.closest("#btnNewStayTop, #btnNewStayOnPage") : null;
+        if(!btn) return;
+        try{ ev.preventDefault(); }catch(_){}
+        try{ ev.stopPropagation(); }catch(_){}
+        createStay();
+      }, true);
+      document.addEventListener("touchend", (ev)=>{
+        const t = ev.target;
+        const btn = t && t.closest ? t.closest("#btnNewStayTop, #btnNewStayOnPage") : null;
+        if(!btn) return;
+        try{ ev.preventDefault(); }catch(_){}
+        try{ ev.stopPropagation(); }catch(_){}
+        createStay();
+      }, {capture:true, passive:false});
+
+    }
+  }catch(_){ }
+  if(btnQuickDogs) btnQuickDogs.onclick = ()=>selectTab("dogs");
+  if(btnQuickInvoices) btnQuickInvoices.onclick = ()=>selectTab("workforms");
+  if(btnQuickSettings) btnQuickSettings.onclick = ()=>selectTab("settings");
+
 
   // Auth state
   CLOUD.auth.onAuthStateChanged(async (user)=>{
@@ -6869,49 +6904,6 @@ function updateContractWarnBanner(doc){
     pdf.onclick = ()=>{ openContractPdfWindow(customerId, petId); };
   }
 }
-
-function showSignatureWarn(force){
-  const box = document.getElementById("signatureWarnBanner");
-  if(!box) return;
-  if(!currentDoc) { box.style.display="none"; box.innerHTML=""; return; }
-  const isStay = (currentDoc.templateId === "hundeannahme" || currentDoc.templateName === "Hundeannahme" || currentDoc.type === "stay");
-  if(!isStay) { box.style.display="none"; box.innerHTML=""; return; }
-
-  const hasSig = !!(currentDoc.signature && currentDoc.signature.dataUrl);
-  if(hasSig){
-    box.style.display="none";
-    box.innerHTML="";
-    return;
-  }
-  if(!force){
-    // nur anzeigen, wenn bereits gespeichert/abgeschlossen oder explizit angefordert
-    if(!currentDoc.saved) { box.style.display="none"; box.innerHTML=""; return; }
-  }
-
-  box.style.display="block";
-  box.innerHTML = `
-    <strong>Unterschrift fehlt</strong><br/>
-    Dieser Aufenthalt ist gespeichert, aber noch nicht unterschrieben.
-    <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
-      <button class="btn mini" type="button" id="btnSigNow">Jetzt unterschreiben</button>
-    </div>
-  `;
-  const b = document.getElementById("btnSigNow");
-  if(b){
-    b.onclick = ()=>{
-      try{
-        openSignatureOverlay((dataUrl)=>{
-          if(!currentDoc) return;
-          currentDoc.signature = { dataUrl, at: new Date().toISOString() };
-          saveState();
-          try{ showSignatureWarn(false); }catch(_){ }
-          try{ renderVersions(currentDoc); }catch(_){ }
-        });
-      }catch(e){ console.warn("openSignatureOverlay failed", e); }
-    };
-  }
-}
-
 
 
 async function _assetToDataUrl(path){
