@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = "v11B_MASTER_STEP1_WARNINGS_20260121A";
+const APP_BUILD = "v11B_MASTER_STEP1_WARNINGS_20260121B";
 // Selector helpers
 // $: accepts either an element id (e.g. 'contractSig') or a CSS selector (e.g. '#contractSig', '.btn')
 const $ = (sel) => {
@@ -6591,16 +6591,19 @@ function renderStayEditorEmbedded(doc){
   if(von){
     von.value = doc.meta.von || "";
     von.oninput = e=>{ doc.meta.von = e.target.value; dirty = true; };
+    von.onchange = von.oninput;
   }
   const bis = document.getElementById('stayBis');
   if(bis){
     bis.value = doc.meta.bis || "";
     bis.oninput = e=>{ doc.meta.bis = e.target.value; dirty = true; };
+    bis.onchange = bis.oninput;
   }
   const bet = document.getElementById('stayBetreuung');
   if(bet){
     bet.value = doc.meta.betreuung || "";
     bet.oninput = e=>{ doc.meta.betreuung = e.target.value; dirty = true; };
+    bet.onchange = bet.oninput;
   }
   const notes = document.getElementById('stayNotes');
   if(notes){
