@@ -1053,12 +1053,11 @@
 <script>
   (function(){
     var qs = window.location.search || '';
-    // Fallback: wenn app.html ohne Query geöffnet wird, trotzdem eindeutige Version erzwingen
-    if(!qs) qs = '?v=v11B_STAGE_B_RESET_20260120D';
+    if(!qs) qs = '?v=STABLE_Q2_FIXLOAD_20260121';
     var s = document.createElement('script');
-    s.defer = true;
     s.src = 'app.js' + qs;
-    document.head.appendChild(s);
+    s.async = false; // wichtig: Safari/iOS zuverlässig
+    document.body.appendChild(s);
   })();
 </script>
 <script>
