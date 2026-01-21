@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = "v11B_MASTER_STEP1_WARNINGS_20260121B";
+const APP_BUILD = "v11B_MASTER_STEP1_WARNINGS_20260121C";
 // Selector helpers
 // $: accepts either an element id (e.g. 'contractSig') or a CSS selector (e.g. '#contractSig', '.btn')
 const $ = (sel) => {
@@ -5708,8 +5708,24 @@ function syncCurrentDocFromForm(){
 }
 }
 
+function syncStayEditorInputsToDoc(){
+  try{
+    if(!window.currentDoc) return;
+    // Robustheit iOS/Safari: Werte direkt aus dem DOM ziehen (oninput/onchange feuert bei date/select nicht immer vor Save)
+    const vonEl = document.getElementById('stayVon');
+    const bisEl = document.getElementById('stayBis');
+    const betEl = document.getElementById('stayBetreuung');
+    if(!vonEl && !bisEl && !betEl) return;
+    currentDoc.meta = currentDoc.meta || {};
+    if(vonEl) currentDoc.meta.von = (vonEl.value || "").trim();
+    if(bisEl) currentDoc.meta.bis = (bisEl.value || "").trim();
+    if(betEl) currentDoc.meta.betreuung = (betEl.value || "").trim();
+  }catch(e){}
+}
+
 function saveCurrent(alertOk){
 updateCreateInvoiceButton();
+  syncStayEditorInputsToDoc();
   if(!currentDoc) return false;
   const t=getTemplate(currentDoc.templateId);
   const {fields, meta}=collectForm();
