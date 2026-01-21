@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = "v11B_STAGE_B_RESET_20260120D1_STAYBTN";
+const APP_BUILD = "v11B_MASTER_STEP1_WARNINGS_20260121A";
 // Selector helpers
 // $: accepts either an element id (e.g. 'contractSig') or a CSS selector (e.g. '#contractSig', '.btn')
 const $ = (sel) => {
@@ -5617,16 +5617,64 @@ function validate(docObj,t){
   // Etappe 3: Hund muss gewählt sein (nicht Placeholder)
   const d = (state.dogs||[]).find(x=>x.id===docObj.dogId);
   if(!docObj.dogId || (d && d.isPlaceholder)) errs.push("Hund");
-  t.sections.forEach(sec=>sec.fields.forEach(f=>{
-    if(!f.required) return;
-    const v=docObj.fields[f.key];
-    if(f.type==="checkbox"){ if(!v) errs.push(f.label); }
-    else { if(!v || String(v).trim()==="") errs.push(f.label); }
-  }));
-  t.meta.forEach(f=>{ if(f.required){const v=docObj.meta[f.key]; if(!v||String(v).trim()==="") errs.push(f.label);} });
-  if(!docObj.signature || !docObj.signature.dataUrl)
-  errs.push("Unterschrift");
+
+  // Aufenthalte (Hundeannahme) – Core-Felder auch im Embedded-Modus prüfen
+  try{
+    const isStay = (t && t.id === 'hundeannahme') || docObj.templateId === 'hundeannahme' || docObj.templateName === 'Hundeannahme' || docObj.type === 'stay';
+    if(isStay){
+      const m = docObj.meta || {};
+      if(!m.betreuung || String(m.betreuung).trim()==="") errs.push("Betreuung");
+      if(!m.von || String(m.von).trim()==="") errs.push("Von");
+      if(!m.bis || String(m.bis).trim()==="") errs.push("Bis");
+      if(m.von && m.bis && String(m.bis) < String(m.von)) errs.push("Zeitraum (Bis vor Von)");
+    }
+  }catch(_){ /* ignore */ }
+  if(t && Array.isArray(t.sections)){
+    t.sections.forEach(sec=>{
+      (sec.fields||[]).forEach(f=>{
+        if(!f || !f.required) return;
+        const v=docObj.fields ? docObj.fields[f.key] : undefined;
+        if(f.type==="checkbox"){ if(!v) errs.push(f.label); }
+        else { if(!v || String(v).trim()==="") errs.push(f.label); }
+      });
+    });
+  }
+  if(t && Array.isArray(t.meta)){
+    t.meta.forEach(f=>{
+      if(f && f.required){
+        const v=docObj.meta ? docObj.meta[f.key] : undefined;
+        if(!v||String(v).trim()==="") errs.push(f.label);
+      }
+    });
+  }
+  // Unterschrift ist ab Stufe A nur noch eine WARNUNG (nicht blockierend).
+  // Die fehlende Unterschrift wird beim Speichern als Hinweis ausgegeben.
   return errs;
+}
+
+function getStayWarnings(docObj, t){
+  const warns = [];
+  try{
+    const isStay = (t && t.id === 'hundeannahme') || docObj.templateId === 'hundeannahme' || docObj.templateName === 'Hundeannahme' || docObj.type === 'stay';
+    if(!isStay) return warns;
+
+    const hasSig = !!(docObj.signature && docObj.signature.dataUrl);
+    if(!hasSig){
+      warns.push("Unterschrift fehlt – Aufenthalt wird als Entwurf gespeichert (Unterschrift kann später erfolgen).");
+    }
+
+    const customerId = docObj.customerId || "";
+    const petId = docObj.petId || "";
+    if(customerId && petId){
+      if(!hasValidContract(customerId, petId)){
+        warns.push("Betreuungsvertrag fehlt oder ist veraltet – bitte vor Beginn unterschreiben lassen.");
+      }
+    } else {
+      // Links fehlen (kommt z.B. vor, wenn nur legacy dogId gesetzt ist)
+      warns.push("Kunde/Hund-Verknüpfung ist noch nicht vollständig – bitte Hund/Kunde prüfen.");
+    }
+  }catch(_){ /* ignore */ }
+  return warns;
 }
 function updateCreateInvoiceButton(){
   const btn = document.getElementById("btnCreateInvoice");
@@ -5677,8 +5725,12 @@ if (currentDoc.meta?.betreuung && currentDoc.meta?.von && currentDoc.meta?.bis) 
 }
 
   currentDoc.meta=meta;
-$("#docName").disabled = currentDoc.saved;
-$("#dogSelect").disabled = currentDoc.saved;
+
+  // Inputs werden nur bei wirklich "abgeschlossen" gesperrt.
+  // Abschluss erfolgt ab jetzt primär über vorhandene Unterschrift.
+  const hasSig = !!(currentDoc.signature && currentDoc.signature.dataUrl);
+  $("#docName").disabled = !!currentDoc.saved;
+  $("#dogSelect").disabled = !!currentDoc.saved;
   
   const errs=validate(currentDoc,t);
   if(errs.length){
@@ -5699,15 +5751,22 @@ if (used >= limit) {
     `im Zeitraum ${from} – ${to} sind bereits belegt.`
   );
 }
-if (!currentDoc.signature){
-  alert("Bitte unterschreiben");
-  return false;
-}
-  currentDoc.saved = true;                             // 🔐 Dokument abschließen
+  // ⚠️ Stufe A (Warnungen): fehlende Unterschrift blockiert NICHT mehr.
+  // Abschlussstatus: nur wenn Unterschrift vorhanden.
+  const warns = getStayWarnings(currentDoc, t);
+  if(warns.length){
+    alert("⚠️ Hinweis(e):\n\n• " + warns.join("\n• "));
+  }
+
+  // Dokument nur dann als "abgeschlossen" markieren, wenn unterschrieben.
+  // Wenn bereits abgeschlossen, nicht zurückstufen.
+  if(!currentDoc.saved){
+    currentDoc.saved = hasSig;
+  }
 currentDoc.updatedAt = new Date().toISOString();
 
 // 🧾 Variante A: Rechnung automatisch beim Abschließen erstellen
-if(currentDoc.pricing){
+if(currentDoc.saved && currentDoc.pricing){
   const exists = (state.invoices||[]).some(x=>x.sourceDocId===currentDoc.id);
   if(!exists){
     createInvoiceFromDoc(currentDoc);
