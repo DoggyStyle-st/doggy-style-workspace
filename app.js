@@ -5994,12 +5994,16 @@ function printDoc(){
     if(!saveCurrent(false)) return;
     const t=getTemplate(currentDoc.templateId);
 
-  // Aufenthalte laufen teils im Embedded-Modus (Template kann fehlen) → robustes PDF-Preview.
-  const isStay = (!t && String(currentDoc.templateId||"").startsWith('hundeannahme'))
-    || (t && t.id === 'hundeannahme')
-    || currentDoc.templateId === 'hundeannahme'
-    || currentDoc.templateName === 'Hundeannahme'
-    || currentDoc.type === 'stay';
+  // Aufenthalte laufen teils im Embedded-Modus/Template-Editor → robustes PDF-Preview.
+  // iOS/Safari + Embedded-Editor: Template-Erkennung kann uneindeutig sein.
+  // Daher zusätzlich DOM-Heuristik: Wenn Stay-Felder im Hintergrund existieren, ist es ein Aufenthalt.
+  const hasStayDom = !!(document.getElementById('stayVon') || document.getElementById('stayBis') || document.getElementById('staySigCard') || document.querySelector('[data-stay-editor="1"]'));
+  const isStay = hasStayDom
+    || (!t && String(currentDoc.templateId||"").startsWith('hundeannahme'))
+    || (t && String(t.id||"") === 'hundeannahme')
+    || String(currentDoc.templateId||"") === 'hundeannahme'
+    || String(currentDoc.templateName||"") === 'Hundeannahme'
+    || String(currentDoc.type||"") === 'stay';
 
     const dog=state.dogs.find(d=>d.id===currentDoc.dogId) || null;
 
@@ -6661,6 +6665,8 @@ function renderStayEditorEmbedded(doc){
   const root = document.getElementById("formRoot");
   if(!root) return;
   root.innerHTML = "";
+  // Marker for PDF/UX heuristics (iOS/Safari): identifies active stay editor in DOM.
+  try{ root.setAttribute('data-stay-editor','1'); }catch(_){ }
 
   // Sicherstellen, dass Meta-Felder existieren
   normalizeMeta(doc);
@@ -6701,7 +6707,9 @@ function renderStayEditorEmbedded(doc){
 
   // Unterschrift als eigene Card (nicht verschachtelt)
   const sigCard = document.createElement('div');
+  sigCard.id = 'staySigCard';
   sigCard.className = 'card';
+  sigCard.id = 'staySigCard';
   sigCard.innerHTML = `
     <h2>Unterschrift</h2>
     <div id="staySigBox" class="muted" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">

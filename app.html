@@ -27,6 +27,14 @@
     .tabs__row--quick{gap:10px;}
   }
 </style>
+
+<!-- Hotfix: Doc-Modal muss über Top-Navigation liegen (iPad/Safari: Buttons sonst nicht erreichbar) -->
+<style>
+  .doc-modal{ z-index: 99999 !important; }
+  .doc-modal__panel{ z-index: 100000 !important; }
+  .doc-modal__header{ position: sticky; top: 0; z-index: 100001; background: rgba(20,20,22,.96); backdrop-filter: blur(8px); }
+  .doc-modal__actions{ flex-wrap: wrap; gap: 8px; }
+</style>
 </head>
 <body class="bg-watermark page-app">
 <header class="topbar">
@@ -1163,6 +1171,6 @@
   <button class="btn btn--mini btn--logout" id="btnLogoutBottom" type="button" title="Ausloggen / Logout">Ausloggen / Logout</button>
 </div>
 <div class="test-badge" id="testBadge">PRODUKTIV</div>
-<div class="build-badge" id="buildBadge">Build v11B_MASTER_STEP1H_STAY_PDF_FORCE_STAYPRINT_20260121H</div>
+<div class="build-badge" id="buildBadge">Build v11B_MASTER_STEP1I_STAY_PDF_MODAL_ZFIX_20260121I</div>
 </body>
 </html>
