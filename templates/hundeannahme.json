@@ -110,6 +110,18 @@
       "title": "Einverständnisse",
       "fields": [
         {
+          "key": "ev_agb",
+          "label": "Ich habe die AGB gelesen und akzeptiere sie.",
+          "type": "checkbox",
+          "required": true
+        },
+        {
+          "key": "ev_dsgvo",
+          "label": "Ich habe die Datenschutzinformationen (DSGVO) zur Kenntnis genommen.",
+          "type": "checkbox",
+          "required": true
+        },
+        {
           "key": "ev_wahr",
           "label": "Ich versichere, dass alle Angaben wahrheitsgemäß sind.",
           "type": "checkbox",
@@ -194,8 +206,8 @@
       "type": "select",
       "required": true,
       "options": [
-        "Urlaubsbetreuung",
-        "Tagesbetreuung"
+        "Tagesbetreuung",
+        "Urlaubsbetreuung"
       ]
     },
     {
@@ -217,5 +229,6 @@
       "required": true
     }
   ],
-  "dsGvoNote": "Datenschutz: Die angegebenen personenbezogenen Daten werden ausschließlich zur Betreuung des Hundes und zur Erfüllung gesetzlicher Pflichten verarbeitet. Weitergabe nur an Tierärzte im Notfall. Löschung nach gesetzlichen Aufbewahrungsfristen."
+  "dsGvoNote": "Datenschutz: Die angegebenen personenbezogenen Daten werden ausschließlich zur Betreuung des Hundes und zur Erfüllung gesetzlicher Pflichten verarbeitet. Weitergabe nur an Tierärzte im Notfall. Löschung nach gesetzlichen Aufbewahrungsfristen.",
+  "agbNote": "AGB (Kurzfassung): Die Betreuung erfolgt nach vorheriger Terminbestätigung. Der Halter versichert, dass der Hund haftpflichtversichert, geimpft und frei von ansteckenden Krankheiten ist. Der Betreiber darf den Hund bei Krankheit, Aggression oder erheblichem Fehlverhalten von der Betreuung ausschließen; Mehrkosten (z. B. Tierarzt, Sonderaufwand) trägt der Halter. Im Notfall ist der Betreiber zur tierärztlichen Versorgung berechtigt. Für mitgebrachte Gegenstände wird keine Haftung übernommen. Abholung/Bringzeiten gemäß Vereinbarung. Es gelten die vereinbarten Preise; Zuschläge (Feiertage/Sonderfälle) können anfallen. Die vollständigen AGB liegen im Betrieb aus und können in der App eingesehen/gespeichert werden."
 }
