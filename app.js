@@ -6056,6 +6056,54 @@ async function bootOnce(){
 }
 
 async function startApp(){
+  // Core-UI Wiring (muss auch ohne Cloud/Login funktionieren)
+  try{
+    // Wichtig: Buttons werden in einigen Render-Pfaden neu in den DOM geschrieben.
+    // Daher Delegation (capture=true), damit der Klick immer greift.
+    if(!window.__DELEGATED_NEW_STAY__){
+      window.__DELEGATED_NEW_STAY__ = true;
+
+      document.addEventListener('click', (ev)=>{
+        const t = ev.target;
+        const btn = t && t.closest ? t.closest('#btnNewStayTop, #btnNewStayOnPage') : null;
+        if(!btn) return;
+        try{ ev.preventDefault(); }catch(_){}
+        try{ ev.stopPropagation(); }catch(_){}
+        try{ createStay(); }catch(e){ console.warn('createStay failed', e); }
+      }, true);
+
+      // iOS Safari fallback: some setups do not fire click reliably.
+      document.addEventListener("pointerup", (ev)=>{
+        const t = ev.target;
+        const btn = t && t.closest ? t.closest("#btnNewStayTop, #btnNewStayOnPage") : null;
+        if(!btn) return;
+        try{ ev.preventDefault(); }catch(_){}
+        try{ ev.stopPropagation(); }catch(_){}
+        try{ createStay(); }catch(e){ console.warn('createStay failed', e); }
+      }, true);
+
+      document.addEventListener("touchend", (ev)=>{
+        const t = ev.target;
+        const btn = t && t.closest ? t.closest("#btnNewStayTop, #btnNewStayOnPage") : null;
+        if(!btn) return;
+        try{ ev.preventDefault(); }catch(_){}
+        try{ ev.stopPropagation(); }catch(_){}
+        try{ createStay(); }catch(e){ console.warn('createStay failed', e); }
+      }, {capture:true, passive:false});
+    }
+
+    const btnNewStayTop = document.getElementById("btnNewStayTop");
+    const btnNewStayOnPage = document.getElementById("btnNewStayOnPage");
+    const btnQuickDogs = document.getElementById("btnQuickDogs");
+    const btnQuickInvoices = document.getElementById("btnQuickInvoices");
+
+    if(btnNewStayTop) btnNewStayTop.onclick = ()=>createStay();
+    if(btnNewStayOnPage) btnNewStayOnPage.onclick = ()=>createStay();
+    if(btnQuickDogs) btnQuickDogs.onclick = ()=>selectTab("dogs");
+    if(btnQuickInvoices) btnQuickInvoices.onclick = ()=>selectTab("invoices");
+  }catch(e){ console.warn('Core UI wiring failed', e); }
+
+  // 1) Wenn Cloud aktiviert: Login + Sync
   // 1) Wenn Cloud aktiviert: Login + Sync
   const cloudOk = await cloudInit();
   if(!cloudOk){
@@ -6150,7 +6198,7 @@ async function startApp(){
     }
   }catch(_){ }
   if(btnQuickDogs) btnQuickDogs.onclick = ()=>selectTab("dogs");
-  if(btnQuickInvoices) btnQuickInvoices.onclick = ()=>selectTab("workforms");
+  if(btnQuickInvoices) btnQuickInvoices.onclick = ()=>selectTab("invoices");
   if(btnQuickSettings) btnQuickSettings.onclick = ()=>selectTab("settings");
 
 
