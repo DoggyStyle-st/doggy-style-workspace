@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = "v11B_MASTER_STEP1_WARNINGS_20260121D";
+const APP_BUILD = "v11B_MASTER_STEP1F_STAY_SIG_PDF_20260121F";
 // Selector helpers
 // $: accepts either an element id (e.g. 'contractSig') or a CSS selector (e.g. '#contractSig', '.btn')
 const $ = (sel) => {
@@ -5986,9 +5986,10 @@ document.addEventListener("click",(e)=>{
 
 $("#btnPrint").addEventListener("click",()=>printDoc());
 function printDoc(){
-  if(!currentDoc) return;
-  if(!saveCurrent(false)) return;
-  const t=getTemplate(currentDoc.templateId);
+  try{
+    if(!currentDoc) return;
+    if(!saveCurrent(false)) return;
+    const t=getTemplate(currentDoc.templateId);
 
   // Aufenthalte laufen teils im Embedded-Modus (Template kann fehlen) → robustes PDF-Preview.
   const isStay = (!t && String(currentDoc.templateId||"").startsWith('hundeannahme'))
@@ -5997,15 +5998,25 @@ function printDoc(){
     || currentDoc.templateName === 'Hundeannahme'
     || currentDoc.type === 'stay';
 
-  const dog=state.dogs.find(d=>d.id===currentDoc.dogId) || null;
-  if(isStay && (!t || !Array.isArray(t.sections))){
-    const html = buildStayPrintHtml(currentDoc, dog);
-    openHtmlInModal('Druckvorschau', html, 'Schließen mit ✕. Für PDF: Drucken/Speichern → „Als PDF“ → in Dateien speichern.');
-    return;
-  }
+    const dog=state.dogs.find(d=>d.id===currentDoc.dogId) || null;
+    if(isStay && (!t || !Array.isArray(t.sections))){
+      const html = buildStayPrintHtml(currentDoc, dog);
+      // iOS/Safari: nach Alerts kann das Öffnen manchmal "verschluckt" werden → minimal verzögert.
+      setTimeout(()=>{
+        try{ openHtmlInModal('Druckvorschau', html, 'Schließen mit ✕. Für PDF: Drucken/Speichern → „Als PDF“ → in Dateien speichern.'); }
+        catch(err){ alert('PDF-Vorschau Fehler: ' + (err?.message || err)); }
+      }, 0);
+      return;
+    }
 
-  const html=buildPrintHtml(currentDoc,t,dog);
-  openHtmlInModal('Druckvorschau', html, 'Schließen mit ✕. Für PDF: Drucken/Speichern → „Als PDF“ → in Dateien speichern.');
+    const html=buildPrintHtml(currentDoc,t,dog);
+    setTimeout(()=>{
+      try{ openHtmlInModal('Druckvorschau', html, 'Schließen mit ✕. Für PDF: Drucken/Speichern → „Als PDF“ → in Dateien speichern.'); }
+      catch(err){ alert('PDF-Vorschau Fehler: ' + (err?.message || err)); }
+    }, 0);
+  }catch(err){
+    alert('PDF-Vorschau Fehler: ' + (err?.message || err));
+  }
 }
 
 function buildStayPrintHtml(docObj, dog){
@@ -6622,6 +6633,7 @@ function renderStayEditorEmbedded(doc){
 
   const card = document.createElement("div");
   card.className = "card";
+  // Hinweis: keine verschachtelten .card-Elemente verwenden (CSS kann verschachtelte Cards ausblenden).
   card.innerHTML = `
     <h2>Aufenthalt</h2>
     <div class="grid" style="gap:12px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
@@ -6650,20 +6662,24 @@ function renderStayEditorEmbedded(doc){
         <textarea id="stayNotes" rows="4" placeholder="Zusatzinfos …"></textarea>
       </label>
     </div>
-
-    <div class="card" style="margin-top:14px;">
-      <h3 style="margin:0 0 8px;">Unterschrift</h3>
-      <div id="staySigBox" class="muted" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-        <span id="staySigStatus">— noch keine Unterschrift —</span>
-        <button id="btnSignatureOpen" class="primary" type="button">✍️ Unterschrift erfassen</button>
-        <button id="btnSignatureClear" class="btn" type="button" style="display:none;">Unterschrift löschen</button>
-      </div>
-      <div id="staySigPreview" style="margin-top:10px;display:none;">
-        <img id="staySigImg" alt="Unterschrift" style="max-height:110px;max-width:100%;border:1px solid rgba(255,255,255,.12);border-radius:12px;background:#fff;padding:6px;" />
-      </div>
-    </div>
   `;
   root.appendChild(card);
+
+  // Unterschrift als eigene Card (nicht verschachtelt)
+  const sigCard = document.createElement('div');
+  sigCard.className = 'card';
+  sigCard.innerHTML = `
+    <h2>Unterschrift</h2>
+    <div id="staySigBox" class="muted" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <span id="staySigStatus">— noch keine Unterschrift —</span>
+      <button id="btnSignatureOpen" class="primary" type="button">✍️ Unterschrift erfassen</button>
+      <button id="btnSignatureClear" class="btn" type="button" style="display:none;">Unterschrift löschen</button>
+    </div>
+    <div id="staySigPreview" style="margin-top:10px;display:none;">
+      <img id="staySigImg" alt="Unterschrift" style="max-height:110px;max-width:100%;border:1px solid rgba(255,255,255,.12);border-radius:12px;background:#fff;padding:6px;border-radius:12px;" />
+    </div>
+  `;
+  root.appendChild(sigCard);
 
   // Hunde
   const dogSel = document.getElementById('stayDogSelect');
