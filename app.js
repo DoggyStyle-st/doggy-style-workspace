@@ -888,20 +888,6 @@ async function initCustomerPortal(){
       wrap.className='field'; wrap.style.minWidth='260px';
       wrap.dataset.key = f.key;
       wrap.innerHTML=`<span>${escapeHtml(f.label)}${f.required?" *":""}</span>`;
-  // Optional: "Ansehen"-Button (z.B. DSGVO/AGB) springt zu einem Ziel-Card
-  if(f && f.viewTarget){
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "btn tiny";
-    btn.textContent = "Ansehen";
-    btn.style.marginLeft = "10px";
-    btn.addEventListener("click",(e)=>{
-      e.preventDefault(); e.stopPropagation();
-      const el = document.getElementById(f.viewTarget);
-      if(el) el.scrollIntoView({behavior:"smooth", block:"start"});
-    });
-    wrap.appendChild(btn);
-  }
       let input;
       if(f.type==='textarea'){ input=document.createElement('textarea'); input.value=value||''; }
       else if(f.type==='select'){
@@ -3336,35 +3322,17 @@ let templates=[];
 const EMBEDDED_HUNDEANNAHME_TEMPLATE = {
   id: "hundeannahme",
   name: "Hundeannahme",
-  version: "embedded",
-  // Meta (Aufenthaltsdaten)
-  meta: [
-    { key: "von", label: "Von", type: "date", required: true },
-    { key: "bis", label: "Bis", type: "date", required: true },
-    { key: "betreuung", label: "Betreuung", type: "select", options:["Tagesbetreuung","Urlaubsbetreuung"], required: true }
+  // Die App nutzt für Aufenthalte primär doc.meta (von/bis/betreuung) + doc.dogId/petId/customerId.
+  // fields[] ist hier nur ein leichter Hinweis für die UI (wir rendern dafür einen eigenen Editor).
+  fields: [
+    { key: "dogId", label: "Hund", type: "dog" },
+    { key: "customerId", label: "Kunde", type: "customer" },
+    { key: "von", label: "Von", type: "date" },
+    { key: "bis", label: "Bis", type: "date" },
+    { key: "betreuung", label: "Betreuung", type: "text" },
+    { key: "notes", label: "Notizen", type: "textarea" }
   ],
-  // Formulareingaben (optional)
-  sections: [
-    {
-      id: "notizen",
-      title: "Notizen",
-      fields: [
-        { key: "notes", label: "Notizen", type: "textarea", required: false }
-      ]
-    },
-    {
-      id: "einverstaendnisse",
-      title: "Einverständnisse",
-      fields: [
-        { key: "ev_dsgvo", label: "DSGVO zur Kenntnis genommen", type: "checkbox", required: true, viewTarget: "dsgvoCard" },
-        { key: "ev_agb", label: "AGB gelesen & akzeptiert", type: "checkbox", required: true, viewTarget: "agbCard" }
-      ]
-    }
-  ],
-  // Kurzhinweise in der Editor-Ansicht (voller Text in der App/Anzeige)
-  dsGvoNote: "Datenschutz: Die vollständige Datenschutzerklärung kann in der App angezeigt, gedruckt oder geteilt werden.",
-  agbNote: "AGB: Die vollständigen AGB können in der App angezeigt, gedruckt oder geteilt werden.",
-  embedded: true
+  meta: { embedded: true }
 };
 
 function ensureEmbeddedTemplates(){
@@ -5511,10 +5479,7 @@ renderVersions(currentDoc);
   // Quicklinks im Aufenthalt (Medikation/Gesundheit)
   try{ renderStayQuickLinks(currentDoc); }catch(e){ console.warn('renderStayQuickLinks failed', e); }
   
-  const tplX = getTemplate(currentDoc.templateId)||{};
-  $("#dsGvoText").textContent=tplX.dsGvoNote||"";
-  const agbEl = document.getElementById("agbText");
-  if(agbEl) agbEl.textContent = tplX.agbNote||"";
+  $("#dsGvoText").textContent=getTemplate(currentDoc.templateId)?.dsGvoNote||"";
   dirty=false;
   showPanel("editor");
   window.scrollTo({top:0,behavior:"smooth"});
@@ -5578,20 +5543,6 @@ function renderField(f,value,docObj){
   const wrap=document.createElement("label");
   wrap.className="field"; wrap.style.minWidth="260px";
   wrap.innerHTML=`<span>${escapeHtml(f.label)}${f.required?" *":""}</span>`;
-  // Optional: "Ansehen"-Button (z.B. DSGVO/AGB) springt zu einem Ziel-Card
-  if(f && f.viewTarget){
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "btn tiny";
-    btn.textContent = "Ansehen";
-    btn.style.marginLeft = "10px";
-    btn.addEventListener("click",(e)=>{
-      e.preventDefault(); e.stopPropagation();
-      const el = document.getElementById(f.viewTarget);
-      if(el) el.scrollIntoView({behavior:"smooth", block:"start"});
-    });
-    wrap.appendChild(btn);
-  }
   let input;
   if(f.type==="textarea"){ input=document.createElement("textarea"); input.value=value||""; }
   else if(f.type==="select"){ input=document.createElement("select"); input.innerHTML=(f.options||[]).map(o=>`<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join(""); input.value=value||(f.options?.[0]||""); }
@@ -5673,7 +5624,8 @@ function validate(docObj,t){
     else { if(!v || String(v).trim()==="") errs.push(f.label); }
   }));
   t.meta.forEach(f=>{ if(f.required){const v=docObj.meta[f.key]; if(!v||String(v).trim()==="") errs.push(f.label);} });
-  // Unterschrift ist NICHT zwingend zum Speichern (Stufe A). Hinweis wird beim Speichern angezeigt.
+  if(!docObj.signature || !docObj.signature.dataUrl)
+  errs.push("Unterschrift");
   return errs;
 }
 function updateCreateInvoiceButton(){
@@ -5737,78 +5689,20 @@ const type = currentDoc.meta.betreuung;
 const from = currentDoc.meta.von;
 const to   = currentDoc.meta.bis;
 
-// -------------------------------
-// Stufe B: Kapazitäts-Validierung
-// -------------------------------
-// Tagesbetreuung: Warnung bei voller Belegung
-// Urlaubsbetreuung (Overnight): Speichern blocken, wenn an einem Tag > Limit wäre
+const used = countOccupancy(type, from, to, currentDoc.id);
+const limit = getMinCapacityForRange(type, from, to);
 
-const countForDayEx = (typ, day, excludeId)=>{
-  return (state.docs||[]).filter(d=>{
-    if(!d || !d.saved) return false;
-    if(excludeId && d.id === excludeId) return false;
-    if(d.meta?.betreuung !== typ) return false;
-    if(!d.meta?.von || !d.meta?.bis) return false;
-    return day >= d.meta.von && day <= d.meta.bis;
-  }).length;
-};
-
-const iterateDays = (a,b)=>{
-  const out=[];
-  if(!a || !b) return out;
-  const d0 = new Date(a+'T00:00:00');
-  const d1 = new Date(b+'T00:00:00');
-  if(isNaN(d0) || isNaN(d1)) return out;
-  for(let d=new Date(d0); d<=d1; d.setDate(d.getDate()+1)){
-    out.push(toISODateLocal(d));
-  }
-  return out;
-};
-
-if(type==="Urlaubsbetreuung" && from && to){
-  const days = iterateDays(from, to);
-  const overDays = [];
-  for(const day of days){
-    const cap = getCapacity("Urlaubsbetreuung", day);
-    const used = countForDayEx("Urlaubsbetreuung", day, currentDoc.id) + 1; // inkl. diesem Aufenthalt
-    if(used > cap){
-      overDays.push(`${formatDateDE(day)} (${used}/${cap})`);
-    }
-  }
-  if(overDays.length){
-    alert(
-      "⚠️ Overnight-Limit überschritten (max. 10 Übernachtungshunde)
-
-" +
-      "An folgenden Tagen wäre die Urlaubsbetreuung über dem Limit:
-" +
-      overDays.map(x=>"• "+x).join("
-") +
-      "
-
-Bitte Zeitraum anpassen oder Aufenthalt verschieben."
-    );
-    return false;
-  }
-}else if(type && from && to){
-  // Tagesbetreuung/sonstiges: Warnung, aber nicht blocken
-  const used = countOccupancy(type, from, to, currentDoc.id);
-  const limit = getMinCapacityForRange(type, from, to);
-  if (used >= limit) {
-    alert(
-      `⚠️ Achtung:
-
-` +
-      `${used} von ${limit} Plätzen für "${type}" ` +
-      `im Zeitraum ${from} – ${to} sind bereits belegt.`
-    );
-  }
+if (used >= limit) {
+  alert(
+    `⚠️ Achtung:\n\n` +
+    `${used} von ${limit} Plätzen für "${type}" ` +
+    `im Zeitraum ${from} – ${to} sind bereits belegt.`
+  );
 }
-
-// -------------------------------
-// Unterschrift: nicht blockierend
-// -------------------------------
-const missingSig = !(currentDoc.signature && currentDoc.signature.dataUrl);
+if (!currentDoc.signature){
+  alert("Bitte unterschreiben");
+  return false;
+}
   currentDoc.saved = true;                             // 🔐 Dokument abschließen
 currentDoc.updatedAt = new Date().toISOString();
 
@@ -5828,9 +5722,6 @@ saveState();renderDashboard(); renderTodayStatus();                             
 dirty = false;
 
 $("#editorTitle").textContent = currentDoc.title;
-if(missingSig){
-  try{ showToast("Hinweis: Unterschrift fehlt für diesen Aufenthalt (kann später nachgeholt werden)."); }catch(e){ alert("Hinweis: Unterschrift fehlt für diesen Aufenthalt (kann später nachgeholt werden)."); }
-}
 if(alertOk) alert("Gespeichert");
 renderDocs();
 
@@ -6455,7 +6346,39 @@ document.addEventListener("visibilitychange", () => {
 })();
 
 // Start
-startApp().catch(console.error);
+startApp().catch(function(err){
+  try{ console.error(err); }catch(e){}
+  try{
+    var msg = (err && (err.stack || err.message)) ? (err.stack || err.message) : String(err);
+    // Visible fatal banner (Safari/iPad without console)
+    var box = document.getElementById('fatalErrorBox');
+    if(!box){
+      box = document.createElement('div');
+      box.id='fatalErrorBox';
+      box.style.position='fixed';
+      box.style.left='12px';
+      box.style.right='12px';
+      box.style.bottom='12px';
+      box.style.zIndex='999999';
+      box.style.background='rgba(140,20,20,0.92)';
+      box.style.color='#fff';
+      box.style.padding='12px 14px';
+      box.style.borderRadius='12px';
+      box.style.fontSize='13px';
+      box.style.lineHeight='1.35';
+      box.style.whiteSpace='pre-wrap';
+      box.style.boxShadow='0 10px 30px rgba(0,0,0,.45)';
+      box.style.maxHeight='45vh';
+      box.style.overflow='auto';
+      document.body.appendChild(box);
+    }
+    box.textContent = 'APP-Start fehlgeschlagen
+
+' + msg;
+  }catch(e2){
+    try{ alert('APP-Start fehlgeschlagen: ' + (err && err.message ? err.message : err)); }catch(e3){}
+  }
+});
 // UI: Sync-Status regelmäßig auffrischen (auch bei Tab-Wechsel/PWA)
 setInterval(()=>{ try{ updateSyncUI(); }catch(_){ } }, 1500);
 window.addEventListener('online', ()=>{ try{ scheduleCloudPing(0,'online-event'); }catch(_){ try{ updateSyncUI(); }catch(__){} } });
