@@ -3329,7 +3329,7 @@ const EMBEDDED_HUNDEANNAHME_TEMPLATE = {
     { key: "customerId", label: "Kunde", type: "customer" },
     { key: "von", label: "Von", type: "date" },
     { key: "bis", label: "Bis", type: "date" },
-    { key: "betreuung", label: "Betreuung", type: "text" },
+    { key: "betreuung", label: "Art der Betreuung", type: "select", required: true, options: ["Tagesbetreuung","Urlaubsbetreuung"] },
     { key: "notes", label: "Notizen", type: "textarea" }
   ],
   meta: { embedded: true }
@@ -4603,6 +4603,41 @@ function countForDay(type, day){
     return day >= d.meta.von && day <= d.meta.bis;
   }).length;
 }
+
+function countForDayExcluding(type, day, excludeDocId){
+  return (state.docs||[]).filter(d=>{
+    if(!d || !d.saved) return false;
+    if(excludeDocId && d.id === excludeDocId) return false;
+    if(d.meta?.betreuung !== type) return false;
+    if(!d.meta?.von || !d.meta?.bis) return false;
+    return day >= d.meta.von && day <= d.meta.bis;
+  }).length;
+}
+
+function checkCapacityForRange(type, fromISO, toISO, excludeDocId){
+  const from = String(fromISO||"").slice(0,10);
+  const to   = String(toISO||"").slice(0,10);
+  if(!from || !to) return { ok:true };
+  const a = new Date(from);
+  const b = new Date(to);
+  if(isNaN(a) || isNaN(b)) return { ok:true };
+  let worst = null;
+  const cur = new Date(a);
+  while(cur <= b){
+    const d = toISODateLocal(cur);
+    const cap = getCapacity(type, d);
+    const used = countForDayExcluding(type, d, excludeDocId);
+    const would = used + 1; // wir speichern den aktuellen Aufenthalt gerade
+    if(would > cap){
+      worst = { date: d, cap, used, would };
+      break;
+    }
+    cur.setDate(cur.getDate()+1);
+  }
+  if(worst) return { ok:false, exceeded:true, ...worst };
+  return { ok:true };
+}
+
 function countToday(type){
   const today = toISODateLocal(new Date());
   return countForDay(type, today);
@@ -5473,6 +5508,7 @@ normalizeMeta(currentDoc);
   renderCustomerInfoForDogId($("#dogSelect").value);
   renderEditor(currentDoc);
   updateContractWarnBanner(currentDoc);
+  try{ showSignatureWarn(false); }catch(_){ }
   autofillHundeannahmeFieldsFromMaster($("#dogSelect").value, { overwrite:false });
 renderVersions(currentDoc);
 
@@ -5480,6 +5516,7 @@ renderVersions(currentDoc);
   try{ renderStayQuickLinks(currentDoc); }catch(e){ console.warn('renderStayQuickLinks failed', e); }
   
   $("#dsGvoText").textContent=getTemplate(currentDoc.templateId)?.dsGvoNote||"";
+  try{ $("#agbText").textContent=getTemplate(currentDoc.templateId)?.agbNote||""; }catch(_){ }
   dirty=false;
   showPanel("editor");
   window.scrollTo({top:0,behavior:"smooth"});
@@ -5576,6 +5613,28 @@ if (currentDoc.saved) {
   }
   
 wrap.appendChild(input);
+
+  // Pflicht-Info direkt am Punkt: AGB/DSGVO anzeigen
+  if(f && (f.key==="ev_agb" || f.key==="ev_dsgvo")){
+    const actions=document.createElement("div");
+    actions.style.marginTop="6px";
+    actions.style.display="flex";
+    actions.style.gap="8px";
+    actions.style.flexWrap="wrap";
+    const btn=document.createElement("button");
+    btn.type="button";
+    btn.className="btn mini";
+    btn.textContent="Ansehen";
+    btn.onclick=()=>{
+      try{
+        const id = (f.key==="ev_agb") ? "agbText" : "dsGvoText";
+        const el=document.getElementById(id);
+        if(el) el.scrollIntoView({behavior:"smooth", block:"start"});
+      }catch(_){ }
+    };
+    actions.appendChild(btn);
+    wrap.appendChild(actions);
+  }
   return wrap;
 }
 
@@ -5589,6 +5648,7 @@ $("#dogSelect").addEventListener("change", () => {
   updateDocCustomerPetFromDogId(currentDoc);
   renderCustomerInfoForDogId(currentDoc.dogId);
   updateContractWarnBanner(currentDoc);
+  try{ showSignatureWarn(false); }catch(_){ }
   autofillHundeannahmeFieldsFromMaster(currentDoc.dogId, { overwrite:false });
   try{ renderStayQuickLinks(currentDoc); }catch(e){}
   dirty = true;
@@ -5623,9 +5683,12 @@ function validate(docObj,t){
     if(f.type==="checkbox"){ if(!v) errs.push(f.label); }
     else { if(!v || String(v).trim()==="") errs.push(f.label); }
   }));
-  t.meta.forEach(f=>{ if(f.required){const v=docObj.meta[f.key]; if(!v||String(v).trim()==="") errs.push(f.label);} });
-  if(!docObj.signature || !docObj.signature.dataUrl)
-  errs.push("Unterschrift");
+  t.meta.forEach(f=>{
+    if(!f.required) return;
+    const v=docObj.meta[f.key];
+    if(!v || String(v).trim()==="") errs.push(f.label);
+  });
+  // Unterschrift ist nicht zwingend zum Speichern – wird separat als Hinweis behandelt.
   return errs;
 }
 function updateCreateInvoiceButton(){
@@ -5689,19 +5752,25 @@ const type = currentDoc.meta.betreuung;
 const from = currentDoc.meta.von;
 const to   = currentDoc.meta.bis;
 
-const used = countOccupancy(type, from, to, currentDoc.id);
-const limit = getMinCapacityForRange(type, from, to);
-
-if (used >= limit) {
-  alert(
-    `⚠️ Achtung:\n\n` +
-    `${used} von ${limit} Plätzen für "${type}" ` +
-    `im Zeitraum ${from} – ${to} sind bereits belegt.`
-  );
+const capCheck = checkCapacityForRange(type, from, to, currentDoc.id);
+if(capCheck && capCheck.exceeded){
+  const msg =
+    `⚠️ Kapazität überschritten\n\n` +
+    `Betreuung: ${type}\n` +
+    `Datum: ${capCheck.date}\n` +
+    `Belegt: ${capCheck.used} (würde ${capCheck.would}) von ${capCheck.cap}`;
+  // Stufe B: Overnight-Limit (Urlaubsbetreuung) ist hart
+  if(String(type||"").toLowerCase().includes("urlaub")){
+    alert(msg + `\n\nSpeichern nicht möglich: Overnight-Limit (max. ${capCheck.cap}) würde überschritten.`); 
+    return false;
+  } else {
+    alert(msg);
+  }
 }
-if (!currentDoc.signature){
-  alert("Bitte unterschreiben");
-  return false;
+if(!currentDoc.signature || !currentDoc.signature.dataUrl){
+  // Hinweis: Speichern ist erlaubt, aber Unterschrift muss nachgeholt werden
+  try{ showSignatureWarn(true); }catch(_){ }
+  alert("Hinweis: Unterschrift fehlt für diesen Aufenthalt. Du kannst trotzdem speichern und später nachträglich unterschreiben.");
 }
   currentDoc.saved = true;                             // 🔐 Dokument abschließen
 currentDoc.updatedAt = new Date().toISOString();
@@ -6800,6 +6869,49 @@ function updateContractWarnBanner(doc){
     pdf.onclick = ()=>{ openContractPdfWindow(customerId, petId); };
   }
 }
+
+function showSignatureWarn(force){
+  const box = document.getElementById("signatureWarnBanner");
+  if(!box) return;
+  if(!currentDoc) { box.style.display="none"; box.innerHTML=""; return; }
+  const isStay = (currentDoc.templateId === "hundeannahme" || currentDoc.templateName === "Hundeannahme" || currentDoc.type === "stay");
+  if(!isStay) { box.style.display="none"; box.innerHTML=""; return; }
+
+  const hasSig = !!(currentDoc.signature && currentDoc.signature.dataUrl);
+  if(hasSig){
+    box.style.display="none";
+    box.innerHTML="";
+    return;
+  }
+  if(!force){
+    // nur anzeigen, wenn bereits gespeichert/abgeschlossen oder explizit angefordert
+    if(!currentDoc.saved) { box.style.display="none"; box.innerHTML=""; return; }
+  }
+
+  box.style.display="block";
+  box.innerHTML = `
+    <strong>Unterschrift fehlt</strong><br/>
+    Dieser Aufenthalt ist gespeichert, aber noch nicht unterschrieben.
+    <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
+      <button class="btn mini" type="button" id="btnSigNow">Jetzt unterschreiben</button>
+    </div>
+  `;
+  const b = document.getElementById("btnSigNow");
+  if(b){
+    b.onclick = ()=>{
+      try{
+        openSignatureOverlay((dataUrl)=>{
+          if(!currentDoc) return;
+          currentDoc.signature = { dataUrl, at: new Date().toISOString() };
+          saveState();
+          try{ showSignatureWarn(false); }catch(_){ }
+          try{ renderVersions(currentDoc); }catch(_){ }
+        });
+      }catch(e){ console.warn("openSignatureOverlay failed", e); }
+    };
+  }
+}
+
 
 
 async function _assetToDataUrl(path){
