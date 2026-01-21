@@ -6077,63 +6077,24 @@ const dogLine  = [custName, petName].filter(Boolean).join(' – ') || '—';
   out+=`<h2>Unterschrift Hundehalter</h2><div class="sigbox">${sigImg || '<div class="muted">— noch keine Unterschrift —</div>'}</div>`;
   out+=`<h2>Datenschutz (DSGVO)</h2><p class="note">${escapeHtml(getTemplate(docObj.templateId)?.dsGvoNote || '')}</p>`;
 
-  
-  return `<!doctype html>
-<html lang="de">
-<head>
-<meta charset="utf-8"/>
-<title>Aufenthalt – ${escapeHtml(dogLine)}</title>
+  return `<!doctype html><html lang="de"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>${escapeHtml(docObj.title||"Aufenthalt")}</title>
 <style>
-  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;margin:0;background:#fff}
-  .toolbar{
-    position:sticky;top:0;z-index:10;
-    display:flex;gap:12px;justify-content:flex-end;
-    padding:10px 14px;border-bottom:1px solid #ddd;background:#f6f6f6
-  }
-  .toolbar button,.toolbar a{
-    font-size:14px;padding:6px 10px;border-radius:6px;
-    border:1px solid #ccc;background:#fff;text-decoration:none;color:#000
-  }
-  .header{
-    display:flex;justify-content:space-between;align-items:flex-start;
-    padding:16px 20px;border-bottom:2px solid #000
-  }
-  .logo{max-height:64px}
-  table{width:100%;border-collapse:collapse;margin:20px}
-  td{border:1px solid #ddd;padding:8px}
-  .sig{max-height:120px;margin:20px}
-  @media print{
-    .toolbar{display:none}
-    body{margin:12mm}
-  }
-</style>
-</head>
-<body>
-
-<div class="toolbar">
-  <button onclick="window.print()">🖨 Drucken / Speichern</button>
-  <a href="javascript:window.close()">⬅ Zurück</a>
-</div>
-
-<div class="header">
-  <div>
-    <strong>Hund / Kunde</strong><br/>
-    ${escapeHtml(dogLine)}
-  </div>
-  <img class="logo" src="${logoUrl}" alt="Doggy Style"/>
-</div>
-
-<table>
-  <tr><td>Von</td><td>${escapeHtml(m.von||"")}</td></tr>
-  <tr><td>Bis</td><td>${escapeHtml(m.bis||"")}</td></tr>
-  <tr><td>Betreuung</td><td>${escapeHtml(m.betreuung||"")}</td></tr>
-  <tr><td>Notizen</td><td>${escapeHtml(notes)}</td></tr>
-</table>
-
-${sigImg ? `<div><strong>Unterschrift Hundehalter</strong><br/>${sigImg}</div>` : ``}
-
-</body>
-</html>`;
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Arial,sans-serif;margin:28px;color:#111}
+.head{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:18px}
+.logo{height:44px}
+h1{margin:0;font-size:20px}
+.meta{color:#555;font-size:12px;margin-top:2px}
+h2{margin:18px 0 8px;font-size:14px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+td{padding:8px 10px;border:1px solid #ddd;vertical-align:top}
+td.k{width:38%;background:#fafafa;font-weight:700}
+.sigbox{border:1px solid #ddd;border-radius:12px;min-height:120px;display:flex;align-items:center;justify-content:center;background:#fff;padding:8px}
+.sig{max-height:105px;max-width:95%}
+.note{font-size:11px;color:#444;line-height:1.35}
+.muted{color:#666;font-size:11px}
+@media print{body{margin:16mm}}
+</style></head><body>${out}</body></html>`;
 }
 
 function buildPrintHtml(docObj,t,dog){
