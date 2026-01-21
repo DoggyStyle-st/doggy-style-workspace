@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = "v11B_MASTER_STEP1_WARNINGS_20260121C";
+const APP_BUILD = "v11B_MASTER_STEP1_WARNINGS_20260121D";
 // Selector helpers
 // $: accepts either an element id (e.g. 'contractSig') or a CSS selector (e.g. '#contractSig', '.btn')
 const $ = (sel) => {
@@ -5725,10 +5725,23 @@ function syncStayEditorInputsToDoc(){
 
 function saveCurrent(alertOk){
 updateCreateInvoiceButton();
-  syncStayEditorInputsToDoc();
   if(!currentDoc) return false;
   const t=getTemplate(currentDoc.templateId);
   const {fields, meta}=collectForm();
+
+  // Aufenthalt (Hundeannahme): Werte aus dem Stay-Editor (ohne data-key) in meta übernehmen
+  try{
+    const isStay = (t && t.id === 'hundeannahme') || currentDoc.templateId === 'hundeannahme' || currentDoc.templateName === 'Hundeannahme' || currentDoc.type === 'stay';
+    if(isStay){
+      const vonEl = document.getElementById('stayVon');
+      const bisEl = document.getElementById('stayBis');
+      const betEl = document.getElementById('stayBetreuung');
+      if(vonEl) meta.von = (vonEl.value || '').trim();
+      if(bisEl) meta.bis = (bisEl.value || '').trim();
+      if(betEl) meta.betreuung = (betEl.value || '').trim();
+    }
+  }catch(_){ /* ignore */ }
+
   currentDoc.title=$("#docName").value.trim()||currentDoc.templateName;
   currentDoc.dogId=$("#dogSelect").value;
   ensureDocLinks(currentDoc);
@@ -5740,7 +5753,6 @@ if (currentDoc.meta?.betreuung && currentDoc.meta?.von && currentDoc.meta?.bis) 
   calculateInvoicePricing(currentDoc);
 }
 
-  currentDoc.meta=meta;
 
   // Inputs werden nur bei wirklich "abgeschlossen" gesperrt.
   // Abschluss erfolgt ab jetzt primär über vorhandene Unterschrift.
