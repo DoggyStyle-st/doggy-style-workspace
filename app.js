@@ -392,17 +392,12 @@ function closeDocModal(){
   DOCMOD.filename = null;
 }
 
-function openHtmlInModal(html){
-  try{
-    const blob = new Blob([html], {type: 'text/html'});
-    const url = URL.createObjectURL(blob);
-    window.open(url, '_blank');
-  }catch(e){
-    console.error('PDF open failed', e);
-    alert('PDF konnte nicht geöffnet werden.');
-  }
-}
-</title>`);
+function openHtmlInModal(title, html, hint){
+  // Ensure title is present inside the document so iOS/print dialogs show a helpful name
+  let content = String(html||'');
+  if(!/<title>/i.test(content)){
+    const safe = escapeHtml(title||'Dokument');
+    content = content.replace(/<head>/i, `<head><title>${safe}</title>`);
   }
   const blob = new Blob([content], {type:'text/html'});
   const url = URL.createObjectURL(blob);
@@ -1602,7 +1597,7 @@ function selectTab(tabId){
 }
 
 function createStay(){
-  // v18: Neuer Aufenthalt (Hundeannahme) – immer zuverlässig, ohne externes Template-Fetch.
+  // v18: Neuer Aufenthalt (Aufenthalte) – immer zuverlässig, ohne externes Template-Fetch.
   // Wir stellen die embedded Vorlage sicher und öffnen dann wie gewohnt den Dokument-Editor.
   try{ selectTab("documents"); }catch(_){ }
 
@@ -1935,7 +1930,7 @@ function renderHygieneDashboard(){
 }
 
 
-// 🧼 Auto-Trigger: erzeugt Hygiene-Einträge aus Hundeannahme/Aufenthalt, wenn Parasiten/Quarantäne gesetzt ist
+// 🧼 Auto-Trigger: erzeugt Hygiene-Einträge aus Aufenthalte/Aufenthalt, wenn Parasiten/Quarantäne gesetzt ist
 function hygieneAutoFromStayDoc(doc){
   if(!doc) return;
   ensureStateShape();
@@ -3318,7 +3313,7 @@ $$(".tab").forEach(b=>b.addEventListener("click",()=>{
 let templates=[];
 
 // ===============================
-// v18: Aufenthalte – eingebettete Hundeannahme (ohne externes Template-Fetch)
+// v18: Aufenthalte – eingebettete Aufenthalte (ohne externes Template-Fetch)
 // ===============================
 // Hintergrund: In bestimmten iOS/Safari + Service-Worker Konstellationen kann das
 // Laden von templates/hundeannahme.json blockieren. Der Aufenthalt-Editor darf davon
@@ -3326,7 +3321,7 @@ let templates=[];
 
 const EMBEDDED_HUNDEANNAHME_TEMPLATE = {
   id: "hundeannahme",
-  name: "Hundeannahme",
+  name: "Aufenthalte",
   // Die App nutzt für Aufenthalte primär doc.meta (von/bis/betreuung) + doc.dogId/petId/customerId.
   // fields[] ist hier nur ein leichter Hinweis für die UI (wir rendern dafür einen eigenen Editor).
   fields: [
@@ -3379,8 +3374,8 @@ async function loadTemplates(){
   templates = [];
   const files = [
     // Achtung: GitHub Pages ist case-sensitiv. Wir versuchen daher beide Ordnernamen (templates / Templates).
-    {path: "templates/hundeannahme.json", label: "Hundeannahme"},
-    {path: "Templates/hundeannahme.json", label: "Hundeannahme"},
+    {path: "templates/hundeannahme.json", label: "Aufenthalte"},
+    {path: "Templates/hundeannahme.json", label: "Aufenthalte"},
     {path: "templates/rechnung.json", label: "Rechnung"},
     {path: "Templates/rechnung.json", label: "Rechnung"}
   ];
@@ -3396,7 +3391,7 @@ async function loadTemplates(){
     }
   }
 
-  // Immer sicherstellen: Hundeannahme ist verfügbar (embedded)
+  // Immer sicherstellen: Aufenthalte ist verfügbar (embedded)
   ensureEmbeddedTemplates();
 
   // Fallback: Wenn gar nichts geladen werden konnte, App trotzdem startbar lassen
@@ -4225,7 +4220,7 @@ function migrateToV2(){
       return;
     }
 
-    // normale Template-Dokumente (z.B. Hundeannahme)
+    // normale Template-Dokumente (z.B. Aufenthalte)
     if(doc.templateId){
       const stayId = "s_"+doc.id;
       docIdToStayId[doc.id] = stayId;
@@ -4497,12 +4492,12 @@ function renderCustomerInfoForDogId(dogId){
 }
 
 
-function autofillHundeannahmeFieldsFromMaster(dogId, { overwrite = false } = {}){
+function autofillAufenthalteFieldsFromMaster(dogId, { overwrite = false } = {}){
   if(!currentDoc) return;
   const t = getTemplate(currentDoc.templateId);
   if(!t) return;
 
-  // Nur für Templates, die diese Keys haben (Hundeannahme)
+  // Nur für Templates, die diese Keys haben (Aufenthalte)
   const wants = new Set(["halter_name","halter_adresse","halter_telefon","halter_email","halter_notfall","hund_name","hund_rasse","hund_geburt","hund_chip"]);
   const hasAny = Array.isArray(t.sections) && t.sections.some(sec => (sec.fields||[]).some(f => wants.has(f.key)));
   if(!hasAny) return;
@@ -5478,7 +5473,7 @@ normalizeMeta(currentDoc);
   renderCustomerInfoForDogId($("#dogSelect").value);
   renderEditor(currentDoc);
   updateContractWarnBanner(currentDoc);
-  autofillHundeannahmeFieldsFromMaster($("#dogSelect").value, { overwrite:false });
+  autofillAufenthalteFieldsFromMaster($("#dogSelect").value, { overwrite:false });
 renderVersions(currentDoc);
 
   // Quicklinks im Aufenthalt (Medikation/Gesundheit)
@@ -5594,7 +5589,7 @@ $("#dogSelect").addEventListener("change", () => {
   updateDocCustomerPetFromDogId(currentDoc);
   renderCustomerInfoForDogId(currentDoc.dogId);
   updateContractWarnBanner(currentDoc);
-  autofillHundeannahmeFieldsFromMaster(currentDoc.dogId, { overwrite:false });
+  autofillAufenthalteFieldsFromMaster(currentDoc.dogId, { overwrite:false });
   try{ renderStayQuickLinks(currentDoc); }catch(e){}
   dirty = true;
 });
@@ -5623,9 +5618,9 @@ function validate(docObj,t){
   const d = (state.dogs||[]).find(x=>x.id===docObj.dogId);
   if(!docObj.dogId || (d && d.isPlaceholder)) errs.push("Hund");
 
-  // Aufenthalte (Hundeannahme) – Core-Felder auch im Embedded-Modus prüfen
+  // Aufenthalte (Aufenthalte) – Core-Felder auch im Embedded-Modus prüfen
   try{
-    const isStay = (t && t.id === 'hundeannahme') || docObj.templateId === 'hundeannahme' || docObj.templateName === 'Hundeannahme' || docObj.type === 'stay';
+    const isStay = (t && t.id === 'hundeannahme') || docObj.templateId === 'hundeannahme' || docObj.templateName === 'Aufenthalte' || docObj.type === 'stay';
     if(isStay){
       const m = docObj.meta || {};
       if(!m.betreuung || String(m.betreuung).trim()==="") errs.push("Betreuung");
@@ -5660,7 +5655,7 @@ function validate(docObj,t){
 function getStayWarnings(docObj, t){
   const warns = [];
   try{
-    const isStay = (t && t.id === 'hundeannahme') || docObj.templateId === 'hundeannahme' || docObj.templateName === 'Hundeannahme' || docObj.type === 'stay';
+    const isStay = (t && t.id === 'hundeannahme') || docObj.templateId === 'hundeannahme' || docObj.templateName === 'Aufenthalte' || docObj.type === 'stay';
     if(!isStay) return warns;
 
     const hasSig = !!(docObj.signature && docObj.signature.dataUrl);
@@ -5737,9 +5732,9 @@ updateCreateInvoiceButton();
   const t=getTemplate(currentDoc.templateId);
   const {fields, meta}=collectForm();
 
-  // Aufenthalt (Hundeannahme): Werte aus dem Stay-Editor (ohne data-key) in meta übernehmen
+  // Aufenthalt (Aufenthalte): Werte aus dem Stay-Editor (ohne data-key) in meta übernehmen
   try{
-    const isStay = (t && t.id === 'hundeannahme') || currentDoc.templateId === 'hundeannahme' || currentDoc.templateName === 'Hundeannahme' || currentDoc.type === 'stay';
+    const isStay = (t && t.id === 'hundeannahme') || currentDoc.templateId === 'hundeannahme' || currentDoc.templateName === 'Aufenthalte' || currentDoc.type === 'stay';
     if(isStay){
       const vonEl = document.getElementById('stayVon');
       const bisEl = document.getElementById('stayBis');
@@ -6007,12 +6002,12 @@ function printDoc(){
     || (!t && String(currentDoc.templateId||"").startsWith('hundeannahme'))
     || (t && String(t.id||"") === 'hundeannahme')
     || String(currentDoc.templateId||"") === 'hundeannahme'
-    || String(currentDoc.templateName||"") === 'Hundeannahme'
+    || String(currentDoc.templateName||"") === 'Aufenthalte'
     || String(currentDoc.type||"") === 'stay';
 
     const dog=state.dogs.find(d=>d.id===currentDoc.dogId) || null;
 
-// Für Aufenthalte (Hundeannahme) immer die dedizierte Druckansicht verwenden
+// Für Aufenthalte (Aufenthalte) immer die dedizierte Druckansicht verwenden
 // (Template-Print lässt Logo/Hund/Kunde häufig weg und ist in Safari/Blob fehleranfällig).
 if(isStay){
   const html = buildStayPrintHtml(currentDoc, dog);
@@ -6071,7 +6066,7 @@ const dogLine  = [custName, petName].filter(Boolean).join(' – ') || '—';
   let logoUrl = 'assets/logo.png';
   try{ logoUrl = new URL('assets/logo.png', window.location.href).href; }catch(_){ }
 
-  let out=`<div class="head"><div><h1>${escapeHtml(docObj.title||'Hundeannahme / Aufenthalt')}</h1><div class="meta">Hund/Kunde: ${escapeHtml(dogLine)} · Stand: ${escapeHtml(dt)}</div></div><img class="logo" src="${logoUrl}" alt="Doggy Style" /></div>`;
+  let out=`<div class="head"><div><h1>${escapeHtml(docObj.title||'Aufenthalte / Aufenthalt')}</h1><div class="meta">Hund/Kunde: ${escapeHtml(dogLine)} · Stand: ${escapeHtml(dt)}</div></div><img class="logo" src="${logoUrl}" alt="Doggy Style" /></div>`;
   out+=`<h2>Aufenthalt</h2><table>`;
   out+=`<tr><td class="k">Von</td><td class="v">${escapeHtml(m.von||"")}</td></tr>`;
   out+=`<tr><td class="k">Bis</td><td class="v">${escapeHtml(m.bis||"")}</td></tr>`;
@@ -6828,7 +6823,7 @@ if(template.id === "rechnung"){
   return;
 }
 
-  // 🐶 Hundeannahme / Aufenthalt: eigener Editor, wenn embedded Vorlage verwendet wird
+  // 🐶 Aufenthalte / Aufenthalt: eigener Editor, wenn embedded Vorlage verwendet wird
   if(template.id === 'hundeannahme' && template.meta && template.meta.embedded){
     renderStayEditorEmbedded(doc);
     return;
@@ -7019,7 +7014,7 @@ function updateContractWarnBanner(doc){
   if(!doc) return;
 
   // nur bei Aufenthalten (hundeannahme)
-  const isStay = (doc.templateId === "hundeannahme" || doc.templateName === "Hundeannahme" || doc.type === "stay");
+  const isStay = (doc.templateId === "hundeannahme" || doc.templateName === "Aufenthalte" || doc.type === "stay");
   if(!isStay) return;
 
   const customerId = doc.customerId || "";
