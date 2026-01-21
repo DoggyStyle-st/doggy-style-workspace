@@ -6055,7 +6055,94 @@ async function bootOnce(){
   await boot();
 }
 
+function wireCoreUI(){
+  try{
+    if(window.__CORE_UI_WIRED__) return;
+    window.__CORE_UI_WIRED__ = true;
+
+    const btnLogin = document.getElementById("btnLogin");
+    const btnRegister = document.getElementById("btnRegister");
+    const btnLogout = document.getElementById("btnLogout");
+    const btnLogoutApp = document.getElementById("btnLogoutApp");
+    const btnLogoutBottom = document.getElementById("btnLogoutBottom");
+
+    const btnNewStayTop = document.getElementById("btnNewStayTop");
+    const btnNewStayOnPage = document.getElementById("btnNewStayOnPage");
+
+    const btnQuickDogs = document.getElementById("btnQuickDogs");
+    const btnQuickInvoices = document.getElementById("btnQuickInvoices");
+
+    const loginEmail = document.getElementById("loginEmail");
+    const loginPass = document.getElementById("loginPass");
+
+    // Login/Register only if Cloud Auth is available
+    if(btnLogin) btnLogin.onclick = async ()=>{
+      setAuthMsg("");
+      try{
+        if(!CLOUD || !CLOUD.auth) throw new Error("Cloud/Auth nicht verfügbar");
+        await CLOUD.auth.signInWithEmailAndPassword((loginEmail?.value||"").trim(), loginPass?.value||"");
+      }catch(e){
+        console.error(e);
+        setAuthMsg(e.message||"Login fehlgeschlagen");
+        try{ alert('Login fehlgeschlagen: '+(e.code||e.message||e)); }catch(_){ }
+      }
+    };
+    if(btnRegister) btnRegister.onclick = async ()=>{
+      setAuthMsg("");
+      try{
+        if(!CLOUD || !CLOUD.auth) throw new Error("Cloud/Auth nicht verfügbar");
+        await CLOUD.auth.createUserWithEmailAndPassword((loginEmail?.value||"").trim(), loginPass?.value||"");
+        setAuthMsg("Account erstellt. Bitte anmelden.");
+      }catch(e){
+        console.error(e);
+        setAuthMsg(e.message||"Registrierung fehlgeschlagen");
+        try{ alert('Registrierung fehlgeschlagen: '+(e.code||e.message||e)); }catch(_){ }
+      }
+    };
+
+    if(btnLogout) btnLogout.onclick = async ()=>{ try{ await CLOUD?.auth?.signOut(); }catch(e){} };
+    if(btnLogoutApp) btnLogoutApp.onclick = async ()=>{ try{ await CLOUD?.auth?.signOut(); }catch(e){} };
+    if(btnLogoutBottom) btnLogoutBottom.onclick = ()=>performLogout();
+
+    if(btnNewStayTop) btnNewStayTop.onclick = ()=>createStay();
+    if(btnNewStayOnPage) btnNewStayOnPage.onclick = ()=>createStay();
+
+    if(btnQuickDogs) btnQuickDogs.onclick = ()=>selectTab("dogs");
+    if(btnQuickInvoices) btnQuickInvoices.onclick = ()=>selectTab("invoices");
+
+    // Delegation: Buttons werden in einigen Render-Pfaden neu in den DOM geschrieben.
+    // Daher zusätzlich Delegation (capture=true), damit der Klick immer greift (iOS/Safari inkl.).
+    if(!window.__DELEGATED_CORE_UI__){
+      window.__DELEGATED_CORE_UI__ = true;
+
+      const handle = (ev)=>{
+        const t = ev.target;
+        const btn = t && t.closest ? t.closest('#btnNewStayTop, #btnNewStayOnPage, #btnQuickDogs, #btnQuickInvoices') : null;
+        if(!btn) return;
+
+        try{ ev.preventDefault(); }catch(_){ }
+        try{ ev.stopPropagation(); }catch(_){ }
+
+        const id = btn.id;
+        if(id === "btnNewStayTop" || id === "btnNewStayOnPage") return createStay();
+        if(id === "btnQuickDogs") return selectTab("dogs");
+        if(id === "btnQuickInvoices") return selectTab("invoices");
+      };
+
+      document.addEventListener("click", handle, true);
+      document.addEventListener("pointerup", handle, true);
+      document.addEventListener("touchend", handle, {capture:true, passive:false});
+    }
+  }catch(e){
+    console.error("wireCoreUI failed", e);
+  }
+}
+
+
+
 async function startApp(){
+  // Core UI wiring muss immer aktiv sein (auch wenn Cloud/Offline Pfad aktiv ist)
+  wireCoreUI();
   // 1) Wenn Cloud aktiviert: Login + Sync
   const cloudOk = await cloudInit();
   if(!cloudOk){
@@ -6070,89 +6157,7 @@ async function startApp(){
     showAuthGate(true);
   }
 
-
-  // Login UI wiring
-  const btnLogin = document.getElementById("btnLogin");
-  const btnRegister = document.getElementById("btnRegister");
-  const btnLogout = document.getElementById("btnLogout");
-  const btnLogoutApp = document.getElementById("btnLogoutApp");
-  const btnLogoutBottom = document.getElementById("btnLogoutBottom");
-  const btnNewStayTop = document.getElementById("btnNewStayTop");
-  const btnNewStayOnPage = document.getElementById("btnNewStayOnPage");
-  const btnQuickDogs = document.getElementById("btnQuickDogs");
-  const btnQuickInvoices = document.getElementById("btnQuickInvoices");
-  const btnQuickSettings = document.getElementById("btnQuickSettings");
-  const loginEmail = document.getElementById("loginEmail");
-  const loginPass = document.getElementById("loginPass");
-
-  if(btnLogin) btnLogin.onclick = async ()=>{
-    setAuthMsg("");
-    try{
-      await CLOUD.auth.signInWithEmailAndPassword((loginEmail?.value||"").trim(), loginPass?.value||"");
-    }catch(e){
-      console.error(e);
-      setAuthMsg(e.message||"Login fehlgeschlagen");
-      try{ alert('Login fehlgeschlagen: '+(e.code||e.message||e)); }catch(_){ }
-    }
-  };
-  if(btnRegister) btnRegister.onclick = async ()=>{
-    setAuthMsg("");
-    try{
-      await CLOUD.auth.createUserWithEmailAndPassword((loginEmail?.value||"").trim(), loginPass?.value||"");
-      setAuthMsg("Account erstellt. Bitte anmelden.");
-    }catch(e){
-      console.error(e);
-      setAuthMsg(e.message||"Registrierung fehlgeschlagen");
-      try{ alert('Registrierung fehlgeschlagen: '+(e.code||e.message||e)); }catch(_){ }
-    }
-  };
-  if(btnLogout) btnLogout.onclick = async ()=>{
-    await CLOUD.auth.signOut();
-  };
-  if(btnLogoutApp) btnLogoutApp.onclick = async ()=>{
-    try{ await CLOUD.auth.signOut(); }catch(e){}
-  };
-  if(btnLogoutBottom) btnLogoutBottom.onclick = ()=>performLogout();
-  // Wichtig: Buttons werden in einigen Render-Pfaden neu in den DOM geschrieben.
-  // Daher zusätzlich Delegation (capture=true), damit der Klick immer greift.
-  if(btnNewStayTop) btnNewStayTop.onclick = ()=>createStay();
-  if(btnNewStayOnPage) btnNewStayOnPage.onclick = ()=>createStay();
-  try{
-    if(!window.__DELEGATED_NEW_STAY__){
-      window.__DELEGATED_NEW_STAY__ = true;
-      document.addEventListener('click', (ev)=>{
-        const t = ev.target;
-        const btn = t && t.closest ? t.closest('#btnNewStayTop, #btnNewStayOnPage') : null;
-        if(!btn) return;
-        ev.preventDefault();
-        ev.stopPropagation();
-        createStay();
-      }, true);
-      // iOS Safari fallback: some setups do not fire click reliably.
-      // Therefore also listen to pointerup/touchend in capture phase for the same buttons.
-      document.addEventListener("pointerup", (ev)=>{
-        const t = ev.target;
-        const btn = t && t.closest ? t.closest("#btnNewStayTop, #btnNewStayOnPage") : null;
-        if(!btn) return;
-        try{ ev.preventDefault(); }catch(_){}
-        try{ ev.stopPropagation(); }catch(_){}
-        createStay();
-      }, true);
-      document.addEventListener("touchend", (ev)=>{
-        const t = ev.target;
-        const btn = t && t.closest ? t.closest("#btnNewStayTop, #btnNewStayOnPage") : null;
-        if(!btn) return;
-        try{ ev.preventDefault(); }catch(_){}
-        try{ ev.stopPropagation(); }catch(_){}
-        createStay();
-      }, {capture:true, passive:false});
-
-    }
-  }catch(_){ }
-  if(btnQuickDogs) btnQuickDogs.onclick = ()=>selectTab("dogs");
-  if(btnQuickInvoices) btnQuickInvoices.onclick = ()=>selectTab("workforms");
-  if(btnQuickSettings) btnQuickSettings.onclick = ()=>selectTab("settings");
-
+  // (UI wiring erfolgt zentral in wireCoreUI())
 
   // Auth state
   CLOUD.auth.onAuthStateChanged(async (user)=>{
@@ -6346,39 +6351,7 @@ document.addEventListener("visibilitychange", () => {
 })();
 
 // Start
-startApp().catch(function(err){
-  try{ console.error(err); }catch(e){}
-  try{
-    var msg = (err && (err.stack || err.message)) ? (err.stack || err.message) : String(err);
-    // Visible fatal banner (Safari/iPad without console)
-    var box = document.getElementById('fatalErrorBox');
-    if(!box){
-      box = document.createElement('div');
-      box.id='fatalErrorBox';
-      box.style.position='fixed';
-      box.style.left='12px';
-      box.style.right='12px';
-      box.style.bottom='12px';
-      box.style.zIndex='999999';
-      box.style.background='rgba(140,20,20,0.92)';
-      box.style.color='#fff';
-      box.style.padding='12px 14px';
-      box.style.borderRadius='12px';
-      box.style.fontSize='13px';
-      box.style.lineHeight='1.35';
-      box.style.whiteSpace='pre-wrap';
-      box.style.boxShadow='0 10px 30px rgba(0,0,0,.45)';
-      box.style.maxHeight='45vh';
-      box.style.overflow='auto';
-      document.body.appendChild(box);
-    }
-    box.textContent = 'APP-Start fehlgeschlagen
-
-' + msg;
-  }catch(e2){
-    try{ alert('APP-Start fehlgeschlagen: ' + (err && err.message ? err.message : err)); }catch(e3){}
-  }
-});
+startApp().catch(console.error);
 // UI: Sync-Status regelmäßig auffrischen (auch bei Tab-Wechsel/PWA)
 setInterval(()=>{ try{ updateSyncUI(); }catch(_){ } }, 1500);
 window.addEventListener('online', ()=>{ try{ scheduleCloudPing(0,'online-event'); }catch(_){ try{ updateSyncUI(); }catch(__){} } });
