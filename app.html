@@ -50,6 +50,7 @@
         <button class="tab" data-tab="dogs"><span class="tab-ico" aria-hidden="true">🐶</span>Hunde/Kunden</button>
         <button class="tab" data-tab="contract"><span class="tab-ico" aria-hidden="true">📄</span>Betreuungsvertrag</button>
         <button class="tab" data-tab="workforms"><span class="tab-ico" aria-hidden="true">📝</span>Arbeitsblätter</button>
+        <button class="tab" data-tab="invoices"><span class="tab-ico" aria-hidden="true">🧾</span>Rechnungen</button>
         <button class="tab" data-tab="hygiene" id="tabHygiene"><span class="tab-ico" aria-hidden="true">🧼</span>Hygiene</button>
         <button class="tab" data-tab="medication" id="tabMedication"><span class="tab-ico" aria-hidden="true">💊</span>Medikamente</button>
         <button class="tab" data-tab="analytics" id="tabAnalytics"><span class="tab-ico" aria-hidden="true">📊</span>Auswertungen</button>
@@ -113,10 +114,10 @@
 <div class="card">
 <h2>Schnellaktionen</h2>
 <div class="quick-actions">
-<button class="btn primary" id="btnNewStayTop" type="button">➕ Neuer Aufenthalt</button>
-<button class="btn" id="btnQuickDogs" type="button">🐶 Hunde/Kunden</button>
+<button class="btn primary" id="btnNewStayTop" type="button" onclick="createStay()">➕ Neuer Aufenthalt</button>
+<button class="btn" id="btnQuickDogs" type="button" onclick="selectTab('dogs')">🐶 Hunde/Kunden</button>
 
-<button class="btn" id="btnQuickInvoices" type="button">🧾 Rechnungen</button>
+<button class="btn" id="btnQuickInvoices" type="button" onclick="selectTab('invoices')">🧾 Rechnungen</button>
 <button class="btn" onclick="selectTab('settings')">⚙️ Einstellungen</button>
 
 </div>
@@ -440,7 +441,7 @@
            Der Button hatte versehentlich die gleiche ID wie der echte Aufenthalte-Button,
            wodurch in Safari/iPad der Click-Handler am falschen Element hing.
            Deshalb hier eigene ID. -->
-      <button class="btn primary" id="btnNewStayOnPage" type="button">➕ Neuer Aufenthalt</button>
+      <button class="btn primary" id="btnNewStayOnPage" type="button" onclick="createStay()">➕ Neuer Aufenthalt</button>
 </div>
 <button class="btn" id="btnExportAll">Export: Backup (JSON)</button>
 </div>
@@ -1046,55 +1047,15 @@
   Beispiel: app.html?v=1118  ->  app.js?v=1118
 -->
 <script>
-/* Robust app.js loader (iOS/Safari-safe)
-   - loads app.js with same ?v=... as app.html
-   - forces ordered execution (async=false)
-   - shows visible error if app.js cannot be loaded
-*/
-(function(){
-  var qs = window.location.search || '';
-  if(!qs) qs = '?v=v11B_STAGE_B_RESET_20260121Q2';
-
-  // small visible banner if JS doesn't load
-  function ensureBanner(){
-    var b = document.getElementById('bootErrBanner');
-    if(b) return b;
-    b = document.createElement('div');
-    b.id = 'bootErrBanner';
-    b.style.cssText = 'position:fixed;left:10px;right:10px;bottom:54px;z-index:99999;background:#3b1d1d;color:#fff;padding:10px 12px;border-radius:12px;display:none;font:14px/1.3 system-ui;';
-    b.innerHTML = '<strong>App konnte nicht vollständig starten.</strong><br><span id="bootErrMsg">Lade app.js…</span><br><button id="bootErrReload" style="margin-top:8px;padding:6px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.35);background:transparent;color:#fff;">Neu laden</button> <button id="bootErrOpenLogin" style="margin-top:8px;padding:6px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.35);background:transparent;color:#fff;">Login öffnen</button>';
-    document.body.appendChild(b);
-    b.querySelector('#bootErrReload').addEventListener('click', function(){ location.reload(); });
-    b.querySelector('#bootErrOpenLogin').addEventListener('click', function(){ location.href = 'login.html' + qs; });
-    return b;
-  }
-  function showBanner(msg){
-    var b = ensureBanner();
-    var m = b.querySelector('#bootErrMsg');
-    if(m) m.textContent = msg || 'Unbekannter Fehler';
-    b.style.display = 'block';
-  }
-
-  var s = document.createElement('script');
-  s.src = 'app.js' + qs;
-  s.async = false;           // keep execution order predictable
-  s.onload = function(){
-    window.__APPJS_LOADED = true;
-  };
-  s.onerror = function(){
-    showBanner('app.js konnte nicht geladen werden: ' + s.src);
-  };
-
-  // Append to BODY (more reliable in Safari than HEAD+defer)
-  (document.body || document.documentElement).appendChild(s);
-
-  // If after a short delay app.js still not loaded, show hint
-  setTimeout(function(){
-    if(!window.__APPJS_LOADED){
-      showBanner('app.js lädt nicht oder wurde blockiert (Safari Cache/Redirect). Bitte neu laden.');
-    }
-  }, 1800);
-})();
+  (function(){
+    var qs = window.location.search || '';
+    // Fallback: wenn app.html ohne Query geöffnet wird, trotzdem eindeutige Version erzwingen
+    if(!qs) qs = '?v=v11B_STAGE_B_RESET_20260120D';
+    var s = document.createElement('script');
+    s.defer = true;
+    s.src = 'app.js' + qs;
+    document.head.appendChild(s);
+  })();
 </script>
 <script>
 (function(){
@@ -1202,6 +1163,6 @@
   <button class="btn btn--mini btn--logout" id="btnLogoutBottom" type="button" title="Ausloggen / Logout">Ausloggen / Logout</button>
 </div>
 <div class="test-badge" id="testBadge">PRODUKTIV</div>
-<div class="build-badge" id="buildBadge">Build vv11B_STAGE_B_RESET_20260121Q2</div>
+<div class="build-badge" id="buildBadge">Build v11B_STAGE_B_RESET_20260121Q2</div>
 </body>
 </html>
