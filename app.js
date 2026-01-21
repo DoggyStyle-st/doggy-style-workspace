@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = "v11B_MASTER_STEP1F_STAY_SIG_PDF_20260121F";
+const APP_BUILD = "v11B_MASTER_STEP1G_STAY_SIG_PDF_LOGO_FIX_20260121G";
 // Selector helpers
 // $: accepts either an element id (e.g. 'contractSig') or a CSS selector (e.g. '#contractSig', '.btn')
 const $ = (sel) => {
@@ -5680,6 +5680,9 @@ function updateCreateInvoiceButton(){
   const btn = document.getElementById("btnCreateInvoice");
   if(btn) btn.style.display = "none";
 
+  // Ende dieser Funktion (wichtig für sauberes Scope).
+}
+
 // Sync currentDoc with current form inputs WITHOUT saving/re-rendering.
 // This prevents losing typed values when opening overlays (e.g., signature, contract).
 function syncCurrentDocFromForm(){
@@ -5706,7 +5709,7 @@ function syncCurrentDocFromForm(){
 
   dirty = true;
 }
-}
+
 
 function syncStayEditorInputsToDoc(){
   try{
@@ -6021,14 +6024,23 @@ function printDoc(){
 
 function buildStayPrintHtml(docObj, dog){
   const dt=new Date(docObj.updatedAt || Date.now()).toLocaleString("de-DE");
-  const dogLine=dog && !dog.isPlaceholder ? `${dog.owner?escapeHtml(dog.owner)+" – ":""}${escapeHtml(dog.name)}` : "—";
+  // Hund/Kunde robust ermitteln (Stay-Editor kann ohne sichtbare Hund/Kunde-Felder laufen)
+  const pet = (docObj.petId && typeof getPet==='function') ? getPet(docObj.petId) : null;
+  const cust = (docObj.customerId && typeof getCustomer==='function') ? getCustomer(docObj.customerId) : null;
+  const custName = (cust && (cust.name || cust.lastName)) ? `${cust.name||""} ${cust.lastName||""}`.trim() : (dog && dog.owner ? String(dog.owner) : "");
+  const petName  = (pet && pet.name) ? String(pet.name) : (dog && dog.name ? String(dog.name) : "");
+  const dogLine  = [custName, petName].filter(Boolean).join(" – ") || "—";
   const m = docObj.meta || {};
   const notes = (docObj.fields && docObj.fields.notes) ? String(docObj.fields.notes) : "";
   const sigImg = (docObj.signature && docObj.signature.dataUrl)
     ? `<img class="sig" src="${docObj.signature.dataUrl}" alt="Unterschrift" />`
     : "";
 
-  let out=`<div class="head"><div><h1>${escapeHtml(docObj.title||'Hundeannahme / Aufenthalt')}</h1><div class="meta">Hund/Kunde: ${dogLine} · Stand: ${dt}</div></div><img class="logo" src="assets/logo.png" /></div>`;
+  // Logo: in Blob/Modal müssen wir eine absolute URL verwenden, sonst lädt Safari das Bild nicht.
+  let logoUrl = 'assets/logo.png';
+  try{ logoUrl = new URL('assets/logo.png', window.location.href).href; }catch(_){ }
+
+  let out=`<div class="head"><div><h1>${escapeHtml(docObj.title||'Hundeannahme / Aufenthalt')}</h1><div class="meta">Hund/Kunde: ${escapeHtml(dogLine)} · Stand: ${escapeHtml(dt)}</div></div><img class="logo" src="${logoUrl}" alt="Doggy Style" /></div>`;
   out+=`<h2>Aufenthalt</h2><table>`;
   out+=`<tr><td class="k">Von</td><td class="v">${escapeHtml(m.von||"")}</td></tr>`;
   out+=`<tr><td class="k">Bis</td><td class="v">${escapeHtml(m.bis||"")}</td></tr>`;
