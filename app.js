@@ -6002,21 +6002,24 @@ function printDoc(){
     || currentDoc.type === 'stay';
 
     const dog=state.dogs.find(d=>d.id===currentDoc.dogId) || null;
-    if(isStay && (!t || !Array.isArray(t.sections))){
-      const html = buildStayPrintHtml(currentDoc, dog);
-      // iOS/Safari: nach Alerts kann das Öffnen manchmal "verschluckt" werden → minimal verzögert.
-      setTimeout(()=>{
-        try{ openHtmlInModal('Druckvorschau', html, 'Schließen mit ✕. Für PDF: Drucken/Speichern → „Als PDF“ → in Dateien speichern.'); }
-        catch(err){ alert('PDF-Vorschau Fehler: ' + (err?.message || err)); }
-      }, 0);
-      return;
-    }
 
-    const html=buildPrintHtml(currentDoc,t,dog);
-    setTimeout(()=>{
-      try{ openHtmlInModal('Druckvorschau', html, 'Schließen mit ✕. Für PDF: Drucken/Speichern → „Als PDF“ → in Dateien speichern.'); }
-      catch(err){ alert('PDF-Vorschau Fehler: ' + (err?.message || err)); }
-    }, 0);
+// Für Aufenthalte (Hundeannahme) immer die dedizierte Druckansicht verwenden
+// (Template-Print lässt Logo/Hund/Kunde häufig weg und ist in Safari/Blob fehleranfällig).
+if(isStay){
+  const html = buildStayPrintHtml(currentDoc, dog);
+  setTimeout(()=>{
+    try{ openHtmlInModal('Druckvorschau', html, 'Schließen mit ✕. Für PDF: Drucken/Speichern → „Als PDF“ → in Dateien speichern.'); }
+    catch(err){ alert('PDF-Vorschau Fehler: ' + (err?.message || err)); }
+  }, 0);
+  return;
+}
+
+const html=buildPrintHtml(currentDoc,t,dog);
+setTimeout(()=>{
+  try{ openHtmlInModal('Druckvorschau', html, 'Schließen mit ✕. Für PDF: Drucken/Speichern → „Als PDF“ → in Dateien speichern.'); }
+  catch(err){ alert('PDF-Vorschau Fehler: ' + (err?.message || err)); }
+}, 0);
+
   }catch(err){
     alert('PDF-Vorschau Fehler: ' + (err?.message || err));
   }
@@ -6024,12 +6027,31 @@ function printDoc(){
 
 function buildStayPrintHtml(docObj, dog){
   const dt=new Date(docObj.updatedAt || Date.now()).toLocaleString("de-DE");
-  // Hund/Kunde robust ermitteln (Stay-Editor kann ohne sichtbare Hund/Kunde-Felder laufen)
-  const pet = (docObj.petId && typeof getPet==='function') ? getPet(docObj.petId) : null;
-  const cust = (docObj.customerId && typeof getCustomer==='function') ? getCustomer(docObj.customerId) : null;
-  const custName = (cust && (cust.name || cust.lastName)) ? `${cust.name||""} ${cust.lastName||""}`.trim() : (dog && dog.owner ? String(dog.owner) : "");
-  const petName  = (pet && pet.name) ? String(pet.name) : (dog && dog.name ? String(dog.name) : "");
-  const dogLine  = [custName, petName].filter(Boolean).join(" – ") || "—";
+  
+// Hund/Kunde robust ermitteln (Stay-Editor kann ohne sichtbare Hund/Kunde-Felder laufen)
+const dogObj = state.dogs.find(d=>d.id===(docObj.dogId||docObj.petId)) || dog || null;
+const custObj = state.customers.find(c=>c.id===(docObj.customerId||dogObj?.customerId||dogObj?.ownerId)) || null;
+
+const pet = (docObj.petId && typeof getPet==='function') ? getPet(docObj.petId) : null;
+const cust = (docObj.customerId && typeof getCustomer==='function') ? getCustomer(docObj.customerId) : null;
+
+const custName = (
+  (custObj && (custObj.name||custObj.firstName||custObj.lastName))
+    ? `${custObj.name||custObj.firstName||''} ${custObj.lastName||''}`.trim()
+    : (cust && (cust.name||cust.lastName))
+      ? `${cust.name||''} ${cust.lastName||''}`.trim()
+      : (dogObj && (dogObj.ownerName||dogObj.owner))
+        ? String(dogObj.ownerName||dogObj.owner)
+        : ''
+);
+
+const petName = (
+  (dogObj && dogObj.name) ? String(dogObj.name)
+    : (pet && pet.name) ? String(pet.name)
+    : ''
+);
+
+const dogLine  = [custName, petName].filter(Boolean).join(' – ') || '—';
   const m = docObj.meta || {};
   const notes = (docObj.fields && docObj.fields.notes) ? String(docObj.fields.notes) : "";
   const sigImg = (docObj.signature && docObj.signature.dataUrl)
