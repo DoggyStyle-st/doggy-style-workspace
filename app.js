@@ -1,5 +1,23 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = "v11B_MASTER_STEP1G_STAY_SIG_PDF_LOGO_FIX_20260121G";
+const APP_BUILD = "v11B_MASTER_STEP1H_LEGAL_SIG_SW_HOTFIX_20260124A";
+
+// --- Build-Sync (Anzeige + Migration) ---
+(function syncBuildBadge(){
+  try{
+    const el = document.getElementById('buildBadge');
+    if(el) el.textContent = 'Build ' + APP_BUILD;
+  }catch(_){}
+  try{
+    const key = 'ds_app_build';
+    const prev = localStorage.getItem(key);
+    if(prev !== APP_BUILD){
+      localStorage.setItem(key, APP_BUILD);
+      // Optional: mark that a version bump happened (useful for guarded migrations)
+      localStorage.setItem('ds_app_build_bumped_at', String(Date.now()));
+    }
+  }catch(_){}
+})();
+
 // Selector helpers
 // $: accepts either an element id (e.g. 'contractSig') or a CSS selector (e.g. '#contractSig', '.btn')
 const $ = (sel) => {
@@ -5517,7 +5535,7 @@ renderVersions(currentDoc);
   // Quicklinks im Aufenthalt (Medikation/Gesundheit)
   try{ renderStayQuickLinks(currentDoc); }catch(e){ console.warn('renderStayQuickLinks failed', e); }
   
-  $("#dsGvoText").textContent=getTemplate(currentDoc.templateId)?.dsGvoNote||"";
+  (function(){ const el = $("#dsGvoText") || $("#dsGvo-Text"); if(el) el.textContent = (getTemplate(currentDoc.templateId)?.dsGvoNote||""); })();
   dirty=false;
   showPanel("editor");
   window.scrollTo({top:0,behavior:"smooth"});
