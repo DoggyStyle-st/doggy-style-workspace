@@ -1031,7 +1031,7 @@
 <div id="editorContent">
 <div id="formRoot"></div>
 </div>
-<div class="card">
+<div class="card card--legacy-dsgvo" style="display:none">
 <h2>Datenschutz (DSGVO)</h2>
 <p class="muted" id="dsGvoText"></p>
 </div>
@@ -1046,17 +1046,7 @@
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-<!--
-  Cache-Buster Fix:
-  app.html wurde bisher mit fester app.js?v=240124A-Version geladen (z.B. app.js?v=240124A'';
-    // Fallback: wenn app.html ohne Query geöffnet wird, trotzdem eindeutige Version erzwingen
-    if(!qs) qs = '?v=' + (Date.now().toString());
-    var s = document.createElement('script');
-    s.defer = true;
-    s.src = 'app.js?v=240124A' + qs;
-    document.head.appendChild(s);
-  })();
-</script>
+<script defer="defer" src="app.js?v=20260124B"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');

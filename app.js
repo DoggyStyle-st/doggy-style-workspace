@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = "v11B_MASTER_STEP1H_LEGAL_SIG_SW_HOTFIX_20260124A";
+const APP_BUILD = "v11B_MASTER_STEP1H_LEGAL_SIG_RESTORE_20260124D";
 
 // --- Build-Sync (Anzeige + Migration) ---
 (function syncBuildBadge(){
@@ -438,6 +438,93 @@ function openHtmlInModal(title, html, hint){
   const blob = new Blob([content], {type:'text/html'});
   const url = URL.createObjectURL(blob);
   openDocModal(url, title, hint, suggestFilename(title));
+}
+
+
+// ===== Rechtstexte (AGB / DSGVO) – editierbar über Einstellungen =====
+const LEGAL_DEFAULTS = {
+  dsgvo: `Datenschutzhinweis (DSGVO) – Doggy Style Hundepension
+
+Verantwortlicher:
+Raphael Boch, Im Moos 4, 88167 Stiefenhofen
+Telefon: 0170/7313587 · E-Mail: info@doggy-style.de
+
+Zweck der Verarbeitung
+Wir verarbeiten personenbezogene Daten und tierbezogene Daten zur Durchführung von Betreuungsverträgen, zur Organisation von Aufenthalten, zur Abrechnung, zur Kommunikation sowie zur Erfüllung gesetzlicher Pflichten.
+
+Kategorien von Daten
+- Stammdaten (Name, Anschrift, Kontakt)
+- Vertrags- und Buchungsdaten (Zeiträume, Leistungen, Preise)
+- Tierdaten (Hundename, Besonderheiten, Medikamente/Notizen sofern angegeben)
+- Dokumentationsdaten (z. B. digitale Unterschrift, Einwilligungen)
+
+Rechtsgrundlagen
+Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung) und Art. 6 Abs. 1 lit. c DSGVO (rechtliche Verpflichtung). Soweit Einwilligungen erfasst werden: Art. 6 Abs. 1 lit. a DSGVO.
+
+Empfänger / Tierarzt
+Daten werden grundsätzlich nicht an Dritte weitergegeben, außer dies ist zur Vertragserfüllung erforderlich (z. B. Tierarzt im Notfall) oder gesetzlich vorgeschrieben.
+
+Speicherdauer
+Wir speichern Daten nur solange, wie es für die genannten Zwecke erforderlich ist oder gesetzliche Aufbewahrungsfristen bestehen (z. B. steuerrechtliche Fristen).
+
+Rechte
+Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Datenübertragbarkeit sowie Widerspruch. Einwilligungen können jederzeit mit Wirkung für die Zukunft widerrufen werden.
+
+Beschwerderecht
+Sie haben das Recht, sich bei einer Datenschutzaufsichtsbehörde zu beschweren.`,
+  agb: `Allgemeine Geschäftsbedingungen (AGB) – Doggy Style Hundepension
+Stand: 23.01.2026
+
+1. Geltungsbereich
+Diese AGB gelten für alle Betreuungsleistungen (Tages- und Urlaubsbetreuung). Abweichende Vereinbarungen bedürfen der Textform.
+
+2. Voraussetzungen für die Aufnahme
+- Hund frei von ansteckenden Krankheiten/Parasiten (insb. Flöhe, Giardien)
+- Impfstatus altersgerecht und aktuell (Nachweis auf Verlangen)
+- Halter informiert vollständig über Verhalten, Allergien, Vorerkrankungen, Läufigkeit, Medikamente, Besonderheiten
+- Hundehaftpflichtversicherung wird empfohlen; Halter haftet für verursachte Schäden
+
+3. Leistungen & Betreuung
+Betreuung im Rahmen betrieblicher Abläufe. Kein Anspruch auf bestimmte Gruppen/Einzelhaltung ohne ausdrückliche Vereinbarung.
+
+4. Läufigkeit
+Läufige Hündinnen werden grundsätzlich nicht betreut. Beginnt Läufigkeit während des Aufenthalts, ist unverzügliche Abholung erforderlich oder es erfolgt eine Einzelfallentscheidung.
+
+5. Tierarzt / Notfall
+Bei akuten Problemen darf ein Tierarzt aufgesucht werden. Der Betreiber informiert den Halter nach Möglichkeit vorab. Kosten trägt der Halter.
+
+6. Haftung
+Haftung nur bei Vorsatz/grober Fahrlässigkeit. Keine Haftung für typische Gruppenrisiken oder persönliche Gegenstände.
+
+7. Abbruch / Ausschluss
+Betreuung kann beendet werden, wenn Gefahr besteht, falsche Angaben gemacht wurden oder tierschutzrechtliche/betriebliche Gründe vorliegen. Abholung kann kurzfristig erforderlich sein.`
+};
+
+function _legalKey(kind){ return `ds_legal_${String(kind||'').toLowerCase()}`; }
+function getLegalText(kind){
+  try{
+    const v = localStorage.getItem(_legalKey(kind));
+    if(v && String(v).trim()) return String(v);
+  }catch(_){ }
+  return LEGAL_DEFAULTS[String(kind||'').toLowerCase()] || '';
+}
+function setLegalText(kind, value){ try{ localStorage.setItem(_legalKey(kind), String(value||'')); }catch(_){ } }
+function resetLegalText(kind){ try{ localStorage.removeItem(_legalKey(kind)); }catch(_){ } }
+
+function openLegalModal(kind){
+  const k = String(kind||'').toLowerCase();
+  const title = (k==='agb') ? 'AGB – Doggy Style Hundepension' : 'Datenschutzhinweis (DSGVO) – Doggy Style Hundepension';
+  const txt = getLegalText(k);
+  const body = escapeHtml(String(txt||'')).replace(/\n/g,'<br>');
+  const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:18px;line-height:1.35}
+    h1{font-size:20px;margin:0 0 12px 0}
+  </style></head><body>
+  <h1>${escapeHtml(title)}</h1>
+  <div>${body}</div>
+  </body></html>`;
+  openHtmlInModal(title, html, 'Tipp: iPad/iPhone → „Drucken/Speichern“ → Teilen → „In Dateien sichern“.');
 }
 
 function cloudIsEnabled(){
@@ -3619,7 +3706,50 @@ function renderComplianceInSettings(){
       </div>
       <span class="pill ${i.pillClass}">${i.status==='green'?'OK':(i.status==='yellow'?'fällig':'überfällig')}</span>
     </div>
-  `).join('');
+  `).join('') + `
+    <div class="card" style="margin-top:12px">
+      <h2>Rechtstexte bearbeiten</h2>
+      <div class="muted" style="margin-bottom:10px">Hier kannst du AGB/DSGVO später selbst anpassen, ohne Code zu ändern. Änderungen wirken für „Anzeigen“ im Aufenthalt.</div>
+      <label class="field"><span>Datenschutz (DSGVO)</span>
+        <textarea id="legalDsgvoText" style="min-height:140px"></textarea>
+      </label>
+      <label class="field"><span>AGB</span>
+        <textarea id="legalAgbText" style="min-height:140px"></textarea>
+      </label>
+      <div class="row" style="gap:8px; justify-content:flex-end; flex-wrap:wrap;">
+        <button class="btn" type="button" id="btnLegalReset">Auf Standard zurücksetzen</button>
+        <button class="btn primary" type="button" id="btnLegalSave">Speichern</button>
+      </div>
+    </div>
+  `;
+
+  setTimeout(()=>{
+    const d = document.getElementById('legalDsgvoText');
+    const a = document.getElementById('legalAgbText');
+    if(d && !d.dataset.bound){ d.dataset.bound='1'; d.value = getLegalText('dsgvo'); }
+    if(a && !a.dataset.bound){ a.dataset.bound='1'; a.value = getLegalText('agb'); }
+    const btnS = document.getElementById('btnLegalSave');
+    const btnR = document.getElementById('btnLegalReset');
+    if(btnS && !btnS.dataset.bound){
+      btnS.dataset.bound='1';
+      btnS.onclick = ()=>{
+        setLegalText('dsgvo', document.getElementById('legalDsgvoText')?.value||'');
+        setLegalText('agb', document.getElementById('legalAgbText')?.value||'');
+        miniToast('Rechtstexte gespeichert.');
+      };
+    }
+    if(btnR && !btnR.dataset.bound){
+      btnR.dataset.bound='1';
+      btnR.onclick = ()=>{
+        if(!confirm('Auf Standard zurücksetzen? Eigene Änderungen werden verworfen.')) return;
+        resetLegalText('dsgvo'); resetLegalText('agb');
+        const dd = document.getElementById('legalDsgvoText'); const aa = document.getElementById('legalAgbText');
+        if(dd) dd.value = getLegalText('dsgvo');
+        if(aa) aa.value = getLegalText('agb');
+        miniToast('Auf Standard zurückgesetzt.');
+      };
+    }
+  },0);
 }
 
 function renderStaffSettings(){
@@ -5770,15 +5900,36 @@ function syncCurrentDocFromForm(){
 function syncStayEditorInputsToDoc(){
   try{
     if(!window.currentDoc) return;
-    // Robustheit iOS/Safari: Werte direkt aus dem DOM ziehen (oninput/onchange feuert bei date/select nicht immer vor Save)
+    currentDoc.meta = currentDoc.meta || {};
+
+    const dogSel = document.getElementById('stayDogSelect');
+    const custSel = document.getElementById('stayCustomerSelect');
+    if(dogSel) currentDoc.dogId = dogSel.value || currentDoc.dogId || '';
+    if(custSel) currentDoc.customerId = custSel.value || currentDoc.customerId || '';
+    ensureDocLinks(currentDoc);
+
     const vonEl = document.getElementById('stayVon');
     const bisEl = document.getElementById('stayBis');
     const betEl = document.getElementById('stayBetreuung');
-    if(!vonEl && !bisEl && !betEl) return;
-    currentDoc.meta = currentDoc.meta || {};
-    if(vonEl) currentDoc.meta.von = (vonEl.value || "").trim();
-    if(bisEl) currentDoc.meta.bis = (bisEl.value || "").trim();
-    if(betEl) currentDoc.meta.betreuung = (betEl.value || "").trim();
+    const noteEl = document.getElementById('stayNotes');
+    if(vonEl) currentDoc.meta.von = (vonEl.value || '').trim();
+    if(bisEl) currentDoc.meta.bis = (bisEl.value || '').trim();
+    if(betEl) currentDoc.meta.betreuung = (betEl.value || '').trim();
+    if(noteEl) currentDoc.meta.notes = (noteEl.value || '').trim();
+
+    const cbDs = document.getElementById('stayConsentDsGvo');
+    const cbAg = document.getElementById('stayConsentAgb');
+    const cbVe = document.getElementById('stayConsentVet');
+    const cbTr = document.getElementById('stayConsentTruth');
+    if(cbDs || cbAg || cbVe || cbTr){
+      currentDoc.meta.consents = currentDoc.meta.consents || {};
+      if(cbDs) currentDoc.meta.consents.dsgvo = !!cbDs.checked;
+      if(cbAg) currentDoc.meta.consents.agb   = !!cbAg.checked;
+      if(cbVe) currentDoc.meta.consents.vet   = !!cbVe.checked;
+      if(cbTr) currentDoc.meta.consents.truth = !!cbTr.checked;
+    }
+
+    dirty = true;
   }catch(e){}
 }
 
@@ -6016,6 +6167,7 @@ document.addEventListener("click",(e)=>{
   // Unterschrift im Aufenthalt erfassen (ohne Form-Reset)
   if(e.target && e.target.id==="btnSignatureOpen"){
     e.preventDefault();
+    try{ syncStayEditorInputsToDoc(); }catch(_){ }
     syncCurrentDocFromForm(); // <- wichtige Zeile: typed values in currentDoc übernehmen
     openSignatureOverlay(data=>{
       if(!currentDoc) return;
@@ -6029,6 +6181,14 @@ document.addEventListener("click",(e)=>{
       // Nach dem Signieren den passenden Editor erneut rendern (Aufenthalt kann im Embedded-Modus laufen)
       try{ renderEditor(currentDoc); }catch(_){ renderForm(currentDoc); }
     });
+    return;
+  }
+
+  // Zweiter Speichern-Button im Aufenthalt (bei Unterschrift)
+  if(e.target && e.target.id==="btnStaySave2"){
+    e.preventDefault();
+    try{ syncStayEditorInputsToDoc(); }catch(_){ }
+    saveCurrent(true);
     return;
   }
 
@@ -6751,7 +6911,11 @@ function renderStayEditorEmbedded(doc){
       </label>
       <label class="field">
         <span>Betreuung</span>
-        <input id="stayBetreuung" placeholder="z.B. Urlaub / Tagesbetreuung" />
+        <select id="stayBetreuung">
+          <option value="">(Auswahl)</option>
+          <option value="tagesbetreuung">Tagesbetreuung</option>
+          <option value="urlaubsbetreuung">Urlaubsbetreuung</option>
+        </select>
       </label>
       <label class="field" style="grid-column: 1 / -1;">
         <span>Notizen</span>
@@ -6760,6 +6924,68 @@ function renderStayEditorEmbedded(doc){
     </div>
   `;
   root.appendChild(card);
+
+
+  // Zustimmungen & AGB (Aufenthalt)
+  const consentCard = document.createElement('div');
+  consentCard.className = 'card';
+  consentCard.id = 'stayConsentCard';
+  consentCard.innerHTML = `
+    <h2>Zustimmungen & AGB</h2>
+    <div class="row" style="gap:10px; justify-content:flex-end; flex-wrap:wrap; margin-bottom:10px">
+      <button class="btn" type="button" id="btnShowDsGvo">Datenschutz anzeigen</button>
+      <button class="btn" type="button" id="btnShowAgb">AGB anzeigen</button>
+    </div>
+
+    <div class="checkrow">
+      <input type="checkbox" id="stayConsentDsGvo">
+      <label for="stayConsentDsGvo"><strong>Datenschutz (DSGVO)</strong><br><span class="muted">Einwilligung zur Datenverarbeitung gemäß Datenschutzhinweis.</span></label>
+    </div>
+
+    <div class="checkrow">
+      <input type="checkbox" id="stayConsentAgb">
+      <label for="stayConsentAgb"><strong>AGB gelesen & akzeptiert</strong><br><span class="muted">Der Kunde bestätigt, die AGB zur Kenntnis genommen zu haben.</span></label>
+    </div>
+
+    <div class="checkrow">
+      <input type="checkbox" id="stayConsentVet">
+      <label for="stayConsentVet"><strong>Tierarzt-/Notfallzustimmung</strong><br><span class="muted">Behandlung im Notfall / Tierarztvollmacht gemäß Vertrag.</span></label>
+    </div>
+
+    <div class="checkrow">
+      <input type="checkbox" id="stayConsentTruth">
+      <label for="stayConsentTruth"><strong>Angaben wahrheitsgemäß</strong><br><span class="muted">Alle Angaben wurden vollständig und korrekt gemacht.</span></label>
+    </div>
+
+    <div class="hint" style="margin-top:10px">Hinweis: Fehlende Zustimmungen blockieren das Speichern nicht, werden aber als Hinweis gemeldet.</div>
+  `;
+  root.appendChild(consentCard);
+
+  doc.meta = doc.meta || {};
+  doc.meta.consents = doc.meta.consents || {};
+  const c = doc.meta.consents;
+  const cbDs = consentCard.querySelector('#stayConsentDsGvo');
+  const cbAg = consentCard.querySelector('#stayConsentAgb');
+  const cbVe = consentCard.querySelector('#stayConsentVet');
+  const cbTr = consentCard.querySelector('#stayConsentTruth');
+  if(cbDs) cbDs.checked = !!c.dsgvo;
+  if(cbAg) cbAg.checked = !!c.agb;
+  if(cbVe) cbVe.checked = !!c.vet;
+  if(cbTr) cbTr.checked = !!c.truth;
+
+  const syncConsents = ()=>{
+    doc.meta.consents = doc.meta.consents || {};
+    doc.meta.consents.dsgvo = !!(cbDs && cbDs.checked);
+    doc.meta.consents.agb   = !!(cbAg && cbAg.checked);
+    doc.meta.consents.vet   = !!(cbVe && cbVe.checked);
+    doc.meta.consents.truth = !!(cbTr && cbTr.checked);
+    dirty = true;
+  };
+  [cbDs,cbAg,cbVe,cbTr].forEach(x=>{ if(x) x.addEventListener('change', syncConsents); });
+
+  consentCard.querySelector('#btnShowDsGvo')?.addEventListener('click', (e)=>{ e.preventDefault(); openLegalModal('dsgvo'); });
+  consentCard.querySelector('#btnShowAgb')?.addEventListener('click', (e)=>{ e.preventDefault(); openLegalModal('agb'); });
+
 
   // Unterschrift als eigene Card (nicht verschachtelt)
   const sigCard = document.createElement('div');
@@ -6771,6 +6997,7 @@ function renderStayEditorEmbedded(doc){
     <div id="staySigBox" class="muted" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
       <span id="staySigStatus">— noch keine Unterschrift —</span>
       <button id="btnSignatureOpen" class="primary" type="button">✍️ Unterschrift erfassen</button>
+      <button id="btnStaySave2" class="btn" type="button">Speichern</button>
       <button id="btnSignatureClear" class="btn" type="button" style="display:none;">Unterschrift löschen</button>
     </div>
     <div id="staySigPreview" style="margin-top:10px;display:none;">
