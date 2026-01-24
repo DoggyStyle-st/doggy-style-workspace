@@ -2,6 +2,9 @@
 
 <html lang="de">
 <head>
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0"/>
+<meta http-equiv="Pragma" content="no-cache"/>
+<meta http-equiv="Expires" content="0"/>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <title>Doggy Style Workspace · App</title>
@@ -26,14 +29,77 @@
     .tabs__row{gap:12px;}
     .tabs__row--quick{gap:10px;}
   }
+
+#btnLogoutBottom{display:none !important;}
 </style>
 
 <!-- Hotfix: Doc-Modal muss über Top-Navigation liegen (iPad/Safari: Buttons sonst nicht erreichbar) -->
 <style>
-  .doc-modal{ z-index: 99999 !important; }
-  .doc-modal__panel{ z-index: 100000 !important; }
+  /* Dokument-Modal (DSGVO/AGB) – muss "positioned" sein, sonst wirkt z-index nicht (iPad/Safari) */
+  .doc-modal{
+    position: fixed;
+    inset: 0;
+    z-index: 99999 !important;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    /* Platz für iOS Safe-Area; Modal soll unabhängig vom Header funktionieren */
+    padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(env(safe-area-inset-bottom, 0px) + 16px);
+    box-sizing: border-box;
+  }
+
+  .doc-modal__backdrop{
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,.55);
+  }
+
+  .doc-modal__panel{
+    position: relative;
+    width: min(1100px, calc(100vw - 32px));
+    height: calc(100vh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    max-height: calc(100vh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    border-radius: 14px;
+    overflow: hidden;
+    background: rgba(20,20,20,.65);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: 0 20px 60px rgba(0,0,0,.55);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .doc-modal__bar{
+    flex: 0 0 auto;
+  }
+
+  .doc-modal__body{
+    flex: 1 1 auto;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .doc-modal__frame{
+    width: 100%;
+    height: 100%;
+    border: 0;
+    background: #fff;
+    display: block;
+  }
+  .doc-modal__panel{ z-index: 100000 !important; max-width: 1000px; display:flex; flex-direction:column; max-height: 90vh; }
+  /* HTML nutzt .doc-modal__bar (nicht __header). Ohne Styling verschwindet die Toolbar auf iPad/Safari. */
+  .doc-modal__bar{
+    position: sticky; top: 0; z-index: 100001;
+    display:flex; align-items:center; gap:10px;
+    padding:10px 12px;
+    background: rgba(20,20,22,.96);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid rgba(255,255,255,.10);
+  }
+  /* Backwards-compat, falls ältere HTMLs noch __header nutzen */
   .doc-modal__header{ position: sticky; top: 0; z-index: 100001; background: rgba(20,20,22,.96); backdrop-filter: blur(8px); }
-  .doc-modal__actions{ flex-wrap: wrap; gap: 8px; }
+  .doc-modal__actions{ margin-left:auto; display:flex; flex-wrap: wrap; gap: 8px; }
+  .doc-modal__frame{ width: 100%; border: 0; border-radius: 12px; background: #fff; flex:1; min-height: 0; }
 </style>
 </head>
 <body class="bg-watermark page-app">
@@ -89,27 +155,27 @@
 <div class="dashboard-top">
   <div class="hero-card hero-card--side">
     <div class="hero-header">
-      <span class="hero-icon">🐕</span>
       <span class="hero-title">Tagesbetreuung</span>
     </div>
     <div class="hero-value" id="todayDaycareValue">0 / 13</div>
     <div class="hero-bar"><div class="hero-bar-fill" id="todayDaycareBar"></div></div>
     <div class="hero-sub" id="todayDaycareText">Ruhiger Tag</div>
+    <img class="hero-photo" src="assets/dash_daycare.jpg" alt="Tagesbetreuung" />
   </div>
 
   <div class="dashboard-brand">
     <img src="assets/logo.png" alt="Doggy Style" class="dashboard-brand__logo"/>
-    <div class="dashboard-brand__quote handwriting">„Arbeit macht nicht frei, dabei ist Freiheit, was wir brauchen.<br>Das Leben geht so schnell vorbei, das kannst du mir ruhig glauben“</div>
+    <div class="dashboard-brand__quote handwriting quote-strong">Je mehr Menschen wir kennen lernen,<br>desto mehr wissen wir<br>warum wir Tiere lieber mögen.</div>
   </div>
 
   <div class="hero-card hero-card--side">
     <div class="hero-header">
-      <span class="hero-icon">🏡</span>
       <span class="hero-title">Urlaubsbetreuung</span>
     </div>
     <div class="hero-value" id="todayBoardingValue">0 / 10</div>
     <div class="hero-bar"><div class="hero-bar-fill" id="todayBoardingBar"></div></div>
     <div class="hero-sub" id="todayBoardingText">Ruhiger Tag</div>
+    <img class="hero-photo" src="assets/dash_vacation.jpg" alt="Urlaubsbetreuung" />
   </div>
 </div>
 
@@ -812,7 +878,7 @@
         <button class="btn" type="button" id="docModalPrint">🖨️ Drucken/Speichern</button>
         <button class="btn" type="button" id="docModalOpen">↗︎ In neuem Tab</button>
         <button class="btn" type="button" id="docModalShare" style="display:none">📤 Teilen</button>
-        <button class="btn danger" type="button" id="docModalClose">✕ Schließen</button>
+        <button class="btn danger" type="button" id="docModalClose">← Zurück</button>
       </div>
     </div>
     <iframe class="doc-modal__frame" id="docModalFrame" title="Dokument"></iframe>
@@ -1031,7 +1097,7 @@
 <div id="editorContent">
 <div id="formRoot"></div>
 </div>
-<div class="card">
+<div class="card card--legacy-dsgvo" style="display:none">
 <h2>Datenschutz (DSGVO)</h2>
 <p class="muted" id="dsGvoText"></p>
 </div>
@@ -1046,25 +1112,7 @@
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-<!--
-  Cache-Buster Fix:
-  app.html wurde bisher mit fester app.js-Version geladen (z.B. app.js?v=v11B_SAVE_PDF_10).
-  Dadurch blieb Safari/PWA oft auf alten Ständen hängen, auch wenn app.html mit ?v=... geöffnet wurde.
-
-  Ab jetzt: app.js wird mit dem gleichen Query-String geladen wie app.html selbst.
-  Beispiel: app.html?v=1118  ->  app.js?v=1118
--->
-<script>
-  (function(){
-    var qs = window.location.search || '';
-    // Fallback: wenn app.html ohne Query geöffnet wird, trotzdem eindeutige Version erzwingen
-    if(!qs) qs = '?v=v11B_MASTER_STEP1_WARNINGS_20260121D';
-    var s = document.createElement('script');
-    s.defer = true;
-    s.src = 'app.js' + qs;
-    document.head.appendChild(s);
-  })();
-</script>
+<script defer="defer" src="app.js?v=20260124M6"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1107,7 +1155,7 @@
 </script>
 
 <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=TEST_OPTIK_01_2026-01-03');
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=20260124M1');
   </script>
 
 <script>
@@ -1168,9 +1216,9 @@
 <!-- Dummy für Legacy-Signatur -->
 <canvas height="1" id="sigPad" style="display:none" width="1"></canvas>
   <div class="bottom-actions">
-  <button class="btn btn--mini btn--logout" id="btnLogoutBottom" type="button" title="Ausloggen / Logout">Ausloggen / Logout</button>
+  <!-- Bottom logout button removed (duplicate of header logout; also overlaps editor on iPad) -->
 </div>
-<div class="test-badge" id="testBadge">PRODUKTIV</div>
-<div class="build-badge" id="buildBadge">Build v11B_MASTER_STEP1I_STAY_PDF_MODAL_ZFIX_20260121I</div>
+<!-- test-badge removed (requested) -->
+<div class="build-badge" id="buildBadge">Build v11B_MASTER_STEP1K_STAY_LEGAL_SIG_DOCMODAL_UI_FIX_20260124M3</div>
 </body>
 </html>
