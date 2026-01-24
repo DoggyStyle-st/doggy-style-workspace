@@ -38,28 +38,10 @@ const CAPACITY = {
   Urlaubsbetreuung: 10
 };
 
-// --- Betreuung / Kapazität: robuste Normalisierung ---
-function _normBetreuungType(v){
-  if(v == null) return '';
-  const s = String(v).trim().toLowerCase();
-  if(!s) return '';
-  if(s === 'urlaub' || s === 'urlaubs' || s.includes('urlaub')) return 'urlaubsbetreuung';
-  if(s === 'tag' || s === 'tage' || s === 'tages' || s.includes('tages')) return 'tagesbetreuung';
-  return s;
-}
-function _canonicalBetreuungType(v){
-  const n = _normBetreuungType(v);
-  if(n === 'urlaubsbetreuung') return 'Urlaubsbetreuung';
-  if(n === 'tagesbetreuung') return 'Tagesbetreuung';
-  return v || '';
-}
-
-
 // === Dynamische Kapazitäten (Standard + Ausnahmen nach Zeitraum) ===
 // Ausnahme-Objekt: { from:"YYYY-MM-DD", to:"YYYY-MM-DD", Tagesbetreuung: 8, Urlaubsbetreuung: 6, note:"Event" }
 function getCapacity(type, dateISO){
   try{
-    type = _canonicalBetreuungType(type);
     const caps = state && state.capacities;
     if(!caps || !caps.default) return (CAPACITY[type] || 0);
     const d = String(dateISO||"").slice(0,10);
@@ -1773,11 +1755,8 @@ function renderDashboard(){
   days.forEach(d=>{
     const dayUsed = countOccupancy("Tagesbetreuung", d, d);
     const boardUsed = countOccupancy("Urlaubsbetreuung", d, d);
-    // capacities can vary per day (e.g. special limits)
-    const dayMaxD = getCapacity("Tagesbetreuung", d);
-    const boardMaxD = getCapacity("Urlaubsbetreuung", d);
-    const dayR = dayMaxD ? (dayUsed/dayMaxD) : 0;
-    const boardR = boardMaxD ? (boardUsed/boardMaxD) : 0;
+    const dayR = dayMax ? (dayUsed/dayMax) : 0;
+    const boardR = boardMax ? (boardUsed/boardMax) : 0;
 
     const row = document.createElement("div");
     row.className = "forecast-row";
@@ -1787,17 +1766,15 @@ function renderDashboard(){
 
     row.innerHTML = `
       <div class="forecast-date">${label}</div>
-      <div class="forecast-stack">
-        <div class="forecast-item">
-          <img class="forecast-icon-img" src="assets/dash_daycare.jpg" alt="Tagesbetreuung" />
-          <div class="mini-bar"><div class="mini-bar-fill" style="width:${Math.min(100,dayR*100)}%;background:${dashboardStatusColor(dayR)}"></div></div>
-          <div class="forecast-count">${dayUsed}/${dayMaxD}</div>
-        </div>
-        <div class="forecast-item">
-          <img class="forecast-icon-img" src="assets/dash_vacation.jpg" alt="Urlaubsbetreuung" />
-          <div class="mini-bar"><div class="mini-bar-fill" style="width:${Math.min(100,boardR*100)}%;background:${dashboardStatusColor(boardR)}"></div></div>
-          <div class="forecast-count">${boardUsed}/${boardMaxD}</div>
-        </div>
+      <div class="forecast-bar">
+        <div class="forecast-icon">🐕</div>
+        <div class="mini-bar"><div class="mini-bar-fill" style="width:${Math.min(100,dayR*100)}%;background:${dashboardStatusColor(dayR)}"></div></div>
+        <div class="forecast-count">${dayUsed}/${dayMax}</div>
+      </div>
+      <div class="forecast-bar">
+        <div class="forecast-icon">🏡</div>
+        <div class="mini-bar"><div class="mini-bar-fill" style="width:${Math.min(100,boardR*100)}%;background:${dashboardStatusColor(boardR)}"></div></div>
+        <div class="forecast-count">${boardUsed}/${boardMax}</div>
       </div>
     `;
     elForecast.appendChild(row);
@@ -1809,13 +1786,11 @@ function renderDashboard(){
   days.forEach(d=>{
     const dayUsed = countOccupancy("Tagesbetreuung", d, d);
     const boardUsed = countOccupancy("Urlaubsbetreuung", d, d);
-    const dayMaxD = getCapacity("Tagesbetreuung", d);
-    const boardMaxD = getCapacity("Urlaubsbetreuung", d);
-    if(dayMaxD - dayUsed <= 1){
-      warnings.push(`${formatDateDE(d)}: Tagesbetreuung fast voll (${dayUsed}/${dayMaxD})`);
+    if(dayMax - dayUsed <= 1){
+      warnings.push(`${formatDateDE(d)}: Tagesbetreuung fast voll (${dayUsed}/${dayMax})`);
     }
-    if(boardMaxD - boardUsed <= 1){
-      warnings.push(`${formatDateDE(d)}: Urlaubsbetreuung fast voll (${boardUsed}/${boardMaxD})`);
+    if(boardMax - boardUsed <= 1){
+      warnings.push(`${formatDateDE(d)}: Urlaubsbetreuung fast voll (${boardUsed}/${boardMax})`);
     }
   });
   // stays ending today
@@ -4601,7 +4576,7 @@ function countOccupancy(type, from, to, excludeDocId){
   return state.docs.filter(d=>{
     if(!d.saved) return false;
     if(d.id === excludeDocId) return false;
-    if(_normBetreuungType(d.meta?.betreuung) !== _normBetreuungType(type)) return false;
+    if(d.meta?.betreuung !== type) return false;
     if(!d.meta?.von || !d.meta?.bis) return false;
 
     return overlaps(d.meta.von, d.meta.bis, from, to);
@@ -4622,7 +4597,7 @@ function getNextDays(n){
 function countForDay(type, day){
   return state.docs.filter(d=>{
     if(!d.saved) return false;
-    if(_normBetreuungType(d.meta?.betreuung) !== _normBetreuungType(type)) return false;
+    if(d.meta?.betreuung !== type) return false;
     if(!d.meta?.von || !d.meta?.bis) return false;
 
     return day >= d.meta.von && day <= d.meta.bis;
@@ -4633,37 +4608,24 @@ function countToday(type){
   return countForDay(type, today);
 }
 function renderTodayStatus(){
-  try{
-    const today = new Date();
-    const dayISO = today.toISOString().slice(0,10);
+  const el = document.getElementById("todayStatus");
+  if(!el) return;
 
-    const dayCount = countOccupancy('Tagesbetreuung', dayISO, dayISO);
-    const overCount = countOccupancy('Urlaubsbetreuung', dayISO, dayISO);
+  const u = countToday("Urlaubsbetreuung");
+  const t = countToday("Tagesbetreuung");
 
-    const dayCap = getCapacity('Tagesbetreuung', dayISO);
-    const overCap = getCapacity('Urlaubsbetreuung', dayISO);
-
-    const dayOk = dayCount <= dayCap;
-    const overOk = overCount <= overCap;
-
-    const el = document.getElementById('todayStatus');
-    if(!el) return;
-
-    el.innerHTML = `
-      <div class="todayCards">
-        <div class="todayCard">
-          <div class="todayTitle">🐕 Tagesbetreuung</div>
-          <div class="todayValue">${dayCount} / ${dayCap}</div>
-          <div class="todaySub">${dayOk ? 'Ruhiger Tag' : 'Achtung: Grenze überschritten'}</div>
-        </div>
-        <div class="todayCard">
-          <div class="todayTitle">🏡 Urlaubsbetreuung</div>
-          <div class="todayValue">${overCount} / ${overCap}</div>
-          <div class="todaySub">${overOk ? 'Ruhiger Tag' : 'Achtung: Grenze überschritten'}</div>
-        </div>
+  el.innerHTML = `
+    <div class="status-cards">
+      <div class="status-card">
+        <strong>Urlaubsbetreuung</strong><br>
+        ${u} / ${getCapacity("Urlaubsbetreuung", today)} Hunde
       </div>
-    `;
-  }catch(e){ console.warn('renderTodayStatus failed', e); }
+      <div class="status-card">
+        <strong>Tagesbetreuung</strong><br>
+        ${t} / ${getCapacity("Tagesbetreuung", today)} Hunde
+      </div>
+    </div>
+  `;
 }
 function renderOccupancy(){
   const el = document.getElementById("occupancy");
@@ -5144,23 +5106,60 @@ function syncDogSelect(){
   }).join("");
 }
 function renderDogs(){
-  // Etappe 2: primär pets/customers anzeigen, fallback auf legacy dogs
+  // Etappe 3A – Kunden & Hunde gruppiert (UI), inkl. Kunden ohne Hund
   ensureStateShape();
   ensureContractDefaults();
   const list = $("#dogList");
   if(!list) return;
   list.innerHTML = "";
 
+  const customers = (state.customers||[]).slice().sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"de"));
   const pets = (state.pets||[]).slice().sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"de"));
 
-  if(pets.length){
-    pets.forEach(p=>{
-      const c = getCustomer(p.customerId);
+  const petsByCustomer = new Map();
+  pets.forEach(p=>{
+    const cid = p.customerId || "";
+    if(!petsByCustomer.has(cid)) petsByCustomer.set(cid, []);
+    petsByCustomer.get(cid).push(p);
+  });
+
+  function openNewDogForCustomer(customerId){
+    openCpEditor("new");
+    try{
+      const useExisting = document.getElementById("useExistingCustomer");
+      if(useExisting) useExisting.checked = true;
+      refreshCustomerSelect();
+      const sel = document.getElementById("customerSelect");
+      if(sel) sel.value = customerId || "";
+      try{ setCustomerFieldsDisabled(true); }catch(_){}
+    }catch(_){}
+  }
+
+  customers.forEach(c=>{
+    const head = document.createElement("div");
+    head.className = "cust-head";
+    head.innerHTML = `<div><strong>${escapeHtml(c.name||"Kunde")}</strong><small>${escapeHtml(c.phone||"")}</small></div>`;
+    list.appendChild(head);
+
+    const custPets = petsByCustomer.get(c.id) || [];
+    if(!custPets.length){
+      const empty = document.createElement("div");
+      empty.className = "dog-empty";
+      empty.innerHTML = `<em>Noch kein Hund angelegt</em>
+        <div class="actions">
+          <button class="smallbtn" data-add="1">+ Hund hinzufügen</button>
+        </div>`;
+      empty.querySelector('[data-add="1"]').onclick = ()=>openNewDogForCustomer(c.id);
+      list.appendChild(empty);
+      return;
+    }
+
+    custPets.forEach(p=>{
       const el = document.createElement("div");
-      el.className = "item";
+      el.className = "item dog-row";
       const chipTxt = p.chip ? (` · Chip: ${escapeHtml(p.chipNumber||"ja")}`) : "";
       const badge = contractBadge(p.customerId, p.id);
-      el.innerHTML = `<div><strong>${escapeHtml(p.name||"Hund")}</strong><small>${escapeHtml(c?.name||"")} · ${escapeHtml(c?.phone||"")}${chipTxt}${badge}</small></div>
+      el.innerHTML = `<div><strong>${escapeHtml(p.name||"Hund")}</strong><small>${escapeHtml(c.name||"")} · ${escapeHtml(c.phone||"")}${chipTxt}${badge}</small></div>
         <div class="actions">
           <button class="smallbtn" data-v="1">Vertrag</button>
           <button class="smallbtn" data-e="1">Bearbeiten</button>
@@ -5171,7 +5170,6 @@ function renderDogs(){
       el.querySelector('[data-d="1"]').onclick = ()=>{
         if(confirm("Hund wirklich löschen? (Aufenthalte/Rechnungen bleiben als Historie bestehen)")){
           state.pets = state.pets.filter(x=>x.id!==p.id);
-          // legacy dog nicht automatisch löschen (Sicherheit), aber Mapping entfernen
           for(const dogId of Object.keys(state._legacy?.dogIdToPetId||{})){
             if(state._legacy.dogIdToPetId[dogId]===p.id){
               delete state._legacy.dogIdToPetId[dogId];
@@ -5183,8 +5181,34 @@ function renderDogs(){
       };
       list.appendChild(el);
     });
-  } else {
-    // fallback legacy
+  });
+
+  const orphan = pets.filter(p=>!p.customerId || !getCustomer(p.customerId));
+  if(orphan.length){
+    const head = document.createElement("div");
+    head.className = "cust-head";
+    head.innerHTML = `<div><strong>Ohne zugeordneten Kunden</strong><small>Bitte bearbeiten & Kunden auswählen</small></div>`;
+    list.appendChild(head);
+    orphan.forEach(p=>{
+      const el=document.createElement("div");
+      el.className="item dog-row";
+      el.innerHTML = `<div><strong>${escapeHtml(p.name||"Hund")}</strong><small>—</small></div>
+        <div class="actions">
+          <button class="smallbtn" data-e="1">Bearbeiten</button>
+          <button class="smallbtn" data-d="1">Löschen</button>
+        </div>`;
+      el.querySelector('[data-e="1"]').onclick = ()=>openCpEditor("edit", p.id);
+      el.querySelector('[data-d="1"]').onclick = ()=>{
+        if(confirm("Hund wirklich löschen?")){
+          state.pets = state.pets.filter(x=>x.id!==p.id);
+          saveState(); renderDogs(); syncDogSelect();
+        }
+      };
+      list.appendChild(el);
+    });
+  }
+
+  if(!pets.length){
     ensureDefaultDog();
     const dogs = state.dogs.filter(d=>!d.isPlaceholder);
     dogs.forEach(d=>{
@@ -5192,20 +5216,16 @@ function renderDogs(){
       el.className="item";
       el.innerHTML=`<div><strong>${escapeHtml(d.name)}</strong><small>${escapeHtml(d.owner||"")} · ${escapeHtml(d.phone||"")}</small></div>
         <div class="actions"><button class="smallbtn" data-e="1">Bearbeiten</button><button class="smallbtn" data-d="1">Löschen</button></div>`;
-      el.querySelector('[data-e="1"]').onclick=()=>openCpEditor("new"); // legacy fallback: einfach neu anlegen
+      el.querySelector('[data-e="1"]').onclick=()=>openCpEditor("new");
       el.querySelector('[data-d="1"]').onclick=()=>{
-        if(confirm("Hund/Kunde wirklich löschen?")){
-          state.dogs=state.dogs.filter(x=>x.id!==d.id);
+        if(confirm("Hund wirklich löschen?")){
+          state.dogs = state.dogs.filter(x=>x.id!==d.id);
           saveState(); renderDogs();
         }
       };
       list.appendChild(el);
     });
-    if(!dogs.length) list.innerHTML=`<div class="muted">Noch keine Hunde/Kunden angelegt.</div>`;
   }
-
-  refreshCustomerSelect();
-  syncDogSelect();
 }
 
 $("#btnAddDog").addEventListener("click",()=>openCpEditor("new"));
@@ -8547,3 +8567,49 @@ function wfTodayPrint(){
   wfOpenPdf(wfPdfTemplate("Heute drucken", body));
 }
 try{ const bb=document.getElementById('buildBadge'); if(bb) bb.textContent = 'Build ' + APP_BUILD; }catch(e){}
+
+/* STEP 3A-1 – Mehrere Hunde pro Kunde (minimal & guarded) */
+(function(){
+  function q(id){return document.getElementById(id)}
+  function ready(fn){ if(document.readyState!=='loading'){fn()} else document.addEventListener('DOMContentLoaded',fn) }
+
+  ready(function(){
+    const list=q('hdList');
+    const btnAdd=q('hdAddDog');
+    if(!list||!btnAdd) return;
+
+    function getDogsOfCustomer(cid){
+      if(!cid||!Array.isArray(window.dogs)) return [];
+      return window.dogs.filter(d=>d.customerId===cid);
+    }
+
+    function render(){
+      list.innerHTML='';
+      const cid=window.activeCustomerId;
+      const items=getDogsOfCustomer(cid);
+      items.forEach(d=>{
+        const el=document.createElement('div');
+        el.className='hd-item'+(window.activeDogId===d.id?' active':'');
+        el.textContent=d.name||'(ohne Name)';
+        el.onclick=function(){
+          window.activeDogId=d.id;
+          if(typeof window.setActiveDog==='function') window.setActiveDog(d.id);
+          render();
+        };
+        list.appendChild(el);
+      });
+    }
+
+    btnAdd.onclick=function(){
+      const cid=window.activeCustomerId;
+      if(!cid) return alert('Bitte zuerst Kunde speichern.');
+      window.activeDogId=null;
+      if(typeof window.prepareNewDog==='function'){
+        window.prepareNewDog({customerId:cid});
+      }
+      render();
+    };
+
+    render();
+  });
+})();
