@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = "M9_SIG_NO_SIDE_EFFECTS_20260124";
+const APP_BUILD = "M9_STAY_SIG_NO_RESET_20260124";
 
 // --- Build-Sync (Anzeige + Migration) ---
 (function syncBuildBadge(){
@@ -6450,123 +6450,94 @@ document.addEventListener("click",(e)=>{
 if(e.target && e.target.id==="btnSignatureOpen"){
   e.preventDefault();
 
-	  const _isStay = !!(currentDoc && (currentDoc.templateName==='stay' || currentDoc.type==='stay' || currentDoc.templateId==='stay'));
+  const _isStay = !!(
+    (currentDoc && (currentDoc.templateName==='stay' || currentDoc.type==='stay' || currentDoc.templateId==='stay')) ||
+    document.getElementById('stayVon') || document.getElementById('stayBis') || document.getElementById('staySigCard')
+  );
 
-	  // Zusätzlicher Sicherheits-Snapshot: wir merken uns *alle* Input/Select/Textarea-Werte im aktuellen Editor.
-	  // Hintergrund: iPad/Safari kann bei Modal-Open/Re-render einzelne Felder verlieren, wenn der Editor neu gerendert wird.
-	  const _fieldSnap = _isStay ? (() => {
-	    try {
-	      const root = document.getElementById('editor') || document.body;
-	      const nodes = Array.from(root.querySelectorAll('input, select, textarea'));
-	      const snap = [];
-	      for (const el of nodes) {
-	        const id = el.id || null;
-	        const name = el.name || null;
-	        if (!id && !name) continue;
-	        // Skip Signature-Canvas/Controls
-	        if (id === 'signatureCanvas' || name === 'signatureCanvas') continue;
-	        const type = (el.getAttribute('type') || '').toLowerCase();
-	        if (type === 'checkbox' || type === 'radio') {
-	          snap.push({ id, name, kind: 'check', checked: !!el.checked });
-	        } else {
-	          snap.push({ id, name, kind: 'value', value: el.value });
-	        }
-	      }
-	      return snap;
-	    } catch (err) {
-	      return null;
-	    }
-	  })() : null;
+  // iOS/Safari: aktive Eingaben (z.B. Date-Picker) erst "committen"
+  try{ if(document.activeElement && document.activeElement.blur) document.activeElement.blur(); }catch(_){}
 
-  // Snapshot der aktuellen Eingaben, damit beim Signieren nichts verloren geht (Safari/iPad Re-render Edgecase)
-  const _snap = _isStay ? {
-    dogId: ($("#stayDogSelect")||{}).value || "",
-    customerId: ($("#stayCustomerSelect")||{}).value || "",
-    von: ($("#stayVon")||{}).value || "",
-    bis: ($("#stayBis")||{}).value || "",
-    betreuung: ($("#stayType")||{}).value || "",
-    notes: ($("#stayNotes")||{}).value || "",
-    consentDsgvo: !!($("#stayConsentDsGvo") && $("#stayConsentDsGvo").checked),
-    consentAgb: !!($("#stayConsentAgb") && $("#stayConsentAgb").checked),
-    consentVet: !!($("#stayConsentVet") && $("#stayConsentVet").checked),
-    consentTruth: !!($("#stayConsentTruth") && $("#stayConsentTruth").checked),
-  } : null;
-
-  // Vor dem Signieren: Embedded-Felder in currentDoc schreiben
+  // Vor dem Signieren: aktuelle Stay-Eingaben sicher in currentDoc schreiben
   try{
-    // sicherstellen, dass alle aktuellen Eingaben (auch Zustimmungen) in currentDoc landen
-    syncCurrentDocFromForm();
     if(_isStay) syncStayEditorInputsToDoc();
+    else syncCurrentDocFromForm();
   }catch(_){}
+
+  // Snapshot: alle aktuellen Input/Select/Textarea-Werte im aktuellen Editor merken,
+  // damit ein Re-render beim Signieren NICHTS an den bereits eingegebenen Werten ändert.
+  const _fieldSnap = (() => {
+    try {
+      const root = document.getElementById('formRoot') || document.getElementById('editor') || document.body;
+      const nodes = Array.from(root.querySelectorAll('input, select, textarea'));
+      const snap = [];
+      for (const el of nodes) {
+        const id = el.id || null;
+        const name = el.name || null;
+        if (!id && !name) continue;
+
+        // Signature UI selbst nicht snapshott'en
+        if (id === 'sigCanvas' || id === 'signatureCanvas' || id === 'btnSignatureOpen') continue;
+
+        const type = (el.getAttribute('type') || '').toLowerCase();
+        if (type === 'checkbox' || type === 'radio') {
+          snap.push({ id, name, kind: 'check', checked: !!el.checked });
+        } else {
+          snap.push({ id, name, kind: 'value', value: el.value });
+        }
+      }
+      return snap;
+    } catch (err) {
+      return null;
+    }
+  })();
 
   openSignatureOverlay((data)=>{
     if(!currentDoc) return;
 
-    // Signatur in currentDoc speichern
+    // Signatur in currentDoc speichern – sonst KEINE Side-Effects
     currentDoc.signature = {
       dataUrl: data,
       signedAt: new Date().toISOString(),
       dogId: currentDoc.dogId || null
     };
 
-    // Snapshot nochmals in currentDoc zurückschreiben (gegen Re-render/Reset)
-    if(_isStay && (_snap || _fieldSnap)){
-      currentDoc.meta = currentDoc.meta || {};
-      currentDoc.dogId = _snap.dogId || currentDoc.dogId || null;
-      currentDoc.customerId = _snap.customerId || currentDoc.customerId || null;
-      currentDoc.meta.von = _snap.von;
-      currentDoc.meta.bis = _snap.bis;
-      currentDoc.meta.betreuung = _snap.betreuung;
-      currentDoc.meta.notes = _snap.notes;
-      currentDoc.meta.consent_dsgvo = _snap.consentDsgvo;
-      currentDoc.meta.consent_agb = _snap.consentAgb;
-      currentDoc.meta.consent_vet = _snap.consentVet;
-      currentDoc.meta.consent_truth = _snap.consentTruth;
-    }
-
     dirty = true;
     saveState(); // persist immediately
 
-    // Re-render: für Aufenthalt immer den Stay-Editor nehmen
+    // Re-render: Aufenthalt immer via Embedded-Stay-Editor (stabil), sonst Standard-Editor
     try{
-      if(_isStay) renderStayEditor(currentDoc);
+      if(_isStay && typeof renderStayEditorEmbedded === 'function') renderStayEditorEmbedded(currentDoc);
       else renderEditor(currentDoc);
     }catch(_){
       try{ renderForm(currentDoc); }catch(__){}
     }
 
-    // Nach-Setzen der Werte im DOM (falls Browser Inputs zurücksetzt)
-	    if(_isStay && (_snap || _fieldSnap)){
-		  setTimeout(()=>{
-			try{
-			  // 1) Restore aller Formularfelder (id-basiert) für maximale Robustheit
-			  if(Array.isArray(_fieldSnap)){
-				_fieldSnap.forEach(f => {
-					try{
-						let el = null;
-						if(f && f.id) el = document.getElementById(f.id);
-						if(!el && f && f.name){
-							const esc = (window.CSS && CSS.escape) ? CSS.escape(f.name) : String(f.name).replace(/"/g,'\\"');
-							el = document.querySelector(`[name="${esc}"]`);
-						}
-						if(!el) return;
-						if(el.type === 'checkbox' || el.type === 'radio') el.checked = !!f.checked;
-						else el.value = (f.value ?? '');
-					}catch(_){}
-				});
-			}
-	        if(_snap){
-	          if($("#stayDogSelect")) $("#stayDogSelect").value = _snap.dogId;
-	          if($("#stayCustomerSelect")) $("#stayCustomerSelect").value = _snap.customerId;
-	          if($("#stayVon")) $("#stayVon").value = _snap.von;
-	          if($("#stayBis")) $("#stayBis").value = _snap.bis;
-	          if($("#stayType")) $("#stayType").value = _snap.betreuung;
-	          if($("#stayNotes")) $("#stayNotes").value = _snap.notes;
-	          if($("#stayConsentDsGvo")) $("#stayConsentDsGvo").checked = _snap.consentDsgvo;
-	          if($("#stayConsentAgb")) $("#stayConsentAgb").checked = _snap.consentAgb;
-	          if($("#stayConsentVet")) $("#stayConsentVet").checked = _snap.consentVet;
-	          if($("#stayConsentTruth")) $("#stayConsentTruth").checked = _snap.consentTruth;
-	        }
+    // DOM-Werte nach dem Re-render wiederherstellen (falls Browser Inputs "vergisst")
+    if(Array.isArray(_fieldSnap) && _fieldSnap.length){
+      setTimeout(()=>{
+        try{
+          _fieldSnap.forEach(f => {
+            try{
+              let el = null;
+              if(f && f.id) el = document.getElementById(f.id);
+              if(!el && f && f.name){
+                const esc = (window.CSS && CSS.escape) ? CSS.escape(f.name) : String(f.name).replace(/"/g,'\\"');
+                el = document.querySelector(`[name="${esc}"]`);
+              }
+              if(!el) return;
+
+              const type = (el.getAttribute('type') || '').toLowerCase();
+              if(type === 'checkbox' || type === 'radio') el.checked = !!f.checked;
+              else el.value = (f.value ?? '');
+
+              // Optional: Events auslösen, damit doc/meta wieder synchron sind (ohne Render)
+              try{
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+                el.dispatchEvent(new Event('change', { bubbles: true }));
+              }catch(_){}
+            }catch(_){}
+          });
         }catch(_){}
       },0);
     }
