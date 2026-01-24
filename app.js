@@ -38,10 +38,28 @@ const CAPACITY = {
   Urlaubsbetreuung: 10
 };
 
+// --- Betreuung / Kapazität: robuste Normalisierung ---
+function _normBetreuungType(v){
+  if(v == null) return '';
+  const s = String(v).trim().toLowerCase();
+  if(!s) return '';
+  if(s === 'urlaub' || s === 'urlaubs' || s.includes('urlaub')) return 'urlaubsbetreuung';
+  if(s === 'tag' || s === 'tage' || s === 'tages' || s.includes('tages')) return 'tagesbetreuung';
+  return s;
+}
+function _canonicalBetreuungType(v){
+  const n = _normBetreuungType(v);
+  if(n === 'urlaubsbetreuung') return 'Urlaubsbetreuung';
+  if(n === 'tagesbetreuung') return 'Tagesbetreuung';
+  return v || '';
+}
+
+
 // === Dynamische Kapazitäten (Standard + Ausnahmen nach Zeitraum) ===
 // Ausnahme-Objekt: { from:"YYYY-MM-DD", to:"YYYY-MM-DD", Tagesbetreuung: 8, Urlaubsbetreuung: 6, note:"Event" }
 function getCapacity(type, dateISO){
   try{
+    type = _canonicalBetreuungType(type);
     const caps = state && state.capacities;
     if(!caps || !caps.default) return (CAPACITY[type] || 0);
     const d = String(dateISO||"").slice(0,10);
@@ -1755,8 +1773,11 @@ function renderDashboard(){
   days.forEach(d=>{
     const dayUsed = countOccupancy("Tagesbetreuung", d, d);
     const boardUsed = countOccupancy("Urlaubsbetreuung", d, d);
-    const dayR = dayMax ? (dayUsed/dayMax) : 0;
-    const boardR = boardMax ? (boardUsed/boardMax) : 0;
+    // capacities can vary per day (e.g. special limits)
+    const dayMaxD = getCapacity("Tagesbetreuung", d);
+    const boardMaxD = getCapacity("Urlaubsbetreuung", d);
+    const dayR = dayMaxD ? (dayUsed/dayMaxD) : 0;
+    const boardR = boardMaxD ? (boardUsed/boardMaxD) : 0;
 
     const row = document.createElement("div");
     row.className = "forecast-row";
@@ -1766,15 +1787,17 @@ function renderDashboard(){
 
     row.innerHTML = `
       <div class="forecast-date">${label}</div>
-      <div class="forecast-bar">
-        <div class="forecast-icon">🐕</div>
-        <div class="mini-bar"><div class="mini-bar-fill" style="width:${Math.min(100,dayR*100)}%;background:${dashboardStatusColor(dayR)}"></div></div>
-        <div class="forecast-count">${dayUsed}/${dayMax}</div>
-      </div>
-      <div class="forecast-bar">
-        <div class="forecast-icon">🏡</div>
-        <div class="mini-bar"><div class="mini-bar-fill" style="width:${Math.min(100,boardR*100)}%;background:${dashboardStatusColor(boardR)}"></div></div>
-        <div class="forecast-count">${boardUsed}/${boardMax}</div>
+      <div class="forecast-stack">
+        <div class="forecast-item">
+          <img class="forecast-icon-img" src="assets/dash_daycare.jpg" alt="Tagesbetreuung" />
+          <div class="mini-bar"><div class="mini-bar-fill" style="width:${Math.min(100,dayR*100)}%;background:${dashboardStatusColor(dayR)}"></div></div>
+          <div class="forecast-count">${dayUsed}/${dayMaxD}</div>
+        </div>
+        <div class="forecast-item">
+          <img class="forecast-icon-img" src="assets/dash_vacation.jpg" alt="Urlaubsbetreuung" />
+          <div class="mini-bar"><div class="mini-bar-fill" style="width:${Math.min(100,boardR*100)}%;background:${dashboardStatusColor(boardR)}"></div></div>
+          <div class="forecast-count">${boardUsed}/${boardMaxD}</div>
+        </div>
       </div>
     `;
     elForecast.appendChild(row);
@@ -1786,11 +1809,13 @@ function renderDashboard(){
   days.forEach(d=>{
     const dayUsed = countOccupancy("Tagesbetreuung", d, d);
     const boardUsed = countOccupancy("Urlaubsbetreuung", d, d);
-    if(dayMax - dayUsed <= 1){
-      warnings.push(`${formatDateDE(d)}: Tagesbetreuung fast voll (${dayUsed}/${dayMax})`);
+    const dayMaxD = getCapacity("Tagesbetreuung", d);
+    const boardMaxD = getCapacity("Urlaubsbetreuung", d);
+    if(dayMaxD - dayUsed <= 1){
+      warnings.push(`${formatDateDE(d)}: Tagesbetreuung fast voll (${dayUsed}/${dayMaxD})`);
     }
-    if(boardMax - boardUsed <= 1){
-      warnings.push(`${formatDateDE(d)}: Urlaubsbetreuung fast voll (${boardUsed}/${boardMax})`);
+    if(boardMaxD - boardUsed <= 1){
+      warnings.push(`${formatDateDE(d)}: Urlaubsbetreuung fast voll (${boardUsed}/${boardMaxD})`);
     }
   });
   // stays ending today
@@ -4576,7 +4601,7 @@ function countOccupancy(type, from, to, excludeDocId){
   return state.docs.filter(d=>{
     if(!d.saved) return false;
     if(d.id === excludeDocId) return false;
-    if(d.meta?.betreuung !== type) return false;
+    if(_normBetreuungType(d.meta?.betreuung) !== _normBetreuungType(type)) return false;
     if(!d.meta?.von || !d.meta?.bis) return false;
 
     return overlaps(d.meta.von, d.meta.bis, from, to);
@@ -4597,7 +4622,7 @@ function getNextDays(n){
 function countForDay(type, day){
   return state.docs.filter(d=>{
     if(!d.saved) return false;
-    if(d.meta?.betreuung !== type) return false;
+    if(_normBetreuungType(d.meta?.betreuung) !== _normBetreuungType(type)) return false;
     if(!d.meta?.von || !d.meta?.bis) return false;
 
     return day >= d.meta.von && day <= d.meta.bis;
@@ -4608,24 +4633,37 @@ function countToday(type){
   return countForDay(type, today);
 }
 function renderTodayStatus(){
-  const el = document.getElementById("todayStatus");
-  if(!el) return;
+  try{
+    const today = new Date();
+    const dayISO = today.toISOString().slice(0,10);
 
-  const u = countToday("Urlaubsbetreuung");
-  const t = countToday("Tagesbetreuung");
+    const dayCount = countOccupancy('Tagesbetreuung', dayISO, dayISO);
+    const overCount = countOccupancy('Urlaubsbetreuung', dayISO, dayISO);
 
-  el.innerHTML = `
-    <div class="status-cards">
-      <div class="status-card">
-        <strong>Urlaubsbetreuung</strong><br>
-        ${u} / ${getCapacity("Urlaubsbetreuung", today)} Hunde
+    const dayCap = getCapacity('Tagesbetreuung', dayISO);
+    const overCap = getCapacity('Urlaubsbetreuung', dayISO);
+
+    const dayOk = dayCount <= dayCap;
+    const overOk = overCount <= overCap;
+
+    const el = document.getElementById('todayStatus');
+    if(!el) return;
+
+    el.innerHTML = `
+      <div class="todayCards">
+        <div class="todayCard">
+          <div class="todayTitle">🐕 Tagesbetreuung</div>
+          <div class="todayValue">${dayCount} / ${dayCap}</div>
+          <div class="todaySub">${dayOk ? 'Ruhiger Tag' : 'Achtung: Grenze überschritten'}</div>
+        </div>
+        <div class="todayCard">
+          <div class="todayTitle">🏡 Urlaubsbetreuung</div>
+          <div class="todayValue">${overCount} / ${overCap}</div>
+          <div class="todaySub">${overOk ? 'Ruhiger Tag' : 'Achtung: Grenze überschritten'}</div>
+        </div>
       </div>
-      <div class="status-card">
-        <strong>Tagesbetreuung</strong><br>
-        ${t} / ${getCapacity("Tagesbetreuung", today)} Hunde
-      </div>
-    </div>
-  `;
+    `;
+  }catch(e){ console.warn('renderTodayStatus failed', e); }
 }
 function renderOccupancy(){
   const el = document.getElementById("occupancy");
