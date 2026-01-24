@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = "v11B_MASTER_STEP1K_STAY_LEGAL_SIG_DOCMODAL_UI_FIX_20260124M6";
+const APP_BUILD = "M9_SIG_NO_SIDE_EFFECTS_20260124";
 
 // --- Build-Sync (Anzeige + Migration) ---
 (function syncBuildBadge(){
@@ -6460,15 +6460,16 @@ if(e.target && e.target.id==="btnSignatureOpen"){
 	      const nodes = Array.from(root.querySelectorAll('input, select, textarea'));
 	      const snap = [];
 	      for (const el of nodes) {
-	        const key = el.id || el.name;
-	        if (!key) continue;
+	        const id = el.id || null;
+	        const name = el.name || null;
+	        if (!id && !name) continue;
 	        // Skip Signature-Canvas/Controls
-	        if (key === 'signatureCanvas') continue;
+	        if (id === 'signatureCanvas' || name === 'signatureCanvas') continue;
 	        const type = (el.getAttribute('type') || '').toLowerCase();
 	        if (type === 'checkbox' || type === 'radio') {
-	          snap.push({ key, kind: 'check', checked: !!el.checked });
+	          snap.push({ id, name, kind: 'check', checked: !!el.checked });
 	        } else {
-	          snap.push({ key, kind: 'value', value: el.value });
+	          snap.push({ id, name, kind: 'value', value: el.value });
 	        }
 	      }
 	      return snap;
@@ -6485,16 +6486,17 @@ if(e.target && e.target.id==="btnSignatureOpen"){
     bis: ($("#stayBis")||{}).value || "",
     betreuung: ($("#stayType")||{}).value || "",
     notes: ($("#stayNotes")||{}).value || "",
-    consentDsgvo: !!($("#consentDsgvo") && $("#consentDsgvo").checked),
-    consentAgb: !!($("#consentAgb") && $("#consentAgb").checked),
-    consentVet: !!($("#consentVet") && $("#consentVet").checked),
-    consentTruth: !!($("#consentTruth") && $("#consentTruth").checked),
+    consentDsgvo: !!($("#stayConsentDsGvo") && $("#stayConsentDsGvo").checked),
+    consentAgb: !!($("#stayConsentAgb") && $("#stayConsentAgb").checked),
+    consentVet: !!($("#stayConsentVet") && $("#stayConsentVet").checked),
+    consentTruth: !!($("#stayConsentTruth") && $("#stayConsentTruth").checked),
   } : null;
 
   // Vor dem Signieren: Embedded-Felder in currentDoc schreiben
   try{
+    // sicherstellen, dass alle aktuellen Eingaben (auch Zustimmungen) in currentDoc landen
+    syncCurrentDocFromForm();
     if(_isStay) syncStayEditorInputsToDoc();
-    else syncCurrentDocFromForm();
   }catch(_){}
 
   openSignatureOverlay((data)=>{
@@ -6540,12 +6542,19 @@ if(e.target && e.target.id==="btnSignatureOpen"){
 			  // 1) Restore aller Formularfelder (id-basiert) für maximale Robustheit
 			  if(Array.isArray(_fieldSnap)){
 				_fieldSnap.forEach(f => {
-				  const el = (f && f.id) ? document.getElementById(f.id) : null;
-				  if(!el) return;
-				  if(el.type === 'checkbox') el.checked = !!f.checked;
-				  else el.value = (f.value ?? '');
+					try{
+						let el = null;
+						if(f && f.id) el = document.getElementById(f.id);
+						if(!el && f && f.name){
+							const esc = (window.CSS && CSS.escape) ? CSS.escape(f.name) : String(f.name).replace(/"/g,'\\"');
+							el = document.querySelector(`[name="${esc}"]`);
+						}
+						if(!el) return;
+						if(el.type === 'checkbox' || el.type === 'radio') el.checked = !!f.checked;
+						else el.value = (f.value ?? '');
+					}catch(_){}
 				});
-			  }
+			}
 	        if(_snap){
 	          if($("#stayDogSelect")) $("#stayDogSelect").value = _snap.dogId;
 	          if($("#stayCustomerSelect")) $("#stayCustomerSelect").value = _snap.customerId;
@@ -6553,10 +6562,10 @@ if(e.target && e.target.id==="btnSignatureOpen"){
 	          if($("#stayBis")) $("#stayBis").value = _snap.bis;
 	          if($("#stayType")) $("#stayType").value = _snap.betreuung;
 	          if($("#stayNotes")) $("#stayNotes").value = _snap.notes;
-	          if($("#consentDsgvo")) $("#consentDsgvo").checked = _snap.consentDsgvo;
-	          if($("#consentAgb")) $("#consentAgb").checked = _snap.consentAgb;
-	          if($("#consentVet")) $("#consentVet").checked = _snap.consentVet;
-	          if($("#consentTruth")) $("#consentTruth").checked = _snap.consentTruth;
+	          if($("#stayConsentDsGvo")) $("#stayConsentDsGvo").checked = _snap.consentDsgvo;
+	          if($("#stayConsentAgb")) $("#stayConsentAgb").checked = _snap.consentAgb;
+	          if($("#stayConsentVet")) $("#stayConsentVet").checked = _snap.consentVet;
+	          if($("#stayConsentTruth")) $("#stayConsentTruth").checked = _snap.consentTruth;
 	        }
         }catch(_){}
       },0);
