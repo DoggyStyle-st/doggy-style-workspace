@@ -1031,7 +1031,7 @@
 <div id="editorContent">
 <div id="formRoot"></div>
 </div>
-<div class="card card--legacy-dsgvo" style="display:none">
+<div class="card">
 <h2>Datenschutz (DSGVO)</h2>
 <p class="muted" id="dsGvoText"></p>
 </div>
@@ -1046,7 +1046,25 @@
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-<script defer="defer" src="app.js?v=20260124B"></script>
+<!--
+  Cache-Buster Fix:
+  app.html wurde bisher mit fester app.js-Version geladen (z.B. app.js?v=v11B_SAVE_PDF_10).
+  Dadurch blieb Safari/PWA oft auf alten Ständen hängen, auch wenn app.html mit ?v=... geöffnet wurde.
+
+  Ab jetzt: app.js wird mit dem gleichen Query-String geladen wie app.html selbst.
+  Beispiel: app.html?v=1118  ->  app.js?v=1118
+-->
+<script>
+  (function(){
+    var qs = window.location.search || '';
+    // Fallback: wenn app.html ohne Query geöffnet wird, trotzdem eindeutige Version erzwingen
+    if(!qs) qs = '?v=v11B_MASTER_STEP1_WARNINGS_20260121D';
+    var s = document.createElement('script');
+    s.defer = true;
+    s.src = 'app.js' + qs;
+    document.head.appendChild(s);
+  })();
+</script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1089,7 +1107,7 @@
 </script>
 
 <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=240124002');
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=TEST_OPTIK_01_2026-01-03');
   </script>
 
 <script>
@@ -1153,6 +1171,6 @@
   <button class="btn btn--mini btn--logout" id="btnLogoutBottom" type="button" title="Ausloggen / Logout">Ausloggen / Logout</button>
 </div>
 <div class="test-badge" id="testBadge">PRODUKTIV</div>
-<div class="build-badge" id="buildBadge">Build v11B_MASTER_STEP1H_LEGAL_SIG_SW_HOTFIX_20260124A</div>
+<div class="build-badge" id="buildBadge">Build v11B_MASTER_STEP1I_STAY_PDF_MODAL_ZFIX_20260121I</div>
 </body>
 </html>

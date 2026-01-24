@@ -1,7 +1,7 @@
 /* Doggy Style – Service Worker v11B_SAVE_PDF_17_STAY_DEBUG_OVERLAY (offline-first, update-safe) */
 
 // Version bump forces clients to pick up updated assets reliably.
-const SW_VERSION = "v11B_MASTER_STEP1H_LEGAL_SIG_SW_HOTFIX_20260124A-B";
+const SW_VERSION = "v11B_SAVE_PDF_17_STAY_DEBUG_OVERLAY";
 const CACHE_NAME = `ds-test-cache-${SW_VERSION}`;
 
 // Wichtig:
@@ -15,7 +15,9 @@ const CORE_ASSETS = [
   "login.html",
   "app.html",
   "styles.css",
-    "manifest.json",
+  "app.js",
+  "app.js?v=1117",
+  "manifest.json",
   "assets/logo.png"
 ];
 
@@ -55,8 +57,6 @@ self.addEventListener("fetch", (event) => {
   if(url.origin !== self.location.origin) return;
 
   const isHTML = req.mode === "navigate" || (req.headers.get("accept")||"").includes("text/html");
-  const path = url.pathname || "";
-  const isCode = path.endsWith(".js") || path.endsWith(".css") || path.endsWith("firebase-config.js");
 
   // HTML: network-first (damit Updates sofort kommen)
   if(isHTML){
@@ -68,22 +68,6 @@ self.addEventListener("fetch", (event) => {
       }catch(e){
         const cached = await caches.match(req);
         return cached || caches.match("index.html");
-      }
-    })());
-    return;
-  }
-
-
-  // Code (JS/CSS): network-first + no-store (Safari/PWA update-fix)
-  if(isCode){
-    event.respondWith((async ()=>{
-      try{
-        const fresh = await fetch(req, {cache:"no-store"});
-        await cachePut(req, fresh);
-        return fresh;
-      }catch(e){
-        const cached = await caches.match(req);
-        return cached || fetch(req).catch(()=>cached);
       }
     })());
     return;
