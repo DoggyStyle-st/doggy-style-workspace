@@ -1,4 +1,3 @@
-const CACHE_NAME = 'ds-cache-M15-20260127';
 /* Doggy Style – Service Worker v11B_SAVE_PDF_17_STAY_DEBUG_OVERLAY (offline-first, update-safe) */
 
 // Version bump forces clients to pick up updated assets reliably.

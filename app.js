@@ -1,24 +1,8 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = 'M15_INVOICE_OPTIMIZE_20260127';
+const APP_BUILD = 'M15A_INVOICE_OPTIMIZE_FIX_20260128';
 
 // --- Build-Sync (Anzeige + Migration) ---
-(
-function dsShowOverlayError(msg, err){
-  try{
-    let box = document.getElementById('dsErrorOverlay');
-    if(!box){
-      box = document.createElement('div');
-      box.id = 'dsErrorOverlay';
-      box.style.cssText = 'position:fixed;left:10px;right:10px;bottom:10px;max-height:45vh;overflow:auto;z-index:999999;background:rgba(0,0,0,.85);color:#fff;padding:10px;border-radius:12px;font:12px/1.4 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial;';
-      document.body.appendChild(box);
-    }
-    const stack = err && (err.stack || err.message) ? String(err.stack || err.message) : '';
-    box.innerHTML = '<div style="font-weight:700;margin-bottom:6px">JS Fehler</div>'
-      + '<div style="white-space:pre-wrap">'+ String(msg||'Unbekannter Fehler') + (stack?('\n\n'+stack):'') + '</div>'
-      + '<div style="margin-top:8px;opacity:.8">Bitte Screenshot schicken.</div>';
-  }catch(_){}
-}
-function syncBuildBadge(){
+(function syncBuildBadge(){
   try{
     const el = document.getElementById('buildBadge');
     if(el) el.textContent = 'Build ' + APP_BUILD;
@@ -85,13 +69,8 @@ function exportMonthBundle(){
   } catch(e) {}
 }
 
-window.addEventListener('unhandledrejection', (e)=>{
-  try{ dsShowOverlayError('PROMISE_REJECTION', e.reason); }catch(_){}
-});
-
 window.addEventListener('error', (e) => {
-  try{ console.error('APP_ERROR', e.error || e.message); }catch(_){ }
-  try{ dsShowOverlayError(e.message || 'APP_ERROR', e.error); }catch(_){ }
+  console.error('APP_ERROR', e.error || e.message);
 });
 const LS_KEY="ds_workspace_test_optik_01";
 
@@ -8100,8 +8079,8 @@ function createInvoiceFromDoc(doc){
       fixedExtra: Number(doc.pricing.fixedExtra || 0),
 
       total: Number(doc.pricing.total || 0)
-    }
-    serviceLabel: (doc.meta && doc.meta.betreuung) ? doc.meta.betreuung : "Betreuung",,
+    },
+    serviceLabel: (doc.meta && doc.meta.betreuung) ? doc.meta.betreuung : "Betreuung",
 
     status: "draft",
 
