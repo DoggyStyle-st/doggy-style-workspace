@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = 'M15A_INVOICE_OPTIMIZE_FIX_20260128';
+const APP_BUILD = "M15B_INVOICE_PRICING_SETTINGS_VAT_STATUSDOT_20260128";
 
 // --- Build-Sync (Anzeige + Migration) ---
 (function syncBuildBadge(){
@@ -1723,6 +1723,32 @@ const PRICE_RULES = {
   ]
 };
 
+
+// ===== Preis-Einstellungen (Settings → Preise) =====
+// Werte sind Brutto-Preise pro Tag. Wenn 0/leer, gelten die internen PRICE_RULES.
+function _priceKey(kind){ return `ds_price_${String(kind||'').toLowerCase()}`; }
+function getPriceSetting(kind){
+  try{
+    const raw = localStorage.getItem(_priceKey(kind));
+    const n = Number(String(raw||'').replace(',', '.'));
+    return (isFinite(n) && n > 0) ? n : 0;
+  }catch(_){ return 0; }
+}
+function setPriceSetting(kind, value){
+  try{
+    const n = Number(String(value||'').replace(',', '.'));
+    localStorage.setItem(_priceKey(kind), String(isFinite(n) ? n : 0));
+  }catch(_){}
+}
+function getConfiguredDailyPrice(type){
+  const t = String(type||'').toLowerCase();
+  if(t.includes('tages')) return getPriceSetting('daycare');
+  if(t.includes('urlaub')) return getPriceSetting('vacation');
+  return 0;
+}
+
+
+
 function daysBetween(from,to){
   const a = parseDateDEorISO(from);
   const b = parseDateDEorISO(to);
@@ -1833,6 +1859,8 @@ function updateAutoHolidayFields(){
 
 
 function getPricePerDay(type, days){
+  const cfg = getConfiguredDailyPrice(type);
+  if(cfg>0) return cfg;
   const rules = PRICE_RULES[type] || [];
   for(const r of rules){
     if(days >= r.min) return r.price;
@@ -1850,7 +1878,8 @@ function calculateInvoicePricing(doc){
 
   const days = daysBetween(meta.von, meta.bis);
   const daily = getPricePerDay(meta.betreuung, days);
-  const base = days * daily;
+  const baseGross = Math.round((days * daily) * 100) / 100;
+  const serviceLabel = String(meta.betreuung||'Betreuung');
 
   // Feiertags-Zuschlag: nur auf Feiertags-TAGE im Zeitraum, nicht auf den gesamten Aufenthalt
   const holidayDays = countBavariaHolidaysBetween(meta.von, meta.bis);
@@ -1863,7 +1892,7 @@ function calculateInvoicePricing(doc){
   if(f.special_times) percentExtra += 10;
   if(f.extra_care) percentExtra += 10;
 
-  const percentValue = Math.round((base * (percentExtra / 100)) * 100) / 100;
+  const percentValue = Math.round((baseGross * (percentExtra / 100)) * 100) / 100;
 
   // Fixe Extras
   if(f.medication) fixedExtra += days * 2;
@@ -1873,9 +1902,13 @@ function calculateInvoicePricing(doc){
 
   fixedExtra = Math.round(fixedExtra * 100) / 100;
 
-  const total = Math.round((base + holidayValue + percentValue + fixedExtra) * 100) / 100;
+  const totalGross = Math.round((baseGross + holidayValue + percentValue + fixedExtra) * 100) / 100;
 
-  doc.pricing = {
+  
+  const vatRate = 0.19;
+  const netTotal = Math.round((totalGross / (1+vatRate)) * 100) / 100;
+  const vatAmount = Math.round((totalGross - netTotal) * 100) / 100;
+doc.pricing = {
     days,
     daily,
     base,
@@ -5414,6 +5447,22 @@ function initProfiSettingsBindings(){
   if(t1 && !t1.dataset.bound){ t1.dataset.bound='1'; t1.onclick = taxExportMonth; }
   const t2 = document.getElementById('btnTaxExportJSON');
   if(t2 && !t2.dataset.bound){ t2.dataset.bound='1'; t2.onclick = exportMonthJson; }
+
+  // Preise (Rechnungen)
+  const pDay = document.getElementById('priceDaycare');
+  const pVac = document.getElementById('priceVacation');
+  const bindPrice = (el, key) => {
+    if(!el) return;
+    if(!el.dataset.bound){
+      el.dataset.bound='1';
+      el.addEventListener('input', ()=>{ setPriceSetting(key, el.value); }, {passive:true});
+      el.addEventListener('change', ()=>{ setPriceSetting(key, el.value); }, {passive:true});
+    }
+    try{ el.value = String(getPriceSetting(key) || ''); }catch(_){}
+  };
+  bindPrice(pDay, 'daycare');
+  bindPrice(pVac, 'vacation');
+
 }
 
 function ensureStateShape(){
@@ -6659,6 +6708,16 @@ function formatCustomerAddress(cust){
   return [street, city, country].filter(Boolean).join(', ');
 }
 
+
+function statusDotColor(status){
+  const s = String(status||'').toLowerCase();
+  if(s.includes('entwurf')) return '#ffffff';
+  if(s.includes('fällig') || s.includes('aussteh') || s.includes('offen')) return '#f5b62e'; // gelb
+  if(s.includes('bezahlt') || s.includes('paid')) return '#2ecc71'; // grün
+  if(s.includes('storni') || s.includes('cancel')) return '#ff4d4d'; // rot
+  return '#ffffff';
+}
+
 function renderInvoiceList(){
   const el = document.getElementById("invoiceList");
   if(!el) return;
@@ -6695,8 +6754,8 @@ function renderInvoiceList(){
             <td>${inv.invoiceNumber || "-"}</td>
             <td>${escapeHtml((resolveInvoiceParties(inv).cust?.name || resolveInvoiceParties(inv).legacyDog?.owner || "—"))} · ${escapeHtml((resolveInvoiceParties(inv).pet?.name || resolveInvoiceParties(inv).legacyDog?.name || "—"))}</td>
             <td>${escapeHtml(inv.period?.from||"")} – ${escapeHtml(inv.period?.to||"")}</td>
-            <td>${(inv.pricing?.total||0).toFixed(2)} €</td>
-            <td>${escapeHtml(inv.status||"")}</td>
+            <td>${((inv.pricing?.grossTotal ?? inv.pricing?.total) || 0).toFixed(2)} €</td>
+            <td><span style="display:inline-flex;align-items:center;gap:8px"><span style="font-size:14px;color:${statusDotColor(inv.status)}">●</span>${escapeHtml(inv.status||"")}</span></td>
           </tr>
         `).join("")}
       </tbody>
@@ -6739,9 +6798,11 @@ function openInvoice(id){
         ${escapeHtml(inv.period?.from||"")} – ${escapeHtml(inv.period?.to||"")}
       </p>
 
-      <p>Grundpreis: ${inv.pricing.basePrice.toFixed(2)} €</p>
+      <p>${escapeHtml(inv.serviceLabel || inv.pricing?.serviceLabel || 'Betreuung')}: ${inv.pricing.basePrice.toFixed(2)} €</p>
       <p>Zuschläge (%): ${inv.pricing.percentExtra.toFixed(2)} €</p>
       <p>Zuschläge (fix): ${inv.pricing.fixedExtra.toFixed(2)} €</p>
+      <p>Netto: ${(inv.pricing.netTotal||((inv.pricing.total||0)/1.19)).toFixed(2)} €</p>
+      <p>MwSt (19%): ${(inv.pricing.vatAmount||((inv.pricing.total||0)-((inv.pricing.total||0)/1.19))).toFixed(2)} €</p>
 
       <hr>
       <h3 style="margin:10px 0 8px">Gesamt: ${inv.pricing.total.toFixed(2)} €</h3>
@@ -7022,7 +7083,16 @@ function printInvoice(id){
       <td>Zuschläge (fix)</td>
       <td class="right">${inv.pricing.fixedExtra.toFixed(2)} €</td>
     </tr>
+    
     <tr>
+      <td><strong>Netto</strong></td>
+      <td class="right"><strong>${(inv.pricing.netTotal||((inv.pricing.total||0)/1.19)).toFixed(2)} €</strong></td>
+    </tr>
+    <tr>
+      <td>MwSt (19%)</td>
+      <td class="right">${(inv.pricing.vatAmount||((inv.pricing.total||0)-((inv.pricing.total||0)/1.19))).toFixed(2)} €</td>
+    </tr>
+<tr>
       <th>Gesamt</th>
       <th class="right">${inv.pricing.total.toFixed(2)} €</th>
     </tr>
