@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = "M9_STAY_SIG_NO_RESET_20260124";
+const APP_BUILD = 'M15_INVOICE_OPTIMIZE_20260127';
 
 // --- Build-Sync (Anzeige + Migration) ---
 (function syncBuildBadge(){
@@ -14,6 +14,37 @@ const APP_BUILD = "M9_STAY_SIG_NO_RESET_20260124";
       localStorage.setItem(key, APP_BUILD);
       // Optional: mark that a version bump happened (useful for guarded migrations)
       localStorage.setItem('ds_app_build_bumped_at', String(Date.now()));
+
+      // Cache-buster / Service-Worker Guard:
+      // If a new build is detected, try to drop SW + CacheStorage once, then reload with a version query.
+      try{
+        const onceKey = 'ds_app_build_refreshed_' + APP_BUILD;
+        if(!localStorage.getItem(onceKey)){
+          localStorage.setItem(onceKey, '1');
+          const go = () => {
+            try{
+              const base = location.href.split('#')[0].split('?')[0];
+              const hash = location.hash || '';
+              location.replace(base + '?v=' + encodeURIComponent(APP_BUILD) + hash);
+            }catch(_){
+              try{ location.reload(); }catch(__){}
+            }
+          };
+          if('caches' in window){
+            caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k)))).then(() => {
+              if(navigator.serviceWorker && navigator.serviceWorker.getRegistrations){
+                return navigator.serviceWorker.getRegistrations().then(regs => Promise.all(regs.map(r => r.unregister())));
+              }
+            }).finally(() => setTimeout(go, 150));
+          }else{
+            if(navigator.serviceWorker && navigator.serviceWorker.getRegistrations){
+              navigator.serviceWorker.getRegistrations().then(regs => Promise.all(regs.map(r => r.unregister()))).finally(() => setTimeout(go, 150));
+            }else{
+              setTimeout(go, 150);
+            }
+          }
+        }
+      }catch(_){}
     }
   }catch(_){}
 })();
@@ -50,6 +81,31 @@ function toISODateLocal(date = new Date()){
   // Offset so korrigieren, dass toISOString() den lokalen Tag liefert
   d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
   return d.toISOString().slice(0,10);
+}
+
+function parseDateDEorISO(val){
+  if(!val) return null;
+  if(val instanceof Date) return val;
+  if(typeof val === "string"){
+    const s = val.trim();
+    if(/^\d{2}\.\d{2}\.\d{4}$/.test(s)){
+      const [d,m,y] = s.split(".");
+      return new Date(`${y}-${m}-${d}T00:00:00`);
+    }
+    if(/^\d{4}-\d{2}-\d{2}$/.test(s)){
+      return new Date(s+"T00:00:00");
+    }
+  }
+  const d = new Date(val);
+  return isNaN(d) ? null : d;
+}
+function ymdFromAny(val){
+  const d = parseDateDEorISO(val);
+  if(!d) return "";
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const da = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${da}`;
 }
 const CAPACITY = {
   Tagesbetreuung: 13,
@@ -1667,9 +1723,13 @@ const PRICE_RULES = {
   ]
 };
 
-function daysBetween(from, to){
-  const ms = new Date(to) - new Date(from);
-  return Math.max(1, Math.ceil(ms / (1000 * 60 * 60 * 24)));
+function daysBetween(from,to){
+  const a = parseDateDEorISO(from);
+  const b = parseDateDEorISO(to);
+  if(!a || !b) return 1;
+  const d1 = new Date(a.getFullYear(), a.getMonth(), a.getDate());
+  const d2 = new Date(b.getFullYear(), b.getMonth(), b.getDate());
+  return Math.max(1, Math.ceil((d2 - d1) / (1000*60*60*24)));
 }
 
 // Feiertage Bayern (vereinfachte, praxisnahe Auswahl; Zeitraum-Berechnung offline)
@@ -1726,8 +1786,16 @@ function bavariaHolidaysSet(year){
 function countBavariaHolidaysBetween(from, to){
   // Iteration: [from, to) (to exklusiv) passend zu daysBetween()
   if(!from || !to) return 0;
-  const start = new Date(from + "T00:00:00Z");
-  const end = new Date(to + "T00:00:00Z");
+
+  const startYMD = ymdFromAny(from);
+  const endYMD   = ymdFromAny(to);
+  if(!startYMD || !endYMD) return 0;
+
+  const [sy, sm, sd] = startYMD.split('-').map(n=>parseInt(n,10));
+  const [ey, em, ed] = endYMD.split('-').map(n=>parseInt(n,10));
+
+  const start = new Date(Date.UTC(sy, sm-1, sd));
+  const end   = new Date(Date.UTC(ey, em-1, ed));
   if(!(start < end)) return 0;
 
   let count = 0;
@@ -1866,6 +1934,90 @@ function formatDateDE(dateStr){
   const d = new Date(dateStr);
   return d.toLocaleDateString("de-DE");
 }
+
+function invoiceStatusColor(status){
+  const s = String(status||"").toLowerCase();
+  if(s==="paid" || s==="bezahlt") return "limegreen";
+  if(s==="open" || s==="offen") return "gold";
+  if(s==="cancelled" || s==="canceled" || s==="storniert") return "red";
+  return "white"; // draft/entwurf
+}
+function mapInvoiceStatusLabel(status){
+  const s = String(status||'').toLowerCase();
+  if(s==='paid' || s==='bezahlt') return 'bezahlt';
+  if(s==='cancelled' || s==='storniert') return 'storniert';
+  if(s==='open' || s==='offen') return 'offen';
+  if(s==='draft' || s==='entwurf') return 'Entwurf';
+  return status || '—';
+}
+function formatPeriodDE(fromIso,toIso){
+  const a = formatDateDE(fromIso);
+  const b = formatDateDE(toIso);
+  if(a && b) return `${a} – ${b}`;
+  return (a||b||'—');
+}
+function getStayById(id){
+  if(!id) return null;
+  const arr = (state && Array.isArray(state.stays)) ? state.stays : [];
+  return arr.find(d => d && d.id===id) || null;
+}
+
+function applyInvoiceManualExtras(inv){
+  if(!inv) return inv;
+  inv.pricing = inv.pricing || {};
+  const base = Number(inv.pricing.basePrice||0);
+  const holiday = Number(inv.pricing.holidayExtra||0);
+
+  const rate = Number(inv.pricing.manualPercentRate||0);
+  const fix  = Number(inv.pricing.manualFixedExtra||0);
+
+  const pctValue = Math.round((base * (rate/100)) * 100)/100;
+  inv.pricing.percentExtra = pctValue;
+  inv.pricing.fixedExtra = Math.round(fix * 100)/100;
+
+  inv.pricing.total = Math.round((base + holiday + inv.pricing.percentExtra + inv.pricing.fixedExtra) * 100)/100;
+  return inv;
+}
+
+function setInvoiceManualExtras(id){
+  const inv = getInvoiceById(id);
+  if(!inv) return;
+
+  const rateEl = document.getElementById("invPctRate");
+  const fixEl  = document.getElementById("invFixExtra");
+
+  const rate = rateEl ? Number(rateEl.value||0) : 0;
+  const fix  = fixEl  ? Number(fixEl.value||0)  : 0;
+
+  inv.pricing = inv.pricing || {};
+  inv.pricing.manualPercentRate = rate;
+  inv.pricing.manualFixedExtra  = fix;
+
+  applyInvoiceManualExtras(inv);
+  inv.updatedAt = new Date().toISOString();
+  try{ saveState(); }catch(_){}
+  try{ renderInvoiceList(); }catch(_){}
+  try{ openInvoice(id); }catch(_){}
+}
+function ensureInvoicePricing(inv){
+  if(!inv) return inv;
+  if(inv.sourceDocId){
+    const stay = getStayById(inv.sourceDocId);
+    if(stay){
+      calculateInvoicePricing(stay); // mutates stay.pricing
+      inv.pricing = {...(stay.pricing||{})};
+      inv.customerId = inv.customerId || stay.meta?.customer_id || stay.customerId;
+      inv.dogId = inv.dogId || stay.meta?.dog_id || stay.dogId;
+      inv.period = inv.period || {from: stay.meta?.from, to: stay.meta?.to};
+    }
+  }
+  // fallback: if inv.pricing missing but we have period + care type, try derive
+  if(!inv.pricing || typeof inv.pricing.basePrice!=='number'){
+    inv.pricing = inv.pricing || {basePrice:0, pctAdd:0, fixedAdd:0, discountPct:0, total:0};
+  }
+  return inv;
+}
+
 
 function showPanel(id){
   document.querySelectorAll(".panel").forEach(p=>{
@@ -2220,19 +2372,47 @@ function hygieneOverallStatus(){
 function hygieneStatusPill(el, status){
   if(!el) return;
   el.textContent = status.label;
+
+  // Default (neutral)
   el.style.borderColor = "rgba(255,255,255,.14)";
   el.style.background = "rgba(255,255,255,.08)";
+  el.style.color = "rgba(255,255,255,.90)";
+  // Some CSS themes render a leading dot via currentColor or CSS var – set both.
+  try{
+    el.style.setProperty('--dot-color', 'rgba(255,255,255,.55)');
+    el.style.setProperty('--pill-dot', 'rgba(255,255,255,.55)');
+    el.style.setProperty('--sync-dot', 'rgba(255,255,255,.55)');
+  }catch(e){}
+
   if(status.code === "green"){
     el.style.background = "rgba(76,175,80,.18)";
     el.style.borderColor = "rgba(76,175,80,.35)";
+    el.style.color = "rgba(76,175,80,.95)";
+    try{
+      el.style.setProperty('--dot-color', 'rgba(76,175,80,.95)');
+      el.style.setProperty('--pill-dot', 'rgba(76,175,80,.95)');
+      el.style.setProperty('--sync-dot', 'rgba(76,175,80,.95)');
+    }catch(e){}
   }
   if(status.code === "yellow"){
     el.style.background = "rgba(255,193,7,.18)";
     el.style.borderColor = "rgba(255,193,7,.35)";
+    el.style.color = "rgba(255,193,7,.98)";
+    try{
+      el.style.setProperty('--dot-color', 'rgba(255,193,7,.98)');
+      el.style.setProperty('--pill-dot', 'rgba(255,193,7,.98)');
+      el.style.setProperty('--sync-dot', 'rgba(255,193,7,.98)');
+    }catch(e){}
   }
   if(status.code === "red"){
     el.style.background = "rgba(244,67,54,.18)";
     el.style.borderColor = "rgba(244,67,54,.35)";
+    el.style.color = "rgba(244,67,54,.98)";
+    try{
+      el.style.setProperty('--dot-color', 'rgba(244,67,54,.98)');
+      el.style.setProperty('--pill-dot', 'rgba(244,67,54,.98)');
+      el.style.setProperty('--sync-dot', 'rgba(244,67,54,.98)');
+    }catch(e){}
   }
 }
 
@@ -2374,6 +2554,711 @@ function renderHygienePanel(){
     }
   }
 
+
+  // --- Hygiene Schnellaktionen (Option B/B.1/B.2) ---
+  // Konfig in state.hygiene.quick (persistiert im State)
+  (function ensureHygQuick(){
+    state.hygiene = state.hygiene || {};
+    state.hygiene.quick = state.hygiene.quick || {};
+    const q = state.hygiene.quick;
+
+    if(!Array.isArray(q.standardTasks) || !q.standardTasks.length || (function looksOldDaily(a){
+      try{
+        if(!Array.isArray(a)) return false;
+        const sig = a.map(x=>`${(x.area||'').trim()}|${(x.action||'').trim()}`).join(';');
+        // previous default without WC/Nassbereich
+        return sig === 'Innenräume|Boden/Flächen reinigen;Innenräume|Wassernäpfe reinigen/füllen;Innenräume|Liegeflächen/Boxen reinigen;Außenbereich|Kot entfernen (Ausläufe);Außenbereich|Ausläufe Sichtcheck (Zaun/Tore)';
+      }catch(_){ return false; }
+    })(q.standardTasks)){
+      // Standardaufgaben (täglich) – Hundepension (prüfsicher & praxisnah)
+      // Hinweis: Diese Aufgaben werden nur als "erforderlich" bewertet, wenn Hunde im Aufenthalt sind.
+      q.standardTasks = [
+        { area:"Innenräume", action:"Boden/Flächen reinigen", status:"fällig", requireReason:false },
+        { area:"Innenräume", action:"Wassernäpfe reinigen/füllen", status:"fällig", requireReason:false },
+        { area:"Innenräume", action:"Liegeflächen/Boxen reinigen", status:"fällig", requireReason:false },
+        { area:"WC/Nassbereich", action:"WC/Nassbereich reinigen & desinfizieren", status:"fällig", requireReason:false },
+        { area:"Außenbereich", action:"Kot entfernen (Ausläufe)", status:"fällig", requireReason:false },
+        { area:"Außenbereich", action:"Ausläufe Sichtcheck (Zaun/Tore)", status:"fällig", requireReason:false },
+      ];
+    }
+    if(!Array.isArray(q.buttons) || !q.buttons.length || (function looksOldButtons(a){
+      try{
+        if(!Array.isArray(a)) return false;
+        const labels = a.map(x=>(x.label||'').trim()).join(';');
+        return labels === '✅ Innenräume (Boden/Flächen);✅ Wassernäpfe;✅ Liegeflächen/Boxen;✅ Kot entfernen;✅ Ausläufe Sichtcheck;✅ Außenbereich reinigen';
+      }catch(_){ return false; }
+    })(q.buttons)){
+      q.buttons = [
+        { label:"✅ Innenräume (Boden/Flächen)", area:"Innenräume", action:"Boden/Flächen reinigen", status:"erledigt", requireReason:false },
+        { label:"✅ Wassernäpfe", area:"Innenräume", action:"Wassernäpfe reinigen/füllen", status:"erledigt", requireReason:false },
+        { label:"✅ Liegeflächen/Boxen", area:"Innenräume", action:"Liegeflächen/Boxen reinigen", status:"erledigt", requireReason:false },
+        { label:"✅ WC/Nassbereich", area:"WC/Nassbereich", action:"WC/Nassbereich reinigen & desinfizieren", status:"erledigt", requireReason:false },
+        { label:"✅ Kot entfernen", area:"Außenbereich", action:"Kot entfernen (Ausläufe)", status:"erledigt", requireReason:false },
+        { label:"✅ Ausläufe Sichtcheck", area:"Außenbereich", action:"Ausläufe Sichtcheck (Zaun/Tore)", status:"erledigt", requireReason:false },
+        { label:"✅ Außenbereich reinigen", area:"Außenbereich", action:"Reinigung", status:"erledigt", requireReason:false },
+      ];
+    }
+    state.hygiene.quick = q;
+  })();
+
+  
+function hygieneHasDogsOnDate(iso){
+  // Prüft, ob am gegebenen Tag Aufenthalte (Übernachtung oder Tagesbetreuung) existieren.
+  try{
+    const docs = state.docs || [];
+    const stays = docs.filter(d => String(d.templateId||d.template||'').toLowerCase()==='hundeannahme');
+    const active = stays.filter(d=>{
+      const m = d.meta || {};
+      const von = m.von || m.from || m.start || null;
+      const bis = m.bis || m.to || m.end || null;
+      if(!von && !bis) return false;
+      const a = von ? String(von).slice(0,10) : null;
+      const b = bis ? String(bis).slice(0,10) : null;
+      // inclusive overlap
+      if(a && b) return (a <= iso && iso <= b);
+      if(a && !b) return (a === iso);
+      if(!a && b) return (b === iso);
+      return false;
+    });
+    return active.length > 0;
+  }catch(e){
+    return false;
+  }
+}
+
+function hygieneHasDogsToday(){
+  return hygieneHasDogsOnDate(todayISO());
+}
+
+  function hygieneQuickEnsureUI(){
+    const anchor = document.getElementById('btnHygieneAdd') || document.getElementById('hygArea') || document.getElementById('hygStaffPreset');
+    if(!anchor) return;
+
+    // Find a reasonable container (the "Eintrag hinzufügen" card)
+    let host = anchor.closest('.card') || anchor.closest('.panel') || anchor.closest('section') || anchor.parentElement;
+    if(!host) host = anchor.parentElement;
+
+    let row = document.getElementById('hygQuickRow');
+    if(!row){
+      row = document.createElement('div');
+      row.id = 'hygQuickRow';
+      row.style.display = 'flex';
+      row.style.flexWrap = 'wrap';
+      row.style.gap = '8px';
+      row.style.margin = '10px 0 14px 0';
+      row.style.alignItems = 'center';
+
+      // Insert near top of the entry form, but below the title if possible
+      // If a heading exists inside host, insert after it; otherwise at top
+      const h = host.querySelector('h2, h3, .card-title, .section-title');
+      if(h && h.parentElement === host){
+        host.insertBefore(row, h.nextSibling);
+      }else{
+        host.insertBefore(row, host.firstChild);
+      }
+    }
+
+    // Render buttons
+    const q = state.hygiene.quick || {};
+    const dogsToday = hygieneHasDogsToday();
+
+    row.innerHTML = '';
+    const mkBtn = (label, kind)=>{
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn';
+      b.textContent = label;
+      b.dataset.kind = kind || '';
+      return b;
+    };
+
+    const bStd = mkBtn('Heute Standard (fällig)', 'std');
+    bStd.onclick = ()=>{
+      if(!dogsToday){
+        alert('Heute sind keine Hunde im Aufenthalt – Standardaufgaben sind nicht erforderlich.');
+        return;
+      }
+      hygieneQuickApplyStandard();
+    };
+    row.appendChild(bStd);
+
+    const bCfg = mkBtn('⚙️ Buttons', 'cfg');
+    bCfg.onclick = ()=>{ hygieneQuickToggleConfig(); };
+    row.appendChild(bCfg);
+
+    (q.buttons || []).forEach((btn, idx)=>{
+      const b = mkBtn(btn.label || ('Button ' + (idx+1)), 'qb');
+      b.onclick = ()=>hygieneQuickRun(btn);
+      row.appendChild(b);
+    });
+
+    // Ensure config panel exists (collapsed by default)
+    hygieneQuickEnsureConfigPanel(row);
+  }
+
+
+// --- Hygiene To-do-Ansicht (Option 3) ---
+function hygieneRenderTodoBox(){
+  try{
+    const listEl = document.getElementById('hygTodayList');
+    if(!listEl) return;
+
+    // Container: oberhalb der heutigen Einträge
+    let box = document.getElementById('hygTodoBox');
+    if(!box){
+      box = document.createElement('div');
+      box.id = 'hygTodoBox';
+      box.style.margin = '0 0 10px 0';
+      box.style.padding = '10px';
+      box.style.border = '1px solid rgba(255,255,255,.10)';
+      box.style.borderRadius = '12px';
+      box.style.background = 'rgba(255,255,255,.03)';
+      listEl.parentElement.insertBefore(box, listEl);
+    }
+
+    const iso = todayISO();
+    const q = state.hygiene.quick || {};
+    const tasks = Array.isArray(q.standardTasks) ? q.standardTasks : [];
+    const logs = state.hygiene.logs || [];
+    const pendingOnly = !!(state.hygiene.ui && state.hygiene.ui.pendingOnly);
+
+    const dogsToday = hygieneHasDogsOnDate(iso);
+
+    const norm = s => String(s||'').trim();
+    const keyEq = (l, area, action) => norm(l.area)===norm(area) && norm(l.action)===norm(action);
+
+    const getLog = (date, area, action) => (logs||[]).find(l=>l && !l._deleted && l.date===date && keyEq(l, area, action));
+    const isDone = (date, area, action) => {
+      const l = getLog(date, area, action);
+      return l && String(l.status||'').toLowerCase()==='erledigt';
+    };
+
+    // overfällig: in den letzten 7 Tagen gab es Hund(e), aber Aufgabe wurde an mind. einem Hundetag nicht als erledigt dokumentiert
+    // zusätzlich: "seit X Tagen" = wie viele Tage seit dem zuletzt verpassten Hundetag (max. 30 Tage Rückblick)
+    const overdueSinceDays = (area, action) => {
+      if(!dogsToday) return null;
+      // Wenn heute bereits erledigt -> nicht überfällig
+      if(isDone(iso, area, action)) return null;
+
+      // Prüfe, ob überhaupt "overdue" nach der bisherigen Definition vorliegt (letzte 7 Tage)
+      let overdue = false;
+      for(let i=1;i<=7;i++){
+        const d = addDaysISO(iso, -i);
+        if(!hygieneHasDogsOnDate(d)) continue;
+        const l = getLog(d, area, action);
+        if(!l) { overdue = true; break; } // Hundetag ohne Eintrag
+        if(String(l.status||'').toLowerCase()!=='erledigt') { overdue = true; break; }
+      }
+      if(!overdue) return null;
+
+      // "seit X Tagen": jüngster Hundetag in der Vergangenheit, an dem es NICHT erledigt war / fehlte
+      for(let i=1;i<=30;i++){
+        const d = addDaysISO(iso, -i);
+        if(!hygieneHasDogsOnDate(d)) continue;
+        const l = getLog(d, area, action);
+        if(!l) return i;
+        if(String(l.status||'').toLowerCase()!=='erledigt') return i;
+      }
+      return 7; // Fallback
+    };
+
+    const isOverdue = (area, action) => {
+      return overdueSinceDays(area, action) != null;
+    };
+
+    const items = tasks.map(t=>{
+      const area = (t.area||'').trim();
+      const action = (t.action||'').trim();
+      const logToday = getLog(iso, area, action);
+
+      let status = logToday ? (logToday.status||'') : (dogsToday ? (t.status||'fällig') : 'nicht erforderlich');
+      status = String(status||'').trim() || (dogsToday ? 'fällig' : 'nicht erforderlich');
+
+      const overdueDays = overdueSinceDays(area, action);
+      const overdue = overdueDays != null;
+      const showStatus = overdue && String(status).toLowerCase()==='fällig' ? 'überfällig' : status;
+
+      return {
+        area, action,
+        requireReason: !!t.requireReason,
+        logToday,
+        overdue,
+        overdueDays,
+        status: showStatus
+      };
+    });
+
+    const filtered = pendingOnly
+      ? items.filter(x=>{
+          const s = String(x.status||'').toLowerCase();
+          return (s==='fällig' || s==='überfällig' || s==='nicht durchgeführt');
+        })
+      : items;
+
+    const counts = {
+      overdue: items.filter(x=>String(x.status||'').toLowerCase()==='überfällig').length,
+      due: items.filter(x=>String(x.status||'').toLowerCase()==='fällig').length,
+      nd: items.filter(x=>String(x.status||'').toLowerCase()==='nicht durchgeführt').length,
+      done: items.filter(x=>String(x.status||'').toLowerCase()==='erledigt').length,
+      na: items.filter(x=>String(x.status||'').toLowerCase()==='nicht erforderlich').length
+    };
+
+    const badgeFor = (s, overdueDays)=>{
+      const sl = String(s||'').toLowerCase();
+      if(sl==='erledigt') return '🟢 erledigt';
+      if(sl==='überfällig') return (overdueDays ? `🔴 überfällig seit ${overdueDays} Tag${overdueDays===1?'':'en'}` : '🔴 überfällig');
+      if(sl==='fällig') return '🟡 fällig';
+      if(sl==='nicht erforderlich') return '⚪ nicht erforderlich';
+      if(sl==='nicht durchgeführt') return '🔴 nicht durchgeführt';
+      return escapeHtml(s);
+    };
+
+    const mkActionBtn = (txt, area, action, status, requireReason)=>`<button class="smallbtn" data-hyg-todo="1" data-area="${escapeHtml(area)}" data-action="${escapeHtml(action)}" data-status="${escapeHtml(status)}" data-reason="${requireReason?'1':'0'}">${txt}</button>`;
+
+    // Expose handlers (idempotent)
+    if(!window._hygTodoSetStatus){
+      window._hygTodoSetStatus = function(area, action, status, requireReason){
+        try{
+          ensureStateShape();
+          const iso = todayISO();
+          const logs = state.hygiene.logs || [];
+          const existing = logs.find(l=>l && !l._deleted && l.date===iso && norm(l.area)===norm(area) && norm(l.action)===norm(action));
+
+          // require staff
+          const preset = (document.getElementById('hygStaffPreset')?.value || '').trim();
+          const free = (document.getElementById('hygStaffFree')?.value || '').trim();
+          const doneBy = (free || preset || '').trim();
+          if(!doneBy && !(existing && (existing.staff?.free || existing.staff?.preset))){
+            alert('Bitte „Durchgeführt von“ auswählen oder eintragen (oben).');
+            return;
+          }
+
+          let reason = null;
+          if(String(status).toLowerCase()==='nicht durchgeführt' && requireReason){
+            reason = prompt('Begründung (erforderlich):') || '';
+            reason = reason.trim();
+            if(!reason){
+              alert('Ohne Begründung wird nicht gespeichert.');
+              return;
+            }
+          }
+
+          const staff = doneBy ? { preset: preset || null, free: free || null } : (existing?.staff || {preset:null, free:null});
+          const nowIso = new Date().toISOString();
+
+          if(existing){
+            existing.status = status;
+            existing.reason = reason || null;
+            existing.staff = staff;
+            existing.updatedAt = nowIso;
+          }else{
+            logs.unshift({
+              id: uid(),
+              date: iso,
+              area: (area||'').trim(),
+              action: (action||'').trim(),
+              status: (status||'').trim(),
+              reason: reason || null,
+              staff,
+              note: null,
+              createdAt: nowIso,
+              updatedAt: null,
+              _deleted: false,
+              source: {kind:'todo'}
+            });
+            state.hygiene.logs = logs;
+          }
+
+          saveState();
+          renderHygienePanel();
+          renderHygieneDashboard();
+        }catch(e){ console.warn(e); }
+      };
+    }
+
+    const infoLine = dogsToday
+      ? `To-do (heute): 🔴 ${counts.overdue} überfällig · 🟡 ${counts.due} fällig · 🟢 ${counts.done} erledigt`
+      : `To-do (heute): keine Hunde im Aufenthalt → Standardaufgaben nicht erforderlich`;
+
+    box.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;">
+        <div>
+          <strong>To-do (heute)</strong>
+          <small style="display:block;opacity:.85">${escapeHtml(infoLine)}</small>
+        </div>
+      </div>
+      <div id="hygTodoItems">
+        ${filtered.length ? filtered.map(x=>{
+          const s = String(x.status||'').toLowerCase();
+          const canAct = (s==='fällig' || s==='überfällig' || s==='nicht durchgeführt') && dogsToday;
+          const btns = canAct ? `
+            ${mkActionBtn('✅', x.area, x.action, 'erledigt', false)}
+            ${mkActionBtn('🚫', x.area, x.action, 'nicht durchgeführt', x.requireReason)}
+          ` : '';
+          return `
+            <div class="item" style="margin:6px 0;">
+              <div>
+                <strong>${escapeHtml(x.area)} · ${escapeHtml(x.action)}</strong>
+                <small>${escapeHtml(badgeFor(x.status, x.overdueDays))}</small>
+              </div>
+              <div class="actions">${btns}</div>
+            </div>`;
+    // Bind To-do action buttons (no inline JS)
+    const todoHost = box.querySelector('#hygTodoItems');
+    if(todoHost && !todoHost._bound){
+      todoHost._bound = true;
+      todoHost.addEventListener('click', (ev)=>{
+        const btn = ev.target && ev.target.closest ? ev.target.closest('button[data-hyg-todo="1"]') : null;
+        if(!btn) return;
+        const area = btn.getAttribute('data-area') || '';
+        const action = btn.getAttribute('data-action') || '';
+        const status = btn.getAttribute('data-status') || '';
+        const requireReason = (btn.getAttribute('data-reason') || '') === '1';
+        if(window._hygTodoSetStatus){
+          window._hygTodoSetStatus(area, action, status, requireReason);
+        }
+      });
+    }
+
+        }).join('') : `<div class="item"><div><small>Keine offenen Punkte (Filter aktiv) oder keine Standardaufgaben definiert.</small></div></div>`}
+      </div>
+    `;
+  }catch(e){
+    console.warn('hygieneRenderTodoBox failed', e);
+  }
+}
+
+function addDaysISO(iso, delta){
+  // iso: YYYY-MM-DD
+  const d = new Date(iso + 'T00:00:00');
+  d.setDate(d.getDate() + (delta||0));
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const da = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${da}`;
+}
+  function hygieneQuickApplyStandard(){
+    ensureStateShape();
+    const iso = todayISO();
+    const q = state.hygiene.quick || {};
+    const std = q.standardTasks || [];
+    const logs = state.hygiene.logs || [];
+    const exists = (area, action)=>logs.some(l=>l.date===iso && (l.area||'')===area && (l.action||'')===action && !l._deleted);
+    let added = 0;
+    std.forEach(t=>{
+      if(!t || !t.area || !t.action) return;
+      if(exists(t.area, t.action)) return;
+      const entry = hygieneQuickBuildEntry({
+        area: t.area,
+        action: t.action,
+        status: t.status || 'fällig',
+        requireReason: !!t.requireReason
+      });
+      if(entry){ logs.unshift(entry); added++; }
+    });
+    state.hygiene.logs = logs;
+    saveState();
+    renderHygienePanel();
+    renderHygieneDashboard();
+    if(typeof toast==='function'){
+      toast(added ? `Standardaufgaben hinzugefügt: ${added}` : 'Standardaufgaben waren bereits vorhanden.');
+    }
+  }
+
+  function hygieneQuickBuildEntry({area, action, status, requireReason}){
+    const date = todayISO();
+    const preset = (document.getElementById('hygStaffPreset')?.value || '').trim();
+    const free = (document.getElementById('hygStaffFree')?.value || '').trim();
+    const doneBy = (free || preset || '').trim();
+    if(!doneBy){
+      alert('Bitte „Durchgeführt von“ auswählen oder eintragen (oben).');
+      return null;
+    }
+    let reason = null;
+    if(String(status).toLowerCase()==='nicht durchgeführt' && requireReason){
+      reason = prompt('Begründung (erforderlich):') || '';
+      reason = reason.trim();
+      if(!reason){
+        alert('Ohne Begründung wird nicht gespeichert.');
+        return null;
+      }
+    }
+    const note = null;
+    return {
+      id: uid(),
+      date,
+      area: (area||'').trim(),
+      action: (action||'').trim(),
+      status: (status||'').trim() || 'erledigt',
+      reason: reason || null,
+      staff: { preset: preset || null, free: free || null },
+      note,
+      createdAt: new Date().toISOString(),
+      updatedAt: null,
+      _deleted: false,
+      source: { kind:'quick' }
+    };
+  }
+
+  function hygieneQuickRun(btn){
+    if(!btn) return;
+    ensureStateShape();
+    const iso = todayISO();
+    const area = (btn.area||'').trim();
+    const action = (btn.action||'').trim();
+    const nextStatus = (btn.status || 'erledigt').trim();
+
+    // Dubletten-Schutz: Wenn es heute bereits einen Eintrag für Bereich+Maßnahme gibt,
+    // wird dieser aktualisiert (Statuswechsel) statt ein neuer Eintrag angelegt.
+    const logs = state.hygiene.logs || [];
+    const existing = logs.find(l=>!l?false:(!l._deleted && l.date===iso && (l.area||'')===area && (l.action||'')===action));
+
+    // Wenn bereits erledigt und erneut erledigt -> keine Dublette
+    if(existing && String(existing.status||'').toLowerCase()==='erledigt' && String(nextStatus||'').toLowerCase()==='erledigt'){
+      if(typeof toast==='function') toast('Heute bereits als erledigt dokumentiert.');
+      else alert('Heute bereits als erledigt dokumentiert.');
+      return;
+    }
+
+    // Entry bauen (inkl. Pflicht-Begründung, Staff etc.)
+    const entry = hygieneQuickBuildEntry({
+      area,
+      action,
+      status: nextStatus,
+      requireReason: !!btn.requireReason
+    });
+    if(!entry) return;
+
+    if(existing){
+      // Bestehenden Eintrag aktualisieren (statt neu anlegen)
+      existing.status = entry.status;
+      existing.reason = entry.reason;
+      existing.staff = entry.staff;
+      existing.note = entry.note;
+      existing.updatedAt = new Date().toISOString();
+    } else {
+      state.hygiene.logs = logs;
+      state.hygiene.logs.unshift(entry);
+    }
+
+    saveState();
+    renderHygienePanel();
+    renderHygieneDashboard();
+  }
+
+  function hygieneQuickEnsureConfigPanel(row){
+    let panel = document.getElementById('hygQuickCfg');
+    if(panel) return;
+    panel = document.createElement('div');
+    panel.id = 'hygQuickCfg';
+    panel.style.display = 'none';
+    panel.style.width = '100%';
+    panel.style.marginTop = '10px';
+    panel.style.padding = '10px';
+    panel.style.border = '1px solid rgba(255,255,255,.12)';
+    panel.style.borderRadius = '12px';
+    panel.style.background = 'rgba(255,255,255,.04)';
+    row.parentElement.insertBefore(panel, row.nextSibling);
+    hygieneQuickRenderConfig(panel);
+  }
+
+  function hygieneQuickToggleConfig(){
+    const panel = document.getElementById('hygQuickCfg');
+    if(!panel) return;
+    panel.style.display = (panel.style.display==='none' ? 'block' : 'none');
+    if(panel.style.display==='block') hygieneQuickRenderConfig(panel);
+  }
+
+  function hygieneQuickRenderConfig(panel){
+    const q = state.hygiene.quick || {};
+    const buttons = Array.isArray(q.buttons) ? q.buttons : [];
+    const std = Array.isArray(q.standardTasks) ? q.standardTasks : [];
+
+    const statusOptions = ['erledigt','fällig','nicht durchgeführt'];
+
+    const rowBtn = (i, b)=>`
+      <div style="display:grid;grid-template-columns:1.2fr 1fr 1fr .8fr .9fr auto;gap:8px;align-items:center;margin:6px 0;">
+        <input data-k="label" data-i="${i}" placeholder="Label" value="${escapeHtml(b.label||'')}" />
+        <input data-k="area" data-i="${i}" placeholder="Bereich" value="${escapeHtml(b.area||'')}" />
+        <input data-k="action" data-i="${i}" placeholder="Maßnahme" value="${escapeHtml(b.action||'')}" />
+        <select data-k="status" data-i="${i}">
+          ${statusOptions.map(s=>`<option ${String(b.status||'erledigt')===s?'selected':''}>${s}</option>`).join('')}
+        </select>
+        <label style="display:flex;gap:6px;align-items:center;white-space:nowrap;">
+          <input type="checkbox" data-k="requireReason" data-i="${i}" ${b.requireReason?'checked':''} />
+          Begründung
+        </label>
+        <div style="display:flex;gap:6px;justify-content:flex-end;">
+          <button class="btn" data-act="up" data-i="${i}">↑</button>
+          <button class="btn" data-act="down" data-i="${i}">↓</button>
+          <button class="btn" data-act="del" data-i="${i}">Löschen</button>
+        </div>
+      </div>`;
+
+    const rowStd = (i, b)=>`
+      <div style="display:grid;grid-template-columns:1fr 1fr .8fr .9fr auto;gap:8px;align-items:center;margin:6px 0;">
+        <input data-ks="area" data-i="${i}" placeholder="Bereich" value="${escapeHtml(b.area||'')}" />
+        <input data-ks="action" data-i="${i}" placeholder="Maßnahme" value="${escapeHtml(b.action||'')}" />
+        <select data-ks="status" data-i="${i}">
+          ${statusOptions.map(s=>`<option ${String(b.status||'fällig')===s?'selected':''}>${s}</option>`).join('')}
+        </select>
+        <label style="display:flex;gap:6px;align-items:center;white-space:nowrap;">
+          <input type="checkbox" data-ks="requireReason" data-i="${i}" ${b.requireReason?'checked':''} />
+          Begründung
+        </label>
+        <div style="display:flex;gap:6px;justify-content:flex-end;">
+          <button class="btn" data-acts="del" data-i="${i}">Löschen</button>
+        </div>
+      </div>`;
+
+    panel.innerHTML = `
+      <div style="font-weight:700;margin-bottom:6px;">Schnellbuttons konfigurieren</div>
+      <div style="opacity:.85;margin-bottom:10px;">Hier kannst du Schnellbuttons und Standardaufgaben pflegen. Änderungen werden gespeichert.</div>
+
+      <div style="margin:8px 0 4px 0;font-weight:600;">Standardaufgaben (Heute Standard)</div>
+      <div id="hygStdList">${std.map((b,i)=>rowStd(i,b)).join('')}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 12px 0;">
+        <button class="btn" id="hygStdAdd">+ Standard</button>
+      </div>
+
+      <div style="margin:8px 0 4px 0;font-weight:600;">Schnellbuttons</div>
+      <div id="hygBtnList">${buttons.map((b,i)=>rowBtn(i,b)).join('')}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 0 0;">
+        <button class="btn" id="hygBtnAdd">+ Button</button>
+        <button class="btn" id="hygBtnReset">Auf Standard zurück</button>
+        <button class="btn" id="hygBtnSave">Speichern</button>
+      </div>
+    `;
+
+    const readInputs = ()=>{
+      const btns = [];
+      panel.querySelectorAll('#hygBtnList > div').forEach(_=>{}); // noop
+      // collect by index from inputs
+      const max = buttons.length;
+      for(let i=0;i<max;i++){
+        const get = (k)=>{
+          const el = panel.querySelector(`[data-k="${k}"][data-i="${i}"]`);
+          if(!el) return '';
+          if(el.type==='checkbox') return !!el.checked;
+          return (el.value||'').trim();
+        };
+        btns.push({
+          label: get('label'),
+          area: get('area'),
+          action: get('action'),
+          status: get('status') || 'erledigt',
+          requireReason: !!get('requireReason')
+        });
+      }
+      const stds = [];
+      const maxs = std.length;
+      for(let i=0;i<maxs;i++){
+        const get = (k)=>{
+          const el = panel.querySelector(`[data-ks="${k}"][data-i="${i}"]`);
+          if(!el) return '';
+          if(el.type==='checkbox') return !!el.checked;
+          return (el.value||'').trim();
+        };
+        stds.push({
+          area: get('area'),
+          action: get('action'),
+          status: get('status') || 'fällig',
+          requireReason: !!get('requireReason')
+        });
+      }
+      return {btns, stds};
+    };
+
+    // actions: up/down/del
+    panel.onclick = (ev)=>{
+      const t = ev.target;
+      if(!(t instanceof HTMLElement)) return;
+      const act = t.getAttribute('data-act');
+      const acts = t.getAttribute('data-acts');
+      const idx = parseInt(t.getAttribute('data-i')||'-1',10);
+      if(act && idx>=0){
+        ev.preventDefault();
+        if(act==='del'){
+          buttons.splice(idx,1);
+        }else if(act==='up' && idx>0){
+          const tmp = buttons[idx-1]; buttons[idx-1]=buttons[idx]; buttons[idx]=tmp;
+        }else if(act==='down' && idx<buttons.length-1){
+          const tmp = buttons[idx+1]; buttons[idx+1]=buttons[idx]; buttons[idx]=tmp;
+        }
+        q.buttons = buttons;
+        hygieneQuickRenderConfig(panel);
+        return;
+      }
+      if(acts && idx>=0){
+        ev.preventDefault();
+        if(acts==='del'){
+          std.splice(idx,1);
+          q.standardTasks = std;
+          hygieneQuickRenderConfig(panel);
+        }
+      }
+    };
+
+    // add/reset/save
+    const btnAdd = panel.querySelector('#hygBtnAdd');
+    if(btnAdd) btnAdd.onclick = (ev)=>{ ev.preventDefault(); buttons.push({label:'✅ Neu', area:'Innenräume', action:'Reinigung', status:'erledigt', requireReason:false}); q.buttons = buttons; hygieneQuickRenderConfig(panel); };
+    const stdAdd = panel.querySelector('#hygStdAdd');
+    if(stdAdd) stdAdd.onclick = (ev)=>{ ev.preventDefault(); std.push({area:'Innenräume', action:'Reinigung', status:'fällig', requireReason:false}); q.standardTasks = std; hygieneQuickRenderConfig(panel); };
+
+    const btnReset = panel.querySelector('#hygBtnReset');
+    if(btnReset) btnReset.onclick = (ev)=>{ ev.preventDefault(); q.buttons = []; q.standardTasks = []; renderHygienePanel(); };
+
+    const btnSave = panel.querySelector('#hygBtnSave');
+    if(btnSave) btnSave.onclick = (ev)=>{
+      ev.preventDefault();
+      try{
+        const {btns, stds} = readInputs();
+        // Persist inputs back into state (including requireReason flags)
+        q.buttons = btns.filter(b=>b.label || b.area || b.action);
+        q.standardTasks = stds.filter(b=>b.area || b.action);
+        state.hygiene.quick = q;
+
+        // Save using the app's normal persistence. Fallback to localStorage if needed.
+        if(typeof saveState === 'function'){
+          saveState();
+        }else{
+          try{ localStorage.setItem('ds_hygiene_quick', JSON.stringify(state.hygiene.quick||{})); }catch(_){}
+        }
+
+        // Re-render UI to reflect the new config immediately
+        hygieneQuickEnsureUI();
+        if(typeof toast === 'function') toast('Hygiene-Schnellbuttons gespeichert');
+        else alert('Hygiene-Schnellbuttons gespeichert');
+      }catch(err){
+        console.error(err);
+        alert('Speichern fehlgeschlagen: ' + (err && err.message ? err.message : err));
+      }
+    };
+
+    // UX safety: if a status is set to "nicht durchgeführt", default "Begründung erforderlich" to ON.
+    // (User can still turn it off explicitly if desired.)
+    panel.onchange = (ev)=>{
+      const t = ev.target;
+      if(!(t instanceof HTMLElement)) return;
+      const isStatus = t.matches('select[data-k="status"], select[data-ks="status"]');
+      if(!isStatus) return;
+
+      const val = (t.value || '').trim().toLowerCase();
+      const idx = parseInt(t.getAttribute('data-i')||'-1',10);
+      if(idx < 0) return;
+
+      if(val === 'nicht durchgeführt'){
+        // auto-check requireReason for the row
+        const chk = t.matches('select[data-k="status"]')
+          ? panel.querySelector(`input[type="checkbox"][data-k="requireReason"][data-i="${idx}"]`)
+          : panel.querySelector(`input[type="checkbox"][data-ks="requireReason"][data-i="${idx}"]`);
+        if(chk && !chk.checked) chk.checked = true;
+      }
+    };
+  }
+
+  // render quick actions into hygiene form
+  hygieneQuickEnsureUI();
   // bind add button once
   const btnAdd = document.getElementById('btnHygieneAdd');
   if(btnAdd && !btnAdd._bound){
@@ -2430,6 +3315,9 @@ function renderHygienePanel(){
   // status pill on panel
   hygieneStatusPill(document.getElementById('hygienePanelStatus'), hygieneOverallStatus());
 
+  // intelligent To-do-Ansicht (Option 3)
+  hygieneRenderTodoBox();
+
   // today list
   const iso = todayISO();
   const logsToday = hygieneGetLogsForDate(iso);
@@ -2485,6 +3373,64 @@ function renderHygienePanel(){
         </div>`;
     }).join('');
   }
+
+
+  // monthly list (neu)
+  (function ensureMonthlySection(){
+    const weeklyEl2 = document.getElementById('hygWeeklyList');
+    if(!weeklyEl2) return;
+    if(document.getElementById('hygMonthlyList')) return;
+    const card = weeklyEl2.closest('.card') || weeklyEl2.parentElement;
+    if(!card) return;
+    const cls = (card.getAttribute && card.getAttribute('class')) ? card.getAttribute('class') : (card.className || 'card');
+    card.insertAdjacentHTML('afterend', `
+      <div class="${cls}">
+        <h2>Monatsaufgaben</h2>
+        <div id="hygMonthlyList"></div>
+      </div>
+    `);
+  })();
+
+  const monthlyEl = document.getElementById('hygMonthlyList');
+  if(monthlyEl){
+    const tasks = state.hygiene.monthlyTasks || [];
+    monthlyEl.innerHTML = tasks.map(t=>{
+      const st = hygieneTaskStatus(t);
+      const last = t.lastDone ? new Date(t.lastDone).toLocaleDateString('de-DE') : '—';
+      const badge = st.code === 'overdue' ? '🔴 überfällig' : (st.code === 'due' ? '🟡 fällig' : '🟢 ok');
+      return `
+        <div class="item">
+          <div>
+            <strong>${escapeHtml(t.title)}</strong>
+            <small>Letztes Mal: ${escapeHtml(last)} · Intervall: ${t.intervalDays || 30} Tage · Status: ${badge}${t.mode==="pest" && t.lastOutcome ? ` · Ergebnis: ${t.lastOutcome==="no" ? "kein Befall" : "Befall"}` : ""}</small>
+          </div>
+          <div class="actions">
+            ${t.mode==="pest" ? `
+              <button class="smallbtn" onclick="markMonthlyTaskDone('${t.id}','no')">✅ kein Befall</button>
+              <button class="smallbtn" onclick="markMonthlyTaskDone('${t.id}','inf')">⚠️ Befall</button>
+              <div style="margin-top:10px; padding:10px; border:1px solid rgba(255,255,255,0.08); border-radius:12px; background:rgba(0,0,0,0.15); min-width:320px;">
+                <div style="font-weight:700; margin-bottom:6px;">${escapeHtml(PEST_CONTACT.company)}</div>
+                <div style="opacity:0.9; line-height:1.35;">
+                  ${escapeHtml(PEST_CONTACT.name)}<br>
+                  ${escapeHtml(PEST_CONTACT.street)}<br>
+                  ${escapeHtml(PEST_CONTACT.zipCity)}
+                </div>
+                <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
+                  <button class="smallbtn" onclick="contactPest('call','${t.id}')">📞 Mobil: ${escapeHtml(PEST_CONTACT.telMobile)}</button>
+                  <button class="smallbtn" onclick="contactPest('mail','${t.id}')">✉️ ${escapeHtml(PEST_CONTACT.email)}</button>
+                </div>
+                <div style="margin-top:8px; font-size:12px; opacity:0.75;">
+                  Tel: ${escapeHtml(PEST_CONTACT.telOffice)} · Fax: ${escapeHtml(PEST_CONTACT.fax)}
+                </div>
+              </div>
+            ` : `
+              <button class="smallbtn" onclick="markMonthlyTaskDone('${t.id}')">✅ erledigt</button>
+            `}
+          </div>
+        </div>`;
+    }).join('');
+  }
+
 
   // export
   const btnExp = document.getElementById('btnHygieneExport');
@@ -2554,6 +3500,154 @@ function markWeeklyTaskDone(taskId){
   renderHygienePanel();
   renderHygieneDashboard();
 }
+
+
+function markMonthlyTaskDone(taskId, outcome){
+  const t = (state.hygiene.monthlyTasks||[]).find(x=>x.id===taskId);
+  if(!t) return;
+  const now = new Date();
+
+  // Outcome only relevant for pest monitoring
+  if(t.mode === "pest"){
+    // default outcome if not given: "no"
+    const oc = outcome || "no";
+    t.lastOutcome = oc;
+    t.lastOutcomeAt = now.toISOString();
+  }
+
+  t.lastDone = now.toISOString();
+
+  const preset = (document.getElementById('hygStaffPreset')?.value || 'Raphael').trim();
+  const free = (document.getElementById('hygStaffFree')?.value || '').trim();
+  const staff = { preset: preset || null, free: free || null };
+
+  // Create auto log entry
+  let note = `Monatsaufgabe: ${t.title}`;
+  let status = "erledigt";
+  let area = (t.area || "Innenräume");
+  let action = "Monatsaufgabe";
+
+  if(t.mode === "pest"){
+    if(t.lastOutcome === "no"){
+      note = `Schädlingsmonitoring: Kein Befall festgestellt. (${t.title})`;
+    } else if(t.lastOutcome === "inf"){
+      // require a short note (optional but helpful)
+      let details = "";
+      try{ details = (prompt('Befall festgestellt – kurze Notiz (optional):', '') || '').trim(); }catch(_){ }
+      note = `Schädlingsmonitoring: Befall festgestellt. ${details ? ('Notiz: '+details) : ''}`.trim();
+      // Additionally create a follow-up action entry: Schädlingsbekämpfer anfordern
+      try{
+        state.hygiene.logs.unshift({
+          id: uid(),
+          date: todayISO(),
+          area: area,
+          action: "Schädlingsbekämpfer anfordern",
+          status: "fällig",
+          reason: null,
+          staff,
+          note: "Auslöser: Schädlingsmonitoring → Befall festgestellt.",
+          createdAt: now.toISOString(),
+          updatedAt: null,
+          _deleted: false
+        });
+      }catch(_){ }
+    }
+  }
+
+  state.hygiene.logs.unshift({
+    id: uid(),
+    date: todayISO(),
+    area: area,
+    action: action,
+    status: status,
+    reason: null,
+    staff,
+    note: note,
+    createdAt: now.toISOString(),
+    updatedAt: null,
+    _deleted: false
+  });
+
+  saveState();
+  renderHygienePanel();
+  renderHygieneDashboard();
+}
+
+// --- Schädlingsbekämpfer-Kontakt (Wolff Pest Control) ---
+const PEST_CONTACT = {
+  company: 'Wolff Pest Control – Schädlingsbekämpfung',
+  name: 'Bernhard Wolff',
+  street: 'Magnusweg 4',
+  zipCity: '87764 Legau',
+  telOffice: '08330/911808',
+  fax: '08330/911807',
+  telMobile: '0171/4105064', // Mobil verwenden
+  email: 'wpc1@gmx.net'
+};
+
+function _telHref(num){
+  const n = String(num||'').replace(/[^0-9+]/g,'');
+  return n ? `tel:${n}` : 'tel:';
+}
+
+function _mailtoHref(to, subject, body){
+  const s = encodeURIComponent(subject||'');
+  const b = encodeURIComponent(body||'');
+  return `mailto:${encodeURIComponent(to||'')}?subject=${s}&body=${b}`;
+}
+
+function contactPest(kind, taskId){
+  ensureStateShape();
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('de-DE');
+  const timeStr = now.toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit' });
+
+  // Staff (für Log)
+  const preset = (document.getElementById('hygStaffPreset')?.value || '').trim();
+  const free = (document.getElementById('hygStaffFree')?.value || '').trim();
+  const staff = { preset: preset || null, free: free || null };
+
+  const contactVia = kind === 'call' ? 'Telefon' : (kind === 'mail' ? 'E-Mail' : 'Kontakt');
+  state.hygiene.logs.unshift({
+    id: uid(),
+    date: todayISO(),
+    area: 'Schädlingsmonitoring',
+    action: `Schädlingsbekämpfer kontaktiert (${contactVia})`,
+    status: 'erledigt',
+    reason: null,
+    staff,
+    note: `Kontakt: ${PEST_CONTACT.company} / ${PEST_CONTACT.name} · ${contactVia} · ${dateStr} ${timeStr}`,
+    createdAt: now.toISOString(),
+    updatedAt: null,
+    _deleted: false
+  });
+  saveState();
+  renderHygienePanel();
+  renderHygieneDashboard();
+
+  if(kind === 'call'){
+    window.location.href = _telHref(PEST_CONTACT.telMobile);
+    return;
+  }
+  if(kind === 'mail'){
+    const subject = `Schädlingscheck – kurzer Terminwunsch`;
+    const body = [
+      `Hallo Bernhard,`,
+      ``,
+      `wir haben heute bei unserer routinemäßigen Schädlingskontrolle einen Befall/Verdacht festgestellt.`,
+      `Kannst du dich bitte kurz melden, wann du bei uns vorbeikommen kannst?`,
+      ``,
+      `Viele Grüße`,
+      `Raphael & Anschi`,
+      `Doggy Style Hundepension`,
+      `Im Moos 4 · 88167 Stiefenhofen`,
+      `Mobil: 0170/7313587`,
+    ].join('\n');
+    window.location.href = _mailtoHref(PEST_CONTACT.email, subject, body);
+    return;
+  }
+}
+
 
 function exportHygienePDF(){
   ensureStateShape();
@@ -3483,6 +4577,44 @@ function renderCalendarDayDetail(iso){
     return (iso >= d.meta.von && iso <= d.meta.bis);
   }).slice().sort((a,b)=> String(a.meta?.von||'').localeCompare(String(b.meta?.von||'')));
 
+  // 4A: Verursachende Aufenthalte bei Überbuchung markieren (Kalender-Tag-Detail)
+  // Logik: Wenn (Anzahl Aufenthalte je Betreuungsart) > Kapazität, markieren wir die "zusätzlichen" Aufenthalte
+  // in einer stabilen Reihenfolge (ältere zuerst, neuere zuletzt). Die neueren, die über die Kapazität hinausgehen,
+  // gelten als verursachend (planungspraktisch).
+  const causing = new Set();
+  const causingOver = Object.create(null); // id -> +N ueber Limit
+  const getSortKey = (d)=>{
+    // bevorzugt updatedAt/createdAt; fallback auf meta-Timestamps; letztlich id
+    const ts = d.updatedAt || d.createdAt || d.meta?.updatedAt || d.meta?.createdAt || d.meta?.savedAt || '';
+    return String(ts) + '|' + String(d.id||'');
+  };
+  try{
+    const byType = (type)=> (stays||[]).filter(s => (s.meta?.betreuung||'') === type);
+    const markOverflow = (type)=>{
+      const arr = byType(type).slice().sort((a,b)=> getSortKey(a).localeCompare(getSortKey(b)));
+      const cap = getCapacity(type, iso);
+      if(!cap && cap !== 0) return;
+      const overflow = arr.length - cap;
+      if(overflow > 0){
+        // Markiere alle Aufenthalte oberhalb der Kapazitaet als "verursachend"
+        // und merke die Position (+1, +2, ...), damit im UI die Groessenordnung klar ist.
+        for(let i = cap; i < arr.length; i++){
+          const s = arr[i];
+          if(!s || !s.id) continue;
+          causing.add(s.id);
+          const n = (i - cap) + 1;
+          const prev = causingOver[s.id];
+          // falls ein Eintrag aus irgendeinem Grund mehrfach markiert wird, behalten wir den groessten Wert
+          causingOver[s.id] = (typeof prev === 'number') ? Math.max(prev, n) : n;
+        }
+      }
+    };
+    markOverflow('Urlaubsbetreuung');
+    markOverflow('Tagesbetreuung');
+  }catch(e){ console.warn('4A causing-mark failed', e); }
+
+
+
   // Etappe 4: Medikamente pro Aufenthaltstag (Kalender-Tag-Detail)
   const stayPetIds = Array.from(new Set((stays||[]).map(s => (s.petId || s.dogId || "")).filter(Boolean)));
   const medOcc = (stayPetIds.length ? medDueOccurrences(iso, stayPetIds) : []);
@@ -3581,7 +4713,15 @@ function renderCalendarDayDetail(iso){
       const t = escapeHtml(d.title||'Aufenthalt');
       const typ = escapeHtml(d.meta?.betreuung||'');
       const range = `${escapeHtml(d.meta?.von||'')} – ${escapeHtml(d.meta?.bis||'')}`;
-      item.innerHTML = `<div><strong>${t}</strong><small>${typ} · ${range}</small></div>`;
+      const isCausing = causing.has(d.id);
+      const overN = isCausing ? (causingOver[d.id] || 0) : 0;
+      const overTxt = (overN > 0) ? ` <span class="pill warn" style="margin-left:8px;">+${overN} über Limit</span>` : '';
+      const causePill = isCausing ? `<span class="pill warn" style="margin-left:8px;">verursacht Überbuchung</span>${overTxt}` : '';
+      if(isCausing){
+        item.style.borderColor = "rgba(244,67,54,.55)";
+        item.style.background = "rgba(244,67,54,.08)";
+      }
+      item.innerHTML = `<div><strong>${t}</strong>${causePill}<small>${typ} · ${range}</small></div>`;
 
       const actions = document.createElement('div');
       actions.className = 'actions';
@@ -4297,6 +5437,7 @@ function ensureStateShape(){
   if(!state.hygiene || typeof state.hygiene !== "object") state.hygiene = {};
   state.hygiene.logs = Array.isArray(state.hygiene.logs) ? state.hygiene.logs : [];
   state.hygiene.weeklyTasks = Array.isArray(state.hygiene.weeklyTasks) ? state.hygiene.weeklyTasks : [];
+  state.hygiene.monthlyTasks = Array.isArray(state.hygiene.monthlyTasks) ? state.hygiene.monthlyTasks : [];
   state.hygiene.staffPresets = Array.isArray(state.hygiene.staffPresets) ? state.hygiene.staffPresets : ["Raphael","Anschi"];
   // Sync Presets mit Mitarbeiterliste (Raphael/Anschi + weitere)
   try{ state.hygiene.staffPresets = uniq([...(state.hygiene.staffPresets||[]), ...getActiveStaffNames()]); }catch(_){ }
@@ -4312,15 +5453,42 @@ function ensureStateShape(){
 
 
 
-  // Default Wochenaufgaben (nur einmal anlegen)
+  // Default Wochen- & Monatsaufgaben (nur einmal anlegen / Migration)
+  const _defaultWeekly = [
+    { id: "wk_runs_deepclean", title: "Grundreinigung Ausläufe / Laufwege", intervalDays: 7, lastDone: null, area:"Außenbereich" },
+    { id: "wk_outdoor_disinfect", title: "Desinfektion Außenbereich (kontaktintensive Zonen)", intervalDays: 7, lastDone: null, area:"Außenbereich" },
+    { id: "wk_indoor_disinfect_touch", title: "Desinfektion Kontaktflächen innen (Griffe, Türen, Gitter)", intervalDays: 7, lastDone: null, area:"Innenräume" },
+    { id: "wk_laundry_filter", title: "Waschmaschine/Trockner: Siebe/Filter reinigen", intervalDays: 7, lastDone: null, area:"Innenräume" },
+    { id: "wk_quarantine_zone", title: "Quarantänezone: Kontrolle & Reinigung", intervalDays: 7, lastDone: null, area:"Innenräume" }
+  ];
+  const _defaultMonthly = [
+    { id: "mo_indoor_deep", title: "Grunddesinfektion Innenräume (Böden, Wände bis Griffhöhe)", intervalDays: 30, lastDone: null, area:"Innenräume" },
+    { id: "mo_inventory_wash", title: "Inventar: Decken/Körbe komplett waschen/tauschen", intervalDays: 30, lastDone: null, area:"Innenräume" },
+    { id: "mo_stock_check", title: "Bestände prüfen/auffüllen (Reiniger, Desinfektion, Einmalhandschuhe)", intervalDays: 30, lastDone: null, area:"Innenräume" },
+    { id: "mo_pest_check", title: "Schädlingsmonitoring / Köderstationen prüfen", intervalDays: 30, lastDone: null, area:"Außenbereich", mode:"pest", lastOutcome:null, lastOutcomeAt:null }
+  ];
+
+  // Wochenaufgaben: wenn leer → Defaults; wenn exakt alte 4 Defaults → migrieren
   if(state.hygiene.weeklyTasks.length === 0){
-    state.hygiene.weeklyTasks = [
-      { id: "wk_outdoor_disinfect", title: "Desinfektion Außenbereich", intervalDays: 7, lastDone: null },
-      { id: "wk_runs_deepclean", title: "Grundreinigung Ausläufe", intervalDays: 7, lastDone: null },
-      { id: "wk_toilet_areas", title: "Desinfektion Toilettenbereiche", intervalDays: 7, lastDone: null },
-      { id: "wk_quarantine_zone", title: "Kontrolle/Reinigung Quarantänezone", intervalDays: 7, lastDone: null }
-    ];
+    state.hygiene.weeklyTasks = _defaultWeekly;
+  } else {
+    try{
+      const ids = (state.hygiene.weeklyTasks||[]).map(t=>t && t.id).filter(Boolean);
+      const oldIds = ["wk_outdoor_disinfect","wk_runs_deepclean","wk_toilet_areas","wk_quarantine_zone"];
+      const isOldDefault = ids.length===oldIds.length && oldIds.every(x=>ids.includes(x));
+      if(isOldDefault){
+        // lastDone übernehmen, soweit vorhanden
+        const map = Object.fromEntries((state.hygiene.weeklyTasks||[]).map(t=>[t.id,t]));
+        state.hygiene.weeklyTasks = _defaultWeekly.map(d=>({ ...d, lastDone: map[d.id]?.lastDone || null }));
+      }
+    }catch(_){ }
   }
+
+  // Monatsaufgaben
+  if(state.hygiene.monthlyTasks.length === 0){
+    state.hygiene.monthlyTasks = _defaultMonthly;
+  }
+
 
   // Medikamente & Gesundheit
   if(!state.medication || typeof state.medication !== "object") state.medication = {};
@@ -4678,6 +5846,10 @@ function clearCpEditor(){
   const use=document.getElementById("useExistingCustomer"); if(use) use.checked=false;
   const hint=document.getElementById("cpHint"); if(hint) hint.textContent="";
   setCustomerFieldsDisabled(false);
+  // Dauermedikation Inline-UI ggf. zurücksetzen
+  try{ cpMedEnsureInlineUI(); }catch(_){ }
+  try{ cpMedCancelInlineEdit(); }catch(_){ }
+  try{ cpMedRenderInlineList(); }catch(_){ }
 }
 
 function fillCpEditorForPet(pet){
@@ -4709,6 +5881,9 @@ function fillCpEditorForPet(pet){
   $("#p_compat").value = pet.compat||"";
   $("#p_behavior").value = pet.behavior||"";
   $("#p_note").value = pet.note||"";
+  // Dauermedikation (Plan) inline im Hund-Editor
+  try{ cpMedEnsureInlineUI(); }catch(_){ }
+  try{ cpMedRenderInlineList(); }catch(_){ }
 }
 
 function openCpEditor(mode, petId){
@@ -4751,9 +5926,409 @@ function openCpEditor(mode, petId){
     setCustomerFieldsDisabled(false);
   }
 
+  // Dauermedikation (Plan) inline im Hund-Editor
+  try{ cpMedEnsureInlineUI(); }catch(_){ }
+  try{ cpMedRenderInlineList(); }catch(_){ }
+
+  try{ ensureAddAnotherDogButton(); }catch(_){ }
+  try{ updateAddAnotherDogButtonVisibility(); }catch(_){ }
+
   const list = document.getElementById("dogList");
   if(list) list.scrollIntoView({behavior:"smooth", block:"start"});
 }
+
+// === 2A.x Erweiterung: "Weiteren Hund" für bestehenden Kunden ===
+function getCurrentCpCustomerId(){
+  try{
+    // Edit-Modus: Kunde des aktuell bearbeiteten Hundes
+    if(cpEdit && cpEdit.mode==="edit" && cpEdit.petId){
+      const p = getPet(cpEdit.petId);
+      if(p && p.customerId) return p.customerId;
+    }
+    // New-Modus mit bestehendem Kunden
+    const use = document.getElementById("useExistingCustomer");
+    const sel = document.getElementById("customerSelect");
+    if(use && use.checked && sel && sel.value) return sel.value;
+  }catch(_){}
+  return "";
+}
+
+function fillCustomerFieldsOnly(customerId){
+  const c = getCustomer(customerId);
+  if(!c) return;
+  $("#c_name").value = c.name||"";
+  $("#c_phone").value = c.phone||"";
+  $("#c_email").value = c.email||"";
+  $("#c_street").value = c.street||"";
+  $("#c_zip").value = c.zip||"";
+  $("#c_city").value = c.city||"";
+  $("#c_em_name").value = c.emergencyName||"";
+  $("#c_em_phone").value = c.emergencyPhone||"";
+  $("#c_pickup_auth").value = c.pickupAuth||"";
+  $("#c_note").value = c.note||"";
+}
+
+function clearPetFieldsOnly(){
+  $("#p_name").value = "";
+  $("#p_breed").value = "";
+  $("#p_birthdate").value = "";
+  const cs=document.getElementById("p_chipStatus");
+  if(cs) cs.value = "";
+  $("#p_chipNumber").value = "";
+  $("#p_vet").value = "";
+  $("#p_vetPhone").value = "";
+  $("#p_allergies").value = "";
+  $("#p_meds").value = "";
+  $("#p_food").value = "";
+  $("#p_feeding").value = "";
+  $("#p_compat").value = "";
+  $("#p_behavior").value = "";
+  $("#p_note").value = "";
+}
+
+function ensureAddAnotherDogButton(){
+  const saveBtn = document.getElementById("btnCpSave");
+  const cancelBtn = document.getElementById("btnCpCancel");
+  if(!saveBtn || !cancelBtn) return;
+  let b = document.getElementById("btnCpAddAnotherDog");
+  if(!b){
+    b = document.createElement("button");
+    b.id = "btnCpAddAnotherDog";
+    b.className = "btn";
+    b.type = "button";
+    b.textContent = "Weiteren Hund";
+    // Zwischen Speichern und Abbrechen einfügen
+    const row = saveBtn.parentElement;
+    if(row){
+      row.insertBefore(b, cancelBtn);
+    } else {
+      cancelBtn.parentElement?.insertBefore(b, cancelBtn);
+    }
+  }
+  b.onclick = ()=>{
+    const customerId = getCurrentCpCustomerId();
+    if(!customerId){
+      alert("Bitte zuerst einen bestehenden Kunden auswählen oder den Kunden speichern, bevor du einen weiteren Hund anlegst.");
+      return;
+    }
+    // Öffne Editor als 'new' und setze bestehenden Kunden
+    openCpEditor("new");
+    const use = document.getElementById("useExistingCustomer");
+    if(use) use.checked = true;
+    refreshCustomerSelect();
+    const sel = document.getElementById("customerSelect");
+    if(sel) sel.value = customerId;
+    setCustomerFieldsDisabled(true);
+    fillCustomerFieldsOnly(customerId);
+    clearPetFieldsOnly();
+    // Titel präzisieren
+    const title = document.getElementById("cpEditorTitle");
+    if(title) title.textContent = "Weiteren Hund anlegen";
+  };
+  updateAddAnotherDogButtonVisibility();
+}
+
+function updateAddAnotherDogButtonVisibility(){
+  const b = document.getElementById("btnCpAddAnotherDog");
+  if(!b) return;
+  const customerId = getCurrentCpCustomerId();
+  // Anzeige: nur wenn ein bestehender Kunde eindeutig ist (edit oder existing selected)
+  b.style.display = customerId ? "inline-block" : "none";
+}
+
+
+// --- Dauermedikation im Hund-Editor (inline wie Medikamente) ---
+let cpMedEditPlanId = "";
+
+function cpMedEnsureInlineUI(){
+  try{
+    const anchor = document.getElementById("p_meds");
+    if(!anchor) return;
+    // Anchor is inside a <label class="field"> ... </label>
+    const label = anchor.closest("label.field") || anchor.parentElement;
+    if(!label) return;
+
+    if(document.getElementById("cpMedInlineBox")) return; // already injected
+
+    const box = document.createElement("div");
+    box.id = "cpMedInlineBox";
+    box.style.marginTop = "10px";
+    box.innerHTML = `
+      <div class="card" style="padding:12px; border-radius:14px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08);">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+          <div style="font-weight:700;">Dauermedikation (Plan)</div>
+          <div id="cpMedInlineHint" class="muted" style="font-size:12px;"></div>
+        </div>
+
+        <div class="row" style="flex-wrap:wrap; gap:10px; margin-top:10px;">
+          <label class="field" style="min-width:220px; flex:1;">
+            <span>Medikament</span>
+            <input id="cpMedName" type="text" placeholder="z. B. Apoquel"/>
+          </label>
+          <label class="field" style="min-width:120px;">
+            <span>Dosis</span>
+            <input id="cpMedDose" type="text" placeholder="z. B. 1/2"/>
+          </label>
+          <label class="field" style="min-width:120px;">
+            <span>Einheit</span>
+            <input id="cpMedUnit" type="text" placeholder="Tbl, ml, Tropfen"/>
+          </label>
+        </div>
+
+        <div class="row" style="flex-wrap:wrap; gap:10px; margin-top:10px;">
+          <label class="field" style="min-width:220px; flex:1;">
+            <span>Uhrzeiten (Komma)</span>
+            <input id="cpMedTimes" type="text" placeholder="08:00, 18:00"/>
+          </label>
+          <label class="field" style="min-width:260px; flex:2;">
+            <span>Hinweise (optional)</span>
+            <input id="cpMedNotes" type="text" placeholder="Mit Futter / nüchtern / Besonderheiten"/>
+          </label>
+        </div>
+
+        <div class="row" style="align-items:center; gap:12px; margin-top:10px; flex-wrap:wrap;">
+          <label style="display:flex; align-items:center; gap:8px;">
+            <input id="cpMedOwnerApproval" type="checkbox"/>
+            <span>Freigabe des Halters liegt vor</span>
+          </label>
+
+          <div style="margin-left:auto; display:flex; gap:8px; flex-wrap:wrap;">
+            <button id="cpMedCancelBtn" class="smallbtn" style="display:none;">Abbrechen</button>
+            <button id="cpMedSaveBtn" class="smallbtn">Hinzufügen</button>
+          </div>
+        </div>
+
+        <div id="cpMedInlineList" style="margin-top:12px;"></div>
+      </div>
+    `;
+
+    // insert after the textarea label
+    label.insertAdjacentElement("afterend", box);
+
+    // wire buttons
+    document.getElementById("cpMedSaveBtn").onclick = ()=>cpMedAddOrUpdateFromInlineForm();
+    document.getElementById("cpMedCancelBtn").onclick = ()=>cpMedCancelInlineEdit();
+
+  }catch(e){
+    console.warn("cpMedEnsureInlineUI failed", e);
+  }
+}
+
+function cpMedInlineSelectedPetId(){
+  // In edit mode we have a petId; in new mode petId is empty until saved
+  return (cpEdit && cpEdit.petId) ? cpEdit.petId : "";
+}
+
+function cpMedInlineResetForm(){
+  try{
+    document.getElementById("cpMedName").value = "";
+    document.getElementById("cpMedDose").value = "";
+    document.getElementById("cpMedUnit").value = "";
+    document.getElementById("cpMedTimes").value = "";
+    document.getElementById("cpMedNotes").value = "";
+    document.getElementById("cpMedOwnerApproval").checked = false;
+  }catch(_){}
+}
+
+function cpMedCancelInlineEdit(){
+  cpMedEditPlanId = "";
+  cpMedInlineResetForm();
+  try{
+    const b = document.getElementById("cpMedSaveBtn");
+    const c = document.getElementById("cpMedCancelBtn");
+    if(b) b.textContent = "Hinzufügen";
+    if(c) c.style.display = "none";
+  }catch(_){}
+  cpMedRenderInlineList();
+}
+
+function cpMedStartInlineEdit(planId){
+  ensureStateShape();
+  const petId = cpMedInlineSelectedPetId();
+  if(!petId) return;
+  const plan = (state.medication?.plans||[]).find(p=>p && p.id===planId && p.petId===petId);
+  if(!plan) return;
+
+  cpMedEditPlanId = planId;
+
+  try{
+    document.getElementById("cpMedName").value = plan.name||"";
+    document.getElementById("cpMedDose").value = plan.dose||"";
+    document.getElementById("cpMedUnit").value = plan.unit||"";
+    document.getElementById("cpMedTimes").value = (Array.isArray(plan.times)?plan.times:[]).join(", ");
+    document.getElementById("cpMedNotes").value = plan.notes||"";
+    document.getElementById("cpMedOwnerApproval").checked = !!plan.ownerApproval;
+  }catch(_){}
+
+  try{
+    const b = document.getElementById("cpMedSaveBtn");
+    const c = document.getElementById("cpMedCancelBtn");
+    if(b) b.textContent = "Änderungen speichern";
+    if(c) c.style.display = "inline-block";
+  }catch(_){}
+}
+
+function cpMedAddOrUpdateFromInlineForm(){
+  ensureStateShape();
+  const petId = cpMedInlineSelectedPetId();
+  if(!petId){
+    alert("Bitte zuerst den Hund speichern. Danach kannst du die Dauermedikation als Plan hinzufügen.");
+    return;
+  }
+
+  const name = (document.getElementById("cpMedName")?.value || "").trim();
+  const dose = (document.getElementById("cpMedDose")?.value || "").trim();
+  const unit = (document.getElementById("cpMedUnit")?.value || "").trim();
+  const times = medParseTimes(document.getElementById("cpMedTimes")?.value || "");
+  const notes = (document.getElementById("cpMedNotes")?.value || "").trim();
+  const approval = !!document.getElementById("cpMedOwnerApproval")?.checked;
+
+  if(!name){
+    alert("Bitte Medikamentenname eingeben.");
+    return;
+  }
+  if(!approval){
+    alert("Bitte bestätigen: Freigabe des Halters liegt vor.");
+    return;
+  }
+  if(times.length === 0){
+    alert("Bitte mindestens eine Uhrzeit angeben (z. B. 08:00).");
+    return;
+  }
+
+  state.medication = state.medication || {};
+  state.medication.plans = Array.isArray(state.medication.plans) ? state.medication.plans : [];
+
+  if(cpMedEditPlanId){
+    const plan = state.medication.plans.find(p=>p && p.id===cpMedEditPlanId && p.petId===petId);
+    if(plan){
+      plan.name = name;
+      plan.dose = dose;
+      plan.unit = unit;
+      plan.times = times;
+      plan.notes = notes;
+      plan.ownerApproval = true;
+      plan.updatedAt = Date.now();
+    }
+    cpMedEditPlanId = "";
+  } else {
+    const plan = {
+      id: uid(),
+      petId,
+      name,
+      dose,
+      unit,
+      times,
+      notes,
+      ownerApproval: true,
+      active: true,
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
+    state.medication.plans.unshift(plan);
+  }
+
+  saveState();
+  cpMedInlineResetForm();
+  try{
+    const b = document.getElementById("cpMedSaveBtn");
+    const c = document.getElementById("cpMedCancelBtn");
+    if(b) b.textContent = "Hinzufügen";
+    if(c) c.style.display = "none";
+  }catch(_){}
+  cpMedRenderInlineList();
+  try{ renderMedicationDashboard(); }catch(_){}
+}
+
+function cpMedRenderInlineList(){
+  try{
+    cpMedEnsureInlineUI();
+    const hint = document.getElementById("cpMedInlineHint");
+    const list = document.getElementById("cpMedInlineList");
+    if(!list) return;
+
+    const petId = cpMedInlineSelectedPetId();
+    if(!petId){
+      if(hint) hint.textContent = "Hinweis: Erst Hund speichern, dann Plan hinzufügen.";
+      list.innerHTML = `<div class="muted" style="padding:8px 0;">Keine Pläne – Hund noch nicht gespeichert.</div>`;
+      return;
+    }
+    if(hint) hint.textContent = "";
+
+    ensureStateShape();
+    const plans = (state.medication?.plans||[])
+      .filter(p=>p && p.petId===petId)
+      .slice()
+      .sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"de"));
+
+    if(!plans.length){
+      list.innerHTML = `<div class="muted" style="padding:8px 0;">Keine Dauermedikation hinterlegt.</div>`;
+      return;
+    }
+
+    list.innerHTML = plans.map(pl=>{
+      const times = (Array.isArray(pl.times)?pl.times:[]).join(", ");
+      const dose = [pl.dose, pl.unit].filter(Boolean).join(" ");
+      const active = (pl.active !== false);
+      const activeTxt = active ? "aktiv" : "aus";
+      const activeDot = active ? "🟢" : "⚪️";
+      const note = pl.notes ? `<div class="muted" style="margin-top:2px; font-size:12px;">${escapeHtml(pl.notes)}</div>` : "";
+      return `
+        <div class="item" style="margin:8px 0; padding:10px; border-radius:12px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07);">
+          <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+            <div>
+              <div style="font-weight:700;">${escapeHtml(pl.name||"Medikament")} <span class="muted" style="font-weight:400;">${escapeHtml(dose)}</span></div>
+              <div class="muted" style="font-size:12px;">Uhrzeiten: ${escapeHtml(times||"-")} · ${activeDot} ${activeTxt}</div>
+              ${note}
+            </div>
+            <div class="actions" style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button class="smallbtn" data-act="1">${active ? "Deaktivieren" : "Aktivieren"}</button>
+              <button class="smallbtn" data-edit="1">Bearbeiten</button>
+              <button class="smallbtn" data-del="1">Löschen</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    // wire actions
+    const items = Array.from(list.querySelectorAll(".item"));
+    items.forEach((it, idx)=>{
+      const pl = plans[idx];
+      const bAct = it.querySelector('[data-act="1"]');
+      const bEdit = it.querySelector('[data-edit="1"]');
+      const bDel = it.querySelector('[data-del="1"]');
+      if(bAct) bAct.onclick = ()=>{
+        ensureStateShape();
+        const x = (state.medication?.plans||[]).find(p=>p && p.id===pl.id);
+        if(x){
+          x.active = !(x.active !== false);
+          x.updatedAt = Date.now();
+          saveState();
+          cpMedRenderInlineList();
+          try{ renderMedicationDashboard(); }catch(_){}
+        }
+      };
+      if(bEdit) bEdit.onclick = ()=>cpMedStartInlineEdit(pl.id);
+      if(bDel) bDel.onclick = ()=>{
+        if(confirm("Dauermedikations-Plan wirklich löschen?")){
+          ensureStateShape();
+          state.medication.plans = (state.medication.plans||[]).filter(p=>!(p && p.id===pl.id));
+          // optional: Records bleiben als Historie bestehen
+          saveState();
+          if(cpMedEditPlanId === pl.id) cpMedCancelInlineEdit();
+          cpMedRenderInlineList();
+          try{ renderMedicationDashboard(); }catch(_){}
+        }
+      };
+    });
+
+  }catch(e){
+    console.warn("cpMedRenderInlineList failed", e);
+  }
+}
+
+
 
 function closeCpEditor(){
   const box = document.getElementById("cpEditor");
@@ -5354,6 +6929,17 @@ function createFreeInvoice(){
   openInvoice(invoice.id);
 }
 
+
+function calcVat(gross, rate=0.19){
+  const g = Number(gross||0);
+  const net = g / (1+rate);
+  const vat = g - net;
+  return {
+    net: Math.round(net*100)/100,
+    vat: Math.round(vat*100)/100,
+    gross: Math.round(g*100)/100
+  };
+}
 function printInvoice(id){
   const inv = getInvoiceById(id);
   if(!inv) return;
@@ -5419,7 +7005,7 @@ function printInvoice(id){
       <th class="right">Betrag</th>
     </tr>
     <tr>
-      <td>Grundpreis</td>
+      <td>${escapeHtml(inv.serviceLabel || "Betreuung")}</td>
       <td class="right">${inv.pricing.basePrice.toFixed(2)} €</td>
     </tr>
     ${inv.pricing.holidayExtra && inv.pricing.holidayExtra>0 ? `
@@ -5496,38 +7082,131 @@ function renderDogs(){
   if(!list) return;
   list.innerHTML = "";
 
-  const pets = (state.pets||[]).slice().sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"de"));
+  const petsAll = (state.pets||[]).slice();
 
-  if(pets.length){
-    pets.forEach(p=>{
-      const c = getCustomer(p.customerId);
-      const el = document.createElement("div");
-      el.className = "item";
-      const chipTxt = p.chip ? (` · Chip: ${escapeHtml(p.chipNumber||"ja")}`) : "";
-      const badge = contractBadge(p.customerId, p.id);
-      el.innerHTML = `<div><strong>${escapeHtml(p.name||"Hund")}</strong><small>${escapeHtml(c?.name||"")} · ${escapeHtml(c?.phone||"")}${chipTxt}${badge}</small></div>
-        <div class="actions">
-          <button class="smallbtn" data-v="1">Vertrag</button>
-          <button class="smallbtn" data-e="1">Bearbeiten</button>
-          <button class="smallbtn" data-d="1">Löschen</button>
-        </div>`;
-      el.querySelector('[data-v="1"]').onclick = ()=>openContractForPet(p.customerId, p.id);
-      el.querySelector('[data-e="1"]').onclick = ()=>openCpEditor("edit", p.id);
-      el.querySelector('[data-d="1"]').onclick = ()=>{
-        if(confirm("Hund wirklich löschen? (Aufenthalte/Rechnungen bleiben als Historie bestehen)")){
-          state.pets = state.pets.filter(x=>x.id!==p.id);
-          // legacy dog nicht automatisch löschen (Sicherheit), aber Mapping entfernen
-          for(const dogId of Object.keys(state._legacy?.dogIdToPetId||{})){
-            if(state._legacy.dogIdToPetId[dogId]===p.id){
-              delete state._legacy.dogIdToPetId[dogId];
-              delete state._legacy.dogIdToCustomerId[dogId];
-            }
-          }
-          saveState(); renderDogs(); syncDogSelect();
+  // Sortierung: Kunden A-Z, Hunde je Kunde A-Z (de)
+  const collator = new Intl.Collator("de", { sensitivity: "base", numeric: true });
+
+  // Letzter Aufenthalt pro Kunde (für Übersicht in der Kundenzeile)
+  function _getLastStayTextForCustomer(customerId){
+    try{
+      if(!customerId) return "";
+      const docs = Array.isArray(state.docs) ? state.docs : [];
+      let best = null;
+      for(const d of docs){
+        if(!d) continue;
+        const isStay = (d.templateId === "hundeannahme" || d.templateName === "Aufenthalte" || d.type === "stay");
+        if(!isStay) continue;
+        if(String(d.customerId||"") !== String(customerId)) continue;
+
+        const von = d.meta?.von || d.meta?.from || "";
+        const bis = d.meta?.bis || d.meta?.to   || "";
+        const stampStr = bis || von || d.updatedAt || d.createdAt || "";
+        const stamp = stampStr ? new Date(stampStr).getTime() : 0;
+        if(!stamp) continue;
+
+        if(!best || stamp > best.stamp){
+          best = { stamp, von, bis };
         }
-      };
-      list.appendChild(el);
+      }
+      if(!best) return "";
+      const vonTxt = best.von ? formatDateDE(best.von) : "";
+      const bisTxt = best.bis ? formatDateDE(best.bis) : "";
+      const range = (vonTxt && bisTxt) ? `${vonTxt} – ${bisTxt}` : (bisTxt || vonTxt);
+      if(!range) return "";
+      return `Letzter Aufenthalt: ${range}`;
+    }catch(e){
+      return "";
+    }
+  }
+
+
+  if(petsAll.length){
+    // Gruppieren nach Kunde
+    const groupsMap = new Map();
+    const noCustKey = "__NO_CUSTOMER__";
+    for(const p of petsAll){
+      const key = p.customerId || noCustKey;
+      if(!groupsMap.has(key)) groupsMap.set(key, []);
+      groupsMap.get(key).push(p);
+    }
+
+    const groups = Array.from(groupsMap.entries()).map(([customerId, pets])=>{
+      const c = (customerId!==noCustKey) ? getCustomer(customerId) : null;
+      // Hunde im Kundenblock sortieren
+      pets = pets.slice().sort((a,b)=>collator.compare(String(a.name||""), String(b.name||"")));
+      return { customerId, customer: c, pets, isNoCustomer: (customerId===noCustKey) };
     });
+
+    // Kunden sortieren (NoCustomer immer unten)
+    groups.sort((g1,g2)=>{
+      if(g1.isNoCustomer && !g2.isNoCustomer) return 1;
+      if(!g1.isNoCustomer && g2.isNoCustomer) return -1;
+      const n1 = g1.customer?.name || "";
+      const n2 = g2.customer?.name || "";
+      const cmp = collator.compare(String(n1), String(n2));
+      if(cmp!==0) return cmp;
+      const p1 = g1.customer?.phone || "";
+      const p2 = g2.customer?.phone || "";
+      return collator.compare(String(p1), String(p2));
+    });
+
+    for(const g of groups){
+      // Kunden-Header
+      const header = document.createElement("div");
+      header.className = "item";
+      header.style.opacity = g.isNoCustomer ? "0.9" : "1";
+      const cname = g.isNoCustomer ? "Ohne Kunde verknüpft" : (g.customer?.name || "Kunde");
+      const cphone = g.isNoCustomer ? "" : (g.customer?.phone || "");
+      const cnt = g.pets.length;
+      const cntTxt = cnt===1 ? "1 Hund" : `${cnt} Hunde`;
+
+      header.innerHTML = `
+        <div>
+          <strong>👤 ${escapeHtml(cname)}</strong>
+          <small>${escapeHtml(cphone)}${cphone ? " · " : ""}${escapeHtml(cntTxt)}</small>
+          ${(!g.isNoCustomer && _getLastStayTextForCustomer(g.customerId)) ? `<small style="display:block; opacity:.75; margin-top:2px">${escapeHtml(_getLastStayTextForCustomer(g.customerId))}</small>` : ``}
+        </div>
+        <div class="actions"></div>`;
+      list.appendChild(header);
+
+      // Hunde-Einträge eingerückt
+      g.pets.forEach(p=>{
+        const el = document.createElement("div");
+        el.className = "item";
+        el.style.marginLeft = "14px";
+        el.style.borderLeft = "3px solid rgba(255,255,255,.08)";
+        const chipTxt = p.chip ? (` · Chip: ${escapeHtml(p.chipNumber||"ja")}`) : "";
+        const badge = contractBadge(p.customerId, p.id);
+        el.innerHTML = `
+          <div>
+            <strong>🐶 ${escapeHtml(p.name||"Hund")}</strong>
+            <small>${chipTxt}${badge}</small>
+          </div>
+          <div class="actions">
+            <button class="smallbtn" data-v="1">Vertrag</button>
+            <button class="smallbtn" data-e="1">Bearbeiten</button>
+            <button class="smallbtn" data-d="1">Löschen</button>
+          </div>`;
+        el.querySelector('[data-v="1"]').onclick = ()=>openContractForPet(p.customerId, p.id);
+        el.querySelector('[data-e="1"]').onclick = ()=>openCpEditor("edit", p.id);
+        el.querySelector('[data-d="1"]').onclick = ()=>{
+          if(confirm("Hund wirklich löschen? (Aufenthalte/Rechnungen bleiben als Historie bestehen)")){
+            state.pets = (state.pets||[]).filter(x=>x.id!==p.id);
+            // legacy dog nicht automatisch löschen (Sicherheit), aber Mapping entfernen
+            for(const dogId of Object.keys(state._legacy?.dogIdToPetId||{})){
+              if(state._legacy.dogIdToPetId[dogId]===p.id){
+                delete state._legacy.dogIdToPetId[dogId];
+                delete state._legacy.dogIdToCustomerId[dogId];
+              }
+            }
+            saveState(); renderDogs(); syncDogSelect();
+          }
+        };
+        list.appendChild(el);
+      });
+    }
+
   } else {
     // fallback legacy
     ensureDefaultDog();
@@ -5557,6 +7236,27 @@ $("#btnAddDog").addEventListener("click",()=>openCpEditor("new"));
 
 $("#btnCpCancel").addEventListener("click",()=>closeCpEditor());
 
+
+// Button "Weiteren Hund" (für bestehenden Kunden) dynamisch einhängen
+try{
+  ensureAddAnotherDogButton();
+  const use = document.getElementById("useExistingCustomer");
+  const sel = document.getElementById("customerSelect");
+  if(use){
+    const prev = use.onchange;
+    use.onchange = (e)=>{
+      if(prev) prev(e);
+      updateAddAnotherDogButtonVisibility();
+    };
+  }
+  if(sel){
+    const prevSel = sel.onchange;
+    sel.onchange = (e)=>{
+      if(prevSel) prevSel(e);
+      updateAddAnotherDogButtonVisibility();
+    };
+  }
+}catch(_){}
 $("#btnCpSave").addEventListener("click",()=>{
   ensureStateShape();
   ensureContractDefaults();
@@ -5904,6 +7604,29 @@ sigCard.innerHTML = `
 
 root.appendChild(sigCard);
 
+  // HOTFIX: Save-Button im Aufenthalte-Editor robust binden (falls Event-Delegation / Overlay Probleme macht)
+  setTimeout(() => {
+    try {
+      const btn = document.getElementById('btnStaySave2');
+      if (btn && !btn.dataset.bound) {
+        btn.dataset.bound = '1';
+        btn.addEventListener('click', (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          try { syncStayEditorInputsToDoc(doc); } catch (e) { /* noop */ }
+          try { saveCurrent(true); } catch (e) {
+            console.error('Stay save failed', e);
+            try { toast('Speichern fehlgeschlagen'); } catch (_) {}
+          }
+        });
+      }
+    } catch (e) {
+      console.error('bind btnStaySave2 failed', e);
+    }
+  }, 0);
+
+
+
   // Betreuungsvertrag – aus Aufenthalt erzeugen/öffnen
   const contractCard = document.createElement("div");
   contractCard.className = "card";
@@ -6046,6 +7769,12 @@ function getStayWarnings(docObj, t){
       warns.push("Unterschrift fehlt – Aufenthalt wird als Entwurf gespeichert (Unterschrift kann später erfolgen).");
     }
 
+    // Gesundheit / ansteckende Krankheiten – erforderlich für Hygiene (Warnung, nicht blockierend)
+    const healthOk = !!((docObj.fields && (docObj.fields.ev_gesund===true)) || (docObj.meta && docObj.meta.consents && docObj.meta.consents.health===true));
+    if(!healthOk){
+      warns.push("Gesundheitsbestätigung fehlt – bitte bestätigen, dass der Hund gesund und frei von ansteckenden Krankheiten/Parasiten ist.");
+    }
+
     const customerId = docObj.customerId || "";
     const petId = docObj.petId || "";
     if(customerId && petId){
@@ -6119,12 +7848,18 @@ function syncStayEditorInputsToDoc(){
     const cbDs = document.getElementById('stayConsentDsGvo');
     const cbAg = document.getElementById('stayConsentAgb');
     const cbVe = document.getElementById('stayConsentVet');
+    const cbHe = document.getElementById('stayConsentHealth');
     const cbTr = document.getElementById('stayConsentTruth');
-    if(cbDs || cbAg || cbVe || cbTr){
+    if(cbDs || cbAg || cbVe || cbHe || cbTr){
       currentDoc.meta.consents = currentDoc.meta.consents || {};
       if(cbDs) currentDoc.meta.consents.dsgvo = !!cbDs.checked;
       if(cbAg) currentDoc.meta.consents.agb   = !!cbAg.checked;
       if(cbVe) currentDoc.meta.consents.vet   = !!cbVe.checked;
+      if(cbHe){
+        currentDoc.meta.consents.health = !!cbHe.checked;
+        currentDoc.fields = currentDoc.fields || {};
+        currentDoc.fields.ev_gesund = !!cbHe.checked;
+      }
       if(cbTr) currentDoc.meta.consents.truth = !!cbTr.checked;
     }
 
@@ -6162,12 +7897,14 @@ function populateStayEditorFromDoc(doc){
     const c1 = document.getElementById('stayConsentDsGvo');
     const c2 = document.getElementById('stayConsentAgb');
     const c3 = document.getElementById('stayConsentVet');
+    const c5 = document.getElementById('stayConsentHealth');
     const c4 = document.getElementById('stayConsentTruth');
     // Consents are stored in doc.meta.consents (current schema) with legacy fallbacks
     const cs = doc.meta?.consents || {};
     if(c1) c1.checked = !!(cs.dsgvo ?? doc.meta?.consentDsGvo);
     if(c2) c2.checked = !!(cs.agb ?? doc.meta?.consentAgb);
     if(c3) c3.checked = !!(cs.vet ?? doc.meta?.consentVet);
+    if(c5) c5.checked = !!( (doc.fields && (doc.fields.ev_gesund!=null)) ? doc.fields.ev_gesund : (cs.health ?? doc.meta?.consentHealth) );
     if(c4) c4.checked = !!(cs.truth ?? doc.meta?.consentTruth);
   }catch(e){
     console.warn('populateStayEditorFromDoc failed', e);
@@ -6342,7 +8079,8 @@ function createInvoiceFromDoc(doc){
       fixedExtra: Number(doc.pricing.fixedExtra || 0),
 
       total: Number(doc.pricing.total || 0)
-    },
+    }
+    serviceLabel: (doc.meta && doc.meta.betreuung) ? doc.meta.betreuung : "Betreuung",,
 
     status: "draft",
 
@@ -7315,7 +9053,12 @@ function renderStayEditorEmbedded(doc){
       <label for="stayConsentVet"><strong>Tierarzt-/Notfallzustimmung</strong><br><span class="muted">Behandlung im Notfall / Tierarztvollmacht gemäß Vertrag.</span></label>
     </div>
 
+    
     <div class="checkrow">
+      <input type="checkbox" id="stayConsentHealth">
+      <label for="stayConsentHealth"><strong>Hund gesund & frei von ansteckenden Krankheiten</strong><br><span class="muted">Der Hund ist aktuell gesund und frei von ansteckenden Krankheiten/Parasiten (z.B. Flöhe, Giardien).</span></label>
+    </div>
+<div class="checkrow">
       <input type="checkbox" id="stayConsentTruth">
       <label for="stayConsentTruth"><strong>Angaben wahrheitsgemäß</strong><br><span class="muted">Alle Angaben wurden vollständig und korrekt gemacht.</span></label>
     </div>
@@ -7330,10 +9073,12 @@ function renderStayEditorEmbedded(doc){
   const cbDs = consentCard.querySelector('#stayConsentDsGvo');
   const cbAg = consentCard.querySelector('#stayConsentAgb');
   const cbVe = consentCard.querySelector('#stayConsentVet');
+  const cbHe = consentCard.querySelector('#stayConsentHealth');
   const cbTr = consentCard.querySelector('#stayConsentTruth');
   if(cbDs) cbDs.checked = !!c.dsgvo;
   if(cbAg) cbAg.checked = !!c.agb;
   if(cbVe) cbVe.checked = !!c.vet;
+  if(cbHe) cbHe.checked = !!( (doc.fields && (doc.fields.ev_gesund!=null)) ? doc.fields.ev_gesund : c.health );
   if(cbTr) cbTr.checked = !!c.truth;
 
   const syncConsents = ()=>{
@@ -7341,10 +9086,14 @@ function renderStayEditorEmbedded(doc){
     doc.meta.consents.dsgvo = !!(cbDs && cbDs.checked);
     doc.meta.consents.agb   = !!(cbAg && cbAg.checked);
     doc.meta.consents.vet   = !!(cbVe && cbVe.checked);
+    doc.meta.consents.health = !!(cbHe && cbHe.checked);
+    // Für Hygiene-Autologik: Feld muss in doc.fields liegen
+    doc.fields = doc.fields || {};
+    doc.fields.ev_gesund = !!(cbHe && cbHe.checked);
     doc.meta.consents.truth = !!(cbTr && cbTr.checked);
     dirty = true;
   };
-  [cbDs,cbAg,cbVe,cbTr].forEach(x=>{ if(x) x.addEventListener('change', syncConsents); });
+  [cbDs,cbAg,cbVe,cbHe,cbTr].forEach(x=>{ if(x) x.addEventListener('change', syncConsents); });
 
   // DSGVO/AGB anzeigen: use the existing document modal (known-stable on iOS)
   // instead of the lightweight overlay (which can fail to render the panel under some Safari states).
@@ -7386,6 +9135,29 @@ function renderStayEditorEmbedded(doc){
     </div>
   `;
   root.appendChild(sigCard);
+
+  // HOTFIX: Save-Button im Aufenthalte-Editor robust binden (falls Event-Delegation / Overlay Probleme macht)
+  setTimeout(() => {
+    try {
+      const btn = document.getElementById('btnStaySave2');
+      if (btn && !btn.dataset.bound) {
+        btn.dataset.bound = '1';
+        btn.addEventListener('click', (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          try { syncStayEditorInputsToDoc(doc); } catch (e) { /* noop */ }
+          try { saveCurrent(true); } catch (e) {
+            console.error('Stay save failed', e);
+            try { toast('Speichern fehlgeschlagen'); } catch (_) {}
+          }
+        });
+      }
+    } catch (e) {
+      console.error('bind btnStaySave2 failed', e);
+    }
+  }, 0);
+
+
 
   // Hunde
   const dogSel = document.getElementById('stayDogSelect');
