@@ -1112,6 +1112,33 @@
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+
+<script>
+// M15_BOOTFIX: iOS Safari/PWA cache & SW can serve mixed versions (App "tot bis Abmelden").
+(function(){
+  try{
+    var key = 'ds_bootfix_done_M15_INVOICE_OPTIMIZE_20260127';
+    if(localStorage.getItem(key)) return;
+    localStorage.setItem(key,'1');
+    var base = location.href.split('#')[0];
+    var hash = location.hash || '';
+    var target = base;
+    if(target.indexOf('?') === -1) target += '?v=' + encodeURIComponent('M15_INVOICE_OPTIMIZE_20260127');
+    Promise.resolve()
+      .then(function(){
+        if(!('caches' in window)) return;
+        return caches.keys().then(function(keys){ return Promise.all(keys.map(function(k){ return caches.delete(k); })); });
+      })
+      .then(function(){
+        if(!('serviceWorker' in navigator) || !navigator.serviceWorker.getRegistrations) return;
+        return navigator.serviceWorker.getRegistrations().then(function(regs){ return Promise.all(regs.map(function(r){ return r.unregister(); })); });
+      })
+      .finally(function(){
+        try{ location.replace(target + hash); }catch(e){ try{ location.reload(); }catch(_){} }
+      });
+  }catch(e){}
+})();
+</script>
 <script defer="defer" src="app.js?v=20260124M6"></script>
 <script>
 (function(){
@@ -1219,6 +1246,6 @@
   <!-- Bottom logout button removed (duplicate of header logout; also overlaps editor on iPad) -->
 </div>
 <!-- test-badge removed (requested) -->
-<div class="build-badge" id="buildBadge">Build M11_6C_DOG_MED_INLINE_EDIT_20260125</div>
+<div class="build-badge" id="buildBadge">Build</div>
 </body>
 </html>
