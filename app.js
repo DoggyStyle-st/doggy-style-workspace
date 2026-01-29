@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = "M15F3_INVOICE_PRO_POLISH_20260129";
+const APP_BUILD = "M15F5_INVOICE_RELEASE_EDITOR_20260129";
 
 // --- Build-Sync (Anzeige + Migration) ---
 (function syncBuildBadge(){
@@ -1854,6 +1854,25 @@ function countSundaysBetween(von, bis){
   }catch(_){ return 0; }
 }
 
+function countSundayOrHolidayDaysBetween(fromISO, toISO){
+  // Range is [from, to) in days, matching daysBetween()
+  const a = new Date(fromISO + 'T00:00:00');
+  const b = new Date(toISO + 'T00:00:00');
+  if(isNaN(a) || isNaN(b)) return 0;
+  const dayMs = 24*60*60*1000;
+  const n = Math.max(0, Math.ceil((b - a)/dayMs));
+  let cnt = 0;
+  for(let i=0;i<n;i++){
+    const d = new Date(a.getTime() + i*dayMs);
+    const iso = d.toISOString().slice(0,10);
+    const isSunday = (d.getDay() === 0);
+    const isHoliday = !!BAVARIA_HOLIDAYS_2026[iso];
+    if(isSunday || isHoliday) cnt++;
+  }
+  return cnt;
+}
+
+
 // Sonn- & Feiertage (Bayern) zwischen [von, bis) – ohne doppelt zu zählen wenn Feiertag auf Sonntag fällt.
 function countSunHolidayDaysBetween(von, bis){
   try{
@@ -1919,94 +1938,59 @@ function calculateInvoicePricing(doc){
   const days = daysBetween(meta.von, meta.bis);
   const daily = getPricePerDay(meta.betreuung, days);
   const baseGross = Math.round((days * daily) * 100) / 100;
-  const serviceLabel = String(meta.betreuung||'Betreuung');
 
-  // Feiertags-Zuschlag: nur auf Feiertags-TAGE im Zeitraum, nicht auf den gesamten Aufenthalt
-  const holidayDays = countBavariaHolidaysBetween(meta.von, meta.bis);
-  const holidayValue = Math.round((holidayDays * daily * 0.10) * 100) / 100;
+  // Service label (UI/PDF)
+  const serviceLabelRaw = String(meta.betreuung || 'Betreuung');
+  const serviceLabel = serviceLabelRaw.charAt(0).toUpperCase() + serviceLabelRaw.slice(1);
 
-  let percentExtra = 0;
-  let fixedExtra = 0;
+  // Sonn- & Feiertage werden gleich behandelt:
+  const sunHolidayDays = countSunHolidayDaysBetween(meta.von, meta.bis); // includes Sundays + DE holidays (BY)
+  const sunHolidayPct = Number.isFinite(parseFloat(f.inv_sun_holiday_pct)) ? parseFloat(f.inv_sun_holiday_pct) : 10;
+  const sunHolidayExtraGross = Math.round((sunHolidayDays * daily * (sunHolidayPct/100)) * 100) / 100;
 
-  // Prozent-Aufschläge (auf Basisbetrag)
-  if(f.special_times) percentExtra += 10;
-  if(f.extra_care) percentExtra += 10;
+  // Automatische Prozent-Zuschläge (legacy)
+  let pctSum = 0;
+  if(f.special_times === true) pctSum += 10;
+  if(f.extra_care === true) pctSum += 10;
 
-  const percentValue = Math.round((baseGross * (percentExtra / 100)) * 100) / 100;
+  // Manuelle Prozent-Zuschläge
+  const extraPctArr = Array.isArray(f.inv_extra_pct) ? f.inv_extra_pct : [];
+  extraPctArr.forEach(x => {
+    const p = parseFloat(x && x.pct);
+    if(Number.isFinite(p)) pctSum += p;
+  });
 
-  // Fixe Extras
-  if(f.medication) fixedExtra += days * 2;
-  if(f.walk_extra_count) fixedExtra += f.walk_extra_count * 15;
-  if(f.bandage_count) fixedExtra += f.bandage_count * 2.5;
-  if(f.grooming_count) fixedExtra += f.grooming_count * 5;
+  const pctExtraGross = Math.round((baseGross * (pctSum/100)) * 100) / 100;
 
-  fixedExtra = Math.round(fixedExtra * 100) / 100;
+  // Feste Zuschläge
+  let fixSum = 0;
+  if(f.extra_walks === true) fixSum += 15;
+  const extraFixArr = Array.isArray(f.inv_extra_fix) ? f.inv_extra_fix : [];
+  extraFixArr.forEach(x => {
+    const a = parseFloat(x && x.amount);
+    if(Number.isFinite(a)) fixSum += a;
+  });
+  const fixExtraGross = Math.round(fixSum * 100) / 100;
 
-  const totalGross = Math.round((baseGross + holidayValue + percentValue + fixedExtra) * 100) / 100;
+  const totalGross = Math.round((baseGross + sunHolidayExtraGross + pctExtraGross + fixExtraGross) * 100) / 100;
 
-  
-  const vatRate = 0.19;
-  const netTotal = Math.round((totalGross / (1+vatRate)) * 100) / 100;
-  const vatAmount = Math.round((totalGross - netTotal) * 100) / 100;
-doc.pricing = {
+  doc.pricing = {
     days,
     daily,
-    base,
-
-    holidayDays,
-    holidayValue,
-
-    percentExtra,
-    percentValue,
-
-    fixedExtra,
-    total
+    serviceLabel,
+    baseGross,
+    sunHolidayDays,
+    sunHolidayPct,
+    sunHolidayExtraGross,
+    pctSum,
+    pctExtraGross,
+    fixExtraGross,
+    totalGross
   };
 
   return doc.pricing;
 }
-// ===== ENDE PREISLOGIK =====
-let state=loadState();
-// Wichtig: State-Shape sofort sicherstellen, bevor irgendein Render läuft.
-// Sonst kann renderDashboard()/renderRecent() bei frischem / teildefektem LocalStorage
-// (z.B. nach Neustart/Reload) mit state.docs === undefined abbrechen und die komplette
-// UI wirkt dann "eingefroren" (keine Handler werden mehr gebunden).
-try{ ensureStateShape(); }catch(_){ }
 
-// WICHTIG: Migration (legacy state.dogs -> state.customers/state.pets) muss auch
-// im reinen LocalStorage-Betrieb passieren – nicht nur nach einem Cloud-Pull.
-// Sonst ist nach Reload die Hunde/Kunden-Liste leer, obwohl Daten (legacy) vorhanden sind.
-try{ migrateToV2(); }catch(_){ }
-try{ ensureStateShape(); }catch(_){ }
-const COMPANY = {
-  name: "Doggy Style Hundepension",
-  owner: "Raphael Boch",
-  street: "Im Moos 4",
-  zipCity: "88167 Stiefenhofen",
-  phone: "0170 7313587",
-  email: "info@doggy-style-hundepension.de",
-
-  bank: {
-    name: "Musterbank",
-    iban: "DE00 0000 0000 0000 0000 00",
-    bic: "MUSTERDEFFXXX"
-  },
-
-  tax: {
-    vatId: "",        // falls vorhanden
-    taxNumber: ""     // falls vorhanden
-  },
-
-  paymentTargetDays: 14
-};;if(state.nextInvoiceNumber == null){
-  state.nextInvoiceNumber = 1;
-}renderDashboard();renderRecent();
-try{ ensureStateShape(); }catch(_){ }
-try{ initProfiSettingsBindings(); renderStaffSettings(); renderPolicySettings(); renderComplianceInSettings(); }catch(_){ }
-function formatDateDE(dateStr){
-  const d = new Date(dateStr);
-  return d.toLocaleDateString("de-DE");
-}
 
 function invoiceStatusColor(status){
   const s = String(status||"").toLowerCase();
@@ -2016,7 +2000,7 @@ function invoiceStatusColor(status){
   return "white"; // draft/entwurf
 }
 function mapInvoiceStatusLabel(status){
-  const s = String(status||'').toLowerCase();
+  const s = String(status||'').trim().toLowerCase();
   if(s==='paid' || s==='bezahlt') return 'bezahlt';
   if(s==='cancelled' || s==='storniert') return 'storniert';
   if(s==='open' || s==='offen') return 'offen';
@@ -6750,7 +6734,7 @@ function formatCustomerAddress(cust){
 
 
 function statusDotColor(status){
-  const s = String(status||'').toLowerCase();
+  const s = String(status||'').trim().toLowerCase();
   if(s === 'bezahlt' || s === 'paid') return 'green';
   if(s === 'storniert' || s === 'cancelled' || s === 'canceled') return 'red';
   if(s === 'offen' || s === 'open') return 'yellow';
@@ -6767,6 +6751,310 @@ function statusLabel(status){
   return status || '';
 }
 
+
+
+function findInvoiceBySourceDocId(docId){
+  return (state.invoices || []).find(inv => inv && (inv.sourceDocId === docId || inv.stayId === docId));
+}
+
+function createOrUpdateInvoiceFromStay(stayId, opts={}){
+  const stayDoc = getDoc(stayId);
+  if(!stayDoc) return null;
+
+  // Only create when explicitly requested (Rechnung freigeben)
+  if(!opts.forceCreate){
+    // update only if already linked
+    if(!stayDoc.meta || !stayDoc.meta.invoice_id) return null;
+  }
+
+  calculateInvoicePricing(stayDoc);
+  if(!stayDoc.pricing) return null;
+
+  const customer = getCustomer(stayDoc.customerId) || null;
+  const pet = getPet(stayDoc.petId || stayDoc.dogId) || null;
+
+  let invoice = null;
+  const invoiceId = stayDoc.meta && stayDoc.meta.invoice_id ? stayDoc.meta.invoice_id : null;
+
+  if(invoiceId){
+    invoice = (state.invoices||[]).find(i=>i.id===invoiceId) || null;
+  }
+
+  if(!invoice){
+    if(!opts.forceCreate) return null;
+    invoice = createInvoiceFromDoc(stayDoc);
+    if(!invoice) return null;
+
+    stayDoc.meta = stayDoc.meta || {};
+    stayDoc.meta.invoice_id = invoice.id;
+    stayDoc.meta.invoice_released = true;
+  }
+
+  // Update core fields/totals from pricing
+  const p = stayDoc.pricing;
+  invoice.customerId = stayDoc.customerId || invoice.customerId || null;
+  invoice.petId = (stayDoc.petId || stayDoc.dogId) || invoice.petId || null;
+  invoice.stayId = stayDoc.id || stayId;
+
+  invoice.from = stayDoc.meta.von;
+  invoice.to = stayDoc.meta.bis;
+  invoice.service = stayDoc.meta.betreuung;
+
+  invoice.totals = {
+    baseGross: p.baseGross,
+    sunHolidayExtraGross: p.sunHolidayExtraGross,
+    pctExtraGross: p.pctExtraGross,
+    fixExtraGross: p.fixExtraGross,
+    totalGross: p.totalGross
+  };
+
+  // Refresh lines (keep custom lines only if requested later – for now deterministic)
+  invoice.lines = [];
+  invoice.lines.push({label: p.serviceLabel || "Betreuung", amount: p.baseGross});
+  if(p.sunHolidayExtraGross > 0){
+    invoice.lines.push({label:"Sonn- & Feiertagszuschlag", amount:p.sunHolidayExtraGross, meta:{days:p.sunHolidayDays}});
+  }
+  if(p.pctExtraGross > 0){
+    invoice.lines.push({label:"Zuschläge (%)", amount:p.pctExtraGross, meta:{pct:p.pctSum||null}});
+  }
+  if(p.fixExtraGross > 0){
+    invoice.lines.push({label:"Zuschläge (fix)", amount:p.fixExtraGross});
+  }
+
+  // cache labels for UI
+  invoice.customerName = customer ? customer.name : (invoice.customerName||"");
+  invoice.customerPhone = customer ? (customer.phone||"") : (invoice.customerPhone||"");
+  invoice.petName = pet ? pet.name : (invoice.petName||"");
+
+  saveDoc(stayDoc);
+  saveState();
+
+  return invoice;
+}
+function openInvoiceRelease(docId){
+  const d = getDoc(docId);
+  if(!d){ toast("Dokument nicht gefunden."); return; }
+
+  // Ensure arrays exist
+  d.fields = d.fields || {};
+  if(!Array.isArray(d.fields.inv_extra_pct)) d.fields.inv_extra_pct = [];
+  if(!Array.isArray(d.fields.inv_extra_fix)) d.fields.inv_extra_fix = [];
+  if(!Number.isFinite(parseFloat(d.fields.inv_sun_holiday_pct))) d.fields.inv_sun_holiday_pct = 10;
+
+  calculateInvoicePricing(d);
+
+  // Overlay
+  let ov = document.getElementById("invReleaseOverlay");
+  if(!ov){
+    ov = document.createElement("div");
+    ov.id = "invReleaseOverlay";
+    ov.style.position = "fixed";
+    ov.style.left = "0";
+    ov.style.top = "0";
+    ov.style.width = "100%";
+    ov.style.height = "100%";
+    ov.style.background = "rgba(0,0,0,0.6)";
+    ov.style.zIndex = "9999";
+    ov.style.display = "flex";
+    ov.style.alignItems = "center";
+    ov.style.justifyContent = "center";
+    ov.addEventListener("click", (e)=>{ if(e.target===ov) ov.remove(); });
+    document.body.appendChild(ov);
+  }else{
+    ov.innerHTML = "";
+  }
+
+  const card = document.createElement("div");
+  card.style.width = "min(920px, 96vw)";
+  card.style.maxHeight = "90vh";
+  card.style.overflow = "auto";
+  card.style.background = "rgba(30,30,30,0.98)";
+  card.style.border = "1px solid rgba(255,255,255,0.12)";
+  card.style.borderRadius = "14px";
+  card.style.padding = "18px";
+  card.style.boxShadow = "0 12px 40px rgba(0,0,0,0.45)";
+  ov.appendChild(card);
+
+  const pet = getPet(d.petId || d.dogId) || null;
+  const cust = getCustomer(d.customerId) || null;
+
+  const header = document.createElement("div");
+  header.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;">
+      <div>
+        <div style="font-size:20px;font-weight:700;">Rechnung freigeben</div>
+        <div style="opacity:.85;margin-top:2px;">
+          ${cust?escapeHtml(cust.name):"?"} · ${pet?escapeHtml(pet.name):"?"} · Zeitraum: ${fmtDate(d.meta.von)} – ${fmtDate(d.meta.bis)}
+        </div>
+      </div>
+      <button class="btn" id="invRelCloseBtn">Schließen</button>
+    </div>
+  `;
+  card.appendChild(header);
+
+  const body = document.createElement("div");
+  body.innerHTML = `
+    <div class="card" style="margin:0 0 12px 0;">
+      <div style="font-weight:700;margin-bottom:8px;">Sonn- & Feiertagszuschlag</div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <label style="min-width:280px;opacity:.9;">Zuschlag in % (auf Grundpreis)</label>
+        <input id="invSunHolPct" class="input" type="number" step="0.5" min="0" style="width:120px" value="${escapeHtml(String(d.fields.inv_sun_holiday_pct||10))}">
+        <span style="opacity:.8;">Tage: <b>${d.pricing?d.pricing.sunHolidayDays:0}</b></span>
+      </div>
+      <div style="opacity:.75;margin-top:6px;">Hinweis: Sonntage zählen wie Feiertage (BY).</div>
+    </div>
+
+    <div class="card" style="margin:0 0 12px 0;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+        <div style="font-weight:700;">Manuelle Zuschläge</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn" id="addPctExtraBtn">+ % Zuschlag</button>
+          <button class="btn" id="addFixExtraBtn">+ € Zuschlag</button>
+        </div>
+      </div>
+
+      <div id="invExtraList" style="margin-top:10px;"></div>
+    </div>
+
+    <div class="card" style="margin:0 0 12px 0;">
+      <div style="font-weight:700;margin-bottom:8px;">Vorschau</div>
+      <div id="invPreview" style="line-height:1.8;"></div>
+    </div>
+
+    <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;">
+      <button class="btn" id="invRelSaveBtn">Nur speichern</button>
+      <button class="btn btnPrimary" id="invRelCreateBtn">Rechnung erstellen</button>
+    </div>
+  `;
+  card.appendChild(body);
+
+  const renderExtras = ()=>{
+    const list = card.querySelector("#invExtraList");
+    const pct = d.fields.inv_extra_pct || [];
+    const fix = d.fields.inv_extra_fix || [];
+    const rows = [];
+
+    pct.forEach((x,idx)=>{
+      rows.push(`
+        <div class="row" style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap;">
+          <span style="min-width:90px;opacity:.85;">% Zuschlag</span>
+          <input class="input invPctName" data-idx="${idx}" placeholder="Bezeichnung" style="flex:1;min-width:220px" value="${escapeHtml(x.name||'')}">
+          <input class="input invPctVal" data-idx="${idx}" type="number" step="0.5" min="0" style="width:120px" value="${escapeHtml(String(x.pct||0))}">
+          <button class="btn" data-kind="pct" data-idx="${idx}">Entfernen</button>
+        </div>
+      `);
+    });
+
+    fix.forEach((x,idx)=>{
+      rows.push(`
+        <div class="row" style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap;">
+          <span style="min-width:90px;opacity:.85;">€ Zuschlag</span>
+          <input class="input invFixName" data-idx="${idx}" placeholder="Bezeichnung" style="flex:1;min-width:220px" value="${escapeHtml(x.name||'')}">
+          <input class="input invFixVal" data-idx="${idx}" type="number" step="0.5" min="0" style="width:120px" value="${escapeHtml(String(x.amount||0))}">
+          <button class="btn" data-kind="fix" data-idx="${idx}">Entfernen</button>
+        </div>
+      `);
+    });
+
+    list.innerHTML = rows.length ? rows.join("") : `<div style="opacity:.75;">Keine manuellen Zuschläge.</div>`;
+
+    // remove handlers
+    list.querySelectorAll("button[data-kind]").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        const kind = btn.getAttribute("data-kind");
+        const idx = parseInt(btn.getAttribute("data-idx"),10);
+        if(kind==="pct") d.fields.inv_extra_pct.splice(idx,1);
+        if(kind==="fix") d.fields.inv_extra_fix.splice(idx,1);
+        renderExtras();
+        renderPreview();
+      });
+    });
+
+    // update handlers
+    list.querySelectorAll(".invPctName").forEach(inp=>{
+      inp.addEventListener("input", ()=>{
+        const idx=parseInt(inp.dataset.idx,10);
+        d.fields.inv_extra_pct[idx].name = inp.value;
+      });
+    });
+    list.querySelectorAll(".invPctVal").forEach(inp=>{
+      inp.addEventListener("input", ()=>{
+        const idx=parseInt(inp.dataset.idx,10);
+        d.fields.inv_extra_pct[idx].pct = parseFloat(inp.value||"0");
+        renderPreview();
+      });
+    });
+    list.querySelectorAll(".invFixName").forEach(inp=>{
+      inp.addEventListener("input", ()=>{
+        const idx=parseInt(inp.dataset.idx,10);
+        d.fields.inv_extra_fix[idx].name = inp.value;
+      });
+    });
+    list.querySelectorAll(".invFixVal").forEach(inp=>{
+      inp.addEventListener("input", ()=>{
+        const idx=parseInt(inp.dataset.idx,10);
+        d.fields.inv_extra_fix[idx].amount = parseFloat(inp.value||"0");
+        renderPreview();
+      });
+    });
+  };
+
+  const renderPreview = ()=>{
+    d.fields.inv_sun_holiday_pct = parseFloat(card.querySelector("#invSunHolPct").value||"0");
+    calculateInvoicePricing(d);
+    const p = d.pricing || {};
+    const prev = card.querySelector("#invPreview");
+    prev.innerHTML = `
+      <div>${escapeHtml(p.serviceLabel||"Betreuung")}: <b>${fmtMoney(p.baseGross)}</b></div>
+      <div>Sonn- & Feiertagszuschlag: <b>${fmtMoney(p.sunHolidayExtraGross)}</b> <span style="opacity:.75;">(${p.sunHolidayDays} Tage · ${p.sunHolidayPct}%)</span></div>
+      <div>Zuschläge (%): <b>${fmtMoney(p.pctExtraGross)}</b> <span style="opacity:.75;">(${p.pctSum||0}%)</span></div>
+      <div>Zuschläge (fix): <b>${fmtMoney(p.fixExtraGross)}</b></div>
+      <div style="margin-top:6px;border-top:1px solid rgba(255,255,255,0.10);padding-top:8px;font-size:18px;">
+        Gesamt (Brutto): <b>${fmtMoney(p.totalGross)}</b>
+      </div>
+    `;
+  };
+
+  // initial render
+  renderExtras();
+  renderPreview();
+
+  // wire buttons
+  card.querySelector("#invRelCloseBtn").addEventListener("click", ()=>ov.remove());
+  card.querySelector("#invSunHolPct").addEventListener("input", ()=>renderPreview());
+
+  card.querySelector("#addPctExtraBtn").addEventListener("click", ()=>{
+    d.fields.inv_extra_pct.push({name:"", pct:0});
+    renderExtras(); renderPreview();
+  });
+  card.querySelector("#addFixExtraBtn").addEventListener("click", ()=>{
+    d.fields.inv_extra_fix.push({name:"", amount:0});
+    renderExtras(); renderPreview();
+  });
+
+  const persistStayPricingOnly = ()=>{
+    d.fields.inv_sun_holiday_pct = parseFloat(card.querySelector("#invSunHolPct").value||"0");
+    // persist on stay doc
+    saveDoc(d);
+  };
+
+  card.querySelector("#invRelSaveBtn").addEventListener("click", ()=>{
+    persistStayPricingOnly();
+    toast("Zuschläge gespeichert (ohne Rechnung).");
+  });
+
+  card.querySelector("#invRelCreateBtn").addEventListener("click", ()=>{
+    persistStayPricingOnly();
+    const inv = createOrUpdateInvoiceFromStay(docId, {forceCreate:true});
+    if(inv){
+      toast("Rechnung erstellt (Entwurf).");
+      ov.remove();
+      renderInvoices && renderInvoices();
+    }else{
+      toast("Rechnung konnte nicht erstellt werden.");
+    }
+  });
+}
 
 function renderInvoiceList(){
   const el = document.getElementById("invoiceList");
@@ -6805,7 +7093,7 @@ function renderInvoiceList(){
             <td>${escapeHtml((resolveInvoiceParties(inv).cust?.name || resolveInvoiceParties(inv).legacyDog?.owner || "—"))} · ${escapeHtml((resolveInvoiceParties(inv).pet?.name || resolveInvoiceParties(inv).legacyDog?.name || "—"))}</td>
             <td>${escapeHtml(inv.period?.from||"")} – ${escapeHtml(inv.period?.to||"")}</td>
             <td>${((inv.pricing?.grossTotal ?? inv.pricing?.total) || 0).toFixed(2)} €</td>
-            <td><span style="display:inline-flex;align-items:center;gap:8px"><span style="font-size:14px;color:${statusDotColor(inv.status)}">●</span>${escapeHtml(inv.status||"")}</span></td>
+            <td><span style="display:inline-flex;align-items:center;gap:8px"><span style="font-size:14px;color:${statusDotColor(inv.status)}">●</span>${escapeHtml(mapInvoiceStatusLabel(inv.status||""))}</span></td>
           </tr>
         `).join("")}
       </tbody>
@@ -7087,6 +7375,13 @@ function printInvoice(id){
   </style>
 </head>
 <body>
+    <div style="position:fixed;top:10px;left:10px;z-index:9999;">
+      <button onclick="try{window.close();}catch(e){}; location.href='${baseAppUrl}';" style="padding:10px 14px;border-radius:10px;border:1px solid #ccc;background:#fff;">← Zurück</button>
+    </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <a href="${baseAppUrl}" style="text-decoration:none;font-weight:700;">← Zurück zur App</a>
+        <img src="assets/logo.png" alt="Doggy Style" style="height:48px;" onerror="this.style.display='none'"/>
+      </div>
 
   <div class="header">
     <div class="block">
@@ -7548,6 +7843,14 @@ function docItem(d){
 
   actions.appendChild(btnOpen);
   actions.appendChild(btnPdf);
+
+  if(d.saved){
+    const btnInv = document.createElement("button");
+    btnInv.className = "smallbtn";
+    btnInv.textContent = "💶 Rechnung freigeben";
+    btnInv.onclick = ()=>{ openInvoiceRelease(d.id); };
+    actions.appendChild(btnInv);
+  }
 
   // Abschluss: Schnell neuen Aufenthalt als Kopie anlegen
   if(d.saved){
@@ -8200,89 +8503,71 @@ return true;
 
 }
 function createInvoiceFromDoc(doc){
-  if(!doc || !doc.pricing) return;
+  if(!doc) return;
+
+  // Ensure pricing exists
+  if(!doc.pricing) calculateInvoicePricing(doc);
+  if(!doc.pricing) return;
+
+  const p = doc.pricing || {};
+  const meta = doc.meta || {};
 
   const year = new Date().getFullYear();
   const number = String(state.nextInvoiceNumber).padStart(4, "0");
 
+  const serviceLabel = p.serviceLabel || (String(meta.betreuung||"Betreuung").charAt(0).toUpperCase() + String(meta.betreuung||"").slice(1));
+  const days = Number.isFinite(p.days) ? p.days : daysBetween(meta.von, meta.bis);
+  const baseGross = Number.isFinite(p.baseGross) ? p.baseGross : (Number.isFinite(p.base) ? p.base : 0);
+
+  const sunHolidayDays = Number.isFinite(p.sunHolidayDays) ? p.sunHolidayDays : (Number.isFinite(p.holidayDays) ? p.holidayDays : 0);
+  const sunHolidayExtraGross = Number.isFinite(p.sunHolidayExtraGross) ? p.sunHolidayExtraGross : (Number.isFinite(p.holidayExtra) ? p.holidayExtra : 0);
+
+  const pctExtraGross = Number.isFinite(p.pctExtraGross) ? p.pctExtraGross : (Number.isFinite(p.percentExtra) ? p.percentExtra : 0);
+  const fixExtraGross = Number.isFinite(p.fixExtraGross) ? p.fixExtraGross : (Number.isFinite(p.fixedExtra) ? p.fixedExtra : 0);
+
+  const totalGross = Number.isFinite(p.totalGross) ? p.totalGross : (Number.isFinite(p.total) ? p.total : Math.round((baseGross + sunHolidayExtraGross + pctExtraGross + fixExtraGross)*100)/100);
+
   const invoice = {
-    id: uid(),
-    type: "invoice",
-
-    sourceDocId: doc.id,
-    dogId: doc.dogId,
-
-    // Etappe 4: Verknüpfung zum Kundenstamm (für Druck/Archiv)
-    customerId: (doc.customerId || getCustomerByDogId(doc.dogId)?.id || ""),
-    petId: (doc.petId || getPetByDogId(doc.dogId)?.id || ""),
-
-    period: {
-      from: doc.meta.von,
-      to: doc.meta.bis
+    id: "INV-" + year + "-" + number,
+    number: year + "-" + number,
+    status: "draft", // stays start as Entwurf
+    date: new Date().toISOString().slice(0,10),
+    customerId: doc.customerId || null,
+    petId: doc.petId || doc.dogId || null,
+    stayId: doc.id || null,
+    from: meta.von,
+    to: meta.bis,
+    service: meta.betreuung,
+    totals: {
+      baseGross,
+      sunHolidayExtraGross,
+      pctExtraGross,
+      fixExtraGross,
+      totalGross
     },
-
-    pricing: {
-      // Basis: Tage * Tagespreis
-      basePrice: Number(doc.pricing.base || 0),
-
-      // Sonn- & Feiertagszuschlag: 10% nur auf Feiertags-TAGE
-      holidayDays: Number(doc.pricing.holidayDays || 0),
-      holidayExtra: Number(doc.pricing.holidayValue || 0),
-
-      // Prozent-/Fixzuschläge (als Beträge)
-      percentExtra: Number(doc.pricing.percentValue || 0),
-      fixedExtra: Number(doc.pricing.fixedExtra || 0),
-
-      total: Number(doc.pricing.total || 0)
-    },
-    serviceLabel: (doc.meta && doc.meta.betreuung) ? doc.meta.betreuung : "Betreuung",
-
-    status: "draft",
-
-    invoiceNumber: `${year}-${number}`,
-    invoiceDate: new Date().toISOString(),
-
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
+    lines: []
   };
 
-  state.worklogs = Array.isArray(state.worklogs) ? state.worklogs : [];
-  state.invoices = Array.isArray(state.invoices) ? state.invoices : [];
-  state.invoices.push(invoice);
-  state.nextInvoiceNumber++;
+  invoice.lines.push({label: serviceLabel, amount: baseGross});
 
+  if(sunHolidayExtraGross > 0){
+    invoice.lines.push({label: "Sonn- & Feiertagszuschlag", amount: sunHolidayExtraGross, meta:{days:sunHolidayDays}});
+  }
+  if(pctExtraGross > 0){
+    invoice.lines.push({label: "Zuschläge (%)", amount: pctExtraGross, meta:{pct:p.pctSum||null}});
+  }
+  if(fixExtraGross > 0){
+    invoice.lines.push({label: "Zuschläge (fix)", amount: fixExtraGross});
+  }
+
+  state.invoices = state.invoices || [];
+  state.invoices.unshift(invoice);
+
+  state.nextInvoiceNumber = (state.nextInvoiceNumber||1) + 1;
   saveState();
-  renderInvoiceList();
+
+  return invoice;
 }
-function forkDocument() {
-  if (!currentDoc || !currentDoc.saved) return;
-
-  const originalId = currentDoc.versionOf || currentDoc.id;
-
-  const fork = JSON.parse(JSON.stringify(currentDoc));
-
-  fork.id = uid();
-  fork.saved = false;
-  fork.versionOf = originalId;
-  fork.createdAt = new Date().toISOString();
-  fork.updatedAt = fork.createdAt;
-
-  // neue Version → neue Unterschrift erforderlich
-  fork.signature = null;
-
-  state.docs.unshift(fork);
-  currentDoc = fork;
-
-  saveState();
-}
-function getDocumentVersions(doc){
-  const rootId = doc.versionOf || doc.id;
-
-  return (state.docs || [])
-    .filter(d => d.id === rootId || d.versionOf === rootId)
-    .sort((a,b)=> new Date(a.createdAt) - new Date(b.createdAt));
-}
-
 // ===== Overlay-Signatur (Weg A) =====
 function openSignatureOverlay(onDone){
   const overlay=document.createElement("div");
