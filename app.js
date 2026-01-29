@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = "M15C_STAY_SAVE_FIX_20260129";
+const APP_BUILD = "M15D_STAY_SAVE_DELEGATE_20260129";
 
 // --- Build-Sync (Anzeige + Migration) ---
 (function syncBuildBadge(){
@@ -72,6 +72,38 @@ function exportMonthBundle(){
 window.addEventListener('error', (e) => {
   console.error('APP_ERROR', e.error || e.message);
 });
+// --- Delegated SAVE handler (stays): ensures "Speichern" works even after editor re-render ---
+(function wireDelegatedStaySave(){
+  try{
+    if(window.__DS_STAY_SAVE_DELEGATE__) return;
+    window.__DS_STAY_SAVE_DELEGATE__ = true;
+
+    document.addEventListener('click', (ev)=>{
+      const t = ev.target;
+      if(!t || !t.closest) return;
+      const btn = t.closest('button');
+      if(!btn) return;
+
+      // Only handle the editor save button (id is stable across templates).
+      if(btn.id !== 'btnSave') return;
+
+      // Only when a doc is open and we're in the embedded stay editor or stay-like doc.
+      const hasStayDom = !!(document.getElementById('stayVon') || document.getElementById('stayBis') || document.getElementById('stayBetreuung'));
+      const isStayDoc = !!(window.currentDoc && (window.currentDoc.type === 'stay' || window.currentDoc.templateId === 'hundeannahme' || window.currentDoc.templateId === 'stay' || window.currentDoc.templateName === 'Aufenthalte'));
+      if(!(hasStayDom || isStayDoc)) return;
+
+      ev.preventDefault();
+      ev.stopPropagation();
+      try{
+        // Call existing save pipeline
+        saveCurrent(true);
+      }catch(e){
+        console.error('Stay delegated save failed', e);
+        try{ alert('Speichern fehlgeschlagen: ' + (e && (e.message||String(e)))); }catch(_){}
+      }
+    }, true);
+  }catch(e){ console.error('wireDelegatedStaySave failed', e); }
+})();
 const LS_KEY="ds_workspace_test_optik_01";
 
 // --- Datum (lokal) ohne UTC-Verschiebung ---
@@ -7770,17 +7802,7 @@ $("#dogSelect").addEventListener("change", () => {
   dirty = true;
 });
 
-try{
-  const __btnSave = $("#btnSave");
-  if(__btnSave && !__btnSave.dataset.bound){
-    __btnSave.dataset.bound = "1";
-    __btnSave.addEventListener("click",(ev)=>{
-      try{ ev.preventDefault(); }catch(_){}
-      try{ if(currentSection==='stays') syncStayEditorInputsToDoc(); }catch(_){}
-      saveCurrent(true);
-    });
-  }
-}catch(e){ console.warn("bind btnSave failed", e); }
+$("#btnSave").addEventListener("click",()=>saveCurrent(true));
 $("#btnClose").addEventListener("click",()=>{
   if(dirty && !confirm("Änderungen sind nicht gespeichert. Schließen?")) return;
   $$(".tab").forEach((t,i)=>t.classList.toggle("is-active", i===0));
@@ -8262,24 +8284,6 @@ function openSignatureOverlay(onDone){
 }
 
 document.addEventListener("click",(e)=>{
-
-  // Global Editor-Toolbar Buttons (safe even after re-render)
-  try{
-    const tid = e && e.target && e.target.id;
-    if(tid==="btnSave"){
-      e.preventDefault();
-      try{ if(currentSection==='stays') syncStayEditorInputsToDoc(); }catch(_){}
-      saveCurrent(true);
-      return;
-    }
-    if(tid==="btnPrint"){
-      // print button is handled elsewhere too, but ensure we don't "go dead" after re-render
-      // Let existing logic run if present.
-    }
-    if(tid==="btnCreateInvoice"){
-      // Let existing handler run (it needs currentDoc).
-    }
-  }catch(_){}
 
   // Unterschrift im Aufenthalt erfassen (ohne Form-Reset)
   
