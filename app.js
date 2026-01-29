@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = "M15D_STAY_SAVE_DELEGATE_20260129";
+const APP_BUILD = "M15E_STAY_SAVE_PRICELOGIC_BASEFIX_20260129";
 
 // --- Build-Sync (Anzeige + Migration) ---
 (function syncBuildBadge(){
@@ -1941,9 +1941,10 @@ function calculateInvoicePricing(doc){
   const netTotal = Math.round((totalGross / (1+vatRate)) * 100) / 100;
   const vatAmount = Math.round((totalGross - netTotal) * 100) / 100;
 doc.pricing = {
+    serviceLabel,
     days,
     daily,
-    base,
+    base: baseGross,
 
     holidayDays,
     holidayValue,
@@ -1952,7 +1953,12 @@ doc.pricing = {
     percentValue,
 
     fixedExtra,
-    total
+    total: totalGross,
+
+    vatRate,
+    netTotal,
+    vatAmount,
+    grossTotal: totalGross
   };
 
   return doc.pricing;
