@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = "M15F2_STAY_INVOICE_ON_COMPLETE_20260129";
+const APP_BUILD = "M15F3_INVOICE_PRO_POLISH_20260129";
 
 // --- Build-Sync (Anzeige + Migration) ---
 (function syncBuildBadge(){
@@ -1834,6 +1834,46 @@ function countBavariaHolidaysBetween(from, to){
   }
   return count;
 }
+
+// Count Sundays between [von, bis) (bis exclusive), local dates, without double-counting.
+// von/bis can be ISO date strings.
+function countSundaysBetween(von, bis){
+  try{
+    const d1 = parseISODateLocal(von);
+    const d2 = parseISODateLocal(bis);
+    if(!(d1 instanceof Date) || !(d2 instanceof Date)) return 0;
+    // Iterate day by day; max ranges are short (stays).
+    let c = 0;
+    const cur = new Date(d1.getFullYear(), d1.getMonth(), d1.getDate());
+    const end = new Date(d2.getFullYear(), d2.getMonth(), d2.getDate());
+    while(cur < end){
+      if(cur.getDay() === 0) c++; // Sunday
+      cur.setDate(cur.getDate() + 1);
+    }
+    return c;
+  }catch(_){ return 0; }
+}
+
+// Sonn- & Feiertage (Bayern) zwischen [von, bis) – ohne doppelt zu zählen wenn Feiertag auf Sonntag fällt.
+function countSunHolidayDaysBetween(von, bis){
+  try{
+    const d1 = parseISODateLocal(von);
+    const d2 = parseISODateLocal(bis);
+    if(!(d1 instanceof Date) || !(d2 instanceof Date)) return 0;
+    const cur = new Date(d1.getFullYear(), d1.getMonth(), d1.getDate());
+    const end = new Date(d2.getFullYear(), d2.getMonth(), d2.getDate());
+    const set = new Set();
+    while(cur < end){
+      const iso = toISODateLocal(cur);
+      const isSun = (cur.getDay() === 0);
+      const isHol = !!BAVARIA_HOLIDAYS_2026[iso]; // keep 2026 list
+      if(isSun || isHol) set.add(iso);
+      cur.setDate(cur.getDate() + 1);
+    }
+    return set.size;
+  }catch(_){ return 0; }
+}
+
 
 
 function updateAutoHolidayFields(){
@@ -6711,12 +6751,22 @@ function formatCustomerAddress(cust){
 
 function statusDotColor(status){
   const s = String(status||'').toLowerCase();
-  if(s.includes('entwurf')) return '#ffffff';
-  if(s.includes('fällig') || s.includes('aussteh') || s.includes('offen')) return '#f5b62e'; // gelb
-  if(s.includes('bezahlt') || s.includes('paid')) return '#2ecc71'; // grün
-  if(s.includes('storni') || s.includes('cancel')) return '#ff4d4d'; // rot
-  return '#ffffff';
+  if(s === 'bezahlt' || s === 'paid') return 'green';
+  if(s === 'storniert' || s === 'cancelled' || s === 'canceled') return 'red';
+  if(s === 'offen' || s === 'open') return 'yellow';
+  // draft/entwurf
+  return 'white';
 }
+
+function statusLabel(status){
+  const s = String(status||'').toLowerCase();
+  if(s === 'paid' || s === 'bezahlt') return 'Bezahlt';
+  if(s === 'cancelled' || s === 'canceled' || s === 'storniert') return 'Storniert';
+  if(s === 'open' || s === 'offen') return 'Offen';
+  if(s === 'draft' || s === 'entwurf') return 'Entwurf';
+  return status || '';
+}
+
 
 function renderInvoiceList(){
   const el = document.getElementById("invoiceList");
@@ -7014,6 +7064,8 @@ function printInvoice(id){
     (pet?.name || legacyDog?.name) ? `Hund: ${escapeHtml(pet?.name || legacyDog?.name)}` : "",
     (pet?.chip || (pet?.chipNumber)) ? `Chip: ${escapeHtml(pet?.chipNumber || "ja")}` : ""
   ].filter(Boolean).join("<br>");
+  const baseAppUrl = window.location.href.split('#')[0].split('?')[0];
+
 
   const w = window.open("", "_blank");
   w.document.write(`
@@ -7071,7 +7123,7 @@ function printInvoice(id){
     </tr>
     ${inv.pricing.holidayExtra && inv.pricing.holidayExtra>0 ? `
     <tr>
-      <td>Feiertagszuschlag (10% • ${inv.pricing.holidayDays||0} Tag(e))</td>
+      <td>Sonn- & Feiertagszuschlag (10% • ${inv.pricing.holidayDays||0} Tag(e))</td>
       <td class="right">${inv.pricing.holidayExtra.toFixed(2)} €</td>
     </tr>` : ``}
 
@@ -8069,20 +8121,44 @@ if (Number(limit||0) > 0 && used >= limit) {
     currentDoc.saved = hasSig;
   }
 currentDoc.updatedAt = new Date().toISOString();
+  currentDoc.meta = currentDoc.meta || {};
+  if(!currentDoc.meta.firstSavedAt) currentDoc.meta.firstSavedAt = currentDoc.updatedAt;
 
-// 🧾 Variante A: Rechnung automatisch beim Abschließen erstellen
-// Darf Speichern NICHT blockieren (iOS Safari wirkt sonst "Speichern tot")
-if(currentDoc.saved && currentDoc.pricing){
+
+// 🧾 Variante A (angepasst): Rechnung erst ab dem *zweiten* Speichern erzeugen.
+// 1) Neuer Aufenthalt -> Speichern: KEINE Rechnung.
+// 2) Aufenthalt erneut öffnen/anpassen -> Speichern: Rechnung wird erzeugt/aktualisiert.
+if(currentDoc.templateId === 'hundeannahme'){
   try{
-    const exists = (state.invoices||[]).some(x=>x.sourceDocId===currentDoc.id);
-    if(!exists){
-      createInvoiceFromDoc(currentDoc);
+    currentDoc.meta = currentDoc.meta || {};
+    const wasFirstSave = !currentDoc.meta.firstSavedAt;
+    // firstSavedAt wird unten beim erfolgreichen Save gesetzt; wir merken uns aber, ob es der erste Save war.
+    // Pricing immer vorbereiten (auch wenn keine Settings hinterlegt sind -> Default-Regeln greifen).
+    if(!currentDoc.pricing){
+      try{ currentDoc.pricing = calculateInvoicePricing(currentDoc); }catch(_){}
     }
-  }catch(e){
-    console.error("createInvoiceFromDoc failed (stay saved anyway):", e);
-  }
+    // Nur ab dem zweiten Save UND wenn eine Unterschrift vorhanden ist
+    const hasSig = !!currentDoc.fields?.contract_sig_data;
+    if(!wasFirstSave && hasSig && currentDoc.pricing){
+      // create/update invoice once
+      const invId = getInvoiceIdForStay(currentDoc);
+      if(invId){
+        if(!state.invoices) state.invoices = [];
+        const existing = state.invoices.find(i => i.id === invId);
+        const inv = createInvoiceFromDoc(currentDoc);
+        if(inv){
+          if(existing){
+            Object.assign(existing, inv);
+          }else{
+            state.invoices.push(inv);
+          }
+          persistAll();
+        }
+      }
+    }
+  }catch(_){}
 }
-     // sauberer Zeitstempel
+// sauberer Zeitstempel
 
 // 🧼 Auto-Trigger: Quarantäne/Parasiten aus Aufenthalt ins Hygieneprotokoll schreiben
 try{ hygieneAutoFromStayDoc(currentDoc); }catch(e){ console.warn('hygieneAutoFromStayDoc failed', e); }
@@ -8149,7 +8225,7 @@ function createInvoiceFromDoc(doc){
       // Basis: Tage * Tagespreis
       basePrice: Number(doc.pricing.base || 0),
 
-      // Feiertagszuschlag: 10% nur auf Feiertags-TAGE
+      // Sonn- & Feiertagszuschlag: 10% nur auf Feiertags-TAGE
       holidayDays: Number(doc.pricing.holidayDays || 0),
       holidayExtra: Number(doc.pricing.holidayValue || 0),
 
