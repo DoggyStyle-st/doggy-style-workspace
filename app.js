@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = "M15F1_STAY_SAVE_HARDENED_20260129";
+const APP_BUILD = "M15F2_STAY_INVOICE_ON_COMPLETE_20260129";
 
 // --- Build-Sync (Anzeige + Migration) ---
 (function syncBuildBadge(){
@@ -7233,7 +7233,7 @@ function renderDogs(){
 
       header.innerHTML = `
         <div>
-          <strong>👤 ${escapeHtml(cname)}</strong>
+          <strong>🧑🏼‍🦰 ${escapeHtml(cname)}</strong>
           <small>${escapeHtml(cphone)}${cphone ? " · " : ""}${escapeHtml(cntTxt)}</small>
           ${(!g.isNoCustomer && _getLastStayTextForCustomer(g.customerId)) ? `<small style="display:block; opacity:.75; margin-top:2px">${escapeHtml(_getLastStayTextForCustomer(g.customerId))}</small>` : ``}
         </div>
@@ -8321,6 +8321,30 @@ if(e.target && e.target.id==="btnSignatureOpen"){
 
     dirty = true;
     saveState(); // persist immediately
+
+    // Auto-Rechnung: erst wenn Aufenthalt "fertig" ist (Unterschrift + alle Zustimmungen)
+    try{
+      if(_isStay){
+        const c = (currentDoc.meta && currentDoc.meta.consents) ? currentDoc.meta.consents : {};
+        const fertig = !!(currentDoc.signature && currentDoc.signature.dataUrl) && !!c.agb && !!c.vet && !!c.health && !!c.truth;
+        if(fertig){
+          currentDoc.saved = true;
+          // Pricing ggf. nachziehen
+          if(!currentDoc.pricing && typeof calculateInvoicePricing === 'function'){
+            try{ currentDoc.pricing = calculateInvoicePricing(currentDoc); }catch(_){ }
+          }
+          if(!state.invoices) state.invoices = [];
+          if(!state.invoices.some(inv => inv && inv.sourceDocId === currentDoc.id)){
+            const inv = createInvoiceFromDoc(currentDoc);
+            if(inv){
+              state.invoices.unshift(inv);
+              saveState();
+            }
+          }
+        }
+      }
+    }catch(_){ }
+
 
     // Re-render: Aufenthalt immer via Embedded-Stay-Editor (stabil), sonst Standard-Editor
     try{
