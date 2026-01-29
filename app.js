@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = "M15B_INVOICE_PRICING_SETTINGS_VAT_STATUSDOT_20260128";
+const APP_BUILD = "M15C_STAY_SAVE_FIX_20260129";
 
 // --- Build-Sync (Anzeige + Migration) ---
 (function syncBuildBadge(){
@@ -7770,7 +7770,17 @@ $("#dogSelect").addEventListener("change", () => {
   dirty = true;
 });
 
-$("#btnSave").addEventListener("click",()=>saveCurrent(true));
+try{
+  const __btnSave = $("#btnSave");
+  if(__btnSave && !__btnSave.dataset.bound){
+    __btnSave.dataset.bound = "1";
+    __btnSave.addEventListener("click",(ev)=>{
+      try{ ev.preventDefault(); }catch(_){}
+      try{ if(currentSection==='stays') syncStayEditorInputsToDoc(); }catch(_){}
+      saveCurrent(true);
+    });
+  }
+}catch(e){ console.warn("bind btnSave failed", e); }
 $("#btnClose").addEventListener("click",()=>{
   if(dirty && !confirm("Änderungen sind nicht gespeichert. Schließen?")) return;
   $$(".tab").forEach((t,i)=>t.classList.toggle("is-active", i===0));
@@ -8252,6 +8262,24 @@ function openSignatureOverlay(onDone){
 }
 
 document.addEventListener("click",(e)=>{
+
+  // Global Editor-Toolbar Buttons (safe even after re-render)
+  try{
+    const tid = e && e.target && e.target.id;
+    if(tid==="btnSave"){
+      e.preventDefault();
+      try{ if(currentSection==='stays') syncStayEditorInputsToDoc(); }catch(_){}
+      saveCurrent(true);
+      return;
+    }
+    if(tid==="btnPrint"){
+      // print button is handled elsewhere too, but ensure we don't "go dead" after re-render
+      // Let existing logic run if present.
+    }
+    if(tid==="btnCreateInvoice"){
+      // Let existing handler run (it needs currentDoc).
+    }
+  }catch(_){}
 
   // Unterschrift im Aufenthalt erfassen (ohne Form-Reset)
   
