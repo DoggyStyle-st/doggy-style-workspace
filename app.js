@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = "M15F5_INVOICE_RELEASE_EDITOR_20260129";
+const APP_BUILD = "M15F6A_STATEFIX_20260129";
 
 // --- Build-Sync (Anzeige + Migration) ---
 (function syncBuildBadge(){
@@ -74,6 +74,9 @@ window.addEventListener('error', (e) => {
 });
 const LS_KEY="ds_workspace_test_optik_01";
 
+
+// Global app state (loaded from LocalStorage)
+let state = null;
 // --- Datum (lokal) ohne UTC-Verschiebung ---
 // Wichtig für Kalender/"Heute" auf iPad (sonst springt es abends auf den nächsten Tag).
 function toISODateLocal(date = new Date()){
@@ -5490,12 +5493,17 @@ function initProfiSettingsBindings(){
 }
 
 function ensureStateShape(){
-  // Basis-Defaults (ohne UID-Erzeugung, damit es beim ersten Load robust bleibt)
-  if(!state || typeof state !== "object") return;
-  if(typeof state.schemaVersion !== "number") state.schemaVersion = 1;
-
-  // Profi-Defaults (Mitarbeiter, Versionen, Monatsabschlüsse)
-  try{ ensureProfiDefaults(); }catch(_){ }
+  if(!state || typeof state!=='object') state = {dogs:[], docs:[]};
+  if(!Array.isArray(state.dogs)) state.dogs=[];
+  if(!Array.isArray(state.docs)) state.docs=[];
+  // meta containers
+  if(!state.meta || typeof state.meta!=='object') state.meta={};
+  if(!state.meta.pricing || typeof state.meta.pricing!=='object') state.meta.pricing={};
+  if(!state.meta.pricing.vatPercent) state.meta.pricing.vatPercent = 19;
+  if(!state.meta.pricing.pricePerDayDaycare && state.meta.pricing.pricePerDayDaycare!==0) state.meta.pricing.pricePerDayDaycare = '';
+  if(!state.meta.pricing.pricePerDayVacation && state.meta.pricing.pricePerDayVacation!==0) state.meta.pricing.pricePerDayVacation = '';
+}
+catch(_){ }
 
   state.dogs = Array.isArray(state.dogs) ? state.dogs : [];
   state.docs = Array.isArray(state.docs) ? state.docs : [];
@@ -9007,6 +9015,8 @@ $("#btnWipe").addEventListener("click",()=>{
 });
 
 async function boot(){
+  // Load persisted state first (critical)
+  state = loadState();
   await loadTemplates();
   ensureStateShape();
   ensureContractDefaults();
