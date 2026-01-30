@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = "M15F6A_STATEFIX_20260129";
+const APP_BUILD = 'M15F6B_RECOVER_20260130';
 
 // --- Build-Sync (Anzeige + Migration) ---
 (function syncBuildBadge(){
@@ -7,48 +7,16 @@ const APP_BUILD = "M15F6A_STATEFIX_20260129";
     const el = document.getElementById('buildBadge');
     if(el) el.textContent = 'Build ' + APP_BUILD;
   }catch(_){}
+  // Minimal, Safari-stable: only persist build marker.
   try{
     const key = 'ds_app_build';
     const prev = localStorage.getItem(key);
     if(prev !== APP_BUILD){
       localStorage.setItem(key, APP_BUILD);
-      // Optional: mark that a version bump happened (useful for guarded migrations)
       localStorage.setItem('ds_app_build_bumped_at', String(Date.now()));
-
-      // Cache-buster / Service-Worker Guard:
-      // If a new build is detected, try to drop SW + CacheStorage once, then reload with a version query.
-      try{
-        const onceKey = 'ds_app_build_refreshed_' + APP_BUILD;
-        if(!localStorage.getItem(onceKey)){
-          localStorage.setItem(onceKey, '1');
-          const go = () => {
-            try{
-              const base = location.href.split('#')[0].split('?')[0];
-              const hash = location.hash || '';
-              location.replace(base + '?v=' + encodeURIComponent(APP_BUILD) + hash);
-            }catch(_){
-              try{ location.reload(); }catch(__){}
-            }
-          };
-          if('caches' in window){
-            caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k)))).then(() => {
-              if(navigator.serviceWorker && navigator.serviceWorker.getRegistrations){
-                return navigator.serviceWorker.getRegistrations().then(regs => Promise.all(regs.map(r => r.unregister())));
-              }
-            }).finally(() => setTimeout(go, 150));
-          }else{
-            if(navigator.serviceWorker && navigator.serviceWorker.getRegistrations){
-              navigator.serviceWorker.getRegistrations().then(regs => Promise.all(regs.map(r => r.unregister()))).finally(() => setTimeout(go, 150));
-            }else{
-              setTimeout(go, 150);
-            }
-          }
-        }
-      }catch(_){}
     }
   }catch(_){}
 })();
-
 // Selector helpers
 // $: accepts either an element id (e.g. 'contractSig') or a CSS selector (e.g. '#contractSig', '.btn')
 const $ = (sel) => {
