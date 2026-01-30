@@ -7658,6 +7658,7 @@ $("#dogSelect").addEventListener("change", () => {
   renderCustomerInfoForDogId(currentDoc.dogId);
   updateContractWarnBanner(currentDoc);
   autofillAufenthalteFieldsFromMaster(currentDoc.dogId, { overwrite:false });
+  updateCreateInvoiceButton();
   try{ renderStayQuickLinks(currentDoc); }catch(e){}
   dirty = true;
 });
@@ -7752,9 +7753,152 @@ function getStayWarnings(docObj, t){
 }
 function updateCreateInvoiceButton(){
   const btn = document.getElementById("btnCreateInvoice");
-  if(btn) btn.style.display = "none";
+  if(!btn) return;
 
-  // Ende dieser Funktion (wichtig für sauberes Scope).
+  // Default: hidden
+  btn.style.display = "none";
+
+  try{
+    // Only in stay editor (Aufenthalte) and only for non-invoice docs
+    if(currentSection!=="stays" || !currentDoc || currentDoc.type==="invoice") return;
+
+    // Need a selected dog to create/open invoice meaningfully
+    const dogId = document.getElementById("dogSelect")?.value || currentDoc.dogId || "";
+    if(!dogId) return;
+
+    const inv = getInvoiceForStayDoc(currentDoc);
+
+    btn.style.display = "inline-flex";
+    btn.textContent = inv ? "Rechnung öffnen" : "Rechnung erstellen";
+
+    if(!btn.dataset.bound2b){
+      btn.onclick = ()=>{
+        try{
+          syncCurrentDocFromForm();
+
+          if(!currentDoc) return;
+          const dogId2 = document.getElementById("dogSelect")?.value || currentDoc.dogId || "";
+          if(!dogId2){ alert("Bitte zuerst einen Hund auswählen."); return; }
+
+          const existing = getInvoiceForStayDoc(currentDoc);
+          const invoice = existing || createDraftInvoiceFromStayDoc(currentDoc);
+
+          if(!invoice){
+            alert("Rechnung konnte nicht erstellt werden (Dokument unvollständig).");
+            return;
+          }
+
+          // Jump to invoices and open the invoice detail
+          openInvoices();
+          setTimeout(()=>{ try{ openInvoice(invoice.id); }catch(e){} }, 50);
+        }catch(e){
+          console.warn("create/open invoice failed", e);
+          alert("Rechnung konnte nicht geöffnet werden.");
+        }
+      };
+      btn.dataset.bound2b = "1";
+    }
+  }catch(e){
+    console.warn("updateCreateInvoiceButton failed", e);
+  }
+}
+
+function getInvoiceForStayDoc(doc){
+  try{
+    ensureStateShape();
+    const id = doc?.id || "";
+    if(!id) return null;
+
+    // Primary: explicit link
+    if(doc.invoiceId){
+      const direct = (state.invoices||[]).find(x=>x.id===doc.invoiceId);
+      if(direct) return direct;
+    }
+
+    // Secondary: by sourceDocId
+    const bySource = (state.invoices||[]).find(x=>x.sourceDocId===id);
+    if(bySource) return bySource;
+
+    return null;
+  }catch(e){
+    return null;
+  }
+}
+
+function createDraftInvoiceFromStayDoc(doc){
+  try{
+    ensureStateShape();
+    ensureContractDefaults();
+
+    if(!doc || !doc.id) return null;
+
+    // Avoid duplicates
+    const already = getInvoiceForStayDoc(doc);
+    if(already) return already;
+
+    const year = new Date().getFullYear();
+    const next = String(state.nextInvoiceNumber || 1).padStart(4, "0");
+    const invoiceNumber = `${year}-${next}`;
+
+    const dogId = doc.dogId || document.getElementById("dogSelect")?.value || "";
+    if(!dogId) return null;
+
+    const customerId = (doc.customerId || getCustomerByDogId(dogId)?.id || "");
+    const petId = (doc.petId || getPetByDogId(dogId)?.id || "");
+
+    const nowIso = new Date().toISOString();
+    const inv = {
+      id: uid(),
+      type: "invoice",
+      status: "draft",
+      invoiceNumber,
+      invoiceDate: todayISO(),
+
+      sourceDocId: doc.id,
+      dogId,
+      customerId,
+      petId,
+
+      period: {
+        from: doc?.meta?.von || "",
+        to: doc?.meta?.bis || ""
+      },
+
+      pricing: {
+        basePrice: Number(doc?.pricing?.base || 0),
+        holidayDays: Number(doc?.pricing?.holidayDays || 0),
+        holidayExtra: Number(doc?.pricing?.holidayExtra || 0),
+        percentExtra: Number(doc?.pricing?.percentExtra || 0),
+        fixedExtra: Number(doc?.pricing?.fixedExtra || 0),
+        total: Number(doc?.pricing?.total || 0),
+        totalCent: Number(doc?.pricing?.totalCent || 0)
+      },
+
+      updatedAt: nowIso,
+      createdAt: nowIso
+    };
+
+    state.invoices = state.invoices || [];
+    state.invoices.push(inv);
+
+    // Link back to stay doc for fast lookup
+    doc.invoiceId = inv.id;
+    doc.invoiceNumber = inv.invoiceNumber;
+
+    // Advance counter
+    state.nextInvoiceNumber = (state.nextInvoiceNumber || 1) + 1;
+
+    saveState();
+
+    // Refresh UI fragments if visible
+    try{ renderInvoiceList(); }catch(_){}
+    try{ renderDocs(); }catch(_){}
+
+    return inv;
+  }catch(e){
+    console.warn("createDraftInvoiceFromStayDoc failed", e);
+    return null;
+  }
 }
 
 // Sync currentDoc with current form inputs WITHOUT saving/re-rendering.
