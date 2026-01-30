@@ -7464,49 +7464,6 @@ function printInvoice(id){
   w.document.close();
 }
 function loadState(){try{const raw=localStorage.getItem(LS_KEY);return raw?JSON.parse(raw):{dogs:[],docs:[]};}catch{return {dogs:[],docs:[]};}}
-
-// ------------------------------------------------------------
-// Recovery: fehlende Dokument-Hilfsfunktionen
-// (in manchen Builds wurden diese Helpers versehentlich entfernt)
-// ------------------------------------------------------------
-
-function getDoc(id){
-  return (state.docs||[]).find(d=>d && d.id===id);
-}
-
-function getDocumentVersions(doc){
-  if(!doc) return [];
-
-  // Wenn das Dokument explizit Versionsdaten enthält
-  if(Array.isArray(doc.versions) && doc.versions.length){
-    return doc.versions.map(v=>({
-      ...v,
-      id: v.id || v.docId || v._id,
-      label: v.label || (v.updatedAt ? `Version ${formatDateTime(v.updatedAt)}` : (v.id||v.docId||'Version'))
-    })).filter(v=>v.id);
-  }
-
-  // Heuristik: finde weitere Dokumente, die zur selben Basis gehören
-  const baseId = doc.baseId || doc.rootId || doc.versionOf || doc.docId || doc.id;
-  const list = (state.docs||[])
-    .filter(d=>d && (d.id===baseId || d.versionOf===baseId || d.docId===baseId || d.baseId===baseId || d.rootId===baseId));
-
-  // sicherstellen, dass das aktuelle Dokument enthalten ist
-  if(!list.some(d=>d && d.id===doc.id)) list.push(doc);
-
-  // sortiert nach updatedAt (neueste zuerst)
-  list.sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
-
-  if(list.length===1){
-    const only = list[0];
-    return [{ ...only, label: 'Nur diese Version vorhanden.' }];
-  }
-
-  return list.map(d=>({
-    ...d,
-    label: d.label || (d.updatedAt ? `Version ${formatDateTime(d.updatedAt)}` : d.id)
-  }));
-}
 function saveState(){
   try{
     state._localUpdatedAt = Date.now();
