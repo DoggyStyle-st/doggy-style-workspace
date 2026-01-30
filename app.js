@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = 'M13_2D_INAPP_PDF_OVERLAY_20260130';
+const APP_BUILD = 'M13_3A_PRICING_FROM_STAY_20260130';
 
 // --- Build-Sync (Anzeige + Migration) ---
 (function syncBuildBadge(){
@@ -1855,6 +1855,85 @@ function calculateInvoicePricing(doc){
 
   return doc.pricing;
 }
+
+// ===== 3A: Rechnungspreise aus Aufenthalt ableiten =====
+// Mapping: Aufenthalt.pricing -> Invoice.pricing (Basis + Zuschläge)
+// Hinweis: Feiertagszuschlag wird als eigener Wert berechnet und in percentExtra (Wert) mitgeführt,
+// damit die Rechnung bereits den korrekten Gesamtbetrag enthält, ohne das UI sofort zu erweitern.
+function round2(n){ return Math.round((Number(n)||0) * 100) / 100; }
+
+function syncInvoicePricingFromDoc(inv, doc){
+  if(!inv || !doc) return false;
+  const p = calculateInvoicePricing(doc);
+  if(!p) return false;
+
+  inv.pricing = inv.pricing || { basePrice:0, percentExtra:0, fixedExtra:0, total:0 };
+
+  const basePrice = round2(p.base || 0);
+  // Prozentwerte (auf Basis) + Feiertagswert (separat berechnet) => als "prozentualer Zuschlag" Wert geführt
+  const percentExtraValue = round2((p.percentValue || 0) + (p.holidayValue || 0));
+  const fixedExtra = round2(p.fixedExtra || 0);
+  const total = round2(basePrice + percentExtraValue + fixedExtra);
+
+  const changed =
+    round2(inv.pricing.basePrice) !== basePrice ||
+    round2(inv.pricing.percentExtra) !== percentExtraValue ||
+    round2(inv.pricing.fixedExtra) !== fixedExtra ||
+    round2(inv.pricing.total) !== total;
+
+  inv.pricing.basePrice = basePrice;
+  inv.pricing.percentExtra = percentExtraValue;
+  inv.pricing.fixedExtra = fixedExtra;
+  inv.pricing.total = total;
+
+  // Zusatzinfos (für spätere UI/PDF-Erweiterung, harmless)
+  inv.pricing._calc = {
+    days: p.days,
+    daily: p.daily,
+    percentExtra: p.percentExtra,
+    percentValue: p.percentValue,
+    holidayDays: p.holidayDays,
+    holidayValue: p.holidayValue
+  };
+
+  // Zeitraum aus Aufenthalt synchron halten (falls nachträglich geändert)
+  try{
+    inv.period = inv.period || {};
+    if(doc?.meta?.von) inv.period.from = doc.meta.von;
+    if(doc?.meta?.bis) inv.period.to = doc.meta.bis;
+  }catch(_){}
+
+  if(changed){
+    inv.updatedAt = new Date().toISOString();
+  }
+  return changed;
+}
+
+function syncInvoicePricingBySource(inv){
+  if(!inv || !inv.sourceDocId) return false;
+  const doc = (state.docs||[]).find(d=>d.id===inv.sourceDocId);
+  if(!doc) return false;
+  return syncInvoicePricingFromDoc(inv, doc);
+}
+
+// Batch sync before rendering lists (keeps UI totals correct)
+function syncAllInvoicePricingGuarded(){
+  try{
+    if(!Array.isArray(state.invoices)) return;
+    let any = false;
+    for(const inv of state.invoices){
+      if(inv && inv.sourceDocId){
+        const changed = syncInvoicePricingBySource(inv);
+        if(changed) any = true;
+      }
+    }
+    if(any) saveState();
+  }catch(e){
+    console.warn("syncAllInvoicePricingGuarded failed", e);
+  }
+}
+// ===== /3A =====
+
 // ===== ENDE PREISLOGIK =====
 let state=loadState();
 // Wichtig: State-Shape sofort sicherstellen, bevor irgendein Render läuft.
@@ -6602,6 +6681,8 @@ function invoiceStatusBadge(status){
   return `<span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;line-height:18px;${style}">${label}</span>`;
 }
 function renderInvoiceList(){
+  // 3A: Preise aus Aufenthalten synchronisieren (guarded)
+  try{ syncAllInvoicePricingGuarded(); }catch(_){ }
   const el = document.getElementById("invoiceList");
   if(!el) return;
 
@@ -6719,6 +6800,15 @@ function openOrCreateInvoiceForDocId(docId){
       }
     }
 
+
+    // 3A: Preise aus Aufenthalt berechnen & in Rechnung schreiben
+    try{
+      if(inv && doc){
+        const changed = syncInvoicePricingFromDoc(inv, doc);
+        if(changed) saveState();
+      }
+    }catch(e){ console.warn('3A syncInvoicePricingFromDoc failed', e); }
+
     // 3) UI: zu Rechnungen springen & öffnen
     try{ showSection("invoices"); }catch(e){}
     try{ renderInvoiceList(); }catch(e){}
@@ -6733,6 +6823,12 @@ function openOrCreateInvoiceForDocId(docId){
 function openInvoice(id){
   const inv = getInvoiceById(id);
   if(!inv) return;
+
+  // 3A: Preise aus Aufenthalt synchronisieren, falls verknüpft
+  try{
+    const changed = syncInvoicePricingBySource(inv);
+    if(changed) saveState();
+  }catch(e){ console.warn('3A syncInvoicePricingBySource failed', e); }
 
   const el = document.getElementById("invoiceView");
   if(!el) return;
