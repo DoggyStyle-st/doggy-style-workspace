@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = 'M13_2B_STAY_INVOICE_LINK_20260130';
+const APP_BUILD = 'M13_2D_INAPP_PDF_OVERLAY_20260130';
 
 // --- Build-Sync (Anzeige + Migration) ---
 (function syncBuildBadge(){
@@ -6968,109 +6968,219 @@ function printInvoice(id){
   const inv = getInvoiceById(id);
   if(!inv) return;
 
+  // In-App PDF/Print Overlay (kein neuer Tab)
+  ensurePdfOverlayStyles();
+
   const {cust, pet, legacyDog} = resolveInvoiceParties(inv);
 
-  const recipient = formatCustomerAddressBlock(cust) || escapeHtml(cust?.name || legacyDog?.owner || "—");
+  const recipient = formatCustomerAddress(cust, legacyDog?.owner || "—");
   const recipientSub = [
     (cust?.phone || legacyDog?.phone) ? `Tel: ${escapeHtml(cust?.phone || legacyDog?.phone)}` : "",
     cust?.email ? `Mail: ${escapeHtml(cust.email)}` : "",
     (pet?.name || legacyDog?.name) ? `Hund: ${escapeHtml(pet?.name || legacyDog?.name)}` : "",
-    (pet?.chip || (pet?.chipNumber)) ? `Chip: ${escapeHtml(pet?.chipNumber || "ja")}` : ""
+    (pet?.chipNumber) ? `Chip: ${escapeHtml(pet.chipNumber)}` : ""
   ].filter(Boolean).join("<br>");
 
-  const w = window.open("", "_blank");
-  w.document.write(`
-<html>
-<head>
-  <title>Rechnung</title>
-  <style>
-    body { font-family: Arial, sans-serif; padding: 40px; }
-    h1 { margin-top: 26px; }
-    .header { margin-bottom: 20px; display:flex; justify-content:space-between; gap:20px; }
-    .block { font-size: 12px; color: #111; line-height:1.35; }
-    .company { font-size: 12px; color: #444; text-align:right; line-height:1.35; }
-    .small { font-size: 12px; color: #444; }
-    table { width: 100%; border-collapse: collapse; margin-top: 18px; }
-    td, th { border: 1px solid #ccc; padding: 8px; }
-    th { background: #f5f5f5; }
-    .right { text-align: right; }
-    .muted { color:#666; font-size:11px; }
-  </style>
-</head>
-<body>
+  // Inhalt (ohne <html>/<body>) – wird im Overlay gerendert
+  const html = `
+    <style>
+      .pdf-page{font-family: Arial, sans-serif; padding: 40px; color:#111; background:#fff;}
+      h1 { margin-top: 26px; }
+      .header { margin-bottom: 20px; display:flex; justify-content:space-between; gap:20px; }
+      .block { font-size: 12px; color: #111; line-height:1.35; }
+      .company { font-size: 12px; color: #444; text-align:right; line-height:1.35; }
+      .small { font-size: 12px; color: #444; }
+      table { width: 100%; border-collapse: collapse; margin-top: 18px; }
+      td, th { border: 1px solid #ccc; padding: 8px; }
+      th { background: #f5f5f5; }
+      .right { text-align: right; }
+      .muted { color:#666; font-size:11px; }
+    </style>
+    <div class="pdf-page">
+      <div class="header">
+        <div class="block">
+          ${recipient}<br>
+          <span class="muted">${recipientSub}</span>
+        </div>
+        <div class="company">
+          <strong>${escapeHtml(COMPANY.name)}</strong><br>
+          ${escapeHtml(COMPANY.owner)}<br>
+          ${escapeHtml(COMPANY.street)}<br>
+          ${escapeHtml(COMPANY.zipCity)}<br>
+          Tel: ${escapeHtml(COMPANY.phone)}<br>
+          ${escapeHtml(COMPANY.email)}<br>
+          ${COMPANY.tax?.vatId ? "USt-ID: " + escapeHtml(COMPANY.tax.vatId) + "<br>" : ""}
+          ${COMPANY.tax?.taxNumber ? "Steuernr.: " + escapeHtml(COMPANY.tax.taxNumber) + "<br>" : ""}
+        </div>
+      </div>
 
-  <div class="header">
-    <div class="block">
-      ${recipient}<br>
-      <span class="muted">${recipientSub}</span>
+      <h1>Rechnung</h1>
+      <p class="small">
+        <strong>Rechnungsnummer:</strong> ${escapeHtml(inv.invoiceNumber || "-")}<br>
+        <strong>Rechnungsdatum:</strong> ${new Date(inv.invoiceDate||Date.now()).toLocaleDateString("de-DE")}<br>
+        <strong>Leistungszeitraum:</strong> ${escapeHtml(inv.period?.from||"")} – ${escapeHtml(inv.period?.to||"")}
+      </p>
+
+      <table>
+        <tr>
+          <th>Position</th>
+          <th class="right">Betrag</th>
+        </tr>
+        <tr>
+          <td>Grundpreis (Betreuung)</td>
+          <td class="right">${Number(inv.pricing?.basePrice||0).toFixed(2)} €</td>
+        </tr>
+        ${inv.pricing?.holidayExtra && inv.pricing.holidayExtra>0 ? `
+        <tr>
+          <td>Feiertagszuschlag (10% • ${Number(inv.pricing?.holidayDays||0)} Tag(e))</td>
+          <td class="right">${Number(inv.pricing.holidayExtra||0).toFixed(2)} €</td>
+        </tr>` : ``}
+        <tr>
+          <td>Zuschlag prozentual</td>
+          <td class="right">${Number(inv.pricing?.percentExtra||0).toFixed(2)} €</td>
+        </tr>
+        <tr>
+          <td>Zuschlag fix</td>
+          <td class="right">${Number(inv.pricing?.fixedExtra||0).toFixed(2)} €</td>
+        </tr>
+        <tr>
+          <th>Gesamt</th>
+          <th class="right">${Number(inv.pricing?.total||0).toFixed(2)} €</th>
+        </tr>
+      </table>
+
+      <p class="small" style="margin-top:18px">
+        Bitte überweise den Rechnungsbetrag unter Angabe der Rechnungsnummer auf folgendes Konto:<br>
+        <strong>${escapeHtml(COMPANY.bank?.name || "")}</strong><br>
+        IBAN: ${escapeHtml(COMPANY.bank?.iban || "")}<br>
+        BIC: ${escapeHtml(COMPANY.bank?.bic || "")}<br>
+        <br>
+        Vielen Dank!
+      </p>
     </div>
-    <div class="company">
-      <strong>${COMPANY.name}</strong><br>
-      ${COMPANY.owner}<br>
-      ${COMPANY.street}<br>
-      ${COMPANY.zipCity}<br>
-      Tel: ${COMPANY.phone}<br>
-      ${COMPANY.email}<br>
-      ${COMPANY.tax.vatId ? "USt-ID: " + COMPANY.tax.vatId + "<br>" : ""}
-      ${COMPANY.tax.taxNumber ? "Steuernr.: " + COMPANY.tax.taxNumber + "<br>" : ""}
+  `;
+
+  openPdfOverlay("Rechnung " + (inv.invoiceNumber||""), html);
+}
+
+function ensurePdfOverlayStyles(){
+  if(document.getElementById("pdfOverlayStyles")) return;
+  const css = document.createElement("style");
+  css.id = "pdfOverlayStyles";
+  css.textContent = `
+    #pdfOverlay{
+      position:fixed; inset:0; z-index:99999;
+      display:none; flex-direction:column;
+      background: rgba(0,0,0,0.72);
+      backdrop-filter: blur(6px);
+    }
+    #pdfOverlay .pdfToolbar{
+      display:flex; gap:10px; align-items:center;
+      padding:10px 12px;
+      background: rgba(20,20,20,0.92);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      color:#fff;
+    }
+    #pdfOverlay .pdfToolbar .title{font-weight:700; margin-right:auto; opacity:0.95}
+    #pdfOverlay .pdfToolbar .btn{
+      border:1px solid rgba(255,255,255,0.18);
+      background: rgba(255,255,255,0.08);
+      color:#fff; padding:8px 10px; border-radius:10px;
+      font-size:13px;
+    }
+    #pdfOverlay .pdfToolbar .btn:active{transform:scale(0.98)}
+    #pdfOverlay .pdfBody{
+      flex:1; overflow:auto;
+      padding:18px;
+    }
+    #pdfOverlay .pdfSheet{
+      max-width: 980px;
+      margin:0 auto;
+      border-radius: 12px;
+      overflow:hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.55);
+      background:#fff;
+    }
+
+    /* Print: nur Sheet drucken, Toolbar & App ausblenden */
+    body.printOverlayActive > *:not(#pdfOverlay){ display:none !important; }
+    body.printOverlayActive #pdfOverlay{
+      position:static !important; inset:auto !important;
+      display:block !important;
+      background: transparent !important;
+      backdrop-filter:none !important;
+    }
+    body.printOverlayActive #pdfOverlay .pdfToolbar{ display:none !important; }
+    body.printOverlayActive #pdfOverlay .pdfBody{ padding:0 !important; overflow:visible !important; }
+    body.printOverlayActive #pdfOverlay .pdfSheet{
+      max-width: none !important;
+      margin:0 !important;
+      border-radius:0 !important;
+      box-shadow:none !important;
+    }
+  `;
+  document.head.appendChild(css);
+
+  // Overlay DOM einmalig anlegen
+  const wrap = document.createElement("div");
+  wrap.id = "pdfOverlay";
+  wrap.innerHTML = `
+    <div class="pdfToolbar">
+      <div class="title">PDF</div>
+      <button class="btn" id="pdfOverlayPrint">Drucken</button>
+      <button class="btn" id="pdfOverlayClose">Zurück</button>
     </div>
-  </div>
+    <div class="pdfBody">
+      <div class="pdfSheet" id="pdfOverlayContent"></div>
+    </div>
+  `;
+  document.body.appendChild(wrap);
 
-  <h1>Rechnung</h1>
-  <p class="small">
-    <strong>Rechnungsnummer:</strong> ${inv.invoiceNumber || "-"}<br>
-    <strong>Rechnungsdatum:</strong> ${new Date(inv.invoiceDate||Date.now()).toLocaleDateString("de-DE")}<br>
-    <strong>Leistungszeitraum:</strong> ${escapeHtml(inv.period?.from||"")} – ${escapeHtml(inv.period?.to||"")}
-  </p>
+  // Close
+  document.getElementById("pdfOverlayClose").onclick = closePdfOverlay;
 
-  <table>
-    <tr>
-      <th>Position</th>
-      <th class="right">Betrag</th>
-    </tr>
-    <tr>
-      <td>Grundpreis</td>
-      <td class="right">${inv.pricing.basePrice.toFixed(2)} €</td>
-    </tr>
-    ${inv.pricing.holidayExtra && inv.pricing.holidayExtra>0 ? `
-    <tr>
-      <td>Feiertagszuschlag (10% • ${inv.pricing.holidayDays||0} Tag(e))</td>
-      <td class="right">${inv.pricing.holidayExtra.toFixed(2)} €</td>
-    </tr>` : ``}
+  // Print (in derselben App)
+  document.getElementById("pdfOverlayPrint").onclick = ()=>{
+    try{
+      document.body.classList.add("printOverlayActive");
+      window.print();
+      // afterprint ist nicht überall zuverlässig (iOS), daher zusätzlich timeout
+      setTimeout(()=>document.body.classList.remove("printOverlayActive"), 800);
+    }catch(e){
+      document.body.classList.remove("printOverlayActive");
+      alert("Drucken ist auf diesem Gerät nicht verfügbar.");
+    }
+  };
 
-    <tr>
-      <td>Zuschläge (%)</td>
-      <td class="right">${inv.pricing.percentExtra.toFixed(2)} €</td>
-    </tr>
-    <tr>
-      <td>Zuschläge (fix)</td>
-      <td class="right">${inv.pricing.fixedExtra.toFixed(2)} €</td>
-    </tr>
-    <tr>
-      <th>Gesamt</th>
-      <th class="right">${inv.pricing.total.toFixed(2)} €</th>
-    </tr>
-  </table>
+  // ESC zum Schließen (Desktop)
+  window.addEventListener("keydown", (ev)=>{
+    if(ev.key === "Escape"){
+      const ov = document.getElementById("pdfOverlay");
+      if(ov && ov.style.display === "flex") closePdfOverlay();
+    }
+  });
+}
 
-  <p class="small" style="margin-top:18px">
-    Bitte überweise den Rechnungsbetrag unter Angabe der Rechnungsnummer auf folgendes Konto:<br>
-    <strong>${COMPANY.bank.name}</strong><br>
-    IBAN: ${COMPANY.bank.iban}<br>
-    BIC: ${COMPANY.bank.bic}<br>
-    <br>
-    Vielen Dank!
-  </p>
+function openPdfOverlay(title, html){
+  ensurePdfOverlayStyles();
+  const ov = document.getElementById("pdfOverlay");
+  const t = ov.querySelector(".title");
+  const c = document.getElementById("pdfOverlayContent");
+  if(t) t.textContent = title || "PDF";
+  if(c) c.innerHTML = html || "";
+  ov.style.display = "flex";
+  // Scroll nach oben
+  const body = ov.querySelector(".pdfBody");
+  if(body) body.scrollTop = 0;
+}
 
-  <script>
-    window.print();
-    window.onafterprint = () => window.close();
-  </script>
-
-</body>
-</html>
-  `);
-
-  w.document.close();
+function closePdfOverlay(){
+  const ov = document.getElementById("pdfOverlay");
+  if(!ov) return;
+  ov.style.display = "none";
+  const c = document.getElementById("pdfOverlayContent");
+  if(c) c.innerHTML = "";
+  document.body.classList.remove("printOverlayActive");
 }
 function loadState(){try{const raw=localStorage.getItem(LS_KEY);return raw?JSON.parse(raw):{dogs:[],docs:[]};}catch{return {dogs:[],docs:[]};}}
 function saveState(){
