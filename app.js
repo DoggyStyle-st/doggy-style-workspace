@@ -1905,6 +1905,27 @@ function mapInvoiceStatusLabel(status){
   if(s==='draft' || s==='entwurf') return 'Entwurf';
   return status || '—';
 }
+
+
+function getInvoiceStatusColor(status){
+  const s = normalizeInvoiceStatus(status);
+  if(s==='paid') return '#34c759';
+  if(s==='open') return '#f5b62e';
+  if(s==='cancelled') return '#ff3b30';
+  return '#8e8e93'; // draft/unknown
+}
+
+function renderInvoiceStatusBadge(status){
+  const s = normalizeInvoiceStatus(status);
+  const label = mapInvoiceStatusLabel(s);
+  const color = getInvoiceStatusColor(s);
+  return (
+    `<span style="display:inline-flex;align-items:center;gap:6px;">`+
+    `<span style="width:10px;height:10px;border-radius:50%;background:${color};display:inline-block;"></span>`+
+    `<span>${escapeHtml(label)}</span>`+
+    `</span>`
+  );
+}
 function formatPeriodDE(fromIso,toIso){
   const a = formatDateDE(fromIso);
   const b = formatDateDE(toIso);
@@ -3594,7 +3615,14 @@ function exportHygienePDF(){
     table{width:100%;border-collapse:collapse; font-size:12px}
     th,td{border:1px solid #ccc; padding:8px; vertical-align:top}
     th{background:#f3f3f3}
-  </style></head><body>
+  
+        @media print { .no-print { display:none !important; } }
+      </style></head><body>
+      <div class="no-print" style="position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid #ddd;padding:10px;display:flex;gap:10px;align-items:center;">
+        <button onclick="window.close()" style="padding:8px 12px;">Zurück</button>
+        <button onclick="window.print()" style="padding:8px 12px;">Drucken / PDF</button>
+        <span style="margin-left:auto;color:#666;font-size:12px;">Rechnung</span>
+      </div>
   <h1>Hygiene- und Reinigungsnachweis</h1>
   <p class="muted">Hundepension Doggy Style – Angelika &amp; Raphael Boch · Zeitraum: ${start.toLocaleDateString('de-DE')} – ${end.toLocaleDateString('de-DE')}</p>
   <table>
@@ -6613,7 +6641,7 @@ function renderInvoiceList(){
             <td>${escapeHtml((resolveInvoiceParties(inv).cust?.name || resolveInvoiceParties(inv).legacyDog?.owner || "—"))} · ${escapeHtml((resolveInvoiceParties(inv).pet?.name || resolveInvoiceParties(inv).legacyDog?.name || "—"))}</td>
             <td>${escapeHtml(inv.period?.from||"")} – ${escapeHtml(inv.period?.to||"")}</td>
             <td>${(inv.pricing?.total||0).toFixed(2)} €</td>
-            <td>${escapeHtml(inv.status||"")}</td>
+            <td>${renderInvoiceStatusBadge(inv.status||"")}</td>
           </tr>
         `).join("")}
       </tbody>
@@ -6645,7 +6673,7 @@ function openInvoice(id){
       <p class="muted" style="margin-top:6px">
         <strong>Nr.:</strong> ${escapeHtml(inv.invoiceNumber||"-")} ·
         <strong>Datum:</strong> ${escapeHtml(new Date(inv.invoiceDate||Date.now()).toLocaleDateString("de-DE"))} ·
-        <strong>Status:</strong> ${escapeHtml(inv.status||"")}
+        <strong>Status:</strong> ${renderInvoiceStatusBadge(inv.status||"")}
       </p>
 
       <p><strong>Kunde:</strong> ${custLine}<br>
@@ -6877,9 +6905,20 @@ function printInvoice(id){
     th { background: #f5f5f5; }
     .right { text-align: right; }
     .muted { color:#666; font-size:11px; }
+    .no-print { position: sticky; top: 0; background: #fff; padding: 10px 0 14px; margin-bottom: 10px; display:flex; justify-content:space-between; align-items:center; gap:12px; border-bottom: 1px solid #ddd; }
+    .no-print button { padding: 8px 12px; font-size: 14px; }
+    @media print { .no-print { display:none; } body { padding: 20px; } }
   </style>
 </head>
 <body>
+
+  <div class="no-print">
+    <div>
+      <button onclick="window.close()">Zurück</button>
+      <button onclick="window.print()">Drucken</button>
+    </div>
+    <div style="font-size:12px;color:#666">Rechnung ${inv.invoiceNumber || ''}</div>
+  </div>
 
   <div class="header">
     <div class="block">
@@ -6887,6 +6926,7 @@ function printInvoice(id){
       <span class="muted">${recipientSub}</span>
     </div>
     <div class="company">
+      <div style="margin-bottom:8px"><img src="assets/logo.png" alt="Logo" style="height:56px; width:auto;"></div>
       <strong>${COMPANY.name}</strong><br>
       ${COMPANY.owner}<br>
       ${COMPANY.street}<br>
@@ -6943,10 +6983,7 @@ function printInvoice(id){
     Vielen Dank!
   </p>
 
-  <script>
-    window.print();
-    window.onafterprint = () => window.close();
-  </script>
+  
 
 </body>
 </html>
