@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = 'M15F6D_RECOVER_DASH_HYGIENE_20260130';
+const APP_BUILD = 'M15F6B_RECOVER_20260130';
 
 // --- Build-Sync (Anzeige + Migration) ---
 (function syncBuildBadge(){
@@ -2218,9 +2218,7 @@ function dashboardStatusColor(ratio){
 }
 
 function renderDashboard(){
-  
-  ensureStateShape();
-// Dashboard elements exist only on Start screen (home)
+  // Dashboard elements exist only on Start screen (home)
   const elDayVal = document.getElementById("todayDaycareValue");
   const elBoardVal = document.getElementById("todayBoardingValue");
   const elForecast = document.getElementById("forecastList");
@@ -5468,52 +5466,180 @@ function initProfiSettingsBindings(){
 }
 
 function ensureStateShape(){
-  // Defensive shape guard to keep UI stable even after partial / older backups.
-  if(!state || typeof state !== 'object') state = {};
+  if(!state || typeof state!=='object') state = {dogs:[], docs:[]};
+  if(!Array.isArray(state.dogs)) state.dogs=[];
+  if(!Array.isArray(state.docs)) state.docs=[];
+  // meta containers
+  if(!state.meta || typeof state.meta!=='object') state.meta={};
+  if(!state.meta.pricing || typeof state.meta.pricing!=='object') state.meta.pricing={};
+  if(!state.meta.pricing.vatPercent) state.meta.pricing.vatPercent = 19;
+  if(!state.meta.pricing.pricePerDayDaycare && state.meta.pricing.pricePerDayDaycare!==0) state.meta.pricing.pricePerDayDaycare = '';
+  if(!state.meta.pricing.pricePerDayVacation && state.meta.pricing.pricePerDayVacation!==0) state.meta.pricing.pricePerDayVacation = '';
+}
+catch(_){ }
 
-  if(!Array.isArray(state.dogs)) state.dogs = [];
-  if(!Array.isArray(state.docs)) state.docs = [];
+  state.dogs = Array.isArray(state.dogs) ? state.dogs : [];
+  state.docs = Array.isArray(state.docs) ? state.docs : [];
 
-  // invoices / accounting (may be absent in older backups)
-  if(!Array.isArray(state.invoices)) state.invoices = [];
-  if(!Array.isArray(state.invoiceRuns)) state.invoiceRuns = [];
-  if(!Array.isArray(state.worklogs)) state.worklogs = [];
+  state.customers = Array.isArray(state.customers) ? state.customers : [];
+  state.pets = Array.isArray(state.pets) ? state.pets : [];
+  state.stays = Array.isArray(state.stays) ? state.stays : [];
+  state.worklogs = Array.isArray(state.worklogs) ? state.worklogs : [];
+  state.invoices = Array.isArray(state.invoices) ? state.invoices : [];
 
-  // capacity settings (fallback to business defaults)
-  if(!state.capacities || typeof state.capacities !== 'object') state.capacities = {};
-  if(typeof state.capacities.dayMax !== 'number') state.capacities.dayMax = 13;
-  if(typeof state.capacities.overnightMax !== 'number') state.capacities.overnightMax = 10;
-  if(!state.capacities.exceptions || typeof state.capacities.exceptions !== 'object') state.capacities.exceptions = {};
+  // Hygiene & Reinigung
+  if(!state.hygiene || typeof state.hygiene !== "object") state.hygiene = {};
+  state.hygiene.logs = Array.isArray(state.hygiene.logs) ? state.hygiene.logs : [];
+  state.hygiene.weeklyTasks = Array.isArray(state.hygiene.weeklyTasks) ? state.hygiene.weeklyTasks : [];
+  state.hygiene.monthlyTasks = Array.isArray(state.hygiene.monthlyTasks) ? state.hygiene.monthlyTasks : [];
+  state.hygiene.staffPresets = Array.isArray(state.hygiene.staffPresets) ? state.hygiene.staffPresets : ["Raphael","Anschi"];
+  // Sync Presets mit Mitarbeiterliste (Raphael/Anschi + weitere)
+  try{ state.hygiene.staffPresets = uniq([...(state.hygiene.staffPresets||[]), ...getActiveStaffNames()]); }catch(_){ }
+  // UI preferences
+  if(!state.hygiene.ui || typeof state.hygiene.ui !== "object") state.hygiene.ui = {};
+  if(typeof state.hygiene.ui.pendingOnly !== "boolean") state.hygiene.ui.pendingOnly = false;
+  // Restore filter preference from localStorage (optional)
+  try{
+    const v = localStorage.getItem('dstest_hyg_pendingOnly');
+    if(v === 'true') state.hygiene.ui.pendingOnly = true;
+    if(v === 'false') state.hygiene.ui.pendingOnly = false;
+  }catch(e){}
 
-  // pricing settings
-  if(!state.prices || typeof state.prices !== 'object') state.prices = {};
-  if(!state.prices.tagesbetreuung || typeof state.prices.tagesbetreuung !== 'object') state.prices.tagesbetreuung = {};
-  if(!state.prices.urlaubsbetreuung || typeof state.prices.urlaubsbetreuung !== 'object') state.prices.urlaubsbetreuung = {};
 
-  // hygiene module
-  if(!state.hygiene || typeof state.hygiene !== 'object') state.hygiene = {};
-  if(!Array.isArray(state.hygiene.weeklyTasks)) state.hygiene.weeklyTasks = [];
-  if(!Array.isArray(state.hygiene.monthlyTasks)) state.hygiene.monthlyTasks = [];
-  if(!Array.isArray(state.hygiene.logs)) state.hygiene.logs = [];
-  if(!Array.isArray(state.hygiene.quick)) state.hygiene.quick = [];
-  if(!state.hygiene.staffPresets || typeof state.hygiene.staffPresets !== 'object') state.hygiene.staffPresets = {};
-  if(!state.hygiene.ui || typeof state.hygiene.ui !== 'object') state.hygiene.ui = {};
 
-  // medication module
-  if(!state.meds || typeof state.meds !== 'object') state.meds = {};
-  if(!Array.isArray(state.meds.items)) state.meds.items = [];
-  if(!Array.isArray(state.meds.logs)) state.meds.logs = [];
+  // Default Wochen- & Monatsaufgaben (nur einmal anlegen / Migration)
+  const _defaultWeekly = [
+    { id: "wk_runs_deepclean", title: "Grundreinigung Ausläufe / Laufwege", intervalDays: 7, lastDone: null, area:"Außenbereich" },
+    { id: "wk_outdoor_disinfect", title: "Desinfektion Außenbereich (kontaktintensive Zonen)", intervalDays: 7, lastDone: null, area:"Außenbereich" },
+    { id: "wk_indoor_disinfect_touch", title: "Desinfektion Kontaktflächen innen (Griffe, Türen, Gitter)", intervalDays: 7, lastDone: null, area:"Innenräume" },
+    { id: "wk_laundry_filter", title: "Waschmaschine/Trockner: Siebe/Filter reinigen", intervalDays: 7, lastDone: null, area:"Innenräume" },
+    { id: "wk_quarantine_zone", title: "Quarantänezone: Kontrolle & Reinigung", intervalDays: 7, lastDone: null, area:"Innenräume" }
+  ];
+  const _defaultMonthly = [
+    { id: "mo_indoor_deep", title: "Grunddesinfektion Innenräume (Böden, Wände bis Griffhöhe)", intervalDays: 30, lastDone: null, area:"Innenräume" },
+    { id: "mo_inventory_wash", title: "Inventar: Decken/Körbe komplett waschen/tauschen", intervalDays: 30, lastDone: null, area:"Innenräume" },
+    { id: "mo_stock_check", title: "Bestände prüfen/auffüllen (Reiniger, Desinfektion, Einmalhandschuhe)", intervalDays: 30, lastDone: null, area:"Innenräume" },
+    { id: "mo_pest_check", title: "Schädlingsmonitoring / Köderstationen prüfen", intervalDays: 30, lastDone: null, area:"Außenbereich", mode:"pest", lastOutcome:null, lastOutcomeAt:null }
+  ];
 
-  // UI meta
-  if(!state.ui || typeof state.ui !== 'object') state.ui = {};
+  // Wochenaufgaben: wenn leer → Defaults; wenn exakt alte 4 Defaults → migrieren
+  if(state.hygiene.weeklyTasks.length === 0){
+    state.hygiene.weeklyTasks = _defaultWeekly;
+  } else {
+    try{
+      const ids = (state.hygiene.weeklyTasks||[]).map(t=>t && t.id).filter(Boolean);
+      const oldIds = ["wk_outdoor_disinfect","wk_runs_deepclean","wk_toilet_areas","wk_quarantine_zone"];
+      const isOldDefault = ids.length===oldIds.length && oldIds.every(x=>ids.includes(x));
+      if(isOldDefault){
+        // lastDone übernehmen, soweit vorhanden
+        const map = Object.fromEntries((state.hygiene.weeklyTasks||[]).map(t=>[t.id,t]));
+        state.hygiene.weeklyTasks = _defaultWeekly.map(d=>({ ...d, lastDone: map[d.id]?.lastDone || null }));
+      }
+    }catch(_){ }
+  }
 
-  // Normalize docs: ensure meta exists so dashboard math never explodes
-  for(const d of state.docs){
-    if(!d || typeof d !== 'object') continue;
-    if(!d.meta || typeof d.meta !== 'object') d.meta = {};
+  // Monatsaufgaben
+  if(state.hygiene.monthlyTasks.length === 0){
+    state.hygiene.monthlyTasks = _defaultMonthly;
+  }
+
+
+  // Medikamente & Gesundheit
+  if(!state.medication || typeof state.medication !== "object") state.medication = {};
+  state.medication.plans = Array.isArray(state.medication.plans) ? state.medication.plans : [];
+  state.medication.records = Array.isArray(state.medication.records) ? state.medication.records : [];
+  state.medication.healthNotes = Array.isArray(state.medication.healthNotes) ? state.medication.healthNotes : [];
+  state.medication.staffPresets = Array.isArray(state.medication.staffPresets) ? state.medication.staffPresets : ["Raphael","Anschi"];
+
+  // Presets mit aktuiver Mitarbeiterliste synchronisieren (Raphael/Anschi fest, weitere aus Einstellungen)
+  try{
+    const names = getActiveStaffNames();
+    state.hygiene.staffPresets = uniq([...(state.hygiene.staffPresets||[]), ...names]);
+    state.medication.staffPresets = uniq([...(state.medication.staffPresets||[]), ...names]);
+  }catch(_){ }
+  try{ state.medication.staffPresets = uniq([...(state.medication.staffPresets||[]), ...getActiveStaffNames()]); }catch(_){ }
+  if(!state.medication.ui || typeof state.medication.ui !== "object") state.medication.ui = {};
+  if(typeof state.medication.ui.pendingOnly !== "boolean") state.medication.ui.pendingOnly = false;
+  if(typeof state.medication.ui.selectedPetId !== "string") state.medication.ui.selectedPetId = "";
+  try{
+    const v = localStorage.getItem('dstest_med_pendingOnly');
+    if(v === 'true') state.medication.ui.pendingOnly = true;
+    if(v === 'false') state.medication.ui.pendingOnly = false;
+  }catch(e){}
+
+  
+  // Mitarbeiter (global) – Voreinstellung: Raphael & Anschi
+  if(!state.staff || typeof state.staff !== "object") state.staff = {};
+  state.staff.people = Array.isArray(state.staff.people) ? state.staff.people : [];
+  if(!Array.isArray(state.staff.presets)) state.staff.presets = ["Raphael","Anschi"];
+  // Ensure presets always included as active people
+  const ensurePerson = (name)=>{
+    if(!name) return;
+    const exists = state.staff.people.find(p=>p && p.name===name);
+    if(!exists) state.staff.people.push({ id: uid("stf"), name, active: true, createdAt: Date.now() });
+    else if(exists && typeof exists.active !== "boolean") exists.active = true;
+  };
+  state.staff.presets.forEach(ensurePerson);
+  // Backward-compat: keep hygiene/medication presets in sync
+  if(!state.hygiene.staffPresets || !Array.isArray(state.hygiene.staffPresets)) state.hygiene.staffPresets = ["Raphael","Anschi"];
+  if(!state.medication.staffPresets || !Array.isArray(state.medication.staffPresets)) state.medication.staffPresets = ["Raphael","Anschi"];
+  // Merge unique presets
+  const mergedPresets = Array.from(new Set([...(state.staff.presets||[]), ...(state.hygiene.staffPresets||[]), ...(state.medication.staffPresets||[])]));
+  state.staff.presets = mergedPresets;
+  state.hygiene.staffPresets = mergedPresets;
+  state.medication.staffPresets = mergedPresets;
+
+  // Compliance / Versionierung
+  if(!state.compliance || typeof state.compliance !== "object") state.compliance = {};
+  if(!state.compliance.docs || typeof state.compliance.docs !== "object") state.compliance.docs = {};
+  const _nowISO = toISODateLocal(new Date());
+  const ensureDoc = (key, title)=>{
+    if(!state.compliance.docs[key] || typeof state.compliance.docs[key] !== "object"){
+      state.compliance.docs[key] = { title, version: "1.0", lastChanged: _nowISO, history: [] };
+    }else{
+      if(!state.compliance.docs[key].title) state.compliance.docs[key].title = title;
+      if(!state.compliance.docs[key].version) state.compliance.docs[key].version = "1.0";
+      if(!state.compliance.docs[key].lastChanged) state.compliance.docs[key].lastChanged = _nowISO;
+      if(!Array.isArray(state.compliance.docs[key].history)) state.compliance.docs[key].history = [];
+    }
+  };
+  ensureDoc("hygiene", "Hygieneplan");
+  ensureDoc("brand", "Brandfall- & Evakuierungskonzept");
+  ensureDoc("notfall", "Notfallplan");
+  ensureDoc("contract", "Betreuungsvertrag");
+  state.compliance.monthClosings = Array.isArray(state.compliance.monthClosings) ? state.compliance.monthClosings : [];
+
+state._legacy = (state._legacy && typeof state._legacy === "object") ? state._legacy : {};
+  state._legacy.dogIdToCustomerId = (state._legacy.dogIdToCustomerId && typeof state._legacy.dogIdToCustomerId === "object") ? state._legacy.dogIdToCustomerId : {};
+  state._legacy.dogIdToPetId = (state._legacy.dogIdToPetId && typeof state._legacy.dogIdToPetId === "object") ? state._legacy.dogIdToPetId : {};
+  state._legacy.docIdToStayId = (state._legacy.docIdToStayId && typeof state._legacy.docIdToStayId === "object") ? state._legacy.docIdToStayId : {};
+  state._legacy.docIdToInvoiceId = (state._legacy.docIdToInvoiceId && typeof state._legacy.docIdToInvoiceId === "object") ? state._legacy.docIdToInvoiceId : {};
+
+  // Vertrag
+  state.contract = (state.contract && typeof state.contract === "object") ? state.contract : null;
+  // Vertrags-Unterschriften: akzeptiere Map (neues Format) oder Array (Legacy).
+  // NICHT auf Array zuruecksetzen, sonst gehen Map-Signaturen verloren.
+  state.contractSignatures = (Array.isArray(state.contractSignatures) || (state.contractSignatures && typeof state.contractSignatures === 'object')) ? state.contractSignatures : {};
+
+  // Rechnungsnummer beibehalten
+  if(typeof state.nextInvoiceNumber !== "number"){
+    state.nextInvoiceNumber = 1;
+  }
+  // Kapazitäten (dynamisch nach Zeitraum, rückwirkend) – Standard + Ausnahmen
+  if(!state.capacities || typeof state.capacities !== "object"){
+    state.capacities = {
+      default: { Tagesbetreuung: CAPACITY.Tagesbetreuung, Urlaubsbetreuung: CAPACITY.Urlaubsbetreuung },
+      exceptions: []
+    };
+  } else {
+    if(!state.capacities.default || typeof state.capacities.default !== "object"){
+      state.capacities.default = { Tagesbetreuung: CAPACITY.Tagesbetreuung, Urlaubsbetreuung: CAPACITY.Urlaubsbetreuung };
+    }
+    if(!Array.isArray(state.capacities.exceptions)) state.capacities.exceptions = [];
+    if(typeof state.capacities.default.Tagesbetreuung !== "number") state.capacities.default.Tagesbetreuung = CAPACITY.Tagesbetreuung;
+    if(typeof state.capacities.default.Urlaubsbetreuung !== "number") state.capacities.default.Urlaubsbetreuung = CAPACITY.Urlaubsbetreuung;
   }
 }
-
 
 
 function ensureContractDefaults(){
@@ -7338,6 +7464,49 @@ function printInvoice(id){
   w.document.close();
 }
 function loadState(){try{const raw=localStorage.getItem(LS_KEY);return raw?JSON.parse(raw):{dogs:[],docs:[]};}catch{return {dogs:[],docs:[]};}}
+
+// ------------------------------------------------------------
+// Recovery: fehlende Dokument-Hilfsfunktionen
+// (in manchen Builds wurden diese Helpers versehentlich entfernt)
+// ------------------------------------------------------------
+
+function getDoc(id){
+  return (state.docs||[]).find(d=>d && d.id===id);
+}
+
+function getDocumentVersions(doc){
+  if(!doc) return [];
+
+  // Wenn das Dokument explizit Versionsdaten enthält
+  if(Array.isArray(doc.versions) && doc.versions.length){
+    return doc.versions.map(v=>({
+      ...v,
+      id: v.id || v.docId || v._id,
+      label: v.label || (v.updatedAt ? `Version ${formatDateTime(v.updatedAt)}` : (v.id||v.docId||'Version'))
+    })).filter(v=>v.id);
+  }
+
+  // Heuristik: finde weitere Dokumente, die zur selben Basis gehören
+  const baseId = doc.baseId || doc.rootId || doc.versionOf || doc.docId || doc.id;
+  const list = (state.docs||[])
+    .filter(d=>d && (d.id===baseId || d.versionOf===baseId || d.docId===baseId || d.baseId===baseId || d.rootId===baseId));
+
+  // sicherstellen, dass das aktuelle Dokument enthalten ist
+  if(!list.some(d=>d && d.id===doc.id)) list.push(doc);
+
+  // sortiert nach updatedAt (neueste zuerst)
+  list.sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+
+  if(list.length===1){
+    const only = list[0];
+    return [{ ...only, label: 'Nur diese Version vorhanden.' }];
+  }
+
+  return list.map(d=>({
+    ...d,
+    label: d.label || (d.updatedAt ? `Version ${formatDateTime(d.updatedAt)}` : d.id)
+  }));
+}
 function saveState(){
   try{
     state._localUpdatedAt = Date.now();
