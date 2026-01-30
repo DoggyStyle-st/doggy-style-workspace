@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = 'M13_3A_PRICING_FROM_STAY_20260130';
+const APP_BUILD = 'M13_3A1_PRICING_MAPPING_20260130';
 
 // --- Build-Sync (Anzeige + Migration) ---
 (function syncBuildBadge(){
@@ -1795,6 +1795,17 @@ function updateAutoHolidayFields(){
 }
 
 
+
+function normalizeBetreuung(type){
+  if(!type) return type;
+  const s = String(type).trim();
+  const l = s.toLowerCase();
+  if(l === "urlaubsbetreuung") return "Urlaubsbetreuung";
+  if(l === "tagesbetreuung") return "Tagesbetreuung";
+  // allow already-normalized values
+  return s;
+}
+
 function getPricePerDay(type, days){
   const rules = PRICE_RULES[type] || [];
   for(const r of rules){
@@ -1812,7 +1823,7 @@ function calculateInvoicePricing(doc){
   }
 
   const days = daysBetween(meta.von, meta.bis);
-  const daily = getPricePerDay(meta.betreuung, days);
+  const daily = getPricePerDay(normalizeBetreuung(meta.betreuung), days);
   const base = days * daily;
 
   // Feiertags-Zuschlag: nur auf Feiertags-TAGE im Zeitraum, nicht auf den gesamten Aufenthalt
