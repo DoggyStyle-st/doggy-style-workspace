@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = 'M13_3A1_PRICING_MAPPING_20260130';
+const APP_BUILD = 'M13_3B_SURCHARGE_BREAKDOWN_20260130';
 
 // --- Build-Sync (Anzeige + Migration) ---
 (function syncBuildBadge(){
@@ -1881,30 +1881,43 @@ function syncInvoicePricingFromDoc(inv, doc){
   inv.pricing = inv.pricing || { basePrice:0, percentExtra:0, fixedExtra:0, total:0 };
 
   const basePrice = round2(p.base || 0);
-  // Prozentwerte (auf Basis) + Feiertagswert (separat berechnet) => als "prozentualer Zuschlag" Wert geführt
-  const percentExtraValue = round2((p.percentValue || 0) + (p.holidayValue || 0));
-  const fixedExtra = round2(p.fixedExtra || 0);
-  const total = round2(basePrice + percentExtraValue + fixedExtra);
+  const percentRate = round2(p.percentExtra || 0);         // %
+  const percentValue = round2(p.percentValue || 0);        // €
+  const holidayDays = Number(p.holidayDays || 0);
+  const holidayExtra = round2(p.holidayValue || 0);        // €
+  const fixedExtra = round2(p.fixedExtra || 0);            // €
+  const total = round2(basePrice + percentValue + holidayExtra + fixedExtra);
 
   const changed =
     round2(inv.pricing.basePrice) !== basePrice ||
-    round2(inv.pricing.percentExtra) !== percentExtraValue ||
+    round2(inv.pricing.percentExtra) !== percentValue ||
     round2(inv.pricing.fixedExtra) !== fixedExtra ||
-    round2(inv.pricing.total) !== total;
+    round2(inv.pricing.total) !== total ||
+    round2(inv.pricing.holidayExtra||0) !== holidayExtra ||
+    Number(inv.pricing.holidayDays||0) !== holidayDays ||
+    round2(inv.pricing.percentRate||0) !== percentRate;
 
   inv.pricing.basePrice = basePrice;
-  inv.pricing.percentExtra = percentExtraValue;
+
+  // UI/PDF: Prozent-Zuschlag ohne Feiertage (Feiertage separat)
+  inv.pricing.percentExtra = percentValue;   // €-Wert (nur Prozent-Aufschläge)
+  inv.pricing.percentRate = percentRate;     // %-Summe (z.B. 10/20)
+
+  // Feiertage separat aufschlüsseln
+  inv.pricing.holidayDays = holidayDays;
+  inv.pricing.holidayExtra = holidayExtra;
+
   inv.pricing.fixedExtra = fixedExtra;
   inv.pricing.total = total;
 
-  // Zusatzinfos (für spätere UI/PDF-Erweiterung, harmless)
+  // Zusatzinfos (harmless, falls später gebraucht)
   inv.pricing._calc = {
     days: p.days,
     daily: p.daily,
-    percentExtra: p.percentExtra,
-    percentValue: p.percentValue,
-    holidayDays: p.holidayDays,
-    holidayValue: p.holidayValue
+    percentRate: percentRate,
+    percentValue: percentValue,
+    holidayDays: holidayDays,
+    holidayExtra: holidayExtra
   };
 
   // Zeitraum aus Aufenthalt synchron halten (falls nachträglich geändert)
@@ -6831,6 +6844,36 @@ function openOrCreateInvoiceForDocId(docId){
   }
 }
 
+
+function renderInvoicePositions(inv){
+  const p = inv?.pricing || {};
+  const base = Number(p.basePrice||0);
+  const pr = Number(p.percentRate||0);
+  const pv = Number(p.percentExtra||0); // €-Wert
+  const hd = Number(p.holidayDays||0);
+  const hv = Number(p.holidayExtra||0);
+  const fx = Number(p.fixedExtra||0);
+
+  const rows = [];
+  rows.push(`<p><strong>Position:</strong> Grundpreis (Betreuung): ${base.toFixed(2)} €</p>`);
+
+  if(hv > 0){
+    const tag = hd === 1 ? "Tag" : "Tage";
+    rows.push(`<p><strong>Position:</strong> Feiertagszuschlag (10% · ${hd} ${tag}): ${hv.toFixed(2)} €</p>`);
+  }
+
+  if(pv > 0){
+    const rateTxt = pr > 0 ? ` (${pr.toFixed(0)}%)` : "";
+    rows.push(`<p><strong>Position:</strong> Zuschlag prozentual${rateTxt}: ${pv.toFixed(2)} €</p>`);
+  }
+
+  if(fx > 0){
+    rows.push(`<p><strong>Position:</strong> Zuschlag fix: ${fx.toFixed(2)} €</p>`);
+  }
+
+  // Wenn alles außer Grundpreis 0 ist, zeigen wir die 0-Zeilen nicht mehr (aufgeräumt).
+  return rows.join("\n");
+}
 function openInvoice(id){
   const inv = getInvoiceById(id);
   if(!inv) return;
@@ -6872,10 +6915,7 @@ function openInvoice(id){
       <p><strong>Zeitraum:</strong>
         ${escapeHtml(inv.period?.from||"")} – ${escapeHtml(inv.period?.to||"")}
       </p>
-
-      <p><strong>Position:</strong> Grundpreis (Betreuung): ${inv.pricing.basePrice.toFixed(2)} €</p>
-      <p><strong>Position:</strong> Zuschlag prozentual: ${inv.pricing.percentExtra.toFixed(2)} €</p>
-      <p><strong>Position:</strong> Zuschlag fix: ${inv.pricing.fixedExtra.toFixed(2)} €</p>
+      ${renderInvoicePositions(inv)}
 
       <hr>
       <h3 style="margin:10px 0 8px">Gesamt: ${inv.pricing.total.toFixed(2)} €</h3>
@@ -7142,14 +7182,16 @@ function printInvoice(id){
           <td>Feiertagszuschlag (10% • ${Number(inv.pricing?.holidayDays||0)} Tag(e))</td>
           <td class="right">${Number(inv.pricing.holidayExtra||0).toFixed(2)} €</td>
         </tr>` : ``}
+        ${Number(inv.pricing?.percentExtra||0)>0 ? `
         <tr>
-          <td>Zuschlag prozentual</td>
+          <td>Zuschlag prozentual${Number(inv.pricing?.percentRate||0)>0 ? ` (${Number(inv.pricing.percentRate||0).toFixed(0)}%)` : ``}</td>
           <td class="right">${Number(inv.pricing?.percentExtra||0).toFixed(2)} €</td>
-        </tr>
+        </tr>` : ``}
+        ${Number(inv.pricing?.fixedExtra||0)>0 ? `
         <tr>
           <td>Zuschlag fix</td>
           <td class="right">${Number(inv.pricing?.fixedExtra||0).toFixed(2)} €</td>
-        </tr>
+        </tr>` : ``}
         <tr>
           <th>Gesamt</th>
           <th class="right">${Number(inv.pricing?.total||0).toFixed(2)} €</th>
