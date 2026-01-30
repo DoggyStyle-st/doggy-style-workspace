@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = 'M15F6B_RECOVER_20260130';
+const APP_BUILD = "M15F6C_RECOVER_20260130";
 
 // --- Build-Sync (Anzeige + Migration) ---
 (function syncBuildBadge(){
