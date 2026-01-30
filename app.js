@@ -6576,6 +6576,31 @@ function formatCustomerAddress(cust){
   return [street, city, country].filter(Boolean).join(', ');
 }
 
+
+// --- 2C: Rechnung UI (Deutsch, Status-Badge, Positionsbezeichnungen) -----------
+function invoiceStatusLabel(status){
+  const s = String(status||"").toLowerCase().trim();
+  if(s==="draft" || s==="entwurf") return "Entwurf";
+  if(s==="open" || s==="offen") return "Offen";
+  if(s==="paid" || s==="bezahlt") return "Bezahlt";
+  if(s==="cancelled" || s==="storniert" || s==="canceled") return "Storniert";
+  if(!s) return "—";
+  return status; // fallback
+}
+function invoiceStatusStyle(status){
+  const s = String(status||"").toLowerCase().trim();
+  // Farben bewusst dezent (Master-Guard: keine CSS-Abhängigkeiten)
+  if(s==="paid" || s==="bezahlt") return "background:#1f6f3b;color:#fff;border:1px solid rgba(255,255,255,.15)";
+  if(s==="open" || s==="offen") return "background:#b7791f;color:#111;border:1px solid rgba(255,255,255,.15)";
+  if(s==="cancelled" || s==="storniert" || s==="canceled") return "background:#8b1e1e;color:#fff;border:1px solid rgba(255,255,255,.15)";
+  if(s==="draft" || s==="entwurf") return "background:#4a5568;color:#fff;border:1px solid rgba(255,255,255,.15)";
+  return "background:#4a5568;color:#fff;border:1px solid rgba(255,255,255,.15)";
+}
+function invoiceStatusBadge(status){
+  const label = escapeHtml(invoiceStatusLabel(status));
+  const style = invoiceStatusStyle(status);
+  return `<span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;line-height:18px;${style}">${label}</span>`;
+}
 function renderInvoiceList(){
   const el = document.getElementById("invoiceList");
   if(!el) return;
@@ -6613,7 +6638,7 @@ function renderInvoiceList(){
             <td>${escapeHtml((resolveInvoiceParties(inv).cust?.name || resolveInvoiceParties(inv).legacyDog?.owner || "—"))} · ${escapeHtml((resolveInvoiceParties(inv).pet?.name || resolveInvoiceParties(inv).legacyDog?.name || "—"))}</td>
             <td>${escapeHtml(inv.period?.from||"")} – ${escapeHtml(inv.period?.to||"")}</td>
             <td>${(inv.pricing?.total||0).toFixed(2)} €</td>
-            <td>${escapeHtml(inv.status||"")}</td>
+            <td>${invoiceStatusBadge(inv.status)}</td>
           </tr>
         `).join("")}
       </tbody>
@@ -6730,7 +6755,7 @@ function openInvoice(id){
       <p class="muted" style="margin-top:6px">
         <strong>Nr.:</strong> ${escapeHtml(inv.invoiceNumber||"-")} ·
         <strong>Datum:</strong> ${escapeHtml(new Date(inv.invoiceDate||Date.now()).toLocaleDateString("de-DE"))} ·
-        <strong>Status:</strong> ${escapeHtml(inv.status||"")}
+        <strong>Status:</strong> ${invoiceStatusBadge(inv.status)}
       </p>
 
       <p><strong>Kunde:</strong> ${custLine}<br>
@@ -6741,9 +6766,9 @@ function openInvoice(id){
         ${escapeHtml(inv.period?.from||"")} – ${escapeHtml(inv.period?.to||"")}
       </p>
 
-      <p>Grundpreis: ${inv.pricing.basePrice.toFixed(2)} €</p>
-      <p>Zuschläge (%): ${inv.pricing.percentExtra.toFixed(2)} €</p>
-      <p>Zuschläge (fix): ${inv.pricing.fixedExtra.toFixed(2)} €</p>
+      <p><strong>Position:</strong> Grundpreis (Betreuung): ${inv.pricing.basePrice.toFixed(2)} €</p>
+      <p><strong>Position:</strong> Zuschlag prozentual: ${inv.pricing.percentExtra.toFixed(2)} €</p>
+      <p><strong>Position:</strong> Zuschlag fix: ${inv.pricing.fixedExtra.toFixed(2)} €</p>
 
       <hr>
       <h3 style="margin:10px 0 8px">Gesamt: ${inv.pricing.total.toFixed(2)} €</h3>
@@ -6756,7 +6781,15 @@ function setInvoiceStatus(id, status){
   const inv = getInvoiceById(id);
   if(!inv) return;
 
-  inv.status = status;
+  // akzeptiert auch deutsche Werte (falls irgendwo anders gesetzt)
+  const s = String(status||"").toLowerCase().trim();
+  let code = status;
+  if(s==="offen") code="open";
+  else if(s==="bezahlt") code="paid";
+  else if(s==="storniert") code="cancelled";
+  else if(s==="entwurf") code="draft";
+
+  inv.status = code;
   inv.updatedAt = new Date().toISOString();
   saveState();
 
