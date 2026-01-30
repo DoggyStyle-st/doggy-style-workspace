@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = 'M13_INVOICE_UIFIX3_20260130';
+const APP_BUILD = 'M13_2B_STAY_INVOICE_LINK_20260130';
 
 // --- Build-Sync (Anzeige + Migration) ---
 (function syncBuildBadge(){
@@ -5715,61 +5715,21 @@ function migrateToV2(){
 
 
 function pruneInvoiceDocs(){
-  // Rechnungen gehören ausschließlich in state.invoices (Rechnungs-Tab).
-  // Legacy-/Fehlstände (Rechnungen, die noch in state.docs liegen) werden hier automatisch migriert,
-  // damit sie im Rechnungs-Tab sichtbar sind und "Aufenthalte" sauber bleibt.
-  ensureStateShape();
-  ensureContractDefaults();
-
+  // Variante A: Rechnungen gehören ausschließlich in state.invoices (Rechnungs-Tab),
+  // nicht in state.docs (Aufenthalte). Damit bleibt "Aufenthalte" übersichtlich.
   if(!Array.isArray(state.docs)) state.docs = [];
-  state.invoices = Array.isArray(state.invoices) ? state.invoices : [];
-
-  // Kandidaten: echte Invoice-Dokumente (type==="invoice") ODER offensichtliche Rechnungsobjekte
-  // (haben invoiceNumber oder pricing.total). Wir bleiben konservativ, um keine Aufenthalte zu "verschieben".
-  const isInvoiceDoc = (d)=>{
-    if(!d) return false;
-    if(d.type === "invoice") return true;
-    const hasNr = !!(d.invoiceNumber || d.rechnungsnummer);
-    const hasPricing = !!(d.pricing && (typeof d.pricing.total === "number" || typeof d.pricing.totalCent === "number"));
-    return !!(hasNr && hasPricing);
-  };
-
-  const invDocs = state.docs.filter(isInvoiceDoc);
-
+  const invDocs = state.docs.filter(d=>d && d.type==="invoice");
   if(invDocs.length){
-    // optional: worklogs exist (legacy expectations)
     state.worklogs = Array.isArray(state.worklogs) ? state.worklogs : [];
-
+  state.invoices = Array.isArray(state.invoices) ? state.invoices : [];
     invDocs.forEach(inv=>{
-      if(!inv.id) inv.id = uid();
-      inv.type = "invoice";
-
-      // normalize number/date fields (best effort)
-      if(!inv.invoiceNumber && inv.rechnungsnummer) inv.invoiceNumber = inv.rechnungsnummer;
-      if(!inv.invoiceDate && inv.date) inv.invoiceDate = inv.date;
-
-      // normalize period
-      if(!inv.period){
-        const from = inv.periodFrom || inv.from || inv.meta?.von || inv.meta?.from || "";
-        const to = inv.periodTo || inv.to || inv.meta?.bis || inv.meta?.to || "";
-        if(from || to) inv.period = { from, to };
-      }
-
-      // normalize pricing (fallback)
-      if(inv.pricing && typeof inv.pricing.total !== "number" && typeof inv.pricing.totalCent === "number"){
-        inv.pricing.total = Math.round((Number(inv.pricing.totalCent)||0)) / 100;
-      }
-
-      if(!state.invoices.some(x=>x && x.id===inv.id)){
+      if(!state.invoices.some(x=>x.id===inv.id)){
         state.invoices.push(inv);
       }
     });
-
-    // Entferne migrierte Rechnungen aus state.docs
-    state.docs = state.docs.filter(d=>!isInvoiceDoc(d));
+    state.docs = state.docs.filter(d=>!(d && d.type==="invoice"));
   }
 }
-
 // ===== ETAPPE 2 Helpers (Customer/Pet Editor) =====
 const cpEdit = { mode: "new", petId: "" };
 
@@ -6576,24 +6536,8 @@ function renderOccupancy(){
 function getInvoices(){
   ensureStateShape();
   ensureContractDefaults();
-
-  // Safety: falls Rechnungen (noch) in state.docs liegen, migrieren wir sie,
-  // damit sie im Rechnungs-Tab sichtbar sind.
-  try{ pruneInvoiceDocs(); }catch(_){ }
-
-  const invs = Array.isArray(state.invoices) ? state.invoices.slice() : [];
-
-  // Fallback (ohne Mutationen): falls trotzdem noch Invoice-Objekte in docs sind, anzeigen.
-  try{
-    const extra = (Array.isArray(state.docs)?state.docs:[]).filter(d=>d && d.type==="invoice");
-    extra.forEach(d=>{
-      if(d && d.id && !invs.some(x=>x && x.id===d.id)) invs.push(d);
-    });
-  }catch(_){ }
-
-  return invs.sort((a,b)=> (b.updatedAt||"").localeCompare(a.updatedAt||""));
+  return (state.invoices||[]).slice().sort((a,b)=> (b.updatedAt||"").localeCompare(a.updatedAt||""));
 }
-
 
 function getInvoiceById(id){
   ensureStateShape();
@@ -6676,6 +6620,91 @@ function renderInvoiceList(){
     </table>
   `;
 }
+
+// --- 2B: Aufenthalt -> Rechnung öffnen/erstellen -------------------------------
+// Minimal: verknüpft Aufenthalt (doc) mit Rechnung (invoice) via doc.invoiceId
+function openOrCreateInvoiceForDocId(docId){
+  try{
+    const doc = (state.docs||[]).find(d=>d.id===docId);
+    if(!doc){
+      alert("Aufenthalt nicht gefunden.");
+      return;
+    }
+
+    state.invoices = Array.isArray(state.invoices) ? state.invoices : [];
+
+    // 1) existierende Rechnung finden (invoiceId oder sourceDocId)
+    let inv = null;
+    if(doc.invoiceId){
+      inv = state.invoices.find(x=>x.id===doc.invoiceId) || null;
+    }
+    if(!inv){
+      inv = state.invoices.find(x=>x.sourceDocId===doc.id) || null;
+    }
+
+    // 2) Wenn nicht vorhanden: Draft-Rechnung erstellen (ohne Preislogik)
+    if(!inv){
+      const year = new Date().getFullYear();
+      state.nextInvoiceNumber = Number(state.nextInvoiceNumber || 1);
+      const number = String(state.nextInvoiceNumber).padStart(4, "0");
+
+      const customerId = (doc.customerId || getCustomerByDogId(doc.dogId)?.id || "");
+      const petId      = (doc.petId || getPetByDogId(doc.dogId)?.id || "");
+
+      inv = {
+        id: uid(),
+        type: "invoice",
+
+        sourceDocId: doc.id,
+        dogId: doc.dogId || "",
+
+        customerId,
+        petId,
+
+        period: { from: doc?.meta?.von || "", to: doc?.meta?.bis || "" },
+
+        pricing: { basePrice: 0, percentExtra: 0, fixedExtra: 0, total: 0 },
+
+        status: "draft",
+        note: "",
+
+        invoiceNumber: `${year}-${number}`,
+        invoiceDate: new Date().toISOString(),
+
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      state.invoices.push(inv);
+      state.nextInvoiceNumber++;
+
+      // im Aufenthalt verlinken
+      doc.invoiceId = inv.id;
+      doc.invoiceNumber = inv.invoiceNumber;
+      doc.updatedAt = new Date().toISOString();
+
+      saveState();
+    }else{
+      // sicherheitshalber zurück-verlinken, falls invoice über sourceDocId gefunden wurde
+      if(!doc.invoiceId){
+        doc.invoiceId = inv.id;
+        doc.invoiceNumber = inv.invoiceNumber;
+        doc.updatedAt = new Date().toISOString();
+        saveState();
+      }
+    }
+
+    // 3) UI: zu Rechnungen springen & öffnen
+    try{ showSection("invoices"); }catch(e){}
+    try{ renderInvoiceList(); }catch(e){}
+    try{ openInvoice(inv.id); }catch(e){ console.warn("openInvoice failed", e); }
+
+  }catch(e){
+    console.error("openOrCreateInvoiceForDocId failed", e);
+    alert("Rechnung konnte nicht geöffnet/erstellt werden.");
+  }
+}
+
 function openInvoice(id){
   const inv = getInvoiceById(id);
   if(!inv) return;
@@ -7389,6 +7418,13 @@ function docItem(d){
   actions.appendChild(btnOpen);
   actions.appendChild(btnPdf);
 
+  // 2B: Rechnung am Aufenthalt (öffnen/erstellen)
+  const btnInv = document.createElement("button");
+  btnInv.className = "smallbtn";
+  btnInv.textContent = "Rechnung";
+  btnInv.onclick = ()=>openOrCreateInvoiceForDocId(d.id);
+  actions.appendChild(btnInv);
+
   // Abschluss: Schnell neuen Aufenthalt als Kopie anlegen
   if(d.saved){
     const btnNew = document.createElement("button");
@@ -7658,7 +7694,6 @@ $("#dogSelect").addEventListener("change", () => {
   renderCustomerInfoForDogId(currentDoc.dogId);
   updateContractWarnBanner(currentDoc);
   autofillAufenthalteFieldsFromMaster(currentDoc.dogId, { overwrite:false });
-  updateCreateInvoiceButton();
   try{ renderStayQuickLinks(currentDoc); }catch(e){}
   dirty = true;
 });
@@ -7753,152 +7788,9 @@ function getStayWarnings(docObj, t){
 }
 function updateCreateInvoiceButton(){
   const btn = document.getElementById("btnCreateInvoice");
-  if(!btn) return;
+  if(btn) btn.style.display = "none";
 
-  // Default: hidden
-  btn.style.display = "none";
-
-  try{
-    // Only in stay editor (Aufenthalte) and only for non-invoice docs
-    if(currentSection!=="stays" || !currentDoc || currentDoc.type==="invoice") return;
-
-    // Need a selected dog to create/open invoice meaningfully
-    const dogId = document.getElementById("dogSelect")?.value || currentDoc.dogId || "";
-    if(!dogId) return;
-
-    const inv = getInvoiceForStayDoc(currentDoc);
-
-    btn.style.display = "inline-flex";
-    btn.textContent = inv ? "Rechnung öffnen" : "Rechnung erstellen";
-
-    if(!btn.dataset.bound2b){
-      btn.onclick = ()=>{
-        try{
-          syncCurrentDocFromForm();
-
-          if(!currentDoc) return;
-          const dogId2 = document.getElementById("dogSelect")?.value || currentDoc.dogId || "";
-          if(!dogId2){ alert("Bitte zuerst einen Hund auswählen."); return; }
-
-          const existing = getInvoiceForStayDoc(currentDoc);
-          const invoice = existing || createDraftInvoiceFromStayDoc(currentDoc);
-
-          if(!invoice){
-            alert("Rechnung konnte nicht erstellt werden (Dokument unvollständig).");
-            return;
-          }
-
-          // Jump to invoices and open the invoice detail
-          openInvoices();
-          setTimeout(()=>{ try{ openInvoice(invoice.id); }catch(e){} }, 50);
-        }catch(e){
-          console.warn("create/open invoice failed", e);
-          alert("Rechnung konnte nicht geöffnet werden.");
-        }
-      };
-      btn.dataset.bound2b = "1";
-    }
-  }catch(e){
-    console.warn("updateCreateInvoiceButton failed", e);
-  }
-}
-
-function getInvoiceForStayDoc(doc){
-  try{
-    ensureStateShape();
-    const id = doc?.id || "";
-    if(!id) return null;
-
-    // Primary: explicit link
-    if(doc.invoiceId){
-      const direct = (state.invoices||[]).find(x=>x.id===doc.invoiceId);
-      if(direct) return direct;
-    }
-
-    // Secondary: by sourceDocId
-    const bySource = (state.invoices||[]).find(x=>x.sourceDocId===id);
-    if(bySource) return bySource;
-
-    return null;
-  }catch(e){
-    return null;
-  }
-}
-
-function createDraftInvoiceFromStayDoc(doc){
-  try{
-    ensureStateShape();
-    ensureContractDefaults();
-
-    if(!doc || !doc.id) return null;
-
-    // Avoid duplicates
-    const already = getInvoiceForStayDoc(doc);
-    if(already) return already;
-
-    const year = new Date().getFullYear();
-    const next = String(state.nextInvoiceNumber || 1).padStart(4, "0");
-    const invoiceNumber = `${year}-${next}`;
-
-    const dogId = doc.dogId || document.getElementById("dogSelect")?.value || "";
-    if(!dogId) return null;
-
-    const customerId = (doc.customerId || getCustomerByDogId(dogId)?.id || "");
-    const petId = (doc.petId || getPetByDogId(dogId)?.id || "");
-
-    const nowIso = new Date().toISOString();
-    const inv = {
-      id: uid(),
-      type: "invoice",
-      status: "draft",
-      invoiceNumber,
-      invoiceDate: todayISO(),
-
-      sourceDocId: doc.id,
-      dogId,
-      customerId,
-      petId,
-
-      period: {
-        from: doc?.meta?.von || "",
-        to: doc?.meta?.bis || ""
-      },
-
-      pricing: {
-        basePrice: Number(doc?.pricing?.base || 0),
-        holidayDays: Number(doc?.pricing?.holidayDays || 0),
-        holidayExtra: Number(doc?.pricing?.holidayExtra || 0),
-        percentExtra: Number(doc?.pricing?.percentExtra || 0),
-        fixedExtra: Number(doc?.pricing?.fixedExtra || 0),
-        total: Number(doc?.pricing?.total || 0),
-        totalCent: Number(doc?.pricing?.totalCent || 0)
-      },
-
-      updatedAt: nowIso,
-      createdAt: nowIso
-    };
-
-    state.invoices = state.invoices || [];
-    state.invoices.push(inv);
-
-    // Link back to stay doc for fast lookup
-    doc.invoiceId = inv.id;
-    doc.invoiceNumber = inv.invoiceNumber;
-
-    // Advance counter
-    state.nextInvoiceNumber = (state.nextInvoiceNumber || 1) + 1;
-
-    saveState();
-
-    // Refresh UI fragments if visible
-    try{ renderInvoiceList(); }catch(_){}
-    try{ renderDocs(); }catch(_){}
-
-    return inv;
-  }catch(e){
-    console.warn("createDraftInvoiceFromStayDoc failed", e);
-    return null;
-  }
+  // Ende dieser Funktion (wichtig für sauberes Scope).
 }
 
 // Sync currentDoc with current form inputs WITHOUT saving/re-rendering.
