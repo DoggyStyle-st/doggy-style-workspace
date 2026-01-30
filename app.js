@@ -1921,9 +1921,14 @@ function updateAutoHolidayFields(){
 
 
 function getPricePerDay(type, days){
-  const cfg = getConfiguredDailyPrice(type);
+  // Normalize (DB/Forms can store "Urlaubsbetreuung" / "urlaubsbetreuung" etc.)
+  const t = String(type || '').toLowerCase().trim();
+  const key = (t.includes('urlaub') ? 'urlaubsbetreuung' : (t.includes('tages') ? 'tagesbetreuung' : t));
+
+  const cfg = getConfiguredDailyPrice(key);
   if(cfg>0) return cfg;
-  const rules = PRICE_RULES[type] || [];
+
+  const rules = PRICE_RULES[key] || [];
   for(const r of rules){
     if(days >= r.min) return r.price;
   }
@@ -7064,6 +7069,23 @@ function openInvoiceRelease(docId){
   });
 }
 
+function invoiceStatusLabel(s){
+  const k = String(s||'').toLowerCase();
+  if(k==='draft') return 'Entwurf';
+  if(k==='open') return 'Offen';
+  if(k==='paid') return 'Bezahlt';
+  if(k==='canceled' || k==='storno' || k==='storniert') return 'Storniert';
+  return s||'';
+}
+function invoiceStatusDotColor(s){
+  const k = String(s||'').toLowerCase();
+  if(k==='paid') return '#35c759';
+  if(k==='open') return '#f5b62e';
+  if(k==='canceled' || k==='storno' || k==='storniert') return '#ff3b30';
+  if(k==='draft') return '#ffffff';
+  return '#ffffff';
+}
+
 function renderInvoiceList(){
   const el = document.getElementById("invoiceList");
   if(!el) return;
@@ -8690,29 +8712,6 @@ if(e.target && e.target.id==="btnSignatureOpen"){
 
     dirty = true;
     saveState(); // persist immediately
-
-    // Auto-Rechnung: erst wenn Aufenthalt "fertig" ist (Unterschrift + alle Zustimmungen)
-    try{
-      if(_isStay){
-        const c = (currentDoc.meta && currentDoc.meta.consents) ? currentDoc.meta.consents : {};
-        const fertig = !!(currentDoc.signature && currentDoc.signature.dataUrl) && !!c.agb && !!c.vet && !!c.health && !!c.truth;
-        if(fertig){
-          currentDoc.saved = true;
-          // Pricing ggf. nachziehen
-          if(!currentDoc.pricing && typeof calculateInvoicePricing === 'function'){
-            try{ currentDoc.pricing = calculateInvoicePricing(currentDoc); }catch(_){ }
-          }
-          if(!state.invoices) state.invoices = [];
-          if(!state.invoices.some(inv => inv && inv.sourceDocId === currentDoc.id)){
-            const inv = createInvoiceFromDoc(currentDoc);
-            if(inv){
-              state.invoices.unshift(inv);
-              saveState();
-            }
-          }
-        }
-      }
-    }catch(_){ }
 
 
     // Re-render: Aufenthalt immer via Embedded-Stay-Editor (stabil), sonst Standard-Editor
