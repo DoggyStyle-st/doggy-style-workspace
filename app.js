@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = 'M15F6B_RECOVER_20260130';
+const APP_BUILD = 'M15F6D_RECOVER_DASH_HYGIENE_20260130';
 
 // --- Build-Sync (Anzeige + Migration) ---
 (function syncBuildBadge(){
@@ -2218,7 +2218,9 @@ function dashboardStatusColor(ratio){
 }
 
 function renderDashboard(){
-  // Dashboard elements exist only on Start screen (home)
+  
+  ensureStateShape();
+// Dashboard elements exist only on Start screen (home)
   const elDayVal = document.getElementById("todayDaycareValue");
   const elBoardVal = document.getElementById("todayBoardingValue");
   const elForecast = document.getElementById("forecastList");
@@ -5466,35 +5468,52 @@ function initProfiSettingsBindings(){
 }
 
 function ensureStateShape(){
-  // Minimal, crash-proof normalization (kept deliberately conservative).
-  try{
-    if(!state || typeof state !== 'object') state = {};
-    if(!state.settings || typeof state.settings !== 'object') state.settings = {};
-    if(!Array.isArray(state.customers)) state.customers = [];
-    if(!Array.isArray(state.dogs)) state.dogs = [];
-    if(!Array.isArray(state.stays)) state.stays = [];
-    if(!Array.isArray(state.invoices)) state.invoices = [];
-    if(!state.tasks || typeof state.tasks !== 'object') state.tasks = { hygiene: [], meds: [] };
-    if(!Array.isArray(state.tasks.hygiene)) state.tasks.hygiene = [];
-    if(!Array.isArray(state.tasks.meds)) state.tasks.meds = [];
+  // Defensive shape guard to keep UI stable even after partial / older backups.
+  if(!state || typeof state !== 'object') state = {};
 
-    // Back-compat helpers
-    if(!state.ui || typeof state.ui !== 'object') state.ui = {};
-    if(!state.ui.filters || typeof state.ui.filters !== 'object') state.ui.filters = {};
-  }catch(e){
-    console.warn('[ensureStateShape] failed, resetting safe defaults:', e);
-    state = {
-      version: 1,
-      settings: {},
-      customers: [],
-      dogs: [],
-      stays: [],
-      invoices: [],
-      tasks: { hygiene: [], meds: [] },
-      ui: { filters: {} }
-    };
+  if(!Array.isArray(state.dogs)) state.dogs = [];
+  if(!Array.isArray(state.docs)) state.docs = [];
+
+  // invoices / accounting (may be absent in older backups)
+  if(!Array.isArray(state.invoices)) state.invoices = [];
+  if(!Array.isArray(state.invoiceRuns)) state.invoiceRuns = [];
+  if(!Array.isArray(state.worklogs)) state.worklogs = [];
+
+  // capacity settings (fallback to business defaults)
+  if(!state.capacities || typeof state.capacities !== 'object') state.capacities = {};
+  if(typeof state.capacities.dayMax !== 'number') state.capacities.dayMax = 13;
+  if(typeof state.capacities.overnightMax !== 'number') state.capacities.overnightMax = 10;
+  if(!state.capacities.exceptions || typeof state.capacities.exceptions !== 'object') state.capacities.exceptions = {};
+
+  // pricing settings
+  if(!state.prices || typeof state.prices !== 'object') state.prices = {};
+  if(!state.prices.tagesbetreuung || typeof state.prices.tagesbetreuung !== 'object') state.prices.tagesbetreuung = {};
+  if(!state.prices.urlaubsbetreuung || typeof state.prices.urlaubsbetreuung !== 'object') state.prices.urlaubsbetreuung = {};
+
+  // hygiene module
+  if(!state.hygiene || typeof state.hygiene !== 'object') state.hygiene = {};
+  if(!Array.isArray(state.hygiene.weeklyTasks)) state.hygiene.weeklyTasks = [];
+  if(!Array.isArray(state.hygiene.monthlyTasks)) state.hygiene.monthlyTasks = [];
+  if(!Array.isArray(state.hygiene.logs)) state.hygiene.logs = [];
+  if(!Array.isArray(state.hygiene.quick)) state.hygiene.quick = [];
+  if(!state.hygiene.staffPresets || typeof state.hygiene.staffPresets !== 'object') state.hygiene.staffPresets = {};
+  if(!state.hygiene.ui || typeof state.hygiene.ui !== 'object') state.hygiene.ui = {};
+
+  // medication module
+  if(!state.meds || typeof state.meds !== 'object') state.meds = {};
+  if(!Array.isArray(state.meds.items)) state.meds.items = [];
+  if(!Array.isArray(state.meds.logs)) state.meds.logs = [];
+
+  // UI meta
+  if(!state.ui || typeof state.ui !== 'object') state.ui = {};
+
+  // Normalize docs: ensure meta exists so dashboard math never explodes
+  for(const d of state.docs){
+    if(!d || typeof d !== 'object') continue;
+    if(!d.meta || typeof d.meta !== 'object') d.meta = {};
   }
 }
+
 
 
 function ensureContractDefaults(){
