@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = 'M13_INVOICE_UIFIX2_20260127';
+const APP_BUILD = 'M13_INVOICE_UIFIX3_20260130';
 
 // --- Build-Sync (Anzeige + Migration) ---
 (function syncBuildBadge(){
@@ -1905,27 +1905,6 @@ function mapInvoiceStatusLabel(status){
   if(s==='draft' || s==='entwurf') return 'Entwurf';
   return status || '—';
 }
-
-
-function getInvoiceStatusColor(status){
-  const s = normalizeInvoiceStatus(status);
-  if(s==='paid') return '#34c759';
-  if(s==='open') return '#f5b62e';
-  if(s==='cancelled') return '#ff3b30';
-  return '#8e8e93'; // draft/unknown
-}
-
-function renderInvoiceStatusBadge(status){
-  const s = normalizeInvoiceStatus(status);
-  const label = mapInvoiceStatusLabel(s);
-  const color = getInvoiceStatusColor(s);
-  return (
-    `<span style="display:inline-flex;align-items:center;gap:6px;">`+
-    `<span style="width:10px;height:10px;border-radius:50%;background:${color};display:inline-block;"></span>`+
-    `<span>${escapeHtml(label)}</span>`+
-    `</span>`
-  );
-}
 function formatPeriodDE(fromIso,toIso){
   const a = formatDateDE(fromIso);
   const b = formatDateDE(toIso);
@@ -3615,14 +3594,7 @@ function exportHygienePDF(){
     table{width:100%;border-collapse:collapse; font-size:12px}
     th,td{border:1px solid #ccc; padding:8px; vertical-align:top}
     th{background:#f3f3f3}
-  
-        @media print { .no-print { display:none !important; } }
-      </style></head><body>
-      <div class="no-print" style="position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid #ddd;padding:10px;display:flex;gap:10px;align-items:center;">
-        <button onclick="window.close()" style="padding:8px 12px;">Zurück</button>
-        <button onclick="window.print()" style="padding:8px 12px;">Drucken / PDF</button>
-        <span style="margin-left:auto;color:#666;font-size:12px;">Rechnung</span>
-      </div>
+  </style></head><body>
   <h1>Hygiene- und Reinigungsnachweis</h1>
   <p class="muted">Hundepension Doggy Style – Angelika &amp; Raphael Boch · Zeitraum: ${start.toLocaleDateString('de-DE')} – ${end.toLocaleDateString('de-DE')}</p>
   <table>
@@ -5743,21 +5715,61 @@ function migrateToV2(){
 
 
 function pruneInvoiceDocs(){
-  // Variante A: Rechnungen gehören ausschließlich in state.invoices (Rechnungs-Tab),
-  // nicht in state.docs (Aufenthalte). Damit bleibt "Aufenthalte" übersichtlich.
+  // Rechnungen gehören ausschließlich in state.invoices (Rechnungs-Tab).
+  // Legacy-/Fehlstände (Rechnungen, die noch in state.docs liegen) werden hier automatisch migriert,
+  // damit sie im Rechnungs-Tab sichtbar sind und "Aufenthalte" sauber bleibt.
+  ensureStateShape();
+  ensureContractDefaults();
+
   if(!Array.isArray(state.docs)) state.docs = [];
-  const invDocs = state.docs.filter(d=>d && d.type==="invoice");
-  if(invDocs.length){
-    state.worklogs = Array.isArray(state.worklogs) ? state.worklogs : [];
   state.invoices = Array.isArray(state.invoices) ? state.invoices : [];
+
+  // Kandidaten: echte Invoice-Dokumente (type==="invoice") ODER offensichtliche Rechnungsobjekte
+  // (haben invoiceNumber oder pricing.total). Wir bleiben konservativ, um keine Aufenthalte zu "verschieben".
+  const isInvoiceDoc = (d)=>{
+    if(!d) return false;
+    if(d.type === "invoice") return true;
+    const hasNr = !!(d.invoiceNumber || d.rechnungsnummer);
+    const hasPricing = !!(d.pricing && (typeof d.pricing.total === "number" || typeof d.pricing.totalCent === "number"));
+    return !!(hasNr && hasPricing);
+  };
+
+  const invDocs = state.docs.filter(isInvoiceDoc);
+
+  if(invDocs.length){
+    // optional: worklogs exist (legacy expectations)
+    state.worklogs = Array.isArray(state.worklogs) ? state.worklogs : [];
+
     invDocs.forEach(inv=>{
-      if(!state.invoices.some(x=>x.id===inv.id)){
+      if(!inv.id) inv.id = uid();
+      inv.type = "invoice";
+
+      // normalize number/date fields (best effort)
+      if(!inv.invoiceNumber && inv.rechnungsnummer) inv.invoiceNumber = inv.rechnungsnummer;
+      if(!inv.invoiceDate && inv.date) inv.invoiceDate = inv.date;
+
+      // normalize period
+      if(!inv.period){
+        const from = inv.periodFrom || inv.from || inv.meta?.von || inv.meta?.from || "";
+        const to = inv.periodTo || inv.to || inv.meta?.bis || inv.meta?.to || "";
+        if(from || to) inv.period = { from, to };
+      }
+
+      // normalize pricing (fallback)
+      if(inv.pricing && typeof inv.pricing.total !== "number" && typeof inv.pricing.totalCent === "number"){
+        inv.pricing.total = Math.round((Number(inv.pricing.totalCent)||0)) / 100;
+      }
+
+      if(!state.invoices.some(x=>x && x.id===inv.id)){
         state.invoices.push(inv);
       }
     });
-    state.docs = state.docs.filter(d=>!(d && d.type==="invoice"));
+
+    // Entferne migrierte Rechnungen aus state.docs
+    state.docs = state.docs.filter(d=>!isInvoiceDoc(d));
   }
 }
+
 // ===== ETAPPE 2 Helpers (Customer/Pet Editor) =====
 const cpEdit = { mode: "new", petId: "" };
 
@@ -6564,8 +6576,24 @@ function renderOccupancy(){
 function getInvoices(){
   ensureStateShape();
   ensureContractDefaults();
-  return (state.invoices||[]).slice().sort((a,b)=> (b.updatedAt||"").localeCompare(a.updatedAt||""));
+
+  // Safety: falls Rechnungen (noch) in state.docs liegen, migrieren wir sie,
+  // damit sie im Rechnungs-Tab sichtbar sind.
+  try{ pruneInvoiceDocs(); }catch(_){ }
+
+  const invs = Array.isArray(state.invoices) ? state.invoices.slice() : [];
+
+  // Fallback (ohne Mutationen): falls trotzdem noch Invoice-Objekte in docs sind, anzeigen.
+  try{
+    const extra = (Array.isArray(state.docs)?state.docs:[]).filter(d=>d && d.type==="invoice");
+    extra.forEach(d=>{
+      if(d && d.id && !invs.some(x=>x && x.id===d.id)) invs.push(d);
+    });
+  }catch(_){ }
+
+  return invs.sort((a,b)=> (b.updatedAt||"").localeCompare(a.updatedAt||""));
 }
+
 
 function getInvoiceById(id){
   ensureStateShape();
@@ -6641,7 +6669,7 @@ function renderInvoiceList(){
             <td>${escapeHtml((resolveInvoiceParties(inv).cust?.name || resolveInvoiceParties(inv).legacyDog?.owner || "—"))} · ${escapeHtml((resolveInvoiceParties(inv).pet?.name || resolveInvoiceParties(inv).legacyDog?.name || "—"))}</td>
             <td>${escapeHtml(inv.period?.from||"")} – ${escapeHtml(inv.period?.to||"")}</td>
             <td>${(inv.pricing?.total||0).toFixed(2)} €</td>
-            <td>${renderInvoiceStatusBadge(inv.status||"")}</td>
+            <td>${escapeHtml(inv.status||"")}</td>
           </tr>
         `).join("")}
       </tbody>
@@ -6673,7 +6701,7 @@ function openInvoice(id){
       <p class="muted" style="margin-top:6px">
         <strong>Nr.:</strong> ${escapeHtml(inv.invoiceNumber||"-")} ·
         <strong>Datum:</strong> ${escapeHtml(new Date(inv.invoiceDate||Date.now()).toLocaleDateString("de-DE"))} ·
-        <strong>Status:</strong> ${renderInvoiceStatusBadge(inv.status||"")}
+        <strong>Status:</strong> ${escapeHtml(inv.status||"")}
       </p>
 
       <p><strong>Kunde:</strong> ${custLine}<br>
@@ -6905,20 +6933,9 @@ function printInvoice(id){
     th { background: #f5f5f5; }
     .right { text-align: right; }
     .muted { color:#666; font-size:11px; }
-    .no-print { position: sticky; top: 0; background: #fff; padding: 10px 0 14px; margin-bottom: 10px; display:flex; justify-content:space-between; align-items:center; gap:12px; border-bottom: 1px solid #ddd; }
-    .no-print button { padding: 8px 12px; font-size: 14px; }
-    @media print { .no-print { display:none; } body { padding: 20px; } }
   </style>
 </head>
 <body>
-
-  <div class="no-print">
-    <div>
-      <button onclick="window.close()">Zurück</button>
-      <button onclick="window.print()">Drucken</button>
-    </div>
-    <div style="font-size:12px;color:#666">Rechnung ${inv.invoiceNumber || ''}</div>
-  </div>
 
   <div class="header">
     <div class="block">
@@ -6926,7 +6943,6 @@ function printInvoice(id){
       <span class="muted">${recipientSub}</span>
     </div>
     <div class="company">
-      <div style="margin-bottom:8px"><img src="assets/logo.png" alt="Logo" style="height:56px; width:auto;"></div>
       <strong>${COMPANY.name}</strong><br>
       ${COMPANY.owner}<br>
       ${COMPANY.street}<br>
@@ -6983,7 +6999,10 @@ function printInvoice(id){
     Vielen Dank!
   </p>
 
-  
+  <script>
+    window.print();
+    window.onafterprint = () => window.close();
+  </script>
 
 </body>
 </html>
