@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = 'M13_3E1_STAY_SURCHARGE_TOGGLES_20260131';
+const APP_BUILD = 'M13_3E2_STAY_SURCHARGE_UI_20260201';
 
 
 // Kapazitäts-Limit (Übernachtungshunde) – Stufe B Warnung
