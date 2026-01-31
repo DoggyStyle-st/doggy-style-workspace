@@ -1935,6 +1935,74 @@ function calculateInvoicePricing(doc){
 // damit die Rechnung bereits den korrekten Gesamtbetrag enthält, ohne das UI sofort zu erweitern.
 function round2(n){ return Math.round((Number(n)||0) * 100) / 100; }
 
+
+function round2(n){ return Math.round((Number(n)||0)*100)/100; }
+
+function recomputeInvoiceTotals(inv){
+  inv.pricing = inv.pricing || {};
+  inv.pricing.parts = inv.pricing.parts || {};
+  inv.pricing.flags = inv.pricing.flags || {};
+
+  const parts = inv.pricing.parts;
+  // Defaults: apply extras if they exist and flags are not explicitly set
+  if (typeof inv.pricing.flags.holiday !== 'boolean') inv.pricing.flags.holiday = (Number(parts.holiday)||0) > 0;
+  if (typeof inv.pricing.flags.percent !== 'boolean') inv.pricing.flags.percent = (Number(parts.percent)||0) > 0;
+  if (typeof inv.pricing.flags.fixed !== 'boolean') inv.pricing.flags.fixed = (Number(parts.fixed)||0) > 0;
+
+  const appliedHoliday = inv.pricing.flags.holiday ? (Number(parts.holiday)||0) : 0;
+  const appliedPercent = inv.pricing.flags.percent ? (Number(parts.percent)||0) : 0;
+  const appliedFixed   = inv.pricing.flags.fixed   ? (Number(parts.fixed)||0) : 0;
+
+  inv.pricing.applied = { holiday: round2(appliedHoliday), percent: round2(appliedPercent), fixed: round2(appliedFixed) };
+
+  const net = (Number(parts.base)||0) + appliedHoliday + appliedPercent + appliedFixed;
+
+  // VAT rate: per invoice override, otherwise from settings, otherwise 0
+  const settingsVat = Number((state && state.settings && state.settings.vatRate) ?? 19) || 0;
+  const vatRate = (typeof inv.vatRate === 'number' && !Number.isNaN(inv.vatRate)) ? inv.vatRate : settingsVat;
+  inv.vatRate = vatRate;
+
+  const vatAmount = net * (vatRate/100);
+  const gross = net + vatAmount;
+
+  inv.pricing.net = round2(net);
+  inv.pricing.vatAmount = round2(vatAmount);
+  inv.pricing.total = round2(gross); // amount payable
+  inv.pricing.totalNet = inv.pricing.net;
+  inv.pricing.totalGross = inv.pricing.total;
+}
+
+async function updateInvoiceAfterEdit(inv){
+  // Persist to state + storage
+  state.invoices = state.invoices || {};
+  state.invoices[inv.id] = inv;
+  saveState();
+  // Refresh list + open detail again
+  renderInvoices();
+  openInvoice(inv.id);
+}
+
+window.toggleInvoiceExtra = async function(invoiceId, key, checked){
+  const inv = (state.invoices||{})[invoiceId];
+  if (!inv) return;
+  if (inv.pricing && inv.pricing.locked) return;
+  inv.pricing = inv.pricing || {};
+  inv.pricing.flags = inv.pricing.flags || {};
+  inv.pricing.flags[key] = !!checked;
+  recomputeInvoiceTotals(inv);
+  await updateInvoiceAfterEdit(inv);
+};
+
+window.setInvoiceVatRate = async function(invoiceId, value){
+  const inv = (state.invoices||{})[invoiceId];
+  if (!inv) return;
+  if (inv.pricing && inv.pricing.locked) return;
+  const v = Number(value);
+  inv.vatRate = (Number.isFinite(v) && v >= 0) ? v : 0;
+  recomputeInvoiceTotals(inv);
+  await updateInvoiceAfterEdit(inv);
+};
+
 function syncInvoicePricingFromDoc(inv, doc){
   if(!inv || !doc) return false;
   const p = calculateInvoicePricing(doc);
@@ -1970,7 +2038,10 @@ function syncInvoicePricingFromDoc(inv, doc){
   inv.pricing.holidayExtra = holidayExtra;
 
   inv.pricing.fixedExtra = fixedExtra;
-  inv.pricing.total = total;
+
+  // canonical parts + totals (supports toggles + MwSt)
+  inv.pricing.parts = { base: basePrice, percent: percentValue, holiday: holidayExtra, fixed: fixedExtra };
+  recomputeInvoiceTotals(inv);
 
   // Zusatzinfos (harmless, falls später gebraucht)
   inv.pricing._calc = {
@@ -7085,12 +7156,17 @@ function openOrCreateInvoiceForDocId(docId){
 
 function renderInvoicePositions(inv){
   const p = inv?.pricing || {};
-  const base = Number(p.basePrice||0);
+  // Ensure totals exist (parts/applied/vat)
+  if(p.parts && (!p.applied || typeof p.total !== 'number')){
+    recomputeInvoiceTotals(inv);
+  }
+  const base = Number(p.parts?.base ?? p.basePrice ?? 0);
   const pr = Number(p.percentRate||0);
-  const pv = Number(p.percentExtra||0); // €-Wert
   const hd = Number(p.holidayDays||0);
-  const hv = Number(p.holidayExtra||0);
-  const fx = Number(p.fixedExtra||0);
+
+  const hv = Number(p.applied?.holiday ?? p.holidayExtra ?? 0);
+  const pv = Number(p.applied?.percent ?? p.percentExtra ?? 0);
+  const fx = Number(p.applied?.fixed ?? p.fixedExtra ?? 0);
 
   const rows = [];
   rows.push(`<p><strong>Position:</strong> Grundpreis (Betreuung): ${base.toFixed(2)} €</p>`);
@@ -7182,7 +7258,45 @@ function openInvoice(id){
       ${renderInvoicePositions(inv)}
 
       <hr>
-      <h3 style="margin:10px 0 8px">Gesamt: ${inv.pricing.total.toFixed(2)} €</h3>
+      <div style="margin:10px 0 10px">
+        <div><strong>Netto:</strong> ${Number(inv.pricing.net||0).toFixed(2)} €</div>
+        ${Number(inv.vatRate||0) > 0 ? `<div><strong>MwSt (${Number(inv.vatRate||0).toFixed(2)}%):</strong> ${Number(inv.pricing.vatAmount||0).toFixed(2)} €</div>` : ``}
+        <h3 style="margin:8px 0 0">Gesamt: ${Number(inv.pricing.total||0).toFixed(2)} €</h3>
+      </div>
+
+      ${inv.pricing && inv.pricing.parts ? `
+        <div class="card" style="padding:10px;margin-top:10px">
+          <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center">
+            <strong>Zuschläge:</strong>
+            <label style="display:flex;gap:6px;align-items:center">
+              <input type="checkbox" ${locked?'disabled':''} ${inv.pricing.flags?.holiday?'checked':''}
+                onchange="toggleInvoiceExtra('${inv.id}','holiday',this.checked)">
+              Feiertage
+            </label>
+            <label style="display:flex;gap:6px;align-items:center">
+              <input type="checkbox" ${locked?'disabled':''} ${inv.pricing.flags?.percent?'checked':''}
+                onchange="toggleInvoiceExtra('${inv.id}','percent',this.checked)">
+              Prozent
+            </label>
+            <label style="display:flex;gap:6px;align-items:center">
+              <input type="checkbox" ${locked?'disabled':''} ${inv.pricing.flags?.fixed?'checked':''}
+                onchange="toggleInvoiceExtra('${inv.id}','fixed',this.checked)">
+              Fix
+            </label>
+
+            <span style="margin-left:auto;display:flex;gap:8px;align-items:center">
+              <strong>MwSt %</strong>
+              <input type="number" step="0.1" min="0" style="width:90px"
+                ${locked?'disabled':''}
+                value="${Number(inv.vatRate||0)}"
+                onchange="setInvoiceVatRate('${inv.id}',this.value)">
+            </span>
+          </div>
+          <p class="muted" style="margin:8px 0 0">
+            Tipp: Zuschläge kannst du hier ein-/ausschalten. Die Rechnung wird erst beim Status <strong>Bezahlt</strong> eingefroren.
+          </p>
+        </div>
+      ` : ``}
 
       <button class="btn" onclick="printInvoice('${inv.id}')">🖨️ Rechnung drucken / PDF</button>
     </div>
@@ -7419,7 +7533,17 @@ function createFreeInvoice(){
 
 function printInvoice(id){
   const inv = getInvoiceById(id);
-  if(!inv) return;
+  
+  const logoUrl = (function(){
+    try{
+      const base = location.origin + location.pathname.replace(/\/[^\/]*$/, '/');
+      return base + 'assets/logo.png';
+    }catch(e){ return 'assets/logo.png'; }
+  })();
+if(!inv) return;
+  if(inv.pricing && inv.pricing.parts){
+    recomputeInvoiceTotals(inv);
+  }
 
   // In-App PDF/Print Overlay (kein neuer Tab)
   ensurePdfOverlayStyles();
@@ -7481,7 +7605,7 @@ function printInvoice(id){
         </tr>
         <tr>
           <td>Grundpreis (Betreuung)</td>
-          <td class="right">${Number(inv.pricing?.basePrice||0).toFixed(2)} €</td>
+          <td class="right">${Number(inv.pricing?.parts?.base ?? inv.pricing?.basePrice ?? 0).toFixed(2)} €</td>
         </tr>
         ${inv.pricing?.holidayExtra && inv.pricing.holidayExtra>0 ? `
         <tr>
@@ -7491,12 +7615,20 @@ function printInvoice(id){
         ${Number(inv.pricing?.percentExtra||0)>0 ? `
         <tr>
           <td>Zuschlag prozentual${Number(inv.pricing?.percentRate||0)>0 ? ` (${Number(inv.pricing.percentRate||0).toFixed(0)}%)` : ``}</td>
-          <td class="right">${Number(inv.pricing?.percentExtra||0).toFixed(2)} €</td>
+          <td class="right">${Number(inv.pricing?.applied?.percent||0).toFixed(2)} €</td>
         </tr>` : ``}
         ${Number(inv.pricing?.fixedExtra||0)>0 ? `
         <tr>
           <td>Zuschlag fix</td>
-          <td class="right">${Number(inv.pricing?.fixedExtra||0).toFixed(2)} €</td>
+          <td class="right">${Number(inv.pricing?.applied?.fixed||0).toFixed(2)} €</td>
+        </tr>` : ``}
+        <tr>
+          <th>Netto</th>
+          <th class="right">${Number(inv.pricing?.net||0).toFixed(2)} €</th>
+        </tr>
+        ${Number(inv.vatRate||0) > 0 ? `<tr>
+          <th>MwSt (${Number(inv.vatRate||0).toFixed(2)}%)</th>
+          <th class="right">${Number(inv.pricing?.vatAmount||0).toFixed(2)} €</th>
         </tr>` : ``}
         <tr>
           <th>Gesamt</th>
@@ -7559,7 +7691,8 @@ function ensurePdfOverlayStyles(){
 
     /* Print: nur Sheet drucken, Toolbar & App ausblenden */
     body.printOverlayActive > *:not(#pdfOverlay){ display:none !important; }
-    body.printOverlayActive #pdfOverlay{
+    body{ -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body.printOverlayActive #pdfOverlay{
       position:static !important; inset:auto !important;
       display:block !important;
       background: transparent !important;
@@ -7573,7 +7706,17 @@ function ensurePdfOverlayStyles(){
       border-radius:0 !important;
       box-shadow:none !important;
     }
-  `;
+  
+    @page{size:A4; margin:12mm;}
+    @media print{
+      html,body{background:#fff !important;}
+      body{ -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      body.printOverlayActive>*{display:none !important;}
+      body.printOverlayActive #pdfOverlay{display:block !important; position:static !important; inset:auto !important; background:#fff !important;}
+      body.printOverlayActive #pdfOverlay .pdfToolbar{display:none !important;}
+      body.printOverlayActive #pdfOverlay .pdfSheet{border:none !important; border-radius:0 !important; box-shadow:none !important; margin:0 !important; max-width:none !important; padding:14mm 16mm !important;}
+    }
+`;
   document.head.appendChild(css);
 
   // Overlay DOM einmalig anlegen
