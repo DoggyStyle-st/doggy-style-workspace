@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = 'M13_3B_SURCHARGE_BREAKDOWN_20260130';
+const APP_BUILD = 'M13_3D_PRICING_SETTINGS_20260131';
 
 // --- Build-Sync (Anzeige + Migration) ---
 (function syncBuildBadge(){
@@ -1683,7 +1683,7 @@ async function wireInbox(){
 }
 
 // ===== PREISLOGIK & STAFFELUNGEN =====
-const PRICE_RULES = {
+const PRICE_RULES_DEFAULT = {
   Tagesbetreuung: [
     { min: 30, price: 30 },
     { min: 14, price: 35 },
@@ -1697,6 +1697,62 @@ const PRICE_RULES = {
     { min: 1,  price: 45 }
   ]
 };
+
+// ===== PREISE (zentral, in Einstellungen editierbar) =====
+const PRICING_DEFAULTS = {
+  rules: JSON.parse(JSON.stringify(PRICE_RULES_DEFAULT)),
+  holidayPercent: 10,
+  extras: {
+    specialTimesPercent: 10,   // f.special_times
+    extraCarePercent: 10,      // f.extra_care
+    medicationPerDay: 2,       // f.medication (pro Tag)
+    walkExtraPrice: 15         // f.walk_extra_count (pro zusätzl. Spaziergang)
+  }
+};
+
+function getPricingSettings(){
+  // bevorzugt: state.settings.pricing (wird mitgesynct), fallback: localStorage
+  try{
+    if(!window.state) return PRICING_DEFAULTS;
+    state.settings = state.settings || {};
+    let p = state.settings.pricing;
+    if(!p){
+      try{
+        const raw = localStorage.getItem('ds_pricing_settings_v1');
+        if(raw) p = JSON.parse(raw);
+      }catch(_){}
+    }
+    // merge defaults (robust bei Teilständen)
+    const out = JSON.parse(JSON.stringify(PRICING_DEFAULTS));
+    if(p && typeof p === 'object'){
+      if(p.rules && typeof p.rules === 'object') out.rules = p.rules;
+      if(Number.isFinite(+p.holidayPercent)) out.holidayPercent = +p.holidayPercent;
+      if(p.extras && typeof p.extras === 'object'){
+        for(const k of Object.keys(out.extras)){
+          if(Number.isFinite(+p.extras[k])) out.extras[k] = +p.extras[k];
+        }
+      }
+    }
+    // write back normalized
+    state.settings.pricing = out;
+    try{ localStorage.setItem('ds_pricing_settings_v1', JSON.stringify(out)); }catch(_){}
+    return out;
+  }catch(_){
+    return PRICING_DEFAULTS;
+  }
+}
+
+function savePricingSettings(next){
+  try{
+    if(!next || typeof next !== 'object') return;
+    state.settings = state.settings || {};
+    state.settings.pricing = next;
+    try{ localStorage.setItem('ds_pricing_settings_v1', JSON.stringify(next)); }catch(_){}
+    saveState();
+  }catch(e){
+    console.error('savePricingSettings failed', e);
+  }
+}
 
 function daysBetween(from, to){
   const ms = new Date(to) - new Date(from);
@@ -1828,20 +1884,21 @@ function calculateInvoicePricing(doc){
 
   // Feiertags-Zuschlag: nur auf Feiertags-TAGE im Zeitraum, nicht auf den gesamten Aufenthalt
   const holidayDays = countBavariaHolidaysBetween(meta.von, meta.bis);
-  const holidayValue = Math.round((holidayDays * daily * 0.10) * 100) / 100;
+  const cfg = getPricingSettings();
+  const holidayValue = Math.round((holidayDays * daily * (cfg.holidayPercent/100)) * 100) / 100;
 
   let percentExtra = 0;
   let fixedExtra = 0;
 
   // Prozent-Aufschläge (auf Basisbetrag)
-  if(f.special_times) percentExtra += 10;
-  if(f.extra_care) percentExtra += 10;
+  if(f.special_times) percentExtra += (cfg.extras?.specialTimesPercent ?? 10);
+  if(f.extra_care) percentExtra += (cfg.extras?.extraCarePercent ?? 10);
 
   const percentValue = Math.round((base * (percentExtra / 100)) * 100) / 100;
 
   // Fixe Extras
-  if(f.medication) fixedExtra += days * 2;
-  if(f.walk_extra_count) fixedExtra += f.walk_extra_count * 15;
+  if(f.medication) fixedExtra += days * (cfg.extras?.medicationPerDay ?? 2);
+  if(f.walk_extra_count) fixedExtra += f.walk_extra_count * (cfg.extras?.walkExtraPrice ?? 15);
   if(f.bandage_count) fixedExtra += f.bandage_count * 2.5;
   if(f.grooming_count) fixedExtra += f.grooming_count * 5;
 
@@ -1933,9 +1990,31 @@ function syncInvoicePricingFromDoc(inv, doc){
   return changed;
 }
 
+function isInvoicePricingLocked(inv){
+  if(!inv) return false;
+  return inv.pricingLocked === true || !!inv.pricingLockedAt || !!inv.pricingSnapshot;
+}
+function shouldFreezeInvoice(inv){
+  const s = String(inv?.status||'').toLowerCase();
+  return (s==='open' || s==='paid' || s==='cancelled') && isInvoicePricingLocked(inv);
+}
+function getInvoiceSourceDoc(inv){
+  if(!inv || !inv.sourceDocId) return null;
+  return (state.docs||[]).find(d=>d.id===inv.sourceDocId) || (state.stays||[]).find(d=>d.id===inv.sourceDocId) || null;
+}
 function syncInvoicePricingBySource(inv){
   if(!inv || !inv.sourceDocId) return false;
-  const doc = (state.docs||[]).find(d=>d.id===inv.sourceDocId);
+
+  // 3C: Wenn Rechnung eingefroren ist (Status offen/bezahlt/storniert), niemals neu berechnen.
+  if(shouldFreezeInvoice(inv)){
+    // safety: restore snapshot if present
+    if(inv.pricingSnapshot){
+      inv.pricing = JSON.parse(JSON.stringify(inv.pricingSnapshot));
+    }
+    return false;
+  }
+
+  const doc = getInvoiceSourceDoc(inv);
   if(!doc) return false;
   return syncInvoicePricingFromDoc(inv, doc);
 }
@@ -5205,6 +5284,158 @@ function renderPolicySettings(){
   }).join('');
   const count = Object.values(state.compliance.docs||{}).reduce((a,d)=>a+((d&&Array.isArray(d.history))?d.history.length:0),0);
   el.innerHTML = rows + `<div class="hint" style="margin-top:10px">Archiv: ${count} Eintrag(e). (Inhalt bleibt in der App unverändert; Versionierung dient dem Nachweis.)</div>`;
+  renderPricingSettingsBlock();
+// --- Preise in Einstellungen bearbeiten ---
+function renderPricingSettingsBlock(){
+  const el = document.getElementById('policyList');
+  if(!el) return;
+  const cfg = getPricingSettings();
+  const mkRows = (key)=>{
+    const rules = Array.isArray(cfg.rules[key]) ? cfg.rules[key] : [];
+    // sort: desc by min
+    const sorted = rules.slice().sort((a,b)=> (b.min||0)-(a.min||0));
+    return sorted.map((r,i)=>`
+      <div class="row" style="gap:8px; align-items:center; margin:6px 0;">
+        <span class="muted" style="min-width:74px">ab ${escapeHtml(String(r.min))} Tg</span>
+        <input data-pr-key="${escapeHtml(key)}" data-pr-idx="${i}" data-pr-field="min" class="smallinp" style="width:84px" value="${escapeHtml(String(r.min))}">
+        <span class="muted">→</span>
+        <input data-pr-key="${escapeHtml(key)}" data-pr-idx="${i}" data-pr-field="price" class="smallinp" style="width:96px" value="${escapeHtml(String(r.price))}">
+        <span class="muted">€/Tag</span>
+      </div>
+    `).join('') || `<div class="muted">— keine Regeln</div>`;
+  };
+
+  const block = document.getElementById('pricingSettingsBlock');
+  if(block){
+    // refresh values only
+    block.querySelector('[data-pr-ex="holidayPercent"]').value = String(cfg.holidayPercent);
+    block.querySelector('[data-pr-ex="specialTimesPercent"]').value = String(cfg.extras.specialTimesPercent);
+    block.querySelector('[data-pr-ex="extraCarePercent"]').value = String(cfg.extras.extraCarePercent);
+    block.querySelector('[data-pr-ex="medicationPerDay"]').value = String(cfg.extras.medicationPerDay);
+    block.querySelector('[data-pr-ex="walkExtraPrice"]').value = String(cfg.extras.walkExtraPrice);
+    block.querySelector('[data-pr-rules="Tagesbetreuung"]').innerHTML = mkRows('Tagesbetreuung');
+    block.querySelector('[data-pr-rules="Urlaubsbetreuung"]').innerHTML = mkRows('Urlaubsbetreuung');
+    return;
+  }
+
+  const html = `
+  <div id="pricingSettingsBlock" class="card" style="margin-top:12px; padding:12px;">
+    <div class="row" style="justify-content:space-between; align-items:center; gap:10px;">
+      <strong>Preise</strong>
+      <button class="smallbtn" onclick="savePricingFromUI()">Speichern</button>
+    </div>
+    <div class="hint" style="margin-top:6px">
+      Änderungen wirken auf neue Berechnungen. Bereits gespeicherte/"eingefrorene" Rechnungen bleiben wie sie sind.
+    </div>
+
+    <div style="margin-top:10px">
+      <div class="row" style="gap:10px; flex-wrap:wrap;">
+        <label class="muted" style="min-width:220px">Feiertagszuschlag (% pro Feiertagstag)</label>
+        <input class="smallinp" style="width:96px" data-pr-ex="holidayPercent" value="${escapeHtml(String(cfg.holidayPercent))}">
+      </div>
+
+      <div class="row" style="gap:10px; flex-wrap:wrap; margin-top:8px">
+        <label class="muted" style="min-width:220px">Sonderzeiten (% Aufschlag)</label>
+        <input class="smallinp" style="width:96px" data-pr-ex="specialTimesPercent" value="${escapeHtml(String(cfg.extras.specialTimesPercent))}">
+        <label class="muted" style="min-width:220px">Extra-Betreuung (% Aufschlag)</label>
+        <input class="smallinp" style="width:96px" data-pr-ex="extraCarePercent" value="${escapeHtml(String(cfg.extras.extraCarePercent))}">
+      </div>
+
+      <div class="row" style="gap:10px; flex-wrap:wrap; margin-top:8px">
+        <label class="muted" style="min-width:220px">Medikamente (€/Tag)</label>
+        <input class="smallinp" style="width:96px" data-pr-ex="medicationPerDay" value="${escapeHtml(String(cfg.extras.medicationPerDay))}">
+        <label class="muted" style="min-width:220px">Zusatz-Spaziergang (€/Stk)</label>
+        <input class="smallinp" style="width:96px" data-pr-ex="walkExtraPrice" value="${escapeHtml(String(cfg.extras.walkExtraPrice))}">
+      </div>
+    </div>
+
+    <div class="row" style="gap:16px; flex-wrap:wrap; align-items:flex-start; margin-top:14px">
+      <div style="flex:1; min-width:260px">
+        <div><strong>Tagesbetreuung</strong></div>
+        <div class="muted" style="margin-top:4px">Staffel: ab X Tagen → €/Tag</div>
+        <div data-pr-rules="Tagesbetreuung" style="margin-top:6px">${mkRows('Tagesbetreuung')}</div>
+      </div>
+      <div style="flex:1; min-width:260px">
+        <div><strong>Urlaubsbetreuung</strong></div>
+        <div class="muted" style="margin-top:4px">Staffel: ab X Tagen → €/Tag</div>
+        <div data-pr-rules="Urlaubsbetreuung" style="margin-top:6px">${mkRows('Urlaubsbetreuung')}</div>
+      </div>
+    </div>
+
+    <div class="row" style="gap:8px; flex-wrap:wrap; margin-top:12px">
+      <button class="smallbtn" onclick="resetPricingDefaults()">Auf Standard zurück</button>
+      <button class="smallbtn" onclick="addPricingRule('Tagesbetreuung')">+ Regel Tages</button>
+      <button class="smallbtn" onclick="addPricingRule('Urlaubsbetreuung')">+ Regel Urlaub</button>
+    </div>
+  </div>`;
+  el.insertAdjacentHTML('beforeend', html);
+}
+
+function _readNumber(v, fallback){
+  const n = parseFloat(String(v).replace(',', '.'));
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function savePricingFromUI(){
+  try{
+    const block = document.getElementById('pricingSettingsBlock');
+    if(!block) return;
+    const cur = getPricingSettings();
+    const next = JSON.parse(JSON.stringify(cur));
+
+    // extras
+    next.holidayPercent = _readNumber(block.querySelector('[data-pr-ex="holidayPercent"]').value, cur.holidayPercent);
+    next.extras.specialTimesPercent = _readNumber(block.querySelector('[data-pr-ex="specialTimesPercent"]').value, cur.extras.specialTimesPercent);
+    next.extras.extraCarePercent = _readNumber(block.querySelector('[data-pr-ex="extraCarePercent"]').value, cur.extras.extraCarePercent);
+    next.extras.medicationPerDay = _readNumber(block.querySelector('[data-pr-ex="medicationPerDay"]').value, cur.extras.medicationPerDay);
+    next.extras.walkExtraPrice = _readNumber(block.querySelector('[data-pr-ex="walkExtraPrice"]').value, cur.extras.walkExtraPrice);
+
+    // rules
+    for(const key of ['Tagesbetreuung','Urlaubsbetreuung']){
+      const container = block.querySelector(`[data-pr-rules="${key}"]`);
+      const rows = Array.from(container.querySelectorAll('input[data-pr-key]'));
+      // collect by idx
+      const byIdx = {};
+      for(const inp of rows){
+        const idx = parseInt(inp.getAttribute('data-pr-idx'),10);
+        const field = inp.getAttribute('data-pr-field');
+        byIdx[idx] = byIdx[idx] || {};
+        byIdx[idx][field] = inp.value;
+      }
+      const arr = Object.keys(byIdx).map(k=>{
+        const o = byIdx[k];
+        return {min: Math.max(1, Math.round(_readNumber(o.min, 1))), price: _readNumber(o.price, 0)};
+      }).filter(r=>Number.isFinite(r.min)&&Number.isFinite(r.price));
+      // sort desc
+      arr.sort((a,b)=>b.min-a.min);
+      next.rules[key]=arr;
+    }
+
+    savePricingSettings(next);
+    alert('✅ Preise gespeichert');
+    renderPricingSettingsBlock();
+  }catch(e){
+    console.error(e);
+    alert('❌ Speichern fehlgeschlagen (siehe Konsole)');
+  }
+}
+
+function resetPricingDefaults(){
+  if(!confirm('Preise wirklich auf Standard zurücksetzen?')) return;
+  const next = JSON.parse(JSON.stringify(PRICING_DEFAULTS));
+  savePricingSettings(next);
+  renderPricingSettingsBlock();
+}
+
+function addPricingRule(key){
+  const cur = getPricingSettings();
+  const next = JSON.parse(JSON.stringify(cur));
+  next.rules[key] = Array.isArray(next.rules[key]) ? next.rules[key] : [];
+  next.rules[key].push({min:1, price:0});
+  savePricingSettings(next);
+  renderPricingSettingsBlock();
+}
+
 }
 
 function bumpVersionStr(v){
@@ -6878,11 +7109,34 @@ function openInvoice(id){
   const inv = getInvoiceById(id);
   if(!inv) return;
 
-  // 3A: Preise aus Aufenthalt synchronisieren, falls verknüpft
+  // 3A/3C: Preise aus Aufenthalt synchronisieren (nur solange NICHT eingefroren)
   try{
-    const changed = syncInvoicePricingBySource(inv);
-    if(changed) saveState();
-  }catch(e){ console.warn('3A syncInvoicePricingBySource failed', e); }
+    if(!shouldFreezeInvoice(inv)){
+      const changed = syncInvoicePricingBySource(inv);
+      if(changed) saveState();
+    }else{
+      // sicherstellen, dass Snapshot aktiv ist
+      if(inv.pricingSnapshot) inv.pricing = JSON.parse(JSON.stringify(inv.pricingSnapshot));
+    }
+  }catch(e){ console.warn('3C sync guard failed', e); }
+
+  // 3C: Warnung wenn Source nach Lock geändert wurde
+  let freezeWarningHtml = "";
+  try{
+    if(shouldFreezeInvoice(inv) && inv.sourceDocId){
+      const doc = getInvoiceSourceDoc(inv);
+      const atLock = inv.sourceDocUpdatedAtAtLock;
+      const nowUp = doc && doc.updatedAt ? doc.updatedAt : null;
+      if(atLock && nowUp && String(atLock)!==String(nowUp)){
+        freezeWarningHtml = `
+          <div class="card" style="border:1px solid rgba(255,165,0,.35); background: rgba(255,165,0,.08); margin: 8px 0;">
+            <strong>⚠️ Hinweis:</strong> Der Aufenthalt wurde <u>nach</u> Freigabe der Rechnung geändert.
+            Diese Rechnung ist eingefroren (Status: ${escapeHtml(mapInvoiceStatusLabel(inv.status))}) und bleibt unverändert.
+          </div>
+        `;
+      }
+    }
+  }catch(_){}
 
   const el = document.getElementById("invoiceView");
   if(!el) return;
@@ -6907,6 +7161,8 @@ function openInvoice(id){
         <strong>Datum:</strong> ${escapeHtml(new Date(inv.invoiceDate||Date.now()).toLocaleDateString("de-DE"))} ·
         <strong>Status:</strong> ${invoiceStatusBadge(inv.status)}
       </p>
+      ${freezeWarningHtml}
+
 
       <p><strong>Kunde:</strong> ${custLine}<br>
          <strong>Hund:</strong> ${petLine}
@@ -6924,6 +7180,24 @@ function openInvoice(id){
     </div>
   `;
 }
+function lockInvoicePricing(inv, reason){
+  try{
+    if(!inv) return;
+    if(isInvoicePricingLocked(inv)) return;
+
+    // Snapshot der aktuellen Preise (inkl. Breakdown) – wird später als Quelle genutzt
+    inv.pricingSnapshot = JSON.parse(JSON.stringify(inv.pricing || {}));
+    inv.pricingLocked = true;
+    inv.pricingLockedAt = new Date().toISOString();
+    inv.pricingLockedReason = reason || inv.status || 'open';
+
+    // Source-Doc Timestamp merken (für Änderungswarnung)
+    const doc = getInvoiceSourceDoc(inv);
+    if(doc && doc.updatedAt) inv.sourceDocUpdatedAtAtLock = doc.updatedAt;
+  }catch(e){
+    console.warn('lockInvoicePricing failed', e);
+  }
+}
 function setInvoiceStatus(id, status){
   const inv = getInvoiceById(id);
   if(!inv) return;
@@ -6938,6 +7212,24 @@ function setInvoiceStatus(id, status){
 
   inv.status = code;
   inv.updatedAt = new Date().toISOString();
+
+  // 3C: Sobald Rechnung "offen" (oder später) wird, frieren wir die Preisberechnung ein.
+  if(code==="open" || code==="paid" || code==="cancelled"){
+    // Vor dem Lock einmalig noch synchronisieren (falls der User direkt auf "Offen" klickt)
+    try{
+      if(inv.sourceDocId && !isInvoicePricingLocked(inv)){
+        const changed = syncInvoicePricingBySource(inv);
+        if(changed){} // pricing already updated
+      }
+    }catch(_){}
+    lockInvoicePricing(inv, code);
+  }else if(code==="draft"){
+    // Entwurf darf wieder dynamisch sein (Unlock nur, wenn explizit gewünscht)
+    // -> wir lassen Snapshot bestehen, aber markieren nicht locked, damit Sync wieder greift.
+    inv.pricingLocked = false;
+    // pricingLockedAt und Snapshot bleiben als Historie (kann später für Audit genutzt werden)
+  }
+
   saveState();
 
   openInvoice(id);
