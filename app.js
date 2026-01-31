@@ -1,5 +1,9 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = 'M13_3D_PRICING_SETTINGS_20260131';
+const APP_BUILD = 'M13_3D1_SAVEFIX_MAXOVERNIGHT_20260131';
+
+
+// Kapazitäts-Limit (Übernachtungshunde) – Stufe B Warnung
+const MAX_OVERNIGHT = 10;
 
 // --- Build-Sync (Anzeige + Migration) ---
 (function syncBuildBadge(){
@@ -8186,26 +8190,80 @@ sigCard.innerHTML = `
 
 root.appendChild(sigCard);
 
-  // HOTFIX: Save-Button im Aufenthalte-Editor robust binden (falls Event-Delegation / Overlay Probleme macht)
+  // HOTFIX: Buttons im Aufenthalte-Editor robust binden (iOS/Safari: Overlay/Event-Delegation kann Klicks schlucken)
   setTimeout(() => {
     try {
-      const btn = document.getElementById('btnStaySave2');
-      if (btn && !btn.dataset.bound) {
-        btn.dataset.bound = '1';
-        btn.addEventListener('click', (ev) => {
+      const bind = (id, handler) => {
+        const b = document.getElementById(id);
+        if (!b) return;
+        if (b.dataset.bound) return;
+        b.dataset.bound = '1';
+        b.addEventListener('click', (ev) => {
           ev.preventDefault();
           ev.stopPropagation();
-          try { syncStayEditorInputsToDoc(doc); } catch (e) { /* noop */ }
-          try { saveCurrent(true); } catch (e) {
-            console.error('Stay save failed', e);
-            try { toast('Speichern fehlgeschlagen'); } catch (_) {}
+          try { handler(ev); } catch (e) {
+            console.error(id + ' handler failed', e);
+            try { alert('Aktion fehlgeschlagen: ' + id); } catch (_) {}
           }
-        });
-      }
+        }, { passive:false });
+      };
+
+      // Haupt-Speichern (oben in der Aufenthalte-Box)
+      bind('btnStaySave', () => {
+        try { syncStayEditorInputsToDoc(doc); } catch (_) {}
+        saveCurrent(true);
+      });
+
+      // Speichern im Unterschrift-Bereich
+      bind('btnStaySave2', () => {
+        try { syncStayEditorInputsToDoc(doc); } catch (_) {}
+        saveCurrent(true);
+      });
+
+      // Als PDF speichern / Drucken (falls Button existiert)
+      bind('btnStayPrint', () => {
+        try { syncStayEditorInputsToDoc(doc); } catch (_) {}
+        // printDoc nutzt saveCurrent(false) selbst; wir halten Inputs trotzdem konsistent
+        printDoc();
+      });
+
+      // Schließen (falls Button existiert)
+      bind('btnStayClose', () => {
+        // wie generischer Close-Button im Editor
+        const closeBtn = document.getElementById('btnClose');
+        if (closeBtn) closeBtn.click();
+        else {
+          // Fallback: einfach zur Startseite zurück
+          try{ $$(".tab").forEach((t,i)=>t.classList.toggle("is-active", i===0)); }catch(_){}
+          showPanel("home");
+          renderDocs();
+        }
+      });
+
+      // Fallback: Wenn Buttons ohne ID gerendert wurden (Template/JSON), binde nach Text.
+      const stayRoot = document.getElementById('stayEditor') || document.getElementById('editor') || document.body;
+      stayRoot.querySelectorAll('button').forEach(b=>{
+        const label = (b.textContent||'').trim().toLowerCase();
+        if (b.dataset.bound) return;
+        if (label === 'speichern') {
+          b.dataset.bound='1';
+          b.addEventListener('click', (ev)=>{ ev.preventDefault(); ev.stopPropagation(); try{ syncStayEditorInputsToDoc(doc);}catch(_){} saveCurrent(true); }, { passive:false });
+        }
+        if (label.includes('pdf') || label.includes('drucken')) {
+          b.dataset.bound='1';
+          b.addEventListener('click', (ev)=>{ ev.preventDefault(); ev.stopPropagation(); try{ syncStayEditorInputsToDoc(doc);}catch(_){} printDoc(); }, { passive:false });
+        }
+        if (label === 'schließen' || label === 'schliessen') {
+          b.dataset.bound='1';
+          b.addEventListener('click', (ev)=>{ ev.preventDefault(); ev.stopPropagation(); const closeBtn=document.getElementById('btnClose'); if(closeBtn) closeBtn.click(); }, { passive:false });
+        }
+      });
+
     } catch (e) {
-      console.error('bind btnStaySave2 failed', e);
+      console.error('bind stay buttons failed', e);
     }
   }, 0);
+
 
 
 
