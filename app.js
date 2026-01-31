@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = 'M13_3D3_PRICERULES_FIX_20260131';
+const APP_BUILD = 'M13_3D4_LOCK_ON_PAID_20260131';
 
 
 // Kapazitäts-Limit (Übernachtungshunde) – Stufe B Warnung
@@ -2001,8 +2001,10 @@ function isInvoicePricingLocked(inv){
 }
 function shouldFreezeInvoice(inv){
   const s = String(inv?.status||'').toLowerCase();
-  return (s==='open' || s==='paid' || s==='cancelled') && isInvoicePricingLocked(inv);
+  // Freeze only when Rechnung final ist (bezahlt/storniert) AND pricing was locked/snapshotted.
+  return (s==='paid' || s==='cancelled') && isInvoicePricingLocked(inv);
 }
+
 function getInvoiceSourceDoc(inv){
   if(!inv || !inv.sourceDocId) return null;
   return (state.docs||[]).find(d=>d.id===inv.sourceDocId) || (state.stays||[]).find(d=>d.id===inv.sourceDocId) || null;
@@ -7155,6 +7157,7 @@ function openInvoice(id){
       <div class="row between" style="gap:10px;flex-wrap:wrap">
         <h3 style="margin:0">Rechnung</h3>
         <div class="row" style="gap:8px;flex-wrap:wrap">
+          <button class="smallbtn" onclick="setInvoiceStatus('${inv.id}','draft')">Entwurf</button>
           <button class="smallbtn" onclick="setInvoiceStatus('${inv.id}','open')">Offen</button>
           <button class="smallbtn" onclick="setInvoiceStatus('${inv.id}','paid')">Bezahlt</button>
           <button class="smallbtn" onclick="setInvoiceStatus('${inv.id}','cancelled')">Storniert</button>
@@ -7218,8 +7221,8 @@ function setInvoiceStatus(id, status){
   inv.status = code;
   inv.updatedAt = new Date().toISOString();
 
-  // 3C: Sobald Rechnung "offen" (oder später) wird, frieren wir die Preisberechnung ein.
-  if(code==="open" || code==="paid" || code==="cancelled"){
+  // 3C/3D: Einfrieren erst bei "bezahlt" (und "storniert"). "Offen" bleibt dynamisch.
+  if(code==="paid" || code==="cancelled"){
     // Vor dem Lock einmalig noch synchronisieren (falls der User direkt auf "Offen" klickt)
     try{
       if(inv.sourceDocId && !isInvoicePricingLocked(inv)){
@@ -7228,7 +7231,13 @@ function setInvoiceStatus(id, status){
       }
     }catch(_){}
     lockInvoicePricing(inv, code);
-  }else if(code==="draft"){
+  }
+  else if(code==="open"){
+    // Offen: Preise bleiben dynamisch (nicht locken)
+    inv.pricingLocked = false;
+  }
+  else if(code==="draft"){
+
     // Entwurf darf wieder dynamisch sein (Unlock nur, wenn explizit gewünscht)
     // -> wir lassen Snapshot bestehen, aber markieren nicht locked, damit Sync wieder greift.
     inv.pricingLocked = false;
