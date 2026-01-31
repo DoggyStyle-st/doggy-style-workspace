@@ -1,7 +1,7 @@
 /* Doggy Style – Service Worker v11B_SAVE_PDF_17_STAY_DEBUG_OVERLAY (offline-first, update-safe) */
 
 // Version bump forces clients to pick up updated assets reliably.
-const SW_VERSION = "v11B_MASTER_STEP1K_STAY_LEGAL_SIG_DOCMODAL_SW_20260124M6";
+const SW_VERSION = "M13_3E2_STAY_SURCHARGE_DEFAULTS_20260201";
 const CACHE_NAME = `ds-test-cache-${SW_VERSION}`;
 
 // Wichtig:

@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = 'M13_3D4_LOCK_ON_PAID_20260131';
+const APP_BUILD = 'M13_3E1_STAY_SURCHARGE_TOGGLES_20260131';
 
 
 // Kapazitäts-Limit (Übernachtungshunde) – Stufe B Warnung
@@ -1843,6 +1843,22 @@ function countBavariaHolidaysBetween(from, to){
   return count;
 }
 
+function countSundaysBetween(from, to){
+  // [from, to) (to exklusiv) – passend zu daysBetween()
+  if(!from || !to) return 0;
+  const start = new Date(from + "T00:00:00Z");
+  const end = new Date(to + "T00:00:00Z");
+  if(!(start < end)) return 0;
+  let count = 0;
+  let cur = new Date(start.getTime());
+  while(cur < end){
+    // 0 = Sonntag
+    if(cur.getUTCDay() === 0) count++;
+    cur = addDaysUTC(cur, 1);
+  }
+  return count;
+}
+
 
 function updateAutoHolidayFields(){
   if(!currentDoc) return;
@@ -1852,16 +1868,85 @@ function updateAutoHolidayFields(){
   const from = currentDoc.meta?.von;
   const to = currentDoc.meta?.bis;
   const cnt = (from && to) ? countBavariaHolidaysBetween(from, to) : 0;
+  const sundays = (from && to) ? countSundaysBetween(from, to) : 0;
 
-  // Immer automatisch – keine manuelle Auswahl
+  // Default: Sonn- & Feiertagszuschlag ist aktiv (kann im Aufenthalt deaktiviert werden)
   currentDoc.fields = currentDoc.fields || {};
-  currentDoc.fields.holiday_days = cnt || 0;
+  if(typeof currentDoc.fields.sun_hol_apply !== "boolean") currentDoc.fields.sun_hol_apply = true;
+
+  // Immer automatisch – Anzahl wird berechnet; bei Deaktivierung = 0
+  const sunHolApply = (currentDoc.fields.sun_hol_apply !== false);
+  currentDoc.fields.holiday_days = sunHolApply ? (cnt || 0) : 0;
+  currentDoc.fields.sunday_days  = sunHolApply ? (sundays || 0) : 0;
 
   // UI: Anzahl-Feld (falls vorhanden) befüllen & sperren
   const num = document.querySelector('input[data-key="holiday_days"]');
   if(num){
     num.value = String(currentDoc.fields.holiday_days || 0);
     num.disabled = true;
+  }
+
+  const numS = document.querySelector('input[data-key="sunday_days"]');
+  if(numS){
+    numS.value = String(currentDoc.fields.sunday_days || 0);
+    numS.disabled = true;
+  }
+
+  // UI: Checkbox spiegeln
+  const cbSunHol = document.querySelector('input[type="checkbox"][data-key="sun_hol_apply"]');
+  if(cbSunHol) cbSunHol.checked = !!currentDoc.fields.sun_hol_apply;
+
+  // Defaults für zählbasierte Zuschläge
+  const days = daysBetween(from, to);
+
+  // Dauermedikation beim Hund -> im Aufenthalt automatisch vorauswählen
+  try{
+    if(currentDoc.fields.medication === undefined){
+      const pet = getPetByDoc(currentDoc);
+      const pid = pet?.id;
+      const hasActivePlan = !!(pid && state?.medication?.plans && state.medication.plans.some(p => p.petId === pid && (p.active !== false)));
+      if(hasActivePlan){
+        currentDoc.fields.medication = true;
+        const cb = document.querySelector('input[type="checkbox"][data-key="medication"]');
+        if(cb) cb.checked = true;
+      }
+    }
+  }catch(e){ /* noop */ }
+
+  // Zusatz-Spaziergang: default Stückzahl = Aufenthaltstage (kann geändert oder auf 0 gesetzt werden)
+  // Wir merken uns, ob der Wert automatisch gesetzt wurde, damit er bei Datumsänderungen mitwandert.
+  const walkKey = 'walk_extra_count';
+  const autoKey = 'walk_extra_auto';
+  const curWalk = currentDoc.fields[walkKey];
+  if(curWalk === undefined || curWalk === null || String(curWalk) === ''){
+    currentDoc.fields[walkKey] = days;
+    currentDoc.fields[autoKey] = true;
+    const inp = document.querySelector(`input[data-key="${walkKey}"]`);
+    if(inp) inp.value = String(days);
+  }else{
+    // Wenn der Nutzer den Wert verändert (≠ days), Auto-Modus deaktivieren.
+    if(currentDoc.fields[autoKey] === true){
+      const n = Number(curWalk);
+      if(!Number.isFinite(n) || n !== days){
+        currentDoc.fields[autoKey] = false;
+      }else{
+        // Auto aktiv und unverändert -> an neue Tage anpassen
+        currentDoc.fields[walkKey] = days;
+        const inp = document.querySelector(`input[data-key="${walkKey}"]`);
+        if(inp) inp.value = String(days);
+      }
+    }
+  }
+
+  // Legacy-Key-Migration: alte Keys in neue Keys überführen (falls vorhanden)
+  if(currentDoc.fields.extra_walk_count !== undefined && currentDoc.fields[walkKey] === undefined){
+    currentDoc.fields[walkKey] = currentDoc.fields.extra_walk_count;
+  }
+  if(currentDoc.fields.bandage_change_count !== undefined && currentDoc.fields.bandage_count === undefined){
+    currentDoc.fields.bandage_count = currentDoc.fields.bandage_change_count;
+  }
+  if(currentDoc.fields.grooming_extra_count !== undefined && currentDoc.fields.grooming_count === undefined){
+    currentDoc.fields.grooming_count = currentDoc.fields.grooming_extra_count;
   }
 }
 
@@ -1898,10 +1983,14 @@ function calculateInvoicePricing(doc){
   const daily = getPricePerDay(normalizeBetreuung(meta.betreuung), days);
   const base = days * daily;
 
-  // Feiertags-Zuschlag: nur auf Feiertags-TAGE im Zeitraum, nicht auf den gesamten Aufenthalt
-  const holidayDays = countBavariaHolidaysBetween(meta.von, meta.bis);
+  // Sonn- & Feiertags-Zuschlag (Standard: an)
   const cfg = getPricingSettings();
-  const holidayValue = Math.round((holidayDays * daily * (cfg.holidayPercent/100)) * 100) / 100;
+  const holidayDays = countBavariaHolidaysBetween(meta.von, meta.bis);
+  const sundayDays = countSundaysBetween(meta.von, meta.bis);
+  const sunHolApply = (f.sun_hol_apply !== false);
+  const sunHolRate = Number((cfg.holidayPercent ?? cfg.sundayPercent ?? 0) || 0);
+  const sunHolDays = sunHolApply ? (holidayDays + sundayDays) : 0;
+  const holidayValue = Math.round((sunHolDays * daily * (sunHolRate/100)) * 100) / 100;
 
   let percentExtra = 0;
   let fixedExtra = 0;
@@ -1918,14 +2007,16 @@ function calculateInvoicePricing(doc){
     percentExtra += r;
     percentItems.push({ key:'extra_care', label:`Besondere Betreuung (${r}%)`, rate: r });
   }
-  // optionale Prozent-Zuschläge
-  if(f.sunday_service){
-    const r = (cfg.extras?.sundayPercent ?? 0);
-    if(r){ percentExtra += r; percentItems.push({ key:'sunday_service', label:`Sonntag/Feiertag-Schicht (${r}%)`, rate: r }); }
-  }
+  // Sonntage/Feiertage sind über "sun_hol_apply" im Sonn-&Feiertagsblock abgedeckt.
   if(f.short_notice){
     const r = (cfg.extras?.shortNoticePercent ?? 0);
     if(r){ percentExtra += r; percentItems.push({ key:'short_notice', label:`Kurzfristig (${r}%)`, rate: r }); }
+  }
+
+  // Sonderrabatt (%). Beispiel: 10 = -10% auf Basisbetrag
+  if(String(f.discount_percent ?? '').trim() !== ''){
+    const r = Number(f.discount_percent || 0);
+    if(r){ percentExtra -= r; percentItems.push({ key:'discount_percent', label:`Sonderrabatt (-${r}%)`, rate: -r }); }
   }
 
   const percentValue = Math.round((base * (percentExtra / 100)) * 100) / 100;
@@ -5483,7 +5574,7 @@ function renderPricingSettingsBlock(){
     block.querySelector('[data-pr-ex="groomingPrice"]').value = String(cfg.extras.groomingPrice ?? 5);
     block.querySelector('[data-pr-ex="hygienePerDay"]').value = String(cfg.extras.hygienePerDay ?? 0);
     block.querySelector('[data-pr-ex="pickupDropoffPrice"]').value = String(cfg.extras.pickupDropoffPrice ?? 0);
-    block.querySelector('[data-pr-ex="sundayPercent"]').value = String(cfg.extras.sundayPercent ?? 0);
+    // sundayPercent wurde mit holidayPercent zusammengelegt (UI entfernt)
     block.querySelector('[data-pr-ex="shortNoticePercent"]').value = String(cfg.extras.shortNoticePercent ?? 0);
     block.querySelector('[data-pr-rules="Tagesbetreuung"]').innerHTML = mkRows('Tagesbetreuung');
     block.querySelector('[data-pr-rules="Urlaubsbetreuung"]').innerHTML = mkRows('Urlaubsbetreuung');
@@ -5507,7 +5598,7 @@ function renderPricingSettingsBlock(){
       </div>
 
       <div class="row" style="gap:10px; flex-wrap:wrap;">
-        <label class="muted" style="min-width:220px">Feiertagszuschlag (% pro Feiertagstag)</label>
+        <label class="muted" style="min-width:220px">Sonn-/Feiertagszuschlag (% pro Tag)</label>
         <input class="smallinp" style="width:96px" data-pr-ex="holidayPercent" value="${escapeHtml(String(cfg.holidayPercent))}">
       </div>
 
@@ -5540,8 +5631,6 @@ function renderPricingSettingsBlock(){
       </div>
 
       <div class="row" style="gap:10px; flex-wrap:wrap; margin-top:8px">
-        <label class="muted" style="min-width:220px">Sonntag (% Aufschlag)</label>
-        <input class="smallinp" style="width:96px" data-pr-ex="sundayPercent" value="${escapeHtml(String(cfg.extras.sundayPercent ?? 0))}">
         <label class="muted" style="min-width:220px">Kurzfristig (% Aufschlag)</label>
         <input class="smallinp" style="width:96px" data-pr-ex="shortNoticePercent" value="${escapeHtml(String(cfg.extras.shortNoticePercent ?? 0))}">
       </div>
@@ -5592,7 +5681,8 @@ function savePricingFromUI(){
     next.extras.groomingPrice = _readNumber(block.querySelector('[data-pr-ex="groomingPrice"]').value, cur.extras.groomingPrice ?? 5);
     next.extras.hygienePerDay = _readNumber(block.querySelector('[data-pr-ex="hygienePerDay"]').value, cur.extras.hygienePerDay ?? 0);
     next.extras.pickupDropoffPrice = _readNumber(block.querySelector('[data-pr-ex="pickupDropoffPrice"]').value, cur.extras.pickupDropoffPrice ?? 0);
-    next.extras.sundayPercent = _readNumber(block.querySelector('[data-pr-ex="sundayPercent"]').value, cur.extras.sundayPercent ?? 0);
+    // Sonntag wurde mit Feiertag zusammengelegt
+    next.extras.sundayPercent = next.holidayPercent;
     next.extras.shortNoticePercent = _readNumber(block.querySelector('[data-pr-ex="shortNoticePercent"]').value, cur.extras.shortNoticePercent ?? 0);
     // rules
     for(const key of ['Tagesbetreuung','Urlaubsbetreuung']){
