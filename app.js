@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = 'M13_3D1_SAVEFIX_MAXOVERNIGHT_20260131';
+const APP_BUILD = 'M13_3D3_PRICERULES_FIX_20260131';
 
 
 // Kapazitäts-Limit (Übernachtungshunde) – Stufe B Warnung
@@ -1867,7 +1867,8 @@ function normalizeBetreuung(type){
 }
 
 function getPricePerDay(type, days){
-  const rules = PRICE_RULES[type] || [];
+  const rulesMap = (getPricingSettings().rules || PRICE_RULES_DEFAULT);
+  const rules = rulesMap[type] || [];
   for(const r of rules){
     if(days >= r.min) return r.price;
   }
