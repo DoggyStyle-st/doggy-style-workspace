@@ -1706,11 +1706,19 @@ const PRICE_RULES_DEFAULT = {
 const PRICING_DEFAULTS = {
   rules: JSON.parse(JSON.stringify(PRICE_RULES_DEFAULT)),
   holidayPercent: 10,
+  // MwSt wird in der App als Netto/MwSt/Brutto ausgewiesen (Brutto bleibt Brutto)
+  vatPercent: 19,
   extras: {
     specialTimesPercent: 10,   // f.special_times
     extraCarePercent: 10,      // f.extra_care
     medicationPerDay: 2,       // f.medication (pro Tag)
-    walkExtraPrice: 15         // f.walk_extra_count (pro zusätzl. Spaziergang)
+    walkExtraPrice: 15,        // f.walk_extra_count (pro zusätzl. Spaziergang)
+    bandagePrice: 2.5,         // f.bandage_count (pro Stück)
+    groomingPrice: 5,          // f.grooming_count (pro Stück)
+    hygienePerDay: 0,          // optional (€/Tag)
+    pickupDropoffPrice: 0,     // optional (€/Fahrt)
+    sundayPercent: 0,          // optional (% auf Grundpreis)
+    shortNoticePercent: 0      // optional (% auf Grundpreis)
   }
 };
 
@@ -1731,6 +1739,7 @@ function getPricingSettings(){
     if(p && typeof p === 'object'){
       if(p.rules && typeof p.rules === 'object') out.rules = p.rules;
       if(Number.isFinite(+p.holidayPercent)) out.holidayPercent = +p.holidayPercent;
+      if(Number.isFinite(+p.vatPercent)) out.vatPercent = +p.vatPercent;
       if(p.extras && typeof p.extras === 'object'){
         for(const k of Object.keys(out.extras)){
           if(Number.isFinite(+p.extras[k])) out.extras[k] = +p.extras[k];
@@ -1751,6 +1760,8 @@ function savePricingSettings(next){
     if(!next || typeof next !== 'object') return;
     state.settings = state.settings || {};
     state.settings.pricing = next;
+    // Konsistenz: MwSt auch als globales Feld (wird von Rechnungen genutzt)
+    if(Number.isFinite(+next.vatPercent)) state.settings.vatRate = +next.vatPercent;
     try{ localStorage.setItem('ds_pricing_settings_v1', JSON.stringify(next)); }catch(_){}
     saveState();
   }catch(e){
@@ -1894,18 +1905,73 @@ function calculateInvoicePricing(doc){
 
   let percentExtra = 0;
   let fixedExtra = 0;
+  const percentItems = [];
 
   // Prozent-Aufschläge (auf Basisbetrag)
-  if(f.special_times) percentExtra += (cfg.extras?.specialTimesPercent ?? 10);
-  if(f.extra_care) percentExtra += (cfg.extras?.extraCarePercent ?? 10);
+  if(f.special_times){
+    const r = (cfg.extras?.specialTimesPercent ?? 10);
+    percentExtra += r;
+    percentItems.push({ key:'special_times', label:`Sonderzeiten / Sonderaufwand (${r}%)`, rate: r });
+  }
+  if(f.extra_care){
+    const r = (cfg.extras?.extraCarePercent ?? 10);
+    percentExtra += r;
+    percentItems.push({ key:'extra_care', label:`Besondere Betreuung (${r}%)`, rate: r });
+  }
+  // optionale Prozent-Zuschläge
+  if(f.sunday_service){
+    const r = (cfg.extras?.sundayPercent ?? 0);
+    if(r){ percentExtra += r; percentItems.push({ key:'sunday_service', label:`Sonntag/Feiertag-Schicht (${r}%)`, rate: r }); }
+  }
+  if(f.short_notice){
+    const r = (cfg.extras?.shortNoticePercent ?? 0);
+    if(r){ percentExtra += r; percentItems.push({ key:'short_notice', label:`Kurzfristig (${r}%)`, rate: r }); }
+  }
 
   const percentValue = Math.round((base * (percentExtra / 100)) * 100) / 100;
 
   // Fixe Extras
-  if(f.medication) fixedExtra += days * (cfg.extras?.medicationPerDay ?? 2);
-  if(f.walk_extra_count) fixedExtra += f.walk_extra_count * (cfg.extras?.walkExtraPrice ?? 15);
-  if(f.bandage_count) fixedExtra += f.bandage_count * 2.5;
-  if(f.grooming_count) fixedExtra += f.grooming_count * 5;
+  const fixedItems = [];
+  if(f.medication){
+    const v = days * (cfg.extras?.medicationPerDay ?? 2);
+    fixedExtra += v;
+    fixedItems.push({ key:'medication', label:`Medikamentengabe (${days}×)`, value: round2(v) });
+  }
+  if(f.walk_extra_count){
+    const c = Number(f.walk_extra_count||0);
+    const v = c * (cfg.extras?.walkExtraPrice ?? 15);
+    fixedExtra += v;
+    fixedItems.push({ key:'walk_extra_count', label:`Extra Spaziergänge (${c}×)`, value: round2(v) });
+  }
+  if(f.bandage_count){
+    const c = Number(f.bandage_count||0);
+    const v = c * (cfg.extras?.bandagePrice ?? 2.5);
+    fixedExtra += v;
+    fixedItems.push({ key:'bandage_count', label:`Verbandwechsel (${c}×)`, value: round2(v) });
+  }
+  if(f.grooming_count){
+    const c = Number(f.grooming_count||0);
+    const v = c * (cfg.extras?.groomingPrice ?? 5);
+    fixedExtra += v;
+    fixedItems.push({ key:'grooming_count', label:`Pflege/Extra (${c}×)`, value: round2(v) });
+  }
+  // optionale fixe Zuschläge
+  if(f.hygiene_days){
+    const c = Number(f.hygiene_days||0);
+    const v = c * (cfg.extras?.hygienePerDay ?? 0);
+    if(v){
+      fixedExtra += v;
+      fixedItems.push({ key:'hygiene_days', label:`Hygiene/Extra (${c}×)`, value: round2(v) });
+    }
+  }
+  if(f.pickup_dropoff_count){
+    const c = Number(f.pickup_dropoff_count||0);
+    const v = c * (cfg.extras?.pickupDropoffPrice ?? 0);
+    if(v){
+      fixedExtra += v;
+      fixedItems.push({ key:'pickup_dropoff_count', label:`Abhol-/Bringservice (${c}×)`, value: round2(v) });
+    }
+  }
 
   fixedExtra = Math.round(fixedExtra * 100) / 100;
 
@@ -1922,7 +1988,11 @@ function calculateInvoicePricing(doc){
     percentExtra,
     percentValue,
 
+    percentItems,
+    percentItems,
+
     fixedExtra,
+    fixedItems,
     total
   };
 
@@ -1958,7 +2028,8 @@ function recomputeInvoiceTotals(inv){
   const net = (Number(parts.base)||0) + appliedHoliday + appliedPercent + appliedFixed;
 
   // VAT rate: per invoice override, otherwise from settings, otherwise 0
-  const settingsVat = Number((state && state.settings && state.settings.vatRate) ?? 19) || 0;
+  const cfg = getPricingSettings();
+  const settingsVat = Number((state && state.settings && state.settings.vatRate) ?? cfg.vatPercent ?? 19) || 0;
   const vatRate = (typeof inv.vatRate === 'number' && !Number.isNaN(inv.vatRate)) ? inv.vatRate : settingsVat;
   inv.vatRate = vatRate;
 
@@ -2016,6 +2087,8 @@ function syncInvoicePricingFromDoc(inv, doc){
   const holidayDays = Number(p.holidayDays || 0);
   const holidayExtra = round2(p.holidayValue || 0);        // €
   const fixedExtra = round2(p.fixedExtra || 0);            // €
+  const fixedItems = Array.isArray(p.fixedItems) ? p.fixedItems : [];
+  const percentItems = Array.isArray(p.percentItems) ? p.percentItems : [];
   const total = round2(basePrice + percentValue + holidayExtra + fixedExtra);
 
   const changed =
@@ -2039,8 +2112,20 @@ function syncInvoicePricingFromDoc(inv, doc){
 
   inv.pricing.fixedExtra = fixedExtra;
 
+  // 3E: Detail-Breakdown für Anzeige/PDF
+  inv.pricing.breakdown = {
+    percentItems: percentItems,
+    fixedItems: fixedItems
+  };
+
   // canonical parts + totals (supports toggles + MwSt)
   inv.pricing.parts = { base: basePrice, percent: percentValue, holiday: holidayExtra, fixed: fixedExtra };
+  // 3E: Detail-Aufschlüsselung für UI/PDF
+  inv.pricing.breakdown = {
+    percentItems: percentItems,
+    fixedItems: fixedItems,
+    holidayDays: holidayDays
+  };
   recomputeInvoiceTotals(inv);
 
   // Zusatzinfos (harmless, falls später gebraucht)
@@ -2051,6 +2136,8 @@ function syncInvoicePricingFromDoc(inv, doc){
     percentValue: percentValue,
     holidayDays: holidayDays,
     holidayExtra: holidayExtra
+    ,percentItems: percentItems
+    ,fixedItems: fixedItems
   };
 
   // Zeitraum aus Aufenthalt synchron halten (falls nachträglich geändert)
@@ -2072,8 +2159,8 @@ function isInvoicePricingLocked(inv){
 }
 function shouldFreezeInvoice(inv){
   const s = String(inv?.status||'').toLowerCase();
-  // Freeze only when Rechnung final ist (bezahlt/storniert) AND pricing was locked/snapshotted.
-  return (s==='paid' || s==='cancelled') && isInvoicePricingLocked(inv);
+  // 3D4/3E: Einfrieren erst bei "bezahlt" (Storno bleibt editierbar, falls nötig)
+  return (s==='paid') && isInvoicePricingLocked(inv);
 }
 
 function getInvoiceSourceDoc(inv){
@@ -5386,11 +5473,18 @@ function renderPricingSettingsBlock(){
   const block = document.getElementById('pricingSettingsBlock');
   if(block){
     // refresh values only
+    block.querySelector('[data-pr-ex="vatPercent"]').value = String(cfg.vatPercent ?? 19);
     block.querySelector('[data-pr-ex="holidayPercent"]').value = String(cfg.holidayPercent);
     block.querySelector('[data-pr-ex="specialTimesPercent"]').value = String(cfg.extras.specialTimesPercent);
     block.querySelector('[data-pr-ex="extraCarePercent"]').value = String(cfg.extras.extraCarePercent);
     block.querySelector('[data-pr-ex="medicationPerDay"]').value = String(cfg.extras.medicationPerDay);
     block.querySelector('[data-pr-ex="walkExtraPrice"]').value = String(cfg.extras.walkExtraPrice);
+    block.querySelector('[data-pr-ex="bandagePrice"]').value = String(cfg.extras.bandagePrice ?? 2.5);
+    block.querySelector('[data-pr-ex="groomingPrice"]').value = String(cfg.extras.groomingPrice ?? 5);
+    block.querySelector('[data-pr-ex="hygienePerDay"]').value = String(cfg.extras.hygienePerDay ?? 0);
+    block.querySelector('[data-pr-ex="pickupDropoffPrice"]').value = String(cfg.extras.pickupDropoffPrice ?? 0);
+    block.querySelector('[data-pr-ex="sundayPercent"]').value = String(cfg.extras.sundayPercent ?? 0);
+    block.querySelector('[data-pr-ex="shortNoticePercent"]').value = String(cfg.extras.shortNoticePercent ?? 0);
     block.querySelector('[data-pr-rules="Tagesbetreuung"]').innerHTML = mkRows('Tagesbetreuung');
     block.querySelector('[data-pr-rules="Urlaubsbetreuung"]').innerHTML = mkRows('Urlaubsbetreuung');
     return;
@@ -5408,6 +5502,11 @@ function renderPricingSettingsBlock(){
 
     <div style="margin-top:10px">
       <div class="row" style="gap:10px; flex-wrap:wrap;">
+        <label class="muted" style="min-width:220px">MwSt (% für Rechnung)</label>
+        <input class="smallinp" style="width:96px" data-pr-ex="vatPercent" value="${escapeHtml(String(cfg.vatPercent ?? 19))}">
+      </div>
+
+      <div class="row" style="gap:10px; flex-wrap:wrap;">
         <label class="muted" style="min-width:220px">Feiertagszuschlag (% pro Feiertagstag)</label>
         <input class="smallinp" style="width:96px" data-pr-ex="holidayPercent" value="${escapeHtml(String(cfg.holidayPercent))}">
       </div>
@@ -5424,6 +5523,27 @@ function renderPricingSettingsBlock(){
         <input class="smallinp" style="width:96px" data-pr-ex="medicationPerDay" value="${escapeHtml(String(cfg.extras.medicationPerDay))}">
         <label class="muted" style="min-width:220px">Zusatz-Spaziergang (€/Stk)</label>
         <input class="smallinp" style="width:96px" data-pr-ex="walkExtraPrice" value="${escapeHtml(String(cfg.extras.walkExtraPrice))}">
+      </div>
+
+      <div class="row" style="gap:10px; flex-wrap:wrap; margin-top:8px">
+        <label class="muted" style="min-width:220px">Verbandwechsel (€/Stk)</label>
+        <input class="smallinp" style="width:96px" data-pr-ex="bandagePrice" value="${escapeHtml(String(cfg.extras.bandagePrice ?? 2.5))}">
+        <label class="muted" style="min-width:220px">Pflege/Extra (€/Stk)</label>
+        <input class="smallinp" style="width:96px" data-pr-ex="groomingPrice" value="${escapeHtml(String(cfg.extras.groomingPrice ?? 5))}">
+      </div>
+
+      <div class="row" style="gap:10px; flex-wrap:wrap; margin-top:8px">
+        <label class="muted" style="min-width:220px">Hygiene/Extra (€/Tag)</label>
+        <input class="smallinp" style="width:96px" data-pr-ex="hygienePerDay" value="${escapeHtml(String(cfg.extras.hygienePerDay ?? 0))}">
+        <label class="muted" style="min-width:220px">Abhol-/Bringservice (€/Fahrt)</label>
+        <input class="smallinp" style="width:96px" data-pr-ex="pickupDropoffPrice" value="${escapeHtml(String(cfg.extras.pickupDropoffPrice ?? 0))}">
+      </div>
+
+      <div class="row" style="gap:10px; flex-wrap:wrap; margin-top:8px">
+        <label class="muted" style="min-width:220px">Sonntag (% Aufschlag)</label>
+        <input class="smallinp" style="width:96px" data-pr-ex="sundayPercent" value="${escapeHtml(String(cfg.extras.sundayPercent ?? 0))}">
+        <label class="muted" style="min-width:220px">Kurzfristig (% Aufschlag)</label>
+        <input class="smallinp" style="width:96px" data-pr-ex="shortNoticePercent" value="${escapeHtml(String(cfg.extras.shortNoticePercent ?? 0))}">
       </div>
     </div>
 
@@ -5462,12 +5582,18 @@ function savePricingFromUI(){
     const next = JSON.parse(JSON.stringify(cur));
 
     // extras
+    next.vatPercent = _readNumber(block.querySelector('[data-pr-ex="vatPercent"]').value, cur.vatPercent ?? 19);
     next.holidayPercent = _readNumber(block.querySelector('[data-pr-ex="holidayPercent"]').value, cur.holidayPercent);
     next.extras.specialTimesPercent = _readNumber(block.querySelector('[data-pr-ex="specialTimesPercent"]').value, cur.extras.specialTimesPercent);
     next.extras.extraCarePercent = _readNumber(block.querySelector('[data-pr-ex="extraCarePercent"]').value, cur.extras.extraCarePercent);
     next.extras.medicationPerDay = _readNumber(block.querySelector('[data-pr-ex="medicationPerDay"]').value, cur.extras.medicationPerDay);
     next.extras.walkExtraPrice = _readNumber(block.querySelector('[data-pr-ex="walkExtraPrice"]').value, cur.extras.walkExtraPrice);
-
+    next.extras.bandagePrice = _readNumber(block.querySelector('[data-pr-ex="bandagePrice"]').value, cur.extras.bandagePrice ?? 2.5);
+    next.extras.groomingPrice = _readNumber(block.querySelector('[data-pr-ex="groomingPrice"]').value, cur.extras.groomingPrice ?? 5);
+    next.extras.hygienePerDay = _readNumber(block.querySelector('[data-pr-ex="hygienePerDay"]').value, cur.extras.hygienePerDay ?? 0);
+    next.extras.pickupDropoffPrice = _readNumber(block.querySelector('[data-pr-ex="pickupDropoffPrice"]').value, cur.extras.pickupDropoffPrice ?? 0);
+    next.extras.sundayPercent = _readNumber(block.querySelector('[data-pr-ex="sundayPercent"]').value, cur.extras.sundayPercent ?? 0);
+    next.extras.shortNoticePercent = _readNumber(block.querySelector('[data-pr-ex="shortNoticePercent"]').value, cur.extras.shortNoticePercent ?? 0);
     // rules
     for(const key of ['Tagesbetreuung','Urlaubsbetreuung']){
       const container = block.querySelector(`[data-pr-rules="${key}"]`);
@@ -5490,6 +5616,8 @@ function savePricingFromUI(){
     }
 
     savePricingSettings(next);
+    // MwSt auch als globaler Rechnungs-Default bereitstellen (kompatibel mit bestehenden Feldern)
+    try{ state.settings = state.settings || {}; state.settings.vatRate = next.vatPercent; saveState(); }catch(_){ }
     alert('✅ Preise gespeichert');
     renderPricingSettingsBlock();
   }catch(e){
@@ -7153,6 +7281,34 @@ function openOrCreateInvoiceForDocId(docId){
   }
 }
 
+// --- 3E: Rechnung -> Aufenthalt öffnen / Zuschläge übernehmen -----------------
+function openInvoiceSourceStay(invoiceId){
+  try{
+    const inv = getInvoiceById(invoiceId);
+    if(!inv || !inv.sourceDocId) return;
+    // Wechsel in Dokumente/Editor
+    try{ selectTab('docs'); }catch(_){ }
+    openDoc(inv.sourceDocId);
+    // zu Aufschläge springen (wenn Feld existiert)
+    setTimeout(()=>{
+      const t = document.querySelector('[data-key="special_times"], #field_special_times, #special_times');
+      if(t && t.scrollIntoView) t.scrollIntoView({behavior:'smooth',block:'center'});
+    }, 50);
+  }catch(e){ console.warn('openInvoiceSourceStay failed', e); }
+}
+
+function refreshInvoiceFromStay(invoiceId){
+  try{
+    const inv = getInvoiceById(invoiceId);
+    if(!inv) return;
+    if(shouldFreezeInvoice(inv)) return;
+    const changed = syncInvoicePricingBySource(inv);
+    if(changed) saveState();
+    renderInvoiceList();
+    openInvoice(inv.id);
+  }catch(e){ console.warn('refreshInvoiceFromStay failed', e); }
+}
+
 
 function renderInvoicePositions(inv){
   const p = inv?.pricing || {};
@@ -7173,7 +7329,9 @@ function renderInvoicePositions(inv){
 
   if(hv > 0){
     const tag = hd === 1 ? "Tag" : "Tage";
-    rows.push(`<p><strong>Position:</strong> Feiertagszuschlag (10% · ${hd} ${tag}): ${hv.toFixed(2)} €</p>`);
+    const cfg = getPricingSettings();
+    const hp = Number(cfg.holidayPercent||10);
+    rows.push(`<p><strong>Position:</strong> Feiertagszuschlag (${hp.toFixed(0)}% · ${hd} ${tag}): ${hv.toFixed(2)} €</p>`);
   }
 
   if(pv > 0){
@@ -7182,8 +7340,29 @@ function renderInvoicePositions(inv){
   }
 
   if(fx > 0){
-    rows.push(`<p><strong>Position:</strong> Zuschlag fix: ${fx.toFixed(2)} €</p>`);
+    // 3E: Wenn wir Detailpositionen haben, zeigen wir diese statt nur "Summe fix"
+    const items = p.breakdown?.fixedItems;
+    if(Array.isArray(items) && items.length){
+      rows.push(`<p><strong>Position:</strong> Fixe Zuschläge: ${fx.toFixed(2)} €</p>`);
+      rows.push(`<div style="margin:6px 0 0 14px">${items
+        .filter(x=>x && Number(x.value||0) !== 0)
+        .map(x=>`<div>• ${escapeHtml(String(x.label||x.key||''))}: ${Number(x.value||0).toFixed(2)} €</div>`)
+        .join('') || ''}</div>`);
+    }else{
+      rows.push(`<p><strong>Position:</strong> Zuschlag fix: ${fx.toFixed(2)} €</p>`);
+    }
   }
+
+  // 3E: Prozent-Details (wenn vorhanden)
+  try{
+    const pitems = p.breakdown?.percentItems;
+    if(Array.isArray(pitems) && pitems.length && pv>0){
+      rows.push(`<div style="margin:6px 0 0 14px">${pitems
+        .filter(x=>x && Number(x.rate||0) !== 0)
+        .map(x=>`<div>• ${escapeHtml(String(x.label||x.key||''))}</div>`)
+        .join('') || ''}</div>`);
+    }
+  }catch(_){ }
 
   // Wenn alles außer Grundpreis 0 ist, zeigen wir die 0-Zeilen nicht mehr (aufgeräumt).
   return rows.join("\n");
@@ -7191,6 +7370,11 @@ function renderInvoicePositions(inv){
 function openInvoice(id){
   const inv = getInvoiceById(id);
   if(!inv) return;
+
+  // 3E: Lock-Flag für UI (wird auch von toggleInvoiceExtra geprüft)
+  const locked = shouldFreezeInvoice(inv);
+  inv.pricing = inv.pricing || {};
+  inv.pricing.locked = locked;
 
   // 3A/3C: Preise aus Aufenthalt synchronisieren (nur solange NICHT eingefroren)
   try{
@@ -7246,6 +7430,16 @@ function openInvoice(id){
         <strong>Status:</strong> ${invoiceStatusBadge(inv.status)}
       </p>
       ${freezeWarningHtml}
+
+      ${inv.sourceDocId ? `
+        <div class="row" style="gap:8px;flex-wrap:wrap;margin:10px 0 6px">
+          <button class="smallbtn" onclick="openInvoiceSourceStay('${inv.id}')">📄 Aufenthalt öffnen</button>
+          <button class="smallbtn" ${locked?'disabled':''} onclick="refreshInvoiceFromStay('${inv.id}')">🔄 Aufschläge aus Aufenthalt übernehmen</button>
+        </div>
+        <p class="muted" style="margin:0 0 10px">
+          Die Aufschläge bearbeitest du im Aufenthalt. Die Rechnung wird erst bei <strong>Bezahlt</strong> eingefroren.
+        </p>
+      ` : ``}
 
 
       <p><strong>Kunde:</strong> ${custLine}<br>
@@ -7335,8 +7529,8 @@ function setInvoiceStatus(id, status){
   inv.status = code;
   inv.updatedAt = new Date().toISOString();
 
-  // 3C/3D: Einfrieren erst bei "bezahlt" (und "storniert"). "Offen" bleibt dynamisch.
-  if(code==="paid" || code==="cancelled"){
+  // 3D4/3E: Einfrieren erst bei "bezahlt". "Offen" bleibt dynamisch.
+  if(code==="paid"){
     // Vor dem Lock einmalig noch synchronisieren (falls der User direkt auf "Offen" klickt)
     try{
       if(inv.sourceDocId && !isInvoicePricingLocked(inv)){
@@ -7356,6 +7550,10 @@ function setInvoiceStatus(id, status){
     // -> wir lassen Snapshot bestehen, aber markieren nicht locked, damit Sync wieder greift.
     inv.pricingLocked = false;
     // pricingLockedAt und Snapshot bleiben als Historie (kann später für Audit genutzt werden)
+  }
+  else if(code==="cancelled"){
+    // Storniert: nicht einfrieren (kann bei Bedarf noch korrigiert werden)
+    inv.pricingLocked = false;
   }
 
   saveState();
@@ -7580,6 +7778,7 @@ if(!inv) return;
           <span class="muted">${recipientSub}</span>
         </div>
         <div class="company">
+          <img src="${logoUrl}" alt="Doggy Style" style="max-height:60px;max-width:180px;object-fit:contain;margin-bottom:8px;" /><br>
           <strong>${escapeHtml(COMPANY.name)}</strong><br>
           ${escapeHtml(COMPANY.owner)}<br>
           ${escapeHtml(COMPANY.street)}<br>
