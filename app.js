@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = 'M14_4F4_EXPORT_ARCHIVE_20260201';
+const APP_BUILD = 'M14_4F5_NOTES_PAIDDATE_MAIL_20260201';
 
 
 // Kapazitäts-Limit (Übernachtungshunde) – Stufe B Warnung
@@ -8104,7 +8104,7 @@ function openInvoice(id){
         <strong>Nr.:</strong> ${escapeHtml(inv.invoiceNumber||"-")} ·
         <strong>Datum:</strong> ${escapeHtml(new Date(inv.invoiceDate||Date.now()).toLocaleDateString("de-DE"))} ·
         <strong>Status:</strong> ${invoiceStatusBadge(inv.status)}
-      </p>
+      ${inv.paidAt ? ` · <strong>Bezahlt am:</strong> ${escapeHtml(new Date(inv.paidAt).toLocaleDateString('de-DE'))}` : ``} </p>
       ${freezeWarningHtml}
       ${locked?`<div class="card" style="border:1px solid rgba(0,160,0,.35); background: rgba(0,160,0,.08); margin: 8px 0;">
         <strong>✅ Eingefroren:</strong> Diese Rechnung ist bezahlt und kann nicht mehr geändert werden.
@@ -8122,6 +8122,13 @@ function openInvoice(id){
       </p>
       ${renderInvoicePositions(inv)}
 
+
+      <div class="card" style="margin:10px 0; border:1px dashed rgba(255,255,255,.18); background: rgba(255,255,255,.03);">
+        <strong>📝 Interne Notiz</strong>
+        <div class="muted" style="font-size:12px;margin-top:2px">Nur intern in der App (nicht im PDF).</div>
+        <textarea ${''} style="width:100%;min-height:80px;margin-top:6px" placeholder="Interne Notiz…" oninput="updateInvoiceInternalNote('${inv.id}', this.value)">${escapeHtml(inv.internalNote||"")}</textarea>
+      </div>
+
       <hr>
       ${renderInvoiceTotalsBreakdown(inv)}
       ` : ``}
@@ -8130,7 +8137,10 @@ function openInvoice(id){
 
       
 
-      <button class="btn" onclick="printInvoice('${inv.id}')">🖨️ Rechnung drucken / PDF</button>
+      <div class="row" style="gap:10px;flex-wrap:wrap">
+        <button class="btn" onclick="printInvoice('${inv.id}')">🖨️ Rechnung drucken / PDF</button>
+        <button class="btn" onclick="emailInvoice('${inv.id}')">✉️ Rechnung per E‑Mail</button>
+      </div>
     </div>
   `;
 }
@@ -8188,6 +8198,9 @@ function setInvoiceStatus(id, status){
 
   // 3D4/3E: Einfrieren erst bei "bezahlt". "Offen" bleibt dynamisch.
   if(code==="paid"){
+    // 4F-5: Bezahlt-am-Datum (einmalig)
+    if(!inv.paidAt){ inv.paidAt = new Date().toISOString(); }
+
     // Vor dem Lock einmalig noch synchronisieren (falls der User direkt auf "Offen" klickt)
     try{
       if(inv.sourceDocId && !isInvoicePricingLocked(inv)){
@@ -8218,6 +8231,46 @@ function setInvoiceStatus(id, status){
   openInvoice(id);
   renderInvoiceList();
 }
+
+
+// 4F-5: Interne Notiz zur Rechnung (nicht im PDF)
+function updateInvoiceInternalNote(id, value){
+  const inv = getInvoiceById(id);
+  if(!inv) return;
+  inv.internalNote = String(value||"");
+  inv.updatedAt = new Date().toISOString();
+  saveState();
+}
+
+// 4F-5: E-Mail vorbereiten (öffnet Mail-Client via mailto:)
+function emailInvoice(id){
+  const inv = getInvoiceById(id);
+  if(!inv) return;
+  const {cust, legacyDog, pet} = resolveInvoiceParties(inv);
+  const to = (cust && cust.email) ? String(cust.email).trim() : "";
+  if(!to){
+    alert("Beim Kunden ist keine E-Mail-Adresse hinterlegt.");
+    return;
+  }
+  const nr = inv.invoiceNumber || "—";
+  const dogName = (pet && pet.name) ? pet.name : (legacyDog && legacyDog.name ? legacyDog.name : "");
+  const amount = (inv.pricing && typeof inv.pricing.total==="number") ? inv.pricing.total.toFixed(2)+" €" : "";
+  const subject = `Rechnung ${nr}${dogName?(" – "+dogName):""}`;
+  const body = [
+    "Hallo,",
+    "",
+    `anbei erhalten Sie die Rechnung ${nr}${dogName?(" für "+dogName):""}.`,
+    amount ? `Rechnungsbetrag: ${amount}` : "",
+    "",
+    "Bitte fügen Sie die PDF-Rechnung als Anhang hinzu.",
+    "",
+    "Viele Grüße",
+    (COMPANY && COMPANY.name) ? COMPANY.name : "Doggy Style"
+  ].filter(Boolean).join("\n");
+  const url = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  try{ window.location.href = url; }catch(e){ window.open(url, "_self"); }
+}
+
 
 // ===== ETAPPE 4: Freie Rechnung (Kunde/Hund auswählen statt tippen) =====
 function openFreeInvoiceForm(){
@@ -8811,6 +8864,7 @@ if(!inv) return;
         <p class="small">
           <strong>Rechnungsnummer:</strong> ${escapeHtml(inv.invoiceNumber || "-")}<br>
           <strong>Rechnungsdatum:</strong> ${new Date(inv.invoiceDate||Date.now()).toLocaleDateString("de-DE")}<br>
+          ${inv.paidAt ? `<strong>Bezahlt am:</strong> ${new Date(inv.paidAt).toLocaleDateString(\"de-DE\")}<br>` : ``}
           <strong>Leistungszeitraum:</strong> ${escapeHtml(formatDateDE(inv.period?.from||""))} – ${escapeHtml(formatDateDE(inv.period?.to||""))}
         </p>
 
