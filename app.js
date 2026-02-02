@@ -1,33 +1,5 @@
-
-// === 4F-5.3 FORCE NAV BIND ===
-function forceBindNavigation(){
-  try{
-    const selectors = [
-      '#btnDogs','#btnContracts','#btnWorksheets','#btnInvoices',
-      '#btnHygiene','#btnMeds','#btnReports',
-      '#navCalendar','#navEntries','#navStays','#navSettings'
-    ];
-    selectors.forEach(sel=>{
-      document.querySelectorAll(sel).forEach(el=>{
-        if(el && !el.__forceBound){
-          el.addEventListener('click', ()=>{});
-          el.__forceBound = true;
-        }
-      });
-    });
-    console.log('[NAV] forceBindNavigation executed');
-  }catch(e){
-    console.error('[NAV] forceBindNavigation error', e);
-  }
-}
-
-document.addEventListener('DOMContentLoaded', ()=>{
-  forceBindNavigation();
-});
-// === /4F-5.3 ===
-
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = 'M14_4F5_3_FORCE_NAV_20260202';
+const APP_BUILD = 'M14_4F4_EXPORT_ARCHIVE_20260201';
 
 
 // Kapazitäts-Limit (Übernachtungshunde) – Stufe B Warnung
@@ -44,11 +16,43 @@ const MAX_OVERNIGHT = 10;
     const prev = localStorage.getItem(key);
     if(prev !== APP_BUILD){
       localStorage.setItem(key, APP_BUILD);
-      // No auto-reload here – Safari/PWA caches can cause init loops.
-      console.log('[BUILD]', prev, '→', APP_BUILD);
+      // Optional: mark that a version bump happened (useful for guarded migrations)
+      localStorage.setItem('ds_app_build_bumped_at', String(Date.now()));
+
+      // Cache-buster / Service-Worker Guard:
+      // If a new build is detected, try to drop SW + CacheStorage once, then reload with a version query.
+      try{
+        const onceKey = 'ds_app_build_refreshed_' + APP_BUILD;
+        if(!localStorage.getItem(onceKey)){
+          localStorage.setItem(onceKey, '1');
+          const go = () => {
+            try{
+              const base = location.href.split('#')[0].split('?')[0];
+              const hash = location.hash || '';
+              location.replace(base + '?v=' + encodeURIComponent(APP_BUILD) + hash);
+            }catch(_){
+              try{ location.reload(); }catch(__){}
+            }
+          };
+          if('caches' in window){
+            caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k)))).then(() => {
+              if(navigator.serviceWorker && navigator.serviceWorker.getRegistrations){
+                return navigator.serviceWorker.getRegistrations().then(regs => Promise.all(regs.map(r => r.unregister())));
+              }
+            }).finally(() => setTimeout(go, 150));
+          }else{
+            if(navigator.serviceWorker && navigator.serviceWorker.getRegistrations){
+              navigator.serviceWorker.getRegistrations().then(regs => Promise.all(regs.map(r => r.unregister()))).finally(() => setTimeout(go, 150));
+            }else{
+              setTimeout(go, 150);
+            }
+          }
+        }
+      }catch(_){}
     }
   }catch(_){}
 })();
+
 // Selector helpers
 // $: accepts either an element id (e.g. 'contractSig') or a CSS selector (e.g. '#contractSig', '.btn')
 const $ = (sel) => {
@@ -10765,8 +10769,6 @@ function wireCoreUI(){
 
 
 async function startApp(){
-  try {
-
   // Core UI wiring muss immer aktiv sein (auch wenn Cloud/Offline Pfad aktiv ist)
   wireCoreUI();
   // 1) Wenn Cloud aktiviert: Login + Sync
@@ -10847,15 +10849,6 @@ await bootOnce();
 // Wichtig: Listener so früh wie möglich setzen, damit der initiale State auch bei iOS/Safari sicher kommt.
 try{
   if(CLOUD._unsubWorkspace){ try{ CLOUD._unsubWorkspace(); }catch(_){ } }
-  } catch (e) {
-    console.error('Init error', e);
-  } finally {
-    try {
-      if (typeof bindNavigation === 'function') bindNavigation();
-      if (typeof renderDashboard === 'function') renderDashboard();
-    } catch (_e) {}
-  }
-
 }catch(_){ }
 try{
   const ref = cloudStateRef();
@@ -11061,7 +11054,6 @@ document.addEventListener("visibilitychange", () => {
 
 // Start
 startApp().catch(console.error);
-try{ forceBindNavigation(); }catch(_e){}
 // UI: Sync-Status regelmäßig auffrischen (auch bei Tab-Wechsel/PWA)
 setInterval(()=>{ try{ updateSyncUI(); }catch(_){ } }, 1500);
 window.addEventListener('online', ()=>{ try{ scheduleCloudPing(0,'online-event'); }catch(_){ try{ updateSyncUI(); }catch(__){} } });
