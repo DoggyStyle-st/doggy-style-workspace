@@ -1,37 +1,5 @@
-
-// === 4F-5.3 FORCE NAV BIND ===
-function forceBindNavigation(){
-  try{
-    const selectors = [
-      '#btnDogs','#btnContracts','#btnWorksheets','#btnInvoices',
-      '#btnHygiene','#btnMeds','#btnReports',
-      '#navCalendar','#navEntries','#navStays','#navSettings'
-    ];
-    selectors.forEach(sel=>{
-      document.querySelectorAll(sel).forEach(el=>{
-        if(el && !el.__forceBound){
-          el.addEventListener('click', ()=>{});
-          el.__forceBound = true;
-        }
-      });
-    });
-    console.log('[NAV] forceBindNavigation executed');
-  }catch(e){
-    console.error('[NAV] forceBindNavigation error', e);
-  }
-}
-
-document.addEventListener('DOMContentLoaded', ()=>{
-  forceBindNavigation();
-});
-// === /4F-5.3 ===
-
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = 'M14_4F5_3_FORCE_NAV_20260202';
-
-
-// Kapazitäts-Limit (Übernachtungshunde) – Stufe B Warnung
-const MAX_OVERNIGHT = 10;
+const APP_BUILD = "M15F6C_RECOVER_20260130";
 
 // --- Build-Sync (Anzeige + Migration) ---
 (function syncBuildBadge(){
@@ -39,13 +7,13 @@ const MAX_OVERNIGHT = 10;
     const el = document.getElementById('buildBadge');
     if(el) el.textContent = 'Build ' + APP_BUILD;
   }catch(_){}
+  // Minimal, Safari-stable: only persist build marker.
   try{
     const key = 'ds_app_build';
     const prev = localStorage.getItem(key);
     if(prev !== APP_BUILD){
       localStorage.setItem(key, APP_BUILD);
-      // No auto-reload here – Safari/PWA caches can cause init loops.
-      console.log('[BUILD]', prev, '→', APP_BUILD);
+      localStorage.setItem('ds_app_build_bumped_at', String(Date.now()));
     }
   }catch(_){}
 })();
@@ -74,6 +42,9 @@ window.addEventListener('error', (e) => {
 });
 const LS_KEY="ds_workspace_test_optik_01";
 
+
+// Global app state (loaded from LocalStorage)
+let state = null;
 // --- Datum (lokal) ohne UTC-Verschiebung ---
 // Wichtig für Kalender/"Heute" auf iPad (sonst springt es abends auf den nächsten Tag).
 function toISODateLocal(date = new Date()){
@@ -81,6 +52,31 @@ function toISODateLocal(date = new Date()){
   // Offset so korrigieren, dass toISOString() den lokalen Tag liefert
   d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
   return d.toISOString().slice(0,10);
+}
+
+function parseDateDEorISO(val){
+  if(!val) return null;
+  if(val instanceof Date) return val;
+  if(typeof val === "string"){
+    const s = val.trim();
+    if(/^\d{2}\.\d{2}\.\d{4}$/.test(s)){
+      const [d,m,y] = s.split(".");
+      return new Date(`${y}-${m}-${d}T00:00:00`);
+    }
+    if(/^\d{4}-\d{2}-\d{2}$/.test(s)){
+      return new Date(s+"T00:00:00");
+    }
+  }
+  const d = new Date(val);
+  return isNaN(d) ? null : d;
+}
+function ymdFromAny(val){
+  const d = parseDateDEorISO(val);
+  if(!d) return "";
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const da = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${da}`;
 }
 const CAPACITY = {
   Tagesbetreuung: 13,
@@ -1683,7 +1679,7 @@ async function wireInbox(){
 }
 
 // ===== PREISLOGIK & STAFFELUNGEN =====
-const PRICE_RULES_DEFAULT = {
+const PRICE_RULES = {
   Tagesbetreuung: [
     { min: 30, price: 30 },
     { min: 14, price: 35 },
@@ -1698,77 +1694,39 @@ const PRICE_RULES_DEFAULT = {
   ]
 };
 
-// ===== PREISE (zentral, in Einstellungen editierbar) =====
-const PRICING_DEFAULTS = {
-  rules: JSON.parse(JSON.stringify(PRICE_RULES_DEFAULT)),
-  holidayPercent: 10,
-  // MwSt wird in der App als Netto/MwSt/Brutto ausgewiesen (Brutto bleibt Brutto)
-  vatPercent: 19,
-  extras: {
-    specialTimesPercent: 10,   // f.special_times
-    extraCarePercent: 10,      // f.extra_care
-    medicationPerDay: 2,       // f.medication (pro Tag)
-    walkExtraPrice: 15,        // f.walk_extra_count (pro zusätzl. Spaziergang)
-    bandagePrice: 2.5,         // f.bandage_count (pro Stück)
-    groomingPrice: 5,          // f.grooming_count (pro Stück)
-    hygienePerDay: 0,          // optional (€/Tag)
-    // 3F: Sonderfahrt (z.B. Tierarzt) – Kilometerpauschale
-    pickupDropoffPrice: 0.30,  // € pro km
-    sundayPercent: 0,          // optional (% auf Grundpreis)
-    shortNoticePercent: 0      // optional (% auf Grundpreis)
-  }
-};
 
-function getPricingSettings(){
-  // bevorzugt: state.settings.pricing (wird mitgesynct), fallback: localStorage
+// ===== Preis-Einstellungen (Settings → Preise) =====
+// Werte sind Brutto-Preise pro Tag. Wenn 0/leer, gelten die internen PRICE_RULES.
+function _priceKey(kind){ return `ds_price_${String(kind||'').toLowerCase()}`; }
+function getPriceSetting(kind){
   try{
-    if(!window.state) return PRICING_DEFAULTS;
-    state.settings = state.settings || {};
-    let p = state.settings.pricing;
-    if(!p){
-      try{
-        const raw = localStorage.getItem('ds_pricing_settings_v1');
-        if(raw) p = JSON.parse(raw);
-      }catch(_){}
-    }
-    // merge defaults (robust bei Teilständen)
-    const out = JSON.parse(JSON.stringify(PRICING_DEFAULTS));
-    if(p && typeof p === 'object'){
-      if(p.rules && typeof p.rules === 'object') out.rules = p.rules;
-      if(Number.isFinite(+p.holidayPercent)) out.holidayPercent = +p.holidayPercent;
-      if(Number.isFinite(+p.vatPercent)) out.vatPercent = +p.vatPercent;
-      if(p.extras && typeof p.extras === 'object'){
-        for(const k of Object.keys(out.extras)){
-          if(Number.isFinite(+p.extras[k])) out.extras[k] = +p.extras[k];
-        }
-      }
-    }
-    // write back normalized
-    state.settings.pricing = out;
-    try{ localStorage.setItem('ds_pricing_settings_v1', JSON.stringify(out)); }catch(_){}
-    return out;
-  }catch(_){
-    return PRICING_DEFAULTS;
-  }
+    const raw = localStorage.getItem(_priceKey(kind));
+    const n = Number(String(raw||'').replace(',', '.'));
+    return (isFinite(n) && n > 0) ? n : 0;
+  }catch(_){ return 0; }
+}
+function setPriceSetting(kind, value){
+  try{
+    const n = Number(String(value||'').replace(',', '.'));
+    localStorage.setItem(_priceKey(kind), String(isFinite(n) ? n : 0));
+  }catch(_){}
+}
+function getConfiguredDailyPrice(type){
+  const t = String(type||'').toLowerCase();
+  if(t.includes('tages')) return getPriceSetting('daycare');
+  if(t.includes('urlaub')) return getPriceSetting('vacation');
+  return 0;
 }
 
-function savePricingSettings(next){
-  try{
-    if(!next || typeof next !== 'object') return;
-    state.settings = state.settings || {};
-    state.settings.pricing = next;
-    // Konsistenz: MwSt auch als globales Feld (wird von Rechnungen genutzt)
-    if(Number.isFinite(+next.vatPercent)) state.settings.vatRate = +next.vatPercent;
-    try{ localStorage.setItem('ds_pricing_settings_v1', JSON.stringify(next)); }catch(_){}
-    saveState();
-  }catch(e){
-    console.error('savePricingSettings failed', e);
-  }
-}
 
-function daysBetween(from, to){
-  const ms = new Date(to) - new Date(from);
-  return Math.max(1, Math.ceil(ms / (1000 * 60 * 60 * 24)));
+
+function daysBetween(from,to){
+  const a = parseDateDEorISO(from);
+  const b = parseDateDEorISO(to);
+  if(!a || !b) return 1;
+  const d1 = new Date(a.getFullYear(), a.getMonth(), a.getDate());
+  const d2 = new Date(b.getFullYear(), b.getMonth(), b.getDate());
+  return Math.max(1, Math.ceil((d2 - d1) / (1000*60*60*24)));
 }
 
 // Feiertage Bayern (vereinfachte, praxisnahe Auswahl; Zeitraum-Berechnung offline)
@@ -1825,8 +1783,16 @@ function bavariaHolidaysSet(year){
 function countBavariaHolidaysBetween(from, to){
   // Iteration: [from, to) (to exklusiv) passend zu daysBetween()
   if(!from || !to) return 0;
-  const start = new Date(from + "T00:00:00Z");
-  const end = new Date(to + "T00:00:00Z");
+
+  const startYMD = ymdFromAny(from);
+  const endYMD   = ymdFromAny(to);
+  if(!startYMD || !endYMD) return 0;
+
+  const [sy, sm, sd] = startYMD.split('-').map(n=>parseInt(n,10));
+  const [ey, em, ed] = endYMD.split('-').map(n=>parseInt(n,10));
+
+  const start = new Date(Date.UTC(sy, sm-1, sd));
+  const end   = new Date(Date.UTC(ey, em-1, ed));
   if(!(start < end)) return 0;
 
   let count = 0;
@@ -1840,21 +1806,64 @@ function countBavariaHolidaysBetween(from, to){
   return count;
 }
 
-function countSundaysBetween(from, to){
-  // [from, to) (to exklusiv) – passend zu daysBetween()
-  if(!from || !to) return 0;
-  const start = new Date(from + "T00:00:00Z");
-  const end = new Date(to + "T00:00:00Z");
-  if(!(start < end)) return 0;
-  let count = 0;
-  let cur = new Date(start.getTime());
-  while(cur < end){
-    // 0 = Sonntag
-    if(cur.getUTCDay() === 0) count++;
-    cur = addDaysUTC(cur, 1);
-  }
-  return count;
+// Count Sundays between [von, bis) (bis exclusive), local dates, without double-counting.
+// von/bis can be ISO date strings.
+function countSundaysBetween(von, bis){
+  try{
+    const d1 = parseISODateLocal(von);
+    const d2 = parseISODateLocal(bis);
+    if(!(d1 instanceof Date) || !(d2 instanceof Date)) return 0;
+    // Iterate day by day; max ranges are short (stays).
+    let c = 0;
+    const cur = new Date(d1.getFullYear(), d1.getMonth(), d1.getDate());
+    const end = new Date(d2.getFullYear(), d2.getMonth(), d2.getDate());
+    while(cur < end){
+      if(cur.getDay() === 0) c++; // Sunday
+      cur.setDate(cur.getDate() + 1);
+    }
+    return c;
+  }catch(_){ return 0; }
 }
+
+function countSundayOrHolidayDaysBetween(fromISO, toISO){
+  // Range is [from, to) in days, matching daysBetween()
+  const a = new Date(fromISO + 'T00:00:00');
+  const b = new Date(toISO + 'T00:00:00');
+  if(isNaN(a) || isNaN(b)) return 0;
+  const dayMs = 24*60*60*1000;
+  const n = Math.max(0, Math.ceil((b - a)/dayMs));
+  let cnt = 0;
+  for(let i=0;i<n;i++){
+    const d = new Date(a.getTime() + i*dayMs);
+    const iso = d.toISOString().slice(0,10);
+    const isSunday = (d.getDay() === 0);
+    const isHoliday = !!BAVARIA_HOLIDAYS_2026[iso];
+    if(isSunday || isHoliday) cnt++;
+  }
+  return cnt;
+}
+
+
+// Sonn- & Feiertage (Bayern) zwischen [von, bis) – ohne doppelt zu zählen wenn Feiertag auf Sonntag fällt.
+function countSunHolidayDaysBetween(von, bis){
+  try{
+    const d1 = parseISODateLocal(von);
+    const d2 = parseISODateLocal(bis);
+    if(!(d1 instanceof Date) || !(d2 instanceof Date)) return 0;
+    const cur = new Date(d1.getFullYear(), d1.getMonth(), d1.getDate());
+    const end = new Date(d2.getFullYear(), d2.getMonth(), d2.getDate());
+    const set = new Set();
+    while(cur < end){
+      const iso = toISODateLocal(cur);
+      const isSun = (cur.getDay() === 0);
+      const isHol = !!BAVARIA_HOLIDAYS_2026[iso]; // keep 2026 list
+      if(isSun || isHol) set.add(iso);
+      cur.setDate(cur.getDate() + 1);
+    }
+    return set.size;
+  }catch(_){ return 0; }
+}
+
 
 
 function updateAutoHolidayFields(){
@@ -1865,16 +1874,10 @@ function updateAutoHolidayFields(){
   const from = currentDoc.meta?.von;
   const to = currentDoc.meta?.bis;
   const cnt = (from && to) ? countBavariaHolidaysBetween(from, to) : 0;
-  const sundays = (from && to) ? countSundaysBetween(from, to) : 0;
 
-  // Default: Sonn- & Feiertagszuschlag ist aktiv (kann im Aufenthalt deaktiviert werden)
+  // Immer automatisch – keine manuelle Auswahl
   currentDoc.fields = currentDoc.fields || {};
-  if(typeof currentDoc.fields.sun_hol_apply !== "boolean") currentDoc.fields.sun_hol_apply = true;
-
-  // Immer automatisch – Anzahl wird berechnet; bei Deaktivierung = 0
-  const sunHolApply = (currentDoc.fields.sun_hol_apply !== false);
-  currentDoc.fields.holiday_days = sunHolApply ? (cnt || 0) : 0;
-  currentDoc.fields.sunday_days  = sunHolApply ? (sundays || 0) : 0;
+  currentDoc.fields.holiday_days = cnt || 0;
 
   // UI: Anzahl-Feld (falls vorhanden) befüllen & sperren
   const num = document.querySelector('input[data-key="holiday_days"]');
@@ -1882,176 +1885,18 @@ function updateAutoHolidayFields(){
     num.value = String(currentDoc.fields.holiday_days || 0);
     num.disabled = true;
   }
-
-  const numS = document.querySelector('input[data-key="sunday_days"]');
-  if(numS){
-    numS.value = String(currentDoc.fields.sunday_days || 0);
-    numS.disabled = true;
-  }
-
-  // UI: Checkbox spiegeln
-  const cbSunHol = document.querySelector('input[type="checkbox"][data-key="sun_hol_apply"]');
-  if(cbSunHol) cbSunHol.checked = !!currentDoc.fields.sun_hol_apply;
-
-  // Defaults für zählbasierte Zuschläge
-  const days = daysBetween(from, to);
-
-  // Optional-Zuschläge: standardmäßig AUS (damit nichts versehentlich berechnet wird)
-  if(typeof currentDoc.fields.walk_extra_enabled !== 'boolean') currentDoc.fields.walk_extra_enabled = false;
-  if(typeof currentDoc.fields.bandage_enabled !== 'boolean') currentDoc.fields.bandage_enabled = false;
-  if(typeof currentDoc.fields.grooming_enabled !== 'boolean') currentDoc.fields.grooming_enabled = false;
-  if(typeof currentDoc.fields.hygiene_enabled !== 'boolean') currentDoc.fields.hygiene_enabled = false;
-  // Sonderfahrt (z.B. Tierarzt) ist standardmäßig AUS
-  if(typeof currentDoc.fields.special_trip_enabled !== 'boolean') currentDoc.fields.special_trip_enabled = false;
-  if(typeof currentDoc.fields.discount_enabled !== 'boolean') currentDoc.fields.discount_enabled = false;
-
-  // Dauermedikation beim Hund -> im Aufenthalt automatisch vorauswählen
-  try{
-    if(currentDoc.fields.medication_enabled === undefined){
-      const pet = getPetByDoc(currentDoc);
-      const pid = pet?.id;
-      const hasActivePlan = !!(pid && state?.medication?.plans && state.medication.plans.some(p => p.petId === pid && (p.active !== false)));
-      if(hasActivePlan){
-        currentDoc.fields.medication_enabled = true;
-        const cb = document.querySelector('input[type="checkbox"][data-key="medication_enabled"]');
-        if(cb) cb.checked = true;
-      }
-    }
-  }catch(e){ /* noop */ }
-
-  // Wenn keine Dauermedikation erkannt wurde, standardmäßig AUS
-  if(typeof currentDoc.fields.medication_enabled !== 'boolean') currentDoc.fields.medication_enabled = false;
-
-  // Ohne Dauermedikation: standardmäßig AUS
-  if(typeof currentDoc.fields.medication_enabled !== 'boolean') currentDoc.fields.medication_enabled = false;
-
-  // Zusatz-Spaziergang: default Stückzahl = Aufenthaltstage (nur wenn aktiviert)
-  // Wir merken uns, ob der Wert automatisch gesetzt wurde, damit er bei Datumsänderungen mitwandert.
-  const walkKey = 'walk_extra_count';
-  const autoKey = 'walk_extra_auto';
-  if(currentDoc.fields.walk_extra_enabled === true){
-    const curWalk = currentDoc.fields[walkKey];
-    if(curWalk === undefined || curWalk === null || String(curWalk) === ''){
-      currentDoc.fields[walkKey] = days;
-      currentDoc.fields[autoKey] = true;
-      const inp = document.querySelector(`input[data-key="${walkKey}"]`);
-      if(inp) inp.value = String(days);
-    }else if(currentDoc.fields[autoKey] === true){
-      const n = Number(curWalk);
-      if(!Number.isFinite(n) || n !== days){
-        currentDoc.fields[autoKey] = false;
-      }else{
-        currentDoc.fields[walkKey] = days;
-        const inp = document.querySelector(`input[data-key="${walkKey}"]`);
-        if(inp) inp.value = String(days);
-      }
-    }
-  }else if(currentDoc.fields.walk_extra_enabled === false){
-    currentDoc.fields[walkKey] = 0;
-    currentDoc.fields[autoKey] = false;
-  }
-
-  // Medikamentengabe: default Tage = Aufenthaltstage (nur wenn aktiviert + nicht manuell überschrieben)
-  const medKey = 'medication_days';
-  const medAutoKey = 'medication_auto';
-  if(typeof currentDoc.fields.medication_enabled !== 'boolean'){
-    // bleibt undefined, wird ggf. durch Dauermedikation-Auto gesetzt
-  }
-  const medEnabled = (currentDoc.fields.medication_enabled === true);
-  if(medEnabled){
-    const curMed = currentDoc.fields[medKey];
-    if(curMed === undefined || curMed === null || String(curMed) === ''){
-      currentDoc.fields[medKey] = days;
-      currentDoc.fields[medAutoKey] = true;
-      const inp = document.querySelector(`input[data-key="${medKey}"]`);
-      if(inp) inp.value = String(days);
-    }else{
-      if(currentDoc.fields[medAutoKey] === true){
-        const n = Number(curMed);
-        if(!Number.isFinite(n) || n !== days){
-          currentDoc.fields[medAutoKey] = false;
-        }else{
-          currentDoc.fields[medKey] = days;
-          const inp = document.querySelector(`input[data-key="${medKey}"]`);
-          if(inp) inp.value = String(days);
-        }
-      }
-    }
-  }else if(currentDoc.fields.medication_enabled === false){
-    currentDoc.fields[medKey] = 0;
-    currentDoc.fields[medAutoKey] = false;
-  }
-
-  // Wenn per Aufenthalt deaktiviert, Werte auf 0 setzen und Eingaben sperren.
-  try{
-    const walkInp = document.querySelector(`input[data-key="${walkKey}"]`);
-    if(currentDoc.fields.walk_extra_enabled === false){
-      currentDoc.fields[walkKey] = 0;
-      currentDoc.fields[autoKey] = false;
-      if(walkInp){ walkInp.value = '0'; walkInp.disabled = true; }
-    }else{
-      if(walkInp) walkInp.disabled = false;
-    }
-
-    const _lockCount = (flagKey, countKey)=>{
-      const inp = document.querySelector(`input[data-key="${countKey}"]`);
-      if(!inp) return;
-      if(currentDoc.fields[flagKey] === false){
-        currentDoc.fields[countKey] = 0;
-        inp.value = '0';
-        inp.disabled = true;
-      }else{
-        inp.disabled = false;
-      }
-    };
-    _lockCount('bandage_enabled','bandage_count');
-    _lockCount('grooming_enabled','grooming_count');
-    _lockCount('hygiene_enabled','hygiene_days');
-    _lockCount('medication_enabled','medication_days');
-    _lockCount('special_trip_enabled','special_trip_km');
-  }catch(_e){ /* noop */ }
-
-  // Legacy-Key-Migration: alte Keys in neue Keys überführen (falls vorhanden)
-  if(currentDoc.fields.extra_walk_count !== undefined && currentDoc.fields[walkKey] === undefined){
-    currentDoc.fields[walkKey] = currentDoc.fields.extra_walk_count;
-  }
-
-  // Migration: alte Walk/Med/Pickup Keys
-  if(typeof currentDoc.fields.walks_enabled === 'boolean' && typeof currentDoc.fields.walk_extra_enabled !== 'boolean'){
-    currentDoc.fields.walk_extra_enabled = currentDoc.fields.walks_enabled;
-  }
-  if(typeof currentDoc.fields.medication === 'boolean' && typeof currentDoc.fields.medication_enabled !== 'boolean'){
-    currentDoc.fields.medication_enabled = currentDoc.fields.medication;
-  }
-  if(typeof currentDoc.fields.pickup_dropoff_enabled === 'boolean' && typeof currentDoc.fields.special_trip_enabled !== 'boolean'){
-    currentDoc.fields.special_trip_enabled = currentDoc.fields.pickup_dropoff_enabled;
-  }
-  if(currentDoc.fields.pickup_dropoff_count !== undefined && currentDoc.fields.special_trip_km === undefined){
-    currentDoc.fields.special_trip_km = currentDoc.fields.pickup_dropoff_count;
-  }
-  if(currentDoc.fields.bandage_change_count !== undefined && currentDoc.fields.bandage_count === undefined){
-    currentDoc.fields.bandage_count = currentDoc.fields.bandage_change_count;
-  }
-  if(currentDoc.fields.grooming_extra_count !== undefined && currentDoc.fields.grooming_count === undefined){
-    currentDoc.fields.grooming_count = currentDoc.fields.grooming_extra_count;
-  }
 }
 
-
-
-function normalizeBetreuung(type){
-  if(!type) return type;
-  const s = String(type).trim();
-  const l = s.toLowerCase();
-  if(l === "urlaubsbetreuung") return "Urlaubsbetreuung";
-  if(l === "tagesbetreuung") return "Tagesbetreuung";
-  // allow already-normalized values
-  return s;
-}
 
 function getPricePerDay(type, days){
-  const rulesMap = (getPricingSettings().rules || PRICE_RULES_DEFAULT);
-  const rules = rulesMap[type] || [];
+  // Normalize (DB/Forms can store "Urlaubsbetreuung" / "urlaubsbetreuung" etc.)
+  const t = String(type || '').toLowerCase().trim();
+  const key = (t.includes('urlaub') ? 'urlaubsbetreuung' : (t.includes('tages') ? 'tagesbetreuung' : t));
+
+  const cfg = getConfiguredDailyPrice(key);
+  if(cfg>0) return cfg;
+
+  const rules = PRICE_RULES[key] || [];
   for(const r of rules){
     if(days >= r.min) return r.price;
   }
@@ -2067,580 +1912,71 @@ function calculateInvoicePricing(doc){
   }
 
   const days = daysBetween(meta.von, meta.bis);
-  const betreuungNorm = normalizeBetreuung(meta.betreuung);
-  const daily = getPricePerDay(betreuungNorm, days);
-  const base = days * daily;
+  const daily = getPricePerDay(meta.betreuung, days);
+  const baseGross = Math.round((days * daily) * 100) / 100;
 
-  // Sonn- & Feiertags-Zuschlag (Standard: an)
-  const cfg = getPricingSettings();
-  const holidayDays = countBavariaHolidaysBetween(meta.von, meta.bis);
-  const sundayDays = countSundaysBetween(meta.von, meta.bis);
-  const sunHolApply = (f.sun_hol_apply !== false);
-  const sunHolRate = Number((cfg.holidayPercent ?? cfg.sundayPercent ?? 0) || 0);
-  const sunHolDays = sunHolApply ? (holidayDays + sundayDays) : 0;
-  const sunHolUnit = round2(daily * (sunHolRate/100));
-  const holidayValue = round2(sunHolDays * sunHolUnit);
+  // Service label (UI/PDF)
+  const serviceLabelRaw = String(meta.betreuung || 'Betreuung');
+  const serviceLabel = serviceLabelRaw.charAt(0).toUpperCase() + serviceLabelRaw.slice(1);
 
-  let percentExtra = 0;
-  let fixedExtra = 0;
-  let discountFixed = 0; // BRUTTO Fixrabatt (positiv) wird später als negative Fix-Position verbucht
-  const percentItems = [];
+  // Sonn- & Feiertage werden gleich behandelt:
+  const sunHolidayDays = countSunHolidayDaysBetween(meta.von, meta.bis); // includes Sundays + DE holidays (BY)
+  const sunHolidayPct = Number.isFinite(parseFloat(f.inv_sun_holiday_pct)) ? parseFloat(f.inv_sun_holiday_pct) : 10;
+  const sunHolidayExtraGross = Math.round((sunHolidayDays * daily * (sunHolidayPct/100)) * 100) / 100;
 
-  // Prozent-Aufschläge (auf Basisbetrag)
-  if(f.special_times){
-    const r = (cfg.extras?.specialTimesPercent ?? 10);
-    percentExtra += r;
-    percentItems.push({ key:'special_times', label:`Sonderzeiten / Sonderaufwand`, rate: r, base: round2(base), value: round2(base * (r/100)) });
-  }
-  if(f.extra_care){
-    const r = (cfg.extras?.extraCarePercent ?? 10);
-    percentExtra += r;
-    percentItems.push({ key:'extra_care', label:`Besondere Betreuung`, rate: r, base: round2(base), value: round2(base * (r/100)) });
-  }
-  // Sonntage/Feiertage sind über "sun_hol_apply" im Sonn-&Feiertagsblock abgedeckt.
-  if(f.short_notice){
-    const r = (cfg.extras?.shortNoticePercent ?? 0);
-    if(r){
-      percentExtra += r;
-      percentItems.push({ key:'short_notice', label:`Kurzfristig`, rate: r, base: round2(base), value: round2(base * (r/100)) });
-    }
-  }
+  // Automatische Prozent-Zuschläge (legacy)
+  let pctSum = 0;
+  if(f.special_times === true) pctSum += 10;
+  if(f.extra_care === true) pctSum += 10;
 
-  // Sonderrabatt: entweder Fixbetrag (€) oder Prozent (auf Basisbetrag)
-  if(f.discount_enabled !== false){
-    const amt = Number(f.discount_amount || 0);
-    if(Number.isFinite(amt) && amt > 0){
-      // Fixbetrag (BRUTTO) – wird später als negative Fix-Position verbucht
-      discountFixed = round2(amt);
-    }else if(String(f.discount_percent ?? '').trim() !== ''){
-      const r = Number(f.discount_percent || 0);
-      if(r){
-        percentExtra -= r;
-        percentItems.push({ key:'discount_percent', label:`Sonderrabatt`, rate: -r, base: round2(base), value: round2(base * (-r/100)) });
-      }
-    }
-  }
+  // Manuelle Prozent-Zuschläge
+  const extraPctArr = Array.isArray(f.inv_extra_pct) ? f.inv_extra_pct : [];
+  extraPctArr.forEach(x => {
+    const p = parseFloat(x && x.pct);
+    if(Number.isFinite(p)) pctSum += p;
+  });
 
-  // Summe Prozent-Wert (kann negativ sein bei Rabatt) (kann negativ sein bei Rabatt)
-  const percentValue = round2(base * (percentExtra / 100));
+  const pctExtraGross = Math.round((baseGross * (pctSum/100)) * 100) / 100;
 
-  // Fixe Extras
-  const fixedItems = [];
-  if(discountFixed > 0){
-    const v = round2(-discountFixed);
-    fixedExtra += v;
-    fixedItems.push({ key:'discount_amount', label:`Sonderrabatt`, qty: 1, unit: v, value: v, isDiscount:true });
-  }
-  if(f.medication_enabled !== false && !!f.medication_enabled){
-    // 3F-2/3F-3: Menge kommt aus dem Aufenthalt (manuell überschreibbar), Fallback = Aufenthaltsdauer
-    const qty = Math.max(0, Number(f.medication_days ?? days) || 0);
-    const unit = Number(cfg.extras?.medicationPerDay ?? 2);
-    const v = qty * unit;
-    if(v){
-      fixedExtra += v;
-      fixedItems.push({ key:'medication_enabled', label:`Medikamentengabe`, qty, unit, value: round2(v) });
-    }
-  }
-  if(f.walk_extra_enabled !== false && f.walk_extra_count){
-    const qty = Number(f.walk_extra_count||0);
-    const unit = Number(cfg.extras?.walkExtraPrice ?? 15);
-    const v = qty * unit;
-    fixedExtra += v;
-    fixedItems.push({ key:'walk_extra_count', label:`Zusatz-Spaziergänge`, qty, unit, value: round2(v) });
-  }
-  if(f.bandage_enabled !== false && f.bandage_count){
-    const qty = Number(f.bandage_count||0);
-    const unit = Number(cfg.extras?.bandagePrice ?? 2.5);
-    const v = qty * unit;
-    fixedExtra += v;
-    fixedItems.push({ key:'bandage_count', label:`Verbandwechsel`, qty, unit, value: round2(v) });
-  }
-  if(f.grooming_enabled !== false && f.grooming_count){
-    const qty = Number(f.grooming_count||0);
-    const unit = Number(cfg.extras?.groomingPrice ?? 5);
-    const v = qty * unit;
-    fixedExtra += v;
-    fixedItems.push({ key:'grooming_count', label:`Pflege/Extra`, qty, unit, value: round2(v) });
-  }
-  // optionale fixe Zuschläge
-  if(f.hygiene_enabled !== false && f.hygiene_days){
-    const qty = Number(f.hygiene_days||0);
-    const unit = Number(cfg.extras?.hygienePerDay ?? 0);
-    const v = qty * unit;
-    if(v){
-      fixedExtra += v;
-      fixedItems.push({ key:'hygiene_days', label:`Hygiene/Extra`, qty, unit, value: round2(v) });
-    }
-  }
-  if(f.special_trip_enabled !== false && f.special_trip_km){
-    const qty = Number(f.special_trip_km||0);
-    const unit = Number(cfg.extras?.pickupDropoffPrice ?? 0.30); // €/km
-    const v = qty * unit;
-    if(v){
-      fixedExtra += v;
-      fixedItems.push({ key:'special_trip_km', label:`Sonderfahrt (z.B. Tierarzt)`, qty, qtyLabel:'km', unit, value: round2(v) });
-    }
-  }
+  // Feste Zuschläge
+  let fixSum = 0;
+  if(f.extra_walks === true) fixSum += 15;
+  const extraFixArr = Array.isArray(f.inv_extra_fix) ? f.inv_extra_fix : [];
+  extraFixArr.forEach(x => {
+    const a = parseFloat(x && x.amount);
+    if(Number.isFinite(a)) fixSum += a;
+  });
+  const fixExtraGross = Math.round(fixSum * 100) / 100;
 
-  fixedExtra = Math.round(fixedExtra * 100) / 100;
-
-  // Alle Preise sind BRUTTO. total = zahlbarer Bruttobetrag.
-  const total = round2(base + holidayValue + percentValue + fixedExtra);
+  const totalGross = Math.round((baseGross + sunHolidayExtraGross + pctExtraGross + fixExtraGross) * 100) / 100;
 
   doc.pricing = {
     days,
     daily,
-    betreuungNorm,
-    base,
-
-    holidayDays,
-    sundayDays,
-    sunHolDays,
-    sunHolRate,
-    sunHolUnit,
-    holidayValue,
-
-    percentExtra,
-    percentValue,
-
-    percentItems,
-
-    fixedExtra,
-    fixedItems,
-    total
+    serviceLabel,
+    baseGross,
+    sunHolidayDays,
+    sunHolidayPct,
+    sunHolidayExtraGross,
+    pctSum,
+    pctExtraGross,
+    fixExtraGross,
+    totalGross
   };
 
   return doc.pricing;
 }
 
-// ===== 3A: Rechnungspreise aus Aufenthalt ableiten =====
-// Mapping: Aufenthalt.pricing -> Invoice.pricing (Basis + Zuschläge)
-// Hinweis: Feiertagszuschlag wird als eigener Wert berechnet und in percentExtra (Wert) mitgeführt,
-// damit die Rechnung bereits den korrekten Gesamtbetrag enthält, ohne das UI sofort zu erweitern.
-function round2(n){ return Math.round((Number(n)||0) * 100) / 100; }
 
-
-function aggregateInvoicePricingFromDocs(docs){
-  try{
-    if(!Array.isArray(docs) || !docs.length) return null;
-
-    // Zeitraum (min/max) bestimmen
-    let from = null, to = null;
-    const items = [];
-
-    let basePrice = 0;
-    let holidayDays = 0;
-    let holidayExtra = 0;
-    let percentExtra = 0;
-    let fixedExtra = 0;
-    let total = 0;
-
-    for(const doc of docs){
-      if(!doc) continue;
-      const meta = doc.meta || {};
-      const p = doc.pricing || calculateInvoicePricing(doc);
-      if(!p) continue;
-
-      const f = String(meta.von||"").slice(0,10);
-      const t = String(meta.bis||"").slice(0,10);
-      if(f && (!from || f < from)) from = f;
-      if(t && (!to   || t > to))   to   = t;
-
-      // p kann entweder aus doc.pricing (already normalized) oder calculateInvoicePricing kommen
-      const b  = Number(p.base ?? p.basePrice ?? 0);
-      const hd = Number(p.holidayDays ?? 0);
-      const he = Number(p.holidayValue ?? p.holidayExtra ?? 0);
-      const pv = Number(p.percentValue ?? p.percentExtra ?? 0);
-      const fx = Number(p.fixedExtra ?? 0);
-      const tt = Number(p.total ?? 0);
-
-      basePrice += b;
-      holidayDays += hd;
-      holidayExtra += he;
-      percentExtra += pv;
-      fixedExtra += fx;
-      total += tt;
-
-      items.push({
-        docId: doc.id,
-        title: doc.title || 'Aufenthalt',
-        from: f,
-        to: t,
-        total: round2(tt)
-      });
-    }
-
-    basePrice = round2(basePrice);
-    holidayExtra = round2(holidayExtra);
-    percentExtra = round2(percentExtra);
-    fixedExtra = round2(fixedExtra);
-    total = round2(total);
-
-    return {
-      period: { from: from || "", to: to || "" },
-      pricing: { basePrice, holidayDays, holidayExtra, percentExtra, fixedExtra, total },
-      items
-    };
-  }catch(e){
-    console.warn('aggregateInvoicePricingFromDocs failed', e);
-    return null;
-  }
-}
-
-function recomputeInvoiceTotals(inv){
-  inv.pricing = inv.pricing || {};
-  inv.pricing.parts = inv.pricing.parts || {};
-
-  const parts = inv.pricing.parts;
-
-  // 3E-4: Zuschläge werden im Aufenthalt gesteuert.
-  // In der Rechnung werden die übernommenen Teile immer voll angewandt.
-  const base   = Number(parts.base||0);
-  const hol    = Number(parts.holiday||0);
-  const perc   = Number(parts.percent||0);
-  const fixed  = Number(parts.fixed||0);
-
-  inv.pricing.applied = { holiday: round2(hol), percent: round2(perc), fixed: round2(fixed) };
-
-  // Alle Preise sind BRUTTO. MwSt wird als "enthalten" ausgewiesen.
-  const gross = round2(base + hol + perc + fixed);
-
-  const cfg = getPricingSettings();
-  const settingsVat = Number((state && state.settings && state.settings.vatRate) ?? cfg.vatPercent ?? 19) || 0;
-  const vatRate = (typeof inv.vatRate === 'number' && !Number.isNaN(inv.vatRate)) ? inv.vatRate : settingsVat;
-  inv.vatRate = vatRate;
-
-  const net = vatRate > 0 ? (gross / (1 + vatRate/100)) : gross;
-  const vatAmount = gross - net;
-
-  inv.pricing.net = round2(net);
-  inv.pricing.vatAmount = round2(vatAmount);
-  inv.pricing.total = round2(gross); // zahlbarer Bruttobetrag
-  inv.pricing.totalNet = inv.pricing.net;
-  inv.pricing.totalGross = inv.pricing.total;
-}
-
-
-function getDefaultVatPercent(){
-  try{
-    const v = Number(state?.settings?.vatPercent);
-    if(Number.isFinite(v) && v>=0 && v<=50) return v;
-  }catch(_){}
-  return 19;
-}
-
-/**
- * 3F-12: Validierung/Schutz für Rechnungen (statt "nichts passiert").
- * - errors: blockierende Probleme (z.B. kein Aufenthalt, Betrag 0)
- * - warnings: Hinweise (z.B. MwSt-Setting fehlt/komisch)
- */
-function validateInvoice(inv){
-  const errors = [];
-  const warnings = [];
-  if(!inv){ errors.push("Rechnung nicht gefunden."); return {errors, warnings}; }
-
-  // Link zum Aufenthalt (Quelle)
-  if(getInvoiceSourceDocIds(inv).length===0){
-    errors.push("Kein Aufenthalt verknüpft.");
-  }
-
-  // Grunddaten
-  if(!inv.invoiceNumber) warnings.push("Rechnungsnummer fehlt.");
-  if(!inv.invoiceDate) warnings.push("Rechnungsdatum fehlt.");
-
-  // Zeitraum
-  if(!inv.period || !inv.period.from || !inv.period.to){
-    warnings.push("Zeitraum (von/bis) fehlt oder ist unvollständig.");
-  }
-
-  // Betrag
-  const total = Number(inv?.pricing?.total ?? inv?.pricingSnapshot?.total ?? 0);
-  if(!Number.isFinite(total) || total<=0){
-    errors.push("Gesamtbetrag ist 0 oder ungültig.");
-  }
-
-  // MwSt-Setting
-  const vat = getDefaultVatPercent();
-  if(!Number.isFinite(vat) || vat<0 || vat>50){
-    warnings.push("MwSt-Standard in Einstellungen ist ungültig (bitte prüfen).");
-  }
-
-  // Kunde/Tier (für Druck)
-  if(!inv.customerId && !inv.petId){
-    warnings.push("Kunde/Tier ist nicht sauber verknüpft (Druck nutzt ggf. Altdaten).");
-  }
-
-  return {errors, warnings};
-}
-
-function formatInvoiceValidation(inv){
-  const v = validateInvoice(inv);
-  if((v.errors?.length||0)===0 && (v.warnings?.length||0)===0) return "";
-  const items = []
-    .concat((v.errors||[]).map(x=>`<li><b>Fehler:</b> ${escapeHtml(x)}</li>`))
-    .concat((v.warnings||[]).map(x=>`<li><b>Hinweis:</b> ${escapeHtml(x)}</li>`))
-    .join("");
-  const bg = (v.errors||[]).length ? "rgba(180,0,0,0.12)" : "rgba(180,120,0,0.12)";
-  const bd = (v.errors||[]).length ? "rgba(180,0,0,0.35)" : "rgba(180,120,0,0.35)";
-  return `
-    <div style="margin:10px 0;padding:10px;border-radius:10px;background:${bg};border:1px solid ${bd};">
-      <div style="font-weight:700;margin-bottom:6px;">Prüfung</div>
-      <ul style="margin:0;padding-left:18px;line-height:1.35;">${items}</ul>
-    </div>
-  `;
-}
-async function updateInvoiceAfterEdit(inv){
-  // Persist to state (Array) + storage
-  ensureStateShape();
-  ensureContractDefaults();
-  if(!inv || !inv.id) return;
-
-  state.invoices = Array.isArray(state.invoices) ? state.invoices : [];
-  const idx = state.invoices.findIndex(x=>x && x.id===inv.id);
-  inv.updatedAt = new Date().toISOString();
-
-  if(idx >= 0) state.invoices[idx] = inv;
-  else state.invoices.push(inv);
-
-  saveState();
-
-  // Refresh list + open detail again
-  try{ renderInvoiceList(); }catch(_){}
-  try{ openInvoice(inv.id); }catch(_){}
-}
-
-window.toggleInvoiceExtra = async function(invoiceId, key, checked){
-  const inv = getInvoiceById(invoiceId);
-  if(!inv) return;
-  if(inv.pricing && inv.pricing.locked) return;
-
-  inv.pricing = inv.pricing || {};
-  inv.pricing.flags = inv.pricing.flags || {};
-  inv.pricing.flags[key] = !!checked;
-
-  recomputeInvoiceTotals(inv);
-  await updateInvoiceAfterEdit(inv);
-};
-
-window.setInvoiceVatRate = async function(invoiceId, value){
-  const inv = getInvoiceById(invoiceId);
-  if(!inv) return;
-  if(inv.pricing && inv.pricing.locked) return;
-
-  const v = Number(value);
-  inv.vatRate = (Number.isFinite(v) && v >= 0) ? v : 0;
-
-  recomputeInvoiceTotals(inv);
-  await updateInvoiceAfterEdit(inv);
-};
-
-function syncInvoicePricingFromDoc(inv, doc){
-  if(!inv || !doc) return false;
-  const p = calculateInvoicePricing(doc);
-  if(!p) return false;
-
-  inv.pricing = inv.pricing || { basePrice:0, percentExtra:0, fixedExtra:0, total:0 };
-
-  const basePrice = round2(p.base || 0);
-  const percentRate = round2(p.percentExtra || 0);         // %
-  const percentValue = round2(p.percentValue || 0);        // €
-  const sunHolDays = Number(p.sunHolDays || 0);           // Sonn + Feiertage (Summe)
-  const sunHolHolidays = Number(p.holidayDays || 0);      // nur Feiertage (BY)
-  const sunHolSundays  = Number(p.sundayDays || 0);       // nur Sonntage
-  const holidayExtra = round2(p.holidayValue || 0);        // € (Sonn-/Feiertag)
-  const fixedExtra = round2(p.fixedExtra || 0);            // €
-  const fixedItems = Array.isArray(p.fixedItems) ? p.fixedItems : [];
-  const percentItems = Array.isArray(p.percentItems) ? p.percentItems : [];
-  const total = round2(basePrice + percentValue + holidayExtra + fixedExtra);
-
-  const changed =
-    round2(inv.pricing.basePrice) !== basePrice ||
-    round2(inv.pricing.percentExtra) !== percentValue ||
-    round2(inv.pricing.fixedExtra) !== fixedExtra ||
-    round2(inv.pricing.total) !== total ||
-    round2(inv.pricing.holidayExtra||0) !== holidayExtra ||
-    Number(inv.pricing.holidayDays||0) !== sunHolDays ||
-    round2(inv.pricing.percentRate||0) !== percentRate;
-
-  inv.pricing.basePrice = basePrice;
-
-  // UI/PDF: Prozent-Zuschlag ohne Feiertage (Feiertage separat)
-  inv.pricing.percentExtra = percentValue;   // €-Wert (nur Prozent-Aufschläge)
-  inv.pricing.percentRate = percentRate;     // %-Summe (z.B. 10/20)
-
-  // Feiertage separat aufschlüsseln
-  inv.pricing.holidayDays = sunHolDays;
-  inv.pricing.holidayExtra = holidayExtra;
-
-  inv.pricing.fixedExtra = fixedExtra;
-
-  // 3E: Detail-Breakdown für Anzeige/PDF
-  inv.pricing.breakdown = {
-    percentItems: percentItems,
-    fixedItems: fixedItems
-  };
-
-  // canonical parts + totals (supports toggles + MwSt)
-  inv.pricing.parts = { base: basePrice, percent: percentValue, holiday: holidayExtra, fixed: fixedExtra };
-  // 3E: Detail-Aufschlüsselung für UI/PDF
-  inv.pricing.breakdown = {
-    percentItems: percentItems,
-    fixedItems: fixedItems,
-    holidayDays: sunHolDays,
-    sunHolDays: sunHolDays,
-    sunHolHolidays: sunHolHolidays,
-    sunHolSundays: sunHolSundays,
-    sunHolRate: Number(p.sunHolRate||0),
-    sunHolUnit: Number(p.sunHolUnit||0)
-  };
-  recomputeInvoiceTotals(inv);
-
-  // Zusatzinfos (harmless, falls später gebraucht)
-  inv.pricing._calc = {
-    days: p.days,
-    daily: p.daily,
-    betreuungNorm: p.betreuungNorm,
-    percentRate: percentRate,
-    percentValue: percentValue,
-    // 3F-5: Sonn-/Feiertag Aufschlüsselung
-    sunHolDays: sunHolDays,
-    sunHolHolidays: sunHolHolidays,
-    sunHolSundays: sunHolSundays,
-    holidayExtra: holidayExtra
-    ,percentItems: percentItems
-    ,fixedItems: fixedItems
-  };
-
-  // Zeitraum aus Aufenthalt synchron halten (falls nachträglich geändert)
-  try{
-    inv.period = inv.period || {};
-    if(doc?.meta?.von) inv.period.from = doc.meta.von;
-    if(doc?.meta?.bis) inv.period.to = doc.meta.bis;
-  }catch(_){}
-
-  if(changed){
-    inv.updatedAt = new Date().toISOString();
-  }
-  return changed;
-}
-
-function isInvoicePricingLocked(inv){
-  if(!inv) return false;
-  return inv.pricingLocked === true || !!inv.pricingLockedAt || !!inv.pricingSnapshot;
-}
-function shouldFreezeInvoice(inv){
-  const s = String(inv?.status||'').toLowerCase();
-  // 3D4/3E: Einfrieren erst bei "bezahlt" (Storno bleibt editierbar, falls nötig)
-  return (s==='paid') && isInvoicePricingLocked(inv);
-}
-
-function getInvoiceSourceDoc(inv){
-  if(!inv || !inv.sourceDocId) return null;
-  return (state.docs||[]).find(d=>d.id===inv.sourceDocId) || (state.stays||[]).find(d=>d.id===inv.sourceDocId) || null;
-}
-function syncInvoicePricingBySource(inv){
-  const ids = getInvoiceSourceDocIds(inv);
-  if(!inv || !ids.length) return false;
-
-  // Wenn Rechnung eingefroren ist, niemals neu berechnen.
-  if(shouldFreezeInvoice(inv)){
-    if(inv.pricingSnapshot){
-      inv.pricing = JSON.parse(JSON.stringify(inv.pricingSnapshot));
-    }
-    return false;
-  }
-
-  const docs = getInvoiceSourceDocs(inv);
-  if(!docs.length) return false;
-
-  // Bundle (mehrere Aufenthalte): aggregieren
-  if(docs.length > 1){
-    const agg = aggregateInvoicePricingFromDocs(docs);
-    if(!agg) return false;
-
-    // Nur schreiben, wenn sich etwas ändert
-    const before = JSON.stringify(inv.pricing||{});
-    inv.pricing = Object.assign(inv.pricing||{}, agg.pricing);
-    inv.bundle = inv.bundle || {};
-    inv.bundle.items = agg.items;
-    inv.bundle.count = docs.length;
-
-    // Zeitraum automatisch aus Auswahl ableiten
-    inv.period = inv.period || {};
-    inv.period.from = agg.period.from;
-    inv.period.to   = agg.period.to;
-
-    return JSON.stringify(inv.pricing||{}) !== before;
-  }
-
-  // Single-Stay
-  const doc = docs[0];
-  return syncInvoicePricingFromDoc(inv, doc);
-}
-
-// Batch sync before rendering lists (keeps UI totals correct)
- before rendering lists (keeps UI totals correct)
-function syncAllInvoicePricingGuarded(){
-  try{
-    if(!Array.isArray(state.invoices)) return;
-    let any = false;
-    for(const inv of state.invoices){
-      if(inv && getInvoiceSourceDocIds(inv).length){
-        const changed = syncInvoicePricingBySource(inv);
-        if(changed) any = true;
-      }
-    }
-    if(any) saveState();
-  }catch(e){
-    console.warn("syncAllInvoicePricingGuarded failed", e);
-  }
-}
-// ===== /3A =====
-
-// ===== ENDE PREISLOGIK =====
-let state=loadState();
-// Wichtig: State-Shape sofort sicherstellen, bevor irgendein Render läuft.
-// Sonst kann renderDashboard()/renderRecent() bei frischem / teildefektem LocalStorage
-// (z.B. nach Neustart/Reload) mit state.docs === undefined abbrechen und die komplette
-// UI wirkt dann "eingefroren" (keine Handler werden mehr gebunden).
-try{ ensureStateShape(); }catch(_){ }
-
-// WICHTIG: Migration (legacy state.dogs -> state.customers/state.pets) muss auch
-// im reinen LocalStorage-Betrieb passieren – nicht nur nach einem Cloud-Pull.
-// Sonst ist nach Reload die Hunde/Kunden-Liste leer, obwohl Daten (legacy) vorhanden sind.
-try{ migrateToV2(); }catch(_){ }
-try{ ensureStateShape(); }catch(_){ }
-const COMPANY = {
-  name: "Doggy Style Hundepension",
-  owner: "Raphael Boch",
-  street: "Im Moos 4",
-  zipCity: "88167 Stiefenhofen",
-  phone: "0170 7313587",
-  email: "info@doggy-style-hundepension.de",
-
-  bank: {
-    name: "Musterbank",
-    iban: "DE00 0000 0000 0000 0000 00",
-    bic: "MUSTERDEFFXXX"
-  },
-
-  tax: {
-    vatId: "",        // falls vorhanden
-    taxNumber: ""     // falls vorhanden
-  },
-
-  paymentTargetDays: 14
-};;if(state.nextInvoiceNumber == null){
-  state.nextInvoiceNumber = 1;
-}renderDashboard();renderRecent();
-try{ ensureStateShape(); }catch(_){ }
-try{ initProfiSettingsBindings(); renderStaffSettings(); renderPolicySettings(); renderComplianceInSettings(); }catch(_){ }
-function formatDateDE(dateStr){
-  const d = new Date(dateStr);
-  return d.toLocaleDateString("de-DE");
+function invoiceStatusColor(status){
+  const s = String(status||"").toLowerCase();
+  if(s==="paid" || s==="bezahlt") return "limegreen";
+  if(s==="open" || s==="offen") return "gold";
+  if(s==="cancelled" || s==="canceled" || s==="storniert") return "red";
+  return "white"; // draft/entwurf
 }
 function mapInvoiceStatusLabel(status){
-  const s = String(status||'').toLowerCase();
+  const s = String(status||'').trim().toLowerCase();
   if(s==='paid' || s==='bezahlt') return 'bezahlt';
   if(s==='cancelled' || s==='storniert') return 'storniert';
   if(s==='open' || s==='offen') return 'offen';
@@ -2657,6 +1993,44 @@ function getStayById(id){
   if(!id) return null;
   const arr = (state && Array.isArray(state.stays)) ? state.stays : [];
   return arr.find(d => d && d.id===id) || null;
+}
+
+function applyInvoiceManualExtras(inv){
+  if(!inv) return inv;
+  inv.pricing = inv.pricing || {};
+  const base = Number(inv.pricing.basePrice||0);
+  const holiday = Number(inv.pricing.holidayExtra||0);
+
+  const rate = Number(inv.pricing.manualPercentRate||0);
+  const fix  = Number(inv.pricing.manualFixedExtra||0);
+
+  const pctValue = Math.round((base * (rate/100)) * 100)/100;
+  inv.pricing.percentExtra = pctValue;
+  inv.pricing.fixedExtra = Math.round(fix * 100)/100;
+
+  inv.pricing.total = Math.round((base + holiday + inv.pricing.percentExtra + inv.pricing.fixedExtra) * 100)/100;
+  return inv;
+}
+
+function setInvoiceManualExtras(id){
+  const inv = getInvoiceById(id);
+  if(!inv) return;
+
+  const rateEl = document.getElementById("invPctRate");
+  const fixEl  = document.getElementById("invFixExtra");
+
+  const rate = rateEl ? Number(rateEl.value||0) : 0;
+  const fix  = fixEl  ? Number(fixEl.value||0)  : 0;
+
+  inv.pricing = inv.pricing || {};
+  inv.pricing.manualPercentRate = rate;
+  inv.pricing.manualFixedExtra  = fix;
+
+  applyInvoiceManualExtras(inv);
+  inv.updatedAt = new Date().toISOString();
+  try{ saveState(); }catch(_){}
+  try{ renderInvoiceList(); }catch(_){}
+  try{ openInvoice(id); }catch(_){}
 }
 function ensureInvoicePricing(inv){
   if(!inv) return inv;
@@ -5074,6 +4448,10 @@ function medExportPdf(){
 }
 
 
+function formatDateDE(iso){
+  const dt = new Date(iso);
+  return dt.toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit"});
+}
 
 /* ===== Belegungskalender (Monatsansicht) ===== */
 const CAL = {
@@ -5840,198 +5218,6 @@ function renderPolicySettings(){
   }).join('');
   const count = Object.values(state.compliance.docs||{}).reduce((a,d)=>a+((d&&Array.isArray(d.history))?d.history.length:0),0);
   el.innerHTML = rows + `<div class="hint" style="margin-top:10px">Archiv: ${count} Eintrag(e). (Inhalt bleibt in der App unverändert; Versionierung dient dem Nachweis.)</div>`;
-  renderPricingSettingsBlock();
-// --- Preise in Einstellungen bearbeiten ---
-function renderPricingSettingsBlock(){
-  const el = document.getElementById('policyList');
-  if(!el) return;
-  const cfg = getPricingSettings();
-  const mkRows = (key)=>{
-    const rules = Array.isArray(cfg.rules[key]) ? cfg.rules[key] : [];
-    // sort: desc by min
-    const sorted = rules.slice().sort((a,b)=> (b.min||0)-(a.min||0));
-    return sorted.map((r,i)=>`
-      <div class="row" style="gap:8px; align-items:center; margin:6px 0;">
-        <span class="muted" style="min-width:74px">ab ${escapeHtml(String(r.min))} Tg</span>
-        <input data-pr-key="${escapeHtml(key)}" data-pr-idx="${i}" data-pr-field="min" class="smallinp" style="width:84px" value="${escapeHtml(String(r.min))}">
-        <span class="muted">→</span>
-        <input data-pr-key="${escapeHtml(key)}" data-pr-idx="${i}" data-pr-field="price" class="smallinp" style="width:96px" value="${escapeHtml(String(r.price))}">
-        <span class="muted">€/Tag</span>
-      </div>
-    `).join('') || `<div class="muted">— keine Regeln</div>`;
-  };
-
-  const block = document.getElementById('pricingSettingsBlock');
-  if(block){
-    // refresh values only
-    block.querySelector('[data-pr-ex="vatPercent"]').value = String(cfg.vatPercent ?? 19);
-    block.querySelector('[data-pr-ex="holidayPercent"]').value = String(cfg.holidayPercent);
-    block.querySelector('[data-pr-ex="specialTimesPercent"]').value = String(cfg.extras.specialTimesPercent);
-    block.querySelector('[data-pr-ex="extraCarePercent"]').value = String(cfg.extras.extraCarePercent);
-    block.querySelector('[data-pr-ex="medicationPerDay"]').value = String(cfg.extras.medicationPerDay);
-    block.querySelector('[data-pr-ex="walkExtraPrice"]').value = String(cfg.extras.walkExtraPrice);
-    block.querySelector('[data-pr-ex="bandagePrice"]').value = String(cfg.extras.bandagePrice ?? 2.5);
-    block.querySelector('[data-pr-ex="groomingPrice"]').value = String(cfg.extras.groomingPrice ?? 5);
-    block.querySelector('[data-pr-ex="hygienePerDay"]').value = String(cfg.extras.hygienePerDay ?? 0);
-    block.querySelector('[data-pr-ex="pickupDropoffPrice"]').value = String(cfg.extras.pickupDropoffPrice ?? 0);
-    // sundayPercent wurde mit holidayPercent zusammengelegt (UI entfernt)
-    block.querySelector('[data-pr-ex="shortNoticePercent"]').value = String(cfg.extras.shortNoticePercent ?? 0);
-    block.querySelector('[data-pr-rules="Tagesbetreuung"]').innerHTML = mkRows('Tagesbetreuung');
-    block.querySelector('[data-pr-rules="Urlaubsbetreuung"]').innerHTML = mkRows('Urlaubsbetreuung');
-    return;
-  }
-
-  const html = `
-  <div id="pricingSettingsBlock" class="card" style="margin-top:12px; padding:12px;">
-    <div class="row" style="justify-content:space-between; align-items:center; gap:10px;">
-      <strong>Preise</strong>
-      <button class="smallbtn" onclick="savePricingFromUI()">Speichern</button>
-    </div>
-    <div class="hint" style="margin-top:6px">
-      Änderungen wirken auf neue Berechnungen. Bereits gespeicherte/"eingefrorene" Rechnungen bleiben wie sie sind.
-    </div>
-
-    <div style="margin-top:10px">
-      <div class="row" style="gap:10px; flex-wrap:wrap;">
-        <label class="muted" style="min-width:220px">MwSt (% für Rechnung)</label>
-        <input class="smallinp" style="width:96px" data-pr-ex="vatPercent" value="${escapeHtml(String(cfg.vatPercent ?? 19))}">
-      </div>
-
-      <div class="row" style="gap:10px; flex-wrap:wrap;">
-        <label class="muted" style="min-width:220px">Sonn-/Feiertagszuschlag (% pro Tag)</label>
-        <input class="smallinp" style="width:96px" data-pr-ex="holidayPercent" value="${escapeHtml(String(cfg.holidayPercent))}">
-      </div>
-
-      <div class="row" style="gap:10px; flex-wrap:wrap; margin-top:8px">
-        <label class="muted" style="min-width:220px">Sonderzeiten (% Aufschlag)</label>
-        <input class="smallinp" style="width:96px" data-pr-ex="specialTimesPercent" value="${escapeHtml(String(cfg.extras.specialTimesPercent))}">
-        <label class="muted" style="min-width:220px">Extra-Betreuung (% Aufschlag)</label>
-        <input class="smallinp" style="width:96px" data-pr-ex="extraCarePercent" value="${escapeHtml(String(cfg.extras.extraCarePercent))}">
-      </div>
-
-      <div class="row" style="gap:10px; flex-wrap:wrap; margin-top:8px">
-        <label class="muted" style="min-width:220px">Medikamente (€/Tag)</label>
-        <input class="smallinp" style="width:96px" data-pr-ex="medicationPerDay" value="${escapeHtml(String(cfg.extras.medicationPerDay))}">
-        <label class="muted" style="min-width:220px">Zusatz-Spaziergang (€/Stk)</label>
-        <input class="smallinp" style="width:96px" data-pr-ex="walkExtraPrice" value="${escapeHtml(String(cfg.extras.walkExtraPrice))}">
-      </div>
-
-      <div class="row" style="gap:10px; flex-wrap:wrap; margin-top:8px">
-        <label class="muted" style="min-width:220px">Verbandwechsel (€/Stk)</label>
-        <input class="smallinp" style="width:96px" data-pr-ex="bandagePrice" value="${escapeHtml(String(cfg.extras.bandagePrice ?? 2.5))}">
-        <label class="muted" style="min-width:220px">Pflege/Extra (€/Stk)</label>
-        <input class="smallinp" style="width:96px" data-pr-ex="groomingPrice" value="${escapeHtml(String(cfg.extras.groomingPrice ?? 5))}">
-      </div>
-
-      <div class="row" style="gap:10px; flex-wrap:wrap; margin-top:8px">
-        <label class="muted" style="min-width:220px">Hygiene/Extra (€/Tag)</label>
-        <input class="smallinp" style="width:96px" data-pr-ex="hygienePerDay" value="${escapeHtml(String(cfg.extras.hygienePerDay ?? 0))}">
-        <label class="muted" style="min-width:220px">Sonderfahrt (z.B. Tierarzt) (€/km)</label>
-        <input class="smallinp" style="width:96px" data-pr-ex="pickupDropoffPrice" value="${escapeHtml(String(cfg.extras.pickupDropoffPrice ?? 0.30))}">
-      </div>
-
-      <div class="row" style="gap:10px; flex-wrap:wrap; margin-top:8px">
-        <label class="muted" style="min-width:220px">Kurzfristig (% Aufschlag)</label>
-        <input class="smallinp" style="width:96px" data-pr-ex="shortNoticePercent" value="${escapeHtml(String(cfg.extras.shortNoticePercent ?? 0))}">
-      </div>
-    </div>
-
-    <div class="row" style="gap:16px; flex-wrap:wrap; align-items:flex-start; margin-top:14px">
-      <div style="flex:1; min-width:260px">
-        <div><strong>Tagesbetreuung</strong></div>
-        <div class="muted" style="margin-top:4px">Staffel: ab X Tagen → €/Tag</div>
-        <div data-pr-rules="Tagesbetreuung" style="margin-top:6px">${mkRows('Tagesbetreuung')}</div>
-      </div>
-      <div style="flex:1; min-width:260px">
-        <div><strong>Urlaubsbetreuung</strong></div>
-        <div class="muted" style="margin-top:4px">Staffel: ab X Tagen → €/Tag</div>
-        <div data-pr-rules="Urlaubsbetreuung" style="margin-top:6px">${mkRows('Urlaubsbetreuung')}</div>
-      </div>
-    </div>
-
-    <div class="row" style="gap:8px; flex-wrap:wrap; margin-top:12px">
-      <button class="smallbtn" onclick="resetPricingDefaults()">Auf Standard zurück</button>
-      <button class="smallbtn" onclick="addPricingRule('Tagesbetreuung')">+ Regel Tages</button>
-      <button class="smallbtn" onclick="addPricingRule('Urlaubsbetreuung')">+ Regel Urlaub</button>
-    </div>
-  </div>`;
-  el.insertAdjacentHTML('beforeend', html);
-}
-
-function _readNumber(v, fallback){
-  const n = parseFloat(String(v).replace(',', '.'));
-  return Number.isFinite(n) ? n : fallback;
-}
-
-function savePricingFromUI(){
-  try{
-    const block = document.getElementById('pricingSettingsBlock');
-    if(!block) return;
-    const cur = getPricingSettings();
-    const next = JSON.parse(JSON.stringify(cur));
-
-    // extras
-    next.vatPercent = _readNumber(block.querySelector('[data-pr-ex="vatPercent"]').value, cur.vatPercent ?? 19);
-    next.holidayPercent = _readNumber(block.querySelector('[data-pr-ex="holidayPercent"]').value, cur.holidayPercent);
-    next.extras.specialTimesPercent = _readNumber(block.querySelector('[data-pr-ex="specialTimesPercent"]').value, cur.extras.specialTimesPercent);
-    next.extras.extraCarePercent = _readNumber(block.querySelector('[data-pr-ex="extraCarePercent"]').value, cur.extras.extraCarePercent);
-    next.extras.medicationPerDay = _readNumber(block.querySelector('[data-pr-ex="medicationPerDay"]').value, cur.extras.medicationPerDay);
-    next.extras.walkExtraPrice = _readNumber(block.querySelector('[data-pr-ex="walkExtraPrice"]').value, cur.extras.walkExtraPrice);
-    next.extras.bandagePrice = _readNumber(block.querySelector('[data-pr-ex="bandagePrice"]').value, cur.extras.bandagePrice ?? 2.5);
-    next.extras.groomingPrice = _readNumber(block.querySelector('[data-pr-ex="groomingPrice"]').value, cur.extras.groomingPrice ?? 5);
-    next.extras.hygienePerDay = _readNumber(block.querySelector('[data-pr-ex="hygienePerDay"]').value, cur.extras.hygienePerDay ?? 0);
-    next.extras.pickupDropoffPrice = _readNumber(block.querySelector('[data-pr-ex="pickupDropoffPrice"]').value, cur.extras.pickupDropoffPrice ?? 0);
-    // Sonntag wurde mit Feiertag zusammengelegt
-    next.extras.sundayPercent = next.holidayPercent;
-    next.extras.shortNoticePercent = _readNumber(block.querySelector('[data-pr-ex="shortNoticePercent"]').value, cur.extras.shortNoticePercent ?? 0);
-    // rules
-    for(const key of ['Tagesbetreuung','Urlaubsbetreuung']){
-      const container = block.querySelector(`[data-pr-rules="${key}"]`);
-      const rows = Array.from(container.querySelectorAll('input[data-pr-key]'));
-      // collect by idx
-      const byIdx = {};
-      for(const inp of rows){
-        const idx = parseInt(inp.getAttribute('data-pr-idx'),10);
-        const field = inp.getAttribute('data-pr-field');
-        byIdx[idx] = byIdx[idx] || {};
-        byIdx[idx][field] = inp.value;
-      }
-      const arr = Object.keys(byIdx).map(k=>{
-        const o = byIdx[k];
-        return {min: Math.max(1, Math.round(_readNumber(o.min, 1))), price: _readNumber(o.price, 0)};
-      }).filter(r=>Number.isFinite(r.min)&&Number.isFinite(r.price));
-      // sort desc
-      arr.sort((a,b)=>b.min-a.min);
-      next.rules[key]=arr;
-    }
-
-    savePricingSettings(next);
-    // MwSt auch als globaler Rechnungs-Default bereitstellen (kompatibel mit bestehenden Feldern)
-    try{ state.settings = state.settings || {}; state.settings.vatRate = next.vatPercent; saveState(); }catch(_){ }
-    alert('✅ Preise gespeichert');
-    renderPricingSettingsBlock();
-  }catch(e){
-    console.error(e);
-    alert('❌ Speichern fehlgeschlagen (siehe Konsole)');
-  }
-}
-
-function resetPricingDefaults(){
-  if(!confirm('Preise wirklich auf Standard zurücksetzen?')) return;
-  const next = JSON.parse(JSON.stringify(PRICING_DEFAULTS));
-  savePricingSettings(next);
-  renderPricingSettingsBlock();
-}
-
-function addPricingRule(key){
-  const cur = getPricingSettings();
-  const next = JSON.parse(JSON.stringify(cur));
-  next.rules[key] = Array.isArray(next.rules[key]) ? next.rules[key] : [];
-  next.rules[key].push({min:1, price:0});
-  savePricingSettings(next);
-  renderPricingSettingsBlock();
-}
-
 }
 
 function bumpVersionStr(v){
@@ -6175,139 +5361,6 @@ function downloadBlob(filename, blob){
   setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 400);
 }
 
-
-/* ===== 4F-4: Rechnungs-Archiv & Export (CSV/JSON) ===== */
-function openInvoiceArchive(){
-  try{
-    const yearDefault = String(new Date().getFullYear());
-    const year = prompt("Rechnungen exportieren – Jahr (z.B. 2026). Leer = alle Jahre:", yearDefault);
-    if(year === null) return;
-
-    const status = prompt("Status-Filter: entwurf / offen / bezahlt (leer = alle):", "");
-    if(status === null) return;
-
-    const fmt = prompt("Format: csv oder json", "csv");
-    if(fmt === null) return;
-
-    if(String(fmt).toLowerCase().trim() === "json"){
-      exportInvoicesJson(year, status);
-    }else{
-      exportInvoicesCsv(year, status);
-    }
-  }catch(e){
-    console.error(e);
-    alert("Archiv/Export konnte nicht geöffnet werden.");
-  }
-}
-
-function exportInvoicesCsv(yearStr, statusStr){
-  const invoices = (getInvoices()||[]).slice();
-  const year = (yearStr||"").trim();
-  const status = (statusStr||"").trim().toLowerCase();
-
-  const filtered = invoices.filter(inv=>{
-    if(status){
-      if((inv.status||"").toLowerCase() !== status) return false;
-    }
-    if(year){
-      const y = safeYearFromInvoice(inv);
-      if(String(y) !== year) return false;
-    }
-    return true;
-  });
-
-  const rows = [];
-  rows.push([
-    "Rechnungsnr",
-    "Status",
-    "Kunde",
-    "Hund",
-    "Von",
-    "Bis",
-    "Brutto",
-    "MwSt_Satz",
-    "MwSt_Betrag",
-    "Netto"
-  ]);
-
-  filtered.forEach(inv=>{
-    const parties = resolveInvoiceParties(inv);
-    const cust = parties.cust?.name || parties.legacyDog?.owner || "";
-    const pet  = parties.pet?.name || parties.legacyDog?.name || "";
-    const from = inv.period?.from || "";
-    const to   = inv.period?.to || "";
-    const vatRate = (typeof inv.vatRate === "number" && !Number.isNaN(inv.vatRate)) ? inv.vatRate : (typeof state?.settings?.invoiceVatRate === "number" ? state.settings.invoiceVatRate : 0);
-    const total = Number(inv.pricing?.total||0);
-    const vatAmt = vatRate>0 ? (total * (vatRate/(100+vatRate))) : 0;
-    const net = vatRate>0 ? (total - vatAmt) : total;
-
-    rows.push([
-      inv.invoiceNumber || "",
-      inv.status || "",
-      cust,
-      pet,
-      from,
-      to,
-      total.toFixed(2).replace(".", ","),
-      String(vatRate).replace(".", ","),
-      vatAmt.toFixed(2).replace(".", ","),
-      net.toFixed(2).replace(".", ","),
-    ]);
-  });
-
-  const csv = rows.map(r=>r.map(csvCell).join(";")).join("\n");
-  const stamp = new Date().toISOString().slice(0,10);
-  const name = `rechnungen_${year||"alle"}_${status||"alle"}_${stamp}.csv`;
-  const blob = new Blob(["\ufeff"+csv], {type:"text/csv;charset=utf-8"});
-  downloadBlob(name, blob);
-  showMiniToast(`Export: ${filtered.length} Rechnungen`);
-}
-
-function exportInvoicesJson(yearStr, statusStr){
-  const invoices = (getInvoices()||[]).slice();
-  const year = (yearStr||"").trim();
-  const status = (statusStr||"").trim().toLowerCase();
-
-  const filtered = invoices.filter(inv=>{
-    if(status){
-      if((inv.status||"").toLowerCase() !== status) return false;
-    }
-    if(year){
-      const y = safeYearFromInvoice(inv);
-      if(String(y) !== year) return false;
-    }
-    return true;
-  });
-
-  const stamp = new Date().toISOString().slice(0,10);
-  const name = `rechnungen_${year||"alle"}_${status||"alle"}_${stamp}.json`;
-  const blob = new Blob([JSON.stringify(filtered,null,2)], {type:"application/json"});
-  downloadBlob(name, blob);
-  showMiniToast(`Export: ${filtered.length} Rechnungen`);
-}
-
-function safeYearFromInvoice(inv){
-  try{
-    const from = inv?.period?.from || inv?.period?.to || "";
-    if(!from) return "";
-    // expects YYYY-MM-DD
-    const m = String(from).match(/^(\d{4})-/);
-    if(m) return m[1];
-    const d = new Date(from);
-    if(!isNaN(d.getTime())) return String(d.getFullYear());
-  }catch(_){}
-  return "";
-}
-
-function csvCell(v){
-  const s = String(v??"");
-  if(/[;"\n\r]/.test(s)){
-    return '"' + s.replace(/"/g,'""') + '"';
-  }
-  return s;
-}
-/* ===== /4F-4 ===== */
-
 function exportMonthJson(){
   const today = new Date();
   const ym = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
@@ -6394,15 +5447,36 @@ function initProfiSettingsBindings(){
   if(t1 && !t1.dataset.bound){ t1.dataset.bound='1'; t1.onclick = taxExportMonth; }
   const t2 = document.getElementById('btnTaxExportJSON');
   if(t2 && !t2.dataset.bound){ t2.dataset.bound='1'; t2.onclick = exportMonthJson; }
+
+  // Preise (Rechnungen)
+  const pDay = document.getElementById('priceDaycare');
+  const pVac = document.getElementById('priceVacation');
+  const bindPrice = (el, key) => {
+    if(!el) return;
+    if(!el.dataset.bound){
+      el.dataset.bound='1';
+      el.addEventListener('input', ()=>{ setPriceSetting(key, el.value); }, {passive:true});
+      el.addEventListener('change', ()=>{ setPriceSetting(key, el.value); }, {passive:true});
+    }
+    try{ el.value = String(getPriceSetting(key) || ''); }catch(_){}
+  };
+  bindPrice(pDay, 'daycare');
+  bindPrice(pVac, 'vacation');
+
 }
 
 function ensureStateShape(){
-  // Basis-Defaults (ohne UID-Erzeugung, damit es beim ersten Load robust bleibt)
-  if(!state || typeof state !== "object") return;
-  if(typeof state.schemaVersion !== "number") state.schemaVersion = 1;
-
-  // Profi-Defaults (Mitarbeiter, Versionen, Monatsabschlüsse)
-  try{ ensureProfiDefaults(); }catch(_){ }
+  if(!state || typeof state!=='object') state = {dogs:[], docs:[]};
+  if(!Array.isArray(state.dogs)) state.dogs=[];
+  if(!Array.isArray(state.docs)) state.docs=[];
+  // meta containers
+  if(!state.meta || typeof state.meta!=='object') state.meta={};
+  if(!state.meta.pricing || typeof state.meta.pricing!=='object') state.meta.pricing={};
+  if(!state.meta.pricing.vatPercent) state.meta.pricing.vatPercent = 19;
+  if(!state.meta.pricing.pricePerDayDaycare && state.meta.pricing.pricePerDayDaycare!==0) state.meta.pricing.pricePerDayDaycare = '';
+  if(!state.meta.pricing.pricePerDayVacation && state.meta.pricing.pricePerDayVacation!==0) state.meta.pricing.pricePerDayVacation = '';
+}
+catch(_){ }
 
   state.dogs = Array.isArray(state.dogs) ? state.dogs : [];
   state.docs = Array.isArray(state.docs) ? state.docs : [];
@@ -7608,19 +6682,6 @@ function getInvoiceById(id){
   return (state.invoices||[]).find(x=>x.id===id) || null;
 }
 
-
-function getInvoiceSourceDocIds(inv){
-  if(!inv) return [];
-  if(Array.isArray(inv.sourceDocIds) && inv.sourceDocIds.length) return inv.sourceDocIds.filter(Boolean);
-  if(inv.sourceDocId) return [inv.sourceDocId];
-  return [];
-}
-function getInvoiceSourceDocs(inv){
-  const ids = getInvoiceSourceDocIds(inv);
-  const docs = (state.docs||[]);
-  return ids.map(id=>docs.find(d=>d && d.id===id)).filter(Boolean);
-}
-
 function resolveInvoiceParties(inv){
   ensureStateShape();
   ensureContractDefaults();
@@ -7653,33 +6714,347 @@ function formatCustomerAddress(cust){
 }
 
 
-// --- 2C: Rechnung UI (Deutsch, Status-Badge, Positionsbezeichnungen) -----------
-function invoiceStatusLabel(status){
-  const s = String(status||"").toLowerCase().trim();
-  if(s==="draft" || s==="entwurf") return "Entwurf";
-  if(s==="open" || s==="offen") return "Offen";
-  if(s==="paid" || s==="bezahlt") return "Bezahlt";
-  if(s==="cancelled" || s==="storniert" || s==="canceled") return "Storniert";
-  if(!s) return "—";
-  return status; // fallback
+function statusDotColor(status){
+  const s = String(status||'').trim().toLowerCase();
+  if(s === 'bezahlt' || s === 'paid') return 'green';
+  if(s === 'storniert' || s === 'cancelled' || s === 'canceled') return 'red';
+  if(s === 'offen' || s === 'open') return 'yellow';
+  // draft/entwurf
+  return 'white';
 }
-function invoiceStatusStyle(status){
-  const s = String(status||"").toLowerCase().trim();
-  // Farben bewusst dezent (Master-Guard: keine CSS-Abhängigkeiten)
-  if(s==="paid" || s==="bezahlt") return "background:#1f6f3b;color:#fff;border:1px solid rgba(255,255,255,.15)";
-  if(s==="open" || s==="offen") return "background:#b7791f;color:#111;border:1px solid rgba(255,255,255,.15)";
-  if(s==="cancelled" || s==="storniert" || s==="canceled") return "background:#8b1e1e;color:#fff;border:1px solid rgba(255,255,255,.15)";
-  if(s==="draft" || s==="entwurf") return "background:#4a5568;color:#fff;border:1px solid rgba(255,255,255,.15)";
-  return "background:#4a5568;color:#fff;border:1px solid rgba(255,255,255,.15)";
+
+function statusLabel(status){
+  const s = String(status||'').toLowerCase();
+  if(s === 'paid' || s === 'bezahlt') return 'Bezahlt';
+  if(s === 'cancelled' || s === 'canceled' || s === 'storniert') return 'Storniert';
+  if(s === 'open' || s === 'offen') return 'Offen';
+  if(s === 'draft' || s === 'entwurf') return 'Entwurf';
+  return status || '';
 }
-function invoiceStatusBadge(status){
-  const label = escapeHtml(invoiceStatusLabel(status));
-  const style = invoiceStatusStyle(status);
-  return `<span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;line-height:18px;${style}">${label}</span>`;
+
+
+
+function findInvoiceBySourceDocId(docId){
+  return (state.invoices || []).find(inv => inv && (inv.sourceDocId === docId || inv.stayId === docId));
 }
+
+function createOrUpdateInvoiceFromStay(stayId, opts={}){
+  const stayDoc = getDoc(stayId);
+  if(!stayDoc) return null;
+
+  // Only create when explicitly requested (Rechnung freigeben)
+  if(!opts.forceCreate){
+    // update only if already linked
+    if(!stayDoc.meta || !stayDoc.meta.invoice_id) return null;
+  }
+
+  calculateInvoicePricing(stayDoc);
+  if(!stayDoc.pricing) return null;
+
+  const customer = getCustomer(stayDoc.customerId) || null;
+  const pet = getPet(stayDoc.petId || stayDoc.dogId) || null;
+
+  let invoice = null;
+  const invoiceId = stayDoc.meta && stayDoc.meta.invoice_id ? stayDoc.meta.invoice_id : null;
+
+  if(invoiceId){
+    invoice = (state.invoices||[]).find(i=>i.id===invoiceId) || null;
+  }
+
+  if(!invoice){
+    if(!opts.forceCreate) return null;
+    invoice = createInvoiceFromDoc(stayDoc);
+    if(!invoice) return null;
+
+    stayDoc.meta = stayDoc.meta || {};
+    stayDoc.meta.invoice_id = invoice.id;
+    stayDoc.meta.invoice_released = true;
+  }
+
+  // Update core fields/totals from pricing
+  const p = stayDoc.pricing;
+  invoice.customerId = stayDoc.customerId || invoice.customerId || null;
+  invoice.petId = (stayDoc.petId || stayDoc.dogId) || invoice.petId || null;
+  invoice.stayId = stayDoc.id || stayId;
+
+  invoice.from = stayDoc.meta.von;
+  invoice.to = stayDoc.meta.bis;
+  invoice.service = stayDoc.meta.betreuung;
+
+  invoice.totals = {
+    baseGross: p.baseGross,
+    sunHolidayExtraGross: p.sunHolidayExtraGross,
+    pctExtraGross: p.pctExtraGross,
+    fixExtraGross: p.fixExtraGross,
+    totalGross: p.totalGross
+  };
+
+  // Refresh lines (keep custom lines only if requested later – for now deterministic)
+  invoice.lines = [];
+  invoice.lines.push({label: p.serviceLabel || "Betreuung", amount: p.baseGross});
+  if(p.sunHolidayExtraGross > 0){
+    invoice.lines.push({label:"Sonn- & Feiertagszuschlag", amount:p.sunHolidayExtraGross, meta:{days:p.sunHolidayDays}});
+  }
+  if(p.pctExtraGross > 0){
+    invoice.lines.push({label:"Zuschläge (%)", amount:p.pctExtraGross, meta:{pct:p.pctSum||null}});
+  }
+  if(p.fixExtraGross > 0){
+    invoice.lines.push({label:"Zuschläge (fix)", amount:p.fixExtraGross});
+  }
+
+  // cache labels for UI
+  invoice.customerName = customer ? customer.name : (invoice.customerName||"");
+  invoice.customerPhone = customer ? (customer.phone||"") : (invoice.customerPhone||"");
+  invoice.petName = pet ? pet.name : (invoice.petName||"");
+
+  saveDoc(stayDoc);
+  saveState();
+
+  return invoice;
+}
+function openInvoiceRelease(docId){
+  const d = getDoc(docId);
+  if(!d){ toast("Dokument nicht gefunden."); return; }
+
+  // Ensure arrays exist
+  d.fields = d.fields || {};
+  if(!Array.isArray(d.fields.inv_extra_pct)) d.fields.inv_extra_pct = [];
+  if(!Array.isArray(d.fields.inv_extra_fix)) d.fields.inv_extra_fix = [];
+  if(!Number.isFinite(parseFloat(d.fields.inv_sun_holiday_pct))) d.fields.inv_sun_holiday_pct = 10;
+
+  calculateInvoicePricing(d);
+
+  // Overlay
+  let ov = document.getElementById("invReleaseOverlay");
+  if(!ov){
+    ov = document.createElement("div");
+    ov.id = "invReleaseOverlay";
+    ov.style.position = "fixed";
+    ov.style.left = "0";
+    ov.style.top = "0";
+    ov.style.width = "100%";
+    ov.style.height = "100%";
+    ov.style.background = "rgba(0,0,0,0.6)";
+    ov.style.zIndex = "9999";
+    ov.style.display = "flex";
+    ov.style.alignItems = "center";
+    ov.style.justifyContent = "center";
+    ov.addEventListener("click", (e)=>{ if(e.target===ov) ov.remove(); });
+    document.body.appendChild(ov);
+  }else{
+    ov.innerHTML = "";
+  }
+
+  const card = document.createElement("div");
+  card.style.width = "min(920px, 96vw)";
+  card.style.maxHeight = "90vh";
+  card.style.overflow = "auto";
+  card.style.background = "rgba(30,30,30,0.98)";
+  card.style.border = "1px solid rgba(255,255,255,0.12)";
+  card.style.borderRadius = "14px";
+  card.style.padding = "18px";
+  card.style.boxShadow = "0 12px 40px rgba(0,0,0,0.45)";
+  ov.appendChild(card);
+
+  const pet = getPet(d.petId || d.dogId) || null;
+  const cust = getCustomer(d.customerId) || null;
+
+  const header = document.createElement("div");
+  header.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;">
+      <div>
+        <div style="font-size:20px;font-weight:700;">Rechnung freigeben</div>
+        <div style="opacity:.85;margin-top:2px;">
+          ${cust?escapeHtml(cust.name):"?"} · ${pet?escapeHtml(pet.name):"?"} · Zeitraum: ${fmtDate(d.meta.von)} – ${fmtDate(d.meta.bis)}
+        </div>
+      </div>
+      <button class="btn" id="invRelCloseBtn">Schließen</button>
+    </div>
+  `;
+  card.appendChild(header);
+
+  const body = document.createElement("div");
+  body.innerHTML = `
+    <div class="card" style="margin:0 0 12px 0;">
+      <div style="font-weight:700;margin-bottom:8px;">Sonn- & Feiertagszuschlag</div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <label style="min-width:280px;opacity:.9;">Zuschlag in % (auf Grundpreis)</label>
+        <input id="invSunHolPct" class="input" type="number" step="0.5" min="0" style="width:120px" value="${escapeHtml(String(d.fields.inv_sun_holiday_pct||10))}">
+        <span style="opacity:.8;">Tage: <b>${d.pricing?d.pricing.sunHolidayDays:0}</b></span>
+      </div>
+      <div style="opacity:.75;margin-top:6px;">Hinweis: Sonntage zählen wie Feiertage (BY).</div>
+    </div>
+
+    <div class="card" style="margin:0 0 12px 0;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+        <div style="font-weight:700;">Manuelle Zuschläge</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn" id="addPctExtraBtn">+ % Zuschlag</button>
+          <button class="btn" id="addFixExtraBtn">+ € Zuschlag</button>
+        </div>
+      </div>
+
+      <div id="invExtraList" style="margin-top:10px;"></div>
+    </div>
+
+    <div class="card" style="margin:0 0 12px 0;">
+      <div style="font-weight:700;margin-bottom:8px;">Vorschau</div>
+      <div id="invPreview" style="line-height:1.8;"></div>
+    </div>
+
+    <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;">
+      <button class="btn" id="invRelSaveBtn">Nur speichern</button>
+      <button class="btn btnPrimary" id="invRelCreateBtn">Rechnung erstellen</button>
+    </div>
+  `;
+  card.appendChild(body);
+
+  const renderExtras = ()=>{
+    const list = card.querySelector("#invExtraList");
+    const pct = d.fields.inv_extra_pct || [];
+    const fix = d.fields.inv_extra_fix || [];
+    const rows = [];
+
+    pct.forEach((x,idx)=>{
+      rows.push(`
+        <div class="row" style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap;">
+          <span style="min-width:90px;opacity:.85;">% Zuschlag</span>
+          <input class="input invPctName" data-idx="${idx}" placeholder="Bezeichnung" style="flex:1;min-width:220px" value="${escapeHtml(x.name||'')}">
+          <input class="input invPctVal" data-idx="${idx}" type="number" step="0.5" min="0" style="width:120px" value="${escapeHtml(String(x.pct||0))}">
+          <button class="btn" data-kind="pct" data-idx="${idx}">Entfernen</button>
+        </div>
+      `);
+    });
+
+    fix.forEach((x,idx)=>{
+      rows.push(`
+        <div class="row" style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap;">
+          <span style="min-width:90px;opacity:.85;">€ Zuschlag</span>
+          <input class="input invFixName" data-idx="${idx}" placeholder="Bezeichnung" style="flex:1;min-width:220px" value="${escapeHtml(x.name||'')}">
+          <input class="input invFixVal" data-idx="${idx}" type="number" step="0.5" min="0" style="width:120px" value="${escapeHtml(String(x.amount||0))}">
+          <button class="btn" data-kind="fix" data-idx="${idx}">Entfernen</button>
+        </div>
+      `);
+    });
+
+    list.innerHTML = rows.length ? rows.join("") : `<div style="opacity:.75;">Keine manuellen Zuschläge.</div>`;
+
+    // remove handlers
+    list.querySelectorAll("button[data-kind]").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        const kind = btn.getAttribute("data-kind");
+        const idx = parseInt(btn.getAttribute("data-idx"),10);
+        if(kind==="pct") d.fields.inv_extra_pct.splice(idx,1);
+        if(kind==="fix") d.fields.inv_extra_fix.splice(idx,1);
+        renderExtras();
+        renderPreview();
+      });
+    });
+
+    // update handlers
+    list.querySelectorAll(".invPctName").forEach(inp=>{
+      inp.addEventListener("input", ()=>{
+        const idx=parseInt(inp.dataset.idx,10);
+        d.fields.inv_extra_pct[idx].name = inp.value;
+      });
+    });
+    list.querySelectorAll(".invPctVal").forEach(inp=>{
+      inp.addEventListener("input", ()=>{
+        const idx=parseInt(inp.dataset.idx,10);
+        d.fields.inv_extra_pct[idx].pct = parseFloat(inp.value||"0");
+        renderPreview();
+      });
+    });
+    list.querySelectorAll(".invFixName").forEach(inp=>{
+      inp.addEventListener("input", ()=>{
+        const idx=parseInt(inp.dataset.idx,10);
+        d.fields.inv_extra_fix[idx].name = inp.value;
+      });
+    });
+    list.querySelectorAll(".invFixVal").forEach(inp=>{
+      inp.addEventListener("input", ()=>{
+        const idx=parseInt(inp.dataset.idx,10);
+        d.fields.inv_extra_fix[idx].amount = parseFloat(inp.value||"0");
+        renderPreview();
+      });
+    });
+  };
+
+  const renderPreview = ()=>{
+    d.fields.inv_sun_holiday_pct = parseFloat(card.querySelector("#invSunHolPct").value||"0");
+    calculateInvoicePricing(d);
+    const p = d.pricing || {};
+    const prev = card.querySelector("#invPreview");
+    prev.innerHTML = `
+      <div>${escapeHtml(p.serviceLabel||"Betreuung")}: <b>${fmtMoney(p.baseGross)}</b></div>
+      <div>Sonn- & Feiertagszuschlag: <b>${fmtMoney(p.sunHolidayExtraGross)}</b> <span style="opacity:.75;">(${p.sunHolidayDays} Tage · ${p.sunHolidayPct}%)</span></div>
+      <div>Zuschläge (%): <b>${fmtMoney(p.pctExtraGross)}</b> <span style="opacity:.75;">(${p.pctSum||0}%)</span></div>
+      <div>Zuschläge (fix): <b>${fmtMoney(p.fixExtraGross)}</b></div>
+      <div style="margin-top:6px;border-top:1px solid rgba(255,255,255,0.10);padding-top:8px;font-size:18px;">
+        Gesamt (Brutto): <b>${fmtMoney(p.totalGross)}</b>
+      </div>
+    `;
+  };
+
+  // initial render
+  renderExtras();
+  renderPreview();
+
+  // wire buttons
+  card.querySelector("#invRelCloseBtn").addEventListener("click", ()=>ov.remove());
+  card.querySelector("#invSunHolPct").addEventListener("input", ()=>renderPreview());
+
+  card.querySelector("#addPctExtraBtn").addEventListener("click", ()=>{
+    d.fields.inv_extra_pct.push({name:"", pct:0});
+    renderExtras(); renderPreview();
+  });
+  card.querySelector("#addFixExtraBtn").addEventListener("click", ()=>{
+    d.fields.inv_extra_fix.push({name:"", amount:0});
+    renderExtras(); renderPreview();
+  });
+
+  const persistStayPricingOnly = ()=>{
+    d.fields.inv_sun_holiday_pct = parseFloat(card.querySelector("#invSunHolPct").value||"0");
+    // persist on stay doc
+    saveDoc(d);
+  };
+
+  card.querySelector("#invRelSaveBtn").addEventListener("click", ()=>{
+    persistStayPricingOnly();
+    toast("Zuschläge gespeichert (ohne Rechnung).");
+  });
+
+  card.querySelector("#invRelCreateBtn").addEventListener("click", ()=>{
+    persistStayPricingOnly();
+    const inv = createOrUpdateInvoiceFromStay(docId, {forceCreate:true});
+    if(inv){
+      toast("Rechnung erstellt (Entwurf).");
+      ov.remove();
+      renderInvoices && renderInvoices();
+    }else{
+      toast("Rechnung konnte nicht erstellt werden.");
+    }
+  });
+}
+
+function invoiceStatusLabel(s){
+  const k = String(s||'').toLowerCase();
+  if(k==='draft') return 'Entwurf';
+  if(k==='open') return 'Offen';
+  if(k==='paid') return 'Bezahlt';
+  if(k==='canceled' || k==='storno' || k==='storniert') return 'Storniert';
+  return s||'';
+}
+function invoiceStatusDotColor(s){
+  const k = String(s||'').toLowerCase();
+  if(k==='paid') return '#35c759';
+  if(k==='open') return '#f5b62e';
+  if(k==='canceled' || k==='storno' || k==='storniert') return '#ff3b30';
+  if(k==='draft') return '#ffffff';
+  return '#ffffff';
+}
+
 function renderInvoiceList(){
-  // 3A: Preise aus Aufenthalten synchronisieren (guarded)
-  try{ syncAllInvoicePricingGuarded(); }catch(_){ }
   const el = document.getElementById("invoiceList");
   if(!el) return;
 
@@ -7688,8 +7063,6 @@ function renderInvoiceList(){
   const actionBar = `
     <div class="row" style="gap:10px;flex-wrap:wrap;margin:10px 0 14px">
       <button class="btn" onclick="openFreeInvoiceForm()">➕ Freie Rechnung</button>
-      <button class="btn" onclick="openBundleInvoiceForm()">📦 Sammelrechnung</button>
-      <button class="btn" onclick="openInvoiceArchive()">📁 Archiv / Export</button>
     </div>
   `;
 
@@ -7716,364 +7089,18 @@ function renderInvoiceList(){
           <tr onclick="openInvoice('${inv.id}')">
             <td>${inv.invoiceNumber || "-"}</td>
             <td>${escapeHtml((resolveInvoiceParties(inv).cust?.name || resolveInvoiceParties(inv).legacyDog?.owner || "—"))} · ${escapeHtml((resolveInvoiceParties(inv).pet?.name || resolveInvoiceParties(inv).legacyDog?.name || "—"))}</td>
-            <td>${escapeHtml(formatDateDE(inv.period?.from||""))} – ${escapeHtml(formatDateDE(inv.period?.to||""))}</td>
-            <td>${(inv.pricing?.total||0).toFixed(2)} €</td>
-            <td>${invoiceStatusBadge(inv.status)}</td>
+            <td>${escapeHtml(inv.period?.from||"")} – ${escapeHtml(inv.period?.to||"")}</td>
+            <td>${((inv.pricing?.grossTotal ?? inv.pricing?.total) || 0).toFixed(2)} €</td>
+            <td><span style="display:inline-flex;align-items:center;gap:8px"><span style="font-size:14px;color:${statusDotColor(inv.status)}">●</span>${escapeHtml(mapInvoiceStatusLabel(inv.status||""))}</span></td>
           </tr>
         `).join("")}
       </tbody>
     </table>
   `;
 }
-
-// --- 2B: Aufenthalt -> Rechnung öffnen/erstellen -------------------------------
-// Minimal: verknüpft Aufenthalt (doc) mit Rechnung (invoice) via doc.invoiceId
-function openOrCreateInvoiceForDocId(docId){
-  try{
-    const doc = (state.docs||[]).find(d=>d.id===docId);
-    if(!doc){
-      alert("Aufenthalt nicht gefunden.");
-      return;
-    }
-
-    state.invoices = Array.isArray(state.invoices) ? state.invoices : [];
-
-    // 1) existierende Rechnung finden (invoiceId oder sourceDocId)
-    let inv = null;
-    if(doc.invoiceId){
-      inv = state.invoices.find(x=>x.id===doc.invoiceId) || null;
-    }
-    if(!inv){
-      inv = state.invoices.find(x=>x.sourceDocId===doc.id) || null;
-    }
-
-    // 2) Wenn nicht vorhanden: Draft-Rechnung erstellen (ohne Preislogik)
-    if(!inv){
-      const year = new Date().getFullYear();
-      state.nextInvoiceNumber = Number(state.nextInvoiceNumber || 1);
-      const number = String(state.nextInvoiceNumber).padStart(4, "0");
-
-      const customerId = (doc.customerId || getCustomerByDogId(doc.dogId)?.id || "");
-      const petId      = (doc.petId || getPetByDogId(doc.dogId)?.id || "");
-
-      inv = {
-        id: uid(),
-        type: "invoice",
-
-        sourceDocId: doc.id,
-        dogId: doc.dogId || "",
-
-        customerId,
-        petId,
-
-        period: { from: doc?.meta?.von || "", to: doc?.meta?.bis || "" },
-
-        pricing: { basePrice: 0, percentExtra: 0, fixedExtra: 0, total: 0 },
-
-        status: "draft",
-        note: "",
-
-        invoiceNumber: `${year}-${number}`,
-        invoiceDate: new Date().toISOString(),
-
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-
-      state.invoices.push(inv);
-      state.nextInvoiceNumber++;
-
-      // im Aufenthalt verlinken
-      doc.invoiceId = inv.id;
-      doc.invoiceNumber = inv.invoiceNumber;
-      doc.updatedAt = new Date().toISOString();
-
-      saveState();
-    }else{
-      // sicherheitshalber zurück-verlinken, falls invoice über sourceDocId gefunden wurde
-      if(!doc.invoiceId){
-        doc.invoiceId = inv.id;
-        doc.invoiceNumber = inv.invoiceNumber;
-        doc.updatedAt = new Date().toISOString();
-        saveState();
-      }
-    }
-
-
-    // 3A: Preise aus Aufenthalt berechnen & in Rechnung schreiben
-    try{
-      if(inv && doc){
-        const changed = syncInvoicePricingFromDoc(inv, doc);
-        if(changed) saveState();
-      }
-    }catch(e){ console.warn('3A syncInvoicePricingFromDoc failed', e); }
-
-    // 3) UI: zu Rechnungen springen & öffnen
-    try{ showSection("invoices"); }catch(e){}
-    try{ renderInvoiceList(); }catch(e){}
-    try{ openInvoice(inv.id); }catch(e){ console.warn("openInvoice failed", e); }
-
-  }catch(e){
-    console.error("openOrCreateInvoiceForDocId failed", e);
-    alert("Rechnung konnte nicht geöffnet/erstellt werden.");
-  }
-}
-
-// --- 3E: Rechnung -> Aufenthalt öffnen / Zuschläge übernehmen -----------------
-function openInvoiceSourceStay(invoiceId, docId){
-  try{
-    const inv = getInvoiceById(invoiceId);
-    if(!inv) return;
-    const ids = getInvoiceSourceDocIds(inv);
-    if(!ids.length) return;
-
-    const targetId = docId && ids.includes(docId) ? docId : ids[0];
-
-    try{ state.docsUi = state.docsUi || {}; state.docsUi.fromInvoiceId = invoiceId; saveState(); }catch(_){ }
-    try{ selectTab('docs'); }catch(_){ }
-    openDoc(targetId);
-
-    setTimeout(()=>{
-      const t = document.querySelector('[data-key="special_times"], #field_special_times, #special_times');
-      if(t && t.scrollIntoView) t.scrollIntoView({behavior:'smooth',block:'center'});
-    }, 50);
-  }catch(e){ console.warn('openInvoiceSourceStay failed', e); }
-}
-
-function refreshInvoiceFromStayfunction refreshInvoiceFromStay(invoiceId){
-  try{
-    const inv = getInvoiceById(invoiceId);
-    if(!inv) return;
-    if(shouldFreezeInvoice(inv)) return;
-    const changed = syncInvoicePricingBySource(inv);
-    if(changed) saveState();
-    renderInvoiceList();
-    openInvoice(inv.id);
-  }catch(e){ console.warn('refreshInvoiceFromStay failed', e); }
-}
-
-
-function renderInvoicePositions(inv){
-  const euro = (n)=>`${Number(n||0).toFixed(2)} €`;
-  const p = inv?.pricing || {};
-  if(p.parts && (!p.applied || typeof p.total !== 'number')){
-    recomputeInvoiceTotals(inv);
-  }
-
-  // Quelle (für Label: Tages-/Urlaubsbetreuung)
-  let doc = null;
-  try{ doc = getInvoiceSourceDoc(inv); }catch(_){ }
-  const betreuungNorm = (doc?.pricing?.betreuungNorm) || (inv?.pricing?._calc?.betreuungNorm) || normalizeBetreuung(doc?.meta?.betreuung||'');
-  const qty = Number(inv?.pricing?._calc?.days ?? doc?.pricing?.days ?? 0);
-  const unitPrice = Number(inv?.pricing?._calc?.daily ?? doc?.pricing?.daily ?? 0);
-  const isUrlaub = String(betreuungNorm||'').toLowerCase().includes('urlaub');
-  const unitLabel = isUrlaub ? (qty===1?'Nacht':'Nächte') : (qty===1?'Tag':'Tage');
-  const betreuungLabel = isUrlaub ? 'Urlaubsbetreuung' : 'Tagesbetreuung';
-
-  const baseTotal = Number(p.parts?.base ?? p.basePrice ?? 0);
-  const holTotal  = Number(p.applied?.holiday ?? p.holidayExtra ?? p.parts?.holiday ?? 0);
-  const percTotal = Number(p.applied?.percent ?? p.percentExtra ?? p.parts?.percent ?? 0);
-  const fixedTotal= Number(p.applied?.fixed ?? p.fixedExtra ?? p.parts?.fixed ?? 0);
-
-  const rows = [];
-
-  // Grundpreis
-  if(qty>0 && unitPrice>0){
-    rows.push(`<p><strong>${escapeHtml(betreuungLabel)}:</strong> ${qty} ${unitLabel} à ${euro(unitPrice)} &nbsp; <strong>Gesamt:</strong> ${euro(baseTotal)}</p>`);
-  }else{
-    rows.push(`<p><strong>${escapeHtml(betreuungLabel)}:</strong> <strong>Gesamt:</strong> ${euro(baseTotal)}</p>`);
-  }
-
-  // Sonn-/Feiertage
-  try{
-    const bd = p.breakdown || {};
-    const d = Number(bd.sunHolDays ?? bd.holidayDays ?? p.holidayDays ?? 0);
-    const h = Number(bd.sunHolHolidays ?? 0);
-    const s = Number(bd.sunHolSundays ?? 0);
-    const rate = Number(bd.sunHolRate ?? 0);
-    const unit = Number(bd.sunHolUnit ?? 0);
-    if(holTotal !== 0){
-      const label = 'Sonn- & Feiertagszuschlag';
-      if(d>0 && unit>0){
-        const hint = (h>0 || s>0) ? ` <span class="muted">(Feiertage: ${h||0}, Sonntage: ${s||0})</span>` : ``;
-        rows.push(`<p><strong>${escapeHtml(label)}:</strong> ${d} ${d===1?'Tag':'Tage'} à ${euro(unit)} (${rate.toFixed(0)}%)${hint} &nbsp; <strong>Gesamt:</strong> ${euro(holTotal)}</p>`);
-      }else{
-        rows.push(`<p><strong>${escapeHtml(label)}:</strong> <strong>Gesamt:</strong> ${euro(holTotal)}</p>`);
-      }
-    }
-  }catch(_){ }
-
-  // Prozentpositionen (einzeln)
-  try{
-    const items = p.breakdown?.percentItems;
-    if(Array.isArray(items) && items.length){
-      items
-        .filter(x=>x && Number(x.value||0)!==0)
-        .forEach(x=>{
-          const r = Number(x.rate||0);
-          const label = String(x.label||x.key||'Prozent-Zuschlag');
-          const baseRef = euro(x.base||baseTotal);
-          if(r < 0){
-            rows.push(`<p><strong>${escapeHtml(label)}:</strong> Rabatt ${Math.abs(r).toFixed(0)}% von ${baseRef} &nbsp; <strong>Gesamt:</strong> ${euro(x.value)}</p>`);
-          }else{
-            rows.push(`<p><strong>${escapeHtml(label)}:</strong> ${r.toFixed(0)}% von ${baseRef} &nbsp; <strong>Gesamt:</strong> ${euro(x.value)}</p>`);
-          }
-        });
-    }else if(percTotal !== 0){
-      rows.push(`<p><strong>Prozent-Zuschläge:</strong> <strong>Gesamt:</strong> ${euro(percTotal)}</p>`);
-    }
-  }catch(_){ }
-
-  // Fixe Positionen (einzeln)
-  try{
-    const items = p.breakdown?.fixedItems;
-    if(Array.isArray(items) && items.length){
-      items
-        .filter(x=>x && Number(x.value||0)!==0)
-        .forEach(x=>{
-          const label = String(x.label||x.key||'Zuschlag');
-          const q = Number(x.qty||0);
-          const u = Number(x.unit||0);
-          if(q>0 && u>0){
-            const qlbl = String(x.qtyLabel||'').trim();
-            const qtyText = qlbl ? `${q} ${escapeHtml(qlbl)}` : `${q}×`;
-            rows.push(`<p><strong>${escapeHtml(label)}:</strong> ${qtyText} à ${euro(u)} &nbsp; <strong>Gesamt:</strong> ${euro(x.value)}</p>`);
-          }else{
-            rows.push(`<p><strong>${escapeHtml(label)}:</strong> <strong>Gesamt:</strong> ${euro(x.value)}</p>`);
-          }
-        });
-    }else if(fixedTotal !== 0){
-      rows.push(`<p><strong>Fixe Zuschläge:</strong> <strong>Gesamt:</strong> ${euro(fixedTotal)}</p>`);
-    }
-  }catch(_){ }
-
-  return rows.join("\n");
-
-function renderInvoiceTotalsBreakdown(inv){
-  const euro = (n)=>`${Number(n||0).toFixed(2)} €`;
-  if(!inv) return '';
-  inv.pricing = inv.pricing || {};
-  const p = inv.pricing || {};
-  if(p.parts && (!p.applied || typeof p.total !== 'number')){
-    try{ recomputeInvoiceTotals(inv); }catch(_){}
-  }
-  const parts = p.parts || {};
-  const base  = Number(parts.base||0);
-  const hol   = Number((p.applied?.holiday ?? parts.holiday) || 0);
-  const perc  = Number((p.applied?.percent ?? parts.percent) || 0);
-  const fixed = Number((p.applied?.fixed ?? parts.fixed) || 0);
-  const extras = hol + perc + fixed;
-  const subtotal = base + extras;
-
-  const gross = Number(p.total ?? subtotal ?? 0);
-  const vatRate = Number(inv.vatRate||0);
-  const vatAmount = Number(p.vatAmount||0);
-  const net = Number(p.net||0);
-
-  const rows = [
-    `<div class="row between"><div>Grundpreis</div><div><strong>${euro(base)}</strong></div></div>`,
-    `<div class="row between"><div>Aufschläge (Summe)</div><div><strong>${euro(extras)}</strong></div></div>`,
-    `<div class="row between muted" style="margin-top:4px"><div>Zwischensumme (Brutto)</div><div><strong>${euro(subtotal)}</strong></div></div>`
-  ];
-
-  if(vatRate>0){
-    rows.push(`<div class="row between" style="margin-top:6px"><div>MwSt enthalten (${vatRate.toFixed(2)}%)</div><div><strong>${euro(vatAmount)}</strong></div></div>`);
-    rows.push(`<div class="row between muted"><div>Netto (informativ)</div><div><strong>${euro(net)}</strong></div></div>`);
-  }
-
-  rows.push(`<div class="row between" style="margin-top:8px;border-top:1px solid rgba(255,255,255,.12);padding-top:8px"><div><strong>Gesamt (Brutto)</strong></div><div><strong>${euro(gross)}</strong></div></div>`);
-
-  return `<div class="card" style="margin:10px 0 10px">
-    <h3 style="margin:0 0 8px">Preisaufschlüsselung</h3>
-    ${rows.join("")}
-  </div>`;
-}
-
-}
-
-function renderInvoiceSourceBlock(inv, locked){
-  try{
-    const ids = getInvoiceSourceDocIds(inv);
-    if(!ids.length) return "";
-    const docs = getInvoiceSourceDocs(inv);
-    if(docs.length <= 1){
-      return `
-        <div class="row" style="gap:8px;flex-wrap:wrap;margin:10px 0 6px">
-          <button class="smallbtn" onclick="openInvoiceSourceStay('${inv.id}')">📄 Aufenthalt öffnen</button>
-          <button class="smallbtn" ${locked?'disabled':''} onclick="refreshInvoiceFromStay('${inv.id}')">🔄 Aufschläge aus Aufenthalt übernehmen</button>
-        </div>
-        <p class="muted" style="margin:0 0 10px">
-          Die Aufschläge bearbeitest du im Aufenthalt. Die Rechnung wird erst bei <strong>Bezahlt</strong> eingefroren.
-        </p>
-      `;
-    }
-
-    const rows = docs.map(d=>{
-      const meta = d.meta || {};
-      const line = `${escapeHtml(d.title||'Aufenthalt')} · ${escapeHtml(formatDateDE(meta.von||''))} – ${escapeHtml(formatDateDE(meta.bis||''))}`;
-      return `<li style="margin:4px 0">
-        <button class="smallbtn" onclick="openInvoiceSourceStay('${inv.id}','${d.id}')">Öffnen</button>
-        <span class="muted" style="margin-left:8px">${line}</span>
-      </li>`;
-    }).join("");
-
-    return `
-      <div class="card" style="background:rgba(0,0,0,.03);border:1px solid rgba(0,0,0,.08);margin:10px 0 10px">
-        <div class="row between" style="gap:10px;flex-wrap:wrap">
-          <strong>📦 Sammelrechnung:</strong>
-          <button class="smallbtn" ${locked?'disabled':''} onclick="refreshInvoiceFromStay('${inv.id}')">🔄 Neu berechnen</button>
-        </div>
-        <ul style="margin:8px 0 0;padding-left:18px;line-height:1.4">${rows}</ul>
-        <p class="muted" style="margin:8px 0 0">
-          Aufschläge bearbeitest du in den jeweiligen Aufenthalten. Die Sammelrechnung summiert die Aufenthalte und wird bei <strong>Bezahlt</strong> eingefroren.
-        </p>
-      </div>
-    `;
-  }catch(e){
-    console.warn('renderInvoiceSourceBlock failed', e);
-    return "";
-  }
-}
-
 function openInvoice(id){
-  try{ state.invoicesUi = state.invoicesUi || {}; state.invoicesUi.currentInvoiceId = id; saveState(); }catch(_){ }
-
   const inv = getInvoiceById(id);
   if(!inv) return;
-
-  // 3E: Lock-Flag für UI (wird auch von toggleInvoiceExtra geprüft)
-  const locked = shouldFreezeInvoice(inv);
-  inv.pricing = inv.pricing || {};
-  inv.pricing.locked = locked;
-
-  // 3A/3C: Preise aus Aufenthalt synchronisieren (nur solange NICHT eingefroren)
-  try{
-    if(!shouldFreezeInvoice(inv)){
-      const changed = syncInvoicePricingBySource(inv);
-      if(changed) saveState();
-    }else{
-      // sicherstellen, dass Snapshot aktiv ist
-      if(inv.pricingSnapshot) inv.pricing = JSON.parse(JSON.stringify(inv.pricingSnapshot));
-    }
-  }catch(e){ console.warn('3C sync guard failed', e); }
-
-  // 3C: Warnung wenn Source nach Lock geändert wurde
-  let freezeWarningHtml = "";
-  try{
-    if(shouldFreezeInvoice(inv) && inv.sourceDocId){
-      const doc = getInvoiceSourceDoc(inv);
-      const atLock = inv.sourceDocUpdatedAtAtLock;
-      const nowUp = doc && doc.updatedAt ? doc.updatedAt : null;
-      if(atLock && nowUp && String(atLock)!==String(nowUp)){
-        freezeWarningHtml = `
-          <div class="card" style="border:1px solid rgba(255,165,0,.35); background: rgba(255,165,0,.08); margin: 8px 0;">
-            <strong>⚠️ Hinweis:</strong> Der Aufenthalt wurde <u>nach</u> Freigabe der Rechnung geändert.
-            Diese Rechnung ist eingefroren (Status: ${escapeHtml(mapInvoiceStatusLabel(inv.status))}) und bleibt unverändert.
-          </div>
-        `;
-      }
-    }
-  }catch(_){}
 
   const el = document.getElementById("invoiceView");
   if(!el) return;
@@ -8087,128 +7114,45 @@ function openInvoice(id){
       <div class="row between" style="gap:10px;flex-wrap:wrap">
         <h3 style="margin:0">Rechnung</h3>
         <div class="row" style="gap:8px;flex-wrap:wrap">
-          <button class="smallbtn" ${locked?'disabled':''} onclick="setInvoiceStatus('${inv.id}','draft')">Entwurf</button>
-          <button class="smallbtn" ${locked?'disabled':''} onclick="setInvoiceStatus('${inv.id}','open')">Offen</button>
+          <button class="smallbtn" onclick="setInvoiceStatus('${inv.id}','open')">Offen</button>
           <button class="smallbtn" onclick="setInvoiceStatus('${inv.id}','paid')">Bezahlt</button>
-          <button class="smallbtn" ${locked?'disabled':''} onclick="setInvoiceStatus('${inv.id}','cancelled')">Storniert</button>
-          <button class="smallbtn" onclick="document.getElementById('invoiceView').innerHTML=''">Schließen</button>
+          <button class="smallbtn" onclick="setInvoiceStatus('${inv.id}','cancelled')">Storniert</button>
         </div>
       </div>
-      ${formatInvoiceValidation(inv)}
 
       <p class="muted" style="margin-top:6px">
         <strong>Nr.:</strong> ${escapeHtml(inv.invoiceNumber||"-")} ·
         <strong>Datum:</strong> ${escapeHtml(new Date(inv.invoiceDate||Date.now()).toLocaleDateString("de-DE"))} ·
-        <strong>Status:</strong> ${invoiceStatusBadge(inv.status)}
+        <strong>Status:</strong> ${escapeHtml(inv.status||"")}
       </p>
-      ${freezeWarningHtml}
-      ${locked?`<div class="card" style="border:1px solid rgba(0,160,0,.35); background: rgba(0,160,0,.08); margin: 8px 0;">
-        <strong>✅ Eingefroren:</strong> Diese Rechnung ist bezahlt und kann nicht mehr geändert werden.
-      </div>`:''}
-
-      ${renderInvoiceSourceBlock(inv, locked)}
-
 
       <p><strong>Kunde:</strong> ${custLine}<br>
          <strong>Hund:</strong> ${petLine}
       </p>
 
       <p><strong>Zeitraum:</strong>
-        ${escapeHtml(formatDateDE(inv.period?.from||""))} – ${escapeHtml(formatDateDE(inv.period?.to||""))}
+        ${escapeHtml(inv.period?.from||"")} – ${escapeHtml(inv.period?.to||"")}
       </p>
-      ${renderInvoicePositions(inv)}
+
+      <p>${escapeHtml(inv.serviceLabel || inv.pricing?.serviceLabel || 'Betreuung')}: ${inv.pricing.basePrice.toFixed(2)} €</p>
+      <p>Zuschläge (%): ${inv.pricing.percentExtra.toFixed(2)} €</p>
+      <p>Zuschläge (fix): ${inv.pricing.fixedExtra.toFixed(2)} €</p>
+      <p>Netto: ${(inv.pricing.netTotal||((inv.pricing.total||0)/1.19)).toFixed(2)} €</p>
+      <p>MwSt (19%): ${(inv.pricing.vatAmount||((inv.pricing.total||0)-((inv.pricing.total||0)/1.19))).toFixed(2)} €</p>
 
       <hr>
-      ${renderInvoiceTotalsBreakdown(inv)}
-      ` : ``}
-        ${Number(inv.vatRate||0) > 0 ? `<div class="muted" style="margin-top:4px"><strong>Netto (informativ):</strong> ${Number(inv.pricing.net||0).toFixed(2)} €</div>` : ``}
-      </div>
-
-      
+      <h3 style="margin:10px 0 8px">Gesamt: ${inv.pricing.total.toFixed(2)} €</h3>
 
       <button class="btn" onclick="printInvoice('${inv.id}')">🖨️ Rechnung drucken / PDF</button>
     </div>
   `;
 }
-function lockInvoicePricing(inv, reason){
-  try{
-    if(!inv) return;
-    if(isInvoicePricingLocked(inv)) return;
-
-    // Snapshot der aktuellen Preise (inkl. Breakdown) – wird später als Quelle genutzt
-    inv.pricingSnapshot = JSON.parse(JSON.stringify(inv.pricing || {}));
-    inv.pricingLocked = true;
-    inv.pricingLockedAt = new Date().toISOString();
-    inv.pricingLockedReason = reason || inv.status || 'open';
-
-    // Source-Doc Timestamp merken (für Änderungswarnung)
-    const doc = getInvoiceSourceDoc(inv);
-    if(doc && doc.updatedAt) inv.sourceDocUpdatedAtAtLock = doc.updatedAt;
-  }catch(e){
-    console.warn('lockInvoicePricing failed', e);
-  }
-}
 function setInvoiceStatus(id, status){
   const inv = getInvoiceById(id);
   if(!inv) return;
 
-  // 3F-11: Bezahlt = eingefroren. Status kann nicht mehr zurückgesetzt werden.
-  if(String(inv.status||'').toLowerCase()==='paid' && isInvoicePricingLocked(inv)){
-    const target = String(status||'').toLowerCase().trim();
-    const tgt = (target==='bezahlt')?'paid':(target==='offen')?'open':(target==='storniert')?'cancelled':(target==='entwurf')?'draft':target;
-    if(tgt && tgt!=='paid'){
-      alert('Diese Rechnung ist als „Bezahlt“ markiert und eingefroren. Status kann nicht mehr geändert werden.');
-      return;
-    }
-  }
-
-  // akzeptiert auch deutsche Werte (falls irgendwo anders gesetzt)
-  const s = String(status||"").toLowerCase().trim();
-  let code = status;
-  if(s==="offen") code="open";
-  else if(s==="bezahlt") code="paid";
-  else if(s==="storniert") code="cancelled";
-  else if(s==="entwurf") code="draft";
-
-  // 3F-12: Validierung vor „Bezahlt“ (Einfrieren)
-  if(String(code||'').toLowerCase().trim()==='paid'){
-    const v = validateInvoice(inv);
-    if((v.errors||[]).length){
-      alert('Kann nicht auf „Bezahlt“ stellen:\n\n' + (v.errors||[]).map(x=>'• '+x).join('\n'));
-      return;
-    }
-  }
-
-  inv.status = code;
+  inv.status = status;
   inv.updatedAt = new Date().toISOString();
-
-  // 3D4/3E: Einfrieren erst bei "bezahlt". "Offen" bleibt dynamisch.
-  if(code==="paid"){
-    // Vor dem Lock einmalig noch synchronisieren (falls der User direkt auf "Offen" klickt)
-    try{
-      if(inv.sourceDocId && !isInvoicePricingLocked(inv)){
-        const changed = syncInvoicePricingBySource(inv);
-        if(changed){} // pricing already updated
-      }
-    }catch(_){}
-    lockInvoicePricing(inv, code);
-  }
-  else if(code==="open"){
-    // Offen: Preise bleiben dynamisch (nicht locken)
-    inv.pricingLocked = false;
-  }
-  else if(code==="draft"){
-
-    // Entwurf darf wieder dynamisch sein (Unlock nur, wenn explizit gewünscht)
-    // -> wir lassen Snapshot bestehen, aber markieren nicht locked, damit Sync wieder greift.
-    inv.pricingLocked = false;
-    // pricingLockedAt und Snapshot bleiben als Historie (kann später für Audit genutzt werden)
-  }
-  else if(code==="cancelled"){
-    // Storniert: nicht einfrieren (kann bei Bedarf noch korrigiert werden)
-    inv.pricingLocked = false;
-  }
-
   saveState();
 
   openInvoice(id);
@@ -8382,623 +7326,142 @@ function createFreeInvoice(){
   openInvoice(invoice.id);
 }
 
-// ===== 4F-3 Sammelrechnung / Zeitraum-Rechnung ===============================
-function openBundleInvoiceForm(){
-  ensureStateShape();
-  ensureContractDefaults();
-  const view = document.getElementById("invoiceView");
-  if(!view) return;
 
-  const customers = (state.customers||[]).slice().sort((a,b)=>(a.name||"").localeCompare(b.name||"","de"));
-  const today = toISODateLocal(new Date());
-
-  // UI-Temp-State
-  state.invoicesUi = state.invoicesUi || {};
-  state.invoicesUi.bundle = state.invoicesUi.bundle || { selectedDocIds: [] };
-  saveState();
-
-  view.innerHTML = `
-    <div class="card">
-      <div class="row between" style="gap:10px;flex-wrap:wrap">
-        <h3 style="margin:0">Sammelrechnung (Zeitraum)</h3>
-        <button class="smallbtn" onclick="document.getElementById('invoiceView').innerHTML=''">Schließen</button>
-      </div>
-
-      <p class="muted" style="margin:6px 0 12px">
-        Wähle Kunde + Zeitraum. Danach markierst du die Aufenthalte, die auf <strong>eine</strong> Rechnung sollen.
-      </p>
-
-      <div class="row" style="gap:12px;flex-wrap:wrap">
-        <label class="field" style="min-width:260px">
-          <span>Kunde *</span>
-          <select id="bundleInvCustomer" onchange="renderBundleInvoiceStayList()">
-            <option value="">— Bitte auswählen —</option>
-            ${customers.map(c=>`<option value="${c.id}">${escapeHtml(c.name||"Kunde")}</option>`).join("")}
-          </select>
-        </label>
-
-        <label class="field" style="min-width:200px">
-          <span>Von</span>
-          <input id="bundleInvFrom" type="date" value="${today}" onchange="renderBundleInvoiceStayList()">
-        </label>
-        <label class="field" style="min-width:200px">
-          <span>Bis</span>
-          <input id="bundleInvTo" type="date" value="${today}" onchange="renderBundleInvoiceStayList()">
-        </label>
-      </div>
-
-      <div id="bundleStayList" style="margin-top:12px"></div>
-
-      <div class="row" style="gap:10px;flex-wrap:wrap;margin-top:14px;justify-content:flex-end">
-        <button class="btn" onclick="createBundleInvoice()" style="min-width:220px">✅ Sammelrechnung erstellen</button>
-      </div>
-    </div>
-  `;
-
-  renderBundleInvoiceStayList();
-}
-
-function _getBundleEligibleStays(customerId, fromISO, toISO){
-  const docs = (state.docs||[]);
-  const from = String(fromISO||"").slice(0,10);
-  const to   = String(toISO||"").slice(0,10);
-  return docs.filter(d=>{
-    if(!d || d.type==='invoice') return false;
-    const meta = d.meta || {};
-    if(!meta.von || !meta.bis) return false;
-    const dv = String(meta.von).slice(0,10);
-    const db = String(meta.bis).slice(0,10);
-
-    // Zeitraum-Overlap (wenn Aufenthalt irgendwie in den Zeitraum fällt)
-    const overlaps = (!from || db >= from) && (!to || dv <= to);
-    if(!overlaps) return false;
-
-    // Kundenfilter: bevorzugt doc.customerId, fallback über Hund->Kunde
-    const cid = d.customerId || getCustomerByDogId(d.dogId)?.id || "";
-    if(!customerId) return false;
-    if(cid !== customerId) return false;
-
-    // nur Aufenthalte mit Preislogik
-    const p = d.pricing || calculateInvoicePricing(d);
-    return !!p;
-  });
-}
-
-function renderBundleInvoiceStayList(){
-  try{
-    ensureStateShape();
-    const box = document.getElementById("bundleStayList");
-    if(!box) return;
-
-    const customerId = document.getElementById("bundleInvCustomer")?.value || "";
-    const from = document.getElementById("bundleInvFrom")?.value || "";
-    const to   = document.getElementById("bundleInvTo")?.value || "";
-
-    if(!customerId){
-      box.innerHTML = "<p class='muted'>Bitte zuerst einen Kunden auswählen.</p>";
-      return;
-    }
-
-    const stays = _getBundleEligibleStays(customerId, from, to).sort((a,b)=>String((a.meta||{}).von||"").localeCompare(String((b.meta||{}).von||"")));
-    const selected = (state.invoicesUi?.bundle?.selectedDocIds || []);
-
-    if(!stays.length){
-      box.innerHTML = "<p class='muted'>Für diesen Zeitraum wurden keine passenden Aufenthalte gefunden.</p>";
-      return;
-    }
-
-    const rows = stays.map(doc=>{
-      const id = doc.id;
-      const meta = doc.meta || {};
-      const p = doc.pricing || calculateInvoicePricing(doc) || {};
-      const total = Number(p.total ?? doc.pricing?.total ?? 0) || 0;
-      const checked = selected.includes(id);
-      return `
-        <label style="display:flex;gap:10px;align-items:flex-start;padding:8px 10px;border:1px solid rgba(0,0,0,.08);border-radius:10px;margin:6px 0">
-          <input type="checkbox" data-bundle-doc="${id}" ${checked?'checked':''} onchange="toggleBundleDoc('${id}', this.checked)" style="margin-top:3px">
-          <div style="flex:1">
-            <div style="font-weight:700">${escapeHtml(doc.title||'Aufenthalt')}</div>
-            <div class="muted">${escapeHtml(formatDateDE(meta.von||''))} – ${escapeHtml(formatDateDE(meta.bis||''))} · ${total.toFixed(2)} €</div>
-          </div>
-          <button type="button" class="smallbtn" onclick="event.stopPropagation(); openDoc('${id}')">Öffnen</button>
-        </label>
-      `;
-    }).join("");
-
-    box.innerHTML = `
-      <div class="row between" style="gap:10px;flex-wrap:wrap;margin-bottom:6px">
-        <div class="muted">${stays.length} Aufenthalt(e) gefunden</div>
-        <div class="row" style="gap:8px;flex-wrap:wrap">
-          <button class="smallbtn" onclick="bundleSelectAll(true)">Alle</button>
-          <button class="smallbtn" onclick="bundleSelectAll(false)">Keine</button>
-        </div>
-      </div>
-      ${rows}
-      <div id="bundlePreview" style="margin-top:10px"></div>
-    `;
-
-    renderBundlePreviewTotals();
-  }catch(e){
-    console.warn('renderBundleInvoiceStayList failed', e);
-  }
-}
-
-function toggleBundleDoc(docId, checked){
-  ensureStateShape();
-  state.invoicesUi = state.invoicesUi || {};
-  state.invoicesUi.bundle = state.invoicesUi.bundle || { selectedDocIds: [] };
-  const arr = state.invoicesUi.bundle.selectedDocIds = Array.isArray(state.invoicesUi.bundle.selectedDocIds) ? state.invoicesUi.bundle.selectedDocIds : [];
-  const id = String(docId||"");
-  const idx = arr.indexOf(id);
-  if(checked && idx<0) arr.push(id);
-  if(!checked && idx>=0) arr.splice(idx,1);
-  saveState();
-  renderBundlePreviewTotals();
-}
-
-function bundleSelectAll(on){
-  const boxes = document.querySelectorAll('input[type="checkbox"][data-bundle-doc]');
-  boxes.forEach(b=>{
-    b.checked = !!on;
-    toggleBundleDoc(b.getAttribute('data-bundle-doc'), !!on);
-  });
-}
-
-function renderBundlePreviewTotals(){
-  const el = document.getElementById('bundlePreview');
-  if(!el) return;
-  const ids = (state.invoicesUi?.bundle?.selectedDocIds || []).filter(Boolean);
-  if(!ids.length){
-    el.innerHTML = "<p class='muted'>Bitte mindestens einen Aufenthalt auswählen.</p>";
-    return;
-  }
-  const docs = ids.map(id => (state.docs||[]).find(d=>d && d.id===id)).filter(Boolean);
-  const agg = aggregateInvoicePricingFromDocs(docs);
-  if(!agg){
-    el.innerHTML = "<p class='muted'>Auswahl konnte nicht berechnet werden.</p>";
-    return;
-  }
-  el.innerHTML = `
-    <div style="padding:10px;border-radius:10px;border:1px solid rgba(0,0,0,.08);background:rgba(0,0,0,.03)">
-      <div style="font-weight:700;margin-bottom:6px">Vorschau</div>
-      <div class="muted">Grundpreis: ${Number(agg.pricing.basePrice||0).toFixed(2)} € · Aufschläge: ${(Number(agg.pricing.holidayExtra||0)+Number(agg.pricing.percentExtra||0)+Number(agg.pricing.fixedExtra||0)).toFixed(2)} €</div>
-      <div style="margin-top:4px"><strong>Gesamt (Brutto):</strong> ${Number(agg.pricing.total||0).toFixed(2)} €</div>
-    </div>
-  `;
-}
-
-function createBundleInvoice(){
-  ensureStateShape();
-  ensureContractDefaults();
-
-  const customerId = document.getElementById("bundleInvCustomer")?.value || "";
-  const from = document.getElementById("bundleInvFrom")?.value || "";
-  const to   = document.getElementById("bundleInvTo")?.value || "";
-
-  const ids = (state.invoicesUi?.bundle?.selectedDocIds || []).filter(Boolean);
-  if(!customerId){
-    alert("Bitte Kunde auswählen.");
-    return;
-  }
-  if(!ids.length){
-    alert("Bitte mindestens einen Aufenthalt auswählen.");
-    return;
-  }
-
-  const docs = ids.map(id => (state.docs||[]).find(d=>d && d.id===id)).filter(Boolean);
-  const agg = aggregateInvoicePricingFromDocs(docs);
-  if(!agg){
-    alert("Konnte die Sammelrechnung nicht berechnen.");
-    return;
-  }
-
-  // Pet optional: wenn alle Aufenthalte denselben Hund haben, übernehmen wir ihn
-  let petId = "";
-  let dogId = "";
-  try{
-    const dogIds = Array.from(new Set(docs.map(d=>d.dogId).filter(Boolean)));
-    if(dogIds.length===1){
-      dogId = dogIds[0];
-      petId = getPetByDogId(dogId)?.id || "";
-    }
-  }catch(_){}
-
-  // MwSt: falls Rechnung keinen eigenen Satz hat, Standard aus Settings
-  const vatRate = Number(getDefaultVatRate?.() ?? 0) || 0;
-
-  const year = new Date().getFullYear();
-  state.nextInvoiceNumber = Number(state.nextInvoiceNumber||1) || 1;
-  const number = String(state.nextInvoiceNumber).padStart(4, "0");
-
-  const invoice = {
-    id: uid(),
-    type: "invoice",
-
-    sourceDocIds: ids.slice(),
-    customerId,
-    petId,
-    dogId,
-
-    period: { from: agg.period.from || from, to: agg.period.to || to },
-
-    pricing: Object.assign({}, agg.pricing),
-    bundle: { count: ids.length, items: agg.items },
-
-    status: "draft",
-
-    invoiceNumber: `${year}-${number}`,
-    invoiceDate: new Date().toISOString(),
-    vatRate: vatRate,
-
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
+function calcVat(gross, rate=0.19){
+  const g = Number(gross||0);
+  const net = g / (1+rate);
+  const vat = g - net;
+  return {
+    net: Math.round(net*100)/100,
+    vat: Math.round(vat*100)/100,
+    gross: Math.round(g*100)/100
   };
-
-  state.invoices = Array.isArray(state.invoices) ? state.invoices : [];
-  state.invoices.push(invoice);
-  state.nextInvoiceNumber++;
-
-  // Temp Auswahl leeren
-  try{ state.invoicesUi.bundle.selectedDocIds = []; }catch(_){}
-  saveState();
-
-  renderInvoiceList();
-  openInvoice(invoice.id);
 }
-// ===== /4F-3 ================================================================
-
-
 function printInvoice(id){
   const inv = getInvoiceById(id);
-  
-  const logoUrl = (function(){
-    try{
-      const base = location.origin + location.pathname.replace(/\/[^\/]*$/, '/');
-      return base + 'assets/logo.png';
-    }catch(e){ return 'assets/logo.png'; }
-  })();
-if(!inv) return;
-
-  // 3F-12: Validierung vor Druck/PDF
-  const v = validateInvoice(inv);
-  if((v.errors||[]).length){
-    alert('Rechnung kann nicht gedruckt/als PDF erstellt werden:\n\n' + (v.errors||[]).map(x=>'• '+x).join('\n'));
-    return;
-  }
-  if(inv.pricing && inv.pricing.parts){
-    recomputeInvoiceTotals(inv);
-  }
-
-  // In-App PDF/Print Overlay (kein neuer Tab)
-  ensurePdfOverlayStyles();
+  if(!inv) return;
 
   const {cust, pet, legacyDog} = resolveInvoiceParties(inv);
 
-  // Kunde: Name + Adresse (wenn vorhanden). Telefon wird NICHT auf der Rechnung ausgegeben.
-  const recipientName = escapeHtml((cust && (cust.name||cust.fullName)) || legacyDog?.owner || "—");
-  const addr = (cust && cust.address) ? cust.address : (legacyDog && legacyDog.address ? legacyDog.address : null);
-  const addrLines = [];
-  if(addr){
-    if(addr.street) addrLines.push(escapeHtml(addr.street));
-    const zipCity = [addr.zip, addr.city].filter(Boolean).join(' ');
-    if(zipCity) addrLines.push(escapeHtml(zipCity));
-  }
-  const recipient = [recipientName].concat(addrLines).join('<br>');
-
+  const recipient = formatCustomerAddressBlock(cust) || escapeHtml(cust?.name || legacyDog?.owner || "—");
   const recipientSub = [
+    (cust?.phone || legacyDog?.phone) ? `Tel: ${escapeHtml(cust?.phone || legacyDog?.phone)}` : "",
+    cust?.email ? `Mail: ${escapeHtml(cust.email)}` : "",
     (pet?.name || legacyDog?.name) ? `Hund: ${escapeHtml(pet?.name || legacyDog?.name)}` : "",
-    (pet?.chipNumber) ? `Chip: ${escapeHtml(pet.chipNumber)}` : ""
+    (pet?.chip || (pet?.chipNumber)) ? `Chip: ${escapeHtml(pet?.chipNumber || "ja")}` : ""
   ].filter(Boolean).join("<br>");
+  const baseAppUrl = window.location.href.split('#')[0].split('?')[0];
 
-  const euro = (n)=>`${Number(n||0).toFixed(2)} €`;
-  const bd = (inv.pricing && inv.pricing.breakdown) ? inv.pricing.breakdown : {};
-  const doc = getInvoiceSourceDoc(inv);
-  const betreuungNorm = (doc?.pricing?.betreuungNorm) || (inv?.pricing?._calc?.betreuungNorm) || normalizeBetreuung(doc?.meta?.betreuung||'');
-  const qty = Number(inv?.pricing?._calc?.days ?? doc?.pricing?.days ?? 0);
-  const unitPrice = Number(inv?.pricing?._calc?.daily ?? doc?.pricing?.daily ?? 0);
-  const isUrlaub = String(betreuungNorm||'').toLowerCase().includes('urlaub');
-  const unitLabel = isUrlaub ? (qty===1?'Nacht':'Nächte') : (qty===1?'Tag':'Tage');
-  const betreuungLabel = isUrlaub ? 'Urlaubsbetreuung' : 'Tagesbetreuung';
 
-  const rowsHtml = [];
-  // Grundpreis
-  rowsHtml.push(`
+  const w = window.open("", "_blank");
+  w.document.write(`
+<html>
+<head>
+  <title>Rechnung</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 40px; }
+    h1 { margin-top: 26px; }
+    .header { margin-bottom: 20px; display:flex; justify-content:space-between; gap:20px; }
+    .block { font-size: 12px; color: #111; line-height:1.35; }
+    .company { font-size: 12px; color: #444; text-align:right; line-height:1.35; }
+    .small { font-size: 12px; color: #444; }
+    table { width: 100%; border-collapse: collapse; margin-top: 18px; }
+    td, th { border: 1px solid #ccc; padding: 8px; }
+    th { background: #f5f5f5; }
+    .right { text-align: right; }
+    .muted { color:#666; font-size:11px; }
+  </style>
+</head>
+<body>
+    <div style="position:fixed;top:10px;left:10px;z-index:9999;">
+      <button onclick="try{window.close();}catch(e){}; location.href='${baseAppUrl}';" style="padding:10px 14px;border-radius:10px;border:1px solid #ccc;background:#fff;">← Zurück</button>
+    </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <a href="${baseAppUrl}" style="text-decoration:none;font-weight:700;">← Zurück zur App</a>
+        <img src="assets/logo.png" alt="Doggy Style" style="height:48px;" onerror="this.style.display='none'"/>
+      </div>
+
+  <div class="header">
+    <div class="block">
+      ${recipient}<br>
+      <span class="muted">${recipientSub}</span>
+    </div>
+    <div class="company">
+      <strong>${COMPANY.name}</strong><br>
+      ${COMPANY.owner}<br>
+      ${COMPANY.street}<br>
+      ${COMPANY.zipCity}<br>
+      Tel: ${COMPANY.phone}<br>
+      ${COMPANY.email}<br>
+      ${COMPANY.tax.vatId ? "USt-ID: " + COMPANY.tax.vatId + "<br>" : ""}
+      ${COMPANY.tax.taxNumber ? "Steuernr.: " + COMPANY.tax.taxNumber + "<br>" : ""}
+    </div>
+  </div>
+
+  <h1>Rechnung</h1>
+  <p class="small">
+    <strong>Rechnungsnummer:</strong> ${inv.invoiceNumber || "-"}<br>
+    <strong>Rechnungsdatum:</strong> ${new Date(inv.invoiceDate||Date.now()).toLocaleDateString("de-DE")}<br>
+    <strong>Leistungszeitraum:</strong> ${escapeHtml(inv.period?.from||"")} – ${escapeHtml(inv.period?.to||"")}
+  </p>
+
+  <table>
     <tr>
-      <td>${escapeHtml(betreuungLabel)}${qty>0 && unitPrice>0 ? ` – ${qty} ${unitLabel} à ${euro(unitPrice)}` : ``}</td>
-      <td class="right">${euro(Number(inv.pricing?.parts?.base ?? inv.pricing?.basePrice ?? 0))}</td>
+      <th>Position</th>
+      <th class="right">Betrag</th>
     </tr>
+    <tr>
+      <td>${escapeHtml(inv.serviceLabel || "Betreuung")}</td>
+      <td class="right">${inv.pricing.basePrice.toFixed(2)} €</td>
+    </tr>
+    ${inv.pricing.holidayExtra && inv.pricing.holidayExtra>0 ? `
+    <tr>
+      <td>Sonn- & Feiertagszuschlag (10% • ${inv.pricing.holidayDays||0} Tag(e))</td>
+      <td class="right">${inv.pricing.holidayExtra.toFixed(2)} €</td>
+    </tr>` : ``}
+
+    <tr>
+      <td>Zuschläge (%)</td>
+      <td class="right">${inv.pricing.percentExtra.toFixed(2)} €</td>
+    </tr>
+    <tr>
+      <td>Zuschläge (fix)</td>
+      <td class="right">${inv.pricing.fixedExtra.toFixed(2)} €</td>
+    </tr>
+    
+    <tr>
+      <td><strong>Netto</strong></td>
+      <td class="right"><strong>${(inv.pricing.netTotal||((inv.pricing.total||0)/1.19)).toFixed(2)} €</strong></td>
+    </tr>
+    <tr>
+      <td>MwSt (19%)</td>
+      <td class="right">${(inv.pricing.vatAmount||((inv.pricing.total||0)-((inv.pricing.total||0)/1.19))).toFixed(2)} €</td>
+    </tr>
+<tr>
+      <th>Gesamt</th>
+      <th class="right">${inv.pricing.total.toFixed(2)} €</th>
+    </tr>
+  </table>
+
+  <p class="small" style="margin-top:18px">
+    Bitte überweise den Rechnungsbetrag unter Angabe der Rechnungsnummer auf folgendes Konto:<br>
+    <strong>${COMPANY.bank.name}</strong><br>
+    IBAN: ${COMPANY.bank.iban}<br>
+    BIC: ${COMPANY.bank.bic}<br>
+    <br>
+    Vielen Dank!
+  </p>
+
+  <script>
+    window.print();
+    window.onafterprint = () => window.close();
+  </script>
+
+</body>
+</html>
   `);
 
-  // Sonn-/Feiertag
-  const holTotal = Number(inv.pricing?.parts?.holiday ?? inv.pricing?.holidayExtra ?? 0);
-  if(holTotal !== 0){
-    const d = Number(bd.sunHolDays ?? inv.pricing?.holidayDays ?? 0);
-    const h = Number(bd.sunHolHolidays ?? 0);
-    const s = Number(bd.sunHolSundays ?? 0);
-    const unit = Number(bd.sunHolUnit ?? 0);
-    const rate = Number(bd.sunHolRate ?? 0);
-    const hint = (h>0 || s>0) ? ` <span class="muted">(Feiertage: ${h||0}, Sonntage: ${s||0})</span>` : ``;
-    rowsHtml.push(`
-      <tr>
-        <td>Sonn- &amp; Feiertagszuschlag${d>0 && unit>0 ? ` – ${d} ${d===1?'Tag':'Tage'} à ${euro(unit)} (${rate.toFixed(0)}%)` : ``}${hint}</td>
-        <td class="right">${euro(holTotal)}</td>
-      </tr>
-    `);
-  }
-
-  // Prozent-Items
-  const pitems = Array.isArray(bd.percentItems) ? bd.percentItems : [];
-  pitems.filter(x=>x && Number(x.value||0)!==0).forEach(x=>{
-    const r = Number(x.rate||0);
-    rowsHtml.push(`
-      <tr>
-        <td>${escapeHtml(String(x.label||x.key||'Prozent-Zuschlag'))} – ${r.toFixed(0)}% von ${euro(x.base||0)}</td>
-        <td class="right">${euro(x.value||0)}</td>
-      </tr>
-    `);
-  });
-
-  // Fix-Items
-  const fitems = Array.isArray(bd.fixedItems) ? bd.fixedItems : [];
-  fitems.filter(x=>x && Number(x.value||0)!==0).forEach(x=>{
-    const q = Number(x.qty||0);
-    const u = Number(x.unit||0);
-    rowsHtml.push(`
-      <tr>
-        <td>${escapeHtml(String(x.label||x.key||'Zuschlag'))}${q>0 && u>0 ? ` – ${q}× à ${euro(u)}` : ``}</td>
-        <td class="right">${euro(x.value||0)}</td>
-      </tr>
-    `);
-  });
-
-  // Inhalt (ohne <html>/<body>) – wird im Overlay gerendert
-  const html = `
-    <style>
-      /* Layout bewusst A4-sicher: Ränder über @page, Innenabstand in mm */
-      .pdf-page{font-family: Arial, sans-serif; color:#111; background:#fff;}
-      .page-inner{ padding: 0; }
-      h1 { margin: 18px 0 8px; }
-      .header { margin-bottom: 16px; display:flex; justify-content:space-between; gap:20px; align-items:flex-start; }
-      .block { font-size: 12px; color: #111; line-height:1.35; }
-      .company { font-size: 12px; color: #444; text-align:right; line-height:1.35; }
-      .small { font-size: 12px; color: #444; }
-      table { width: 100%; border-collapse: collapse; margin-top: 18px; }
-      td, th { border: 1px solid #ccc; padding: 8px; }
-      th { background: #f5f5f5; }
-      .right { text-align: right; }
-      .muted { color:#666; font-size:11px; }
-
-      /* Footer nur für Druck – verhindert "ganze Seite" und gibt Orientierung */
-      .pdf-footer{ display:none; }
-      @media print{
-        .pdf-footer{
-          display:block;
-          position: fixed;
-          left: 0; right: 0;
-          bottom: 0;
-          padding: 4mm 0;
-          font-size: 10px;
-          color:#666;
-        }
-        .pdf-footer .row{ display:flex; justify-content:space-between; }
-      }
-    </style>
-    <div class="pdf-page">
-      <div class="page-inner">
-        <div class="header">
-          <div class="block">
-            ${recipient}<br>
-            <span class="muted">${recipientSub}</span>
-          </div>
-          <div class="company">
-            <img src="${logoUrl}" alt="Doggy Style" style="max-height:56px;max-width:180px;object-fit:contain;margin-bottom:6px;" /><br>
-            <strong>${escapeHtml(COMPANY.name)}</strong><br>
-            ${escapeHtml(COMPANY.owner)}<br>
-            ${escapeHtml(COMPANY.street)}<br>
-            ${escapeHtml(COMPANY.zipCity)}<br>
-            Tel: ${escapeHtml(COMPANY.phone)}<br>
-            ${escapeHtml(COMPANY.email)}<br>
-            ${COMPANY.tax?.vatId ? "USt-ID: " + escapeHtml(COMPANY.tax.vatId) + "<br>" : ""}
-            ${COMPANY.tax?.taxNumber ? "Steuernr.: " + escapeHtml(COMPANY.tax.taxNumber) + "<br>" : ""}
-          </div>
-        </div>
-
-        <h1>Rechnung</h1>
-        <p class="small">
-          <strong>Rechnungsnummer:</strong> ${escapeHtml(inv.invoiceNumber || "-")}<br>
-          <strong>Rechnungsdatum:</strong> ${new Date(inv.invoiceDate||Date.now()).toLocaleDateString("de-DE")}<br>
-          <strong>Leistungszeitraum:</strong> ${escapeHtml(formatDateDE(inv.period?.from||""))} – ${escapeHtml(formatDateDE(inv.period?.to||""))}
-        </p>
-
-        <table>
-          <tr>
-            <th>Position</th>
-            <th class="right">Betrag</th>
-          </tr>
-          ${rowsHtml.join('')}
-          <tr>
-            <th>Gesamt (Brutto)</th>
-            <th class="right">${euro(Number(inv.pricing?.total||0))}</th>
-          </tr>
-          ${Number(inv.vatRate||0) > 0 ? `<tr>
-            <td class="muted">Enthaltene MwSt (${Number(inv.vatRate||0).toFixed(2)}%)</td>
-            <td class="right muted">${euro(Number(inv.pricing?.vatAmount||0))}</td>
-          </tr>` : ``}
-          ${Number(inv.vatRate||0) > 0 ? `<tr>
-            <td class="muted">Netto (informativ)</td>
-            <td class="right muted">${euro(Number(inv.pricing?.net||0))}</td>
-          </tr>` : ``}
-        </table>
-
-        <p class="small" style="margin-top:16px">
-          Bitte überweise den Rechnungsbetrag unter Angabe der Rechnungsnummer auf folgendes Konto:<br>
-          <strong>${escapeHtml(COMPANY.bank?.name || "")}</strong><br>
-          IBAN: ${escapeHtml(COMPANY.bank?.iban || "")}<br>
-          BIC: ${escapeHtml(COMPANY.bank?.bic || "")}<br>
-          <br>
-          Vielen Dank!
-        </p>
-      </div>
-
-      <div class="pdf-footer">
-        <div class="row">
-          <div>${escapeHtml(COMPANY.name)}</div>
-          <div>Seite 1/1</div>
-        </div>
-      </div>
-    </div>
-  `;
-
-  openPdfOverlay("Rechnung " + (inv.invoiceNumber||""), html);
-}
-
-function ensurePdfOverlayStyles(){
-  if(document.getElementById("pdfOverlayStyles")) return;
-  const css = document.createElement("style");
-  css.id = "pdfOverlayStyles";
-  css.textContent = `
-    #pdfOverlay{
-      position:fixed; inset:0; z-index:99999;
-      display:none; flex-direction:column;
-      background: rgba(0,0,0,0.72);
-      backdrop-filter: blur(6px);
-    }
-    #pdfOverlay .pdfToolbar{
-      display:flex; gap:10px; align-items:center;
-      padding:10px 12px;
-      background: rgba(20,20,20,0.92);
-      border-bottom: 1px solid rgba(255,255,255,0.08);
-      color:#fff;
-    }
-    #pdfOverlay .pdfToolbar .title{font-weight:700; margin-right:auto; opacity:0.95}
-    #pdfOverlay .pdfToolbar .btn{
-      border:1px solid rgba(255,255,255,0.18);
-      background: rgba(255,255,255,0.08);
-      color:#fff; padding:8px 10px; border-radius:10px;
-      font-size:13px;
-    }
-    #pdfOverlay .pdfToolbar .btn:active{transform:scale(0.98)}
-    #pdfOverlay .pdfBody{
-      flex:1; overflow:auto;
-      padding:18px;
-    }
-    #pdfOverlay .pdfSheet{
-      max-width: 980px;
-      margin:0 auto;
-      border-radius: 12px;
-      overflow:hidden;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.55);
-      background:#fff;
-    }
-
-    /* Print: nur Sheet drucken, Toolbar & App ausblenden */
-    body.printOverlayActive > *:not(#pdfOverlay){ display:none !important; }
-    body{ -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  body.printOverlayActive #pdfOverlay{
-      position:static !important; inset:auto !important;
-      display:block !important;
-      background: transparent !important;
-      backdrop-filter:none !important;
-    }
-    body.printOverlayActive #pdfOverlay .pdfToolbar{ display:none !important; }
-    body.printOverlayActive #pdfOverlay .pdfBody{ padding:0 !important; overflow:visible !important; }
-    body.printOverlayActive #pdfOverlay .pdfSheet{
-      max-width: none !important;
-      margin:0 !important;
-      border-radius:0 !important;
-      box-shadow:none !important;
-    }
-  
-    @page{size:A4; margin:12mm;}
-    @media print{
-      html,body{background:#fff !important;}
-      body{ -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      body.printOverlayActive>*{display:none !important;}
-      body.printOverlayActive #pdfOverlay{display:block !important; position:static !important; inset:auto !important; background:#fff !important;}
-      body.printOverlayActive #pdfOverlay .pdfToolbar{display:none !important;}
-      body.printOverlayActive #pdfOverlay .pdfSheet{border:none !important; border-radius:0 !important; box-shadow:none !important; margin:0 !important; max-width:none !important; padding:14mm 16mm !important;}
-    }
-`;
-  document.head.appendChild(css);
-
-  // Overlay DOM einmalig anlegen
-  const wrap = document.createElement("div");
-  wrap.id = "pdfOverlay";
-  wrap.innerHTML = `
-    <div class="pdfToolbar">
-      <div class="title">PDF</div>
-      <button class="btn" id="pdfOverlayPrint">Drucken</button>
-      <button class="btn" id="pdfOverlayClose">Zurück</button>
-    </div>
-    <div class="pdfBody">
-      <div class="pdfSheet" id="pdfOverlayContent"></div>
-    </div>
-  `;
-  document.body.appendChild(wrap);
-
-  // Close
-  document.getElementById("pdfOverlayClose").onclick = closePdfOverlay;
-
-  // Print (in derselben App)
-  document.getElementById("pdfOverlayPrint").onclick = ()=>{
-    try{
-      // iOS/Safari druckt sonst gern die ganze Seite – daher: nur den Sheet-Inhalt in ein Print-Fenster rendern.
-      const title = (document.querySelector("#pdfOverlay .title")?.textContent || "Rechnung").trim();
-      const content = document.getElementById("pdfOverlayContent")?.innerHTML || "";
-      const w = window.open("", "_blank");
-      if(!w){ alert("Pop-up blockiert: Bitte Pop-ups erlauben oder 'Teilen' verwenden."); return; }
-      w.document.open();
-      w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title>
-        <meta name="viewport" content="width=device-width,initial-scale=1">
-        <style>
-          @page{ size:A4; margin:12mm; }
-          html,body{ background:#fff; color:#000; }
-          body{ -webkit-print-color-adjust:exact; print-color-adjust:exact; font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; }
-          /* nur Inhalt */
-          .sheet{ max-width: 180mm; margin:0 auto; }
-        </style>
-      </head><body><div class="sheet">${content}</div>
-      <script>
-        window.onload = function(){
-          setTimeout(function(){ window.focus(); window.print(); }, 150);
-        };
-      </script>
-      </body></html>`);
-      w.document.close();
-    }catch(e){
-      alert("Drucken ist auf diesem Gerät nicht verfügbar.");
-    }
-  };
-
-  // ESC zum Schließen (Desktop)
-  window.addEventListener("keydown", (ev)=>{
-    if(ev.key === "Escape"){
-      const ov = document.getElementById("pdfOverlay");
-      if(ov && ov.style.display === "flex") closePdfOverlay();
-    }
-  });
-}
-
-function openPdfOverlay(title, html){
-  ensurePdfOverlayStyles();
-  const ov = document.getElementById("pdfOverlay");
-  const t = ov.querySelector(".title");
-  const c = document.getElementById("pdfOverlayContent");
-  if(t) t.textContent = title || "PDF";
-  if(c) c.innerHTML = html || "";
-  ov.style.display = "flex";
-  // Scroll nach oben
-  const body = ov.querySelector(".pdfBody");
-  if(body) body.scrollTop = 0;
-}
-
-function closePdfOverlay(){
-  const ov = document.getElementById("pdfOverlay");
-  if(!ov) return;
-  ov.style.display = "none";
-  const c = document.getElementById("pdfOverlayContent");
-  if(c) c.innerHTML = "";
-  document.body.classList.remove("printOverlayActive");
+  w.document.close();
 }
 function loadState(){try{const raw=localStorage.getItem(LS_KEY);return raw?JSON.parse(raw):{dogs:[],docs:[]};}catch{return {dogs:[],docs:[]};}}
 function saveState(){
@@ -9379,12 +7842,13 @@ function docItem(d){
   actions.appendChild(btnOpen);
   actions.appendChild(btnPdf);
 
-  // 2B: Rechnung am Aufenthalt (öffnen/erstellen)
-  const btnInv = document.createElement("button");
-  btnInv.className = "smallbtn";
-  btnInv.textContent = "Rechnung";
-  btnInv.onclick = ()=>openOrCreateInvoiceForDocId(d.id);
-  actions.appendChild(btnInv);
+  if(d.saved){
+    const btnInv = document.createElement("button");
+    btnInv.className = "smallbtn";
+    btnInv.textContent = "💶 Rechnung freigeben";
+    btnInv.onclick = ()=>{ openInvoiceRelease(d.id); };
+    actions.appendChild(btnInv);
+  }
 
   // Abschluss: Schnell neuen Aufenthalt als Kopie anlegen
   if(d.saved){
@@ -9563,80 +8027,26 @@ sigCard.innerHTML = `
 
 root.appendChild(sigCard);
 
-  // HOTFIX: Buttons im Aufenthalte-Editor robust binden (iOS/Safari: Overlay/Event-Delegation kann Klicks schlucken)
+  // HOTFIX: Save-Button im Aufenthalte-Editor robust binden (falls Event-Delegation / Overlay Probleme macht)
   setTimeout(() => {
     try {
-      const bind = (id, handler) => {
-        const b = document.getElementById(id);
-        if (!b) return;
-        if (b.dataset.bound) return;
-        b.dataset.bound = '1';
-        b.addEventListener('click', (ev) => {
+      const btn = document.getElementById('btnStaySave2');
+      if (btn && !btn.dataset.bound) {
+        btn.dataset.bound = '1';
+        btn.addEventListener('click', (ev) => {
           ev.preventDefault();
           ev.stopPropagation();
-          try { handler(ev); } catch (e) {
-            console.error(id + ' handler failed', e);
-            try { alert('Aktion fehlgeschlagen: ' + id); } catch (_) {}
+          try { syncStayEditorInputsToDoc(doc); } catch (e) { /* noop */ }
+          try { saveCurrent(true); } catch (e) {
+            console.error('Stay save failed', e);
+            try { toast('Speichern fehlgeschlagen'); } catch (_) {}
           }
-        }, { passive:false });
-      };
-
-      // Haupt-Speichern (oben in der Aufenthalte-Box)
-      bind('btnStaySave', () => {
-        try { syncStayEditorInputsToDoc(doc); } catch (_) {}
-        saveCurrent(true);
-      });
-
-      // Speichern im Unterschrift-Bereich
-      bind('btnStaySave2', () => {
-        try { syncStayEditorInputsToDoc(doc); } catch (_) {}
-        saveCurrent(true);
-      });
-
-      // Als PDF speichern / Drucken (falls Button existiert)
-      bind('btnStayPrint', () => {
-        try { syncStayEditorInputsToDoc(doc); } catch (_) {}
-        // printDoc nutzt saveCurrent(false) selbst; wir halten Inputs trotzdem konsistent
-        printDoc();
-      });
-
-      // Schließen (falls Button existiert)
-      bind('btnStayClose', () => {
-        // wie generischer Close-Button im Editor
-        const closeBtn = document.getElementById('btnClose');
-        if (closeBtn) closeBtn.click();
-        else {
-          // Fallback: einfach zur Startseite zurück
-          try{ $$(".tab").forEach((t,i)=>t.classList.toggle("is-active", i===0)); }catch(_){}
-          showPanel("home");
-          renderDocs();
-        }
-      });
-
-      // Fallback: Wenn Buttons ohne ID gerendert wurden (Template/JSON), binde nach Text.
-      const stayRoot = document.getElementById('stayEditor') || document.getElementById('editor') || document.body;
-      stayRoot.querySelectorAll('button').forEach(b=>{
-        const label = (b.textContent||'').trim().toLowerCase();
-        if (b.dataset.bound) return;
-        if (label === 'speichern') {
-          b.dataset.bound='1';
-          b.addEventListener('click', (ev)=>{ ev.preventDefault(); ev.stopPropagation(); try{ syncStayEditorInputsToDoc(doc);}catch(_){} saveCurrent(true); }, { passive:false });
-        }
-        if (label.includes('pdf') || label.includes('drucken')) {
-          b.dataset.bound='1';
-          b.addEventListener('click', (ev)=>{ ev.preventDefault(); ev.stopPropagation(); try{ syncStayEditorInputsToDoc(doc);}catch(_){} printDoc(); }, { passive:false });
-        }
-        if (label === 'schließen' || label === 'schliessen') {
-          b.dataset.bound='1';
-          b.addEventListener('click', (ev)=>{ ev.preventDefault(); ev.stopPropagation(); const closeBtn=document.getElementById('btnClose'); if(closeBtn) closeBtn.click(); }, { passive:false });
-        }
-      });
-
+        });
+      }
     } catch (e) {
-      console.error('bind stay buttons failed', e);
+      console.error('bind btnStaySave2 failed', e);
     }
   }, 0);
-
 
 
 
@@ -9876,55 +8286,6 @@ function syncStayEditorInputsToDoc(){
       if(cbTr) currentDoc.meta.consents.truth = !!cbTr.checked;
     }
 
-    // Aufschläge (pro Aufenthalt): alle Inputs mit data-key übernehmen
-    try{
-      const sur = document.getElementById('staySurchargeCard');
-      if(sur){
-        sur.querySelectorAll('[data-key]').forEach(el=>{
-          const key = el.getAttribute('data-key');
-          if(!key) return;
-          if(el.type === 'checkbox'){
-            currentDoc.fields[key] = !!el.checked;
-          }else{
-            const v = (el.value ?? '').toString().trim();
-            if(v === ''){ currentDoc.fields[key] = ''; }
-            else{
-              const n = Number(v);
-              currentDoc.fields[key] = Number.isFinite(n) ? n : v;
-            }
-          }
-        });
-      }
-    }catch(_e){ }
-
-    // 3F-6: Sonderrabatt: entweder Prozent (0..100) oder Fixbetrag (€ >= 0)
-    try{
-      if(currentDoc.fields.discount_enabled){
-        // Fixbetrag hat Vorrang, wenn gesetzt
-        let a = Number(currentDoc.fields.discount_amount);
-        if(!Number.isFinite(a)) a = 0;
-        a = Math.max(0, Math.round(a*100)/100);
-
-        let r = Number(currentDoc.fields.discount_percent);
-        if(!Number.isFinite(r)) r = 0;
-        r = Math.max(0, Math.min(100, Math.round(r*100)/100));
-
-        if(a > 0){
-          currentDoc.fields.discount_amount = a;
-          currentDoc.fields.discount_percent = '';
-        }else if(r > 0){
-          currentDoc.fields.discount_percent = r;
-          currentDoc.fields.discount_amount = '';
-        }else{
-          currentDoc.fields.discount_percent = '';
-          currentDoc.fields.discount_amount = '';
-        }
-      }else{
-        currentDoc.fields.discount_percent = '';
-        currentDoc.fields.discount_amount = '';
-      }
-    }catch(_e){}
-
     dirty = true;
   }catch(e){}
 }
@@ -9968,43 +8329,6 @@ function populateStayEditorFromDoc(doc){
     if(c3) c3.checked = !!(cs.vet ?? doc.meta?.consentVet);
     if(c5) c5.checked = !!( (doc.fields && (doc.fields.ev_gesund!=null)) ? doc.fields.ev_gesund : (cs.health ?? doc.meta?.consentHealth) );
     if(c4) c4.checked = !!(cs.truth ?? doc.meta?.consentTruth);
-
-    // Aufschläge: Inputs mit data-key aus doc.fields spiegeln
-    try{
-      const sur = document.getElementById('staySurchargeCard');
-      if(sur){
-        doc.fields = doc.fields || {};
-        sur.querySelectorAll('[data-key]').forEach(el=>{
-          const key = el.getAttribute('data-key');
-          if(!key) return;
-          if(el.type === 'checkbox') el.checked = !!doc.fields[key];
-          else{
-            const v = doc.fields[key];
-            el.value = (v === undefined || v === null) ? '' : String(v);
-          }
-        });
-
-        // Sperren/Abhängigkeiten
-        const discP = sur.querySelector('input[data-key="discount_percent"]');
-        const discA = sur.querySelector('input[data-key="discount_amount"]');
-        const discCb  = sur.querySelector('input[data-key="discount_enabled"]');
-        const enabled = !!(discCb && discCb.checked);
-        const pVal = Number(doc.fields.discount_percent||0);
-        const aVal = Number(doc.fields.discount_amount||0);
-        const hasAmt = Number.isFinite(aVal) && aVal > 0;
-        const hasPct = Number.isFinite(pVal) && pVal > 0;
-        if(discP) discP.disabled = (!enabled) || hasAmt;
-        if(discA) discA.disabled = (!enabled) || hasPct;
-
-        const walkInp = sur.querySelector('input[data-key="walk_extra_count"]');
-        const walkCb  = sur.querySelector('input[data-key="walk_extra_enabled"]');
-        if(walkInp) walkInp.disabled = (doc.fields.walk_extra_enabled === false || (walkCb && !walkCb.checked));
-
-        const kmInp = sur.querySelector('input[data-key="special_trip_km"]');
-        const kmCb  = sur.querySelector('input[data-key="special_trip_enabled"]');
-        if(kmInp) kmInp.disabled = (doc.fields.special_trip_enabled === false || (kmCb && !kmCb.checked));
-      }
-    }catch(_e){ }
   }catch(e){
     console.warn('populateStayEditorFromDoc failed', e);
   }
@@ -10049,9 +8373,13 @@ updateCreateInvoiceButton();
   currentDoc.fields=fields;
   currentDoc.meta=meta;
 
-// 🔢 Preislogik anwenden
+// 🔢 Preislogik anwenden (darf Speichern NICHT blockieren)
 if (currentDoc.meta?.betreuung && currentDoc.meta?.von && currentDoc.meta?.bis) {
-  calculateInvoicePricing(currentDoc);
+  try{
+    calculateInvoicePricing(currentDoc);
+  }catch(e){
+    console.error("calculateInvoicePricing failed (stay will still be saved):", e);
+  }
 }
 
 
@@ -10094,15 +8422,44 @@ if (Number(limit||0) > 0 && used >= limit) {
     currentDoc.saved = hasSig;
   }
 currentDoc.updatedAt = new Date().toISOString();
+  currentDoc.meta = currentDoc.meta || {};
+  if(!currentDoc.meta.firstSavedAt) currentDoc.meta.firstSavedAt = currentDoc.updatedAt;
 
-// 🧾 Variante A: Rechnung automatisch beim Abschließen erstellen
-if(currentDoc.saved && currentDoc.pricing){
-  const exists = (state.invoices||[]).some(x=>x.sourceDocId===currentDoc.id);
-  if(!exists){
-    createInvoiceFromDoc(currentDoc);
-  }
+
+// 🧾 Variante A (angepasst): Rechnung erst ab dem *zweiten* Speichern erzeugen.
+// 1) Neuer Aufenthalt -> Speichern: KEINE Rechnung.
+// 2) Aufenthalt erneut öffnen/anpassen -> Speichern: Rechnung wird erzeugt/aktualisiert.
+if(currentDoc.templateId === 'hundeannahme'){
+  try{
+    currentDoc.meta = currentDoc.meta || {};
+    const wasFirstSave = !currentDoc.meta.firstSavedAt;
+    // firstSavedAt wird unten beim erfolgreichen Save gesetzt; wir merken uns aber, ob es der erste Save war.
+    // Pricing immer vorbereiten (auch wenn keine Settings hinterlegt sind -> Default-Regeln greifen).
+    if(!currentDoc.pricing){
+      try{ currentDoc.pricing = calculateInvoicePricing(currentDoc); }catch(_){}
+    }
+    // Nur ab dem zweiten Save UND wenn eine Unterschrift vorhanden ist
+    const hasSig = !!currentDoc.fields?.contract_sig_data;
+    if(!wasFirstSave && hasSig && currentDoc.pricing){
+      // create/update invoice once
+      const invId = getInvoiceIdForStay(currentDoc);
+      if(invId){
+        if(!state.invoices) state.invoices = [];
+        const existing = state.invoices.find(i => i.id === invId);
+        const inv = createInvoiceFromDoc(currentDoc);
+        if(inv){
+          if(existing){
+            Object.assign(existing, inv);
+          }else{
+            state.invoices.push(inv);
+          }
+          persistAll();
+        }
+      }
+    }
+  }catch(_){}
 }
-     // sauberer Zeitstempel
+// sauberer Zeitstempel
 
 // 🧼 Auto-Trigger: Quarantäne/Parasiten aus Aufenthalt ins Hygieneprotokoll schreiben
 try{ hygieneAutoFromStayDoc(currentDoc); }catch(e){ console.warn('hygieneAutoFromStayDoc failed', e); }
@@ -10122,23 +8479,6 @@ try{
 }catch(e){ console.warn('Stay snapshot capture failed', e); }
 
 saveState();renderDashboard(); renderTodayStatus();                                         // EINMAL speichern
-
-// 3F10: Wenn dieser Aufenthalt aus einer Rechnung geöffnet wurde,
-// nach dem Speichern (sofern nicht eingefroren) die Rechnung automatisch aktualisieren.
-try{
-  const invId = state.docsUi && state.docsUi.fromInvoiceId;
-  if(invId){
-    const inv = getInvoiceById(invId);
-    if(inv && inv.sourceDocId === currentDoc.id && !shouldFreezeInvoice(inv)){
-      const changed = syncInvoicePricingFromDoc(inv, currentDoc);
-      if(changed){
-        inv.updatedAt = new Date().toISOString();
-        saveState();
-      }
-    }
-  }
-}catch(e){ console.warn('auto-sync invoice from stay failed', e); }
-
 dirty = false;
 
 $("#editorTitle").textContent = currentDoc.title;
@@ -10161,88 +8501,71 @@ return true;
 
 }
 function createInvoiceFromDoc(doc){
-  if(!doc || !doc.pricing) return;
+  if(!doc) return;
+
+  // Ensure pricing exists
+  if(!doc.pricing) calculateInvoicePricing(doc);
+  if(!doc.pricing) return;
+
+  const p = doc.pricing || {};
+  const meta = doc.meta || {};
 
   const year = new Date().getFullYear();
   const number = String(state.nextInvoiceNumber).padStart(4, "0");
 
+  const serviceLabel = p.serviceLabel || (String(meta.betreuung||"Betreuung").charAt(0).toUpperCase() + String(meta.betreuung||"").slice(1));
+  const days = Number.isFinite(p.days) ? p.days : daysBetween(meta.von, meta.bis);
+  const baseGross = Number.isFinite(p.baseGross) ? p.baseGross : (Number.isFinite(p.base) ? p.base : 0);
+
+  const sunHolidayDays = Number.isFinite(p.sunHolidayDays) ? p.sunHolidayDays : (Number.isFinite(p.holidayDays) ? p.holidayDays : 0);
+  const sunHolidayExtraGross = Number.isFinite(p.sunHolidayExtraGross) ? p.sunHolidayExtraGross : (Number.isFinite(p.holidayExtra) ? p.holidayExtra : 0);
+
+  const pctExtraGross = Number.isFinite(p.pctExtraGross) ? p.pctExtraGross : (Number.isFinite(p.percentExtra) ? p.percentExtra : 0);
+  const fixExtraGross = Number.isFinite(p.fixExtraGross) ? p.fixExtraGross : (Number.isFinite(p.fixedExtra) ? p.fixedExtra : 0);
+
+  const totalGross = Number.isFinite(p.totalGross) ? p.totalGross : (Number.isFinite(p.total) ? p.total : Math.round((baseGross + sunHolidayExtraGross + pctExtraGross + fixExtraGross)*100)/100);
+
   const invoice = {
-    id: uid(),
-    type: "invoice",
-
-    sourceDocId: doc.id,
-    dogId: doc.dogId,
-
-    // Etappe 4: Verknüpfung zum Kundenstamm (für Druck/Archiv)
-    customerId: (doc.customerId || getCustomerByDogId(doc.dogId)?.id || ""),
-    petId: (doc.petId || getPetByDogId(doc.dogId)?.id || ""),
-
-    period: {
-      from: doc.meta.von,
-      to: doc.meta.bis
+    id: "INV-" + year + "-" + number,
+    number: year + "-" + number,
+    status: "draft", // stays start as Entwurf
+    date: new Date().toISOString().slice(0,10),
+    customerId: doc.customerId || null,
+    petId: doc.petId || doc.dogId || null,
+    stayId: doc.id || null,
+    from: meta.von,
+    to: meta.bis,
+    service: meta.betreuung,
+    totals: {
+      baseGross,
+      sunHolidayExtraGross,
+      pctExtraGross,
+      fixExtraGross,
+      totalGross
     },
-
-    pricing: {
-      // Basis: Tage * Tagespreis
-      basePrice: Number(doc.pricing.base || 0),
-
-      // Feiertagszuschlag: 10% nur auf Feiertags-TAGE
-      holidayDays: Number(doc.pricing.holidayDays || 0),
-      holidayExtra: Number(doc.pricing.holidayValue || 0),
-
-      // Prozent-/Fixzuschläge (als Beträge)
-      percentExtra: Number(doc.pricing.percentValue || 0),
-      fixedExtra: Number(doc.pricing.fixedExtra || 0),
-
-      total: Number(doc.pricing.total || 0)
-    },
-
-    status: "draft",
-
-    invoiceNumber: `${year}-${number}`,
-    invoiceDate: new Date().toISOString(),
-
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
+    lines: []
   };
 
-  state.worklogs = Array.isArray(state.worklogs) ? state.worklogs : [];
-  state.invoices = Array.isArray(state.invoices) ? state.invoices : [];
-  state.invoices.push(invoice);
-  state.nextInvoiceNumber++;
+  invoice.lines.push({label: serviceLabel, amount: baseGross});
 
+  if(sunHolidayExtraGross > 0){
+    invoice.lines.push({label: "Sonn- & Feiertagszuschlag", amount: sunHolidayExtraGross, meta:{days:sunHolidayDays}});
+  }
+  if(pctExtraGross > 0){
+    invoice.lines.push({label: "Zuschläge (%)", amount: pctExtraGross, meta:{pct:p.pctSum||null}});
+  }
+  if(fixExtraGross > 0){
+    invoice.lines.push({label: "Zuschläge (fix)", amount: fixExtraGross});
+  }
+
+  state.invoices = state.invoices || [];
+  state.invoices.unshift(invoice);
+
+  state.nextInvoiceNumber = (state.nextInvoiceNumber||1) + 1;
   saveState();
-  renderInvoiceList();
+
+  return invoice;
 }
-function forkDocument() {
-  if (!currentDoc || !currentDoc.saved) return;
-
-  const originalId = currentDoc.versionOf || currentDoc.id;
-
-  const fork = JSON.parse(JSON.stringify(currentDoc));
-
-  fork.id = uid();
-  fork.saved = false;
-  fork.versionOf = originalId;
-  fork.createdAt = new Date().toISOString();
-  fork.updatedAt = fork.createdAt;
-
-  // neue Version → neue Unterschrift erforderlich
-  fork.signature = null;
-
-  state.docs.unshift(fork);
-  currentDoc = fork;
-
-  saveState();
-}
-function getDocumentVersions(doc){
-  const rootId = doc.versionOf || doc.id;
-
-  return (state.docs || [])
-    .filter(d => d.id === rootId || d.versionOf === rootId)
-    .sort((a,b)=> new Date(a.createdAt) - new Date(b.createdAt));
-}
-
 // ===== Overlay-Signatur (Weg A) =====
 function openSignatureOverlay(onDone){
   const overlay=document.createElement("div");
@@ -10357,6 +8680,7 @@ if(e.target && e.target.id==="btnSignatureOpen"){
 
     dirty = true;
     saveState(); // persist immediately
+
 
     // Re-render: Aufenthalt immer via Embedded-Stay-Editor (stabil), sonst Standard-Editor
     try{
@@ -10658,6 +8982,8 @@ $("#btnWipe").addEventListener("click",()=>{
 });
 
 async function boot(){
+  // Load persisted state first (critical)
+  state = loadState();
   await loadTemplates();
   ensureStateShape();
   ensureContractDefaults();
@@ -10765,8 +9091,6 @@ function wireCoreUI(){
 
 
 async function startApp(){
-  try {
-
   // Core UI wiring muss immer aktiv sein (auch wenn Cloud/Offline Pfad aktiv ist)
   wireCoreUI();
   // 1) Wenn Cloud aktiviert: Login + Sync
@@ -10847,15 +9171,6 @@ await bootOnce();
 // Wichtig: Listener so früh wie möglich setzen, damit der initiale State auch bei iOS/Safari sicher kommt.
 try{
   if(CLOUD._unsubWorkspace){ try{ CLOUD._unsubWorkspace(); }catch(_){ } }
-  } catch (e) {
-    console.error('Init error', e);
-  } finally {
-    try {
-      if (typeof bindNavigation === 'function') bindNavigation();
-      if (typeof renderDashboard === 'function') renderDashboard();
-    } catch (_e) {}
-  }
-
 }catch(_){ }
 try{
   const ref = cloudStateRef();
@@ -10985,83 +9300,8 @@ document.addEventListener("visibilitychange", () => {
   });
 })();
 
-// MwSt Standard-Satz (Einstellungen) – wirkt nur, wenn Rechnung keinen eigenen Satz hat
-(function bindVatRateSetting(){
-  const inp = document.getElementById("vatRateInput");
-  const hint = document.getElementById("vatRateHint");
-  if(!inp) return;
-
-  function getCurrent(){
-    try{
-      ensureStateShape();
-      const cfg = getPricingSettings();
-      const v = Number((state && state.settings && state.settings.vatRate) ?? cfg.vatPercent ?? 19);
-      return Number.isFinite(v) ? v : 0;
-    }catch(e){ return 19; }
-  }
-
-  function setHint(v){
-    if(!hint) return;
-    if(Number(v||0) <= 0){
-      hint.textContent = "Hinweis: 0% = keine MwSt-Ausweisung.";
-    }else{
-      hint.textContent = `Wird in Rechnungen als enthaltene MwSt (${Number(v).toFixed(1)}%) ausgewiesen.`;
-    }
-  }
-
-  // Initial
-  try{
-    const v = getCurrent();
-    inp.value = String(v);
-    setHint(v);
-  }catch(_){}
-
-  let t = null;
-  inp.addEventListener("input", ()=>{
-    clearTimeout(t);
-    const v = Number(inp.value);
-    setHint(v);
-    t = setTimeout(()=>{
-      try{
-        ensureStateShape();
-        const next = Number(inp.value);
-        if(!Number.isFinite(next)) return;
-        state.settings = state.settings || {};
-        state.settings.vatRate = next;
-
-        // Nur Rechnungen ohne expliziten Satz aktualisieren (Brutto bleibt gleich, nur Netto/MwSt-Aufteilung)
-        try{
-          (state.invoices||[]).forEach(inv=>{
-            if(!inv) return;
-            if(typeof inv.vatRate === "number" && !Number.isNaN(inv.vatRate)) return; // eigener Satz
-            // frozen invoices: keep snapshot if present; but vat display is only informative
-            try{
-              if(inv.pricingSnapshot && shouldFreezeInvoice(inv)){
-                // Snapshot nicht anfassen
-                return;
-              }
-            }catch(_){}
-            try{ recomputeInvoiceTotals(inv); }catch(_){}
-          });
-        }catch(_){}
-
-        saveState();
-        try{ renderInvoiceList(); }catch(_){}
-        // Detailansicht ggf. aktualisieren
-        try{
-          const cur = state?.invoicesUi?.currentInvoiceId;
-          if(cur) openInvoice(cur);
-        }catch(_){}
-      }catch(e){
-        console.warn("vatRate setting failed", e);
-      }
-    }, 450);
-  });
-})();
-
 // Start
 startApp().catch(console.error);
-try{ forceBindNavigation(); }catch(_e){}
 // UI: Sync-Status regelmäßig auffrischen (auch bei Tab-Wechsel/PWA)
 setInterval(()=>{ try{ updateSyncUI(); }catch(_){ } }, 1500);
 window.addEventListener('online', ()=>{ try{ scheduleCloudPing(0,'online-event'); }catch(_){ try{ updateSyncUI(); }catch(__){} } });
@@ -11137,9 +9377,9 @@ function renderInvoiceEditorB2(doc){
 
     <button id="addInvItem">+ Position hinzufügen</button>
     <hr>
-    <h3 style="margin:0 0 6px">Gesamt (Brutto): ${doc.total.toFixed(2)} €</h3>
-    <p><strong>Enthaltene MwSt (19%):</strong> ${doc.tax.toFixed(2)} €</p>
-    <p class="muted" style="margin-top:4px">Netto (informativ): ${doc.net.toFixed(2)} €</p>
+    <p>Netto: ${doc.net.toFixed(2)} €</p>
+    <p>MwSt (19%): ${doc.tax.toFixed(2)} €</p>
+    <p><strong>Brutto: ${doc.total.toFixed(2)} €</strong></p>
   `;
 
   const numInput = document.getElementById("invoiceNumberInput");
@@ -11185,34 +9425,6 @@ function renderStayEditorEmbedded(doc){
   root.innerHTML = "";
   // Marker for PDF/UX heuristics (iOS/Safari): identifies active stay editor in DOM.
   try{ root.setAttribute('data-stay-editor','1'); }catch(_){ }
-
-  // 3F10: Wenn Aufenthalt aus einer Rechnung geöffnet wurde, Banner + Shortcut-Buttons anzeigen.
-  try{
-    const invId = state.docsUi && state.docsUi.fromInvoiceId;
-    if(invId){
-      const inv = getInvoiceById(invId);
-      if(inv && inv.sourceDocId === doc.id){
-        const locked = shouldFreezeInvoice(inv);
-        const banner = document.createElement('div');
-        banner.className = 'card';
-        banner.style.border = '1px solid rgba(0,200,255,.25)';
-        banner.style.background = 'rgba(0,200,255,.06)';
-        banner.innerHTML = `
-          <h2 style="margin:0 0 6px">🧾 Verknüpft mit Rechnung</h2>
-          <p class="muted" style="margin:0 0 10px">
-            Rechnung <strong>${escapeHtml(inv.invoiceNumber||'')}</strong> · Status: <strong>${escapeHtml(invoiceStatusLabel(inv.status))}</strong><br>
-            ${locked ? 'Diese Rechnung ist eingefroren – Änderungen werden nicht übernommen.' : 'Änderungen an Aufschlägen kannst du in die Rechnung übernehmen.'}
-          </p>
-          <div class="row" style="gap:8px;flex-wrap:wrap;justify-content:flex-end">
-            <button class="btn" type="button" onclick="try{ selectTab('invoices'); renderInvoiceList(); openInvoice('${invId}'); }catch(e){}">Zur Rechnung</button>
-            <button class="btn" type="button" ${locked?'disabled':''} onclick="try{ refreshInvoiceFromStay('${invId}'); selectTab('invoices'); }catch(e){}">In Rechnung übernehmen</button>
-          </div>
-        `;
-        root.appendChild(banner);
-      }
-    }
-  }catch(e){ console.warn('invoice-stay-banner failed', e); }
-
 
   // Sicherstellen, dass Meta-Felder existieren
   normalizeMeta(doc);
@@ -11346,242 +9558,6 @@ function renderStayEditorEmbedded(doc){
   });
 
 
-  // Aufschläge (pro Aufenthalt)
-  const surCard = document.createElement('div');
-  surCard.className = 'card';
-  surCard.id = 'staySurchargeCard';
-  surCard.innerHTML = `
-    <h2>Aufschläge (pro Aufenthalt)</h2>
-    <div class="grid" style="gap:12px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
-      <div style="grid-column: 1 / -1;" class="hint">
-        Standardmäßig werden Sonn- & Feiertagszuschläge automatisch angewendet (Bayern + alle Sonntage).
-        Du kannst das hier pro Aufenthalt ausschalten.
-      </div>
-
-      <div style="grid-column: 1 / -1;" class="checkrow">
-        <input type="checkbox" id="staySunHolApply" data-key="sun_hol_apply">
-        <label for="staySunHolApply"><strong>Sonn- & Feiertagszuschlag anwenden</strong><br><span class="muted">Automatik (Bayern + Sonntage) – bei Bedarf deaktivieren.</span></label>
-      </div>
-
-      <label class="field" style="max-width:240px">
-        <span>Feiertage (Bayern) im Zeitraum</span>
-        <input type="number" min="0" step="1" id="stayHolidayDays" data-key="holiday_days" placeholder="0">
-      </label>
-      <label class="field" style="max-width:240px">
-        <span>Sonntage im Zeitraum</span>
-        <input type="number" min="0" step="1" id="staySundayDays" data-key="sunday_days" placeholder="0">
-      </label>
-
-      <div style="grid-column: 1 / -1;"><hr style="opacity:.18"></div>
-
-      <div class="checkrow">
-        <input type="checkbox" id="staySpecialTimes" data-key="special_times">
-        <label for="staySpecialTimes"><strong>Sonderzeiten / Sonderaufwand</strong></label>
-      </div>
-      <div class="checkrow">
-        <input type="checkbox" id="stayExtraCare" data-key="extra_care">
-        <label for="stayExtraCare"><strong>Besondere Betreuung</strong></label>
-      </div>
-      <div class="checkrow">
-        <input type="checkbox" id="stayShortNotice" data-key="short_notice">
-        <label for="stayShortNotice"><strong>Kurzfristig</strong></label>
-      </div>
-
-      <div style="grid-column: 1 / -1;"><hr style="opacity:.18"></div>
-
-      <div class="checkrow">
-        <input type="checkbox" id="stayDiscountEnabled" data-key="discount_enabled">
-        <label for="stayDiscountEnabled"><strong>Sonderrabatt</strong><br><span class="muted">Entweder Prozent (z.B. 10) oder Fixbetrag in €.</span></label>
-      </div>
-      <label class="field" style="max-width:240px">
-        <span>Sonderrabatt (%)</span>
-        <input type="number" step="0.1" id="stayDiscountPercent" data-key="discount_percent" placeholder="0">
-      </label>
-
-      <label class="field" style="max-width:240px">
-        <span>Sonderrabatt (Fixbetrag €)</span>
-        <input type="number" step="0.01" id="stayDiscountAmount" data-key="discount_amount" placeholder="0.00">
-      </label>
-
-      <div style="grid-column: 1 / -1;"><hr style="opacity:.18"></div>
-
-      <div class="checkrow">
-        <input type="checkbox" id="stayMedication" data-key="medication_enabled">
-        <label for="stayMedication"><strong>Medikamentengabe</strong><br><span class="muted">Bei Dauermedikation wird automatisch vorausgewählt.</span></label>
-      </div>
-      <label class="field" style="max-width:240px">
-        <span>Tage (z.B. 5)</span>
-        <input type="number" min="0" step="1" id="stayMedicationDays" data-key="medication_days" placeholder="0">
-      </label>
-
-      <div class="checkrow">
-        <input type="checkbox" id="stayWalksEnabled" data-key="walk_extra_enabled">
-        <label for="stayWalksEnabled"><strong>Zusatz-Spaziergänge</strong><br><span class="muted">Stückzahl ist standardmäßig = Aufenthaltstage, kann angepasst werden.</span></label>
-      </div>
-      <label class="field" style="max-width:240px">
-        <span>Stückzahl (z.B. 5×)</span>
-        <input type="number" min="0" step="1" id="stayWalkCount" data-key="walk_extra_count" placeholder="0">
-      </label>
-
-      <div class="checkrow">
-        <input type="checkbox" id="stayBandageEnabled" data-key="bandage_enabled">
-        <label for="stayBandageEnabled"><strong>Verbandwechsel</strong></label>
-      </div>
-      <label class="field" style="max-width:240px">
-        <span>Anzahl</span>
-        <input type="number" min="0" step="1" id="stayBandageCount" data-key="bandage_count" placeholder="0">
-      </label>
-
-      <div class="checkrow">
-        <input type="checkbox" id="stayGroomingEnabled" data-key="grooming_enabled">
-        <label for="stayGroomingEnabled"><strong>Pflege / Extra</strong></label>
-      </div>
-      <label class="field" style="max-width:240px">
-        <span>Anzahl</span>
-        <input type="number" min="0" step="1" id="stayGroomingCount" data-key="grooming_count" placeholder="0">
-      </label>
-
-      <div class="checkrow">
-        <input type="checkbox" id="stayHygieneEnabled" data-key="hygiene_enabled">
-        <label for="stayHygieneEnabled"><strong>Hygiene / Extra (pro Tag)</strong></label>
-      </div>
-      <label class="field" style="max-width:240px">
-        <span>Tage</span>
-        <input type="number" min="0" step="1" id="stayHygieneDays" data-key="hygiene_days" placeholder="0">
-      </label>
-
-      <div class="checkrow">
-        <input type="checkbox" id="staySpecialTripEnabled" data-key="special_trip_enabled">
-        <label for="staySpecialTripEnabled"><strong>Sonderfahrt (z.B. Tierarzt)</strong><br><span class="muted">Kilometerpauschale: 0,30 € / km</span></label>
-      </div>
-      <label class="field" style="max-width:240px">
-        <span>Kilometer</span>
-        <input type="number" min="0" step="0.1" id="staySpecialTripKm" data-key="special_trip_km" placeholder="0">
-      </label>
-    </div>
-  `;
-  root.appendChild(surCard);
-
-  // Bind: alle Inputs mit data-key in doc.fields spiegeln
-  const bindSurchInputs = ()=>{
-    try{
-      doc.fields = doc.fields || {};
-      surCard.querySelectorAll('[data-key]').forEach(el=>{
-        const key = el.getAttribute('data-key');
-        if(!key) return;
-        const isCb = (el.type === 'checkbox');
-        const syncOne = ()=>{
-          if(isCb){
-            doc.fields[key] = !!el.checked;
-          }else{
-            const v = (el.value ?? '').toString().trim();
-            if(v === ''){ doc.fields[key] = ''; }
-            else{
-              const n = Number(v);
-              doc.fields[key] = Number.isFinite(n) ? n : v;
-            }
-          }
-
-          // UX-Regeln
-          if(key === 'discount_enabled'){
-            const inpP = document.querySelector('input[data-key="discount_percent"]');
-            const inpA = document.querySelector('input[data-key="discount_amount"]');
-            const off = (doc.fields.discount_enabled === false);
-            if(inpP) inpP.disabled = off;
-            if(inpA) inpA.disabled = off;
-            if(off){
-              doc.fields.discount_percent = '';
-              doc.fields.discount_amount = '';
-              if(inpP) inpP.value = '';
-              if(inpA) inpA.value = '';
-            }
-          }
-
-          if(key === 'discount_percent' || key === 'discount_amount'){
-            // Exklusiv: entweder Prozent oder Fixbetrag
-            const pInp = document.querySelector('input[data-key="discount_percent"]');
-            const aInp = document.querySelector('input[data-key="discount_amount"]');
-            const pVal = Number(doc.fields.discount_percent||0);
-            const aVal = Number(doc.fields.discount_amount||0);
-            const hasAmt = Number.isFinite(aVal) && aVal > 0;
-            const hasPct = Number.isFinite(pVal) && pVal > 0;
-
-            if(hasAmt){
-              doc.fields.discount_percent = '';
-              if(pInp){ pInp.value=''; pInp.disabled = true; }
-              if(aInp) aInp.disabled = false;
-            }else if(hasPct){
-              doc.fields.discount_amount = '';
-              if(aInp){ aInp.value=''; aInp.disabled = true; }
-              if(pInp) pInp.disabled = false;
-            }else{
-              if(pInp) pInp.disabled = (doc.fields.discount_enabled === false);
-              if(aInp) aInp.disabled = (doc.fields.discount_enabled === false);
-            }
-          }
-          if(key === 'walk_extra_enabled'){
-            if(doc.fields.walk_extra_enabled === false){
-              doc.fields.walk_extra_count = 0;
-              const inp = document.querySelector('input[data-key="walk_extra_count"]');
-              if(inp){ inp.value = '0'; inp.disabled = true; }
-            }else{
-              const inp = document.querySelector('input[data-key="walk_extra_count"]');
-              if(inp) inp.disabled = false;
-              // Wenn aktiv und kein Wert gesetzt: default = Tage
-              if((doc.fields.walk_extra_count === undefined || doc.fields.walk_extra_count === null || String(doc.fields.walk_extra_count) === '0' || String(doc.fields.walk_extra_count) === '') && doc.meta?.von && doc.meta?.bis){
-                const d = daysBetween(doc.meta.von, doc.meta.bis);
-                doc.fields.walk_extra_count = d;
-                const inp2 = document.querySelector('input[data-key="walk_extra_count"]');
-                if(inp2) inp2.value = String(d);
-              }
-            }
-          }
-
-          if(key === 'medication_enabled'){
-            const medInp = document.querySelector('input[data-key="medication_days"]');
-            if(doc.fields.medication_enabled === false){
-              doc.fields.medication_days = 0;
-              doc.fields.medication_auto = false;
-              if(medInp){ medInp.value = '0'; medInp.disabled = true; }
-            }else{
-              if(medInp) medInp.disabled = false;
-              // Default: Tage = Aufenthaltsdauer (nur wenn nicht manuell überschrieben)
-              const auto = (doc.fields.medication_auto !== false);
-              const cur = doc.fields.medication_days;
-              if(auto && (cur === undefined || cur === null || String(cur) === '' || String(cur) === '0') && doc.meta?.von && doc.meta?.bis){
-                const d = daysBetween(doc.meta.von, doc.meta.bis);
-                doc.fields.medication_days = d;
-                doc.fields.medication_auto = true;
-                if(medInp) medInp.value = String(d);
-              }
-            }
-          }
-
-          dirty = true;
-          // Auto-Recalc-Felder aktualisieren
-          if(key === 'sun_hol_apply' || key === 'walk_extra_enabled' || key === 'medication_enabled' || key === 'special_trip_enabled'){
-            try{ updateAutoHolidayFields(); }catch(_e){}
-          }
-        };
-
-        el.addEventListener('change', syncOne);
-        el.addEventListener('input', ()=>{
-          // Walk-Count: wenn manuell geändert → Auto aus
-          if(key === 'walk_extra_count'){
-            doc.fields.walk_extra_auto = false;
-          }
-          // Medikamententage: wenn manuell geändert → Auto aus
-          if(key === 'medication_days'){
-            doc.fields.medication_auto = false;
-          }
-          syncOne();
-        });
-      });
-    }catch(_e){}
-  };
-  bindSurchInputs();
-
-
   // Unterschrift als eigene Card (nicht verschachtelt)
   const sigCard = document.createElement('div');
   sigCard.id = 'staySigCard';
@@ -11630,7 +9606,7 @@ function renderStayEditorEmbedded(doc){
     const dogs = Array.isArray(state?.dogs) ? state.dogs : [];
     dogSel.innerHTML = `<option value="">(Auswahl)</option>` + dogs.map(d=>`<option value="${escapeHtml(d.id)}">${escapeHtml(d.name||d.dogName||d.id)}</option>`).join('');
     dogSel.value = doc.dogId || "";
-    dogSel.onchange = e=>{ doc.dogId = e.target.value; dirty = true; try{ updateAutoHolidayFields(); populateStayEditorFromDoc(doc); }catch(_e){} };
+    dogSel.onchange = e=>{ doc.dogId = e.target.value; dirty = true; };
   }
 
   // Kunden
@@ -11645,13 +9621,13 @@ function renderStayEditorEmbedded(doc){
   const von = document.getElementById('stayVon');
   if(von){
     von.value = doc.meta.von || "";
-    von.oninput = e=>{ doc.meta.von = e.target.value; dirty = true; try{ updateAutoHolidayFields(); populateStayEditorFromDoc(doc); }catch(_e){} };
+    von.oninput = e=>{ doc.meta.von = e.target.value; dirty = true; };
     von.onchange = von.oninput;
   }
   const bis = document.getElementById('stayBis');
   if(bis){
     bis.value = doc.meta.bis || "";
-    bis.oninput = e=>{ doc.meta.bis = e.target.value; dirty = true; try{ updateAutoHolidayFields(); populateStayEditorFromDoc(doc); }catch(_e){} };
+    bis.oninput = e=>{ doc.meta.bis = e.target.value; dirty = true; };
     bis.onchange = bis.oninput;
   }
   const bet = document.getElementById('stayBetreuung');
@@ -11698,9 +9674,6 @@ function renderStayEditorEmbedded(doc){
       };
     }
   }catch(_){ /* ignore */ }
-
-  // Auto-Defaults/Counts (Sonn-&Feiertage, Spaziergänge, Dauermedikation) aktualisieren
-  try{ window.currentDoc = doc; updateAutoHolidayFields(); }catch(_e){}
 
   // Restore inputs after re-render (e.g., after signature capture)
   populateStayEditorFromDoc(doc);
