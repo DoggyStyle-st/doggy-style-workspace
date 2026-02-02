@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <title>Doggy Style · Login · TEST</title>
+  <link href="manifest.json" rel="manifest"/>
+  <meta name="theme-color" content="#101014"/>
+  <link href="assets/logo.png" rel="apple-touch-icon"/>
+  <link href="styles.css?v=20260101v62" rel="stylesheet"/>
+  <!-- Login-spezifische Overrides (nach styles.css laden) -->
+  <link href="login_override.css?v=20260101b" rel="stylesheet"/>
+</head>
+<body class="bg-watermark page-login">
+  <header class="topbar">
+    <div class="brand brand--login">
+      <img alt="Doggy Style" class="brand__logo brand__logo--big brand__logo--animated" src="assets/logo.png"/>
+    </div>
+  </header>
+
+  <main class="shell">
+    <section class="panel is-active">
+      <div class="card loginCard" aria-label="Anmeldung">
+
+        <div class="row loginFields">
+          <label class="field field--reg" id="regNameField" style="display:none">
+            <span>Name (optional)</span>
+            <input id="regName" type="text" autocomplete="name" autocapitalize="words" placeholder="z. B. Rex Mustermann"/>
+          </label>
+
+          <label class="field" id="emailField">
+            <span>E‑Mail</span>
+            <input id="loginEmail" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" placeholder="name@domain.de"/>
+          </label>
+
+          <label class="field" id="pwField">
+            <span>Passwort</span>
+            <input id="loginPass" type="password" autocomplete="current-password" autocapitalize="none" spellcheck="false" placeholder="••••••••"/>
+          </label>
+        </div>
+
+        <div class="authActions">
+          <div class="authActions__left">
+            <button id="btnLogin" class="primary" type="button">Anmelden</button>
+            <button id="btnRegister" class="btnSecondary" type="button">Registrieren</button>
+          </div>
+          <button id="btnForgot" class="btnLink btnLink--text" type="button">Passwort vergessen?</button>
+        </div>
+
+        <p id="authMsg" class="muted" style="margin-top:10px"></p>
+      </div>
+    </section>
+  </main>
+
+  <script defer src="firebase-config.js?v=20251227k"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+  <script defer src="auth.js?v=20260101b"></script>
+  <div class="test-badge" id="testBadge">PRODUKTIV</div>
+  <div class="build-badge" id="buildBadge">Build v11B_SAVE_PDF_13_STAY_BTN_FIX</div>
+</body>
+</html>
