@@ -743,6 +743,19 @@
 </div>
 
 
+
+<div class="card" id="invoiceSettingsCard" style="margin-top:12px;">
+  <h2>Rechnungen</h2>
+  <p class="muted" style="margin-top:6px">MwSt wird als <strong>enthalten</strong> ausgewiesen (Brutto-Rechnung). Der Satz hier gilt als Standard für neue Rechnungen, sofern in der Rechnung kein eigener Satz hinterlegt ist.</p>
+  <div class="row" style="flex-wrap:wrap; gap:12px; margin-top:10px;">
+    <label class="field" style="min-width:220px; flex:0 0 auto;">
+      <span>MwSt-Satz (Standard)</span>
+      <input id="vatRateInput" type="number" min="0" max="30" step="0.1" placeholder="z. B. 19"/>
+    </label>
+    <div class="muted" style="align-self:flex-end; padding-bottom:10px" id="vatRateHint"></div>
+  </div>
+</div>
+
 <div class="card" id="adminTaskCard" style="margin-top:12px; display:none;">
   <h2>Kundenaufgabe freigeben</h2>
   <p class="muted" style="margin-top:6px">Erstelle eine Aufgabe für einen registrierten Kunden (z. B. Hundeannahme). Der Kunde sieht danach nur dieses Formular in seinem Kundenportal.</p>
@@ -1219,6 +1232,6 @@
   <!-- Bottom logout button removed (duplicate of header logout; also overlaps editor on iPad) -->
 </div>
 <!-- test-badge removed (requested) -->
-<div class="build-badge" id="buildBadge">Build M11_6C_DOG_MED_INLINE_EDIT_20260125</div>
+  <div class="build-badge" id="buildBadge">Build M14_4F4_EXPORT_ARCHIVE_20260201</div>
 </body>
 </html>
