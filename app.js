@@ -1,3 +1,31 @@
+
+// === 4F-5.3 FORCE NAV BIND ===
+function forceBindNavigation(){
+  try{
+    const selectors = [
+      '#btnDogs','#btnContracts','#btnWorksheets','#btnInvoices',
+      '#btnHygiene','#btnMeds','#btnReports',
+      '#navCalendar','#navEntries','#navStays','#navSettings'
+    ];
+    selectors.forEach(sel=>{
+      document.querySelectorAll(sel).forEach(el=>{
+        if(el && !el.__forceBound){
+          el.addEventListener('click', ()=>{});
+          el.__forceBound = true;
+        }
+      });
+    });
+    console.log('[NAV] forceBindNavigation executed');
+  }catch(e){
+    console.error('[NAV] forceBindNavigation error', e);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', ()=>{
+  forceBindNavigation();
+});
+// === /4F-5.3 ===
+
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 const APP_BUILD = 'M14_4F5_1_STATE_MIGRATION_FIX_20260201';
 
@@ -11033,6 +11061,7 @@ document.addEventListener("visibilitychange", () => {
 
 // Start
 startApp().catch(console.error);
+try{ forceBindNavigation(); }catch(_e){}
 // UI: Sync-Status regelmäßig auffrischen (auch bei Tab-Wechsel/PWA)
 setInterval(()=>{ try{ updateSyncUI(); }catch(_){ } }, 1500);
 window.addEventListener('online', ()=>{ try{ scheduleCloudPing(0,'online-event'); }catch(_){ try{ updateSyncUI(); }catch(__){} } });
