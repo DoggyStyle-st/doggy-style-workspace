@@ -1,14 +1,3 @@
-// === DIAG: boot marker + on-screen crash reporting ===
-try{ window.__APPJS_OK__ = false; }catch(_){ }
-window.addEventListener('error', function(e){
-  try{ alert('JS Error: '+(e.message||e.error)+'\n'+(e.filename||'')+':'+(e.lineno||'') ); }catch(_){ }
-});
-window.addEventListener('unhandledrejection', function(e){
-  try{ alert('Promise Error: '+(e.reason && (e.reason.message||e.reason)) ); }catch(_){ }
-});
-try{ window.__APPJS_OK__ = true; }catch(_){ }
-// === /DIAG ===
-
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 const APP_BUILD = 'M14_4F5_1_STATE_MIGRATION_FIX_20260201';
 
@@ -11032,7 +11021,7 @@ document.addEventListener("visibilitychange", () => {
 })();
 
 // Start
-startApp().catch((e)=>{ try{ alert('startApp crash: '+(e&&e.message||e)); }catch(_){ } console.error(e); });
+startApp().catch(console.error);
 // UI: Sync-Status regelmäßig auffrischen (auch bei Tab-Wechsel/PWA)
 setInterval(()=>{ try{ updateSyncUI(); }catch(_){ } }, 1500);
 window.addEventListener('online', ()=>{ try{ scheduleCloudPing(0,'online-event'); }catch(_){ try{ updateSyncUI(); }catch(__){} } });
