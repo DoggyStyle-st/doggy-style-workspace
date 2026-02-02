@@ -14,33 +14,13 @@ const MAX_OVERNIGHT = 10;
   try{
     const key = 'ds_app_build';
     const prev = localStorage.getItem(key);
-    if (prev !== APP_BUILD) {
+    if(prev !== APP_BUILD){
       localStorage.setItem(key, APP_BUILD);
+      // No auto-reload here – Safari/PWA caches can cause init loops.
       console.log('[BUILD]', prev, '→', APP_BUILD);
-    }
-catch(_){
-              try{ location.reload(); }catch(__){}
-            }
-          };
-          if('caches' in window){
-            caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k)))).then(() => {
-              if(navigator.serviceWorker && navigator.serviceWorker.getRegistrations){
-                return navigator.serviceWorker.getRegistrations().then(regs => Promise.all(regs.map(r => r.unregister())));
-              }
-            }).finally(() => setTimeout(go, 150));
-          }else{
-            if(navigator.serviceWorker && navigator.serviceWorker.getRegistrations){
-              navigator.serviceWorker.getRegistrations().then(regs => Promise.all(regs.map(r => r.unregister()))).finally(() => setTimeout(go, 150));
-            }else{
-              setTimeout(go, 150);
-            }
-          }
-        }
-      }catch(_){}
     }
   }catch(_){}
 })();
-
 // Selector helpers
 // $: accepts either an element id (e.g. 'contractSig') or a CSS selector (e.g. '#contractSig', '.btn')
 const $ = (sel) => {
