@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = 'M14_4F4_EXPORT_ARCHIVE_20260201';
+const APP_BUILD = 'M14_4F5_1_STATE_MIGRATION_FIX_20260201';
 
 
 // Kapazitäts-Limit (Übernachtungshunde) – Stufe B Warnung
@@ -14,23 +14,11 @@ const MAX_OVERNIGHT = 10;
   try{
     const key = 'ds_app_build';
     const prev = localStorage.getItem(key);
-    if(prev !== APP_BUILD){
+    if (prev !== APP_BUILD) {
       localStorage.setItem(key, APP_BUILD);
-      // Optional: mark that a version bump happened (useful for guarded migrations)
-      localStorage.setItem('ds_app_build_bumped_at', String(Date.now()));
-
-      // Cache-buster / Service-Worker Guard:
-      // If a new build is detected, try to drop SW + CacheStorage once, then reload with a version query.
-      try{
-        const onceKey = 'ds_app_build_refreshed_' + APP_BUILD;
-        if(!localStorage.getItem(onceKey)){
-          localStorage.setItem(onceKey, '1');
-          const go = () => {
-            try{
-              const base = location.href.split('#')[0].split('?')[0];
-              const hash = location.hash || '';
-              location.replace(base + '?v=' + encodeURIComponent(APP_BUILD) + hash);
-            }catch(_){
+      console.log('[BUILD]', prev, '→', APP_BUILD);
+    }
+catch(_){
               try{ location.reload(); }catch(__){}
             }
           };
