@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
 // === /4F-5.3 ===
 
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = 'M14_4F5_1_STATE_MIGRATION_FIX_20260201';
+const APP_BUILD = 'M14_4F5_3_FORCE_NAV_20260202';
 
 
 // Kapazitäts-Limit (Übernachtungshunde) – Stufe B Warnung
