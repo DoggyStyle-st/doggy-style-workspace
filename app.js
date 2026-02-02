@@ -10737,6 +10737,8 @@ function wireCoreUI(){
 
 
 async function startApp(){
+  try {
+
   // Core UI wiring muss immer aktiv sein (auch wenn Cloud/Offline Pfad aktiv ist)
   wireCoreUI();
   // 1) Wenn Cloud aktiviert: Login + Sync
@@ -10817,6 +10819,15 @@ await bootOnce();
 // Wichtig: Listener so früh wie möglich setzen, damit der initiale State auch bei iOS/Safari sicher kommt.
 try{
   if(CLOUD._unsubWorkspace){ try{ CLOUD._unsubWorkspace(); }catch(_){ } }
+  } catch (e) {
+    console.error('Init error', e);
+  } finally {
+    try {
+      if (typeof bindNavigation === 'function') bindNavigation();
+      if (typeof renderDashboard === 'function') renderDashboard();
+    } catch (_e) {}
+  }
+
 }catch(_){ }
 try{
   const ref = cloudStateRef();
