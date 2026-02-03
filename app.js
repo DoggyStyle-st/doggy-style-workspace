@@ -1,5 +1,16 @@
+// === DIAG: boot marker + on-screen crash reporting ===
+try{ window.__APPJS_OK__ = false; }catch(_){ }
+window.addEventListener('error', function(e){
+  try{ alert('JS Error: '+(e.message||e.error)+'\n'+(e.filename||'')+':'+(e.lineno||'') ); }catch(_){ }
+});
+window.addEventListener('unhandledrejection', function(e){
+  try{ alert('Promise Error: '+(e.reason && (e.reason.message||e.reason)) ); }catch(_){ }
+});
+try{ window.__APPJS_OK__ = true; }catch(_){ }
+// === /DIAG ===
+
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = 'M14_4F4_EXPORT_ARCHIVE_20260201';
+const APP_BUILD = 'M14_4F5_1_STATE_MIGRATION_FIX_20260201';
 
 
 // Kapazitäts-Limit (Übernachtungshunde) – Stufe B Warnung
@@ -16,43 +27,11 @@ const MAX_OVERNIGHT = 10;
     const prev = localStorage.getItem(key);
     if(prev !== APP_BUILD){
       localStorage.setItem(key, APP_BUILD);
-      // Optional: mark that a version bump happened (useful for guarded migrations)
-      localStorage.setItem('ds_app_build_bumped_at', String(Date.now()));
-
-      // Cache-buster / Service-Worker Guard:
-      // If a new build is detected, try to drop SW + CacheStorage once, then reload with a version query.
-      try{
-        const onceKey = 'ds_app_build_refreshed_' + APP_BUILD;
-        if(!localStorage.getItem(onceKey)){
-          localStorage.setItem(onceKey, '1');
-          const go = () => {
-            try{
-              const base = location.href.split('#')[0].split('?')[0];
-              const hash = location.hash || '';
-              location.replace(base + '?v=' + encodeURIComponent(APP_BUILD) + hash);
-            }catch(_){
-              try{ location.reload(); }catch(__){}
-            }
-          };
-          if('caches' in window){
-            caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k)))).then(() => {
-              if(navigator.serviceWorker && navigator.serviceWorker.getRegistrations){
-                return navigator.serviceWorker.getRegistrations().then(regs => Promise.all(regs.map(r => r.unregister())));
-              }
-            }).finally(() => setTimeout(go, 150));
-          }else{
-            if(navigator.serviceWorker && navigator.serviceWorker.getRegistrations){
-              navigator.serviceWorker.getRegistrations().then(regs => Promise.all(regs.map(r => r.unregister()))).finally(() => setTimeout(go, 150));
-            }else{
-              setTimeout(go, 150);
-            }
-          }
-        }
-      }catch(_){}
+      // No auto-reload here – Safari/PWA caches can cause init loops.
+      console.log('[BUILD]', prev, '→', APP_BUILD);
     }
   }catch(_){}
 })();
-
 // Selector helpers
 // $: accepts either an element id (e.g. 'contractSig') or a CSS selector (e.g. '#contractSig', '.btn')
 const $ = (sel) => {
@@ -11053,7 +11032,7 @@ document.addEventListener("visibilitychange", () => {
 })();
 
 // Start
-startApp().catch(console.error);
+startApp().catch((e)=>{ try{ alert('startApp crash: '+(e&&e.message||e)); }catch(_){ } console.error(e); });
 // UI: Sync-Status regelmäßig auffrischen (auch bei Tab-Wechsel/PWA)
 setInterval(()=>{ try{ updateSyncUI(); }catch(_){ } }, 1500);
 window.addEventListener('online', ()=>{ try{ scheduleCloudPing(0,'online-event'); }catch(_){ try{ updateSyncUI(); }catch(__){} } });
