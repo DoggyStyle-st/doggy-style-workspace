@@ -12414,7 +12414,10 @@ async function loadStays() {
       const div = document.createElement("div");
       div.style.borderBottom = "1px solid #ddd";
       div.style.padding = "0.75rem 0";
-      div.innerHTML = `<strong>${d.dogName || "-"}</strong><br>
+            div.style.cursor = "pointer";
+      div.title = "Öffnen";
+      div.addEventListener("click", () => showStayDetail(doc.id));
+div.innerHTML = `<strong>${d.dogName || "-"}</strong><br>
         ${d.ownerName || "-"}<br>
         ${d.fromDate || "?"} – ${d.toDate || "?"}<br>
         <span style="color:#666;font-size:.85rem;">${d.status || "Entwurf"}</span>`;
@@ -12551,3 +12554,133 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 // ===== END 4A-2 =====
+
+
+// ===== 4A-3 Aufenthalt Detailansicht (Basisfelder) =====
+let __currentStayId = null;
+
+async function showStayDetail(stayId) {
+  __currentStayId = stayId;
+  // hide all main sections
+  document.querySelectorAll("main > section").forEach(s => s.style.display = "none");
+  const detailView = document.getElementById("stays-detail-view");
+  const detailBox = document.getElementById("stays-detail");
+  const msg = document.getElementById("stay-detail-msg");
+  if (msg) msg.textContent = "";
+  if (detailView) detailView.style.display = "block";
+  if (!detailBox) return;
+
+  detailBox.innerHTML = '<div class="notice">Lade…</div>';
+
+  try {
+    const docRef = firebase.firestore().collection("stays").doc(stayId);
+    const snap = await docRef.get();
+    const d = snap.exists ? (snap.data() || {}) : {};
+    const sub = document.getElementById("stay-detail-sub");
+    if (sub) sub.textContent = d.dogName ? `${d.dogName} – ${d.ownerName || ""}`.trim() : "";
+
+    detailBox.innerHTML = `
+      <div class="field">
+        <label>Hund</label>
+        <input id="detail-dog" type="text" value="${escapeHtml(d.dogName || "")}">
+      </div>
+      <div class="field">
+        <label>Kunde</label>
+        <input id="detail-owner" type="text" value="${escapeHtml(d.ownerName || "")}">
+      </div>
+      <div class="field">
+        <label>Betreuung</label>
+        <select id="detail-care">
+          <option value="">Bitte wählen…</option>
+          <option value="Tagesbetreuung">Tagesbetreuung</option>
+          <option value="Urlaub">Urlaub</option>
+        </select>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>Von</label>
+          <input id="detail-from" type="date" value="${escapeHtml(d.fromDate || "")}">
+        </div>
+        <div class="field">
+          <label>Bis</label>
+          <input id="detail-to" type="date" value="${escapeHtml(d.toDate || "")}">
+        </div>
+      </div>
+      <div class="field">
+        <label>Status</label>
+        <input id="detail-status" type="text" value="${escapeHtml(d.status || "Entwurf")}" disabled>
+        <div class="notice">Status bleibt in 4A-3 read-only (Entwurf).</div>
+      </div>
+    `;
+
+    const careSel = document.getElementById("detail-care");
+    if (careSel) careSel.value = (d.careType || "");
+  } catch (e) {
+    console.warn("4A-3 show stay detail failed", e);
+    detailBox.innerHTML = '<div class="notice">Konnte Aufenthalt nicht laden.</div>';
+  }
+}
+
+async function saveStayDetail() {
+  const msg = document.getElementById("stay-detail-msg");
+  if (msg) msg.textContent = "";
+
+  const dogName = (document.getElementById("detail-dog")?.value || "").trim();
+  const ownerName = (document.getElementById("detail-owner")?.value || "").trim();
+  const careType = (document.getElementById("detail-care")?.value || "").trim();
+  const fromDate = (document.getElementById("detail-from")?.value || "").trim();
+  const toDate = (document.getElementById("detail-to")?.value || "").trim();
+
+  if (!__currentStayId) {
+    if (msg) msg.textContent = "Kein Aufenthalt ausgewählt.";
+    return;
+  }
+
+  if (!dogName || !ownerName || !careType || !fromDate || !toDate) {
+    if (msg) msg.textContent = "Bitte alle Pflichtfelder ausfüllen (Hund, Kunde, Betreuung, Von, Bis).";
+    return;
+  }
+  if (toDate < fromDate) {
+    if (msg) msg.textContent = "„Bis“ darf nicht vor „Von“ liegen.";
+    return;
+  }
+
+  try {
+    if (msg) msg.textContent = "Speichere…";
+    const payload = {
+      dogName,
+      ownerName,
+      careType,
+      fromDate,
+      toDate,
+      // status bleibt Entwurf in 4A
+      status: "Entwurf",
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    await firebase.firestore().collection("stays").doc(__currentStayId).set(payload, { merge: true });
+    if (msg) msg.textContent = "Gespeichert.";
+    // refresh list in background so back shows newest data
+    if (typeof loadStays === "function") await loadStays();
+  } catch (e) {
+    console.warn("4A-3 save stay detail failed", e);
+    if (msg) msg.textContent = "Speichern fehlgeschlagen.";
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const backBtn = document.getElementById("stay-detail-back");
+  if (backBtn) backBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    document.querySelectorAll("main > section").forEach(s => s.style.display = "none");
+    const v = document.getElementById("stays-view");
+    if (v) v.style.display = "block";
+    if (typeof loadStays === "function") loadStays();
+  });
+
+  const saveBtn = document.getElementById("stay-detail-save");
+  if (saveBtn) saveBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    saveStayDetail();
+  });
+});
+// ===== END 4A-3 =====
