@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = "M16_HARDCLEAN_NO_SW_20260204";
+const APP_BUILD = 'M14_4A3_STAYS_DETAIL_20260204';
 
 
 // Kapazitäts-Limit (Übernachtungshunde) – Stufe B Warnung
@@ -9553,30 +9553,1047 @@ if(e.target && e.target.id==="btnSignatureOpen"){
     dirty = true;
     saveState(); // persist immediately
 
-    // Update Signature UI ohne Re-Render (Signatur darf nichts verändern außer sich selbst)
+    // Re-render: Aufenthalt immer via Embedded-Stay-Editor (stabil), sonst Standard-Editor
     try{
-      const statusEl = document.getElementById('staySigStatus');
-      const imgWrap  = document.getElementById('staySigPreview');
-      const imgEl    = document.getElementById('staySigImg');
-      const btnClear = document.getElementById('btnSignatureClear');
-      const btnOpen  = document.getElementById('btnSignatureOpen');
-      const sig = currentDoc.signature && currentDoc.signature.dataUrl ? currentDoc.signature : null;
+      if(_isStay && typeof renderStayEditorEmbedded === 'function') renderStayEditorEmbedded(currentDoc);
+      else renderEditor(currentDoc);
+    }catch(_){
+      try{ renderForm(currentDoc); }catch(__){}
+    }
 
-      if(statusEl){
-        statusEl.textContent = sig
-          ? `✔ Unterschrieben am ${new Date(sig.signedAt || Date.now()).toLocaleString('de-DE')}`
-          : '— noch keine Unterschrift —';
-        statusEl.className = sig ? 'muted ok' : 'muted';
-      }
-      if(imgWrap && imgEl){
-        if(sig){ imgEl.src = sig.dataUrl; imgWrap.style.display = 'block'; }
-        else { imgEl.removeAttribute('src'); imgWrap.style.display = 'none'; }
-      }
-      if(btnClear) btnClear.style.display = sig ? '' : 'none';
-      if(btnOpen) btnOpen.style.display = sig ? 'none' : '';
-    }catch(_){}
+    // DOM-Werte nach dem Re-render wiederherstellen (falls Browser Inputs "vergisst")
+    if(Array.isArray(_fieldSnap) && _fieldSnap.length){
+      setTimeout(()=>{
+        try{
+          _fieldSnap.forEach(f => {
+            try{
+              let el = null;
+              if(f && f.id) el = document.getElementById(f.id);
+              if(!el && f && f.name){
+                const esc = (window.CSS && CSS.escape) ? CSS.escape(f.name) : String(f.name).replace(/"/g,'\\"');
+                el = document.querySelector(`[name="${esc}"]`);
+              }
+              if(!el) return;
 
+              const type = (el.getAttribute('type') || '').toLowerCase();
+              if(type === 'checkbox' || type === 'radio') el.checked = !!f.checked;
+              else el.value = (f.value ?? '');
+
+              // Optional: Events auslösen, damit doc/meta wieder synchron sind (ohne Render)
+              try{
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+                el.dispatchEvent(new Event('change', { bubbles: true }));
+              }catch(_){}
+            }catch(_){}
+          });
+        }catch(_){}
+      },0);
+    }
   });
+
+  return;
+}
+
+  // Zweiter Speichern-Button im Aufenthalt (bei Unterschrift)
+  if(e.target && e.target.id==="btnStaySave2"){
+    e.preventDefault();
+    try{ syncStayEditorInputsToDoc(); }catch(_){ }
+    saveCurrent(true);
+    return;
+  }
+
+  // Betreuungsvertrag aus aktuellem Aufenthalt öffnen
+  if(e.target && e.target.id==="btnContractFromStay"){
+    e.preventDefault();
+    if(!currentDoc){ alert("Kein Aufenthalt geöffnet."); return; }
+    // sicherstellen, dass aktuelle Aufenthaltseingaben übernommen sind
+    try{ syncStayEditorInputsToDoc(); }catch(_){ }
+    openContractFromStay(currentDoc);
+    return;
+  }
+
+});
+
+$("#btnPrint").addEventListener("click",()=>printDoc());
+function printDoc(){
+  try{
+    if(!currentDoc) return;
+    if(!saveCurrent(false)) return;
+    const t=getTemplate(currentDoc.templateId);
+
+  // Aufenthalte laufen teils im Embedded-Modus/Template-Editor → robustes PDF-Preview.
+  // iOS/Safari + Embedded-Editor: Template-Erkennung kann uneindeutig sein.
+  // Daher zusätzlich DOM-Heuristik: Wenn Stay-Felder im Hintergrund existieren, ist es ein Aufenthalt.
+  const hasStayDom = !!(document.getElementById('stayVon') || document.getElementById('stayBis') || document.getElementById('staySigCard') || document.querySelector('[data-stay-editor="1"]'));
+  const isStay = hasStayDom
+    || (!t && String(currentDoc.templateId||"").startsWith('hundeannahme'))
+    || (t && String(t.id||"") === 'hundeannahme')
+    || String(currentDoc.templateId||"") === 'hundeannahme'
+    || String(currentDoc.templateName||"") === 'Aufenthalte'
+    || String(currentDoc.type||"") === 'stay';
+
+    const dog=state.dogs.find(d=>d.id===currentDoc.dogId) || null;
+
+// Für Aufenthalte (Aufenthalte) immer die dedizierte Druckansicht verwenden
+// (Template-Print lässt Logo/Hund/Kunde häufig weg und ist in Safari/Blob fehleranfällig).
+if(isStay){
+  const html = buildStayPrintHtml(currentDoc, dog);
+  setTimeout(()=>{
+    try{ openHtmlInModal('Druckvorschau', html, 'Schließen mit ✕. Für PDF: Drucken/Speichern → „Als PDF“ → in Dateien speichern.'); }
+    catch(err){ alert('PDF-Vorschau Fehler: ' + (err?.message || err)); }
+  }, 0);
+  return;
+}
+
+const html=buildPrintHtml(currentDoc,t,dog);
+setTimeout(()=>{
+  try{ openHtmlInModal('Druckvorschau', html, 'Schließen mit ✕. Für PDF: Drucken/Speichern → „Als PDF“ → in Dateien speichern.'); }
+  catch(err){ alert('PDF-Vorschau Fehler: ' + (err?.message || err)); }
+}, 0);
+
+  }catch(err){
+    alert('PDF-Vorschau Fehler: ' + (err?.message || err));
+  }
+}
+
+function buildStayPrintHtml(docObj, dog){
+  const dt=new Date(docObj.updatedAt || Date.now()).toLocaleString("de-DE");
+  
+// Hund/Kunde robust ermitteln (Stay-Editor kann ohne sichtbare Hund/Kunde-Felder laufen)
+const dogObj = state.dogs.find(d=>d.id===(docObj.dogId||docObj.petId)) || dog || null;
+const custObj = state.customers.find(c=>c.id===(docObj.customerId||dogObj?.customerId||dogObj?.ownerId)) || null;
+
+const pet = (docObj.petId && typeof getPet==='function') ? getPet(docObj.petId) : null;
+const cust = (docObj.customerId && typeof getCustomer==='function') ? getCustomer(docObj.customerId) : null;
+
+const custName = (
+  (custObj && (custObj.name||custObj.firstName||custObj.lastName))
+    ? `${custObj.name||custObj.firstName||''} ${custObj.lastName||''}`.trim()
+    : (cust && (cust.name||cust.lastName))
+      ? `${cust.name||''} ${cust.lastName||''}`.trim()
+      : (dogObj && (dogObj.ownerName||dogObj.owner))
+        ? String(dogObj.ownerName||dogObj.owner)
+        : ''
+);
+
+const petName = (
+  (dogObj && dogObj.name) ? String(dogObj.name)
+    : (pet && pet.name) ? String(pet.name)
+    : ''
+);
+
+const dogLine  = [custName, petName].filter(Boolean).join(' – ') || '—';
+  const m = docObj.meta || {};
+  const notes = (docObj.fields && docObj.fields.notes) ? String(docObj.fields.notes) : "";
+  const sigImg = (docObj.signature && docObj.signature.dataUrl)
+    ? `<img class="sig" src="${docObj.signature.dataUrl}" alt="Unterschrift" />`
+    : "";
+
+  // Logo: in Blob/Modal müssen wir eine absolute URL verwenden, sonst lädt Safari das Bild nicht.
+  let logoUrl = 'assets/logo.png';
+  try{ logoUrl = new URL('assets/logo.png', window.location.href).href; }catch(_){ }
+
+  let out=`<div class="head"><div><h1>${escapeHtml(docObj.title||'Aufenthalte / Aufenthalt')}</h1><div class="meta">Hund/Kunde: ${escapeHtml(dogLine)} · Stand: ${escapeHtml(dt)}</div></div><img class="logo" src="${logoUrl}" alt="Doggy Style" /></div>`;
+  out+=`<h2>Aufenthalt</h2><table>`;
+  out+=`<tr><td class="k">Von</td><td class="v">${escapeHtml(m.von||"")}</td></tr>`;
+  out+=`<tr><td class="k">Bis</td><td class="v">${escapeHtml(m.bis||"")}</td></tr>`;
+  out+=`<tr><td class="k">Betreuung</td><td class="v">${escapeHtml(m.betreuung||"")}</td></tr>`;
+  out+=`<tr><td class="k">Notizen</td><td class="v">${escapeHtml(notes)}</td></tr>`;
+  out+=`</table>`;
+
+  out+=`<h2>Unterschrift Hundehalter</h2><div class="sigbox">${sigImg || '<div class="muted">— noch keine Unterschrift —</div>'}</div>`;
+  out+=`<h2>Datenschutz (DSGVO)</h2><p class="note">${escapeHtml(getTemplate(docObj.templateId)?.dsGvoNote || '')}</p>`;
+
+  return `<!doctype html><html lang="de"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>${escapeHtml(docObj.title||"Aufenthalt")}</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Arial,sans-serif;margin:28px;color:#111}
+.head{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:18px}
+.logo{height:44px}
+h1{margin:0;font-size:20px}
+.meta{color:#555;font-size:12px;margin-top:2px}
+h2{margin:18px 0 8px;font-size:14px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+td{padding:8px 10px;border:1px solid #ddd;vertical-align:top}
+td.k{width:38%;background:#fafafa;font-weight:700}
+.sigbox{border:1px solid #ddd;border-radius:12px;min-height:120px;display:flex;align-items:center;justify-content:center;background:#fff;padding:8px}
+.sig{max-height:105px;max-width:95%}
+.note{font-size:11px;color:#444;line-height:1.35}
+.muted{color:#666;font-size:11px}
+@media print{body{margin:16mm}}
+</style></head><body>${out}</body></html>`;
+}
+
+function buildPrintHtml(docObj,t,dog){
+  const dt=new Date(docObj.updatedAt).toLocaleString("de-DE");
+  const dogLine=dog && !dog.isPlaceholder ? `${dog.owner?escapeHtml(dog.owner)+" – ":""}${escapeHtml(dog.name)}` : "—";
+  const sigImg = docObj.signature
+  ? `<img class="sig" src="${docObj.signature.dataUrl}" alt="Unterschrift" />`
+  : "";
+  let out=`<div class="head"><div><h1>${escapeHtml(docObj.title||t.name)}</h1><div class="meta">Hund/Kunde: ${dogLine} · Stand: ${dt}</div></div><img class="logo" src="assets/logo.png" /></div>`;
+  t.sections.forEach(sec=>{
+    out+=`<h2>${escapeHtml(sec.title)}</h2><table>`;
+    sec.fields.forEach(f=>{
+      let v=docObj.fields[f.key];
+      if(f.type==="checkbox") v=v?"Ja":"Nein";
+      out+=`<tr><td class="k">${escapeHtml(f.label)}</td><td class="v">${escapeHtml(String(v??""))}</td></tr>`;
+    });
+    out+=`</table>`;
+  });
+  out+=`<h2>Ort / Datum</h2><table><tr><td class="k">Ort / Datum</td><td class="v">${escapeHtml(docObj.meta.ort_datum||"")}</td></tr></table>`;
+  out+=`<h2>Unterschrift Hundehalter</h2><div class="sigbox">${sigImg}</div>`;
+  out+=`<h2>Datenschutz (DSGVO)</h2><p class="note">${escapeHtml(t.dsGvoNote||"")}</p>`;
+  return `<!doctype html><html lang="de"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>${escapeHtml(docObj.title||"Dokument")}</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Arial,sans-serif;margin:28px;color:#111}
+.head{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:18px}
+.logo{height:44px}
+h1{margin:0;font-size:20px}
+.meta{color:#555;font-size:12px;margin-top:2px}
+h2{margin:18px 0 8px;font-size:14px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+td{padding:8px 10px;border:1px solid #ddd;vertical-align:top}
+td.k{width:38%;background:#fafafa;font-weight:700}
+.sigbox{border:1px solid #ddd;border-radius:12px;height:120px;display:flex;align-items:center;justify-content:center;background:#fff}
+.sig{max-height:105px;max-width:95%}
+.note{font-size:11px;color:#444;line-height:1.35}
+@media print{body{margin:16mm}}
+</style></head><body>${out}</body></html>`;
+}
+
+function doBackupExport(){
+  const blob=new Blob([JSON.stringify(state,null,2)],{type:"application/json"});
+  const a=document.createElement("a");
+  const stamp = toISODateLocal(new Date());
+  a.href=URL.createObjectURL(blob);
+  a.download=`DoggyStyleWorkspace_Backup_${stamp}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+const _btnExportAll = $("#btnExportAll");
+if(_btnExportAll) _btnExportAll.addEventListener("click", doBackupExport);
+
+const _btnBackupExport = document.getElementById('btnBackupExport');
+if(_btnBackupExport) _btnBackupExport.addEventListener('click', doBackupExport);
+
+
+const _btnMonthExport = document.getElementById('btnMonthExport');
+if(_btnMonthExport) _btnMonthExport.addEventListener('click', exportMonthBundle);
+
+const _btnMonthClose = document.getElementById('btnMonthClose');
+if(_btnMonthClose) _btnMonthClose.addEventListener('click', closeMonth);
+
+const _btnSteuerExport = document.getElementById('btnSteuerExport');
+if(_btnSteuerExport) _btnSteuerExport.addEventListener('click', showSteuerberaterExportInfo);
+
+const _btnExportMonthNow = document.getElementById('btnExportMonthNow');
+if(_btnExportMonthNow) _btnExportMonthNow.addEventListener('click', exportMonthBundle);
+
+const _btnExportSteuerNow = document.getElementById('btnExportSteuerNow');
+if(_btnExportSteuerNow) _btnExportSteuerNow.addEventListener('click', showSteuerberaterExportInfo);
+
+const _btnStaffAdd = document.getElementById('btnStaffAdd');
+if(_btnStaffAdd) _btnStaffAdd.addEventListener('click', ()=>{
+  ensureStateShape();
+  const inp = document.getElementById('staffNewName');
+  const name = inp && inp.value ? inp.value.trim() : "";
+  if(!name) return alert("Bitte Name eingeben.");
+  state.staff.people.push({ id: uid("stf"), name, active: true, createdAt: Date.now() });
+  if(inp) inp.value="";
+  syncStaffPresets();
+  saveState();
+  renderStaffSettings();
+  renderAll();
+});
+
+const _btnDocVersionsEdit = document.getElementById('btnDocVersionsEdit');
+if(_btnDocVersionsEdit) _btnDocVersionsEdit.addEventListener('click', ()=>{
+  alert("Tipp: Nutze „Version erhöhen“ bei den Dokumenten. Alte Versionen werden automatisch archiviert.");
+});
+
+
+const _btnBackupImport = document.getElementById('btnBackupImport');
+const _fileBackupImport = document.getElementById('fileBackupImport');
+
+if(_btnBackupImport && _fileBackupImport){
+  _btnBackupImport.addEventListener('click', ()=> _fileBackupImport.click());
+  _fileBackupImport.addEventListener('change', async (ev)=>{
+    const file = ev.target.files && ev.target.files[0];
+    if(!file) return;
+    try{
+      const txt = await file.text();
+      const data = JSON.parse(txt);
+      if(!data || typeof data !== 'object') throw new Error('Ungültiges Backup.');
+      if(!confirm('Backup importieren? Dies überschreibt den aktuellen Stand (lokal + Cloud).')) return;
+      state = data;
+      ensureStateShape();
+      ensureContractDefaults();
+      migrateToV2();
+      pruneInvoiceDocs();
+      ensureDefaultDog();
+      saveState();
+      renderDogs();
+      renderDocs();
+      renderInvoiceList();
+      alert('✅ Backup importiert.');
+    }catch(e){
+      console.error(e);
+      alert('❌ Import fehlgeschlagen: '+(e.message||e));
+    }finally{
+      try{ _fileBackupImport.value = ''; }catch(_){ }
+    }
+  });
+}
+
+$("#btnWipe").addEventListener("click",()=>{
+  if(!confirm("Wirklich alle lokalen Daten löschen?")) return;
+  localStorage.removeItem(LS_KEY);
+  location.reload();
+});
+
+async function boot(){
+  await loadTemplates();
+  ensureStateShape();
+  ensureContractDefaults();
+  migrateToV2();
+  pruneInvoiceDocs();
+  ensureDefaultDog();
+  saveState();
+  renderDogs();
+  renderDocs();
+  renderInvoiceList();
+  showPanel("home");
+}
+
+
+let __BOOT_DONE = false;
+async function bootOnce(){
+  if(__BOOT_DONE) return;
+  __BOOT_DONE = true;
+  await boot();
+}
+
+function wireCoreUI(){
+  try{
+    if(window.__CORE_UI_WIRED__) return;
+    window.__CORE_UI_WIRED__ = true;
+
+    const btnLogin = document.getElementById("btnLogin");
+    const btnRegister = document.getElementById("btnRegister");
+    const btnLogout = document.getElementById("btnLogout");
+    const btnLogoutApp = document.getElementById("btnLogoutApp");
+    const btnLogoutBottom = document.getElementById("btnLogoutBottom");
+
+    const btnNewStayTop = document.getElementById("btnNewStayTop");
+    const btnNewStayOnPage = document.getElementById("btnNewStayOnPage");
+
+    const btnQuickDogs = document.getElementById("btnQuickDogs");
+    const btnQuickInvoices = document.getElementById("btnQuickInvoices");
+
+    const loginEmail = document.getElementById("loginEmail");
+    const loginPass = document.getElementById("loginPass");
+
+    // Login/Register only if Cloud Auth is available
+    if(btnLogin) btnLogin.onclick = async ()=>{
+      setAuthMsg("");
+      try{
+        if(!CLOUD || !CLOUD.auth) throw new Error("Cloud/Auth nicht verfügbar");
+        await CLOUD.auth.signInWithEmailAndPassword((loginEmail?.value||"").trim(), loginPass?.value||"");
+      }catch(e){
+        console.error(e);
+        setAuthMsg(e.message||"Login fehlgeschlagen");
+        try{ alert('Login fehlgeschlagen: '+(e.code||e.message||e)); }catch(_){ }
+      }
+    };
+    if(btnRegister) btnRegister.onclick = async ()=>{
+      setAuthMsg("");
+      try{
+        if(!CLOUD || !CLOUD.auth) throw new Error("Cloud/Auth nicht verfügbar");
+        await CLOUD.auth.createUserWithEmailAndPassword((loginEmail?.value||"").trim(), loginPass?.value||"");
+        setAuthMsg("Account erstellt. Bitte anmelden.");
+      }catch(e){
+        console.error(e);
+        setAuthMsg(e.message||"Registrierung fehlgeschlagen");
+        try{ alert('Registrierung fehlgeschlagen: '+(e.code||e.message||e)); }catch(_){ }
+      }
+    };
+
+    if(btnLogout) btnLogout.onclick = async ()=>{ try{ await CLOUD?.auth?.signOut(); }catch(e){} };
+    if(btnLogoutApp) btnLogoutApp.onclick = async ()=>{ try{ await CLOUD?.auth?.signOut(); }catch(e){} };
+    if(btnLogoutBottom) btnLogoutBottom.onclick = ()=>performLogout();
+
+    if(btnNewStayTop) btnNewStayTop.onclick = ()=>createStay();
+    if(btnNewStayOnPage) btnNewStayOnPage.onclick = ()=>createStay();
+
+    if(btnQuickDogs) btnQuickDogs.onclick = ()=>selectTab("dogs");
+    if(btnQuickInvoices) btnQuickInvoices.onclick = ()=>selectTab("invoices");
+
+    // Delegation: Buttons werden in einigen Render-Pfaden neu in den DOM geschrieben.
+    // Daher zusätzlich Delegation (capture=true), damit der Klick immer greift (iOS/Safari inkl.).
+    if(!window.__DELEGATED_CORE_UI__){
+      window.__DELEGATED_CORE_UI__ = true;
+
+      const handle = (ev)=>{
+        const t = ev.target;
+        const btn = t && t.closest ? t.closest('#btnNewStayTop, #btnNewStayOnPage, #btnQuickDogs, #btnQuickInvoices') : null;
+        if(!btn) return;
+
+        try{ ev.preventDefault(); }catch(_){ }
+        try{ ev.stopPropagation(); }catch(_){ }
+
+        const id = btn.id;
+        if(id === "btnNewStayTop" || id === "btnNewStayOnPage") return createStay();
+        if(id === "btnQuickDogs") return selectTab("dogs");
+        if(id === "btnQuickInvoices") return selectTab("invoices");
+      };
+
+      document.addEventListener("click", handle, true);
+      document.addEventListener("pointerup", handle, true);
+      document.addEventListener("touchend", handle, {capture:true, passive:false});
+    }
+  }catch(e){
+    console.error("wireCoreUI failed", e);
+  }
+}
+
+
+
+async function startApp(){
+  // Core UI wiring muss immer aktiv sein (auch wenn Cloud/Offline Pfad aktiv ist)
+  wireCoreUI();
+  // 1) Wenn Cloud aktiviert: Login + Sync
+  const cloudOk = await cloudInit();
+  if(!cloudOk){
+    showAuthGate(false);
+    await bootOnce();
+    return;
+  }
+
+  // Option C: immer Login erzwingen (Session bei jedem Start beenden)
+  if(CLOUD.forceLoginAlways){
+    try{ await CLOUD.auth.signOut(); }catch(e){}
+    showAuthGate(true);
+  }
+
+  // (UI wiring erfolgt zentral in wireCoreUI())
+
+  // Auth state
+  CLOUD.auth.onAuthStateChanged(async (user)=>{
+    CLOUD.user = user || null;
+    if(!user){
+      try{ const ba=document.querySelector(".bottom-actions"); if(ba) ba.style.display="none"; }catch(e){}
+
+      CLOUD.role = 'guest';
+      try{ if(btnLogoutApp) btnLogoutApp.style.display = 'none'; }catch(e){}
+      try{ if(btnLogout) btnLogout.style.display = 'none'; }catch(e){}
+      updateSyncUI();
+      // In dieser Version gibt es kein Login-Overlay mehr. Wenn nicht eingeloggt: auf Login-Seite umleiten.
+      try{
+        const p = (location && location.pathname) ? location.pathname.toLowerCase() : '';
+        // local/offline Nutzung erlauben: nicht hart auf login umleiten
+        // if(!p.endsWith('login.html')) location.href = 'login.html';
+      }catch(e){}
+      
+    try{ if(btnLogout) btnLogout.style.display = 'inline-flex'; }catch(e){}
+return;
+    }
+
+    // Login bei jedem Start erzwingen: wird beim Start durch signOut() erzwungen (kein Auto-Logout nach erfolgreichem Login)
+
+    // Rolle (v2): aus Firestore (mit Whitelist-Override)
+    try{
+      CLOUD.userProfile = await loadOrCreateUserProfile(user);
+      CLOUD.role = (CLOUD.userProfile && CLOUD.userProfile.role) ? CLOUD.userProfile.role : ROLES.STAFF;
+    }catch(e){
+      console.warn('Role load failed, fallback to staff', e);
+      CLOUD.role = ROLES.STAFF;
+    }
+
+    // Kunden-Portal: kein Workspace-State, keine Tabs
+    if(CLOUD.role === ROLES.CUSTOMER){
+      try{ await initCustomerPortal(); }catch(e){ console.error(e); }
+      return;
+    }
+
+    showAuthGate(false);
+    // Cloud-Erreichbarkeit prüfen, damit Status nicht erst nach einer Aktion auf Online springt
+    try{ scheduleCloudPing(50,'auth-login'); }catch(e){}
+    if(btnLogout) btnLogout.style.display = "inline-block";
+    if(btnLogoutApp) btnLogoutApp.style.display = "inline-block";
+    updateSyncUI();
+    if(btnLogoutApp) btnLogoutApp.style.display = "inline-block";
+
+    // staff/admin Features (Rollen, Aufgaben, Inbox)
+    try{ await initStaffFeatures(); }catch(e){ console.warn(e); }
+
+    // Sync UI initial
+    SYNC.cloudLastOkAt = Number(CLOUD.lastPushOkAt||0);
+    SYNC.cloudLastError = String(CLOUD.lastPushError||"");
+    updateSyncUI();
+
+    
+// Erstes Boot lokal (stellt state sicher), dann Remote zuverlässig einspielen
+await bootOnce();
+
+// Echtzeit-Listener (robust, inkl. erstem Snapshot)
+// Wichtig: Listener so früh wie möglich setzen, damit der initiale State auch bei iOS/Safari sicher kommt.
+try{
+  if(CLOUD._unsubWorkspace){ try{ CLOUD._unsubWorkspace(); }catch(_){ } }
+}catch(_){ }
+try{
+  const ref = cloudStateRef();
+  if(ref && ref.onSnapshot){
+    CLOUD._unsubWorkspace = ref.onSnapshot((snap)=>{
+      if(!snap || !snap.exists) return;
+      const data = snap.data() || {};
+      const stamp = Number(data.updatedAt || 0);
+      if(stamp){ SYNC.cloudLastSeenAt = stamp; updateSyncUI(); }
+
+      const remotePayload = data.payload || null;
+      const localUpdated = Number(state && state._localUpdatedAt || 0);
+      const localCloudStamp = Number(state && state._cloudUpdatedAt || 0);
+      const localEmpty = isStateEffectivelyEmpty(state);
+
+      // Falls lokal leer (z.B. LocalStorage von iOS geleert) -> Remote sofort übernehmen.
+      if(localEmpty && remotePayload){
+        applyRemoteState(remotePayload, stamp, "snapshot-initial");
+        return;
+      }
+
+      // Wenn wir lokal neuere Änderungen haben (noch nicht gepusht): Remote nicht drüberbügeln
+      if(localUpdated && stamp && stamp <= localUpdated) return;
+      if(stamp && stamp <= localCloudStamp) return;
+
+      // Nicht unsere eigene Änderung nochmal einspielen (aber nur, wenn lokal NICHT leer ist)
+      if(!localEmpty && CLOUD.user && (data.updatedBy === (CLOUD.user.email||CLOUD.user.uid))) return;
+
+      if(remotePayload){
+        applyRemoteState(remotePayload, stamp, "snapshot");
+      }
+    });
+  }
+}catch(e){
+  console.warn("Workspace onSnapshot failed", e);
+}
+
+// Initialer Remote-Read (mit Retry) + Merge-Entscheidung
+try{
+  const {remote, err} = await cloudLoadStateWithRetry(3);
+
+  const localUpdated = Number(state && state._localUpdatedAt || 0);
+  const localCloudStamp = Number(state && state._cloudUpdatedAt || 0);
+
+  if(!remote){
+    // Kein Remote gefunden oder Read zu früh/fehlgeschlagen -> bei lokalem Inhalt einmalig pushen
+    const hasLocalData =
+      (Array.isArray(state.pets) && state.pets.filter(p=>p && !p.isPlaceholder).length>0) ||
+      (Array.isArray(state.customers) && state.customers.length>0) ||
+      (Array.isArray(state.docs) && state.docs.length>0) ||
+      (Array.isArray(state.dogs) && state.dogs.filter(d=>d && !d.isPlaceholder).length>0);
+
+    if(hasLocalData && CLOUD.user){
+      try{ await cloudPushNow(); }catch(e){ console.warn('Initial cloud push failed', e); }
+    } else if(err){
+      console.warn("Initial cloud read failed (no remote), continuing local", err);
+    }
+  } else {
+    const remoteUpdated = Number(remote._cloudUpdatedAt || CLOUD._lastRemoteStamp || 0);
+    const localEmpty = isStateEffectivelyEmpty(state);
+
+    // Wenn lokal leer: Remote immer übernehmen
+    if(localEmpty){
+      applyRemoteState(remote, remoteUpdated, "initial-read-empty-local");
+    } else if(localUpdated && localUpdated > remoteUpdated){
+      // Lokal ist neuer -> lokal behalten und pushen
+      if(CLOUD.user){
+        try{ cloudSchedulePush(); }catch(_){ }
+      }
+    } else if(remoteUpdated && remoteUpdated >= localCloudStamp){
+      // Remote ist neuer/gleich -> übernehmen
+      applyRemoteState(remote, remoteUpdated, "initial-read");
+    }
+  }
+}catch(e){
+  console.error("Cloud load failed", e);
+  setAuthMsg("Cloud Sync konnte nicht geladen werden. App läuft lokal weiter.");
+}
+  });
+}
+
+
+  // Option C (iPad/PWA): auch beim "Wieder-Öffnen" (ohne Reload) Login erzwingen
+  if (CLOUD.forceLoginAlways) {
+    let _forcing = false;
+    const forceLoginNow = async () => {
+      if (_forcing) return;
+      _forcing = true;
+      try {
+        const u = CLOUD.auth && CLOUD.auth.currentUser;
+        if (u) {
+          await CLOUD.auth.signOut();
+        }
+      } catch (e) { /* ignore */ }
+      try { showAuthGate(true); } catch(e) {}
+      _forcing = false;
+    };
+
+        let __wasHidden = document.hidden;
+// Wenn die App wieder in den Vordergrund kommt (iPad PWA lädt oft nicht neu)
+    window.addEventListener("pageshow", () => { forceLoginNow(); });
+document.addEventListener("visibilitychange", () => {
+      const nowHidden = document.hidden;
+      if (__wasHidden && !nowHidden) forceLoginNow();
+      __wasHidden = nowHidden;
+    });
+}
+
+
+// Manuelles Speichern (Einstellungen)
+(function bindManualSave(){
+  const btn = document.getElementById("manualSaveBtn");
+  const info = document.getElementById("manualSaveStatus");
+  if(!btn) return;
+  btn.addEventListener("click", async ()=>{
+    try{
+      if(info) info.textContent = "Speichere…";
+      // erzwingt sofortigen Cloud-Push (ohne 700ms Debounce)
+      await cloudPushNow();
+      if(info) info.textContent = "✅ In Cloud gespeichert";
+      setTimeout(()=>{ if(info) info.textContent=""; }, 2500);
+    }catch(e){
+      if(info) info.textContent = "❌ Cloud-Speichern fehlgeschlagen";
+      console.error(e);
+      setTimeout(()=>{ if(info) info.textContent=""; }, 3500);
+    }
+  });
+})();
+
+// Start
+startApp().catch(console.error);
+// UI: Sync-Status regelmäßig auffrischen (auch bei Tab-Wechsel/PWA)
+setInterval(()=>{ try{ updateSyncUI(); }catch(_){ } }, 1500);
+window.addEventListener('online', ()=>{ try{ scheduleCloudPing(0,'online-event'); }catch(_){ try{ updateSyncUI(); }catch(__){} } });
+window.addEventListener('offline', ()=>{ try{ SYNC.cloudReachable=false; SYNC.cloudReachError='kein Internet'; SYNC.cloudReachCheckedAt=Date.now(); }catch(_){ } try{ updateSyncUI(); }catch(__){} });
+
+/* ===== B2.2a Freier Rechnungs-Editor ===== */
+function renderInvoiceEditorB2(doc){
+  // ===== B2.2c Rechnungsnummer (Pflichtfeld) =====
+
+  // ===== B2.3 Zahlungsstatus =====
+  if(!doc.paymentStatus){
+    doc.paymentStatus = "offen"; // offen | bezahlt | storniert
+  }
+
+  if(!doc.invoiceNumber || String(doc.invoiceNumber).trim()===""){
+    const year = new Date().getFullYear();
+    const count = (state.docs||[]).filter(d=>d.type==="invoice").length + 1;
+    doc.invoiceNumber = `${year}-${String(count).padStart(4,"0")}`;
+  }
+
+  const root = document.getElementById("formRoot");
+  if(!root) return;
+
+  // Basisfelder
+  doc.items = Array.isArray(doc.items) ? doc.items : [];
+  doc.date = doc.date || toISODateLocal(new Date());
+
+  function recalc(){
+    let net = 0;
+    doc.items.forEach(it=>{
+      const q = Number(it.qty)||0;
+      const p = Number(it.unitPrice)||0;
+      it.sum = Math.round(q*p*100)/100;
+      net += it.sum;
+    });
+    doc.net = Math.round(net*100)/100;
+    doc.tax = Math.round(doc.net*0.19*100)/100;
+    doc.total = Math.round((doc.net+doc.tax)*100)/100;
+  }
+
+  function redraw(){
+    recalc();
+    renderInvoiceEditorB2(doc);
+  }
+
+  recalc();
+
+  root.innerHTML = `
+    <h2>Freie Rechnung</h2>
+    <label class="field"><span>Rechnungsnummer *</span>
+      <input id="invoiceNumberInput" required />
+    </label>
+    <label class="field"><span>Zahlungsstatus</span>
+      <select id="paymentStatusSelect">
+        <option value="offen">offen</option>
+        <option value="bezahlt">bezahlt</option>
+        <option value="storniert">storniert</option>
+      </select>
+    </label>
+    <p><strong>Datum:</strong> ${doc.date}</p>
+
+    <table class="invoice-table">
+      <thead>
+        <tr>
+          <th>Position</th>
+          <th>Menge</th>
+          <th>Einzelpreis</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="invItems"></tbody>
+    </table>
+
+    <button id="addInvItem">+ Position hinzufügen</button>
+    <hr>
+    <h3 style="margin:0 0 6px">Gesamt (Brutto): ${doc.total.toFixed(2)} €</h3>
+    <p><strong>Enthaltene MwSt (19%):</strong> ${doc.tax.toFixed(2)} €</p>
+    <p class="muted" style="margin-top:4px">Netto (informativ): ${doc.net.toFixed(2)} €</p>
+  `;
+
+  const numInput = document.getElementById("invoiceNumberInput");
+  const paySel = document.getElementById("paymentStatusSelect");
+  if(paySel){
+    paySel.value = doc.paymentStatus || "offen";
+    paySel.onchange = e=>{ doc.paymentStatus = e.target.value; };
+  }
+
+  if(numInput){
+    numInput.value = doc.invoiceNumber;
+    numInput.oninput = e=>{ doc.invoiceNumber = e.target.value.trim(); };
+  }
+const tbody = document.getElementById("invItems");
+  doc.items.forEach((it,i)=>{
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td><input value="${it.text||""}"></td>
+      <td><input type="number" step="1" value="${it.qty||1}"></td>
+      <td><input type="number" step="0.01" value="${it.unitPrice||0}"></td>
+      <td><button>x</button></td>
+    `;
+    const inputs = tr.querySelectorAll("input");
+    inputs[0].oninput=e=>{it.text=e.target.value;};
+    inputs[1].oninput=e=>{it.qty=e.target.value; redraw();};
+    inputs[2].oninput=e=>{it.unitPrice=e.target.value; redraw();};
+    tr.querySelector("button").onclick=()=>{doc.items.splice(i,1); redraw();};
+    tbody.appendChild(tr);
+  });
+
+  document.getElementById("addInvItem").onclick=()=>{
+    doc.items.push({text:"", qty:1, unitPrice:0});
+    redraw();
+  };
+}
+/* ===== Ende B2.2a ===== */
+
+
+// ===== AKTIVER Editor-Switch (B2.x) =====
+function renderStayEditorEmbedded(doc){
+  const root = document.getElementById("formRoot");
+  if(!root) return;
+  root.innerHTML = "";
+  // Marker for PDF/UX heuristics (iOS/Safari): identifies active stay editor in DOM.
+  try{ root.setAttribute('data-stay-editor','1'); }catch(_){ }
+
+  // Sicherstellen, dass Meta-Felder existieren
+  normalizeMeta(doc);
+
+  const card = document.createElement("div");
+  card.className = "card";
+  // Hinweis: keine verschachtelten .card-Elemente verwenden (CSS kann verschachtelte Cards ausblenden).
+  card.innerHTML = `
+    <h2>Aufenthalt</h2>
+    <div class="grid" style="gap:12px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+      <label class="field">
+        <span>Hund</span>
+        <select id="stayDogSelect"></select>
+      </label>
+      <label class="field">
+        <span>Kunde</span>
+        <select id="stayCustomerSelect"></select>
+      </label>
+      <label class="field" style="max-width:280px;width:280px;flex:0 0 auto;">
+        <span>Von</span>
+        <input id="stayVon" type="date" style="max-width:260px;width:260px;" />
+      </label>
+      <label class="field" style="max-width:280px;width:280px;flex:0 0 auto;">
+        <span>Bis</span>
+        <input id="stayBis" type="date" style="max-width:260px;width:260px;" />
+      </label>
+      <label class="field">
+        <span>Betreuung</span>
+        <select id="stayBetreuung">
+          <option value="">(Auswahl)</option>
+          <option value="tagesbetreuung">Tagesbetreuung</option>
+          <option value="urlaubsbetreuung">Urlaubsbetreuung</option>
+        </select>
+      </label>
+      <label class="field" style="grid-column: 1 / -1;">
+        <span>Notizen</span>
+        <textarea id="stayNotes" rows="4" placeholder="Zusatzinfos …"></textarea>
+      </label>
+    </div>
+  `;
+  root.appendChild(card);
+
+
+  // Zustimmungen & AGB (Aufenthalt)
+  const consentCard = document.createElement('div');
+  consentCard.className = 'card';
+  consentCard.id = 'stayConsentCard';
+  consentCard.innerHTML = `
+    <h2>Zustimmungen & AGB</h2>
+    <div class="row" style="gap:10px; justify-content:flex-end; flex-wrap:wrap; margin-bottom:10px">
+      <button class="btn" type="button" id="btnShowDsGvo">Datenschutz anzeigen</button>
+      <button class="btn" type="button" id="btnShowAgb">AGB anzeigen</button>
+    </div>
+
+    <div class="checkrow">
+      <input type="checkbox" id="stayConsentDsGvo">
+      <label for="stayConsentDsGvo"><strong>Datenschutz (DSGVO)</strong><br><span class="muted">Einwilligung zur Datenverarbeitung gemäß Datenschutzhinweis.</span></label>
+    </div>
+
+    <div class="checkrow">
+      <input type="checkbox" id="stayConsentAgb">
+      <label for="stayConsentAgb"><strong>AGB gelesen & akzeptiert</strong><br><span class="muted">Der Kunde bestätigt, die AGB zur Kenntnis genommen zu haben.</span></label>
+    </div>
+
+    <div class="checkrow">
+      <input type="checkbox" id="stayConsentVet">
+      <label for="stayConsentVet"><strong>Tierarzt-/Notfallzustimmung</strong><br><span class="muted">Behandlung im Notfall / Tierarztvollmacht gemäß Vertrag.</span></label>
+    </div>
+
+    
+    <div class="checkrow">
+      <input type="checkbox" id="stayConsentHealth">
+      <label for="stayConsentHealth"><strong>Hund gesund & frei von ansteckenden Krankheiten</strong><br><span class="muted">Der Hund ist aktuell gesund und frei von ansteckenden Krankheiten/Parasiten (z.B. Flöhe, Giardien).</span></label>
+    </div>
+<div class="checkrow">
+      <input type="checkbox" id="stayConsentTruth">
+      <label for="stayConsentTruth"><strong>Angaben wahrheitsgemäß</strong><br><span class="muted">Alle Angaben wurden vollständig und korrekt gemacht.</span></label>
+    </div>
+
+    <div class="hint" style="margin-top:10px">Hinweis: Fehlende Zustimmungen blockieren das Speichern nicht, werden aber als Hinweis gemeldet.</div>
+  `;
+  root.appendChild(consentCard);
+
+  doc.meta = doc.meta || {};
+  doc.meta.consents = doc.meta.consents || {};
+  const c = doc.meta.consents;
+  const cbDs = consentCard.querySelector('#stayConsentDsGvo');
+  const cbAg = consentCard.querySelector('#stayConsentAgb');
+  const cbVe = consentCard.querySelector('#stayConsentVet');
+  const cbHe = consentCard.querySelector('#stayConsentHealth');
+  const cbTr = consentCard.querySelector('#stayConsentTruth');
+  if(cbDs) cbDs.checked = !!c.dsgvo;
+  if(cbAg) cbAg.checked = !!c.agb;
+  if(cbVe) cbVe.checked = !!c.vet;
+  if(cbHe) cbHe.checked = !!( (doc.fields && (doc.fields.ev_gesund!=null)) ? doc.fields.ev_gesund : c.health );
+  if(cbTr) cbTr.checked = !!c.truth;
+
+  const syncConsents = ()=>{
+    doc.meta.consents = doc.meta.consents || {};
+    doc.meta.consents.dsgvo = !!(cbDs && cbDs.checked);
+    doc.meta.consents.agb   = !!(cbAg && cbAg.checked);
+    doc.meta.consents.vet   = !!(cbVe && cbVe.checked);
+    doc.meta.consents.health = !!(cbHe && cbHe.checked);
+    // Für Hygiene-Autologik: Feld muss in doc.fields liegen
+    doc.fields = doc.fields || {};
+    doc.fields.ev_gesund = !!(cbHe && cbHe.checked);
+    doc.meta.consents.truth = !!(cbTr && cbTr.checked);
+    dirty = true;
+  };
+  [cbDs,cbAg,cbVe,cbHe,cbTr].forEach(x=>{ if(x) x.addEventListener('change', syncConsents); });
+
+  // DSGVO/AGB anzeigen: use the existing document modal (known-stable on iOS)
+  // instead of the lightweight overlay (which can fail to render the panel under some Safari states).
+  consentCard.querySelector('#btnShowDsGvo')?.addEventListener('click', (e)=>{
+    try{ e.preventDefault(); e.stopPropagation(); }catch(_e){}
+    const txt = getLegalText('dsgvo') || '';
+    const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>Datenschutz (DSGVO)</title>
+      <style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial; padding:20px; line-height:1.4;} pre{white-space:pre-wrap; word-break:break-word;}</style>
+      </head><body><h2>Datenschutz (DSGVO)</h2><pre>${escapeHtml(txt)}</pre></body></html>`;
+    openHtmlInModal('Datenschutz (DSGVO)', html);
+  });
+  consentCard.querySelector('#btnShowAgb')?.addEventListener('click', (e)=>{
+    try{ e.preventDefault(); e.stopPropagation(); }catch(_e){}
+    const txt = getLegalText('agb') || '';
+    const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>AGB</title>
+      <style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial; padding:20px; line-height:1.4;} pre{white-space:pre-wrap; word-break:break-word;}</style>
+      </head><body><h2>Allgemeine Geschäftsbedingungen (AGB)</h2><pre>${escapeHtml(txt)}</pre></body></html>`;
+    openHtmlInModal('AGB', html);
+  });
+
+
+  // Aufschläge (pro Aufenthalt)
+  const surCard = document.createElement('div');
+  surCard.className = 'card';
+  surCard.id = 'staySurchargeCard';
+  surCard.innerHTML = `
+    <h2>Aufschläge (pro Aufenthalt)</h2>
+    <div class="grid" style="gap:12px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+      <div style="grid-column: 1 / -1;" class="hint">
+        Standardmäßig werden Sonn- & Feiertagszuschläge automatisch angewendet (Bayern + alle Sonntage).
+        Du kannst das hier pro Aufenthalt ausschalten.
+      </div>
+
+      <div style="grid-column: 1 / -1;" class="checkrow">
+        <input type="checkbox" id="staySunHolApply" data-key="sun_hol_apply">
+        <label for="staySunHolApply"><strong>Sonn- & Feiertagszuschlag anwenden</strong><br><span class="muted">Automatik (Bayern + Sonntage) – bei Bedarf deaktivieren.</span></label>
+      </div>
+
+      <label class="field" style="max-width:240px">
+        <span>Feiertage (Bayern) im Zeitraum</span>
+        <input type="number" min="0" step="1" id="stayHolidayDays" data-key="holiday_days" placeholder="0">
+      </label>
+      <label class="field" style="max-width:240px">
+        <span>Sonntage im Zeitraum</span>
+        <input type="number" min="0" step="1" id="staySundayDays" data-key="sunday_days" placeholder="0">
+      </label>
+
+      <div style="grid-column: 1 / -1;"><hr style="opacity:.18"></div>
+
+      <div class="checkrow">
+        <input type="checkbox" id="staySpecialTimes" data-key="special_times">
+        <label for="staySpecialTimes"><strong>Sonderzeiten / Sonderaufwand</strong></label>
+      </div>
+      <div class="checkrow">
+        <input type="checkbox" id="stayExtraCare" data-key="extra_care">
+        <label for="stayExtraCare"><strong>Besondere Betreuung</strong></label>
+      </div>
+      <div class="checkrow">
+        <input type="checkbox" id="stayShortNotice" data-key="short_notice">
+        <label for="stayShortNotice"><strong>Kurzfristig</strong></label>
+      </div>
+
+      <div style="grid-column: 1 / -1;"><hr style="opacity:.18"></div>
+
+      <div class="checkrow">
+        <input type="checkbox" id="stayDiscountEnabled" data-key="discount_enabled">
+        <label for="stayDiscountEnabled"><strong>Sonderrabatt</strong><br><span class="muted">Rabatt in Prozent (z.B. 10 = -10%).</span></label>
+      </div>
+      <label class="field" style="max-width:240px">
+        <span>Sonderrabatt (%)</span>
+        <input type="number" step="0.1" id="stayDiscountPercent" data-key="discount_percent" placeholder="0">
+      </label>
+
+      <div style="grid-column: 1 / -1;"><hr style="opacity:.18"></div>
+
+      <div class="checkrow">
+        <input type="checkbox" id="stayMedication" data-key="medication">
+        <label for="stayMedication"><strong>Medikamentengabe</strong><br><span class="muted">Bei Dauermedikation wird automatisch vorausgewählt.</span></label>
+      </div>
+
+      <div class="checkrow">
+        <input type="checkbox" id="stayWalksEnabled" data-key="walks_enabled">
+        <label for="stayWalksEnabled"><strong>Zusatz-Spaziergänge</strong><br><span class="muted">Stückzahl ist standardmäßig = Aufenthaltstage, kann angepasst werden.</span></label>
+      </div>
+      <label class="field" style="max-width:240px">
+        <span>Stückzahl (z.B. 5×)</span>
+        <input type="number" min="0" step="1" id="stayWalkCount" data-key="walk_extra_count" placeholder="0">
+      </label>
+
+      <div class="checkrow">
+        <input type="checkbox" id="stayBandageEnabled" data-key="bandage_enabled">
+        <label for="stayBandageEnabled"><strong>Verbandwechsel</strong></label>
+      </div>
+      <label class="field" style="max-width:240px">
+        <span>Anzahl</span>
+        <input type="number" min="0" step="1" id="stayBandageCount" data-key="bandage_count" placeholder="0">
+      </label>
+
+      <div class="checkrow">
+        <input type="checkbox" id="stayGroomingEnabled" data-key="grooming_enabled">
+        <label for="stayGroomingEnabled"><strong>Pflege / Extra</strong></label>
+      </div>
+      <label class="field" style="max-width:240px">
+        <span>Anzahl</span>
+        <input type="number" min="0" step="1" id="stayGroomingCount" data-key="grooming_count" placeholder="0">
+      </label>
+
+      <div class="checkrow">
+        <input type="checkbox" id="stayHygieneEnabled" data-key="hygiene_enabled">
+        <label for="stayHygieneEnabled"><strong>Hygiene / Extra (pro Tag)</strong></label>
+      </div>
+      <label class="field" style="max-width:240px">
+        <span>Tage</span>
+        <input type="number" min="0" step="1" id="stayHygieneDays" data-key="hygiene_days" placeholder="0">
+      </label>
+
+      <div class="checkrow">
+        <input type="checkbox" id="stayPickupEnabled" data-key="pickup_dropoff_enabled">
+        <label for="stayPickupEnabled"><strong>Abhol-/Bringservice</strong></label>
+      </div>
+      <label class="field" style="max-width:240px">
+        <span>Fahrten</span>
+        <input type="number" min="0" step="1" id="stayPickupCount" data-key="pickup_dropoff_count" placeholder="0">
+      </label>
+    </div>
+  `;
+  root.appendChild(surCard);
+
+  // Bind: alle Inputs mit data-key in doc.fields spiegeln
+  const bindSurchInputs = ()=>{
+    try{
+      doc.fields = doc.fields || {};
+      surCard.querySelectorAll('[data-key]').forEach(el=>{
+        const key = el.getAttribute('data-key');
+        if(!key) return;
+        const isCb = (el.type === 'checkbox');
+        const syncOne = ()=>{
+          if(isCb){
+            doc.fields[key] = !!el.checked;
+          }else{
+            const v = (el.value ?? '').toString().trim();
+            if(v === ''){ doc.fields[key] = ''; }
+            else{
+              const n = Number(v);
+              doc.fields[key] = Number.isFinite(n) ? n : v;
+            }
+          }
+
+          // UX-Regeln
+          if(key === 'discount_enabled'){
+            const inp = document.querySelector('input[data-key="discount_percent"]');
+            if(inp) inp.disabled = (doc.fields.discount_enabled === false);
+            if(doc.fields.discount_enabled === false) doc.fields.discount_percent = 0;
+          }
+          if(key === 'walks_enabled'){
+            if(doc.fields.walks_enabled === false){
+              doc.fields.walk_extra_count = 0;
+              const inp = document.querySelector('input[data-key="walk_extra_count"]');
+              if(inp){ inp.value = '0'; inp.disabled = true; }
+            }else{
+              const inp = document.querySelector('input[data-key="walk_extra_count"]');
+              if(inp) inp.disabled = false;
+              // Wenn aktiv und kein Wert gesetzt: default = Tage
+              if((doc.fields.walk_extra_count === undefined || doc.fields.walk_extra_count === null || String(doc.fields.walk_extra_count) === '0' || String(doc.fields.walk_extra_count) === '') && doc.meta?.von && doc.meta?.bis){
+                const d = daysBetween(doc.meta.von, doc.meta.bis);
+                doc.fields.walk_extra_count = d;
+                const inp2 = document.querySelector('input[data-key="walk_extra_count"]');
+                if(inp2) inp2.value = String(d);
+              }
+            }
+          }
+
+          dirty = true;
+          // Auto-Recalc-Felder aktualisieren
+          if(key === 'sun_hol_apply' || key === 'walks_enabled' || key === 'medication'){
+            try{ updateAutoHolidayFields(); }catch(_e){}
+          }
+        };
+
+        el.addEventListener('change', syncOne);
+        el.addEventListener('input', ()=>{
+          // Walk-Count: wenn manuell geändert → Auto aus
+          if(key === 'walk_extra_count'){
+            doc.fields.walk_extra_auto = false;
+          }
+          syncOne();
+        });
+      });
     }catch(_e){}
   };
   bindSurchInputs();
@@ -11792,75 +12809,3 @@ document.addEventListener('DOMContentLoaded', ()=>{
   w('btnLegalWahrheit','wahrheit');
 });
 /* ===== END 4B-1 ===== */
-
-
-/* ===== 4B-2 Signatur-Modul (isoliert) ===== */
-let __sigPad = null;
-
-function initStaySignature(){
-  const canvas = document.getElementById('staySignature');
-  if(!canvas || canvas.dataset.bound) return;
-  canvas.dataset.bound = '1';
-  const ctx = canvas.getContext('2d');
-  ctx.lineWidth = 2;
-  ctx.lineCap = 'round';
-
-  let drawing = false;
-  const getPos = (e)=>{
-    const r = canvas.getBoundingClientRect();
-    const x = (e.touches?e.touches[0].clientX:e.clientX) - r.left;
-    const y = (e.touches?e.touches[0].clientY:e.clientY) - r.top;
-    return {x,y};
-  };
-
-  const start = (e)=>{ drawing=true; const p=getPos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); };
-  const move = (e)=>{ if(!drawing) return; const p=getPos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); };
-  const end = ()=>{ drawing=false; };
-
-  canvas.addEventListener('mousedown', start);
-  canvas.addEventListener('mousemove', move);
-  window.addEventListener('mouseup', end);
-  canvas.addEventListener('touchstart', start, {passive:true});
-  canvas.addEventListener('touchmove', move, {passive:true});
-  canvas.addEventListener('touchend', end);
-
-  const clearBtn = document.getElementById('btnSigClear');
-  const saveBtn = document.getElementById('btnSigSave');
-  const msg = document.getElementById('sigMsg');
-
-  if(clearBtn) clearBtn.onclick = ()=>{
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-    if(msg) msg.textContent = 'Unterschrift gelöscht (noch nicht gespeichert).';
-  };
-
-  if(saveBtn) saveBtn.onclick = async ()=>{
-    if(!window.__currentStayId){
-      if(msg) msg.textContent = 'Kein Aufenthalt geöffnet.';
-      return;
-    }
-    try{
-      const dataUrl = canvas.toDataURL('image/png');
-      await firebase.firestore().collection('stays').doc(window.__currentStayId).set({
-        signature: dataUrl,
-        signatureAt: firebase.firestore.FieldValue.serverTimestamp()
-      }, {merge:true});
-      if(msg) msg.textContent = 'Unterschrift gespeichert.';
-    }catch(e){
-      console.warn('save signature failed', e);
-      if(msg) msg.textContent = 'Speichern fehlgeschlagen.';
-    }
-  };
-}
-
-document.addEventListener('DOMContentLoaded', ()=>{
-  // show panel together with stay detail view
-  const obs = new MutationObserver(()=>{
-    const dv = document.getElementById('stays-detail-view');
-    const sp = document.getElementById('stay-signature-panel');
-    if(!dv || !sp) return;
-    sp.style.display = (dv.style.display==='block') ? 'block' : 'none';
-    if(sp.style.display==='block') initStaySignature();
-  });
-  obs.observe(document.body, {attributes:true, subtree:true, attributeFilter:['style']});
-});
-/* ===== END 4B-2 ===== */

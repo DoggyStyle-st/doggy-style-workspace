@@ -993,8 +993,3 @@ body.page-login .btnLink--text:hover{
 }
 
 #legal-view h2{ margin-top:0; }
-
-#staySignature{
-  background:#fafafa;
-  touch-action:none;
-}

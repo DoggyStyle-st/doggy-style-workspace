@@ -11,8 +11,8 @@
 <link href="manifest.json" rel="manifest"/>
 <meta content="#101014" name="theme-color"/>
 <link href="assets/logo.png" rel="apple-touch-icon"/>
-<link href="styles.css?v=M16_2_BOOTFIX_4B3_20260204" rel="stylesheet"/>
-<link href="dashboard_master.css?v=M16_2_BOOTFIX_4B3_20260204" rel="stylesheet"/>
+<link href="styles.css?v=20260103v01" rel="stylesheet"/>
+<link href="dashboard_master.css?v=20260104v13logout" rel="stylesheet"/>
 <style>
   /* Topbar Layout (iPad & Desktop stabil) */
   .topbar{position:sticky; top:0; z-index:50;}
@@ -103,55 +103,6 @@
 </style>
 </head>
 <body class="bg-watermark page-app">
-
-<!-- HARDCLEAN M16_HARDCLEAN_NO_SW_20260204: one-time SW+cache reset to break iOS mixed-cache loops -->
-<script>
-(function() {
-  // HARDCLEAN LOOP M16_3_STARTPAGE_HARDCLEAN_20260204: solange JS/Build nicht passt, jede Ladung SW+Cache löschen und reloaden.
-  try {
-    var ok = (window.__DS_BOOT_OK === true);
-    var tries = Number(sessionStorage.getItem('ds_hardclean_tries')||'0');
-    if(!ok && tries < 8) {
-      sessionStorage.setItem('ds_hardclean_tries', String(tries+1));
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(function(regs){
-          return Promise.all(regs.map(function(r){ try{ return r.unregister(); }catch(e){ return Promise.resolve(); } }));
-        }).catch(function(){});
-      }
-      if (window.caches && caches.keys) {
-        caches.keys().then(function(keys){
-          return Promise.all(keys.map(function(k){ return caches.delete(k); }));
-        }).catch(function(){});
-      }
-      var url = new URL(location.href);
-      url.searchParams.set('v','M16_3_STARTPAGE_HARDCLEAN_20260204');
-      setTimeout(function(){ location.replace(url.toString()); }, 120);
-    } else {
-      if(ok) sessionStorage.removeItem('ds_hardclean_tries');
-    }
-  } catch(e) {}
-})();
-</script>
-<div id="hardclean-banner" style="position:fixed;left:12px;bottom:12px;z-index:99999;background:rgba(0,0,0,.55);color:#fff;padding:6px 10px;border-radius:10px;font-size:12px;">
-  HTML M16_3_STARTPAGE_HARDCLEAN_20260204
-</div>
-
-
-<script>
-(function(){
-  // Boot watchdog: if app JS doesn't bind events, show hint
-  setTimeout(function(){
-    try{
-      if(!window.__DS_BOOT_OK) {
-        var b=document.createElement('div');
-        b.style.cssText="position:fixed;left:12px;bottom:48px;z-index:99999;background:rgba(180,0,0,.7);color:#fff;padding:6px 10px;border-radius:10px;font-size:12px;";
-        b.textContent="JS nicht geladen – bitte Seite neu öffnen (Cache)";
-        document.body.appendChild(b);
-      }
-    }catch(e){}
-  }, 2500);
-})();
-</script>
 <header class="topbar">
   <div class="topbar__inner">
 
@@ -1171,7 +1122,7 @@
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-<script defer="defer" src="app_boot.js?v=M16_3_STARTPAGE_HARDCLEAN_20260204"></script>
+<script defer="defer" src="app.js?v=20260124M6"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1214,7 +1165,8 @@
 </script>
 
 <script>
-</script>
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=20260124M1');
+  </script>
 
 <script>
 /* Logout-Fix: verhindert Tab-Navigation (Startseite) und führt echtes SignOut aus */
