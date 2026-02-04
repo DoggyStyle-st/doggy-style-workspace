@@ -1,7 +1,30 @@
+// ===== SW NUKE MODE (M15_SW_NUKE_20260204) =====
+// Zweck: iOS/Safari Misch-Cache zuverlässig beenden.
+// Beim Aktivieren: ALLE Caches löschen, SW unregister, Clients neu laden auf app.html mit Cache-Buster.
+self.addEventListener('activate', (event) => {
+  event.waitUntil((async () => {
+    try {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+    } catch(_e) {}
+    try { await self.clients.claim(); } catch(_e) {}
+    try {
+      const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      for (const c of clients) {
+        try { c.navigate('./app.html?v=M15_SW_NUKE_20260204'); } catch(_e) {
+          try{ c.postMessage({type:'SW_NUKE', ver:'M15_SW_NUKE_20260204'}); }catch(__){}
+        }
+      }
+    } catch(_e) {}
+    try { await self.registration.unregister(); } catch(_e) {}
+  })());
+});
+// ===== END SW NUKE MODE =====
+
 /* Doggy Style – Service Worker v11B_SAVE_PDF_17_STAY_DEBUG_OVERLAY (offline-first, update-safe) */
 
 // Version bump forces clients to pick up updated assets reliably.
-const SW_VERSION = "M15_4B2_1_CACHEFIX_20260204";
+const SW_VERSION = "M15_SW_NUKE_20260204";
 const CACHE_NAME = `ds-test-cache-${SW_VERSION}`;
 
 // Wichtig:
