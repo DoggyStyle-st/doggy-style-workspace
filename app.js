@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = "M15_SW_NUKE_20260204";
+const APP_BUILD = "M16_HARDCLEAN_NO_SW_20260204";
 
 
 // Kapazitäts-Limit (Übernachtungshunde) – Stufe B Warnung
