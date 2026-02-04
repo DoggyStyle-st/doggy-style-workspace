@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = 'M13_3E6_PDF_POLISH_20260201';
+const APP_BUILD = 'M14_4A3_STAYS_DETAIL_20260204';
 
 
 // Kapazitäts-Limit (Übernachtungshunde) – Stufe B Warnung
