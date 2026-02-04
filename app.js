@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = "M15_4B2_SIGNATURE_ISOLATED_20260204";
+const APP_BUILD = "M15_4B2_1_CACHEFIX_20260204";
 
 
 // Kapazitäts-Limit (Übernachtungshunde) – Stufe B Warnung
