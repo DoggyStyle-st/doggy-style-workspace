@@ -12441,3 +12441,113 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 // ===== END 4A-1 =====
+
+
+// ===== 4A-2 Neuer Aufenthalt Minimal-Editor =====
+function escapeHtml(str) {
+  return String(str ?? "")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
+
+function showStaysEditor(prefill) {
+  const editor = document.getElementById("stays-editor");
+  if (!editor) return;
+  const d = prefill || {};
+  editor.style.display = "block";
+  editor.innerHTML = `
+    <div class="field">
+      <label>Hund</label>
+      <input id="stay-dog" type="text" placeholder="Hundename" value="${escapeHtml(d.dogName || "")}">
+    </div>
+    <div class="field">
+      <label>Kunde</label>
+      <input id="stay-owner" type="text" placeholder="Kundenname" value="${escapeHtml(d.ownerName || "")}">
+    </div>
+    <div class="field">
+      <label>Betreuung</label>
+      <select id="stay-care">
+        <option value="">Bitte wählen…</option>
+        <option value="Tagesbetreuung">Tagesbetreuung</option>
+        <option value="Urlaub">Urlaub</option>
+      </select>
+      <div class="notice">Nur Auswahl – kein Freitext.</div>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label>Von</label>
+        <input id="stay-from" type="date" value="${escapeHtml(d.fromDate || "")}">
+      </div>
+      <div class="field">
+        <label>Bis</label>
+        <input id="stay-to" type="date" value="${escapeHtml(d.toDate || "")}">
+      </div>
+    </div>
+    <div class="row" style="margin-top:.75rem;">
+      <button id="stay-save" class="btn">Speichern</button>
+      <button id="stay-cancel" class="btn" type="button">Abbrechen</button>
+    </div>
+    <div id="stay-msg" class="notice"></div>
+  `;
+  const careSel = document.getElementById("stay-care");
+  if (careSel && d.careType) careSel.value = d.careType;
+
+  const cancelBtn = document.getElementById("stay-cancel");
+  if (cancelBtn) cancelBtn.onclick = () => { editor.style.display = "none"; editor.innerHTML = ""; };
+
+  const saveBtn = document.getElementById("stay-save");
+  if (saveBtn) saveBtn.onclick = async () => { await saveStayMinimal(); };
+}
+
+async function saveStayMinimal() {
+  const msg = document.getElementById("stay-msg");
+  const dogName = (document.getElementById("stay-dog")?.value || "").trim();
+  const ownerName = (document.getElementById("stay-owner")?.value || "").trim();
+  const careType = (document.getElementById("stay-care")?.value || "").trim();
+  const fromDate = (document.getElementById("stay-from")?.value || "").trim();
+  const toDate = (document.getElementById("stay-to")?.value || "").trim();
+
+  if (msg) msg.textContent = "";
+
+  if (!dogName || !ownerName || !careType || !fromDate || !toDate) {
+    if (msg) msg.textContent = "Bitte alle Pflichtfelder ausfüllen (Hund, Kunde, Betreuung, Von, Bis).";
+    return;
+  }
+  if (toDate < fromDate) {
+    if (msg) msg.textContent = "„Bis“ darf nicht vor „Von“ liegen.";
+    return;
+  }
+
+  try {
+    if (msg) msg.textContent = "Speichere…";
+    const payload = {
+      dogName,
+      ownerName,
+      careType,
+      fromDate,
+      toDate,
+      status: "Entwurf",
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    await firebase.firestore().collection("stays").add(payload);
+    if (msg) msg.textContent = "Gespeichert.";
+    if (typeof loadStays === "function") await loadStays();
+    const editor = document.getElementById("stays-editor");
+    if (editor) { editor.style.display = "none"; editor.innerHTML = ""; }
+  } catch (e) {
+    console.warn("4A-2 save stay failed", e);
+    if (msg) msg.textContent = "Speichern fehlgeschlagen. Bitte erneut versuchen.";
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const addBtn = document.getElementById("stays-add");
+  if (addBtn) addBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    showStaysEditor();
+  });
+});
+// ===== END 4A-2 =====
