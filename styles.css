@@ -985,3 +985,5 @@ body.page-login .btnLink--text:hover{
 
 /* Sticky-Panels (rechte Spalte) an neue Headerhöhe anpassen */
 .sticky{top:104px;}
+
+#stays-view { padding:1rem; }

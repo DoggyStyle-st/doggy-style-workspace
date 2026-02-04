@@ -12396,3 +12396,48 @@ function wfTodayPrint(){
   wfOpenPdf(wfPdfTemplate("Heute drucken", body));
 }
 try{ const bb=document.getElementById('buildBadge'); if(bb) bb.textContent = 'Build ' + APP_BUILD; }catch(e){}
+// ===== 4A-1 Aufenthalte Read-Only =====
+async function loadStays() {
+  const listEl = document.getElementById("stays-list");
+  const emptyEl = document.getElementById("stays-empty");
+  if (!listEl || !emptyEl) return;
+  listEl.innerHTML = "";
+  try {
+    const q = await firebase.firestore().collection("stays").get();
+    if (q.empty) {
+      emptyEl.style.display = "block";
+      return;
+    }
+    emptyEl.style.display = "none";
+    q.forEach(doc => {
+      const d = doc.data() || {};
+      const div = document.createElement("div");
+      div.style.borderBottom = "1px solid #ddd";
+      div.style.padding = "0.75rem 0";
+      div.innerHTML = `<strong>${d.dogName || "-"}</strong><br>
+        ${d.ownerName || "-"}<br>
+        ${d.fromDate || "?"} – ${d.toDate || "?"}<br>
+        <span style="color:#666;font-size:.85rem;">${d.status || "Entwurf"}</span>`;
+      listEl.appendChild(div);
+    });
+  } catch (e) {
+    console.warn("4A-1 stays load failed", e);
+    emptyEl.style.display = "block";
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const m = document.getElementById("menu-stays");
+  if (m) {
+    m.addEventListener("click", e => {
+      e.preventDefault();
+      document.querySelectorAll("main > section").forEach(s => s.style.display = "none");
+      const v = document.getElementById("stays-view");
+      if (v) {
+        v.style.display = "block";
+        loadStays();
+      }
+    });
+  }
+});
+// ===== END 4A-1 =====
