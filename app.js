@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = 'M17_4B3_SIGWARN_20260204';
+const APP_BUILD = 'M18_4C1_PRICING_PREVIEW_20260205';
 
 
 // Kapazitäts-Limit (Übernachtungshunde) – Stufe B Warnung
@@ -2069,6 +2069,90 @@ function getPricePerDay(type, days){
   }
   return 0;
 }
+
+
+
+// ===== 4C-1: Preisvorschau im Aufenthalt (Brutto/Netto/MwSt) =====
+function formatEuro(n){
+  const v = Number(n||0);
+  return v.toFixed(2).replace(".", ",") + " €";
+}
+function computeNetVatFromGross(gross, vatRate){
+  const g = Number(gross||0);
+  const r = Number(vatRate||0);
+  if(!(r>0)) return { net: round2(g), vat: 0, gross: round2(g), rate: r };
+  const net = g / (1 + r/100);
+  const vat = g - net;
+  return { net: round2(net), vat: round2(vat), gross: round2(g), rate: r };
+}
+function renderStayPricingPreview(docObj){
+  try{
+    const root = document.getElementById("formRoot");
+    if(!root) return;
+    if(!docObj || docObj.templateId !== "hundeannahme") return;
+
+    // Pricing berechnen (setzt docObj.pricing)
+    const pricing = calculateInvoicePricing(docObj);
+    if(!pricing){
+      // Falls Pflicht-Meta fehlt: keine Karte zeigen
+      return;
+    }
+    const cfg = getPricingSettings();
+    const vatRate = Number((state && state.settings && state.settings.vatRate) ?? cfg.vatPercent ?? 19) || 0;
+    const nv = computeNetVatFromGross(pricing.total, vatRate);
+
+    const card = document.createElement("div");
+    card.className = "card";
+    const percentLines = (pricing.percentItems||[]).map(it=>`<tr><td>${escapeHtml(it.label)}</td><td class="right">${it.rate>0?"+":""}${it.rate}%</td><td class="right">${formatEuro(it.value)}</td></tr>`).join("");
+    const fixedLines = (pricing.fixedItems||[]).map(it=>{
+      const qty = Number(it.qty||0);
+      const unit = Number(it.unit||0);
+      return `<tr><td>${escapeHtml(it.label)} (${qty}×${formatEuro(unit)})</td><td></td><td class="right">${formatEuro(it.value)}</td></tr>`;
+    }).join("");
+
+    card.innerHTML = `
+      <h2>Preisübersicht (Vorschau)</h2>
+      <p class="muted">Alle Preise sind <b>Brutto</b>. MwSt wird enthalten ausgewiesen.</p>
+      <div class="row" style="gap:12px; flex-wrap:wrap;">
+        <div style="min-width:220px;">
+          <div class="muted">Betreuung / Tage</div>
+          <div><b>${escapeHtml(pricing.betreuungNorm)}</b> – ${pricing.days} Tage × ${formatEuro(pricing.daily)}</div>
+        </div>
+        <div style="min-width:220px;">
+          <div class="muted">Brutto gesamt</div>
+          <div style="font-size:18px;"><b>${formatEuro(pricing.total)}</b></div>
+          <div class="muted">Netto ${formatEuro(nv.net)} · MwSt (${vatRate}%) ${formatEuro(nv.vat)}</div>
+        </div>
+      </div>
+
+      <div style="margin-top:10px; overflow:auto;">
+        <table class="table" style="min-width:520px;">
+          <thead><tr><th>Position</th><th class="right">Rate</th><th class="right">Betrag</th></tr></thead>
+          <tbody>
+            <tr><td>Grundpreis</td><td></td><td class="right">${formatEuro(pricing.base)}</td></tr>
+            <tr><td>Sonn-/Feiertage (${pricing.sunHolDays} Tage)</td><td class="right">${pricing.sunHolRate}%</td><td class="right">${formatEuro(pricing.holidayValue)}</td></tr>
+            ${percentLines}
+            ${fixedLines}
+            <tr><td colspan="2"><b>Gesamt (Brutto)</b></td><td class="right"><b>${formatEuro(pricing.total)}</b></td></tr>
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    // Karte VOR der Unterschrift einfügen (ganz am Ende, aber vor letzter card falls signature card existiert)
+    const cards = root.querySelectorAll(".card");
+    if(cards && cards.length){
+      // Signature card ist i.d.R. die letzte. Wir hängen davor ein.
+      const last = cards[cards.length-1];
+      root.insertBefore(card, last);
+    }else{
+      root.appendChild(card);
+    }
+  }catch(e){
+    console.warn("renderStayPricingPreview failed", e);
+  }
+}
+// ===== END 4C-1 =====
 
 function calculateInvoicePricing(doc){
   const meta = doc.meta || {};
@@ -8820,6 +8904,7 @@ function renderForm(docObj){
   t.meta.forEach(f=>meta.appendChild(renderField(f, docObj.meta[f.key], docObj)));
   root.appendChild(meta);
   updateAutoHolidayFields();
+  try{ renderStayPricingPreview(docObj); }catch(e){ console.warn('renderStayPricingPreview failed', e); }
 const sigCard = document.createElement("div");
 sigCard.className = "card";
 
