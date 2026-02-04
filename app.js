@@ -625,6 +625,43 @@ Haftung nur bei Vorsatz/grober Fahrlässigkeit. Keine Haftung für typische Grup
 Betreuung kann beendet werden, wenn Gefahr besteht, falsche Angaben gemacht wurden oder tierschutzrechtliche/betriebliche Gründe vorliegen. Abholung kann kurzfristig erforderlich sein.`
 };
 
+
+// 4B-1 Ergänzungen (Tierarzt-Erlaubnis & Wahrheitsgemäß-Erklärung)
+try{
+  if(!LEGAL_DEFAULTS.tierarzt){
+    LEGAL_DEFAULTS.tierarzt = `Tierarzt-Erlaubnis / Notfall-Vollmacht – Doggy Style Hundepension
+
+Hiermit erteile ich als Hundehalter/in dem Betreiber (Doggy Style Hundepension, Raphael Boch, Im Moos 4, 88167 Stiefenhofen) die Erlaubnis, im medizinischen Notfall oder bei akuten Beschwerden meines Hundes einen Tierarzt/Tierklinik aufzusuchen und notwendige Behandlungen veranlassen zu lassen, sofern ich nicht rechtzeitig erreichbar bin.
+
+Umfang (Beispiele):
+- Untersuchung und diagnostische Maßnahmen (z. B. Blutbild, Röntgen, Ultraschall)
+- Notfallbehandlung (Schmerztherapie, Wundversorgung, Infusion)
+- Verabreichung von Medikamenten nach tierärztlicher Anweisung
+- In lebensbedrohlichen Situationen notwendige Sofortmaßnahmen
+
+Kosten:
+Die entstehenden Tierarzt-/Klinikkosten sowie ggf. Transportkosten trägt der Hundehalter/die Hundehalterin. Der Betreiber informiert sobald wie möglich über Maßnahmen und Kosten.
+
+Kontakt im Notfall (Halter):
+Bitte hinterlegte Telefonnummern nutzen. Falls nicht erreichbar, wird im Sinne des Tierwohls gehandelt.
+
+Ort/Datum/Unterschrift:
+Diese Vollmacht wird pro Aufenthalt im Formular „Hundeannahme / Aufenthalt“ dokumentiert.`;
+  }
+  if(!LEGAL_DEFAULTS.wahrheit){
+    LEGAL_DEFAULTS.wahrheit = `Erklärung – Angaben wahrheitsgemäß
+
+Ich bestätige, dass alle von mir gemachten Angaben zu meinem Hund (Gesundheitszustand, Impfstatus, Verhalten, Besonderheiten, Medikation, Unverträglichkeiten etc.) vollständig und wahrheitsgemäß sind.
+
+Ich verpflichte mich, Änderungen (z. B. neue Symptome, Medikamente, Läufigkeit, Beißvorfälle) unverzüglich mitzuteilen.
+
+Mir ist bekannt, dass falsche oder unvollständige Angaben die Sicherheit von Menschen und Tieren gefährden können und zum Ausschluss von der Betreuung führen können.
+
+Ort/Datum/Unterschrift:
+Diese Erklärung wird pro Aufenthalt im Formular „Hundeannahme / Aufenthalt“ dokumentiert.`;
+  }
+}catch(_){}
+
 function _legalKey(kind){ return `ds_legal_${String(kind||'').toLowerCase()}`; }
 function getLegalText(kind){
   try{
@@ -12684,3 +12721,91 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 // ===== END 4A-3 =====
+
+
+// ===== 4B-1 Rechtstexte Anzeige =====
+function showLegalView() {
+  document.querySelectorAll("main > section").forEach(s => s.style.display = "none");
+  const v = document.getElementById("legal-view");
+  if (v) v.style.display = "block";
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const m = document.getElementById("menu-legal");
+  if (m) m.addEventListener("click", (e) => {
+    e.preventDefault();
+    showLegalView();
+  });
+  const back = document.getElementById("legal-back");
+  if (back) back.addEventListener("click", (e) => {
+    e.preventDefault();
+    document.querySelectorAll("main > section").forEach(s => s.style.display = "none");
+    const home = document.getElementById("stays-view") || document.querySelector("main > section");
+    if (home) home.style.display = "block";
+  });
+});
+// ===== END 4B-1 =====
+
+
+/* ===== 4B-1 Rechtstexte Anzeige (Doc-Modal) ===== */
+function _legalDocTitle(kind){
+  const k = String(kind||'').toLowerCase();
+  if(k==='agb') return 'AGB – Doggy Style Hundepension';
+  if(k==='dsgvo') return 'Datenschutzhinweis (DSGVO) – Doggy Style Hundepension';
+  if(k==='tierarzt') return 'Tierarzt-Erlaubnis / Notfall-Vollmacht';
+  if(k==='wahrheit') return 'Erklärung – Angaben wahrheitsgemäß';
+  return 'Dokument';
+}
+function _legalDocFilename(kind){
+  const k = String(kind||'').toLowerCase();
+  if(k==='agb') return 'AGB_DoggyStyle.pdf';
+  if(k==='dsgvo') return 'Datenschutz_DSGVO_DoggyStyle.pdf';
+  if(k==='tierarzt') return 'Tierarzt_Erlaubnis_DoggyStyle.pdf';
+  if(k==='wahrheit') return 'Angaben_Wahrheitsgemaess_DoggyStyle.pdf';
+  return 'Dokument.pdf';
+}
+function _legalToHtmlDoc(title, text){
+  const safeTitle = escapeHtml(String(title||'Dokument'));
+  const safeText = escapeHtml(String(text||''));
+  return `<!doctype html>
+<html lang="de"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${safeTitle}</title>
+<style>
+  body{font-family: -apple-system, system-ui, Segoe UI, Roboto, Arial, sans-serif; margin:24px; color:#111;}
+  h1{font-size:20px; margin:0 0 14px 0;}
+  pre{white-space:pre-wrap; line-height:1.35; font-size:14px; background:#f6f6f6; padding:14px; border-radius:12px; border:1px solid #e6e6e6;}
+  .muted{color:#666; font-size:12px; margin-top:10px;}
+</style>
+</head><body>
+<h1>${safeTitle}</h1>
+<pre>${safeText}</pre>
+<div class="muted">Hinweis: In der App „Drucken/Speichern“ nutzen, um als PDF zu sichern.</div>
+</body></html>`;
+}
+function openLegalDoc(kind){
+  try{
+    const k = String(kind||'').toLowerCase();
+    const title = _legalDocTitle(k);
+    const text = getLegalText(k) || '';
+    const html = _legalToHtmlDoc(title, text);
+    const url = URL.createObjectURL(new Blob([html], {type:'text/html'}));
+    openDocModal(url, title, null, _legalDocFilename(k));
+  }catch(e){
+    console.warn('openLegalDoc failed', e);
+    alert('Dokument konnte nicht geöffnet werden.');
+  }
+}
+document.addEventListener('DOMContentLoaded', ()=>{
+  const w = (id, kind)=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.addEventListener('click', (e)=>{ e.preventDefault(); openLegalDoc(kind); });
+  };
+  w('btnLegalDSGVO','dsgvo');
+  w('btnLegalAGB','agb');
+  w('btnLegalTierarzt','tierarzt');
+  w('btnLegalWahrheit','wahrheit');
+});
+/* ===== END 4B-1 ===== */

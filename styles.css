@@ -991,3 +991,5 @@ body.page-login .btnLink--text:hover{
 #stays-list > div:hover{
   background: rgba(0,0,0,0.03);
 }
+
+#legal-view h2{ margin-top:0; }
