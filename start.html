@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Doggy Style Workspace – Start</title>
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <style>
+    body{font-family:-apple-system,system-ui,Segoe UI,Roboto,Arial,sans-serif;margin:24px;color:#111;}
+    .box{max-width:720px;margin:0 auto;background:#f6f6f6;border:1px solid #e6e6e6;border-radius:14px;padding:16px;}
+    .muted{color:#666;font-size:13px;}
+    .btn{display:inline-block;margin-top:12px;padding:10px 14px;border:1px solid #ccc;border-radius:12px;background:#fff;text-decoration:none;color:#111;}
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h1>Start – Cache Reset</h1>
+    <p class="muted">Version: M16_3_STARTPAGE_HARDCLEAN_20260204</p>
+    <p>Diese Seite bereinigt SW/Cache und öffnet dann die App.</p>
+    <a class="btn" href="./app.html?v=M16_3_STARTPAGE_HARDCLEAN_20260204">App öffnen</a>
+  </div>
+  <script>
+    (function(){
+      try{
+        if('serviceWorker' in navigator){
+          navigator.serviceWorker.getRegistrations().then(function(regs){
+            return Promise.all(regs.map(function(r){ try{ return r.unregister(); }catch(e){ return Promise.resolve(); } }));
+          }).catch(function(){});
+        }
+        if(window.caches && caches.keys){
+          caches.keys().then(function(keys){ return Promise.all(keys.map(function(k){ return caches.delete(k); })); }).catch(function(){});
+        }
+      }catch(e){}
+      setTimeout(function(){ location.replace('./app.html?v=M16_3_STARTPAGE_HARDCLEAN_20260204'); }, 300);
+    })(); 
+  </script>
+</body>
+</html>

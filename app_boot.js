@@ -1,6 +1,6 @@
-window.__DS_BOOT_OK = true; window.__DS_BOOT_VER = "M16_2_BOOTFIX_4B3_20260204";
+window.__DS_BOOT_OK = true; window.__DS_BOOT_VER = "M16_3_STARTPAGE_HARDCLEAN_20260204";
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = "M16_2_BOOTFIX_4B3_20260204";
+const APP_BUILD = "M16_3_STARTPAGE_HARDCLEAN_20260204";
 
 
 // Kapazitäts-Limit (Übernachtungshunde) – Stufe B Warnung
