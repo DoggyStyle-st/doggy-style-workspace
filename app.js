@@ -1,9 +1,35 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = 'M14_4A3_STAYS_DETAIL_20260204';
+const APP_BUILD = 'M17_4B3_SIGWARN_20260204';
 
 
 // Kapazitäts-Limit (Übernachtungshunde) – Stufe B Warnung
 const MAX_OVERNIGHT = 10;
+
+
+// ===== 4B-3: Soft-Warnung bei fehlender Unterschrift (Speichern bleibt erlaubt) =====
+function warnStaySignatureMissing(doc){
+  try{
+    if(!doc) return;
+    const missing = !(doc.signature && doc.signature.dataUrl);
+    if(!missing) return;
+
+    // Status im Unterschrift-Bereich anpassen (falls sichtbar)
+    try{
+      const statusEl = document.getElementById('staySigStatus');
+      if(statusEl){
+        statusEl.textContent = '⚠ Unterschrift fehlt (Speichern ist trotzdem möglich)';
+        statusEl.className = 'muted warn';
+      }
+    }catch(_){}
+
+    // Nicht-blockierender Hinweis
+    try{
+      if(typeof toast === 'function') toast('⚠ Unterschrift fehlt – bitte später nachholen.');
+      else console.warn('Unterschrift fehlt – bitte später nachholen.');
+    }catch(_){}
+  }catch(_){}
+}
+// ===== END 4B-3 =====
 
 // --- Build-Sync (Anzeige + Migration) ---
 (function syncBuildBadge(){
@@ -8835,12 +8861,14 @@ root.appendChild(sigCard);
       // Haupt-Speichern (oben in der Aufenthalte-Box)
       bind('btnStaySave', () => {
         try { syncStayEditorInputsToDoc(doc); } catch (_) {}
+        try { warnStaySignatureMissing(doc); } catch (_) {}
         saveCurrent(true);
       });
 
       // Speichern im Unterschrift-Bereich
       bind('btnStaySave2', () => {
         try { syncStayEditorInputsToDoc(doc); } catch (_) {}
+        try { warnStaySignatureMissing(doc); } catch (_) {}
         saveCurrent(true);
       });
 
@@ -8871,7 +8899,8 @@ root.appendChild(sigCard);
         if (b.dataset.bound) return;
         if (label === 'speichern') {
           b.dataset.bound='1';
-          b.addEventListener('click', (ev)=>{ ev.preventDefault(); ev.stopPropagation(); try{ syncStayEditorInputsToDoc(doc);}catch(_){} saveCurrent(true); }, { passive:false });
+          b.addEventListener('click', (ev)=>{ ev.preventDefault(); ev.stopPropagation(); try{ syncStayEditorInputsToDoc(doc);}catch(_){} try { warnStaySignatureMissing(doc); } catch (_) {}
+        saveCurrent(true); }, { passive:false });
         }
         if (label.includes('pdf') || label.includes('drucken')) {
           b.dataset.bound='1';
