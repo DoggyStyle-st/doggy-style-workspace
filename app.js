@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = 'M18_4C1_PRICING_PREVIEW_20260205';
+const APP_BUILD = 'M19_4C2_INVOICE_FREEZE_20260205';
 
 
 // Kapazitäts-Limit (Übernachtungshunde) – Stufe B Warnung
@@ -2351,6 +2351,10 @@ window.toggleInvoiceExtra = async function(invoiceId, key, checked){
   inv.pricing.flags = inv.pricing.flags || {};
   inv.pricing.flags[key] = !!checked;
   recomputeInvoiceTotals(inv);
+
+  // 4C-2: Line-Items + Meta-Snapshot für revisionssichere Rechnung
+  try{ inv.lineItems = buildInvoiceLineItems(inv); inv.lineItemsUpdatedAt = new Date().toISOString(); }catch(_){ }
+  try{ snapshotInvoiceSourceMeta(inv); }catch(_){ }
   await updateInvoiceAfterEdit(inv);
 };
 
@@ -2469,6 +2473,12 @@ function syncInvoicePricingBySource(inv){
     // safety: restore snapshot if present
     if(inv.pricingSnapshot){
       inv.pricing = JSON.parse(JSON.stringify(inv.pricingSnapshot));
+    }
+    if(inv.lineItemsSnapshot){
+      inv.lineItems = JSON.parse(JSON.stringify(inv.lineItemsSnapshot));
+    }
+    if(inv.sourceSnapshotAtLock){
+      inv.sourceSnapshot = JSON.parse(JSON.stringify(inv.sourceSnapshotAtLock));
     }
     return false;
   }
@@ -7611,11 +7621,16 @@ function renderInvoicePositions(inv){
   }
 
   // Quelle (für Label: Tages-/Urlaubsbetreuung)
+  // 4C-2: Wenn Rechnung eingefroren ist, niemals vom Aufenthalt abhängen.
+  const lockedNow = !!(inv?.pricing?.locked) || shouldFreezeInvoice(inv);
   let doc = null;
-  try{ doc = getInvoiceSourceDoc(inv); }catch(_){ }
-  const betreuungNorm = (doc?.pricing?.betreuungNorm) || (inv?.pricing?._calc?.betreuungNorm) || normalizeBetreuung(doc?.meta?.betreuung||'');
-  const qty = Number(inv?.pricing?._calc?.days ?? doc?.pricing?.days ?? 0);
-  const unitPrice = Number(inv?.pricing?._calc?.daily ?? doc?.pricing?.daily ?? 0);
+  if(!lockedNow){
+    try{ doc = getInvoiceSourceDoc(inv); }catch(_){ }
+  }
+  const snap = inv?.sourceSnapshot || {};
+  const betreuungNorm = snap.betreuungNorm || (doc?.pricing?.betreuungNorm) || (inv?.pricing?._calc?.betreuungNorm) || normalizeBetreuung(doc?.meta?.betreuung||'');
+  const qty = Number(snap.days ?? inv?.pricing?._calc?.days ?? doc?.pricing?.days ?? 0);
+  const unitPrice = Number(snap.daily ?? inv?.pricing?._calc?.daily ?? doc?.pricing?.daily ?? 0);
   const isUrlaub = String(betreuungNorm||'').toLowerCase().includes('urlaub');
   const unitLabel = isUrlaub ? (qty===1?'Nacht':'Nächte') : (qty===1?'Tag':'Tage');
   const betreuungLabel = isUrlaub ? 'Urlaubsbetreuung' : 'Tagesbetreuung';
@@ -7706,6 +7721,8 @@ function openInvoice(id){
     }else{
       // sicherstellen, dass Snapshot aktiv ist
       if(inv.pricingSnapshot) inv.pricing = JSON.parse(JSON.stringify(inv.pricingSnapshot));
+      if(inv.lineItemsSnapshot) inv.lineItems = JSON.parse(JSON.stringify(inv.lineItemsSnapshot));
+      if(inv.sourceSnapshotAtLock) inv.sourceSnapshot = JSON.parse(JSON.stringify(inv.sourceSnapshotAtLock));
     }
   }catch(e){ console.warn('3C sync guard failed', e); }
 
@@ -7786,6 +7803,126 @@ function openInvoice(id){
     </div>
   `;
 }
+
+// --- 4C-2: Rechnung-Positionen als Snapshot (revisionssicher) -----------------
+function buildInvoiceLineItems(inv){
+  try{
+    const euro = (n)=>round2(Number(n||0));
+    const p = inv?.pricing || {};
+    const items = [];
+
+    // Basis (Betreuung)
+    const calc = p._calc || {};
+    const qty = Number(calc.days || 0);
+    const unit = Number(calc.daily || 0);
+    const betreuungNorm = String(calc.betreuungNorm || '').toLowerCase();
+    const isUrlaub = betreuungNorm.includes('urlaub');
+    const label = isUrlaub ? 'Urlaubsbetreuung' : 'Tagesbetreuung';
+    items.push({
+      key: 'base',
+      label,
+      qty: qty>0 ? qty : null,
+      unit: unit>0 ? unit : null,
+      total: euro(p.parts?.base ?? p.basePrice ?? 0),
+      meta: { unitLabel: isUrlaub ? 'Nacht' : 'Tag' }
+    });
+
+    // Sonn-/Feiertag
+    const bd = p.breakdown || {};
+    const holTotal = euro(p.applied?.holiday ?? p.holidayExtra ?? p.parts?.holiday ?? 0);
+    if(holTotal !== 0){
+      items.push({
+        key: 'holiday',
+        label: 'Sonn- & Feiertagszuschlag',
+        qty: Number(bd.sunHolDays ?? bd.holidayDays ?? p.holidayDays ?? 0) || null,
+        unit: Number(bd.sunHolUnit ?? 0) || null,
+        rate: Number(bd.sunHolRate ?? 0) || null,
+        total: holTotal
+      });
+    }
+
+    // Prozentpositionen
+    const percentItems = Array.isArray(bd.percentItems) ? bd.percentItems : [];
+    percentItems.filter(x=>x && Number(x.value||0)!==0).forEach(x=>{
+      items.push({
+        key: String(x.key||'percent'),
+        label: String(x.label||x.key||'Prozent-Zuschlag'),
+        rate: Number(x.rate||0) || null,
+        base: euro(x.base || (p.parts?.base ?? 0)),
+        total: euro(x.value)
+      });
+    });
+    if(!percentItems.length){
+      const percTotal = euro(p.applied?.percent ?? p.percentExtra ?? p.parts?.percent ?? 0);
+      if(percTotal !== 0){
+        items.push({ key:'percent_total', label:'Prozent-Zuschläge', total: percTotal });
+      }
+    }
+
+    // Fixe Positionen
+    const fixedItems = Array.isArray(bd.fixedItems) ? bd.fixedItems : [];
+    fixedItems.filter(x=>x && Number(x.value||0)!==0).forEach(x=>{
+      items.push({
+        key: String(x.key||'fixed'),
+        label: String(x.label||x.key||'Zuschlag'),
+        qty: Number(x.qty||0) || null,
+        unit: Number(x.unit||0) || null,
+        total: euro(x.value)
+      });
+    });
+    if(!fixedItems.length){
+      const fixedTotal = euro(p.applied?.fixed ?? p.fixedExtra ?? p.parts?.fixed ?? 0);
+      if(fixedTotal !== 0){
+        items.push({ key:'fixed_total', label:'Fixe Zuschläge', total: fixedTotal });
+      }
+    }
+
+    // Rabatt (falls vorhanden)
+    try{
+      const disc = Number(p.applied?.discount ?? 0);
+      if(disc && disc !== 0){
+        items.push({ key:'discount', label:'Rabatt', total: euro(disc) });
+      }
+    }catch(_){}
+
+    // Snapshot reinigen (keine NaN)
+    return items.map(it=>{
+      const o = {...it};
+      ['qty','unit','rate','base','total'].forEach(k=>{
+        if(o[k]==null) return;
+        const n = Number(o[k]);
+        if(!isFinite(n)) o[k] = null;
+      });
+      return o;
+    });
+  }catch(e){
+    console.warn('buildInvoiceLineItems failed', e);
+    return [];
+  }
+}
+
+// 4C-2: Meta-Snapshot, damit Anzeige/PDF im Freeze NICHT vom Aufenthalt abhängt
+function snapshotInvoiceSourceMeta(inv){
+  try{
+    if(!inv) return;
+    const p = inv.pricing || {};
+    const calc = p._calc || {};
+    inv.sourceSnapshot = inv.sourceSnapshot || {};
+    inv.sourceSnapshot.betreuungNorm = String(calc.betreuungNorm||'');
+    inv.sourceSnapshot.days = Number(calc.days||0);
+    inv.sourceSnapshot.daily = Number(calc.daily||0);
+    inv.sourceSnapshot.unitLabel = String(calc.betreuungNorm||'').toLowerCase().includes('urlaub') ? 'Nacht' : 'Tag';
+    inv.sourceSnapshot.capturedAt = new Date().toISOString();
+    // Zeitraum ist bereits in inv.period, hier nur redundant
+    if(inv.period){
+      inv.sourceSnapshot.from = inv.period.from || inv.sourceSnapshot.from;
+      inv.sourceSnapshot.to = inv.period.to || inv.sourceSnapshot.to;
+    }
+  }catch(e){
+    console.warn('snapshotInvoiceSourceMeta failed', e);
+  }
+}
+
 function lockInvoicePricing(inv, reason){
   try{
     if(!inv) return;
@@ -7793,6 +7930,9 @@ function lockInvoicePricing(inv, reason){
 
     // Snapshot der aktuellen Preise (inkl. Breakdown) – wird später als Quelle genutzt
     inv.pricingSnapshot = JSON.parse(JSON.stringify(inv.pricing || {}));
+    // 4C-2: Positionen und Quelle ebenfalls einfrieren
+    inv.lineItemsSnapshot = JSON.parse(JSON.stringify(inv.lineItems || []));
+    inv.sourceSnapshotAtLock = JSON.parse(JSON.stringify(inv.sourceSnapshot || {}));
     inv.pricingLocked = true;
     inv.pricingLockedAt = new Date().toISOString();
     inv.pricingLockedReason = reason || inv.status || 'open';
