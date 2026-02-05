@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = "M20_4C3_INVOICE_AUDIT_STORNO_20260205";
+const APP_BUILD = "M20_1_APPHTML_FIX_20260205";
 
 
 // Kapazitäts-Limit (Übernachtungshunde) – Stufe B Warnung
