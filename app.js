@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = 'M19_4C2_INVOICE_FREEZE_20260205';
+const APP_BUILD = "M20_4C3_INVOICE_AUDIT_STORNO_20260205";
 
 
 // Kapazitäts-Limit (Übernachtungshunde) – Stufe B Warnung
@@ -13063,3 +13063,61 @@ document.addEventListener('DOMContentLoaded', ()=>{
   w('btnLegalWahrheit','wahrheit');
 });
 /* ===== END 4B-1 ===== */
+
+
+// ===== 4C-3 Audit + Storno Workflow (revisionssichere Rechnung) =====
+function invAuditPush(inv, action, details){
+  try{
+    if(!inv) return;
+    if(!inv.auditTrail) inv.auditTrail = [];
+    inv.auditTrail.push({
+      ts: Date.now(),
+      action: String(action||''),
+      details: details || null,
+      build: (typeof APP_BUILD !== 'undefined' ? APP_BUILD : 'M20_4C3_INVOICE_AUDIT_STORNO_20260205')
+    });
+  }catch(_ ){}
+}
+
+function invIsLocked(inv){
+  try{ return !!(inv && (inv.locked === true || inv.isLocked === true || inv.status === 'Bezahlt')); }catch(_ ){ return false; }
+}
+
+function invIsCancelled(inv){
+  try{ return !!(inv && (inv.status === 'Storniert' || inv.cancelled === true)); }catch(_ ){ return false; }
+}
+
+function invApplyStorno(inv){
+  try{
+    if(!inv) return;
+    if(invIsLocked(inv)) { try{ invApplyStorno(inv); }catch(_){ } }
+    else {
+    inv.status = 'Storniert';
+    try{ invAuditPush(inv,'status',{to:'Storniert'});}catch(_){ }
+    }
+    inv.cancelled = true;
+    inv.cancelledAt = Date.now();
+    inv.stornoSnapshot = {
+      lockedAt: inv.lockedAt || inv.locked_at || null,
+      pricingSnapshot: inv.pricingSnapshot || null,
+      lineItemsSnapshot: inv.lineItemsSnapshot || null,
+      sourceSnapshotAtLock: inv.sourceSnapshotAtLock || null,
+      totalGross: inv.totalGross || inv.total || null,
+      vatRate: inv.vatRate || null
+    };
+    invAuditPush(inv, 'storno', {note:'Rechnung storniert (locked bleibt aktiv)'});
+  }catch(_ ){}
+}
+// ===== END 4C-3 =====
+
+function canChangeInvoiceStatus(inv, targetStatus){
+  try{
+    if(!inv) return true;
+    if(invIsCancelled(inv)) return false;
+    if(invIsLocked(inv)){
+      // paid invoices cannot go back to draft/open
+      return (targetStatus === 'Storniert');
+    }
+    return true;
+  }catch(_){ return true; }
+}

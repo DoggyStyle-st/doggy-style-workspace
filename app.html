@@ -1122,7 +1122,7 @@
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-<script defer="defer" src="app.js?v=M19_4C2_INVOICE_FREEZE_20260205"></script>
+<script defer="defer" src="app.js?v=M20_4C3_INVOICE_AUDIT_STORNO_20260205"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1165,70 +1165,11 @@
 </script>
 
 <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M19_4C2_INVOICE_FREEZE_20260205');
-  </script>
-
-<script>
-/* Logout-Fix: verhindert Tab-Navigation (Startseite) und führt echtes SignOut aus */
-(function(){
-  const btnTop = document.getElementById('btnLogoutTop');
-  const btnBottom = document.getElementById('btnLogoutBottom');
-
-  async function doLogout(ev){
-    if(ev){
-      ev.preventDefault();
-      ev.stopPropagation();
-    }
-
-    try{
-      // 1) Projekt-spezifische Wrapper (falls vorhanden)
-      if (window.DS && window.DS.auth && typeof window.DS.auth.signOut === 'function'){
-        await window.DS.auth.signOut();
-      } else if (window.DS && window.DS.auth && typeof window.DS.auth.logout === 'function'){
-        await window.DS.auth.logout();
-      }
-      // 2) Globaler Logout-Handler (Legacy)
-      else if (typeof window.logout === 'function'){
-        await window.logout();
-      }
-      // 3) Firebase Auth (typisch)
-      else if (window.firebase && firebase.auth){
-        await firebase.auth().signOut();
-      }
-      // 4) Falls auth-Instanz global verfügbar ist
-      else if (window.auth && typeof window.auth.signOut === 'function'){
-        await window.auth.signOut();
-      }
-      // 5) signOut(auth) (modular) wenn global verfügbar
-      else if (typeof window.signOut === 'function' && window.auth){
-        await window.signOut(window.auth);
-      }
-    }catch(err){
-      console.error('Logout failed:', err);
-    }
-
-    // Optional: lokale Session-Spuren entfernen
-    try{ localStorage.removeItem('ds_user'); }catch(e){}
-    try{ sessionStorage.clear(); }catch(e){}
-
-    // Nach Logout zur Login-Seite
-    try{ window.location.href = 'login.html'; }catch(e){}
-  }
-
-  [btnTop, btnBottom].forEach(btn => {
-    if(btn){
-      btn.addEventListener('click', doLogout, { passive:false });
-    }
-  });
-})();
-</script>
-
-<!-- Dummy für Legacy-Signatur -->
-<canvas height="1" id="sigPad" style="display:none" width="1"></canvas>
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M20_4C3_INVOICE_AUDIT_STORNO_20260205"1" id="sigPad" style="display:none" width="1"></canvas>
   <div class="bottom-actions">
   <!-- Bottom logout button removed (duplicate of header logout; also overlaps editor on iPad) -->
 </div>
 <!-- test-badge removed (requested) -->
-  <div class="build-badge" id="buildBadge">Build M19_4C2_INVOICE_FREEZE_20260205</div>
+  <div class="build-badge" id="buildBadge">Build M20_4C3_INVOICE_AUDIT_STORNO_20260205</div>
 </body>
 </html>
