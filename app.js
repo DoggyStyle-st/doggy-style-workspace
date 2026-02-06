@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = 'M20_4C3_AUDIT_STORNO_20260206';
+const APP_BUILD = 'M21_4C4_STORNO_CREDIT_20260206';
 
 
 // Kapazitäts-Limit (Übernachtungshunde) – Stufe B Warnung
@@ -7388,6 +7388,100 @@ function getInvoiceById(id){
   return (state.invoices||[]).find(x=>x.id===id) || null;
 }
 
+
+function getActorLabel(){
+  try{
+    const u = (window.CLOUD && CLOUD.auth && CLOUD.auth.currentUser) ? CLOUD.auth.currentUser : null;
+    return (u && (u.email || u.uid)) ? (u.email || u.uid) : "local";
+  }catch(e){
+    return "local";
+  }
+}
+
+function ensureInvoiceAudit(inv){
+  if(!inv) return;
+  if(!Array.isArray(inv.auditTrail)) inv.auditTrail = [];
+}
+
+function pushInvoiceAudit(inv, action, meta){
+  try{
+    ensureInvoiceAudit(inv);
+    inv.auditTrail.push({
+      at: new Date().toISOString(),
+      by: getActorLabel(),
+      action: String(action||"").toUpperCase(),
+      meta: meta || {}
+    });
+  }catch(e){}
+}
+
+function showStornoReasonDialog(inv){
+  return new Promise((resolve)=>{
+    try{
+      const overlay = document.createElement("div");
+      overlay.style.position = "fixed";
+      overlay.style.inset = "0";
+      overlay.style.background = "rgba(0,0,0,.55)";
+      overlay.style.zIndex = "99999";
+      overlay.style.display = "flex";
+      overlay.style.alignItems = "center";
+      overlay.style.justifyContent = "center";
+      overlay.innerHTML = `
+        <div style="width:min(560px,92vw);background:#1f1f1f;border:1px solid rgba(255,255,255,.15);border-radius:14px;padding:16px 16px 14px;box-shadow:0 20px 60px rgba(0,0,0,.5);">
+          <div style="font-size:18px;font-weight:700;margin-bottom:10px;">Rechnung stornieren</div>
+          <div style="font-size:13px;opacity:.85;margin-bottom:10px;">Bitte Storno-Grund auswählen und optional eine Notiz erfassen.</div>
+
+          <label style="display:block;font-size:12px;opacity:.85;margin:10px 0 6px;">Grund</label>
+          <select id="ds_storno_reason" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#2a2a2a;color:#fff;">
+            <option value="">– bitte wählen –</option>
+            <option>Fehleingabe / falscher Zeitraum</option>
+            <option>Kunde abgesagt</option>
+            <option>Zahlung nicht erfolgt</option>
+            <option>Doppelt erstellt</option>
+            <option>Sonstiges</option>
+          </select>
+
+          <label style="display:block;font-size:12px;opacity:.85;margin:10px 0 6px;">Notiz (optional)</label>
+          <textarea id="ds_storno_note" rows="3" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#2a2a2a;color:#fff;resize:vertical;"></textarea>
+
+          <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:12px;">
+            <button id="ds_storno_cancel" class="btn" style="padding:10px 14px;border-radius:10px;">Abbrechen</button>
+            <button id="ds_storno_ok" class="btn primary" style="padding:10px 14px;border-radius:10px;">Stornieren</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+
+      const sel = overlay.querySelector("#ds_storno_reason");
+      const note = overlay.querySelector("#ds_storno_note");
+      const btnCancel = overlay.querySelector("#ds_storno_cancel");
+      const btnOk = overlay.querySelector("#ds_storno_ok");
+
+      const close = (val)=>{ try{ overlay.remove(); }catch(e){} resolve(val); };
+
+      btnCancel.onclick = ()=> close(null);
+      overlay.onclick = (e)=>{ if(e.target===overlay) close(null); };
+
+      btnOk.onclick = ()=>{
+        const reason = String(sel.value||"").trim();
+        const n = String(note.value||"").trim();
+        if(!reason){
+          alert("Bitte einen Storno-Grund auswählen.");
+          return;
+        }
+        close({reason, note:n});
+      };
+    }catch(e){
+      // Fallback: prompt
+      const reason = prompt("Storno-Grund (kurz):", "") || "";
+      if(!reason.trim()) return resolve(null);
+      const note = prompt("Notiz (optional):", "") || "";
+      resolve({reason: reason.trim(), note: (note||"").trim()});
+    }
+  });
+}
+
+
 function resolveInvoiceParties(inv){
   ensureStateShape();
   ensureContractDefaults();
@@ -7464,6 +7558,15 @@ function renderInvoiceList(){
     if(view) view.innerHTML = "";
     return;
   }
+
+function invoiceStatusCode(status){
+  const s = String(status||"").toLowerCase().trim();
+  if(s==="draft" || s==="entwurf") return "draft";
+  if(s==="open" || s==="offen") return "open";
+  if(s==="paid" || s==="bezahlt") return "paid";
+  if(s==="cancelled" || s==="storniert" || s==="canceled") return "cancelled";
+  return s || "";
+}
 
   el.innerHTML = actionBar + `
     <table class="invoice-table">
@@ -7944,95 +8047,65 @@ function lockInvoicePricing(inv, reason){
     console.warn('lockInvoicePricing failed', e);
   }
 }
-function setInvoiceStatus(id, status){
+async function setInvoiceStatus(id, status){
   const inv = getInvoiceById(id);
   if(!inv) return;
 
-  // akzeptiert auch deutsche Werte (falls irgendwo anders gesetzt)
-  const s = String(status||"").toLowerCase().trim();
-  let code = status;
-  if(s==="offen") code="open";
-  else if(s==="bezahlt") code="paid";
-  else if(s==="storniert") code="cancelled";
-  else if(s==="entwurf") code="draft";
+  const current = invoiceStatusCode(inv.status);
+  const target  = invoiceStatusCode(status);
 
-  const prev = String(inv.status||"draft");
+  if(!target) return;
 
-  // ===== 4C-3: Audit + Bezahlt ist endgültig (nur Storno erlaubt) =====
-  if(prev==="paid" && code!=="paid" && code!=="cancelled"){
-    try{ alert("Diese Rechnung ist bezahlt und wird nicht mehr zurückgesetzt."); }catch(_){}
+  // Harte Regeln:
+  // - Bezahlt ist final (keine Rückstufung). Nur Storno ist danach noch erlaubt.
+  // - Storniert ist final.
+  if(current === "paid" && (target === "draft" || target === "open")){
+    alert("Diese Rechnung ist bereits bezahlt und kann nicht mehr zurück auf Entwurf/Offen gesetzt werden.");
+    return;
+  }
+  if(current === "cancelled" && target !== "cancelled"){
+    alert("Diese Rechnung ist storniert und kann nicht mehr geändert werden.");
     return;
   }
 
-  // Audit Trail
-  inv.auditTrail = Array.isArray(inv.auditTrail) ? inv.auditTrail : [];
-  if(code !== prev){
-    inv.auditTrail.push({
-      at: new Date().toISOString(),
-      field: "status",
-      from: prev,
-      to: code
-    });
+  // Storno: Grund + Notiz zwingend erfassen
+  if(target === "cancelled" && current !== "cancelled"){
+    const res = await showStornoReasonDialog(inv);
+    if(!res) return; // Abbruch
+    inv.cancelReason = res.reason || "";
+    inv.cancelNote   = res.note || "";
+    inv.cancelledAt  = new Date().toISOString();
+    inv.cancelledBy  = getActorLabel();
+
+    // Audit
+    pushInvoiceAudit(inv, "CANCELLED", {from: current || "", reason: inv.cancelReason, note: inv.cancelNote});
+
+    // Storno darf nichts "entsperren"
+    // Falls schon bezahlt: Snapshot bleibt bestehen
+    inv.status = "cancelled";
+    saveState();
+    renderInvoiceList();
+    openInvoice(inv.id);
+    return;
   }
 
-  inv.status = code;
-  inv.updatedAt = new Date().toISOString();
-
-  // 3D4/3E: Einfrieren erst bei "bezahlt". "Offen" bleibt dynamisch.
-  if(code==="paid"){
-    // Vor dem Lock einmalig noch synchronisieren (falls der User direkt auf "Offen" klickt)
-    try{
-      if(inv.sourceDocId && !isInvoicePricingLocked(inv)){
-        const changed = syncInvoicePricingBySource(inv);
-        if(changed){} // pricing already updated
-      }
-    }catch(_){}
-    lockInvoicePricing(inv, code);
+  // normale Statuswechsel (draft/open/paid)
+  if(target !== current){
+    inv.status = target;
+    pushInvoiceAudit(inv, "STATUS", {from: current || "", to: target});
   }
-  else if(code==="open"){
-    // Offen: Preise bleiben dynamisch (nicht locken)
-    inv.pricingLocked = false;
-  }
-  else if(code==="draft"){
-    // Entwurf darf dynamisch sein
-    inv.pricingLocked = false;
-  }
-  else if(code==="cancelled"){
-    // ===== 4C-3: Storno snapshot + Timestamp =====
-    inv.cancelledAt = inv.cancelledAt || new Date().toISOString();
 
-    if(!inv.stornoSnapshot){
-      try{
-        inv.stornoSnapshot = {
-          invoiceNumber: inv.invoiceNumber || "",
-          invoiceDate: inv.invoiceDate || "",
-          customerId: inv.customerId || "",
-          petId: inv.petId || "",
-          dogId: inv.dogId || "",
-          sourceDocId: inv.sourceDocId || "",
-          period: inv.period || null,
-          pricing: inv.pricing || null,
-          pricingSnapshot: inv.pricingSnapshot || null,
-          pricingLocked: !!inv.pricingLocked,
-          pricingLockedAt: inv.pricingLockedAt || null,
-          totals: {
-            gross: Number(inv.pricing?.total || 0)
-          }
-        };
-      }catch(_){}
-    }
-
-    // Storno bleibt revisionssicher: wenn bereits gelockt, nicht unlocken
-    if(!isInvoicePricingLocked(inv)){
-      inv.pricingLocked = false;
-    }
+  // Bezahlt friert ein (Freeze-Regel aus 4C-2 bleibt)
+  if(target === "paid"){
+    try{ inv.frozenAt = inv.frozenAt || new Date().toISOString(); }catch(e){}
+    pushInvoiceAudit(inv, "PAID", {});
   }
 
   saveState();
-
-  openInvoice(id);
   renderInvoiceList();
+  openInvoice(inv.id);
 }
+
 
 // ===== ETAPPE 4: Freie Rechnung (Kunde/Hund auswählen statt tippen) =====
 function openFreeInvoiceForm(){
@@ -8236,7 +8309,7 @@ if(!inv) return;
     (pet?.chipNumber) ? `Chip: ${escapeHtml(pet.chipNumber)}` : ""
   ].filter(Boolean).join("<br>");
 
-  const euro = (n)=>`${Number(n||0).toFixed(2)} €`;
+  const euro = (n)=>`${(Number(n||0)*sign).toFixed(2)} €`;
   const bd = (inv.pricing && inv.pricing.breakdown) ? inv.pricing.breakdown : {};
   const doc = getInvoiceSourceDoc(inv);
   const betreuungNorm = (doc?.pricing?.betreuungNorm) || (inv?.pricing?._calc?.betreuungNorm) || normalizeBetreuung(doc?.meta?.betreuung||'');
@@ -8294,7 +8367,8 @@ if(!inv) return;
     `);
   });
 
-  // Inhalt (ohne <html>/<body>) – wird im Overlay gerendert
+  // Inhalt (ohne <html>/<body>
+      ${isCancelled?'<div class="watermark">STORNO</div>':''}) – wird im Overlay gerendert
   const html = `
     <style>
       /* Layout bewusst A4-sicher: Ränder über @page, Innenabstand in mm */
@@ -8325,7 +8399,8 @@ if(!inv) return;
         }
         .pdf-footer .row{ display:flex; justify-content:space-between; }
       }
-    </style>
+    .watermark{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;opacity:.08;font-size:100px;font-weight:800;transform:rotate(-18deg);} 
+</style>
     <div class="pdf-page">
       <div class="page-inner">
         <div class="header">
@@ -8346,7 +8421,7 @@ if(!inv) return;
           </div>
         </div>
 
-        <h1>Rechnung</h1>
+        ${isCancelled?'<h1>Gutschrift / Storno</h1>':'<h1>Rechnung</h1>'}
         <p class="small">
           <strong>Rechnungsnummer:</strong> ${escapeHtml(inv.invoiceNumber || "-")}<br>
           <strong>Rechnungsdatum:</strong> ${new Date(inv.invoiceDate||Date.now()).toLocaleDateString("de-DE")}<br>
