@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = 'M19_4C2_INVOICE_FREEZE_20260205';
+const APP_BUILD = 'M20_4C3_AUDIT_STORNO_20260206';
 
 
 // Kapazitäts-Limit (Übernachtungshunde) – Stufe B Warnung
@@ -7956,6 +7956,25 @@ function setInvoiceStatus(id, status){
   else if(s==="storniert") code="cancelled";
   else if(s==="entwurf") code="draft";
 
+  const prev = String(inv.status||"draft");
+
+  // ===== 4C-3: Audit + Bezahlt ist endgültig (nur Storno erlaubt) =====
+  if(prev==="paid" && code!=="paid" && code!=="cancelled"){
+    try{ alert("Diese Rechnung ist bezahlt und wird nicht mehr zurückgesetzt."); }catch(_){}
+    return;
+  }
+
+  // Audit Trail
+  inv.auditTrail = Array.isArray(inv.auditTrail) ? inv.auditTrail : [];
+  if(code !== prev){
+    inv.auditTrail.push({
+      at: new Date().toISOString(),
+      field: "status",
+      from: prev,
+      to: code
+    });
+  }
+
   inv.status = code;
   inv.updatedAt = new Date().toISOString();
 
@@ -7975,15 +7994,38 @@ function setInvoiceStatus(id, status){
     inv.pricingLocked = false;
   }
   else if(code==="draft"){
-
-    // Entwurf darf wieder dynamisch sein (Unlock nur, wenn explizit gewünscht)
-    // -> wir lassen Snapshot bestehen, aber markieren nicht locked, damit Sync wieder greift.
+    // Entwurf darf dynamisch sein
     inv.pricingLocked = false;
-    // pricingLockedAt und Snapshot bleiben als Historie (kann später für Audit genutzt werden)
   }
   else if(code==="cancelled"){
-    // Storniert: nicht einfrieren (kann bei Bedarf noch korrigiert werden)
-    inv.pricingLocked = false;
+    // ===== 4C-3: Storno snapshot + Timestamp =====
+    inv.cancelledAt = inv.cancelledAt || new Date().toISOString();
+
+    if(!inv.stornoSnapshot){
+      try{
+        inv.stornoSnapshot = {
+          invoiceNumber: inv.invoiceNumber || "",
+          invoiceDate: inv.invoiceDate || "",
+          customerId: inv.customerId || "",
+          petId: inv.petId || "",
+          dogId: inv.dogId || "",
+          sourceDocId: inv.sourceDocId || "",
+          period: inv.period || null,
+          pricing: inv.pricing || null,
+          pricingSnapshot: inv.pricingSnapshot || null,
+          pricingLocked: !!inv.pricingLocked,
+          pricingLockedAt: inv.pricingLockedAt || null,
+          totals: {
+            gross: Number(inv.pricing?.total || 0)
+          }
+        };
+      }catch(_){}
+    }
+
+    // Storno bleibt revisionssicher: wenn bereits gelockt, nicht unlocken
+    if(!isInvoicePricingLocked(inv)){
+      inv.pricingLocked = false;
+    }
   }
 
   saveState();
