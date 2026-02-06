@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = 'M27_4D5_ANA_RANGE_EXPORT_20260206';
+const APP_BUILD = 'M28_4D6_ANA_AUTOREFRESH_20260206';
 // Kapazitäts-Limit (Übernachtungshunde) – Stufe B Warnung
 const MAX_OVERNIGHT = 10;
 // ===== 4B-3: Soft-Warnung bei fehlender Unterschrift (Speichern bleibt erlaubt) =====
@@ -2336,7 +2336,7 @@ function showPanel(id){
     renderHygienePanel();
   }
     if(id === "analytics"){
-    renderAnalyticsPanel();
+    scheduleAnaRefresh();
   }
 if(id === "calendar"){
     renderCalendarPanel();
@@ -4625,9 +4625,28 @@ function renderAnalyticsPanel(){
     if(toEl && !toEl.value){
       toEl.value = _dsISODate(today);
     }
+    // Restore last analytics range (if stored)
+    try{
+      const lf = localStorage.getItem('ds_ana_from');
+      const lt = localStorage.getItem('ds_ana_to');
+      if(lf) fromEl.value = lf;
+      if(lt) toEl.value = lt;
+    }catch(__){}
+
+    // Restore holiday opt-in
+    try{
+      const incEl = document.getElementById('anaIncludeHolidayToggle') || document.getElementById('anaIncludeHoliday');
+      if(incEl){
+        const v = localStorage.getItem('ds_ana_inc_holiday');
+        if(v !== null) incEl.checked = (v === '1');
+        window.__DS_ANA_INCLUDE_HOLIDAY = !!incEl.checked;
+      }
+    }catch(__){}
     const fromD = _dsParseAnyDate(fromEl ? fromEl.value : null) || new Date(today.getFullYear(), today.getMonth()-11, 1);
     const toD0  = _dsParseAnyDate(toEl ? toEl.value : null) || today;
     const toD   = new Date(toD0.getFullYear(), toD0.getMonth(), toD0.getDate(), 23,59,59,999);
+    const fromStr = (fromEl && fromEl.value) ? fromEl.value : '';
+    const toStr = (toEl && toEl.value) ? toEl.value : '';
     const invArr = Object.values(state.invoices || {});
     // Nur "bezahlt" als Umsatz (Basis)
     const paidInv = invArr.filter(inv => {
@@ -4679,6 +4698,79 @@ function renderAnalyticsPanel(){
       months.push(_dsMonthKey(cur));
       cur = new Date(cur.getFullYear(), cur.getMonth()+1, 1);
     }
+
+    // Build export data cache (used by CSV export)
+    try{
+      // invoices list (paid only)
+      const exportInvoices = paidInv.map(inv => {
+        const d = _dsParseAnyDate(inv.invoiceDate || inv.createdAt || inv.updatedAt || inv.ts);
+        const fromD2 = _dsParseAnyDate(inv?.period?.from || inv?.stayFrom || inv?.from);
+        const toD2   = _dsParseAnyDate(inv?.period?.to || inv?.stayTo || inv?.to);
+        const gross = Number(inv?.pricing?.totalGross ?? inv?.pricing?.grandTotalGross ?? inv?.pricing?.total ?? inv?.totalGross ?? inv?.total ?? 0) || 0;
+        const vat   = Number(inv?.pricing?.vatAmount ?? inv?.pricing?.includedVat ?? inv?.includedVat ?? 0) || 0;
+        const net   = Math.max(0, gross - vat);
+        return {
+          number: inv.number || inv.invoiceNumber || '',
+          date: d ? _dsISODate(d) : '',
+          customer: inv.customerName || inv.customer || (inv.customer && inv.customer.name) || '',
+          dog: inv.dogName || inv.dog || (inv.dog && inv.dog.name) || '',
+          from: fromD2 ? _dsISODate(fromD2) : '',
+          to: toD2 ? _dsISODate(toD2) : '',
+          gross: formatEuro(gross),
+          vat: formatEuro(vat),
+          net: formatEuro(net),
+          status: inv.status || '',
+          stornoReason: inv.stornoReason || inv.storno_reason || ''
+        };
+      });
+
+      // monthly aggregate
+      const monthCount = {};
+      const monthStorno = {};
+      for(const inv of inv){
+        const d = _dsParseAnyDate(inv.invoiceDate || inv.createdAt || inv.updatedAt || inv.ts);
+        if(!d) continue;
+        const key = _dsMonthKey(d);
+        if(String(inv.status||'').toLowerCase()==='bezahlt'){
+          monthCount[key] = (monthCount[key]||0) + 1;
+        }
+        if(String(inv.status||'').toLowerCase()==='storniert'){
+          monthStorno[key] = (monthStorno[key]||0) + 1;
+        }
+      }
+      const exportMonthly = months.map(key => ({
+        month: key,
+        net: formatEuro(bucket[key]||0),
+        holiday: '',
+        count: monthCount[key] || 0,
+        storno: monthStorno[key] || 0
+      }));
+
+      // top customers & dogs (gross)
+      const custMap = {};
+      const dogMap = {};
+      for(const inv of paidInv){
+        const gross = Number(inv?.pricing?.totalGross ?? inv?.pricing?.grandTotalGross ?? inv?.pricing?.total ?? inv?.totalGross ?? inv?.total ?? 0) || 0;
+        const cn = inv.customerName || inv.customer || (inv.customer && inv.customer.name) || '';
+        const dn = inv.dogName || inv.dog || (inv.dog && inv.dog.name) || '';
+        if(cn){ custMap[cn] = (custMap[cn]||0) + gross; }
+        if(dn){ dogMap[dn] = (dogMap[dn]||0) + gross; }
+      }
+      const topN = (obj, n) => Object.entries(obj).sort((a,b)=>b[1]-a[1]).slice(0,n).map(([name, val])=>({name, gross: formatEuro(val), count: ''}));
+      const exportTopCustomers = topN(custMap, 20);
+      const exportTopDogs = topN(dogMap, 20);
+
+      window.__DS_ANA_LAST = {
+        fromStr, toStr,
+        includeHoliday: !!(document.getElementById('anaIncludeHolidayToggle') || document.getElementById('anaIncludeHoliday'))?.checked,
+        exportData: {
+          invoices: exportInvoices,
+          monthly: exportMonthly,
+          topCustomers: exportTopCustomers,
+          topDogs: exportTopDogs
+        }
+      };
+    }catch(__){}
     const tbody = document.querySelector('#anaTable tbody');
     if(tbody){
       tbody.innerHTML = '';
@@ -4839,7 +4931,7 @@ function renderAnalyticsPanel(){
         }
       }catch(_){}
     // bind refresh button once
-    const btn = document.getElementById('anaRefreshBtn');
+    const btn = document.getElementById('anaRefreshBtn') || document.getElementById('anaRefresh');
     if(btn && !btn.__dsBound){
       btn.__dsBound = true;
       btn.addEventListener('click', () => renderAnalyticsPanel());
@@ -4852,10 +4944,10 @@ function renderAnalyticsPanel(){
           if(t) t.value = toDate;
           try{ localStorage.setItem('ds_ana_from', fromDate); }catch(_){ }
           try{ localStorage.setItem('ds_ana_to', toDate); }catch(_){ }
-          renderAnalyticsPanel();
+          scheduleAnaRefresh();
         }catch(_){ }
       };
-      const q12 = document.getElementById('anaQuick12m');
+      const q12 = document.getElementById('anaQuick12m') || document.getElementById('anaQuick12mBtn');
       if(q12 && !q12.__dsBound){
         q12.__dsBound = true;
         q12.addEventListener('click', () => {
@@ -4865,7 +4957,7 @@ function renderAnalyticsPanel(){
           setRange(fmtDateISO(from), fmtDateISO(to));
         });
       }
-      const q90 = document.getElementById('anaQuick90d');
+      const q90 = document.getElementById('anaQuick90d') || document.getElementById('anaQuick90');
       if(q90 && !q90.__dsBound){
         q90.__dsBound = true;
         q90.addEventListener('click', () => {
@@ -4875,7 +4967,33 @@ function renderAnalyticsPanel(){
           setRange(fmtDateISO(from), fmtDateISO(to));
         });
       }
-      const q30 = document.getElementById('anaQuick30d');
+      
+  // 4D-6: Debounced auto-refresh for analytics controls
+  const scheduleAnaRefresh = (() => {
+    let t = null;
+    return () => {
+      try{ if(t) clearTimeout(t); }catch(__){}
+      t = setTimeout(() => { try{ scheduleAnaRefresh(); }catch(__){} }, 250);
+    };
+  })();
+
+      // Auto-refresh when date inputs are edited
+      try{
+        const fromEl2 = document.getElementById('anaFrom');
+        const toEl2   = document.getElementById('anaTo');
+        if(fromEl2 && !fromEl2.__dsAnaBound){
+          fromEl2.__dsAnaBound = true;
+          fromEl2.addEventListener('change', scheduleAnaRefresh);
+          fromEl2.addEventListener('input', scheduleAnaRefresh);
+        }
+        if(toEl2 && !toEl2.__dsAnaBound){
+          toEl2.__dsAnaBound = true;
+          toEl2.addEventListener('change', scheduleAnaRefresh);
+          toEl2.addEventListener('input', scheduleAnaRefresh);
+        }
+      }catch(__){}
+
+const q30 = document.getElementById('anaQuick30d') || document.getElementById('anaQuick30');
       if(q30 && !q30.__dsBound){
         q30.__dsBound = true;
         q30.addEventListener('click', () => {
@@ -4886,32 +5004,94 @@ function renderAnalyticsPanel(){
         });
       }
       // Export CSV
-      const exp = document.getElementById('anaExportBtn');
+      const exp = (document.getElementById('anaExportBtn') || document.getElementById('anaExport'));
       if(exp && !exp.__dsBound){
         exp.__dsBound = true;
         exp.addEventListener('click', () => {
-          try{
-            const rows = (window.__DS_ANA_LAST_PAID || []).map(inv => {
-              const meta = inv.__ds_meta || {};
-              const gross = toCurrency(meta.gross||0).replace('€','').trim();
-              const net = toCurrency(meta.net||0).replace('€','').trim();
-              const vat = toCurrency(meta.vat||0).replace('€','').trim();
-              const date = meta.date||'';
-              const nr = (inv.number || inv.nr || inv.id || '');
-              const kunde = (meta.customerName||'');
-              const hund = (meta.dogName||'');
-              return [date, nr, kunde, hund, gross, net, vat];
-            });
-            const header = ['Datum','Rechnungsnr','Kunde','Hund','Brutto','Netto','MwSt'];
-        const csv = [header].concat(rows).map(r=>r.join(';')).join('\n');
-            const blob = new Blob(["﻿"+csv], {type:'text/csv;charset=utf-8'});
-            const from = window.__DS_ANA_FROM || '';
-            const to = window.__DS_ANA_TO || '';
-            downloadBlob(blob, `DoggyStyle_Auswertung_Rechnungen_${from}_bis_${to}.csv`);
-          }catch(e){
-            alert('Export fehlgeschlagen: ' + (e && e.message ? e.message : e));
-          }
-        });
+      try{
+        const fromEl = document.getElementById('anaFrom');
+        const toEl   = document.getElementById('anaTo');
+        const incEl  = document.getElementById('anaIncludeHolidayToggle') || document.getElementById('anaIncludeHoliday');
+        const fromStr = (fromEl && fromEl.value) ? fromEl.value : '';
+        const toStr   = (toEl && toEl.value) ? toEl.value : '';
+        const includeHoliday = !!(incEl && incEl.checked);
+
+        // Mode chooser (keeps UI minimal & iOS-friendly)
+        const modeRaw = (prompt('CSV Export:\n- voll\n- belege\n- monate\n- topkunden\n- tophunde\n\nEingabe:', 'voll') || 'voll').toLowerCase().trim();
+        const mode = (['voll','belege','monate','topkunden','tophunde'].includes(modeRaw)) ? modeRaw : 'voll';
+
+        // Recompute analytics for export
+        const ana = window.__DS_ANA_LAST || null;
+        const data = ana && ana.exportData ? ana.exportData : null;
+
+        const lines = [];
+        const addLine = (...cols) => lines.push(cols.map(c => {
+          const v = (c===null || c===undefined) ? '' : String(c);
+          // semicolon CSV, quote if needed
+          return /[;"\n\r]/.test(v) ? '"' + v.replace(/"/g,'""') + '"' : v;
+        }).join(';'));
+
+        // Fallback if no cached exportData (should not happen): export nothing but headers
+        const ed = data || { invoices: [], monthly: [], topServices: [], topCustomers: [], topDogs: [] };
+
+        const metaHeader = () => {
+          addLine('Doggy Style Analytics Export');
+          addLine('Von', fromStr, 'Bis', toStr, 'Feiertagsumsatz', includeHoliday ? 'ja' : 'nein');
+          addLine('');
+        };
+
+        const exportInvoices = () => {
+          addLine('Belege (bezahlt)');
+          addLine('Rechnungsnr','Datum','Kunde','Hund','Zeitraum von','Zeitraum bis','Brutto','MwSt','Netto*','Status','Storno Grund');
+          (ed.invoices||[]).forEach(r => {
+            addLine(r.number, r.date, r.customer, r.dog, r.from, r.to, r.gross, r.vat, r.net, r.status, r.stornoReason||'');
+          });
+          addLine('');
+        };
+
+        const exportMonthly = () => {
+          addLine('Umsatz nach Monat (letzte 12 Monate)');
+          addLine('Monat','Umsatz netto*','Feiertag','Belege','Storno');
+          (ed.monthly||[]).forEach(r => addLine(r.month, r.net, r.holiday, r.count, r.storno));
+          addLine('');
+        };
+
+        const exportTopCustomers = () => {
+          addLine('Top Kunden (Umsatz brutto)');
+          addLine('Kunde','Umsatz brutto','Belege');
+          (ed.topCustomers||[]).forEach(r => addLine(r.name, r.gross, r.count));
+          addLine('');
+        };
+
+        const exportTopDogs = () => {
+          addLine('Top Hunde (Umsatz brutto)');
+          addLine('Hund','Umsatz brutto','Belege');
+          (ed.topDogs||[]).forEach(r => addLine(r.name, r.gross, r.count));
+          addLine('');
+        };
+
+        metaHeader();
+        if(mode==='voll' || mode==='belege') exportInvoices();
+        if(mode==='voll' || mode==='monate') exportMonthly();
+        if(mode==='voll' || mode==='topkunden') exportTopCustomers();
+        if(mode==='voll' || mode==='tophunde') exportTopDogs();
+
+        const csv = lines.join('\n');
+        const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const safeFrom = fromStr || 'von';
+        const safeTo = toStr || 'bis';
+        a.href = url;
+        a.download = `doggystyle_auswertungen_${mode}_${safeFrom}_${safeTo}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+      }catch(e){
+        alert('Export fehlgeschlagen: ' + (e && e.message ? e.message : e));
+      }
+    });
       }
     }
   }catch(e){
