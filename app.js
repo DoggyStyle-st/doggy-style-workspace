@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = 'M21_4C4_STORNO_REASON_20260206';
+const APP_BUILD = 'M22_4C5_AUDIT_UI_20260206';
 
 
 // Kapazitäts-Limit (Übernachtungshunde) – Stufe B Warnung
@@ -7704,6 +7704,53 @@ function renderInvoicePositions(inv){
 
   return rows.join("\n");
 }
+
+// --- 4C-5: Rechnungs-Historie (Audit Trail) UI -------------------------------
+function toggleInvoiceAudit(id){
+  try{
+    const el = document.getElementById("invAudit_"+id);
+    if(!el) return;
+    el.style.display = (el.style.display === "none" || !el.style.display) ? "block" : "none";
+  }catch(_){}
+}
+function renderInvoiceAudit(inv){
+  try{
+    const list = Array.isArray(inv.auditTrail) ? inv.auditTrail : [];
+    if(!list.length){
+      return `<div class="muted">Keine Historie vorhanden.</div>`;
+    }
+    const fmt = (t)=>{
+      if(!t) return "—";
+      const d = (typeof t === "number") ? new Date(t) : new Date(String(t));
+      if(String(d) === "Invalid Date") return escapeHtml(String(t));
+      return escapeHtml(d.toLocaleString("de-DE"));
+    };
+    const rows = list.slice().reverse().map(ev=>{
+      const action = escapeHtml(String(ev.action||ev.type||""));
+      const at = fmt(ev.at || ev.ts || ev.time);
+      const user = escapeHtml(String(ev.by||ev.user||""));
+      const reason = ev.reason ? `<div class="muted" style="margin-top:2px"><strong>Grund:</strong> ${escapeHtml(String(ev.reason))}</div>` : ``;
+      const detailParts = [];
+      if(ev.from!=null || ev.to!=null){
+        detailParts.push(`<span class="muted">(${escapeHtml(String(ev.from||""))} → ${escapeHtml(String(ev.to||""))})</span>`);
+      }
+      if(ev.note){
+        detailParts.push(`<span class="muted">${escapeHtml(String(ev.note))}</span>`);
+      }
+      const details = detailParts.length ? `<div style="margin-top:2px">${detailParts.join(" ")}</div>` : ``;
+      return `<div style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,.07)">
+        <div><strong>${action||"Änderung"}</strong> <span class="muted">· ${at}</span> ${user?`<span class="muted">· ${user}</span>`:""}</div>
+        ${details}
+        ${reason}
+      </div>`;
+    }).join("");
+    return `<div>${rows}</div>`;
+  }catch(e){
+    console.warn("renderInvoiceAudit failed", e);
+    return `<div class="muted">Historie konnte nicht geladen werden.</div>`;
+  }
+}
+
 function openInvoice(id){
   const inv = getInvoiceById(id);
   if(!inv) return;
@@ -7798,6 +7845,14 @@ function openInvoice(id){
       </div>
 
       
+
+      
+      <div style="margin:12px 0 12px">
+        <button class="smallbtn" onclick="toggleInvoiceAudit('${inv.id}')">🕓 Historie</button>
+        <div id="invAudit_${inv.id}" class="card" style="display:none;margin-top:8px;background:rgba(255,255,255,.03)">
+          ${renderInvoiceAudit(inv)}
+        </div>
+      </div>
 
       <button class="btn" onclick="printInvoice('${inv.id}')">🖨️ Rechnung drucken / PDF</button>
     </div>
