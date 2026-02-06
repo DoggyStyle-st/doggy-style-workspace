@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = 'M22_4C5_AUDIT_UI_20260206';
+const APP_BUILD = 'M23_4D1_ANALYTICS_BASE_20260206';
 
 
 // Kapazitäts-Limit (Übernachtungshunde) – Stufe B Warnung
@@ -5111,6 +5111,138 @@ function renderCalendarPanel(){
     grid.appendChild(cell);
   }
 }
+
+
+// ===== 4D-1: Auswertungen (Basis) =====
+function _dsParseAnyDate(v){
+  if(!v) return null;
+  if(v instanceof Date) return v;
+  const s = String(v).trim();
+  // ISO YYYY-MM-DD or YYYY-MM-DDTHH:mm...
+  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(m){
+    const d = new Date(Number(m[1]), Number(m[2])-1, Number(m[3]));
+    return isNaN(d.getTime()) ? null : d;
+  }
+  // German D.M.YYYY / DD.MM.YYYY
+  m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2,4})$/);
+  if(m){
+    const y = Number(m[3].length===2 ? ("20"+m[3]) : m[3]);
+    const d = new Date(y, Number(m[2])-1, Number(m[1]));
+    return isNaN(d.getTime()) ? null : d;
+  }
+  // fallback Date.parse
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? null : d;
+}
+function _dsISODate(d){
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const da = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${da}`;
+}
+function _dsMonthKey(d){
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  return `${y}-${m}`;
+}
+function renderAnalyticsPanel(){
+  try{
+    const fromEl = document.getElementById('anaFrom');
+    const toEl   = document.getElementById('anaTo');
+    // Default: letzte 12 Monate bis heute
+    const today = new Date();
+    if(fromEl && !fromEl.value){
+      const d = new Date(today.getFullYear(), today.getMonth()-11, 1);
+      fromEl.value = _dsISODate(d);
+    }
+    if(toEl && !toEl.value){
+      toEl.value = _dsISODate(today);
+    }
+    const fromD = _dsParseAnyDate(fromEl ? fromEl.value : null) || new Date(today.getFullYear(), today.getMonth()-11, 1);
+    const toD0  = _dsParseAnyDate(toEl ? toEl.value : null) || today;
+    const toD   = new Date(toD0.getFullYear(), toD0.getMonth(), toD0.getDate(), 23,59,59,999);
+
+    const invArr = Object.values(state.invoices || {});
+
+    // Nur "bezahlt" als Umsatz (Basis)
+    const paidInv = invArr.filter(inv => {
+      const st = String(inv.status||'').toLowerCase();
+      const isPaid = (st==='bezahlt' || st==='paid');
+      if(!isPaid) return false;
+      const d = _dsParseAnyDate(inv.invoiceDate || inv.createdAt || inv.updatedAt || inv.ts);
+      if(!d) return false;
+      return d >= fromD && d <= toD;
+    });
+
+    // Totals
+    let gross = 0;
+    let net = 0;
+    let vat = 0;
+    const VAT_DEFAULT = 0.19;
+
+    for(const inv of paidInv){
+      const g = Number(inv?.pricing?.totalGross ?? inv?.pricing?.grandTotalGross ?? inv?.pricing?.total ?? inv?.totalGross ?? inv?.total ?? 0) || 0;
+      gross += g;
+      const vr = Number(inv?.vatRate ?? inv?.pricing?.vatRate ?? VAT_DEFAULT) || VAT_DEFAULT;
+      const nv = computeNetVatFromGross(g, vr); // vorhanden seit 4C
+      net += nv.net;
+      vat += nv.vat;
+    }
+
+    const elNet = document.getElementById('anaRevenueNet');
+    const elVat = document.getElementById('anaRevenueVat');
+    const elCnt = document.getElementById('anaInvoiceCount');
+    if(elNet) elNet.textContent = formatEuro(net);
+    if(elVat) elVat.textContent = formatEuro(vat);
+    if(elCnt) elCnt.textContent = String(paidInv.length);
+
+    // Tabelle: Monatsumsatz (Gross) innerhalb Range
+    const bucket = {};
+    for(const inv of paidInv){
+      const d = _dsParseAnyDate(inv.invoiceDate || inv.createdAt || inv.updatedAt || inv.ts);
+      if(!d) continue;
+      const key = _dsMonthKey(d);
+      const g = Number(inv?.pricing?.totalGross ?? inv?.pricing?.grandTotalGross ?? inv?.pricing?.total ?? inv?.totalGross ?? inv?.total ?? 0) || 0;
+      bucket[key] = (bucket[key]||0) + g;
+    }
+    // Generate month list between fromD and toD
+    const months = [];
+    let cur = new Date(fromD.getFullYear(), fromD.getMonth(), 1);
+    const end = new Date(toD.getFullYear(), toD.getMonth(), 1);
+    while(cur <= end){
+      months.push(_dsMonthKey(cur));
+      cur = new Date(cur.getFullYear(), cur.getMonth()+1, 1);
+    }
+
+    const tbody = document.querySelector('#anaTable tbody');
+    if(tbody){
+      tbody.innerHTML = '';
+      for(const key of months){
+        const tr = document.createElement('tr');
+        const tdM = document.createElement('td');
+        const tdV = document.createElement('td');
+        tdM.textContent = key;
+        tdV.textContent = formatEuro(bucket[key]||0);
+        tr.appendChild(tdM);
+        tr.appendChild(tdV);
+        tbody.appendChild(tr);
+      }
+    }
+
+    // bind refresh button once
+    const btn = document.getElementById('anaRefreshBtn');
+    if(btn && !btn.__dsBound){
+      btn.__dsBound = true;
+      btn.addEventListener('click', () => renderAnalyticsPanel());
+    }
+  }catch(e){
+    console.warn("renderAnalyticsPanel failed", e);
+  }
+}
+
+
+
 
 function renderCalendarDayDetail(iso){
   const card = document.getElementById('calDayDetail');
