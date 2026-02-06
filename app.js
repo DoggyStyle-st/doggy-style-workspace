@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = 'M23_4D1_ANALYTICS_BASE_20260206';
+const APP_BUILD = 'M24_4D2_OCCUPANCY_20260206';
 
 
 // Kapazitäts-Limit (Übernachtungshunde) – Stufe B Warnung
@@ -5229,6 +5229,63 @@ function renderAnalyticsPanel(){
         tbody.appendChild(tr);
       }
     }
+
+      // --- 4D-2: Auslastung/Kapazität im gewählten Zeitraum ---
+      try{
+        // typeEl exists in UI (day/urlaub)
+        const occType = String(typeEl?.value || 'urlaub');
+        const label = (occType==='day') ? 'Tagesbetreuung' : 'Urlaubsbetreuung';
+        const capMax = (occType==='day') ? (CAPACITY?.day ?? 13) : (CAPACITY?.holiday ?? 10);
+
+        // parse YYYY-MM-DD as UTC midnight
+        const parseYMD = (s) => {
+          if(!s || typeof s !== 'string') return null;
+          const parts = s.split('-').map(n => parseInt(n,10));
+          if(parts.length!==3 || parts.some(n => !Number.isFinite(n))) return null;
+          return new Date(Date.UTC(parts[0], parts[1]-1, parts[2]));
+        };
+
+        const fromD2 = parseYMD(fromEl?.value);
+        const toD2   = parseYMD(toEl?.value);
+        if(fromD2 && toD2 && fromD2<=toD2){
+          let days=0, usedSum=0, capSum=0;
+          let peakUsed=-1, peakDay='', peakCap=0;
+
+          for(let d=fromD2; d<=toD2; d=addDaysUTC(d,1)){
+            const ymd = formatYMD(d);
+            const used = countForDay(occType, ymd);
+            const cap  = getCapacity(occType, ymd);
+            days++; usedSum += used; capSum += cap;
+            if(used>peakUsed){ peakUsed=used; peakDay=ymd; peakCap=cap; }
+          }
+
+          const avgUsed = days ? (usedSum/days) : 0;
+          const avgCap  = days ? (capSum/days) : 0;
+          const utilPct = capSum ? (usedSum/capSum*100) : 0;
+
+          // spacer row
+          const trSp = document.createElement('tr');
+          trSp.innerHTML = '<td colspan="2" style="height:10px;border:0;"></td>';
+          tbody.appendChild(trSp);
+
+          const trHead = document.createElement('tr');
+          trHead.innerHTML = `<td colspan="2" style="font-weight:700;">Auslastung (${label})</td>`;
+          tbody.appendChild(trHead);
+
+          const tr1 = document.createElement('tr');
+          tr1.innerHTML = `<td>Ø belegt</td><td>${avgUsed.toFixed(2)} / ${avgCap.toFixed(2)} (${utilPct.toFixed(1)}%)</td>`;
+          tbody.appendChild(tr1);
+
+          const tr2 = document.createElement('tr');
+          tr2.innerHTML = `<td>Peak</td><td>${peakUsed} / ${peakCap} am ${peakDay}</td>`;
+          tbody.appendChild(tr2);
+
+          const tr3 = document.createElement('tr');
+          tr3.innerHTML = `<td>Slot‑Tage</td><td>${usedSum} von ${capSum} (Max/Tag: ${capMax})</td>`;
+          tbody.appendChild(tr3);
+        }
+      }catch(_){}
+
 
     // bind refresh button once
     const btn = document.getElementById('anaRefreshBtn');
