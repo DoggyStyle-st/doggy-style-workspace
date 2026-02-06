@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = 'M24_4D2_OCCUPANCY_20260206';
+const APP_BUILD = 'M25_4D3_REVENUE_20260206';
 
 
 // Kapazitäts-Limit (Übernachtungshunde) – Stufe B Warnung
@@ -5230,7 +5230,69 @@ function renderAnalyticsPanel(){
       }
     }
 
-      // --- 4D-2: Auslastung/Kapazität im gewählten Zeitraum ---
+      
+
+    // --- 4D-3: Umsatz nach Leistung (Top-Positionen) ---
+    try{
+      const map = {};
+      const add = (label, val) => {
+        if(!label) return;
+        const v = Number(val||0) || 0;
+        if(v===0) return;
+        map[label] = (map[label]||0) + v;
+      };
+
+      for(const inv of paidInv){
+        const p = inv.pricing || {};
+        // Base
+        const baseLabel = p.baseLabel || (p.breakdown && p.breakdown.baseLabel) || (String(inv.betreuungType||'').toLowerCase().startsWith('day') ? 'Tagesbetreuung' : 'Urlaubsbetreuung');
+        add(baseLabel, p.parts?.baseGross ?? p.baseGross ?? 0);
+        // Holiday
+        add('Sonn- & Feiertagszuschlag', p.parts?.holidayGross ?? p.holidayGross ?? 0);
+        // Percent items
+        const perc = (p.breakdown && Array.isArray(p.breakdown.percentItems)) ? p.breakdown.percentItems : [];
+        for(const it of perc){
+          add(it.label || it.name, it.gross ?? it.valueGross ?? it.amountGross ?? 0);
+        }
+        // Fixed items
+        const fix = (p.breakdown && Array.isArray(p.breakdown.fixedItems)) ? p.breakdown.fixedItems : [];
+        for(const it of fix){
+          add(it.label || it.name, it.gross ?? it.valueGross ?? it.amountGross ?? 0);
+        }
+      }
+
+      const rows = Object.entries(map)
+        .map(([label, val]) => ({label, val}))
+        .sort((a,b)=>b.val-a.val);
+
+      const tbody2 = document.querySelector('#anaItemTable tbody');
+      if(tbody2){
+        tbody2.innerHTML='';
+        const top = rows.slice(0, 12);
+        for(const r of top){
+          const tr=document.createElement('tr');
+          const tdL=document.createElement('td');
+          const tdV=document.createElement('td');
+          tdL.textContent=r.label;
+          tdV.textContent=formatEuro(r.val);
+          tr.appendChild(tdL);
+          tr.appendChild(tdV);
+          tbody2.appendChild(tr);
+        }
+        // Empty state
+        if(top.length===0){
+          const tr=document.createElement('tr');
+          const td=document.createElement('td');
+          td.colSpan=2;
+          td.textContent='Keine bezahlten Rechnungen im Zeitraum.';
+          tr.appendChild(td);
+          tbody2.appendChild(tr);
+        }
+      }
+    }catch(__e){
+      // ignore
+    }
+// --- 4D-2: Auslastung/Kapazität im gewählten Zeitraum ---
       try{
         // typeEl exists in UI (day/urlaub)
         const occType = String(typeEl?.value || 'urlaub');
