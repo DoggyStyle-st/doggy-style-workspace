@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = 'M25_4D3_REVENUE_20260206';
+const APP_BUILD = 'M26_4D4_TOPLIST_20260206';
 
 
 // Kapazitäts-Limit (Übernachtungshunde) – Stufe B Warnung
@@ -5292,6 +5292,50 @@ function renderAnalyticsPanel(){
     }catch(__e){
       // ignore
     }
+
+// --- 4D-4: Top Kunden & Top Hunde (Umsatz brutto) ---
+      try{
+        const topCustEl = document.getElementById('anaTopCustomerTable');
+        const topDogEl  = document.getElementById('anaTopDogTable');
+        if(topCustEl && topDogEl){
+          const mapCust = new Map(); // key -> {name, gross, count}
+          const mapDog  = new Map(); // key -> {name, gross, count}
+          (paidInv || []).forEach(inv=>{
+            const gross = (inv && inv.pricing && typeof inv.pricing.totalGross === 'number') ? inv.pricing.totalGross : 0;
+            // Customer
+            const cid = inv && inv.customerId ? String(inv.customerId) : '';
+            const custObj = cid ? getCustomer(cid) : null;
+            const custName = (custObj && (custObj.name||custObj.fullname||custObj.displayName)) || (inv && inv.customerName) || (inv && inv.kundeName) || '—';
+            const ckey = cid || custName;
+            const c = mapCust.get(ckey) || { name: custName, gross: 0, count: 0 };
+            c.gross += gross; c.count += 1;
+            if(!c.name && custName) c.name = custName;
+            mapCust.set(ckey, c);
+            // Dog
+            const did = inv && inv.dogId ? String(inv.dogId) : '';
+            const dogObj = did ? getPet(did) : null;
+            const dogName = (dogObj && (dogObj.name||dogObj.displayName)) || (inv && inv.dogName) || (inv && inv.hundName) || '—';
+            const dkey = did || dogName;
+            const d = mapDog.get(dkey) || { name: dogName, gross: 0, count: 0 };
+            d.gross += gross; d.count += 1;
+            if(!d.name && dogName) d.name = dogName;
+            mapDog.set(dkey, d);
+          });
+          const topCust = Array.from(mapCust.values()).sort((a,b)=>b.gross-a.gross).slice(0,10);
+          const topDog  = Array.from(mapDog.values()).sort((a,b)=>b.gross-a.gross).slice(0,10);
+
+          const renderTop = (el, rows, labelLeft)=>{
+            const head = `<tr><th>${esc(labelLeft)}</th><th style="text-align:right;">Umsatz</th><th style="text-align:right;">Rechn.</th></tr>`;
+            const body = rows.map(r=>`<tr><td>${esc(r.name||'—')}</td><td style="text-align:right;">${formatEUR(r.gross||0)}</td><td style="text-align:right;">${r.count||0}</td></tr>`).join('');
+            el.innerHTML = head + (body || `<tr><td colspan="3" style="opacity:.75;">Keine Daten im Zeitraum</td></tr>`);
+          };
+          renderTop(topCustEl, topCust, 'Kunde');
+          renderTop(topDogEl, topDog, 'Hund');
+        }
+      }catch(__e){
+        // ignore
+      }
+
 // --- 4D-2: Auslastung/Kapazität im gewählten Zeitraum ---
       try{
         // typeEl exists in UI (day/urlaub)
