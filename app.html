@@ -1027,6 +1027,30 @@
 <section class="panel" id="analytics">
   <h2>Auswertungen</h2>
 
+      <div class="card" style="margin-top:10px;">
+        <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end;">
+          <div style="min-width:180px;">
+            <label class="muted" style="display:block; margin-bottom:4px;">Von</label>
+            <input id="anaFrom" type="date" class="input" style="width:100%;" />
+          </div>
+          <div style="min-width:180px;">
+            <label class="muted" style="display:block; margin-bottom:4px;">Bis</label>
+            <input id="anaTo" type="date" class="input" style="width:100%;" />
+          </div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+            <button id="anaQuick30" class="btn" type="button" style="padding:8px 10px; font-size:12px;">30 Tage</button>
+            <button id="anaQuick90" class="btn" type="button" style="padding:8px 10px; font-size:12px;">90 Tage</button>
+            <button id="anaQuick365" class="btn" type="button" style="padding:8px 10px; font-size:12px;">12 Monate</button>
+          </div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-left:auto;">
+            <button id="anaExportBtn" class="btn" type="button" style="padding:8px 10px; font-size:12px;">CSV Export</button>
+            <button id="anaRefreshBtn" class="btn primary" type="button" style="padding:8px 12px; font-size:12px;">Aktualisieren</button>
+          </div>
+        </div>
+        <div id="anaRangeHint" class="muted" style="margin-top:8px; font-size:12px;"></div>
+      </div>
+
+
   <div class="card">
     <div class="row between" style="gap:12px; flex-wrap:wrap;">
       <div>
@@ -1260,6 +1284,6 @@
   <!-- Bottom logout button removed (duplicate of header logout; also overlaps editor on iPad) -->
 </div>
 <!-- test-badge removed (requested) -->
-  <div class="build-badge" id="buildBadge">Build M19_4C2_INVOICE_FREEZE_20260205</div>
+  <div class="build-badge" id="buildBadge">Build M27_4D5_ANA_RANGE_EXPORT_20260206</div>
 </body>
 </html>

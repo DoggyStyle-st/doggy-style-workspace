@@ -1,18 +1,13 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = 'M26_4D4_TOPLIST_20260206';
-
-
+const APP_BUILD = 'M27_4D5_ANA_RANGE_EXPORT_20260206';
 // Kapazitäts-Limit (Übernachtungshunde) – Stufe B Warnung
 const MAX_OVERNIGHT = 10;
-
-
 // ===== 4B-3: Soft-Warnung bei fehlender Unterschrift (Speichern bleibt erlaubt) =====
 function warnStaySignatureMissing(doc){
   try{
     if(!doc) return;
     const missing = !(doc.signature && doc.signature.dataUrl);
     if(!missing) return;
-
     // Status im Unterschrift-Bereich anpassen (falls sichtbar)
     try{
       const statusEl = document.getElementById('staySigStatus');
@@ -21,7 +16,6 @@ function warnStaySignatureMissing(doc){
         statusEl.className = 'muted warn';
       }
     }catch(_){}
-
     // Nicht-blockierender Hinweis
     try{
       if(typeof toast === 'function') toast('⚠ Unterschrift fehlt – bitte später nachholen.');
@@ -30,7 +24,6 @@ function warnStaySignatureMissing(doc){
   }catch(_){}
 }
 // ===== END 4B-3 =====
-
 // --- Build-Sync (Anzeige + Migration) ---
 (function syncBuildBadge(){
   try{
@@ -44,7 +37,6 @@ function warnStaySignatureMissing(doc){
       localStorage.setItem(key, APP_BUILD);
       // Optional: mark that a version bump happened (useful for guarded migrations)
       localStorage.setItem('ds_app_build_bumped_at', String(Date.now()));
-
       // Cache-buster / Service-Worker Guard:
       // If a new build is detected, try to drop SW + CacheStorage once, then reload with a version query.
       try{
@@ -78,7 +70,6 @@ function warnStaySignatureMissing(doc){
     }
   }catch(_){}
 })();
-
 // Selector helpers
 // $: accepts either an element id (e.g. 'contractSig') or a CSS selector (e.g. '#contractSig', '.btn')
 const $ = (sel) => {
@@ -91,19 +82,16 @@ const $ = (sel) => {
   return looksLikeSelector ? document.querySelector(s) : document.getElementById(s);
 };
 const $$ = (sel) => Array.from(document.querySelectorAll(sel));
-
 // --- SAFETY STUB: avoids crash if Monats-Export is not implemented in this build
 function exportMonthBundle(){
   try {
     alert('Monats-Export ist in diesem Build noch nicht verfuegbar.');
   } catch(e) {}
 }
-
 window.addEventListener('error', (e) => {
   console.error('APP_ERROR', e.error || e.message);
 });
 const LS_KEY="ds_workspace_test_optik_01";
-
 // --- Datum (lokal) ohne UTC-Verschiebung ---
 // Wichtig für Kalender/"Heute" auf iPad (sonst springt es abends auf den nächsten Tag).
 function toISODateLocal(date = new Date()){
@@ -116,7 +104,6 @@ const CAPACITY = {
   Tagesbetreuung: 13,
   Urlaubsbetreuung: 10
 };
-
 // --- Betreuung / Kapazität: robuste Normalisierung ---
 function _normBetreuungType(v){
   if(v == null) return '';
@@ -132,8 +119,6 @@ function _canonicalBetreuungType(v){
   if(n === 'tagesbetreuung') return 'Tagesbetreuung';
   return v || '';
 }
-
-
 // === Dynamische Kapazitäten (Standard + Ausnahmen nach Zeitraum) ===
 // Ausnahme-Objekt: { from:"YYYY-MM-DD", to:"YYYY-MM-DD", Tagesbetreuung: 8, Urlaubsbetreuung: 6, note:"Event" }
 function getCapacity(type, dateISO){
@@ -158,7 +143,6 @@ function getCapacity(type, dateISO){
     return (CAPACITY[type] || 0);
   }
 }
-
 // Für Plausibilitätswarnungen über einen Zeitraum: kleinste Kapazität im Zeitraum (sicherer als "ein Tag")
 function getMinCapacityForRange(type, fromISO, toISO){
   const from = String(fromISO||"").slice(0,10);
@@ -177,8 +161,6 @@ function getMinCapacityForRange(type, fromISO, toISO){
   }
   return (minCap === Infinity) ? getCapacity(type, from) : minCap;
 }
-
-
 /* ===== Weg 2B: Cloud Sync + Login (Firebase) =====
    - Wenn window.firebaseConfig gesetzt ist: Login anzeigen + State aus Cloud laden/syncen
    - Wenn nicht: App läuft wie bisher rein lokal/offline
@@ -201,7 +183,6 @@ const CLOUD = {
   lastPushOkAt: 0,
   lastPushError: ""
 };
-
 const ROLES = {
   ADMIN: 'admin',
   STAFF: 'staff',
@@ -209,11 +190,9 @@ const ROLES = {
   GUEST: 'guest',
   LOCAL: 'local'
 };
-
 function isStaff(){
   return CLOUD.role === ROLES.ADMIN || CLOUD.role === ROLES.STAFF;
 }
-
 function can(action){
   const r = CLOUD.role;
   if(r === ROLES.ADMIN){
@@ -228,7 +207,6 @@ function can(action){
   }
   return false;
 }
-
 const SYNC = {
   localSavedAt: 0,
   cloudLastSeenAt: 0,
@@ -239,7 +217,6 @@ const SYNC = {
   cloudReachCheckedAt: 0,
   cloudReachError: ""
 };
-
 function fmtDT(ts){
   if(!ts) return "—";
   try{
@@ -252,13 +229,11 @@ function fmtDT(ts){
     return `${dd}.${mm}.${yy} ${hh}:${mi}`;
   }catch(_){ return "—"; }
 }
-
 async function performLogout(){
   try{ if(CLOUD && CLOUD.enabled && CLOUD.auth){ await CLOUD.auth.signOut(); } }catch(e){}
   try{ sessionStorage.removeItem("dstest_sw_reloaded"); }catch(e){}
   try{ location.href = "login.html"; }catch(e){}
 }
-
 function updateSyncUI(){
   const pill = document.getElementById('syncStatus');
   const userEl = document.getElementById('syncUser');
@@ -274,18 +249,14 @@ function updateSyncUI(){
       userEl.textContent = '';
     }
   }
-
   const netOnline = (typeof navigator !== 'undefined') ? !!navigator.onLine : false;
   const cloudOk = !!(netOnline && cloudIsEnabled() && CLOUD && CLOUD.enabled && CLOUD.user && SYNC.cloudReachable);
   try{ if(pill){ pill.classList.toggle('is-online', !!cloudOk); pill.classList.toggle('is-offline', !cloudOk); } }catch(e){}
   const localLine = `Lokal gespeichert: ${fmtDT(SYNC.localSavedAt)}`;
-
   // Internet-Status (nicht gleich Cloud!)
   const netLine = `Internet: ${cloudOk ? 'Online' : 'Offline'}`;
-
   let pillText = cloudOk ? 'Online' : 'Offline';
   let cloudLine = 'Cloud: aus';
-
   if(!cloudIsEnabled()){
     // Cloud nicht möglich (SDK fehlt) – das ist der Hauptgrund für "immer Offline" in der Wahrnehmung
     cloudLine = window.firebaseConfig ? 'Cloud: bereit (SDK nicht geladen)' : 'Cloud: aus';
@@ -307,12 +278,10 @@ function updateSyncUI(){
       cloudLine = `Cloud zuletzt OK: ${fmtDT(SYNC.cloudLastOkAt)} · Server: ${fmtDT(SYNC.cloudLastSeenAt)}`;
     }
   }
-
   if(pill) pill.textContent = `${pillText} · ${fmtDT(SYNC.localSavedAt)}`;
   const dot=document.getElementById('syncDot');
   if(dot){ dot.classList.toggle('online', !!netOnline); dot.classList.toggle('offline', !netOnline); }
   if(details) details.textContent = `${localLine}\n${netLine}\n${cloudLine}\nCloud-Ping: ${fmtDT(SYNC.cloudReachCheckedAt)}${SYNC.cloudReachError ? ' · '+SYNC.cloudReachError : ''}`;
-
   // Manual cloud save: only enable when Cloud is active + logged in
   if(manualBtn){
     const ok = !!(CLOUD.enabled && CLOUD.user);
@@ -327,10 +296,8 @@ function updateSyncUI(){
     }
   }
 }
-
 /* ===== Dokument/PDF Modal (PWA/iPad-friendly) ===== */
 const DOCMOD = { url: null, filename: null };
-
 // Mini Toast helper (kurzes Feedback bei Kopieren/Teilen)
 let __toastTimer = null;
 function showMiniToast(msg){
@@ -348,7 +315,6 @@ function showMiniToast(msg){
     __toastTimer = setTimeout(()=> t.classList.remove('is-on'), 1400);
   }catch(_){/* ignore */}
 }
-
 function sanitizeFilename(name){
   const base = String(name||'Dokument').trim();
   // Keep it iOS/Windows friendly
@@ -359,7 +325,6 @@ function sanitizeFilename(name){
     .replace(/[^\w\-\.äöüÄÖÜß]/g,'')
     .slice(0, 80) || 'Dokument';
 }
-
 function suggestFilename(title){
   const t = String(title||'').toLowerCase();
   const now = new Date();
@@ -405,7 +370,6 @@ function initDocModal(){
   if(btnOpen) btnOpen.onclick = ()=>{
     if(DOCMOD.url) window.open(DOCMOD.url, '_blank');
   };
-
   // Share (iOS/Android, wenn verfügbar)
   if(btnShare){
     const canShare = !!navigator.share;
@@ -422,7 +386,6 @@ function initDocModal(){
       }catch(_){ /* user cancelled */ }
     };
   }
-
   // Copy filename tip
   if(meta && !meta.dataset.bound){
     meta.dataset.bound = '1';
@@ -443,7 +406,6 @@ function initDocModal(){
     });
   }
 }
-
 function openDocModal(url, title, hint, filename){
   initDocModal();
   const modal = document.getElementById('docModal');
@@ -468,7 +430,6 @@ function openDocModal(url, title, hint, filename){
   frame.src = url;
   modal.classList.add('is-open');
   modal.setAttribute('aria-hidden','false');
-
   // Scroll-Lock (robust on iOS Safari)
   __docModalScrollY = window.scrollY || 0;
   document.documentElement.style.overflow = 'hidden';
@@ -481,7 +442,6 @@ function openDocModal(url, title, hint, filename){
   // Focus first action for iPad keyboard users
   setTimeout(()=>{ document.getElementById('docModalClose')?.focus(); }, 0);
 }
-
 function closeDocModal(){
   const modal = document.getElementById('docModal');
   const frame = document.getElementById('docModalFrame');
@@ -505,16 +465,13 @@ function closeDocModal(){
   DOCMOD.url = null;
   DOCMOD.filename = null;
 }
-
 // iOS/Safari: "overflow:hidden" allein verhindert Scrollen oft nicht zuverlässig.
 // Daher merken wir die Scrollposition und fixieren den Body beim Öffnen.
 let __docModalScrollY = 0;
-
 function openHtmlInModal(title, html, hint){
   // iOS Safari / PWA: Blob-URLs inside iframes can render as a blank (white) page.
   // Therefore we prefer srcdoc (inline HTML) for legal texts.
   initDocModal();
-
   const modal = $('#docModal');
   const titleEl = $('#docModalTitle');
   const hintEl  = $('#docModalHint');
@@ -522,36 +479,28 @@ function openHtmlInModal(title, html, hint){
   const btnOpen = $('#docModalOpen');
   const btnPrint= $('#docModalPrint');
   const btnShare= $('#docModalShare');
-
   const safeTitle = title || 'Dokument';
   const safeHint  = hint  || 'Drucken/Speichern → Teilen → Daten sichern.';
   const filename  = suggestFilename(safeTitle);
-
   // Ensure title is present inside the document so iOS/print dialogs show a helpful name
   let content = String(html || '');
   if(!/<title>/i.test(content)){
     const t = escapeHtml(safeTitle);
     content = content.replace(/<head>/i, `<head><title>${t}</title>`);
   }
-
   DOCMOD.open = true;
   DOCMOD.title = safeTitle;
   DOCMOD.hint = safeHint;
   DOCMOD.filename = filename;
   DOCMOD.url = null; // no external URL
-
   if(titleEl) titleEl.textContent = safeTitle;
   if(hintEl)  hintEl.textContent  = safeHint;
-
   // Open button does not apply for inline docs
   if(btnOpen) btnOpen.style.display = 'none';
-
   // Share button only works with a downloadable URL – keep hidden to avoid confusion
   if(btnShare) btnShare.style.display = 'none';
-
   // Print still works (prints iframe content)
   if(btnPrint) btnPrint.style.display = '';
-
   if(frame){
     try{
       frame.removeAttribute('src');
@@ -568,7 +517,6 @@ function openHtmlInModal(title, html, hint){
       }catch(e2){}
     }
   }
-
   // IMPORTANT: state class must match closeDocModal()/CSS.
   // A mismatched class causes the backdrop to dim without showing the modal content.
   if(modal){
@@ -579,7 +527,6 @@ function openHtmlInModal(title, html, hint){
   // Ensure backdrop + scroll lock behave consistently.
   const backdrop = document.getElementById('docModalBackdrop');
   if(backdrop) backdrop.style.display = 'block';
-
   // Scroll-Lock (robust on iOS Safari)
   __docModalScrollY = window.scrollY || 0;
   document.documentElement.style.overflow = 'hidden';
@@ -590,104 +537,75 @@ function openHtmlInModal(title, html, hint){
   document.body.style.right = '0';
   document.body.style.width = '100%';
 }
-
-
 // ===== Rechtstexte (AGB / DSGVO) – editierbar über Einstellungen =====
 const LEGAL_DEFAULTS = {
   dsgvo: `Datenschutzhinweis (DSGVO) – Doggy Style Hundepension
-
 Verantwortlicher:
 Raphael Boch, Im Moos 4, 88167 Stiefenhofen
 Telefon: 0170/7313587 · E-Mail: info@doggy-style.de
-
 Zweck der Verarbeitung
 Wir verarbeiten personenbezogene Daten und tierbezogene Daten zur Durchführung von Betreuungsverträgen, zur Organisation von Aufenthalten, zur Abrechnung, zur Kommunikation sowie zur Erfüllung gesetzlicher Pflichten.
-
 Kategorien von Daten
 - Stammdaten (Name, Anschrift, Kontakt)
 - Vertrags- und Buchungsdaten (Zeiträume, Leistungen, Preise)
 - Tierdaten (Hundename, Besonderheiten, Medikamente/Notizen sofern angegeben)
 - Dokumentationsdaten (z. B. digitale Unterschrift, Einwilligungen)
-
 Rechtsgrundlagen
 Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung) und Art. 6 Abs. 1 lit. c DSGVO (rechtliche Verpflichtung). Soweit Einwilligungen erfasst werden: Art. 6 Abs. 1 lit. a DSGVO.
-
 Empfänger / Tierarzt
 Daten werden grundsätzlich nicht an Dritte weitergegeben, außer dies ist zur Vertragserfüllung erforderlich (z. B. Tierarzt im Notfall) oder gesetzlich vorgeschrieben.
-
 Speicherdauer
 Wir speichern Daten nur solange, wie es für die genannten Zwecke erforderlich ist oder gesetzliche Aufbewahrungsfristen bestehen (z. B. steuerrechtliche Fristen).
-
 Rechte
 Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Datenübertragbarkeit sowie Widerspruch. Einwilligungen können jederzeit mit Wirkung für die Zukunft widerrufen werden.
-
 Beschwerderecht
 Sie haben das Recht, sich bei einer Datenschutzaufsichtsbehörde zu beschweren.`,
   agb: `Allgemeine Geschäftsbedingungen (AGB) – Doggy Style Hundepension
 Stand: 23.01.2026
-
 1. Geltungsbereich
 Diese AGB gelten für alle Betreuungsleistungen (Tages- und Urlaubsbetreuung). Abweichende Vereinbarungen bedürfen der Textform.
-
 2. Voraussetzungen für die Aufnahme
 - Hund frei von ansteckenden Krankheiten/Parasiten (insb. Flöhe, Giardien)
 - Impfstatus altersgerecht und aktuell (Nachweis auf Verlangen)
 - Halter informiert vollständig über Verhalten, Allergien, Vorerkrankungen, Läufigkeit, Medikamente, Besonderheiten
 - Hundehaftpflichtversicherung wird empfohlen; Halter haftet für verursachte Schäden
-
 3. Leistungen & Betreuung
 Betreuung im Rahmen betrieblicher Abläufe. Kein Anspruch auf bestimmte Gruppen/Einzelhaltung ohne ausdrückliche Vereinbarung.
-
 4. Läufigkeit
 Läufige Hündinnen werden grundsätzlich nicht betreut. Beginnt Läufigkeit während des Aufenthalts, ist unverzügliche Abholung erforderlich oder es erfolgt eine Einzelfallentscheidung.
-
 5. Tierarzt / Notfall
 Bei akuten Problemen darf ein Tierarzt aufgesucht werden. Der Betreiber informiert den Halter nach Möglichkeit vorab. Kosten trägt der Halter.
-
 6. Haftung
 Haftung nur bei Vorsatz/grober Fahrlässigkeit. Keine Haftung für typische Gruppenrisiken oder persönliche Gegenstände.
-
 7. Abbruch / Ausschluss
 Betreuung kann beendet werden, wenn Gefahr besteht, falsche Angaben gemacht wurden oder tierschutzrechtliche/betriebliche Gründe vorliegen. Abholung kann kurzfristig erforderlich sein.`
 };
-
-
 // 4B-1 Ergänzungen (Tierarzt-Erlaubnis & Wahrheitsgemäß-Erklärung)
 try{
   if(!LEGAL_DEFAULTS.tierarzt){
     LEGAL_DEFAULTS.tierarzt = `Tierarzt-Erlaubnis / Notfall-Vollmacht – Doggy Style Hundepension
-
 Hiermit erteile ich als Hundehalter/in dem Betreiber (Doggy Style Hundepension, Raphael Boch, Im Moos 4, 88167 Stiefenhofen) die Erlaubnis, im medizinischen Notfall oder bei akuten Beschwerden meines Hundes einen Tierarzt/Tierklinik aufzusuchen und notwendige Behandlungen veranlassen zu lassen, sofern ich nicht rechtzeitig erreichbar bin.
-
 Umfang (Beispiele):
 - Untersuchung und diagnostische Maßnahmen (z. B. Blutbild, Röntgen, Ultraschall)
 - Notfallbehandlung (Schmerztherapie, Wundversorgung, Infusion)
 - Verabreichung von Medikamenten nach tierärztlicher Anweisung
 - In lebensbedrohlichen Situationen notwendige Sofortmaßnahmen
-
 Kosten:
 Die entstehenden Tierarzt-/Klinikkosten sowie ggf. Transportkosten trägt der Hundehalter/die Hundehalterin. Der Betreiber informiert sobald wie möglich über Maßnahmen und Kosten.
-
 Kontakt im Notfall (Halter):
 Bitte hinterlegte Telefonnummern nutzen. Falls nicht erreichbar, wird im Sinne des Tierwohls gehandelt.
-
 Ort/Datum/Unterschrift:
 Diese Vollmacht wird pro Aufenthalt im Formular „Hundeannahme / Aufenthalt“ dokumentiert.`;
   }
   if(!LEGAL_DEFAULTS.wahrheit){
     LEGAL_DEFAULTS.wahrheit = `Erklärung – Angaben wahrheitsgemäß
-
 Ich bestätige, dass alle von mir gemachten Angaben zu meinem Hund (Gesundheitszustand, Impfstatus, Verhalten, Besonderheiten, Medikation, Unverträglichkeiten etc.) vollständig und wahrheitsgemäß sind.
-
 Ich verpflichte mich, Änderungen (z. B. neue Symptome, Medikamente, Läufigkeit, Beißvorfälle) unverzüglich mitzuteilen.
-
 Mir ist bekannt, dass falsche oder unvollständige Angaben die Sicherheit von Menschen und Tieren gefährden können und zum Ausschluss von der Betreuung führen können.
-
 Ort/Datum/Unterschrift:
 Diese Erklärung wird pro Aufenthalt im Formular „Hundeannahme / Aufenthalt“ dokumentiert.`;
   }
 }catch(_){}
-
 function _legalKey(kind){ return `ds_legal_${String(kind||'').toLowerCase()}`; }
 function getLegalText(kind){
   try{
@@ -698,7 +616,6 @@ function getLegalText(kind){
 }
 function setLegalText(kind, value){ try{ localStorage.setItem(_legalKey(kind), String(value||'')); }catch(_){ } }
 function resetLegalText(kind){ try{ localStorage.removeItem(_legalKey(kind)); }catch(_){ } }
-
 // Rechtstexte in einem iOS-stabilen Overlay (ohne iframe), inkl. Drucken/Speichern + Bearbeiten
 let _legalOverlayStyleInjected = false;
 function _injectLegalOverlayStyles(force=false){
@@ -707,7 +624,6 @@ function _injectLegalOverlayStyles(force=false){
   // "backdrop only" (screen darkens) without a visible modal.
   const old = document.getElementById('legalOverlay');
   if (old) old.remove();
-
   const styleAlready = _legalOverlayStyleInjected;
   if(!styleAlready || force){
     _legalOverlayStyleInjected = true;
@@ -734,7 +650,6 @@ function _injectLegalOverlayStyles(force=false){
   `;
   document.head.appendChild(st);
   }
-
   const ov = document.createElement('div');
   ov.id = 'legalOverlay';
   ov.innerHTML = `
@@ -749,7 +664,6 @@ function _injectLegalOverlayStyles(force=false){
       <div class="body" id="legalBody"></div>
     </div>`;
   document.body.appendChild(ov);
-
   ov.addEventListener('click', (e)=>{
     // Prevent immediate close caused by the same tap that opened the modal (iOS Safari quirk)
     const t0 = window.__legalOpenedAt || 0;
@@ -759,14 +673,12 @@ function _injectLegalOverlayStyles(force=false){
   ov.querySelector('#legalClose').addEventListener('click', closeLegalOverlay);
   ov.querySelector('#legalPrint').addEventListener('click', ()=>{ try{ window.print(); }catch(_){ } });
 }
-
 function closeLegalOverlay(){
   const ov = document.getElementById('legalOverlay');
   if(!ov) return;
   ov.classList.remove('is-open');
   document.body.style.overflow = '';
 }
-
 function openLegalModal(kind){
   // Safari/iOS sometimes keeps stale DOM via BFCache/SW, while new JS is loaded.
   // If we detect an incomplete overlay, force a rebuild so the modal always shows.
@@ -787,7 +699,6 @@ function openLegalModal(kind){
   const btnEdit = document.getElementById('legalEdit');
   if(!ov || !ttl || !body || !btnEdit) return;
   ttl.textContent = title;
-
   const renderView = ()=>{
     const txt = getLegalText(k);
     body.innerHTML = `<pre>${escapeHtml(String(txt||''))}</pre>`;
@@ -815,35 +726,28 @@ function openLegalModal(kind){
     btnEdit.textContent = '✓ Fertig';
     btnEdit.onclick = renderView;
   };
-
   renderView();
   ov.classList.add('is-open');
   window.__legalOpenedAt = Date.now();
   document.body.style.overflow = 'hidden';
 }
-
 function cloudIsEnabled(){
   // Cloud nur möglich, wenn Config vorhanden UND Firebase SDK geladen ist.
   // (In PWA offline wird das SDK über ServiceWorker gecached.)
   return !!(window.firebaseConfig && window.firebase && window.firebase.initializeApp && window.firebase.auth);
 }
-
-
 function withTimeout(promise, ms){
   return new Promise((resolve, reject)=>{
     const t = setTimeout(()=>reject(new Error("timeout")), ms);
     Promise.resolve(promise).then((v)=>{ clearTimeout(t); resolve(v); }).catch((e)=>{ clearTimeout(t); reject(e); });
   });
 }
-
 async function checkCloudReachability(reason){
   const netOnline = (typeof navigator !== 'undefined') ? !!navigator.onLine : false;
   SYNC.cloudReachCheckedAt = Date.now();
   SYNC.cloudReachError = "";
-
   // Default: nicht erreichbar
   SYNC.cloudReachable = false;
-
   if(!netOnline){
     SYNC.cloudReachError = "kein Internet";
     return false;
@@ -856,13 +760,11 @@ async function checkCloudReachability(reason){
     SYNC.cloudReachError = "nicht angemeldet";
     return false;
   }
-
   const ref = (typeof cloudStateRef === 'function') ? cloudStateRef() : null;
   if(!ref || !ref.get){
     SYNC.cloudReachError = "State-Ref fehlt";
     return false;
   }
-
   try{
     // erzwinge Serverzugriff, damit wir echte Erreichbarkeit messen
     const p = ref.get({ source: 'server' });
@@ -883,7 +785,6 @@ async function checkCloudReachability(reason){
     return false;
   }
 }
-
 let _cloudPingTimer = null;
 function scheduleCloudPing(delayMs=0, reason=""){
   try{
@@ -894,18 +795,15 @@ function scheduleCloudPing(delayMs=0, reason=""){
     }, Math.max(0, delayMs));
   }catch(e){}
 }
-
 function showAuthGate(show){
   const el = document.getElementById("authGate");
   if(!el) return;
   el.style.display = show ? "flex" : "none";
 }
-
 function setAuthMsg(msg){
   const el = document.getElementById("authMsg");
   if(el) el.textContent = msg || "";
 }
-
 async function cloudInit(){
   if(!cloudIsEnabled()){
     // genauer Grund für UI
@@ -930,7 +828,6 @@ async function cloudInit(){
     CLOUD.db = window.firebase.firestore();
     // Firestore Offline-Persistenz (A: Testmodus) – sorgt dafür, dass Daten auch nach Reload / ohne Netz bleiben
     try{ await CLOUD.db.enablePersistence({synchronizeTabs:true}); }catch(e){ /* ignore (z.B. multiple tabs / Safari restrictions) */ }
-
     // iOS/PWA: Persistenz IMMER auf LOCAL setzen (sonst springt man gerne wieder ins Login)
     try {
       if (CLOUD.auth && CLOUD.auth.setPersistence) {
@@ -944,37 +841,29 @@ async function cloudInit(){
     return false;
   }
 }
-
 function cloudStateRef(){
   // EIN zentraler Workspace-State pro Orga: orgs/{orgId}/meta/workspace_state
   if(!CLOUD.enabled) return null;
   return CLOUD.db.collection("orgs").doc(CLOUD.orgId).collection("meta").doc("workspace_state");
 }
-
 function cloudUsersCol(){
   return CLOUD.db.collection("orgs").doc(CLOUD.orgId).collection("users");
 }
-
 function cloudUserDoc(uid){
   return cloudUsersCol().doc(uid);
 }
-
 function cloudTasksCol(){
   return CLOUD.db.collection("orgs").doc(CLOUD.orgId).collection("tasks");
 }
-
 async function loadOrCreateUserProfile(user){
   if(!CLOUD.enabled || !user) return null;
   const uid = user.uid;
   const email = (user.email||"").toLowerCase();
-
   // Admin-Whitelist hat Vorrang
   const isAdminEmail = CLOUD.adminEmails.map(x=>String(x).toLowerCase()).includes(email);
-
   const ref = cloudUserDoc(uid);
   let snap = null;
   try{ snap = await ref.get(); }catch(e){ console.warn('User profile read failed', e); }
-
   if(!snap || !snap.exists){
     const role = isAdminEmail ? ROLES.ADMIN : ROLES.CUSTOMER;
     let pendingName = '';
@@ -991,7 +880,6 @@ async function loadOrCreateUserProfile(user){
     try{ await ref.set(profile, {merge:true}); }catch(e){ console.warn('User profile create failed', e); }
     return profile;
   }
-
   const data = snap.data()||{};
   // falls jemand in Whitelist ist: immer admin
   if(isAdminEmail && data.role !== ROLES.ADMIN){
@@ -1006,7 +894,6 @@ async function loadOrCreateUserProfile(user){
     createdAt: data.createdAt || 0
   };
 }
-
 async function cloudLoadState(){
   if(!CLOUD.enabled) return null;
   const ref = cloudStateRef();
@@ -1020,12 +907,9 @@ async function cloudLoadState(){
   updateSyncUI();
   return data.payload;
 }
-
-
 // --- Robust Startup Sync Helpers ---
 // In iOS/Safari kann es vorkommen, dass beim Reload der erste Firestore-Read leer/zu früh ist.
 // Diese Helper sorgen dafür, dass Remote-State zuverlässig übernommen und lokal gespeichert wird.
-
 function isStateEffectivelyEmpty(s){
   try{
     const pets = Array.isArray(s?.pets) ? s.pets.filter(x=>x && !x.isPlaceholder) : [];
@@ -1037,8 +921,6 @@ function isStateEffectivelyEmpty(s){
     return true;
   }
 }
-
-
 // --- Phase 1: Cloud-Datenfluss Merge-Strategie ---
 // Ziel: Remote darf lokale Stammdaten (Hunde/Kunden) nicht "leer" überschreiben.
 function _mergeById(remoteArr, localArr){
@@ -1056,19 +938,16 @@ function _mergeById(remoteArr, localArr){
   }
   return Array.from(m.values());
 }
-
 function _shallowMergeObj(a, b){
   if (a && typeof a === 'object' && !Array.isArray(a) && b && typeof b === 'object' && !Array.isArray(b)){
     return { ...a, ...b };
   }
   return (a !== undefined) ? a : b;
 }
-
 function mergeStatePreferRemote(remoteRaw, localRaw){
   const remote = remoteRaw || {};
   const local = localRaw || {};
   const out = { ...local, ...remote };
-
   // Arrays: ID-basiert mergen (remote + lokale Ergänzungen, pro Item jüngeres gewinnt)
   const idArrays = [
     'customers','pets','dogs','stays','invoices','docs','meds','medications','hygieneLogs','tasks','worksheets','entries'
@@ -1078,17 +957,14 @@ function mergeStatePreferRemote(remoteRaw, localRaw){
       out[k] = _mergeById(remote[k], local[k]);
     }
   }
-
   // Objekte: remote überschreibt, aber lokale Defaults bleiben erhalten
   const objKeys = ['settings','templates','company','meta','roles'];
   for (const k of objKeys){
     out[k] = _shallowMergeObj(remote[k], local[k]);
   }
-
   return out;
 }
 // --- /Merge-Strategie ---
-
 function applyRemoteState(remote, remoteStamp, source){
   if(!remote) return false;
   try{
@@ -1115,7 +991,6 @@ function applyRemoteState(remote, remoteStamp, source){
     return false;
   }
 }
-
 async function cloudLoadStateWithRetry(maxTries=3){
   let lastErr = null;
   for(let i=0;i<maxTries;i++){
@@ -1130,7 +1005,6 @@ async function cloudLoadStateWithRetry(maxTries=3){
   }
   return {remote:null, err:lastErr};
 }
-
 function cloudPushQueued(){
   if(!CLOUD.enabled) return;
   clearTimeout(CLOUD._pushTimer);
@@ -1138,7 +1012,6 @@ function cloudPushQueued(){
   updateSyncUI();
   CLOUD._pushTimer = setTimeout(()=>cloudPushNow().catch(console.error), 700);
 }
-
 async function cloudPushNow(){
   if(!CLOUD.enabled) return;
   if(!CLOUD.user) throw new Error("Nicht angemeldet");
@@ -1170,9 +1043,7 @@ async function cloudPushNow(){
     updateSyncUI();
   }
 }
-
 /* ===== Rollen, Kundenportal & Aufgaben (Weg A) ===== */
-
 function hideStaffUIForCustomer(){
   // Tabs / Panels umschalten
   try{
@@ -1195,7 +1066,6 @@ function hideStaffUIForCustomer(){
     if(cp){ cp.style.display = ''; cp.classList.add('is-active'); }
   }catch(_){ }
 }
-
 function showStaffUI(){
   try{
     const nav = document.querySelector('nav.tabs');
@@ -1209,14 +1079,12 @@ function showStaffUI(){
     const tabInbox = document.getElementById('tabInbox');
     if(tabInbox) tabInbox.style.display = isStaff() ? '' : 'none';
   }catch(_){ }
-
   // Kalender nur für staff/admin
   try{
     const tabCal = document.getElementById('tabCalendar');
     if(tabCal) tabCal.style.display = isStaff() ? '' : 'none';
   }catch(_){ }
 }
-
 async function initCustomerPortal(){
   hideStaffUIForCustomer();
   updateSyncUI();
@@ -1224,23 +1092,19 @@ async function initCustomerPortal(){
   // Logout Button
   const btn = document.getElementById('btnCustomerLogout');
   if(btn) btn.onclick = async ()=>{ try{ await CLOUD.auth.signOut(); }catch(_){ } };
-
   // Live-Listener: offene Aufgaben für diesen Kunden
   const uid = CLOUD.user?.uid;
   if(!uid) return;
-
   const listEl = document.getElementById('customerTaskList');
   const subtitle = document.getElementById('customerPortalSubtitle');
   const editor = document.getElementById('customerTaskEditor');
   if(editor) editor.style.display = 'none';
-
   // Back
   const btnBack = document.getElementById('btnCustomerTaskBack');
   if(btnBack) btnBack.onclick = ()=>{
     if(editor) editor.style.display = 'none';
     if(listEl) listEl.style.display = '';
   };
-
   const q = cloudTasksCol().where('customerUid','==',uid).where('status','==','open').orderBy('createdAt','desc');
   q.onSnapshot((snap)=>{
     const tasks = [];
@@ -1253,7 +1117,6 @@ async function initCustomerPortal(){
     console.error('customer tasks listener', err);
     if(subtitle) subtitle.textContent = 'Fehler beim Laden der Aufgaben.';
   });
-
   function renderCustomerTaskList(tasks){
     if(!listEl) return;
     listEl.innerHTML = '';
@@ -1277,13 +1140,11 @@ async function initCustomerPortal(){
       listEl.appendChild(row);
     });
   }
-
   let _draftTimer = null;
   async function openCustomerTask(task){
     if(!task || !task.templateId) return;
     const t = getTemplate(task.templateId);
     if(!t){ alert('Vorlage nicht gefunden.'); return; }
-
     if(listEl) listEl.style.display = 'none';
     if(editor) editor.style.display = '';
     const titleEl = document.getElementById('customerTaskTitle');
@@ -1293,12 +1154,10 @@ async function initCustomerPortal(){
     if(titleEl) titleEl.textContent = task.title || t.name || 'Aufgabe';
     if(metaEl) metaEl.textContent = `Formular: ${t.name||task.templateId}`;
     if(hint) hint.textContent = '';
-
     const working = {
       fields: (task.payloadDraft?.fields || task.payloadSubmitted?.fields || {}),
       meta: (task.payloadDraft?.meta || task.payloadSubmitted?.meta || {})
     };
-
     // Render
     if(root) root.innerHTML = '';
     const renderFieldSimple = (f, value, bucket)=>{
@@ -1321,7 +1180,6 @@ async function initCustomerPortal(){
       wrap.appendChild(input);
       return wrap;
     };
-
     const build = ()=>{
       if(!root) return;
       root.innerHTML='';
@@ -1339,7 +1197,6 @@ async function initCustomerPortal(){
       root.appendChild(metaCard);
     };
     build();
-
     const saveDraftNow = async ()=>{
       if(!CLOUD.user) return;
       const payloadDraft = { fields: working.fields, meta: working.meta };
@@ -1354,13 +1211,11 @@ async function initCustomerPortal(){
         if(hint) hint.textContent = '❌ Speichern fehlgeschlagen (bitte später erneut versuchen).';
       }
     };
-
     const scheduleDraftSave = ()=>{
       clearTimeout(_draftTimer);
       _draftTimer = setTimeout(()=>saveDraftNow(), 600);
       if(hint) hint.textContent = '… speichert …';
     };
-
     // Submit
     const btnSubmit = document.getElementById('btnCustomerTaskSubmit');
     if(btnSubmit) btnSubmit.onclick = async ()=>{
@@ -1382,14 +1237,11 @@ async function initCustomerPortal(){
     };
   }
 }
-
 async function initStaffFeatures(){
   showStaffUI();
   updateSyncUI();
-
   // Kalender Controls (Monat vor/zurück/heute)
   try{ wireCalendarControls(); }catch(e){ console.warn(e); }
-
   // Rechte in UI spiegeln
   try{
     const btnWipe = document.getElementById('btnWipe');
@@ -1397,13 +1249,11 @@ async function initStaffFeatures(){
     const btnImport = document.getElementById('btnBackupImport');
     if(btnImport) btnImport.style.display = can('import_backup') ? '' : 'none';
   }catch(_){ }
-
   // Admin Cards (Users + Task creation)
   const adminTaskCard = document.getElementById('adminTaskCard');
   const adminUserCard = document.getElementById('adminUserCard');
   if(adminTaskCard) adminTaskCard.style.display = isStaff() ? '' : 'none';
   if(adminUserCard) adminUserCard.style.display = (CLOUD.role === ROLES.ADMIN) ? '' : 'none';
-
   // Task creation (staff+admin)
   try{ await wireTaskCreation(); }catch(e){ console.warn(e); }
   // User management (admin)
@@ -1411,7 +1261,6 @@ async function initStaffFeatures(){
   // Inbox
   try{ await wireInbox(); }catch(e){ console.warn(e); }
 }
-
 async function wireTaskCreation(){
   const selCustomer = document.getElementById('taskCustomerSelect');
   const inpCustomerSearch = document.getElementById('taskCustomerSearch');
@@ -1422,7 +1271,6 @@ async function wireTaskCreation(){
   const btnMoreCustomers = document.getElementById('btnCustomersMore');
   const customerCountEl = document.getElementById('taskCustomerCount');
   if(!selCustomer || !selTemplate || !btnCreate) return;
-
   // Templates laden (Vorlagen)
   try{
     await loadTemplates();
@@ -1436,20 +1284,17 @@ async function wireTaskCreation(){
     console.warn('templates load', e);
     selTemplate.innerHTML = '<option value="">(keine Vorlagen)</option>';
   }
-
   // Customers (mit Suche + "Mehr laden")
   let _allCustomers = [];
   let _custLastDoc = null;
   let _custHasMore = true;
   let _custLoading = false;
   const CUSTOMER_PAGE_SIZE = 200;
-
   const customerLabel = (u)=>{
     const dn = String(u.displayName||'').trim();
     const em = String(u.email||u.uid||'').trim();
     return dn ? `${dn} – ${em}` : em;
   };
-
   const renderCustomers = (q='')=>{
     const query = (q||'').trim().toLowerCase();
     const list = query ? _allCustomers.filter(u=>{
@@ -1457,17 +1302,14 @@ async function wireTaskCreation(){
       const em = String(u.email||u.uid||'').toLowerCase();
       return dn.includes(query) || em.includes(query);
     }) : _allCustomers;
-
     if(!list.length){
       selCustomer.innerHTML = '<option value="">Keine Treffer</option>';
     } else {
       selCustomer.innerHTML = list.map(u=>`<option value="${escapeHtml(u.uid)}">${escapeHtml(customerLabel(u))}</option>`).join('');
     }
-
     if(customerCountEl) customerCountEl.textContent = `${_allCustomers.length} geladen`;
     if(btnMoreCustomers) btnMoreCustomers.style.display = _custHasMore ? '' : 'none';
   };
-
   const loadCustomersPage = async (reset=false)=>{
     if(_custLoading) return;
     _custLoading = true;
@@ -1477,14 +1319,11 @@ async function wireTaskCreation(){
         _custLastDoc = null;
         _custHasMore = true;
       }
-
       let q = cloudUsersCol()
         .where('role','==',ROLES.CUSTOMER)
         .orderBy('createdAt','desc')
         .limit(CUSTOMER_PAGE_SIZE);
-
       if(_custLastDoc) q = q.startAfter(_custLastDoc);
-
       const snap = await q.get();
       const docs = snap.docs || [];
       docs.forEach(d=>{
@@ -1492,10 +1331,8 @@ async function wireTaskCreation(){
         if(!u.uid) u.uid = d.id;
         _allCustomers.push(u);
       });
-
       if(docs.length) _custLastDoc = docs[docs.length-1];
       _custHasMore = (docs.length === CUSTOMER_PAGE_SIZE);
-
       renderCustomers(inpCustomerSearch?.value || '');
     }catch(e){
       console.warn('customers page', e);
@@ -1503,29 +1340,24 @@ async function wireTaskCreation(){
       _custLoading = false;
     }
   };
-
   await loadCustomersPage(true);
-
   if(inpCustomerSearch){
     inpCustomerSearch.addEventListener('input', ()=>renderCustomers(inpCustomerSearch.value));
   }
   if(btnMoreCustomers){
     btnMoreCustomers.addEventListener('click', (e)=>{ e.preventDefault(); loadCustomersPage(false); });
   }
-
   btnCreate.onclick = async ()=>{
     const customerUid = selCustomer.value;
     const templateId = selTemplate.value;
     const tpl = getTemplate(templateId);
     const title = (titleInput?.value||'').trim()
       || (tpl?.name ? (tpl.name+' – Ausfüllen') : 'Formular ausfüllen');
-
     if(!customerUid || !templateId){
       if(msgEl) msgEl.textContent = 'Bitte Kunde und Vorlage wählen.';
       return;
     }
     if(msgEl) msgEl.textContent = '… erstellt …';
-
     try{
       await cloudTasksCol().add({
         customerUid,
@@ -1544,13 +1376,11 @@ async function wireTaskCreation(){
     }
   };
 }
-
 async function wireUserManagement(){
   const listEl = document.getElementById('usersList');
   const btnRef = document.getElementById('btnUsersRefresh');
   const msgEl = document.getElementById('usersMsg');
   if(!listEl) return;
-
   const load = async ()=>{
     if(msgEl) msgEl.textContent = '… lädt …';
     try{
@@ -1602,11 +1432,9 @@ async function wireUserManagement(){
       }
     }
   };
-
   if(btnRef) btnRef.onclick = ()=>load().catch(e=>{ console.error(e); if(msgEl) msgEl.textContent='❌ Laden fehlgeschlagen.'; });
   await load();
 }
-
 async function wireInbox(){
   const listEl = document.getElementById('inboxList');
   const btnRef = document.getElementById('btnInboxRefresh');
@@ -1618,9 +1446,7 @@ async function wireInbox(){
   const metaEl = document.getElementById('inboxDetailMeta');
   const root = document.getElementById('inboxDetailFormRoot');
   if(!listEl) return;
-
   let currentTask = null;
-
   const renderList = (tasks)=>{
     listEl.innerHTML = '';
     if(!tasks.length){
@@ -1643,7 +1469,6 @@ async function wireInbox(){
       listEl.appendChild(row);
     });
   };
-
   const loadSubmitted = async ()=>{
     const snap = await cloudTasksCol().where('status','==','submitted').orderBy('submittedAt','desc').limit(100).get();
     const tasks = [];
@@ -1660,7 +1485,6 @@ async function wireInbox(){
     tasks.forEach(t=>t.customerEmail = map[t.customerUid]||'');
     renderList(tasks);
   };
-
   const openDetail = (task)=>{
     currentTask = task;
     if(detail) detail.style.display = '';
@@ -1694,7 +1518,6 @@ async function wireInbox(){
       root.appendChild(metaCard);
     }
   };
-
   if(btnBack) btnBack.onclick = ()=>{
     if(detail) detail.style.display = 'none';
     if(listEl) listEl.style.display = '';
@@ -1744,11 +1567,9 @@ async function wireInbox(){
     if(listEl) listEl.style.display='';
     await loadSubmitted();
   };
-
   if(btnRef) btnRef.onclick = ()=>loadSubmitted().catch(console.error);
   await loadSubmitted();
 }
-
 // ===== PREISLOGIK & STAFFELUNGEN =====
 const PRICE_RULES_DEFAULT = {
   Tagesbetreuung: [
@@ -1764,7 +1585,6 @@ const PRICE_RULES_DEFAULT = {
     { min: 1,  price: 45 }
   ]
 };
-
 // ===== PREISE (zentral, in Einstellungen editierbar) =====
 const PRICING_DEFAULTS = {
   rules: JSON.parse(JSON.stringify(PRICE_RULES_DEFAULT)),
@@ -1784,7 +1604,6 @@ const PRICING_DEFAULTS = {
     shortNoticePercent: 0      // optional (% auf Grundpreis)
   }
 };
-
 function getPricingSettings(){
   // bevorzugt: state.settings.pricing (wird mitgesynct), fallback: localStorage
   try{
@@ -1817,7 +1636,6 @@ function getPricingSettings(){
     return PRICING_DEFAULTS;
   }
 }
-
 function savePricingSettings(next){
   try{
     if(!next || typeof next !== 'object') return;
@@ -1831,12 +1649,10 @@ function savePricingSettings(next){
     console.error('savePricingSettings failed', e);
   }
 }
-
 function daysBetween(from, to){
   const ms = new Date(to) - new Date(from);
   return Math.max(1, Math.ceil(ms / (1000 * 60 * 60 * 24)));
 }
-
 // Feiertage Bayern (vereinfachte, praxisnahe Auswahl; Zeitraum-Berechnung offline)
 function easterSunday(year){
   // Anonymous Gregorian algorithm (Meeus/Jones/Butcher)
@@ -1856,20 +1672,17 @@ function easterSunday(year){
   const day = ((h + l - 7*m + 114) % 31) + 1;
   return new Date(Date.UTC(year, month-1, day));
 }
-
 function addDaysUTC(d, days){
   const x = new Date(d.getTime());
   x.setUTCDate(x.getUTCDate() + days);
   return x;
 }
-
 function formatYMD(d){
   const y = d.getUTCFullYear();
   const m = String(d.getUTCMonth()+1).padStart(2,'0');
   const da = String(d.getUTCDate()).padStart(2,'0');
   return `${y}-${m}-${da}`;
 }
-
 function bavariaHolidaysSet(year){
   const set = new Set();
   const easter = easterSunday(year);
@@ -1877,24 +1690,20 @@ function bavariaHolidaysSet(year){
   ["01-01","01-06","05-01","10-03","11-01","12-25","12-26"].forEach(md => set.add(`${year}-${md}`));
   // Mariä Himmelfahrt (15.08.) – regional in Bayern, hier pauschal als „Bayern“ geführt
   set.add(`${year}-08-15`);
-
   // Bewegliche Feiertage (über Ostern)
   set.add(formatYMD(addDaysUTC(easter, -2)));  // Karfreitag
   set.add(formatYMD(addDaysUTC(easter, 1)));   // Ostermontag
   set.add(formatYMD(addDaysUTC(easter, 39)));  // Christi Himmelfahrt
   set.add(formatYMD(addDaysUTC(easter, 50)));  // Pfingstmontag
   set.add(formatYMD(addDaysUTC(easter, 60)));  // Fronleichnam
-
   return set;
 }
-
 function countBavariaHolidaysBetween(from, to){
   // Iteration: [from, to) (to exklusiv) passend zu daysBetween()
   if(!from || !to) return 0;
   const start = new Date(from + "T00:00:00Z");
   const end = new Date(to + "T00:00:00Z");
   if(!(start < end)) return 0;
-
   let count = 0;
   let cur = new Date(start.getTime());
   while(cur < end){
@@ -1905,7 +1714,6 @@ function countBavariaHolidaysBetween(from, to){
   }
   return count;
 }
-
 function countSundaysBetween(from, to){
   // [from, to) (to exklusiv) – passend zu daysBetween()
   if(!from || !to) return 0;
@@ -1921,47 +1729,37 @@ function countSundaysBetween(from, to){
   }
   return count;
 }
-
-
 function updateAutoHolidayFields(){
   if(!currentDoc) return;
   const t = getTemplate(currentDoc.templateId);
   if(!t || t.id !== "hundeannahme") return;
-
   const from = currentDoc.meta?.von;
   const to = currentDoc.meta?.bis;
   const cnt = (from && to) ? countBavariaHolidaysBetween(from, to) : 0;
   const sundays = (from && to) ? countSundaysBetween(from, to) : 0;
-
   // Default: Sonn- & Feiertagszuschlag ist aktiv (kann im Aufenthalt deaktiviert werden)
   currentDoc.fields = currentDoc.fields || {};
   if(typeof currentDoc.fields.sun_hol_apply !== "boolean") currentDoc.fields.sun_hol_apply = true;
-
   // Immer automatisch – Anzahl wird berechnet; bei Deaktivierung = 0
   const sunHolApply = (currentDoc.fields.sun_hol_apply !== false);
   currentDoc.fields.holiday_days = sunHolApply ? (cnt || 0) : 0;
   currentDoc.fields.sunday_days  = sunHolApply ? (sundays || 0) : 0;
-
   // UI: Anzahl-Feld (falls vorhanden) befüllen & sperren
   const num = document.querySelector('input[data-key="holiday_days"]');
   if(num){
     num.value = String(currentDoc.fields.holiday_days || 0);
     num.disabled = true;
   }
-
   const numS = document.querySelector('input[data-key="sunday_days"]');
   if(numS){
     numS.value = String(currentDoc.fields.sunday_days || 0);
     numS.disabled = true;
   }
-
   // UI: Checkbox spiegeln
   const cbSunHol = document.querySelector('input[type="checkbox"][data-key="sun_hol_apply"]');
   if(cbSunHol) cbSunHol.checked = !!currentDoc.fields.sun_hol_apply;
-
   // Defaults für zählbasierte Zuschläge
   const days = daysBetween(from, to);
-
   // Standardmäßig sind (zähl-/zählbar) Zuschläge im Aufenthalt aktiv, können aber pro Aufenthalt deaktiviert werden.
   if(typeof currentDoc.fields.walks_enabled !== 'boolean') currentDoc.fields.walks_enabled = true;
   if(typeof currentDoc.fields.bandage_enabled !== 'boolean') currentDoc.fields.bandage_enabled = true;
@@ -1969,7 +1767,6 @@ function updateAutoHolidayFields(){
   if(typeof currentDoc.fields.hygiene_enabled !== 'boolean') currentDoc.fields.hygiene_enabled = true;
   if(typeof currentDoc.fields.pickup_dropoff_enabled !== 'boolean') currentDoc.fields.pickup_dropoff_enabled = true;
   if(typeof currentDoc.fields.discount_enabled !== 'boolean') currentDoc.fields.discount_enabled = false;
-
   // Dauermedikation beim Hund -> im Aufenthalt automatisch vorauswählen
   try{
     if(currentDoc.fields.medication === undefined){
@@ -1983,7 +1780,6 @@ function updateAutoHolidayFields(){
       }
     }
   }catch(e){ /* noop */ }
-
   // Zusatz-Spaziergang: default Stückzahl = Aufenthaltstage (kann geändert oder auf 0 gesetzt werden)
   // Wir merken uns, ob der Wert automatisch gesetzt wurde, damit er bei Datumsänderungen mitwandert.
   const walkKey = 'walk_extra_count';
@@ -2008,7 +1804,6 @@ function updateAutoHolidayFields(){
       }
     }
   }
-
   // Wenn per Aufenthalt deaktiviert, Werte auf 0 setzen und Eingaben sperren.
   try{
     const walkInp = document.querySelector(`input[data-key="${walkKey}"]`);
@@ -2019,7 +1814,6 @@ function updateAutoHolidayFields(){
     }else{
       if(walkInp) walkInp.disabled = false;
     }
-
     const _lockCount = (flagKey, countKey)=>{
       const inp = document.querySelector(`input[data-key="${countKey}"]`);
       if(!inp) return;
@@ -2036,7 +1830,6 @@ function updateAutoHolidayFields(){
     _lockCount('hygiene_enabled','hygiene_days');
     _lockCount('pickup_dropoff_enabled','pickup_dropoff_count');
   }catch(_e){ /* noop */ }
-
   // Legacy-Key-Migration: alte Keys in neue Keys überführen (falls vorhanden)
   if(currentDoc.fields.extra_walk_count !== undefined && currentDoc.fields[walkKey] === undefined){
     currentDoc.fields[walkKey] = currentDoc.fields.extra_walk_count;
@@ -2048,9 +1841,6 @@ function updateAutoHolidayFields(){
     currentDoc.fields.grooming_count = currentDoc.fields.grooming_extra_count;
   }
 }
-
-
-
 function normalizeBetreuung(type){
   if(!type) return type;
   const s = String(type).trim();
@@ -2060,7 +1850,6 @@ function normalizeBetreuung(type){
   // allow already-normalized values
   return s;
 }
-
 function getPricePerDay(type, days){
   const rulesMap = (getPricingSettings().rules || PRICE_RULES_DEFAULT);
   const rules = rulesMap[type] || [];
@@ -2069,9 +1858,6 @@ function getPricePerDay(type, days){
   }
   return 0;
 }
-
-
-
 // ===== 4C-1: Preisvorschau im Aufenthalt (Brutto/Netto/MwSt) =====
 function formatEuro(n){
   const v = Number(n||0);
@@ -2090,7 +1876,6 @@ function renderStayPricingPreview(docObj){
     const root = document.getElementById("formRoot");
     if(!root) return;
     if(!docObj || docObj.templateId !== "hundeannahme") return;
-
     // Pricing berechnen (setzt docObj.pricing)
     const pricing = calculateInvoicePricing(docObj);
     if(!pricing){
@@ -2100,7 +1885,6 @@ function renderStayPricingPreview(docObj){
     const cfg = getPricingSettings();
     const vatRate = Number((state && state.settings && state.settings.vatRate) ?? cfg.vatPercent ?? 19) || 0;
     const nv = computeNetVatFromGross(pricing.total, vatRate);
-
     const card = document.createElement("div");
     card.className = "card";
     const percentLines = (pricing.percentItems||[]).map(it=>`<tr><td>${escapeHtml(it.label)}</td><td class="right">${it.rate>0?"+":""}${it.rate}%</td><td class="right">${formatEuro(it.value)}</td></tr>`).join("");
@@ -2109,7 +1893,6 @@ function renderStayPricingPreview(docObj){
       const unit = Number(it.unit||0);
       return `<tr><td>${escapeHtml(it.label)} (${qty}×${formatEuro(unit)})</td><td></td><td class="right">${formatEuro(it.value)}</td></tr>`;
     }).join("");
-
     card.innerHTML = `
       <h2>Preisübersicht (Vorschau)</h2>
       <p class="muted">Alle Preise sind <b>Brutto</b>. MwSt wird enthalten ausgewiesen.</p>
@@ -2124,7 +1907,6 @@ function renderStayPricingPreview(docObj){
           <div class="muted">Netto ${formatEuro(nv.net)} · MwSt (${vatRate}%) ${formatEuro(nv.vat)}</div>
         </div>
       </div>
-
       <div style="margin-top:10px; overflow:auto;">
         <table class="table" style="min-width:520px;">
           <thead><tr><th>Position</th><th class="right">Rate</th><th class="right">Betrag</th></tr></thead>
@@ -2138,7 +1920,6 @@ function renderStayPricingPreview(docObj){
         </table>
       </div>
     `;
-
     // Karte VOR der Unterschrift einfügen (ganz am Ende, aber vor letzter card falls signature card existiert)
     const cards = root.querySelectorAll(".card");
     if(cards && cards.length){
@@ -2153,20 +1934,16 @@ function renderStayPricingPreview(docObj){
   }
 }
 // ===== END 4C-1 =====
-
 function calculateInvoicePricing(doc){
   const meta = doc.meta || {};
   const f = doc.fields || {};
-
   if(!meta.betreuung || !meta.von || !meta.bis){
     return null;
   }
-
   const days = daysBetween(meta.von, meta.bis);
   const betreuungNorm = normalizeBetreuung(meta.betreuung);
   const daily = getPricePerDay(betreuungNorm, days);
   const base = days * daily;
-
   // Sonn- & Feiertags-Zuschlag (Standard: an)
   const cfg = getPricingSettings();
   const holidayDays = countBavariaHolidaysBetween(meta.von, meta.bis);
@@ -2176,11 +1953,9 @@ function calculateInvoicePricing(doc){
   const sunHolDays = sunHolApply ? (holidayDays + sundayDays) : 0;
   const sunHolUnit = round2(daily * (sunHolRate/100));
   const holidayValue = round2(sunHolDays * sunHolUnit);
-
   let percentExtra = 0;
   let fixedExtra = 0;
   const percentItems = [];
-
   // Prozent-Aufschläge (auf Basisbetrag)
   if(f.special_times){
     const r = (cfg.extras?.specialTimesPercent ?? 10);
@@ -2200,7 +1975,6 @@ function calculateInvoicePricing(doc){
       percentItems.push({ key:'short_notice', label:`Kurzfristig`, rate: r, base: round2(base), value: round2(base * (r/100)) });
     }
   }
-
   // Sonderrabatt (%). Beispiel: 10 = -10% auf Basisbetrag
   if(f.discount_enabled !== false && String(f.discount_percent ?? '').trim() !== ''){
     const r = Number(f.discount_percent || 0);
@@ -2209,10 +1983,8 @@ function calculateInvoicePricing(doc){
       percentItems.push({ key:'discount_percent', label:`Sonderrabatt`, rate: -r, base: round2(base), value: round2(base * (-r/100)) });
     }
   }
-
   // Summe Prozent-Wert (kann negativ sein bei Rabatt)
   const percentValue = round2(base * (percentExtra / 100));
-
   // Fixe Extras
   const fixedItems = [];
   if(!!f.medication){
@@ -2262,77 +2034,59 @@ function calculateInvoicePricing(doc){
       fixedItems.push({ key:'pickup_dropoff_count', label:`Abhol-/Bringservice`, qty, unit, value: round2(v) });
     }
   }
-
   fixedExtra = Math.round(fixedExtra * 100) / 100;
-
   // Alle Preise sind BRUTTO. total = zahlbarer Bruttobetrag.
   const total = round2(base + holidayValue + percentValue + fixedExtra);
-
   doc.pricing = {
     days,
     daily,
     betreuungNorm,
     base,
-
     holidayDays,
     sundayDays,
     sunHolDays,
     sunHolRate,
     sunHolUnit,
     holidayValue,
-
     percentExtra,
     percentValue,
-
     percentItems,
-
     fixedExtra,
     fixedItems,
     total
   };
-
   return doc.pricing;
 }
-
 // ===== 3A: Rechnungspreise aus Aufenthalt ableiten =====
 // Mapping: Aufenthalt.pricing -> Invoice.pricing (Basis + Zuschläge)
 // Hinweis: Feiertagszuschlag wird als eigener Wert berechnet und in percentExtra (Wert) mitgeführt,
 // damit die Rechnung bereits den korrekten Gesamtbetrag enthält, ohne das UI sofort zu erweitern.
 function round2(n){ return Math.round((Number(n)||0) * 100) / 100; }
-
 function recomputeInvoiceTotals(inv){
   inv.pricing = inv.pricing || {};
   inv.pricing.parts = inv.pricing.parts || {};
-
   const parts = inv.pricing.parts;
-
   // 3E-4: Zuschläge werden im Aufenthalt gesteuert.
   // In der Rechnung werden die übernommenen Teile immer voll angewandt.
   const base   = Number(parts.base||0);
   const hol    = Number(parts.holiday||0);
   const perc   = Number(parts.percent||0);
   const fixed  = Number(parts.fixed||0);
-
   inv.pricing.applied = { holiday: round2(hol), percent: round2(perc), fixed: round2(fixed) };
-
   // Alle Preise sind BRUTTO. MwSt wird als "enthalten" ausgewiesen.
   const gross = round2(base + hol + perc + fixed);
-
   const cfg = getPricingSettings();
   const settingsVat = Number((state && state.settings && state.settings.vatRate) ?? cfg.vatPercent ?? 19) || 0;
   const vatRate = (typeof inv.vatRate === 'number' && !Number.isNaN(inv.vatRate)) ? inv.vatRate : settingsVat;
   inv.vatRate = vatRate;
-
   const net = vatRate > 0 ? (gross / (1 + vatRate/100)) : gross;
   const vatAmount = gross - net;
-
   inv.pricing.net = round2(net);
   inv.pricing.vatAmount = round2(vatAmount);
   inv.pricing.total = round2(gross); // zahlbarer Bruttobetrag
   inv.pricing.totalNet = inv.pricing.net;
   inv.pricing.totalGross = inv.pricing.total;
 }
-
 async function updateInvoiceAfterEdit(inv){
   // Persist to state + storage
   state.invoices = state.invoices || {};
@@ -2342,7 +2096,6 @@ async function updateInvoiceAfterEdit(inv){
   renderInvoices();
   openInvoice(inv.id);
 }
-
 window.toggleInvoiceExtra = async function(invoiceId, key, checked){
   const inv = (state.invoices||{})[invoiceId];
   if (!inv) return;
@@ -2351,13 +2104,11 @@ window.toggleInvoiceExtra = async function(invoiceId, key, checked){
   inv.pricing.flags = inv.pricing.flags || {};
   inv.pricing.flags[key] = !!checked;
   recomputeInvoiceTotals(inv);
-
   // 4C-2: Line-Items + Meta-Snapshot für revisionssichere Rechnung
   try{ inv.lineItems = buildInvoiceLineItems(inv); inv.lineItemsUpdatedAt = new Date().toISOString(); }catch(_){ }
   try{ snapshotInvoiceSourceMeta(inv); }catch(_){ }
   await updateInvoiceAfterEdit(inv);
 };
-
 window.setInvoiceVatRate = async function(invoiceId, value){
   const inv = (state.invoices||{})[invoiceId];
   if (!inv) return;
@@ -2367,14 +2118,11 @@ window.setInvoiceVatRate = async function(invoiceId, value){
   recomputeInvoiceTotals(inv);
   await updateInvoiceAfterEdit(inv);
 };
-
 function syncInvoicePricingFromDoc(inv, doc){
   if(!inv || !doc) return false;
   const p = calculateInvoicePricing(doc);
   if(!p) return false;
-
   inv.pricing = inv.pricing || { basePrice:0, percentExtra:0, fixedExtra:0, total:0 };
-
   const basePrice = round2(p.base || 0);
   const percentRate = round2(p.percentExtra || 0);         // %
   const percentValue = round2(p.percentValue || 0);        // €
@@ -2384,7 +2132,6 @@ function syncInvoicePricingFromDoc(inv, doc){
   const fixedItems = Array.isArray(p.fixedItems) ? p.fixedItems : [];
   const percentItems = Array.isArray(p.percentItems) ? p.percentItems : [];
   const total = round2(basePrice + percentValue + holidayExtra + fixedExtra);
-
   const changed =
     round2(inv.pricing.basePrice) !== basePrice ||
     round2(inv.pricing.percentExtra) !== percentValue ||
@@ -2393,25 +2140,19 @@ function syncInvoicePricingFromDoc(inv, doc){
     round2(inv.pricing.holidayExtra||0) !== holidayExtra ||
     Number(inv.pricing.holidayDays||0) !== holidayDays ||
     round2(inv.pricing.percentRate||0) !== percentRate;
-
   inv.pricing.basePrice = basePrice;
-
   // UI/PDF: Prozent-Zuschlag ohne Feiertage (Feiertage separat)
   inv.pricing.percentExtra = percentValue;   // €-Wert (nur Prozent-Aufschläge)
   inv.pricing.percentRate = percentRate;     // %-Summe (z.B. 10/20)
-
   // Feiertage separat aufschlüsseln
   inv.pricing.holidayDays = holidayDays;
   inv.pricing.holidayExtra = holidayExtra;
-
   inv.pricing.fixedExtra = fixedExtra;
-
   // 3E: Detail-Breakdown für Anzeige/PDF
   inv.pricing.breakdown = {
     percentItems: percentItems,
     fixedItems: fixedItems
   };
-
   // canonical parts + totals (supports toggles + MwSt)
   inv.pricing.parts = { base: basePrice, percent: percentValue, holiday: holidayExtra, fixed: fixedExtra };
   // 3E: Detail-Aufschlüsselung für UI/PDF
@@ -2424,7 +2165,6 @@ function syncInvoicePricingFromDoc(inv, doc){
     sunHolUnit: Number(p.sunHolUnit||0)
   };
   recomputeInvoiceTotals(inv);
-
   // Zusatzinfos (harmless, falls später gebraucht)
   inv.pricing._calc = {
     days: p.days,
@@ -2437,20 +2177,17 @@ function syncInvoicePricingFromDoc(inv, doc){
     ,percentItems: percentItems
     ,fixedItems: fixedItems
   };
-
   // Zeitraum aus Aufenthalt synchron halten (falls nachträglich geändert)
   try{
     inv.period = inv.period || {};
     if(doc?.meta?.von) inv.period.from = doc.meta.von;
     if(doc?.meta?.bis) inv.period.to = doc.meta.bis;
   }catch(_){}
-
   if(changed){
     inv.updatedAt = new Date().toISOString();
   }
   return changed;
 }
-
 function isInvoicePricingLocked(inv){
   if(!inv) return false;
   return inv.pricingLocked === true || !!inv.pricingLockedAt || !!inv.pricingSnapshot;
@@ -2460,14 +2197,12 @@ function shouldFreezeInvoice(inv){
   // 3D4/3E: Einfrieren erst bei "bezahlt" (Storno bleibt editierbar, falls nötig)
   return (s==='paid') && isInvoicePricingLocked(inv);
 }
-
 function getInvoiceSourceDoc(inv){
   if(!inv || !inv.sourceDocId) return null;
   return (state.docs||[]).find(d=>d.id===inv.sourceDocId) || (state.stays||[]).find(d=>d.id===inv.sourceDocId) || null;
 }
 function syncInvoicePricingBySource(inv){
   if(!inv || !inv.sourceDocId) return false;
-
   // 3C: Wenn Rechnung eingefroren ist (Status offen/bezahlt/storniert), niemals neu berechnen.
   if(shouldFreezeInvoice(inv)){
     // safety: restore snapshot if present
@@ -2482,12 +2217,10 @@ function syncInvoicePricingBySource(inv){
     }
     return false;
   }
-
   const doc = getInvoiceSourceDoc(inv);
   if(!doc) return false;
   return syncInvoicePricingFromDoc(inv, doc);
 }
-
 // Batch sync before rendering lists (keeps UI totals correct)
 function syncAllInvoicePricingGuarded(){
   try{
@@ -2505,7 +2238,6 @@ function syncAllInvoicePricingGuarded(){
   }
 }
 // ===== /3A =====
-
 // ===== ENDE PREISLOGIK =====
 let state=loadState();
 // Wichtig: State-Shape sofort sicherstellen, bevor irgendein Render läuft.
@@ -2513,7 +2245,6 @@ let state=loadState();
 // (z.B. nach Neustart/Reload) mit state.docs === undefined abbrechen und die komplette
 // UI wirkt dann "eingefroren" (keine Handler werden mehr gebunden).
 try{ ensureStateShape(); }catch(_){ }
-
 // WICHTIG: Migration (legacy state.dogs -> state.customers/state.pets) muss auch
 // im reinen LocalStorage-Betrieb passieren – nicht nur nach einem Cloud-Pull.
 // Sonst ist nach Reload die Hunde/Kunden-Liste leer, obwohl Daten (legacy) vorhanden sind.
@@ -2526,18 +2257,15 @@ const COMPANY = {
   zipCity: "88167 Stiefenhofen",
   phone: "0170 7313587",
   email: "info@doggy-style-hundepension.de",
-
   bank: {
     name: "Musterbank",
     iban: "DE00 0000 0000 0000 0000 00",
     bic: "MUSTERDEFFXXX"
   },
-
   tax: {
     vatId: "",        // falls vorhanden
     taxNumber: ""     // falls vorhanden
   },
-
   paymentTargetDays: 14
 };;if(state.nextInvoiceNumber == null){
   state.nextInvoiceNumber = 1;
@@ -2585,13 +2313,10 @@ function ensureInvoicePricing(inv){
   }
   return inv;
 }
-
-
 function showPanel(id){
   document.querySelectorAll(".panel").forEach(p=>{
     p.classList.toggle("is-active", p.id === id);
   });
-
   // IMPORTANT: Each panel must trigger its renderer when activated.
   // Otherwise, after Reload/Login the panel can remain empty because its DOM
   // was never hydrated from state/cloud.
@@ -2607,11 +2332,9 @@ function showPanel(id){
   if(id === "workforms"){
     renderWorkformsPanel();
   }
-
   if(id === "hygiene"){
     renderHygienePanel();
   }
-
     if(id === "analytics"){
     renderAnalyticsPanel();
   }
@@ -2628,27 +2351,22 @@ if(id === "calendar"){
     }catch(_){ }
   }
 }
-
 // ==== Dashboard / Schnellaktionen helpers ====
 function selectTab(tabId){
   // activate tab button
   $$(".tab").forEach(b=>b.classList.toggle("is-active", b.dataset.tab===tabId));
   showPanel(tabId);
 }
-
 function createStay(){
   // v18: Neuer Aufenthalt (Aufenthalte) – immer zuverlässig, ohne externes Template-Fetch.
   // Wir stellen die embedded Vorlage sicher und öffnen dann wie gewohnt den Dokument-Editor.
   try{ selectTab("documents"); }catch(_){ }
-
   try{ ensureEmbeddedTemplates(); }catch(_){ }
-
   const tid = "hundeannahme";
   try{
     const sel = document.getElementById("templateSelect");
     if(sel) sel.value = tid;
   }catch(_){ }
-
   try{
     if(typeof getTemplate === 'function' && !getTemplate(tid)){
       ensureEmbeddedTemplates();
@@ -2664,7 +2382,6 @@ function createStay(){
 }
 // iOS/Safari: Inline onclick benötigt globalen Zugriff
 try{ window.createStay = createStay; }catch(_){ }
-
 function openDogs(){ selectTab("dogs"); }
 function openCustomers(){ selectTab("dogs"); } // Kunden sind im Hunde/Kunden Bereich
 function openInvoices(){ selectTab("invoices"); }
@@ -2681,7 +2398,6 @@ function openHygieneTodo(){
   selectTab("hygiene");
 }
 function openMedication(){ selectTab("medication"); }
-
 // Quicklink aus Aufenthalt -> Medikation (Hund vorauswählen)
 function openMedicationForDogId(dogId, opts={}){
   try{
@@ -2705,7 +2421,6 @@ function openMedicationForDogId(dogId, opts={}){
     }, 120);
   }catch(e){ console.warn('openMedicationForDogId failed', e); }
 }
-
 function renderStayQuickLinks(doc){
   const bar = document.getElementById('stayQuickLinks');
   const btnMed = document.getElementById('btnStayOpenMedication');
@@ -2719,7 +2434,6 @@ function renderStayQuickLinks(doc){
   const did = (doc.dogId || document.getElementById('dogSelect')?.value || "");
   if(!did){ bar.style.display='none'; return; }
   bar.style.display = 'flex';
-
   if(!btnMed.dataset.bound){
     btnMed.onclick = ()=>{
       const dogId = document.getElementById('dogSelect')?.value || doc.dogId;
@@ -2737,7 +2451,6 @@ function renderStayQuickLinks(doc){
     btnHn.dataset.bound = '1';
   }
 }
-
 // ==== Dashboard renderer (Start) ====
 function dashboardStatusText(ratio){
   if(!isFinite(ratio)) return "Ruhiger Tag";
@@ -2751,35 +2464,27 @@ function dashboardStatusColor(ratio){
   if(ratio < 0.9) return "#ffc107";
   return "#f44336";
 }
-
 function renderDashboard(){
   // Dashboard elements exist only on Start screen (home)
   const elDayVal = document.getElementById("todayDaycareValue");
   const elBoardVal = document.getElementById("todayBoardingValue");
   const elForecast = document.getElementById("forecastList");
   if(!elDayVal || !elBoardVal || !elForecast) return;
-
   const today = getNextDays(1)[0];
   const todayDayUsed = countOccupancy("Tagesbetreuung", today, today);
   const todayBoardUsed = countOccupancy("Urlaubsbetreuung", today, today);
-
   const dayMax = getCapacity("Tagesbetreuung", today);
   const boardMax = getCapacity("Urlaubsbetreuung", today);
-
   const dayRatio = dayMax ? (todayDayUsed/dayMax) : 0;
   const boardRatio = boardMax ? (todayBoardUsed/boardMax) : 0;
-
   elDayVal.textContent = `${todayDayUsed} / ${dayMax}`;
   elBoardVal.textContent = `${todayBoardUsed} / ${boardMax}`;
-
   const elDayText = document.getElementById("todayDaycareText");
   const elBoardText = document.getElementById("todayBoardingText");
   const elDayBar = document.getElementById("todayDaycareBar");
   const elBoardBar = document.getElementById("todayBoardingBar");
-
   if(elDayText) elDayText.textContent = dashboardStatusText(dayRatio);
   if(elBoardText) elBoardText.textContent = dashboardStatusText(boardRatio);
-
   if(elDayBar){
     elDayBar.style.width = `${Math.min(100, Math.max(0, dayRatio*100))}%`;
     elDayBar.style.background = dashboardStatusColor(dayRatio);
@@ -2788,7 +2493,6 @@ function renderDashboard(){
     elBoardBar.style.width = `${Math.min(100, Math.max(0, boardRatio*100))}%`;
     elBoardBar.style.background = dashboardStatusColor(boardRatio);
   }
-
   // Forecast next 14 days
   const days = getNextDays(14);
   elForecast.innerHTML = "";
@@ -2800,13 +2504,11 @@ function renderDashboard(){
     const boardMaxD = getCapacity("Urlaubsbetreuung", d);
     const dayR = dayMaxD ? (dayUsed/dayMaxD) : 0;
     const boardR = boardMaxD ? (boardUsed/boardMaxD) : 0;
-
     const row = document.createElement("div");
     row.className = "forecast-row";
     // compact date (dd.mm)
     const dt = new Date(d);
     const label = `${String(dt.getDate()).padStart(2,"0")}.${String(dt.getMonth()+1).padStart(2,"0")}`;
-
     row.innerHTML = `
       <div class="forecast-date">${label}</div>
       <div class="forecast-stack">
@@ -2824,7 +2526,6 @@ function renderDashboard(){
     `;
     elForecast.appendChild(row);
   });
-
   // Warnings
   const warnings = [];
   // capacity warnings for next 14 days
@@ -2843,7 +2544,6 @@ function renderDashboard(){
   // stays ending today
   const endingToday = state.docs.filter(doc=>doc.saved && doc.meta?.bis===today).length;
   if(endingToday>0) warnings.unshift(`${endingToday} Aufenthalt(e) enden heute`);
-
   // Medikamente: fällige Gaben heute
   try{
     const isoM = todayISO();
@@ -2852,14 +2552,12 @@ function renderDashboard(){
     const openM = dueM.filter(x=>!x.done).length;
     if(openM > 0) warnings.unshift(`💊 ${openM} Medikamenten‑Gabe(n) heute fällig${inCareM.length ? " (in Betreuung)" : ""}`);
   }catch(e){ /* ignore */ }
-
   // Gesundheitsnotizen heute (Info)
   try{
     const iso = todayISO();
     const notes = (state.medication?.healthNotes||[]).filter(n=>n && n.date===iso);
     if(notes.length>0) warnings.push(`🩺 ${notes.length} Gesundheitsnotiz(en) heute erfasst`);
   }catch(e){ /* ignore */ }
-
   const warnBox = document.getElementById("dashboardWarnings");
   if(warnBox){
     if(warnings.length){
@@ -2879,7 +2577,6 @@ function renderDashboard(){
       warnBox.innerHTML = "";
     }
   }
-
   // Hygiene Dashboard Card
   renderHygieneDashboard();
   // Medikamente Dashboard Card
@@ -2887,18 +2584,15 @@ function renderDashboard(){
   // §11 Ampel
   renderComplianceDashboard();
 }
-
 /* ===== Hygiene & Reinigung ===== */
 function todayISO(){
   return toISODateLocal(new Date());
 }
-
 function hygieneGetLogsForDate(iso){
   ensureStateShape();
   const logs = state.hygiene?.logs || [];
   return logs.filter(l => l.date === iso);
 }
-
 function hygieneTaskDueDate(task){
   if(!task) return null;
   const base = task.lastDone ? new Date(task.lastDone) : null;
@@ -2911,7 +2605,6 @@ function hygieneTaskDueDate(task){
   due.setHours(0,0,0,0);
   return due;
 }
-
 function hygieneTaskStatus(task){
   const due = hygieneTaskDueDate(task);
   const now = new Date(); now.setHours(0,0,0,0);
@@ -2922,7 +2615,6 @@ function hygieneTaskStatus(task){
   if(diffDays <= 1) return {code:"due", label:"fällig"};
   return {code:"ok", label:"ok"};
 }
-
 function hygieneOverallStatus(){
   const iso = todayISO();
   const todayLogs = hygieneGetLogsForDate(iso);
@@ -2931,16 +2623,13 @@ function hygieneOverallStatus(){
   const tasks = state.hygiene?.weeklyTasks || [];
   const anyOverdue = tasks.some(t => hygieneTaskStatus(t).code === "overdue");
   const anyDue = tasks.some(t => hygieneTaskStatus(t).code === "due");
-
   if(!hasAnyDoneToday || anyOverdue || anyPendingToday) return {code:"red", label:"To‑do"};
   if(anyDue) return {code:"yellow", label:"Achtung"};
   return {code:"green", label:"OK"};
 }
-
 function hygieneStatusPill(el, status){
   if(!el) return;
   el.textContent = status.label;
-
   // Default (neutral)
   el.style.borderColor = "rgba(255,255,255,.14)";
   el.style.background = "rgba(255,255,255,.08)";
@@ -2951,7 +2640,6 @@ function hygieneStatusPill(el, status){
     el.style.setProperty('--pill-dot', 'rgba(255,255,255,.55)');
     el.style.setProperty('--sync-dot', 'rgba(255,255,255,.55)');
   }catch(e){}
-
   if(status.code === "green"){
     el.style.background = "rgba(76,175,80,.18)";
     el.style.borderColor = "rgba(76,175,80,.35)";
@@ -2983,7 +2671,6 @@ function hygieneStatusPill(el, status){
     }catch(e){}
   }
 }
-
 function renderHygieneDashboard(){
   const card = document.getElementById("hygieneDashboardCard");
   if(!card) return;
@@ -3003,46 +2690,36 @@ function renderHygieneDashboard(){
     else hint.textContent = "Alles im grünen Bereich. Bei Bedarf weitere Einträge hinzufügen.";
   }
 }
-
-
 // 🧼 Auto-Trigger: erzeugt Hygiene-Einträge aus Aufenthalte/Aufenthalt, wenn Parasiten/Quarantäne gesetzt ist
 function hygieneAutoFromStayDoc(doc){
   if(!doc) return;
   ensureStateShape();
   const tId = doc.templateId || doc.template || doc.templateName || "";
   if(String(tId).toLowerCase() !== "hundeannahme") return;
-
   const f = doc.fields || {};
   const meta = doc.meta || {};
-
   const paras = (f.parasiten_status || "").trim();
   const quarantine = !!f.quarantine_required;
   const reason = (f.quarantine_reason || "").trim();
   const infectiousConfirmed = (f.ev_gesund === true) || String(f.ev_gesund||'').toLowerCase()==='true' || String(f.ev_gesund||'').toLowerCase()==='on' || String(f.ev_gesund||'').toLowerCase()==='yes';
-
   // Trigger-Kriterien: Quarantäne ODER Parasitenstatus nicht "unauffällig"
   const parasTrigger = paras && paras.toLowerCase() !== "unauffällig";
   const infectiousTrigger = !infectiousConfirmed;
   if(!quarantine && !parasTrigger && !infectiousTrigger) return;
-
   // Hundename ermitteln (Pets bevorzugt)
   const dogId = doc.dogId;
   const pet = (state.pets||[]).find(p=>p.id===dogId) || (state.dogs||[]).find(d=>d.id===dogId);
   const dogName = (pet?.name || f.hund_name || "Unbekannt").trim();
-
   // Dedupe: pro Doc nur einmal je Typ
   const logs = state.hygiene.logs || [];
   const has = (kind)=>logs.some(l=>l?.source?.docId===doc.id && l?.source?.kind===kind);
   const date = todayISO();
-
   const baseNoteParts = [];
   if(dogName) baseNoteParts.push(`Hund: ${dogName}`);
   if(meta.von || meta.bis) baseNoteParts.push(`Aufenthalt: ${(meta.von||'')} – ${(meta.bis||'')}`.trim());
   if(parasTrigger) baseNoteParts.push(`Parasiten: ${paras}`);
   if(reason) baseNoteParts.push(`Hinweis: ${reason}`);
-
   const baseNote = baseNoteParts.join(" · ");
-
   // Eintrag 1: Quarantäne/Desinfektion
   if(quarantine && !has("auto-quarantine")){
     logs.push({
@@ -3058,7 +2735,6 @@ function hygieneAutoFromStayDoc(doc){
       source: { kind: "auto-quarantine", docId: doc.id }
     });
   }
-
   // Eintrag 2: Parasiten-Sonderreinigung (Innen/Schlafplätze)
   if(parasTrigger && !has("auto-parasites")){
     logs.push({
@@ -3074,7 +2750,6 @@ function hygieneAutoFromStayDoc(doc){
       source: { kind: "auto-parasites", docId: doc.id }
     });
   }
-
   // Eintrag 3: Ansteckende Krankheiten nicht bestätigt → Hinweis/Prüfung + ggf. Quarantäne
   if(infectiousTrigger && !has("auto-infectious")){
     logs.push({
@@ -3090,20 +2765,16 @@ function hygieneAutoFromStayDoc(doc){
       source: { kind: "auto-infectious", docId: doc.id }
     });
   }
-
   state.hygiene.logs = logs;
 }
-
 function renderHygienePanel(){
   ensureStateShape();
-
   // staff presets
   const presetSel = document.getElementById('hygStaffPreset');
   if(presetSel){
     const presets = state.hygiene.staffPresets || ["Raphael","Anschi"];
     presetSel.innerHTML = presets.map(n=>`<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('') + `<option value="">—</option>`;
   }
-
   // pending-only filter
   const cbPending = document.getElementById('hygFilterPendingOnly');
   if(cbPending){
@@ -3121,15 +2792,12 @@ function renderHygienePanel(){
       };
     }
   }
-
-
   // --- Hygiene Schnellaktionen (Option B/B.1/B.2) ---
   // Konfig in state.hygiene.quick (persistiert im State)
   (function ensureHygQuick(){
     state.hygiene = state.hygiene || {};
     state.hygiene.quick = state.hygiene.quick || {};
     const q = state.hygiene.quick;
-
     if(!Array.isArray(q.standardTasks) || !q.standardTasks.length || (function looksOldDaily(a){
       try{
         if(!Array.isArray(a)) return false;
@@ -3168,7 +2836,6 @@ function renderHygienePanel(){
     }
     state.hygiene.quick = q;
   })();
-
   
 function hygieneHasDogsOnDate(iso){
   // Prüft, ob am gegebenen Tag Aufenthalte (Übernachtung oder Tagesbetreuung) existieren.
@@ -3193,19 +2860,15 @@ function hygieneHasDogsOnDate(iso){
     return false;
   }
 }
-
 function hygieneHasDogsToday(){
   return hygieneHasDogsOnDate(todayISO());
 }
-
   function hygieneQuickEnsureUI(){
     const anchor = document.getElementById('btnHygieneAdd') || document.getElementById('hygArea') || document.getElementById('hygStaffPreset');
     if(!anchor) return;
-
     // Find a reasonable container (the "Eintrag hinzufügen" card)
     let host = anchor.closest('.card') || anchor.closest('.panel') || anchor.closest('section') || anchor.parentElement;
     if(!host) host = anchor.parentElement;
-
     let row = document.getElementById('hygQuickRow');
     if(!row){
       row = document.createElement('div');
@@ -3215,7 +2878,6 @@ function hygieneHasDogsToday(){
       row.style.gap = '8px';
       row.style.margin = '10px 0 14px 0';
       row.style.alignItems = 'center';
-
       // Insert near top of the entry form, but below the title if possible
       // If a heading exists inside host, insert after it; otherwise at top
       const h = host.querySelector('h2, h3, .card-title, .section-title');
@@ -3225,11 +2887,9 @@ function hygieneHasDogsToday(){
         host.insertBefore(row, host.firstChild);
       }
     }
-
     // Render buttons
     const q = state.hygiene.quick || {};
     const dogsToday = hygieneHasDogsToday();
-
     row.innerHTML = '';
     const mkBtn = (label, kind)=>{
       const b = document.createElement('button');
@@ -3239,7 +2899,6 @@ function hygieneHasDogsToday(){
       b.dataset.kind = kind || '';
       return b;
     };
-
     const bStd = mkBtn('Heute Standard (fällig)', 'std');
     bStd.onclick = ()=>{
       if(!dogsToday){
@@ -3249,28 +2908,22 @@ function hygieneHasDogsToday(){
       hygieneQuickApplyStandard();
     };
     row.appendChild(bStd);
-
     const bCfg = mkBtn('⚙️ Buttons', 'cfg');
     bCfg.onclick = ()=>{ hygieneQuickToggleConfig(); };
     row.appendChild(bCfg);
-
     (q.buttons || []).forEach((btn, idx)=>{
       const b = mkBtn(btn.label || ('Button ' + (idx+1)), 'qb');
       b.onclick = ()=>hygieneQuickRun(btn);
       row.appendChild(b);
     });
-
     // Ensure config panel exists (collapsed by default)
     hygieneQuickEnsureConfigPanel(row);
   }
-
-
 // --- Hygiene To-do-Ansicht (Option 3) ---
 function hygieneRenderTodoBox(){
   try{
     const listEl = document.getElementById('hygTodayList');
     if(!listEl) return;
-
     // Container: oberhalb der heutigen Einträge
     let box = document.getElementById('hygTodoBox');
     if(!box){
@@ -3283,31 +2936,25 @@ function hygieneRenderTodoBox(){
       box.style.background = 'rgba(255,255,255,.03)';
       listEl.parentElement.insertBefore(box, listEl);
     }
-
     const iso = todayISO();
     const q = state.hygiene.quick || {};
     const tasks = Array.isArray(q.standardTasks) ? q.standardTasks : [];
     const logs = state.hygiene.logs || [];
     const pendingOnly = !!(state.hygiene.ui && state.hygiene.ui.pendingOnly);
-
     const dogsToday = hygieneHasDogsOnDate(iso);
-
     const norm = s => String(s||'').trim();
     const keyEq = (l, area, action) => norm(l.area)===norm(area) && norm(l.action)===norm(action);
-
     const getLog = (date, area, action) => (logs||[]).find(l=>l && !l._deleted && l.date===date && keyEq(l, area, action));
     const isDone = (date, area, action) => {
       const l = getLog(date, area, action);
       return l && String(l.status||'').toLowerCase()==='erledigt';
     };
-
     // overfällig: in den letzten 7 Tagen gab es Hund(e), aber Aufgabe wurde an mind. einem Hundetag nicht als erledigt dokumentiert
     // zusätzlich: "seit X Tagen" = wie viele Tage seit dem zuletzt verpassten Hundetag (max. 30 Tage Rückblick)
     const overdueSinceDays = (area, action) => {
       if(!dogsToday) return null;
       // Wenn heute bereits erledigt -> nicht überfällig
       if(isDone(iso, area, action)) return null;
-
       // Prüfe, ob überhaupt "overdue" nach der bisherigen Definition vorliegt (letzte 7 Tage)
       let overdue = false;
       for(let i=1;i<=7;i++){
@@ -3318,7 +2965,6 @@ function hygieneRenderTodoBox(){
         if(String(l.status||'').toLowerCase()!=='erledigt') { overdue = true; break; }
       }
       if(!overdue) return null;
-
       // "seit X Tagen": jüngster Hundetag in der Vergangenheit, an dem es NICHT erledigt war / fehlte
       for(let i=1;i<=30;i++){
         const d = addDaysISO(iso, -i);
@@ -3329,23 +2975,18 @@ function hygieneRenderTodoBox(){
       }
       return 7; // Fallback
     };
-
     const isOverdue = (area, action) => {
       return overdueSinceDays(area, action) != null;
     };
-
     const items = tasks.map(t=>{
       const area = (t.area||'').trim();
       const action = (t.action||'').trim();
       const logToday = getLog(iso, area, action);
-
       let status = logToday ? (logToday.status||'') : (dogsToday ? (t.status||'fällig') : 'nicht erforderlich');
       status = String(status||'').trim() || (dogsToday ? 'fällig' : 'nicht erforderlich');
-
       const overdueDays = overdueSinceDays(area, action);
       const overdue = overdueDays != null;
       const showStatus = overdue && String(status).toLowerCase()==='fällig' ? 'überfällig' : status;
-
       return {
         area, action,
         requireReason: !!t.requireReason,
@@ -3355,14 +2996,12 @@ function hygieneRenderTodoBox(){
         status: showStatus
       };
     });
-
     const filtered = pendingOnly
       ? items.filter(x=>{
           const s = String(x.status||'').toLowerCase();
           return (s==='fällig' || s==='überfällig' || s==='nicht durchgeführt');
         })
       : items;
-
     const counts = {
       overdue: items.filter(x=>String(x.status||'').toLowerCase()==='überfällig').length,
       due: items.filter(x=>String(x.status||'').toLowerCase()==='fällig').length,
@@ -3370,7 +3009,6 @@ function hygieneRenderTodoBox(){
       done: items.filter(x=>String(x.status||'').toLowerCase()==='erledigt').length,
       na: items.filter(x=>String(x.status||'').toLowerCase()==='nicht erforderlich').length
     };
-
     const badgeFor = (s, overdueDays)=>{
       const sl = String(s||'').toLowerCase();
       if(sl==='erledigt') return '🟢 erledigt';
@@ -3380,9 +3018,7 @@ function hygieneRenderTodoBox(){
       if(sl==='nicht durchgeführt') return '🔴 nicht durchgeführt';
       return escapeHtml(s);
     };
-
     const mkActionBtn = (txt, area, action, status, requireReason)=>`<button class="smallbtn" data-hyg-todo="1" data-area="${escapeHtml(area)}" data-action="${escapeHtml(action)}" data-status="${escapeHtml(status)}" data-reason="${requireReason?'1':'0'}">${txt}</button>`;
-
     // Expose handlers (idempotent)
     if(!window._hygTodoSetStatus){
       window._hygTodoSetStatus = function(area, action, status, requireReason){
@@ -3391,7 +3027,6 @@ function hygieneRenderTodoBox(){
           const iso = todayISO();
           const logs = state.hygiene.logs || [];
           const existing = logs.find(l=>l && !l._deleted && l.date===iso && norm(l.area)===norm(area) && norm(l.action)===norm(action));
-
           // require staff
           const preset = (document.getElementById('hygStaffPreset')?.value || '').trim();
           const free = (document.getElementById('hygStaffFree')?.value || '').trim();
@@ -3400,7 +3035,6 @@ function hygieneRenderTodoBox(){
             alert('Bitte „Durchgeführt von“ auswählen oder eintragen (oben).');
             return;
           }
-
           let reason = null;
           if(String(status).toLowerCase()==='nicht durchgeführt' && requireReason){
             reason = prompt('Begründung (erforderlich):') || '';
@@ -3410,10 +3044,8 @@ function hygieneRenderTodoBox(){
               return;
             }
           }
-
           const staff = doneBy ? { preset: preset || null, free: free || null } : (existing?.staff || {preset:null, free:null});
           const nowIso = new Date().toISOString();
-
           if(existing){
             existing.status = status;
             existing.reason = reason || null;
@@ -3436,18 +3068,15 @@ function hygieneRenderTodoBox(){
             });
             state.hygiene.logs = logs;
           }
-
           saveState();
           renderHygienePanel();
           renderHygieneDashboard();
         }catch(e){ console.warn(e); }
       };
     }
-
     const infoLine = dogsToday
       ? `To-do (heute): 🔴 ${counts.overdue} überfällig · 🟡 ${counts.due} fällig · 🟢 ${counts.done} erledigt`
       : `To-do (heute): keine Hunde im Aufenthalt → Standardaufgaben nicht erforderlich`;
-
     box.innerHTML = `
       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;">
         <div>
@@ -3487,7 +3116,6 @@ function hygieneRenderTodoBox(){
         }
       });
     }
-
         }).join('') : `<div class="item"><div><small>Keine offenen Punkte (Filter aktiv) oder keine Standardaufgaben definiert.</small></div></div>`}
       </div>
     `;
@@ -3495,7 +3123,6 @@ function hygieneRenderTodoBox(){
     console.warn('hygieneRenderTodoBox failed', e);
   }
 }
-
 function addDaysISO(iso, delta){
   // iso: YYYY-MM-DD
   const d = new Date(iso + 'T00:00:00');
@@ -3532,7 +3159,6 @@ function addDaysISO(iso, delta){
       toast(added ? `Standardaufgaben hinzugefügt: ${added}` : 'Standardaufgaben waren bereits vorhanden.');
     }
   }
-
   function hygieneQuickBuildEntry({area, action, status, requireReason}){
     const date = todayISO();
     const preset = (document.getElementById('hygStaffPreset')?.value || '').trim();
@@ -3567,7 +3193,6 @@ function addDaysISO(iso, delta){
       source: { kind:'quick' }
     };
   }
-
   function hygieneQuickRun(btn){
     if(!btn) return;
     ensureStateShape();
@@ -3575,19 +3200,16 @@ function addDaysISO(iso, delta){
     const area = (btn.area||'').trim();
     const action = (btn.action||'').trim();
     const nextStatus = (btn.status || 'erledigt').trim();
-
     // Dubletten-Schutz: Wenn es heute bereits einen Eintrag für Bereich+Maßnahme gibt,
     // wird dieser aktualisiert (Statuswechsel) statt ein neuer Eintrag angelegt.
     const logs = state.hygiene.logs || [];
     const existing = logs.find(l=>!l?false:(!l._deleted && l.date===iso && (l.area||'')===area && (l.action||'')===action));
-
     // Wenn bereits erledigt und erneut erledigt -> keine Dublette
     if(existing && String(existing.status||'').toLowerCase()==='erledigt' && String(nextStatus||'').toLowerCase()==='erledigt'){
       if(typeof toast==='function') toast('Heute bereits als erledigt dokumentiert.');
       else alert('Heute bereits als erledigt dokumentiert.');
       return;
     }
-
     // Entry bauen (inkl. Pflicht-Begründung, Staff etc.)
     const entry = hygieneQuickBuildEntry({
       area,
@@ -3596,7 +3218,6 @@ function addDaysISO(iso, delta){
       requireReason: !!btn.requireReason
     });
     if(!entry) return;
-
     if(existing){
       // Bestehenden Eintrag aktualisieren (statt neu anlegen)
       existing.status = entry.status;
@@ -3608,12 +3229,10 @@ function addDaysISO(iso, delta){
       state.hygiene.logs = logs;
       state.hygiene.logs.unshift(entry);
     }
-
     saveState();
     renderHygienePanel();
     renderHygieneDashboard();
   }
-
   function hygieneQuickEnsureConfigPanel(row){
     let panel = document.getElementById('hygQuickCfg');
     if(panel) return;
@@ -3629,21 +3248,17 @@ function addDaysISO(iso, delta){
     row.parentElement.insertBefore(panel, row.nextSibling);
     hygieneQuickRenderConfig(panel);
   }
-
   function hygieneQuickToggleConfig(){
     const panel = document.getElementById('hygQuickCfg');
     if(!panel) return;
     panel.style.display = (panel.style.display==='none' ? 'block' : 'none');
     if(panel.style.display==='block') hygieneQuickRenderConfig(panel);
   }
-
   function hygieneQuickRenderConfig(panel){
     const q = state.hygiene.quick || {};
     const buttons = Array.isArray(q.buttons) ? q.buttons : [];
     const std = Array.isArray(q.standardTasks) ? q.standardTasks : [];
-
     const statusOptions = ['erledigt','fällig','nicht durchgeführt'];
-
     const rowBtn = (i, b)=>`
       <div style="display:grid;grid-template-columns:1.2fr 1fr 1fr .8fr .9fr auto;gap:8px;align-items:center;margin:6px 0;">
         <input data-k="label" data-i="${i}" placeholder="Label" value="${escapeHtml(b.label||'')}" />
@@ -3662,7 +3277,6 @@ function addDaysISO(iso, delta){
           <button class="btn" data-act="del" data-i="${i}">Löschen</button>
         </div>
       </div>`;
-
     const rowStd = (i, b)=>`
       <div style="display:grid;grid-template-columns:1fr 1fr .8fr .9fr auto;gap:8px;align-items:center;margin:6px 0;">
         <input data-ks="area" data-i="${i}" placeholder="Bereich" value="${escapeHtml(b.area||'')}" />
@@ -3678,17 +3292,14 @@ function addDaysISO(iso, delta){
           <button class="btn" data-acts="del" data-i="${i}">Löschen</button>
         </div>
       </div>`;
-
     panel.innerHTML = `
       <div style="font-weight:700;margin-bottom:6px;">Schnellbuttons konfigurieren</div>
       <div style="opacity:.85;margin-bottom:10px;">Hier kannst du Schnellbuttons und Standardaufgaben pflegen. Änderungen werden gespeichert.</div>
-
       <div style="margin:8px 0 4px 0;font-weight:600;">Standardaufgaben (Heute Standard)</div>
       <div id="hygStdList">${std.map((b,i)=>rowStd(i,b)).join('')}</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 12px 0;">
         <button class="btn" id="hygStdAdd">+ Standard</button>
       </div>
-
       <div style="margin:8px 0 4px 0;font-weight:600;">Schnellbuttons</div>
       <div id="hygBtnList">${buttons.map((b,i)=>rowBtn(i,b)).join('')}</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 0 0;">
@@ -3697,7 +3308,6 @@ function addDaysISO(iso, delta){
         <button class="btn" id="hygBtnSave">Speichern</button>
       </div>
     `;
-
     const readInputs = ()=>{
       const btns = [];
       panel.querySelectorAll('#hygBtnList > div').forEach(_=>{}); // noop
@@ -3736,7 +3346,6 @@ function addDaysISO(iso, delta){
       }
       return {btns, stds};
     };
-
     // actions: up/down/del
     panel.onclick = (ev)=>{
       const t = ev.target;
@@ -3766,16 +3375,13 @@ function addDaysISO(iso, delta){
         }
       }
     };
-
     // add/reset/save
     const btnAdd = panel.querySelector('#hygBtnAdd');
     if(btnAdd) btnAdd.onclick = (ev)=>{ ev.preventDefault(); buttons.push({label:'✅ Neu', area:'Innenräume', action:'Reinigung', status:'erledigt', requireReason:false}); q.buttons = buttons; hygieneQuickRenderConfig(panel); };
     const stdAdd = panel.querySelector('#hygStdAdd');
     if(stdAdd) stdAdd.onclick = (ev)=>{ ev.preventDefault(); std.push({area:'Innenräume', action:'Reinigung', status:'fällig', requireReason:false}); q.standardTasks = std; hygieneQuickRenderConfig(panel); };
-
     const btnReset = panel.querySelector('#hygBtnReset');
     if(btnReset) btnReset.onclick = (ev)=>{ ev.preventDefault(); q.buttons = []; q.standardTasks = []; renderHygienePanel(); };
-
     const btnSave = panel.querySelector('#hygBtnSave');
     if(btnSave) btnSave.onclick = (ev)=>{
       ev.preventDefault();
@@ -3785,14 +3391,12 @@ function addDaysISO(iso, delta){
         q.buttons = btns.filter(b=>b.label || b.area || b.action);
         q.standardTasks = stds.filter(b=>b.area || b.action);
         state.hygiene.quick = q;
-
         // Save using the app's normal persistence. Fallback to localStorage if needed.
         if(typeof saveState === 'function'){
           saveState();
         }else{
           try{ localStorage.setItem('ds_hygiene_quick', JSON.stringify(state.hygiene.quick||{})); }catch(_){}
         }
-
         // Re-render UI to reflect the new config immediately
         hygieneQuickEnsureUI();
         if(typeof toast === 'function') toast('Hygiene-Schnellbuttons gespeichert');
@@ -3802,7 +3406,6 @@ function addDaysISO(iso, delta){
         alert('Speichern fehlgeschlagen: ' + (err && err.message ? err.message : err));
       }
     };
-
     // UX safety: if a status is set to "nicht durchgeführt", default "Begründung erforderlich" to ON.
     // (User can still turn it off explicitly if desired.)
     panel.onchange = (ev)=>{
@@ -3810,11 +3413,9 @@ function addDaysISO(iso, delta){
       if(!(t instanceof HTMLElement)) return;
       const isStatus = t.matches('select[data-k="status"], select[data-ks="status"]');
       if(!isStatus) return;
-
       const val = (t.value || '').trim().toLowerCase();
       const idx = parseInt(t.getAttribute('data-i')||'-1',10);
       if(idx < 0) return;
-
       if(val === 'nicht durchgeführt'){
         // auto-check requireReason for the row
         const chk = t.matches('select[data-k="status"]')
@@ -3824,7 +3425,6 @@ function addDaysISO(iso, delta){
       }
     };
   }
-
   // render quick actions into hygiene form
   hygieneQuickEnsureUI();
   // bind add button once
@@ -3840,19 +3440,16 @@ function addDaysISO(iso, delta){
       const preset = (document.getElementById('hygStaffPreset')?.value || '').trim();
       const free = (document.getElementById('hygStaffFree')?.value || '').trim();
       const note = (document.getElementById('hygNote')?.value || '').trim();
-
       if(status === 'nicht durchgeführt' && !reason){
         alert('Bitte eine Begründung angeben, wenn nicht durchgeführt.');
         return;
       }
-
       const staff = { preset: preset || null, free: free || null };
       const doneBy = (free || preset || '').trim();
       if(!doneBy){
         alert('Bitte „Durchgeführt von“ auswählen oder eintragen.');
         return;
       }
-
       const entry = {
         id: uid(),
         date,
@@ -3866,31 +3463,24 @@ function addDaysISO(iso, delta){
         updatedAt: null,
         _deleted: false
       };
-
       state.hygiene.logs.unshift(entry);
       saveState();
-
       // Reset small fields
       const r = document.getElementById('hygReason'); if(r) r.value='';
       const n = document.getElementById('hygNote'); if(n) n.value='';
       const f = document.getElementById('hygStaffFree'); if(f) f.value='';
-
       renderHygienePanel();
       renderHygieneDashboard();
     };
   }
-
   // status pill on panel
   hygieneStatusPill(document.getElementById('hygienePanelStatus'), hygieneOverallStatus());
-
   // intelligent To-do-Ansicht (Option 3)
   hygieneRenderTodoBox();
-
   // today list
   const iso = todayISO();
   const logsToday = hygieneGetLogsForDate(iso);
   const pendingOnly = !!(state.hygiene.ui && state.hygiene.ui.pendingOnly);
-
   const countEl = document.getElementById('hygTodayCount');
   const logsShown = pendingOnly ? logsToday.filter(l=>String(l.status||'').toLowerCase()==='fällig') : logsToday;
   if(countEl) countEl.textContent = pendingOnly ? `${logsShown.length} fällig / ${logsToday.length} gesamt` : `${logsToday.length} Eintrag(e)`;
@@ -3920,7 +3510,6 @@ function addDaysISO(iso, delta){
       }).join('');
     }
   }
-
   // weekly list
   const weeklyEl = document.getElementById('hygWeeklyList');
   if(weeklyEl){
@@ -3941,8 +3530,6 @@ function addDaysISO(iso, delta){
         </div>`;
     }).join('');
   }
-
-
   // monthly list (neu)
   (function ensureMonthlySection(){
     const weeklyEl2 = document.getElementById('hygWeeklyList');
@@ -3958,7 +3545,6 @@ function addDaysISO(iso, delta){
       </div>
     `);
   })();
-
   const monthlyEl = document.getElementById('hygMonthlyList');
   if(monthlyEl){
     const tasks = state.hygiene.monthlyTasks || [];
@@ -3998,8 +3584,6 @@ function addDaysISO(iso, delta){
         </div>`;
     }).join('');
   }
-
-
   // export
   const btnExp = document.getElementById('btnHygieneExport');
   if(btnExp && !btnExp._bound){
@@ -4007,7 +3591,6 @@ function addDaysISO(iso, delta){
     btnExp.onclick = ()=>exportHygienePDF();
   }
 }
-
 function completeHygieneLog(id){
   ensureStateShape();
   const log = (state.hygiene.logs||[]).find(x=>x.id===id);
@@ -4029,7 +3612,6 @@ function completeHygieneLog(id){
   renderHygienePanel();
   renderHygieneDashboard();
 }
-
 function editHygieneLog(id){
   const log = (state.hygiene.logs||[]).find(x=>x.id===id);
   if(!log) return;
@@ -4041,7 +3623,6 @@ function editHygieneLog(id){
   renderHygienePanel();
   renderHygieneDashboard();
 }
-
 function markWeeklyTaskDone(taskId){
   const t = (state.hygiene.weeklyTasks||[]).find(x=>x.id===taskId);
   if(!t) return;
@@ -4068,13 +3649,10 @@ function markWeeklyTaskDone(taskId){
   renderHygienePanel();
   renderHygieneDashboard();
 }
-
-
 function markMonthlyTaskDone(taskId, outcome){
   const t = (state.hygiene.monthlyTasks||[]).find(x=>x.id===taskId);
   if(!t) return;
   const now = new Date();
-
   // Outcome only relevant for pest monitoring
   if(t.mode === "pest"){
     // default outcome if not given: "no"
@@ -4082,19 +3660,15 @@ function markMonthlyTaskDone(taskId, outcome){
     t.lastOutcome = oc;
     t.lastOutcomeAt = now.toISOString();
   }
-
   t.lastDone = now.toISOString();
-
   const preset = (document.getElementById('hygStaffPreset')?.value || 'Raphael').trim();
   const free = (document.getElementById('hygStaffFree')?.value || '').trim();
   const staff = { preset: preset || null, free: free || null };
-
   // Create auto log entry
   let note = `Monatsaufgabe: ${t.title}`;
   let status = "erledigt";
   let area = (t.area || "Innenräume");
   let action = "Monatsaufgabe";
-
   if(t.mode === "pest"){
     if(t.lastOutcome === "no"){
       note = `Schädlingsmonitoring: Kein Befall festgestellt. (${t.title})`;
@@ -4121,7 +3695,6 @@ function markMonthlyTaskDone(taskId, outcome){
       }catch(_){ }
     }
   }
-
   state.hygiene.logs.unshift({
     id: uid(),
     date: todayISO(),
@@ -4135,12 +3708,10 @@ function markMonthlyTaskDone(taskId, outcome){
     updatedAt: null,
     _deleted: false
   });
-
   saveState();
   renderHygienePanel();
   renderHygieneDashboard();
 }
-
 // --- Schädlingsbekämpfer-Kontakt (Wolff Pest Control) ---
 const PEST_CONTACT = {
   company: 'Wolff Pest Control – Schädlingsbekämpfung',
@@ -4152,29 +3723,24 @@ const PEST_CONTACT = {
   telMobile: '0171/4105064', // Mobil verwenden
   email: 'wpc1@gmx.net'
 };
-
 function _telHref(num){
   const n = String(num||'').replace(/[^0-9+]/g,'');
   return n ? `tel:${n}` : 'tel:';
 }
-
 function _mailtoHref(to, subject, body){
   const s = encodeURIComponent(subject||'');
   const b = encodeURIComponent(body||'');
   return `mailto:${encodeURIComponent(to||'')}?subject=${s}&body=${b}`;
 }
-
 function contactPest(kind, taskId){
   ensureStateShape();
   const now = new Date();
   const dateStr = now.toLocaleDateString('de-DE');
   const timeStr = now.toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit' });
-
   // Staff (für Log)
   const preset = (document.getElementById('hygStaffPreset')?.value || '').trim();
   const free = (document.getElementById('hygStaffFree')?.value || '').trim();
   const staff = { preset: preset || null, free: free || null };
-
   const contactVia = kind === 'call' ? 'Telefon' : (kind === 'mail' ? 'E-Mail' : 'Kontakt');
   state.hygiene.logs.unshift({
     id: uid(),
@@ -4192,7 +3758,6 @@ function contactPest(kind, taskId){
   saveState();
   renderHygienePanel();
   renderHygieneDashboard();
-
   if(kind === 'call'){
     window.location.href = _telHref(PEST_CONTACT.telMobile);
     return;
@@ -4215,8 +3780,6 @@ function contactPest(kind, taskId){
     return;
   }
 }
-
-
 function exportHygienePDF(){
   ensureStateShape();
   const logs = (state.hygiene.logs||[]).slice().reverse();
@@ -4230,12 +3793,10 @@ function exportHygienePDF(){
   }
   start.setHours(0,0,0,0);
   const end = new Date(); end.setHours(23,59,59,999);
-
   const rows = logs.filter(l=>{
     const d = new Date(l.date);
     return d.getTime() >= start.getTime() && d.getTime() <= end.getTime();
   });
-
   const w = window.open('', '_blank');
   w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Hygiene-Export</title>
   <style>
@@ -4269,16 +3830,12 @@ function exportHygienePDF(){
   </body></html>`);
   w.document.close();
 }
-
-
 /* === MEDIKAMENTE & GESUNDHEIT (Etappe 2) ==============================
    - Dauerhafter Medikamentenplan pro Hund (Pet)
    - Tagesliste: fällig / gegeben / nicht gegeben (+ Begründung)
    - Gesundheitsnotizen (Tags + Freitext) exportfähig
 ====================================================================== */
-
 function medISO(){ return toISODateLocal(new Date()); }
-
 function medGetPets(){
   ensureStateShape();
   // Primär neue Struktur: pets
@@ -4291,13 +3848,11 @@ function medGetPets(){
     id: d.id, name: d.name, customerId: null, _legacy: true
   }));
 }
-
 function medPetName(petId){
   const pets = medGetPets();
   const p = pets.find(x=>x.id===petId);
   return p ? (p.name || "Hund") : "Hund";
 }
-
 // Verknüpfung zu Aufenthalten: Welche Hunde sind an einem Tag in Betreuung?
 function getPetIdsInCare(dateISO){
   try{
@@ -4323,19 +3878,15 @@ function getPetIdsInCare(dateISO){
     return [];
   }
 }
-
 function medInitUI(){
   ensureStateShape();
-
   // Presets in Selects
   const presets = state.medication.staffPresets || ["Raphael","Anschi"];
-
   const hnByPreset = document.getElementById("hnByPreset");
   if(hnByPreset && !hnByPreset.dataset.bound){
     hnByPreset.innerHTML = presets.map(x=>`<option value="${escapeHtml(x)}">${escapeHtml(x)}</option>`).join("") + `<option value="__other__">Andere…</option>`;
     hnByPreset.dataset.bound = "1";
   }
-
   const pendingOnly = document.getElementById("medPendingOnly");
   if(pendingOnly && !pendingOnly.dataset.bound){
     pendingOnly.checked = !!(state.medication.ui && state.medication.ui.pendingOnly);
@@ -4348,7 +3899,6 @@ function medInitUI(){
     };
     pendingOnly.dataset.bound = "1";
   }
-
   // Pet select
   const sel = document.getElementById("medPetSelect");
   if(sel && !sel.dataset.bound){
@@ -4361,7 +3911,6 @@ function medInitUI(){
     };
     sel.dataset.bound = "1";
   }
-
   // Add medication
   const btnAdd = document.getElementById("btnMedAdd");
   if(btnAdd && !btnAdd.dataset.bound){
@@ -4370,7 +3919,6 @@ function medInitUI(){
     };
     btnAdd.dataset.bound = "1";
   }
-
   // Add health note
   const btnHn = document.getElementById("btnHnAdd");
   if(btnHn && !btnHn.dataset.bound){
@@ -4379,7 +3927,6 @@ function medInitUI(){
     };
     btnHn.dataset.bound = "1";
   }
-
   // Export
   const btnExp = document.getElementById("btnMedExport");
   if(btnExp && !btnExp.dataset.bound){
@@ -4387,12 +3934,10 @@ function medInitUI(){
     btnExp.dataset.bound = "1";
   }
 }
-
 function medSelectedPetId(){
   ensureStateShape();
   return (state.medication.ui && state.medication.ui.selectedPetId) ? state.medication.ui.selectedPetId : "";
 }
-
 function medPopulatePetSelect(){
   const sel = document.getElementById("medPetSelect");
   if(!sel) return;
@@ -4403,7 +3948,6 @@ function medPopulatePetSelect(){
   sel.innerHTML = opts.join("");
   if(cur && pets.some(p=>p.id===cur)) sel.value = cur;
 }
-
 function medParseTimes(s){
   const raw = String(s||"").split(",").map(x=>x.trim()).filter(Boolean);
   const out = [];
@@ -4417,7 +3961,6 @@ function medParseTimes(s){
   // unique
   return Array.from(new Set(out));
 }
-
 function medAddPlanFromForm(){
   ensureStateShape();
   const petId = medSelectedPetId();
@@ -4431,7 +3974,6 @@ function medAddPlanFromForm(){
   const times = medParseTimes(document.getElementById("medTimes")?.value || "");
   const notes = (document.getElementById("medNotes")?.value || "").trim();
   const approval = !!document.getElementById("medOwnerApproval")?.checked;
-
   if(!name){
     alert("Bitte Medikamentenname eingeben.");
     return;
@@ -4444,7 +3986,6 @@ function medAddPlanFromForm(){
     alert("Bitte mindestens eine Uhrzeit angeben (z. B. 08:00).");
     return;
   }
-
   const plan = {
     id: uid(),
     petId,
@@ -4459,7 +4000,6 @@ function medAddPlanFromForm(){
     updatedAt: Date.now()
   };
   state.medication.plans.unshift(plan);
-
   // reset form
   try{
     document.getElementById("medName").value = "";
@@ -4469,30 +4009,25 @@ function medAddPlanFromForm(){
     document.getElementById("medNotes").value = "";
     document.getElementById("medOwnerApproval").checked = false;
   }catch(_){}
-
   saveState();
   renderMedicationPanel();
   renderMedicationDashboard();
 }
-
 function medPlansForPet(petId){
   ensureStateShape();
   return (state.medication.plans||[]).filter(p=>p && p.petId===petId);
 }
-
 function medRecordsFor(dateISO){
   ensureStateShape();
   const d = String(dateISO||"").slice(0,10);
   return (state.medication.records||[]).filter(r=>r && r.date===d);
 }
-
 function medHasRecord(petId, planId, dateISO, time){
   const d = String(dateISO||"").slice(0,10);
   return (state.medication.records||[]).some(r =>
     r && r.petId===petId && r.planId===planId && r.date===d && r.time===time
   );
 }
-
 function medDueOccurrences(dateISO, onlyPetIds=null){
   ensureStateShape();
   const d = String(dateISO||"").slice(0,10);
@@ -4530,7 +4065,6 @@ function medDueOccurrences(dateISO, onlyPetIds=null){
   });
   return out;
 }
-
 function petIdsInCareOnDate(dateISO){
   try{
     ensureStateShape();
@@ -4548,14 +4082,12 @@ function petIdsInCareOnDate(dateISO){
     return Array.from(set);
   }catch(_){ return []; }
 }
-
 function medStatusPill(el, status){
   if(!el) return;
   el.textContent = status.text || "—";
   el.classList.remove("warn");
   if(status.code === "overdue" || status.code === "due") el.classList.add("warn");
 }
-
 function medOverallStatus(opts={}){
   const iso = opts.dateISO ? String(opts.dateISO).slice(0,10) : medISO();
   const only = Array.isArray(opts.onlyPetIds) ? opts.onlyPetIds : null;
@@ -4566,7 +4098,6 @@ function medOverallStatus(opts={}){
   }
   return { code:"due", text:`${open} fällig` };
 }
-
 function renderMedicationDashboard(){
   const card = document.getElementById("medDashboardCard");
   if(!card) return;
@@ -4575,13 +4106,11 @@ function renderMedicationDashboard(){
   const inCare = getPetIdsInCare(iso);
   const due = medDueOccurrences(iso, (inCare.length ? inCare : null));
   const open = due.filter(x=>!x.done).length;
-
   const meta = document.getElementById("medTodayMeta");
   const pill = document.getElementById("medTodayStatus");
   const hint = document.getElementById("medTodayHint");
   const status = medOverallStatus({dateISO: iso, onlyPetIds: (inCare.length ? inCare : null)});
   medStatusPill(pill, status);
-
   if(meta) meta.textContent = (open===0)
     ? "Keine Gaben offen."
     : `${open} Gabe(n) offen${inCare.length ? " (nur Hunde in Betreuung)" : ""}.`;
@@ -4591,28 +4120,22 @@ function renderMedicationDashboard(){
       : "Bitte fällige Gaben abhaken (gegeben / nicht gegeben) – mit Begründung bei Abweichung.";
   }
 }
-
 function renderMedicationPanel(){
   ensureStateShape();
   medInitUI();
   medPopulatePetSelect();
-
   // restore pendingOnly from localStorage if present
   try{
     const cb = document.getElementById("medPendingOnly");
     if(cb) cb.checked = !!(state.medication.ui && state.medication.ui.pendingOnly);
   }catch(_){}
-
   const status = medOverallStatus();
   medStatusPill(document.getElementById("medPanelStatus"), status);
-
   renderMedicationDue();
   renderMedicationPlans();
   renderHealthNotes();
-
   renderMedicationDashboard();
 }
-
 function renderMedicationDue(){
   const iso = medISO();
   const due = medDueOccurrences(iso);
@@ -4620,24 +4143,19 @@ function renderMedicationDue(){
   const list = document.getElementById("medDueList");
   const meta = document.getElementById("medDueMeta");
   if(!list) return;
-
   const show = pendingOnly ? due.filter(x=>!x.done) : due;
   const open = due.filter(x=>!x.done).length;
-
   if(meta){
     meta.textContent = pendingOnly
       ? `${show.length} fällig · ${due.length} gesamt (heute)`
       : `${open} fällig · ${due.length} gesamt (heute)`;
   }
-
   list.innerHTML = "";
   if(show.length === 0){
     list.innerHTML = `<div class="muted">Keine fälligen Gaben.</div>`;
     return;
   }
-
   const presets = state.medication.staffPresets || ["Raphael","Anschi"];
-
   for(const it of show){
     const row = document.createElement("div");
     row.className = "item";
@@ -4658,7 +4176,6 @@ function renderMedicationDue(){
         <button class="smallbtn" ${it.done?'disabled':''} data-act="missed">❌ nicht</button>
       </div>
     `;
-
     const sel = row.querySelector(".medByPreset");
     const txt = row.querySelector(".medByText");
     if(sel && txt){
@@ -4672,10 +4189,8 @@ function renderMedicationDue(){
         }
       };
     }
-
     const btnGiven = row.querySelector('[data-act="given"]');
     const btnMissed = row.querySelector('[data-act="missed"]');
-
     const onMark = (status)=>{
       const byPreset = (sel && sel.value && sel.value !== "__other__") ? sel.value : "";
       const byText = (txt && txt.style.display !== "none") ? (txt.value||"").trim() : "";
@@ -4698,14 +4213,11 @@ function renderMedicationDue(){
         byText
       });
     };
-
     if(btnGiven) btnGiven.onclick = ()=>onMark("given");
     if(btnMissed) btnMissed.onclick = ()=>onMark("missed");
-
     list.appendChild(row);
   }
 }
-
 function medAddRecord({petId, planId, date, time, status, reason, byPreset, byText}){
   ensureStateShape();
   const iso = String(date||"").slice(0,10);
@@ -4730,24 +4242,20 @@ function medAddRecord({petId, planId, date, time, status, reason, byPreset, byTe
   saveState();
   renderMedicationPanel();
 }
-
 function renderMedicationPlans(){
   const petId = medSelectedPetId();
   const list = document.getElementById("medPlanList");
   if(!list) return;
-
   if(!petId){
     list.innerHTML = `<div class="muted">Bitte zuerst einen Hund auswählen.</div>`;
     return;
   }
-
   const plans = medPlansForPet(petId);
   list.innerHTML = "";
   if(plans.length === 0){
     list.innerHTML = `<div class="muted">Noch keine Medikamente hinterlegt.</div>`;
     return;
   }
-
   for(const pl of plans){
     const el = document.createElement("div");
     el.className = "item";
@@ -4780,7 +4288,6 @@ function renderMedicationPlans(){
     list.appendChild(el);
   }
 }
-
 function medAddHealthNoteFromForm(){
   ensureStateShape();
   const petId = medSelectedPetId();
@@ -4799,7 +4306,6 @@ function medAddHealthNoteFromForm(){
   const byPresetSel = document.getElementById("hnByPreset");
   const byPreset = (byPresetSel && byPresetSel.value && byPresetSel.value !== "__other__") ? byPresetSel.value : "";
   const byText = (document.getElementById("hnByText")?.value || "").trim();
-
   const note = {
     id: uid(),
     petId,
@@ -4814,7 +4320,6 @@ function medAddHealthNoteFromForm(){
     updatedAt: Date.now()
   };
   state.medication.healthNotes.unshift(note);
-
   // reset
   try{
     document.getElementById("hnText").value = "";
@@ -4823,28 +4328,23 @@ function medAddHealthNoteFromForm(){
     document.getElementById("hnOwnerInformed").checked = false;
     document.getElementById("hnByText").value = "";
   }catch(_){}
-
   saveState();
   renderMedicationPanel();
 }
-
 function renderHealthNotes(){
   const petId = medSelectedPetId();
   const list = document.getElementById("hnList");
   if(!list) return;
-
   // fill presets
   const presets = state.medication.staffPresets || ["Raphael","Anschi"];
   const sel = document.getElementById("hnByPreset");
   if(sel){
     sel.innerHTML = presets.map(x=>`<option value="${escapeHtml(x)}">${escapeHtml(x)}</option>`).join("") + `<option value="__other__">Andere…</option>`;
   }
-
   if(!petId){
     list.innerHTML = `<div class="muted">Bitte zuerst einen Hund auswählen.</div>`;
     return;
   }
-
   const notes = (state.medication.healthNotes||[]).filter(n=>n && n.petId===petId).slice(0,25);
   list.innerHTML = "";
   if(notes.length === 0){
@@ -4880,7 +4380,6 @@ function renderHealthNotes(){
     list.appendChild(el);
   }
 }
-
 function medExportPdf(){
   ensureStateShape();
   const startStr = prompt("Export ab Datum (YYYY-MM-DD) – leer = letzter Monat:", "");
@@ -4894,29 +4393,24 @@ function medExportPdf(){
         d.setMonth(d.getMonth()-1);
         return d;
       })();
-
   const startISO = toISODateLocal(start);
   const petId = medSelectedPetId(); // optional: if set, filter export
   const pets = medGetPets();
-
   const plans = (state.medication.plans||[]).filter(p=>{
     if(!p) return false;
     if(petId && p.petId !== petId) return false;
     return true;
   });
-
   const records = (state.medication.records||[]).filter(r=>{
     if(!r) return false;
     if(petId && r.petId !== petId) return false;
     return (r.date >= startISO && r.date <= endISO);
   });
-
   const notes = (state.medication.healthNotes||[]).filter(n=>{
     if(!n) return false;
     if(petId && n.petId !== petId) return false;
     return (n.date >= startISO && n.date <= endISO);
   });
-
   const w = window.open('', '_blank');
   w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Medikation-Export</title>
   <style>
@@ -4930,7 +4424,6 @@ function medExportPdf(){
   </style></head><body>
   <h1>Medikamenten- &amp; Gesundheitsnachweis</h1>
   <p class="muted">Hundepension Doggy Style – Angelika &amp; Raphael Boch · Zeitraum: ${start.toLocaleDateString('de-DE')} – ${end.toLocaleDateString('de-DE')}</p>
-
   <h2>Medikamentenpläne</h2>
   <table>
     <thead><tr><th>Hund</th><th>Medikament</th><th>Dosis</th><th>Uhrzeiten</th><th>Hinweise</th><th>Status</th></tr></thead>
@@ -4944,7 +4437,6 @@ function medExportPdf(){
       }).join("")}
     </tbody>
   </table>
-
   <h2>Gaben-Protokoll</h2>
   <table>
     <thead><tr><th>Datum</th><th>Uhrzeit</th><th>Hund</th><th>Medikament</th><th>Status</th><th>Begründung</th><th>Durchgeführt von</th></tr></thead>
@@ -4959,7 +4451,6 @@ function medExportPdf(){
       }).join("")}
     </tbody>
   </table>
-
   <h2>Gesundheitsnotizen</h2>
   <table>
     <thead><tr><th>Datum</th><th>Hund</th><th>Tags</th><th>Notiz</th><th>Hinweise</th><th>Notiert von</th></tr></thead>
@@ -4976,18 +4467,14 @@ function medExportPdf(){
       }).join("")}
     </tbody>
   </table>
-
   <script>window.print();window.onafterprint=()=>window.close();</script>
   </body></html>`);
   w.document.close();
 }
-
-
 function formatDateDE(iso){
   const dt = new Date(iso);
   return dt.toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit"});
 }
-
 /* ===== Belegungskalender (Monatsansicht) ===== */
 const CAL = {
   year: new Date().getFullYear(),
@@ -4995,7 +4482,6 @@ const CAL = {
   selectedDay: "",
   filters: { urlaub: true, tages: true }
 };
-
 function getCalFilters(){
   // Safety defaults
   if(!CAL.filters) CAL.filters = { urlaub:true, tages:true };
@@ -5005,7 +4491,6 @@ function getCalFilters(){
   }
   return CAL.filters;
 }
-
 function applyCalFilterUI(){
   const f = getCalFilters();
   const btnU = document.getElementById('calFilterUrlaub');
@@ -5021,19 +4506,14 @@ function applyCalFilterUI(){
     btnT.onclick = ()=>{ CAL.filters.tages = !CAL.filters.tages; applyCalFilterUI(); renderCalendarPanel(); if(CAL.selectedDay) renderCalendarDayDetail(CAL.selectedDay); };
   }
 }
-
 function clamp(n,min,max){ return Math.max(min, Math.min(max, n)); }
-
-
 function monthLabel(year, month){
   const d = new Date(year, month, 1);
   return d.toLocaleDateString("de-DE", { month: "long", year: "numeric" });
 }
-
 function dateISO(d){
   return toISODateLocal(d);
 }
-
 function startOfCalendarGrid(year, month){
   // Grid beginnt am Montag der Woche, in der der 1. des Monats liegt
   const first = new Date(year, month, 1);
@@ -5043,43 +4523,34 @@ function startOfCalendarGrid(year, month){
   start.setHours(0,0,0,0);
   return start;
 }
-
 function renderCalendarPanel(){
   const grid = document.getElementById('calGrid');
   const title = document.getElementById('calMonthLabel');
   if(!grid || !title) return;
-
   title.textContent = monthLabel(CAL.year, CAL.month);
   applyCalFilterUI();
-
   // Header (Wochentage)
   const dows = ['Mo','Di','Mi','Do','Fr','Sa','So'];
   grid.innerHTML = dows.map(x=>`<div class="cal-dow">${x}</div>`).join('');
-
   const start = startOfCalendarGrid(CAL.year, CAL.month);
   const todayIso = toISODateLocal(new Date());
-
   for(let i=0;i<42;i++){
     const d = new Date(start);
     d.setDate(start.getDate() + i);
     const iso = dateISO(d);
     const inMonth = (d.getMonth() === CAL.month);
     const dayNum = d.getDate();
-
     const board = countForDay('Urlaubsbetreuung', iso);
     const dayc = countForDay('Tagesbetreuung', iso);
     const over = (board > getCapacity("Urlaubsbetreuung", iso)) || (dayc > getCapacity("Tagesbetreuung", iso));
-
     const cell = document.createElement('div');
     cell.className = 'cal-cell' + (inMonth ? '' : ' is-other') + (iso===todayIso ? ' is-today':'') + (iso===CAL.selectedDay ? ' is-selected':'') + (over ? ' is-over':'');
     cell.dataset.day = iso;
-
     const f = getCalFilters();
     const freeU = getCapacity("Urlaubsbetreuung", iso) - board;
     const freeT = getCapacity("Tagesbetreuung", iso) - dayc;
     const uPct = clamp((board / Math.max(1,getCapacity("Urlaubsbetreuung", iso))) * 100, 0, 100);
     const tPct = clamp((dayc / Math.max(1,getCapacity("Tagesbetreuung", iso))) * 100, 0, 100);
-
     const badges = [];
     const bars = [];
     const freeParts = [];
@@ -5093,7 +4564,6 @@ function renderCalendarPanel(){
       bars.push(`<div class="cal-bar" title="Tages: ${dayc}/${getCapacity("Tagesbetreuung", iso)}"><div class="fill" style="width:${tPct}%;"></div></div>`);
       freeParts.push(`🐕 ${Math.max(0, freeT)}`);
     }
-
     cell.innerHTML = `
       ${over ? `<div class="cal-warnchip" title="Über Kapazität">⚠️</div>` : ``}
       <div class="cal-date">${dayNum}</div>
@@ -5101,18 +4571,14 @@ function renderCalendarPanel(){
       <div class="cal-free">frei: ${freeParts.join(' · ')}</div>
       <div class="cal-bars">${bars.join('')}</div>
     `;
-
     cell.onclick = ()=>{
       CAL.selectedDay = iso;
       renderCalendarPanel();
       renderCalendarDayDetail(iso);
     };
-
     grid.appendChild(cell);
   }
 }
-
-
 // ===== 4D-1: Auswertungen (Basis) =====
 function _dsParseAnyDate(v){
   if(!v) return null;
@@ -5162,9 +4628,7 @@ function renderAnalyticsPanel(){
     const fromD = _dsParseAnyDate(fromEl ? fromEl.value : null) || new Date(today.getFullYear(), today.getMonth()-11, 1);
     const toD0  = _dsParseAnyDate(toEl ? toEl.value : null) || today;
     const toD   = new Date(toD0.getFullYear(), toD0.getMonth(), toD0.getDate(), 23,59,59,999);
-
     const invArr = Object.values(state.invoices || {});
-
     // Nur "bezahlt" als Umsatz (Basis)
     const paidInv = invArr.filter(inv => {
       const st = String(inv.status||'').toLowerCase();
@@ -5174,13 +4638,16 @@ function renderAnalyticsPanel(){
       if(!d) return false;
       return d >= fromD && d <= toD;
     });
-
+    // Expose last analytics result for exports/debug
+    try{
+      window.__DS_ANA_LAST_PAID = paidInv;
+      window.__DS_ANA_LAST_RANGE = { from: fromStr, to: toStr };
+    }catch(__){}
     // Totals
     let gross = 0;
     let net = 0;
     let vat = 0;
     const VAT_DEFAULT = 0.19;
-
     for(const inv of paidInv){
       const g = Number(inv?.pricing?.totalGross ?? inv?.pricing?.grandTotalGross ?? inv?.pricing?.total ?? inv?.totalGross ?? inv?.total ?? 0) || 0;
       gross += g;
@@ -5189,14 +4656,12 @@ function renderAnalyticsPanel(){
       net += nv.net;
       vat += nv.vat;
     }
-
     const elNet = document.getElementById('anaRevenueNet');
     const elVat = document.getElementById('anaRevenueVat');
     const elCnt = document.getElementById('anaInvoiceCount');
     if(elNet) elNet.textContent = formatEuro(net);
     if(elVat) elVat.textContent = formatEuro(vat);
     if(elCnt) elCnt.textContent = String(paidInv.length);
-
     // Tabelle: Monatsumsatz (Gross) innerhalb Range
     const bucket = {};
     for(const inv of paidInv){
@@ -5214,7 +4679,6 @@ function renderAnalyticsPanel(){
       months.push(_dsMonthKey(cur));
       cur = new Date(cur.getFullYear(), cur.getMonth()+1, 1);
     }
-
     const tbody = document.querySelector('#anaTable tbody');
     if(tbody){
       tbody.innerHTML = '';
@@ -5229,9 +4693,7 @@ function renderAnalyticsPanel(){
         tbody.appendChild(tr);
       }
     }
-
       
-
     // --- 4D-3: Umsatz nach Leistung (Top-Positionen) ---
     try{
       const map = {};
@@ -5241,7 +4703,6 @@ function renderAnalyticsPanel(){
         if(v===0) return;
         map[label] = (map[label]||0) + v;
       };
-
       for(const inv of paidInv){
         const p = inv.pricing || {};
         // Base
@@ -5260,11 +4721,9 @@ function renderAnalyticsPanel(){
           add(it.label || it.name, it.gross ?? it.valueGross ?? it.amountGross ?? 0);
         }
       }
-
       const rows = Object.entries(map)
         .map(([label, val]) => ({label, val}))
         .sort((a,b)=>b.val-a.val);
-
       const tbody2 = document.querySelector('#anaItemTable tbody');
       if(tbody2){
         tbody2.innerHTML='';
@@ -5292,7 +4751,6 @@ function renderAnalyticsPanel(){
     }catch(__e){
       // ignore
     }
-
 // --- 4D-4: Top Kunden & Top Hunde (Umsatz brutto) ---
       try{
         const topCustEl = document.getElementById('anaTopCustomerTable');
@@ -5323,7 +4781,6 @@ function renderAnalyticsPanel(){
           });
           const topCust = Array.from(mapCust.values()).sort((a,b)=>b.gross-a.gross).slice(0,10);
           const topDog  = Array.from(mapDog.values()).sort((a,b)=>b.gross-a.gross).slice(0,10);
-
           const renderTop = (el, rows, labelLeft)=>{
             const head = `<tr><th>${esc(labelLeft)}</th><th style="text-align:right;">Umsatz</th><th style="text-align:right;">Rechn.</th></tr>`;
             const body = rows.map(r=>`<tr><td>${esc(r.name||'—')}</td><td style="text-align:right;">${formatEUR(r.gross||0)}</td><td style="text-align:right;">${r.count||0}</td></tr>`).join('');
@@ -5335,14 +4792,12 @@ function renderAnalyticsPanel(){
       }catch(__e){
         // ignore
       }
-
 // --- 4D-2: Auslastung/Kapazität im gewählten Zeitraum ---
       try{
         // typeEl exists in UI (day/urlaub)
         const occType = String(typeEl?.value || 'urlaub');
         const label = (occType==='day') ? 'Tagesbetreuung' : 'Urlaubsbetreuung';
         const capMax = (occType==='day') ? (CAPACITY?.day ?? 13) : (CAPACITY?.holiday ?? 10);
-
         // parse YYYY-MM-DD as UTC midnight
         const parseYMD = (s) => {
           if(!s || typeof s !== 'string') return null;
@@ -5350,13 +4805,11 @@ function renderAnalyticsPanel(){
           if(parts.length!==3 || parts.some(n => !Number.isFinite(n))) return null;
           return new Date(Date.UTC(parts[0], parts[1]-1, parts[2]));
         };
-
         const fromD2 = parseYMD(fromEl?.value);
         const toD2   = parseYMD(toEl?.value);
         if(fromD2 && toD2 && fromD2<=toD2){
           let days=0, usedSum=0, capSum=0;
           let peakUsed=-1, peakDay='', peakCap=0;
-
           for(let d=fromD2; d<=toD2; d=addDaysUTC(d,1)){
             const ymd = formatYMD(d);
             const used = countForDay(occType, ymd);
@@ -5364,62 +4817,117 @@ function renderAnalyticsPanel(){
             days++; usedSum += used; capSum += cap;
             if(used>peakUsed){ peakUsed=used; peakDay=ymd; peakCap=cap; }
           }
-
           const avgUsed = days ? (usedSum/days) : 0;
           const avgCap  = days ? (capSum/days) : 0;
           const utilPct = capSum ? (usedSum/capSum*100) : 0;
-
           // spacer row
           const trSp = document.createElement('tr');
           trSp.innerHTML = '<td colspan="2" style="height:10px;border:0;"></td>';
           tbody.appendChild(trSp);
-
           const trHead = document.createElement('tr');
           trHead.innerHTML = `<td colspan="2" style="font-weight:700;">Auslastung (${label})</td>`;
           tbody.appendChild(trHead);
-
           const tr1 = document.createElement('tr');
           tr1.innerHTML = `<td>Ø belegt</td><td>${avgUsed.toFixed(2)} / ${avgCap.toFixed(2)} (${utilPct.toFixed(1)}%)</td>`;
           tbody.appendChild(tr1);
-
           const tr2 = document.createElement('tr');
           tr2.innerHTML = `<td>Peak</td><td>${peakUsed} / ${peakCap} am ${peakDay}</td>`;
           tbody.appendChild(tr2);
-
           const tr3 = document.createElement('tr');
           tr3.innerHTML = `<td>Slot‑Tage</td><td>${usedSum} von ${capSum} (Max/Tag: ${capMax})</td>`;
           tbody.appendChild(tr3);
         }
       }catch(_){}
-
-
     // bind refresh button once
     const btn = document.getElementById('anaRefreshBtn');
     if(btn && !btn.__dsBound){
       btn.__dsBound = true;
       btn.addEventListener('click', () => renderAnalyticsPanel());
+      // Quick range buttons
+      const setRange = (fromDate, toDate) => {
+        try{
+          const f = document.getElementById('anaFrom');
+          const t = document.getElementById('anaTo');
+          if(f) f.value = fromDate;
+          if(t) t.value = toDate;
+          try{ localStorage.setItem('ds_ana_from', fromDate); }catch(_){ }
+          try{ localStorage.setItem('ds_ana_to', toDate); }catch(_){ }
+          renderAnalyticsPanel();
+        }catch(_){ }
+      };
+      const q12 = document.getElementById('anaQuick12m');
+      if(q12 && !q12.__dsBound){
+        q12.__dsBound = true;
+        q12.addEventListener('click', () => {
+          const now = new Date();
+          const to = new Date(now.getFullYear(), now.getMonth()+1, 0);
+          const from = new Date(now.getFullYear(), now.getMonth()-11, 1);
+          setRange(fmtDateISO(from), fmtDateISO(to));
+        });
+      }
+      const q90 = document.getElementById('anaQuick90d');
+      if(q90 && !q90.__dsBound){
+        q90.__dsBound = true;
+        q90.addEventListener('click', () => {
+          const now = new Date();
+          const to = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          const from = new Date(to.getTime() - 89*24*3600*1000);
+          setRange(fmtDateISO(from), fmtDateISO(to));
+        });
+      }
+      const q30 = document.getElementById('anaQuick30d');
+      if(q30 && !q30.__dsBound){
+        q30.__dsBound = true;
+        q30.addEventListener('click', () => {
+          const now = new Date();
+          const to = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          const from = new Date(to.getTime() - 29*24*3600*1000);
+          setRange(fmtDateISO(from), fmtDateISO(to));
+        });
+      }
+      // Export CSV
+      const exp = document.getElementById('anaExportBtn');
+      if(exp && !exp.__dsBound){
+        exp.__dsBound = true;
+        exp.addEventListener('click', () => {
+          try{
+            const rows = (window.__DS_ANA_LAST_PAID || []).map(inv => {
+              const meta = inv.__ds_meta || {};
+              const gross = toCurrency(meta.gross||0).replace('€','').trim();
+              const net = toCurrency(meta.net||0).replace('€','').trim();
+              const vat = toCurrency(meta.vat||0).replace('€','').trim();
+              const date = meta.date||'';
+              const nr = (inv.number || inv.nr || inv.id || '');
+              const kunde = (meta.customerName||'');
+              const hund = (meta.dogName||'');
+              return [date, nr, kunde, hund, gross, net, vat];
+            });
+            const header = ['Datum','Rechnungsnr','Kunde','Hund','Brutto','Netto','MwSt'];
+        const csv = [header].concat(rows).map(r=>r.join(';')).join('\n');
+            const blob = new Blob(["﻿"+csv], {type:'text/csv;charset=utf-8'});
+            const from = window.__DS_ANA_FROM || '';
+            const to = window.__DS_ANA_TO || '';
+            downloadBlob(blob, `DoggyStyle_Auswertung_Rechnungen_${from}_bis_${to}.csv`);
+          }catch(e){
+            alert('Export fehlgeschlagen: ' + (e && e.message ? e.message : e));
+          }
+        });
+      }
     }
   }catch(e){
     console.warn("renderAnalyticsPanel failed", e);
   }
 }
-
-
-
-
 function renderCalendarDayDetail(iso){
   const card = document.getElementById('calDayDetail');
   const title = document.getElementById('calDayTitle');
   const meta = document.getElementById('calDayMeta');
   const list = document.getElementById('calDayList');
   if(!card || !title || !meta || !list) return;
-
   const dt = new Date(iso);
   const label = dt.toLocaleDateString('de-DE', { weekday:'long', day:'2-digit', month:'2-digit', year:'numeric' });
-
   const board = countForDay('Urlaubsbetreuung', iso);
   const dayc = countForDay('Tagesbetreuung', iso);
-
   title.textContent = label;
   const f = getCalFilters();
   const freeU = getCapacity("Urlaubsbetreuung", iso) - board;
@@ -5429,7 +4937,6 @@ function renderCalendarDayDetail(iso){
   if(f.urlaub){ parts.push(`🏡 ${board}/${getCapacity("Urlaubsbetreuung", iso)}`); freeParts.push(`🏡 ${Math.max(0, freeU)} frei`); }
   if(f.tages){ parts.push(`🐕 ${dayc}/${getCapacity("Tagesbetreuung", iso)}`); freeParts.push(`🐕 ${Math.max(0, freeT)} frei`); }
   meta.textContent = `${parts.join(' · ')}  —  ${freeParts.join(' · ')}`;
-
   const stays = (state.docs||[]).filter(d=>{
     if(!d.saved) return false;
     if(d.type==='invoice') return false;
@@ -5439,7 +4946,6 @@ function renderCalendarDayDetail(iso){
     if(bt==='Tagesbetreuung' && !f.tages) return false;
     return (iso >= d.meta.von && iso <= d.meta.bis);
   }).slice().sort((a,b)=> String(a.meta?.von||'').localeCompare(String(b.meta?.von||'')));
-
   // 4A: Verursachende Aufenthalte bei Überbuchung markieren (Kalender-Tag-Detail)
   // Logik: Wenn (Anzahl Aufenthalte je Betreuungsart) > Kapazität, markieren wir die "zusätzlichen" Aufenthalte
   // in einer stabilen Reihenfolge (ältere zuerst, neuere zuletzt). Die neueren, die über die Kapazität hinausgehen,
@@ -5475,23 +4981,16 @@ function renderCalendarDayDetail(iso){
     markOverflow('Urlaubsbetreuung');
     markOverflow('Tagesbetreuung');
   }catch(e){ console.warn('4A causing-mark failed', e); }
-
-
-
   // Etappe 4: Medikamente pro Aufenthaltstag (Kalender-Tag-Detail)
   const stayPetIds = Array.from(new Set((stays||[]).map(s => (s.petId || s.dogId || "")).filter(Boolean)));
   const medOcc = (stayPetIds.length ? medDueOccurrences(iso, stayPetIds) : []);
   const medOpen = medOcc.filter(o=>!o.done);
-
   // Etappe 4.1: Filter im Tagdetail – nur fällige
   ensureStateShape();
   if(!state.medication.ui) state.medication.ui = {};
   if(typeof state.medication.ui.calDayPendingOnly !== 'boolean') state.medication.ui.calDayPendingOnly = false;
   const calPendingOnly = !!state.medication.ui.calDayPendingOnly;
-
-
   list.innerHTML = '';
-
   // Medikamente für den Tag anzeigen (falls es Pläne gibt)
   if(medOcc.length){
     const head = document.createElement('div');
@@ -5510,7 +5009,6 @@ function renderCalendarDayDetail(iso){
       };
     }
     list.appendChild(head);
-
     // Filterzeile (nur fällige)
     const filter = document.createElement('div');
     filter.className = 'item';
@@ -5534,7 +5032,6 @@ function renderCalendarDayDetail(iso){
       };
     }
     list.appendChild(filter);
-
     const occToShow = calPendingOnly ? medOpen : medOcc;
     if(calPendingOnly && occToShow.length === 0){
       const none = document.createElement('div');
@@ -5543,7 +5040,6 @@ function renderCalendarDayDetail(iso){
       none.textContent = 'Keine fälligen Gaben.';
       list.appendChild(none);
     }
-
     occToShow.forEach(o=>{
       const it = document.createElement('div');
       it.className = 'item';
@@ -5558,7 +5054,6 @@ function renderCalendarDayDetail(iso){
       }
       list.appendChild(it);
     });
-
     // kleine Trennung zur Aufenthaltsliste
     const sep = document.createElement('div');
     sep.className = 'muted';
@@ -5566,7 +5061,6 @@ function renderCalendarDayDetail(iso){
     sep.textContent = 'Aufenthalte';
     list.appendChild(sep);
   }
-
   if(!stays.length){
     list.innerHTML = `<div class="muted">Keine Aufenthalte an diesem Tag.</div>`;
   } else {
@@ -5585,7 +5079,6 @@ function renderCalendarDayDetail(iso){
         item.style.background = "rgba(244,67,54,.08)";
       }
       item.innerHTML = `<div><strong>${t}</strong>${causePill}<small>${typ} · ${range}</small></div>`;
-
       const actions = document.createElement('div');
       actions.className = 'actions';
       const btn = document.createElement('button');
@@ -5599,7 +5092,6 @@ function renderCalendarDayDetail(iso){
   }
   card.style.display = '';
 }
-
 function wireCalendarControls(){
   const prev = document.getElementById('btnCalPrev');
   const next = document.getElementById('btnCalNext');
@@ -5634,21 +5126,17 @@ function wireCalendarControls(){
     renderCalendarPanel();
   };
 }
-
 $$(".tab").forEach(b=>b.addEventListener("click",()=>{
   $$(".tab").forEach(x=>x.classList.toggle("is-active",x===b));
   showPanel(b.dataset.tab);
 }));
-
 let templates=[];
-
 // ===============================
 // v18: Aufenthalte – eingebettete Aufenthalte (ohne externes Template-Fetch)
 // ===============================
 // Hintergrund: In bestimmten iOS/Safari + Service-Worker Konstellationen kann das
 // Laden von templates/hundeannahme.json blockieren. Der Aufenthalt-Editor darf davon
 // nicht abhängig sein.
-
 const EMBEDDED_HUNDEANNAHME_TEMPLATE = {
   id: "hundeannahme",
   name: "Aufenthalte",
@@ -5664,7 +5152,6 @@ const EMBEDDED_HUNDEANNAHME_TEMPLATE = {
   ],
   meta: { embedded: true }
 };
-
 function ensureEmbeddedTemplates(){
   try{
     if(!Array.isArray(templates)) templates = [];
@@ -5676,9 +5163,7 @@ function ensureEmbeddedTemplates(){
 function normalizeTemplate(t){
   // Unterstützt sowohl Schema (name/key) als auch (title/id)
   if(!t || typeof t !== "object") return t;
-
   if(!t.name && t.title) t.name = t.title;
-
   // sections[].fields[]: id -> key
   if(Array.isArray(t.sections)){
     t.sections.forEach(sec=>{
@@ -5689,17 +5174,14 @@ function normalizeTemplate(t){
       }
     });
   }
-
   // top-level fields[]: id -> key
   if(Array.isArray(t.fields)){
     t.fields.forEach(f=>{
       if(f && !f.key && f.id) f.key = f.id;
     });
   }
-
   return t;
 }
-
 async function loadTemplates(){
   templates = [];
   const files = [
@@ -5709,7 +5191,6 @@ async function loadTemplates(){
     {path: "templates/rechnung.json", label: "Rechnung"},
     {path: "Templates/rechnung.json", label: "Rechnung"}
   ];
-
   for(const f of files){
     try{
       const res = await fetch(f.path, {cache: "no-store"});
@@ -5720,15 +5201,12 @@ async function loadTemplates(){
       console.warn("Template konnte nicht geladen werden:", f.path, e);
     }
   }
-
   // Immer sicherstellen: Aufenthalte ist verfügbar (embedded)
   ensureEmbeddedTemplates();
-
   // Fallback: Wenn gar nichts geladen werden konnte, App trotzdem startbar lassen
   if(!templates.length){
     templates = [EMBEDDED_HUNDEANNAHME_TEMPLATE];
   }
-
   const sel = document.getElementById("templateSelect");
   if (sel) {
     sel.innerHTML = templates
@@ -5737,22 +5215,16 @@ async function loadTemplates(){
   }
 }
 const getTemplate=id=>templates.find(t=>t.id===id);
-
-
 function uid(){return Math.random().toString(16).slice(2)+Date.now().toString(16);}
-
 // ===== ETAPPE 1: Datenmodell v2 + Migration (Kunden/Hunde/Aufenthalte/Rechnungen) =====
-
 /* ===== Profi: Mitarbeiter, Vorlagen-Versionen, §11-Ampel, Monatsabschluss, Steuerberater-Export ===== */
 function uniq(arr){
   const out=[]; const seen=new Set();
   (arr||[]).forEach(x=>{ const k=String(x||"").trim(); if(!k) return; if(seen.has(k)) return; seen.add(k); out.push(k); });
   return out;
 }
-
 function ensureProfiDefaults(){
   if(!state || typeof state !== 'object') return;
-
   // Kompatibilität: älterer Masterstand nutzt state.staff.people + state.compliance.docs/monthClosings.
   if(!state.staff || typeof state.staff !== 'object') state.staff = {};
   if(!Array.isArray(state.staff.people)) state.staff.people = [];
@@ -5765,11 +5237,9 @@ function ensureProfiDefaults(){
     else if(typeof p.active !== 'boolean') p.active = true;
   };
   state.staff.presets.forEach(ensure);
-
   // Alias für die neuen UI-Helper
   state.staff.list = state.staff.people;
   if(typeof state.staff.nextId !== 'number') state.staff.nextId = 1;
-
   // Versionierung & Monatsabschluss: über state.compliance
   if(!state.compliance || typeof state.compliance !== 'object') state.compliance = {};
   if(!state.compliance.docs || typeof state.compliance.docs !== 'object') state.compliance.docs = {};
@@ -5786,30 +5256,25 @@ function ensureProfiDefaults(){
   ensureDoc('contract', 'Betreuungsvertrag');
   state.compliance.monthClosings = Array.isArray(state.compliance.monthClosings) ? state.compliance.monthClosings : [];
 }
-
 function getActiveStaffNames(){
   ensureProfiDefaults();
   return uniq((state.staff.list||[]).filter(s=>s && s.active!==false).map(s=>s.name));
 }
-
 function staffSelectOptions(selected){
   const names = getActiveStaffNames();
   const sel = String(selected||'');
   const opts = names.map(n=>`<option value="${escapeHtml(n)}" ${n===sel?'selected':''}>${escapeHtml(n)}</option>`).join('');
   return `<option value="">(Auswahl)</option>${opts}`;
 }
-
 function complianceItem(label, status, detail){
   const pillClass = status==='green' ? '' : (status==='yellow' ? 'warn' : 'danger');
   const icon = status==='green' ? '🟢' : (status==='yellow' ? '🟡' : '🔴');
   return {label, status, detail, icon, pillClass};
 }
-
 function computeCompliance(){
   ensureStateShape();
   ensureProfiDefaults();
   const today = todayISO();
-
   // Hygiene: offene Einträge heute oder überfällige Wochenaufgaben
   const hygLogs = (state.hygiene?.logs||[]);
   const openHygToday = hygLogs.filter(l=>l && l.date===today && l.status==='pending').length;
@@ -5830,7 +5295,6 @@ function computeCompliance(){
     hygStatus = (overdueWeekly>0) ? 'red' : 'yellow';
     hygDetail = `${openHygToday} offen heute, ${overdueWeekly} Wochenaufgabe(n) überfällig.`;
   }
-
   // Medikation: fällige Gaben heute (nur Hunde in Betreuung)
   let medStatus='green', medDetail='Keine fälligen Gaben.';
   try{
@@ -5839,7 +5303,6 @@ function computeCompliance(){
     const open = due.filter(x=>!x.done).length;
     if(open>0){ medStatus='yellow'; medDetail = `${open} Gabe(n) fällig.`; }
   }catch(e){ /* ignore */ }
-
   // Verträge: aktive Aufenthalte ohne unterschriebenen Vertrag
   let conStatus='green', conDetail='Für aktive Aufenthalte liegt ein Vertrag vor.';
   try{
@@ -5847,14 +5310,12 @@ function computeCompliance(){
     const missing = activeStays.filter(d=>!d.contractSigned && !(d.signatures && d.signatures.halter)).length;
     if(missing>0){ conStatus='yellow'; conDetail = `${missing} aktiv ohne (vollständige) Unterschrift.`; }
   }catch(e){ }
-
   // Notfall/Brand: Vorlage vorhanden (Versionen gesetzt)
   const docs = state.compliance?.docs || {};
   const fireOk = !!docs.brand?.version;
   const emergOk = !!docs.notfall?.version;
   let nfStatus='green', nfDetail='Vorlagen vorhanden.';
   if(!fireOk || !emergOk){ nfStatus='red'; nfDetail='Notfall/Brand Vorlagen fehlen.'; }
-
   const items = [
     complianceItem('Hygiene', hygStatus, hygDetail),
     complianceItem('Medikation', medStatus, medDetail),
@@ -5867,7 +5328,6 @@ function computeCompliance(){
   }, 'green');
   return {today, items, worst};
 }
-
 function renderComplianceDashboard(){
   const card = document.getElementById('complianceDashboardCard');
   if(!card) return;
@@ -5893,7 +5353,6 @@ function renderComplianceDashboard(){
     `).join('');
   }
 }
-
 function renderComplianceInSettings(){
   const el = document.getElementById('complianceSettingsList');
   if(!el) return;
@@ -5922,7 +5381,6 @@ function renderComplianceInSettings(){
       </div>
     </div>
   `;
-
   setTimeout(()=>{
     const d = document.getElementById('legalDsgvoText');
     const a = document.getElementById('legalAgbText');
@@ -5951,7 +5409,6 @@ function renderComplianceInSettings(){
     }
   },0);
 }
-
 function renderStaffSettings(){
   const list = document.getElementById('staffList');
   if(!list) return;
@@ -5970,7 +5427,6 @@ function renderStaffSettings(){
     </div>`;
   }).join('') || `<div class="muted">Keine Mitarbeitenden.</div>`;
 }
-
 function profiAddStaff(){
   ensureProfiDefaults();
   const name = (document.getElementById('staffNameInput')?.value||'').trim();
@@ -5990,7 +5446,6 @@ function profiAddStaff(){
   try{ renderHygienePanel(); }catch(_){ }
   try{ renderMedicationPanel(); }catch(_){ }
 }
-
 function profiToggleStaff(id){
   ensureProfiDefaults();
   const s = (state.staff.list||[]).find(x=>x.id===id);
@@ -6003,7 +5458,6 @@ function profiToggleStaff(id){
   saveState();
   renderStaffSettings();
 }
-
 function profiEditStaff(id){
   ensureProfiDefaults();
   const s = (state.staff.list||[]).find(x=>x.id===id);
@@ -6021,7 +5475,6 @@ function profiEditStaff(id){
   saveState();
   renderStaffSettings();
 }
-
 function renderPolicySettings(){
   const el = document.getElementById('policyList');
   if(!el) return;
@@ -6068,7 +5521,6 @@ function renderPricingSettingsBlock(){
       </div>
     `).join('') || `<div class="muted">— keine Regeln</div>`;
   };
-
   const block = document.getElementById('pricingSettingsBlock');
   if(block){
     // refresh values only
@@ -6088,7 +5540,6 @@ function renderPricingSettingsBlock(){
     block.querySelector('[data-pr-rules="Urlaubsbetreuung"]').innerHTML = mkRows('Urlaubsbetreuung');
     return;
   }
-
   const html = `
   <div id="pricingSettingsBlock" class="card" style="margin-top:12px; padding:12px;">
     <div class="row" style="justify-content:space-between; align-items:center; gap:10px;">
@@ -6098,52 +5549,44 @@ function renderPricingSettingsBlock(){
     <div class="hint" style="margin-top:6px">
       Änderungen wirken auf neue Berechnungen. Bereits gespeicherte/"eingefrorene" Rechnungen bleiben wie sie sind.
     </div>
-
     <div style="margin-top:10px">
       <div class="row" style="gap:10px; flex-wrap:wrap;">
         <label class="muted" style="min-width:220px">MwSt (% für Rechnung)</label>
         <input class="smallinp" style="width:96px" data-pr-ex="vatPercent" value="${escapeHtml(String(cfg.vatPercent ?? 19))}">
       </div>
-
       <div class="row" style="gap:10px; flex-wrap:wrap;">
         <label class="muted" style="min-width:220px">Sonn-/Feiertagszuschlag (% pro Tag)</label>
         <input class="smallinp" style="width:96px" data-pr-ex="holidayPercent" value="${escapeHtml(String(cfg.holidayPercent))}">
       </div>
-
       <div class="row" style="gap:10px; flex-wrap:wrap; margin-top:8px">
         <label class="muted" style="min-width:220px">Sonderzeiten (% Aufschlag)</label>
         <input class="smallinp" style="width:96px" data-pr-ex="specialTimesPercent" value="${escapeHtml(String(cfg.extras.specialTimesPercent))}">
         <label class="muted" style="min-width:220px">Extra-Betreuung (% Aufschlag)</label>
         <input class="smallinp" style="width:96px" data-pr-ex="extraCarePercent" value="${escapeHtml(String(cfg.extras.extraCarePercent))}">
       </div>
-
       <div class="row" style="gap:10px; flex-wrap:wrap; margin-top:8px">
         <label class="muted" style="min-width:220px">Medikamente (€/Tag)</label>
         <input class="smallinp" style="width:96px" data-pr-ex="medicationPerDay" value="${escapeHtml(String(cfg.extras.medicationPerDay))}">
         <label class="muted" style="min-width:220px">Zusatz-Spaziergang (€/Stk)</label>
         <input class="smallinp" style="width:96px" data-pr-ex="walkExtraPrice" value="${escapeHtml(String(cfg.extras.walkExtraPrice))}">
       </div>
-
       <div class="row" style="gap:10px; flex-wrap:wrap; margin-top:8px">
         <label class="muted" style="min-width:220px">Verbandwechsel (€/Stk)</label>
         <input class="smallinp" style="width:96px" data-pr-ex="bandagePrice" value="${escapeHtml(String(cfg.extras.bandagePrice ?? 2.5))}">
         <label class="muted" style="min-width:220px">Pflege/Extra (€/Stk)</label>
         <input class="smallinp" style="width:96px" data-pr-ex="groomingPrice" value="${escapeHtml(String(cfg.extras.groomingPrice ?? 5))}">
       </div>
-
       <div class="row" style="gap:10px; flex-wrap:wrap; margin-top:8px">
         <label class="muted" style="min-width:220px">Hygiene/Extra (€/Tag)</label>
         <input class="smallinp" style="width:96px" data-pr-ex="hygienePerDay" value="${escapeHtml(String(cfg.extras.hygienePerDay ?? 0))}">
         <label class="muted" style="min-width:220px">Abhol-/Bringservice (€/Fahrt)</label>
         <input class="smallinp" style="width:96px" data-pr-ex="pickupDropoffPrice" value="${escapeHtml(String(cfg.extras.pickupDropoffPrice ?? 0))}">
       </div>
-
       <div class="row" style="gap:10px; flex-wrap:wrap; margin-top:8px">
         <label class="muted" style="min-width:220px">Kurzfristig (% Aufschlag)</label>
         <input class="smallinp" style="width:96px" data-pr-ex="shortNoticePercent" value="${escapeHtml(String(cfg.extras.shortNoticePercent ?? 0))}">
       </div>
     </div>
-
     <div class="row" style="gap:16px; flex-wrap:wrap; align-items:flex-start; margin-top:14px">
       <div style="flex:1; min-width:260px">
         <div><strong>Tagesbetreuung</strong></div>
@@ -6156,7 +5599,6 @@ function renderPricingSettingsBlock(){
         <div data-pr-rules="Urlaubsbetreuung" style="margin-top:6px">${mkRows('Urlaubsbetreuung')}</div>
       </div>
     </div>
-
     <div class="row" style="gap:8px; flex-wrap:wrap; margin-top:12px">
       <button class="smallbtn" onclick="resetPricingDefaults()">Auf Standard zurück</button>
       <button class="smallbtn" onclick="addPricingRule('Tagesbetreuung')">+ Regel Tages</button>
@@ -6165,19 +5607,16 @@ function renderPricingSettingsBlock(){
   </div>`;
   el.insertAdjacentHTML('beforeend', html);
 }
-
 function _readNumber(v, fallback){
   const n = parseFloat(String(v).replace(',', '.'));
   return Number.isFinite(n) ? n : fallback;
 }
-
 function savePricingFromUI(){
   try{
     const block = document.getElementById('pricingSettingsBlock');
     if(!block) return;
     const cur = getPricingSettings();
     const next = JSON.parse(JSON.stringify(cur));
-
     // extras
     next.vatPercent = _readNumber(block.querySelector('[data-pr-ex="vatPercent"]').value, cur.vatPercent ?? 19);
     next.holidayPercent = _readNumber(block.querySelector('[data-pr-ex="holidayPercent"]').value, cur.holidayPercent);
@@ -6212,7 +5651,6 @@ function savePricingFromUI(){
       arr.sort((a,b)=>b.min-a.min);
       next.rules[key]=arr;
     }
-
     savePricingSettings(next);
     // MwSt auch als globaler Rechnungs-Default bereitstellen (kompatibel mit bestehenden Feldern)
     try{ state.settings = state.settings || {}; state.settings.vatRate = next.vatPercent; saveState(); }catch(_){ }
@@ -6223,14 +5661,12 @@ function savePricingFromUI(){
     alert('❌ Speichern fehlgeschlagen (siehe Konsole)');
   }
 }
-
 function resetPricingDefaults(){
   if(!confirm('Preise wirklich auf Standard zurücksetzen?')) return;
   const next = JSON.parse(JSON.stringify(PRICING_DEFAULTS));
   savePricingSettings(next);
   renderPricingSettingsBlock();
 }
-
 function addPricingRule(key){
   const cur = getPricingSettings();
   const next = JSON.parse(JSON.stringify(cur));
@@ -6239,16 +5675,13 @@ function addPricingRule(key){
   savePricingSettings(next);
   renderPricingSettingsBlock();
 }
-
 }
-
 function bumpVersionStr(v){
   const m = String(v||'1.0').split('.').map(x=>parseInt(x,10));
   const a = Number.isFinite(m[0])?m[0]:1;
   const b = Number.isFinite(m[1])?m[1]:0;
   return `${a}.${b+1}`;
 }
-
 function profiBumpPolicy(key){
   ensureProfiDefaults();
   const note = prompt('Änderung kurz beschreiben (für Archiv):','');
@@ -6265,7 +5698,6 @@ function profiBumpPolicy(key){
   renderComplianceDashboard();
   renderComplianceInSettings();
 }
-
 // Öffnen/Bearbeiten der Vorlagen (revisionssicher über Versionssprung)
 const POLICY_DEFAULTS = {
   hygiene: `Hygieneplan (Kurzvorlage)\n\n- Reinigungs-/Desinfektionsplan je Bereich\n- Frequenzen (täglich/wöchentlich/monatlich)\n- Mittel & Dosierung\n- Durchführung/Verantwortung\n- Dokumentation im Hygiene-Modul\n\nHinweis: Diese Vorlage kannst du an euren Betrieb anpassen. Änderungen immer über „Neue Version“ dokumentieren.`,
@@ -6273,14 +5705,12 @@ const POLICY_DEFAULTS = {
   brand: `Brandfall & Evakuierung (Kurzvorlage)\n\n- Sammelplatz & Fluchtwege\n- Prioritäten: Menschen → Hunde → Dokumente\n- Leinen/Boxen bereit\n- Feuerwehr informieren\n- Dokumentation der Evakuierung (Zeit, Anzahl, Beteiligte)`,
   contract: `Betreuungsvertrag (Kurzvorlage)\n\n- Halterdaten\n- Hundedaten\n- Zeitraum & Leistung\n- Notfallregelung & Vollmacht\n- Medikationsfreigabe\n- Unterschriften (Halter / Betrieb)\n\nHinweis: Die vollständige, unterschriebene Version wird pro Aufenthalt im Bereich „Aufenthalte/Betreuungsvertrag“ abgelegt.`
 };
-
 function getPolicyContent(key){
   ensureProfiDefaults();
   const doc = state.compliance?.docs?.[key] || {};
   const txt = (doc.content!=null) ? String(doc.content) : (POLICY_DEFAULTS[key] || '');
   return txt;
 }
-
 function ensurePolicyModal(){
   if(document.getElementById('policyModal')) return;
   const wrap = document.createElement('div');
@@ -6301,7 +5731,6 @@ function ensurePolicyModal(){
       <div class="hint" style="margin:10px 12px 12px 12px;">Hinweis: Änderungen bitte immer über „Neue Version & bearbeiten“ – so bleibt alles revisionssicher.</div>
     </div>`;
   document.body.appendChild(wrap);
-
   const close = ()=>{
     wrap.style.display = 'none';
     document.body.style.overflow = '';
@@ -6310,7 +5739,6 @@ function ensurePolicyModal(){
   wrap.querySelector('#policyModalClose').onclick = close;
   document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') close(); });
 }
-
 let _policyCurrentKey = null;
 function openPolicyDoc(key){
   ensurePolicyModal();
@@ -6374,7 +5802,6 @@ function openPolicyDoc(key){
   wrap.style.display = 'block';
   document.body.style.overflow = 'hidden';
 }
-
 function downloadBlob(filename, blob){
   const a=document.createElement('a');
   const url=URL.createObjectURL(blob);
@@ -6382,14 +5809,12 @@ function downloadBlob(filename, blob){
   document.body.appendChild(a); a.click();
   setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 400);
 }
-
 function exportMonthJson(){
   const today = new Date();
   const ym = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
   const blob = new Blob([JSON.stringify(state,null,2)], {type:'application/json'});
   downloadBlob(`02_MonatsBackup_${ym}.json`, blob);
 }
-
 function buildMonthReportHtml(monthISO){
   const ym = monthISO;
   const c = computeCompliance();
@@ -6399,43 +5824,34 @@ function buildMonthReportHtml(monthISO){
   const medRec = (state.medication?.records||[]).filter(r=>r && r.date>=from && r.date<=to);
   const hn = (state.medication?.healthNotes||[]).filter(n=>n && n.date>=from && n.date<=to);
   const stays = (state.docs||[]).filter(d=>d && d.saved && d.meta?.von && d.meta?.von>=from && d.meta?.von<=to);
-
   const rows = (arr, cols)=> arr.map(x=>`<tr>${cols.map(c=>`<td>${escapeHtml(String((typeof c==='function'?c(x):x[c])??''))}</td>`).join('')}</tr>`).join('') || `<tr><td colspan="${cols.length}">—</td></tr>`;
-
   return `<!doctype html><html><head><meta charset="utf-8"><title>Monatsnachweis ${escapeHtml(ym)}</title>
   <style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;margin:24px} h1,h2{margin:0 0 10px} .meta{color:#555;margin:0 0 16px} table{width:100%;border-collapse:collapse;margin:10px 0 18px} th,td{border:1px solid #ddd;padding:8px;font-size:12px} th{background:#f4f4f4;text-align:left} .pill{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid #bbb;font-size:12px} .warn{border-color:#d8a000} .danger{border-color:#c00} </style></head><body>
   <h1>Doggy Style – Monatsnachweis ${escapeHtml(ym)}</h1>
   <p class="meta">Erstellt: ${escapeHtml(new Date().toLocaleString('de-DE'))} · Betrieb: ${escapeHtml(COMPANY.name)} · Adresse: ${escapeHtml(COMPANY.street)}, ${escapeHtml(COMPANY.zipCity)}</p>
-
   <h2>§11‑Ampel (Stand heute)</h2>
   <table><tr><th>Bereich</th><th>Status</th><th>Detail</th></tr>
     ${c.items.map(i=>`<tr><td>${escapeHtml(i.label)}</td><td><span class="pill ${i.pillClass}">${escapeHtml(i.icon)} ${escapeHtml(i.status)}</span></td><td>${escapeHtml(i.detail||'')}</td></tr>`).join('')}
   </table>
-
   <h2>01_Aufenthalte (Start im Monat)</h2>
   <table><tr><th>Von</th><th>Bis</th><th>Hund</th><th>Betreuung</th></tr>
     ${rows(stays, [x=>x.meta?.von||'', x=>x.meta?.bis||'', x=>(getPet(x.dogId||'')?.name||''), x=>x.meta?.betreuung||''])}
   </table>
-
   <h2>03_Medikation (Gaben-Protokoll)</h2>
   <table><tr><th>Datum</th><th>Uhrzeit</th><th>Hund</th><th>Medikament</th><th>Status</th><th>Begründung</th><th>Von</th></tr>
     ${rows(medRec, ['date','time', x=>(getPet(x.petId||'')?.name||''), 'medName','status','reason','by'])}
   </table>
-
   <h2>03_Gesundheit (Notizen)</h2>
   <table><tr><th>Datum</th><th>Hund</th><th>Tags</th><th>Notiz</th><th>Von</th></tr>
     ${rows(hn, ['date', x=>(getPet(x.petId||'')?.name||''), x=>(Array.isArray(x.tags)?x.tags.join(', '):''), 'text','by'])}
   </table>
-
   <h2>04_Hygiene (Protokoll)</h2>
   <table><tr><th>Datum</th><th>Bereich</th><th>Maßnahme</th><th>Status</th><th>Von</th><th>Notiz</th></tr>
     ${rows(hyg, ['date','area','action','status','by','note'])}
   </table>
-
   <p class="meta"><strong>Backup‑Hinweis:</strong> Speichere diese PDF und das Monats‑JSON (02_MonatsBackup_...) extern in <em>Dateien/DoggyStyle/Export</em>.</p>
   </body></html>`;
 }
-
 function monthClose(){
   ensureProfiDefaults();
   const now = new Date();
@@ -6448,7 +5864,6 @@ function monthClose(){
   const msg = document.getElementById('monthCloseMsg');
   if(msg) msg.textContent = `Monat ${ym} abgeschlossen – Vorschau geöffnet (Drucken/Speichern = PDF).`;
 }
-
 function taxExportMonth(){
   const now = new Date();
   const ym = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
@@ -6457,7 +5872,6 @@ function taxExportMonth(){
   const msg = document.getElementById('taxExportMsg');
   if(msg) msg.textContent = `PDF‑Report für ${ym} geöffnet (Dateiname‑Tipp: 01–05 in Dateien sortieren).`;
 }
-
 function initProfiSettingsBindings(){
   const add = document.getElementById('btnStaffAdd');
   if(add && !add.dataset.bound){ add.dataset.bound='1'; add.onclick = profiAddStaff; }
@@ -6470,24 +5884,19 @@ function initProfiSettingsBindings(){
   const t2 = document.getElementById('btnTaxExportJSON');
   if(t2 && !t2.dataset.bound){ t2.dataset.bound='1'; t2.onclick = exportMonthJson; }
 }
-
 function ensureStateShape(){
   // Basis-Defaults (ohne UID-Erzeugung, damit es beim ersten Load robust bleibt)
   if(!state || typeof state !== "object") return;
   if(typeof state.schemaVersion !== "number") state.schemaVersion = 1;
-
   // Profi-Defaults (Mitarbeiter, Versionen, Monatsabschlüsse)
   try{ ensureProfiDefaults(); }catch(_){ }
-
   state.dogs = Array.isArray(state.dogs) ? state.dogs : [];
   state.docs = Array.isArray(state.docs) ? state.docs : [];
-
   state.customers = Array.isArray(state.customers) ? state.customers : [];
   state.pets = Array.isArray(state.pets) ? state.pets : [];
   state.stays = Array.isArray(state.stays) ? state.stays : [];
   state.worklogs = Array.isArray(state.worklogs) ? state.worklogs : [];
   state.invoices = Array.isArray(state.invoices) ? state.invoices : [];
-
   // Hygiene & Reinigung
   if(!state.hygiene || typeof state.hygiene !== "object") state.hygiene = {};
   state.hygiene.logs = Array.isArray(state.hygiene.logs) ? state.hygiene.logs : [];
@@ -6505,9 +5914,6 @@ function ensureStateShape(){
     if(v === 'true') state.hygiene.ui.pendingOnly = true;
     if(v === 'false') state.hygiene.ui.pendingOnly = false;
   }catch(e){}
-
-
-
   // Default Wochen- & Monatsaufgaben (nur einmal anlegen / Migration)
   const _defaultWeekly = [
     { id: "wk_runs_deepclean", title: "Grundreinigung Ausläufe / Laufwege", intervalDays: 7, lastDone: null, area:"Außenbereich" },
@@ -6522,7 +5928,6 @@ function ensureStateShape(){
     { id: "mo_stock_check", title: "Bestände prüfen/auffüllen (Reiniger, Desinfektion, Einmalhandschuhe)", intervalDays: 30, lastDone: null, area:"Innenräume" },
     { id: "mo_pest_check", title: "Schädlingsmonitoring / Köderstationen prüfen", intervalDays: 30, lastDone: null, area:"Außenbereich", mode:"pest", lastOutcome:null, lastOutcomeAt:null }
   ];
-
   // Wochenaufgaben: wenn leer → Defaults; wenn exakt alte 4 Defaults → migrieren
   if(state.hygiene.weeklyTasks.length === 0){
     state.hygiene.weeklyTasks = _defaultWeekly;
@@ -6538,20 +5943,16 @@ function ensureStateShape(){
       }
     }catch(_){ }
   }
-
   // Monatsaufgaben
   if(state.hygiene.monthlyTasks.length === 0){
     state.hygiene.monthlyTasks = _defaultMonthly;
   }
-
-
   // Medikamente & Gesundheit
   if(!state.medication || typeof state.medication !== "object") state.medication = {};
   state.medication.plans = Array.isArray(state.medication.plans) ? state.medication.plans : [];
   state.medication.records = Array.isArray(state.medication.records) ? state.medication.records : [];
   state.medication.healthNotes = Array.isArray(state.medication.healthNotes) ? state.medication.healthNotes : [];
   state.medication.staffPresets = Array.isArray(state.medication.staffPresets) ? state.medication.staffPresets : ["Raphael","Anschi"];
-
   // Presets mit aktuiver Mitarbeiterliste synchronisieren (Raphael/Anschi fest, weitere aus Einstellungen)
   try{
     const names = getActiveStaffNames();
@@ -6567,7 +5968,6 @@ function ensureStateShape(){
     if(v === 'true') state.medication.ui.pendingOnly = true;
     if(v === 'false') state.medication.ui.pendingOnly = false;
   }catch(e){}
-
   
   // Mitarbeiter (global) – Voreinstellung: Raphael & Anschi
   if(!state.staff || typeof state.staff !== "object") state.staff = {};
@@ -6589,7 +5989,6 @@ function ensureStateShape(){
   state.staff.presets = mergedPresets;
   state.hygiene.staffPresets = mergedPresets;
   state.medication.staffPresets = mergedPresets;
-
   // Compliance / Versionierung
   if(!state.compliance || typeof state.compliance !== "object") state.compliance = {};
   if(!state.compliance.docs || typeof state.compliance.docs !== "object") state.compliance.docs = {};
@@ -6609,19 +6008,16 @@ function ensureStateShape(){
   ensureDoc("notfall", "Notfallplan");
   ensureDoc("contract", "Betreuungsvertrag");
   state.compliance.monthClosings = Array.isArray(state.compliance.monthClosings) ? state.compliance.monthClosings : [];
-
 state._legacy = (state._legacy && typeof state._legacy === "object") ? state._legacy : {};
   state._legacy.dogIdToCustomerId = (state._legacy.dogIdToCustomerId && typeof state._legacy.dogIdToCustomerId === "object") ? state._legacy.dogIdToCustomerId : {};
   state._legacy.dogIdToPetId = (state._legacy.dogIdToPetId && typeof state._legacy.dogIdToPetId === "object") ? state._legacy.dogIdToPetId : {};
   state._legacy.docIdToStayId = (state._legacy.docIdToStayId && typeof state._legacy.docIdToStayId === "object") ? state._legacy.docIdToStayId : {};
   state._legacy.docIdToInvoiceId = (state._legacy.docIdToInvoiceId && typeof state._legacy.docIdToInvoiceId === "object") ? state._legacy.docIdToInvoiceId : {};
-
   // Vertrag
   state.contract = (state.contract && typeof state.contract === "object") ? state.contract : null;
   // Vertrags-Unterschriften: akzeptiere Map (neues Format) oder Array (Legacy).
   // NICHT auf Array zuruecksetzen, sonst gehen Map-Signaturen verloren.
   state.contractSignatures = (Array.isArray(state.contractSignatures) || (state.contractSignatures && typeof state.contractSignatures === 'object')) ? state.contractSignatures : {};
-
   // Rechnungsnummer beibehalten
   if(typeof state.nextInvoiceNumber !== "number"){
     state.nextInvoiceNumber = 1;
@@ -6641,8 +6037,6 @@ state._legacy = (state._legacy && typeof state._legacy === "object") ? state._le
     if(typeof state.capacities.default.Urlaubsbetreuung !== "number") state.capacities.default.Urlaubsbetreuung = CAPACITY.Urlaubsbetreuung;
   }
 }
-
-
 function ensureContractDefaults(){
   if(!state.contract || typeof state.contract !== "object"){
     state.contract = {
@@ -6672,12 +6066,10 @@ function ensureContractDefaults(){
     state.contractSignatures = map;
   }
 }
-
 // Vertragstext (v1.0) – App-geeignet (ohne Beträge)
 const DEFAULT_CONTRACT_TEXT = `
 <h4>1. Vertragsgegenstand</h4>
 <p>Der Betreiber übernimmt die zeitweise Betreuung des vom Hundehalter angegebenen Hundes im Rahmen einer Tages- oder Urlaubsbetreuung. Die Betreuung erfolgt nach bestem Wissen und Gewissen sowie unter Beachtung des Tierschutzes und der betrieblichen Abläufe.</p>
-
 <h4>2. Pflichten des Hundehalters</h4>
 <ul>
   <li>Der Hund ist gesund; es liegen keine ansteckenden Krankheiten vor.</li>
@@ -6686,64 +6078,48 @@ const DEFAULT_CONTRACT_TEXT = `
   <li>Der Hund ist haftpflichtversichert.</li>
 </ul>
 <p>Falschangaben können zum sofortigen Abbruch der Betreuung führen.</p>
-
 <h4>3. Gesundheitszustand &amp; Verantwortung</h4>
 <p>Der Betreiber ist berechtigt, den Hund bei Auffälligkeiten von der Betreuung auszuschließen oder den Halter zur Abholung aufzufordern. Der Betreiber entscheidet im Sinne des Tierschutzes und der Sicherheit aller Hunde.</p>
-
 <h4>4. Haftung &amp; Haftungsausschluss</h4>
 <p>Die Betreuung erfolgt auf eigenes Risiko des Hundehalters. Der Betreiber haftet nicht für Verletzungen oder Erkrankungen, die durch typisches Hundeverhalten (z. B. Rangordnung, Spiel, Stress) entstehen, für Schäden durch andere betreute Hunde sowie für Verlust/Beschädigung persönlicher Gegenstände. Eine Haftung besteht nur bei Vorsatz oder grober Fahrlässigkeit.</p>
-
 <h4>5. Läufige Hündinnen</h4>
 <p><strong>5.1 Grundsatz:</strong> Läufige Hündinnen werden grundsätzlich nicht betreut.</p>
 <p><strong>5.2 Beginn während des Aufenthalts:</strong> Beginnt eine Hündin während des Aufenthalts läufig zu werden, ist der Hundehalter verpflichtet, die Hündin unverzüglich abzuholen, oder der Betreiber entscheidet im Einzelfall über das weitere Vorgehen.</p>
 <p><strong>5.3 Einzelfallentscheidung:</strong> In Ausnahmefällen kann die Betreuung nach ausdrücklicher Einzelfallentscheidung des Betreibers fortgeführt werden. Dabei kann zusätzlicher Betreuungsaufwand entstehen, ein Aufpreis erhoben werden oder der Aufenthalt vorzeitig beendet werden. Ein Anspruch des Hundehalters auf Fortführung besteht nicht.</p>
 <p><strong>5.4 Haftung:</strong> Der Betreiber übernimmt keine Haftung für Stress-/Verhaltensreaktionen anderer Hunde oder betriebsbedingte Einschränkungen im Zusammenhang mit der Läufigkeit.</p>
 <p><strong>5.5 Falschangaben:</strong> Wird Läufigkeit verschwiegen oder falsch angegeben, behält sich der Betreiber vor, den Aufenthalt sofort abzubrechen, zusätzliche Kosten geltend zu machen und zukünftige Betreuungen abzulehnen.</p>
-
 <h4>6. Tierarzt &amp; Notfall</h4>
 <p>Der Betreiber ist berechtigt, bei akuten gesundheitlichen Problemen einen Tierarzt aufzusuchen. Die entstehenden Kosten trägt der Hundehalter. Der Betreiber bemüht sich, den Hundehalter vorab zu informieren, sofern dies möglich ist.</p>
-
 <h4>7. Ausschluss von der Betreuung</h4>
 <p>Der Betreiber kann die Betreuung jederzeit beenden, wenn eine Gefahr für andere Hunde oder Menschen besteht, der Hund erheblich gestresst ist, falsche Angaben gemacht wurden oder betriebliche/tierschutzrechtliche Gründe dies erfordern.</p>
-
 <h4>8. Datenschutz</h4>
 <p>Personen- und tierbezogene Daten werden ausschließlich zur Vertragsabwicklung und gemäß den geltenden Datenschutzbestimmungen verarbeitet. Es gilt die Datenschutzerklärung des Betreibers.</p>
-
 <h4>9. Schlussbestimmungen</h4>
 <p>Änderungen oder Ergänzungen dieses Vertrags bedürfen der Textform. Sollte eine Bestimmung unwirksam sein, bleibt die Wirksamkeit der übrigen Regelungen unberührt.</p>
-
 <h4>10. Digitale Zustimmung</h4>
 <p>Mit der digitalen Unterschrift bestätigt der Hundehalter, den Vertrag vollständig gelesen zu haben, den Inhalt zu akzeptieren und die Angaben wahrheitsgemäß gemacht zu haben. Ort/Datum wird automatisch erfasst.</p>
 `;
-
 function migrateToV2(){
   // Migration ist bewusst "additiv": wir verlieren NICHTS aus state.dogs/state.docs,
   // sondern spiegeln alles zusätzlich sauber in customers/pets/stays/invoices.
   if(state.schemaVersion >= 2) return;
-
   ensureStateShape();
   ensureContractDefaults();
-
   const dogIdToCustomerId = {};
   const dogIdToPetId = {};
   const docIdToStayId = {};
   const docIdToInvoiceId = {};
-
   // --- 1) dogs[] -> customers[] + pets[] ---
   const customerIndex = new Map(); // key -> customerId
   const customers = [];
   const pets = [];
-
   (state.dogs||[]).forEach(d=>{
     if(!d || d.isPlaceholder) return;
-
     const owner = String(d.owner||"").trim();
     const phone = String(d.phone||"").trim();
     const dogName = String(d.name||"").trim();
-
     // Key: (owner + phone) – falls owner fehlt, trotzdem stabil
     const key = (owner.toLowerCase()+"|"+phone.toLowerCase()).trim();
-
     let customerId = customerIndex.get(key);
     if(!customerId){
       customerId = "c_"+uid();
@@ -6761,7 +6137,6 @@ function migrateToV2(){
         updatedAt: new Date().toISOString()
       });
     }
-
     const petId = "p_"+uid();
     pets.push({
       id: petId,
@@ -6777,22 +6152,17 @@ function migrateToV2(){
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     });
-
     dogIdToCustomerId[d.id] = customerId;
     dogIdToPetId[d.id] = petId;
   });
-
   // --- 2) docs[] -> stays[] + invoices[] (Spiegelung) ---
   const stays = [];
   const invoices = [];
-
   (state.docs||[]).forEach(doc=>{
     if(!doc || !doc.id) return;
-
     if(doc.type === "invoice"){
       const invId = "i_"+doc.id; // stabil/ableitbar
       docIdToInvoiceId[doc.id] = invId;
-
       invoices.push({
         id: invId,
         customerId: dogIdToCustomerId[doc.dogId] || "",
@@ -6809,15 +6179,12 @@ function migrateToV2(){
         createdAt: doc.createdAt || new Date().toISOString(),
         updatedAt: doc.updatedAt || new Date().toISOString()
       });
-
       return;
     }
-
     // normale Template-Dokumente (z.B. Aufenthalte)
     if(doc.templateId){
       const stayId = "s_"+doc.id;
       docIdToStayId[doc.id] = stayId;
-
       stays.push({
         id: stayId,
         petId: dogIdToPetId[doc.dogId] || "",
@@ -6835,23 +6202,18 @@ function migrateToV2(){
       });
     }
   });
-
   // Nur setzen, wenn wir tatsächlich etwas erzeugt haben – sonst nichts überschreiben.
   if(customers.length) state.customers = customers;
   if(pets.length) state.pets = pets;
   if(stays.length) state.stays = stays;
   if(invoices.length) state.invoices = invoices;
-
   state._legacy.dogIdToCustomerId = dogIdToCustomerId;
   state._legacy.dogIdToPetId = dogIdToPetId;
   state._legacy.docIdToStayId = docIdToStayId;
   state._legacy.docIdToInvoiceId = docIdToInvoiceId;
-
   state.schemaVersion = 2;
   saveState();
 }
-
-
 function pruneInvoiceDocs(){
   // Variante A: Rechnungen gehören ausschließlich in state.invoices (Rechnungs-Tab),
   // nicht in state.docs (Aufenthalte). Damit bleibt "Aufenthalte" übersichtlich.
@@ -6870,28 +6232,24 @@ function pruneInvoiceDocs(){
 }
 // ===== ETAPPE 2 Helpers (Customer/Pet Editor) =====
 const cpEdit = { mode: "new", petId: "" };
-
 function getCustomer(id){
   return (state.customers||[]).find(c=>c.id===id) || null;
 }
 function getPet(id){
   return (state.pets||[]).find(p=>p.id===id) || null;
 }
-
 function setCustomerFieldsDisabled(disabled){
   ["c_name","c_phone","c_email","c_street","c_zip","c_city","c_em_name","c_em_phone","c_pickup_auth","c_note"].forEach(id=>{
     const el=document.getElementById(id);
     if(el) el.disabled=!!disabled;
   });
 }
-
 function refreshCustomerSelect(){
   const sel = document.getElementById("customerSelect");
   if(!sel) return;
   const customers = (state.customers||[]).slice().sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"de"));
   sel.innerHTML = customers.map(c=>`<option value="${c.id}">${escapeHtml(c.name||"Kunde")}${c.phone?(" · "+escapeHtml(c.phone)):""}</option>`).join("");
 }
-
 function clearCpEditor(){
   ["c_name","c_phone","c_email","c_street","c_zip","c_city","c_em_name","c_em_phone","c_pickup_auth","c_note","p_name","p_breed","p_chipNumber","p_vet","p_vetPhone","p_food","p_feeding","p_compat","p_note","p_allergies","p_meds","p_behavior"].forEach(id=>{
     const el=document.getElementById(id); if(el) el.value="";
@@ -6906,7 +6264,6 @@ function clearCpEditor(){
   try{ cpMedCancelInlineEdit(); }catch(_){ }
   try{ cpMedRenderInlineList(); }catch(_){ }
 }
-
 function fillCpEditorForPet(pet){
   const c = getCustomer(pet.customerId);
   if(c){
@@ -6940,21 +6297,17 @@ function fillCpEditorForPet(pet){
   try{ cpMedEnsureInlineUI(); }catch(_){ }
   try{ cpMedRenderInlineList(); }catch(_){ }
 }
-
 function openCpEditor(mode, petId){
   ensureStateShape();
   ensureContractDefaults();
   cpEdit.mode = mode || "new";
   cpEdit.petId = petId || "";
-
   const box = document.getElementById("cpEditor");
   if(box) box.style.display="block";
   const title = document.getElementById("cpEditorTitle");
   if(title) title.textContent = (mode==="edit") ? "Kunde & Hund bearbeiten" : "Kunde & Hund anlegen";
-
   refreshCustomerSelect();
   clearCpEditor();
-
   // Toggle handler
   const use = document.getElementById("useExistingCustomer");
   if(use){
@@ -6963,7 +6316,6 @@ function openCpEditor(mode, petId){
       setCustomerFieldsDisabled(useExisting);
     };
   }
-
   if(mode==="edit" && petId){
     const pet = getPet(petId);
     if(pet){
@@ -6980,18 +6332,14 @@ function openCpEditor(mode, petId){
     // New: wenn Kunden vorhanden, Auswahl anbieten, aber standardmäßig aus
     setCustomerFieldsDisabled(false);
   }
-
   // Dauermedikation (Plan) inline im Hund-Editor
   try{ cpMedEnsureInlineUI(); }catch(_){ }
   try{ cpMedRenderInlineList(); }catch(_){ }
-
   try{ ensureAddAnotherDogButton(); }catch(_){ }
   try{ updateAddAnotherDogButtonVisibility(); }catch(_){ }
-
   const list = document.getElementById("dogList");
   if(list) list.scrollIntoView({behavior:"smooth", block:"start"});
 }
-
 // === 2A.x Erweiterung: "Weiteren Hund" für bestehenden Kunden ===
 function getCurrentCpCustomerId(){
   try{
@@ -7007,7 +6355,6 @@ function getCurrentCpCustomerId(){
   }catch(_){}
   return "";
 }
-
 function fillCustomerFieldsOnly(customerId){
   const c = getCustomer(customerId);
   if(!c) return;
@@ -7022,7 +6369,6 @@ function fillCustomerFieldsOnly(customerId){
   $("#c_pickup_auth").value = c.pickupAuth||"";
   $("#c_note").value = c.note||"";
 }
-
 function clearPetFieldsOnly(){
   $("#p_name").value = "";
   $("#p_breed").value = "";
@@ -7040,7 +6386,6 @@ function clearPetFieldsOnly(){
   $("#p_behavior").value = "";
   $("#p_note").value = "";
 }
-
 function ensureAddAnotherDogButton(){
   const saveBtn = document.getElementById("btnCpSave");
   const cancelBtn = document.getElementById("btnCpCancel");
@@ -7082,7 +6427,6 @@ function ensureAddAnotherDogButton(){
   };
   updateAddAnotherDogButtonVisibility();
 }
-
 function updateAddAnotherDogButtonVisibility(){
   const b = document.getElementById("btnCpAddAnotherDog");
   if(!b) return;
@@ -7090,11 +6434,8 @@ function updateAddAnotherDogButtonVisibility(){
   // Anzeige: nur wenn ein bestehender Kunde eindeutig ist (edit oder existing selected)
   b.style.display = customerId ? "inline-block" : "none";
 }
-
-
 // --- Dauermedikation im Hund-Editor (inline wie Medikamente) ---
 let cpMedEditPlanId = "";
-
 function cpMedEnsureInlineUI(){
   try{
     const anchor = document.getElementById("p_meds");
@@ -7102,9 +6443,7 @@ function cpMedEnsureInlineUI(){
     // Anchor is inside a <label class="field"> ... </label>
     const label = anchor.closest("label.field") || anchor.parentElement;
     if(!label) return;
-
     if(document.getElementById("cpMedInlineBox")) return; // already injected
-
     const box = document.createElement("div");
     box.id = "cpMedInlineBox";
     box.style.marginTop = "10px";
@@ -7114,7 +6453,6 @@ function cpMedEnsureInlineUI(){
           <div style="font-weight:700;">Dauermedikation (Plan)</div>
           <div id="cpMedInlineHint" class="muted" style="font-size:12px;"></div>
         </div>
-
         <div class="row" style="flex-wrap:wrap; gap:10px; margin-top:10px;">
           <label class="field" style="min-width:220px; flex:1;">
             <span>Medikament</span>
@@ -7129,7 +6467,6 @@ function cpMedEnsureInlineUI(){
             <input id="cpMedUnit" type="text" placeholder="Tbl, ml, Tropfen"/>
           </label>
         </div>
-
         <div class="row" style="flex-wrap:wrap; gap:10px; margin-top:10px;">
           <label class="field" style="min-width:220px; flex:1;">
             <span>Uhrzeiten (Komma)</span>
@@ -7140,40 +6477,32 @@ function cpMedEnsureInlineUI(){
             <input id="cpMedNotes" type="text" placeholder="Mit Futter / nüchtern / Besonderheiten"/>
           </label>
         </div>
-
         <div class="row" style="align-items:center; gap:12px; margin-top:10px; flex-wrap:wrap;">
           <label style="display:flex; align-items:center; gap:8px;">
             <input id="cpMedOwnerApproval" type="checkbox"/>
             <span>Freigabe des Halters liegt vor</span>
           </label>
-
           <div style="margin-left:auto; display:flex; gap:8px; flex-wrap:wrap;">
             <button id="cpMedCancelBtn" class="smallbtn" style="display:none;">Abbrechen</button>
             <button id="cpMedSaveBtn" class="smallbtn">Hinzufügen</button>
           </div>
         </div>
-
         <div id="cpMedInlineList" style="margin-top:12px;"></div>
       </div>
     `;
-
     // insert after the textarea label
     label.insertAdjacentElement("afterend", box);
-
     // wire buttons
     document.getElementById("cpMedSaveBtn").onclick = ()=>cpMedAddOrUpdateFromInlineForm();
     document.getElementById("cpMedCancelBtn").onclick = ()=>cpMedCancelInlineEdit();
-
   }catch(e){
     console.warn("cpMedEnsureInlineUI failed", e);
   }
 }
-
 function cpMedInlineSelectedPetId(){
   // In edit mode we have a petId; in new mode petId is empty until saved
   return (cpEdit && cpEdit.petId) ? cpEdit.petId : "";
 }
-
 function cpMedInlineResetForm(){
   try{
     document.getElementById("cpMedName").value = "";
@@ -7184,7 +6513,6 @@ function cpMedInlineResetForm(){
     document.getElementById("cpMedOwnerApproval").checked = false;
   }catch(_){}
 }
-
 function cpMedCancelInlineEdit(){
   cpMedEditPlanId = "";
   cpMedInlineResetForm();
@@ -7196,16 +6524,13 @@ function cpMedCancelInlineEdit(){
   }catch(_){}
   cpMedRenderInlineList();
 }
-
 function cpMedStartInlineEdit(planId){
   ensureStateShape();
   const petId = cpMedInlineSelectedPetId();
   if(!petId) return;
   const plan = (state.medication?.plans||[]).find(p=>p && p.id===planId && p.petId===petId);
   if(!plan) return;
-
   cpMedEditPlanId = planId;
-
   try{
     document.getElementById("cpMedName").value = plan.name||"";
     document.getElementById("cpMedDose").value = plan.dose||"";
@@ -7214,7 +6539,6 @@ function cpMedStartInlineEdit(planId){
     document.getElementById("cpMedNotes").value = plan.notes||"";
     document.getElementById("cpMedOwnerApproval").checked = !!plan.ownerApproval;
   }catch(_){}
-
   try{
     const b = document.getElementById("cpMedSaveBtn");
     const c = document.getElementById("cpMedCancelBtn");
@@ -7222,7 +6546,6 @@ function cpMedStartInlineEdit(planId){
     if(c) c.style.display = "inline-block";
   }catch(_){}
 }
-
 function cpMedAddOrUpdateFromInlineForm(){
   ensureStateShape();
   const petId = cpMedInlineSelectedPetId();
@@ -7230,14 +6553,12 @@ function cpMedAddOrUpdateFromInlineForm(){
     alert("Bitte zuerst den Hund speichern. Danach kannst du die Dauermedikation als Plan hinzufügen.");
     return;
   }
-
   const name = (document.getElementById("cpMedName")?.value || "").trim();
   const dose = (document.getElementById("cpMedDose")?.value || "").trim();
   const unit = (document.getElementById("cpMedUnit")?.value || "").trim();
   const times = medParseTimes(document.getElementById("cpMedTimes")?.value || "");
   const notes = (document.getElementById("cpMedNotes")?.value || "").trim();
   const approval = !!document.getElementById("cpMedOwnerApproval")?.checked;
-
   if(!name){
     alert("Bitte Medikamentenname eingeben.");
     return;
@@ -7250,10 +6571,8 @@ function cpMedAddOrUpdateFromInlineForm(){
     alert("Bitte mindestens eine Uhrzeit angeben (z. B. 08:00).");
     return;
   }
-
   state.medication = state.medication || {};
   state.medication.plans = Array.isArray(state.medication.plans) ? state.medication.plans : [];
-
   if(cpMedEditPlanId){
     const plan = state.medication.plans.find(p=>p && p.id===cpMedEditPlanId && p.petId===petId);
     if(plan){
@@ -7282,7 +6601,6 @@ function cpMedAddOrUpdateFromInlineForm(){
     };
     state.medication.plans.unshift(plan);
   }
-
   saveState();
   cpMedInlineResetForm();
   try{
@@ -7294,14 +6612,12 @@ function cpMedAddOrUpdateFromInlineForm(){
   cpMedRenderInlineList();
   try{ renderMedicationDashboard(); }catch(_){}
 }
-
 function cpMedRenderInlineList(){
   try{
     cpMedEnsureInlineUI();
     const hint = document.getElementById("cpMedInlineHint");
     const list = document.getElementById("cpMedInlineList");
     if(!list) return;
-
     const petId = cpMedInlineSelectedPetId();
     if(!petId){
       if(hint) hint.textContent = "Hinweis: Erst Hund speichern, dann Plan hinzufügen.";
@@ -7309,18 +6625,15 @@ function cpMedRenderInlineList(){
       return;
     }
     if(hint) hint.textContent = "";
-
     ensureStateShape();
     const plans = (state.medication?.plans||[])
       .filter(p=>p && p.petId===petId)
       .slice()
       .sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"de"));
-
     if(!plans.length){
       list.innerHTML = `<div class="muted" style="padding:8px 0;">Keine Dauermedikation hinterlegt.</div>`;
       return;
     }
-
     list.innerHTML = plans.map(pl=>{
       const times = (Array.isArray(pl.times)?pl.times:[]).join(", ");
       const dose = [pl.dose, pl.unit].filter(Boolean).join(" ");
@@ -7345,7 +6658,6 @@ function cpMedRenderInlineList(){
         </div>
       `;
     }).join("");
-
     // wire actions
     const items = Array.from(list.querySelectorAll(".item"));
     items.forEach((it, idx)=>{
@@ -7377,37 +6689,29 @@ function cpMedRenderInlineList(){
         }
       };
     });
-
   }catch(e){
     console.warn("cpMedRenderInlineList failed", e);
   }
 }
-
-
-
 function closeCpEditor(){
   const box = document.getElementById("cpEditor");
   if(box) box.style.display="none";
   clearCpEditor();
 }
-
 function upsertLegacyDogForPet(pet, customer){
   ensureDefaultDog();
   if(!pet) return;
-
   // 1) Existierendes Legacy-Dog finden (Mapping)
   let dogId = null;
   const map = state._legacy?.dogIdToPetId || {};
   for(const did of Object.keys(map)){
     if(map[did] === pet.id){ dogId = did; break; }
   }
-
   // 2) Falls nicht vorhanden: neu anlegen
   if(!dogId){
     dogId = "d_"+uid();
     state.dogs.push({ id: dogId, name: pet.name||"", owner: customer?.name||"", phone: customer?.phone||"", note: pet.note||"" });
   }
-
   // 3) Update Legacy-Dog
   const d = (state.dogs||[]).find(x=>x.id===dogId);
   if(d){
@@ -7416,17 +6720,14 @@ function upsertLegacyDogForPet(pet, customer){
     d.phone = (customer?.phone ?? d.phone) || "";
     d.note = pet.note || d.note || "";
   }
-
   // 4) Mapping aktualisieren
   state._legacy = state._legacy || {};
   state._legacy.dogIdToPetId = state._legacy.dogIdToPetId || {};
   state._legacy.dogIdToCustomerId = state._legacy.dogIdToCustomerId || {};
   state._legacy.dogIdToPetId[dogId] = pet.id;
   state._legacy.dogIdToCustomerId[dogId] = pet.customerId;
-
   return dogId;
 }
-
 // ===== ETAPPE 3 Helpers: Hund auswählen -> Halter automatisch =====
 function getPetByDogId(dogId){
   ensureStateShape();
@@ -7469,14 +6770,12 @@ function updateDocCustomerPetFromDogId(doc){
   if(!doc.petId) doc.petId = state._legacy?.dogIdToPetId?.[dogId] || doc.petId || "";
   if(!doc.customerId) doc.customerId = state._legacy?.dogIdToCustomerId?.[dogId] || doc.customerId || "";
 }
-
 function renderCustomerInfoForDogId(dogId){
   const box = document.getElementById("customerInfo");
   if(!box) return;
   const pet = getPetByDogId(dogId);
   const cust = getCustomerByDogId(dogId);
   if(!pet && !cust){ box.textContent = ""; return; }
-
   const parts = [];
   if(cust){
     const addr = [cust.street, [cust.zip, cust.city].filter(Boolean).join(" ")].filter(Boolean).join(", ");
@@ -7490,21 +6789,16 @@ function renderCustomerInfoForDogId(dogId){
   }
   box.textContent = parts.filter(Boolean).join(" | ");
 }
-
-
 function autofillAufenthalteFieldsFromMaster(dogId, { overwrite = false } = {}){
   if(!currentDoc) return;
   const t = getTemplate(currentDoc.templateId);
   if(!t) return;
-
   // Nur für Templates, die diese Keys haben (Aufenthalte)
   const wants = new Set(["halter_name","halter_adresse","halter_telefon","halter_email","halter_notfall","hund_name","hund_rasse","hund_geburt","hund_chip"]);
   const hasAny = Array.isArray(t.sections) && t.sections.some(sec => (sec.fields||[]).some(f => wants.has(f.key)));
   if(!hasAny) return;
-
   const pet = getPetByDogId(dogId);
   const cust = getCustomerByDogId(dogId);
-
   // Mapping: Stamm -> Formular
   const addr = cust ? [cust.street||"", [cust.zip, cust.city].filter(Boolean).join(" ")].filter(Boolean).join("\n") : "";
   const map = {
@@ -7518,7 +6812,6 @@ function autofillAufenthalteFieldsFromMaster(dogId, { overwrite = false } = {}){
     hund_geburt: pet?.birthdate || "",
     hund_chip: pet?.chipNumber || ""
   };
-
   // Smart-Overwrite:
   // Wenn vorher schon automatisch befüllt wurde und der Hund gewechselt wird,
   // überschreiben wir NUR die Felder, die noch exakt den alten Auto-Wert haben.
@@ -7528,13 +6821,10 @@ function autofillAufenthalteFieldsFromMaster(dogId, { overwrite = false } = {}){
   if(!overwrite && prevAutoDogId && prevAutoDogId !== dogId){
     try { prevAutoMap = JSON.parse(autoMeta._autoSnapshot || "null"); } catch(e){ prevAutoMap = null; }
   }
-
   let touched = false;
-
   Object.entries(map).forEach(([key, val]) => {
     const inp = document.querySelector(`#formRoot [data-key="${key}"]`);
     if(!inp) return;
-
     if(!overwrite){
       // Wenn wir einen Hund-Wechsel haben: nur überschreiben, wenn Feld noch alter Auto-Wert ist
       if(prevAutoMap && Object.prototype.hasOwnProperty.call(prevAutoMap, key)){
@@ -7549,7 +6839,6 @@ function autofillAufenthalteFieldsFromMaster(dogId, { overwrite = false } = {}){
         if(!isEmpty) return;
       }
     }
-
     if(inp.dataset.ftype==="checkbox"){
       inp.checked = !!val;
     } else {
@@ -7557,41 +6846,33 @@ function autofillAufenthalteFieldsFromMaster(dogId, { overwrite = false } = {}){
     }
     touched = true;
   });
-
   // Auto-Snapshot merken, damit Hundwechsel sauber funktioniert
   autoMeta._autoDogId = dogId || "";
   try { autoMeta._autoSnapshot = JSON.stringify(map); } catch(e){}
-
   if(touched) dirty = true;
 }
-
-
 // ===== Ende Etappe 1 =====
 function escapeHtml(s){return String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");}
 function overlaps(aFrom, aTo, bFrom, bTo){
   return !(aTo < bFrom || aFrom > bTo);
 }
-
 function countOccupancy(type, from, to, excludeDocId){
   return state.docs.filter(d=>{
     if(!d.saved) return false;
     if(d.id === excludeDocId) return false;
     if(_normBetreuungType(d.meta?.betreuung) !== _normBetreuungType(type)) return false;
     if(!d.meta?.von || !d.meta?.bis) return false;
-
     return overlaps(d.meta.von, d.meta.bis, from, to);
   }).length;
 }
 function getNextDays(n){
   const days = [];
   const d = new Date();
-
   for(let i = 0; i < n; i++){
     const x = new Date(d);
     x.setDate(d.getDate() + i);
     days.push(toISODateLocal(x));
   }
-
   return days;
 }
 function countForDay(type, day){
@@ -7599,7 +6880,6 @@ function countForDay(type, day){
     if(!d.saved) return false;
     if(_normBetreuungType(d.meta?.betreuung) !== _normBetreuungType(type)) return false;
     if(!d.meta?.von || !d.meta?.bis) return false;
-
     return day >= d.meta.von && day <= d.meta.bis;
   }).length;
 }
@@ -7611,19 +6891,14 @@ function renderTodayStatus(){
   try{
     const today = new Date();
     const dayISO = today.toISOString().slice(0,10);
-
     const dayCount = countOccupancy('Tagesbetreuung', dayISO, dayISO);
     const overCount = countOccupancy('Urlaubsbetreuung', dayISO, dayISO);
-
     const dayCap = getCapacity('Tagesbetreuung', dayISO);
     const overCap = getCapacity('Urlaubsbetreuung', dayISO);
-
     const dayOk = dayCount <= dayCap;
     const overOk = overCount <= overCap;
-
     const el = document.getElementById('todayStatus');
     if(!el) return;
-
     el.innerHTML = `
       <div class="todayCards">
         <div class="todayCard">
@@ -7643,9 +6918,7 @@ function renderTodayStatus(){
 function renderOccupancy(){
   const el = document.getElementById("occupancy");
   if(!el) return;
-
   const days = getNextDays(14);
-
   el.innerHTML = `
     <table class="occ-table">
       <thead>
@@ -7676,13 +6949,11 @@ function getInvoices(){
   ensureContractDefaults();
   return (state.invoices||[]).slice().sort((a,b)=> (b.updatedAt||"").localeCompare(a.updatedAt||""));
 }
-
 function getInvoiceById(id){
   ensureStateShape();
   ensureContractDefaults();
   return (state.invoices||[]).find(x=>x.id===id) || null;
 }
-
 function resolveInvoiceParties(inv){
   ensureStateShape();
   ensureContractDefaults();
@@ -7691,7 +6962,6 @@ function resolveInvoiceParties(inv){
   const legacyDog = inv?.dogId ? (state.dogs||[]).find(d=>d.id===inv.dogId) : null;
   return { cust, pet, legacyDog };
 }
-
 function formatCustomerLine(cust, legacyDog){
   const name = cust?.name || legacyDog?.owner || "";
   const phone = cust?.phone || legacyDog?.phone || "";
@@ -7713,8 +6983,6 @@ function formatCustomerAddress(cust){
   const country = cust.country || '';
   return [street, city, country].filter(Boolean).join(', ');
 }
-
-
 // --- 2C: Rechnung UI (Deutsch, Status-Badge, Positionsbezeichnungen) -----------
 function invoiceStatusLabel(status){
   const s = String(status||"").toLowerCase().trim();
@@ -7744,22 +7012,18 @@ function renderInvoiceList(){
   try{ syncAllInvoicePricingGuarded(); }catch(_){ }
   const el = document.getElementById("invoiceList");
   if(!el) return;
-
   const invoices = getInvoices();
-
   const actionBar = `
     <div class="row" style="gap:10px;flex-wrap:wrap;margin:10px 0 14px">
       <button class="btn" onclick="openFreeInvoiceForm()">➕ Freie Rechnung</button>
     </div>
   `;
-
   if(!invoices.length){
     el.innerHTML = actionBar + "<p class='muted'>Noch keine Rechnungen vorhanden.</p>";
     const view = document.getElementById("invoiceView");
     if(view) view.innerHTML = "";
     return;
   }
-
   el.innerHTML = actionBar + `
     <table class="invoice-table">
       <thead>
@@ -7785,7 +7049,6 @@ function renderInvoiceList(){
     </table>
   `;
 }
-
 // --- 2B: Aufenthalt -> Rechnung öffnen/erstellen -------------------------------
 // Minimal: verknüpft Aufenthalt (doc) mit Rechnung (invoice) via doc.invoiceId
 function openOrCreateInvoiceForDocId(docId){
@@ -7795,9 +7058,7 @@ function openOrCreateInvoiceForDocId(docId){
       alert("Aufenthalt nicht gefunden.");
       return;
     }
-
     state.invoices = Array.isArray(state.invoices) ? state.invoices : [];
-
     // 1) existierende Rechnung finden (invoiceId oder sourceDocId)
     let inv = null;
     if(doc.invoiceId){
@@ -7806,48 +7067,35 @@ function openOrCreateInvoiceForDocId(docId){
     if(!inv){
       inv = state.invoices.find(x=>x.sourceDocId===doc.id) || null;
     }
-
     // 2) Wenn nicht vorhanden: Draft-Rechnung erstellen (ohne Preislogik)
     if(!inv){
       const year = new Date().getFullYear();
       state.nextInvoiceNumber = Number(state.nextInvoiceNumber || 1);
       const number = String(state.nextInvoiceNumber).padStart(4, "0");
-
       const customerId = (doc.customerId || getCustomerByDogId(doc.dogId)?.id || "");
       const petId      = (doc.petId || getPetByDogId(doc.dogId)?.id || "");
-
       inv = {
         id: uid(),
         type: "invoice",
-
         sourceDocId: doc.id,
         dogId: doc.dogId || "",
-
         customerId,
         petId,
-
         period: { from: doc?.meta?.von || "", to: doc?.meta?.bis || "" },
-
         pricing: { basePrice: 0, percentExtra: 0, fixedExtra: 0, total: 0 },
-
         status: "draft",
         note: "",
-
         invoiceNumber: `${year}-${number}`,
         invoiceDate: new Date().toISOString(),
-
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
-
       state.invoices.push(inv);
       state.nextInvoiceNumber++;
-
       // im Aufenthalt verlinken
       doc.invoiceId = inv.id;
       doc.invoiceNumber = inv.invoiceNumber;
       doc.updatedAt = new Date().toISOString();
-
       saveState();
     }else{
       // sicherheitshalber zurück-verlinken, falls invoice über sourceDocId gefunden wurde
@@ -7858,8 +7106,6 @@ function openOrCreateInvoiceForDocId(docId){
         saveState();
       }
     }
-
-
     // 3A: Preise aus Aufenthalt berechnen & in Rechnung schreiben
     try{
       if(inv && doc){
@@ -7867,18 +7113,15 @@ function openOrCreateInvoiceForDocId(docId){
         if(changed) saveState();
       }
     }catch(e){ console.warn('3A syncInvoicePricingFromDoc failed', e); }
-
     // 3) UI: zu Rechnungen springen & öffnen
     try{ showSection("invoices"); }catch(e){}
     try{ renderInvoiceList(); }catch(e){}
     try{ openInvoice(inv.id); }catch(e){ console.warn("openInvoice failed", e); }
-
   }catch(e){
     console.error("openOrCreateInvoiceForDocId failed", e);
     alert("Rechnung konnte nicht geöffnet/erstellt werden.");
   }
 }
-
 // --- 3E: Rechnung -> Aufenthalt öffnen / Zuschläge übernehmen -----------------
 function openInvoiceSourceStay(invoiceId){
   try{
@@ -7894,7 +7137,6 @@ function openInvoiceSourceStay(invoiceId){
     }, 50);
   }catch(e){ console.warn('openInvoiceSourceStay failed', e); }
 }
-
 function refreshInvoiceFromStay(invoiceId){
   try{
     const inv = getInvoiceById(invoiceId);
@@ -7906,15 +7148,12 @@ function refreshInvoiceFromStay(invoiceId){
     openInvoice(inv.id);
   }catch(e){ console.warn('refreshInvoiceFromStay failed', e); }
 }
-
-
 function renderInvoicePositions(inv){
   const euro = (n)=>`${Number(n||0).toFixed(2)} €`;
   const p = inv?.pricing || {};
   if(p.parts && (!p.applied || typeof p.total !== 'number')){
     recomputeInvoiceTotals(inv);
   }
-
   // Quelle (für Label: Tages-/Urlaubsbetreuung)
   // 4C-2: Wenn Rechnung eingefroren ist, niemals vom Aufenthalt abhängen.
   const lockedNow = !!(inv?.pricing?.locked) || shouldFreezeInvoice(inv);
@@ -7929,21 +7168,17 @@ function renderInvoicePositions(inv){
   const isUrlaub = String(betreuungNorm||'').toLowerCase().includes('urlaub');
   const unitLabel = isUrlaub ? (qty===1?'Nacht':'Nächte') : (qty===1?'Tag':'Tage');
   const betreuungLabel = isUrlaub ? 'Urlaubsbetreuung' : 'Tagesbetreuung';
-
   const baseTotal = Number(p.parts?.base ?? p.basePrice ?? 0);
   const holTotal  = Number(p.applied?.holiday ?? p.holidayExtra ?? p.parts?.holiday ?? 0);
   const percTotal = Number(p.applied?.percent ?? p.percentExtra ?? p.parts?.percent ?? 0);
   const fixedTotal= Number(p.applied?.fixed ?? p.fixedExtra ?? p.parts?.fixed ?? 0);
-
   const rows = [];
-
   // Grundpreis
   if(qty>0 && unitPrice>0){
     rows.push(`<p><strong>${escapeHtml(betreuungLabel)}:</strong> ${qty} ${unitLabel} à ${euro(unitPrice)} &nbsp; <strong>Gesamt:</strong> ${euro(baseTotal)}</p>`);
   }else{
     rows.push(`<p><strong>${escapeHtml(betreuungLabel)}:</strong> <strong>Gesamt:</strong> ${euro(baseTotal)}</p>`);
   }
-
   // Sonn-/Feiertage
   try{
     const bd = p.breakdown || {};
@@ -7959,7 +7194,6 @@ function renderInvoicePositions(inv){
       }
     }
   }catch(_){ }
-
   // Prozentpositionen (einzeln)
   try{
     const items = p.breakdown?.percentItems;
@@ -7975,7 +7209,6 @@ function renderInvoicePositions(inv){
       rows.push(`<p><strong>Prozent-Zuschläge:</strong> <strong>Gesamt:</strong> ${euro(percTotal)}</p>`);
     }
   }catch(_){ }
-
   // Fixe Positionen (einzeln)
   try{
     const items = p.breakdown?.fixedItems;
@@ -7996,10 +7229,8 @@ function renderInvoicePositions(inv){
       rows.push(`<p><strong>Fixe Zuschläge:</strong> <strong>Gesamt:</strong> ${euro(fixedTotal)}</p>`);
     }
   }catch(_){ }
-
   return rows.join("\n");
 }
-
 // --- 4C-5: Rechnungs-Historie (Audit Trail) UI -------------------------------
 function toggleInvoiceAudit(id){
   try{
@@ -8045,16 +7276,13 @@ function renderInvoiceAudit(inv){
     return `<div class="muted">Historie konnte nicht geladen werden.</div>`;
   }
 }
-
 function openInvoice(id){
   const inv = getInvoiceById(id);
   if(!inv) return;
-
   // 3E: Lock-Flag für UI (wird auch von toggleInvoiceExtra geprüft)
   const locked = shouldFreezeInvoice(inv);
   inv.pricing = inv.pricing || {};
   inv.pricing.locked = locked;
-
   // 3A/3C: Preise aus Aufenthalt synchronisieren (nur solange NICHT eingefroren)
   try{
     if(!shouldFreezeInvoice(inv)){
@@ -8067,7 +7295,6 @@ function openInvoice(id){
       if(inv.sourceSnapshotAtLock) inv.sourceSnapshot = JSON.parse(JSON.stringify(inv.sourceSnapshotAtLock));
     }
   }catch(e){ console.warn('3C sync guard failed', e); }
-
   // 3C: Warnung wenn Source nach Lock geändert wurde
   let freezeWarningHtml = "";
   try{
@@ -8085,14 +7312,11 @@ function openInvoice(id){
       }
     }
   }catch(_){}
-
   const el = document.getElementById("invoiceView");
   if(!el) return;
-
   const {cust, pet, legacyDog} = resolveInvoiceParties(inv);
   const custLine = escapeHtml(formatCustomerLine(cust, legacyDog) || "—");
   const petLine = escapeHtml(pet?.name || (legacyDog?.name||"—"));
-
   el.innerHTML = `
     <div class="card">
       <div class="row between" style="gap:10px;flex-wrap:wrap">
@@ -8104,14 +7328,12 @@ function openInvoice(id){
           <button class="smallbtn" onclick="setInvoiceStatus('${inv.id}','cancelled')">Storniert</button>
         </div>
       </div>
-
       <p class="muted" style="margin-top:6px">
         <strong>Nr.:</strong> ${escapeHtml(inv.invoiceNumber||"-")} ·
         <strong>Datum:</strong> ${escapeHtml(new Date(inv.invoiceDate||Date.now()).toLocaleDateString("de-DE"))} ·
         <strong>Status:</strong> ${invoiceStatusBadge(inv.status)}
       </p>
       ${freezeWarningHtml}
-
       ${inv.sourceDocId ? `
         <div class="row" style="gap:8px;flex-wrap:wrap;margin:10px 0 6px">
           <button class="smallbtn" onclick="openInvoiceSourceStay('${inv.id}')">📄 Aufenthalt öffnen</button>
@@ -8121,26 +7343,20 @@ function openInvoice(id){
           Die Aufschläge bearbeitest du im Aufenthalt. Die Rechnung wird erst bei <strong>Bezahlt</strong> eingefroren.
         </p>
       ` : ``}
-
-
       <p><strong>Kunde:</strong> ${custLine}<br>
          <strong>Hund:</strong> ${petLine}
       </p>
-
       <p><strong>Zeitraum:</strong>
         ${escapeHtml(formatDateDE(inv.period?.from||""))} – ${escapeHtml(formatDateDE(inv.period?.to||""))}
       </p>
       ${renderInvoicePositions(inv)}
-
       <hr>
       <div style="margin:10px 0 10px">
         <h3 style="margin:0 0 6px">Gesamt (Brutto): ${Number(inv.pricing.total||0).toFixed(2)} €</h3>
         ${Number(inv.vatRate||0) > 0 ? `<div><strong>Enthaltene MwSt (${Number(inv.vatRate||0).toFixed(2)}%):</strong> ${Number(inv.pricing.vatAmount||0).toFixed(2)} €</div>` : ``}
         ${Number(inv.vatRate||0) > 0 ? `<div class="muted" style="margin-top:4px"><strong>Netto (informativ):</strong> ${Number(inv.pricing.net||0).toFixed(2)} €</div>` : ``}
       </div>
-
       
-
       
       <div style="margin:12px 0 12px">
         <button class="smallbtn" onclick="toggleInvoiceAudit('${inv.id}')">🕓 Historie</button>
@@ -8148,19 +7364,16 @@ function openInvoice(id){
           ${renderInvoiceAudit(inv)}
         </div>
       </div>
-
       <button class="btn" onclick="printInvoice('${inv.id}')">🖨️ Rechnung drucken / PDF</button>
     </div>
   `;
 }
-
 // --- 4C-2: Rechnung-Positionen als Snapshot (revisionssicher) -----------------
 function buildInvoiceLineItems(inv){
   try{
     const euro = (n)=>round2(Number(n||0));
     const p = inv?.pricing || {};
     const items = [];
-
     // Basis (Betreuung)
     const calc = p._calc || {};
     const qty = Number(calc.days || 0);
@@ -8176,7 +7389,6 @@ function buildInvoiceLineItems(inv){
       total: euro(p.parts?.base ?? p.basePrice ?? 0),
       meta: { unitLabel: isUrlaub ? 'Nacht' : 'Tag' }
     });
-
     // Sonn-/Feiertag
     const bd = p.breakdown || {};
     const holTotal = euro(p.applied?.holiday ?? p.holidayExtra ?? p.parts?.holiday ?? 0);
@@ -8190,7 +7402,6 @@ function buildInvoiceLineItems(inv){
         total: holTotal
       });
     }
-
     // Prozentpositionen
     const percentItems = Array.isArray(bd.percentItems) ? bd.percentItems : [];
     percentItems.filter(x=>x && Number(x.value||0)!==0).forEach(x=>{
@@ -8208,7 +7419,6 @@ function buildInvoiceLineItems(inv){
         items.push({ key:'percent_total', label:'Prozent-Zuschläge', total: percTotal });
       }
     }
-
     // Fixe Positionen
     const fixedItems = Array.isArray(bd.fixedItems) ? bd.fixedItems : [];
     fixedItems.filter(x=>x && Number(x.value||0)!==0).forEach(x=>{
@@ -8226,7 +7436,6 @@ function buildInvoiceLineItems(inv){
         items.push({ key:'fixed_total', label:'Fixe Zuschläge', total: fixedTotal });
       }
     }
-
     // Rabatt (falls vorhanden)
     try{
       const disc = Number(p.applied?.discount ?? 0);
@@ -8234,7 +7443,6 @@ function buildInvoiceLineItems(inv){
         items.push({ key:'discount', label:'Rabatt', total: euro(disc) });
       }
     }catch(_){}
-
     // Snapshot reinigen (keine NaN)
     return items.map(it=>{
       const o = {...it};
@@ -8250,7 +7458,6 @@ function buildInvoiceLineItems(inv){
     return [];
   }
 }
-
 // 4C-2: Meta-Snapshot, damit Anzeige/PDF im Freeze NICHT vom Aufenthalt abhängt
 function snapshotInvoiceSourceMeta(inv){
   try{
@@ -8272,12 +7479,10 @@ function snapshotInvoiceSourceMeta(inv){
     console.warn('snapshotInvoiceSourceMeta failed', e);
   }
 }
-
 function lockInvoicePricing(inv, reason){
   try{
     if(!inv) return;
     if(isInvoicePricingLocked(inv)) return;
-
     // Snapshot der aktuellen Preise (inkl. Breakdown) – wird später als Quelle genutzt
     inv.pricingSnapshot = JSON.parse(JSON.stringify(inv.pricing || {}));
     // 4C-2: Positionen und Quelle ebenfalls einfrieren
@@ -8286,7 +7491,6 @@ function lockInvoicePricing(inv, reason){
     inv.pricingLocked = true;
     inv.pricingLockedAt = new Date().toISOString();
     inv.pricingLockedReason = reason || inv.status || 'open';
-
     // Source-Doc Timestamp merken (für Änderungswarnung)
     const doc = getInvoiceSourceDoc(inv);
     if(doc && doc.updatedAt) inv.sourceDocUpdatedAtAtLock = doc.updatedAt;
@@ -8297,7 +7501,6 @@ function lockInvoicePricing(inv, reason){
 function setInvoiceStatus(id, status){
   const inv = getInvoiceById(id);
   if(!inv) return;
-
   // akzeptiert auch deutsche Werte (falls irgendwo anders gesetzt)
   const s = String(status||"").toLowerCase().trim();
   let code = status;
@@ -8305,22 +7508,17 @@ function setInvoiceStatus(id, status){
   else if(s==="bezahlt") code="paid";
   else if(s==="storniert") code="cancelled";
   else if(s==="entwurf") code="draft";
-
   const prev = String(inv.status||"draft");
-
   // 4C-4: Storno ist endgültig (Revisionssicherheit)
   if(prev==="cancelled" && code!=="cancelled"){
     try{ alert("Diese Rechnung ist storniert und kann nicht mehr geändert werden."); }catch(_){}
     return;
   }
-
-
   // ===== 4C-3: Audit + Bezahlt ist endgültig (nur Storno erlaubt) =====
   if(prev==="paid" && code!=="paid" && code!=="cancelled"){
     try{ alert("Diese Rechnung ist bezahlt und wird nicht mehr zurückgesetzt."); }catch(_){}
     return;
   }
-
   // Audit Trail
   inv.auditTrail = Array.isArray(inv.auditTrail) ? inv.auditTrail : [];
   if(code !== prev){
@@ -8332,10 +7530,8 @@ function setInvoiceStatus(id, status){
       meta: (code==="cancelled") ? { reason: (inv.cancelReason||""), note: (inv.cancelNote||"") } : undefined
     });
   }
-
   inv.status = code;
   inv.updatedAt = new Date().toISOString();
-
   // 3D4/3E: Einfrieren erst bei "bezahlt". "Offen" bleibt dynamisch.
   if(code==="paid"){
     // Vor dem Lock einmalig noch synchronisieren (falls der User direkt auf "Offen" klickt)
@@ -8358,7 +7554,6 @@ function setInvoiceStatus(id, status){
   else if(code==="cancelled"){
     // ===== 4C-3: Storno snapshot + Timestamp =====
     inv.cancelledAt = inv.cancelledAt || new Date().toISOString();
-
     // 4C-4: Stornogrund + Notiz (Pflichtgrund)
     try{
       if(!inv.cancelReason){
@@ -8386,7 +7581,6 @@ function setInvoiceStatus(id, status){
     }catch(_){
       // im Fehlerfall lieber ohne Dialog weiter (aber Grund bleibt leer)
     }
-
     if(!inv.stornoSnapshot){
       try{
         inv.stornoSnapshot = {
@@ -8407,40 +7601,31 @@ function setInvoiceStatus(id, status){
         };
       }catch(_){}
     }
-
     // Storno bleibt revisionssicher: wenn bereits gelockt, nicht unlocken
     if(!isInvoicePricingLocked(inv)){
       inv.pricingLocked = false;
     }
   }
-
   saveState();
-
   openInvoice(id);
   renderInvoiceList();
 }
-
 // ===== ETAPPE 4: Freie Rechnung (Kunde/Hund auswählen statt tippen) =====
 function openFreeInvoiceForm(){
   ensureStateShape();
   ensureContractDefaults();
   const view = document.getElementById("invoiceView");
   if(!view) return;
-
   const customers = (state.customers||[]).slice().sort((a,b)=>(a.name||"").localeCompare(b.name||"","de"));
   const hasCustomers = customers.length>0;
-
   const today = toISODateLocal(new Date());
-
   view.innerHTML = `
     <div class="card">
       <div class="row between" style="gap:10px;flex-wrap:wrap">
         <h3 style="margin:0">Freie Rechnung</h3>
         <button class="smallbtn" onclick="document.getElementById('invoiceView').innerHTML=''">Schließen</button>
       </div>
-
       ${hasCustomers ? "" : "<p class='muted'>Noch kein Kundenstamm vorhanden. Bitte zuerst unter Hunde/Kunden einen Kunden & Hund anlegen.</p>"}
-
       <div class="row" style="gap:12px;flex-wrap:wrap;margin-top:10px">
         <label class="field" style="min-width:260px">
           <span>Kunde *</span>
@@ -8449,7 +7634,6 @@ function openFreeInvoiceForm(){
             ${customers.map(c=>`<option value="${c.id}">${escapeHtml(c.name||"Kunde")}</option>`).join("")}
           </select>
         </label>
-
         <label class="field" style="min-width:260px">
           <span>Hund (optional)</span>
           <select id="freeInvPet">
@@ -8457,7 +7641,6 @@ function openFreeInvoiceForm(){
           </select>
         </label>
       </div>
-
       <div class="row" style="gap:12px;flex-wrap:wrap">
         <label class="field" style="min-width:200px">
           <span>Von</span>
@@ -8468,7 +7651,6 @@ function openFreeInvoiceForm(){
           <input id="freeInvTo" type="date" value="${today}">
         </label>
       </div>
-
       <div class="row" style="gap:12px;flex-wrap:wrap">
         <label class="field" style="min-width:260px">
           <span>Beschreibung</span>
@@ -8479,42 +7661,33 @@ function openFreeInvoiceForm(){
           <input id="freeInvAmount" type="number" step="0.01" min="0" placeholder="0,00">
         </label>
       </div>
-
       <div class="row" style="gap:10px;flex-wrap:wrap;margin-top:10px">
         <button class="btn" onclick="createFreeInvoice()">🧾 Rechnung erstellen</button>
       </div>
     </div>
   `;
-
   renderFreeInvoicePetOptions();
 }
-
 function renderFreeInvoicePetOptions(){
   ensureStateShape();
   ensureContractDefaults();
   const customerId = document.getElementById("freeInvCustomer")?.value || "";
   const petSel = document.getElementById("freeInvPet");
   if(!petSel) return;
-
   const pets = (state.pets||[]).filter(p=>p.customerId===customerId).slice()
     .sort((a,b)=>(a.name||"").localeCompare(b.name||"","de"));
-
   petSel.innerHTML = `<option value="">—</option>` + pets.map(p=>`<option value="${p.id}">${escapeHtml(p.name||"Hund")}</option>`).join("");
 }
-
 function ensureLegacyDogForPetId(petId, customerId){
   ensureStateShape();
   ensureContractDefaults();
   if(!petId || !customerId) return "";
-
   const map = state._legacy?.dogIdToPetId || {};
   for(const dogId of Object.keys(map)){
     if(map[dogId] === petId) return dogId;
   }
-
   const pet = getPet(petId);
   const cust = getCustomer(customerId);
-
   const dogId = uid();
   state.dogs = state.dogs || [];
   state.dogs.push({
@@ -8524,12 +7697,10 @@ function ensureLegacyDogForPetId(petId, customerId){
     phone: cust?.phone || "",
     note: ""
   });
-
   state._legacy.dogIdToPetId[dogId] = petId;
   state._legacy.dogIdToCustomerId[dogId] = customerId;
   return dogId;
 }
-
 function createFreeInvoice(){
   ensureStateShape();
   ensureContractDefaults();
@@ -8539,54 +7710,40 @@ function createFreeInvoice(){
   const to = document.getElementById("freeInvTo")?.value || "";
   const note = (document.getElementById("freeInvNote")?.value || "").trim();
   const amount = parseFloat(document.getElementById("freeInvAmount")?.value || "0");
-
   if(!customerId){ alert("Bitte Kunde auswählen."); return; }
   if(!(amount>0)){ alert("Bitte einen Betrag > 0 eingeben."); return; }
-
   const year = new Date().getFullYear();
   const number = String(state.nextInvoiceNumber).padStart(4, "0");
   const dogId = petId ? ensureLegacyDogForPetId(petId, customerId) : "";
-
   const invoice = {
     id: uid(),
     type: "invoice",
-
     sourceDocId: "", // freie Rechnung
     dogId,
-
     customerId,
     petId,
-
     period: { from: from || "", to: to || "" },
-
     pricing: {
       basePrice: amount,
       percentExtra: 0,
       fixedExtra: 0,
       total: amount
     },
-
     status: "draft",
     note,
-
     invoiceNumber: `${year}-${number}`,
     invoiceDate: new Date().toISOString(),
-
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
-
   state.worklogs = Array.isArray(state.worklogs) ? state.worklogs : [];
   state.invoices = Array.isArray(state.invoices) ? state.invoices : [];
   state.invoices.push(invoice);
-
   state.nextInvoiceNumber++;
-
   saveState();
   renderInvoiceList();
   openInvoice(invoice.id);
 }
-
 function printInvoice(id){
   const inv = getInvoiceById(id);
   
@@ -8600,12 +7757,9 @@ if(!inv) return;
   if(inv.pricing && inv.pricing.parts){
     recomputeInvoiceTotals(inv);
   }
-
   // In-App PDF/Print Overlay (kein neuer Tab)
   ensurePdfOverlayStyles();
-
   const {cust, pet, legacyDog} = resolveInvoiceParties(inv);
-
   // Kunde: Name + Adresse (wenn vorhanden). Telefon wird NICHT auf der Rechnung ausgegeben.
   const recipientName = escapeHtml((cust && (cust.name||cust.fullName)) || legacyDog?.owner || "—");
   const addr = (cust && cust.address) ? cust.address : (legacyDog && legacyDog.address ? legacyDog.address : null);
@@ -8616,15 +7770,12 @@ if(!inv) return;
     if(zipCity) addrLines.push(escapeHtml(zipCity));
   }
   const recipient = [recipientName].concat(addrLines).join('<br>');
-
   const recipientSub = [
     (pet?.name || legacyDog?.name) ? `Hund: ${escapeHtml(pet?.name || legacyDog?.name)}` : "",
     (pet?.chipNumber) ? `Chip: ${escapeHtml(pet.chipNumber)}` : ""
   ].filter(Boolean).join("<br>");
-
   const isCancelled = String(inv.status||'draft')==='cancelled';
   const sign = isCancelled ? -1 : 1;
-
   const euro = (n)=>`${(sign*Number(n||0)).toFixed(2)} €`;
   const euroAbs = (n)=>`${Math.abs(Number(n||0)).toFixed(2)} €`;
   const bd = (inv.pricing && inv.pricing.breakdown) ? inv.pricing.breakdown : {};
@@ -8635,7 +7786,6 @@ if(!inv) return;
   const isUrlaub = String(betreuungNorm||'').toLowerCase().includes('urlaub');
   const unitLabel = isUrlaub ? (qty===1?'Nacht':'Nächte') : (qty===1?'Tag':'Tage');
   const betreuungLabel = isUrlaub ? 'Urlaubsbetreuung' : 'Tagesbetreuung';
-
   const rowsHtml = [];
   // Grundpreis
   rowsHtml.push(`
@@ -8644,7 +7794,6 @@ if(!inv) return;
       <td class="right">${euro(Number(inv.pricing?.parts?.base ?? inv.pricing?.basePrice ?? 0))}</td>
     </tr>
   `);
-
   // Sonn-/Feiertag
   const holTotal = Number(inv.pricing?.parts?.holiday ?? inv.pricing?.holidayExtra ?? 0);
   if(holTotal !== 0){
@@ -8658,7 +7807,6 @@ if(!inv) return;
       </tr>
     `);
   }
-
   // Prozent-Items
   const pitems = Array.isArray(bd.percentItems) ? bd.percentItems : [];
   pitems.filter(x=>x && Number(x.value||0)!==0).forEach(x=>{
@@ -8670,7 +7818,6 @@ if(!inv) return;
       </tr>
     `);
   });
-
   // Fix-Items
   const fitems = Array.isArray(bd.fixedItems) ? bd.fixedItems : [];
   fitems.filter(x=>x && Number(x.value||0)!==0).forEach(x=>{
@@ -8683,7 +7830,6 @@ if(!inv) return;
       </tr>
     `);
   });
-
   // Inhalt (ohne <html>/<body>) – wird im Overlay gerendert
   const html = `
     <style>
@@ -8700,7 +7846,6 @@ if(!inv) return;
       th { background: #f5f5f5; }
       .right { text-align: right; }
       .muted { color:#666; font-size:11px; }
-
       /* Footer nur für Druck – verhindert "ganze Seite" und gibt Orientierung */
       .pdf-footer{ display:none; }
       @media print{
@@ -8735,14 +7880,12 @@ if(!inv) return;
             ${COMPANY.tax?.taxNumber ? "Steuernr.: " + escapeHtml(COMPANY.tax.taxNumber) + "<br>" : ""}
           </div>
         </div>
-
         <h1>${isCancelled ? 'Stornorechnung' : 'Rechnung'}</h1>
         <p class="small">
           <strong>Rechnungsnummer:</strong> ${escapeHtml(inv.invoiceNumber || "-")}<br>
           <strong>Rechnungsdatum:</strong> ${new Date(inv.invoiceDate||Date.now()).toLocaleDateString("de-DE")}<br>
           <strong>Leistungszeitraum:</strong> ${escapeHtml(formatDateDE(inv.period?.from||""))} – ${escapeHtml(formatDateDE(inv.period?.to||""))}
         </p>
-
         <table>
           <tr>
             <th>Position</th>
@@ -8762,7 +7905,6 @@ if(!inv) return;
             <td class="right muted">${euro(Number(inv.pricing?.net||0))}</td>
           </tr>` : ``}
         </table>
-
         <p class="small" style="margin-top:16px">
           Bitte überweise den Rechnungsbetrag unter Angabe der Rechnungsnummer auf folgendes Konto:<br>
           <strong>${escapeHtml(COMPANY.bank?.name || "")}</strong><br>
@@ -8772,7 +7914,6 @@ if(!inv) return;
           Vielen Dank!
         </p>
       </div>
-
       <div class="pdf-footer">
         <div class="row">
           <div>${escapeHtml(COMPANY.name)}</div>
@@ -8781,10 +7922,8 @@ if(!inv) return;
       </div>
     </div>
   `;
-
   openPdfOverlay("Rechnung " + (inv.invoiceNumber||""), html);
 }
-
 function ensurePdfOverlayStyles(){
   if(document.getElementById("pdfOverlayStyles")) return;
   const css = document.createElement("style");
@@ -8823,7 +7962,6 @@ function ensurePdfOverlayStyles(){
       box-shadow: 0 20px 60px rgba(0,0,0,0.55);
       background:#fff;
     }
-
     /* Print: nur Sheet drucken, Toolbar & App ausblenden */
     body.printOverlayActive > *:not(#pdfOverlay){ display:none !important; }
     body{ -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -8851,7 +7989,6 @@ function ensurePdfOverlayStyles(){
       body.printOverlayActive #pdfOverlay .pdfToolbar{display:none !important;}
       body.printOverlayActive #pdfOverlay .pdfSheet{border:none !important; border-radius:0 !important; box-shadow:none !important; margin:0 !important; max-width:none !important; padding:14mm 16mm !important;}
     }
-
     .storno-watermark{
       position:absolute; inset:0;
       display:flex; align-items:center; justify-content:center;
@@ -8866,7 +8003,6 @@ function ensurePdfOverlayStyles(){
     .inv-doc > *{ position:relative; z-index:2; }
 `;
   document.head.appendChild(css);
-
   // Overlay DOM einmalig anlegen
   const wrap = document.createElement("div");
   wrap.id = "pdfOverlay";
@@ -8881,10 +8017,8 @@ function ensurePdfOverlayStyles(){
     </div>
   `;
   document.body.appendChild(wrap);
-
   // Close
   document.getElementById("pdfOverlayClose").onclick = closePdfOverlay;
-
   // Print (in derselben App)
   document.getElementById("pdfOverlayPrint").onclick = ()=>{
     try{
@@ -8915,7 +8049,6 @@ function ensurePdfOverlayStyles(){
       alert("Drucken ist auf diesem Gerät nicht verfügbar.");
     }
   };
-
   // ESC zum Schließen (Desktop)
   window.addEventListener("keydown", (ev)=>{
     if(ev.key === "Escape"){
@@ -8924,7 +8057,6 @@ function ensurePdfOverlayStyles(){
     }
   });
 }
-
 function openPdfOverlay(title, html){
   ensurePdfOverlayStyles();
   const ov = document.getElementById("pdfOverlay");
@@ -8937,7 +8069,6 @@ function openPdfOverlay(title, html){
   const body = ov.querySelector(".pdfBody");
   if(body) body.scrollTop = 0;
 }
-
 function closePdfOverlay(){
   const ov = document.getElementById("pdfOverlay");
   if(!ov) return;
@@ -8959,7 +8090,6 @@ function saveState(){
   // Cloud Sync (Weg 2B): Änderungen nach außen spiegeln
   if(CLOUD.enabled && CLOUD.user) cloudSchedulePush();
 }
-
 function ensureDefaultDog(){
   if(!state.dogs || state.dogs.length===0){
     state.dogs=[{id:uid(),name:"— Bitte auswählen —",owner:"",phone:"",isPlaceholder:true}];
@@ -8979,12 +8109,9 @@ function renderDogs(){
   const list = $("#dogList");
   if(!list) return;
   list.innerHTML = "";
-
   const petsAll = (state.pets||[]).slice();
-
   // Sortierung: Kunden A-Z, Hunde je Kunde A-Z (de)
   const collator = new Intl.Collator("de", { sensitivity: "base", numeric: true });
-
   // Letzter Aufenthalt pro Kunde (für Übersicht in der Kundenzeile)
   function _getLastStayTextForCustomer(customerId){
     try{
@@ -8996,13 +8123,11 @@ function renderDogs(){
         const isStay = (d.templateId === "hundeannahme" || d.templateName === "Aufenthalte" || d.type === "stay");
         if(!isStay) continue;
         if(String(d.customerId||"") !== String(customerId)) continue;
-
         const von = d.meta?.von || d.meta?.from || "";
         const bis = d.meta?.bis || d.meta?.to   || "";
         const stampStr = bis || von || d.updatedAt || d.createdAt || "";
         const stamp = stampStr ? new Date(stampStr).getTime() : 0;
         if(!stamp) continue;
-
         if(!best || stamp > best.stamp){
           best = { stamp, von, bis };
         }
@@ -9017,8 +8142,6 @@ function renderDogs(){
       return "";
     }
   }
-
-
   if(petsAll.length){
     // Gruppieren nach Kunde
     const groupsMap = new Map();
@@ -9028,14 +8151,12 @@ function renderDogs(){
       if(!groupsMap.has(key)) groupsMap.set(key, []);
       groupsMap.get(key).push(p);
     }
-
     const groups = Array.from(groupsMap.entries()).map(([customerId, pets])=>{
       const c = (customerId!==noCustKey) ? getCustomer(customerId) : null;
       // Hunde im Kundenblock sortieren
       pets = pets.slice().sort((a,b)=>collator.compare(String(a.name||""), String(b.name||"")));
       return { customerId, customer: c, pets, isNoCustomer: (customerId===noCustKey) };
     });
-
     // Kunden sortieren (NoCustomer immer unten)
     groups.sort((g1,g2)=>{
       if(g1.isNoCustomer && !g2.isNoCustomer) return 1;
@@ -9048,7 +8169,6 @@ function renderDogs(){
       const p2 = g2.customer?.phone || "";
       return collator.compare(String(p1), String(p2));
     });
-
     for(const g of groups){
       // Kunden-Header
       const header = document.createElement("div");
@@ -9058,7 +8178,6 @@ function renderDogs(){
       const cphone = g.isNoCustomer ? "" : (g.customer?.phone || "");
       const cnt = g.pets.length;
       const cntTxt = cnt===1 ? "1 Hund" : `${cnt} Hunde`;
-
       header.innerHTML = `
         <div>
           <strong>🧑🏼‍🦰 ${escapeHtml(cname)}</strong>
@@ -9067,7 +8186,6 @@ function renderDogs(){
         </div>
         <div class="actions"></div>`;
       list.appendChild(header);
-
       // Hunde-Einträge eingerückt
       g.pets.forEach(p=>{
         const el = document.createElement("div");
@@ -9104,7 +8222,6 @@ function renderDogs(){
         list.appendChild(el);
       });
     }
-
   } else {
     // fallback legacy
     ensureDefaultDog();
@@ -9125,16 +8242,11 @@ function renderDogs(){
     });
     if(!dogs.length) list.innerHTML=`<div class="muted">Noch keine Hunde/Kunden angelegt.</div>`;
   }
-
   refreshCustomerSelect();
   syncDogSelect();
 }
-
 $("#btnAddDog").addEventListener("click",()=>openCpEditor("new"));
-
 $("#btnCpCancel").addEventListener("click",()=>closeCpEditor());
-
-
 // Button "Weiteren Hund" (für bestehenden Kunden) dynamisch einhängen
 try{
   ensureAddAnotherDogButton();
@@ -9158,13 +8270,10 @@ try{
 $("#btnCpSave").addEventListener("click",()=>{
   ensureStateShape();
   ensureContractDefaults();
-
   const mode = cpEdit.mode;
   const useExisting = $("#useExistingCustomer").checked && (state.customers||[]).length>0;
-
   let customer = null;
   let customerId = "";
-
   if(useExisting && $("#customerSelect").value){
     customerId = $("#customerSelect").value;
     customer = getCustomer(customerId);
@@ -9191,7 +8300,6 @@ $("#btnCpSave").addEventListener("click",()=>{
     state.customers.push(customer);
     customerId = customer.id;
   }
-
   const petName = $("#p_name").value.trim();
   if(!petName){ alert("Bitte Hundename eintragen."); return; }
   const csNew = $("#p_chipStatus").value;
@@ -9199,11 +8307,9 @@ $("#btnCpSave").addEventListener("click",()=>{
   const chipNew = (csNew==="yes");
   const chipNrNew = $("#p_chipNumber").value.trim();
   if(chipNew && !chipNrNew){ alert("Bitte die Chipnummer eintragen."); return; }
-
   if(mode==="edit" && cpEdit.petId){
     const pet = getPet(cpEdit.petId);
     if(!pet){ alert("Hund nicht gefunden."); return; }
-
     // Update customer (wenn Felder aktiv / edit)
     if(customer && customer.id){
       customer.name = $("#c_name").value.trim() || customer.name;
@@ -9219,7 +8325,6 @@ $("#btnCpSave").addEventListener("click",()=>{
       customer.note = $("#c_note").value.trim();
       customer.updatedAt = Date.now();
     }
-
     pet.customerId = customerId || pet.customerId;
     pet.name = petName;
     pet.breed = $("#p_breed").value.trim();
@@ -9239,14 +8344,12 @@ $("#btnCpSave").addEventListener("click",()=>{
     pet.behavior = $("#p_behavior").value.trim();
     pet.note = $("#p_note").value.trim();
     pet.updatedAt = Date.now();
-
     upsertLegacyDogForPet(pet, getCustomer(pet.customerId));
     saveState();
     closeCpEditor();
     renderDogs();
     return;
   }
-
   // mode new: create pet
   const pet = {
     id: uid(),
@@ -9269,16 +8372,12 @@ $("#btnCpSave").addEventListener("click",()=>{
     updatedAt: Date.now()
   };
   state.pets.push(pet);
-
   upsertLegacyDogForPet(pet, getCustomer(customerId));
-
   state.schemaVersion = Math.max(state.schemaVersion||1, 2);
   saveState();
   closeCpEditor();
   renderDogs();
 });
-
-
 function renderDocs(){
   const list=$("#docList");
   list.innerHTML="";
@@ -9301,17 +8400,14 @@ function docItem(d){
   const subtitle = `${escapeHtml(d.templateName||"")}${d.saved ? " · abgeschlossen" : " · offen"} · zuletzt: ${dt}`;
   const actions = document.createElement("div");
   actions.className = "actions";
-
   const btnOpen = document.createElement("button");
   btnOpen.className = "smallbtn";
   btnOpen.textContent = "Öffnen";
   btnOpen.onclick = ()=>openDoc(d.id);
-
   const btnPdf = document.createElement("button");
   btnPdf.className = "smallbtn";
   btnPdf.textContent = "PDF";
   btnPdf.onclick = ()=>{openDoc(d.id); setTimeout(()=>printDoc(),150);};
-
   const btnDelete = document.createElement("button");
   btnDelete.className = "smallbtn";
   btnDelete.textContent = "Löschen";
@@ -9321,17 +8417,14 @@ function docItem(d){
       saveState(); renderDocs();
     }
   };
-
   actions.appendChild(btnOpen);
   actions.appendChild(btnPdf);
-
   // 2B: Rechnung am Aufenthalt (öffnen/erstellen)
   const btnInv = document.createElement("button");
   btnInv.className = "smallbtn";
   btnInv.textContent = "Rechnung";
   btnInv.onclick = ()=>openOrCreateInvoiceForDocId(d.id);
   actions.appendChild(btnInv);
-
   // Abschluss: Schnell neuen Aufenthalt als Kopie anlegen
   if(d.saved){
     const btnNew = document.createElement("button");
@@ -9342,41 +8435,32 @@ function docItem(d){
     };
     actions.appendChild(btnNew);
   }
-
   actions.appendChild(btnDelete);
-
   el.innerHTML = `<div><strong>${escapeHtml(d.title||"Aufenthalt")}</strong><small>${subtitle}</small></div>`;
   el.appendChild(actions);
   return el;
 }
-
 function createStayFromExisting(docId){
   const src = (state.docs||[]).find(x=>x.id===docId);
   if(!src) return;
-
   const t = getTemplate(src.templateId);
   const now = new Date().toISOString();
   const copy = JSON.parse(JSON.stringify(src));
-
   copy.id = uid();
   copy.saved = false;
   copy.signature = null;
   copy.versionOf = null;
-
   // Zeitraum/Meta neu
   copy.meta = copy.meta || {};
   copy.meta.von = "";
   copy.meta.bis = "";
   // Betreuungstyp mitnehmen (spart Klicks)
   copy.meta.betreuung = src.meta?.betreuung || "";
-
   // Preis neu berechnen wenn Zeitraum gesetzt wird
   delete copy.pricing;
-
   copy.createdAt = now;
   copy.updatedAt = now;
   copy.title = (t?.name || src.title || "Aufenthalt");
-
   state.docs.unshift(copy);
   saveState();
   openDoc(copy.id);
@@ -9412,7 +8496,6 @@ versionOf: null,meta: {
   saveState();
   openDoc(docObj.id);
 }
-
 let currentDoc=null, dirty=false;
 function normalizeMeta(doc){
   doc.meta = doc.meta || {};
@@ -9423,14 +8506,11 @@ function normalizeMeta(doc){
 function renderVersions(doc){
   const box = document.getElementById("versionBox");
   if(!box) return;
-
   const versions = getDocumentVersions(doc);
-
   if(versions.length <= 1){
     box.innerHTML = "<strong>Versionen:</strong> Nur diese Version vorhanden.";
     return;
   }
-
   box.innerHTML = `
     <strong>Versionen:</strong>
     <ul style="margin:6px 0 0 16px">
@@ -9463,7 +8543,6 @@ normalizeMeta(currentDoc);
   updateContractWarnBanner(currentDoc);
   autofillAufenthalteFieldsFromMaster($("#dogSelect").value, { overwrite:false });
 renderVersions(currentDoc);
-
   // Quicklinks im Aufenthalt (Medikation/Gesundheit)
   try{ renderStayQuickLinks(currentDoc); }catch(e){ console.warn('renderStayQuickLinks failed', e); }
   
@@ -9472,7 +8551,6 @@ renderVersions(currentDoc);
   showPanel("editor");
   window.scrollTo({top:0,behavior:"smooth"});
 }
-
 function renderForm(docObj){
   const root=$("#formRoot"); root.innerHTML="";
   const t=getTemplate(docObj.templateId);
@@ -9492,9 +8570,7 @@ function renderForm(docObj){
   try{ renderStayPricingPreview(docObj); }catch(e){ console.warn('renderStayPricingPreview failed', e); }
 const sigCard = document.createElement("div");
 sigCard.className = "card";
-
 const sig = docObj.signature;
-
 sigCard.innerHTML = `
   <h2>Unterschrift</h2>
   ${
@@ -9507,9 +8583,7 @@ sigCard.innerHTML = `
          </button>`
   }
 `;
-
 root.appendChild(sigCard);
-
   // HOTFIX: Buttons im Aufenthalte-Editor robust binden (iOS/Safari: Overlay/Event-Delegation kann Klicks schlucken)
   setTimeout(() => {
     try {
@@ -9527,28 +8601,24 @@ root.appendChild(sigCard);
           }
         }, { passive:false });
       };
-
       // Haupt-Speichern (oben in der Aufenthalte-Box)
       bind('btnStaySave', () => {
         try { syncStayEditorInputsToDoc(doc); } catch (_) {}
         try { warnStaySignatureMissing(doc); } catch (_) {}
         saveCurrent(true);
       });
-
       // Speichern im Unterschrift-Bereich
       bind('btnStaySave2', () => {
         try { syncStayEditorInputsToDoc(doc); } catch (_) {}
         try { warnStaySignatureMissing(doc); } catch (_) {}
         saveCurrent(true);
       });
-
       // Als PDF speichern / Drucken (falls Button existiert)
       bind('btnStayPrint', () => {
         try { syncStayEditorInputsToDoc(doc); } catch (_) {}
         // printDoc nutzt saveCurrent(false) selbst; wir halten Inputs trotzdem konsistent
         printDoc();
       });
-
       // Schließen (falls Button existiert)
       bind('btnStayClose', () => {
         // wie generischer Close-Button im Editor
@@ -9561,7 +8631,6 @@ root.appendChild(sigCard);
           renderDocs();
         }
       });
-
       // Fallback: Wenn Buttons ohne ID gerendert wurden (Template/JSON), binde nach Text.
       const stayRoot = document.getElementById('stayEditor') || document.getElementById('editor') || document.body;
       stayRoot.querySelectorAll('button').forEach(b=>{
@@ -9581,15 +8650,10 @@ root.appendChild(sigCard);
           b.addEventListener('click', (ev)=>{ ev.preventDefault(); ev.stopPropagation(); const closeBtn=document.getElementById('btnClose'); if(closeBtn) closeBtn.click(); }, { passive:false });
         }
       });
-
     } catch (e) {
       console.error('bind stay buttons failed', e);
     }
   }, 0);
-
-
-
-
   // Betreuungsvertrag – aus Aufenthalt erzeugen/öffnen
   const contractCard = document.createElement("div");
   contractCard.className = "card";
@@ -9606,7 +8670,6 @@ root.appendChild(sigCard);
     `;
   }
   root.appendChild(contractCard);
-
 }
 function renderField(f,value,docObj){
   const wrap=document.createElement("label");
@@ -9624,7 +8687,6 @@ function renderField(f,value,docObj){
   }
   dirty = true;
 };
-
 input.onchange = () => {
   if (currentDoc.saved) {
     forkDocument();
@@ -9647,7 +8709,6 @@ if (currentDoc.saved) {
 wrap.appendChild(input);
   return wrap;
 }
-
 $("#dogSelect").addEventListener("change", () => {
   if (currentDoc.saved) {
     forkDocument();
@@ -9662,7 +8723,6 @@ $("#dogSelect").addEventListener("change", () => {
   try{ renderStayQuickLinks(currentDoc); }catch(e){}
   dirty = true;
 });
-
 $("#btnSave").addEventListener("click",()=>saveCurrent(true));
 $("#btnClose").addEventListener("click",()=>{
   if(dirty && !confirm("Änderungen sind nicht gespeichert. Schließen?")) return;
@@ -9670,7 +8730,6 @@ $("#btnClose").addEventListener("click",()=>{
   showPanel("home");
   renderDocs();
 });
-
 function collectForm(){
   const t=getTemplate(currentDoc.templateId);
   const fields={}, meta={};
@@ -9686,7 +8745,6 @@ function validate(docObj,t){
   // Etappe 3: Hund muss gewählt sein (nicht Placeholder)
   const d = (state.dogs||[]).find(x=>x.id===docObj.dogId);
   if(!docObj.dogId || (d && d.isPlaceholder)) errs.push("Hund");
-
   // Aufenthalte (Aufenthalte) – Core-Felder auch im Embedded-Modus prüfen
   try{
     const isStay = (t && t.id === 'hundeannahme') || docObj.templateId === 'hundeannahme' || docObj.templateName === 'Aufenthalte' || docObj.type === 'stay';
@@ -9720,24 +8778,20 @@ function validate(docObj,t){
   // Die fehlende Unterschrift wird beim Speichern als Hinweis ausgegeben.
   return errs;
 }
-
 function getStayWarnings(docObj, t){
   const warns = [];
   try{
     const isStay = (t && t.id === 'hundeannahme') || docObj.templateId === 'hundeannahme' || docObj.templateName === 'Aufenthalte' || docObj.type === 'stay';
     if(!isStay) return warns;
-
     const hasSig = !!(docObj.signature && docObj.signature.dataUrl);
     if(!hasSig){
       warns.push("Unterschrift fehlt – Aufenthalt wird als Entwurf gespeichert (Unterschrift kann später erfolgen).");
     }
-
     // Gesundheit / ansteckende Krankheiten – erforderlich für Hygiene (Warnung, nicht blockierend)
     const healthOk = !!((docObj.fields && (docObj.fields.ev_gesund===true)) || (docObj.meta && docObj.meta.consents && docObj.meta.consents.health===true));
     if(!healthOk){
       warns.push("Gesundheitsbestätigung fehlt – bitte bestätigen, dass der Hund gesund und frei von ansteckenden Krankheiten/Parasiten ist.");
     }
-
     const customerId = docObj.customerId || "";
     const petId = docObj.petId || "";
     if(customerId && petId){
@@ -9754,10 +8808,8 @@ function getStayWarnings(docObj, t){
 function updateCreateInvoiceButton(){
   const btn = document.getElementById("btnCreateInvoice");
   if(btn) btn.style.display = "none";
-
   // Ende dieser Funktion (wichtig für sauberes Scope).
 }
-
 // Sync currentDoc with current form inputs WITHOUT saving/re-rendering.
 // This prevents losing typed values when opening overlays (e.g., signature, contract).
 function syncCurrentDocFromForm(){
@@ -9766,38 +8818,30 @@ function syncCurrentDocFromForm(){
   const nameEl = document.getElementById("docName");
   const dogEl  = document.getElementById("dogSelect");
   if(!nameEl || !dogEl) return;
-
   const t = getTemplate(currentDoc.templateId);
   if(!t) return;
-
   const { fields, meta } = collectForm();
   currentDoc.title = (nameEl.value || "").trim() || currentDoc.templateName || currentDoc.title || "Dokument";
   currentDoc.dogId = dogEl.value || currentDoc.dogId || "";
   ensureDocLinks(currentDoc);
   currentDoc.fields = fields;
   currentDoc.meta = meta;
-
   // pricing logic (keep consistent with saveCurrent)
   if (currentDoc.meta?.betreuung && currentDoc.meta?.von && currentDoc.meta?.bis) {
     calculateInvoicePricing(currentDoc);
   }
-
   dirty = true;
 }
-
-
 function syncStayEditorInputsToDoc(){
   try{
     if(!window.currentDoc) return;
     currentDoc.meta = currentDoc.meta || {};
     currentDoc.fields = currentDoc.fields || {};
-
     const dogSel = document.getElementById('stayDogSelect');
     const custSel = document.getElementById('stayCustomerSelect');
     if(dogSel) currentDoc.dogId = dogSel.value || currentDoc.dogId || '';
     if(custSel) currentDoc.customerId = custSel.value || currentDoc.customerId || '';
     ensureDocLinks(currentDoc);
-
     const vonEl = document.getElementById('stayVon');
     const bisEl = document.getElementById('stayBis');
     const betEl = document.getElementById('stayBetreuung');
@@ -9807,7 +8851,6 @@ function syncStayEditorInputsToDoc(){
     if(betEl) currentDoc.meta.betreuung = (betEl.value || '').trim();
     // Notizen gehören in fields.notes (damit sie auch im PDF/Editor konsistent bleiben)
     if(noteEl) currentDoc.fields.notes = (noteEl.value || '').trim();
-
     const cbDs = document.getElementById('stayConsentDsGvo');
     const cbAg = document.getElementById('stayConsentAgb');
     const cbVe = document.getElementById('stayConsentVet');
@@ -9825,7 +8868,6 @@ function syncStayEditorInputsToDoc(){
       }
       if(cbTr) currentDoc.meta.consents.truth = !!cbTr.checked;
     }
-
     // Aufschläge (pro Aufenthalt): alle Inputs mit data-key übernehmen
     try{
       const sur = document.getElementById('staySurchargeCard');
@@ -9846,11 +8888,9 @@ function syncStayEditorInputsToDoc(){
         });
       }
     }catch(_e){ }
-
     dirty = true;
   }catch(e){}
 }
-
 function populateStayEditorFromDoc(doc){
   try{
     if(!doc) doc = window.currentDoc;
@@ -9865,19 +8905,16 @@ function populateStayEditorFromDoc(doc){
     const customerId = doc.customerId || doc.meta?.customerId || '';
     if(dogSel && dogId) dogSel.value = dogId;
     if(custSel && customerId) custSel.value = customerId;
-
     const von = document.getElementById('stayVon');
     const bis = document.getElementById('stayBis');
     const bet = document.getElementById('stayBetreuung');
     const notes = document.getElementById('stayNotes');
-
     if(von && doc.meta && doc.meta.von) von.value = String(doc.meta.von || '');
     if(bis && doc.meta && doc.meta.bis) bis.value = String(doc.meta.bis || '');
     if(bet && doc.meta && doc.meta.betreuung) bet.value = String(doc.meta.betreuung || '');
     // Notes are stored under doc.fields.notes in the current schema
     const _notes = (doc.fields && (doc.fields.notes != null)) ? doc.fields.notes : (doc.meta ? doc.meta.notes : '');
     if(notes && (_notes != null)) notes.value = String(_notes || '');
-
     const c1 = document.getElementById('stayConsentDsGvo');
     const c2 = document.getElementById('stayConsentAgb');
     const c3 = document.getElementById('stayConsentVet');
@@ -9890,7 +8927,6 @@ function populateStayEditorFromDoc(doc){
     if(c3) c3.checked = !!(cs.vet ?? doc.meta?.consentVet);
     if(c5) c5.checked = !!( (doc.fields && (doc.fields.ev_gesund!=null)) ? doc.fields.ev_gesund : (cs.health ?? doc.meta?.consentHealth) );
     if(c4) c4.checked = !!(cs.truth ?? doc.meta?.consentTruth);
-
     // Aufschläge: Inputs mit data-key aus doc.fields spiegeln
     try{
       const sur = document.getElementById('staySurchargeCard');
@@ -9905,12 +8941,10 @@ function populateStayEditorFromDoc(doc){
             el.value = (v === undefined || v === null) ? '' : String(v);
           }
         });
-
         // Sperren/Abhängigkeiten
         const discInp = sur.querySelector('input[data-key="discount_percent"]');
         const discCb  = sur.querySelector('input[data-key="discount_enabled"]');
         if(discInp) discInp.disabled = (doc.fields.discount_enabled === false || !discCb || !discCb.checked);
-
         const walkInp = sur.querySelector('input[data-key="walk_extra_count"]');
         const walkCb  = sur.querySelector('input[data-key="walks_enabled"]');
         if(walkInp) walkInp.disabled = (doc.fields.walks_enabled === false || (walkCb && !walkCb.checked));
@@ -9920,11 +8954,9 @@ function populateStayEditorFromDoc(doc){
     console.warn('populateStayEditorFromDoc failed', e);
   }
 }
-
 function saveCurrent(alertOk){
 updateCreateInvoiceButton();
   if(!currentDoc) return false;
-
   // Embedded stay editor: make sure the current DOM values are written into
   // currentDoc before persisting (prevents "values lost after signature save").
   try{
@@ -9939,7 +8971,6 @@ updateCreateInvoiceButton();
     currentDoc.templateId === 'stay' ||
     currentDoc.templateName === 'stay'
   );
-
   // Standard-Formular (data-key) vs. Embedded Aufenthalt-Editor unterscheiden.
   // Bei Aufenthalt würde collectForm() vieles "leer" liefern und damit currentDoc überschreiben.
   let fields = {};
@@ -9953,19 +8984,15 @@ updateCreateInvoiceButton();
     fields = f.fields || {};
     meta   = f.meta   || {};
   }
-
   currentDoc.title=$("#docName").value.trim()||currentDoc.templateName;
   currentDoc.dogId=$("#dogSelect").value;
   ensureDocLinks(currentDoc);
   currentDoc.fields=fields;
   currentDoc.meta=meta;
-
 // 🔢 Preislogik anwenden
 if (currentDoc.meta?.betreuung && currentDoc.meta?.von && currentDoc.meta?.bis) {
   calculateInvoicePricing(currentDoc);
 }
-
-
   // Inputs werden nur bei wirklich "abgeschlossen" gesperrt.
   // Abschluss erfolgt ab jetzt primär über vorhandene Unterschrift.
   const hasSig = !!(currentDoc.signature && currentDoc.signature.dataUrl);
@@ -9980,10 +9007,8 @@ if (currentDoc.meta?.betreuung && currentDoc.meta?.von && currentDoc.meta?.bis) 
 const type = currentDoc.meta.betreuung;
 const from = currentDoc.meta.von;
 const to   = currentDoc.meta.bis;
-
 const used = countOccupancy(type, from, to, currentDoc.id);
 const limit = getMinCapacityForRange(type, from, to);
-
 // Wenn kein Limit konfiguriert ist (0/undefined), keine Kapazitätswarnung anzeigen.
 if (Number(limit||0) > 0 && used >= limit) {
   alert(
@@ -9998,14 +9023,12 @@ if (Number(limit||0) > 0 && used >= limit) {
   if(warns.length){
     alert("⚠️ Hinweis(e):\n\n• " + warns.join("\n• "));
   }
-
   // Dokument nur dann als "abgeschlossen" markieren, wenn unterschrieben.
   // Wenn bereits abgeschlossen, nicht zurückstufen.
   if(!currentDoc.saved){
     currentDoc.saved = hasSig;
   }
 currentDoc.updatedAt = new Date().toISOString();
-
 // 🧾 Variante A: Rechnung automatisch beim Abschließen erstellen
 if(currentDoc.saved && currentDoc.pricing){
   const exists = (state.invoices||[]).some(x=>x.sourceDocId===currentDoc.id);
@@ -10014,10 +9037,8 @@ if(currentDoc.saved && currentDoc.pricing){
   }
 }
      // sauberer Zeitstempel
-
 // 🧼 Auto-Trigger: Quarantäne/Parasiten aus Aufenthalt ins Hygieneprotokoll schreiben
 try{ hygieneAutoFromStayDoc(currentDoc); }catch(e){ console.warn('hygieneAutoFromStayDoc failed', e); }
-
 // --- Stay-Editor Snapshot Guard -------------------------------------------------
 // iOS Safari can make it feel like input is lost when the stay editor re-renders
 // during/after signature actions. We therefore snapshot the current DOM values and
@@ -10031,14 +9052,11 @@ try{
     });
   }
 }catch(e){ console.warn('Stay snapshot capture failed', e); }
-
 saveState();renderDashboard(); renderTodayStatus();                                         // EINMAL speichern
 dirty = false;
-
 $("#editorTitle").textContent = currentDoc.title;
 if(alertOk) alert("Gespeichert");
 renderDocs();
-
 // Restore stay editor inputs if we captured a snapshot.
 try{
   if(__staySnapshot && __staySnapshot.length && document.getElementById('stayEditor')){
@@ -10050,93 +9068,69 @@ try{
     });
   }
 }catch(e){ console.warn('Stay snapshot restore failed', e); }
-
 return true;
-
 }
 function createInvoiceFromDoc(doc){
   if(!doc || !doc.pricing) return;
-
   const year = new Date().getFullYear();
   const number = String(state.nextInvoiceNumber).padStart(4, "0");
-
   const invoice = {
     id: uid(),
     type: "invoice",
-
     sourceDocId: doc.id,
     dogId: doc.dogId,
-
     // Etappe 4: Verknüpfung zum Kundenstamm (für Druck/Archiv)
     customerId: (doc.customerId || getCustomerByDogId(doc.dogId)?.id || ""),
     petId: (doc.petId || getPetByDogId(doc.dogId)?.id || ""),
-
     period: {
       from: doc.meta.von,
       to: doc.meta.bis
     },
-
     pricing: {
       // Basis: Tage * Tagespreis
       basePrice: Number(doc.pricing.base || 0),
-
       // Feiertagszuschlag: 10% nur auf Feiertags-TAGE
       holidayDays: Number(doc.pricing.holidayDays || 0),
       holidayExtra: Number(doc.pricing.holidayValue || 0),
-
       // Prozent-/Fixzuschläge (als Beträge)
       percentExtra: Number(doc.pricing.percentValue || 0),
       fixedExtra: Number(doc.pricing.fixedExtra || 0),
-
       total: Number(doc.pricing.total || 0)
     },
-
     status: "draft",
-
     invoiceNumber: `${year}-${number}`,
     invoiceDate: new Date().toISOString(),
-
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
-
   state.worklogs = Array.isArray(state.worklogs) ? state.worklogs : [];
   state.invoices = Array.isArray(state.invoices) ? state.invoices : [];
   state.invoices.push(invoice);
   state.nextInvoiceNumber++;
-
   saveState();
   renderInvoiceList();
 }
 function forkDocument() {
   if (!currentDoc || !currentDoc.saved) return;
-
   const originalId = currentDoc.versionOf || currentDoc.id;
-
   const fork = JSON.parse(JSON.stringify(currentDoc));
-
   fork.id = uid();
   fork.saved = false;
   fork.versionOf = originalId;
   fork.createdAt = new Date().toISOString();
   fork.updatedAt = fork.createdAt;
-
   // neue Version → neue Unterschrift erforderlich
   fork.signature = null;
-
   state.docs.unshift(fork);
   currentDoc = fork;
-
   saveState();
 }
 function getDocumentVersions(doc){
   const rootId = doc.versionOf || doc.id;
-
   return (state.docs || [])
     .filter(d => d.id === rootId || d.versionOf === rootId)
     .sort((a,b)=> new Date(a.createdAt) - new Date(b.createdAt));
 }
-
 // ===== Overlay-Signatur (Weg A) =====
 function openSignatureOverlay(onDone){
   const overlay=document.createElement("div");
@@ -10152,7 +9146,6 @@ function openSignatureOverlay(onDone){
     </div>`;
   document.body.appendChild(overlay);
   document.body.style.overflow="hidden";
-
   const canvas=overlay.querySelector("#sigCanvas");
   const ctx=canvas.getContext("2d");
   const ratio=Math.max(window.devicePixelRatio||1,1);
@@ -10160,7 +9153,6 @@ function openSignatureOverlay(onDone){
   canvas.width=w*ratio; canvas.height=h*ratio;
   ctx.setTransform(ratio,0,0,ratio,0,0);
   ctx.lineWidth=2.5; ctx.lineCap="round";
-
   let draw=false,lx=0,ly=0;
   const pos=e=>{
     const r=canvas.getBoundingClientRect();
@@ -10175,42 +9167,33 @@ function openSignatureOverlay(onDone){
     lx=p.x; ly=p.y; e.preventDefault();
   };
   const end=()=>draw=false;
-
   canvas.addEventListener("mousedown",start);
   canvas.addEventListener("mousemove",move);
   window.addEventListener("mouseup",end);
   canvas.addEventListener("touchstart",start,{passive:false});
   canvas.addEventListener("touchmove",move,{passive:false});
   canvas.addEventListener("touchend",end);
-
   overlay.querySelector("#sigClear").onclick=()=>ctx.clearRect(0,0,canvas.width,canvas.height);
   overlay.querySelector("#sigCancel").onclick=close;
   overlay.querySelector("#sigOk").onclick=()=>{onDone(canvas.toDataURL("image/png")); close();};
-
   function close(){document.body.style.overflow=""; overlay.remove();}
 }
-
 document.addEventListener("click",(e)=>{
-
   // Unterschrift im Aufenthalt erfassen (ohne Form-Reset)
   
 if(e.target && e.target.id==="btnSignatureOpen"){
   e.preventDefault();
-
   const _isStay = !!(
     (currentDoc && (currentDoc.templateName==='stay' || currentDoc.type==='stay' || currentDoc.templateId==='stay')) ||
     document.getElementById('stayVon') || document.getElementById('stayBis') || document.getElementById('staySigCard')
   );
-
   // iOS/Safari: aktive Eingaben (z.B. Date-Picker) erst "committen"
   try{ if(document.activeElement && document.activeElement.blur) document.activeElement.blur(); }catch(_){}
-
   // Vor dem Signieren: aktuelle Stay-Eingaben sicher in currentDoc schreiben
   try{
     if(_isStay) syncStayEditorInputsToDoc();
     else syncCurrentDocFromForm();
   }catch(_){}
-
   // Snapshot: alle aktuellen Input/Select/Textarea-Werte im aktuellen Editor merken,
   // damit ein Re-render beim Signieren NICHTS an den bereits eingegebenen Werten ändert.
   const _fieldSnap = (() => {
@@ -10222,10 +9205,8 @@ if(e.target && e.target.id==="btnSignatureOpen"){
         const id = el.id || null;
         const name = el.name || null;
         if (!id && !name) continue;
-
         // Signature UI selbst nicht snapshott'en
         if (id === 'sigCanvas' || id === 'signatureCanvas' || id === 'btnSignatureOpen') continue;
-
         const type = (el.getAttribute('type') || '').toLowerCase();
         if (type === 'checkbox' || type === 'radio') {
           snap.push({ id, name, kind: 'check', checked: !!el.checked });
@@ -10238,20 +9219,16 @@ if(e.target && e.target.id==="btnSignatureOpen"){
       return null;
     }
   })();
-
   openSignatureOverlay((data)=>{
     if(!currentDoc) return;
-
     // Signatur in currentDoc speichern – sonst KEINE Side-Effects
     currentDoc.signature = {
       dataUrl: data,
       signedAt: new Date().toISOString(),
       dogId: currentDoc.dogId || null
     };
-
     dirty = true;
     saveState(); // persist immediately
-
     // Re-render: Aufenthalt immer via Embedded-Stay-Editor (stabil), sonst Standard-Editor
     try{
       if(_isStay && typeof renderStayEditorEmbedded === 'function') renderStayEditorEmbedded(currentDoc);
@@ -10259,7 +9236,6 @@ if(e.target && e.target.id==="btnSignatureOpen"){
     }catch(_){
       try{ renderForm(currentDoc); }catch(__){}
     }
-
     // DOM-Werte nach dem Re-render wiederherstellen (falls Browser Inputs "vergisst")
     if(Array.isArray(_fieldSnap) && _fieldSnap.length){
       setTimeout(()=>{
@@ -10273,11 +9249,9 @@ if(e.target && e.target.id==="btnSignatureOpen"){
                 el = document.querySelector(`[name="${esc}"]`);
               }
               if(!el) return;
-
               const type = (el.getAttribute('type') || '').toLowerCase();
               if(type === 'checkbox' || type === 'radio') el.checked = !!f.checked;
               else el.value = (f.value ?? '');
-
               // Optional: Events auslösen, damit doc/meta wieder synchron sind (ohne Render)
               try{
                 el.dispatchEvent(new Event('input', { bubbles: true }));
@@ -10289,10 +9263,8 @@ if(e.target && e.target.id==="btnSignatureOpen"){
       },0);
     }
   });
-
   return;
 }
-
   // Zweiter Speichern-Button im Aufenthalt (bei Unterschrift)
   if(e.target && e.target.id==="btnStaySave2"){
     e.preventDefault();
@@ -10300,7 +9272,6 @@ if(e.target && e.target.id==="btnSignatureOpen"){
     saveCurrent(true);
     return;
   }
-
   // Betreuungsvertrag aus aktuellem Aufenthalt öffnen
   if(e.target && e.target.id==="btnContractFromStay"){
     e.preventDefault();
@@ -10310,16 +9281,13 @@ if(e.target && e.target.id==="btnSignatureOpen"){
     openContractFromStay(currentDoc);
     return;
   }
-
 });
-
 $("#btnPrint").addEventListener("click",()=>printDoc());
 function printDoc(){
   try{
     if(!currentDoc) return;
     if(!saveCurrent(false)) return;
     const t=getTemplate(currentDoc.templateId);
-
   // Aufenthalte laufen teils im Embedded-Modus/Template-Editor → robustes PDF-Preview.
   // iOS/Safari + Embedded-Editor: Template-Erkennung kann uneindeutig sein.
   // Daher zusätzlich DOM-Heuristik: Wenn Stay-Felder im Hintergrund existieren, ist es ein Aufenthalt.
@@ -10330,9 +9298,7 @@ function printDoc(){
     || String(currentDoc.templateId||"") === 'hundeannahme'
     || String(currentDoc.templateName||"") === 'Aufenthalte'
     || String(currentDoc.type||"") === 'stay';
-
     const dog=state.dogs.find(d=>d.id===currentDoc.dogId) || null;
-
 // Für Aufenthalte (Aufenthalte) immer die dedizierte Druckansicht verwenden
 // (Template-Print lässt Logo/Hund/Kunde häufig weg und ist in Safari/Blob fehleranfällig).
 if(isStay){
@@ -10343,28 +9309,23 @@ if(isStay){
   }, 0);
   return;
 }
-
 const html=buildPrintHtml(currentDoc,t,dog);
 setTimeout(()=>{
   try{ openHtmlInModal('Druckvorschau', html, 'Schließen mit ✕. Für PDF: Drucken/Speichern → „Als PDF“ → in Dateien speichern.'); }
   catch(err){ alert('PDF-Vorschau Fehler: ' + (err?.message || err)); }
 }, 0);
-
   }catch(err){
     alert('PDF-Vorschau Fehler: ' + (err?.message || err));
   }
 }
-
 function buildStayPrintHtml(docObj, dog){
   const dt=new Date(docObj.updatedAt || Date.now()).toLocaleString("de-DE");
   
 // Hund/Kunde robust ermitteln (Stay-Editor kann ohne sichtbare Hund/Kunde-Felder laufen)
 const dogObj = state.dogs.find(d=>d.id===(docObj.dogId||docObj.petId)) || dog || null;
 const custObj = state.customers.find(c=>c.id===(docObj.customerId||dogObj?.customerId||dogObj?.ownerId)) || null;
-
 const pet = (docObj.petId && typeof getPet==='function') ? getPet(docObj.petId) : null;
 const cust = (docObj.customerId && typeof getCustomer==='function') ? getCustomer(docObj.customerId) : null;
-
 const custName = (
   (custObj && (custObj.name||custObj.firstName||custObj.lastName))
     ? `${custObj.name||custObj.firstName||''} ${custObj.lastName||''}`.trim()
@@ -10374,24 +9335,20 @@ const custName = (
         ? String(dogObj.ownerName||dogObj.owner)
         : ''
 );
-
 const petName = (
   (dogObj && dogObj.name) ? String(dogObj.name)
     : (pet && pet.name) ? String(pet.name)
     : ''
 );
-
 const dogLine  = [custName, petName].filter(Boolean).join(' – ') || '—';
   const m = docObj.meta || {};
   const notes = (docObj.fields && docObj.fields.notes) ? String(docObj.fields.notes) : "";
   const sigImg = (docObj.signature && docObj.signature.dataUrl)
     ? `<img class="sig" src="${docObj.signature.dataUrl}" alt="Unterschrift" />`
     : "";
-
   // Logo: in Blob/Modal müssen wir eine absolute URL verwenden, sonst lädt Safari das Bild nicht.
   let logoUrl = 'assets/logo.png';
   try{ logoUrl = new URL('assets/logo.png', window.location.href).href; }catch(_){ }
-
   let out=`<div class="head"><div><h1>${escapeHtml(docObj.title||'Aufenthalte / Aufenthalt')}</h1><div class="meta">Hund/Kunde: ${escapeHtml(dogLine)} · Stand: ${escapeHtml(dt)}</div></div><img class="logo" src="${logoUrl}" alt="Doggy Style" /></div>`;
   out+=`<h2>Aufenthalt</h2><table>`;
   out+=`<tr><td class="k">Von</td><td class="v">${escapeHtml(m.von||"")}</td></tr>`;
@@ -10399,10 +9356,8 @@ const dogLine  = [custName, petName].filter(Boolean).join(' – ') || '—';
   out+=`<tr><td class="k">Betreuung</td><td class="v">${escapeHtml(m.betreuung||"")}</td></tr>`;
   out+=`<tr><td class="k">Notizen</td><td class="v">${escapeHtml(notes)}</td></tr>`;
   out+=`</table>`;
-
   out+=`<h2>Unterschrift Hundehalter</h2><div class="sigbox">${sigImg || '<div class="muted">— noch keine Unterschrift —</div>'}</div>`;
   out+=`<h2>Datenschutz (DSGVO)</h2><p class="note">${escapeHtml(getTemplate(docObj.templateId)?.dsGvoNote || '')}</p>`;
-
   return `<!doctype html><html lang="de"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>${escapeHtml(docObj.title||"Aufenthalt")}</title>
 <style>
@@ -10422,7 +9377,6 @@ td.k{width:38%;background:#fafafa;font-weight:700}
 @media print{body{margin:16mm}}
 </style></head><body>${out}</body></html>`;
 }
-
 function buildPrintHtml(docObj,t,dog){
   const dt=new Date(docObj.updatedAt).toLocaleString("de-DE");
   const dogLine=dog && !dog.isPlaceholder ? `${dog.owner?escapeHtml(dog.owner)+" – ":""}${escapeHtml(dog.name)}` : "—";
@@ -10459,7 +9413,6 @@ td.k{width:38%;background:#fafafa;font-weight:700}
 @media print{body{margin:16mm}}
 </style></head><body>${out}</body></html>`;
 }
-
 function doBackupExport(){
   const blob=new Blob([JSON.stringify(state,null,2)],{type:"application/json"});
   const a=document.createElement("a");
@@ -10469,29 +9422,20 @@ function doBackupExport(){
   a.click();
   URL.revokeObjectURL(a.href);
 }
-
 const _btnExportAll = $("#btnExportAll");
 if(_btnExportAll) _btnExportAll.addEventListener("click", doBackupExport);
-
 const _btnBackupExport = document.getElementById('btnBackupExport');
 if(_btnBackupExport) _btnBackupExport.addEventListener('click', doBackupExport);
-
-
 const _btnMonthExport = document.getElementById('btnMonthExport');
 if(_btnMonthExport) _btnMonthExport.addEventListener('click', exportMonthBundle);
-
 const _btnMonthClose = document.getElementById('btnMonthClose');
 if(_btnMonthClose) _btnMonthClose.addEventListener('click', closeMonth);
-
 const _btnSteuerExport = document.getElementById('btnSteuerExport');
 if(_btnSteuerExport) _btnSteuerExport.addEventListener('click', showSteuerberaterExportInfo);
-
 const _btnExportMonthNow = document.getElementById('btnExportMonthNow');
 if(_btnExportMonthNow) _btnExportMonthNow.addEventListener('click', exportMonthBundle);
-
 const _btnExportSteuerNow = document.getElementById('btnExportSteuerNow');
 if(_btnExportSteuerNow) _btnExportSteuerNow.addEventListener('click', showSteuerberaterExportInfo);
-
 const _btnStaffAdd = document.getElementById('btnStaffAdd');
 if(_btnStaffAdd) _btnStaffAdd.addEventListener('click', ()=>{
   ensureStateShape();
@@ -10505,16 +9449,12 @@ if(_btnStaffAdd) _btnStaffAdd.addEventListener('click', ()=>{
   renderStaffSettings();
   renderAll();
 });
-
 const _btnDocVersionsEdit = document.getElementById('btnDocVersionsEdit');
 if(_btnDocVersionsEdit) _btnDocVersionsEdit.addEventListener('click', ()=>{
   alert("Tipp: Nutze „Version erhöhen“ bei den Dokumenten. Alte Versionen werden automatisch archiviert.");
 });
-
-
 const _btnBackupImport = document.getElementById('btnBackupImport');
 const _fileBackupImport = document.getElementById('fileBackupImport');
-
 if(_btnBackupImport && _fileBackupImport){
   _btnBackupImport.addEventListener('click', ()=> _fileBackupImport.click());
   _fileBackupImport.addEventListener('change', async (ev)=>{
@@ -10544,13 +9484,11 @@ if(_btnBackupImport && _fileBackupImport){
     }
   });
 }
-
 $("#btnWipe").addEventListener("click",()=>{
   if(!confirm("Wirklich alle lokalen Daten löschen?")) return;
   localStorage.removeItem(LS_KEY);
   location.reload();
 });
-
 async function boot(){
   await loadTemplates();
   ensureStateShape();
@@ -10564,35 +9502,27 @@ async function boot(){
   renderInvoiceList();
   showPanel("home");
 }
-
-
 let __BOOT_DONE = false;
 async function bootOnce(){
   if(__BOOT_DONE) return;
   __BOOT_DONE = true;
   await boot();
 }
-
 function wireCoreUI(){
   try{
     if(window.__CORE_UI_WIRED__) return;
     window.__CORE_UI_WIRED__ = true;
-
     const btnLogin = document.getElementById("btnLogin");
     const btnRegister = document.getElementById("btnRegister");
     const btnLogout = document.getElementById("btnLogout");
     const btnLogoutApp = document.getElementById("btnLogoutApp");
     const btnLogoutBottom = document.getElementById("btnLogoutBottom");
-
     const btnNewStayTop = document.getElementById("btnNewStayTop");
     const btnNewStayOnPage = document.getElementById("btnNewStayOnPage");
-
     const btnQuickDogs = document.getElementById("btnQuickDogs");
     const btnQuickInvoices = document.getElementById("btnQuickInvoices");
-
     const loginEmail = document.getElementById("loginEmail");
     const loginPass = document.getElementById("loginPass");
-
     // Login/Register only if Cloud Auth is available
     if(btnLogin) btnLogin.onclick = async ()=>{
       setAuthMsg("");
@@ -10617,36 +9547,28 @@ function wireCoreUI(){
         try{ alert('Registrierung fehlgeschlagen: '+(e.code||e.message||e)); }catch(_){ }
       }
     };
-
     if(btnLogout) btnLogout.onclick = async ()=>{ try{ await CLOUD?.auth?.signOut(); }catch(e){} };
     if(btnLogoutApp) btnLogoutApp.onclick = async ()=>{ try{ await CLOUD?.auth?.signOut(); }catch(e){} };
     if(btnLogoutBottom) btnLogoutBottom.onclick = ()=>performLogout();
-
     if(btnNewStayTop) btnNewStayTop.onclick = ()=>createStay();
     if(btnNewStayOnPage) btnNewStayOnPage.onclick = ()=>createStay();
-
     if(btnQuickDogs) btnQuickDogs.onclick = ()=>selectTab("dogs");
     if(btnQuickInvoices) btnQuickInvoices.onclick = ()=>selectTab("invoices");
-
     // Delegation: Buttons werden in einigen Render-Pfaden neu in den DOM geschrieben.
     // Daher zusätzlich Delegation (capture=true), damit der Klick immer greift (iOS/Safari inkl.).
     if(!window.__DELEGATED_CORE_UI__){
       window.__DELEGATED_CORE_UI__ = true;
-
       const handle = (ev)=>{
         const t = ev.target;
         const btn = t && t.closest ? t.closest('#btnNewStayTop, #btnNewStayOnPage, #btnQuickDogs, #btnQuickInvoices') : null;
         if(!btn) return;
-
         try{ ev.preventDefault(); }catch(_){ }
         try{ ev.stopPropagation(); }catch(_){ }
-
         const id = btn.id;
         if(id === "btnNewStayTop" || id === "btnNewStayOnPage") return createStay();
         if(id === "btnQuickDogs") return selectTab("dogs");
         if(id === "btnQuickInvoices") return selectTab("invoices");
       };
-
       document.addEventListener("click", handle, true);
       document.addEventListener("pointerup", handle, true);
       document.addEventListener("touchend", handle, {capture:true, passive:false});
@@ -10655,9 +9577,6 @@ function wireCoreUI(){
     console.error("wireCoreUI failed", e);
   }
 }
-
-
-
 async function startApp(){
   // Core UI wiring muss immer aktiv sein (auch wenn Cloud/Offline Pfad aktiv ist)
   wireCoreUI();
@@ -10668,21 +9587,17 @@ async function startApp(){
     await bootOnce();
     return;
   }
-
   // Option C: immer Login erzwingen (Session bei jedem Start beenden)
   if(CLOUD.forceLoginAlways){
     try{ await CLOUD.auth.signOut(); }catch(e){}
     showAuthGate(true);
   }
-
   // (UI wiring erfolgt zentral in wireCoreUI())
-
   // Auth state
   CLOUD.auth.onAuthStateChanged(async (user)=>{
     CLOUD.user = user || null;
     if(!user){
       try{ const ba=document.querySelector(".bottom-actions"); if(ba) ba.style.display="none"; }catch(e){}
-
       CLOUD.role = 'guest';
       try{ if(btnLogoutApp) btnLogoutApp.style.display = 'none'; }catch(e){}
       try{ if(btnLogout) btnLogout.style.display = 'none'; }catch(e){}
@@ -10697,9 +9612,7 @@ async function startApp(){
     try{ if(btnLogout) btnLogout.style.display = 'inline-flex'; }catch(e){}
 return;
     }
-
     // Login bei jedem Start erzwingen: wird beim Start durch signOut() erzwungen (kein Auto-Logout nach erfolgreichem Login)
-
     // Rolle (v2): aus Firestore (mit Whitelist-Override)
     try{
       CLOUD.userProfile = await loadOrCreateUserProfile(user);
@@ -10708,13 +9621,11 @@ return;
       console.warn('Role load failed, fallback to staff', e);
       CLOUD.role = ROLES.STAFF;
     }
-
     // Kunden-Portal: kein Workspace-State, keine Tabs
     if(CLOUD.role === ROLES.CUSTOMER){
       try{ await initCustomerPortal(); }catch(e){ console.error(e); }
       return;
     }
-
     showAuthGate(false);
     // Cloud-Erreichbarkeit prüfen, damit Status nicht erst nach einer Aktion auf Online springt
     try{ scheduleCloudPing(50,'auth-login'); }catch(e){}
@@ -10722,19 +9633,15 @@ return;
     if(btnLogoutApp) btnLogoutApp.style.display = "inline-block";
     updateSyncUI();
     if(btnLogoutApp) btnLogoutApp.style.display = "inline-block";
-
     // staff/admin Features (Rollen, Aufgaben, Inbox)
     try{ await initStaffFeatures(); }catch(e){ console.warn(e); }
-
     // Sync UI initial
     SYNC.cloudLastOkAt = Number(CLOUD.lastPushOkAt||0);
     SYNC.cloudLastError = String(CLOUD.lastPushError||"");
     updateSyncUI();
-
     
 // Erstes Boot lokal (stellt state sicher), dann Remote zuverlässig einspielen
 await bootOnce();
-
 // Echtzeit-Listener (robust, inkl. erstem Snapshot)
 // Wichtig: Listener so früh wie möglich setzen, damit der initiale State auch bei iOS/Safari sicher kommt.
 try{
@@ -10748,25 +9655,20 @@ try{
       const data = snap.data() || {};
       const stamp = Number(data.updatedAt || 0);
       if(stamp){ SYNC.cloudLastSeenAt = stamp; updateSyncUI(); }
-
       const remotePayload = data.payload || null;
       const localUpdated = Number(state && state._localUpdatedAt || 0);
       const localCloudStamp = Number(state && state._cloudUpdatedAt || 0);
       const localEmpty = isStateEffectivelyEmpty(state);
-
       // Falls lokal leer (z.B. LocalStorage von iOS geleert) -> Remote sofort übernehmen.
       if(localEmpty && remotePayload){
         applyRemoteState(remotePayload, stamp, "snapshot-initial");
         return;
       }
-
       // Wenn wir lokal neuere Änderungen haben (noch nicht gepusht): Remote nicht drüberbügeln
       if(localUpdated && stamp && stamp <= localUpdated) return;
       if(stamp && stamp <= localCloudStamp) return;
-
       // Nicht unsere eigene Änderung nochmal einspielen (aber nur, wenn lokal NICHT leer ist)
       if(!localEmpty && CLOUD.user && (data.updatedBy === (CLOUD.user.email||CLOUD.user.uid))) return;
-
       if(remotePayload){
         applyRemoteState(remotePayload, stamp, "snapshot");
       }
@@ -10775,14 +9677,11 @@ try{
 }catch(e){
   console.warn("Workspace onSnapshot failed", e);
 }
-
 // Initialer Remote-Read (mit Retry) + Merge-Entscheidung
 try{
   const {remote, err} = await cloudLoadStateWithRetry(3);
-
   const localUpdated = Number(state && state._localUpdatedAt || 0);
   const localCloudStamp = Number(state && state._cloudUpdatedAt || 0);
-
   if(!remote){
     // Kein Remote gefunden oder Read zu früh/fehlgeschlagen -> bei lokalem Inhalt einmalig pushen
     const hasLocalData =
@@ -10790,7 +9689,6 @@ try{
       (Array.isArray(state.customers) && state.customers.length>0) ||
       (Array.isArray(state.docs) && state.docs.length>0) ||
       (Array.isArray(state.dogs) && state.dogs.filter(d=>d && !d.isPlaceholder).length>0);
-
     if(hasLocalData && CLOUD.user){
       try{ await cloudPushNow(); }catch(e){ console.warn('Initial cloud push failed', e); }
     } else if(err){
@@ -10799,7 +9697,6 @@ try{
   } else {
     const remoteUpdated = Number(remote._cloudUpdatedAt || CLOUD._lastRemoteStamp || 0);
     const localEmpty = isStateEffectivelyEmpty(state);
-
     // Wenn lokal leer: Remote immer übernehmen
     if(localEmpty){
       applyRemoteState(remote, remoteUpdated, "initial-read-empty-local");
@@ -10819,8 +9716,6 @@ try{
 }
   });
 }
-
-
   // Option C (iPad/PWA): auch beim "Wieder-Öffnen" (ohne Reload) Login erzwingen
   if (CLOUD.forceLoginAlways) {
     let _forcing = false;
@@ -10836,7 +9731,6 @@ try{
       try { showAuthGate(true); } catch(e) {}
       _forcing = false;
     };
-
         let __wasHidden = document.hidden;
 // Wenn die App wieder in den Vordergrund kommt (iPad PWA lädt oft nicht neu)
     window.addEventListener("pageshow", () => { forceLoginNow(); });
@@ -10846,8 +9740,6 @@ document.addEventListener("visibilitychange", () => {
       __wasHidden = nowHidden;
     });
 }
-
-
 // Manuelles Speichern (Einstellungen)
 (function bindManualSave(){
   const btn = document.getElementById("manualSaveBtn");
@@ -10867,36 +9759,29 @@ document.addEventListener("visibilitychange", () => {
     }
   });
 })();
-
 // Start
 startApp().catch(console.error);
 // UI: Sync-Status regelmäßig auffrischen (auch bei Tab-Wechsel/PWA)
 setInterval(()=>{ try{ updateSyncUI(); }catch(_){ } }, 1500);
 window.addEventListener('online', ()=>{ try{ scheduleCloudPing(0,'online-event'); }catch(_){ try{ updateSyncUI(); }catch(__){} } });
 window.addEventListener('offline', ()=>{ try{ SYNC.cloudReachable=false; SYNC.cloudReachError='kein Internet'; SYNC.cloudReachCheckedAt=Date.now(); }catch(_){ } try{ updateSyncUI(); }catch(__){} });
-
 /* ===== B2.2a Freier Rechnungs-Editor ===== */
 function renderInvoiceEditorB2(doc){
   // ===== B2.2c Rechnungsnummer (Pflichtfeld) =====
-
   // ===== B2.3 Zahlungsstatus =====
   if(!doc.paymentStatus){
     doc.paymentStatus = "offen"; // offen | bezahlt | storniert
   }
-
   if(!doc.invoiceNumber || String(doc.invoiceNumber).trim()===""){
     const year = new Date().getFullYear();
     const count = (state.docs||[]).filter(d=>d.type==="invoice").length + 1;
     doc.invoiceNumber = `${year}-${String(count).padStart(4,"0")}`;
   }
-
   const root = document.getElementById("formRoot");
   if(!root) return;
-
   // Basisfelder
   doc.items = Array.isArray(doc.items) ? doc.items : [];
   doc.date = doc.date || toISODateLocal(new Date());
-
   function recalc(){
     let net = 0;
     doc.items.forEach(it=>{
@@ -10909,14 +9794,11 @@ function renderInvoiceEditorB2(doc){
     doc.tax = Math.round(doc.net*0.19*100)/100;
     doc.total = Math.round((doc.net+doc.tax)*100)/100;
   }
-
   function redraw(){
     recalc();
     renderInvoiceEditorB2(doc);
   }
-
   recalc();
-
   root.innerHTML = `
     <h2>Freie Rechnung</h2>
     <label class="field"><span>Rechnungsnummer *</span>
@@ -10930,7 +9812,6 @@ function renderInvoiceEditorB2(doc){
       </select>
     </label>
     <p><strong>Datum:</strong> ${doc.date}</p>
-
     <table class="invoice-table">
       <thead>
         <tr>
@@ -10942,21 +9823,18 @@ function renderInvoiceEditorB2(doc){
       </thead>
       <tbody id="invItems"></tbody>
     </table>
-
     <button id="addInvItem">+ Position hinzufügen</button>
     <hr>
     <h3 style="margin:0 0 6px">Gesamt (Brutto): ${doc.total.toFixed(2)} €</h3>
     <p><strong>Enthaltene MwSt (19%):</strong> ${doc.tax.toFixed(2)} €</p>
     <p class="muted" style="margin-top:4px">Netto (informativ): ${doc.net.toFixed(2)} €</p>
   `;
-
   const numInput = document.getElementById("invoiceNumberInput");
   const paySel = document.getElementById("paymentStatusSelect");
   if(paySel){
     paySel.value = doc.paymentStatus || "offen";
     paySel.onchange = e=>{ doc.paymentStatus = e.target.value; };
   }
-
   if(numInput){
     numInput.value = doc.invoiceNumber;
     numInput.oninput = e=>{ doc.invoiceNumber = e.target.value.trim(); };
@@ -10977,15 +9855,12 @@ const tbody = document.getElementById("invItems");
     tr.querySelector("button").onclick=()=>{doc.items.splice(i,1); redraw();};
     tbody.appendChild(tr);
   });
-
   document.getElementById("addInvItem").onclick=()=>{
     doc.items.push({text:"", qty:1, unitPrice:0});
     redraw();
   };
 }
 /* ===== Ende B2.2a ===== */
-
-
 // ===== AKTIVER Editor-Switch (B2.x) =====
 function renderStayEditorEmbedded(doc){
   const root = document.getElementById("formRoot");
@@ -10993,10 +9868,8 @@ function renderStayEditorEmbedded(doc){
   root.innerHTML = "";
   // Marker for PDF/UX heuristics (iOS/Safari): identifies active stay editor in DOM.
   try{ root.setAttribute('data-stay-editor','1'); }catch(_){ }
-
   // Sicherstellen, dass Meta-Felder existieren
   normalizeMeta(doc);
-
   const card = document.createElement("div");
   card.className = "card";
   // Hinweis: keine verschachtelten .card-Elemente verwenden (CSS kann verschachtelte Cards ausblenden).
@@ -11034,8 +9907,6 @@ function renderStayEditorEmbedded(doc){
     </div>
   `;
   root.appendChild(card);
-
-
   // Zustimmungen & AGB (Aufenthalt)
   const consentCard = document.createElement('div');
   consentCard.className = 'card';
@@ -11046,22 +9917,18 @@ function renderStayEditorEmbedded(doc){
       <button class="btn" type="button" id="btnShowDsGvo">Datenschutz anzeigen</button>
       <button class="btn" type="button" id="btnShowAgb">AGB anzeigen</button>
     </div>
-
     <div class="checkrow">
       <input type="checkbox" id="stayConsentDsGvo">
       <label for="stayConsentDsGvo"><strong>Datenschutz (DSGVO)</strong><br><span class="muted">Einwilligung zur Datenverarbeitung gemäß Datenschutzhinweis.</span></label>
     </div>
-
     <div class="checkrow">
       <input type="checkbox" id="stayConsentAgb">
       <label for="stayConsentAgb"><strong>AGB gelesen & akzeptiert</strong><br><span class="muted">Der Kunde bestätigt, die AGB zur Kenntnis genommen zu haben.</span></label>
     </div>
-
     <div class="checkrow">
       <input type="checkbox" id="stayConsentVet">
       <label for="stayConsentVet"><strong>Tierarzt-/Notfallzustimmung</strong><br><span class="muted">Behandlung im Notfall / Tierarztvollmacht gemäß Vertrag.</span></label>
     </div>
-
     
     <div class="checkrow">
       <input type="checkbox" id="stayConsentHealth">
@@ -11071,11 +9938,9 @@ function renderStayEditorEmbedded(doc){
       <input type="checkbox" id="stayConsentTruth">
       <label for="stayConsentTruth"><strong>Angaben wahrheitsgemäß</strong><br><span class="muted">Alle Angaben wurden vollständig und korrekt gemacht.</span></label>
     </div>
-
     <div class="hint" style="margin-top:10px">Hinweis: Fehlende Zustimmungen blockieren das Speichern nicht, werden aber als Hinweis gemeldet.</div>
   `;
   root.appendChild(consentCard);
-
   doc.meta = doc.meta || {};
   doc.meta.consents = doc.meta.consents || {};
   const c = doc.meta.consents;
@@ -11089,7 +9954,6 @@ function renderStayEditorEmbedded(doc){
   if(cbVe) cbVe.checked = !!c.vet;
   if(cbHe) cbHe.checked = !!( (doc.fields && (doc.fields.ev_gesund!=null)) ? doc.fields.ev_gesund : c.health );
   if(cbTr) cbTr.checked = !!c.truth;
-
   const syncConsents = ()=>{
     doc.meta.consents = doc.meta.consents || {};
     doc.meta.consents.dsgvo = !!(cbDs && cbDs.checked);
@@ -11103,7 +9967,6 @@ function renderStayEditorEmbedded(doc){
     dirty = true;
   };
   [cbDs,cbAg,cbVe,cbHe,cbTr].forEach(x=>{ if(x) x.addEventListener('change', syncConsents); });
-
   // DSGVO/AGB anzeigen: use the existing document modal (known-stable on iOS)
   // instead of the lightweight overlay (which can fail to render the panel under some Safari states).
   consentCard.querySelector('#btnShowDsGvo')?.addEventListener('click', (e)=>{
@@ -11124,8 +9987,6 @@ function renderStayEditorEmbedded(doc){
       </head><body><h2>Allgemeine Geschäftsbedingungen (AGB)</h2><pre>${escapeHtml(txt)}</pre></body></html>`;
     openHtmlInModal('AGB', html);
   });
-
-
   // Aufschläge (pro Aufenthalt)
   const surCard = document.createElement('div');
   surCard.className = 'card';
@@ -11137,12 +9998,10 @@ function renderStayEditorEmbedded(doc){
         Standardmäßig werden Sonn- & Feiertagszuschläge automatisch angewendet (Bayern + alle Sonntage).
         Du kannst das hier pro Aufenthalt ausschalten.
       </div>
-
       <div style="grid-column: 1 / -1;" class="checkrow">
         <input type="checkbox" id="staySunHolApply" data-key="sun_hol_apply">
         <label for="staySunHolApply"><strong>Sonn- & Feiertagszuschlag anwenden</strong><br><span class="muted">Automatik (Bayern + Sonntage) – bei Bedarf deaktivieren.</span></label>
       </div>
-
       <label class="field" style="max-width:240px">
         <span>Feiertage (Bayern) im Zeitraum</span>
         <input type="number" min="0" step="1" id="stayHolidayDays" data-key="holiday_days" placeholder="0">
@@ -11151,9 +10010,7 @@ function renderStayEditorEmbedded(doc){
         <span>Sonntage im Zeitraum</span>
         <input type="number" min="0" step="1" id="staySundayDays" data-key="sunday_days" placeholder="0">
       </label>
-
       <div style="grid-column: 1 / -1;"><hr style="opacity:.18"></div>
-
       <div class="checkrow">
         <input type="checkbox" id="staySpecialTimes" data-key="special_times">
         <label for="staySpecialTimes"><strong>Sonderzeiten / Sonderaufwand</strong></label>
@@ -11166,9 +10023,7 @@ function renderStayEditorEmbedded(doc){
         <input type="checkbox" id="stayShortNotice" data-key="short_notice">
         <label for="stayShortNotice"><strong>Kurzfristig</strong></label>
       </div>
-
       <div style="grid-column: 1 / -1;"><hr style="opacity:.18"></div>
-
       <div class="checkrow">
         <input type="checkbox" id="stayDiscountEnabled" data-key="discount_enabled">
         <label for="stayDiscountEnabled"><strong>Sonderrabatt</strong><br><span class="muted">Rabatt in Prozent (z.B. 10 = -10%).</span></label>
@@ -11177,14 +10032,11 @@ function renderStayEditorEmbedded(doc){
         <span>Sonderrabatt (%)</span>
         <input type="number" step="0.1" id="stayDiscountPercent" data-key="discount_percent" placeholder="0">
       </label>
-
       <div style="grid-column: 1 / -1;"><hr style="opacity:.18"></div>
-
       <div class="checkrow">
         <input type="checkbox" id="stayMedication" data-key="medication">
         <label for="stayMedication"><strong>Medikamentengabe</strong><br><span class="muted">Bei Dauermedikation wird automatisch vorausgewählt.</span></label>
       </div>
-
       <div class="checkrow">
         <input type="checkbox" id="stayWalksEnabled" data-key="walks_enabled">
         <label for="stayWalksEnabled"><strong>Zusatz-Spaziergänge</strong><br><span class="muted">Stückzahl ist standardmäßig = Aufenthaltstage, kann angepasst werden.</span></label>
@@ -11193,7 +10045,6 @@ function renderStayEditorEmbedded(doc){
         <span>Stückzahl (z.B. 5×)</span>
         <input type="number" min="0" step="1" id="stayWalkCount" data-key="walk_extra_count" placeholder="0">
       </label>
-
       <div class="checkrow">
         <input type="checkbox" id="stayBandageEnabled" data-key="bandage_enabled">
         <label for="stayBandageEnabled"><strong>Verbandwechsel</strong></label>
@@ -11202,7 +10053,6 @@ function renderStayEditorEmbedded(doc){
         <span>Anzahl</span>
         <input type="number" min="0" step="1" id="stayBandageCount" data-key="bandage_count" placeholder="0">
       </label>
-
       <div class="checkrow">
         <input type="checkbox" id="stayGroomingEnabled" data-key="grooming_enabled">
         <label for="stayGroomingEnabled"><strong>Pflege / Extra</strong></label>
@@ -11211,7 +10061,6 @@ function renderStayEditorEmbedded(doc){
         <span>Anzahl</span>
         <input type="number" min="0" step="1" id="stayGroomingCount" data-key="grooming_count" placeholder="0">
       </label>
-
       <div class="checkrow">
         <input type="checkbox" id="stayHygieneEnabled" data-key="hygiene_enabled">
         <label for="stayHygieneEnabled"><strong>Hygiene / Extra (pro Tag)</strong></label>
@@ -11220,7 +10069,6 @@ function renderStayEditorEmbedded(doc){
         <span>Tage</span>
         <input type="number" min="0" step="1" id="stayHygieneDays" data-key="hygiene_days" placeholder="0">
       </label>
-
       <div class="checkrow">
         <input type="checkbox" id="stayPickupEnabled" data-key="pickup_dropoff_enabled">
         <label for="stayPickupEnabled"><strong>Abhol-/Bringservice</strong></label>
@@ -11232,7 +10080,6 @@ function renderStayEditorEmbedded(doc){
     </div>
   `;
   root.appendChild(surCard);
-
   // Bind: alle Inputs mit data-key in doc.fields spiegeln
   const bindSurchInputs = ()=>{
     try{
@@ -11252,7 +10099,6 @@ function renderStayEditorEmbedded(doc){
               doc.fields[key] = Number.isFinite(n) ? n : v;
             }
           }
-
           // UX-Regeln
           if(key === 'discount_enabled'){
             const inp = document.querySelector('input[data-key="discount_percent"]');
@@ -11276,14 +10122,12 @@ function renderStayEditorEmbedded(doc){
               }
             }
           }
-
           dirty = true;
           // Auto-Recalc-Felder aktualisieren
           if(key === 'sun_hol_apply' || key === 'walks_enabled' || key === 'medication'){
             try{ updateAutoHolidayFields(); }catch(_e){}
           }
         };
-
         el.addEventListener('change', syncOne);
         el.addEventListener('input', ()=>{
           // Walk-Count: wenn manuell geändert → Auto aus
@@ -11296,8 +10140,6 @@ function renderStayEditorEmbedded(doc){
     }catch(_e){}
   };
   bindSurchInputs();
-
-
   // Unterschrift als eigene Card (nicht verschachtelt)
   const sigCard = document.createElement('div');
   sigCard.id = 'staySigCard';
@@ -11316,7 +10158,6 @@ function renderStayEditorEmbedded(doc){
     </div>
   `;
   root.appendChild(sigCard);
-
   // HOTFIX: Save-Button im Aufenthalte-Editor robust binden (falls Event-Delegation / Overlay Probleme macht)
   setTimeout(() => {
     try {
@@ -11337,9 +10178,6 @@ function renderStayEditorEmbedded(doc){
       console.error('bind btnStaySave2 failed', e);
     }
   }, 0);
-
-
-
   // Hunde
   const dogSel = document.getElementById('stayDogSelect');
   if(dogSel){
@@ -11348,7 +10186,6 @@ function renderStayEditorEmbedded(doc){
     dogSel.value = doc.dogId || "";
     dogSel.onchange = e=>{ doc.dogId = e.target.value; dirty = true; try{ updateAutoHolidayFields(); populateStayEditorFromDoc(doc); }catch(_e){} };
   }
-
   // Kunden
   const custSel = document.getElementById('stayCustomerSelect');
   if(custSel){
@@ -11357,7 +10194,6 @@ function renderStayEditorEmbedded(doc){
     custSel.value = doc.customerId || "";
     custSel.onchange = e=>{ doc.customerId = e.target.value; dirty = true; };
   }
-
   const von = document.getElementById('stayVon');
   if(von){
     von.value = doc.meta.von || "";
@@ -11382,7 +10218,6 @@ function renderStayEditorEmbedded(doc){
     notes.value = doc.fields.notes || "";
     notes.oninput = e=>{ doc.fields.notes = e.target.value; dirty = true; };
   }
-
   // Unterschrift-UI (Aufenthalt)
   try{
     const statusEl = document.getElementById('staySigStatus');
@@ -11391,7 +10226,6 @@ function renderStayEditorEmbedded(doc){
     const btnClear = document.getElementById('btnSignatureClear');
     const btnOpen  = document.getElementById('btnSignatureOpen');
     const sig = doc.signature && doc.signature.dataUrl ? doc.signature : null;
-
     if(statusEl){
       statusEl.textContent = sig
         ? `✔ Unterschrieben am ${new Date(sig.signedAt || Date.now()).toLocaleString('de-DE')}`
@@ -11414,14 +10248,11 @@ function renderStayEditorEmbedded(doc){
       };
     }
   }catch(_){ /* ignore */ }
-
   // Auto-Defaults/Counts (Sonn-&Feiertage, Spaziergänge, Dauermedikation) aktualisieren
   try{ window.currentDoc = doc; updateAutoHolidayFields(); }catch(_e){}
-
   // Restore inputs after re-render (e.g., after signature capture)
   populateStayEditorFromDoc(doc);
 }
-
 function renderEditor(doc){
   const template = getTemplate(doc.templateId);
   if(!template){
@@ -11433,50 +10264,39 @@ function renderEditor(doc){
     toast("Vorlage nicht gefunden");
     return;
   }
-
   // 📄 Rechnung aus Betreuung → Anzeige
   if(template.id === "rechnung" && doc.sourceDocId){
     openInvoice(doc.id);
     return;
   }
-
   // 📄 Rechnung Editor (falls genutzt)
 if(template.id === "rechnung"){
   renderInvoiceEditorB2(doc);
   return;
 }
-
   // 🐶 Aufenthalte / Aufenthalt: eigener Editor, wenn embedded Vorlage verwendet wird
   if(template.id === 'hundeannahme' && template.meta && template.meta.embedded){
     renderStayEditorEmbedded(doc);
     return;
   }
-
   // 🐶 Standard-Dokumente
   renderForm(doc);
 }
-
 function renderInvoiceEditor(doc, template){
   const root = document.getElementById("formRoot");
   if(!root) return;
-
   root.innerHTML = "";
-
   const data = doc.fields || {};
   doc.fields = data;
-
   const card = document.createElement("div");
   card.className = "card";
   card.innerHTML = "<h2>Rechnung</h2>";
   root.appendChild(card);
-
   template.fields.forEach(field=>{
     const wrap = document.createElement("label");
     wrap.className = "field";
     wrap.style.minWidth = "260px";
-
     wrap.innerHTML = `<span>${escapeHtml(field.label)}</span>`;
-
     let input;
     if(field.type === "select"){
       input = document.createElement("select");
@@ -11494,11 +10314,9 @@ function renderInvoiceEditor(doc, template){
       input.value = data[field.key] || "";
       input.oninput = ()=>{ data[field.key] = input.value; };
     }
-
     wrap.appendChild(input);
     card.appendChild(wrap);
   });
-
   const price = document.createElement("div");
   price.className = "card";
   price.innerHTML = `
@@ -11509,14 +10327,11 @@ function renderInvoiceEditor(doc, template){
   `;
   root.appendChild(price);
 }
-
 function updatePriceBlock(){
   const el=document.getElementById("total-price");
   if(el) el.textContent="wird berechnet…";
 }
 // ===== Ende B1 =====
-
-
 // ===== Phase C: Safe Editor Wrapper =====
 function safeRenderEditor(template, doc){
   try{
@@ -11533,8 +10348,6 @@ function safeRenderEditor(template, doc){
     }
   }
 }
-
-
 /* ===== Rechnung: Cent-basierte Rechenlogik ===== */
 function calculateInvoiceTotals(invoice){
   if(!invoice || invoice.type !== "rechnung") return invoice;
@@ -11553,26 +10366,20 @@ function calculateInvoiceTotals(invoice){
   };
   return invoice;
 }
-
 function formatEuroFromCent(cent){
   const v = Number(cent||0) / 100;
   return v.toFixed(2).replace(".", ",") + " €";
 }
-
-
-
 // ===== Contract (Etappe 7B) =====
 function _contractSigKey(customerId, petId, version){
   const v = version || state.contractVersion || state.contract?.version || 'v1.0';
   return `${v}__${customerId||''}__${petId||''}`;
 }
-
 // Returns a normalized signature record or null.
 // Supports legacy array format and current map/object format.
 function getContractSignature(customerId, petId){
   const v = state.contractVersion || state.contract?.version || 'v1.0';
   const store = state.contractSignatures;
-
   // New format: object/map keyed by `${version}__${customerId}__${petId}`
   if(store && !Array.isArray(store) && typeof store === 'object'){
     const rec = store[_contractSigKey(customerId, petId, v)];
@@ -11586,7 +10393,6 @@ function getContractSignature(customerId, petId){
       };
     }
   }
-
   // Legacy format: array of records
   if(Array.isArray(store)){
     const rec = store.find(s=>s && s.customerId===customerId && s.petId===petId && (s.contractVersion||s.version||'v1.0')===v);
@@ -11600,15 +10406,12 @@ function getContractSignature(customerId, petId){
       };
     }
   }
-
   return null;
 }
-
 function _agreementKey(customerId, petId, version){
   const v = version || state.contractVersion || 'v1.0';
   return _contractSigKey(customerId, petId, v) + '::' + v;
 }
-
 // Option B validity: signature exists AND agreement has been saved.
 function hasValidContract(customerId, petId){
   const sig = getContractSignature(customerId, petId);
@@ -11619,33 +10422,24 @@ function hasValidContract(customerId, petId){
   }
   return false;
 }
-
 function contractBadge(customerId, petId){
   if(!customerId || !petId) return "";
   return hasValidContract(customerId, petId) ? " · Vertrag: 🟢" : " · Vertrag: 🔴";
 }
-
-
 function updateContractWarnBanner(doc){
   const box = document.getElementById("contractWarnBanner");
   if(!box) return;
-
   // Standard: aus
   box.style.display = "none";
   box.innerHTML = "";
-
   if(!doc) return;
-
   // nur bei Aufenthalten (hundeannahme)
   const isStay = (doc.templateId === "hundeannahme" || doc.templateName === "Aufenthalte" || doc.type === "stay");
   if(!isStay) return;
-
   const customerId = doc.customerId || "";
   const petId = doc.petId || "";
   if(!customerId || !petId) return;
-
   const valid = hasValidContract(customerId, petId);
-
   box.style.display = "flex";
   box.innerHTML = valid ? `
     <div>✅ <strong>Betreuungsvertrag gültig.</strong> Du kannst den Vertrag jederzeit als PDF speichern.</div>
@@ -11660,19 +10454,15 @@ function updateContractWarnBanner(doc){
       <button class="btn ghost" type="button" id="btnPdfContract" disabled title="PDF erst nach gültiger Unterschrift verfügbar">📄 PDF</button>
     </div>
   `;
-
   const go = document.getElementById("btnGoContract");
   if(go){
     go.onclick = ()=>{ selectTab("contract"); window.scrollTo({top:0,behavior:"smooth"}); };
   }
-
   const pdf = document.getElementById("btnPdfContract");
   if(pdf && valid){
     pdf.onclick = ()=>{ openContractPdfWindow(customerId, petId); };
   }
 }
-
-
 async function _assetToDataUrl(path){
   try{
     const res = await fetch(path, {cache:'no-store'});
@@ -11688,7 +10478,6 @@ async function _assetToDataUrl(path){
     return null;
   }
 }
-
 // In der UI wird oft mit weißer Tinte auf dunklem Hintergrund unterschrieben.
 // Für die PDF (weißer Hintergrund) wandeln wir die Signatur auf dunkle Tinte um.
 async function _normalizeSignatureForPdf(dataUrl){
@@ -11727,7 +10516,6 @@ async function _normalizeSignatureForPdf(dataUrl){
     return dataUrl;
   }
 }
-
 async function openContractPdfWindow(customerId, petId){
   // IMPORTANT (iOS/Safari): A new tab/window must be opened synchronously
   // in the user gesture handler. If we wait for async work first (await),
@@ -11735,7 +10523,6 @@ async function openContractPdfWindow(customerId, petId){
   // UI can be covered by the app chrome.
   let previewWin = null;
   try{ previewWin = window.open('about:blank', '_blank'); }catch(_){ previewWin = null; }
-
   ensureContractDefaults();
   const c = state.contract;
   const sig = getContractSignature(customerId, petId);
@@ -11747,10 +10534,8 @@ async function openContractPdfWindow(customerId, petId){
   const customer = getCustomer(customerId) || {};
   const pet = getPet(petId) || {};
   const signedAt = new Date(sig.signedAt || new Date().toISOString()).toLocaleString("de-DE");
-
   const logoDataUrl = await _assetToDataUrl('assets/logo.png');
   const sigForPdf = await _normalizeSignatureForPdf(sig.signatureDataUrl || sig.dataUrl || sig.signature);
-
   const html = `<!doctype html>
   <html lang="de"><head><meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -11794,9 +10579,7 @@ async function openContractPdfWindow(customerId, petId){
         <div class="meta">Adresse: ${escapeHtml((typeof formatCustomerAddress==='function'?formatCustomerAddress(customer):formatCustomerAddressBlock(customer)) || "—")}</div>
       </div>
     </div>
-
     <div class="doc">${c.text || DEFAULT_CONTRACT_TEXT}</div>
-
     <div class="sig">
       <h2>Digitale Unterschrift</h2>
       <div class="sigrow">
@@ -11808,9 +10591,7 @@ async function openContractPdfWindow(customerId, petId){
       </div>
       <p class="small">Tipp iPad/iPhone: Button „Drucken / Speichern“ → Teilen → „In Dateien sichern“ (oder per Mail/WhatsApp teilen).</p>
     </div>
-
   </body></html>`;
-
   // iOS: for sharing/saving, a dedicated tab is the most reliable.
   // Because we already opened the window synchronously, writing is allowed.
   try{
@@ -11826,13 +10607,11 @@ async function openContractPdfWindow(customerId, petId){
     openHtmlInModal('Betreuungsvertrag (Vorschau)', html, 'Schließen mit ✕. Für PDF: „Drucken / Speichern“ → Teilen → „In Dateien sichern“.');
   }
 }
-
 function renderContractPanel(){
   // Robust Contract UI init (iOS-safe):
   // - Delegated click handlers (buttons work even after re-render)
   // - Retry population of customer/dog selects after async load/sync
   // - Modal signature pad fallback if inline canvas is not interactive
-
   // 1) Render text/meta
   // Contract text is stored in state.contract.text (HTML) with a safe fallback.
   const txtEl = $("contractText");
@@ -11848,43 +10627,35 @@ function renderContractPanel(){
     const vfTxt = (typeof formatDateDE === "function") ? formatDateDE(vf) : "27.12.";
     metaEl.textContent = `Doggy Style Hundepension · Version ${v} · Gültig ab ${vfTxt}.`;
   }
-
   // 2) Resolve elements
   const cs = $("contractCustomerSelect");
   const ps = $("contractPetSelect");
   const accept = $("contractAcceptChk");
   const canvas = $("contractSig");
   const info = $("contractSignedInfo");
-
   function setInfo(text, type){
     if (!info) return;
     info.textContent = text || "";
     info.className = (type === 'ok') ? 'ok' : 'muted';
   }
-
   function sigKey(customerId, petId){
     const v = state.contractVersion || 'v1.0';
     return `${v}__${customerId||''}__${petId||''}`;
   }
-
   function getSelectedIds(){
     const customerId = cs ? (cs.value||"") : "";
     const petId = ps ? (ps.value||"") : "";
     return {customerId, petId};
   }
-
   function ensureSigStore(){
     state.contractSignatures = state.contractSignatures || {};
   }
-
   function ensureContractStore(){
     state.contractAgreements = state.contractAgreements || {};
   }
-
   function agreementKey(customerId, petId){
     return sigKey(customerId, petId) + '::' + (state.contractVersion||'v1.0');
   }
-
   function setSaveInfo(msg, tone){
     const el = document.getElementById('contractSaveInfo')
       || document.getElementById('contractSaveStatus')
@@ -11894,12 +10665,10 @@ function renderContractPanel(){
     el.classList.remove('ok','warn','muted');
     if (tone) el.classList.add(tone);
   }
-
   function isAgreementSaved(customerId, petId){
     ensureContractStore();
     return !!state.contractAgreements[agreementKey(customerId, petId)];
   }
-
   function updateSaveInfo(){
     const {customerId, petId} = getSelectedIds();
     if (!customerId || !petId){
@@ -11915,13 +10684,11 @@ function renderContractPanel(){
       setSaveInfo('ℹ Vertrag noch nicht gespeichert.', 'muted');
     }
   }
-
   // Backward-compat wrapper: earlier patches referenced `saveContractSelection()`.
   // The canonical implementation is `saveAgreement()` (persists contract+signature relation).
   function saveContractSelection(){
     return saveAgreement();
   }
-
   function saveAgreement(){
     const {customerId, petId} = getSelectedIds();
     if (!customerId || !petId){
@@ -11950,7 +10717,6 @@ function renderContractPanel(){
     try { saveState(); } catch(e) {}
     updateSaveInfo();
   }
-
   function updateSignedInfo(){
     ensureSigStore();
     const {customerId, petId} = getSelectedIds();
@@ -11967,7 +10733,6 @@ function renderContractPanel(){
       setInfo(`🔴 Noch keine gültige Unterschrift für Version ${state.contractVersion||'v1.0'}.`, 'muted');
     }
   }
-
   // 3) Populate selectors (with retries if data arrives later)
   function populateCustomerSelect(){
     if (!cs) return;
@@ -11977,10 +10742,8 @@ function renderContractPanel(){
     opt0.value = '';
     opt0.textContent = '(Kunde wählen)';
     cs.appendChild(opt0);
-
     const customers = Array.isArray(state.customers) ? state.customers.slice() : [];
     customers.sort((a,b)=>String(a.lastName||a.name||'').localeCompare(String(b.lastName||b.name||'')));
-
     for (const c of customers){
       const id = c.id || c.customerId || c.uid || c.key || '';
       if (!id) continue;
@@ -11991,7 +10754,6 @@ function renderContractPanel(){
       o.textContent = label;
       cs.appendChild(o);
     }
-
     // restore selection if possible
     if (prev && [...cs.options].some(o=>o.value===prev)) cs.value = prev;
     // If a customerId is already in state.contractSelection, prefer it
@@ -12000,19 +10762,15 @@ function renderContractPanel(){
       if ([...cs.options].some(o=>o.value===want)) cs.value = want;
     }
   }
-
   function populatePetSelect(){
     if (!ps) return;
     const prev = ps.value;
     ps.innerHTML = '';
-
     const {customerId} = getSelectedIds();
-
     // pets might be stored as state.pets, state.dogs, or embedded on customers
     let pets = [];
     if (Array.isArray(state.pets)) pets = state.pets;
     else if (Array.isArray(state.dogs)) pets = state.dogs;
-
     if (customerId){
       // Prefer canonical pets list (state.pets) filtered by customerId;
       // only fall back to embedded customer.pets if no canonical pets exist.
@@ -12024,9 +10782,7 @@ function renderContractPanel(){
         if (customer && Array.isArray(customer.pets)) pets = customer.pets;
       }
     }
-
     pets = Array.isArray(pets) ? pets.slice() : [];
-
     if (!pets.length){
       const o = document.createElement('option');
       o.value = '';
@@ -12034,12 +10790,10 @@ function renderContractPanel(){
       ps.appendChild(o);
       return;
     }
-
     const o0 = document.createElement('option');
     o0.value = '';
     o0.textContent = '(Hund wählen)';
     ps.appendChild(o0);
-
     pets.sort((a,b)=>String(a.name||a.petName||'').localeCompare(String(b.name||b.petName||'')));
     for (const d of pets){
       const id = d.id || d.petId || d.uid || d.key || d.name || '';
@@ -12050,14 +10804,12 @@ function renderContractPanel(){
       o.textContent = name;
       ps.appendChild(o);
     }
-
     if (prev && [...ps.options].some(o=>o.value===prev)) ps.value = prev;
     if (!ps.value && state.contractSelection && state.contractSelection.petId){
       const want = state.contractSelection.petId;
       if ([...ps.options].some(o=>o.value===want)) ps.value = want;
     }
   }
-
   function refreshSelectors(){
     try{
       populateCustomerSelect();
@@ -12068,7 +10820,6 @@ function renderContractPanel(){
       setInfo('⚠ Contract UI Fehler (Selectors).', 'muted');
     }
   }
-
   // retry if data is not yet there
   let tries = 0;
   (function retry(){
@@ -12078,7 +10829,6 @@ function renderContractPanel(){
     if ((customers.length>0) || (++tries>=10)) return;
     setTimeout(retry, 400);
   })();
-
   if (cs && !cs.dataset.bound){
     cs.dataset.bound = '1';
     cs.addEventListener('change', ()=>{
@@ -12089,7 +10839,6 @@ function renderContractPanel(){
       updateSignedInfo();
     });
   }
-
   if (ps && !ps.dataset.bound){
     ps.dataset.bound = '1';
     ps.addEventListener('change', ()=>{
@@ -12099,24 +10848,20 @@ function renderContractPanel(){
       updateSignedInfo();
     });
   }
-
   // 4) Signature pad (inline) + Modal fallback
   function clearInlineCanvas(){
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0,0,canvas.width,canvas.height);
   }
-
   function snapshotInlineCanvas(){
     if (!canvas) return null;
     try{ return canvas.toDataURL('image/png'); }catch(e){ return null; }
   }
-
   function openSignatureModal(onSave){
     const modalId = 'sigModal';
     let modal = document.getElementById(modalId);
     if (modal) modal.remove();
-
     modal = document.createElement('div');
     modal.id = modalId;
     modal.style.position='fixed';
@@ -12127,7 +10872,6 @@ function renderContractPanel(){
     modal.style.alignItems='center';
     modal.style.justifyContent='center';
     modal.style.padding='16px';
-
     const card = document.createElement('div');
     card.style.width='min(900px, 100%)';
     card.style.background='rgba(40,40,45,0.98)';
@@ -12135,12 +10879,10 @@ function renderContractPanel(){
     card.style.borderRadius='16px';
     card.style.padding='14px';
     card.style.boxShadow='0 20px 60px rgba(0,0,0,0.4)';
-
     const title = document.createElement('div');
     title.textContent='Unterschrift';
     title.style.fontWeight='700';
     title.style.margin='4px 0 10px 0';
-
     const c = document.createElement('canvas');
     c.width = 900;
     c.height = 340;
@@ -12149,44 +10891,36 @@ function renderContractPanel(){
     c.style.background='rgba(255,255,255,0.06)';
     c.style.borderRadius='12px';
     c.style.touchAction='none';
-
     const row = document.createElement('div');
     row.style.display='flex';
     row.style.gap='10px';
     row.style.justifyContent='flex-end';
     row.style.marginTop='12px';
-
     const btnCancel = document.createElement('button');
     btnCancel.className='smallbtn';
     btnCancel.type='button';
     btnCancel.textContent='Abbrechen';
-
     const btnClear = document.createElement('button');
     btnClear.className='smallbtn';
     btnClear.type='button';
     btnClear.textContent='Löschen';
-
     const btnSave = document.createElement('button');
     btnSave.className='btn primary';
     btnSave.type='button';
     btnSave.textContent='Speichern';
-
     row.appendChild(btnCancel);
     row.appendChild(btnClear);
     row.appendChild(btnSave);
-
     card.appendChild(title);
     card.appendChild(c);
     card.appendChild(row);
     modal.appendChild(card);
     document.body.appendChild(modal);
-
     // simple pen
     const ctx = c.getContext('2d');
     ctx.lineWidth = 3;
     ctx.lineCap = 'round';
     ctx.strokeStyle = '#ffffff';
-
     let drawing=false, hasDrawn=false, last=null;
     function pt(e){
       const r=c.getBoundingClientRect();
@@ -12195,7 +10929,6 @@ function renderContractPanel(){
       return {x,y};
     }
     function down(e){ drawing=true; }
-
     function start(e){
       drawing=true; last=pt(e); ctx.beginPath(); ctx.moveTo(last.x,last.y); hasDrawn=true;
       e.preventDefault();
@@ -12207,12 +10940,10 @@ function renderContractPanel(){
       e.preventDefault();
     }
     function end(e){ drawing=false; last=null; e.preventDefault(); }
-
     c.addEventListener('pointerdown', start);
     c.addEventListener('pointermove', move);
     c.addEventListener('pointerup', end);
     c.addEventListener('pointercancel', end);
-
     btnClear.onclick = ()=>{ ctx.clearRect(0,0,c.width,c.height); hasDrawn=false; };
     btnCancel.onclick = ()=> modal.remove();
     btnSave.onclick = ()=>{
@@ -12222,7 +10953,6 @@ function renderContractPanel(){
       modal.remove();
     };
   }
-
   // 5) Delegated button handling (single listener)
   // Bind on document (capture) to work reliably on iOS Safari and to override
   // any legacy per-button handlers that may still be attached elsewhere.
@@ -12238,25 +10968,21 @@ function renderContractPanel(){
 	      if (!btn.closest('#contract')) return;
       const id = btn.id || '';
       const txt = (btn.textContent||'').trim().toLowerCase();
-
       const isClearBtn = (id === 'contractSigClear' || txt.includes('unterschrift löschen'));
       const isSignBtn = (id === 'contractSignBtn' || id === 'contractSigBtn' || txt.includes('unterschreiben'));
       const isPdfBtn  = (id === 'contractPdfBtn' || txt === 'pdf' || txt.includes(' pdf'));
       const isSaveBtn = (id === 'contractSaveBtn' || id === 'btnContractSave' || id === 'contractSave' || id === 'contractSaveButton' || txt === 'speichern' || txt.includes(' speichern'));
-
       if (!isClearBtn && !isSignBtn && !isPdfBtn && !isSaveBtn) return;
       ev.preventDefault();
       // Stop other handlers (old bindings) from firing.
       try { ev.stopImmediatePropagation(); } catch(_) {}
       try { ev.stopPropagation(); } catch(_) {}
-
       try{
         ensureSigStore();
         const {customerId, petId} = getSelectedIds();
         if (!customerId){ alert('Bitte zuerst Kunde wählen.'); return; }
         if (!petId){ alert('Bitte zuerst Hund wählen.'); return; }
         if (accept && !accept.checked){ alert('Bitte Vertrag akzeptieren.'); return; }
-
         if (isClearBtn){
           // Clear signature
           clearInlineCanvas();
@@ -12267,7 +10993,6 @@ function renderContractPanel(){
           updateSaveInfo();
           return;
         }
-
         if (isSignBtn){
           // Prefer modal signature (most reliable on iOS)
           openSignatureModal((dataUrl)=>{
@@ -12284,12 +11009,10 @@ function renderContractPanel(){
           });
           return;
         }
-
         if (isSaveBtn){
           saveContractSelection();
           return;
         }
-
         if (isPdfBtn){
           const rec = state.contractSignatures[sigKey(customerId, petId)];
           if (!rec || !rec.dataUrl){
@@ -12315,7 +11038,6 @@ function renderContractPanel(){
       }
     }, {capture:true});
   }
-
   // 6) Inline canvas: make it always interactive (when possible)
   if (canvas && !canvas.dataset.bound){
     canvas.dataset.bound='1';
@@ -12324,7 +11046,6 @@ function renderContractPanel(){
     ctx.lineWidth = 3;
     ctx.lineCap = 'round';
     ctx.strokeStyle = '#ffffff';
-
     let drawing=false, hasDrawn=false;
     const getPos = (e)=>{
       const r = canvas.getBoundingClientRect();
@@ -12332,16 +11053,13 @@ function renderContractPanel(){
       const y = (e.clientY - r.top) * (canvas.height / r.height);
       return {x,y};
     };
-
     const startDraw=(e)=>{ drawing=true; hasDrawn=true; const p=getPos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); e.preventDefault(); };
     const moveDraw=(e)=>{ if(!drawing) return; const p=getPos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); e.preventDefault(); };
     const endDraw=(e)=>{ drawing=false; e.preventDefault(); };
-
     canvas.addEventListener('pointerdown', startDraw);
     canvas.addEventListener('pointermove', moveDraw);
     canvas.addEventListener('pointerup', endDraw);
     canvas.addEventListener('pointercancel', endDraw);
-
     // Tap opens modal if drawing fails (user feedback)
     canvas.addEventListener('click', ()=>{
       // offer modal only if no drawing happened yet
@@ -12360,14 +11078,10 @@ function renderContractPanel(){
       }
     });
   }
-
   updateSignedInfo();
 }
-
-
 // --- Signature Pad (inline) ---
 let _contractSig = {canvas:null, ctx:null, drawing:false, hasInk:false, last:null};
-
 // Öffnet den Betreuungsvertrag direkt aus einem Aufenthalt heraus.
 // Verknüpft automatisch Kunde + Hund anhand der Aufenthaltsauswahl.
 function openContractForPet(customerId, petId){
@@ -12377,10 +11091,8 @@ function openContractForPet(customerId, petId){
     alert("Bitte zuerst Kunde und Hund auswählen.");
     return;
   }
-
   selectTab("contract");
   renderContractPanel();
-
   const cs = document.getElementById("contractCustomerSelect");
   const ps = document.getElementById("contractPetSelect");
   if(cs){
@@ -12391,30 +11103,23 @@ function openContractForPet(customerId, petId){
     ps.value = petId;
     if(typeof ps.onchange === "function") ps.onchange();
   }
-
   try{ updateSignedInfo(); }catch(_){/* updateSignedInfo is scoped inside renderContractPanel; safe to ignore */}
-
   const chk = document.getElementById("contractAcceptChk");
   if(chk) chk.checked = false;
 }
-
 function openContractFromStay(doc){
   if(!doc){ alert("Kein Aufenthalt."); return; }
-
   // In der App ist doc.dogId i.d.R. die Legacy-Dog-ID (aus der Hundeauswahl im Editor).
   const legacyDogId = doc.dogId || "";
   if(!legacyDogId){
     alert("Bitte zuerst einen Hund auswählen und speichern (oder zumindest im Formular auswählen).");
     return;
   }
-
   // Mapping Legacy-Dog -> Pet/Customer (neue Datenstruktur)
   const petObj = getPetByDogId(legacyDogId) || getPet(legacyDogId); // fallback falls dogId schon petId ist
   const customerObj = getCustomerByDogId(legacyDogId) || (petObj ? getCustomer(petObj.customerId) : null);
-
   const petId = petObj ? petObj.id : "";
   const customerId = customerObj ? customerObj.id : (petObj && petObj.customerId ? petObj.customerId : (doc.customerId || ""));
-
   if(!petId){
     alert("Zu diesem Hund ist kein interner Hunde-Datensatz (Pets) verknüpft. Bitte im Bereich Hunde/Kunden den Hund einem Kunden zuordnen.");
     return;
@@ -12423,21 +11128,17 @@ function openContractFromStay(doc){
     alert("Zu diesem Hund ist kein Kunde verknüpft. Bitte im Bereich Hunde/Kunden den Hund einem Kunden zuordnen.");
     return;
   }
-
   // Merken am Dokument (hilft für spätere Auswertungen)
   doc.meta = doc.meta || {};
   doc.meta.contractCustomerId = customerId;
   doc.meta.contractPetId = petId;
   dirty = true;
   saveState();
-
   // Öffnen & vorauswählen
   selectTab("contract");
   renderContractPanel();
-
   const cs = document.getElementById("contractCustomerSelect");
   const ps = document.getElementById("contractPetSelect");
-
   if(cs){
     cs.value = customerId;
     // trigger onchange to fill pets list
@@ -12447,14 +11148,11 @@ function openContractFromStay(doc){
     ps.value = petId;
     if(typeof ps.onchange === "function") ps.onchange();
   }
-
   updateSignedInfo();
-
   // UI polish: acceptance unchecked (owner should tick)
   const chk = document.getElementById("contractAcceptChk");
   if(chk) chk.checked = false;
 }
-
 function initContractSignaturePad(){
   const canvas = document.getElementById("contractSig");
   if(!canvas) return;
@@ -12462,13 +11160,11 @@ function initContractSignaturePad(){
   _contractSig.canvas = canvas;
   _contractSig.ctx = canvas.getContext("2d");
   clearContractSig();
-
   const getPos = (e)=>{
     const rect = canvas.getBoundingClientRect();
     const pt = (e.touches && e.touches[0]) ? e.touches[0] : e;
     return {x:(pt.clientX-rect.left)*(canvas.width/rect.width), y:(pt.clientY-rect.top)*(canvas.height/rect.height)};
   };
-
   const start = (e)=>{
     e.preventDefault();
     _contractSig.drawing=true;
@@ -12494,7 +11190,6 @@ function initContractSignaturePad(){
     e.preventDefault();
     _contractSig.drawing=false;
   };
-
   canvas.addEventListener("pointerdown", start, {passive:false});
   canvas.addEventListener("pointermove", move, {passive:false});
   canvas.addEventListener("pointerup", end, {passive:false});
@@ -12503,7 +11198,6 @@ function initContractSignaturePad(){
   canvas.addEventListener("touchmove", move, {passive:false});
   canvas.addEventListener("touchend", end, {passive:false});
 }
-
 function clearContractSig(){
   if(!_contractSig.canvas || !_contractSig.ctx) return;
   const c=_contractSig.canvas, ctx=_contractSig.ctx;
@@ -12519,15 +11213,12 @@ function clearContractSig(){
   ctx.stroke();
   _contractSig.hasInk=false;
 }
-
 function getContractSigData(){
   if(!_contractSig.canvas || !_contractSig.hasInk) return null;
   return _contractSig.canvas.toDataURL("image/png");
 }
-
 // ==== Arbeitsblätter (Etappe 9) ====
 let _wfSig = { canvas:null, ctx:null, isDown:false, hasInk:false };
-
 function wfTodayKey(){
   return formatYMD(new Date());
 }
@@ -12536,13 +11227,11 @@ function wfUserLabel(){
   return u;
 }
 function wfNewId(){ return "wf_"+uid(); }
-
 function initWfSignaturePad(canvas, clearBtn){
   _wfSig.canvas = canvas;
   _wfSig.ctx = canvas.getContext("2d");
   _wfSig.isDown = false;
   _wfSig.hasInk = false;
-
   function resize(){
     const rect = canvas.getBoundingClientRect();
     const ratio = window.devicePixelRatio || 1;
@@ -12557,7 +11246,6 @@ function initWfSignaturePad(canvas, clearBtn){
   }
   resize();
   window.addEventListener("resize", resize);
-
   function pos(e){
     const r = canvas.getBoundingClientRect();
     if(e.touches && e.touches[0]){
@@ -12585,15 +11273,12 @@ function initWfSignaturePad(canvas, clearBtn){
     e.preventDefault();
     _wfSig.isDown = false;
   }
-
   canvas.addEventListener("mousedown", start);
   canvas.addEventListener("mousemove", move);
   window.addEventListener("mouseup", end);
-
   canvas.addEventListener("touchstart", start, {passive:false});
   canvas.addEventListener("touchmove", move, {passive:false});
   window.addEventListener("touchend", end, {passive:false});
-
   if(clearBtn){
     clearBtn.addEventListener("click", ()=>{
       const r = canvas.getBoundingClientRect();
@@ -12606,16 +11291,13 @@ function wfSigDataUrl(){
   if(!_wfSig.canvas || !_wfSig.hasInk) return null;
   return _wfSig.canvas.toDataURL("image/png");
 }
-
 function wfArchiveAdd(entry){
   state.worklogs.unshift(entry);
   cloudSchedulePush();
 }
-
 function wfOpenPdf(html){
   openHtmlInModal('Dokument (Vorschau)', html, 'Schließen mit ✕. Für PDF: Drucken/Speichern → „Als PDF“ → in Dateien ablegen.');
 }
-
 function wfPdfTemplate(title, bodyHtml){
   const css = `
     <style>
@@ -12635,30 +11317,25 @@ function wfPdfTemplate(title, bodyHtml){
   `;
   return `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title>${css}</head><body>${bodyHtml}</body></html>`;
 }
-
 function renderWorkformsPanel(){
   const host = document.getElementById("workformsView");
   if(!host) return;
-
   // bind buttons once
   const b1 = document.getElementById("wfBtnHygiene");
   const b2 = document.getElementById("wfBtnShift");
   const b3 = document.getElementById("wfBtnIncident");
   const b4 = document.getElementById("wfBtnArchive");
   const b5 = document.getElementById("wfBtnTodayPrint");
-
   if(b1 && !b1._bound){ b1._bound=true; b1.addEventListener("click", ()=>wfShowHygiene()); }
   if(b2 && !b2._bound){ b2._bound=true; b2.addEventListener("click", ()=>wfShowShift()); }
   if(b3 && !b3._bound){ b3._bound=true; b3.addEventListener("click", ()=>wfShowIncident()); }
   if(b4 && !b4._bound){ b4._bound=true; b4.addEventListener("click", ()=>wfShowArchive()); }
   if(b5 && !b5._bound){ b5._bound=true; b5.addEventListener("click", ()=>wfTodayPrint()); }
-
   // default view
   if(!host.dataset.view){
     wfShowArchive(true);
   }
 }
-
 function wfShowHygiene(){
   const host = document.getElementById("workformsView");
   host.dataset.view="hygiene";
@@ -12693,11 +11370,9 @@ function wfShowHygiene(){
     </div>
   `;
   initWfSignaturePad(document.getElementById("wfSigCanvas"), document.getElementById("wfSigClear"));
-
   document.getElementById("wfHygClose").onclick = ()=> wfCloseHygiene();
   document.getElementById("wfHygPdf").onclick = ()=> wfPreviewPdf("hygiene");
 }
-
 function wfCloseHygiene(){
   const clean = document.getElementById("wfHygClean").checked;
   const dis = document.getElementById("wfHygDis").checked;
@@ -12721,7 +11396,6 @@ function wfCloseHygiene(){
   alert("Hygiene-Nachweis archiviert.");
   wfShowArchive();
 }
-
 function wfShowShift(){
   const host = document.getElementById("workformsView");
   host.dataset.view="shift";
@@ -12760,7 +11434,6 @@ function wfShowShift(){
   document.getElementById("wfShiftClose").onclick = ()=> wfCloseShift();
   document.getElementById("wfShiftPdf").onclick = ()=> wfPreviewPdf("shift");
 }
-
 function wfCloseShift(){
   const todayText = (document.getElementById("wfShiftToday").value||"").trim();
   const tomorrowText = (document.getElementById("wfShiftTomorrow").value||"").trim();
@@ -12779,7 +11452,6 @@ function wfCloseShift(){
   alert("Schichtblatt archiviert.");
   wfShowArchive();
 }
-
 function wfShowIncident(){
   const host = document.getElementById("workformsView");
   host.dataset.view="incident";
@@ -12788,7 +11460,6 @@ function wfShowIncident(){
     <div class="wf-form">
       <h3>Ereignisprotokoll</h3>
       <div class="muted">Nur bei Bedarf · Unterschrift Pflicht · Abschluss = Archivierung</div>
-
       <div class="wf-row" style="margin-top:10px">
         <label class="field">Hund
           <select id="wfIncDog" style="width:100%"></select>
@@ -12797,7 +11468,6 @@ function wfShowIncident(){
           <input id="wfIncOwner" type="text" style="width:100%" placeholder="automatisch (wenn bekannt)"/>
         </label>
       </div>
-
       <div class="wf-row" style="margin-top:10px">
         <label class="field">Art des Ereignisses
           <select id="wfIncType" style="width:100%">
@@ -12813,28 +11483,24 @@ function wfShowIncident(){
           <input id="wfIncWhen" type="text" style="width:100%" value="${now.toLocaleString("de-DE")}"/>
         </label>
       </div>
-
       <div style="margin-top:10px">
         <label class="field" style="display:block">
           Beschreibung des Vorfalls
           <textarea id="wfIncDesc" rows="4" style="width:100%"></textarea>
         </label>
       </div>
-
       <div style="margin-top:10px">
         <label class="field" style="display:block">
           Getroffene Maßnahmen
           <textarea id="wfIncActions" rows="4" style="width:100%"></textarea>
         </label>
       </div>
-
       <div style="margin-top:10px">
         <label class="field" style="display:block">
           Besonderheiten (optional)
           <textarea id="wfIncNotes" rows="3" style="width:100%"></textarea>
         </label>
       </div>
-
       <div style="margin-top:10px">
         <div class="muted">Unterschrift</div>
         <div style="display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap">
@@ -12842,7 +11508,6 @@ function wfShowIncident(){
           <button class="btn" id="wfSigClear" type="button">Löschen</button>
         </div>
       </div>
-
       <div class="wf-actions">
         <button class="btn primary" id="wfIncClose" type="button">Abschließen & bestätigen</button>
         <button class="btn" id="wfIncPdf" type="button">PDF</button>
@@ -12850,7 +11515,6 @@ function wfShowIncident(){
       <div class="muted" style="margin-top:8px">Verantwortlich: ${wfUserLabel()}</div>
     </div>
   `;
-
   // populate dog list from state
   const sel = document.getElementById("wfIncDog");
   sel.innerHTML = `<option value="">— auswählen —</option>` + (state.dogs||[]).map(d=>`<option value="${d.id}">${escapeHtml(d.name||"Hund")}</option>`).join("");
@@ -12859,12 +11523,10 @@ function wfShowIncident(){
     const owner = dog ? (getCustomer(dog.customerId)?.name || "") : "";
     document.getElementById("wfIncOwner").value = owner;
   };
-
   initWfSignaturePad(document.getElementById("wfSigCanvas"), document.getElementById("wfSigClear"));
   document.getElementById("wfIncClose").onclick = ()=> wfCloseIncident();
   document.getElementById("wfIncPdf").onclick = ()=> wfPreviewPdf("incident");
 }
-
 function wfCloseIncident(){
   const dogId = document.getElementById("wfIncDog").value || null;
   const owner = (document.getElementById("wfIncOwner").value||"").trim();
@@ -12876,7 +11538,6 @@ function wfCloseIncident(){
   const sig = wfSigDataUrl();
   if(!sig){ alert("Bitte unterschreiben."); return; }
   if(!desc){ alert("Bitte eine kurze Beschreibung eintragen."); return; }
-
   const entry = {
     id: wfNewId(),
     type: "incident",
@@ -12890,7 +11551,6 @@ function wfCloseIncident(){
   alert("Ereignisprotokoll archiviert.");
   wfShowArchive();
 }
-
 function wfShowArchive(silent){
   const host = document.getElementById("workformsView");
   host.dataset.view="archive";
@@ -12912,7 +11572,6 @@ function wfShowArchive(silent){
       </div>
     `;
   }).join("");
-
   host.innerHTML = `
     <div class="wf-form">
       <h3>Archiv Arbeitsblätter</h3>
@@ -12920,7 +11579,6 @@ function wfShowArchive(silent){
       <div style="margin-top:10px">${rows || '<div class="muted">Noch keine Einträge.</div>'}</div>
     </div>
   `;
-
   host.querySelectorAll("[data-wf-open]").forEach(btn=>{
     btn.addEventListener("click", ()=>{
       const id = btn.getAttribute("data-wf-open");
@@ -12933,12 +11591,10 @@ function wfShowArchive(silent){
       wfEntryPdf(id);
     });
   });
-
   if(!silent){
     // nothing
   }
 }
-
 function wfShowEntry(id){
   const it = (state.worklogs||[]).find(x=>x.id===id);
   if(!it) return;
@@ -13009,7 +11665,6 @@ function wfShowEntry(id){
   document.getElementById("wfBack").onclick = ()=> wfShowArchive(true);
   document.getElementById("wfPdf").onclick = ()=> wfEntryPdf(id);
 }
-
 function wfEntryPdf(id){
   const it = (state.worklogs||[]).find(x=>x.id===id);
   if(!it) return;
@@ -13052,7 +11707,6 @@ function wfEntryPdf(id){
   `;
   wfOpenPdf(wfPdfTemplate(title, body));
 }
-
 function wfPreviewPdf(kind){
   // preview current unsaved form
   const title = kind==="hygiene" ? "Hygiene-Nachweis" : (kind==="shift" ? "Übergabe / Schichtblatt" : "Ereignisprotokoll");
@@ -13094,7 +11748,6 @@ function wfPreviewPdf(kind){
   body += `<div class="box sig"><div class="k">Unterschrift</div>${sig?`<img src="${sig}" alt="Unterschrift"/>`:`<div class="muted">— noch keine Unterschrift —</div>`}</div>`;
   wfOpenPdf(wfPdfTemplate(title, body));
 }
-
 function wfTodayPrint(){
   // simple: reuse existing today dashboard pdf builder if present; otherwise fallback
   // build a minimal overview from stays
@@ -13164,7 +11817,6 @@ div.innerHTML = `<strong>${d.dogName || "-"}</strong><br>
     emptyEl.style.display = "block";
   }
 }
-
 document.addEventListener("DOMContentLoaded", () => {
   const m = document.getElementById("menu-stays");
   if (m) {
@@ -13180,8 +11832,6 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 // ===== END 4A-1 =====
-
-
 // ===== 4A-2 Neuer Aufenthalt Minimal-Editor =====
 function escapeHtml(str) {
   return String(str ?? "")
@@ -13191,7 +11841,6 @@ function escapeHtml(str) {
     .replaceAll('"',"&quot;")
     .replaceAll("'","&#039;");
 }
-
 function showStaysEditor(prefill) {
   const editor = document.getElementById("stays-editor");
   if (!editor) return;
@@ -13233,14 +11882,11 @@ function showStaysEditor(prefill) {
   `;
   const careSel = document.getElementById("stay-care");
   if (careSel && d.careType) careSel.value = d.careType;
-
   const cancelBtn = document.getElementById("stay-cancel");
   if (cancelBtn) cancelBtn.onclick = () => { editor.style.display = "none"; editor.innerHTML = ""; };
-
   const saveBtn = document.getElementById("stay-save");
   if (saveBtn) saveBtn.onclick = async () => { await saveStayMinimal(); };
 }
-
 async function saveStayMinimal() {
   const msg = document.getElementById("stay-msg");
   const dogName = (document.getElementById("stay-dog")?.value || "").trim();
@@ -13248,9 +11894,7 @@ async function saveStayMinimal() {
   const careType = (document.getElementById("stay-care")?.value || "").trim();
   const fromDate = (document.getElementById("stay-from")?.value || "").trim();
   const toDate = (document.getElementById("stay-to")?.value || "").trim();
-
   if (msg) msg.textContent = "";
-
   if (!dogName || !ownerName || !careType || !fromDate || !toDate) {
     if (msg) msg.textContent = "Bitte alle Pflichtfelder ausfüllen (Hund, Kunde, Betreuung, Von, Bis).";
     return;
@@ -13259,7 +11903,6 @@ async function saveStayMinimal() {
     if (msg) msg.textContent = "„Bis“ darf nicht vor „Von“ liegen.";
     return;
   }
-
   try {
     if (msg) msg.textContent = "Speichere…";
     const payload = {
@@ -13281,7 +11924,6 @@ async function saveStayMinimal() {
     if (msg) msg.textContent = "Speichern fehlgeschlagen. Bitte erneut versuchen.";
   }
 }
-
 document.addEventListener("DOMContentLoaded", () => {
   const addBtn = document.getElementById("stays-add");
   if (addBtn) addBtn.addEventListener("click", (e) => {
@@ -13290,11 +11932,8 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 // ===== END 4A-2 =====
-
-
 // ===== 4A-3 Aufenthalt Detailansicht (Basisfelder) =====
 let __currentStayId = null;
-
 async function showStayDetail(stayId) {
   __currentStayId = stayId;
   // hide all main sections
@@ -13305,16 +11944,13 @@ async function showStayDetail(stayId) {
   if (msg) msg.textContent = "";
   if (detailView) detailView.style.display = "block";
   if (!detailBox) return;
-
   detailBox.innerHTML = '<div class="notice">Lade…</div>';
-
   try {
     const docRef = firebase.firestore().collection("stays").doc(stayId);
     const snap = await docRef.get();
     const d = snap.exists ? (snap.data() || {}) : {};
     const sub = document.getElementById("stay-detail-sub");
     if (sub) sub.textContent = d.dogName ? `${d.dogName} – ${d.ownerName || ""}`.trim() : "";
-
     detailBox.innerHTML = `
       <div class="field">
         <label>Hund</label>
@@ -13348,7 +11984,6 @@ async function showStayDetail(stayId) {
         <div class="notice">Status bleibt in 4A-3 read-only (Entwurf).</div>
       </div>
     `;
-
     const careSel = document.getElementById("detail-care");
     if (careSel) careSel.value = (d.careType || "");
   } catch (e) {
@@ -13356,22 +11991,18 @@ async function showStayDetail(stayId) {
     detailBox.innerHTML = '<div class="notice">Konnte Aufenthalt nicht laden.</div>';
   }
 }
-
 async function saveStayDetail() {
   const msg = document.getElementById("stay-detail-msg");
   if (msg) msg.textContent = "";
-
   const dogName = (document.getElementById("detail-dog")?.value || "").trim();
   const ownerName = (document.getElementById("detail-owner")?.value || "").trim();
   const careType = (document.getElementById("detail-care")?.value || "").trim();
   const fromDate = (document.getElementById("detail-from")?.value || "").trim();
   const toDate = (document.getElementById("detail-to")?.value || "").trim();
-
   if (!__currentStayId) {
     if (msg) msg.textContent = "Kein Aufenthalt ausgewählt.";
     return;
   }
-
   if (!dogName || !ownerName || !careType || !fromDate || !toDate) {
     if (msg) msg.textContent = "Bitte alle Pflichtfelder ausfüllen (Hund, Kunde, Betreuung, Von, Bis).";
     return;
@@ -13380,7 +12011,6 @@ async function saveStayDetail() {
     if (msg) msg.textContent = "„Bis“ darf nicht vor „Von“ liegen.";
     return;
   }
-
   try {
     if (msg) msg.textContent = "Speichere…";
     const payload = {
@@ -13402,7 +12032,6 @@ async function saveStayDetail() {
     if (msg) msg.textContent = "Speichern fehlgeschlagen.";
   }
 }
-
 document.addEventListener("DOMContentLoaded", () => {
   const backBtn = document.getElementById("stay-detail-back");
   if (backBtn) backBtn.addEventListener("click", (e) => {
@@ -13412,7 +12041,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (v) v.style.display = "block";
     if (typeof loadStays === "function") loadStays();
   });
-
   const saveBtn = document.getElementById("stay-detail-save");
   if (saveBtn) saveBtn.addEventListener("click", (e) => {
     e.preventDefault();
@@ -13420,15 +12048,12 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 // ===== END 4A-3 =====
-
-
 // ===== 4B-1 Rechtstexte Anzeige =====
 function showLegalView() {
   document.querySelectorAll("main > section").forEach(s => s.style.display = "none");
   const v = document.getElementById("legal-view");
   if (v) v.style.display = "block";
 }
-
 document.addEventListener("DOMContentLoaded", () => {
   const m = document.getElementById("menu-legal");
   if (m) m.addEventListener("click", (e) => {
@@ -13444,8 +12069,6 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 // ===== END 4B-1 =====
-
-
 /* ===== 4B-1 Rechtstexte Anzeige (Doc-Modal) ===== */
 function _legalDocTitle(kind){
   const k = String(kind||'').toLowerCase();
