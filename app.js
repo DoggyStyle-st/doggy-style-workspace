@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = 'M28_4D6_ANA_AUTOREFRESH_20260206';
+const APP_BUILD = 'M29_4E1_ANA_REFRESHFIX_20260206';
 // Kapazitäts-Limit (Übernachtungshunde) – Stufe B Warnung
 const MAX_OVERNIGHT = 10;
 // ===== 4B-3: Soft-Warnung bei fehlender Unterschrift (Speichern bleibt erlaubt) =====
@@ -4727,7 +4727,7 @@ function renderAnalyticsPanel(){
       // monthly aggregate
       const monthCount = {};
       const monthStorno = {};
-      for(const inv of inv){
+      for(const inv of invArr){
         const d = _dsParseAnyDate(inv.invoiceDate || inv.createdAt || inv.updatedAt || inv.ts);
         if(!d) continue;
         const key = _dsMonthKey(d);
@@ -4785,6 +4785,82 @@ function renderAnalyticsPanel(){
         tbody.appendChild(tr);
       }
     }
+
+    // 4E-1: Monatsdiagramm (Umsatz) – leichtgewichtig, keine Libraries
+    try{
+      const tableEl = document.getElementById('anaTable');
+      if(tableEl && !document.getElementById('anaMonthChartWrap')){
+        tableEl.insertAdjacentHTML('afterend',
+          `<div id="anaMonthChartWrap" class="card" style="margin-top:12px;">
+             <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+               <div style="font-weight:600;">Diagramm: Umsatz pro Monat</div>
+               <button class="btn" id="anaMonthChartToggle">Diagramm anzeigen</button>
+             </div>
+             <canvas id="anaMonthChart" width="1000" height="260" style="display:none;width:100%;max-width:100%;margin-top:10px;"></canvas>
+           </div>`
+        );
+      }
+
+      const btn = document.getElementById('anaMonthChartToggle');
+      const cvs = document.getElementById('anaMonthChart');
+      if(btn && cvs){
+        const draw = () => {
+          const ctx = cvs.getContext('2d');
+          if(!ctx) return;
+          const W = cvs.width, H = cvs.height;
+          ctx.clearRect(0,0,W,H);
+          const padL=60, padR=20, padT=20, padB=50;
+          const innerW = W - padL - padR;
+          const innerH = H - padT - padB;
+          const vals = months.map(k => Number(bucket[k]||0) || 0);
+          const maxV = Math.max(1, ...vals);
+          // axes
+          ctx.globalAlpha = 0.55;
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(padL, padT);
+          ctx.lineTo(padL, padT+innerH);
+          ctx.lineTo(padL+innerW, padT+innerH);
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+          // bars
+          const n = Math.max(1, vals.length);
+          const gap = 6;
+          const barW = Math.max(4, (innerW - gap*(n-1)) / n);
+          for(let i=0;i<n;i++){
+            const v = vals[i];
+            const bh = Math.max(0, (v/maxV) * innerH);
+            const x = padL + i*(barW+gap);
+            const y = padT + innerH - bh;
+            ctx.fillStyle = 'rgba(245,182,46,0.55)';
+            ctx.fillRect(x, y, barW, bh);
+          }
+          // labels (every 2nd)
+          ctx.fillStyle = 'rgba(255,255,255,0.75)';
+          ctx.font = '12px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+          for(let i=0;i<months.length;i+=2){
+            const label = months[i];
+            const x = padL + i*(barW+gap) + 2;
+            const y = padT + innerH + 18;
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(-0.65);
+            ctx.fillText(label, 0, 0);
+            ctx.restore();
+          }
+          // max value label
+          ctx.fillText(formatEuro(maxV), 6, padT+10);
+        };
+
+        btn.onclick = () => {
+          const show = cvs.style.display === 'none';
+          cvs.style.display = show ? 'block' : 'none';
+          btn.textContent = show ? 'Diagramm ausblenden' : 'Diagramm anzeigen';
+          if(show) draw();
+        };
+      }
+    }catch(__){}
       
     // --- 4D-3: Umsatz nach Leistung (Top-Positionen) ---
     try{
@@ -4969,11 +5045,14 @@ function renderAnalyticsPanel(){
       }
       
   // 4D-6: Debounced auto-refresh for analytics controls
+  // (avoid recursive calls; trigger a safe panel re-render)
   const scheduleAnaRefresh = (() => {
     let t = null;
     return () => {
       try{ if(t) clearTimeout(t); }catch(__){}
-      t = setTimeout(() => { try{ scheduleAnaRefresh(); }catch(__){} }, 250);
+      t = setTimeout(() => {
+        try{ renderAnalyticsPanel(); }catch(__){}
+      }, 250);
     };
   })();
 
