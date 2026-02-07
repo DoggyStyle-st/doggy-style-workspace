@@ -1,6 +1,6 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
-const APP_BUILD = 'M38_4F4_DIAG_OVERLAY_20260207';
+const APP_BUILD = 'M39_4F5_HARD_RELOAD_BTN_20260207';
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 (function DS_BUILD_GUARD_RECOVERY(){
@@ -12557,3 +12557,72 @@ document.addEventListener('DOMContentLoaded', ()=>{
   }catch(_ ){}
 })();
 // ===== END DS_DIAG_OVERLAY =====
+
+
+// ===== DS_HARD_RELOAD_BTN (4F-5) =====
+async function dsHardReload(){
+  try{
+    const ok = confirm("App-Cache zurücksetzen und neu laden?\n\nDas löscht Service Worker + Cache (Offline-Daten bleiben i.d.R. erhalten).");
+    if(!ok) return;
+  }catch(_ ){}
+
+  try{
+    if('serviceWorker' in navigator){
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r=>r.unregister().catch(()=>null)));
+    }
+  }catch(_ ){}
+
+  try{
+    if(window.caches && caches.keys){
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k=>caches.delete(k)));
+    }
+  }catch(_ ){}
+
+  try{
+    const toDelete = [];
+    for(let i=0;i<localStorage.length;i++){
+      const k = localStorage.key(i);
+      if(!k) continue;
+      if(k.startsWith('ds_') || k.includes('sw') || k.includes('cache') || k.includes('build') || k.includes('version')){
+        toDelete.push(k);
+      }
+    }
+    toDelete.forEach(k=>{ try{ localStorage.removeItem(k); }catch(_ ){} });
+  }catch(_ ){}
+
+  try{
+    const url = new URL(location.href);
+    url.searchParams.set('v', 'M39_4F5_HARD_RELOAD_BTN_20260207');
+    location.replace(url.toString());
+  }catch(_ ){ location.reload(); }
+}
+
+(function DS_HARD_RELOAD_BTN(){
+  try{
+    const bid="dsHardReloadBtn";
+    if(document.getElementById(bid)) return;
+    const b=document.createElement("button");
+    b.id=bid;
+    b.type="button";
+    b.textContent="RESET";
+    b.title="Service Worker + Cache zurücksetzen";
+    b.style.position="fixed";
+    b.style.right="10px";
+    b.style.bottom="94px";
+    b.style.zIndex="999999";
+    b.style.padding="6px 10px";
+    b.style.borderRadius="12px";
+    b.style.border="1px solid rgba(255,255,255,0.25)";
+    b.style.background="rgba(160,0,0,0.35)";
+    b.style.color="#fff";
+    b.style.fontSize="12px";
+    b.style.backdropFilter="blur(8px)";
+    b.style.webkitBackdropFilter="blur(8px)";
+    b.addEventListener("click", ()=>{ dsHardReload(); });
+    if(document.body) document.body.appendChild(b);
+    else document.addEventListener("DOMContentLoaded", ()=>{ try{ document.body.appendChild(b); }catch(_ ){} });
+  }catch(_ ){}
+})();
+// ===== END DS_HARD_RELOAD_BTN =====
