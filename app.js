@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = 'M32_4E4_STORNO_AUDIT_20260207';
+const APP_BUILD = 'M33_4E5_STORNO_REASON_DISPLAY_20260207';
 // Kapazitäts-Limit (Übernachtungshunde) – Stufe B Warnung
 const MAX_OVERNIGHT = 10;
 // ===== 4B-3: Soft-Warnung bei fehlender Unterschrift (Speichern bleibt erlaubt) =====
@@ -7335,7 +7335,12 @@ function renderInvoiceList(){
             <td>${escapeHtml((resolveInvoiceParties(inv).cust?.name || resolveInvoiceParties(inv).legacyDog?.owner || "—"))} · ${escapeHtml((resolveInvoiceParties(inv).pet?.name || resolveInvoiceParties(inv).legacyDog?.name || "—"))}</td>
             <td>${escapeHtml(inv.period?.from||"")} – ${escapeHtml(inv.period?.to||"")}</td>
             <td>${(inv.pricing?.total||0).toFixed(2)} €</td>
-            <td>${invoiceStatusBadge(inv.status)}</td>
+        <td>
+          ${invoiceStatusBadge(inv.status)}
+          ${(
+            inv.status === 'cancelled' && (inv.cancelReason || inv.stornoReason)
+          ) ? `<div class="muted" style="margin-top:2px;font-size:12px">Grund: ${escapeHtml(inv.cancelReason || inv.stornoReason)}</div>` : ''}
+        </td>
           </tr>
         `).join("")}
       </tbody>
@@ -7610,6 +7615,10 @@ function openInvoice(id){
   const {cust, pet, legacyDog} = resolveInvoiceParties(inv);
   const custLine = escapeHtml(formatCustomerLine(cust, legacyDog) || "—");
   const petLine = escapeHtml(pet?.name || (legacyDog?.name||"—"));
+  const _cancelReason = inv.cancelReason || inv.stornoReason || '';
+  const _cancelReasonHtml = (inv.status === 'cancelled' && _cancelReason)
+    ? ` · <strong>Grund:</strong> ${escapeHtml(_cancelReason)}`
+    : '';
   el.innerHTML = `
     <div class="card">
       <div class="row between" style="gap:10px;flex-wrap:wrap">
@@ -7624,7 +7633,7 @@ function openInvoice(id){
       <p class="muted" style="margin-top:6px">
         <strong>Nr.:</strong> ${escapeHtml(inv.invoiceNumber||"-")} ·
         <strong>Datum:</strong> ${escapeHtml(new Date(inv.invoiceDate||Date.now()).toLocaleDateString("de-DE"))} ·
-        <strong>Status:</strong> ${invoiceStatusBadge(inv.status)}
+        <strong>Status:</strong> ${invoiceStatusBadge(inv.status)}${_cancelReasonHtml}
       </p>
       ${freezeWarningHtml}
       ${inv.sourceDocId ? `
