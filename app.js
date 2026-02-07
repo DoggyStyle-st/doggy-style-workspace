@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = 'M31_4E3_FULL_REBUILD_ANA_STORNO_REASONS_20260206';
+const APP_BUILD = 'M32_4E4_STORNO_AUDIT_20260207';
 // Kapazitäts-Limit (Übernachtungshunde) – Stufe B Warnung
 const MAX_OVERNIGHT = 10;
 // ===== 4B-3: Soft-Warnung bei fehlender Unterschrift (Speichern bleibt erlaubt) =====
@@ -7794,6 +7794,7 @@ function lockInvoicePricing(inv, reason){
 function setInvoiceStatus(id, status){
   const inv = getInvoiceById(id);
   if(!inv) return;
+
   // akzeptiert auch deutsche Werte (falls irgendwo anders gesetzt)
   const s = String(status||"").toLowerCase().trim();
   let code = status;
@@ -7801,107 +7802,72 @@ function setInvoiceStatus(id, status){
   else if(s==="bezahlt") code="paid";
   else if(s==="storniert") code="cancelled";
   else if(s==="entwurf") code="draft";
+
   const prev = String(inv.status||"draft");
+
   // 4C-4: Storno ist endgültig (Revisionssicherheit)
   if(prev==="cancelled" && code!=="cancelled"){
     try{ alert("Diese Rechnung ist storniert und kann nicht mehr geändert werden."); }catch(_){}
     return;
   }
-  // ===== 4C-3: Audit + Bezahlt ist endgültig (nur Storno erlaubt) =====
+
+  // 4C-3: Bezahlt ist endgültig (nur Storno erlaubt)
   if(prev==="paid" && code!=="paid" && code!=="cancelled"){
     try{ alert("Diese Rechnung ist bezahlt und wird nicht mehr zurückgesetzt."); }catch(_){}
     return;
   }
-  // Audit Trail
+
+  // 4E-4: Storno-Grund sicher VOR Audit/Status setzen, damit Audit den Grund enthält
+  if(code==="cancelled" && prev!=="cancelled"){
+    let reason = String(inv.stornoReason||inv.cancelReason||"").trim();
+    if(!reason){
+      const r = prompt("Storno-Grund (Kurz):", "Kunde storniert");
+      if(r===null) return; // Abbruch: keine Statusänderung
+      reason = String(r||"").trim();
+      if(!reason) reason = "Storno";
+    }
+
+    let note = String(inv.cancelNote||"").trim();
+    const n = prompt("Notiz (optional):", note);
+    if(n!==null) note = String(n||"").trim();
+
+    inv.cancelReason = reason;
+    inv.stornoReason = reason; // für Auswertungen
+    inv.cancelNote   = note;
+  }
+
+  // Audit Trail (nachdem ggf. Storno-Grund gesetzt wurde)
   inv.auditTrail = Array.isArray(inv.auditTrail) ? inv.auditTrail : [];
   if(code !== prev){
+    const meta = (code==="cancelled") ? { reason: (inv.cancelReason||""), note: (inv.cancelNote||"") } : undefined;
     inv.auditTrail.push({
       at: new Date().toISOString(),
       field: "status",
       from: prev,
       to: code,
-      meta: (code==="cancelled") ? { reason: (inv.cancelReason||""), note: (inv.cancelNote||"") } : undefined
+      meta
     });
   }
+
   inv.status = code;
-  inv.updatedAt = new Date().toISOString();
-  // 3D4/3E: Einfrieren erst bei "bezahlt". "Offen" bleibt dynamisch.
+
   if(code==="paid"){
-    // Vor dem Lock einmalig noch synchronisieren (falls der User direkt auf "Offen" klickt)
-    try{
-      if(inv.sourceDocId && !isInvoicePricingLocked(inv)){
-        const changed = syncInvoicePricingBySource(inv);
-        if(changed){} // pricing already updated
-      }
-    }catch(_){}
-    lockInvoicePricing(inv, code);
+    if(!inv.paidAt) inv.paidAt = new Date().toISOString();
+    inv.locked = true;
   }
-  else if(code==="open"){
-    // Offen: Preise bleiben dynamisch (nicht locken)
-    inv.pricingLocked = false;
-  }
-  else if(code==="draft"){
-    // Entwurf darf dynamisch sein
-    inv.pricingLocked = false;
-  }
-  else if(code==="cancelled"){
-    // ===== 4C-3: Storno snapshot + Timestamp =====
-    inv.cancelledAt = inv.cancelledAt || new Date().toISOString();
-    // 4C-4: Stornogrund + Notiz (Pflichtgrund)
-    try{
-      if(!inv.cancelReason){
-        const options = [
-          "Zahlungsrückstand",
-          "Fehlbuchung",
-          "Doppelrechnung",
-          "Kulanz",
-          "Sonstiges"
-        ];
-        const hint = options.map((o,i)=>`${i+1}: ${o}`).join("\n");
-        let ans = prompt("Storno-Grund auswählen (Pflicht):\n"+hint+"\n\nEingabe: Zahl (1-5) oder Text", "1");
-        if(ans===null) return; // abgebrochen
-        ans = String(ans||"").trim();
-        if(!ans){
-          alert("Storno-Grund ist Pflicht.");
-          return;
-        }
-        const n = parseInt(ans,10);
-        const reason = (!isNaN(n) && n>=1 && n<=options.length) ? options[n-1] : ans;
-        inv.cancelReason = reason;
-        const note = prompt("Storno-Notiz (optional):", inv.cancelNote||"");
-        if(note!==null) inv.cancelNote = String(note||"").trim();
-      }
-    }catch(_){
-      // im Fehlerfall lieber ohne Dialog weiter (aber Grund bleibt leer)
-    }
-    if(!inv.stornoSnapshot){
-      try{
-        inv.stornoSnapshot = {
-          invoiceNumber: inv.invoiceNumber || "",
-          invoiceDate: inv.invoiceDate || "",
-          customerId: inv.customerId || "",
-          petId: inv.petId || "",
-          dogId: inv.dogId || "",
-          sourceDocId: inv.sourceDocId || "",
-          period: inv.period || null,
-          pricing: inv.pricing || null,
-          pricingSnapshot: inv.pricingSnapshot || null,
-          pricingLocked: !!inv.pricingLocked,
-          pricingLockedAt: inv.pricingLockedAt || null,
-          totals: {
-            gross: Number(inv.pricing?.total || 0)
-          }
-        };
-      }catch(_){}
-    }
-    // Storno bleibt revisionssicher: wenn bereits gelockt, nicht unlocken
-    if(!isInvoicePricingLocked(inv)){
-      inv.pricingLocked = false;
+
+  if(code==="cancelled"){
+    if(!inv.cancelledAt) inv.cancelledAt = new Date().toISOString();
+    inv.locked = true;
+    // Snapshot für Revisionssicherheit (einmalig)
+    if(!inv.cancelSnapshot){
+      try{ inv.cancelSnapshot = JSON.parse(JSON.stringify(inv)); }catch(_){ inv.cancelSnapshot = {}; }
     }
   }
+
   saveState();
-  openInvoice(id);
-  renderInvoiceList();
+  renderInvoices();
+  showInvoiceDetail(id);
 }
 // ===== ETAPPE 4: Freie Rechnung (Kunde/Hund auswählen statt tippen) =====
 function openFreeInvoiceForm(){
