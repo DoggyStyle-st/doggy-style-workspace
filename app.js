@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = 'M33_4E5_STORNO_REASON_DISPLAY_20260207';
+const APP_BUILD = 'M34_4E6_STORNO_REASON_PDF_20260207';
 // Kapazitäts-Limit (Übernachtungshunde) – Stufe B Warnung
 const MAX_OVERNIGHT = 10;
 // ===== 4B-3: Soft-Warnung bei fehlender Unterschrift (Speichern bleibt erlaubt) =====
@@ -8044,6 +8044,14 @@ if(!inv) return;
   ].filter(Boolean).join("<br>");
   const isCancelled = String(inv.status||'draft')==='cancelled';
   const sign = isCancelled ? -1 : 1;
+
+  // 4E-6: Storno-Infos fürs PDF (Datum + Grund, wenn vorhanden)
+  const cancelEvt = Array.isArray(inv.audit) ? [...inv.audit].reverse().find(a => (a && a.action === 'cancel')) : null;
+  const cancelReason = (cancelEvt && typeof cancelEvt.reason === 'string') ? cancelEvt.reason.trim() : (typeof inv.stornoReason === 'string' ? inv.stornoReason.trim() : '');
+  const cancelAt = cancelEvt && cancelEvt.at ? new Date(cancelEvt.at) : null;
+  const cancelAtStr = (cancelAt && !isNaN(cancelAt.getTime()))
+    ? `${pad2(cancelAt.getDate())}.${pad2(cancelAt.getMonth()+1)}.${cancelAt.getFullYear()} ${pad2(cancelAt.getHours())}:${pad2(cancelAt.getMinutes())}`
+    : '';
   const euro = (n)=>`${(sign*Number(n||0)).toFixed(2)} €`;
   const euroAbs = (n)=>`${Math.abs(Number(n||0)).toFixed(2)} €`;
   const bd = (inv.pricing && inv.pricing.breakdown) ? inv.pricing.breakdown : {};
@@ -8153,6 +8161,8 @@ if(!inv) return;
           <strong>Rechnungsnummer:</strong> ${escapeHtml(inv.invoiceNumber || "-")}<br>
           <strong>Rechnungsdatum:</strong> ${new Date(inv.invoiceDate||Date.now()).toLocaleDateString("de-DE")}<br>
           <strong>Leistungszeitraum:</strong> ${escapeHtml(formatDateDE(inv.period?.from||""))} – ${escapeHtml(formatDateDE(inv.period?.to||""))}
+          ${isCancelled ? `<br><strong>Status:</strong> STORNIERT${cancelAtStr ? ` (${escapeHtml(cancelAtStr)})` : ''}` : ''}
+          ${isCancelled && cancelReason ? `<br><strong>Storno-Grund:</strong> ${escapeHtml(cancelReason)}` : ''}
         </p>
         <table>
           <tr>
