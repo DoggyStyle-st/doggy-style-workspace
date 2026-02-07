@@ -1,6 +1,17 @@
+
+// ===== DS_MASTER_FREEZE (4F-6) =====
+const DS_MASTER_FREEZE = {
+  tag: "M40_4F6_MASTER_FREEZE_20260207",
+  channel: "MASTER",
+  frozenAt: "2026-02-07T22:10:34"
+};
+// Expose for diagnostics / support
+try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
+// ===== END DS_MASTER_FREEZE =====
+
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
-const APP_BUILD = 'M39_4F5_HARD_RELOAD_BTN_20260207';
+const APP_BUILD = 'M40_4F6_MASTER_FREEZE_20260207';
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 (function DS_BUILD_GUARD_RECOVERY(){
@@ -72,7 +83,7 @@ function warnStaySignatureMissing(doc){
 (function syncBuildBadge(){
   try{
     const el = document.getElementById('buildBadge');
-    if(el) el.textContent = 'Build ' + APP_BUILD;
+    if(el) el.textContent = 'Build (MASTER) ' + APP_BUILD;
   }catch(_){}
   try{
     const key = 'ds_app_build';

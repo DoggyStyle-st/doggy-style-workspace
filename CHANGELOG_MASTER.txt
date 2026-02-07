@@ -1,0 +1,9 @@
+DOGGY STYLE WORKSPACE – MASTER FREEZE
+Build: M40_4F6_MASTER_FREEZE_20260207
+Frozen at: 2026-02-07T22:10:34
+
+Included:
+- 4C: Pricing preview, invoice freeze, audit trail, storno workflow
+- 4D: Analytics (occupancy, revenue, toplists, range + export)
+- 4E: Storno reasons presets + display + PDF; storno analytics basics
+- 4F: Build sync, recovery guard, DIAG overlay, RESET button
