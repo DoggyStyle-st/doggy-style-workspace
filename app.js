@@ -1,6 +1,49 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
-const APP_BUILD = 'M36_4F2_BUILD_SYNC_FIX_20260207';
+const APP_BUILD = 'M38_4F4_DIAG_OVERLAY_20260207';
+
+// ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
+(function DS_BUILD_GUARD_RECOVERY(){
+  try{
+    const BUILD = (typeof APP_BUILD !== 'undefined') ? APP_BUILD : "M38_4F4_DIAG_OVERLAY_20260207";
+    const meta = document.querySelector('meta[name="app-version"]');
+    const htmlBuild = meta ? meta.getAttribute('content') : null;
+    if(htmlBuild && htmlBuild !== BUILD){
+      console.warn("[DS] Build mismatch", {htmlBuild, BUILD});
+      const doReload = ()=>{
+        try{
+          const url = new URL(location.href);
+          url.searchParams.set('v', BUILD);
+          location.replace(url.toString());
+        }catch(_ ){ location.reload(); }
+      };
+      if('serviceWorker' in navigator){
+        navigator.serviceWorker.getRegistrations()
+          .then(regs=>Promise.all(regs.map(r=>r.unregister().catch(()=>null))))
+          .catch(()=>null);
+      }
+      if(window.caches && caches.keys){
+        caches.keys().then(keys=>Promise.all(keys.map(k=>caches.delete(k)))).catch(()=>null);
+      }
+      try{
+        if(indexedDB && indexedDB.databases){
+          indexedDB.databases().then(dbs=>{
+            dbs.forEach(db=>{
+              const n = db && db.name ? db.name : "";
+              if(!n) return;
+              if(n.toLowerCase().includes("doggy") || n.toLowerCase().includes("workspace") || n.toLowerCase().includes("ds_")){
+                try{ indexedDB.deleteDatabase(n); }catch(_ ){}
+              }
+            });
+          }).catch(()=>null);
+        }
+      }catch(_ ){}
+      setTimeout(doReload, 250);
+    }
+  }catch(e){ console.warn("[DS] guard error", e); }
+})();
+// ===== END DS_BUILD_GUARD_RECOVERY =====
+
 // Kapazitäts-Limit (Übernachtungshunde) – Stufe B Warnung
 const MAX_OVERNIGHT = 10;
 // ===== 4B-3: Soft-Warnung bei fehlender Unterschrift (Speichern bleibt erlaubt) =====
@@ -12410,3 +12453,107 @@ document.addEventListener('DOMContentLoaded', ()=>{
   w('btnLegalWahrheit','wahrheit');
 });
 /* ===== END 4B-1 ===== */
+
+// ===== DS_DIAG_OVERLAY (4F-4) =====
+(function DS_DIAG_OVERLAY(){
+  function safe(v){ try{ return (v===undefined||v===null) ? "" : String(v); }catch(_ ){ return ""; } }
+  function getSWVer(){
+    try{ return safe(window.SW_VERSION || window.__DS_SW_VERSION || ""); }catch(_ ){ return ""; }
+  }
+  function render(){
+    try{
+      const id="dsDiagOverlay";
+      let el=document.getElementById(id);
+      if(!el){
+        el=document.createElement("div");
+        el.id=id;
+        el.style.position="fixed";
+        el.style.right="10px";
+        el.style.bottom="10px";
+        el.style.zIndex="999999";
+        el.style.maxWidth="86vw";
+        el.style.fontSize="12px";
+        el.style.lineHeight="1.25";
+        el.style.padding="10px 12px";
+        el.style.borderRadius="12px";
+        el.style.background="rgba(0,0,0,0.65)";
+        el.style.color="#fff";
+        el.style.backdropFilter="blur(8px)";
+        el.style.webkitBackdropFilter="blur(8px)";
+        el.style.display="none";
+        el.style.whiteSpace="pre-wrap";
+        el.style.boxShadow="0 6px 18px rgba(0,0,0,0.25)";
+        document.body.appendChild(el);
+      }
+      const BUILD = (typeof APP_BUILD!=='undefined')?APP_BUILD:"M38_4F4_DIAG_OVERLAY_20260207";
+      const meta = document.querySelector('meta[name="app-version"]');
+      const htmlBuild = meta ? meta.getAttribute('content') : "";
+      const online = navigator.onLine ? "online" : "offline";
+      const swv = getSWVer();
+      let cacheKeys="";
+      try{
+        cacheKeys = el.dataset.cacheKeys || "";
+        if(window.caches && caches.keys && !cacheKeys){
+          caches.keys().then(keys=>{
+            try{ el.dataset.cacheKeys = keys.join(", "); }catch(_ ){}
+            if(el.style.display!=="none") render();
+          }).catch(()=>null);
+        }
+      }catch(_ ){}
+      let lastSync = "";
+      try{ lastSync = safe(localStorage.getItem("ds_last_sync")||localStorage.getItem("last_sync")||""); }catch(_ ){}
+      el.textContent =
+        "DIAG\n" +
+        "Build(JS): " + BUILD + "\n" +
+        "Build(HTML): " + safe(htmlBuild) + "\n" +
+        "SW: " + safe(swv) + "\n" +
+        "Net: " + online + "\n" +
+        (lastSync?("LastSync: "+lastSync+"\n"):"") +
+        (cacheKeys?("Caches: "+cacheKeys+"\n"):"") +
+        "URL: " + location.pathname + location.search;
+    }catch(_ ){}
+  }
+  function toggle(){
+    try{
+      const el=document.getElementById("dsDiagOverlay");
+      if(!el) render();
+      const e=document.getElementById("dsDiagOverlay");
+      if(!e) return;
+      e.style.display = (e.style.display==="none"||!e.style.display) ? "block" : "none";
+      if(e.style.display!=="none") render();
+    }catch(_ ){}
+  }
+  try{ window.__DS_DIAG_TOGGLE = toggle; }catch(_ ){}
+  try{
+    const bid="dsDiagBtn";
+    let b=document.getElementById(bid);
+    if(!b){
+      b=document.createElement("button");
+      b.id=bid;
+      b.type="button";
+      b.textContent="DIAG";
+      b.style.position="fixed";
+      b.style.right="10px";
+      b.style.bottom="52px";
+      b.style.zIndex="999999";
+      b.style.padding="6px 10px";
+      b.style.borderRadius="12px";
+      b.style.border="1px solid rgba(255,255,255,0.25)";
+      b.style.background="rgba(0,0,0,0.35)";
+      b.style.color="#fff";
+      b.style.fontSize="12px";
+      b.style.backdropFilter="blur(8px)";
+      b.style.webkitBackdropFilter="blur(8px)";
+      b.addEventListener("click", toggle);
+      if(document.body) document.body.appendChild(b);
+      else document.addEventListener("DOMContentLoaded", ()=>{ try{ document.body.appendChild(b); }catch(_ ){} });
+    }
+  }catch(_ ){}
+  try{
+    if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", render);
+    else render();
+    window.addEventListener("online", render);
+    window.addEventListener("offline", render);
+  }catch(_ ){}
+})();
+// ===== END DS_DIAG_OVERLAY =====

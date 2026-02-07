@@ -1,7 +1,7 @@
 /* Doggy Style – Service Worker v11B_SAVE_PDF_17_STAY_DEBUG_OVERLAY (offline-first, update-safe) */
 
 // Version bump forces clients to pick up updated assets reliably.
-const SW_VERSION = "M36_4F2_BUILD_SYNC_FIX_20260207";
+const SW_VERSION = "M38_4F4_DIAG_OVERLAY_20260207";
 const CACHE_NAME = `ds-test-cache-${SW_VERSION}`;
 
 // Wichtig:
@@ -99,4 +99,17 @@ self.addEventListener("fetch", (event) => {
 
     return cached || (await fetchPromise) || cached;
   })());
+});
+
+
+// Expose SW version to pages
+self.addEventListener('activate', (event)=>{
+  try {
+    event.waitUntil((async ()=>{
+      const clients = await self.clients.matchAll({type:'window', includeUncontrolled:true});
+      for (const c of clients) {
+        try { c.postMessage({type:'DS_SW_VERSION', value:'M38_4F4_DIAG_OVERLAY_20260207'}); } catch(_ ){}
+      }
+    })());
+  } catch(_ ){}
 });
