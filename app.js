@@ -1,5 +1,5 @@
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
-const APP_BUILD = 'M29_4E1_ANA_REFRESHFIX_20260206';
+const APP_BUILD = 'M30_4E2_ANA_STORNO_REASONS_20260206';
 // Kapazitäts-Limit (Übernachtungshunde) – Stufe B Warnung
 const MAX_OVERNIGHT = 10;
 // ===== 4B-3: Soft-Warnung bei fehlender Unterschrift (Speichern bleibt erlaubt) =====
@@ -4651,6 +4651,25 @@ function renderAnalyticsPanel(){
     // Nur "bezahlt" als Umsatz (Basis)
     const paidInv = invArr.filter(inv => {
       const st = String(inv.status||'').toLowerCase();
+
+  const stornoInv = invArr.filter(inv => {
+    if(!inv) return false;
+    const st = String(inv.status || '').toLowerCase();
+    if(!(st === 'storniert' || st === 'storno')) return false;
+    const d = _dsParseAnyDate(inv.dateISO || inv.date || inv.createdAt || inv.ts || inv.updatedAt);
+    if(!d) return false;
+    return d >= fromD && d <= toD;
+  });
+
+  const stornoReasonRows = (() => {
+    const map = Object.create(null);
+    for(const inv of stornoInv){
+      let r = String(inv.stornoReason || inv.cancelReason || inv.reason || '').trim();
+      if(!r) r = '(ohne Grund)';
+      map[r] = (map[r] || 0) + 1;
+    }
+    return Object.entries(map).sort((a,b)=> b[1]-a[1]).slice(0, 8);
+  })();
       const isPaid = (st==='bezahlt' || st==='paid');
       if(!isPaid) return false;
       const d = _dsParseAnyDate(inv.invoiceDate || inv.createdAt || inv.updatedAt || inv.ts);
@@ -4960,6 +4979,21 @@ function renderAnalyticsPanel(){
       }catch(__e){
         // ignore
       }
+
+// --- 4E-2: Storno-Gründe (Top) ---
+      try{
+        const t = document.getElementById('anaStornoReasonTable');
+        if(t){
+          const head = `<tr><th>Grund</th><th style="text-align:right;">Anzahl</th></tr>`;
+          const body = (stornoReasonRows||[]).map(([r,c]) => 
+            `<tr><td>${esc(r)}</td><td style="text-align:right;">${c}</td></tr>`
+          ).join('');
+          t.innerHTML = head + (body || `<tr><td colspan="2" style="opacity:.75;">Keine Stornos im Zeitraum</td></tr>`);
+        }
+      }catch(__e){
+        // ignore
+      }
+
 // --- 4D-2: Auslastung/Kapazität im gewählten Zeitraum ---
       try{
         // typeEl exists in UI (day/urlaub)
