@@ -11,7 +11,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
-const APP_BUILD = 'M48_4G3_INBOX_ASSIGN_UI_FIXC_20260208';
+const APP_BUILD = 'M48_4G3_INBOX_ASSIGN_UI_FIXD_20260208';
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 (function DS_BUILD_GUARD_RECOVERY(){
@@ -1670,7 +1670,6 @@ async function wireInbox(){
 // Admin/Staff kann einem bestehenden Kunden eine Aufgabe/Vorlage "freischalten".
 // Diese Aufgaben landen zunächst lokal (state.inboxAssignments). Später kann das
 // 1:1 auf Firestore erweitert werden.
-
 async function wireInboxAssignments(){
   const selCustomer = document.getElementById('assignCustomer');
   const selTemplate = document.getElementById('assignTemplate');
@@ -1678,21 +1677,83 @@ async function wireInboxAssignments(){
   const msgEl       = document.getElementById('assignMsg');
   if(!selCustomer || !selTemplate || !btnCreate) return;
 
-  // Immer mit dem aktuellen globalen State arbeiten (loadState() liefert nur ein Objekt,
-  // saveState() speichert nur den globalen state).
-  ensureStateShape();
+  // Sicherstellen, dass State aktuell ist (offline-first)
+  try{
+    const loaded = loadState();
+    if(loaded && typeof loaded === 'object') state = Object.assign(state||{}, loaded);
+  }catch(_){
+  }
+  try{ ensureStateShape(); }catch(_){
+  }
+  try{ ensureEmbeddedTemplates(); }catch(_){
+  }
 
-  const templates = [
-    { id: 'customer_profile', name: 'Hunde/Kunden (Kundendaten ergänzen)' },
-    { id: 'boarding_contract', name: 'Betreuungsvertrag' },
-    { id: 'new_stay', name: 'Neuer Aufenthalt' }
+  // --- Kundenliste robust aus verschiedenen Datenmodellen ableiten ---
+  const customersOut = [];
+  const seen = new Set();
+
+  function stableId(s){
+    try{ return btoa(unescape(encodeURIComponent(s||''))).replace(/=+$/,''); }catch(_){
+      return (s||'').replace(/\s+/g,'_').slice(0,64);
+    }
+  }
+  function pushCustomer(id, name, phone, extra){
+    const cid = id || stableId((name||'')+'|'+(phone||''));
+    if(!cid || seen.has(cid)) return;
+    seen.add(cid);
+    customersOut.push({ id: cid, name: name||'(ohne Name)', phone: phone||'', extra: extra||'' });
+  }
+
+  // 1) Neues Modell: state.customers
+  if(Array.isArray(state.customers) && state.customers.length){
+    state.customers.forEach(c=>{
+      const name = c.name || c.customerName || c.fullName || c.owner || '';
+      const phone = c.phone || c.telefon || c.mobile || '';
+      pushCustomer(c.id || c.customerId, name, phone);
+    });
+  }
+
+  // 2) Alternativ: pets -> customerId
+  if(customersOut.length===0 && Array.isArray(state.pets) && state.pets.length){
+    const byCustomer = new Map();
+    state.pets.forEach(p=>{
+      const cid = p.customerId || p.ownerId || p.customer || '';
+      const owner = p.owner || p.ownerName || '';
+      const phone = p.phone || p.ownerPhone || '';
+      const key = cid || ('legacy:'+stableId((owner||'')+'|'+(phone||'')));
+      const cur = byCustomer.get(key) || { id: cid||key, name: owner, phone, dogs: 0 };
+      cur.dogs += 1;
+      if(!cur.name && owner) cur.name = owner;
+      if(!cur.phone && phone) cur.phone = phone;
+      byCustomer.set(key, cur);
+    });
+    [...byCustomer.values()].forEach(c=>pushCustomer(c.id, c.name, c.phone, c.dogs?`${c.dogs} Hund(e)`:'' ));
+  }
+
+  // 3) Legacy: state.dogs gruppiert nach owner/phone
+  if(customersOut.length===0 && Array.isArray(state.dogs) && state.dogs.length){
+    const map = new Map();
+    state.dogs.forEach(d=>{
+      if(d && d.isPlaceholder) return;
+      const owner = d.owner || d.ownerName || d.halter || '';
+      const phone = d.phone || d.telefon || '';
+      const key = stableId((owner||'')+'|'+(phone||''));
+      const cur = map.get(key) || { id: 'legacy:'+key, name: owner, phone, dogs: 0 };
+      cur.dogs += 1;
+      if(!cur.name && owner) cur.name = owner;
+      if(!cur.phone && phone) cur.phone = phone;
+      map.set(key, cur);
+    });
+    [...map.values()].forEach(c=>pushCustomer(c.id, c.name, c.phone, c.dogs?`${c.dogs} Hund(e)`:'' ));
+  }
+
+  // --- Vorlagen für Eingänge (wie besprochen) ---
+  const assignTemplates = [
+    { id: "betreuungsvertrag", name: "📝 Betreuungsvertrag" },
+    { id: "hundeannahme", name: "🐕 Hundeannahme (Aufenthalt)" },
+    { id: "tierarzt_erlaubnis", name: "💉 Tierarzt-Erlaubnis" },
+    { id: "agb_dsgvo", name: "📜 AGB / DSGVO" }
   ];
-
-  const setMsg = (txt, isErr=false)=>{
-    if(!msgEl) return;
-    msgEl.textContent = txt || '';
-    msgEl.style.color = isErr ? '#ffb3b3' : '';
-  };
 
   const fillSelect = (sel, items, getId, getLabel, emptyLabel)=>{
     sel.innerHTML = '';
@@ -1717,102 +1778,54 @@ async function wireInboxAssignments(){
     });
   };
 
-  function getInboxCustomers(){
-    // 1) Primär: echte Kundenliste
-    const a = Array.isArray(state.customers) ? state.customers.filter(c=>c && c.id) : [];
-    if(a.length) return a;
+  fillSelect(selCustomer, customersOut, c=>c.id, c=>{
+    const phone = c.phone ? ` · ${c.phone}` : '';
+    const extra = c.extra ? ` (${c.extra})` : '';
+    return `${c.name}${phone}${extra}`;
+  }, 'Keine Kunden vorhanden');
+  fillSelect(selTemplate, assignTemplates, t=>t.id, t=>t.name, 'Keine Vorlagen');
 
-    // 2) Fallback: aus pets/customerId ableiten (falls customers nicht geladen, aber pets vorhanden)
-    try{
-      const pets = Array.isArray(state.pets) ? state.pets : [];
-      const ids = Array.from(new Set(pets.map(p=>String(p?.customerId||'')).filter(Boolean)));
-      const derived = ids.map(id=>getCustomer(id)).filter(Boolean);
-      if(derived.length) return derived;
-    }catch(_){}
-
-    // 3) Legacy-Fallback: aus state.dogs nach Halter gruppieren
-    try{
-      const dogs = Array.isArray(state.dogs) ? state.dogs.filter(d=>d && !d.isPlaceholder) : [];
-      const map = new Map();
-      for(const d of dogs){
-        const name = (d.ownerName || d.halterName || d.customerName || d.kundenname || d.owner || '').trim();
-        const phone = (d.ownerPhone || d.halterTelefon || d.phone || d.telefon || '').trim();
-        const key = (name || phone) ? (name + '|' + phone) : '';
-        if(!key) continue;
-        if(!map.has(key)){
-          map.set(key, { id: key, name: name || 'Kunde', phone: phone || '' });
-        }
-      }
-      return Array.from(map.values());
-    }catch(_){}
-    return [];
-  }
-
-  const customers = getInboxCustomers();
-
-  fillSelect(
-    selCustomer,
-    customers,
-    c=>String(c.id||''),
-    c=>{
-      const name = c.name || c.kundenname || c.customerName || 'Kunde';
-      const extra = c.phone ? ` · ${c.phone}` : (c.email ? ` · ${c.email}` : '');
-      return `${name}${extra}`;
-    },
-    'Keine Kunden vorhanden'
-  );
-  fillSelect(selTemplate, templates, t=>t.id, t=>t.name, 'Keine Vorlagen');
-
-  // Button Guard
-  const refreshBtn = ()=>{
-    const ok = !!(selCustomer.value && selTemplate.value);
+  const refreshBtnState = ()=>{
+    const ok = !!selCustomer.value && !!selTemplate.value;
     btnCreate.disabled = !ok;
-    btnCreate.classList.toggle('disabled', !ok);
   };
-  selCustomer.onchange = refreshBtn;
-  selTemplate.onchange = refreshBtn;
-  refreshBtn();
-  setMsg('');
+  selCustomer.onchange = refreshBtnState;
+  selTemplate.onchange = refreshBtnState;
+  refreshBtnState();
 
   btnCreate.onclick = ()=>{
     try{
-      const customerId = (selCustomer.value||'').trim();
-      const templateId = (selTemplate.value||'').trim();
-      if(!customerId){ setMsg('Bitte zuerst einen Kunden auswählen.', true); return; }
-      if(!templateId){ setMsg('Bitte zuerst eine Vorlage auswählen.', true); return; }
-
-      ensureStateShape();
-
-      // Kunde finden (auch bei Legacy-Fallback)
-      const c = (Array.isArray(state.customers) ? state.customers : []).find(x=>String(x.id)===String(customerId))
-              || customers.find(x=>String(x.id)===String(customerId))
-              || null;
-      if(!c){ setMsg('Kunde nicht gefunden (evtl. gelöscht).', true); return; }
-
+      const customerId = selCustomer.value;
+      const templateId = selTemplate.value;
+      if(!customerId || !templateId) return;
+      const cu = customersOut.find(c=>c.id===customerId);
+      const title = (assignTemplates.find(t=>t.id===templateId)?.name || templateId);
       state.inboxAssignments = Array.isArray(state.inboxAssignments) ? state.inboxAssignments : [];
-
-      // Duplikat-Schutz: gleiche Aufgabe für den Kunden schon offen?
-      const exists = state.inboxAssignments.some(a=>String(a.customerId)===String(customerId) && a.templateId===templateId && a.status==='open');
-      if(exists){ setMsg('Diese Aufgabe ist für den Kunden bereits offen.', true); return; }
-
-      const task = {
-        id: 'asg_' + Date.now() + '_' + Math.random().toString(16).slice(2),
-        customerId: String(customerId),
-        customerName: c.name || c.kundenname || c.customerName || '',
+      // Duplikat-Schutz (pro Kunde+Template offen)
+      const dupe = state.inboxAssignments.some(a=>a && a.customerId===customerId && a.templateId===templateId && a.status!=='done');
+      if(dupe){
+        if(msgEl) msgEl.textContent = '⚠️ Aufgabe existiert bereits (offen).';
+        return;
+      }
+      const now = Date.now();
+      state.inboxAssignments.unshift({
+        id: uid(),
+        customerId,
+        customerName: cu?.name || '',
+        customerPhone: cu?.phone || '',
         templateId,
-        createdAt: Date.now(),
-        status: 'open'
-      };
-      state.inboxAssignments.unshift(task);
+        title,
+        status: 'open',
+        createdAt: now,
+        updatedAt: now,
+        source: 'manual'
+      });
       saveState();
-
-      setMsg(`✅ Aufgabe freigeschaltet: ${(task.customerName||'Kunde')} · ${templates.find(t=>t.id===templateId)?.name||templateId}`);
-      // optional: Auswahl zurücksetzen
-      selTemplate.value = '';
-      refreshBtn();
+      if(msgEl) msgEl.textContent = '✅ Aufgabe freigegeben.';
+      refreshBtnState();
     }catch(e){
       console.error(e);
-      setMsg('Fehler beim Erstellen der Aufgabe (siehe Konsole).', true);
+      alert('Fehler beim Erstellen der Aufgabe.');
     }
   };
 }
@@ -2597,10 +2610,13 @@ if(id === "calendar"){
       renderComplianceInSettings();
       renderDocVersions();
     }catch(_){ }
-    if(id === "inbox"){
-    try{ wireInboxAssignments(); }catch(_){ }
   }
-}
+
+  if(id === "inbox"){
+    try{ ensureEmbeddedTemplates(); }catch(_){ }
+    try{ wireInboxAssignments(); }catch(e){ console.warn(e); }
+    try{ wireInbox(); }catch(e){ console.warn(e); }
+  }
 }
 // ==== Dashboard / Schnellaktionen helpers ====
 function selectTab(tabId){
@@ -5696,11 +5712,47 @@ const EMBEDDED_HUNDEANNAHME_TEMPLATE = {
   ],
   meta: { embedded: true }
 };
+// vFIXD: Eingänge – eingebettete Kunden-Aufgaben (damit Vorlagen offline & ohne extra JSON existieren)
+const EMBEDDED_TASK_BETREUUNGSVERTRAG = {
+  id: "betreuungsvertrag",
+  name: "Betreuungsvertrag (Bestätigung)",
+  fields: [
+    { key: "customerName", label: "Name (Kunde)", type: "text", required: true },
+    { key: "accepted", label: "Ich bestätige, den Betreuungsvertrag gelesen zu haben.", type: "checkbox", required: true }
+  ],
+  meta: { embedded: true, kind: "customerTask" }
+};
+const EMBEDDED_TASK_TIERARZT = {
+  id: "tierarzt_erlaubnis",
+  name: "Tierarzt-Erlaubnis (Bestätigung)",
+  fields: [
+    { key: "customerName", label: "Name (Kunde)", type: "text", required: true },
+    { key: "accepted", label: "Ich erlaube im Notfall den Tierarztbesuch und Behandlungen nach Rücksprache.", type: "checkbox", required: true },
+    { key: "notes", label: "Bemerkungen (optional)", type: "textarea" }
+  ],
+  meta: { embedded: true, kind: "customerTask" }
+};
+const EMBEDDED_TASK_AGB_DSGVO = {
+  id: "agb_dsgvo",
+  name: "AGB & DSGVO (Bestätigung)",
+  fields: [
+    { key: "customerName", label: "Name (Kunde)", type: "text", required: true },
+    { key: "accepted_agb", label: "Ich akzeptiere die AGB.", type: "checkbox", required: true },
+    { key: "accepted_privacy", label: "Ich habe die Datenschutzhinweise gelesen.", type: "checkbox", required: true }
+  ],
+  meta: { embedded: true, kind: "customerTask" }
+};
+
 function ensureEmbeddedTemplates(){
   try{
     if(!Array.isArray(templates)) templates = [];
     if(!templates.some(t=>t && t.id === EMBEDDED_HUNDEANNAHME_TEMPLATE.id)){
       templates.unshift(EMBEDDED_HUNDEANNAHME_TEMPLATE);
+
+    if(!templates.some(t=>t && t.id === EMBEDDED_TASK_BETREUUNGSVERTRAG.id)) templates.unshift(EMBEDDED_TASK_BETREUUNGSVERTRAG);
+    if(!templates.some(t=>t && t.id === EMBEDDED_TASK_TIERARZT.id)) templates.unshift(EMBEDDED_TASK_TIERARZT);
+    if(!templates.some(t=>t && t.id === EMBEDDED_TASK_AGB_DSGVO.id)) templates.unshift(EMBEDDED_TASK_AGB_DSGVO);
+
     }
   }catch(_){ /* ignore */ }
 }
