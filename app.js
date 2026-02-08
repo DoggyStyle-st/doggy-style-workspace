@@ -11,7 +11,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
-const APP_BUILD = 'M48_4G3_INBOX_ASSIGN_UI_FIXA_20260208';
+const APP_BUILD = 'M48_4G3_INBOX_ASSIGN_UI_FIXB_20260208';
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 (function DS_BUILD_GUARD_RECOVERY(){
@@ -1677,19 +1677,37 @@ async function wireInboxAssignments(){
   const msgEl       = document.getElementById('assignMsg');
   if(!selCustomer || !selTemplate || !btnCreate) return;
 
-  // Optionen aus lokalem Workspace-State ziehen
   // State ist global (wird beim App-Start aus LocalStorage geladen).
-  // ensureStateShape() mutiert nur global 'state' und gibt nichts zurück.
-  // Daher hier NICHT ensureStateShape(loadState()) verwenden.
   try{ ensureStateShape(); }catch(_){ }
-  const customers = Array.isArray(state.customers) ? state.customers : [];
+
+  // Kundenliste: primär state.customers, Fallback: legacy state.dogs (Owner/Phone gruppiert)
+  const customers = (()=>{
+    const arr = Array.isArray(state.customers) ? state.customers.filter(Boolean) : [];
+    if(arr.length) return arr;
+    // legacy fallback
+    const dogs = Array.isArray(state.dogs) ? state.dogs.filter(d=>d && !d.isPlaceholder) : [];
+    const map = new Map(); // key -> customer
+    for(const d of dogs){
+      const name = (d.owner||'').trim() || 'Kunde';
+      const phone = (d.phone||'').trim();
+      const email = (d.email||'').trim();
+      const key = (name+'|'+phone+'|'+email).toLowerCase();
+      if(!map.has(key)){
+        map.set(key,{
+          id: 'c_legacy_' + Math.random().toString(16).slice(2) + '_' + Date.now(),
+          name, phone, email,
+          __legacy: true
+        });
+      }
+    }
+    return Array.from(map.values());
+  })();
 
   // Templates, die für Kunden freischaltbar sind (Basis-Version)
-  // Keys sind stabil; Anzeigenamen sind für UI.
   const templates = [
     { id: 'customer_profile', name: 'Hunde/Kunden (Kundendaten ergänzen)' },
     { id: 'boarding_contract', name: 'Betreuungsvertrag' },
-    { id: 'new_stay', name: 'Neuer Aufenthalt' }
+    { id: 'new_stay',          name: 'Neuer Aufenthalt' }
   ];
 
   const fillSelect = (sel, items, getId, getLabel, emptyLabel)=>{
@@ -1709,8 +1727,8 @@ async function wireInboxAssignments(){
     sel.appendChild(o0);
     items.forEach(it=>{
       const o = document.createElement('option');
-      o.value = getId(it);
-      o.textContent = getLabel(it);
+      o.value = String(getId(it)||'');
+      o.textContent = String(getLabel(it)||'');
       sel.appendChild(o);
     });
   };
@@ -1728,12 +1746,17 @@ async function wireInboxAssignments(){
   );
   fillSelect(selTemplate, templates, t=>t.id, t=>t.name, 'Keine Vorlagen');
 
-  const setMsg = (txt, isErr=false)=>{
+  const setMsg = (t, isErr=false)=>{
     if(!msgEl) return;
-    msgEl.textContent = txt || '';
+    msgEl.textContent = t || '';
     msgEl.style.color = isErr ? '#ffb3b3' : '';
   };
   setMsg('');
+
+  const ensureInboxShape = ()=>{
+    try{ ensureStateShape(); }catch(_){ }
+    if(!Array.isArray(state.inboxAssignments)) state.inboxAssignments = [];
+  };
 
   btnCreate.onclick = ()=>{
     try{
@@ -1742,12 +1765,17 @@ async function wireInboxAssignments(){
       if(!customerId){ setMsg('Bitte zuerst einen Kunden auswählen.', true); return; }
       if(!templateId){ setMsg('Bitte zuerst eine Vorlage auswählen.', true); return; }
 
-      try{ ensureStateShape(); }catch(_){ }
-      const c = (state.customers||[]).find(x=>x.id===customerId);
+      ensureInboxShape();
+
+      const c = (customers||[]).find(x=>String(x.id)===String(customerId));
       if(!c){ setMsg('Kunde nicht gefunden (evtl. gelöscht).', true); return; }
 
       // Duplikat-Schutz: gleiche Aufgabe für den Kunden schon offen?
-      const exists = (stateNow.inboxAssignments||[]).some(a=>a.customerId===customerId && a.templateId===templateId && a.status==='open');
+      const exists = (state.inboxAssignments||[]).some(a=>
+        String(a.customerId)===String(customerId) &&
+        String(a.templateId)===String(templateId) &&
+        String(a.status||'')==='open'
+      );
       if(exists){ setMsg('Diese Aufgabe ist für den Kunden bereits offen.', true); return; }
 
       const task = {
@@ -1758,12 +1786,12 @@ async function wireInboxAssignments(){
         createdAt: Date.now(),
         status: 'open'
       };
-      stateNow.inboxAssignments = Array.isArray(stateNow.inboxAssignments) ? stateNow.inboxAssignments : [];
-      stateNow.inboxAssignments.unshift(task);
-      saveState(stateNow);
+
+      state.inboxAssignments.unshift(task);
+      // saveState() schreibt global state; KEIN Parameter
+      saveState();
 
       setMsg(`✅ Aufgabe freigeschaltet: ${c.name||'Kunde'} · ${templates.find(t=>t.id===templateId)?.name||templateId}`);
-      // optional: Auswahl zurücksetzen
       selTemplate.value = '';
     }catch(e){
       console.error(e);
@@ -1772,7 +1800,7 @@ async function wireInboxAssignments(){
   };
 }
 
-// ===== PREISLOGIK & STAFFELUNGEN =====
+ // ===== PREISLOGIK & STAFFELUNGEN =====
 const PRICE_RULES_DEFAULT = {
   Tagesbetreuung: [
     { min: 30, price: 30 },
