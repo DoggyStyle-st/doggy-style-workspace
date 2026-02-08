@@ -1678,8 +1678,14 @@ async function wireInboxAssignments(){
   if(!selCustomer || !selTemplate || !btnCreate) return;
 
   // Optionen aus lokalem Workspace-State ziehen
-  const st = ensureStateShape(loadState());
-  const customers = Array.isArray(st.customers) ? st.customers : [];
+  // FIX: ensureStateShape() gibt nichts zurück (mutiert den globalen state).
+  // Daher zuerst aus LocalStorage laden, in state übernehmen, dann Shape sichern.
+  try{
+    const loaded = loadState();
+    if(loaded && typeof loaded === 'object') state = loaded;
+  }catch(_){ /* ignore */ }
+  ensureStateShape();
+  const customers = Array.isArray(state.customers) ? state.customers : [];
 
   // Templates, die für Kunden freischaltbar sind (Basis-Version)
   // Keys sind stabil; Anzeigenamen sind für UI.
