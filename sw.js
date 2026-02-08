@@ -1,7 +1,7 @@
 /* Doggy Style – Service Worker v11B_SAVE_PDF_17_STAY_DEBUG_OVERLAY (offline-first, update-safe) */
 
 // Version bump forces clients to pick up updated assets reliably.
-const SW_VERSION = "M40_4F6_MASTER_FREEZE_20260207";
+const SW_VERSION = "M43_4G1_CUSTOMER_PATCH_INBOX_FIX2_20260208";
 const CACHE_NAME = `ds-test-cache-${SW_VERSION}`;
 
 // Wichtig:
@@ -108,7 +108,7 @@ self.addEventListener('activate', (event)=>{
     event.waitUntil((async ()=>{
       const clients = await self.clients.matchAll({type:'window', includeUncontrolled:true});
       for (const c of clients) {
-        try { c.postMessage({type:'DS_SW_VERSION', value:'M38_4F4_DIAG_OVERLAY_20260207'}); } catch(_ ){}
+        try { c.postMessage({type:'DS_SW_VERSION', value:'M43_4G1_CUSTOMER_PATCH_INBOX_FIX2_20260208'}); } catch(_ ){}
       }
     })());
   } catch(_ ){}

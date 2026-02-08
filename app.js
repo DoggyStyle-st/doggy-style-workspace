@@ -11,12 +11,12 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
-const APP_BUILD = 'M41_4G1_CUSTOMER_PATCH_INBOX_20260208';
+const APP_BUILD = 'M43_4G1_CUSTOMER_PATCH_INBOX_FIX2_20260208';
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 (function DS_BUILD_GUARD_RECOVERY(){
   try{
-    const BUILD = (typeof APP_BUILD !== 'undefined') ? APP_BUILD : "M42_4G1_CUSTOMER_PATCH_INBOX_FIX_20260208";
+    const BUILD = (typeof APP_BUILD !== 'undefined') ? APP_BUILD : "M38_4F4_DIAG_OVERLAY_20260207";
     const meta = document.querySelector('meta[name="app-version"]');
     const htmlBuild = meta ? meta.getAttribute('content') : null;
     if(htmlBuild && htmlBuild !== BUILD){
@@ -1078,8 +1078,14 @@ async function cloudPushNow(){
   // last write wins (v1). Später: echtes Merge pro Objekt.
   try{
     const ref = cloudStateRef();
-  if(!ref) return;
-  await ref.set({
+    if(!ref){
+      // Falls kein Ref verfügbar ist (z.B. User/State noch nicht bereit),
+      // darf der globale "Sync läuft"-Status nicht hängen bleiben.
+      SYNC.cloudPending = false;
+      updateSyncUI();
+      return;
+    }
+    await ref.set({
       payload: state,
       updatedAt: stamp,
       updatedBy: CLOUD.user.email || CLOUD.user.uid
@@ -1161,40 +1167,17 @@ async function initCustomerPortal(){
     if(listEl) listEl.style.display = '';
   };
   const q = cloudTasksCol().where('customerUid','==',uid).where('status','==','open').orderBy('createdAt','desc');
-
-  async function refreshCustomerTasks(){
-    try{
-      const snap = await q.get();
-      const tasks = [];
-      snap.forEach((d)=>tasks.push({ id: d.id, ...d.data() }));
-      state.customerTasks = tasks;
-      renderCustomerHome();
-    }catch(err){
-      console.warn('[customer] tasks refresh failed', err);
-      // do NOT hard-fail the UI; keep previous state
+  q.onSnapshot((snap)=>{
+    const tasks = [];
+    snap.forEach(doc=>{ tasks.push({id: doc.id, ...doc.data()}); });
+    renderCustomerTaskList(tasks);
+    if(subtitle){
+      subtitle.textContent = tasks.length ? 'Doggy Style Hundepension hat Aufgaben für dich.' : 'Aktuell liegen keine Aufgaben für dich vor.';
     }
-  }
-
-  // Initial load
-  refreshCustomerTasks();
-
-  // Avoid Safari "page keeps loading" due to long-lived Firestore streams.
-  // We poll lightly when tab is visible & online.
-  if (window.__ds_customerTasksTimer) clearInterval(window.__ds_customerTasksTimer);
-  window.__ds_customerTasksTimer = setInterval(() => {
-    if (document.hidden) return;
-    if (!navigator.onLine) return;
-    refreshCustomerTasks();
-  }, 20000);
-
-  // When user returns to tab, refresh once
-  if (!window.__ds_customerTasksVisHook){
-    window.__ds_customerTasksVisHook = true;
-    document.addEventListener('visibilitychange', () => {
-      if (!document.hidden && navigator.onLine) refreshCustomerTasks();
-    });
-  }
-
+  }, (err)=>{
+    console.error('customer tasks listener', err);
+    if(subtitle) subtitle.textContent = 'Fehler beim Laden der Aufgaben.';
+  });
   function renderCustomerTaskList(tasks){
     if(!listEl) return;
     listEl.innerHTML = '';
@@ -12736,7 +12719,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
         el.style.boxShadow="0 6px 18px rgba(0,0,0,0.25)";
         document.body.appendChild(el);
       }
-      const BUILD = (typeof APP_BUILD!=='undefined')?APP_BUILD:"M42_4G1_CUSTOMER_PATCH_INBOX_FIX_20260208";
+      const BUILD = (typeof APP_BUILD!=='undefined')?APP_BUILD:"M38_4F4_DIAG_OVERLAY_20260207";
       const meta = document.querySelector('meta[name="app-version"]');
       const htmlBuild = meta ? meta.getAttribute('content') : "";
       const online = navigator.onLine ? "online" : "offline";
