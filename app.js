@@ -11,12 +11,12 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
-const APP_BUILD = 'M47_4G2_FIXHTML_20260208';
+const APP_BUILD = 'M48_4G3_INBOX_ASSIGN_UI_20260208';
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 (function DS_BUILD_GUARD_RECOVERY(){
   try{
-    const BUILD = (typeof APP_BUILD !== 'undefined') ? APP_BUILD : "M47_4G2_FIXHTML_20260208";
+    const BUILD = (typeof APP_BUILD !== 'undefined') ? APP_BUILD : "M48_4G3_INBOX_ASSIGN_UI_20260208";
     const meta = document.querySelector('meta[name="app-version"]');
     const htmlBuild = meta ? meta.getAttribute('content') : null;
     if(htmlBuild && htmlBuild !== BUILD){
@@ -1315,6 +1315,8 @@ async function initStaffFeatures(){
   try{ if(CLOUD.role === ROLES.ADMIN) await wireUserManagement(); }catch(e){ console.warn(e); }
   // Inbox
   try{ await wireInbox(); }catch(e){ console.warn(e); }
+  // Inbox: Aufgaben freigeben (offline-first, lokal)
+  try{ await wireInboxAssignments(); }catch(e){ console.warn(e); }
 }
 async function wireTaskCreation(){
   const selCustomer = document.getElementById('taskCustomerSelect');
@@ -1663,6 +1665,110 @@ async function wireInbox(){
   if(btnRef) btnRef.onclick = ()=>loadSubmitted().catch(console.error);
   await loadSubmitted();
 }
+
+// ===== Inbox: Aufgaben freigeben (offline-first, lokal) =====
+// Admin/Staff kann einem bestehenden Kunden eine Aufgabe/Vorlage "freischalten".
+// Diese Aufgaben landen zunächst lokal (state.inboxAssignments). Später kann das
+// 1:1 auf Firestore erweitert werden.
+async function wireInboxAssignments(){
+  const selCustomer = document.getElementById('assignCustomer');
+  const selTemplate = document.getElementById('assignTemplate');
+  const btnCreate   = document.getElementById('btnAssignTask');
+  const msgEl       = document.getElementById('assignMsg');
+  if(!selCustomer || !selTemplate || !btnCreate) return;
+
+  // Optionen aus lokalem Workspace-State ziehen
+  const st = ensureStateShape(loadState());
+  const customers = Array.isArray(st.customers) ? st.customers : [];
+
+  // Templates, die für Kunden freischaltbar sind (Basis-Version)
+  // Keys sind stabil; Anzeigenamen sind für UI.
+  const templates = [
+    { id: 'customer_profile', name: 'Hunde/Kunden (Kundendaten ergänzen)' },
+    { id: 'boarding_contract', name: 'Betreuungsvertrag' },
+    { id: 'new_stay', name: 'Neuer Aufenthalt' }
+  ];
+
+  const fillSelect = (sel, items, getId, getLabel, emptyLabel)=>{
+    sel.innerHTML = '';
+    if(!items || !items.length){
+      const o = document.createElement('option');
+      o.value = '';
+      o.textContent = emptyLabel || 'Keine Optionen';
+      sel.appendChild(o);
+      sel.disabled = true;
+      return;
+    }
+    sel.disabled = false;
+    const o0 = document.createElement('option');
+    o0.value = '';
+    o0.textContent = 'Bitte auswählen…';
+    sel.appendChild(o0);
+    items.forEach(it=>{
+      const o = document.createElement('option');
+      o.value = getId(it);
+      o.textContent = getLabel(it);
+      sel.appendChild(o);
+    });
+  };
+
+  fillSelect(
+    selCustomer,
+    customers,
+    c=>c.id,
+    c=>{
+      const name = c.name || 'Kunde';
+      const extra = c.phone ? ` · ${c.phone}` : (c.email ? ` · ${c.email}` : '');
+      return `${name}${extra}`;
+    },
+    'Keine Kunden vorhanden'
+  );
+  fillSelect(selTemplate, templates, t=>t.id, t=>t.name, 'Keine Vorlagen');
+
+  const setMsg = (txt, isErr=false)=>{
+    if(!msgEl) return;
+    msgEl.textContent = txt || '';
+    msgEl.style.color = isErr ? '#ffb3b3' : '';
+  };
+  setMsg('');
+
+  btnCreate.onclick = ()=>{
+    try{
+      const customerId = (selCustomer.value||'').trim();
+      const templateId = (selTemplate.value||'').trim();
+      if(!customerId){ setMsg('Bitte zuerst einen Kunden auswählen.', true); return; }
+      if(!templateId){ setMsg('Bitte zuerst eine Vorlage auswählen.', true); return; }
+
+      const stateNow = ensureStateShape(loadState());
+      const c = (stateNow.customers||[]).find(x=>x.id===customerId);
+      if(!c){ setMsg('Kunde nicht gefunden (evtl. gelöscht).', true); return; }
+
+      // Duplikat-Schutz: gleiche Aufgabe für den Kunden schon offen?
+      const exists = (stateNow.inboxAssignments||[]).some(a=>a.customerId===customerId && a.templateId===templateId && a.status==='open');
+      if(exists){ setMsg('Diese Aufgabe ist für den Kunden bereits offen.', true); return; }
+
+      const task = {
+        id: 'asg_' + Date.now() + '_' + Math.random().toString(16).slice(2),
+        customerId,
+        customerName: c.name || '',
+        templateId,
+        createdAt: Date.now(),
+        status: 'open'
+      };
+      stateNow.inboxAssignments = Array.isArray(stateNow.inboxAssignments) ? stateNow.inboxAssignments : [];
+      stateNow.inboxAssignments.unshift(task);
+      saveState(stateNow);
+
+      setMsg(`✅ Aufgabe freigeschaltet: ${c.name||'Kunde'} · ${templates.find(t=>t.id===templateId)?.name||templateId}`);
+      // optional: Auswahl zurücksetzen
+      selTemplate.value = '';
+    }catch(e){
+      console.error(e);
+      setMsg('Fehler beim Erstellen der Aufgabe (siehe Konsole).', true);
+    }
+  };
+}
+
 // ===== PREISLOGIK & STAFFELUNGEN =====
 const PRICE_RULES_DEFAULT = {
   Tagesbetreuung: [
@@ -6422,6 +6528,10 @@ state._legacy = (state._legacy && typeof state._legacy === "object") ? state._le
     if(typeof state.capacities.default.Tagesbetreuung !== "number") state.capacities.default.Tagesbetreuung = CAPACITY.Tagesbetreuung;
     if(typeof state.capacities.default.Urlaubsbetreuung !== "number") state.capacities.default.Urlaubsbetreuung = CAPACITY.Urlaubsbetreuung;
   }
+
+  // Inbox / Kunden-Portal (offline-first)
+  if(!Array.isArray(state.inboxAssignments)) state.inboxAssignments = [];
+  if(!Array.isArray(state.inboxSubmissions)) state.inboxSubmissions = [];
 }
 function ensureContractDefaults(){
   if(!state.contract || typeof state.contract !== "object"){
@@ -12534,7 +12644,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
         el.style.boxShadow="0 6px 18px rgba(0,0,0,0.25)";
         document.body.appendChild(el);
       }
-      const BUILD = (typeof APP_BUILD!=='undefined')?APP_BUILD:"M47_4G2_FIXHTML_20260208";
+      const BUILD = (typeof APP_BUILD!=='undefined')?APP_BUILD:"M48_4G3_INBOX_ASSIGN_UI_20260208";
       const meta = document.querySelector('meta[name="app-version"]');
       const htmlBuild = meta ? meta.getAttribute('content') : "";
       const online = navigator.onLine ? "online" : "offline";
