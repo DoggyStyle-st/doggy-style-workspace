@@ -11,12 +11,12 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
-const APP_BUILD = 'M46_4G2_INBOX_TASKS_LOCALCUSTOMERS_20260208';
+const APP_BUILD = 'M47_4G2_FIXHTML_20260208';
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 (function DS_BUILD_GUARD_RECOVERY(){
   try{
-    const BUILD = (typeof APP_BUILD !== 'undefined') ? APP_BUILD : "M46_4G2_INBOX_TASKS_LOCALCUSTOMERS_20260208";
+    const BUILD = (typeof APP_BUILD !== 'undefined') ? APP_BUILD : "M47_4G2_FIXHTML_20260208";
     const meta = document.querySelector('meta[name="app-version"]');
     const htmlBuild = meta ? meta.getAttribute('content') : null;
     if(htmlBuild && htmlBuild !== BUILD){
@@ -12534,7 +12534,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
         el.style.boxShadow="0 6px 18px rgba(0,0,0,0.25)";
         document.body.appendChild(el);
       }
-      const BUILD = (typeof APP_BUILD!=='undefined')?APP_BUILD:"M46_4G2_INBOX_TASKS_LOCALCUSTOMERS_20260208";
+      const BUILD = (typeof APP_BUILD!=='undefined')?APP_BUILD:"M47_4G2_FIXHTML_20260208";
       const meta = document.querySelector('meta[name="app-version"]');
       const htmlBuild = meta ? meta.getAttribute('content') : "";
       const online = navigator.onLine ? "online" : "offline";
