@@ -11,7 +11,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
-const APP_BUILD = 'M40_4F6_MASTER_FREEZE_20260207';
+const APP_BUILD = 'M41_4G1_CUSTOMER_PATCH_INBOX_20260208';
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 (function DS_BUILD_GUARD_RECOVERY(){
@@ -1213,28 +1213,56 @@ async function initCustomerPortal(){
       fields: (task.payloadDraft?.fields || task.payloadSubmitted?.fields || {}),
       meta: (task.payloadDraft?.meta || task.payloadSubmitted?.meta || {})
     };
+    const baseFields = (task.baseSnapshot && task.baseSnapshot.fields) ? task.baseSnapshot.fields : {};
+
     // Render
     if(root) root.innerHTML = '';
-    const renderFieldSimple = (f, value, bucket)=>{
-      const wrap=document.createElement('label');
-      wrap.className='field'; wrap.style.minWidth='260px';
-      wrap.dataset.key = f.key;
-      wrap.innerHTML=`<span>${escapeHtml(f.label)}${f.required?" *":""}</span>`;
-      let input;
-      if(f.type==='textarea'){ input=document.createElement('textarea'); input.value=value||''; }
-      else if(f.type==='select'){
-        input=document.createElement('select');
-        input.innerHTML=(f.options||[]).map(o=>`<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join('');
-        input.value=value || (f.options?.[0]||'');
-      }
-      else if(f.type==='checkbox'){ input=document.createElement('input'); input.type='checkbox'; input.checked=!!value; input.style.width='22px'; input.style.height='22px'; }
-      else { input=document.createElement('input'); input.type=f.type||'text'; input.value=value||''; }
-      input.dataset.key = f.key;
-      input.oninput = ()=>{ bucket[f.key] = (f.type==='checkbox')?input.checked:input.value; scheduleDraftSave(); };
-      input.onchange = ()=>{ bucket[f.key] = (f.type==='checkbox')?input.checked:input.value; scheduleDraftSave(); };
-      wrap.appendChild(input);
-      return wrap;
-    };
+    
+const renderFieldSimple = (f, value, bucket)=>{
+  const wrap=document.createElement('label');
+  wrap.className='field'; wrap.style.minWidth='260px';
+  wrap.dataset.key = f.key;
+  wrap.innerHTML=`<span>${escapeHtml(f.label)}${f.required?" *":""}</span>`;
+
+  const baseVal = baseFields[f.key];
+  const isLocked = (baseVal !== undefined && baseVal !== null && String(baseVal).trim() !== '');
+  const v = isLocked ? baseVal : value;
+
+  let input;
+  if(f.type==='textarea'){
+    input=document.createElement('textarea');
+    input.value=v||'';
+  }
+  else if(f.type==='select'){
+    input=document.createElement('select');
+    input.innerHTML=(f.options||[]).map(o=>`<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join('');
+    input.value=(v!==undefined && v!==null && v!=='') ? v : (f.options?.[0]||'');
+  }
+  else if(f.type==='checkbox'){
+    input=document.createElement('input');
+    input.type='checkbox';
+    input.checked=!!v;
+    input.style.width='22px'; input.style.height='22px';
+  }
+  else {
+    input=document.createElement('input');
+    input.type=f.type||'text';
+    input.value=v||'';
+  }
+
+  if(isLocked){
+    input.disabled = true;
+    input.title = 'Dieses Feld wurde bereits von Doggy Style ausgefüllt und ist für dich gesperrt.';
+    wrap.classList.add('locked');
+  }else{
+    input.dataset.key = f.key;
+    input.oninput = ()=>{ bucket[f.key] = (f.type==='checkbox')?input.checked:input.value; scheduleDraftSave(); };
+    input.onchange = ()=>{ bucket[f.key] = (f.type==='checkbox')?input.checked:input.value; scheduleDraftSave(); };
+  }
+
+  wrap.appendChild(input);
+  return wrap;
+};
     const build = ()=>{
       if(!root) return;
       root.innerHTML='';
@@ -1276,8 +1304,23 @@ async function initCustomerPortal(){
     if(btnSubmit) btnSubmit.onclick = async ()=>{
       if(!confirm('Formular absenden? Danach kann es nicht mehr geändert werden.')) return;
       try{
-        await cloudTasksCol().doc(task.id).set({
-          payloadSubmitted: { fields: working.fields, meta: working.meta },
+
+// Nur Felder absenden, die zum Zeitpunkt der Freigabe leer waren (alles andere ist gesperrt).
+const submitFields = {};
+(t.sections||[]).forEach(sec=>{
+  (sec.fields||[]).forEach(f=>{
+    const baseVal = baseFields[f.key];
+    const locked = (baseVal !== undefined && baseVal !== null && String(baseVal).trim() !== '');
+    if(!locked){
+      const val = working.fields[f.key];
+      if(val !== undefined) submitFields[f.key] = val;
+    }
+  });
+});
+const submitMeta = {};
+(t.meta||[]).forEach(f=>{ submitMeta[f.key] = working.meta[f.key]; });
+await cloudTasksCol().doc(task.id).set({
+  payloadSubmitted: { fields: submitFields, meta: submitMeta },
           status: 'submitted',
           submittedAt: Date.now(),
           updatedAt: Date.now()
@@ -1326,6 +1369,57 @@ async function wireTaskCreation(){
   const btnMoreCustomers = document.getElementById('btnCustomersMore');
   const customerCountEl = document.getElementById('taskCustomerCount');
   if(!selCustomer || !selTemplate || !btnCreate) return;
+
+// Ziel-Datensatz (nur für Kunden-Patch-Vorlagen)
+const patchTargetWrap = document.createElement('div');
+patchTargetWrap.style.marginTop = '10px';
+patchTargetWrap.style.display = 'none';
+patchTargetWrap.innerHTML = `
+  <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+    <label style="min-width:260px;">
+      <div style="opacity:.85; font-size:12px; margin-bottom:4px;">Ziel: Kunde (Datensatz)</div>
+      <select id="taskTargetCustomerRecord" style="min-width:260px;"></select>
+    </label>
+    <label style="min-width:260px;">
+      <div style="opacity:.85; font-size:12px; margin-bottom:4px;">Ziel: Hund (Datensatz)</div>
+      <select id="taskTargetDogRecord" style="min-width:260px;"></select>
+    </label>
+    <div style="opacity:.75; font-size:12px;">Hinweis: Nur Felder ohne vorhandene Eingabe werden für den Kunden editierbar.</div>
+  </div>
+`;
+// Direkt nach der Vorlagen-Auswahl einfügen
+selTemplate.parentElement?.appendChild(patchTargetWrap);
+const selTargetCustomerRecord = patchTargetWrap.querySelector('#taskTargetCustomerRecord');
+const selTargetDogRecord = patchTargetWrap.querySelector('#taskTargetDogRecord');
+
+const isPatchTemplate = (tid)=>['customer_profile_patch','dog_profile_patch','customer_contract_confirm','customer_stay_request'].includes(String(tid||''));
+const refreshTargetOptions = ()=>{
+  // Optionen aus lokalen Datensätzen
+  const custList = Object.values((STATE && STATE.customers) ? STATE.customers : {}).sort((a,b)=>String(a.fullName||'').localeCompare(String(b.fullName||'')));
+  const dogList = Object.values((STATE && STATE.dogs) ? STATE.dogs : {}).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||'')));
+  if(selTargetCustomerRecord){
+    selTargetCustomerRecord.innerHTML = '<option value="">(bitte wählen)</option>' + custList.map(c=>`<option value="${escapeHtml(c.id)}">${escapeHtml((c.fullName||'(ohne Name)') + ' – ' + (c.phone||''))}</option>`).join('');
+  }
+  if(selTargetDogRecord){
+    selTargetDogRecord.innerHTML = '<option value="">(optional)</option>' + dogList.map(d=>`<option value="${escapeHtml(d.id)}">${escapeHtml((d.name||'(ohne Name)') + ' – ' + (d.breed||''))}</option>`).join('');
+  }
+};
+
+const updatePatchUiVisibility = ()=>{
+  const tid = selTemplate.value;
+  if(!isPatchTemplate(tid)){
+    patchTargetWrap.style.display = 'none';
+    return;
+  }
+  patchTargetWrap.style.display = '';
+  refreshTargetOptions();
+  // Template-spezifisch: Hund-Auswahl nur für Dog/Stay
+  const showDog = (tid==='dog_profile_patch' || tid==='customer_stay_request');
+  if(selTargetDogRecord) selTargetDogRecord.closest('label').style.display = showDog ? '' : 'none';
+  const showCustomer = (tid==='customer_profile_patch' || tid==='customer_contract_confirm' || tid==='customer_stay_request');
+  if(selTargetCustomerRecord) selTargetCustomerRecord.closest('label').style.display = showCustomer ? '' : 'none';
+};
+selTemplate.addEventListener('change', updatePatchUiVisibility);
   // Templates laden (Vorlagen)
   try{
     await loadTemplates();
@@ -1339,6 +1433,7 @@ async function wireTaskCreation(){
     console.warn('templates load', e);
     selTemplate.innerHTML = '<option value="">(keine Vorlagen)</option>';
   }
+  updatePatchUiVisibility();
   // Customers (mit Suche + "Mehr laden")
   let _allCustomers = [];
   let _custLastDoc = null;
@@ -1406,6 +1501,50 @@ async function wireTaskCreation(){
     const customerUid = selCustomer.value;
     const templateId = selTemplate.value;
     const tpl = getTemplate(templateId);
+
+// Optional: Ziel-Datensatz + Basissnapshot für Kunden-Patch-Vorlagen
+let baseSnapshot = null;
+if(templateId === 'customer_profile_patch'){
+  const cid = selTargetCustomerRec ? selTargetCustomerRec.value : '';
+  if(!cid){
+    if(msgEl) msgEl.textContent = 'Bitte Ziel-Kunde (Datensatz) wählen.';
+    return;
+  }
+  const c = (state.customers||[]).find(x=>x.id===cid) || null;
+  baseSnapshot = { kind:'customer', recordId: cid, fields: {
+    fullName: c?.fullName||'',
+    phone: c?.phone||'',
+    email: c?.email||'',
+    street: c?.street||'',
+    zip: c?.zip||'',
+    city: c?.city||'',
+    emergencyName: c?.emergencyName||'',
+    emergencyPhone: c?.emergencyPhone||'',
+    notes: c?.notes||''
+  }};
+}
+if(templateId === 'dog_profile_patch'){
+  const did = selTargetDogRec ? selTargetDogRec.value : '';
+  if(!did){
+    if(msgEl) msgEl.textContent = 'Bitte Ziel-Hund wählen.';
+    return;
+  }
+  const d = (state.dogs||[]).find(x=>x.id===did) || null;
+  baseSnapshot = { kind:'dog', recordId: did, fields: {
+    name: d?.name||'',
+    breed: d?.breed||'',
+    color: d?.color||'',
+    sex: d?.sex||'',
+    birthdate: d?.birthdate||'',
+    chip: d?.chip||'',
+    allergies: d?.allergies||'',
+    meds: d?.meds||'',
+    vet: d?.vet||'',
+    vetPhone: d?.vetPhone||'',
+    notes: d?.notes||''
+  }};
+}
+
     const title = (titleInput?.value||'').trim()
       || (tpl?.name ? (tpl.name+' – Ausfüllen') : 'Formular ausfüllen');
     if(!customerUid || !templateId){
@@ -1418,6 +1557,7 @@ async function wireTaskCreation(){
         customerUid,
         templateId,
         title,
+        baseSnapshot,
         status: 'open',
         createdAt: Date.now(),
         createdByUid: CLOUD.user?.uid || '',
@@ -1590,9 +1730,45 @@ async function wireInbox(){
     const payload = currentTask.payloadSubmitted || currentTask.payloadDraft;
     if(!payload){ alert('Kein Inhalt vorhanden.'); return; }
     const templateId = currentTask.templateId;
-    const t = getTemplate(templateId);
-    if(!t){ alert('Vorlage nicht gefunden.'); return; }
-    // in Workspace als neues Dokument übernehmen
+
+const t = getTemplate(templateId);
+if(!t){ alert('Vorlage nicht gefunden.'); return; }
+
+// Special: Kunden-/Hund-Patch -> als Vorschlag in Eingänge prüfen, dann in Stammdaten übernehmen
+if(templateId === 'customer_profile_patch' || templateId === 'dog_profile_patch'){
+  const target = (payload.meta && payload.meta._target) ? payload.meta._target : (currentTask.baseSnapshot ? {kind: currentTask.baseSnapshot.kind, recordId: currentTask.baseSnapshot.recordId} : null);
+  if(!target || !target.recordId){ alert('Kein Ziel-Datensatz hinterlegt.'); return; }
+  const kind = target.kind;
+  const recordId = target.recordId;
+  const fields = payload.fields || {};
+  let rec = null;
+  if(kind === 'customer') rec = (state.customers || []).find(x=>x.id===recordId);
+  if(kind === 'dog') rec = (state.dogs || []).find(x=>x.id===recordId);
+  if(!rec){ alert('Ziel-Datensatz nicht gefunden (Stammdaten).'); return; }
+  let applied = 0;
+  Object.keys(fields).forEach(k=>{
+    const v = fields[k];
+    if(v===null || v===undefined) return;
+    const vs = (typeof v === 'string') ? v.trim() : v;
+    if(vs === '') return;
+    const cur = rec[k];
+    const curS = (cur===null || cur===undefined) ? '' : String(cur).trim();
+    // Sicherheit: nur ergänzen, nicht überschreiben
+    if(curS !== '') return;
+    rec[k] = v;
+    applied++;
+  });
+  saveState();
+  try{ await cloudPushNow(); }catch(_){ }
+  try{ await cloudTasksCol().doc(currentTask.id).set({status:'closed', closedAt: Date.now(), adoptedInto: kind, adoptedRecordId: recordId, adoptedFieldCount: applied, updatedAt: Date.now()}, {merge:true}); }catch(_){ }
+  alert('✅ Übernommen: '+applied+' Feld(er) ergänzt.');
+  if(detail) detail.style.display='none';
+  if(listEl) listEl.style.display='';
+  await loadSubmitted();
+  return;
+}
+
+// in Workspace als neues Dokument übernehmen
     const now = new Date().toISOString();
     const docObj = {
       id: uid(),
@@ -5500,12 +5676,53 @@ const EMBEDDED_HUNDEANNAHME_TEMPLATE = {
   ],
   meta: { embedded: true }
 };
+
+// --- Kunden-Portal: Änderungs-Formulare (werden als Aufgaben an Kunden freigeschaltet) ---
+const EMBEDDED_CUSTOMER_PROFILE_TEMPLATE = {
+  id: "customer_profile_patch",
+  name: "Kundenprofil ergänzen (nur leere Felder)",
+  version: 1,
+  fields: [
+    { key: "fullName", label: "Name", type: "text" },
+    { key: "phone", label: "Telefon", type: "text" },
+    { key: "email", label: "E-Mail", type: "text" },
+    { key: "street", label: "Straße / Nr.", type: "text" },
+    { key: "zip", label: "PLZ", type: "text" },
+    { key: "city", label: "Ort", type: "text" },
+    { key: "emergencyName", label: "Notfallkontakt Name", type: "text" },
+    { key: "emergencyPhone", label: "Notfallkontakt Telefon", type: "text" },
+    { key: "notes", label: "Notizen (vom Kunden)", type: "textarea" }
+  ],
+  meta: { embedded: true, customerPortal: true, patchKind: "customer" }
+};
+const EMBEDDED_DOG_PROFILE_TEMPLATE = {
+  id: "dog_profile_patch",
+  name: "Hundedaten ergänzen (nur leere Felder)",
+  version: 1,
+  fields: [
+    { key: "name", label: "Name", type: "text" },
+    { key: "breed", label: "Rasse", type: "text" },
+    { key: "sex", label: "Geschlecht", type: "select", options: ["Rüde", "Hündin", ""] },
+    { key: "birthdate", label: "Geburtsdatum", type: "date" },
+    { key: "chip", label: "Chipnummer", type: "text" },
+    { key: "color", label: "Farbe", type: "text" },
+    { key: "weight", label: "Gewicht (kg)", type: "text" },
+    { key: "allergies", label: "Allergien", type: "textarea" },
+    { key: "meds", label: "Medikamente", type: "textarea" },
+    { key: "vet", label: "Tierarzt", type: "text" },
+    { key: "vetPhone", label: "Tierarzt Telefon", type: "text" },
+    { key: "notes", label: "Notizen (vom Kunden)", type: "textarea" }
+  ],
+  meta: { embedded: true, customerPortal: true, patchKind: "dog" }
+};
 function ensureEmbeddedTemplates(){
   try{
     if(!Array.isArray(templates)) templates = [];
-    if(!templates.some(t=>t && t.id === EMBEDDED_HUNDEANNAHME_TEMPLATE.id)){
-      templates.unshift(EMBEDDED_HUNDEANNAHME_TEMPLATE);
-    }
+    // Reihenfolge: Patch-Formulare (Kundenportal) zuerst, dann Hundeannahme
+    [EMBEDDED_CUSTOMER_PROFILE_TEMPLATE, EMBEDDED_DOG_PROFILE_TEMPLATE, EMBEDDED_HUNDEANNAHME_TEMPLATE].forEach(tpl=>{
+      if(!tpl) return;
+      if(!templates.some(t=>t && t.id === tpl.id)) templates.unshift(tpl);
+    });
   }catch(_){ /* ignore */ }
 }
 function normalizeTemplate(t){
