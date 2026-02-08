@@ -11,7 +11,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
-const APP_BUILD = 'M48_4G3_INBOX_ASSIGN_UI_FIXB_20260208';
+const APP_BUILD = 'M48_4G3_INBOX_ASSIGN_UI_FIXC_20260208';
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 (function DS_BUILD_GUARD_RECOVERY(){
@@ -1670,6 +1670,7 @@ async function wireInbox(){
 // Admin/Staff kann einem bestehenden Kunden eine Aufgabe/Vorlage "freischalten".
 // Diese Aufgaben landen zunächst lokal (state.inboxAssignments). Später kann das
 // 1:1 auf Firestore erweitert werden.
+
 async function wireInboxAssignments(){
   const selCustomer = document.getElementById('assignCustomer');
   const selTemplate = document.getElementById('assignTemplate');
@@ -1677,38 +1678,21 @@ async function wireInboxAssignments(){
   const msgEl       = document.getElementById('assignMsg');
   if(!selCustomer || !selTemplate || !btnCreate) return;
 
-  // State ist global (wird beim App-Start aus LocalStorage geladen).
-  try{ ensureStateShape(); }catch(_){ }
+  // Immer mit dem aktuellen globalen State arbeiten (loadState() liefert nur ein Objekt,
+  // saveState() speichert nur den globalen state).
+  ensureStateShape();
 
-  // Kundenliste: primär state.customers, Fallback: legacy state.dogs (Owner/Phone gruppiert)
-  const customers = (()=>{
-    const arr = Array.isArray(state.customers) ? state.customers.filter(Boolean) : [];
-    if(arr.length) return arr;
-    // legacy fallback
-    const dogs = Array.isArray(state.dogs) ? state.dogs.filter(d=>d && !d.isPlaceholder) : [];
-    const map = new Map(); // key -> customer
-    for(const d of dogs){
-      const name = (d.owner||'').trim() || 'Kunde';
-      const phone = (d.phone||'').trim();
-      const email = (d.email||'').trim();
-      const key = (name+'|'+phone+'|'+email).toLowerCase();
-      if(!map.has(key)){
-        map.set(key,{
-          id: 'c_legacy_' + Math.random().toString(16).slice(2) + '_' + Date.now(),
-          name, phone, email,
-          __legacy: true
-        });
-      }
-    }
-    return Array.from(map.values());
-  })();
-
-  // Templates, die für Kunden freischaltbar sind (Basis-Version)
   const templates = [
     { id: 'customer_profile', name: 'Hunde/Kunden (Kundendaten ergänzen)' },
     { id: 'boarding_contract', name: 'Betreuungsvertrag' },
-    { id: 'new_stay',          name: 'Neuer Aufenthalt' }
+    { id: 'new_stay', name: 'Neuer Aufenthalt' }
   ];
+
+  const setMsg = (txt, isErr=false)=>{
+    if(!msgEl) return;
+    msgEl.textContent = txt || '';
+    msgEl.style.color = isErr ? '#ffb3b3' : '';
+  };
 
   const fillSelect = (sel, items, getId, getLabel, emptyLabel)=>{
     sel.innerHTML = '';
@@ -1727,18 +1711,51 @@ async function wireInboxAssignments(){
     sel.appendChild(o0);
     items.forEach(it=>{
       const o = document.createElement('option');
-      o.value = String(getId(it)||'');
-      o.textContent = String(getLabel(it)||'');
+      o.value = getId(it);
+      o.textContent = getLabel(it);
       sel.appendChild(o);
     });
   };
 
+  function getInboxCustomers(){
+    // 1) Primär: echte Kundenliste
+    const a = Array.isArray(state.customers) ? state.customers.filter(c=>c && c.id) : [];
+    if(a.length) return a;
+
+    // 2) Fallback: aus pets/customerId ableiten (falls customers nicht geladen, aber pets vorhanden)
+    try{
+      const pets = Array.isArray(state.pets) ? state.pets : [];
+      const ids = Array.from(new Set(pets.map(p=>String(p?.customerId||'')).filter(Boolean)));
+      const derived = ids.map(id=>getCustomer(id)).filter(Boolean);
+      if(derived.length) return derived;
+    }catch(_){}
+
+    // 3) Legacy-Fallback: aus state.dogs nach Halter gruppieren
+    try{
+      const dogs = Array.isArray(state.dogs) ? state.dogs.filter(d=>d && !d.isPlaceholder) : [];
+      const map = new Map();
+      for(const d of dogs){
+        const name = (d.ownerName || d.halterName || d.customerName || d.kundenname || d.owner || '').trim();
+        const phone = (d.ownerPhone || d.halterTelefon || d.phone || d.telefon || '').trim();
+        const key = (name || phone) ? (name + '|' + phone) : '';
+        if(!key) continue;
+        if(!map.has(key)){
+          map.set(key, { id: key, name: name || 'Kunde', phone: phone || '' });
+        }
+      }
+      return Array.from(map.values());
+    }catch(_){}
+    return [];
+  }
+
+  const customers = getInboxCustomers();
+
   fillSelect(
     selCustomer,
     customers,
-    c=>c.id,
+    c=>String(c.id||''),
     c=>{
-      const name = c.name || 'Kunde';
+      const name = c.name || c.kundenname || c.customerName || 'Kunde';
       const extra = c.phone ? ` · ${c.phone}` : (c.email ? ` · ${c.email}` : '');
       return `${name}${extra}`;
     },
@@ -1746,17 +1763,16 @@ async function wireInboxAssignments(){
   );
   fillSelect(selTemplate, templates, t=>t.id, t=>t.name, 'Keine Vorlagen');
 
-  const setMsg = (t, isErr=false)=>{
-    if(!msgEl) return;
-    msgEl.textContent = t || '';
-    msgEl.style.color = isErr ? '#ffb3b3' : '';
+  // Button Guard
+  const refreshBtn = ()=>{
+    const ok = !!(selCustomer.value && selTemplate.value);
+    btnCreate.disabled = !ok;
+    btnCreate.classList.toggle('disabled', !ok);
   };
+  selCustomer.onchange = refreshBtn;
+  selTemplate.onchange = refreshBtn;
+  refreshBtn();
   setMsg('');
-
-  const ensureInboxShape = ()=>{
-    try{ ensureStateShape(); }catch(_){ }
-    if(!Array.isArray(state.inboxAssignments)) state.inboxAssignments = [];
-  };
 
   btnCreate.onclick = ()=>{
     try{
@@ -1765,34 +1781,35 @@ async function wireInboxAssignments(){
       if(!customerId){ setMsg('Bitte zuerst einen Kunden auswählen.', true); return; }
       if(!templateId){ setMsg('Bitte zuerst eine Vorlage auswählen.', true); return; }
 
-      ensureInboxShape();
+      ensureStateShape();
 
-      const c = (customers||[]).find(x=>String(x.id)===String(customerId));
+      // Kunde finden (auch bei Legacy-Fallback)
+      const c = (Array.isArray(state.customers) ? state.customers : []).find(x=>String(x.id)===String(customerId))
+              || customers.find(x=>String(x.id)===String(customerId))
+              || null;
       if(!c){ setMsg('Kunde nicht gefunden (evtl. gelöscht).', true); return; }
 
+      state.inboxAssignments = Array.isArray(state.inboxAssignments) ? state.inboxAssignments : [];
+
       // Duplikat-Schutz: gleiche Aufgabe für den Kunden schon offen?
-      const exists = (state.inboxAssignments||[]).some(a=>
-        String(a.customerId)===String(customerId) &&
-        String(a.templateId)===String(templateId) &&
-        String(a.status||'')==='open'
-      );
+      const exists = state.inboxAssignments.some(a=>String(a.customerId)===String(customerId) && a.templateId===templateId && a.status==='open');
       if(exists){ setMsg('Diese Aufgabe ist für den Kunden bereits offen.', true); return; }
 
       const task = {
         id: 'asg_' + Date.now() + '_' + Math.random().toString(16).slice(2),
-        customerId,
-        customerName: c.name || '',
+        customerId: String(customerId),
+        customerName: c.name || c.kundenname || c.customerName || '',
         templateId,
         createdAt: Date.now(),
         status: 'open'
       };
-
       state.inboxAssignments.unshift(task);
-      // saveState() schreibt global state; KEIN Parameter
       saveState();
 
-      setMsg(`✅ Aufgabe freigeschaltet: ${c.name||'Kunde'} · ${templates.find(t=>t.id===templateId)?.name||templateId}`);
+      setMsg(`✅ Aufgabe freigeschaltet: ${(task.customerName||'Kunde')} · ${templates.find(t=>t.id===templateId)?.name||templateId}`);
+      // optional: Auswahl zurücksetzen
       selTemplate.value = '';
+      refreshBtn();
     }catch(e){
       console.error(e);
       setMsg('Fehler beim Erstellen der Aufgabe (siehe Konsole).', true);
@@ -1800,7 +1817,8 @@ async function wireInboxAssignments(){
   };
 }
 
- // ===== PREISLOGIK & STAFFELUNGEN =====
+
+// ===== PREISLOGIK & STAFFELUNGEN =====
 const PRICE_RULES_DEFAULT = {
   Tagesbetreuung: [
     { min: 30, price: 30 },
@@ -2579,7 +2597,10 @@ if(id === "calendar"){
       renderComplianceInSettings();
       renderDocVersions();
     }catch(_){ }
+    if(id === "inbox"){
+    try{ wireInboxAssignments(); }catch(_){ }
   }
+}
 }
 // ==== Dashboard / Schnellaktionen helpers ====
 function selectTab(tabId){
