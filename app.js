@@ -11,7 +11,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
-const APP_BUILD = 'M48_4G3_INBOX_ASSIGN_UI_20260208';
+const APP_BUILD = 'M48_4G3_INBOX_ASSIGN_UI_FIXA_20260208';
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 (function DS_BUILD_GUARD_RECOVERY(){
@@ -1678,13 +1678,10 @@ async function wireInboxAssignments(){
   if(!selCustomer || !selTemplate || !btnCreate) return;
 
   // Optionen aus lokalem Workspace-State ziehen
-  // FIX: ensureStateShape() gibt nichts zurück (mutiert den globalen state).
-  // Daher zuerst aus LocalStorage laden, in state übernehmen, dann Shape sichern.
-  try{
-    const loaded = loadState();
-    if(loaded && typeof loaded === 'object') state = loaded;
-  }catch(_){ /* ignore */ }
-  ensureStateShape();
+  // State ist global (wird beim App-Start aus LocalStorage geladen).
+  // ensureStateShape() mutiert nur global 'state' und gibt nichts zurück.
+  // Daher hier NICHT ensureStateShape(loadState()) verwenden.
+  try{ ensureStateShape(); }catch(_){ }
   const customers = Array.isArray(state.customers) ? state.customers : [];
 
   // Templates, die für Kunden freischaltbar sind (Basis-Version)
@@ -1745,8 +1742,8 @@ async function wireInboxAssignments(){
       if(!customerId){ setMsg('Bitte zuerst einen Kunden auswählen.', true); return; }
       if(!templateId){ setMsg('Bitte zuerst eine Vorlage auswählen.', true); return; }
 
-      const stateNow = ensureStateShape(loadState());
-      const c = (stateNow.customers||[]).find(x=>x.id===customerId);
+      try{ ensureStateShape(); }catch(_){ }
+      const c = (state.customers||[]).find(x=>x.id===customerId);
       if(!c){ setMsg('Kunde nicht gefunden (evtl. gelöscht).', true); return; }
 
       // Duplikat-Schutz: gleiche Aufgabe für den Kunden schon offen?
