@@ -1180,6 +1180,9 @@ async function initCustomerPortal(){
   });
   function renderCustomerTaskList(tasks){
     if(!listEl) return;
+
+  // Task-Freigabe (Admin/Staff)
+  try{ await wireInboxTaskCreation(); }catch(e){ console.warn('wireInboxTaskCreation failed', e); }
     listEl.innerHTML = '';
     if(!tasks.length){
       listEl.innerHTML = `<div class="muted">— keine Aufgaben —</div>`;
@@ -1635,6 +1638,108 @@ async function wireUserManagement(){
   };
   if(btnRef) btnRef.onclick = ()=>load().catch(e=>{ console.error(e); if(msgEl) msgEl.textContent='❌ Laden fehlgeschlagen.'; });
   await load();
+}
+
+async function wireInboxTaskCreation(){
+  const selCustomer = document.getElementById('inboxTaskCustomerSelect');
+  const selTemplate = document.getElementById('inboxTaskTemplateSelect');
+  const btnCreate   = document.getElementById('inboxTaskCreateBtn');
+  const msgEl       = document.getElementById('inboxTaskMsg');
+  if(!selCustomer || !selTemplate || !btnCreate) return;
+
+  // Always show at least a placeholder to avoid iOS "Keine Optionen".
+  const setCustomerOptions = (items)=>{
+    const safe = Array.isArray(items) ? items : [];
+    const opts = ['<option value="" selected>— Kunde wählen —</option>']
+      .concat(safe.map(u=>`<option value="${escapeHtml(u.uid||u.id)}">${escapeHtml(u.label||u.email||u.name||u.uid||u.id)}</option>`));
+    selCustomer.innerHTML = opts.join('');
+  };
+  const setTemplateOptions = (items)=>{
+    const safe = Array.isArray(items) ? items : [];
+    const opts = ['<option value="" selected>— Formular/Vorlage —</option>']
+      .concat(safe.map(t=>`<option value="${escapeHtml(t.id)}">${escapeHtml(t.name||t.id)}</option>`));
+    selTemplate.innerHTML = opts.join('');
+  };
+
+  // Templates: use embedded customer templates (local), works offline.
+  const portalTemplates = (Array.isArray(templates) ? templates : [])
+    .filter(t=>t && t.id === 'customer_profile_patch')
+    .map(t=>({id:t.id, name: t.meta?.name || t.name || 'Kunde: Angaben ergänzen'}));
+  // If embedded templates not loaded yet, provide a minimal fallback.
+  setTemplateOptions(portalTemplates.length ? portalTemplates : [{id:'customer_profile_patch', name:'Kunde: Angaben ergänzen (Patch)'}]);
+
+  // Customers: prefer cloud user list, fallback to local customers if offline/denied.
+  const loadCustomers = async ()=>{
+    if(msgEl) msgEl.textContent = '… lädt Kunden …';
+    try{
+      if(typeof navigator !== 'undefined' && navigator.onLine){
+        const snap = await cloudUsersCol().where('role','==','customer').limit(500).get();
+        const users=[];
+        snap.forEach(d=>{
+          const data=d.data()||{};
+          const uid=data.uid || d.id;
+          users.push({id:d.id, uid, email:data.email||'', label:(data.email||data.displayName||uid)});
+        });
+        users.sort((a,b)=>(a.label||'').localeCompare(b.label||''));
+        setCustomerOptions(users);
+        if(msgEl) msgEl.textContent = users.length ? '' : '— keine Kunden gefunden (Cloud) —';
+        return;
+      }
+      throw new Error('offline');
+    }catch(e){
+      console.warn('loadCustomers fallback', e);
+      const local = listCustomers().map(c=>({id:c.id, uid:c.id, label:c.fullName||c.name||c.id}));
+      setCustomerOptions(local);
+      if(msgEl) msgEl.textContent = local.length ? '⚠️ Offline/ohne Cloud: lokale Kundenliste.' : '— keine Kunden vorhanden —';
+    }
+  };
+
+  await loadCustomers();
+
+  btnCreate.onclick = async ()=>{
+    const customerUid = (selCustomer.value||'').trim();
+    const templateId  = (selTemplate.value||'').trim();
+
+    if(!customerUid || !templateId){
+      if(msgEl) msgEl.textContent = 'Bitte Kunde und Vorlage wählen.';
+      return;
+    }
+
+    // Base snapshot for customer patch: lock-filled fields server-side by reviewing submissions later.
+    const cid = customerUid;
+    const c = (state.customers||[]).find(x=>x.id===cid) || null;
+    const baseSnapshot = { kind:'customer', recordId: cid, fields: {
+      fullName: c?.fullName||'',
+      phone: c?.phone||'',
+      email: c?.email||'',
+      street: c?.street||'',
+      zip: c?.zip||'',
+      city: c?.city||'',
+      emergencyName: c?.emergencyName||'',
+      emergencyPhone: c?.emergencyPhone||'',
+      notes: c?.notes||''
+    }};
+
+    const title = 'Kundendaten ergänzen';
+
+    if(msgEl) msgEl.textContent = '… erstellt …';
+    try{
+      await cloudTasksCol().add({
+        customerUid,
+        templateId,
+        title,
+        baseSnapshot,
+        status: 'open',
+        createdAt: Date.now(),
+        createdByUid: CLOUD.user?.uid || '',
+        createdByEmail: CLOUD.user?.email || ''
+      });
+      if(msgEl) msgEl.textContent = '✅ Aufgabe freigegeben.';
+    }catch(e){
+      console.error(e);
+      if(msgEl) msgEl.textContent = '❌ Fehler: '+(e.message||e);
+    }
+  };
 }
 async function wireInbox(){
   const listEl = document.getElementById('inboxList');
