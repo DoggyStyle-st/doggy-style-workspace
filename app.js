@@ -16,7 +16,7 @@ const APP_BUILD = 'M41_4G1_CUSTOMER_PATCH_INBOX_20260208';
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 (function DS_BUILD_GUARD_RECOVERY(){
   try{
-    const BUILD = (typeof APP_BUILD !== 'undefined') ? APP_BUILD : "M38_4F4_DIAG_OVERLAY_20260207";
+    const BUILD = (typeof APP_BUILD !== 'undefined') ? APP_BUILD : "M42_4G1_CUSTOMER_PATCH_INBOX_FIX_20260208";
     const meta = document.querySelector('meta[name="app-version"]');
     const htmlBuild = meta ? meta.getAttribute('content') : null;
     if(htmlBuild && htmlBuild !== BUILD){
@@ -1161,17 +1161,40 @@ async function initCustomerPortal(){
     if(listEl) listEl.style.display = '';
   };
   const q = cloudTasksCol().where('customerUid','==',uid).where('status','==','open').orderBy('createdAt','desc');
-  q.onSnapshot((snap)=>{
-    const tasks = [];
-    snap.forEach(doc=>{ tasks.push({id: doc.id, ...doc.data()}); });
-    renderCustomerTaskList(tasks);
-    if(subtitle){
-      subtitle.textContent = tasks.length ? 'Doggy Style Hundepension hat Aufgaben für dich.' : 'Aktuell liegen keine Aufgaben für dich vor.';
+
+  async function refreshCustomerTasks(){
+    try{
+      const snap = await q.get();
+      const tasks = [];
+      snap.forEach((d)=>tasks.push({ id: d.id, ...d.data() }));
+      state.customerTasks = tasks;
+      renderCustomerHome();
+    }catch(err){
+      console.warn('[customer] tasks refresh failed', err);
+      // do NOT hard-fail the UI; keep previous state
     }
-  }, (err)=>{
-    console.error('customer tasks listener', err);
-    if(subtitle) subtitle.textContent = 'Fehler beim Laden der Aufgaben.';
-  });
+  }
+
+  // Initial load
+  refreshCustomerTasks();
+
+  // Avoid Safari "page keeps loading" due to long-lived Firestore streams.
+  // We poll lightly when tab is visible & online.
+  if (window.__ds_customerTasksTimer) clearInterval(window.__ds_customerTasksTimer);
+  window.__ds_customerTasksTimer = setInterval(() => {
+    if (document.hidden) return;
+    if (!navigator.onLine) return;
+    refreshCustomerTasks();
+  }, 20000);
+
+  // When user returns to tab, refresh once
+  if (!window.__ds_customerTasksVisHook){
+    window.__ds_customerTasksVisHook = true;
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && navigator.onLine) refreshCustomerTasks();
+    });
+  }
+
   function renderCustomerTaskList(tasks){
     if(!listEl) return;
     listEl.innerHTML = '';
@@ -12713,7 +12736,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
         el.style.boxShadow="0 6px 18px rgba(0,0,0,0.25)";
         document.body.appendChild(el);
       }
-      const BUILD = (typeof APP_BUILD!=='undefined')?APP_BUILD:"M38_4F4_DIAG_OVERLAY_20260207";
+      const BUILD = (typeof APP_BUILD!=='undefined')?APP_BUILD:"M42_4G1_CUSTOMER_PATCH_INBOX_FIX_20260208";
       const meta = document.querySelector('meta[name="app-version"]');
       const htmlBuild = meta ? meta.getAttribute('content') : "";
       const online = navigator.onLine ? "online" : "offline";
