@@ -5,13 +5,25 @@ const DS_MASTER_FREEZE = {
   channel: "MASTER",
   frozenAt: "2026-02-07T22:10:34"
 };
+
+// --- util: stable hashCode (offline-safe) ---
+function hashCode(str){
+  str = String(str||'');
+  let h = 0;
+  for(let i=0;i<str.length;i++){
+    h = ((h<<5)-h) + str.charCodeAt(i);
+    h |= 0;
+  }
+  return h;
+}
+
 // Expose for diagnostics / support
 try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // ===== END DS_MASTER_FREEZE =====
 
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
-const APP_BUILD = 'M48_4G3_INBOX_PORTAL_GUARD_20260209G';
+const APP_BUILD = 'M48_4G3_INBOX_PORTAL_GUARD_20260209H';
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 (function DS_BUILD_GUARD_RECOVERY(){
@@ -6503,6 +6515,30 @@ function ensureStateShape(){
   state.dogs = Array.isArray(state.dogs) ? state.dogs : [];
   state.docs = Array.isArray(state.docs) ? state.docs : [];
   state.customers = Array.isArray(state.customers) ? state.customers : [];
+  // Derive minimal customers list from legacy dogs if customers are missing (stable, offline-safe)
+  try{
+    if(state.customers.length===0 && Array.isArray(state.dogs) && state.dogs.length){
+      const map = new Map();
+      const norm = (s)=>String(s||'').trim();
+      const mkId = (key)=>'cust_'+(String(key).toLowerCase().replace(/[^a-z0-9]+/g,'_').slice(0,40))+'_'+(Math.abs(hashCode(String(key)))%100000);
+      state.dogs.forEach(d=>{
+        const ownerName = norm(d.ownerName || d.halterName || d.halter || d.kundeName || d.customerName || d.owner || '');
+        const ownerNo   = norm(d.customerNo || d.kundennr || d.customerNo || d.kundenNr || d.ownerNo || '');
+        const key = ownerNo ? (ownerNo+'|'+ownerName) : ownerName;
+        if(!key) return;
+        if(!map.has(key)){
+          map.set(key,{
+            id: mkId(key),
+            name: ownerName || ('Kunde '+ownerNo),
+            customerNo: ownerNo,
+            portalUid: d.portalUid || d.portalUID || ''
+          });
+        }
+      });
+      state.customers = Array.from(map.values());
+    }
+  }catch(_){ }
+
   state.pets = Array.isArray(state.pets) ? state.pets : [];
   state.stays = Array.isArray(state.stays) ? state.stays : [];
   state.worklogs = Array.isArray(state.worklogs) ? state.worklogs : [];
