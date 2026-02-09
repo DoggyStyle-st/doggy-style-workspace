@@ -11,7 +11,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
-const APP_BUILD = 'M48_4G3_INBOX_PORTAL_GUARD_20260209C';
+const APP_BUILD = 'M48_4G3_INBOX_PORTAL_GUARD_20260209D';
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 (function DS_BUILD_GUARD_RECOVERY(){
@@ -1322,19 +1322,26 @@ async function wireTaskCreation(){
   const selCustomer = document.getElementById('taskCustomerSelect');
   const inpCustomerSearch = document.getElementById('taskCustomerSearch');
   const selTemplate = document.getElementById('taskTemplateSelect');
+  const selInternalCustomer = document.getElementById('taskInternalCustomerSelect');
+  const btnLink = document.getElementById('btnLinkPortalCustomer');
+  const linkMsgEl = document.getElementById('taskLinkMsg');
   const titleInput = document.getElementById('taskTitleInput');
   const btnCreate = document.getElementById('btnTaskCreate');
   const msgEl = document.getElementById('taskCreateMsg');
-  const btnRefresh = document.getElementById('btnTaskRefresh');
   const btnMoreCustomers = document.getElementById('btnCustomersMore');
   const customerCountEl = document.getElementById('taskCustomerCount');
   if(!selCustomer || !selTemplate || !btnCreate) return;
-  if(btnRefresh) btnRefresh.onclick = ()=>refreshAdminTasks();
   // Templates laden (Vorlagen)
   try{
     await loadTemplates();
-    const list = (TEMPLATES||[]);
-    selTemplate.innerHTML = list.map(t=>{
+    const listAll = (TEMPLATES||[]);
+    const allowedIds = ['customer_profile','boarding_contract','new_stay'];
+    const list = listAll.filter(t=>{
+      const id = t.id || t.templateId || t.name || '';
+      return allowedIds.includes(id);
+    });
+    const useList = list.length ? list : listAll;
+    selTemplate.innerHTML = useList.map(t=>{
       const id = t.id || t.templateId || t.name || '';
       const label = t.name || t.title || id || 'Vorlage';
       return `<option value="${escapeHtml(id)}">${escapeHtml(label)}</option>`;
@@ -1369,6 +1376,49 @@ async function wireTaskCreation(){
         email,
         __missingUid: !uid,
       };
+  const setLinkMsg = (t, err=false)=>{ if(!linkMsgEl) return; linkMsgEl.textContent = t||''; linkMsgEl.style.color = err ? '#ffb3b3' : ''; };
+  const setCreateMsg = (t, err=false)=>{ if(!msgEl) return; msgEl.textContent = t||''; msgEl.style.color = err ? '#ffb3b3' : ''; };
+
+  const getInternalCustomers = ()=>{
+    // Prefer state.customers; fallback derive from dogs (legacy)
+    const arr = Array.isArray(state.customers) ? state.customers : [];
+    if(arr.length) return arr.map(c=>({id:c.id, name:c.name||'Kunde', phone:c.phone||'', email:c.email||'', portalUid:c.portalUid||c.portalUID||''}));
+    const dogs = Array.isArray(state.dogs) ? state.dogs : [];
+    // group by owner+phone
+    const map = new Map();
+    dogs.forEach(d=>{
+      const owner = (d.ownerName||d.halter||d.kunde||'').trim();
+      const phone = (d.ownerPhone||d.phone||d.telefon||'').trim();
+      const key = (owner+'|'+phone).toLowerCase();
+      if(!key.trim()) return;
+      if(!map.has(key)) map.set(key,{id:'legacy_'+Math.random().toString(16).slice(2), name:owner||'Kunde', phone, email:'', portalUid:''});
+    });
+    return Array.from(map.values());
+  };
+
+  const renderInternalCustomers = ()=>{
+    if(!selInternalCustomer) return;
+    const list = getInternalCustomers();
+    const opts = ['<option value="">Kunde auswählen…</option>'];
+    list.forEach(c=>{
+      const extra = c.phone ? ` · ${c.phone}` : (c.email ? ` · ${c.email}` : '');
+      opts.push(`<option value="${escapeHtml(c.id)}">${escapeHtml((c.name||'Kunde')+extra)}</option>`);
+    });
+    selInternalCustomer.innerHTML = opts.join('');
+  };
+
+  const findLinkedCustomerIdForUid = (uid)=>{
+    if(!uid) return '';
+    // state.portalCustomerMap
+    const m = state.portalCustomerMap && state.portalCustomerMap[uid];
+    if(m && m.customerId) return m.customerId;
+    // in customers list by portalUid
+    const list = Array.isArray(state.customers) ? state.customers : [];
+    const hit = list.find(c=>String(c.portalUid||c.portalUID||'')===uid);
+    return hit ? hit.id : '';
+  };
+
+
     });
 
     const list = query ? baseList.filter(u=>{
@@ -1383,10 +1433,9 @@ async function wireTaskCreation(){
       opts.push('<option value="" disabled>Keine Treffer</option>');
     } else {
       list.forEach(u=>{
-        const disabled = u.__missingUid ? ' disabled' : '';
-        const suffix = u.__missingUid ? ' (kein Portal-Link)' : '';
-        const value = u.__missingUid ? '' : escapeHtml(u.uid);
-        opts.push(`<option value="${value}"${disabled}>${escapeHtml(customerLabel(u) + suffix)}</option>`);
+        const suffix = u.__missingUid ? ' (noch nicht zugeordnet)' : '';
+        const value = escapeHtml(u.uid||'');
+        opts.push(`<option value="${value}">${escapeHtml(customerLabel(u) + suffix)}</option>`);
       });
     }
     selCustomer.innerHTML = opts.join('');
@@ -1437,6 +1486,7 @@ async function wireTaskCreation(){
       _custLoading = false;
     }
   };
+  renderInternalCustomers();
   await loadCustomersPage(true);
   if(inpCustomerSearch){
     inpCustomerSearch.addEventListener('input', ()=>renderCustomers(inpCustomerSearch.value));
@@ -1444,20 +1494,68 @@ async function wireTaskCreation(){
   if(btnMoreCustomers){
     btnMoreCustomers.addEventListener('click', (e)=>{ e.preventDefault(); loadCustomersPage(false); });
   }
+
+  // Link portal-user ↔ internal customer
+  if(btnLink){
+    btnLink.addEventListener('click', ()=>{
+      try{
+        const uid = (selCustomer.value||'').trim();
+        const cid = (selInternalCustomer && selInternalCustomer.value||'').trim();
+        if(!uid){ setLinkMsg('Bitte zuerst einen Portal-Kunden auswählen.', true); return; }
+        if(!cid){ setLinkMsg('Bitte zuerst einen internen Kunden auswählen.', true); return; }
+
+        // Update mapping in state.portalCustomerMap
+        state.portalCustomerMap = state.portalCustomerMap || {};
+        state.portalCustomerMap[uid] = { customerId: cid, linkedAt: Date.now() };
+
+        // Also store uid on the customer record (best-effort, only if customer exists)
+        if(Array.isArray(state.customers)){
+          state.customers.forEach(c=>{
+            if(c.id === cid){ c.portalUid = uid; }
+            else if(String(c.portalUid||'') === uid){ c.portalUid = ''; }
+          });
+        }
+        saveState();
+        setLinkMsg('✅ Zuordnung gespeichert.');
+        renderCustomers(inpCustomerSearch?.value || '');
+      }catch(e){
+        console.error(e);
+        setLinkMsg('Fehler beim Zuordnen.', true);
+      }
+    });
+  }
+
+  // When portal customer selection changes, preselect linked internal customer
+  if(selCustomer && selInternalCustomer){
+    selCustomer.addEventListener('change', ()=>{
+      try{
+        const uid = (selCustomer.value||'').trim();
+        const linked = findLinkedCustomerIdForUid(uid);
+        if(linked) selInternalCustomer.value = linked;
+      }catch(_){}
+    });
+  }
   btnCreate.onclick = async ()=>{
-    const customerUid = selCustomer.value;
-    const templateId = selTemplate.value;
+    const customerUid = String(selCustomer.value||'').trim();
+    const templateId = String(selTemplate.value||'').trim();
     const tpl = getTemplate(templateId);
     const title = (titleInput?.value||'').trim()
       || (tpl?.name ? (tpl.name+' – Ausfüllen') : 'Formular ausfüllen');
     if(!customerUid || !templateId){
-      if(msgEl) msgEl.textContent = 'Bitte Kunde und Vorlage wählen.';
+      setCreateMsg('Bitte Portal-Kunde und Vorlage wählen.', true);
       return;
     }
-    if(msgEl) msgEl.textContent = '… erstellt …';
+    // Require mapping to internal customer
+    const customerId = findLinkedCustomerIdForUid(customerUid);
+    if(!customerId){
+      setCreateMsg('⚠️ Dieser Portal-Kunde ist noch keinem internen Kunden zugeordnet. Bitte zuerst zuordnen.', true);
+      return;
+    }
+    setCreateMsg('… erstellt …');
     try{
       await cloudTasksCol().add({
         customerUid,
+        customerId,
         templateId,
         title,
         status: 'open',
@@ -1465,81 +1563,14 @@ async function wireTaskCreation(){
         createdByUid: CLOUD.user?.uid || '',
         createdByEmail: CLOUD.user?.email || ''
       });
-      if(msgEl) msgEl.textContent = '✅ Aufgabe freigegeben.';
+      setCreateMsg('✅ Aufgabe freigegeben.');
       try{ titleInput.value=''; }catch(_){ }
     }catch(e){
       console.error(e);
-      if(msgEl) msgEl.textContent = '❌ Fehler: '+(e.message||e);
+      setCreateMsg('❌ Fehler: '+(e.message||e), true);
     }
   };
-
-  try{ await refreshAdminTasks(); }catch(_){ }
 }
-
-
-function renderAdminTaskList(tasks){
-  const list = document.getElementById('adminTaskList');
-  if(!list) return;
-  if(!Array.isArray(tasks) || tasks.length===0){
-    list.innerHTML = '<div class="muted">Keine offenen Aufgaben.</div>';
-    return;
-  }
-  list.innerHTML = '';
-  tasks.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
-  tasks.forEach(t=>{
-    const row=document.createElement('div');
-    row.className='item';
-    const title = esc(t.title || t.templateName || t.templateId || 'Aufgabe');
-    const cust = esc(t.customerLabel || t.customerName || '');
-    const st = esc(t.status||'open');
-    row.innerHTML = `<div style="flex:1">
-        <div><strong>${title}</strong></div>
-        <div class="muted">${cust} • Status: ${st}</div>
-      </div>
-      <div class="row" style="gap:8px; flex-wrap:wrap;">
-        <button class="btn" data-done="1">Erledigt</button>
-      </div>`;
-    row.querySelector('[data-done]').onclick = async ()=>{
-      try{
-        if(CLOUD.enabled && t.id){
-          await cloudTasksCol().doc(t.id).set({status:'done', updatedAt:Date.now()}, {merge:true});
-        }else{
-          // local fallback
-          state.inboxAssignments = Array.isArray(state.inboxAssignments)? state.inboxAssignments:[];
-          const it = state.inboxAssignments.find(x=>x.id===t.id);
-          if(it){ it.status='done'; it.updatedAt=Date.now(); saveState(); }
-        }
-      }catch(e){ console.error(e); alert('❌ Konnte nicht speichern: '+(e.message||e)); }
-    };
-    list.appendChild(row);
-  });
-}
-
-async function refreshAdminTasks(){
-  const btn = document.getElementById('btnTaskRefresh');
-  const msg = document.getElementById('taskCreateMsg');
-  try{
-    if(btn) btn.disabled = true;
-    if(CLOUD.enabled){
-      const snap = await cloudTasksCol().where('status','==','open').get();
-      const tasks = [];
-      snap.forEach(doc=>{
-        const d=doc.data()||{};
-        tasks.push({id:doc.id, ...d});
-      });
-      renderAdminTaskList(tasks);
-    }else{
-      const tasks = Array.isArray(state.inboxAssignments)? state.inboxAssignments.filter(x=>(x.status||'open')==='open'): [];
-      renderAdminTaskList(tasks);
-    }
-  }catch(e){
-    console.error(e);
-    if(msg) msg.textContent = '❌ Aufgaben laden fehlgeschlagen.';
-  }finally{
-    if(btn) btn.disabled = false;
-  }
-}
-
 async function wireUserManagement(){
   const listEl = document.getElementById('usersList');
   const btnRef = document.getElementById('btnUsersRefresh');
@@ -1582,75 +1613,6 @@ async function wireUserManagement(){
           }
         };
         actions.appendChild(sel);
-
-        // Link Portal-User -> lokaler Kunde (optional, aber wichtig für Zuordnung)
-        // Speichert in Firestore user.customerId und setzt im lokalen Kunden-Datensatz customer.portalUid = uid.
-        try{
-          const isCustomer = (sel.value === ROLES.CUSTOMER) || ((u.role||'') === ROLES.CUSTOMER);
-          if(isCustomer){
-            const linkWrap = document.createElement('div');
-            linkWrap.className = 'actions';
-            linkWrap.style.gap = '8px';
-            linkWrap.style.flexWrap = 'wrap';
-
-            const linkSel = document.createElement('select');
-            linkSel.title = 'Portal-User mit lokalem Kunden verknüpfen';
-            const custList = (state && Array.isArray(state.customers)) ? state.customers : [];
-            const curCid = u.customerId || u.customerID || u.linkedCustomerId || '';
-            const opt = [];
-            opt.push('<option value="">— Kunde zuordnen —</option>');
-            custList.forEach(c=>{
-              const cid = c.id || '';
-              const label = `${c.name||'Kunde'}${c.email?(' – '+c.email):''}${c.portalUid=== (u.uid||u.id) ? ' ✅' : ''}`;
-              opt.push(`<option value="${escapeHtml(cid)}">${escapeHtml(label)}</option>`);
-            });
-            linkSel.innerHTML = opt.join('');
-            linkSel.value = curCid || '';
-            linkSel.onchange = async ()=>{
-              const cid = linkSel.value || '';
-              const uid2 = (u.uid||u.id);
-              const cust = cid ? ((state.customers||[]).find(x=>x.id===cid) || null) : null;
-              const dn = cust ? (cust.name||'') : (u.displayName||'');
-              try{
-                // Cloud: User-Profil aktualisieren
-                await cloudUserDoc(uid2).set({
-                  customerId: cid || '',
-                  displayName: dn || (u.displayName||''),
-                  linkedAt: Date.now()
-                }, {merge:true});
-              }catch(e){
-                console.error(e);
-                if(msgEl) msgEl.textContent = '❌ Zuordnung konnte nicht in der Cloud gespeichert werden.';
-              }
-              // Lokal: Kunden-Datensatz markieren
-              try{
-                if(state && Array.isArray(state.customers)){
-                  // remove uid from any other customer
-                  state.customers.forEach(c=>{ if((c.portalUid||'')===uid2 && c.id!==cid){ c.portalUid=''; c.updatedAt=Date.now(); } });
-                  if(cust){
-                    cust.portalUid = uid2;
-                    cust.updatedAt = Date.now();
-                  }
-                  saveState();
-                }
-              }catch(e){
-                console.warn('local link save failed', e);
-              }
-              if(msgEl) msgEl.textContent = '✅ Zuordnung gespeichert.';
-            };
-
-            // Show current mapping
-            const curInfo = document.createElement('small');
-            curInfo.className = 'muted';
-            curInfo.style.marginLeft = '4px';
-            curInfo.textContent = curCid ? 'zugeordnet' : 'nicht zugeordnet';
-
-            linkWrap.appendChild(linkSel);
-            linkWrap.appendChild(curInfo);
-            row.appendChild(linkWrap);
-          }
-        }catch(e){ console.warn('user link ui', e); }
-
         row.appendChild(actions);
         listEl.appendChild(row);
       });
@@ -1815,82 +1777,22 @@ async function wireInboxAssignments(){
   const msgEl       = document.getElementById('assignMsg');
   if(!selCustomer || !selTemplate || !btnCreate) return;
 
-  // Sicherstellen, dass State aktuell ist (offline-first)
+  // Optionen aus lokalem Workspace-State ziehen
+  // FIX: ensureStateShape() gibt nichts zurück (mutiert den globalen state).
+  // Daher zuerst aus LocalStorage laden, in state übernehmen, dann Shape sichern.
   try{
     const loaded = loadState();
-    if(loaded && typeof loaded === 'object') state = Object.assign(state||{}, loaded);
-  }catch(_){
-  }
-  try{ ensureStateShape(); }catch(_){
-  }
-  try{ ensureEmbeddedTemplates(); }catch(_){
-  }
+    if(loaded && typeof loaded === 'object') state = loaded;
+  }catch(_){ /* ignore */ }
+  ensureStateShape();
+  const customers = Array.isArray(state.customers) ? state.customers : [];
 
-  // --- Kundenliste robust aus verschiedenen Datenmodellen ableiten ---
-  const customersOut = [];
-  const seen = new Set();
-
-  function stableId(s){
-    try{ return btoa(unescape(encodeURIComponent(s||''))).replace(/=+$/,''); }catch(_){
-      return (s||'').replace(/\s+/g,'_').slice(0,64);
-    }
-  }
-  function pushCustomer(id, name, phone, extra){
-    const cid = id || stableId((name||'')+'|'+(phone||''));
-    if(!cid || seen.has(cid)) return;
-    seen.add(cid);
-    customersOut.push({ id: cid, name: name||'(ohne Name)', phone: phone||'', extra: extra||'' });
-  }
-
-  // 1) Neues Modell: state.customers
-  if(Array.isArray(state.customers) && state.customers.length){
-    state.customers.forEach(c=>{
-      const name = c.name || c.customerName || c.fullName || c.owner || '';
-      const phone = c.phone || c.telefon || c.mobile || '';
-      pushCustomer(c.id || c.customerId, name, phone);
-    });
-  }
-
-  // 2) Alternativ: pets -> customerId
-  if(customersOut.length===0 && Array.isArray(state.pets) && state.pets.length){
-    const byCustomer = new Map();
-    state.pets.forEach(p=>{
-      const cid = p.customerId || p.ownerId || p.customer || '';
-      const owner = p.owner || p.ownerName || '';
-      const phone = p.phone || p.ownerPhone || '';
-      const key = cid || ('legacy:'+stableId((owner||'')+'|'+(phone||'')));
-      const cur = byCustomer.get(key) || { id: cid||key, name: owner, phone, dogs: 0 };
-      cur.dogs += 1;
-      if(!cur.name && owner) cur.name = owner;
-      if(!cur.phone && phone) cur.phone = phone;
-      byCustomer.set(key, cur);
-    });
-    [...byCustomer.values()].forEach(c=>pushCustomer(c.id, c.name, c.phone, c.dogs?`${c.dogs} Hund(e)`:'' ));
-  }
-
-  // 3) Legacy: state.dogs gruppiert nach owner/phone
-  if(customersOut.length===0 && Array.isArray(state.dogs) && state.dogs.length){
-    const map = new Map();
-    state.dogs.forEach(d=>{
-      if(d && d.isPlaceholder) return;
-      const owner = d.owner || d.ownerName || d.halter || '';
-      const phone = d.phone || d.telefon || '';
-      const key = stableId((owner||'')+'|'+(phone||''));
-      const cur = map.get(key) || { id: 'legacy:'+key, name: owner, phone, dogs: 0 };
-      cur.dogs += 1;
-      if(!cur.name && owner) cur.name = owner;
-      if(!cur.phone && phone) cur.phone = phone;
-      map.set(key, cur);
-    });
-    [...map.values()].forEach(c=>pushCustomer(c.id, c.name, c.phone, c.dogs?`${c.dogs} Hund(e)`:'' ));
-  }
-
-  // --- Vorlagen für Eingänge (wie besprochen) ---
-  const assignTemplates = [
-    { id: "betreuungsvertrag", name: "📝 Betreuungsvertrag" },
-    { id: "hundeannahme", name: "🐕 Hundeannahme (Aufenthalt)" },
-    { id: "tierarzt_erlaubnis", name: "💉 Tierarzt-Erlaubnis" },
-    { id: "agb_dsgvo", name: "📜 AGB / DSGVO" }
+  // Templates, die für Kunden freischaltbar sind (Basis-Version)
+  // Keys sind stabil; Anzeigenamen sind für UI.
+  const templates = [
+    { id: 'customer_profile', name: 'Hunde/Kunden (Kundendaten ergänzen)' },
+    { id: 'boarding_contract', name: 'Betreuungsvertrag' },
+    { id: 'new_stay', name: 'Neuer Aufenthalt' }
   ];
 
   const fillSelect = (sel, items, getId, getLabel, emptyLabel)=>{
@@ -1916,58 +1818,62 @@ async function wireInboxAssignments(){
     });
   };
 
-  fillSelect(selCustomer, customersOut, c=>c.id, c=>{
-    const phone = c.phone ? ` · ${c.phone}` : '';
-    const extra = c.extra ? ` (${c.extra})` : '';
-    return `${c.name}${phone}${extra}`;
-  }, 'Keine Kunden vorhanden');
-  fillSelect(selTemplate, assignTemplates, t=>t.id, t=>t.name, 'Keine Vorlagen');
+  fillSelect(
+    selCustomer,
+    customers,
+    c=>c.id,
+    c=>{
+      const name = c.name || 'Kunde';
+      const extra = c.phone ? ` · ${c.phone}` : (c.email ? ` · ${c.email}` : '');
+      return `${name}${extra}`;
+    },
+    'Keine Kunden vorhanden'
+  );
+  fillSelect(selTemplate, templates, t=>t.id, t=>t.name, 'Keine Vorlagen');
 
-  const refreshBtnState = ()=>{
-    const ok = !!selCustomer.value && !!selTemplate.value;
-    btnCreate.disabled = !ok;
+  const setMsg = (txt, isErr=false)=>{
+    if(!msgEl) return;
+    msgEl.textContent = txt || '';
+    msgEl.style.color = isErr ? '#ffb3b3' : '';
   };
-  selCustomer.onchange = refreshBtnState;
-  selTemplate.onchange = refreshBtnState;
-  refreshBtnState();
+  setMsg('');
 
   btnCreate.onclick = ()=>{
     try{
-      const customerId = selCustomer.value;
-      const templateId = selTemplate.value;
-      if(!customerId || !templateId) return;
-      const cu = customersOut.find(c=>c.id===customerId);
-      const title = (assignTemplates.find(t=>t.id===templateId)?.name || templateId);
-      state.inboxAssignments = Array.isArray(state.inboxAssignments) ? state.inboxAssignments : [];
-      // Duplikat-Schutz (pro Kunde+Template offen)
-      const dupe = state.inboxAssignments.some(a=>a && a.customerId===customerId && a.templateId===templateId && a.status!=='done');
-      if(dupe){
-        if(msgEl) msgEl.textContent = '⚠️ Aufgabe existiert bereits (offen).';
-        return;
-      }
-      const now = Date.now();
-      state.inboxAssignments.unshift({
-        id: uid(),
+      const customerId = (selCustomer.value||'').trim();
+      const templateId = (selTemplate.value||'').trim();
+      if(!customerId){ setMsg('Bitte zuerst einen Kunden auswählen.', true); return; }
+      if(!templateId){ setMsg('Bitte zuerst eine Vorlage auswählen.', true); return; }
+
+      const stateNow = ensureStateShape(loadState());
+      const c = (stateNow.customers||[]).find(x=>x.id===customerId);
+      if(!c){ setMsg('Kunde nicht gefunden (evtl. gelöscht).', true); return; }
+
+      // Duplikat-Schutz: gleiche Aufgabe für den Kunden schon offen?
+      const exists = (stateNow.inboxAssignments||[]).some(a=>a.customerId===customerId && a.templateId===templateId && a.status==='open');
+      if(exists){ setMsg('Diese Aufgabe ist für den Kunden bereits offen.', true); return; }
+
+      const task = {
+        id: 'asg_' + Date.now() + '_' + Math.random().toString(16).slice(2),
         customerId,
-        customerName: cu?.name || '',
-        customerPhone: cu?.phone || '',
+        customerName: c.name || '',
         templateId,
-        title,
-        status: 'open',
-        createdAt: now,
-        updatedAt: now,
-        source: 'manual'
-      });
-      saveState();
-      if(msgEl) msgEl.textContent = '✅ Aufgabe freigegeben.';
-      refreshBtnState();
+        createdAt: Date.now(),
+        status: 'open'
+      };
+      stateNow.inboxAssignments = Array.isArray(stateNow.inboxAssignments) ? stateNow.inboxAssignments : [];
+      stateNow.inboxAssignments.unshift(task);
+      saveState(stateNow);
+
+      setMsg(`✅ Aufgabe freigeschaltet: ${c.name||'Kunde'} · ${templates.find(t=>t.id===templateId)?.name||templateId}`);
+      // optional: Auswahl zurücksetzen
+      selTemplate.value = '';
     }catch(e){
       console.error(e);
-      alert('Fehler beim Erstellen der Aufgabe.');
+      setMsg('Fehler beim Erstellen der Aufgabe (siehe Konsole).', true);
     }
   };
 }
-
 
 // ===== PREISLOGIK & STAFFELUNGEN =====
 const PRICE_RULES_DEFAULT = {
@@ -2713,6 +2619,9 @@ function ensureInvoicePricing(inv){
   return inv;
 }
 function showPanel(id){
+  // Customer hard-guard: customers may only see customerPortal
+  try{ if(CLOUD && CLOUD.role===ROLES.CUSTOMER && id!=='customerPortal'){ id='customerPortal'; } }catch(_){ }
+
   document.querySelectorAll(".panel").forEach(p=>{
     p.classList.toggle("is-active", p.id === id);
   });
@@ -2749,21 +2658,12 @@ if(id === "calendar"){
       renderDocVersions();
     }catch(_){ }
   }
-
-  if(id === "inbox"){
-    try{ ensureEmbeddedTemplates(); }catch(_){ }
-    try{ wireInboxAssignments(); }catch(e){ console.warn(e); }
-    try{ wireInbox(); }catch(e){ console.warn(e); }
-  }
 }
 // ==== Dashboard / Schnellaktionen helpers ====
 function selectTab(tabId){
-  // Security-Guard: customers dürfen nur das Kundenportal sehen
-  try{
-    if(CLOUD && CLOUD.role === ROLES.CUSTOMER){
-      tabId = 'customerPortal';
-    }
-  }catch(_){ }
+  // Customer hard-guard: prevent navigation outside customerPortal
+  try{ if(CLOUD && CLOUD.role===ROLES.CUSTOMER && tabId!=='customerPortal'){ tabId='customerPortal'; } }catch(_){ }
+
   // activate tab button
   $$(".tab").forEach(b=>b.classList.toggle("is-active", b.dataset.tab===tabId));
   showPanel(tabId);
@@ -5856,47 +5756,11 @@ const EMBEDDED_HUNDEANNAHME_TEMPLATE = {
   ],
   meta: { embedded: true }
 };
-// vFIXD: Eingänge – eingebettete Kunden-Aufgaben (damit Vorlagen offline & ohne extra JSON existieren)
-const EMBEDDED_TASK_BETREUUNGSVERTRAG = {
-  id: "betreuungsvertrag",
-  name: "Betreuungsvertrag (Bestätigung)",
-  fields: [
-    { key: "customerName", label: "Name (Kunde)", type: "text", required: true },
-    { key: "accepted", label: "Ich bestätige, den Betreuungsvertrag gelesen zu haben.", type: "checkbox", required: true }
-  ],
-  meta: { embedded: true, kind: "customerTask" }
-};
-const EMBEDDED_TASK_TIERARZT = {
-  id: "tierarzt_erlaubnis",
-  name: "Tierarzt-Erlaubnis (Bestätigung)",
-  fields: [
-    { key: "customerName", label: "Name (Kunde)", type: "text", required: true },
-    { key: "accepted", label: "Ich erlaube im Notfall den Tierarztbesuch und Behandlungen nach Rücksprache.", type: "checkbox", required: true },
-    { key: "notes", label: "Bemerkungen (optional)", type: "textarea" }
-  ],
-  meta: { embedded: true, kind: "customerTask" }
-};
-const EMBEDDED_TASK_AGB_DSGVO = {
-  id: "agb_dsgvo",
-  name: "AGB & DSGVO (Bestätigung)",
-  fields: [
-    { key: "customerName", label: "Name (Kunde)", type: "text", required: true },
-    { key: "accepted_agb", label: "Ich akzeptiere die AGB.", type: "checkbox", required: true },
-    { key: "accepted_privacy", label: "Ich habe die Datenschutzhinweise gelesen.", type: "checkbox", required: true }
-  ],
-  meta: { embedded: true, kind: "customerTask" }
-};
-
 function ensureEmbeddedTemplates(){
   try{
     if(!Array.isArray(templates)) templates = [];
     if(!templates.some(t=>t && t.id === EMBEDDED_HUNDEANNAHME_TEMPLATE.id)){
       templates.unshift(EMBEDDED_HUNDEANNAHME_TEMPLATE);
-
-    if(!templates.some(t=>t && t.id === EMBEDDED_TASK_BETREUUNGSVERTRAG.id)) templates.unshift(EMBEDDED_TASK_BETREUUNGSVERTRAG);
-    if(!templates.some(t=>t && t.id === EMBEDDED_TASK_TIERARZT.id)) templates.unshift(EMBEDDED_TASK_TIERARZT);
-    if(!templates.some(t=>t && t.id === EMBEDDED_TASK_AGB_DSGVO.id)) templates.unshift(EMBEDDED_TASK_AGB_DSGVO);
-
     }
   }catch(_){ /* ignore */ }
 }
@@ -10347,19 +10211,25 @@ return;
       CLOUD.userProfile = await loadOrCreateUserProfile(user);
       CLOUD.role = (CLOUD.userProfile && CLOUD.userProfile.role) ? CLOUD.userProfile.role : ROLES.CUSTOMER;
     }catch(e){
-      console.warn('Role load failed, fallback to customer (least privilege)', e);
+      console.warn('Role load failed, fallback to customer', e);
       CLOUD.role = ROLES.CUSTOMER;
     }
-    // Security-Guard: staff/admin nur wenn ausdrücklich freigegeben (approved=true) oder Admin-Whitelist
+
+    // === SECURITY: staff/admin require explicit approval ===
     try{
-      const emailLc = (CLOUD.user?.email||'').toLowerCase();
-      const isAdminEmail = CLOUD.adminEmails.map(x=>String(x).toLowerCase()).includes(emailLc);
+      const email = String((user && user.email) || '').toLowerCase();
       const approved = !!(CLOUD.userProfile && CLOUD.userProfile.approved);
-      if(!isAdminEmail && (CLOUD.role === ROLES.STAFF || CLOUD.role === ROLES.ADMIN) && !approved){
-        console.warn('Downgrade to customer: not approved');
+      const hardAdmins = [
+        'info@doggy-style.de',
+        'info@wild-westallgaeu-alpaka.de'
+      ];
+      const isHardAdmin = hardAdmins.includes(email);
+      if((CLOUD.role === ROLES.STAFF || CLOUD.role === ROLES.ADMIN) && !approved && !isHardAdmin){
+        console.warn('[DS] Downgrade unapproved staff/admin to customer', {email, role:CLOUD.role});
         CLOUD.role = ROLES.CUSTOMER;
       }
-    }catch(_){ }
+    }catch(_){}
+
     // Kunden-Portal: kein Workspace-State, keine Tabs
     if(CLOUD.role === ROLES.CUSTOMER){
       try{ await initCustomerPortal(); }catch(e){ console.error(e); }
