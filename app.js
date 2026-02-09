@@ -11,7 +11,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
-const APP_BUILD = 'M48_4G3_INBOX_PORTAL_GUARD_20260209F';
+const APP_BUILD = 'M48_4G3_INBOX_PORTAL_GUARD_20260209G';
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 (function DS_BUILD_GUARD_RECOVERY(){
@@ -1470,7 +1470,6 @@ async function wireTaskCreation(){
         return;
       }
       let q = cloudUsersCol()
-        .where('role','==',ROLES.CUSTOMER)
         .orderBy('createdAt','desc')
         .limit(CUSTOMER_PAGE_SIZE);
       if(_custLastDoc) q = q.startAfter(_custLastDoc);
@@ -10214,12 +10213,22 @@ return;
     }
     // Login bei jedem Start erzwingen: wird beim Start durch signOut() erzwungen (kein Auto-Logout nach erfolgreichem Login)
     // Rolle (v2): aus Firestore (mit Whitelist-Override)
+    const __email = String((user && user.email) || "").toLowerCase();
+    const __hardAdmins = [
+      "info@doggy-style.de",
+      "info@wild-westallgaeu-alpaka.de"
+    ];
+    const __isHardAdmin = __hardAdmins.includes(__email);
     try{
       CLOUD.userProfile = await loadOrCreateUserProfile(user);
       CLOUD.role = (CLOUD.userProfile && CLOUD.userProfile.role) ? CLOUD.userProfile.role : ROLES.CUSTOMER;
+      if(__isHardAdmin){
+        CLOUD.role = ROLES.ADMIN;
+        CLOUD.userProfile = Object.assign({}, (CLOUD.userProfile||{}), { role: ROLES.ADMIN, approved: true });
+      }
     }catch(e){
       console.warn('Role load failed, fallback to customer', e);
-      CLOUD.role = ROLES.CUSTOMER;
+      CLOUD.role = __isHardAdmin ? ROLES.ADMIN : ROLES.CUSTOMER;
     }
 
     // === SECURITY: staff/admin require explicit approval ===
