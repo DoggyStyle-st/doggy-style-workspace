@@ -11,7 +11,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
-const APP_BUILD = 'M48_4G3_INBOX_PORTAL_GUARD_20260208B';
+const APP_BUILD = 'M48_4G3_INBOX_PORTAL_GUARD_20260209A';
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 (function DS_BUILD_GUARD_RECOVERY(){
@@ -930,6 +930,8 @@ async function loadOrCreateUserProfile(user){
       email: user.email||"",
       displayName,
       role,
+      approved: (role === ROLES.ADMIN || role === ROLES.STAFF),
+      approvedAt: (role === ROLES.ADMIN || role === ROLES.STAFF) ? Date.now() : 0,
       createdAt: Date.now()
     };
     try{ await ref.set(profile, {merge:true}); }catch(e){ console.warn('User profile create failed', e); }
@@ -941,11 +943,21 @@ async function loadOrCreateUserProfile(user){
     try{ await ref.set({role: ROLES.ADMIN}, {merge:true}); }catch(_){ }
     data.role = ROLES.ADMIN;
   }
+    const rawRole = data.role || (isAdminEmail ? ROLES.ADMIN : ROLES.CUSTOMER);
+  const approved = !!data.approved || !!data.approvedAt;
+  let roleFinal = rawRole;
+  // Sicherheits-Guard: Nur explizit freigegebene User dürfen staff/admin sein.
+  if(!isAdminEmail && (rawRole === ROLES.STAFF || rawRole === ROLES.ADMIN) && !approved){
+    roleFinal = ROLES.CUSTOMER;
+  }
   return {
     uid,
     email: data.email || user.email || "",
-    displayName: (data.displayName || ((user.email||'').split('@')[0]||'')),
-    role: data.role || (isAdminEmail ? ROLES.ADMIN : ROLES.CUSTOMER),
+    displayName: (data.displayName || (((user.email||'').split('@')[0])||'')),
+    role: roleFinal,
+    customerId: data.customerId || '',
+    approved: approved,
+    approvedAt: data.approvedAt || 0,
     createdAt: data.createdAt || 0
   };
 }
@@ -1500,7 +1512,7 @@ async function wireUserManagement(){
         sel.value = u.role || 'customer';
         sel.onchange = async ()=>{
           try{
-            await cloudUserDoc(u.uid||u.id).set({role: sel.value}, {merge:true});
+            await cloudUserDoc(u.uid||u.id).set({role: sel.value, approved: (sel.value!=='customer'), approvedAt: (sel.value!=='customer')?Date.now():0, approvedBy: (CLOUD.user&&CLOUD.user.uid)||''}, {merge:true});
             if(msgEl) msgEl.textContent = '✅ Rolle gespeichert.';
           }catch(e){
             console.error(e);
@@ -1744,6 +1756,7 @@ async function wireInboxAssignments(){
   const selTemplate = document.getElementById('assignTemplate');
   const btnCreate   = document.getElementById('btnAssignTask');
   const msgEl       = document.getElementById('assignMsg');
+  const listEl      = document.getElementById('assignTaskList');
   if(!selCustomer || !selTemplate || !btnCreate) return;
 
   // Sicherstellen, dass State aktuell ist (offline-first)
@@ -1816,7 +1829,41 @@ async function wireInboxAssignments(){
     [...map.values()].forEach(c=>pushCustomer(c.id, c.name, c.phone, c.dogs?`${c.dogs} Hund(e)`:'' ));
   }
 
-  // --- Vorlagen für Eingänge (wie besprochen) ---
+  
+  // --- Portal-UID Zuordnung aus lokalem Kundenstamm (state.customers) übernehmen ---
+  try{
+    const idxById = new Map();
+    const idxByKey = new Map();
+    const custArr = (state && Array.isArray(state.customers)) ? state.customers : [];
+    custArr.forEach(c=>{
+      const id = c.id || c.customerId || '';
+      const name = (c.name || c.customerName || c.fullName || '').trim();
+      const phone = (c.phone || c.telefon || c.mobile || '').trim();
+      const email = (c.email || c.mail || '').trim();
+      const puid = (c.portalUid || c.portalUID || c.userUid || c.uid || '').trim();
+      if(id) idxById.set(id, {puid, email, name, phone});
+      if(name || phone){
+        const k = stableId(name+'|'+phone);
+        idxByKey.set(k, {puid, email, name, phone, id});
+      }
+    });
+    customersOut.forEach(c=>{
+      const direct = idxById.get(c.id);
+      const k = stableId((c.name||'')+'|'+(c.phone||''));
+      const byKey = idxByKey.get(k);
+      const pick = direct || byKey;
+      if(pick){
+        c.portalUid = (pick.puid||'').trim();
+        c.email = (pick.email||'').trim();
+        if(!c.portalUid && pick.id){ c.__suggestId = pick.id; }
+      } else {
+        c.portalUid = '';
+        c.email = '';
+      }
+    });
+  }catch(e){ console.warn('portal uid enrichment failed', e); }
+
+// --- Vorlagen für Eingänge (wie besprochen) ---
   const assignTemplates = [
     { id: "betreuungsvertrag", name: "📝 Betreuungsvertrag" },
     { id: "hundeannahme", name: "🐕 Hundeannahme (Aufenthalt)" },
@@ -1850,19 +1897,64 @@ async function wireInboxAssignments(){
   fillSelect(selCustomer, customersOut, c=>c.id, c=>{
     const phone = c.phone ? ` · ${c.phone}` : '';
     const extra = c.extra ? ` (${c.extra})` : '';
-    return `${c.name}${phone}${extra}`;
+    const link = c.portalUid ? ' ✅' : ' ⚠️ nicht zugeordnet';
+    return `${c.name}${phone}${extra}${link}`;
   }, 'Keine Kunden vorhanden');
   fillSelect(selTemplate, assignTemplates, t=>t.id, t=>t.name, 'Keine Vorlagen');
 
   const refreshBtnState = ()=>{
-    const ok = !!selCustomer.value && !!selTemplate.value;
+    const selected = customersOut.find(c=>c.id===selCustomer.value);
+    const ok = !!selCustomer.value && !!selTemplate.value && !!(selected && selected.portalUid);
     btnCreate.disabled = !ok;
   };
   selCustomer.onchange = refreshBtnState;
   selTemplate.onchange = refreshBtnState;
   refreshBtnState();
 
-  btnCreate.onclick = ()=>{
+  // Offene Aufgaben anzeigen (Cloud, staff/admin)
+  try{
+    if(listEl && CLOUD && CLOUD.enabled && isStaff()){
+      const render = async (tasks)=>{
+        listEl.innerHTML = '';
+        if(!tasks.length){
+          listEl.innerHTML = `<div class="muted">— keine offenen Aufgaben —</div>`;
+          return;
+        }
+        tasks.forEach(t=>{
+          const row = document.createElement('div');
+          row.className = 'list-item';
+          const when = t.createdAt ? fmtDT(t.createdAt) : '';
+          const who = t.customerEmail || t.customerName || t.customerUid || '';
+          row.innerHTML = `<div><strong>${escapeHtml(t.title||'Aufgabe')}</strong><small>${escapeHtml(who)}${when?(' · '+when):''}</small></div>`;
+          const actions = document.createElement('div');
+          actions.className = 'actions';
+          const btnDone = document.createElement('button');
+          btnDone.className = 'smallbtn';
+          btnDone.textContent = 'Erledigt';
+          btnDone.onclick = async ()=>{
+            try{
+              await cloudTasksCol().doc(t.id).set({status:'done', updatedAt: Date.now(), doneAt: Date.now()}, {merge:true});
+            }catch(e){ alert('Konnte nicht als erledigt markieren.'); }
+          };
+          actions.appendChild(btnDone);
+          row.appendChild(actions);
+          listEl.appendChild(row);
+        });
+      };
+      const q = cloudTasksCol().where('status','==','open').orderBy('createdAt','desc').limit(100);
+      q.onSnapshot((snap)=>{
+        const tasks=[];
+        snap.forEach(d=>tasks.push({id:d.id, ...d.data()}));
+        render(tasks);
+      }, (err)=>{
+        console.warn('open tasks listener', err);
+        listEl.innerHTML = `<div class="muted">— Aufgaben konnten nicht geladen werden —</div>`;
+      });
+    }
+  }catch(e){ console.warn(e); }
+
+
+  btnCreate.onclick = async ()=>{
     try{
       const customerId = selCustomer.value;
       const templateId = selTemplate.value;
@@ -2644,6 +2736,12 @@ function ensureInvoicePricing(inv){
   return inv;
 }
 function showPanel(id){
+  // Sicherheits-Guard: Kunden sehen ausschließlich das Kundenportal
+  try{
+    if(typeof CLOUD !== 'undefined' && CLOUD && CLOUD.role === ROLES.CUSTOMER && id !== 'customerPortal'){
+      id = 'customerPortal';
+    }
+  }catch(_){ }
   document.querySelectorAll(".panel").forEach(p=>{
     p.classList.toggle("is-active", p.id === id);
   });
@@ -2689,6 +2787,12 @@ if(id === "calendar"){
 }
 // ==== Dashboard / Schnellaktionen helpers ====
 function selectTab(tabId){
+  // Sicherheits-Guard: Kunden dürfen niemals in Staff-Panels navigieren
+  try{
+    if(typeof CLOUD !== 'undefined' && CLOUD && CLOUD.role === ROLES.CUSTOMER){
+      tabId = 'customerPortal';
+    }
+  }catch(_){ }
   // activate tab button
   $$(".tab").forEach(b=>b.classList.toggle("is-active", b.dataset.tab===tabId));
   showPanel(tabId);

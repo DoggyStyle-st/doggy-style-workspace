@@ -101,7 +101,7 @@
   .doc-modal__actions{ margin-left:auto; display:flex; flex-wrap: wrap; gap: 8px; }
   .doc-modal__frame{ width: 100%; border: 0; border-radius: 12px; background: #fff; flex:1; min-height: 0; }
 </style>
-  <meta name="app-version" content="M48_4G3_INBOX_PORTAL_GUARD_20260208B">
+  <meta name="app-version" content="M48_4G3_INBOX_PORTAL_GUARD_20260209A">
   <meta name="release-channel" content="MASTER">
 </head>
 <body class="bg-watermark page-app">
@@ -505,6 +505,7 @@
       <button class="btn primary" id="btnAssignTask">Aufgabe erstellen</button>
       <div class="muted" id="assignMsg"></div>
     </div>
+  <div class="list" id="assignTaskList" style="margin-top:10px"></div>
   </div>
 </section>
 
@@ -1187,7 +1188,7 @@
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-<script defer="defer" src="app.js?v=M48_4G3_INBOX_PORTAL_GUARD_20260208B"></script>
+<script defer="defer" src="app.js?v=M48_4G3_INBOX_PORTAL_GUARD_20260209A"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1230,7 +1231,7 @@
 </script>
 
 <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M48_4G3_INBOX_PORTAL_GUARD_20260208B');
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M48_4G3_INBOX_PORTAL_GUARD_20260209A');
   </script>
 
 <script>
@@ -1294,6 +1295,6 @@
   <!-- Bottom logout button removed (duplicate of header logout; also overlaps editor on iPad) -->
 </div>
 <!-- test-badge removed (requested) -->
-  <div class="build-badge" id="buildBadge">Build M48_4G3_INBOX_PORTAL_GUARD_20260208B</div>
+  <div class="build-badge" id="buildBadge">Build M48_4G3_INBOX_PORTAL_GUARD_20260209A</div>
 </body>
 </html>
