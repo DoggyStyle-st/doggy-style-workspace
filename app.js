@@ -11,7 +11,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
-const APP_BUILD = 'M48_4G3_INBOX_ASSIGN_UI_FIXD_20260208';
+const APP_BUILD = 'M48_4G3_INBOX_PORTAL_GUARD_20260208B';
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 (function DS_BUILD_GUARD_RECOVERY(){
@@ -1513,6 +1513,75 @@ async function wireUserManagement(){
           }
         };
         actions.appendChild(sel);
+
+        // Link Portal-User -> lokaler Kunde (optional, aber wichtig für Zuordnung)
+        // Speichert in Firestore user.customerId und setzt im lokalen Kunden-Datensatz customer.portalUid = uid.
+        try{
+          const isCustomer = (sel.value === ROLES.CUSTOMER) || ((u.role||'') === ROLES.CUSTOMER);
+          if(isCustomer){
+            const linkWrap = document.createElement('div');
+            linkWrap.className = 'actions';
+            linkWrap.style.gap = '8px';
+            linkWrap.style.flexWrap = 'wrap';
+
+            const linkSel = document.createElement('select');
+            linkSel.title = 'Portal-User mit lokalem Kunden verknüpfen';
+            const custList = (state && Array.isArray(state.customers)) ? state.customers : [];
+            const curCid = u.customerId || u.customerID || u.linkedCustomerId || '';
+            const opt = [];
+            opt.push('<option value="">— Kunde zuordnen —</option>');
+            custList.forEach(c=>{
+              const cid = c.id || '';
+              const label = `${c.name||'Kunde'}${c.email?(' – '+c.email):''}${c.portalUid=== (u.uid||u.id) ? ' ✅' : ''}`;
+              opt.push(`<option value="${escapeHtml(cid)}">${escapeHtml(label)}</option>`);
+            });
+            linkSel.innerHTML = opt.join('');
+            linkSel.value = curCid || '';
+            linkSel.onchange = async ()=>{
+              const cid = linkSel.value || '';
+              const uid2 = (u.uid||u.id);
+              const cust = cid ? ((state.customers||[]).find(x=>x.id===cid) || null) : null;
+              const dn = cust ? (cust.name||'') : (u.displayName||'');
+              try{
+                // Cloud: User-Profil aktualisieren
+                await cloudUserDoc(uid2).set({
+                  customerId: cid || '',
+                  displayName: dn || (u.displayName||''),
+                  linkedAt: Date.now()
+                }, {merge:true});
+              }catch(e){
+                console.error(e);
+                if(msgEl) msgEl.textContent = '❌ Zuordnung konnte nicht in der Cloud gespeichert werden.';
+              }
+              // Lokal: Kunden-Datensatz markieren
+              try{
+                if(state && Array.isArray(state.customers)){
+                  // remove uid from any other customer
+                  state.customers.forEach(c=>{ if((c.portalUid||'')===uid2 && c.id!==cid){ c.portalUid=''; c.updatedAt=Date.now(); } });
+                  if(cust){
+                    cust.portalUid = uid2;
+                    cust.updatedAt = Date.now();
+                  }
+                  saveState();
+                }
+              }catch(e){
+                console.warn('local link save failed', e);
+              }
+              if(msgEl) msgEl.textContent = '✅ Zuordnung gespeichert.';
+            };
+
+            // Show current mapping
+            const curInfo = document.createElement('small');
+            curInfo.className = 'muted';
+            curInfo.style.marginLeft = '4px';
+            curInfo.textContent = curCid ? 'zugeordnet' : 'nicht zugeordnet';
+
+            linkWrap.appendChild(linkSel);
+            linkWrap.appendChild(curInfo);
+            row.appendChild(linkWrap);
+          }
+        }catch(e){ console.warn('user link ui', e); }
+
         row.appendChild(actions);
         listEl.appendChild(row);
       });
@@ -10203,8 +10272,8 @@ return;
       CLOUD.userProfile = await loadOrCreateUserProfile(user);
       CLOUD.role = (CLOUD.userProfile && CLOUD.userProfile.role) ? CLOUD.userProfile.role : ROLES.STAFF;
     }catch(e){
-      console.warn('Role load failed, fallback to staff', e);
-      CLOUD.role = ROLES.STAFF;
+      console.warn('Role load failed, fallback to customer (least privilege)', e);
+      CLOUD.role = ROLES.CUSTOMER;
     }
     // Kunden-Portal: kein Workspace-State, keine Tabs
     if(CLOUD.role === ROLES.CUSTOMER){
