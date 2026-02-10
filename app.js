@@ -23,7 +23,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
-const APP_BUILD = 'M48_4G3_INBOX_PORTAL_GUARD_20260209H';
+const APP_BUILD = 'M48_4G3_INBOX_PORTAL_GUARD_20260210A';
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 (function DS_BUILD_GUARD_RECOVERY(){
@@ -1385,17 +1385,15 @@ async function wireTaskCreation(){
 
     // Fallback: if no portal users were loaded from Cloud, use local customers.
     // Only customers with a linked portal UID can receive tasks.
-    const baseList = (_allCustomers && _allCustomers.length) ? _allCustomers : (state.customers||[]).map(c=>{
-      const uid = c.portalUid || c.portalUID || c.userUid || c.uid || '';
-      const name = c.name || c.kundenname || c.customerName || c.fullName || c.vorname || '';
-      const email = c.email || c.mail || '';
-      return {
-        uid,
-        displayName: name,
-        email,
-        __missingUid: !uid,
-      };
-  const setLinkMsg = (t, err=false)=>{ if(!linkMsgEl) return; linkMsgEl.textContent = t||''; linkMsgEl.style.color = err ? '#ffb3b3' : ''; };
+    const baseList = (_allCustomers && _allCustomers.length)
+      ? _allCustomers
+      : (Array.isArray(state.customers) ? state.customers : []).map(c=>{
+          const uid = c.portalUid || c.portalUID || c.userUid || c.uid || '';
+          const name = c.name || c.kundenname || c.customerName || c.fullName || c.vorname || '';
+          const email = c.email || c.mail || '';
+          return { uid, displayName: name, email, __missingUid: !uid };
+        });
+const setLinkMsg = (t, err=false)=>{ if(!linkMsgEl) return; linkMsgEl.textContent = t||''; linkMsgEl.style.color = err ? '#ffb3b3' : ''; };
   const setCreateMsg = (t, err=false)=>{ if(!msgEl) return; msgEl.textContent = t||''; msgEl.style.color = err ? '#ffb3b3' : ''; };
 
   const getInternalCustomers = ()=>{
