@@ -94,5 +94,14 @@
   </div>
 
   <script src="diag.js?v=__TS__"></script>
+
+<script>
+(()=>{
+  const v='M48_4G3_INBOX_PORTAL_GUARD_20260210A';
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('sw.js?v='+encodeURIComponent(v)).catch(()=>{});
+  }
+})();
+</script>
 </body>
 </html>
