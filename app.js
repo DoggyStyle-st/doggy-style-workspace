@@ -23,12 +23,12 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
-const APP_BUILD = 'M48_4G3_INBOX_PORTAL_GUARD_20260210C';
+const APP_BUILD = 'M48_4G3_INBOX_TASKS_FIRESTORE_20260211B';
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 (function DS_BUILD_GUARD_RECOVERY(){
   try{
-    const BUILD = (typeof APP_BUILD !== 'undefined') ? APP_BUILD : "M48_4G3_INBOX_ASSIGN_UI_20260208";
+    const BUILD = (typeof APP_BUILD !== 'undefined') ? APP_BUILD : "M48_4G3_INBOX_TASKS_FIRESTORE_20260211B";
     // Prevent infinite reload loops on iOS/Safari: only run recovery once per BUILD per session.
     try{
       const k = 'ds_guard_recovered_build';
@@ -1354,12 +1354,21 @@ async function wireTaskCreation(){
   try{
     await loadTemplates();
     const listAll = (TEMPLATES||[]);
-    const allowedIds = ['customer_profile','boarding_contract','new_stay'];
-    const list = listAll.filter(t=>{
-      const id = t.id || t.templateId || t.name || '';
-      return allowedIds.includes(id);
+    // Only expose the two practical portal tasks (Betreuungsvertrag & Hundeannahme).
+    // Explicitly exclude legal/vet documents (AGB/DSGVO/Tierarzt) from task assignment.
+    const allowId = new Set(['boarding_contract','new_stay','betreuungsvertrag','hundeannahme','hundeannahme.json']);
+    const allowNameRe = /(betreuungsvertrag|hundeannahme|hundeannahme\.json)/i;
+    const excludeNameRe = /(agb|dsgvo|datenschutz|tierarzt)/i;
+    const filtered = listAll.filter(t=>{
+      const id = (t.id || t.templateId || t.name || '').toString();
+      const label = (t.name || t.title || id || '').toString();
+      if(excludeNameRe.test(label) || excludeNameRe.test(id)) return false;
+      return allowId.has(id) || allowNameRe.test(label) || allowNameRe.test(id);
     });
-    const useList = list.length ? list : listAll;
+    const useList = filtered.length ? filtered : listAll.filter(t=>{
+      const label = (t.name || t.title || t.id || t.templateId || '').toString();
+      return !excludeNameRe.test(label);
+    });
     selTemplate.innerHTML = useList.map(t=>{
       const id = t.id || t.templateId || t.name || '';
       const label = t.name || t.title || id || 'Vorlage';
@@ -1803,10 +1812,12 @@ async function wireInboxAssignments(){
 
   // Templates, die für Kunden freischaltbar sind (Basis-Version)
   // Keys sind stabil; Anzeigenamen sind für UI.
+  // Nur die beiden Portal-Aufgaben, die der Kunde wirklich ausfüllen soll.
+  // (Tierarzt-Erlaubnis + AGB/DSGVO sind Teil der Hundeannahme/Aufenthalt-Logik
+  // und sollen nicht als separate Portal-Aufgabe erscheinen.)
   const templates = [
-    { id: 'customer_profile', name: 'Hunde/Kunden (Kundendaten ergänzen)' },
     { id: 'boarding_contract', name: 'Betreuungsvertrag' },
-    { id: 'new_stay', name: 'Neuer Aufenthalt' }
+    { id: 'new_stay', name: 'Hundeannahme / Neuer Aufenthalt' }
   ];
 
   const fillSelect = (sel, items, getId, getLabel, emptyLabel)=>{
@@ -1852,7 +1863,7 @@ async function wireInboxAssignments(){
   };
   setMsg('');
 
-  btnCreate.onclick = ()=>{
+  btnCreate.onclick = async ()=>{
     try{
       const customerId = (selCustomer.value||'').trim();
       const templateId = (selTemplate.value||'').trim();
@@ -1863,23 +1874,36 @@ async function wireInboxAssignments(){
       const c = (stateNow.customers||[]).find(x=>x.id===customerId);
       if(!c){ setMsg('Kunde nicht gefunden (evtl. gelöscht).', true); return; }
 
-      // Duplikat-Schutz: gleiche Aufgabe für den Kunden schon offen?
-      const exists = (stateNow.inboxAssignments||[]).some(a=>a.customerId===customerId && a.templateId===templateId && a.status==='open');
-      if(exists){ setMsg('Diese Aufgabe ist für den Kunden bereits offen.', true); return; }
+      // Firestore-Task für Kundenportal.
+      // Wir bevorzugen assignedToUid (wenn Kunde verknüpft), ansonsten assignedToEmail.
+      const assignedToUid = (c.uid||c.portalUid||'').toString().trim();
+      const assignedToEmail = (c.email||c.portalEmail||c.contactEmail||c.kontaktEmail||'').toString().trim().toLowerCase();
+      if(!assignedToUid && !assignedToEmail){
+        setMsg('Kunde hat keine E-Mail/Portal-Verknüpfung. Bitte beim Kunden eine E-Mail hinterlegen oder in Einstellungen verknüpfen.', true);
+        return;
+      }
 
-      const task = {
-        id: 'asg_' + Date.now() + '_' + Math.random().toString(16).slice(2),
+      if(!cloudTasksCol){
+        setMsg('Portal-Aufgaben sind nicht initialisiert (cloudTasksCol fehlt).', true);
+        return;
+      }
+
+      const tpl = templates.find(t=>t.id===templateId);
+      const doc = {
+        status: 'open',
         customerId,
         customerName: c.name || '',
         templateId,
-        createdAt: Date.now(),
-        status: 'open'
+        templateTitle: tpl?.name || templateId,
+        assignedToUid: assignedToUid || null,
+        assignedToEmail: assignedToEmail || null,
+        createdAt: serverTimestamp ? serverTimestamp() : new Date(),
+        createdByUid: (CLOUD?.user?.uid)||null,
+        createdByEmail: (CLOUD?.user?.email)||null
       };
-      stateNow.inboxAssignments = Array.isArray(stateNow.inboxAssignments) ? stateNow.inboxAssignments : [];
-      stateNow.inboxAssignments.unshift(task);
-      saveState(stateNow);
+      await addDoc(cloudTasksCol(), doc);
 
-      setMsg(`✅ Aufgabe freigeschaltet: ${c.name||'Kunde'} · ${templates.find(t=>t.id===templateId)?.name||templateId}`);
+      setMsg(`✅ Aufgabe freigeschaltet: ${c.name||'Kunde'} · ${tpl?.name||templateId}`);
       // optional: Auswahl zurücksetzen
       selTemplate.value = '';
     }catch(e){
@@ -12855,7 +12879,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
         el.style.boxShadow="0 6px 18px rgba(0,0,0,0.25)";
         document.body.appendChild(el);
       }
-      const BUILD = (typeof APP_BUILD!=='undefined')?APP_BUILD:"M48_4G3_INBOX_ASSIGN_UI_20260208";
+      const BUILD = (typeof APP_BUILD!=='undefined')?APP_BUILD:"M48_4G3_INBOX_TASKS_FIRESTORE_20260211B";
       const meta = document.querySelector('meta[name="app-version"]');
       const htmlBuild = meta ? meta.getAttribute('content') : "";
       const online = navigator.onLine ? "online" : "offline";
