@@ -2,6 +2,28 @@
 <html lang="de">
 <head>
   <meta charset="utf-8"/>
+  <!-- SW-KILL: disable any service worker + caches to stop old builds -->
+  <script>
+    (function () {
+      try {
+        if (!('serviceWorker' in navigator)) return;
+        if (sessionStorage.getItem('sw_kill_done_login') === '1') return;
+        sessionStorage.setItem('sw_kill_done_login', '1');
+        navigator.serviceWorker.getRegistrations().then(function (regs) {
+          return Promise.all((regs || []).map(function (r) { return r.unregister(); }));
+        }).then(function () {
+          if (window.caches && caches.keys) {
+            return caches.keys().then(function (keys) {
+              return Promise.all(keys.map(function (k) { return caches.delete(k); }));
+            });
+          }
+        }).then(function () {
+          // One clean reload to ensure no SW controls the page.
+          setTimeout(function(){ location.reload(); }, 50);
+        }).catch(function () {});
+      } catch (e) {}
+    })();
+  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
   <title>Doggy Style · Login · TEST</title>
   <link href="manifest.json" rel="manifest"/>

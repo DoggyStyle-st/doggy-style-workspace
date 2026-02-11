@@ -5,18 +5,37 @@ const DS_MASTER_FREEZE = {
   channel: "MASTER",
   frozenAt: "2026-02-07T22:10:34"
 };
+
+// --- util: stable hashCode (offline-safe) ---
+function hashCode(str){
+  str = String(str||'');
+  let h = 0;
+  for(let i=0;i<str.length;i++){
+    h = ((h<<5)-h) + str.charCodeAt(i);
+    h |= 0;
+  }
+  return h;
+}
+
 // Expose for diagnostics / support
 try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // ===== END DS_MASTER_FREEZE =====
 
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
-const APP_BUILD = 'M48_4G3_INBOX_ASSIGN_UI_20260208';
+const APP_BUILD = 'M48_4G3_INBOX_PORTAL_GUARD_20260210C';
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 (function DS_BUILD_GUARD_RECOVERY(){
   try{
     const BUILD = (typeof APP_BUILD !== 'undefined') ? APP_BUILD : "M48_4G3_INBOX_ASSIGN_UI_20260208";
+    // Prevent infinite reload loops on iOS/Safari: only run recovery once per BUILD per session.
+    try{
+      const k = 'ds_guard_recovered_build';
+      const prev = sessionStorage.getItem(k);
+      if(prev === BUILD) return;
+      sessionStorage.setItem(k, BUILD);
+    }catch(_){ }
     const meta = document.querySelector('meta[name="app-version"]');
     const htmlBuild = meta ? meta.getAttribute('content') : null;
     if(htmlBuild && htmlBuild !== BUILD){
@@ -1322,6 +1341,9 @@ async function wireTaskCreation(){
   const selCustomer = document.getElementById('taskCustomerSelect');
   const inpCustomerSearch = document.getElementById('taskCustomerSearch');
   const selTemplate = document.getElementById('taskTemplateSelect');
+  const selInternalCustomer = document.getElementById('taskInternalCustomerSelect');
+  const btnLink = document.getElementById('btnLinkPortalCustomer');
+  const linkMsgEl = document.getElementById('taskLinkMsg');
   const titleInput = document.getElementById('taskTitleInput');
   const btnCreate = document.getElementById('btnTaskCreate');
   const msgEl = document.getElementById('taskCreateMsg');
@@ -1331,8 +1353,14 @@ async function wireTaskCreation(){
   // Templates laden (Vorlagen)
   try{
     await loadTemplates();
-    const list = (TEMPLATES||[]);
-    selTemplate.innerHTML = list.map(t=>{
+    const listAll = (TEMPLATES||[]);
+    const allowedIds = ['customer_profile','boarding_contract','new_stay'];
+    const list = listAll.filter(t=>{
+      const id = t.id || t.templateId || t.name || '';
+      return allowedIds.includes(id);
+    });
+    const useList = list.length ? list : listAll;
+    selTemplate.innerHTML = useList.map(t=>{
       const id = t.id || t.templateId || t.name || '';
       const label = t.name || t.title || id || 'Vorlage';
       return `<option value="${escapeHtml(id)}">${escapeHtml(label)}</option>`;
@@ -1352,22 +1380,61 @@ async function wireTaskCreation(){
     const em = String(u.email||u.uid||'').trim();
     return dn ? `${dn} – ${em}` : em;
   };
+  const setLinkMsg = (t, err=false)=>{ if(!linkMsgEl) return; linkMsgEl.textContent = t||''; linkMsgEl.style.color = err ? '#ffb3b3' : ''; };
+  const setCreateMsg = (t, err=false)=>{ if(!msgEl) return; msgEl.textContent = t||''; msgEl.style.color = err ? '#ffb3b3' : ''; };
+
+  const getInternalCustomers = ()=>{
+    // Prefer state.customers; fallback derive from dogs (legacy)
+    const arr = Array.isArray(state.customers) ? state.customers : [];
+    if(arr.length) return arr.map(c=>({id:c.id, name:c.name||'Kunde', phone:c.phone||'', email:c.email||'', portalUid:c.portalUid||c.portalUID||''}));
+    const dogs = Array.isArray(state.dogs) ? state.dogs : [];
+    // group by owner+phone
+    const map = new Map();
+    dogs.forEach(d=>{
+      const owner = (d.ownerName||d.halter||d.kunde||'').trim();
+      const phone = (d.ownerPhone||d.phone||d.telefon||'').trim();
+      const key = (owner+'|'+phone).toLowerCase();
+      if(!key.trim()) return;
+      if(!map.has(key)) map.set(key,{id:'legacy_'+Math.random().toString(16).slice(2), name:owner||'Kunde', phone, email:'', portalUid:''});
+    });
+    return Array.from(map.values());
+  };
+
+  const renderInternalCustomers = ()=>{
+    if(!selInternalCustomer) return;
+    const list = getInternalCustomers();
+    const opts = ['<option value="">Kunde auswählen…</option>'];
+    list.forEach(c=>{
+      const extra = c.phone ? ` · ${c.phone}` : (c.email ? ` · ${c.email}` : '');
+      opts.push(`<option value="${escapeHtml(c.id)}">${escapeHtml((c.name||'Kunde')+extra)}</option>`);
+    });
+    selInternalCustomer.innerHTML = opts.join('');
+  };
+
+  const findLinkedCustomerIdForUid = (uid)=>{
+    if(!uid) return '';
+    // state.portalCustomerMap
+    const m = state.portalCustomerMap && state.portalCustomerMap[uid];
+    if(m && m.customerId) return m.customerId;
+    // in customers list by portalUid
+    const list = Array.isArray(state.customers) ? state.customers : [];
+    const hit = list.find(c=>String(c.portalUid||c.portalUID||'')===uid);
+    return hit ? hit.id : '';
+  };
+
   const renderCustomers = (q='')=>{
     const query = (q||'').trim().toLowerCase();
 
-    // Fallback: if no portal users were loaded from Cloud, use local customers.
-    // Only customers with a linked portal UID can receive tasks.
-    const baseList = (_allCustomers && _allCustomers.length) ? _allCustomers : (state.customers||[]).map(c=>{
-      const uid = c.portalUid || c.portalUID || c.userUid || c.uid || '';
-      const name = c.name || c.kundenname || c.customerName || c.fullName || c.vorname || '';
-      const email = c.email || c.mail || '';
-      return {
-        uid,
-        displayName: name,
-        email,
-        __missingUid: !uid,
-      };
-    });
+    // Fallback: wenn keine Portal-User aus Cloud geladen wurden, nutze lokale Kunden.
+    // Nur Kunden mit portalUid können sauber zugeordnet werden (falls leer: „noch nicht zugeordnet“).
+    const baseList = (_allCustomers && _allCustomers.length)
+      ? _allCustomers
+      : (Array.isArray(state.customers) ? state.customers : []).map(c=>{
+          const uid = c.portalUid || c.portalUID || c.userUid || c.uid || '';
+          const name = c.name || c.kundenname || c.customerName || c.fullName || c.vorname || '';
+          const email = c.email || c.mail || '';
+          return { uid, displayName: name, email, __missingUid: !uid };
+        });
 
     const list = query ? baseList.filter(u=>{
       const dn = String(u.displayName||'').toLowerCase();
@@ -1381,10 +1448,9 @@ async function wireTaskCreation(){
       opts.push('<option value="" disabled>Keine Treffer</option>');
     } else {
       list.forEach(u=>{
-        const disabled = u.__missingUid ? ' disabled' : '';
-        const suffix = u.__missingUid ? ' (kein Portal-Link)' : '';
-        const value = u.__missingUid ? '' : escapeHtml(u.uid);
-        opts.push(`<option value="${value}"${disabled}>${escapeHtml(customerLabel(u) + suffix)}</option>`);
+        const suffix = u.__missingUid ? ' (noch nicht zugeordnet)' : '';
+        const value = escapeHtml(u.uid||'');
+        opts.push(`<option value="${value}">${escapeHtml(customerLabel(u) + suffix)}</option>`);
       });
     }
     selCustomer.innerHTML = opts.join('');
@@ -1412,7 +1478,6 @@ async function wireTaskCreation(){
         return;
       }
       let q = cloudUsersCol()
-        .where('role','==',ROLES.CUSTOMER)
         .orderBy('createdAt','desc')
         .limit(CUSTOMER_PAGE_SIZE);
       if(_custLastDoc) q = q.startAfter(_custLastDoc);
@@ -1435,6 +1500,7 @@ async function wireTaskCreation(){
       _custLoading = false;
     }
   };
+  renderInternalCustomers();
   await loadCustomersPage(true);
   if(inpCustomerSearch){
     inpCustomerSearch.addEventListener('input', ()=>renderCustomers(inpCustomerSearch.value));
@@ -1442,20 +1508,68 @@ async function wireTaskCreation(){
   if(btnMoreCustomers){
     btnMoreCustomers.addEventListener('click', (e)=>{ e.preventDefault(); loadCustomersPage(false); });
   }
+
+  // Link portal-user ↔ internal customer
+  if(btnLink){
+    btnLink.addEventListener('click', ()=>{
+      try{
+        const uid = (selCustomer.value||'').trim();
+        const cid = (selInternalCustomer && selInternalCustomer.value||'').trim();
+        if(!uid){ setLinkMsg('Bitte zuerst einen Portal-Kunden auswählen.', true); return; }
+        if(!cid){ setLinkMsg('Bitte zuerst einen internen Kunden auswählen.', true); return; }
+
+        // Update mapping in state.portalCustomerMap
+        state.portalCustomerMap = state.portalCustomerMap || {};
+        state.portalCustomerMap[uid] = { customerId: cid, linkedAt: Date.now() };
+
+        // Also store uid on the customer record (best-effort, only if customer exists)
+        if(Array.isArray(state.customers)){
+          state.customers.forEach(c=>{
+            if(c.id === cid){ c.portalUid = uid; }
+            else if(String(c.portalUid||'') === uid){ c.portalUid = ''; }
+          });
+        }
+        saveState();
+        setLinkMsg('✅ Zuordnung gespeichert.');
+        renderCustomers(inpCustomerSearch?.value || '');
+      }catch(e){
+        console.error(e);
+        setLinkMsg('Fehler beim Zuordnen.', true);
+      }
+    });
+  }
+
+  // When portal customer selection changes, preselect linked internal customer
+  if(selCustomer && selInternalCustomer){
+    selCustomer.addEventListener('change', ()=>{
+      try{
+        const uid = (selCustomer.value||'').trim();
+        const linked = findLinkedCustomerIdForUid(uid);
+        if(linked) selInternalCustomer.value = linked;
+      }catch(_){}
+    });
+  }
   btnCreate.onclick = async ()=>{
-    const customerUid = selCustomer.value;
-    const templateId = selTemplate.value;
+    const customerUid = String(selCustomer.value||'').trim();
+    const templateId = String(selTemplate.value||'').trim();
     const tpl = getTemplate(templateId);
     const title = (titleInput?.value||'').trim()
       || (tpl?.name ? (tpl.name+' – Ausfüllen') : 'Formular ausfüllen');
     if(!customerUid || !templateId){
-      if(msgEl) msgEl.textContent = 'Bitte Kunde und Vorlage wählen.';
+      setCreateMsg('Bitte Portal-Kunde und Vorlage wählen.', true);
       return;
     }
-    if(msgEl) msgEl.textContent = '… erstellt …';
+    // Require mapping to internal customer
+    const customerId = findLinkedCustomerIdForUid(customerUid);
+    if(!customerId){
+      setCreateMsg('⚠️ Dieser Portal-Kunde ist noch keinem internen Kunden zugeordnet. Bitte zuerst zuordnen.', true);
+      return;
+    }
+    setCreateMsg('… erstellt …');
     try{
       await cloudTasksCol().add({
         customerUid,
+        customerId,
         templateId,
         title,
         status: 'open',
@@ -1463,11 +1577,11 @@ async function wireTaskCreation(){
         createdByUid: CLOUD.user?.uid || '',
         createdByEmail: CLOUD.user?.email || ''
       });
-      if(msgEl) msgEl.textContent = '✅ Aufgabe freigegeben.';
+      setCreateMsg('✅ Aufgabe freigegeben.');
       try{ titleInput.value=''; }catch(_){ }
     }catch(e){
       console.error(e);
-      if(msgEl) msgEl.textContent = '❌ Fehler: '+(e.message||e);
+      setCreateMsg('❌ Fehler: '+(e.message||e), true);
     }
   };
 }
@@ -1678,29 +1792,14 @@ async function wireInboxAssignments(){
   if(!selCustomer || !selTemplate || !btnCreate) return;
 
   // Optionen aus lokalem Workspace-State ziehen
-  // `ensureStateShape()` arbeitet auf dem globalen `state` und gibt nichts zurück.
-  // Wenn wir (undefined) weiterverwenden, landen wir bei "Keine Optionen".
-  state = loadState();
+  // FIX: ensureStateShape() gibt nichts zurück (mutiert den globalen state).
+  // Daher zuerst aus LocalStorage laden, in state übernehmen, dann Shape sichern.
+  try{
+    const loaded = loadState();
+    if(loaded && typeof loaded === 'object') state = loaded;
+  }catch(_){ /* ignore */ }
   ensureStateShape();
-  const st = state;
-  let customers = Array.isArray(st.customers) ? st.customers : [];
-
-  // Fallback: In älteren Master-Ständen existiert keine separate Kundenliste.
-  // Kunden ergeben sich dann ausschließlich aus den Hunde-Daten (Owner/Kunde).
-  if(customers.length===0 && Array.isArray(st.dogs) && st.dogs.length){
-    const seen = new Set();
-    const derived = [];
-    for(const d of st.dogs){
-      if(!d) continue;
-      const owner = (d.ownerName || d.kunde || d.customerName || d.owner || '').toString().trim();
-      if(!owner) continue;
-      const key = owner.toLowerCase();
-      if(seen.has(key)) continue;
-      seen.add(key);
-      derived.push({ id: `owner:${owner}`, displayName: owner, __derivedOwner: owner });
-    }
-    customers = derived;
-  }
+  const customers = Array.isArray(state.customers) ? state.customers : [];
 
   // Templates, die für Kunden freischaltbar sind (Basis-Version)
   // Keys sind stabil; Anzeigenamen sind für UI.
@@ -1760,10 +1859,7 @@ async function wireInboxAssignments(){
       if(!customerId){ setMsg('Bitte zuerst einen Kunden auswählen.', true); return; }
       if(!templateId){ setMsg('Bitte zuerst eine Vorlage auswählen.', true); return; }
 
-      // Global state korrekt initialisieren (ensureStateShape() arbeitet global)
-      state = loadState();
-      ensureStateShape();
-      const stateNow = state;
+      const stateNow = ensureStateShape(loadState());
       const c = (stateNow.customers||[]).find(x=>x.id===customerId);
       if(!c){ setMsg('Kunde nicht gefunden (evtl. gelöscht).', true); return; }
 
@@ -1781,9 +1877,7 @@ async function wireInboxAssignments(){
       };
       stateNow.inboxAssignments = Array.isArray(stateNow.inboxAssignments) ? stateNow.inboxAssignments : [];
       stateNow.inboxAssignments.unshift(task);
-      // saveState(...) ignoriert Argumente und speichert das globale `state`.
-      state = stateNow;
-      saveState();
+      saveState(stateNow);
 
       setMsg(`✅ Aufgabe freigeschaltet: ${c.name||'Kunde'} · ${templates.find(t=>t.id===templateId)?.name||templateId}`);
       // optional: Auswahl zurücksetzen
@@ -2539,6 +2633,9 @@ function ensureInvoicePricing(inv){
   return inv;
 }
 function showPanel(id){
+  // Customer hard-guard: customers may only see customerPortal
+  try{ if(CLOUD && CLOUD.role===ROLES.CUSTOMER && id!=='customerPortal'){ id='customerPortal'; } }catch(_){ }
+
   document.querySelectorAll(".panel").forEach(p=>{
     p.classList.toggle("is-active", p.id === id);
   });
@@ -2578,6 +2675,9 @@ if(id === "calendar"){
 }
 // ==== Dashboard / Schnellaktionen helpers ====
 function selectTab(tabId){
+  // Customer hard-guard: prevent navigation outside customerPortal
+  try{ if(CLOUD && CLOUD.role===ROLES.CUSTOMER && tabId!=='customerPortal'){ tabId='customerPortal'; } }catch(_){ }
+
   // activate tab button
   $$(".tab").forEach(b=>b.classList.toggle("is-active", b.dataset.tab===tabId));
   showPanel(tabId);
@@ -6411,6 +6511,30 @@ function ensureStateShape(){
   state.dogs = Array.isArray(state.dogs) ? state.dogs : [];
   state.docs = Array.isArray(state.docs) ? state.docs : [];
   state.customers = Array.isArray(state.customers) ? state.customers : [];
+  // Derive minimal customers list from legacy dogs if customers are missing (stable, offline-safe)
+  try{
+    if(state.customers.length===0 && Array.isArray(state.dogs) && state.dogs.length){
+      const map = new Map();
+      const norm = (s)=>String(s||'').trim();
+      const mkId = (key)=>'cust_'+(String(key).toLowerCase().replace(/[^a-z0-9]+/g,'_').slice(0,40))+'_'+(Math.abs(hashCode(String(key)))%100000);
+      state.dogs.forEach(d=>{
+        const ownerName = norm(d.ownerName || d.halterName || d.halter || d.kundeName || d.customerName || d.owner || '');
+        const ownerNo   = norm(d.customerNo || d.kundennr || d.customerNo || d.kundenNr || d.ownerNo || '');
+        const key = ownerNo ? (ownerNo+'|'+ownerName) : ownerName;
+        if(!key) return;
+        if(!map.has(key)){
+          map.set(key,{
+            id: mkId(key),
+            name: ownerName || ('Kunde '+ownerNo),
+            customerNo: ownerNo,
+            portalUid: d.portalUid || d.portalUID || ''
+          });
+        }
+      });
+      state.customers = Array.from(map.values());
+    }
+  }catch(_){ }
+
   state.pets = Array.isArray(state.pets) ? state.pets : [];
   state.stays = Array.isArray(state.stays) ? state.stays : [];
   state.worklogs = Array.isArray(state.worklogs) ? state.worklogs : [];
@@ -6859,6 +6983,10 @@ function openCpEditor(mode, petId){
   try{ cpMedRenderInlineList(); }catch(_){ }
   try{ ensureAddAnotherDogButton(); }catch(_){ }
   try{ updateAddAnotherDogButtonVisibility(); }catch(_){ }
+
+  // UX: Hundename-Autocap (Element existiert erst jetzt sicher im DOM)
+  wireAutoCapDogName();
+
   const list = document.getElementById("dogList");
   if(list) list.scrollIntoView({behavior:"smooth", block:"start"});
 }
@@ -8752,6 +8880,34 @@ function renderDogs(){
   refreshCustomerSelect();
   syncDogSelect();
 }
+
+// --- UX: Hundename automatisch mit großem Anfangsbuchstaben ---
+function ucfirstKeepRest(s){
+  if(!s) return s;
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+// Wir hängen den Listener defensiv an (Element existiert erst, wenn der Editor im DOM ist).
+function wireAutoCapDogName(){
+  try{
+    const el = document.getElementById('p_name');
+    if(!el) return;
+    if(el.dataset && el.dataset.autocapBound === '1') return;
+    if(el.dataset) el.dataset.autocapBound = '1';
+
+    const normalize = () => {
+      const v = (el.value || '');
+      if(!v) return;
+      const nv = ucfirstKeepRest(v);
+      if(nv !== v){
+        // Kein aggressives Cursor-Handling: wir normalisieren primär beim Verlassen des Feldes.
+        el.value = nv;
+      }
+    };
+
+    el.addEventListener('blur', normalize);
+  } catch(_){ /* no-op */ }
+}
 $("#btnAddDog").addEventListener("click",()=>openCpEditor("new"));
 $("#btnCpCancel").addEventListener("click",()=>closeCpEditor());
 // Button "Weiteren Hund" (für bestehenden Kunden) dynamisch einhängen
@@ -8807,7 +8963,9 @@ $("#btnCpSave").addEventListener("click",()=>{
     state.customers.push(customer);
     customerId = customer.id;
   }
-  const petName = $("#p_name").value.trim();
+  const petNameRaw = $("#p_name").value.trim();
+  const petName = ucfirstKeepRest(petNameRaw);
+  if(petName !== petNameRaw) $("#p_name").value = petName;
   if(!petName){ alert("Bitte Hundename eintragen."); return; }
   const csNew = $("#p_chipStatus").value;
   if(!csNew){ alert("Bitte bei „Gechippt?“ Ja oder Nein wählen."); return; }
@@ -10121,15 +10279,42 @@ return;
     }
     // Login bei jedem Start erzwingen: wird beim Start durch signOut() erzwungen (kein Auto-Logout nach erfolgreichem Login)
     // Rolle (v2): aus Firestore (mit Whitelist-Override)
+    const __email = String((user && user.email) || "").toLowerCase();
+    const __hardAdmins = [
+      "info@doggy-style.de",
+      "info@wild-westallgaeu-alpaka.de"
+    ];
+    const __isHardAdmin = __hardAdmins.includes(__email);
     try{
       CLOUD.userProfile = await loadOrCreateUserProfile(user);
-      CLOUD.role = (CLOUD.userProfile && CLOUD.userProfile.role) ? CLOUD.userProfile.role : ROLES.STAFF;
+      CLOUD.role = (CLOUD.userProfile && CLOUD.userProfile.role) ? CLOUD.userProfile.role : ROLES.CUSTOMER;
+      if(__isHardAdmin){
+        CLOUD.role = ROLES.ADMIN;
+        CLOUD.userProfile = Object.assign({}, (CLOUD.userProfile||{}), { role: ROLES.ADMIN, approved: true });
+      }
     }catch(e){
-      console.warn('Role load failed, fallback to staff', e);
-      CLOUD.role = ROLES.STAFF;
+      console.warn('Role load failed, fallback to customer', e);
+      CLOUD.role = __isHardAdmin ? ROLES.ADMIN : ROLES.CUSTOMER;
     }
+
+    // === SECURITY: staff/admin require explicit approval ===
+    try{
+      const email = String((user && user.email) || '').toLowerCase();
+      const approved = !!(CLOUD.userProfile && CLOUD.userProfile.approved);
+      const hardAdmins = [
+        'info@doggy-style.de',
+        'info@wild-westallgaeu-alpaka.de'
+      ];
+      const isHardAdmin = hardAdmins.includes(email);
+      if((CLOUD.role === ROLES.STAFF || CLOUD.role === ROLES.ADMIN) && !approved && !isHardAdmin){
+        console.warn('[DS] Downgrade unapproved staff/admin to customer', {email, role:CLOUD.role});
+        CLOUD.role = ROLES.CUSTOMER;
+      }
+    }catch(_){}
+
     // Kunden-Portal: kein Workspace-State, keine Tabs
     if(CLOUD.role === ROLES.CUSTOMER){
+      showAuthGate(false);
       try{ await initCustomerPortal(); }catch(e){ console.error(e); }
       return;
     }

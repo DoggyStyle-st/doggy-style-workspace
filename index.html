@@ -2,7 +2,28 @@
 <html lang="de">
 <head>
   <meta charset="utf-8"/>
-  <meta name="app-version" content="M48_4G3_INBOX_ASSIGN_UI_20260208"/>
+  <!-- SW-KILL: disable any service worker + caches to stop old builds -->
+  <script>
+    (function () {
+      try {
+        if (!('serviceWorker' in navigator)) return;
+        if (sessionStorage.getItem('sw_kill_done_index') === '1') return;
+        sessionStorage.setItem('sw_kill_done_index', '1');
+        navigator.serviceWorker.getRegistrations().then(function (regs) {
+          regs.forEach(function (r) { try { r.unregister(); } catch (e) {} });
+        });
+        if (window.caches && caches.keys) {
+          caches.keys().then(function (keys) { return Promise.all(keys.map(function (k) { return caches.delete(k); })); });
+        }
+      } catch (e) {}
+    })();
+  </script>
+  <meta name="app-version" content="M48_4G3_INBOX_PORTAL_GUARD_20260210B"/>
+  
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0"/>
+  <meta http-equiv="Pragma" content="no-cache"/>
+  <meta http-equiv="Expires" content="0"/>
+
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
   <title>Doggy Style Workspace · TEST</title>
   <meta http-equiv="refresh" content="0; url=login.html"/>
