@@ -23,7 +23,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
-const APP_BUILD = 'M48_4G4_DROPDOWN_FIX_20260211D';
+const APP_BUILD = 'M48_4G4_UI_UNFREEZE_20260214A';
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 (function DS_BUILD_GUARD_RECOVERY(){
@@ -2526,6 +2526,26 @@ function syncAllInvoicePricingGuarded(){
 }
 // ===== /3A =====
 // ===== ENDE PREISLOGIK =====
+
+try{
+  window.addEventListener('error', (ev)=>{
+    try{
+      console.error('GlobalError', ev.error||ev.message);
+      const busy = document.getElementById('busyOverlay') || document.querySelector('.busy-overlay');
+      if(busy){ busy.style.display='none'; busy.classList.remove('is-on'); }
+      showTopBanner('Fehler: ' + (ev.message||'Unbekannt') + ' (Tippen zum Schließen)');
+    }catch(_){}
+  });
+  window.addEventListener('unhandledrejection', (ev)=>{
+    try{
+      console.error('UnhandledRejection', ev.reason);
+      const busy = document.getElementById('busyOverlay') || document.querySelector('.busy-overlay');
+      if(busy){ busy.style.display='none'; busy.classList.remove('is-on'); }
+      showTopBanner('Fehler: ' + (ev.reason && (ev.reason.message||String(ev.reason)) || 'Promise') + ' (Tippen zum Schließen)');
+    }catch(_){}
+  });
+}catch(_){}
+
 let state=loadState();
 // Wichtig: State-Shape sofort sicherstellen, bevor irgendein Render läuft.
 // Sonst kann renderDashboard()/renderRecent() bei frischem / teildefektem LocalStorage
@@ -10217,7 +10237,8 @@ async function startApp(){
   const cloudOk = await cloudInit();
   if(!cloudOk){
     showAuthGate(false);
-    await bootOnce();
+    // NOTE: nicht blockieren – sonst wirkt die UI "tot" wenn Firestore/Auth hängt
+    bootOnce().catch(e=>{ console.warn('bootOnce failed', e); try{ showTopBanner('Cloud/Profil noch nicht erreichbar – UI läuft lokal.'); }catch(_){} });
     return;
   }
   // Option C: immer Login erzwingen (Session bei jedem Start beenden)
@@ -10301,7 +10322,8 @@ return;
     updateSyncUI();
     
 // Erstes Boot lokal (stellt state sicher), dann Remote zuverlässig einspielen
-await bootOnce();
+// NOTE: nicht blockieren – sonst wirkt die UI "tot" wenn Firestore/Auth hängt
+bootOnce().catch(e=>{ console.warn('bootOnce failed', e); try{ showTopBanner('Cloud/Profil noch nicht erreichbar – UI läuft lokal.'); }catch(_){} });
 // Echtzeit-Listener (robust, inkl. erstem Snapshot)
 // Wichtig: Listener so früh wie möglich setzen, damit der initiale State auch bei iOS/Safari sicher kommt.
 try{
@@ -12964,3 +12986,32 @@ async function dsHardReload(){
   }catch(_ ){}
 })();
 // ===== END DS_HARD_RELOAD_BTN =====
+function showTopBanner(msg){
+  try{
+    let el = document.getElementById('topBanner');
+    if(!el){
+      el = document.createElement('div');
+      el.id='topBanner';
+      el.style.position='fixed';
+      el.style.top='0';
+      el.style.left='0';
+      el.style.right='0';
+      el.style.zIndex='99999';
+      el.style.padding='10px 14px';
+      el.style.fontSize='14px';
+      el.style.background='rgba(180,60,60,0.92)';
+      el.style.color='#fff';
+      el.style.textAlign='center';
+      el.style.backdropFilter='blur(6px)';
+      el.style.webkitBackdropFilter='blur(6px)';
+      el.style.cursor='pointer';
+      el.addEventListener('click', ()=> el.remove());
+      document.body.appendChild(el);
+    }
+    el.textContent = msg;
+    // Auto-dismiss after 8s
+    setTimeout(()=>{ try{ el.remove(); }catch(_){} }, 8000);
+  }catch(_){}
+}
+
+
