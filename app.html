@@ -779,10 +779,7 @@
   <h2>Rechtstexte</h2>
   <p class="muted" style="margin-top:6px">Anzeige der wichtigsten Rechtstexte. (In dieser Stufe nur lesen.)</p>
   <div class="row" style="flex-wrap:wrap; gap:10px; margin-top:10px;">
-    <button class="btn" id="btnLegalDSGVO" type="button">📄 Datenschutz (DSGVO)</button>
-    <button class="btn" id="btnLegalAGB" type="button">📄 AGB</button>
-    <button class="btn" id="btnLegalTierarzt" type="button">📄 Tierarzt-Erlaubnis</button>
-    <button class="btn" id="btnLegalWahrheit" type="button">📄 Angaben wahrheitsgemäß</button>
+    <button class="btn" id="btnLegalDSGVO" type="button">📄 Datenschutz (DSGVO)</button>    <button class="btn" id="btnLegalWahrheit" type="button">📄 Angaben wahrheitsgemäß</button>
   </div>
 </div>
 <div class="row" style="flex-wrap:wrap; gap:10px; margin-top:10px;">
@@ -1232,6 +1229,16 @@
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+
+<script>
+  // Admin-Accounts (Portal-Guard + Freigaben)
+  // -> Nur diese Emails sehen die komplette Admin-App.
+  window.firebaseAdminEmails = [
+    'info@doggy-style.de',
+    'info@wild-westallgaeu-alpaka.de'
+  ];
+</script>
+
 <script defer="defer" src="app.js?v=M48_4G3_INBOX_PORTAL_GUARD_20260210B"></script>
 <script>
 (function(){
