@@ -11,12 +11,12 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
-const APP_BUILD = 'M50_BLUE_TEMPLATE_BASE_20260215';
+const APP_BUILD = 'M50.1_BLUE_TEMPLATE_TEMPLFIX_20260215';
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 (function DS_BUILD_GUARD_RECOVERY(){
   try{
-    const BUILD = (typeof APP_BUILD !== 'undefined') ? APP_BUILD : "M50_BLUE_TEMPLATE_BASE_20260215";
+    const BUILD = (typeof APP_BUILD !== 'undefined') ? APP_BUILD : "M50.1_BLUE_TEMPLATE_TEMPLFIX_20260215";
     const meta = document.querySelector('meta[name="app-version"]');
     const htmlBuild = meta ? meta.getAttribute('content') : null;
     if(htmlBuild && htmlBuild !== BUILD){
@@ -5811,6 +5811,23 @@ function ensureProfiDefaults(){
   ensureDoc('brand', 'Brandfall- & Evakuierungskonzept');
   ensureDoc('notfall', 'Notfallplan');
   ensureDoc('contract', 'Betreuungsvertrag');
+  // Seed behördentaugliche Inhalte (nur wenn noch leer/Legacy-Kurzvorlage)
+  try{
+    const seedKeys = ['hygiene','notfall','brand','contract'];
+    seedKeys.forEach(k=>{
+      const d = state.compliance.docs[k];
+      if(!d) return;
+      const cur = (d.content!=null) ? String(d.content||'') : '';
+      const isEmpty = !cur.trim();
+      const isLegacy = cur.includes('Kurzvorlage') || cur.includes('Hinweis: Diese Vorlage');
+      if(isEmpty || isLegacy){
+        d.content = POLICY_DEFAULTS[k] || cur;
+        d.lastChanged = today;
+        if(!d.version) d.version = '1.0';
+      }
+    });
+  }catch(_){ }
+
   state.compliance.monthClosings = Array.isArray(state.compliance.monthClosings) ? state.compliance.monthClosings : [];
 }
 function getActiveStaffNames(){
@@ -6257,11 +6274,86 @@ function profiBumpPolicy(key){
 }
 // Öffnen/Bearbeiten der Vorlagen (revisionssicher über Versionssprung)
 const POLICY_DEFAULTS = {
-  hygiene: `Hygieneplan (Kurzvorlage)\n\n- Reinigungs-/Desinfektionsplan je Bereich\n- Frequenzen (täglich/wöchentlich/monatlich)\n- Mittel & Dosierung\n- Durchführung/Verantwortung\n- Dokumentation im Hygiene-Modul\n\nHinweis: Diese Vorlage kannst du an euren Betrieb anpassen. Änderungen immer über „Neue Version“ dokumentieren.`,
-  notfall: `Notfallplan (Kurzvorlage)\n\n- Tierarzt (Adresse/Telefon)\n- Nächste Klinik\n- Verantwortlichkeiten (Raphael / Anschi / Mitarbeitende)\n- Ablauf bei Verletzung/akutem Notfall\n- Transport & Sicherung\n- Dokumentation (Gesundheitsnotizen + ggf. Fotos)`,
-  brand: `Brandfall & Evakuierung (Kurzvorlage)\n\n- Sammelplatz & Fluchtwege\n- Prioritäten: Menschen → Hunde → Dokumente\n- Leinen/Boxen bereit\n- Feuerwehr informieren\n- Dokumentation der Evakuierung (Zeit, Anzahl, Beteiligte)`,
-  contract: `Betreuungsvertrag (Kurzvorlage)\n\n- Halterdaten\n- Hundedaten\n- Zeitraum & Leistung\n- Notfallregelung & Vollmacht\n- Medikationsfreigabe\n- Unterschriften (Halter / Betrieb)\n\nHinweis: Die vollständige, unterschriebene Version wird pro Aufenthalt im Bereich „Aufenthalte/Betreuungsvertrag“ abgelegt.`
+  hygiene: `HUNDEPENSION DOGGY STYLE – HYGIENEPLAN (behördentauglich, §11 TierSchG)
+Standort: Im Moos 4, 88167 Stiefenhofen
+Kapazität: max. 10 Übernachtungshunde / max. 13 Tageshunde
+Verantwortlich: Raphael Boch
+
+1) Ziel & Geltungsbereich
+Dieser Hygieneplan regelt Reinigung/Desinfektion zur Vermeidung von Infektionen und Kreuzkontamination in allen Bereichen (Einzelzimmer, Großraum, Durchgangsraum, Freilauf).
+
+2) Betriebsbereiche (Kurzbeschreibung)
+- 6 Einzelzimmer je ca. 1,30 x 2,50 m; Front Gittertür 2,0 x 1,0 m; Holzverkleidung bis ca. 1,50 m; Trennwand bis ca. 1,25 m geschlossen, darüber Doppelstabmatte (Luftzirkulation).
+- Großraum ca. 3,90 x 2,50 m; 3 Gittertüren; optional in 3 Einheiten trennbar (Doppelstabmatten 2,50 x 1,80 m); Normalbetrieb Gruppenhaltung bis ca. 4 Hunde.
+- Durchgangsraum vor Freilauf: Liegeflächen für verträgliche Hunde (keine Dauerunterbringung).
+
+3) Aufnahme-/Infektionsprävention
+- Aufnahme nur klinisch gesund; kein akuter Durchfall/Erbrechen, kein Husten/Zwingerhusten-Verdacht.
+- Impfstatus (SHPPiL + Tollwut) wird bei Aufnahme kontrolliert und dokumentiert.
+
+4) Reinigungs-/Desinfektionsmittel
+- Standard-Desinfektion: Planet Sensitive (Aktivchlor ~0,1%) für Routine-Flächen.
+- Seuchen-/Infektionsverdacht: Virkon® S (viruzid wirksam) gemäß Herstellerangaben.
+
+5) Reinigungsintervalle (Kurzfassung)
+- Täglich: Kotentfernung sofort; Böden nass reinigen; Näpfe reinigen.
+- Wöchentlich: Grundreinigung Zimmer/Gitter/Trennwände; Standarddesinfektion.
+- Monatlich: Grunddesinfektion Innenräume + Bestandscheck Mittel/Handschuhe (siehe Hygiene-Modul).
+
+6) Krankheitsfall während Aufenthalt (Infektionsschutz)
+- Sofort separieren, Halter informieren, tierärztliche Rücksprache.
+- Bei Bedarf kann der Aufenthalt aus Infektionsschutz- oder Tierwohlgründen vorzeitig beendet werden (siehe Betreuungsvertrag).
+
+7) Dokumentation
+Reinigung/Desinfektion, Auffälligkeiten, Maßnahmen und Verantwortliche werden digital im Hygiene-Modul protokolliert.`,
+  notfall: `NOTFALLPLAN (behördentauglich, §11 TierSchG)
+Standort: Im Moos 4, 88167 Stiefenhofen
+Verantwortlich: Raphael Boch · Vertretung (Schlüssel/Zugriff): Angelika Boch
+
+1) Medizinischer Notfall Hund
+- Hund sichern & separieren, Ersteinschätzung, Halter informieren.
+- Tierarztkontakt und Transport nach Abstimmung.
+Tierarzt (Notfall): Kleintierpraxis Immenstadt im Allgäu – Petra Geisser.
+
+2) Infektions-/Seuchenverdacht
+- Sofortige Isolation/Separierung, Kontaktminimierung.
+- Viruzide Desinfektion (Virkon® S), getrennte Utensilien, Dokumentation.
+- Ggf. vorzeitige Beendigung des Aufenthalts/Abholung.
+
+3) Stromausfall
+- Kontrolle Lüftung/Heizung, Wasser, sichere Unterbringung.
+- Bei längerem Ausfall: Halter informieren, Betrieb ggf. temporär einschränken.
+
+4) Wasserausfall
+- Trinkwasservorrat nutzen; bei längerem Ausfall Neuaufnahmen stoppen.
+
+5) Dokumentation
+- Notfallprotokoll (Datum/Uhrzeit, Hund, Symptome, Maßnahmen, Ansprechpartner).`,
+  brand: `BRANDFALL & EVAKUIERUNGSPLAN (behördentauglich)
+Standort: Im Moos 4, 88167 Stiefenhofen
+
+Brandschutzausstattung
+- Feuerlöscher: 1x Büro Hundepension, 1x Durchgangsraum.
+- Rauchmelder vorhanden.
+
+Evakuierung
+1) Notruf 112, interne Alarmierung.
+2) Ausgänge öffnen, Hunde mit Leinen sichern, Evakuierung über nächstgelegene Ausgänge.
+3) Sammelplatz: Wiese vor dem Haus im Bereich Hofeinfahrt.
+4) Bestand zählen, dokumentieren, Halter informieren (falls erforderlich).
+5) Löschversuch nur ohne Eigengefährdung.
+
+Zuständigkeiten
+- Primär: Raphael Boch · Vertretung: Angelika Boch.`,
+  contract: `BETREUUNGSVERTRAG – Hinweis
+Der vollständige Vertragstext wird in der App unter „Betreuungsvertrag“ geführt und pro Aufenthalt dokumentiert.
+
+Wichtige Betriebsregel:
+- Bei Krankheit/Infektionsverdacht kann die Betreuung aus Tierwohl-/Infektionsschutzgründen vorzeitig beendet werden; der Halter ist zur Abholung verpflichtet (gemäß Vertragsregelung).
+
+Tipp: Änderungen immer über „Neue Version“ dokumentieren.`
 };
+
 function getPolicyContent(key){
   ensureProfiDefaults();
   const doc = state.compliance?.docs?.[key] || {};
@@ -12719,7 +12811,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
         el.style.boxShadow="0 6px 18px rgba(0,0,0,0.25)";
         document.body.appendChild(el);
       }
-      const BUILD = (typeof APP_BUILD!=='undefined')?APP_BUILD:"M50_BLUE_TEMPLATE_BASE_20260215";
+      const BUILD = (typeof APP_BUILD!=='undefined')?APP_BUILD:"M50.1_BLUE_TEMPLATE_TEMPLFIX_20260215";
       const meta = document.querySelector('meta[name="app-version"]');
       const htmlBuild = meta ? meta.getAttribute('content') : "";
       const online = navigator.onLine ? "online" : "offline";
