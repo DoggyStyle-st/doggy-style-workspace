@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M40_4F6_MASTER_FREEZE_20260207",
+  tag: "M50.3_COMPLIANCE_MODULE_20260215",
   channel: "MASTER",
   frozenAt: "2026-02-07T22:10:34"
 };
@@ -11,7 +11,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
-const APP_BUILD = 'M50.2_BLUE_TEMPLATE_PRINT_CONTRACT_20260215';
+const APP_BUILD = 'M50.3_COMPLIANCE_MODULE_20260215';
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 (function DS_BUILD_GUARD_RECOVERY(){
@@ -2574,6 +2574,10 @@ if(id === "calendar"){
       renderComplianceInSettings();
       renderDocVersions();
     }catch(_){ }
+  }
+
+  if(id === "compliance"){
+    try{ renderCompliancePanel(); }catch(_){ }
   }
 }
 // ==== Dashboard / Schnellaktionen helpers ====
@@ -5906,8 +5910,15 @@ function computeCompliance(){
   const emergOk = !!docs.notfall?.version;
   let nfStatus='green', nfDetail='Vorlagen vorhanden.';
   if(!fireOk || !emergOk){ nfStatus='red'; nfDetail='Notfall/Brand Vorlagen fehlen.'; }
+  // Unterweisungen (Compliance)
+  const trn = computeTrainingCompliance();
+  const trnStatus = trn.worst;
+  const trnDetail = trn.detail;
+
   const items = [
+    complianceItem('Unterweisungen', trnStatus, trnDetail),
     complianceItem('Hygiene', hygStatus, hygDetail),
+, hygStatus, hygDetail),
     complianceItem('Medikation', medStatus, medDetail),
     complianceItem('Verträge', conStatus, conDetail),
     complianceItem('Notfall/Brand', nfStatus, nfDetail)
@@ -6812,6 +6823,38 @@ state._legacy = (state._legacy && typeof state._legacy === "object") ? state._le
   // Inbox / Kunden-Portal (offline-first)
   if(!Array.isArray(state.inboxAssignments)) state.inboxAssignments = [];
   if(!Array.isArray(state.inboxSubmissions)) state.inboxSubmissions = [];
+
+  // ===== Compliance (Gefahrstoffe & Unterweisungen) =====
+  if(!state.compliance || typeof state.compliance !== "object") state.compliance = {};
+  state.compliance.hazards = Array.isArray(state.compliance.hazards) ? state.compliance.hazards : [];
+  state.compliance.trainings = Array.isArray(state.compliance.trainings) ? state.compliance.trainings : [];
+  if(!state.compliance.trainingStatus || typeof state.compliance.trainingStatus !== "object") state.compliance.trainingStatus = {}; // {trainingId:{person:{lastDone, sigDataUrl}}}
+  state.compliance.trainingLogs = Array.isArray(state.compliance.trainingLogs) ? state.compliance.trainingLogs : []; // archived sessions
+  // Seed default hazards (only if empty)
+  if(state.compliance.hazards.length === 0){
+    state.compliance.hazards = [
+      { id:"haz_planet_sensitive", name:"Planet Sensitive", category:"Desinfektionsmittel", storage:"Büro – verschlossener Putzschrank", sds:null, updatedAt:Date.now() },
+      { id:"haz_virkon_s", name:"Virkon® S", category:"Desinfektionsmittel (viruzid)", storage:"Büro – verschlossener Putzschrank", sds:null, updatedAt:Date.now() }
+    ];
+  }else{
+    // ensure storage default
+    state.compliance.hazards.forEach(h=>{
+      if(h && !h.storage) h.storage = "Büro – verschlossener Putzschrank";
+    });
+  }
+  // Seed default trainings (only if empty)
+  if(state.compliance.trainings.length === 0){
+    state.compliance.trainings = [
+      { id:"trn_gefahrstoffe", title:"Unterweisung: Gefahrstoffe", intervalMonths:12, level:"pflicht", legal:"GefStoffV §14 / TRGS 555", updatedAt:Date.now() },
+      { id:"trn_hygiene", title:"Unterweisung: Hygiene & Infektionsschutz", intervalMonths:12, level:"pflicht", legal:"§11 TierSchG / TierSchHuV", updatedAt:Date.now() },
+      { id:"trn_brand", title:"Unterweisung: Brand- & Evakuierungsplan", intervalMonths:12, level:"pflicht", legal:"Betriebspflichten / Brandschutz", updatedAt:Date.now() },
+      { id:"trn_tierschutz", title:"Unterweisung: §11 TierSchG Betriebspflichten", intervalMonths:12, level:"pflicht", legal:"§11 TierSchG", updatedAt:Date.now() },
+      { id:"trn_erstehilfe", title:"Unterweisung: Erste Hilfe Hund (Grundlagen)", intervalMonths:12, level:"pflicht", legal:"Empfehlung (Betriebssicherheit)", updatedAt:Date.now() },
+      { id:"trn_med", title:"Unterweisung: Medikamentengabe", intervalMonths:12, level:"empfohlen", legal:"Betriebsstandard", updatedAt:Date.now() },
+      { id:"trn_datenschutz", title:"Unterweisung: Datenschutz (DSGVO)", intervalMonths:12, level:"empfohlen", legal:"DSGVO", updatedAt:Date.now() }
+    ];
+  }
+
 }
 function ensureContractDefaults(){
   if(!state.contract || typeof state.contract !== "object"){
@@ -13065,3 +13108,553 @@ async function dsHardReload(){
   }catch(_ ){}
 })();
 // ===== END DS_HARD_RELOAD_BTN =====
+
+
+// =====================================================
+// M50.3 Compliance Module (Gefahrstoffe & Unterweisungen)
+// =====================================================
+function getCompanyHeaderHtml(){
+  const c = (state && state.company) ? state.company : null;
+  const name = c?.name || "Doggy Style Hundepension";
+  const owner = c?.owner || "Raphael Boch";
+  const addr = c?.address || "Im Moos 4, 88167 Stiefenhofen";
+  const phone = c?.phone || "0170/7313587";
+  const mail = c?.email || "info@doggy-style.de";
+  return `
+    <div class="print-head" style="display:flex;align-items:center;gap:14px">
+      <img src="assets/logo.png" alt="Logo" style="width:64px;height:64px;border-radius:12px;object-fit:contain"/>
+      <div>
+        <div style="font-size:18px;font-weight:800">${escapeHtml(name)}</div>
+        <div style="opacity:.85">${escapeHtml(owner)}</div>
+        <div style="opacity:.85">${escapeHtml(addr)}</div>
+        <div style="opacity:.85">${escapeHtml(phone)} · ${escapeHtml(mail)}</div>
+      </div>
+    </div>
+  `;
+}
+function openPrintWindow(title, bodyHtml){
+  const w = window.open("", "_blank");
+  if(!w){ alert("Pop-up blockiert. Bitte Pop-ups erlauben."); return; }
+  const css = `
+    <style>
+      @page{ margin:16mm; }
+      body{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; color:#111; }
+      h1{ font-size:20px; margin:10px 0 6px; }
+      h2{ font-size:16px; margin:14px 0 6px; }
+      .muted{ color:#444; font-size:12px; }
+      .hr{ height:1px; background:#ddd; margin:10px 0; }
+      table{ width:100%; border-collapse:collapse; margin-top:8px; }
+      th,td{ border:1px solid #ddd; padding:8px; font-size:12px; vertical-align:top; }
+      th{ background:#f3f3f3; text-align:left; }
+      .sigbox{ border:1px solid #bbb; height:70px; width:260px; }
+      .sigimg{ height:70px; width:260px; object-fit:contain; }
+      .footer{ margin-top:10px; font-size:11px; color:#666; }
+      .badge{ display:inline-block; padding:2px 8px; border-radius:999px; border:1px solid #ddd; font-size:11px; }
+    </style>`;
+  w.document.open();
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title>${css}</head><body>
+    ${getCompanyHeaderHtml()}
+    <div class="hr"></div>
+    ${bodyHtml}
+    <div class="footer">Build: ${escapeHtml(APP_BUILD)} · erzeugt am ${escapeHtml(new Date().toLocaleString('de-DE'))}</div>
+    <script>setTimeout(()=>{ try{ window.print(); }catch(e){} }, 300);</script>
+  </body></html>`);
+  w.document.close();
+}
+function computeTrainingCompliance(){
+  try{ ensureStateShape(); }catch(_){}
+  const trainings = state.compliance?.trainings || [];
+  const names = (typeof getActiveStaffNames === 'function') ? getActiveStaffNames() : (state.hygiene?.staffPresets||["Raphael","Anschi"]);
+  const statusMap = state.compliance?.trainingStatus || {};
+  const now = new Date();
+  let overdue = 0, soon = 0, missing = 0;
+  const soonDays = 30;
+  trainings.forEach(t=>{
+    const intervalMonths = Number(t.intervalMonths||12);
+    names.forEach(person=>{
+      const st = statusMap?.[t.id]?.[person];
+      const last = st?.lastDone ? new Date(st.lastDone) : null;
+      if(!last || isNaN(last.getTime())){
+        missing++;
+        overdue++;
+        return;
+      }
+      const due = new Date(last);
+      due.setMonth(due.getMonth()+intervalMonths);
+      const diffDays = Math.floor((due-now)/(1000*60*60*24));
+      if(diffDays < 0) overdue++;
+      else if(diffDays <= soonDays) soon++;
+    });
+  });
+  let worst = 'green';
+  let detail = 'Keine Unterweisungen fällig.';
+  if(overdue>0){
+    worst='red';
+    detail = `${overdue} Unterweisung(en) fällig/überfällig.`;
+  }else if(soon>0){
+    worst='yellow';
+    detail = `${soon} Unterweisung(en) laufen in 30 Tagen ab.`;
+  }
+  if(trainings.length===0) detail='—';
+  return {worst, detail, overdue, soon, missing, people:names.length, trainings:trainings.length};
+}
+function _complianceSetView(view){
+  const el = document.getElementById('compliancePanelBody');
+  if(!el) return;
+  el.dataset.view = view;
+  renderCompliancePanel();
+}
+function renderCompliancePanel(){
+  try{ ensureStateShape(); }catch(_){}
+  const body = document.getElementById('compliancePanelBody');
+  if(!body) return;
+
+  // Wire top buttons once
+  try{
+    const btnH = document.getElementById('btnComplianceHazards');
+    const btnT = document.getElementById('btnComplianceTrainings');
+    const btnA = document.getElementById('btnComplianceArchive');
+    if(btnH && !btnH.__wired){ btnH.__wired=true; btnH.addEventListener('click', ()=>_complianceSetView('hazards')); }
+    if(btnT && !btnT.__wired){ btnT.__wired=true; btnT.addEventListener('click', ()=>_complianceSetView('trainings')); }
+    if(btnA && !btnA.__wired){ btnA.__wired=true; btnA.addEventListener('click', ()=>_complianceSetView('archive')); }
+  }catch(_){}
+
+  const view = body.dataset.view || 'trainings';
+  if(view === 'hazards') return renderComplianceHazards(body);
+  if(view === 'archive') return renderComplianceArchive(body);
+  return renderComplianceTrainings(body);
+}
+function renderComplianceHazards(root){
+  const hazards = state.compliance.hazards || [];
+  root.innerHTML = `
+    <h2 style="margin:0 0 8px 0">🧴 Gefahrstoffe</h2>
+    <div class="muted">Lagerung: ${escapeHtml("Büro – verschlossener Putzschrank")} · Sicherheitsdatenblatt (SDB) je Produkt hinterlegen.</div>
+    <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap">
+      <button class="btn" id="btnHazAdd">+ Produkt</button>
+    </div>
+    <div style="margin-top:12px" class="list" id="hazList"></div>
+  `;
+  const list = root.querySelector('#hazList');
+  if(list){
+    list.innerHTML = hazards.map(h=>{
+      const has = !!(h.sds && h.sds.dataUrl);
+      return `
+      <div class="list-row">
+        <div style="flex:1">
+          <strong>${escapeHtml(h.name||'—')}</strong>
+          <div class="muted" style="margin-top:4px">${escapeHtml(h.category||'')} · Lagerort: ${escapeHtml(h.storage||'—')}</div>
+          <div class="muted" style="margin-top:4px">SDB: ${has ? '✅ hinterlegt' : '❌ fehlt'}</div>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end">
+          <button class="btn" data-act="upload" data-id="${escapeHtml(h.id)}">SDB hochladen</button>
+          ${has ? `<button class="btn" data-act="view" data-id="${escapeHtml(h.id)}">SDB öffnen</button>` : ``}
+          <button class="btn" data-act="edit" data-id="${escapeHtml(h.id)}">Bearbeiten</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  const addBtn = root.querySelector('#btnHazAdd');
+  if(addBtn){
+    addBtn.onclick = ()=>openHazardEditor(null);
+  }
+  root.querySelectorAll('button[data-act]').forEach(btn=>{
+    btn.onclick = ()=>{
+      const act = btn.dataset.act;
+      const id = btn.dataset.id;
+      const haz = (state.compliance.hazards||[]).find(x=>x.id===id);
+      if(!haz) return;
+      if(act==='edit') openHazardEditor(haz);
+      if(act==='upload') openHazardUpload(haz);
+      if(act==='view') openHazardView(haz);
+    };
+  });
+}
+function openHazardEditor(haz){
+  const isNew = !haz;
+  const h = haz ? {...haz} : { id: 'haz_'+Math.random().toString(36).slice(2,10), name:'', category:'', storage:'Büro – verschlossener Putzschrank', sds:null };
+  const html = `
+    <div class="modal-backdrop" id="hazModal" style="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px">
+      <div class="modal-panel" style="width:min(680px, 100%); background:rgba(30,30,34,.98); border:1px solid rgba(255,255,255,.12); border-radius:14px; padding:14px">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px">
+          <strong>${isNew?'Neuer Gefahrstoff':'Gefahrstoff bearbeiten'}</strong>
+          <button class="btn" id="hazClose">✕</button>
+        </div>
+        <div style="margin-top:10px; display:grid; grid-template-columns:1fr 1fr; gap:10px">
+          <div>
+            <div class="muted">Name</div>
+            <input id="hazName" value="${escapeHtml(h.name)}" style="width:100%"/>
+          </div>
+          <div>
+            <div class="muted">Kategorie</div>
+            <input id="hazCat" value="${escapeHtml(h.category)}" style="width:100%"/>
+          </div>
+          <div style="grid-column:1 / -1">
+            <div class="muted">Lagerort</div>
+            <input id="hazStorage" value="${escapeHtml(h.storage||'')}" style="width:100%"/>
+          </div>
+        </div>
+        <div style="margin-top:12px; display:flex; gap:10px; justify-content:flex-end">
+          <button class="btn" id="hazCancel">Abbrechen</button>
+          <button class="btn primary" id="hazSave">Speichern</button>
+        </div>
+      </div>
+    </div>`;
+  const wrap = document.createElement('div');
+  wrap.innerHTML = html;
+  document.body.appendChild(wrap);
+  const close = ()=>{ try{ wrap.remove(); }catch(_){ } };
+  wrap.querySelector('#hazClose').onclick = close;
+  wrap.querySelector('#hazCancel').onclick = close;
+  wrap.querySelector('#hazSave').onclick = ()=>{
+    h.name = (wrap.querySelector('#hazName').value||'').trim();
+    h.category = (wrap.querySelector('#hazCat').value||'').trim();
+    h.storage = (wrap.querySelector('#hazStorage').value||'').trim() || 'Büro – verschlossener Putzschrank';
+    h.updatedAt = Date.now();
+    const arr = state.compliance.hazards || [];
+    const ix = arr.findIndex(x=>x.id===h.id);
+    if(ix>=0) arr[ix]= {...arr[ix], ...h};
+    else arr.push(h);
+    state.compliance.hazards = arr;
+    saveState();
+    renderCompliancePanel();
+    close();
+  };
+}
+function openHazardUpload(haz){
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'application/pdf';
+  input.onchange = async ()=>{
+    const f = input.files && input.files[0];
+    if(!f) return;
+    if(f.size > 8*1024*1024){
+      alert("PDF ist zu groß (max 8MB). Bitte komprimieren.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      haz.sds = { name: f.name, mime: f.type || 'application/pdf', dataUrl: reader.result };
+      haz.updatedAt = Date.now();
+      saveState();
+      renderCompliancePanel();
+    };
+    reader.readAsDataURL(f);
+  };
+  input.click();
+}
+function openHazardView(haz){
+  if(!haz.sds || !haz.sds.dataUrl){ alert("Kein Sicherheitsdatenblatt hinterlegt."); return; }
+  const w = window.open("", "_blank");
+  if(!w){ alert("Pop-up blockiert."); return; }
+  w.document.open();
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>SDB ${escapeHtml(haz.name||'')}</title></head><body style="margin:0">
+    <iframe src="${haz.sds.dataUrl}" style="border:0;width:100vw;height:100vh"></iframe>
+  </body></html>`);
+  w.document.close();
+}
+function renderComplianceTrainings(root){
+  const tr = state.compliance.trainings || [];
+  const people = (typeof getActiveStaffNames === 'function') ? getActiveStaffNames() : (state.hygiene?.staffPresets||["Raphael","Anschi"]);
+  const status = state.compliance.trainingStatus || {};
+  const comp = computeTrainingCompliance();
+  root.innerHTML = `
+    <h2 style="margin:0 0 8px 0">🧑‍🏫 Unterweisungen</h2>
+    <div class="muted">${escapeHtml(comp.detail)} · Teilnehmer: ${people.map(escapeHtml).join(', ')}</div>
+    <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap">
+      <button class="btn" id="btnTrnNew">+ Unterweisung durchführen</button>
+      <button class="btn" id="btnTrnPrintStatus">🖨 Status drucken</button>
+    </div>
+    <div style="margin-top:12px" class="list" id="trnList"></div>
+  `;
+  const list = root.querySelector('#trnList');
+  if(list){
+    list.innerHTML = tr.map(t=>{
+      const rows = people.map(p=>{
+        const st = status?.[t.id]?.[p];
+        const last = st?.lastDone ? new Date(st.lastDone).toLocaleDateString('de-DE') : '—';
+        const due = computeTrainingDueDate(t.id, p);
+        const badge = due.status==='red'?'🔴':(due.status==='yellow'?'🟡':'🟢');
+        const next = due.next ? new Date(due.next).toLocaleDateString('de-DE') : '—';
+        return `<div class="muted" style="margin-top:3px">${badge} ${escapeHtml(p)}: zuletzt ${escapeHtml(last)} · fällig ${escapeHtml(next)}</div>`;
+      }).join('');
+      return `
+        <div class="list-row">
+          <div style="flex:1">
+            <strong>${escapeHtml(t.title)}</strong>
+            <div class="muted" style="margin-top:4px">${escapeHtml(t.legal||'')}</div>
+            ${rows}
+          </div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end">
+            <button class="btn" data-act="run" data-id="${escapeHtml(t.id)}">Durchführen</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+  root.querySelector('#btnTrnNew').onclick = ()=>openTrainingRunPicker();
+  root.querySelector('#btnTrnPrintStatus').onclick = ()=>printTrainingStatus();
+  root.querySelectorAll('button[data-act="run"]').forEach(b=>{
+    b.onclick = ()=>openTrainingRun(b.dataset.id);
+  });
+}
+function computeTrainingDueDate(trainingId, person){
+  const t = (state.compliance.trainings||[]).find(x=>x.id===trainingId);
+  const intervalMonths = Number(t?.intervalMonths||12);
+  const st = state.compliance.trainingStatus?.[trainingId]?.[person];
+  const last = st?.lastDone ? new Date(st.lastDone) : null;
+  if(!last || isNaN(last.getTime())){
+    return {status:'red', next:null};
+  }
+  const due = new Date(last);
+  due.setMonth(due.getMonth()+intervalMonths);
+  const now = new Date();
+  const diff = Math.floor((due-now)/(1000*60*60*24));
+  const status = diff<0 ? 'red' : (diff<=30 ? 'yellow' : 'green');
+  return {status, next: due.toISOString()};
+}
+function openTrainingRunPicker(){
+  const tr = state.compliance.trainings||[];
+  const opts = tr.map(t=>`<option value="${escapeHtml(t.id)}">${escapeHtml(t.title)}</option>`).join('');
+  const wrap=document.createElement('div');
+  wrap.innerHTML = `
+    <div style="position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px">
+      <div style="width:min(680px,100%);background:rgba(30,30,34,.98);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <strong>Unterweisung durchführen</strong>
+          <button class="btn" id="trPickClose">✕</button>
+        </div>
+        <div style="margin-top:10px">
+          <div class="muted">Unterweisung</div>
+          <select id="trPickSel" style="width:100%">${opts}</select>
+        </div>
+        <div style="margin-top:12px;display:flex;justify-content:flex-end;gap:10px">
+          <button class="btn" id="trPickCancel">Abbrechen</button>
+          <button class="btn primary" id="trPickGo">Weiter</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(wrap);
+  const close=()=>{ try{ wrap.remove(); }catch(_){ } };
+  wrap.querySelector('#trPickClose').onclick=close;
+  wrap.querySelector('#trPickCancel').onclick=close;
+  wrap.querySelector('#trPickGo').onclick=()=>{
+    const id = wrap.querySelector('#trPickSel').value;
+    close();
+    openTrainingRun(id);
+  };
+}
+function openTrainingRun(trainingId){
+  const t = (state.compliance.trainings||[]).find(x=>x.id===trainingId);
+  if(!t){ alert("Unterweisung nicht gefunden."); return; }
+  const people = (typeof getActiveStaffNames === 'function') ? getActiveStaffNames() : (state.hygiene?.staffPresets||["Raphael","Anschi"]);
+  const wrap=document.createElement('div');
+  const today = new Date().toISOString().slice(0,10);
+  wrap.innerHTML = `
+    <div style="position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px">
+      <div style="width:min(900px,100%);max-height:calc(100vh - 32px);overflow:auto;background:rgba(30,30,34,.98);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+          <strong>${escapeHtml(t.title)}</strong>
+          <button class="btn" id="trRunClose">✕</button>
+        </div>
+        <div class="muted" style="margin-top:6px">${escapeHtml(t.legal||'')}</div>
+
+        <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div>
+            <div class="muted">Datum</div>
+            <input id="trRunDate" type="date" value="${escapeHtml(today)}" style="width:100%"/>
+          </div>
+          <div>
+            <div class="muted">Teilnehmer</div>
+            <div id="trRunPeople" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px">
+              ${people.map(p=>`<label style="display:flex;align-items:center;gap:6px"><input type="checkbox" class="trPerson" value="${escapeHtml(p)}" checked/>${escapeHtml(p)}</label>`).join('')}
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top:12px">
+          <div class="muted">Inhalt (Kurz)</div>
+          <textarea id="trRunNotes" style="width:100%;min-height:110px">${escapeHtml(defaultTrainingText(t.id))}</textarea>
+        </div>
+
+        <div style="margin-top:12px">
+          <div class="muted">Unterschriften Teilnehmer (Finger/Pencil)</div>
+          <div id="trSigList" style="display:flex;flex-direction:column;gap:10px;margin-top:8px"></div>
+        </div>
+
+        <div style="margin-top:12px;display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap">
+          <button class="btn" id="trRunPrint">🖨 PDF</button>
+          <button class="btn primary" id="trRunSave">Archivieren</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(wrap);
+  const close=()=>{ try{ wrap.remove(); }catch(_){ } };
+  wrap.querySelector('#trRunClose').onclick=close;
+
+  const sigList = wrap.querySelector('#trSigList');
+  const sigs = {}; // person->dataUrl
+  function renderSigRows(){
+    const selected = Array.from(wrap.querySelectorAll('.trPerson')).filter(x=>x.checked).map(x=>x.value);
+    sigList.innerHTML = selected.map(p=>`
+      <div class="list-row" style="align-items:center">
+        <div style="flex:1"><strong>${escapeHtml(p)}</strong><div class="muted">Unterschrift</div></div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+          ${sigs[p] ? `<img src="${sigs[p]}" alt="Signatur" style="height:50px;width:180px;background:#fff;border-radius:8px;border:1px solid rgba(255,255,255,.18)"/>` : `<div style="height:50px;width:180px;background:#fff;border-radius:8px;border:1px solid rgba(255,255,255,.18)"></div>`}
+          <button class="btn" data-sig="${escapeHtml(p)}">${sigs[p]?'Neu':'Unterschreiben'}</button>
+        </div>
+      </div>
+    `).join('');
+    sigList.querySelectorAll('button[data-sig]').forEach(b=>{
+      b.onclick = ()=>{
+        const person = b.dataset.sig;
+        openSignatureOverlay((dataUrl)=>{
+          sigs[person]=dataUrl;
+          renderSigRows();
+        });
+      };
+    });
+  }
+  wrap.querySelectorAll('.trPerson').forEach(cb=>cb.onchange=renderSigRows);
+  renderSigRows();
+
+  function buildSession(){
+    const date = wrap.querySelector('#trRunDate').value || today;
+    const notes = wrap.querySelector('#trRunNotes').value || '';
+    const participants = Array.from(wrap.querySelectorAll('.trPerson')).filter(x=>x.checked).map(x=>x.value);
+    const missing = participants.filter(p=>!sigs[p]);
+    return {date, notes, participants, sigs, missing};
+  }
+  wrap.querySelector('#trRunPrint').onclick = ()=>{
+    const s = buildSession();
+    const body = trainingSessionHtml(t, s);
+    openPrintWindow(t.title, body);
+  };
+  wrap.querySelector('#trRunSave').onclick = ()=>{
+    const s = buildSession();
+    if(s.participants.length===0){ alert("Bitte Teilnehmer auswählen."); return; }
+    if(s.missing.length>0){
+      if(!confirm(`Es fehlen Unterschriften von: ${s.missing.join(', ')}. Trotzdem archivieren?`)) return;
+    }
+    // Update trainingStatus
+    state.compliance.trainingStatus = state.compliance.trainingStatus || {};
+    state.compliance.trainingStatus[t.id] = state.compliance.trainingStatus[t.id] || {};
+    s.participants.forEach(p=>{
+      state.compliance.trainingStatus[t.id][p] = { lastDone: s.date, sigDataUrl: sigs[p]||null };
+    });
+    // Archive log
+    state.compliance.trainingLogs = state.compliance.trainingLogs || [];
+    state.compliance.trainingLogs.unshift({
+      id: 'log_'+Math.random().toString(36).slice(2,10),
+      trainingId: t.id,
+      title: t.title,
+      legal: t.legal || '',
+      date: s.date,
+      participants: s.participants,
+      notes: s.notes,
+      sigs: sigs,
+      createdAt: Date.now()
+    });
+    saveState();
+    renderCompliancePanel();
+    try{ renderComplianceDashboard(); }catch(_){}
+    close();
+  };
+}
+function defaultTrainingText(id){
+  if(id==='trn_gefahrstoffe') return "Gefahrenhinweise, Schutzmaßnahmen (Handschuhe/Brille), Lagerung (verschlossen im Putzschrank), Verhalten bei Verschütten/Unfall, Sicherheitsdatenblätter (SDB) verfügbar.";
+  if(id==='trn_hygiene') return "Hygieneplan, Reinigung/Desinfektion, Infektionsschutz, Separierung bei Verdacht, Dokumentation.";
+  if(id==='trn_brand') return "Brand- & Evakuierungsplan, Sammelplatz Hofeinfahrt/Wiese, Feuerlöscherstandorte, Notruf 112, Evakuierungswege.";
+  if(id==='trn_tierschutz') return "§11 TierSchG Pflichten, Bestandsgrenzen (10 Übernachtung/13 Tagesbetreuung), Überwachung, Dokumentation, Tierwohl.";
+  if(id==='trn_erstehilfe') return "Grundlagen Erste Hilfe am Hund, Notfallzeichen, Transport, Tierarzt Immenstadt (Petra Geisser).";
+  if(id==='trn_med') return "Medikamentengabe nach Halter-/Tierarztanweisung, Dokumentation (Datum/Uhrzeit/Dosis), Lagerung, Rücksprache bei Abweichungen.";
+  if(id==='trn_datenschutz') return "Umgang mit Kundendaten, DSGVO-Grundsätze, Zugriffsschutz, Aufbewahrung/Weitergabe.";
+  return "";
+}
+function trainingSessionHtml(t, s){
+  const rows = s.participants.map(p=>{
+    const sig = s.sigs?.[p];
+    return `<tr>
+      <td style="width:28%"><strong>${escapeHtml(p)}</strong></td>
+      <td style="width:22%">${escapeHtml(s.date)}</td>
+      <td style="width:50%">${sig ? `<img class="sigimg" src="${sig}" alt="Signatur"/>` : `<div class="sigbox"></div>`}</td>
+    </tr>`;
+  }).join('');
+  return `
+    <h1>${escapeHtml(t.title)}</h1>
+    <div class="muted">${escapeHtml(t.legal||'')}</div>
+    <h2>Protokoll</h2>
+    <div class="muted">Inhalt (Kurz):</div>
+    <div style="white-space:pre-wrap; border:1px solid #ddd; padding:10px; border-radius:10px; margin-top:6px">${escapeHtml(s.notes||'')}</div>
+    <h2>Teilnehmer & Unterschriften</h2>
+    <table>
+      <thead><tr><th>Teilnehmer</th><th>Datum</th><th>Unterschrift</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
+function printTrainingStatus(){
+  const tr = state.compliance.trainings||[];
+  const people = (typeof getActiveStaffNames === 'function') ? getActiveStaffNames() : (state.hygiene?.staffPresets||["Raphael","Anschi"]);
+  const bodyRows = tr.map(t=>{
+    const cells = people.map(p=>{
+      const d = computeTrainingDueDate(t.id,p);
+      const badge = d.status==='red'?'🔴':(d.status==='yellow'?'🟡':'🟢');
+      const next = d.next ? new Date(d.next).toLocaleDateString('de-DE') : '—';
+      return `<div>${badge} ${escapeHtml(p)}: ${escapeHtml(next)}</div>`;
+    }).join('');
+    return `<tr><td><strong>${escapeHtml(t.title)}</strong><div class="muted">${escapeHtml(t.legal||'')}</div></td><td>${cells}</td></tr>`;
+  }).join('');
+  const html = `
+    <h1>Unterweisungs-Status</h1>
+    <div class="muted">Übersicht je Unterweisung / Teilnehmer</div>
+    <table>
+      <thead><tr><th>Unterweisung</th><th>Status</th></tr></thead>
+      <tbody>${bodyRows}</tbody>
+    </table>
+  `;
+  openPrintWindow("Unterweisungs-Status", html);
+}
+function renderComplianceArchive(root){
+  const logs = state.compliance.trainingLogs || [];
+  root.innerHTML = `
+    <h2 style="margin:0 0 8px 0">📁 Archiv</h2>
+    <div class="muted">Archivierte Unterweisungsprotokolle (PDF druckbar).</div>
+    <div style="margin-top:12px" class="list" id="archList"></div>
+  `;
+  const list = root.querySelector('#archList');
+  if(list){
+    if(logs.length===0){
+      list.innerHTML = `<div class="muted">Noch keine archivierten Unterweisungen.</div>`;
+    }else{
+      list.innerHTML = logs.slice(0,80).map(l=>`
+        <div class="list-row">
+          <div style="flex:1">
+            <strong>${escapeHtml(l.title||'—')}</strong>
+            <div class="muted" style="margin-top:4px">${escapeHtml(l.date||'—')} · Teilnehmer: ${(l.participants||[]).map(escapeHtml).join(', ')}</div>
+          </div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end">
+            <button class="btn" data-act="print" data-id="${escapeHtml(l.id)}">🖨 PDF</button>
+          </div>
+        </div>
+      `).join('');
+    }
+  }
+  root.querySelectorAll('button[data-act="print"]').forEach(b=>{
+    b.onclick = ()=>{
+      const id=b.dataset.id;
+      const l = (state.compliance.trainingLogs||[]).find(x=>x.id===id);
+      if(!l) return;
+      const t = { title:l.title, legal:l.legal };
+      const s = { date:l.date, notes:l.notes, participants:l.participants||[], sigs:l.sigs||{} };
+      openPrintWindow(l.title, trainingSessionHtml(t,s));
+    };
+  });
+}
+// Hook: update dashboard card with underweisung status hint
+(function(){
+  try{
+    const oldRender = window.renderComplianceDashboard;
+    // We keep existing renderComplianceDashboard; computeCompliance already includes Unterweisungen now.
+  }catch(_){}
+})();
+

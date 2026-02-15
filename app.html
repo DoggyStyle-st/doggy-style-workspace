@@ -101,7 +101,7 @@
   .doc-modal__actions{ margin-left:auto; display:flex; flex-wrap: wrap; gap: 8px; }
   .doc-modal__frame{ width: 100%; border: 0; border-radius: 12px; background: #fff; flex:1; min-height: 0; }
 </style>
-  <meta name="app-version" content="M50.2_BLUE_TEMPLATE_PRINT_CONTRACT_20260215">
+  <meta name="app-version" content="M50.3_COMPLIANCE_MODULE_20260215">
   <meta name="release-channel" content="MASTER">
 </head>
 <body class="bg-watermark page-app">
@@ -137,6 +137,7 @@
         <button class="tab" data-tab="inbox" id="tabInbox"><span class="tab-ico" aria-hidden="true">📥</span>Eingänge</button>
         <button class="tab" data-tab="documents"><span class="tab-ico" aria-hidden="true">🏠</span>Aufenthalte</button>
         <button class="tab" data-tab="settings" id="tabSettings"><span class="tab-ico" aria-hidden="true">⚙️</span>Einstellungen</button>
+        <button class="tab" data-tab="compliance" id="tabCompliance"><span class="tab-ico" aria-hidden="true">🛡️</span>Compliance</button>
       </div>
     </nav>
 
@@ -1133,6 +1134,20 @@
       </div>
 </section>
 
+
+<section class="panel" id="compliance">
+  <div class="card">
+    <h1 style="margin:0 0 8px 0">Compliance</h1>
+    <div class="muted" style="margin-bottom:12px">Gefahrstoffe, Unterweisungen & Archiv – prüffähig dokumentiert.</div>
+    <div class="row" style="flex-wrap:wrap; gap:10px; margin-bottom:12px">
+      <button class="btn" id="btnComplianceHazards" type="button">🧴 Gefahrstoffe</button>
+      <button class="btn" id="btnComplianceTrainings" type="button">🧑‍🏫 Unterweisungen</button>
+      <button class="btn" id="btnComplianceArchive" type="button">📁 Archiv</button>
+    </div>
+    <div id="compliancePanelBody"></div>
+  </div>
+</section>
+
 <section class="panel" id="editor">
 <div class="card sticky">
 <div class="row between">
@@ -1187,7 +1202,7 @@
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-<script defer="defer" src="app.js?v=M50.2_BLUE_TEMPLATE_PRINT_CONTRACT_20260215"></script>
+<script defer="defer" src="app.js?v=M50.3_COMPLIANCE_MODULE_20260215"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
