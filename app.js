@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.3.2_COMPLIANCE_FINALFIX_20260215",
+  tag: "M50.3.3_COMPLIANCE_JSFIX_20260215",
   channel: "MASTER",
   frozenAt: "2026-02-07T22:10:34"
 };
@@ -11,7 +11,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
-const APP_BUILD = 'M50.3.2_COMPLIANCE_FINALFIX_20260215';
+const APP_BUILD = 'M50.3.3_COMPLIANCE_JSFIX_20260215';
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 (function DS_BUILD_GUARD_RECOVERY(){
@@ -5918,7 +5918,6 @@ function computeCompliance(){
   const items = [
     complianceItem('Unterweisungen', trnStatus, trnDetail),
     complianceItem('Hygiene', hygStatus, hygDetail),
-, hygStatus, hygDetail),
     complianceItem('Medikation', medStatus, medDetail),
     complianceItem('Verträge', conStatus, conDetail),
     complianceItem('Notfall/Brand', nfStatus, nfDetail)
