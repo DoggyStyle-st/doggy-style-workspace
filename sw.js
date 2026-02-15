@@ -108,7 +108,7 @@ self.addEventListener('activate', (event)=>{
     event.waitUntil((async ()=>{
       const clients = await self.clients.matchAll({type:'window', includeUncontrolled:true});
       for (const c of clients) {
-        try { c.postMessage({type:'DS_SW_VERSION', value:'M50.3.3_COMPLIANCE_JSFIX_20260215'}); } catch(_ ){}
+        try { c.postMessage({type:'DS_SW_VERSION', value:'M50.4_COMPLIANCE_PRO_20260215'}); } catch(_ ){}
       }
     })());
   } catch(_ ){}

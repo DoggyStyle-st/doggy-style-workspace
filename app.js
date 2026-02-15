@@ -6449,7 +6449,7 @@ async function printPolicyDoc(key){
     body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif;margin:0;color:#111;
          padding:calc(22px + var(--tb-h) + env(safe-area-inset-top)) calc(24px + env(safe-area-inset-right)) 24px calc(24px + env(safe-area-inset-left));
          background:#fff;}
-    .toolbar{position:fixed;top:0;left:0;right:0;z-index:9999;background:#fff;border-bottom:1px solid #eee;
+    .toolbar{position:fixed;top:0;left:0;right:0;z-index:99999;background:#fff;border-bottom:1px solid #eee;
              height:var(--tb-h);display:flex;gap:10px;align-items:center;justify-content:flex-end;
              padding:10px calc(24px + env(safe-area-inset-right)) 10px calc(24px + env(safe-area-inset-left));
              padding-top:calc(10px + env(safe-area-inset-top)); box-sizing:border-box;}
@@ -6844,8 +6844,8 @@ state._legacy = (state._legacy && typeof state._legacy === "object") ? state._le
   // Seed default trainings (only if empty)
   if(state.compliance.trainings.length === 0){
     state.compliance.trainings = [
-      { id:"trn_gefahrstoffe", title:"Unterweisung: Gefahrstoffe", intervalMonths:12, level:"pflicht", legal:"GefStoffV §14 / TRGS 555", updatedAt:Date.now() },
-      { id:"trn_hygiene", title:"Unterweisung: Hygiene & Infektionsschutz", intervalMonths:12, level:"pflicht", legal:"§11 TierSchG / TierSchHuV", updatedAt:Date.now() },
+      { id:"trn_gefahrstoffe", title:"Unterweisung: Gefahrstoffe", intervalMonths:12, level:"pflicht", legal:"GefStoffV §14 / TRGS 555", fullText:"Gefahrhinweise, Schutzmaßnahmen (Handschuhe/Brille), Lagerung (verschlossen im Putzschrank), Verhalten bei Verschütten/Unfall, Hinweis: Sicherheitsdatenblätter (SDB) sind in der App hinterlegt/abrufbar.", updatedAt:Date.now() },
+      { id:"trn_hygiene", title:"Unterweisung: Hygiene & Infektionsschutz", intervalMonths:12, level:"pflicht", legal:"§11 TierSchG / TierSchHuV", fullText:"Hygieneplan, Reinigung/Desinfektion, Kontaktzonen, Wäsche, Umgang mit infektiösen Tieren, Separierungsmöglichkeiten, Meldewege, Tierarzt-Notfallkontakt. Im Krankheitsfall kann der Aufenthalt abgebrochen werden (gem. Betreuungsvertrag).", updatedAt:Date.now() },
       { id:"trn_brand", title:"Unterweisung: Brand- & Evakuierungsplan", intervalMonths:12, level:"pflicht", legal:"Betriebspflichten / Brandschutz", updatedAt:Date.now() },
       { id:"trn_tierschutz", title:"Unterweisung: §11 TierSchG Betriebspflichten", intervalMonths:12, level:"pflicht", legal:"§11 TierSchG", updatedAt:Date.now() },
       { id:"trn_erstehilfe", title:"Unterweisung: Erste Hilfe Hund (Grundlagen)", intervalMonths:12, level:"pflicht", legal:"Empfehlung (Betriebssicherheit)", updatedAt:Date.now() },
@@ -8733,7 +8733,7 @@ function ensurePdfOverlayStyles(){
   css.id = "pdfOverlayStyles";
   css.textContent = `
     #pdfOverlay{
-      position:fixed; inset:0; z-index:99999;
+      position:fixed; inset:0; z-index:999999;
       display:none; flex-direction:column;
       background: rgba(0,0,0,0.72);
       backdrop-filter: blur(6px);
@@ -9937,7 +9937,7 @@ function getDocumentVersions(doc){
 // ===== Overlay-Signatur (Weg A) =====
 function openSignatureOverlay(onDone){
   const overlay=document.createElement("div");
-  overlay.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center";
+  overlay.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99999;display:flex;align-items:center;justify-content:center";
   overlay.innerHTML=`
     <div style="background:#fff;border-radius:14px;padding:12px;width:92%;max-width:560px">
       <canvas id="sigCanvas" style="width:100%;height:180px;background:#fff;border:1px solid #ccc;border-radius:10px"></canvas>
@@ -11349,7 +11349,7 @@ async function openContractPdfWindow(customerId, petId){
          padding:calc(22px + var(--tb-h) + env(safe-area-inset-top)) calc(24px + env(safe-area-inset-right)) 24px calc(24px + env(safe-area-inset-left));
          background:#fff;}
     /* iOS/Safari: sticky in iframe is unreliable. Use a fixed toolbar that is always visible/clickable. */
-    .toolbar{position:fixed;top:0;left:0;right:0;z-index:9999;background:#fff;border-bottom:1px solid #eee;
+    .toolbar{position:fixed;top:0;left:0;right:0;z-index:99999;background:#fff;border-bottom:1px solid #eee;
              height:var(--tb-h);display:flex;gap:10px;align-items:center;justify-content:flex-end;
              padding:10px calc(24px + env(safe-area-inset-right)) 10px calc(24px + env(safe-area-inset-left));
              padding-top:calc(10px + env(safe-area-inset-top)); box-sizing:border-box;}
@@ -11670,7 +11670,7 @@ function renderContractPanel(){
     modal.style.position='fixed';
     modal.style.inset='0';
     modal.style.background='rgba(0,0,0,0.65)';
-    modal.style.zIndex='200000';
+    modal.style.zIndex='99999';
     modal.style.display='flex';
     modal.style.alignItems='center';
     modal.style.justifyContent='center';
@@ -13134,14 +13134,16 @@ function getCompanyHeaderHtml(){
 function openPrintWindow(title, bodyHtml){
   const w = window.open("", "_blank");
   if(!w){ alert("Pop-up blockiert. Bitte Pop-ups erlauben."); return; }
+
   const css = `
     <style>
       @page{ margin:16mm; }
       body{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; color:#111; margin:0; }
-      .topbar{ position:sticky; top:0; background:#111; color:#fff; padding:10px 12px; display:flex; gap:10px; align-items:center; }
-      .topbar .t{ flex:1; font-weight:600; font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-      .topbar button{ border:1px solid rgba(255,255,255,.25); background:rgba(255,255,255,.08); color:#fff; padding:8px 10px; border-radius:10px; font-size:13px; }
-      .page{ padding:16mm; }
+      .topbar{ position:sticky; top:0; z-index:5; display:flex; align-items:center; justify-content:space-between; gap:10px;
+               padding:10px 12px; background:#fff; border-bottom:1px solid #ddd; }
+      .topbar .t{ font-weight:700; }
+      .topbar .btn{ padding:8px 10px; border:1px solid #bbb; border-radius:10px; background:#f7f7f7; cursor:pointer; }
+      .wrap{ padding:16mm; }
       h1{ font-size:20px; margin:10px 0 6px; }
       h2{ font-size:16px; margin:14px 0 6px; }
       .muted{ color:#444; font-size:12px; }
@@ -13149,32 +13151,27 @@ function openPrintWindow(title, bodyHtml){
       table{ width:100%; border-collapse:collapse; margin-top:8px; }
       th,td{ border:1px solid #ddd; padding:8px; font-size:12px; vertical-align:top; }
       th{ background:#f3f3f3; text-align:left; }
-      .sigbox{ border:1px solid #bbb; height:70px; width:260px; }
-      .sigimg{ height:70px; width:260px; object-fit:contain; }
-      .footer{ margin-top:10px; font-size:11px; color:#666; }
-      .badge{ display:inline-block; padding:2px 8px; border-radius:999px; border:1px solid #ddd; font-size:11px; }
+      img.logo{ width:56px; height:56px; border-radius:10px; object-fit:cover; }
       @media print{
         .topbar{ display:none; }
         body{ margin:0; }
-        .page{ padding:16mm; }
+        .wrap{ padding:0; }
       }
-    </style>`;
+    </style>
+  `;
+  const safeTitle = escapeHtml(title||"Dokument");
   w.document.open();
-  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>${escapeHtml(title)}</title>${css}</head><body>
-    <div class="topbar">
-      <div class="t">${escapeHtml(title)}</div>
-      <button onclick="try{window.print()}catch(e){}">Drucken</button>
-      <button onclick="try{window.close()}catch(e){}">Schließen</button>
-    </div>
-    <div class="page">
-      ${getCompanyHeaderHtml()}
-      <div class="hr"></div>
-      ${bodyHtml}
-      <div class="footer">Build: ${escapeHtml(APP_BUILD)} · erzeugt am ${escapeHtml(new Date().toLocaleString('de-DE'))}</div>
-    </div>
-    <script>setTimeout(()=>{ try{ window.print(); }catch(e){} }, 300);</script>
-  </body></html>`);
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${safeTitle}</title>${css}</head>
+    <body>
+      <div class="topbar">
+        <div class="t">${safeTitle}</div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end">
+          <button class="btn" onclick="window.print()">Drucken</button>
+          <button class="btn" onclick="window.close()">Schließen</button>
+        </div>
+      </div>
+      <div class="wrap">${bodyHtml||""}</div>
+    </body></html>`);
   w.document.close();
 }
 function computeTrainingCompliance(){
@@ -13263,7 +13260,9 @@ function renderComplianceHazards(root){
         </div>
         <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end">
           <button class="btn" data-act="upload" data-id="${escapeHtml(h.id)}">SDB hochladen</button>
-          ${has ? `<button class="btn" data-act="view" data-id="${escapeHtml(h.id)}">SDB ansehen</button>` : ``}${has ? `<button class="btn" data-act="download" data-id="${escapeHtml(h.id)}">Download</button>` : ``}${has ? `<button class="btn" data-act="delete" data-id="${escapeHtml(h.id)}">Löschen</button>` : ``}
+          ${has ? `<button class="btn" data-act="view" data-id="${escapeHtml(h.id)}">SDB öffnen</button>
+          <button class="btn" data-act="dl" data-id="${escapeHtml(h.id)}">Download</button>
+          <button class="btn" data-act="del" data-id="${escapeHtml(h.id)}">Löschen</button>` : ``}
           <button class="btn" data-act="edit" data-id="${escapeHtml(h.id)}">Bearbeiten</button>
         </div>
       </div>`;
@@ -13282,8 +13281,18 @@ function renderComplianceHazards(root){
       if(act==='edit') openHazardEditor(haz);
       if(act==='upload') openHazardUpload(haz);
       if(act==='view') openHazardView(haz);
-      if(act==='download') downloadHazardSds(haz);
-      if(act==='delete') deleteHazardSds(haz);
+      if(act==='dl'){
+        if(haz.sds && haz.sds.dataUrl){
+          openPdfOverlay({title:`SDB – ${haz.name||''}`, dataUrl: haz.sds.dataUrl, filename:`SDB_${(haz.name||'Produkt').replace(/[^a-z0-9_-]+/gi,'_')}.pdf`});
+        }
+      }
+      if(act==='del'){
+        if(confirm('Sicherheitsdatenblatt wirklich löschen?')){
+          haz.sds=null;
+          saveState();
+          renderCompliancePanel();
+        }
+      }
     };
   });
 }
@@ -13291,7 +13300,7 @@ function openHazardEditor(haz){
   const isNew = !haz;
   const h = haz ? {...haz} : { id: 'haz_'+Math.random().toString(36).slice(2,10), name:'', category:'', storage:'Büro – verschlossener Putzschrank', sds:null };
   const html = `
-    <div class="modal-backdrop" id="hazModal" style="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px">
+    <div class="modal-backdrop" id="hazModal" style="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:999999;display:flex;align-items:center;justify-content:center;padding:16px">
       <div class="modal-panel" style="width:min(680px, 100%); background:rgba(30,30,34,.98); border:1px solid rgba(255,255,255,.12); border-radius:14px; padding:14px">
         <div style="display:flex; justify-content:space-between; align-items:center; gap:10px">
           <strong>${isNew?'Neuer Gefahrstoff':'Gefahrstoff bearbeiten'}</strong>
@@ -13349,38 +13358,7 @@ function openHazardUpload(haz){
       alert("PDF ist zu groß (max 8MB). Bitte komprimieren.");
       return;
     }
-    co
-function downloadHazardSds(haz){
-  try{
-    if(!haz?.sds?.dataUrl){ alert("Kein Sicherheitsdatenblatt hinterlegt."); return; }
-    const a=document.createElement('a');
-    a.href = haz.sds.dataUrl;
-    const safeName = (haz.name||'SDB').replace(/[^a-z0-9\-_]+/gi,'_');
-    a.download = `SDB_${safeName}.pdf`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-  }catch(e){
-    console.error(e);
-    alert("Download nicht möglich.");
-  }
-}
-function deleteHazardSds(haz){
-  if(!haz) return;
-  const ok = confirm("Sicherheitsdatenblatt wirklich löschen?");
-  if(!ok) return;
-  try{
-    haz.sds = null;
-    // persist
-    saveState();
-    renderMain();
-    toast("SDB gelöscht.");
-  }catch(e){
-    console.error(e);
-    alert("Löschen fehlgeschlagen.");
-  }
-}
-nst reader = new FileReader();
+    const reader = new FileReader();
     reader.onload = ()=>{
       haz.sds = { name: f.name, mime: f.type || 'application/pdf', dataUrl: reader.result };
       haz.updatedAt = Date.now();
@@ -13391,40 +13369,124 @@ nst reader = new FileReader();
   };
   input.click();
 }
-function openHazardView(haz){
-  if(!haz?.sds?.dataUrl){ alert("Kein Sicherheitsdatenblatt hinterlegt."); return; }
-  const w = window.open("", "_blank");
-  if(!w){ alert("Pop-up blockiert. Bitte Pop-ups erlauben."); return; }
-  const dataUrl = haz.sds.dataUrl;
-  const safeTitle = escapeHtml(haz.name||"");
-  const fileName = (haz.name||"SDB").replace(/[^a-z0-9\-_]+/gi,'_');
-  w.document.open();
-  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>SDB ${safeTitle}</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-      body{ margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif; }
-      .bar{ position:fixed; top:0; left:0; right:0; height:52px; display:flex; align-items:center; gap:10px;
-            padding:0 12px; background:#111; color:#fff; z-index:10; }
-      .bar .title{ flex:1; font-weight:600; font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-      .btn{ appearance:none; border:1px solid rgba(255,255,255,.25); background:rgba(255,255,255,.08); color:#fff;
-            padding:8px 10px; border-radius:10px; font-size:13px; }
-      .wrap{ position:fixed; top:52px; left:0; right:0; bottom:0; }
-      embed{ width:100%; height:100%; border:0; }
-    </style>
-  </head>
-  <body>
-    <div class="bar">
-      <div class="title">Sicherheitsdatenblatt: ${safeTitle}</div>
-      <button class="btn" onclick="try{window.print()}catch(e){}">Drucken</button>
-      <a class="btn" href="${dataUrl}" download="SDB_${fileName}.pdf" style="text-decoration:none;display:inline-block">Download</a>
-      <button class="btn" onclick="try{window.close()}catch(e){}">Schließen</button>
-    </div>
-    <div class="wrap">
-      <embed src="${dataUrl}#zoom=page-width" type="application/pdf"/>
-    </div>
-  </body></html>`);
-  w.document.close();
+function _dataUrlToBlob(dataUrl){
+  try{
+    const parts = String(dataUrl||"").split(',');
+    const meta = parts[0] || '';
+    const b64 = parts[1] || '';
+    const mime = (meta.match(/data:([^;]+);base64/i)||[])[1] || 'application/pdf';
+    const bin = atob(b64);
+    const len = bin.length;
+    const arr = new Uint8Array(len);
+    for(let i=0;i<len;i++) arr[i] = bin.charCodeAt(i);
+    return new Blob([arr], {type:mime});
+  }catch(e){
+    console.warn("dataUrlToBlob failed", e);
+    return null;
+  }
 }
+
+function openPdfOverlay(opts){
+  // opts: {title, dataUrl, filename, onDelete}
+  const title = opts?.title || "PDF";
+  const dataUrl = opts?.dataUrl;
+  if(!dataUrl){ alert("Keine PDF-Daten vorhanden."); return; }
+
+  // Create overlay once
+  let wrap = document.getElementById("pdfDocOverlay");
+  if(!wrap){
+    wrap = document.createElement("div");
+    wrap.id = "pdfDocOverlay";
+    wrap.style.cssText = "position:fixed;inset:0;z-index:12000;background:rgba(0,0,0,.65);display:none;";
+    wrap.innerHTML = `
+      <div style="position:absolute;inset:0;display:flex;flex-direction:column;">
+        <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 12px;background:rgba(20,20,22,.96);border-bottom:1px solid rgba(255,255,255,.10);">
+          <div style="font-weight:700">${escapeHtml(title)}</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+            <button class="btn" id="pdfDocPrint">Drucken</button>
+            <button class="btn" id="pdfDocDownload">Download</button>
+            <button class="btn" id="pdfDocDelete" style="display:none">Löschen</button>
+            <button class="btn" id="pdfDocClose">Schließen</button>
+          </div>
+        </div>
+        <div style="flex:1;min-height:0;background:#111;">
+          <iframe id="pdfDocFrame" style="border:0;width:100%;height:100%;" allow="fullscreen"></iframe>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(wrap);
+  }
+
+  const frame = wrap.querySelector("#pdfDocFrame");
+  const btnClose = wrap.querySelector("#pdfDocClose");
+  const btnPrint = wrap.querySelector("#pdfDocPrint");
+  const btnDl = wrap.querySelector("#pdfDocDownload");
+  const btnDel = wrap.querySelector("#pdfDocDelete");
+
+  // Build Blob URL (multi-page safe)
+  const blob = _dataUrlToBlob(dataUrl);
+  if(!blob){ alert("PDF konnte nicht geöffnet werden."); return; }
+  const blobUrl = URL.createObjectURL(blob);
+
+  // Show
+  wrap.style.display="block";
+  document.body.style.overflow="hidden";
+  frame.src = blobUrl;
+
+  // Buttons
+  btnClose.onclick = ()=>{
+    try{ URL.revokeObjectURL(blobUrl); }catch(_){}
+    frame.src = "about:blank";
+    wrap.style.display="none";
+    document.body.style.overflow="";
+  };
+
+  btnDl.onclick = ()=>{
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = (opts?.filename || "dokument.pdf");
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
+
+  btnPrint.onclick = ()=>{
+    try{
+      frame.contentWindow?.focus();
+      frame.contentWindow?.print();
+    }catch(e){
+      // Fallback: open in new tab (native print/share)
+      try{ window.open(blobUrl, "_blank"); }catch(_){}
+    }
+  };
+
+  if(typeof opts?.onDelete === "function"){
+    btnDel.style.display="";
+    btnDel.onclick = ()=>{
+      if(confirm("PDF wirklich löschen?")){
+        opts.onDelete();
+        btnClose.click();
+      }
+    };
+  }else{
+    btnDel.style.display="none";
+  }
+}
+
+function openHazardView(haz){
+  if(!haz.sds || !haz.sds.dataUrl){ alert("Kein Sicherheitsdatenblatt hinterlegt."); return; }
+  openPdfOverlay({
+    title: `SDB – ${haz.name||''}`,
+    dataUrl: haz.sds.dataUrl,
+    filename: `SDB_${(haz.name||"Produkt").replace(/[^a-z0-9_-]+/gi,"_")}.pdf`,
+    onDelete: ()=>{
+      haz.sds = null;
+      saveState();
+      renderCompliancePanel();
+    }
+  });
+}
+
 function renderComplianceTrainings(root){
   const tr = state.compliance.trainings || [];
   const people = (typeof getActiveStaffNames === 'function') ? getActiveStaffNames() : (state.hygiene?.staffPresets||["Raphael","Anschi"]);
@@ -13454,7 +13516,7 @@ function renderComplianceTrainings(root){
         <div class="list-row">
           <div style="flex:1">
             <strong>${escapeHtml(t.title)}</strong>
-            <div class="muted" style="margin-top:4px">${escapeHtml(t.legal||'')}</div>
+            <div class="muted" style="margin-top:4px">${escapeHtml(t.legal||'')} · Intervall: ${escapeHtml(String(t.intervalMonths||12))} Monate</div>
             ${rows}
           </div>
           <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end">
@@ -13490,7 +13552,7 @@ function openTrainingRunPicker(){
   const opts = tr.map(t=>`<option value="${escapeHtml(t.id)}">${escapeHtml(t.title)}</option>`).join('');
   const wrap=document.createElement('div');
   wrap.innerHTML = `
-    <div style="position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px">
+    <div style="position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px">
       <div style="width:min(680px,100%);background:rgba(30,30,34,.98);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:14px">
         <div style="display:flex;justify-content:space-between;align-items:center">
           <strong>Unterweisung durchführen</strong>
@@ -13523,7 +13585,7 @@ function openTrainingRun(trainingId){
   const wrap=document.createElement('div');
   const today = new Date().toISOString().slice(0,10);
   wrap.innerHTML = `
-    <div style="position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px">
+    <div style="position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px">
       <div style="width:min(900px,100%);max-height:calc(100vh - 32px);overflow:auto;background:rgba(30,30,34,.98);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:14px">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
           <strong>${escapeHtml(t.title)}</strong>
@@ -13539,13 +13601,18 @@ function openTrainingRun(trainingId){
           <div>
             <div class="muted">Teilnehmer</div>
             <div id="trRunPeople" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px">
-              ${people.map(p=>`<label style="display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid rgba(255,255,255,.14);border-radius:999px;background:rgba(255,255,255,.06)"><input type="checkbox" class="trPerson" value="${escapeHtml(p)}" checked style="margin:0"/>${escapeHtml(p)}</label>`).join('')}
+              ${people.map(p=>`<label style="display:flex;align-items:center;gap:6px"><input type="checkbox" class="trPerson" value="${escapeHtml(p)}" checked/>${escapeHtml(p)}</label>`).join('')}
             </div>
           </div>
         </div>
 
         <div style="margin-top:12px">
           <div class="muted">Inhalt (Kurz)</div>
+    <div style="margin-top:8px"><button class="btn" id="btnTrToggleFull">Volltext anzeigen</button></div>
+    <div id="trFullWrap" style="display:none;margin-top:8px">
+      <div class="muted">Unterweisung (Volltext)</div>
+      <div style="white-space:pre-wrap;border:1px solid rgba(255,255,255,.18);padding:10px;border-radius:12px;background:rgba(0,0,0,.18)" id="trFullText"></div>
+    </div>
           <textarea id="trRunNotes" style="width:100%;min-height:110px">${escapeHtml(defaultTrainingText(t.id))}</textarea>
         </div>
 
@@ -13588,7 +13655,22 @@ function openTrainingRun(trainingId){
     });
   }
   wrap.querySelectorAll('.trPerson').forEach(cb=>cb.onchange=renderSigRows);
-  renderSigRows();
+  
+  // Volltext toggle
+  try{
+    const btnFull = wrap.querySelector('#btnTrToggleFull');
+    const fullWrap = wrap.querySelector('#trFullWrap');
+    const fullText = wrap.querySelector('#trFullText');
+    if(fullText) fullText.textContent = (t.fullText || t.longText || t.legalFull || "—");
+    if(btnFull && fullWrap){
+      btnFull.onclick = ()=>{
+        const open = fullWrap.style.display !== 'none';
+        fullWrap.style.display = open ? 'none' : 'block';
+        btnFull.textContent = open ? 'Volltext anzeigen' : 'Volltext ausblenden';
+      };
+    }
+  }catch(_){}
+renderSigRows();
 
   function buildSession(){
     const date = wrap.querySelector('#trRunDate').value || today;
@@ -13641,117 +13723,6 @@ function defaultTrainingText(id){
   if(id==='trn_erstehilfe') return "Grundlagen Erste Hilfe am Hund, Notfallzeichen, Transport, Tierarzt Immenstadt (Petra Geisser).";
   if(id==='trn_med') return "Medikamentengabe nach Halter-/Tierarztanweisung, Dokumentation (Datum/Uhrzeit/Dosis), Lagerung, Rücksprache bei Abweichungen.";
   if(id==='trn_datenschutz') return "Umgang mit Kundendaten, DSGVO-Grundsätze, Zugriffsschutz, Aufbewahrung/Weitergabe.";
-  return "";
-}
-
-function fullTrainingText(id){
-  if(id==='trn_gefahrstoffe') return [
-    "Ziel: Sicherer Umgang mit Gefahrstoffen/Reinigungs- und Desinfektionsmitteln in der Hundepension.",
-    "",
-    "1) Produkte & Dokumente:",
-    "   - Sicherheitsdatenblätter (SDB) je Produkt im Compliance-Modul hinterlegt und jederzeit abrufbar.",
-    "   - Etiketten/Originalgebinde verwenden, nie in unbeschriftete Flaschen umfüllen.",
-    "",
-    "2) Lagerung (Betrieb):",
-    "   - Lagerort: Büro – verschlossener Putzschrank (Zugang nur berechtigte Personen).",
-    "   - Kinder/Tiere keinen Zugriff. Keine Lebensmittel im selben Schrank.",
-    "",
-    "3) Persönliche Schutzmaßnahmen:",
-    "   - Handschuhe, ggf. Schutzbrille/Schürze je nach SDB.",
-    "   - Hautkontakt vermeiden, nach Anwendung Hände waschen/pflegen.",
-    "",
-    "4) Anwendung/Arbeitsweise:",
-    "   - Dosierung/Einwirkzeit gemäß Hersteller beachten (z.B. Virkon® S).",
-    "   - Nie unterschiedliche Reiniger mischen (Gefahrstoffe!).",
-    "",
-    "5) Verhalten bei Verschütten/Unfall:",
-    "   - Bereich sichern, Tiere entfernen, lüften.",
-    "   - Aufnehmen/entsorgen gemäß SDB; bei Kontakt: spülen und ggf. Arzt/Giftnotruf.",
-    "",
-    "6) Entsorgung:",
-    "   - Reste/Leergebinde gemäß Vorgaben (SDB/Kommunal) entsorgen.",
-    "",
-    "7) Unterweisung & Nachweis:",
-    "   - Dokumentation mit Datum, Teilnehmern, Unterschriften. Auffrischung gemäß Intervall."
-  ].join("\n");
-  if(id==='trn_hygiene') return [
-    "Ziel: Infektionsschutz, Hygieneabläufe und Seuchenprävention in der Hundepension.",
-    "",
-    "1) Grundprinzipien:",
-    "   - Trennung sauber/unrein, Händehygiene, Flächenhygiene, Gerätehygiene.",
-    "   - Kontaktintensive Zonen (Türgriffe, Gitter, Leinen, Schüsseln) prioritär reinigen/desinfizieren.",
-    "",
-    "2) Aufnahme/Screening:",
-    "   - Sichtkontrolle Hund (Allgemeinzustand, Durchfall/Erbrechen, Husten, Haut).",
-    "   - Impfschutz/Parasitenprophylaxe nach Betriebsregel (Dokumentation).",
-    "",
-    "3) Umgang mit Krankheitssymptomen:",
-    "   - Hund separieren (Separationsmöglichkeit), Kontakt minimieren, Flächen/Materialien separat.",
-    "   - Betreiber kann Aufenthalt bei Krankheit jederzeit abbrechen (laut Betreuungsvertrag).",
-    "   - Tierarzt/Notfall: Kleintierpraxis Immenstadt, Petra Geisser.",
-    "",
-    "4) Reinigung/Desinfektion:",
-    "   - Regelmäßige Aufgaben gemäß Hygieneplan (täglich/wöchentlich/monatlich).",
-    "   - Einwirkzeiten und Konzentrationen einhalten.",
-    "",
-    "5) Wäsche:",
-    "   - Decken/Körbe nach Plan, Maschinenfilter/Siebe reinigen, Trennung stark verschmutzt.",
-    "",
-    "6) Dokumentation:",
-    "   - Hygieneaufgaben, Schädlingsmonitoring, besondere Vorkommnisse/Infektionsfälle dokumentieren."
-  ].join("\n");
-  if(id==='trn_brand') return [
-    "Ziel: Sicheres Verhalten bei Brand/Notfall, Evakuierung von Personen und Hunden.",
-    "",
-    "1) Alarmierung:",
-    "   - Notruf 112. Adresse: Im Moos 4, 88167 Stiefenhofen.",
-    "",
-    "2) Evakuierungswege:",
-    "   - Ausgänge gemäß Plan nutzen. Hunde sichern (Leinen/Transport) sofern gefahrlos möglich.",
-    "",
-    "3) Sammelplatz:",
-    "   - Wiese bei Hofeinfahrt (Sammelplatz).",
-    "",
-    "4) Brandbekämpfung:",
-    "   - Feuerlöscherstandorte kennen. Nur Kleinbrände bekämpfen, Eigenschutz geht vor.",
-    "",
-    "5) Nachweis & Wiederholung:",
-    "   - Unterweisung dokumentieren. Wiederholung gemäß Intervall bzw. bei Änderungen (Umbau/Neue Mitarbeiter)."
-  ].join("\n");
-  if(id==='trn_tierschutz') return [
-    "Ziel: Einhaltung betrieblicher Pflichten nach §11 TierSchG und TierSchHuV.",
-    "",
-    "1) Tiergerechte Unterbringung:",
-    "   - Kapazitäten: max. 10 Übernachtungshunde, max. 13 Tagesbetreuung.",
-    "   - Unterbringung: Einzelzimmer + Gruppenraum, Separationsmöglichkeit bei Bedarf.",
-    "",
-    "2) Betreuung/Überwachung:",
-    "   - Regelmäßige Kontrollen, Dokumentation Auffälligkeiten, Fütterung/Medikation nach Plan.",
-    "",
-    "3) Hygiene & Infektionsschutz:",
-    "   - Umsetzung Hygieneplan, Desinfektion, Wäsche, Schädlingsmonitoring.",
-    "",
-    "4) Notfallmanagement:",
-    "   - Tierarzt/Notfallkontakte, Evakuierungsplan, Medikamentendokumentation.",
-    "",
-    "5) Dokumentation & Nachweise:",
-    "   - Unterweisungen, Arbeitsblätter, Protokolle, Verträge/Einverständnisse."
-  ].join("\n");
-  if(id==='trn_erstehilfe') return [
-    "Ziel: Grundlagen Erste Hilfe am Hund im Betrieb (Erkennen, Stabilisieren, Weiterleitung).",
-    "",
-    "1) Vitalparameter/Erkennen:",
-    "   - Atmung, Puls, Schleimhäute, Temperatur, Bewusstsein.",
-    "",
-    "2) Sofortmaßnahmen:",
-    "   - Blutungen stillen, Schocklage/Wärmeerhalt, Atemwege freihalten.",
-    "",
-    "3) Transport & Tierarzt:",
-    "   - Hund sichern, Transport vorbereiten, Tierarzt/Notfall informieren.",
-    "",
-    "4) Dokumentation:",
-    "   - Ereignis, Maßnahmen, Kontakt Tierarzt, Übergabe dokumentieren."
-  ].join("\n");
   return "";
 }
 function trainingSessionHtml(t, s){
