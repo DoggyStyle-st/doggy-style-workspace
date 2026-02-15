@@ -11,12 +11,12 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
-const APP_BUILD = 'M48_4G3_INBOX_ASSIGN_UI_20260208';
+const APP_BUILD = 'M50_BLUE_TEMPLATE_BASE_20260215';
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 (function DS_BUILD_GUARD_RECOVERY(){
   try{
-    const BUILD = (typeof APP_BUILD !== 'undefined') ? APP_BUILD : "M48_4G3_INBOX_ASSIGN_UI_20260208";
+    const BUILD = (typeof APP_BUILD !== 'undefined') ? APP_BUILD : "M50_BLUE_TEMPLATE_BASE_20260215";
     const meta = document.querySelector('meta[name="app-version"]');
     const htmlBuild = meta ? meta.getAttribute('content') : null;
     if(htmlBuild && htmlBuild !== BUILD){
@@ -2820,6 +2820,25 @@ function hygieneGetLogsForDate(iso){
 }
 function hygieneTaskDueDate(task){
   if(!task) return null;
+  // New: monthly tasks can be anchored to the 1st of the month (Betriebs-Check PRO)
+  const sched = String(task.schedule||'').toLowerCase();
+  if(sched === 'monthly1st' || sched === 'monthly_1st'){
+    const now = new Date();
+    const first = new Date(now.getFullYear(), now.getMonth(), 1);
+    first.setHours(0,0,0,0);
+    // If already done in the current month, next due is the 1st of next month
+    if(task.lastDone){
+      try{
+        const ld = new Date(task.lastDone);
+        if(ld.getFullYear()===now.getFullYear() && ld.getMonth()===now.getMonth()){
+          const next = new Date(now.getFullYear(), now.getMonth()+1, 1);
+          next.setHours(0,0,0,0);
+          return next;
+        }
+      }catch(_){ }
+    }
+    return first;
+  }
   const base = task.lastDone ? new Date(task.lastDone) : null;
   if(!base){
     // If never done, due immediately
@@ -2834,8 +2853,19 @@ function hygieneTaskStatus(task){
   const due = hygieneTaskDueDate(task);
   const now = new Date(); now.setHours(0,0,0,0);
   if(!due) return {code:"ok", label:"—"};
+
+  const sched = String(task.schedule||'').toLowerCase();
+  // Monthly anchored to 1st: becomes "fällig" from the 1st until completed.
+  // After 14 days without completion, it becomes "überfällig".
+  if(sched === 'monthly1st' || sched === 'monthly_1st'){
+    // If due is in the future -> ok
+    if(due.getTime() > now.getTime()) return {code:"ok", label:"ok"};
+    const daysLate = Math.floor((now.getTime()-due.getTime())/86400000);
+    if(daysLate >= 14) return {code:"overdue", label:"überfällig"};
+    return {code:"due", label:"fällig"};
+  }
+
   if(due.getTime() < now.getTime()) return {code:"overdue", label:"überfällig"};
-  // due today or within 1 day -> due soon
   const diffDays = Math.round((due.getTime()-now.getTime())/86400000);
   if(diffDays <= 1) return {code:"due", label:"fällig"};
   return {code:"ok", label:"ok"};
@@ -3781,7 +3811,7 @@ function addDaysISO(iso, delta){
         <div class="item">
           <div>
             <strong>${escapeHtml(t.title)}</strong>
-            <small>Letztes Mal: ${escapeHtml(last)} · Intervall: ${t.intervalDays || 30} Tage · Status: ${badge}${t.mode==="pest" && t.lastOutcome ? ` · Ergebnis: ${t.lastOutcome==="no" ? "kein Befall" : "Befall"}` : ""}</small>
+            <small>Letztes Mal: ${escapeHtml(last)} · Intervall: ${t.intervalDays || 30} Tage · Status: ${badge}${t.mode==="pest" && t.lastOutcome ? ` · Ergebnis: ${t.lastOutcome==="no" ? "kein Befall" : "Befall"}` : ""}${t.mode==="pest" && t.lastPestDetails ? ` · Art: ${escapeHtml(t.lastPestDetails.type||'')} · Ort: ${escapeHtml(t.lastPestDetails.location||'')} · Nachkontrolle: ${escapeHtml(t.lastPestDetails.followUpDate||'')}` : ''}</small>
           </div>
           <div class="actions">
             ${t.mode==="pest" ? `
@@ -3898,10 +3928,19 @@ function markMonthlyTaskDone(taskId, outcome){
     if(t.lastOutcome === "no"){
       note = `Schädlingsmonitoring: Kein Befall festgestellt. (${t.title})`;
     } else if(t.lastOutcome === "inf"){
-      // require a short note (optional but helpful)
-      let details = "";
-      try{ details = (prompt('Befall festgestellt – kurze Notiz (optional):', '') || '').trim(); }catch(_){ }
-      note = `Schädlingsmonitoring: Befall festgestellt. ${details ? ('Notiz: '+details) : ''}`.trim();
+      // NEW (Betriebs-Check PRO): structured documentation (behördentauglich)
+      const pestType = (prompt('Befall – Art (z.B. Nager/Insekten/Ameisen/Fliegen/Sonstiges):', '') || '').trim();
+      if(!pestType){ alert('Befall: Bitte Art angeben.'); return; }
+      const pestLoc = (prompt('Befall – Ort (z.B. Futterlager/Außenbereich/Tierbereich/Gebäude):', '') || '').trim();
+      if(!pestLoc){ alert('Befall: Bitte Ort angeben.'); return; }
+      const pestAction = (prompt('Sofortmaßnahme (z.B. Reinigung/Köder ersetzt/Bereich gesperrt/Schädlingsbekämpfer informiert):', '') || '').trim();
+      if(!pestAction){ alert('Befall: Bitte Sofortmaßnahme angeben.'); return; }
+      const followUp = (prompt('Nachkontrolle Datum (YYYY-MM-DD):', todayISO()) || '').trim();
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(followUp)) { alert('Befall: Bitte gültiges Datum YYYY-MM-DD eingeben.'); return; }
+      // store details on the task for later display / audit
+      t.lastPestDetails = { type: pestType, location: pestLoc, action: pestAction, followUpDate: followUp, notedAt: now.toISOString() };
+      note = `Schädlingsmonitoring: Befall festgestellt. Art: ${pestType} · Ort: ${pestLoc} · Maßnahme: ${pestAction} · Nachkontrolle: ${followUp}`;
+
       // Additionally create a follow-up action entry: Schädlingsbekämpfer anfordern
       try{
         state.hygiene.logs.unshift({
@@ -6441,10 +6480,20 @@ function ensureStateShape(){
     { id: "wk_quarantine_zone", title: "Quarantänezone: Kontrolle & Reinigung", intervalDays: 7, lastDone: null, area:"Innenräume" }
   ];
   const _defaultMonthly = [
-    { id: "mo_indoor_deep", title: "Grunddesinfektion Innenräume (Böden, Wände bis Griffhöhe)", intervalDays: 30, lastDone: null, area:"Innenräume" },
-    { id: "mo_inventory_wash", title: "Inventar: Decken/Körbe komplett waschen/tauschen", intervalDays: 30, lastDone: null, area:"Innenräume" },
-    { id: "mo_stock_check", title: "Bestände prüfen/auffüllen (Reiniger, Desinfektion, Einmalhandschuhe)", intervalDays: 30, lastDone: null, area:"Innenräume" },
-    { id: "mo_pest_check", title: "Schädlingsmonitoring / Köderstationen prüfen", intervalDays: 30, lastDone: null, area:"Außenbereich", mode:"pest", lastOutcome:null, lastOutcomeAt:null }
+    { id: "mo_indoor_deep", title: "Grunddesinfektion Innenräume (Böden, Wände bis Griffhöhe)", intervalDays: 30, lastDone: null, area:"Innenräume", schedule:"monthly1st" },
+    { id: "mo_inventory_wash", title: "Inventar: Decken/Körbe komplett waschen/tauschen", intervalDays: 30, lastDone: null, area:"Innenräume", schedule:"monthly1st" },
+    { id: "mo_stock_check", title: "Bestände prüfen/auffüllen (Reiniger, Desinfektion, Einmalhandschuhe)", intervalDays: 30, lastDone: null, area:"Innenräume", schedule:"monthly1st" },
+
+    // Betriebs-Check PRO: Technik & Brandschutz (monatlich am 1.)
+    { id: "mo_smoke_detectors", title: "Technik/Sicherheit: Rauchmelder Sicht-/Funktionskontrolle", intervalDays: 30, lastDone: null, area:"Innenräume", schedule:"monthly1st" },
+    { id: "mo_fire_extinguishers", title: "Brandschutz: Feuerlöscher Sichtkontrolle (Zugang/Plombe/Manometer)", intervalDays: 30, lastDone: null, area:"Innenräume", schedule:"monthly1st" },
+
+    // Betriebs-Check PRO: Medikation/Hygiene-Mittel
+    { id: "mo_disinfect_stock", title: "Hygiene-Mittel: Planet Sensitive Bestand prüfen", intervalDays: 30, lastDone: null, area:"Innenräume", schedule:"monthly1st" },
+    { id: "mo_virkon_stock", title: "Seuchenreserve: Virkon® S vorhanden / Ablaufdatum prüfen", intervalDays: 30, lastDone: null, area:"Innenräume", schedule:"monthly1st" },
+
+    // Schädlingsmonitoring (UI bleibt wie bisher, wird nur erweitert)
+    { id: "mo_pest_check", title: "Schädlingsmonitoring / Köderstationen prüfen", intervalDays: 30, lastDone: null, area:"Außenbereich", mode:"pest", schedule:"monthly1st", lastOutcome:null, lastOutcomeAt:null, lastPestDetails:null }
   ];
   // Wochenaufgaben: wenn leer → Defaults; wenn exakt alte 4 Defaults → migrieren
   if(state.hygiene.weeklyTasks.length === 0){
@@ -12670,7 +12719,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
         el.style.boxShadow="0 6px 18px rgba(0,0,0,0.25)";
         document.body.appendChild(el);
       }
-      const BUILD = (typeof APP_BUILD!=='undefined')?APP_BUILD:"M48_4G3_INBOX_ASSIGN_UI_20260208";
+      const BUILD = (typeof APP_BUILD!=='undefined')?APP_BUILD:"M50_BLUE_TEMPLATE_BASE_20260215";
       const meta = document.querySelector('meta[name="app-version"]');
       const htmlBuild = meta ? meta.getAttribute('content') : "";
       const online = navigator.onLine ? "online" : "offline";
