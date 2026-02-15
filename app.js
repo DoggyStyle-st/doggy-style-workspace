@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.3.3_COMPLIANCE_JSFIX_20260215",
+  tag: "M50.4_COMPLIANCE_PRO_20260215",
   channel: "MASTER",
   frozenAt: "2026-02-07T22:10:34"
 };
@@ -11,7 +11,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
-const APP_BUILD = 'M50.3.3_COMPLIANCE_JSFIX_20260215';
+const APP_BUILD = 'M50.4_COMPLIANCE_PRO_20260215';
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 (function DS_BUILD_GUARD_RECOVERY(){
@@ -11670,7 +11670,7 @@ function renderContractPanel(){
     modal.style.position='fixed';
     modal.style.inset='0';
     modal.style.background='rgba(0,0,0,0.65)';
-    modal.style.zIndex='99999';
+    modal.style.zIndex='200000';
     modal.style.display='flex';
     modal.style.alignItems='center';
     modal.style.justifyContent='center';
@@ -13137,7 +13137,11 @@ function openPrintWindow(title, bodyHtml){
   const css = `
     <style>
       @page{ margin:16mm; }
-      body{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; color:#111; }
+      body{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; color:#111; margin:0; }
+      .topbar{ position:sticky; top:0; background:#111; color:#fff; padding:10px 12px; display:flex; gap:10px; align-items:center; }
+      .topbar .t{ flex:1; font-weight:600; font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+      .topbar button{ border:1px solid rgba(255,255,255,.25); background:rgba(255,255,255,.08); color:#fff; padding:8px 10px; border-radius:10px; font-size:13px; }
+      .page{ padding:16mm; }
       h1{ font-size:20px; margin:10px 0 6px; }
       h2{ font-size:16px; margin:14px 0 6px; }
       .muted{ color:#444; font-size:12px; }
@@ -13149,13 +13153,26 @@ function openPrintWindow(title, bodyHtml){
       .sigimg{ height:70px; width:260px; object-fit:contain; }
       .footer{ margin-top:10px; font-size:11px; color:#666; }
       .badge{ display:inline-block; padding:2px 8px; border-radius:999px; border:1px solid #ddd; font-size:11px; }
+      @media print{
+        .topbar{ display:none; }
+        body{ margin:0; }
+        .page{ padding:16mm; }
+      }
     </style>`;
   w.document.open();
-  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title>${css}</head><body>
-    ${getCompanyHeaderHtml()}
-    <div class="hr"></div>
-    ${bodyHtml}
-    <div class="footer">Build: ${escapeHtml(APP_BUILD)} · erzeugt am ${escapeHtml(new Date().toLocaleString('de-DE'))}</div>
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>${escapeHtml(title)}</title>${css}</head><body>
+    <div class="topbar">
+      <div class="t">${escapeHtml(title)}</div>
+      <button onclick="try{window.print()}catch(e){}">Drucken</button>
+      <button onclick="try{window.close()}catch(e){}">Schließen</button>
+    </div>
+    <div class="page">
+      ${getCompanyHeaderHtml()}
+      <div class="hr"></div>
+      ${bodyHtml}
+      <div class="footer">Build: ${escapeHtml(APP_BUILD)} · erzeugt am ${escapeHtml(new Date().toLocaleString('de-DE'))}</div>
+    </div>
     <script>setTimeout(()=>{ try{ window.print(); }catch(e){} }, 300);</script>
   </body></html>`);
   w.document.close();
@@ -13226,7 +13243,7 @@ function renderCompliancePanel(){
 function renderComplianceHazards(root){
   const hazards = state.compliance.hazards || [];
   root.innerHTML = `
-    <h2 style="margin:0 0 8px 0">🧴 Gefahrstoffe</h2>
+    <h2 style="margin:0 0 8px 0">🧪 Gefahrstoffe</h2>
     <div class="muted">Lagerung: ${escapeHtml("Büro – verschlossener Putzschrank")} · Sicherheitsdatenblatt (SDB) je Produkt hinterlegen.</div>
     <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap">
       <button class="btn" id="btnHazAdd">+ Produkt</button>
@@ -13246,7 +13263,7 @@ function renderComplianceHazards(root){
         </div>
         <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end">
           <button class="btn" data-act="upload" data-id="${escapeHtml(h.id)}">SDB hochladen</button>
-          ${has ? `<button class="btn" data-act="view" data-id="${escapeHtml(h.id)}">SDB öffnen</button>` : ``}
+          ${has ? `<button class="btn" data-act="view" data-id="${escapeHtml(h.id)}">SDB ansehen</button>` : ``}${has ? `<button class="btn" data-act="download" data-id="${escapeHtml(h.id)}">Download</button>` : ``}${has ? `<button class="btn" data-act="delete" data-id="${escapeHtml(h.id)}">Löschen</button>` : ``}
           <button class="btn" data-act="edit" data-id="${escapeHtml(h.id)}">Bearbeiten</button>
         </div>
       </div>`;
@@ -13265,6 +13282,8 @@ function renderComplianceHazards(root){
       if(act==='edit') openHazardEditor(haz);
       if(act==='upload') openHazardUpload(haz);
       if(act==='view') openHazardView(haz);
+      if(act==='download') downloadHazardSds(haz);
+      if(act==='delete') deleteHazardSds(haz);
     };
   });
 }
@@ -13330,7 +13349,38 @@ function openHazardUpload(haz){
       alert("PDF ist zu groß (max 8MB). Bitte komprimieren.");
       return;
     }
-    const reader = new FileReader();
+    co
+function downloadHazardSds(haz){
+  try{
+    if(!haz?.sds?.dataUrl){ alert("Kein Sicherheitsdatenblatt hinterlegt."); return; }
+    const a=document.createElement('a');
+    a.href = haz.sds.dataUrl;
+    const safeName = (haz.name||'SDB').replace(/[^a-z0-9\-_]+/gi,'_');
+    a.download = `SDB_${safeName}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }catch(e){
+    console.error(e);
+    alert("Download nicht möglich.");
+  }
+}
+function deleteHazardSds(haz){
+  if(!haz) return;
+  const ok = confirm("Sicherheitsdatenblatt wirklich löschen?");
+  if(!ok) return;
+  try{
+    haz.sds = null;
+    // persist
+    saveState();
+    renderMain();
+    toast("SDB gelöscht.");
+  }catch(e){
+    console.error(e);
+    alert("Löschen fehlgeschlagen.");
+  }
+}
+nst reader = new FileReader();
     reader.onload = ()=>{
       haz.sds = { name: f.name, mime: f.type || 'application/pdf', dataUrl: reader.result };
       haz.updatedAt = Date.now();
@@ -13342,12 +13392,36 @@ function openHazardUpload(haz){
   input.click();
 }
 function openHazardView(haz){
-  if(!haz.sds || !haz.sds.dataUrl){ alert("Kein Sicherheitsdatenblatt hinterlegt."); return; }
+  if(!haz?.sds?.dataUrl){ alert("Kein Sicherheitsdatenblatt hinterlegt."); return; }
   const w = window.open("", "_blank");
-  if(!w){ alert("Pop-up blockiert."); return; }
+  if(!w){ alert("Pop-up blockiert. Bitte Pop-ups erlauben."); return; }
+  const dataUrl = haz.sds.dataUrl;
+  const safeTitle = escapeHtml(haz.name||"");
+  const fileName = (haz.name||"SDB").replace(/[^a-z0-9\-_]+/gi,'_');
   w.document.open();
-  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>SDB ${escapeHtml(haz.name||'')}</title></head><body style="margin:0">
-    <iframe src="${haz.sds.dataUrl}" style="border:0;width:100vw;height:100vh"></iframe>
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>SDB ${safeTitle}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+      body{ margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif; }
+      .bar{ position:fixed; top:0; left:0; right:0; height:52px; display:flex; align-items:center; gap:10px;
+            padding:0 12px; background:#111; color:#fff; z-index:10; }
+      .bar .title{ flex:1; font-weight:600; font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+      .btn{ appearance:none; border:1px solid rgba(255,255,255,.25); background:rgba(255,255,255,.08); color:#fff;
+            padding:8px 10px; border-radius:10px; font-size:13px; }
+      .wrap{ position:fixed; top:52px; left:0; right:0; bottom:0; }
+      embed{ width:100%; height:100%; border:0; }
+    </style>
+  </head>
+  <body>
+    <div class="bar">
+      <div class="title">Sicherheitsdatenblatt: ${safeTitle}</div>
+      <button class="btn" onclick="try{window.print()}catch(e){}">Drucken</button>
+      <a class="btn" href="${dataUrl}" download="SDB_${fileName}.pdf" style="text-decoration:none;display:inline-block">Download</a>
+      <button class="btn" onclick="try{window.close()}catch(e){}">Schließen</button>
+    </div>
+    <div class="wrap">
+      <embed src="${dataUrl}#zoom=page-width" type="application/pdf"/>
+    </div>
   </body></html>`);
   w.document.close();
 }
@@ -13465,7 +13539,7 @@ function openTrainingRun(trainingId){
           <div>
             <div class="muted">Teilnehmer</div>
             <div id="trRunPeople" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px">
-              ${people.map(p=>`<label style="display:flex;align-items:center;gap:6px"><input type="checkbox" class="trPerson" value="${escapeHtml(p)}" checked/>${escapeHtml(p)}</label>`).join('')}
+              ${people.map(p=>`<label style="display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid rgba(255,255,255,.14);border-radius:999px;background:rgba(255,255,255,.06)"><input type="checkbox" class="trPerson" value="${escapeHtml(p)}" checked style="margin:0"/>${escapeHtml(p)}</label>`).join('')}
             </div>
           </div>
         </div>
@@ -13567,6 +13641,117 @@ function defaultTrainingText(id){
   if(id==='trn_erstehilfe') return "Grundlagen Erste Hilfe am Hund, Notfallzeichen, Transport, Tierarzt Immenstadt (Petra Geisser).";
   if(id==='trn_med') return "Medikamentengabe nach Halter-/Tierarztanweisung, Dokumentation (Datum/Uhrzeit/Dosis), Lagerung, Rücksprache bei Abweichungen.";
   if(id==='trn_datenschutz') return "Umgang mit Kundendaten, DSGVO-Grundsätze, Zugriffsschutz, Aufbewahrung/Weitergabe.";
+  return "";
+}
+
+function fullTrainingText(id){
+  if(id==='trn_gefahrstoffe') return [
+    "Ziel: Sicherer Umgang mit Gefahrstoffen/Reinigungs- und Desinfektionsmitteln in der Hundepension.",
+    "",
+    "1) Produkte & Dokumente:",
+    "   - Sicherheitsdatenblätter (SDB) je Produkt im Compliance-Modul hinterlegt und jederzeit abrufbar.",
+    "   - Etiketten/Originalgebinde verwenden, nie in unbeschriftete Flaschen umfüllen.",
+    "",
+    "2) Lagerung (Betrieb):",
+    "   - Lagerort: Büro – verschlossener Putzschrank (Zugang nur berechtigte Personen).",
+    "   - Kinder/Tiere keinen Zugriff. Keine Lebensmittel im selben Schrank.",
+    "",
+    "3) Persönliche Schutzmaßnahmen:",
+    "   - Handschuhe, ggf. Schutzbrille/Schürze je nach SDB.",
+    "   - Hautkontakt vermeiden, nach Anwendung Hände waschen/pflegen.",
+    "",
+    "4) Anwendung/Arbeitsweise:",
+    "   - Dosierung/Einwirkzeit gemäß Hersteller beachten (z.B. Virkon® S).",
+    "   - Nie unterschiedliche Reiniger mischen (Gefahrstoffe!).",
+    "",
+    "5) Verhalten bei Verschütten/Unfall:",
+    "   - Bereich sichern, Tiere entfernen, lüften.",
+    "   - Aufnehmen/entsorgen gemäß SDB; bei Kontakt: spülen und ggf. Arzt/Giftnotruf.",
+    "",
+    "6) Entsorgung:",
+    "   - Reste/Leergebinde gemäß Vorgaben (SDB/Kommunal) entsorgen.",
+    "",
+    "7) Unterweisung & Nachweis:",
+    "   - Dokumentation mit Datum, Teilnehmern, Unterschriften. Auffrischung gemäß Intervall."
+  ].join("\n");
+  if(id==='trn_hygiene') return [
+    "Ziel: Infektionsschutz, Hygieneabläufe und Seuchenprävention in der Hundepension.",
+    "",
+    "1) Grundprinzipien:",
+    "   - Trennung sauber/unrein, Händehygiene, Flächenhygiene, Gerätehygiene.",
+    "   - Kontaktintensive Zonen (Türgriffe, Gitter, Leinen, Schüsseln) prioritär reinigen/desinfizieren.",
+    "",
+    "2) Aufnahme/Screening:",
+    "   - Sichtkontrolle Hund (Allgemeinzustand, Durchfall/Erbrechen, Husten, Haut).",
+    "   - Impfschutz/Parasitenprophylaxe nach Betriebsregel (Dokumentation).",
+    "",
+    "3) Umgang mit Krankheitssymptomen:",
+    "   - Hund separieren (Separationsmöglichkeit), Kontakt minimieren, Flächen/Materialien separat.",
+    "   - Betreiber kann Aufenthalt bei Krankheit jederzeit abbrechen (laut Betreuungsvertrag).",
+    "   - Tierarzt/Notfall: Kleintierpraxis Immenstadt, Petra Geisser.",
+    "",
+    "4) Reinigung/Desinfektion:",
+    "   - Regelmäßige Aufgaben gemäß Hygieneplan (täglich/wöchentlich/monatlich).",
+    "   - Einwirkzeiten und Konzentrationen einhalten.",
+    "",
+    "5) Wäsche:",
+    "   - Decken/Körbe nach Plan, Maschinenfilter/Siebe reinigen, Trennung stark verschmutzt.",
+    "",
+    "6) Dokumentation:",
+    "   - Hygieneaufgaben, Schädlingsmonitoring, besondere Vorkommnisse/Infektionsfälle dokumentieren."
+  ].join("\n");
+  if(id==='trn_brand') return [
+    "Ziel: Sicheres Verhalten bei Brand/Notfall, Evakuierung von Personen und Hunden.",
+    "",
+    "1) Alarmierung:",
+    "   - Notruf 112. Adresse: Im Moos 4, 88167 Stiefenhofen.",
+    "",
+    "2) Evakuierungswege:",
+    "   - Ausgänge gemäß Plan nutzen. Hunde sichern (Leinen/Transport) sofern gefahrlos möglich.",
+    "",
+    "3) Sammelplatz:",
+    "   - Wiese bei Hofeinfahrt (Sammelplatz).",
+    "",
+    "4) Brandbekämpfung:",
+    "   - Feuerlöscherstandorte kennen. Nur Kleinbrände bekämpfen, Eigenschutz geht vor.",
+    "",
+    "5) Nachweis & Wiederholung:",
+    "   - Unterweisung dokumentieren. Wiederholung gemäß Intervall bzw. bei Änderungen (Umbau/Neue Mitarbeiter)."
+  ].join("\n");
+  if(id==='trn_tierschutz') return [
+    "Ziel: Einhaltung betrieblicher Pflichten nach §11 TierSchG und TierSchHuV.",
+    "",
+    "1) Tiergerechte Unterbringung:",
+    "   - Kapazitäten: max. 10 Übernachtungshunde, max. 13 Tagesbetreuung.",
+    "   - Unterbringung: Einzelzimmer + Gruppenraum, Separationsmöglichkeit bei Bedarf.",
+    "",
+    "2) Betreuung/Überwachung:",
+    "   - Regelmäßige Kontrollen, Dokumentation Auffälligkeiten, Fütterung/Medikation nach Plan.",
+    "",
+    "3) Hygiene & Infektionsschutz:",
+    "   - Umsetzung Hygieneplan, Desinfektion, Wäsche, Schädlingsmonitoring.",
+    "",
+    "4) Notfallmanagement:",
+    "   - Tierarzt/Notfallkontakte, Evakuierungsplan, Medikamentendokumentation.",
+    "",
+    "5) Dokumentation & Nachweise:",
+    "   - Unterweisungen, Arbeitsblätter, Protokolle, Verträge/Einverständnisse."
+  ].join("\n");
+  if(id==='trn_erstehilfe') return [
+    "Ziel: Grundlagen Erste Hilfe am Hund im Betrieb (Erkennen, Stabilisieren, Weiterleitung).",
+    "",
+    "1) Vitalparameter/Erkennen:",
+    "   - Atmung, Puls, Schleimhäute, Temperatur, Bewusstsein.",
+    "",
+    "2) Sofortmaßnahmen:",
+    "   - Blutungen stillen, Schocklage/Wärmeerhalt, Atemwege freihalten.",
+    "",
+    "3) Transport & Tierarzt:",
+    "   - Hund sichern, Transport vorbereiten, Tierarzt/Notfall informieren.",
+    "",
+    "4) Dokumentation:",
+    "   - Ereignis, Maßnahmen, Kontakt Tierarzt, Übergabe dokumentieren."
+  ].join("\n");
   return "";
 }
 function trainingSessionHtml(t, s){
