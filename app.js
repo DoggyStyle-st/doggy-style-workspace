@@ -11,12 +11,12 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
-const APP_BUILD = 'M50.1_BLUE_TEMPLATE_TEMPLFIX_20260215';
+const APP_BUILD = 'M50.2_BLUE_TEMPLATE_PRINT_CONTRACT_20260215';
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 (function DS_BUILD_GUARD_RECOVERY(){
   try{
-    const BUILD = (typeof APP_BUILD !== 'undefined') ? APP_BUILD : "M50.1_BLUE_TEMPLATE_TEMPLFIX_20260215";
+    const BUILD = (typeof APP_BUILD !== 'undefined') ? APP_BUILD : "M50.2_BLUE_TEMPLATE_PRINT_CONTRACT_20260215";
     const meta = document.querySelector('meta[name="app-version"]');
     const htmlBuild = meta ? meta.getAttribute('content') : null;
     if(htmlBuild && htmlBuild !== BUILD){
@@ -5821,7 +5821,23 @@ function ensureProfiDefaults(){
       const isEmpty = !cur.trim();
       const isLegacy = cur.includes('Kurzvorlage') || cur.includes('Hinweis: Diese Vorlage');
       if(isEmpty || isLegacy){
-        d.content = POLICY_DEFAULTS[k] || cur;
+        // Special: Betreuungsvertrag-Vorlage soll den aktuellen Vertragstext enthalten.
+        if(k === 'contract'){
+          const srcHtml = (state.contract && state.contract.text) ? state.contract.text : (typeof DEFAULT_CONTRACT_TEXT === 'string' ? DEFAULT_CONTRACT_TEXT : '');
+          const baseTxt = _stripHtmlToText(srcHtml);
+          d.content = (
+`BETREUUNGSVERTRAG – Hundepension ${COMPANY?.name || 'Doggy Style'}
+Standort: ${COMPANY?.street || ''}, ${COMPANY?.zipCity || ''}
+Inhaber: ${COMPANY?.owner || ''}
+
+${baseTxt}
+
+Wichtiger Hinweis (Infektionsschutz / Tierwohl):
+Bei Krankheit/Infektionsverdacht kann die Betreuung aus Tierwohl- oder Infektionsschutzgründen durch den Betreiber vorzeitig beendet werden. Der Halter ist zur zeitnahen Abholung verpflichtet (gemäß Vertragsregelung).
+`).trim();
+        }else{
+          d.content = POLICY_DEFAULTS[k] || cur;
+        }
         d.lastChanged = today;
         if(!d.version) d.version = '1.0';
       }
@@ -6372,6 +6388,7 @@ function ensurePolicyModal(){
         <div style="font-weight:900;letter-spacing:.2px;max-width:70vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" id="policyModalTitle">Vorlage</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
           <button class="btn" type="button" id="policyModalEdit">✍️ Neue Version & bearbeiten</button>
+          <button class="btn" type="button" id="policyModalPrint">🖨️ Drucken / PDF</button>
           <button class="btn" type="button" id="policyModalSave" style="display:none">💾 Speichern</button>
           <button class="btn danger" type="button" id="policyModalClose">✕ Schließen</button>
         </div>
@@ -6388,6 +6405,92 @@ function ensurePolicyModal(){
   wrap.querySelector('#policyModalClose').onclick = close;
   document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') close(); });
 }
+
+function _escapeHtmlPlain(s){
+  return String(s||'')
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#039;');
+}
+function _textToHtml(s){
+  // Preserve paragraphs/newlines for printing.
+  const esc = _escapeHtmlPlain(s);
+  return esc.replace(/\n\n+/g,'</p><p>').replace(/\n/g,'<br>');
+}
+
+async function printPolicyDoc(key){
+  ensureProfiDefaults();
+  const d = (state && state.compliance && state.compliance.docs && state.compliance.docs[key]) ? state.compliance.docs[key] : {};
+  const title = (d && d.title) ? d.title : (key||'Vorlage');
+  const version = (d && d.version) ? d.version : '1.0';
+  const changed = (d && d.lastChanged) ? d.lastChanged : toISODateLocal(new Date());
+  const raw = (d && d.content!=null) ? String(d.content) : (POLICY_DEFAULTS[key] || '');
+  // Open synchronously to avoid popup blocker, then fill.
+  let w = null;
+  try{ w = window.open('about:blank','_blank'); }catch(_){ w = null; }
+  const logoDataUrl = await _assetToDataUrl('assets/logo.png');
+  const html = `<!doctype html><html lang="de"><head><meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${_escapeHtmlPlain(title)} – PDF</title>
+  <style>
+    :root{--tb-h:56px;}
+    body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif;margin:0;color:#111;
+         padding:calc(22px + var(--tb-h) + env(safe-area-inset-top)) calc(24px + env(safe-area-inset-right)) 24px calc(24px + env(safe-area-inset-left));
+         background:#fff;}
+    .toolbar{position:fixed;top:0;left:0;right:0;z-index:9999;background:#fff;border-bottom:1px solid #eee;
+             height:var(--tb-h);display:flex;gap:10px;align-items:center;justify-content:flex-end;
+             padding:10px calc(24px + env(safe-area-inset-right)) 10px calc(24px + env(safe-area-inset-left));
+             padding-top:calc(10px + env(safe-area-inset-top)); box-sizing:border-box;}
+    .toolbar a,.toolbar button{font:inherit;border:1px solid #ddd;background:#f7f7f7;border-radius:10px;padding:8px 12px;text-decoration:none;color:#111;}
+    .toolbar .spacer{flex:1;}
+    .head{display:flex;align-items:center;gap:14px;margin-bottom:14px;}
+    .logo{width:64px;height:64px;object-fit:contain;background:#fff;}
+    .meta{color:#444;font-size:13px;}
+    .doc{margin-top:14px;line-height:1.45;}
+    h1{font-size:18px;margin:0;}
+    @media print{ .toolbar{display:none;} body{margin:10mm; padding:0;} }
+  </style></head><body>
+    <div class="toolbar">
+      <span class="spacer"></span>
+      <button onclick="window.print()">Drucken / Speichern</button>
+      <a href="javascript:window.close()">Zurück</a>
+    </div>
+    <div class="head">
+      <img class="logo" src="${logoDataUrl || ''}" alt="Logo"/>
+      <div>
+        <h1>${_escapeHtmlPlain(title)}</h1>
+        <div class="meta">${_escapeHtmlPlain((COMPANY && COMPANY.name) ? COMPANY.name : 'Doggy Style Hundepension')} · Version ${_escapeHtmlPlain(version)} · Stand ${_escapeHtmlPlain(changed)}</div>
+        <div class="meta">${_escapeHtmlPlain((COMPANY && COMPANY.owner) ? COMPANY.owner : '')} · ${_escapeHtmlPlain((COMPANY && COMPANY.street) ? COMPANY.street : '')} · ${_escapeHtmlPlain((COMPANY && COMPANY.zipCity) ? COMPANY.zipCity : '')}</div>
+      </div>
+    </div>
+    <div class="doc"><p>${_textToHtml(raw)}</p></div>
+  </body></html>`;
+  try{
+    if(w && !w.closed){
+      w.document.open();
+      w.document.write(html);
+      w.document.close();
+      try{ w.focus(); }catch(_){ }
+    }else{
+      throw new Error('popup blocked');
+    }
+  }catch(e){
+    openHtmlInModal(`${title} (Vorschau)`, html, 'Schließen mit ✕. Für PDF: „Drucken / Speichern“ → Teilen → „In Dateien sichern“.');
+  }
+}
+
+function _stripHtmlToText(html){
+  try{
+    const tmp = document.createElement('div');
+    tmp.innerHTML = String(html||'');
+    const txt = (tmp.textContent || tmp.innerText || '').trim();
+    return txt;
+  }catch(_){
+    return String(html||'').replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim();
+  }
+}
 let _policyCurrentKey = null;
 function openPolicyDoc(key){
   ensurePolicyModal();
@@ -6399,11 +6502,21 @@ function openPolicyDoc(key){
   const ttl = document.getElementById('policyModalTitle');
   const ta = document.getElementById('policyModalText');
   const btnEdit = document.getElementById('policyModalEdit');
+  const btnPrint = document.getElementById('policyModalPrint');
   const btnSave = document.getElementById('policyModalSave');
   if(ttl) ttl.textContent = title;
   if(ta){ ta.value = getPolicyContent(key); ta.readOnly = true; }
   if(btnSave) btnSave.style.display = 'none';
   if(btnEdit) btnEdit.style.display = 'inline-flex';
+  if(btnPrint) btnPrint.style.display = 'inline-flex';
+  if(btnPrint && !btnPrint.dataset.bound){
+    btnPrint.dataset.bound = '1';
+    btnPrint.onclick = async ()=>{
+      const k = _policyCurrentKey;
+      if(!k) return;
+      try{ await printPolicyDoc(k); }catch(e){ console.warn('printPolicyDoc failed', e); }
+    };
+  }
   if(btnEdit && !btnEdit.dataset.bound){
     btnEdit.dataset.bound = '1';
     btnEdit.onclick = ()=>{
@@ -12811,7 +12924,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
         el.style.boxShadow="0 6px 18px rgba(0,0,0,0.25)";
         document.body.appendChild(el);
       }
-      const BUILD = (typeof APP_BUILD!=='undefined')?APP_BUILD:"M50.1_BLUE_TEMPLATE_TEMPLFIX_20260215";
+      const BUILD = (typeof APP_BUILD!=='undefined')?APP_BUILD:"M50.2_BLUE_TEMPLATE_PRINT_CONTRACT_20260215";
       const meta = document.querySelector('meta[name="app-version"]');
       const htmlBuild = meta ? meta.getAttribute('content') : "";
       const online = navigator.onLine ? "online" : "offline";
