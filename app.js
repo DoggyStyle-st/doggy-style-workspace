@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.4_COMPLIANCE_PRO_20260215",
+  tag: "M50.4.1_COMPLIANCE_PRO_FIX2_20260216",
   channel: "MASTER",
   frozenAt: "2026-02-07T22:10:34"
 };
@@ -11,7 +11,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
-const APP_BUILD = 'M50.4_COMPLIANCE_PRO_20260215';
+const APP_BUILD = 'M50.4.1_COMPLIANCE_PRO_FIX2_20260216';
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 (function DS_BUILD_GUARD_RECOVERY(){
@@ -6449,7 +6449,7 @@ async function printPolicyDoc(key){
     body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif;margin:0;color:#111;
          padding:calc(22px + var(--tb-h) + env(safe-area-inset-top)) calc(24px + env(safe-area-inset-right)) 24px calc(24px + env(safe-area-inset-left));
          background:#fff;}
-    .toolbar{position:fixed;top:0;left:0;right:0;z-index:99999;background:#fff;border-bottom:1px solid #eee;
+    .toolbar{position:fixed;top:0;left:0;right:0;z-index:2147483647;background:#fff;border-bottom:1px solid #eee;
              height:var(--tb-h);display:flex;gap:10px;align-items:center;justify-content:flex-end;
              padding:10px calc(24px + env(safe-area-inset-right)) 10px calc(24px + env(safe-area-inset-left));
              padding-top:calc(10px + env(safe-area-inset-top)); box-sizing:border-box;}
@@ -6844,13 +6844,19 @@ state._legacy = (state._legacy && typeof state._legacy === "object") ? state._le
   // Seed default trainings (only if empty)
   if(state.compliance.trainings.length === 0){
     state.compliance.trainings = [
-      { id:"trn_gefahrstoffe", title:"Unterweisung: Gefahrstoffe", intervalMonths:12, level:"pflicht", legal:"GefStoffV §14 / TRGS 555", fullText:"Gefahrhinweise, Schutzmaßnahmen (Handschuhe/Brille), Lagerung (verschlossen im Putzschrank), Verhalten bei Verschütten/Unfall, Hinweis: Sicherheitsdatenblätter (SDB) sind in der App hinterlegt/abrufbar.", updatedAt:Date.now() },
-      { id:"trn_hygiene", title:"Unterweisung: Hygiene & Infektionsschutz", intervalMonths:12, level:"pflicht", legal:"§11 TierSchG / TierSchHuV", fullText:"Hygieneplan, Reinigung/Desinfektion, Kontaktzonen, Wäsche, Umgang mit infektiösen Tieren, Separierungsmöglichkeiten, Meldewege, Tierarzt-Notfallkontakt. Im Krankheitsfall kann der Aufenthalt abgebrochen werden (gem. Betreuungsvertrag).", updatedAt:Date.now() },
-      { id:"trn_brand", title:"Unterweisung: Brand- & Evakuierungsplan", intervalMonths:12, level:"pflicht", legal:"Betriebspflichten / Brandschutz", updatedAt:Date.now() },
-      { id:"trn_tierschutz", title:"Unterweisung: §11 TierSchG Betriebspflichten", intervalMonths:12, level:"pflicht", legal:"§11 TierSchG", updatedAt:Date.now() },
-      { id:"trn_erstehilfe", title:"Unterweisung: Erste Hilfe Hund (Grundlagen)", intervalMonths:12, level:"pflicht", legal:"Empfehlung (Betriebssicherheit)", updatedAt:Date.now() },
-      { id:"trn_med", title:"Unterweisung: Medikamentengabe", intervalMonths:12, level:"empfohlen", legal:"Betriebsstandard", updatedAt:Date.now() },
-      { id:"trn_datenschutz", title:"Unterweisung: Datenschutz (DSGVO)", intervalMonths:12, level:"empfohlen", legal:"DSGVO", updatedAt:Date.now() }
+      { id:"trn_gefahrstoffe", title:"Unterweisung: Gefahrstoffe", intervalMonths:12, level:"pflicht", legal:"GefStoffV §14 / TRGS 555", fullText:"Ziel: Sicherer Umgang mit Gefahrstoffen in der Hundepension. Inhalte: • Kennzeichnung/Etikettierung, Gefahrenpiktogramme (GHS) und grundlegende Gefahrenhinweise. • Schutzmaßnahmen: Handschuhe/Brille bei Bedarf, Hautschutz, Lüftung. • Lagerung: Büro – verschlossener Putzschrank; getrennte Aufbewahrung; kindersicher; nur Originalgebinde. • Verhalten bei Verschütten/Unfall: Bereich sichern, Aufnahme/Entsorgung, Hände waschen, ggf. Arzt/Notruf. • Sicherheitsdatenblätter (SDB): je Produkt in der App hinterlegt; Abruf/Download/Druck jederzeit möglich. • Entsorgung: Reste/Leergut gemäß Herstellerangaben; keine Vermischung. Dokumentation: Teilnehmer, Datum, Unterschriften, ggf. Produktliste/SDB-Verweise.", updatedAt:Date.now() },
+      { id:"trn_hygiene", title:"Unterweisung: Hygiene & Infektionsschutz", intervalMonths:12, level:"pflicht", legal:"§11 TierSchG / TierSchHuV", fullText:"Ziel: Infektionsrisiken minimieren und Nachweisführung sichern. Inhalte: • Hygieneplan: tägliche/wöchentliche/monatliche Aufgaben, Kontaktzonen, Laufwege, Ausläufe. • Reinigung/Desinfektion: Mittel, Einwirkzeiten, Reihenfolge (sauber→unrein), Wechsel von Tüchern/Handschoenen. • Wäsche: getrennte Körbe, Waschprogramme, Filter/Siebe reinigen, Trocknerhygiene. • Umgang mit krank/verdächtig erkrankten Hunden: Separierung möglich, erhöhte Hygiene, Kontaktreduktion. • Meldung/Abbruch: im Krankheitsfall kann der Aufenthalt durch Betreiber jederzeit beendet werden (Betreuungsvertrag). • Notfall-Tierarzt: Kleintierpraxis Immenstadt i. Allgäu, Petra Geisser. Dokumentation: Hygiene-Log, besondere Vorkommnisse, Unterweisungsteilnehmer.", updatedAt:Date.now() },
+      { id:"trn_brand", title:"Unterweisung: Brand- & Evakuierungsplan", intervalMonths:12, level:"pflicht", legal:"Betriebspflichten / Brandschutz", fullText:"Ziel: Sichere Evakuierung von Menschen und Tieren. Inhalte: • Alarmierung: Notruf 112, interne Kommunikation, Verantwortlichkeiten. • Fluchtwege: Ausgänge/Wege gemäß Plan; Türen freihalten. • Sammelplatz: Wiese bei Hofeinfahrt. • Feuerlöscher: Standorte (Büro + Durchgangsraum), Sicht-/Funktionskontrolle. • Evakuierung Hunde: Priorisierung, Leinen/Boxen, Gruppentrennung, keine Selbstgefährdung. • Nachkontrolle: Vollzähligkeit, Tiere/Menschen, Übergabe an Feuerwehr. Dokumentation: Planversion, Datum, Teilnehmer, Unterschriften.", updatedAt:Date.now() },
+      { id:"trn_arbeitsschutz", title:"Unterweisung: Arbeitsschutz / UVV", intervalMonths:12, level:"pflicht", legal:"ArbSchG / DGUV Grundsätze", fullText:"Ziel: Unfälle vermeiden, sichere Arbeitsabläufe. Inhalte: • Ordnung & Sauberkeit, Stolperstellen, rutschfeste Laufwege. • Ergonomie: Heben/Tragen (Futter, Wasser), Hilfsmittel nutzen. • PSA je Tätigkeit (Handschuhe, ggf. Schutzbrille). • Umgang mit Reinigungs-/Desinfektionsmitteln (Verweis auf Gefahrstoffe). • Alleinarbeit: Handy griffbereit, Notfallkette. Dokumentation: Unterweisung + jährliche Auffrischung.", updatedAt:Date.now() },
+      { id:"trn_erstehilfe", title:"Unterweisung: Erste Hilfe (Mensch)", intervalMonths:12, level:"pflicht", legal:"DGUV Vorschrift 1 (Betriebliche Erste Hilfe)", fullText:"Ziel: Erstmaßnahmen bis Rettungsdienst eintrifft. Inhalte: • Notrufkette, Standortinfo (Adresse/Anfahrt). • Erste-Hilfe-Ausstattung (Kasten), Kontrolle Vollständigkeit/Haltbarkeit. • Typische Verletzungen: Biss/Schürfwunden, Kreislauf, Stürze, Schnittverletzungen. • Eigenschutz, Handschuhe, Hygiene. Dokumentation: Teilnehmer + Auffrischung jährlich.", updatedAt:Date.now() },
+      { id:"trn_hund_notfall", title:"Unterweisung: Erste Hilfe Hund / Notfallablauf", intervalMonths:12, level:"empfohlen", legal:"Betriebliche Standards / Tierarzt-Kooperation", fullText:"Ziel: Stabilisierung bis zum Tierarzttransport. Inhalte: • Erkennen von Notfällen (Atemnot, Krampf, Hitzschlag, Blutung, Magendrehung-Verdacht). • Sofortmaßnahmen: kühlen/wärmen, Druckverband, Ruhigstellen. • Transport & Ansprechpartner: Kleintierpraxis Immenstadt i. Allgäu, Petra Geisser. • Dokumentation & Information Halter. Dokumentation: Vorfallprotokoll, Teilnehmer.", updatedAt:Date.now() },
+      { id:"trn_tierschutz", title:"Unterweisung: §11 TierSchG – Betriebspflichten", intervalMonths:12, level:"pflicht", legal:"§11 TierSchG / TierSchHuV", fullText:"Ziel: Tierschutzkonforme Betreuung und Betriebssicherheit. Inhalte: • Bestandsgrenzen: Übernachtung max. 10, Tagesbetreuung max. 13. • Unterbringung: 6 Einzelzimmer (1,30×2,50 m), Gruppenraum (3,90×2,50 m), Separierungsmöglichkeiten. • Fütterung/Wasser, Kontrolle, Ruhezeiten, Beschäftigung. • Umgang mit unverträglichen/auffälligen Hunden, Abbruch/Abholung. Dokumentation: Betreuungsvertrag, Kontrollen, Unterweisungen.", updatedAt:Date.now() },
+      { id:"trn_med", title:"Unterweisung: Medikamentenhandling & Dokumentation", intervalMonths:12, level:"pflicht", legal:"Betriebliche Pflicht / Sorgfaltspflichten", fullText:"Ziel: Fehlerfreie Medikamentengabe und Nachweis. Inhalte: • Annahme: schriftliche Anweisung Halter, Dosierung/Zeiten, Originalverpackung. • Lagerung: getrennt, kindersicher; Kühlpflicht beachten. • Gabe: 4-Augen-Prinzip wenn möglich, Abzeichnen im Medikamentenlog. • Besonderheiten: Nebenwirkungen, Abbruchkriterien, Tierarztkontakt. Dokumentation: Medikamenten-Dokumentation (Datum/Uhrzeit/Unterschrift).", updatedAt:Date.now() },
+      { id:"trn_datenschutz", title:"Unterweisung: Datenschutz (DSGVO)", intervalMonths:12, level:"pflicht", legal:"DSGVO / BDSG", fullText:"Ziel: Schutz von Kunden- und Tierdaten. Inhalte: • Datenminimierung, Zweckbindung, Auskunft/Löschung. • Zugriffsrechte (Rollen), Passwörter, Geräte-Sperre. • Weitergabe an Dritte nur bei Rechtsgrundlage/Einwilligung. • Aufbewahrung/Archiv: Rechnungen/Verträge, sichere Ablage. Dokumentation: Unterweisung + jährliche Auffrischung.", updatedAt:Date.now() },
+      { id:"trn_it", title:"Unterweisung: IT-Sicherheit / Passwörter", intervalMonths:12, level:"empfohlen", legal:"Betriebliche Standards", fullText:"Ziel: Schutz vor Datenverlust und unbefugtem Zugriff. Inhalte: • Starke Passwörter, 2FA wo möglich. • Geräte-Sperre, Updates, keine Fremd-USB. • Backup-Routine, Umgang mit Offline/Sync. Dokumentation: Teilnehmer + Maßnahmenliste.", updatedAt:Date.now() },
+      { id:"trn_biss", title:"Unterweisung: Beißvorfall / Unfallmanagement", intervalMonths:12, level:"empfohlen", legal:"Betriebliche Standards / Haftungsprävention", fullText:"Ziel: Strukturierter Ablauf bei Zwischenfällen. Inhalte: • Trennung der Hunde, Eigenschutz, Erste Hilfe Mensch/Tier. • Dokumentation (Zeit, Beteiligte, Maßnahmen). • Information Halter, ggf. Tierarzt/Behörde. Dokumentation: Vorfallprotokoll + Unterweisung.", updatedAt:Date.now() },
+      { id:"trn_hyg_mittel", title:"Unterweisung: Reinigungs-/Desinfektionsmittel (Anwendung)", intervalMonths:12, level:"pflicht", legal:"GefStoffV / Hygieneplan", fullText:"Ziel: Richtige Anwendung der Mittel mit Wirksamkeit. Inhalte: • Dosierung, Einwirkzeit, Materialverträglichkeit. • Reihenfolge, Wechsel von Tüchern, Handschuhe. • Verweis auf SDB je Produkt. Dokumentation: Teilnehmer + Mittel-Liste.", updatedAt:Date.now() },
+      { id:"trn_quar", title:"Unterweisung: Separierung / Infektionsverdacht", intervalMonths:12, level:"pflicht", legal:"Betriebliche Standards / Infektionsschutz", fullText:"Ziel: Infektionskette unterbrechen trotz fehlendem festen Quarantäneraum. Inhalte: • Kriterien für Separierung, räumliche Trennung, Ablauf im Durchgangsraum/Einzelzimmer. • Separates Equipment, Händehygiene, Flächen-Desinfektion. • Kommunikation mit Halter, Tierarztkontakt. Dokumentation: Maßnahmen + Unterweisung.", updatedAt:Date.now() },
     ];
   }
 
@@ -8733,7 +8739,7 @@ function ensurePdfOverlayStyles(){
   css.id = "pdfOverlayStyles";
   css.textContent = `
     #pdfOverlay{
-      position:fixed; inset:0; z-index:999999;
+      position:fixed; inset:0; z-index:21474836479;
       display:none; flex-direction:column;
       background: rgba(0,0,0,0.72);
       backdrop-filter: blur(6px);
@@ -9937,7 +9943,7 @@ function getDocumentVersions(doc){
 // ===== Overlay-Signatur (Weg A) =====
 function openSignatureOverlay(onDone){
   const overlay=document.createElement("div");
-  overlay.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99999;display:flex;align-items:center;justify-content:center";
+  overlay.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:2147483647;display:flex;align-items:center;justify-content:center";
   overlay.innerHTML=`
     <div style="background:#fff;border-radius:14px;padding:12px;width:92%;max-width:560px">
       <canvas id="sigCanvas" style="width:100%;height:180px;background:#fff;border:1px solid #ccc;border-radius:10px"></canvas>
@@ -11349,7 +11355,7 @@ async function openContractPdfWindow(customerId, petId){
          padding:calc(22px + var(--tb-h) + env(safe-area-inset-top)) calc(24px + env(safe-area-inset-right)) 24px calc(24px + env(safe-area-inset-left));
          background:#fff;}
     /* iOS/Safari: sticky in iframe is unreliable. Use a fixed toolbar that is always visible/clickable. */
-    .toolbar{position:fixed;top:0;left:0;right:0;z-index:99999;background:#fff;border-bottom:1px solid #eee;
+    .toolbar{position:fixed;top:0;left:0;right:0;z-index:2147483647;background:#fff;border-bottom:1px solid #eee;
              height:var(--tb-h);display:flex;gap:10px;align-items:center;justify-content:flex-end;
              padding:10px calc(24px + env(safe-area-inset-right)) 10px calc(24px + env(safe-area-inset-left));
              padding-top:calc(10px + env(safe-area-inset-top)); box-sizing:border-box;}
@@ -13300,7 +13306,7 @@ function openHazardEditor(haz){
   const isNew = !haz;
   const h = haz ? {...haz} : { id: 'haz_'+Math.random().toString(36).slice(2,10), name:'', category:'', storage:'Büro – verschlossener Putzschrank', sds:null };
   const html = `
-    <div class="modal-backdrop" id="hazModal" style="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:999999;display:flex;align-items:center;justify-content:center;padding:16px">
+    <div class="modal-backdrop" id="hazModal" style="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:21474836479;display:flex;align-items:center;justify-content:center;padding:16px">
       <div class="modal-panel" style="width:min(680px, 100%); background:rgba(30,30,34,.98); border:1px solid rgba(255,255,255,.12); border-radius:14px; padding:14px">
         <div style="display:flex; justify-content:space-between; align-items:center; gap:10px">
           <strong>${isNew?'Neuer Gefahrstoff':'Gefahrstoff bearbeiten'}</strong>
@@ -13552,7 +13558,7 @@ function openTrainingRunPicker(){
   const opts = tr.map(t=>`<option value="${escapeHtml(t.id)}">${escapeHtml(t.title)}</option>`).join('');
   const wrap=document.createElement('div');
   wrap.innerHTML = `
-    <div style="position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px">
+    <div style="position:fixed;inset:0;z-index:21474836479;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px">
       <div style="width:min(680px,100%);background:rgba(30,30,34,.98);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:14px">
         <div style="display:flex;justify-content:space-between;align-items:center">
           <strong>Unterweisung durchführen</strong>
@@ -13585,7 +13591,7 @@ function openTrainingRun(trainingId){
   const wrap=document.createElement('div');
   const today = new Date().toISOString().slice(0,10);
   wrap.innerHTML = `
-    <div style="position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px">
+    <div style="position:fixed;inset:0;z-index:21474836479;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px">
       <div style="width:min(900px,100%);max-height:calc(100vh - 32px);overflow:auto;background:rgba(30,30,34,.98);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:14px">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
           <strong>${escapeHtml(t.title)}</strong>
@@ -13601,7 +13607,7 @@ function openTrainingRun(trainingId){
           <div>
             <div class="muted">Teilnehmer</div>
             <div id="trRunPeople" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px">
-              ${people.map(p=>`<label style="display:flex;align-items:center;gap:6px"><input type="checkbox" class="trPerson" value="${escapeHtml(p)}" checked/>${escapeHtml(p)}</label>`).join('')}
+              ${people.map(p=>`<label class="trChip"><input type="checkbox" class="trPerson" value="${escapeHtml(p)}" checked/><span>${escapeHtml(p)}</span></label>`).join('')}
             </div>
           </div>
         </div>

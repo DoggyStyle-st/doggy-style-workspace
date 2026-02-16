@@ -993,3 +993,9 @@ body.page-login .btnLink--text:hover{
 }
 
 #legal-view h2{ margin-top:0; }
+
+
+/* Compliance PRO: Teilnehmer-Chips (iPad Checkbox Overlap Fix) */
+.trChip{position:relative;display:inline-flex;align-items:center;gap:8px;padding:6px 10px 6px 38px;border:1px solid rgba(255,255,255,.14);border-radius:999px;background:rgba(255,255,255,.06);} 
+.trChip input{position:absolute;left:12px;top:50%;transform:translateY(-50%) scale(.9);}
+.trChip span{white-space:nowrap;}
