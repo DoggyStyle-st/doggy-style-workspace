@@ -14183,10 +14183,26 @@ function renderStatisticsPanel(){
 
   // build scales UI once
   const scalesWrap = _statEl("statScales");
-  if(scalesWrap && !scalesWrap.dataset.ready){
+  if(scalesWrap && (!scalesWrap.dataset.ready || !scalesWrap.innerHTML || !scalesWrap.innerHTML.trim())){
     scalesWrap.dataset.ready="1";
+    const dims = (Array.isArray(STAT_DIMENSIONS) && STAT_DIMENSIONS.length)
+      ? STAT_DIMENSIONS
+      : [
+          { key:"socialCompatibility", label:"Artgenossenverträglichkeit", group:"Sozialverhalten", hint:"1=sehr gut/entspannt · 10=stark unverträglich/konfliktbereit" },
+          { key:"resourceDefense", label:"Ressourcenverteidigung", group:"Sozialverhalten", hint:"Futter/Spielzeug/Platz verteidigen" },
+          { key:"impulseControl", label:"Impulskontrolle", group:"Sozialverhalten", hint:"1=sehr gut · 10=sehr impulsiv" },
+          { key:"frustrationTolerance", label:"Frustrationstoleranz", group:"Sozialverhalten", hint:"1=hoch · 10=sehr niedrig" },
+          { key:"leadershipAcceptance", label:"Führbarkeit / Strukturannahme", group:"Menschenbezogen", hint:"1=sehr gut · 10=sehr schwierig" },
+          { key:"reactivity", label:"Reaktivität", group:"Menschenbezogen", hint:"1=ruhig · 10=sehr reaktiv" },
+          { key:"distanceBehavior", label:"Distanzverhalten", group:"Menschenbezogen", hint:"1=unauffällig · 10=stark auffällig" },
+          { key:"cooperation", label:"Kooperationsbereitschaft", group:"Menschenbezogen", hint:"1=hoch · 10=gering" },
+          { key:"baselineStress", label:"Grundanspannung / Stress", group:"Stress / Erregung", hint:"1=entspannt · 10=hoch gestresst" },
+          { key:"displacement", label:"Übersprungshandlungen", group:"Stress / Erregung", hint:"z.B. Lecken, Schütteln, Kratzen" },
+          { key:"hyperactivity", label:"Hyperaktivität", group:"Stress / Erregung", hint:"1=ruhig · 10=extrem" },
+          { key:"withdrawal", label:"Rückzugsverhalten", group:"Stress / Erregung", hint:"1=offen · 10=starker Rückzug" },
+        ];
     const groups = {};
-    STAT_DIMENSIONS.forEach(d=>{
+    dims.forEach(d=>{
       groups[d.group]=groups[d.group]||[];
       groups[d.group].push(d);
     });
@@ -14266,7 +14282,7 @@ function renderStatisticsPanel(){
   if(metricSelect && !metricSelect.dataset.ready){
     metricSelect.dataset.ready="1";
     let opts = `<option value="overall">Gesamtindex (Ø)</option>`;
-    STAT_DIMENSIONS.forEach(d=>{
+    dims.forEach(d=>{
       opts += `<option value="${d.key}">${escapeHtml(d.label)}</option>`;
     });
     metricSelect.innerHTML = opts;
@@ -14373,7 +14389,7 @@ function saveStatAssessment(){
 
   const scores = {};
   const wrap = _statEl("statScales");
-  STAT_DIMENSIONS.forEach(d=>{
+  dims.forEach(d=>{
     const r = wrap?.querySelector(`.stat-range[data-key="${d.key}"]`);
     const v = r ? Number(r.value) : NaN;
     scores[d.key] = (isFinite(v) ? Math.max(1, Math.min(10, v)) : 5);
@@ -14690,7 +14706,7 @@ function exportStatCsv(){
     row.push(a.dayOfStay!=null?String(a.dayOfStay):"");
     const oi = _statOverallIndex(a.scores);
     row.push(oi!=null?oi.toFixed(4):"");
-    STAT_DIMENSIONS.forEach(d=>{
+    dims.forEach(d=>{
       const v = Number(a.scores?.[d.key] ?? "");
       row.push(isFinite(v)?String(v):"");
     });
