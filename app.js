@@ -6841,23 +6841,257 @@ state._legacy = (state._legacy && typeof state._legacy === "object") ? state._le
       if(h && !h.storage) h.storage = "Büro – verschlossener Putzschrank";
     });
   }
-  // Seed default trainings (only if empty)
+  // Seed default trainings (only if empty) + migrate catalog (stabil bei Updates)
+  const DEFAULT_TRAININGS_CATALOG = [
+      { id:"trn_gefahrstoffe", title:"Unterweisung: Gefahrstoffe", intervalMonths:12, level:"pflicht", legal:"GefStoffV §14 / TRGS 555", fullText:`Ziel
+Sicherer Umgang mit Gefahrstoffen/chemischen Produkten im Betrieb, Schutz von Mitarbeitenden, Tieren und Umwelt.
+
+Geltungsbereich
+Alle Tätigkeiten mit Reinigungs-, Desinfektions- und sonstigen chemischen Produkten (Annahme, Lagerung, Dosierung, Anwendung, Entsorgung).
+
+Inhalte
+• Gefahrstoffverzeichnis: Welche Produkte werden verwendet? Wo sind sie gelistet?
+• Kennzeichnung: GHS-Piktogramme, Signalwort, H-/P-Sätze, Herstellerangaben.
+• Sicherheitsdatenblatt (SDB): Auffinden/Lesen (Abschnitte 2, 4, 7, 8, 10, 13), Ablage in der App je Produkt.
+• Substitution/Minimierung: Nur notwendige Mittel, richtige Konzentration, keine Eigenmischungen ohne Freigabe.
+• Schutzmaßnahmen (TOP-Prinzip): Lüften, Dosierhilfen, PSA (Handschuhe, ggf. Schutzbrille), Hautschutzplan.
+• Lagerung: Originalgebinde, dicht verschlossen, getrennt von Lebensmitteln/Futter, kindersicher; Lagerort: Büro – verschlossener Putzschrank.
+• Anwendung: Dosierung/Einwirkzeit laut Hersteller, Materialverträglichkeit, niemals unterschiedliche Mittel unkontrolliert mischen.
+• Verhalten bei Störungen/Unfällen: Verschütten (Bereich sichern, aufnehmen, entsorgen), Augenkontakt (spülen), Hautkontakt (waschen), Einatmen (Frischluft), Notruf/Arzt.
+• Entsorgung: Reste/Leergut nach Hersteller/SDB; keine Vermischung; Abwasser/Umwelt beachten.
+
+Dokumentation
+Teilnehmer, Datum, Kurzprotokoll, Unterschriften; bei Bedarf Produktliste/SDB-Verweise mitschreiben.`, updatedAt:Date.now() },
+      { id:"trn_hyg_mittel", title:"Unterweisung: Reinigungs-/Desinfektionsmittel (Anwendung)", intervalMonths:12, level:"pflicht", legal:"GefStoffV / Hygieneplan", fullText:`Ziel
+Wirksame Reinigung/Desinfektion ohne Fehlanwendung (Unter- oder Überdosierung) und ohne unnötige Gefährdung.
+
+Geltungsbereich
+Alle Reinigungs- und Desinfektionsvorgänge (Innenbereiche, Kontaktflächen, Ausläufe/Schmutzschleusen, Textilien).
+
+Inhalte
+• Unterschied Reinigung vs. Desinfektion: Wann reicht Reinigung, wann ist Desinfektion erforderlich?
+• Dosierung & Einwirkzeit: strikt nach Herstellerangaben; Messbecher/Dosierhilfe nutzen.
+• Reihenfolge/Wegeführung: sauber → unrein; von oben nach unten; groben Schmutz zuerst entfernen.
+• Kontaktflächen: Näpfe, Türgriffe, Gitter, Böden, Liegeflächen – definierte Frequenz nach Hygieneplan.
+• Materialverträglichkeit: Metall, Kunststoff, Holz, Textilien – Schäden vermeiden.
+• PSA & Hautschutz: Handschuhe, ggf. Schutzbrille; Hautschutzplan (cremen, wechseln).
+• Tücher/Mopps: Farblogik/Zuordnung, Wechselintervalle, nicht „ein Tuch für alles“.
+• Lagerung/Bereitstellung: Mittel sicher, kindersicher, getrennt; keine offenen Gebinde im Hundebereich.
+• Lüftung: nach Anwendung; Hunde erst nach Trocknung/Wirkzeit wieder in den Bereich.
+• Dokumentation: Hygieneplan-Checklisten, besondere Ereignisse (Durchfall/Erbrechen/Infektionsverdacht) mit Zusatzmaßnahmen.
+
+Dokumentation
+Kurzprotokoll + Unterschriften; ggf. verwendete Mittel/Konzentrationen notieren.`, updatedAt:Date.now() },
+      { id:"trn_hygiene", title:"Unterweisung: Hygiene & Infektionsschutz", intervalMonths:12, level:"pflicht", legal:"§11 TierSchG / TierSchHuV", fullText:`Ziel
+Infektionsrisiken minimieren, Tierwohl sichern und prüffähige Nachweise führen.
+
+Geltungsbereich
+Tägliche Abläufe, Reinigungs-/Desinfektionsroutine, Wäsche, Umgang mit Ausscheidungen, Besucher- und Hundekontakte.
+
+Inhalte
+• Hygieneplan: tägliche/wöchentliche/monatliche Aufgaben, Zuständigkeiten, Nachweisführung.
+• Basismaßnahmen: Händehygiene, Wechselkleidung/Schuhe, Trennung sauber/unrein.
+• Reinigung/Desinfektion: Ablauf, Mittel, Einwirkzeiten, Reihenfolge, Tuch-/Moppmanagement.
+• Wäsche/Textilien: getrennte Sammelbehälter, Programme/Temperaturen, Trocknerhygiene, Filter/Siebe reinigen.
+• Umgang mit Kot/Erbrochenem/Blut: sichere Aufnahme, Flächendesinfektion, Entsorgung.
+• Futter/Wasser: Näpfe reinigen, Frischwasser, Lagerung von Futter.
+• Schädlingsprävention: Futterlager sauber, Müllmanagement, Sichtkontrollen.
+• Meldewege: Auffälligkeiten (Durchfall, Husten, Hautprobleme), Sofortmaßnahmen, Eintrag in Vorkommnisse.
+• Grenzen/Abbruch: Betreiber kann Aufenthalt im Krankheitsfall aus Tierschutz-/Sicherheitsgründen beenden; Halter informieren.
+
+Dokumentation
+Hygiene-Log, besondere Vorkommnisse, Teilnehmerliste/Unterschriften der Unterweisung.`, updatedAt:Date.now() },
+      { id:"trn_quar", title:"Unterweisung: Separierung / Infektionsverdacht", intervalMonths:12, level:"pflicht", legal:"Betriebliche Standards / Infektionsschutz", fullText:`Ziel
+Infektionsketten unterbrechen und trotzdem einen sicheren Betrieb gewährleisten.
+
+Geltungsbereich
+Verdacht auf ansteckende Erkrankungen, Parasiten, Durchfall/Erbrechen, Husten, Fieber, Hautbefall; auch nach Rückkehr von Veranstaltungen/anderen Betreuungen.
+
+Inhalte
+• Kriterien: Wann ist Separierung zwingend? (Symptome, Kontakt zu Erkrankten, Parasitenverdacht)
+• Sofortmaßnahmen: Hund separieren, Kontakt stoppen, eigenes Equipment (Leine, Napf, Decke).
+• Räumliche Trennung: Nutzung von Einzelzimmer/Übergangsbereich; Wegeführung (keine Kreuzungen).
+• Hygiene: Händedesinfektion, Flächen-/Kontaktpunkte, Wäsche separat, Müll separat.
+• Betreuung: Minimierung von Personalwechsel, klare Zuständigkeiten, PSA/Handschuhe.
+• Kommunikation: Halter sofort informieren; Tierarztkontakt nach Lage; ggf. Abholung/Abbruch.
+• Dokumentation: Symptom, Uhrzeit, Maßnahmen, Kontaktpersonen, Tierarzt/Empfehlungen.
+
+Dokumentation
+Maßnahmenprotokoll + Unterweisungsnachweis (Teilnehmer/Datum/Unterschriften).`, updatedAt:Date.now() },
+      { id:"trn_brand", title:"Unterweisung: Brand- & Evakuierungsplan", intervalMonths:12, level:"pflicht", legal:"Betriebspflichten / Brandschutz", fullText:`Ziel
+Sichere Evakuierung von Menschen und Tieren, minimierte Rauch-/Brandgefahren, klare Zuständigkeiten.
+
+Geltungsbereich
+Alle Mitarbeitenden, Besucher, alle Bereiche (Hunde-Zimmer, Gruppenraum, Lager, Büro, Außenbereiche).
+
+Inhalte
+• Alarmierung: Brand melden, Notruf 112, interne Rollen (wer ruft an, wer evakuiert).
+• Fluchtwege: Ausgänge/Wege gemäß Plan; Türen/Wege stets freihalten.
+• Sammelplatz: Wiese bei Hofeinfahrt; Vollzähligkeitskontrolle.
+• Erstmaßnahmen: Eigenschutz, keine Selbstgefährdung, Feuerlöscher nur wenn sicher.
+• Feuerlöscher: Standorte (Büro + Durchgangsraum), Arten, kurze Einweisung, Sicht-/Funktionskontrolle.
+• Evakuierung Hunde: Priorisierung, Leinen/Boxen/Transporthilfen, Gruppentrennung, Maulkörbe nach Bedarf.
+• Nachbereitung: Übergabe an Feuerwehr, Information Halter, Dokumentation des Ereignisses/Übung.
+
+Dokumentation
+Planversion, Datum, Teilnehmer/Unterschriften; ggf. Evakuierungsübung als Eintrag im Archiv.`, updatedAt:Date.now() },
+      { id:"trn_arbeitsschutz", title:"Unterweisung: Arbeitsschutz / UVV", intervalMonths:12, level:"pflicht", legal:"ArbSchG / DGUV Grundsätze", fullText:`Ziel
+Unfälle und arbeitsbedingte Gesundheitsgefahren vermeiden; sichere Arbeitsabläufe im Tagesbetrieb.
+
+Geltungsbereich
+Alle Tätigkeiten im Betrieb (Hundehandling, Reinigung, Transport, Lager, Außenbereiche).
+
+Inhalte
+• Ordnung & Sauberkeit: Stolperstellen, Kabel, nasse Böden, rutschfeste Wege, Beleuchtung.
+• Ergonomie: Heben/Tragen (Futter, Wasser, Boxen) – Technik, Hilfsmittel, Lastgrenzen.
+• Hundehandling: sichere Leinenführung, Trennmanagement, Türen/Schleusen, Beißschutz nach Bedarf.
+• PSA: Handschuhe, ggf. Schutzbrille; geeignete Schuhe; wetterangepasste Kleidung.
+• Arbeitsmittel: sichere Nutzung, Defekte sofort melden.
+• Alleinarbeit: Handy griffbereit, Notfallkette, keine riskanten Tätigkeiten allein.
+• Unterweisungspflicht: jährlich sowie bei Änderungen/Unfällen/Beinaheunfällen.
+
+Dokumentation
+Unterweisung (Datum/Teilnehmer/Unterschriften) und ggf. Maßnahmenliste aus Beinaheunfällen.`, updatedAt:Date.now() },
+      { id:"trn_erstehilfe", title:"Unterweisung: Erste Hilfe (Mensch)", intervalMonths:12, level:"pflicht", legal:"DGUV Vorschrift 1 (Betriebliche Erste Hilfe)", fullText:`Ziel
+Erstmaßnahmen bis zum Eintreffen des Rettungsdienstes; Eigenschutz und strukturierter Ablauf.
+
+Geltungsbereich
+Alle Mitarbeitenden; typische Unfälle im Umgang mit Hunden und bei Reinigungsarbeiten.
+
+Inhalte
+• Notrufkette: 112, Wer? Wo? Was? Wieviele? Warten auf Rückfragen.
+• Eigenschutz: Handschuhe, Abstand, Hunde sichern, keine Selbstgefährdung.
+• Erste-Hilfe-Ausstattung: Standort/Kontrolle (Vollständigkeit, Haltbarkeit), Augenspülung falls vorhanden.
+• Typische Verletzungen: Bisswunden, Schnitt-/Sturzverletzungen, Kreislaufprobleme, allergische Reaktionen.
+• Blutstillung: Druckverband, Hochlagern; Schockzeichen erkennen.
+• Hygiene: Wundversorgung, Entsorgung kontaminierter Materialien.
+• Dokumentation: Unfall/Beinaheunfall kurz erfassen, ggf. Arztbesuch/Arbeitsunfall.
+
+Dokumentation
+Teilnehmerliste/Unterschriften; ggf. Unterlagen/Standortplan ergänzen.`, updatedAt:Date.now() },
+      { id:"trn_hund_notfall", title:"Unterweisung: Erste Hilfe Hund / Notfallablauf", intervalMonths:12, level:"empfohlen", legal:"Betriebliche Standards / Tierarzt-Kooperation", fullText:`Ziel
+Schnelle Stabilisierung des Hundes, sichere Übergabe an Tierarzt, klare Kommunikation mit Halter.
+
+Geltungsbereich
+Alle Notfallsituationen während Betreuung/Transport/Auslauf.
+
+Inhalte
+• Notfall erkennen: Atemnot, Kollaps, Krampf, starke Blutung, Hitzschlag, Magendrehung-Verdacht.
+• Sofortmaßnahmen: Ruhe, Hund sichern, Temperaturmanagement (kühlen/wärmen), Druckverband, Stabilisierung.
+• Transport: sichere Fixierung, Box/Decke, zweite Person wenn möglich.
+• Ansprechpartner: Tierarzt/Notdienst (Betriebsstandard); Halter informieren.
+• Dokumentation: Zeitpunkt, Symptome, Maßnahmen, Transport, Rückmeldung Tierarzt/Halter.
+
+Dokumentation
+Vorfallprotokoll + Unterweisungsnachweis.`, updatedAt:Date.now() },
+      { id:"trn_tierschutz", title:"Unterweisung: §11 TierSchG – Betriebspflichten", intervalMonths:12, level:"pflicht", legal:"§11 TierSchG / TierSchHuV", fullText:`Ziel
+Tierschutzkonforme Betreuung, sichere Belegung und nachvollziehbare Kontrollen.
+
+Geltungsbereich
+Unterbringung, Betreuung, Fütterung, Auslauf/Beaufsichtigung, Abbruchkriterien.
+
+Inhalte
+• Bestandsgrenzen/Belegung: Übernachtung max. 10, Tagesbetreuung max. 13 (betrieblicher Standard).
+• Unterbringung: Zimmer/Größen/Trennmöglichkeiten, Ruhezeiten, Stressreduktion, Temperatur/Lüftung.
+• Betreuung: regelmäßige Sichtkontrollen, Wasser jederzeit, Fütterung nach Halterangaben.
+• Sozialmanagement: unverträgliche Hunde trennen, Gruppen nur nach Verträglichkeit, Konflikte vermeiden.
+• Gesundheit: Auffälligkeiten früh erkennen, Tierarzt/Abholung, Abbruch aus Tierschutz/Sicherheitsgründen.
+• Dokumentation: Betreuungsvertrag, Kontroll-/Vorkommnisprotokolle, Unterweisungsnachweise.
+
+Dokumentation
+Unterweisung + Bezug auf Betriebsstandards (Belegung/Abbruch/Notfallkette).`, updatedAt:Date.now() },
+      { id:"trn_med", title:"Unterweisung: Medikamentenhandling & Dokumentation", intervalMonths:12, level:"pflicht", legal:"Betriebliche Pflicht / Sorgfaltspflichten", fullText:`Ziel
+Fehlerfreie Medikamentengabe und lückenlose Nachweisführung.
+
+Geltungsbereich
+Alle Medikamente/Nahrungsergänzer während Betreuung (auch Kühlware).
+
+Inhalte
+• Annahme: nur mit schriftlicher Anweisung (Dosierung, Zeiten, Dauer); Originalverpackung; Name/Charge.
+• Lagerung: kindersicher, getrennt von Futter; Kühlkette beachten; klare Beschriftung.
+• Gabe: nach Plan; 4-Augen-Prinzip wenn möglich; Abzeichnen im Medikamentenlog.
+• Abweichungen: Verweigerung/Erbrechen/Fehlgabe – dokumentieren, Halter/Tierarzt informieren.
+• Notfallmedikation: keine eigenmächtige Umstellung ohne Rücksprache.
+• Rückgabe: Restmengen/Verpackungen bei Abholung.
+
+Dokumentation
+Medikamentenlog (Datum/Uhrzeit/Dosis/Unterschrift) + Unterweisungsnachweis.`, updatedAt:Date.now() },
+      { id:"trn_datenschutz", title:"Unterweisung: Datenschutz (DSGVO)", intervalMonths:12, level:"pflicht", legal:"DSGVO / BDSG", fullText:`Ziel
+Schutz von Kunden- und Tierdaten; rechtssichere Verarbeitung im Alltag.
+
+Geltungsbereich
+Kundendaten, Vertrags-/Rechnungsdaten, Gesundheitsdaten (Impfungen/Medikamente), Fotos/Kommunikation.
+
+Inhalte
+• Grundsätze: Zweckbindung, Datenminimierung, Integrität/Vertraulichkeit, Speicherbegrenzung.
+• Rechte Betroffener: Auskunft, Berichtigung, Löschung, Widerspruch – Zuständigkeit intern.
+• Zugriff: Rollen (Admin/Staff/Customer), keine Weitergabe von Logins, Geräte sperren.
+• Kommunikation: Weitergabe an Tierarzt/Behörde nur mit Rechtsgrundlage/Einwilligung.
+• Aufbewahrung: Verträge/Rechnungen nach Fristen; sichere Ablage/Archiv.
+• Datenschutzvorfall: Verdacht melden, Sofortmaßnahmen (Zugang sperren), Dokumentation.
+
+Dokumentation
+Unterweisung + kurze Maßnahmenliste (z.B. Passwortrichtlinie).`, updatedAt:Date.now() },
+      { id:"trn_it", title:"Unterweisung: IT-Sicherheit / Passwörter", intervalMonths:12, level:"empfohlen", legal:"Betriebliche Standards", fullText:`Ziel
+Schutz vor unbefugtem Zugriff, Datenverlust und Betriebsunterbrechung.
+
+Geltungsbereich
+Alle Geräte/Accounts (PWA, E-Mail, Cloud, Druck/PDF, mobile Geräte).
+
+Inhalte
+• Passwörter: Länge/Komplexität, keine Wiederverwendung, Passwortmanager wenn möglich.
+• 2FA: wo verfügbar aktivieren.
+• Gerätesicherheit: Sperrcode/FaceID, automatische Sperre, Updates zeitnah.
+• Phishing: Links/Anhänge prüfen, Absender kontrollieren, keine Login-Daten eingeben.
+• Offline/Sync: Konflikte melden, keine unsicheren Zwischenkopien.
+• Backup: regelmäßige Sicherungen (Betriebsstandard), Wiederherstellung testen.
+
+Dokumentation
+Teilnehmer/Unterschriften; ggf. Checkliste (2FA/Update/Backup) ergänzen.`, updatedAt:Date.now() },
+      { id:"trn_biss", title:"Unterweisung: Beißvorfall / Unfallmanagement", intervalMonths:12, level:"empfohlen", legal:"Betriebliche Standards / Haftungsprävention", fullText:`Ziel
+Standardisierter, sicherer Ablauf bei Zwischenfällen – Schutz von Menschen/Tieren, saubere Dokumentation.
+
+Geltungsbereich
+Beißvorfälle, Rangeleien, Stürze, Sachschäden, Beinaheunfälle.
+
+Inhalte
+• Sofort: Hunde trennen, Eigenschutz, ggf. Maulkorb/Leine.
+• Erste Hilfe: Mensch (Wunde versorgen) und Hund (Sichtprüfung/Blutung/Schock).
+• Dokumentation: Zeitpunkt, Beteiligte, Auslöser, Maßnahmen, Zeugen, Fotos nach Bedarf.
+• Information: Halter beider Hunde, ggf. Tierarzt; bei schweren Vorfällen Behördenmeldung nach Lage.
+• Prävention: Auswertung, Anpassung Gruppenmanagement/Handling/Trennkonzept.
+
+Dokumentation
+Vorfallprotokoll + Unterweisungsnachweis.`, updatedAt:Date.now() }
+  ];
   if(state.compliance.trainings.length === 0){
-    state.compliance.trainings = [
-      { id:"trn_gefahrstoffe", title:"Unterweisung: Gefahrstoffe", intervalMonths:12, level:"pflicht", legal:"GefStoffV §14 / TRGS 555", fullText:"Ziel: Sicherer Umgang mit Gefahrstoffen in der Hundepension. Inhalte: • Kennzeichnung/Etikettierung, Gefahrenpiktogramme (GHS) und grundlegende Gefahrenhinweise. • Schutzmaßnahmen: Handschuhe/Brille bei Bedarf, Hautschutz, Lüftung. • Lagerung: Büro – verschlossener Putzschrank; getrennte Aufbewahrung; kindersicher; nur Originalgebinde. • Verhalten bei Verschütten/Unfall: Bereich sichern, Aufnahme/Entsorgung, Hände waschen, ggf. Arzt/Notruf. • Sicherheitsdatenblätter (SDB): je Produkt in der App hinterlegt; Abruf/Download/Druck jederzeit möglich. • Entsorgung: Reste/Leergut gemäß Herstellerangaben; keine Vermischung. Dokumentation: Teilnehmer, Datum, Unterschriften, ggf. Produktliste/SDB-Verweise.", updatedAt:Date.now() },
-      { id:"trn_hygiene", title:"Unterweisung: Hygiene & Infektionsschutz", intervalMonths:12, level:"pflicht", legal:"§11 TierSchG / TierSchHuV", fullText:"Ziel: Infektionsrisiken minimieren und Nachweisführung sichern. Inhalte: • Hygieneplan: tägliche/wöchentliche/monatliche Aufgaben, Kontaktzonen, Laufwege, Ausläufe. • Reinigung/Desinfektion: Mittel, Einwirkzeiten, Reihenfolge (sauber→unrein), Wechsel von Tüchern/Handschoenen. • Wäsche: getrennte Körbe, Waschprogramme, Filter/Siebe reinigen, Trocknerhygiene. • Umgang mit krank/verdächtig erkrankten Hunden: Separierung möglich, erhöhte Hygiene, Kontaktreduktion. • Meldung/Abbruch: im Krankheitsfall kann der Aufenthalt durch Betreiber jederzeit beendet werden (Betreuungsvertrag). • Notfall-Tierarzt: Kleintierpraxis Immenstadt i. Allgäu, Petra Geisser. Dokumentation: Hygiene-Log, besondere Vorkommnisse, Unterweisungsteilnehmer.", updatedAt:Date.now() },
-      { id:"trn_brand", title:"Unterweisung: Brand- & Evakuierungsplan", intervalMonths:12, level:"pflicht", legal:"Betriebspflichten / Brandschutz", fullText:"Ziel: Sichere Evakuierung von Menschen und Tieren. Inhalte: • Alarmierung: Notruf 112, interne Kommunikation, Verantwortlichkeiten. • Fluchtwege: Ausgänge/Wege gemäß Plan; Türen freihalten. • Sammelplatz: Wiese bei Hofeinfahrt. • Feuerlöscher: Standorte (Büro + Durchgangsraum), Sicht-/Funktionskontrolle. • Evakuierung Hunde: Priorisierung, Leinen/Boxen, Gruppentrennung, keine Selbstgefährdung. • Nachkontrolle: Vollzähligkeit, Tiere/Menschen, Übergabe an Feuerwehr. Dokumentation: Planversion, Datum, Teilnehmer, Unterschriften.", updatedAt:Date.now() },
-      { id:"trn_arbeitsschutz", title:"Unterweisung: Arbeitsschutz / UVV", intervalMonths:12, level:"pflicht", legal:"ArbSchG / DGUV Grundsätze", fullText:"Ziel: Unfälle vermeiden, sichere Arbeitsabläufe. Inhalte: • Ordnung & Sauberkeit, Stolperstellen, rutschfeste Laufwege. • Ergonomie: Heben/Tragen (Futter, Wasser), Hilfsmittel nutzen. • PSA je Tätigkeit (Handschuhe, ggf. Schutzbrille). • Umgang mit Reinigungs-/Desinfektionsmitteln (Verweis auf Gefahrstoffe). • Alleinarbeit: Handy griffbereit, Notfallkette. Dokumentation: Unterweisung + jährliche Auffrischung.", updatedAt:Date.now() },
-      { id:"trn_erstehilfe", title:"Unterweisung: Erste Hilfe (Mensch)", intervalMonths:12, level:"pflicht", legal:"DGUV Vorschrift 1 (Betriebliche Erste Hilfe)", fullText:"Ziel: Erstmaßnahmen bis Rettungsdienst eintrifft. Inhalte: • Notrufkette, Standortinfo (Adresse/Anfahrt). • Erste-Hilfe-Ausstattung (Kasten), Kontrolle Vollständigkeit/Haltbarkeit. • Typische Verletzungen: Biss/Schürfwunden, Kreislauf, Stürze, Schnittverletzungen. • Eigenschutz, Handschuhe, Hygiene. Dokumentation: Teilnehmer + Auffrischung jährlich.", updatedAt:Date.now() },
-      { id:"trn_hund_notfall", title:"Unterweisung: Erste Hilfe Hund / Notfallablauf", intervalMonths:12, level:"empfohlen", legal:"Betriebliche Standards / Tierarzt-Kooperation", fullText:"Ziel: Stabilisierung bis zum Tierarzttransport. Inhalte: • Erkennen von Notfällen (Atemnot, Krampf, Hitzschlag, Blutung, Magendrehung-Verdacht). • Sofortmaßnahmen: kühlen/wärmen, Druckverband, Ruhigstellen. • Transport & Ansprechpartner: Kleintierpraxis Immenstadt i. Allgäu, Petra Geisser. • Dokumentation & Information Halter. Dokumentation: Vorfallprotokoll, Teilnehmer.", updatedAt:Date.now() },
-      { id:"trn_tierschutz", title:"Unterweisung: §11 TierSchG – Betriebspflichten", intervalMonths:12, level:"pflicht", legal:"§11 TierSchG / TierSchHuV", fullText:"Ziel: Tierschutzkonforme Betreuung und Betriebssicherheit. Inhalte: • Bestandsgrenzen: Übernachtung max. 10, Tagesbetreuung max. 13. • Unterbringung: 6 Einzelzimmer (1,30×2,50 m), Gruppenraum (3,90×2,50 m), Separierungsmöglichkeiten. • Fütterung/Wasser, Kontrolle, Ruhezeiten, Beschäftigung. • Umgang mit unverträglichen/auffälligen Hunden, Abbruch/Abholung. Dokumentation: Betreuungsvertrag, Kontrollen, Unterweisungen.", updatedAt:Date.now() },
-      { id:"trn_med", title:"Unterweisung: Medikamentenhandling & Dokumentation", intervalMonths:12, level:"pflicht", legal:"Betriebliche Pflicht / Sorgfaltspflichten", fullText:"Ziel: Fehlerfreie Medikamentengabe und Nachweis. Inhalte: • Annahme: schriftliche Anweisung Halter, Dosierung/Zeiten, Originalverpackung. • Lagerung: getrennt, kindersicher; Kühlpflicht beachten. • Gabe: 4-Augen-Prinzip wenn möglich, Abzeichnen im Medikamentenlog. • Besonderheiten: Nebenwirkungen, Abbruchkriterien, Tierarztkontakt. Dokumentation: Medikamenten-Dokumentation (Datum/Uhrzeit/Unterschrift).", updatedAt:Date.now() },
-      { id:"trn_datenschutz", title:"Unterweisung: Datenschutz (DSGVO)", intervalMonths:12, level:"pflicht", legal:"DSGVO / BDSG", fullText:"Ziel: Schutz von Kunden- und Tierdaten. Inhalte: • Datenminimierung, Zweckbindung, Auskunft/Löschung. • Zugriffsrechte (Rollen), Passwörter, Geräte-Sperre. • Weitergabe an Dritte nur bei Rechtsgrundlage/Einwilligung. • Aufbewahrung/Archiv: Rechnungen/Verträge, sichere Ablage. Dokumentation: Unterweisung + jährliche Auffrischung.", updatedAt:Date.now() },
-      { id:"trn_it", title:"Unterweisung: IT-Sicherheit / Passwörter", intervalMonths:12, level:"empfohlen", legal:"Betriebliche Standards", fullText:"Ziel: Schutz vor Datenverlust und unbefugtem Zugriff. Inhalte: • Starke Passwörter, 2FA wo möglich. • Geräte-Sperre, Updates, keine Fremd-USB. • Backup-Routine, Umgang mit Offline/Sync. Dokumentation: Teilnehmer + Maßnahmenliste.", updatedAt:Date.now() },
-      { id:"trn_biss", title:"Unterweisung: Beißvorfall / Unfallmanagement", intervalMonths:12, level:"empfohlen", legal:"Betriebliche Standards / Haftungsprävention", fullText:"Ziel: Strukturierter Ablauf bei Zwischenfällen. Inhalte: • Trennung der Hunde, Eigenschutz, Erste Hilfe Mensch/Tier. • Dokumentation (Zeit, Beteiligte, Maßnahmen). • Information Halter, ggf. Tierarzt/Behörde. Dokumentation: Vorfallprotokoll + Unterweisung.", updatedAt:Date.now() },
-      { id:"trn_hyg_mittel", title:"Unterweisung: Reinigungs-/Desinfektionsmittel (Anwendung)", intervalMonths:12, level:"pflicht", legal:"GefStoffV / Hygieneplan", fullText:"Ziel: Richtige Anwendung der Mittel mit Wirksamkeit. Inhalte: • Dosierung, Einwirkzeit, Materialverträglichkeit. • Reihenfolge, Wechsel von Tüchern, Handschuhe. • Verweis auf SDB je Produkt. Dokumentation: Teilnehmer + Mittel-Liste.", updatedAt:Date.now() },
-      { id:"trn_quar", title:"Unterweisung: Separierung / Infektionsverdacht", intervalMonths:12, level:"pflicht", legal:"Betriebliche Standards / Infektionsschutz", fullText:"Ziel: Infektionskette unterbrechen trotz fehlendem festen Quarantäneraum. Inhalte: • Kriterien für Separierung, räumliche Trennung, Ablauf im Durchgangsraum/Einzelzimmer. • Separates Equipment, Händehygiene, Flächen-Desinfektion. • Kommunikation mit Halter, Tierarztkontakt. Dokumentation: Maßnahmen + Unterweisung.", updatedAt:Date.now() },
-    ];
+    state.compliance.trainings = DEFAULT_TRAININGS_CATALOG.map(t=>({ ...t }));
+  }else{
+    // Merge: fehlende Felder ergänzen, kurze/fehlende Volltexte upgraden, neue Trainings ergänzen
+    const byId = Object.create(null);
+    DEFAULT_TRAININGS_CATALOG.forEach(t=>byId[t.id]=t);
+    const existing = Array.isArray(state.compliance.trainings) ? state.compliance.trainings : [];
+    const merged = existing.map(t=>{
+      if(!t || !t.id || !byId[t.id]) return t;
+      const base = byId[t.id];
+      const out = { ...t };
+      if(!out.title) out.title = base.title;
+      if(!out.legal) out.legal = base.legal;
+      if(!out.level) out.level = base.level;
+      // Intervall: wenn leer/ungültig -> Default (gesetzl. Minimum hier: jährlich = 12 Monate)
+      const im = Number(out.intervalMonths);
+      out.intervalMonths = (isFinite(im) && im>0) ? im : Number(base.intervalMonths||12);
+      // Volltext: wenn fehlt oder sehr kurz -> aus Katalog übernehmen
+      const ft = (out.fullText || out.longText || "").toString();
+      if(!ft || ft.trim().length < 160) out.fullText = base.fullText;
+      // Timestamp: falls fehlt
+      out.updatedAt = out.updatedAt || base.updatedAt || Date.now();
+      return out;
+    });
+    // missing ids append
+    const have = new Set(merged.filter(x=>x&&x.id).map(x=>x.id));
+    DEFAULT_TRAININGS_CATALOG.forEach(t=>{ if(!have.has(t.id)) merged.push({ ...t }); });
+    state.compliance.trainings = merged;
   }
 
 }
@@ -9943,7 +10177,7 @@ function getDocumentVersions(doc){
 // ===== Overlay-Signatur (Weg A) =====
 function openSignatureOverlay(onDone){
   const overlay=document.createElement("div");
-  overlay.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:2147483647;display:flex;align-items:center;justify-content:center";
+  overlay.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:21474836480;display:flex;align-items:center;justify-content:center";
   overlay.innerHTML=`
     <div style="background:#fff;border-radius:14px;padding:12px;width:92%;max-width:560px">
       <canvas id="sigCanvas" style="width:100%;height:180px;background:#fff;border:1px solid #ccc;border-radius:10px"></canvas>
@@ -13192,7 +13426,7 @@ function computeTrainingCompliance(){
     const intervalMonths = Number(t.intervalMonths||12);
     names.forEach(person=>{
       const st = statusMap?.[t.id]?.[person];
-      const last = st?.lastDone ? new Date(st.lastDone) : null;
+      const last = st?.lastDone ? _parseDateAny(st.lastDone) : null;
       if(!last || isNaN(last.getTime())){
         missing++;
         overdue++;
@@ -13538,11 +13772,34 @@ function renderComplianceTrainings(root){
     b.onclick = ()=>openTrainingRun(b.dataset.id);
   });
 }
+function _parseDateAny(v){
+  if(!v) return null;
+  if(v instanceof Date) return isNaN(v.getTime()) ? null : v;
+  const s = String(v).trim();
+  if(!s) return null;
+  // ISO YYYY-MM-DD
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s)){
+    const d = new Date(s+"T00:00:00");
+    return isNaN(d.getTime()) ? null : d;
+  }
+  // de-DE DD.MM.YYYY
+  const m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if(m){
+    const dd = String(m[1]).padStart(2,'0');
+    const mm = String(m[2]).padStart(2,'0');
+    const yy = m[3];
+    const d = new Date(`${yy}-${mm}-${dd}T00:00:00`);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? null : d;
+}
+
 function computeTrainingDueDate(trainingId, person){
   const t = (state.compliance.trainings||[]).find(x=>x.id===trainingId);
   const intervalMonths = Number(t?.intervalMonths||12);
   const st = state.compliance.trainingStatus?.[trainingId]?.[person];
-  const last = st?.lastDone ? new Date(st.lastDone) : null;
+  const last = st?.lastDone ? _parseDateAny(st.lastDone) : null;
   if(!last || isNaN(last.getTime())){
     return {status:'red', next:null};
   }
@@ -13617,7 +13874,7 @@ function openTrainingRun(trainingId){
     <div style="margin-top:8px"><button class="btn" id="btnTrToggleFull">Volltext anzeigen</button></div>
     <div id="trFullWrap" style="display:none;margin-top:8px">
       <div class="muted">Unterweisung (Volltext)</div>
-      <div style="white-space:pre-wrap;border:1px solid rgba(255,255,255,.18);padding:10px;border-radius:12px;background:rgba(0,0,0,.18)" id="trFullText"></div>
+      <div style="white-space:pre-wrap;border:1px solid rgba(255,255,255,.18);padding:10px;border-radius:12px;background:rgba(0,0,0,.18);max-height:42vh;overflow:auto" id="trFullText"></div>
     </div>
           <textarea id="trRunNotes" style="width:100%;min-height:110px">${escapeHtml(defaultTrainingText(t.id))}</textarea>
         </div>
@@ -13722,14 +13979,23 @@ renderSigRows();
   };
 }
 function defaultTrainingText(id){
-  if(id==='trn_gefahrstoffe') return "Gefahrenhinweise, Schutzmaßnahmen (Handschuhe/Brille), Lagerung (verschlossen im Putzschrank), Verhalten bei Verschütten/Unfall, Sicherheitsdatenblätter (SDB) verfügbar.";
-  if(id==='trn_hygiene') return "Hygieneplan, Reinigung/Desinfektion, Infektionsschutz, Separierung bei Verdacht, Dokumentation.";
-  if(id==='trn_brand') return "Brand- & Evakuierungsplan, Sammelplatz Hofeinfahrt/Wiese, Feuerlöscherstandorte, Notruf 112, Evakuierungswege.";
-  if(id==='trn_tierschutz') return "§11 TierSchG Pflichten, Bestandsgrenzen (10 Übernachtung/13 Tagesbetreuung), Überwachung, Dokumentation, Tierwohl.";
-  if(id==='trn_erstehilfe') return "Grundlagen Erste Hilfe am Hund, Notfallzeichen, Transport, Tierarzt Immenstadt (Petra Geisser).";
-  if(id==='trn_med') return "Medikamentengabe nach Halter-/Tierarztanweisung, Dokumentation (Datum/Uhrzeit/Dosis), Lagerung, Rücksprache bei Abweichungen.";
-  if(id==='trn_datenschutz') return "Umgang mit Kundendaten, DSGVO-Grundsätze, Zugriffsschutz, Aufbewahrung/Weitergabe.";
-  return "";
+  // Kurzinhalt (Protokollfeld) – passend je Unterweisung
+  const map = {
+    trn_gefahrstoffe: "Gefahrstoffverzeichnis/SDB, Kennzeichnung (GHS), Schutzmaßnahmen/PSA, Lagerung (verschlossener Putzschrank), Dosierung/Anwendung, Verhalten bei Verschütten/Unfall, Entsorgung.",
+    trn_hyg_mittel: "Reinigungs-/Desinfektionsmittel: Dosierung, Einwirkzeit, Materialverträglichkeit, Reihenfolge (sauber→unrein), Tuch-/Moppwechsel, PSA, Dokumentation im Hygieneplan.",
+    trn_hygiene: "Hygieneplan, Reinigung/Desinfektion, Wäsche-/Textilhygiene, Infektionsschutz, Trennung von sauber/unrein, Meldewege bei Auffälligkeiten, Dokumentation.",
+    trn_quar: "Separierung/Infektionsverdacht: Kriterien, räumliche Trennung, separates Equipment, Wegeführung, Flächen- & Händedesinfektion, Kommunikation Halter/Tierarzt, Dokumentation.",
+    trn_brand: "Brand- & Evakuierungsplan: Alarmierung 112, Fluchtwege, Sammelplatz, Feuerlöscher/Einweisung, Evakuierung Hunde (Leinen/Boxen), Vollzähligkeitskontrolle, Nachbereitung.",
+    trn_arbeitsschutz: "Arbeitsschutz/UVV: Ordnung/Sauberkeit, Stolper-/Rutschgefahren, ergonomisches Heben/Tragen, PSA je Tätigkeit, sichere Arbeitsabläufe, Alleinarbeit/Notfallkette.",
+    trn_erstehilfe: "Erste Hilfe (Mensch): Notrufkette, Eigenschutz, Erste-Hilfe-Kasten/Standort, Biss-/Schnitt-/Sturzverletzungen, Blutstillung, Dokumentation von Unfällen.",
+    trn_hund_notfall: "Erste Hilfe Hund/Notfallablauf: Warnzeichen, Sofortmaßnahmen (Kühlen, Druckverband, Stabilisierung), Transport, Tierarztkontakt, Halterinformation, Vorfallprotokoll.",
+    trn_tierschutz: "§11 TierSchG / TierSchHuV: Betriebspflichten, Tierwohl, Kontrollroutinen, Unterbringung/Belegung, Umgang mit unverträglichen Hunden, Abbruchkriterien, Dokumentation.",
+    trn_med: "Medikamentenhandling: Annahme nur mit schriftlicher Anweisung, Lagerung, Gabe nach Plan, 4-Augen-Prinzip wenn möglich, Abzeichnen im Medikamentenlog, Abweichungen/Notfall.",
+    trn_datenschutz: "DSGVO: Zweckbindung/Datenminimierung, Zugriffsrechte/Rollen, sichere Geräte/Passwörter, Weitergabe nur mit Rechtsgrundlage, Aufbewahrung/Archiv, Meldung von Datenschutzvorfällen.",
+    trn_it: "IT-Sicherheit: starke Passwörter/2FA, Gerätesperre, Updates, Umgang mit Offline/Sync, Backup, keine Weitergabe von Zugängen, Phishing/Schadsoftware-Grundregeln.",
+    trn_biss: "Beißvorfall/Unfallmanagement: Hunde trennen, Eigenschutz, Erste Hilfe Mensch/Tier, Dokumentation (Zeit/Beteiligte/Maßnahmen), Information Halter, ggf. Tierarzt/Behörde."
+  };
+  return map[id] || "";
 }
 function trainingSessionHtml(t, s){
   const rows = s.participants.map(p=>{
