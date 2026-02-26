@@ -1005,7 +1005,7 @@ function mergeStatePreferRemote(remoteRaw, localRaw){
   const out = { ...local, ...remote };
   // Arrays: ID-basiert mergen (remote + lokale Ergänzungen, pro Item jüngeres gewinnt)
   const idArrays = [
-    'customers','pets','dogs','stays','invoices','docs','meds','medications','hygieneLogs','tasks','worksheets','entries'
+    'customers','pets','dogs','stays','invoices','docs','meds','medications','hygieneLogs','tasks','worksheets','entries','behaviorAssessments'
   ];
   for (const k of idArrays){
     if (Array.isArray(remote[k]) || Array.isArray(local[k])){
@@ -2562,6 +2562,9 @@ function showPanel(id){
   }
     if(id === "analytics"){
     scheduleAnaRefresh();
+  }
+  if(id === "statistics"){
+    try{ renderStatisticsPanel(); }catch(_){ }
   }
 if(id === "calendar"){
     renderCalendarPanel();
@@ -6669,6 +6672,7 @@ function ensureStateShape(){
   state.stays = Array.isArray(state.stays) ? state.stays : [];
   state.worklogs = Array.isArray(state.worklogs) ? state.worklogs : [];
   state.invoices = Array.isArray(state.invoices) ? state.invoices : [];
+  state.behaviorAssessments = Array.isArray(state.behaviorAssessments) ? state.behaviorAssessments : [];
   // Hygiene & Reinigung
   if(!state.hygiene || typeof state.hygiene !== "object") state.hygiene = {};
   state.hygiene.logs = Array.isArray(state.hygiene.logs) ? state.hygiene.logs : [];
@@ -7202,6 +7206,7 @@ function migrateToV2(){
       name: dogName || "(ohne Name)",
       breed: "",
       birthdate: "",
+      sex: "",
       chip: false,
       chipNumber: "",
       vet: "",
@@ -7280,6 +7285,7 @@ function pruneInvoiceDocs(){
   if(invDocs.length){
     state.worklogs = Array.isArray(state.worklogs) ? state.worklogs : [];
   state.invoices = Array.isArray(state.invoices) ? state.invoices : [];
+  state.behaviorAssessments = Array.isArray(state.behaviorAssessments) ? state.behaviorAssessments : [];
     invDocs.forEach(inv=>{
       if(!state.invoices.some(x=>x.id===inv.id)){
         state.invoices.push(inv);
@@ -7339,6 +7345,7 @@ function fillCpEditorForPet(pet){
   $("#p_name").value = pet.name||"";
   $("#p_breed").value = pet.breed||"";
   $("#p_birthdate").value = pet.birthdate||"";
+  try{ const sx = document.getElementById("p_sex"); if(sx) sx.value = pet.sex||""; }catch(_){ }
   const cs=document.getElementById("p_chipStatus");
   if(cs) cs.value = pet.chip ? "yes" : "no";
   $("#p_chipNumber").value = pet.chipNumber||"";
@@ -8122,6 +8129,7 @@ function openOrCreateInvoiceForDocId(docId){
       return;
     }
     state.invoices = Array.isArray(state.invoices) ? state.invoices : [];
+  state.behaviorAssessments = Array.isArray(state.behaviorAssessments) ? state.behaviorAssessments : [];
     // 1) existierende Rechnung finden (invoiceId oder sourceDocId)
     let inv = null;
     if(doc.invoiceId){
@@ -8771,6 +8779,7 @@ function createFreeInvoice(){
   };
   state.worklogs = Array.isArray(state.worklogs) ? state.worklogs : [];
   state.invoices = Array.isArray(state.invoices) ? state.invoices : [];
+  state.behaviorAssessments = Array.isArray(state.behaviorAssessments) ? state.behaviorAssessments : [];
   state.invoices.push(invoice);
   state.nextInvoiceNumber++;
   saveState();
@@ -9372,6 +9381,7 @@ $("#btnCpSave").addEventListener("click",()=>{
     pet.name = petName;
     pet.breed = $("#p_breed").value.trim();
     pet.birthdate = $("#p_birthdate").value;
+    try{ const sx = document.getElementById("p_sex"); if(sx) pet.sex = sx.value; }catch(_){ }
     const cs = $("#p_chipStatus").value;
     if(!cs){ alert("Bitte bei „Gechippt?“ Ja oder Nein wählen."); return; }
     pet.chip = (cs==="yes");
@@ -10148,6 +10158,7 @@ function createInvoiceFromDoc(doc){
   };
   state.worklogs = Array.isArray(state.worklogs) ? state.worklogs : [];
   state.invoices = Array.isArray(state.invoices) ? state.invoices : [];
+  state.behaviorAssessments = Array.isArray(state.behaviorAssessments) ? state.behaviorAssessments : [];
   state.invoices.push(invoice);
   state.nextInvoiceNumber++;
   saveState();
@@ -14085,3 +14096,616 @@ function renderComplianceArchive(root){
   }catch(_){}
 })();
 
+
+
+// =====================
+// Statistik (Forschungsmodul)
+// =====================
+const STAT_DIMENSIONS = [
+  { key:"socialCompatibility", label:"Artgenossenverträglichkeit", group:"Sozialverhalten", hint:"1=sehr gut/entspannt · 10=stark unverträglich/konfliktbereit" },
+  { key:"resourceDefense", label:"Ressourcenverteidigung", group:"Sozialverhalten", hint:"Futter/Spielzeug/Platz verteidigen" },
+  { key:"impulseControl", label:"Impulskontrolle", group:"Sozialverhalten", hint:"1=sehr gut · 10=sehr impulsiv" },
+  { key:"frustrationTolerance", label:"Frustrationstoleranz", group:"Sozialverhalten", hint:"Warten/Abbruch/Abgrenzung" },
+
+  { key:"leadershipAcceptance", label:"Führbarkeit", group:"Menschenbezogen", hint:"Leinenhandling, Ansprechbarkeit" },
+  { key:"reactivity", label:"Reaktivität", group:"Menschenbezogen", hint:"Reize: Hund/Mensch/Umwelt" },
+  { key:"distanceBehavior", label:"Distanzverhalten", group:"Menschenbezogen", hint:"Nähe/Distanz zu Menschen" },
+  { key:"cooperation", label:"Kooperationsbereitschaft", group:"Menschenbezogen", hint:"Mitmachen, Handling, Pflege" },
+
+  { key:"baselineStress", label:"Grundanspannung", group:"Stress/Erregung", hint:"1=ruhig · 10=stark angespannt" },
+  { key:"displacement", label:"Übersprungshandlungen", group:"Stress/Erregung", hint:"z.B. Kratzen, Schütteln, Schnappen in Luft" },
+  { key:"hyperactivity", label:"Hyperaktivität", group:"Stress/Erregung", hint:"Motorik, Unruhe" },
+  { key:"withdrawal", label:"Rückzug/Vermeidung", group:"Stress/Erregung", hint:"Meiden, Rückzug, Freeze" }
+];
+
+function _statGetMainBreed(breed){
+  const s = String(breed||"").trim();
+  if(!s) return "—";
+  // Split by common separators; keep first meaningful token
+  const parts = s.split(/\s*(?:\+|\/|,|;|\bx\b|\bX\b|\bund\b|\&|\|)\s*/i).map(x=>x.trim()).filter(Boolean);
+  const first = parts[0] || s;
+  // normalize common suffixes
+  return first.replace(/\b(mix|mischling)\b/ig,'').trim() || first.trim();
+}
+function _statAgeYears(birthdate){
+  const d = _parseDateAny(birthdate);
+  if(!d) return null;
+  const now = new Date();
+  let years = now.getFullYear() - d.getFullYear();
+  const m = now.getMonth() - d.getMonth();
+  if(m < 0 || (m===0 && now.getDate() < d.getDate())) years--;
+  return (isFinite(years) && years>=0) ? years : null;
+}
+function _statTodayISO(){
+  const d=new Date();
+  const mm=String(d.getMonth()+1).padStart(2,'0');
+  const dd=String(d.getDate()).padStart(2,'0');
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+function _statDiffDays(a,b){
+  // a,b Date
+  const ms = 1000*60*60*24;
+  return Math.floor((a.getTime()-b.getTime())/ms);
+}
+function _statOverallIndex(scores){
+  const vals = STAT_DIMENSIONS.map(d=>Number(scores?.[d.key] ?? NaN)).filter(v=>isFinite(v));
+  if(!vals.length) return null;
+  return vals.reduce((x,y)=>x+y,0)/vals.length;
+}
+function _statStayDayOf(stay, dateISO){
+  const day = _parseDateAny(dateISO);
+  const from = _parseDateAny(stay?.from || stay?.meta?.von);
+  if(!day || !from) return null;
+  return _statDiffDays(day, from) + 1;
+}
+function _statIsRepeatDog(petId){
+  const stays = (state.stays||[]).filter(s=>s.petId===petId);
+  return stays.length >= 2;
+}
+function _statActiveStaysOn(dateISO){
+  const day = _parseDateAny(dateISO) || _parseDateAny(_statTodayISO());
+  if(!day) return [];
+  return (state.stays||[]).filter(s=>{
+    const from = _parseDateAny(s.from || s.meta?.von);
+    const to = _parseDateAny(s.to || s.meta?.bis);
+    if(!from || !to) return false;
+    return day >= from && day <= to;
+  });
+}
+
+function _statEl(id){ return document.getElementById(id); }
+
+function renderStatisticsPanel(){
+  ensureStateShape();
+
+  const dateEl = _statEl("statDate");
+  if(dateEl && !dateEl.value) dateEl.value = _statTodayISO();
+
+  // build scales UI once
+  const scalesWrap = _statEl("statScales");
+  if(scalesWrap && !scalesWrap.dataset.ready){
+    scalesWrap.dataset.ready="1";
+    const groups = {};
+    STAT_DIMENSIONS.forEach(d=>{
+      groups[d.group]=groups[d.group]||[];
+      groups[d.group].push(d);
+    });
+    let html = "";
+    Object.keys(groups).forEach(g=>{
+      html += `<div class="card" style="margin:10px 0; background:rgba(255,255,255,0.02);">`;
+      html += `<div class="muted" style="font-weight:700; margin-bottom:8px;">${escapeHtml(g)}</div>`;
+      groups[g].forEach(d=>{
+        html += `
+          <div class="row" style="flex-wrap:wrap; gap:10px; align-items:center; margin:8px 0;">
+            <div style="min-width:260px; flex:1;">
+              <div style="font-weight:600;">${escapeHtml(d.label)}</div>
+              <div class="muted" style="font-size:12px;">${escapeHtml(d.hint||"")}</div>
+            </div>
+            <div style="min-width:220px;">
+              <input type="range" min="1" max="10" step="1" value="5" class="stat-range" data-key="${d.key}" style="width:100%;" />
+              <div class="muted" style="font-size:12px; margin-top:4px;">Wert: <span class="stat-range-val" data-key="${d.key}">5</span></div>
+            </div>
+          </div>
+        `;
+      });
+      html += `</div>`;
+    });
+    scalesWrap.innerHTML = html;
+    scalesWrap.querySelectorAll(".stat-range").forEach(r=>{
+      r.addEventListener("input", ()=>{
+        const k=r.dataset.key;
+        const v = r.value;
+        const span = scalesWrap.querySelector(`.stat-range-val[data-key="${k}"]`);
+        if(span) span.textContent = String(v);
+      });
+    });
+  }
+
+  // populate dog selects
+  const dateISO = dateEl?.value || _statTodayISO();
+  const active = _statActiveStaysOn(dateISO);
+  const dogSelect = _statEl("statDogSelect");
+  const histSelect = _statEl("statDogHistory");
+  const metricSelect = _statEl("statMetric");
+  const breedAgg = _statEl("statAggBreed");
+
+  const petsById = Object.fromEntries((state.pets||[]).map(p=>[p.id,p]));
+  const customersById = Object.fromEntries((state.customers||[]).map(c=>[c.id,c]));
+  const activeItems = active.map(s=>{
+    const pet = petsById[s.petId] || {};
+    const cust = customersById[s.customerId] || {};
+    return {
+      stay: s,
+      pet,
+      cust,
+      label: `${pet.name||"Hund"}${pet.breed?(" · "+pet.breed):""} ${cust.name?(" · "+cust.name):""}`
+    };
+  });
+
+  function fillSelect(sel, items, placeholder){
+    if(!sel) return;
+    const cur = sel.value;
+    let opts = `<option value="">${escapeHtml(placeholder||"— bitte wählen —")}</option>`;
+    items.forEach(it=>{
+      opts += `<option value="${escapeHtml(it.value)}">${escapeHtml(it.label)}</option>`;
+    });
+    sel.innerHTML = opts;
+    if(cur && [...sel.options].some(o=>o.value===cur)) sel.value = cur;
+  }
+
+  fillSelect(dogSelect, activeItems.map(it=>({value:it.stay.id, label:it.label})), "— Hund wählen —");
+
+  // history select: all pets
+  const allPets = (state.pets||[]).map(p=>({
+    value: p.id,
+    label: `${p.name||"Hund"}${p.breed?(" · "+p.breed):""}`
+  }));
+  fillSelect(histSelect, allPets, "— Hund wählen —");
+
+  // metric select
+  if(metricSelect && !metricSelect.dataset.ready){
+    metricSelect.dataset.ready="1";
+    let opts = `<option value="overall">Gesamtindex (Ø)</option>`;
+    STAT_DIMENSIONS.forEach(d=>{
+      opts += `<option value="${d.key}">${escapeHtml(d.label)}</option>`;
+    });
+    metricSelect.innerHTML = opts;
+  }
+
+  // breed filter options for aggregation
+  if(breedAgg){
+    const breeds = new Set((state.pets||[]).map(p=>_statGetMainBreed(p.breed)).filter(b=>b && b!=="—"));
+    const sorted = Array.from(breeds).sort((a,b)=>a.localeCompare(b,"de"));
+    let opts = `<option value="">Alle</option>`;
+    sorted.forEach(b=> opts += `<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`);
+    breedAgg.innerHTML = opts;
+  }
+
+  // attach handlers once
+  const btnSave = _statEl("btnStatSave");
+  if(btnSave && !btnSave.dataset.bound){
+    btnSave.dataset.bound="1";
+    btnSave.addEventListener("click", saveStatAssessment);
+  }
+  const btnRedraw = _statEl("btnStatRedraw");
+  if(btnRedraw && !btnRedraw.dataset.bound){
+    btnRedraw.dataset.bound="1";
+    btnRedraw.addEventListener("click", ()=>renderStatHistory());
+  }
+  if(histSelect && !histSelect.dataset.bound){
+    histSelect.dataset.bound="1";
+    histSelect.addEventListener("change", ()=>renderStatHistory());
+  }
+  if(metricSelect && !metricSelect.dataset.bound){
+    metricSelect.dataset.bound="1";
+    metricSelect.addEventListener("change", ()=>renderStatHistory());
+  }
+
+  const btnAgg = _statEl("btnStatAgg");
+  if(btnAgg && !btnAgg.dataset.bound){
+    btnAgg.dataset.bound="1";
+    btnAgg.addEventListener("click", ()=>renderStatAggregation());
+  }
+  const btnCsv = _statEl("btnStatCsv");
+  if(btnCsv && !btnCsv.dataset.bound){
+    btnCsv.dataset.bound="1";
+    btnCsv.addEventListener("click", ()=>exportStatCsv());
+  }
+
+  // update meta when selection changes
+  if(dogSelect && !dogSelect.dataset.bound){
+    dogSelect.dataset.bound="1";
+    dogSelect.addEventListener("change", ()=>updateStatDogMeta());
+  }
+  if(dateEl && !dateEl.dataset.bound){
+    dateEl.dataset.bound="1";
+    dateEl.addEventListener("change", ()=>{
+      renderStatisticsPanel(); // refresh active list
+      updateStatDogMeta();
+    });
+  }
+
+  updateStatDogMeta();
+  renderStatHistory();
+  renderStatAggregation();
+}
+
+function updateStatDogMeta(){
+  const metaEl = _statEl("statDogMeta");
+  const sel = _statEl("statDogSelect");
+  const dateISO = _statEl("statDate")?.value || _statTodayISO();
+  const sexEl = _statEl("statSex");
+  if(!metaEl || !sel) return;
+
+  const stayId = sel.value;
+  if(!stayId){ metaEl.textContent = ""; return; }
+  const stay = (state.stays||[]).find(s=>s.id===stayId);
+  const pet = (state.pets||[]).find(p=>p.id===stay?.petId) || {};
+  const cust = (state.customers||[]).find(c=>c.id===stay?.customerId) || {};
+  const mainBreed = _statGetMainBreed(pet.breed);
+  const age = _statAgeYears(pet.birthdate);
+  const dayOf = _statStayDayOf(stay, dateISO);
+  const repeat = _statIsRepeatDog(pet.id) ? "Stammgast" : "Erstkontakt";
+  metaEl.innerHTML = `${escapeHtml(mainBreed)}${age!=null?(" · "+age+" J."):""}${pet.sex?(" · "+escapeHtml(pet.sex)):""}<br>${escapeHtml(cust.name||"")} · Tag ${dayOf||"?"} · ${repeat}`;
+  if(sexEl && !sexEl.value){
+    // auto fill from pet if present
+    if(pet.sex) sexEl.value = pet.sex;
+  }
+}
+
+function saveStatAssessment(){
+  ensureStateShape();
+  const msgEl = _statEl("statSaveMsg");
+  const dateISO = _statEl("statDate")?.value || _statTodayISO();
+  const stayId = _statEl("statDogSelect")?.value || "";
+  const type = _statEl("statType")?.value || "arrival";
+  const notes = _statEl("statNotes")?.value || "";
+  const sex = _statEl("statSex")?.value || "";
+
+  if(!stayId){
+    if(msgEl) msgEl.textContent = "❌ Bitte zuerst einen Hund auswählen.";
+    return;
+  }
+  const stay = (state.stays||[]).find(s=>s.id===stayId);
+  const pet = (state.pets||[]).find(p=>p.id===stay?.petId) || {};
+  const mainBreed = _statGetMainBreed(pet.breed);
+  const dayOf = _statStayDayOf(stay, dateISO);
+
+  const scores = {};
+  const wrap = _statEl("statScales");
+  STAT_DIMENSIONS.forEach(d=>{
+    const r = wrap?.querySelector(`.stat-range[data-key="${d.key}"]`);
+    const v = r ? Number(r.value) : NaN;
+    scores[d.key] = (isFinite(v) ? Math.max(1, Math.min(10, v)) : 5);
+  });
+
+  // Persist sex back to pet (so "auto" becomes true going forward)
+  try{
+    if(sex && pet){
+      pet.sex = sex;
+      saveState();
+      cloudSaveSoon("pet.sex update");
+    }
+  }catch(_){ }
+
+  const entry = {
+    id: "ba_"+uid(),
+    dogId: stay?.petId || pet.id || "",
+    dogName: pet.name||"",
+    breedMainType: mainBreed,
+    ageYears: _statAgeYears(pet.birthdate),
+    sex: sex || pet.sex || "",
+    isRepeat: _statIsRepeatDog(pet.id),
+    stayId: stayId,
+    assessmentType: type,
+    assessmentDate: dateISO,
+    dayOfStay: dayOf,
+    scores,
+    notes,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+
+  // avoid duplicates: same stayId + type + date
+  const dup = (state.behaviorAssessments||[]).some(a=>a.stayId===stayId && a.assessmentType===type && a.assessmentDate===dateISO);
+  if(dup){
+    if(!confirm("Es existiert bereits eine Bewertung für diesen Aufenthalt / Typ / Tag.
+Trotzdem zusätzlich speichern?")) return;
+  }
+
+  state.behaviorAssessments.push(entry);
+  saveState();
+  cloudSaveSoon("behaviorAssessments add");
+
+  if(msgEl) msgEl.textContent = "✅ Gespeichert.";
+  try{ setTimeout(()=>{ if(msgEl) msgEl.textContent=""; }, 2500); }catch(_){ }
+
+  // refresh downstream
+  renderStatHistory();
+  renderStatAggregation();
+}
+
+function renderStatHistory(){
+  ensureStateShape();
+  const petId = _statEl("statDogHistory")?.value || "";
+  const metric = _statEl("statMetric")?.value || "overall";
+  const canvas = _statEl("statCanvas");
+  const tbl = _statEl("statHistoryTable");
+
+  const items = (state.behaviorAssessments||[])
+    .filter(a=>!petId || a.dogId===petId)
+    .map(a=>({ ...a, _d:_parseDateAny(a.assessmentDate)||_parseDateAny(a.createdAt)||new Date(0) }))
+    .sort((a,b)=>a._d - b._d);
+
+  // table (latest 30)
+  if(tbl){
+    const last = items.slice(-30).reverse();
+    let h = `<div class="muted" style="margin-bottom:6px;">Letzte Einträge (max. 30)</div>`;
+    h += `<div class="table-wrap"><table class="table"><thead><tr>
+      <th>Datum</th><th>Hund</th><th>Rasse</th><th>Typ</th><th>Tag</th><th>Index Ø</th><th>Notiz</th>
+    </tr></thead><tbody>`;
+    last.forEach(a=>{
+      const idx = _statOverallIndex(a.scores);
+      h += `<tr>
+        <td>${escapeHtml(a.assessmentDate||"")}</td>
+        <td>${escapeHtml(a.dogName||"")}</td>
+        <td>${escapeHtml(a.breedMainType||"")}</td>
+        <td>${escapeHtml(a.assessmentType||"")}</td>
+        <td>${escapeHtml(String(a.dayOfStay||""))}</td>
+        <td>${idx==null?"":escapeHtml(idx.toFixed(2))}</td>
+        <td class="muted">${escapeHtml((a.notes||"").slice(0,80))}</td>
+      </tr>`;
+    });
+    h += `</tbody></table></div>`;
+    tbl.innerHTML = h;
+  }
+
+  if(canvas){
+    _drawStatLineChart(canvas, items, metric);
+  }
+}
+
+function _drawStatLineChart(canvas, items, metric){
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0,0,W,H);
+
+  // background grid
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = "rgba(0,0,0,0)";
+  ctx.fillRect(0,0,W,H);
+
+  const padL=60, padR=20, padT=20, padB=44;
+  const plotW=W-padL-padR;
+  const plotH=H-padT-padB;
+
+  // collect points: x by dayOfStay within each stay? We'll use chronological order; x is sequential index
+  const pts = items.map((a,i)=>{
+    let y = null;
+    if(metric==="overall") y = _statOverallIndex(a.scores);
+    else y = Number(a.scores?.[metric] ?? NaN);
+    if(!isFinite(y)) y = null;
+    return {x:i, y, label:a.assessmentDate||"", type:a.assessmentType||""};
+  }).filter(p=>p.y!=null);
+
+  // axes
+  ctx.strokeStyle = "rgba(255,255,255,0.18)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(padL, padT);
+  ctx.lineTo(padL, padT+plotH);
+  ctx.lineTo(padL+plotW, padT+plotH);
+  ctx.stroke();
+
+  // y grid 1..10
+  ctx.fillStyle = "rgba(255,255,255,0.55)";
+  ctx.font = "12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+  for(let v=1; v<=10; v++){
+    const y = padT + plotH - ( (v-1)/9 )*plotH;
+    ctx.strokeStyle = "rgba(255,255,255,0.08)";
+    ctx.beginPath();
+    ctx.moveTo(padL, y);
+    ctx.lineTo(padL+plotW, y);
+    ctx.stroke();
+    if(v===1 || v===5 || v===10){
+      ctx.fillText(String(v), 18, y+4);
+    }
+  }
+
+  if(!pts.length){
+    ctx.fillStyle = "rgba(255,255,255,0.5)";
+    ctx.fillText("Keine Daten für Diagramm.", padL+10, padT+30);
+    return;
+  }
+
+  const minX = 0;
+  const maxX = Math.max(1, pts[pts.length-1].x);
+  const xToPx = (x)=> padL + (x-minX)/(maxX-minX) * plotW;
+  const yToPx = (y)=> padT + plotH - ((y-1)/9)*plotH;
+
+  // line
+  ctx.strokeStyle = "rgba(255,255,255,0.85)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  pts.forEach((p,idx)=>{
+    const x=xToPx(p.x), y=yToPx(p.y);
+    if(idx===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+
+  // points
+  ctx.fillStyle = "rgba(255,255,255,0.9)";
+  pts.forEach(p=>{
+    const x=xToPx(p.x), y=yToPx(p.y);
+    ctx.beginPath();
+    ctx.arc(x,y,3.2,0,Math.PI*2);
+    ctx.fill();
+  });
+
+  // x labels (last up to 6)
+  const nLab = Math.min(6, pts.length);
+  for(let i=0; i<nLab; i++){
+    const p = pts[Math.floor(i*(pts.length-1)/(nLab-1 || 1))];
+    const x=xToPx(p.x);
+    ctx.fillStyle = "rgba(255,255,255,0.55)";
+    const t = (p.label||"").replace(/^\d{4}-/,''); // show MM-DD
+    ctx.fillText(t, x-18, padT+plotH+26);
+  }
+
+  // title
+  ctx.fillStyle = "rgba(255,255,255,0.75)";
+  const title = (metric==="overall") ? "Gesamtindex (Ø)" : (STAT_DIMENSIONS.find(d=>d.key===metric)?.label || metric);
+  ctx.fillText(title, padL, 14);
+}
+
+function _statFilterByRange(items, fromISO, toISO){
+  const from = fromISO ? _parseDateAny(fromISO) : null;
+  const to = toISO ? _parseDateAny(toISO) : null;
+  return items.filter(a=>{
+    const d = _parseDateAny(a.assessmentDate) || _parseDateAny(a.createdAt);
+    if(!d) return false;
+    if(from && d < from) return false;
+    if(to && d > to) return false;
+    return true;
+  });
+}
+
+function renderStatAggregation(){
+  ensureStateShape();
+  const out = _statEl("statAggTable");
+  if(!out) return;
+
+  const fromISO = _statEl("statAggFrom")?.value || "";
+  const toISO = _statEl("statAggTo")?.value || "";
+  const breed = _statEl("statAggBreed")?.value || "";
+  const minN = Number(_statEl("statAggMinN")?.value || 1);
+
+  const all = _statFilterByRange((state.behaviorAssessments||[]), fromISO, toISO)
+    .filter(a=>!breed || a.breedMainType===breed);
+
+  // pair per stayId: arrival & departure
+  const byStay = {};
+  all.forEach(a=>{
+    const k = a.stayId || ("nostay:"+a.dogId);
+    byStay[k]=byStay[k]||{arrival:null, departure:null, items:[]};
+    byStay[k].items.push(a);
+    if(a.assessmentType==="arrival"){
+      // choose earliest arrival
+      if(!byStay[k].arrival || (a.dayOfStay||999) < (byStay[k].arrival.dayOfStay||999)) byStay[k].arrival=a;
+    }
+    if(a.assessmentType==="departure"){
+      // choose latest departure
+      if(!byStay[k].departure || (a.dayOfStay||0) > (byStay[k].departure.dayOfStay||0)) byStay[k].departure=a;
+    }
+  });
+
+  const rows=[];
+  Object.values(byStay).forEach(s=>{
+    if(!s.arrival || !s.departure) return;
+    const a=s.arrival, d=s.departure;
+    const ai=_statOverallIndex(a.scores); const di=_statOverallIndex(d.scores);
+    if(ai==null || di==null) return;
+    rows.push({
+      breed: a.breedMainType||"—",
+      sex: a.sex||"",
+      age: a.ageYears,
+      isRepeat: !!a.isRepeat,
+      stayId: a.stayId,
+      startIndex: ai,
+      endIndex: di,
+      delta: di-ai,
+      days: (d.dayOfStay && a.dayOfStay) ? (d.dayOfStay - a.dayOfStay) : null
+    });
+  });
+
+  // aggregate by breed
+  const agg={};
+  rows.forEach(r=>{
+    const b=r.breed||"—";
+    agg[b]=agg[b]||{breed:b,n:0,avgStart:0,avgEnd:0,avgDelta:0,sdDelta:0, deltas:[]};
+    const g=agg[b];
+    g.n++;
+    g.avgStart+=r.startIndex;
+    g.avgEnd+=r.endIndex;
+    g.avgDelta+=r.delta;
+    g.deltas.push(r.delta);
+  });
+  const outRows = Object.values(agg).map(g=>{
+    g.avgStart/=g.n;
+    g.avgEnd/=g.n;
+    g.avgDelta/=g.n;
+    // sd
+    const mean=g.avgDelta;
+    const varr = g.deltas.reduce((s,x)=>s+Math.pow(x-mean,2),0)/g.n;
+    g.sdDelta=Math.sqrt(varr);
+    return g;
+  }).filter(g=>g.n>=minN)
+    .sort((a,b)=>b.n-a.n);
+
+  let h = `<div class="muted" style="margin-bottom:6px;">Paare (Ankunft ↔ Abreise): ${rows.length} · Gruppen (N≥${minN}): ${outRows.length}</div>`;
+  h += `<div class="table-wrap"><table class="table"><thead><tr>
+    <th>Rasse (Haupttyp)</th><th>N</th><th>Ø Ankunft</th><th>Ø Abreise</th><th>Ø Δ</th><th>SD(Δ)</th>
+  </tr></thead><tbody>`;
+  outRows.forEach(g=>{
+    h += `<tr>
+      <td>${escapeHtml(g.breed)}</td>
+      <td>${g.n}</td>
+      <td>${g.avgStart.toFixed(2)}</td>
+      <td>${g.avgEnd.toFixed(2)}</td>
+      <td>${g.avgDelta.toFixed(2)}</td>
+      <td>${g.sdDelta.toFixed(2)}</td>
+    </tr>`;
+  });
+  h += `</tbody></table></div>`;
+  out.innerHTML = h;
+}
+
+function exportStatCsv(){
+  ensureStateShape();
+  const fromISO = _statEl("statAggFrom")?.value || "";
+  const toISO = _statEl("statAggTo")?.value || "";
+  const breed = _statEl("statAggBreed")?.value || "";
+  const all = _statFilterByRange((state.behaviorAssessments||[]), fromISO, toISO)
+    .filter(a=>!breed || a.breedMainType===breed);
+
+  const lines=[];
+  const header = [
+    "assessmentId","stayId","dogId","dogName","breedMainType","sex","ageYears","isRepeat",
+    "assessmentType","assessmentDate","dayOfStay","overallIndex",
+    ...STAT_DIMENSIONS.map(d=>d.key),
+    "notes"
+  ];
+  lines.push(header.join(","));
+  all.forEach(a=>{
+    const row = [];
+    row.push(a.id||"");
+    row.push(a.stayId||"");
+    row.push(a.dogId||"");
+    row.push(a.dogName||"");
+    row.push(a.breedMainType||"");
+    row.push(a.sex||"");
+    row.push(a.ageYears!=null?String(a.ageYears):"");
+    row.push(a.isRepeat? "1":"0");
+    row.push(a.assessmentType||"");
+    row.push(a.assessmentDate||"");
+    row.push(a.dayOfStay!=null?String(a.dayOfStay):"");
+    const oi = _statOverallIndex(a.scores);
+    row.push(oi!=null?oi.toFixed(4):"");
+    STAT_DIMENSIONS.forEach(d=>{
+      const v = Number(a.scores?.[d.key] ?? "");
+      row.push(isFinite(v)?String(v):"");
+    });
+    row.push((a.notes||"").replace(/\r?\n/g," ").replace(/"/g,'""'));
+    // csv escape
+    const esc = (x)=> {
+      const s=String(x??"");
+      if(/[",\n]/.test(s)) return `"${s.replace(/"/g,'""')}"`;
+      return s;
+    };
+    lines.push(row.map(esc).join(","));
+  });
+
+  const csv = lines.join("\n");
+  const fname = `statistik_export_${(new Date()).toISOString().slice(0,10)}.csv`;
+  try{ downloadBlob(fname, new Blob([csv], {type:"text/csv;charset=utf-8"})); }catch(e){ console.warn(e); }
+}

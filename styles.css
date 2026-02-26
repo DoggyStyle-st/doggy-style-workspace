@@ -999,3 +999,7 @@ body.page-login .btnLink--text:hover{
 .trChip{position:relative;display:inline-flex;align-items:center;gap:8px;padding:6px 10px 6px 38px;border:1px solid rgba(255,255,255,.14);border-radius:999px;background:rgba(255,255,255,.06);} 
 .trChip input{position:absolute;left:12px;top:50%;transform:translateY(-50%) scale(.9);}
 .trChip span{white-space:nowrap;}
+
+
+/* Statistik module */
+.stat-range{ accent-color: rgba(255,255,255,0.85); }
