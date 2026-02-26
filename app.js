@@ -14409,8 +14409,7 @@ function saveStatAssessment(){
   // avoid duplicates: same stayId + type + date
   const dup = (state.behaviorAssessments||[]).some(a=>a.stayId===stayId && a.assessmentType===type && a.assessmentDate===dateISO);
   if(dup){
-    if(!confirm("Es existiert bereits eine Bewertung für diesen Aufenthalt / Typ / Tag.
-Trotzdem zusätzlich speichern?")) return;
+    if(!confirm("Es existiert bereits eine Bewertung für diesen Aufenthalt / Typ / Tag.\nTrotzdem zusätzlich speichern?")) return;
   }
 
   state.behaviorAssessments.push(entry);
