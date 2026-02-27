@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.5.2_STATISTIK_SCALES_RENDERFIX_20260227",
+  tag: "M50.6.0_STABLE_STAT_FORSCHUNG_20260227",
   channel: "MASTER",
   frozenAt: "2026-02-27T00:10:00"
 };
@@ -11,7 +11,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
-const APP_BUILD = 'M50.5.2_STATISTIK_SCALES_RENDERFIX_20260227';
+const APP_BUILD = 'M50.6.0_STABLE_STAT_FORSCHUNG_20260227';
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 (function DS_BUILD_GUARD_RECOVERY(){
@@ -14175,6 +14175,12 @@ function _statActiveStaysOn(dateISO){
 
 function _statEl(id){ return document.getElementById(id); }
 
+
+// Compatibility alias: some UI hooks call renderStatScales()
+function renderStatScales(){
+  try{ renderStatisticsPanel(); }catch(_){ }
+}
+
 function renderStatisticsPanel(){
   ensureStateShape();
 
@@ -14726,19 +14732,29 @@ function exportStatCsv(){
 }
 
 
-/* ===== STATISTIK TAB RENDER FIX (M50.5.2b) ===== */
-document.addEventListener("DOMContentLoaded", function() {
-  const statButton = Array.from(document.querySelectorAll("button, .tab, .nav-item"))
-    .find(el => el.textContent && el.textContent.trim().toLowerCase().includes("statistik"));
-
-  if (statButton) {
-    statButton.addEventListener("click", function() {
-      setTimeout(function() {
-        if (typeof renderStatScales === "function") {
-          renderStatScales();
-        }
-      }, 50);
+/* ===== STATISTIK TAB RENDER FIX (M50.6.0) =====
+   Ensures statistic scales render reliably on tab switch and after re-activation.
+   No reloads, no side effects.
+===== */
+(function(){
+  function hook(){
+    const btn = document.getElementById("tabStatistics") ||
+      Array.from(document.querySelectorAll("button.tab,[data-tab]"))
+        .find(el => (el.dataset && el.dataset.tab==="statistics") ||
+                    ((el.textContent||"").trim().toLowerCase()==="statistik"));
+    if(!btn) return;
+    if(btn.dataset._statHooked) return;
+    btn.dataset._statHooked = "1";
+    btn.addEventListener("click", function(){
+      // Defer to allow panel activation CSS to apply
+      setTimeout(function(){ try{ renderStatisticsPanel(); }catch(_){ } }, 30);
+      setTimeout(function(){ try{ renderStatisticsPanel(); }catch(_){ } }, 250);
     });
   }
-});
-/* ===== END FIX ===== */
+  if(document.readyState==="loading"){
+    document.addEventListener("DOMContentLoaded", hook);
+  }else{
+    hook();
+  }
+})();
+ /* ===== END FIX ===== */
