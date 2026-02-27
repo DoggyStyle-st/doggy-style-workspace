@@ -1354,8 +1354,8 @@
 </script>
 
 <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
-  </script>
+    if ('serviceWorker' in navigator) if (!location.search.includes('nosw=1')) { navigator.serviceWorker.register('./sw.js'); }
+</script>
 
 <script>
 /* Logout-Fix: verhindert Tab-Navigation (Startseite) und führt echtes SignOut aus */
