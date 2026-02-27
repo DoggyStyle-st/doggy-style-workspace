@@ -14724,3 +14724,21 @@ function exportStatCsv(){
   const fname = `statistik_export_${(new Date()).toISOString().slice(0,10)}.csv`;
   try{ downloadBlob(fname, new Blob([csv], {type:"text/csv;charset=utf-8"})); }catch(e){ console.warn(e); }
 }
+
+
+/* ===== STATISTIK TAB RENDER FIX (M50.5.2b) ===== */
+document.addEventListener("DOMContentLoaded", function() {
+  const statButton = Array.from(document.querySelectorAll("button, .tab, .nav-item"))
+    .find(el => el.textContent && el.textContent.trim().toLowerCase().includes("statistik"));
+
+  if (statButton) {
+    statButton.addEventListener("click", function() {
+      setTimeout(function() {
+        if (typeof renderStatScales === "function") {
+          renderStatScales();
+        }
+      }, 50);
+    });
+  }
+});
+/* ===== END FIX ===== */
