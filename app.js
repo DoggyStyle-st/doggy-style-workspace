@@ -1,9 +1,9 @@
-const APP_VERSION = "M50.6.2_STABLE_VERSION_ENGINE_20260227";
+const APP_VERSION = "M50.6.3_STAT_SCALES_FORCE_RENDER_20260227";
 
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.6.2_STABLE_VERSION_ENGINE_20260227",
+  tag: "M50.6.3_STAT_SCALES_FORCE_RENDER_20260227",
   channel: "MASTER",
   frozenAt: "2026-02-27T00:10:00"
 };
@@ -13,7 +13,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
-const APP_BUILD = 'M50.6.2_STABLE_VERSION_ENGINE_20260227';
+const APP_BUILD = 'M50.6.3_STAT_SCALES_FORCE_RENDER_20260227';
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 (function DS_BUILD_GUARD_RECOVERY(){
@@ -14185,7 +14185,10 @@ function renderStatisticsPanel(){
 
   // build scales UI once
   const scalesWrap = _statEl("statScales");
-  if(scalesWrap && (!scalesWrap.dataset.ready || !scalesWrap.innerHTML || !scalesWrap.innerHTML.trim())){
+  if(scalesWrap){
+    // Force rebuild each time the panel opens (Safari/PWA can drop innerHTML after BFCache/visibility changes)
+    scalesWrap.dataset.ready="";
+    scalesWrap.innerHTML="";
     scalesWrap.dataset.ready="1";
     const dims = (Array.isArray(STAT_DIMENSIONS) && STAT_DIMENSIONS.length)
       ? STAT_DIMENSIONS
@@ -14744,3 +14747,14 @@ document.addEventListener("DOMContentLoaded", function() {
   }
 });
 /* ===== END FIX ===== */
+
+
+/* === STATISTICS TAB HARD RENDER HOOK (M50.6.3) === */
+(function(){
+  const btn = document.getElementById('tabStatistics');
+  if(btn && !btn.dataset.boundStatHard){
+    btn.dataset.boundStatHard="1";
+    btn.addEventListener('click', ()=>{ try{ renderStatisticsPanel(); }catch(_){ } });
+  }
+})();
+
