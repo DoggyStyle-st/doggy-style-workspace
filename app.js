@@ -1,9 +1,9 @@
-const APP_VERSION = "M50.6.3_STAT_SCALES_FORCE_RENDER_20260227";
+const APP_VERSION = "M50.6.4_STAT_SCALES_RENDER_BIND_FIX_20260227";
 
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.6.3_STAT_SCALES_FORCE_RENDER_20260227",
+  tag: "M50.6.4_STAT_SCALES_RENDER_BIND_FIX_20260227",
   channel: "MASTER",
   frozenAt: "2026-02-27T00:10:00"
 };
@@ -13,7 +13,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
-const APP_BUILD = 'M50.6.3_STAT_SCALES_FORCE_RENDER_20260227';
+const APP_BUILD = 'M50.6.4_STAT_SCALES_RENDER_BIND_FIX_20260227';
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 (function DS_BUILD_GUARD_RECOVERY(){
@@ -14749,12 +14749,31 @@ document.addEventListener("DOMContentLoaded", function() {
 /* ===== END FIX ===== */
 
 
-/* === STATISTICS TAB HARD RENDER HOOK (M50.6.3) === */
-(function(){
-  const btn = document.getElementById('tabStatistics');
-  if(btn && !btn.dataset.boundStatHard){
-    btn.dataset.boundStatHard="1";
-    btn.addEventListener('click', ()=>{ try{ renderStatisticsPanel(); }catch(_){ } });
+/* === STATISTICS TAB HARD RENDER HOOK (M50.6.4) === */
+document.addEventListener("DOMContentLoaded", function(){
+  function bindAndRender(){
+    const btn = document.getElementById("tabStatistics");
+    if(btn && !btn.dataset.boundStatHard){
+      btn.dataset.boundStatHard = "1";
+      btn.addEventListener("click", function(){
+        try { if (typeof renderStatisticsPanel === "function") renderStatisticsPanel(); } catch(e) { console.warn(e); }
+      });
+    }
   }
-})();
+  bindAndRender();
 
+  // Also render when statistics panel becomes visible (Safari BFCache / tab toggles)
+  const panel = document.getElementById("statistics");
+  if(panel && !panel.dataset.boundStatObserver){
+    panel.dataset.boundStatObserver = "1";
+    const obs = new MutationObserver(function(){
+      try{
+        const isVisible = panel.offsetParent !== null && getComputedStyle(panel).display !== "none";
+        if(isVisible && typeof renderStatisticsPanel === "function"){
+          renderStatisticsPanel();
+        }
+      }catch(e){ /* ignore */ }
+    });
+    obs.observe(panel, {attributes:true, attributeFilter:["style","class"]});
+  }
+});
