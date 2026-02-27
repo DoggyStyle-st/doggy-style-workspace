@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.5.2_STATISTIK_SCALES_RENDERFIX_20260227",
+  tag: "M50.6.1_STABLE_STAT_RENDERFIX_20260227",
   channel: "MASTER",
   frozenAt: "2026-02-27T00:10:00"
 };
