@@ -3,7 +3,7 @@ const APP_VERSION = "M50.6.2_STABLE_VERSION_ENGINE_20260227";
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.5.2_STATISTIK_SCALES_RENDERFIX_20260227",
+  tag: "M50.6.2_STABLE_VERSION_ENGINE_20260227",
   channel: "MASTER",
   frozenAt: "2026-02-27T00:10:00"
 };
@@ -13,7 +13,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
-const APP_BUILD = 'M50.5.2_STATISTIK_SCALES_RENDERFIX_20260227';
+const APP_BUILD = 'M50.6.2_STABLE_VERSION_ENGINE_20260227';
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 (function DS_BUILD_GUARD_RECOVERY(){
