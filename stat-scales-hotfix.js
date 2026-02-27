@@ -1,6 +1,6 @@
 /**
  * Doggy Style Workspace – Statistik Skalen Hotfix
- * Build: M50.6.5_STAT_SCALES_INIT_20260227
+ * Build: M50.6.6_STABLE_SW_OFFLINE_FIX_20260227
  *
  * Ziel: Standardisierte Merkmale (Skalen 1–10) IMMER rendern – unabhängig von Feature-Flags / Timing.
  * Einbau: app.html -> nach app.js einbinden:
@@ -8,7 +8,7 @@
  */
 
 (function() {
-  const BUILD = "M50.6.5_STAT_SCALES_INIT_20260227";
+  const BUILD = "M50.6.6_STABLE_SW_OFFLINE_FIX_20260227";
 
   // Try to override build label without touching existing core logic
   try {
