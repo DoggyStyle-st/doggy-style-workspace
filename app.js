@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.6.0_STABLE_STAT_FORSCHUNG_20260227",
+  tag: "M50.5.2_STATISTIK_SCALES_RENDERFIX_20260227",
   channel: "MASTER",
   frozenAt: "2026-02-27T00:10:00"
 };
@@ -11,7 +11,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
-const APP_BUILD = 'M50.6.0_STABLE_STAT_FORSCHUNG_20260227';
+const APP_BUILD = 'M50.5.2_STATISTIK_SCALES_RENDERFIX_20260227';
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 (function DS_BUILD_GUARD_RECOVERY(){
@@ -14175,204 +14175,55 @@ function _statActiveStaysOn(dateISO){
 
 function _statEl(id){ return document.getElementById(id); }
 
+function renderStatisticsPanel() {
+  const container = document.getElementById("statScales");
+  if (!container) return;
 
-// Compatibility alias: some UI hooks call renderStatScales()
-function renderStatScales(){
-  try{ renderStatisticsPanel(); }catch(_){ }
-}
+  const DIMENSIONS = [
+    { key: "socialCompatibility", label: "Artgenossenverträglichkeit" },
+    { key: "resourceDefense", label: "Ressourcenverteidigung" },
+    { key: "impulseControl", label: "Impulskontrolle" },
+    { key: "frustrationTolerance", label: "Frustrationstoleranz" },
+    { key: "leadershipAcceptance", label: "Führbarkeit" },
+    { key: "reactivity", label: "Reaktivität" },
+    { key: "distanceBehavior", label: "Distanzverhalten" },
+    { key: "cooperation", label: "Kooperationsbereitschaft" },
+    { key: "baselineStress", label: "Grundanspannung" },
+    { key: "displacement", label: "Übersprungshandlungen" },
+    { key: "hyperactivity", label: "Hyperaktivität" },
+    { key: "withdrawal", label: "Rückzugsverhalten" }
+  ];
 
-function renderStatisticsPanel(){
-  ensureStateShape();
+  container.innerHTML = "";
 
-  const dateEl = _statEl("statDate");
-  if(dateEl && !dateEl.value) dateEl.value = _statTodayISO();
+  DIMENSIONS.forEach(dim => {
+    const wrapper = document.createElement("div");
+    wrapper.className = "stat-dimension";
 
-  // build scales UI once
-  const scalesWrap = _statEl("statScales");
-  if(scalesWrap && (!scalesWrap.dataset.ready || !scalesWrap.innerHTML || !scalesWrap.innerHTML.trim())){
-    scalesWrap.dataset.ready="1";
-    const dims = (Array.isArray(STAT_DIMENSIONS) && STAT_DIMENSIONS.length)
-      ? STAT_DIMENSIONS
-      : [
-          { key:"socialCompatibility", label:"Artgenossenverträglichkeit", group:"Sozialverhalten", hint:"1=sehr gut/entspannt · 10=stark unverträglich/konfliktbereit" },
-          { key:"resourceDefense", label:"Ressourcenverteidigung", group:"Sozialverhalten", hint:"Futter/Spielzeug/Platz verteidigen" },
-          { key:"impulseControl", label:"Impulskontrolle", group:"Sozialverhalten", hint:"1=sehr gut · 10=sehr impulsiv" },
-          { key:"frustrationTolerance", label:"Frustrationstoleranz", group:"Sozialverhalten", hint:"1=hoch · 10=sehr niedrig" },
-          { key:"leadershipAcceptance", label:"Führbarkeit / Strukturannahme", group:"Menschenbezogen", hint:"1=sehr gut · 10=sehr schwierig" },
-          { key:"reactivity", label:"Reaktivität", group:"Menschenbezogen", hint:"1=ruhig · 10=sehr reaktiv" },
-          { key:"distanceBehavior", label:"Distanzverhalten", group:"Menschenbezogen", hint:"1=unauffällig · 10=stark auffällig" },
-          { key:"cooperation", label:"Kooperationsbereitschaft", group:"Menschenbezogen", hint:"1=hoch · 10=gering" },
-          { key:"baselineStress", label:"Grundanspannung / Stress", group:"Stress / Erregung", hint:"1=entspannt · 10=hoch gestresst" },
-          { key:"displacement", label:"Übersprungshandlungen", group:"Stress / Erregung", hint:"z.B. Lecken, Schütteln, Kratzen" },
-          { key:"hyperactivity", label:"Hyperaktivität", group:"Stress / Erregung", hint:"1=ruhig · 10=extrem" },
-          { key:"withdrawal", label:"Rückzugsverhalten", group:"Stress / Erregung", hint:"1=offen · 10=starker Rückzug" },
-        ];
-    const groups = {};
-    dims.forEach(d=>{
-      groups[d.group]=groups[d.group]||[];
-      groups[d.group].push(d);
+    const label = document.createElement("label");
+    label.textContent = dim.label;
+
+    const valueDisplay = document.createElement("span");
+    valueDisplay.textContent = "5";
+    valueDisplay.style.marginLeft = "10px";
+
+    const slider = document.createElement("input");
+    slider.type = "range";
+    slider.min = 1;
+    slider.max = 10;
+    slider.value = 5;
+    slider.className = "stat-slider";
+
+    slider.addEventListener("input", () => {
+      valueDisplay.textContent = slider.value;
     });
-    let html = "";
-    Object.keys(groups).forEach(g=>{
-      html += `<div class="card" style="margin:10px 0; background:rgba(255,255,255,0.02);">`;
-      html += `<div class="muted" style="font-weight:700; margin-bottom:8px;">${escapeHtml(g)}</div>`;
-      groups[g].forEach(d=>{
-        html += `
-          <div class="row" style="flex-wrap:wrap; gap:10px; align-items:center; margin:8px 0;">
-            <div style="min-width:260px; flex:1;">
-              <div style="font-weight:600;">${escapeHtml(d.label)}</div>
-              <div class="muted" style="font-size:12px;">${escapeHtml(d.hint||"")}</div>
-            </div>
-            <div style="min-width:220px;">
-              <input type="range" min="1" max="10" step="1" value="5" class="stat-range" data-key="${d.key}" style="width:100%;" />
-              <div class="muted" style="font-size:12px; margin-top:4px;">Wert: <span class="stat-range-val" data-key="${d.key}">5</span></div>
-            </div>
-          </div>
-        `;
-      });
-      html += `</div>`;
-    });
-    scalesWrap.innerHTML = html;
-    scalesWrap.querySelectorAll(".stat-range").forEach(r=>{
-      r.addEventListener("input", ()=>{
-        const k=r.dataset.key;
-        const v = r.value;
-        const span = scalesWrap.querySelector(`.stat-range-val[data-key="${k}"]`);
-        if(span) span.textContent = String(v);
-      });
-    });
-  }
 
-  // populate dog selects
-  const dateISO = dateEl?.value || _statTodayISO();
-  const active = _statActiveStaysOn(dateISO);
-  const dogSelect = _statEl("statDogSelect");
-  const histSelect = _statEl("statDogHistory");
-  const metricSelect = _statEl("statMetric");
-  const breedAgg = _statEl("statAggBreed");
+    wrapper.appendChild(label);
+    wrapper.appendChild(valueDisplay);
+    wrapper.appendChild(slider);
 
-  const petsById = Object.fromEntries((state.pets||[]).map(p=>[p.id,p]));
-  const customersById = Object.fromEntries((state.customers||[]).map(c=>[c.id,c]));
-  const activeItems = active.map(s=>{
-    const pet = petsById[s.petId] || {};
-    const cust = customersById[s.customerId] || {};
-    return {
-      stay: s,
-      pet,
-      cust,
-      label: `${pet.name||"Hund"}${pet.breed?(" · "+pet.breed):""} ${cust.name?(" · "+cust.name):""}`
-    };
+    container.appendChild(wrapper);
   });
-
-  function fillSelect(sel, items, placeholder){
-    if(!sel) return;
-    const cur = sel.value;
-    let opts = `<option value="">${escapeHtml(placeholder||"— bitte wählen —")}</option>`;
-    items.forEach(it=>{
-      opts += `<option value="${escapeHtml(it.value)}">${escapeHtml(it.label)}</option>`;
-    });
-    sel.innerHTML = opts;
-    if(cur && [...sel.options].some(o=>o.value===cur)) sel.value = cur;
-  }
-
-  fillSelect(dogSelect, activeItems.map(it=>({value:it.stay.id, label:it.label})), "— Hund wählen —");
-
-  // history select: all pets
-  const allPets = (state.pets||[]).map(p=>({
-    value: p.id,
-    label: `${p.name||"Hund"}${p.breed?(" · "+p.breed):""}`
-  }));
-  fillSelect(histSelect, allPets, "— Hund wählen —");
-
-  // metric select
-  if(metricSelect && !metricSelect.dataset.ready){
-    metricSelect.dataset.ready="1";
-    let opts = `<option value="overall">Gesamtindex (Ø)</option>`;
-    dims.forEach(d=>{
-      opts += `<option value="${d.key}">${escapeHtml(d.label)}</option>`;
-    });
-    metricSelect.innerHTML = opts;
-  }
-
-  // breed filter options for aggregation
-  if(breedAgg){
-    const breeds = new Set((state.pets||[]).map(p=>_statGetMainBreed(p.breed)).filter(b=>b && b!=="—"));
-    const sorted = Array.from(breeds).sort((a,b)=>a.localeCompare(b,"de"));
-    let opts = `<option value="">Alle</option>`;
-    sorted.forEach(b=> opts += `<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`);
-    breedAgg.innerHTML = opts;
-  }
-
-  // attach handlers once
-  const btnSave = _statEl("btnStatSave");
-  if(btnSave && !btnSave.dataset.bound){
-    btnSave.dataset.bound="1";
-    btnSave.addEventListener("click", saveStatAssessment);
-  }
-  const btnRedraw = _statEl("btnStatRedraw");
-  if(btnRedraw && !btnRedraw.dataset.bound){
-    btnRedraw.dataset.bound="1";
-    btnRedraw.addEventListener("click", ()=>renderStatHistory());
-  }
-  if(histSelect && !histSelect.dataset.bound){
-    histSelect.dataset.bound="1";
-    histSelect.addEventListener("change", ()=>renderStatHistory());
-  }
-  if(metricSelect && !metricSelect.dataset.bound){
-    metricSelect.dataset.bound="1";
-    metricSelect.addEventListener("change", ()=>renderStatHistory());
-  }
-
-  const btnAgg = _statEl("btnStatAgg");
-  if(btnAgg && !btnAgg.dataset.bound){
-    btnAgg.dataset.bound="1";
-    btnAgg.addEventListener("click", ()=>renderStatAggregation());
-  }
-  const btnCsv = _statEl("btnStatCsv");
-  if(btnCsv && !btnCsv.dataset.bound){
-    btnCsv.dataset.bound="1";
-    btnCsv.addEventListener("click", ()=>exportStatCsv());
-  }
-
-  // update meta when selection changes
-  if(dogSelect && !dogSelect.dataset.bound){
-    dogSelect.dataset.bound="1";
-    dogSelect.addEventListener("change", ()=>updateStatDogMeta());
-  }
-  if(dateEl && !dateEl.dataset.bound){
-    dateEl.dataset.bound="1";
-    dateEl.addEventListener("change", ()=>{
-      renderStatisticsPanel(); // refresh active list
-      updateStatDogMeta();
-    });
-  }
-
-  updateStatDogMeta();
-  renderStatHistory();
-  renderStatAggregation();
-}
-
-function updateStatDogMeta(){
-  const metaEl = _statEl("statDogMeta");
-  const sel = _statEl("statDogSelect");
-  const dateISO = _statEl("statDate")?.value || _statTodayISO();
-  const sexEl = _statEl("statSex");
-  if(!metaEl || !sel) return;
-
-  const stayId = sel.value;
-  if(!stayId){ metaEl.textContent = ""; return; }
-  const stay = (state.stays||[]).find(s=>s.id===stayId);
-  const pet = (state.pets||[]).find(p=>p.id===stay?.petId) || {};
-  const cust = (state.customers||[]).find(c=>c.id===stay?.customerId) || {};
-  const mainBreed = _statGetMainBreed(pet.breed);
-  const age = _statAgeYears(pet.birthdate);
-  const dayOf = _statStayDayOf(stay, dateISO);
-  const repeat = _statIsRepeatDog(pet.id) ? "Stammgast" : "Erstkontakt";
-  metaEl.innerHTML = `${escapeHtml(mainBreed)}${age!=null?(" · "+age+" J."):""}${pet.sex?(" · "+escapeHtml(pet.sex)):""}<br>${escapeHtml(cust.name||"")} · Tag ${dayOf||"?"} · ${repeat}`;
-  if(sexEl && !sexEl.value){
-    // auto fill from pet if present
-    if(pet.sex) sexEl.value = pet.sex;
-  }
 }
 
 function saveStatAssessment(){
@@ -14731,30 +14582,14 @@ function exportStatCsv(){
   try{ downloadBlob(fname, new Blob([csv], {type:"text/csv;charset=utf-8"})); }catch(e){ console.warn(e); }
 }
 
+/* STAT_RENDER_HOOK_50_6_1 */
 
-/* ===== STATISTIK TAB RENDER FIX (M50.6.0) =====
-   Ensures statistic scales render reliably on tab switch and after re-activation.
-   No reloads, no side effects.
-===== */
-(function(){
-  function hook(){
-    const btn = document.getElementById("tabStatistics") ||
-      Array.from(document.querySelectorAll("button.tab,[data-tab]"))
-        .find(el => (el.dataset && el.dataset.tab==="statistics") ||
-                    ((el.textContent||"").trim().toLowerCase()==="statistik"));
-    if(!btn) return;
-    if(btn.dataset._statHooked) return;
-    btn.dataset._statHooked = "1";
-    btn.addEventListener("click", function(){
-      // Defer to allow panel activation CSS to apply
-      setTimeout(function(){ try{ renderStatisticsPanel(); }catch(_){ } }, 30);
-      setTimeout(function(){ try{ renderStatisticsPanel(); }catch(_){ } }, 250);
-    });
+document.addEventListener("click", function(e){
+  if(e.target && e.target.textContent && e.target.textContent.trim().toLowerCase().includes("statistik")){
+    setTimeout(function(){
+      if(typeof renderStatisticsPanel === "function"){
+        renderStatisticsPanel();
+      }
+    }, 50);
   }
-  if(document.readyState==="loading"){
-    document.addEventListener("DOMContentLoaded", hook);
-  }else{
-    hook();
-  }
-})();
- /* ===== END FIX ===== */
+});
