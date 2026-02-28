@@ -101,7 +101,7 @@
   .doc-modal__actions{ margin-left:auto; display:flex; flex-wrap: wrap; gap: 8px; }
   .doc-modal__frame{ width: 100%; border: 0; border-radius: 12px; background: #fff; flex:1; min-height: 0; }
 </style>
-  <meta name="app-version" content="M50.6.8_STABLE_MASTER_20260227">
+  <meta name="app-version" content="M50.4.1_BASELINE_LOCK_20260228">
   <meta name="release-channel" content="MASTER">
 </head>
 <body class="bg-watermark page-app">
@@ -1310,7 +1310,7 @@
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-<script defer="defer" src="app.js?v=M50.4.1_COMPLIANCE_PRO_FIX2_20260216"></script>
+<script defer="defer" src="app.js?v=M50.4.1_BASELINE_LOCK_20260228"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1353,17 +1353,7 @@
 </script>
 
 <script>
-    // ServiceWorker nur im PWA/Standalone-Modus (Safari-Browser-Lade-Hänger vermeiden)
-    (function(){
-      try {
-        const metaV = document.querySelector('meta[name="app-version"]');
-        const v = (metaV && metaV.content) ? metaV.content : 'M50.6.8_STABLE_MASTER_20260227';
-        const isStandalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || (window.navigator && window.navigator.standalone === true) || (location.search.includes('pwa=1'));
-        if(isStandalone && 'serviceWorker' in navigator) {
-          navigator.serviceWorker.register('sw.js?v=' + encodeURIComponent(v));
-        }
-      } catch(e) {}
-    })();
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.4.1_BASELINE_LOCK_20260228');
   </script>
 
 <script>
@@ -1427,6 +1417,6 @@
   <!-- Bottom logout button removed (duplicate of header logout; also overlaps editor on iPad) -->
 </div>
 <!-- test-badge removed (requested) -->
-  <div class="build-badge" id="buildBadge">Build M50.4.1_COMPLIANCE_PRO_FIX2_20260216</div>
+  <div class="build-badge" id="buildBadge">Build M50.4.1_BASELINE_LOCK_20260228</div>
 </body>
 </html>
