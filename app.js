@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.4.1_BASELINE_LOCK_20260228",
+  tag: "M50.4.2_PHASE1_STAT_SCALES_20260228",
   channel: "MASTER",
   frozenAt: "2026-02-27T00:10:00"
 };
@@ -11,7 +11,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
-const APP_BUILD = 'M50.4.1_BASELINE_LOCK_20260228';
+const APP_BUILD = 'M50.4.2_PHASE1_STAT_SCALES_20260228';
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 (function DS_BUILD_GUARD_RECOVERY(){
@@ -14175,8 +14175,30 @@ function _statActiveStaysOn(dateISO){
 
 function _statEl(id){ return document.getElementById(id); }
 
+// Always use a safe, function-scoped dimensions array (avoids ReferenceError from block-scoped const).
+function _getStatDims(){
+  return (Array.isArray(STAT_DIMENSIONS) && STAT_DIMENSIONS.length)
+    ? STAT_DIMENSIONS
+    : [
+        { key:"socialCompatibility", label:"Artgenossenverträglichkeit", group:"Sozialverhalten", hint:"1=sehr gut/entspannt · 10=stark unverträglich/konfliktbereit" },
+        { key:"resourceDefense", label:"Ressourcenverteidigung", group:"Sozialverhalten", hint:"Futter/Spielzeug/Platz verteidigen" },
+        { key:"impulseControl", label:"Impulskontrolle", group:"Sozialverhalten", hint:"1=sehr gut · 10=sehr impulsiv" },
+        { key:"frustrationTolerance", label:"Frustrationstoleranz", group:"Sozialverhalten", hint:"1=hoch · 10=sehr niedrig" },
+        { key:"leadershipAcceptance", label:"Führbarkeit / Strukturannahme", group:"Menschenbezogen", hint:"1=sehr gut · 10=sehr schwierig" },
+        { key:"reactivity", label:"Reaktivität", group:"Menschenbezogen", hint:"1=ruhig · 10=sehr reaktiv" },
+        { key:"distanceBehavior", label:"Distanzverhalten", group:"Menschenbezogen", hint:"1=unauffällig · 10=stark auffällig" },
+        { key:"cooperation", label:"Kooperationsbereitschaft", group:"Menschenbezogen", hint:"1=hoch · 10=gering" },
+        { key:"baselineStress", label:"Grundanspannung / Stress", group:"Stress / Erregung", hint:"1=entspannt · 10=hoch gestresst" },
+        { key:"displacement", label:"Übersprungshandlungen", group:"Stress / Erregung", hint:"z.B. Lecken, Schütteln, Kratzen" },
+        { key:"hyperactivity", label:"Hyperaktivität", group:"Stress / Erregung", hint:"1=ruhig · 10=extrem" },
+        { key:"withdrawal", label:"Rückzugsverhalten", group:"Stress / Erregung", hint:"1=offen · 10=starker Rückzug" },
+      ];
+}
+
 function renderStatisticsPanel(){
   ensureStateShape();
+
+  const dims = _getStatDims();
 
   const dateEl = _statEl("statDate");
   if(dateEl && !dateEl.value) dateEl.value = _statTodayISO();
@@ -14185,22 +14207,6 @@ function renderStatisticsPanel(){
   const scalesWrap = _statEl("statScales");
   if(scalesWrap && (!scalesWrap.dataset.ready || !scalesWrap.innerHTML || !scalesWrap.innerHTML.trim())){
     scalesWrap.dataset.ready="1";
-    const dims = (Array.isArray(STAT_DIMENSIONS) && STAT_DIMENSIONS.length)
-      ? STAT_DIMENSIONS
-      : [
-          { key:"socialCompatibility", label:"Artgenossenverträglichkeit", group:"Sozialverhalten", hint:"1=sehr gut/entspannt · 10=stark unverträglich/konfliktbereit" },
-          { key:"resourceDefense", label:"Ressourcenverteidigung", group:"Sozialverhalten", hint:"Futter/Spielzeug/Platz verteidigen" },
-          { key:"impulseControl", label:"Impulskontrolle", group:"Sozialverhalten", hint:"1=sehr gut · 10=sehr impulsiv" },
-          { key:"frustrationTolerance", label:"Frustrationstoleranz", group:"Sozialverhalten", hint:"1=hoch · 10=sehr niedrig" },
-          { key:"leadershipAcceptance", label:"Führbarkeit / Strukturannahme", group:"Menschenbezogen", hint:"1=sehr gut · 10=sehr schwierig" },
-          { key:"reactivity", label:"Reaktivität", group:"Menschenbezogen", hint:"1=ruhig · 10=sehr reaktiv" },
-          { key:"distanceBehavior", label:"Distanzverhalten", group:"Menschenbezogen", hint:"1=unauffällig · 10=stark auffällig" },
-          { key:"cooperation", label:"Kooperationsbereitschaft", group:"Menschenbezogen", hint:"1=hoch · 10=gering" },
-          { key:"baselineStress", label:"Grundanspannung / Stress", group:"Stress / Erregung", hint:"1=entspannt · 10=hoch gestresst" },
-          { key:"displacement", label:"Übersprungshandlungen", group:"Stress / Erregung", hint:"z.B. Lecken, Schütteln, Kratzen" },
-          { key:"hyperactivity", label:"Hyperaktivität", group:"Stress / Erregung", hint:"1=ruhig · 10=extrem" },
-          { key:"withdrawal", label:"Rückzugsverhalten", group:"Stress / Erregung", hint:"1=offen · 10=starker Rückzug" },
-        ];
     const groups = {};
     dims.forEach(d=>{
       groups[d.group]=groups[d.group]||[];
@@ -14371,6 +14377,7 @@ function updateStatDogMeta(){
 
 function saveStatAssessment(){
   ensureStateShape();
+  const dims = _getStatDims();
   const msgEl = _statEl("statSaveMsg");
   const dateISO = _statEl("statDate")?.value || _statTodayISO();
   const stayId = _statEl("statDogSelect")?.value || "";
@@ -14677,6 +14684,7 @@ function renderStatAggregation(){
 
 function exportStatCsv(){
   ensureStateShape();
+  const dims = _getStatDims();
   const fromISO = _statEl("statAggFrom")?.value || "";
   const toISO = _statEl("statAggTo")?.value || "";
   const breed = _statEl("statAggBreed")?.value || "";
@@ -14687,7 +14695,7 @@ function exportStatCsv(){
   const header = [
     "assessmentId","stayId","dogId","dogName","breedMainType","sex","ageYears","isRepeat",
     "assessmentType","assessmentDate","dayOfStay","overallIndex",
-    ...STAT_DIMENSIONS.map(d=>d.key),
+    ...dims.map(d=>d.key),
     "notes"
   ];
   lines.push(header.join(","));
