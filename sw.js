@@ -1,71 +1,60 @@
-const BUILD_VERSION = "M50.6.7_FULL_ASSETS_FIX_20260227";
+
+const BUILD_VERSION = "M50.5.2_STATISTIK_SCALES_RENDERFIX_20260227";
 const CACHE_NAME = "doggystyle-" + BUILD_VERSION;
 
-const PRECACHE = [
+const STATIC_ASSETS = [
   "./",
   "./app.html",
   "./app.js",
   "./styles.css",
-  "./dashboard_master.css",
-  "./manifest.json",
-  "./firebase-config.js",
-  "./auth.js",
-  "./stat-scales-hotfix.js",
-  "./assets/logo.png",
-  "./assets/dash_daycare.jpg",
-  "./assets/dash_vacation.jpg"
+  "./manifest.json"
 ];
 
+// INSTALL
 self.addEventListener("install", (event) => {
   self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(PRECACHE)).catch(() => null)
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(STATIC_ASSETS);
+    })
   );
 });
 
+// ACTIVATE
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then(keys => Promise.all(
-      keys.filter(k => k.startsWith("doggystyle-") && k !== CACHE_NAME).map(k => caches.delete(k))
-    ))
+    caches.keys().then((keys) => {
+      return Promise.all(
+        keys
+          .filter((key) => key !== CACHE_NAME)
+          .map((key) => caches.delete(key))
+      );
+    })
   );
   self.clients.claim();
 });
 
+// FETCH
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
 
-  const url = new URL(event.request.url);
-
-  // Network-first for HTML navigations
-  if (event.request.mode === "navigate" || (event.request.headers.get("accept") || "").includes("text/html")) {
+  // Network-first for HTML
+  if (event.request.headers.get("accept")?.includes("text/html")) {
     event.respondWith(
       fetch(event.request)
-        .then(resp => {
-          const copy = resp.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put("./app.html", copy)).catch(() => null);
-          return resp;
-        })
+        .then((response) => response)
         .catch(() => caches.match("./app.html"))
     );
     return;
   }
 
-  // Cache-first for same-origin static assets
-  if (url.origin === self.location.origin) {
-    event.respondWith(
-      caches.match(event.request).then(cached => {
-        if (cached) return cached;
-        return fetch(event.request).then(resp => {
-          const copy = resp.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy)).catch(() => null);
-          return resp;
-        }).catch(() => cached);
-      })
-    );
-    return;
-  }
-
-  // Default: network
-  event.respondWith(fetch(event.request));
+  // Cache-first for static assets
+  event.respondWith(
+    caches.match(event.request).then((cached) => {
+      return (
+        cached ||
+        fetch(event.request).then((response) => response)
+      );
+    })
+  );
 });
