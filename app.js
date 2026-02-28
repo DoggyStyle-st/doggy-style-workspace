@@ -1,9 +1,9 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.5.2_STATISTIK_SCALES_RENDERFIX_20260227",
+  tag: "M50.5.3_STATISTIK_SCALES_UI_20260301",
   channel: "MASTER",
-  frozenAt: "2026-02-27T00:10:00"
+  frozenAt: "2026-03-01T00:05:00"
 };
 // Expose for diagnostics / support
 try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
@@ -11,45 +11,20 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
-const APP_BUILD = 'M50.4.4_STATISTIK_SCALES_20260228';
+// Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
+const APP_BUILD = 'M50.5.3_STATISTIK_SCALES_UI_20260301';
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
+// NOTE:
+// In iOS Safari (Browser-Modus) aggressive cache-clears / auto-reloads can lead to
+// endless reload loops. Therefore this guard is reduced to a diagnostics warning only.
 (function DS_BUILD_GUARD_RECOVERY(){
   try{
-    const BUILD = (typeof APP_BUILD !== 'undefined') ? APP_BUILD : "M50.2_BLUE_TEMPLATE_PRINT_CONTRACT_20260215";
+    const BUILD = (typeof APP_BUILD !== 'undefined') ? APP_BUILD : "";
     const meta = document.querySelector('meta[name="app-version"]');
     const htmlBuild = meta ? meta.getAttribute('content') : null;
-    if(htmlBuild && htmlBuild !== BUILD){
-      console.warn("[DS] Build mismatch", {htmlBuild, BUILD});
-      const doReload = ()=>{
-        try{
-          const url = new URL(location.href);
-          url.searchParams.set('v', BUILD);
-          location.replace(url.toString());
-        }catch(_ ){ location.reload(); }
-      };
-      if('serviceWorker' in navigator){
-        navigator.serviceWorker.getRegistrations()
-          .then(regs=>Promise.all(regs.map(r=>r.unregister().catch(()=>null))))
-          .catch(()=>null);
-      }
-      if(window.caches && caches.keys){
-        caches.keys().then(keys=>Promise.all(keys.map(k=>caches.delete(k)))).catch(()=>null);
-      }
-      try{
-        if(indexedDB && indexedDB.databases){
-          indexedDB.databases().then(dbs=>{
-            dbs.forEach(db=>{
-              const n = db && db.name ? db.name : "";
-              if(!n) return;
-              if(n.toLowerCase().includes("doggy") || n.toLowerCase().includes("workspace") || n.toLowerCase().includes("ds_")){
-                try{ indexedDB.deleteDatabase(n); }catch(_ ){}
-              }
-            });
-          }).catch(()=>null);
-        }
-      }catch(_ ){}
-      setTimeout(doReload, 250);
+    if(htmlBuild && BUILD && htmlBuild !== BUILD){
+      console.warn("[DS] Build mismatch (no auto-reload)", {htmlBuild, BUILD});
     }
   }catch(e){ console.warn("[DS] guard error", e); }
 })();
@@ -14118,6 +14093,47 @@ const STAT_DIMENSIONS = [
   { key:"withdrawal", label:"Rückzug/Vermeidung", group:"Stress/Erregung", hint:"Meiden, Rückzug, Freeze" }
 ];
 
+// Render 1–10 scales into #statScales
+function renderStatScales(){
+  const wrap = _statEl("statScales");
+  if(!wrap) return;
+
+  // Preserve existing values if present
+  const existing = {};
+  try{
+    wrap.querySelectorAll('.stat-range[data-key]').forEach(r=>{
+      existing[r.dataset.key] = Number(r.value);
+    });
+  }catch(_){ }
+
+  let html = '';
+  STAT_DIMENSIONS.forEach(d=>{
+    const val = (existing[d.key] && isFinite(existing[d.key])) ? existing[d.key] : 5;
+    html += `
+      <div class="scale-row">
+        <div class="scale-label">${escapeHtml(d.label)}</div>
+        <div>
+          <input class="stat-range" type="range" min="1" max="10" step="1" value="${val}" data-key="${escapeHtml(d.key)}">
+          <div class="muted" style="margin-top:4px; font-size:12px;">Wert: <span class="stat-range-val" data-key="${escapeHtml(d.key)}">${val}</span> / 10</div>
+        </div>
+      </div>`;
+  });
+  html += `<div class="scale-hint">Hinweis: Skala 1–10. Niedriger = unauffälliger, höher = stärker/problematischer.</div>`;
+  wrap.innerHTML = html;
+
+  // Bind updates
+  wrap.querySelectorAll('.stat-range[data-key]').forEach(r=>{
+    if(r.dataset.bound) return;
+    r.dataset.bound = '1';
+    const key = r.dataset.key;
+    const esc = (window.CSS && CSS.escape) ? CSS.escape(key) : String(key).replace(/"/g,'\\"');
+    const out = wrap.querySelector(`.stat-range-val[data-key="${esc}"]`);
+    r.addEventListener('input', ()=>{
+      if(out) out.textContent = String(r.value);
+    });
+  });
+}
+
 function _statGetMainBreed(breed){
   const s = String(breed||"").trim();
   if(!s) return "—";
@@ -14387,6 +14403,7 @@ function saveStatAssessment(){
   const mainBreed = _statGetMainBreed(pet.breed);
   const dayOf = _statStayDayOf(stay, dateISO);
 
+  const dims = STAT_DIMENSIONS;
   const scores = {};
   const wrap = _statEl("statScales");
   dims.forEach(d=>{
@@ -14683,6 +14700,7 @@ function exportStatCsv(){
   const all = _statFilterByRange((state.behaviorAssessments||[]), fromISO, toISO)
     .filter(a=>!breed || a.breedMainType===breed);
 
+  const dims = STAT_DIMENSIONS;
   const lines=[];
   const header = [
     "assessmentId","stayId","dogId","dogName","breedMainType","sex","ageYears","isRepeat",
@@ -14726,19 +14744,4 @@ function exportStatCsv(){
 }
 
 
-/* ===== STATISTIK TAB RENDER FIX (M50.5.2b) ===== */
-document.addEventListener("DOMContentLoaded", function() {
-  const statButton = Array.from(document.querySelectorAll("button, .tab, .nav-item"))
-    .find(el => el.textContent && el.textContent.trim().toLowerCase().includes("statistik"));
 
-  if (statButton) {
-    statButton.addEventListener("click", function() {
-      setTimeout(function() {
-        if (typeof renderStatScales === "function") {
-          renderStatScales();
-        }
-      }, 50);
-    });
-  }
-});
-/* ===== END FIX ===== */
