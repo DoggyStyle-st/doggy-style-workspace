@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.5.5_STATISTIK_RESEARCH_SCALES_20260301",
+  tag: "M50.7.0_CLEAN_MASTER_20260301",
   channel: "MASTER",
   frozenAt: "2026-03-01"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.5.5_STATISTIK_RESEARCH_SCALES_20260301";
+const APP_BUILD = "M50.7.0_CLEAN_MASTER_20260301";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -14529,7 +14529,7 @@ function exportStatCsv(){
 
 /* ===============================
    PROFESSIONAL RESEARCH STAT MODULE
-   BUILD: M50.6.1_STAT_MODULE_REFACTOR_20260301
+   BUILD: M50.7.0_CLEAN_MASTER_20260301
 ================================= */
 
 const STAT_DIMENSIONS = [
@@ -14603,3 +14603,22 @@ document.addEventListener("DOMContentLoaded", () => {
     setTimeout(renderStatisticsPanel, 50);
   });
 });
+
+
+
+/* ===== CLEAN MASTER STAT CORE M50.7.0_CLEAN_MASTER_20260301 ===== */
+
+if (typeof STAT_DIMENSIONS === "undefined") {
+const STAT_DIMENSIONS = [
+  { key:"overall", label:"Gesamtverhalten", group:"Überblick" },
+  { key:"social_dogs", label:"Sozialverhalten – Artgenossen", group:"Sozialdimension" },
+  { key:"social_humans", label:"Sozialverhalten – Menschen", group:"Sozialdimension" },
+  { key:"resources", label:"Ressourcenverhalten", group:"Sozialdimension" },
+  { key:"stress", label:"Stresslevel", group:"Erregung & Regulation" },
+  { key:"impulse", label:"Impulskontrolle", group:"Erregung & Regulation" },
+  { key:"separation", label:"Trennungsverhalten", group:"Alltag & Anpassung" },
+  { key:"play", label:"Spielverhalten", group:"Alltag & Anpassung" },
+  { key:"physical", label:"Körperlicher Zustand", group:"Gesundheit" },
+  { key:"hygiene", label:"Hygiene / Sauberkeit", group:"Gesundheit" }
+];
+}
