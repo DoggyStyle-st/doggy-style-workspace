@@ -1,7 +1,8 @@
 {
+  "description": "Doggy Style Workspace (M50.9.2_CLEAN_CONSISTENT_BUILD_20260301)",
   "name": "Doggy Style Workspace (Stand 27.12.2025)",
   "short_name": "DoggyStyle",
-  "start_url": "./index.html?v=M50.5.5_STATISTIK_RESEARCH_SCALES_20260301",
+  "start_url": "./app.html",
   "display": "standalone",
   "background_color": "#0c0c10",
   "theme_color": "#101014",

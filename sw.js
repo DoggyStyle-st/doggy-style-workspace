@@ -1,59 +1,85 @@
-// ===== M50.9.1 CLEAN SW =====
-const BUILD_VERSION = "M50.9.1_CLEAN_SW_20260301";
+// DoggyStyle Workspace Service Worker
+// Clean, consistent cache strategy (network-first for HTML, cache-first for static)
+
+const BUILD_VERSION = "M50.9.2_CLEAN_CONSISTENT_BUILD_20260301";
 const CACHE_NAME = "doggystyle-" + BUILD_VERSION;
 
-// Nur echte Dateien – keine ?v= Versionen mehr
+// Keep this list conservative; do NOT include versioned query variants.
 const STATIC_ASSETS = [
   "./",
   "./index.html",
-  "./login.html",
   "./app.html",
   "./app.js",
   "./styles.css",
+  "./dashboard_master.css",
+  "./auth.js",
+  "./firebase-config.js",
   "./manifest.json",
-  "./assets/logo.png"
+  "./login.html",
+  "./login_override.css",
 ];
 
-// INSTALL
 self.addEventListener("install", (event) => {
-  self.skipWaiting();
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS);
-    })
-  );
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    await cache.addAll(STATIC_ASSETS);
+    await self.skipWaiting();
+  })());
 });
 
-// ACTIVATE
 self.addEventListener("activate", (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(
-        keys
-          .filter((key) => key !== CACHE_NAME)
-          .map((key) => caches.delete(key))
-      );
-    })
-  );
-  self.clients.claim();
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(
+      keys
+        .filter((k) => k.startsWith("doggystyle-") && k !== CACHE_NAME)
+        .map((k) => caches.delete(k))
+    );
+    await self.clients.claim();
+  })());
 });
 
-// FETCH
-self.addEventListener("fetch", (event) => {
-  if (event.request.method !== "GET") return;
+function isHTMLRequest(request) {
+  return (
+    request.mode === "navigate" ||
+    (request.headers.get("accept") || "").includes("text/html")
+  );
+}
 
-  // Network-first für HTML
-  if (event.request.headers.get("accept")?.includes("text/html")) {
+self.addEventListener("fetch", (event) => {
+  const req = event.request;
+  const url = new URL(req.url);
+
+  // Only handle same-origin.
+  if (url.origin !== self.location.origin) return;
+
+  // Network-first for HTML to avoid sticky old UI.
+  if (isHTMLRequest(req)) {
     event.respondWith(
-      fetch(event.request).catch(() => caches.match("./app.html"))
+      (async () => {
+        try {
+          const fresh = await fetch(req);
+          const cache = await caches.open(CACHE_NAME);
+          cache.put(req, fresh.clone());
+          return fresh;
+        } catch (e) {
+          const cached = await caches.match(req);
+          return cached || (await caches.match("./app.html")) || (await caches.match("./index.html"));
+        }
+      })()
     );
     return;
   }
 
-  // Cache-first für statische Assets
+  // Cache-first for static assets.
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      return cached || fetch(event.request);
-    })
+    (async () => {
+      const cached = await caches.match(req);
+      if (cached) return cached;
+      const fresh = await fetch(req);
+      const cache = await caches.open(CACHE_NAME);
+      cache.put(req, fresh.clone());
+      return fresh;
+    })()
   );
 });

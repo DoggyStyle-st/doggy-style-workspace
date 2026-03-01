@@ -102,7 +102,7 @@
   .doc-modal__actions{ margin-left:auto; display:flex; flex-wrap: wrap; gap: 8px; }
   .doc-modal__frame{ width: 100%; border: 0; border-radius: 12px; background: #fff; flex:1; min-height: 0; }
 </style>
-  <meta name="app-version" content="M50.9_STAT_RESEARCH_CORE_1.0_20260301">
+  <meta name="app-version" content="M50.9.2_CLEAN_CONSISTENT_BUILD_20260301">
   <meta name="release-channel" content="MASTER">
 </head>
 <body class="bg-watermark page-app">
@@ -1138,206 +1138,7 @@
 </section>
 
 <section class="panel" id="statistics">
-  <h2>Statistik</h2>
-
-  <div class="card" style="margin-top:10px;">
-    <h3>Tagesbewertung</h3>
-    <div class="row" style="flex-wrap:wrap; gap:10px; align-items:flex-end;">
-      <div style="min-width:180px;">
-        <label class="muted" style="display:block; margin-bottom:4px;">Datum</label>
-        <input id="statDate" type="date" class="input" style="width:100%"/>
-      </div>
-      <div style="min-width:260px; flex:1;">
-        <label class="muted" style="display:block; margin-bottom:4px;">Hund (nur aktive Aufenthalte)</label>
-        <select id="statDogSelect" class="input" style="width:100%"></select>
-      </div>
-      <div style="min-width:220px;">
-        <label class="muted" style="display:block; margin-bottom:4px;">Bewertungstyp</label>
-        <select id="statType" class="input" style="width:100%">
-          <option value="arrival">Ankunft (Tag 1)</option>
-          <option value="mid">Zwischenbewertung</option>
-          <option value="departure">Abreise</option>
-        </select>
-      </div>
-      <div style="min-width:220px;">
-        <div id="statDogMeta" class="muted" style="font-size:12px; line-height:1.3;"></div>
-      </div>
-      <div style="min-width:200px;">
-        <label class="muted" style="display:block; margin-bottom:4px;">Geschlecht</label>
-        <select id="statSex" class="input" style="width:100%">
-          <option value="">— unbekannt —</option>
-          <option value="m">männlich</option>
-          <option value="w">weiblich</option>
-          <option value="k">kastriert (Rüde)</option>
-          <option value="s">kastriert (Hündin)</option>
-        </select>
-      </div>
-    </div>
-
-    <div id="statScales" class="stat-scales" style="margin-top:14px;"></div>
-        <div class="stat-scale-input">
-          <input type="range" min="1" max="10" step="1" value="1" id="scale_overall"
-                 oninput="(function(v){var el=document.getElementById('scaleVal_overall'); if(el) el.textContent=v;})(this.value)">
-          <span class="stat-scale-val" id="scaleVal_overall">1</span>
-        </div>
-      </div>
-
-      <div class="stat-scale-row">
-        <div class="stat-scale-label">Sozialverhalten</div>
-        <div class="stat-scale-input">
-          <input type="range" min="1" max="10" step="1" value="1" id="scale_social"
-                 oninput="(function(v){var el=document.getElementById('scaleVal_social'); if(el) el.textContent=v;})(this.value)">
-          <span class="stat-scale-val" id="scaleVal_social">1</span>
-        </div>
-      </div>
-
-      <div class="stat-scale-row">
-        <div class="stat-scale-label">Futter & Ressourcen</div>
-        <div class="stat-scale-input">
-          <input type="range" min="1" max="10" step="1" value="1" id="scale_food"
-                 oninput="(function(v){var el=document.getElementById('scaleVal_food'); if(el) el.textContent=v;})(this.value)">
-          <span class="stat-scale-val" id="scaleVal_food">1</span>
-        </div>
-      </div>
-
-      <div class="stat-scale-row">
-        <div class="stat-scale-label">Handling / Anfassen</div>
-        <div class="stat-scale-input">
-          <input type="range" min="1" max="10" step="1" value="1" id="scale_handling"
-                 oninput="(function(v){var el=document.getElementById('scaleVal_handling'); if(el) el.textContent=v;})(this.value)">
-          <span class="stat-scale-val" id="scaleVal_handling">1</span>
-        </div>
-      </div>
-
-      <div class="stat-scale-row">
-        <div class="stat-scale-label">Leinenführigkeit</div>
-        <div class="stat-scale-input">
-          <input type="range" min="1" max="10" step="1" value="1" id="scale_leash"
-                 oninput="(function(v){var el=document.getElementById('scaleVal_leash'); if(el) el.textContent=v;})(this.value)">
-          <span class="stat-scale-val" id="scaleVal_leash">1</span>
-        </div>
-      </div>
-
-      <div class="stat-scale-row">
-        <div class="stat-scale-label">Stresslevel</div>
-        <div class="stat-scale-input">
-          <input type="range" min="1" max="10" step="1" value="1" id="scale_stress"
-                 oninput="(function(v){var el=document.getElementById('scaleVal_stress'); if(el) el.textContent=v;})(this.value)">
-          <span class="stat-scale-val" id="scaleVal_stress">1</span>
-        </div>
-      </div>
-
-      <div class="stat-scale-row">
-        <div class="stat-scale-label">Lärm / Reaktivität</div>
-        <div class="stat-scale-input">
-          <input type="range" min="1" max="10" step="1" value="1" id="scale_noise"
-                 oninput="(function(v){var el=document.getElementById('scaleVal_noise'); if(el) el.textContent=v;})(this.value)">
-          <span class="stat-scale-val" id="scaleVal_noise">1</span>
-        </div>
-      </div>
-
-      <div class="stat-scale-row">
-        <div class="stat-scale-label">Alleinbleiben / Trennung</div>
-        <div class="stat-scale-input">
-          <input type="range" min="1" max="10" step="1" value="1" id="scale_separation"
-                 oninput="(function(v){var el=document.getElementById('scaleVal_separation'); if(el) el.textContent=v;})(this.value)">
-          <span class="stat-scale-val" id="scaleVal_separation">1</span>
-        </div>
-      </div>
-
-      <div class="stat-scale-row">
-        <div class="stat-scale-label">Spielverhalten</div>
-        <div class="stat-scale-input">
-          <input type="range" min="1" max="10" step="1" value="1" id="scale_play"
-                 oninput="(function(v){var el=document.getElementById('scaleVal_play'); if(el) el.textContent=v;})(this.value)">
-          <span class="stat-scale-val" id="scaleVal_play">1</span>
-        </div>
-      </div>
-
-      <div class="stat-scale-row">
-        <div class="stat-scale-label">Gesundheit / Auffälligkeiten</div>
-        <div class="stat-scale-input">
-          <input type="range" min="1" max="10" step="1" value="1" id="scale_health"
-                 oninput="(function(v){var el=document.getElementById('scaleVal_health'); if(el) el.textContent=v;})(this.value)">
-          <span class="stat-scale-val" id="scaleVal_health">1</span>
-        </div>
-      </div>
-
-      <div class="stat-scale-row">
-        <div class="stat-scale-label">Hygiene / Sauberkeit</div>
-        <div class="stat-scale-input">
-          <input type="range" min="1" max="10" step="1" value="1" id="scale_hygiene"
-                 oninput="(function(v){var el=document.getElementById('scaleVal_hygiene'); if(el) el.textContent=v;})(this.value)">
-          <span class="stat-scale-val" id="scaleVal_hygiene">1</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="row" style="flex-wrap:wrap; gap:10px; align-items:flex-start; margin-top:10px;">
-      <div style="flex:1; min-width:260px;">
-        <label class="muted" style="display:block; margin-bottom:4px;">Notizen (optional)</label>
-        <textarea id="statNotes" class="input" rows="2" style="width:100%" placeholder="Kurzbeobachtung / Kontext (z.B. Erstkontakt, Gruppenkonstellation, Trigger)"></textarea>
-      </div>
-      <div style="min-width:220px;">
-        <button class="btn btn-primary" id="btnStatSave">Bewertung speichern</button>
-        <div id="statSaveMsg" class="muted" style="margin-top:6px; font-size:12px;"></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="card" style="margin-top:10px;">
-    <h3>Hundeverlauf</h3>
-    <div class="row" style="flex-wrap:wrap; gap:10px; align-items:flex-end;">
-      <div style="min-width:260px; flex:1;">
-        <label class="muted" style="display:block; margin-bottom:4px;">Hund</label>
-        <select id="statDogHistory" class="input" style="width:100%"></select>
-      </div>
-      <div style="min-width:260px;">
-        <label class="muted" style="display:block; margin-bottom:4px;">Diagramm</label>
-        <select id="statMetric" class="input" style="width:100%"></select>
-      </div>
-      <div style="min-width:220px;">
-        <button class="btn" id="btnStatRedraw">Aktualisieren</button>
-      </div>
-    </div>
-    <div style="margin-top:10px;">
-      <canvas id="statCanvas" width="1200" height="360" style="width:100%; height:auto; border-radius:14px; background:rgba(255,255,255,0.03);"></canvas>
-      <div class="muted" style="margin-top:6px; font-size:12px;">
-        Hinweis: Skala 1–10. Niedriger = unauffälliger, höher = stärker/problematischer. Diagramm basiert auf deinen Bewertungen pro Aufenthaltstag.
-      </div>
-    </div>
-    <div id="statHistoryTable" style="margin-top:10px;"></div>
-  </div>
-
-  <div class="card" style="margin-top:10px;">
-    <h3>Aggregierte Analyse</h3>
-    <div class="row" style="flex-wrap:wrap; gap:10px; align-items:flex-end;">
-      <div style="min-width:180px;">
-        <label class="muted" style="display:block; margin-bottom:4px;">Von</label>
-        <input id="statAggFrom" type="date" class="input" style="width:100%"/>
-      </div>
-      <div style="min-width:180px;">
-        <label class="muted" style="display:block; margin-bottom:4px;">Bis</label>
-        <input id="statAggTo" type="date" class="input" style="width:100%"/>
-      </div>
-      <div style="min-width:240px; flex:1;">
-        <label class="muted" style="display:block; margin-bottom:4px;">Rasse (Haupttyp)</label>
-        <select id="statAggBreed" class="input" style="width:100%"></select>
-      </div>
-      <div style="min-width:180px;">
-        <label class="muted" style="display:block; margin-bottom:4px;">Mindest-N</label>
-        <input id="statAggMinN" type="number" min="1" class="input" style="width:100%" value="5"/>
-      </div>
-      <div style="min-width:220px; display:flex; gap:10px;">
-        <button class="btn" id="btnStatAgg">Aktualisieren</button>
-        <button class="btn" id="btnStatCsv">CSV Export</button>
-      </div>
-    </div>
-    <div id="statAggTable" style="margin-top:10px;"></div>
-    <div class="muted" style="margin-top:8px; font-size:12px;">
-      Aggregation basiert auf gepaarten Bewertungen pro Aufenthalt (Ankunft vs. Abreise). Bei fehlender Abreise-Bewertung wird der Aufenthalt nicht in Delta-Analysen gezählt.
-    </div>
-  </div>
+<!-- Statistics panel is rendered by app.js (renderStatisticsPanel) -->
 </section>
 
 
@@ -1515,6 +1316,6 @@
   <!-- Bottom logout button removed (duplicate of header logout; also overlaps editor on iPad) -->
 </div>
 <!-- test-badge removed (requested) -->
-  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9_STAT_RESEARCH_CORE_1.0_20260301</div>
+  <div class="build-badge" id="buildBadge">Build M50.9.2_CLEAN_CONSISTENT_BUILD_20260301</div>
 </body>
 </html>

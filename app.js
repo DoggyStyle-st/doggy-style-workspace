@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9_STAT_RESEARCH_CORE_1.0_20260301",
+  tag: "M50.9.2_CLEAN_CONSISTENT_BUILD_20260301",
   channel: "MASTER",
   frozenAt: "2026-03-01"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9_STAT_RESEARCH_CORE_1.0_20260301";
+const APP_BUILD = "M50.9.2_CLEAN_CONSISTENT_BUILD_20260301";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
