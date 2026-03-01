@@ -1,13 +1,17 @@
 
-const BUILD_VERSION = "M50.5.3_STATISTIK_SCALES_UI_20260301";
+const BUILD_VERSION = "M50.5.4_STATISTIK_SCALES_UI_20260301";
 const CACHE_NAME = "doggystyle-" + BUILD_VERSION;
 
 const STATIC_ASSETS = [
   "./",
   "./app.html",
+  "./app.html?v=M50.5.4_STATISTIK_SCALES_UI_20260301",
   "./app.js",
+  "./app.js?v=M50.5.4_STATISTIK_SCALES_UI_20260301",
   "./styles.css",
-  "./manifest.json"
+  "./styles.css?v=M50.5.4_STATISTIK_SCALES_UI_20260301",
+  "./manifest.json",
+  "./manifest.json?v=M50.5.4_STATISTIK_SCALES_UI_20260301"
 ];
 
 // INSTALL

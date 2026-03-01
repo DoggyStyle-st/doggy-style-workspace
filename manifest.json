@@ -1,7 +1,7 @@
 {
   "name": "Doggy Style Workspace (Stand 27.12.2025)",
   "short_name": "DoggyStyle",
-  "start_url": "./index.html",
+  "start_url": "./index.html?v=M50.5.4_STATISTIK_SCALES_UI_20260301",
   "display": "standalone",
   "background_color": "#0c0c10",
   "theme_color": "#101014",
@@ -16,5 +16,6 @@
       "sizes": "512x512",
       "type": "image/png"
     }
-  ]
+  ],
+  "scope": "./"
 }

@@ -1018,3 +1018,41 @@ body.page-login .btnLink--text:hover{
 @media (max-width: 900px){
   .scale-row{ grid-template-columns: 1fr; }
 }
+
+
+/* Statistik – Skalen 1–10 */
+.stat-scales {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.stat-scale-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.stat-scale-label {
+  flex: 0 0 230px;
+  font-size: 14px;
+  opacity: 0.9;
+}
+.stat-scale-input {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.stat-scale-input input[type="range"] {
+  width: 100%;
+}
+.stat-scale-val {
+  flex: 0 0 24px;
+  text-align: right;
+  font-weight: 600;
+  opacity: 0.95;
+}
+@media (max-width: 900px) {
+  .stat-scale-row { flex-direction: column; align-items: stretch; }
+  .stat-scale-label { flex: 0 0 auto; }
+  .stat-scale-val { text-align: left; }
+}

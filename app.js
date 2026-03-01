@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = 'M50.5.3_STATISTIK_SCALES_UI_20260301';
+const APP_BUILD = 'M50.5.4_STATISTIK_SCALES_UI_20260301';
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
