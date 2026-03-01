@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.8.0_FINAL_MASTER_20260301",
+  tag: "M50.9_STAT_RESEARCH_CORE_1.0_20260301",
   channel: "MASTER",
   frozenAt: "2026-03-01"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.8.0_FINAL_MASTER_20260301";
+const APP_BUILD = "M50.9_STAT_RESEARCH_CORE_1.0_20260301";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -14112,9 +14112,7 @@ function _statDiffDays(a,b){
   return Math.floor((a.getTime()-b.getTime())/ms);
 }
 function _statOverallIndex(scores){
-  const vals = STAT_DIMENSIONS.map(d=>Number(scores?.[d.key] ?? NaN)).filter(v=>isFinite(v));
-  if(!vals.length) return null;
-  return vals.reduce((x,y)=>x+y,0)/vals.length;
+  return _statComputeCoreIndex(scores);
 }
 function _statStayDayOf(stay, dateISO){
   const day = _parseDateAny(dateISO);
@@ -14526,23 +14524,61 @@ function exportStatCsv(){
 
 
 
-
 /* ===============================
-   PROFESSIONAL RESEARCH STAT MODULE
-   BUILD: M50.8.0_FINAL_MASTER_20260301
+   STAT RESEARCH CORE 1.0 MODULE
+   BUILD: M50.9_STAT_RESEARCH_CORE_1.0_20260301
+   Notes:
+   - Fixes STAT_DIMENSIONS scoping (must be global).
+   - Adds CORE-Index (6 Kernskalen) + qualitative Auswahlfelder.
 ================================= */
 
+// Globale Skalen-Definition (wird von UI + Save/Charts genutzt)
 const STAT_DIMENSIONS = [
-  { key:"overall", label:"Gesamtverhalten", group:"Überblick", anchor:"1=stabil · 5=auffällig · 10=stark problematisch" },
-  { key:"social_dogs", label:"Sozialverhalten – Artgenossen", group:"Sozialdimension", anchor:"1=sozial kompetent · 10=aggressiv" },
-  { key:"social_humans", label:"Sozialverhalten – Menschen", group:"Sozialdimension", anchor:"1=offen · 10=Angriff" },
-  { key:"resources", label:"Ressourcenverhalten", group:"Sozialdimension", anchor:"1=konfliktfrei · 10=aggressiv verteidigend" },
-  { key:"stress", label:"Stresslevel", group:"Erregung & Regulation", anchor:"1=entspannt · 10=Panik" },
-  { key:"impulse", label:"Impulskontrolle", group:"Erregung & Regulation", anchor:"1=kontrolliert · 10=unkontrollierbar" },
-  { key:"separation", label:"Trennungsverhalten", group:"Alltag & Anpassung", anchor:"1=ruhig · 10=Panik" },
-  { key:"play", label:"Spielverhalten", group:"Alltag & Anpassung", anchor:"1=ausgewogen · 10=aggressiv" },
-  { key:"physical", label:"Körperlicher Zustand", group:"Gesundheit", anchor:"1=unauffällig · 10=akut behandlungsbedürftig" },
-  { key:"hygiene", label:"Hygiene / Sauberkeit", group:"Gesundheit", anchor:"1=sauber · 10=massiv problematisch" }
+  // Sozial
+  { key:"social_dogs",   label:"Sozialverhalten – Artgenossen", group:"Sozial", anchor:"1=sozial kompetent · 10=Aggression/Übergriff" },
+  { key:"social_humans", label:"Sozialverhalten – Menschen",    group:"Sozial", anchor:"1=offen/neutral · 10=Abwehr/Angriff" },
+  { key:"resources",     label:"Ressourcen (Futter/Spielzeug)", group:"Sozial", anchor:"1=konfliktfrei · 10=massiv verteidigend" },
+
+  // Alltag & Handling
+  { key:"handling",      label:"Handling / Anfassen",           group:"Alltag", anchor:"1=kooperativ · 10=wehrhaft/gefährlich" },
+  { key:"leash",         label:"Leinenführigkeit",              group:"Alltag", anchor:"1=locker · 10=kaum kontrollierbar" },
+  { key:"separation",    label:"Alleinbleiben / Trennung",      group:"Alltag", anchor:"1=ruhig · 10=Panik" },
+
+  // Erregung/Regulation
+  { key:"stress",        label:"Stresslevel",                   group:"Regulation", anchor:"1=entspannt · 10=Panik" },
+  { key:"reactivity",    label:"Lärm / Reaktivität",            group:"Regulation", anchor:"1=gelassen · 10=hochreaktiv" },
+
+  // Spiel & Gesundheit
+  { key:"play",          label:"Spielverhalten",                group:"Spiel", anchor:"1=ausgewogen · 10=eskalierend" },
+  { key:"health",        label:"Gesundheit – körperlich",       group:"Gesundheit", anchor:"1=unauffällig · 10=akut behandlungsbedürftig" },
+  { key:"hygiene",       label:"Hygiene / Sauberkeit",          group:"Gesundheit", anchor:"1=sauber · 10=massiv problematisch" }
+];
+
+// 6 Kernskalen für Forschungs-Index
+const STAT_CORE_KEYS = [
+  "social_dogs",
+  "social_humans",
+  "resources",
+  "stress",
+  "reactivity",
+  "separation"
+];
+
+const STAT_QUAL_OPTIONS = [
+  { v:"", label:"—" },
+  { v:"unauffaellig", label:"unauffällig" },
+  { v:"leicht",       label:"leicht" },
+  { v:"mittel",       label:"mittel" },
+  { v:"stark",        label:"stark" }
+];
+
+const STAT_HEALTH_TYPES = [
+  { v:"", label:"—" },
+  { v:"magen_darm", label:"Magen/Darm" },
+  { v:"haut_allergie", label:"Haut/Allergie" },
+  { v:"bewegung_schmerz", label:"Bewegung/Schmerz" },
+  { v:"infekt", label:"Infekt" },
+  { v:"sonstiges", label:"Sonstiges" }
 ];
 
 function statColor(v) {
@@ -14550,6 +14586,25 @@ function statColor(v) {
   if(val <= 3) return "#2ecc71";
   if(val <= 6) return "#f1c40f";
   return "#e74c3c";
+}
+
+function _statComputeCoreIndex(scores){
+  try{
+    const vals = STAT_CORE_KEYS.map(k => Number(scores?.[k] ?? 0)).filter(n => Number.isFinite(n) && n>0);
+    if(!vals.length) return null;
+    const mean = vals.reduce((a,b)=>a+b,0) / vals.length;
+    return Math.round(mean * 10) / 10;
+  }catch(_){ return null; }
+}
+
+function _statQualSelectHtml(key){
+  const opts = STAT_QUAL_OPTIONS.map(o => `<option value="${o.v}">${o.label}</option>`).join("");
+  return `<select class="stat-qual" data-key="${key}" style="min-width:160px">${opts}</select>`;
+}
+
+function _statHealthTypeHtml(){
+  const opts = STAT_HEALTH_TYPES.map(o => `<option value="${o.v}">${o.label}</option>`).join("");
+  return `<select class="stat-health-type" style="min-width:200px">${opts}</select>`;
 }
 
 function renderStatisticsPanel() {
@@ -14562,23 +14617,49 @@ function renderStatisticsPanel() {
     groups[d.group].push(d);
   });
 
-  let html = "";
+  // Header: Core-Index
+  let html = `
+    <div class="card" style="margin:14px 0;padding:16px;border-radius:14px;background:rgba(255,255,255,0.04)">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <div style="font-weight:900;font-size:16px">Forschungs‑Index (Kern 6)</div>
+        <div class="muted" style="font-size:12px">Mittelwert aus: Artgenossen · Menschen · Ressourcen · Stress · Reaktivität · Trennung</div>
+        <div style="margin-left:auto;font-weight:900;font-size:18px">Index: <span id="statCoreIndex">—</span></div>
+      </div>
+    </div>
+  `;
+
   Object.keys(groups).forEach(g=>{
     html += `<div class="card" style="margin:14px 0;padding:16px;border-radius:14px;background:rgba(255,255,255,0.04)">`;
     html += `<div style="font-weight:800;margin-bottom:12px;font-size:16px">${g}</div>`;
 
     groups[g].forEach(d=>{
+      const extra = (d.key === "health")
+        ? `<div style="margin-top:8px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+             <div class="muted" style="font-size:12px">Auffälligkeit (Typ, optional)</div>
+             ${_statHealthTypeHtml()}
+           </div>`
+        : "";
+
       html += `
         <div style="margin:14px 0">
-          <div style="font-weight:600">${d.label}</div>
-          <div class="muted" style="font-size:12px;margin-bottom:6px">${d.anchor}</div>
-          <input type="range" min="1" max="10" value="5"
-                 data-key="${d.key}"
-                 class="stat-pro-slider"
-                 style="width:100%">
-          <div style="text-align:right;font-size:13px;margin-top:4px">
-            Wert: <span class="stat-pro-val" data-key="${d.key}">5</span>
+          <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+            <div style="flex:1;min-width:280px">
+              <div style="font-weight:700">${d.label}</div>
+              <div class="muted" style="font-size:12px;margin-bottom:6px">${d.anchor}</div>
+              <input type="range" min="1" max="10" value="1"
+                     data-key="${d.key}"
+                     class="stat-pro-slider"
+                     style="width:100%">
+              <div style="text-align:right;font-size:13px;margin-top:4px">
+                Wert: <span class="stat-pro-val" data-key="${d.key}">1</span>
+              </div>
+            </div>
+            <div style="min-width:220px">
+              <div class="muted" style="font-size:12px;margin-bottom:6px">Qualitativ (optional)</div>
+              ${_statQualSelectHtml(d.key)}
+            </div>
           </div>
+          ${extra}
         </div>`;
     });
 
@@ -14587,38 +14668,35 @@ function renderStatisticsPanel() {
 
   wrap.innerHTML = html;
 
+  const updateIndexFromUI = ()=>{
+    const scores = {};
+    wrap.querySelectorAll('.stat-pro-slider').forEach(sl=>{ scores[sl.dataset.key] = Number(sl.value||0); });
+    const idx = _statComputeCoreIndex(scores);
+    const el = document.getElementById('statCoreIndex');
+    if(el) el.textContent = (idx==null ? '—' : String(idx));
+  };
+
   wrap.querySelectorAll(".stat-pro-slider").forEach(sl=>{
-    const span = wrap.querySelector(`.stat-pro-val[data-key="${sl.dataset.key}"]`);
-    sl.addEventListener("input", ()=>{
-      span.textContent = sl.value;
-      sl.style.accentColor = statColor(sl.value);
-    });
-    sl.style.accentColor = statColor(sl.value);
+    const out = wrap.querySelector(`.stat-pro-val[data-key="${sl.dataset.key}"]`);
+    const set = ()=>{
+      const v = sl.value;
+      if(out) out.textContent = v;
+      sl.style.background = `linear-gradient(90deg, ${statColor(v)} 0%, ${statColor(v)} ${(v-1)/9*100}%, rgba(255,255,255,0.15) ${(v-1)/9*100}%, rgba(255,255,255,0.15) 100%)`;
+      updateIndexFromUI();
+    };
+    sl.addEventListener("input", set, {passive:true});
+    set();
   });
+
+  updateIndexFromUI();
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  const tabBtn = document.getElementById("tabStatistics");
-  if(tabBtn) tabBtn.addEventListener("click", ()=>{
-    setTimeout(renderStatisticsPanel, 50);
-  });
-});
+// Ensure render on tab open (falls Statistics-Tab vorhanden)
+try{
+  const tab = document.getElementById('tabStatistics');
+  if(tab && !tab.__statBound){
+    tab.__statBound = true;
+    tab.addEventListener('click', ()=>{ try{ renderStatisticsPanel(); }catch(e){ console.error(e); } }, {passive:true});
+  }
+}catch(e){ console.warn(e); }
 
-
-
-/* ===== CLEAN MASTER STAT CORE M50.8.0_FINAL_MASTER_20260301 ===== */
-
-if (typeof STAT_DIMENSIONS === "undefined") {
-const STAT_DIMENSIONS = [
-  { key:"overall", label:"Gesamtverhalten", group:"Überblick" },
-  { key:"social_dogs", label:"Sozialverhalten – Artgenossen", group:"Sozialdimension" },
-  { key:"social_humans", label:"Sozialverhalten – Menschen", group:"Sozialdimension" },
-  { key:"resources", label:"Ressourcenverhalten", group:"Sozialdimension" },
-  { key:"stress", label:"Stresslevel", group:"Erregung & Regulation" },
-  { key:"impulse", label:"Impulskontrolle", group:"Erregung & Regulation" },
-  { key:"separation", label:"Trennungsverhalten", group:"Alltag & Anpassung" },
-  { key:"play", label:"Spielverhalten", group:"Alltag & Anpassung" },
-  { key:"physical", label:"Körperlicher Zustand", group:"Gesundheit" },
-  { key:"hygiene", label:"Hygiene / Sauberkeit", group:"Gesundheit" }
-];
-}
