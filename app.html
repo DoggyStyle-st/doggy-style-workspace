@@ -102,7 +102,7 @@
   .doc-modal__actions{ margin-left:auto; display:flex; flex-wrap: wrap; gap: 8px; }
   .doc-modal__frame{ width: 100%; border: 0; border-radius: 12px; background: #fff; flex:1; min-height: 0; }
 </style>
-  <meta name="app-version" content="M50.5.3_STATISTIK_SCALES_UI_20260301">
+  <meta name="app-version" content="M50.7.3_STAT_RESEARCH_UI_20260301">
   <meta name="release-channel" content="MASTER">
 </head>
 <body class="bg-watermark page-app">
@@ -1174,9 +1174,106 @@
       </div>
     </div>
 
-    <div id="statScales" class="stat-scales"></div>
-        
-<div class="row" style="flex-wrap:wrap; gap:10px; align-items:flex-start; margin-top:10px;">
+    <div id="statScales" class="stat-scales" style="margin-top:14px;"></div>
+        <div class="stat-scale-input">
+          <input type="range" min="1" max="10" step="1" value="1" id="scale_overall"
+                 oninput="(function(v){var el=document.getElementById('scaleVal_overall'); if(el) el.textContent=v;})(this.value)">
+          <span class="stat-scale-val" id="scaleVal_overall">1</span>
+        </div>
+      </div>
+
+      <div class="stat-scale-row">
+        <div class="stat-scale-label">Sozialverhalten</div>
+        <div class="stat-scale-input">
+          <input type="range" min="1" max="10" step="1" value="1" id="scale_social"
+                 oninput="(function(v){var el=document.getElementById('scaleVal_social'); if(el) el.textContent=v;})(this.value)">
+          <span class="stat-scale-val" id="scaleVal_social">1</span>
+        </div>
+      </div>
+
+      <div class="stat-scale-row">
+        <div class="stat-scale-label">Futter & Ressourcen</div>
+        <div class="stat-scale-input">
+          <input type="range" min="1" max="10" step="1" value="1" id="scale_food"
+                 oninput="(function(v){var el=document.getElementById('scaleVal_food'); if(el) el.textContent=v;})(this.value)">
+          <span class="stat-scale-val" id="scaleVal_food">1</span>
+        </div>
+      </div>
+
+      <div class="stat-scale-row">
+        <div class="stat-scale-label">Handling / Anfassen</div>
+        <div class="stat-scale-input">
+          <input type="range" min="1" max="10" step="1" value="1" id="scale_handling"
+                 oninput="(function(v){var el=document.getElementById('scaleVal_handling'); if(el) el.textContent=v;})(this.value)">
+          <span class="stat-scale-val" id="scaleVal_handling">1</span>
+        </div>
+      </div>
+
+      <div class="stat-scale-row">
+        <div class="stat-scale-label">Leinenführigkeit</div>
+        <div class="stat-scale-input">
+          <input type="range" min="1" max="10" step="1" value="1" id="scale_leash"
+                 oninput="(function(v){var el=document.getElementById('scaleVal_leash'); if(el) el.textContent=v;})(this.value)">
+          <span class="stat-scale-val" id="scaleVal_leash">1</span>
+        </div>
+      </div>
+
+      <div class="stat-scale-row">
+        <div class="stat-scale-label">Stresslevel</div>
+        <div class="stat-scale-input">
+          <input type="range" min="1" max="10" step="1" value="1" id="scale_stress"
+                 oninput="(function(v){var el=document.getElementById('scaleVal_stress'); if(el) el.textContent=v;})(this.value)">
+          <span class="stat-scale-val" id="scaleVal_stress">1</span>
+        </div>
+      </div>
+
+      <div class="stat-scale-row">
+        <div class="stat-scale-label">Lärm / Reaktivität</div>
+        <div class="stat-scale-input">
+          <input type="range" min="1" max="10" step="1" value="1" id="scale_noise"
+                 oninput="(function(v){var el=document.getElementById('scaleVal_noise'); if(el) el.textContent=v;})(this.value)">
+          <span class="stat-scale-val" id="scaleVal_noise">1</span>
+        </div>
+      </div>
+
+      <div class="stat-scale-row">
+        <div class="stat-scale-label">Alleinbleiben / Trennung</div>
+        <div class="stat-scale-input">
+          <input type="range" min="1" max="10" step="1" value="1" id="scale_separation"
+                 oninput="(function(v){var el=document.getElementById('scaleVal_separation'); if(el) el.textContent=v;})(this.value)">
+          <span class="stat-scale-val" id="scaleVal_separation">1</span>
+        </div>
+      </div>
+
+      <div class="stat-scale-row">
+        <div class="stat-scale-label">Spielverhalten</div>
+        <div class="stat-scale-input">
+          <input type="range" min="1" max="10" step="1" value="1" id="scale_play"
+                 oninput="(function(v){var el=document.getElementById('scaleVal_play'); if(el) el.textContent=v;})(this.value)">
+          <span class="stat-scale-val" id="scaleVal_play">1</span>
+        </div>
+      </div>
+
+      <div class="stat-scale-row">
+        <div class="stat-scale-label">Gesundheit / Auffälligkeiten</div>
+        <div class="stat-scale-input">
+          <input type="range" min="1" max="10" step="1" value="1" id="scale_health"
+                 oninput="(function(v){var el=document.getElementById('scaleVal_health'); if(el) el.textContent=v;})(this.value)">
+          <span class="stat-scale-val" id="scaleVal_health">1</span>
+        </div>
+      </div>
+
+      <div class="stat-scale-row">
+        <div class="stat-scale-label">Hygiene / Sauberkeit</div>
+        <div class="stat-scale-input">
+          <input type="range" min="1" max="10" step="1" value="1" id="scale_hygiene"
+                 oninput="(function(v){var el=document.getElementById('scaleVal_hygiene'); if(el) el.textContent=v;})(this.value)">
+          <span class="stat-scale-val" id="scaleVal_hygiene">1</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="row" style="flex-wrap:wrap; gap:10px; align-items:flex-start; margin-top:10px;">
       <div style="flex:1; min-width:260px;">
         <label class="muted" style="display:block; margin-bottom:4px;">Notizen (optional)</label>
         <textarea id="statNotes" class="input" rows="2" style="width:100%" placeholder="Kurzbeobachtung / Kontext (z.B. Erstkontakt, Gruppenkonstellation, Trigger)"></textarea>
@@ -1311,7 +1408,7 @@
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-<script defer="defer" src="app.js"></script>
+<script defer="defer" src="app.js?v=M50.7.3_STAT_RESEARCH_UI_20260301"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');

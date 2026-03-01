@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.7.2_STAT_RESEARCH_UI_20260301",
+  tag: "M50.7.3_STAT_RESEARCH_UI_20260301",
   channel: "MASTER",
   frozenAt: "2026-03-01"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.7.2_STAT_RESEARCH_UI_20260301";
+const APP_BUILD = "M50.7.3_STAT_RESEARCH_UI_20260301";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -2539,7 +2539,8 @@ function showPanel(id){
     scheduleAnaRefresh();
   }
   if(id === "statistics"){
-    try { renderStatisticsPanel(); } catch (e) { console.error(e); if (window.dbg) window.dbg('renderStatisticsPanel() failed: '+(e && e.message ? e.message : e)); } }
+    try{ renderStatisticsPanel(); }catch(_){ }
+  }
 if(id === "calendar"){
     renderCalendarPanel();
   }
@@ -12845,53 +12846,6 @@ div.innerHTML = `<strong>${d.dogName || "-"}</strong><br>
     emptyEl.style.display = "block";
   }
 }
-
-
-// ===== DEBUG OVERLAY (M50.7.2) =====
-(function(){
-  const MAX=200;
-  window.__dbgLog = window.__dbgLog || [];
-  function ensure(){
-    if(document.getElementById('dbgOverlay')) return;
-    const d=document.createElement('div');
-    d.id='dbgOverlay';
-    d.style.cssText='position:fixed;left:10px;bottom:10px;z-index:99999;max-width:45vw;max-height:35vh;overflow:auto;background:rgba(0,0,0,.75);border:1px solid rgba(255,255,255,.15);border-radius:10px;padding:8px;font:12px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace;color:#fff;display:none;';
-    const h=document.createElement('div');
-    h.style.cssText='display:flex;gap:8px;align-items:center;margin-bottom:6px;';
-    const b=document.createElement('button');
-    b.textContent='DBG';
-    b.style.cssText='background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.18);border-radius:8px;padding:4px 8px;cursor:pointer;';
-    const c=document.createElement('button');
-    c.textContent='Clear';
-    c.style.cssText=b.style.cssText;
-    const s=document.createElement('span');
-    s.textContent='Konsole';
-    s.style.cssText='opacity:.8';
-    h.appendChild(b);h.appendChild(c);h.appendChild(s);
-    const pre=document.createElement('pre');
-    pre.id='dbgPre';
-    pre.style.cssText='margin:0;white-space:pre-wrap;';
-    d.appendChild(h);d.appendChild(pre);
-    document.body.appendChild(d);
-    b.addEventListener('click',()=>{ d.style.display = (d.style.display==='none') ? 'block':'none'; });
-    c.addEventListener('click',()=>{ window.__dbgLog.length=0; pre.textContent=''; });
-    pre.textContent = window.__dbgLog.join('\n');
-  }
-  window.dbg = function(msg){
-    try{
-      const line = '['+new Date().toISOString().slice(11,19)+'] '+String(msg);
-      window.__dbgLog.push(line);
-      if(window.__dbgLog.length>MAX) window.__dbgLog.splice(0, window.__dbgLog.length-MAX);
-      const pre=document.getElementById('dbgPre');
-      if(pre){ pre.textContent = window.__dbgLog.join('\n'); pre.scrollTop = pre.scrollHeight; }
-    }catch(e){}
-  };
-  window.addEventListener('error', (e)=>{ window.dbg('ERROR: '+(e.message||e.error||e)); });
-  window.addEventListener('unhandledrejection', (e)=>{ window.dbg('PROMISE: '+(e.reason||e)); });
-  document.addEventListener('DOMContentLoaded', ensure);
-})();
-// ===== END DEBUG OVERLAY =====
-
 document.addEventListener("DOMContentLoaded", () => {
   const m = document.getElementById("menu-stays");
   if (m) {
@@ -14575,28 +14529,20 @@ function exportStatCsv(){
 
 /* ===============================
    PROFESSIONAL RESEARCH STAT MODULE
-   BUILD: M50.7.2_STAT_RESEARCH_UI_20260301
+   BUILD: M50.7.0_CLEAN_MASTER_20260301
 ================================= */
 
 const STAT_DIMENSIONS = [
-  { key: "overall", label: "Gesamtbild", group: "Überblick", anchor: "1 = unauffällig · 10 = stark/problematisch" },
-
-  { key: "social_dogs", label: "Sozialverhalten – Artgenossen", group: "Sozial", anchor: "Kontakt zu Hunden: freundlich/neutral → Konflikt/Angriff" },
-  { key: "social_humans", label: "Sozialverhalten – Menschen", group: "Sozial", anchor: "Kontakt zu Menschen: kooperativ → Abwehr/Bedrohung" },
-  { key: "resources", label: "Ressourcen / Futter", group: "Sozial", anchor: "Ressourcen: entspannt → starkes Guarding/Aggression" },
-
-  { key: "handling", label: "Handling / Anfassen", group: "Alltag", anchor: "Pflege/Anfassen: tolerant → Abwehr/Beißrisiko" },
-  { key: "leash", label: "Leinenführigkeit", group: "Alltag", anchor: "Leine: locker/ansprechbar → starkes Ziehen/kaum lenkbar" },
-  { key: "separation", label: "Alleinbleiben / Trennung", group: "Alltag", anchor: "Trennung: ruhig → Panik/Destruktion" },
-  { key: "play", label: "Spielverhalten", group: "Alltag", anchor: "Spiel: angemessen → überdreht/konflikthaft" },
-
-  { key: "stress", label: "Stresslevel", group: "Erregung", anchor: "Erregung: ruhig → dauerhaft hoch/überfordert" },
-  { key: "reactivity", label: "Reaktivität (Lärm/Trigger)", group: "Erregung", anchor: "Trigger: gelassen → starke Reaktion" },
-
-  { key: "health", label: "Körperliche Gesundheit", group: "Gesundheit", anchor: "Körperzustand: fit → deutlich eingeschränkt" },
-  { key: "pain_med", label: "Medizinisch / Schmerzverdacht", group: "Gesundheit", anchor: "Verdacht: keiner → stark (Abklärung nötig)" },
-
-  { key: "hygiene", label: "Hygiene / Sauberkeit", group: "Pflege", anchor: "Sauberkeit: trocken/sauber → stark verschmutzt/inkontinent" },
+  { key:"overall", label:"Gesamtverhalten", group:"Überblick", anchor:"1=stabil · 5=auffällig · 10=stark problematisch" },
+  { key:"social_dogs", label:"Sozialverhalten – Artgenossen", group:"Sozialdimension", anchor:"1=sozial kompetent · 10=aggressiv" },
+  { key:"social_humans", label:"Sozialverhalten – Menschen", group:"Sozialdimension", anchor:"1=offen · 10=Angriff" },
+  { key:"resources", label:"Ressourcenverhalten", group:"Sozialdimension", anchor:"1=konfliktfrei · 10=aggressiv verteidigend" },
+  { key:"stress", label:"Stresslevel", group:"Erregung & Regulation", anchor:"1=entspannt · 10=Panik" },
+  { key:"impulse", label:"Impulskontrolle", group:"Erregung & Regulation", anchor:"1=kontrolliert · 10=unkontrollierbar" },
+  { key:"separation", label:"Trennungsverhalten", group:"Alltag & Anpassung", anchor:"1=ruhig · 10=Panik" },
+  { key:"play", label:"Spielverhalten", group:"Alltag & Anpassung", anchor:"1=ausgewogen · 10=aggressiv" },
+  { key:"physical", label:"Körperlicher Zustand", group:"Gesundheit", anchor:"1=unauffällig · 10=akut behandlungsbedürftig" },
+  { key:"hygiene", label:"Hygiene / Sauberkeit", group:"Gesundheit", anchor:"1=sauber · 10=massiv problematisch" }
 ];
 
 function statColor(v) {
@@ -14606,142 +14552,138 @@ function statColor(v) {
   return "#e74c3c";
 }
 
-function renderStatisticsPanel() {
-  const wrap = document.getElementById("statScales");
-  if(!wrap) return;
 
-  const groups = {};
-  STAT_DIMENSIONS.forEach(d=>{
-    if(!groups[d.group]) groups[d.group] = [];
-    groups[d.group].push(d);
-  });
-
-  let html = "";
-  Object.keys(groups).forEach(g=>{
-    html += `<div class="card" style="margin:14px 0;padding:16px;border-radius:14px;background:rgba(255,255,255,0.04)">`;
-    html += `<div style="font-weight:800;margin-bottom:12px;font-size:16px">${g}</div>`;
-
-    groups[g].forEach(d=>{
-      html += `
-        <div style="margin:14px 0">
-          <div style="font-weight:600">${d.label}</div>
-          <div class="muted" style="font-size:12px;margin-bottom:6px">${d.anchor}</div>
-          <input type="range" min="1" max="10" value="5"
-                 data-key="${d.key}"
-                 class="stat-pro-slider"
-                 style="width:100%">
-          <div style="text-align:right;font-size:13px;margin-top:4px">
-            Wert: <span class="stat-pro-val" data-key="${d.key}">5</span>
-          </div>
-        </div>`;
-    });
-
-    html += `</div>`;
-  });
-
-  wrap.innerHTML = html;
-
-  wrap.querySelectorAll(".stat-pro-slider").forEach(sl=>{
-    const span = wrap.querySelector(`.stat-pro-val[data-key="${sl.dataset.key}"]`);
-    sl.addEventListener("input", ()=>{
-      span.textContent = sl.value;
-      sl.style.accentColor = statColor(sl.value);
-    });
-    sl.style.accentColor = statColor(sl.value);
-  });
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-  const tabBtn = document.getElementById("tabStatistics");
-  if(tabBtn) tabBtn.addEventListener("click", ()=>{
-    setTimeout(renderStatisticsPanel, 50);
-  });
-});
+/* ====== STAT DIMENSIONS (Research) ====== */
+const STAT_DIMENSIONS = (window.STAT_DIMENSIONS && Array.isArray(window.STAT_DIMENSIONS)) ? window.STAT_DIMENSIONS : [
+  { key: "overall", label: "Gesamtbild", anchor: "1 unauffällig · 5 mittel · 10 sehr problematisch" },
+  { key: "social_dogs", label: "Sozialverhalten – Artgenossen", anchor: "Kontakt/Spiel/Distanz – 1 entspannt · 10 stark konfliktbereit" },
+  { key: "social_humans", label: "Sozialverhalten – Menschen", anchor: "Begrüßung/Handling/Fremde – 1 freundlich · 10 stark abwehrend" },
+  { key: "resources", label: "Ressourcen (Futter/Spielzeug)", anchor: "1 teilt/neutral · 10 starke Verteidigung" },
+  { key: "handling", label: "Handling / Anfassen", anchor: "Pflege, Tierarzt, Körperkontakt – 1 kooperativ · 10 kaum möglich" },
+  { key: "leash", label: "Leinenführigkeit / Management", anchor: "1 gut führbar · 10 kaum kontrollierbar" },
+  { key: "stress", label: "Stresslevel / Erholung", anchor: "1 entspannt · 10 dauerhaft hochgestresst" },
+  { key: "reactivity", label: "Reaktivität (Umweltreize)", anchor: "Lärm, Tiere, Bewegungen – 1 gelassen · 10 stark reaktiv" },
+  { key: "alone", label: "Alleinbleiben / Trennung", anchor: "1 ruhig · 10 starke Trennungsreaktion" },
+  { key: "play", label: "Spiel & Frustration", anchor: "1 fair/steuerbar · 10 eskaliert/Frust aggressiv" },
+  { key: "health", label: "Wohlbefinden / Schmerzzeichen", anchor: "1 unauffällig · 10 deutlich krank/schmerzhaft" },
+  { key: "hygiene", label: "Hygiene / Sauberkeit", anchor: "1 sauber · 10 stark verschmutzt/unsauber" },
+];
+window.STAT_DIMENSIONS = STAT_DIMENSIONS;
 
 
+/* ====== STATISTICS PANEL RENDER (M50.7.3) ====== */
+function renderStatisticsPanel(){
+  try {
+    const wrap = document.getElementById("statScales");
+    if(!wrap) return;
 
+    // Clear & build container
+    wrap.innerHTML = "";
+    const container = document.createElement("div");
+    container.className = "stat-pro-container";
+    container.style.display = "grid";
+    container.style.gap = "12px";
 
+    // Grouping for readability (pure UI)
+    const groups = [
+      { title: "Überblick", keys: ["overall"] },
+      { title: "Soziales Verhalten", keys: ["social_dogs","social_humans","play"] },
+      { title: "Ressourcen & Handling", keys: ["resources","handling"] },
+      { title: "Alltag / Management", keys: ["leash","reactivity","alone"] },
+      { title: "Wellbeing", keys: ["stress","health","hygiene"] },
+    ];
 
+    const byKey = Object.fromEntries(STAT_DIMENSIONS.map(d=>[d.key,d]));
 
-/* ==========================================================
-   M50.7.3_STABLE_STAT_INTEGRATION
-   Non‑invasive Statistics Research Module
-   ========================================================== */
+    function makeRow(dim){
+      const row = document.createElement("div");
+      row.className = "stat-pro-row";
+      row.style.display = "grid";
+      row.style.gridTemplateColumns = "260px 1fr 46px";
+      row.style.alignItems = "center";
+      row.style.gap = "10px";
+      row.style.padding = "8px 0";
 
-(function(){
+      const labelBox = document.createElement("div");
+      labelBox.style.display = "grid";
+      labelBox.style.gap = "3px";
 
-  const BUILD_STAT_VERSION = "M50.7.3_STABLE_STAT_INTEGRATION_20260301";
+      const label = document.createElement("div");
+      label.textContent = dim.label;
+      label.style.fontWeight = "600";
+      label.style.fontSize = "14px";
 
-  const STAT_DIMENSIONS = [
-    { key:"overall", label:"Gesamtverhalten" },
-    { key:"social_dogs", label:"Sozialverhalten – Artgenossen" },
-    { key:"social_humans", label:"Sozialverhalten – Menschen" },
-    { key:"resources", label:"Ressourcenverhalten" },
-    { key:"handling", label:"Handling / Anfassen" },
-    { key:"leash", label:"Leinenführigkeit" },
-    { key:"stress", label:"Stresslevel" },
-    { key:"reactivity", label:"Reaktivität (Lärm / Trigger)" },
-    { key:"separation", label:"Trennungsverhalten" },
-    { key:"play", label:"Spielverhalten" },
-    { key:"health", label:"Körperliche Gesundheit" }
-  ];
+      const anchor = document.createElement("div");
+      anchor.textContent = dim.anchor || "";
+      anchor.style.fontSize = "11px";
+      anchor.style.opacity = "0.75";
 
-  function safeRenderStatistics(){
-    try{
-      const container = document.getElementById("statScales");
-      if(!container) return;
+      labelBox.appendChild(label);
+      if(dim.anchor) labelBox.appendChild(anchor);
 
-      if(container.dataset.rendered === "true") return;
-      container.dataset.rendered = "true";
+      const slider = document.createElement("input");
+      slider.type = "range";
+      slider.min = "1";
+      slider.max = "10";
+      slider.step = "1";
+      slider.value = "1";
+      slider.className = "stat-pro-slider stat-range";
+      slider.setAttribute("data-key", dim.key);
 
-      container.innerHTML = "";
+      const val = document.createElement("div");
+      val.className = "stat-pro-value";
+      val.textContent = slider.value;
+      val.style.textAlign = "right";
+      val.style.fontVariantNumeric = "tabular-nums";
+      val.style.opacity = "0.9";
 
-      STAT_DIMENSIONS.forEach(dim => {
+      slider.addEventListener("input", ()=>{ val.textContent = slider.value; });
 
-        const row = document.createElement("div");
-        row.style.marginBottom = "16px";
+      row.appendChild(labelBox);
+      row.appendChild(slider);
+      row.appendChild(val);
+      return row;
+    }
 
-        const label = document.createElement("div");
-        label.textContent = dim.label;
-        label.style.marginBottom = "6px";
-        label.style.fontSize = "14px";
+    groups.forEach(g=>{
+      const card = document.createElement("div");
+      card.className = "card stat-pro-card";
+      card.style.padding = "14px";
+      card.style.borderRadius = "16px";
 
-        const slider = document.createElement("input");
-        slider.type = "range";
-        slider.min = "1";
-        slider.max = "10";
-        slider.value = "1";
-        slider.style.width = "100%";
-        slider.dataset.key = dim.key;
+      const h = document.createElement("div");
+      h.textContent = g.title;
+      h.style.fontSize = "14px";
+      h.style.fontWeight = "700";
+      h.style.opacity = "0.95";
+      h.style.marginBottom = "8px";
 
-        const value = document.createElement("div");
-        value.textContent = "1";
-        value.style.textAlign = "right";
-        value.style.fontSize = "12px";
-        value.style.opacity = "0.7";
+      card.appendChild(h);
 
-        slider.addEventListener("input", function(){
-          value.textContent = slider.value;
-        });
-
-        row.appendChild(label);
-        row.appendChild(slider);
-        row.appendChild(value);
-
-        container.appendChild(row);
+      g.keys.forEach(k=>{
+        const dim = byKey[k];
+        if(!dim) return;
+        card.appendChild(makeRow(dim));
       });
 
-      console.log("STAT MODULE ACTIVE:", BUILD_STAT_VERSION);
+      container.appendChild(card);
+    });
 
-    }catch(e){
-      console.error("STAT MODULE ERROR:", e);
+    wrap.appendChild(container);
+
+    // Ensure save button exists
+    const btn = document.getElementById("btnStatSave");
+    if(btn) {
+      btn.onclick = async ()=>{
+        try {
+          await saveStatisticsRating();
+        } catch(e) {
+          console.error("[STAT] save error", e);
+          alert("Speichern fehlgeschlagen. Details siehe Konsole.");
+        }
+      };
     }
+  } catch(e) {
+    console.error("[STAT] renderStatisticsPanel error", e);
   }
-
-  document.addEventListener("DOMContentLoaded", function(){
-    setTimeout(safeRenderStatistics, 200);
-  });
-
-})();
-
-/* ================= END STAT MODULE ================= */
+}
