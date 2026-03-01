@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.5.5_STATISTIK_RESEARCH_SCALES_20260301",
+  tag: "M50.5.8_STAT_RESEARCH_SCALES_20260301",
   channel: "MASTER",
   frozenAt: "2026-03-01"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.5.5_STATISTIK_RESEARCH_SCALES_20260301";
+const APP_BUILD = "M50.5.8_STAT_RESEARCH_SCALES_20260301";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -14077,66 +14077,16 @@ function renderComplianceArchive(root){
 // Statistik (Forschungsmodul)
 // =====================
 const STAT_DIMENSIONS = [
-  {
-    key: "overall",
-    label: "Gesamtverhalten",
-    hint: "Gesamteindruck des Tages: Ruhe, Kooperation, allgemeine Auffälligkeit (1=unauffällig, 10=stark/problematisch)."
-  },
-  {
-    key: "social_dogs",
-    label: "Sozialverhalten – Artgenossen – Artgenossen",
-    hint: "Kontakt zu anderen Hunden: Annäherung, Spiel, Konflikte, Abwehr/Unsicherheit."
-  },
-  {
-    key: "social_humans",
-    label: "Sozialverhalten – Artgenossen – Menschen",
-    hint: "Umgang mit Personal/Fremden: Kontaktaufnahme, Kooperationsbereitschaft, Abwehr/Unsicherheit."
-  },
-  {
-    key: "resources",
-    label: "Futter & Ressourcen",
-    hint: "Ressourcenbezogenes Verhalten: Futter, Kauartikel, Spielzeug, Liegeplatz (z.B. Verteidigen, Fixieren)."
-  },
-  {
-    key: "handling",
-    label: "Handling / Anfassen",
-    hint: "Körperkontakt & Pflege: Anfassen, Bürsten, Pfoten, Maulbereich, Geschirr/Leine anlegen."
-  },
-  {
-    key: "leash",
-    label: "Leinenführigkeit",
-    hint: "Führen an der Leine: Ziehen, Ansprechbarkeit, Impulskontrolle in Bewegung."
-  },
-  {
-    key: "stress",
-    label: "Stresslevel",
-    hint: "Stresssignale/Unruhe: Hecheln, Pacing, Winseln, Übersprunghandlungen, Schlafmangel."
-  },
-  {
-    key: "reactivity",
-    label: "Lärm / Reaktivität",
-    hint: "Reaktion auf Geräusche/Bewegung/Trigger: Bellen, Fixieren, Hochfahren, Erregungslage."
-  },
-  {
-    key: "separation",
-    label: "Alleinbleiben / Trennung",
-    hint: "Allein im Zimmer/Box: Trennungsstress, Panik, Bellen, Zerstörung, Selbstberuhigung."
-  },
-  {
-    key: "play",
-    label: "Spielverhalten",
-    hint: "Spielqualität: angemessenes Spiel, Frustrationstoleranz, Überdrehen, Konflikte im Spiel."
-  },
-  {
-    key: "health",
-    label: "Gesundheit / Symptome",
-    hint: "Körperliche Beobachtungen (keine Diagnose): z.B. Magen-Darm, Husten, Lahmheit, Haut/Juckreiz, Schmerzzeichen."
-  },
-  {
-    key: "hygiene",
-    label: "Hygiene / Sauberkeit",
-    hint: "Stubenreinheit & Sauberkeit: Kot/Urin-Unfälle, Fellzustand, Verschmutzung nach Aufenthalt/Freilauf."
-  }
+  { key:"overall",       label:"Gesamtverhalten",               group:"Überblick",         hint:"Gesamteindruck des Tages. 1=stabil · 5=merklich auffällig · 10=stark problematisch" },
+  { key:"social_dogs",   label:"Sozialverhalten – Artgenossen", group:"Sozialverhalten",   hint:"Interaktion mit Hunden. 1=sozial kompetent · 5=deutlich angespannt · 10=aggressiv/nicht regulierbar" },
+  { key:"social_humans", label:"Sozialverhalten – Menschen",    group:"Sozialverhalten",   hint:"Reaktion auf Betreuung/Fremde. 1=offen · 5=unsicher/abwehrend · 10=Angriff/Beißversuch" },
+  { key:"stress",        label:"Stresslevel",                   group:"Erregung & Stress", hint:"Stressanzeichen im Tagesverlauf. 1=entspannt · 5=dauerhaft angespannt · 10=Panik/Kontrollverlust" },
+  { key:"impulse",       label:"Impulskontrolle",               group:"Erregung & Stress", hint:"Selbstregulation bei Reizen. 1=kontrolliert · 5=schwer regulierbar · 10=unkontrollierbar" },
+  { key:"resources",     label:"Ressourcenverhalten",           group:"Ressourcen",        hint:"Futter/Spielzeug/Platz. 1=konfliktfrei · 5=fixierend/verteidigend · 10=aggressives Verteidigen" },
+  { key:"separation",    label:"Trennungsverhalten",            group:"Alltag & Umgebung", hint:"Halterabwesenheit. 1=ruhig · 5=unruhig/klammernd · 10=Panik" },
+  { key:"play",          label:"Spielverhalten",                group:"Alltag & Umgebung", hint:"Spielqualität. 1=ausgewogen · 5=überdreht/grob · 10=kippt in Aggression" },
+  { key:"physical",      label:"Körperlicher Zustand",          group:"Gesundheit",        hint:"Sichtbarer körperlicher Zustand. 1=unauffällig · 5=deutlich auffällig · 10=akut behandlungsbedürftig" },
+  { key:"hygiene",       label:"Hygiene / Sauberkeit",          group:"Gesundheit",        hint:"Stubenreinheit & Pflegezustand. 1=sauber · 5=wiederholt unsauber · 10=massive Probleme" },
 ];
 
 
@@ -14251,10 +14201,10 @@ function renderStatisticsPanel(){
     const dims = (Array.isArray(STAT_DIMENSIONS) && STAT_DIMENSIONS.length)
       ? STAT_DIMENSIONS
       : [
-          { key:"socialCompatibility", label:"Artgenossenverträglichkeit", group:"Sozialverhalten – Artgenossen", hint:"1=sehr gut/entspannt · 10=stark unverträglich/konfliktbereit" },
-          { key:"resourceDefense", label:"Ressourcenverteidigung", group:"Sozialverhalten – Artgenossen", hint:"Futter/Spielzeug/Platz verteidigen" },
-          { key:"impulseControl", label:"Impulskontrolle", group:"Sozialverhalten – Artgenossen", hint:"1=sehr gut · 10=sehr impulsiv" },
-          { key:"frustrationTolerance", label:"Frustrationstoleranz", group:"Sozialverhalten – Artgenossen", hint:"1=hoch · 10=sehr niedrig" },
+          { key:"socialCompatibility", label:"Artgenossenverträglichkeit", group:"Sozialverhalten", hint:"1=sehr gut/entspannt · 10=stark unverträglich/konfliktbereit" },
+          { key:"resourceDefense", label:"Ressourcenverteidigung", group:"Sozialverhalten", hint:"Futter/Spielzeug/Platz verteidigen" },
+          { key:"impulseControl", label:"Impulskontrolle", group:"Sozialverhalten", hint:"1=sehr gut · 10=sehr impulsiv" },
+          { key:"frustrationTolerance", label:"Frustrationstoleranz", group:"Sozialverhalten", hint:"1=hoch · 10=sehr niedrig" },
           { key:"leadershipAcceptance", label:"Führbarkeit / Strukturannahme", group:"Menschenbezogen", hint:"1=sehr gut · 10=sehr schwierig" },
           { key:"reactivity", label:"Reaktivität", group:"Menschenbezogen", hint:"1=ruhig · 10=sehr reaktiv" },
           { key:"distanceBehavior", label:"Distanzverhalten", group:"Menschenbezogen", hint:"1=unauffällig · 10=stark auffällig" },
