@@ -14660,3 +14660,88 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 
+
+
+
+/* ==========================================================
+   M50.7.3_STABLE_STAT_INTEGRATION
+   Non‑invasive Statistics Research Module
+   ========================================================== */
+
+(function(){
+
+  const BUILD_STAT_VERSION = "M50.7.3_STABLE_STAT_INTEGRATION_20260301";
+
+  const STAT_DIMENSIONS = [
+    { key:"overall", label:"Gesamtverhalten" },
+    { key:"social_dogs", label:"Sozialverhalten – Artgenossen" },
+    { key:"social_humans", label:"Sozialverhalten – Menschen" },
+    { key:"resources", label:"Ressourcenverhalten" },
+    { key:"handling", label:"Handling / Anfassen" },
+    { key:"leash", label:"Leinenführigkeit" },
+    { key:"stress", label:"Stresslevel" },
+    { key:"reactivity", label:"Reaktivität (Lärm / Trigger)" },
+    { key:"separation", label:"Trennungsverhalten" },
+    { key:"play", label:"Spielverhalten" },
+    { key:"health", label:"Körperliche Gesundheit" }
+  ];
+
+  function safeRenderStatistics(){
+    try{
+      const container = document.getElementById("statScales");
+      if(!container) return;
+
+      if(container.dataset.rendered === "true") return;
+      container.dataset.rendered = "true";
+
+      container.innerHTML = "";
+
+      STAT_DIMENSIONS.forEach(dim => {
+
+        const row = document.createElement("div");
+        row.style.marginBottom = "16px";
+
+        const label = document.createElement("div");
+        label.textContent = dim.label;
+        label.style.marginBottom = "6px";
+        label.style.fontSize = "14px";
+
+        const slider = document.createElement("input");
+        slider.type = "range";
+        slider.min = "1";
+        slider.max = "10";
+        slider.value = "1";
+        slider.style.width = "100%";
+        slider.dataset.key = dim.key;
+
+        const value = document.createElement("div");
+        value.textContent = "1";
+        value.style.textAlign = "right";
+        value.style.fontSize = "12px";
+        value.style.opacity = "0.7";
+
+        slider.addEventListener("input", function(){
+          value.textContent = slider.value;
+        });
+
+        row.appendChild(label);
+        row.appendChild(slider);
+        row.appendChild(value);
+
+        container.appendChild(row);
+      });
+
+      console.log("STAT MODULE ACTIVE:", BUILD_STAT_VERSION);
+
+    }catch(e){
+      console.error("STAT MODULE ERROR:", e);
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", function(){
+    setTimeout(safeRenderStatistics, 200);
+  });
+
+})();
+
+/* ================= END STAT MODULE ================= */
