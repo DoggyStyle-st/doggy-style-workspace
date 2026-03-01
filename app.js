@@ -1,9 +1,9 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.5.3_STATISTIK_SCALES_UI_20260301",
+  tag: "M50.5.5_STATISTIK_RESEARCH_SCALES_20260301",
   channel: "MASTER",
-  frozenAt: "2026-03-01T00:05:00"
+  frozenAt: "2026-03-01"
 };
 // Expose for diagnostics / support
 try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = 'M50.5.4_STATISTIK_SCALES_UI_20260301';
+const APP_BUILD = "M50.5.5_STATISTIK_RESEARCH_SCALES_20260301";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -14077,21 +14077,68 @@ function renderComplianceArchive(root){
 // Statistik (Forschungsmodul)
 // =====================
 const STAT_DIMENSIONS = [
-  { key:"socialCompatibility", label:"Artgenossenverträglichkeit", group:"Sozialverhalten", hint:"1=sehr gut/entspannt · 10=stark unverträglich/konfliktbereit" },
-  { key:"resourceDefense", label:"Ressourcenverteidigung", group:"Sozialverhalten", hint:"Futter/Spielzeug/Platz verteidigen" },
-  { key:"impulseControl", label:"Impulskontrolle", group:"Sozialverhalten", hint:"1=sehr gut · 10=sehr impulsiv" },
-  { key:"frustrationTolerance", label:"Frustrationstoleranz", group:"Sozialverhalten", hint:"Warten/Abbruch/Abgrenzung" },
-
-  { key:"leadershipAcceptance", label:"Führbarkeit", group:"Menschenbezogen", hint:"Leinenhandling, Ansprechbarkeit" },
-  { key:"reactivity", label:"Reaktivität", group:"Menschenbezogen", hint:"Reize: Hund/Mensch/Umwelt" },
-  { key:"distanceBehavior", label:"Distanzverhalten", group:"Menschenbezogen", hint:"Nähe/Distanz zu Menschen" },
-  { key:"cooperation", label:"Kooperationsbereitschaft", group:"Menschenbezogen", hint:"Mitmachen, Handling, Pflege" },
-
-  { key:"baselineStress", label:"Grundanspannung", group:"Stress/Erregung", hint:"1=ruhig · 10=stark angespannt" },
-  { key:"displacement", label:"Übersprungshandlungen", group:"Stress/Erregung", hint:"z.B. Kratzen, Schütteln, Schnappen in Luft" },
-  { key:"hyperactivity", label:"Hyperaktivität", group:"Stress/Erregung", hint:"Motorik, Unruhe" },
-  { key:"withdrawal", label:"Rückzug/Vermeidung", group:"Stress/Erregung", hint:"Meiden, Rückzug, Freeze" }
+  {
+    key: "overall",
+    label: "Gesamtbild",
+    hint: "Gesamteindruck des Tages: Ruhe, Kooperation, allgemeine Auffälligkeit (1=unauffällig, 10=stark/problematisch)."
+  },
+  {
+    key: "social_dogs",
+    label: "Sozialverhalten – Artgenossen",
+    hint: "Kontakt zu anderen Hunden: Annäherung, Spiel, Konflikte, Abwehr/Unsicherheit."
+  },
+  {
+    key: "social_humans",
+    label: "Sozialverhalten – Menschen",
+    hint: "Umgang mit Personal/Fremden: Kontaktaufnahme, Kooperationsbereitschaft, Abwehr/Unsicherheit."
+  },
+  {
+    key: "resources",
+    label: "Futter & Ressourcen",
+    hint: "Ressourcenbezogenes Verhalten: Futter, Kauartikel, Spielzeug, Liegeplatz (z.B. Verteidigen, Fixieren)."
+  },
+  {
+    key: "handling",
+    label: "Handling / Anfassen",
+    hint: "Körperkontakt & Pflege: Anfassen, Bürsten, Pfoten, Maulbereich, Geschirr/Leine anlegen."
+  },
+  {
+    key: "leash",
+    label: "Leinenführigkeit",
+    hint: "Führen an der Leine: Ziehen, Ansprechbarkeit, Impulskontrolle in Bewegung."
+  },
+  {
+    key: "stress",
+    label: "Stresslevel",
+    hint: "Stresssignale/Unruhe: Hecheln, Pacing, Winseln, Übersprunghandlungen, Schlafmangel."
+  },
+  {
+    key: "reactivity",
+    label: "Lärm / Reaktivität",
+    hint: "Reaktion auf Geräusche/Bewegung/Trigger: Bellen, Fixieren, Hochfahren, Erregungslage."
+  },
+  {
+    key: "separation",
+    label: "Alleinbleiben / Trennung",
+    hint: "Allein im Zimmer/Box: Trennungsstress, Panik, Bellen, Zerstörung, Selbstberuhigung."
+  },
+  {
+    key: "play",
+    label: "Spielverhalten",
+    hint: "Spielqualität: angemessenes Spiel, Frustrationstoleranz, Überdrehen, Konflikte im Spiel."
+  },
+  {
+    key: "health",
+    label: "Gesundheit / Symptome",
+    hint: "Körperliche Beobachtungen (keine Diagnose): z.B. Magen-Darm, Husten, Lahmheit, Haut/Juckreiz, Schmerzzeichen."
+  },
+  {
+    key: "hygiene",
+    label: "Hygiene / Sauberkeit",
+    hint: "Stubenreinheit & Sauberkeit: Kot/Urin-Unfälle, Fellzustand, Verschmutzung nach Aufenthalt/Freilauf."
+  }
 ];
+
 
 // Render 1–10 scales into #statScales
 function renderStatScales(){
@@ -14111,7 +14158,7 @@ function renderStatScales(){
     const val = (existing[d.key] && isFinite(existing[d.key])) ? existing[d.key] : 5;
     html += `
       <div class="scale-row">
-        <div class="scale-label">${escapeHtml(d.label)}</div>
+        <div class="scale-label">${escapeHtml(d.label)}${d.hint ? `<div class="scale-item-hint">${escapeHtml(d.hint)}</div>` : ""}</div>
         <div>
           <input class="stat-range" type="range" min="1" max="10" step="1" value="${val}" data-key="${escapeHtml(d.key)}">
           <div class="muted" style="margin-top:4px; font-size:12px;">Wert: <span class="stat-range-val" data-key="${escapeHtml(d.key)}">${val}</span> / 10</div>

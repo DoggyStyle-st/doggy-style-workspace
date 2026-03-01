@@ -1056,3 +1056,11 @@ body.page-login .btnLink--text:hover{
   .stat-scale-label { flex: 0 0 auto; }
   .stat-scale-val { text-align: left; }
 }
+
+/* Statistik – Skalen: kurze Definitions-Hinweise je Dimension */
+.scale-item-hint{
+  font-size: 12px;
+  opacity: 0.75;
+  margin-top: 4px;
+  line-height: 1.35;
+}
