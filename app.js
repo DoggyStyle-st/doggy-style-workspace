@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.7.3_STAT_RESEARCH_UI_20260301",
+  tag: "M50.8.0_FINAL_MASTER_20260301",
   channel: "MASTER",
   frozenAt: "2026-03-01"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.7.3_STAT_RESEARCH_UI_20260301";
+const APP_BUILD = "M50.8.0_FINAL_MASTER_20260301";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -14529,7 +14529,7 @@ function exportStatCsv(){
 
 /* ===============================
    PROFESSIONAL RESEARCH STAT MODULE
-   BUILD: M50.7.0_CLEAN_MASTER_20260301
+   BUILD: M50.8.0_FINAL_MASTER_20260301
 ================================= */
 
 const STAT_DIMENSIONS = [
@@ -14552,138 +14552,73 @@ function statColor(v) {
   return "#e74c3c";
 }
 
+function renderStatisticsPanel() {
+  const wrap = document.getElementById("statScales");
+  if(!wrap) return;
 
-/* ====== STAT DIMENSIONS (Research) ====== */
-const STAT_DIMENSIONS = (window.STAT_DIMENSIONS && Array.isArray(window.STAT_DIMENSIONS)) ? window.STAT_DIMENSIONS : [
-  { key: "overall", label: "Gesamtbild", anchor: "1 unauffällig · 5 mittel · 10 sehr problematisch" },
-  { key: "social_dogs", label: "Sozialverhalten – Artgenossen", anchor: "Kontakt/Spiel/Distanz – 1 entspannt · 10 stark konfliktbereit" },
-  { key: "social_humans", label: "Sozialverhalten – Menschen", anchor: "Begrüßung/Handling/Fremde – 1 freundlich · 10 stark abwehrend" },
-  { key: "resources", label: "Ressourcen (Futter/Spielzeug)", anchor: "1 teilt/neutral · 10 starke Verteidigung" },
-  { key: "handling", label: "Handling / Anfassen", anchor: "Pflege, Tierarzt, Körperkontakt – 1 kooperativ · 10 kaum möglich" },
-  { key: "leash", label: "Leinenführigkeit / Management", anchor: "1 gut führbar · 10 kaum kontrollierbar" },
-  { key: "stress", label: "Stresslevel / Erholung", anchor: "1 entspannt · 10 dauerhaft hochgestresst" },
-  { key: "reactivity", label: "Reaktivität (Umweltreize)", anchor: "Lärm, Tiere, Bewegungen – 1 gelassen · 10 stark reaktiv" },
-  { key: "alone", label: "Alleinbleiben / Trennung", anchor: "1 ruhig · 10 starke Trennungsreaktion" },
-  { key: "play", label: "Spiel & Frustration", anchor: "1 fair/steuerbar · 10 eskaliert/Frust aggressiv" },
-  { key: "health", label: "Wohlbefinden / Schmerzzeichen", anchor: "1 unauffällig · 10 deutlich krank/schmerzhaft" },
-  { key: "hygiene", label: "Hygiene / Sauberkeit", anchor: "1 sauber · 10 stark verschmutzt/unsauber" },
-];
-window.STAT_DIMENSIONS = STAT_DIMENSIONS;
+  const groups = {};
+  STAT_DIMENSIONS.forEach(d=>{
+    if(!groups[d.group]) groups[d.group] = [];
+    groups[d.group].push(d);
+  });
 
+  let html = "";
+  Object.keys(groups).forEach(g=>{
+    html += `<div class="card" style="margin:14px 0;padding:16px;border-radius:14px;background:rgba(255,255,255,0.04)">`;
+    html += `<div style="font-weight:800;margin-bottom:12px;font-size:16px">${g}</div>`;
 
-/* ====== STATISTICS PANEL RENDER (M50.7.3) ====== */
-function renderStatisticsPanel(){
-  try {
-    const wrap = document.getElementById("statScales");
-    if(!wrap) return;
-
-    // Clear & build container
-    wrap.innerHTML = "";
-    const container = document.createElement("div");
-    container.className = "stat-pro-container";
-    container.style.display = "grid";
-    container.style.gap = "12px";
-
-    // Grouping for readability (pure UI)
-    const groups = [
-      { title: "Überblick", keys: ["overall"] },
-      { title: "Soziales Verhalten", keys: ["social_dogs","social_humans","play"] },
-      { title: "Ressourcen & Handling", keys: ["resources","handling"] },
-      { title: "Alltag / Management", keys: ["leash","reactivity","alone"] },
-      { title: "Wellbeing", keys: ["stress","health","hygiene"] },
-    ];
-
-    const byKey = Object.fromEntries(STAT_DIMENSIONS.map(d=>[d.key,d]));
-
-    function makeRow(dim){
-      const row = document.createElement("div");
-      row.className = "stat-pro-row";
-      row.style.display = "grid";
-      row.style.gridTemplateColumns = "260px 1fr 46px";
-      row.style.alignItems = "center";
-      row.style.gap = "10px";
-      row.style.padding = "8px 0";
-
-      const labelBox = document.createElement("div");
-      labelBox.style.display = "grid";
-      labelBox.style.gap = "3px";
-
-      const label = document.createElement("div");
-      label.textContent = dim.label;
-      label.style.fontWeight = "600";
-      label.style.fontSize = "14px";
-
-      const anchor = document.createElement("div");
-      anchor.textContent = dim.anchor || "";
-      anchor.style.fontSize = "11px";
-      anchor.style.opacity = "0.75";
-
-      labelBox.appendChild(label);
-      if(dim.anchor) labelBox.appendChild(anchor);
-
-      const slider = document.createElement("input");
-      slider.type = "range";
-      slider.min = "1";
-      slider.max = "10";
-      slider.step = "1";
-      slider.value = "1";
-      slider.className = "stat-pro-slider stat-range";
-      slider.setAttribute("data-key", dim.key);
-
-      const val = document.createElement("div");
-      val.className = "stat-pro-value";
-      val.textContent = slider.value;
-      val.style.textAlign = "right";
-      val.style.fontVariantNumeric = "tabular-nums";
-      val.style.opacity = "0.9";
-
-      slider.addEventListener("input", ()=>{ val.textContent = slider.value; });
-
-      row.appendChild(labelBox);
-      row.appendChild(slider);
-      row.appendChild(val);
-      return row;
-    }
-
-    groups.forEach(g=>{
-      const card = document.createElement("div");
-      card.className = "card stat-pro-card";
-      card.style.padding = "14px";
-      card.style.borderRadius = "16px";
-
-      const h = document.createElement("div");
-      h.textContent = g.title;
-      h.style.fontSize = "14px";
-      h.style.fontWeight = "700";
-      h.style.opacity = "0.95";
-      h.style.marginBottom = "8px";
-
-      card.appendChild(h);
-
-      g.keys.forEach(k=>{
-        const dim = byKey[k];
-        if(!dim) return;
-        card.appendChild(makeRow(dim));
-      });
-
-      container.appendChild(card);
+    groups[g].forEach(d=>{
+      html += `
+        <div style="margin:14px 0">
+          <div style="font-weight:600">${d.label}</div>
+          <div class="muted" style="font-size:12px;margin-bottom:6px">${d.anchor}</div>
+          <input type="range" min="1" max="10" value="5"
+                 data-key="${d.key}"
+                 class="stat-pro-slider"
+                 style="width:100%">
+          <div style="text-align:right;font-size:13px;margin-top:4px">
+            Wert: <span class="stat-pro-val" data-key="${d.key}">5</span>
+          </div>
+        </div>`;
     });
 
-    wrap.appendChild(container);
+    html += `</div>`;
+  });
 
-    // Ensure save button exists
-    const btn = document.getElementById("btnStatSave");
-    if(btn) {
-      btn.onclick = async ()=>{
-        try {
-          await saveStatisticsRating();
-        } catch(e) {
-          console.error("[STAT] save error", e);
-          alert("Speichern fehlgeschlagen. Details siehe Konsole.");
-        }
-      };
-    }
-  } catch(e) {
-    console.error("[STAT] renderStatisticsPanel error", e);
-  }
+  wrap.innerHTML = html;
+
+  wrap.querySelectorAll(".stat-pro-slider").forEach(sl=>{
+    const span = wrap.querySelector(`.stat-pro-val[data-key="${sl.dataset.key}"]`);
+    sl.addEventListener("input", ()=>{
+      span.textContent = sl.value;
+      sl.style.accentColor = statColor(sl.value);
+    });
+    sl.style.accentColor = statColor(sl.value);
+  });
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const tabBtn = document.getElementById("tabStatistics");
+  if(tabBtn) tabBtn.addEventListener("click", ()=>{
+    setTimeout(renderStatisticsPanel, 50);
+  });
+});
+
+
+
+/* ===== CLEAN MASTER STAT CORE M50.8.0_FINAL_MASTER_20260301 ===== */
+
+if (typeof STAT_DIMENSIONS === "undefined") {
+const STAT_DIMENSIONS = [
+  { key:"overall", label:"Gesamtverhalten", group:"Überblick" },
+  { key:"social_dogs", label:"Sozialverhalten – Artgenossen", group:"Sozialdimension" },
+  { key:"social_humans", label:"Sozialverhalten – Menschen", group:"Sozialdimension" },
+  { key:"resources", label:"Ressourcenverhalten", group:"Sozialdimension" },
+  { key:"stress", label:"Stresslevel", group:"Erregung & Regulation" },
+  { key:"impulse", label:"Impulskontrolle", group:"Erregung & Regulation" },
+  { key:"separation", label:"Trennungsverhalten", group:"Alltag & Anpassung" },
+  { key:"play", label:"Spielverhalten", group:"Alltag & Anpassung" },
+  { key:"physical", label:"Körperlicher Zustand", group:"Gesundheit" },
+  { key:"hygiene", label:"Hygiene / Sauberkeit", group:"Gesundheit" }
+];
 }

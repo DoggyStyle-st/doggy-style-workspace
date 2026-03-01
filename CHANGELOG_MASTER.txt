@@ -8,3 +8,5 @@ Included:
 - 4E: Storno reasons presets + display + PDF; storno analytics basics
 - 4F: Build sync, recovery guard, DIAG overlay, RESET button
 \nM50_BLUE_TEMPLATE_BASE_20260215\n- Monatskontrollen (Betriebs-Check PRO): monatlich am 1. fällig, zusätzliche Prüfbereiche (Technik/Brandschutz, Hygiene-Mittel)\n- Schädlingsmonitoring: strukturiertes Protokoll bei Befall (Art/Ort/Maßnahme/Nachkontrolle)\n
+
+M50.8.0_FINAL_MASTER_20260301 - Version sync fix (meta/buildBadge/sw cache)
