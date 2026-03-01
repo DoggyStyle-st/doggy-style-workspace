@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.5.8_STAT_RESEARCH_SCALES_20260301",
+  tag: "M50.6.0_PRO_RESEARCH_UI_20260301",
   channel: "MASTER",
   frozenAt: "2026-03-01"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.5.8_STAT_RESEARCH_SCALES_20260301";
+const APP_BUILD = "M50.6.0_PRO_RESEARCH_UI_20260301";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -14077,310 +14077,25 @@ function renderComplianceArchive(root){
 // Statistik (Forschungsmodul)
 // =====================
 const STAT_DIMENSIONS = [
-  { key:"overall",       label:"Gesamtverhalten",               group:"Überblick",         hint:"Gesamteindruck des Tages. 1=stabil · 5=merklich auffällig · 10=stark problematisch" },
-  { key:"social_dogs",   label:"Sozialverhalten – Artgenossen", group:"Sozialverhalten",   hint:"Interaktion mit Hunden. 1=sozial kompetent · 5=deutlich angespannt · 10=aggressiv/nicht regulierbar" },
-  { key:"social_humans", label:"Sozialverhalten – Menschen",    group:"Sozialverhalten",   hint:"Reaktion auf Betreuung/Fremde. 1=offen · 5=unsicher/abwehrend · 10=Angriff/Beißversuch" },
-  { key:"stress",        label:"Stresslevel",                   group:"Erregung & Stress", hint:"Stressanzeichen im Tagesverlauf. 1=entspannt · 5=dauerhaft angespannt · 10=Panik/Kontrollverlust" },
-  { key:"impulse",       label:"Impulskontrolle",               group:"Erregung & Stress", hint:"Selbstregulation bei Reizen. 1=kontrolliert · 5=schwer regulierbar · 10=unkontrollierbar" },
-  { key:"resources",     label:"Ressourcenverhalten",           group:"Ressourcen",        hint:"Futter/Spielzeug/Platz. 1=konfliktfrei · 5=fixierend/verteidigend · 10=aggressives Verteidigen" },
-  { key:"separation",    label:"Trennungsverhalten",            group:"Alltag & Umgebung", hint:"Halterabwesenheit. 1=ruhig · 5=unruhig/klammernd · 10=Panik" },
-  { key:"play",          label:"Spielverhalten",                group:"Alltag & Umgebung", hint:"Spielqualität. 1=ausgewogen · 5=überdreht/grob · 10=kippt in Aggression" },
-  { key:"physical",      label:"Körperlicher Zustand",          group:"Gesundheit",        hint:"Sichtbarer körperlicher Zustand. 1=unauffällig · 5=deutlich auffällig · 10=akut behandlungsbedürftig" },
-  { key:"hygiene",       label:"Hygiene / Sauberkeit",          group:"Gesundheit",        hint:"Stubenreinheit & Pflegezustand. 1=sauber · 5=wiederholt unsauber · 10=massive Probleme" },
+  { key:"overall", label:"Gesamtverhalten", group:"Überblick", anchor:"1=stabil · 5=auffällig · 10=stark problematisch" },
+
+  { key:"social_dogs", label:"Sozialverhalten – Artgenossen", group:"Sozialdimension", anchor:"1=sozial kompetent · 5=angespannt · 10=aggressiv" },
+  { key:"social_humans", label:"Sozialverhalten – Menschen", group:"Sozialdimension", anchor:"1=offen · 5=unsicher · 10=Angriff" },
+  { key:"resources", label:"Ressourcenverhalten", group:"Sozialdimension", anchor:"1=konfliktfrei · 5=verteidigend · 10=aggressiv verteidigend" },
+
+  { key:"stress", label:"Stresslevel", group:"Erregung & Regulation", anchor:"1=entspannt · 5=angespannt · 10=Panik" },
+  { key:"impulse", label:"Impulskontrolle", group:"Erregung & Regulation", anchor:"1=kontrolliert · 5=schwer regulierbar · 10=unkontrollierbar" },
+
+  { key:"separation", label:"Trennungsverhalten", group:"Alltag & Anpassung", anchor:"1=ruhig · 5=unruhig · 10=Panik" },
+  { key:"play", label:"Spielverhalten", group:"Alltag & Anpassung", anchor:"1=ausgewogen · 5=überdreht · 10=aggressiv" },
+
+  { key:"physical", label:"Körperlicher Zustand", group:"Gesundheit", anchor:"1=unauffällig · 5=auffällig · 10=akut behandlungsbedürftig" },
+  { key:"hygiene", label:"Hygiene / Sauberkeit", group:"Gesundheit", anchor:"1=sauber · 5=unsauber · 10=massiv problematisch" }
 ];
 
 
 // Render 1–10 scales into #statScales
-function renderStatScales(){
-  const wrap = _statEl("statScales");
-  if(!wrap) return;
 
-  // Preserve existing values if present
-  const existing = {};
-  try{
-    wrap.querySelectorAll('.stat-range[data-key]').forEach(r=>{
-      existing[r.dataset.key] = Number(r.value);
-    });
-  }catch(_){ }
-
-  let html = '';
-  STAT_DIMENSIONS.forEach(d=>{
-    const val = (existing[d.key] && isFinite(existing[d.key])) ? existing[d.key] : 5;
-    html += `
-      <div class="scale-row">
-        <div class="scale-label">${escapeHtml(d.label)}${d.hint ? `<div class="scale-item-hint">${escapeHtml(d.hint)}</div>` : ""}</div>
-        <div>
-          <input class="stat-range" type="range" min="1" max="10" step="1" value="${val}" data-key="${escapeHtml(d.key)}">
-          <div class="muted" style="margin-top:4px; font-size:12px;">Wert: <span class="stat-range-val" data-key="${escapeHtml(d.key)}">${val}</span> / 10</div>
-        </div>
-      </div>`;
-  });
-  html += `<div class="scale-hint">Hinweis: Skala 1–10. Niedriger = unauffälliger, höher = stärker/problematischer.</div>`;
-  wrap.innerHTML = html;
-
-  // Bind updates
-  wrap.querySelectorAll('.stat-range[data-key]').forEach(r=>{
-    if(r.dataset.bound) return;
-    r.dataset.bound = '1';
-    const key = r.dataset.key;
-    const esc = (window.CSS && CSS.escape) ? CSS.escape(key) : String(key).replace(/"/g,'\\"');
-    const out = wrap.querySelector(`.stat-range-val[data-key="${esc}"]`);
-    r.addEventListener('input', ()=>{
-      if(out) out.textContent = String(r.value);
-    });
-  });
-}
-
-function _statGetMainBreed(breed){
-  const s = String(breed||"").trim();
-  if(!s) return "—";
-  // Split by common separators; keep first meaningful token
-  const parts = s.split(/\s*(?:\+|\/|,|;|\bx\b|\bX\b|\bund\b|\&|\|)\s*/i).map(x=>x.trim()).filter(Boolean);
-  const first = parts[0] || s;
-  // normalize common suffixes
-  return first.replace(/\b(mix|mischling)\b/ig,'').trim() || first.trim();
-}
-function _statAgeYears(birthdate){
-  const d = _parseDateAny(birthdate);
-  if(!d) return null;
-  const now = new Date();
-  let years = now.getFullYear() - d.getFullYear();
-  const m = now.getMonth() - d.getMonth();
-  if(m < 0 || (m===0 && now.getDate() < d.getDate())) years--;
-  return (isFinite(years) && years>=0) ? years : null;
-}
-function _statTodayISO(){
-  const d=new Date();
-  const mm=String(d.getMonth()+1).padStart(2,'0');
-  const dd=String(d.getDate()).padStart(2,'0');
-  return `${d.getFullYear()}-${mm}-${dd}`;
-}
-function _statDiffDays(a,b){
-  // a,b Date
-  const ms = 1000*60*60*24;
-  return Math.floor((a.getTime()-b.getTime())/ms);
-}
-function _statOverallIndex(scores){
-  const vals = STAT_DIMENSIONS.map(d=>Number(scores?.[d.key] ?? NaN)).filter(v=>isFinite(v));
-  if(!vals.length) return null;
-  return vals.reduce((x,y)=>x+y,0)/vals.length;
-}
-function _statStayDayOf(stay, dateISO){
-  const day = _parseDateAny(dateISO);
-  const from = _parseDateAny(stay?.from || stay?.meta?.von);
-  if(!day || !from) return null;
-  return _statDiffDays(day, from) + 1;
-}
-function _statIsRepeatDog(petId){
-  const stays = (state.stays||[]).filter(s=>s.petId===petId);
-  return stays.length >= 2;
-}
-function _statActiveStaysOn(dateISO){
-  const day = _parseDateAny(dateISO) || _parseDateAny(_statTodayISO());
-  if(!day) return [];
-  return (state.stays||[]).filter(s=>{
-    const from = _parseDateAny(s.from || s.meta?.von);
-    const to = _parseDateAny(s.to || s.meta?.bis);
-    if(!from || !to) return false;
-    return day >= from && day <= to;
-  });
-}
-
-function _statEl(id){ return document.getElementById(id); }
-
-function renderStatisticsPanel(){
-  ensureStateShape();
-
-  const dateEl = _statEl("statDate");
-  if(dateEl && !dateEl.value) dateEl.value = _statTodayISO();
-
-  // build scales UI once
-  const scalesWrap = _statEl("statScales");
-  if(scalesWrap && (!scalesWrap.dataset.ready || !scalesWrap.innerHTML || !scalesWrap.innerHTML.trim())){
-    scalesWrap.dataset.ready="1";
-    const dims = (Array.isArray(STAT_DIMENSIONS) && STAT_DIMENSIONS.length)
-      ? STAT_DIMENSIONS
-      : [
-          { key:"socialCompatibility", label:"Artgenossenverträglichkeit", group:"Sozialverhalten", hint:"1=sehr gut/entspannt · 10=stark unverträglich/konfliktbereit" },
-          { key:"resourceDefense", label:"Ressourcenverteidigung", group:"Sozialverhalten", hint:"Futter/Spielzeug/Platz verteidigen" },
-          { key:"impulseControl", label:"Impulskontrolle", group:"Sozialverhalten", hint:"1=sehr gut · 10=sehr impulsiv" },
-          { key:"frustrationTolerance", label:"Frustrationstoleranz", group:"Sozialverhalten", hint:"1=hoch · 10=sehr niedrig" },
-          { key:"leadershipAcceptance", label:"Führbarkeit / Strukturannahme", group:"Menschenbezogen", hint:"1=sehr gut · 10=sehr schwierig" },
-          { key:"reactivity", label:"Reaktivität", group:"Menschenbezogen", hint:"1=ruhig · 10=sehr reaktiv" },
-          { key:"distanceBehavior", label:"Distanzverhalten", group:"Menschenbezogen", hint:"1=unauffällig · 10=stark auffällig" },
-          { key:"cooperation", label:"Kooperationsbereitschaft", group:"Menschenbezogen", hint:"1=hoch · 10=gering" },
-          { key:"baselineStress", label:"Grundanspannung / Stress", group:"Stress / Erregung", hint:"1=entspannt · 10=hoch gestresst" },
-          { key:"displacement", label:"Übersprungshandlungen", group:"Stress / Erregung", hint:"z.B. Lecken, Schütteln, Kratzen" },
-          { key:"hyperactivity", label:"Hyperaktivität", group:"Stress / Erregung", hint:"1=ruhig · 10=extrem" },
-          { key:"withdrawal", label:"Rückzugsverhalten", group:"Stress / Erregung", hint:"1=offen · 10=starker Rückzug" },
-        ];
-    const groups = {};
-    dims.forEach(d=>{
-      groups[d.group]=groups[d.group]||[];
-      groups[d.group].push(d);
-    });
-    let html = "";
-    Object.keys(groups).forEach(g=>{
-      html += `<div class="card" style="margin:10px 0; background:rgba(255,255,255,0.02);">`;
-      html += `<div class="muted" style="font-weight:700; margin-bottom:8px;">${escapeHtml(g)}</div>`;
-      groups[g].forEach(d=>{
-        html += `
-          <div class="row" style="flex-wrap:wrap; gap:10px; align-items:center; margin:8px 0;">
-            <div style="min-width:260px; flex:1;">
-              <div style="font-weight:600;">${escapeHtml(d.label)}</div>
-              <div class="muted" style="font-size:12px;">${escapeHtml(d.hint||"")}</div>
-            </div>
-            <div style="min-width:220px;">
-              <input type="range" min="1" max="10" step="1" value="5" class="stat-range" data-key="${d.key}" style="width:100%;" />
-              <div class="muted" style="font-size:12px; margin-top:4px;">Wert: <span class="stat-range-val" data-key="${d.key}">5</span></div>
-            </div>
-          </div>
-        `;
-      });
-      html += `</div>`;
-    });
-    scalesWrap.innerHTML = html;
-    scalesWrap.querySelectorAll(".stat-range").forEach(r=>{
-      r.addEventListener("input", ()=>{
-        const k=r.dataset.key;
-        const v = r.value;
-        const span = scalesWrap.querySelector(`.stat-range-val[data-key="${k}"]`);
-        if(span) span.textContent = String(v);
-      });
-    });
-  }
-
-  // populate dog selects
-  const dateISO = dateEl?.value || _statTodayISO();
-  const active = _statActiveStaysOn(dateISO);
-  const dogSelect = _statEl("statDogSelect");
-  const histSelect = _statEl("statDogHistory");
-  const metricSelect = _statEl("statMetric");
-  const breedAgg = _statEl("statAggBreed");
-
-  const petsById = Object.fromEntries((state.pets||[]).map(p=>[p.id,p]));
-  const customersById = Object.fromEntries((state.customers||[]).map(c=>[c.id,c]));
-  const activeItems = active.map(s=>{
-    const pet = petsById[s.petId] || {};
-    const cust = customersById[s.customerId] || {};
-    return {
-      stay: s,
-      pet,
-      cust,
-      label: `${pet.name||"Hund"}${pet.breed?(" · "+pet.breed):""} ${cust.name?(" · "+cust.name):""}`
-    };
-  });
-
-  function fillSelect(sel, items, placeholder){
-    if(!sel) return;
-    const cur = sel.value;
-    let opts = `<option value="">${escapeHtml(placeholder||"— bitte wählen —")}</option>`;
-    items.forEach(it=>{
-      opts += `<option value="${escapeHtml(it.value)}">${escapeHtml(it.label)}</option>`;
-    });
-    sel.innerHTML = opts;
-    if(cur && [...sel.options].some(o=>o.value===cur)) sel.value = cur;
-  }
-
-  fillSelect(dogSelect, activeItems.map(it=>({value:it.stay.id, label:it.label})), "— Hund wählen —");
-
-  // history select: all pets
-  const allPets = (state.pets||[]).map(p=>({
-    value: p.id,
-    label: `${p.name||"Hund"}${p.breed?(" · "+p.breed):""}`
-  }));
-  fillSelect(histSelect, allPets, "— Hund wählen —");
-
-  // metric select
-  if(metricSelect && !metricSelect.dataset.ready){
-    metricSelect.dataset.ready="1";
-    let opts = `<option value="overall">Gesamtindex (Ø)</option>`;
-    dims.forEach(d=>{
-      opts += `<option value="${d.key}">${escapeHtml(d.label)}</option>`;
-    });
-    metricSelect.innerHTML = opts;
-  }
-
-  // breed filter options for aggregation
-  if(breedAgg){
-    const breeds = new Set((state.pets||[]).map(p=>_statGetMainBreed(p.breed)).filter(b=>b && b!=="—"));
-    const sorted = Array.from(breeds).sort((a,b)=>a.localeCompare(b,"de"));
-    let opts = `<option value="">Alle</option>`;
-    sorted.forEach(b=> opts += `<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`);
-    breedAgg.innerHTML = opts;
-  }
-
-  // attach handlers once
-  const btnSave = _statEl("btnStatSave");
-  if(btnSave && !btnSave.dataset.bound){
-    btnSave.dataset.bound="1";
-    btnSave.addEventListener("click", saveStatAssessment);
-  }
-  const btnRedraw = _statEl("btnStatRedraw");
-  if(btnRedraw && !btnRedraw.dataset.bound){
-    btnRedraw.dataset.bound="1";
-    btnRedraw.addEventListener("click", ()=>renderStatHistory());
-  }
-  if(histSelect && !histSelect.dataset.bound){
-    histSelect.dataset.bound="1";
-    histSelect.addEventListener("change", ()=>renderStatHistory());
-  }
-  if(metricSelect && !metricSelect.dataset.bound){
-    metricSelect.dataset.bound="1";
-    metricSelect.addEventListener("change", ()=>renderStatHistory());
-  }
-
-  const btnAgg = _statEl("btnStatAgg");
-  if(btnAgg && !btnAgg.dataset.bound){
-    btnAgg.dataset.bound="1";
-    btnAgg.addEventListener("click", ()=>renderStatAggregation());
-  }
-  const btnCsv = _statEl("btnStatCsv");
-  if(btnCsv && !btnCsv.dataset.bound){
-    btnCsv.dataset.bound="1";
-    btnCsv.addEventListener("click", ()=>exportStatCsv());
-  }
-
-  // update meta when selection changes
-  if(dogSelect && !dogSelect.dataset.bound){
-    dogSelect.dataset.bound="1";
-    dogSelect.addEventListener("change", ()=>updateStatDogMeta());
-  }
-  if(dateEl && !dateEl.dataset.bound){
-    dateEl.dataset.bound="1";
-    dateEl.addEventListener("change", ()=>{
-      renderStatisticsPanel(); // refresh active list
-      updateStatDogMeta();
-    });
-  }
-
-  updateStatDogMeta();
-  renderStatHistory();
-  renderStatAggregation();
-}
-
-function updateStatDogMeta(){
-  const metaEl = _statEl("statDogMeta");
-  const sel = _statEl("statDogSelect");
-  const dateISO = _statEl("statDate")?.value || _statTodayISO();
-  const sexEl = _statEl("statSex");
-  if(!metaEl || !sel) return;
-
-  const stayId = sel.value;
-  if(!stayId){ metaEl.textContent = ""; return; }
-  const stay = (state.stays||[]).find(s=>s.id===stayId);
-  const pet = (state.pets||[]).find(p=>p.id===stay?.petId) || {};
-  const cust = (state.customers||[]).find(c=>c.id===stay?.customerId) || {};
-  const mainBreed = _statGetMainBreed(pet.breed);
-  const age = _statAgeYears(pet.birthdate);
-  const dayOf = _statStayDayOf(stay, dateISO);
-  const repeat = _statIsRepeatDog(pet.id) ? "Stammgast" : "Erstkontakt";
-  metaEl.innerHTML = `${escapeHtml(mainBreed)}${age!=null?(" · "+age+" J."):""}${pet.sex?(" · "+escapeHtml(pet.sex)):""}<br>${escapeHtml(cust.name||"")} · Tag ${dayOf||"?"} · ${repeat}`;
-  if(sexEl && !sexEl.value){
-    // auto fill from pet if present
-    if(pet.sex) sexEl.value = pet.sex;
-  }
-}
 
 function saveStatAssessment(){
   ensureStateShape();
@@ -14741,4 +14456,59 @@ function exportStatCsv(){
 }
 
 
+
+
+
+
+function statColor(val){
+  const v = parseInt(val,10);
+  if(v<=3) return "#2ecc71";
+  if(v<=6) return "#f1c40f";
+  return "#e74c3c";
+}
+
+function renderStatScales(){
+  const wrap = document.getElementById("statScales");
+  if(!wrap) return;
+
+  const groups = {};
+  STAT_DIMENSIONS.forEach(d=>{
+    if(!groups[d.group]) groups[d.group]=[];
+    groups[d.group].push(d);
+  });
+
+  let html="";
+  Object.keys(groups).forEach(g=>{
+    html += `<div class="card" style="margin:14px 0;padding:14px;border-radius:12px;background:rgba(255,255,255,0.03)">`;
+    html += `<div style="font-weight:800;margin-bottom:10px;font-size:16px">${g}</div>`;
+
+    groups[g].forEach(d=>{
+      html += `
+      <div style="margin:12px 0">
+        <div style="font-weight:600">${d.label}</div>
+        <div class="muted" style="font-size:12px;margin-bottom:6px">${d.anchor}</div>
+        <input type="range" min="1" max="10" value="5"
+               class="stat-range-pro"
+               data-key="${d.key}"
+               style="width:100%">
+        <div style="text-align:right;font-size:13px;margin-top:4px">
+          Wert: <span class="stat-val" data-key="${d.key}">5</span>
+        </div>
+      </div>`;
+    });
+
+    html += `</div>`;
+  });
+
+  wrap.innerHTML = html;
+
+  wrap.querySelectorAll(".stat-range-pro").forEach(r=>{
+    const span = wrap.querySelector(`.stat-val[data-key="${r.dataset.key}"]`);
+    r.addEventListener("input", ()=>{
+      span.textContent = r.value;
+      r.style.accentColor = statColor(r.value);
+    });
+    r.style.accentColor = statColor(r.value);
+  });
+}
 
