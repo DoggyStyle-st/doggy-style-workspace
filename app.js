@@ -14079,17 +14079,17 @@ function renderComplianceArchive(root){
 const STAT_DIMENSIONS = [
   {
     key: "overall",
-    label: "Gesamtbild",
+    label: "Gesamtverhalten",
     hint: "Gesamteindruck des Tages: Ruhe, Kooperation, allgemeine Auffälligkeit (1=unauffällig, 10=stark/problematisch)."
   },
   {
     key: "social_dogs",
-    label: "Sozialverhalten – Artgenossen",
+    label: "Sozialverhalten – Artgenossen – Artgenossen",
     hint: "Kontakt zu anderen Hunden: Annäherung, Spiel, Konflikte, Abwehr/Unsicherheit."
   },
   {
     key: "social_humans",
-    label: "Sozialverhalten – Menschen",
+    label: "Sozialverhalten – Artgenossen – Menschen",
     hint: "Umgang mit Personal/Fremden: Kontaktaufnahme, Kooperationsbereitschaft, Abwehr/Unsicherheit."
   },
   {
@@ -14251,10 +14251,10 @@ function renderStatisticsPanel(){
     const dims = (Array.isArray(STAT_DIMENSIONS) && STAT_DIMENSIONS.length)
       ? STAT_DIMENSIONS
       : [
-          { key:"socialCompatibility", label:"Artgenossenverträglichkeit", group:"Sozialverhalten", hint:"1=sehr gut/entspannt · 10=stark unverträglich/konfliktbereit" },
-          { key:"resourceDefense", label:"Ressourcenverteidigung", group:"Sozialverhalten", hint:"Futter/Spielzeug/Platz verteidigen" },
-          { key:"impulseControl", label:"Impulskontrolle", group:"Sozialverhalten", hint:"1=sehr gut · 10=sehr impulsiv" },
-          { key:"frustrationTolerance", label:"Frustrationstoleranz", group:"Sozialverhalten", hint:"1=hoch · 10=sehr niedrig" },
+          { key:"socialCompatibility", label:"Artgenossenverträglichkeit", group:"Sozialverhalten – Artgenossen", hint:"1=sehr gut/entspannt · 10=stark unverträglich/konfliktbereit" },
+          { key:"resourceDefense", label:"Ressourcenverteidigung", group:"Sozialverhalten – Artgenossen", hint:"Futter/Spielzeug/Platz verteidigen" },
+          { key:"impulseControl", label:"Impulskontrolle", group:"Sozialverhalten – Artgenossen", hint:"1=sehr gut · 10=sehr impulsiv" },
+          { key:"frustrationTolerance", label:"Frustrationstoleranz", group:"Sozialverhalten – Artgenossen", hint:"1=hoch · 10=sehr niedrig" },
           { key:"leadershipAcceptance", label:"Führbarkeit / Strukturannahme", group:"Menschenbezogen", hint:"1=sehr gut · 10=sehr schwierig" },
           { key:"reactivity", label:"Reaktivität", group:"Menschenbezogen", hint:"1=ruhig · 10=sehr reaktiv" },
           { key:"distanceBehavior", label:"Distanzverhalten", group:"Menschenbezogen", hint:"1=unauffällig · 10=stark auffällig" },
