@@ -1,17 +1,17 @@
-
-const BUILD_VERSION = "M50.9_STAT_RESEARCH_CORE_1.0_20260301";
+// ===== M50.9.1 CLEAN SW =====
+const BUILD_VERSION = "M50.9.1_CLEAN_SW_20260301";
 const CACHE_NAME = "doggystyle-" + BUILD_VERSION;
 
+// Nur echte Dateien – keine ?v= Versionen mehr
 const STATIC_ASSETS = [
   "./",
+  "./index.html",
+  "./login.html",
   "./app.html",
-  "./app.html?v=M50.8.0_FINAL_MASTER_20260301",
   "./app.js",
-  "./app.js?v=M50.8.0_FINAL_MASTER_20260301",
   "./styles.css",
-  "./styles.css?v=M50.8.0_FINAL_MASTER_20260301",
   "./manifest.json",
-  "./manifest.json?v=M50.8.0_FINAL_MASTER_20260301"
+  "./assets/logo.png"
 ];
 
 // INSTALL
@@ -42,23 +42,18 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
 
-  // Network-first for HTML
+  // Network-first für HTML
   if (event.request.headers.get("accept")?.includes("text/html")) {
     event.respondWith(
-      fetch(event.request)
-        .then((response) => response)
-        .catch(() => caches.match("./app.html"))
+      fetch(event.request).catch(() => caches.match("./app.html"))
     );
     return;
   }
 
-  // Cache-first for static assets
+  // Cache-first für statische Assets
   event.respondWith(
     caches.match(event.request).then((cached) => {
-      return (
-        cached ||
-        fetch(event.request).then((response) => response)
-      );
+      return cached || fetch(event.request);
     })
   );
 });
