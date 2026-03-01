@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.6.0_PRO_RESEARCH_UI_20260301",
+  tag: "M50.5.5_STATISTIK_RESEARCH_SCALES_20260301",
   channel: "MASTER",
   frozenAt: "2026-03-01"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.6.0_PRO_RESEARCH_UI_20260301";
+const APP_BUILD = "M50.5.5_STATISTIK_RESEARCH_SCALES_20260301";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -14076,26 +14076,93 @@ function renderComplianceArchive(root){
 // =====================
 // Statistik (Forschungsmodul)
 // =====================
-const STAT_DIMENSIONS = [
-  { key:"overall", label:"Gesamtverhalten", group:"Überblick", anchor:"1=stabil · 5=auffällig · 10=stark problematisch" },
 
-  { key:"social_dogs", label:"Sozialverhalten – Artgenossen", group:"Sozialdimension", anchor:"1=sozial kompetent · 5=angespannt · 10=aggressiv" },
-  { key:"social_humans", label:"Sozialverhalten – Menschen", group:"Sozialdimension", anchor:"1=offen · 5=unsicher · 10=Angriff" },
-  { key:"resources", label:"Ressourcenverhalten", group:"Sozialdimension", anchor:"1=konfliktfrei · 5=verteidigend · 10=aggressiv verteidigend" },
-
-  { key:"stress", label:"Stresslevel", group:"Erregung & Regulation", anchor:"1=entspannt · 5=angespannt · 10=Panik" },
-  { key:"impulse", label:"Impulskontrolle", group:"Erregung & Regulation", anchor:"1=kontrolliert · 5=schwer regulierbar · 10=unkontrollierbar" },
-
-  { key:"separation", label:"Trennungsverhalten", group:"Alltag & Anpassung", anchor:"1=ruhig · 5=unruhig · 10=Panik" },
-  { key:"play", label:"Spielverhalten", group:"Alltag & Anpassung", anchor:"1=ausgewogen · 5=überdreht · 10=aggressiv" },
-
-  { key:"physical", label:"Körperlicher Zustand", group:"Gesundheit", anchor:"1=unauffällig · 5=auffällig · 10=akut behandlungsbedürftig" },
-  { key:"hygiene", label:"Hygiene / Sauberkeit", group:"Gesundheit", anchor:"1=sauber · 5=unsauber · 10=massiv problematisch" }
-];
 
 
 // Render 1–10 scales into #statScales
 
+
+function _statGetMainBreed(breed){
+  const s = String(breed||"").trim();
+  if(!s) return "—";
+  // Split by common separators; keep first meaningful token
+  const parts = s.split(/\s*(?:\+|\/|,|;|\bx\b|\bX\b|\bund\b|\&|\|)\s*/i).map(x=>x.trim()).filter(Boolean);
+  const first = parts[0] || s;
+  // normalize common suffixes
+  return first.replace(/\b(mix|mischling)\b/ig,'').trim() || first.trim();
+}
+function _statAgeYears(birthdate){
+  const d = _parseDateAny(birthdate);
+  if(!d) return null;
+  const now = new Date();
+  let years = now.getFullYear() - d.getFullYear();
+  const m = now.getMonth() - d.getMonth();
+  if(m < 0 || (m===0 && now.getDate() < d.getDate())) years--;
+  return (isFinite(years) && years>=0) ? years : null;
+}
+function _statTodayISO(){
+  const d=new Date();
+  const mm=String(d.getMonth()+1).padStart(2,'0');
+  const dd=String(d.getDate()).padStart(2,'0');
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+function _statDiffDays(a,b){
+  // a,b Date
+  const ms = 1000*60*60*24;
+  return Math.floor((a.getTime()-b.getTime())/ms);
+}
+function _statOverallIndex(scores){
+  const vals = STAT_DIMENSIONS.map(d=>Number(scores?.[d.key] ?? NaN)).filter(v=>isFinite(v));
+  if(!vals.length) return null;
+  return vals.reduce((x,y)=>x+y,0)/vals.length;
+}
+function _statStayDayOf(stay, dateISO){
+  const day = _parseDateAny(dateISO);
+  const from = _parseDateAny(stay?.from || stay?.meta?.von);
+  if(!day || !from) return null;
+  return _statDiffDays(day, from) + 1;
+}
+function _statIsRepeatDog(petId){
+  const stays = (state.stays||[]).filter(s=>s.petId===petId);
+  return stays.length >= 2;
+}
+function _statActiveStaysOn(dateISO){
+  const day = _parseDateAny(dateISO) || _parseDateAny(_statTodayISO());
+  if(!day) return [];
+  return (state.stays||[]).filter(s=>{
+    const from = _parseDateAny(s.from || s.meta?.von);
+    const to = _parseDateAny(s.to || s.meta?.bis);
+    if(!from || !to) return false;
+    return day >= from && day <= to;
+  });
+}
+
+function _statEl(id){ return document.getElementById(id); }
+
+
+
+function updateStatDogMeta(){
+  const metaEl = _statEl("statDogMeta");
+  const sel = _statEl("statDogSelect");
+  const dateISO = _statEl("statDate")?.value || _statTodayISO();
+  const sexEl = _statEl("statSex");
+  if(!metaEl || !sel) return;
+
+  const stayId = sel.value;
+  if(!stayId){ metaEl.textContent = ""; return; }
+  const stay = (state.stays||[]).find(s=>s.id===stayId);
+  const pet = (state.pets||[]).find(p=>p.id===stay?.petId) || {};
+  const cust = (state.customers||[]).find(c=>c.id===stay?.customerId) || {};
+  const mainBreed = _statGetMainBreed(pet.breed);
+  const age = _statAgeYears(pet.birthdate);
+  const dayOf = _statStayDayOf(stay, dateISO);
+  const repeat = _statIsRepeatDog(pet.id) ? "Stammgast" : "Erstkontakt";
+  metaEl.innerHTML = `${escapeHtml(mainBreed)}${age!=null?(" · "+age+" J."):""}${pet.sex?(" · "+escapeHtml(pet.sex)):""}<br>${escapeHtml(cust.name||"")} · Tag ${dayOf||"?"} · ${repeat}`;
+  if(sexEl && !sexEl.value){
+    // auto fill from pet if present
+    if(pet.sex) sexEl.value = pet.sex;
+  }
+}
 
 function saveStatAssessment(){
   ensureStateShape();
@@ -14460,41 +14527,59 @@ function exportStatCsv(){
 
 
 
-function statColor(val){
-  const v = parseInt(val,10);
-  if(v<=3) return "#2ecc71";
-  if(v<=6) return "#f1c40f";
+/* ===============================
+   PROFESSIONAL RESEARCH STAT MODULE
+   BUILD: M50.6.1_STAT_MODULE_REFACTOR_20260301
+================================= */
+
+const STAT_DIMENSIONS = [
+  { key:"overall", label:"Gesamtverhalten", group:"Überblick", anchor:"1=stabil · 5=auffällig · 10=stark problematisch" },
+  { key:"social_dogs", label:"Sozialverhalten – Artgenossen", group:"Sozialdimension", anchor:"1=sozial kompetent · 10=aggressiv" },
+  { key:"social_humans", label:"Sozialverhalten – Menschen", group:"Sozialdimension", anchor:"1=offen · 10=Angriff" },
+  { key:"resources", label:"Ressourcenverhalten", group:"Sozialdimension", anchor:"1=konfliktfrei · 10=aggressiv verteidigend" },
+  { key:"stress", label:"Stresslevel", group:"Erregung & Regulation", anchor:"1=entspannt · 10=Panik" },
+  { key:"impulse", label:"Impulskontrolle", group:"Erregung & Regulation", anchor:"1=kontrolliert · 10=unkontrollierbar" },
+  { key:"separation", label:"Trennungsverhalten", group:"Alltag & Anpassung", anchor:"1=ruhig · 10=Panik" },
+  { key:"play", label:"Spielverhalten", group:"Alltag & Anpassung", anchor:"1=ausgewogen · 10=aggressiv" },
+  { key:"physical", label:"Körperlicher Zustand", group:"Gesundheit", anchor:"1=unauffällig · 10=akut behandlungsbedürftig" },
+  { key:"hygiene", label:"Hygiene / Sauberkeit", group:"Gesundheit", anchor:"1=sauber · 10=massiv problematisch" }
+];
+
+function statColor(v) {
+  const val = parseInt(v,10);
+  if(val <= 3) return "#2ecc71";
+  if(val <= 6) return "#f1c40f";
   return "#e74c3c";
 }
 
-function renderStatScales(){
+function renderStatisticsPanel() {
   const wrap = document.getElementById("statScales");
   if(!wrap) return;
 
   const groups = {};
   STAT_DIMENSIONS.forEach(d=>{
-    if(!groups[d.group]) groups[d.group]=[];
+    if(!groups[d.group]) groups[d.group] = [];
     groups[d.group].push(d);
   });
 
-  let html="";
+  let html = "";
   Object.keys(groups).forEach(g=>{
-    html += `<div class="card" style="margin:14px 0;padding:14px;border-radius:12px;background:rgba(255,255,255,0.03)">`;
-    html += `<div style="font-weight:800;margin-bottom:10px;font-size:16px">${g}</div>`;
+    html += `<div class="card" style="margin:14px 0;padding:16px;border-radius:14px;background:rgba(255,255,255,0.04)">`;
+    html += `<div style="font-weight:800;margin-bottom:12px;font-size:16px">${g}</div>`;
 
     groups[g].forEach(d=>{
       html += `
-      <div style="margin:12px 0">
-        <div style="font-weight:600">${d.label}</div>
-        <div class="muted" style="font-size:12px;margin-bottom:6px">${d.anchor}</div>
-        <input type="range" min="1" max="10" value="5"
-               class="stat-range-pro"
-               data-key="${d.key}"
-               style="width:100%">
-        <div style="text-align:right;font-size:13px;margin-top:4px">
-          Wert: <span class="stat-val" data-key="${d.key}">5</span>
-        </div>
-      </div>`;
+        <div style="margin:14px 0">
+          <div style="font-weight:600">${d.label}</div>
+          <div class="muted" style="font-size:12px;margin-bottom:6px">${d.anchor}</div>
+          <input type="range" min="1" max="10" value="5"
+                 data-key="${d.key}"
+                 class="stat-pro-slider"
+                 style="width:100%">
+          <div style="text-align:right;font-size:13px;margin-top:4px">
+            Wert: <span class="stat-pro-val" data-key="${d.key}">5</span>
+          </div>
+        </div>`;
     });
 
     html += `</div>`;
@@ -14502,13 +14587,19 @@ function renderStatScales(){
 
   wrap.innerHTML = html;
 
-  wrap.querySelectorAll(".stat-range-pro").forEach(r=>{
-    const span = wrap.querySelector(`.stat-val[data-key="${r.dataset.key}"]`);
-    r.addEventListener("input", ()=>{
-      span.textContent = r.value;
-      r.style.accentColor = statColor(r.value);
+  wrap.querySelectorAll(".stat-pro-slider").forEach(sl=>{
+    const span = wrap.querySelector(`.stat-pro-val[data-key="${sl.dataset.key}"]`);
+    sl.addEventListener("input", ()=>{
+      span.textContent = sl.value;
+      sl.style.accentColor = statColor(sl.value);
     });
-    r.style.accentColor = statColor(r.value);
+    sl.style.accentColor = statColor(sl.value);
   });
 }
 
+document.addEventListener("DOMContentLoaded", () => {
+  const tabBtn = document.getElementById("tabStatistics");
+  if(tabBtn) tabBtn.addEventListener("click", ()=>{
+    setTimeout(renderStatisticsPanel, 50);
+  });
+});
