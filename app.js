@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.7.0_CLEAN_MASTER_20260301",
+  tag: "M50.7.1_STAT_RESEARCH_PRO_20260301",
   channel: "MASTER",
   frozenAt: "2026-03-01"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.7.0_CLEAN_MASTER_20260301";
+const APP_BUILD = "M50.7.1_STAT_RESEARCH_PRO_20260301";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -14186,7 +14186,7 @@ function saveStatAssessment(){
   const scores = {};
   const wrap = _statEl("statScales");
   dims.forEach(d=>{
-    const r = wrap?.querySelector(`.stat-range[data-key="${d.key}"]`);
+    const r = wrap?.querySelector(`.stat-range[data-key="${d.key}"]`) || wrap?.querySelector(`.stat-pro-slider[data-key="${d.key}"]`);
     const v = r ? Number(r.value) : NaN;
     scores[d.key] = (isFinite(v) ? Math.max(1, Math.min(10, v)) : 5);
   });
@@ -14529,20 +14529,106 @@ function exportStatCsv(){
 
 /* ===============================
    PROFESSIONAL RESEARCH STAT MODULE
-   BUILD: M50.7.0_CLEAN_MASTER_20260301
+   BUILD: M50.7.1_STAT_RESEARCH_PRO_20260301
 ================================= */
 
 const STAT_DIMENSIONS = [
-  { key:"overall", label:"Gesamtverhalten", group:"Überblick", anchor:"1=stabil · 5=auffällig · 10=stark problematisch" },
-  { key:"social_dogs", label:"Sozialverhalten – Artgenossen", group:"Sozialdimension", anchor:"1=sozial kompetent · 10=aggressiv" },
-  { key:"social_humans", label:"Sozialverhalten – Menschen", group:"Sozialdimension", anchor:"1=offen · 10=Angriff" },
-  { key:"resources", label:"Ressourcenverhalten", group:"Sozialdimension", anchor:"1=konfliktfrei · 10=aggressiv verteidigend" },
-  { key:"stress", label:"Stresslevel", group:"Erregung & Regulation", anchor:"1=entspannt · 10=Panik" },
-  { key:"impulse", label:"Impulskontrolle", group:"Erregung & Regulation", anchor:"1=kontrolliert · 10=unkontrollierbar" },
-  { key:"separation", label:"Trennungsverhalten", group:"Alltag & Anpassung", anchor:"1=ruhig · 10=Panik" },
-  { key:"play", label:"Spielverhalten", group:"Alltag & Anpassung", anchor:"1=ausgewogen · 10=aggressiv" },
-  { key:"physical", label:"Körperlicher Zustand", group:"Gesundheit", anchor:"1=unauffällig · 10=akut behandlungsbedürftig" },
-  { key:"hygiene", label:"Hygiene / Sauberkeit", group:"Gesundheit", anchor:"1=sauber · 10=massiv problematisch" }
+  {
+    key:"overall",
+    label:"Gesamtbild (Tages-Eindruck)",
+    group:"Überblick",
+    anchor:"1=unauffällig/stabil · 5=gemischt · 10=hoch auffällig",
+    desc:"Dein Gesamteindruck für den Tag (inkl. Dynamik, Stress, Handling, Ressourcen)."
+  },
+
+  {
+    key:"social_dogs",
+    label:"Sozialverhalten – Artgenossen",
+    group:"Sozialdimension",
+    anchor:"1=kompatibel · 5=selektiv · 10=Konflikt/Angriff",
+    desc:"Kontaktverhalten gegenüber anderen Hunden (Annäherung, Spiel, Distanz, Konflikte)."
+  },
+  {
+    key:"social_humans",
+    label:"Sozialverhalten – Menschen",
+    group:"Sozialdimension",
+    anchor:"1=freundlich/neutral · 5=unsicher · 10=Abwehr/Beißrisiko",
+    desc:"Kontaktverhalten gegenüber Menschen (freundlich, zurückhaltend, unsicher, Abwehr)."
+  },
+  {
+    key:"resources",
+    label:"Futter & Ressourcen",
+    group:"Sozialdimension",
+    anchor:"1=konfliktfrei · 5=Spannung · 10=Ressourcenaggression",
+    desc:"Ressourcenbezogenes Verhalten (Futter, Spielzeug, Liegeplatz, Türen, Menschen als Ressource)."
+  },
+
+  {
+    key:"handling",
+    label:"Handling / Anfassen",
+    group:"Alltag & Handling",
+    anchor:"1=kooperativ · 5=angespannt · 10=Handling kaum möglich",
+    desc:"Toleranz bei Pflege/Anfassen (Leine an/aus, Pfoten, Bürsten, Kontrolle)."
+  },
+  {
+    key:"leash",
+    label:"Leinenführigkeit",
+    group:"Alltag & Handling",
+    anchor:"1=gut führbar · 5=zieht/ablenkbar · 10=kaum kontrollierbar",
+    desc:"Führbarkeit an der Leine (Zug, Orientierung, Impulskontrolle in Alltagssituationen)."
+  },
+
+  {
+    key:"stress",
+    label:"Stresslevel / Regulation",
+    group:"Erregung & Regulation",
+    anchor:"1=entspannt · 5=erhöht · 10=dauerhaft hoch",
+    desc:"Gesamtstress & Selbstregulation (Ruhe finden, Erholung, Anspannung)."
+  },
+  {
+    key:"noise",
+    label:"Reaktivität (Lärm/Trigger)",
+    group:"Erregung & Regulation",
+    anchor:"1=kaum Reaktion · 5=kontrollierbar · 10=eskaliert",
+    desc:"Reaktion auf Trigger (Lärm, Bewegungsreize, Besucher, Hunde hinter Zaun)."
+  },
+  {
+    key:"impulse",
+    label:"Impulskontrolle",
+    group:"Erregung & Regulation",
+    anchor:"1=kontrolliert · 5=phasenweise hoch · 10=unkontrollierbar",
+    desc:"Impulskontrolle in Erregung (Abbruchbarkeit, Frusttoleranz, Orientierung)."
+  },
+
+  {
+    key:"separation",
+    label:"Trennung / Alleinbleiben",
+    group:"Alltag & Anpassung",
+    anchor:"1=ruhig · 5=Unruhe · 10=Panik",
+    desc:"Reaktion auf Trennung (Box/Zimmer, Alleinphasen, Abschied)."
+  },
+  {
+    key:"play",
+    label:"Spielverhalten",
+    group:"Alltag & Anpassung",
+    anchor:"1=passend/sozial · 5=überdreht · 10=kippt/konflikt",
+    desc:"Spielqualität (angepasst, überdreht, Konflikt im Spiel, Fairness)."
+  },
+
+  {
+    key:"physical",
+    label:"Körperlich (Unwohlsein/Symptome)",
+    group:"Gesundheit",
+    anchor:"1=unauffällig · 5=leicht · 10=akut",
+    desc:"Akute körperliche Hinweise (Lahmheit, Durchfall/Erbrechen, Juckreiz, Schmerzzeichen)."
+  },
+  {
+    key:"hygiene",
+    label:"Hygiene / Sauberkeit",
+    group:"Gesundheit",
+    anchor:"1=sauber · 5=einzelne Vorfälle · 10=häufig",
+    desc:"Sauberkeit im Zimmer/Umgang (Markieren, Kot/Urinsituationen, Fellzustand)."
+  }
 ];
 
 function statColor(v) {
@@ -14555,6 +14641,12 @@ function statColor(v) {
 function renderStatisticsPanel() {
   const wrap = document.getElementById("statScales");
   if(!wrap) return;
+
+  const escAttr = (s)=> String(s ?? "")
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/\"/g,"&quot;");
 
   const groups = {};
   STAT_DIMENSIONS.forEach(d=>{
@@ -14570,8 +14662,11 @@ function renderStatisticsPanel() {
     groups[g].forEach(d=>{
       html += `
         <div style="margin:14px 0">
-          <div style="font-weight:600">${d.label}</div>
-          <div class="muted" style="font-size:12px;margin-bottom:6px">${d.anchor}</div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="font-weight:600;flex:1">${d.label}</div>
+            ${d.desc ? `<button type="button" class="stat-info" data-label="${escAttr(d.label)}" data-desc="${escAttr(d.desc)}" data-anchor="${escAttr(d.anchor||'')}" title="Info">ⓘ</button>` : ``}
+          </div>
+          <div class="muted" style="font-size:12px;margin-bottom:6px">${d.anchor || ''}</div>
           <input type="range" min="1" max="10" value="5"
                  data-key="${d.key}"
                  class="stat-pro-slider"
@@ -14595,6 +14690,16 @@ function renderStatisticsPanel() {
     });
     sl.style.accentColor = statColor(sl.value);
   });
+
+  // mobile-friendly help
+  wrap.querySelectorAll('.stat-info').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const label = btn.getAttribute('data-label') || '';
+      const desc = btn.getAttribute('data-desc') || '';
+      const anchor = btn.getAttribute('data-anchor') || '';
+      alert(`${label}\n\n${desc}${anchor ? `\n\nSkala: ${anchor}` : ''}`);
+    });
+  });
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -14606,7 +14711,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 
-/* ===== CLEAN MASTER STAT CORE M50.7.0_CLEAN_MASTER_20260301 ===== */
+/* ===== CLEAN MASTER STAT CORE M50.7.1_STAT_RESEARCH_PRO_20260301 ===== */
 
 if (typeof STAT_DIMENSIONS === "undefined") {
 const STAT_DIMENSIONS = [

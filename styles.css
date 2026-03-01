@@ -80,6 +80,20 @@ background:radial-gradient(900px 600px at 20% 0%, rgba(255,204,102,.18), transpa
 .panel{display:none}.panel.is-active{display:block}
 .card{background:var(--card);border:1px solid var(--stroke);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);margin-bottom:14px;backdrop-filter:blur(14px)}
 .card h1{margin:0 0 12px}.card h2{margin:0 0 10px}.muted{color:var(--muted);font-size:13px}
+
+/* Statistik – Research Scales */
+.stat-info{
+  border:1px solid rgba(255,255,255,.18);
+  background:rgba(0,0,0,.18);
+  color:rgba(255,255,255,.9);
+  border-radius:10px;
+  padding:4px 10px;
+  font-size:14px;
+  line-height:1;
+  cursor:pointer;
+}
+.stat-info:active{transform:translateY(1px)}
+.stat-pro-slider{accent-color:#4aa3ff}
 .hint{margin-top:10px;color:var(--muted);font-size:13px}
 .row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}.row.between{justify-content:space-between;align-items:center}
 .field{display:flex;flex-direction:column;gap:6px;min-width:240px;flex:1}
