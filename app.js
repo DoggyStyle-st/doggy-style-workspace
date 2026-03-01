@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.7.1_STAT_RESEARCH_PRO_20260301",
+  tag: "M50.7.2_STAT_RESEARCH_UI_20260301",
   channel: "MASTER",
   frozenAt: "2026-03-01"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.7.1_STAT_RESEARCH_PRO_20260301";
+const APP_BUILD = "M50.7.2_STAT_RESEARCH_UI_20260301";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -2539,8 +2539,7 @@ function showPanel(id){
     scheduleAnaRefresh();
   }
   if(id === "statistics"){
-    try{ renderStatisticsPanel(); }catch(_){ }
-  }
+    try { renderStatisticsPanel(); } catch (e) { console.error(e); if (window.dbg) window.dbg('renderStatisticsPanel() failed: '+(e && e.message ? e.message : e)); } }
 if(id === "calendar"){
     renderCalendarPanel();
   }
@@ -12846,6 +12845,53 @@ div.innerHTML = `<strong>${d.dogName || "-"}</strong><br>
     emptyEl.style.display = "block";
   }
 }
+
+
+// ===== DEBUG OVERLAY (M50.7.2) =====
+(function(){
+  const MAX=200;
+  window.__dbgLog = window.__dbgLog || [];
+  function ensure(){
+    if(document.getElementById('dbgOverlay')) return;
+    const d=document.createElement('div');
+    d.id='dbgOverlay';
+    d.style.cssText='position:fixed;left:10px;bottom:10px;z-index:99999;max-width:45vw;max-height:35vh;overflow:auto;background:rgba(0,0,0,.75);border:1px solid rgba(255,255,255,.15);border-radius:10px;padding:8px;font:12px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace;color:#fff;display:none;';
+    const h=document.createElement('div');
+    h.style.cssText='display:flex;gap:8px;align-items:center;margin-bottom:6px;';
+    const b=document.createElement('button');
+    b.textContent='DBG';
+    b.style.cssText='background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.18);border-radius:8px;padding:4px 8px;cursor:pointer;';
+    const c=document.createElement('button');
+    c.textContent='Clear';
+    c.style.cssText=b.style.cssText;
+    const s=document.createElement('span');
+    s.textContent='Konsole';
+    s.style.cssText='opacity:.8';
+    h.appendChild(b);h.appendChild(c);h.appendChild(s);
+    const pre=document.createElement('pre');
+    pre.id='dbgPre';
+    pre.style.cssText='margin:0;white-space:pre-wrap;';
+    d.appendChild(h);d.appendChild(pre);
+    document.body.appendChild(d);
+    b.addEventListener('click',()=>{ d.style.display = (d.style.display==='none') ? 'block':'none'; });
+    c.addEventListener('click',()=>{ window.__dbgLog.length=0; pre.textContent=''; });
+    pre.textContent = window.__dbgLog.join('\n');
+  }
+  window.dbg = function(msg){
+    try{
+      const line = '['+new Date().toISOString().slice(11,19)+'] '+String(msg);
+      window.__dbgLog.push(line);
+      if(window.__dbgLog.length>MAX) window.__dbgLog.splice(0, window.__dbgLog.length-MAX);
+      const pre=document.getElementById('dbgPre');
+      if(pre){ pre.textContent = window.__dbgLog.join('\n'); pre.scrollTop = pre.scrollHeight; }
+    }catch(e){}
+  };
+  window.addEventListener('error', (e)=>{ window.dbg('ERROR: '+(e.message||e.error||e)); });
+  window.addEventListener('unhandledrejection', (e)=>{ window.dbg('PROMISE: '+(e.reason||e)); });
+  document.addEventListener('DOMContentLoaded', ensure);
+})();
+// ===== END DEBUG OVERLAY =====
+
 document.addEventListener("DOMContentLoaded", () => {
   const m = document.getElementById("menu-stays");
   if (m) {
@@ -14186,7 +14232,7 @@ function saveStatAssessment(){
   const scores = {};
   const wrap = _statEl("statScales");
   dims.forEach(d=>{
-    const r = wrap?.querySelector(`.stat-range[data-key="${d.key}"]`) || wrap?.querySelector(`.stat-pro-slider[data-key="${d.key}"]`);
+    const r = wrap?.querySelector(`.stat-range[data-key="${d.key}"]`);
     const v = r ? Number(r.value) : NaN;
     scores[d.key] = (isFinite(v) ? Math.max(1, Math.min(10, v)) : 5);
   });
@@ -14529,106 +14575,28 @@ function exportStatCsv(){
 
 /* ===============================
    PROFESSIONAL RESEARCH STAT MODULE
-   BUILD: M50.7.1_STAT_RESEARCH_PRO_20260301
+   BUILD: M50.7.2_STAT_RESEARCH_UI_20260301
 ================================= */
 
 const STAT_DIMENSIONS = [
-  {
-    key:"overall",
-    label:"Gesamtbild (Tages-Eindruck)",
-    group:"Überblick",
-    anchor:"1=unauffällig/stabil · 5=gemischt · 10=hoch auffällig",
-    desc:"Dein Gesamteindruck für den Tag (inkl. Dynamik, Stress, Handling, Ressourcen)."
-  },
+  { key: "overall", label: "Gesamtbild", group: "Überblick", anchor: "1 = unauffällig · 10 = stark/problematisch" },
 
-  {
-    key:"social_dogs",
-    label:"Sozialverhalten – Artgenossen",
-    group:"Sozialdimension",
-    anchor:"1=kompatibel · 5=selektiv · 10=Konflikt/Angriff",
-    desc:"Kontaktverhalten gegenüber anderen Hunden (Annäherung, Spiel, Distanz, Konflikte)."
-  },
-  {
-    key:"social_humans",
-    label:"Sozialverhalten – Menschen",
-    group:"Sozialdimension",
-    anchor:"1=freundlich/neutral · 5=unsicher · 10=Abwehr/Beißrisiko",
-    desc:"Kontaktverhalten gegenüber Menschen (freundlich, zurückhaltend, unsicher, Abwehr)."
-  },
-  {
-    key:"resources",
-    label:"Futter & Ressourcen",
-    group:"Sozialdimension",
-    anchor:"1=konfliktfrei · 5=Spannung · 10=Ressourcenaggression",
-    desc:"Ressourcenbezogenes Verhalten (Futter, Spielzeug, Liegeplatz, Türen, Menschen als Ressource)."
-  },
+  { key: "social_dogs", label: "Sozialverhalten – Artgenossen", group: "Sozial", anchor: "Kontakt zu Hunden: freundlich/neutral → Konflikt/Angriff" },
+  { key: "social_humans", label: "Sozialverhalten – Menschen", group: "Sozial", anchor: "Kontakt zu Menschen: kooperativ → Abwehr/Bedrohung" },
+  { key: "resources", label: "Ressourcen / Futter", group: "Sozial", anchor: "Ressourcen: entspannt → starkes Guarding/Aggression" },
 
-  {
-    key:"handling",
-    label:"Handling / Anfassen",
-    group:"Alltag & Handling",
-    anchor:"1=kooperativ · 5=angespannt · 10=Handling kaum möglich",
-    desc:"Toleranz bei Pflege/Anfassen (Leine an/aus, Pfoten, Bürsten, Kontrolle)."
-  },
-  {
-    key:"leash",
-    label:"Leinenführigkeit",
-    group:"Alltag & Handling",
-    anchor:"1=gut führbar · 5=zieht/ablenkbar · 10=kaum kontrollierbar",
-    desc:"Führbarkeit an der Leine (Zug, Orientierung, Impulskontrolle in Alltagssituationen)."
-  },
+  { key: "handling", label: "Handling / Anfassen", group: "Alltag", anchor: "Pflege/Anfassen: tolerant → Abwehr/Beißrisiko" },
+  { key: "leash", label: "Leinenführigkeit", group: "Alltag", anchor: "Leine: locker/ansprechbar → starkes Ziehen/kaum lenkbar" },
+  { key: "separation", label: "Alleinbleiben / Trennung", group: "Alltag", anchor: "Trennung: ruhig → Panik/Destruktion" },
+  { key: "play", label: "Spielverhalten", group: "Alltag", anchor: "Spiel: angemessen → überdreht/konflikthaft" },
 
-  {
-    key:"stress",
-    label:"Stresslevel / Regulation",
-    group:"Erregung & Regulation",
-    anchor:"1=entspannt · 5=erhöht · 10=dauerhaft hoch",
-    desc:"Gesamtstress & Selbstregulation (Ruhe finden, Erholung, Anspannung)."
-  },
-  {
-    key:"noise",
-    label:"Reaktivität (Lärm/Trigger)",
-    group:"Erregung & Regulation",
-    anchor:"1=kaum Reaktion · 5=kontrollierbar · 10=eskaliert",
-    desc:"Reaktion auf Trigger (Lärm, Bewegungsreize, Besucher, Hunde hinter Zaun)."
-  },
-  {
-    key:"impulse",
-    label:"Impulskontrolle",
-    group:"Erregung & Regulation",
-    anchor:"1=kontrolliert · 5=phasenweise hoch · 10=unkontrollierbar",
-    desc:"Impulskontrolle in Erregung (Abbruchbarkeit, Frusttoleranz, Orientierung)."
-  },
+  { key: "stress", label: "Stresslevel", group: "Erregung", anchor: "Erregung: ruhig → dauerhaft hoch/überfordert" },
+  { key: "reactivity", label: "Reaktivität (Lärm/Trigger)", group: "Erregung", anchor: "Trigger: gelassen → starke Reaktion" },
 
-  {
-    key:"separation",
-    label:"Trennung / Alleinbleiben",
-    group:"Alltag & Anpassung",
-    anchor:"1=ruhig · 5=Unruhe · 10=Panik",
-    desc:"Reaktion auf Trennung (Box/Zimmer, Alleinphasen, Abschied)."
-  },
-  {
-    key:"play",
-    label:"Spielverhalten",
-    group:"Alltag & Anpassung",
-    anchor:"1=passend/sozial · 5=überdreht · 10=kippt/konflikt",
-    desc:"Spielqualität (angepasst, überdreht, Konflikt im Spiel, Fairness)."
-  },
+  { key: "health", label: "Körperliche Gesundheit", group: "Gesundheit", anchor: "Körperzustand: fit → deutlich eingeschränkt" },
+  { key: "pain_med", label: "Medizinisch / Schmerzverdacht", group: "Gesundheit", anchor: "Verdacht: keiner → stark (Abklärung nötig)" },
 
-  {
-    key:"physical",
-    label:"Körperlich (Unwohlsein/Symptome)",
-    group:"Gesundheit",
-    anchor:"1=unauffällig · 5=leicht · 10=akut",
-    desc:"Akute körperliche Hinweise (Lahmheit, Durchfall/Erbrechen, Juckreiz, Schmerzzeichen)."
-  },
-  {
-    key:"hygiene",
-    label:"Hygiene / Sauberkeit",
-    group:"Gesundheit",
-    anchor:"1=sauber · 5=einzelne Vorfälle · 10=häufig",
-    desc:"Sauberkeit im Zimmer/Umgang (Markieren, Kot/Urinsituationen, Fellzustand)."
-  }
+  { key: "hygiene", label: "Hygiene / Sauberkeit", group: "Pflege", anchor: "Sauberkeit: trocken/sauber → stark verschmutzt/inkontinent" },
 ];
 
 function statColor(v) {
@@ -14641,12 +14609,6 @@ function statColor(v) {
 function renderStatisticsPanel() {
   const wrap = document.getElementById("statScales");
   if(!wrap) return;
-
-  const escAttr = (s)=> String(s ?? "")
-    .replace(/&/g,"&amp;")
-    .replace(/</g,"&lt;")
-    .replace(/>/g,"&gt;")
-    .replace(/\"/g,"&quot;");
 
   const groups = {};
   STAT_DIMENSIONS.forEach(d=>{
@@ -14662,11 +14624,8 @@ function renderStatisticsPanel() {
     groups[g].forEach(d=>{
       html += `
         <div style="margin:14px 0">
-          <div style="display:flex;align-items:center;gap:10px">
-            <div style="font-weight:600;flex:1">${d.label}</div>
-            ${d.desc ? `<button type="button" class="stat-info" data-label="${escAttr(d.label)}" data-desc="${escAttr(d.desc)}" data-anchor="${escAttr(d.anchor||'')}" title="Info">ⓘ</button>` : ``}
-          </div>
-          <div class="muted" style="font-size:12px;margin-bottom:6px">${d.anchor || ''}</div>
+          <div style="font-weight:600">${d.label}</div>
+          <div class="muted" style="font-size:12px;margin-bottom:6px">${d.anchor}</div>
           <input type="range" min="1" max="10" value="5"
                  data-key="${d.key}"
                  class="stat-pro-slider"
@@ -14690,16 +14649,6 @@ function renderStatisticsPanel() {
     });
     sl.style.accentColor = statColor(sl.value);
   });
-
-  // mobile-friendly help
-  wrap.querySelectorAll('.stat-info').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const label = btn.getAttribute('data-label') || '';
-      const desc = btn.getAttribute('data-desc') || '';
-      const anchor = btn.getAttribute('data-anchor') || '';
-      alert(`${label}\n\n${desc}${anchor ? `\n\nSkala: ${anchor}` : ''}`);
-    });
-  });
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -14711,19 +14660,3 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 
-/* ===== CLEAN MASTER STAT CORE M50.7.1_STAT_RESEARCH_PRO_20260301 ===== */
-
-if (typeof STAT_DIMENSIONS === "undefined") {
-const STAT_DIMENSIONS = [
-  { key:"overall", label:"Gesamtverhalten", group:"Überblick" },
-  { key:"social_dogs", label:"Sozialverhalten – Artgenossen", group:"Sozialdimension" },
-  { key:"social_humans", label:"Sozialverhalten – Menschen", group:"Sozialdimension" },
-  { key:"resources", label:"Ressourcenverhalten", group:"Sozialdimension" },
-  { key:"stress", label:"Stresslevel", group:"Erregung & Regulation" },
-  { key:"impulse", label:"Impulskontrolle", group:"Erregung & Regulation" },
-  { key:"separation", label:"Trennungsverhalten", group:"Alltag & Anpassung" },
-  { key:"play", label:"Spielverhalten", group:"Alltag & Anpassung" },
-  { key:"physical", label:"Körperlicher Zustand", group:"Gesundheit" },
-  { key:"hygiene", label:"Hygiene / Sauberkeit", group:"Gesundheit" }
-];
-}

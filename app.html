@@ -6,13 +6,13 @@
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
 <meta charset="utf-8"/>
-  <meta name="app-build" content="M50.7.1_STAT_RESEARCH_PRO_20260301">
+  <meta name="app-build" content="M50.7.0_CLEAN_MASTER_20260301">
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <title>Doggy Style Workspace · App</title>
 <link href="manifest.json" rel="manifest"/>
 <meta content="#101014" name="theme-color"/>
 <link href="assets/logo.png" rel="apple-touch-icon"/>
-<link href="styles.css?v=M50.7.1_STAT_RESEARCH_PRO_20260301" rel="stylesheet"/>
+<link href="styles.css?v=M50.7.0_CLEAN_MASTER_20260301" rel="stylesheet"/>
 <link href="dashboard_master.css?v=20260104v13logout" rel="stylesheet"/>
 <style>
   /* Topbar Layout (iPad & Desktop stabil) */
@@ -1174,12 +1174,9 @@
       </div>
     </div>
 
-    <!-- Research scales are rendered dynamically by app.js into #statScales. -->
-    <div id="statScales" class="stat-scales" style="margin-top:14px;"></div>
-
-    <!-- (removed legacy static scale rows; dynamic rendering lives in app.js) -->
-
-    <div class="row" style="flex-wrap:wrap; gap:10px; align-items:flex-start; margin-top:10px;">
+    <div id="statScales" class="stat-scales"></div>
+        
+<div class="row" style="flex-wrap:wrap; gap:10px; align-items:flex-start; margin-top:10px;">
       <div style="flex:1; min-width:260px;">
         <label class="muted" style="display:block; margin-bottom:4px;">Notizen (optional)</label>
         <textarea id="statNotes" class="input" rows="2" style="width:100%" placeholder="Kurzbeobachtung / Kontext (z.B. Erstkontakt, Gruppenkonstellation, Trigger)"></textarea>
@@ -1357,7 +1354,7 @@
 </script>
 
 <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.7.1_STAT_RESEARCH_PRO_20260301');
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.7.0_CLEAN_MASTER_20260301');
   </script>
 
 <script>
