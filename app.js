@@ -1,9 +1,9 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.2_CLEAN_CONSISTENT_BUILD_20260301",
+  tag: "M50.9.4_STAT_UI_QUAL_20260302",
   channel: "MASTER",
-  frozenAt: "2026-03-01"
+  frozenAt: "2026-03-02"
 };
 // Expose for diagnostics / support
 try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.2_CLEAN_CONSISTENT_BUILD_20260301";
+const APP_BUILD = "M50.9.4_STAT_UI_QUAL_20260302";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -14525,172 +14525,385 @@ function exportStatCsv(){
 
 
 /* ===============================
-   STAT RESEARCH CORE 1.0 MODULE
-   BUILD: M50.9_STAT_RESEARCH_CORE_1.0_20260301
-   Notes:
-   - Fixes STAT_DIMENSIONS scoping (must be global).
-   - Adds CORE-Index (6 Kernskalen) + qualitative Auswahlfelder.
-================================= */
+   STAT RESEARCH CORE 1.0 MODULE (M50.9.4)
+   - Skalen 1..10 + qualitative Auswahl
+   - Preset Index (Model 2 / B)
+   - Speicherung in Firestore collection: stats
+================================ */
 
-// Globale Skalen-Definition (wird von UI + Save/Charts genutzt)
-const STAT_DIMENSIONS = [
-  // Sozial
-  { key:"social_dogs",   label:"Sozialverhalten – Artgenossen", group:"Sozial", anchor:"1=sozial kompetent · 10=Aggression/Übergriff" },
-  { key:"social_humans", label:"Sozialverhalten – Menschen",    group:"Sozial", anchor:"1=offen/neutral · 10=Abwehr/Angriff" },
-  { key:"resources",     label:"Ressourcen (Futter/Spielzeug)", group:"Sozial", anchor:"1=konfliktfrei · 10=massiv verteidigend" },
-
-  // Alltag & Handling
-  { key:"handling",      label:"Handling / Anfassen",           group:"Alltag", anchor:"1=kooperativ · 10=wehrhaft/gefährlich" },
-  { key:"leash",         label:"Leinenführigkeit",              group:"Alltag", anchor:"1=locker · 10=kaum kontrollierbar" },
-  { key:"separation",    label:"Alleinbleiben / Trennung",      group:"Alltag", anchor:"1=ruhig · 10=Panik" },
-
-  // Erregung/Regulation
-  { key:"stress",        label:"Stresslevel",                   group:"Regulation", anchor:"1=entspannt · 10=Panik" },
-  { key:"reactivity",    label:"Lärm / Reaktivität",            group:"Regulation", anchor:"1=gelassen · 10=hochreaktiv" },
-
-  // Spiel & Gesundheit
-  { key:"play",          label:"Spielverhalten",                group:"Spiel", anchor:"1=ausgewogen · 10=eskalierend" },
-  { key:"health",        label:"Gesundheit – körperlich",       group:"Gesundheit", anchor:"1=unauffällig · 10=akut behandlungsbedürftig" },
-  { key:"hygiene",       label:"Hygiene / Sauberkeit",          group:"Gesundheit", anchor:"1=sauber · 10=massiv problematisch" }
+const STAT_RESEARCH_GROUPS = [
+  {
+    title: 'Sozialverhalten',
+    hint: 'Interaktion mit Hunden/Menschen, Konflikte, Nähe/Distanz',
+    items: [
+      { id:'social', label:'Sozialverhalten', qual:[
+        {v:'unauffaellig', t:'unauffällig'},
+        {v:'unsicher', t:'unsicher/meidend'},
+        {v:'aufdringlich', t:'aufdringlich'},
+        {v:'konflikt', t:'Konflikt/Stress'}
+      ]}
+    ]
+  },
+  {
+    title: 'Futter & Ressourcen',
+    hint: 'Futter, Spielzeug, Napf, Liegeplatz – Verhalten bei Ressourcen',
+    items: [
+      { id:'food', label:'Futter & Ressourcen', qual:[
+        {v:'keine', t:'keine Auffälligkeit'},
+        {v:'futterneid', t:'Futterneid'},
+        {v:'objekt', t:'Objekt/Spielzeug'},
+        {v:'platz', t:'Liegeplatz/Distanz'}
+      ]}
+    ]
+  },
+  {
+    title: 'Handling / Anfassen',
+    hint: 'Körperkontakt, Pflege, Anleinen – Kooperationsbereitschaft',
+    items: [
+      { id:'handling', label:'Handling / Anfassen', qual:[
+        {v:'ok', t:'unkompliziert'},
+        {v:'sensibel', t:'sensibel'},
+        {v:'wehrt', t:'wehrt ab'},
+        {v:'schnappen', t:'Schnappen/Beißversuch'}
+      ]}
+    ]
+  },
+  {
+    title: 'Leinenführigkeit',
+    hint: 'Anleinen/Gehen, Ziehen, Reaktivität an der Leine',
+    items: [
+      { id:'leash', label:'Leinenführigkeit', qual:[
+        {v:'ok', t:'ok'},
+        {v:'zieht', t:'zieht'},
+        {v:'reaktiv', t:'reaktiv'},
+        {v:'blockt', t:'blockt/steht'}
+      ]}
+    ]
+  },
+  {
+    title: 'Stresslevel',
+    hint: 'Unruhe, Hecheln, Schlaf, Entspannung, Überforderung',
+    items: [
+      { id:'stress', label:'Stresslevel', qual:[
+        {v:'ruhig', t:'ruhig/entspannt'},
+        {v:'unruhig', t:'unruhig'},
+        {v:'aengstlich', t:'ängstlich/unsicher'},
+        {v:'hoch', t:'hochstress'}
+      ]}
+    ]
+  },
+  {
+    title: 'Lärm / Reaktivität',
+    hint: 'Bellen, Geräuschempfindlichkeit, Trigger-Reaktionen',
+    items: [
+      { id:'noise', label:'Lärm / Reaktivität', qual:[
+        {v:'leise', t:'leise'},
+        {v:'bellt', t:'bellt'},
+        {v:'heult', t:'heult'},
+        {v:'trigger', t:'Trigger-reaktiv'}
+      ]}
+    ]
+  },
+  {
+    title: 'Alleinbleiben / Trennung',
+    hint: 'Kurzzeitiges Separieren, Trennungsstress',
+    items: [
+      { id:'separation', label:'Alleinbleiben / Trennung', qual:[
+        {v:'ok', t:'ok'},
+        {v:'unruhig', t:'unruhig'},
+        {v:'bellt', t:'bellt/heult'},
+        {v:'zerstoert', t:'zerstört'}
+      ]}
+    ]
+  },
+  {
+    title: 'Spielverhalten',
+    hint: 'Spielmotivation, Impulskontrolle, Interaktion',
+    items: [
+      { id:'play', label:'Spielverhalten', qual:[
+        {v:'ok', t:'ok'},
+        {v:'grob', t:'grob'},
+        {v:'kein', t:'kein Spiel'},
+        {v:'eskaliert', t:'eskaliert'}
+      ]}
+    ]
+  },
+  {
+    title: 'Gesundheit / Auffälligkeiten',
+    hint: 'Husten, Durchfall, Lahmheit, Auffälligkeiten',
+    items: [
+      { id:'health', label:'Gesundheit / Auffälligkeiten', qual:[
+        {v:'ok', t:'ok'},
+        {v:'magen', t:'Magen/Darm'},
+        {v:'bewegung', t:'Bewegung/Lahmheit'},
+        {v:'sonst', t:'sonstiges'}
+      ]}
+    ]
+  },
+  {
+    title: 'Hygiene / Sauberkeit',
+    hint: 'Sauberkeit im Zimmer, Kot/Urin, Pflegezustand',
+    items: [
+      { id:'hygiene', label:'Hygiene / Sauberkeit', qual:[
+        {v:'ok', t:'ok'},
+        {v:'urin', t:'Urin'},
+        {v:'kot', t:'Kot'},
+        {v:'pflege', t:'Pflegebedarf'}
+      ]}
+    ]
+  }
 ];
 
-// 6 Kernskalen für Forschungs-Index
-const STAT_CORE_KEYS = [
-  "social_dogs",
-  "social_humans",
-  "resources",
-  "stress",
-  "reactivity",
-  "separation"
-];
-
-const STAT_QUAL_OPTIONS = [
-  { v:"", label:"—" },
-  { v:"unauffaellig", label:"unauffällig" },
-  { v:"leicht",       label:"leicht" },
-  { v:"mittel",       label:"mittel" },
-  { v:"stark",        label:"stark" }
-];
-
-const STAT_HEALTH_TYPES = [
-  { v:"", label:"—" },
-  { v:"magen_darm", label:"Magen/Darm" },
-  { v:"haut_allergie", label:"Haut/Allergie" },
-  { v:"bewegung_schmerz", label:"Bewegung/Schmerz" },
-  { v:"infekt", label:"Infekt" },
-  { v:"sonstiges", label:"Sonstiges" }
-];
-
-function statColor(v) {
-  const val = parseInt(v,10);
-  if(val <= 3) return "#2ecc71";
-  if(val <= 6) return "#f1c40f";
-  return "#e74c3c";
+function _statComputeCoreIndex(values){
+  // Weighting preset: Model 2 / Option B
+  const w = {
+    social:0.15,
+    food:0.12,
+    handling:0.12,
+    leash:0.08,
+    stress:0.12,
+    noise:0.08,
+    separation:0.12,
+    play:0.08,
+    health:0.07,
+    hygiene:0.06
+  };
+  let sum=0, ws=0;
+  Object.keys(w).forEach(k=>{
+    const v = Number(values[k]);
+    if(!Number.isFinite(v)) return;
+    sum += v * w[k];
+    ws += w[k];
+  });
+  if(ws<=0) return null;
+  return Math.round((sum/ws)*10)/10;
 }
 
-function _statComputeCoreIndex(scores){
+function updateIndexFromUI(){
   try{
-    const vals = STAT_CORE_KEYS.map(k => Number(scores?.[k] ?? 0)).filter(n => Number.isFinite(n) && n>0);
-    if(!vals.length) return null;
-    const mean = vals.reduce((a,b)=>a+b,0) / vals.length;
-    return Math.round(mean * 10) / 10;
-  }catch(_){ return null; }
+    const values = {};
+    STAT_RESEARCH_GROUPS.forEach(g=> (g.items||[]).forEach(it=>{
+      const el = document.getElementById('stat_'+it.id);
+      if(el) values[it.id] = Number(el.value||0);
+    }));
+    const idx = _statComputeCoreIndex(values);
+    const out = document.getElementById('statCoreIndex');
+    if(out) out.textContent = (idx==null? '–' : String(idx));
+  }catch(e){
+    console.warn('[STAT] update index failed', e);
+  }
 }
 
-function _statQualSelectHtml(key){
-  const opts = STAT_QUAL_OPTIONS.map(o => `<option value="${o.v}">${o.label}</option>`).join("");
-  return `<select class="stat-qual" data-key="${key}" style="min-width:160px">${opts}</select>`;
+function populateStatDogs(dateISO){
+  const dogEl = document.getElementById('statDogSelect');
+  const metaEl = document.getElementById('statDogMeta');
+  if(!dogEl) return;
+
+  let petIds = [];
+  try{
+    if(typeof getPetIdsInCare === 'function' && dateISO){
+      petIds = getPetIdsInCare(dateISO) || [];
+    }
+  }catch(_){ }
+
+  if(!petIds.length){
+    petIds = Object.keys(state.pets || {});
+  }
+
+  const opts = petIds.map(pid => {
+    const p = state.pets && state.pets[pid];
+    const name = p?.name || p?.dogName || pid;
+    return {id:pid, name};
+  }).sort((a,b)=> String(a.name).localeCompare(String(b.name)));
+
+  dogEl.innerHTML = '<option value="">— bitte wählen —</option>' + opts.map(o=>`<option value="${escapeHtml(o.id)}">${escapeHtml(o.name)}</option>`).join('');
+
+  const upd = () => {
+    if(!metaEl) return;
+    const pid = dogEl.value;
+    if(!pid){ metaEl.textContent=''; return; }
+    const p = state.pets && state.pets[pid];
+    const breed = p?.breed || p?.race || '';
+    const owner = p?.ownerName || '';
+    metaEl.textContent = [breed, owner].filter(Boolean).join(' · ');
+  };
+  dogEl.onchange = upd;
+  upd();
 }
 
-function _statHealthTypeHtml(){
-  const opts = STAT_HEALTH_TYPES.map(o => `<option value="${o.v}">${o.label}</option>`).join("");
-  return `<select class="stat-health-type" style="min-width:200px">${opts}</select>`;
+async function saveStatRating(){
+  if(!(window.firebase && firebase.firestore)) throw new Error('firebase not available');
+  const dateISO = (document.getElementById('statDate')||{}).value || '';
+  const petId = (document.getElementById('statDogSelect')||{}).value || '';
+  const type = (document.getElementById('statType')||{}).value || 'arrival';
+  const sex = (document.getElementById('statSex')||{}).value || '';
+  const notes = (document.getElementById('statNotes')||{}).value || '';
+  if(!dateISO) throw new Error('missing date');
+  if(!petId) throw new Error('missing pet');
+
+  const scales = {};
+  const qual = {};
+  STAT_RESEARCH_GROUPS.forEach(g=> (g.items||[]).forEach(it=>{
+    const el = document.getElementById('stat_'+it.id);
+    const q = document.getElementById('statq_'+it.id);
+    if(el) scales[it.id] = Number(el.value||0);
+    if(q) qual[it.id] = q.value || '';
+  }));
+
+  const index = _statComputeCoreIndex(scales);
+
+  const uid = (firebase.auth && firebase.auth().currentUser) ? firebase.auth().currentUser.uid : null;
+  const docId = `${petId}__${dateISO}__${type}`.replace(/[^a-zA-Z0-9_\-]/g, '_');
+
+  const payload = {
+    petId,
+    date: dateISO,
+    type,
+    sex,
+    scales,
+    qualitative: qual,
+    index,
+    notes,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    updatedBy: uid
+  };
+
+  const ref = firebase.firestore().collection('stats').doc(docId);
+  const snap = await ref.get();
+  if(!snap.exists){
+    payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+    payload.createdBy = uid;
+  }
+  await ref.set(payload, { merge:true });
 }
 
-function renderStatisticsPanel() {
-  const wrap = document.getElementById("statScales");
+function initStatisticsPanel(){
+  const dateEl = document.getElementById('statDate');
+  const saveBtn = document.getElementById('btnStatSave');
+  if(!dateEl || !saveBtn) return;
+
+  if(!dateEl.value){
+    try{ dateEl.value = toISODate(new Date()); }catch(_){ }
+  }
+
+  const repop = () => populateStatDogs(dateEl.value);
+  dateEl.onchange = repop;
+  repop();
+
+  saveBtn.onclick = async () => {
+    const msg = document.getElementById('statSaveMsg');
+    saveBtn.disabled = true;
+    if(msg) msg.textContent = 'Speichere…';
+    try{
+      await saveStatRating();
+      if(msg) msg.textContent = 'Gespeichert';
+    }catch(e){
+      console.error('[STAT] save failed', e);
+      if(msg) msg.textContent = 'Fehler beim Speichern';
+      try{ alert('Statistik speichern fehlgeschlagen.'); }catch(_){ }
+    }finally{
+      saveBtn.disabled = false;
+      setTimeout(()=>{ if(msg) msg.textContent=''; }, 2500);
+    }
+  };
+}
+
+function renderStatisticsPanel(){
+  const wrap = document.getElementById('statPanelBody');
   if(!wrap) return;
 
-  const groups = {};
-  STAT_DIMENSIONS.forEach(d=>{
-    if(!groups[d.group]) groups[d.group] = [];
-    groups[d.group].push(d);
-  });
+  wrap.innerHTML = `
+    <div class="card" style="margin-top:10px;">
+      <h3 style="margin:0 0 10px;">Tagesbewertung</h3>
+      <div class="row" style="flex-wrap:wrap; gap:10px; align-items:flex-end;">
+        <div style="min-width:180px;">
+          <label class="muted" style="display:block; margin-bottom:4px;">Datum</label>
+          <input id="statDate" type="date" class="input" style="width:100%"/>
+        </div>
+        <div style="min-width:260px; flex:1;">
+          <label class="muted" style="display:block; margin-bottom:4px;">Hund (aktive Aufenthalte)</label>
+          <select id="statDogSelect" class="input" style="width:100%"></select>
+        </div>
+        <div style="min-width:220px;">
+          <label class="muted" style="display:block; margin-bottom:4px;">Bewertungstyp</label>
+          <select id="statType" class="input" style="width:100%">
+            <option value="arrival">Ankunft (Tag 1)</option>
+            <option value="mid">Zwischenbewertung</option>
+            <option value="departure">Abreise</option>
+          </select>
+        </div>
+        <div style="min-width:220px;">
+          <label class="muted" style="display:block; margin-bottom:4px;">Geschlecht</label>
+          <select id="statSex" class="input" style="width:100%">
+            <option value="">— unbekannt —</option>
+            <option value="m">männlich</option>
+            <option value="w">weiblich</option>
+            <option value="k">kastriert (Rüde)</option>
+            <option value="s">kastriert (Hündin)</option>
+          </select>
+        </div>
+        <div style="min-width:200px; flex:1;">
+          <div id="statDogMeta" class="muted" style="font-size:12px; line-height:1.3;"></div>
+        </div>
+      </div>
+    </div>
 
-  // Header: Core-Index
-  let html = `
-    <div class="card" style="margin:14px 0;padding:16px;border-radius:14px;background:rgba(255,255,255,0.04)">
-      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-        <div style="font-weight:900;font-size:16px">Forschungs‑Index (Kern 6)</div>
-        <div class="muted" style="font-size:12px">Mittelwert aus: Artgenossen · Menschen · Ressourcen · Stress · Reaktivität · Trennung</div>
-        <div style="margin-left:auto;font-weight:900;font-size:18px">Index: <span id="statCoreIndex">—</span></div>
+    <div class="card" style="margin-top:10px;">
+      <div class="row" style="justify-content:space-between; align-items:flex-end;">
+        <h3 style="margin:0;">Skalen (1–10)</h3>
+        <div class="muted" style="font-size:12px;">Index (Preset 2 / B): <span id="statCoreIndex">–</span></div>
+      </div>
+      <div class="muted" style="margin-top:6px; font-size:12px;">1 = unauffällig/entspannt · 10 = stark auffällig/hoch belastet</div>
+      <div id="statResearchBody" style="margin-top:10px;"></div>
+    </div>
+
+    <div class="card" style="margin-top:10px;">
+      <h3 style="margin:0 0 8px;">Notizen (optional)</h3>
+      <textarea id="statNotes" class="input" rows="2" style="width:100%" placeholder="Kurzbeobachtung / Kontext (z.B. Erstkontakt, Gruppenkonstellation, Trigger)"></textarea>
+      <div class="row" style="margin-top:10px; gap:10px; align-items:center;">
+        <button class="btn btn-primary" id="btnStatSave">Bewertung speichern</button>
+        <div id="statSaveMsg" class="muted" style="font-size:12px;"></div>
       </div>
     </div>
   `;
 
-  Object.keys(groups).forEach(g=>{
-    html += `<div class="card" style="margin:14px 0;padding:16px;border-radius:14px;background:rgba(255,255,255,0.04)">`;
-    html += `<div style="font-weight:800;margin-bottom:12px;font-size:16px">${g}</div>`;
+  const body = document.getElementById('statResearchBody');
+  if(!body) return;
 
-    groups[g].forEach(d=>{
-      const extra = (d.key === "health")
-        ? `<div style="margin-top:8px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-             <div class="muted" style="font-size:12px">Auffälligkeit (Typ, optional)</div>
-             ${_statHealthTypeHtml()}
-           </div>`
-        : "";
-
-      html += `
-        <div style="margin:14px 0">
-          <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
-            <div style="flex:1;min-width:280px">
-              <div style="font-weight:700">${d.label}</div>
-              <div class="muted" style="font-size:12px;margin-bottom:6px">${d.anchor}</div>
-              <input type="range" min="1" max="10" value="1"
-                     data-key="${d.key}"
-                     class="stat-pro-slider"
-                     style="width:100%">
-              <div style="text-align:right;font-size:13px;margin-top:4px">
-                Wert: <span class="stat-pro-val" data-key="${d.key}">1</span>
-              </div>
-            </div>
-            <div style="min-width:220px">
-              <div class="muted" style="font-size:12px;margin-bottom:6px">Qualitativ (optional)</div>
-              ${_statQualSelectHtml(d.key)}
-            </div>
+  const renderGroup = (g) => {
+    const items = (g.items||[]).map(it => {
+      const qualOptions = (it.qual||[]).map(o => `<option value="${escapeHtml(o.v)}">${escapeHtml(o.t)}</option>`).join('');
+      return `
+        <div style="display:flex; gap:12px; align-items:center; padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.06);">
+          <div style="min-width:210px;">${escapeHtml(it.label)}</div>
+          <div style="flex:1; display:flex; align-items:center; gap:10px;">
+            <input type="range" min="1" max="10" step="1" value="1" id="stat_${escapeHtml(it.id)}" oninput="(function(v){var el=document.getElementById('statv_${escapeHtml(it.id)}'); if(el) el.textContent=v; updateIndexFromUI();})(this.value)" style="flex:1;" />
+            <div class="muted" id="statv_${escapeHtml(it.id)}" style="width:22px; text-align:right;">1</div>
           </div>
-          ${extra}
-        </div>`;
-    });
+          <div style="min-width:240px;">
+            <select class="input" id="statq_${escapeHtml(it.id)}" style="width:100%" onchange="updateIndexFromUI();">
+              <option value="">— qualitativ —</option>
+              ${qualOptions}
+            </select>
+          </div>
+        </div>
+      `;
+    }).join('');
 
-    html += `</div>`;
-  });
-
-  wrap.innerHTML = html;
-
-  const updateIndexFromUI = ()=>{
-    const scores = {};
-    wrap.querySelectorAll('.stat-pro-slider').forEach(sl=>{ scores[sl.dataset.key] = Number(sl.value||0); });
-    const idx = _statComputeCoreIndex(scores);
-    const el = document.getElementById('statCoreIndex');
-    if(el) el.textContent = (idx==null ? '—' : String(idx));
+    return `
+      <div class="card" style="margin-top:10px;">
+        <h4 style="margin:0 0 6px;">${escapeHtml(g.title)}</h4>
+        <div class="muted" style="font-size:12px; margin-bottom:6px;">${escapeHtml(g.hint||'')}</div>
+        ${items}
+      </div>
+    `;
   };
 
-  wrap.querySelectorAll(".stat-pro-slider").forEach(sl=>{
-    const out = wrap.querySelector(`.stat-pro-val[data-key="${sl.dataset.key}"]`);
-    const set = ()=>{
-      const v = sl.value;
-      if(out) out.textContent = v;
-      sl.style.background = `linear-gradient(90deg, ${statColor(v)} 0%, ${statColor(v)} ${(v-1)/9*100}%, rgba(255,255,255,0.15) ${(v-1)/9*100}%, rgba(255,255,255,0.15) 100%)`;
-      updateIndexFromUI();
-    };
-    sl.addEventListener("input", set, {passive:true});
-    set();
-  });
+  body.innerHTML = STAT_RESEARCH_GROUPS.map(renderGroup).join('');
 
+  initStatisticsPanel();
   updateIndexFromUI();
 }
-
 // Ensure render on tab open (falls Statistics-Tab vorhanden)
 try{
   const tab = document.getElementById('tabStatistics');
