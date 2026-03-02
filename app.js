@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.4_STAT_UI_QUAL_20260302";
+const APP_BUILD = "M50.9.5_STAT_CORE_M5010_20260302";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -14731,53 +14731,314 @@ function populateStatDogs(dateISO){
   upd();
 }
 
-async function saveStatRating(){
-  if(!(window.firebase && firebase.firestore)) throw new Error('firebase not available');
-  const dateISO = (document.getElementById('statDate')||{}).value || '';
-  const petId = (document.getElementById('statDogSelect')||{}).value || '';
-  const type = (document.getElementById('statType')||{}).value || 'arrival';
-  const sex = (document.getElementById('statSex')||{}).value || '';
-  const notes = (document.getElementById('statNotes')||{}).value || '';
-  if(!dateISO) throw new Error('missing date');
-  if(!petId) throw new Error('missing pet');
 
-  const scales = {};
-  const qual = {};
-  STAT_RESEARCH_GROUPS.forEach(g=> (g.items||[]).forEach(it=>{
-    const el = document.getElementById('stat_'+it.id);
-    const q = document.getElementById('statq_'+it.id);
-    if(el) scales[it.id] = Number(el.value||0);
-    if(q) qual[it.id] = q.value || '';
-  }));
+// =====================
+// Statistik (M50.10+ Research Core) – professionell wissenschaftlich
+// Nur dieser Bereich wurde neu aufgebaut. Rest der App bleibt unverändert.
+// =====================
 
-  const index = _statComputeCoreIndex(scales);
+// 10 Skalen (IDs bleiben stabil für Export/Analyse)
+const STAT_DIMENSIONS = [
+  { id:'social',    label:'Sozialverhalten',            hint:'Interaktion mit Hunden/Menschen, Konflikte, Nähe/Distanz' },
+  { id:'food',      label:'Futter & Ressourcen',        hint:'Futter, Spielzeug, Napf, Liegeplatz – Verhalten bei Ressourcen' },
+  { id:'handling',  label:'Handling / Anfassen',        hint:'Körperkontakt, Pflege, Anleinen – Kooperationsbereitschaft' },
+  { id:'leash',     label:'Leinenführigkeit',           hint:'Anleinen/Gehen, Ziehen, Reaktivität an der Leine' },
+  { id:'stress',    label:'Stresslevel',                hint:'Unruhe, Hecheln, Schlaf, Entspannung, Überforderung' },
+  { id:'noise',     label:'Lärm / Reaktivität',         hint:'Bellen, Geräuschempfindlichkeit, Trigger-Reaktionen' },
+  { id:'separation',label:'Alleinbleiben / Trennung',   hint:'Kurzzeitiges Separieren, Trennungsstress' },
+  { id:'play',      label:'Spielverhalten',             hint:'Spielmotivation, Impulskontrolle, Interaktion' },
+  { id:'health',    label:'Gesundheit / Auffälligkeiten',hint:'Husten, Durchfall, Lahmheit, Auffälligkeiten' },
+  { id:'hygiene',   label:'Hygiene / Sauberkeit',       hint:'Sauberkeit im Zimmer, Kot/Urin, Pflegezustand' }
+];
 
-  const uid = (firebase.auth && firebase.auth().currentUser) ? firebase.auth().currentUser.uid : null;
-  const docId = `${petId}__${dateISO}__${type}`.replace(/[^a-zA-Z0-9_\-]/g, '_');
-
-  const payload = {
-    petId,
-    date: dateISO,
-    type,
-    sex,
-    scales,
-    qualitative: qual,
-    index,
-    notes,
-    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-    updatedBy: uid
-  };
-
-  const ref = firebase.firestore().collection('stats').doc(docId);
-  const snap = await ref.get();
-  if(!snap.exists){
-    payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-    payload.createdBy = uid;
+// Qualitative Dropdowns (3 Bereiche) – forschungsfest standardisiert
+const STAT_QUAL_FIELDS = [
+  {
+    id:'groupFit',
+    label:'Gruppenpassung',
+    options:[
+      {v:'stabil', t:'stabil'},
+      {v:'instabil', t:'instabil'},
+      {v:'dominant', t:'dominant'},
+      {v:'unsicher', t:'unsicher'}
+    ]
+  },
+  {
+    id:'resourceBehavior',
+    label:'Ressourcenverhalten',
+    options:[
+      {v:'neutral', t:'neutral'},
+      {v:'verteidigend', t:'verteidigend'},
+      {v:'unterwuerfig', t:'unterwürfig'}
+    ]
+  },
+  {
+    id:'arousal',
+    label:'Erregungsniveau',
+    options:[
+      {v:'niedrig', t:'niedrig'},
+      {v:'mittel', t:'mittel'},
+      {v:'hoch', t:'hoch'}
+    ]
   }
-  await ref.set(payload, { merge:true });
+];
+
+// Modell B (M50.10) – Gewichtungen (nicht Prozent, sondern Faktoren)
+const STAT_WEIGHTS_B = {
+  social:1.0,
+  food:1.2,
+  handling:1.0,
+  leash:0.8,
+  stress:2.0,
+  noise:1.5,
+  separation:1.5,
+  play:0.8,
+  health:1.0,
+  hygiene:0.5
+};
+
+function _statComputeIndexB(scales){
+  try{
+    let sum = 0, wsum = 0;
+    Object.keys(STAT_WEIGHTS_B).forEach(k=>{
+      const v = Number(scales?.[k]);
+      const w = Number(STAT_WEIGHTS_B[k]);
+      if(!Number.isFinite(v) || !Number.isFinite(w)) return;
+      sum += v * w;
+      wsum += w;
+    });
+    if(wsum<=0) return null;
+    return Math.round((sum/wsum)*10)/10; // 1 Dezimalstelle, Skala 1–10
+  }catch(_){
+    return null;
+  }
 }
 
-function initStatisticsPanel(){
+function _statInterpretIndex(idx){
+  const v = Number(idx);
+  if(!Number.isFinite(v)) return { band:'—', text:'—' };
+  if(v<=3) return { band:'1–3', text:'sehr stabil' };
+  if(v<=5) return { band:'4–5', text:'moderat' };
+  if(v<=7) return { band:'6–7', text:'erhöhte Belastung' };
+  return { band:'8–10', text:'kritisch / Interventionsbedarf' };
+}
+
+// ---------- Firestore helpers ----------
+function _statFs(){
+  if(!(window.firebase && firebase.firestore)) throw new Error('firebase not available');
+  // wenn Cloud aktiv ist, nutze die bereits initialisierte DB
+  try{
+    if(typeof CLOUD !== 'undefined' && CLOUD && CLOUD.enabled && CLOUD.db) return CLOUD.db;
+  }catch(_){ }
+  return firebase.firestore();
+}
+function _statUid(){
+  try{
+    return (firebase.auth && firebase.auth().currentUser) ? firebase.auth().currentUser.uid : null;
+  }catch(_){ return null; }
+}
+function _statDocId(petId, dateISO, type){
+  return `${petId}__${dateISO}__${type}`.replace(/[^a-zA-Z0-9_\-]/g, '_');
+}
+function _statColl(){
+  const db = _statFs();
+  // Firestore Rules sind org-basiert: /orgs/{orgId}/...
+  try{
+    if(typeof CLOUD !== 'undefined' && CLOUD && CLOUD.enabled){
+      return db.collection('orgs').doc(CLOUD.orgId).collection('statistics');
+    }
+  }catch(_){ }
+  // Fallback (local/test)
+  return db.collection('statistics');
+}
+
+// ---------- UI: main entry ----------
+function renderStatisticsPanel(){
+  const panel = document.getElementById('statistics');
+  if(!panel) return;
+
+  panel.innerHTML = `
+    <div class="card" style="margin-top:10px;">
+      <h1 style="margin:0 0 6px;">📈 Statistik</h1>
+      <div class="muted" style="font-size:12px; line-height:1.35;">
+        Forschungsmodus: standardisierte Erfassung (1–10), Kontextvariablen & reproduzierbarer Belastungsindex (Modell B) – exportierbar für R/Python/SPSS.
+      </div>
+      <div class="row" style="margin-top:10px; gap:8px; flex-wrap:wrap;">
+        <button class="btn" id="statSub_capture">Erfassung</button>
+        <button class="btn" id="statSub_analysis">Analyse</button>
+        <button class="btn" id="statSub_export">Export</button>
+        <button class="btn" id="statSub_method">Methodik</button>
+      </div>
+    </div>
+
+    <div id="statSubBody" style="margin-top:10px;"></div>
+  `;
+
+  // bind
+  const setActive = (k)=>{
+    state.__statSub = k;
+    ['capture','analysis','export','method'].forEach(x=>{
+      const b = document.getElementById('statSub_'+x);
+      if(b) b.classList.toggle('btn-primary', x===k);
+      if(b) b.classList.toggle('btn', x!==k && !b.classList.contains('btn-primary'));
+    });
+    if(k==='capture') renderStatCapture();
+    else if(k==='analysis') renderStatAnalysis();
+    else if(k==='export') renderStatExport();
+    else renderStatMethod();
+  };
+
+  // default: analysis-first would be tempting, but for data collection: capture
+  const def = state.__statSub || 'capture';
+  ['capture','analysis','export','method'].forEach(k=>{
+    const b=document.getElementById('statSub_'+k);
+    if(b) b.onclick=()=>setActive(k);
+  });
+  setActive(def);
+}
+
+// ---------- Sub: Capture (Erfassung) ----------
+function renderStatCapture(){
+  const host = document.getElementById('statSubBody');
+  if(!host) return;
+
+  host.innerHTML = `
+    <div class="card">
+      <h3 style="margin:0 0 10px;">1) Erfassung (standardisiert)</h3>
+
+      <div class="row" style="flex-wrap:wrap; gap:10px; align-items:flex-end;">
+        <div style="min-width:180px;">
+          <label class="muted" style="display:block; margin-bottom:4px;">Datum</label>
+          <input id="statDate" type="date" class="input" style="width:100%"/>
+        </div>
+
+        <div style="min-width:260px; flex:1;">
+          <label class="muted" style="display:block; margin-bottom:4px;">Hund</label>
+          <select id="statDogSelect" class="input" style="width:100%"></select>
+        </div>
+
+        <div style="min-width:220px;">
+          <label class="muted" style="display:block; margin-bottom:4px;">Bewertungstyp</label>
+          <select id="statType" class="input" style="width:100%">
+            <option value="arrival">Ankunft</option>
+            <option value="mid">Zwischenbewertung</option>
+            <option value="departure">Abreise</option>
+          </select>
+        </div>
+
+        <div style="min-width:220px;">
+          <label class="muted" style="display:block; margin-bottom:4px;">Geschlecht</label>
+          <select id="statSex" class="input" style="width:100%">
+            <option value="">— unbekannt —</option>
+            <option value="m">männlich</option>
+            <option value="w">weiblich</option>
+            <option value="k">kastriert (Rüde)</option>
+            <option value="s">kastriert (Hündin)</option>
+          </select>
+        </div>
+
+        <div style="min-width:220px;">
+          <label class="muted" style="display:block; margin-bottom:4px;">Rasse (aus Stammdaten)</label>
+          <input id="statBreed" class="input" style="width:100%" placeholder="—" disabled />
+        </div>
+
+        <div style="min-width:220px;">
+          <label class="muted" style="display:block; margin-bottom:4px;">Alter (Jahre, optional)</label>
+          <input id="statAge" type="number" min="0" step="0.1" class="input" style="width:100%" placeholder="z.B. 3.0"/>
+        </div>
+      </div>
+
+      <hr style="border:none;border-top:1px solid rgba(255,255,255,0.08);margin:12px 0;">
+
+      <div class="row" style="flex-wrap:wrap; gap:10px; align-items:flex-end;">
+        <div style="min-width:180px;">
+          <label class="muted" style="display:block; margin-bottom:4px;">Gruppengröße</label>
+          <input id="statGroupSize" type="number" min="0" step="1" class="input" style="width:100%" placeholder="z.B. 6"/>
+        </div>
+        <div style="min-width:220px;">
+          <label class="muted" style="display:block; margin-bottom:4px;">Gruppenstabilität</label>
+          <select id="statGroupStability" class="input" style="width:100%">
+            <option value="">—</option>
+            <option value="stabil">stabil</option>
+            <option value="wechselnd">wechselnd</option>
+            <option value="neu">neu gemischt</option>
+          </select>
+        </div>
+        <div style="min-width:220px;">
+          <label class="muted" style="display:block; margin-bottom:4px;">Dominante Hunde (Anzahl)</label>
+          <input id="statDominantCount" type="number" min="0" step="1" class="input" style="width:100%" placeholder="z.B. 1"/>
+        </div>
+        <div style="min-width:220px;">
+          <label class="muted" style="display:block; margin-bottom:4px;">Auslastung (Betrieb)</label>
+          <select id="statOccupancy" class="input" style="width:100%">
+            <option value="">—</option>
+            <option value="niedrig">niedrig</option>
+            <option value="mittel">mittel</option>
+            <option value="hoch">hoch</option>
+          </select>
+        </div>
+        <div style="min-width:260px; flex:1;">
+          <label class="muted" style="display:block; margin-bottom:4px;">Betreuer/Trainer (optional)</label>
+          <input id="statTrainer" class="input" style="width:100%" placeholder="Name oder Kürzel"/>
+        </div>
+      </div>
+
+      <div class="muted" style="margin-top:10px; font-size:12px;">
+        Skalen: 1 = unauffällig/entspannt · 10 = stark auffällig/hoch belastet. (Belastungsindex wird bewusst erst in der Analyse berechnet/angezeigt.)
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:10px;">
+      <h3 style="margin:0 0 8px;">2) Skalen (1–10)</h3>
+      <div id="statScaleBody"></div>
+    </div>
+
+    <div class="card" style="margin-top:10px;">
+      <h3 style="margin:0 0 8px;">3) Qualitative Felder (standardisiert)</h3>
+      <div class="row" style="flex-wrap:wrap; gap:10px;">
+        ${STAT_QUAL_FIELDS.map(q=>`
+          <div style="min-width:260px; flex:1;">
+            <label class="muted" style="display:block; margin-bottom:4px;">${escapeHtml(q.label)}</label>
+            <select class="input" id="statQual_${escapeHtml(q.id)}" style="width:100%">
+              <option value="">—</option>
+              ${(q.options||[]).map(o=>`<option value="${escapeHtml(o.v)}">${escapeHtml(o.t)}</option>`).join('')}
+            </select>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:10px;">
+      <h3 style="margin:0 0 8px;">Notizen (optional)</h3>
+      <textarea id="statNotes" class="input" rows="2" style="width:100%" placeholder="Kurzbeobachtung / Kontext (Trigger, besondere Ereignisse, ...)"></textarea>
+      <div class="row" style="margin-top:10px; gap:10px; align-items:center;">
+        <button class="btn btn-primary" id="btnStatSave">Bewertung speichern</button>
+        <div id="statSaveMsg" class="muted" style="font-size:12px;"></div>
+      </div>
+    </div>
+  `;
+
+  // scales UI
+  const sb = document.getElementById('statScaleBody');
+  if(sb){
+    sb.innerHTML = STAT_DIMENSIONS.map(d=>`
+      <div style="display:flex; gap:12px; align-items:center; padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.06);">
+        <div style="min-width:220px;">
+          <div>${escapeHtml(d.label)}</div>
+          <div class="muted" style="font-size:11px; line-height:1.25;">${escapeHtml(d.hint||'')}</div>
+        </div>
+        <div style="flex:1; display:flex; align-items:center; gap:10px;">
+          <input type="range" min="1" max="10" step="1" value="1" id="stat_${escapeHtml(d.id)}" oninput="(function(v){var el=document.getElementById('statv_${escapeHtml(d.id)}'); if(el) el.textContent=v;})(this.value)" style="flex:1;" />
+          <div class="muted" id="statv_${escapeHtml(d.id)}" style="width:22px; text-align:right;">1</div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  initStatCaptureBindings();
+}
+
+function initStatCaptureBindings(){
   const dateEl = document.getElementById('statDate');
   const saveBtn = document.getElementById('btnStatSave');
   if(!dateEl || !saveBtn) return;
@@ -14786,7 +15047,7 @@ function initStatisticsPanel(){
     try{ dateEl.value = toISODate(new Date()); }catch(_){ }
   }
 
-  const repop = () => populateStatDogs(dateEl.value);
+  const repop = () => populateStatDogsForAll(dateEl.value);
   dateEl.onchange = repop;
   repop();
 
@@ -14795,7 +15056,7 @@ function initStatisticsPanel(){
     saveBtn.disabled = true;
     if(msg) msg.textContent = 'Speichere…';
     try{
-      await saveStatRating();
+      await saveStatRatingV2();
       if(msg) msg.textContent = 'Gespeichert';
     }catch(e){
       console.error('[STAT] save failed', e);
@@ -14808,103 +15069,617 @@ function initStatisticsPanel(){
   };
 }
 
-function renderStatisticsPanel(){
-  const wrap = document.getElementById('statPanelBody');
-  if(!wrap) return;
+function populateStatDogsForAll(dateISO){
+  const dogEl = document.getElementById('statDogSelect');
+  const breedEl = document.getElementById('statBreed');
+  if(!dogEl) return;
 
-  wrap.innerHTML = `
-    <div class="card" style="margin-top:10px;">
-      <h3 style="margin:0 0 10px;">Tagesbewertung</h3>
+  let petIds = [];
+  try{
+    if(typeof getPetIdsInCare === 'function' && dateISO){
+      petIds = getPetIdsInCare(dateISO) || [];
+    }
+  }catch(_){ }
+
+  if(!petIds.length){
+    petIds = Object.keys(state.pets || {});
+  }
+
+  const opts = petIds.map(pid => {
+    const p = state.pets && state.pets[pid];
+    const name = p?.name || p?.dogName || pid;
+    return {id:pid, name};
+  }).sort((a,b)=> String(a.name).localeCompare(String(b.name)));
+
+  dogEl.innerHTML = '<option value="">— bitte wählen —</option>' + opts.map(o=>`<option value="${escapeHtml(o.id)}">${escapeHtml(o.name)}</option>`).join('');
+
+  const updateMeta = ()=>{
+    const pid = dogEl.value || '';
+    const p = (state.pets && state.pets[pid]) || null;
+    const breed = (p && (p.breed || p.race || p.rasse)) ? String(p.breed||p.race||p.rasse) : '';
+    if(breedEl) breedEl.value = breed || '—';
+  };
+  dogEl.onchange = updateMeta;
+  updateMeta();
+}
+
+async function saveStatRatingV2(){
+  const fs = _statFs();
+  const dateISO = (document.getElementById('statDate')||{}).value || '';
+  const petId = (document.getElementById('statDogSelect')||{}).value || '';
+  const type = (document.getElementById('statType')||{}).value || 'arrival';
+  const sex = (document.getElementById('statSex')||{}).value || '';
+  const notes = (document.getElementById('statNotes')||{}).value || '';
+  const breed = (document.getElementById('statBreed')||{}).value || '';
+  const age = Number((document.getElementById('statAge')||{}).value || '');
+  if(!dateISO) throw new Error('missing date');
+  if(!petId) throw new Error('missing pet');
+
+  const scales = {};
+  STAT_DIMENSIONS.forEach(d=>{
+    const el = document.getElementById('stat_'+d.id);
+    if(el) scales[d.id] = Number(el.value||0);
+  });
+
+  const qualitative = {};
+  STAT_QUAL_FIELDS.forEach(q=>{
+    const el = document.getElementById('statQual_'+q.id);
+    if(el) qualitative[q.id] = el.value || '';
+  });
+
+  const context = {
+    groupSize: Number((document.getElementById('statGroupSize')||{}).value || ''),
+    groupStability: (document.getElementById('statGroupStability')||{}).value || '',
+    dominantCount: Number((document.getElementById('statDominantCount')||{}).value || ''),
+    occupancy: (document.getElementById('statOccupancy')||{}).value || '',
+    trainer: (document.getElementById('statTrainer')||{}).value || ''
+  };
+
+  // index berechnen, aber NICHT in der Erfassung anzeigen – wird in Analyse genutzt
+  const indexB = _statComputeIndexB(scales);
+
+  const uid = _statUid();
+  const docId = _statDocId(petId, dateISO, type);
+
+  const payload = {
+    dogId: petId,
+    petId, // backwards compat
+    date: dateISO,
+    type,
+    sex,
+    breed: breed || '',
+    ageYears: Number.isFinite(age) ? age : null,
+    scores: scales,
+    scales, // backwards compat
+    qualitative,
+    context,
+    indexB,
+    notes,
+    schema: 'M50.10_STAT_CORE_V1',
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    updatedBy: uid
+  };
+
+  const ref = _statColl().doc(docId);
+  const snap = await ref.get();
+  if(!snap.exists){
+    payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+    payload.createdBy = uid;
+  }
+  await ref.set(payload, { merge:true });
+}
+
+// ---------- Sub: Analysis ----------
+function renderStatAnalysis(){
+  const host = document.getElementById('statSubBody');
+  if(!host) return;
+
+  host.innerHTML = `
+    <div class="card">
+      <h3 style="margin:0 0 10px;">Analyse (Belastungsindex nur hier)</h3>
+
       <div class="row" style="flex-wrap:wrap; gap:10px; align-items:flex-end;">
-        <div style="min-width:180px;">
-          <label class="muted" style="display:block; margin-bottom:4px;">Datum</label>
-          <input id="statDate" type="date" class="input" style="width:100%"/>
-        </div>
         <div style="min-width:260px; flex:1;">
-          <label class="muted" style="display:block; margin-bottom:4px;">Hund (aktive Aufenthalte)</label>
-          <select id="statDogSelect" class="input" style="width:100%"></select>
+          <label class="muted" style="display:block; margin-bottom:4px;">Hund</label>
+          <select id="statAnaDog" class="input" style="width:100%"></select>
         </div>
-        <div style="min-width:220px;">
-          <label class="muted" style="display:block; margin-bottom:4px;">Bewertungstyp</label>
-          <select id="statType" class="input" style="width:100%">
-            <option value="arrival">Ankunft (Tag 1)</option>
-            <option value="mid">Zwischenbewertung</option>
-            <option value="departure">Abreise</option>
-          </select>
+        <div style="min-width:180px;">
+          <label class="muted" style="display:block; margin-bottom:4px;">Von</label>
+          <input id="statAnaFrom" type="date" class="input" style="width:100%"/>
         </div>
-        <div style="min-width:220px;">
-          <label class="muted" style="display:block; margin-bottom:4px;">Geschlecht</label>
-          <select id="statSex" class="input" style="width:100%">
-            <option value="">— unbekannt —</option>
-            <option value="m">männlich</option>
-            <option value="w">weiblich</option>
-            <option value="k">kastriert (Rüde)</option>
-            <option value="s">kastriert (Hündin)</option>
-          </select>
+        <div style="min-width:180px;">
+          <label class="muted" style="display:block; margin-bottom:4px;">Bis</label>
+          <input id="statAnaTo" type="date" class="input" style="width:100%"/>
         </div>
-        <div style="min-width:200px; flex:1;">
-          <div id="statDogMeta" class="muted" style="font-size:12px; line-height:1.3;"></div>
+        <div>
+          <button class="btn btn-primary" id="btnStatAnaLoad">Auswerten</button>
         </div>
+        <div id="statAnaMsg" class="muted" style="font-size:12px;"></div>
       </div>
     </div>
 
     <div class="card" style="margin-top:10px;">
       <div class="row" style="justify-content:space-between; align-items:flex-end;">
-        <h3 style="margin:0;">Skalen (1–10)</h3>
-        <div class="muted" style="font-size:12px;">Index (Preset 2 / B): <span id="statCoreIndex">–</span></div>
+        <h3 style="margin:0;">Belastungsindex (Modell B)</h3>
+        <div class="muted" id="statAnaIndexHint" style="font-size:12px;"></div>
       </div>
-      <div class="muted" style="margin-top:6px; font-size:12px;">1 = unauffällig/entspannt · 10 = stark auffällig/hoch belastet</div>
-      <div id="statResearchBody" style="margin-top:10px;"></div>
+      <canvas id="statAnaChart" height="120" style="margin-top:10px; width:100%;"></canvas>
+      <div id="statAnaSummary" style="margin-top:10px;"></div>
     </div>
 
     <div class="card" style="margin-top:10px;">
-      <h3 style="margin:0 0 8px;">Notizen (optional)</h3>
-      <textarea id="statNotes" class="input" rows="2" style="width:100%" placeholder="Kurzbeobachtung / Kontext (z.B. Erstkontakt, Gruppenkonstellation, Trigger)"></textarea>
-      <div class="row" style="margin-top:10px; gap:10px; align-items:center;">
-        <button class="btn btn-primary" id="btnStatSave">Bewertung speichern</button>
-        <div id="statSaveMsg" class="muted" style="font-size:12px;"></div>
+      <h3 style="margin:0 0 8px;">Ø Werte (Zeitraum)</h3>
+      <table class="dsTable" id="statAnaAvgTable">
+        <tr><th>Kategorie</th><th style="text-align:right;">Ø (1–10)</th></tr>
+      </table>
+    </div>
+
+    <div class="card" style="margin-top:10px;">
+      <h3 style="margin:0 0 8px;">Rohdaten (Auszug)</h3>
+      <div class="muted" style="font-size:12px; margin-bottom:8px;">Für vollständige Rohdaten bitte Export nutzen.</div>
+      <div style="overflow:auto;">
+        <table class="dsTable" id="statAnaRawTable"></table>
       </div>
     </div>
   `;
 
-  const body = document.getElementById('statResearchBody');
-  if(!body) return;
+  initStatAnalysisBindings();
+}
 
-  const renderGroup = (g) => {
-    const items = (g.items||[]).map(it => {
-      const qualOptions = (it.qual||[]).map(o => `<option value="${escapeHtml(o.v)}">${escapeHtml(o.t)}</option>`).join('');
-      return `
-        <div style="display:flex; gap:12px; align-items:center; padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.06);">
-          <div style="min-width:210px;">${escapeHtml(it.label)}</div>
-          <div style="flex:1; display:flex; align-items:center; gap:10px;">
-            <input type="range" min="1" max="10" step="1" value="1" id="stat_${escapeHtml(it.id)}" oninput="(function(v){var el=document.getElementById('statv_${escapeHtml(it.id)}'); if(el) el.textContent=v; updateIndexFromUI();})(this.value)" style="flex:1;" />
-            <div class="muted" id="statv_${escapeHtml(it.id)}" style="width:22px; text-align:right;">1</div>
-          </div>
-          <div style="min-width:240px;">
-            <select class="input" id="statq_${escapeHtml(it.id)}" style="width:100%" onchange="updateIndexFromUI();">
-              <option value="">— qualitativ —</option>
-              ${qualOptions}
-            </select>
+function _statFillDogSelect(selId){
+  const sel = document.getElementById(selId);
+  if(!sel) return;
+  const petIds = Object.keys(state.pets || {});
+  const opts = petIds.map(pid=>{
+    const p = state.pets && state.pets[pid];
+    const name = p?.name || p?.dogName || pid;
+    return {id:pid, name};
+  }).sort((a,b)=> String(a.name).localeCompare(String(b.name)));
+  sel.innerHTML = '<option value="">— bitte wählen —</option>' + opts.map(o=>`<option value="${escapeHtml(o.id)}">${escapeHtml(o.name)}</option>`).join('');
+}
+
+function initStatAnalysisBindings(){
+  _statFillDogSelect('statAnaDog');
+
+  const fromEl = document.getElementById('statAnaFrom');
+  const toEl = document.getElementById('statAnaTo');
+  const btn = document.getElementById('btnStatAnaLoad');
+  if(fromEl && !fromEl.value){
+    // default: last 30 days
+    try{
+      const d=new Date(); const to=toISODate(d);
+      const d2=new Date(); d2.setDate(d2.getDate()-30);
+      fromEl.value = toISODate(d2);
+      toEl.value = to;
+    }catch(_){ }
+  }
+  if(btn){
+    btn.onclick = ()=>{ loadAndRenderStatAnalysis(); };
+  }
+}
+
+async function loadAndRenderStatAnalysis(){
+  const msg = document.getElementById('statAnaMsg');
+  const dogId = (document.getElementById('statAnaDog')||{}).value || '';
+  const from = (document.getElementById('statAnaFrom')||{}).value || '';
+  const to = (document.getElementById('statAnaTo')||{}).value || '';
+  if(!dogId){ if(msg) msg.textContent='Bitte Hund wählen.'; return; }
+  if(msg) msg.textContent='Lade…';
+
+  try{
+    const fs=_statFs();
+    let q = _statColl().where('dogId','==',dogId);
+    if(from) q = q.where('date','>=',from);
+    if(to) q = q.where('date','<=',to);
+    q = q.orderBy('date','asc');
+
+    const snap = await q.get();
+    const rows = [];
+    snap.forEach(doc=>{
+      const d = doc.data() || {};
+      rows.push({ id:doc.id, ...d });
+    });
+
+    if(!rows.length){
+      if(msg) msg.textContent='Keine Daten im Zeitraum.';
+      _statRenderAnalysisEmpty();
+      return;
+    }
+
+    // normalize, compute indexB if missing
+    rows.forEach(r=>{
+      const sc = r.scores || r.scales || {};
+      r.__scores = sc;
+      r.__indexB = Number.isFinite(Number(r.indexB)) ? Number(r.indexB) : _statComputeIndexB(sc);
+    });
+
+    _statRenderAnalysis(rows);
+    if(msg) msg.textContent = `${rows.length} Einträge.`;
+    setTimeout(()=>{ if(msg) msg.textContent=''; }, 3000);
+  }catch(e){
+    console.error('[STAT] analysis load failed', e);
+    if(msg) msg.textContent='Fehler beim Laden.';
+  }
+}
+
+function _statRenderAnalysisEmpty(){
+  const c=document.getElementById('statAnaChart');
+  if(c){
+    const ctx=c.getContext('2d');
+    ctx.clearRect(0,0,c.width,c.height);
+    ctx.font='12px sans-serif';
+    ctx.fillText('Keine Daten', 10, 20);
+  }
+  const sum=document.getElementById('statAnaSummary');
+  if(sum) sum.innerHTML = '<div class="muted">—</div>';
+  const avg=document.getElementById('statAnaAvgTable');
+  if(avg) avg.innerHTML = '<tr><th>Kategorie</th><th style="text-align:right;">Ø (1–10)</th></tr>';
+  const raw=document.getElementById('statAnaRawTable');
+  if(raw) raw.innerHTML = '';
+  const hint=document.getElementById('statAnaIndexHint');
+  if(hint) hint.textContent='';
+}
+
+function _statRenderAnalysis(rows){
+  // Summary stats
+  const idxs = rows.map(r=>r.__indexB).filter(v=>Number.isFinite(v));
+  const mean = idxs.reduce((a,b)=>a+b,0)/Math.max(1,idxs.length);
+  const last = idxs[idxs.length-1];
+  const interp = _statInterpretIndex(mean);
+  const hint = document.getElementById('statAnaIndexHint');
+  if(hint){
+    hint.textContent = `Ø Index: ${mean.toFixed(1)} (${interp.text})`;
+  }
+
+  // Trend: last 3 vs previous 3
+  let trendTxt='Trend: —';
+  if(idxs.length>=6){
+    const a = idxs.slice(-3).reduce((x,y)=>x+y,0)/3;
+    const b = idxs.slice(-6,-3).reduce((x,y)=>x+y,0)/3;
+    const diff = a-b;
+    if(Math.abs(diff)<0.2) trendTxt='Trend: stabil';
+    else if(diff>0) trendTxt=`Trend: steigend (+${diff.toFixed(1)})`;
+    else trendTxt=`Trend: fallend (${diff.toFixed(1)})`;
+  }
+
+  const sum=document.getElementById('statAnaSummary');
+  if(sum){
+    const li = _statInterpretIndex(last);
+    sum.innerHTML = `
+      <div class="row" style="flex-wrap:wrap; gap:12px;">
+        <div class="card" style="flex:1; min-width:220px;">
+          <div class="muted" style="font-size:12px;">Letzter Index</div>
+          <div style="font-size:26px; font-weight:700;">${Number.isFinite(last)? last.toFixed(1):'—'}</div>
+          <div class="muted" style="font-size:12px;">${escapeHtml(li.text)}</div>
+        </div>
+        <div class="card" style="flex:1; min-width:220px;">
+          <div class="muted" style="font-size:12px;">Ø Index (Zeitraum)</div>
+          <div style="font-size:26px; font-weight:700;">${mean.toFixed(1)}</div>
+          <div class="muted" style="font-size:12px;">${escapeHtml(interp.text)} · ${escapeHtml(trendTxt)}</div>
+        </div>
+        <div class="card" style="flex:2; min-width:240px;">
+          <div class="muted" style="font-size:12px;">Interpretation</div>
+          <div style="margin-top:6px; font-size:13px; line-height:1.35;">
+            1–3 sehr stabil · 4–5 moderat · 6–7 erhöhte Belastung · 8–10 kritisch / Interventionsbedarf
           </div>
         </div>
-      `;
-    }).join('');
-
-    return `
-      <div class="card" style="margin-top:10px;">
-        <h4 style="margin:0 0 6px;">${escapeHtml(g.title)}</h4>
-        <div class="muted" style="font-size:12px; margin-bottom:6px;">${escapeHtml(g.hint||'')}</div>
-        ${items}
       </div>
     `;
-  };
+  }
 
-  body.innerHTML = STAT_RESEARCH_GROUPS.map(renderGroup).join('');
+  // Avg per dimension
+  const sums = {}; const counts = {};
+  STAT_DIMENSIONS.forEach(d=>{ sums[d.id]=0; counts[d.id]=0; });
+  rows.forEach(r=>{
+    STAT_DIMENSIONS.forEach(d=>{
+      const v = Number(r.__scores?.[d.id]);
+      if(Number.isFinite(v)){
+        sums[d.id]+=v; counts[d.id]+=1;
+      }
+    });
+  });
+  const avgTable=document.getElementById('statAnaAvgTable');
+  if(avgTable){
+    avgTable.innerHTML = '<tr><th>Kategorie</th><th style="text-align:right;">Ø (1–10)</th></tr>' +
+      STAT_DIMENSIONS.map(d=>{
+        const c=counts[d.id]||0;
+        const v=c? (sums[d.id]/c): null;
+        return `<tr><td>${escapeHtml(d.label)}</td><td style="text-align:right;">${v==null?'—':v.toFixed(1)}</td></tr>`;
+      }).join('');
+  }
 
-  initStatisticsPanel();
-  updateIndexFromUI();
+  // Raw table (compact)
+  const raw=document.getElementById('statAnaRawTable');
+  if(raw){
+    const head = `
+      <tr>
+        <th>Datum</th><th>Typ</th>
+        <th style="text-align:right;">Index</th>
+        ${STAT_DIMENSIONS.map(d=>`<th style="text-align:right;">${escapeHtml(d.label)}</th>`).join('')}
+      </tr>`;
+    const body = rows.slice(-20).map(r=>{
+      return `<tr>
+        <td>${escapeHtml(r.date||'')}</td>
+        <td>${escapeHtml(r.type||'')}</td>
+        <td style="text-align:right;">${Number.isFinite(r.__indexB)? r.__indexB.toFixed(1):'—'}</td>
+        ${STAT_DIMENSIONS.map(d=>{
+          const v = Number(r.__scores?.[d.id]);
+          return `<td style="text-align:right;">${Number.isFinite(v)? v: '—'}</td>`;
+        }).join('')}
+      </tr>`;
+    }).join('');
+    raw.innerHTML = head + body;
+  }
+
+  // Chart (simple line)
+  _statDrawLineChart('statAnaChart', rows.map(r=>({x:r.date, y:r.__indexB})));
 }
-// Ensure render on tab open (falls Statistics-Tab vorhanden)
+
+function _statDrawLineChart(canvasId, points){
+  const c = document.getElementById(canvasId);
+  if(!c) return;
+  const ctx = c.getContext('2d');
+
+  // handle high-dpi
+  const rect = c.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  c.width = Math.max(300, Math.floor(rect.width * dpr));
+  c.height = Math.max(120, Math.floor(120 * dpr));
+  ctx.scale(dpr, dpr);
+
+  const w = rect.width;
+  const h = 120;
+
+  ctx.clearRect(0,0,w,h);
+
+  // grid
+  ctx.globalAlpha = 0.25;
+  ctx.beginPath();
+  for(let i=0;i<=5;i++){
+    const y = 10 + (h-20)*(i/5);
+    ctx.moveTo(10,y); ctx.lineTo(w-10,y);
+  }
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+
+  const vals = points.map(p=>Number(p.y)).filter(v=>Number.isFinite(v));
+  if(!vals.length){
+    ctx.font='12px sans-serif';
+    ctx.fillText('Keine Index-Werte', 10, 20);
+    return;
+  }
+
+  const minY = 1;
+  const maxY = 10;
+
+  const xs = points.map((p,i)=>i);
+  const n = points.length;
+  const xToPx = (i)=> 10 + (w-20) * (n<=1? 0 : (i/(n-1)));
+  const yToPx = (v)=> 10 + (h-20) * (1 - ((v-minY)/(maxY-minY)));
+
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  points.forEach((p,i)=>{
+    const v = Number(p.y);
+    if(!Number.isFinite(v)) return;
+    const x = xToPx(i);
+    const y = yToPx(v);
+    if(i===0) ctx.moveTo(x,y);
+    else ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+
+  // points
+  ctx.lineWidth = 1;
+  points.forEach((p,i)=>{
+    const v = Number(p.y);
+    if(!Number.isFinite(v)) return;
+    const x=xToPx(i), y=yToPx(v);
+    ctx.beginPath(); ctx.arc(x,y,3,0,Math.PI*2); ctx.fill();
+  });
+
+  // y labels
+  ctx.font='11px sans-serif';
+  ctx.globalAlpha=0.7;
+  ctx.fillText('10', 12, 14);
+  ctx.fillText('1', 12, h-8);
+  ctx.globalAlpha=1;
+}
+
+// ---------- Sub: Export ----------
+function renderStatExport(){
+  const host = document.getElementById('statSubBody');
+  if(!host) return;
+
+  host.innerHTML = `
+    <div class="card">
+      <h3 style="margin:0 0 10px;">Export (Rohdaten)</h3>
+      <div class="muted" style="font-size:12px; line-height:1.35; margin-bottom:10px;">
+        Exportiert reproduzierbare Rohdaten inkl. Kontextvariablen + berechnetem Belastungsindex (Modell B).
+      </div>
+
+      <div class="row" style="flex-wrap:wrap; gap:10px; align-items:flex-end;">
+        <div style="min-width:260px; flex:1;">
+          <label class="muted" style="display:block; margin-bottom:4px;">Hund</label>
+          <select id="statExpDog" class="input" style="width:100%">
+            <option value="">Alle Hunde</option>
+          </select>
+        </div>
+        <div style="min-width:180px;">
+          <label class="muted" style="display:block; margin-bottom:4px;">Von</label>
+          <input id="statExpFrom" type="date" class="input" style="width:100%"/>
+        </div>
+        <div style="min-width:180px;">
+          <label class="muted" style="display:block; margin-bottom:4px;">Bis</label>
+          <input id="statExpTo" type="date" class="input" style="width:100%"/>
+        </div>
+        <div>
+          <button class="btn btn-primary" id="btnStatExportCsv">CSV Export</button>
+        </div>
+        <div id="statExpMsg" class="muted" style="font-size:12px;"></div>
+      </div>
+    </div>
+  `;
+
+  _statFillDogSelect('statExpDog');
+
+  const fromEl=document.getElementById('statExpFrom');
+  const toEl=document.getElementById('statExpTo');
+  if(fromEl && !fromEl.value){
+    try{
+      const d=new Date(); const to=toISODate(d);
+      const d2=new Date(); d2.setDate(d2.getDate()-365);
+      fromEl.value = toISODate(d2);
+      toEl.value = to;
+    }catch(_){ }
+  }
+
+  const btn=document.getElementById('btnStatExportCsv');
+  if(btn){
+    btn.onclick=()=>{ exportStatCsv(); };
+  }
+}
+
+async function exportStatCsv(){
+  const msg=document.getElementById('statExpMsg');
+  if(msg) msg.textContent='Lade…';
+  try{
+    const fs=_statFs();
+    const dogId=(document.getElementById('statExpDog')||{}).value || '';
+    const from=(document.getElementById('statExpFrom')||{}).value || '';
+    const to=(document.getElementById('statExpTo')||{}).value || '';
+
+    let q=_statColl();
+    if(dogId) q=q.where('dogId','==',dogId);
+    if(from) q=q.where('date','>=',from);
+    if(to) q=q.where('date','<=',to);
+    // If dogId not set, avoid composite index requirement by ordering only when possible
+    q=q.orderBy('date','asc');
+
+    const snap=await q.get();
+    const rows=[];
+    snap.forEach(doc=>{
+      const d=doc.data()||{};
+      const sc=d.scores||d.scales||{};
+      const idx = Number.isFinite(Number(d.indexB)) ? Number(d.indexB) : _statComputeIndexB(sc);
+      rows.push({id:doc.id, ...d, __scores:sc, __indexB:idx});
+    });
+
+    if(!rows.length){
+      if(msg) msg.textContent='Keine Daten.';
+      return;
+    }
+
+    const headers = [
+      'docId','dogId','date','type','sex','breed','ageYears',
+      'groupSize','groupStability','dominantCount','occupancy','trainer',
+      ...STAT_DIMENSIONS.map(d=>`score_${d.id}`),
+      ...STAT_QUAL_FIELDS.map(q=>`qual_${q.id}`),
+      'indexB','notes','schema'
+    ];
+
+    const esc = (v)=>{
+      const s = (v==null)? '' : String(v);
+      const t = s.replace(/"/g,'""');
+      return `"${t}"`;
+    };
+
+    const lines = [];
+    lines.push(headers.map(esc).join(','));
+    rows.forEach(r=>{
+      const ctx=r.context||{};
+      const q=r.qualitative||{};
+      const line = [
+        r.id||'',
+        r.dogId||r.petId||'',
+        r.date||'',
+        r.type||'',
+        r.sex||'',
+        r.breed||'',
+        (r.ageYears==null? '' : r.ageYears),
+        (Number.isFinite(Number(ctx.groupSize))? Number(ctx.groupSize) : ''),
+        ctx.groupStability||'',
+        (Number.isFinite(Number(ctx.dominantCount))? Number(ctx.dominantCount) : ''),
+        ctx.occupancy||'',
+        ctx.trainer||'',
+        ...STAT_DIMENSIONS.map(d=> {
+          const v=Number(r.__scores?.[d.id]);
+          return Number.isFinite(v)? v : '';
+        }),
+        ...STAT_QUAL_FIELDS.map(f=> q[f.id]||''),
+        Number.isFinite(r.__indexB)? r.__indexB.toFixed(1):'',
+        r.notes||'',
+        r.schema||''
+      ];
+      lines.push(line.map(esc).join(','));
+    });
+
+    const csv = lines.join('\n');
+    const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+    const a = document.createElement('a');
+    const stamp = toISODate(new Date()).replace(/-/g,'');
+    const fn = `doggystyle_statistics_${stamp}.csv`;
+    a.href = URL.createObjectURL(blob);
+    a.download = fn;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{ try{ URL.revokeObjectURL(a.href); }catch(_){ } try{ a.remove(); }catch(_){ } }, 200);
+
+    if(msg) msg.textContent=`Export: ${rows.length} Zeilen.`;
+    setTimeout(()=>{ if(msg) msg.textContent=''; }, 4000);
+  }catch(e){
+    console.error('[STAT] export failed', e);
+    if(msg) msg.textContent='Fehler beim Export.';
+  }
+}
+
+// ---------- Sub: Methodik ----------
+function renderStatMethod(){
+  const host=document.getElementById('statSubBody');
+  if(!host) return;
+
+  const wRows = Object.keys(STAT_WEIGHTS_B).map(k=>{
+    const d = STAT_DIMENSIONS.find(x=>x.id===k);
+    return `<tr><td>${escapeHtml(d? d.label : k)}</td><td style="text-align:right;">${STAT_WEIGHTS_B[k]}</td></tr>`;
+  }).join('');
+
+  host.innerHTML = `
+    <div class="card">
+      <h3 style="margin:0 0 8px;">Methodik (reproduzierbar)</h3>
+      <div class="muted" style="font-size:12px; line-height:1.35;">
+        Ziel: standardisierte Erfassung + Kontextvariablen, um soziale Einflüsse (Gruppe/Umwelt) gegenüber Rasse-Effekten statistisch prüfen zu können.
+        Der Belastungsindex (Modell B) ist eine gewichtete Zusammenfassung verhaltensrelevanter Stressoren.
+      </div>
+
+      <h4 style="margin:14px 0 6px;">Belastungsindex – Formel</h4>
+      <div class="muted" style="font-size:12px;">Index = Σ(score × gewicht) / Σ(gewichte), Skala 1–10</div>
+
+      <h4 style="margin:14px 0 6px;">Gewichtungsmodell (Modell B, M50.10)</h4>
+      <table class="dsTable">
+        <tr><th>Kategorie</th><th style="text-align:right;">Gewicht</th></tr>
+        ${wRows}
+      </table>
+
+      <h4 style="margin:14px 0 6px;">Interpretation</h4>
+      <table class="dsTable">
+        <tr><th>Index</th><th>Bedeutung</th></tr>
+        <tr><td>1–3</td><td>sehr stabil</td></tr>
+        <tr><td>4–5</td><td>moderat</td></tr>
+        <tr><td>6–7</td><td>erhöhte Belastung</td></tr>
+        <tr><td>8–10</td><td>kritisch / Interventionsbedarf</td></tr>
+      </table>
+
+      <h4 style="margin:14px 0 6px;">Forschungs-Hinweis</h4>
+      <div style="font-size:13px; line-height:1.4;">
+        Für Gesetzesargumentation: Rohdaten exportieren, dann multivariate Modelle (z.B. lineare Mixed Models) mit Prädiktoren wie
+        <b>Rasse</b>, <b>Gruppengröße</b>, <b>Gruppenstabilität</b>, <b>Auslastung</b>, <b>Aufenthaltsdauer</b> und <b>Trainer</b>.
+        Wichtig: Bewertungsmanual konsequent anwenden (immer gleiche Definitionen).
+      </div>
+    </div>
+  `;
+}
+
+// Bind statistics tab click (Panel wird dynamisch gerendert)
 try{
   const tab = document.getElementById('tabStatistics');
   if(tab && !tab.__statBound){
@@ -14912,4 +15687,3 @@ try{
     tab.addEventListener('click', ()=>{ try{ renderStatisticsPanel(); }catch(e){ console.error(e); } }, {passive:true});
   }
 }catch(e){ console.warn(e); }
-
