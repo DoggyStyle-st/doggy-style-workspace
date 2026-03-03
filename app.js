@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.7_STAT_CORE_ORDER_FIX_20260303",
+  tag: "M50.9.8_STAT_CORE_CLEAN_MASTER_20260303",
   channel: "MASTER",
   P26-03-03"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.7_STAT_CORE_ORDER_FIX_20260303";
+const APP_BUILD = "M50.9.8_STAT_CORE_CLEAN_MASTER_20260303";
 
 // =====================
 // Statistik – Forschungs-Kern Konstanten (früh initialisiert)
@@ -50,7 +50,7 @@ const STAT_QUAL_FIELDS = [
   }
 ];
 
-// Modell B (M50.10) – Gewichtungen (nicht Prozent, sondern Faktoren)
+// Modell B (M50.9.8_STAT_CORE_CLEAN_MASTER_20260303) – Gewichtungen (nicht Prozent, sondern Faktoren)
 const STAT_WEIGHTS_B = {
   social:1.0,
   food:1.2,
@@ -13244,7 +13244,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
         el.style.boxShadow="0 6px 18px rgba(0,0,0,0.25)";
         document.body.appendChild(el);
       }
-      const BUILD = (typeof APP_BUILD!=='undefined')?APP_BUILD:"M50.2_BLUE_TEMPLATE_PRINT_CONTRACT_20260215";
+      const BUILD = (typeof APP_BUILD!=='undefined')?APP_BUILD:"M50.9.8_STAT_CORE_CLEAN_MASTER_20260303";
       const meta = document.querySelector('meta[name="app-version"]');
       const htmlBuild = meta ? meta.getAttribute('content') : "";
       const online = navigator.onLine ? "online" : "offline";
@@ -13388,7 +13388,7 @@ async function dsHardReload(){
 
 
 // =====================================================
-// M50.3 Compliance Module (Gefahrstoffe & Unterweisungen)
+// M50.9.8_STAT_CORE_CLEAN_MASTER_20260303 Compliance Module (Gefahrstoffe & Unterweisungen)
 // =====================================================
 function getCompanyHeaderHtml(){
   const c = (state && state.company) ? state.company : null;
@@ -14577,7 +14577,7 @@ function exportStatCsv(){
 
 
 /* ===============================
-   STAT RESEARCH CORE 1.0 MODULE (M50.9.4)
+   STAT RESEARCH CORE 1.0 MODULE (M50.9.8_STAT_CORE_CLEAN_MASTER_20260303)
    - Skalen 1..10 + qualitative Auswahl
    - Preset Index (Model 2 / B)
    - Speicherung in Firestore collection: stats
@@ -14785,7 +14785,7 @@ function populateStatDogs(dateISO){
 
 
 // =====================
-// Statistik (M50.10+ Research Core) – professionell wissenschaftlich
+// Statistik (M50.9.8_STAT_CORE_CLEAN_MASTER_20260303+ Research Core) – professionell wissenschaftlich
 // Nur dieser Bereich wurde neu aufgebaut. Rest der App bleibt unverändert.
 // =====================
 
@@ -15191,7 +15191,7 @@ async function saveStatRatingV2(){
     context,
     indexB,
     notes,
-    schema: 'M50.10_STAT_CORE_V1',
+    schema: 'M50.9.8_STAT_CORE_CLEAN_MASTER_20260303',
     updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
     updatedBy: uid
   };
@@ -15690,7 +15690,7 @@ function renderStatMethod(){
       <h4 style="margin:14px 0 6px;">Belastungsindex – Formel</h4>
       <div class="muted" style="font-size:12px;">Index = Σ(score × gewicht) / Σ(gewichte), Skala 1–10</div>
 
-      <h4 style="margin:14px 0 6px;">Gewichtungsmodell (Modell B, M50.10)</h4>
+      <h4 style="margin:14px 0 6px;">Gewichtungsmodell (Modell B, M50.9.8_STAT_CORE_CLEAN_MASTER_20260303)</h4>
       <table class="dsTable">
         <tr><th>Kategorie</th><th style="text-align:right;">Gewicht</th></tr>
         ${wRows}
