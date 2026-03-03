@@ -14850,14 +14850,13 @@ function _statDocId(petId, dateISO, type){
 }
 function _statColl(){
   const db = _statFs();
-  // Firestore Rules sind org-basiert: /orgs/{orgId}/...
-  try{
-    if(typeof CLOUD !== 'undefined' && CLOUD && CLOUD.enabled){
-      return db.collection('orgs').doc(CLOUD.orgId).collection('statistics');
-    }
-  }catch(_){ }
-  // Fallback (local/test)
-  return db.collection('statistics');
+  const orgId = (typeof CLOUD !== 'undefined' && CLOUD?.orgId)
+    ? CLOUD.orgId
+    : 'doggystyle'; // hard fallback
+
+  return db.collection('orgs')
+           .doc(orgId)
+           .collection('statistics');
 }
 
 // ---------- UI: main entry ----------
