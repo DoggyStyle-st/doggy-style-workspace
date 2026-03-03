@@ -1,9 +1,9 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.6_STAT_CORE_STABLE_20260302",
+  tag: "M50.9.7_STAT_CORE_ORDER_FIX_20260303",
   channel: "MASTER",
-  frozenAt: "2026-03-02"
+  P26-03-03"
 };
 // Expose for diagnostics / support
 try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
@@ -12,7 +12,59 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.6_STAT_CORE_STABLE_20260302";
+const APP_BUILD = "M50.9.7_STAT_CORE_ORDER_FIX_20260303";
+
+// =====================
+// Statistik – Forschungs-Kern Konstanten (früh initialisiert)
+// =====================
+
+// Qualitative Dropdowns (3 Bereiche) – forschungsfest standardisiert
+const STAT_QUAL_FIELDS = [
+  {
+    id:'groupFit',
+    label:'Gruppenpassung',
+    options:[
+      {v:'stabil', t:'stabil'},
+      {v:'instabil', t:'instabil'},
+      {v:'dominant', t:'dominant'},
+      {v:'unsicher', t:'unsicher'}
+    ]
+  },
+  {
+    id:'resourceBehavior',
+    label:'Ressourcenverhalten',
+    options:[
+      {v:'neutral', t:'neutral'},
+      {v:'verteidigend', t:'verteidigend'},
+      {v:'unterwuerfig', t:'unterwürfig'}
+    ]
+  },
+  {
+    id:'arousal',
+    label:'Erregungsniveau',
+    options:[
+      {v:'niedrig', t:'niedrig'},
+      {v:'mittel', t:'mittel'},
+      {v:'hoch', t:'hoch'}
+    ]
+  }
+];
+
+// Modell B (M50.10) – Gewichtungen (nicht Prozent, sondern Faktoren)
+const STAT_WEIGHTS_B = {
+  social:1.0,
+  food:1.2,
+  handling:1.0,
+  leash:0.8,
+  stress:2.0,
+  noise:1.5,
+  separation:1.5,
+  play:0.8,
+  health:1.0,
+  hygiene:0.5
+};
+
+
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -14750,52 +14802,6 @@ const STAT_DIMENSIONS = [
   { id:'health',    label:'Gesundheit / Auffälligkeiten',hint:'Husten, Durchfall, Lahmheit, Auffälligkeiten' },
   { id:'hygiene',   label:'Hygiene / Sauberkeit',       hint:'Sauberkeit im Zimmer, Kot/Urin, Pflegezustand' }
 ];
-
-// Qualitative Dropdowns (3 Bereiche) – forschungsfest standardisiert
-const STAT_QUAL_FIELDS = [
-  {
-    id:'groupFit',
-    label:'Gruppenpassung',
-    options:[
-      {v:'stabil', t:'stabil'},
-      {v:'instabil', t:'instabil'},
-      {v:'dominant', t:'dominant'},
-      {v:'unsicher', t:'unsicher'}
-    ]
-  },
-  {
-    id:'resourceBehavior',
-    label:'Ressourcenverhalten',
-    options:[
-      {v:'neutral', t:'neutral'},
-      {v:'verteidigend', t:'verteidigend'},
-      {v:'unterwuerfig', t:'unterwürfig'}
-    ]
-  },
-  {
-    id:'arousal',
-    label:'Erregungsniveau',
-    options:[
-      {v:'niedrig', t:'niedrig'},
-      {v:'mittel', t:'mittel'},
-      {v:'hoch', t:'hoch'}
-    ]
-  }
-];
-
-// Modell B (M50.10) – Gewichtungen (nicht Prozent, sondern Faktoren)
-const STAT_WEIGHTS_B = {
-  social:1.0,
-  food:1.2,
-  handling:1.0,
-  leash:0.8,
-  stress:2.0,
-  noise:1.5,
-  separation:1.5,
-  play:0.8,
-  health:1.0,
-  hygiene:0.5
-};
 
 function _statComputeIndexB(scales){
   try{
