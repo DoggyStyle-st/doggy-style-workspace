@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.4_STAT_UI_QUAL_20260302",
+  tag: "M50.9.6_STAT_CORE_STABLE_20260302",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.5_STAT_CORE_M5010_20260302";
+const APP_BUILD = "M50.9.6_STAT_CORE_STABLE_20260302";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -14877,15 +14877,45 @@ function renderStatisticsPanel(){
   // bind
   const setActive = (k)=>{
     state.__statSub = k;
+
+    // button states
     ['capture','analysis','export','method'].forEach(x=>{
       const b = document.getElementById('statSub_'+x);
-      if(b) b.classList.toggle('btn-primary', x===k);
-      if(b) b.classList.toggle('btn', x!==k && !b.classList.contains('btn-primary'));
+      if(!b) return;
+      b.classList.toggle('btn-primary', x===k);
+      // keep base button styling
+      if(x!==k) b.classList.remove('btn-primary');
     });
-    if(k==='capture') renderStatCapture();
-    else if(k==='analysis') renderStatAnalysis();
-    else if(k==='export') renderStatExport();
-    else renderStatMethod();
+
+    const host = document.getElementById('statSubBody');
+    if(host) host.innerHTML = '';
+
+    const safeRender = (fn, label)=>{
+      try{
+        fn();
+      }catch(err){
+        try{ console.error('[STAT] Render-Fehler in', label, err); }catch(_){}
+        if(host){
+          const msg = (err && (err.message || String(err))) ? (err.message || String(err)) : 'Unbekannter Fehler';
+          host.innerHTML = `
+            <div class="card">
+              <h3 style="margin:0 0 8px;">⚠️ Statistik: Anzeige-Fehler (${escapeHtml(label)})</h3>
+              <div class="muted" style="font-size:12px; line-height:1.4;">
+                Beim Laden dieses Bereichs ist ein Fehler aufgetreten. Bitte Seite neu laden. Falls es wiederkommt, schicke mir den Console-Fehlertext.
+              </div>
+              <div class="muted" style="margin-top:10px; font-size:12px;">
+                <b>Fehler:</b> ${escapeHtml(msg)}
+              </div>
+            </div>
+          `;
+        }
+      }
+    };
+
+    if(k==='capture') safeRender(renderStatCapture, 'Erfassung');
+    else if(k==='analysis') safeRender(renderStatAnalysis, 'Analyse');
+    else if(k==='export') safeRender(renderStatExport, 'Export');
+    else safeRender(renderStatMethod, 'Methodik');
   };
 
   // default: analysis-first would be tempting, but for data collection: capture
