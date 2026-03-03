@@ -22,7 +22,12 @@
       try{ window.firebase.app(); }catch(_){ window.firebase.initializeApp(window.firebaseConfig); }
 
       const auth = window.firebase.auth();
-      await auth.setPersistence(window.firebase.auth.Auth.Persistence.LOCAL);
+      // 🔐 Persistente Session erzwingen (wichtig für iOS/Safari)
+      try {
+        await auth.setPersistence(window.firebase.auth.Auth.Persistence.LOCAL);
+      } catch(e) {
+        console.warn('Persistence konnte nicht gesetzt werden', e);
+      }
       let db = null;
       try{ db = window.firebase.firestore ? window.firebase.firestore() : null; }catch(_){ db = null; }
 
