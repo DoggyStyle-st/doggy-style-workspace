@@ -22,6 +22,7 @@
       try{ window.firebase.app(); }catch(_){ window.firebase.initializeApp(window.firebaseConfig); }
 
       const auth = window.firebase.auth();
+      await auth.setPersistence(window.firebase.auth.Auth.Persistence.LOCAL);
       let db = null;
       try{ db = window.firebase.firestore ? window.firebase.firestore() : null; }catch(_){ db = null; }
 
