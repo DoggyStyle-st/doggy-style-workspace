@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.6_STAT_CORE_STABLE_20260302";
+const APP_BUILD = "M50.9.6.2_STAT_SAVE_FIX_20260303";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -134,190 +134,6 @@ const CAPACITY = {
   Tagesbetreuung: 13,
   Urlaubsbetreuung: 10
 };
-
-// ===== STAT CORE CONFIG (moved for initialization order fix) =====
-const STAT_RESEARCH_GROUPS = [
-  {
-    title: 'Sozialverhalten',
-    hint: 'Interaktion mit Hunden/Menschen, Konflikte, Nähe/Distanz',
-    items: [
-      { id:'social', label:'Sozialverhalten', qual:[
-        {v:'unauffaellig', t:'unauffällig'},
-        {v:'unsicher', t:'unsicher/meidend'},
-        {v:'aufdringlich', t:'aufdringlich'},
-        {v:'konflikt', t:'Konflikt/Stress'}
-      ]}
-    ]
-  },
-  {
-    title: 'Futter & Ressourcen',
-    hint: 'Futter, Spielzeug, Napf, Liegeplatz – Verhalten bei Ressourcen',
-    items: [
-      { id:'food', label:'Futter & Ressourcen', qual:[
-        {v:'keine', t:'keine Auffälligkeit'},
-        {v:'futterneid', t:'Futterneid'},
-        {v:'objekt', t:'Objekt/Spielzeug'},
-        {v:'platz', t:'Liegeplatz/Distanz'}
-      ]}
-    ]
-  },
-  {
-    title: 'Handling / Anfassen',
-    hint: 'Körperkontakt, Pflege, Anleinen – Kooperationsbereitschaft',
-    items: [
-      { id:'handling', label:'Handling / Anfassen', qual:[
-        {v:'ok', t:'unkompliziert'},
-        {v:'sensibel', t:'sensibel'},
-        {v:'wehrt', t:'wehrt ab'},
-        {v:'schnappen', t:'Schnappen/Beißversuch'}
-      ]}
-    ]
-  },
-  {
-    title: 'Leinenführigkeit',
-    hint: 'Anleinen/Gehen, Ziehen, Reaktivität an der Leine',
-    items: [
-      { id:'leash', label:'Leinenführigkeit', qual:[
-        {v:'ok', t:'ok'},
-        {v:'zieht', t:'zieht'},
-        {v:'reaktiv', t:'reaktiv'},
-        {v:'blockt', t:'blockt/steht'}
-      ]}
-    ]
-  },
-  {
-    title: 'Stresslevel',
-    hint: 'Unruhe, Hecheln, Schlaf, Entspannung, Überforderung',
-    items: [
-      { id:'stress', label:'Stresslevel', qual:[
-        {v:'ruhig', t:'ruhig/entspannt'},
-        {v:'unruhig', t:'unruhig'},
-        {v:'aengstlich', t:'ängstlich/unsicher'},
-        {v:'hoch', t:'hochstress'}
-      ]}
-    ]
-  },
-  {
-    title: 'Lärm / Reaktivität',
-    hint: 'Bellen, Geräuschempfindlichkeit, Trigger-Reaktionen',
-    items: [
-      { id:'noise', label:'Lärm / Reaktivität', qual:[
-        {v:'leise', t:'leise'},
-        {v:'bellt', t:'bellt'},
-        {v:'heult', t:'heult'},
-        {v:'trigger', t:'Trigger-reaktiv'}
-      ]}
-    ]
-  },
-  {
-    title: 'Alleinbleiben / Trennung',
-    hint: 'Kurzzeitiges Separieren, Trennungsstress',
-    items: [
-      { id:'separation', label:'Alleinbleiben / Trennung', qual:[
-        {v:'ok', t:'ok'},
-        {v:'unruhig', t:'unruhig'},
-        {v:'bellt', t:'bellt/heult'},
-        {v:'zerstoert', t:'zerstört'}
-      ]}
-    ]
-  },
-  {
-    title: 'Spielverhalten',
-    hint: 'Spielmotivation, Impulskontrolle, Interaktion',
-    items: [
-      { id:'play', label:'Spielverhalten', qual:[
-        {v:'ok', t:'ok'},
-        {v:'grob', t:'grob'},
-        {v:'kein', t:'kein Spiel'},
-        {v:'eskaliert', t:'eskaliert'}
-      ]}
-    ]
-  },
-  {
-    title: 'Gesundheit / Auffälligkeiten',
-    hint: 'Husten, Durchfall, Lahmheit, Auffälligkeiten',
-    items: [
-      { id:'health', label:'Gesundheit / Auffälligkeiten', qual:[
-        {v:'ok', t:'ok'},
-        {v:'magen', t:'Magen/Darm'},
-        {v:'bewegung', t:'Bewegung/Lahmheit'},
-        {v:'sonst', t:'sonstiges'}
-      ]}
-    ]
-  },
-  {
-    title: 'Hygiene / Sauberkeit',
-    hint: 'Sauberkeit im Zimmer, Kot/Urin, Pflegezustand',
-    items: [
-      { id:'hygiene', label:'Hygiene / Sauberkeit', qual:[
-        {v:'ok', t:'ok'},
-        {v:'urin', t:'Urin'},
-        {v:'kot', t:'Kot'},
-        {v:'pflege', t:'Pflegebedarf'}
-      ]}
-    ]
-  }
-];
-
-const STAT_DIMENSIONS = [
-  { id:'social',    label:'Sozialverhalten',            hint:'Interaktion mit Hunden/Menschen, Konflikte, Nähe/Distanz' },
-  { id:'food',      label:'Futter & Ressourcen',        hint:'Futter, Spielzeug, Napf, Liegeplatz – Verhalten bei Ressourcen' },
-  { id:'handling',  label:'Handling / Anfassen',        hint:'Körperkontakt, Pflege, Anleinen – Kooperationsbereitschaft' },
-  { id:'leash',     label:'Leinenführigkeit',           hint:'Anleinen/Gehen, Ziehen, Reaktivität an der Leine' },
-  { id:'stress',    label:'Stresslevel',                hint:'Unruhe, Hecheln, Schlaf, Entspannung, Überforderung' },
-  { id:'noise',     label:'Lärm / Reaktivität',         hint:'Bellen, Geräuschempfindlichkeit, Trigger-Reaktionen' },
-  { id:'separation',label:'Alleinbleiben / Trennung',   hint:'Kurzzeitiges Separieren, Trennungsstress' },
-  { id:'play',      label:'Spielverhalten',             hint:'Spielmotivation, Impulskontrolle, Interaktion' },
-  { id:'health',    label:'Gesundheit / Auffälligkeiten',hint:'Husten, Durchfall, Lahmheit, Auffälligkeiten' },
-  { id:'hygiene',   label:'Hygiene / Sauberkeit',       hint:'Sauberkeit im Zimmer, Kot/Urin, Pflegezustand' }
-];
-
-const STAT_QUAL_FIELDS = [
-  {
-    id:'groupFit',
-    label:'Gruppenpassung',
-    options:[
-      {v:'stabil', t:'stabil'},
-      {v:'instabil', t:'instabil'},
-      {v:'dominant', t:'dominant'},
-      {v:'unsicher', t:'unsicher'}
-    ]
-  },
-  {
-    id:'resourceBehavior',
-    label:'Ressourcenverhalten',
-    options:[
-      {v:'neutral', t:'neutral'},
-      {v:'verteidigend', t:'verteidigend'},
-      {v:'unterwuerfig', t:'unterwürfig'}
-    ]
-  },
-  {
-    id:'arousal',
-    label:'Erregungsniveau',
-    options:[
-      {v:'niedrig', t:'niedrig'},
-      {v:'mittel', t:'mittel'},
-      {v:'hoch', t:'hoch'}
-    ]
-  }
-];
-
-const STAT_WEIGHTS_B = {
-  social:1.0,
-  food:1.2,
-  handling:1.0,
-  leash:0.8,
-  stress:2.0,
-  noise:1.5,
-  separation:1.5,
-  play:0.8,
-  health:1.0,
-  hygiene:0.5
-};
-
-// ===== END STAT CORE CONFIG =====
-
 // --- Betreuung / Kapazität: robuste Normalisierung ---
 function _normBetreuungType(v){
   if(v == null) return '';
@@ -14715,6 +14531,128 @@ function exportStatCsv(){
    - Speicherung in Firestore collection: stats
 ================================ */
 
+const STAT_RESEARCH_GROUPS = [
+  {
+    title: 'Sozialverhalten',
+    hint: 'Interaktion mit Hunden/Menschen, Konflikte, Nähe/Distanz',
+    items: [
+      { id:'social', label:'Sozialverhalten', qual:[
+        {v:'unauffaellig', t:'unauffällig'},
+        {v:'unsicher', t:'unsicher/meidend'},
+        {v:'aufdringlich', t:'aufdringlich'},
+        {v:'konflikt', t:'Konflikt/Stress'}
+      ]}
+    ]
+  },
+  {
+    title: 'Futter & Ressourcen',
+    hint: 'Futter, Spielzeug, Napf, Liegeplatz – Verhalten bei Ressourcen',
+    items: [
+      { id:'food', label:'Futter & Ressourcen', qual:[
+        {v:'keine', t:'keine Auffälligkeit'},
+        {v:'futterneid', t:'Futterneid'},
+        {v:'objekt', t:'Objekt/Spielzeug'},
+        {v:'platz', t:'Liegeplatz/Distanz'}
+      ]}
+    ]
+  },
+  {
+    title: 'Handling / Anfassen',
+    hint: 'Körperkontakt, Pflege, Anleinen – Kooperationsbereitschaft',
+    items: [
+      { id:'handling', label:'Handling / Anfassen', qual:[
+        {v:'ok', t:'unkompliziert'},
+        {v:'sensibel', t:'sensibel'},
+        {v:'wehrt', t:'wehrt ab'},
+        {v:'schnappen', t:'Schnappen/Beißversuch'}
+      ]}
+    ]
+  },
+  {
+    title: 'Leinenführigkeit',
+    hint: 'Anleinen/Gehen, Ziehen, Reaktivität an der Leine',
+    items: [
+      { id:'leash', label:'Leinenführigkeit', qual:[
+        {v:'ok', t:'ok'},
+        {v:'zieht', t:'zieht'},
+        {v:'reaktiv', t:'reaktiv'},
+        {v:'blockt', t:'blockt/steht'}
+      ]}
+    ]
+  },
+  {
+    title: 'Stresslevel',
+    hint: 'Unruhe, Hecheln, Schlaf, Entspannung, Überforderung',
+    items: [
+      { id:'stress', label:'Stresslevel', qual:[
+        {v:'ruhig', t:'ruhig/entspannt'},
+        {v:'unruhig', t:'unruhig'},
+        {v:'aengstlich', t:'ängstlich/unsicher'},
+        {v:'hoch', t:'hochstress'}
+      ]}
+    ]
+  },
+  {
+    title: 'Lärm / Reaktivität',
+    hint: 'Bellen, Geräuschempfindlichkeit, Trigger-Reaktionen',
+    items: [
+      { id:'noise', label:'Lärm / Reaktivität', qual:[
+        {v:'leise', t:'leise'},
+        {v:'bellt', t:'bellt'},
+        {v:'heult', t:'heult'},
+        {v:'trigger', t:'Trigger-reaktiv'}
+      ]}
+    ]
+  },
+  {
+    title: 'Alleinbleiben / Trennung',
+    hint: 'Kurzzeitiges Separieren, Trennungsstress',
+    items: [
+      { id:'separation', label:'Alleinbleiben / Trennung', qual:[
+        {v:'ok', t:'ok'},
+        {v:'unruhig', t:'unruhig'},
+        {v:'bellt', t:'bellt/heult'},
+        {v:'zerstoert', t:'zerstört'}
+      ]}
+    ]
+  },
+  {
+    title: 'Spielverhalten',
+    hint: 'Spielmotivation, Impulskontrolle, Interaktion',
+    items: [
+      { id:'play', label:'Spielverhalten', qual:[
+        {v:'ok', t:'ok'},
+        {v:'grob', t:'grob'},
+        {v:'kein', t:'kein Spiel'},
+        {v:'eskaliert', t:'eskaliert'}
+      ]}
+    ]
+  },
+  {
+    title: 'Gesundheit / Auffälligkeiten',
+    hint: 'Husten, Durchfall, Lahmheit, Auffälligkeiten',
+    items: [
+      { id:'health', label:'Gesundheit / Auffälligkeiten', qual:[
+        {v:'ok', t:'ok'},
+        {v:'magen', t:'Magen/Darm'},
+        {v:'bewegung', t:'Bewegung/Lahmheit'},
+        {v:'sonst', t:'sonstiges'}
+      ]}
+    ]
+  },
+  {
+    title: 'Hygiene / Sauberkeit',
+    hint: 'Sauberkeit im Zimmer, Kot/Urin, Pflegezustand',
+    items: [
+      { id:'hygiene', label:'Hygiene / Sauberkeit', qual:[
+        {v:'ok', t:'ok'},
+        {v:'urin', t:'Urin'},
+        {v:'kot', t:'Kot'},
+        {v:'pflege', t:'Pflegebedarf'}
+      ]}
+    ]
+  }
+];
 
 function _statComputeCoreIndex(values){
   // Weighting preset: Model 2 / Option B
@@ -14800,10 +14738,64 @@ function populateStatDogs(dateISO){
 // =====================
 
 // 10 Skalen (IDs bleiben stabil für Export/Analyse)
+const STAT_DIMENSIONS = [
+  { id:'social',    label:'Sozialverhalten',            hint:'Interaktion mit Hunden/Menschen, Konflikte, Nähe/Distanz' },
+  { id:'food',      label:'Futter & Ressourcen',        hint:'Futter, Spielzeug, Napf, Liegeplatz – Verhalten bei Ressourcen' },
+  { id:'handling',  label:'Handling / Anfassen',        hint:'Körperkontakt, Pflege, Anleinen – Kooperationsbereitschaft' },
+  { id:'leash',     label:'Leinenführigkeit',           hint:'Anleinen/Gehen, Ziehen, Reaktivität an der Leine' },
+  { id:'stress',    label:'Stresslevel',                hint:'Unruhe, Hecheln, Schlaf, Entspannung, Überforderung' },
+  { id:'noise',     label:'Lärm / Reaktivität',         hint:'Bellen, Geräuschempfindlichkeit, Trigger-Reaktionen' },
+  { id:'separation',label:'Alleinbleiben / Trennung',   hint:'Kurzzeitiges Separieren, Trennungsstress' },
+  { id:'play',      label:'Spielverhalten',             hint:'Spielmotivation, Impulskontrolle, Interaktion' },
+  { id:'health',    label:'Gesundheit / Auffälligkeiten',hint:'Husten, Durchfall, Lahmheit, Auffälligkeiten' },
+  { id:'hygiene',   label:'Hygiene / Sauberkeit',       hint:'Sauberkeit im Zimmer, Kot/Urin, Pflegezustand' }
+];
 
 // Qualitative Dropdowns (3 Bereiche) – forschungsfest standardisiert
+const STAT_QUAL_FIELDS = [
+  {
+    id:'groupFit',
+    label:'Gruppenpassung',
+    options:[
+      {v:'stabil', t:'stabil'},
+      {v:'instabil', t:'instabil'},
+      {v:'dominant', t:'dominant'},
+      {v:'unsicher', t:'unsicher'}
+    ]
+  },
+  {
+    id:'resourceBehavior',
+    label:'Ressourcenverhalten',
+    options:[
+      {v:'neutral', t:'neutral'},
+      {v:'verteidigend', t:'verteidigend'},
+      {v:'unterwuerfig', t:'unterwürfig'}
+    ]
+  },
+  {
+    id:'arousal',
+    label:'Erregungsniveau',
+    options:[
+      {v:'niedrig', t:'niedrig'},
+      {v:'mittel', t:'mittel'},
+      {v:'hoch', t:'hoch'}
+    ]
+  }
+];
 
 // Modell B (M50.10) – Gewichtungen (nicht Prozent, sondern Faktoren)
+const STAT_WEIGHTS_B = {
+  social:1.0,
+  food:1.2,
+  handling:1.0,
+  leash:0.8,
+  stress:2.0,
+  noise:1.5,
+  separation:1.5,
+  play:0.8,
+  health:1.0,
+  hygiene:0.5
+};
 
 function _statComputeIndexB(scales){
   try{
@@ -15099,7 +15091,10 @@ function initStatCaptureBindings(){
     }catch(e){
       console.error('[STAT] save failed', e);
       if(msg) msg.textContent = 'Fehler beim Speichern';
-      try{ alert('Statistik speichern fehlgeschlagen.'); }catch(_){ }
+      try{
+        const detail = (e && (e.message || e.code)) ? `\n\nDetails: ${String(e.code||e.message)}` : '';
+        alert('Statistik speichern fehlgeschlagen.' + detail);
+      }catch(_){ }
     }finally{
       saveBtn.disabled = false;
       setTimeout(()=>{ if(msg) msg.textContent=''; }, 2500);
@@ -15110,6 +15105,8 @@ function initStatCaptureBindings(){
 function populateStatDogsForAll(dateISO){
   const dogEl = document.getElementById('statDogSelect');
   const breedEl = document.getElementById('statBreed');
+  const sexEl = document.getElementById('statSex');
+  const ageEl = document.getElementById('statAge');
   if(!dogEl) return;
 
   let petIds = [];
@@ -15134,15 +15131,47 @@ function populateStatDogsForAll(dateISO){
   const updateMeta = ()=>{
     const pid = dogEl.value || '';
     const p = (state.pets && state.pets[pid]) || null;
-    const breed = (p && (p.breed || p.race || p.rasse)) ? String(p.breed||p.race||p.rasse) : '';
+
+    // Breed
+    const breed = (p && (p.breed || p.race || p.rasse || p.mainBreed)) ? String(p.breed||p.race||p.rasse||p.mainBreed) : '';
     if(breedEl) breedEl.value = breed || '—';
+
+    // Sex / Gender (normalize)
+    const rawSex = (p && (p.sex || p.gender || p.geschlecht)) ? String(p.sex||p.gender||p.geschlecht) : '';
+    const norm = rawSex.toLowerCase();
+    let sex = rawSex;
+    if(norm === 'm' || norm === 'male' || norm === 'rüde' || norm === 'ruede') sex = 'Rüde';
+    if(norm === 'f' || norm === 'female' || norm === 'hündin' || norm === 'huendin') sex = 'Hündin';
+    if(sexEl && sex){
+      // only auto-fill if empty
+      if(!sexEl.value) sexEl.value = sex;
+    }
+
+    // Age (years) – if birthdate known
+    const ageYearsRaw = (p && (p.ageYears || p.age || p.alter)) ? Number(p.ageYears||p.age||p.alter) : NaN;
+    let ageYears = Number.isFinite(ageYearsRaw) ? ageYearsRaw : NaN;
+    if(!Number.isFinite(ageYears)){
+      const bd = (p && (p.birthdate || p.birthday || p.dob || p.geburtsdatum)) ? String(p.birthdate||p.birthday||p.dob||p.geburtsdatum) : '';
+      if(bd){
+        const d = new Date(bd);
+        if(!isNaN(d.getTime())){
+          const now = new Date();
+          let years = now.getFullYear() - d.getFullYear();
+          const m = now.getMonth() - d.getMonth();
+          if(m < 0 || (m === 0 && now.getDate() < d.getDate())) years -= 1;
+          if(years >= 0 && years <= 40) ageYears = years;
+        }
+      }
+    }
+    if(ageEl && Number.isFinite(ageYears)){
+      if(!ageEl.value) ageEl.value = String(ageYears);
+    }
   };
   dogEl.onchange = updateMeta;
   updateMeta();
 }
 
 async function saveStatRatingV2(){
-  const fs = _statFs();
   const dateISO = (document.getElementById('statDate')||{}).value || '';
   const petId = (document.getElementById('statDogSelect')||{}).value || '';
   const type = (document.getElementById('statType')||{}).value || 'arrival';
@@ -15199,10 +15228,21 @@ async function saveStatRatingV2(){
   };
 
   const ref = _statColl().doc(docId);
-  const snap = await ref.get();
-  if(!snap.exists){
+  // IMPORTANT: do NOT do a pre-read (ref.get) here.
+  // Reason: it fails when offline and it also requires read-permission.
+  // We track "created" locally to only set createdAt/createdBy once.
+  try{
+    window.__STAT_CREATED_CACHE = window.__STAT_CREATED_CACHE || JSON.parse(localStorage.getItem('ds_stat_created_cache')||'{}');
+  }catch(_){
+    window.__STAT_CREATED_CACHE = window.__STAT_CREATED_CACHE || {};
+  }
+  const createdCache = window.__STAT_CREATED_CACHE || {};
+  if(!createdCache[docId]){
     payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
     payload.createdBy = uid;
+    createdCache[docId] = 1;
+    try{ localStorage.setItem('ds_stat_created_cache', JSON.stringify(createdCache)); }catch(_){ }
+    window.__STAT_CREATED_CACHE = createdCache;
   }
   await ref.set(payload, { merge:true });
 }
