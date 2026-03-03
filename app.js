@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.6_STAT_CORE_STABLE_20260302",
+  tag: "M50.9.7_STAT_ORG_LOCKED_ROOT_CLEAN_20260303",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -14852,7 +14852,7 @@ function _statColl(){
   const db = _statFs();
   const orgId = (typeof CLOUD !== 'undefined' && CLOUD?.orgId)
     ? CLOUD.orgId
-    : 'doggystyle'; // hard fallback
+    : 'doggystyle'; // org locked hard fallback
 
   return db.collection('orgs')
            .doc(orgId)
