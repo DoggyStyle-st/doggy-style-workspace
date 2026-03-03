@@ -1218,40 +1218,6 @@
 <script src="app.js?v=M50.9.7_STAT_ORG_LOCKED_ROOT_CLEAN_20260303"></script>
 
 <script>
-/* Fallback-Bootstrap: falls app.js zwar lädt, aber Start-Call wegen Runtime-Fehler nicht erreicht wird */
-(function(){
-  function boot(){
-    try{
-      if(window.__DS_BOOTED) return;
-      if(typeof window.startApp === 'function'){
-        window.__DS_BOOTED = true;
-        try{ window.startApp().catch(console.error); }catch(e){ console.error(e); }
-        try{ setInterval(()=>{ try{ window.updateSyncUI && window.updateSyncUI(); }catch(e){} }, 1500); }catch(e){}
-      } else {
-        // Minimal-Debug in Settings: zeigt ob Firebase grundsätzlich geladen ist
-        try{
-          const d=document.getElementById('syncDetails');
-          if(d && (d.textContent||'').trim()==='—'){
-            const hasFirebase = !!(window.firebase && window.firebase.initializeApp);
-            const hasCfg = !!window.firebaseConfig;
-            d.textContent = `Boot: startApp fehlt
-FirebaseSDK: ${hasFirebase?'OK':'fehlt'}
-Config: ${hasCfg?'OK':'fehlt'}`;
-          }
-        }catch(e){}
-      }
-    }catch(e){}
-  }
-  if(document.readyState === 'loading'){
-    document.addEventListener('DOMContentLoaded', boot);
-  } else {
-    boot();
-  }
-})();
-</script>
-
-
-<script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
   if(!btn) return;
