@@ -11,7 +11,20 @@
     return (window.firebase && window.firebase.initializeApp && window.firebaseConfig);
   }
 
-  async function init(){
+  
+  async function getUserRole(auth, db){
+    try{
+      const u = auth.currentUser;
+      if(!u || !db) return 'guest';
+      const ORG_ID = (window.CLOUD_ORG_ID || window.firebaseOrgId || 'doggystyle');
+      const ref = db.collection('orgs').doc(ORG_ID).collection('users').doc(u.uid);
+      const snap = await ref.get();
+      return snap.exists ? (snap.data().role || 'guest') : 'guest';
+    }catch(_){
+      return 'guest';
+    }
+  }
+async function init(){
     if(!firebaseReady()){
       setMsg('Firebase ist nicht konfiguriert. Prüfe firebase-config.js');
       return;
@@ -22,6 +35,12 @@
       try{ window.firebase.app(); }catch(_){ window.firebase.initializeApp(window.firebaseConfig); }
 
       const auth = window.firebase.auth();
+      // 🔐 Persistente Session erzwingen (wichtig für iOS/Safari)
+      try {
+        await auth.setPersistence(window.firebase.auth.Auth.Persistence.LOCAL);
+      } catch(e) {
+        console.warn('Persistence konnte nicht gesetzt werden', e);
+      }
       let db = null;
       try{ db = window.firebase.firestore ? window.firebase.firestore() : null; }catch(_){ db = null; }
 
@@ -76,7 +95,7 @@
         try{
           await auth.signInWithEmailAndPassword(email, pass);
           await ensureUserProfile(auth.currentUser, '');
-          location.href = 'app.html';
+          location.href = ((await getUserRole(auth, db)) === 'customer') ? 'customer.html' : 'app.html';
         }catch(e){
           const code = e && e.code ? String(e.code) : '';
           if(code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found'){
@@ -98,7 +117,7 @@
         try{
           await auth.createUserWithEmailAndPassword(email, pass);
           await ensureUserProfile(auth.currentUser, name);
-          location.href = 'app.html';
+          location.href = ((await getUserRole(auth, db)) === 'customer') ? 'customer.html' : 'app.html';
         }catch(e){
           const code = e && e.code ? String(e.code) : '';
           if(code === 'auth/email-already-in-use'){

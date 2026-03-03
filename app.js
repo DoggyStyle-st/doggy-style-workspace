@@ -1300,6 +1300,15 @@ function showStaffUI(){
   }catch(_){ }
 }
 async function initCustomerPortal(){
+  // Kunden sollen NICHT in die interne App – bei Direktaufruf app.html ins Kundenportal umleiten
+  try{
+    const p = (location && location.pathname) ? location.pathname.toLowerCase() : '';
+    if(p.endsWith('/app.html') || p.endsWith('app.html')){
+      location.replace('customer.html');
+      return;
+    }
+  }catch(_){}
+
   hideStaffUIForCustomer();
   updateSyncUI();
   try{ await loadTemplates(); }catch(_){ }

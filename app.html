@@ -6,7 +6,7 @@
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
 <meta charset="utf-8"/>
-  <meta name="app-build" content="M50.8.0_FINAL_MASTER_20260301">
+  <meta name="app-build" content="M50.9.7_STAT_ORG_LOCKED_ROOT_CLEAN_20260303">
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <title>Doggy Style Workspace · App</title>
 <link href="manifest.json" rel="manifest"/>
@@ -1205,11 +1205,18 @@
 </footer>
 </div>
 <!-- Firebase (optional) + Config -->
-<script defer="defer" src="firebase-config.js"></script>
-<script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
-<script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
-<script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-<script defer="defer" src="app.js"></script>
+
+<!-- Firebase zuerst laden -->
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+
+<!-- Dann deine Config -->
+<script src="firebase-config.js"></script>
+
+<!-- Dann deine App -->
+<script src="app.js?v=M50.9.7_STAT_ORG_LOCKED_ROOT_CLEAN_20260303"></script>
+
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1252,7 +1259,7 @@
 </script>
 
 <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.8.0_FINAL_MASTER_20260301');
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.7_STAT_ORG_LOCKED_ROOT_CLEAN_20260303');
   </script>
 
 <script>
@@ -1316,6 +1323,6 @@
   <!-- Bottom logout button removed (duplicate of header logout; also overlaps editor on iPad) -->
 </div>
 <!-- test-badge removed (requested) -->
-  <div class="build-badge" id="buildBadge">Build M50.9.4_STAT_UI_QUAL_20260302</div>
+  <div class="build-badge" id="buildBadge">Build M50.9.7_STAT_ORG_LOCKED_ROOT_CLEAN_20260303</div>
 </body>
 </html>
