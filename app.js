@@ -454,9 +454,20 @@ function updateSyncUI(){
   const details = document.getElementById('syncDetails');
   const manualBtn = document.getElementById('manualSaveBtn');
   if(userEl){
-    if(CLOUD.enabled && CLOUD.user){
+    // Prefer CLOUD.user, but fall back to firebase.auth().currentUser (robust for iOS/Safari auth edge cases)
+    let email = '';
+    try{
+      if(CLOUD && CLOUD.enabled && CLOUD.user && CLOUD.user.email) email = CLOUD.user.email;
+    }catch(_){}
+    if(!email){
+      try{
+        const u = (window.firebase && firebase.auth) ? firebase.auth().currentUser : null;
+        if(u && u.email) email = u.email;
+      }catch(_){}
+    }
+    if(email){
       userEl.style.display = 'inline-flex';
-      userEl.textContent = (CLOUD.user.email || 'eingeloggt');
+      userEl.textContent = email;
     } else {
       try{ const ba=document.querySelector(".bottom-actions"); if(ba) ba.style.display="block"; }catch(e){}
       userEl.style.display = 'none';
@@ -14842,29 +14853,11 @@ function _statInterpretIndex(idx){
 
 // ---------- Firestore helpers ----------
 function _statFs(){
-  if(!(window.firebase && firebase.firestore)){
-    throw new Error('firebase not available');
-  }
-
-  // Ensure Firebase app exists (compat/no-app fix)
-  try{
-    if(!firebase.apps || firebase.apps.length === 0){
-      if(window.firebaseConfig){
-        firebase.initializeApp(window.firebaseConfig);
-      } else {
-        throw new Error('firebaseConfig missing');
-      }
-    }
-  }catch(e){
-    console.error('Firebase init failed', e);
-    throw e;
-  }
-
-  // If Cloud is active, reuse its Firestore instance
+  if(!(window.firebase && firebase.firestore)) throw new Error('firebase not available');
+  // wenn Cloud aktiv ist, nutze die bereits initialisierte DB
   try{
     if(typeof CLOUD !== 'undefined' && CLOUD && CLOUD.enabled && CLOUD.db) return CLOUD.db;
-  }catch(_){}
-
+  }catch(_){ }
   return firebase.firestore();
 }
 function _statUid(){
@@ -15206,6 +15199,21 @@ function populateStatDogsForAll(dateISO){
 }
 
 async function saveStatRatingV2(){
+  // --- AUTH GUARD (fix permission-denied due to missing auth) ---
+  try{
+    const u = (window.firebase && firebase.auth) ? firebase.auth().currentUser : null;
+    if(!u){
+      // Explain clearly; avoid silent Firestore permission-denied confusion
+      alert('❌ Nicht angemeldet. Bitte oben rechts abmelden/neu anmelden (raphael@boch-plan.de) und dann erneut speichern.');
+      try{ location.href = 'login.html'; }catch(_){}
+      return;
+    }
+  }catch(_){
+    alert('❌ Login-Status konnte nicht geprüft werden. Bitte neu anmelden.');
+    try{ location.href = 'login.html'; }catch(__){}
+    return;
+  }
+  // --- /AUTH GUARD ---
   const dateISO = (document.getElementById('statDate')||{}).value || '';
   const petId = (document.getElementById('statDogSelect')||{}).value || '';
   const type = (document.getElementById('statType')||{}).value || 'arrival';
