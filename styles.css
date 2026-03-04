@@ -1064,3 +1064,11 @@ body.page-login .btnLink--text:hover{
   margin-top: 4px;
   line-height: 1.35;
 }
+
+
+/* === Statistik V2.1+ Heatmap === */
+.heatmap{display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px;}
+.heat-cell{padding:10px; border-radius:14px; color:#fff; font-weight:800; box-shadow:0 10px 24px rgba(0,0,0,.25);}
+.heat-breed{font-size:12px; opacity:.95;}
+.heat-date{font-size:11px; opacity:.9; margin-top:4px;}
+.heat-val{font-size:18px; margin-top:6px;}

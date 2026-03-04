@@ -15315,7 +15315,66 @@ function renderStatAnalysis(){
         <table class="dsTable" id="statAnaRawTable"></table>
       </div>
     </div>
-  `;
+  
+    <div class="card" style="margin-top:10px;">
+      <h3 style="margin:0 0 8px;">Rassenvergleich (Ø Belastungsindex)</h3>
+      <div class="row" style="flex-wrap:wrap; gap:10px; align-items:flex-end;">
+        <div style="min-width:260px; flex:1;">
+          <label class="muted" style="display:block; margin-bottom:4px;">Rasse (optional)</label>
+          <select id="statBreedSel" class="input" style="width:100%">
+            <option value="">Alle Rassen</option>
+          </select>
+        </div>
+        <div>
+          <button class="btn" id="btnStatBreedRun" type="button">Rassenvergleich</button>
+        </div>
+        <div id="statBreedMsg" class="muted" style="font-size:12px;"></div>
+      </div>
+      <div style="overflow:auto; margin-top:10px;">
+        <table class="dsTable" id="statBreedTable">
+          <tr><th>Rasse</th><th style="text-align:right;">Ø IndexB</th><th style="text-align:right;">n</th></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:10px;">
+      <h3 style="margin:0 0 8px;">Stress-Heatmap (Rasse × Datum)</h3>
+      <div class="row" style="flex-wrap:wrap; gap:10px; align-items:center;">
+        <button class="btn" id="btnStatHeatRun" type="button">Heatmap erzeugen</button>
+        <div class="muted" id="statHeatMsg" style="font-size:12px;"></div>
+      </div>
+      <div id="statHeatmap" class="heatmap" style="margin-top:10px;"></div>
+      <div class="muted" style="font-size:12px; margin-top:8px;">Farben: grün = niedrig, orange = mittel, rot = hoch (Ø IndexB).</div>
+    </div>
+
+    <div class="card" style="margin-top:10px;">
+      <h3 style="margin:0 0 8px;">Gruppen-Stress Analyse (Paarweise)</h3>
+      <div class="row" style="flex-wrap:wrap; gap:10px; align-items:center;">
+        <button class="btn" id="btnStatGroupRun" type="button">Paare analysieren</button>
+        <div class="muted" id="statGroupMsg" style="font-size:12px;"></div>
+      </div>
+      <div class="list" id="statGroupList" style="margin-top:10px;"></div>
+      <div class="muted" style="font-size:12px; margin-top:8px;">Basis: Einträge mit <b>dogsInGroup</b> (Array). Ohne dieses Feld werden Einträge übersprungen.</div>
+    </div>
+
+    <div class="card" style="margin-top:10px;">
+      <h3 style="margin:0 0 8px;">Gruppen-KI Empfehlung</h3>
+      <div class="row" style="flex-wrap:wrap; gap:10px; align-items:center;">
+        <button class="btn btn-primary" id="btnStatGroupAIRun" type="button">Empfehlungen berechnen</button>
+        <div class="muted" id="statGroupAIMsg" style="font-size:12px;"></div>
+      </div>
+      <div class="grid-2" style="margin-top:10px;">
+        <div>
+          <div class="muted" style="font-weight:800; margin-bottom:6px;">Empfohlene Kombinationen</div>
+          <div class="list" id="statGroupGood"></div>
+        </div>
+        <div>
+          <div class="muted" style="font-weight:800; margin-bottom:6px;">Problemkombinationen</div>
+          <div class="list" id="statGroupBad"></div>
+        </div>
+      </div>
+    </div>
+`;
 
   initStatAnalysisBindings();
 }
@@ -15350,6 +15409,21 @@ function initStatAnalysisBindings(){
   if(btn){
     btn.onclick = ()=>{ loadAndRenderStatAnalysis(); };
   }
+  // V2.1+ (Rasse/Heatmap/Gruppen)
+  _statFillBreedSelect('statBreedSel');
+
+  const bBreed = document.getElementById('btnStatBreedRun');
+  if(bBreed) bBreed.onclick = ()=>{ loadAndRenderStatBreedComparison(); };
+
+  const bHeat = document.getElementById('btnStatHeatRun');
+  if(bHeat) bHeat.onclick = ()=>{ loadAndRenderStatHeatmap(); };
+
+  const bGroup = document.getElementById('btnStatGroupRun');
+  if(bGroup) bGroup.onclick = ()=>{ loadAndRenderStatGroupPairs(); };
+
+  const bAI = document.getElementById('btnStatGroupAIRun');
+  if(bAI) bAI.onclick = ()=>{ loadAndRenderStatGroupAI(); };
+
 }
 
 async function loadAndRenderStatAnalysis(){
@@ -15395,6 +15469,312 @@ async function loadAndRenderStatAnalysis(){
     if(msg) msg.textContent='Fehler beim Laden.';
   }
 }
+
+/* ===========================
+   Statistik V2.1+ Erweiterungen
+   - Rassenvergleich
+   - Heatmap
+   - Gruppenanalyse / Gruppen-KI
+   =========================== */
+
+function _statFillBreedSelect(selId){
+  const sel = document.getElementById(selId);
+  if(!sel) return;
+
+  // keep first option (Alle Rassen)
+  const keep0 = sel.querySelector('option[value=""]');
+  sel.innerHTML = '';
+  if(keep0){
+    sel.appendChild(keep0);
+  }else{
+    const o=document.createElement('option'); o.value=''; o.textContent='Alle Rassen'; sel.appendChild(o);
+  }
+
+  const breeds = new Set();
+  try{
+    const pets = state.pets || {};
+    Object.keys(pets).forEach(pid=>{
+      const p = pets[pid] || {};
+      const b = (p.breed || p.race || '').toString().trim();
+      if(b) breeds.add(b);
+    });
+  }catch(_){ }
+
+  Array.from(breeds).sort((a,b)=>a.localeCompare(b,'de')).forEach(b=>{
+    const o=document.createElement('option');
+    o.value=b; o.textContent=b;
+    sel.appendChild(o);
+  });
+}
+
+async function _statLoadRange({from='', to='', breed='' }={}){
+  let q = _statColl();
+  if(breed) q = q.where('breed','==',breed);
+  if(from) q = q.where('date','>=',from);
+  if(to) q = q.where('date','<=',to);
+  q = q.orderBy('date','asc');
+
+  const snap = await q.get();
+  const rows = [];
+  snap.forEach(doc=>{
+    const d = doc.data() || {};
+    rows.push({ id:doc.id, ...d });
+  });
+
+  rows.forEach(r=>{
+    const sc = r.scores || r.scales || {};
+    r.__scores = sc;
+    r.__indexB = Number.isFinite(Number(r.indexB)) ? Number(r.indexB) : _statComputeIndexB(sc);
+  });
+
+  return rows;
+}
+
+function _statAvg(arr){
+  if(!arr || !arr.length) return 0;
+  let s=0; arr.forEach(x=>{ s += (Number(x)||0); });
+  return s/arr.length;
+}
+
+async function loadAndRenderStatBreedComparison(){
+  const msg = document.getElementById('statBreedMsg');
+  const table = document.getElementById('statBreedTable');
+  const breed = (document.getElementById('statBreedSel')||{}).value || '';
+  const from = (document.getElementById('statAnaFrom')||{}).value || '';
+  const to = (document.getElementById('statAnaTo')||{}).value || '';
+
+  if(msg) msg.textContent='Lade…';
+
+  try{
+    const rows = await _statLoadRange({from,to,breed});
+    if(!rows.length){
+      if(msg) msg.textContent='Keine Daten im Zeitraum.';
+      if(table) table.innerHTML = '<tr><th>Rasse</th><th style="text-align:right;">Ø IndexB</th><th style="text-align:right;">n</th></tr>';
+      return;
+    }
+
+    const by = {};
+    rows.forEach(r=>{
+      const b = (r.breed || '—').toString().trim() || '—';
+      (by[b] ||= []).push(r.__indexB);
+    });
+
+    const items = Object.keys(by).map(b=>({
+      breed:b,
+      n:by[b].length,
+      avg:_statAvg(by[b])
+    })).sort((a,b)=>b.avg-a.avg);
+
+    if(table){
+      table.innerHTML = '<tr><th>Rasse</th><th style="text-align:right;">Ø IndexB</th><th style="text-align:right;">n</th></tr>';
+      items.forEach(it=>{
+        const tr=document.createElement('tr');
+        tr.innerHTML = `<td>${escapeHtml(it.breed)}</td><td style="text-align:right;">${it.avg.toFixed(2)}</td><td style="text-align:right;">${it.n}</td>`;
+        table.appendChild(tr);
+      });
+    }
+
+    if(msg) msg.textContent = `${rows.length} Einträge · ${items.length} Rassen.`;
+    setTimeout(()=>{ if(msg) msg.textContent=''; }, 4000);
+  }catch(e){
+    console.error('[STAT] breed comparison failed', e);
+    if(msg) msg.textContent='Fehler beim Laden.';
+  }
+}
+
+function _statHeatColor(v){
+  const x = Number(v)||0;
+  if(x >= 6) return '#ff5252';
+  if(x >= 4) return '#ff9800';
+  return '#4caf50';
+}
+
+async function loadAndRenderStatHeatmap(){
+  const msg = document.getElementById('statHeatMsg');
+  const box = document.getElementById('statHeatmap');
+  const from = (document.getElementById('statAnaFrom')||{}).value || '';
+  const to = (document.getElementById('statAnaTo')||{}).value || '';
+  if(msg) msg.textContent='Lade…';
+
+  try{
+    const rows = await _statLoadRange({from,to,breed:''});
+    if(!rows.length){
+      if(msg) msg.textContent='Keine Daten im Zeitraum.';
+      if(box) box.innerHTML='';
+      return;
+    }
+
+    const map = {};
+    rows.forEach(r=>{
+      const b = (r.breed || '—').toString().trim() || '—';
+      const d = (r.date || '').toString();
+      if(!d) return;
+      const key = b + '||' + d;
+      (map[key] ||= []).push(r.__indexB);
+    });
+
+    const cells = Object.keys(map).map(k=>{
+      const parts = k.split('||');
+      const breed = parts[0];
+      const date = parts[1];
+      const avg = _statAvg(map[k]);
+      return {breed,date,avg};
+    }).sort((a,b)=>{
+      const c = a.breed.localeCompare(b.breed,'de');
+      if(c!==0) return c;
+      return a.date.localeCompare(b.date);
+    });
+
+    if(box){
+      box.innerHTML='';
+      cells.forEach(c=>{
+        const div=document.createElement('div');
+        div.className='heat-cell';
+        div.style.background = _statHeatColor(c.avg);
+        div.innerHTML = `<div class="heat-breed">${escapeHtml(c.breed)}</div>
+                         <div class="heat-date">${escapeHtml(c.date)}</div>
+                         <div class="heat-val">${c.avg.toFixed(2)}</div>`;
+        box.appendChild(div);
+      });
+    }
+
+    if(msg) msg.textContent = `${cells.length} Felder (Ø je Rasse/Tag).`;
+    setTimeout(()=>{ if(msg) msg.textContent=''; }, 4000);
+  }catch(e){
+    console.error('[STAT] heatmap failed', e);
+    if(msg) msg.textContent='Fehler beim Laden.';
+  }
+}
+
+function _statPairKey(a,b){
+  a=String(a); b=String(b);
+  return (a < b) ? (a+'_'+b) : (b+'_'+a);
+}
+
+function _statBuildPairStats(rows){
+  const pairs = {};
+  let used=0;
+
+  rows.forEach(r=>{
+    const dogs = r.dogsInGroup;
+    if(!Array.isArray(dogs) || dogs.length < 2) return;
+    const clean = dogs.map(String).filter(Boolean);
+    if(clean.length < 2) return;
+
+    used++;
+
+    for(let i=0;i<clean.length;i++){
+      for(let j=i+1;j<clean.length;j++){
+        const key=_statPairKey(clean[i], clean[j]);
+        (pairs[key] ||= []).push(r.__indexB);
+      }
+    }
+  });
+
+  const list = Object.keys(pairs).map(k=>{
+    const arr=pairs[k];
+    const avg=_statAvg(arr);
+    return {pair:k, avg, n:arr.length};
+  }).sort((a,b)=>b.avg-a.avg);
+
+  return {list, used};
+}
+
+async function loadAndRenderStatGroupPairs(){
+  const msg = document.getElementById('statGroupMsg');
+  const host = document.getElementById('statGroupList');
+  const from = (document.getElementById('statAnaFrom')||{}).value || '';
+  const to = (document.getElementById('statAnaTo')||{}).value || '';
+  if(msg) msg.textContent='Lade…';
+
+  try{
+    const rows = await _statLoadRange({from,to,breed:''});
+    if(!rows.length){
+      if(msg) msg.textContent='Keine Daten im Zeitraum.';
+      if(host) host.innerHTML='';
+      return;
+    }
+
+    const {list, used} = _statBuildPairStats(rows);
+
+    if(host){
+      host.innerHTML='';
+      const top = list.slice(0, 25);
+      if(!top.length){
+        host.innerHTML = '<div class="muted" style="font-size:12px;">Keine Paar-Daten – es fehlen dogsInGroup Arrays in den Statistik-Einträgen.</div>';
+      }else{
+        top.forEach(it=>{
+          const div=document.createElement('div');
+          div.className='item';
+          const lvl = it.avg>=6 ? '⛔' : (it.avg>=4 ? '⚠️' : '✅');
+          div.innerHTML = `<div style="display:flex; justify-content:space-between; gap:10px;">
+                             <div><strong>${lvl} ${escapeHtml(it.pair)}</strong><div class="muted" style="font-size:12px;">Messungen: ${it.n}</div></div>
+                             <div style="font-weight:800;">${it.avg.toFixed(2)}</div>
+                           </div>`;
+          host.appendChild(div);
+        });
+      }
+    }
+
+    if(msg) msg.textContent = `${used} Gruppen-Einträge genutzt · ${list.length} Paare.`;
+    setTimeout(()=>{ if(msg) msg.textContent=''; }, 5000);
+  }catch(e){
+    console.error('[STAT] group pairs failed', e);
+    if(msg) msg.textContent='Fehler beim Laden.';
+  }
+}
+
+async function loadAndRenderStatGroupAI(){
+  const msg = document.getElementById('statGroupAIMsg');
+  const goodHost = document.getElementById('statGroupGood');
+  const badHost = document.getElementById('statGroupBad');
+  const from = (document.getElementById('statAnaFrom')||{}).value || '';
+  const to = (document.getElementById('statAnaTo')||{}).value || '';
+  if(msg) msg.textContent='Lade…';
+
+  try{
+    const rows = await _statLoadRange({from,to,breed:''});
+    if(!rows.length){
+      if(msg) msg.textContent='Keine Daten im Zeitraum.';
+      if(goodHost) goodHost.innerHTML='';
+      if(badHost) badHost.innerHTML='';
+      return;
+    }
+
+    const {list, used} = _statBuildPairStats(rows);
+
+    const good = list.filter(x=>x.avg < 4).sort((a,b)=>a.avg-b.avg).slice(0, 15);
+    const bad = list.filter(x=>x.avg >= 6).sort((a,b)=>b.avg-a.avg).slice(0, 15);
+
+    const renderList = (host, arr, icon)=>{
+      if(!host) return;
+      host.innerHTML='';
+      if(!arr.length){
+        host.innerHTML = `<div class="muted" style="font-size:12px;">Keine ${icon==='✅'?'klaren Empfehlungen':'klaren Problemkombinationen'} im Zeitraum.</div>`;
+        return;
+      }
+      arr.forEach(it=>{
+        const div=document.createElement('div');
+        div.className='item';
+        div.innerHTML = `<div style="display:flex; justify-content:space-between; gap:10px;">
+                           <div><strong>${icon} ${escapeHtml(it.pair)}</strong><div class="muted" style="font-size:12px;">Messungen: ${it.n}</div></div>
+                           <div style="font-weight:800;">${it.avg.toFixed(2)}</div>
+                         </div>`;
+        host.appendChild(div);
+      });
+    };
+
+    renderList(goodHost, good, '✅');
+    renderList(badHost, bad, '⛔');
+
+    if(msg) msg.textContent = `${used} Gruppen-Einträge genutzt · ${list.length} Paare ausgewertet.`;
+    setTimeout(()=>{ if(msg) msg.textContent=''; }, 5000);
+  }catch(e){
+    console.error('[STAT] group AI failed', e);
+    if(msg) msg.textContent='Fehler beim Laden.';
+  }
+}
+
 
 function _statRenderAnalysisEmpty(){
   const c=document.getElementById('statAnaChart');
