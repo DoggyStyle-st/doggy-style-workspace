@@ -14842,11 +14842,29 @@ function _statInterpretIndex(idx){
 
 // ---------- Firestore helpers ----------
 function _statFs(){
-  if(!(window.firebase && firebase.firestore)) throw new Error('firebase not available');
-  // wenn Cloud aktiv ist, nutze die bereits initialisierte DB
+  if(!(window.firebase && firebase.firestore)){
+    throw new Error('firebase not available');
+  }
+
+  // Ensure Firebase app exists (compat/no-app fix)
+  try{
+    if(!firebase.apps || firebase.apps.length === 0){
+      if(window.firebaseConfig){
+        firebase.initializeApp(window.firebaseConfig);
+      } else {
+        throw new Error('firebaseConfig missing');
+      }
+    }
+  }catch(e){
+    console.error('Firebase init failed', e);
+    throw e;
+  }
+
+  // If Cloud is active, reuse its Firestore instance
   try{
     if(typeof CLOUD !== 'undefined' && CLOUD && CLOUD.enabled && CLOUD.db) return CLOUD.db;
-  }catch(_){ }
+  }catch(_){}
+
   return firebase.firestore();
 }
 function _statUid(){
