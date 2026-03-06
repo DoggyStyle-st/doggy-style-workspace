@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.7_STAT_AUTH_GUARD_20260304";
+const APP_BUILD = "M50.9.8_AUTH_RESET_FIX_20260306";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -15163,18 +15163,21 @@ function populateStatDogsForAll(dateISO){
     const breed = (p && (p.breed || p.race || p.rasse || p.mainBreed)) ? String(p.breed||p.race||p.rasse||p.mainBreed) : '';
     if(breedEl) breedEl.value = breed || '—';
 
-    // Sex / Gender (normalize)
+    // Sex / Gender (normalize) – set value codes expected by <select id="statSex">
     const rawSex = (p && (p.sex || p.gender || p.geschlecht)) ? String(p.sex||p.gender||p.geschlecht) : '';
-    const norm = rawSex.toLowerCase();
-    let sex = rawSex;
-    if(norm === 'm' || norm === 'male' || norm === 'rüde' || norm === 'ruede') sex = 'Rüde';
-    if(norm === 'f' || norm === 'female' || norm === 'hündin' || norm === 'huendin') sex = 'Hündin';
-    if(sexEl && sex){
-      // only auto-fill if empty
-      if(!sexEl.value) sexEl.value = sex;
+    const norm = rawSex.toLowerCase().trim();
+    let val = '';
+    // expected values: 'm' / 'w' (and optionally 'k'/'s' if you use those)
+    if(['m','male','rüde','ruede','rude','r'].includes(norm) || norm.startsWith('m')) val = 'm';
+    if(['w','f','female','hündin','huendin','hundin'].includes(norm) || norm.startsWith('w') || norm.startsWith('f')) val = 'w';
+    // optional castration codes (only if present in select)
+    if(norm.includes('kastr') && val==='m') val = (sexEl && Array.from(sexEl.options||[]).some(o=>o.value==='k')) ? 'k' : val;
+    if(norm.includes('kastr') && val==='w') val = (sexEl && Array.from(sexEl.options||[]).some(o=>o.value==='s')) ? 's' : val;
+    if(sexEl && val){
+      if(!sexEl.value) sexEl.value = val;
     }
 
-    // Age (years) – if birthdate known
+// Age (years) – if birthdate known
     const ageYearsRaw = (p && (p.ageYears || p.age || p.alter)) ? Number(p.ageYears||p.age||p.alter) : NaN;
     let ageYears = Number.isFinite(ageYearsRaw) ? ageYearsRaw : NaN;
     if(!Number.isFinite(ageYears)){

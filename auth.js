@@ -158,7 +158,8 @@ async function init(){
               try{ elEmail.focus(); }catch(_){ }
               return;
             }
-            await auth.sendPasswordResetEmail(email);
+            const actionCodeSettings = { url: (location.origin + '/pwreset.html'), handleCodeInApp: true };
+            await auth.sendPasswordResetEmail(email, actionCodeSettings);
             setMsg('Passwort-Reset-Link wurde per E‑Mail gesendet.');
           }catch(e){
             const code = e && e.code ? String(e.code) : '';

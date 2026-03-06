@@ -1,11 +1,15 @@
 // DoggyStyle Workspace Service Worker
 // Clean, consistent cache strategy (network-first for HTML, cache-first for static)
 
-const BUILD_VERSION = "M50.9.6_STAT_CORE_STABLE_20260302";
+const BUILD_VERSION = "M50.9.8_AUTH_RESET_FIX_20260306";
 const CACHE_NAME = "doggystyle-" + BUILD_VERSION;
 
 // Keep this list conservative; do NOT include versioned query variants.
 const STATIC_ASSETS = [
+  // Firebase SDKs (für Offline/iOS Safari Stabilität)
+  "https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js",
+  "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js",
+  "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js",
   "./",
   "./index.html",
   "./app.html",
@@ -38,6 +42,22 @@ self.addEventListener("activate", (event) => {
     await self.clients.claim();
   })());
 });
+
+
+function normalizeRequestUrl(request){
+  try{
+    const url = (typeof request === 'string') ? request : request.url;
+    const u = new URL(url);
+    // Für Same-Origin: Query entfernen (damit app.js?v=... aus ./app.js Cache kommt)
+    if(u.origin === self.location.origin){
+      u.search = "";
+      return u.toString();
+    }
+    return url;
+  }catch(e){
+    try{ return (typeof request === 'string') ? request : request.url; }catch(_){ return request; }
+  }
+}
 
 function isHTMLRequest(request) {
   return (
