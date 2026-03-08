@@ -1,105 +1,91 @@
-// DoggyStyle Workspace Service Worker
-// Clean, consistent cache strategy (network-first for HTML, cache-first for static)
+// DoggyStyle Workspace Service Worker (Project Page safe)
+// Cache strategy: network-first for HTML, cache-first for static
 
-const BUILD_VERSION = "M50.9.8_AUTH_RESET_FIX_20260306";
+const BUILD_VERSION = "M50.9.9_PROJECTPAGE_AUTH_20260308";
 const CACHE_NAME = "doggystyle-" + BUILD_VERSION;
 
-// Keep this list conservative; do NOT include versioned query variants.
 const STATIC_ASSETS = [
-  // Firebase SDKs (für Offline/iOS Safari Stabilität)
-  "https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js",
-  "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js",
-  "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js",
   "./",
   "./index.html",
+  "./login.html",
   "./app.html",
+  "./customer.html",
+  "./pwreset.html",
   "./app.js",
-  "./styles.css",
-  "./dashboard_master.css",
   "./auth.js",
   "./firebase-config.js",
-  "./manifest.json",
-  "./login.html",
+  "./styles.css",
+  "./dashboard_master.css",
   "./login_override.css",
+  "./manifest.json",
+  // Firebase SDKs (cross-origin) – helps iOS/Safari stability
+  "https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js",
+  "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js",
+  "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"
 ];
 
-self.addEventListener("install", (event) => {
-  event.waitUntil((async () => {
+function isHTMLRequest(request){
+  return request.mode === "navigate" || (request.headers.get("accept")||"").includes("text/html");
+}
+
+function normSameOrigin(url){
+  try{
+    const u = new URL(url);
+    if(u.origin === self.location.origin){
+      u.search = "";
+      u.hash = "";
+      return u.toString();
+    }
+  }catch(e){}
+  return url;
+}
+
+self.addEventListener("install", (event)=>{
+  event.waitUntil((async ()=>{
     const cache = await caches.open(CACHE_NAME);
     await cache.addAll(STATIC_ASSETS);
     await self.skipWaiting();
   })());
 });
 
-self.addEventListener("activate", (event) => {
-  event.waitUntil((async () => {
+self.addEventListener("activate", (event)=>{
+  event.waitUntil((async ()=>{
     const keys = await caches.keys();
-    await Promise.all(
-      keys
-        .filter((k) => k.startsWith("doggystyle-") && k !== CACHE_NAME)
-        .map((k) => caches.delete(k))
-    );
+    await Promise.all(keys.filter(k=>k.startsWith("doggystyle-") && k!==CACHE_NAME).map(k=>caches.delete(k)));
     await self.clients.claim();
   })());
 });
 
-
-function normalizeRequestUrl(request){
-  try{
-    const url = (typeof request === 'string') ? request : request.url;
-    const u = new URL(url);
-    // Für Same-Origin: Query entfernen (damit app.js?v=... aus ./app.js Cache kommt)
-    if(u.origin === self.location.origin){
-      u.search = "";
-      return u.toString();
-    }
-    return url;
-  }catch(e){
-    try{ return (typeof request === 'string') ? request : request.url; }catch(_){ return request; }
-  }
-}
-
-function isHTMLRequest(request) {
-  return (
-    request.mode === "navigate" ||
-    (request.headers.get("accept") || "").includes("text/html")
-  );
-}
-
-self.addEventListener("fetch", (event) => {
+self.addEventListener("fetch", (event)=>{
   const req = event.request;
   const url = new URL(req.url);
 
-  // Only handle same-origin.
-  if (url.origin !== self.location.origin) return;
+  const isGstatic = (url.origin === "https://www.gstatic.com");
+  const isSame = (url.origin === self.location.origin);
+  if(!isSame && !isGstatic) return;
 
-  // Network-first for HTML to avoid sticky old UI.
-  if (isHTMLRequest(req)) {
-    event.respondWith(
-      (async () => {
-        try {
-          const fresh = await fetch(req);
-          const cache = await caches.open(CACHE_NAME);
-          cache.put(req, fresh.clone());
-          return fresh;
-        } catch (e) {
-          const cached = await caches.match(req);
-          return cached || (await caches.match("./app.html")) || (await caches.match("./index.html"));
-        }
-      })()
-    );
+  if(isSame && isHTMLRequest(req)){
+    event.respondWith((async ()=>{
+      try{
+        const fresh = await fetch(req);
+        const cache = await caches.open(CACHE_NAME);
+        cache.put(normSameOrigin(req.url), fresh.clone());
+        return fresh;
+      }catch(e){
+        const cached = await caches.match(normSameOrigin(req.url));
+        return cached || (await caches.match("./app.html")) || (await caches.match("./index.html"));
+      }
+    })());
     return;
   }
 
-  // Cache-first for static assets.
-  event.respondWith(
-    (async () => {
-      const cached = await caches.match(req);
-      if (cached) return cached;
-      const fresh = await fetch(req);
-      const cache = await caches.open(CACHE_NAME);
-      cache.put(req, fresh.clone());
-      return fresh;
-    })()
-  );
+  event.respondWith((async ()=>{
+    const key = isSame ? normSameOrigin(req.url) : req.url;
+    const cached = await caches.match(key);
+    if(cached) return cached;
+    const fresh = await fetch(req);
+    const cache = await caches.open(CACHE_NAME);
+    cache.put(key, fresh.clone());
+    return fresh;
+  })());
 });

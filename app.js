@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.7_STAT_AUTH_GUARD_20260304",
+  tag: "M50.9.9_PROJECTPAGE_AUTH_20260308",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.8_AUTH_RESET_FIX_20260306";
+const APP_BUILD = "M50.9.9_PROJECTPAGE_AUTH_20260308";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -15163,21 +15163,17 @@ function populateStatDogsForAll(dateISO){
     const breed = (p && (p.breed || p.race || p.rasse || p.mainBreed)) ? String(p.breed||p.race||p.rasse||p.mainBreed) : '';
     if(breedEl) breedEl.value = breed || '—';
 
-    // Sex / Gender (normalize) – set value codes expected by <select id="statSex">
-    const rawSex = (p && (p.sex || p.gender || p.geschlecht)) ? String(p.sex||p.gender||p.geschlecht) : '';
-    const norm = rawSex.toLowerCase().trim();
-    let val = '';
-    // expected values: 'm' / 'w' (and optionally 'k'/'s' if you use those)
-    if(['m','male','rüde','ruede','rude','r'].includes(norm) || norm.startsWith('m')) val = 'm';
-    if(['w','f','female','hündin','huendin','hundin'].includes(norm) || norm.startsWith('w') || norm.startsWith('f')) val = 'w';
-    // optional castration codes (only if present in select)
-    if(norm.includes('kastr') && val==='m') val = (sexEl && Array.from(sexEl.options||[]).some(o=>o.value==='k')) ? 'k' : val;
-    if(norm.includes('kastr') && val==='w') val = (sexEl && Array.from(sexEl.options||[]).some(o=>o.value==='s')) ? 's' : val;
-    if(sexEl && val){
-      if(!sexEl.value) sexEl.value = val;
+    // Sex / Gender (normalize to select values)
+    const rawSex = (p && (p.sex || p.gender || p.geschlecht)) ? String(p.sex||p.gender||p.geschlecht) : "";
+    const norm = rawSex.toLowerCase();
+    let sexVal = "";
+    if(norm.includes("rüde") || norm.includes("ruede") || norm.includes("männ") || norm === "m" || norm === "male" || norm === "männlich") sexVal = "m";
+    if(norm.includes("hünd") || norm.includes("huend") || norm.includes("weib") || norm === "w" || norm === "f" || norm === "female" || norm === "weiblich") sexVal = "w";
+    if(sexEl && sexVal){
+      if(!sexEl.value) sexEl.value = sexVal;
     }
 
-// Age (years) – if birthdate known
+    // Age (years) – if birthdate known
     const ageYearsRaw = (p && (p.ageYears || p.age || p.alter)) ? Number(p.ageYears||p.age||p.alter) : NaN;
     let ageYears = Number.isFinite(ageYearsRaw) ? ageYearsRaw : NaN;
     if(!Number.isFinite(ageYears)){
@@ -15202,6 +15198,20 @@ function populateStatDogsForAll(dateISO){
 }
 
 async function saveStatRatingV2(){
+  // Wait briefly for Firebase Auth session restore (Safari/iOS can be delayed)
+  try{
+    if(window.firebase && firebase.auth){
+      const a = firebase.auth();
+      if(!a.currentUser){
+        await new Promise((res)=>{
+          let done=false;
+          const t=setTimeout(()=>{ if(done) return; done=true; try{unsub&&unsub();}catch(_){} res(); }, 2200);
+          let unsub=null;
+          try{ unsub = a.onAuthStateChanged(()=>{ if(done) return; done=true; clearTimeout(t); try{unsub&&unsub();}catch(_){} res(); }); }catch(_){ }
+        });
+      }
+    }
+  }catch(_){ }
   // --- AUTH GUARD (fix permission-denied due to missing auth) ---
   try{
     const u = (window.firebase && firebase.auth) ? firebase.auth().currentUser : null;
