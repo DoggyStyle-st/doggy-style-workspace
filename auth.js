@@ -97,7 +97,9 @@ async function init(){
         try{
           await auth.signInWithEmailAndPassword(email, pass);
           // Merke E-Mail für UI-Fallback (falls iOS Auth-Restore verzögert)
-          try{ localStorage.setItem('ds_last_email', email.toLowerCase()); }catch(_){ }
+          try{ localStorage.setItem('ds_last_email', email.toLowerCase());
+          try{ localStorage.setItem('last_email', email.toLowerCase()); }catch(_){ }
+          try{ sessionStorage.setItem('ds_last_email', email.toLowerCase()); }catch(_){ } }catch(_){ }
           // Force token write + small settle delay before navigation (iOS/Safari)
           try{ await auth.currentUser.getIdToken(true); }catch(_){ }
           await new Promise(r=>setTimeout(r, 180));
@@ -123,7 +125,9 @@ async function init(){
         setMsg('Registrieren …');
         try{
           await auth.createUserWithEmailAndPassword(email, pass);
-          try{ localStorage.setItem('ds_last_email', email.toLowerCase()); }catch(_){ }
+          try{ localStorage.setItem('ds_last_email', email.toLowerCase());
+          try{ localStorage.setItem('last_email', email.toLowerCase()); }catch(_){ }
+          try{ sessionStorage.setItem('ds_last_email', email.toLowerCase()); }catch(_){ } }catch(_){ }
           try{ await auth.currentUser.getIdToken(true); }catch(_){ }
           await new Promise(r=>setTimeout(r, 180));
           await ensureUserProfile(auth.currentUser, name);

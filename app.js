@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9_PROJECTPAGE_AUTH_20260308",
+  M50.9.9B_PROJECTPAGE_AUTH_20260308,
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9_PROJECTPAGE_AUTH_20260308A";
+M50.9.9B_PROJECTPAGE_AUTH_20260308;
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -468,7 +468,9 @@ function updateSyncUI(){
     // Last resort: remembered email from login page (helps when iOS restores auth with delay)
     if(!email){
       try{
-        const le = localStorage.getItem('ds_last_email');
+        let le = null;
+        try{ le = sessionStorage.getItem('ds_last_email'); }catch(_){ }
+        if(!le){ try{ le = localStorage.getItem('ds_last_email')||localStorage.getItem('last_email'); }catch(__){} }
         if(le) email = String(le);
       }catch(_){ }
     }
@@ -13503,7 +13505,7 @@ async function dsHardReload(){
     for(let i=0;i<localStorage.length;i++){
       const k = localStorage.key(i);
       if(!k) continue;
-      if(k.startsWith('ds_') || k.includes('sw') || k.includes('cache') || k.includes('build') || k.includes('version')){
+      if((k.startsWith('ds_') || k.includes('sw') || k.includes('cache') || k.includes('build') || k.includes('version')) && k!=='ds_last_email' && k!=='last_email'){
         toDelete.push(k);
       }
     }
