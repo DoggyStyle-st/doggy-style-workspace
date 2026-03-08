@@ -104,7 +104,8 @@ async function init(){
           try{ await auth.currentUser.getIdToken(true); }catch(_){ }
           await new Promise(r=>setTimeout(r, 180));
           await ensureUserProfile(auth.currentUser, '');
-          location.href = ((await getUserRole(auth, db)) === 'customer') ? 'customer.html' : 'app.html';
+          const target=((await getUserRole(auth, db)) === 'customer') ? 'customer.html' : ('app.html?login_email=' + encodeURIComponent(email.toLowerCase()));
+          location.href = target;
         }catch(e){
           const code = e && e.code ? String(e.code) : '';
           if(code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found'){
@@ -131,7 +132,8 @@ async function init(){
           try{ await auth.currentUser.getIdToken(true); }catch(_){ }
           await new Promise(r=>setTimeout(r, 180));
           await ensureUserProfile(auth.currentUser, name);
-          location.href = ((await getUserRole(auth, db)) === 'customer') ? 'customer.html' : 'app.html';
+          const target=((await getUserRole(auth, db)) === 'customer') ? 'customer.html' : ('app.html?login_email=' + encodeURIComponent(email.toLowerCase()));
+          location.href = target;
         }catch(e){
           const code = e && e.code ? String(e.code) : '';
           if(code === 'auth/email-already-in-use'){

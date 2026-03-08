@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE =====
 const DS_MASTER_FREEZE = {
-  build: "M50.9.9D_PROJECTPAGE_AUTH_BOOTFIX_20260308",
+  build: "M50.9.9E_PROJECTPAGE_AUTH_ONLINEFIX_20260308",
   channel: "MASTER",
   frozenAt: "2026-03-08"
 };
@@ -9,7 +9,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // ===== END DS_MASTER_FREEZE =====
 
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9D_PROJECTPAGE_AUTH_BOOTFIX_20260308";
+const APP_BUILD = "M50.9.9E_PROJECTPAGE_AUTH_ONLINEFIX_20260308";
 
 
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
@@ -450,6 +450,31 @@ async function performLogout(){
   try{ sessionStorage.removeItem("dstest_sw_reloaded"); }catch(e){}
   try{ location.href = "login.html"; }catch(e){}
 }
+function getRememberedEmail(){
+  try{
+    const qp = new URLSearchParams(location.search||"");
+    const q = (qp.get("login_email")||"").trim().toLowerCase();
+    if(q){
+      try{ sessionStorage.setItem("ds_last_email", q); }catch(_){ }
+      try{ localStorage.setItem("ds_last_email", q); localStorage.setItem("last_email", q); }catch(_){ }
+      try{ const clean = new URL(location.href); clean.searchParams.delete("login_email"); history.replaceState({}, document.title, clean.pathname + clean.search + clean.hash); }catch(_){ }
+      return q;
+    }
+  }catch(_){ }
+  try{ const s = sessionStorage.getItem("ds_last_email"); if(s) return String(s).toLowerCase(); }catch(_){ }
+  try{ const l = localStorage.getItem("ds_last_email") || localStorage.getItem("last_email"); if(l) return String(l).toLowerCase(); }catch(_){ }
+  return "";
+}
+function hydrateRememberedUserBadge(){
+  try{
+    const email = getRememberedEmail();
+    const userEl = document.getElementById("syncUser");
+    if(userEl && email){
+      userEl.style.display = "inline-flex";
+      userEl.textContent = email;
+    }
+  }catch(_){ }
+}
 function updateSyncUI(){
   const pill = document.getElementById('syncStatus');
   const userEl = document.getElementById('syncUser');
@@ -485,8 +510,9 @@ function updateSyncUI(){
       userEl.textContent = '';
     }
   }
-  const netOnline = (typeof navigator !== 'undefined') ? !!navigator.onLine : false;
-  const cloudOk = !!(netOnline && cloudIsEnabled() && CLOUD && CLOUD.enabled && CLOUD.user && SYNC.cloudReachable);
+  const browserOnline = (typeof navigator !== 'undefined') ? !!navigator.onLine : false;
+  const netOnline = !!(browserOnline || SYNC.cloudReachable || (CLOUD && CLOUD.user));
+  const cloudOk = !!(cloudIsEnabled() && CLOUD && CLOUD.enabled && CLOUD.user && SYNC.cloudReachable);
   try{ if(pill){ pill.classList.toggle('is-online', !!cloudOk); pill.classList.toggle('is-offline', !cloudOk); } }catch(e){}
   const localLine = `Lokal gespeichert: ${fmtDT(SYNC.localSavedAt)}`;
   // Internet-Status (nicht gleich Cloud!)
@@ -979,15 +1005,11 @@ function withTimeout(promise, ms){
   });
 }
 async function checkCloudReachability(reason){
-  const netOnline = (typeof navigator !== 'undefined') ? !!navigator.onLine : false;
+  const browserOnline = (typeof navigator !== 'undefined') ? !!navigator.onLine : false;
   SYNC.cloudReachCheckedAt = Date.now();
   SYNC.cloudReachError = "";
   // Default: nicht erreichbar
   SYNC.cloudReachable = false;
-  if(!netOnline){
-    SYNC.cloudReachError = "kein Internet";
-    return false;
-  }
   if(!cloudIsEnabled() || !CLOUD || !CLOUD.enabled || !CLOUD.db){
     SYNC.cloudReachError = "Cloud nicht bereit";
     return false;
@@ -1027,6 +1049,7 @@ function scheduleCloudPing(delayMs=0, reason=""){
     if(_cloudPingTimer) clearTimeout(_cloudPingTimer);
     _cloudPingTimer = setTimeout(async ()=>{
       await checkCloudReachability(reason);
+      hydrateRememberedUserBadge();
       updateSyncUI();
     }, Math.max(0, delayMs));
   }catch(e){}
@@ -10856,6 +10879,8 @@ async function startApp(){
     try{ if(btnLogout) btnLogout.style.display = 'inline-flex'; }catch(e){}
 return;
     }
+    try{ hydrateRememberedUserBadge(); }catch(_){ }
+    updateSyncUI();
     // Login bei jedem Start erzwingen: wird beim Start durch signOut() erzwungen (kein Auto-Logout nach erfolgreichem Login)
     // Rolle (v2): aus Firestore (mit Whitelist-Override)
     try{
@@ -11004,11 +11029,13 @@ document.addEventListener("visibilitychange", () => {
   });
 })();
 // Start
+hydrateRememberedUserBadge();
 startApp().catch(console.error);
 // UI: Sync-Status regelmäßig auffrischen (auch bei Tab-Wechsel/PWA)
 setInterval(()=>{ try{ updateSyncUI(); }catch(_){ } }, 1500);
+setInterval(()=>{ try{ if(CLOUD && CLOUD.user) scheduleCloudPing(0,'interval'); }catch(_){ } }, 12000);
 window.addEventListener('online', ()=>{ try{ scheduleCloudPing(0,'online-event'); }catch(_){ try{ updateSyncUI(); }catch(__){} } });
-window.addEventListener('offline', ()=>{ try{ SYNC.cloudReachable=false; SYNC.cloudReachError='kein Internet'; SYNC.cloudReachCheckedAt=Date.now(); }catch(_){ } try{ updateSyncUI(); }catch(__){} });
+window.addEventListener('offline', ()=>{ try{ SYNC.cloudReachCheckedAt=Date.now(); SYNC.cloudReachError='offline-event'; }catch(_){ } try{ updateSyncUI(); }catch(__){} });
 /* ===== B2.2a Freier Rechnungs-Editor ===== */
 function renderInvoiceEditorB2(doc){
   // ===== B2.2c Rechnungsnummer (Pflichtfeld) =====
