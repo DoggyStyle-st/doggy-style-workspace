@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9_PROJECTPAGE_AUTH_20260308";
+const APP_BUILD = "M50.9.9_PROJECTPAGE_AUTH_20260308A";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -464,6 +464,13 @@ function updateSyncUI(){
         const u = (window.firebase && firebase.auth) ? firebase.auth().currentUser : null;
         if(u && u.email) email = u.email;
       }catch(_){}
+    }
+    // Last resort: remembered email from login page (helps when iOS restores auth with delay)
+    if(!email){
+      try{
+        const le = localStorage.getItem('ds_last_email');
+        if(le) email = String(le);
+      }catch(_){ }
     }
     if(email){
       userEl.style.display = 'inline-flex';

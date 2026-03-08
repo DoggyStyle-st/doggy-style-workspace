@@ -40,6 +40,8 @@ async function init(){
         await auth.setPersistence(window.firebase.auth.Auth.Persistence.LOCAL);
       } catch(e) {
         console.warn('Persistence konnte nicht gesetzt werden', e);
+        // Fallback: SESSION (stabiler als DEFAULT auf manchen iOS/Safari Setups)
+        try{ await auth.setPersistence(window.firebase.auth.Auth.Persistence.SESSION); }catch(_){ }
       }
       let db = null;
       try{ db = window.firebase.firestore ? window.firebase.firestore() : null; }catch(_){ db = null; }
@@ -94,6 +96,11 @@ async function init(){
         setMsg('Anmelden …');
         try{
           await auth.signInWithEmailAndPassword(email, pass);
+          // Merke E-Mail für UI-Fallback (falls iOS Auth-Restore verzögert)
+          try{ localStorage.setItem('ds_last_email', email.toLowerCase()); }catch(_){ }
+          // Force token write + small settle delay before navigation (iOS/Safari)
+          try{ await auth.currentUser.getIdToken(true); }catch(_){ }
+          await new Promise(r=>setTimeout(r, 180));
           await ensureUserProfile(auth.currentUser, '');
           location.href = ((await getUserRole(auth, db)) === 'customer') ? 'customer.html' : 'app.html';
         }catch(e){
@@ -116,6 +123,9 @@ async function init(){
         setMsg('Registrieren …');
         try{
           await auth.createUserWithEmailAndPassword(email, pass);
+          try{ localStorage.setItem('ds_last_email', email.toLowerCase()); }catch(_){ }
+          try{ await auth.currentUser.getIdToken(true); }catch(_){ }
+          await new Promise(r=>setTimeout(r, 180));
           await ensureUserProfile(auth.currentUser, name);
           location.href = ((await getUserRole(auth, db)) === 'customer') ? 'customer.html' : 'app.html';
         }catch(e){

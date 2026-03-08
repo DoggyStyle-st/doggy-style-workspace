@@ -1,7 +1,7 @@
 // DoggyStyle Workspace Service Worker (Project Page safe)
 // Cache strategy: network-first for HTML, cache-first for static
 
-const BUILD_VERSION = "M50.9.9_PROJECTPAGE_AUTH_20260308";
+const BUILD_VERSION = "M50.9.9_PROJECTPAGE_AUTH_20260308A";
 const CACHE_NAME = "doggystyle-" + BUILD_VERSION;
 
 const STATIC_ASSETS = [
