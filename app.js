@@ -1,20 +1,18 @@
 
-// ===== DS_MASTER_FREEZE =====
+// ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  build: "M50.9.9F_PROJECTPAGE_AUTH_HANDOFF_20260308",
+  tag: "M50.9.7_STAT_ORG_LOCKED_ROOT_CLEAN_20260303",
   channel: "MASTER",
-  frozenAt: "2026-03-08"
+  frozenAt: "2026-03-02"
 };
+// Expose for diagnostics / support
 try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // ===== END DS_MASTER_FREEZE =====
-
-// Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9F_PROJECTPAGE_AUTH_HANDOFF_20260308";
-
 
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
+const APP_BUILD = "M50.9.7_STAT_ORG_LOCKED_ROOT_CLEAN_20260303";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -448,6 +446,9 @@ function fmtDT(ts){
 async function performLogout(){
   try{ if(CLOUD && CLOUD.enabled && CLOUD.auth){ await CLOUD.auth.signOut(); } }catch(e){}
   try{ sessionStorage.removeItem("dstest_sw_reloaded"); }catch(e){}
+  try{ sessionStorage.removeItem('ds_handoff_email'); }catch(e){}
+  try{ sessionStorage.removeItem('ds_handoff_pass'); }catch(e){}
+  try{ sessionStorage.removeItem('ds_handoff_ts'); }catch(e){}
   try{ location.href = "login.html"; }catch(e){}
 }
 function getRememberedEmail(){
@@ -457,7 +458,11 @@ function getRememberedEmail(){
     if(q){
       try{ sessionStorage.setItem("ds_last_email", q); }catch(_){ }
       try{ localStorage.setItem("ds_last_email", q); localStorage.setItem("last_email", q); }catch(_){ }
-      try{ const clean = new URL(location.href); clean.searchParams.delete("login_email"); history.replaceState({}, document.title, clean.pathname + clean.search + clean.hash); }catch(_){ }
+      try{
+        const clean = new URL(location.href);
+        clean.searchParams.delete("login_email");
+        history.replaceState({}, document.title, clean.pathname + clean.search + clean.hash);
+      }catch(_){ }
       return q;
     }
   }catch(_){ }
@@ -468,9 +473,9 @@ function getRememberedEmail(){
 function hydrateRememberedUserBadge(){
   try{
     const email = getRememberedEmail();
-    const userEl = document.getElementById("syncUser");
+    const userEl = document.getElementById('syncUser');
     if(userEl && email){
-      userEl.style.display = "inline-flex";
+      userEl.style.display = 'inline-flex';
       userEl.textContent = email;
     }
   }catch(_){ }
@@ -481,25 +486,16 @@ function updateSyncUI(){
   const details = document.getElementById('syncDetails');
   const manualBtn = document.getElementById('manualSaveBtn');
   if(userEl){
-    // Prefer CLOUD.user, but fall back to firebase.auth().currentUser (robust for iOS/Safari auth edge cases)
     let email = '';
-    try{
-      if(CLOUD && CLOUD.enabled && CLOUD.user && CLOUD.user.email) email = CLOUD.user.email;
-    }catch(_){}
+    try{ if(CLOUD && CLOUD.enabled && CLOUD.user && CLOUD.user.email) email = String(CLOUD.user.email).toLowerCase(); }catch(_){ }
     if(!email){
       try{
-        const u = (window.firebase && firebase.auth) ? firebase.auth().currentUser : null;
-        if(u && u.email) email = u.email;
-      }catch(_){}
-    }
-    // Last resort: remembered email from login page (helps when iOS restores auth with delay)
-    if(!email){
-      try{
-        let le = null;
-        try{ le = sessionStorage.getItem('ds_last_email'); }catch(_){ }
-        if(!le){ try{ le = localStorage.getItem('ds_last_email')||localStorage.getItem('last_email'); }catch(__){} }
-        if(le) email = String(le);
+        const u = (window.firebase && window.firebase.auth) ? window.firebase.auth().currentUser : null;
+        if(u && u.email) email = String(u.email).toLowerCase();
       }catch(_){ }
+    }
+    if(!email){
+      try{ email = getRememberedEmail(); }catch(_){ }
     }
     if(email){
       userEl.style.display = 'inline-flex';
@@ -1005,11 +1001,15 @@ function withTimeout(promise, ms){
   });
 }
 async function checkCloudReachability(reason){
-  const browserOnline = (typeof navigator !== 'undefined') ? !!navigator.onLine : false;
+  const netOnline = (typeof navigator !== 'undefined') ? !!navigator.onLine : false;
   SYNC.cloudReachCheckedAt = Date.now();
   SYNC.cloudReachError = "";
   // Default: nicht erreichbar
   SYNC.cloudReachable = false;
+  if(!netOnline){
+    SYNC.cloudReachError = "kein Internet";
+    return false;
+  }
   if(!cloudIsEnabled() || !CLOUD || !CLOUD.enabled || !CLOUD.db){
     SYNC.cloudReachError = "Cloud nicht bereit";
     return false;
@@ -1049,7 +1049,6 @@ function scheduleCloudPing(delayMs=0, reason=""){
     if(_cloudPingTimer) clearTimeout(_cloudPingTimer);
     _cloudPingTimer = setTimeout(async ()=>{
       await checkCloudReachability(reason);
-      hydrateRememberedUserBadge();
       updateSyncUI();
     }, Math.max(0, delayMs));
   }catch(e){}
@@ -1063,7 +1062,6 @@ function setAuthMsg(msg){
   const el = document.getElementById("authMsg");
   if(el) el.textContent = msg || "";
 }
-
 async function recoverAuthHandoff(){
   try{
     if(!(CLOUD && CLOUD.auth)) return false;
@@ -1073,10 +1071,10 @@ async function recoverAuthHandoff(){
     const ts = Number(sessionStorage.getItem('ds_handoff_ts')||0);
     if(!email || !pass || !ts) return false;
     if((Date.now()-ts) > 10*60*1000) return false;
-    try{
-      await CLOUD.auth.setPersistence(window.firebase.auth.Auth.Persistence.SESSION);
-    }catch(_){ }
+    try{ await CLOUD.auth.setPersistence(window.firebase.auth.Auth.Persistence.LOCAL); }catch(_){ }
     await CLOUD.auth.signInWithEmailAndPassword(email, pass);
+    try{ sessionStorage.setItem('ds_last_email', email); }catch(_){ }
+    try{ localStorage.setItem('ds_last_email', email); localStorage.setItem('last_email', email); }catch(_){ }
     try{ sessionStorage.removeItem('ds_handoff_pass'); }catch(_){ }
     try{ sessionStorage.removeItem('ds_handoff_ts'); }catch(_){ }
     return !!CLOUD.auth.currentUser;
@@ -10873,10 +10871,13 @@ async function startApp(){
   const cloudOk = await cloudInit();
   if(!cloudOk){
     showAuthGate(false);
+    hydrateRememberedUserBadge();
+    updateSyncUI();
     await bootOnce();
     return;
   }
-  // iPad/Safari: falls Auth-Persistenz beim Seitenwechsel noch nicht da ist, einmalige Handoff-Recovery versuchen
+  try{ hydrateRememberedUserBadge(); }catch(_){ }
+  try{ updateSyncUI(); }catch(_){ }
   try{ if(!(CLOUD.auth && CLOUD.auth.currentUser)) await recoverAuthHandoff(); }catch(_){ }
   // Option C: immer Login erzwingen (Session bei jedem Start beenden)
   if(CLOUD.forceLoginAlways){
@@ -10892,25 +10893,21 @@ async function startApp(){
       CLOUD.role = 'guest';
       try{ if(btnLogoutApp) btnLogoutApp.style.display = 'none'; }catch(e){}
       try{ if(btnLogout) btnLogout.style.display = 'none'; }catch(e){}
+      try{ hydrateRememberedUserBadge(); }catch(_){ }
       updateSyncUI();
-      // In dieser Version gibt es kein Login-Overlay mehr. Wenn nicht eingeloggt: nicht sofort umleiten.
-      // iPad/Safari kann den Auth-State leicht verzögert herstellen – daher noch einmal nachfassen.
       try{
-        setTimeout(async ()=>{
-          try{
-            if(CLOUD && CLOUD.auth && !CLOUD.auth.currentUser){
+        const wantsRecovery = !!(sessionStorage.getItem('ds_handoff_email') && sessionStorage.getItem('ds_handoff_pass'));
+        if(wantsRecovery){
+          setTimeout(async ()=>{
+            try{
               const ok = await recoverAuthHandoff();
               if(ok){ hydrateRememberedUserBadge(); updateSyncUI(); }
-            }
-          }catch(_){ }
-        }, 700);
-      }catch(e){}
-      
-    try{ if(btnLogout) btnLogout.style.display = 'inline-flex'; }catch(e){}
-return;
+            }catch(_){ }
+          }, 250);
+        }
+      }catch(_){ }
+      return;
     }
-    try{ hydrateRememberedUserBadge(); }catch(_){ }
-    updateSyncUI();
     // Login bei jedem Start erzwingen: wird beim Start durch signOut() erzwungen (kein Auto-Logout nach erfolgreichem Login)
     // Rolle (v2): aus Firestore (mit Whitelist-Override)
     try{
@@ -10926,6 +10923,14 @@ return;
       return;
     }
     showAuthGate(false);
+    try{
+      const mail = String((user && user.email) || '').toLowerCase();
+      if(mail){
+        try{ sessionStorage.setItem('ds_last_email', mail); }catch(_){ }
+        try{ localStorage.setItem('ds_last_email', mail); localStorage.setItem('last_email', mail); }catch(_){ }
+      }
+    }catch(_){ }
+    try{ hydrateRememberedUserBadge(); }catch(_){ }
     // Cloud-Erreichbarkeit prüfen, damit Status nicht erst nach einer Aktion auf Online springt
     try{ scheduleCloudPing(50,'auth-login'); }catch(e){}
     if(btnLogout) btnLogout.style.display = "inline-block";
@@ -11060,12 +11065,13 @@ document.addEventListener("visibilitychange", () => {
 })();
 // Start
 hydrateRememberedUserBadge();
+updateSyncUI();
 startApp().catch(console.error);
 // UI: Sync-Status regelmäßig auffrischen (auch bei Tab-Wechsel/PWA)
-setInterval(()=>{ try{ updateSyncUI(); }catch(_){ } }, 1500);
+setInterval(()=>{ try{ hydrateRememberedUserBadge(); updateSyncUI(); }catch(_){ } }, 1500);
 setInterval(()=>{ try{ if(CLOUD && CLOUD.user) scheduleCloudPing(0,'interval'); }catch(_){ } }, 12000);
 window.addEventListener('online', ()=>{ try{ scheduleCloudPing(0,'online-event'); }catch(_){ try{ updateSyncUI(); }catch(__){} } });
-window.addEventListener('offline', ()=>{ try{ SYNC.cloudReachCheckedAt=Date.now(); SYNC.cloudReachError='offline-event'; }catch(_){ } try{ updateSyncUI(); }catch(__){} });
+window.addEventListener('offline', ()=>{ try{ SYNC.cloudReachable=false; SYNC.cloudReachError='kein Internet'; SYNC.cloudReachCheckedAt=Date.now(); }catch(_){ } try{ updateSyncUI(); }catch(__){} });
 /* ===== B2.2a Freier Rechnungs-Editor ===== */
 function renderInvoiceEditorB2(doc){
   // ===== B2.2c Rechnungsnummer (Pflichtfeld) =====
@@ -13564,7 +13570,7 @@ async function dsHardReload(){
     for(let i=0;i<localStorage.length;i++){
       const k = localStorage.key(i);
       if(!k) continue;
-      if((k.startsWith('ds_') || k.includes('sw') || k.includes('cache') || k.includes('build') || k.includes('version')) && k!=='ds_last_email' && k!=='last_email'){
+      if(k.startsWith('ds_') || k.includes('sw') || k.includes('cache') || k.includes('build') || k.includes('version')){
         toDelete.push(k);
       }
     }
@@ -15231,14 +15237,15 @@ function populateStatDogsForAll(dateISO){
     const breed = (p && (p.breed || p.race || p.rasse || p.mainBreed)) ? String(p.breed||p.race||p.rasse||p.mainBreed) : '';
     if(breedEl) breedEl.value = breed || '—';
 
-    // Sex / Gender (normalize to select values)
-    const rawSex = (p && (p.sex || p.gender || p.geschlecht)) ? String(p.sex||p.gender||p.geschlecht) : "";
+    // Sex / Gender (normalize)
+    const rawSex = (p && (p.sex || p.gender || p.geschlecht)) ? String(p.sex||p.gender||p.geschlecht) : '';
     const norm = rawSex.toLowerCase();
-    let sexVal = "";
-    if(norm.includes("rüde") || norm.includes("ruede") || norm.includes("männ") || norm === "m" || norm === "male" || norm === "männlich") sexVal = "m";
-    if(norm.includes("hünd") || norm.includes("huend") || norm.includes("weib") || norm === "w" || norm === "f" || norm === "female" || norm === "weiblich") sexVal = "w";
-    if(sexEl && sexVal){
-      if(!sexEl.value) sexEl.value = sexVal;
+    let sex = rawSex;
+    if(norm === 'm' || norm === 'male' || norm === 'rüde' || norm === 'ruede') sex = 'Rüde';
+    if(norm === 'f' || norm === 'female' || norm === 'hündin' || norm === 'huendin') sex = 'Hündin';
+    if(sexEl && sex){
+      // only auto-fill if empty
+      if(!sexEl.value) sexEl.value = sex;
     }
 
     // Age (years) – if birthdate known
@@ -15266,35 +15273,6 @@ function populateStatDogsForAll(dateISO){
 }
 
 async function saveStatRatingV2(){
-  // Wait briefly for Firebase Auth session restore (Safari/iOS can be delayed)
-  try{
-    if(window.firebase && firebase.auth){
-      const a = firebase.auth();
-      if(!a.currentUser){
-        await new Promise((res)=>{
-          let done=false;
-          const t=setTimeout(()=>{ if(done) return; done=true; try{unsub&&unsub();}catch(_){} res(); }, 2200);
-          let unsub=null;
-          try{ unsub = a.onAuthStateChanged(()=>{ if(done) return; done=true; clearTimeout(t); try{unsub&&unsub();}catch(_){} res(); }); }catch(_){ }
-        });
-      }
-    }
-  }catch(_){ }
-  // --- AUTH GUARD (fix permission-denied due to missing auth) ---
-  try{
-    const u = (window.firebase && firebase.auth) ? firebase.auth().currentUser : null;
-    if(!u){
-      // Explain clearly; avoid silent Firestore permission-denied confusion
-      alert('❌ Nicht angemeldet. Bitte oben rechts abmelden/neu anmelden (raphael@boch-plan.de) und dann erneut speichern.');
-      try{ location.href = 'login.html'; }catch(_){}
-      return;
-    }
-  }catch(_){
-    alert('❌ Login-Status konnte nicht geprüft werden. Bitte neu anmelden.');
-    try{ location.href = 'login.html'; }catch(__){}
-    return;
-  }
-  // --- /AUTH GUARD ---
   const dateISO = (document.getElementById('statDate')||{}).value || '';
   const petId = (document.getElementById('statDogSelect')||{}).value || '';
   const type = (document.getElementById('statType')||{}).value || 'arrival';
@@ -16268,24 +16246,3 @@ try{
     tab.addEventListener('click', ()=>{ try{ renderStatisticsPanel(); }catch(e){ console.error(e); } }, {passive:true});
   }
 }catch(e){ console.warn(e); }
-
-
-// ===== DS_STARTAPP_BOOTSTRAP (9.9D) =====
-(function(){
-  async function boot(){
-    try{
-      if(window.__DS_STARTAPP_BOOTSTRAPPED__) return;
-      window.__DS_STARTAPP_BOOTSTRAPPED__ = true;
-      if(typeof startApp === 'function') await startApp();
-      else console.error('startApp missing');
-    }catch(e){
-      console.error('startApp failed', e);
-      try{ updateSyncUI(); }catch(_){}
-    }
-  }
-  try{
-    if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once:true });
-    else boot();
-  }catch(e){ console.error('bootstrap error', e); }
-})();
-// ===== END DS_STARTAPP_BOOTSTRAP =====

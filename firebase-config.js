@@ -18,3 +18,6 @@ window.firebaseOrgId = "doggystyle";
 window.firebaseAdminEmails = [
   "raphael@boch-plan.de"
 ];
+
+// Alias für ältere Builds / Login-Skripte
+window.CLOUD_ORG_ID = window.firebaseOrgId;

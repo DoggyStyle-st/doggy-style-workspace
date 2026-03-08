@@ -46,7 +46,7 @@ async function init(){
       let db = null;
       try{ db = window.firebase.firestore ? window.firebase.firestore() : null; }catch(_){ db = null; }
 
-      const ORG_ID = (window.CLOUD_ORG_ID || 'doggystyle');
+      const ORG_ID = (window.CLOUD_ORG_ID || window.firebaseOrgId || 'doggystyle');
 
       async function ensureUserProfile(currentUser, preferredName){
         try{
