@@ -1,18 +1,20 @@
 
-// ===== DS_MASTER_FREEZE (4F-6) =====
+// ===== DS_MASTER_FREEZE =====
 const DS_MASTER_FREEZE = {
-  M50.9.9B_PROJECTPAGE_AUTH_20260308,
+  build: "M50.9.9C_PROJECTPAGE_AUTH_20260308",
   channel: "MASTER",
-  frozenAt: "2026-03-02"
+  frozenAt: "2026-03-08"
 };
-// Expose for diagnostics / support
 try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // ===== END DS_MASTER_FREEZE =====
+
+// Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
+const APP_BUILD = "M50.9.9C_PROJECTPAGE_AUTH_20260308";
+
 
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-M50.9.9B_PROJECTPAGE_AUTH_20260308;
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:

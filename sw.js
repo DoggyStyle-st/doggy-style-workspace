@@ -1,7 +1,7 @@
 // DoggyStyle Workspace Service Worker (Project Page safe)
 // Cache strategy: network-first for HTML, cache-first for static
 
-const M50.9.9B_PROJECTPAGE_AUTH_20260308;
+const BUILD_VERSION = "M50.9.9C_PROJECTPAGE_AUTH_20260308";
 const CACHE_NAME = "doggystyle-" + BUILD_VERSION;
 
 const STATIC_ASSETS = [
@@ -64,6 +64,7 @@ self.addEventListener("fetch", (event)=>{
   const isSame = (url.origin === self.location.origin);
   if(!isSame && !isGstatic) return;
 
+  // HTML: network-first
   if(isSame && isHTMLRequest(req)){
     event.respondWith((async ()=>{
       try{
@@ -79,13 +80,18 @@ self.addEventListener("fetch", (event)=>{
     return;
   }
 
+  // Static: cache-first (normalize same-origin URLs so ?v= works)
   event.respondWith((async ()=>{
-    const key = isSame ? normSameOrigin(req.url) : req.url;
+    const key = isSame ? normSameOrigin(req.url) : req;
     const cached = await caches.match(key);
     if(cached) return cached;
-    const fresh = await fetch(req);
-    const cache = await caches.open(CACHE_NAME);
-    cache.put(key, fresh.clone());
-    return fresh;
+    try{
+      const fresh = await fetch(req);
+      const cache = await caches.open(CACHE_NAME);
+      cache.put(key, fresh.clone());
+      return fresh;
+    }catch(e){
+      return cached;
+    }
   })());
 });
