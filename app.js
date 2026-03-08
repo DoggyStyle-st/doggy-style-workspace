@@ -1063,6 +1063,28 @@ function setAuthMsg(msg){
   const el = document.getElementById("authMsg");
   if(el) el.textContent = msg || "";
 }
+
+async function recoverAuthHandoff(){
+  try{
+    if(!(CLOUD && CLOUD.auth)) return false;
+    if(CLOUD.auth.currentUser) return true;
+    const email = (sessionStorage.getItem('ds_handoff_email')||'').trim().toLowerCase();
+    const pass = (sessionStorage.getItem('ds_handoff_pass')||'').trim();
+    const ts = Number(sessionStorage.getItem('ds_handoff_ts')||0);
+    if(!email || !pass || !ts) return false;
+    if((Date.now()-ts) > 10*60*1000) return false;
+    try{
+      await CLOUD.auth.setPersistence(window.firebase.auth.Auth.Persistence.SESSION);
+    }catch(_){ }
+    await CLOUD.auth.signInWithEmailAndPassword(email, pass);
+    try{ sessionStorage.removeItem('ds_handoff_pass'); }catch(_){ }
+    try{ sessionStorage.removeItem('ds_handoff_ts'); }catch(_){ }
+    return !!CLOUD.auth.currentUser;
+  }catch(e){
+    console.warn('recoverAuthHandoff failed', e);
+    return false;
+  }
+}
 async function cloudInit(){
   if(!cloudIsEnabled()){
     // genauer Grund für UI
@@ -10854,6 +10876,8 @@ async function startApp(){
     await bootOnce();
     return;
   }
+  // iPad/Safari: falls Auth-Persistenz beim Seitenwechsel noch nicht da ist, einmalige Handoff-Recovery versuchen
+  try{ if(!(CLOUD.auth && CLOUD.auth.currentUser)) await recoverAuthHandoff(); }catch(_){ }
   // Option C: immer Login erzwingen (Session bei jedem Start beenden)
   if(CLOUD.forceLoginAlways){
     try{ await CLOUD.auth.signOut(); }catch(e){}
@@ -10869,11 +10893,17 @@ async function startApp(){
       try{ if(btnLogoutApp) btnLogoutApp.style.display = 'none'; }catch(e){}
       try{ if(btnLogout) btnLogout.style.display = 'none'; }catch(e){}
       updateSyncUI();
-      // In dieser Version gibt es kein Login-Overlay mehr. Wenn nicht eingeloggt: auf Login-Seite umleiten.
+      // In dieser Version gibt es kein Login-Overlay mehr. Wenn nicht eingeloggt: nicht sofort umleiten.
+      // iPad/Safari kann den Auth-State leicht verzögert herstellen – daher noch einmal nachfassen.
       try{
-        const p = (location && location.pathname) ? location.pathname.toLowerCase() : '';
-        // local/offline Nutzung erlauben: nicht hart auf login umleiten
-        // if(!p.endsWith('login.html')) location.href = 'login.html';
+        setTimeout(async ()=>{
+          try{
+            if(CLOUD && CLOUD.auth && !CLOUD.auth.currentUser){
+              const ok = await recoverAuthHandoff();
+              if(ok){ hydrateRememberedUserBadge(); updateSyncUI(); }
+            }
+          }catch(_){ }
+        }, 700);
       }catch(e){}
       
     try{ if(btnLogout) btnLogout.style.display = 'inline-flex'; }catch(e){}

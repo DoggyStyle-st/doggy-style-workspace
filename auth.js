@@ -95,14 +95,23 @@ async function init(){
         if(!email || !pass){ setMsg('Bitte E‑Mail und Passwort eingeben.'); return; }
         setMsg('Anmelden …');
         try{
-          await auth.signInWithEmailAndPassword(email, pass);
+          const cred = await auth.signInWithEmailAndPassword(email, pass);
           // Merke E-Mail für UI-Fallback (falls iOS Auth-Restore verzögert)
-          try{ localStorage.setItem('ds_last_email', email.toLowerCase());
+          try{ localStorage.setItem('ds_last_email', email.toLowerCase()); }catch(_){ }
           try{ localStorage.setItem('last_email', email.toLowerCase()); }catch(_){ }
-          try{ sessionStorage.setItem('ds_last_email', email.toLowerCase()); }catch(_){ } }catch(_){ }
-          // Force token write + small settle delay before navigation (iOS/Safari)
+          try{ sessionStorage.setItem('ds_last_email', email.toLowerCase()); }catch(_){ }
+          // iPad/Safari handoff: Credentials nur kurzfristig in sessionStorage für app.html hinterlegen
+          try{ sessionStorage.setItem('ds_handoff_email', email.toLowerCase()); }catch(_){ }
+          try{ sessionStorage.setItem('ds_handoff_pass', pass); }catch(_){ }
+          try{ sessionStorage.setItem('ds_handoff_ts', String(Date.now())); }catch(_){ }
+          // Warten bis der Auth-State im Login-Tab stabil ist
           try{ await auth.currentUser.getIdToken(true); }catch(_){ }
-          await new Promise(r=>setTimeout(r, 180));
+          await new Promise((resolve)=>{
+            let done=false; let unsub=null;
+            const fin=()=>{ if(done) return; done=true; try{unsub&&unsub();}catch(_){ } resolve(); };
+            const t=setTimeout(fin, 1200);
+            try{ unsub = auth.onAuthStateChanged((u)=>{ if(u && cred && cred.user && u.uid===cred.user.uid){ clearTimeout(t); fin(); } }); }catch(_){ }
+          });
           await ensureUserProfile(auth.currentUser, '');
           const target=((await getUserRole(auth, db)) === 'customer') ? 'customer.html' : ('app.html?login_email=' + encodeURIComponent(email.toLowerCase()));
           location.href = target;
@@ -125,12 +134,20 @@ async function init(){
         if(!email || !pass){ setMsg('Bitte E‑Mail und Passwort eingeben.'); return; }
         setMsg('Registrieren …');
         try{
-          await auth.createUserWithEmailAndPassword(email, pass);
-          try{ localStorage.setItem('ds_last_email', email.toLowerCase());
+          const cred = await auth.createUserWithEmailAndPassword(email, pass);
+          try{ localStorage.setItem('ds_last_email', email.toLowerCase()); }catch(_){ }
           try{ localStorage.setItem('last_email', email.toLowerCase()); }catch(_){ }
-          try{ sessionStorage.setItem('ds_last_email', email.toLowerCase()); }catch(_){ } }catch(_){ }
+          try{ sessionStorage.setItem('ds_last_email', email.toLowerCase()); }catch(_){ }
+          try{ sessionStorage.setItem('ds_handoff_email', email.toLowerCase()); }catch(_){ }
+          try{ sessionStorage.setItem('ds_handoff_pass', pass); }catch(_){ }
+          try{ sessionStorage.setItem('ds_handoff_ts', String(Date.now())); }catch(_){ }
           try{ await auth.currentUser.getIdToken(true); }catch(_){ }
-          await new Promise(r=>setTimeout(r, 180));
+          await new Promise((resolve)=>{
+            let done=false; let unsub=null;
+            const fin=()=>{ if(done) return; done=true; try{unsub&&unsub();}catch(_){ } resolve(); };
+            const t=setTimeout(fin, 1200);
+            try{ unsub = auth.onAuthStateChanged((u)=>{ if(u && cred && cred.user && u.uid===cred.user.uid){ clearTimeout(t); fin(); } }); }catch(_){ }
+          });
           await ensureUserProfile(auth.currentUser, name);
           const target=((await getUserRole(auth, db)) === 'customer') ? 'customer.html' : ('app.html?login_email=' + encodeURIComponent(email.toLowerCase()));
           location.href = target;
