@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE =====
 const DS_MASTER_FREEZE = {
-  build: "M50.9.9C_PROJECTPAGE_AUTH_20260308",
+  build: "M50.9.9D_PROJECTPAGE_AUTH_BOOTFIX_20260308",
   channel: "MASTER",
   frozenAt: "2026-03-08"
 };
@@ -9,7 +9,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // ===== END DS_MASTER_FREEZE =====
 
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9C_PROJECTPAGE_AUTH_20260308";
+const APP_BUILD = "M50.9.9D_PROJECTPAGE_AUTH_BOOTFIX_20260308";
 
 
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
@@ -16211,3 +16211,24 @@ try{
     tab.addEventListener('click', ()=>{ try{ renderStatisticsPanel(); }catch(e){ console.error(e); } }, {passive:true});
   }
 }catch(e){ console.warn(e); }
+
+
+// ===== DS_STARTAPP_BOOTSTRAP (9.9D) =====
+(function(){
+  async function boot(){
+    try{
+      if(window.__DS_STARTAPP_BOOTSTRAPPED__) return;
+      window.__DS_STARTAPP_BOOTSTRAPPED__ = true;
+      if(typeof startApp === 'function') await startApp();
+      else console.error('startApp missing');
+    }catch(e){
+      console.error('startApp failed', e);
+      try{ updateSyncUI(); }catch(_){}
+    }
+  }
+  try{
+    if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once:true });
+    else boot();
+  }catch(e){ console.error('bootstrap error', e); }
+})();
+// ===== END DS_STARTAPP_BOOTSTRAP =====
