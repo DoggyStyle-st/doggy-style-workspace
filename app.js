@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE =====
 const DS_MASTER_FREEZE = {
-  build: "M50.9.9E_PROJECTPAGE_AUTH_ONLINEFIX_20260308",
+  build: "M50.9.9F_PROJECTPAGE_AUTH_HANDOFF_20260308",
   channel: "MASTER",
   frozenAt: "2026-03-08"
 };
@@ -9,7 +9,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // ===== END DS_MASTER_FREEZE =====
 
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9E_PROJECTPAGE_AUTH_ONLINEFIX_20260308";
+const APP_BUILD = "M50.9.9F_PROJECTPAGE_AUTH_HANDOFF_20260308";
 
 
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
