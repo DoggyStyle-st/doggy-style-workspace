@@ -19,5 +19,5 @@ window.firebaseAdminEmails = [
   "raphael@boch-plan.de"
 ];
 
-// Alias für ältere Builds / Login-Skripte
 window.CLOUD_ORG_ID = window.firebaseOrgId;
+window.DS_BUILD_EXPECT = "M50.9.9H_PROJECTPAGE_AUTH_HANDOFFFIX_20260309";

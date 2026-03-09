@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9F_PROJECTPAGE_AUTH_HANDOFF_20260308",
+  tag: "M50.9.9H_PROJECTPAGE_AUTH_HANDOFFFIX_20260309",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9F_PROJECTPAGE_AUTH_HANDOFF_20260308";
+const APP_BUILD = "M50.9.9H_PROJECTPAGE_AUTH_HANDOFFFIX_20260309";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -404,6 +404,48 @@ const ROLES = {
   GUEST: 'guest',
   LOCAL: 'local'
 };
+
+function getStoredLoginEmail(){
+  try{
+    const qp = new URLSearchParams(location.search || '');
+    const q = (qp.get('login_email') || '').trim().toLowerCase();
+    if(q) return q;
+  }catch(_){ }
+  for(const key of ['ds_last_email','last_email']){
+    try{
+      const v = (sessionStorage.getItem(key) || localStorage.getItem(key) || '').trim().toLowerCase();
+      if(v) return v;
+    }catch(_){ }
+  }
+  return '';
+}
+function rememberLoginEmail(email){
+  try{
+    const e = String(email||'').trim().toLowerCase();
+    if(!e) return;
+    try{ sessionStorage.setItem('ds_last_email', e); }catch(_){ }
+    try{ localStorage.setItem('ds_last_email', e); }catch(_){ }
+    try{ localStorage.setItem('last_email', e); }catch(_){ }
+  }catch(_){ }
+}
+async function recoverAuthFromHandoff(){
+  try{
+    if(!CLOUD || !CLOUD.auth || !CLOUD.enabled) return false;
+    if(CLOUD.auth.currentUser) return true;
+    const email = (sessionStorage.getItem('ds_handoff_email') || '').trim().toLowerCase();
+    const pass  = (sessionStorage.getItem('ds_handoff_pass') || '');
+    const tsRaw = sessionStorage.getItem('ds_handoff_ts') || '0';
+    const ageMs = Date.now() - Number(tsRaw || 0);
+    if(!email || !pass || !Number.isFinite(ageMs) || ageMs > 5 * 60 * 1000) return false;
+    await CLOUD.auth.signInWithEmailAndPassword(email, pass);
+    rememberLoginEmail(email);
+    try{ sessionStorage.removeItem('ds_handoff_pass'); }catch(_){ }
+    return true;
+  }catch(e){
+    console.warn('[DS] auth handoff recovery failed', e);
+    return false;
+  }
+}
 function isStaff(){
   return CLOUD.role === ROLES.ADMIN || CLOUD.role === ROLES.STAFF;
 }
@@ -454,9 +496,12 @@ function updateSyncUI(){
   const details = document.getElementById('syncDetails');
   const manualBtn = document.getElementById('manualSaveBtn');
   if(userEl){
-    if(CLOUD.enabled && CLOUD.user){
+    const fallbackEmail = getStoredLoginEmail();
+    const liveEmail = (CLOUD && CLOUD.user && CLOUD.user.email) ? String(CLOUD.user.email).toLowerCase() : '';
+    const shown = liveEmail || fallbackEmail;
+    if(shown){
       userEl.style.display = 'inline-flex';
-      userEl.textContent = (CLOUD.user.email || 'eingeloggt');
+      userEl.textContent = shown;
     } else {
       try{ const ba=document.querySelector(".bottom-actions"); if(ba) ba.style.display="block"; }catch(e){}
       userEl.style.display = 'none';
@@ -464,7 +509,8 @@ function updateSyncUI(){
     }
   }
   const netOnline = (typeof navigator !== 'undefined') ? !!navigator.onLine : false;
-  const cloudOk = !!(netOnline && cloudIsEnabled() && CLOUD && CLOUD.enabled && CLOUD.user && SYNC.cloudReachable);
+  const effectiveOnline = !!(netOnline || (CLOUD && CLOUD.enabled) || SYNC.cloudReachable);
+  const cloudOk = !!(effectiveOnline && cloudIsEnabled() && CLOUD && CLOUD.enabled && (CLOUD.user || getStoredLoginEmail()) && SYNC.cloudReachable);
   try{ if(pill){ pill.classList.toggle('is-online', !!cloudOk); pill.classList.toggle('is-offline', !cloudOk); } }catch(e){}
   const localLine = `Lokal gespeichert: ${fmtDT(SYNC.localSavedAt)}`;
   // Internet-Status (nicht gleich Cloud!)
@@ -10804,6 +10850,7 @@ async function startApp(){
   wireCoreUI();
   // 1) Wenn Cloud aktiviert: Login + Sync
   const cloudOk = await cloudInit();
+  if(cloudOk){ try{ await recoverAuthFromHandoff(); }catch(_){ } }
   if(!cloudOk){
     showAuthGate(false);
     await bootOnce();
@@ -10818,12 +10865,14 @@ async function startApp(){
   // Auth state
   CLOUD.auth.onAuthStateChanged(async (user)=>{
     CLOUD.user = user || null;
+    if(user && user.email){ try{ rememberLoginEmail(user.email); }catch(_){ } }
     if(!user){
       try{ const ba=document.querySelector(".bottom-actions"); if(ba) ba.style.display="none"; }catch(e){}
       CLOUD.role = 'guest';
       try{ if(btnLogoutApp) btnLogoutApp.style.display = 'none'; }catch(e){}
       try{ if(btnLogout) btnLogout.style.display = 'none'; }catch(e){}
       updateSyncUI();
+      try{ const userEl=document.getElementById('syncUser'); const e=getStoredLoginEmail(); if(userEl && e){ userEl.style.display='inline-flex'; userEl.textContent=e; } }catch(_){ }
       // In dieser Version gibt es kein Login-Overlay mehr. Wenn nicht eingeloggt: auf Login-Seite umleiten.
       try{
         const p = (location && location.pathname) ? location.pathname.toLowerCase() : '';
