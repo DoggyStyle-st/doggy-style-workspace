@@ -11,16 +11,6 @@
     return (window.firebase && window.firebase.initializeApp && window.firebaseConfig);
   }
 
-  function rememberEmail(email){
-    try{
-      const e = String(email||'').trim().toLowerCase();
-      if(!e) return;
-      try{ localStorage.setItem('ds_last_email', e); }catch(_){ }
-      try{ localStorage.setItem('last_email', e); }catch(_){ }
-      try{ sessionStorage.setItem('ds_last_email', e); }catch(_){ }
-    }catch(_){ }
-  }
-
   
   async function getUserRole(auth, db){
     try{
@@ -107,7 +97,9 @@ async function init(){
         try{
           const cred = await auth.signInWithEmailAndPassword(email, pass);
           // Merke E-Mail für UI-Fallback (falls iOS Auth-Restore verzögert)
-          rememberEmail(email);
+          try{ localStorage.setItem('ds_last_email', email.toLowerCase()); }catch(_){ }
+          try{ localStorage.setItem('last_email', email.toLowerCase()); }catch(_){ }
+          try{ sessionStorage.setItem('ds_last_email', email.toLowerCase()); }catch(_){ }
           // iPad/Safari handoff: Credentials nur kurzfristig in sessionStorage für app.html hinterlegen
           try{ sessionStorage.setItem('ds_handoff_email', email.toLowerCase()); }catch(_){ }
           try{ sessionStorage.setItem('ds_handoff_pass', pass); }catch(_){ }
@@ -143,7 +135,9 @@ async function init(){
         setMsg('Registrieren …');
         try{
           const cred = await auth.createUserWithEmailAndPassword(email, pass);
-          rememberEmail(email);
+          try{ localStorage.setItem('ds_last_email', email.toLowerCase()); }catch(_){ }
+          try{ localStorage.setItem('last_email', email.toLowerCase()); }catch(_){ }
+          try{ sessionStorage.setItem('ds_last_email', email.toLowerCase()); }catch(_){ }
           try{ sessionStorage.setItem('ds_handoff_email', email.toLowerCase()); }catch(_){ }
           try{ sessionStorage.setItem('ds_handoff_pass', pass); }catch(_){ }
           try{ sessionStorage.setItem('ds_handoff_ts', String(Date.now())); }catch(_){ }

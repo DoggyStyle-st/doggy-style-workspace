@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9H_PROJECTPAGE_AUTH_HANDOFFFIX_20260309",
+  tag: "M50.9.9I_PROJECTPAGE_AUTH_VISIBLEMAIL_20260309",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,29 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9H_PROJECTPAGE_AUTH_HANDOFFFIX_20260309";
+const APP_BUILD = "M50.9.9I_PROJECTPAGE_AUTH_VISIBLEMAIL_20260309";
+
+(function bootstrapRememberedEmail(){
+  try{
+    const qs = new URLSearchParams(location.search || "");
+    const email = String(qs.get("login_email") || "").trim().toLowerCase();
+    if(email){
+      try{ sessionStorage.setItem("ds_last_email", email); }catch(_){ }
+      try{ localStorage.setItem("ds_last_email", email); }catch(_){ }
+      try{ localStorage.setItem("last_email", email); }catch(_){ }
+    }
+  }catch(_){ }
+})();
+function dsRememberedEmail(){
+  try{
+    const qs = new URLSearchParams(location.search || "");
+    const q = String(qs.get("login_email") || "").trim().toLowerCase();
+    if(q) return q;
+  }catch(_){ }
+  try{ const v = String(sessionStorage.getItem("ds_last_email") || "").trim().toLowerCase(); if(v) return v; }catch(_){ }
+  try{ const v = String(localStorage.getItem("ds_last_email") || localStorage.getItem("last_email") || "").trim().toLowerCase(); if(v) return v; }catch(_){ }
+  return '';
+}
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -404,48 +426,6 @@ const ROLES = {
   GUEST: 'guest',
   LOCAL: 'local'
 };
-
-function getStoredLoginEmail(){
-  try{
-    const qp = new URLSearchParams(location.search || '');
-    const q = (qp.get('login_email') || '').trim().toLowerCase();
-    if(q) return q;
-  }catch(_){ }
-  for(const key of ['ds_last_email','last_email']){
-    try{
-      const v = (sessionStorage.getItem(key) || localStorage.getItem(key) || '').trim().toLowerCase();
-      if(v) return v;
-    }catch(_){ }
-  }
-  return '';
-}
-function rememberLoginEmail(email){
-  try{
-    const e = String(email||'').trim().toLowerCase();
-    if(!e) return;
-    try{ sessionStorage.setItem('ds_last_email', e); }catch(_){ }
-    try{ localStorage.setItem('ds_last_email', e); }catch(_){ }
-    try{ localStorage.setItem('last_email', e); }catch(_){ }
-  }catch(_){ }
-}
-async function recoverAuthFromHandoff(){
-  try{
-    if(!CLOUD || !CLOUD.auth || !CLOUD.enabled) return false;
-    if(CLOUD.auth.currentUser) return true;
-    const email = (sessionStorage.getItem('ds_handoff_email') || '').trim().toLowerCase();
-    const pass  = (sessionStorage.getItem('ds_handoff_pass') || '');
-    const tsRaw = sessionStorage.getItem('ds_handoff_ts') || '0';
-    const ageMs = Date.now() - Number(tsRaw || 0);
-    if(!email || !pass || !Number.isFinite(ageMs) || ageMs > 5 * 60 * 1000) return false;
-    await CLOUD.auth.signInWithEmailAndPassword(email, pass);
-    rememberLoginEmail(email);
-    try{ sessionStorage.removeItem('ds_handoff_pass'); }catch(_){ }
-    return true;
-  }catch(e){
-    console.warn('[DS] auth handoff recovery failed', e);
-    return false;
-  }
-}
 function isStaff(){
   return CLOUD.role === ROLES.ADMIN || CLOUD.role === ROLES.STAFF;
 }
@@ -495,13 +475,12 @@ function updateSyncUI(){
   const userEl = document.getElementById('syncUser');
   const details = document.getElementById('syncDetails');
   const manualBtn = document.getElementById('manualSaveBtn');
+  const rememberedEmail = dsRememberedEmail();
+  const visibleEmail = (CLOUD && CLOUD.user && CLOUD.user.email) ? String(CLOUD.user.email).toLowerCase() : rememberedEmail;
   if(userEl){
-    const fallbackEmail = getStoredLoginEmail();
-    const liveEmail = (CLOUD && CLOUD.user && CLOUD.user.email) ? String(CLOUD.user.email).toLowerCase() : '';
-    const shown = liveEmail || fallbackEmail;
-    if(shown){
+    if(visibleEmail){
       userEl.style.display = 'inline-flex';
-      userEl.textContent = shown;
+      userEl.textContent = visibleEmail;
     } else {
       try{ const ba=document.querySelector(".bottom-actions"); if(ba) ba.style.display="block"; }catch(e){}
       userEl.style.display = 'none';
@@ -509,24 +488,21 @@ function updateSyncUI(){
     }
   }
   const netOnline = (typeof navigator !== 'undefined') ? !!navigator.onLine : false;
-  const effectiveOnline = !!(netOnline || (CLOUD && CLOUD.enabled) || SYNC.cloudReachable);
-  const cloudOk = !!(effectiveOnline && cloudIsEnabled() && CLOUD && CLOUD.enabled && (CLOUD.user || getStoredLoginEmail()) && SYNC.cloudReachable);
+  const cloudPossible = !!(cloudIsEnabled && cloudIsEnabled());
+  const cloudLoggedIn = !!(CLOUD && CLOUD.enabled && CLOUD.user);
+  const cloudOk = !!((netOnline || SYNC.cloudReachable) && cloudPossible && cloudLoggedIn && SYNC.cloudReachable);
   try{ if(pill){ pill.classList.toggle('is-online', !!cloudOk); pill.classList.toggle('is-offline', !cloudOk); } }catch(e){}
   const localLine = `Lokal gespeichert: ${fmtDT(SYNC.localSavedAt)}`;
-  // Internet-Status (nicht gleich Cloud!)
-  const netLine = `Internet: ${cloudOk ? 'Online' : 'Offline'}`;
+  const netLine = `Internet: ${netOnline ? 'Online' : 'Offline'}`;
   let pillText = cloudOk ? 'Online' : 'Offline';
   let cloudLine = 'Cloud: aus';
-  if(!cloudIsEnabled()){
-    // Cloud nicht möglich (SDK fehlt) – das ist der Hauptgrund für "immer Offline" in der Wahrnehmung
+  if(!cloudPossible){
     cloudLine = window.firebaseConfig ? 'Cloud: bereit (SDK nicht geladen)' : 'Cloud: aus';
-    if(window.firebaseConfig && CLOUD.reason){
-      cloudLine += ` · ${CLOUD.reason}`;
-    }
+    if(window.firebaseConfig && CLOUD.reason){ cloudLine += ` · ${CLOUD.reason}`; }
   } else if(CLOUD.enabled){
     if(!CLOUD.user){
-      pillText = `${cloudOk ? 'Online' : 'Offline'} · Cloud: Login nötig`;
-      cloudLine = 'Cloud: nicht angemeldet';
+      pillText = `${netOnline ? 'Online' : 'Offline'} · Cloud: Login nötig`;
+      cloudLine = visibleEmail ? 'Cloud: Session wird wiederhergestellt' : 'Cloud: nicht angemeldet';
     } else if(SYNC.cloudLastError){
       pillText = `${cloudOk ? 'Online' : 'Offline'} · Cloud: Fehler`;
       cloudLine = `Cloud Fehler: ${SYNC.cloudLastError}`;
@@ -541,12 +517,13 @@ function updateSyncUI(){
   if(pill) pill.textContent = `${pillText} · ${fmtDT(SYNC.localSavedAt)}`;
   const dot=document.getElementById('syncDot');
   if(dot){ dot.classList.toggle('online', !!netOnline); dot.classList.toggle('offline', !netOnline); }
-  if(details) details.textContent = `${localLine}\n${netLine}\n${cloudLine}\nCloud-Ping: ${fmtDT(SYNC.cloudReachCheckedAt)}${SYNC.cloudReachError ? ' · '+SYNC.cloudReachError : ''}`;
-  // Manual cloud save: only enable when Cloud is active + logged in
+  if(details) details.textContent = `${localLine}
+${netLine}
+${cloudLine}
+Cloud-Ping: ${fmtDT(SYNC.cloudReachCheckedAt)}${SYNC.cloudReachError ? ' · '+SYNC.cloudReachError : ''}`;
   if(manualBtn){
     const ok = !!(CLOUD.enabled && CLOUD.user);
-    // Wenn Cloud grundsätzlich nicht verfügbar: Button ausblenden (wirkt sonst "kaputt")
-    if(!cloudIsEnabled()){
+    if(!cloudPossible){
       manualBtn.style.display = 'none';
     } else {
       manualBtn.style.display = '';
@@ -10850,7 +10827,6 @@ async function startApp(){
   wireCoreUI();
   // 1) Wenn Cloud aktiviert: Login + Sync
   const cloudOk = await cloudInit();
-  if(cloudOk){ try{ await recoverAuthFromHandoff(); }catch(_){ } }
   if(!cloudOk){
     showAuthGate(false);
     await bootOnce();
@@ -10865,14 +10841,12 @@ async function startApp(){
   // Auth state
   CLOUD.auth.onAuthStateChanged(async (user)=>{
     CLOUD.user = user || null;
-    if(user && user.email){ try{ rememberLoginEmail(user.email); }catch(_){ } }
     if(!user){
       try{ const ba=document.querySelector(".bottom-actions"); if(ba) ba.style.display="none"; }catch(e){}
       CLOUD.role = 'guest';
       try{ if(btnLogoutApp) btnLogoutApp.style.display = 'none'; }catch(e){}
       try{ if(btnLogout) btnLogout.style.display = 'none'; }catch(e){}
       updateSyncUI();
-      try{ const userEl=document.getElementById('syncUser'); const e=getStoredLoginEmail(); if(userEl && e){ userEl.style.display='inline-flex'; userEl.textContent=e; } }catch(_){ }
       // In dieser Version gibt es kein Login-Overlay mehr. Wenn nicht eingeloggt: auf Login-Seite umleiten.
       try{
         const p = (location && location.pathname) ? location.pathname.toLowerCase() : '';
