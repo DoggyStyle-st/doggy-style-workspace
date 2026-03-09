@@ -14332,6 +14332,27 @@ function _statEl(id){ return document.getElementById(id); }
 
 
 
+function _statGetPetById(pid){
+  try{
+    const pets = state && state.pets;
+    if(!pets || !pid) return null;
+    if(Array.isArray(pets)) return pets.find(p => p && String(p.id||'') === String(pid)) || null;
+    return pets[pid] || null;
+  }catch(_){ return null; }
+}
+
+function _statNormalizeSexCode(rawSex, pet){
+  const raw = String(rawSex || pet?.sex || pet?.gender || pet?.geschlecht || pet?.sexLabel || '').trim();
+  if(!raw) return '';
+  const norm = raw.toLowerCase();
+  const neutered = !!(pet && (pet.neutered === true || pet.kastriert === true || pet.isNeutered === true || String(pet.sexStatus||'').toLowerCase() === 'kastriert'));
+  if(['m','male','rüde','ruede','rude','maennlich','männlich'].includes(norm)) return neutered ? 'k' : 'm';
+  if(['w','f','female','hündin','huendin','weiblich'].includes(norm)) return neutered ? 's' : 'w';
+  if(['k','kastriert','kastrierter rüde','kastrierter ruede'].includes(norm)) return 'k';
+  if(['s','sterilisiert','kastrierte hündin','kastrierte huendin'].includes(norm)) return 's';
+  return '';
+}
+
 function updateStatDogMeta(){
   const metaEl = _statEl("statDogMeta");
   const sel = _statEl("statDogSelect");
@@ -14342,7 +14363,7 @@ function updateStatDogMeta(){
   const stayId = sel.value;
   if(!stayId){ metaEl.textContent = ""; return; }
   const stay = (state.stays||[]).find(s=>s.id===stayId);
-  const pet = (state.pets||[]).find(p=>p.id===stay?.petId) || {};
+  const pet = _statGetPetById(stay?.petId) || {};
   const cust = (state.customers||[]).find(c=>c.id===stay?.customerId) || {};
   const mainBreed = _statGetMainBreed(pet.breed);
   const age = _statAgeYears(pet.birthdate);
@@ -14350,8 +14371,8 @@ function updateStatDogMeta(){
   const repeat = _statIsRepeatDog(pet.id) ? "Stammgast" : "Erstkontakt";
   metaEl.innerHTML = `${escapeHtml(mainBreed)}${age!=null?(" · "+age+" J."):""}${pet.sex?(" · "+escapeHtml(pet.sex)):""}<br>${escapeHtml(cust.name||"")} · Tag ${dayOf||"?"} · ${repeat}`;
   if(sexEl && !sexEl.value){
-    // auto fill from pet if present
-    if(pet.sex) sexEl.value = pet.sex;
+    const sx = _statNormalizeSexCode(pet.sex, pet);
+    if(sx) sexEl.value = sx;
   }
 }
 
@@ -15153,16 +15174,10 @@ function populateStatDogsForAll(dateISO){
     if(breedEl) breedEl.value = breed || '—';
 
     // Sex / Gender (normalize to select values m/w/k/s)
-    const rawSex = (p && (p.sex || p.gender || p.geschlecht || p.sexLabel)) ? String(p.sex||p.gender||p.geschlecht||p.sexLabel) : '';
-    const norm = rawSex.trim().toLowerCase();
-    let sexCode = '';
-    const neutered = !!(p && (p.neutered === true || p.kastriert === true || p.isNeutered === true || String(p.sexStatus||'').toLowerCase() === 'kastriert'));
-    if(['m','male','rüde','ruede','rude','maennlich','männlich'].includes(norm)) sexCode = neutered ? 'k' : 'm';
-    else if(['w','f','female','hündin','huendin','weiblich'].includes(norm)) sexCode = neutered ? 's' : 'w';
-    else if(['k','kastriert','kastrierter rüde','kastrierter ruede'].includes(norm)) sexCode = 'k';
-    else if(['s','sterilisiert','kastrierte hündin','kastrierte huendin'].includes(norm)) sexCode = 's';
-    if(sexEl && sexCode){
-      sexEl.value = sexCode;
+    const sexCode = _statNormalizeSexCode((p && (p.sex || p.gender || p.geschlecht || p.sexLabel)) ? String(p.sex||p.gender||p.geschlecht||p.sexLabel) : '', p);
+    if(sexEl){
+      if(sexCode) sexEl.value = sexCode;
+      else if(!sexEl.value) sexEl.value = '';
     }
 
     // Age (years) – if birthdate known
@@ -15465,31 +15480,13 @@ async function loadAndRenderStatAnalysis(){
   if(msg) msg.textContent='Lade…';
 
   try{
-    const fs=_statFs();
-    let q = _statColl().where('dogId','==',dogId);
-    if(from) q = q.where('date','>=',from);
-    if(to) q = q.where('date','<=',to);
-    q = q.orderBy('date','asc');
-
-    const snap = await q.get();
-    const rows = [];
-    snap.forEach(doc=>{
-      const d = doc.data() || {};
-      rows.push({ id:doc.id, ...d });
-    });
+    const rows = await _statLoadRange({from,to,dogId});
 
     if(!rows.length){
       if(msg) msg.textContent='Keine Daten im Zeitraum.';
       _statRenderAnalysisEmpty();
       return;
     }
-
-    // normalize, compute indexB if missing
-    rows.forEach(r=>{
-      const sc = r.scores || r.scales || {};
-      r.__scores = sc;
-      r.__indexB = Number.isFinite(Number(r.indexB)) ? Number(r.indexB) : _statComputeIndexB(sc);
-    });
 
     _statRenderAnalysis(rows);
     if(msg) msg.textContent = `${rows.length} Einträge.`;
@@ -15537,27 +15534,58 @@ function _statFillBreedSelect(selId){
   });
 }
 
-async function _statLoadRange({from='', to='', breed='' }={}){
-  let q = _statColl();
-  if(breed) q = q.where('breed','==',breed);
-  if(from) q = q.where('date','>=',from);
-  if(to) q = q.where('date','<=',to);
-  q = q.orderBy('date','asc');
-
-  const snap = await q.get();
-  const rows = [];
-  snap.forEach(doc=>{
-    const d = doc.data() || {};
-    rows.push({ id:doc.id, ...d });
-  });
-
-  rows.forEach(r=>{
+function _statLocalFilterRange({from='', to='', breed='', dogId='' }={}){
+  let rows = _statLocalRead();
+  rows = (rows||[]).filter(r => r && (!dogId || String(r.dogId||r.petId||'') === String(dogId)));
+  if(breed) rows = rows.filter(r => String(r.breed||'') === String(breed));
+  if(from) rows = rows.filter(r => String(r.date||'') >= String(from));
+  if(to) rows = rows.filter(r => String(r.date||'') <= String(to));
+  rows.sort((a,b)=> String(a.date||'').localeCompare(String(b.date||'')));
+  return rows.map(r=>{
     const sc = r.scores || r.scales || {};
-    r.__scores = sc;
-    r.__indexB = Number.isFinite(Number(r.indexB)) ? Number(r.indexB) : _statComputeIndexB(sc);
+    return { ...r, __scores: sc, __indexB: Number.isFinite(Number(r.indexB)) ? Number(r.indexB) : _statComputeIndexB(sc) };
   });
+}
 
-  return rows;
+async function _statLoadRange({from='', to='', breed='', dogId='' }={}){
+  const localRows = _statLocalFilterRange({from,to,breed,dogId});
+
+  const cloudReady = !!(typeof CLOUD !== 'undefined' && CLOUD && CLOUD.enabled && CLOUD.db && typeof _statColl === 'function');
+  const fbReady = !!(window.firebase && firebase.firestore && window.firebase.apps && window.firebase.apps.length);
+  if(!(cloudReady || fbReady)) return localRows;
+
+  try{
+    let q = _statColl();
+    if(dogId) q = q.where('dogId','==',dogId);
+    if(breed) q = q.where('breed','==',breed);
+    if(from) q = q.where('date','>=',from);
+    if(to) q = q.where('date','<=',to);
+    q = q.orderBy('date','asc');
+
+    const snap = await q.get();
+    const merged = new Map();
+    localRows.forEach(r => merged.set(String(r.docId || r.id || ''), r));
+
+    snap.forEach(doc=>{
+      const d = doc.data() || {};
+      const sc = d.scores || d.scales || {};
+      const row = { id:doc.id, ...d, __scores: sc, __indexB: Number.isFinite(Number(d.indexB)) ? Number(d.indexB) : _statComputeIndexB(sc) };
+      const key = String(row.docId || row.id || doc.id || '');
+      const prev = merged.get(key);
+      if(!prev){
+        merged.set(key, row);
+        return;
+      }
+      const prevTs = Number(prev.updatedAtLocal || prev.updatedAt || 0);
+      const nextTs = Number(row.updatedAtLocal || row.updatedAt || 0);
+      merged.set(key, nextTs >= prevTs ? { ...prev, ...row } : { ...row, ...prev });
+    });
+
+    return Array.from(merged.values()).sort((a,b)=> String(a.date||'').localeCompare(String(b.date||'')));
+  }catch(e){
+    console.warn('[STAT] _statLoadRange cloud fallback -> local', e);
+    return localRows;
+  }
 }
 
 function _statAvg(arr){
@@ -16048,26 +16076,11 @@ async function exportStatCsv(){
   const msg=document.getElementById('statExpMsg');
   if(msg) msg.textContent='Lade…';
   try{
-    const fs=_statFs();
     const dogId=(document.getElementById('statExpDog')||{}).value || '';
     const from=(document.getElementById('statExpFrom')||{}).value || '';
     const to=(document.getElementById('statExpTo')||{}).value || '';
 
-    let q=_statColl();
-    if(dogId) q=q.where('dogId','==',dogId);
-    if(from) q=q.where('date','>=',from);
-    if(to) q=q.where('date','<=',to);
-    // If dogId not set, avoid composite index requirement by ordering only when possible
-    q=q.orderBy('date','asc');
-
-    const snap=await q.get();
-    const rows=[];
-    snap.forEach(doc=>{
-      const d=doc.data()||{};
-      const sc=d.scores||d.scales||{};
-      const idx = Number.isFinite(Number(d.indexB)) ? Number(d.indexB) : _statComputeIndexB(sc);
-      rows.push({id:doc.id, ...d, __scores:sc, __indexB:idx});
-    });
+    const rows = await _statLoadRange({from,to,dogId});
 
     if(!rows.length){
       if(msg) msg.textContent='Keine Daten.';
