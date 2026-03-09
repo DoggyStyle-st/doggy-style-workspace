@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9I_PROJECTPAGE_AUTH_VISIBLEMAIL_20260309",
+  tag: "M50.9.7_STAT_ORG_LOCKED_ROOT_CLEAN_20260303",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,29 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9I_PROJECTPAGE_AUTH_VISIBLEMAIL_20260309";
-
-(function bootstrapRememberedEmail(){
-  try{
-    const qs = new URLSearchParams(location.search || "");
-    const email = String(qs.get("login_email") || "").trim().toLowerCase();
-    if(email){
-      try{ sessionStorage.setItem("ds_last_email", email); }catch(_){ }
-      try{ localStorage.setItem("ds_last_email", email); }catch(_){ }
-      try{ localStorage.setItem("last_email", email); }catch(_){ }
-    }
-  }catch(_){ }
-})();
-function dsRememberedEmail(){
-  try{
-    const qs = new URLSearchParams(location.search || "");
-    const q = String(qs.get("login_email") || "").trim().toLowerCase();
-    if(q) return q;
-  }catch(_){ }
-  try{ const v = String(sessionStorage.getItem("ds_last_email") || "").trim().toLowerCase(); if(v) return v; }catch(_){ }
-  try{ const v = String(localStorage.getItem("ds_last_email") || localStorage.getItem("last_email") || "").trim().toLowerCase(); if(v) return v; }catch(_){ }
-  return '';
-}
+const APP_BUILD = "M50.9.7_STAT_ORG_LOCKED_ROOT_CLEAN_20260303";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -475,12 +453,10 @@ function updateSyncUI(){
   const userEl = document.getElementById('syncUser');
   const details = document.getElementById('syncDetails');
   const manualBtn = document.getElementById('manualSaveBtn');
-  const rememberedEmail = dsRememberedEmail();
-  const visibleEmail = (CLOUD && CLOUD.user && CLOUD.user.email) ? String(CLOUD.user.email).toLowerCase() : rememberedEmail;
   if(userEl){
-    if(visibleEmail){
+    if(CLOUD.enabled && CLOUD.user){
       userEl.style.display = 'inline-flex';
-      userEl.textContent = visibleEmail;
+      userEl.textContent = (CLOUD.user.email || 'eingeloggt');
     } else {
       try{ const ba=document.querySelector(".bottom-actions"); if(ba) ba.style.display="block"; }catch(e){}
       userEl.style.display = 'none';
@@ -488,21 +464,23 @@ function updateSyncUI(){
     }
   }
   const netOnline = (typeof navigator !== 'undefined') ? !!navigator.onLine : false;
-  const cloudPossible = !!(cloudIsEnabled && cloudIsEnabled());
-  const cloudLoggedIn = !!(CLOUD && CLOUD.enabled && CLOUD.user);
-  const cloudOk = !!((netOnline || SYNC.cloudReachable) && cloudPossible && cloudLoggedIn && SYNC.cloudReachable);
+  const cloudOk = !!(netOnline && cloudIsEnabled() && CLOUD && CLOUD.enabled && CLOUD.user && SYNC.cloudReachable);
   try{ if(pill){ pill.classList.toggle('is-online', !!cloudOk); pill.classList.toggle('is-offline', !cloudOk); } }catch(e){}
   const localLine = `Lokal gespeichert: ${fmtDT(SYNC.localSavedAt)}`;
-  const netLine = `Internet: ${netOnline ? 'Online' : 'Offline'}`;
+  // Internet-Status (nicht gleich Cloud!)
+  const netLine = `Internet: ${cloudOk ? 'Online' : 'Offline'}`;
   let pillText = cloudOk ? 'Online' : 'Offline';
   let cloudLine = 'Cloud: aus';
-  if(!cloudPossible){
+  if(!cloudIsEnabled()){
+    // Cloud nicht möglich (SDK fehlt) – das ist der Hauptgrund für "immer Offline" in der Wahrnehmung
     cloudLine = window.firebaseConfig ? 'Cloud: bereit (SDK nicht geladen)' : 'Cloud: aus';
-    if(window.firebaseConfig && CLOUD.reason){ cloudLine += ` · ${CLOUD.reason}`; }
+    if(window.firebaseConfig && CLOUD.reason){
+      cloudLine += ` · ${CLOUD.reason}`;
+    }
   } else if(CLOUD.enabled){
     if(!CLOUD.user){
-      pillText = `${netOnline ? 'Online' : 'Offline'} · Cloud: Login nötig`;
-      cloudLine = visibleEmail ? 'Cloud: Session wird wiederhergestellt' : 'Cloud: nicht angemeldet';
+      pillText = `${cloudOk ? 'Online' : 'Offline'} · Cloud: Login nötig`;
+      cloudLine = 'Cloud: nicht angemeldet';
     } else if(SYNC.cloudLastError){
       pillText = `${cloudOk ? 'Online' : 'Offline'} · Cloud: Fehler`;
       cloudLine = `Cloud Fehler: ${SYNC.cloudLastError}`;
@@ -517,13 +495,12 @@ function updateSyncUI(){
   if(pill) pill.textContent = `${pillText} · ${fmtDT(SYNC.localSavedAt)}`;
   const dot=document.getElementById('syncDot');
   if(dot){ dot.classList.toggle('online', !!netOnline); dot.classList.toggle('offline', !netOnline); }
-  if(details) details.textContent = `${localLine}
-${netLine}
-${cloudLine}
-Cloud-Ping: ${fmtDT(SYNC.cloudReachCheckedAt)}${SYNC.cloudReachError ? ' · '+SYNC.cloudReachError : ''}`;
+  if(details) details.textContent = `${localLine}\n${netLine}\n${cloudLine}\nCloud-Ping: ${fmtDT(SYNC.cloudReachCheckedAt)}${SYNC.cloudReachError ? ' · '+SYNC.cloudReachError : ''}`;
+  // Manual cloud save: only enable when Cloud is active + logged in
   if(manualBtn){
     const ok = !!(CLOUD.enabled && CLOUD.user);
-    if(!cloudPossible){
+    // Wenn Cloud grundsätzlich nicht verfügbar: Button ausblenden (wirkt sonst "kaputt")
+    if(!cloudIsEnabled()){
       manualBtn.style.display = 'none';
     } else {
       manualBtn.style.display = '';
@@ -14864,13 +14841,28 @@ function _statInterpretIndex(idx){
 }
 
 // ---------- Firestore helpers ----------
+function _statHasFirestoreApp(){
+  try{
+    if(typeof CLOUD !== 'undefined' && CLOUD && CLOUD.enabled && CLOUD.db) return true;
+  }catch(_){ }
+  try{
+    return !!(window.firebase && firebase.apps && firebase.apps.length && firebase.firestore);
+  }catch(_){ return false; }
+}
 function _statFs(){
-  if(!(window.firebase && firebase.firestore)) throw new Error('firebase not available');
-  // wenn Cloud aktiv ist, nutze die bereits initialisierte DB
   try{
     if(typeof CLOUD !== 'undefined' && CLOUD && CLOUD.enabled && CLOUD.db) return CLOUD.db;
   }catch(_){ }
+  if(!_statHasFirestoreApp()) throw new Error('firebase not available');
   return firebase.firestore();
+}
+function _statFieldServerTimestamp(){
+  try{
+    if(_statHasFirestoreApp() && window.firebase && firebase.firestore && firebase.firestore.FieldValue && firebase.firestore.FieldValue.serverTimestamp){
+      return firebase.firestore.FieldValue.serverTimestamp();
+    }
+  }catch(_){ }
+  return Date.now();
 }
 function _statUid(){
   try{
@@ -14889,6 +14881,89 @@ function _statColl(){
   return db.collection('orgs')
            .doc(orgId)
            .collection('statistics');
+}
+function _statEnsureLocalStore(){
+  ensureStateShape();
+  state.statisticsRatings = Array.isArray(state.statisticsRatings) ? state.statisticsRatings : [];
+  return state.statisticsRatings;
+}
+function _statLocalUpsert(docId, payload){
+  const store = _statEnsureLocalStore();
+  const idx = store.findIndex(x => x && x.id === docId);
+  const existing = idx >= 0 ? (store[idx] || {}) : null;
+  const next = { ...(existing || {}), ...payload, id: docId };
+  if(!next.createdAt) next.createdAt = existing?.createdAt || Date.now();
+  next.updatedAt = Date.now();
+  if(idx >= 0) store[idx] = next;
+  else store.push(next);
+  saveState();
+  return next;
+}
+function _statNormalizeRows(rows){
+  const out = Array.isArray(rows) ? rows.slice() : [];
+  out.forEach(r=>{
+    const sc = r.scores || r.scales || {};
+    r.__scores = sc;
+    r.__indexB = Number.isFinite(Number(r.indexB)) ? Number(r.indexB) : _statComputeIndexB(sc);
+  });
+  out.sort((a,b)=> String(a.date||'').localeCompare(String(b.date||''), 'de'));
+  return out;
+}
+function _statLocalQuery({dogId='', from='', to='', breed=''}={}){
+  const rows = (_statEnsureLocalStore() || []).filter(r=>{
+    if(!r) return false;
+    if(dogId && String(r.dogId||r.petId||'') !== String(dogId)) return false;
+    const d = String(r.date || '').slice(0,10);
+    if(from && d && d < from) return false;
+    if(to && d && d > to) return false;
+    if(breed && String(r.breed||'') !== String(breed)) return false;
+    return true;
+  }).map(r=>({ ...r }));
+  return _statNormalizeRows(rows);
+}
+async function _statQueryRows({dogId='', from='', to='', breed=''}={}){
+  let remoteErr = null;
+  if(_statHasFirestoreApp()){
+    try{
+      let q = _statColl();
+      if(dogId) q = q.where('dogId','==',dogId);
+      if(breed) q = q.where('breed','==',breed);
+      if(from) q = q.where('date','>=',from);
+      if(to) q = q.where('date','<=',to);
+      q = q.orderBy('date','asc');
+      const snap = await q.get();
+      const rows = [];
+      snap.forEach(doc=>{
+        const d = doc.data() || {};
+        rows.push({ id:doc.id, ...d });
+      });
+      return _statNormalizeRows(rows);
+    }catch(e){
+      remoteErr = e;
+      try{ console.warn('[STAT] remote query fallback -> local', e); }catch(_){ }
+    }
+  }
+  const localRows = _statLocalQuery({dogId, from, to, breed});
+  if(localRows.length) return localRows;
+  if(remoteErr) throw remoteErr;
+  return [];
+}
+function _statNormalizeSexCode(raw, pet){
+  const src = String(raw || pet?.sex || pet?.gender || pet?.geschlecht || '').trim().toLowerCase();
+  const neutered = !!(pet && (pet.neutered === true || pet.kastriert === true || pet.isNeutered === true || pet.sexStatus === 'kastriert'));
+  if(!src){
+    if(neutered){
+      const base = String(pet?.sexBase || pet?.genderBase || '').trim().toLowerCase();
+      if(['m','male','männlich','maennlich','rüde','ruede','rude'].includes(base)) return 'k';
+      if(['w','f','female','weiblich','hündin','huendin','huendin'].includes(base)) return 's';
+    }
+    return '';
+  }
+  if(['k','kastriert','kastriert (rüde)','kastriert rüde','kastrierter rüde','castrated male','neutered male'].includes(src)) return 'k';
+  if(['s','kastriert (hündin)','kastriert hündin','kastrierte hündin','castrated female','spayed female','spayed'].includes(src)) return 's';
+  if(['m','male','männlich','maennlich','rüde','ruede','rude','r'].includes(src)) return neutered ? 'k' : 'm';
+  if(['w','f','female','weiblich','hündin','huendin','huendin'].includes(src)) return neutered ? 's' : 'w';
+  return '';
 }
 
 // ---------- UI: main entry ----------
@@ -15175,15 +15250,10 @@ function populateStatDogsForAll(dateISO){
     const breed = (p && (p.breed || p.race || p.rasse || p.mainBreed)) ? String(p.breed||p.race||p.rasse||p.mainBreed) : '';
     if(breedEl) breedEl.value = breed || '—';
 
-    // Sex / Gender (normalize)
-    const rawSex = (p && (p.sex || p.gender || p.geschlecht)) ? String(p.sex||p.gender||p.geschlecht) : '';
-    const norm = rawSex.toLowerCase();
-    let sex = rawSex;
-    if(norm === 'm' || norm === 'male' || norm === 'rüde' || norm === 'ruede') sex = 'Rüde';
-    if(norm === 'f' || norm === 'female' || norm === 'hündin' || norm === 'huendin') sex = 'Hündin';
-    if(sexEl && sex){
-      // only auto-fill if empty
-      if(!sexEl.value) sexEl.value = sex;
+    // Sex / Gender (normalize to select codes: m / w / k / s)
+    const sexCode = _statNormalizeSexCode((p && (p.sex || p.gender || p.geschlecht)) ? String(p.sex||p.gender||p.geschlecht) : '', p);
+    if(sexEl){
+      sexEl.value = sexCode || '';
     }
 
     // Age (years) – if birthdate known
@@ -15247,12 +15317,13 @@ async function saveStatRatingV2(){
   const uid = _statUid();
   const docId = _statDocId(petId, dateISO, type);
 
+  const normalizedSex = sex || _statNormalizeSexCode('', getPet(petId)) || '';
   const payload = {
     dogId: petId,
     petId, // backwards compat
     date: dateISO,
     type,
-    sex,
+    sex: normalizedSex,
     breed: breed || '',
     ageYears: Number.isFinite(age) ? age : null,
     scores: scales,
@@ -15262,11 +15333,17 @@ async function saveStatRatingV2(){
     indexB,
     notes,
     schema: 'M50.10_STAT_CORE_V1',
-    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    updatedAt: _statFieldServerTimestamp(),
     updatedBy: uid
   };
 
-  const ref = _statColl().doc(docId);
+  // Immer zuerst lokal sichern, damit die Erfassung auch ohne Cloud / bei Firebase-Störungen stabil bleibt.
+  _statLocalUpsert(docId, {
+    ...payload,
+    updatedAt: Date.now(),
+    updatedBy: uid || dsRememberedEmail() || ''
+  });
+
   // IMPORTANT: do NOT do a pre-read (ref.get) here.
   // Reason: it fails when offline and it also requires read-permission.
   // We track "created" locally to only set createdAt/createdBy once.
@@ -15277,13 +15354,25 @@ async function saveStatRatingV2(){
   }
   const createdCache = window.__STAT_CREATED_CACHE || {};
   if(!createdCache[docId]){
-    payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+    payload.createdAt = _statFieldServerTimestamp();
     payload.createdBy = uid;
     createdCache[docId] = 1;
     try{ localStorage.setItem('ds_stat_created_cache', JSON.stringify(createdCache)); }catch(_){ }
     window.__STAT_CREATED_CACHE = createdCache;
   }
-  await ref.set(payload, { merge:true });
+
+  if(!_statHasFirestoreApp()){
+    return { storage:'local' };
+  }
+
+  try{
+    const ref = _statColl().doc(docId);
+    await ref.set(payload, { merge:true });
+    return { storage:'cloud+local' };
+  }catch(e){
+    try{ console.warn('[STAT] cloud save failed, local copy kept', e); }catch(_){ }
+    return { storage:'local', warning: String(e && (e.code || e.message) || e || '') };
+  }
 }
 
 // ---------- Sub: Analysis ----------
@@ -15458,31 +15547,13 @@ async function loadAndRenderStatAnalysis(){
   if(msg) msg.textContent='Lade…';
 
   try{
-    const fs=_statFs();
-    let q = _statColl().where('dogId','==',dogId);
-    if(from) q = q.where('date','>=',from);
-    if(to) q = q.where('date','<=',to);
-    q = q.orderBy('date','asc');
-
-    const snap = await q.get();
-    const rows = [];
-    snap.forEach(doc=>{
-      const d = doc.data() || {};
-      rows.push({ id:doc.id, ...d });
-    });
+    const rows = await _statQueryRows({ dogId, from, to });
 
     if(!rows.length){
       if(msg) msg.textContent='Keine Daten im Zeitraum.';
       _statRenderAnalysisEmpty();
       return;
     }
-
-    // normalize, compute indexB if missing
-    rows.forEach(r=>{
-      const sc = r.scores || r.scales || {};
-      r.__scores = sc;
-      r.__indexB = Number.isFinite(Number(r.indexB)) ? Number(r.indexB) : _statComputeIndexB(sc);
-    });
 
     _statRenderAnalysis(rows);
     if(msg) msg.textContent = `${rows.length} Einträge.`;
@@ -15531,26 +15602,7 @@ function _statFillBreedSelect(selId){
 }
 
 async function _statLoadRange({from='', to='', breed='' }={}){
-  let q = _statColl();
-  if(breed) q = q.where('breed','==',breed);
-  if(from) q = q.where('date','>=',from);
-  if(to) q = q.where('date','<=',to);
-  q = q.orderBy('date','asc');
-
-  const snap = await q.get();
-  const rows = [];
-  snap.forEach(doc=>{
-    const d = doc.data() || {};
-    rows.push({ id:doc.id, ...d });
-  });
-
-  rows.forEach(r=>{
-    const sc = r.scores || r.scales || {};
-    r.__scores = sc;
-    r.__indexB = Number.isFinite(Number(r.indexB)) ? Number(r.indexB) : _statComputeIndexB(sc);
-  });
-
-  return rows;
+  return _statQueryRows({ from, to, breed });
 }
 
 function _statAvg(arr){
