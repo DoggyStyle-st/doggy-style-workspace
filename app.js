@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9J_PROJECTPAGE_AUTH_STATSAVEFIX_20260309",
+  tag: "M50.9.9K_PROJECTPAGE_AUTH_EXPORTFIX_20260309",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9J_PROJECTPAGE_AUTH_STATSAVEFIX_20260309";
+const APP_BUILD = "M50.9.9K_PROJECTPAGE_AUTH_EXPORTFIX_20260309";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -15427,12 +15427,31 @@ function renderStatAnalysis(){
 function _statFillDogSelect(selId){
   const sel = document.getElementById(selId);
   if(!sel) return;
-  const petIds = Object.keys(state.pets || {});
+
+  const petMap = (state && state.pets) ? state.pets : {};
+  const petIds = Object.keys(petMap);
+
+  const inferName = (pid, p) => {
+    const direct = p?.name || p?.dogName || p?.petName || p?.rufname || p?.displayName;
+    if(direct && String(direct).trim()) return String(direct).trim();
+
+    const customerId = p?.customerId || p?.ownerId || p?.custId || '';
+    const cust = (state && state.customers && customerId) ? state.customers[customerId] : null;
+    const nestedDogs = cust?.dogs || cust?.pets || [];
+    const nested = Array.isArray(nestedDogs)
+      ? nestedDogs.find(d => String(d?.id || d?.petId || d?.dogId || '') === String(pid))
+      : null;
+    const nestedName = nested?.name || nested?.dogName || nested?.petName || nested?.rufname;
+    if(nestedName && String(nestedName).trim()) return String(nestedName).trim();
+
+    return String(pid);
+  };
+
   const opts = petIds.map(pid=>{
-    const p = state.pets && state.pets[pid];
-    const name = p?.name || p?.dogName || pid;
-    return {id:pid, name};
-  }).sort((a,b)=> String(a.name).localeCompare(String(b.name)));
+    const p = petMap[pid];
+    return {id:String(pid), name: inferName(pid, p)};
+  }).sort((a,b)=> String(a.name).localeCompare(String(b.name), 'de'));
+
   sel.innerHTML = '<option value="">— bitte wählen —</option>' + opts.map(o=>`<option value="${escapeHtml(o.id)}">${escapeHtml(o.name)}</option>`).join('');
 }
 
@@ -16081,7 +16100,6 @@ async function exportStatCsv(){
     const to=(document.getElementById('statExpTo')||{}).value || '';
 
     const rows = await _statLoadRange({from,to,dogId});
-
     if(!rows.length){
       if(msg) msg.textContent='Keine Daten.';
       return;
@@ -16107,7 +16125,7 @@ async function exportStatCsv(){
       const ctx=r.context||{};
       const q=r.qualitative||{};
       const line = [
-        r.id||'',
+        r.id||r.docId||'',
         r.dogId||r.petId||'',
         r.date||'',
         r.type||'',
@@ -16131,16 +16149,53 @@ async function exportStatCsv(){
       lines.push(line.map(esc).join(','));
     });
 
-    const csv = lines.join('\n');
-    const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
-    const a = document.createElement('a');
+    const csv = lines.join('
+');
     const stamp = toISODate(new Date()).replace(/-/g,'');
     const fn = `doggystyle_statistics_${stamp}.csv`;
-    a.href = URL.createObjectURL(blob);
-    a.download = fn;
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(()=>{ try{ URL.revokeObjectURL(a.href); }catch(_){ } try{ a.remove(); }catch(_){ } }, 200);
+    const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+
+    let downloaded = false;
+    try{
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fn;
+      a.style.display='none';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(()=>{ try{ URL.revokeObjectURL(url); }catch(_){} try{ a.remove(); }catch(_){} }, 500);
+      downloaded = true;
+    }catch(downloadErr){
+      console.warn('[STAT] blob download fallback', downloadErr);
+    }
+
+    if(!downloaded){
+      try{
+        const dataUrl = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+        const a = document.createElement('a');
+        a.href = dataUrl;
+        a.download = fn;
+        a.style.display='none';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(()=>{ try{ a.remove(); }catch(_){} }, 500);
+        downloaded = true;
+      }catch(dataUrlErr){
+        console.warn('[STAT] dataurl download fallback', dataUrlErr);
+      }
+    }
+
+    if(!downloaded){
+      try{
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          await navigator.clipboard.writeText(csv);
+          if(msg) msg.textContent=`Export konnte nicht als Datei geladen werden – CSV wurde in die Zwischenablage kopiert (${rows.length} Zeilen).`;
+          return;
+        }
+      }catch(_){ }
+      throw new Error('csv-download-failed');
+    }
 
     if(msg) msg.textContent=`Export: ${rows.length} Zeilen.`;
     setTimeout(()=>{ if(msg) msg.textContent=''; }, 4000);
