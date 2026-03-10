@@ -1,7 +1,7 @@
 // DoggyStyle Workspace Service Worker (Project Page safe)
 // Cache strategy: network-first for HTML, cache-first for static
 
-const BUILD_VERSION = "M50.9.9F_PROJECTPAGE_AUTH_HANDOFF_20260308";
+const BUILD_VERSION = "M50.9.9L_PROJECTPAGE_AUTH_SYNCED_EXPORT_20260310";
 const CACHE_NAME = "doggystyle-" + BUILD_VERSION;
 
 const STATIC_ASSETS = [
@@ -11,6 +11,7 @@ const STATIC_ASSETS = [
   "./app.html",
   "./customer.html",
   "./pwreset.html",
+  "./reset.html",
   "./app.js",
   "./auth.js",
   "./firebase-config.js",
@@ -18,6 +19,7 @@ const STATIC_ASSETS = [
   "./dashboard_master.css",
   "./login_override.css",
   "./manifest.json",
+  "./version.txt",
   // Firebase SDKs (cross-origin) – helps iOS/Safari stability
   "https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js",
   "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js",
