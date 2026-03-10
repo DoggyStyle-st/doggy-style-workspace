@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9I_PROJECTPAGE_AUTH_VISIBLEMAIL_20260309",
+  tag: "M50.9.9J_PROJECTPAGE_AUTH_STATSAVEFIX_20260309",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,29 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9I_PROJECTPAGE_AUTH_VISIBLEMAIL_20260309";
-
-(function bootstrapRememberedEmail(){
-  try{
-    const qs = new URLSearchParams(location.search || "");
-    const email = String(qs.get("login_email") || "").trim().toLowerCase();
-    if(email){
-      try{ sessionStorage.setItem("ds_last_email", email); }catch(_){ }
-      try{ localStorage.setItem("ds_last_email", email); }catch(_){ }
-      try{ localStorage.setItem("last_email", email); }catch(_){ }
-    }
-  }catch(_){ }
-})();
-function dsRememberedEmail(){
-  try{
-    const qs = new URLSearchParams(location.search || "");
-    const q = String(qs.get("login_email") || "").trim().toLowerCase();
-    if(q) return q;
-  }catch(_){ }
-  try{ const v = String(sessionStorage.getItem("ds_last_email") || "").trim().toLowerCase(); if(v) return v; }catch(_){ }
-  try{ const v = String(localStorage.getItem("ds_last_email") || localStorage.getItem("last_email") || "").trim().toLowerCase(); if(v) return v; }catch(_){ }
-  return '';
-}
+const APP_BUILD = "M50.9.9J_PROJECTPAGE_AUTH_STATSAVEFIX_20260309";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -475,12 +453,10 @@ function updateSyncUI(){
   const userEl = document.getElementById('syncUser');
   const details = document.getElementById('syncDetails');
   const manualBtn = document.getElementById('manualSaveBtn');
-  const rememberedEmail = dsRememberedEmail();
-  const visibleEmail = (CLOUD && CLOUD.user && CLOUD.user.email) ? String(CLOUD.user.email).toLowerCase() : rememberedEmail;
   if(userEl){
-    if(visibleEmail){
+    if(CLOUD.enabled && CLOUD.user){
       userEl.style.display = 'inline-flex';
-      userEl.textContent = visibleEmail;
+      userEl.textContent = (CLOUD.user.email || 'eingeloggt');
     } else {
       try{ const ba=document.querySelector(".bottom-actions"); if(ba) ba.style.display="block"; }catch(e){}
       userEl.style.display = 'none';
@@ -488,21 +464,23 @@ function updateSyncUI(){
     }
   }
   const netOnline = (typeof navigator !== 'undefined') ? !!navigator.onLine : false;
-  const cloudPossible = !!(cloudIsEnabled && cloudIsEnabled());
-  const cloudLoggedIn = !!(CLOUD && CLOUD.enabled && CLOUD.user);
-  const cloudOk = !!((netOnline || SYNC.cloudReachable) && cloudPossible && cloudLoggedIn && SYNC.cloudReachable);
+  const cloudOk = !!(netOnline && cloudIsEnabled() && CLOUD && CLOUD.enabled && CLOUD.user && SYNC.cloudReachable);
   try{ if(pill){ pill.classList.toggle('is-online', !!cloudOk); pill.classList.toggle('is-offline', !cloudOk); } }catch(e){}
   const localLine = `Lokal gespeichert: ${fmtDT(SYNC.localSavedAt)}`;
-  const netLine = `Internet: ${netOnline ? 'Online' : 'Offline'}`;
+  // Internet-Status (nicht gleich Cloud!)
+  const netLine = `Internet: ${cloudOk ? 'Online' : 'Offline'}`;
   let pillText = cloudOk ? 'Online' : 'Offline';
   let cloudLine = 'Cloud: aus';
-  if(!cloudPossible){
+  if(!cloudIsEnabled()){
+    // Cloud nicht möglich (SDK fehlt) – das ist der Hauptgrund für "immer Offline" in der Wahrnehmung
     cloudLine = window.firebaseConfig ? 'Cloud: bereit (SDK nicht geladen)' : 'Cloud: aus';
-    if(window.firebaseConfig && CLOUD.reason){ cloudLine += ` · ${CLOUD.reason}`; }
+    if(window.firebaseConfig && CLOUD.reason){
+      cloudLine += ` · ${CLOUD.reason}`;
+    }
   } else if(CLOUD.enabled){
     if(!CLOUD.user){
-      pillText = `${netOnline ? 'Online' : 'Offline'} · Cloud: Login nötig`;
-      cloudLine = visibleEmail ? 'Cloud: Session wird wiederhergestellt' : 'Cloud: nicht angemeldet';
+      pillText = `${cloudOk ? 'Online' : 'Offline'} · Cloud: Login nötig`;
+      cloudLine = 'Cloud: nicht angemeldet';
     } else if(SYNC.cloudLastError){
       pillText = `${cloudOk ? 'Online' : 'Offline'} · Cloud: Fehler`;
       cloudLine = `Cloud Fehler: ${SYNC.cloudLastError}`;
@@ -517,13 +495,12 @@ function updateSyncUI(){
   if(pill) pill.textContent = `${pillText} · ${fmtDT(SYNC.localSavedAt)}`;
   const dot=document.getElementById('syncDot');
   if(dot){ dot.classList.toggle('online', !!netOnline); dot.classList.toggle('offline', !netOnline); }
-  if(details) details.textContent = `${localLine}
-${netLine}
-${cloudLine}
-Cloud-Ping: ${fmtDT(SYNC.cloudReachCheckedAt)}${SYNC.cloudReachError ? ' · '+SYNC.cloudReachError : ''}`;
+  if(details) details.textContent = `${localLine}\n${netLine}\n${cloudLine}\nCloud-Ping: ${fmtDT(SYNC.cloudReachCheckedAt)}${SYNC.cloudReachError ? ' · '+SYNC.cloudReachError : ''}`;
+  // Manual cloud save: only enable when Cloud is active + logged in
   if(manualBtn){
     const ok = !!(CLOUD.enabled && CLOUD.user);
-    if(!cloudPossible){
+    // Wenn Cloud grundsätzlich nicht verfügbar: Button ausblenden (wirkt sonst "kaputt")
+    if(!cloudIsEnabled()){
       manualBtn.style.display = 'none';
     } else {
       manualBtn.style.display = '';
@@ -14355,6 +14332,27 @@ function _statEl(id){ return document.getElementById(id); }
 
 
 
+function _statGetPetById(pid){
+  try{
+    const pets = state && state.pets;
+    if(!pets || !pid) return null;
+    if(Array.isArray(pets)) return pets.find(p => p && String(p.id||'') === String(pid)) || null;
+    return pets[pid] || null;
+  }catch(_){ return null; }
+}
+
+function _statNormalizeSexCode(rawSex, pet){
+  const raw = String(rawSex || pet?.sex || pet?.gender || pet?.geschlecht || pet?.sexLabel || '').trim();
+  if(!raw) return '';
+  const norm = raw.toLowerCase();
+  const neutered = !!(pet && (pet.neutered === true || pet.kastriert === true || pet.isNeutered === true || String(pet.sexStatus||'').toLowerCase() === 'kastriert'));
+  if(['m','male','rüde','ruede','rude','maennlich','männlich'].includes(norm)) return neutered ? 'k' : 'm';
+  if(['w','f','female','hündin','huendin','weiblich'].includes(norm)) return neutered ? 's' : 'w';
+  if(['k','kastriert','kastrierter rüde','kastrierter ruede'].includes(norm)) return 'k';
+  if(['s','sterilisiert','kastrierte hündin','kastrierte huendin'].includes(norm)) return 's';
+  return '';
+}
+
 function updateStatDogMeta(){
   const metaEl = _statEl("statDogMeta");
   const sel = _statEl("statDogSelect");
@@ -14365,7 +14363,7 @@ function updateStatDogMeta(){
   const stayId = sel.value;
   if(!stayId){ metaEl.textContent = ""; return; }
   const stay = (state.stays||[]).find(s=>s.id===stayId);
-  const pet = (state.pets||[]).find(p=>p.id===stay?.petId) || {};
+  const pet = _statGetPetById(stay?.petId) || {};
   const cust = (state.customers||[]).find(c=>c.id===stay?.customerId) || {};
   const mainBreed = _statGetMainBreed(pet.breed);
   const age = _statAgeYears(pet.birthdate);
@@ -14373,8 +14371,8 @@ function updateStatDogMeta(){
   const repeat = _statIsRepeatDog(pet.id) ? "Stammgast" : "Erstkontakt";
   metaEl.innerHTML = `${escapeHtml(mainBreed)}${age!=null?(" · "+age+" J."):""}${pet.sex?(" · "+escapeHtml(pet.sex)):""}<br>${escapeHtml(cust.name||"")} · Tag ${dayOf||"?"} · ${repeat}`;
   if(sexEl && !sexEl.value){
-    // auto fill from pet if present
-    if(pet.sex) sexEl.value = pet.sex;
+    const sx = _statNormalizeSexCode(pet.sex, pet);
+    if(sx) sexEl.value = sx;
   }
 }
 
@@ -15175,15 +15173,11 @@ function populateStatDogsForAll(dateISO){
     const breed = (p && (p.breed || p.race || p.rasse || p.mainBreed)) ? String(p.breed||p.race||p.rasse||p.mainBreed) : '';
     if(breedEl) breedEl.value = breed || '—';
 
-    // Sex / Gender (normalize)
-    const rawSex = (p && (p.sex || p.gender || p.geschlecht)) ? String(p.sex||p.gender||p.geschlecht) : '';
-    const norm = rawSex.toLowerCase();
-    let sex = rawSex;
-    if(norm === 'm' || norm === 'male' || norm === 'rüde' || norm === 'ruede') sex = 'Rüde';
-    if(norm === 'f' || norm === 'female' || norm === 'hündin' || norm === 'huendin') sex = 'Hündin';
-    if(sexEl && sex){
-      // only auto-fill if empty
-      if(!sexEl.value) sexEl.value = sex;
+    // Sex / Gender (normalize to select values m/w/k/s)
+    const sexCode = _statNormalizeSexCode((p && (p.sex || p.gender || p.geschlecht || p.sexLabel)) ? String(p.sex||p.gender||p.geschlecht||p.sexLabel) : '', p);
+    if(sexEl){
+      if(sexCode) sexEl.value = sexCode;
+      else if(!sexEl.value) sexEl.value = '';
     }
 
     // Age (years) – if birthdate known
@@ -15208,6 +15202,23 @@ function populateStatDogsForAll(dateISO){
   };
   dogEl.onchange = updateMeta;
   updateMeta();
+}
+
+
+function _statLocalKey(){ return 'ds_statistics_local_v1'; }
+function _statLocalRead(){
+  try{ return JSON.parse(localStorage.getItem(_statLocalKey()) || '[]') || []; }catch(_){ return []; }
+}
+function _statLocalWrite(rows){
+  try{ localStorage.setItem(_statLocalKey(), JSON.stringify(rows||[])); }catch(_){ }
+}
+function _statLocalUpsert(entry){
+  const rows = _statLocalRead();
+  const idx = rows.findIndex(x => x && x.docId === entry.docId);
+  if(idx >= 0) rows[idx] = { ...(rows[idx]||{}), ...entry };
+  else rows.push(entry);
+  _statLocalWrite(rows);
+  return rows;
 }
 
 async function saveStatRatingV2(){
@@ -15241,49 +15252,60 @@ async function saveStatRatingV2(){
     trainer: (document.getElementById('statTrainer')||{}).value || ''
   };
 
-  // index berechnen, aber NICHT in der Erfassung anzeigen – wird in Analyse genutzt
   const indexB = _statComputeIndexB(scales);
-
   const uid = _statUid();
   const docId = _statDocId(petId, dateISO, type);
-
   const payload = {
+    docId,
     dogId: petId,
-    petId, // backwards compat
+    petId,
     date: dateISO,
     type,
     sex,
     breed: breed || '',
     ageYears: Number.isFinite(age) ? age : null,
     scores: scales,
-    scales, // backwards compat
+    scales,
     qualitative,
     context,
     indexB,
     notes,
     schema: 'M50.10_STAT_CORE_V1',
-    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-    updatedBy: uid
+    updatedAtLocal: Date.now(),
+    updatedBy: uid || (localStorage.getItem('login_email')||localStorage.getItem('ds_last_email')||'')
   };
 
-  const ref = _statColl().doc(docId);
-  // IMPORTANT: do NOT do a pre-read (ref.get) here.
-  // Reason: it fails when offline and it also requires read-permission.
-  // We track "created" locally to only set createdAt/createdBy once.
+  // always persist locally first
+  _statLocalUpsert(payload);
+  try{ state.__lastStatSavedAt = Date.now(); }catch(_){ }
+
+  // try cloud only as optional step; never fail local save because of missing firebase app
   try{
-    window.__STAT_CREATED_CACHE = window.__STAT_CREATED_CACHE || JSON.parse(localStorage.getItem('ds_stat_created_cache')||'{}');
-  }catch(_){
-    window.__STAT_CREATED_CACHE = window.__STAT_CREATED_CACHE || {};
+    const cloudReady = !!(typeof CLOUD !== 'undefined' && CLOUD && CLOUD.enabled && CLOUD.db);
+    const fbReady = !!(window.firebase && firebase.firestore && window.firebase.apps && window.firebase.apps.length);
+    if(cloudReady || fbReady){
+      const ref = _statColl().doc(docId);
+      const cloudPayload = {
+        ...payload,
+        updatedAt: (firebase && firebase.firestore && firebase.firestore.FieldValue) ? firebase.firestore.FieldValue.serverTimestamp() : Date.now()
+      };
+      // createdAt only if new in cache
+      try{
+        window.__STAT_CREATED_CACHE = window.__STAT_CREATED_CACHE || JSON.parse(localStorage.getItem('ds_stat_created_cache')||'{}');
+      }catch(_){ window.__STAT_CREATED_CACHE = window.__STAT_CREATED_CACHE || {}; }
+      const createdCache = window.__STAT_CREATED_CACHE || {};
+      if(!createdCache[docId]){
+        cloudPayload.createdAt = (firebase && firebase.firestore && firebase.firestore.FieldValue) ? firebase.firestore.FieldValue.serverTimestamp() : Date.now();
+        cloudPayload.createdBy = uid || '';
+        createdCache[docId] = 1;
+        try{ localStorage.setItem('ds_stat_created_cache', JSON.stringify(createdCache)); }catch(_){ }
+        window.__STAT_CREATED_CACHE = createdCache;
+      }
+      await ref.set(cloudPayload, { merge:true });
+    }
+  }catch(err){
+    try{ console.warn('[STAT] cloud save skipped/failed; local save kept', err); }catch(_){ }
   }
-  const createdCache = window.__STAT_CREATED_CACHE || {};
-  if(!createdCache[docId]){
-    payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-    payload.createdBy = uid;
-    createdCache[docId] = 1;
-    try{ localStorage.setItem('ds_stat_created_cache', JSON.stringify(createdCache)); }catch(_){ }
-    window.__STAT_CREATED_CACHE = createdCache;
-  }
-  await ref.set(payload, { merge:true });
 }
 
 // ---------- Sub: Analysis ----------
@@ -15458,31 +15480,13 @@ async function loadAndRenderStatAnalysis(){
   if(msg) msg.textContent='Lade…';
 
   try{
-    const fs=_statFs();
-    let q = _statColl().where('dogId','==',dogId);
-    if(from) q = q.where('date','>=',from);
-    if(to) q = q.where('date','<=',to);
-    q = q.orderBy('date','asc');
-
-    const snap = await q.get();
-    const rows = [];
-    snap.forEach(doc=>{
-      const d = doc.data() || {};
-      rows.push({ id:doc.id, ...d });
-    });
+    const rows = await _statLoadRange({from,to,dogId});
 
     if(!rows.length){
       if(msg) msg.textContent='Keine Daten im Zeitraum.';
       _statRenderAnalysisEmpty();
       return;
     }
-
-    // normalize, compute indexB if missing
-    rows.forEach(r=>{
-      const sc = r.scores || r.scales || {};
-      r.__scores = sc;
-      r.__indexB = Number.isFinite(Number(r.indexB)) ? Number(r.indexB) : _statComputeIndexB(sc);
-    });
 
     _statRenderAnalysis(rows);
     if(msg) msg.textContent = `${rows.length} Einträge.`;
@@ -15530,27 +15534,58 @@ function _statFillBreedSelect(selId){
   });
 }
 
-async function _statLoadRange({from='', to='', breed='' }={}){
-  let q = _statColl();
-  if(breed) q = q.where('breed','==',breed);
-  if(from) q = q.where('date','>=',from);
-  if(to) q = q.where('date','<=',to);
-  q = q.orderBy('date','asc');
-
-  const snap = await q.get();
-  const rows = [];
-  snap.forEach(doc=>{
-    const d = doc.data() || {};
-    rows.push({ id:doc.id, ...d });
-  });
-
-  rows.forEach(r=>{
+function _statLocalFilterRange({from='', to='', breed='', dogId='' }={}){
+  let rows = _statLocalRead();
+  rows = (rows||[]).filter(r => r && (!dogId || String(r.dogId||r.petId||'') === String(dogId)));
+  if(breed) rows = rows.filter(r => String(r.breed||'') === String(breed));
+  if(from) rows = rows.filter(r => String(r.date||'') >= String(from));
+  if(to) rows = rows.filter(r => String(r.date||'') <= String(to));
+  rows.sort((a,b)=> String(a.date||'').localeCompare(String(b.date||'')));
+  return rows.map(r=>{
     const sc = r.scores || r.scales || {};
-    r.__scores = sc;
-    r.__indexB = Number.isFinite(Number(r.indexB)) ? Number(r.indexB) : _statComputeIndexB(sc);
+    return { ...r, __scores: sc, __indexB: Number.isFinite(Number(r.indexB)) ? Number(r.indexB) : _statComputeIndexB(sc) };
   });
+}
 
-  return rows;
+async function _statLoadRange({from='', to='', breed='', dogId='' }={}){
+  const localRows = _statLocalFilterRange({from,to,breed,dogId});
+
+  const cloudReady = !!(typeof CLOUD !== 'undefined' && CLOUD && CLOUD.enabled && CLOUD.db && typeof _statColl === 'function');
+  const fbReady = !!(window.firebase && firebase.firestore && window.firebase.apps && window.firebase.apps.length);
+  if(!(cloudReady || fbReady)) return localRows;
+
+  try{
+    let q = _statColl();
+    if(dogId) q = q.where('dogId','==',dogId);
+    if(breed) q = q.where('breed','==',breed);
+    if(from) q = q.where('date','>=',from);
+    if(to) q = q.where('date','<=',to);
+    q = q.orderBy('date','asc');
+
+    const snap = await q.get();
+    const merged = new Map();
+    localRows.forEach(r => merged.set(String(r.docId || r.id || ''), r));
+
+    snap.forEach(doc=>{
+      const d = doc.data() || {};
+      const sc = d.scores || d.scales || {};
+      const row = { id:doc.id, ...d, __scores: sc, __indexB: Number.isFinite(Number(d.indexB)) ? Number(d.indexB) : _statComputeIndexB(sc) };
+      const key = String(row.docId || row.id || doc.id || '');
+      const prev = merged.get(key);
+      if(!prev){
+        merged.set(key, row);
+        return;
+      }
+      const prevTs = Number(prev.updatedAtLocal || prev.updatedAt || 0);
+      const nextTs = Number(row.updatedAtLocal || row.updatedAt || 0);
+      merged.set(key, nextTs >= prevTs ? { ...prev, ...row } : { ...row, ...prev });
+    });
+
+    return Array.from(merged.values()).sort((a,b)=> String(a.date||'').localeCompare(String(b.date||'')));
+  }catch(e){
+    console.warn('[STAT] _statLoadRange cloud fallback -> local', e);
+    return localRows;
+  }
 }
 
 function _statAvg(arr){
@@ -16041,26 +16076,11 @@ async function exportStatCsv(){
   const msg=document.getElementById('statExpMsg');
   if(msg) msg.textContent='Lade…';
   try{
-    const fs=_statFs();
     const dogId=(document.getElementById('statExpDog')||{}).value || '';
     const from=(document.getElementById('statExpFrom')||{}).value || '';
     const to=(document.getElementById('statExpTo')||{}).value || '';
 
-    let q=_statColl();
-    if(dogId) q=q.where('dogId','==',dogId);
-    if(from) q=q.where('date','>=',from);
-    if(to) q=q.where('date','<=',to);
-    // If dogId not set, avoid composite index requirement by ordering only when possible
-    q=q.orderBy('date','asc');
-
-    const snap=await q.get();
-    const rows=[];
-    snap.forEach(doc=>{
-      const d=doc.data()||{};
-      const sc=d.scores||d.scales||{};
-      const idx = Number.isFinite(Number(d.indexB)) ? Number(d.indexB) : _statComputeIndexB(sc);
-      rows.push({id:doc.id, ...d, __scores:sc, __indexB:idx});
-    });
+    const rows = await _statLoadRange({from,to,dogId});
 
     if(!rows.length){
       if(msg) msg.textContent='Keine Daten.';
