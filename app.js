@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9K_PROJECTPAGE_AUTH_EXPORTFIX_20260310",
+  tag: "M50.9.9I_EXPORTFIX_MASTER_20260310",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9K_PROJECTPAGE_AUTH_EXPORTFIX_20260310";
+const APP_BUILD = "M50.9.9I_EXPORTFIX_MASTER_20260310";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -16022,9 +16022,9 @@ async function exportStatCsv(){
     const from=(document.getElementById('statExpFrom')||{}).value || '';
     const to=(document.getElementById('statExpTo')||{}).value || '';
 
-    // Robust gegen Firestore-Indexprobleme:
-    // erst nur per Datumsbereich laden, Hund anschließend clientseitig filtern.
-    let rows = await _statLoadRange({from,to,breed:''});
+    // Den stabilen Loader verwenden, weil Analyse damit bereits funktioniert.
+    // So vermeiden wir Cloud-only Abfragen / Index-Probleme im Export.
+    let rows = await _statLoadRange({from,to,breed:'',dogId:''});
     if(dogId){
       rows = rows.filter(r => String(r.dogId||r.petId||'') === String(dogId));
     }
@@ -16084,14 +16084,29 @@ async function exportStatCsv(){
     const stamp = toISODate(new Date()).replace(/-/g,'');
     const fn = `doggystyle_statistics_${stamp}.csv`;
 
-    // iPad/Safari-freundlich: zentrale Download-Hilfe verwenden.
-    downloadBlob(fn, blob);
+    try{
+      if(typeof downloadBlob === 'function'){
+        downloadBlob(fn, blob);
+      }else{
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = fn;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(()=>{ try{ URL.revokeObjectURL(a.href); }catch(_){ } try{ a.remove(); }catch(_){ } }, 400);
+      }
+    }catch(dlErr){
+      console.warn('[STAT] export download fallback', dlErr);
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      setTimeout(()=>{ try{ URL.revokeObjectURL(url); }catch(_){ } }, 2000);
+    }
 
     if(msg) msg.textContent=`Export: ${rows.length} Zeilen.`;
     setTimeout(()=>{ if(msg) msg.textContent=''; }, 4000);
   }catch(e){
     console.error('[STAT] export failed', e);
-    if(msg) msg.textContent='Fehler beim Export.';
+    if(msg) msg.textContent='Fehler beim Laden.';
   }
 }
 
