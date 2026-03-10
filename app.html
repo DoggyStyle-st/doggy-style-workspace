@@ -1138,7 +1138,7 @@
 </section>
 
 <section class="panel" id="statistics">
-<!-- Statistics panel is rendered by app.js (renderStatisticsPanel) -->
+<!-- Statistics panel is rendered by app.js?v=M50.9.9I_EXPORTFIX_MASTER_20260310 (renderStatisticsPanel) -->
 </section>
 
 
@@ -1317,5 +1317,28 @@
 </div>
 <!-- test-badge removed (requested) -->
   <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9I_EXPORTFIX_MASTER_20260310</div>
+
+<script>
+(function visibleMailFallback(){
+  function remembered(){
+    try{ const q=new URLSearchParams(location.search||'').get('login_email'); if(q) return String(q).toLowerCase(); }catch(_ ){}
+    try{ const v=sessionStorage.getItem('ds_last_email'); if(v) return String(v).toLowerCase(); }catch(_ ){}
+    try{ const v=localStorage.getItem('ds_last_email')||localStorage.getItem('last_email'); if(v) return String(v).toLowerCase(); }catch(_ ){}
+    return '';
+  }
+  function apply(){
+    const email = remembered();
+    if(!email) return;
+    const userEl = document.getElementById('syncUser');
+    const details = document.getElementById('syncDetails');
+    if(userEl && !userEl.textContent.trim()){ userEl.style.display='inline-flex'; userEl.textContent=email; }
+    if(details && (!details.textContent || details.textContent.trim()==='—')){
+      details.textContent='Lokal gespeichert: —\nInternet: '+(navigator.onLine?'Online':'Offline')+'\nCloud: Session wird wiederhergestellt\nCloud-Ping: —';
+    }
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', apply); else apply();
+  setTimeout(apply, 300); setTimeout(apply, 1200); setTimeout(apply, 2500);
+})();
+</script>
 </body>
 </html>
