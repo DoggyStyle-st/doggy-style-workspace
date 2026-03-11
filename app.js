@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9L_INBOXTASKFIX_MASTER_20260311",
+  tag: "M50.9.9N_INBOXPORTALREBUILD_MASTER_20260311",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9L_INBOXTASKFIX_MASTER_20260311";
+const APP_BUILD = "M50.9.9N_INBOXPORTALREBUILD_MASTER_20260311";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -1834,10 +1834,7 @@ async function wireInbox(){
   await loadSubmitted();
 }
 
-// ===== Inbox: Aufgaben freigeben (offline-first, lokal) =====
-// Admin/Staff kann einem bestehenden Kunden eine Aufgabe/Vorlage "freischalten".
-// Diese Aufgaben landen zunächst lokal (state.inboxAssignments). Später kann das
-// 1:1 auf Firestore erweitert werden.
+// ===== Inbox: Aufgaben freigeben (Cloud-first, robust) =====
 async function wireInboxAssignments(){
   const selCustomer = document.getElementById('assignCustomer');
   const selTemplate = document.getElementById('assignTemplate');
@@ -1845,11 +1842,18 @@ async function wireInboxAssignments(){
   const msgEl       = document.getElementById('assignMsg');
   if(!selCustomer || !selTemplate || !btnCreate) return;
 
+  const templates = [
+    { id: 'customer_profile', name: 'Hunde/Kunden (Kundendaten ergänzen)' },
+    { id: 'boarding_contract', name: 'Betreuungsvertrag' },
+    { id: 'new_stay', name: 'Neuer Aufenthalt' }
+  ];
+
   const setMsg = (txt, isErr=false)=>{
     if(!msgEl) return;
     msgEl.textContent = txt || '';
     msgEl.style.color = isErr ? '#ffb3b3' : '';
   };
+
   const fillSelect = (sel, items, getId, getLabel, emptyLabel)=>{
     sel.innerHTML = '';
     if(!items || !items.length){
@@ -1869,150 +1873,128 @@ async function wireInboxAssignments(){
       const o = document.createElement('option');
       o.value = getId(it);
       o.textContent = getLabel(it);
-      if(it && it.__disabled) o.disabled = true;
       sel.appendChild(o);
     });
   };
-  const getAssignableTemplates = ()=>{
-    try{ ensureEmbeddedTemplates(); }catch(_){ }
-    const wanted = ['customer_profile','boarding_contract','new_stay'];
-    return wanted
-      .map(id=>getTemplate(id))
-      .filter(Boolean)
-      .map(t=>({ id: t.id, name: t.name || t.title || t.id }));
-  };
-  const customerLabel = (c)=>{
-    const name = c.displayName || c.name || 'Kunde';
-    const extra = c.email ? ` · ${c.email}` : (c.phone ? ` · ${c.phone}` : '');
-    const suffix = c.__disabled ? ' (kein Portal-Link)' : '';
-    return `${name}${extra}${suffix}`;
-  };
-  const resolvePortalUsers = async ()=>{
-    if(!CLOUD.enabled || !cloudUsersCol) return [];
-    try{
-      const snap = await cloudUsersCol().where('role','==',ROLES.CUSTOMER).limit(300).get();
-      const users = [];
-      snap.forEach(d=>{
-        const u = d.data() || {};
-        users.push({
-          uid: u.uid || d.id,
-          email: String(u.email || '').trim().toLowerCase(),
-          displayName: u.displayName || ''
+
+  const collectCustomers = ()=>{
+    state = loadState();
+    ensureStateShape();
+    const st = state || {};
+    const out = [];
+    const seen = new Set();
+    const pushCustomer = (c)=>{
+      if(!c) return;
+      const id = String(c.id || c.customerId || c.uid || '').trim();
+      const name = String(c.name || c.displayName || c.customerName || '').trim();
+      const email = String(c.email || c.mail || '').trim();
+      if(!id || !name || !email) return;
+      const key = String(id).toLowerCase();
+      if(seen.has(key)) return;
+      seen.add(key);
+      out.push({
+        id,
+        name,
+        email,
+        phone: String(c.phone || c.tel || '').trim(),
+        portalUid: String(c.portalUid || c.portalUID || c.userUid || c.uid || '').trim()
+      });
+    };
+
+    (Array.isArray(st.customers) ? st.customers : []).forEach(pushCustomer);
+
+    if(out.length === 0 && Array.isArray(st.pets) && st.pets.length){
+      const byCustomer = new Map();
+      (st.pets || []).forEach(p=>{
+        const cid = String(p && p.customerId || '').trim();
+        if(cid && !byCustomer.has(cid)) byCustomer.set(cid, true);
+      });
+      (st.customers || []).forEach(c=>{ if(byCustomer.has(String(c.id||''))) pushCustomer(c); });
+    }
+
+    if(out.length === 0 && Array.isArray(st.dogs) && st.dogs.length){
+      (st.dogs || []).forEach(d=>{
+        const owner = String(d.ownerName || d.owner || d.kunde || d.customerName || '').trim();
+        const email = String(d.email || d.ownerEmail || '').trim();
+        if(!owner || !email) return;
+        pushCustomer({
+          id: String(d.customerId || ('legacy:' + email.toLowerCase())).trim(),
+          name: owner,
+          email,
+          phone: String(d.phone || d.ownerPhone || '').trim()
         });
       });
-      return users;
-    }catch(e){
-      console.warn('resolvePortalUsers failed', e);
-      return [];
     }
+
+    out.sort((a,b)=> String(a.name||'').localeCompare(String(b.name||''), 'de'));
+    return out;
   };
 
-  state = loadState();
-  ensureStateShape();
-  await loadTemplates().catch(()=>{});
+  const refreshOptions = ()=>{
+    const customers = collectCustomers();
+    fillSelect(
+      selCustomer,
+      customers,
+      c=>c.id,
+      c=> `${c.name}${c.email ? (' · ' + c.email) : ''}${c.phone ? (' · ' + c.phone) : ''}`,
+      'Keine Kunden mit E-Mail vorhanden'
+    );
+    fillSelect(selTemplate, templates, t=>t.id, t=>t.name, 'Keine Vorlagen');
+    btnCreate.disabled = !(customers.length && templates.length);
+    setMsg(customers.length ? '' : 'Bitte zuerst einen Kunden mit E-Mail-Adresse anlegen.', !customers.length);
+    return customers;
+  };
 
-  const templatesForAssign = getAssignableTemplates();
-  const portalUsers = await resolvePortalUsers();
-  const byUid = new Map(portalUsers.map(u=>[String(u.uid||''), u]));
-  const byEmail = new Map(portalUsers.filter(u=>u.email).map(u=>[u.email, u]));
-
-  let customers = Array.isArray(state.customers) ? state.customers.slice() : [];
-  if(customers.length===0 && Array.isArray(state.dogs) && state.dogs.length){
-    const seen = new Set();
-    customers = [];
-    for(const d of state.dogs){
-      if(!d) continue;
-      const owner = (d.ownerName || d.kunde || d.customerName || d.owner || '').toString().trim();
-      if(!owner) continue;
-      const key = owner.toLowerCase();
-      if(seen.has(key)) continue;
-      seen.add(key);
-      customers.push({ id: `owner:${owner}`, name: owner });
-    }
-  }
-
-  const assignableCustomers = customers.map(c=>{
-    const rawUid = String(c.portalUid || c.portalUID || c.userUid || c.uid || '').trim();
-    const rawEmail = String(c.email || c.mail || '').trim().toLowerCase();
-    const user = (rawUid && byUid.get(rawUid)) || (rawEmail && byEmail.get(rawEmail)) || null;
-    const resolvedUid = user?.uid || rawUid || '';
-    const resolvedEmail = user?.email || rawEmail || '';
-    return {
-      id: c.id,
-      displayName: c.name || c.kundenname || c.customerName || c.fullName || c.vorname || 'Kunde',
-      email: resolvedEmail,
-      phone: c.phone || c.telefon || '',
-      portalUid: resolvedUid,
-      __disabled: !resolvedUid,
-      __raw: c
-    };
-  }).sort((a,b)=>String(a.displayName||'').localeCompare(String(b.displayName||''), 'de'));
-
-  fillSelect(selCustomer, assignableCustomers, c=>c.id, customerLabel, 'Keine Kunden vorhanden');
-  fillSelect(selTemplate, templatesForAssign, t=>t.id, t=>t.name, 'Keine Vorlagen');
-
-  if(!assignableCustomers.length){
-    setMsg('Keine Kunden vorhanden.', true);
-  }else if(assignableCustomers.every(c=>c.__disabled)){
-    setMsg('Es gibt Kunden, aber keinen Portal-Link. Bitte beim Kunden dieselbe E-Mail wie im Kundenportal hinterlegen.', true);
-  }else{
-    setMsg('');
-  }
+  const customers = refreshOptions();
+  window.__refreshInboxAssignments = refreshOptions;
 
   btnCreate.onclick = async ()=>{
     try{
-      const customerId = String(selCustomer.value || '').trim();
-      const templateId = String(selTemplate.value || '').trim();
+      const liveCustomers = refreshOptions();
+      const customerId = String(selCustomer.value||'').trim();
+      const templateId = String(selTemplate.value||'').trim();
       if(!customerId){ setMsg('Bitte zuerst einen Kunden auswählen.', true); return; }
       if(!templateId){ setMsg('Bitte zuerst eine Vorlage auswählen.', true); return; }
-      if(!CLOUD.enabled || !CLOUD.user){ setMsg('Cloud/Login nicht aktiv – Aufgabe kann nicht freigegeben werden.', true); return; }
 
-      state = loadState();
-      ensureStateShape();
-      const customer = (state.customers || []).find(x=>x.id===customerId) || null;
-      const candidate = assignableCustomers.find(x=>x.id===customerId) || null;
-      if(!customer || !candidate){ setMsg('Kunde nicht gefunden.', true); return; }
-      if(!candidate.portalUid){ setMsg('Für diesen Kunden ist kein Portal-Link vorhanden. Bitte gleiche E-Mail wie im Kundenportal hinterlegen.', true); return; }
+      const c = liveCustomers.find(x=>x.id===customerId);
+      if(!c){ setMsg('Kunde nicht gefunden.', true); return; }
+      if(!c.email){ setMsg('Für diesen Kunden fehlt eine E-Mail-Adresse.', true); return; }
 
-      const tpl = getTemplate(templateId);
-      const title = tpl?.name || templateId;
-      const now = Date.now();
-      const openDup = await cloudTasksCol()
-        .where('customerUid','==',candidate.portalUid)
-        .where('templateId','==',templateId)
-        .where('status','==','open')
-        .limit(1)
-        .get();
-      if(openDup && !openDup.empty){
-        setMsg('Diese Aufgabe ist für den Kunden bereits offen.', true);
+      let customerUid = c.portalUid || '';
+      if(!customerUid){
+        try{
+          const emailLc = String(c.email||'').toLowerCase();
+          const snap = await cloudUsersCol().where('email','==',emailLc).limit(1).get();
+          if(!snap.empty){
+            customerUid = snap.docs[0].id;
+          }
+        }catch(e){ console.warn('portal user lookup failed', e); }
+      }
+      if(!customerUid){
+        setMsg('Kein Kundenportal-Konto zu dieser E-Mail gefunden. Bitte zuerst im Kundenportal mit derselben E-Mail anmelden.', true);
         return;
       }
 
+      const t = templates.find(x=>x.id===templateId);
       await cloudTasksCol().add({
-        customerUid: candidate.portalUid,
-        customerEmail: candidate.email || '',
-        customerId,
-        customerName: candidate.displayName || '',
+        customerUid,
+        customerEmail: c.email,
+        customerId: c.id,
+        customerName: c.name || '',
         templateId,
-        title,
+        title: t?.name || templateId,
         status: 'open',
-        createdAt: now,
-        updatedAt: now,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
         createdByUid: CLOUD.user?.uid || '',
         createdByEmail: CLOUD.user?.email || ''
       });
 
-      if(candidate.portalUid && customer && !String(customer.portalUid || customer.portalUID || customer.userUid || '').trim()){
-        customer.portalUid = candidate.portalUid;
-        customer.updatedAt = Date.now();
-        saveState();
-      }
-
-      setMsg(`✅ Aufgabe freigeschaltet: ${candidate.displayName || 'Kunde'} · ${title}`);
+      setMsg(`✅ Aufgabe freigeschaltet: ${c.name || 'Kunde'} · ${t?.name || templateId}`);
       selTemplate.value = '';
     }catch(e){
       console.error(e);
-      setMsg('Fehler beim Erstellen der Aufgabe: ' + (e?.message || e), true);
+      setMsg('Fehler beim Erstellen der Aufgabe.', true);
     }
   };
 }
@@ -5938,83 +5920,12 @@ const EMBEDDED_HUNDEANNAHME_TEMPLATE = {
   ],
   meta: { embedded: true }
 };
-const EMBEDDED_CUSTOMER_PROFILE_TEMPLATE = {
-  id: "customer_profile",
-  name: "Kundendaten ergänzen",
-  sections: [
-    {
-      title: "Kontaktdaten",
-      fields: [
-        { key: "customer_name", label: "Name", type: "text", required: true },
-        { key: "customer_phone", label: "Telefon", type: "tel" },
-        { key: "customer_email", label: "E-Mail", type: "email" },
-        { key: "customer_address", label: "Adresse", type: "textarea" }
-      ]
-    },
-    {
-      title: "Hund",
-      fields: [
-        { key: "dog_name", label: "Hundename", type: "text" },
-        { key: "dog_notes", label: "Wichtige Hinweise", type: "textarea" }
-      ]
-    }
-  ],
-  meta: [
-    { key: "place", label: "Ort", type: "text" },
-    { key: "date", label: "Datum", type: "date" }
-  ]
-};
-const EMBEDDED_BOARDING_CONTRACT_TEMPLATE = {
-  id: "boarding_contract",
-  name: "Betreuungsvertrag – Angaben bestätigen",
-  sections: [
-    {
-      title: "Bestätigung",
-      fields: [
-        { key: "contract_confirm_data", label: "Angaben sind vollständig und korrekt", type: "checkbox" },
-        { key: "contract_confirm_agb", label: "AGB / Hinweise wurden gelesen", type: "checkbox" },
-        { key: "contract_notes", label: "Ergänzungen", type: "textarea" }
-      ]
-    }
-  ],
-  meta: [
-    { key: "place", label: "Ort", type: "text" },
-    { key: "date", label: "Datum", type: "date" }
-  ]
-};
-const EMBEDDED_NEW_STAY_TEMPLATE = {
-  id: "new_stay",
-  name: "Neuen Aufenthalt anfragen",
-  sections: [
-    {
-      title: "Aufenthalt",
-      fields: [
-        { key: "stay_from", label: "Von", type: "date", required: true },
-        { key: "stay_to", label: "Bis", type: "date", required: true },
-        { key: "stay_type", label: "Betreuung", type: "select", options: ["Tagesbetreuung", "Urlaubsbetreuung"] },
-        { key: "stay_notes", label: "Notiz", type: "textarea" }
-      ]
-    }
-  ],
-  meta: [
-    { key: "place", label: "Ort", type: "text" },
-    { key: "date", label: "Datum", type: "date" }
-  ]
-};
 function ensureEmbeddedTemplates(){
   try{
     if(!Array.isArray(templates)) templates = [];
-    const embedded = [
-      EMBEDDED_HUNDEANNAHME_TEMPLATE,
-      EMBEDDED_CUSTOMER_PROFILE_TEMPLATE,
-      EMBEDDED_BOARDING_CONTRACT_TEMPLATE,
-      EMBEDDED_NEW_STAY_TEMPLATE
-    ];
-    embedded.slice().reverse().forEach(t=>{
-      if(!templates.some(x=>x && x.id === t.id)){
-        templates.unshift(t);
-      }
-    });
+    if(!templates.some(t=>t && t.id === EMBEDDED_HUNDEANNAHME_TEMPLATE.id)){
+      templates.unshift(EMBEDDED_HUNDEANNAHME_TEMPLATE);
+    }
   }catch(_){ /* ignore */ }
 }
 function normalizeTemplate(t){
@@ -9589,7 +9500,9 @@ function renderDogs(){
   }
   refreshCustomerSelect();
   syncDogSelect();
+  try{ if(typeof window.__refreshInboxAssignments === 'function') window.__refreshInboxAssignments(); }catch(_){ }
 }
+
 $("#btnAddDog").addEventListener("click",()=>openCpEditor("new"));
 $("#btnCpCancel").addEventListener("click",()=>closeCpEditor());
 // Button "Weiteren Hund" (für bestehenden Kunden) dynamisch einhängen
@@ -9625,13 +9538,13 @@ $("#btnCpSave").addEventListener("click",()=>{
   } else {
     const name = $("#c_name").value.trim();
     if(!name){ alert("Bitte Kundennamen eintragen."); return; }
-    const phone = $("#c_phone").value.trim();
-    if(!phone){ alert("Bitte eine Telefonnummer eintragen."); return; }
+    const email = $("#c_email").value.trim();
+    if(!email){ alert("Bitte eine E-Mail-Adresse eintragen."); return; }
     customer = {
       id: uid(),
       name,
       phone: $("#c_phone").value.trim(),
-      email: $("#c_email").value.trim(),
+      email,
       street: $("#c_street").value.trim(),
       zip: $("#c_zip").value.trim(),
       city: $("#c_city").value.trim(),
@@ -9659,8 +9572,8 @@ $("#btnCpSave").addEventListener("click",()=>{
     if(customer && customer.id){
       customer.name = $("#c_name").value.trim() || customer.name;
       customer.phone = $("#c_phone").value.trim();
-      if(!customer.phone){ alert("Bitte eine Telefonnummer eintragen."); return; }
       customer.email = $("#c_email").value.trim();
+      if(!customer.email){ alert("Bitte eine E-Mail-Adresse eintragen."); return; }
       customer.street = $("#c_street").value.trim();
       customer.zip = $("#c_zip").value.trim();
       customer.city = $("#c_city").value.trim();
@@ -10989,6 +10902,7 @@ return;
     
 // Erstes Boot lokal (stellt state sicher), dann Remote zuverlässig einspielen
 await bootOnce();
+try{ await wireInboxAssignments(); }catch(e){ console.warn(e); }
 // Echtzeit-Listener (robust, inkl. erstem Snapshot)
 // Wichtig: Listener so früh wie möglich setzen, damit der initiale State auch bei iOS/Safari sicher kommt.
 try{
@@ -14911,108 +14825,6 @@ function updateIndexFromUI(){
   }
 }
 
-function _statCanonicalPetId(anyId){
-  try{
-    const p = _statGetPetByAnyId(anyId);
-    if(p && p.id != null) return String(p.id);
-  }catch(_){ }
-  return String(anyId||'');
-}
-
-function _statGetPetByAnyId(anyId){
-  try{
-    const id = String(anyId||'').trim();
-    if(!id) return null;
-
-    try{
-      if(typeof getPetByDogId === 'function'){
-        const viaLegacy = getPetByDogId(id);
-        if(viaLegacy) return viaLegacy;
-      }
-    }catch(_){ }
-
-    const src = state && state.pets;
-    if(!src) return null;
-    if(Array.isArray(src)){
-      for(let i=0;i<src.length;i++){
-        const p = src[i] || {};
-        if(String(p.id || i) === id || String(i) === id) return p;
-      }
-      return null;
-    }
-    if(src && typeof src === 'object'){
-      if(src[id]) return src[id];
-      const keys = Object.keys(src);
-      for(const k of keys){
-        const p = src[k] || {};
-        if(String(p.id || k) === id || String(k) === id) return p;
-      }
-    }
-  }catch(_){ }
-  return null;
-}
-
-function _statPetAliasSet(anyId){
-  const out = new Set();
-  try{
-    const id = String(anyId||'').trim();
-    if(!id) return out;
-    out.add(id);
-
-    const pet = _statGetPetByAnyId(id);
-    if(pet && pet.id != null){
-      const pid = String(pet.id);
-      out.add(pid);
-      try{
-        if(typeof getLegacyDogIdForPet === 'function'){
-          const legacyDogId = String(getLegacyDogIdForPet(pid) || '');
-          if(legacyDogId) out.add(legacyDogId);
-        }
-      }catch(_){ }
-    }
-
-    const map = state?._legacy?.dogIdToPetId || {};
-    Object.keys(map).forEach(legacyDogId=>{
-      const pid = String(map[legacyDogId] || '');
-      if(!pid) return;
-      if(out.has(pid) || out.has(String(legacyDogId))){
-        out.add(pid);
-        out.add(String(legacyDogId));
-      }
-    });
-
-    const src = state && state.pets;
-    if(Array.isArray(src)){
-      src.forEach((p, idx)=>{
-        const pid = String((p && p.id) || idx);
-        if(out.has(pid) || out.has(String(idx))){
-          out.add(pid);
-          out.add(String(idx));
-        }
-      });
-    }else if(src && typeof src === 'object'){
-      Object.keys(src).forEach(k=>{
-        const p = src[k] || {};
-        const pid = String(p.id || k);
-        if(out.has(pid) || out.has(String(k))){
-          out.add(pid);
-          out.add(String(k));
-        }
-      });
-    }
-  }catch(_){ }
-  return out;
-}
-
-function _statMatchesDog(row, dogId){
-  if(!dogId) return true;
-  const aliases = _statPetAliasSet(dogId);
-  const rowIds = [row?.dogId, row?.petId, row?.legacyDogId, row?.dogKey, row?.petKey]
-    .map(v=>String(v||'').trim())
-    .filter(Boolean);
-  return rowIds.some(v => aliases.has(v));
-}
-
 function populateStatDogs(dateISO){
   const dogEl = document.getElementById('statDogSelect');
   const metaEl = document.getElementById('statDogMeta');
@@ -15025,19 +14837,15 @@ function populateStatDogs(dateISO){
     }
   }catch(_){ }
 
-  let opts = [];
-  if(petIds.length){
-    opts = petIds.map(pid => {
-      const p = _statGetPetByAnyId(pid);
-      const id = String((p && p.id) || pid);
-      const name = p?.name || p?.dogName || pid;
-      return {id, name};
-    });
-  }else{
-    opts = _statPetOptions();
+  if(!petIds.length){
+    petIds = Object.keys(state.pets || {});
   }
 
-  opts = opts.filter(o=>o && o.id).sort((a,b)=> String(a.name).localeCompare(String(b.name),'de'));
+  const opts = petIds.map(pid => {
+    const p = state.pets && state.pets[pid];
+    const name = p?.name || p?.dogName || pid;
+    return {id:pid, name};
+  }).sort((a,b)=> String(a.name).localeCompare(String(b.name)));
 
   dogEl.innerHTML = '<option value="">— bitte wählen —</option>' + opts.map(o=>`<option value="${escapeHtml(o.id)}">${escapeHtml(o.name)}</option>`).join('');
 
@@ -15045,7 +14853,7 @@ function populateStatDogs(dateISO){
     if(!metaEl) return;
     const pid = dogEl.value;
     if(!pid){ metaEl.textContent=''; return; }
-    const p = _statGetPetByAnyId(pid);
+    const p = state.pets && state.pets[pid];
     const breed = p?.breed || p?.race || '';
     const owner = p?.ownerName || '';
     metaEl.textContent = [breed, owner].filter(Boolean).join(' · ');
@@ -15384,25 +15192,21 @@ function populateStatDogsForAll(dateISO){
     }
   }catch(_){ }
 
-  let opts = [];
-  if(petIds.length){
-    opts = petIds.map(pid => {
-      const p = _statGetPetByAnyId(pid);
-      const id = String((p && p.id) || pid);
-      const name = p?.name || p?.dogName || pid;
-      return {id, name};
-    });
-  }else{
-    opts = _statPetOptions();
+  if(!petIds.length){
+    petIds = Object.keys(state.pets || {});
   }
 
-  opts = opts.filter(o=>o && o.id).sort((a,b)=> String(a.name).localeCompare(String(b.name),'de'));
+  const opts = petIds.map(pid => {
+    const p = state.pets && state.pets[pid];
+    const name = p?.name || p?.dogName || pid;
+    return {id:pid, name};
+  }).sort((a,b)=> String(a.name).localeCompare(String(b.name)));
 
   dogEl.innerHTML = '<option value="">— bitte wählen —</option>' + opts.map(o=>`<option value="${escapeHtml(o.id)}">${escapeHtml(o.name)}</option>`).join('');
 
   const updateMeta = ()=>{
     const pid = dogEl.value || '';
-    const p = _statGetPetByAnyId(pid);
+    const p = (state.pets && state.pets[pid]) || null;
 
     // Breed
     const breed = (p && (p.breed || p.race || p.rasse || p.mainBreed)) ? String(p.breed||p.race||p.rasse||p.mainBreed) : '';
@@ -15490,17 +15294,10 @@ async function saveStatRatingV2(){
   const indexB = _statComputeIndexB(scales);
   const uid = _statUid();
   const docId = _statDocId(petId, dateISO, type);
-  let legacyDogId = '';
-  try{
-    if(typeof getLegacyDogIdForPet === 'function') legacyDogId = String(getLegacyDogIdForPet(petId) || '');
-  }catch(_){ }
-  const pet = _statGetPetByAnyId(petId) || {};
   const payload = {
     docId,
     dogId: petId,
     petId,
-    legacyDogId,
-    dogName: String(pet.name || pet.dogName || ''),
     date: dateISO,
     type,
     sex,
@@ -15668,19 +15465,23 @@ function renderStatAnalysis(){
 
 function _statPetOptions(){
   try{
-    let pets = [];
-    try{
-      if(typeof medGetPets === 'function') pets = medGetPets() || [];
-    }catch(_){ }
-    if(!pets.length){
-      const src = state && state.pets;
-      if(Array.isArray(src)) pets = src.filter(Boolean);
-      else if(src && typeof src === 'object') pets = Object.keys(src).map(pid => src[pid] || { id: pid });
+    const src = state && state.pets;
+    let list = [];
+    if(Array.isArray(src)){
+      list = src.filter(Boolean).map((p, idx)=>({
+        id: String(p.id || idx),
+        name: String(p.name || p.dogName || p.hundename || p.petName || p.id || idx)
+      }));
+    }else if(src && typeof src === 'object'){
+      list = Object.keys(src).map(pid=>{
+        const p = src[pid] || {};
+        return {
+          id: String(p.id || pid),
+          name: String(p.name || p.dogName || p.hundename || p.petName || pid)
+        };
+      });
     }
-    return (pets||[]).filter(Boolean).map((p, idx)=>({
-      id: String(p.id || idx),
-      name: String(p.name || p.dogName || p.hundename || p.petName || p.id || idx)
-    })).sort((a,b)=> String(a.name).localeCompare(String(b.name),'de'));
+    return list.sort((a,b)=> String(a.name).localeCompare(String(b.name),'de'));
   }catch(_){ return []; }
 }
 function _statFillDogSelect(selId, firstLabel='— bitte wählen —'){
@@ -15790,7 +15591,7 @@ function _statFillBreedSelect(selId){
 
 function _statLocalFilterRange({from='', to='', breed='', dogId='' }={}){
   let rows = _statLocalRead();
-  rows = (rows||[]).filter(r => r && _statMatchesDog(r, dogId));
+  rows = (rows||[]).filter(r => r && (!dogId || String(r.dogId||r.petId||'') === String(dogId)));
   if(breed) rows = rows.filter(r => String(r.breed||'') === String(breed));
   if(from) rows = rows.filter(r => String(r.date||'') >= String(from));
   if(to) rows = rows.filter(r => String(r.date||'') <= String(to));
@@ -15810,7 +15611,8 @@ async function _statLoadRange({from='', to='', breed='', dogId='' }={}){
 
   try{
     let q = _statColl();
-        if(breed) q = q.where('breed','==',breed);
+    if(dogId) q = q.where('dogId','==',dogId);
+    if(breed) q = q.where('breed','==',breed);
     if(from) q = q.where('date','>=',from);
     if(to) q = q.where('date','<=',to);
     q = q.orderBy('date','asc');
@@ -15823,7 +15625,6 @@ async function _statLoadRange({from='', to='', breed='', dogId='' }={}){
       const d = doc.data() || {};
       const sc = d.scores || d.scales || {};
       const row = { id:doc.id, ...d, __scores: sc, __indexB: Number.isFinite(Number(d.indexB)) ? Number(d.indexB) : _statComputeIndexB(sc) };
-      if(!_statMatchesDog(row, dogId)) return;
       const key = String(row.docId || row.id || doc.id || '');
       const prev = merged.get(key);
       if(!prev){
@@ -16341,15 +16142,6 @@ async function exportStatCsv(){
     }
 
     const petMap = new Map(_statPetOptions().map(x=>[String(x.id), String(x.name)]));
-    const dogNameOf = (row)=>{
-      const keys = [row?.petId, row?.dogId, row?.legacyDogId].map(v=>String(v||'').trim()).filter(Boolean);
-      for(const k of keys){
-        const p = _statGetPetByAnyId(k);
-        if(p && (p.name || p.dogName)) return String(p.name || p.dogName);
-        if(petMap.has(k)) return String(petMap.get(k));
-      }
-      return String(row?.dogName || row?.petName || row?.name || keys[0] || '');
-    };
     const headers = [
       'docId','dogId','dogName','date','type','sex','breed','ageYears',
       'groupSize','groupStability','dominantCount','occupancy','trainer',
@@ -16365,8 +16157,8 @@ async function exportStatCsv(){
     rows.forEach(r=>{
       const ctx=r.context||{};
       const q=r.qualitative||{};
-      const did = String(r.dogId||r.petId||r.legacyDogId||'');
-      const dogName = dogNameOf(r) || did;
+      const did = String(r.dogId||r.petId||'');
+      const dogName = petMap.get(did) || did;
       const line = [
         r.id||'', did, dogName,
         r.date||'', r.type||'', r.sex||'', r.breed||'', (r.ageYears==null? '' : r.ageYears),
