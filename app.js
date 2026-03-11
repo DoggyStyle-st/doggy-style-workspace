@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9N_INBOXPORTALREBUILD_MASTER_20260311",
+  tag: "M50.9.9O_INBOXPORTALCUSTOMERFIX_MASTER_20260311",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9N_INBOXPORTALREBUILD_MASTER_20260311";
+const APP_BUILD = "M50.9.9O_INBOXPORTALCUSTOMERFIX_MASTER_20260311";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -1366,7 +1366,7 @@ async function initCustomerPortal(){
   let _draftTimer = null;
   async function openCustomerTask(task){
     if(!task || !task.templateId) return;
-    const t = getTemplate(task.templateId);
+    const t = task.embeddedTemplate || getTemplate(task.templateId);
     if(!t){ alert('Vorlage nicht gefunden.'); return; }
     if(listEl) listEl.style.display = 'none';
     if(editor) editor.style.display = '';
@@ -1516,9 +1516,25 @@ async function wireTaskCreation(){
   let _custLoading = false;
   const CUSTOMER_PAGE_SIZE = 200;
   const customerLabel = (u)=>{
-    const dn = String(u.displayName||'').trim();
+    const dn = String(u.displayName||u.name||'').trim();
     const em = String(u.email||u.uid||'').trim();
     return dn ? `${dn} – ${em}` : em;
+  };
+  const toEmailKey = (email)=> String(email||'').trim().toLowerCase();
+  const resolveCustomerUidByEmail = async (email)=>{
+    const emailLc = toEmailKey(email);
+    if(!emailLc) return '';
+    try{
+      if(Array.isArray(_allCustomers) && _allCustomers.length){
+        const hit = _allCustomers.find(u => toEmailKey(u.email) === emailLc);
+        if(hit && hit.uid) return String(hit.uid);
+      }
+    }catch(_){ }
+    try{
+      const snap = await cloudUsersCol().where('email','==',emailLc).limit(1).get();
+      if(!snap.empty) return String(snap.docs[0].id || '');
+    }catch(e){ console.warn('resolveCustomerUidByEmail', e); }
+    return '';
   };
   const renderCustomers = (q='')=>{
     const query = (q||'').trim().toLowerCase();
@@ -1533,9 +1549,10 @@ async function wireTaskCreation(){
         uid,
         displayName: name,
         email,
+        __value: uid ? String(uid) : (email ? ('email:' + String(email).trim().toLowerCase()) : ''),
         __missingUid: !uid,
       };
-    });
+    }).filter(u => String(u.email||'').trim());
 
     const list = query ? baseList.filter(u=>{
       const dn = String(u.displayName||'').toLowerCase();
@@ -1549,10 +1566,9 @@ async function wireTaskCreation(){
       opts.push('<option value="" disabled>Keine Treffer</option>');
     } else {
       list.forEach(u=>{
-        const disabled = u.__missingUid ? ' disabled' : '';
-        const suffix = u.__missingUid ? ' (kein Portal-Link)' : '';
-        const value = u.__missingUid ? '' : escapeHtml(u.uid);
-        opts.push(`<option value="${value}"${disabled}>${escapeHtml(customerLabel(u) + suffix)}</option>`);
+        const suffix = u.__missingUid ? ' (Portal-Link wird per E-Mail gesucht)' : '';
+        const value = escapeHtml(String(u.__value || u.uid || ''));
+        opts.push(`<option value="${value}">${escapeHtml(customerLabel(u) + suffix)}</option>`);
       });
     }
     selCustomer.innerHTML = opts.join('');
@@ -1560,7 +1576,7 @@ async function wireTaskCreation(){
     if(customerCountEl){
       const total = baseList.length;
       const missing = baseList.filter(u=>u.__missingUid).length;
-      customerCountEl.textContent = missing ? `${total} (davon ${missing} ohne Portal-Link)` : `${total} geladen`;
+      customerCountEl.textContent = missing ? `${total} geladen · ${missing} per E-Mail verknüpfbar` : `${total} geladen`;
     }
     // “Mehr laden” only makes sense for cloud-backed user lists.
     if(btnMoreCustomers) btnMoreCustomers.style.display = (_allCustomers && _allCustomers.length && _custHasMore) ? '' : 'none';
@@ -1611,7 +1627,7 @@ async function wireTaskCreation(){
     btnMoreCustomers.addEventListener('click', (e)=>{ e.preventDefault(); loadCustomersPage(false); });
   }
   btnCreate.onclick = async ()=>{
-    const customerUid = selCustomer.value;
+    let customerUid = String(selCustomer.value||'').trim();
     const templateId = selTemplate.value;
     const tpl = getTemplate(templateId);
     const title = (titleInput?.value||'').trim()
@@ -1622,12 +1638,29 @@ async function wireTaskCreation(){
     }
     if(msgEl) msgEl.textContent = '… erstellt …';
     try{
+      const selected = ((_allCustomers && _allCustomers.length) ? _allCustomers : (state.customers||[])).find(u => {
+        const uid = String(u.uid || u.portalUid || u.portalUID || u.userUid || '').trim();
+        const email = toEmailKey(u.email || u.mail || '');
+        return customerUid === uid || customerUid === ('email:' + email);
+      }) || null;
+      if(customerUid.startsWith('email:')){
+        const email = customerUid.slice(6);
+        customerUid = await resolveCustomerUidByEmail(email);
+        if(!customerUid){
+          if(msgEl) msgEl.textContent = 'Kein Kundenportal-Konto zu dieser E-Mail gefunden. Bitte zuerst mit derselben E-Mail im Kundenportal anmelden.';
+          return;
+        }
+      }
       await cloudTasksCol().add({
         customerUid,
+        customerEmail: String(selected?.email || '').trim().toLowerCase(),
+        customerName: String(selected?.displayName || selected?.name || '').trim(),
         templateId,
+        embeddedTemplate: tpl ? JSON.parse(JSON.stringify(tpl)) : null,
         title,
         status: 'open',
         createdAt: Date.now(),
+        updatedAt: Date.now(),
         createdByUid: CLOUD.user?.uid || '',
         createdByEmail: CLOUD.user?.email || ''
       });
