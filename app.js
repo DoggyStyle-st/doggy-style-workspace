@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9K_STATFILTERFIX2_MASTER_20260311",
+  tag: "M50.9.9L_INBOXTASKFIX_MASTER_20260311",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9K_STATFILTERFIX2_MASTER_20260311";
+const APP_BUILD = "M50.9.9L_INBOXTASKFIX_MASTER_20260311";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -1845,39 +1845,11 @@ async function wireInboxAssignments(){
   const msgEl       = document.getElementById('assignMsg');
   if(!selCustomer || !selTemplate || !btnCreate) return;
 
-  // Optionen aus lokalem Workspace-State ziehen
-  // `ensureStateShape()` arbeitet auf dem globalen `state` und gibt nichts zurück.
-  // Wenn wir (undefined) weiterverwenden, landen wir bei "Keine Optionen".
-  state = loadState();
-  ensureStateShape();
-  const st = state;
-  let customers = Array.isArray(st.customers) ? st.customers : [];
-
-  // Fallback: In älteren Master-Ständen existiert keine separate Kundenliste.
-  // Kunden ergeben sich dann ausschließlich aus den Hunde-Daten (Owner/Kunde).
-  if(customers.length===0 && Array.isArray(st.dogs) && st.dogs.length){
-    const seen = new Set();
-    const derived = [];
-    for(const d of st.dogs){
-      if(!d) continue;
-      const owner = (d.ownerName || d.kunde || d.customerName || d.owner || '').toString().trim();
-      if(!owner) continue;
-      const key = owner.toLowerCase();
-      if(seen.has(key)) continue;
-      seen.add(key);
-      derived.push({ id: `owner:${owner}`, displayName: owner, __derivedOwner: owner });
-    }
-    customers = derived;
-  }
-
-  // Templates, die für Kunden freischaltbar sind (Basis-Version)
-  // Keys sind stabil; Anzeigenamen sind für UI.
-  const templates = [
-    { id: 'customer_profile', name: 'Hunde/Kunden (Kundendaten ergänzen)' },
-    { id: 'boarding_contract', name: 'Betreuungsvertrag' },
-    { id: 'new_stay', name: 'Neuer Aufenthalt' }
-  ];
-
+  const setMsg = (txt, isErr=false)=>{
+    if(!msgEl) return;
+    msgEl.textContent = txt || '';
+    msgEl.style.color = isErr ? '#ffb3b3' : '';
+  };
   const fillSelect = (sel, items, getId, getLabel, emptyLabel)=>{
     sel.innerHTML = '';
     if(!items || !items.length){
@@ -1897,68 +1869,150 @@ async function wireInboxAssignments(){
       const o = document.createElement('option');
       o.value = getId(it);
       o.textContent = getLabel(it);
+      if(it && it.__disabled) o.disabled = true;
       sel.appendChild(o);
     });
   };
-
-  fillSelect(
-    selCustomer,
-    customers,
-    c=>c.id,
-    c=>{
-      const name = c.name || 'Kunde';
-      const extra = c.phone ? ` · ${c.phone}` : (c.email ? ` · ${c.email}` : '');
-      return `${name}${extra}`;
-    },
-    'Keine Kunden vorhanden'
-  );
-  fillSelect(selTemplate, templates, t=>t.id, t=>t.name, 'Keine Vorlagen');
-
-  const setMsg = (txt, isErr=false)=>{
-    if(!msgEl) return;
-    msgEl.textContent = txt || '';
-    msgEl.style.color = isErr ? '#ffb3b3' : '';
+  const getAssignableTemplates = ()=>{
+    try{ ensureEmbeddedTemplates(); }catch(_){ }
+    const wanted = ['customer_profile','boarding_contract','new_stay'];
+    return wanted
+      .map(id=>getTemplate(id))
+      .filter(Boolean)
+      .map(t=>({ id: t.id, name: t.name || t.title || t.id }));
   };
-  setMsg('');
-
-  btnCreate.onclick = ()=>{
+  const customerLabel = (c)=>{
+    const name = c.displayName || c.name || 'Kunde';
+    const extra = c.email ? ` · ${c.email}` : (c.phone ? ` · ${c.phone}` : '');
+    const suffix = c.__disabled ? ' (kein Portal-Link)' : '';
+    return `${name}${extra}${suffix}`;
+  };
+  const resolvePortalUsers = async ()=>{
+    if(!CLOUD.enabled || !cloudUsersCol) return [];
     try{
-      const customerId = (selCustomer.value||'').trim();
-      const templateId = (selTemplate.value||'').trim();
+      const snap = await cloudUsersCol().where('role','==',ROLES.CUSTOMER).limit(300).get();
+      const users = [];
+      snap.forEach(d=>{
+        const u = d.data() || {};
+        users.push({
+          uid: u.uid || d.id,
+          email: String(u.email || '').trim().toLowerCase(),
+          displayName: u.displayName || ''
+        });
+      });
+      return users;
+    }catch(e){
+      console.warn('resolvePortalUsers failed', e);
+      return [];
+    }
+  };
+
+  state = loadState();
+  ensureStateShape();
+  await loadTemplates().catch(()=>{});
+
+  const templatesForAssign = getAssignableTemplates();
+  const portalUsers = await resolvePortalUsers();
+  const byUid = new Map(portalUsers.map(u=>[String(u.uid||''), u]));
+  const byEmail = new Map(portalUsers.filter(u=>u.email).map(u=>[u.email, u]));
+
+  let customers = Array.isArray(state.customers) ? state.customers.slice() : [];
+  if(customers.length===0 && Array.isArray(state.dogs) && state.dogs.length){
+    const seen = new Set();
+    customers = [];
+    for(const d of state.dogs){
+      if(!d) continue;
+      const owner = (d.ownerName || d.kunde || d.customerName || d.owner || '').toString().trim();
+      if(!owner) continue;
+      const key = owner.toLowerCase();
+      if(seen.has(key)) continue;
+      seen.add(key);
+      customers.push({ id: `owner:${owner}`, name: owner });
+    }
+  }
+
+  const assignableCustomers = customers.map(c=>{
+    const rawUid = String(c.portalUid || c.portalUID || c.userUid || c.uid || '').trim();
+    const rawEmail = String(c.email || c.mail || '').trim().toLowerCase();
+    const user = (rawUid && byUid.get(rawUid)) || (rawEmail && byEmail.get(rawEmail)) || null;
+    const resolvedUid = user?.uid || rawUid || '';
+    const resolvedEmail = user?.email || rawEmail || '';
+    return {
+      id: c.id,
+      displayName: c.name || c.kundenname || c.customerName || c.fullName || c.vorname || 'Kunde',
+      email: resolvedEmail,
+      phone: c.phone || c.telefon || '',
+      portalUid: resolvedUid,
+      __disabled: !resolvedUid,
+      __raw: c
+    };
+  }).sort((a,b)=>String(a.displayName||'').localeCompare(String(b.displayName||''), 'de'));
+
+  fillSelect(selCustomer, assignableCustomers, c=>c.id, customerLabel, 'Keine Kunden vorhanden');
+  fillSelect(selTemplate, templatesForAssign, t=>t.id, t=>t.name, 'Keine Vorlagen');
+
+  if(!assignableCustomers.length){
+    setMsg('Keine Kunden vorhanden.', true);
+  }else if(assignableCustomers.every(c=>c.__disabled)){
+    setMsg('Es gibt Kunden, aber keinen Portal-Link. Bitte beim Kunden dieselbe E-Mail wie im Kundenportal hinterlegen.', true);
+  }else{
+    setMsg('');
+  }
+
+  btnCreate.onclick = async ()=>{
+    try{
+      const customerId = String(selCustomer.value || '').trim();
+      const templateId = String(selTemplate.value || '').trim();
       if(!customerId){ setMsg('Bitte zuerst einen Kunden auswählen.', true); return; }
       if(!templateId){ setMsg('Bitte zuerst eine Vorlage auswählen.', true); return; }
+      if(!CLOUD.enabled || !CLOUD.user){ setMsg('Cloud/Login nicht aktiv – Aufgabe kann nicht freigegeben werden.', true); return; }
 
-      // Global state korrekt initialisieren (ensureStateShape() arbeitet global)
       state = loadState();
       ensureStateShape();
-      const stateNow = state;
-      const c = (stateNow.customers||[]).find(x=>x.id===customerId);
-      if(!c){ setMsg('Kunde nicht gefunden (evtl. gelöscht).', true); return; }
+      const customer = (state.customers || []).find(x=>x.id===customerId) || null;
+      const candidate = assignableCustomers.find(x=>x.id===customerId) || null;
+      if(!customer || !candidate){ setMsg('Kunde nicht gefunden.', true); return; }
+      if(!candidate.portalUid){ setMsg('Für diesen Kunden ist kein Portal-Link vorhanden. Bitte gleiche E-Mail wie im Kundenportal hinterlegen.', true); return; }
 
-      // Duplikat-Schutz: gleiche Aufgabe für den Kunden schon offen?
-      const exists = (stateNow.inboxAssignments||[]).some(a=>a.customerId===customerId && a.templateId===templateId && a.status==='open');
-      if(exists){ setMsg('Diese Aufgabe ist für den Kunden bereits offen.', true); return; }
+      const tpl = getTemplate(templateId);
+      const title = tpl?.name || templateId;
+      const now = Date.now();
+      const openDup = await cloudTasksCol()
+        .where('customerUid','==',candidate.portalUid)
+        .where('templateId','==',templateId)
+        .where('status','==','open')
+        .limit(1)
+        .get();
+      if(openDup && !openDup.empty){
+        setMsg('Diese Aufgabe ist für den Kunden bereits offen.', true);
+        return;
+      }
 
-      const task = {
-        id: 'asg_' + Date.now() + '_' + Math.random().toString(16).slice(2),
+      await cloudTasksCol().add({
+        customerUid: candidate.portalUid,
+        customerEmail: candidate.email || '',
         customerId,
-        customerName: c.name || '',
+        customerName: candidate.displayName || '',
         templateId,
-        createdAt: Date.now(),
-        status: 'open'
-      };
-      stateNow.inboxAssignments = Array.isArray(stateNow.inboxAssignments) ? stateNow.inboxAssignments : [];
-      stateNow.inboxAssignments.unshift(task);
-      // saveState(...) ignoriert Argumente und speichert das globale `state`.
-      state = stateNow;
-      saveState();
+        title,
+        status: 'open',
+        createdAt: now,
+        updatedAt: now,
+        createdByUid: CLOUD.user?.uid || '',
+        createdByEmail: CLOUD.user?.email || ''
+      });
 
-      setMsg(`✅ Aufgabe freigeschaltet: ${c.name||'Kunde'} · ${templates.find(t=>t.id===templateId)?.name||templateId}`);
-      // optional: Auswahl zurücksetzen
+      if(candidate.portalUid && customer && !String(customer.portalUid || customer.portalUID || customer.userUid || '').trim()){
+        customer.portalUid = candidate.portalUid;
+        customer.updatedAt = Date.now();
+        saveState();
+      }
+
+      setMsg(`✅ Aufgabe freigeschaltet: ${candidate.displayName || 'Kunde'} · ${title}`);
       selTemplate.value = '';
     }catch(e){
       console.error(e);
-      setMsg('Fehler beim Erstellen der Aufgabe (siehe Konsole).', true);
+      setMsg('Fehler beim Erstellen der Aufgabe: ' + (e?.message || e), true);
     }
   };
 }
@@ -5884,12 +5938,83 @@ const EMBEDDED_HUNDEANNAHME_TEMPLATE = {
   ],
   meta: { embedded: true }
 };
+const EMBEDDED_CUSTOMER_PROFILE_TEMPLATE = {
+  id: "customer_profile",
+  name: "Kundendaten ergänzen",
+  sections: [
+    {
+      title: "Kontaktdaten",
+      fields: [
+        { key: "customer_name", label: "Name", type: "text", required: true },
+        { key: "customer_phone", label: "Telefon", type: "tel" },
+        { key: "customer_email", label: "E-Mail", type: "email" },
+        { key: "customer_address", label: "Adresse", type: "textarea" }
+      ]
+    },
+    {
+      title: "Hund",
+      fields: [
+        { key: "dog_name", label: "Hundename", type: "text" },
+        { key: "dog_notes", label: "Wichtige Hinweise", type: "textarea" }
+      ]
+    }
+  ],
+  meta: [
+    { key: "place", label: "Ort", type: "text" },
+    { key: "date", label: "Datum", type: "date" }
+  ]
+};
+const EMBEDDED_BOARDING_CONTRACT_TEMPLATE = {
+  id: "boarding_contract",
+  name: "Betreuungsvertrag – Angaben bestätigen",
+  sections: [
+    {
+      title: "Bestätigung",
+      fields: [
+        { key: "contract_confirm_data", label: "Angaben sind vollständig und korrekt", type: "checkbox" },
+        { key: "contract_confirm_agb", label: "AGB / Hinweise wurden gelesen", type: "checkbox" },
+        { key: "contract_notes", label: "Ergänzungen", type: "textarea" }
+      ]
+    }
+  ],
+  meta: [
+    { key: "place", label: "Ort", type: "text" },
+    { key: "date", label: "Datum", type: "date" }
+  ]
+};
+const EMBEDDED_NEW_STAY_TEMPLATE = {
+  id: "new_stay",
+  name: "Neuen Aufenthalt anfragen",
+  sections: [
+    {
+      title: "Aufenthalt",
+      fields: [
+        { key: "stay_from", label: "Von", type: "date", required: true },
+        { key: "stay_to", label: "Bis", type: "date", required: true },
+        { key: "stay_type", label: "Betreuung", type: "select", options: ["Tagesbetreuung", "Urlaubsbetreuung"] },
+        { key: "stay_notes", label: "Notiz", type: "textarea" }
+      ]
+    }
+  ],
+  meta: [
+    { key: "place", label: "Ort", type: "text" },
+    { key: "date", label: "Datum", type: "date" }
+  ]
+};
 function ensureEmbeddedTemplates(){
   try{
     if(!Array.isArray(templates)) templates = [];
-    if(!templates.some(t=>t && t.id === EMBEDDED_HUNDEANNAHME_TEMPLATE.id)){
-      templates.unshift(EMBEDDED_HUNDEANNAHME_TEMPLATE);
-    }
+    const embedded = [
+      EMBEDDED_HUNDEANNAHME_TEMPLATE,
+      EMBEDDED_CUSTOMER_PROFILE_TEMPLATE,
+      EMBEDDED_BOARDING_CONTRACT_TEMPLATE,
+      EMBEDDED_NEW_STAY_TEMPLATE
+    ];
+    embedded.slice().reverse().forEach(t=>{
+      if(!templates.some(x=>x && x.id === t.id)){
+        templates.unshift(t);
+      }
+    });
   }catch(_){ /* ignore */ }
 }
 function normalizeTemplate(t){
