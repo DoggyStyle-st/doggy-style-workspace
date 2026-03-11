@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9S_QMERGE_STATSOK_INBOXFIX_MASTER_20260311",
+  tag: "M50.9.9I_EXPORTFIX_MASTER_20260310",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9S_QMERGE_STATSOK_INBOXFIX_MASTER_20260311";
+const APP_BUILD = "M50.9.9T_INBOXONLY_FIX_MASTER_20260311";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -1328,36 +1328,18 @@ async function initCustomerPortal(){
     if(editor) editor.style.display = 'none';
     if(listEl) listEl.style.display = '';
   };
-  const emailLc = String(CLOUD.user?.email || '').trim().toLowerCase();
-  let latestUid = [];
-  let latestMail = [];
-  const emitTasks = ()=>{
-    const map = new Map();
-    [...latestUid, ...latestMail].forEach(t=>{ if(t && t.id) map.set(String(t.id), t); });
-    const tasks = Array.from(map.values()).sort((a,b)=> Number(b.createdAt||0) - Number(a.createdAt||0));
+  const q = cloudTasksCol().where('customerUid','==',uid).where('status','==','open').orderBy('createdAt','desc');
+  q.onSnapshot((snap)=>{
+    const tasks = [];
+    snap.forEach(doc=>{ tasks.push({id: doc.id, ...doc.data()}); });
     renderCustomerTaskList(tasks);
     if(subtitle){
       subtitle.textContent = tasks.length ? 'Doggy Style Hundepension hat Aufgaben für dich.' : 'Aktuell liegen keine Aufgaben für dich vor.';
     }
-  };
-  const onErr = (err)=>{
+  }, (err)=>{
     console.error('customer tasks listener', err);
     if(subtitle) subtitle.textContent = 'Fehler beim Laden der Aufgaben.';
-  };
-  cloudTasksCol().where('customerUid','==',uid).where('status','==','open').onSnapshot((snap)=>{
-    latestUid = [];
-    snap.forEach(doc=>{ latestUid.push({id: doc.id, ...doc.data()}); });
-    emitTasks();
-  }, onErr);
-  if(emailLc){
-    cloudTasksCol().where('customerEmail','==',emailLc).where('status','==','open').onSnapshot((snap)=>{
-      latestMail = [];
-      snap.forEach(doc=>{ latestMail.push({id: doc.id, ...doc.data()}); });
-      emitTasks();
-    }, onErr);
-  } else {
-    latestMail = [];
-  }
+  });
   function renderCustomerTaskList(tasks){
     if(!listEl) return;
     listEl.innerHTML = '';
@@ -1384,7 +1366,7 @@ async function initCustomerPortal(){
   let _draftTimer = null;
   async function openCustomerTask(task){
     if(!task || !task.templateId) return;
-    const t = task.embeddedTemplate || getTemplate(task.templateId);
+    const t = getTemplate(task.templateId);
     if(!t){ alert('Vorlage nicht gefunden.'); return; }
     if(listEl) listEl.style.display = 'none';
     if(editor) editor.style.display = '';
@@ -1514,179 +1496,133 @@ async function wireTaskCreation(){
   const btnMoreCustomers = document.getElementById('btnCustomersMore');
   const customerCountEl = document.getElementById('taskCustomerCount');
   if(!selCustomer || !selTemplate || !btnCreate) return;
-  // Templates laden (Vorlagen)
-  try{
-    await loadTemplates();
-    const list = (TEMPLATES||[]);
-    selTemplate.innerHTML = list.map(t=>{
-      const id = t.id || t.templateId || t.name || '';
-      const label = t.name || t.title || id || 'Vorlage';
-      return `<option value="${escapeHtml(id)}">${escapeHtml(label)}</option>`;
-    }).join('');
-  }catch(e){
-    console.warn('templates load', e);
-    selTemplate.innerHTML = '<option value="">(keine Vorlagen)</option>';
-  }
-  // Customers (mit Suche + "Mehr laden")
-  let _allCustomers = [];
-  let _custLastDoc = null;
-  let _custHasMore = true;
-  let _custLoading = false;
-  const CUSTOMER_PAGE_SIZE = 200;
-  const customerLabel = (u)=>{
-    const dn = String(u.displayName||u.name||'').trim();
-    const em = String(u.email||u.uid||'').trim();
-    return dn ? `${dn} – ${em}` : em;
-  };
+
+  const FREIGABEN = [
+    { id:'customer_profile', name:'Kundendaten ergänzen' },
+    { id:'boarding_contract', name:'Betreuungsvertrag freigeben' },
+    { id:'new_stay', name:'Aufenthalt anfragen' }
+  ];
+  selTemplate.innerHTML = ['<option value="">Aufgabe auswählen</option>']
+    .concat(FREIGABEN.map(t=>`<option value="${escapeHtml(t.id)}">${escapeHtml(t.name)}</option>`))
+    .join('');
+  selTemplate.disabled = false;
+  if(btnMoreCustomers) btnMoreCustomers.style.display = 'none';
+
   const toEmailKey = (email)=> String(email||'').trim().toLowerCase();
+  const toName = (c)=> String(c?.name || c?.kundenname || c?.customerName || c?.fullName || c?.displayName || '').trim();
+  const toPhone = (c)=> String(c?.phone || c?.telefon || c?.mobile || '').trim();
+  const normalizeCustomers = ()=>{
+    try{ state = loadState(); ensureStateShape(); }catch(_){ }
+    let list = Array.isArray(state?.customers) ? state.customers.slice() : [];
+    if(!list.length && Array.isArray(state?.pets) && state.pets.length){
+      const byId = new Map();
+      (state.pets||[]).forEach(p=>{
+        const cid = String(p?.customerId || '').trim();
+        if(!cid) return;
+        if(byId.has(cid)) return;
+        const c = (state.customers||[]).find(x => String(x?.id||'') === cid);
+        if(c) byId.set(cid, c);
+      });
+      if(byId.size) list = Array.from(byId.values());
+    }
+    const out = [];
+    const seen = new Set();
+    list.forEach(c=>{
+      const email = toEmailKey(c?.email || c?.mail);
+      const name = toName(c);
+      const phone = toPhone(c);
+      const id = String(c?.id || '').trim();
+      const portalUid = String(c?.portalUid || c?.portalUID || c?.userUid || c?.uid || '').trim();
+      if(!name && !email) return;
+      const key = id || email || ('name:' + name.toLowerCase());
+      if(seen.has(key)) return;
+      seen.add(key);
+      out.push({
+        id,
+        value: id || ('email:' + email),
+        name,
+        email,
+        phone,
+        portalUid,
+        label: [name || 'Kunde', email, phone].filter(Boolean).join(' · ')
+      });
+    });
+    out.sort((a,b)=>(a.name||a.email).localeCompare((b.name||b.email), 'de', {sensitivity:'base'}));
+    return out;
+  };
+
+  const renderCustomers = ()=>{
+    const q = String(inpCustomerSearch?.value || '').trim().toLowerCase();
+    const all = normalizeCustomers();
+    const list = q ? all.filter(c =>
+      (c.name||'').toLowerCase().includes(q) ||
+      (c.email||'').toLowerCase().includes(q) ||
+      (c.phone||'').toLowerCase().includes(q)
+    ) : all;
+    const opts = ['<option value="">Kunde auswählen</option>'];
+    if(!list.length){
+      opts.push('<option value="" disabled>Keine Optionen</option>');
+      selCustomer.disabled = true;
+    } else {
+      list.forEach(c=>opts.push(`<option value="${escapeHtml(c.value)}">${escapeHtml(c.label)}</option>`));
+      selCustomer.disabled = false;
+    }
+    selCustomer.innerHTML = opts.join('');
+    if(customerCountEl) customerCountEl.textContent = list.length ? `${list.length} Kunden geladen` : 'Keine Kunden gefunden';
+  };
+
   const resolveCustomerUidByEmail = async (email)=>{
     const emailLc = toEmailKey(email);
     if(!emailLc) return '';
     try{
-      if(Array.isArray(_allCustomers) && _allCustomers.length){
-        const hit = _allCustomers.find(u => toEmailKey(u.email) === emailLc);
-        if(hit && hit.uid) return String(hit.uid);
-      }
-    }catch(_){ }
-    try{
       const snap = await cloudUsersCol().where('email','==',emailLc).limit(1).get();
-      if(!snap.empty) return String(snap.docs[0].id || '');
+      if(!snap.empty) return String(snap.docs[0].id || snap.docs[0].data()?.uid || '');
     }catch(e){ console.warn('resolveCustomerUidByEmail', e); }
     return '';
   };
-  const renderCustomers = (q='')=>{
-    const query = (q||'').trim().toLowerCase();
 
-    // Fallback: if no portal users were loaded from Cloud, use local customers.
-    // Only customers with a linked portal UID can receive tasks.
-    const baseList = (_allCustomers && _allCustomers.length) ? _allCustomers : (state.customers||[]).map(c=>{
-      const uid = c.portalUid || c.portalUID || c.userUid || c.uid || '';
-      const name = c.name || c.kundenname || c.customerName || c.fullName || c.vorname || '';
-      const email = c.email || c.mail || '';
-      return {
-        uid,
-        displayName: name,
-        email,
-        __value: uid ? String(uid) : (email ? ('email:' + String(email).trim().toLowerCase()) : ''),
-        __missingUid: !uid,
-      };
-    }).filter(u => String(u.email||'').trim());
+  renderCustomers();
+  if(inpCustomerSearch) inpCustomerSearch.addEventListener('input', renderCustomers);
 
-    const list = query ? baseList.filter(u=>{
-      const dn = String(u.displayName||'').toLowerCase();
-      const em = String(u.email||u.uid||'').toLowerCase();
-      return dn.includes(query) || em.includes(query);
-    }) : baseList;
-
-    const opts = [];
-    opts.push('<option value="">Kunde auswählen</option>');
-    if(!list.length){
-      opts.push('<option value="" disabled>Keine Treffer</option>');
-    } else {
-      list.forEach(u=>{
-        const suffix = u.__missingUid ? ' (Portal-Link wird per E-Mail gesucht)' : '';
-        const value = escapeHtml(String(u.__value || u.uid || ''));
-        opts.push(`<option value="${value}">${escapeHtml(customerLabel(u) + suffix)}</option>`);
-      });
-    }
-    selCustomer.innerHTML = opts.join('');
-
-    if(customerCountEl){
-      const total = baseList.length;
-      const missing = baseList.filter(u=>u.__missingUid).length;
-      customerCountEl.textContent = missing ? `${total} geladen · ${missing} per E-Mail verknüpfbar` : `${total} geladen`;
-    }
-    // “Mehr laden” only makes sense for cloud-backed user lists.
-    if(btnMoreCustomers) btnMoreCustomers.style.display = (_allCustomers && _allCustomers.length && _custHasMore) ? '' : 'none';
-  };
-  const loadCustomersPage = async (reset=false)=>{
-    if(_custLoading) return;
-    _custLoading = true;
-    try{
-      if(reset){
-        _allCustomers = [];
-        _custLastDoc = null;
-        _custHasMore = true;
-      }
-      if(!cloudUsersCol){
-        _custHasMore = false;
-        renderCustomers(inpCustomerSearch?.value || '');
-        return;
-      }
-      let q = cloudUsersCol()
-        .where('role','==',ROLES.CUSTOMER)
-        .orderBy('createdAt','desc')
-        .limit(CUSTOMER_PAGE_SIZE);
-      if(_custLastDoc) q = q.startAfter(_custLastDoc);
-      const snap = await q.get();
-      const docs = snap.docs || [];
-      docs.forEach(d=>{
-        const u = d.data()||{};
-        if(!u.uid) u.uid = d.id;
-        _allCustomers.push(u);
-      });
-      if(docs.length) _custLastDoc = docs[docs.length-1];
-      _custHasMore = (docs.length === CUSTOMER_PAGE_SIZE);
-      renderCustomers(inpCustomerSearch?.value || '');
-    }catch(e){
-      console.warn('customers page', e);
-      // Ensure we still render dropdown from local customers.
-      _custHasMore = false;
-      renderCustomers(inpCustomerSearch?.value || '');
-    }finally{
-      _custLoading = false;
-    }
-  };
-  await loadCustomersPage(true);
-  if(inpCustomerSearch){
-    inpCustomerSearch.addEventListener('input', ()=>renderCustomers(inpCustomerSearch.value));
-  }
-  if(btnMoreCustomers){
-    btnMoreCustomers.addEventListener('click', (e)=>{ e.preventDefault(); loadCustomersPage(false); });
-  }
   btnCreate.onclick = async ()=>{
-    let customerUid = String(selCustomer.value||'').trim();
-    const templateId = selTemplate.value;
-    const tpl = getTemplate(templateId);
-    const title = (titleInput?.value||'').trim()
-      || (tpl?.name ? (tpl.name+' – Ausfüllen') : 'Formular ausfüllen');
-    if(!customerUid || !templateId){
-      if(msgEl) msgEl.textContent = 'Bitte Kunde und Vorlage wählen.';
+    const selectedValue = String(selCustomer.value || '').trim();
+    const templateId = String(selTemplate.value || '').trim();
+    const taskDef = FREIGABEN.find(t=>t.id===templateId) || null;
+    if(!selectedValue || !templateId){
+      if(msgEl) msgEl.textContent = 'Bitte Kunde und Aufgabe wählen.';
       return;
     }
+    const customers = normalizeCustomers();
+    const selected = customers.find(c => c.value === selectedValue) || null;
+    if(!selected){
+      if(msgEl) msgEl.textContent = 'Kunde nicht gefunden. Bitte Seite aktualisieren.';
+      renderCustomers();
+      return;
+    }
+    let customerUid = selected.portalUid || '';
+    if(!customerUid && selected.email){
+      customerUid = await resolveCustomerUidByEmail(selected.email);
+    }
+    const title = (titleInput?.value || '').trim() || taskDef?.name || 'Aufgabe freigeben';
     if(msgEl) msgEl.textContent = '… erstellt …';
     try{
-      const selected = ((_allCustomers && _allCustomers.length) ? _allCustomers : (state.customers||[])).find(u => {
-        const uid = String(u.uid || u.portalUid || u.portalUID || u.userUid || '').trim();
-        const email = toEmailKey(u.email || u.mail || '');
-        return customerUid === uid || customerUid === ('email:' + email);
-      }) || null;
-      if(customerUid.startsWith('email:')){
-        const email = customerUid.slice(6);
-        customerUid = await resolveCustomerUidByEmail(email);
-        if(!customerUid){
-          if(msgEl) msgEl.textContent = 'Kein Kundenportal-Konto zu dieser E-Mail gefunden. Bitte zuerst mit derselben E-Mail im Kundenportal anmelden.';
-          return;
-        }
-      }
       await cloudTasksCol().add({
         customerUid,
-        customerEmail: String(selected?.email || '').trim().toLowerCase(),
-        customerName: String(selected?.displayName || selected?.name || '').trim(),
+        customerEmail: selected.email || '',
+        customerName: selected.name || '',
+        customerId: selected.id || '',
         templateId,
-        embeddedTemplate: tpl ? JSON.parse(JSON.stringify(tpl)) : null,
         title,
         status: 'open',
         createdAt: Date.now(),
-        updatedAt: Date.now(),
         createdByUid: CLOUD.user?.uid || '',
         createdByEmail: CLOUD.user?.email || ''
       });
       if(msgEl) msgEl.textContent = '✅ Aufgabe freigegeben.';
-      try{ titleInput.value=''; }catch(_){ }
+      try{ if(titleInput) titleInput.value = ''; }catch(_){ }
     }catch(e){
       console.error(e);
-      if(msgEl) msgEl.textContent = '❌ Fehler: '+(e.message||e);
+      if(msgEl) msgEl.textContent = '❌ Fehler: ' + (e.message || e);
     }
   };
 }
@@ -1885,7 +1821,10 @@ async function wireInbox(){
   await loadSubmitted();
 }
 
-// ===== Inbox: Aufgaben freigeben (Cloud-first, robust) =====
+// ===== Inbox: Aufgaben freigeben (offline-first, lokal) =====
+// Admin/Staff kann einem bestehenden Kunden eine Aufgabe/Vorlage "freischalten".
+// Diese Aufgaben landen zunächst lokal (state.inboxAssignments). Später kann das
+// 1:1 auf Firestore erweitert werden.
 async function wireInboxAssignments(){
   const selCustomer = document.getElementById('assignCustomer');
   const selTemplate = document.getElementById('assignTemplate');
@@ -1893,20 +1832,40 @@ async function wireInboxAssignments(){
   const msgEl       = document.getElementById('assignMsg');
   if(!selCustomer || !selTemplate || !btnCreate) return;
 
+  // Optionen aus lokalem Workspace-State ziehen
+  // `ensureStateShape()` arbeitet auf dem globalen `state` und gibt nichts zurück.
+  // Wenn wir (undefined) weiterverwenden, landen wir bei "Keine Optionen".
+  state = loadState();
+  ensureStateShape();
+  const st = state;
+  let customers = Array.isArray(st.customers) ? st.customers : [];
+
+  // Fallback: In älteren Master-Ständen existiert keine separate Kundenliste.
+  // Kunden ergeben sich dann ausschließlich aus den Hunde-Daten (Owner/Kunde).
+  if(customers.length===0 && Array.isArray(st.dogs) && st.dogs.length){
+    const seen = new Set();
+    const derived = [];
+    for(const d of st.dogs){
+      if(!d) continue;
+      const owner = (d.ownerName || d.kunde || d.customerName || d.owner || '').toString().trim();
+      if(!owner) continue;
+      const key = owner.toLowerCase();
+      if(seen.has(key)) continue;
+      seen.add(key);
+      derived.push({ id: `owner:${owner}`, displayName: owner, __derivedOwner: owner });
+    }
+    customers = derived;
+  }
+
+  // Templates, die für Kunden freischaltbar sind (Basis-Version)
+  // Keys sind stabil; Anzeigenamen sind für UI.
   const templates = [
     { id: 'customer_profile', name: 'Hunde/Kunden (Kundendaten ergänzen)' },
     { id: 'boarding_contract', name: 'Betreuungsvertrag' },
     { id: 'new_stay', name: 'Neuer Aufenthalt' }
   ];
 
-  const setMsg = (txt, isErr=false)=>{
-    if(!msgEl) return;
-    msgEl.textContent = txt || '';
-    msgEl.style.color = isErr ? '#ffb3b3' : '';
-  };
-
   const fillSelect = (sel, items, getId, getLabel, emptyLabel)=>{
-    if(!sel) return;
     sel.innerHTML = '';
     if(!items || !items.length){
       const o = document.createElement('option');
@@ -1923,144 +1882,70 @@ async function wireInboxAssignments(){
     sel.appendChild(o0);
     items.forEach(it=>{
       const o = document.createElement('option');
-      o.value = String(getId(it) || '');
+      o.value = getId(it);
       o.textContent = getLabel(it);
       sel.appendChild(o);
     });
   };
 
-  const normEmail = (v)=> String(v||'').trim().toLowerCase();
-  const listify = (src)=> Array.isArray(src) ? src.filter(Boolean) : ((src && typeof src==='object') ? Object.values(src).filter(Boolean) : []);
+  fillSelect(
+    selCustomer,
+    customers,
+    c=>c.id,
+    c=>{
+      const name = c.name || 'Kunde';
+      const extra = c.phone ? ` · ${c.phone}` : (c.email ? ` · ${c.email}` : '');
+      return `${name}${extra}`;
+    },
+    'Keine Kunden vorhanden'
+  );
+  fillSelect(selTemplate, templates, t=>t.id, t=>t.name, 'Keine Vorlagen');
 
-  const collectCustomers = ()=>{
-    try{ ensureStateShape(); }catch(_){ }
-    const st = (typeof state === 'object' && state) ? state : {};
-    const byId = new Map();
-    const out = [];
-    const pushCustomer = (src={})=>{
-      const id = String(src.id || src.customerId || src.uid || src.portalUid || src.portalUID || src.userUid || '').trim();
-      const name = String(src.name || src.displayName || src.customerName || src.fullName || src.ownerName || src.kundenname || src.owner || '').trim();
-      const email = normEmail(src.email || src.mail || src.ownerEmail || src.customerEmail || '');
-      const phone = String(src.phone || src.tel || src.ownerPhone || src.customerPhone || '').trim();
-      const portalUid = String(src.portalUid || src.portalUID || src.userUid || src.uid || '').trim();
-      if(!name || !email) return;
-      const key = (id || ('email:' + email)).toLowerCase();
-      const prev = byId.get(key);
-      if(prev){
-        if(!prev.portalUid && portalUid) prev.portalUid = portalUid;
-        if(!prev.phone && phone) prev.phone = phone;
-        return;
-      }
-      const row = { id: id || ('email:' + email), name, email, phone, portalUid };
-      byId.set(key, row);
-      out.push(row);
-    };
-
-    listify(st.customers).forEach(pushCustomer);
-    listify(st.dogs).forEach(d=>pushCustomer({
-      id: d.customerId || d.id || '',
-      name: d.ownerName || d.owner || d.kunde || d.customerName || d.name || '',
-      email: d.email || d.ownerEmail || '',
-      phone: d.phone || d.ownerPhone || '',
-      portalUid: d.portalUid || d.portalUID || d.userUid || ''
-    }));
-    listify(st.pets).forEach(p=>{
-      const owner = (p && (p.ownerName || p.customerName || p.owner || '')).trim ? (p.ownerName || p.customerName || p.owner || '').trim() : '';
-      const ownerEmail = normEmail(p && (p.ownerEmail || p.email || p.customerEmail || ''));
-      const ownerPhone = String(p && (p.ownerPhone || p.phone || '') || '').trim();
-      const customerId = String(p && p.customerId || '').trim();
-      if(owner && ownerEmail){
-        pushCustomer({ id: customerId, name: owner, email: ownerEmail, phone: ownerPhone });
-      }
-      if(customerId){
-        const c = listify(st.customers).find(x => String(x && x.id || '').trim() === customerId);
-        if(c) pushCustomer(c);
-      }
-    });
-
-    out.sort((a,b)=> String(a.name||'').localeCompare(String(b.name||''),'de'));
-    return out;
+  const setMsg = (txt, isErr=false)=>{
+    if(!msgEl) return;
+    msgEl.textContent = txt || '';
+    msgEl.style.color = isErr ? '#ffb3b3' : '';
   };
+  setMsg('');
 
-  const fillTemplates = ()=>{
-    fillSelect(selTemplate, templates, t=>t.id, t=>t.name, 'Keine Vorlagen');
-    if(selTemplate.options.length <= 1 && templates.length){
-      // Fallback gegen leere Selects auf iOS/Safari nach Reflow
-      selTemplate.innerHTML = '<option value="">Bitte auswählen…</option>' + templates.map(t=>`<option value="${escapeHtml(t.id)}">${escapeHtml(t.name)}</option>`).join('');
-      selTemplate.disabled = false;
-    }
-  };
-
-  const refreshOptions = ()=>{
-    fillTemplates();
-    let customers = [];
-    try{ customers = collectCustomers(); }catch(e){ console.warn('collectCustomers failed', e); customers = []; }
-    fillSelect(
-      selCustomer,
-      customers,
-      c=>c.id,
-      c=> `${c.name}${c.email ? (' · ' + c.email) : ''}${c.phone ? (' · ' + c.phone) : ''}`,
-      'Keine Kunden mit E-Mail vorhanden'
-    );
-    btnCreate.disabled = !(customers.length && templates.length);
-    setMsg(customers.length ? '' : 'Bitte zuerst einen Kunden mit E-Mail-Adresse anlegen.', !customers.length);
-    return customers;
-  };
-
-  let customers = refreshOptions();
-  window.__refreshInboxAssignments = ()=>{ customers = refreshOptions(); return customers; };
-
-  // zusätzlich beim Öffnen des Panels / nach späteren Syncs erneut aufbauen
-  ['navInbox','btnInbox','menuInbox'].forEach(id=>{
-    const el = document.getElementById(id);
-    if(el && !el.dataset.inboxRefreshBound){
-      el.dataset.inboxRefreshBound = '1';
-      el.addEventListener('click', ()=> setTimeout(()=>{ try{ window.__refreshInboxAssignments(); }catch(_){ } }, 50), {passive:true});
-    }
-  });
-  setTimeout(()=>{ try{ window.__refreshInboxAssignments(); }catch(_){ } }, 150);
-  setTimeout(()=>{ try{ window.__refreshInboxAssignments(); }catch(_){ } }, 900);
-
-  btnCreate.onclick = async ()=>{
+  btnCreate.onclick = ()=>{
     try{
-      customers = refreshOptions();
-      const customerId = String(selCustomer.value||'').trim();
-      const templateId = String(selTemplate.value||'').trim();
+      const customerId = (selCustomer.value||'').trim();
+      const templateId = (selTemplate.value||'').trim();
       if(!customerId){ setMsg('Bitte zuerst einen Kunden auswählen.', true); return; }
       if(!templateId){ setMsg('Bitte zuerst eine Vorlage auswählen.', true); return; }
 
-      const c = customers.find(x=>String(x.id)===customerId);
-      if(!c){ setMsg('Kunde nicht gefunden.', true); return; }
-      if(!c.email){ setMsg('Für diesen Kunden fehlt eine E-Mail-Adresse.', true); return; }
+      // Global state korrekt initialisieren (ensureStateShape() arbeitet global)
+      state = loadState();
+      ensureStateShape();
+      const stateNow = state;
+      const c = (stateNow.customers||[]).find(x=>x.id===customerId);
+      if(!c){ setMsg('Kunde nicht gefunden (evtl. gelöscht).', true); return; }
 
-      let customerUid = String(c.portalUid || '').trim();
-      if(!customerUid){
-        try{
-          const snap = await cloudUsersCol().where('email','==',normEmail(c.email)).limit(1).get();
-          if(!snap.empty) customerUid = String(snap.docs[0].id || '');
-        }catch(e){ console.warn('portal user lookup failed', e); }
-      }
+      // Duplikat-Schutz: gleiche Aufgabe für den Kunden schon offen?
+      const exists = (stateNow.inboxAssignments||[]).some(a=>a.customerId===customerId && a.templateId===templateId && a.status==='open');
+      if(exists){ setMsg('Diese Aufgabe ist für den Kunden bereits offen.', true); return; }
 
-      const t = templates.find(x=>x.id===templateId);
-      await cloudTasksCol().add({
-        customerUid,
-        customerEmail: normEmail(c.email),
-        customerId: c.id,
+      const task = {
+        id: 'asg_' + Date.now() + '_' + Math.random().toString(16).slice(2),
+        customerId,
         customerName: c.name || '',
         templateId,
-        title: t?.name || templateId,
-        status: 'open',
         createdAt: Date.now(),
-        updatedAt: Date.now(),
-        createdByUid: CLOUD.user?.uid || '',
-        createdByEmail: CLOUD.user?.email || ''
-      });
+        status: 'open'
+      };
+      stateNow.inboxAssignments = Array.isArray(stateNow.inboxAssignments) ? stateNow.inboxAssignments : [];
+      stateNow.inboxAssignments.unshift(task);
+      // saveState(...) ignoriert Argumente und speichert das globale `state`.
+      state = stateNow;
+      saveState();
 
-      setMsg(`✅ Aufgabe freigeschaltet: ${c.name || 'Kunde'} · ${t?.name || templateId}`);
+      setMsg(`✅ Aufgabe freigeschaltet: ${c.name||'Kunde'} · ${templates.find(t=>t.id===templateId)?.name||templateId}`);
+      // optional: Auswahl zurücksetzen
       selTemplate.value = '';
     }catch(e){
       console.error(e);
-      setMsg('Fehler beim Erstellen der Aufgabe.', true);
+      setMsg('Fehler beim Erstellen der Aufgabe (siehe Konsole).', true);
     }
   };
 }
@@ -9566,9 +9451,7 @@ function renderDogs(){
   }
   refreshCustomerSelect();
   syncDogSelect();
-  try{ if(typeof window.__refreshInboxAssignments === 'function') window.__refreshInboxAssignments(); }catch(_){ }
 }
-
 $("#btnAddDog").addEventListener("click",()=>openCpEditor("new"));
 $("#btnCpCancel").addEventListener("click",()=>closeCpEditor());
 // Button "Weiteren Hund" (für bestehenden Kunden) dynamisch einhängen
@@ -9604,13 +9487,13 @@ $("#btnCpSave").addEventListener("click",()=>{
   } else {
     const name = $("#c_name").value.trim();
     if(!name){ alert("Bitte Kundennamen eintragen."); return; }
-    const email = $("#c_email").value.trim();
-    if(!email){ alert("Bitte eine E-Mail-Adresse eintragen."); return; }
+    const phone = $("#c_phone").value.trim();
+    if(!phone){ alert("Bitte eine Telefonnummer eintragen."); return; }
     customer = {
       id: uid(),
       name,
       phone: $("#c_phone").value.trim(),
-      email,
+      email: $("#c_email").value.trim(),
       street: $("#c_street").value.trim(),
       zip: $("#c_zip").value.trim(),
       city: $("#c_city").value.trim(),
@@ -9638,8 +9521,8 @@ $("#btnCpSave").addEventListener("click",()=>{
     if(customer && customer.id){
       customer.name = $("#c_name").value.trim() || customer.name;
       customer.phone = $("#c_phone").value.trim();
+      if(!customer.phone){ alert("Bitte eine Telefonnummer eintragen."); return; }
       customer.email = $("#c_email").value.trim();
-      if(!customer.email){ alert("Bitte eine E-Mail-Adresse eintragen."); return; }
       customer.street = $("#c_street").value.trim();
       customer.zip = $("#c_zip").value.trim();
       customer.city = $("#c_city").value.trim();
@@ -10968,7 +10851,6 @@ return;
     
 // Erstes Boot lokal (stellt state sicher), dann Remote zuverlässig einspielen
 await bootOnce();
-try{ await wireInboxAssignments(); }catch(e){ console.warn(e); }
 // Echtzeit-Listener (robust, inkl. erstem Snapshot)
 // Wichtig: Listener so früh wie möglich setzen, damit der initiale State auch bei iOS/Safari sicher kommt.
 try{
@@ -15326,45 +15208,6 @@ function _statLocalUpsert(entry){
   return rows;
 }
 
-function _statRowIdCandidates(row){
-  const out = [];
-  try{
-    const push = (v)=>{
-      const s = String(v||'').trim();
-      if(s && !out.includes(s)) out.push(s);
-    };
-    push(row && row.petId);
-    push(row && row.dogId);
-    push(row && row.legacyDogId);
-    push(row && row.customerDogId);
-    const pet = (typeof _statGetPetByAnyId === 'function') ? _statGetPetByAnyId(row && (row.petId || row.dogId || row.legacyDogId || row.customerDogId)) : null;
-    if(pet){
-      push(pet.id);
-      if(typeof getLegacyDogIdForPet === 'function') push(getLegacyDogIdForPet(pet.id));
-    }
-  }catch(_){ }
-  return out;
-}
-function _statFilterMatchDog(row, wantedDogId){
-  const want = String(wantedDogId||'').trim();
-  if(!want) return true;
-  try{
-    const pet = (typeof _statGetPetByAnyId === 'function') ? _statGetPetByAnyId(want) : null;
-    const wantIds = [];
-    const push=(v)=>{ const s=String(v||'').trim(); if(s && !wantIds.includes(s)) wantIds.push(s); };
-    push(want);
-    if(pet){
-      push(pet.id);
-      if(typeof getLegacyDogIdForPet === 'function') push(getLegacyDogIdForPet(pet.id));
-    }
-    const rowIds = _statRowIdCandidates(row);
-    return rowIds.some(id => wantIds.includes(String(id||'').trim()));
-  }catch(_){
-    const id = String(row && (row.petId || row.dogId || row.legacyDogId || ''));
-    return id === want;
-  }
-}
-
 async function saveStatRatingV2(){
   const dateISO = (document.getElementById('statDate')||{}).value || '';
   const petId = (document.getElementById('statDogSelect')||{}).value || '';
@@ -15589,16 +15432,11 @@ function _statPetOptions(){
     return list.sort((a,b)=> String(a.name).localeCompare(String(b.name),'de'));
   }catch(_){ return []; }
 }
-function _statFillDogSelect(selId){
+function _statFillDogSelect(selId, firstLabel='— bitte wählen —'){
   const sel = document.getElementById(selId);
   if(!sel) return;
-  const petIds = Object.keys(state.pets || {});
-  const opts = petIds.map(pid=>{
-    const p = state.pets && state.pets[pid];
-    const name = p?.name || p?.dogName || pid;
-    return {id:pid, name};
-  }).sort((a,b)=> String(a.name).localeCompare(String(b.name)));
-  sel.innerHTML = '<option value="">— bitte wählen —</option>' + opts.map(o=>`<option value="${escapeHtml(o.id)}">${escapeHtml(o.name)}</option>`).join('');
+  const opts = _statPetOptions();
+  sel.innerHTML = `<option value="">${escapeHtml(firstLabel)}</option>` + opts.map(o=>`<option value="${escapeHtml(o.id)}">${escapeHtml(o.name)}</option>`).join('');
 }
 
 function initStatAnalysisBindings(){
@@ -15701,7 +15539,7 @@ function _statFillBreedSelect(selId){
 
 function _statLocalFilterRange({from='', to='', breed='', dogId='' }={}){
   let rows = _statLocalRead();
-  rows = (rows||[]).filter(r => r && _statFilterMatchDog(r, dogId));
+  rows = (rows||[]).filter(r => r && (!dogId || String(r.dogId||r.petId||'') === String(dogId)));
   if(breed) rows = rows.filter(r => String(r.breed||'') === String(breed));
   if(from) rows = rows.filter(r => String(r.date||'') >= String(from));
   if(to) rows = rows.filter(r => String(r.date||'') <= String(to));
@@ -15721,6 +15559,7 @@ async function _statLoadRange({from='', to='', breed='', dogId='' }={}){
 
   try{
     let q = _statColl();
+    if(dogId) q = q.where('dogId','==',dogId);
     if(breed) q = q.where('breed','==',breed);
     if(from) q = q.where('date','>=',from);
     if(to) q = q.where('date','<=',to);
@@ -15734,7 +15573,6 @@ async function _statLoadRange({from='', to='', breed='', dogId='' }={}){
       const d = doc.data() || {};
       const sc = d.scores || d.scales || {};
       const row = { id:doc.id, ...d, __scores: sc, __indexB: Number.isFinite(Number(d.indexB)) ? Number(d.indexB) : _statComputeIndexB(sc) };
-      if(!_statFilterMatchDog(row, dogId)) return;
       const key = String(row.docId || row.id || doc.id || '');
       const prev = merged.get(key);
       if(!prev){
@@ -16218,7 +16056,7 @@ function renderStatExport(){
     </div>
   `;
 
-  _statFillDogSelect('statExpDog');
+  _statFillDogSelect('statExpDog', 'Alle Hunde');
 
   const fromEl=document.getElementById('statExpFrom');
   const toEl=document.getElementById('statExpTo');
