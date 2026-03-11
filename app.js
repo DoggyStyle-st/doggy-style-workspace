@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9O_INBOXPORTALCUSTOMERFIX_MASTER_20260311",
+  tag: "M50.9.9Q_STATS_INBOX_PORTAL_FIX_MASTER_20260311",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9O_INBOXPORTALCUSTOMERFIX_MASTER_20260311";
+const APP_BUILD = "M50.9.9Q_STATS_INBOX_PORTAL_FIX_MASTER_20260311";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -1328,18 +1328,36 @@ async function initCustomerPortal(){
     if(editor) editor.style.display = 'none';
     if(listEl) listEl.style.display = '';
   };
-  const q = cloudTasksCol().where('customerUid','==',uid).where('status','==','open').orderBy('createdAt','desc');
-  q.onSnapshot((snap)=>{
-    const tasks = [];
-    snap.forEach(doc=>{ tasks.push({id: doc.id, ...doc.data()}); });
+  const emailLc = String(CLOUD.user?.email || '').trim().toLowerCase();
+  let latestUid = [];
+  let latestMail = [];
+  const emitTasks = ()=>{
+    const map = new Map();
+    [...latestUid, ...latestMail].forEach(t=>{ if(t && t.id) map.set(String(t.id), t); });
+    const tasks = Array.from(map.values()).sort((a,b)=> Number(b.createdAt||0) - Number(a.createdAt||0));
     renderCustomerTaskList(tasks);
     if(subtitle){
       subtitle.textContent = tasks.length ? 'Doggy Style Hundepension hat Aufgaben für dich.' : 'Aktuell liegen keine Aufgaben für dich vor.';
     }
-  }, (err)=>{
+  };
+  const onErr = (err)=>{
     console.error('customer tasks listener', err);
     if(subtitle) subtitle.textContent = 'Fehler beim Laden der Aufgaben.';
-  });
+  };
+  cloudTasksCol().where('customerUid','==',uid).where('status','==','open').onSnapshot((snap)=>{
+    latestUid = [];
+    snap.forEach(doc=>{ latestUid.push({id: doc.id, ...doc.data()}); });
+    emitTasks();
+  }, onErr);
+  if(emailLc){
+    cloudTasksCol().where('customerEmail','==',emailLc).where('status','==','open').onSnapshot((snap)=>{
+      latestMail = [];
+      snap.forEach(doc=>{ latestMail.push({id: doc.id, ...doc.data()}); });
+      emitTasks();
+    }, onErr);
+  } else {
+    latestMail = [];
+  }
   function renderCustomerTaskList(tasks){
     if(!listEl) return;
     listEl.innerHTML = '';
@@ -1910,61 +1928,66 @@ async function wireInboxAssignments(){
     });
   };
 
+  const listify = (src)=>{
+    if(Array.isArray(src)) return src.filter(Boolean);
+    if(src && typeof src === 'object') return Object.values(src).filter(Boolean);
+    return [];
+  };
+
   const collectCustomers = ()=>{
-    state = loadState();
-    ensureStateShape();
-    const st = state || {};
+    try{ ensureStateShape(); }catch(_){ }
+    const st = (typeof state === 'object' && state) ? state : {};
     const out = [];
     const seen = new Set();
     const pushCustomer = (c)=>{
       if(!c) return;
-      const id = String(c.id || c.customerId || c.uid || '').trim();
-      const name = String(c.name || c.displayName || c.customerName || '').trim();
-      const email = String(c.email || c.mail || '').trim();
-      if(!id || !name || !email) return;
-      const key = String(id).toLowerCase();
+      const id = String(c.id || c.customerId || c.uid || c.portalUid || c.portalUID || c.userUid || '').trim();
+      const name = String(c.name || c.displayName || c.customerName || c.fullName || c.ownerName || c.kundenname || '').trim();
+      const email = String(c.email || c.mail || c.ownerEmail || '').trim().toLowerCase();
+      if(!name || !email) return;
+      const key = String(id || email).toLowerCase();
       if(seen.has(key)) return;
       seen.add(key);
       out.push({
-        id,
+        id: id || ('email:' + email),
         name,
         email,
-        phone: String(c.phone || c.tel || '').trim(),
+        phone: String(c.phone || c.tel || c.ownerPhone || '').trim(),
         portalUid: String(c.portalUid || c.portalUID || c.userUid || c.uid || '').trim()
       });
     };
 
-    (Array.isArray(st.customers) ? st.customers : []).forEach(pushCustomer);
-
-    if(out.length === 0 && Array.isArray(st.pets) && st.pets.length){
-      const byCustomer = new Map();
-      (st.pets || []).forEach(p=>{
-        const cid = String(p && p.customerId || '').trim();
-        if(cid && !byCustomer.has(cid)) byCustomer.set(cid, true);
+    listify(st.customers).forEach(pushCustomer);
+    listify(st.pets).forEach(p=>{
+      const cid = String(p && p.customerId || '').trim();
+      if(!cid) return;
+      const owner = listify(st.customers).find(c => String(c && c.id || '').trim() === cid);
+      if(owner) pushCustomer(owner);
+    });
+    listify(st.dogs).forEach(d=>{
+      pushCustomer({
+        id: d.customerId || d.id || '',
+        name: d.ownerName || d.owner || d.kunde || d.customerName || '',
+        email: d.email || d.ownerEmail || '',
+        phone: d.phone || d.ownerPhone || '',
+        portalUid: d.portalUid || d.portalUID || d.userUid || ''
       });
-      (st.customers || []).forEach(c=>{ if(byCustomer.has(String(c.id||''))) pushCustomer(c); });
-    }
-
-    if(out.length === 0 && Array.isArray(st.dogs) && st.dogs.length){
-      (st.dogs || []).forEach(d=>{
-        const owner = String(d.ownerName || d.owner || d.kunde || d.customerName || '').trim();
-        const email = String(d.email || d.ownerEmail || '').trim();
-        if(!owner || !email) return;
-        pushCustomer({
-          id: String(d.customerId || ('legacy:' + email.toLowerCase())).trim(),
-          name: owner,
-          email,
-          phone: String(d.phone || d.ownerPhone || '').trim()
-        });
-      });
-    }
+    });
 
     out.sort((a,b)=> String(a.name||'').localeCompare(String(b.name||''), 'de'));
     return out;
   };
 
   const refreshOptions = ()=>{
-    const customers = collectCustomers();
+    let customers = [];
+    try{ customers = collectCustomers(); }catch(e){ console.warn('collectCustomers failed', e); customers = []; }
+    fillSelect(
+      selTemplate,
+      templates,
+      t=>t.id,
+      t=>t.name,
+      'Keine Vorlagen'
+    );
     fillSelect(
       selCustomer,
       customers,
@@ -1972,35 +1995,31 @@ async function wireInboxAssignments(){
       c=> `${c.name}${c.email ? (' · ' + c.email) : ''}${c.phone ? (' · ' + c.phone) : ''}`,
       'Keine Kunden mit E-Mail vorhanden'
     );
-    fillSelect(selTemplate, templates, t=>t.id, t=>t.name, 'Keine Vorlagen');
     btnCreate.disabled = !(customers.length && templates.length);
     setMsg(customers.length ? '' : 'Bitte zuerst einen Kunden mit E-Mail-Adresse anlegen.', !customers.length);
     return customers;
   };
 
-  const customers = refreshOptions();
-  window.__refreshInboxAssignments = refreshOptions;
+  let customers = refreshOptions();
+  window.__refreshInboxAssignments = ()=>{ customers = refreshOptions(); return customers; };
 
   btnCreate.onclick = async ()=>{
     try{
-      const liveCustomers = refreshOptions();
+      customers = refreshOptions();
       const customerId = String(selCustomer.value||'').trim();
       const templateId = String(selTemplate.value||'').trim();
       if(!customerId){ setMsg('Bitte zuerst einen Kunden auswählen.', true); return; }
       if(!templateId){ setMsg('Bitte zuerst eine Vorlage auswählen.', true); return; }
 
-      const c = liveCustomers.find(x=>x.id===customerId);
+      const c = customers.find(x=>x.id===customerId);
       if(!c){ setMsg('Kunde nicht gefunden.', true); return; }
       if(!c.email){ setMsg('Für diesen Kunden fehlt eine E-Mail-Adresse.', true); return; }
 
       let customerUid = c.portalUid || '';
       if(!customerUid){
         try{
-          const emailLc = String(c.email||'').toLowerCase();
-          const snap = await cloudUsersCol().where('email','==',emailLc).limit(1).get();
-          if(!snap.empty){
-            customerUid = snap.docs[0].id;
-          }
+          const snap = await cloudUsersCol().where('email','==',String(c.email||'').toLowerCase()).limit(1).get();
+          if(!snap.empty) customerUid = snap.docs[0].id;
         }catch(e){ console.warn('portal user lookup failed', e); }
       }
       if(!customerUid){
@@ -2011,7 +2030,7 @@ async function wireInboxAssignments(){
       const t = templates.find(x=>x.id===templateId);
       await cloudTasksCol().add({
         customerUid,
-        customerEmail: c.email,
+        customerEmail: String(c.email||'').toLowerCase(),
         customerId: c.id,
         customerName: c.name || '',
         templateId,
@@ -15293,6 +15312,45 @@ function _statLocalUpsert(entry){
   return rows;
 }
 
+function _statRowIdCandidates(row){
+  const out = [];
+  try{
+    const push = (v)=>{
+      const s = String(v||'').trim();
+      if(s && !out.includes(s)) out.push(s);
+    };
+    push(row && row.petId);
+    push(row && row.dogId);
+    push(row && row.legacyDogId);
+    push(row && row.customerDogId);
+    const pet = (typeof _statGetPetByAnyId === 'function') ? _statGetPetByAnyId(row && (row.petId || row.dogId || row.legacyDogId || row.customerDogId)) : null;
+    if(pet){
+      push(pet.id);
+      if(typeof getLegacyDogIdForPet === 'function') push(getLegacyDogIdForPet(pet.id));
+    }
+  }catch(_){ }
+  return out;
+}
+function _statFilterMatchDog(row, wantedDogId){
+  const want = String(wantedDogId||'').trim();
+  if(!want) return true;
+  try{
+    const pet = (typeof _statGetPetByAnyId === 'function') ? _statGetPetByAnyId(want) : null;
+    const wantIds = [];
+    const push=(v)=>{ const s=String(v||'').trim(); if(s && !wantIds.includes(s)) wantIds.push(s); };
+    push(want);
+    if(pet){
+      push(pet.id);
+      if(typeof getLegacyDogIdForPet === 'function') push(getLegacyDogIdForPet(pet.id));
+    }
+    const rowIds = _statRowIdCandidates(row);
+    return rowIds.some(id => wantIds.includes(String(id||'').trim()));
+  }catch(_){
+    const id = String(row && (row.petId || row.dogId || row.legacyDogId || ''));
+    return id === want;
+  }
+}
+
 async function saveStatRatingV2(){
   const dateISO = (document.getElementById('statDate')||{}).value || '';
   const petId = (document.getElementById('statDogSelect')||{}).value || '';
@@ -15327,10 +15385,15 @@ async function saveStatRatingV2(){
   const indexB = _statComputeIndexB(scales);
   const uid = _statUid();
   const docId = _statDocId(petId, dateISO, type);
+  let legacyDogId = '';
+  try{ if(typeof getLegacyDogIdForPet === 'function') legacyDogId = String(getLegacyDogIdForPet(petId) || ''); }catch(_){ }
+  const pet = (typeof _statGetPetByAnyId === 'function') ? (_statGetPetByAnyId(petId) || {}) : {};
   const payload = {
     docId,
     dogId: petId,
     petId,
+    legacyDogId,
+    dogName: String(pet.name || pet.dogName || ''),
     date: dateISO,
     type,
     sex,
@@ -15624,7 +15687,7 @@ function _statFillBreedSelect(selId){
 
 function _statLocalFilterRange({from='', to='', breed='', dogId='' }={}){
   let rows = _statLocalRead();
-  rows = (rows||[]).filter(r => r && (!dogId || String(r.dogId||r.petId||'') === String(dogId)));
+  rows = (rows||[]).filter(r => r && _statFilterMatchDog(r, dogId));
   if(breed) rows = rows.filter(r => String(r.breed||'') === String(breed));
   if(from) rows = rows.filter(r => String(r.date||'') >= String(from));
   if(to) rows = rows.filter(r => String(r.date||'') <= String(to));
@@ -15644,7 +15707,6 @@ async function _statLoadRange({from='', to='', breed='', dogId='' }={}){
 
   try{
     let q = _statColl();
-    if(dogId) q = q.where('dogId','==',dogId);
     if(breed) q = q.where('breed','==',breed);
     if(from) q = q.where('date','>=',from);
     if(to) q = q.where('date','<=',to);
@@ -15658,6 +15720,7 @@ async function _statLoadRange({from='', to='', breed='', dogId='' }={}){
       const d = doc.data() || {};
       const sc = d.scores || d.scales || {};
       const row = { id:doc.id, ...d, __scores: sc, __indexB: Number.isFinite(Number(d.indexB)) ? Number(d.indexB) : _statComputeIndexB(sc) };
+      if(!_statFilterMatchDog(row, dogId)) return;
       const key = String(row.docId || row.id || doc.id || '');
       const prev = merged.get(key);
       if(!prev){

@@ -6,9 +6,9 @@
   <title>Doggy Style · Kundenportal</title>
   <link href="manifest.json" rel="manifest"/>
   <meta name="theme-color" content="#101014"/>
-  <meta name="app-version" content="M50.9.9O_INBOXPORTALCUSTOMERFIX_MASTER_20260311"/>
+  <meta name="app-version" content="M50.9.9Q_STATS_INBOX_PORTAL_FIX_MASTER_20260311"/>
   <link href="assets/logo.png" rel="apple-touch-icon"/>
-  <link href="styles.css?v=M50.9.9O_INBOXPORTALCUSTOMERFIX_MASTER_20260311" rel="stylesheet"/>
+  <link href="styles.css?v=M50.9.9Q_STATS_INBOX_PORTAL_FIX_MASTER_20260311" rel="stylesheet"/>
 </head>
 <body class="bg-watermark">
   <main class="shell" style="padding-top:20px">
@@ -51,10 +51,10 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=M50.9.9O_INBOXPORTALCUSTOMERFIX_MASTER_20260311"></script>
+  <script src="firebase-config.js?v=M50.9.9Q_STATS_INBOX_PORTAL_FIX_MASTER_20260311"></script>
   <script>
     (function(){
-      const BUILD = 'M50.9.9O_INBOXPORTALCUSTOMERFIX_MASTER_20260311';
+      const BUILD = 'M50.9.9Q_STATS_INBOX_PORTAL_FIX_MASTER_20260311';
       const orgId = window.firebaseOrgId || 'doggystyle';
       let app = null, auth = null, db = null;
       let unsubTasks = null;
@@ -262,19 +262,40 @@
             return;
           }
           if(unsubTasks){ try{ unsubTasks(); }catch(_){ } }
-          unsubTasks = tasksCol()
+          const emailLc = String(user.email || '').trim().toLowerCase();
+          let latestUid = [];
+          let latestMail = [];
+          const emit = ()=>{
+            const map = new Map();
+            [...latestUid, ...latestMail].forEach(t=>{ if(t && t.id) map.set(String(t.id), t); });
+            const tasks = Array.from(map.values()).sort((a,b)=> Number(b.createdAt||0) - Number(a.createdAt||0));
+            renderTasks(tasks);
+          };
+          const onErr = (err)=>{
+            console.error('task listener failed', err);
+            $('customerPortalSubtitle').textContent = 'Fehler beim Laden der Aufgaben.';
+            renderEmpty('Aufgaben konnten gerade nicht geladen werden.');
+          };
+          const unsubA = tasksCol()
             .where('customerUid','==',user.uid)
             .where('status','==','open')
-            .orderBy('createdAt','desc')
             .onSnapshot((snap)=>{
-              const tasks = [];
-              snap.forEach(doc => tasks.push({ id: doc.id, ...doc.data() }));
-              renderTasks(tasks);
-            }, (err)=>{
-              console.error('task listener failed', err);
-              $('customerPortalSubtitle').textContent = 'Fehler beim Laden der Aufgaben.';
-              renderEmpty('Aufgaben konnten gerade nicht geladen werden.');
-            });
+              latestUid = [];
+              snap.forEach(doc => latestUid.push({ id: doc.id, ...doc.data() }));
+              emit();
+            }, onErr);
+          let unsubB = null;
+          if(emailLc){
+            unsubB = tasksCol()
+              .where('customerEmail','==',emailLc)
+              .where('status','==','open')
+              .onSnapshot((snap)=>{
+                latestMail = [];
+                snap.forEach(doc => latestMail.push({ id: doc.id, ...doc.data() }));
+                emit();
+              }, onErr);
+          }
+          unsubTasks = ()=>{ try{ unsubA && unsubA(); }catch(_){ } try{ unsubB && unsubB(); }catch(_){ } };
         });
       }
 
