@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9I_EXPORTFIX_MASTER_20260310",
+  tag: "M50.9.9U_INBOX_SELECT_REBUILD_MASTER_20260311",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9T_INBOXONLY_FIX_MASTER_20260311";
+const APP_BUILD = "M50.9.9U_INBOX_SELECT_REBUILD_MASTER_20260311";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -1496,121 +1496,134 @@ async function wireTaskCreation(){
   const btnMoreCustomers = document.getElementById('btnCustomersMore');
   const customerCountEl = document.getElementById('taskCustomerCount');
   if(!selCustomer || !selTemplate || !btnCreate) return;
-
-  const FREIGABEN = [
-    { id:'customer_profile', name:'Kundendaten ergänzen' },
-    { id:'boarding_contract', name:'Betreuungsvertrag freigeben' },
-    { id:'new_stay', name:'Aufenthalt anfragen' }
-  ];
-  selTemplate.innerHTML = ['<option value="">Aufgabe auswählen</option>']
-    .concat(FREIGABEN.map(t=>`<option value="${escapeHtml(t.id)}">${escapeHtml(t.name)}</option>`))
-    .join('');
-  selTemplate.disabled = false;
-  if(btnMoreCustomers) btnMoreCustomers.style.display = 'none';
-
-  const toEmailKey = (email)=> String(email||'').trim().toLowerCase();
-  const toName = (c)=> String(c?.name || c?.kundenname || c?.customerName || c?.fullName || c?.displayName || '').trim();
-  const toPhone = (c)=> String(c?.phone || c?.telefon || c?.mobile || '').trim();
-  const normalizeCustomers = ()=>{
-    try{ state = loadState(); ensureStateShape(); }catch(_){ }
-    let list = Array.isArray(state?.customers) ? state.customers.slice() : [];
-    if(!list.length && Array.isArray(state?.pets) && state.pets.length){
-      const byId = new Map();
-      (state.pets||[]).forEach(p=>{
-        const cid = String(p?.customerId || '').trim();
-        if(!cid) return;
-        if(byId.has(cid)) return;
-        const c = (state.customers||[]).find(x => String(x?.id||'') === cid);
-        if(c) byId.set(cid, c);
-      });
-      if(byId.size) list = Array.from(byId.values());
-    }
-    const out = [];
-    const seen = new Set();
-    list.forEach(c=>{
-      const email = toEmailKey(c?.email || c?.mail);
-      const name = toName(c);
-      const phone = toPhone(c);
-      const id = String(c?.id || '').trim();
-      const portalUid = String(c?.portalUid || c?.portalUID || c?.userUid || c?.uid || '').trim();
-      if(!name && !email) return;
-      const key = id || email || ('name:' + name.toLowerCase());
-      if(seen.has(key)) return;
-      seen.add(key);
-      out.push({
-        id,
-        value: id || ('email:' + email),
-        name,
-        email,
-        phone,
-        portalUid,
-        label: [name || 'Kunde', email, phone].filter(Boolean).join(' · ')
-      });
-    });
-    out.sort((a,b)=>(a.name||a.email).localeCompare((b.name||b.email), 'de', {sensitivity:'base'}));
-    return out;
+  // Templates laden (Vorlagen)
+  try{
+    await loadTemplates();
+    const list = (TEMPLATES||[]);
+    selTemplate.innerHTML = list.map(t=>{
+      const id = t.id || t.templateId || t.name || '';
+      const label = t.name || t.title || id || 'Vorlage';
+      return `<option value="${escapeHtml(id)}">${escapeHtml(label)}</option>`;
+    }).join('');
+  }catch(e){
+    console.warn('templates load', e);
+    selTemplate.innerHTML = '<option value="">(keine Vorlagen)</option>';
+  }
+  // Customers (mit Suche + "Mehr laden")
+  let _allCustomers = [];
+  let _custLastDoc = null;
+  let _custHasMore = true;
+  let _custLoading = false;
+  const CUSTOMER_PAGE_SIZE = 200;
+  const customerLabel = (u)=>{
+    const dn = String(u.displayName||'').trim();
+    const em = String(u.email||u.uid||'').trim();
+    return dn ? `${dn} – ${em}` : em;
   };
+  const renderCustomers = (q='')=>{
+    const query = (q||'').trim().toLowerCase();
 
-  const renderCustomers = ()=>{
-    const q = String(inpCustomerSearch?.value || '').trim().toLowerCase();
-    const all = normalizeCustomers();
-    const list = q ? all.filter(c =>
-      (c.name||'').toLowerCase().includes(q) ||
-      (c.email||'').toLowerCase().includes(q) ||
-      (c.phone||'').toLowerCase().includes(q)
-    ) : all;
-    const opts = ['<option value="">Kunde auswählen</option>'];
+    // Fallback: if no portal users were loaded from Cloud, use local customers.
+    // Only customers with a linked portal UID can receive tasks.
+    const baseList = (_allCustomers && _allCustomers.length) ? _allCustomers : (state.customers||[]).map(c=>{
+      const uid = c.portalUid || c.portalUID || c.userUid || c.uid || '';
+      const name = c.name || c.kundenname || c.customerName || c.fullName || c.vorname || '';
+      const email = c.email || c.mail || '';
+      return {
+        uid,
+        displayName: name,
+        email,
+        __missingUid: !uid,
+      };
+    });
+
+    const list = query ? baseList.filter(u=>{
+      const dn = String(u.displayName||'').toLowerCase();
+      const em = String(u.email||u.uid||'').toLowerCase();
+      return dn.includes(query) || em.includes(query);
+    }) : baseList;
+
+    const opts = [];
+    opts.push('<option value="">Kunde auswählen</option>');
     if(!list.length){
-      opts.push('<option value="" disabled>Keine Optionen</option>');
-      selCustomer.disabled = true;
+      opts.push('<option value="" disabled>Keine Treffer</option>');
     } else {
-      list.forEach(c=>opts.push(`<option value="${escapeHtml(c.value)}">${escapeHtml(c.label)}</option>`));
-      selCustomer.disabled = false;
+      list.forEach(u=>{
+        const disabled = u.__missingUid ? ' disabled' : '';
+        const suffix = u.__missingUid ? ' (kein Portal-Link)' : '';
+        const value = u.__missingUid ? '' : escapeHtml(u.uid);
+        opts.push(`<option value="${value}"${disabled}>${escapeHtml(customerLabel(u) + suffix)}</option>`);
+      });
     }
     selCustomer.innerHTML = opts.join('');
-    if(customerCountEl) customerCountEl.textContent = list.length ? `${list.length} Kunden geladen` : 'Keine Kunden gefunden';
-  };
 
-  const resolveCustomerUidByEmail = async (email)=>{
-    const emailLc = toEmailKey(email);
-    if(!emailLc) return '';
+    if(customerCountEl){
+      const total = baseList.length;
+      const missing = baseList.filter(u=>u.__missingUid).length;
+      customerCountEl.textContent = missing ? `${total} (davon ${missing} ohne Portal-Link)` : `${total} geladen`;
+    }
+    // “Mehr laden” only makes sense for cloud-backed user lists.
+    if(btnMoreCustomers) btnMoreCustomers.style.display = (_allCustomers && _allCustomers.length && _custHasMore) ? '' : 'none';
+  };
+  const loadCustomersPage = async (reset=false)=>{
+    if(_custLoading) return;
+    _custLoading = true;
     try{
-      const snap = await cloudUsersCol().where('email','==',emailLc).limit(1).get();
-      if(!snap.empty) return String(snap.docs[0].id || snap.docs[0].data()?.uid || '');
-    }catch(e){ console.warn('resolveCustomerUidByEmail', e); }
-    return '';
+      if(reset){
+        _allCustomers = [];
+        _custLastDoc = null;
+        _custHasMore = true;
+      }
+      if(!cloudUsersCol){
+        _custHasMore = false;
+        renderCustomers(inpCustomerSearch?.value || '');
+        return;
+      }
+      let q = cloudUsersCol()
+        .where('role','==',ROLES.CUSTOMER)
+        .orderBy('createdAt','desc')
+        .limit(CUSTOMER_PAGE_SIZE);
+      if(_custLastDoc) q = q.startAfter(_custLastDoc);
+      const snap = await q.get();
+      const docs = snap.docs || [];
+      docs.forEach(d=>{
+        const u = d.data()||{};
+        if(!u.uid) u.uid = d.id;
+        _allCustomers.push(u);
+      });
+      if(docs.length) _custLastDoc = docs[docs.length-1];
+      _custHasMore = (docs.length === CUSTOMER_PAGE_SIZE);
+      renderCustomers(inpCustomerSearch?.value || '');
+    }catch(e){
+      console.warn('customers page', e);
+      // Ensure we still render dropdown from local customers.
+      _custHasMore = false;
+      renderCustomers(inpCustomerSearch?.value || '');
+    }finally{
+      _custLoading = false;
+    }
   };
-
-  renderCustomers();
-  if(inpCustomerSearch) inpCustomerSearch.addEventListener('input', renderCustomers);
-
+  await loadCustomersPage(true);
+  if(inpCustomerSearch){
+    inpCustomerSearch.addEventListener('input', ()=>renderCustomers(inpCustomerSearch.value));
+  }
+  if(btnMoreCustomers){
+    btnMoreCustomers.addEventListener('click', (e)=>{ e.preventDefault(); loadCustomersPage(false); });
+  }
   btnCreate.onclick = async ()=>{
-    const selectedValue = String(selCustomer.value || '').trim();
-    const templateId = String(selTemplate.value || '').trim();
-    const taskDef = FREIGABEN.find(t=>t.id===templateId) || null;
-    if(!selectedValue || !templateId){
-      if(msgEl) msgEl.textContent = 'Bitte Kunde und Aufgabe wählen.';
+    const customerUid = selCustomer.value;
+    const templateId = selTemplate.value;
+    const tpl = getTemplate(templateId);
+    const title = (titleInput?.value||'').trim()
+      || (tpl?.name ? (tpl.name+' – Ausfüllen') : 'Formular ausfüllen');
+    if(!customerUid || !templateId){
+      if(msgEl) msgEl.textContent = 'Bitte Kunde und Vorlage wählen.';
       return;
     }
-    const customers = normalizeCustomers();
-    const selected = customers.find(c => c.value === selectedValue) || null;
-    if(!selected){
-      if(msgEl) msgEl.textContent = 'Kunde nicht gefunden. Bitte Seite aktualisieren.';
-      renderCustomers();
-      return;
-    }
-    let customerUid = selected.portalUid || '';
-    if(!customerUid && selected.email){
-      customerUid = await resolveCustomerUidByEmail(selected.email);
-    }
-    const title = (titleInput?.value || '').trim() || taskDef?.name || 'Aufgabe freigeben';
     if(msgEl) msgEl.textContent = '… erstellt …';
     try{
       await cloudTasksCol().add({
         customerUid,
-        customerEmail: selected.email || '',
-        customerName: selected.name || '',
-        customerId: selected.id || '',
         templateId,
         title,
         status: 'open',
@@ -1619,10 +1632,10 @@ async function wireTaskCreation(){
         createdByEmail: CLOUD.user?.email || ''
       });
       if(msgEl) msgEl.textContent = '✅ Aufgabe freigegeben.';
-      try{ if(titleInput) titleInput.value = ''; }catch(_){ }
+      try{ titleInput.value=''; }catch(_){ }
     }catch(e){
       console.error(e);
-      if(msgEl) msgEl.textContent = '❌ Fehler: ' + (e.message || e);
+      if(msgEl) msgEl.textContent = '❌ Fehler: '+(e.message||e);
     }
   };
 }
@@ -14773,6 +14786,108 @@ function updateIndexFromUI(){
   }
 }
 
+function _statCanonicalPetId(anyId){
+  try{
+    const p = _statGetPetByAnyId(anyId);
+    if(p && p.id != null) return String(p.id);
+  }catch(_){ }
+  return String(anyId||'');
+}
+
+function _statGetPetByAnyId(anyId){
+  try{
+    const id = String(anyId||'').trim();
+    if(!id) return null;
+
+    try{
+      if(typeof getPetByDogId === 'function'){
+        const viaLegacy = getPetByDogId(id);
+        if(viaLegacy) return viaLegacy;
+      }
+    }catch(_){ }
+
+    const src = state && state.pets;
+    if(!src) return null;
+    if(Array.isArray(src)){
+      for(let i=0;i<src.length;i++){
+        const p = src[i] || {};
+        if(String(p.id || i) === id || String(i) === id) return p;
+      }
+      return null;
+    }
+    if(src && typeof src === 'object'){
+      if(src[id]) return src[id];
+      const keys = Object.keys(src);
+      for(const k of keys){
+        const p = src[k] || {};
+        if(String(p.id || k) === id || String(k) === id) return p;
+      }
+    }
+  }catch(_){ }
+  return null;
+}
+
+function _statPetAliasSet(anyId){
+  const out = new Set();
+  try{
+    const id = String(anyId||'').trim();
+    if(!id) return out;
+    out.add(id);
+
+    const pet = _statGetPetByAnyId(id);
+    if(pet && pet.id != null){
+      const pid = String(pet.id);
+      out.add(pid);
+      try{
+        if(typeof getLegacyDogIdForPet === 'function'){
+          const legacyDogId = String(getLegacyDogIdForPet(pid) || '');
+          if(legacyDogId) out.add(legacyDogId);
+        }
+      }catch(_){ }
+    }
+
+    const map = state?._legacy?.dogIdToPetId || {};
+    Object.keys(map).forEach(legacyDogId=>{
+      const pid = String(map[legacyDogId] || '');
+      if(!pid) return;
+      if(out.has(pid) || out.has(String(legacyDogId))){
+        out.add(pid);
+        out.add(String(legacyDogId));
+      }
+    });
+
+    const src = state && state.pets;
+    if(Array.isArray(src)){
+      src.forEach((p, idx)=>{
+        const pid = String((p && p.id) || idx);
+        if(out.has(pid) || out.has(String(idx))){
+          out.add(pid);
+          out.add(String(idx));
+        }
+      });
+    }else if(src && typeof src === 'object'){
+      Object.keys(src).forEach(k=>{
+        const p = src[k] || {};
+        const pid = String(p.id || k);
+        if(out.has(pid) || out.has(String(k))){
+          out.add(pid);
+          out.add(String(k));
+        }
+      });
+    }
+  }catch(_){ }
+  return out;
+}
+
+function _statMatchesDog(row, dogId){
+  if(!dogId) return true;
+  const aliases = _statPetAliasSet(dogId);
+  const rowIds = [row?.dogId, row?.petId, row?.legacyDogId, row?.dogKey, row?.petKey]
+    .map(v=>String(v||'').trim())
+    .filter(Boolean);
+  return rowIds.some(v => aliases.has(v));
+}
+
 function populateStatDogs(dateISO){
   const dogEl = document.getElementById('statDogSelect');
   const metaEl = document.getElementById('statDogMeta');
@@ -14785,15 +14900,19 @@ function populateStatDogs(dateISO){
     }
   }catch(_){ }
 
-  if(!petIds.length){
-    petIds = Object.keys(state.pets || {});
+  let opts = [];
+  if(petIds.length){
+    opts = petIds.map(pid => {
+      const p = _statGetPetByAnyId(pid);
+      const id = String((p && p.id) || pid);
+      const name = p?.name || p?.dogName || pid;
+      return {id, name};
+    });
+  }else{
+    opts = _statPetOptions();
   }
 
-  const opts = petIds.map(pid => {
-    const p = state.pets && state.pets[pid];
-    const name = p?.name || p?.dogName || pid;
-    return {id:pid, name};
-  }).sort((a,b)=> String(a.name).localeCompare(String(b.name)));
+  opts = opts.filter(o=>o && o.id).sort((a,b)=> String(a.name).localeCompare(String(b.name),'de'));
 
   dogEl.innerHTML = '<option value="">— bitte wählen —</option>' + opts.map(o=>`<option value="${escapeHtml(o.id)}">${escapeHtml(o.name)}</option>`).join('');
 
@@ -14801,7 +14920,7 @@ function populateStatDogs(dateISO){
     if(!metaEl) return;
     const pid = dogEl.value;
     if(!pid){ metaEl.textContent=''; return; }
-    const p = state.pets && state.pets[pid];
+    const p = _statGetPetByAnyId(pid);
     const breed = p?.breed || p?.race || '';
     const owner = p?.ownerName || '';
     metaEl.textContent = [breed, owner].filter(Boolean).join(' · ');
@@ -15140,21 +15259,25 @@ function populateStatDogsForAll(dateISO){
     }
   }catch(_){ }
 
-  if(!petIds.length){
-    petIds = Object.keys(state.pets || {});
+  let opts = [];
+  if(petIds.length){
+    opts = petIds.map(pid => {
+      const p = _statGetPetByAnyId(pid);
+      const id = String((p && p.id) || pid);
+      const name = p?.name || p?.dogName || pid;
+      return {id, name};
+    });
+  }else{
+    opts = _statPetOptions();
   }
 
-  const opts = petIds.map(pid => {
-    const p = state.pets && state.pets[pid];
-    const name = p?.name || p?.dogName || pid;
-    return {id:pid, name};
-  }).sort((a,b)=> String(a.name).localeCompare(String(b.name)));
+  opts = opts.filter(o=>o && o.id).sort((a,b)=> String(a.name).localeCompare(String(b.name),'de'));
 
   dogEl.innerHTML = '<option value="">— bitte wählen —</option>' + opts.map(o=>`<option value="${escapeHtml(o.id)}">${escapeHtml(o.name)}</option>`).join('');
 
   const updateMeta = ()=>{
     const pid = dogEl.value || '';
-    const p = (state.pets && state.pets[pid]) || null;
+    const p = _statGetPetByAnyId(pid);
 
     // Breed
     const breed = (p && (p.breed || p.race || p.rasse || p.mainBreed)) ? String(p.breed||p.race||p.rasse||p.mainBreed) : '';
@@ -15242,10 +15365,17 @@ async function saveStatRatingV2(){
   const indexB = _statComputeIndexB(scales);
   const uid = _statUid();
   const docId = _statDocId(petId, dateISO, type);
+  let legacyDogId = '';
+  try{
+    if(typeof getLegacyDogIdForPet === 'function') legacyDogId = String(getLegacyDogIdForPet(petId) || '');
+  }catch(_){ }
+  const pet = _statGetPetByAnyId(petId) || {};
   const payload = {
     docId,
     dogId: petId,
     petId,
+    legacyDogId,
+    dogName: String(pet.name || pet.dogName || ''),
     date: dateISO,
     type,
     sex,
@@ -15413,23 +15543,19 @@ function renderStatAnalysis(){
 
 function _statPetOptions(){
   try{
-    const src = state && state.pets;
-    let list = [];
-    if(Array.isArray(src)){
-      list = src.filter(Boolean).map((p, idx)=>({
-        id: String(p.id || idx),
-        name: String(p.name || p.dogName || p.hundename || p.petName || p.id || idx)
-      }));
-    }else if(src && typeof src === 'object'){
-      list = Object.keys(src).map(pid=>{
-        const p = src[pid] || {};
-        return {
-          id: String(p.id || pid),
-          name: String(p.name || p.dogName || p.hundename || p.petName || pid)
-        };
-      });
+    let pets = [];
+    try{
+      if(typeof medGetPets === 'function') pets = medGetPets() || [];
+    }catch(_){ }
+    if(!pets.length){
+      const src = state && state.pets;
+      if(Array.isArray(src)) pets = src.filter(Boolean);
+      else if(src && typeof src === 'object') pets = Object.keys(src).map(pid => src[pid] || { id: pid });
     }
-    return list.sort((a,b)=> String(a.name).localeCompare(String(b.name),'de'));
+    return (pets||[]).filter(Boolean).map((p, idx)=>({
+      id: String(p.id || idx),
+      name: String(p.name || p.dogName || p.hundename || p.petName || p.id || idx)
+    })).sort((a,b)=> String(a.name).localeCompare(String(b.name),'de'));
   }catch(_){ return []; }
 }
 function _statFillDogSelect(selId, firstLabel='— bitte wählen —'){
@@ -15539,7 +15665,7 @@ function _statFillBreedSelect(selId){
 
 function _statLocalFilterRange({from='', to='', breed='', dogId='' }={}){
   let rows = _statLocalRead();
-  rows = (rows||[]).filter(r => r && (!dogId || String(r.dogId||r.petId||'') === String(dogId)));
+  rows = (rows||[]).filter(r => r && _statMatchesDog(r, dogId));
   if(breed) rows = rows.filter(r => String(r.breed||'') === String(breed));
   if(from) rows = rows.filter(r => String(r.date||'') >= String(from));
   if(to) rows = rows.filter(r => String(r.date||'') <= String(to));
@@ -15559,8 +15685,7 @@ async function _statLoadRange({from='', to='', breed='', dogId='' }={}){
 
   try{
     let q = _statColl();
-    if(dogId) q = q.where('dogId','==',dogId);
-    if(breed) q = q.where('breed','==',breed);
+        if(breed) q = q.where('breed','==',breed);
     if(from) q = q.where('date','>=',from);
     if(to) q = q.where('date','<=',to);
     q = q.orderBy('date','asc');
@@ -15573,6 +15698,7 @@ async function _statLoadRange({from='', to='', breed='', dogId='' }={}){
       const d = doc.data() || {};
       const sc = d.scores || d.scales || {};
       const row = { id:doc.id, ...d, __scores: sc, __indexB: Number.isFinite(Number(d.indexB)) ? Number(d.indexB) : _statComputeIndexB(sc) };
+      if(!_statMatchesDog(row, dogId)) return;
       const key = String(row.docId || row.id || doc.id || '');
       const prev = merged.get(key);
       if(!prev){
@@ -16090,6 +16216,15 @@ async function exportStatCsv(){
     }
 
     const petMap = new Map(_statPetOptions().map(x=>[String(x.id), String(x.name)]));
+    const dogNameOf = (row)=>{
+      const keys = [row?.petId, row?.dogId, row?.legacyDogId].map(v=>String(v||'').trim()).filter(Boolean);
+      for(const k of keys){
+        const p = _statGetPetByAnyId(k);
+        if(p && (p.name || p.dogName)) return String(p.name || p.dogName);
+        if(petMap.has(k)) return String(petMap.get(k));
+      }
+      return String(row?.dogName || row?.petName || row?.name || keys[0] || '');
+    };
     const headers = [
       'docId','dogId','dogName','date','type','sex','breed','ageYears',
       'groupSize','groupStability','dominantCount','occupancy','trainer',
@@ -16105,8 +16240,8 @@ async function exportStatCsv(){
     rows.forEach(r=>{
       const ctx=r.context||{};
       const q=r.qualitative||{};
-      const did = String(r.dogId||r.petId||'');
-      const dogName = petMap.get(did) || did;
+      const did = String(r.dogId||r.petId||r.legacyDogId||'');
+      const dogName = dogNameOf(r) || did;
       const line = [
         r.id||'', did, dogName,
         r.date||'', r.type||'', r.sex||'', r.breed||'', (r.ageYears==null? '' : r.ageYears),
