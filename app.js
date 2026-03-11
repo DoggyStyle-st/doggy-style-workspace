@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9Q_STATS_INBOX_PORTAL_FIX_MASTER_20260311",
+  tag: "M50.9.9S_QMERGE_STATSOK_INBOXFIX_MASTER_20260311",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9Q_STATS_INBOX_PORTAL_FIX_MASTER_20260311";
+const APP_BUILD = "M50.9.9S_QMERGE_STATSOK_INBOXFIX_MASTER_20260311";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -1906,6 +1906,7 @@ async function wireInboxAssignments(){
   };
 
   const fillSelect = (sel, items, getId, getLabel, emptyLabel)=>{
+    if(!sel) return;
     sel.innerHTML = '';
     if(!items || !items.length){
       const o = document.createElement('option');
@@ -1922,72 +1923,78 @@ async function wireInboxAssignments(){
     sel.appendChild(o0);
     items.forEach(it=>{
       const o = document.createElement('option');
-      o.value = getId(it);
+      o.value = String(getId(it) || '');
       o.textContent = getLabel(it);
       sel.appendChild(o);
     });
   };
 
-  const listify = (src)=>{
-    if(Array.isArray(src)) return src.filter(Boolean);
-    if(src && typeof src === 'object') return Object.values(src).filter(Boolean);
-    return [];
-  };
+  const normEmail = (v)=> String(v||'').trim().toLowerCase();
+  const listify = (src)=> Array.isArray(src) ? src.filter(Boolean) : ((src && typeof src==='object') ? Object.values(src).filter(Boolean) : []);
 
   const collectCustomers = ()=>{
     try{ ensureStateShape(); }catch(_){ }
     const st = (typeof state === 'object' && state) ? state : {};
+    const byId = new Map();
     const out = [];
-    const seen = new Set();
-    const pushCustomer = (c)=>{
-      if(!c) return;
-      const id = String(c.id || c.customerId || c.uid || c.portalUid || c.portalUID || c.userUid || '').trim();
-      const name = String(c.name || c.displayName || c.customerName || c.fullName || c.ownerName || c.kundenname || '').trim();
-      const email = String(c.email || c.mail || c.ownerEmail || '').trim().toLowerCase();
+    const pushCustomer = (src={})=>{
+      const id = String(src.id || src.customerId || src.uid || src.portalUid || src.portalUID || src.userUid || '').trim();
+      const name = String(src.name || src.displayName || src.customerName || src.fullName || src.ownerName || src.kundenname || src.owner || '').trim();
+      const email = normEmail(src.email || src.mail || src.ownerEmail || src.customerEmail || '');
+      const phone = String(src.phone || src.tel || src.ownerPhone || src.customerPhone || '').trim();
+      const portalUid = String(src.portalUid || src.portalUID || src.userUid || src.uid || '').trim();
       if(!name || !email) return;
-      const key = String(id || email).toLowerCase();
-      if(seen.has(key)) return;
-      seen.add(key);
-      out.push({
-        id: id || ('email:' + email),
-        name,
-        email,
-        phone: String(c.phone || c.tel || c.ownerPhone || '').trim(),
-        portalUid: String(c.portalUid || c.portalUID || c.userUid || c.uid || '').trim()
-      });
+      const key = (id || ('email:' + email)).toLowerCase();
+      const prev = byId.get(key);
+      if(prev){
+        if(!prev.portalUid && portalUid) prev.portalUid = portalUid;
+        if(!prev.phone && phone) prev.phone = phone;
+        return;
+      }
+      const row = { id: id || ('email:' + email), name, email, phone, portalUid };
+      byId.set(key, row);
+      out.push(row);
     };
 
     listify(st.customers).forEach(pushCustomer);
+    listify(st.dogs).forEach(d=>pushCustomer({
+      id: d.customerId || d.id || '',
+      name: d.ownerName || d.owner || d.kunde || d.customerName || d.name || '',
+      email: d.email || d.ownerEmail || '',
+      phone: d.phone || d.ownerPhone || '',
+      portalUid: d.portalUid || d.portalUID || d.userUid || ''
+    }));
     listify(st.pets).forEach(p=>{
-      const cid = String(p && p.customerId || '').trim();
-      if(!cid) return;
-      const owner = listify(st.customers).find(c => String(c && c.id || '').trim() === cid);
-      if(owner) pushCustomer(owner);
-    });
-    listify(st.dogs).forEach(d=>{
-      pushCustomer({
-        id: d.customerId || d.id || '',
-        name: d.ownerName || d.owner || d.kunde || d.customerName || '',
-        email: d.email || d.ownerEmail || '',
-        phone: d.phone || d.ownerPhone || '',
-        portalUid: d.portalUid || d.portalUID || d.userUid || ''
-      });
+      const owner = (p && (p.ownerName || p.customerName || p.owner || '')).trim ? (p.ownerName || p.customerName || p.owner || '').trim() : '';
+      const ownerEmail = normEmail(p && (p.ownerEmail || p.email || p.customerEmail || ''));
+      const ownerPhone = String(p && (p.ownerPhone || p.phone || '') || '').trim();
+      const customerId = String(p && p.customerId || '').trim();
+      if(owner && ownerEmail){
+        pushCustomer({ id: customerId, name: owner, email: ownerEmail, phone: ownerPhone });
+      }
+      if(customerId){
+        const c = listify(st.customers).find(x => String(x && x.id || '').trim() === customerId);
+        if(c) pushCustomer(c);
+      }
     });
 
-    out.sort((a,b)=> String(a.name||'').localeCompare(String(b.name||''), 'de'));
+    out.sort((a,b)=> String(a.name||'').localeCompare(String(b.name||''),'de'));
     return out;
   };
 
+  const fillTemplates = ()=>{
+    fillSelect(selTemplate, templates, t=>t.id, t=>t.name, 'Keine Vorlagen');
+    if(selTemplate.options.length <= 1 && templates.length){
+      // Fallback gegen leere Selects auf iOS/Safari nach Reflow
+      selTemplate.innerHTML = '<option value="">Bitte auswählen…</option>' + templates.map(t=>`<option value="${escapeHtml(t.id)}">${escapeHtml(t.name)}</option>`).join('');
+      selTemplate.disabled = false;
+    }
+  };
+
   const refreshOptions = ()=>{
+    fillTemplates();
     let customers = [];
     try{ customers = collectCustomers(); }catch(e){ console.warn('collectCustomers failed', e); customers = []; }
-    fillSelect(
-      selTemplate,
-      templates,
-      t=>t.id,
-      t=>t.name,
-      'Keine Vorlagen'
-    );
     fillSelect(
       selCustomer,
       customers,
@@ -2003,6 +2010,17 @@ async function wireInboxAssignments(){
   let customers = refreshOptions();
   window.__refreshInboxAssignments = ()=>{ customers = refreshOptions(); return customers; };
 
+  // zusätzlich beim Öffnen des Panels / nach späteren Syncs erneut aufbauen
+  ['navInbox','btnInbox','menuInbox'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el && !el.dataset.inboxRefreshBound){
+      el.dataset.inboxRefreshBound = '1';
+      el.addEventListener('click', ()=> setTimeout(()=>{ try{ window.__refreshInboxAssignments(); }catch(_){ } }, 50), {passive:true});
+    }
+  });
+  setTimeout(()=>{ try{ window.__refreshInboxAssignments(); }catch(_){ } }, 150);
+  setTimeout(()=>{ try{ window.__refreshInboxAssignments(); }catch(_){ } }, 900);
+
   btnCreate.onclick = async ()=>{
     try{
       customers = refreshOptions();
@@ -2011,26 +2029,22 @@ async function wireInboxAssignments(){
       if(!customerId){ setMsg('Bitte zuerst einen Kunden auswählen.', true); return; }
       if(!templateId){ setMsg('Bitte zuerst eine Vorlage auswählen.', true); return; }
 
-      const c = customers.find(x=>x.id===customerId);
+      const c = customers.find(x=>String(x.id)===customerId);
       if(!c){ setMsg('Kunde nicht gefunden.', true); return; }
       if(!c.email){ setMsg('Für diesen Kunden fehlt eine E-Mail-Adresse.', true); return; }
 
-      let customerUid = c.portalUid || '';
+      let customerUid = String(c.portalUid || '').trim();
       if(!customerUid){
         try{
-          const snap = await cloudUsersCol().where('email','==',String(c.email||'').toLowerCase()).limit(1).get();
-          if(!snap.empty) customerUid = snap.docs[0].id;
+          const snap = await cloudUsersCol().where('email','==',normEmail(c.email)).limit(1).get();
+          if(!snap.empty) customerUid = String(snap.docs[0].id || '');
         }catch(e){ console.warn('portal user lookup failed', e); }
-      }
-      if(!customerUid){
-        setMsg('Kein Kundenportal-Konto zu dieser E-Mail gefunden. Bitte zuerst im Kundenportal mit derselben E-Mail anmelden.', true);
-        return;
       }
 
       const t = templates.find(x=>x.id===templateId);
       await cloudTasksCol().add({
         customerUid,
-        customerEmail: String(c.email||'').toLowerCase(),
+        customerEmail: normEmail(c.email),
         customerId: c.id,
         customerName: c.name || '',
         templateId,
@@ -15385,15 +15399,10 @@ async function saveStatRatingV2(){
   const indexB = _statComputeIndexB(scales);
   const uid = _statUid();
   const docId = _statDocId(petId, dateISO, type);
-  let legacyDogId = '';
-  try{ if(typeof getLegacyDogIdForPet === 'function') legacyDogId = String(getLegacyDogIdForPet(petId) || ''); }catch(_){ }
-  const pet = (typeof _statGetPetByAnyId === 'function') ? (_statGetPetByAnyId(petId) || {}) : {};
   const payload = {
     docId,
     dogId: petId,
     petId,
-    legacyDogId,
-    dogName: String(pet.name || pet.dogName || ''),
     date: dateISO,
     type,
     sex,
@@ -15580,11 +15589,16 @@ function _statPetOptions(){
     return list.sort((a,b)=> String(a.name).localeCompare(String(b.name),'de'));
   }catch(_){ return []; }
 }
-function _statFillDogSelect(selId, firstLabel='— bitte wählen —'){
+function _statFillDogSelect(selId){
   const sel = document.getElementById(selId);
   if(!sel) return;
-  const opts = _statPetOptions();
-  sel.innerHTML = `<option value="">${escapeHtml(firstLabel)}</option>` + opts.map(o=>`<option value="${escapeHtml(o.id)}">${escapeHtml(o.name)}</option>`).join('');
+  const petIds = Object.keys(state.pets || {});
+  const opts = petIds.map(pid=>{
+    const p = state.pets && state.pets[pid];
+    const name = p?.name || p?.dogName || pid;
+    return {id:pid, name};
+  }).sort((a,b)=> String(a.name).localeCompare(String(b.name)));
+  sel.innerHTML = '<option value="">— bitte wählen —</option>' + opts.map(o=>`<option value="${escapeHtml(o.id)}">${escapeHtml(o.name)}</option>`).join('');
 }
 
 function initStatAnalysisBindings(){
@@ -16204,7 +16218,7 @@ function renderStatExport(){
     </div>
   `;
 
-  _statFillDogSelect('statExpDog', 'Alle Hunde');
+  _statFillDogSelect('statExpDog');
 
   const fromEl=document.getElementById('statExpFrom');
   const toEl=document.getElementById('statExpTo');
