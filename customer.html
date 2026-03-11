@@ -6,72 +6,300 @@
   <title>Doggy Style · Kundenportal</title>
   <link href="manifest.json" rel="manifest"/>
   <meta name="theme-color" content="#101014"/>
+  <meta name="app-version" content="M50.9.9Q_STATS_INBOX_PORTAL_FIX_MASTER_20260311"/>
   <link href="assets/logo.png" rel="apple-touch-icon"/>
-  <link href="styles.css?v=20260303_customer1" rel="stylesheet"/>
+  <link href="styles.css?v=M50.9.9Q_STATS_INBOX_PORTAL_FIX_MASTER_20260311" rel="stylesheet"/>
 </head>
 <body class="bg-watermark">
   <main class="shell" style="padding-top:20px">
-<!-- CUSTOMER PORTAL (nur für Rolle customer sichtbar) -->
-<section class="panel" id="customerPortal">
-  <div class="card" style="max-width:900px;margin:0 auto;">
-    <div class="row between" style="align-items:flex-start; gap:12px; flex-wrap:wrap;">
-      <div>
-        <h1 style="margin:0">Kundenportal</h1>
-        <p class="muted" id="customerPortalSubtitle" style="margin:6px 0 0 0;">Aktuell liegen keine Aufgaben für dich vor.</p>
+    <section class="panel is-active" id="customerPortal" style="display:block;">
+      <div class="card" style="max-width:900px;margin:0 auto;">
+        <div class="row between" style="align-items:flex-start; gap:12px; flex-wrap:wrap;">
+          <div>
+            <h1 style="margin:0">Kundenportal</h1>
+            <p class="muted" id="customerPortalSubtitle" style="margin:6px 0 0 0;">Lade Aufgaben …</p>
+          </div>
+          <button class="btn" id="btnCustomerLogout" type="button">Abmelden</button>
+        </div>
+        <div class="hint" style="margin-top:10px">
+          <strong>Hinweis:</strong> Hier erscheinen nur Formulare und Aufgaben, die Doggy Style Hundepension für dich freigegeben hat.
+        </div>
       </div>
-      <button class="btn" id="btnCustomerLogout">Abmelden</button>
-    </div>
-    <div class="hint" style="margin-top:10px">
-      <strong>Hinweis:</strong> Hier siehst du nur Aufgaben/Formulare, die Doggy Style Hundepension für dich freigegeben hat.
-    </div>
-  </div>
 
-  <div class="card" style="max-width:900px;margin:12px auto 0 auto;">
-    <h2>Deine Aufgaben</h2>
-    <div class="list" id="customerTaskList"></div>
-  </div>
+      <div class="card" style="max-width:900px;margin:12px auto 0 auto;">
+        <h2>Deine Aufgaben</h2>
+        <div class="list" id="customerTaskList"></div>
+      </div>
 
-  <div class="card" id="customerTaskEditor" style="max-width:900px;margin:12px auto 0 auto; display:none;">
-    <div class="row between" style="gap:10px; flex-wrap:wrap;">
-      <div>
-        <h2 id="customerTaskTitle" style="margin:0">Aufgabe</h2>
-        <div class="muted" id="customerTaskMeta" style="margin-top:6px"></div>
+      <div class="card" id="customerTaskEditor" style="max-width:900px;margin:12px auto 0 auto; display:none;">
+        <div class="row between" style="gap:10px; flex-wrap:wrap;">
+          <div>
+            <h2 id="customerTaskTitle" style="margin:0">Aufgabe</h2>
+            <div class="muted" id="customerTaskMeta" style="margin-top:6px"></div>
+          </div>
+          <div class="row" style="gap:10px; flex-wrap:wrap;">
+            <button class="btn" id="btnCustomerTaskBack" type="button">Zurück</button>
+            <button class="btn primary" id="btnCustomerTaskSubmit" type="button">Absenden</button>
+          </div>
+        </div>
+        <div id="customerTaskFormRoot" style="margin-top:12px"></div>
+        <div class="hint" id="customerTaskSaveHint" style="margin-top:10px"></div>
       </div>
-      <div class="row" style="gap:10px; flex-wrap:wrap;">
-        <button class="btn" id="btnCustomerTaskBack">Zurück</button>
-        <button class="btn primary" id="btnCustomerTaskSubmit">Absenden</button>
-      </div>
-    </div>
-    <div id="customerTaskFormRoot" style="margin-top:12px"></div>
-    <div class="hint" id="customerTaskSaveHint" style="margin-top:10px"></div>
-  </div>
-</section>
+    </section>
   </main>
 
-  <!-- Firebase zuerst -->
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-
-  <!-- Config dann App -->
-  <script src="firebase-config.js?v=20260303_customer1"></script>
-  <script src="app.js?v=M50.9.9S_QMERGE_STATSOK_INBOXFIX_MASTER_20260311"></script>
-
+  <script src="firebase-config.js?v=M50.9.9Q_STATS_INBOX_PORTAL_FIX_MASTER_20260311"></script>
   <script>
-    // Falls jemand ohne Login hier landet → zur Login-Seite
     (function(){
-      function goLogin(){ location.href='login.html'; }
-      var tries=0;
-      var t=setInterval(function(){
-        tries++;
+      const BUILD = 'M50.9.9Q_STATS_INBOX_PORTAL_FIX_MASTER_20260311';
+      const orgId = window.firebaseOrgId || 'doggystyle';
+      let app = null, auth = null, db = null;
+      let unsubTasks = null;
+      let draftTimer = null;
+
+      const $ = (id) => document.getElementById(id);
+      const fmtDT = (ts)=>{
+        if(!ts) return '—';
         try{
-          if(window.CLOUD && CLOUD.auth){
-            clearInterval(t);
-            CLOUD.auth.onAuthStateChanged(function(u){ if(!u) goLogin(); });
+          const d = new Date(ts);
+          const dd = String(d.getDate()).padStart(2,'0');
+          const mm = String(d.getMonth()+1).padStart(2,'0');
+          const yy = String(d.getFullYear()).slice(-2);
+          const hh = String(d.getHours()).padStart(2,'0');
+          const mi = String(d.getMinutes()).padStart(2,'0');
+          return `${dd}.${mm}.${yy} ${hh}:${mi}`;
+        }catch(_){ return '—'; }
+      };
+      const esc = (s)=> String(s ?? '')
+        .replaceAll('&','&amp;')
+        .replaceAll('<','&lt;')
+        .replaceAll('>','&gt;')
+        .replaceAll('"','&quot;')
+        .replaceAll("'",'&#039;');
+      const tasksCol = ()=> db.collection('orgs').doc(orgId).collection('tasks');
+
+      function renderEmpty(msg){
+        $('customerTaskList').innerHTML = `<div class="muted">${esc(msg)}</div>`;
+      }
+
+      function getTemplateFromTask(task){
+        const tpl = task && task.embeddedTemplate;
+        if(tpl && Array.isArray(tpl.sections)) return tpl;
+        return {
+          id: task.templateId || 'formular',
+          name: task.title || 'Formular',
+          sections: [{
+            title: 'Angaben',
+            fields: [{ key:'notes', label:'Notiz', type:'textarea', required:false }]
+          }],
+          meta: [{ key:'date', label:'Datum', type:'date', required:false }]
+        };
+      }
+
+      function renderField(field, value, bucket, scheduleSave){
+        const wrap = document.createElement('label');
+        wrap.className = 'field';
+        wrap.style.minWidth = '260px';
+        wrap.dataset.key = field.key;
+        wrap.innerHTML = `<span>${esc(field.label || field.key || 'Feld')}${field.required ? ' *' : ''}</span>`;
+        let input;
+        if(field.type === 'textarea'){
+          input = document.createElement('textarea');
+          input.value = value || '';
+        }else if(field.type === 'select'){
+          input = document.createElement('select');
+          const options = Array.isArray(field.options) ? field.options : [];
+          input.innerHTML = options.map(o => `<option value="${esc(o)}">${esc(o)}</option>`).join('');
+          input.value = value || options[0] || '';
+        }else if(field.type === 'checkbox'){
+          input = document.createElement('input');
+          input.type = 'checkbox';
+          input.checked = !!value;
+          input.style.width = '22px';
+          input.style.height = '22px';
+        }else{
+          input = document.createElement('input');
+          input.type = field.type || 'text';
+          input.value = value || '';
+        }
+        const pull = ()=> field.type === 'checkbox' ? !!input.checked : String(input.value || '');
+        input.addEventListener('input', ()=>{ bucket[field.key] = pull(); scheduleSave(); });
+        input.addEventListener('change', ()=>{ bucket[field.key] = pull(); scheduleSave(); });
+        wrap.appendChild(input);
+        return wrap;
+      }
+
+      async function openTask(task){
+        const template = getTemplateFromTask(task);
+        const editor = $('customerTaskEditor');
+        const list = $('customerTaskList');
+        const root = $('customerTaskFormRoot');
+        const hint = $('customerTaskSaveHint');
+        $('customerTaskTitle').textContent = task.title || template.name || 'Aufgabe';
+        $('customerTaskMeta').textContent = `Formular: ${template.name || task.templateId || 'Formular'}`;
+        root.innerHTML = '';
+        if(hint) hint.textContent = '';
+        if(list) list.style.display = 'none';
+        if(editor) editor.style.display = '';
+
+        const working = {
+          fields: Object.assign({}, (task.payloadDraft && task.payloadDraft.fields) || (task.payloadSubmitted && task.payloadSubmitted.fields) || {}),
+          meta: Object.assign({}, (task.payloadDraft && task.payloadDraft.meta) || (task.payloadSubmitted && task.payloadSubmitted.meta) || {})
+        };
+
+        const scheduleSave = ()=>{
+          clearTimeout(draftTimer);
+          if(hint) hint.textContent = '… speichert …';
+          draftTimer = setTimeout(async ()=>{
+            try{
+              await tasksCol().doc(task.id).set({
+                payloadDraft: { fields: working.fields, meta: working.meta },
+                updatedAt: Date.now()
+              }, { merge:true });
+              if(hint) hint.textContent = `✅ Gespeichert: ${fmtDT(Date.now())}`;
+            }catch(e){
+              console.error('draft save failed', e);
+              if(hint) hint.textContent = '❌ Speichern fehlgeschlagen.';
+            }
+          }, 500);
+        };
+
+        (Array.isArray(template.sections) ? template.sections : []).forEach(sec => {
+          const card = document.createElement('div');
+          card.className = 'card';
+          card.innerHTML = `<h2>${esc(sec.title || 'Abschnitt')}</h2>`;
+          (Array.isArray(sec.fields) ? sec.fields : []).forEach(field => {
+            card.appendChild(renderField(field, working.fields[field.key], working.fields, scheduleSave));
+          });
+          root.appendChild(card);
+        });
+
+        const metaFields = Array.isArray(template.meta) ? template.meta : [];
+        if(metaFields.length){
+          const card = document.createElement('div');
+          card.className = 'card';
+          card.innerHTML = '<h2>Ort / Datum</h2>';
+          metaFields.forEach(field => card.appendChild(renderField(field, working.meta[field.key], working.meta, scheduleSave)));
+          root.appendChild(card);
+        }
+
+        $('btnCustomerTaskBack').onclick = ()=>{
+          if(editor) editor.style.display = 'none';
+          if(list) list.style.display = '';
+        };
+        $('btnCustomerTaskSubmit').onclick = async ()=>{
+          if(!confirm('Formular absenden? Danach kann es nicht mehr geändert werden.')) return;
+          try{
+            await tasksCol().doc(task.id).set({
+              payloadSubmitted: { fields: working.fields, meta: working.meta },
+              status: 'submitted',
+              submittedAt: Date.now(),
+              updatedAt: Date.now()
+            }, { merge:true });
+            alert('✅ Danke! Formular wurde übermittelt.');
+            if(editor) editor.style.display = 'none';
+            if(list) list.style.display = '';
+          }catch(e){
+            console.error('submit failed', e);
+            alert('❌ Absenden fehlgeschlagen.');
           }
-        }catch(e){}
-        if(tries>80){ clearInterval(t); }
-      }, 100);
+        };
+      }
+
+      function renderTasks(tasks){
+        const list = $('customerTaskList');
+        const subtitle = $('customerPortalSubtitle');
+        list.innerHTML = '';
+        if(!tasks.length){
+          renderEmpty('Aktuell liegen keine Aufgaben für dich vor.');
+          if(subtitle) subtitle.textContent = 'Aktuell liegen keine Aufgaben für dich vor.';
+          return;
+        }
+        if(subtitle) subtitle.textContent = 'Doggy Style Hundepension hat Aufgaben für dich.';
+        tasks.forEach(task => {
+          const row = document.createElement('div');
+          row.className = 'item';
+          row.innerHTML = `<div><strong>${esc(task.title || 'Aufgabe')}</strong><small>${esc(task.templateId || '')}${task.createdAt ? (' · ' + esc(fmtDT(task.createdAt))) : ''}</small></div>`;
+          const actions = document.createElement('div');
+          actions.className = 'actions';
+          const btn = document.createElement('button');
+          btn.className = 'smallbtn';
+          btn.type = 'button';
+          btn.textContent = 'Öffnen';
+          btn.onclick = ()=> openTask(task);
+          actions.appendChild(btn);
+          row.appendChild(actions);
+          list.appendChild(row);
+        });
+      }
+
+      async function init(){
+        try{
+          if(!window.firebaseConfig) throw new Error('firebase-config fehlt');
+          app = (window.firebase.apps && window.firebase.apps.length) ? window.firebase.apps[0] : window.firebase.initializeApp(window.firebaseConfig);
+          auth = window.firebase.auth();
+          db = window.firebase.firestore();
+          try{ await db.enablePersistence({ synchronizeTabs:true }); }catch(_){ }
+          try{ await auth.setPersistence(window.firebase.auth.Auth.Persistence.LOCAL); }catch(_){ }
+        }catch(e){
+          console.error(e);
+          $('customerPortalSubtitle').textContent = 'Firebase konnte nicht geladen werden.';
+          renderEmpty('Das Kundenportal konnte nicht initialisiert werden.');
+          return;
+        }
+
+        $('btnCustomerLogout').onclick = async ()=>{
+          try{ await auth.signOut(); }catch(_){ }
+          location.href = 'login.html';
+        };
+
+        auth.onAuthStateChanged((user)=>{
+          if(!user){
+            location.href = 'login.html';
+            return;
+          }
+          if(unsubTasks){ try{ unsubTasks(); }catch(_){ } }
+          const emailLc = String(user.email || '').trim().toLowerCase();
+          let latestUid = [];
+          let latestMail = [];
+          const emit = ()=>{
+            const map = new Map();
+            [...latestUid, ...latestMail].forEach(t=>{ if(t && t.id) map.set(String(t.id), t); });
+            const tasks = Array.from(map.values()).sort((a,b)=> Number(b.createdAt||0) - Number(a.createdAt||0));
+            renderTasks(tasks);
+          };
+          const onErr = (err)=>{
+            console.error('task listener failed', err);
+            $('customerPortalSubtitle').textContent = 'Fehler beim Laden der Aufgaben.';
+            renderEmpty('Aufgaben konnten gerade nicht geladen werden.');
+          };
+          const unsubA = tasksCol()
+            .where('customerUid','==',user.uid)
+            .where('status','==','open')
+            .onSnapshot((snap)=>{
+              latestUid = [];
+              snap.forEach(doc => latestUid.push({ id: doc.id, ...doc.data() }));
+              emit();
+            }, onErr);
+          let unsubB = null;
+          if(emailLc){
+            unsubB = tasksCol()
+              .where('customerEmail','==',emailLc)
+              .where('status','==','open')
+              .onSnapshot((snap)=>{
+                latestMail = [];
+                snap.forEach(doc => latestMail.push({ id: doc.id, ...doc.data() }));
+                emit();
+              }, onErr);
+          }
+          unsubTasks = ()=>{ try{ unsubA && unsubA(); }catch(_){ } try{ unsubB && unsubB(); }catch(_){ } };
+        });
+      }
+
+      init();
     })();
   </script>
 </body>
