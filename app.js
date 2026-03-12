@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9AE_INBOX_CUSTOMERSOURCE_MASTER_20260312",
+  tag: "M50.9.9AI_INBOX_HARDFALLBACK_MASTER_20260312",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9AE_INBOX_CUSTOMERSOURCE_MASTER_20260312";
+const APP_BUILD = "M50.9.9AI_INBOX_HARDFALLBACK_MASTER_20260312";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -1828,7 +1828,61 @@ async function wireInbox(){
 // ===== Inbox: Aufgaben freigeben =====
 function getInboxAssignmentCustomers(){
   try{ ensureStateShape(); }catch(_){ }
-  return buildCanonicalCustomerList();
+  const seen = new Set();
+  const list = [];
+  const add = (raw)=>{
+    if(!raw || typeof raw !== 'object') return;
+    const id = String(raw.customerId || raw.id || raw.uid || raw.portalUid || '').trim();
+    const name = String(raw.name || raw.displayName || raw.fullName || raw.customerName || raw.kundenname || '').trim();
+    const email = String(raw.email || raw.mail || '').trim();
+    const phone = String(raw.phone || raw.telefon || raw.mobile || '').trim();
+    const portalUid = String(raw.portalUid || raw.uid || raw.customerUid || raw.userUid || '').trim();
+    const key = String(id || email || portalUid || (name + '|' + phone)).trim().toLowerCase();
+    if(!key || seen.has(key)) return;
+    if(!name && !email && !phone) return;
+    seen.add(key);
+    list.push({
+      id: id || key,
+      customerId: id || key,
+      name: name || email || phone || 'Kunde',
+      email,
+      phone,
+      portalUid
+    });
+  };
+
+  try{ buildCanonicalCustomerList().forEach(add); }catch(_){ }
+  try{ (Array.isArray(state.customers) ? state.customers : []).forEach(add); }catch(_){ }
+  try{
+    (Array.isArray(state.pets) ? state.pets : []).forEach(pet=>{
+      const cid = String(pet?.customerId || '').trim();
+      if(!cid) return;
+      const cust = typeof getCustomer === 'function' ? getCustomer(cid) : null;
+      if(cust) add(cust);
+    });
+  }catch(_){ }
+  try{
+    if(typeof refreshCustomerSelect === 'function') refreshCustomerSelect();
+    const sel = document.getElementById('customerSelect');
+    Array.from(sel?.options || []).forEach(opt=>{
+      const value = String(opt.value || '').trim();
+      const label = String(opt.textContent || '').trim();
+      if(!value || !label) return;
+      if(/kunde auswählen/i.test(label)) return;
+      const parts = label.split('·').map(x=>String(x || '').trim()).filter(Boolean);
+      const name = parts[0] || label;
+      const meta = parts.slice(1).join(' · ');
+      add({ customerId:value, id:value, name, email:/@/.test(meta) ? meta : '', phone:/@/.test(meta) ? '' : meta });
+    });
+  }catch(_){ }
+  try{
+    const n = document.getElementById('c_name')?.value?.trim() || '';
+    const e = document.getElementById('c_email')?.value?.trim() || '';
+    const ph = document.getElementById('c_phone')?.value?.trim() || '';
+    if(n || e || ph) add({ id: e || n || ph, customerId: e || n || ph, name:n, email:e, phone:ph });
+  }catch(_){ }
+
+  return list.sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''), 'de'));
 }
 
 function getInboxAssignmentTemplates(){
@@ -1932,14 +1986,18 @@ async function wireInboxAssignments(){
   const setMsg = (txt, isErr=false)=>{
     if(!msgEl) return;
     msgEl.textContent = txt || '';
-    msgEl.style.color = isErr ? '#ffb3b3' : '';
+    msgEl.style.color = isErr ? '#ffb3b3' : '#d8d8de';
+    msgEl.style.display = 'block';
+    msgEl.style.minHeight = '1.2em';
+    msgEl.style.marginTop = '8px';
+    msgEl.style.fontWeight = '600';
   };
 
   const refresh = async ()=>{
     try{ ensureStateShape(); }catch(_){ }
     try{ await syncInboxCustomersFromCloud(); }catch(_){ }
     const info = populateInboxAssignmentControls();
-    setMsg(info.customers ? `Kunden geladen: ${info.customers}` : 'Keine Kunden gefunden.', !info.customers);
+    setMsg(info.customers ? `Kunden geladen: ${info.customers} · Aufgaben: ${info.templates}` : 'Keine Kunden gefunden.', !info.customers);
   };
 
   await refresh();
