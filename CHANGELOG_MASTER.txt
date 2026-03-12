@@ -1,3 +1,8 @@
+M50.9.9AF_STATLIST_INBOX_CUSTOMERSOURCE_FIX_MASTER_20260312
+- Statistik: Reiter Bewertungen wieder enthalten.
+- Hunde/Kunden: E-Mail Pflicht oben, Telefon optional im Zusatzbereich.
+- Eingänge: nutzt dieselbe Kundenquelle wie Kunden/Hunde (inkl. customerSelect/state/customers/Cloud-Fallback).
+
 DOGGY STYLE WORKSPACE – MASTER FREEZE
 Build: M40_4F6_MASTER_FREEZE_20260207
 Frozen at: 2026-02-07T22:10:34
