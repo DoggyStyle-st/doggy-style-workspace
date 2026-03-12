@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9U_INBOX_SELECT_REBUILD_MASTER_20260311",
+  tag: "M50.9.9X_INBOX_ASSIGN_FIX_MASTER_20260312",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9U_INBOX_SELECT_REBUILD_MASTER_20260311";
+const APP_BUILD = "M50.9.9X_INBOX_ASSIGN_FIX_MASTER_20260312";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -1834,58 +1834,74 @@ async function wireInbox(){
   await loadSubmitted();
 }
 
-// ===== Inbox: Aufgaben freigeben (offline-first, lokal) =====
-// Admin/Staff kann einem bestehenden Kunden eine Aufgabe/Vorlage "freischalten".
-// Diese Aufgaben landen zunächst lokal (state.inboxAssignments). Später kann das
-// 1:1 auf Firestore erweitert werden.
-async function wireInboxAssignments(){
+// ===== Inbox: Aufgaben freigeben =====
+function getInboxAssignmentCustomers(){
+  try{ ensureStateShape(); }catch(_){}
+  const st = state || {};
+  const out = [];
+  const seen = new Set();
+  const add = (raw={})=>{
+    const id = String(raw.id || raw.customerId || raw.uid || raw.email || raw.name || '').trim();
+    const name = String(raw.name || raw.displayName || raw.customerName || raw.ownerName || '').trim();
+    const email = String(raw.email || raw.mail || '').trim();
+    const phone = String(raw.phone || raw.tel || '').trim();
+    if(!id || (!name && !email && !phone)) return;
+    const key = (email || id || name).toLowerCase();
+    if(seen.has(key)) return;
+    seen.add(key);
+    out.push({ id, name: name || email || phone || 'Kunde', email, phone });
+  };
+  (Array.isArray(st.customers) ? st.customers : []).forEach(add);
+  const pets = Array.isArray(st.pets) ? st.pets : [];
+  pets.forEach(pet=>{
+    if(!pet) return;
+    const customerId = String(pet.customerId || pet.ownerId || '').trim();
+    if(customerId){
+      const c = (st.customers||[]).find(x => String(x.id||'') === customerId);
+      if(c) add(c);
+    }
+    const ownerName = String(pet.ownerName || pet.customerName || pet.kunde || '').trim();
+    const ownerEmail = String(pet.ownerEmail || '').trim();
+    const ownerPhone = String(pet.ownerPhone || '').trim();
+    if(ownerName || ownerEmail || ownerPhone){
+      add({ id: customerId || ownerEmail || ownerName, name: ownerName, email: ownerEmail, phone: ownerPhone });
+    }
+  });
+  const dogs = Array.isArray(st.dogs) ? st.dogs : [];
+  dogs.forEach(dog=>{
+    if(!dog) return;
+    const ownerName = String(dog.ownerName || dog.kunde || dog.customerName || dog.owner || '').trim();
+    const ownerEmail = String(dog.email || dog.ownerEmail || '').trim();
+    const ownerPhone = String(dog.phone || dog.ownerPhone || '').trim();
+    if(ownerName || ownerEmail || ownerPhone){
+      add({ id: ownerEmail || ownerName, name: ownerName, email: ownerEmail, phone: ownerPhone });
+    }
+  });
+  return out.sort((a,b)=> String(a.name||'').localeCompare(String(b.name||''), 'de'));
+}
+
+function getInboxAssignmentTemplates(){
+  return [
+    { id: 'customer_profile', name: 'Kundendaten ergänzen' },
+    { id: 'boarding_contract', name: 'Betreuungsvertrag freigeben' },
+    { id: 'new_stay', name: 'Aufenthalt anfragen' }
+  ];
+}
+
+function populateInboxAssignmentControls(){
   const selCustomer = document.getElementById('assignCustomer');
   const selTemplate = document.getElementById('assignTemplate');
-  const btnCreate   = document.getElementById('btnAssignTask');
-  const msgEl       = document.getElementById('assignMsg');
-  if(!selCustomer || !selTemplate || !btnCreate) return;
-
-  // Optionen aus lokalem Workspace-State ziehen
-  // `ensureStateShape()` arbeitet auf dem globalen `state` und gibt nichts zurück.
-  // Wenn wir (undefined) weiterverwenden, landen wir bei "Keine Optionen".
-  state = loadState();
-  ensureStateShape();
-  const st = state;
-  let customers = Array.isArray(st.customers) ? st.customers : [];
-
-  // Fallback: In älteren Master-Ständen existiert keine separate Kundenliste.
-  // Kunden ergeben sich dann ausschließlich aus den Hunde-Daten (Owner/Kunde).
-  if(customers.length===0 && Array.isArray(st.dogs) && st.dogs.length){
-    const seen = new Set();
-    const derived = [];
-    for(const d of st.dogs){
-      if(!d) continue;
-      const owner = (d.ownerName || d.kunde || d.customerName || d.owner || '').toString().trim();
-      if(!owner) continue;
-      const key = owner.toLowerCase();
-      if(seen.has(key)) continue;
-      seen.add(key);
-      derived.push({ id: `owner:${owner}`, displayName: owner, __derivedOwner: owner });
-    }
-    customers = derived;
-  }
-
-  // Templates, die für Kunden freischaltbar sind (Basis-Version)
-  // Keys sind stabil; Anzeigenamen sind für UI.
-  const templates = [
-    { id: 'customer_profile', name: 'Hunde/Kunden (Kundendaten ergänzen)' },
-    { id: 'boarding_contract', name: 'Betreuungsvertrag' },
-    { id: 'new_stay', name: 'Neuer Aufenthalt' }
-  ];
-
-  const fillSelect = (sel, items, getId, getLabel, emptyLabel)=>{
+  if(!selCustomer || !selTemplate) return;
+  const customers = getInboxAssignmentCustomers();
+  const templates = getInboxAssignmentTemplates();
+  const fill = (sel, items, getId, getLabel, emptyLabel)=>{
     sel.innerHTML = '';
-    if(!items || !items.length){
+    if(!items.length){
+      sel.disabled = true;
       const o = document.createElement('option');
       o.value = '';
-      o.textContent = emptyLabel || 'Keine Optionen';
+      o.textContent = emptyLabel;
       sel.appendChild(o);
-      sel.disabled = true;
       return;
     }
     sel.disabled = false;
@@ -1900,19 +1916,35 @@ async function wireInboxAssignments(){
       sel.appendChild(o);
     });
   };
+  fill(selCustomer, customers, c=>c.id, c=>{
+    const meta = c.email || c.phone || '';
+    return meta ? `${c.name} · ${meta}` : c.name;
+  }, 'Keine Kunden vorhanden');
+  fill(selTemplate, templates, t=>t.id, t=>t.name, 'Keine Aufgaben vorhanden');
+}
 
-  fillSelect(
-    selCustomer,
-    customers,
-    c=>c.id,
-    c=>{
-      const name = c.name || 'Kunde';
-      const extra = c.phone ? ` · ${c.phone}` : (c.email ? ` · ${c.email}` : '');
-      return `${name}${extra}`;
-    },
-    'Keine Kunden vorhanden'
-  );
-  fillSelect(selTemplate, templates, t=>t.id, t=>t.name, 'Keine Vorlagen');
+async function wireInboxAssignments(){
+  const selCustomer = document.getElementById('assignCustomer');
+  const selTemplate = document.getElementById('assignTemplate');
+  const btnCreate   = document.getElementById('btnAssignTask');
+  const btnRefresh  = document.getElementById('btnInboxRefresh');
+  const msgEl       = document.getElementById('assignMsg');
+  if(!selCustomer || !selTemplate || !btnCreate) return;
+
+  const refresh = ()=>{
+    try{ state = loadState(); }catch(_){}
+    try{ ensureStateShape(); }catch(_){}
+    populateInboxAssignmentControls();
+  };
+
+  refresh();
+  try{ setTimeout(refresh, 0); }catch(_){}
+  try{ setTimeout(refresh, 300); }catch(_){}
+  try{ setTimeout(refresh, 1200); }catch(_){}
+  try{ document.getElementById('tabInbox')?.addEventListener('click', refresh); }catch(_){}
+  try{ btnRefresh?.addEventListener('click', refresh); }catch(_){}
+  try{ window.addEventListener('focus', refresh); }catch(_){}
+  try{ document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) refresh(); }); }catch(_){}
 
   const setMsg = (txt, isErr=false)=>{
     if(!msgEl) return;
@@ -1921,44 +1953,52 @@ async function wireInboxAssignments(){
   };
   setMsg('');
 
-  btnCreate.onclick = ()=>{
+  btnCreate.onclick = async ()=>{
     try{
-      const customerId = (selCustomer.value||'').trim();
-      const templateId = (selTemplate.value||'').trim();
+      refresh();
+      const customerId = String(selCustomer.value||'').trim();
+      const templateId = String(selTemplate.value||'').trim();
       if(!customerId){ setMsg('Bitte zuerst einen Kunden auswählen.', true); return; }
-      if(!templateId){ setMsg('Bitte zuerst eine Vorlage auswählen.', true); return; }
+      if(!templateId){ setMsg('Bitte zuerst eine Aufgabe auswählen.', true); return; }
 
-      // Global state korrekt initialisieren (ensureStateShape() arbeitet global)
-      state = loadState();
-      ensureStateShape();
-      const stateNow = state;
-      const c = (stateNow.customers||[]).find(x=>x.id===customerId);
-      if(!c){ setMsg('Kunde nicht gefunden (evtl. gelöscht).', true); return; }
-
-      // Duplikat-Schutz: gleiche Aufgabe für den Kunden schon offen?
-      const exists = (stateNow.inboxAssignments||[]).some(a=>a.customerId===customerId && a.templateId===templateId && a.status==='open');
-      if(exists){ setMsg('Diese Aufgabe ist für den Kunden bereits offen.', true); return; }
+      const customers = getInboxAssignmentCustomers();
+      const templates = getInboxAssignmentTemplates();
+      const c = customers.find(x=>String(x.id)===customerId);
+      const t = templates.find(x=>String(x.id)===templateId);
+      if(!c){ setMsg('Kunde nicht gefunden.', true); return; }
 
       const task = {
-        id: 'asg_' + Date.now() + '_' + Math.random().toString(16).slice(2),
-        customerId,
+        customerId: c.id,
+        customerEmail: c.email || '',
         customerName: c.name || '',
         templateId,
+        title: t?.name || templateId,
+        status: 'open',
         createdAt: Date.now(),
-        status: 'open'
+        createdByUid: (CLOUD && CLOUD.user && CLOUD.user.uid) || '',
+        createdByEmail: (CLOUD && CLOUD.user && CLOUD.user.email) || ''
       };
-      stateNow.inboxAssignments = Array.isArray(stateNow.inboxAssignments) ? stateNow.inboxAssignments : [];
-      stateNow.inboxAssignments.unshift(task);
-      // saveState(...) ignoriert Argumente und speichert das globale `state`.
-      state = stateNow;
+
+      let savedCloud = false;
+      try{
+        if(typeof cloudTasksCol === 'function'){
+          await cloudTasksCol().add(task);
+          savedCloud = true;
+        }
+      }catch(e){
+        console.warn('cloud task add failed', e);
+      }
+
+      state.inboxAssignments = Array.isArray(state.inboxAssignments) ? state.inboxAssignments : [];
+      state.inboxAssignments.unshift({ id:'asg_'+Date.now(), ...task });
       saveState();
 
-      setMsg(`✅ Aufgabe freigeschaltet: ${c.name||'Kunde'} · ${templates.find(t=>t.id===templateId)?.name||templateId}`);
-      // optional: Auswahl zurücksetzen
+      setMsg(savedCloud ? '✅ Aufgabe freigegeben.' : '✅ Aufgabe lokal angelegt.');
       selTemplate.value = '';
+      refresh();
     }catch(e){
       console.error(e);
-      setMsg('Fehler beim Erstellen der Aufgabe (siehe Konsole).', true);
+      setMsg('Fehler beim Erstellen der Aufgabe.', true);
     }
   };
 }
@@ -14786,108 +14826,6 @@ function updateIndexFromUI(){
   }
 }
 
-function _statCanonicalPetId(anyId){
-  try{
-    const p = _statGetPetByAnyId(anyId);
-    if(p && p.id != null) return String(p.id);
-  }catch(_){ }
-  return String(anyId||'');
-}
-
-function _statGetPetByAnyId(anyId){
-  try{
-    const id = String(anyId||'').trim();
-    if(!id) return null;
-
-    try{
-      if(typeof getPetByDogId === 'function'){
-        const viaLegacy = getPetByDogId(id);
-        if(viaLegacy) return viaLegacy;
-      }
-    }catch(_){ }
-
-    const src = state && state.pets;
-    if(!src) return null;
-    if(Array.isArray(src)){
-      for(let i=0;i<src.length;i++){
-        const p = src[i] || {};
-        if(String(p.id || i) === id || String(i) === id) return p;
-      }
-      return null;
-    }
-    if(src && typeof src === 'object'){
-      if(src[id]) return src[id];
-      const keys = Object.keys(src);
-      for(const k of keys){
-        const p = src[k] || {};
-        if(String(p.id || k) === id || String(k) === id) return p;
-      }
-    }
-  }catch(_){ }
-  return null;
-}
-
-function _statPetAliasSet(anyId){
-  const out = new Set();
-  try{
-    const id = String(anyId||'').trim();
-    if(!id) return out;
-    out.add(id);
-
-    const pet = _statGetPetByAnyId(id);
-    if(pet && pet.id != null){
-      const pid = String(pet.id);
-      out.add(pid);
-      try{
-        if(typeof getLegacyDogIdForPet === 'function'){
-          const legacyDogId = String(getLegacyDogIdForPet(pid) || '');
-          if(legacyDogId) out.add(legacyDogId);
-        }
-      }catch(_){ }
-    }
-
-    const map = state?._legacy?.dogIdToPetId || {};
-    Object.keys(map).forEach(legacyDogId=>{
-      const pid = String(map[legacyDogId] || '');
-      if(!pid) return;
-      if(out.has(pid) || out.has(String(legacyDogId))){
-        out.add(pid);
-        out.add(String(legacyDogId));
-      }
-    });
-
-    const src = state && state.pets;
-    if(Array.isArray(src)){
-      src.forEach((p, idx)=>{
-        const pid = String((p && p.id) || idx);
-        if(out.has(pid) || out.has(String(idx))){
-          out.add(pid);
-          out.add(String(idx));
-        }
-      });
-    }else if(src && typeof src === 'object'){
-      Object.keys(src).forEach(k=>{
-        const p = src[k] || {};
-        const pid = String(p.id || k);
-        if(out.has(pid) || out.has(String(k))){
-          out.add(pid);
-          out.add(String(k));
-        }
-      });
-    }
-  }catch(_){ }
-  return out;
-}
-
-function _statMatchesDog(row, dogId){
-  if(!dogId) return true;
-  const aliases = _statPetAliasSet(dogId);
-  const rowIds = [row?.dogId, row?.petId, row?.legacyDogId, row?.dogKey, row?.petKey]
-    .map(v=>String(v||'').trim())
-    .filter(Boolean);
-  return rowIds.some(v => aliases.has(v));
-}
-
 function populateStatDogs(dateISO){
   const dogEl = document.getElementById('statDogSelect');
   const metaEl = document.getElementById('statDogMeta');
@@ -14900,19 +14838,15 @@ function populateStatDogs(dateISO){
     }
   }catch(_){ }
 
-  let opts = [];
-  if(petIds.length){
-    opts = petIds.map(pid => {
-      const p = _statGetPetByAnyId(pid);
-      const id = String((p && p.id) || pid);
-      const name = p?.name || p?.dogName || pid;
-      return {id, name};
-    });
-  }else{
-    opts = _statPetOptions();
+  if(!petIds.length){
+    petIds = Object.keys(state.pets || {});
   }
 
-  opts = opts.filter(o=>o && o.id).sort((a,b)=> String(a.name).localeCompare(String(b.name),'de'));
+  const opts = petIds.map(pid => {
+    const p = state.pets && state.pets[pid];
+    const name = p?.name || p?.dogName || pid;
+    return {id:pid, name};
+  }).sort((a,b)=> String(a.name).localeCompare(String(b.name)));
 
   dogEl.innerHTML = '<option value="">— bitte wählen —</option>' + opts.map(o=>`<option value="${escapeHtml(o.id)}">${escapeHtml(o.name)}</option>`).join('');
 
@@ -14920,7 +14854,7 @@ function populateStatDogs(dateISO){
     if(!metaEl) return;
     const pid = dogEl.value;
     if(!pid){ metaEl.textContent=''; return; }
-    const p = _statGetPetByAnyId(pid);
+    const p = state.pets && state.pets[pid];
     const breed = p?.breed || p?.race || '';
     const owner = p?.ownerName || '';
     metaEl.textContent = [breed, owner].filter(Boolean).join(' · ');
@@ -15259,25 +15193,21 @@ function populateStatDogsForAll(dateISO){
     }
   }catch(_){ }
 
-  let opts = [];
-  if(petIds.length){
-    opts = petIds.map(pid => {
-      const p = _statGetPetByAnyId(pid);
-      const id = String((p && p.id) || pid);
-      const name = p?.name || p?.dogName || pid;
-      return {id, name};
-    });
-  }else{
-    opts = _statPetOptions();
+  if(!petIds.length){
+    petIds = Object.keys(state.pets || {});
   }
 
-  opts = opts.filter(o=>o && o.id).sort((a,b)=> String(a.name).localeCompare(String(b.name),'de'));
+  const opts = petIds.map(pid => {
+    const p = state.pets && state.pets[pid];
+    const name = p?.name || p?.dogName || pid;
+    return {id:pid, name};
+  }).sort((a,b)=> String(a.name).localeCompare(String(b.name)));
 
   dogEl.innerHTML = '<option value="">— bitte wählen —</option>' + opts.map(o=>`<option value="${escapeHtml(o.id)}">${escapeHtml(o.name)}</option>`).join('');
 
   const updateMeta = ()=>{
     const pid = dogEl.value || '';
-    const p = _statGetPetByAnyId(pid);
+    const p = (state.pets && state.pets[pid]) || null;
 
     // Breed
     const breed = (p && (p.breed || p.race || p.rasse || p.mainBreed)) ? String(p.breed||p.race||p.rasse||p.mainBreed) : '';
@@ -15365,17 +15295,10 @@ async function saveStatRatingV2(){
   const indexB = _statComputeIndexB(scales);
   const uid = _statUid();
   const docId = _statDocId(petId, dateISO, type);
-  let legacyDogId = '';
-  try{
-    if(typeof getLegacyDogIdForPet === 'function') legacyDogId = String(getLegacyDogIdForPet(petId) || '');
-  }catch(_){ }
-  const pet = _statGetPetByAnyId(petId) || {};
   const payload = {
     docId,
     dogId: petId,
     petId,
-    legacyDogId,
-    dogName: String(pet.name || pet.dogName || ''),
     date: dateISO,
     type,
     sex,
@@ -15543,19 +15466,23 @@ function renderStatAnalysis(){
 
 function _statPetOptions(){
   try{
-    let pets = [];
-    try{
-      if(typeof medGetPets === 'function') pets = medGetPets() || [];
-    }catch(_){ }
-    if(!pets.length){
-      const src = state && state.pets;
-      if(Array.isArray(src)) pets = src.filter(Boolean);
-      else if(src && typeof src === 'object') pets = Object.keys(src).map(pid => src[pid] || { id: pid });
+    const src = state && state.pets;
+    let list = [];
+    if(Array.isArray(src)){
+      list = src.filter(Boolean).map((p, idx)=>({
+        id: String(p.id || idx),
+        name: String(p.name || p.dogName || p.hundename || p.petName || p.id || idx)
+      }));
+    }else if(src && typeof src === 'object'){
+      list = Object.keys(src).map(pid=>{
+        const p = src[pid] || {};
+        return {
+          id: String(p.id || pid),
+          name: String(p.name || p.dogName || p.hundename || p.petName || pid)
+        };
+      });
     }
-    return (pets||[]).filter(Boolean).map((p, idx)=>({
-      id: String(p.id || idx),
-      name: String(p.name || p.dogName || p.hundename || p.petName || p.id || idx)
-    })).sort((a,b)=> String(a.name).localeCompare(String(b.name),'de'));
+    return list.sort((a,b)=> String(a.name).localeCompare(String(b.name),'de'));
   }catch(_){ return []; }
 }
 function _statFillDogSelect(selId, firstLabel='— bitte wählen —'){
@@ -15665,7 +15592,7 @@ function _statFillBreedSelect(selId){
 
 function _statLocalFilterRange({from='', to='', breed='', dogId='' }={}){
   let rows = _statLocalRead();
-  rows = (rows||[]).filter(r => r && _statMatchesDog(r, dogId));
+  rows = (rows||[]).filter(r => r && (!dogId || String(r.dogId||r.petId||'') === String(dogId)));
   if(breed) rows = rows.filter(r => String(r.breed||'') === String(breed));
   if(from) rows = rows.filter(r => String(r.date||'') >= String(from));
   if(to) rows = rows.filter(r => String(r.date||'') <= String(to));
@@ -15685,7 +15612,8 @@ async function _statLoadRange({from='', to='', breed='', dogId='' }={}){
 
   try{
     let q = _statColl();
-        if(breed) q = q.where('breed','==',breed);
+    if(dogId) q = q.where('dogId','==',dogId);
+    if(breed) q = q.where('breed','==',breed);
     if(from) q = q.where('date','>=',from);
     if(to) q = q.where('date','<=',to);
     q = q.orderBy('date','asc');
@@ -15698,7 +15626,6 @@ async function _statLoadRange({from='', to='', breed='', dogId='' }={}){
       const d = doc.data() || {};
       const sc = d.scores || d.scales || {};
       const row = { id:doc.id, ...d, __scores: sc, __indexB: Number.isFinite(Number(d.indexB)) ? Number(d.indexB) : _statComputeIndexB(sc) };
-      if(!_statMatchesDog(row, dogId)) return;
       const key = String(row.docId || row.id || doc.id || '');
       const prev = merged.get(key);
       if(!prev){
@@ -16216,15 +16143,6 @@ async function exportStatCsv(){
     }
 
     const petMap = new Map(_statPetOptions().map(x=>[String(x.id), String(x.name)]));
-    const dogNameOf = (row)=>{
-      const keys = [row?.petId, row?.dogId, row?.legacyDogId].map(v=>String(v||'').trim()).filter(Boolean);
-      for(const k of keys){
-        const p = _statGetPetByAnyId(k);
-        if(p && (p.name || p.dogName)) return String(p.name || p.dogName);
-        if(petMap.has(k)) return String(petMap.get(k));
-      }
-      return String(row?.dogName || row?.petName || row?.name || keys[0] || '');
-    };
     const headers = [
       'docId','dogId','dogName','date','type','sex','breed','ageYears',
       'groupSize','groupStability','dominantCount','occupancy','trainer',
@@ -16240,8 +16158,8 @@ async function exportStatCsv(){
     rows.forEach(r=>{
       const ctx=r.context||{};
       const q=r.qualitative||{};
-      const did = String(r.dogId||r.petId||r.legacyDogId||'');
-      const dogName = dogNameOf(r) || did;
+      const did = String(r.dogId||r.petId||'');
+      const dogName = petMap.get(did) || did;
       const line = [
         r.id||'', did, dogName,
         r.date||'', r.type||'', r.sex||'', r.breed||'', (r.ageYears==null? '' : r.ageYears),
