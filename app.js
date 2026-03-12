@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9AC_STATLIST_INBOXFIX_MASTER_20260312",
+  tag: "M50.9.9AD_INBOX_DIAG_MASTER_20260312",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9AC_STATLIST_INBOXFIX_MASTER_20260312";
+const APP_BUILD = "M50.9.9AD_INBOX_DIAG_MASTER_20260312";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -1641,6 +1641,8 @@ async function wireUserManagement(){
       const snap = await cloudUsersCol().orderBy('createdAt','desc').limit(200).get();
       const users = [];
       snap.forEach(d=>users.push({id:d.id, ...d.data()}));
+      try{ window.__dsInboxCloudUsers = users.slice(); }catch(_){ }
+      try{ localStorage.setItem('ds_inbox_cloud_users_cache', JSON.stringify(users.slice(0,300))); }catch(_){ }
       listEl.innerHTML = '';
       users.forEach(u=>{
         const row = document.createElement('div');
@@ -2061,7 +2063,8 @@ async function wireInboxAssignments(){
     const merged = getMergedInboxAssignmentCustomers();
     const diag = window.__dsInboxAssignDiag || {};
     if(merged.length){
-      setMsg(`Kunden geladen: ${merged.length}${cloudCustomers?.length ? ` (Cloud: ${cloudCustomers.length})` : ''}`, false);
+      const src = diag.source ? ` · Quelle: ${diag.source}` : '';
+      setMsg(`Kunden geladen: ${merged.length}${cloudCustomers?.length ? ` (Cloud: ${cloudCustomers.length})` : ''}${src}`, false);
     }else{
       const detail = diag.error ? ` – ${diag.error}` : '';
       setMsg(`Keine Kunden gefunden${detail}`, true);
@@ -2072,10 +2075,16 @@ async function wireInboxAssignments(){
   try{ setTimeout(()=>refresh().catch(console.warn), 0); }catch(_){ }
   try{ setTimeout(()=>refresh().catch(console.warn), 300); }catch(_){ }
   try{ setTimeout(()=>refresh().catch(console.warn), 1200); }catch(_){ }
+  try{ setTimeout(()=>refresh().catch(console.warn), 2500); }catch(_){ }
   try{ document.getElementById('tabInbox')?.addEventListener('click', ()=>refresh().catch(console.warn)); }catch(_){ }
   try{ btnRefresh?.addEventListener('click', ()=>refresh().catch(console.warn)); }catch(_){ }
   try{ window.addEventListener('focus', ()=>refresh().catch(console.warn)); }catch(_){ }
   try{ document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) refresh().catch(console.warn); }); }catch(_){ }
+  try{
+    if(CLOUD && CLOUD.auth && typeof CLOUD.auth.onAuthStateChanged === 'function'){
+      CLOUD.auth.onAuthStateChanged(()=>{ refresh().catch(console.warn); });
+    }
+  }catch(_){ }
 
   btnCreate.onclick = async ()=>{
     try{
