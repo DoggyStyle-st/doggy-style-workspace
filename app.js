@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9AI_INBOX_NONBLOCK_PRICEFIX_MASTER_20260312",
+  tag: "M50.9.9AJ_AI_HARDSWITCH_INBOX_MASTER_20260312",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9AI_INBOX_NONBLOCK_PRICEFIX_MASTER_20260312";
+const APP_BUILD = "M50.9.9AJ_AI_HARDSWITCH_INBOX_MASTER_20260312";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -1706,17 +1706,11 @@ function getInboxAssignmentTemplates(){
 }
 
 function getInboxAssignmentTemplatesResolved(){
-  const allowed = new Set(getInboxAssignmentTemplates().map(x=>String(x.id)));
-  try{ ensureEmbeddedTemplates(); }catch(_){ }
-  const byId = new Map();
-  (Array.isArray(templates) ? templates : []).forEach(t=>{
-    if(!t || !allowed.has(String(t.id||''))) return;
-    byId.set(String(t.id), { id: String(t.id), name: String(t.name || t.title || t.id) });
-  });
-  getInboxAssignmentTemplates().forEach(t=>{
-    if(!byId.has(String(t.id))) byId.set(String(t.id), { ...t });
-  });
-  return Array.from(byId.values());
+  return [
+    { id: 'customer_data', name: 'Kundendaten ergänzen' },
+    { id: 'boarding_contract', name: 'Betreuungsvertrag freigeben' },
+    { id: 'hundeannahme', name: 'Aufenthalt anfragen' }
+  ];
 }
 
 function getInboxAssignmentLocalCustomers(){
@@ -1751,7 +1745,7 @@ async function fetchInboxAssignmentCloudCustomers(){
   const diag = { cloudEnabled: !!(CLOUD && CLOUD.enabled), loaded: 0, source: '', error: '' };
   const out = [];
   const seen = new Set();
-  const add = (raw, source='')=>{
+  const add = (raw, source='cloud-users')=>{
     if(!raw || typeof raw !== 'object') return;
     const role = String(raw.role || raw.type || '').trim().toLowerCase();
     if(role && role !== 'customer') return;
@@ -1769,39 +1763,37 @@ async function fetchInboxAssignmentCloudCustomers(){
       name: name || email || phone || 'Kunde',
       email,
       phone,
-      source: source || 'cloud'
+      source
     });
   };
   try{
-    const db = (CLOUD && CLOUD.db) ? CLOUD.db : null;
-    if(!db){
+    if(!(CLOUD && CLOUD.enabled) || !CLOUD.db){
       window.__dsInboxAssignDiag = { ...diag, error: 'cloud-disabled' };
       __inboxAssignmentCloudCustomers = [];
       return [];
     }
-    const orgId = String((CLOUD && CLOUD.orgId) || window.firebaseOrgId || 'doggystyle');
-    const queries = [
-      ['orgs.users.orderBy(createdAt)', ()=>db.collection('orgs').doc(orgId).collection('users').orderBy('createdAt','desc').limit(300).get()],
-      ['orgs.users.limit', ()=>db.collection('orgs').doc(orgId).collection('users').limit(300).get()],
-      ['legacyRoot.users.limit', ()=>db.collection(orgId).collection('users').limit(300).get()]
-    ];
-    const errors = [];
-    for(const [label, run] of queries){
+    try{
+      const snap = await cloudUsersCol().limit(300).get();
+      snap.forEach(doc=>add({ id: doc.id, uid: doc.id, ...(doc.data() || {}) }, 'orgs.users'));
+      diag.source = 'orgs.users';
+    }catch(err){
+      diag.error = String((err && (err.code || err.message)) || err || 'users-query-failed');
+    }
+    if(!out.length){
       try{
-        const snap = await run();
-        snap.forEach(doc=>add({ id: doc.id, uid: doc.id, ...(doc.data() || {}) }, label));
-        if(out.length && !diag.source) diag.source = label;
-        if(out.length) break;
+        const legacy = await CLOUD.db.collection(String(CLOUD.orgId || 'doggystyle')).collection('users').limit(300).get();
+        legacy.forEach(doc=>add({ id: doc.id, uid: doc.id, ...(doc.data() || {}) }, 'legacy.users'));
+        if(out.length) diag.source = 'legacy.users';
       }catch(err){
-        errors.push(`${label}: ${String((err && (err.code || err.message)) || err || 'query-failed')}`);
+        const msg = String((err && (err.code || err.message)) || err || 'legacy-query-failed');
+        diag.error = diag.error ? `${diag.error} | ${msg}` : msg;
       }
     }
-    if(!out.length && errors.length) diag.error = errors.join(' | ');
   }catch(e){
     diag.error = String((e && (e.code || e.message)) || e || 'unknown-error');
   }
   __inboxAssignmentCloudCustomers = out.slice();
-  window.__dsInboxAssignDiag = { ...diag, loaded: out.length, source: diag.source || (out[0] && out[0].source) || '' };
+  window.__dsInboxAssignDiag = { ...diag, loaded: out.length, source: diag.source || '' };
   return out;
 }
 
@@ -1842,34 +1834,29 @@ function populateInboxAssignmentControls(){
   const customers = getMergedInboxAssignmentCustomers();
   const templatesForAssign = getInboxAssignmentTemplatesResolved();
 
-  const fill = (sel, items, getId, getLabel, emptyLabel)=>{
-    sel.innerHTML = '';
-    if(!items.length){
-      sel.disabled = true;
-      const o = document.createElement('option');
-      o.value = '';
-      o.textContent = emptyLabel;
-      sel.appendChild(o);
-      return;
-    }
-    sel.disabled = false;
-    const o0 = document.createElement('option');
-    o0.value = '';
-    o0.textContent = 'Bitte auswählen…';
-    sel.appendChild(o0);
-    items.forEach(it=>{
-      const o = document.createElement('option');
-      o.value = String(getId(it) || '');
-      o.textContent = String(getLabel(it) || '');
-      sel.appendChild(o);
+  selCustomer.innerHTML = '';
+  if(!customers.length){
+    selCustomer.disabled = true;
+    selCustomer.innerHTML = '<option value="">Keine Kunden vorhanden</option>';
+  }else{
+    selCustomer.disabled = false;
+    selCustomer.innerHTML = '<option value="">Bitte auswählen…</option>';
+    customers.forEach(c=>{
+      const value = String(c.portalUid || c.email || c.customerId || c.id || '').trim();
+      const meta = [];
+      if(c.email) meta.push(c.email);
+      else if(c.phone) meta.push(c.phone);
+      if(!c.portalUid) meta.push('Portal fehlt');
+      const label = meta.length ? `${c.name} · ${meta.join(' · ')}` : c.name;
+      selCustomer.insertAdjacentHTML('beforeend', `<option value="${escapeHtml(value)}">${escapeHtml(label)}</option>`);
     });
-  };
+  }
 
-  fill(selCustomer, customers, c=>c.portalUid || c.email || c.customerId || c.id, c=>{
-    const meta = c.email || c.phone || c.source || '';
-    return meta ? `${c.name} · ${meta}` : c.name;
-  }, 'Keine Kunden vorhanden');
-  fill(selTemplate, templatesForAssign, t=>t.id, t=>t.name, 'Keine Aufgaben vorhanden');
+  selTemplate.disabled = false;
+  selTemplate.innerHTML = '<option value="">Bitte auswählen…</option>';
+  templatesForAssign.forEach(t=>{
+    selTemplate.insertAdjacentHTML('beforeend', `<option value="${escapeHtml(String(t.id||''))}">${escapeHtml(String(t.name||t.id||''))}</option>`);
+  });
 
   if(prevCustomer && Array.from(selCustomer.options).some(o=>o.value === prevCustomer)) selCustomer.value = prevCustomer;
   if(prevTemplate && Array.from(selTemplate.options).some(o=>o.value === prevTemplate)) selTemplate.value = prevTemplate;
@@ -1878,6 +1865,7 @@ function populateInboxAssignmentControls(){
 
 async function wireInboxAssignments(){
   const card = document.getElementById('taskAssignCard');
+  const legacyCard = document.getElementById('adminTaskCard');
   const selCustomer = document.getElementById('assignCustomer');
   const selTemplate = document.getElementById('assignTemplate');
   const btnCreate = document.getElementById('btnAssignTask');
@@ -1885,6 +1873,7 @@ async function wireInboxAssignments(){
   const msgEl = document.getElementById('assignMsg');
   if(!selCustomer || !selTemplate || !btnCreate) return;
 
+  if(legacyCard) legacyCard.remove();
   if(card) card.style.display = isStaff() ? '' : 'none';
 
   const setMsg = (txt, isErr=false)=>{
@@ -1896,18 +1885,13 @@ async function wireInboxAssignments(){
   const refresh = async ()=>{
     try{ state = loadState(); }catch(_){ }
     try{ ensureStateShape(); }catch(_){ }
-    try{ await loadTemplates(); }catch(_){ }
-    try{
-      await Promise.race([
-        fetchInboxAssignmentCloudCustomers(),
-        new Promise(resolve=>setTimeout(resolve, 1200))
-      ]);
-    }catch(_){ }
+    try{ await fetchInboxAssignmentCloudCustomers(); }catch(_){ }
     const info = populateInboxAssignmentControls();
     const diag = window.__dsInboxAssignDiag || {};
+    if(info.templates && !selTemplate.value) selTemplate.selectedIndex = 0;
     if(info.customers){
       const src = diag.source ? ` · Quelle: ${diag.source}` : '';
-      setMsg(`Kunden geladen: ${info.customers}${src}`, false);
+      setMsg(`Kunden: ${info.customers} · Aufgaben: ${info.templates}${src}`, false);
     }else{
       const detail = diag.error ? ` – ${diag.error}` : '';
       setMsg(`Keine Kunden gefunden${detail}`, true);
@@ -1926,10 +1910,7 @@ async function wireInboxAssignments(){
       const customers = getMergedInboxAssignmentCustomers();
       const customer = customers.find(c => String(c.portalUid || c.email || c.customerId || c.id) === selectedCustomer);
       if(!customer){ setMsg('Bitte zuerst einen Kunden auswählen.', true); return; }
-      if(!customer.portalUid){
-        setMsg('Der ausgewählte Kunde ist noch nicht als Portal-Kunde registriert.', true);
-        return;
-      }
+      if(!customer.portalUid){ setMsg('Kunde sichtbar, aber noch nicht als Portal-Kunde registriert.', true); return; }
       if(!templateId){ setMsg('Bitte zuerst eine Aufgabe auswählen.', true); return; }
       const templateMeta = getInboxAssignmentTemplatesResolved().find(t => String(t.id) === templateId) || { id: templateId, name: templateId };
       const task = {
@@ -1945,13 +1926,8 @@ async function wireInboxAssignments(){
         createdByUid: (CLOUD.user && CLOUD.user.uid) || '',
         createdByEmail: (CLOUD.user && CLOUD.user.email) || ''
       };
-
       setMsg('Aufgabe wird erstellt …', false);
-      if(typeof cloudTasksCol === 'function'){
-        await cloudTasksCol().add(task);
-      }else{
-        throw new Error('Cloud-Aufgabenspeicher nicht verfügbar');
-      }
+      await cloudTasksCol().add(task);
       state.inboxAssignments = Array.isArray(state.inboxAssignments) ? state.inboxAssignments : [];
       state.inboxAssignments.unshift({ id:'asg_'+Date.now(), ...task });
       saveState();
