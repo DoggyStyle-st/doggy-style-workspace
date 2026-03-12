@@ -1862,7 +1862,8 @@ function populateInboxAssignmentControls(){
   if(!selCustomer || !selTemplate) return { customers: 0, templates: 0 };
   const prevCustomer = String(selCustomer.value || '');
   const prevTemplate = String(selTemplate.value || '');
-  const customers = getMergedInboxAssignmentCustomers();
+  const canonicalCustomers = buildCanonicalCustomerList();
+  const customers = canonicalCustomers.length ? canonicalCustomers : getMergedInboxAssignmentCustomers();
   const templatesForAssign = getInboxAssignmentTemplatesResolved();
 
   selCustomer.innerHTML = '';
@@ -1874,11 +1875,11 @@ function populateInboxAssignmentControls(){
     selCustomer.innerHTML = '<option value="">Bitte auswählen…</option>';
     customers.forEach(c=>{
       const value = String(c.customerId || c.id || c.portalUid || c.email || '').trim();
+      const fallbackName = String(c.name || c.fullName || c.customerName || c.email || c.phone || value || 'Kunde').trim();
       const meta = [];
       if(c.email) meta.push(c.email);
       else if(c.phone) meta.push(c.phone);
-      if(!c.portalUid) meta.push('Portal fehlt');
-      const label = meta.length ? `${c.name} · ${meta.join(' · ')}` : c.name;
+      const label = meta.length ? `${fallbackName} · ${meta.join(' · ')}` : fallbackName;
       selCustomer.insertAdjacentHTML('beforeend', `<option value="${escapeHtml(value)}">${escapeHtml(label)}</option>`);
     });
   }
@@ -7559,19 +7560,21 @@ function buildCanonicalCustomerList(){
   const seen = new Set();
   const add = (raw={})=>{
     if(!raw || typeof raw !== 'object') return;
-    const id = String(raw.id || raw.customerId || raw.uid || raw.portalUid || raw.email || raw.name || '').trim();
+    const id = String(raw.id || raw.customerId || raw.uid || raw.portalUid || raw.email || raw.name || raw.fullName || '').trim();
+    const customerId = String(raw.customerId || raw.id || raw.uid || raw.portalUid || raw.email || raw.name || raw.fullName || '').trim();
     const name = String(raw.name || raw.displayName || raw.customerName || raw.ownerName || raw.fullName || '').trim();
     const email = String(raw.email || raw.mail || '').trim();
     const phone = String(raw.phone || raw.telefon || raw.mobile || raw.tel || '').trim();
     const portalUid = String(raw.portalUid || raw.portalUID || raw.userUid || raw.customerUid || raw.uid || '').trim();
-    if(!id || (!name && !email && !phone)) return;
-    const key = String(email || portalUid || id || name).toLowerCase();
-    if(seen.has(key)) return;
+    if(!id && !customerId && !name && !email && !phone) return;
+    const label = name || raw.fullName || email || phone || customerId || id || 'Kunde';
+    const key = String(email || portalUid || customerId || id || label).toLowerCase();
+    if(!key || seen.has(key)) return;
     seen.add(key);
     list.push({
-      id,
-      customerId: String(raw.customerId || id).trim(),
-      name: name || email || phone || 'Kunde',
+      id: id || customerId || email || label,
+      customerId: customerId || id || email || label,
+      name: String(label).trim(),
       email,
       phone,
       portalUid
