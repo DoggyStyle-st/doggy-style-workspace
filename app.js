@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9Z_STATLIST_MASTER_20260312",
+  tag: "M50.9.9AA_INBOXFIX2_MASTER_20260312",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9Z_STATLIST_MASTER_20260312";
+const APP_BUILD = "M50.9.9AA_INBOXFIX2_MASTER_20260312";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -1832,17 +1832,32 @@ function getInboxAssignmentCustomers(){
   const out = [];
   const seen = new Set();
   const add = (raw={})=>{
-    const id = String(raw.id || raw.customerId || raw.uid || raw.email || raw.name || '').trim();
-    const name = String(raw.name || raw.displayName || raw.customerName || raw.ownerName || '').trim();
+    if(!raw || typeof raw !== 'object') return;
+    const role = String(raw.role || '').trim().toLowerCase();
+    if(role && role !== 'customer') return;
+    const uid = String(raw.uid || raw.portalUid || raw.userUid || raw.customerUid || '').trim();
+    const id = String(raw.id || raw.customerId || uid || raw.email || raw.name || '').trim();
+    const name = String(raw.name || raw.displayName || raw.fullName || raw.customerName || raw.ownerName || raw.vorname || '').trim();
     const email = String(raw.email || raw.mail || '').trim();
-    const phone = String(raw.phone || raw.tel || '').trim();
-    if(!id || (!name && !email && !phone)) return;
-    const key = (email || id || name).toLowerCase();
-    if(seen.has(key)) return;
+    const phone = String(raw.phone || raw.telefon || raw.tel || raw.mobile || '').trim();
+    if(!id && !email && !name && !phone) return;
+    const key = String(uid || email || id || name).toLowerCase();
+    if(!key || seen.has(key)) return;
     seen.add(key);
-    out.push({ id, name: name || email || phone || 'Kunde', email, phone });
+    out.push({
+      id: id || email || uid || name,
+      customerId: id || email || uid || name,
+      uid,
+      portalUid: uid,
+      name: name || email || phone || 'Kunde',
+      email,
+      phone
+    });
   };
+
+  (Array.isArray(window.__dsInboxCloudUsers) ? window.__dsInboxCloudUsers : []).forEach(add);
   (Array.isArray(st.customers) ? st.customers : []).forEach(add);
+
   const pets = Array.isArray(st.pets) ? st.pets : [];
   pets.forEach(pet=>{
     if(!pet) return;
@@ -1858,6 +1873,7 @@ function getInboxAssignmentCustomers(){
       add({ id: customerId || ownerEmail || ownerName, name: ownerName, email: ownerEmail, phone: ownerPhone });
     }
   });
+
   const dogs = Array.isArray(st.dogs) ? st.dogs : [];
   dogs.forEach(dog=>{
     if(!dog) return;
@@ -1868,14 +1884,15 @@ function getInboxAssignmentCustomers(){
       add({ id: ownerEmail || ownerName, name: ownerName, email: ownerEmail, phone: ownerPhone });
     }
   });
-  return out.sort((a,b)=> String(a.name||'').localeCompare(String(b.name||''), 'de'));
+
+  return out.sort((a,b)=> String(a.name||a.email||'').localeCompare(String(b.name||b.email||''), 'de'));
 }
 
 function getInboxAssignmentTemplates(){
   return [
-    { id: 'customer_profile', name: 'Kundendaten ergänzen' },
+    { id: 'customer_data', name: 'Kundendaten ergänzen' },
     { id: 'boarding_contract', name: 'Betreuungsvertrag freigeben' },
-    { id: 'new_stay', name: 'Aufenthalt anfragen' }
+    { id: 'stay_request', name: 'Aufenthalt anfragen' }
   ];
 }
 
@@ -1922,19 +1939,30 @@ async function wireInboxAssignments(){
   const msgEl       = document.getElementById('assignMsg');
   if(!selCustomer || !selTemplate || !btnCreate) return;
 
-  const refresh = ()=>{
+  const refresh = async ()=>{
     try{ state = loadState(); }catch(_){}
     try{ ensureStateShape(); }catch(_){}
+    try{
+      if(CLOUD && CLOUD.enabled && typeof cloudUsersCol === 'function'){
+        const snap = await cloudUsersCol().limit(300).get();
+        const users = [];
+        snap.forEach(d=>users.push({ id:d.id, ...d.data() }));
+        window.__dsInboxCloudUsers = users.filter(u=>String(u.role||'').toLowerCase()==='customer');
+      }
+    }catch(e){
+      console.warn('inbox assignment users load failed', e);
+      if(!Array.isArray(window.__dsInboxCloudUsers)) window.__dsInboxCloudUsers = [];
+    }
     populateInboxAssignmentControls();
   };
 
   refresh();
-  try{ setTimeout(refresh, 0); }catch(_){}
-  try{ setTimeout(refresh, 300); }catch(_){}
-  try{ setTimeout(refresh, 1200); }catch(_){}
-  try{ document.getElementById('tabInbox')?.addEventListener('click', refresh); }catch(_){}
-  try{ btnRefresh?.addEventListener('click', refresh); }catch(_){}
-  try{ window.addEventListener('focus', refresh); }catch(_){}
+  try{ setTimeout(()=>refresh(), 0); }catch(_){}
+  try{ setTimeout(()=>refresh(), 300); }catch(_){}
+  try{ setTimeout(()=>refresh(), 1200); }catch(_){}
+  try{ document.getElementById('tabInbox')?.addEventListener('click', ()=>refresh()); }catch(_){}
+  try{ btnRefresh?.addEventListener('click', ()=>refresh()); }catch(_){}
+  try{ window.addEventListener('focus', ()=>refresh()); }catch(_){}
   try{ document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) refresh(); }); }catch(_){}
 
   const setMsg = (txt, isErr=false)=>{
@@ -1959,9 +1987,11 @@ async function wireInboxAssignments(){
       if(!c){ setMsg('Kunde nicht gefunden.', true); return; }
 
       const task = {
-        customerId: c.id,
+        customerId: c.customerId || c.id,
         customerEmail: c.email || '',
         customerName: c.name || '',
+        customerUid: c.portalUid || c.uid || '',
+        taskId: templateId,
         templateId,
         title: t?.name || templateId,
         status: 'open',
