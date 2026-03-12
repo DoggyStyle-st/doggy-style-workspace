@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9AI_INBOX_HARDFALLBACK_MASTER_20260312",
+  tag: "M50.9.9AJ_CP_FIX_MASTER_20260312",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9AI_INBOX_HARDFALLBACK_MASTER_20260312";
+const APP_BUILD = "M50.9.9AJ_CP_FIX_MASTER_20260312";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -7748,6 +7748,7 @@ function clearPetFieldsOnly(){
   $("#p_name").value = "";
   $("#p_breed").value = "";
   $("#p_birthdate").value = "";
+  try{ const sx = document.getElementById("p_sex"); if(sx) sx.value = ""; }catch(_){ }
   const cs=document.getElementById("p_chipStatus");
   if(cs) cs.value = "";
   $("#p_chipNumber").value = "";
@@ -9720,6 +9721,7 @@ $("#btnCpSave").addEventListener("click",()=>{
     name: petName,
     breed: $("#p_breed").value.trim(),
     birthdate: $("#p_birthdate").value,
+    sex: (()=>{ try{ const sx = document.getElementById("p_sex"); return sx ? sx.value : ""; }catch(_){ return ""; } })(),
     chip: chipNew,
     chipNumber: chipNrNew,
     vet: $("#p_vet").value.trim(),
