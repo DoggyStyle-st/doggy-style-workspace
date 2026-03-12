@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9AD_INBOX_DIAG_MASTER_20260312",
+  tag: "M50.9.9AE_INBOX_CUSTOMERSOURCE_MASTER_20260312",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9AD_INBOX_DIAG_MASTER_20260312";
+const APP_BUILD = "M50.9.9AE_INBOX_CUSTOMERSOURCE_MASTER_20260312";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -1641,8 +1641,6 @@ async function wireUserManagement(){
       const snap = await cloudUsersCol().orderBy('createdAt','desc').limit(200).get();
       const users = [];
       snap.forEach(d=>users.push({id:d.id, ...d.data()}));
-      try{ window.__dsInboxCloudUsers = users.slice(); }catch(_){ }
-      try{ localStorage.setItem('ds_inbox_cloud_users_cache', JSON.stringify(users.slice(0,300))); }catch(_){ }
       listEl.innerHTML = '';
       users.forEach(u=>{
         const row = document.createElement('div');
@@ -1700,7 +1698,7 @@ async function wireInbox(){
   const btnAdopt = document.getElementById('btnInboxAdopt');
   const titleEl = document.getElementById('inboxDetailTitle');
   const metaEl = document.getElementById('inboxDetailMeta');
-  const root = document.getElementById('inboxDetailFormRoot') || document.getElementById('inboxDetailForm');
+  const root = document.getElementById('inboxDetailFormRoot');
   if(!listEl) return;
   let currentTask = null;
   const renderList = (tasks)=>{
@@ -1828,174 +1826,9 @@ async function wireInbox(){
 }
 
 // ===== Inbox: Aufgaben freigeben =====
-let __inboxAssignmentCloudCustomers = [];
-
 function getInboxAssignmentCustomers(){
   try{ ensureStateShape(); }catch(_){ }
-  const st = state || {};
-  const out = [];
-  const seen = new Set();
-  const add = (raw={})=>{
-    const id = String(raw.id || raw.customerId || raw.uid || raw.email || raw.name || '').trim();
-    const name = String(raw.name || raw.displayName || raw.customerName || raw.ownerName || raw.fullName || '').trim();
-    const email = String(raw.email || raw.mail || '').trim();
-    const phone = String(raw.phone || raw.tel || raw.mobile || '').trim();
-    const portalUid = String(raw.portalUid || raw.portalUID || raw.userUid || raw.customerUid || raw.uid || '').trim();
-    if(!id && !email && !portalUid) return;
-    if(!name && !email && !phone) return;
-    const key = String(email || portalUid || id || name).toLowerCase();
-    if(!key || seen.has(key)) return;
-    seen.add(key);
-    out.push({ id: portalUid || id || email || name, name: name || email || phone || 'Kunde', email, phone, portalUid });
-  };
-  (Array.isArray(st.customers) ? st.customers : []).forEach(add);
-  (Array.isArray(st.pets) ? st.pets : []).forEach(pet=>{
-    if(!pet) return;
-    const customerId = String(pet.customerId || pet.ownerId || '').trim();
-    if(customerId){
-      const c = (st.customers||[]).find(x => String(x.id||'') === customerId);
-      if(c) add(c);
-    }
-    const ownerName = String(pet.ownerName || pet.customerName || pet.kunde || '').trim();
-    const ownerEmail = String(pet.ownerEmail || '').trim();
-    const ownerPhone = String(pet.ownerPhone || '').trim();
-    if(ownerName || ownerEmail || ownerPhone){
-      add({ id: customerId || ownerEmail || ownerName, name: ownerName, email: ownerEmail, phone: ownerPhone });
-    }
-  });
-  (Array.isArray(st.dogs) ? st.dogs : []).forEach(dog=>{
-    if(!dog) return;
-    const ownerName = String(dog.ownerName || dog.kunde || dog.customerName || dog.owner || '').trim();
-    const ownerEmail = String(dog.email || dog.ownerEmail || '').trim();
-    const ownerPhone = String(dog.phone || dog.ownerPhone || '').trim();
-    if(ownerName || ownerEmail || ownerPhone){
-      add({ id: dog.customerId || ownerEmail || ownerName, name: ownerName, email: ownerEmail, phone: ownerPhone });
-    }
-  });
-  return out.sort((a,b)=> String(a.name||'').localeCompare(String(b.name||''), 'de'));
-}
-
-async function fetchInboxAssignmentCloudCustomers(){
-  const resolvedOrgId = String((CLOUD && CLOUD.orgId) || window.firebaseOrgId || 'doggystyle');
-  const diag = { cloudEnabled: !!(CLOUD && CLOUD.enabled), orgId: resolvedOrgId, loaded: 0, source: '', error: '' };
-  try{
-    const db = (()=>{
-      try{ if(CLOUD && CLOUD.db) return CLOUD.db; }catch(_){ }
-      try{ if(window.firebase && firebase.firestore && window.firebase.apps && window.firebase.apps.length) return firebase.firestore(); }catch(_){ }
-      return null;
-    })();
-    if(!db){
-      __inboxAssignmentCloudCustomers = [];
-      window.__dsInboxAssignDiag = { ...diag, error: 'cloud-disabled' };
-      return [];
-    }
-
-    const normalize = (docId, raw={})=>{
-      const role = String(raw.role || '').trim().toLowerCase();
-      const email = String(raw.email || raw.mail || '').trim();
-      const name = String(raw.name || raw.displayName || raw.fullName || '').trim();
-      const phone = String(raw.phone || raw.tel || raw.mobile || '').trim();
-      const portalUid = String(raw.uid || docId || '').trim();
-      if(role && role !== 'customer') return null;
-      if(!email && !name && !phone && !portalUid) return null;
-      return { id: portalUid || email || docId || name, name: name || email || phone || 'Kunde', email, phone, portalUid, role: role || 'customer' };
-    };
-
-    const out = [];
-    const seenDocs = new Set();
-    const absorbSnap = (snap, label)=>{
-      if(!snap) return false;
-      let added = 0;
-      snap.forEach(doc=>{
-        const key = String(doc && doc.id || '').trim();
-        if(key && seenDocs.has(key)) return;
-        if(key) seenDocs.add(key);
-        const entry = normalize(doc.id, doc.data() || {});
-        if(entry && String(entry.role || '').toLowerCase() === 'customer'){ out.push(entry); added++; }
-      });
-      if(added && !diag.source) diag.source = label;
-      return added > 0;
-    };
-
-    const orgUsers = db.collection('orgs').doc(resolvedOrgId).collection('users');
-    const legacyCol = db.collection(resolvedOrgId).collection('users');
-    const queries = [
-      ['orgs.users.orderBy(createdAt)', ()=>orgUsers.orderBy('createdAt','desc').limit(300).get()],
-      ['orgs.users.limit', ()=>orgUsers.limit(300).get()],
-      ['legacyRoot.users.orderBy(createdAt)', ()=>legacyCol.orderBy('createdAt','desc').limit(300).get()],
-      ['legacyRoot.users.limit', ()=>legacyCol.limit(300).get()]
-    ];
-
-    const errors = [];
-    for(const [label, run] of queries){
-      try{
-        const snap = await run();
-        absorbSnap(snap, label);
-        if(out.length) break;
-      }catch(err){
-        errors.push(`${label}: ${String((err && (err.code || err.message)) || err || 'query-failed')}`);
-      }
-    }
-
-    if(!out.length && Array.isArray(window.__dsInboxCloudUsers)){
-      (window.__dsInboxCloudUsers || []).forEach(u=>{
-        const entry = normalize(u.id || u.uid || '', u || {});
-        if(entry && String(entry.role || '').toLowerCase() === 'customer') out.push(entry);
-      });
-      if(out.length && !diag.source) diag.source = 'window.__dsInboxCloudUsers';
-    }
-
-    if(!out.length){
-      try{
-        const authUsers = (((state || {}).users || []).concat(((state || {}).customers || [])));
-        authUsers.forEach(u=>{
-          const entry = normalize(u.id || u.uid || u.email || '', u || {});
-          const inferredRole = String((u && (u.role || u.type || '')) || '').toLowerCase();
-          if(entry && (!inferredRole || inferredRole === 'customer')) out.push({ ...entry, role: inferredRole || entry.role || 'customer' });
-        });
-        if(out.length && !diag.source) diag.source = 'state.users/customers';
-      }catch(_){ }
-    }
-
-    const uniq = [];
-    const seen = new Set();
-    out.forEach(c=>{
-      const key = String(c.portalUid || c.email || c.id || c.name || '').toLowerCase();
-      if(!key || seen.has(key)) return;
-      seen.add(key);
-      uniq.push(c);
-    });
-
-    __inboxAssignmentCloudCustomers = uniq;
-    const extra = errors.length && !uniq.length ? { error: errors.join(' | ') } : {};
-    window.__dsInboxAssignDiag = { ...diag, ...extra, loaded: uniq.length };
-    return uniq;
-  }catch(e){
-    console.warn('fetchInboxAssignmentCloudCustomers failed', e);
-    __inboxAssignmentCloudCustomers = [];
-    window.__dsInboxAssignDiag = { ...diag, error: String((e && (e.code || e.message)) || e || 'unknown-error') };
-    return [];
-  }
-}
-
-function getMergedInboxAssignmentCustomers(){
-  const seen = new Set();
-  const out = [];
-  const add = (c)=>{
-    if(!c) return;
-    const id = String(c.id || '').trim();
-    const email = String(c.email || '').trim();
-    const name = String(c.name || '').trim();
-    const phone = String(c.phone || '').trim();
-    const portalUid = String(c.portalUid || '').trim();
-    const key = String(email || portalUid || id || name).toLowerCase();
-    if(!key || seen.has(key)) return;
-    seen.add(key);
-    out.push({ id: portalUid || id || email || name, name: name || email || phone || 'Kunde', email, phone, portalUid });
-  };
-  getInboxAssignmentCustomers().forEach(add);
-  (Array.isArray(__inboxAssignmentCloudCustomers) ? __inboxAssignmentCloudCustomers : []).forEach(add);
-  return out.sort((a,b)=> String(a.name||'').localeCompare(String(b.name||''), 'de'));
+  return buildCanonicalCustomerList();
 }
 
 function getInboxAssignmentTemplates(){
@@ -2009,8 +1842,8 @@ function getInboxAssignmentTemplates(){
 function populateInboxAssignmentControls(){
   const selCustomer = document.getElementById('assignCustomer');
   const selTemplate = document.getElementById('assignTemplate');
-  if(!selCustomer || !selTemplate) return;
-  const customers = getMergedInboxAssignmentCustomers();
+  if(!selCustomer || !selTemplate) return { customers: 0, templates: 0 };
+  const customers = getInboxAssignmentCustomers();
   const templates = getInboxAssignmentTemplates();
   const fill = (sel, items, getId, getLabel, emptyLabel)=>{
     sel.innerHTML = '';
@@ -2029,16 +1862,63 @@ function populateInboxAssignmentControls(){
     sel.appendChild(o0);
     items.forEach(it=>{
       const o = document.createElement('option');
-      o.value = String(getId(it) || '');
-      o.textContent = String(getLabel(it) || '');
+      o.value = getId(it);
+      o.textContent = getLabel(it);
       sel.appendChild(o);
     });
   };
-  fill(selCustomer, customers, c=>c.portalUid || c.id, c=>{
+  fill(selCustomer, customers, c=>String(c.customerId||c.id||''), c=>{
     const meta = c.email || c.phone || '';
     return meta ? `${c.name} · ${meta}` : c.name;
   }, 'Keine Kunden vorhanden');
   fill(selTemplate, templates, t=>t.id, t=>t.name, 'Keine Aufgaben vorhanden');
+  return { customers: customers.length, templates: templates.length };
+}
+
+async function syncInboxCustomersFromCloud(){
+  try{
+    if(typeof cloudUsersCol !== 'function') return 0;
+    const snap = await cloudUsersCol().limit(200).get();
+    const local = Array.isArray(state.customers) ? state.customers.slice() : [];
+    let added = 0;
+    const byKey = new Map(local.map(c => [String(c.email || c.id || '').toLowerCase(), c]));
+    snap.forEach(doc=>{
+      const data = doc.data() || {};
+      if(String(data.role || '').trim() !== 'customer') return;
+      const email = String(data.email || '').trim();
+      const name = String(data.displayName || data.name || email || '').trim();
+      const phone = String(data.phone || data.telefon || '').trim();
+      const key = String(email || data.uid || doc.id).toLowerCase();
+      if(!key) return;
+      const existing = byKey.get(key);
+      if(existing){
+        existing.portalUid = String(data.uid || doc.id || existing.portalUid || '').trim();
+        if(!existing.email && email) existing.email = email;
+        if(!existing.name && name) existing.name = name;
+        if(!existing.phone && phone) existing.phone = phone;
+      }else{
+        local.push({
+          id: email || String(data.uid || doc.id || uid()),
+          name: name || 'Kunde',
+          email,
+          phone,
+          portalUid: String(data.uid || doc.id || '').trim(),
+          createdAt: Date.now(),
+          updatedAt: Date.now()
+        });
+        added++;
+      }
+    });
+    if(added){
+      state.customers = local;
+      saveState();
+      try{ refreshCustomerSelect(); }catch(_){ }
+    }
+    return added;
+  }catch(e){
+    console.warn('syncInboxCustomersFromCloud failed', e);
+    return 0;
+  }
 }
 
 async function wireInboxAssignments(){
@@ -2056,59 +1936,44 @@ async function wireInboxAssignments(){
   };
 
   const refresh = async ()=>{
-    try{ state = loadState(); }catch(_){ }
     try{ ensureStateShape(); }catch(_){ }
-    const cloudCustomers = await fetchInboxAssignmentCloudCustomers();
-    populateInboxAssignmentControls();
-    const merged = getMergedInboxAssignmentCustomers();
-    const diag = window.__dsInboxAssignDiag || {};
-    if(merged.length){
-      const src = diag.source ? ` · Quelle: ${diag.source}` : '';
-      setMsg(`Kunden geladen: ${merged.length}${cloudCustomers?.length ? ` (Cloud: ${cloudCustomers.length})` : ''}${src}`, false);
-    }else{
-      const detail = diag.error ? ` – ${diag.error}` : '';
-      setMsg(`Keine Kunden gefunden${detail}`, true);
-    }
+    try{ await syncInboxCustomersFromCloud(); }catch(_){ }
+    const info = populateInboxAssignmentControls();
+    setMsg(info.customers ? `Kunden geladen: ${info.customers}` : 'Keine Kunden gefunden.', !info.customers);
   };
 
   await refresh();
-  try{ setTimeout(()=>refresh().catch(console.warn), 0); }catch(_){ }
-  try{ setTimeout(()=>refresh().catch(console.warn), 300); }catch(_){ }
-  try{ setTimeout(()=>refresh().catch(console.warn), 1200); }catch(_){ }
-  try{ setTimeout(()=>refresh().catch(console.warn), 2500); }catch(_){ }
-  try{ document.getElementById('tabInbox')?.addEventListener('click', ()=>refresh().catch(console.warn)); }catch(_){ }
-  try{ btnRefresh?.addEventListener('click', ()=>refresh().catch(console.warn)); }catch(_){ }
-  try{ window.addEventListener('focus', ()=>refresh().catch(console.warn)); }catch(_){ }
+  try{ setTimeout(()=>{ refresh().catch(console.warn); }, 0); }catch(_){ }
+  try{ setTimeout(()=>{ refresh().catch(console.warn); }, 400); }catch(_){ }
+  try{ setTimeout(()=>{ refresh().catch(console.warn); }, 1200); }catch(_){ }
+  try{ document.getElementById('tabInbox')?.addEventListener('click', ()=>{ refresh().catch(console.warn); }); }catch(_){ }
+  try{ btnRefresh?.addEventListener('click', ()=>{ refresh().catch(console.warn); }); }catch(_){ }
+  try{ window.addEventListener('focus', ()=>{ refresh().catch(console.warn); }); }catch(_){ }
   try{ document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) refresh().catch(console.warn); }); }catch(_){ }
-  try{
-    if(CLOUD && CLOUD.auth && typeof CLOUD.auth.onAuthStateChanged === 'function'){
-      CLOUD.auth.onAuthStateChanged(()=>{ refresh().catch(console.warn); });
-    }
-  }catch(_){ }
 
   btnCreate.onclick = async ()=>{
     try{
       await refresh();
-      const customerId = String(selCustomer.value || '').trim();
-      const templateId = String(selTemplate.value || '').trim();
+      const customerId = String(selCustomer.value||'').trim();
+      const templateId = String(selTemplate.value||'').trim();
       if(!customerId){ setMsg('Bitte zuerst einen Kunden auswählen.', true); return; }
       if(!templateId){ setMsg('Bitte zuerst eine Aufgabe auswählen.', true); return; }
 
-      const customers = getMergedInboxAssignmentCustomers();
+      const customers = getInboxAssignmentCustomers();
       const templates = getInboxAssignmentTemplates();
-      const c = customers.find(x => String(x.id) === customerId || String(x.portalUid || '') === customerId);
-      const t = templates.find(x => String(x.id) === templateId);
+      const c = customers.find(x=>String(x.customerId||x.id)===customerId);
+      const t = templates.find(x=>String(x.id)===templateId);
       if(!c){ setMsg('Kunde nicht gefunden.', true); return; }
-      if(!c.email && !c.portalUid){ setMsg('Kunde hat weder E-Mail noch Portal-UID.', true); return; }
+      if(!c.email){ setMsg('Dieser Kunde hat keine E-Mail-Adresse.', true); return; }
 
       const task = {
-        customerId: c.id,
+        customerId: c.customerId || c.id,
+        customerUid: c.portalUid || '',
         customerEmail: c.email || '',
         customerName: c.name || '',
-        customerUid: c.portalUid || '',
         taskId: templateId,
         templateId,
-        title: (t && t.name) || templateId,
+        title: t?.name || templateId,
         status: 'open',
         createdAt: Date.now(),
         createdByUid: (CLOUD && CLOUD.user && CLOUD.user.uid) || '',
@@ -2134,7 +1999,7 @@ async function wireInboxAssignments(){
       await refresh();
     }catch(e){
       console.error(e);
-      setMsg('Fehler beim Erstellen der Aufgabe.', true);
+      setMsg('Fehler beim Erstellen der Aufgabe: ' + (e.message||e), true);
     }
   };
 }
@@ -7652,11 +7517,37 @@ function setCustomerFieldsDisabled(disabled){
     if(el) el.disabled=!!disabled;
   });
 }
+function buildCanonicalCustomerList(){
+  const list = [];
+  const seen = new Set();
+  const add = (raw={})=>{
+    if(!raw || typeof raw !== 'object') return;
+    const id = String(raw.id || raw.customerId || raw.uid || raw.portalUid || raw.email || raw.name || '').trim();
+    const name = String(raw.name || raw.displayName || raw.customerName || raw.ownerName || raw.fullName || '').trim();
+    const email = String(raw.email || raw.mail || '').trim();
+    const phone = String(raw.phone || raw.telefon || raw.mobile || raw.tel || '').trim();
+    const portalUid = String(raw.portalUid || raw.portalUID || raw.userUid || raw.customerUid || raw.uid || '').trim();
+    if(!id || (!name && !email && !phone)) return;
+    const key = String(email || portalUid || id || name).toLowerCase();
+    if(seen.has(key)) return;
+    seen.add(key);
+    list.push({
+      id,
+      customerId: String(raw.customerId || id).trim(),
+      name: name || email || phone || 'Kunde',
+      email,
+      phone,
+      portalUid
+    });
+  };
+  (Array.isArray(state.customers) ? state.customers : []).forEach(add);
+  return list.sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''), 'de'));
+}
 function refreshCustomerSelect(){
   const sel = document.getElementById("customerSelect");
   if(!sel) return;
-  const customers = (state.customers||[]).slice().sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"de"));
-  sel.innerHTML = customers.map(c=>`<option value="${c.id}">${escapeHtml(c.name||"Kunde")}${c.phone?(" · "+escapeHtml(c.phone)):""}</option>`).join("");
+  const customers = buildCanonicalCustomerList();
+  sel.innerHTML = customers.map(c=>`<option value="${escapeHtml(c.customerId||c.id)}">${escapeHtml(c.name||"Kunde")}${(c.email||c.phone)?(" · "+escapeHtml(c.email||c.phone)):""}</option>`).join("");
 }
 function clearCpEditor(){
   ["c_name","c_phone","c_email","c_street","c_zip","c_city","c_em_name","c_em_phone","c_pickup_auth","c_note","p_name","p_breed","p_chipNumber","p_vet","p_vetPhone","p_food","p_feeding","p_compat","p_note","p_allergies","p_meds","p_behavior"].forEach(id=>{
@@ -9676,13 +9567,13 @@ $("#btnCpSave").addEventListener("click",()=>{
   } else {
     const name = $("#c_name").value.trim();
     if(!name){ alert("Bitte Kundennamen eintragen."); return; }
-    const phone = $("#c_phone").value.trim();
-    if(!phone){ alert("Bitte eine Telefonnummer eintragen."); return; }
+    const email = $("#c_email").value.trim();
+    if(!email){ alert("Bitte eine E-Mail-Adresse eintragen."); return; }
     customer = {
       id: uid(),
       name,
       phone: $("#c_phone").value.trim(),
-      email: $("#c_email").value.trim(),
+      email,
       street: $("#c_street").value.trim(),
       zip: $("#c_zip").value.trim(),
       city: $("#c_city").value.trim(),
@@ -9710,8 +9601,8 @@ $("#btnCpSave").addEventListener("click",()=>{
     if(customer && customer.id){
       customer.name = $("#c_name").value.trim() || customer.name;
       customer.phone = $("#c_phone").value.trim();
-      if(!customer.phone){ alert("Bitte eine Telefonnummer eintragen."); return; }
       customer.email = $("#c_email").value.trim();
+      if(!customer.email){ alert("Bitte eine E-Mail-Adresse eintragen."); return; }
       customer.street = $("#c_street").value.trim();
       customer.zip = $("#c_zip").value.trim();
       customer.city = $("#c_city").value.trim();
@@ -15080,7 +14971,6 @@ function renderStatisticsPanel(){
         <button class="btn" id="statSub_capture">Erfassung</button>
         <button class="btn" id="statSub_analysis">Analyse</button>
         <button class="btn" id="statSub_export">Export</button>
-        <button class="btn" id="statSub_ratings">Bewertungen</button>
         <button class="btn" id="statSub_method">Methodik</button>
       </div>
     </div>
@@ -15093,7 +14983,7 @@ function renderStatisticsPanel(){
     state.__statSub = k;
 
     // button states
-    ['capture','analysis','export','ratings','method'].forEach(x=>{
+    ['capture','analysis','export','method'].forEach(x=>{
       const b = document.getElementById('statSub_'+x);
       if(!b) return;
       b.classList.toggle('btn-primary', x===k);
@@ -15129,13 +15019,12 @@ function renderStatisticsPanel(){
     if(k==='capture') safeRender(renderStatCapture, 'Erfassung');
     else if(k==='analysis') safeRender(renderStatAnalysis, 'Analyse');
     else if(k==='export') safeRender(renderStatExport, 'Export');
-    else if(k==='ratings') safeRender(renderStatRatings, 'Bewertungen');
     else safeRender(renderStatMethod, 'Methodik');
   };
 
   // default: analysis-first would be tempting, but for data collection: capture
   const def = state.__statSub || 'capture';
-  ['capture','analysis','export','ratings','method'].forEach(k=>{
+  ['capture','analysis','export','method'].forEach(k=>{
     const b=document.getElementById('statSub_'+k);
     if(b) b.onclick=()=>setActive(k);
   });
@@ -15483,147 +15372,6 @@ async function saveStatRatingV2(){
     }
   }catch(err){
     try{ console.warn('[STAT] cloud save skipped/failed; local save kept', err); }catch(_){ }
-  }
-}
-
-
-function _statTypeLabel(v){
-  const map = { arrival:'Ankunft', mid:'Zwischenbewertung', departure:'Abreise' };
-  return map[String(v||'').trim()] || String(v||'—');
-}
-
-function _statDogLabelById(id){
-  const want = String(id || '').trim();
-  const hit = _statPetOptions().find(p => String(p.id||'') === want);
-  return hit ? String(hit.name || hit.id || '—') : want || '—';
-}
-
-function _statAvgScore(row){
-  const sc = row && (row.__scores || row.scores || row.scales) || {};
-  const vals = Object.values(sc).map(v=>Number(v)).filter(v=>Number.isFinite(v));
-  if(!vals.length) return 0;
-  return vals.reduce((a,b)=>a+b,0) / vals.length;
-}
-
-function renderStatRatings(){
-  const host = document.getElementById('statSubBody');
-  if(!host) return;
-
-  host.innerHTML = `
-    <div class="card">
-      <h3 style="margin:0 0 10px;">Gespeicherte Bewertungen</h3>
-      <div class="row" style="flex-wrap:wrap; gap:10px; align-items:flex-end;">
-        <div style="min-width:260px; flex:1;">
-          <label class="muted" style="display:block; margin-bottom:4px;">Hund</label>
-          <select id="statListDog" class="input" style="width:100%"></select>
-        </div>
-        <div style="min-width:220px;">
-          <label class="muted" style="display:block; margin-bottom:4px;">Typ</label>
-          <select id="statListType" class="input" style="width:100%">
-            <option value="">Alle Typen</option>
-            <option value="arrival">Ankunft</option>
-            <option value="mid">Zwischenbewertung</option>
-            <option value="departure">Abreise</option>
-          </select>
-        </div>
-        <div style="min-width:180px;">
-          <label class="muted" style="display:block; margin-bottom:4px;">Von</label>
-          <input id="statListFrom" type="date" class="input" style="width:100%" />
-        </div>
-        <div style="min-width:180px;">
-          <label class="muted" style="display:block; margin-bottom:4px;">Bis</label>
-          <input id="statListTo" type="date" class="input" style="width:100%" />
-        </div>
-        <div>
-          <button class="btn btn-primary" id="btnStatListLoad">Bewertungen laden</button>
-        </div>
-        <div id="statListMsg" class="muted" style="font-size:12px;"></div>
-      </div>
-    </div>
-
-    <div class="card" style="margin-top:10px;">
-      <div style="overflow:auto;">
-        <table class="dsTable" id="statListTable">
-          <tr>
-            <th>Datum</th>
-            <th>Hund</th>
-            <th>Typ</th>
-            <th>Rasse</th>
-            <th style="text-align:right;">Ø Skalen</th>
-            <th style="text-align:right;">Index B</th>
-            <th>Notiz</th>
-          </tr>
-        </table>
-      </div>
-    </div>
-  `;
-
-  const dogSel = document.getElementById('statListDog');
-  if(dogSel){
-    dogSel.innerHTML = '<option value="">Alle Hunde</option>' + _statPetOptions().map(p=>`<option value="${escapeHtml(p.id)}">${escapeHtml(p.name || p.id)}</option>`).join('');
-  }
-  const fromEl = document.getElementById('statListFrom');
-  const toEl = document.getElementById('statListTo');
-  try{
-    const today = toISODate(new Date());
-    if(toEl && !toEl.value) toEl.value = today;
-  }catch(_){ }
-  document.getElementById('btnStatListLoad')?.addEventListener('click', ()=>loadAndRenderStatRatings().catch(console.error));
-  ;['statListDog','statListType','statListFrom','statListTo'].forEach(id=>{
-    document.getElementById(id)?.addEventListener('change', ()=>loadAndRenderStatRatings().catch(console.error));
-  });
-  loadAndRenderStatRatings().catch(console.error);
-}
-
-async function loadAndRenderStatRatings(){
-  const msg = document.getElementById('statListMsg');
-  const table = document.getElementById('statListTable');
-  const dogId = (document.getElementById('statListDog')||{}).value || '';
-  const type = (document.getElementById('statListType')||{}).value || '';
-  const from = (document.getElementById('statListFrom')||{}).value || '';
-  const to = (document.getElementById('statListTo')||{}).value || '';
-  if(msg) msg.textContent = 'Lade…';
-  try{
-    let rows = await _statLoadRange({from,to,dogId});
-    if(type) rows = rows.filter(r => String(r.type||'') === String(type));
-    rows.sort((a,b)=> String(b.date||'').localeCompare(String(a.date||'')) || String(b.type||'').localeCompare(String(a.type||'')));
-    if(table){
-      table.innerHTML = `
-        <tr>
-          <th>Datum</th>
-          <th>Hund</th>
-          <th>Typ</th>
-          <th>Rasse</th>
-          <th style="text-align:right;">Ø Skalen</th>
-          <th style="text-align:right;">Index B</th>
-          <th>Notiz</th>
-        </tr>
-      `;
-      if(!rows.length){
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td colspan="7" class="muted">— keine gespeicherten Bewertungen —</td>`;
-        table.appendChild(tr);
-      } else {
-        rows.forEach(r=>{
-          const tr = document.createElement('tr');
-          const avg = _statAvgScore(r);
-          tr.innerHTML = `
-            <td>${escapeHtml(r.date || '—')}</td>
-            <td>${escapeHtml(_statDogLabelById(r.dogId || r.petId || ''))}</td>
-            <td>${escapeHtml(_statTypeLabel(r.type || ''))}</td>
-            <td>${escapeHtml(r.breed || '—')}</td>
-            <td style="text-align:right;">${avg ? avg.toFixed(2) : '—'}</td>
-            <td style="text-align:right;">${Number.isFinite(Number(r.__indexB)) ? Number(r.__indexB).toFixed(2) : '—'}</td>
-            <td>${escapeHtml(String(r.notes || '').slice(0,160) || '—')}</td>
-          `;
-          table.appendChild(tr);
-        });
-      }
-    }
-    if(msg) msg.textContent = `${rows.length} Bewertung${rows.length===1?'':'en'} gefunden`;
-  }catch(e){
-    console.error('[STAT] ratings list failed', e);
-    if(msg) msg.textContent = 'Fehler beim Laden.';
   }
 }
 
