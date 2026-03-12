@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9AA_INBOXFIX2_MASTER_20260312",
+  tag: "M50.9.9Y_INBOX_EMAILTASK_FIX_MASTER_20260312",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9AA_INBOXFIX2_MASTER_20260312";
+const APP_BUILD = "M50.9.9Y_INBOX_EMAILTASK_FIX_MASTER_20260312";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -1698,7 +1698,7 @@ async function wireInbox(){
   const btnAdopt = document.getElementById('btnInboxAdopt');
   const titleEl = document.getElementById('inboxDetailTitle');
   const metaEl = document.getElementById('inboxDetailMeta');
-  const root = document.getElementById('inboxDetailFormRoot');
+  const root = document.getElementById('inboxDetailFormRoot') || document.getElementById('inboxDetailForm');
   if(!listEl) return;
   let currentTask = null;
   const renderList = (tasks)=>{
@@ -1826,40 +1826,28 @@ async function wireInbox(){
 }
 
 // ===== Inbox: Aufgaben freigeben =====
+let __inboxAssignmentCloudCustomers = [];
+
 function getInboxAssignmentCustomers(){
-  try{ ensureStateShape(); }catch(_){}
+  try{ ensureStateShape(); }catch(_){ }
   const st = state || {};
   const out = [];
   const seen = new Set();
   const add = (raw={})=>{
-    if(!raw || typeof raw !== 'object') return;
-    const role = String(raw.role || '').trim().toLowerCase();
-    if(role && role !== 'customer') return;
-    const uid = String(raw.uid || raw.portalUid || raw.userUid || raw.customerUid || '').trim();
-    const id = String(raw.id || raw.customerId || uid || raw.email || raw.name || '').trim();
-    const name = String(raw.name || raw.displayName || raw.fullName || raw.customerName || raw.ownerName || raw.vorname || '').trim();
+    const id = String(raw.id || raw.customerId || raw.uid || raw.email || raw.name || '').trim();
+    const name = String(raw.name || raw.displayName || raw.customerName || raw.ownerName || raw.fullName || '').trim();
     const email = String(raw.email || raw.mail || '').trim();
-    const phone = String(raw.phone || raw.telefon || raw.tel || raw.mobile || '').trim();
-    if(!id && !email && !name && !phone) return;
-    const key = String(uid || email || id || name).toLowerCase();
+    const phone = String(raw.phone || raw.tel || raw.mobile || '').trim();
+    const portalUid = String(raw.portalUid || raw.portalUID || raw.userUid || raw.customerUid || raw.uid || '').trim();
+    if(!id && !email && !portalUid) return;
+    if(!name && !email && !phone) return;
+    const key = String(email || portalUid || id || name).toLowerCase();
     if(!key || seen.has(key)) return;
     seen.add(key);
-    out.push({
-      id: id || email || uid || name,
-      customerId: id || email || uid || name,
-      uid,
-      portalUid: uid,
-      name: name || email || phone || 'Kunde',
-      email,
-      phone
-    });
+    out.push({ id: portalUid || id || email || name, name: name || email || phone || 'Kunde', email, phone, portalUid });
   };
-
-  (Array.isArray(window.__dsInboxCloudUsers) ? window.__dsInboxCloudUsers : []).forEach(add);
   (Array.isArray(st.customers) ? st.customers : []).forEach(add);
-
-  const pets = Array.isArray(st.pets) ? st.pets : [];
-  pets.forEach(pet=>{
+  (Array.isArray(st.pets) ? st.pets : []).forEach(pet=>{
     if(!pet) return;
     const customerId = String(pet.customerId || pet.ownerId || '').trim();
     if(customerId){
@@ -1873,19 +1861,103 @@ function getInboxAssignmentCustomers(){
       add({ id: customerId || ownerEmail || ownerName, name: ownerName, email: ownerEmail, phone: ownerPhone });
     }
   });
-
-  const dogs = Array.isArray(st.dogs) ? st.dogs : [];
-  dogs.forEach(dog=>{
+  (Array.isArray(st.dogs) ? st.dogs : []).forEach(dog=>{
     if(!dog) return;
     const ownerName = String(dog.ownerName || dog.kunde || dog.customerName || dog.owner || '').trim();
     const ownerEmail = String(dog.email || dog.ownerEmail || '').trim();
     const ownerPhone = String(dog.phone || dog.ownerPhone || '').trim();
     if(ownerName || ownerEmail || ownerPhone){
-      add({ id: ownerEmail || ownerName, name: ownerName, email: ownerEmail, phone: ownerPhone });
+      add({ id: dog.customerId || ownerEmail || ownerName, name: ownerName, email: ownerEmail, phone: ownerPhone });
     }
   });
+  return out.sort((a,b)=> String(a.name||'').localeCompare(String(b.name||''), 'de'));
+}
 
-  return out.sort((a,b)=> String(a.name||a.email||'').localeCompare(String(b.name||b.email||''), 'de'));
+async function fetchInboxAssignmentCloudCustomers(){
+  const diag = { cloudEnabled: !!(CLOUD && CLOUD.enabled), orgId: (CLOUD && CLOUD.orgId) || '', loaded: 0, source: '', error: '' };
+  try{
+    if(!CLOUD || !CLOUD.enabled || typeof cloudUsersCol !== 'function'){
+      __inboxAssignmentCloudCustomers = [];
+      window.__dsInboxAssignDiag = { ...diag, error: 'cloud-disabled' };
+      return [];
+    }
+    const normalize = (docId, raw={})=>{
+      const role = String(raw.role || '').trim().toLowerCase();
+      const email = String(raw.email || '').trim();
+      const name = String(raw.name || raw.displayName || raw.fullName || '').trim();
+      const phone = String(raw.phone || raw.tel || '').trim();
+      const portalUid = String(raw.uid || docId || '').trim();
+      if(role !== 'customer') return null;
+      if(!email && !name && !phone && !portalUid) return null;
+      return { id: portalUid || email || docId || name, name: name || email || phone || 'Kunde', email, phone, portalUid };
+    };
+
+    let snap = null;
+    try{
+      snap = await cloudUsersCol().orderBy('createdAt','desc').limit(300).get();
+      diag.source = 'cloudUsersCol.orderBy(createdAt)';
+    }catch(err1){
+      try{
+        snap = await cloudUsersCol().limit(300).get();
+        diag.source = 'cloudUsersCol.limit';
+      }catch(err2){
+        diag.error = String((err2 && (err2.code || err2.message)) || (err1 && (err1.code || err1.message)) || 'query-failed');
+      }
+    }
+
+    const out = [];
+    if(snap){
+      snap.forEach(doc=>{
+        const entry = normalize(doc.id, doc.data() || {});
+        if(entry) out.push(entry);
+      });
+    }
+    if(!out.length && Array.isArray(window.__dsInboxCloudUsers)){
+      (window.__dsInboxCloudUsers || []).forEach(u=>{
+        const entry = normalize(u.id || u.uid || '', u || {});
+        if(entry) out.push(entry);
+      });
+      if(!diag.source) diag.source = 'window.__dsInboxCloudUsers';
+    }
+
+    const uniq = [];
+    const seen = new Set();
+    out.forEach(c=>{
+      const key = String(c.portalUid || c.email || c.id || c.name || '').toLowerCase();
+      if(!key || seen.has(key)) return;
+      seen.add(key);
+      uniq.push(c);
+    });
+
+    __inboxAssignmentCloudCustomers = uniq;
+    window.__dsInboxAssignDiag = { ...diag, loaded: uniq.length };
+    return uniq;
+  }catch(e){
+    console.warn('fetchInboxAssignmentCloudCustomers failed', e);
+    __inboxAssignmentCloudCustomers = [];
+    window.__dsInboxAssignDiag = { ...diag, error: String((e && (e.code || e.message)) || e || 'unknown-error') };
+    return [];
+  }
+}
+
+function getMergedInboxAssignmentCustomers(){
+  const seen = new Set();
+  const out = [];
+  const add = (c)=>{
+    if(!c) return;
+    const id = String(c.id || '').trim();
+    const email = String(c.email || '').trim();
+    const name = String(c.name || '').trim();
+    const phone = String(c.phone || '').trim();
+    const portalUid = String(c.portalUid || '').trim();
+    const key = String(email || portalUid || id || name).toLowerCase();
+    if(!key || seen.has(key)) return;
+    seen.add(key);
+    out.push({ id: portalUid || id || email || name, name: name || email || phone || 'Kunde', email, phone, portalUid });
+  };
+  getInboxAssignmentCustomers().forEach(add);
+  (Array.isArray(__inboxAssignmentCloudCustomers) ? __inboxAssignmentCloudCustomers : []).forEach(add);
+  return out.sort((a,b)=> String(a.name||'').localeCompare(String(b.name||''), 'de'));
 }
 
 function getInboxAssignmentTemplates(){
@@ -1900,7 +1972,7 @@ function populateInboxAssignmentControls(){
   const selCustomer = document.getElementById('assignCustomer');
   const selTemplate = document.getElementById('assignTemplate');
   if(!selCustomer || !selTemplate) return;
-  const customers = getInboxAssignmentCustomers();
+  const customers = getMergedInboxAssignmentCustomers();
   const templates = getInboxAssignmentTemplates();
   const fill = (sel, items, getId, getLabel, emptyLabel)=>{
     sel.innerHTML = '';
@@ -1919,12 +1991,12 @@ function populateInboxAssignmentControls(){
     sel.appendChild(o0);
     items.forEach(it=>{
       const o = document.createElement('option');
-      o.value = getId(it);
-      o.textContent = getLabel(it);
+      o.value = String(getId(it) || '');
+      o.textContent = String(getLabel(it) || '');
       sel.appendChild(o);
     });
   };
-  fill(selCustomer, customers, c=>c.id, c=>{
+  fill(selCustomer, customers, c=>c.portalUid || c.id, c=>{
     const meta = c.email || c.phone || '';
     return meta ? `${c.name} · ${meta}` : c.name;
   }, 'Keine Kunden vorhanden');
@@ -1939,61 +2011,59 @@ async function wireInboxAssignments(){
   const msgEl       = document.getElementById('assignMsg');
   if(!selCustomer || !selTemplate || !btnCreate) return;
 
-  const refresh = async ()=>{
-    try{ state = loadState(); }catch(_){}
-    try{ ensureStateShape(); }catch(_){}
-    try{
-      if(CLOUD && CLOUD.enabled && typeof cloudUsersCol === 'function'){
-        const snap = await cloudUsersCol().limit(300).get();
-        const users = [];
-        snap.forEach(d=>users.push({ id:d.id, ...d.data() }));
-        window.__dsInboxCloudUsers = users.filter(u=>String(u.role||'').toLowerCase()==='customer');
-      }
-    }catch(e){
-      console.warn('inbox assignment users load failed', e);
-      if(!Array.isArray(window.__dsInboxCloudUsers)) window.__dsInboxCloudUsers = [];
-    }
-    populateInboxAssignmentControls();
-  };
-
-  refresh();
-  try{ setTimeout(()=>refresh(), 0); }catch(_){}
-  try{ setTimeout(()=>refresh(), 300); }catch(_){}
-  try{ setTimeout(()=>refresh(), 1200); }catch(_){}
-  try{ document.getElementById('tabInbox')?.addEventListener('click', ()=>refresh()); }catch(_){}
-  try{ btnRefresh?.addEventListener('click', ()=>refresh()); }catch(_){}
-  try{ window.addEventListener('focus', ()=>refresh()); }catch(_){}
-  try{ document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) refresh(); }); }catch(_){}
-
   const setMsg = (txt, isErr=false)=>{
     if(!msgEl) return;
     msgEl.textContent = txt || '';
     msgEl.style.color = isErr ? '#ffb3b3' : '';
   };
-  setMsg('');
+
+  const refresh = async ()=>{
+    try{ state = loadState(); }catch(_){ }
+    try{ ensureStateShape(); }catch(_){ }
+    const cloudCustomers = await fetchInboxAssignmentCloudCustomers();
+    populateInboxAssignmentControls();
+    const merged = getMergedInboxAssignmentCustomers();
+    const diag = window.__dsInboxAssignDiag || {};
+    if(merged.length){
+      setMsg(`Kunden geladen: ${merged.length}${cloudCustomers?.length ? ` (Cloud: ${cloudCustomers.length})` : ''}`, false);
+    }else{
+      const detail = diag.error ? ` – ${diag.error}` : '';
+      setMsg(`Keine Kunden gefunden${detail}`, true);
+    }
+  };
+
+  await refresh();
+  try{ setTimeout(()=>refresh().catch(console.warn), 0); }catch(_){ }
+  try{ setTimeout(()=>refresh().catch(console.warn), 300); }catch(_){ }
+  try{ setTimeout(()=>refresh().catch(console.warn), 1200); }catch(_){ }
+  try{ document.getElementById('tabInbox')?.addEventListener('click', ()=>refresh().catch(console.warn)); }catch(_){ }
+  try{ btnRefresh?.addEventListener('click', ()=>refresh().catch(console.warn)); }catch(_){ }
+  try{ window.addEventListener('focus', ()=>refresh().catch(console.warn)); }catch(_){ }
+  try{ document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) refresh().catch(console.warn); }); }catch(_){ }
 
   btnCreate.onclick = async ()=>{
     try{
-      refresh();
-      const customerId = String(selCustomer.value||'').trim();
-      const templateId = String(selTemplate.value||'').trim();
+      await refresh();
+      const customerId = String(selCustomer.value || '').trim();
+      const templateId = String(selTemplate.value || '').trim();
       if(!customerId){ setMsg('Bitte zuerst einen Kunden auswählen.', true); return; }
       if(!templateId){ setMsg('Bitte zuerst eine Aufgabe auswählen.', true); return; }
 
-      const customers = getInboxAssignmentCustomers();
+      const customers = getMergedInboxAssignmentCustomers();
       const templates = getInboxAssignmentTemplates();
-      const c = customers.find(x=>String(x.id)===customerId);
-      const t = templates.find(x=>String(x.id)===templateId);
+      const c = customers.find(x => String(x.id) === customerId || String(x.portalUid || '') === customerId);
+      const t = templates.find(x => String(x.id) === templateId);
       if(!c){ setMsg('Kunde nicht gefunden.', true); return; }
+      if(!c.email && !c.portalUid){ setMsg('Kunde hat weder E-Mail noch Portal-UID.', true); return; }
 
       const task = {
-        customerId: c.customerId || c.id,
+        customerId: c.id,
         customerEmail: c.email || '',
         customerName: c.name || '',
-        customerUid: c.portalUid || c.uid || '',
+        customerUid: c.portalUid || '',
         taskId: templateId,
         templateId,
-        title: t?.name || templateId,
+        title: (t && t.name) || templateId,
         status: 'open',
         createdAt: Date.now(),
         createdByUid: (CLOUD && CLOUD.user && CLOUD.user.uid) || '',
@@ -2016,7 +2086,7 @@ async function wireInboxAssignments(){
 
       setMsg(savedCloud ? '✅ Aufgabe freigegeben.' : '✅ Aufgabe lokal angelegt.');
       selTemplate.value = '';
-      refresh();
+      await refresh();
     }catch(e){
       console.error(e);
       setMsg('Fehler beim Erstellen der Aufgabe.', true);
@@ -14963,7 +15033,6 @@ function renderStatisticsPanel(){
       </div>
       <div class="row" style="margin-top:10px; gap:8px; flex-wrap:wrap;">
         <button class="btn" id="statSub_capture">Erfassung</button>
-        <button class="btn" id="statSub_saved">Bewertungen</button>
         <button class="btn" id="statSub_analysis">Analyse</button>
         <button class="btn" id="statSub_export">Export</button>
         <button class="btn" id="statSub_method">Methodik</button>
@@ -14978,7 +15047,7 @@ function renderStatisticsPanel(){
     state.__statSub = k;
 
     // button states
-    ['capture','saved','analysis','export','method'].forEach(x=>{
+    ['capture','analysis','export','method'].forEach(x=>{
       const b = document.getElementById('statSub_'+x);
       if(!b) return;
       b.classList.toggle('btn-primary', x===k);
@@ -15012,7 +15081,6 @@ function renderStatisticsPanel(){
     };
 
     if(k==='capture') safeRender(renderStatCapture, 'Erfassung');
-    else if(k==='saved') safeRender(renderStatSaved, 'Bewertungen');
     else if(k==='analysis') safeRender(renderStatAnalysis, 'Analyse');
     else if(k==='export') safeRender(renderStatExport, 'Export');
     else safeRender(renderStatMethod, 'Methodik');
@@ -15020,7 +15088,7 @@ function renderStatisticsPanel(){
 
   // default: analysis-first would be tempting, but for data collection: capture
   const def = state.__statSub || 'capture';
-  ['capture','saved','analysis','export','method'].forEach(k=>{
+  ['capture','analysis','export','method'].forEach(k=>{
     const b=document.getElementById('statSub_'+k);
     if(b) b.onclick=()=>setActive(k);
   });
@@ -15188,7 +15256,6 @@ function initStatCaptureBindings(){
     try{
       await saveStatRatingV2();
       if(msg) msg.textContent = 'Gespeichert';
-      try{ renderStatSavedTable(); }catch(_){ }
     }catch(e){
       console.error('[STAT] save failed', e);
       if(msg) msg.textContent = 'Fehler beim Speichern';
@@ -15283,195 +15350,6 @@ function _statLocalUpsert(entry){
   else rows.push(entry);
   _statLocalWrite(rows);
   return rows;
-}
-
-function _statRowsForList(){
-  const localRows = _statLocalRead();
-  const map = new Map();
-  localRows.forEach(row=>{
-    if(!row) return;
-    const key = String(row.docId || [row.petId||row.dogId||'', row.date||'', row.type||''].join('__'));
-    if(!key) return;
-    map.set(key, { ...row, _source: row._source || 'local' });
-  });
-
-  try{
-    const legacy = Array.isArray(state?.behaviorAssessments) ? state.behaviorAssessments : [];
-    legacy.forEach(row=>{
-      if(!row) return;
-      const key = String(row.docId || [row.petId||row.dogId||'', row.date||row.assessmentDate||'', row.type||row.assessmentType||''].join('__'));
-      if(!key || map.has(key)) return;
-      map.set(key, {
-        docId: row.docId || key,
-        petId: row.petId || row.dogId || '',
-        dogId: row.dogId || row.petId || '',
-        date: row.date || row.assessmentDate || '',
-        type: row.type || row.assessmentType || '',
-        sex: row.sex || '',
-        breed: row.breed || row.breedMainType || '',
-        ageYears: row.ageYears ?? null,
-        scales: row.scales || row.scores || {},
-        scores: row.scores || row.scales || {},
-        qualitative: row.qualitative || {},
-        context: row.context || {},
-        indexB: Number.isFinite(Number(row.indexB)) ? Number(row.indexB) : _statComputeIndexB(row.scores || row.scales || {}),
-        notes: row.notes || '',
-        updatedAtLocal: row.updatedAtLocal || row.updatedAt || row.createdAt || Date.now(),
-        _source: 'state'
-      });
-    });
-  }catch(_){ }
-
-  const rows = Array.from(map.values());
-  rows.sort((a,b)=>{
-    const da = new Date(a.date || a.updatedAtLocal || 0).getTime() || 0;
-    const db = new Date(b.date || b.updatedAtLocal || 0).getTime() || 0;
-    if(db !== da) return db - da;
-    return String(b.updatedAtLocal||0).localeCompare(String(a.updatedAtLocal||0));
-  });
-  return rows;
-}
-
-function _statTypeLabel(v){
-  const s = String(v||'').toLowerCase();
-  if(s === 'arrival') return 'Ankunft';
-  if(s === 'mid') return 'Zwischenbewertung';
-  if(s === 'departure') return 'Abreise';
-  return v || '—';
-}
-
-function renderStatSaved(){
-  const host = document.getElementById('statSubBody');
-  if(!host) return;
-  host.innerHTML = `
-    <div class="card">
-      <div class="row" style="justify-content:space-between; align-items:flex-end; gap:10px; flex-wrap:wrap;">
-        <div>
-          <h3 style="margin:0 0 6px;">Gespeicherte Bewertungen</h3>
-          <div class="muted" style="font-size:12px;">Alle bereits angelegten Statistik-Bewertungen aus diesem Gerät/Stand.</div>
-        </div>
-        <div class="row" style="gap:8px; flex-wrap:wrap;">
-          <button class="btn" id="btnStatSavedRefresh" type="button">Aktualisieren</button>
-          <button class="btn" id="btnStatSavedOpenCapture" type="button">Neue Bewertung</button>
-        </div>
-      </div>
-      <div class="row" style="margin-top:10px; gap:10px; flex-wrap:wrap; align-items:flex-end;">
-        <div style="min-width:260px; flex:1;">
-          <label class="muted" style="display:block; margin-bottom:4px;">Hund</label>
-          <select id="statSavedDog" class="input" style="width:100%"></select>
-        </div>
-        <div style="min-width:180px;">
-          <label class="muted" style="display:block; margin-bottom:4px;">Typ</label>
-          <select id="statSavedType" class="input" style="width:100%">
-            <option value="">Alle</option>
-            <option value="arrival">Ankunft</option>
-            <option value="mid">Zwischenbewertung</option>
-            <option value="departure">Abreise</option>
-          </select>
-        </div>
-        <div style="min-width:180px;">
-          <label class="muted" style="display:block; margin-bottom:4px;">Von</label>
-          <input id="statSavedFrom" type="date" class="input" style="width:100%"/>
-        </div>
-        <div style="min-width:180px;">
-          <label class="muted" style="display:block; margin-bottom:4px;">Bis</label>
-          <input id="statSavedTo" type="date" class="input" style="width:100%"/>
-        </div>
-      </div>
-      <div class="muted" id="statSavedMeta" style="margin-top:10px; font-size:12px;">—</div>
-    </div>
-
-    <div class="card" style="margin-top:10px;">
-      <div style="overflow:auto;">
-        <table class="dsTable" id="statSavedTable"></table>
-      </div>
-    </div>
-  `;
-
-  _statFillDogSelect('statSavedDog', 'Alle Hunde');
-  const bindIds = ['statSavedDog','statSavedType','statSavedFrom','statSavedTo'];
-  bindIds.forEach(id=>{
-    const el = document.getElementById(id);
-    if(el) el.onchange = renderStatSavedTable;
-  });
-  const btnRefresh = document.getElementById('btnStatSavedRefresh');
-  if(btnRefresh) btnRefresh.onclick = renderStatSavedTable;
-  const btnCapture = document.getElementById('btnStatSavedOpenCapture');
-  if(btnCapture) btnCapture.onclick = ()=>{
-    try{ state.__statSub = 'capture'; }catch(_){ }
-    renderStatisticsPanel();
-  };
-  renderStatSavedTable();
-}
-
-function renderStatSavedTable(){
-  const tbl = document.getElementById('statSavedTable');
-  const meta = document.getElementById('statSavedMeta');
-  if(!tbl) return;
-
-  const petId = (document.getElementById('statSavedDog')||{}).value || '';
-  const type = (document.getElementById('statSavedType')||{}).value || '';
-  const from = (document.getElementById('statSavedFrom')||{}).value || '';
-  const to = (document.getElementById('statSavedTo')||{}).value || '';
-
-  let rows = _statRowsForList();
-  rows = rows.filter(row=>{
-    if(petId && String(row.petId || row.dogId || '') !== String(petId)) return false;
-    if(type && String(row.type || '') !== String(type)) return false;
-    if(from && String(row.date || '') < String(from)) return false;
-    if(to && String(row.date || '') > String(to)) return false;
-    return true;
-  });
-
-  if(meta){
-    const total = _statRowsForList().length;
-    meta.textContent = `${rows.length} von ${total} Bewertungen sichtbar.`;
-  }
-
-  if(!rows.length){
-    tbl.innerHTML = `<tr><th>Bewertungen</th></tr><tr><td class="muted">Noch keine gespeicherten Bewertungen gefunden.</td></tr>`;
-    return;
-  }
-
-  const petMap = state && state.pets ? state.pets : {};
-  const avg = (scores)=>{
-    try{
-      const vals = Object.values(scores || {}).map(Number).filter(v=>Number.isFinite(v));
-      if(!vals.length) return '';
-      return (vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1);
-    }catch(_){ return ''; }
-  };
-
-  tbl.innerHTML = `
-    <tr>
-      <th>Datum</th>
-      <th>Hund</th>
-      <th>Typ</th>
-      <th>Rasse</th>
-      <th style="text-align:right;">Ø Skalen</th>
-      <th style="text-align:right;">Index B</th>
-      <th>Notiz</th>
-    </tr>
-    ${rows.map(row=>{
-      const pid = String(row.petId || row.dogId || '');
-      const pet = petMap[pid] || {};
-      const dogName = row.dogName || pet.name || pet.dogName || pid || '—';
-      const scaleAvg = avg(row.scales || row.scores || {});
-      const indexB = Number(row.indexB);
-      const note = String(row.notes || '').trim();
-      return `
-        <tr>
-          <td>${escapeHtml(String(row.date || '—'))}</td>
-          <td>${escapeHtml(String(dogName))}</td>
-          <td>${escapeHtml(_statTypeLabel(row.type))}</td>
-          <td>${escapeHtml(String(row.breed || pet.breed || pet.rasse || '—'))}</td>
-          <td style="text-align:right;">${escapeHtml(scaleAvg || '—')}</td>
-          <td style="text-align:right;">${Number.isFinite(indexB) ? escapeHtml(indexB.toFixed(2)) : '—'}</td>
-          <td class="muted">${escapeHtml(note ? (note.length > 90 ? note.slice(0,90) + '…' : note) : '—')}</td>
-        </tr>
-      `;
-    }).join('')}
-  `;
 }
 
 async function saveStatRatingV2(){
