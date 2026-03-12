@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9AG_INBOX_REBUILD_MASTER_20260312",
+  tag: "M50.9.9AH_INBOX_REBUILD_NONBLOCK_MASTER_20260312",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9AG_INBOX_REBUILD_MASTER_20260312";
+const APP_BUILD = "M50.9.9AH_INBOX_REBUILD_NONBLOCK_MASTER_20260312";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -1897,7 +1897,12 @@ async function wireInboxAssignments(){
     try{ state = loadState(); }catch(_){ }
     try{ ensureStateShape(); }catch(_){ }
     try{ await loadTemplates(); }catch(_){ }
-    await fetchInboxAssignmentCloudCustomers();
+    try{
+      await Promise.race([
+        fetchInboxAssignmentCloudCustomers(),
+        new Promise(resolve=>setTimeout(resolve, 1200))
+      ]);
+    }catch(_){ }
     const info = populateInboxAssignmentControls();
     const diag = window.__dsInboxAssignDiag || {};
     if(info.customers){
@@ -1958,7 +1963,7 @@ async function wireInboxAssignments(){
     }
   };
 
-  await refresh();
+  refresh().catch(e=>{ console.error(e); setMsg('Initiales Laden fehlgeschlagen.', true); });
 }
 
 // ===== PREISE (zentral, in Einstellungen editierbar) =====
