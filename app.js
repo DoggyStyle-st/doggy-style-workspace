@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9AB_INBOXFIX3_MASTER_20260312",
+  tag: "M50.9.9AC_STATLIST_INBOXFIX_MASTER_20260312",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9AB_INBOXFIX3_MASTER_20260312";
+const APP_BUILD = "M50.9.9AC_STATLIST_INBOXFIX_MASTER_20260312";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -1874,22 +1874,29 @@ function getInboxAssignmentCustomers(){
 }
 
 async function fetchInboxAssignmentCloudCustomers(){
-  const diag = { cloudEnabled: !!(CLOUD && CLOUD.enabled), orgId: (CLOUD && CLOUD.orgId) || '', loaded: 0, source: '', error: '' };
+  const resolvedOrgId = String((CLOUD && CLOUD.orgId) || window.firebaseOrgId || 'doggystyle');
+  const diag = { cloudEnabled: !!(CLOUD && CLOUD.enabled), orgId: resolvedOrgId, loaded: 0, source: '', error: '' };
   try{
-    if(!CLOUD || !CLOUD.enabled || !CLOUD.db){
+    const db = (()=>{
+      try{ if(CLOUD && CLOUD.db) return CLOUD.db; }catch(_){ }
+      try{ if(window.firebase && firebase.firestore && window.firebase.apps && window.firebase.apps.length) return firebase.firestore(); }catch(_){ }
+      return null;
+    })();
+    if(!db){
       __inboxAssignmentCloudCustomers = [];
       window.__dsInboxAssignDiag = { ...diag, error: 'cloud-disabled' };
       return [];
     }
+
     const normalize = (docId, raw={})=>{
       const role = String(raw.role || '').trim().toLowerCase();
       const email = String(raw.email || raw.mail || '').trim();
       const name = String(raw.name || raw.displayName || raw.fullName || '').trim();
       const phone = String(raw.phone || raw.tel || raw.mobile || '').trim();
       const portalUid = String(raw.uid || docId || '').trim();
-      if(role !== 'customer') return null;
+      if(role && role !== 'customer') return null;
       if(!email && !name && !phone && !portalUid) return null;
-      return { id: portalUid || email || docId || name, name: name || email || phone || 'Kunde', email, phone, portalUid };
+      return { id: portalUid || email || docId || name, name: name || email || phone || 'Kunde', email, phone, portalUid, role: role || 'customer' };
     };
 
     const out = [];
@@ -1902,25 +1909,20 @@ async function fetchInboxAssignmentCloudCustomers(){
         if(key && seenDocs.has(key)) return;
         if(key) seenDocs.add(key);
         const entry = normalize(doc.id, doc.data() || {});
-        if(entry){ out.push(entry); added++; }
+        if(entry && String(entry.role || '').toLowerCase() === 'customer'){ out.push(entry); added++; }
       });
       if(added && !diag.source) diag.source = label;
       return added > 0;
     };
 
-    const queries = [];
-    try{
-      if(typeof cloudUsersCol === 'function'){
-        const col = cloudUsersCol();
-        queries.push(['orgs.users.orderBy(createdAt)', ()=>col.orderBy('createdAt','desc').limit(300).get()]);
-        queries.push(['orgs.users.limit', ()=>col.limit(300).get()]);
-      }
-    }catch(_){ }
-    try{
-      const legacyCol = CLOUD.db.collection(String((CLOUD && CLOUD.orgId) || 'doggystyle')).collection('users');
-      queries.push(['legacyRoot.users.orderBy(createdAt)', ()=>legacyCol.orderBy('createdAt','desc').limit(300).get()]);
-      queries.push(['legacyRoot.users.limit', ()=>legacyCol.limit(300).get()]);
-    }catch(_){ }
+    const orgUsers = db.collection('orgs').doc(resolvedOrgId).collection('users');
+    const legacyCol = db.collection(resolvedOrgId).collection('users');
+    const queries = [
+      ['orgs.users.orderBy(createdAt)', ()=>orgUsers.orderBy('createdAt','desc').limit(300).get()],
+      ['orgs.users.limit', ()=>orgUsers.limit(300).get()],
+      ['legacyRoot.users.orderBy(createdAt)', ()=>legacyCol.orderBy('createdAt','desc').limit(300).get()],
+      ['legacyRoot.users.limit', ()=>legacyCol.limit(300).get()]
+    ];
 
     const errors = [];
     for(const [label, run] of queries){
@@ -1936,7 +1938,7 @@ async function fetchInboxAssignmentCloudCustomers(){
     if(!out.length && Array.isArray(window.__dsInboxCloudUsers)){
       (window.__dsInboxCloudUsers || []).forEach(u=>{
         const entry = normalize(u.id || u.uid || '', u || {});
-        if(entry) out.push(entry);
+        if(entry && String(entry.role || '').toLowerCase() === 'customer') out.push(entry);
       });
       if(out.length && !diag.source) diag.source = 'window.__dsInboxCloudUsers';
     }
@@ -1946,7 +1948,8 @@ async function fetchInboxAssignmentCloudCustomers(){
         const authUsers = (((state || {}).users || []).concat(((state || {}).customers || [])));
         authUsers.forEach(u=>{
           const entry = normalize(u.id || u.uid || u.email || '', u || {});
-          if(entry) out.push(entry);
+          const inferredRole = String((u && (u.role || u.type || '')) || '').toLowerCase();
+          if(entry && (!inferredRole || inferredRole === 'customer')) out.push({ ...entry, role: inferredRole || entry.role || 'customer' });
         });
         if(out.length && !diag.source) diag.source = 'state.users/customers';
       }catch(_){ }
@@ -15068,6 +15071,7 @@ function renderStatisticsPanel(){
         <button class="btn" id="statSub_capture">Erfassung</button>
         <button class="btn" id="statSub_analysis">Analyse</button>
         <button class="btn" id="statSub_export">Export</button>
+        <button class="btn" id="statSub_ratings">Bewertungen</button>
         <button class="btn" id="statSub_method">Methodik</button>
       </div>
     </div>
@@ -15080,7 +15084,7 @@ function renderStatisticsPanel(){
     state.__statSub = k;
 
     // button states
-    ['capture','analysis','export','method'].forEach(x=>{
+    ['capture','analysis','export','ratings','method'].forEach(x=>{
       const b = document.getElementById('statSub_'+x);
       if(!b) return;
       b.classList.toggle('btn-primary', x===k);
@@ -15116,12 +15120,13 @@ function renderStatisticsPanel(){
     if(k==='capture') safeRender(renderStatCapture, 'Erfassung');
     else if(k==='analysis') safeRender(renderStatAnalysis, 'Analyse');
     else if(k==='export') safeRender(renderStatExport, 'Export');
+    else if(k==='ratings') safeRender(renderStatRatings, 'Bewertungen');
     else safeRender(renderStatMethod, 'Methodik');
   };
 
   // default: analysis-first would be tempting, but for data collection: capture
   const def = state.__statSub || 'capture';
-  ['capture','analysis','export','method'].forEach(k=>{
+  ['capture','analysis','export','ratings','method'].forEach(k=>{
     const b=document.getElementById('statSub_'+k);
     if(b) b.onclick=()=>setActive(k);
   });
@@ -15469,6 +15474,147 @@ async function saveStatRatingV2(){
     }
   }catch(err){
     try{ console.warn('[STAT] cloud save skipped/failed; local save kept', err); }catch(_){ }
+  }
+}
+
+
+function _statTypeLabel(v){
+  const map = { arrival:'Ankunft', mid:'Zwischenbewertung', departure:'Abreise' };
+  return map[String(v||'').trim()] || String(v||'—');
+}
+
+function _statDogLabelById(id){
+  const want = String(id || '').trim();
+  const hit = _statPetOptions().find(p => String(p.id||'') === want);
+  return hit ? String(hit.name || hit.id || '—') : want || '—';
+}
+
+function _statAvgScore(row){
+  const sc = row && (row.__scores || row.scores || row.scales) || {};
+  const vals = Object.values(sc).map(v=>Number(v)).filter(v=>Number.isFinite(v));
+  if(!vals.length) return 0;
+  return vals.reduce((a,b)=>a+b,0) / vals.length;
+}
+
+function renderStatRatings(){
+  const host = document.getElementById('statSubBody');
+  if(!host) return;
+
+  host.innerHTML = `
+    <div class="card">
+      <h3 style="margin:0 0 10px;">Gespeicherte Bewertungen</h3>
+      <div class="row" style="flex-wrap:wrap; gap:10px; align-items:flex-end;">
+        <div style="min-width:260px; flex:1;">
+          <label class="muted" style="display:block; margin-bottom:4px;">Hund</label>
+          <select id="statListDog" class="input" style="width:100%"></select>
+        </div>
+        <div style="min-width:220px;">
+          <label class="muted" style="display:block; margin-bottom:4px;">Typ</label>
+          <select id="statListType" class="input" style="width:100%">
+            <option value="">Alle Typen</option>
+            <option value="arrival">Ankunft</option>
+            <option value="mid">Zwischenbewertung</option>
+            <option value="departure">Abreise</option>
+          </select>
+        </div>
+        <div style="min-width:180px;">
+          <label class="muted" style="display:block; margin-bottom:4px;">Von</label>
+          <input id="statListFrom" type="date" class="input" style="width:100%" />
+        </div>
+        <div style="min-width:180px;">
+          <label class="muted" style="display:block; margin-bottom:4px;">Bis</label>
+          <input id="statListTo" type="date" class="input" style="width:100%" />
+        </div>
+        <div>
+          <button class="btn btn-primary" id="btnStatListLoad">Bewertungen laden</button>
+        </div>
+        <div id="statListMsg" class="muted" style="font-size:12px;"></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:10px;">
+      <div style="overflow:auto;">
+        <table class="dsTable" id="statListTable">
+          <tr>
+            <th>Datum</th>
+            <th>Hund</th>
+            <th>Typ</th>
+            <th>Rasse</th>
+            <th style="text-align:right;">Ø Skalen</th>
+            <th style="text-align:right;">Index B</th>
+            <th>Notiz</th>
+          </tr>
+        </table>
+      </div>
+    </div>
+  `;
+
+  const dogSel = document.getElementById('statListDog');
+  if(dogSel){
+    dogSel.innerHTML = '<option value="">Alle Hunde</option>' + _statPetOptions().map(p=>`<option value="${escapeHtml(p.id)}">${escapeHtml(p.name || p.id)}</option>`).join('');
+  }
+  const fromEl = document.getElementById('statListFrom');
+  const toEl = document.getElementById('statListTo');
+  try{
+    const today = toISODate(new Date());
+    if(toEl && !toEl.value) toEl.value = today;
+  }catch(_){ }
+  document.getElementById('btnStatListLoad')?.addEventListener('click', ()=>loadAndRenderStatRatings().catch(console.error));
+  ;['statListDog','statListType','statListFrom','statListTo'].forEach(id=>{
+    document.getElementById(id)?.addEventListener('change', ()=>loadAndRenderStatRatings().catch(console.error));
+  });
+  loadAndRenderStatRatings().catch(console.error);
+}
+
+async function loadAndRenderStatRatings(){
+  const msg = document.getElementById('statListMsg');
+  const table = document.getElementById('statListTable');
+  const dogId = (document.getElementById('statListDog')||{}).value || '';
+  const type = (document.getElementById('statListType')||{}).value || '';
+  const from = (document.getElementById('statListFrom')||{}).value || '';
+  const to = (document.getElementById('statListTo')||{}).value || '';
+  if(msg) msg.textContent = 'Lade…';
+  try{
+    let rows = await _statLoadRange({from,to,dogId});
+    if(type) rows = rows.filter(r => String(r.type||'') === String(type));
+    rows.sort((a,b)=> String(b.date||'').localeCompare(String(a.date||'')) || String(b.type||'').localeCompare(String(a.type||'')));
+    if(table){
+      table.innerHTML = `
+        <tr>
+          <th>Datum</th>
+          <th>Hund</th>
+          <th>Typ</th>
+          <th>Rasse</th>
+          <th style="text-align:right;">Ø Skalen</th>
+          <th style="text-align:right;">Index B</th>
+          <th>Notiz</th>
+        </tr>
+      `;
+      if(!rows.length){
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td colspan="7" class="muted">— keine gespeicherten Bewertungen —</td>`;
+        table.appendChild(tr);
+      } else {
+        rows.forEach(r=>{
+          const tr = document.createElement('tr');
+          const avg = _statAvgScore(r);
+          tr.innerHTML = `
+            <td>${escapeHtml(r.date || '—')}</td>
+            <td>${escapeHtml(_statDogLabelById(r.dogId || r.petId || ''))}</td>
+            <td>${escapeHtml(_statTypeLabel(r.type || ''))}</td>
+            <td>${escapeHtml(r.breed || '—')}</td>
+            <td style="text-align:right;">${avg ? avg.toFixed(2) : '—'}</td>
+            <td style="text-align:right;">${Number.isFinite(Number(r.__indexB)) ? Number(r.__indexB).toFixed(2) : '—'}</td>
+            <td>${escapeHtml(String(r.notes || '').slice(0,160) || '—')}</td>
+          `;
+          table.appendChild(tr);
+        });
+      }
+    }
+    if(msg) msg.textContent = `${rows.length} Bewertung${rows.length===1?'':'en'} gefunden`;
+  }catch(e){
+    console.error('[STAT] ratings list failed', e);
+    if(msg) msg.textContent = 'Fehler beim Laden.';
   }
 }
 
