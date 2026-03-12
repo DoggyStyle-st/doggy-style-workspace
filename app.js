@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9X_INBOX_ASSIGN_FIX_MASTER_20260312",
+  tag: "M50.9.9Y_INBOX_EMAILTASK_FIX_MASTER_20260312",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9X_INBOX_ASSIGN_FIX_MASTER_20260312";
+const APP_BUILD = "M50.9.9Y_INBOX_EMAILTASK_FIX_MASTER_20260312";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -1496,146 +1496,137 @@ async function wireTaskCreation(){
   const btnMoreCustomers = document.getElementById('btnCustomersMore');
   const customerCountEl = document.getElementById('taskCustomerCount');
   if(!selCustomer || !selTemplate || !btnCreate) return;
-  // Templates laden (Vorlagen)
-  try{
-    await loadTemplates();
-    const list = (TEMPLATES||[]);
-    selTemplate.innerHTML = list.map(t=>{
-      const id = t.id || t.templateId || t.name || '';
-      const label = t.name || t.title || id || 'Vorlage';
-      return `<option value="${escapeHtml(id)}">${escapeHtml(label)}</option>`;
-    }).join('');
-  }catch(e){
-    console.warn('templates load', e);
-    selTemplate.innerHTML = '<option value="">(keine Vorlagen)</option>';
-  }
-  // Customers (mit Suche + "Mehr laden")
-  let _allCustomers = [];
-  let _custLastDoc = null;
-  let _custHasMore = true;
-  let _custLoading = false;
-  const CUSTOMER_PAGE_SIZE = 200;
-  const customerLabel = (u)=>{
-    const dn = String(u.displayName||'').trim();
-    const em = String(u.email||u.uid||'').trim();
-    return dn ? `${dn} – ${em}` : em;
-  };
-  const renderCustomers = (q='')=>{
-    const query = (q||'').trim().toLowerCase();
 
-    // Fallback: if no portal users were loaded from Cloud, use local customers.
-    // Only customers with a linked portal UID can receive tasks.
-    const baseList = (_allCustomers && _allCustomers.length) ? _allCustomers : (state.customers||[]).map(c=>{
-      const uid = c.portalUid || c.portalUID || c.userUid || c.uid || '';
-      const name = c.name || c.kundenname || c.customerName || c.fullName || c.vorname || '';
-      const email = c.email || c.mail || '';
-      return {
-        uid,
-        displayName: name,
-        email,
-        __missingUid: !uid,
-      };
+  const FIXED_TASKS = [
+    { id:'customer_data', title:'Kundendaten ergänzen' },
+    { id:'boarding_contract', title:'Betreuungsvertrag freigeben' },
+    { id:'stay_request', title:'Aufenthalt anfragen' },
+  ];
+
+  const taskLabelById = (taskId)=>{
+    const hit = FIXED_TASKS.find(t=>t.id===taskId);
+    return hit ? hit.title : 'Aufgabe';
+  };
+
+  const renderTemplates = ()=>{
+    selTemplate.innerHTML = ['<option value="">Aufgabe / Freigabe wählen</option>']
+      .concat(FIXED_TASKS.map(t=>`<option value="${escapeHtml(t.id)}">${escapeHtml(t.title)}</option>`))
+      .join('');
+  };
+
+  const buildCustomerList = ()=>{
+    const seen = new Set();
+    const list = [];
+    const pushCustomer = (raw)=>{
+      if(!raw || typeof raw !== 'object') return;
+      const id = String(raw.id || raw.customerId || raw.uid || '').trim();
+      const name = String(raw.name || raw.kundenname || raw.customerName || raw.fullName || raw.vorname || '').trim();
+      const email = String(raw.email || raw.mail || '').trim();
+      const phone = String(raw.phone || raw.telefon || raw.mobile || '').trim();
+      const portalUid = String(raw.portalUid || raw.portalUID || raw.userUid || raw.customerUid || '').trim();
+      const key = id || email || `${name}|${phone}`;
+      if(!key || seen.has(key)) return;
+      seen.add(key);
+      list.push({ id:key, customerId:id||key, name, email, phone, portalUid });
+    };
+
+    (state.customers || []).forEach(pushCustomer);
+
+    // Fallback aus Pets/Dogs -> Customer verknüpfen, falls state.customers leer/unvollständig ist
+    (state.pets || []).forEach(pet=>{
+      const customerId = String(pet.customerId || '').trim();
+      if(!customerId) return;
+      const cust = (state.customers || []).find(c=>String(c.id||'')===customerId);
+      if(cust) pushCustomer(cust);
+    });
+    (state.dogs || []).forEach(dog=>{
+      const customerId = String((state._legacy && state._legacy.dogIdToCustomerId && state._legacy.dogIdToCustomerId[dog.id]) || dog.customerId || '').trim();
+      if(!customerId) return;
+      const cust = (state.customers || []).find(c=>String(c.id||'')===customerId);
+      if(cust) pushCustomer(cust);
     });
 
-    const list = query ? baseList.filter(u=>{
-      const dn = String(u.displayName||'').toLowerCase();
-      const em = String(u.email||u.uid||'').toLowerCase();
-      return dn.includes(query) || em.includes(query);
-    }) : baseList;
+    return list.sort((a,b)=>String(a.name||a.email||'').localeCompare(String(b.name||b.email||''), 'de'));
+  };
 
-    const opts = [];
-    opts.push('<option value="">Kunde auswählen</option>');
-    if(!list.length){
-      opts.push('<option value="" disabled>Keine Treffer</option>');
-    } else {
-      list.forEach(u=>{
-        const disabled = u.__missingUid ? ' disabled' : '';
-        const suffix = u.__missingUid ? ' (kein Portal-Link)' : '';
-        const value = u.__missingUid ? '' : escapeHtml(u.uid);
-        opts.push(`<option value="${value}"${disabled}>${escapeHtml(customerLabel(u) + suffix)}</option>`);
-      });
+  const renderCustomers = ()=>{
+    const all = buildCustomerList();
+    const q = String(inpCustomerSearch?.value || '').trim().toLowerCase();
+    const list = q ? all.filter(c=>[
+      String(c.name||'').toLowerCase(),
+      String(c.email||'').toLowerCase(),
+      String(c.phone||'').toLowerCase()
+    ].some(v=>v.includes(q))) : all;
+
+    const opts = ['<option value="">Kunde auswählen</option>'];
+    list.forEach(c=>{
+      const labelParts = [];
+      if(c.name) labelParts.push(c.name);
+      if(c.email) labelParts.push(c.email);
+      else if(c.phone) labelParts.push(c.phone);
+      const label = labelParts.join(' – ') || c.customerId;
+      opts.push(`<option value="${escapeHtml(c.customerId)}">${escapeHtml(label)}</option>`);
+    });
+    if(list.length === 0){
+      opts.push('<option value="" disabled>Keine Kunden gefunden</option>');
     }
     selCustomer.innerHTML = opts.join('');
+    if(customerCountEl) customerCountEl.textContent = `${all.length} Kunden geladen`;
+    if(btnMoreCustomers) btnMoreCustomers.style.display = 'none';
+  };
 
-    if(customerCountEl){
-      const total = baseList.length;
-      const missing = baseList.filter(u=>u.__missingUid).length;
-      customerCountEl.textContent = missing ? `${total} (davon ${missing} ohne Portal-Link)` : `${total} geladen`;
-    }
-    // “Mehr laden” only makes sense for cloud-backed user lists.
-    if(btnMoreCustomers) btnMoreCustomers.style.display = (_allCustomers && _allCustomers.length && _custHasMore) ? '' : 'none';
+  const refreshAll = ()=>{
+    renderTemplates();
+    renderCustomers();
   };
-  const loadCustomersPage = async (reset=false)=>{
-    if(_custLoading) return;
-    _custLoading = true;
-    try{
-      if(reset){
-        _allCustomers = [];
-        _custLastDoc = null;
-        _custHasMore = true;
-      }
-      if(!cloudUsersCol){
-        _custHasMore = false;
-        renderCustomers(inpCustomerSearch?.value || '');
-        return;
-      }
-      let q = cloudUsersCol()
-        .where('role','==',ROLES.CUSTOMER)
-        .orderBy('createdAt','desc')
-        .limit(CUSTOMER_PAGE_SIZE);
-      if(_custLastDoc) q = q.startAfter(_custLastDoc);
-      const snap = await q.get();
-      const docs = snap.docs || [];
-      docs.forEach(d=>{
-        const u = d.data()||{};
-        if(!u.uid) u.uid = d.id;
-        _allCustomers.push(u);
-      });
-      if(docs.length) _custLastDoc = docs[docs.length-1];
-      _custHasMore = (docs.length === CUSTOMER_PAGE_SIZE);
-      renderCustomers(inpCustomerSearch?.value || '');
-    }catch(e){
-      console.warn('customers page', e);
-      // Ensure we still render dropdown from local customers.
-      _custHasMore = false;
-      renderCustomers(inpCustomerSearch?.value || '');
-    }finally{
-      _custLoading = false;
-    }
-  };
-  await loadCustomersPage(true);
+
+  refreshAll();
   if(inpCustomerSearch){
-    inpCustomerSearch.addEventListener('input', ()=>renderCustomers(inpCustomerSearch.value));
+    inpCustomerSearch.addEventListener('input', refreshAll);
   }
-  if(btnMoreCustomers){
-    btnMoreCustomers.addEventListener('click', (e)=>{ e.preventDefault(); loadCustomersPage(false); });
-  }
+  ['focus','pageshow','visibilitychange'].forEach(evt=>window.addEventListener(evt, refreshAll));
+  document.getElementById('btnInboxRefresh')?.addEventListener('click', refreshAll);
+  document.querySelector('[data-tab="inbox"]')?.addEventListener('click', ()=>setTimeout(refreshAll, 0));
+
   btnCreate.onclick = async ()=>{
-    const customerUid = selCustomer.value;
-    const templateId = selTemplate.value;
-    const tpl = getTemplate(templateId);
-    const title = (titleInput?.value||'').trim()
-      || (tpl?.name ? (tpl.name+' – Ausfüllen') : 'Formular ausfüllen');
-    if(!customerUid || !templateId){
-      if(msgEl) msgEl.textContent = 'Bitte Kunde und Vorlage wählen.';
+    const customerId = String(selCustomer.value || '').trim();
+    const taskId = String(selTemplate.value || '').trim();
+    const customer = buildCustomerList().find(c=>String(c.customerId)===customerId);
+    const title = (titleInput?.value || '').trim() || taskLabelById(taskId);
+    if(!customerId || !taskId || !customer){
+      if(msgEl) msgEl.textContent = 'Bitte Kunde und Aufgabe wählen.';
       return;
     }
+    if(!customer.email){
+      if(msgEl) msgEl.textContent = 'Dieser Kunde hat keine E-Mail-Adresse.';
+      return;
+    }
+    const task = {
+      customerId: customer.customerId,
+      customerEmail: customer.email,
+      customerName: customer.name || '',
+      customerUid: customer.portalUid || '',
+      taskId,
+      templateId: taskId,
+      title,
+      status: 'open',
+      createdAt: Date.now(),
+      createdByUid: CLOUD.user?.uid || '',
+      createdByEmail: CLOUD.user?.email || ''
+    };
     if(msgEl) msgEl.textContent = '… erstellt …';
     try{
-      await cloudTasksCol().add({
-        customerUid,
-        templateId,
-        title,
-        status: 'open',
-        createdAt: Date.now(),
-        createdByUid: CLOUD.user?.uid || '',
-        createdByEmail: CLOUD.user?.email || ''
-      });
+      if(cloudTasksCol){
+        await cloudTasksCol().add(task);
+      }
+      state.inboxAssignments = Array.isArray(state.inboxAssignments) ? state.inboxAssignments : [];
+      state.inboxAssignments.unshift({ id:'asg_'+Date.now(), ...task });
+      saveState();
       if(msgEl) msgEl.textContent = '✅ Aufgabe freigegeben.';
       try{ titleInput.value=''; }catch(_){ }
     }catch(e){
       console.error(e);
-      if(msgEl) msgEl.textContent = '❌ Fehler: '+(e.message||e);
+      if(msgEl) msgEl.textContent = '❌ Fehler: ' + (e.message||e);
     }
   };
 }
