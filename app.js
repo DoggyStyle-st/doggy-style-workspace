@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9AJ_AI_HARDSWITCH_INBOX_MASTER_20260312",
+  tag: "M50.9.9AK_AI_CUSTOMERSOURCE_INBOX_MASTER_20260313",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9AJ_AI_HARDSWITCH_INBOX_MASTER_20260312";
+const APP_BUILD = "M50.9.9AK_AI_CUSTOMERSOURCE_INBOX_MASTER_20260313";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -1694,7 +1694,62 @@ async function wireInbox(){
 // ===== Inbox: Aufgaben freigeben =====
 function getInboxAssignmentCustomers(){
   try{ ensureStateShape(); }catch(_){ }
-  return buildCanonicalCustomerList();
+  const out = [];
+  const seen = new Set();
+  const add = (raw={})=>{
+    if(!raw || typeof raw !== 'object') return;
+    const id = String(raw.id || raw.customerId || raw.uid || raw.portalUid || raw.email || raw.name || '').trim();
+    const customerId = String(raw.customerId || raw.id || raw.uid || raw.portalUid || raw.email || '').trim();
+    const name = String(raw.name || raw.displayName || raw.customerName || raw.ownerName || raw.fullName || '').trim();
+    const email = String(raw.email || raw.mail || '').trim().toLowerCase();
+    const phone = String(raw.phone || raw.telefon || raw.mobile || raw.tel || '').trim();
+    const portalUid = String(raw.portalUid || raw.portalUID || raw.userUid || raw.customerUid || raw.uid || '').trim();
+    if(!id && !customerId && !name && !email && !phone) return;
+    const key = String(customerId || portalUid || email || id || name || phone).toLowerCase();
+    if(!key || seen.has(key)) return;
+    seen.add(key);
+    out.push({
+      id: id || customerId || portalUid || email || name,
+      customerId: customerId || id || portalUid || email || name,
+      portalUid,
+      name: name || email || phone || 'Kunde',
+      email,
+      phone,
+      source: raw.source || 'master'
+    });
+  };
+
+  try{ buildCanonicalCustomerList().forEach(c=>add({ ...c, source:'master.customers' })); }catch(_){ }
+
+  // Fallback 1: Kunden aus Hunden/Pets ableiten (gleiches Grundprinzip wie bei Aufenthalten)
+  try{
+    (Array.isArray(state.pets) ? state.pets : []).forEach(pet=>{
+      if(!pet || typeof pet !== 'object') return;
+      const customerId = String(pet.customerId || pet.ownerId || '').trim();
+      const existing = customerId ? getCustomer(customerId) : null;
+      if(existing){
+        add({ ...existing, customerId: existing.customerId || existing.id || customerId, source:'pets->customers' });
+      }else{
+        add({
+          id: customerId || pet.id || pet.name || '',
+          customerId: customerId || pet.id || pet.name || '',
+          name: pet.customerName || pet.ownerName || pet.holderName || '',
+          email: pet.customerEmail || pet.ownerEmail || '',
+          phone: pet.customerPhone || pet.ownerPhone || '',
+          portalUid: pet.customerUid || pet.portalUid || '',
+          source:'pets.fallback'
+        });
+      }
+    });
+  }catch(_){ }
+
+  // Fallback 2: lokale Kunden-Nutzer (falls vorhanden)
+  try{ (Array.isArray(state.users) ? state.users : []).forEach(u=>{
+    const role = String((u && (u.role || u.type)) || '').trim().toLowerCase();
+    if(!role || role === 'customer') add({ ...u, source:'state.users' });
+  }); }catch(_){ }
+
+  return out.sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''), 'de'));
 }
 
 function getInboxAssignmentTemplates(){
@@ -1714,31 +1769,7 @@ function getInboxAssignmentTemplatesResolved(){
 }
 
 function getInboxAssignmentLocalCustomers(){
-  const seen = new Set();
-  const out = [];
-  const add = (raw)=>{
-    if(!raw || typeof raw !== 'object') return;
-    const id = String(raw.id || raw.customerId || raw.uid || '').trim();
-    const email = String(raw.email || raw.mail || '').trim().toLowerCase();
-    const name = String(raw.name || raw.displayName || raw.customerName || raw.fullName || raw.vorname || '').trim();
-    const phone = String(raw.phone || raw.telefon || raw.mobile || raw.tel || '').trim();
-    const portalUid = String(raw.portalUid || raw.portalUID || raw.userUid || raw.customerUid || raw.uid || '').trim();
-    const key = String(portalUid || email || id || name || phone).toLowerCase();
-    if(!key || seen.has(key)) return;
-    seen.add(key);
-    out.push({
-      id: portalUid || id || email || name,
-      customerId: id || portalUid || email || name,
-      portalUid,
-      name: name || email || phone || 'Kunde',
-      email,
-      phone,
-      source: 'local'
-    });
-  };
-  try{ (state.customers || []).forEach(add); }catch(_){ }
-  try{ (state.users || []).forEach(u=>{ const role = String(u && (u.role || u.type || '') || '').toLowerCase(); if(!role || role === 'customer') add(u); }); }catch(_){ }
-  return out.sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''), 'de'));
+  return getInboxAssignmentCustomers();
 }
 
 async function fetchInboxAssignmentCloudCustomers(){
@@ -1842,7 +1873,7 @@ function populateInboxAssignmentControls(){
     selCustomer.disabled = false;
     selCustomer.innerHTML = '<option value="">Bitte auswählen…</option>';
     customers.forEach(c=>{
-      const value = String(c.portalUid || c.email || c.customerId || c.id || '').trim();
+      const value = String(c.customerId || c.id || c.portalUid || c.email || '').trim();
       const meta = [];
       if(c.email) meta.push(c.email);
       else if(c.phone) meta.push(c.phone);
@@ -1908,7 +1939,7 @@ async function wireInboxAssignments(){
       const selectedCustomer = String(selCustomer.value || '').trim();
       const templateId = String(selTemplate.value || '').trim();
       const customers = getMergedInboxAssignmentCustomers();
-      const customer = customers.find(c => String(c.portalUid || c.email || c.customerId || c.id) === selectedCustomer);
+      const customer = customers.find(c => String(c.customerId || c.id || c.portalUid || c.email) === selectedCustomer);
       if(!customer){ setMsg('Bitte zuerst einen Kunden auswählen.', true); return; }
       if(!customer.portalUid){ setMsg('Kunde sichtbar, aber noch nicht als Portal-Kunde registriert.', true); return; }
       if(!templateId){ setMsg('Bitte zuerst eine Aufgabe auswählen.', true); return; }
