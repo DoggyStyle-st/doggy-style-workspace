@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9Y_INBOX_EMAILTASK_FIX_MASTER_20260312",
+  tag: "M50.9.9AB_INBOXFIX3_MASTER_20260312",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9Y_INBOX_EMAILTASK_FIX_MASTER_20260312";
+const APP_BUILD = "M50.9.9AB_INBOXFIX3_MASTER_20260312";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -1876,48 +1876,80 @@ function getInboxAssignmentCustomers(){
 async function fetchInboxAssignmentCloudCustomers(){
   const diag = { cloudEnabled: !!(CLOUD && CLOUD.enabled), orgId: (CLOUD && CLOUD.orgId) || '', loaded: 0, source: '', error: '' };
   try{
-    if(!CLOUD || !CLOUD.enabled || typeof cloudUsersCol !== 'function'){
+    if(!CLOUD || !CLOUD.enabled || !CLOUD.db){
       __inboxAssignmentCloudCustomers = [];
       window.__dsInboxAssignDiag = { ...diag, error: 'cloud-disabled' };
       return [];
     }
     const normalize = (docId, raw={})=>{
       const role = String(raw.role || '').trim().toLowerCase();
-      const email = String(raw.email || '').trim();
+      const email = String(raw.email || raw.mail || '').trim();
       const name = String(raw.name || raw.displayName || raw.fullName || '').trim();
-      const phone = String(raw.phone || raw.tel || '').trim();
+      const phone = String(raw.phone || raw.tel || raw.mobile || '').trim();
       const portalUid = String(raw.uid || docId || '').trim();
       if(role !== 'customer') return null;
       if(!email && !name && !phone && !portalUid) return null;
       return { id: portalUid || email || docId || name, name: name || email || phone || 'Kunde', email, phone, portalUid };
     };
 
-    let snap = null;
+    const out = [];
+    const seenDocs = new Set();
+    const absorbSnap = (snap, label)=>{
+      if(!snap) return false;
+      let added = 0;
+      snap.forEach(doc=>{
+        const key = String(doc && doc.id || '').trim();
+        if(key && seenDocs.has(key)) return;
+        if(key) seenDocs.add(key);
+        const entry = normalize(doc.id, doc.data() || {});
+        if(entry){ out.push(entry); added++; }
+      });
+      if(added && !diag.source) diag.source = label;
+      return added > 0;
+    };
+
+    const queries = [];
     try{
-      snap = await cloudUsersCol().orderBy('createdAt','desc').limit(300).get();
-      diag.source = 'cloudUsersCol.orderBy(createdAt)';
-    }catch(err1){
+      if(typeof cloudUsersCol === 'function'){
+        const col = cloudUsersCol();
+        queries.push(['orgs.users.orderBy(createdAt)', ()=>col.orderBy('createdAt','desc').limit(300).get()]);
+        queries.push(['orgs.users.limit', ()=>col.limit(300).get()]);
+      }
+    }catch(_){ }
+    try{
+      const legacyCol = CLOUD.db.collection(String((CLOUD && CLOUD.orgId) || 'doggystyle')).collection('users');
+      queries.push(['legacyRoot.users.orderBy(createdAt)', ()=>legacyCol.orderBy('createdAt','desc').limit(300).get()]);
+      queries.push(['legacyRoot.users.limit', ()=>legacyCol.limit(300).get()]);
+    }catch(_){ }
+
+    const errors = [];
+    for(const [label, run] of queries){
       try{
-        snap = await cloudUsersCol().limit(300).get();
-        diag.source = 'cloudUsersCol.limit';
-      }catch(err2){
-        diag.error = String((err2 && (err2.code || err2.message)) || (err1 && (err1.code || err1.message)) || 'query-failed');
+        const snap = await run();
+        absorbSnap(snap, label);
+        if(out.length) break;
+      }catch(err){
+        errors.push(`${label}: ${String((err && (err.code || err.message)) || err || 'query-failed')}`);
       }
     }
 
-    const out = [];
-    if(snap){
-      snap.forEach(doc=>{
-        const entry = normalize(doc.id, doc.data() || {});
-        if(entry) out.push(entry);
-      });
-    }
     if(!out.length && Array.isArray(window.__dsInboxCloudUsers)){
       (window.__dsInboxCloudUsers || []).forEach(u=>{
         const entry = normalize(u.id || u.uid || '', u || {});
         if(entry) out.push(entry);
       });
-      if(!diag.source) diag.source = 'window.__dsInboxCloudUsers';
+      if(out.length && !diag.source) diag.source = 'window.__dsInboxCloudUsers';
+    }
+
+    if(!out.length){
+      try{
+        const authUsers = (((state || {}).users || []).concat(((state || {}).customers || [])));
+        authUsers.forEach(u=>{
+          const entry = normalize(u.id || u.uid || u.email || '', u || {});
+          if(entry) out.push(entry);
+        });
+        if(out.length && !diag.source) diag.source = 'state.users/customers';
+      }catch(_){ }
     }
 
     const uniq = [];
@@ -1930,7 +1962,8 @@ async function fetchInboxAssignmentCloudCustomers(){
     });
 
     __inboxAssignmentCloudCustomers = uniq;
-    window.__dsInboxAssignDiag = { ...diag, loaded: uniq.length };
+    const extra = errors.length && !uniq.length ? { error: errors.join(' | ') } : {};
+    window.__dsInboxAssignDiag = { ...diag, ...extra, loaded: uniq.length };
     return uniq;
   }catch(e){
     console.warn('fetchInboxAssignmentCloudCustomers failed', e);
