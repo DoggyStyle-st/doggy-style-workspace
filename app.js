@@ -1826,6 +1826,8 @@ async function wireInbox(){
 }
 
 // ===== Inbox: Aufgaben freigeben =====
+let __inboxAssignmentCloudCustomers = [];
+
 function getInboxAssignmentCustomers(){
   try{ ensureStateShape(); }catch(_){}
   const st = state || {};
@@ -1833,14 +1835,15 @@ function getInboxAssignmentCustomers(){
   const seen = new Set();
   const add = (raw={})=>{
     const id = String(raw.id || raw.customerId || raw.uid || raw.email || raw.name || '').trim();
-    const name = String(raw.name || raw.displayName || raw.customerName || raw.ownerName || '').trim();
+    const name = String(raw.name || raw.displayName || raw.customerName || raw.ownerName || raw.fullName || '').trim();
     const email = String(raw.email || raw.mail || '').trim();
     const phone = String(raw.phone || raw.tel || '').trim();
+    const portalUid = String(raw.portalUid || raw.portalUID || raw.userUid || raw.customerUid || raw.uid || '').trim();
     if(!id || (!name && !email && !phone)) return;
-    const key = (email || id || name).toLowerCase();
+    const key = (email || portalUid || id || name).toLowerCase();
     if(seen.has(key)) return;
     seen.add(key);
-    out.push({ id, name: name || email || phone || 'Kunde', email, phone });
+    out.push({ id, name: name || email || phone || 'Kunde', email, phone, portalUid });
   };
   (Array.isArray(st.customers) ? st.customers : []).forEach(add);
   const pets = Array.isArray(st.pets) ? st.pets : [];
@@ -1865,17 +1868,70 @@ function getInboxAssignmentCustomers(){
     const ownerEmail = String(dog.email || dog.ownerEmail || '').trim();
     const ownerPhone = String(dog.phone || dog.ownerPhone || '').trim();
     if(ownerName || ownerEmail || ownerPhone){
-      add({ id: ownerEmail || ownerName, name: ownerName, email: ownerEmail, phone: ownerPhone });
+      add({ id: dog.customerId || ownerEmail || ownerName, name: ownerName, email: ownerEmail, phone: ownerPhone });
     }
   });
   return out.sort((a,b)=> String(a.name||'').localeCompare(String(b.name||''), 'de'));
 }
 
+async function fetchInboxAssignmentCloudCustomers(){
+  try{
+    if(!CLOUD || !CLOUD.enabled || typeof cloudUsersCol !== 'function'){
+      __inboxAssignmentCloudCustomers = [];
+      return [];
+    }
+    let snap = null;
+    try{
+      snap = await cloudUsersCol().orderBy('createdAt','desc').limit(300).get();
+    }catch(_){
+      snap = await cloudUsersCol().limit(300).get();
+    }
+    const out = [];
+    snap.forEach(doc=>{
+      const u = { id: doc.id, ...doc.data() };
+      const role = String(u.role || '').toLowerCase();
+      const email = String(u.email || '').trim();
+      const name = String(u.name || u.displayName || u.fullName || '').trim();
+      const phone = String(u.phone || u.tel || '').trim();
+      const portalUid = String(u.uid || doc.id || '').trim();
+      if(role && role !== 'customer') return;
+      if(!email && !name && !phone) return;
+      out.push({ id: email || portalUid || name, name: name || email || 'Kunde', email, phone, portalUid });
+    });
+    __inboxAssignmentCloudCustomers = out;
+    return out;
+  }catch(e){
+    console.warn('fetchInboxAssignmentCloudCustomers failed', e);
+    __inboxAssignmentCloudCustomers = [];
+    return [];
+  }
+}
+
+function getMergedInboxAssignmentCustomers(){
+  const seen = new Set();
+  const out = [];
+  const add = (c)=>{
+    if(!c) return;
+    const id = String(c.id || '').trim();
+    const email = String(c.email || '').trim();
+    const name = String(c.name || '').trim();
+    const phone = String(c.phone || '').trim();
+    const portalUid = String(c.portalUid || '').trim();
+    const key = (email || portalUid || id || name).toLowerCase();
+    if(!key || seen.has(key)) return;
+    seen.add(key);
+    out.push({ id: id || email || portalUid || name, name: name || email || phone || 'Kunde', email, phone, portalUid });
+  };
+  getInboxAssignmentCustomers().forEach(add);
+  (Array.isArray(__inboxAssignmentCloudCustomers) ? __inboxAssignmentCloudCustomers : []).forEach(add);
+  return out.sort((a,b)=> String(a.name||'').localeCompare(String(b.name||''), 'de'));
+}
+
 function getInboxAssignmentTemplates(){
   return [
-    { id: 'customer_profile', name: 'Kundendaten ergänzen' },
+    { id: 'customer_data', name: 'Kundendaten ergänzen' },
     { id: 'boarding_contract', name: 'Betreuungsvertrag freigeben' },
-    { id: 'new_stay', name: 'Aufenthalt anfragen' }
+    { id: 'stay_request', name: 'Aufenthalt anfragen' }
   ];
 }
 
@@ -1883,7 +1939,7 @@ function populateInboxAssignmentControls(){
   const selCustomer = document.getElementById('assignCustomer');
   const selTemplate = document.getElementById('assignTemplate');
   if(!selCustomer || !selTemplate) return;
-  const customers = getInboxAssignmentCustomers();
+  const customers = getMergedInboxAssignmentCustomers();
   const templates = getInboxAssignmentTemplates();
   const fill = (sel, items, getId, getLabel, emptyLabel)=>{
     sel.innerHTML = '';
@@ -1922,20 +1978,21 @@ async function wireInboxAssignments(){
   const msgEl       = document.getElementById('assignMsg');
   if(!selCustomer || !selTemplate || !btnCreate) return;
 
-  const refresh = ()=>{
+  const refresh = async ()=>{
     try{ state = loadState(); }catch(_){}
     try{ ensureStateShape(); }catch(_){}
+    await fetchInboxAssignmentCloudCustomers();
     populateInboxAssignmentControls();
   };
 
-  refresh();
-  try{ setTimeout(refresh, 0); }catch(_){}
-  try{ setTimeout(refresh, 300); }catch(_){}
-  try{ setTimeout(refresh, 1200); }catch(_){}
-  try{ document.getElementById('tabInbox')?.addEventListener('click', refresh); }catch(_){}
-  try{ btnRefresh?.addEventListener('click', refresh); }catch(_){}
-  try{ window.addEventListener('focus', refresh); }catch(_){}
-  try{ document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) refresh(); }); }catch(_){}
+  await refresh();
+  try{ setTimeout(()=>refresh().catch(console.warn), 0); }catch(_){}
+  try{ setTimeout(()=>refresh().catch(console.warn), 300); }catch(_){}
+  try{ setTimeout(()=>refresh().catch(console.warn), 1200); }catch(_){}
+  try{ document.getElementById('tabInbox')?.addEventListener('click', ()=>refresh().catch(console.warn)); }catch(_){}
+  try{ btnRefresh?.addEventListener('click', ()=>refresh().catch(console.warn)); }catch(_){}
+  try{ window.addEventListener('focus', ()=>refresh().catch(console.warn)); }catch(_){}
+  try{ document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) refresh().catch(console.warn); }); }catch(_){}
 
   const setMsg = (txt, isErr=false)=>{
     if(!msgEl) return;
@@ -1946,22 +2003,24 @@ async function wireInboxAssignments(){
 
   btnCreate.onclick = async ()=>{
     try{
-      refresh();
+      await refresh();
       const customerId = String(selCustomer.value||'').trim();
       const templateId = String(selTemplate.value||'').trim();
       if(!customerId){ setMsg('Bitte zuerst einen Kunden auswählen.', true); return; }
       if(!templateId){ setMsg('Bitte zuerst eine Aufgabe auswählen.', true); return; }
 
-      const customers = getInboxAssignmentCustomers();
+      const customers = getMergedInboxAssignmentCustomers();
       const templates = getInboxAssignmentTemplates();
       const c = customers.find(x=>String(x.id)===customerId);
       const t = templates.find(x=>String(x.id)===templateId);
       if(!c){ setMsg('Kunde nicht gefunden.', true); return; }
+      if(!c.email && !c.portalUid){ setMsg('Kunde hat weder E-Mail noch Portal-UID.', true); return; }
 
       const task = {
         customerId: c.id,
         customerEmail: c.email || '',
         customerName: c.name || '',
+        customerUid: c.portalUid || '',
         templateId,
         title: t?.name || templateId,
         status: 'open',
@@ -1986,7 +2045,7 @@ async function wireInboxAssignments(){
 
       setMsg(savedCloud ? '✅ Aufgabe freigegeben.' : '✅ Aufgabe lokal angelegt.');
       selTemplate.value = '';
-      refresh();
+      await refresh();
     }catch(e){
       console.error(e);
       setMsg('Fehler beim Erstellen der Aufgabe.', true);
