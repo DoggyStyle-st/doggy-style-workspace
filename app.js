@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9AF_STATLIST_INBOX_CUSTOMERSOURCE_FIX_MASTER_20260312",
+  tag: "M50.9.9AG_INBOX_REBUILD_MASTER_20260312",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9AF_STATLIST_INBOX_CUSTOMERSOURCE_FIX_MASTER_20260312";
+const APP_BUILD = "M50.9.9AG_INBOX_REBUILD_MASTER_20260312";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -1487,148 +1487,14 @@ async function initStaffFeatures(){
   try{ await wireInboxAssignments(); }catch(e){ console.warn(e); }
 }
 async function wireTaskCreation(){
-  const selCustomer = document.getElementById('taskCustomerSelect');
-  const inpCustomerSearch = document.getElementById('taskCustomerSearch');
-  const selTemplate = document.getElementById('taskTemplateSelect');
-  const titleInput = document.getElementById('taskTitleInput');
-  const btnCreate = document.getElementById('btnTaskCreate');
-  const msgEl = document.getElementById('taskCreateMsg');
-  const btnMoreCustomers = document.getElementById('btnCustomersMore');
-  const customerCountEl = document.getElementById('taskCustomerCount');
-  if(!selCustomer || !selTemplate || !btnCreate) return;
-
-  const FIXED_TASKS = [
-    { id:'customer_data', title:'Kundendaten ergänzen' },
-    { id:'boarding_contract', title:'Betreuungsvertrag freigeben' },
-    { id:'stay_request', title:'Aufenthalt anfragen' },
-  ];
-
-  const taskLabelById = (taskId)=>{
-    const hit = FIXED_TASKS.find(t=>t.id===taskId);
-    return hit ? hit.title : 'Aufgabe';
-  };
-
-  const renderTemplates = ()=>{
-    selTemplate.innerHTML = ['<option value="">Aufgabe / Freigabe wählen</option>']
-      .concat(FIXED_TASKS.map(t=>`<option value="${escapeHtml(t.id)}">${escapeHtml(t.title)}</option>`))
-      .join('');
-  };
-
-  const buildCustomerList = ()=>{
-    const seen = new Set();
-    const list = [];
-    const pushCustomer = (raw)=>{
-      if(!raw || typeof raw !== 'object') return;
-      const id = String(raw.id || raw.customerId || raw.uid || '').trim();
-      const name = String(raw.name || raw.kundenname || raw.customerName || raw.fullName || raw.vorname || '').trim();
-      const email = String(raw.email || raw.mail || '').trim();
-      const phone = String(raw.phone || raw.telefon || raw.mobile || '').trim();
-      const portalUid = String(raw.portalUid || raw.portalUID || raw.userUid || raw.customerUid || '').trim();
-      const key = id || email || `${name}|${phone}`;
-      if(!key || seen.has(key)) return;
-      seen.add(key);
-      list.push({ id:key, customerId:id||key, name, email, phone, portalUid });
-    };
-
-    (state.customers || []).forEach(pushCustomer);
-
-    // Fallback aus Pets/Dogs -> Customer verknüpfen, falls state.customers leer/unvollständig ist
-    (state.pets || []).forEach(pet=>{
-      const customerId = String(pet.customerId || '').trim();
-      if(!customerId) return;
-      const cust = (state.customers || []).find(c=>String(c.id||'')===customerId);
-      if(cust) pushCustomer(cust);
-    });
-    (state.dogs || []).forEach(dog=>{
-      const customerId = String((state._legacy && state._legacy.dogIdToCustomerId && state._legacy.dogIdToCustomerId[dog.id]) || dog.customerId || '').trim();
-      if(!customerId) return;
-      const cust = (state.customers || []).find(c=>String(c.id||'')===customerId);
-      if(cust) pushCustomer(cust);
-    });
-
-    return list.sort((a,b)=>String(a.name||a.email||'').localeCompare(String(b.name||b.email||''), 'de'));
-  };
-
-  const renderCustomers = ()=>{
-    const all = buildCustomerList();
-    const q = String(inpCustomerSearch?.value || '').trim().toLowerCase();
-    const list = q ? all.filter(c=>[
-      String(c.name||'').toLowerCase(),
-      String(c.email||'').toLowerCase(),
-      String(c.phone||'').toLowerCase()
-    ].some(v=>v.includes(q))) : all;
-
-    const opts = ['<option value="">Kunde auswählen</option>'];
-    list.forEach(c=>{
-      const labelParts = [];
-      if(c.name) labelParts.push(c.name);
-      if(c.email) labelParts.push(c.email);
-      else if(c.phone) labelParts.push(c.phone);
-      const label = labelParts.join(' – ') || c.customerId;
-      opts.push(`<option value="${escapeHtml(c.customerId)}">${escapeHtml(label)}</option>`);
-    });
-    if(list.length === 0){
-      opts.push('<option value="" disabled>Keine Kunden gefunden</option>');
-    }
-    selCustomer.innerHTML = opts.join('');
-    if(customerCountEl) customerCountEl.textContent = `${all.length} Kunden geladen`;
-    if(btnMoreCustomers) btnMoreCustomers.style.display = 'none';
-  };
-
-  const refreshAll = ()=>{
-    renderTemplates();
-    renderCustomers();
-  };
-
-  refreshAll();
-  if(inpCustomerSearch){
-    inpCustomerSearch.addEventListener('input', refreshAll);
-  }
-  ['focus','pageshow','visibilitychange'].forEach(evt=>window.addEventListener(evt, refreshAll));
-  document.getElementById('btnInboxRefresh')?.addEventListener('click', refreshAll);
-  document.querySelector('[data-tab="inbox"]')?.addEventListener('click', ()=>setTimeout(refreshAll, 0));
-
-  btnCreate.onclick = async ()=>{
-    const customerId = String(selCustomer.value || '').trim();
-    const taskId = String(selTemplate.value || '').trim();
-    const customer = buildCustomerList().find(c=>String(c.customerId)===customerId);
-    const title = (titleInput?.value || '').trim() || taskLabelById(taskId);
-    if(!customerId || !taskId || !customer){
-      if(msgEl) msgEl.textContent = 'Bitte Kunde und Aufgabe wählen.';
-      return;
-    }
-    if(!customer.email){
-      if(msgEl) msgEl.textContent = 'Dieser Kunde hat keine E-Mail-Adresse.';
-      return;
-    }
-    const task = {
-      customerId: customer.customerId,
-      customerEmail: customer.email,
-      customerName: customer.name || '',
-      customerUid: customer.portalUid || '',
-      taskId,
-      templateId: taskId,
-      title,
-      status: 'open',
-      createdAt: Date.now(),
-      createdByUid: CLOUD.user?.uid || '',
-      createdByEmail: CLOUD.user?.email || ''
-    };
-    if(msgEl) msgEl.textContent = '… erstellt …';
-    try{
-      if(cloudTasksCol){
-        await cloudTasksCol().add(task);
-      }
-      state.inboxAssignments = Array.isArray(state.inboxAssignments) ? state.inboxAssignments : [];
-      state.inboxAssignments.unshift({ id:'asg_'+Date.now(), ...task });
-      saveState();
-      if(msgEl) msgEl.textContent = '✅ Aufgabe freigegeben.';
-      try{ titleInput.value=''; }catch(_){ }
-    }catch(e){
-      console.error(e);
-      if(msgEl) msgEl.textContent = '❌ Fehler: ' + (e.message||e);
-    }
-  };
+  // Historischer Zweitweg für Aufgabenfreigaben.
+  // Der aktive, saubere Aufbau läuft jetzt ausschließlich über den Bereich
+  // „Eingänge -> Aufgabe freigeben“ (wireInboxAssignments).
+  try{
+    const legacyCard = document.getElementById('adminTaskCard');
+    if(legacyCard) legacyCard.style.display = 'none';
+  }catch(_){ }
+  return;
 }
 async function wireUserManagement(){
   const listEl = document.getElementById('usersList');
@@ -1835,199 +1701,147 @@ function getInboxAssignmentTemplates(){
   return [
     { id: 'customer_data', name: 'Kundendaten ergänzen' },
     { id: 'boarding_contract', name: 'Betreuungsvertrag freigeben' },
-    { id: 'stay_request', name: 'Aufenthalt anfragen' }
+    { id: 'hundeannahme', name: 'Aufenthalt anfragen' }
   ];
+}
+
+function getInboxAssignmentTemplatesResolved(){
+  const allowed = new Set(getInboxAssignmentTemplates().map(x=>String(x.id)));
+  try{ ensureEmbeddedTemplates(); }catch(_){ }
+  const byId = new Map();
+  (Array.isArray(templates) ? templates : []).forEach(t=>{
+    if(!t || !allowed.has(String(t.id||''))) return;
+    byId.set(String(t.id), { id: String(t.id), name: String(t.name || t.title || t.id) });
+  });
+  getInboxAssignmentTemplates().forEach(t=>{
+    if(!byId.has(String(t.id))) byId.set(String(t.id), { ...t });
+  });
+  return Array.from(byId.values());
+}
+
+function getInboxAssignmentLocalCustomers(){
+  const seen = new Set();
+  const out = [];
+  const add = (raw)=>{
+    if(!raw || typeof raw !== 'object') return;
+    const id = String(raw.id || raw.customerId || raw.uid || '').trim();
+    const email = String(raw.email || raw.mail || '').trim().toLowerCase();
+    const name = String(raw.name || raw.displayName || raw.customerName || raw.fullName || raw.vorname || '').trim();
+    const phone = String(raw.phone || raw.telefon || raw.mobile || raw.tel || '').trim();
+    const portalUid = String(raw.portalUid || raw.portalUID || raw.userUid || raw.customerUid || raw.uid || '').trim();
+    const key = String(portalUid || email || id || name || phone).toLowerCase();
+    if(!key || seen.has(key)) return;
+    seen.add(key);
+    out.push({
+      id: portalUid || id || email || name,
+      customerId: id || portalUid || email || name,
+      portalUid,
+      name: name || email || phone || 'Kunde',
+      email,
+      phone,
+      source: 'local'
+    });
+  };
+  try{ (state.customers || []).forEach(add); }catch(_){ }
+  try{ (state.users || []).forEach(u=>{ const role = String(u && (u.role || u.type || '') || '').toLowerCase(); if(!role || role === 'customer') add(u); }); }catch(_){ }
+  return out.sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''), 'de'));
+}
+
+async function fetchInboxAssignmentCloudCustomers(){
+  const diag = { cloudEnabled: !!(CLOUD && CLOUD.enabled), loaded: 0, source: '', error: '' };
+  const out = [];
+  const seen = new Set();
+  const add = (raw, source='')=>{
+    if(!raw || typeof raw !== 'object') return;
+    const role = String(raw.role || raw.type || '').trim().toLowerCase();
+    if(role && role !== 'customer') return;
+    const portalUid = String(raw.uid || raw.portalUid || raw.userUid || raw.id || '').trim();
+    const email = String(raw.email || raw.mail || '').trim().toLowerCase();
+    const name = String(raw.displayName || raw.name || raw.fullName || '').trim();
+    const phone = String(raw.phone || raw.tel || raw.mobile || '').trim();
+    const key = String(portalUid || email || name || phone).toLowerCase();
+    if(!key || seen.has(key)) return;
+    seen.add(key);
+    out.push({
+      id: portalUid || email || name,
+      customerId: portalUid || email || name,
+      portalUid,
+      name: name || email || phone || 'Kunde',
+      email,
+      phone,
+      source: source || 'cloud'
+    });
+  };
+  try{
+    const db = (CLOUD && CLOUD.db) ? CLOUD.db : null;
+    if(!db){
+      window.__dsInboxAssignDiag = { ...diag, error: 'cloud-disabled' };
+      __inboxAssignmentCloudCustomers = [];
+      return [];
+    }
+    const orgId = String((CLOUD && CLOUD.orgId) || window.firebaseOrgId || 'doggystyle');
+    const queries = [
+      ['orgs.users.orderBy(createdAt)', ()=>db.collection('orgs').doc(orgId).collection('users').orderBy('createdAt','desc').limit(300).get()],
+      ['orgs.users.limit', ()=>db.collection('orgs').doc(orgId).collection('users').limit(300).get()],
+      ['legacyRoot.users.limit', ()=>db.collection(orgId).collection('users').limit(300).get()]
+    ];
+    const errors = [];
+    for(const [label, run] of queries){
+      try{
+        const snap = await run();
+        snap.forEach(doc=>add({ id: doc.id, uid: doc.id, ...(doc.data() || {}) }, label));
+        if(out.length && !diag.source) diag.source = label;
+        if(out.length) break;
+      }catch(err){
+        errors.push(`${label}: ${String((err && (err.code || err.message)) || err || 'query-failed')}`);
+      }
+    }
+    if(!out.length && errors.length) diag.error = errors.join(' | ');
+  }catch(e){
+    diag.error = String((e && (e.code || e.message)) || e || 'unknown-error');
+  }
+  __inboxAssignmentCloudCustomers = out.slice();
+  window.__dsInboxAssignDiag = { ...diag, loaded: out.length, source: diag.source || (out[0] && out[0].source) || '' };
+  return out;
+}
+
+function getMergedInboxAssignmentCustomers(){
+  const merged = [];
+  const seen = new Set();
+  const add = (c)=>{
+    if(!c) return;
+    const portalUid = String(c.portalUid || c.uid || '').trim();
+    const email = String(c.email || '').trim().toLowerCase();
+    const id = String(c.id || c.customerId || '').trim();
+    const name = String(c.name || '').trim();
+    const phone = String(c.phone || '').trim();
+    const key = String(portalUid || email || id || name || phone).toLowerCase();
+    if(!key || seen.has(key)) return;
+    seen.add(key);
+    merged.push({
+      id: portalUid || id || email || name,
+      customerId: id || portalUid || email || name,
+      portalUid,
+      name: name || email || phone || 'Kunde',
+      email,
+      phone,
+      source: c.source || ''
+    });
+  };
+  try{ (Array.isArray(__inboxAssignmentCloudCustomers) ? __inboxAssignmentCloudCustomers : []).forEach(add); }catch(_){ }
+  try{ getInboxAssignmentLocalCustomers().forEach(add); }catch(_){ }
+  return merged.sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''), 'de'));
 }
 
 function populateInboxAssignmentControls(){
   const selCustomer = document.getElementById('assignCustomer');
   const selTemplate = document.getElementById('assignTemplate');
   if(!selCustomer || !selTemplate) return { customers: 0, templates: 0 };
-  const customers = getInboxAssignmentCustomers();
-  const templates = getInboxAssignmentTemplates();
-  const fill = (sel, items, getId, getLabel, emptyLabel)=>{
-    sel.innerHTML = '';
-    if(!items.length){
-      sel.disabled = true;
-      const o = document.createElement('option');
-      o.value = '';
-      o.textContent = emptyLabel;
-      sel.appendChild(o);
-      return;
-    }
-    sel.disabled = false;
-    const o0 = document.createElement('option');
-    o0.value = '';
-    o0.textContent = 'Bitte auswählen…';
-    sel.appendChild(o0);
-    items.forEach(it=>{
-      const o = document.createElement('option');
-      o.value = getId(it);
-      o.textContent = getLabel(it);
-      sel.appendChild(o);
-    });
-  };
-  fill(selCustomer, customers, c=>String(c.customerId||c.id||''), c=>{
-    const meta = c.email || c.phone || '';
-    return meta ? `${c.name} · ${meta}` : c.name;
-  }, 'Keine Kunden vorhanden');
-  fill(selTemplate, templates, t=>t.id, t=>t.name, 'Keine Aufgaben vorhanden');
-  return { customers: customers.length, templates: templates.length };
-}
-
-async function fetchInboxAssignmentCloudCustomers(){
-  const resolvedOrgId = String((CLOUD && CLOUD.orgId) || window.firebaseOrgId || 'doggystyle');
-  const diag = { cloudEnabled: !!(CLOUD && CLOUD.enabled), orgId: resolvedOrgId, loaded: 0, source: '', error: '' };
-  try{
-    const db = (()=>{
-      try{ if(CLOUD && CLOUD.db) return CLOUD.db; }catch(_){ }
-      try{ if(window.firebase && firebase.firestore && window.firebase.apps && window.firebase.apps.length) return firebase.firestore(); }catch(_){ }
-      return null;
-    })();
-    if(!db){
-      __inboxAssignmentCloudCustomers = [];
-      window.__dsInboxAssignDiag = { ...diag, error: 'cloud-disabled' };
-      return [];
-    }
-
-    const normalize = (docId, raw={})=>{
-      const role = String(raw.role || '').trim().toLowerCase();
-      const email = String(raw.email || raw.mail || '').trim();
-      const name = String(raw.name || raw.displayName || raw.fullName || '').trim();
-      const phone = String(raw.phone || raw.tel || raw.mobile || '').trim();
-      const portalUid = String(raw.uid || docId || '').trim();
-      if(role && role !== 'customer') return null;
-      if(!email && !name && !phone && !portalUid) return null;
-      return { id: portalUid || email || docId || name, name: name || email || phone || 'Kunde', email, phone, portalUid, role: role || 'customer' };
-    };
-
-    const out = [];
-    const seenDocs = new Set();
-    const absorbSnap = (snap, label)=>{
-      if(!snap) return false;
-      let added = 0;
-      snap.forEach(doc=>{
-        const key = String(doc && doc.id || '').trim();
-        if(key && seenDocs.has(key)) return;
-        if(key) seenDocs.add(key);
-        const entry = normalize(doc.id, doc.data() || {});
-        if(entry && String(entry.role || '').toLowerCase() === 'customer'){ out.push(entry); added++; }
-      });
-      if(added && !diag.source) diag.source = label;
-      return added > 0;
-    };
-
-    const orgUsers = db.collection('orgs').doc(resolvedOrgId).collection('users');
-    const legacyCol = db.collection(resolvedOrgId).collection('users');
-    const queries = [
-      ['orgs.users.orderBy(createdAt)', ()=>orgUsers.orderBy('createdAt','desc').limit(300).get()],
-      ['orgs.users.limit', ()=>orgUsers.limit(300).get()],
-      ['legacyRoot.users.orderBy(createdAt)', ()=>legacyCol.orderBy('createdAt','desc').limit(300).get()],
-      ['legacyRoot.users.limit', ()=>legacyCol.limit(300).get()]
-    ];
-
-    const errors = [];
-    for(const [label, run] of queries){
-      try{
-        const snap = await run();
-        absorbSnap(snap, label);
-        if(out.length) break;
-      }catch(err){
-        errors.push(`${label}: ${String((err && (err.code || err.message)) || err || 'query-failed')}`);
-      }
-    }
-
-    if(!out.length && Array.isArray(window.__dsInboxCloudUsers)){
-      (window.__dsInboxCloudUsers || []).forEach(u=>{
-        const entry = normalize(u.id || u.uid || '', u || {});
-        if(entry && String(entry.role || '').toLowerCase() === 'customer') out.push(entry);
-      });
-      if(out.length && !diag.source) diag.source = 'window.__dsInboxCloudUsers';
-    }
-
-    if(!out.length){
-      try{
-        const authUsers = (((state || {}).users || []).concat(((state || {}).customers || [])));
-        authUsers.forEach(u=>{
-          const entry = normalize(u.id || u.uid || u.email || '', u || {});
-          const inferredRole = String((u && (u.role || u.type || '')) || '').toLowerCase();
-          if(entry && (!inferredRole || inferredRole === 'customer')) out.push({ ...entry, role: inferredRole || entry.role || 'customer' });
-        });
-        if(out.length && !diag.source) diag.source = 'state.users/customers';
-      }catch(_){ }
-    }
-
-    const uniq = [];
-    const seen = new Set();
-    out.forEach(c=>{
-      const key = String(c.portalUid || c.email || c.id || c.name || '').toLowerCase();
-      if(!key || seen.has(key)) return;
-      seen.add(key);
-      uniq.push(c);
-    });
-
-    __inboxAssignmentCloudCustomers = uniq;
-    const extra = errors.length && !uniq.length ? { error: errors.join(' | ') } : {};
-    window.__dsInboxAssignDiag = { ...diag, ...extra, loaded: uniq.length };
-    return uniq;
-  }catch(e){
-    console.warn('fetchInboxAssignmentCloudCustomers failed', e);
-    __inboxAssignmentCloudCustomers = [];
-    window.__dsInboxAssignDiag = { ...diag, error: String((e && (e.code || e.message)) || e || 'unknown-error') };
-    return [];
-  }
-}
-
-function getMergedInboxAssignmentCustomers(){
-  const seen = new Set();
-  const out = [];
-  const add = (c)=>{
-    if(!c) return;
-    const id = String(c.id || c.customerId || '').trim();
-    const email = String(c.email || '').trim();
-    const name = String(c.name || '').trim();
-    const phone = String(c.phone || '').trim();
-    const portalUid = String(c.portalUid || c.uid || '').trim();
-    const key = String(email || portalUid || id || name).toLowerCase();
-    if(!key || seen.has(key)) return;
-    seen.add(key);
-    out.push({ id: portalUid || id || email || name, customerId: id || portalUid || email || name, name: name || email || phone || 'Kunde', email, phone, portalUid });
-  };
-  try{ getInboxAssignmentCustomers().forEach(add); }catch(_){ }
-  try{ (Array.isArray(__inboxAssignmentCloudCustomers) ? __inboxAssignmentCloudCustomers : []).forEach(add); }catch(_){ }
-  try{
-    const sel = document.getElementById('customerSelect');
-    if(sel && sel.options && sel.options.length){
-      Array.from(sel.options).forEach(opt=>{
-        const val = String(opt.value || '').trim();
-        const txt = String(opt.textContent || '').trim();
-        if(!val || !txt) return;
-        const parts = txt.split('·').map(s=>String(s||'').trim());
-        const name = parts[0] || txt;
-        const meta = parts[1] || '';
-        const email = /@/.test(meta) ? meta : '';
-        const phone = email ? '' : meta;
-        add({ id: val, customerId: val, name, email, phone });
-      });
-    }
-  }catch(_){ }
-  return out.sort((a,b)=> String(a.name||'').localeCompare(String(b.name||''), 'de'));
-}
-
-function getInboxAssignmentTemplates(){
-  return [
-    { id: 'customer_data', name: 'Kundendaten ergänzen' },
-    { id: 'boarding_contract', name: 'Betreuungsvertrag freigeben' },
-    { id: 'stay_request', name: 'Aufenthalt anfragen' }
-  ];
-}
-
-function populateInboxAssignmentControls(){
-  const selCustomer = document.getElementById('assignCustomer');
-  const selTemplate = document.getElementById('assignTemplate');
-  if(!selCustomer || !selTemplate) return;
+  const prevCustomer = String(selCustomer.value || '');
+  const prevTemplate = String(selTemplate.value || '');
   const customers = getMergedInboxAssignmentCustomers();
-  const templates = getInboxAssignmentTemplates();
+  const templatesForAssign = getInboxAssignmentTemplatesResolved();
+
   const fill = (sel, items, getId, getLabel, emptyLabel)=>{
     sel.innerHTML = '';
     if(!items.length){
@@ -2050,20 +1864,28 @@ function populateInboxAssignmentControls(){
       sel.appendChild(o);
     });
   };
-  fill(selCustomer, customers, c=>c.portalUid || c.id, c=>{
-    const meta = c.email || c.phone || '';
+
+  fill(selCustomer, customers, c=>c.portalUid || c.email || c.customerId || c.id, c=>{
+    const meta = c.email || c.phone || c.source || '';
     return meta ? `${c.name} · ${meta}` : c.name;
   }, 'Keine Kunden vorhanden');
-  fill(selTemplate, templates, t=>t.id, t=>t.name, 'Keine Aufgaben vorhanden');
+  fill(selTemplate, templatesForAssign, t=>t.id, t=>t.name, 'Keine Aufgaben vorhanden');
+
+  if(prevCustomer && Array.from(selCustomer.options).some(o=>o.value === prevCustomer)) selCustomer.value = prevCustomer;
+  if(prevTemplate && Array.from(selTemplate.options).some(o=>o.value === prevTemplate)) selTemplate.value = prevTemplate;
+  return { customers: customers.length, templates: templatesForAssign.length };
 }
 
 async function wireInboxAssignments(){
+  const card = document.getElementById('taskAssignCard');
   const selCustomer = document.getElementById('assignCustomer');
   const selTemplate = document.getElementById('assignTemplate');
-  const btnCreate   = document.getElementById('btnAssignTask');
-  const btnRefresh  = document.getElementById('btnInboxRefresh');
-  const msgEl       = document.getElementById('assignMsg');
+  const btnCreate = document.getElementById('btnAssignTask');
+  const btnRefresh = document.getElementById('btnInboxRefresh');
+  const msgEl = document.getElementById('assignMsg');
   if(!selCustomer || !selTemplate || !btnCreate) return;
+
+  if(card) card.style.display = isStaff() ? '' : 'none';
 
   const setMsg = (txt, isErr=false)=>{
     if(!msgEl) return;
@@ -2074,102 +1896,71 @@ async function wireInboxAssignments(){
   const refresh = async ()=>{
     try{ state = loadState(); }catch(_){ }
     try{ ensureStateShape(); }catch(_){ }
-    const cloudCustomers = await fetchInboxAssignmentCloudCustomers();
-    populateInboxAssignmentControls();
-    const merged = getMergedInboxAssignmentCustomers();
+    try{ await loadTemplates(); }catch(_){ }
+    await fetchInboxAssignmentCloudCustomers();
+    const info = populateInboxAssignmentControls();
     const diag = window.__dsInboxAssignDiag || {};
-    if(merged.length){
+    if(info.customers){
       const src = diag.source ? ` · Quelle: ${diag.source}` : '';
-      setMsg(`Kunden geladen: ${merged.length}${cloudCustomers?.length ? ` (Cloud: ${cloudCustomers.length})` : ''}${src}`, false);
+      setMsg(`Kunden geladen: ${info.customers}${src}`, false);
     }else{
       const detail = diag.error ? ` – ${diag.error}` : '';
       setMsg(`Keine Kunden gefunden${detail}`, true);
     }
   };
 
-  await refresh();
-  try{ setTimeout(()=>refresh().catch(console.warn), 0); }catch(_){ }
-  try{ setTimeout(()=>refresh().catch(console.warn), 300); }catch(_){ }
-  try{ setTimeout(()=>refresh().catch(console.warn), 1200); }catch(_){ }
-  try{ setTimeout(()=>refresh().catch(console.warn), 2500); }catch(_){ }
-  try{ document.getElementById('tabInbox')?.addEventListener('click', ()=>refresh().catch(console.warn)); }catch(_){ }
-  try{ btnRefresh?.addEventListener('click', ()=>refresh().catch(console.warn)); }catch(_){ }
-  try{ window.addEventListener('focus', ()=>refresh().catch(console.warn)); }catch(_){ }
-  try{ document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) refresh().catch(console.warn); }); }catch(_){ }
-  try{
-    if(CLOUD && CLOUD.auth && typeof CLOUD.auth.onAuthStateChanged === 'function'){
-      CLOUD.auth.onAuthStateChanged(()=>{ refresh().catch(console.warn); });
-    }
-  }catch(_){ }
+  btnRefresh?.addEventListener('click', ()=>{ refresh().catch(e=>{ console.error(e); setMsg('Aktualisieren fehlgeschlagen.', true); }); });
+  window.addEventListener('pageshow', ()=>{ refresh().catch(()=>{}); });
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) refresh().catch(()=>{}); });
+  document.querySelector('[data-tab="inbox"]')?.addEventListener('click', ()=>setTimeout(()=>refresh().catch(()=>{}), 0));
 
   btnCreate.onclick = async ()=>{
     try{
-      await refresh();
-      const customerId = String(selCustomer.value || '').trim();
+      const selectedCustomer = String(selCustomer.value || '').trim();
       const templateId = String(selTemplate.value || '').trim();
-      if(!customerId){ setMsg('Bitte zuerst einen Kunden auswählen.', true); return; }
-      if(!templateId){ setMsg('Bitte zuerst eine Aufgabe auswählen.', true); return; }
-
       const customers = getMergedInboxAssignmentCustomers();
-      const templates = getInboxAssignmentTemplates();
-      const c = customers.find(x => String(x.id) === customerId || String(x.portalUid || '') === customerId);
-      const t = templates.find(x => String(x.id) === templateId);
-      if(!c){ setMsg('Kunde nicht gefunden.', true); return; }
-      if(!c.email && !c.portalUid){ setMsg('Kunde hat weder E-Mail noch Portal-UID.', true); return; }
-
+      const customer = customers.find(c => String(c.portalUid || c.email || c.customerId || c.id) === selectedCustomer);
+      if(!customer){ setMsg('Bitte zuerst einen Kunden auswählen.', true); return; }
+      if(!customer.portalUid){
+        setMsg('Der ausgewählte Kunde ist noch nicht als Portal-Kunde registriert.', true);
+        return;
+      }
+      if(!templateId){ setMsg('Bitte zuerst eine Aufgabe auswählen.', true); return; }
+      const templateMeta = getInboxAssignmentTemplatesResolved().find(t => String(t.id) === templateId) || { id: templateId, name: templateId };
       const task = {
-        customerId: c.id,
-        customerEmail: c.email || '',
-        customerName: c.name || '',
-        customerUid: c.portalUid || '',
+        customerUid: customer.portalUid,
+        customerEmail: customer.email || '',
+        customerName: customer.name || '',
+        customerId: customer.customerId || customer.portalUid || customer.email || '',
         taskId: templateId,
-        templateId,
-        title: (t && t.name) || templateId,
+        templateId: templateId,
+        title: templateMeta.name || templateId,
         status: 'open',
         createdAt: Date.now(),
-        createdByUid: (CLOUD && CLOUD.user && CLOUD.user.uid) || '',
-        createdByEmail: (CLOUD && CLOUD.user && CLOUD.user.email) || ''
+        createdByUid: (CLOUD.user && CLOUD.user.uid) || '',
+        createdByEmail: (CLOUD.user && CLOUD.user.email) || ''
       };
 
-      let savedCloud = false;
-      try{
-        if(typeof cloudTasksCol === 'function'){
-          await cloudTasksCol().add(task);
-          savedCloud = true;
-        }
-      }catch(e){
-        console.warn('cloud task add failed', e);
+      setMsg('Aufgabe wird erstellt …', false);
+      if(typeof cloudTasksCol === 'function'){
+        await cloudTasksCol().add(task);
+      }else{
+        throw new Error('Cloud-Aufgabenspeicher nicht verfügbar');
       }
-
       state.inboxAssignments = Array.isArray(state.inboxAssignments) ? state.inboxAssignments : [];
       state.inboxAssignments.unshift({ id:'asg_'+Date.now(), ...task });
       saveState();
-
-      setMsg(savedCloud ? '✅ Aufgabe freigegeben.' : '✅ Aufgabe lokal angelegt.');
       selTemplate.value = '';
-      await refresh();
+      setMsg(`✅ Aufgabe freigegeben für ${customer.name || customer.email || customer.portalUid}.`, false);
     }catch(e){
-      console.error(e);
-      setMsg('Fehler beim Erstellen der Aufgabe.', true);
+      console.error('create inbox assignment failed', e);
+      setMsg(`❌ ${String((e && e.message) || e || 'Fehler beim Erstellen')}`, true);
     }
   };
+
+  await refresh();
 }
 
-// ===== PREISLOGIK & STAFFELUNGEN =====
-const PRICE_RULES_DEFAULT = {
-  Tagesbetreuung: [
-    { min: 30, price: 30 },
-    { min: 14, price: 35 },
-    { min: 7,  price: 37.5 },
-    { min: 1,  price: 40 }
-  ],
-  Urlaubsbetreuung: [
-    { min: 30, price: 35 },
-    { min: 14, price: 40 },
-    { min: 7,  price: 42.5 },
-    { min: 1,  price: 45 }
-  ]
-};
 // ===== PREISE (zentral, in Einstellungen editierbar) =====
 const PRICING_DEFAULTS = {
   rules: JSON.parse(JSON.stringify(PRICE_RULES_DEFAULT)),
@@ -6076,12 +5867,80 @@ const EMBEDDED_HUNDEANNAHME_TEMPLATE = {
   ],
   meta: { embedded: true }
 };
+const EMBEDDED_CUSTOMER_DATA_TEMPLATE = {
+  id: "customer_data",
+  name: "Kundendaten ergänzen",
+  sections: [
+    {
+      title: "Kontaktdaten",
+      fields: [
+        { key: "fullName", label: "Name", type: "text", required: true },
+        { key: "email", label: "E-Mail", type: "email", required: true },
+        { key: "phone", label: "Telefon", type: "text" },
+        { key: "street", label: "Straße / Hausnummer", type: "text" },
+        { key: "zip", label: "PLZ", type: "text" },
+        { key: "city", label: "Ort", type: "text" }
+      ]
+    },
+    {
+      title: "Hund",
+      fields: [
+        { key: "dogName", label: "Hundename", type: "text" },
+        { key: "breed", label: "Rasse", type: "text" },
+        { key: "birthDate", label: "Geburtsdatum", type: "date" },
+        { key: "notes", label: "Wichtige Hinweise", type: "textarea" }
+      ]
+    }
+  ],
+  meta: [
+    { key: "place", label: "Ort", type: "text" },
+    { key: "date", label: "Datum", type: "date" }
+  ],
+  dsGvoNote: "Mit dem Absenden bestätige ich die Richtigkeit meiner Angaben.",
+  embedded: true
+};
+const EMBEDDED_BOARDING_CONTRACT_TEMPLATE = {
+  id: "boarding_contract",
+  name: "Betreuungsvertrag freigeben",
+  sections: [
+    {
+      title: "Vertragsdaten",
+      fields: [
+        { key: "customerName", label: "Kundenname", type: "text", required: true },
+        { key: "dogName", label: "Hundename", type: "text", required: true },
+        { key: "serviceType", label: "Betreuungsart", type: "select", options: ["Tagesbetreuung", "Urlaubsbetreuung", "Probetag"] },
+        { key: "contractAccepted", label: "Ich habe den Betreuungsvertrag gelesen und stimme zu", type: "checkbox", required: true }
+      ]
+    },
+    {
+      title: "Hinweise",
+      fields: [
+        { key: "vet", label: "Tierarzt / Praxis", type: "text" },
+        { key: "emergencyPhone", label: "Notfallnummer", type: "text" },
+        { key: "notes", label: "Besondere Hinweise", type: "textarea" }
+      ]
+    }
+  ],
+  meta: [
+    { key: "place", label: "Ort", type: "text" },
+    { key: "date", label: "Datum", type: "date" }
+  ],
+  dsGvoNote: "Mit dem Absenden bestätige ich die Zustimmung zum Betreuungsvertrag.",
+  embedded: true
+};
 function ensureEmbeddedTemplates(){
   try{
     if(!Array.isArray(templates)) templates = [];
-    if(!templates.some(t=>t && t.id === EMBEDDED_HUNDEANNAHME_TEMPLATE.id)){
-      templates.unshift(EMBEDDED_HUNDEANNAHME_TEMPLATE);
-    }
+    const required = [
+      EMBEDDED_HUNDEANNAHME_TEMPLATE,
+      EMBEDDED_CUSTOMER_DATA_TEMPLATE,
+      EMBEDDED_BOARDING_CONTRACT_TEMPLATE
+    ];
+    required.forEach(t=>{
+      if(!templates.some(x=>x && x.id === t.id)){
+        templates.push(JSON.parse(JSON.stringify(t)));
+      }
+    });
   }catch(_){ /* ignore */ }
 }
 function normalizeTemplate(t){
