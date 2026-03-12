@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9AH_INBOX_REBUILD_NONBLOCK_MASTER_20260312",
+  tag: "M50.9.9AI_INBOX_NONBLOCK_PRICEFIX_MASTER_20260312",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9AH_INBOX_REBUILD_NONBLOCK_MASTER_20260312";
+const APP_BUILD = "M50.9.9AI_INBOX_NONBLOCK_PRICEFIX_MASTER_20260312";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -1966,6 +1966,21 @@ async function wireInboxAssignments(){
   refresh().catch(e=>{ console.error(e); setMsg('Initiales Laden fehlgeschlagen.', true); });
 }
 
+// ===== PREISLOGIK & STAFFELUNGEN =====
+const PRICE_RULES_DEFAULT = {
+  Tagesbetreuung: [
+    { min: 30, price: 30 },
+    { min: 14, price: 35 },
+    { min: 7,  price: 37.5 },
+    { min: 1,  price: 40 }
+  ],
+  Urlaubsbetreuung: [
+    { min: 30, price: 35 },
+    { min: 14, price: 40 },
+    { min: 7,  price: 42.5 },
+    { min: 1,  price: 45 }
+  ]
+};
 // ===== PREISE (zentral, in Einstellungen editierbar) =====
 const PRICING_DEFAULTS = {
   rules: JSON.parse(JSON.stringify(PRICE_RULES_DEFAULT)),
