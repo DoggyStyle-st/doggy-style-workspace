@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9BE_AI_APPBUILD_CLOUDTASKFIX_MASTER_20260313",
+  tag: "M50.9.9BF_AI_TASKCOL_GUARDFIX_MASTER_20260313",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9BE_AI_APPBUILD_CLOUDTASKFIX_MASTER_20260313";
+const APP_BUILD = "M50.9.9BF_AI_TASKCOL_GUARDFIX_MASTER_20260313";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -1060,16 +1060,34 @@ function cloudStateRef(){
   if(!CLOUD.enabled) return null;
   return CLOUD.db.collection("orgs").doc(CLOUD.orgId).collection("meta").doc("workspace_state");
 }
+function getCompatFirestoreDb(){
+  try{
+    if(typeof firebase !== 'undefined' && firebase && typeof firebase.firestore === 'function') return firebase.firestore();
+  }catch(_){ }
+  try{
+    if(window.firebase && typeof window.firebase.firestore === 'function') return window.firebase.firestore();
+  }catch(_){ }
+  return null;
+}
 function cloudUsersCol(){
-  if(!CLOUD || !CLOUD.enabled || !CLOUD.db) return null;
-  return CLOUD.db.collection("orgs").doc(CLOUD.orgId).collection("users");
+  const orgId = CLOUD && CLOUD.orgId;
+  if(!orgId) return null;
+  if(CLOUD && CLOUD.enabled && CLOUD.db) return CLOUD.db.collection("orgs").doc(orgId).collection("users");
+  const compatDb = getCompatFirestoreDb();
+  if(compatDb) return compatDb.collection("orgs").doc(orgId).collection("users");
+  return null;
 }
 function cloudUserDoc(uid){
-  return cloudUsersCol().doc(uid);
+  const col = cloudUsersCol();
+  return col && typeof col.doc === 'function' ? col.doc(uid) : null;
 }
 function cloudTasksCol(){
-  if(!CLOUD || !CLOUD.enabled || !CLOUD.db) return null;
-  return CLOUD.db.collection("orgs").doc(CLOUD.orgId).collection("tasks");
+  const orgId = CLOUD && CLOUD.orgId;
+  if(!orgId) return null;
+  if(CLOUD && CLOUD.enabled && CLOUD.db) return CLOUD.db.collection("orgs").doc(orgId).collection("tasks");
+  const compatDb = getCompatFirestoreDb();
+  if(compatDb) return compatDb.collection("orgs").doc(orgId).collection("tasks");
+  return null;
 }
 async function loadOrCreateUserProfile(user){
   if(!CLOUD.enabled || !user) return null;
@@ -2106,7 +2124,16 @@ async function wireInboxAssignments(){
 
       setMsg('Aufgabe wird erstellt …', false);
       try{ window.__dsInboxAssignDiag = { ...(window.__dsInboxAssignDiag||{}), createStatus: 'writing', createVia: portalUid ? createVia : (createVia + '+email'), createCustomer: task.customerName || task.customerEmail || task.customerUid || '-', createTask: task.taskId, error: '' }; setDiag(); }catch(_){ }
-      const created = await tasksCol.add(task);
+      let created = null;
+      if(tasksCol && typeof tasksCol.add === 'function'){
+        created = await tasksCol.add(task);
+      }else if(tasksCol && typeof tasksCol.doc === 'function'){
+        const ref = tasksCol.doc();
+        await ref.set(task);
+        created = { id: ref.id };
+      }else{
+        throw new Error('cloud-tasks-unavailable');
+      }
       state.inboxAssignments = Array.isArray(state.inboxAssignments) ? state.inboxAssignments : [];
       state.inboxAssignments.unshift({ id:(created && created.id) || ('asg_'+Date.now()), ...task });
       saveState();
