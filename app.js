@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9AN_AI_INBOX_CUSTOMER_FIX_MASTER_20260313",
+  tag: "M50.9.9AO_AI_INBOX_CUSTOMER_DOMBRIDGE_MASTER_20260313",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9AN_AI_INBOX_CUSTOMER_FIX_MASTER_20260313";
+const APP_BUILD = "M50.9.9AO_AI_INBOX_CUSTOMER_DOMBRIDGE_MASTER_20260313";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -1862,7 +1862,12 @@ function populateInboxAssignmentControls(){
   if(!selCustomer || !selTemplate) return { customers: 0, templates: 0 };
   const prevCustomer = String(selCustomer.value || '');
   const prevTemplate = String(selTemplate.value || '');
-  const canonicalCustomers = buildCanonicalCustomerList();
+  let canonicalCustomers = buildCanonicalCustomerList();
+  if(!canonicalCustomers.length){
+    try{ renderDogs(); }catch(_){ }
+    try{ refreshCustomerSelect(); }catch(_){ }
+    canonicalCustomers = buildCanonicalCustomerList();
+  }
   const mergedCustomers = getMergedInboxAssignmentCustomers();
   const customers = canonicalCustomers.length ? canonicalCustomers : mergedCustomers;
   const templatesForAssign = getInboxAssignmentTemplatesResolved();
@@ -7560,14 +7565,15 @@ function setCustomerFieldsDisabled(disabled){
 function buildCanonicalCustomerList(){
   const list = [];
   const seen = new Set();
+  const normalize = (v='')=>String(v||'').trim().toLowerCase();
   const add = (raw={})=>{
     if(!raw || typeof raw !== 'object') return;
     const firstName = String(raw.firstName || raw.firstname || '').trim();
     const lastName = String(raw.lastName || raw.lastname || '').trim();
     const combinedName = [firstName, lastName].filter(Boolean).join(' ').trim();
-    const id = String(raw.id || raw.customerId || raw.uid || raw.portalUid || raw.email || raw.name || raw.fullName || combinedName || '').trim();
-    const customerId = String(raw.customerId || raw.id || raw.uid || raw.portalUid || raw.email || raw.name || raw.fullName || combinedName || '').trim();
-    const name = String(raw.name || raw.displayName || raw.customerName || raw.ownerName || raw.fullName || combinedName || '').trim();
+    const id = String(raw.id || raw.customerId || raw.uid || raw.portalUid || raw.key || raw.email || raw.name || raw.fullName || combinedName || '').trim();
+    const customerId = String(raw.customerId || raw.id || raw.uid || raw.portalUid || raw.key || raw.email || raw.name || raw.fullName || combinedName || '').trim();
+    const name = String(raw.name || raw.displayName || raw.customerName || raw.ownerName || raw.owner || raw.fullName || combinedName || '').trim();
     const email = String(raw.email || raw.mail || '').trim();
     const phone = String(raw.phone || raw.telefon || raw.mobile || raw.tel || '').trim();
     const portalUid = String(raw.portalUid || raw.portalUID || raw.userUid || raw.customerUid || raw.uid || '').trim();
@@ -7585,19 +7591,65 @@ function buildCanonicalCustomerList(){
       portalUid
     });
   };
+
   (Array.isArray(state.customers) ? state.customers : []).forEach(add);
+
+  try{
+    const pets = Array.isArray(state.pets) ? state.pets : [];
+    pets.forEach(p=>{
+      if(!p) return;
+      if(p.customerId){
+        const c = getCustomer(p.customerId);
+        if(c) add(c);
+      }
+      add({
+        id: p.customerId || p.ownerId || '',
+        customerId: p.customerId || p.ownerId || '',
+        name: p.ownerName || p.owner || '',
+        phone: p.ownerPhone || p.phone || '',
+        email: p.ownerEmail || p.email || ''
+      });
+    });
+  }catch(_){ }
+
   try{
     const sel = document.getElementById('customerSelect');
     if(sel && sel.options && sel.options.length){
       Array.from(sel.options).forEach(opt=>{
         const value = String(opt.value || '').trim();
         const text = String(opt.textContent || '').trim();
-        if(!value || !text || /^\(?kunde w[aä]hlen\)?$/i.test(text)) return;
+        if(!value || !text || /^\(?kunde w[aä]hlen\)?$/i.test(text) || /^bitte ausw[aä]hlen/i.test(text)) return;
         const parts = text.split(' · ').map(x=>String(x||'').trim()).filter(Boolean);
         add({ id: value, customerId: value, name: parts[0] || text, phone: parts[1] || '' });
       });
     }
   }catch(_){ }
+
+  try{
+    const dogList = document.getElementById('dogList');
+    const customers = Array.isArray(state.customers) ? state.customers : [];
+    if(dogList){
+      Array.from(dogList.querySelectorAll('.item')).forEach(item=>{
+        const strong = item.querySelector('strong');
+        if(!strong) return;
+        const rawText = String(strong.textContent || '').replace(/\s+/g, ' ').trim();
+        if(!rawText || !/^🧑/.test(rawText)) return;
+        const name = rawText.replace(/^🧑🏼‍🦰\s*/, '').replace(/^🧑\s*/, '').trim();
+        const small = item.querySelector('small');
+        const smallText = String(small?.textContent || '').trim();
+        const phone = smallText.split('·').map(x=>x.trim()).filter(Boolean)[0] || '';
+        const existing = customers.find(c=>normalize(c.name)===normalize(name) || (!!phone && normalize(c.phone)===normalize(phone)));
+        add({
+          id: existing?.id || existing?.customerId || `dom:${name}|${phone}`,
+          customerId: existing?.id || existing?.customerId || `dom:${name}|${phone}`,
+          name,
+          phone: existing?.phone || phone,
+          email: existing?.email || ''
+        });
+      });
+    }
+  }catch(_){ }
+
   return list.sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''), 'de'));
 }
 function refreshCustomerSelect(){
