@@ -81,7 +81,7 @@ async function init(){
       function setRegisterMode(on){
         registerMode = !!on;
         if(regNameField){
-          regNameField.style.display = registerMode ? '' : 'none';
+          regNameField.style.display = '';
         }
         if(!registerMode && regNameInput){
           regNameInput.value = '';
