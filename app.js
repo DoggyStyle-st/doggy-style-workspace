@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9AP_AI_INBOX_CUSTOMER_RENDERBRIDGE_MASTER_20260313",
+  tag: "M50.9.9AQ_AI_INBOX_DIAGLINE_MASTER_20260313",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9AP_AI_INBOX_CUSTOMER_RENDERBRIDGE_MASTER_20260313";
+const APP_BUILD = "M50.9.9AQ_AI_INBOX_DIAGLINE_MASTER_20260313";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -1860,6 +1860,7 @@ function populateInboxAssignmentControls(){
   const selCustomer = document.getElementById('assignCustomer');
   const selTemplate = document.getElementById('assignTemplate');
   if(!selCustomer || !selTemplate) return { customers: 0, templates: 0 };
+  try{ window.__dsInboxAssignDiag = { ...(window.__dsInboxAssignDiag||{}), beforeOptions: selCustomer.options ? selCustomer.options.length : 0 }; }catch(_){ }
   const prevCustomer = String(selCustomer.value || '');
   const prevTemplate = String(selTemplate.value || '');
   let canonicalCustomers = buildCanonicalCustomerList();
@@ -1871,6 +1872,20 @@ function populateInboxAssignmentControls(){
   const mergedCustomers = getMergedInboxAssignmentCustomers();
   const customers = canonicalCustomers.length ? canonicalCustomers : mergedCustomers;
   const templatesForAssign = getInboxAssignmentTemplatesResolved();
+  try{
+    window.__dsInboxAssignDiag = {
+      ...(window.__dsInboxAssignDiag||{}),
+      canonicalCustomers: canonicalCustomers.length,
+      mergedCustomers: mergedCustomers.length,
+      chosenCustomers: customers.length,
+      stateCustomers: Array.isArray(state.customers)?state.customers.length:0,
+      statePets: Array.isArray(state.pets)?state.pets.length:0,
+      customerSelectOptions: Array.from(document.querySelectorAll('#customerSelect option')).filter(o=>String(o.value||'').trim()).length,
+      assignCustomerOptionsBeforeRender: selCustomer.options ? selCustomer.options.length : 0,
+      dogListItems: Array.from(document.querySelectorAll('#dogList .item')).length,
+      dogListStrong: Array.from(document.querySelectorAll('#dogList .item strong')).length
+    };
+  }catch(_){ }
 
   selCustomer.innerHTML = '';
   if(!customers.length){
@@ -1899,6 +1914,16 @@ function populateInboxAssignmentControls(){
 
   if(prevCustomer && Array.from(selCustomer.options).some(o=>o.value === prevCustomer)) selCustomer.value = prevCustomer;
   if(prevTemplate && Array.from(selTemplate.options).some(o=>o.value === prevTemplate)) selTemplate.value = prevTemplate;
+  try{
+    const values = Array.from(selCustomer.options || []).map(o=>String(o.value||'').trim()).filter(Boolean);
+    const labels = Array.from(selCustomer.options || []).map(o=>String(o.textContent||'').trim()).filter(Boolean);
+    window.__dsInboxAssignDiag = {
+      ...(window.__dsInboxAssignDiag||{}),
+      assignCustomerOptionsAfterRender: selCustomer.options ? selCustomer.options.length : 0,
+      assignCustomerValueOptions: values.length,
+      assignCustomerLabelsPreview: labels.slice(0,5).join(' | ')
+    };
+  }catch(_){ }
   return { customers: customers.length, templates: templatesForAssign.length };
 }
 
@@ -1910,6 +1935,7 @@ async function wireInboxAssignments(){
   const btnCreate = document.getElementById('btnAssignTask');
   const btnRefresh = document.getElementById('btnInboxRefresh');
   const msgEl = document.getElementById('assignMsg');
+  const diagEl = document.getElementById('assignDiag');
   if(!selCustomer || !selTemplate || !btnCreate) return;
 
   if(legacyCard) legacyCard.remove();
@@ -1919,6 +1945,33 @@ async function wireInboxAssignments(){
     if(!msgEl) return;
     msgEl.textContent = txt || '';
     msgEl.style.color = isErr ? '#ffb3b3' : '';
+  };
+  const setDiag = ()=>{
+    if(!diagEl) return;
+    try{
+      const d = window.__dsInboxAssignDiag || {};
+      const parts = [
+        `Quelle=${d.source||'-'}`,
+        `cloud=${d.loaded ?? '-'}`,
+        `canonical=${d.canonicalCustomers ?? '-'}`,
+        `merged=${d.mergedCustomers ?? '-'}`,
+        `chosen=${d.chosenCustomers ?? '-'}`,
+        `state.customers=${d.stateCustomers ?? '-'}`,
+        `state.pets=${d.statePets ?? '-'}`,
+        `customerSelect=${d.customerSelectOptions ?? '-'}`,
+        `assign.after=${d.assignCustomerOptionsAfterRender ?? '-'}`,
+        `assign.values=${d.assignCustomerValueOptions ?? '-'}`,
+        `dogList=${d.dogListItems ?? '-'}`,
+        `strong=${d.dogListStrong ?? '-'}`
+      ];
+      if(d.assignCustomerLabelsPreview) parts.push(`preview=${d.assignCustomerLabelsPreview}`);
+      if(d.error) parts.push(`error=${d.error}`);
+      diagEl.textContent = 'Diagnose: ' + parts.join(' · ');
+      diagEl.style.color = d.error ? '#ffb3b3' : '';
+    }catch(e){
+      diagEl.textContent = 'Diagnose: Fehler beim Lesen der Diagnosewerte';
+      diagEl.style.color = '#ffb3b3';
+    }
   };
 
   const refresh = async ()=>{
@@ -1935,6 +1988,7 @@ async function wireInboxAssignments(){
       const detail = diag.error ? ` – ${diag.error}` : '';
       setMsg(`Keine Kunden gefunden${detail}`, true);
     }
+    setDiag();
   };
 
   btnRefresh?.addEventListener('click', ()=>{ refresh().catch(e=>{ console.error(e); setMsg('Aktualisieren fehlgeschlagen.', true); }); });
