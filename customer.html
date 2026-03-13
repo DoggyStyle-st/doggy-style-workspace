@@ -7,11 +7,10 @@
   <link href="manifest.json" rel="manifest"/>
   <meta name="theme-color" content="#101014"/>
   <link href="assets/logo.png" rel="apple-touch-icon"/>
-  <link href="styles.css?v=20260303_customer1" rel="stylesheet"/>
+  <link href="styles.css?v=20260314_customer_bi" rel="stylesheet"/>
 </head>
 <body class="bg-watermark">
   <main class="shell" style="padding-top:20px">
-<!-- CUSTOMER PORTAL (nur für Rolle customer sichtbar) -->
 <section class="panel is-active" id="customerPortal" style="display:block;">
   <div class="card" style="max-width:900px;margin:0 auto;">
     <div class="row between" style="align-items:flex-start; gap:12px; flex-wrap:wrap;">
@@ -48,17 +47,13 @@
 </section>
   </main>
 
-  <!-- Firebase zuerst -->
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-
-  <!-- Config dann App -->
-  <script src="firebase-config.js?v=M50.9.9BH_AI_CUSTOMERPORTAL_LOCALTASKS_MASTER_20260313"></script>
-  <script src="app.js?v=M50.9.9BH_AI_CUSTOMERPORTAL_LOCALTASKS_MASTER_20260313"></script>
+  <script src="firebase-config.js?v=M50.9.9BI_AI_CUSTOMERPORTAL_OPEN_EDIT_MASTER_20260314"></script>
+  <script src="app.js?v=M50.9.9BI_AI_CUSTOMERPORTAL_OPEN_EDIT_MASTER_20260314"></script>
 
   <script>
-    // Falls jemand ohne Login hier landet → zur Login-Seite
     (function(){
       function goLogin(){ location.href='login.html'; }
       var tries=0;
@@ -78,82 +73,324 @@
   <script>
     (function(){
       const $ = (id)=>document.getElementById(id);
+      const LS_KEY = 'ds_workspace_test_optik_01';
+      const TASKS = [];
+      let CURRENT_USER = null;
+      let CURRENT_TASK = null;
+      let SAVE_TIMER = null;
+      const TEMPLATE_MAP = {
+        customer_data: {
+          id: 'customer_data',
+          name: 'Kundendaten ergänzen',
+          sections: [
+            { title: 'Kontaktdaten', fields: [
+              { key: 'fullName', label: 'Name', type: 'text', required: true },
+              { key: 'email', label: 'E-Mail', type: 'email', required: true },
+              { key: 'phone', label: 'Telefon', type: 'text' },
+              { key: 'street', label: 'Straße / Hausnummer', type: 'text' },
+              { key: 'zip', label: 'PLZ', type: 'text' },
+              { key: 'city', label: 'Ort', type: 'text' }
+            ] },
+            { title: 'Hund', fields: [
+              { key: 'dogName', label: 'Hundename', type: 'text' },
+              { key: 'breed', label: 'Rasse', type: 'text' },
+              { key: 'birthDate', label: 'Geburtsdatum', type: 'date' },
+              { key: 'notes', label: 'Wichtige Hinweise', type: 'textarea' }
+            ] }
+          ],
+          meta: [
+            { key: 'place', label: 'Ort', type: 'text' },
+            { key: 'date', label: 'Datum', type: 'date' }
+          ]
+        },
+        boarding_contract: {
+          id: 'boarding_contract',
+          name: 'Betreuungsvertrag freigeben',
+          sections: [
+            { title: 'Vertragsdaten', fields: [
+              { key: 'customerName', label: 'Kundenname', type: 'text', required: true },
+              { key: 'dogName', label: 'Hundename', type: 'text', required: true },
+              { key: 'serviceType', label: 'Betreuungsart', type: 'select', options: ['Tagesbetreuung', 'Urlaubsbetreuung', 'Probetag'] },
+              { key: 'contractAccepted', label: 'Ich habe den Betreuungsvertrag gelesen und stimme zu', type: 'checkbox', required: true }
+            ] },
+            { title: 'Hinweise', fields: [
+              { key: 'vet', label: 'Tierarzt / Praxis', type: 'text' },
+              { key: 'emergencyPhone', label: 'Notfallnummer', type: 'text' },
+              { key: 'notes', label: 'Besondere Hinweise', type: 'textarea' }
+            ] }
+          ],
+          meta: [
+            { key: 'place', label: 'Ort', type: 'text' },
+            { key: 'date', label: 'Datum', type: 'date' }
+          ]
+        },
+        hundeannahme: {
+          id: 'hundeannahme',
+          name: 'Aufenthalt anfragen',
+          sections: [
+            { title: 'Aufenthalt', fields: [
+              { key: 'dogName', label: 'Hund', type: 'text', required: true },
+              { key: 'von', label: 'Von', type: 'date', required: true },
+              { key: 'bis', label: 'Bis', type: 'date', required: true },
+              { key: 'betreuung', label: 'Betreuungsart', type: 'select', options: ['Tagesbetreuung', 'Urlaubsbetreuung'] },
+              { key: 'notes', label: 'Notizen', type: 'textarea' }
+            ] }
+          ],
+          meta: [
+            { key: 'place', label: 'Ort', type: 'text' },
+            { key: 'date', label: 'Datum', type: 'date' }
+          ]
+        }
+      };
       function esc(s){ return String(s||'').replace(/[&<>"']/g, function(m){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]; }); }
-      async function renderFallbackTasks(db, user){
-        const listEl = $('customerTaskList');
-        const subtitle = $('customerPortalSubtitle');
-        if(!listEl || !user) return;
-        const email = String(user.email||'').trim().toLowerCase();
-        const orgId = (window.CLOUD_ORG_ID || window.firebaseOrgId || 'doggystyle');
-        const tasksCol = db ? db.collection('orgs').doc(orgId).collection('tasks') : null;
-        var items = [];
+      function fmt(dt){ try{ return new Date(Number(dt||0)).toLocaleString('de-DE'); }catch(_){ return ''; } }
+      function titleForTask(t){
+        const tid = String((t && (t.templateId || t.taskId || t.templateKey)) || '').trim();
+        const tpl = TEMPLATE_MAP[tid];
+        return String((t && t.title) || (tpl && tpl.name) || tid || 'Aufgabe');
+      }
+      function getDb(){
         try{
-          if(tasksCol && user.uid){
-            const s1 = await tasksCol.where('status','==','open').where('customerUid','==',user.uid).get();
+          if(window.CLOUD && CLOUD.db) return CLOUD.db;
+          if(window.firebase && firebase.firestore){ return firebase.firestore(); }
+        }catch(_){ }
+        return null;
+      }
+      function getTasksCol(){
+        const db = getDb();
+        const orgId = (window.CLOUD && CLOUD.orgId) || window.CLOUD_ORG_ID || window.firebaseOrgId || 'doggystyle';
+        if(!db || !orgId || typeof db.collection !== 'function') return null;
+        try{ return db.collection('orgs').doc(orgId).collection('tasks'); }catch(_){ return null; }
+      }
+      function readLocal(){
+        try{ const raw = localStorage.getItem(LS_KEY); return raw ? JSON.parse(raw) : {}; }catch(_){ return {}; }
+      }
+      function writeLocal(data){
+        try{ localStorage.setItem(LS_KEY, JSON.stringify(data || {})); }catch(_){ }
+      }
+      function upsertLocalTask(task){
+        const data = readLocal();
+        const list = Array.isArray(data.inboxAssignments) ? data.inboxAssignments.slice() : [];
+        const key = String(task.id || task.taskId || '');
+        const idx = list.findIndex(x => String((x && (x.id || x.taskId)) || '') === key);
+        const merged = Object.assign({}, idx >= 0 ? list[idx] : {}, task);
+        if(idx >= 0) list[idx] = merged; else list.unshift(merged);
+        data.inboxAssignments = list;
+        writeLocal(data);
+      }
+      function taskMatchesUser(t, user){
+        if(!t || !user) return false;
+        const email = String(user.email || '').trim().toLowerCase();
+        const uid = String(user.uid || '').trim();
+        const tEmail = String(t.customerEmail || '').trim().toLowerCase();
+        const tUid = String(t.customerUid || '').trim();
+        const status = String(t.status || 'open').trim().toLowerCase();
+        if(status && status !== 'open') return false;
+        return (uid && tUid && uid === tUid) || (email && tEmail && email === tEmail);
+      }
+      function dedupe(items){
+        const map = new Map();
+        items.forEach(function(t){
+          const key = String((t && (t.id || t.taskId)) || '') || ('tmp_'+Math.random());
+          map.set(key, Object.assign({}, map.get(key)||{}, t||{}, { id: key }));
+        });
+        return Array.from(map.values()).sort(function(a,b){ return Number(b.createdAt||0) - Number(a.createdAt||0); });
+      }
+      function updateSubtitle(items){
+        const subtitle = $('customerPortalSubtitle');
+        if(!subtitle) return;
+        subtitle.textContent = items.length ? 'Doggy Style Hundepension hat Aufgaben für dich.' : 'Aktuell liegen keine Aufgaben für dich vor.';
+      }
+      function renderTaskList(items){
+        TASKS.length = 0; items.forEach(x => TASKS.push(x));
+        const listEl = $('customerTaskList');
+        if(!listEl) return;
+        listEl.innerHTML = '';
+        updateSubtitle(items);
+        if(!items.length){
+          listEl.innerHTML = '<div class="muted">— keine Aufgaben —</div>';
+          return;
+        }
+        items.forEach(function(t){
+          const row = document.createElement('div');
+          row.className = 'list-item';
+          const left = document.createElement('div');
+          left.innerHTML = '<strong>'+esc(titleForTask(t))+'</strong><small>'+esc(String((TEMPLATE_MAP[t.templateId] && TEMPLATE_MAP[t.templateId].name) || t.templateId || '')) + (t.createdAt ? ' · '+esc(fmt(t.createdAt)) : '') + '</small>';
+          const actions = document.createElement('div');
+          actions.className = 'actions';
+          const btnOpen = document.createElement('button');
+          btnOpen.className = 'smallbtn';
+          btnOpen.textContent = 'Öffnen';
+          btnOpen.onclick = function(){ openTask(t.id); };
+          actions.appendChild(btnOpen);
+          row.onclick = function(ev){ if(ev.target === btnOpen) return; openTask(t.id); };
+          row.appendChild(left);
+          row.appendChild(actions);
+          listEl.appendChild(row);
+        });
+      }
+      function renderField(field, value, bucket){
+        const wrap = document.createElement('label');
+        wrap.className = 'field';
+        wrap.style.minWidth = '260px';
+        wrap.innerHTML = '<span>'+esc(field.label)+(field.required ? ' *' : '')+'</span>';
+        let input;
+        if(field.type === 'textarea'){
+          input = document.createElement('textarea');
+          input.value = value || '';
+        }else if(field.type === 'select'){
+          input = document.createElement('select');
+          input.innerHTML = (field.options || []).map(function(opt){ return '<option value="'+esc(opt)+'">'+esc(opt)+'</option>'; }).join('');
+          input.value = value || ((field.options && field.options[0]) || '');
+        }else if(field.type === 'checkbox'){
+          input = document.createElement('input');
+          input.type = 'checkbox';
+          input.checked = !!value;
+          input.style.width = '22px';
+          input.style.height = '22px';
+        }else{
+          input = document.createElement('input');
+          input.type = field.type || 'text';
+          input.value = value || '';
+        }
+        const apply = function(){ bucket[field.key] = field.type === 'checkbox' ? input.checked : input.value; scheduleDraftSave(); };
+        input.oninput = apply;
+        input.onchange = apply;
+        wrap.appendChild(input);
+        return wrap;
+      }
+      async function persistTask(task, patch){
+        const next = Object.assign({}, task, patch || {}, { updatedAt: Date.now() });
+        upsertLocalTask(next);
+        const col = getTasksCol();
+        if(col && next.id){
+          try{ await col.doc(next.id).set(patch || {}, { merge: true }); }catch(_){ }
+        }
+        const idx = TASKS.findIndex(x => String(x.id||'') === String(next.id||''));
+        if(idx >= 0) TASKS[idx] = next;
+        return next;
+      }
+      async function saveDraftNow(){
+        if(!CURRENT_TASK) return;
+        const hint = $('customerTaskSaveHint');
+        const payloadDraft = CURRENT_TASK.payloadDraft || { fields:{}, meta:{} };
+        try{
+          CURRENT_TASK = await persistTask(CURRENT_TASK, { payloadDraft: payloadDraft });
+          if(hint) hint.textContent = '✅ Gespeichert: ' + fmt(Date.now());
+        }catch(e){
+          if(hint) hint.textContent = '❌ Speichern fehlgeschlagen.';
+        }
+      }
+      function scheduleDraftSave(){
+        const hint = $('customerTaskSaveHint');
+        clearTimeout(SAVE_TIMER);
+        if(hint) hint.textContent = '… speichert …';
+        SAVE_TIMER = setTimeout(saveDraftNow, 500);
+      }
+      function openTask(taskId){
+        const task = TASKS.find(x => String(x.id||'') === String(taskId||''));
+        if(!task) return;
+        const tpl = TEMPLATE_MAP[String(task.templateId || '')] || TEMPLATE_MAP.customer_data;
+        CURRENT_TASK = Object.assign({}, task);
+        CURRENT_TASK.payloadDraft = CURRENT_TASK.payloadDraft || { fields:{}, meta:{} };
+        CURRENT_TASK.payloadDraft.fields = Object.assign({}, CURRENT_TASK.payloadSubmitted && CURRENT_TASK.payloadSubmitted.fields || {}, CURRENT_TASK.payloadDraft.fields || {});
+        CURRENT_TASK.payloadDraft.meta = Object.assign({}, CURRENT_TASK.payloadSubmitted && CURRENT_TASK.payloadSubmitted.meta || {}, CURRENT_TASK.payloadDraft.meta || {});
+        const listEl = $('customerTaskList');
+        const editor = $('customerTaskEditor');
+        const root = $('customerTaskFormRoot');
+        const titleEl = $('customerTaskTitle');
+        const metaEl = $('customerTaskMeta');
+        const hint = $('customerTaskSaveHint');
+        if(listEl) listEl.style.display = 'none';
+        if(editor) editor.style.display = '';
+        if(root) root.innerHTML = '';
+        if(titleEl) titleEl.textContent = titleForTask(task);
+        if(metaEl) metaEl.textContent = 'Formular: ' + (tpl.name || task.templateId || '') + (task.createdAt ? ' · Freigegeben: ' + fmt(task.createdAt) : '');
+        if(hint) hint.textContent = '';
+        (tpl.sections || []).forEach(function(sec){
+          const card = document.createElement('div');
+          card.className = 'card';
+          card.innerHTML = '<h2>'+esc(sec.title)+'</h2>';
+          (sec.fields || []).forEach(function(field){
+            card.appendChild(renderField(field, CURRENT_TASK.payloadDraft.fields[field.key], CURRENT_TASK.payloadDraft.fields));
+          });
+          if(root) root.appendChild(card);
+        });
+        if(Array.isArray(tpl.meta) && tpl.meta.length){
+          const card = document.createElement('div');
+          card.className = 'card';
+          card.innerHTML = '<h2>Ort / Datum</h2>';
+          tpl.meta.forEach(function(field){
+            card.appendChild(renderField(field, CURRENT_TASK.payloadDraft.meta[field.key], CURRENT_TASK.payloadDraft.meta));
+          });
+          if(root) root.appendChild(card);
+        }
+      }
+      async function submitCurrentTask(){
+        if(!CURRENT_TASK) return;
+        if(!confirm('Formular absenden? Danach kann es nicht mehr geändert werden.')) return;
+        const hint = $('customerTaskSaveHint');
+        try{
+          CURRENT_TASK = await persistTask(CURRENT_TASK, {
+            payloadSubmitted: CURRENT_TASK.payloadDraft,
+            status: 'submitted',
+            submittedAt: Date.now()
+          });
+          if(hint) hint.textContent = '✅ Formular übermittelt.';
+          setTimeout(function(){
+            $('customerTaskEditor').style.display = 'none';
+            $('customerTaskList').style.display = '';
+            loadTasksForUser(CURRENT_USER).catch(console.error);
+          }, 250);
+        }catch(e){
+          if(hint) hint.textContent = '❌ Absenden fehlgeschlagen.';
+        }
+      }
+      async function loadTasksForUser(user){
+        CURRENT_USER = user;
+        const email = String((user && user.email) || '').trim().toLowerCase();
+        const uid = String((user && user.uid) || '').trim();
+        const items = [];
+        const col = getTasksCol();
+        try{
+          if(col && uid){
+            const s1 = await col.where('status','==','open').where('customerUid','==',uid).get();
             s1.forEach(function(doc){ items.push(Object.assign({id:doc.id}, doc.data()||{})); });
           }
         }catch(_){ }
         try{
-          if(tasksCol && email){
-            const s2 = await tasksCol.where('status','==','open').where('customerEmail','==',email).get();
+          if(col && email){
+            const s2 = await col.where('status','==','open').where('customerEmail','==',email).get();
             s2.forEach(function(doc){ items.push(Object.assign({id:doc.id}, doc.data()||{})); });
           }
         }catch(_){ }
         try{
-          var raw = localStorage.getItem('ds_workspace_test_optik_01');
-          var local = raw ? JSON.parse(raw) : {};
-          var localItems = Array.isArray(local.inboxAssignments) ? local.inboxAssignments : [];
-          localItems.forEach(function(t){
-            var status = String((t && t.status) || 'open').trim().toLowerCase();
-            var tEmail = String((t && t.customerEmail) || '').trim().toLowerCase();
-            var tUid = String((t && t.customerUid) || '').trim();
-            if(status && status !== 'open') return;
-            if((user.uid && tUid && tUid === user.uid) || (email && tEmail && tEmail === email)){
-              items.push(Object.assign({id:(t && t.id) || (t && t.taskId) || ('local_'+Date.now())}, t||{}));
-            }
-          });
+          const data = readLocal();
+          const localItems = Array.isArray(data.inboxAssignments) ? data.inboxAssignments : [];
+          localItems.forEach(function(t){ if(taskMatchesUser(t, user)){ items.push(Object.assign({ id: String((t && (t.id || t.taskId)) || ('local_'+Date.now())) }, t || {})); } });
         }catch(_){ }
-        var seen = new Set();
-        items = items.filter(function(x){ if(seen.has(x.id)) return false; seen.add(x.id); return true; });
-        listEl.innerHTML = '';
-        if(!items.length){
-          listEl.innerHTML = '<div class="muted">— keine Aufgaben —</div>';
-          if(subtitle) subtitle.textContent = 'Aktuell liegen keine Aufgaben für dich vor.';
-          return;
-        }
-        if(subtitle) subtitle.textContent = 'Doggy Style Hundepension hat Aufgaben für dich.';
-        items.sort(function(a,b){ return Number(b.createdAt||0)-Number(a.createdAt||0); });
-        items.forEach(function(t){
-          var row = document.createElement('div');
-          row.className = 'list-item';
-          var left = document.createElement('div');
-          var title = String(t.title||t.templateId||'Aufgabe');
-          var meta = [];
-          if(t.templateId) meta.push(String(t.templateId));
-          if(t.createdAt){ try{ meta.push(new Date(Number(t.createdAt)).toLocaleString('de-DE')); }catch(_){ } }
-          left.innerHTML = '<strong>'+esc(title)+'</strong><small>' + esc(meta.join(' · ')) + '</small>';
-          row.appendChild(left);
-          listEl.appendChild(row);
-        });
+        renderTaskList(dedupe(items));
       }
-      async function bootPortalFallback(){
+      async function boot(){
         const portal = $('customerPortal');
-        if(portal){ portal.style.display='block'; portal.classList.add('is-active'); }
+        if(portal){ portal.style.display = 'block'; portal.classList.add('is-active'); }
         const btnLogout = $('btnCustomerLogout');
-        try{ if(btnLogout && window.firebase && firebase.auth){ btnLogout.onclick = async function(){ try{ await firebase.auth().signOut(); }catch(_){ } location.href='login.html'; }; } }catch(_){ }
+        if(btnLogout && window.firebase && firebase.auth){
+          btnLogout.onclick = async function(){ try{ await firebase.auth().signOut(); }catch(_){ } location.href = 'login.html'; };
+        }
+        const btnBack = $('btnCustomerTaskBack');
+        if(btnBack) btnBack.onclick = function(){ $('customerTaskEditor').style.display = 'none'; $('customerTaskList').style.display = ''; };
+        const btnSubmit = $('btnCustomerTaskSubmit');
+        if(btnSubmit) btnSubmit.onclick = submitCurrentTask;
         if(!(window.firebase && window.firebase.auth && window.firebase.firestore && window.firebaseConfig)) return;
         try{ try{ firebase.app(); }catch(_){ firebase.initializeApp(window.firebaseConfig); } }catch(_){ }
-        const auth = firebase.auth();
-        const db = firebase.firestore ? firebase.firestore() : null;
-        if(!db) return;
-        auth.onAuthStateChanged(function(u){
-          if(!u){ location.href='login.html'; return; }
-          renderFallbackTasks(db, u).catch(console.error);
+        firebase.auth().onAuthStateChanged(function(user){
+          if(!user){ location.href='login.html'; return; }
+          loadTasksForUser(user).catch(console.error);
         });
       }
-      if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootPortalFallback); else bootPortalFallback();
+      if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
     })();
   </script>
-
 </body>
 </html>
