@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9AO_AI_INBOX_CUSTOMER_DOMBRIDGE_MASTER_20260313",
+  tag: "M50.9.9AP_AI_INBOX_CUSTOMER_RENDERBRIDGE_MASTER_20260313",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9AO_AI_INBOX_CUSTOMER_DOMBRIDGE_MASTER_20260313";
+const APP_BUILD = "M50.9.9AP_AI_INBOX_CUSTOMER_RENDERBRIDGE_MASTER_20260313";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -1876,7 +1876,7 @@ function populateInboxAssignmentControls(){
   if(!customers.length){
     selCustomer.disabled = true;
     selCustomer.innerHTML = '<option value="">Keine Kunden vorhanden</option>';
-    try{ window.__dsInboxAssignDiag = { ...(window.__dsInboxAssignDiag||{}), localCustomers: canonicalCustomers.length, mergedCustomers: mergedCustomers.length, stateCustomers: Array.isArray(state.customers)?state.customers.length:0, statePets: Array.isArray(state.pets)?state.pets.length:0 }; }catch(_){ }
+    try{ window.__dsInboxAssignDiag = { ...(window.__dsInboxAssignDiag||{}), localCustomers: canonicalCustomers.length, mergedCustomers: mergedCustomers.length, stateCustomers: Array.isArray(state.customers)?state.customers.length:0, statePets: Array.isArray(state.pets)?state.pets.length:0, dogListItems: Array.from(document.querySelectorAll('#dogList .item strong')).length }; }catch(_){ }
   }else{
     selCustomer.disabled = false;
     selCustomer.innerHTML = '<option value="">Bitte auswählen…</option>';
@@ -7633,21 +7633,50 @@ function buildCanonicalCustomerList(){
         const strong = item.querySelector('strong');
         if(!strong) return;
         const rawText = String(strong.textContent || '').replace(/\s+/g, ' ').trim();
-        if(!rawText || !/^🧑/.test(rawText)) return;
-        const name = rawText.replace(/^🧑🏼‍🦰\s*/, '').replace(/^🧑\s*/, '').trim();
+        if(!rawText) return;
+        if(/^🐶/.test(rawText)) return;
+        let name = rawText
+          .replace(/^[^\p{L}\p{N}]+/u, '')
+          .replace(/^Ohne Kunde verknüpft$/i, '')
+          .trim();
+        if(!name) return;
         const small = item.querySelector('small');
         const smallText = String(small?.textContent || '').trim();
-        const phone = smallText.split('·').map(x=>x.trim()).filter(Boolean)[0] || '';
-        const existing = customers.find(c=>normalize(c.name)===normalize(name) || (!!phone && normalize(c.phone)===normalize(phone)));
+        const bits = smallText.split('·').map(x=>String(x||'').trim()).filter(Boolean);
+        const phoneOrMail = bits.find(x=>!/(^\d+\s+Hund(e)?$)|(^Letzter Aufenthalt:)/i.test(x)) || '';
+        const isMail = /@/.test(phoneOrMail);
+        const existing = customers.find(c=>normalize(c.name)===normalize(name) || (!!phoneOrMail && (normalize(c.phone)===normalize(phoneOrMail) || normalize(c.email)===normalize(phoneOrMail))));
         add({
-          id: existing?.id || existing?.customerId || `dom:${name}|${phone}`,
-          customerId: existing?.id || existing?.customerId || `dom:${name}|${phone}`,
-          name,
-          phone: existing?.phone || phone,
-          email: existing?.email || ''
+          id: existing?.id || existing?.customerId || existing?.email || `dom:${name}|${phoneOrMail}`,
+          customerId: existing?.customerId || existing?.id || existing?.email || `dom:${name}|${phoneOrMail}`,
+          name: existing?.name || name,
+          phone: existing?.phone || (isMail ? '' : phoneOrMail),
+          email: existing?.email || (isMail ? phoneOrMail : '')
         });
       });
     }
+  }catch(_){ }
+
+  try{
+    const customerItems = Array.from(document.querySelectorAll('#dogList .item strong, [data-tab-panel="dogs"] .item strong, #tab-dogs .item strong'));
+    customerItems.forEach(strong=>{
+      const rawText = String(strong.textContent || '').replace(/\s+/g, ' ').trim();
+      if(!rawText || /^🐶/.test(rawText)) return;
+      const name = rawText.replace(/^[^\p{L}\p{N}]+/u, '').trim();
+      if(!name || /^ohne kunde/i.test(name)) return;
+      const item = strong.closest('.item');
+      const smalls = Array.from(item?.querySelectorAll('small') || []);
+      const smallText = smalls.map(s=>String(s.textContent || '').trim()).join(' · ');
+      const bits = smallText.split('·').map(x=>String(x||'').trim()).filter(Boolean);
+      const phoneOrMail = bits.find(x=>!/(^\d+\s+Hund(e)?$)|(^Letzter Aufenthalt:)/i.test(x)) || '';
+      add({
+        id: `render:${name}|${phoneOrMail}`,
+        customerId: `render:${name}|${phoneOrMail}`,
+        name,
+        phone: /@/.test(phoneOrMail) ? '' : phoneOrMail,
+        email: /@/.test(phoneOrMail) ? phoneOrMail : ''
+      });
+    });
   }catch(_){ }
 
   return list.sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''), 'de'));
