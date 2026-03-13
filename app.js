@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9AM_AI_INBOX_CUSTOMERSELECT_BRIDGE_MASTER_20260313",
+  tag: "M50.9.9AN_AI_INBOX_CUSTOMER_FIX_MASTER_20260313",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9AM_AI_INBOX_CUSTOMERSELECT_BRIDGE_MASTER_20260313";
+const APP_BUILD = "M50.9.9AN_AI_INBOX_CUSTOMER_FIX_MASTER_20260313";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -1859,70 +1859,25 @@ function getMergedInboxAssignmentCustomers(){
 function populateInboxAssignmentControls(){
   const selCustomer = document.getElementById('assignCustomer');
   const selTemplate = document.getElementById('assignTemplate');
-  if(!selCustomer || !selTemplate) return { customers: 0, templates: 0, source: 'missing-controls' };
+  if(!selCustomer || !selTemplate) return { customers: 0, templates: 0 };
   const prevCustomer = String(selCustomer.value || '');
   const prevTemplate = String(selTemplate.value || '');
+  const canonicalCustomers = buildCanonicalCustomerList();
+  const mergedCustomers = getMergedInboxAssignmentCustomers();
+  const customers = canonicalCustomers.length ? canonicalCustomers : mergedCustomers;
   const templatesForAssign = getInboxAssignmentTemplatesResolved();
-
-  let customers = [];
-  let source = '';
-
-  try{ refreshCustomerSelect(); }catch(_){ }
-  try{
-    const masterSel = document.getElementById('customerSelect');
-    const masterOptions = Array.from(masterSel?.options || [])
-      .map(o=>({ value: String(o.value || '').trim(), label: String(o.textContent || '').trim() }))
-      .filter(o=>o.value && o.label);
-    if(masterOptions.length){
-      const seen = new Set();
-      customers = masterOptions.map(o=>{
-        const key = o.value.toLowerCase();
-        if(seen.has(key)) return null;
-        seen.add(key);
-        const parts = o.label.split(' · ');
-        const name = String(parts.shift() || o.label).trim();
-        const meta = String(parts.join(' · ') || '').trim();
-        const email = meta && meta.includes('@') ? meta : '';
-        const phone = meta && !email ? meta : '';
-        return {
-          id: o.value,
-          customerId: o.value,
-          portalUid: '',
-          name: name || meta || o.value,
-          email,
-          phone,
-          source: 'customerSelect'
-        };
-      }).filter(Boolean);
-      source = 'customerSelect';
-    }
-  }catch(_){ }
-
-  if(!customers.length){
-    try{
-      const canonicalCustomers = buildCanonicalCustomerList();
-      if(canonicalCustomers.length){
-        customers = canonicalCustomers;
-        source = 'state.customers';
-      }
-    }catch(_){ }
-  }
-
-  if(!customers.length){
-    customers = getMergedInboxAssignmentCustomers();
-    source = customers.length ? 'mergedInboxCustomers' : source;
-  }
 
   selCustomer.innerHTML = '';
   if(!customers.length){
     selCustomer.disabled = true;
     selCustomer.innerHTML = '<option value="">Keine Kunden vorhanden</option>';
+    try{ window.__dsInboxAssignDiag = { ...(window.__dsInboxAssignDiag||{}), localCustomers: canonicalCustomers.length, mergedCustomers: mergedCustomers.length, stateCustomers: Array.isArray(state.customers)?state.customers.length:0, statePets: Array.isArray(state.pets)?state.pets.length:0 }; }catch(_){ }
   }else{
     selCustomer.disabled = false;
     selCustomer.innerHTML = '<option value="">Bitte auswählen…</option>';
     customers.forEach(c=>{
       const value = String(c.customerId || c.id || c.portalUid || c.email || '').trim();
-      const fallbackName = String(c.name || c.fullName || c.customerName || c.email || c.phone || value || 'Kunde').trim();
+      const fallbackName = String(c.name || [c.firstName||'', c.lastName||''].filter(Boolean).join(' ') || c.fullName || c.customerName || c.email || c.phone || value || 'Kunde').trim();
       const meta = [];
       if(c.email) meta.push(c.email);
       else if(c.phone) meta.push(c.phone);
@@ -1939,7 +1894,7 @@ function populateInboxAssignmentControls(){
 
   if(prevCustomer && Array.from(selCustomer.options).some(o=>o.value === prevCustomer)) selCustomer.value = prevCustomer;
   if(prevTemplate && Array.from(selTemplate.options).some(o=>o.value === prevTemplate)) selTemplate.value = prevTemplate;
-  return { customers: customers.length, templates: templatesForAssign.length, source };
+  return { customers: customers.length, templates: templatesForAssign.length };
 }
 
 async function wireInboxAssignments(){
@@ -1969,7 +1924,7 @@ async function wireInboxAssignments(){
     const diag = window.__dsInboxAssignDiag || {};
     if(info.templates && !selTemplate.value) selTemplate.selectedIndex = 0;
     if(info.customers){
-      const src = info.source ? ` · Quelle: ${info.source}` : (diag.source ? ` · Quelle: ${diag.source}` : '');
+      const src = diag.source ? ` · Quelle: ${diag.source}` : '';
       setMsg(`Kunden: ${info.customers} · Aufgaben: ${info.templates}${src}`, false);
     }else{
       const detail = diag.error ? ` – ${diag.error}` : '';
@@ -7607,14 +7562,17 @@ function buildCanonicalCustomerList(){
   const seen = new Set();
   const add = (raw={})=>{
     if(!raw || typeof raw !== 'object') return;
-    const id = String(raw.id || raw.customerId || raw.uid || raw.portalUid || raw.email || raw.name || raw.fullName || '').trim();
-    const customerId = String(raw.customerId || raw.id || raw.uid || raw.portalUid || raw.email || raw.name || raw.fullName || '').trim();
-    const name = String(raw.name || raw.displayName || raw.customerName || raw.ownerName || raw.fullName || '').trim();
+    const firstName = String(raw.firstName || raw.firstname || '').trim();
+    const lastName = String(raw.lastName || raw.lastname || '').trim();
+    const combinedName = [firstName, lastName].filter(Boolean).join(' ').trim();
+    const id = String(raw.id || raw.customerId || raw.uid || raw.portalUid || raw.email || raw.name || raw.fullName || combinedName || '').trim();
+    const customerId = String(raw.customerId || raw.id || raw.uid || raw.portalUid || raw.email || raw.name || raw.fullName || combinedName || '').trim();
+    const name = String(raw.name || raw.displayName || raw.customerName || raw.ownerName || raw.fullName || combinedName || '').trim();
     const email = String(raw.email || raw.mail || '').trim();
     const phone = String(raw.phone || raw.telefon || raw.mobile || raw.tel || '').trim();
     const portalUid = String(raw.portalUid || raw.portalUID || raw.userUid || raw.customerUid || raw.uid || '').trim();
     if(!id && !customerId && !name && !email && !phone) return;
-    const label = name || raw.fullName || email || phone || customerId || id || 'Kunde';
+    const label = name || email || phone || customerId || id || 'Kunde';
     const key = String(email || portalUid || customerId || id || label).toLowerCase();
     if(!key || seen.has(key)) return;
     seen.add(key);
@@ -7628,6 +7586,18 @@ function buildCanonicalCustomerList(){
     });
   };
   (Array.isArray(state.customers) ? state.customers : []).forEach(add);
+  try{
+    const sel = document.getElementById('customerSelect');
+    if(sel && sel.options && sel.options.length){
+      Array.from(sel.options).forEach(opt=>{
+        const value = String(opt.value || '').trim();
+        const text = String(opt.textContent || '').trim();
+        if(!value || !text || /^\(?kunde w[aä]hlen\)?$/i.test(text)) return;
+        const parts = text.split(' · ').map(x=>String(x||'').trim()).filter(Boolean);
+        add({ id: value, customerId: value, name: parts[0] || text, phone: parts[1] || '' });
+      });
+    }
+  }catch(_){ }
   return list.sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''), 'de'));
 }
 function refreshCustomerSelect(){
