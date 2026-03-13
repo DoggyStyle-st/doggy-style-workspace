@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9BB_AI_PORTAL_LOGINLINK_MASTER_20260313",
+  tag: "M50.9.9BE_AI_APPBUILD_CLOUDTASKFIX_MASTER_20260313",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9BB_AI_PORTAL_LOGINLINK_MASTER_20260313";
+const APP_BUILD = "M50.9.9BE_AI_APPBUILD_CLOUDTASKFIX_MASTER_20260313";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -1061,12 +1061,14 @@ function cloudStateRef(){
   return CLOUD.db.collection("orgs").doc(CLOUD.orgId).collection("meta").doc("workspace_state");
 }
 function cloudUsersCol(){
+  if(!CLOUD || !CLOUD.enabled || !CLOUD.db) return null;
   return CLOUD.db.collection("orgs").doc(CLOUD.orgId).collection("users");
 }
 function cloudUserDoc(uid){
   return cloudUsersCol().doc(uid);
 }
 function cloudTasksCol(){
+  if(!CLOUD || !CLOUD.enabled || !CLOUD.db) return null;
   return CLOUD.db.collection("orgs").doc(CLOUD.orgId).collection("tasks");
 }
 async function loadOrCreateUserProfile(user){
@@ -1328,18 +1330,34 @@ async function initCustomerPortal(){
     if(editor) editor.style.display = 'none';
     if(listEl) listEl.style.display = '';
   };
-  const q = cloudTasksCol().where('customerUid','==',uid).where('status','==','open').orderBy('createdAt','desc');
-  q.onSnapshot((snap)=>{
-    const tasks = [];
-    snap.forEach(doc=>{ tasks.push({id: doc.id, ...doc.data()}); });
+  const tasksCol = cloudTasksCol();
+  if(!tasksCol){
+    if(subtitle) subtitle.textContent = 'Cloud-Verbindung nicht bereit.';
+    renderCustomerTaskList([]);
+    return;
+  }
+  const email = String(CLOUD.user?.email || '').trim().toLowerCase();
+  const unsubs = [];
+  const seen = new Map();
+  const publish = ()=>{
+    const tasks = Array.from(seen.values()).sort((a,b)=>Number(b.createdAt||0)-Number(a.createdAt||0));
     renderCustomerTaskList(tasks);
     if(subtitle){
       subtitle.textContent = tasks.length ? 'Doggy Style Hundepension hat Aufgaben für dich.' : 'Aktuell liegen keine Aufgaben für dich vor.';
     }
+  };
+  const attach = (query)=> query.onSnapshot((snap)=>{
+    snap.docChanges().forEach(ch=>{
+      const data = {id: ch.doc.id, ...ch.doc.data()};
+      if(ch.type === 'removed') seen.delete(ch.doc.id); else seen.set(ch.doc.id, data);
+    });
+    publish();
   }, (err)=>{
     console.error('customer tasks listener', err);
     if(subtitle) subtitle.textContent = 'Fehler beim Laden der Aufgaben.';
   });
+  unsubs.push(attach(tasksCol.where('customerUid','==',uid).where('status','==','open').orderBy('createdAt','desc')));
+  if(email) unsubs.push(attach(tasksCol.where('customerEmail','==',email).where('status','==','open').orderBy('createdAt','desc')));
   function renderCustomerTaskList(tasks){
     if(!listEl) return;
     listEl.innerHTML = '';
@@ -2060,16 +2078,10 @@ async function wireInboxAssignments(){
           createVia = portalUid ? 'cloud-match' : createVia;
         }
       }
-      if(!portalUid){
-        setMsg('Kunde sichtbar, aber noch nicht als Portal-Kunde registriert.', true);
-        try{ window.__dsInboxAssignDiag = { ...(window.__dsInboxAssignDiag||{}), createStatus: 'missing-portalUid', createVia, error: 'missing-portalUid' }; setDiag(); }catch(_){ }
-        return;
-      }
-
       const templateMeta = getInboxAssignmentTemplatesResolved().find(t => String(t.id) === templateId) || { id: templateId, name: templateId };
       const task = {
-        customerUid: portalUid,
-        customerEmail: customer.email || '',
+        customerUid: portalUid || '',
+        customerEmail: String(customer.email || '').trim().toLowerCase(),
         customerName: customer.name || optionLabel || '',
         customerId: customer.customerId || portalUid || customer.email || '',
         taskId: templateId,
@@ -2080,15 +2092,27 @@ async function wireInboxAssignments(){
         createdByUid: (CLOUD.user && CLOUD.user.uid) || '',
         createdByEmail: (CLOUD.user && CLOUD.user.email) || ''
       };
+      const tasksCol = cloudTasksCol();
+      if(!tasksCol){
+        setMsg('❌ Cloud nicht bereit. Aufgabe konnte nicht freigegeben werden.', true);
+        try{ window.__dsInboxAssignDiag = { ...(window.__dsInboxAssignDiag||{}), createStatus: 'cloud-unavailable', createVia, createCustomer: task.customerName || task.customerEmail || task.customerUid || '-', createTask: task.taskId, error: 'cloud-unavailable' }; setDiag(); }catch(_){ }
+        return;
+      }
+      if(!portalUid && !task.customerEmail){
+        setMsg('Kunde sichtbar, aber weder Portal-Konto noch E-Mail-Zuordnung vorhanden.', true);
+        try{ window.__dsInboxAssignDiag = { ...(window.__dsInboxAssignDiag||{}), createStatus: 'missing-target', createVia, error: 'missing-target' }; setDiag(); }catch(_){ }
+        return;
+      }
+
       setMsg('Aufgabe wird erstellt …', false);
-      try{ window.__dsInboxAssignDiag = { ...(window.__dsInboxAssignDiag||{}), createStatus: 'writing', createVia, createCustomer: task.customerName || task.customerEmail || task.customerUid, createTask: task.taskId, error: '' }; setDiag(); }catch(_){ }
-      const created = await cloudTasksCol().add(task);
+      try{ window.__dsInboxAssignDiag = { ...(window.__dsInboxAssignDiag||{}), createStatus: 'writing', createVia: portalUid ? createVia : (createVia + '+email'), createCustomer: task.customerName || task.customerEmail || task.customerUid || '-', createTask: task.taskId, error: '' }; setDiag(); }catch(_){ }
+      const created = await tasksCol.add(task);
       state.inboxAssignments = Array.isArray(state.inboxAssignments) ? state.inboxAssignments : [];
       state.inboxAssignments.unshift({ id:(created && created.id) || ('asg_'+Date.now()), ...task });
       saveState();
       selTemplate.value = '';
-      setMsg(`✅ Aufgabe freigegeben für ${customer.name || customer.email || portalUid}.`, false);
-      try{ window.__dsInboxCreateStatus = 'created'; window.__dsInboxAssignDiag = { ...(window.__dsInboxAssignDiag||{}), createStatus: 'created', createVia, createCustomer: task.customerName || task.customerEmail || task.customerUid, createTask: task.taskId, error: '' }; setDiag(); }catch(_){ }
+      setMsg(`✅ Aufgabe freigegeben für ${customer.name || customer.email || portalUid || 'Kunde'}.`, false);
+      try{ window.__dsInboxCreateStatus = 'created'; window.__dsInboxAssignDiag = { ...(window.__dsInboxAssignDiag||{}), createStatus: 'created', createVia: portalUid ? createVia : (createVia + '+email'), createCustomer: task.customerName || task.customerEmail || task.customerUid || '-', createTask: task.taskId, error: '' }; setDiag(); }catch(_){ }
     }catch(e){
       console.error('create inbox assignment failed', e);
       setMsg(`❌ ${String((e && e.message) || e || 'Fehler beim Erstellen')}`, true);
