@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9AX_AI_TASK_CREATE_FIX_MASTER_20260313",
+  tag: "M50.9.9AY_AI_DEDUP_CREATE_DEBUG_MASTER_20260313",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9AX_AI_TASK_CREATE_FIX_MASTER_20260313";
+const APP_BUILD = "M50.9.9AY_AI_DEDUP_CREATE_DEBUG_MASTER_20260313";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -1968,6 +1968,10 @@ async function wireInboxAssignments(){
       ];
       if(d.phase) parts.push(`phase=${d.phase}`);
       if(d.assignCustomerLabelsPreview) parts.push(`preview=${d.assignCustomerLabelsPreview}`);
+      if(d.createStatus) parts.push(`create.status=${d.createStatus}`);
+      if(d.createVia) parts.push(`create.via=${d.createVia}`);
+      if(d.createCustomer) parts.push(`create.customer=${d.createCustomer}`);
+      if(d.createTask) parts.push(`create.task=${d.createTask}`);
       if(d.error) parts.push(`error=${d.error}`);
       diagEl.textContent = 'Diagnose: ' + parts.join(' · ');
       diagEl.style.color = d.error ? '#ffb3b3' : '';
@@ -2028,17 +2032,46 @@ async function wireInboxAssignments(){
     try{
       const selectedCustomer = String(selCustomer.value || '').trim();
       const templateId = String(selTemplate.value || '').trim();
-      const customers = getMergedInboxAssignmentCustomers();
-      const customer = customers.find(c => String(c.customerId || c.id || c.portalUid || c.email) === selectedCustomer);
-      if(!customer){ setMsg('Bitte zuerst einen Kunden auswählen.', true); return; }
-      if(!customer.portalUid){ setMsg('Kunde sichtbar, aber noch nicht als Portal-Kunde registriert.', true); return; }
-      if(!templateId){ setMsg('Bitte zuerst eine Aufgabe auswählen.', true); return; }
+      try{ window.__dsInboxAssignDiag = { ...(window.__dsInboxAssignDiag||{}), createStatus: 'click', createVia: '', createCustomer: selectedCustomer || '-', createTask: templateId || '-' }; setDiag(); }catch(_){ }
+      if(!selectedCustomer){ setMsg('Bitte zuerst einen Kunden auswählen.', true); try{ window.__dsInboxAssignDiag = { ...(window.__dsInboxAssignDiag||{}), createStatus: 'missing-customer' }; setDiag(); }catch(_){ } return; }
+      if(!templateId){ setMsg('Bitte zuerst eine Aufgabe auswählen.', true); try{ window.__dsInboxAssignDiag = { ...(window.__dsInboxAssignDiag||{}), createStatus: 'missing-template' }; setDiag(); }catch(_){ } return; }
+
+      const inlineCustomers = Array.isArray(window.__dsInboxInlineCustomers) ? window.__dsInboxInlineCustomers : [];
+      const mergedCustomers = getMergedInboxAssignmentCustomers();
+      const optionLabel = (()=>{ try{ return String(selCustomer.options[selCustomer.selectedIndex]?.textContent || '').trim(); }catch(_){ return ''; } })();
+      let customer = inlineCustomers.find(c => String(c.customerId || c.id || c.portalUid || c.email || '').trim() === selectedCustomer)
+        || mergedCustomers.find(c => String(c.customerId || c.id || c.portalUid || c.email || '').trim() === selectedCustomer)
+        || inlineCustomers.find(c => String(c.email || '').trim().toLowerCase() === selectedCustomer.toLowerCase())
+        || mergedCustomers.find(c => String(c.email || '').trim().toLowerCase() === selectedCustomer.toLowerCase())
+        || inlineCustomers.find(c => optionLabel && `${String(c.name||'').trim()} · ${String(c.email||c.phone||'').trim()}`.trim() === optionLabel)
+        || mergedCustomers.find(c => optionLabel && `${String(c.name||'').trim()} · ${String(c.email||c.phone||'').trim()}`.trim() === optionLabel);
+      if(!customer){ setMsg('Kunde konnte nicht aufgelöst werden.', true); try{ window.__dsInboxAssignDiag = { ...(window.__dsInboxAssignDiag||{}), createStatus: 'customer-not-resolved', error: 'customer-not-resolved' }; setDiag(); }catch(_){ } return; }
+
+      let portalUid = String(customer.portalUid || '').trim();
+      let createVia = portalUid ? 'direct-portalUid' : 'local-only';
+      if(!portalUid){
+        const customerEmail = String(customer.email || '').trim().toLowerCase();
+        const cloudCustomers = Array.isArray(window.__inboxAssignmentCloudCustomers) ? window.__inboxAssignmentCloudCustomers : [];
+        const cloudMatch = cloudCustomers.find(c => String(c.email || c.mail || '').trim().toLowerCase() === customerEmail)
+          || cloudCustomers.find(c => String(c.customerId || c.id || '').trim() === String(customer.customerId || '').trim());
+        if(cloudMatch){
+          portalUid = String(cloudMatch.portalUid || cloudMatch.portalUID || cloudMatch.userUid || cloudMatch.uid || cloudMatch.customerUid || '').trim();
+          if(!customer.email && cloudMatch.email) customer.email = String(cloudMatch.email).trim();
+          createVia = portalUid ? 'cloud-match' : createVia;
+        }
+      }
+      if(!portalUid){
+        setMsg('Kunde sichtbar, aber noch nicht als Portal-Kunde registriert.', true);
+        try{ window.__dsInboxAssignDiag = { ...(window.__dsInboxAssignDiag||{}), createStatus: 'missing-portalUid', createVia, error: 'missing-portalUid' }; setDiag(); }catch(_){ }
+        return;
+      }
+
       const templateMeta = getInboxAssignmentTemplatesResolved().find(t => String(t.id) === templateId) || { id: templateId, name: templateId };
       const task = {
-        customerUid: customer.portalUid,
+        customerUid: portalUid,
         customerEmail: customer.email || '',
-        customerName: customer.name || '',
-        customerId: customer.customerId || customer.portalUid || customer.email || '',
+        customerName: customer.name || optionLabel || '',
+        customerId: customer.customerId || portalUid || customer.email || '',
         taskId: templateId,
         templateId: templateId,
         title: templateMeta.name || templateId,
@@ -2048,15 +2081,18 @@ async function wireInboxAssignments(){
         createdByEmail: (CLOUD.user && CLOUD.user.email) || ''
       };
       setMsg('Aufgabe wird erstellt …', false);
-      await cloudTasksCol().add(task);
+      try{ window.__dsInboxAssignDiag = { ...(window.__dsInboxAssignDiag||{}), createStatus: 'writing', createVia, createCustomer: task.customerName || task.customerEmail || task.customerUid, createTask: task.taskId, error: '' }; setDiag(); }catch(_){ }
+      const created = await cloudTasksCol().add(task);
       state.inboxAssignments = Array.isArray(state.inboxAssignments) ? state.inboxAssignments : [];
-      state.inboxAssignments.unshift({ id:'asg_'+Date.now(), ...task });
+      state.inboxAssignments.unshift({ id:(created && created.id) || ('asg_'+Date.now()), ...task });
       saveState();
       selTemplate.value = '';
-      setMsg(`✅ Aufgabe freigegeben für ${customer.name || customer.email || customer.portalUid}.`, false);
+      setMsg(`✅ Aufgabe freigegeben für ${customer.name || customer.email || portalUid}.`, false);
+      try{ window.__dsInboxCreateStatus = 'created'; window.__dsInboxAssignDiag = { ...(window.__dsInboxAssignDiag||{}), createStatus: 'created', createVia, createCustomer: task.customerName || task.customerEmail || task.customerUid, createTask: task.taskId, error: '' }; setDiag(); }catch(_){ }
     }catch(e){
       console.error('create inbox assignment failed', e);
       setMsg(`❌ ${String((e && e.message) || e || 'Fehler beim Erstellen')}`, true);
+      try{ window.__dsInboxCreateStatus = 'error'; window.__dsInboxAssignDiag = { ...(window.__dsInboxAssignDiag||{}), createStatus: 'error', error: String((e && e.message) || e || 'create-failed') }; setDiag(); }catch(_){ }
     }
   };
 
