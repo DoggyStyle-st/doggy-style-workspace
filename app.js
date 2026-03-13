@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9AU_AI_INBOX_FAILSAFE_BOOT_MASTER_20260313",
+  tag: "M50.9.9AV_AI_INBOX_DIRECTBOOT_MASTER_20260313",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9AU_AI_INBOX_FAILSAFE_BOOT_MASTER_20260313";
+const APP_BUILD = "M50.9.9AV_AI_INBOX_DIRECTBOOT_MASTER_20260313";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -1939,7 +1939,7 @@ async function wireInboxAssignments(){
   if(!selCustomer || !selTemplate || !btnCreate) return;
 
   if(legacyCard) legacyCard.remove();
-  if(card) card.style.display = isStaff() ? '' : 'none';
+  if(card) card.style.display = '';
 
   const setMsg = (txt, isErr=false)=>{
     if(!msgEl) return;
@@ -2062,28 +2062,6 @@ async function wireInboxAssignments(){
 
   refresh().catch(e=>{ console.error(e); setMsg('Initiales Laden fehlgeschlagen.', true); });
 }
-
-// Failsafe-Boot: Eingänge/Diagnose auch dann initialisieren, wenn der reguläre
-// Staff-Boot auf Safari/iPad in einem anderen Pfad hängen bleibt.
-try{
-  window.__dsInboxAssignBootScheduled = window.__dsInboxAssignBootScheduled || false;
-  if(!window.__dsInboxAssignBootScheduled){
-    window.__dsInboxAssignBootScheduled = true;
-    const bootInboxAssignmentsFailsafe = ()=>{
-      try{
-        const diagEl = document.getElementById('assignDiag');
-        const btn = document.getElementById('btnAssignTask');
-        const sel = document.getElementById('assignCustomer');
-        if(diagEl && /initialisiert|wird geladen/i.test(String(diagEl.textContent||'')) && btn && sel){
-          Promise.resolve().then(()=>wireInboxAssignments()).catch(err=>console.warn('wireInboxAssignments failsafe', err));
-        }
-      }catch(err){ console.warn('bootInboxAssignmentsFailsafe', err); }
-    };
-    setTimeout(bootInboxAssignmentsFailsafe, 0);
-    window.addEventListener('pageshow', ()=>setTimeout(bootInboxAssignmentsFailsafe, 0));
-    document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) setTimeout(bootInboxAssignmentsFailsafe, 0); });
-  }
-}catch(err){ console.warn(err); }
 
 // ===== PREISLOGIK & STAFFELUNGEN =====
 const PRICE_RULES_DEFAULT = {
@@ -16676,3 +16654,37 @@ try{
     tab.addEventListener('click', ()=>{ try{ renderStatisticsPanel(); }catch(e){ console.error(e); } }, {passive:true});
   }
 }catch(e){ console.warn(e); }
+
+
+// Direct-Boot für Eingänge: unabhängig vom Staff-Init sofort starten
+try{
+  window.__dsInboxAssignDirectBoot = window.__dsInboxAssignDirectBoot || false;
+  if(!window.__dsInboxAssignDirectBoot){
+    window.__dsInboxAssignDirectBoot = true;
+    const dsBootInboxAssign = ()=>{
+      try{
+        const sel = document.getElementById('assignCustomer');
+        const tpl = document.getElementById('assignTemplate');
+        const btn = document.getElementById('btnAssignTask');
+        const diag = document.getElementById('assignDiag');
+        if(!sel || !tpl || !btn) return;
+        if(diag && /initialisiert|wird geladen/i.test(String(diag.textContent||''))){
+          diag.textContent = 'Diagnose: Direct-Boot …';
+        }
+        Promise.resolve().then(()=>wireInboxAssignments()).catch(err=>{
+          try{ if(diag) diag.textContent = 'Diagnose: Direct-Boot-Fehler · ' + String((err && err.message) || err || 'unbekannt'); }catch(_){ }
+          console.warn('dsBootInboxAssign', err);
+        });
+      }catch(err){ console.warn('dsBootInboxAssign outer', err); }
+    };
+    if(document.readyState === 'loading'){
+      document.addEventListener('DOMContentLoaded', ()=>setTimeout(dsBootInboxAssign, 50));
+    }else{
+      setTimeout(dsBootInboxAssign, 50);
+    }
+    window.addEventListener('load', ()=>setTimeout(dsBootInboxAssign, 50));
+    window.addEventListener('pageshow', ()=>setTimeout(dsBootInboxAssign, 50));
+    document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) setTimeout(dsBootInboxAssign, 50); });
+    document.querySelector('[data-tab="inbox"]')?.addEventListener('click', ()=>setTimeout(dsBootInboxAssign, 50));
+  }
+}catch(err){ console.warn(err); }
