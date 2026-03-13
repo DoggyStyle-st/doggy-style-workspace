@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9AQ_AI_INBOX_DIAGLINE_MASTER_20260313",
+  tag: "M50.9.9AR_AI_INBOX_DIAGLINE_HARDHTML_MASTER_20260313",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9AQ_AI_INBOX_DIAGLINE_MASTER_20260313";
+const APP_BUILD = "M50.9.9AR_AI_INBOX_DIAGLINE_HARDHTML_MASTER_20260313";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -1864,13 +1864,23 @@ function populateInboxAssignmentControls(){
   const prevCustomer = String(selCustomer.value || '');
   const prevTemplate = String(selTemplate.value || '');
   let canonicalCustomers = buildCanonicalCustomerList();
-  if(!canonicalCustomers.length){
+  let dogListSimpleCustomers = [];
+  try{ dogListSimpleCustomers = getRenderedDogListCustomersSimple(); }catch(_){ dogListSimpleCustomers = []; }
+  if(!canonicalCustomers.length && !dogListSimpleCustomers.length){
     try{ renderDogs(); }catch(_){ }
     try{ refreshCustomerSelect(); }catch(_){ }
     canonicalCustomers = buildCanonicalCustomerList();
+    try{ dogListSimpleCustomers = getRenderedDogListCustomersSimple(); }catch(_){ dogListSimpleCustomers = []; }
   }
   const mergedCustomers = getMergedInboxAssignmentCustomers();
-  const customers = canonicalCustomers.length ? canonicalCustomers : mergedCustomers;
+  const allCustomers = [...canonicalCustomers, ...dogListSimpleCustomers, ...mergedCustomers];
+  const seenCustomers = new Set();
+  const customers = allCustomers.filter(c=>{
+    const key = String(c?.portalUid || c?.email || c?.customerId || c?.id || c?.name || '').trim().toLowerCase();
+    if(!key || seenCustomers.has(key)) return false;
+    seenCustomers.add(key);
+    return true;
+  });
   const templatesForAssign = getInboxAssignmentTemplatesResolved();
   try{
     window.__dsInboxAssignDiag = {
@@ -1878,6 +1888,7 @@ function populateInboxAssignmentControls(){
       canonicalCustomers: canonicalCustomers.length,
       mergedCustomers: mergedCustomers.length,
       chosenCustomers: customers.length,
+      dogListSimpleCustomers: dogListSimpleCustomers.length,
       stateCustomers: Array.isArray(state.customers)?state.customers.length:0,
       statePets: Array.isArray(state.pets)?state.pets.length:0,
       customerSelectOptions: Array.from(document.querySelectorAll('#customerSelect option')).filter(o=>String(o.value||'').trim()).length,
@@ -1956,6 +1967,7 @@ async function wireInboxAssignments(){
         `canonical=${d.canonicalCustomers ?? '-'}`,
         `merged=${d.mergedCustomers ?? '-'}`,
         `chosen=${d.chosenCustomers ?? '-'}`,
+        `dogList.simple=${d.dogListSimpleCustomers ?? '-'}`,
         `state.customers=${d.stateCustomers ?? '-'}`,
         `state.pets=${d.statePets ?? '-'}`,
         `customerSelect=${d.customerSelectOptions ?? '-'}`,
@@ -7616,6 +7628,41 @@ function setCustomerFieldsDisabled(disabled){
     if(el) el.disabled=!!disabled;
   });
 }
+function getRenderedDogListCustomersSimple(){
+  const out = [];
+  const seen = new Set();
+  try{
+    const rows = Array.from(document.querySelectorAll('#dogList .item'));
+    rows.forEach((row, idx)=>{
+      const strong = row.querySelector('strong');
+      if(!strong) return;
+      let rawName = String(strong.textContent || '').replace(/\s+/g,' ').trim();
+      if(!rawName) return;
+      if(rawName.indexOf('🐶') === 0) return;
+      rawName = rawName.replace(/^🧑🏼‍🦰\s*/,'').replace(/^👤\s*/,'').replace(/^👥\s*/,'').trim();
+      if(!rawName || /^ohne kunde/i.test(rawName)) return;
+      const smalls = Array.from(row.querySelectorAll('small')).map(el=>String(el.textContent || '').trim()).filter(Boolean);
+      const meta = smalls.join(' · ');
+      const bits = meta.split('·').map(s=>String(s||'').trim()).filter(Boolean);
+      const contact = bits.find(x=>x && !/(^\d+\s+Hund(e)?$)|(^Letzter Aufenthalt:)/i.test(x)) || '';
+      const isMail = /@/.test(contact);
+      const value = `doglist:${rawName}:${contact || idx}`;
+      const key = String(rawName + '|' + contact).toLowerCase();
+      if(seen.has(key)) return;
+      seen.add(key);
+      out.push({
+        id: value,
+        customerId: value,
+        name: rawName,
+        email: isMail ? contact : '',
+        phone: isMail ? '' : contact,
+        source: 'dogList.simple'
+      });
+    });
+  }catch(_){ }
+  return out;
+}
+
 function buildCanonicalCustomerList(){
   const list = [];
   const seen = new Set();
@@ -7732,6 +7779,8 @@ function buildCanonicalCustomerList(){
       });
     });
   }catch(_){ }
+
+  try{ getRenderedDogListCustomersSimple().forEach(add); }catch(_){ }
 
   return list.sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''), 'de'));
 }
