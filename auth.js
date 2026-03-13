@@ -55,15 +55,22 @@ async function init(){
           const email = (currentUser.email || '').toLowerCase();
           const ref = db.collection('orgs').doc(ORG_ID).collection('users').doc(uid);
           const snap = await ref.get();
-          if(snap.exists) return;
           const dn = (preferredName || '').trim() || (email.split('@')[0] || '');
-          await ref.set({
+          const payload = {
             uid,
             email: currentUser.email || '',
             displayName: dn,
+            name: dn,
+            fullName: dn,
             role: 'customer',
-            createdAt: Date.now()
-          }, { merge: true });
+            updatedAt: Date.now()
+          };
+          if(!snap.exists){
+            payload.createdAt = Date.now();
+          }
+          await ref.set(payload, { merge: true });
+          try{ if(currentUser && dn && !currentUser.displayName && currentUser.updateProfile){ await currentUser.updateProfile({ displayName: dn }); } }catch(_){ }
+          try{ if(dn){ localStorage.setItem('dstest_pending_name', dn); } }catch(_){ }
         }catch(e){
           console.warn('ensureUserProfile failed', e);
         }

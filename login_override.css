@@ -10,7 +10,8 @@ body.page-login .topbar{
 /* 2) Brand-Bereich aufgeräumt */
 body.page-login .brandTitle,
 body.page-login .brandSubtitle{
-  display: none !important;
+  display: block !important;
+  grid-column: 1 / -1 !important;
 }
 
 /* 3) Logo: groß, ohne weißen/hellen Rahmen */
@@ -45,9 +46,10 @@ body.page-login .loginFields{
   align-items: end !important;
 }
 
-/* Name-Feld bleibt optional... aktuell aus */
+/* Name-Feld sichtbar */
 body.page-login #regNameField{
-  display: none !important;
+  display: block !important;
+  grid-column: 1 / -1 !important;
 }
 
 body.page-login #emailField,
