@@ -6,13 +6,13 @@
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
 <meta charset="utf-8"/>
-  <meta name="app-build" content="M50.9.9AV_AI_INBOX_DIRECTBOOT_MASTER_20260313">
+  <meta name="app-build" content="M50.9.9AW_AI_INBOX_INLINEBOOT_MASTER_20260313">
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <title>Doggy Style Workspace · App</title>
 <link href="manifest.json" rel="manifest"/>
 <meta content="#101014" name="theme-color"/>
 <link href="assets/logo.png" rel="apple-touch-icon"/>
-<link href="styles.css?v=M50.9.9AV_AI_INBOX_DIRECTBOOT_MASTER_20260313" rel="stylesheet"/>
+<link href="styles.css?v=M50.9.9AW_AI_INBOX_INLINEBOOT_MASTER_20260313" rel="stylesheet"/>
 <link href="dashboard_master.css?v=20260104v13logout" rel="stylesheet"/>
 <style>
   /* Topbar Layout (iPad & Desktop stabil) */
@@ -102,7 +102,7 @@
   .doc-modal__actions{ margin-left:auto; display:flex; flex-wrap: wrap; gap: 8px; }
   .doc-modal__frame{ width: 100%; border: 0; border-radius: 12px; background: #fff; flex:1; min-height: 0; }
 </style>
-  <meta name="app-version" content="M50.9.9AV_AI_INBOX_DIRECTBOOT_MASTER_20260313">
+  <meta name="app-version" content="M50.9.9AW_AI_INBOX_INLINEBOOT_MASTER_20260313">
   <meta name="release-channel" content="MASTER">
 </head>
 <body class="bg-watermark page-app">
@@ -1108,7 +1108,7 @@
 </section>
 
 <section class="panel" id="statistics">
-<!-- Statistics panel is rendered by app.js?v=M50.9.9AV_AI_INBOX_DIRECTBOOT_MASTER_20260313 (renderStatisticsPanel) -->
+<!-- Statistics panel is rendered by app.js?v=M50.9.9AW_AI_INBOX_INLINEBOOT_MASTER_20260313 (renderStatisticsPanel) -->
 </section>
 
 
@@ -1175,11 +1175,11 @@
 </footer>
 </div>
 <!-- Firebase (optional) + Config -->
-<script defer="defer" src="firebase-config.js?v=M50.9.9AV_AI_INBOX_DIRECTBOOT_MASTER_20260313"></script>
+<script defer="defer" src="firebase-config.js?v=M50.9.9AW_AI_INBOX_INLINEBOOT_MASTER_20260313"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-<script defer="defer" src="app.js?v=M50.9.9AV_AI_INBOX_DIRECTBOOT_MASTER_20260313"></script>
+<script defer="defer" src="app.js?v=M50.9.9AW_AI_INBOX_INLINEBOOT_MASTER_20260313"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1222,7 +1222,7 @@
 </script>
 
 <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9AV_AI_INBOX_DIRECTBOOT_MASTER_20260313');
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9AW_AI_INBOX_INLINEBOOT_MASTER_20260313');
   </script>
 
 <script>
@@ -1286,7 +1286,7 @@
   <!-- Bottom logout button removed (duplicate of header logout; also overlaps editor on iPad) -->
 </div>
 <!-- test-badge removed (requested) -->
-  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9AV_AI_INBOX_DIRECTBOOT_MASTER_20260313</div>
+  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9AW_AI_INBOX_INLINEBOOT_MASTER_20260313</div>
 
 <script>
 (function visibleMailFallback(){
@@ -1310,5 +1310,104 @@
   setTimeout(apply, 300); setTimeout(apply, 1200); setTimeout(apply, 2500);
 })();
 </script>
+
+<script>
+(function(){
+  const LS_KEY = 'ds_workspace_test_optik_01';
+  function norm(v){ return String(v||'').trim(); }
+  function normKey(v){ return norm(v).toLowerCase(); }
+  function loadStateSafe(){
+    try{ const raw = localStorage.getItem(LS_KEY); return raw ? JSON.parse(raw) : {}; }catch(_){ return {}; }
+  }
+  function collectCustomers(){
+    const state = loadStateSafe() || {};
+    const out = [];
+    const seen = new Set();
+    const add = (raw)=>{
+      if(!raw || typeof raw !== 'object') return;
+      const first = norm(raw.firstName || raw.firstname);
+      const last = norm(raw.lastName || raw.lastname);
+      const combined = [first,last].filter(Boolean).join(' ').trim();
+      const name = norm(raw.name || raw.displayName || raw.customerName || raw.ownerName || raw.fullName || combined);
+      const email = norm(raw.email || raw.mail || raw.ownerEmail).toLowerCase();
+      const phone = norm(raw.phone || raw.telefon || raw.mobile || raw.tel || raw.ownerPhone);
+      const customerId = norm(raw.customerId || raw.id || raw.uid || raw.portalUid || raw.ownerId || raw.key || email || name || phone);
+      if(!name && !email && !phone && !customerId) return;
+      const key = normKey(email || phone || customerId || name);
+      if(!key || seen.has(key)) return;
+      seen.add(key);
+      out.push({
+        customerId: customerId || email || name || phone,
+        name: name || email || phone || 'Kunde',
+        email, phone
+      });
+    };
+    try{ (Array.isArray(state.customers) ? state.customers : []).forEach(add); }catch(_){ }
+    try{ (Array.isArray(state.pets) ? state.pets : []).forEach(p=>add({
+      customerId: p && (p.customerId || p.ownerId || p.id),
+      name: p && (p.ownerName || p.customerName || p.owner),
+      email: p && (p.ownerEmail || p.customerEmail || p.email),
+      phone: p && (p.ownerPhone || p.customerPhone || p.phone)
+    })); }catch(_){ }
+    try{
+      Array.from(document.querySelectorAll('#dogList .item, [data-tab-panel="dogs"] .item, #tab-dogs .item')).forEach(item=>{
+        const strong = item.querySelector('strong');
+        if(!strong) return;
+        const txt = norm(strong.textContent).replace(/\s+/g,' ');
+        if(!txt || /^🐶/.test(txt)) return;
+        const name = txt.replace(/^[^\p{L}\p{N}]+/u,'').trim();
+        if(!name || /^ohne kunde/i.test(name)) return;
+        const small = item.querySelector('small');
+        const meta = norm(small && small.textContent).split('·').map(s=>norm(s)).filter(Boolean);
+        const contact = meta.find(s=>/@/.test(s) || /\d/.test(s)) || '';
+        add({ name, email: /@/.test(contact) ? contact : '', phone: /@/.test(contact) ? '' : contact, customerId: 'dom:'+name+':'+contact });
+      });
+    }catch(_){ }
+    return { customers: out, stateCustomers: Array.isArray(state.customers)?state.customers.length:0, statePets: Array.isArray(state.pets)?state.pets.length:0 };
+  }
+  function renderInboxCustomers(phase){
+    const sel = document.getElementById('assignCustomer');
+    const diag = document.getElementById('assignDiag');
+    if(!sel) return;
+    const res = collectCustomers();
+    const customers = res.customers || [];
+    const current = norm(sel.value);
+    sel.innerHTML = '';
+    sel.insertAdjacentHTML('beforeend','<option value="">Bitte auswählen…</option>');
+    customers.sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'de')).forEach(c=>{
+      const meta = [];
+      if(c.email) meta.push(c.email);
+      else if(c.phone) meta.push(c.phone);
+      const label = meta.length ? `${c.name} · ${meta.join(' · ')}` : c.name;
+      const opt = document.createElement('option');
+      opt.value = c.customerId || c.email || c.phone || c.name;
+      opt.textContent = label;
+      sel.appendChild(opt);
+    });
+    if(current && Array.from(sel.options).some(o=>o.value===current)) sel.value = current;
+    sel.disabled = customers.length === 0;
+    if(diag){
+      const preview = customers.slice(0,3).map(c=>c.name).join(' | ') || '-';
+      diag.textContent = `Diagnose: phase=${phase} · state.customers=${res.stateCustomers} · state.pets=${res.statePets} · assign.values=${Math.max(0, sel.options.length-1)} · preview=${preview}`;
+      diag.style.color = customers.length ? '' : '#ffb3b3';
+    }
+  }
+  function boot(phase){
+    try{ renderInboxCustomers(phase); }catch(err){
+      const diag = document.getElementById('assignDiag');
+      if(diag){ diag.textContent = 'Diagnose: Inline-Boot-Fehler · ' + String((err && err.message) || err || 'unbekannt'); diag.style.color = '#ffb3b3'; }
+    }
+  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ()=>boot('dom')); else boot('ready');
+  window.addEventListener('load', ()=>boot('load'));
+  window.addEventListener('pageshow', ()=>setTimeout(()=>boot('pageshow'),50));
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) setTimeout(()=>boot('visible'),50); });
+  document.getElementById('tabInbox')?.addEventListener('click', ()=>setTimeout(()=>boot('tabInbox'),30));
+  document.getElementById('tabDogs')?.addEventListener('click', ()=>setTimeout(()=>boot('tabDogs'),30));
+  setTimeout(()=>boot('t300'),300);
+  setTimeout(()=>boot('t1200'),1200);
+})();
+</script>
+
 </body>
 </html>
