@@ -12,7 +12,7 @@
 <body class="bg-watermark">
   <main class="shell" style="padding-top:20px">
 <!-- CUSTOMER PORTAL (nur für Rolle customer sichtbar) -->
-<section class="panel" id="customerPortal">
+<section class="panel is-active" id="customerPortal" style="display:block;">
   <div class="card" style="max-width:900px;margin:0 auto;">
     <div class="row between" style="align-items:flex-start; gap:12px; flex-wrap:wrap;">
       <div>
@@ -54,8 +54,8 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 
   <!-- Config dann App -->
-  <script src="firebase-config.js?v=M50.9.9BC_AI_LOGIN_ROUTEFIX_MASTER_20260313"></script>
-  <script src="app.js?v=M50.9.9BC_AI_LOGIN_ROUTEFIX_MASTER_20260313"></script>
+  <script src="firebase-config.js?v=M50.9.9BD_AI_PORTAL_EMAILTASKFIX_MASTER_20260313"></script>
+  <script src="app.js?v=M50.9.9BD_AI_PORTAL_EMAILTASKFIX_MASTER_20260313"></script>
 
   <script>
     // Falls jemand ohne Login hier landet → zur Login-Seite
@@ -74,5 +74,72 @@
       }, 100);
     })();
   </script>
+
+  <script>
+    (function(){
+      const $ = (id)=>document.getElementById(id);
+      function esc(s){ return String(s||'').replace(/[&<>"']/g, function(m){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]; }); }
+      async function renderFallbackTasks(db, user){
+        const listEl = $('customerTaskList');
+        const subtitle = $('customerPortalSubtitle');
+        if(!listEl || !db || !user) return;
+        const email = String(user.email||'').trim().toLowerCase();
+        const orgId = (window.CLOUD_ORG_ID || window.firebaseOrgId || 'doggystyle');
+        const tasksCol = db.collection('orgs').doc(orgId).collection('tasks');
+        var items = [];
+        try{
+          if(user.uid){
+            const s1 = await tasksCol.where('status','==','open').where('customerUid','==',user.uid).get();
+            s1.forEach(function(doc){ items.push(Object.assign({id:doc.id}, doc.data()||{})); });
+          }
+        }catch(_){ }
+        try{
+          if(email){
+            const s2 = await tasksCol.where('status','==','open').where('customerEmail','==',email).get();
+            s2.forEach(function(doc){ items.push(Object.assign({id:doc.id}, doc.data()||{})); });
+          }
+        }catch(_){ }
+        var seen = new Set();
+        items = items.filter(function(x){ if(seen.has(x.id)) return false; seen.add(x.id); return true; });
+        listEl.innerHTML = '';
+        if(!items.length){
+          listEl.innerHTML = '<div class="muted">— keine Aufgaben —</div>';
+          if(subtitle) subtitle.textContent = 'Aktuell liegen keine Aufgaben für dich vor.';
+          return;
+        }
+        if(subtitle) subtitle.textContent = 'Doggy Style Hundepension hat Aufgaben für dich.';
+        items.sort(function(a,b){ return Number(b.createdAt||0)-Number(a.createdAt||0); });
+        items.forEach(function(t){
+          var row = document.createElement('div');
+          row.className = 'list-item';
+          var left = document.createElement('div');
+          var title = String(t.title||t.templateId||'Aufgabe');
+          var meta = [];
+          if(t.templateId) meta.push(String(t.templateId));
+          if(t.createdAt){ try{ meta.push(new Date(Number(t.createdAt)).toLocaleString('de-DE')); }catch(_){ } }
+          left.innerHTML = '<strong>'+esc(title)+'</strong><small>' + esc(meta.join(' · ')) + '</small>';
+          row.appendChild(left);
+          listEl.appendChild(row);
+        });
+      }
+      async function bootPortalFallback(){
+        const portal = $('customerPortal');
+        if(portal){ portal.style.display='block'; portal.classList.add('is-active'); }
+        const btnLogout = $('btnCustomerLogout');
+        try{ if(btnLogout && window.firebase && firebase.auth){ btnLogout.onclick = async function(){ try{ await firebase.auth().signOut(); }catch(_){ } location.href='login.html'; }; } }catch(_){ }
+        if(!(window.firebase && window.firebase.auth && window.firebase.firestore && window.firebaseConfig)) return;
+        try{ try{ firebase.app(); }catch(_){ firebase.initializeApp(window.firebaseConfig); } }catch(_){ }
+        const auth = firebase.auth();
+        const db = firebase.firestore ? firebase.firestore() : null;
+        if(!db) return;
+        auth.onAuthStateChanged(function(u){
+          if(!u){ location.href='login.html'; return; }
+          renderFallbackTasks(db, u).catch(console.error);
+        });
+      }
+      if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootPortalFallback); else bootPortalFallback();
+    })();
+  </script>
+
 </body>
 </html>

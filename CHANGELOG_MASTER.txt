@@ -1,3 +1,4 @@
+BD: Kundenportal sichtbar/Email-Fallback für Aufgabenfreigabe
 M50.9.9AF_STATLIST_INBOX_CUSTOMERSOURCE_FIX_MASTER_20260312
 - Statistik: Reiter Bewertungen wieder enthalten.
 - Hunde/Kunden: E-Mail Pflicht oben, Telefon optional im Zusatzbereich.
