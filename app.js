@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9BG_AI_INLINE_CREATE_GUARDFIX_MASTER_20260313",
+  tag: "M50.9.9BH_AI_CUSTOMERPORTAL_LOCALTASKS_MASTER_20260313",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9BG_AI_INLINE_CREATE_GUARDFIX_MASTER_20260313";
+const APP_BUILD = "M50.9.9BH_AI_CUSTOMERPORTAL_LOCALTASKS_MASTER_20260313";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -1337,11 +1337,30 @@ async function initCustomerPortal(){
   if(btn) btn.onclick = async ()=>{ try{ await CLOUD.auth.signOut(); }catch(_){ } };
   // Live-Listener: offene Aufgaben für diesen Kunden
   const uid = CLOUD.user?.uid;
-  if(!uid) return;
+  const email = String(CLOUD.user?.email || '').trim().toLowerCase();
+  if(!uid && !email) return;
   const listEl = document.getElementById('customerTaskList');
   const subtitle = document.getElementById('customerPortalSubtitle');
   const editor = document.getElementById('customerTaskEditor');
   if(editor) editor.style.display = 'none';
+  function getLocalCustomerTasks(){
+    try{
+      const raw = localStorage.getItem(LS_KEY);
+      const local = raw ? JSON.parse(raw) : {};
+      const items = Array.isArray(local?.inboxAssignments) ? local.inboxAssignments : [];
+      const byEmail = email ? email.toLowerCase() : '';
+      const byUid = uid ? String(uid).trim() : '';
+      return items.filter(t=>{
+        const status = String(t?.status || 'open').trim().toLowerCase();
+        const tEmail = String(t?.customerEmail || '').trim().toLowerCase();
+        const tUid = String(t?.customerUid || '').trim();
+        if(status && status !== 'open') return false;
+        if(byUid && tUid && tUid === byUid) return true;
+        if(byEmail && tEmail && tEmail === byEmail) return true;
+        return false;
+      }).map(t=>({ ...t, id: String(t.id || t.taskId || ('local_'+Number(t.createdAt||Date.now()))) }));
+    }catch(_){ return []; }
+  }
   // Back
   const btnBack = document.getElementById('btnCustomerTaskBack');
   if(btnBack) btnBack.onclick = ()=>{
@@ -1349,33 +1368,38 @@ async function initCustomerPortal(){
     if(listEl) listEl.style.display = '';
   };
   const tasksCol = cloudTasksCol();
-  if(!tasksCol){
-    if(subtitle) subtitle.textContent = 'Cloud-Verbindung nicht bereit.';
-    renderCustomerTaskList([]);
-    return;
-  }
-  const email = String(CLOUD.user?.email || '').trim().toLowerCase();
   const unsubs = [];
   const seen = new Map();
   const publish = ()=>{
-    const tasks = Array.from(seen.values()).sort((a,b)=>Number(b.createdAt||0)-Number(a.createdAt||0));
+    const merged = new Map();
+    Array.from(seen.values()).forEach(t=> merged.set(String(t.id||t.taskId||Math.random()), t));
+    getLocalCustomerTasks().forEach(t=>{
+      const key = String(t.id || t.taskId || Math.random());
+      if(!merged.has(key)) merged.set(key, t);
+    });
+    const tasks = Array.from(merged.values()).sort((a,b)=>Number(b.createdAt||0)-Number(a.createdAt||0));
     renderCustomerTaskList(tasks);
     if(subtitle){
       subtitle.textContent = tasks.length ? 'Doggy Style Hundepension hat Aufgaben für dich.' : 'Aktuell liegen keine Aufgaben für dich vor.';
     }
   };
-  const attach = (query)=> query.onSnapshot((snap)=>{
-    snap.docChanges().forEach(ch=>{
-      const data = {id: ch.doc.id, ...ch.doc.data()};
-      if(ch.type === 'removed') seen.delete(ch.doc.id); else seen.set(ch.doc.id, data);
-    });
+  if(!tasksCol){
     publish();
-  }, (err)=>{
-    console.error('customer tasks listener', err);
-    if(subtitle) subtitle.textContent = 'Fehler beim Laden der Aufgaben.';
-  });
-  unsubs.push(attach(tasksCol.where('customerUid','==',uid).where('status','==','open').orderBy('createdAt','desc')));
-  if(email) unsubs.push(attach(tasksCol.where('customerEmail','==',email).where('status','==','open').orderBy('createdAt','desc')));
+  } else {
+    const attach = (query)=> query.onSnapshot((snap)=>{
+      snap.docChanges().forEach(ch=>{
+        const data = {id: ch.doc.id, ...ch.doc.data()};
+        if(ch.type === 'removed') seen.delete(ch.doc.id); else seen.set(ch.doc.id, data);
+      });
+      publish();
+    }, (err)=>{
+      console.error('customer tasks listener', err);
+      publish();
+      if(subtitle && !getLocalCustomerTasks().length) subtitle.textContent = 'Fehler beim Laden der Aufgaben.';
+    });
+    if(uid) unsubs.push(attach(tasksCol.where('customerUid','==',uid).where('status','==','open').orderBy('createdAt','desc')));
+    if(email) unsubs.push(attach(tasksCol.where('customerEmail','==',email).where('status','==','open').orderBy('createdAt','desc')));
+  }
   function renderCustomerTaskList(tasks){
     if(!listEl) return;
     listEl.innerHTML = '';

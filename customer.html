@@ -54,8 +54,8 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 
   <!-- Config dann App -->
-  <script src="firebase-config.js?v=M50.9.9BG_AI_INLINE_CREATE_GUARDFIX_MASTER_20260313"></script>
-  <script src="app.js?v=M50.9.9BG_AI_INLINE_CREATE_GUARDFIX_MASTER_20260313"></script>
+  <script src="firebase-config.js?v=M50.9.9BH_AI_CUSTOMERPORTAL_LOCALTASKS_MASTER_20260313"></script>
+  <script src="app.js?v=M50.9.9BH_AI_CUSTOMERPORTAL_LOCALTASKS_MASTER_20260313"></script>
 
   <script>
     // Falls jemand ohne Login hier landet → zur Login-Seite
@@ -82,22 +82,36 @@
       async function renderFallbackTasks(db, user){
         const listEl = $('customerTaskList');
         const subtitle = $('customerPortalSubtitle');
-        if(!listEl || !db || !user) return;
+        if(!listEl || !user) return;
         const email = String(user.email||'').trim().toLowerCase();
         const orgId = (window.CLOUD_ORG_ID || window.firebaseOrgId || 'doggystyle');
-        const tasksCol = db.collection('orgs').doc(orgId).collection('tasks');
+        const tasksCol = db ? db.collection('orgs').doc(orgId).collection('tasks') : null;
         var items = [];
         try{
-          if(user.uid){
+          if(tasksCol && user.uid){
             const s1 = await tasksCol.where('status','==','open').where('customerUid','==',user.uid).get();
             s1.forEach(function(doc){ items.push(Object.assign({id:doc.id}, doc.data()||{})); });
           }
         }catch(_){ }
         try{
-          if(email){
+          if(tasksCol && email){
             const s2 = await tasksCol.where('status','==','open').where('customerEmail','==',email).get();
             s2.forEach(function(doc){ items.push(Object.assign({id:doc.id}, doc.data()||{})); });
           }
+        }catch(_){ }
+        try{
+          var raw = localStorage.getItem('ds_workspace_test_optik_01');
+          var local = raw ? JSON.parse(raw) : {};
+          var localItems = Array.isArray(local.inboxAssignments) ? local.inboxAssignments : [];
+          localItems.forEach(function(t){
+            var status = String((t && t.status) || 'open').trim().toLowerCase();
+            var tEmail = String((t && t.customerEmail) || '').trim().toLowerCase();
+            var tUid = String((t && t.customerUid) || '').trim();
+            if(status && status !== 'open') return;
+            if((user.uid && tUid && tUid === user.uid) || (email && tEmail && tEmail === email)){
+              items.push(Object.assign({id:(t && t.id) || (t && t.taskId) || ('local_'+Date.now())}, t||{}));
+            }
+          });
         }catch(_){ }
         var seen = new Set();
         items = items.filter(function(x){ if(seen.has(x.id)) return false; seen.add(x.id); return true; });
