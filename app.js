@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9AK_AI_CUSTOMERSOURCE_INBOX_MASTER_20260313",
+  tag: "M50.9.9AM_AI_INBOX_CUSTOMERSELECT_BRIDGE_MASTER_20260313",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9AK_AI_CUSTOMERSOURCE_INBOX_MASTER_20260313";
+const APP_BUILD = "M50.9.9AM_AI_INBOX_CUSTOMERSELECT_BRIDGE_MASTER_20260313";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -1859,12 +1859,59 @@ function getMergedInboxAssignmentCustomers(){
 function populateInboxAssignmentControls(){
   const selCustomer = document.getElementById('assignCustomer');
   const selTemplate = document.getElementById('assignTemplate');
-  if(!selCustomer || !selTemplate) return { customers: 0, templates: 0 };
+  if(!selCustomer || !selTemplate) return { customers: 0, templates: 0, source: 'missing-controls' };
   const prevCustomer = String(selCustomer.value || '');
   const prevTemplate = String(selTemplate.value || '');
-  const canonicalCustomers = buildCanonicalCustomerList();
-  const customers = canonicalCustomers.length ? canonicalCustomers : getMergedInboxAssignmentCustomers();
   const templatesForAssign = getInboxAssignmentTemplatesResolved();
+
+  let customers = [];
+  let source = '';
+
+  try{ refreshCustomerSelect(); }catch(_){ }
+  try{
+    const masterSel = document.getElementById('customerSelect');
+    const masterOptions = Array.from(masterSel?.options || [])
+      .map(o=>({ value: String(o.value || '').trim(), label: String(o.textContent || '').trim() }))
+      .filter(o=>o.value && o.label);
+    if(masterOptions.length){
+      const seen = new Set();
+      customers = masterOptions.map(o=>{
+        const key = o.value.toLowerCase();
+        if(seen.has(key)) return null;
+        seen.add(key);
+        const parts = o.label.split(' · ');
+        const name = String(parts.shift() || o.label).trim();
+        const meta = String(parts.join(' · ') || '').trim();
+        const email = meta && meta.includes('@') ? meta : '';
+        const phone = meta && !email ? meta : '';
+        return {
+          id: o.value,
+          customerId: o.value,
+          portalUid: '',
+          name: name || meta || o.value,
+          email,
+          phone,
+          source: 'customerSelect'
+        };
+      }).filter(Boolean);
+      source = 'customerSelect';
+    }
+  }catch(_){ }
+
+  if(!customers.length){
+    try{
+      const canonicalCustomers = buildCanonicalCustomerList();
+      if(canonicalCustomers.length){
+        customers = canonicalCustomers;
+        source = 'state.customers';
+      }
+    }catch(_){ }
+  }
+
+  if(!customers.length){
+    customers = getMergedInboxAssignmentCustomers();
+    source = customers.length ? 'mergedInboxCustomers' : source;
+  }
 
   selCustomer.innerHTML = '';
   if(!customers.length){
@@ -1892,7 +1939,7 @@ function populateInboxAssignmentControls(){
 
   if(prevCustomer && Array.from(selCustomer.options).some(o=>o.value === prevCustomer)) selCustomer.value = prevCustomer;
   if(prevTemplate && Array.from(selTemplate.options).some(o=>o.value === prevTemplate)) selTemplate.value = prevTemplate;
-  return { customers: customers.length, templates: templatesForAssign.length };
+  return { customers: customers.length, templates: templatesForAssign.length, source };
 }
 
 async function wireInboxAssignments(){
@@ -1922,7 +1969,7 @@ async function wireInboxAssignments(){
     const diag = window.__dsInboxAssignDiag || {};
     if(info.templates && !selTemplate.value) selTemplate.selectedIndex = 0;
     if(info.customers){
-      const src = diag.source ? ` · Quelle: ${diag.source}` : '';
+      const src = info.source ? ` · Quelle: ${info.source}` : (diag.source ? ` · Quelle: ${diag.source}` : '');
       setMsg(`Kunden: ${info.customers} · Aufgaben: ${info.templates}${src}`, false);
     }else{
       const detail = diag.error ? ` – ${diag.error}` : '';
