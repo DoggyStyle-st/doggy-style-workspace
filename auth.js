@@ -12,14 +12,21 @@
   }
 
   
+
   async function getUserRole(auth, db){
     try{
       const u = auth.currentUser;
       if(!u || !db) return 'guest';
+      const email = String(u.email || '').trim().toLowerCase();
+      const adminEmails = Array.isArray(window.firebaseAdminEmails) ? window.firebaseAdminEmails.map(x=>String(x||'').trim().toLowerCase()) : [];
+      if(email && adminEmails.includes(email)) return 'admin';
       const ORG_ID = (window.CLOUD_ORG_ID || window.firebaseOrgId || 'doggystyle');
       const ref = db.collection('orgs').doc(ORG_ID).collection('users').doc(u.uid);
       const snap = await ref.get();
-      return snap.exists ? (snap.data().role || 'guest') : 'guest';
+      if(!snap.exists) return 'customer';
+      const data = snap.data() || {};
+      const role = String(data.role || '').trim().toLowerCase();
+      return role || 'customer';
     }catch(_){
       return 'guest';
     }
@@ -48,28 +55,35 @@ async function init(){
 
       const ORG_ID = (window.CLOUD_ORG_ID || 'doggystyle');
 
+
       async function ensureUserProfile(currentUser, preferredName){
         try{
           if(!db || !currentUser) return;
           const uid = currentUser.uid;
           const email = (currentUser.email || '').toLowerCase();
+          const adminEmails = Array.isArray(window.firebaseAdminEmails) ? window.firebaseAdminEmails.map(x=>String(x||'').trim().toLowerCase()) : [];
+          const isAdminEmail = !!(email && adminEmails.includes(email));
           const ref = db.collection('orgs').doc(ORG_ID).collection('users').doc(uid);
           const snap = await ref.get();
-          const dn = (preferredName || '').trim() || (email.split('@')[0] || '');
+          const existing = snap.exists ? (snap.data() || {}) : {};
+          const existingName = String(existing.displayName || existing.name || existing.fullName || '').trim();
+          const dn = (preferredName || '').trim() || existingName || (currentUser.displayName || '').trim() || (email.split('@')[0] || '');
+          const existingRole = String(existing.role || '').trim().toLowerCase();
+          const role = isAdminEmail ? 'admin' : (existingRole || 'customer');
           const payload = {
             uid,
             email: currentUser.email || '',
             displayName: dn,
             name: dn,
             fullName: dn,
-            role: 'customer',
+            role,
             updatedAt: Date.now()
           };
           if(!snap.exists){
             payload.createdAt = Date.now();
           }
           await ref.set(payload, { merge: true });
-          try{ if(currentUser && dn && !currentUser.displayName && currentUser.updateProfile){ await currentUser.updateProfile({ displayName: dn }); } }catch(_){ }
+          try{ if(currentUser && dn && currentUser.updateProfile && String(currentUser.displayName||'').trim() !== dn){ await currentUser.updateProfile({ displayName: dn }); } }catch(_){ }
           try{ if(dn){ localStorage.setItem('dstest_pending_name', dn); } }catch(_){ }
         }catch(e){
           console.warn('ensureUserProfile failed', e);
@@ -85,6 +99,16 @@ async function init(){
       const btnForgot = $('btnForgot');
 
       let registerMode = false;
+
+      async function goAfterAuth(email){
+        const role = await getUserRole(auth, db);
+        const lowerEmail = String(email || (auth.currentUser && auth.currentUser.email) || '').trim().toLowerCase();
+        const target = (role === 'customer')
+          ? 'customer.html'
+          : ('app.html?login_email=' + encodeURIComponent(lowerEmail));
+        location.href = target;
+      }
+
       function setRegisterMode(on){
         registerMode = !!on;
         if(regNameField){
@@ -120,8 +144,7 @@ async function init(){
             try{ unsub = auth.onAuthStateChanged((u)=>{ if(u && cred && cred.user && u.uid===cred.user.uid){ clearTimeout(t); fin(); } }); }catch(_){ }
           });
           await ensureUserProfile(auth.currentUser, '');
-          const target=((await getUserRole(auth, db)) === 'customer') ? 'customer.html' : ('app.html?login_email=' + encodeURIComponent(email.toLowerCase()));
-          location.href = target;
+          await goAfterAuth(email);
         }catch(e){
           const code = e && e.code ? String(e.code) : '';
           if(code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found'){
@@ -156,8 +179,7 @@ async function init(){
             try{ unsub = auth.onAuthStateChanged((u)=>{ if(u && cred && cred.user && u.uid===cred.user.uid){ clearTimeout(t); fin(); } }); }catch(_){ }
           });
           await ensureUserProfile(auth.currentUser, name);
-          const target=((await getUserRole(auth, db)) === 'customer') ? 'customer.html' : ('app.html?login_email=' + encodeURIComponent(email.toLowerCase()));
-          location.href = target;
+          await goAfterAuth(email);
         }catch(e){
           const code = e && e.code ? String(e.code) : '';
           if(code === 'auth/email-already-in-use'){
