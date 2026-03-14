@@ -1364,8 +1364,11 @@ async function initCustomerPortal(){
   // Back
   const btnBack = document.getElementById('btnCustomerTaskBack');
   if(btnBack) btnBack.onclick = ()=>{
+    const listCard = document.getElementById('customerTaskListCard');
     if(editor) editor.style.display = 'none';
     if(listEl) listEl.style.display = '';
+    if(listCard) listCard.style.display = 'block';
+    try{ listCard?.scrollIntoView({behavior:'smooth', block:'start'}); }catch(_){ }
   };
   const tasksCol = cloudTasksCol();
   const unsubs = [];
@@ -1402,22 +1405,26 @@ async function initCustomerPortal(){
   }
   function renderCustomerTaskList(tasks){
     if(!listEl) return;
+    window.__dsCustomerTasks = Array.isArray(tasks) ? tasks.slice() : [];
     listEl.innerHTML = '';
     if(!tasks.length){
       listEl.innerHTML = `<div class="muted">— keine Aufgaben —</div>`;
       return;
     }
-    tasks.forEach(t=>{
+    tasks.forEach((t, idx)=>{
       const row = document.createElement('div');
       row.className = 'list-item';
+      row.dataset.taskId = String(t.id || t.taskId || idx);
+      row.style.cursor = 'pointer';
       const when = t.createdAt ? fmtDT(t.createdAt) : '';
       row.innerHTML = `<div><strong>${escapeHtml(t.title||'Aufgabe')}</strong><small>${escapeHtml(t.templateId||'')}${when?(' · '+when):''}</small></div>`;
       const actions = document.createElement('div');
       actions.className = 'actions';
       const btnOpen = document.createElement('button');
-      btnOpen.className = 'smallbtn';
       btnOpen.type = 'button';
+      btnOpen.className = 'smallbtn';
       btnOpen.textContent = 'Öffnen';
+      btnOpen.dataset.taskId = String(t.id || t.taskId || idx);
       btnOpen.addEventListener('click', (ev)=>{ ev.preventDefault(); ev.stopPropagation(); openCustomerTask(t); });
       row.addEventListener('click', ()=>openCustomerTask(t));
       actions.appendChild(btnOpen);
@@ -1427,11 +1434,16 @@ async function initCustomerPortal(){
   }
   let _draftTimer = null;
   async function openCustomerTask(task){
+    window.__dsOpenCustomerTask = openCustomerTask;
     if(!task || !task.templateId) return;
+    window.__dsOpenCustomerTask = openCustomerTask;
     const t = getTemplate(task.templateId);
     if(!t){ alert('Vorlage nicht gefunden.'); return; }
+    const listCard = document.getElementById('customerTaskListCard');
     if(listEl) listEl.style.display = 'none';
-    if(editor) editor.style.display = '';
+    if(listCard) listCard.style.display = 'none';
+    if(editor) { editor.style.display = 'block'; editor.hidden = false; }
+    try{ editor?.scrollIntoView({behavior:'smooth', block:'start'}); }catch(_){ }
     const titleEl = document.getElementById('customerTaskTitle');
     const metaEl = document.getElementById('customerTaskMeta');
     const root = document.getElementById('customerTaskFormRoot');
@@ -1541,8 +1553,10 @@ async function initCustomerPortal(){
           localStorage.setItem(LS_KEY, JSON.stringify(data));
         }catch(_){ }
         alert(wroteRemote ? '✅ Danke! Formular wurde übermittelt.' : '✅ Formular lokal als übermittelt markiert.');
+        const listCard = document.getElementById('customerTaskListCard');
         if(editor) editor.style.display = 'none';
         if(listEl) listEl.style.display = '';
+        if(listCard) listCard.style.display = 'block';
       }catch(e){
         console.error('submit', e);
         alert('❌ Absenden fehlgeschlagen: '+(e.message||e));
