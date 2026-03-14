@@ -7,7 +7,7 @@
   <link href="manifest.json" rel="manifest"/>
   <meta name="theme-color" content="#101014"/>
   <link href="assets/logo.png" rel="apple-touch-icon"/>
-  <link href="styles.css?v=M50.9.9BM_AI_SHARED_FORM_ENGINE_MASTER_20260314" rel="stylesheet"/>
+  <link href="styles.css?v=M50.9.9BN_AI_SHARED_ENGINE_TASKLISTFIX_MASTER_20260314" rel="stylesheet"/>
 </head>
 <body class="bg-watermark">
   <main class="shell" style="padding-top:20px">
@@ -45,7 +45,85 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=M50.9.9BM_AI_SHARED_FORM_ENGINE_MASTER_20260314"></script>
-  <script src="app.js?v=M50.9.9BM_AI_SHARED_FORM_ENGINE_MASTER_20260314"></script>
+  <script src="firebase-config.js?v=M50.9.9BN_AI_SHARED_ENGINE_TASKLISTFIX_MASTER_20260314"></script>
+  <script src="app.js?v=M50.9.9BN_AI_SHARED_ENGINE_TASKLISTFIX_MASTER_20260314"></script>
+  <script>
+  (function(){
+    const LS_KEY='ds_workspace_test_optik_01';
+    const $=id=>document.getElementById(id);
+    let CURRENT_USER=null, CURRENT_TASK=null, SAVE_TIMER=null, TASKS=[];
+    function esc(s){ return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+    function fmt(ts){ try{return new Date(Number(ts||0)).toLocaleString('de-DE')}catch(_){return ''} }
+    function db(){ try{ if(window.CLOUD&&CLOUD.db) return CLOUD.db; if(window.firebase&&firebase.firestore) return firebase.firestore(); }catch(_){ } return null; }
+    function tasksCol(){ try{ const d=db(); const org=(window.CLOUD&&CLOUD.orgId)||window.CLOUD_ORG_ID||window.firebaseOrgId||'doggystyle'; return d&&org&&typeof d.collection==='function' ? d.collection('orgs').doc(org).collection('tasks') : null; }catch(_){ return null; } }
+    function readLocal(){ try{ const raw=localStorage.getItem(LS_KEY); return raw?JSON.parse(raw):{}; }catch(_){ return {}; } }
+    function writeLocal(data){ try{ localStorage.setItem(LS_KEY, JSON.stringify(data||{})); }catch(_){ } }
+    function upsertLocalTask(task){
+      const data=readLocal(); const list=Array.isArray(data.inboxAssignments)?data.inboxAssignments.slice():[];
+      const key=String(task.id||task.taskId||''); const idx=list.findIndex(x=>String((x&&(x.id||x.taskId))||'')===key);
+      const merged=Object.assign({}, idx>=0?list[idx]:{}, task);
+      if(idx>=0) list[idx]=merged; else list.unshift(merged); data.inboxAssignments=list; writeLocal(data);
+    }
+    function taskMatchesUser(t,u){
+      if(!t||!u) return false;
+      const email=String(u.email||'').trim().toLowerCase(); const uid=String(u.uid||'').trim();
+      const tEmail=String(t.customerEmail||'').trim().toLowerCase(); const tUid=String(t.customerUid||'').trim();
+      const status=String(t.status||'open').trim().toLowerCase(); if(status&&status!=='open') return false;
+      return (!!uid && !!tUid && uid===tUid) || (!!email && !!tEmail && email===tEmail);
+    }
+    function titleForTask(t){
+      try{ const tpl=(typeof getTemplate==='function') ? getTemplate(String((t&& (t.templateId||t.taskId))||'')) : null; return String((t&&t.title)|| (tpl&&tpl.name) || (t&&t.templateId)||'Aufgabe'); }catch(_){ return String((t&&t.title)||'Aufgabe'); }
+    }
+    function subtitle(items){ const el=$('customerPortalSubtitle'); if(el) el.textContent = items.length ? 'Doggy Style Hundepension hat Aufgaben für dich.' : 'Aktuell liegen keine Aufgaben für dich vor.'; }
+    function dedupe(items){ const m=new Map(); items.forEach(t=>{ const k=String((t&&(t.id||t.taskId))||('tmp_'+Math.random())); m.set(k,Object.assign({},m.get(k)||{},t||{},{id:k})); }); return Array.from(m.values()).sort((a,b)=>Number(b.createdAt||0)-Number(a.createdAt||0)); }
+    function renderList(items){ TASKS=items.slice(); const list=$('customerTaskList'); if(!list) return; list.innerHTML=''; subtitle(items); if(!items.length){ list.innerHTML='<div class="muted">— keine Aufgaben —</div>'; return; }
+      items.forEach(t=>{ const row=document.createElement('div'); row.className='list-item'; const when=t.createdAt?fmt(t.createdAt):''; row.innerHTML=`<div><strong>${esc(titleForTask(t))}</strong><small>${esc(String(t.templateId||''))}${when?(' · '+esc(when)):''}</small></div>`; const actions=document.createElement('div'); actions.className='actions'; const b=document.createElement('button'); b.className='smallbtn'; b.textContent='Öffnen'; b.onclick=()=>openTask(String(t.id||'')); actions.appendChild(b); row.appendChild(actions); row.onclick=(ev)=>{ if(ev.target===b) return; openTask(String(t.id||'')); }; list.appendChild(row); });
+    }
+    function prefills(task){
+      const f=Object.assign({}, (task.payloadSubmitted&&task.payloadSubmitted.fields)||{}, (task.payloadDraft&&task.payloadDraft.fields)||{});
+      if(!f.fullName && task.customerName) f.fullName=task.customerName;
+      if(!f.email && task.customerEmail) f.email=task.customerEmail;
+      return f;
+    }
+    function renderField(field,val,bucket){
+      const wrap=document.createElement('label'); wrap.className='field'; wrap.style.minWidth='260px'; wrap.innerHTML=`<span>${esc(field.label)}${field.required?' *':''}</span>`;
+      let input;
+      if(field.type==='textarea'){ input=document.createElement('textarea'); input.value=val||''; }
+      else if(field.type==='select'){ input=document.createElement('select'); input.innerHTML=(field.options||[]).map(o=>`<option value="${esc(o)}">${esc(o)}</option>`).join(''); input.value=(val!=null&&val!=='')?val:((field.options&&field.options[0])||''); }
+      else if(field.type==='checkbox'){ input=document.createElement('input'); input.type='checkbox'; input.checked=!!val; input.style.width='22px'; input.style.height='22px'; }
+      else { input=document.createElement('input'); input.type=field.type||'text'; input.value=val||''; }
+      const apply=()=>{ bucket[field.key]=(field.type==='checkbox')?input.checked:input.value; scheduleSave(); };
+      input.oninput=apply; input.onchange=apply; wrap.appendChild(input); return wrap;
+    }
+    function buildTaskRoot(task,tpl,working){
+      const root=$('customerTaskFormRoot'); if(!root) return; root.innerHTML='';
+      (tpl.sections||[]).forEach(sec=>{ const card=document.createElement('div'); card.className='card'; card.innerHTML=`<h2>${esc(sec.title)}</h2>`; (sec.fields||[]).forEach(f=> card.appendChild(renderField(f, working.fields[f.key], working.fields))); root.appendChild(card); });
+      const meta = Array.isArray(tpl.meta) ? tpl.meta : []; if(meta.length){ const card=document.createElement('div'); card.className='card'; card.innerHTML='<h2>Ort / Datum</h2>'; meta.forEach(f=>card.appendChild(renderField(f, working.meta[f.key], working.meta))); root.appendChild(card); }
+      if(tpl.dsGvoNote){ const card=document.createElement('div'); card.className='card'; card.innerHTML=`<h2>Datenschutz (DSGVO)</h2><p class="note">${esc(tpl.dsGvoNote)}</p>`; root.appendChild(card); }
+    }
+    async function persistTask(task,patch){ const next=Object.assign({},task,patch||{},{updatedAt:Date.now()}); upsertLocalTask(next); const col=tasksCol(); if(col&&next.id&&typeof col.doc==='function'){ try{ await col.doc(next.id).set(patch||{},{merge:true}); }catch(_){ } } const idx=TASKS.findIndex(x=>String(x.id||'')===String(next.id||'')); if(idx>=0) TASKS[idx]=next; return next; }
+    async function saveDraftNow(){ if(!CURRENT_TASK) return; const hint=$('customerTaskSaveHint'); try{ CURRENT_TASK=await persistTask(CURRENT_TASK,{ payloadDraft: CURRENT_TASK.payloadDraft||{fields:{},meta:{}} }); if(hint) hint.textContent='✅ Gespeichert: '+fmt(Date.now()); }catch(_){ if(hint) hint.textContent='❌ Speichern fehlgeschlagen.'; } }
+    function scheduleSave(){ clearTimeout(SAVE_TIMER); const hint=$('customerTaskSaveHint'); if(hint) hint.textContent='… speichert …'; SAVE_TIMER=setTimeout(saveDraftNow,600); }
+    function openTask(id){ const task=TASKS.find(x=>String(x.id||'')===String(id||'')); if(!task) return; const tpl=(typeof getTemplate==='function')?getTemplate(String(task.templateId||task.taskId||'')):null; if(!tpl){ alert('Vorlage nicht gefunden.'); return; }
+      CURRENT_TASK=Object.assign({},task); CURRENT_TASK.payloadDraft=CURRENT_TASK.payloadDraft||{fields:{},meta:{}}; CURRENT_TASK.payloadDraft.fields=Object.assign({}, prefills(task), CURRENT_TASK.payloadSubmitted&&CURRENT_TASK.payloadSubmitted.fields||{}, CURRENT_TASK.payloadDraft.fields||{}); CURRENT_TASK.payloadDraft.meta=Object.assign({}, CURRENT_TASK.payloadSubmitted&&CURRENT_TASK.payloadSubmitted.meta||{}, CURRENT_TASK.payloadDraft.meta||{});
+      $('customerTaskList').style.display='none'; $('customerTaskEditor').style.display=''; $('customerTaskTitle').textContent=titleForTask(task); $('customerTaskMeta').textContent=`Formular: ${tpl.name||task.templateId||''}${task.createdAt ? ' · Freigegeben: '+fmt(task.createdAt):''}`; $('customerTaskSaveHint').textContent=''; buildTaskRoot(task,tpl,CURRENT_TASK.payloadDraft);
+    }
+    async function submitTask(){ if(!CURRENT_TASK) return; if(!confirm('Formular absenden? Danach kann es nicht mehr geändert werden.')) return; const hint=$('customerTaskSaveHint'); try{ CURRENT_TASK=await persistTask(CURRENT_TASK,{ payloadSubmitted: CURRENT_TASK.payloadDraft, status:'submitted', submittedAt:Date.now() }); if(hint) hint.textContent='✅ Formular übermittelt.'; setTimeout(()=>loadTasksForUser(CURRENT_USER),250); }catch(_){ if(hint) hint.textContent='❌ Absenden fehlgeschlagen.'; } }
+    async function loadTasksForUser(user){ CURRENT_USER=user; const col=tasksCol(); const email=String((user&&user.email)||'').trim().toLowerCase(); const uid=String((user&&user.uid)||'').trim(); let items=[]; try{ if(col&&uid){ const s1=await col.where('status','==','open').where('customerUid','==',uid).get(); s1.forEach(doc=>items.push(Object.assign({id:doc.id},doc.data()||{}))); } }catch(_){ }
+      try{ if(col&&email){ const s2=await col.where('status','==','open').where('customerEmail','==',email).get(); s2.forEach(doc=>items.push(Object.assign({id:doc.id},doc.data()||{}))); } }catch(_){ }
+      try{ const data=readLocal(); const localItems=Array.isArray(data.inboxAssignments)?data.inboxAssignments:[]; localItems.forEach(t=>{ if(taskMatchesUser(t,user)) items.push(Object.assign({id:String((t&&(t.id||t.taskId))||('local_'+Date.now()))},t||{})); }); }catch(_){ }
+      $('customerTaskEditor').style.display='none'; $('customerTaskList').style.display=''; renderList(dedupe(items));
+    }
+    async function boot(){ const btnL=$('btnCustomerLogout'); if(btnL&&window.firebase&&firebase.auth){ btnL.onclick=async()=>{ try{ await firebase.auth().signOut(); }catch(_){ } location.href='login.html'; }; }
+      const btnB=$('btnCustomerTaskBack'); if(btnB) btnB.onclick=()=>{ $('customerTaskEditor').style.display='none'; $('customerTaskList').style.display=''; };
+      const btnS=$('btnCustomerTaskSubmit'); if(btnS) btnS.onclick=submitTask;
+      try{ if(typeof loadTemplates==='function') await loadTemplates(); }catch(_){ }
+      if(!(window.firebase&&firebase.auth&&firebase.firestore&&window.firebaseConfig)) return;
+      try{ try{ firebase.app(); }catch(_){ firebase.initializeApp(window.firebaseConfig); } }catch(_){ }
+      firebase.auth().onAuthStateChanged(u=>{ if(!u){ location.href='login.html'; return; } loadTasksForUser(u).catch(console.error); });
+    }
+    if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot); else boot();
+  })();
+  </script>
 </body>
 </html>
