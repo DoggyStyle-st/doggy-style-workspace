@@ -1340,6 +1340,7 @@ async function initCustomerPortal(){
   const email = String(CLOUD.user?.email || '').trim().toLowerCase();
   if(!uid && !email) return;
   const listEl = document.getElementById('customerTaskList');
+  const listCard = document.getElementById('customerTaskListCard');
   const subtitle = document.getElementById('customerPortalSubtitle');
   const editor = document.getElementById('customerTaskEditor');
   if(editor) editor.style.display = 'none';
@@ -1365,7 +1366,9 @@ async function initCustomerPortal(){
   const btnBack = document.getElementById('btnCustomerTaskBack');
   if(btnBack) btnBack.onclick = ()=>{
     if(editor) editor.style.display = 'none';
+    if(listCard) listCard.style.display = '';
     if(listEl) listEl.style.display = '';
+    try{ listCard?.scrollIntoView({behavior:'smooth', block:'start'}); }catch(_){ }
   };
   const tasksCol = cloudTasksCol();
   const unsubs = [];
@@ -1428,8 +1431,10 @@ async function initCustomerPortal(){
     if(!task || !task.templateId) return;
     const t = getTemplate(task.templateId);
     if(!t){ alert('Vorlage nicht gefunden.'); return; }
+    if(listCard) listCard.style.display = 'none';
     if(listEl) listEl.style.display = 'none';
     if(editor) editor.style.display = '';
+    try{ editor?.scrollIntoView({behavior:'smooth', block:'start'}); }catch(_){ }
     const titleEl = document.getElementById('customerTaskTitle');
     const metaEl = document.getElementById('customerTaskMeta');
     const root = document.getElementById('customerTaskFormRoot');
@@ -1540,7 +1545,9 @@ async function initCustomerPortal(){
         }catch(_){ }
         alert(wroteRemote ? '✅ Danke! Formular wurde übermittelt.' : '✅ Formular lokal als übermittelt markiert.');
         if(editor) editor.style.display = 'none';
+        if(listCard) listCard.style.display = '';
         if(listEl) listEl.style.display = '';
+        try{ listCard?.scrollIntoView({behavior:'smooth', block:'start'}); }catch(_){ }
       }catch(e){
         console.error('submit', e);
         alert('❌ Absenden fehlgeschlagen: '+(e.message||e));
