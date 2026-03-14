@@ -7,7 +7,7 @@
   <link href="manifest.json" rel="manifest"/>
   <meta name="theme-color" content="#101014"/>
   <link href="assets/logo.png" rel="apple-touch-icon"/>
-  <link href="styles.css?v=20260314_customer_bi" rel="stylesheet"/>
+  <link href="styles.css?v=M50.9.9BK_AI_FORM_PARITY_PREFILL_MASTER_20260314" rel="stylesheet"/>
 </head>
 <body class="bg-watermark">
   <main class="shell" style="padding-top:20px">
@@ -50,8 +50,8 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=M50.9.9BI_AI_CUSTOMERPORTAL_OPEN_EDIT_MASTER_20260314"></script>
-  <script src="app.js?v=M50.9.9BI_AI_CUSTOMERPORTAL_OPEN_EDIT_MASTER_20260314"></script>
+  <script src="firebase-config.js?v=M50.9.9BK_AI_FORM_PARITY_PREFILL_MASTER_20260314"></script>
+  <script src="app.js?v=M50.9.9BK_AI_FORM_PARITY_PREFILL_MASTER_20260314"></script>
 
   <script>
     (function(){
@@ -178,6 +178,81 @@
         data.inboxAssignments = list;
         writeLocal(data);
       }
+
+      function getKnownContext(user, task){
+        const data = readLocal();
+        const customers = Array.isArray(data.customers) ? data.customers : [];
+        const pets = Array.isArray(data.pets) ? data.pets : [];
+        const email = String((user && user.email) || (task && task.customerEmail) || '').trim().toLowerCase();
+        const taskCustomerId = String((task && (task.customerId || task.ownerId)) || '').trim();
+        const taskCustomerName = String((task && task.customerName) || '').trim().toLowerCase();
+        let customer = customers.find(c => String(c && c.email || '').trim().toLowerCase() === email)
+          || customers.find(c => taskCustomerId && String((c && (c.customerId || c.id || c.uid)) || '').trim() === taskCustomerId)
+          || customers.find(c => taskCustomerName && String((c && (c.name || c.fullName || (((c.firstName||'')+' '+(c.lastName||'')).trim()))) || '').trim().toLowerCase() === taskCustomerName)
+          || null;
+        let dog = pets.find(p => customer && String((p && (p.customerId || p.ownerId)) || '').trim() === String((customer.customerId || customer.id || '')))
+          || pets.find(p => email && String((p && (p.ownerEmail || p.customerEmail || p.email)) || '').trim().toLowerCase() === email)
+          || pets.find(p => task && task.dogId && String((p && (p.id || p.dogId)) || '').trim() === String(task.dogId).trim())
+          || null;
+        return { customer, dog };
+      }
+      function applyPrefill(task, ctx){
+        task.payloadDraft = task.payloadDraft || { fields:{}, meta:{} };
+        task.payloadDraft.fields = task.payloadDraft.fields || {};
+        task.payloadDraft.meta = task.payloadDraft.meta || {};
+        const f = task.payloadDraft.fields;
+        const c = (ctx && ctx.customer) || {};
+        const d = (ctx && ctx.dog) || {};
+        const fullName = String(c.name || c.fullName || [c.firstName,c.lastName].filter(Boolean).join(' ') || task.customerName || '').trim();
+        const email = String(c.email || task.customerEmail || '').trim();
+        const phone = String(c.phone || c.telefon || c.mobile || '').trim();
+        const street = String(c.street || c.address || '').trim();
+        const zip = String(c.zip || c.postcode || '').trim();
+        const city = String(c.city || c.town || '').trim();
+        const dogName = String(d.name || d.dogName || task.dogName || '').trim();
+        const breed = String(d.breed || d.rasse || '').trim();
+        const birthDate = String(d.birthDate || d.birthday || d.geburtstag || '').trim();
+        const vet = String(d.vet || d.veterinarian || '').trim();
+        const emergencyPhone = String(c.emergencyPhone || d.emergencyPhone || '').trim();
+        if(!f.fullName && fullName) f.fullName = fullName;
+        if(!f.customerName && fullName) f.customerName = fullName;
+        if(!f.email && email) f.email = email;
+        if(!f.phone && phone) f.phone = phone;
+        if(!f.street && street) f.street = street;
+        if(!f.zip && zip) f.zip = zip;
+        if(!f.city && city) f.city = city;
+        if(!f.dogName && dogName) f.dogName = dogName;
+        if(!f.breed && breed) f.breed = breed;
+        if(!f.birthDate && birthDate) f.birthDate = birthDate;
+        if(!f.vet && vet) f.vet = vet;
+        if(!f.emergencyPhone && emergencyPhone) f.emergencyPhone = emergencyPhone;
+        if(!task.payloadDraft.meta.date){ try{ task.payloadDraft.meta.date = new Date().toISOString().slice(0,10); }catch(_){ } }
+      }
+      function renderContextCard(root, ctx){
+        const c = (ctx && ctx.customer) || null;
+        const d = (ctx && ctx.dog) || null;
+        if(!root || (!c && !d)) return;
+        const card = document.createElement('div');
+        card.className = 'card';
+        let html = '<h2>Bekannte Basisdaten</h2>';
+        if(c){
+          const customerName = String(c.name || c.fullName || [c.firstName,c.lastName].filter(Boolean).join(' ') || '').trim();
+          html += '<div class="hint"><strong>Kunde:</strong> ' + esc(customerName || '—');
+          if(c.email) html += ' · ' + esc(c.email);
+          if(c.phone) html += ' · ' + esc(c.phone);
+          if(c.street || c.zip || c.city) html += '<br>' + esc([c.street, c.zip, c.city].filter(Boolean).join(' '));
+          html += '</div>';
+        }
+        if(d){
+          const dogName = String(d.name || d.dogName || '').trim();
+          html += '<div class="hint" style="margin-top:8px"><strong>Hund:</strong> ' + esc(dogName || '—');
+          if(d.breed || d.rasse) html += ' · ' + esc(String(d.breed || d.rasse));
+          if(d.birthDate || d.birthday || d.geburtstag) html += ' · ' + esc(String(d.birthDate || d.birthday || d.geburtstag));
+          html += '</div>';
+        }
+        card.innerHTML = html;
+        root.appendChild(card);
+      }
       function taskMatchesUser(t, user){
         if(!t || !user) return false;
         const email = String(user.email || '').trim().toLowerCase();
@@ -295,6 +370,8 @@
         CURRENT_TASK.payloadDraft = CURRENT_TASK.payloadDraft || { fields:{}, meta:{} };
         CURRENT_TASK.payloadDraft.fields = Object.assign({}, CURRENT_TASK.payloadSubmitted && CURRENT_TASK.payloadSubmitted.fields || {}, CURRENT_TASK.payloadDraft.fields || {});
         CURRENT_TASK.payloadDraft.meta = Object.assign({}, CURRENT_TASK.payloadSubmitted && CURRENT_TASK.payloadSubmitted.meta || {}, CURRENT_TASK.payloadDraft.meta || {});
+        const ctx = getKnownContext(CURRENT_USER, CURRENT_TASK);
+        applyPrefill(CURRENT_TASK, ctx);
         const listEl = $('customerTaskList');
         const editor = $('customerTaskEditor');
         const root = $('customerTaskFormRoot');
@@ -306,7 +383,8 @@
         if(root) root.innerHTML = '';
         if(titleEl) titleEl.textContent = titleForTask(task);
         if(metaEl) metaEl.textContent = 'Formular: ' + (tpl.name || task.templateId || '') + (task.createdAt ? ' · Freigegeben: ' + fmt(task.createdAt) : '');
-        if(hint) hint.textContent = '';
+        if(hint) hint.textContent = tpl.dsGvoNote || '';
+        renderContextCard(root, ctx);
         (tpl.sections || []).forEach(function(sec){
           const card = document.createElement('div');
           card.className = 'card';
