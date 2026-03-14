@@ -7,7 +7,7 @@
   <link href="manifest.json" rel="manifest"/>
   <meta name="theme-color" content="#101014"/>
   <link href="assets/logo.png" rel="apple-touch-icon"/>
-  <link href="styles.css?v=M50.9.9BT_AI_CUSTOMERPORTAL_OPENEVENTFIX_MASTER_20260314" rel="stylesheet"/>
+  <link href="styles.css?v=M50.9.9BU_AI_CUSTOMERPORTAL_BUILDBADGE_MASTER_20260314" rel="stylesheet"/>
 </head>
 <body class="bg-watermark">
   <main class="shell" style="padding-top:20px">
@@ -15,7 +15,7 @@
       <div class="card">
         <div class="row between" style="align-items:flex-start; gap:12px; flex-wrap:wrap;">
           <div>
-            <h1 style="margin:0">Kundenportal</h1>
+            <h1 style="margin:0">Kundenportal</h1><div class="muted" id="customerPortalBuildTop" style="margin-top:6px;font-size:12px;opacity:.9">Build CUSTOMER M50.9.9BU_AI_CUSTOMERPORTAL_BUILDBADGE_MASTER_20260314</div>
             <p class="muted" id="customerPortalSubtitle" style="margin:6px 0 0 0;">Aktuell liegen keine Aufgaben für dich vor.</p>
           </div>
           <button class="btn" id="btnCustomerLogout">Abmelden</button>
@@ -41,13 +41,14 @@
         <div class="hint" id="customerTaskSaveHint" style="margin-top:10px"></div>
       </div>
     </section>
+    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9BU_AI_CUSTOMERPORTAL_BUILDBADGE_MASTER_20260314</div>
   </main>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=M50.9.9BT_AI_CUSTOMERPORTAL_OPENEVENTFIX_MASTER_20260314"></script>
-  <script src="app.js?v=M50.9.9BT_AI_CUSTOMERPORTAL_OPENEVENTFIX_MASTER_20260314"></script>
+  <script src="firebase-config.js?v=M50.9.9BU_AI_CUSTOMERPORTAL_BUILDBADGE_MASTER_20260314"></script>
+  <script src="app.js?v=M50.9.9BU_AI_CUSTOMERPORTAL_BUILDBADGE_MASTER_20260314"></script>
 
   <script>
     (function(){
@@ -73,8 +74,14 @@
               if(btn){ btn.onclick = async function(){ try{ await auth.signOut(); }catch(_){ } location.href='login.html'; }; }
             }catch(_){ }
             try{
+              var top=document.getElementById('customerPortalBuildTop');
+              var bottom=document.getElementById('customerPortalBuildBottom');
+              if(top) top.textContent = 'Build CUSTOMER '+new+' · Boot: auth ok';
+              if(bottom) bottom.textContent = 'Build CUSTOMER '+new+' · auth ok';
               if(typeof initCustomerPortal === 'function') await initCustomerPortal();
-            }catch(e){ console.error('customer explicit boot failed', e); }
+              if(top) top.textContent = 'Build CUSTOMER '+new+' · Boot: initCustomerPortal ok';
+              if(bottom) bottom.textContent = 'Build CUSTOMER '+new+' · init ok';
+            }catch(e){ console.error('customer explicit boot failed', e); var top=document.getElementById('customerPortalBuildTop'); var bottom=document.getElementById('customerPortalBuildBottom'); if(top) top.textContent = 'Build CUSTOMER '+new+' · Boot-Fehler'; if(bottom) bottom.textContent = 'Build CUSTOMER '+new+' · Boot-Fehler'; }
           });
         }catch(e){ console.error('customer boot setup failed', e); }
       }
