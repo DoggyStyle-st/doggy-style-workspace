@@ -1481,14 +1481,26 @@ async function initCustomerPortal(){
     };
     build();
     const saveDraftNow = async ()=>{
-      if(!CLOUD.user) return;
       const payloadDraft = { fields: working.fields, meta: working.meta };
       try{
-        await cloudTasksCol().doc(task.id).set({
-          payloadDraft,
-          updatedAt: Date.now()
-        }, {merge:true});
-        if(hint) hint.textContent = `✅ Gespeichert: ${fmtDT(Date.now())}`;
+        const patch = { payloadDraft, updatedAt: Date.now() };
+        const col = cloudTasksCol();
+        let wroteRemote = false;
+        if(col && typeof col.doc === 'function'){
+          await col.doc(task.id).set(patch, {merge:true});
+          wroteRemote = true;
+        }
+        try{
+          const raw = localStorage.getItem(LS_KEY);
+          const data = raw ? JSON.parse(raw) : {};
+          const list = Array.isArray(data.inboxAssignments) ? data.inboxAssignments : [];
+          const idx = list.findIndex(x => String((x && (x.id || x.taskId)) || '') === String(task.id || ''));
+          const merged = Object.assign({}, idx >= 0 ? list[idx] : task, patch, { id: task.id || task.taskId || ('local_'+Date.now()) });
+          if(idx >= 0) list[idx] = merged; else list.unshift(merged);
+          data.inboxAssignments = list;
+          localStorage.setItem(LS_KEY, JSON.stringify(data));
+        }catch(_){ }
+        if(hint) hint.textContent = wroteRemote ? `✅ Gespeichert: ${fmtDT(Date.now())}` : `✅ Lokal gespeichert: ${fmtDT(Date.now())}`;
       }catch(e){
         console.error('draft save', e);
         if(hint) hint.textContent = '❌ Speichern fehlgeschlagen (bitte später erneut versuchen).';
@@ -1504,13 +1516,29 @@ async function initCustomerPortal(){
     if(btnSubmit) btnSubmit.onclick = async ()=>{
       if(!confirm('Formular absenden? Danach kann es nicht mehr geändert werden.')) return;
       try{
-        await cloudTasksCol().doc(task.id).set({
+        const patch = {
           payloadSubmitted: { fields: working.fields, meta: working.meta },
           status: 'submitted',
           submittedAt: Date.now(),
           updatedAt: Date.now()
-        }, {merge:true});
-        alert('✅ Danke! Formular wurde übermittelt.');
+        };
+        const col = cloudTasksCol();
+        let wroteRemote = false;
+        if(col && typeof col.doc === 'function'){
+          await col.doc(task.id).set(patch, {merge:true});
+          wroteRemote = true;
+        }
+        try{
+          const raw = localStorage.getItem(LS_KEY);
+          const data = raw ? JSON.parse(raw) : {};
+          const list = Array.isArray(data.inboxAssignments) ? data.inboxAssignments : [];
+          const idx = list.findIndex(x => String((x && (x.id || x.taskId)) || '') === String(task.id || ''));
+          const merged = Object.assign({}, idx >= 0 ? list[idx] : task, patch, { id: task.id || task.taskId || ('local_'+Date.now()) });
+          if(idx >= 0) list[idx] = merged; else list.unshift(merged);
+          data.inboxAssignments = list;
+          localStorage.setItem(LS_KEY, JSON.stringify(data));
+        }catch(_){ }
+        alert(wroteRemote ? '✅ Danke! Formular wurde übermittelt.' : '✅ Formular lokal als übermittelt markiert.');
         if(editor) editor.style.display = 'none';
         if(listEl) listEl.style.display = '';
       }catch(e){
@@ -6107,15 +6135,30 @@ const EMBEDDED_CUSTOMER_DATA_TEMPLATE = {
         { key: "phone", label: "Telefon", type: "text" },
         { key: "street", label: "Straße / Hausnummer", type: "text" },
         { key: "zip", label: "PLZ", type: "text" },
-        { key: "city", label: "Ort", type: "text" }
+        { key: "city", label: "Ort", type: "text" },
+        { key: "emergencyName", label: "Notfallkontakt Name", type: "text" },
+        { key: "emergencyPhone", label: "Notfallkontakt Telefon", type: "text" },
+        { key: "pickupAuth", label: "Abholberechtigte Personen", type: "textarea" },
+        { key: "customerNote", label: "Hinweise zum Kunden", type: "textarea" }
       ]
     },
     {
       title: "Hund",
       fields: [
-        { key: "dogName", label: "Hundename", type: "text" },
+        { key: "dogName", label: "Hundename", type: "text", required: true },
         { key: "breed", label: "Rasse", type: "text" },
         { key: "birthDate", label: "Geburtsdatum", type: "date" },
+        { key: "sex", label: "Geschlecht", type: "select", options: ["", "männlich", "weiblich"] },
+        { key: "chipStatus", label: "Gechippt?", type: "select", options: ["", "yes", "no"] },
+        { key: "chipNumber", label: "Chipnummer", type: "text" },
+        { key: "vet", label: "Tierarzt / Praxis", type: "text" },
+        { key: "vetPhone", label: "Telefon Tierarzt", type: "text" },
+        { key: "allergies", label: "Allergien / Unverträglichkeiten", type: "textarea" },
+        { key: "meds", label: "Medikamente", type: "textarea" },
+        { key: "food", label: "Futter", type: "text" },
+        { key: "feeding", label: "Fütterung", type: "textarea" },
+        { key: "compat", label: "Verträglichkeit", type: "textarea" },
+        { key: "behavior", label: "Verhalten / Besonderheiten", type: "textarea" },
         { key: "notes", label: "Wichtige Hinweise", type: "textarea" }
       ]
     }
