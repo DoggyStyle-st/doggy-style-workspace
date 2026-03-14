@@ -1412,9 +1412,10 @@ async function initCustomerPortal(){
       return;
     }
     tasks.forEach((t, idx)=>{
+      const taskId = String(t.id || t.taskId || idx);
       const row = document.createElement('div');
       row.className = 'list-item';
-      row.dataset.taskId = String(t.id || t.taskId || idx);
+      row.dataset.taskId = taskId;
       row.style.cursor = 'pointer';
       const when = t.createdAt ? fmtDT(t.createdAt) : '';
       row.innerHTML = `<div><strong>${escapeHtml(t.title||'Aufgabe')}</strong><small>${escapeHtml(t.templateId||'')}${when?(' · '+when):''}</small></div>`;
@@ -1424,9 +1425,9 @@ async function initCustomerPortal(){
       btnOpen.type = 'button';
       btnOpen.className = 'smallbtn';
       btnOpen.textContent = 'Öffnen';
-      btnOpen.dataset.taskId = String(t.id || t.taskId || idx);
-      btnOpen.addEventListener('click', (ev)=>{ ev.preventDefault(); ev.stopPropagation(); openCustomerTask(t); });
-      row.addEventListener('click', ()=>openCustomerTask(t));
+      btnOpen.dataset.taskId = taskId;
+      btnOpen.onclick = (ev)=>{ ev.preventDefault(); ev.stopPropagation(); if(window.__dsOpenCustomerTaskById) window.__dsOpenCustomerTaskById(taskId); else openCustomerTask(t); };
+      row.onclick = ()=>{ if(window.__dsOpenCustomerTaskById) window.__dsOpenCustomerTaskById(taskId); else openCustomerTask(t); };
       actions.appendChild(btnOpen);
       row.appendChild(actions);
       listEl.appendChild(row);
@@ -1434,7 +1435,6 @@ async function initCustomerPortal(){
   }
   let _draftTimer = null;
   async function openCustomerTask(task){
-    window.__dsOpenCustomerTask = openCustomerTask;
     if(!task || !task.templateId) return;
     window.__dsOpenCustomerTask = openCustomerTask;
     const t = getTemplate(task.templateId);
@@ -1526,6 +1526,14 @@ async function initCustomerPortal(){
       if(hint) hint.textContent = '… speichert …';
     };
     // Submit
+
+  window.__dsOpenCustomerTask = openCustomerTask;
+  window.__dsOpenCustomerTaskById = function(taskId){
+    const tasks = Array.isArray(window.__dsCustomerTasks) ? window.__dsCustomerTasks : [];
+    const match = tasks.find(t => String((t && (t.id || t.taskId)) || '').trim() === String(taskId || '').trim());
+    if(match) return openCustomerTask(match);
+  };
+
     const btnSubmit = document.getElementById('btnCustomerTaskSubmit');
     if(btnSubmit) btnSubmit.onclick = async ()=>{
       if(!confirm('Formular absenden? Danach kann es nicht mehr geändert werden.')) return;
