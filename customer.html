@@ -7,7 +7,7 @@
   <link href="manifest.json" rel="manifest"/>
   <meta name="theme-color" content="#101014"/>
   <link href="assets/logo.png" rel="apple-touch-icon"/>
-  <link href="styles.css?v=M50.9.9BP_AI_CUSTOMERPORTAL_BOOTFIX_MASTER_20260314" rel="stylesheet"/>
+  <link href="styles.css?v=M50.9.9BQ_AI_CUSTOMERPORTAL_EXPLICITBOOT_MASTER_20260314" rel="stylesheet"/>
 </head>
 <body class="bg-watermark">
   <main class="shell" style="padding-top:20px">
@@ -46,7 +46,40 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=M50.9.9BP_AI_CUSTOMERPORTAL_BOOTFIX_MASTER_20260314"></script>
-  <script src="app.js?v=M50.9.9BP_AI_CUSTOMERPORTAL_BOOTFIX_MASTER_20260314"></script>
+  <script src="firebase-config.js?v=M50.9.9BQ_AI_CUSTOMERPORTAL_EXPLICITBOOT_MASTER_20260314"></script>
+  <script src="app.js?v=M50.9.9BQ_AI_CUSTOMERPORTAL_EXPLICITBOOT_MASTER_20260314"></script>
+
+  <script>
+    (function(){
+      async function bootCustomerPortal(){
+        try{
+          if(!(window.firebase && window.firebase.auth && window.firebase.firestore)) return;
+          try{ if(!firebase.apps || !firebase.apps.length) firebase.initializeApp(window.firebaseConfig); }catch(_){ }
+          const auth = firebase.auth();
+          const db = firebase.firestore();
+          const orgId = (window.CLOUD_ORG_ID || window.firebaseOrgId || 'doggystyle');
+          auth.onAuthStateChanged(async function(user){
+            if(!user){ location.href='login.html'; return; }
+            try{
+              window.CLOUD = window.CLOUD || {};
+              CLOUD.auth = auth;
+              CLOUD.db = db;
+              CLOUD.user = user;
+              CLOUD.orgId = orgId;
+              CLOUD.enabled = true;
+            }catch(_){ }
+            try{
+              const btn = document.getElementById('btnCustomerLogout');
+              if(btn){ btn.onclick = async function(){ try{ await auth.signOut(); }catch(_){ } location.href='login.html'; }; }
+            }catch(_){ }
+            try{
+              if(typeof initCustomerPortal === 'function') await initCustomerPortal();
+            }catch(e){ console.error('customer explicit boot failed', e); }
+          });
+        }catch(e){ console.error('customer boot setup failed', e); }
+      }
+      if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootCustomerPortal); else bootCustomerPortal();
+    })();
+  </script>
 </body>
 </html>
