@@ -1436,7 +1436,6 @@ async function initCustomerPortal(){
   let _draftTimer = null;
   async function openCustomerTask(task){
     if(!task || !task.templateId) return;
-    window.__dsOpenCustomerTask = openCustomerTask;
     const t = getTemplate(task.templateId);
     if(!t){ alert('Vorlage nicht gefunden.'); return; }
     const listCard = document.getElementById('customerTaskListCard');
