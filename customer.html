@@ -7,7 +7,7 @@
   <link href="manifest.json" rel="manifest"/>
   <meta name="theme-color" content="#101014"/>
   <link href="assets/logo.png" rel="apple-touch-icon"/>
-  <link href="styles.css?v=M50.9.9CA_AI_CUSTOMERPORTAL_DIRECTEDITOR_MASTER_20260317" rel="stylesheet"/>
+  <link href="styles.css?v=M50.9.9CB_AI_CUSTOMERPORTAL_TASKSYNCFIX_MASTER_20260317" rel="stylesheet"/>
 </head>
 <body class="bg-watermark">
   <main class="shell" style="padding-top:20px">
@@ -15,7 +15,7 @@
       <div class="card">
         <div class="row between" style="align-items:flex-start; gap:12px; flex-wrap:wrap;">
           <div>
-            <h1 style="margin:0">Kundenportal</h1><div class="muted" id="customerPortalBuildTop" style="margin-top:6px;font-size:12px;opacity:.9">Build CUSTOMER M50.9.9CA_AI_CUSTOMERPORTAL_DIRECTEDITOR_MASTER_20260317</div>
+            <h1 style="margin:0">Kundenportal</h1><div class="muted" id="customerPortalBuildTop" style="margin-top:6px;font-size:12px;opacity:.9">Build CUSTOMER M50.9.9CB_AI_CUSTOMERPORTAL_TASKSYNCFIX_MASTER_20260317</div>
             <p class="muted" id="customerPortalSubtitle" style="margin:6px 0 0 0;">Aktuell liegen keine Aufgaben für dich vor.</p>
           </div>
           <button class="btn" id="btnCustomerLogout">Abmelden</button>
@@ -57,14 +57,14 @@
       </div>
 
     </section>
-    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9CA_AI_CUSTOMERPORTAL_DIRECTEDITOR_MASTER_20260317</div>
+    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9CB_AI_CUSTOMERPORTAL_TASKSYNCFIX_MASTER_20260317</div>
   </main>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=M50.9.9CA_AI_CUSTOMERPORTAL_DIRECTEDITOR_MASTER_20260317"></script>
-  <script src="app.js?v=M50.9.9CA_AI_CUSTOMERPORTAL_DIRECTEDITOR_MASTER_20260317"></script>
+  <script src="firebase-config.js?v=M50.9.9CB_AI_CUSTOMERPORTAL_TASKSYNCFIX_MASTER_20260317"></script>
+  <script src="app.js?v=M50.9.9CB_AI_CUSTOMERPORTAL_TASKSYNCFIX_MASTER_20260317"></script>
 
   <script>
     (function(){
@@ -92,12 +92,13 @@
             try{
               var top=document.getElementById('customerPortalBuildTop');
               var bottom=document.getElementById('customerPortalBuildBottom');
-              if(top) top.textContent = 'Build CUSTOMER M50.9.9CA_AI_CUSTOMERPORTAL_DIRECTEDITOR_MASTER_20260317 · Boot: auth ok';
-              if(bottom) bottom.textContent = 'Build CUSTOMER M50.9.9CA_AI_CUSTOMERPORTAL_DIRECTEDITOR_MASTER_20260317 · auth ok';
+              if(top) top.textContent = 'Build CUSTOMER M50.9.9CB_AI_CUSTOMERPORTAL_TASKSYNCFIX_MASTER_20260317 · Boot: auth ok';
+              if(bottom) bottom.textContent = 'Build CUSTOMER M50.9.9CB_AI_CUSTOMERPORTAL_TASKSYNCFIX_MASTER_20260317 · auth ok';
               if(typeof initCustomerPortal === 'function') await initCustomerPortal();
-              if(top) top.textContent = 'Build CUSTOMER M50.9.9CA_AI_CUSTOMERPORTAL_DIRECTEDITOR_MASTER_20260317 · Boot: initCustomerPortal ok';
-              if(bottom) bottom.textContent = 'Build CUSTOMER M50.9.9CA_AI_CUSTOMERPORTAL_DIRECTEDITOR_MASTER_20260317 · init ok';
-            }catch(e){ console.error('customer explicit boot failed', e); var top=document.getElementById('customerPortalBuildTop'); var bottom=document.getElementById('customerPortalBuildBottom'); if(top) top.textContent = 'Build CUSTOMER M50.9.9CA_AI_CUSTOMERPORTAL_DIRECTEDITOR_MASTER_20260317 · Boot-Fehler'; if(bottom) bottom.textContent = 'Build CUSTOMER M50.9.9CA_AI_CUSTOMERPORTAL_DIRECTEDITOR_MASTER_20260317 · Boot-Fehler'; }
+              try{ syncTasksFromGlobal(); bindDirectOpen(); }catch(_){ }
+              if(top) top.textContent = 'Build CUSTOMER M50.9.9CB_AI_CUSTOMERPORTAL_TASKSYNCFIX_MASTER_20260317 · Boot: initCustomerPortal ok';
+              if(bottom) bottom.textContent = 'Build CUSTOMER M50.9.9CB_AI_CUSTOMERPORTAL_TASKSYNCFIX_MASTER_20260317 · init ok';
+            }catch(e){ console.error('customer explicit boot failed', e); var top=document.getElementById('customerPortalBuildTop'); var bottom=document.getElementById('customerPortalBuildBottom'); if(top) top.textContent = 'Build CUSTOMER M50.9.9CB_AI_CUSTOMERPORTAL_TASKSYNCFIX_MASTER_20260317 · Boot-Fehler'; if(bottom) bottom.textContent = 'Build CUSTOMER M50.9.9CB_AI_CUSTOMERPORTAL_TASKSYNCFIX_MASTER_20260317 · Boot-Fehler'; }
           });
         }catch(e){ console.error('customer boot setup failed', e); }
       }
@@ -107,7 +108,7 @@
 
   <script>
     (function(){
-      const BUILD = 'Build CUSTOMER M50.9.9CA_AI_CUSTOMERPORTAL_DIRECTEDITOR_MASTER_20260317';
+      const BUILD = 'Build CUSTOMER M50.9.9CB_AI_CUSTOMERPORTAL_TASKSYNCFIX_MASTER_20260317';
       const LS_KEY = 'ds_workspace_test_optik_01';
       const TASKS = [];
       let CURRENT_TASK = null;
@@ -214,6 +215,14 @@
         task.payloadDraft.meta = Object.assign({}, (task.payloadSubmitted && task.payloadSubmitted.meta) || {}, task.payloadDraft.meta || {});
         return task;
       }
+      function syncTasksFromGlobal(){
+        try{
+          var src = Array.isArray(window.__dsCustomerTasks) ? window.__dsCustomerTasks : [];
+          TASKS.length = 0;
+          src.forEach(function(t){ TASKS.push(t); });
+          return TASKS.length;
+        }catch(_){ return TASKS.length; }
+      }
       function renderField(field, value, bucket){
         var wrap=document.createElement('label'); wrap.className='field'; wrap.style.minWidth='260px';
         wrap.innerHTML='<span>'+esc(field.label)+(field.required ? ' *' : '')+'</span>';
@@ -269,8 +278,16 @@
       function directOpenById(id){
         id=String(id||'').trim();
         if(!id){ setStatus('open: no task id'); return false; }
+        syncTasksFromGlobal();
         var task = TASKS.find(t => String((t && (t.id || t.taskId)) || '').trim() === id) || null;
-        if(!task){ setStatus('open: task not found ' + id); return false; }
+        if(!task){
+          try{
+            var src = Array.isArray(window.__dsCustomerTasks) ? window.__dsCustomerTasks : [];
+            var idx = parseInt(id, 10);
+            if(!isNaN(idx) && src[idx]) task = src[idx];
+          }catch(_){ }
+        }
+        if(!task){ setStatus('open: task not found ' + id + ' / cache=' + String(TASKS.length)); return false; }
         showEditor(task); return true;
       }
       async function submitCurrentTask(){
@@ -283,6 +300,7 @@
         }catch(_){ setStatus('submit failed'); }
       }
       function bindDirectOpen(){
+        syncTasksFromGlobal();
         var host=$('customerTaskList'); if(!host) return;
         host.querySelectorAll('[data-task-id]').forEach(function(row){
           if(row.__dsBound) return; row.__dsBound=true; row.style.cursor='pointer';
