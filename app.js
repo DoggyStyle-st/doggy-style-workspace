@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9BP_AI_CUSTOMERPORTAL_BOOTFIX_MASTER_20260314",
+  tag: "M50.9.9CE_STABLE_RESTORE_FROM_CB_MASTER_20260317",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9BP_AI_CUSTOMERPORTAL_BOOTFIX_MASTER_20260314";
+const APP_BUILD = "M50.9.9CE_STABLE_RESTORE_FROM_CB_MASTER_20260317";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -1445,72 +1445,57 @@ async function initCustomerPortal(){
     try{ editor?.scrollIntoView({behavior:'smooth', block:'start'}); }catch(_){ }
     const titleEl = document.getElementById('customerTaskTitle');
     const metaEl = document.getElementById('customerTaskMeta');
-    const rootEl = document.getElementById('customerTaskFormRoot');
+    const root = document.getElementById('customerTaskFormRoot');
     const hint = document.getElementById('customerTaskSaveHint');
     if(titleEl) titleEl.textContent = task.title || t.name || 'Aufgabe';
     if(metaEl) metaEl.textContent = `Formular: ${t.name||task.templateId}`;
     if(hint) hint.textContent = '';
-
-    const prevDoc = currentDoc;
-    currentDoc = {
-      id: String(task.id || task.taskId || ('cust_'+Date.now())),
-      templateId: task.templateId,
-      templateName: t.name || task.templateId,
-      title: task.title || t.name || 'Aufgabe',
-      saved: false,
-      dogId: task.dogId || '',
-      customerId: task.customerId || '',
-      customerName: task.customerName || '',
-      customerEmail: task.customerEmail || '',
-      fields: Object.assign({}, task.payloadSubmitted?.fields || {}, task.payloadDraft?.fields || {}),
-      meta: Object.assign({}, task.payloadSubmitted?.meta || {}, task.payloadDraft?.meta || {}),
-      signature: null
+    const working = {
+      fields: (task.payloadDraft?.fields || task.payloadSubmitted?.fields || {}),
+      meta: (task.payloadDraft?.meta || task.payloadSubmitted?.meta || {})
     };
-
-    function collectCustomerPortalForm(){
-      const metaKeys = new Set((t.meta||[]).map(m=>m.key));
-      const fields = {};
-      const meta = {};
-      rootEl?.querySelectorAll('[data-key]').forEach(inp=>{
-        const key = inp.dataset.key;
-        const type = inp.dataset.ftype || inp.type;
-        const val = (type === 'checkbox') ? !!inp.checked : inp.value;
-        if(metaKeys.has(key)) meta[key] = val; else fields[key] = val;
-      });
-      return { fields, meta };
-    }
-
-    function renderCustomerSharedForm(){
-      if(!rootEl) return;
-      rootEl.innerHTML = '';
-      t.sections.forEach(sec=>{
-        const card = document.createElement('div');
-        card.className = 'card';
-        card.innerHTML = `<h2>${escapeHtml(sec.title)}</h2>`;
-        (sec.fields||[]).forEach(f=> card.appendChild(renderField(f, currentDoc.fields[f.key], currentDoc)));
-        rootEl.appendChild(card);
-      });
-      const metaCard = document.createElement('div');
-      metaCard.className = 'card';
-      metaCard.innerHTML = `<h2>Ort / Datum</h2>`;
-      (t.meta||[]).forEach(f=> metaCard.appendChild(renderField(f, currentDoc.meta[f.key], currentDoc)));
-      rootEl.appendChild(metaCard);
-      if(t.dsGvoNote){
-        const ds = document.createElement('div');
-        ds.className = 'card';
-        ds.innerHTML = `<h2>Datenschutz (DSGVO)</h2><p class="note">${escapeHtml(t.dsGvoNote)}</p>`;
-        rootEl.appendChild(ds);
+    // Render
+    if(root) root.innerHTML = '';
+    const renderFieldSimple = (f, value, bucket)=>{
+      const wrap=document.createElement('label');
+      wrap.className='field'; wrap.style.minWidth='260px';
+      wrap.dataset.key = f.key;
+      wrap.innerHTML=`<span>${escapeHtml(f.label)}${f.required?" *":""}</span>`;
+      let input;
+      if(f.type==='textarea'){ input=document.createElement('textarea'); input.value=value||''; }
+      else if(f.type==='select'){
+        input=document.createElement('select');
+        input.innerHTML=(f.options||[]).map(o=>`<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join('');
+        input.value=value || (f.options?.[0]||'');
       }
-    }
-
-    renderCustomerSharedForm();
-
-    let _draftTimer = null;
+      else if(f.type==='checkbox'){ input=document.createElement('input'); input.type='checkbox'; input.checked=!!value; input.style.width='22px'; input.style.height='22px'; }
+      else { input=document.createElement('input'); input.type=f.type||'text'; input.value=value||''; }
+      input.dataset.key = f.key;
+      input.oninput = ()=>{ bucket[f.key] = (f.type==='checkbox')?input.checked:input.value; scheduleDraftSave(); };
+      input.onchange = ()=>{ bucket[f.key] = (f.type==='checkbox')?input.checked:input.value; scheduleDraftSave(); };
+      wrap.appendChild(input);
+      return wrap;
+    };
+    const build = ()=>{
+      if(!root) return;
+      root.innerHTML='';
+      t.sections.forEach(sec=>{
+        const card=document.createElement('div');
+        card.className='card';
+        card.innerHTML=`<h2>${escapeHtml(sec.title)}</h2>`;
+        sec.fields.forEach(f=>card.appendChild(renderFieldSimple(f, working.fields[f.key], working.fields)));
+        root.appendChild(card);
+      });
+      const metaCard=document.createElement('div');
+      metaCard.className='card';
+      metaCard.innerHTML=`<h2>Ort / Datum</h2>`;
+      (t.meta||[]).forEach(f=>metaCard.appendChild(renderFieldSimple(f, working.meta[f.key], working.meta)));
+      root.appendChild(metaCard);
+    };
+    build();
     const saveDraftNow = async ()=>{
+      const payloadDraft = { fields: working.fields, meta: working.meta };
       try{
-        const payloadDraft = collectCustomerPortalForm();
-        currentDoc.fields = Object.assign({}, payloadDraft.fields);
-        currentDoc.meta   = Object.assign({}, payloadDraft.meta);
         const patch = { payloadDraft, updatedAt: Date.now() };
         const col = cloudTasksCol();
         let wroteRemote = false;
@@ -1539,20 +1524,14 @@ async function initCustomerPortal(){
       _draftTimer = setTimeout(()=>saveDraftNow(), 600);
       if(hint) hint.textContent = '… speichert …';
     };
-    rootEl?.querySelectorAll('[data-key]').forEach(inp=>{
-      inp.addEventListener('input', scheduleDraftSave);
-      inp.addEventListener('change', scheduleDraftSave);
-    });
+    // Submit
 
     const btnSubmit = document.getElementById('btnCustomerTaskSubmit');
     if(btnSubmit) btnSubmit.onclick = async ()=>{
       if(!confirm('Formular absenden? Danach kann es nicht mehr geändert werden.')) return;
       try{
-        const payloadSubmitted = collectCustomerPortalForm();
-        currentDoc.fields = Object.assign({}, payloadSubmitted.fields);
-        currentDoc.meta   = Object.assign({}, payloadSubmitted.meta);
         const patch = {
-          payloadSubmitted,
+          payloadSubmitted: { fields: working.fields, meta: working.meta },
           status: 'submitted',
           submittedAt: Date.now(),
           updatedAt: Date.now()
@@ -1574,25 +1553,17 @@ async function initCustomerPortal(){
           localStorage.setItem(LS_KEY, JSON.stringify(data));
         }catch(_){ }
         alert(wroteRemote ? '✅ Danke! Formular wurde übermittelt.' : '✅ Formular lokal als übermittelt markiert.');
-        currentDoc = prevDoc;
-        const listCard2 = document.getElementById('customerTaskListCard');
+        const listCard = document.getElementById('customerTaskListCard');
         if(editor) editor.style.display = 'none';
         if(listEl) listEl.style.display = '';
-        if(listCard2) listCard2.style.display = 'block';
+        if(listCard) listCard.style.display = 'block';
       }catch(e){
         console.error('submit', e);
         alert('❌ Absenden fehlgeschlagen: '+(e.message||e));
       }
     };
-    const btnBack = document.getElementById('btnCustomerTaskBack');
-    if(btnBack) btnBack.onclick = ()=>{
-      currentDoc = prevDoc;
-      if(editor) editor.style.display = 'none';
-      if(listEl) listEl.style.display = '';
-      if(listCard) listCard.style.display = 'block';
-      try{ listCard?.scrollIntoView({behavior:'smooth', block:'start'}); }catch(_){ }
-    };
   }
+}
 async function initStaffFeatures(){
   showStaffUI();
   updateSyncUI();
