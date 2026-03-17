@@ -1527,13 +1527,6 @@ async function initCustomerPortal(){
     };
     // Submit
 
-  window.__dsOpenCustomerTask = openCustomerTask;
-  window.__dsOpenCustomerTaskById = function(taskId){
-    const tasks = Array.isArray(window.__dsCustomerTasks) ? window.__dsCustomerTasks : [];
-    const match = tasks.find(t => String((t && (t.id || t.taskId)) || '').trim() === String(taskId || '').trim());
-    if(match) return openCustomerTask(match);
-  };
-
     const btnSubmit = document.getElementById('btnCustomerTaskSubmit');
     if(btnSubmit) btnSubmit.onclick = async ()=>{
       if(!confirm('Formular absenden? Danach kann es nicht mehr geändert werden.')) return;
