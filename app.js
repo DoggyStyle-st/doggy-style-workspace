@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9CG_AI_REVIEW_WORKFLOW_MASTER_20260317",
+  tag: "M50.9.9CH_AI_CUSTOMERPORTAL_APPRENDER_MASTER_20260317",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9CG_AI_REVIEW_WORKFLOW_MASTER_20260317";
+const APP_BUILD = "M50.9.9CH_AI_CUSTOMERPORTAL_APPRENDER_MASTER_20260317";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -1450,51 +1450,47 @@ async function initCustomerPortal(){
     if(titleEl) titleEl.textContent = task.title || t.name || 'Aufgabe';
     if(metaEl) metaEl.textContent = `Formular: ${t.name||task.templateId}`;
     if(hint) hint.textContent = '';
-    const working = {
-      fields: (task.payloadDraft?.fields || task.payloadSubmitted?.fields || {}),
-      meta: (task.payloadDraft?.meta || task.payloadSubmitted?.meta || {})
-    };
-    // Render
-    if(root) root.innerHTML = '';
-    const renderFieldSimple = (f, value, bucket)=>{
-      const wrap=document.createElement('label');
-      wrap.className='field'; wrap.style.minWidth='260px';
-      wrap.dataset.key = f.key;
-      wrap.innerHTML=`<span>${escapeHtml(f.label)}${f.required?" *":""}</span>`;
-      let input;
-      if(f.type==='textarea'){ input=document.createElement('textarea'); input.value=value||''; }
-      else if(f.type==='select'){
-        input=document.createElement('select');
-        input.innerHTML=(f.options||[]).map(o=>`<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join('');
-        input.value=value || (f.options?.[0]||'');
-      }
-      else if(f.type==='checkbox'){ input=document.createElement('input'); input.type='checkbox'; input.checked=!!value; input.style.width='22px'; input.style.height='22px'; }
-      else { input=document.createElement('input'); input.type=f.type||'text'; input.value=value||''; }
-      input.dataset.key = f.key;
-      input.oninput = ()=>{ bucket[f.key] = (f.type==='checkbox')?input.checked:input.value; scheduleDraftSave(); };
-      input.onchange = ()=>{ bucket[f.key] = (f.type==='checkbox')?input.checked:input.value; scheduleDraftSave(); };
-      wrap.appendChild(input);
-      return wrap;
-    };
-    const build = ()=>{
-      if(!root) return;
-      root.innerHTML='';
-      t.sections.forEach(sec=>{
-        const card=document.createElement('div');
-        card.className='card';
-        card.innerHTML=`<h2>${escapeHtml(sec.title)}</h2>`;
-        sec.fields.forEach(f=>card.appendChild(renderFieldSimple(f, working.fields[f.key], working.fields)));
-        root.appendChild(card);
+
+    const getScopedForm = ()=>{
+      const fields = {}, meta = {};
+      (root ? root.querySelectorAll('[data-key]') : []).forEach(inp=>{
+        const key = inp.dataset.key, type = inp.dataset.ftype;
+        const val = (type==='checkbox') ? !!inp.checked : inp.value;
+        if((t.meta||[]).some(m=>m.key===key)) meta[key] = val; else fields[key] = val;
       });
-      const metaCard=document.createElement('div');
-      metaCard.className='card';
-      metaCard.innerHTML=`<h2>Ort / Datum</h2>`;
-      (t.meta||[]).forEach(f=>metaCard.appendChild(renderFieldSimple(f, working.meta[f.key], working.meta)));
-      root.appendChild(metaCard);
+      return { fields, meta };
     };
-    build();
+
+    const docObj = {
+      id: task.id || task.taskId || ('task_'+Date.now()),
+      title: task.title || t.name || 'Aufgabe',
+      templateId: task.templateId,
+      templateName: t.name || task.templateId,
+      type: 'customer_task',
+      saved: false,
+      dogId: task.dogId || task.petId || '',
+      fields: Object.assign({}, task.payloadSubmitted?.fields || {}, task.payloadDraft?.fields || {}),
+      meta: Object.assign({}, task.payloadSubmitted?.meta || {}, task.payloadDraft?.meta || {})
+    };
+    currentDoc = docObj;
+    dirty = false;
+
+    if(root) root.innerHTML = '';
+    t.sections.forEach(sec=>{
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = `<h2>${escapeHtml(sec.title)}</h2>`;
+      sec.fields.forEach(f=> card.appendChild(renderField(f, docObj.fields[f.key], docObj)));
+      root && root.appendChild(card);
+    });
+    const metaCard = document.createElement('div');
+    metaCard.className = 'card';
+    metaCard.innerHTML = `<h2>Ort / Datum</h2>`;
+    (t.meta||[]).forEach(f=> metaCard.appendChild(renderField(f, docObj.meta[f.key], docObj)));
+    root && root.appendChild(metaCard);
+
     const saveDraftNow = async ()=>{
-      const payloadDraft = { fields: working.fields, meta: working.meta };
+      const payloadDraft = getScopedForm();
       try{
         const patch = { payloadDraft, updatedAt: Date.now() };
         const col = cloudTasksCol();
@@ -1524,14 +1520,18 @@ async function initCustomerPortal(){
       _draftTimer = setTimeout(()=>saveDraftNow(), 600);
       if(hint) hint.textContent = '… speichert …';
     };
-    // Submit
+    root && root.querySelectorAll('input, textarea, select').forEach(el=>{
+      el.addEventListener('input', scheduleDraftSave);
+      el.addEventListener('change', scheduleDraftSave);
+    });
 
     const btnSubmit = document.getElementById('btnCustomerTaskSubmit');
     if(btnSubmit) btnSubmit.onclick = async ()=>{
       if(!confirm('Formular absenden? Danach kann es nicht mehr geändert werden.')) return;
       try{
+        const payloadSubmitted = getScopedForm();
         const patch = {
-          payloadSubmitted: { fields: working.fields, meta: working.meta },
+          payloadSubmitted,
           status: 'submitted',
           submittedAt: Date.now(),
           updatedAt: Date.now()
@@ -1553,10 +1553,10 @@ async function initCustomerPortal(){
           localStorage.setItem(LS_KEY, JSON.stringify(data));
         }catch(_){ }
         alert(wroteRemote ? '✅ Danke! Formular wurde übermittelt.' : '✅ Formular lokal als übermittelt markiert.');
-        const listCard = document.getElementById('customerTaskListCard');
+        const listCard2 = document.getElementById('customerTaskListCard');
         if(editor) editor.style.display = 'none';
         if(listEl) listEl.style.display = '';
-        if(listCard) listCard.style.display = 'block';
+        if(listCard2) listCard2.style.display = 'block';
       }catch(e){
         console.error('submit', e);
         alert('❌ Absenden fehlgeschlagen: '+(e.message||e));
