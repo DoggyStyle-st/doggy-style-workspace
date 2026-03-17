@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9CE_STABLE_RESTORE_FROM_CB_MASTER_20260317",
+  tag: "M50.9.9CG_AI_REVIEW_WORKFLOW_MASTER_20260317",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9CE_STABLE_RESTORE_FROM_CB_MASTER_20260317";
+const APP_BUILD = "M50.9.9CG_AI_REVIEW_WORKFLOW_MASTER_20260317";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -1681,7 +1681,7 @@ async function wireInbox(){
       const row = document.createElement('div');
       row.className = 'list-item';
       const when = t.submittedAt ? fmtDT(t.submittedAt) : '';
-      row.innerHTML = `<div><strong>${escapeHtml(t.title||'Eingang')}</strong><small>${escapeHtml(t.customerEmail||t.customerUid||'')}${when?(' · '+when):''}</small></div>`;
+      row.innerHTML = `<div><strong>${escapeHtml(t.title||'Eingang')}</strong><small>${escapeHtml(t.customerEmail||t.customerUid||'')}${when?(' · '+when):''}${t.__source==='local' ? ' · lokal' : ''}</small></div>`;
       const actions = document.createElement('div');
       actions.className = 'actions';
       const b = document.createElement('button');
@@ -1694,19 +1694,39 @@ async function wireInbox(){
     });
   };
   const loadSubmitted = async ()=>{
-    const snap = await cloudTasksCol().where('status','==','submitted').orderBy('submittedAt','desc').limit(100).get();
     const tasks = [];
-    snap.forEach(d=>tasks.push({id:d.id, ...d.data()}));
+    const seen = new Map();
+    try{
+      const col = cloudTasksCol();
+      if(col){
+        const snap = await col.where('status','==','submitted').orderBy('submittedAt','desc').limit(100).get();
+        snap.forEach(d=>{ const t={id:d.id, ...d.data(), __source:'cloud'}; tasks.push(t); seen.set(String(t.id), t); });
+      }
+    }catch(err){ console.warn('loadSubmitted cloud failed', err); }
+    // lokale submitted Aufgaben ergänzen
+    try{
+      const raw = localStorage.getItem(LS_KEY);
+      const data = raw ? JSON.parse(raw) : {};
+      const localList = Array.isArray(data.inboxAssignments) ? data.inboxAssignments : [];
+      localList.filter(t=>String(t?.status||'').trim().toLowerCase()==='submitted').forEach(t=>{
+        const key = String((t && (t.id||t.taskId)) || '');
+        const entry = { ...(t||{}), id: key || ('local_'+Math.random()), __source:'local' };
+        if(!seen.has(String(entry.id))) tasks.push(entry);
+      });
+    }catch(err){ console.warn('loadSubmitted local failed', err); }
     // Emails der Kunden auflösen (best effort)
     const uids = Array.from(new Set(tasks.map(t=>t.customerUid).filter(Boolean)));
     const map = {};
     await Promise.all(uids.map(async uid=>{
       try{
-        const us = await cloudUserDoc(uid).get();
+        const udoc = cloudUserDoc(uid);
+        if(!udoc) return;
+        const us = await udoc.get();
         if(us.exists) map[uid] = us.data().email || uid;
       }catch(_){ }
     }));
-    tasks.forEach(t=>t.customerEmail = map[t.customerUid]||'');
+    tasks.forEach(t=>t.customerEmail = t.customerEmail || map[t.customerUid]||'');
+    tasks.sort((a,b)=>Number(b.submittedAt||0)-Number(a.submittedAt||0));
     renderList(tasks);
   };
   const openDetail = (task)=>{
@@ -1749,7 +1769,23 @@ async function wireInbox(){
   if(btnClose) btnClose.onclick = async ()=>{
     if(!currentTask) return;
     if(!confirm('Eingang schließen? (Status = closed)')) return;
-    await cloudTasksCol().doc(currentTask.id).set({status:'closed', closedAt: Date.now(), updatedAt: Date.now()}, {merge:true});
+    try{
+      const col = cloudTasksCol();
+      if(col && currentTask.__source !== 'local'){
+        await col.doc(currentTask.id).set({status:'closed', closedAt: Date.now(), updatedAt: Date.now()}, {merge:true});
+      }
+    }catch(err){ console.warn('close submitted task cloud failed', err); }
+    try{
+      const raw = localStorage.getItem(LS_KEY);
+      const data = raw ? JSON.parse(raw) : {};
+      const list = Array.isArray(data.inboxAssignments) ? data.inboxAssignments : [];
+      const idx = list.findIndex(x => String((x && (x.id||x.taskId))||'') === String(currentTask.id||''));
+      if(idx >= 0){
+        list[idx] = { ...list[idx], status:'closed', closedAt: Date.now(), updatedAt: Date.now() };
+        data.inboxAssignments = list;
+        localStorage.setItem(LS_KEY, JSON.stringify(data));
+      }
+    }catch(err){ console.warn('close submitted task local failed', err); }
     if(detail) detail.style.display='none';
     if(listEl) listEl.style.display='';
     await loadSubmitted();
@@ -1769,8 +1805,8 @@ async function wireInbox(){
       templateName: t.name || templateId,
       title: currentTask.title || (t.name||'Dokument'),
       dogId: state.dogs?.[0]?.id || "",
-      petId: "",
-      customerId: "",
+      petId: currentTask.petId || "",
+      customerId: currentTask.customerId || "",
       fields: payload.fields || {},
       meta: payload.meta || {},
       signature: null,
