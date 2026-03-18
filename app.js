@@ -1403,9 +1403,6 @@ async function initCustomerPortal(){
     if(uid) unsubs.push(attach(tasksCol.where('customerUid','==',uid).where('status','==','open').orderBy('createdAt','desc')));
     if(email) unsubs.push(attach(tasksCol.where('customerEmail','==',email).where('status','==','open').orderBy('createdAt','desc')));
   }
-  function resolveCustomerTaskTemplateId(task){
-    return String((task && (task.templateId || task.taskId || task.formId || task.docType || task.type)) || '').trim();
-  }
   function renderCustomerTaskList(tasks){
     if(!listEl) return;
     window.__dsCustomerTasks = Array.isArray(tasks) ? tasks.slice() : [];
@@ -1421,8 +1418,9 @@ async function initCustomerPortal(){
       row.dataset.taskId = taskId;
       row.style.cursor = 'pointer';
       const when = t.createdAt ? fmtDT(t.createdAt) : '';
-      const resolvedTemplateId = resolveCustomerTaskTemplateId(t);
-      row.innerHTML = `<div><strong>${escapeHtml(t.title||resolvedTemplateId||'Aufgabe')}</strong><small>${escapeHtml(resolvedTemplateId||'')}${when?(' · '+when):''}</small></div>`;
+      const label = String(t.title || t.templateName || t.templateId || 'Aufgabe');
+      const sub = String(t.templateId || t.taskId || t.formId || t.docType || t.type || '');
+      row.innerHTML = `<div><strong>${escapeHtml(label)}</strong><small>${escapeHtml(sub && sub !== label ? sub : '')}${when?((sub && sub !== label ? ' · ' : '') + when):''}</small></div>`;
       const actions = document.createElement('div');
       actions.className = 'actions';
       const btnOpen = document.createElement('button');
@@ -1438,22 +1436,56 @@ async function initCustomerPortal(){
     });
   }
   let _draftTimer = null;
+  function getTaskTemplateResolved(task){
+    const templateKeys = [task && task.templateId, task && task.taskId, task && task.formId, task && task.docType, task && task.type].filter(Boolean).map(v=>String(v));
+    for(const key of templateKeys){
+      const tpl = getTemplate(key);
+      if(tpl) return tpl;
+    }
+    return null;
+  }
+  function normalizePortalTemplate(tpl, task){
+    const base = tpl ? JSON.parse(JSON.stringify(tpl)) : { id: String((task && (task.templateId || task.taskId || task.formId || task.docType || task.type)) || ''), name: task && task.title ? String(task.title) : 'Aufgabe' };
+    if(!Array.isArray(base.sections) || !base.sections.length){
+      const fields = Array.isArray(base.fields) ? base.fields.slice() : [];
+      if(fields.length) base.sections = [{ title: base.name || 'Formular', fields }];
+      else base.sections = [];
+    }
+    if(!Array.isArray(base.meta)) base.meta = [];
+    return base;
+  }
+  function renderCustomerPortalForm(docObj, tpl, root){
+    if(!root) return;
+    root.innerHTML = '';
+    const sections = Array.isArray(tpl.sections) ? tpl.sections : [];
+    const meta = Array.isArray(tpl.meta) ? tpl.meta : [];
+    sections.forEach(sec=>{
+      const card = document.createElement('div');
+      card.className = 'card';
+      if(sec && sec.title) card.innerHTML = `<h2>${escapeHtml(sec.title)}</h2>`;
+      (Array.isArray(sec && sec.fields) ? sec.fields : []).forEach(f=>{
+        const key = String((f && (f.key || f.id)) || '');
+        const value = (docObj.fields && key in docObj.fields) ? docObj.fields[key] : '';
+        card.appendChild(renderField(Object.assign({}, f, { key }), value, docObj));
+      });
+      root.appendChild(card);
+    });
+    if(meta.length){
+      const metaCard = document.createElement('div');
+      metaCard.className = 'card';
+      metaCard.innerHTML = '<h2>Ort / Datum</h2>';
+      meta.forEach(f=>{
+        const key = String((f && (f.key || f.id)) || '');
+        const value = (docObj.meta && key in docObj.meta) ? docObj.meta[key] : '';
+        metaCard.appendChild(renderField(Object.assign({}, f, { key }), value, docObj));
+      });
+      root.appendChild(metaCard);
+    }
+  }
   async function openCustomerTask(task){
     if(!task) return;
-    const resolvedTemplateId = resolveCustomerTaskTemplateId(task);
-    if(!resolvedTemplateId){
-      const hint = document.getElementById('customerTaskSaveHint');
-      if(hint) hint.textContent = '❌ Aufgabe ohne Vorlagen-ID – bitte in Eingänge neu freigeben.';
-      alert('Diese Aufgabe enthält keine Vorlagen-ID. Bitte in Eingänge neu freigeben.');
-      return;
-    }
-    const t = getTemplate(resolvedTemplateId);
-    if(!t){
-      const hint = document.getElementById('customerTaskSaveHint');
-      if(hint) hint.textContent = `❌ Vorlage nicht gefunden: ${resolvedTemplateId}`;
-      alert('Vorlage nicht gefunden: ' + resolvedTemplateId);
-      return;
-    }
+    const t = normalizePortalTemplate(getTaskTemplateResolved(task), task);
+    if(!t || !t.id){ alert('Vorlage nicht gefunden.'); return; }
     const isCustomerPortal = !!document.getElementById('customerPortal');
     const listCard = document.getElementById('customerTaskListCard');
     if(listEl) listEl.style.display = 'none';
@@ -1471,7 +1503,7 @@ async function initCustomerPortal(){
     const nameEl = document.getElementById('docName');
     const dogSel = document.getElementById('dogSelect');
     if(titleEl) titleEl.textContent = task.title || t.name || 'Aufgabe';
-    if(metaEl) metaEl.textContent = `Formular: ${t.name||resolvedTemplateId}`;
+    if(metaEl) metaEl.textContent = `Formular: ${t.name||t.id||task.templateId||''}`;
     if(hint) hint.textContent = '';
 
     const mergedFields = Object.assign({}, (task.payloadSubmitted && task.payloadSubmitted.fields) || {}, (task.payloadDraft && task.payloadDraft.fields) || {});
@@ -1479,8 +1511,8 @@ async function initCustomerPortal(){
     currentDoc = {
       id: `customer_task_${String(task.id || task.taskId || Date.now())}`,
       sourceTaskId: String(task.id || task.taskId || ''),
-      templateId: resolvedTemplateId,
-      templateName: t.name || resolvedTemplateId,
+      templateId: t.id || task.templateId || task.taskId || '',
+      templateName: t.name || t.id || task.templateId || '',
       title: task.title || t.name || 'Aufgabe',
       dogId: task.dogId || '',
       customerId: task.customerId || '',
@@ -1496,7 +1528,7 @@ async function initCustomerPortal(){
       dogSel.style.display = 'none';
     }
     if(root) root.innerHTML = '';
-    renderForm(currentDoc);
+    renderCustomerPortalForm(currentDoc, t, root);
     if(dsgvo) dsgvo.textContent = (t.dsGvoNote || '');
     const versionBox = document.getElementById('versionBox');
     if(versionBox) versionBox.style.display = 'none';
@@ -10262,31 +10294,18 @@ renderVersions(currentDoc);
 function renderForm(docObj){
   const root=$("#formRoot"); root.innerHTML="";
   const t=getTemplate(docObj.templateId);
-  const sections = Array.isArray(t?.sections) ? t.sections : [];
-  const flatFields = Array.isArray(t?.fields) ? t.fields : [];
-  const metaFields = Array.isArray(t?.meta) ? t.meta : [];
-  if(sections.length){
-    sections.forEach(sec=>{
-      const card=document.createElement("div");
-      card.className="card";
-      card.innerHTML=`<h2>${escapeHtml(sec.title || 'Formular')}</h2>`;
-      (sec.fields||[]).forEach(f=>card.appendChild(renderField(f, docObj.fields ? docObj.fields[f.key] : undefined, docObj)));
-      root.appendChild(card);
-    });
-  } else if(flatFields.length){
+  t.sections.forEach(sec=>{
     const card=document.createElement("div");
     card.className="card";
-    card.innerHTML=`<h2>${escapeHtml(t?.name || docObj.title || 'Formular')}</h2>`;
-    flatFields.forEach(f=>card.appendChild(renderField(f, docObj.fields ? docObj.fields[f.key] : undefined, docObj)));
+    card.innerHTML=`<h2>${escapeHtml(sec.title)}</h2>`;
+    sec.fields.forEach(f=>card.appendChild(renderField(f, docObj.fields[f.key], docObj)));
     root.appendChild(card);
-  }
-  if(metaFields.length){
-    const meta=document.createElement("div");
-    meta.className="card";
-    meta.innerHTML=`<h2>Ort / Datum</h2>`;
-    metaFields.forEach(f=>meta.appendChild(renderField(f, docObj.meta ? docObj.meta[f.key] : undefined, docObj)));
-    root.appendChild(meta);
-  }
+  });
+  const meta=document.createElement("div");
+  meta.className="card";
+  meta.innerHTML=`<h2>Ort / Datum</h2>`;
+  t.meta.forEach(f=>meta.appendChild(renderField(f, docObj.meta[f.key], docObj)));
+  root.appendChild(meta);
   updateAutoHolidayFields();
   try{ renderStayPricingPreview(docObj); }catch(e){ console.warn('renderStayPricingPreview failed', e); }
 const sigCard = document.createElement("div");
@@ -10453,12 +10472,11 @@ $("#btnClose").addEventListener("click",()=>{
 });
 function collectForm(){
   const t=getTemplate(currentDoc.templateId);
-  const metaDefs = Array.isArray(t?.meta) ? t.meta : [];
   const fields={}, meta={};
   $$("#formRoot [data-key]").forEach(inp=>{
     const key=inp.dataset.key, type=inp.dataset.ftype;
     const val=(type==="checkbox")?inp.checked:inp.value;
-    if(metaDefs.some(m=>m.key===key)) meta[key]=val; else fields[key]=val;
+    if(Array.isArray(t.meta) && t.meta.some(m=>m.key===key)) meta[key]=val; else fields[key]=val;
   });
   return {fields, meta};
 }
