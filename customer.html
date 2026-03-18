@@ -8,7 +8,7 @@
   <link href="manifest.json" rel="manifest"/>
   <meta name="theme-color" content="#101014"/>
   <link href="assets/logo.png" rel="apple-touch-icon"/>
-  <link href="styles.css?v=M50.9.9CU_AI_CUSTOMERPORTAL_TEMPLATEBRIDGE_MASTER_20260318" rel="stylesheet"/>
+  <link href="styles.css?v=M50.9.9CV_AI_CUSTOMERPORTAL_CUSTOMERAPPBRIDGE_MASTER_20260318" rel="stylesheet"/>
 </head>
 <body class="bg-watermark">
   <main class="shell" style="padding-top:20px">
@@ -17,7 +17,7 @@
         <div class="row between" style="align-items:flex-start; gap:12px; flex-wrap:wrap;">
           <div>
             <h1 style="margin:0">Kundenportal</h1>
-            <div class="muted" id="customerPortalBuildTop" style="margin-top:6px;font-size:12px;opacity:.9">Build CUSTOMER M50.9.9CU_AI_CUSTOMERPORTAL_TEMPLATEBRIDGE_MASTER_20260318</div>
+            <div class="muted" id="customerPortalBuildTop" style="margin-top:6px;font-size:12px;opacity:.9">Build CUSTOMER M50.9.9CV_AI_CUSTOMERPORTAL_CUSTOMERAPPBRIDGE_MASTER_20260318</div>
             <p class="muted" id="customerPortalSubtitle" style="margin:6px 0 0 0;">Aktuell liegen keine Aufgaben für dich vor.</p>
           </div>
           <button class="btn" id="btnCustomerLogout">Abmelden</button>
@@ -49,79 +49,44 @@
         <div class="hint" id="customerTaskSaveHint" style="margin-top:10px"></div>
       </div>
     </section>
-    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9CU_AI_CUSTOMERPORTAL_TEMPLATEBRIDGE_MASTER_20260318</div>
+    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9CV_AI_CUSTOMERPORTAL_CUSTOMERAPPBRIDGE_MASTER_20260318</div>
   </main>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=M50.9.9CU_AI_CUSTOMERPORTAL_TEMPLATEBRIDGE_MASTER_20260318"></script>
-  <script src="app.js?v=M50.9.9CU_AI_CUSTOMERPORTAL_TEMPLATEBRIDGE_MASTER_20260318"></script>
+  <script src="firebase-config.js?v=M50.9.9CV_AI_CUSTOMERPORTAL_CUSTOMERAPPBRIDGE_MASTER_20260318"></script>
+  <script src="app.js?v=M50.9.9CV_AI_CUSTOMERPORTAL_CUSTOMERAPPBRIDGE_MASTER_20260318"></script>
 
   <script>
     (function(){
-      const BUILD = 'Build CUSTOMER M50.9.9CU_AI_CUSTOMERPORTAL_TEMPLATEBRIDGE_MASTER_20260318';
+      const BUILD = 'Build CUSTOMER M50.9.9CV_AI_CUSTOMERPORTAL_CUSTOMERAPPBRIDGE_MASTER_20260318';
       function setStatus(msg){
         var top=document.getElementById('customerPortalBuildTop');
         var bottom=document.getElementById('customerPortalBuildBottom');
-        if(top) top.textContent = BUILD + (msg ? ' · ' + msg : '');
-        if(bottom) bottom.textContent = BUILD + (msg ? ' · ' + msg : '');
+        if(top) top.textContent = BUILD + ' · ' + msg;
+        if(bottom) bottom.textContent = BUILD + ' · ' + msg;
       }
-      function resolveTemplateId(task){
-        if(!task || typeof task !== 'object') return '';
-        var vals = [task.templateId, task.template, task.formId, task.docType, task.type, task.templateKey, task.templateName, task.kind]
-          .map(function(v){ return String(v || '').trim(); })
-          .filter(Boolean);
-        if(vals.length) return vals[0];
-        var title = String(task.title || task.name || '').toLowerCase();
-        if(title.indexOf('kunden') >= 0) return 'customer_data';
-        if(title.indexOf('vertrag') >= 0) return 'boarding_contract';
-        if(title.indexOf('annahme') >= 0 || title.indexOf('aufenthalt') >= 0) return 'hundeannahme';
-        return '';
-      }
-      function normalizeTask(task){
-        if(!task || typeof task !== 'object') return task;
-        var templateId = resolveTemplateId(task);
-        var out = Object.assign({}, task);
-        if(templateId && !out.templateId) out.templateId = templateId;
-        if(templateId && !out.taskId) out.taskId = templateId;
-        return out;
-      }
-      function attachCustomerBridge(){
+
+      document.addEventListener('click', function(ev){
         try{
-          var originalById = window.__dsOpenCustomerTaskById;
-          var originalOpen = window.__dsOpenCustomerTask;
-          if(typeof originalById !== 'function' || typeof originalOpen !== 'function'){
-            setStatus('bridge fehlt');
-            return;
-          }
-          window.__dsOpenCustomerTask = function(task){
-            try{
-              if(typeof ensureEmbeddedTemplates === 'function') ensureEmbeddedTemplates();
-            }catch(_){ }
-            var normalized = normalizeTask(task);
-            setStatus('open ' + String((normalized && (normalized.templateId || normalized.id || normalized.taskId)) || '-'));
-            return originalOpen(normalized);
-          };
-          window.__dsOpenCustomerTaskById = function(id){
-            try{
-              if(typeof ensureEmbeddedTemplates === 'function') ensureEmbeddedTemplates();
-            }catch(_){ }
-            var tasks = Array.isArray(window.__dsCustomerTasks) ? window.__dsCustomerTasks : [];
-            var found = tasks.find(function(x){ return String((x && (x.id || x.taskId)) || '') === String(id || ''); });
-            if(found){
-              var normalized = normalizeTask(found);
-              setStatus('open by id ' + String(id || ''));
-              return originalOpen(normalized);
-            }
-            setStatus('task fehlt ' + String(id || ''));
-            return originalById(id);
-          };
+          var btn = ev.target && ev.target.closest ? ev.target.closest('#customerTaskList .smallbtn, #customerTaskList .list-item') : null;
+          if(!btn) return;
+          var holder = btn.matches && btn.matches('.list-item') ? btn : (btn.closest ? btn.closest('.list-item') : null);
+          var taskId = (btn.dataset && btn.dataset.taskId) || (holder && holder.dataset ? holder.dataset.taskId : '');
+          if(!taskId) return;
+          ev.preventDefault();
+          ev.stopPropagation();
+          try{ sessionStorage.setItem('ds_customer_open_task_id', taskId); }catch(_){}
+          setStatus('weiter zu app ' + taskId);
+          location.href = 'app.html?customerTask=' + encodeURIComponent(taskId) + '#dogs';
+          return;
         }catch(err){
           console.error(err);
-          setStatus('bridge error');
+          setStatus('open error');
         }
-      }
+      }, true);
+
       async function bootCustomerPortal(){
         try{
           if(!(window.firebase && window.firebase.auth && window.firebase.firestore)) return;
@@ -142,7 +107,6 @@
             try{
               setStatus('auth ok');
               if(typeof initCustomerPortal === 'function') await initCustomerPortal();
-              attachCustomerBridge();
               setStatus('init ok');
             }catch(e){ console.error('customer explicit boot failed', e); setStatus('Boot-Fehler'); }
           });

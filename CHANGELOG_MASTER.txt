@@ -16,3 +16,7 @@ Included:
 \nM50_BLUE_TEMPLATE_BASE_20260215\n- Monatskontrollen (Betriebs-Check PRO): monatlich am 1. fällig, zusätzliche Prüfbereiche (Technik/Brandschutz, Hygiene-Mittel)\n- Schädlingsmonitoring: strukturiertes Protokoll bei Befall (Art/Ort/Maßnahme/Nachkontrolle)\n
 
 M50.8.0_FINAL_MASTER_20260301 - Version sync fix (meta/buildBadge/sw cache)
+
+- CV: Kundenportal klickt Aufgaben jetzt in die eingeschränkte App-Ansicht statt in den Portal-Editor.
+- CV: Kunden auf app.html sehen nur Hunde/Kunden und nur ihren eigenen Eintrag.
+- CV: Änderungen bleiben im gleichen App-Editor und gehen anschließend über Eingänge zur Freigabe.

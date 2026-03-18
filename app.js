@@ -1320,15 +1320,6 @@ function showStaffUI(){
   }catch(_){ }
 }
 async function initCustomerPortal(){
-  // Kunden sollen NICHT in die interne App – bei Direktaufruf app.html ins Kundenportal umleiten
-  try{
-    const p = (location && location.pathname) ? location.pathname.toLowerCase() : '';
-    if(p.endsWith('/app.html') || p.endsWith('app.html')){
-      location.replace('customer.html');
-      return;
-    }
-  }catch(_){}
-
   hideStaffUIForCustomer();
   updateSyncUI();
   try{ await loadTemplates(); }catch(_){ }
@@ -7814,6 +7805,94 @@ function pruneInvoiceDocs(){
     state.docs = state.docs.filter(d=>!(d && d.type==="invoice"));
   }
 }
+
+function isCustomerAppPage(){
+  try{
+    const p = String((location && location.pathname) || '').toLowerCase();
+    return p.endsWith('/app.html') || p.endsWith('app.html');
+  }catch(_){ return false; }
+}
+function getCustomerWorkspaceScope(){
+  const email = String(CLOUD.user?.email || '').trim().toLowerCase();
+  const uid = String(CLOUD.user?.uid || '').trim();
+  const customerIds = new Set();
+  const petIds = new Set();
+  const customers = Array.isArray(state?.customers) ? state.customers : [];
+  const pets = Array.isArray(state?.pets) ? state.pets : [];
+  customers.forEach(c=>{
+    const cEmail = String(c?.email || c?.mail || '').trim().toLowerCase();
+    const cUid = String(c?.portalUid || c?.customerUid || c?.uid || '').trim();
+    if((email && cEmail && cEmail === email) || (uid && cUid && cUid === uid)){
+      const cid = String(c?.id || c?.customerId || '').trim();
+      if(cid) customerIds.add(cid);
+    }
+  });
+  pets.forEach(p=>{
+    const ownerEmail = String(p?.ownerEmail || p?.email || '').trim().toLowerCase();
+    const ownerUid = String(p?.ownerUid || p?.customerUid || p?.portalUid || '').trim();
+    const cid = String(p?.customerId || p?.ownerId || '').trim();
+    const pid = String(p?.id || '').trim();
+    if((email && ownerEmail && ownerEmail === email) || (uid && ownerUid && ownerUid === uid)){
+      if(cid) customerIds.add(cid);
+      if(pid) petIds.add(pid);
+    }
+    if(cid && customerIds.has(cid) && pid) petIds.add(pid);
+  });
+  return { email, uid, customerIds, petIds, hasMatch: customerIds.size>0 || petIds.size>0 };
+}
+function hideStaffUIForCustomerApp(){
+  try{
+    const nav = document.querySelector('nav.tabs');
+    if(nav) nav.style.display = '';
+    $$('.tab').forEach(btn=>{
+      const t = String(btn.dataset.tab || '');
+      btn.style.display = (t === 'dogs') ? '' : 'none';
+      btn.classList.toggle('is-active', t === 'dogs');
+    });
+  }catch(_){ }
+  try{
+    $$('.panel').forEach(p=>{ p.classList.remove('is-active'); p.style.display = 'none'; });
+    const dogs = document.getElementById('dogs');
+    if(dogs){ dogs.style.display = ''; dogs.classList.add('is-active'); }
+    const cp = document.getElementById('customerPortal');
+    if(cp){ cp.style.display = 'none'; cp.classList.remove('is-active'); }
+  }catch(_){ }
+  try{
+    const btnAdd = document.getElementById('btnAddDog');
+    if(btnAdd) btnAdd.style.display = 'none';
+    const useExisting = document.getElementById('useExistingCustomer')?.closest('label.field');
+    if(useExisting) useExisting.style.display = 'none';
+    const selectWrap = document.getElementById('customerSelect')?.closest('label.field');
+    if(selectWrap) selectWrap.style.display = 'none';
+    const btnMore = document.getElementById('btnCpAddAnotherDog');
+    if(btnMore) btnMore.style.display = 'none';
+    const hint = document.getElementById('cpHint');
+    if(hint) hint.textContent = 'Als Kunde kannst du nur deinen eigenen Eintrag bearbeiten. Änderungen landen anschließend in Eingänge zur Freigabe.';
+  }catch(_){ }
+}
+async function initCustomerWorkspace(){
+  hideStaffUIForCustomerApp();
+  updateSyncUI();
+  try{ await bootOnce(); }catch(e){ console.warn('customer workspace boot', e); }
+  try{ renderDogs(); }catch(e){ console.warn('customer workspace render', e); }
+  try{ selectTab('dogs'); }catch(_){ }
+  try{
+    const scope = getCustomerWorkspaceScope();
+    if(!scope.hasMatch){
+      const list = document.getElementById('dogList');
+      if(list && !String(list.innerHTML||'').trim()){
+        list.innerHTML = '<div class="muted">Für dieses Kundenkonto wurde noch kein passender Hunde/Kunden-Eintrag gefunden.</div>';
+      }
+      return;
+    }
+    const requested = sessionStorage.getItem('ds_customer_open_task_id');
+    if(requested){
+      sessionStorage.removeItem('ds_customer_open_task_id');
+      const firstPetId = Array.from(scope.petIds)[0] || '';
+      if(firstPetId) setTimeout(()=>{ try{ openCpEditor('edit', firstPetId); }catch(_){ } }, 120);
+    }
+  }catch(e){ console.warn('customer workspace scope', e); }
+}
 // ===== ETAPPE 2 Helpers (Customer/Pet Editor) =====
 const cpEdit = { mode: "new", petId: "" };
 function getCustomer(id){
@@ -8006,11 +8085,29 @@ function openCpEditor(mode, petId){
   ensureContractDefaults();
   cpEdit.mode = mode || "new";
   cpEdit.petId = petId || "";
+  if(CLOUD.role === ROLES.CUSTOMER && isCustomerAppPage()){
+    const scope = getCustomerWorkspaceScope();
+    if(mode !== "edit"){ alert("Als Kunde kannst du keinen neuen Eintrag anlegen. Bitte bearbeite deinen bestehenden Eintrag."); return; }
+    const pet = petId ? getPet(petId) : null;
+    const cid = String(pet?.customerId || pet?.ownerId || '');
+    const pid = String(pet?.id || '');
+    if(!pet || (!(pid && scope.petIds.has(pid)) && !(cid && scope.customerIds.has(cid)))){ alert("Dieser Eintrag gehört nicht zu deinem Kundenkonto."); return; }
+  }
   const box = document.getElementById("cpEditor");
   if(box) box.style.display="block";
   const title = document.getElementById("cpEditorTitle");
   if(title) title.textContent = (mode==="edit") ? "Kunde & Hund bearbeiten" : "Kunde & Hund anlegen";
   refreshCustomerSelect();
+  if(CLOUD.role === ROLES.CUSTOMER && isCustomerAppPage()){
+    const sel = document.getElementById("customerSelect");
+    const scope = getCustomerWorkspaceScope();
+    if(sel){
+      Array.from(sel.options).forEach(opt=>{ opt.hidden = !scope.customerIds.has(String(opt.value||'')); });
+      const firstVisible = Array.from(sel.options).find(opt=>!opt.hidden);
+      if(firstVisible) sel.value = firstVisible.value;
+      sel.disabled = true;
+    }
+  }
   clearCpEditor();
   // Toggle handler
   const use = document.getElementById("useExistingCustomer");
@@ -9800,7 +9897,14 @@ function renderDogs(){
   const list = $("#dogList");
   if(!list) return;
   list.innerHTML = "";
-  const petsAll = (state.pets||[]).slice();
+  const customerScoped = (CLOUD.role === ROLES.CUSTOMER && isCustomerAppPage());
+  const scope = customerScoped ? getCustomerWorkspaceScope() : null;
+  const petsAll = (state.pets||[]).filter(p=>{
+    if(!customerScoped) return true;
+    const pid = String(p?.id || '');
+    const cid = String(p?.customerId || p?.ownerId || '');
+    return (!!pid && scope.petIds.has(pid)) || (!!cid && scope.customerIds.has(cid));
+  }).slice();
   // Sortierung: Kunden A-Z, Hunde je Kunde A-Z (de)
   const collator = new Intl.Collator("de", { sensitivity: "base", numeric: true });
   // Letzter Aufenthalt pro Kunde (für Übersicht in der Kundenzeile)
@@ -9891,13 +9995,15 @@ function renderDogs(){
             <small>${chipTxt}${badge}</small>
           </div>
           <div class="actions">
-            <button class="smallbtn" data-v="1">Vertrag</button>
+            ${customerScoped ? '' : '<button class="smallbtn" data-v="1">Vertrag</button>'}
             <button class="smallbtn" data-e="1">Bearbeiten</button>
-            <button class="smallbtn" data-d="1">Löschen</button>
+            ${customerScoped ? '' : '<button class="smallbtn" data-d="1">Löschen</button>'}
           </div>`;
-        el.querySelector('[data-v="1"]').onclick = ()=>openContractForPet(p.customerId, p.id);
+        const vBtn = el.querySelector('[data-v="1"]');
+        if(vBtn) vBtn.onclick = ()=>openContractForPet(p.customerId, p.id);
         el.querySelector('[data-e="1"]').onclick = ()=>openCpEditor("edit", p.id);
-        el.querySelector('[data-d="1"]').onclick = ()=>{
+        const dBtn = el.querySelector('[data-d="1"]');
+        if(dBtn) dBtn.onclick = ()=>{
           if(confirm("Hund wirklich löschen? (Aufenthalte/Rechnungen bleiben als Historie bestehen)")){
             state.pets = (state.pets||[]).filter(x=>x.id!==p.id);
             // legacy dog nicht automatisch löschen (Sicherheit), aber Mapping entfernen
@@ -9931,12 +10037,12 @@ function renderDogs(){
       };
       list.appendChild(el);
     });
-    if(!dogs.length) list.innerHTML=`<div class="muted">Noch keine Hunde/Kunden angelegt.</div>`;
+    if(!dogs.length) list.innerHTML=`<div class="muted">${customerScoped ? 'Für dieses Kundenkonto wurde noch kein Hunde/Kunden-Eintrag gefunden.' : 'Noch keine Hunde/Kunden angelegt.'}</div>`;
   }
   refreshCustomerSelect();
   syncDogSelect();
 }
-$("#btnAddDog").addEventListener("click",()=>openCpEditor("new"));
+$("#btnAddDog").addEventListener("click",()=>{ if(CLOUD.role === ROLES.CUSTOMER && isCustomerAppPage()) return; openCpEditor("new"); });
 $("#btnCpCancel").addEventListener("click",()=>closeCpEditor());
 // Button "Weiteren Hund" (für bestehenden Kunden) dynamisch einhängen
 try{
@@ -11314,9 +11420,12 @@ return;
       console.warn('Role load failed, fallback to staff', e);
       CLOUD.role = ROLES.STAFF;
     }
-    // Kunden-Portal: kein Workspace-State, keine Tabs
+    // Kunden: je nach Seite Kundenportal oder eingeschränkter App-Bereich
     if(CLOUD.role === ROLES.CUSTOMER){
-      try{ await initCustomerPortal(); }catch(e){ console.error(e); }
+      try{
+        if(isCustomerAppPage()) await initCustomerWorkspace();
+        else await initCustomerPortal();
+      }catch(e){ console.error(e); }
       return;
     }
     showAuthGate(false);
