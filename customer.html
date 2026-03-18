@@ -7,7 +7,7 @@
   <link href="manifest.json" rel="manifest"/>
   <meta name="theme-color" content="#101014"/>
   <link href="assets/logo.png" rel="apple-touch-icon"/>
-  <link href="styles.css?v=M50.9.9CH_AI_CUSTOMERPORTAL_APPRENDER_MASTER_20260317" rel="stylesheet"/>
+  <link href="styles.css?v=M50.9.9CJ_AI_CUSTOMERPORTAL_REALAPPEDITOR_MASTER_20260317" rel="stylesheet"/>
 </head>
 <body class="bg-watermark">
   <main class="shell" style="padding-top:20px">
@@ -15,7 +15,7 @@
       <div class="card">
         <div class="row between" style="align-items:flex-start; gap:12px; flex-wrap:wrap;">
           <div>
-            <h1 style="margin:0">Kundenportal</h1><div class="muted" id="customerPortalBuildTop" style="margin-top:6px;font-size:12px;opacity:.9">Build CUSTOMER M50.9.9CH_AI_CUSTOMERPORTAL_APPRENDER_MASTER_20260317</div>
+            <h1 style="margin:0">Kundenportal</h1><div class="muted" id="customerPortalBuildTop" style="margin-top:6px;font-size:12px;opacity:.9">Build CUSTOMER M50.9.9CJ_AI_CUSTOMERPORTAL_REALAPPEDITOR_MASTER_20260317</div>
             <p class="muted" id="customerPortalSubtitle" style="margin:6px 0 0 0;">Aktuell liegen keine Aufgaben für dich vor.</p>
           </div>
           <button class="btn" id="btnCustomerLogout">Abmelden</button>
@@ -37,34 +37,21 @@
             <button class="btn primary" id="btnCustomerTaskSubmit">Absenden</button>
           </div>
         </div>
-        <div id="customerTaskFormRoot" style="margin-top:12px"></div>
+        <input id="docName" type="hidden" /><select id="dogSelect" style="display:none"></select><div id="formRoot" style="margin-top:12px"></div>
         <div class="hint" id="customerTaskSaveHint" style="margin-top:10px"></div>
       </div>
     
-      <div class="card" id="customerTaskEditor" style="margin-top:12px; display:none;">
-        <div class="row between" style="gap:10px; flex-wrap:wrap;">
-          <div>
-            <h2 id="customerTaskTitle" style="margin:0">Aufgabe</h2>
-            <div class="muted" id="customerTaskMeta" style="margin-top:6px"></div>
-          </div>
-          <div class="row" style="gap:10px; flex-wrap:wrap;">
-            <button class="btn" id="btnCustomerTaskBack" type="button">Zurück</button>
-            <button class="btn primary" id="btnCustomerTaskSubmit" type="button">Absenden</button>
-          </div>
-        </div>
-        <div id="customerTaskFormRoot" style="margin-top:12px"></div>
-        <div class="hint" id="customerTaskSaveHint" style="margin-top:10px"></div>
-      </div>
+      
 
     </section>
-    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9CH_AI_CUSTOMERPORTAL_APPRENDER_MASTER_20260317</div>
+    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9CJ_AI_CUSTOMERPORTAL_REALAPPEDITOR_MASTER_20260317</div>
   </main>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=M50.9.9CH_AI_CUSTOMERPORTAL_APPRENDER_MASTER_20260317"></script>
-  <script src="app.js?v=M50.9.9CH_AI_CUSTOMERPORTAL_APPRENDER_MASTER_20260317"></script>
+  <script src="firebase-config.js?v=M50.9.9CJ_AI_CUSTOMERPORTAL_REALAPPEDITOR_MASTER_20260317"></script>
+  <script src="app.js?v=M50.9.9CJ_AI_CUSTOMERPORTAL_REALAPPEDITOR_MASTER_20260317"></script>
 
   <script>
     (function(){
@@ -92,13 +79,13 @@
             try{
               var top=document.getElementById('customerPortalBuildTop');
               var bottom=document.getElementById('customerPortalBuildBottom');
-              if(top) top.textContent = 'Build CUSTOMER M50.9.9CH_AI_CUSTOMERPORTAL_APPRENDER_MASTER_20260317 · Boot: auth ok';
-              if(bottom) bottom.textContent = 'Build CUSTOMER M50.9.9CH_AI_CUSTOMERPORTAL_APPRENDER_MASTER_20260317 · auth ok';
+              if(top) top.textContent = 'Build CUSTOMER M50.9.9CJ_AI_CUSTOMERPORTAL_REALAPPEDITOR_MASTER_20260317 · Boot: auth ok';
+              if(bottom) bottom.textContent = 'Build CUSTOMER M50.9.9CJ_AI_CUSTOMERPORTAL_REALAPPEDITOR_MASTER_20260317 · auth ok';
               if(typeof initCustomerPortal === 'function') await initCustomerPortal();
               try{ syncTasksFromGlobal(); bindDirectOpen(); }catch(_){ }
-              if(top) top.textContent = 'Build CUSTOMER M50.9.9CH_AI_CUSTOMERPORTAL_APPRENDER_MASTER_20260317 · Boot: initCustomerPortal ok';
-              if(bottom) bottom.textContent = 'Build CUSTOMER M50.9.9CH_AI_CUSTOMERPORTAL_APPRENDER_MASTER_20260317 · init ok';
-            }catch(e){ console.error('customer explicit boot failed', e); var top=document.getElementById('customerPortalBuildTop'); var bottom=document.getElementById('customerPortalBuildBottom'); if(top) top.textContent = 'Build CUSTOMER M50.9.9CH_AI_CUSTOMERPORTAL_APPRENDER_MASTER_20260317 · Boot-Fehler'; if(bottom) bottom.textContent = 'Build CUSTOMER M50.9.9CH_AI_CUSTOMERPORTAL_APPRENDER_MASTER_20260317 · Boot-Fehler'; }
+              if(top) top.textContent = 'Build CUSTOMER M50.9.9CJ_AI_CUSTOMERPORTAL_REALAPPEDITOR_MASTER_20260317 · Boot: initCustomerPortal ok';
+              if(bottom) bottom.textContent = 'Build CUSTOMER M50.9.9CJ_AI_CUSTOMERPORTAL_REALAPPEDITOR_MASTER_20260317 · init ok';
+            }catch(e){ console.error('customer explicit boot failed', e); var top=document.getElementById('customerPortalBuildTop'); var bottom=document.getElementById('customerPortalBuildBottom'); if(top) top.textContent = 'Build CUSTOMER M50.9.9CJ_AI_CUSTOMERPORTAL_REALAPPEDITOR_MASTER_20260317 · Boot-Fehler'; if(bottom) bottom.textContent = 'Build CUSTOMER M50.9.9CJ_AI_CUSTOMERPORTAL_REALAPPEDITOR_MASTER_20260317 · Boot-Fehler'; }
           });
         }catch(e){ console.error('customer boot setup failed', e); }
       }
@@ -108,77 +95,12 @@
 
   <script>
     (function(){
-      const BUILD = 'Build CUSTOMER M50.9.9CH_AI_CUSTOMERPORTAL_APPRENDER_MASTER_20260317';
+      const BUILD = 'Build CUSTOMER M50.9.9CJ_AI_CUSTOMERPORTAL_REALAPPEDITOR_MASTER_20260317';
       const LS_KEY = 'ds_workspace_test_optik_01';
       const TASKS = [];
       let CURRENT_TASK = null;
       let SAVE_TIMER = null;
-      const TEMPLATE_MAP = {
-        customer_data: {
-          name: 'Kundendaten ergänzen',
-          sections: [
-            { title: 'Kontaktdaten', fields: [
-              { key:'fullName', label:'Name', type:'text', required:true },
-              { key:'email', label:'E-Mail', type:'email', required:true },
-              { key:'phone', label:'Telefon', type:'text' },
-              { key:'street', label:'Straße / Hausnummer', type:'text' },
-              { key:'zip', label:'PLZ', type:'text' },
-              { key:'city', label:'Ort', type:'text' },
-              { key:'emergencyName', label:'Notfallkontakt Name', type:'text' },
-              { key:'emergencyPhone', label:'Notfallkontakt Telefon', type:'text' },
-              { key:'pickupPersons', label:'Abholberechtigte Personen', type:'textarea' },
-              { key:'customerNotes', label:'Hinweise zum Kunden', type:'textarea' }
-            ] },
-            { title: 'Hund', fields: [
-              { key:'dogName', label:'Hundename', type:'text', required:true },
-              { key:'breed', label:'Rasse', type:'text' },
-              { key:'birthDate', label:'Geburtsdatum', type:'date' },
-              { key:'gender', label:'Geschlecht', type:'select', options:['', 'männlich', 'weiblich'] },
-              { key:'chipExists', label:'Gechippt?', type:'select', options:['', 'ja', 'nein'] },
-              { key:'chipNumber', label:'Chipnummer', type:'text' },
-              { key:'vet', label:'Tierarzt / Praxis', type:'text' },
-              { key:'vetPhone', label:'Telefon Tierarzt', type:'text' },
-              { key:'allergies', label:'Allergien / Unverträglichkeiten', type:'textarea' },
-              { key:'medication', label:'Medikamente', type:'textarea' },
-              { key:'food', label:'Futter', type:'textarea' },
-              { key:'feeding', label:'Fütterung', type:'textarea' },
-              { key:'compatibility', label:'Verträglichkeit', type:'textarea' },
-              { key:'behaviour', label:'Verhalten / Besonderheiten', type:'textarea' }
-            ] }
-          ],
-          meta:[{ key:'place', label:'Ort', type:'text' },{ key:'date', label:'Datum', type:'date' }]
-        },
-        boarding_contract: {
-          name: 'Betreuungsvertrag freigeben',
-          sections: [
-            { title:'Vertragsdaten', fields:[
-              { key:'customerName', label:'Kundenname', type:'text', required:true },
-              { key:'dogName', label:'Hundename', type:'text', required:true },
-              { key:'serviceType', label:'Betreuungsart', type:'select', options:['Tagesbetreuung','Urlaubsbetreuung','Probetag'] },
-              { key:'contractAccepted', label:'Ich habe den Betreuungsvertrag gelesen und stimme zu', type:'checkbox', required:true }
-            ] },
-            { title:'Hinweise', fields:[
-              { key:'vet', label:'Tierarzt / Praxis', type:'text' },
-              { key:'emergencyPhone', label:'Notfallnummer', type:'text' },
-              { key:'notes', label:'Besondere Hinweise', type:'textarea' }
-            ] }
-          ],
-          meta:[{ key:'place', label:'Ort', type:'text' },{ key:'date', label:'Datum', type:'date' }]
-        },
-        hundeannahme: {
-          name: 'Aufenthalt anfragen',
-          sections: [
-            { title:'Aufenthalt', fields:[
-              { key:'dogName', label:'Hund', type:'text', required:true },
-              { key:'von', label:'Von', type:'date', required:true },
-              { key:'bis', label:'Bis', type:'date', required:true },
-              { key:'betreuung', label:'Betreuungsart', type:'select', options:['Tagesbetreuung','Urlaubsbetreuung'] },
-              { key:'notes', label:'Notizen', type:'textarea' }
-            ] }
-          ],
-          meta:[{ key:'place', label:'Ort', type:'text' },{ key:'date', label:'Datum', type:'date' }]
-        }
-      };
+      const TEMPLATE_MAP = {};
       function $(id){ return document.getElementById(id); }
       function setStatus(msg){
         var top=$('customerPortalBuildTop'), bottom=$('customerPortalBuildBottom');
@@ -189,7 +111,7 @@
       function fmt(ts){ try{ return new Date(Number(ts||0)).toLocaleString('de-DE'); }catch(_){ return ''; } }
       function titleForTask(t){
         var tid=String((t && (t.templateId||t.taskId||t.templateKey))||'').trim();
-        return String((t && t.title) || (TEMPLATE_MAP[tid] && TEMPLATE_MAP[tid].name) || tid || 'Aufgabe');
+        try{ return String((t && t.title) || ((typeof getTemplate==='function' && getTemplate(tid) && getTemplate(tid).name) || tid || 'Aufgabe')); }catch(_){ return String((t && t.title) || tid || 'Aufgabe'); }
       }
       function getTasksCol(){
         try{
@@ -223,58 +145,24 @@
           return TASKS.length;
         }catch(_){ return TASKS.length; }
       }
-      function renderField(field, value, bucket){
-        var wrap=document.createElement('label'); wrap.className='field'; wrap.style.minWidth='260px';
-        wrap.innerHTML='<span>'+esc(field.label)+(field.required ? ' *' : '')+'</span>';
-        var input;
-        if(field.type==='textarea'){
-          input=document.createElement('textarea'); input.value=value||'';
-        } else if(field.type==='select'){
-          input=document.createElement('select');
-          input.innerHTML=(field.options||[]).map(opt=>'<option value="'+esc(opt)+'">'+esc(opt||'Bitte wählen')+'</option>').join('');
-          input.value=value||'';
-        } else if(field.type==='checkbox'){
-          input=document.createElement('input'); input.type='checkbox'; input.checked=!!value; input.style.width='22px'; input.style.height='22px';
-        } else {
-          input=document.createElement('input'); input.type=field.type||'text'; input.value=value||'';
-        }
-        function apply(){ bucket[field.key] = field.type==='checkbox' ? input.checked : input.value; scheduleDraftSave(); }
-        input.oninput=apply; input.onchange=apply; wrap.appendChild(input); return wrap;
-      }
-      async function persistTask(task, patch){
-        var next = Object.assign({}, task, patch || {}, { updatedAt: Date.now() });
-        upsertLocalTask(next);
-        var col = getTasksCol();
-        if(col && next.id){ try{ await col.doc(next.id).set(patch || {}, { merge:true }); }catch(_){ } }
-        var idx = TASKS.findIndex(x => String(x.id||'') === String(next.id||''));
-        if(idx >= 0) TASKS[idx] = next;
-        return next;
-      }
-      async function saveDraftNow(){
-        if(!CURRENT_TASK) return; try{ CURRENT_TASK = await persistTask(CURRENT_TASK, { payloadDraft: CURRENT_TASK.payloadDraft }); setStatus('draft saved'); }catch(_){ setStatus('draft save failed'); }
-      }
-      function scheduleDraftSave(){ clearTimeout(SAVE_TIMER); SAVE_TIMER=setTimeout(saveDraftNow, 400); }
       function showEditor(task){
         CURRENT_TASK = ensureDraftBuckets(Object.assign({}, task));
-        var listCard=$('customerTaskListCard'), editor=$('customerTaskEditor'), root=$('customerTaskFormRoot');
-        if(listCard) listCard.style.display='none'; if(editor) editor.style.display='block'; if(root) root.innerHTML='';
+        var listCard=$('customerTaskListCard'), editor=$('customerTaskEditor');
+        if(listCard) listCard.style.display='none'; if(editor) editor.style.display='block';
         $('customerTaskTitle').textContent = titleForTask(task);
         $('customerTaskMeta').textContent = 'Formular: ' + titleForTask(task) + (task.createdAt ? ' · Freigegeben: ' + fmt(task.createdAt) : '');
-        var tid=String((task.templateId||task.taskId||task.templateKey)||'').trim();
-        var tpl=TEMPLATE_MAP[tid] || TEMPLATE_MAP.customer_data;
-        (tpl.sections||[]).forEach(function(sec){
-          var card=document.createElement('div'); card.className='card'; card.innerHTML='<h2>'+esc(sec.title)+'</h2>';
-          (sec.fields||[]).forEach(function(field){ card.appendChild(renderField(field, CURRENT_TASK.payloadDraft.fields[field.key], CURRENT_TASK.payloadDraft.fields)); });
-          root.appendChild(card);
-        });
-        if(Array.isArray(tpl.meta) && tpl.meta.length){
-          var card=document.createElement('div'); card.className='card'; card.innerHTML='<h2>Ort / Datum</h2>';
-          tpl.meta.forEach(function(field){ card.appendChild(renderField(field, CURRENT_TASK.payloadDraft.meta[field.key], CURRENT_TASK.payloadDraft.meta)); });
-          root.appendChild(card);
+        try{
+          if(typeof window.__dsRenderCustomerTaskWithAppEditor === 'function'){
+            window.__dsRenderCustomerTaskWithAppEditor(CURRENT_TASK);
+            setStatus('editor shown ' + String(task.id||''));
+          }else{
+            setStatus('editor helper missing');
+          }
+        }catch(err){
+          console.error(err); setStatus('editor error');
         }
-        editor.scrollIntoView({behavior:'smooth', block:'start'});
-        setStatus('editor shown ' + String(task.id||''));
       }
+
       function directOpenById(id){
         id=String(id||'').trim();
         if(!id){ setStatus('open: no task id'); return false; }
@@ -293,8 +181,13 @@
       async function submitCurrentTask(){
         if(!CURRENT_TASK) return; if(!confirm('Formular absenden? Danach kann es nicht mehr geändert werden.')) return;
         try{
-          CURRENT_TASK = await persistTask(CURRENT_TASK, { payloadSubmitted: CURRENT_TASK.payloadDraft, status:'submitted', reviewStatus:'pending', submittedAt:Date.now() });
-          setStatus('submitted pending-review ' + String(CURRENT_TASK.id||''));
+          var collected = (typeof window.__dsCollectCustomerTaskForm === 'function') ? window.__dsCollectCustomerTaskForm() : { fields: CURRENT_TASK.payloadDraft.fields, meta: CURRENT_TASK.payloadDraft.meta, errs: [] };
+          if(collected.errs && collected.errs.length){ alert('Bitte noch ausfüllen:
+
+• ' + collected.errs.join('\n• ')); return; }
+          CURRENT_TASK.payloadDraft = { fields: collected.fields || {}, meta: collected.meta || {} };
+          CURRENT_TASK = await persistTask(CURRENT_TASK, { payloadDraft: CURRENT_TASK.payloadDraft, payloadSubmitted: CURRENT_TASK.payloadDraft, status:'submitted', submittedAt:Date.now() });
+          setStatus('submitted ' + String(CURRENT_TASK.id||''));
           var editor=$('customerTaskEditor'), listCard=$('customerTaskListCard');
           if(editor) editor.style.display='none'; if(listCard) listCard.style.display='block';
         }catch(_){ setStatus('submit failed'); }
