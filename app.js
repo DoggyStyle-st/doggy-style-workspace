@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9CN_AI_CUSTOMERPORTAL_EDITORFIX_MASTER_20260318",
+  tag: "M50.9.9CK_AI_CUSTOMERPORTAL_APPPATH_MASTER_20260317",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9CN_AI_CUSTOMERPORTAL_EDITORFIX_MASTER_20260318";
+const APP_BUILD = "M50.9.9CK_AI_CUSTOMERPORTAL_APPPATH_MASTER_20260317";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -1403,6 +1403,9 @@ async function initCustomerPortal(){
     if(uid) unsubs.push(attach(tasksCol.where('customerUid','==',uid).where('status','==','open').orderBy('createdAt','desc')));
     if(email) unsubs.push(attach(tasksCol.where('customerEmail','==',email).where('status','==','open').orderBy('createdAt','desc')));
   }
+  function resolveCustomerTaskTemplateId(task){
+    return String((task && (task.templateId || task.taskId || task.formId || task.docType || task.type)) || '').trim();
+  }
   function renderCustomerTaskList(tasks){
     if(!listEl) return;
     window.__dsCustomerTasks = Array.isArray(tasks) ? tasks.slice() : [];
@@ -1418,7 +1421,8 @@ async function initCustomerPortal(){
       row.dataset.taskId = taskId;
       row.style.cursor = 'pointer';
       const when = t.createdAt ? fmtDT(t.createdAt) : '';
-      row.innerHTML = `<div><strong>${escapeHtml(t.title||'Aufgabe')}</strong><small>${escapeHtml(t.templateId||'')}${when?(' · '+when):''}</small></div>`;
+      const resolvedTemplateId = resolveCustomerTaskTemplateId(t);
+      row.innerHTML = `<div><strong>${escapeHtml(t.title||resolvedTemplateId||'Aufgabe')}</strong><small>${escapeHtml(resolvedTemplateId||'')}${when?(' · '+when):''}</small></div>`;
       const actions = document.createElement('div');
       actions.className = 'actions';
       const btnOpen = document.createElement('button');
@@ -1435,9 +1439,22 @@ async function initCustomerPortal(){
   }
   let _draftTimer = null;
   async function openCustomerTask(task){
-    if(!task || !task.templateId) return;
-    const t = getTemplate(task.templateId);
-    if(!t){ alert('Vorlage nicht gefunden.'); return; }
+    if(!task) return;
+    const resolvedTemplateId = resolveCustomerTaskTemplateId(task);
+    if(!resolvedTemplateId){
+      const hint = document.getElementById('customerTaskSaveHint');
+      if(hint) hint.textContent = '❌ Aufgabe ohne Vorlagen-ID – bitte in Eingänge neu freigeben.';
+      alert('Diese Aufgabe enthält keine Vorlagen-ID. Bitte in Eingänge neu freigeben.');
+      return;
+    }
+    const t = getTemplate(resolvedTemplateId);
+    if(!t){
+      const hint = document.getElementById('customerTaskSaveHint');
+      if(hint) hint.textContent = `❌ Vorlage nicht gefunden: ${resolvedTemplateId}`;
+      alert('Vorlage nicht gefunden: ' + resolvedTemplateId);
+      return;
+    }
+    const isCustomerPortal = !!document.getElementById('customerPortal');
     const listCard = document.getElementById('customerTaskListCard');
     if(listEl) listEl.style.display = 'none';
     if(listCard) listCard.style.display = 'none';
@@ -1454,7 +1471,7 @@ async function initCustomerPortal(){
     const nameEl = document.getElementById('docName');
     const dogSel = document.getElementById('dogSelect');
     if(titleEl) titleEl.textContent = task.title || t.name || 'Aufgabe';
-    if(metaEl) metaEl.textContent = `Formular: ${t.name||task.templateId}`;
+    if(metaEl) metaEl.textContent = `Formular: ${t.name||resolvedTemplateId}`;
     if(hint) hint.textContent = '';
 
     const mergedFields = Object.assign({}, (task.payloadSubmitted && task.payloadSubmitted.fields) || {}, (task.payloadDraft && task.payloadDraft.fields) || {});
@@ -1462,8 +1479,8 @@ async function initCustomerPortal(){
     currentDoc = {
       id: `customer_task_${String(task.id || task.taskId || Date.now())}`,
       sourceTaskId: String(task.id || task.taskId || ''),
-      templateId: task.templateId,
-      templateName: t.name || task.templateId,
+      templateId: resolvedTemplateId,
+      templateName: t.name || resolvedTemplateId,
       title: task.title || t.name || 'Aufgabe',
       dogId: task.dogId || '',
       customerId: task.customerId || '',
@@ -1479,14 +1496,7 @@ async function initCustomerPortal(){
       dogSel.style.display = 'none';
     }
     if(root) root.innerHTML = '';
-    try{
-      renderForm(currentDoc);
-    }catch(err){
-      console.error('customer renderForm failed', err);
-      if(root){
-        root.innerHTML = `<div class="card"><strong>Formular konnte nicht geöffnet werden.</strong><div class="muted" style="margin-top:6px">${escapeHtml(String((err && err.message) || err || 'Unbekannter Fehler'))}</div></div>`;
-      }
-    }
+    renderForm(currentDoc);
     if(dsgvo) dsgvo.textContent = (t.dsGvoNote || '');
     const versionBox = document.getElementById('versionBox');
     if(versionBox) versionBox.style.display = 'none';
@@ -10250,41 +10260,31 @@ renderVersions(currentDoc);
   window.scrollTo({top:0,behavior:"smooth"});
 }
 function renderForm(docObj){
-  const root=$("#formRoot");
-  if(!root) return;
-  root.innerHTML="";
+  const root=$("#formRoot"); root.innerHTML="";
   const t=getTemplate(docObj.templateId);
-  if(!t){
-    root.innerHTML = `<div class="card"><strong>Vorlage nicht gefunden.</strong><div class="muted" style="margin-top:6px">Bitte Aufgabe neu freigeben oder Build prüfen.</div></div>`;
-    return;
-  }
-  const sections = Array.isArray(t.sections) ? t.sections : [];
-  const topFields = Array.isArray(t.fields) ? t.fields : [];
-  const metaFields = Array.isArray(t.meta) ? t.meta : [];
-
+  const sections = Array.isArray(t?.sections) ? t.sections : [];
+  const flatFields = Array.isArray(t?.fields) ? t.fields : [];
+  const metaFields = Array.isArray(t?.meta) ? t.meta : [];
   if(sections.length){
     sections.forEach(sec=>{
       const card=document.createElement("div");
       card.className="card";
-      card.innerHTML=`<h2>${escapeHtml(sec.title || 'Abschnitt')}</h2>`;
-      (Array.isArray(sec.fields) ? sec.fields : []).forEach(f=>card.appendChild(renderField(f, (docObj.fields||{})[f.key], docObj)));
+      card.innerHTML=`<h2>${escapeHtml(sec.title || 'Formular')}</h2>`;
+      (sec.fields||[]).forEach(f=>card.appendChild(renderField(f, docObj.fields ? docObj.fields[f.key] : undefined, docObj)));
       root.appendChild(card);
     });
-  }else if(topFields.length){
+  } else if(flatFields.length){
     const card=document.createElement("div");
     card.className="card";
-    card.innerHTML=`<h2>${escapeHtml(t.name || 'Formular')}</h2>`;
-    topFields.forEach(f=>card.appendChild(renderField(f, (docObj.fields||{})[f.key], docObj)));
+    card.innerHTML=`<h2>${escapeHtml(t?.name || docObj.title || 'Formular')}</h2>`;
+    flatFields.forEach(f=>card.appendChild(renderField(f, docObj.fields ? docObj.fields[f.key] : undefined, docObj)));
     root.appendChild(card);
-  }else{
-    root.innerHTML = `<div class="card"><strong>Diese Vorlage enthält keine Felder.</strong></div>`;
   }
-
   if(metaFields.length){
     const meta=document.createElement("div");
     meta.className="card";
     meta.innerHTML=`<h2>Ort / Datum</h2>`;
-    metaFields.forEach(f=>meta.appendChild(renderField(f, (docObj.meta||{})[f.key], docObj)));
+    metaFields.forEach(f=>meta.appendChild(renderField(f, docObj.meta ? docObj.meta[f.key] : undefined, docObj)));
     root.appendChild(meta);
   }
   updateAutoHolidayFields();
@@ -10452,13 +10452,13 @@ $("#btnClose").addEventListener("click",()=>{
   renderDocs();
 });
 function collectForm(){
-  const t=getTemplate(currentDoc.templateId) || {};
-  const metaDefs = Array.isArray(t.meta) ? t.meta : [];
+  const t=getTemplate(currentDoc.templateId);
+  const metaDefs = Array.isArray(t?.meta) ? t.meta : [];
   const fields={}, meta={};
   $$("#formRoot [data-key]").forEach(inp=>{
     const key=inp.dataset.key, type=inp.dataset.ftype;
     const val=(type==="checkbox")?inp.checked:inp.value;
-    if(metaDefs.some(m=>m && m.key===key)) meta[key]=val; else fields[key]=val;
+    if(metaDefs.some(m=>m.key===key)) meta[key]=val; else fields[key]=val;
   });
   return {fields, meta};
 }
