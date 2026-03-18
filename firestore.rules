@@ -26,13 +26,7 @@ service cloud.firestore {
     }
 
     match /orgs/{orgId}/tasks/{taskId} {
-      allow create: if signedIn() && (
-        isStaff(orgId) ||
-        (request.resource.data.customerUid == request.auth.uid &&
-         request.resource.data.status in ['submitted','pending'] &&
-         request.resource.data.templateId is string)
-      );
-      allow update, delete: if signedIn() && isStaff(orgId);
+      allow create, update, delete: if signedIn() && isStaff(orgId);
       allow read: if signedIn() && (isStaff(orgId) || (resource.data.customerUid == request.auth.uid));
     }
 

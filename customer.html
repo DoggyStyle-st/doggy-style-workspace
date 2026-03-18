@@ -1,92 +1,250 @@
-
 <!DOCTYPE html>
 <html lang="de">
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
-  <title>Doggy Style · Kundenportal</title>
+  <title>Doggy Style · Kunden App</title>
   <link href="manifest.json" rel="manifest"/>
   <meta name="theme-color" content="#101014"/>
   <link href="assets/logo.png" rel="apple-touch-icon"/>
-  <link href="styles.css?v=M50.9.9DC_AI_CUSTOMERPORTAL_LOCKFIX_MASTER_20260318" rel="stylesheet"/>
+  <link href="styles.css?v=M50.9.9DD_AI_CUSTOMERPORTAL_CUSTOMERAPP_MASTER_20260318" rel="stylesheet"/>
+  <style>
+    .customer-shell{max-width:1100px;margin:0 auto;padding:18px 14px 110px}
+    .customer-top{position:sticky;top:0;z-index:40;padding-top:8px}
+    .customer-nav{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:center;margin-bottom:14px}
+    .customer-nav .btn{min-width:180px}
+    .customer-nav .btn.is-active{border-color:rgba(245,182,46,.65);box-shadow:0 0 0 1px rgba(245,182,46,.28) inset;background:rgba(245,182,46,.14)}
+    .customer-hero{display:grid;gap:18px;justify-items:center;text-align:center;padding:28px 18px}
+    .customer-hero img{width:min(360px,68vw);height:auto;display:block;filter:drop-shadow(0 16px 36px rgba(0,0,0,.35))}
+    .customer-quote{font-size:clamp(20px,2.4vw,34px);line-height:1.35;max-width:740px}
+    .customer-sub{max-width:720px;margin:0 auto;color:var(--muted,#cfcfd6)}
+    .customer-panel{display:none}
+    .customer-panel.is-active{display:block}
+    .customer-grid{display:grid;gap:14px}
+    .customer-summary .item{margin-bottom:10px}
+    .customer-empty{opacity:.8;padding:10px 0}
+    .customer-tasklist{display:grid;gap:12px}
+    .customer-task{display:flex;justify-content:space-between;gap:14px;align-items:center;flex-wrap:wrap;padding:14px 16px;border-radius:18px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08)}
+    .customer-task strong{display:block}
+    .customer-task small{display:block;opacity:.78;margin-top:4px}
+    .customer-editor-wrap{display:none;margin-top:14px}
+    .customer-editor-wrap.is-active{display:block}
+    .customer-hidden{display:none !important}
+    @media (max-width:800px){
+      .customer-nav .btn{min-width:unset;flex:1 1 calc(50% - 10px)}
+      .customer-task{align-items:flex-start}
+    }
+  </style>
 </head>
 <body class="bg-watermark">
-  <main class="shell" style="padding-top:20px">
-    <section class="panel is-active" id="customerPortal" style="display:block;max-width:900px;margin:0 auto;">
-      <div class="card">
-        <div class="row between" style="align-items:flex-start; gap:12px; flex-wrap:wrap;">
-          <div>
-            <h1 style="margin:0">Kundenportal</h1>
-            <div class="muted" id="customerPortalBuildTop" style="margin-top:6px;font-size:12px;opacity:.9">Build CUSTOMER M50.9.9DC_AI_CUSTOMERPORTAL_LOCKFIX_MASTER_20260318</div>
-            <p class="muted" id="customerPortalSubtitle" style="margin:6px 0 0 0;">Aktuell liegen keine Aufgaben für dich vor.</p>
-          </div>
-          <button class="btn" id="btnCustomerLogout">Abmelden</button>
-        </div>
-        <div class="hint" style="margin-top:10px"><strong>Hinweis:</strong> Hier siehst du nur Aufgaben/Formulare, die Doggy Style Hundepension für dich freigegeben hat.</div>
+  <main class="customer-shell">
+    <div class="customer-top">
+      <div class="customer-nav card">
+        <button class="btn nav-btn" data-view="dogs" type="button">Kunde/Hund</button>
+        <button class="btn nav-btn" data-view="contract" type="button">Betreuungsvertrag</button>
+        <button class="btn nav-btn" data-view="stay" type="button">Neuer Aufenthalt</button>
+        <button class="btn" id="btnCustomerLogout" type="button">Abmelden</button>
       </div>
+    </div>
 
-      <div class="card" id="customerTaskListCard" style="margin-top:12px">
-        <h2>Deine Aufgaben</h2>
-        <div class="list" id="customerTaskList"></div>
-      </div>
-
-      <div class="card" id="customerTaskEditor" style="margin-top:12px; display:none;">
-        <div class="row between" style="gap:10px; flex-wrap:wrap; align-items:flex-start;">
-          <div>
-            <h1 id="editorTitle" style="margin:0">Aufgabe</h1>
-            <div class="card" id="versionBox" style="display:none;margin-top:12px"></div>
-            <div class="muted" id="editorMeta" style="margin-top:6px"></div>
-          </div>
-          <div class="row" style="gap:10px; flex-wrap:wrap;">
-            <button class="btn" id="btnCustomerTaskBack" type="button">Zurück</button>
-            <button class="btn primary" id="btnCustomerTaskSubmit" type="button">Absenden</button>
-          </div>
-        </div>
-        <input id="docName" type="hidden" />
-        <select id="dogSelect" style="display:none"></select>
-        <div id="formRoot" style="margin-top:12px"></div>
-        <p class="muted" id="dsGvoText" style="margin-top:10px"></p>
-        <div class="hint" id="customerTaskSaveHint" style="margin-top:10px"></div>
+    <section class="card customer-panel is-active" id="view-home">
+      <div class="customer-hero">
+        <img src="assets/logo.png" alt="Doggy Style Hundepension"/>
+        <div class="customer-quote handwriting quote-strong">Dein Schatz ist bei uns in guten Pfoten –<br/>mit Herz, Ruhe und ganz viel Fürsorge.</div>
+        <p class="customer-sub">Willkommen in deiner Kunden App. Hier kannst du die Daten zu deinem Hund prüfen, den Betreuungsvertrag öffnen und einen neuen Aufenthalt anfragen.</p>
       </div>
     </section>
-    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9DC_AI_CUSTOMERPORTAL_LOCKFIX_MASTER_20260318</div>
+
+    <section class="card customer-panel" id="view-dogs">
+      <div class="row between" style="gap:12px;flex-wrap:wrap;align-items:flex-start">
+        <div>
+          <h1 style="margin:0">Kunde/Hund</h1>
+          <div class="muted" id="dogsSubtitle" style="margin-top:6px">Dein freigegebener Eintrag.</div>
+        </div>
+      </div>
+      <div class="customer-grid customer-summary" id="customerSummary" style="margin-top:12px"></div>
+      <div class="customer-tasklist" id="dogsTaskList" style="margin-top:14px"></div>
+    </section>
+
+    <section class="card customer-panel" id="view-contract">
+      <div class="row between" style="gap:12px;flex-wrap:wrap;align-items:flex-start">
+        <div>
+          <h1 style="margin:0">Betreuungsvertrag</h1>
+          <div class="muted" style="margin-top:6px">Hier siehst du die für dich freigegebenen Vertragsaufgaben.</div>
+        </div>
+      </div>
+      <div class="customer-tasklist" id="contractTaskList" style="margin-top:14px"></div>
+    </section>
+
+    <section class="card customer-panel" id="view-stay">
+      <div class="row between" style="gap:12px;flex-wrap:wrap;align-items:flex-start">
+        <div>
+          <h1 style="margin:0">Neuer Aufenthalt</h1>
+          <div class="muted" style="margin-top:6px">Hier kannst du einen Aufenthalt öffnen oder eine neue Anfrage vorbereiten.</div>
+        </div>
+        <button class="btn primary" id="btnOpenNewStay" type="button">Neuen Aufenthalt öffnen</button>
+      </div>
+      <div class="customer-tasklist" id="stayTaskList" style="margin-top:14px"></div>
+    </section>
+
+    <section class="card customer-editor-wrap" id="customerTaskEditorWrap">
+      <div class="row between" style="gap:10px; flex-wrap:wrap; align-items:flex-start;">
+        <div>
+          <h1 id="editorTitle" style="margin:0">Aufgabe</h1>
+          <div class="muted" id="editorMeta" style="margin-top:6px"></div>
+          <div class="card customer-hidden" id="versionBox" style="margin-top:12px"></div>
+        </div>
+        <div class="row" style="gap:10px; flex-wrap:wrap;">
+          <button class="btn" id="btnCustomerTaskBack" type="button">Zurück</button>
+          <button class="btn primary" id="btnCustomerTaskSubmit" type="button">Absenden</button>
+        </div>
+      </div>
+      <input id="docName" type="hidden" />
+      <select id="dogSelect" style="display:none"></select>
+      <div id="formRoot" style="margin-top:12px"></div>
+      <p class="muted" id="dsGvoText" style="margin-top:10px"></p>
+      <div class="hint" id="customerTaskSaveHint" style="margin-top:10px"></div>
+    </section>
+
+    <!-- Hidden compatibility targets for existing portal logic -->
+    <section class="customer-hidden" id="customerPortal"></section>
+    <div class="customer-hidden" id="customerTaskListCard"></div>
+    <div class="customer-hidden list" id="customerTaskList"></div>
+    <div class="customer-hidden" id="customerPortalSubtitle"></div>
+    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9DD_AI_CUSTOMERPORTAL_CUSTOMERAPP_MASTER_20260318</div>
   </main>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=M50.9.9DC_AI_CUSTOMERPORTAL_LOCKFIX_MASTER_20260318"></script>
-  <script src="app.js?v=M50.9.9DC_AI_CUSTOMERPORTAL_LOCKFIX_MASTER_20260318"></script>
-
+  <script src="firebase-config.js?v=M50.9.9DD_AI_CUSTOMERPORTAL_CUSTOMERAPP_MASTER_20260318"></script>
+  <script src="app.js?v=M50.9.9DD_AI_CUSTOMERPORTAL_CUSTOMERAPP_MASTER_20260318"></script>
   <script>
     (function(){
-      const BUILD = 'Build CUSTOMER M50.9.9DC_AI_CUSTOMERPORTAL_LOCKFIX_MASTER_20260318';
+      const BUILD = 'Build CUSTOMER M50.9.9DD_AI_CUSTOMERPORTAL_CUSTOMERAPP_MASTER_20260318';
+      const viewNames = ['home','dogs','contract','stay'];
+      let currentView = 'home';
+
       function setStatus(msg){
-        var top=document.getElementById('customerPortalBuildTop');
-        var bottom=document.getElementById('customerPortalBuildBottom');
-        if(top) top.textContent = BUILD + ' · ' + msg;
-        if(bottom) bottom.textContent = BUILD + ' · ' + msg;
+        const bottom = document.getElementById('customerPortalBuildBottom');
+        if(bottom) bottom.textContent = BUILD + (msg ? ' · ' + msg : '');
+      }
+      function setView(name){
+        currentView = viewNames.includes(name) ? name : 'home';
+        document.querySelectorAll('.customer-panel').forEach(el=>el.classList.toggle('is-active', el.id === 'view-' + currentView));
+        document.querySelectorAll('.nav-btn').forEach(btn=>btn.classList.toggle('is-active', btn.dataset.view === currentView));
+        const editor = document.getElementById('customerTaskEditorWrap');
+        if(editor) editor.classList.remove('is-active');
+        setStatus('Ansicht ' + currentView);
+      }
+      function fmt(ts){ try{ return (typeof fmtDT === 'function') ? fmtDT(ts) : ''; }catch(_){ return ''; } }
+      function getStateSafe(){
+        try{ return (typeof loadState === 'function') ? loadState() : (window.state || {}); }catch(_){ return window.state || {}; }
+      }
+      function getUserEmail(){
+        try{ return String(window.CLOUD?.user?.email || '').trim().toLowerCase(); }catch(_){ return ''; }
+      }
+      function findOwnCustomer(state){
+        const email = getUserEmail();
+        const customers = Array.isArray(state?.customers) ? state.customers : [];
+        return customers.find(c => String(c?.email || '').trim().toLowerCase() === email) || null;
+      }
+      function findOwnPets(state, customer){
+        const pets = Array.isArray(state?.pets) ? state.pets : [];
+        if(customer?.id) return pets.filter(p => String(p?.customerId || '') === String(customer.id));
+        return [];
+      }
+      function makeSyntheticTask(templateId, title){
+        const now = Date.now();
+        return {
+          id: 'local_' + templateId + '_' + now,
+          taskId: 'local_' + templateId + '_' + now,
+          templateId,
+          title,
+          createdAt: now,
+          customerEmail: getUserEmail(),
+          status: 'open'
+        };
+      }
+      function openTask(task){
+        if(!task) return;
+        const editor = document.getElementById('customerTaskEditorWrap');
+        if(editor) editor.classList.add('is-active');
+        if(window.__dsOpenCustomerTask) window.__dsOpenCustomerTask(task);
+        setStatus('Editor ' + (task.templateId || task.id || '')); 
+      }
+      function renderTaskList(el, tasks, emptyText){
+        if(!el) return;
+        el.innerHTML = '';
+        if(!tasks.length){
+          el.innerHTML = '<div class="customer-empty muted">' + (emptyText || 'Keine Einträge vorhanden.') + '</div>';
+          return;
+        }
+        tasks.forEach(task=>{
+          const row = document.createElement('div');
+          row.className = 'customer-task';
+          const when = task.createdAt ? fmt(task.createdAt) : '';
+          row.innerHTML = '<div><strong>' + (task.title || task.templateId || 'Aufgabe') + '</strong><small>' + (task.templateId || '') + (when ? ' · ' + when : '') + '</small></div>';
+          const btn = document.createElement('button');
+          btn.className = 'btn';
+          btn.type = 'button';
+          btn.textContent = 'Öffnen';
+          btn.onclick = ()=> openTask(task);
+          row.appendChild(btn);
+          el.appendChild(row);
+        });
+      }
+      function renderSummary(){
+        const state = getStateSafe();
+        const customer = findOwnCustomer(state);
+        const pets = findOwnPets(state, customer);
+        const box = document.getElementById('customerSummary');
+        const subtitle = document.getElementById('dogsSubtitle');
+        if(!box) return;
+        if(!customer){
+          box.innerHTML = '<div class="item"><strong>Kein Kundenprofil gefunden</strong><small>Dein Konto ist angemeldet, aber es konnte noch kein passender Kunden-Eintrag zugeordnet werden.</small></div>';
+          if(subtitle) subtitle.textContent = 'Bitte melde dich kurz bei uns, falls dein Eintrag hier noch fehlt.';
+          return;
+        }
+        const phone = customer.phone ? ' · ' + customer.phone : '';
+        const email = customer.email ? ' · ' + customer.email : '';
+        let html = '<div class="item"><strong>🧑🏼‍🦰 ' + (customer.name || 'Kunde') + '</strong><small>' + (customer.street || '') + (customer.zip || customer.city ? ' · ' : '') + ((customer.zip || '') + ' ' + (customer.city || '')).trim() + phone + email + '</small></div>';
+        if(pets.length){
+          pets.forEach(p=>{
+            html += '<div class="item"><strong>🐶 ' + (p.name || 'Hund') + '</strong><small>' + (p.breed || '') + (p.birthDate ? ' · geb. ' + p.birthDate : '') + '</small></div>';
+          });
+        } else {
+          html += '<div class="item"><small>Zu diesem Kunden sind aktuell noch keine Hunde verknüpft.</small></div>';
+        }
+        box.innerHTML = html;
+        if(subtitle) subtitle.textContent = 'Hier siehst du nur deinen eigenen Kunden- und Hunde-Eintrag.';
+      }
+      function refreshCustomUI(){
+        const tasks = Array.isArray(window.__dsCustomerTasks) ? window.__dsCustomerTasks.slice() : [];
+        renderSummary();
+        const customerTasks = tasks.filter(t => String(t.templateId || '') === 'customer_data');
+        const contractTasks = tasks.filter(t => String(t.templateId || '') === 'boarding_contract');
+        const stayTasks = tasks.filter(t => String(t.templateId || '') === 'hundeannahme');
+        renderTaskList(document.getElementById('dogsTaskList'), customerTasks, 'Aktuell ist keine Kunden-/Hundebearbeitung freigegeben.');
+        renderTaskList(document.getElementById('contractTaskList'), contractTasks, 'Aktuell liegt kein Betreuungsvertrag zur Bearbeitung vor.');
+        renderTaskList(document.getElementById('stayTaskList'), stayTasks, 'Aktuell liegt noch kein Aufenthalt vor. Über den Button oben kannst du eine neue Anfrage öffnen.');
       }
 
-      document.addEventListener('click', function(ev){
-        try{
-          var btn = ev.target && ev.target.closest ? ev.target.closest('#customerTaskList .smallbtn, #customerTaskList .list-item') : null;
-          if(!btn) return;
-          var holder = btn.matches && btn.matches('.list-item') ? btn : (btn.closest ? btn.closest('.list-item') : null);
-          var taskId = (btn.dataset && btn.dataset.taskId) || (holder && holder.dataset ? holder.dataset.taskId : '');
-          if(!taskId) return;
-          ev.preventDefault();
-          ev.stopPropagation();
-          try{ sessionStorage.setItem('ds_customer_open_task_id', taskId); }catch(_){}
-          setStatus('weiter zu app ' + taskId);
-          try{ sessionStorage.setItem('ds_customer_app_mode','1'); sessionStorage.setItem('ds_customer_area','dogs'); }catch(_){}
-          location.href = 'app.html?customerApp=1&customerArea=dogs&customerTask=' + encodeURIComponent(taskId) + '#dogs';
-          return;
-        }catch(err){
-          console.error(err);
-          setStatus('open error');
-        }
-      }, true);
+      document.addEventListener('click', (ev)=>{
+        const btn = ev.target.closest('.nav-btn');
+        if(!btn) return;
+        ev.preventDefault();
+        setView(btn.dataset.view);
+      });
+
+      document.getElementById('btnCustomerTaskBack')?.addEventListener('click', ()=>{
+        document.getElementById('customerTaskEditorWrap')?.classList.remove('is-active');
+        setStatus('zurück');
+      });
+      document.getElementById('btnOpenNewStay')?.addEventListener('click', ()=>{
+        setView('stay');
+        openTask(makeSyntheticTask('hundeannahme', 'Neuer Aufenthalt'));
+      });
 
       async function bootCustomerPortal(){
         try{
@@ -97,22 +255,25 @@
           const orgId = (window.CLOUD_ORG_ID || window.firebaseOrgId || 'doggystyle');
           auth.onAuthStateChanged(async function(user){
             if(!user){ location.href='login.html'; return; }
-            try{
-              window.CLOUD = window.CLOUD || {};
-              CLOUD.auth = auth; CLOUD.db = db; CLOUD.user = user; CLOUD.orgId = orgId; CLOUD.enabled = true;
-            }catch(_){ }
-            try{
-              var btn = document.getElementById('btnCustomerLogout');
-              if(btn){ btn.onclick = async function(){ try{ await auth.signOut(); }catch(_){ } location.href='login.html'; }; }
-            }catch(_){ }
+            try{ window.CLOUD = window.CLOUD || {}; CLOUD.auth = auth; CLOUD.db = db; CLOUD.user = user; CLOUD.orgId = orgId; CLOUD.enabled = true; }catch(_){ }
+            const btn = document.getElementById('btnCustomerLogout');
+            if(btn) btn.onclick = async function(){ try{ await auth.signOut(); }catch(_){ } location.href='login.html'; };
             try{
               setStatus('auth ok');
               if(typeof initCustomerPortal === 'function') await initCustomerPortal();
+              refreshCustomUI();
               setStatus('init ok');
-            }catch(e){ console.error('customer explicit boot failed', e); setStatus('Boot-Fehler'); }
+            }catch(e){ console.error('customer boot failed', e); setStatus('Boot-Fehler'); }
           });
         }catch(e){ console.error('customer boot setup failed', e); }
       }
+
+      const mo = new MutationObserver(()=>refreshCustomUI());
+      window.addEventListener('load', ()=>{
+        try{ mo.observe(document.getElementById('customerTaskList') || document.body, { childList:true, subtree:true }); }catch(_){ }
+      });
+      setInterval(refreshCustomUI, 1200);
+      setView('home');
       if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootCustomerPortal); else bootCustomerPortal();
     })();
   </script>
