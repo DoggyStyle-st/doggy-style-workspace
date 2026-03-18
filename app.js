@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9CZ_AI_CUSTOMERPORTAL_MINIAPP_MASTER_20260318",
+  tag: "M50.9.9DB_AI_CUSTOMERPORTAL_MINIAPPLOCK_MASTER_20260318",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9CZ_AI_CUSTOMERPORTAL_MINIAPP_MASTER_20260318";
+const APP_BUILD = "M50.9.9DB_AI_CUSTOMERPORTAL_MINIAPPLOCK_MASTER_20260318";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -3025,10 +3025,56 @@ if(id === "calendar"){
   }
 }
 // ==== Dashboard / Schnellaktionen helpers ====
+
+function getRestrictedCustomerAllowedTabs(){
+  return ['dogs','contract','documents'];
+}
+function isCustomerMiniAppMode(){
+  return ((typeof CLOUD !== 'undefined' && CLOUD && CLOUD.role === ROLES.CUSTOMER && isCustomerAppPage()) || isRestrictedCustomerApp());
+}
+function applyCustomerMiniAppCssLock(){
+  try{
+    let style = document.getElementById('dsCustomerMiniAppStyle');
+    if(!style){
+      style = document.createElement('style');
+      style.id = 'dsCustomerMiniAppStyle';
+      document.head.appendChild(style);
+    }
+    style.textContent = `
+body[data-customer-miniapp="1"] #pawStartBtn,
+body[data-customer-miniapp="1"] .tab[data-tab="home"],
+body[data-customer-miniapp="1"] .tab[data-tab="workforms"],
+body[data-customer-miniapp="1"] .tab[data-tab="invoices"],
+body[data-customer-miniapp="1"] .tab[data-tab="hygiene"],
+body[data-customer-miniapp="1"] .tab[data-tab="medication"],
+body[data-customer-miniapp="1"] .tab[data-tab="analytics"],
+body[data-customer-miniapp="1"] .tab[data-tab="statistics"],
+body[data-customer-miniapp="1"] .tab[data-tab="calendar"],
+body[data-customer-miniapp="1"] .tab[data-tab="inbox"],
+body[data-customer-miniapp="1"] .tab[data-tab="settings"],
+body[data-customer-miniapp="1"] .tab[data-tab="compliance"],
+body[data-customer-miniapp="1"] #home,
+body[data-customer-miniapp="1"] #workforms,
+body[data-customer-miniapp="1"] #invoices,
+body[data-customer-miniapp="1"] #hygiene,
+body[data-customer-miniapp="1"] #medication,
+body[data-customer-miniapp="1"] #analytics,
+body[data-customer-miniapp="1"] #statistics,
+body[data-customer-miniapp="1"] #calendar,
+body[data-customer-miniapp="1"] #inbox,
+body[data-customer-miniapp="1"] #settings,
+body[data-customer-miniapp="1"] #compliance,
+body[data-customer-miniapp="1"] #customerPortal {
+  display:none !important;
+}
+`;
+  }catch(_){ }
+}
+
 function selectTab(tabId){
-  if(isRestrictedCustomerApp()){
-    const allowed = new Set(["dogs","contract","documents"]);
-    if(!allowed.has(tabId)) tabId = "dogs";
+  if(isCustomerMiniAppMode()){
+    const allowed = new Set(getRestrictedCustomerAllowedTabs());
+    if(!allowed.has(tabId)) tabId = 'dogs';
   }
   // activate tab button
   $$(".tab").forEach(b=>b.classList.toggle("is-active", b.dataset.tab===tabId));
@@ -7960,6 +8006,7 @@ function serializeCpEditorToCustomerTaskPayload(existingPet){
 }
 async function submitCustomerAppTask(patch){
   const task = Object.assign({
+    type: 'customer_submission',
     status: 'submitted',
     submittedAt: Date.now(),
     updatedAt: Date.now(),
@@ -7973,6 +8020,7 @@ async function submitCustomerAppTask(patch){
     if(col && typeof col.add === 'function'){
       const ref = await col.add(task);
       if(ref && ref.id) task.id = ref.id;
+      task.cloudSaved = true;
       wroteRemote = true;
     }
   }catch(e){
@@ -7985,6 +8033,7 @@ async function submitCustomerAppTask(patch){
     list.unshift({ id: task.id || `local_${Date.now()}`, ...task });
     data.inboxAssignments = list;
     localStorage.setItem(LS_KEY, JSON.stringify(data));
+    try{ state.inboxAssignments = list.slice(); saveState(); }catch(_){ }
   }catch(_){ }
   return wroteRemote;
 }
@@ -8035,64 +8084,83 @@ async function submitCustomerWorkspaceChange(existingPet){
     list.unshift({ id: `local_${Date.now()}`, ...patch });
     data.inboxAssignments = list;
     localStorage.setItem(LS_KEY, JSON.stringify(data));
+    try{ state.inboxAssignments = list.slice(); saveState(); }catch(_){ }
   }catch(_){ }
   return wroteRemote;
 }
 
 function hideStaffUIForCustomerApp(){
+  applyCustomerMiniAppCssLock();
+  const allowed = new Set(getRestrictedCustomerAllowedTabs());
+  try{ document.body && document.body.setAttribute('data-customer-miniapp','1'); }catch(_){ }
   try{
-    const allowed = new Set(['dogs','contract','documents']);
-    const labels = { dogs:'Hunde/Kunden', contract:'Betreuungsvertrag', documents:'Neuer Aufenthalt' };
     const nav = document.querySelector('nav.tabs');
     if(nav) nav.style.display = '';
+    const paw = document.getElementById('pawStartBtn');
+    if(paw) paw.style.setProperty('display', 'none', 'important');
     $$('.tab').forEach(btn=>{
       const t = String(btn.dataset.tab || '');
-      btn.style.display = allowed.has(t) ? '' : 'none';
-      if(labels[t]){
-        const txtNodes = Array.from(btn.childNodes).filter(n=>n.nodeType===3);
-        txtNodes.forEach(n=>n.textContent = labels[t]);
+      const keep = allowed.has(t);
+      if(keep){
+        btn.style.removeProperty('display');
+        btn.style.removeProperty('visibility');
+      }else{
+        btn.style.setProperty('display', 'none', 'important');
+        btn.style.setProperty('visibility', 'hidden', 'important');
       }
-      btn.classList.toggle('is-active', t === 'dogs');
+      btn.classList.toggle('is-active', false);
     });
   }catch(_){ }
   try{
-    const dashboard = document.getElementById('dashboard');
-    if(dashboard) dashboard.style.display = 'none';
     $$('.panel').forEach(p=>{
-      const id = p.id || '';
-      if(['dogs','contract','documents'].includes(id)){ p.style.display = ''; }
-      else { p.classList.remove('is-active'); p.style.display = 'none'; }
+      const keep = allowed.has(String(p.id || ''));
+      if(keep){
+        p.style.removeProperty('display');
+      }else{
+        p.classList.remove('is-active');
+        p.style.setProperty('display', 'none', 'important');
+      }
     });
-    const dogs = document.getElementById('dogs');
-    if(dogs){ dogs.style.display = ''; dogs.classList.add('is-active'); }
     const cp = document.getElementById('customerPortal');
-    if(cp){ cp.style.display = 'none'; cp.classList.remove('is-active'); }
+    if(cp){ cp.style.setProperty('display', 'none', 'important'); cp.classList.remove('is-active'); }
   }catch(_){ }
   try{
-    ['tabCalendar','tabInbox','tabSettings','tabCompliance'].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display='none'; });
-    ['btnNewStayTop','btnQuickDogs','btnLogout'].forEach(id=>{ const el=document.getElementById(id); if(id!=='btnLogout' && el) el.style.display='none'; });
-    const btnNew = document.getElementById('btnAddDog');
-    if(btnNew) btnNew.style.display = 'none';
-    const btnNewOnPage = document.getElementById('btnNewStayOnPage');
-    if(btnNewOnPage) btnNewOnPage.style.display = '';
+    const btnAdd = document.getElementById('btnAddDog');
+    if(btnAdd) btnAdd.style.setProperty('display', 'none', 'important');
+    const btnDelete = document.getElementById('btnDeleteDog');
+    if(btnDelete) btnDelete.style.setProperty('display', 'none', 'important');
     const useExisting = document.getElementById('useExistingCustomer')?.closest('label.field');
-    if(useExisting) useExisting.style.display = 'none';
+    if(useExisting) useExisting.style.setProperty('display', 'none', 'important');
     const selectWrap = document.getElementById('customerSelect')?.closest('label.field');
-    if(selectWrap) selectWrap.style.display = 'none';
+    if(selectWrap) selectWrap.style.setProperty('display', 'none', 'important');
     const btnMore = document.getElementById('btnCpAddAnotherDog');
-    if(btnMore) btnMore.style.display = 'none';
+    if(btnMore) btnMore.style.setProperty('display', 'none', 'important');
     const hint = document.getElementById('cpHint');
-    if(hint) hint.textContent = 'Als Kunde kannst du nur Hunde/Kunden, Betreuungsvertrag und Neuer Aufenthalt nutzen. Änderungen werden erst nach Freigabe unter Eingänge übernommen.';
+    if(hint) hint.textContent = 'Als Kunde siehst du nur Hunde/Kunden, Betreuungsvertrag und Aufenthalte. Änderungen werden zur Freigabe in Eingänge eingereicht.';
+    const tpl = document.getElementById('templateSelect');
+    if(tpl){
+      tpl.innerHTML = '<option value="hundeannahme">Neuer Aufenthalt</option>';
+      tpl.value = 'hundeannahme';
+    }
   }catch(_){ }
 }
 async function initCustomerWorkspace(){
   hideStaffUIForCustomerApp();
   updateSyncUI();
   try{ await bootOnce(); }catch(e){ console.warn('customer workspace boot', e); }
+  hideStaffUIForCustomerApp();
   try{ renderDogs(); }catch(e){ console.warn('customer workspace render', e); }
-  try{ renderContractPanel(); }catch(e){ console.warn('customer workspace contract', e); }
-  try{ renderDocs(); }catch(e){ console.warn('customer workspace documents', e); }
-  try{ selectTab('dogs'); }catch(_){ }
+  try{ renderDocs(); }catch(_){ }
+  try{ renderContractPanel(); }catch(_){ }
+  hideStaffUIForCustomerApp();
+  try{
+    const ctx = getCustomerAppContext();
+    const allowed = new Set(getRestrictedCustomerAllowedTabs());
+    selectTab(allowed.has(ctx.area) ? ctx.area : 'dogs');
+  }catch(_){ try{ selectTab('dogs'); }catch(__){} }
+  setTimeout(()=>{ try{ hideStaffUIForCustomerApp(); selectTab(allowed.has(ctx.area) ? ctx.area : 'dogs'); }catch(_){ } }, 50);
+  setTimeout(()=>{ try{ hideStaffUIForCustomerApp(); selectTab(allowed.has(ctx.area) ? ctx.area : 'dogs'); }catch(_){ } }, 300);
+  setTimeout(()=>{ try{ hideStaffUIForCustomerApp(); }catch(_){ } }, 1000);
   try{
     const scope = getCustomerWorkspaceScope();
     if(!scope.hasMatch){
@@ -8100,12 +8168,11 @@ async function initCustomerWorkspace(){
       if(list && !String(list.innerHTML||'').trim()){
         list.innerHTML = '<div class="muted">Für dieses Kundenkonto wurde noch kein passender Hunde/Kunden-Eintrag gefunden.</div>';
       }
-      return;
     }
     const requested = sessionStorage.getItem('ds_customer_open_task_id');
-    if(requested){
+    const ctx = getCustomerAppContext();
+    if(requested && (!ctx.templateId || String(ctx.templateId).trim()==='customer_data')){
       sessionStorage.removeItem('ds_customer_open_task_id');
-      const ctx = getCustomerAppContext();
       const firstPetId = String(ctx.petId || Array.from(scope.petIds)[0] || '').trim();
       if(firstPetId) setTimeout(()=>{ try{ openCpEditor('edit', firstPetId); }catch(_){ } }, 120);
     }
@@ -11658,7 +11725,7 @@ return;
       CLOUD.role = ROLES.STAFF;
     }
     // Kunden / eingeschränkte Kunden-App
-    if(isRestrictedCustomerApp()){
+    if(isCustomerMiniAppMode()){
       try{ await initCustomerWorkspace(); }catch(e){ console.error(e); }
       return;
     }
