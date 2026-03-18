@@ -8,7 +8,7 @@
   <link href="manifest.json" rel="manifest"/>
   <meta name="theme-color" content="#101014"/>
   <link href="assets/logo.png" rel="apple-touch-icon"/>
-  <link href="styles.css?v=M50.9.9CQ_AI_CUSTOMERPORTAL_CLICKCHAINFIX_MASTER_20260318" rel="stylesheet"/>
+  <link href="styles.css?v=M50.9.9CR_AI_CUSTOMERPORTAL_DIRECTRENDER_MASTER_20260318" rel="stylesheet"/>
 </head>
 <body class="bg-watermark">
   <main class="shell" style="padding-top:20px">
@@ -17,7 +17,7 @@
         <div class="row between" style="align-items:flex-start; gap:12px; flex-wrap:wrap;">
           <div>
             <h1 style="margin:0">Kundenportal</h1>
-            <div class="muted" id="customerPortalBuildTop" style="margin-top:6px;font-size:12px;opacity:.9">Build CUSTOMER M50.9.9CQ_AI_CUSTOMERPORTAL_CLICKCHAINFIX_MASTER_20260318</div>
+            <div class="muted" id="customerPortalBuildTop" style="margin-top:6px;font-size:12px;opacity:.9">Build CUSTOMER M50.9.9CR_AI_CUSTOMERPORTAL_DIRECTRENDER_MASTER_20260318</div>
             <p class="muted" id="customerPortalSubtitle" style="margin:6px 0 0 0;">Aktuell liegen keine Aufgaben für dich vor.</p>
           </div>
           <button class="btn" id="btnCustomerLogout">Abmelden</button>
@@ -49,47 +49,266 @@
         <div class="hint" id="customerTaskSaveHint" style="margin-top:10px"></div>
       </div>
     </section>
-    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9CQ_AI_CUSTOMERPORTAL_CLICKCHAINFIX_MASTER_20260318</div>
+    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9CR_AI_CUSTOMERPORTAL_DIRECTRENDER_MASTER_20260318</div>
   </main>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=M50.9.9CQ_AI_CUSTOMERPORTAL_CLICKCHAINFIX_MASTER_20260318"></script>
-  <script src="app.js?v=M50.9.9CQ_AI_CUSTOMERPORTAL_CLICKCHAINFIX_MASTER_20260318"></script>
+  <script src="firebase-config.js?v=M50.9.9CR_AI_CUSTOMERPORTAL_DIRECTRENDER_MASTER_20260318"></script>
+  <script src="app.js?v=M50.9.9CR_AI_CUSTOMERPORTAL_DIRECTRENDER_MASTER_20260318"></script>
 
   <script>
     (function(){
-      const BUILD = 'Build CUSTOMER M50.9.9CQ_AI_CUSTOMERPORTAL_CLICKCHAINFIX_MASTER_20260318';
+      const BUILD = 'Build CUSTOMER M50.9.9CR_AI_CUSTOMERPORTAL_DIRECTRENDER_MASTER_20260318';
+      const LS = (typeof window.LS_KEY === 'string' && window.LS_KEY) ? window.LS_KEY : 'ds_workspace_test_optik_01';
+      function $(id){ return document.getElementById(id); }
       function setStatus(msg){
-        var top=document.getElementById('customerPortalBuildTop');
-        var bottom=document.getElementById('customerPortalBuildBottom');
-        if(top) top.textContent = BUILD + ' · ' + msg;
-        if(bottom) bottom.textContent = BUILD + ' · ' + msg;
+        var top=$('customerPortalBuildTop');
+        var bottom=$('customerPortalBuildBottom');
+        if(top) top.textContent = BUILD + (msg ? ' · ' + msg : '');
+        if(bottom) bottom.textContent = BUILD + (msg ? ' · ' + msg : '');
       }
-
-      document.addEventListener('click', function(ev){
-        try{
-          var btn = ev.target && ev.target.closest ? ev.target.closest('#customerTaskList .smallbtn, #customerTaskList .list-item') : null;
-          if(!btn) return;
-          var holder = btn.matches && btn.matches('.list-item') ? btn : (btn.closest ? btn.closest('.list-item') : null);
-          var taskId = (btn.dataset && btn.dataset.taskId) || (holder && holder.dataset ? holder.dataset.taskId : '');
-          if(!taskId) return;
-          setStatus('open click ' + taskId);
-          // Wichtig: NICHT mehr preventDefault/stopPropagation im Capture-Handler.
-          // Sonst wird der eigentliche onclick aus app.js blockiert und der Editor bleibt leer.
-          setTimeout(function(){
-            var titleEl = document.getElementById('editorTitle');
-            var root = document.getElementById('formRoot');
-            var hasRendered = !!(titleEl && titleEl.textContent && titleEl.textContent.trim() !== 'Aufgabe') || !!(root && root.children && root.children.length);
-            if(hasRendered) setStatus('editor rendered ' + taskId);
-          }, 220);
-        }catch(err){
-          console.error(err);
-          setStatus('open error');
+      function esc(v){ return String(v == null ? '' : v).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s])); }
+      function fmt(ts){ try{ return new Date(Number(ts||Date.now())).toLocaleString('de-DE'); }catch(_){ return ''; } }
+      function taskKey(task){ return String((task && (task.id || task.taskId || task.assignmentId || task.asgId)) || ''); }
+      function deriveTemplateId(task){
+        if(!task || typeof task !== 'object') return '';
+        const direct = [task.templateId, task.template, task.formId, task.docType, task.type, task.templateKey, task.templateName, task.kind]
+          .map(v=>String(v||'').trim()).find(Boolean);
+        if(direct) return direct;
+        const title = String(task.title || task.name || '').toLowerCase();
+        if(title.includes('kunden')) return 'customer_data';
+        if(title.includes('vertrag')) return 'boarding_contract';
+        if(title.includes('annahme') || title.includes('aufenthalt')) return 'hundeannahme';
+        return '';
+      }
+      function normalizeTemplate(t){
+        if(!t || typeof t !== 'object') return null;
+        if(!t.id) t.id = String(t.templateId || t.name || '');
+        if(!t.name) t.name = String(t.title || t.id || 'Aufgabe');
+        if(!Array.isArray(t.sections) && Array.isArray(t.fields)) t.sections = [{ title:'Formular', fields: t.fields }];
+        if(Array.isArray(t.sections)){
+          t.sections = t.sections.map(sec => ({
+            title: String(sec && (sec.title || sec.name || '')),
+            fields: Array.isArray(sec && sec.fields) ? sec.fields.map(f => ({...f, key: f && (f.key || f.id || f.name || '')})) : []
+          }));
         }
-      }, true);
+        return t;
+      }
+      function embeddedTemplate(id){
+        const map = {
+          customer_data: {
+            id:'customer_data', name:'Kundendaten ergänzen', dsGvoNote:'Mit dem Absenden bestätige ich die Richtigkeit meiner Angaben.',
+            sections:[
+              { title:'Kontaktdaten', fields:[
+                { key:'fullName', label:'Name', type:'text', required:true },
+                { key:'email', label:'E-Mail', type:'email', required:true },
+                { key:'phone', label:'Telefon', type:'text' },
+                { key:'street', label:'Straße / Hausnummer', type:'text' },
+                { key:'zip', label:'PLZ', type:'text' },
+                { key:'city', label:'Ort', type:'text' }
+              ]},
+              { title:'Hund', fields:[
+                { key:'dogName', label:'Hundename', type:'text', required:true },
+                { key:'breed', label:'Rasse', type:'text' },
+                { key:'birthDate', label:'Geburtsdatum', type:'date' },
+                { key:'sex', label:'Geschlecht', type:'select', options:['','männlich','weiblich'] },
+                { key:'notes', label:'Wichtige Hinweise', type:'textarea' }
+              ]}
+            ],
+            meta:[{ key:'place', label:'Ort', type:'text' }, { key:'date', label:'Datum', type:'date' }]
+          },
+          boarding_contract: {
+            id:'boarding_contract', name:'Betreuungsvertrag freigeben', dsGvoNote:'Mit dem Absenden bestätige ich die Zustimmung zum Betreuungsvertrag.',
+            sections:[
+              { title:'Vertragsdaten', fields:[
+                { key:'customerName', label:'Kundenname', type:'text', required:true },
+                { key:'dogName', label:'Hundename', type:'text', required:true },
+                { key:'serviceType', label:'Betreuungsart', type:'select', options:['Tagesbetreuung','Urlaubsbetreuung','Probetag'] },
+                { key:'contractAccepted', label:'Ich habe den Betreuungsvertrag gelesen und stimme zu', type:'checkbox', required:true }
+              ]},
+              { title:'Hinweise', fields:[
+                { key:'vet', label:'Tierarzt / Praxis', type:'text' },
+                { key:'emergencyPhone', label:'Notfallnummer', type:'text' },
+                { key:'notes', label:'Besondere Hinweise', type:'textarea' }
+              ]}
+            ],
+            meta:[{ key:'place', label:'Ort', type:'text' }, { key:'date', label:'Datum', type:'date' }]
+          },
+          hundeannahme: {
+            id:'hundeannahme', name:'Aufenthalt anfragen',
+            sections:[{ title:'Aufenthalt', fields:[
+              { key:'dogName', label:'Hund', type:'text', required:true },
+              { key:'von', label:'Von', type:'date', required:true },
+              { key:'bis', label:'Bis', type:'date', required:true },
+              { key:'betreuung', label:'Betreuungsart', type:'text' },
+              { key:'notes', label:'Notizen', type:'textarea' }
+            ]}]
+          }
+        };
+        return map[id] ? JSON.parse(JSON.stringify(map[id])) : null;
+      }
+      function getTemplateSafe(id){
+        let t = null;
+        try{ if(typeof window.getTemplate === 'function') t = window.getTemplate(id); }catch(_){ }
+        if(!t && Array.isArray(window.templates)) t = window.templates.find(x => x && x.id === id);
+        if(!t) t = embeddedTemplate(id);
+        return normalizeTemplate(t);
+      }
+      function fieldHTML(field, value){
+        const key = esc(field.key || '');
+        const label = esc(field.label || field.key || 'Feld');
+        const type = String(field.type || 'text');
+        const required = field.required ? ' required' : '';
+        if(type === 'textarea') return `<label class="field"><span>${label}</span><textarea data-key="${key}" rows="4"${required}>${esc(value)}</textarea></label>`;
+        if(type === 'select'){
+          const opts = Array.isArray(field.options) ? field.options : [];
+          return `<label class="field"><span>${label}</span><select data-key="${key}"${required}>${opts.map(o=>`<option value="${esc(o)}"${String(o)===String(value)?' selected':''}>${esc(o||'Bitte auswählen…')}</option>`).join('')}</select></label>`;
+        }
+        if(type === 'checkbox') return `<label class="check" style="display:flex;gap:10px;align-items:center;margin:10px 0"><input type="checkbox" data-key="${key}" ${value ? 'checked' : ''}${required}><span>${label}</span></label>`;
+        const htmlType = ['date','email','number'].includes(type) ? type : 'text';
+        return `<label class="field"><span>${label}</span><input type="${htmlType}" data-key="${key}" value="${esc(value)}"${required}></label>`;
+      }
+      function metaHTML(meta, metaValues){
+        if(!Array.isArray(meta) || !meta.length) return '';
+        return `<div class="card" style="margin-top:12px"><h3 style="margin-top:0">Zusatzangaben</h3>${meta.map(f=>fieldHTML({...f, key:'meta__'+(f.key||f.id||'')}, metaValues[String(f.key||f.id||'')] || '')).join('')}</div>`;
+      }
+      function collectFormData(){
+        const fields = {};
+        const meta = {};
+        document.querySelectorAll('#formRoot [data-key]').forEach(el=>{
+          const key = String(el.getAttribute('data-key') || '');
+          const val = (el.type === 'checkbox') ? !!el.checked : String(el.value || '');
+          if(key.startsWith('meta__')) meta[key.slice(6)] = val; else fields[key] = val;
+        });
+        return { fields, meta };
+      }
+      function validateTask(template, data){
+        const errs = [];
+        (template.sections || []).forEach(sec => (sec.fields || []).forEach(f => {
+          if(!f || !f.required) return;
+          const v = data.fields[String(f.key||'')];
+          if(f.type === 'checkbox'){ if(!v) errs.push(f.label || f.key); }
+          else if(String(v||'').trim() === '') errs.push(f.label || f.key);
+        }));
+        return errs;
+      }
+      async function saveTaskPatch(task, patch){
+        const id = taskKey(task) || ('local_'+Date.now());
+        try{
+          const raw = localStorage.getItem(LS);
+          const data = raw ? JSON.parse(raw) : {};
+          const list = Array.isArray(data.inboxAssignments) ? data.inboxAssignments : [];
+          const idx = list.findIndex(x => taskKey(x) === id);
+          const merged = Object.assign({}, idx >= 0 ? list[idx] : task, patch, { id });
+          if(idx >= 0) list[idx] = merged; else list.unshift(merged);
+          data.inboxAssignments = list;
+          localStorage.setItem(LS, JSON.stringify(data));
+        }catch(_){ }
+        try{
+          const col = (typeof window.cloudTasksCol === 'function') ? window.cloudTasksCol() : null;
+          if(col && typeof col.doc === 'function' && id && !String(id).startsWith('local_')){
+            await col.doc(id).set(patch, {merge:true});
+            return true;
+          }
+        }catch(e){ console.error('remote patch failed', e); }
+        return false;
+      }
+      async function renderTask(task){
+        const taskId = taskKey(task);
+        const templateId = deriveTemplateId(task);
+        const template = getTemplateSafe(templateId);
+        const listCard = $('customerTaskListCard');
+        const list = $('customerTaskList');
+        const editor = $('customerTaskEditor');
+        const root = $('formRoot');
+        const titleEl = $('editorTitle');
+        const metaEl = $('editorMeta');
+        const hint = $('customerTaskSaveHint');
+        const dsgvo = $('dsGvoText');
+        if(!template){
+          setStatus('template fehlt ' + (templateId || 'leer'));
+          alert('Vorlage nicht gefunden: ' + (templateId || 'leer'));
+          return;
+        }
+        const draft = task.payloadDraft || {};
+        const submitted = task.payloadSubmitted || {};
+        const fields = Object.assign({}, submitted.fields || {}, draft.fields || {});
+        const meta = Object.assign({}, submitted.meta || {}, draft.meta || {});
+        if(titleEl) titleEl.textContent = task.title || template.name || 'Aufgabe';
+        if(metaEl) metaEl.textContent = `Formular: ${template.name || templateId || ''}`;
+        if(dsgvo) dsgvo.textContent = template.dsGvoNote || '';
+        if(hint) hint.textContent = '';
+        const parts = [];
+        (template.sections || []).forEach(sec => {
+          parts.push(`<div class="card" style="margin-top:12px"><h3 style="margin-top:0">${esc(sec.title || template.name || 'Formular')}</h3>${(sec.fields || []).map(f=>fieldHTML(f, fields[String(f.key||'')] || '')).join('')}</div>`);
+        });
+        parts.push(metaHTML(template.meta, meta));
+        if(root) root.innerHTML = parts.join('') || '<div class="muted">Keine Felder vorhanden.</div>';
+        if(list) list.style.display = 'none';
+        if(listCard) listCard.style.display = 'none';
+        if(editor){ editor.style.display = 'block'; editor.hidden = false; editor.style.visibility='visible'; editor.style.opacity='1'; }
+        setStatus('editor direct ' + taskId);
+        try{ editor && editor.scrollIntoView({behavior:'smooth', block:'start'}); }catch(_){ }
 
+        let saveTimer = null;
+        const scheduleSave = ()=>{
+          clearTimeout(saveTimer);
+          if(hint) hint.textContent = '… speichert …';
+          saveTimer = setTimeout(async ()=>{
+            const data = collectFormData();
+            const ok = await saveTaskPatch(task, { payloadDraft: data, updatedAt: Date.now(), templateId });
+            if(hint) hint.textContent = (ok ? '✅ Gespeichert: ' : '✅ Lokal gespeichert: ') + fmt(Date.now());
+          }, 500);
+        };
+        root.querySelectorAll('[data-key]').forEach(el=>{
+          el.addEventListener('input', scheduleSave, {passive:true});
+          el.addEventListener('change', scheduleSave, {passive:true});
+        });
+        const backBtn = $('btnCustomerTaskBack');
+        if(backBtn) backBtn.onclick = ()=>{
+          if(editor) editor.style.display = 'none';
+          if(list) list.style.display = '';
+          if(listCard) listCard.style.display = 'block';
+          setStatus('back');
+        };
+        const submitBtn = $('btnCustomerTaskSubmit');
+        if(submitBtn) submitBtn.onclick = async ()=>{
+          const data = collectFormData();
+          const errs = validateTask(template, data);
+          if(errs.length){ alert('Bitte prüfen: ' + errs.join(', ')); return; }
+          const ok = await saveTaskPatch(task, { payloadDraft: data, payloadSubmitted: data, status:'submitted', submittedAt: Date.now(), updatedAt: Date.now(), templateId });
+          alert(ok ? '✅ Danke! Formular wurde übermittelt.' : '✅ Formular lokal als übermittelt markiert.');
+          if(editor) editor.style.display = 'none';
+          if(list) list.style.display = '';
+          if(listCard) listCard.style.display = 'block';
+          setStatus('submitted ' + taskId);
+        };
+      }
+      function wireOpenDelegation(){
+        document.addEventListener('click', function(ev){
+          try{
+            const btn = ev.target && ev.target.closest ? ev.target.closest('#customerTaskList .smallbtn, #customerTaskList .list-item') : null;
+            if(!btn) return;
+            const holder = btn.matches && btn.matches('.list-item') ? btn : (btn.closest ? btn.closest('.list-item') : null);
+            const taskId = (btn.dataset && btn.dataset.taskId) || (holder && holder.dataset ? holder.dataset.taskId : '');
+            if(!taskId) return;
+            ev.preventDefault();
+            ev.stopPropagation();
+            const tasks = Array.isArray(window.__dsCustomerTasks) ? window.__dsCustomerTasks : [];
+            const task = tasks.find(t => taskKey(t) === String(taskId));
+            if(!task){ setStatus('task fehlt ' + taskId); return; }
+            renderTask(task);
+          }catch(err){ console.error(err); setStatus('open error'); }
+        }, true);
+        window.__dsOpenCustomerTaskById = function(id){
+          const tasks = Array.isArray(window.__dsCustomerTasks) ? window.__dsCustomerTasks : [];
+          const task = tasks.find(t => taskKey(t) === String(id||''));
+          if(!task){ setStatus('task fehlt ' + id); return null; }
+          return renderTask(task);
+        };
+      }
       async function bootCustomerPortal(){
         try{
           if(!(window.firebase && window.firebase.auth && window.firebase.firestore)) return;
@@ -99,16 +318,11 @@
           const orgId = (window.CLOUD_ORG_ID || window.firebaseOrgId || 'doggystyle');
           auth.onAuthStateChanged(async function(user){
             if(!user){ location.href='login.html'; return; }
-            try{
-              window.CLOUD = window.CLOUD || {};
-              CLOUD.auth = auth; CLOUD.db = db; CLOUD.user = user; CLOUD.orgId = orgId; CLOUD.enabled = true;
-            }catch(_){ }
-            try{
-              var btn = document.getElementById('btnCustomerLogout');
-              if(btn){ btn.onclick = async function(){ try{ await auth.signOut(); }catch(_){ } location.href='login.html'; }; }
-            }catch(_){ }
+            try{ window.CLOUD = window.CLOUD || {}; CLOUD.auth = auth; CLOUD.db = db; CLOUD.user = user; CLOUD.orgId = orgId; CLOUD.enabled = true; }catch(_){ }
+            try{ const btn = $('btnCustomerLogout'); if(btn){ btn.onclick = async function(){ try{ await auth.signOut(); }catch(_){ } location.href='login.html'; }; } }catch(_){ }
             try{
               setStatus('auth ok');
+              wireOpenDelegation();
               if(typeof initCustomerPortal === 'function') await initCustomerPortal();
               setStatus('init ok');
             }catch(e){ console.error('customer explicit boot failed', e); setStatus('Boot-Fehler'); }

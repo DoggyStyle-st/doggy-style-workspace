@@ -1418,9 +1418,7 @@ async function initCustomerPortal(){
       row.dataset.taskId = taskId;
       row.style.cursor = 'pointer';
       const when = t.createdAt ? fmtDT(t.createdAt) : '';
-      const label = String(t.title || t.templateName || t.templateId || 'Aufgabe');
-      const sub = String(t.templateId || t.taskId || t.formId || t.docType || t.type || '');
-      row.innerHTML = `<div><strong>${escapeHtml(label)}</strong><small>${escapeHtml(sub && sub !== label ? sub : '')}${when?((sub && sub !== label ? ' · ' : '') + when):''}</small></div>`;
+      row.innerHTML = `<div><strong>${escapeHtml(t.title||'Aufgabe')}</strong><small>${escapeHtml(t.templateId||'')}${when?(' · '+when):''}</small></div>`;
       const actions = document.createElement('div');
       actions.className = 'actions';
       const btnOpen = document.createElement('button');
@@ -1436,56 +1434,10 @@ async function initCustomerPortal(){
     });
   }
   let _draftTimer = null;
-  function getTaskTemplateResolved(task){
-    const templateKeys = [task && task.templateId, task && task.taskId, task && task.formId, task && task.docType, task && task.type].filter(Boolean).map(v=>String(v));
-    for(const key of templateKeys){
-      const tpl = getTemplate(key);
-      if(tpl) return tpl;
-    }
-    return null;
-  }
-  function normalizePortalTemplate(tpl, task){
-    const base = tpl ? JSON.parse(JSON.stringify(tpl)) : { id: String((task && (task.templateId || task.taskId || task.formId || task.docType || task.type)) || ''), name: task && task.title ? String(task.title) : 'Aufgabe' };
-    if(!Array.isArray(base.sections) || !base.sections.length){
-      const fields = Array.isArray(base.fields) ? base.fields.slice() : [];
-      if(fields.length) base.sections = [{ title: base.name || 'Formular', fields }];
-      else base.sections = [];
-    }
-    if(!Array.isArray(base.meta)) base.meta = [];
-    return base;
-  }
-  function renderCustomerPortalForm(docObj, tpl, root){
-    if(!root) return;
-    root.innerHTML = '';
-    const sections = Array.isArray(tpl.sections) ? tpl.sections : [];
-    const meta = Array.isArray(tpl.meta) ? tpl.meta : [];
-    sections.forEach(sec=>{
-      const card = document.createElement('div');
-      card.className = 'card';
-      if(sec && sec.title) card.innerHTML = `<h2>${escapeHtml(sec.title)}</h2>`;
-      (Array.isArray(sec && sec.fields) ? sec.fields : []).forEach(f=>{
-        const key = String((f && (f.key || f.id)) || '');
-        const value = (docObj.fields && key in docObj.fields) ? docObj.fields[key] : '';
-        card.appendChild(renderField(Object.assign({}, f, { key }), value, docObj));
-      });
-      root.appendChild(card);
-    });
-    if(meta.length){
-      const metaCard = document.createElement('div');
-      metaCard.className = 'card';
-      metaCard.innerHTML = '<h2>Ort / Datum</h2>';
-      meta.forEach(f=>{
-        const key = String((f && (f.key || f.id)) || '');
-        const value = (docObj.meta && key in docObj.meta) ? docObj.meta[key] : '';
-        metaCard.appendChild(renderField(Object.assign({}, f, { key }), value, docObj));
-      });
-      root.appendChild(metaCard);
-    }
-  }
   async function openCustomerTask(task){
-    if(!task) return;
-    const t = normalizePortalTemplate(getTaskTemplateResolved(task), task);
-    if(!t || !t.id){ alert('Vorlage nicht gefunden.'); return; }
+    if(!task || !task.templateId) return;
+    const t = getTemplate(task.templateId);
+    if(!t){ alert('Vorlage nicht gefunden.'); return; }
     const isCustomerPortal = !!document.getElementById('customerPortal');
     const listCard = document.getElementById('customerTaskListCard');
     if(listEl) listEl.style.display = 'none';
@@ -1503,7 +1455,7 @@ async function initCustomerPortal(){
     const nameEl = document.getElementById('docName');
     const dogSel = document.getElementById('dogSelect');
     if(titleEl) titleEl.textContent = task.title || t.name || 'Aufgabe';
-    if(metaEl) metaEl.textContent = `Formular: ${t.name||t.id||task.templateId||''}`;
+    if(metaEl) metaEl.textContent = `Formular: ${t.name||task.templateId}`;
     if(hint) hint.textContent = '';
 
     const mergedFields = Object.assign({}, (task.payloadSubmitted && task.payloadSubmitted.fields) || {}, (task.payloadDraft && task.payloadDraft.fields) || {});
@@ -1511,8 +1463,8 @@ async function initCustomerPortal(){
     currentDoc = {
       id: `customer_task_${String(task.id || task.taskId || Date.now())}`,
       sourceTaskId: String(task.id || task.taskId || ''),
-      templateId: t.id || task.templateId || task.taskId || '',
-      templateName: t.name || t.id || task.templateId || '',
+      templateId: task.templateId,
+      templateName: t.name || task.templateId,
       title: task.title || t.name || 'Aufgabe',
       dogId: task.dogId || '',
       customerId: task.customerId || '',
@@ -1528,7 +1480,7 @@ async function initCustomerPortal(){
       dogSel.style.display = 'none';
     }
     if(root) root.innerHTML = '';
-    renderCustomerPortalForm(currentDoc, t, root);
+    renderForm(currentDoc);
     if(dsgvo) dsgvo.textContent = (t.dsGvoNote || '');
     const versionBox = document.getElementById('versionBox');
     if(versionBox) versionBox.style.display = 'none';
@@ -1619,17 +1571,10 @@ async function initCustomerPortal(){
   }
   window.__dsOpenCustomerTask = openCustomerTask;
   window.__dsOpenCustomerTaskById = function(id){
-    const needle = String(id||'');
     const tasks = Array.isArray(window.__dsCustomerTasks) ? window.__dsCustomerTasks : [];
-    const found = tasks.find(x => {
-      if(!x || typeof x !== 'object') return false;
-      const keys = [x.id, x.taskId, x.assignmentId, x.sourceTaskId, x.templateId, x.formId, x.docType, x.type]
-        .filter(Boolean)
-        .map(v => String(v));
-      return keys.includes(needle);
-    });
+    const found = tasks.find(x => String((x && (x.id || x.taskId)) || '') === String(id||''));
     if(found) return openCustomerTask(found);
-    console.warn('customer task not found', id, tasks.length, tasks);
+    console.warn('customer task not found', id, tasks.length);
     return null;
   };
 }
@@ -10483,7 +10428,7 @@ function collectForm(){
   $$("#formRoot [data-key]").forEach(inp=>{
     const key=inp.dataset.key, type=inp.dataset.ftype;
     const val=(type==="checkbox")?inp.checked:inp.value;
-    if(Array.isArray(t.meta) && t.meta.some(m=>m.key===key)) meta[key]=val; else fields[key]=val;
+    if(t.meta.some(m=>m.key===key)) meta[key]=val; else fields[key]=val;
   });
   return {fields, meta};
 }
