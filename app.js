@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9CK_AI_CUSTOMERPORTAL_APPPATH_MASTER_20260317",
+  tag: "M50.9.9CW_AI_CUSTOMERPORTAL_TASKSCOPED_MASTER_20260318",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9CK_AI_CUSTOMERPORTAL_APPPATH_MASTER_20260317";
+const APP_BUILD = "M50.9.9CW_AI_CUSTOMERPORTAL_TASKSCOPED_MASTER_20260318";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -3013,6 +3013,7 @@ if(id === "calendar"){
 }
 // ==== Dashboard / Schnellaktionen helpers ====
 function selectTab(tabId){
+  if(isRestrictedCustomerApp() && tabId !== "dogs") tabId = "dogs";
   // activate tab button
   $$(".tab").forEach(b=>b.classList.toggle("is-active", b.dataset.tab===tabId));
   showPanel(tabId);
@@ -7812,6 +7813,26 @@ function isCustomerAppPage(){
     return p.endsWith('/app.html') || p.endsWith('app.html');
   }catch(_){ return false; }
 }
+function getCustomerAppContext(){
+  try{
+    const qs = new URLSearchParams(String((location && location.search) || ''));
+    const forced = qs.get('customerApp') === '1' || sessionStorage.getItem('ds_customer_app_mode') === '1';
+    const area = String(qs.get('customerArea') || sessionStorage.getItem('ds_customer_area') || 'dogs').trim() || 'dogs';
+    const taskId = String(qs.get('customerTask') || sessionStorage.getItem('ds_customer_open_task_id') || '').trim();
+    if(forced){
+      try{ sessionStorage.setItem('ds_customer_app_mode','1'); }catch(_){ }
+      try{ sessionStorage.setItem('ds_customer_area', area); }catch(_){ }
+      if(taskId){ try{ sessionStorage.setItem('ds_customer_open_task_id', taskId); }catch(_){ } }
+    }
+    return { forced, area, taskId };
+  }catch(_){ return { forced:false, area:'dogs', taskId:'' }; }
+}
+function isRestrictedCustomerApp(){
+  try{
+    const ctx = getCustomerAppContext();
+    return isCustomerAppPage() && !!ctx.forced;
+  }catch(_){ return false; }
+}
 function getCustomerWorkspaceScope(){
   const email = String(CLOUD.user?.email || '').trim().toLowerCase();
   const uid = String(CLOUD.user?.uid || '').trim();
@@ -8085,7 +8106,7 @@ function openCpEditor(mode, petId){
   ensureContractDefaults();
   cpEdit.mode = mode || "new";
   cpEdit.petId = petId || "";
-  if(CLOUD.role === ROLES.CUSTOMER && isCustomerAppPage()){
+  if(((CLOUD.role === ROLES.CUSTOMER && isCustomerAppPage()) || isRestrictedCustomerApp())){
     const scope = getCustomerWorkspaceScope();
     if(mode !== "edit"){ alert("Als Kunde kannst du keinen neuen Eintrag anlegen. Bitte bearbeite deinen bestehenden Eintrag."); return; }
     const pet = petId ? getPet(petId) : null;
@@ -8098,7 +8119,7 @@ function openCpEditor(mode, petId){
   const title = document.getElementById("cpEditorTitle");
   if(title) title.textContent = (mode==="edit") ? "Kunde & Hund bearbeiten" : "Kunde & Hund anlegen";
   refreshCustomerSelect();
-  if(CLOUD.role === ROLES.CUSTOMER && isCustomerAppPage()){
+  if(((CLOUD.role === ROLES.CUSTOMER && isCustomerAppPage()) || isRestrictedCustomerApp())){
     const sel = document.getElementById("customerSelect");
     const scope = getCustomerWorkspaceScope();
     if(sel){
@@ -9897,7 +9918,7 @@ function renderDogs(){
   const list = $("#dogList");
   if(!list) return;
   list.innerHTML = "";
-  const customerScoped = (CLOUD.role === ROLES.CUSTOMER && isCustomerAppPage());
+  const customerScoped = ((CLOUD.role === ROLES.CUSTOMER && isCustomerAppPage()) || isRestrictedCustomerApp());
   const scope = customerScoped ? getCustomerWorkspaceScope() : null;
   const petsAll = (state.pets||[]).filter(p=>{
     if(!customerScoped) return true;
@@ -10042,7 +10063,7 @@ function renderDogs(){
   refreshCustomerSelect();
   syncDogSelect();
 }
-$("#btnAddDog").addEventListener("click",()=>{ if(CLOUD.role === ROLES.CUSTOMER && isCustomerAppPage()) return; openCpEditor("new"); });
+$("#btnAddDog").addEventListener("click",()=>{ if(((CLOUD.role === ROLES.CUSTOMER && isCustomerAppPage()) || isRestrictedCustomerApp())) return; openCpEditor("new"); });
 $("#btnCpCancel").addEventListener("click",()=>closeCpEditor());
 // Button "Weiteren Hund" (für bestehenden Kunden) dynamisch einhängen
 try{
@@ -11420,7 +11441,11 @@ return;
       console.warn('Role load failed, fallback to staff', e);
       CLOUD.role = ROLES.STAFF;
     }
-    // Kunden: je nach Seite Kundenportal oder eingeschränkter App-Bereich
+    // Kunden / eingeschränkte Kunden-App
+    if(isRestrictedCustomerApp()){
+      try{ await initCustomerWorkspace(); }catch(e){ console.error(e); }
+      return;
+    }
     if(CLOUD.role === ROLES.CUSTOMER){
       try{
         if(isCustomerAppPage()) await initCustomerWorkspace();
