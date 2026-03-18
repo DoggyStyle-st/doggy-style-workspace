@@ -7,33 +7,47 @@
   <link href="manifest.json" rel="manifest"/>
   <meta name="theme-color" content="#101014"/>
   <link href="assets/logo.png" rel="apple-touch-icon"/>
-  <link href="styles.css?v=M50.9.9DE_AI_CUSTOMERPORTAL_CUSTOMERAPP_UIFIX_MASTER_20260318" rel="stylesheet"/>
+  <link href="styles.css?v=M50.9.9DF_AI_CUSTOMERPORTAL_CUSTOMERAPP_EDITABLE_MASTER_20260318" rel="stylesheet"/>
   <style>
+    body.bg-watermark{background:radial-gradient(circle at top, rgba(255,255,255,.08), transparent 35%), linear-gradient(180deg,#0e1017 0%, #121521 100%) !important}
+    body.bg-watermark::before{opacity:.12 !important;filter:none !important}
+    body.bg-watermark::after{background:linear-gradient(180deg, rgba(10,12,18,.10), rgba(10,12,18,.22)) !important}
     .customer-shell{max-width:1100px;margin:0 auto;padding:18px 14px 110px}
     .customer-top{position:sticky;top:0;z-index:40;padding-top:8px}
-    .customer-nav{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:center;margin-bottom:14px}
-    .customer-nav .btn{min-width:180px}
-    .customer-nav .btn.is-active{border-color:rgba(245,182,46,.65);box-shadow:0 0 0 1px rgba(245,182,46,.28) inset;background:rgba(245,182,46,.14)}
-    .customer-hero{display:grid;gap:18px;justify-items:center;text-align:center;padding:34px 22px}
-    .customer-hero img{width:min(360px,68vw);height:auto;display:block;filter:drop-shadow(0 16px 36px rgba(0,0,0,.28))}
-    .customer-quote{font-size:clamp(20px,2.4vw,34px);line-height:1.35;max-width:740px;color:#f1f1f6}
-    .customer-sub{max-width:720px;margin:0 auto;color:#dfdfe7}
-    .customer-panel{display:none;background:rgba(22,22,28,.78) !important;border:1px solid rgba(255,255,255,.11) !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;box-shadow:0 18px 44px rgba(0,0,0,.24)}
+    .customer-nav{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:center;margin-bottom:14px;background:rgba(255,255,255,.14)!important;border:1px solid rgba(255,255,255,.16)!important;backdrop-filter:blur(10px)!important}
+    .customer-nav .btn{min-width:180px;background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.14)}
+    .customer-nav .btn.is-active{border-color:rgba(245,182,46,.75);box-shadow:0 0 0 1px rgba(245,182,46,.25) inset;background:rgba(245,182,46,.18)}
+    .customer-hero{display:grid;gap:18px;justify-items:center;text-align:center;padding:38px 22px}
+    .customer-hero img{width:min(350px,66vw);height:auto;display:block;filter:drop-shadow(0 14px 28px rgba(0,0,0,.22))}
+    .customer-quote{font-size:clamp(20px,2.4vw,34px);line-height:1.35;max-width:760px;color:#f7f7fb;text-shadow:0 2px 12px rgba(0,0,0,.20)}
+    .customer-sub{max-width:760px;margin:0 auto;color:#ececf3}
+    .customer-panel{display:none;background:rgba(255,255,255,.12)!important;border:1px solid rgba(255,255,255,.16)!important;backdrop-filter:blur(8px)!important;-webkit-backdrop-filter:blur(8px)!important;box-shadow:0 16px 36px rgba(0,0,0,.18)}
     .customer-panel.is-active{display:block}
     .customer-grid{display:grid;gap:14px}
-    .customer-summary .item{margin-bottom:10px}
-    .customer-empty{opacity:.8;padding:10px 0}
+    .customer-summary .item{padding:14px 16px;border-radius:18px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)}
+    .customer-empty{opacity:.9;padding:12px 0}
     .customer-tasklist{display:grid;gap:12px}
-    .customer-task{display:flex;justify-content:space-between;gap:14px;align-items:center;flex-wrap:wrap;padding:14px 16px;border-radius:18px;background:rgba(255,255,255,.065);border:1px solid rgba(255,255,255,.10)}
-    .customer-section-note{margin-top:8px;color:#d7d7df}
-    .customer-task strong{display:block}
-    .customer-task small{display:block;opacity:.78;margin-top:4px}
-    .customer-editor-wrap{display:none;margin-top:14px;background:rgba(22,22,28,.88) !important;border:1px solid rgba(255,255,255,.11) !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important}
+    .customer-task{display:flex;justify-content:space-between;gap:14px;align-items:center;flex-wrap:wrap;padding:14px 16px;border-radius:18px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12)}
+    .customer-task strong{display:block}.customer-task small{display:block;opacity:.82;margin-top:4px}
+    .customer-section-note{margin-top:8px;color:#ececf3}
+    .customer-editor-wrap{display:none;margin-top:14px;background:rgba(255,255,255,.14)!important;border:1px solid rgba(255,255,255,.18)!important;backdrop-filter:blur(8px)!important;-webkit-backdrop-filter:blur(8px)!important}
     .customer-editor-wrap.is-active{display:block}
     .customer-hidden{display:none !important}
+    .customer-fields{display:grid;gap:14px}
+    .customer-field-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+    .customer-block{padding:16px;border-radius:18px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)}
+    .customer-block h3{margin:0 0 12px 0}
+    .customer-label{display:block;font-size:13px;color:#efeff6;margin-bottom:6px}
+    .customer-input,.customer-select,.customer-textarea{width:100%;padding:12px 14px;border-radius:14px;border:1px solid rgba(255,255,255,.16);background:rgba(17,20,29,.72);color:#fff;outline:none}
+    .customer-textarea{min-height:100px;resize:vertical}
+    .customer-check{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:14px;background:rgba(17,20,29,.55);border:1px solid rgba(255,255,255,.10)}
+    .customer-check input{width:auto;margin-top:3px}
+    .customer-help{font-size:13px;color:#e7e7ef}
+    #customerTaskSaveHint{color:#f0f0f7}
     @media (max-width:800px){
       .customer-nav .btn{min-width:unset;flex:1 1 calc(50% - 10px)}
       .customer-task{align-items:flex-start}
+      .customer-field-grid{grid-template-columns:1fr}
     }
   </style>
 </head>
@@ -57,22 +71,18 @@
     </section>
 
     <section class="card customer-panel" id="view-dogs">
-      <div class="row between" style="gap:12px;flex-wrap:wrap;align-items:flex-start">
-        <div>
-          <h1 style="margin:0">Kunde/Hund</h1>
-          <div class="muted" id="dogsSubtitle" style="margin-top:6px">Dein freigegebener Eintrag.</div>
-        </div>
+      <div>
+        <h1 style="margin:0">Kunde/Hund</h1>
+        <div class="muted" id="dogsSubtitle" style="margin-top:6px">Hier siehst du nur deinen eigenen Kunden- und Hunde-Eintrag.</div>
       </div>
       <div class="customer-grid customer-summary" id="customerSummary" style="margin-top:12px"></div>
       <div class="customer-tasklist" id="dogsTaskList" style="margin-top:14px"></div>
     </section>
 
     <section class="card customer-panel" id="view-contract">
-      <div class="row between" style="gap:12px;flex-wrap:wrap;align-items:flex-start">
-        <div>
-          <h1 style="margin:0">Betreuungsvertrag</h1>
-          <div class="customer-section-note">Hier öffnest du deinen Betreuungsvertrag. Änderungen bauen wir im nächsten Schritt noch sauber auf den Freigabe-Workflow um.</div>
-        </div>
+      <div>
+        <h1 style="margin:0">Betreuungsvertrag</h1>
+        <div class="customer-section-note">Hier kannst du den freigegebenen Betreuungsvertrag prüfen und deine Angaben ergänzen.</div>
       </div>
       <div class="customer-tasklist" id="contractTaskList" style="margin-top:14px"></div>
     </section>
@@ -81,7 +91,7 @@
       <div class="row between" style="gap:12px;flex-wrap:wrap;align-items:flex-start">
         <div>
           <h1 style="margin:0">Neuer Aufenthalt</h1>
-          <div class="customer-section-note">Hier kannst du eine neue Aufenthaltsanfrage vorbereiten. Die eigentliche Übergabe an Eingänge bauen wir im nächsten Schritt sauber ein.</div>
+          <div class="customer-section-note">Hier kannst du einen neuen Aufenthalt vorbereiten oder eine bestehende Anfrage öffnen.</div>
         </div>
         <button class="btn primary" id="btnOpenNewStay" type="button">Neuen Aufenthalt öffnen</button>
       </div>
@@ -93,57 +103,52 @@
         <div>
           <h1 id="editorTitle" style="margin:0">Aufgabe</h1>
           <div class="muted" id="editorMeta" style="margin-top:6px"></div>
-          <div class="card customer-hidden" id="versionBox" style="margin-top:12px"></div>
         </div>
         <div class="row" style="gap:10px; flex-wrap:wrap;">
           <button class="btn" id="btnCustomerTaskBack" type="button">Zurück</button>
           <button class="btn primary" id="btnCustomerTaskSubmit" type="button">Absenden</button>
         </div>
       </div>
-      <input id="docName" type="hidden" />
-      <select id="dogSelect" style="display:none"></select>
-      <div id="formRoot" style="margin-top:12px"></div>
-      <p class="muted" id="dsGvoText" style="margin-top:10px"></p>
-      <div class="hint" id="customerTaskSaveHint" style="margin-top:10px"></div>
+      <div id="formRoot" style="margin-top:14px"></div>
+      <div class="hint" id="customerTaskSaveHint" style="margin-top:12px"></div>
     </section>
 
-    <!-- Hidden compatibility targets for existing portal logic -->
     <section class="customer-hidden" id="customerPortal"></section>
     <div class="customer-hidden" id="customerTaskListCard"></div>
     <div class="customer-hidden list" id="customerTaskList"></div>
     <div class="customer-hidden" id="customerPortalSubtitle"></div>
-    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9DE_AI_CUSTOMERPORTAL_CUSTOMERAPP_UIFIX_MASTER_20260318</div>
+    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9DF_AI_CUSTOMERPORTAL_CUSTOMERAPP_EDITABLE_MASTER_20260318</div>
   </main>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=M50.9.9DE_AI_CUSTOMERPORTAL_CUSTOMERAPP_UIFIX_MASTER_20260318"></script>
-  <script src="app.js?v=M50.9.9DE_AI_CUSTOMERPORTAL_CUSTOMERAPP_UIFIX_MASTER_20260318"></script>
+  <script src="firebase-config.js?v=M50.9.9DF_AI_CUSTOMERPORTAL_CUSTOMERAPP_EDITABLE_MASTER_20260318"></script>
+  <script src="app.js?v=M50.9.9DF_AI_CUSTOMERPORTAL_CUSTOMERAPP_EDITABLE_MASTER_20260318"></script>
   <script>
     (function(){
-      const BUILD = 'Build CUSTOMER M50.9.9DE_AI_CUSTOMERPORTAL_CUSTOMERAPP_UIFIX_MASTER_20260318';
+      const BUILD = 'Build CUSTOMER M50.9.9DF_AI_CUSTOMERPORTAL_CUSTOMERAPP_EDITABLE_MASTER_20260318';
+      const DRAFT_KEY = 'ds_customer_app_drafts_v1';
       const viewNames = ['home','dogs','contract','stay'];
       let currentView = 'home';
+      let currentTask = null;
+      let currentData = {};
 
-      function setStatus(msg){
-        const bottom = document.getElementById('customerPortalBuildBottom');
-        if(bottom) bottom.textContent = BUILD + (msg ? ' · ' + msg : '');
-      }
+      function esc(v){ return String(v ?? '').replace(/[&<>"']/g, s=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[s])); }
+      function setStatus(msg){ const bottom=document.getElementById('customerPortalBuildBottom'); if(bottom) bottom.textContent = BUILD + (msg ? ' · ' + msg : ''); }
+      function fmt(ts){ try{ return (typeof fmtDT === 'function') ? fmtDT(ts) : ''; }catch(_){ return ''; } }
+      function getStateSafe(){ try{ return (typeof loadState === 'function') ? loadState() : (window.state || {}); }catch(_){ return window.state || {}; } }
+      function getUserEmail(){ try{ return String(window.CLOUD?.user?.email || '').trim().toLowerCase(); }catch(_){ return ''; } }
+      function getTasks(){ return Array.isArray(window.__dsCustomerTasks) ? window.__dsCustomerTasks.slice() : []; }
+      function getDrafts(){ try{ return JSON.parse(localStorage.getItem(DRAFT_KEY) || '{}') || {}; }catch(_){ return {}; } }
+      function setDraft(taskId, data){ const all=getDrafts(); all[String(taskId)] = data; localStorage.setItem(DRAFT_KEY, JSON.stringify(all)); }
+      function getDraft(taskId){ const all=getDrafts(); return all[String(taskId)] || {}; }
       function setView(name){
         currentView = viewNames.includes(name) ? name : 'home';
         document.querySelectorAll('.customer-panel').forEach(el=>el.classList.toggle('is-active', el.id === 'view-' + currentView));
         document.querySelectorAll('.nav-btn').forEach(btn=>btn.classList.toggle('is-active', btn.dataset.view === currentView));
-        const editor = document.getElementById('customerTaskEditorWrap');
-        if(editor) editor.classList.remove('is-active');
+        document.getElementById('customerTaskEditorWrap')?.classList.remove('is-active');
         setStatus('Ansicht ' + currentView);
-      }
-      function fmt(ts){ try{ return (typeof fmtDT === 'function') ? fmtDT(ts) : ''; }catch(_){ return ''; } }
-      function getStateSafe(){
-        try{ return (typeof loadState === 'function') ? loadState() : (window.state || {}); }catch(_){ return window.state || {}; }
-      }
-      function getUserEmail(){
-        try{ return String(window.CLOUD?.user?.email || '').trim().toLowerCase(); }catch(_){ return ''; }
       }
       function findOwnCustomer(state){
         const email = getUserEmail();
@@ -151,22 +156,16 @@
         return customers.find(c => String(c?.email || '').trim().toLowerCase() === email) || null;
       }
       function taskMappedCustomer(state){
-        const tasks = Array.isArray(window.__dsCustomerTasks) ? window.__dsCustomerTasks : [];
+        const tasks = getTasks();
         const customers = Array.isArray(state?.customers) ? state.customers : [];
         const pets = Array.isArray(state?.pets) ? state.pets : [];
         for(const t of tasks){
           const cid = String(t?.customerId || '').trim();
-          if(cid){
-            const c = customers.find(x => String(x?.id || '') === cid);
-            if(c) return c;
-          }
+          if(cid){ const c = customers.find(x => String(x?.id || '') === cid); if(c) return c; }
           const pid = String(t?.petId || t?.dogId || '').trim();
           if(pid){
             const pet = pets.find(x => String(x?.id || '') === pid);
-            if(pet){
-              const c = customers.find(x => String(x?.id || '') === String(pet?.customerId || ''));
-              if(c) return c;
-            }
+            if(pet){ const c = customers.find(x => String(x?.id || '') === String(pet?.customerId || '')); if(c) return c; }
           }
         }
         return null;
@@ -174,122 +173,171 @@
       function findOwnPets(state, customer){
         const pets = Array.isArray(state?.pets) ? state.pets : [];
         if(customer?.id) return pets.filter(p => String(p?.customerId || '') === String(customer.id));
-        const tasks = Array.isArray(window.__dsCustomerTasks) ? window.__dsCustomerTasks : [];
-        const ids = new Set(tasks.map(t=>String(t?.petId || t?.dogId || '').trim()).filter(Boolean));
+        const ids = new Set(getTasks().map(t=>String(t?.petId || t?.dogId || '').trim()).filter(Boolean));
         return pets.filter(p => ids.has(String(p?.id || '').trim()));
+      }
+      function getContext(){
+        const state = getStateSafe();
+        const customer = findOwnCustomer(state) || taskMappedCustomer(state) || {};
+        const pets = findOwnPets(state, customer);
+        const pet = pets[0] || {};
+        return { state, customer, pets, pet };
       }
       function makeSyntheticTask(templateId, title){
         const now = Date.now();
-        return {
-          id: 'local_' + templateId + '_' + now,
-          taskId: 'local_' + templateId + '_' + now,
-          templateId,
-          title,
-          createdAt: now,
-          customerEmail: getUserEmail(),
-          status: 'open'
-        };
-      }
-      function applyEditorSkin(task){
-        const titleMap = {customer_data:'Kunde/Hund bearbeiten', boarding_contract:'Betreuungsvertrag', hundeannahme:'Neuer Aufenthalt'};
-        const metaMap = {
-          customer_data:'Hier kannst du deine Kunden- und Hundedaten prüfen und ändern.',
-          boarding_contract:'Hier kannst du den Betreuungsvertrag prüfen und ausfüllen.',
-          hundeannahme:'Hier kannst du einen neuen Aufenthalt vorbereiten.'
-        };
-        const submitMap = {customer_data:'Änderung senden', boarding_contract:'Vertrag senden', hundeannahme:'Anfrage senden'};
-        const titleEl = document.getElementById('editorTitle');
-        const metaEl = document.getElementById('editorMeta');
-        const submitBtn = document.getElementById('btnCustomerTaskSubmit');
-        const hint = document.getElementById('customerTaskSaveHint');
-        const tid = String(task?.templateId || '');
-        if(titleEl) titleEl.textContent = titleMap[tid] || (task?.title || 'Formular');
-        if(metaEl) metaEl.textContent = metaMap[tid] || '';
-        if(submitBtn) submitBtn.textContent = submitMap[tid] || 'Senden';
-        if(hint && !hint.textContent) hint.textContent = 'Hinweis: In diesem Stand ist die Oberfläche vorbereitet. Den finalen Freigabe-Workflow bauen wir als Nächstes sauber ein.';
-      }
-      function openTask(task){
-        if(!task) return;
-        const editor = document.getElementById('customerTaskEditorWrap');
-        if(editor) editor.classList.add('is-active');
-        if(window.__dsOpenCustomerTask) window.__dsOpenCustomerTask(task);
-        setTimeout(()=>applyEditorSkin(task), 20);
-        setStatus('Editor ' + (task.templateId || task.id || ''));
+        return { id:'local_'+templateId+'_'+now, taskId:'local_'+templateId+'_'+now, templateId, title, createdAt:now, customerEmail:getUserEmail(), status:'open' };
       }
       function renderTaskList(el, tasks, emptyText){
         if(!el) return;
         el.innerHTML = '';
-        if(!tasks.length){
-          el.innerHTML = '<div class="customer-empty muted">' + (emptyText || 'Keine Einträge vorhanden.') + '</div>';
-          return;
-        }
+        if(!tasks.length){ el.innerHTML = '<div class="customer-empty muted">' + (emptyText || 'Keine Einträge vorhanden.') + '</div>'; return; }
         tasks.forEach(task=>{
           const row = document.createElement('div');
           row.className = 'customer-task';
           const when = task.createdAt ? fmt(task.createdAt) : '';
           const labels = { customer_data:'Daten öffnen', boarding_contract:'Vertrag öffnen', hundeannahme:'Aufenthalt öffnen' };
-          const buttonText = labels[String(task.templateId||'')] || 'Öffnen';
-          row.innerHTML = '<div><strong>' + (task.title || task.templateId || 'Aufgabe') + '</strong><small>' + (task.templateId || '') + (when ? ' · ' + when : '') + '</small></div>';
+          row.innerHTML = '<div><strong>' + esc(task.title || task.templateId || 'Aufgabe') + '</strong><small>' + esc(task.templateId || '') + (when ? ' · ' + esc(when) : '') + '</small></div>';
           const btn = document.createElement('button');
-          btn.className = 'btn';
-          btn.type = 'button';
-          btn.textContent = buttonText;
+          btn.className = 'btn'; btn.type = 'button'; btn.textContent = labels[String(task.templateId||'')] || 'Öffnen';
           btn.onclick = ()=> openTask(task);
-          row.appendChild(btn);
-          el.appendChild(row);
+          row.appendChild(btn); el.appendChild(row);
         });
       }
       function renderSummary(){
-        const state = getStateSafe();
-        const customer = findOwnCustomer(state) || taskMappedCustomer(state);
-        const pets = findOwnPets(state, customer);
+        const { customer, pets } = getContext();
         const box = document.getElementById('customerSummary');
         const subtitle = document.getElementById('dogsSubtitle');
         if(!box) return;
-        if(!customer){
+        if(!customer || !Object.keys(customer).length){
           box.innerHTML = '<div class="item"><strong>Kein Kundenprofil gefunden</strong><small>Dein Konto ist angemeldet, aber es konnte noch kein passender Kunden-Eintrag zugeordnet werden.</small></div>';
           if(subtitle) subtitle.textContent = 'Bitte melde dich kurz bei uns, falls dein Eintrag hier noch fehlt.';
           return;
         }
-        const phone = customer.phone ? ' · ' + customer.phone : '';
-        const email = customer.email ? ' · ' + customer.email : '';
-        let html = '<div class="item"><strong>🧑🏼‍🦰 ' + (customer.name || 'Kunde') + '</strong><small>' + (customer.street || '') + (customer.zip || customer.city ? ' · ' : '') + ((customer.zip || '') + ' ' + (customer.city || '')).trim() + phone + email + '</small></div>';
+        let html = '<div class="item"><strong>🧑 ' + esc(customer.name || 'Kunde') + '</strong><small>' + esc(customer.email || '') + (customer.phone ? ' · ' + esc(customer.phone) : '') + '</small></div>';
         if(pets.length){
-          pets.forEach(p=>{
-            html += '<div class="item"><strong>🐶 ' + (p.name || 'Hund') + '</strong><small>' + (p.breed || '') + (p.birthDate ? ' · geb. ' + p.birthDate : '') + '</small></div>';
-          });
+          pets.forEach(p=>{ html += '<div class="item"><strong>🐶 ' + esc(p.name || 'Hund') + '</strong><small>' + esc(p.breed || '') + (p.birthDate ? ' · geb. ' + esc(p.birthDate) : '') + '</small></div>'; });
         } else {
           html += '<div class="item"><small>Zu diesem Kunden sind aktuell noch keine Hunde verknüpft.</small></div>';
         }
         box.innerHTML = html;
         if(subtitle) subtitle.textContent = 'Hier siehst du nur deinen eigenen Kunden- und Hunde-Eintrag.';
       }
+      function field(label, key, type='text', value=''){
+        if(type==='textarea') return '<div><label class="customer-label">'+esc(label)+'</label><textarea class="customer-textarea" data-key="'+esc(key)+'">'+esc(value)+'</textarea></div>';
+        return '<div><label class="customer-label">'+esc(label)+'</label><input class="customer-input" type="'+esc(type)+'" data-key="'+esc(key)+'" value="'+esc(value)+'"></div>';
+      }
+      function selectField(label, key, options, value=''){
+        return '<div><label class="customer-label">'+esc(label)+'</label><select class="customer-select" data-key="'+esc(key)+'">'+options.map(o=>'<option value="'+esc(o.value)+'"'+(String(o.value)===String(value)?' selected':'')+'>'+esc(o.label)+'</option>').join('')+'</select></div>';
+      }
+      function checkboxField(label, key, checked){
+        return '<label class="customer-check"><input type="checkbox" data-key="'+esc(key)+'" '+(checked?'checked':'')+'><span>'+esc(label)+'</span></label>';
+      }
+      function buildInitialData(task){
+        const { customer, pet } = getContext();
+        const draft = getDraft(task.id || task.taskId || task.templateId);
+        const payload = Object.assign({}, task?.payloadDraft?.fields || {}, task?.payloadSubmitted?.fields || {});
+        const base = {
+          fullName: customer.name || '', email: customer.email || '', phone: customer.phone || '', street: customer.street || '', zip: customer.zip || '', city: customer.city || '',
+          dogName: pet.name || '', breed: pet.breed || '', birthDate: pet.birthDate || '', sex: pet.sex || '', notes: pet.notes || '',
+          customerNote: customer.notes || '', emergencyPhone: customer.emergencyPhone || '', emergencyName: customer.emergencyName || '',
+          customerName: customer.name || '', serviceType: 'Urlaubsbetreuung', contractAccepted: false, vet: pet.vet || '',
+          startDate: '', endDate: '', betreuung: 'Urlaubsbetreuung', stayNotes: ''
+        };
+        return Object.assign(base, payload, draft);
+      }
+      function renderEditor(task){
+        currentTask = task; currentData = buildInitialData(task);
+        const wrap = document.getElementById('customerTaskEditorWrap');
+        const root = document.getElementById('formRoot');
+        const titleEl = document.getElementById('editorTitle');
+        const metaEl = document.getElementById('editorMeta');
+        const submitBtn = document.getElementById('btnCustomerTaskSubmit');
+        const submitMap = { customer_data:'Änderung senden', boarding_contract:'Vertrag senden', hundeannahme:'Anfrage senden' };
+        const titleMap = { customer_data:'Kunde/Hund bearbeiten', boarding_contract:'Betreuungsvertrag', hundeannahme:'Neuer Aufenthalt' };
+        const metaMap = {
+          customer_data:'Hier kannst du deine Kunden- und Hundedaten prüfen und ändern.',
+          boarding_contract:'Hier kannst du Vertragsdaten ergänzen und bestätigen.',
+          hundeannahme:'Hier kannst du einen neuen Aufenthalt vorbereiten.'
+        };
+        if(titleEl) titleEl.textContent = titleMap[task.templateId] || 'Formular';
+        if(metaEl) metaEl.textContent = metaMap[task.templateId] || '';
+        if(submitBtn) submitBtn.textContent = submitMap[task.templateId] || 'Senden';
+        let html = '<div class="customer-fields">';
+        if(task.templateId === 'customer_data'){
+          html += '<div class="customer-block"><h3>Kontaktdaten</h3><div class="customer-field-grid">'
+            + field('Name','fullName','text',currentData.fullName)
+            + field('E-Mail','email','email',currentData.email)
+            + field('Telefon','phone','text',currentData.phone)
+            + field('Straße / Hausnummer','street','text',currentData.street)
+            + field('PLZ','zip','text',currentData.zip)
+            + field('Ort','city','text',currentData.city)
+            + '</div></div>';
+          html += '<div class="customer-block"><h3>Hund</h3><div class="customer-field-grid">'
+            + field('Hundename','dogName','text',currentData.dogName)
+            + field('Rasse','breed','text',currentData.breed)
+            + field('Geburtsdatum','birthDate','date',currentData.birthDate)
+            + selectField('Geschlecht','sex',[{value:'',label:'Bitte auswählen...'},{value:'männlich',label:'männlich'},{value:'weiblich',label:'weiblich'}],currentData.sex)
+            + '</div>' + field('Wichtige Hinweise','notes','textarea',currentData.notes) + '</div>';
+        } else if(task.templateId === 'boarding_contract'){
+          html += '<div class="customer-block"><h3>Vertragsdaten</h3><div class="customer-field-grid">'
+            + field('Kundenname','customerName','text',currentData.customerName)
+            + field('Hundename','dogName','text',currentData.dogName)
+            + selectField('Betreuungsart','serviceType',[{value:'Tagesbetreuung',label:'Tagesbetreuung'},{value:'Urlaubsbetreuung',label:'Urlaubsbetreuung'},{value:'Probetag',label:'Probetag'}],currentData.serviceType)
+            + field('Notfallnummer','emergencyPhone','text',currentData.emergencyPhone)
+            + '</div>' + checkboxField('Ich habe den Betreuungsvertrag gelesen und stimme zu.','contractAccepted',!!currentData.contractAccepted) + field('Besondere Hinweise','notes','textarea',currentData.notes) + '</div>';
+        } else {
+          html += '<div class="customer-block"><h3>Aufenthaltsanfrage</h3><div class="customer-field-grid">'
+            + field('Hundename','dogName','text',currentData.dogName)
+            + field('Von','startDate','date',currentData.startDate)
+            + field('Bis','endDate','date',currentData.endDate)
+            + selectField('Betreuungsart','betreuung',[{value:'Urlaubsbetreuung',label:'Urlaubsbetreuung'},{value:'Tagesbetreuung',label:'Tagesbetreuung'},{value:'Probetag',label:'Probetag'}],currentData.betreuung)
+            + '</div>' + field('Hinweise zum Aufenthalt','stayNotes','textarea',currentData.stayNotes) + '</div>';
+        }
+        html += '</div>';
+        root.innerHTML = html;
+        wrap.classList.add('is-active');
+        document.querySelectorAll('.customer-panel').forEach(el=>el.classList.remove('is-active'));
+        bindEditorInputs();
+        setStatus('Editor ' + task.templateId);
+      }
+      function collectEditorData(){
+        const data = Object.assign({}, currentData);
+        document.querySelectorAll('#formRoot [data-key]').forEach(el=>{ data[el.dataset.key] = el.type === 'checkbox' ? !!el.checked : el.value; });
+        return data;
+      }
+      function bindEditorInputs(){
+        const hint = document.getElementById('customerTaskSaveHint');
+        document.querySelectorAll('#formRoot [data-key]').forEach(el=>{
+          el.addEventListener('input', ()=>{
+            currentData = collectEditorData();
+            if(currentTask) setDraft(currentTask.id || currentTask.taskId || currentTask.templateId, currentData);
+            if(hint) hint.textContent = 'Änderungen lokal vorgemerkt.';
+          });
+          el.addEventListener('change', ()=>{
+            currentData = collectEditorData();
+            if(currentTask) setDraft(currentTask.id || currentTask.taskId || currentTask.templateId, currentData);
+            if(hint) hint.textContent = 'Änderungen lokal vorgemerkt.';
+          });
+        });
+      }
+      function openTask(task){ if(task) renderEditor(task); }
       function refreshCustomUI(){
-        const tasks = Array.isArray(window.__dsCustomerTasks) ? window.__dsCustomerTasks.slice() : [];
+        const tasks = getTasks();
         renderSummary();
-        const customerTasks = tasks.filter(t => String(t.templateId || '') === 'customer_data');
-        const contractTasks = tasks.filter(t => String(t.templateId || '') === 'boarding_contract');
-        const stayTasks = tasks.filter(t => String(t.templateId || '') === 'hundeannahme');
-        renderTaskList(document.getElementById('dogsTaskList'), customerTasks, 'Aktuell ist keine Kunden-/Hundebearbeitung freigegeben.');
-        renderTaskList(document.getElementById('contractTaskList'), contractTasks, 'Aktuell liegt kein Betreuungsvertrag zur Bearbeitung vor.');
-        renderTaskList(document.getElementById('stayTaskList'), stayTasks, 'Aktuell liegt noch kein Aufenthalt vor. Über den Button oben kannst du eine neue Anfrage öffnen.');
-        try{ applyEditorSkin({templateId: currentView === 'contract' ? 'boarding_contract' : currentView === 'stay' ? 'hundeannahme' : 'customer_data'}); }catch(_){ }
+        renderTaskList(document.getElementById('dogsTaskList'), tasks.filter(t => String(t.templateId||'') === 'customer_data'), 'Aktuell ist keine Kunden-/Hundebearbeitung freigegeben.');
+        renderTaskList(document.getElementById('contractTaskList'), tasks.filter(t => String(t.templateId||'') === 'boarding_contract'), 'Aktuell liegt kein Betreuungsvertrag zur Bearbeitung vor.');
+        renderTaskList(document.getElementById('stayTaskList'), tasks.filter(t => String(t.templateId||'') === 'hundeannahme'), 'Aktuell liegt noch kein Aufenthalt vor. Über den Button oben kannst du eine neue Anfrage öffnen.');
       }
 
-      document.addEventListener('click', (ev)=>{
-        const btn = ev.target.closest('.nav-btn');
-        if(!btn) return;
-        ev.preventDefault();
-        setView(btn.dataset.view);
-      });
-
-      document.getElementById('btnCustomerTaskBack')?.addEventListener('click', ()=>{
-        document.getElementById('customerTaskEditorWrap')?.classList.remove('is-active');
-        setStatus('zurück');
-      });
-      document.getElementById('btnOpenNewStay')?.addEventListener('click', ()=>{
-        setView('stay');
-        openTask(makeSyntheticTask('hundeannahme', 'Neuer Aufenthalt'));
+      document.addEventListener('click', (ev)=>{ const btn = ev.target.closest('.nav-btn'); if(!btn) return; ev.preventDefault(); setView(btn.dataset.view); });
+      document.getElementById('btnCustomerTaskBack')?.addEventListener('click', ()=>{ document.getElementById('customerTaskEditorWrap')?.classList.remove('is-active'); setView(currentView); });
+      document.getElementById('btnOpenNewStay')?.addEventListener('click', ()=>{ setView('stay'); openTask(makeSyntheticTask('hundeannahme', 'Neuer Aufenthalt')); });
+      document.getElementById('btnCustomerTaskSubmit')?.addEventListener('click', ()=>{
+        currentData = collectEditorData();
+        if(currentTask) setDraft(currentTask.id || currentTask.taskId || currentTask.templateId, currentData);
+        const hint = document.getElementById('customerTaskSaveHint');
+        if(hint) hint.textContent = 'Änderungen gespeichert. Den Freigabe-Workflow für Eingänge bauen wir im nächsten Schritt sauber ein.';
+        alert('Änderungen gespeichert. Der Versand an Eingänge folgt im nächsten Schritt.');
       });
 
       async function bootCustomerPortal(){
@@ -313,12 +361,9 @@
           });
         }catch(e){ console.error('customer boot setup failed', e); }
       }
-
       const mo = new MutationObserver(()=>refreshCustomUI());
-      window.addEventListener('load', ()=>{
-        try{ mo.observe(document.getElementById('customerTaskList') || document.body, { childList:true, subtree:true }); }catch(_){ }
-      });
-      setInterval(refreshCustomUI, 1200);
+      window.addEventListener('load', ()=>{ try{ mo.observe(document.getElementById('customerTaskList') || document.body, { childList:true, subtree:true }); }catch(_){ } });
+      setInterval(refreshCustomUI, 1500);
       setView('home');
       if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootCustomerPortal); else bootCustomerPortal();
     })();
