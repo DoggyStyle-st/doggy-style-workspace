@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9CK_AI_CUSTOMERPORTAL_APPPATH_MASTER_20260317",
+  tag: "M50.9.9CN_AI_CUSTOMERPORTAL_EDITORFIX_MASTER_20260318",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9CK_AI_CUSTOMERPORTAL_APPPATH_MASTER_20260317";
+const APP_BUILD = "M50.9.9CN_AI_CUSTOMERPORTAL_EDITORFIX_MASTER_20260318";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -1438,7 +1438,6 @@ async function initCustomerPortal(){
     if(!task || !task.templateId) return;
     const t = getTemplate(task.templateId);
     if(!t){ alert('Vorlage nicht gefunden.'); return; }
-    const isCustomerPortal = !!document.getElementById('customerPortal');
     const listCard = document.getElementById('customerTaskListCard');
     if(listEl) listEl.style.display = 'none';
     if(listCard) listCard.style.display = 'none';
@@ -1480,7 +1479,14 @@ async function initCustomerPortal(){
       dogSel.style.display = 'none';
     }
     if(root) root.innerHTML = '';
-    renderForm(currentDoc);
+    try{
+      renderForm(currentDoc);
+    }catch(err){
+      console.error('customer renderForm failed', err);
+      if(root){
+        root.innerHTML = `<div class="card"><strong>Formular konnte nicht geöffnet werden.</strong><div class="muted" style="margin-top:6px">${escapeHtml(String((err && err.message) || err || 'Unbekannter Fehler'))}</div></div>`;
+      }
+    }
     if(dsgvo) dsgvo.textContent = (t.dsGvoNote || '');
     const versionBox = document.getElementById('versionBox');
     if(versionBox) versionBox.style.display = 'none';
@@ -10244,20 +10250,43 @@ renderVersions(currentDoc);
   window.scrollTo({top:0,behavior:"smooth"});
 }
 function renderForm(docObj){
-  const root=$("#formRoot"); root.innerHTML="";
+  const root=$("#formRoot");
+  if(!root) return;
+  root.innerHTML="";
   const t=getTemplate(docObj.templateId);
-  t.sections.forEach(sec=>{
+  if(!t){
+    root.innerHTML = `<div class="card"><strong>Vorlage nicht gefunden.</strong><div class="muted" style="margin-top:6px">Bitte Aufgabe neu freigeben oder Build prüfen.</div></div>`;
+    return;
+  }
+  const sections = Array.isArray(t.sections) ? t.sections : [];
+  const topFields = Array.isArray(t.fields) ? t.fields : [];
+  const metaFields = Array.isArray(t.meta) ? t.meta : [];
+
+  if(sections.length){
+    sections.forEach(sec=>{
+      const card=document.createElement("div");
+      card.className="card";
+      card.innerHTML=`<h2>${escapeHtml(sec.title || 'Abschnitt')}</h2>`;
+      (Array.isArray(sec.fields) ? sec.fields : []).forEach(f=>card.appendChild(renderField(f, (docObj.fields||{})[f.key], docObj)));
+      root.appendChild(card);
+    });
+  }else if(topFields.length){
     const card=document.createElement("div");
     card.className="card";
-    card.innerHTML=`<h2>${escapeHtml(sec.title)}</h2>`;
-    sec.fields.forEach(f=>card.appendChild(renderField(f, docObj.fields[f.key], docObj)));
+    card.innerHTML=`<h2>${escapeHtml(t.name || 'Formular')}</h2>`;
+    topFields.forEach(f=>card.appendChild(renderField(f, (docObj.fields||{})[f.key], docObj)));
     root.appendChild(card);
-  });
-  const meta=document.createElement("div");
-  meta.className="card";
-  meta.innerHTML=`<h2>Ort / Datum</h2>`;
-  t.meta.forEach(f=>meta.appendChild(renderField(f, docObj.meta[f.key], docObj)));
-  root.appendChild(meta);
+  }else{
+    root.innerHTML = `<div class="card"><strong>Diese Vorlage enthält keine Felder.</strong></div>`;
+  }
+
+  if(metaFields.length){
+    const meta=document.createElement("div");
+    meta.className="card";
+    meta.innerHTML=`<h2>Ort / Datum</h2>`;
+    metaFields.forEach(f=>meta.appendChild(renderField(f, (docObj.meta||{})[f.key], docObj)));
+    root.appendChild(meta);
+  }
   updateAutoHolidayFields();
   try{ renderStayPricingPreview(docObj); }catch(e){ console.warn('renderStayPricingPreview failed', e); }
 const sigCard = document.createElement("div");
@@ -10423,12 +10452,13 @@ $("#btnClose").addEventListener("click",()=>{
   renderDocs();
 });
 function collectForm(){
-  const t=getTemplate(currentDoc.templateId);
+  const t=getTemplate(currentDoc.templateId) || {};
+  const metaDefs = Array.isArray(t.meta) ? t.meta : [];
   const fields={}, meta={};
   $$("#formRoot [data-key]").forEach(inp=>{
     const key=inp.dataset.key, type=inp.dataset.ftype;
     const val=(type==="checkbox")?inp.checked:inp.value;
-    if(t.meta.some(m=>m.key===key)) meta[key]=val; else fields[key]=val;
+    if(metaDefs.some(m=>m && m.key===key)) meta[key]=val; else fields[key]=val;
   });
   return {fields, meta};
 }
