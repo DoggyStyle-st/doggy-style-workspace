@@ -1619,10 +1619,17 @@ async function initCustomerPortal(){
   }
   window.__dsOpenCustomerTask = openCustomerTask;
   window.__dsOpenCustomerTaskById = function(id){
+    const needle = String(id||'');
     const tasks = Array.isArray(window.__dsCustomerTasks) ? window.__dsCustomerTasks : [];
-    const found = tasks.find(x => String((x && (x.id || x.taskId)) || '') === String(id||''));
+    const found = tasks.find(x => {
+      if(!x || typeof x !== 'object') return false;
+      const keys = [x.id, x.taskId, x.assignmentId, x.sourceTaskId, x.templateId, x.formId, x.docType, x.type]
+        .filter(Boolean)
+        .map(v => String(v));
+      return keys.includes(needle);
+    });
     if(found) return openCustomerTask(found);
-    console.warn('customer task not found', id, tasks.length);
+    console.warn('customer task not found', id, tasks.length, tasks);
     return null;
   };
 }
