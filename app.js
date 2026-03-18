@@ -1568,13 +1568,15 @@ async function initCustomerPortal(){
         alert('❌ Absenden fehlgeschlagen: '+(e.message||e));
       }
     };
-    window.__dsOpenCustomerTask = openCustomerTask;
-    window.__dsOpenCustomerTaskById = function(id){
-      const tasks = Array.isArray(window.__dsCustomerTasks) ? window.__dsCustomerTasks : [];
-      const found = tasks.find(x => String((x && (x.id || x.taskId)) || '') === String(id||''));
-      if(found) openCustomerTask(found);
-    };
   }
+  window.__dsOpenCustomerTask = openCustomerTask;
+  window.__dsOpenCustomerTaskById = function(id){
+    const tasks = Array.isArray(window.__dsCustomerTasks) ? window.__dsCustomerTasks : [];
+    const found = tasks.find(x => String((x && (x.id || x.taskId)) || '') === String(id||''));
+    if(found) return openCustomerTask(found);
+    console.warn('customer task not found', id, tasks.length);
+    return null;
+  };
 }
 async function initStaffFeatures(){
   showStaffUI();
