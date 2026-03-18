@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9CX_AI_CUSTOMERPORTAL_PENDINGFLOW_MASTER_20260318",
+  tag: "M50.9.9CY_AI_CUSTOMERPORTAL_TASKMAP_MASTER_20260318",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9CX_AI_CUSTOMERPORTAL_PENDINGFLOW_MASTER_20260318";
+const APP_BUILD = "M50.9.9CY_AI_CUSTOMERPORTAL_TASKMAP_MASTER_20260318";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -7819,13 +7819,21 @@ function getCustomerAppContext(){
     const forced = qs.get('customerApp') === '1' || sessionStorage.getItem('ds_customer_app_mode') === '1';
     const area = String(qs.get('customerArea') || sessionStorage.getItem('ds_customer_area') || 'dogs').trim() || 'dogs';
     const taskId = String(qs.get('customerTask') || sessionStorage.getItem('ds_customer_open_task_id') || '').trim();
+    const petId = String(qs.get('customerPet') || sessionStorage.getItem('ds_customer_scope_pet_id') || '').trim();
+    const customerId = String(qs.get('customerCustomer') || sessionStorage.getItem('ds_customer_scope_customer_id') || '').trim();
+    const dogId = String(qs.get('customerDog') || sessionStorage.getItem('ds_customer_scope_dog_id') || '').trim();
+    const templateId = String(qs.get('customerTemplate') || sessionStorage.getItem('ds_customer_scope_template_id') || '').trim();
     if(forced){
       try{ sessionStorage.setItem('ds_customer_app_mode','1'); }catch(_){ }
       try{ sessionStorage.setItem('ds_customer_area', area); }catch(_){ }
       if(taskId){ try{ sessionStorage.setItem('ds_customer_open_task_id', taskId); }catch(_){ } }
+      if(petId){ try{ sessionStorage.setItem('ds_customer_scope_pet_id', petId); }catch(_){ } }
+      if(customerId){ try{ sessionStorage.setItem('ds_customer_scope_customer_id', customerId); }catch(_){ } }
+      if(dogId){ try{ sessionStorage.setItem('ds_customer_scope_dog_id', dogId); }catch(_){ } }
+      if(templateId){ try{ sessionStorage.setItem('ds_customer_scope_template_id', templateId); }catch(_){ } }
     }
-    return { forced, area, taskId };
-  }catch(_){ return { forced:false, area:'dogs', taskId:'' }; }
+    return { forced, area, taskId, petId, customerId, dogId, templateId };
+  }catch(_){ return { forced:false, area:'dogs', taskId:'', petId:'', customerId:'', dogId:'', templateId:'' }; }
 }
 function isRestrictedCustomerApp(){
   try{
@@ -7836,10 +7844,40 @@ function isRestrictedCustomerApp(){
 function getCustomerWorkspaceScope(){
   const email = String(CLOUD.user?.email || '').trim().toLowerCase();
   const uid = String(CLOUD.user?.uid || '').trim();
+  const ctx = getCustomerAppContext();
   const customerIds = new Set();
   const petIds = new Set();
   const customers = Array.isArray(state?.customers) ? state.customers : [];
   const pets = Array.isArray(state?.pets) ? state.pets : [];
+  const legacy = state && state._legacy ? state._legacy : {};
+  const dogIdToPetId = legacy && legacy.dogIdToPetId ? legacy.dogIdToPetId : {};
+  const dogIdToCustomerId = legacy && legacy.dogIdToCustomerId ? legacy.dogIdToCustomerId : {};
+  if(ctx.customerId) customerIds.add(String(ctx.customerId).trim());
+  if(ctx.petId) petIds.add(String(ctx.petId).trim());
+  if(ctx.dogId){
+    const d = String(ctx.dogId).trim();
+    if(dogIdToPetId && dogIdToPetId[d]) petIds.add(String(dogIdToPetId[d]).trim());
+    if(dogIdToCustomerId && dogIdToCustomerId[d]) customerIds.add(String(dogIdToCustomerId[d]).trim());
+  }
+  if(ctx.taskId){
+    try{
+      const raw = localStorage.getItem(LS_KEY);
+      const local = raw ? JSON.parse(raw) : {};
+      const items = Array.isArray(local?.inboxAssignments) ? local.inboxAssignments : [];
+      const task = items.find(t=>String(t?.id || t?.taskId || '').trim() === String(ctx.taskId).trim());
+      if(task){
+        const tCid = String(task?.targetCustomerId || task?.customerId || '').trim();
+        const tPid = String(task?.targetPetId || task?.petId || '').trim();
+        const tDogId = String(task?.dogId || '').trim();
+        if(tCid) customerIds.add(tCid);
+        if(tPid) petIds.add(tPid);
+        if(tDogId){
+          if(dogIdToPetId && dogIdToPetId[tDogId]) petIds.add(String(dogIdToPetId[tDogId]).trim());
+          if(dogIdToCustomerId && dogIdToCustomerId[tDogId]) customerIds.add(String(dogIdToCustomerId[tDogId]).trim());
+        }
+      }
+    }catch(_){ }
+  }
   customers.forEach(c=>{
     const cEmail = String(c?.email || c?.mail || '').trim().toLowerCase();
     const cUid = String(c?.portalUid || c?.customerUid || c?.uid || '').trim();
@@ -7858,8 +7896,9 @@ function getCustomerWorkspaceScope(){
       if(pid) petIds.add(pid);
     }
     if(cid && customerIds.has(cid) && pid) petIds.add(pid);
+    if(pid && petIds.has(pid) && cid) customerIds.add(cid);
   });
-  return { email, uid, customerIds, petIds, hasMatch: customerIds.size>0 || petIds.size>0 };
+  return { email, uid, customerIds, petIds, hasMatch: customerIds.size>0 || petIds.size>0, taskId: ctx.taskId, petId: ctx.petId, customerId: ctx.customerId, dogId: ctx.dogId, templateId: ctx.templateId };
 }
 
 function serializeCpEditorToCustomerTaskPayload(existingPet){
@@ -7995,7 +8034,8 @@ async function initCustomerWorkspace(){
     const requested = sessionStorage.getItem('ds_customer_open_task_id');
     if(requested){
       sessionStorage.removeItem('ds_customer_open_task_id');
-      const firstPetId = Array.from(scope.petIds)[0] || '';
+      const ctx = getCustomerAppContext();
+      const firstPetId = String(ctx.petId || Array.from(scope.petIds)[0] || '').trim();
       if(firstPetId) setTimeout(()=>{ try{ openCpEditor('edit', firstPetId); }catch(_){ } }, 120);
     }
   }catch(e){ console.warn('customer workspace scope', e); }
