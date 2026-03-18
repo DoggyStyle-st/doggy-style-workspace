@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9CW_AI_CUSTOMERPORTAL_TASKSCOPED_MASTER_20260318",
+  tag: "M50.9.9CX_AI_CUSTOMERPORTAL_PENDINGFLOW_MASTER_20260318",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9CW_AI_CUSTOMERPORTAL_TASKSCOPED_MASTER_20260318";
+const APP_BUILD = "M50.9.9CX_AI_CUSTOMERPORTAL_PENDINGFLOW_MASTER_20260318";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -7861,6 +7861,92 @@ function getCustomerWorkspaceScope(){
   });
   return { email, uid, customerIds, petIds, hasMatch: customerIds.size>0 || petIds.size>0 };
 }
+
+function serializeCpEditorToCustomerTaskPayload(existingPet){
+  const fields = {
+    fullName: $("#c_name")?.value?.trim() || '',
+    email: $("#c_email")?.value?.trim() || '',
+    phone: $("#c_phone")?.value?.trim() || '',
+    street: $("#c_street")?.value?.trim() || '',
+    zip: $("#c_zip")?.value?.trim() || '',
+    city: $("#c_city")?.value?.trim() || '',
+    emergencyName: $("#c_em_name")?.value?.trim() || '',
+    emergencyPhone: $("#c_em_phone")?.value?.trim() || '',
+    pickupAuth: $("#c_pickup_auth")?.value?.trim() || '',
+    customerNote: $("#c_note")?.value?.trim() || '',
+    dogName: $("#p_name")?.value?.trim() || '',
+    breed: $("#p_breed")?.value?.trim() || '',
+    birthDate: $("#p_birthdate")?.value || '',
+    sex: document.getElementById('p_sex')?.value || '',
+    chipStatus: $("#p_chipStatus")?.value || '',
+    chipNumber: $("#p_chipNumber")?.value?.trim() || '',
+    vet: $("#p_vet")?.value?.trim() || '',
+    vetPhone: $("#p_vetPhone")?.value?.trim() || '',
+    allergies: $("#p_allergies")?.value?.trim() || '',
+    meds: $("#p_meds")?.value?.trim() || '',
+    food: $("#p_food")?.value?.trim() || '',
+    feeding: $("#p_feeding")?.value?.trim() || '',
+    compat: $("#p_compat")?.value?.trim() || '',
+    behavior: $("#p_behavior")?.value?.trim() || '',
+    notes: $("#p_note")?.value?.trim() || ''
+  };
+  const meta = {
+    place: '',
+    date: new Date().toISOString().slice(0,10)
+  };
+  return {
+    fields,
+    meta,
+    entity: {
+      petId: String(existingPet?.id || cpEdit?.petId || '').trim(),
+      customerId: String(existingPet?.customerId || existingPet?.ownerId || '').trim()
+    }
+  };
+}
+async function submitCustomerWorkspaceChange(existingPet){
+  const payload = serializeCpEditorToCustomerTaskPayload(existingPet);
+  const dogName = String(payload.fields.dogName || existingPet?.name || 'Hund').trim();
+  const title = dogName ? `Kundendaten Änderung – ${dogName}` : 'Kundendaten Änderung';
+  const patch = {
+    taskId: 'customer_data',
+    templateId: 'customer_data',
+    title,
+    status: 'submitted',
+    submittedAt: Date.now(),
+    updatedAt: Date.now(),
+    createdAt: Date.now(),
+    customerUid: String(CLOUD.user?.uid || '').trim(),
+    customerEmail: String(CLOUD.user?.email || '').trim().toLowerCase(),
+    customerId: String(payload.entity.customerId || '').trim(),
+    dogId: String(payload.entity.petId || '').trim(),
+    source: 'customer_app_edit',
+    payloadDraft: { fields: payload.fields, meta: payload.meta },
+    payloadSubmitted: { fields: payload.fields, meta: payload.meta },
+    requestedChange: 'customer_pet_update',
+    targetPetId: String(payload.entity.petId || '').trim(),
+    targetCustomerId: String(payload.entity.customerId || '').trim()
+  };
+  let wroteRemote = false;
+  try{
+    const col = cloudTasksCol();
+    if(col && typeof col.add === 'function'){
+      await col.add(patch);
+      wroteRemote = true;
+    }
+  }catch(e){
+    console.warn('customer workspace task submit remote failed', e);
+  }
+  try{
+    const raw = localStorage.getItem(LS_KEY);
+    const data = raw ? JSON.parse(raw) : {};
+    const list = Array.isArray(data.inboxAssignments) ? data.inboxAssignments : [];
+    list.unshift({ id: `local_${Date.now()}`, ...patch });
+    data.inboxAssignments = list;
+    localStorage.setItem(LS_KEY, JSON.stringify(data));
+  }catch(_){ }
+  return wroteRemote;
+}
+
 function hideStaffUIForCustomerApp(){
   try{
     const nav = document.querySelector('nav.tabs');
@@ -7888,7 +7974,7 @@ function hideStaffUIForCustomerApp(){
     const btnMore = document.getElementById('btnCpAddAnotherDog');
     if(btnMore) btnMore.style.display = 'none';
     const hint = document.getElementById('cpHint');
-    if(hint) hint.textContent = 'Als Kunde kannst du nur deinen eigenen Eintrag bearbeiten. Änderungen landen anschließend in Eingänge zur Freigabe.';
+    if(hint) hint.textContent = 'Als Kunde kannst du nur deinen eigenen Eintrag bearbeiten. Änderungen werden nicht direkt übernommen, sondern landen anschließend in Eingänge zur Freigabe.';
   }catch(_){ }
 }
 async function initCustomerWorkspace(){
@@ -8147,7 +8233,7 @@ function openCpEditor(mode, petId){
       refreshCustomerSelect();
       const sel = document.getElementById("customerSelect");
       if(sel) sel.value = pet.customerId || "";
-      setCustomerFieldsDisabled(false); // beim Edit darfst du den Kunden auch korrigieren
+      setCustomerFieldsDisabled(false); // beim Edit dürfen Felder bearbeitet werden
       fillCpEditorForPet(pet);
     }
   } else {
@@ -10025,6 +10111,7 @@ function renderDogs(){
         el.querySelector('[data-e="1"]').onclick = ()=>openCpEditor("edit", p.id);
         const dBtn = el.querySelector('[data-d="1"]');
         if(dBtn) dBtn.onclick = ()=>{
+          if(customerScoped){ alert("Als Kunde kannst du keinen Hund löschen."); return; }
           if(confirm("Hund wirklich löschen? (Aufenthalte/Rechnungen bleiben als Historie bestehen)")){
             state.pets = (state.pets||[]).filter(x=>x.id!==p.id);
             // legacy dog nicht automatisch löschen (Sicherheit), aber Mapping entfernen
@@ -10051,6 +10138,7 @@ function renderDogs(){
         <div class="actions"><button class="smallbtn" data-e="1">Bearbeiten</button><button class="smallbtn" data-d="1">Löschen</button></div>`;
       el.querySelector('[data-e="1"]').onclick=()=>openCpEditor("new"); // legacy fallback: einfach neu anlegen
       el.querySelector('[data-d="1"]').onclick=()=>{
+        if(customerScoped){ alert("Als Kunde kannst du keinen Hund löschen."); return; }
         if(confirm("Hund/Kunde wirklich löschen?")){
           state.dogs=state.dogs.filter(x=>x.id!==d.id);
           saveState(); renderDogs();
@@ -10085,10 +10173,11 @@ try{
     };
   }
 }catch(_){}
-$("#btnCpSave").addEventListener("click",()=>{
+$("#btnCpSave").addEventListener("click",async ()=>{
   ensureStateShape();
   ensureContractDefaults();
   const mode = cpEdit.mode;
+  const customerScopedMode = ((CLOUD.role === ROLES.CUSTOMER && isCustomerAppPage()) || isRestrictedCustomerApp());
   const useExisting = $("#useExistingCustomer").checked && (state.customers||[]).length>0;
   let customer = null;
   let customerId = "";
@@ -10128,6 +10217,18 @@ $("#btnCpSave").addEventListener("click",()=>{
   if(mode==="edit" && cpEdit.petId){
     const pet = getPet(cpEdit.petId);
     if(!pet){ alert("Hund nicht gefunden."); return; }
+    if(customerScopedMode){
+      try{
+        const wroteRemote = await submitCustomerWorkspaceChange(pet);
+        closeCpEditor();
+        renderDogs();
+        alert(wroteRemote ? "✅ Änderungen wurden zur Freigabe eingereicht und erscheinen in Eingänge." : "✅ Änderungen wurden lokal zur Freigabe vorgemerkt. Bitte später online prüfen.");
+      }catch(e){
+        console.error('customer scoped save failed', e);
+        alert("❌ Änderungen konnten nicht zur Freigabe eingereicht werden.");
+      }
+      return;
+    }
     // Update customer (wenn Felder aktiv / edit)
     if(customer && customer.id){
       customer.name = $("#c_name").value.trim() || customer.name;
@@ -10170,6 +10271,10 @@ $("#btnCpSave").addEventListener("click",()=>{
     return;
   }
   // mode new: create pet
+  if(customerScopedMode){
+    alert("Als Kunde kannst du keinen neuen Hund anlegen.");
+    return;
+  }
   const pet = {
     id: uid(),
     customerId,
@@ -12914,6 +13019,10 @@ let _contractSig = {canvas:null, ctx:null, drawing:false, hasInk:false, last:nul
 function openContractForPet(customerId, petId){
   ensureStateShape();
   ensureContractDefaults();
+  if(((CLOUD.role === ROLES.CUSTOMER && isCustomerAppPage()) || isRestrictedCustomerApp())){
+    alert("Als Kunde kannst du den Betreuungsvertrag nicht direkt speichern. Änderungen laufen über deine freigegebenen Aufgaben und anschließend über Eingänge.");
+    return;
+  }
   if(!customerId || !petId){
     alert("Bitte zuerst Kunde und Hund auswählen.");
     return;
