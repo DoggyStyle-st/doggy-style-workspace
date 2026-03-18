@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9CJ_AI_CUSTOMERPORTAL_REALAPPEDITOR_MASTER_20260317",
+  tag: "M50.9.9CK_AI_CUSTOMERPORTAL_APPPATH_MASTER_20260317",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9CJ_AI_CUSTOMERPORTAL_REALAPPEDITOR_MASTER_20260317";
+const APP_BUILD = "M50.9.9CK_AI_CUSTOMERPORTAL_APPPATH_MASTER_20260317";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -1438,68 +1438,61 @@ async function initCustomerPortal(){
     if(!task || !task.templateId) return;
     const t = getTemplate(task.templateId);
     if(!t){ alert('Vorlage nicht gefunden.'); return; }
+    const isCustomerPortal = !!document.getElementById('customerPortal');
     const listCard = document.getElementById('customerTaskListCard');
     if(listEl) listEl.style.display = 'none';
     if(listCard) listCard.style.display = 'none';
     if(editor) { editor.style.display = 'block'; editor.hidden = false; }
     try{ editor?.scrollIntoView({behavior:'smooth', block:'start'}); }catch(_){ }
-    const titleEl = document.getElementById('customerTaskTitle');
-    const metaEl = document.getElementById('customerTaskMeta');
-    const root = document.getElementById('customerTaskFormRoot');
+
+    const titleEl = document.getElementById('editorTitle') || document.getElementById('customerTaskTitle');
+    const metaEl = document.getElementById('editorMeta') || document.getElementById('customerTaskMeta');
     const hint = document.getElementById('customerTaskSaveHint');
+    const root = document.getElementById('formRoot') || document.getElementById('customerTaskFormRoot');
+    const dsgvo = document.getElementById('dsGvoText');
+    const backBtn = document.getElementById('btnCustomerTaskBack');
+    const submitBtn = document.getElementById('btnCustomerTaskSubmit');
+    const nameEl = document.getElementById('docName');
+    const dogSel = document.getElementById('dogSelect');
     if(titleEl) titleEl.textContent = task.title || t.name || 'Aufgabe';
     if(metaEl) metaEl.textContent = `Formular: ${t.name||task.templateId}`;
     if(hint) hint.textContent = '';
-    const working = {
-      fields: (task.payloadDraft?.fields || task.payloadSubmitted?.fields || {}),
-      meta: (task.payloadDraft?.meta || task.payloadSubmitted?.meta || {})
+
+    const mergedFields = Object.assign({}, (task.payloadSubmitted && task.payloadSubmitted.fields) || {}, (task.payloadDraft && task.payloadDraft.fields) || {});
+    const mergedMeta = Object.assign({}, (task.payloadSubmitted && task.payloadSubmitted.meta) || {}, (task.payloadDraft && task.payloadDraft.meta) || {});
+    currentDoc = {
+      id: `customer_task_${String(task.id || task.taskId || Date.now())}`,
+      sourceTaskId: String(task.id || task.taskId || ''),
+      templateId: task.templateId,
+      templateName: t.name || task.templateId,
+      title: task.title || t.name || 'Aufgabe',
+      dogId: task.dogId || '',
+      customerId: task.customerId || '',
+      fields: mergedFields,
+      meta: mergedMeta,
+      saved: false,
+      signature: task.signature || null
     };
-    // Render
+    if(nameEl) nameEl.value = currentDoc.title || '';
+    if(dogSel){
+      dogSel.innerHTML = currentDoc.dogId ? `<option value="${escapeHtml(currentDoc.dogId)}">${escapeHtml(currentDoc.dogId)}</option>` : '';
+      dogSel.value = currentDoc.dogId || '';
+      dogSel.style.display = 'none';
+    }
     if(root) root.innerHTML = '';
-    const renderFieldSimple = (f, value, bucket)=>{
-      const wrap=document.createElement('label');
-      wrap.className='field'; wrap.style.minWidth='260px';
-      wrap.dataset.key = f.key;
-      wrap.innerHTML=`<span>${escapeHtml(f.label)}${f.required?" *":""}</span>`;
-      let input;
-      if(f.type==='textarea'){ input=document.createElement('textarea'); input.value=value||''; }
-      else if(f.type==='select'){
-        input=document.createElement('select');
-        input.innerHTML=(f.options||[]).map(o=>`<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join('');
-        input.value=value || (f.options?.[0]||'');
-      }
-      else if(f.type==='checkbox'){ input=document.createElement('input'); input.type='checkbox'; input.checked=!!value; input.style.width='22px'; input.style.height='22px'; }
-      else { input=document.createElement('input'); input.type=f.type||'text'; input.value=value||''; }
-      input.dataset.key = f.key;
-      input.oninput = ()=>{ bucket[f.key] = (f.type==='checkbox')?input.checked:input.value; scheduleDraftSave(); };
-      input.onchange = ()=>{ bucket[f.key] = (f.type==='checkbox')?input.checked:input.value; scheduleDraftSave(); };
-      wrap.appendChild(input);
-      return wrap;
-    };
-    const build = ()=>{
-      if(!root) return;
-      root.innerHTML='';
-      t.sections.forEach(sec=>{
-        const card=document.createElement('div');
-        card.className='card';
-        card.innerHTML=`<h2>${escapeHtml(sec.title)}</h2>`;
-        sec.fields.forEach(f=>card.appendChild(renderFieldSimple(f, working.fields[f.key], working.fields)));
-        root.appendChild(card);
-      });
-      const metaCard=document.createElement('div');
-      metaCard.className='card';
-      metaCard.innerHTML=`<h2>Ort / Datum</h2>`;
-      (t.meta||[]).forEach(f=>metaCard.appendChild(renderFieldSimple(f, working.meta[f.key], working.meta)));
-      root.appendChild(metaCard);
-    };
-    build();
+    renderForm(currentDoc);
+    if(dsgvo) dsgvo.textContent = (t.dsGvoNote || '');
+    const versionBox = document.getElementById('versionBox');
+    if(versionBox) versionBox.style.display = 'none';
+
     const saveDraftNow = async ()=>{
-      const payloadDraft = { fields: working.fields, meta: working.meta };
       try{
-        const patch = { payloadDraft, updatedAt: Date.now() };
+        const { fields, meta } = collectForm();
+        currentDoc.fields = fields; currentDoc.meta = meta;
+        const patch = { payloadDraft: { fields, meta }, updatedAt: Date.now() };
         const col = cloudTasksCol();
         let wroteRemote = false;
-        if(col && typeof col.doc === 'function'){
+        if(col && typeof col.doc === 'function' && task.id){
           await col.doc(task.id).set(patch, {merge:true});
           wroteRemote = true;
         }
@@ -1519,26 +1512,40 @@ async function initCustomerPortal(){
         if(hint) hint.textContent = '❌ Speichern fehlgeschlagen (bitte später erneut versuchen).';
       }
     };
+    let _draftTimer = null;
     const scheduleDraftSave = ()=>{
       clearTimeout(_draftTimer);
       _draftTimer = setTimeout(()=>saveDraftNow(), 600);
       if(hint) hint.textContent = '… speichert …';
     };
-    // Submit
-
-    const btnSubmit = document.getElementById('btnCustomerTaskSubmit');
-    if(btnSubmit) btnSubmit.onclick = async ()=>{
+    if(root){
+      root.querySelectorAll('[data-key]').forEach(inp=>{
+        inp.addEventListener('input', scheduleDraftSave, {passive:true});
+        inp.addEventListener('change', scheduleDraftSave, {passive:true});
+      });
+    }
+    if(backBtn) backBtn.onclick = ()=>{
+      if(editor) editor.style.display = 'none';
+      if(listEl) listEl.style.display = '';
+      if(listCard) listCard.style.display = 'block';
+    };
+    if(submitBtn) submitBtn.onclick = async ()=>{
       if(!confirm('Formular absenden? Danach kann es nicht mehr geändert werden.')) return;
       try{
+        const { fields, meta } = collectForm();
+        currentDoc.fields = fields; currentDoc.meta = meta;
+        const errs = validate(currentDoc, t);
+        if(errs.length){ alert('Bitte prüfen: ' + errs.join(', ')); return; }
         const patch = {
-          payloadSubmitted: { fields: working.fields, meta: working.meta },
+          payloadDraft: { fields, meta },
+          payloadSubmitted: { fields, meta },
           status: 'submitted',
           submittedAt: Date.now(),
           updatedAt: Date.now()
         };
         const col = cloudTasksCol();
         let wroteRemote = false;
-        if(col && typeof col.doc === 'function'){
+        if(col && typeof col.doc === 'function' && task.id){
           await col.doc(task.id).set(patch, {merge:true});
           wroteRemote = true;
         }
@@ -1553,7 +1560,6 @@ async function initCustomerPortal(){
           localStorage.setItem(LS_KEY, JSON.stringify(data));
         }catch(_){ }
         alert(wroteRemote ? '✅ Danke! Formular wurde übermittelt.' : '✅ Formular lokal als übermittelt markiert.');
-        const listCard = document.getElementById('customerTaskListCard');
         if(editor) editor.style.display = 'none';
         if(listEl) listEl.style.display = '';
         if(listCard) listCard.style.display = 'block';
@@ -1561,6 +1567,12 @@ async function initCustomerPortal(){
         console.error('submit', e);
         alert('❌ Absenden fehlgeschlagen: '+(e.message||e));
       }
+    };
+    window.__dsOpenCustomerTask = openCustomerTask;
+    window.__dsOpenCustomerTaskById = function(id){
+      const tasks = Array.isArray(window.__dsCustomerTasks) ? window.__dsCustomerTasks : [];
+      const found = tasks.find(x => String((x && (x.id || x.taskId)) || '') === String(id||''));
+      if(found) openCustomerTask(found);
     };
   }
 }
@@ -10229,80 +10241,6 @@ renderVersions(currentDoc);
   showPanel("editor");
   window.scrollTo({top:0,behavior:"smooth"});
 }
-function __buildCustomerTaskDoc(task){
-  const tplId = String((task && (task.templateId || task.taskId || task.templateKey)) || '').trim() || 'customer_data';
-  const tpl = getTemplate(tplId) || { name: tplId };
-  const draft = task && task.payloadDraft ? task.payloadDraft : {};
-  const submitted = task && task.payloadSubmitted ? task.payloadSubmitted : {};
-  const fields = Object.assign({}, (submitted.fields || {}), (draft.fields || {}));
-  const meta = Object.assign({}, (submitted.meta || {}), (draft.meta || {}));
-  return {
-    id: 'custtask_' + String((task && task.id) || Date.now()),
-    taskId: String((task && task.id) || ''),
-    isCustomerTask: true,
-    title: String((task && task.title) || tpl.name || 'Aufgabe'),
-    templateId: tplId,
-    templateName: tpl.name || tplId,
-    dogId: String((task && (task.dogId || task.petId || task.customerDogId)) || '__customerportal__'),
-    customerId: String((task && task.customerId) || ''),
-    petId: String((task && (task.petId || task.dogId)) || ''),
-    fields,
-    meta,
-    saved: false
-  };
-}
-window.__dsRenderCustomerTaskWithAppEditor = function(task){
-  try{
-    const editor = document.getElementById('customerTaskEditor');
-    const listCard = document.getElementById('customerTaskListCard');
-    const root = document.getElementById('formRoot') || document.getElementById('customerTaskFormRoot');
-    const titleEl = document.getElementById('customerTaskTitle');
-    const metaEl = document.getElementById('customerTaskMeta');
-    const docName = document.getElementById('docName');
-    const dogSelect = document.getElementById('dogSelect');
-    if(!root) throw new Error('customer form root missing');
-    if(root.id !== 'formRoot') root.id = 'formRoot';
-    if(listCard) listCard.style.display = 'none';
-    if(editor) editor.style.display = 'block';
-    const docObj = __buildCustomerTaskDoc(task);
-    currentDoc = docObj;
-    try{ window.currentDoc = docObj; }catch(_){ }
-    if(titleEl) titleEl.textContent = docObj.title || docObj.templateName || 'Aufgabe';
-    if(metaEl) metaEl.textContent = docObj.templateName || docObj.templateId || '';
-    if(docName) docName.value = docObj.title || '';
-    if(dogSelect){
-      dogSelect.innerHTML = '<option value="'+escapeHtml(String(docObj.dogId||'__customerportal__'))+'">Kundenportal</option>';
-      dogSelect.value = String(docObj.dogId||'__customerportal__');
-      dogSelect.style.display = 'none';
-    }
-    renderForm(docObj);
-    if(editor) editor.scrollIntoView({ behavior:'smooth', block:'start' });
-    return docObj;
-  }catch(err){
-    console.error('render customer task with app editor failed', err);
-    throw err;
-  }
-};
-window.__dsCollectCustomerTaskForm = function(){
-  if(!currentDoc) return { fields:{}, meta:{}, errs:['Kein Dokument aktiv'] };
-  const tpl = getTemplate(currentDoc.templateId) || { sections:[], meta:[] };
-  const collected = collectForm();
-  currentDoc.fields = collected.fields || {};
-  currentDoc.meta = collected.meta || {};
-  const errs = [];
-  (tpl.sections||[]).forEach(sec => (sec.fields||[]).forEach(f=>{
-    if(!f || !f.required) return;
-    const v = currentDoc.fields ? currentDoc.fields[f.key] : undefined;
-    if(f.type === 'checkbox'){ if(!v) errs.push(f.label); }
-    else if(v == null || String(v).trim() === '') errs.push(f.label);
-  }));
-  (tpl.meta||[]).forEach(f=>{
-    if(!f || !f.required) return;
-    const v = currentDoc.meta ? currentDoc.meta[f.key] : undefined;
-    if(v == null || String(v).trim() === '') errs.push(f.label);
-  });
-  return { fields: currentDoc.fields, meta: currentDoc.meta, errs };
-};
 function renderForm(docObj){
   const root=$("#formRoot"); root.innerHTML="";
   const t=getTemplate(docObj.templateId);
