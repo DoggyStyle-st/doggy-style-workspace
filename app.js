@@ -1418,8 +1418,7 @@ async function initCustomerPortal(){
       row.dataset.taskId = taskId;
       row.style.cursor = 'pointer';
       const when = t.createdAt ? fmtDT(t.createdAt) : '';
-      const resolvedTid = resolveCustomerTaskTemplateId(t);
-      row.innerHTML = `<div><strong>${escapeHtml(t.title || getTemplate(resolvedTid)?.name || resolvedTid || 'Aufgabe')}</strong><small>${escapeHtml(resolvedTid || '')}${when?(' · '+when):''}</small></div>`;
+      row.innerHTML = `<div><strong>${escapeHtml(t.title||'Aufgabe')}</strong><small>${escapeHtml(t.templateId||'')}${when?(' · '+when):''}</small></div>`;
       const actions = document.createElement('div');
       actions.className = 'actions';
       const btnOpen = document.createElement('button');
@@ -1435,23 +1434,9 @@ async function initCustomerPortal(){
     });
   }
   let _draftTimer = null;
-  function resolveCustomerTaskTemplateId(task){
-    if(!task || typeof task !== 'object') return '';
-    const direct = [task.templateId, task.template, task.formId, task.docType, task.type, task.templateKey, task.templateName, task.kind]
-      .map(v => String(v || '').trim())
-      .find(Boolean);
-    if(direct) return direct;
-    const title = String(task.title || task.name || '').toLowerCase();
-    if(title.includes('kunden')) return 'customer_data';
-    if(title.includes('vertrag')) return 'boarding_contract';
-    if(title.includes('annahme') || title.includes('aufenthalt')) return 'hundeannahme';
-    return '';
-  }
   async function openCustomerTask(task){
-    const resolvedTemplateId = resolveCustomerTaskTemplateId(task);
-    if(!task || !resolvedTemplateId) return;
-    task = Object.assign({}, task, { templateId: resolvedTemplateId });
-    const t = getTemplate(resolvedTemplateId);
+    if(!task || !task.templateId) return;
+    const t = getTemplate(task.templateId);
     if(!t){ alert('Vorlage nicht gefunden.'); return; }
     const isCustomerPortal = !!document.getElementById('customerPortal');
     const listCard = document.getElementById('customerTaskListCard');
