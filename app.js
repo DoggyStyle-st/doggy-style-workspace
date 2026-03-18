@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9DB_AI_CUSTOMERPORTAL_MINIAPPLOCK_MASTER_20260318",
+  tag: "M50.9.9DC_AI_CUSTOMERPORTAL_LOCKFIX_MASTER_20260318",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9DB_AI_CUSTOMERPORTAL_MINIAPPLOCK_MASTER_20260318";
+const APP_BUILD = "M50.9.9DC_AI_CUSTOMERPORTAL_LOCKFIX_MASTER_20260318";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -1301,6 +1301,7 @@ function hideStaffUIForCustomer(){
   }catch(_){ }
 }
 function showStaffUI(){
+  if(isCustomerMiniAppMode()){ try{ startCustomerMiniAppLock(); hideStaffUIForCustomerApp(); }catch(_){} return; }
   try{
     const nav = document.querySelector('nav.tabs');
     if(nav) nav.style.display = '';
@@ -1570,6 +1571,7 @@ async function initCustomerPortal(){
   };
 }
 async function initStaffFeatures(){
+  if(isCustomerMiniAppMode()){ startCustomerMiniAppLock(); hideStaffUIForCustomerApp(); return; }
   showStaffUI();
   updateSyncUI();
   // Kalender Controls (Monat vor/zurück/heute)
@@ -3030,6 +3032,10 @@ function getRestrictedCustomerAllowedTabs(){
   return ['dogs','contract','documents'];
 }
 function isCustomerMiniAppMode(){
+  try{
+    const ctx = getCustomerAppContext();
+    if(isCustomerAppPage() && !!ctx.forced) return true;
+  }catch(_){ }
   return ((typeof CLOUD !== 'undefined' && CLOUD && CLOUD.role === ROLES.CUSTOMER && isCustomerAppPage()) || isRestrictedCustomerApp());
 }
 function applyCustomerMiniAppCssLock(){
@@ -3068,6 +3074,58 @@ body[data-customer-miniapp="1"] #customerPortal {
   display:none !important;
 }
 `;
+  }catch(_){ }
+}
+
+function ensureCustomerMiniAppDomLock(){
+  const allowed = new Set(getRestrictedCustomerAllowedTabs());
+  try{ document.body && document.body.setAttribute('data-customer-miniapp','1'); }catch(_){ }
+  try{
+    const nav = document.querySelector('nav.tabs');
+    if(nav) nav.style.display = '';
+    $$('.tab').forEach(btn=>{
+      const t = String(btn.dataset.tab || '');
+      if(allowed.has(t)){
+        btn.hidden = false;
+        btn.style.removeProperty('display');
+        btn.style.removeProperty('visibility');
+        btn.style.removeProperty('pointer-events');
+      }else{
+        btn.hidden = true;
+        btn.style.setProperty('display','none','important');
+        btn.style.setProperty('visibility','hidden','important');
+        btn.style.setProperty('pointer-events','none','important');
+      }
+    });
+    const paw = document.getElementById('pawStartBtn');
+    if(paw){ paw.hidden = true; paw.style.setProperty('display','none','important'); }
+  }catch(_){ }
+  try{
+    $$('.panel').forEach(p=>{
+      const keep = allowed.has(String(p.id||''));
+      if(keep){
+        if(!p.classList.contains('is-active') && String(p.id||'')==='dogs') p.style.removeProperty('display');
+      }else{
+        p.hidden = true;
+        p.classList.remove('is-active');
+        p.style.setProperty('display','none','important');
+      }
+    });
+    const cp = document.getElementById('customerPortal');
+    if(cp){ cp.hidden = true; cp.style.setProperty('display','none','important'); }
+  }catch(_){ }
+}
+let __dsCustomerMiniAppObserver = null;
+function startCustomerMiniAppLock(){
+  if(!isCustomerMiniAppMode()) return;
+  applyCustomerMiniAppCssLock();
+  ensureCustomerMiniAppDomLock();
+  try{ if(window.__dsCustomerMiniAppTimer) clearInterval(window.__dsCustomerMiniAppTimer); }catch(_){ }
+  try{ window.__dsCustomerMiniAppTimer = setInterval(()=>{ try{ ensureCustomerMiniAppDomLock(); }catch(_){ } }, 400); }catch(_){ }
+  try{
+    if(__dsCustomerMiniAppObserver) __dsCustomerMiniAppObserver.disconnect();
+    __dsCustomerMiniAppObserver = new MutationObserver(()=>{ try{ ensureCustomerMiniAppDomLock(); }catch(_){ } });
+    __dsCustomerMiniAppObserver.observe(document.body || document.documentElement, { childList:true, subtree:true, attributes:true, attributeFilter:['style','class','hidden'] });
   }catch(_){ }
 }
 
@@ -7878,21 +7936,25 @@ function isCustomerAppPage(){
 function getCustomerAppContext(){
   try{
     const qs = new URLSearchParams(String((location && location.search) || ''));
-    const forced = qs.get('customerApp') === '1' || sessionStorage.getItem('ds_customer_app_mode') === '1';
-    const area = String(qs.get('customerArea') || sessionStorage.getItem('ds_customer_area') || 'dogs').trim() || 'dogs';
-    const taskId = String(qs.get('customerTask') || sessionStorage.getItem('ds_customer_open_task_id') || '').trim();
-    const petId = String(qs.get('customerPet') || sessionStorage.getItem('ds_customer_scope_pet_id') || '').trim();
-    const customerId = String(qs.get('customerCustomer') || sessionStorage.getItem('ds_customer_scope_customer_id') || '').trim();
-    const dogId = String(qs.get('customerDog') || sessionStorage.getItem('ds_customer_scope_dog_id') || '').trim();
-    const templateId = String(qs.get('customerTemplate') || sessionStorage.getItem('ds_customer_scope_template_id') || '').trim();
+    const lsGet = (k)=>{ try{ return localStorage.getItem(k) || ''; }catch(_){ return ''; } };
+    const ssGet = (k)=>{ try{ return sessionStorage.getItem(k) || ''; }catch(_){ return ''; } };
+    const forced = qs.get('customerApp') === '1' || ssGet('ds_customer_app_mode') === '1' || lsGet('ds_customer_app_mode') === '1';
+    const area = String(qs.get('customerArea') || ssGet('ds_customer_area') || lsGet('ds_customer_area') || 'dogs').trim() || 'dogs';
+    const taskId = String(qs.get('customerTask') || ssGet('ds_customer_open_task_id') || lsGet('ds_customer_open_task_id') || '').trim();
+    const petId = String(qs.get('customerPet') || ssGet('ds_customer_scope_pet_id') || lsGet('ds_customer_scope_pet_id') || '').trim();
+    const customerId = String(qs.get('customerCustomer') || ssGet('ds_customer_scope_customer_id') || lsGet('ds_customer_scope_customer_id') || '').trim();
+    const dogId = String(qs.get('customerDog') || ssGet('ds_customer_scope_dog_id') || lsGet('ds_customer_scope_dog_id') || '').trim();
+    const templateId = String(qs.get('customerTemplate') || ssGet('ds_customer_scope_template_id') || lsGet('ds_customer_scope_template_id') || '').trim();
     if(forced){
       try{ sessionStorage.setItem('ds_customer_app_mode','1'); }catch(_){ }
+      try{ localStorage.setItem('ds_customer_app_mode','1'); }catch(_){ }
       try{ sessionStorage.setItem('ds_customer_area', area); }catch(_){ }
-      if(taskId){ try{ sessionStorage.setItem('ds_customer_open_task_id', taskId); }catch(_){ } }
-      if(petId){ try{ sessionStorage.setItem('ds_customer_scope_pet_id', petId); }catch(_){ } }
-      if(customerId){ try{ sessionStorage.setItem('ds_customer_scope_customer_id', customerId); }catch(_){ } }
-      if(dogId){ try{ sessionStorage.setItem('ds_customer_scope_dog_id', dogId); }catch(_){ } }
-      if(templateId){ try{ sessionStorage.setItem('ds_customer_scope_template_id', templateId); }catch(_){ } }
+      try{ localStorage.setItem('ds_customer_area', area); }catch(_){ }
+      if(taskId){ try{ sessionStorage.setItem('ds_customer_open_task_id', taskId); }catch(_){ } try{ localStorage.setItem('ds_customer_open_task_id', taskId); }catch(_){ } }
+      if(petId){ try{ sessionStorage.setItem('ds_customer_scope_pet_id', petId); }catch(_){ } try{ localStorage.setItem('ds_customer_scope_pet_id', petId); }catch(_){ } }
+      if(customerId){ try{ sessionStorage.setItem('ds_customer_scope_customer_id', customerId); }catch(_){ } try{ localStorage.setItem('ds_customer_scope_customer_id', customerId); }catch(_){ } }
+      if(dogId){ try{ sessionStorage.setItem('ds_customer_scope_dog_id', dogId); }catch(_){ } try{ localStorage.setItem('ds_customer_scope_dog_id', dogId); }catch(_){ } }
+      if(templateId){ try{ sessionStorage.setItem('ds_customer_scope_template_id', templateId); }catch(_){ } try{ localStorage.setItem('ds_customer_scope_template_id', templateId); }catch(_){ } }
     }
     return { forced, area, taskId, petId, customerId, dogId, templateId };
   }catch(_){ return { forced:false, area:'dogs', taskId:'', petId:'', customerId:'', dogId:'', templateId:'' }; }
@@ -8091,6 +8153,7 @@ async function submitCustomerWorkspaceChange(existingPet){
 
 function hideStaffUIForCustomerApp(){
   applyCustomerMiniAppCssLock();
+  ensureCustomerMiniAppDomLock();
   const allowed = new Set(getRestrictedCustomerAllowedTabs());
   try{ document.body && document.body.setAttribute('data-customer-miniapp','1'); }catch(_){ }
   try{
@@ -8145,22 +8208,23 @@ function hideStaffUIForCustomerApp(){
   }catch(_){ }
 }
 async function initCustomerWorkspace(){
+  startCustomerMiniAppLock();
   hideStaffUIForCustomerApp();
   updateSyncUI();
   try{ await bootOnce(); }catch(e){ console.warn('customer workspace boot', e); }
+  startCustomerMiniAppLock();
   hideStaffUIForCustomerApp();
   try{ renderDogs(); }catch(e){ console.warn('customer workspace render', e); }
   try{ renderDocs(); }catch(_){ }
   try{ renderContractPanel(); }catch(_){ }
+  startCustomerMiniAppLock();
   hideStaffUIForCustomerApp();
-  try{
-    const ctx = getCustomerAppContext();
-    const allowed = new Set(getRestrictedCustomerAllowedTabs());
-    selectTab(allowed.has(ctx.area) ? ctx.area : 'dogs');
-  }catch(_){ try{ selectTab('dogs'); }catch(__){} }
-  setTimeout(()=>{ try{ hideStaffUIForCustomerApp(); selectTab(allowed.has(ctx.area) ? ctx.area : 'dogs'); }catch(_){ } }, 50);
-  setTimeout(()=>{ try{ hideStaffUIForCustomerApp(); selectTab(allowed.has(ctx.area) ? ctx.area : 'dogs'); }catch(_){ } }, 300);
-  setTimeout(()=>{ try{ hideStaffUIForCustomerApp(); }catch(_){ } }, 1000);
+  const ctx = getCustomerAppContext();
+  const allowed = new Set(getRestrictedCustomerAllowedTabs());
+  try{ selectTab(allowed.has(ctx.area) ? ctx.area : 'dogs'); }catch(_){ try{ selectTab('dogs'); }catch(__){} }
+  setTimeout(()=>{ try{ startCustomerMiniAppLock(); hideStaffUIForCustomerApp(); selectTab(allowed.has(ctx.area) ? ctx.area : 'dogs'); }catch(_){ } }, 50);
+  setTimeout(()=>{ try{ startCustomerMiniAppLock(); hideStaffUIForCustomerApp(); selectTab(allowed.has(ctx.area) ? ctx.area : 'dogs'); }catch(_){ } }, 300);
+  setTimeout(()=>{ try{ startCustomerMiniAppLock(); hideStaffUIForCustomerApp(); }catch(_){ } }, 1000);
   try{
     const scope = getCustomerWorkspaceScope();
     if(!scope.hasMatch){
