@@ -1,18 +1,1 @@
-BD: Kundenportal sichtbar/Email-Fallback für Aufgabenfreigabe
-M50.9.9AF_STATLIST_INBOX_CUSTOMERSOURCE_FIX_MASTER_20260312
-- Statistik: Reiter Bewertungen wieder enthalten.
-- Hunde/Kunden: E-Mail Pflicht oben, Telefon optional im Zusatzbereich.
-- Eingänge: nutzt dieselbe Kundenquelle wie Kunden/Hunde (inkl. customerSelect/state/customers/Cloud-Fallback).
-
-DOGGY STYLE WORKSPACE – MASTER FREEZE
-Build: M40_4F6_MASTER_FREEZE_20260207
-Frozen at: 2026-02-07T22:10:34
-
-Included:
-- 4C: Pricing preview, invoice freeze, audit trail, storno workflow
-- 4D: Analytics (occupancy, revenue, toplists, range + export)
-- 4E: Storno reasons presets + display + PDF; storno analytics basics
-- 4F: Build sync, recovery guard, DIAG overlay, RESET button
-\nM50_BLUE_TEMPLATE_BASE_20260215\n- Monatskontrollen (Betriebs-Check PRO): monatlich am 1. fällig, zusätzliche Prüfbereiche (Technik/Brandschutz, Hygiene-Mittel)\n- Schädlingsmonitoring: strukturiertes Protokoll bei Befall (Art/Ort/Maßnahme/Nachkontrolle)\n
-
-M50.8.0_FINAL_MASTER_20260301 - Version sync fix (meta/buildBadge/sw cache)
+DH: Kunden-App erweitert um vollständigere Formulare, Impfbestätigung/Foto Impfpass, Vertragsbestätigungen und Unterschrift.
