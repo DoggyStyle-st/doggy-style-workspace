@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9DN_AI_MAINAPP_BEHAVIORPLUS_MASTER_20260319",
+  tag: "M50.9.9DS_AI_MAINAPP_PHOTOSAFE_MASTER_20260319",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9DR_AI_MAINAPP_PHOTOSAFE_MASTER_20260319";
+const APP_BUILD = "M50.9.9DS_AI_MAINAPP_PHOTOSAFE_MASTER_20260319";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -7977,59 +7977,59 @@ function clearCpEditor(){
 }
 let cpVaccinationPassDataUrl = "";
 let cpProfilePhotoDataUrl = "";
-async function cpFileToSafeDataUrl(file, kind){
+async function cpFileToStoredDataUrl(file, opts={}){
+  const maxWBase = Number(opts.maxW || 1400);
+  const maxHBase = Number(opts.maxH || 1400);
+  const outType = String(opts.type || "image/jpeg");
+  const qualityBase = Number(opts.quality || 0.72);
+  const targetChars = Number(opts.targetChars || 180000);
+  const readAsDataUrl = (blob)=>new Promise((resolve,reject)=>{
+    try{
+      const r = new FileReader();
+      r.onload = ()=>resolve(String(r.result||""));
+      r.onerror = ()=>reject(r.error || new Error("read-failed"));
+      r.readAsDataURL(blob);
+    }catch(err){ reject(err); }
+  });
   try{
     if(!file) return "";
-    const isImage = /^image\//i.test(String(file.type||''));
-    if(!isImage){
-      return await new Promise((resolve,reject)=>{
-        const r=new FileReader();
-        r.onload=()=>resolve(String(r.result||''));
-        r.onerror=()=>reject(new Error('filereader'));
-        r.readAsDataURL(file);
-      });
-    }
-    const dataUrl = await new Promise((resolve,reject)=>{
-      const r=new FileReader();
-      r.onload=()=>resolve(String(r.result||''));
-      r.onerror=()=>reject(new Error('filereader'));
-      r.readAsDataURL(file);
-    });
+    if(!String(file.type||"").startsWith("image/")) return await readAsDataUrl(file);
+    const originalDataUrl = await readAsDataUrl(file);
     const img = await new Promise((resolve,reject)=>{
-      const i=new Image();
-      i.onload=()=>resolve(i);
-      i.onerror=()=>reject(new Error('img'));
-      i.src=dataUrl;
+      const im = new Image();
+      im.onload = ()=>resolve(im);
+      im.onerror = ()=>reject(new Error("image-load-failed"));
+      im.src = originalDataUrl;
     });
-    const maxEdge = (kind==='profile') ? 1200 : 1600;
-    const quality = (kind==='profile') ? 0.78 : 0.72;
-    let w = img.naturalWidth || img.width || 0;
-    let h = img.naturalHeight || img.height || 0;
-    if(!w || !h) return dataUrl;
-    const scale = Math.min(1, maxEdge / Math.max(w,h));
-    w = Math.max(1, Math.round(w*scale));
-    h = Math.max(1, Math.round(h*scale));
-    const c=document.createElement('canvas');
-    c.width=w; c.height=h;
-    const ctx=c.getContext('2d');
-    ctx.drawImage(img,0,0,w,h);
-    let out = c.toDataURL('image/jpeg', quality);
-    if(out.length > 850000){
-      let q = quality;
-      while(out.length > 850000 && q > 0.42){
-        q -= 0.08;
-        out = c.toDataURL('image/jpeg', Math.max(0.42, q));
+    let w0 = Number(img.naturalWidth || img.width || 0);
+    let h0 = Number(img.naturalHeight || img.height || 0);
+    if(!w0 || !h0) return originalDataUrl;
+    let best = "";
+    for(let step=0; step<6; step++){
+      const scaleCap = Math.max(0.18, 1 - step * 0.14);
+      const maxW = Math.max(320, Math.round(maxWBase * scaleCap));
+      const maxH = Math.max(320, Math.round(maxHBase * scaleCap));
+      const scale = Math.min(1, maxW / w0, maxH / h0);
+      const tw = Math.max(1, Math.round(w0 * scale));
+      const th = Math.max(1, Math.round(h0 * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = tw;
+      canvas.height = th;
+      const ctx = canvas.getContext("2d");
+      if(!ctx) continue;
+      ctx.drawImage(img, 0, 0, tw, th);
+      for(const q of [qualityBase, qualityBase-0.1, qualityBase-0.18, 0.45, 0.34]){
+        const qq = Math.max(0.28, Number(q||0.6));
+        let candidate = "";
+        try{ candidate = canvas.toDataURL(outType, qq); }catch(_){ candidate = canvas.toDataURL("image/jpeg", qq); }
+        if(candidate && (!best || candidate.length < best.length)) best = candidate;
+        if(candidate && candidate.length <= targetChars) return candidate;
       }
     }
-    return out;
-  }catch(e){
-    console.warn('Image compression failed, using original file', e);
-    return await new Promise((resolve,reject)=>{
-      const r=new FileReader();
-      r.onload=()=>resolve(String(r.result||''));
-      r.onerror=()=>reject(new Error('filereader'));
-      r.readAsDataURL(file);
-    });
+    return best || originalDataUrl;
+  }catch(err){
+    console.warn("cpFileToStoredDataUrl failed", err);
+    try{ return await readAsDataUrl(file); }catch(_){ return ""; }
   }
 }
 function cpRefreshVaccinationPhotoPreview(){
@@ -8056,11 +8056,11 @@ function cpWirePetPhotoInputs(){
     vaccInput.addEventListener('change', async ()=>{
       const f=vaccInput.files && vaccInput.files[0]; if(!f) return;
       try{
-        cpVaccinationPassDataUrl = await cpFileToSafeDataUrl(f, 'vaccination');
+        cpVaccinationPassDataUrl = await cpFileToStoredDataUrl(f, { maxW: 1200, maxH: 1200, quality: 0.62, type: "image/jpeg", targetChars: 170000 });
         cpRefreshVaccinationPhotoPreview();
       }catch(e){
         console.error('Vaccination photo load failed', e);
-        alert('Das Impfpass-Foto konnte nicht verarbeitet werden. Bitte ein kleineres Bild versuchen.');
+        alert('Das Impfpass-Foto konnte nicht verarbeitet werden.');
       }
     });
   }
@@ -8073,11 +8073,11 @@ function cpWirePetPhotoInputs(){
     profileInput.addEventListener('change', async ()=>{
       const f=profileInput.files && profileInput.files[0]; if(!f) return;
       try{
-        cpProfilePhotoDataUrl = await cpFileToSafeDataUrl(f, 'profile');
+        cpProfilePhotoDataUrl = await cpFileToStoredDataUrl(f, { maxW: 900, maxH: 900, quality: 0.6, type: "image/jpeg", targetChars: 120000 });
         cpRefreshProfilePhotoPreview();
       }catch(e){
         console.error('Profile photo load failed', e);
-        alert('Das Profilfoto konnte nicht verarbeitet werden. Bitte ein kleineres Bild versuchen.');
+        alert('Das Profilfoto konnte nicht verarbeitet werden.');
       }
     });
   }
@@ -9947,17 +9947,52 @@ function closePdfOverlay(){
   document.body.classList.remove("printOverlayActive");
 }
 function loadState(){try{const raw=localStorage.getItem(LS_KEY);return raw?JSON.parse(raw):{dogs:[],docs:[]};}catch{return {dogs:[],docs:[]};}}
+function dsTrimOversizePetMedia(){
+  try{
+    let changed = false;
+    const pets = Array.isArray(state?.pets) ? state.pets : [];
+    pets.forEach(p=>{
+      if(!p || typeof p !== "object") return;
+      if(typeof p.vaccinationPassPhoto === "string" && p.vaccinationPassPhoto.length > 220000){ p.vaccinationPassPhoto = ""; changed = true; }
+      if(typeof p.profilePhoto === "string" && p.profilePhoto.length > 160000){ p.profilePhoto = ""; changed = true; }
+    });
+    return changed;
+  }catch(_){ return false; }
+}
 function saveState(){
+  let ok = false;
   try{
     state._localUpdatedAt = Date.now();
     localStorage.setItem(LS_KEY,JSON.stringify(state));
+    ok = true;
   }catch(e){
     console.error("Local save failed", e);
+    try{
+      const msg = String(e && (e.message || e.name) || "");
+      if(/quota|storage|space/i.test(msg)){
+        const trimmed = dsTrimOversizePetMedia();
+        if(trimmed){
+          try{
+            state._localUpdatedAt = Date.now();
+            localStorage.setItem(LS_KEY, JSON.stringify(state));
+            ok = true;
+            alert("Speichern war nur möglich, nachdem ein zu großes Foto entfernt wurde. Bitte das Bild kleiner erneut hochladen.");
+          }catch(e2){
+            console.error("Retry after media trim failed", e2);
+          }
+        }
+        if(!ok){
+          alert("Speichern fehlgeschlagen: Mindestens ein Foto ist zu groß für den aktuellen Speicherstand. Bitte ein kleineres Bild verwenden.");
+        }
+      }else{
+        alert("Speichern fehlgeschlagen. Bitte die Angaben prüfen und erneut versuchen.");
+      }
+    }catch(_){ }
   }
   SYNC.localSavedAt = (state && state._localUpdatedAt) ? state._localUpdatedAt : Date.now();
   updateSyncUI();
-  // Cloud Sync (Weg 2B): Änderungen nach außen spiegeln
   if(CLOUD.enabled && CLOUD.user) cloudSchedulePush();
+  return ok;
 }
 function ensureDefaultDog(){
   if(!state.dogs || state.dogs.length===0){
@@ -10246,7 +10281,7 @@ $("#btnCpSave").addEventListener("click",()=>{
     pet.note = $("#p_note").value.trim();
     pet.updatedAt = Date.now();
     upsertLegacyDogForPet(pet, getCustomer(pet.customerId));
-    saveState();
+    if(!saveState()) return;
     closeCpEditor();
     renderDogs();
     return;
@@ -10302,7 +10337,7 @@ $("#btnCpSave").addEventListener("click",()=>{
   state.pets.push(pet);
   upsertLegacyDogForPet(pet, getCustomer(customerId));
   state.schemaVersion = Math.max(state.schemaVersion||1, 2);
-  saveState();
+  if(!saveState()) return;
   closeCpEditor();
   renderDogs();
 });
