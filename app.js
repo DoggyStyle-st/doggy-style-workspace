@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9DK_AI_CUSTOMERPORTAL_MEDSYNC_MASTER_20260319",
+  tag: "M50.9.9DL_AI_MAINAPP_VACCINATION_MASTER_20260319",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9DK_AI_CUSTOMERPORTAL_MEDSYNC_MASTER_20260319";
+const APP_BUILD = "M50.9.9DL_AI_MAINAPP_VACCINATION_MASTER_20260319";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -6184,9 +6184,10 @@ const EMBEDDED_CUSTOMER_DATA_TEMPLATE = {
         { key: "vet", label: "Tierarzt / Praxis", type: "text" },
         { key: "vetPhone", label: "Telefon Tierarzt", type: "text" },
         { key: "allergies", label: "Allergien / Unverträglichkeiten", type: "textarea" },
-        { key: "vaccinatedConfirmed", label: "Hund ist altersgerecht und aktuell geimpft", type: "checkbox" },
+        { key: "vaccinatedConfirmed", label: "Hund ist altersgerecht und aktuell geimpft", type: "select", options: ["", "yes", "no"] },
         { key: "rabiesDate", label: "Letzte Tollwut-Impfung", type: "date" },
         { key: "mixedVaccineDate", label: "Letzte Kombi-Impfung", type: "date" },
+        { key: "vaccinationPassPhoto", label: "Impfpass / Nachweisfoto", type: "image" },
         { key: "food", label: "Futter", type: "text" },
         { key: "feeding", label: "Fütterung", type: "textarea" },
         { key: "compat", label: "Verträglichkeit", type: "textarea" },
@@ -7956,11 +7957,16 @@ function refreshCustomerSelect(){
   sel.innerHTML = customers.map(c=>`<option value="${escapeHtml(c.customerId||c.id)}">${escapeHtml(c.name||"Kunde")}${(c.email||c.phone)?(" · "+escapeHtml(c.email||c.phone)):""}</option>`).join("");
 }
 function clearCpEditor(){
-  ["c_name","c_phone","c_email","c_street","c_zip","c_city","c_em_name","c_em_phone","c_pickup_auth","c_note","p_name","p_breed","p_chipNumber","p_vet","p_vetPhone","p_food","p_feeding","p_compat","p_note","p_allergies","p_meds","p_behavior"].forEach(id=>{
+  ["c_name","c_phone","c_email","c_street","c_zip","c_city","c_em_name","c_em_phone","c_pickup_auth","c_note","p_name","p_breed","p_chipNumber","p_vet","p_vetPhone","p_food","p_feeding","p_compat","p_note","p_allergies","p_medicalConditions","p_behavior"].forEach(id=>{
     const el=document.getElementById(id); if(el) el.value="";
   });
   const bd=document.getElementById("p_birthdate"); if(bd) bd.value="";
   const cs=document.getElementById("p_chipStatus"); if(cs) cs.value="";
+  const vc=document.getElementById("p_vaccinatedConfirmed"); if(vc) vc.value="";
+  const rd=document.getElementById("p_rabiesDate"); if(rd) rd.value="";
+  const md=document.getElementById("p_mixedVaccineDate"); if(md) md.value="";
+  cpVaccinationPassDataUrl = "";
+  try{ cpRefreshVaccinationPhotoPreview(); }catch(_){ }
   const use=document.getElementById("useExistingCustomer"); if(use) use.checked=false;
   const hint=document.getElementById("cpHint"); if(hint) hint.textContent="";
   setCustomerFieldsDisabled(false);
@@ -7969,6 +7975,49 @@ function clearCpEditor(){
   try{ cpMedCancelInlineEdit(); }catch(_){ }
   try{ cpMedRenderInlineList(); }catch(_){ }
 }
+let cpVaccinationPassDataUrl = "";
+function cpRefreshVaccinationPhotoPreview(){
+  const img = document.getElementById("p_vaccinationPhotoPreview");
+  const btn = document.getElementById("p_vaccinationPhotoRemove");
+  if(!img || !btn) return;
+  if(cpVaccinationPassDataUrl){
+    img.src = cpVaccinationPassDataUrl;
+    img.style.display = "block";
+    btn.style.display = "inline-flex";
+  }else{
+    img.removeAttribute("src");
+    img.style.display = "none";
+    btn.style.display = "none";
+  }
+}
+function cpWireVaccinationPhotoInput(){
+  const input = document.getElementById("p_vaccinationPhoto");
+  const btn = document.getElementById("p_vaccinationPhotoRemove");
+  if(input && !input.dataset.wired){
+    input.dataset.wired = "1";
+    input.addEventListener("change", ()=>{
+      const f = input.files && input.files[0];
+      if(!f) return;
+      const reader = new FileReader();
+      reader.onload = ()=>{
+        cpVaccinationPassDataUrl = String(reader.result || "");
+        cpRefreshVaccinationPhotoPreview();
+      };
+      reader.readAsDataURL(f);
+    });
+  }
+  if(btn && !btn.dataset.wired){
+    btn.dataset.wired = "1";
+    btn.addEventListener("click", ()=>{
+      cpVaccinationPassDataUrl = "";
+      const input2 = document.getElementById("p_vaccinationPhoto");
+      if(input2) input2.value = "";
+      cpRefreshVaccinationPhotoPreview();
+    });
+  }
+  cpRefreshVaccinationPhotoPreview();
+}
+
 function fillCpEditorForPet(pet){
   const c = getCustomer(pet.customerId);
   if(c){
@@ -7993,7 +8042,12 @@ function fillCpEditorForPet(pet){
   $("#p_vet").value = pet.vet||"";
   $("#p_vetPhone").value = pet.vetPhone||"";
   $("#p_allergies").value = pet.allergies||"";
-  $("#p_meds").value = pet.meds||"";
+  const vc=document.getElementById("p_vaccinatedConfirmed"); if(vc) vc.value = pet.vaccinatedConfirmed||"";
+  const rd=document.getElementById("p_rabiesDate"); if(rd) rd.value = pet.rabiesDate||"";
+  const md=document.getElementById("p_mixedVaccineDate"); if(md) md.value = pet.mixedVaccineDate||"";
+  const mc=document.getElementById("p_medicalConditions"); if(mc) mc.value = pet.medicalConditions||"";
+  cpVaccinationPassDataUrl = pet.vaccinationPassPhoto || "";
+  try{ cpRefreshVaccinationPhotoPreview(); }catch(_){ }
   $("#p_food").value = pet.food||"";
   $("#p_feeding").value = pet.feeding||"";
   $("#p_compat").value = pet.compat||"";
@@ -8010,6 +8064,7 @@ function openCpEditor(mode, petId){
   cpEdit.petId = petId || "";
   const box = document.getElementById("cpEditor");
   if(box) box.style.display="block";
+  try{ cpWireVaccinationPhotoInput(); }catch(_){ }
   const title = document.getElementById("cpEditorTitle");
   if(title) title.textContent = (mode==="edit") ? "Kunde & Hund bearbeiten" : "Kunde & Hund anlegen";
   refreshCustomerSelect();
@@ -8085,7 +8140,7 @@ function clearPetFieldsOnly(){
   $("#p_vet").value = "";
   $("#p_vetPhone").value = "";
   $("#p_allergies").value = "";
-  $("#p_meds").value = "";
+  const mc2=document.getElementById("p_medicalConditions"); if(mc2) mc2.value = "";
   $("#p_food").value = "";
   $("#p_feeding").value = "";
   $("#p_compat").value = "";
@@ -8144,7 +8199,7 @@ function updateAddAnotherDogButtonVisibility(){
 let cpMedEditPlanId = "";
 function cpMedEnsureInlineUI(){
   try{
-    const anchor = document.getElementById("p_meds");
+    const anchor = document.getElementById("p_medicalConditions") || document.getElementById("p_allergies");
     if(!anchor) return;
     // Anchor is inside a <label class="field"> ... </label>
     const label = anchor.closest("label.field") || anchor.parentElement;
@@ -10031,7 +10086,11 @@ $("#btnCpSave").addEventListener("click",()=>{
     pet.vet = $("#p_vet").value.trim();
     pet.vetPhone = $("#p_vetPhone").value.trim();
     pet.allergies = $("#p_allergies").value.trim();
-    pet.meds = $("#p_meds").value.trim();
+    pet.medicalConditions = document.getElementById("p_medicalConditions")?.value.trim() || "";
+    pet.vaccinatedConfirmed = document.getElementById("p_vaccinatedConfirmed")?.value || "";
+    pet.rabiesDate = document.getElementById("p_rabiesDate")?.value || "";
+    pet.mixedVaccineDate = document.getElementById("p_mixedVaccineDate")?.value || "";
+    pet.vaccinationPassPhoto = cpVaccinationPassDataUrl || pet.vaccinationPassPhoto || "";
     pet.food = $("#p_food").value.trim();
     pet.feeding = $("#p_feeding").value.trim();
     pet.compat = $("#p_compat").value.trim();
@@ -10056,7 +10115,11 @@ $("#btnCpSave").addEventListener("click",()=>{
     vet: $("#p_vet").value.trim(),
     vetPhone: $("#p_vetPhone").value.trim(),
     allergies: $("#p_allergies").value.trim(),
-    meds: $("#p_meds").value.trim(),
+    medicalConditions: document.getElementById("p_medicalConditions")?.value.trim() || "",
+    vaccinatedConfirmed: document.getElementById("p_vaccinatedConfirmed")?.value || "",
+    rabiesDate: document.getElementById("p_rabiesDate")?.value || "",
+    mixedVaccineDate: document.getElementById("p_mixedVaccineDate")?.value || "",
+    vaccinationPassPhoto: cpVaccinationPassDataUrl || "",
     food: $("#p_food").value.trim(),
     feeding: $("#p_feeding").value.trim(),
     compat: $("#p_compat").value.trim(),
