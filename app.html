@@ -649,8 +649,19 @@
 <div class="row" style="flex-wrap:wrap; gap:12px; margin-top:10px;">
 <label class="field"><span>Standard-Futter</span><input id="p_food" type="text"/></label>
 <label class="field"><span>Fütterung (Menge/Zeiten)</span><input id="p_feeding" type="text"/></label>
-<label class="field"><span>Verträglichkeit</span><input id="p_compat" placeholder="z.B. freundlich / nur Hündinnen / ..." type="text"/></label>
-<label class="field" style="min-width:100%;"><span>Ängste/Trigger/Besonderheiten</span><textarea id="p_behavior" rows="2"></textarea></label>
+<label class="field"><span>Leckerlis erlaubt</span><select id="p_treatsAllowed"><option value=""></option><option value="yes">Ja</option><option value="no">Nein</option><option value="limited">Nur eingeschränkt</option></select></label>
+<label class="field"><span>Alleinbleiben</span><input id="p_aloneTime" type="text" placeholder="z. B. 2 Stunden problemlos"/></label>
+<label class="field"><span>Stubenrein</span><select id="p_houseTrained"><option value=""></option><option value="yes">Ja</option><option value="mostly">Größtenteils</option><option value="no">Nein</option></select></label>
+<label class="field"><span>Transport / Autofahren</span><input id="p_transport" type="text" placeholder="z. B. ruhig, nervös, erbricht"/></label>
+<label class="field"><span>Verträglichkeit mit Hunden</span><input id="p_compatDogs" placeholder="z.B. freundlich / nur Hündinnen / ..." type="text"/></label>
+<label class="field"><span>Verträglichkeit mit Katzen</span><input id="p_compatCats" type="text"/></label>
+<label class="field"><span>Verträglichkeit mit Kindern</span><input id="p_compatKids" type="text"/></label>
+<label class="field"><span>Leinenverhalten</span><input id="p_leashBehavior" type="text" placeholder="z. B. locker, zieht, jagdlich motiviert"/></label>
+<label class="field"><span>Rückruf / Freilauf</span><input id="p_recall" type="text" placeholder="z. B. gut, nur gesichert, Schleppleine"/></label>
+<label class="field"><span>Ressourcenverhalten</span><input id="p_resourceBehavior" type="text" placeholder="Futter, Spielzeug, Liegeplatz"/></label>
+<label class="field" style="min-width:100%;"><span>Tagesroutine / Schlafplatz</span><textarea id="p_dailyRoutine" rows="2" placeholder="Schlafplatz, Ruhezeiten, Gewohnheiten"></textarea></label>
+<label class="field" style="min-width:100%;"><span>Kommandos / Signale</span><textarea id="p_commands" rows="2" placeholder="z. B. Sitz, Platz, Bleib, Abbruchsignal"></textarea></label>
+<label class="field" style="min-width:100%;"><span>Ängste / Trigger / Besonderheiten</span><textarea id="p_behavior" rows="2"></textarea></label>
 </div>
 </details>
 <details class="opt" open="">
@@ -1321,7 +1332,7 @@
   <!-- Bottom logout button removed (duplicate of header logout; also overlaps editor on iPad) -->
 </div>
 <!-- test-badge removed (requested) -->
-  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9DM_AI_MAINAPP_PROFILEPHOTO_MASTER_20260319</div>
+  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9DN_AI_MAINAPP_BEHAVIORPLUS_MASTER_20260319</div>
 
 <script>
 (function visibleMailFallback(){

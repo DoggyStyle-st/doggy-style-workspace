@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9DM_AI_MAINAPP_PROFILEPHOTO_MASTER_20260319",
+  tag: "M50.9.9DN_AI_MAINAPP_BEHAVIORPLUS_MASTER_20260319",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9DM_AI_MAINAPP_PROFILEPHOTO_MASTER_20260319";
+const APP_BUILD = "M50.9.9DN_AI_MAINAPP_BEHAVIORPLUS_MASTER_20260319";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -7956,7 +7956,7 @@ function refreshCustomerSelect(){
   sel.innerHTML = customers.map(c=>`<option value="${escapeHtml(c.customerId||c.id)}">${escapeHtml(c.name||"Kunde")}${(c.email||c.phone)?(" · "+escapeHtml(c.email||c.phone)):""}</option>`).join("");
 }
 function clearCpEditor(){
-  ["c_name","c_phone","c_email","c_street","c_zip","c_city","c_em_name","c_em_phone","c_pickup_auth","c_note","p_name","p_breed","p_chipNumber","p_vet","p_vetPhone","p_food","p_feeding","p_compat","p_note","p_allergies","p_medicalConditions","p_behavior"].forEach(id=>{
+  ["c_name","c_phone","c_email","c_street","c_zip","c_city","c_em_name","c_em_phone","c_pickup_auth","c_note","p_name","p_breed","p_chipNumber","p_vet","p_vetPhone","p_food","p_feeding","p_compat","p_note","p_allergies","p_medicalConditions","p_behavior","p_treatsAllowed","p_aloneTime","p_houseTrained","p_transport","p_compatDogs","p_compatCats","p_compatKids","p_leashBehavior","p_recall","p_resourceBehavior","p_dailyRoutine","p_commands"].forEach(id=>{
     const el=document.getElementById(id); if(el) el.value="";
   });
   const bd=document.getElementById("p_birthdate"); if(bd) bd.value="";
@@ -8053,9 +8053,21 @@ function fillCpEditorForPet(pet){
   cpProfilePhotoDataUrl = pet.profilePhoto || "";
   try{ cpRefreshVaccinationPhotoPreview(); cpRefreshProfilePhotoPreview(); }catch(_){ }
   $("#p_food").value = pet.food||"";
+  const ta=document.getElementById("p_treatsAllowed"); if(ta) ta.value = pet.treatsAllowed||"";
+  const at=document.getElementById("p_aloneTime"); if(at) at.value = pet.aloneTime||"";
+  const ht=document.getElementById("p_houseTrained"); if(ht) ht.value = pet.houseTrained||"";
+  const tr=document.getElementById("p_transport"); if(tr) tr.value = pet.transport||"";
   $("#p_feeding").value = pet.feeding||"";
+  const cd=document.getElementById("p_compatDogs"); if(cd) cd.value = pet.compatDogs||"";
+  const cc=document.getElementById("p_compatCats"); if(cc) cc.value = pet.compatCats||"";
+  const ck=document.getElementById("p_compatKids"); if(ck) ck.value = pet.compatKids||"";
   $("#p_compat").value = pet.compat||"";
+  const lb=document.getElementById("p_leashBehavior"); if(lb) lb.value = pet.leashBehavior||"";
+  const rc=document.getElementById("p_recall"); if(rc) rc.value = pet.recall||"";
+  const rb=document.getElementById("p_resourceBehavior"); if(rb) rb.value = pet.resourceBehavior||"";
   $("#p_behavior").value = pet.behavior||"";
+  const dr=document.getElementById("p_dailyRoutine"); if(dr) dr.value = pet.dailyRoutine||"";
+  const cm=document.getElementById("p_commands"); if(cm) cm.value = pet.commands||"";
   $("#p_note").value = pet.note||"";
   // Dauermedikation (Plan) inline im Hund-Editor
   try{ cpMedEnsureInlineUI(); }catch(_){ }
@@ -8151,9 +8163,21 @@ function clearPetFieldsOnly(){
   cpVaccinationPassDataUrl = ""; cpProfilePhotoDataUrl = "";
   try{ cpRefreshVaccinationPhotoPreview(); cpRefreshProfilePhotoPreview(); }catch(_){ }
   $("#p_food").value = "";
+  const ta2=document.getElementById("p_treatsAllowed"); if(ta2) ta2.value = "";
+  const at2=document.getElementById("p_aloneTime"); if(at2) at2.value = "";
+  const ht2=document.getElementById("p_houseTrained"); if(ht2) ht2.value = "";
+  const tr2=document.getElementById("p_transport"); if(tr2) tr2.value = "";
   $("#p_feeding").value = "";
+  const cd2=document.getElementById("p_compatDogs"); if(cd2) cd2.value = "";
+  const cc2=document.getElementById("p_compatCats"); if(cc2) cc2.value = "";
+  const ck2=document.getElementById("p_compatKids"); if(ck2) ck2.value = "";
   $("#p_compat").value = "";
+  const lb2=document.getElementById("p_leashBehavior"); if(lb2) lb2.value = "";
+  const rc2=document.getElementById("p_recall"); if(rc2) rc2.value = "";
+  const rb2=document.getElementById("p_resourceBehavior"); if(rb2) rb2.value = "";
   $("#p_behavior").value = "";
+  const dr2=document.getElementById("p_dailyRoutine"); if(dr2) dr2.value = "";
+  const cm2=document.getElementById("p_commands"); if(cm2) cm2.value = "";
   $("#p_note").value = "";
 }
 function ensureAddAnotherDogButton(){
@@ -10106,9 +10130,21 @@ $("#btnCpSave").addEventListener("click",()=>{
     pet.vaccinationPassPhoto = cpVaccinationPassDataUrl || pet.vaccinationPassPhoto || "";
     pet.profilePhoto = cpProfilePhotoDataUrl || pet.profilePhoto || "";
     pet.food = $("#p_food").value.trim();
+    pet.treatsAllowed = document.getElementById("p_treatsAllowed")?.value || "";
+    pet.aloneTime = document.getElementById("p_aloneTime")?.value.trim() || "";
+    pet.houseTrained = document.getElementById("p_houseTrained")?.value || "";
+    pet.transport = document.getElementById("p_transport")?.value.trim() || "";
     pet.feeding = $("#p_feeding").value.trim();
+    pet.compatDogs = document.getElementById("p_compatDogs")?.value.trim() || "";
+    pet.compatCats = document.getElementById("p_compatCats")?.value.trim() || "";
+    pet.compatKids = document.getElementById("p_compatKids")?.value.trim() || "";
     pet.compat = $("#p_compat").value.trim();
+    pet.leashBehavior = document.getElementById("p_leashBehavior")?.value.trim() || "";
+    pet.recall = document.getElementById("p_recall")?.value.trim() || "";
+    pet.resourceBehavior = document.getElementById("p_resourceBehavior")?.value.trim() || "";
     pet.behavior = $("#p_behavior").value.trim();
+    pet.dailyRoutine = document.getElementById("p_dailyRoutine")?.value.trim() || "";
+    pet.commands = document.getElementById("p_commands")?.value.trim() || "";
     pet.note = $("#p_note").value.trim();
     pet.updatedAt = Date.now();
     upsertLegacyDogForPet(pet, getCustomer(pet.customerId));
@@ -10136,9 +10172,21 @@ $("#btnCpSave").addEventListener("click",()=>{
     vaccinationPassPhoto: cpVaccinationPassDataUrl || "",
     profilePhoto: cpProfilePhotoDataUrl || "",
     food: $("#p_food").value.trim(),
+    treatsAllowed: document.getElementById("p_treatsAllowed")?.value || "",
+    aloneTime: document.getElementById("p_aloneTime")?.value.trim() || "",
+    houseTrained: document.getElementById("p_houseTrained")?.value || "",
+    transport: document.getElementById("p_transport")?.value.trim() || "",
     feeding: $("#p_feeding").value.trim(),
+    compatDogs: document.getElementById("p_compatDogs")?.value.trim() || "",
+    compatCats: document.getElementById("p_compatCats")?.value.trim() || "",
+    compatKids: document.getElementById("p_compatKids")?.value.trim() || "",
     compat: $("#p_compat").value.trim(),
+    leashBehavior: document.getElementById("p_leashBehavior")?.value.trim() || "",
+    recall: document.getElementById("p_recall")?.value.trim() || "",
+    resourceBehavior: document.getElementById("p_resourceBehavior")?.value.trim() || "",
     behavior: $("#p_behavior").value.trim(),
+    dailyRoutine: document.getElementById("p_dailyRoutine")?.value.trim() || "",
+    commands: document.getElementById("p_commands")?.value.trim() || "",
     note: $("#p_note").value.trim(),
     createdAt: Date.now(),
     updatedAt: Date.now()
