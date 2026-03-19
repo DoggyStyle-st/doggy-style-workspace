@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9DQ_AI_MAINAPP_PHOTOSAVEFIX2_MASTER_20260319",
+  tag: "M50.9.9DN_AI_MAINAPP_BEHAVIORPLUS_MASTER_20260319",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9DQ_AI_MAINAPP_PHOTOSAVEFIX2_MASTER_20260319";
+const APP_BUILD = "M50.9.9DR_AI_MAINAPP_PHOTOSAFE_MASTER_20260319";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -7977,68 +7977,59 @@ function clearCpEditor(){
 }
 let cpVaccinationPassDataUrl = "";
 let cpProfilePhotoDataUrl = "";
-async function cpFileToStoredDataUrl(file, opts={}){
-  const maxW = Number(opts.maxW || 1400);
-  const maxH = Number(opts.maxH || 1400);
-  const quality = Number(opts.quality || 0.78);
-  const outType = String(opts.type || "image/jpeg");
-  const maxChars = Number(opts.maxChars || 220000);
-  const readAsDataUrl = (blob)=>new Promise((resolve,reject)=>{
-    try{
-      const r = new FileReader();
-      r.onload = ()=>resolve(String(r.result||""));
-      r.onerror = ()=>reject(r.error || new Error("read-failed"));
-      r.readAsDataURL(blob);
-    }catch(err){ reject(err); }
-  });
-  const renderToDataUrl = (img,w,h,q,type)=>{
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.max(1, Math.round(w));
-    canvas.height = Math.max(1, Math.round(h));
-    const ctx = canvas.getContext("2d");
-    if(!ctx) return "";
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-    try{ return canvas.toDataURL(type, q); }catch(_){ return canvas.toDataURL("image/jpeg", q); }
-  };
+async function cpFileToSafeDataUrl(file, kind){
   try{
     if(!file) return "";
-    if(!String(file.type||"").startsWith("image/")) return await readAsDataUrl(file);
-    const originalDataUrl = await readAsDataUrl(file);
-    const img = await new Promise((resolve,reject)=>{
-      const im = new Image();
-      im.onload = ()=>resolve(im);
-      im.onerror = ()=>reject(new Error("image-load-failed"));
-      im.src = originalDataUrl;
+    const isImage = /^image\//i.test(String(file.type||''));
+    if(!isImage){
+      return await new Promise((resolve,reject)=>{
+        const r=new FileReader();
+        r.onload=()=>resolve(String(r.result||''));
+        r.onerror=()=>reject(new Error('filereader'));
+        r.readAsDataURL(file);
+      });
+    }
+    const dataUrl = await new Promise((resolve,reject)=>{
+      const r=new FileReader();
+      r.onload=()=>resolve(String(r.result||''));
+      r.onerror=()=>reject(new Error('filereader'));
+      r.readAsDataURL(file);
     });
-    let w = Number(img.naturalWidth || img.width || 0);
-    let h = Number(img.naturalHeight || img.height || 0);
-    if(!w || !h) return originalDataUrl;
-
-    let scale = Math.min(1, maxW / w, maxH / h);
-    let tw = Math.max(1, Math.round(w * scale));
-    let th = Math.max(1, Math.round(h * scale));
-
-    let best = "";
-    const qualities = [quality, 0.72, 0.66, 0.58, 0.5, 0.42, 0.34];
-    const scales = [1, 0.85, 0.72, 0.6, 0.5, 0.42, 0.34, 0.28];
-    for(const s of scales){
-      const cw = Math.max(1, Math.round(tw * s));
-      const ch = Math.max(1, Math.round(th * s));
-      for(const q of qualities){
-        const candidate = renderToDataUrl(img, cw, ch, q, outType);
-        if(!candidate) continue;
-        if(!best || candidate.length < best.length) best = candidate;
-        if(candidate.length <= maxChars) return candidate;
+    const img = await new Promise((resolve,reject)=>{
+      const i=new Image();
+      i.onload=()=>resolve(i);
+      i.onerror=()=>reject(new Error('img'));
+      i.src=dataUrl;
+    });
+    const maxEdge = (kind==='profile') ? 1200 : 1600;
+    const quality = (kind==='profile') ? 0.78 : 0.72;
+    let w = img.naturalWidth || img.width || 0;
+    let h = img.naturalHeight || img.height || 0;
+    if(!w || !h) return dataUrl;
+    const scale = Math.min(1, maxEdge / Math.max(w,h));
+    w = Math.max(1, Math.round(w*scale));
+    h = Math.max(1, Math.round(h*scale));
+    const c=document.createElement('canvas');
+    c.width=w; c.height=h;
+    const ctx=c.getContext('2d');
+    ctx.drawImage(img,0,0,w,h);
+    let out = c.toDataURL('image/jpeg', quality);
+    if(out.length > 850000){
+      let q = quality;
+      while(out.length > 850000 && q > 0.42){
+        q -= 0.08;
+        out = c.toDataURL('image/jpeg', Math.max(0.42, q));
       }
     }
-    if(best) return best;
-    return originalDataUrl.length <= maxChars ? originalDataUrl : "";
-  }catch(err){
-    console.warn("cpFileToStoredDataUrl failed", err);
-    try{
-      const raw = await readAsDataUrl(file);
-      return raw.length <= maxChars ? raw : "";
-    }catch(_){ return ""; }
+    return out;
+  }catch(e){
+    console.warn('Image compression failed, using original file', e);
+    return await new Promise((resolve,reject)=>{
+      const r=new FileReader();
+      r.onload=()=>resolve(String(r.result||''));
+      r.onerror=()=>reject(new Error('filereader'));
+      r.readAsDataURL(file);
+    });
   }
 }
 function cpRefreshVaccinationPhotoPreview(){
@@ -8064,9 +8055,13 @@ function cpWirePetPhotoInputs(){
     vaccInput.dataset.wired='1';
     vaccInput.addEventListener('change', async ()=>{
       const f=vaccInput.files && vaccInput.files[0]; if(!f) return;
-      cpVaccinationPassDataUrl = await cpFileToStoredDataUrl(f, { maxW: 1200, maxH: 1200, quality: 0.72, type: "image/jpeg", maxChars: 180000 });
-      if(!cpVaccinationPassDataUrl){ alert("Das Impfpass-Foto war zu groß. Bitte ein kleineres Foto oder einen engeren Ausschnitt verwenden."); if(vaccInput) vaccInput.value=''; }
-      cpRefreshVaccinationPhotoPreview();
+      try{
+        cpVaccinationPassDataUrl = await cpFileToSafeDataUrl(f, 'vaccination');
+        cpRefreshVaccinationPhotoPreview();
+      }catch(e){
+        console.error('Vaccination photo load failed', e);
+        alert('Das Impfpass-Foto konnte nicht verarbeitet werden. Bitte ein kleineres Bild versuchen.');
+      }
     });
   }
   if(vaccBtn && !vaccBtn.dataset.wired){
@@ -8077,9 +8072,13 @@ function cpWirePetPhotoInputs(){
     profileInput.dataset.wired='1';
     profileInput.addEventListener('change', async ()=>{
       const f=profileInput.files && profileInput.files[0]; if(!f) return;
-      cpProfilePhotoDataUrl = await cpFileToStoredDataUrl(f, { maxW: 1000, maxH: 1000, quality: 0.72, type: "image/jpeg", maxChars: 140000 });
-      if(!cpProfilePhotoDataUrl){ alert("Das Profilfoto war zu groß. Bitte ein kleineres Foto oder einen engeren Ausschnitt verwenden."); if(profileInput) profileInput.value=''; }
-      cpRefreshProfilePhotoPreview();
+      try{
+        cpProfilePhotoDataUrl = await cpFileToSafeDataUrl(f, 'profile');
+        cpRefreshProfilePhotoPreview();
+      }catch(e){
+        console.error('Profile photo load failed', e);
+        alert('Das Profilfoto konnte nicht verarbeitet werden. Bitte ein kleineres Bild versuchen.');
+      }
     });
   }
   if(profileBtn && !profileBtn.dataset.wired){
@@ -9954,14 +9953,6 @@ function saveState(){
     localStorage.setItem(LS_KEY,JSON.stringify(state));
   }catch(e){
     console.error("Local save failed", e);
-    try{
-      const msg = String(e && (e.message || e.name) || "");
-      if(/quota|storage|space/i.test(msg)){
-        alert("Speichern fehlgeschlagen: Die Bilddaten sind noch zu groß für den lokalen Speicher. Bitte Bild entfernen oder kleiner wählen.");
-      } else {
-        alert("Speichern fehlgeschlagen. Bitte Seite neu laden und erneut speichern.");
-      }
-    }catch(_){ }
   }
   SYNC.localSavedAt = (state && state._localUpdatedAt) ? state._localUpdatedAt : Date.now();
   updateSyncUI();
