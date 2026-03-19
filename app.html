@@ -600,18 +600,48 @@
 </label>
 <label class="field"><span>Chipnummer (wenn Ja)</span><input id="p_chipNumber" type="text"/></label>
 </div>
-<details class="opt" open>
-<summary>Gesundheit & Impfstatus</summary>
+<details class="opt" open="">
+<summary>Gesundheit &amp; Impfstatus</summary>
 <div class="row" style="flex-wrap:wrap; gap:12px; margin-top:10px;">
 <label class="field"><span>Tierarzt (Name/Ort)</span><input id="p_vet" type="text"/></label>
 <label class="field"><span>Tierarzt Telefon</span><input id="p_vetPhone" type="tel"/></label>
-<label class="field"><span>Hund ist altersgerecht und aktuell geimpft</span><select id="p_vaccinatedConfirmed"><option value="">— bitte wählen —</option><option value="yes">Ja</option><option value="no">Nein</option></select></label>
-<label class="field"><span>Letzte Tollwut-Impfung</span><input id="p_rabiesDate" type="date"/></label>
-<label class="field"><span>Letzte Kombi-Impfung</span><input id="p_mixedVaccineDate" type="date"/></label>
-<label class="field"><span>Impfpass / Nachweisfoto</span><input id="p_vaccinationPhoto" type="file" accept="image/*"/></label>
-<label class="field" style="min-width:100%;"><span>Impfpass-Vorschau</span><div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;"><img id="p_vaccinationPhotoPreview" alt="Impfpass Vorschau" style="display:none; max-width:220px; max-height:160px; border-radius:12px; border:1px solid rgba(255,255,255,.14); object-fit:cover;"/><button type="button" class="btn" id="p_vaccinationPhotoRemove" style="display:none;">Foto entfernen</button></div></label>
 <label class="field" style="min-width:100%;"><span>Allergien / Unverträglichkeiten</span><textarea id="p_allergies" rows="2"></textarea></label>
 <label class="field" style="min-width:100%;"><span>Erkrankungen / wichtige medizinische Hinweise</span><textarea id="p_medicalConditions" rows="2"></textarea></label>
+</div>
+<div class="row" style="flex-wrap:wrap; gap:12px; margin-top:10px; align-items:end;">
+<label class="field" style="min-width:280px; flex:1;">
+  <span>Impfschutz bestätigt</span>
+  <label style="display:flex; align-items:center; gap:10px; padding:12px 14px; border:1px solid rgba(255,255,255,.10); border-radius:14px; background:rgba(255,255,255,.04);">
+    <input id="p_vaccinatedConfirmed" type="checkbox" style="width:20px; height:20px;"/>
+    <span>Hund ist altersgerecht und aktuell geimpft</span>
+  </label>
+</label>
+<label class="field"><span>Letzte Tollwut-Impfung</span><input id="p_rabiesDate" type="date"/></label>
+<label class="field"><span>Letzte Kombi-Impfung</span><input id="p_mixedVaccineDate" type="date"/></label>
+</div>
+<div class="row" style="flex-wrap:wrap; gap:12px; margin-top:10px; align-items:start;">
+  <label class="field" style="min-width:280px; flex:1;">
+    <span>Profilfoto Hund</span>
+    <input id="p_profilePhoto" accept="image/*" type="file"/>
+    <small class="muted">Zum ersten Kennenlernen oder als Foto vom Kunden.</small>
+  </label>
+  <div class="field" style="min-width:220px; flex:1;">
+    <span>Vorschau Profilfoto</span>
+    <img id="p_profilePhotoPreview" style="display:none; width:180px; max-width:100%; border-radius:14px; border:1px solid rgba(255,255,255,.12); margin-top:8px;"/>
+    <button class="btn" id="p_profilePhotoRemove" style="display:none; margin-top:8px;" type="button">Profilfoto entfernen</button>
+  </div>
+</div>
+<div class="row" style="flex-wrap:wrap; gap:12px; margin-top:10px; align-items:start;">
+  <label class="field" style="min-width:280px; flex:1;">
+    <span>Impfpass / Nachweisfoto</span>
+    <input id="p_vaccinationPhoto" accept="image/*" type="file"/>
+    <small class="muted">Foto vom Impfpass oder Nachweis für die Unterlagen.</small>
+  </label>
+  <div class="field" style="min-width:220px; flex:1;">
+    <span>Vorschau Impfpass</span>
+    <img id="p_vaccinationPhotoPreview" style="display:none; width:180px; max-width:100%; border-radius:14px; border:1px solid rgba(255,255,255,.12); margin-top:8px;"/>
+    <button class="btn" id="p_vaccinationPhotoRemove" style="display:none; margin-top:8px;" type="button">Impfpass-Foto entfernen</button>
+  </div>
 </div>
 </details>
 <details class="opt">
@@ -1291,7 +1321,7 @@
   <!-- Bottom logout button removed (duplicate of header logout; also overlaps editor on iPad) -->
 </div>
 <!-- test-badge removed (requested) -->
-  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9DL_AI_MAINAPP_VACCINATION_MASTER_20260319</div>
+  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9DM_AI_MAINAPP_PROFILEPHOTO_MASTER_20260319</div>
 
 <script>
 (function visibleMailFallback(){
