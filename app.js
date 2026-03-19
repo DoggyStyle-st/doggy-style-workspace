@@ -6149,7 +6149,15 @@ const EMBEDDED_HUNDEANNAHME_TEMPLATE = {
     { key: "von", label: "Von", type: "date" },
     { key: "bis", label: "Bis", type: "date" },
     { key: "betreuung", label: "Betreuung", type: "text" },
-    { key: "notes", label: "Notizen", type: "textarea" }
+    { key: "stayArrivalTime", label: "Bringen um", type: "time" },
+        { key: "stayDepartureTime", label: "Abholen um", type: "time" },
+        { key: "stayFood", label: "Futter für den Aufenthalt", type: "textarea" },
+        { key: "stayMeds", label: "Medikamente / Dosierung", type: "textarea" },
+        { key: "stayMedicationTimes", label: "Zeiten der Medikamentengabe", type: "text" },
+        { key: "stayEmergencyContact", label: "Notfallkontakt", type: "text" },
+        { key: "bringItems", label: "Mitbringen", type: "textarea" },
+        { key: "notes", label: "Notizen", type: "textarea" },
+        { key: "staySignature", label: "Unterschrift (DataURL)", type: "textarea" }
   ],
   meta: { embedded: true }
 };
@@ -6183,10 +6191,6 @@ const EMBEDDED_CUSTOMER_DATA_TEMPLATE = {
         { key: "chipNumber", label: "Chipnummer", type: "text" },
         { key: "vet", label: "Tierarzt / Praxis", type: "text" },
         { key: "vetPhone", label: "Telefon Tierarzt", type: "text" },
-        { key: "vaccinatedConfirmed", label: "Ich bestätige, dass mein Hund altersgerecht geimpft ist", type: "checkbox" },
-        { key: "rabiesDate", label: "Letzte Tollwut-Impfung", type: "date" },
-        { key: "mixedVaccineDate", label: "Letzte Kombi-Impfung", type: "date" },
-        { key: "vaccinationPhoto", label: "Foto Impfpass (DataURL)", type: "textarea" },
         { key: "allergies", label: "Allergien / Unverträglichkeiten", type: "textarea" },
         { key: "meds", label: "Medikamente", type: "textarea" },
         { key: "food", label: "Futter", type: "text" },
@@ -6214,7 +6218,11 @@ const EMBEDDED_BOARDING_CONTRACT_TEMPLATE = {
         { key: "customerName", label: "Kundenname", type: "text", required: true },
         { key: "dogName", label: "Hundename", type: "text", required: true },
         { key: "serviceType", label: "Betreuungsart", type: "select", options: ["Tagesbetreuung", "Urlaubsbetreuung", "Probetag"] },
-        { key: "contractAccepted", label: "Ich habe den Betreuungsvertrag gelesen und stimme zu", type: "checkbox", required: true }
+        { key: "contractAccepted", label: "Ich habe den Betreuungsvertrag gelesen und stimme zu", type: "checkbox", required: true },
+        { key: "contractHouseRules", label: "Hund ist gesund, geimpft und betreuungsfähig", type: "checkbox" },
+        { key: "contractEmergencyConsent", label: "Tierärztliche Versorgung im Notfall erlaubt", type: "checkbox" },
+        { key: "contractVaccinationProof", label: "Impfpass liegt vor / wird nachgewiesen", type: "checkbox" },
+        { key: "contractDataTruth", label: "Angaben sind vollständig und wahrheitsgemäß", type: "checkbox" }
       ]
     },
     {
@@ -6222,7 +6230,8 @@ const EMBEDDED_BOARDING_CONTRACT_TEMPLATE = {
       fields: [
         { key: "vet", label: "Tierarzt / Praxis", type: "text" },
         { key: "emergencyPhone", label: "Notfallnummer", type: "text" },
-        { key: "notes", label: "Besondere Hinweise", type: "textarea" }
+        { key: "notes", label: "Besondere Hinweise", type: "textarea" },
+        { key: "contractSignature", label: "Unterschrift (DataURL)", type: "textarea" }
       ]
     }
   ],
