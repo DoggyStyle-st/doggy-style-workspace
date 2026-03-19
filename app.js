@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9DP_AI_MAINAPP_PHOTOSAVEFIX_MASTER_20260319",
+  tag: "M50.9.9DQ_AI_MAINAPP_PHOTOSAVEFIX2_MASTER_20260319",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9DP_AI_MAINAPP_PHOTOSAVEFIX_MASTER_20260319";
+const APP_BUILD = "M50.9.9DQ_AI_MAINAPP_PHOTOSAVEFIX2_MASTER_20260319";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -7978,10 +7978,11 @@ function clearCpEditor(){
 let cpVaccinationPassDataUrl = "";
 let cpProfilePhotoDataUrl = "";
 async function cpFileToStoredDataUrl(file, opts={}){
-  const maxW = Number(opts.maxW || 1600);
-  const maxH = Number(opts.maxH || 1600);
-  const quality = Number(opts.quality || 0.82);
+  const maxW = Number(opts.maxW || 1400);
+  const maxH = Number(opts.maxH || 1400);
+  const quality = Number(opts.quality || 0.78);
   const outType = String(opts.type || "image/jpeg");
+  const maxChars = Number(opts.maxChars || 220000);
   const readAsDataUrl = (blob)=>new Promise((resolve,reject)=>{
     try{
       const r = new FileReader();
@@ -7990,6 +7991,15 @@ async function cpFileToStoredDataUrl(file, opts={}){
       r.readAsDataURL(blob);
     }catch(err){ reject(err); }
   });
+  const renderToDataUrl = (img,w,h,q,type)=>{
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(w));
+    canvas.height = Math.max(1, Math.round(h));
+    const ctx = canvas.getContext("2d");
+    if(!ctx) return "";
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    try{ return canvas.toDataURL(type, q); }catch(_){ return canvas.toDataURL("image/jpeg", q); }
+  };
   try{
     if(!file) return "";
     if(!String(file.type||"").startsWith("image/")) return await readAsDataUrl(file);
@@ -8003,22 +8013,32 @@ async function cpFileToStoredDataUrl(file, opts={}){
     let w = Number(img.naturalWidth || img.width || 0);
     let h = Number(img.naturalHeight || img.height || 0);
     if(!w || !h) return originalDataUrl;
-    const scale = Math.min(1, maxW / w, maxH / h);
-    const tw = Math.max(1, Math.round(w * scale));
-    const th = Math.max(1, Math.round(h * scale));
-    const canvas = document.createElement("canvas");
-    canvas.width = tw;
-    canvas.height = th;
-    const ctx = canvas.getContext("2d");
-    if(!ctx) return originalDataUrl;
-    ctx.drawImage(img, 0, 0, tw, th);
-    let compressed = "";
-    try{ compressed = canvas.toDataURL(outType, quality); }catch(_){ compressed = canvas.toDataURL("image/jpeg", quality); }
-    if(compressed && compressed.length && compressed.length < originalDataUrl.length) return compressed;
-    return originalDataUrl;
+
+    let scale = Math.min(1, maxW / w, maxH / h);
+    let tw = Math.max(1, Math.round(w * scale));
+    let th = Math.max(1, Math.round(h * scale));
+
+    let best = "";
+    const qualities = [quality, 0.72, 0.66, 0.58, 0.5, 0.42, 0.34];
+    const scales = [1, 0.85, 0.72, 0.6, 0.5, 0.42, 0.34, 0.28];
+    for(const s of scales){
+      const cw = Math.max(1, Math.round(tw * s));
+      const ch = Math.max(1, Math.round(th * s));
+      for(const q of qualities){
+        const candidate = renderToDataUrl(img, cw, ch, q, outType);
+        if(!candidate) continue;
+        if(!best || candidate.length < best.length) best = candidate;
+        if(candidate.length <= maxChars) return candidate;
+      }
+    }
+    if(best) return best;
+    return originalDataUrl.length <= maxChars ? originalDataUrl : "";
   }catch(err){
     console.warn("cpFileToStoredDataUrl failed", err);
-    try{ return await readAsDataUrl(file); }catch(_){ return ""; }
+    try{
+      const raw = await readAsDataUrl(file);
+      return raw.length <= maxChars ? raw : "";
+    }catch(_){ return ""; }
   }
 }
 function cpRefreshVaccinationPhotoPreview(){
@@ -8044,7 +8064,8 @@ function cpWirePetPhotoInputs(){
     vaccInput.dataset.wired='1';
     vaccInput.addEventListener('change', async ()=>{
       const f=vaccInput.files && vaccInput.files[0]; if(!f) return;
-      cpVaccinationPassDataUrl = await cpFileToStoredDataUrl(f, { maxW: 1600, maxH: 1600, quality: 0.8, type: "image/jpeg" });
+      cpVaccinationPassDataUrl = await cpFileToStoredDataUrl(f, { maxW: 1200, maxH: 1200, quality: 0.72, type: "image/jpeg", maxChars: 180000 });
+      if(!cpVaccinationPassDataUrl){ alert("Das Impfpass-Foto war zu groß. Bitte ein kleineres Foto oder einen engeren Ausschnitt verwenden."); if(vaccInput) vaccInput.value=''; }
       cpRefreshVaccinationPhotoPreview();
     });
   }
@@ -8056,7 +8077,8 @@ function cpWirePetPhotoInputs(){
     profileInput.dataset.wired='1';
     profileInput.addEventListener('change', async ()=>{
       const f=profileInput.files && profileInput.files[0]; if(!f) return;
-      cpProfilePhotoDataUrl = await cpFileToStoredDataUrl(f, { maxW: 1200, maxH: 1200, quality: 0.82, type: "image/jpeg" });
+      cpProfilePhotoDataUrl = await cpFileToStoredDataUrl(f, { maxW: 1000, maxH: 1000, quality: 0.72, type: "image/jpeg", maxChars: 140000 });
+      if(!cpProfilePhotoDataUrl){ alert("Das Profilfoto war zu groß. Bitte ein kleineres Foto oder einen engeren Ausschnitt verwenden."); if(profileInput) profileInput.value=''; }
       cpRefreshProfilePhotoPreview();
     });
   }
@@ -9935,7 +9957,9 @@ function saveState(){
     try{
       const msg = String(e && (e.message || e.name) || "");
       if(/quota|storage|space/i.test(msg)){
-        alert("Speichern fehlgeschlagen: Das Foto ist wahrscheinlich zu groß. Bitte erneut wählen oder ein kleineres Bild verwenden.");
+        alert("Speichern fehlgeschlagen: Die Bilddaten sind noch zu groß für den lokalen Speicher. Bitte Bild entfernen oder kleiner wählen.");
+      } else {
+        alert("Speichern fehlgeschlagen. Bitte Seite neu laden und erneut speichern.");
       }
     }catch(_){ }
   }
