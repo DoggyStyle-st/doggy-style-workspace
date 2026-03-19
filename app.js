@@ -7956,7 +7956,7 @@ function refreshCustomerSelect(){
   sel.innerHTML = customers.map(c=>`<option value="${escapeHtml(c.customerId||c.id)}">${escapeHtml(c.name||"Kunde")}${(c.email||c.phone)?(" · "+escapeHtml(c.email||c.phone)):""}</option>`).join("");
 }
 function clearCpEditor(){
-  ["c_name","c_phone","c_email","c_street","c_zip","c_city","c_em_name","c_em_phone","c_pickup_auth","c_note","p_name","p_breed","p_chipNumber","p_vet","p_vetPhone","p_food","p_feeding","p_compat","p_note","p_allergies","p_medicalConditions","p_behavior","p_treatsAllowed","p_aloneTime","p_houseTrained","p_transport","p_compatDogs","p_compatCats","p_compatKids","p_leashBehavior","p_recall","p_resourceBehavior","p_dailyRoutine","p_commands"].forEach(id=>{
+  ["c_name","c_phone","c_email","c_street","c_zip","c_city","c_em_name","c_em_phone","c_pickup_auth","c_note","p_name","p_breed","p_chipNumber","p_vet","p_vetPhone","p_vetEmail","p_vetStreet","p_vetZip","p_vetCity","p_vetEmergencyName","p_vetEmergencyPhone","p_food","p_feeding","p_compat","p_note","p_allergies","p_medicalConditions","p_behavior","p_treatsAllowed","p_aloneTime","p_houseTrained","p_transport","p_compatDogs","p_compatCats","p_compatKids","p_leashBehavior","p_recall","p_resourceBehavior","p_dailyRoutine","p_commands","p_insuranceCompany","p_insurancePolicy","p_insuranceNotes"].forEach(id=>{
     const el=document.getElementById(id); if(el) el.value="";
   });
   const bd=document.getElementById("p_birthdate"); if(bd) bd.value="";
@@ -7964,6 +7964,7 @@ function clearCpEditor(){
   const vc=document.getElementById("p_vaccinatedConfirmed"); if(vc) vc.checked=false;
   const rd=document.getElementById("p_rabiesDate"); if(rd) rd.value="";
   const md=document.getElementById("p_mixedVaccineDate"); if(md) md.value="";
+  const is=document.getElementById("p_insuranceStatus"); if(is) is.value="";
   cpVaccinationPassDataUrl=""; cpProfilePhotoDataUrl="";
   try{ cpRefreshVaccinationPhotoPreview(); cpRefreshProfilePhotoPreview(); }catch(_){ }
   const use=document.getElementById("useExistingCustomer"); if(use) use.checked=false;
@@ -8044,11 +8045,21 @@ function fillCpEditorForPet(pet){
   $("#p_chipNumber").value = pet.chipNumber||"";
   $("#p_vet").value = pet.vet||"";
   $("#p_vetPhone").value = pet.vetPhone||"";
+  const ve=document.getElementById("p_vetEmail"); if(ve) ve.value = pet.vetEmail||"";
+  const vs=document.getElementById("p_vetStreet"); if(vs) vs.value = pet.vetStreet||"";
+  const vz=document.getElementById("p_vetZip"); if(vz) vz.value = pet.vetZip||"";
+  const vcity=document.getElementById("p_vetCity"); if(vcity) vcity.value = pet.vetCity||"";
+  const ven=document.getElementById("p_vetEmergencyName"); if(ven) ven.value = pet.vetEmergencyName||"";
+  const vep=document.getElementById("p_vetEmergencyPhone"); if(vep) vep.value = pet.vetEmergencyPhone||"";
   $("#p_allergies").value = pet.allergies||"";
   const vc=document.getElementById("p_vaccinatedConfirmed"); if(vc) vc.checked = !!pet.vaccinatedConfirmed;
   const rd=document.getElementById("p_rabiesDate"); if(rd) rd.value = pet.rabiesDate||"";
   const md=document.getElementById("p_mixedVaccineDate"); if(md) md.value = pet.mixedVaccineDate||"";
   const mc=document.getElementById("p_medicalConditions"); if(mc) mc.value = pet.medicalConditions||"";
+  const ins=document.getElementById("p_insuranceStatus"); if(ins) ins.value = pet.insuranceStatus||"";
+  const ic=document.getElementById("p_insuranceCompany"); if(ic) ic.value = pet.insuranceCompany||"";
+  const ip=document.getElementById("p_insurancePolicy"); if(ip) ip.value = pet.insurancePolicy||"";
+  const ino=document.getElementById("p_insuranceNotes"); if(ino) ino.value = pet.insuranceNotes||"";
   cpVaccinationPassDataUrl = pet.vaccinationPassPhoto || "";
   cpProfilePhotoDataUrl = pet.profilePhoto || "";
   try{ cpRefreshVaccinationPhotoPreview(); cpRefreshProfilePhotoPreview(); }catch(_){ }
@@ -8155,11 +8166,21 @@ function clearPetFieldsOnly(){
   $("#p_chipNumber").value = "";
   $("#p_vet").value = "";
   $("#p_vetPhone").value = "";
+  const ve=document.getElementById("p_vetEmail"); if(ve) ve.value = "";
+  const vs=document.getElementById("p_vetStreet"); if(vs) vs.value = "";
+  const vz=document.getElementById("p_vetZip"); if(vz) vz.value = "";
+  const vcity=document.getElementById("p_vetCity"); if(vcity) vcity.value = "";
+  const ven=document.getElementById("p_vetEmergencyName"); if(ven) ven.value = "";
+  const vep=document.getElementById("p_vetEmergencyPhone"); if(vep) vep.value = "";
   $("#p_allergies").value = "";
   const vc=document.getElementById("p_vaccinatedConfirmed"); if(vc) vc.checked = false;
   const rd=document.getElementById("p_rabiesDate"); if(rd) rd.value = "";
   const md=document.getElementById("p_mixedVaccineDate"); if(md) md.value = "";
   const mc=document.getElementById("p_medicalConditions"); if(mc) mc.value = "";
+  const ins=document.getElementById("p_insuranceStatus"); if(ins) ins.value = "";
+  const ic=document.getElementById("p_insuranceCompany"); if(ic) ic.value = "";
+  const ip=document.getElementById("p_insurancePolicy"); if(ip) ip.value = "";
+  const ino=document.getElementById("p_insuranceNotes"); if(ino) ino.value = "";
   cpVaccinationPassDataUrl = ""; cpProfilePhotoDataUrl = "";
   try{ cpRefreshVaccinationPhotoPreview(); cpRefreshProfilePhotoPreview(); }catch(_){ }
   $("#p_food").value = "";
@@ -10122,8 +10143,18 @@ $("#btnCpSave").addEventListener("click",()=>{
     if(pet.chip && !pet.chipNumber){ alert("Bitte die Chipnummer eintragen."); return; }
     pet.vet = $("#p_vet").value.trim();
     pet.vetPhone = $("#p_vetPhone").value.trim();
+    pet.vetEmail = document.getElementById("p_vetEmail")?.value.trim() || "";
+    pet.vetStreet = document.getElementById("p_vetStreet")?.value.trim() || "";
+    pet.vetZip = document.getElementById("p_vetZip")?.value.trim() || "";
+    pet.vetCity = document.getElementById("p_vetCity")?.value.trim() || "";
+    pet.vetEmergencyName = document.getElementById("p_vetEmergencyName")?.value.trim() || "";
+    pet.vetEmergencyPhone = document.getElementById("p_vetEmergencyPhone")?.value.trim() || "";
     pet.allergies = $("#p_allergies").value.trim();
     pet.medicalConditions = $("#p_medicalConditions")?.value.trim() || "";
+    pet.insuranceStatus = document.getElementById("p_insuranceStatus")?.value || "";
+    pet.insuranceCompany = document.getElementById("p_insuranceCompany")?.value.trim() || "";
+    pet.insurancePolicy = document.getElementById("p_insurancePolicy")?.value.trim() || "";
+    pet.insuranceNotes = document.getElementById("p_insuranceNotes")?.value.trim() || "";
     pet.vaccinatedConfirmed = !!document.getElementById("p_vaccinatedConfirmed")?.checked;
     pet.rabiesDate = document.getElementById("p_rabiesDate")?.value || "";
     pet.mixedVaccineDate = document.getElementById("p_mixedVaccineDate")?.value || "";
@@ -10164,8 +10195,18 @@ $("#btnCpSave").addEventListener("click",()=>{
     chipNumber: chipNrNew,
     vet: $("#p_vet").value.trim(),
     vetPhone: $("#p_vetPhone").value.trim(),
+    vetEmail: document.getElementById("p_vetEmail")?.value.trim() || "",
+    vetStreet: document.getElementById("p_vetStreet")?.value.trim() || "",
+    vetZip: document.getElementById("p_vetZip")?.value.trim() || "",
+    vetCity: document.getElementById("p_vetCity")?.value.trim() || "",
+    vetEmergencyName: document.getElementById("p_vetEmergencyName")?.value.trim() || "",
+    vetEmergencyPhone: document.getElementById("p_vetEmergencyPhone")?.value.trim() || "",
     allergies: $("#p_allergies").value.trim(),
     medicalConditions: $("#p_medicalConditions")?.value.trim() || "",
+    insuranceStatus: document.getElementById("p_insuranceStatus")?.value || "",
+    insuranceCompany: document.getElementById("p_insuranceCompany")?.value.trim() || "",
+    insurancePolicy: document.getElementById("p_insurancePolicy")?.value.trim() || "",
+    insuranceNotes: document.getElementById("p_insuranceNotes")?.value.trim() || "",
     vaccinatedConfirmed: !!document.getElementById("p_vaccinatedConfirmed")?.checked,
     rabiesDate: document.getElementById("p_rabiesDate")?.value || "",
     mixedVaccineDate: document.getElementById("p_mixedVaccineDate")?.value || "",
