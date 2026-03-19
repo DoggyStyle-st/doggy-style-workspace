@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9DS_AI_MAINAPP_PHOTOSAFE_MASTER_20260319",
+  tag: "M50.9.9DN_AI_MAINAPP_BEHAVIORPLUS_MASTER_20260319",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9DS_AI_MAINAPP_PHOTOSAFE_MASTER_20260319";
+const APP_BUILD = "M50.9.9DN_AI_MAINAPP_BEHAVIORPLUS_MASTER_20260319";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -7977,61 +7977,6 @@ function clearCpEditor(){
 }
 let cpVaccinationPassDataUrl = "";
 let cpProfilePhotoDataUrl = "";
-async function cpFileToStoredDataUrl(file, opts={}){
-  const maxWBase = Number(opts.maxW || 1400);
-  const maxHBase = Number(opts.maxH || 1400);
-  const outType = String(opts.type || "image/jpeg");
-  const qualityBase = Number(opts.quality || 0.72);
-  const targetChars = Number(opts.targetChars || 180000);
-  const readAsDataUrl = (blob)=>new Promise((resolve,reject)=>{
-    try{
-      const r = new FileReader();
-      r.onload = ()=>resolve(String(r.result||""));
-      r.onerror = ()=>reject(r.error || new Error("read-failed"));
-      r.readAsDataURL(blob);
-    }catch(err){ reject(err); }
-  });
-  try{
-    if(!file) return "";
-    if(!String(file.type||"").startsWith("image/")) return await readAsDataUrl(file);
-    const originalDataUrl = await readAsDataUrl(file);
-    const img = await new Promise((resolve,reject)=>{
-      const im = new Image();
-      im.onload = ()=>resolve(im);
-      im.onerror = ()=>reject(new Error("image-load-failed"));
-      im.src = originalDataUrl;
-    });
-    let w0 = Number(img.naturalWidth || img.width || 0);
-    let h0 = Number(img.naturalHeight || img.height || 0);
-    if(!w0 || !h0) return originalDataUrl;
-    let best = "";
-    for(let step=0; step<6; step++){
-      const scaleCap = Math.max(0.18, 1 - step * 0.14);
-      const maxW = Math.max(320, Math.round(maxWBase * scaleCap));
-      const maxH = Math.max(320, Math.round(maxHBase * scaleCap));
-      const scale = Math.min(1, maxW / w0, maxH / h0);
-      const tw = Math.max(1, Math.round(w0 * scale));
-      const th = Math.max(1, Math.round(h0 * scale));
-      const canvas = document.createElement("canvas");
-      canvas.width = tw;
-      canvas.height = th;
-      const ctx = canvas.getContext("2d");
-      if(!ctx) continue;
-      ctx.drawImage(img, 0, 0, tw, th);
-      for(const q of [qualityBase, qualityBase-0.1, qualityBase-0.18, 0.45, 0.34]){
-        const qq = Math.max(0.28, Number(q||0.6));
-        let candidate = "";
-        try{ candidate = canvas.toDataURL(outType, qq); }catch(_){ candidate = canvas.toDataURL("image/jpeg", qq); }
-        if(candidate && (!best || candidate.length < best.length)) best = candidate;
-        if(candidate && candidate.length <= targetChars) return candidate;
-      }
-    }
-    return best || originalDataUrl;
-  }catch(err){
-    console.warn("cpFileToStoredDataUrl failed", err);
-    try{ return await readAsDataUrl(file); }catch(_){ return ""; }
-  }
-}
 function cpRefreshVaccinationPhotoPreview(){
   const img = document.getElementById("p_vaccinationPhotoPreview");
   const btn = document.getElementById("p_vaccinationPhotoRemove");
@@ -8046,6 +7991,38 @@ function cpRefreshProfilePhotoPreview(){
   if(cpProfilePhotoDataUrl){ img.src = cpProfilePhotoDataUrl; img.style.display = "block"; btn.style.display = "inline-flex"; }
   else { img.removeAttribute('src'); img.style.display = "none"; btn.style.display = "none"; }
 }
+async function cpReadImageFileSmall(file, kind){
+  if(!file) return "";
+  const maxW = kind === "vaccination" ? 1280 : 960;
+  const maxH = kind === "vaccination" ? 1280 : 960;
+  const quality = kind === "vaccination" ? 0.72 : 0.78;
+  const toDataUrl = (blob)=>new Promise((resolve,reject)=>{
+    const r = new FileReader();
+    r.onload = ()=>resolve(String(r.result||''));
+    r.onerror = ()=>reject(r.error||new Error('read failed'));
+    r.readAsDataURL(blob);
+  });
+  try{
+    if(!/^image\//i.test(String(file.type||''))){
+      return await toDataUrl(file);
+    }
+    const bmp = await createImageBitmap(file);
+    const scale = Math.min(1, maxW / (bmp.width||1), maxH / (bmp.height||1));
+    const w = Math.max(1, Math.round((bmp.width||1) * scale));
+    const h = Math.max(1, Math.round((bmp.height||1) * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d', { alpha:false });
+    ctx.drawImage(bmp, 0, 0, w, h);
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', quality));
+    if(!blob) return await toDataUrl(file);
+    return await toDataUrl(blob);
+  }catch(e){
+    console.warn('cpReadImageFileSmall failed, fallback original', e);
+    try{ return await toDataUrl(file); }catch(_){ return ''; }
+  }
+}
+
 function cpWirePetPhotoInputs(){
   const vaccInput = document.getElementById("p_vaccinationPhoto");
   const vaccBtn = document.getElementById("p_vaccinationPhotoRemove");
@@ -8055,13 +8032,8 @@ function cpWirePetPhotoInputs(){
     vaccInput.dataset.wired='1';
     vaccInput.addEventListener('change', async ()=>{
       const f=vaccInput.files && vaccInput.files[0]; if(!f) return;
-      try{
-        cpVaccinationPassDataUrl = await cpFileToStoredDataUrl(f, { maxW: 1200, maxH: 1200, quality: 0.62, type: "image/jpeg", targetChars: 170000 });
-        cpRefreshVaccinationPhotoPreview();
-      }catch(e){
-        console.error('Vaccination photo load failed', e);
-        alert('Das Impfpass-Foto konnte nicht verarbeitet werden.');
-      }
+      cpVaccinationPassDataUrl = await cpReadImageFileSmall(f, 'vaccination');
+      cpRefreshVaccinationPhotoPreview();
     });
   }
   if(vaccBtn && !vaccBtn.dataset.wired){
@@ -8072,13 +8044,8 @@ function cpWirePetPhotoInputs(){
     profileInput.dataset.wired='1';
     profileInput.addEventListener('change', async ()=>{
       const f=profileInput.files && profileInput.files[0]; if(!f) return;
-      try{
-        cpProfilePhotoDataUrl = await cpFileToStoredDataUrl(f, { maxW: 900, maxH: 900, quality: 0.6, type: "image/jpeg", targetChars: 120000 });
-        cpRefreshProfilePhotoPreview();
-      }catch(e){
-        console.error('Profile photo load failed', e);
-        alert('Das Profilfoto konnte nicht verarbeitet werden.');
-      }
+      cpProfilePhotoDataUrl = await cpReadImageFileSmall(f, 'profile');
+      cpRefreshProfilePhotoPreview();
     });
   }
   if(profileBtn && !profileBtn.dataset.wired){
@@ -9947,52 +9914,17 @@ function closePdfOverlay(){
   document.body.classList.remove("printOverlayActive");
 }
 function loadState(){try{const raw=localStorage.getItem(LS_KEY);return raw?JSON.parse(raw):{dogs:[],docs:[]};}catch{return {dogs:[],docs:[]};}}
-function dsTrimOversizePetMedia(){
-  try{
-    let changed = false;
-    const pets = Array.isArray(state?.pets) ? state.pets : [];
-    pets.forEach(p=>{
-      if(!p || typeof p !== "object") return;
-      if(typeof p.vaccinationPassPhoto === "string" && p.vaccinationPassPhoto.length > 220000){ p.vaccinationPassPhoto = ""; changed = true; }
-      if(typeof p.profilePhoto === "string" && p.profilePhoto.length > 160000){ p.profilePhoto = ""; changed = true; }
-    });
-    return changed;
-  }catch(_){ return false; }
-}
 function saveState(){
-  let ok = false;
   try{
     state._localUpdatedAt = Date.now();
     localStorage.setItem(LS_KEY,JSON.stringify(state));
-    ok = true;
   }catch(e){
     console.error("Local save failed", e);
-    try{
-      const msg = String(e && (e.message || e.name) || "");
-      if(/quota|storage|space/i.test(msg)){
-        const trimmed = dsTrimOversizePetMedia();
-        if(trimmed){
-          try{
-            state._localUpdatedAt = Date.now();
-            localStorage.setItem(LS_KEY, JSON.stringify(state));
-            ok = true;
-            alert("Speichern war nur möglich, nachdem ein zu großes Foto entfernt wurde. Bitte das Bild kleiner erneut hochladen.");
-          }catch(e2){
-            console.error("Retry after media trim failed", e2);
-          }
-        }
-        if(!ok){
-          alert("Speichern fehlgeschlagen: Mindestens ein Foto ist zu groß für den aktuellen Speicherstand. Bitte ein kleineres Bild verwenden.");
-        }
-      }else{
-        alert("Speichern fehlgeschlagen. Bitte die Angaben prüfen und erneut versuchen.");
-      }
-    }catch(_){ }
   }
   SYNC.localSavedAt = (state && state._localUpdatedAt) ? state._localUpdatedAt : Date.now();
   updateSyncUI();
+  // Cloud Sync (Weg 2B): Änderungen nach außen spiegeln
   if(CLOUD.enabled && CLOUD.user) cloudSchedulePush();
-  return ok;
 }
 function ensureDefaultDog(){
   if(!state.dogs || state.dogs.length===0){
@@ -10175,7 +10107,8 @@ try{
     };
   }
 }catch(_){}
-$("#btnCpSave").addEventListener("click",()=>{
+$("#btnCpSave").addEventListener("click",(ev)=>{
+  try{ ev.preventDefault(); ev.stopPropagation(); }catch(_){ }
   ensureStateShape();
   ensureContractDefaults();
   const mode = cpEdit.mode;
@@ -10281,7 +10214,7 @@ $("#btnCpSave").addEventListener("click",()=>{
     pet.note = $("#p_note").value.trim();
     pet.updatedAt = Date.now();
     upsertLegacyDogForPet(pet, getCustomer(pet.customerId));
-    if(!saveState()) return;
+    saveState();
     closeCpEditor();
     renderDogs();
     return;
@@ -10337,7 +10270,7 @@ $("#btnCpSave").addEventListener("click",()=>{
   state.pets.push(pet);
   upsertLegacyDogForPet(pet, getCustomer(customerId));
   state.schemaVersion = Math.max(state.schemaVersion||1, 2);
-  if(!saveState()) return;
+  saveState();
   closeCpEditor();
   renderDogs();
 });
