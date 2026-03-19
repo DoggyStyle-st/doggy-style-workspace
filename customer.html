@@ -7,7 +7,7 @@
   <link href="manifest.json" rel="manifest"/>
   <meta name="theme-color" content="#101014"/>
   <link href="assets/logo.png" rel="apple-touch-icon"/>
-  <link href="styles.css?v=M50.9.9DF_AI_CUSTOMERPORTAL_CUSTOMERAPP_EDITABLE_MASTER_20260318" rel="stylesheet"/>
+  <link href="styles.css?v=M50.9.9DG_AI_CUSTOMERPORTAL_CUSTOMERAPP_FLOWFIX_MASTER_20260319" rel="stylesheet"/>
   <style>
     body.bg-watermark{background:radial-gradient(circle at top, rgba(255,255,255,.08), transparent 35%), linear-gradient(180deg,#0e1017 0%, #121521 100%) !important}
     body.bg-watermark::before{opacity:.12 !important;filter:none !important}
@@ -24,6 +24,7 @@
     .customer-panel{display:none;background:rgba(255,255,255,.12)!important;border:1px solid rgba(255,255,255,.16)!important;backdrop-filter:blur(8px)!important;-webkit-backdrop-filter:blur(8px)!important;box-shadow:0 16px 36px rgba(0,0,0,.18)}
     .customer-panel.is-active{display:block}
     .customer-grid{display:grid;gap:14px}
+    .customer-action{display:flex;justify-content:flex-end;align-items:center;gap:12px;margin-top:14px}
     .customer-summary .item{padding:14px 16px;border-radius:18px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)}
     .customer-empty{opacity:.9;padding:12px 0}
     .customer-tasklist{display:grid;gap:12px}
@@ -76,13 +77,13 @@
         <div class="muted" id="dogsSubtitle" style="margin-top:6px">Hier siehst du nur deinen eigenen Kunden- und Hunde-Eintrag.</div>
       </div>
       <div class="customer-grid customer-summary" id="customerSummary" style="margin-top:12px"></div>
-      <div class="customer-tasklist" id="dogsTaskList" style="margin-top:14px"></div>
+      <div class="customer-action" id="dogsActionRow" style="margin-top:14px"></div>
     </section>
 
     <section class="card customer-panel" id="view-contract">
       <div>
         <h1 style="margin:0">Betreuungsvertrag</h1>
-        <div class="customer-section-note">Hier kannst du den freigegebenen Betreuungsvertrag prüfen und deine Angaben ergänzen.</div>
+        <div class="customer-section-note">Hier kannst du deinen Betreuungsvertrag öffnen, prüfen und ergänzen.</div>
       </div>
       <div class="customer-tasklist" id="contractTaskList" style="margin-top:14px"></div>
     </section>
@@ -91,7 +92,7 @@
       <div class="row between" style="gap:12px;flex-wrap:wrap;align-items:flex-start">
         <div>
           <h1 style="margin:0">Neuer Aufenthalt</h1>
-          <div class="customer-section-note">Hier kannst du einen neuen Aufenthalt vorbereiten oder eine bestehende Anfrage öffnen.</div>
+          <div class="customer-section-note">Hier kannst du einen neuen Aufenthalt vorbereiten.</div>
         </div>
         <button class="btn primary" id="btnOpenNewStay" type="button">Neuen Aufenthalt öffnen</button>
       </div>
@@ -117,17 +118,17 @@
     <div class="customer-hidden" id="customerTaskListCard"></div>
     <div class="customer-hidden list" id="customerTaskList"></div>
     <div class="customer-hidden" id="customerPortalSubtitle"></div>
-    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9DF_AI_CUSTOMERPORTAL_CUSTOMERAPP_EDITABLE_MASTER_20260318</div>
+    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9DG_AI_CUSTOMERPORTAL_CUSTOMERAPP_FLOWFIX_MASTER_20260319</div>
   </main>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=M50.9.9DF_AI_CUSTOMERPORTAL_CUSTOMERAPP_EDITABLE_MASTER_20260318"></script>
-  <script src="app.js?v=M50.9.9DF_AI_CUSTOMERPORTAL_CUSTOMERAPP_EDITABLE_MASTER_20260318"></script>
+  <script src="firebase-config.js?v=M50.9.9DG_AI_CUSTOMERPORTAL_CUSTOMERAPP_FLOWFIX_MASTER_20260319"></script>
+  <script src="app.js?v=M50.9.9DG_AI_CUSTOMERPORTAL_CUSTOMERAPP_FLOWFIX_MASTER_20260319"></script>
   <script>
     (function(){
-      const BUILD = 'Build CUSTOMER M50.9.9DF_AI_CUSTOMERPORTAL_CUSTOMERAPP_EDITABLE_MASTER_20260318';
+      const BUILD = 'Build CUSTOMER M50.9.9DG_AI_CUSTOMERPORTAL_CUSTOMERAPP_FLOWFIX_MASTER_20260319';
       const DRAFT_KEY = 'ds_customer_app_drafts_v1';
       const viewNames = ['home','dogs','contract','stay'];
       let currentView = 'home';
@@ -191,17 +192,36 @@
         if(!el) return;
         el.innerHTML = '';
         if(!tasks.length){ el.innerHTML = '<div class="customer-empty muted">' + (emptyText || 'Keine Einträge vorhanden.') + '</div>'; return; }
+        const labels = {
+          customer_data:{title:'Kunde/Hund', text:'Öffne hier deine freigegebenen Kunden- und Hundedaten zur Bearbeitung.', btn:'Daten öffnen'},
+          boarding_contract:{title:'Betreuungsvertrag', text:'Öffne hier deinen Betreuungsvertrag und ergänze die fehlenden Angaben.', btn:'Vertrag öffnen'},
+          hundeannahme:{title:'Neuer Aufenthalt', text:'Öffne hier eine neue Aufenthaltsanfrage für deinen Hund.', btn:'Aufenthalt öffnen'}
+        };
         tasks.forEach(task=>{
           const row = document.createElement('div');
           row.className = 'customer-task';
-          const when = task.createdAt ? fmt(task.createdAt) : '';
-          const labels = { customer_data:'Daten öffnen', boarding_contract:'Vertrag öffnen', hundeannahme:'Aufenthalt öffnen' };
-          row.innerHTML = '<div><strong>' + esc(task.title || task.templateId || 'Aufgabe') + '</strong><small>' + esc(task.templateId || '') + (when ? ' · ' + esc(when) : '') + '</small></div>';
+          const meta = labels[String(task.templateId||'')] || {title:'Aufgabe', text:'', btn:'Öffnen'};
+          row.innerHTML = '<div><strong>' + esc(meta.title) + '</strong><small>' + esc(meta.text) + '</small></div>';
           const btn = document.createElement('button');
-          btn.className = 'btn'; btn.type = 'button'; btn.textContent = labels[String(task.templateId||'')] || 'Öffnen';
+          btn.className = 'btn'; btn.type = 'button'; btn.textContent = meta.btn;
           btn.onclick = ()=> openTask(task);
           row.appendChild(btn); el.appendChild(row);
         });
+      }
+
+      function getLatestTask(templateId){
+        return getTasks()
+          .filter(t => String(t.templateId||'') === String(templateId||''))
+          .sort((a,b)=> Number(b.createdAt||0)-Number(a.createdAt||0))[0] || null;
+      }
+      function renderDogsAction(){
+        const box = document.getElementById('dogsActionRow');
+        if(!box) return;
+        const task = getLatestTask('customer_data');
+        if(!task){ box.innerHTML = '<div class="customer-empty muted">Aktuell ist keine Datenbearbeitung freigegeben.</div>'; return; }
+        box.innerHTML = '<button class="btn primary" type="button" id="btnOpenCustomerData">Daten bearbeiten</button>';
+        const btn = document.getElementById('btnOpenCustomerData');
+        if(btn) btn.onclick = ()=> openTask(task);
       }
       function renderSummary(){
         const { customer, pets } = getContext();
@@ -324,9 +344,9 @@
       function refreshCustomUI(){
         const tasks = getTasks();
         renderSummary();
-        renderTaskList(document.getElementById('dogsTaskList'), tasks.filter(t => String(t.templateId||'') === 'customer_data'), 'Aktuell ist keine Kunden-/Hundebearbeitung freigegeben.');
-        renderTaskList(document.getElementById('contractTaskList'), tasks.filter(t => String(t.templateId||'') === 'boarding_contract'), 'Aktuell liegt kein Betreuungsvertrag zur Bearbeitung vor.');
-        renderTaskList(document.getElementById('stayTaskList'), tasks.filter(t => String(t.templateId||'') === 'hundeannahme'), 'Aktuell liegt noch kein Aufenthalt vor. Über den Button oben kannst du eine neue Anfrage öffnen.');
+        renderDogsAction();
+        renderTaskList(document.getElementById('contractTaskList'), tasks.filter(t => String(t.templateId||'') === 'boarding_contract').slice(0,1), 'Aktuell liegt kein Betreuungsvertrag zur Bearbeitung vor.');
+        renderTaskList(document.getElementById('stayTaskList'), tasks.filter(t => String(t.templateId||'') === 'hundeannahme').slice(0,1), 'Aktuell liegt noch kein Aufenthalt vor. Über den Button oben kannst du eine neue Anfrage öffnen.');
       }
 
       document.addEventListener('click', (ev)=>{ const btn = ev.target.closest('.nav-btn'); if(!btn) return; ev.preventDefault(); setView(btn.dataset.view); });
@@ -336,8 +356,8 @@
         currentData = collectEditorData();
         if(currentTask) setDraft(currentTask.id || currentTask.taskId || currentTask.templateId, currentData);
         const hint = document.getElementById('customerTaskSaveHint');
-        if(hint) hint.textContent = 'Änderungen gespeichert. Den Freigabe-Workflow für Eingänge bauen wir im nächsten Schritt sauber ein.';
-        alert('Änderungen gespeichert. Der Versand an Eingänge folgt im nächsten Schritt.');
+        if(hint) hint.textContent = 'Änderungen lokal gespeichert. Die Übergabe an Eingänge folgt im nächsten Schritt.';
+        alert('Änderungen lokal gespeichert. Die Übergabe an Eingänge folgt im nächsten Schritt.');
       });
 
       async function bootCustomerPortal(){
