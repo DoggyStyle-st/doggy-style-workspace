@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9DN_AI_MAINAPP_BEHAVIORPLUS_MASTER_20260319",
+  tag: "M50.9.9DP_AI_MAINAPP_PHOTOSAVEFIX_MASTER_20260319",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9DN_AI_MAINAPP_BEHAVIORPLUS_MASTER_20260319";
+const APP_BUILD = "M50.9.9DP_AI_MAINAPP_PHOTOSAVEFIX_MASTER_20260319";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -7977,6 +7977,50 @@ function clearCpEditor(){
 }
 let cpVaccinationPassDataUrl = "";
 let cpProfilePhotoDataUrl = "";
+async function cpFileToStoredDataUrl(file, opts={}){
+  const maxW = Number(opts.maxW || 1600);
+  const maxH = Number(opts.maxH || 1600);
+  const quality = Number(opts.quality || 0.82);
+  const outType = String(opts.type || "image/jpeg");
+  const readAsDataUrl = (blob)=>new Promise((resolve,reject)=>{
+    try{
+      const r = new FileReader();
+      r.onload = ()=>resolve(String(r.result||""));
+      r.onerror = ()=>reject(r.error || new Error("read-failed"));
+      r.readAsDataURL(blob);
+    }catch(err){ reject(err); }
+  });
+  try{
+    if(!file) return "";
+    if(!String(file.type||"").startsWith("image/")) return await readAsDataUrl(file);
+    const originalDataUrl = await readAsDataUrl(file);
+    const img = await new Promise((resolve,reject)=>{
+      const im = new Image();
+      im.onload = ()=>resolve(im);
+      im.onerror = ()=>reject(new Error("image-load-failed"));
+      im.src = originalDataUrl;
+    });
+    let w = Number(img.naturalWidth || img.width || 0);
+    let h = Number(img.naturalHeight || img.height || 0);
+    if(!w || !h) return originalDataUrl;
+    const scale = Math.min(1, maxW / w, maxH / h);
+    const tw = Math.max(1, Math.round(w * scale));
+    const th = Math.max(1, Math.round(h * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = tw;
+    canvas.height = th;
+    const ctx = canvas.getContext("2d");
+    if(!ctx) return originalDataUrl;
+    ctx.drawImage(img, 0, 0, tw, th);
+    let compressed = "";
+    try{ compressed = canvas.toDataURL(outType, quality); }catch(_){ compressed = canvas.toDataURL("image/jpeg", quality); }
+    if(compressed && compressed.length && compressed.length < originalDataUrl.length) return compressed;
+    return originalDataUrl;
+  }catch(err){
+    console.warn("cpFileToStoredDataUrl failed", err);
+    try{ return await readAsDataUrl(file); }catch(_){ return ""; }
+  }
+}
 function cpRefreshVaccinationPhotoPreview(){
   const img = document.getElementById("p_vaccinationPhotoPreview");
   const btn = document.getElementById("p_vaccinationPhotoRemove");
@@ -7998,9 +8042,10 @@ function cpWirePetPhotoInputs(){
   const profileBtn = document.getElementById("p_profilePhotoRemove");
   if(vaccInput && !vaccInput.dataset.wired){
     vaccInput.dataset.wired='1';
-    vaccInput.addEventListener('change', ()=>{
+    vaccInput.addEventListener('change', async ()=>{
       const f=vaccInput.files && vaccInput.files[0]; if(!f) return;
-      const r=new FileReader(); r.onload=()=>{ cpVaccinationPassDataUrl=String(r.result||''); cpRefreshVaccinationPhotoPreview(); }; r.readAsDataURL(f);
+      cpVaccinationPassDataUrl = await cpFileToStoredDataUrl(f, { maxW: 1600, maxH: 1600, quality: 0.8, type: "image/jpeg" });
+      cpRefreshVaccinationPhotoPreview();
     });
   }
   if(vaccBtn && !vaccBtn.dataset.wired){
@@ -8009,9 +8054,10 @@ function cpWirePetPhotoInputs(){
   }
   if(profileInput && !profileInput.dataset.wired){
     profileInput.dataset.wired='1';
-    profileInput.addEventListener('change', ()=>{
+    profileInput.addEventListener('change', async ()=>{
       const f=profileInput.files && profileInput.files[0]; if(!f) return;
-      const r=new FileReader(); r.onload=()=>{ cpProfilePhotoDataUrl=String(r.result||''); cpRefreshProfilePhotoPreview(); }; r.readAsDataURL(f);
+      cpProfilePhotoDataUrl = await cpFileToStoredDataUrl(f, { maxW: 1200, maxH: 1200, quality: 0.82, type: "image/jpeg" });
+      cpRefreshProfilePhotoPreview();
     });
   }
   if(profileBtn && !profileBtn.dataset.wired){
@@ -9886,6 +9932,12 @@ function saveState(){
     localStorage.setItem(LS_KEY,JSON.stringify(state));
   }catch(e){
     console.error("Local save failed", e);
+    try{
+      const msg = String(e && (e.message || e.name) || "");
+      if(/quota|storage|space/i.test(msg)){
+        alert("Speichern fehlgeschlagen: Das Foto ist wahrscheinlich zu groß. Bitte erneut wählen oder ein kleineres Bild verwenden.");
+      }
+    }catch(_){ }
   }
   SYNC.localSavedAt = (state && state._localUpdatedAt) ? state._localUpdatedAt : Date.now();
   updateSyncUI();
