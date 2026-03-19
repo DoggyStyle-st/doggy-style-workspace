@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9DT_AI_MAINAPP_SAVEFIX_MASTER_20260319",
+  tag: "M50.9.9DU_AI_MAINAPP_SAVEBACK_MASTER_20260320",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9DT_AI_MAINAPP_SAVEFIX_MASTER_20260319";
+const APP_BUILD = "M50.9.9DU_AI_MAINAPP_SAVEBACK_MASTER_20260320";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -7991,38 +7991,6 @@ function cpRefreshProfilePhotoPreview(){
   if(cpProfilePhotoDataUrl){ img.src = cpProfilePhotoDataUrl; img.style.display = "block"; btn.style.display = "inline-flex"; }
   else { img.removeAttribute('src'); img.style.display = "none"; btn.style.display = "none"; }
 }
-async function cpReadImageFileSmall(file, kind){
-  if(!file) return "";
-  const maxW = kind === "vaccination" ? 1280 : 960;
-  const maxH = kind === "vaccination" ? 1280 : 960;
-  const quality = kind === "vaccination" ? 0.72 : 0.78;
-  const toDataUrl = (blob)=>new Promise((resolve,reject)=>{
-    const r = new FileReader();
-    r.onload = ()=>resolve(String(r.result||''));
-    r.onerror = ()=>reject(r.error||new Error('read failed'));
-    r.readAsDataURL(blob);
-  });
-  try{
-    if(!/^image\//i.test(String(file.type||''))){
-      return await toDataUrl(file);
-    }
-    const bmp = await createImageBitmap(file);
-    const scale = Math.min(1, maxW / (bmp.width||1), maxH / (bmp.height||1));
-    const w = Math.max(1, Math.round((bmp.width||1) * scale));
-    const h = Math.max(1, Math.round((bmp.height||1) * scale));
-    const canvas = document.createElement('canvas');
-    canvas.width = w; canvas.height = h;
-    const ctx = canvas.getContext('2d', { alpha:false });
-    ctx.drawImage(bmp, 0, 0, w, h);
-    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', quality));
-    if(!blob) return await toDataUrl(file);
-    return await toDataUrl(blob);
-  }catch(e){
-    console.warn('cpReadImageFileSmall failed, fallback original', e);
-    try{ return await toDataUrl(file); }catch(_){ return ''; }
-  }
-}
-
 function cpWirePetPhotoInputs(){
   const vaccInput = document.getElementById("p_vaccinationPhoto");
   const vaccBtn = document.getElementById("p_vaccinationPhotoRemove");
@@ -8030,10 +7998,9 @@ function cpWirePetPhotoInputs(){
   const profileBtn = document.getElementById("p_profilePhotoRemove");
   if(vaccInput && !vaccInput.dataset.wired){
     vaccInput.dataset.wired='1';
-    vaccInput.addEventListener('change', async ()=>{
+    vaccInput.addEventListener('change', ()=>{
       const f=vaccInput.files && vaccInput.files[0]; if(!f) return;
-      cpVaccinationPassDataUrl = await cpReadImageFileSmall(f, 'vaccination');
-      cpRefreshVaccinationPhotoPreview();
+      const r=new FileReader(); r.onload=()=>{ cpVaccinationPassDataUrl=String(r.result||''); cpRefreshVaccinationPhotoPreview(); }; r.readAsDataURL(f);
     });
   }
   if(vaccBtn && !vaccBtn.dataset.wired){
@@ -8042,10 +8009,9 @@ function cpWirePetPhotoInputs(){
   }
   if(profileInput && !profileInput.dataset.wired){
     profileInput.dataset.wired='1';
-    profileInput.addEventListener('change', async ()=>{
+    profileInput.addEventListener('change', ()=>{
       const f=profileInput.files && profileInput.files[0]; if(!f) return;
-      cpProfilePhotoDataUrl = await cpReadImageFileSmall(f, 'profile');
-      cpRefreshProfilePhotoPreview();
+      const r=new FileReader(); r.onload=()=>{ cpProfilePhotoDataUrl=String(r.result||''); cpRefreshProfilePhotoPreview(); }; r.readAsDataURL(f);
     });
   }
   if(profileBtn && !profileBtn.dataset.wired){
@@ -10107,8 +10073,7 @@ try{
     };
   }
 }catch(_){}
-$("#btnCpSave").addEventListener("click",(ev)=>{
-  try{ ev.preventDefault(); ev.stopPropagation(); }catch(_){ }
+$("#btnCpSave").addEventListener("click",()=>{
   ensureStateShape();
   ensureContractDefaults();
   const mode = cpEdit.mode;
