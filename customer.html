@@ -7,7 +7,7 @@
   <link href="manifest.json" rel="manifest"/>
   <meta name="theme-color" content="#101014"/>
   <link href="assets/logo.png" rel="apple-touch-icon"/>
-  <link href="styles.css?v=M50.9.9DJ_AI_CUSTOMERPORTAL_MAINAPPSYNC_MASTER_20260319" rel="stylesheet"/>
+  <link href="styles.css?v=M50.9.9DK_AI_CUSTOMERPORTAL_MEDSYNC_MASTER_20260319" rel="stylesheet"/>
   <style>
     body.bg-watermark{background:radial-gradient(circle at top, rgba(255,255,255,.08), transparent 35%), linear-gradient(180deg,#0e1017 0%, #121521 100%) !important}
     body.bg-watermark::before{opacity:.12 !important;filter:none !important}
@@ -44,14 +44,6 @@
     .customer-check{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:14px;background:rgba(17,20,29,.55);border:1px solid rgba(255,255,255,.10)}
     .customer-check input{width:auto;margin-top:3px}
     .customer-help{font-size:13px;color:#e7e7ef}
-    .customer-upload{display:grid;gap:10px}
-    .customer-preview{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px}
-    .customer-preview img{max-width:220px;max-height:160px;border-radius:12px;border:1px solid rgba(255,255,255,.18)}
-    .customer-contract-box{max-height:260px;overflow:auto;padding:14px;border-radius:14px;background:rgba(17,20,29,.40);border:1px solid rgba(255,255,255,.12);line-height:1.5}
-    .customer-contract-box ul{margin:10px 0 0 18px}
-    .customer-signature{display:grid;gap:10px}
-    .customer-signature canvas{width:100%;height:180px;background:#fff;border-radius:14px;border:1px solid rgba(255,255,255,.16);touch-action:none}
-    .customer-sign-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
     #customerTaskSaveHint{color:#f0f0f7}
     @media (max-width:800px){
       .customer-nav .btn{min-width:unset;flex:1 1 calc(50% - 10px)}
@@ -126,17 +118,17 @@
     <div class="customer-hidden" id="customerTaskListCard"></div>
     <div class="customer-hidden list" id="customerTaskList"></div>
     <div class="customer-hidden" id="customerPortalSubtitle"></div>
-    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9DJ_AI_CUSTOMERPORTAL_MAINAPPSYNC_MASTER_20260319</div>
+    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9DK_AI_CUSTOMERPORTAL_MEDSYNC_MASTER_20260319</div>
   </main>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=M50.9.9DJ_AI_CUSTOMERPORTAL_MAINAPPSYNC_MASTER_20260319"></script>
-  <script src="app.js?v=M50.9.9DJ_AI_CUSTOMERPORTAL_MAINAPPSYNC_MASTER_20260319"></script>
+  <script src="firebase-config.js?v=M50.9.9DK_AI_CUSTOMERPORTAL_MEDSYNC_MASTER_20260319"></script>
+  <script src="app.js?v=M50.9.9DK_AI_CUSTOMERPORTAL_MEDSYNC_MASTER_20260319"></script>
   <script>
     (function(){
-      const BUILD = 'Build CUSTOMER M50.9.9DJ_AI_CUSTOMERPORTAL_MAINAPPSYNC_MASTER_20260319';
+      const BUILD = 'Build CUSTOMER M50.9.9DK_AI_CUSTOMERPORTAL_MEDSYNC_MASTER_20260319';
       const DRAFT_KEY = 'ds_customer_app_drafts_v1';
       const viewNames = ['home','dogs','contract','stay'];
       let currentView = 'home';
@@ -260,35 +252,16 @@
       function checkboxField(label, key, checked){
         return '<label class="customer-check"><input type="checkbox" data-key="'+esc(key)+'" '+(checked?'checked':'')+'><span>'+esc(label)+'</span></label>';
       }
-      function fileField(label, key, value=''){
-        const has = value ? '<div class="customer-preview"><img src="'+esc(value)+'" alt="Upload Vorschau"><button class="btn" type="button" data-clear-upload="'+esc(key)+'">Foto entfernen</button></div>' : '<div class="customer-help">Noch kein Foto hochgeladen.</div>';
-        return '<div class="customer-upload"><label class="customer-label">'+esc(label)+'</label><input class="customer-input" type="file" accept="image/*" data-upload-key="'+esc(key)+'">'+has+'<input type="hidden" data-key="'+esc(key)+'" value="'+esc(value)+'"></div>';
-      }
-      function contractText(){
-        return '<div class="customer-contract-box"><strong>Betreuungsvertrag – wesentliche Punkte</strong><ul><li>Der Hund muss gesund, haftpflichtversichert und altersgerecht geimpft sein.</li><li>Impfpass, Medikamente, Unverträglichkeiten und besondere Verhaltenshinweise müssen vollständig angegeben werden.</li><li>Im Notfall darf eine tierärztliche Versorgung nach bestem Wissen veranlasst werden.</li><li>Bring- und Abholzeiten sowie die vereinbarte Betreuungsart gelten verbindlich.</li><li>Mit deiner Bestätigung erklärst du, dass alle Angaben vollständig und wahrheitsgemäß sind.</li></ul></div>';
-      }
-      function signatureField(label, key, value=''){
-        return '<div class="customer-signature"><label class="customer-label">'+esc(label)+'</label><canvas id="customerSignatureCanvas" width="900" height="300"></canvas><div class="customer-sign-row"><button class="btn" type="button" id="btnClearCustomerSignature">Unterschrift löschen</button><span class="customer-help">Bitte hier mit dem Finger unterschreiben.</span></div><input type="hidden" data-key="'+esc(key)+'" value="'+esc(value)+'"></div>';
-      }
-
       function buildInitialData(task){
         const { customer, pet } = getContext();
         const draft = getDraft(task.id || task.taskId || task.templateId);
         const payload = Object.assign({}, task?.payloadDraft?.fields || {}, task?.payloadSubmitted?.fields || {});
         const base = {
           fullName: customer.name || '', email: customer.email || '', phone: customer.phone || '', street: customer.street || '', zip: customer.zip || '', city: customer.city || '',
-          emergencyName: customer.emergencyName || '', emergencyPhone: customer.emergencyPhone || '', pickupAuth: customer.pickupAuth || '', customerNote: customer.notes || '',
-          dogName: pet.name || '', breed: pet.breed || '', birthDate: pet.birthDate || '', sex: pet.sex || '',
-          chipStatus: pet.chipStatus || '', chipNumber: pet.chipNumber || '', vet: pet.vet || '', vetPhone: pet.vetPhone || '',
-          vaccinatedConfirmed: !!(pet.vaccinatedConfirmed || pet.vaccinated || false), rabiesDate: pet.rabiesDate || '', mixedVaccineDate: pet.mixedVaccineDate || '', vaccinationPhoto: pet.vaccinationPhoto || '',
-          dewormingDate: pet.dewormingDate || '', fleaTickProtection: pet.fleaTickProtection || '',
-          liabilityConfirmed: !!pet.liabilityConfirmed, liabilityProvider: pet.liabilityProvider || '', liabilityPolicy: pet.liabilityPolicy || '',
-          allergies: pet.allergies || '', meds: pet.meds || '', medicationPlan: pet.medicationPlan || '', medicationTimes: pet.medicationTimes || '',
-          food: pet.food || '', feeding: pet.feeding || '', feedTimes: pet.feedTimes || '',
-          compatDogs: pet.compatDogs || '', compatCats: pet.compatCats || '', compatKids: pet.compatKids || '', aloneStay: pet.aloneStay || '',
-          behavior: pet.behavior || '', notes: pet.notes || '',
-          customerName: customer.name || '', serviceType: 'Urlaubsbetreuung', contractAccepted: false, contractHouseRules:false, contractEmergencyConsent:false, contractDataTruth:false, contractVaccinationProof:false, contractMediaNote:false, contractSignature:'',
-          startDate: '', endDate: '', betreuung: 'Urlaubsbetreuung', stayArrivalTime:'', stayDepartureTime:'', stayFood:'', stayMeds:'', stayMedicationTimes:'', stayNotes:'', stayEmergencyContact: customer.emergencyPhone || '', bringItems:'', staySignature:''
+          dogName: pet.name || '', breed: pet.breed || '', birthDate: pet.birthDate || '', sex: pet.sex || '', notes: pet.notes || '',
+          customerNote: customer.notes || '', emergencyPhone: customer.emergencyPhone || '', emergencyName: customer.emergencyName || '',
+          customerName: customer.name || '', serviceType: 'Urlaubsbetreuung', contractAccepted: false, vet: pet.vet || '',
+          startDate: '', endDate: '', betreuung: 'Urlaubsbetreuung', stayNotes: ''
         };
         return Object.assign(base, payload, draft);
       }
@@ -303,8 +276,8 @@
         const titleMap = { customer_data:'Kunde/Hund bearbeiten', boarding_contract:'Betreuungsvertrag', hundeannahme:'Neuer Aufenthalt' };
         const metaMap = {
           customer_data:'Hier kannst du deine Kunden- und Hundedaten prüfen und ändern.',
-          boarding_contract:'Hier kannst du den Vertrag lesen, bestätigen und unterschreiben.',
-          hundeannahme:'Hier kannst du einen neuen Aufenthalt mit allen wichtigen Angaben vorbereiten.'
+          boarding_contract:'Hier kannst du Vertragsdaten ergänzen und bestätigen.',
+          hundeannahme:'Hier kannst du einen neuen Aufenthalt vorbereiten.'
         };
         if(titleEl) titleEl.textContent = titleMap[task.templateId] || 'Formular';
         if(metaEl) metaEl.textContent = metaMap[task.templateId] || '';
@@ -318,132 +291,54 @@
             + field('Straße / Hausnummer','street','text',currentData.street)
             + field('PLZ','zip','text',currentData.zip)
             + field('Ort','city','text',currentData.city)
-            + field('Notfallkontakt Name','emergencyName','text',currentData.emergencyName)
-            + field('Notfallkontakt Telefon','emergencyPhone','text',currentData.emergencyPhone)
-            + '</div>' + field('Abholberechtigte Personen','pickupAuth','textarea',currentData.pickupAuth) + field('Hinweise zum Kunden','customerNote','textarea',currentData.customerNote) + '</div>';
+            + '</div></div>';
           html += '<div class="customer-block"><h3>Hund</h3><div class="customer-field-grid">'
             + field('Hundename','dogName','text',currentData.dogName)
             + field('Rasse','breed','text',currentData.breed)
             + field('Geburtsdatum','birthDate','date',currentData.birthDate)
             + selectField('Geschlecht','sex',[{value:'',label:'Bitte auswählen...'},{value:'männlich',label:'männlich'},{value:'weiblich',label:'weiblich'}],currentData.sex)
-            + selectField('Gechippt?','chipStatus',[{value:'',label:'Bitte auswählen...'},{value:'yes',label:'Ja'},{value:'no',label:'Nein'}],currentData.chipStatus)
-            + field('Chipnummer','chipNumber','text',currentData.chipNumber)
             + field('Tierarzt / Praxis','vet','text',currentData.vet)
             + field('Telefon Tierarzt','vetPhone','text',currentData.vetPhone)
-            + field('Letzte Tollwut-Impfung','rabiesDate','date',currentData.rabiesDate)
-            + field('Letzte Kombi-Impfung','mixedVaccineDate','date',currentData.mixedVaccineDate)
-            + field('Letzte Entwurmung','dewormingDate','date',currentData.dewormingDate)
-            + field('Floh-/Zeckenschutz','fleaTickProtection','text',currentData.fleaTickProtection)
             + '</div>'
             + checkboxField('Ich bestätige, dass mein Hund altersgerecht und aktuell geimpft ist.','vaccinatedConfirmed',!!currentData.vaccinatedConfirmed)
-            + checkboxField('Ich bestätige, dass für meinen Hund eine Haftpflichtversicherung besteht.','liabilityConfirmed',!!currentData.liabilityConfirmed)
-            + field('Versicherung','liabilityProvider','text',currentData.liabilityProvider)
-            + field('Versicherungsnummer','liabilityPolicy','text',currentData.liabilityPolicy)
-            + fileField('Foto vom Impfpass','vaccinationPhoto',currentData.vaccinationPhoto)
+            + '<div class="customer-field-grid">'
+            + field('Letzte Tollwut-Impfung','rabiesDate','date',currentData.rabiesDate)
+            + field('Letzte Kombi-Impfung','mixedVaccineDate','date',currentData.mixedVaccineDate)
+            + '</div>'
             + field('Allergien / Unverträglichkeiten','allergies','textarea',currentData.allergies)
-            + field('Aktuelle Medikamente','meds','textarea',currentData.meds)
-            + field('Medikationsplan / Dosierung','medicationPlan','textarea',currentData.medicationPlan)
-            + field('Medikamentengabe Zeiten','medicationTimes','text',currentData.medicationTimes)
-            + field('Futter','food','text',currentData.food)
-            + field('Fütterung / Menge','feeding','textarea',currentData.feeding)
-            + field('Fütterungszeiten','feedTimes','text',currentData.feedTimes)
-            + field('Verträglichkeit mit Hunden','compatDogs','text',currentData.compatDogs)
-            + field('Verträglichkeit mit Katzen','compatCats','text',currentData.compatCats)
-            + field('Verträglichkeit mit Kindern','compatKids','text',currentData.compatKids)
-            + field('Alleinbleiben','aloneStay','text',currentData.aloneStay)
-            + field('Verhalten / Besonderheiten','behavior','textarea',currentData.behavior)
-            + field('Wichtige Hinweise','notes','textarea',currentData.notes) + '</div>';
+            + field('Wichtige Hinweise','notes','textarea',currentData.notes)
+            + '</div>';
+          html += '<div class="customer-block"><h3>Dauermedikation (Plan)</h3><div class="customer-field-grid">'
+            + field('Medikament','medPlanName','text',currentData.medPlanName)
+            + field('Dosis','medPlanDose','text',currentData.medPlanDose)
+            + field('Einheit','medPlanUnit','text',currentData.medPlanUnit)
+            + field('Uhrzeiten (Komma)','medPlanTimes','text',currentData.medPlanTimes)
+            + '</div>'
+            + field('Hinweise zur Medikation','medPlanNotes','textarea',currentData.medPlanNotes)
+            + checkboxField('Freigabe des Halters liegt vor.','medPlanOwnerApproval',!!currentData.medPlanOwnerApproval)
+            + '</div>';
         } else if(task.templateId === 'boarding_contract'){
-          html += '<div class="customer-block"><h3>Vertragstext</h3>' + contractText() + '</div>';
           html += '<div class="customer-block"><h3>Vertragsdaten</h3><div class="customer-field-grid">'
             + field('Kundenname','customerName','text',currentData.customerName)
             + field('Hundename','dogName','text',currentData.dogName)
             + selectField('Betreuungsart','serviceType',[{value:'Tagesbetreuung',label:'Tagesbetreuung'},{value:'Urlaubsbetreuung',label:'Urlaubsbetreuung'},{value:'Probetag',label:'Probetag'}],currentData.serviceType)
             + field('Notfallnummer','emergencyPhone','text',currentData.emergencyPhone)
-            + field('Tierarzt / Praxis','vet','text',currentData.vet)
-            + field('Besondere Hinweise / Wünsche','notes','textarea',currentData.notes)
-            + '</div>'
-            + checkboxField('Ich habe den Betreuungsvertrag gelesen und stimme zu.','contractAccepted',!!currentData.contractAccepted)
-            + checkboxField('Ich bestätige, dass mein Hund geimpft, gesund und für die Betreuung geeignet ist.','contractHouseRules',!!currentData.contractHouseRules)
-            + checkboxField('Ich erlaube im Notfall die notwendige tierärztliche Versorgung.','contractEmergencyConsent',!!currentData.contractEmergencyConsent)
-            + checkboxField('Ich bestätige, dass der Impfpass vorliegt bzw. nachgewiesen wird.','contractVaccinationProof',!!currentData.contractVaccinationProof)
-            + checkboxField('Ich bestätige, dass meine Angaben vollständig und wahrheitsgemäß sind.','contractDataTruth',!!currentData.contractDataTruth)
-            + signatureField('Unterschrift Halter/in','contractSignature',currentData.contractSignature)
-            + '</div>';
+            + '</div>' + checkboxField('Ich habe den Betreuungsvertrag gelesen und stimme zu.','contractAccepted',!!currentData.contractAccepted) + field('Besondere Hinweise','notes','textarea',currentData.notes) + '</div>';
         } else {
           html += '<div class="customer-block"><h3>Aufenthaltsanfrage</h3><div class="customer-field-grid">'
             + field('Hundename','dogName','text',currentData.dogName)
             + field('Von','startDate','date',currentData.startDate)
             + field('Bis','endDate','date',currentData.endDate)
             + selectField('Betreuungsart','betreuung',[{value:'Urlaubsbetreuung',label:'Urlaubsbetreuung'},{value:'Tagesbetreuung',label:'Tagesbetreuung'},{value:'Probetag',label:'Probetag'}],currentData.betreuung)
-            + field('Bringen um','stayArrivalTime','time',currentData.stayArrivalTime)
-            + field('Abholen um','stayDepartureTime','time',currentData.stayDepartureTime)
-            + '</div>'
-            + field('Futter für den Aufenthalt','stayFood','textarea',currentData.stayFood)
-            + field('Medikamente / Dosierung','stayMeds','textarea',currentData.stayMeds)
-            + field('Zeiten der Medikamentengabe','stayMedicationTimes','text',currentData.stayMedicationTimes)
-            + field('Hinweise zum Aufenthalt','stayNotes','textarea',currentData.stayNotes)
-            + field('Mitbringen (Leine, Futter, Bett, Impfpass usw.)','bringItems','textarea',currentData.bringItems)
-            + field('Notfallkontakt während des Aufenthalts','stayEmergencyContact','text',currentData.stayEmergencyContact)
-            + checkboxField('Ich bestätige, dass die Angaben für den Aufenthalt vollständig sind.','contractDataTruth',!!currentData.contractDataTruth)
-            + signatureField('Unterschrift für die Aufenthaltsanfrage','staySignature',currentData.staySignature)
-            + '</div>';
+            + '</div>' + field('Hinweise zum Aufenthalt','stayNotes','textarea',currentData.stayNotes) + '</div>';
         }
         html += '</div>';
         root.innerHTML = html;
         wrap.classList.add('is-active');
         document.querySelectorAll('.customer-panel').forEach(el=>el.classList.remove('is-active'));
         bindEditorInputs();
-        bindUploadInputs();
-        bindSignaturePad();
         setStatus('Editor ' + task.templateId);
       }
-
-      function bindUploadInputs(){
-        document.querySelectorAll('#formRoot [data-upload-key]').forEach(input=>{
-          input.addEventListener('change', ()=>{
-            const key = input.dataset.uploadKey;
-            const file = input.files && input.files[0];
-            if(!file) return;
-            const reader = new FileReader();
-            reader.onload = ()=>{
-              const hidden = document.querySelector('#formRoot [data-key="'+key+'"]');
-              if(hidden) hidden.value = String(reader.result || '');
-              currentData = collectEditorData();
-              if(currentTask) setDraft(currentTask.id || currentTask.taskId || currentTask.templateId, currentData);
-              renderEditor(currentTask);
-            };
-            reader.readAsDataURL(file);
-          });
-        });
-        document.querySelectorAll('#formRoot [data-clear-upload]').forEach(btn=>{
-          btn.addEventListener('click', ()=>{
-            const key = btn.dataset.clearUpload;
-            const hidden = document.querySelector('#formRoot [data-key="'+key+'"]');
-            if(hidden) hidden.value='';
-            currentData = collectEditorData();
-            if(currentTask) setDraft(currentTask.id || currentTask.taskId || currentTask.templateId, currentData);
-            renderEditor(currentTask);
-          });
-        });
-      }
-      function bindSignaturePad(){
-        const canvas = document.getElementById('customerSignatureCanvas');
-        if(!canvas) return;
-        const hidden = document.querySelector('#formRoot [data-key="contractSignature"], #formRoot [data-key="staySignature"]');
-        const ctx = canvas.getContext('2d');
-        ctx.lineWidth = 2.2; ctx.lineCap='round'; ctx.strokeStyle='#111';
-        let drawing=false; let moved=false;
-        function pos(e){ const r=canvas.getBoundingClientRect(); const t=e.touches&&e.touches[0]?e.touches[0]:e; return {x:(t.clientX-r.left)*(canvas.width/r.width), y:(t.clientY-r.top)*(canvas.height/r.height)}; }
-        function start(e){ drawing=true; moved=false; const p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); e.preventDefault(); }
-        function move(e){ if(!drawing) return; const p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); moved=true; e.preventDefault(); }
-        function end(){ if(!drawing) return; drawing=false; if(hidden && moved){ hidden.value = canvas.toDataURL('image/png'); currentData = collectEditorData(); if(currentTask) setDraft(currentTask.id || currentTask.taskId || currentTask.templateId, currentData); } }
-        if(hidden && hidden.value){ const img=new Image(); img.onload=()=>ctx.drawImage(img,0,0,canvas.width,canvas.height); img.src=hidden.value; }
-        canvas.addEventListener('pointerdown', start); canvas.addEventListener('pointermove', move); window.addEventListener('pointerup', end);
-        canvas.addEventListener('touchstart', start, {passive:false}); canvas.addEventListener('touchmove', move, {passive:false}); window.addEventListener('touchend', end, {passive:false});
-        document.getElementById('btnClearCustomerSignature')?.addEventListener('click', ()=>{ ctx.clearRect(0,0,canvas.width,canvas.height); if(hidden) hidden.value=''; currentData = collectEditorData(); if(currentTask) setDraft(currentTask.id || currentTask.taskId || currentTask.templateId, currentData); });
-      }
-
       function collectEditorData(){
         const data = Object.assign({}, currentData);
         document.querySelectorAll('#formRoot [data-key]').forEach(el=>{ data[el.dataset.key] = el.type === 'checkbox' ? !!el.checked : el.value; });

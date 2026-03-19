@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9DJ_AI_CUSTOMERPORTAL_MAINAPPSYNC_MASTER_20260319",
+  tag: "M50.9.9DK_AI_CUSTOMERPORTAL_MEDSYNC_MASTER_20260319",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9DJ_AI_CUSTOMERPORTAL_MAINAPPSYNC_MASTER_20260319";
+const APP_BUILD = "M50.9.9DK_AI_CUSTOMERPORTAL_MEDSYNC_MASTER_20260319";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -6149,15 +6149,7 @@ const EMBEDDED_HUNDEANNAHME_TEMPLATE = {
     { key: "von", label: "Von", type: "date" },
     { key: "bis", label: "Bis", type: "date" },
     { key: "betreuung", label: "Betreuung", type: "text" },
-    { key: "stayArrivalTime", label: "Bringen um", type: "time" },
-        { key: "stayDepartureTime", label: "Abholen um", type: "time" },
-        { key: "stayFood", label: "Futter für den Aufenthalt", type: "textarea" },
-        { key: "stayMeds", label: "Medikamente / Dosierung", type: "textarea" },
-        { key: "stayMedicationTimes", label: "Zeiten der Medikamentengabe", type: "text" },
-        { key: "stayEmergencyContact", label: "Notfallkontakt", type: "text" },
-        { key: "bringItems", label: "Mitbringen", type: "textarea" },
-        { key: "notes", label: "Notizen", type: "textarea" },
-        { key: "staySignature", label: "Unterschrift (DataURL)", type: "textarea" }
+    { key: "notes", label: "Notizen", type: "textarea" }
   ],
   meta: { embedded: true }
 };
@@ -6192,7 +6184,9 @@ const EMBEDDED_CUSTOMER_DATA_TEMPLATE = {
         { key: "vet", label: "Tierarzt / Praxis", type: "text" },
         { key: "vetPhone", label: "Telefon Tierarzt", type: "text" },
         { key: "allergies", label: "Allergien / Unverträglichkeiten", type: "textarea" },
-        { key: "meds", label: "Medikamente", type: "textarea" },
+        { key: "vaccinatedConfirmed", label: "Hund ist altersgerecht und aktuell geimpft", type: "checkbox" },
+        { key: "rabiesDate", label: "Letzte Tollwut-Impfung", type: "date" },
+        { key: "mixedVaccineDate", label: "Letzte Kombi-Impfung", type: "date" },
         { key: "food", label: "Futter", type: "text" },
         { key: "feeding", label: "Fütterung", type: "textarea" },
         { key: "compat", label: "Verträglichkeit", type: "textarea" },
@@ -6218,11 +6212,7 @@ const EMBEDDED_BOARDING_CONTRACT_TEMPLATE = {
         { key: "customerName", label: "Kundenname", type: "text", required: true },
         { key: "dogName", label: "Hundename", type: "text", required: true },
         { key: "serviceType", label: "Betreuungsart", type: "select", options: ["Tagesbetreuung", "Urlaubsbetreuung", "Probetag"] },
-        { key: "contractAccepted", label: "Ich habe den Betreuungsvertrag gelesen und stimme zu", type: "checkbox", required: true },
-        { key: "contractHouseRules", label: "Hund ist gesund, geimpft und betreuungsfähig", type: "checkbox" },
-        { key: "contractEmergencyConsent", label: "Tierärztliche Versorgung im Notfall erlaubt", type: "checkbox" },
-        { key: "contractVaccinationProof", label: "Impfpass liegt vor / wird nachgewiesen", type: "checkbox" },
-        { key: "contractDataTruth", label: "Angaben sind vollständig und wahrheitsgemäß", type: "checkbox" }
+        { key: "contractAccepted", label: "Ich habe den Betreuungsvertrag gelesen und stimme zu", type: "checkbox", required: true }
       ]
     },
     {
@@ -6230,8 +6220,7 @@ const EMBEDDED_BOARDING_CONTRACT_TEMPLATE = {
       fields: [
         { key: "vet", label: "Tierarzt / Praxis", type: "text" },
         { key: "emergencyPhone", label: "Notfallnummer", type: "text" },
-        { key: "notes", label: "Besondere Hinweise", type: "textarea" },
-        { key: "contractSignature", label: "Unterschrift (DataURL)", type: "textarea" }
+        { key: "notes", label: "Besondere Hinweise", type: "textarea" }
       ]
     }
   ],
