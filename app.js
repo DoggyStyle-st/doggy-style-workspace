@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9DY_AI_MAINAPP_PHOTOSTORAGE_MASTER_20260320",
+  tag: "M50.9.9DZ_AI_MAINAPP_PHOTOSTORAGEFIX_MASTER_20260320",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9DY_AI_MAINAPP_PHOTOSTORAGE_MASTER_20260320";
+const APP_BUILD = "M50.9.9DZ_AI_MAINAPP_PHOTOSTORAGEFIX_MASTER_20260320";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -7983,9 +7983,14 @@ async function cpUploadPetPhotoToStorage(file, kind){
   if(!file) return "";
   try{
     if(!(window.firebase && firebase.storage && firebase.auth)) throw new Error("Firebase Storage nicht verfügbar.");
-    const user = firebase.auth().currentUser;
+    if(!(window.firebase.apps && window.firebase.apps.length)){
+      if(!window.firebaseConfig) throw new Error("Firebase Konfiguration fehlt.");
+      window.firebase.initializeApp(window.firebaseConfig);
+    }
+    const auth = firebase.auth();
+    const user = auth.currentUser;
     if(!user) throw new Error("Nicht angemeldet.");
-    const orgId = (window.CLOUD && CLOUD.orgId) ? CLOUD.orgId : "default";
+    const orgId = (window.CLOUD && CLOUD.orgId) ? CLOUD.orgId : (window.firebaseOrgId || "default");
     const petKey = (cpEdit && cpEdit.petId) ? cpEdit.petId : ('tmp_'+Date.now()+'_'+Math.random().toString(36).slice(2,8));
     const safeName = String(file.name||'bild.jpg').replace(/[^a-zA-Z0-9._-]+/g,'_');
     const ext = (safeName.split('.').pop()||'jpg').toLowerCase();
