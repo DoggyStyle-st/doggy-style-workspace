@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9DZ_AI_MAINAPP_PHOTOSTORAGEFIX_MASTER_20260320",
+  tag: "M50.9.9DY_AI_MAINAPP_PHOTOSTORAGE_MASTER_20260320",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9DZ_AI_MAINAPP_PHOTOSTORAGEFIX_MASTER_20260320";
+const APP_BUILD = "M50.9.9DY_AI_MAINAPP_PHOTOSTORAGE_MASTER_20260320";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -7979,18 +7979,55 @@ function clearCpEditor(){
 let cpVaccinationPassDataUrl = "";
 let cpProfilePhotoDataUrl = "";
 
+async function cpWaitForFirebaseUser(timeoutMs){
+  const timeout = Number(timeoutMs||8000);
+  const started = Date.now();
+  async function ensureInit(){
+    try{
+      if(!(window.firebase && firebase.auth && firebase.storage)){
+        if(typeof initCloud==='function') await initCloud();
+      } else if(!(window.CLOUD && CLOUD.auth)){
+        if(typeof initCloud==='function') await initCloud();
+      }
+    }catch(_){ }
+  }
+  await ensureInit();
+  try{
+    if(window.firebase && firebase.auth){
+      let u = (window.CLOUD && CLOUD.auth && CLOUD.auth.currentUser) || firebase.auth().currentUser || (window.CLOUD && CLOUD.user) || null;
+      if(u) return u;
+      u = await new Promise((resolve)=>{
+        let done = false;
+        const finish = (val)=>{ if(done) return; done=true; try{ unsub && unsub(); }catch(_){ } resolve(val||null); };
+        const remaining = Math.max(250, timeout - (Date.now()-started));
+        const timer = setTimeout(()=>finish((window.CLOUD && CLOUD.auth && CLOUD.auth.currentUser) || (window.firebase&&firebase.auth?firebase.auth().currentUser:null) || (window.CLOUD && CLOUD.user) || null), remaining);
+        let unsub = null;
+        try{
+          const auth = (window.CLOUD && CLOUD.auth) || firebase.auth();
+          if(auth && auth.onAuthStateChanged){
+            unsub = auth.onAuthStateChanged((user)=>{ clearTimeout(timer); finish(user || (window.CLOUD && CLOUD.user) || null); });
+          } else {
+            clearTimeout(timer); finish((window.CLOUD && CLOUD.user) || null);
+          }
+        }catch(_){ clearTimeout(timer); finish((window.CLOUD && CLOUD.user) || null); }
+      });
+      return u || null;
+    }
+  }catch(_){ }
+  return (window.CLOUD && (CLOUD.user || (CLOUD.auth && CLOUD.auth.currentUser))) || null;
+}
+
 async function cpUploadPetPhotoToStorage(file, kind){
   if(!file) return "";
   try{
-    if(!(window.firebase && firebase.storage && firebase.auth)) throw new Error("Firebase Storage nicht verfügbar.");
-    if(!(window.firebase.apps && window.firebase.apps.length)){
-      if(!window.firebaseConfig) throw new Error("Firebase Konfiguration fehlt.");
-      window.firebase.initializeApp(window.firebaseConfig);
+    if(!(window.firebase && firebase.storage && firebase.auth)){
+      if(typeof initCloud==='function') await initCloud();
     }
-    const auth = firebase.auth();
-    const user = auth.currentUser;
-    if(!user) throw new Error("Nicht angemeldet.");
-    const orgId = (window.CLOUD && CLOUD.orgId) ? CLOUD.orgId : (window.firebaseOrgId || "default");
+    if(!(window.firebase && firebase.storage && firebase.auth)) throw new Error("Firebase Storage nicht verfügbar.");
+    cpSetStatus((kind==='vaccpass' ? 'Impfpassfoto' : 'Profilfoto') + ' wird vorbereitet …');
+    const user = await cpWaitForFirebaseUser(8000);
+    if(!user || !user.uid) throw new Error("Nicht angemeldet.");
+    const orgId = (window.CLOUD && CLOUD.orgId) ? CLOUD.orgId : "default";
     const petKey = (cpEdit && cpEdit.petId) ? cpEdit.petId : ('tmp_'+Date.now()+'_'+Math.random().toString(36).slice(2,8));
     const safeName = String(file.name||'bild.jpg').replace(/[^a-zA-Z0-9._-]+/g,'_');
     const ext = (safeName.split('.').pop()||'jpg').toLowerCase();
