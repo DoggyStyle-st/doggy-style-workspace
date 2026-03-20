@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9EA_AI_MAINAPP_PHOTOAUTHFIX_MASTER_20260320",
+  tag: "M50.9.9EC_AI_MAINAPP_PHOTOAUTHFIX2_MASTER_20260320",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9EA_AI_MAINAPP_PHOTOAUTHFIX_MASTER_20260320";
+const APP_BUILD = "M50.9.9EC_AI_MAINAPP_PHOTOAUTHFIX2_MASTER_20260320";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -7985,9 +7985,9 @@ async function cpWaitForFirebaseUser(timeoutMs){
   async function ensureInit(){
     try{
       if(!(window.firebase && firebase.auth && firebase.storage)){
-        if(typeof initCloud==='function') await initCloud();
+        if(typeof cloudInit==='function') await cloudInit();
       } else if(!(window.CLOUD && CLOUD.auth)){
-        if(typeof initCloud==='function') await initCloud();
+        if(typeof cloudInit==='function') await cloudInit();
       }
     }catch(_){ }
   }
@@ -8021,7 +8021,7 @@ async function cpUploadPetPhotoToStorage(file, kind){
   if(!file) return "";
   try{
     if(!(window.firebase && firebase.storage && firebase.auth)){
-      if(typeof initCloud==='function') await initCloud();
+      if(typeof cloudInit==='function') await cloudInit();
     }
     if(!(window.firebase && firebase.storage && firebase.auth)) throw new Error("Firebase Storage nicht verfügbar.");
     cpSetStatus((kind==='vaccpass' ? 'Impfpassfoto' : 'Profilfoto') + ' wird vorbereitet …');
