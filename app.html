@@ -603,22 +603,10 @@
 <details class="opt" open="">
 <summary>Gesundheit &amp; Impfstatus</summary>
 <div class="row" style="flex-wrap:wrap; gap:12px; margin-top:10px;">
-<label class="field"><span>Tierarzt / Praxis</span><input id="p_vet" type="text" placeholder="Name der Praxis oder Tierarzt"/></label>
+<label class="field"><span>Tierarzt (Name/Ort)</span><input id="p_vet" type="text"/></label>
 <label class="field"><span>Tierarzt Telefon</span><input id="p_vetPhone" type="tel"/></label>
-<label class="field"><span>Tierarzt E-Mail</span><input id="p_vetEmail" type="email"/></label>
-<label class="field"><span>Straße / Hausnummer Tierarzt</span><input id="p_vetStreet" type="text"/></label>
-<label class="field"><span>PLZ Tierarzt</span><input id="p_vetZip" type="text"/></label>
-<label class="field"><span>Ort Tierarzt</span><input id="p_vetCity" type="text"/></label>
-<label class="field"><span>Notfallklinik / Notdienst</span><input id="p_vetEmergencyName" type="text"/></label>
-<label class="field"><span>Telefon Notfallklinik</span><input id="p_vetEmergencyPhone" type="tel"/></label>
 <label class="field" style="min-width:100%;"><span>Allergien / Unverträglichkeiten</span><textarea id="p_allergies" rows="2"></textarea></label>
 <label class="field" style="min-width:100%;"><span>Erkrankungen / wichtige medizinische Hinweise</span><textarea id="p_medicalConditions" rows="2"></textarea></label>
-</div>
-<div class="row" style="flex-wrap:wrap; gap:12px; margin-top:10px;">
-<label class="field"><span>Haftpflichtversicherung vorhanden</span><select id="p_insuranceStatus"><option value=""></option><option value="yes">Ja</option><option value="no">Nein</option></select></label>
-<label class="field"><span>Versicherungsgesellschaft</span><input id="p_insuranceCompany" type="text"/></label>
-<label class="field"><span>Policen- / Versicherungsnummer</span><input id="p_insurancePolicy" type="text"/></label>
-<label class="field" style="min-width:100%;"><span>Deckung / Besonderheiten</span><textarea id="p_insuranceNotes" rows="2" placeholder="z. B. besondere Klauseln, Deckungssumme, Selbstbeteiligung"></textarea></label>
 </div>
 <div class="row" style="flex-wrap:wrap; gap:12px; margin-top:10px; align-items:end;">
 <label class="field" style="min-width:280px; flex:1;">
@@ -661,19 +649,8 @@
 <div class="row" style="flex-wrap:wrap; gap:12px; margin-top:10px;">
 <label class="field"><span>Standard-Futter</span><input id="p_food" type="text"/></label>
 <label class="field"><span>Fütterung (Menge/Zeiten)</span><input id="p_feeding" type="text"/></label>
-<label class="field"><span>Leckerlis erlaubt</span><select id="p_treatsAllowed"><option value=""></option><option value="yes">Ja</option><option value="no">Nein</option><option value="limited">Nur eingeschränkt</option></select></label>
-<label class="field"><span>Alleinbleiben</span><input id="p_aloneTime" type="text" placeholder="z. B. 2 Stunden problemlos"/></label>
-<label class="field"><span>Stubenrein</span><select id="p_houseTrained"><option value=""></option><option value="yes">Ja</option><option value="mostly">Größtenteils</option><option value="no">Nein</option></select></label>
-<label class="field"><span>Transport / Autofahren</span><input id="p_transport" type="text" placeholder="z. B. ruhig, nervös, erbricht"/></label>
-<label class="field"><span>Verträglichkeit mit Hunden</span><input id="p_compatDogs" placeholder="z.B. freundlich / nur Hündinnen / ..." type="text"/></label>
-<label class="field"><span>Verträglichkeit mit Katzen</span><input id="p_compatCats" type="text"/></label>
-<label class="field"><span>Verträglichkeit mit Kindern</span><input id="p_compatKids" type="text"/></label>
-<label class="field"><span>Leinenverhalten</span><input id="p_leashBehavior" type="text" placeholder="z. B. locker, zieht, jagdlich motiviert"/></label>
-<label class="field"><span>Rückruf / Freilauf</span><input id="p_recall" type="text" placeholder="z. B. gut, nur gesichert, Schleppleine"/></label>
-<label class="field"><span>Ressourcenverhalten</span><input id="p_resourceBehavior" type="text" placeholder="Futter, Spielzeug, Liegeplatz"/></label>
-<label class="field" style="min-width:100%;"><span>Tagesroutine / Schlafplatz</span><textarea id="p_dailyRoutine" rows="2" placeholder="Schlafplatz, Ruhezeiten, Gewohnheiten"></textarea></label>
-<label class="field" style="min-width:100%;"><span>Kommandos / Signale</span><textarea id="p_commands" rows="2" placeholder="z. B. Sitz, Platz, Bleib, Abbruchsignal"></textarea></label>
-<label class="field" style="min-width:100%;"><span>Ängste / Trigger / Besonderheiten</span><textarea id="p_behavior" rows="2"></textarea></label>
+<label class="field"><span>Verträglichkeit</span><input id="p_compat" placeholder="z.B. freundlich / nur Hündinnen / ..." type="text"/></label>
+<label class="field" style="min-width:100%;"><span>Ängste/Trigger/Besonderheiten</span><textarea id="p_behavior" rows="2"></textarea></label>
 </div>
 </details>
 <details class="opt" open="">
@@ -686,8 +663,8 @@
 </div>
 </div>
 <div class="row" style="gap:10px; margin-top:10px;">
-<button class="btn primary" id="btnCpSave">Speichern</button>
-<button class="btn" id="btnCpCancel">Abbrechen</button>
+<button class="btn primary" id="btnCpSave" type="button">Speichern</button>
+<button class="btn" id="btnCpCancel" type="button">Abbrechen</button>
 </div>
 <div class="hint" id="cpHint" style="margin-top:10px;"></div>
 </div>
@@ -1344,7 +1321,7 @@
   <!-- Bottom logout button removed (duplicate of header logout; also overlaps editor on iPad) -->
 </div>
 <!-- test-badge removed (requested) -->
-  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9DU_AI_MAINAPP_SAVEBACK_MASTER_20260320</div>
+  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9DV_AI_MAINAPP_SAVEDEBUG_MASTER_20260320</div>
 
 <script>
 (function visibleMailFallback(){
