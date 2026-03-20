@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9DV_AI_MAINAPP_SAVEDEBUG_MASTER_20260320",
+  tag: "M50.9.9DY_AI_MAINAPP_PHOTOSTORAGE_MASTER_20260320",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9DV_AI_MAINAPP_SAVEDEBUG_MASTER_20260320";
+const APP_BUILD = "M50.9.9DY_AI_MAINAPP_PHOTOSTORAGE_MASTER_20260320";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -7978,6 +7978,29 @@ function clearCpEditor(){
 }
 let cpVaccinationPassDataUrl = "";
 let cpProfilePhotoDataUrl = "";
+
+async function cpUploadPetPhotoToStorage(file, kind){
+  if(!file) return "";
+  try{
+    if(!(window.firebase && firebase.storage && firebase.auth)) throw new Error("Firebase Storage nicht verfügbar.");
+    const user = firebase.auth().currentUser;
+    if(!user) throw new Error("Nicht angemeldet.");
+    const orgId = (window.CLOUD && CLOUD.orgId) ? CLOUD.orgId : "default";
+    const petKey = (cpEdit && cpEdit.petId) ? cpEdit.petId : ('tmp_'+Date.now()+'_'+Math.random().toString(36).slice(2,8));
+    const safeName = String(file.name||'bild.jpg').replace(/[^a-zA-Z0-9._-]+/g,'_');
+    const ext = (safeName.split('.').pop()||'jpg').toLowerCase();
+    const path = `orgs/${orgId}/pets/${petKey}/${kind}_${Date.now()}.${ext}`;
+    const ref = firebase.storage().ref().child(path);
+    cpSetStatus((kind==='vaccpass' ? 'Impfpassfoto' : 'Profilfoto') + ' wird hochgeladen …');
+    await ref.put(file, { contentType: file.type || 'image/jpeg', customMetadata: { orgId, petId: petKey, uploadedBy: user.uid, kind } });
+    const url = await ref.getDownloadURL();
+    cpSetStatus((kind==='vaccpass' ? 'Impfpassfoto' : 'Profilfoto') + ' hochgeladen.');
+    return url;
+  }catch(err){
+    cpSetStatus('Bild-Upload fehlgeschlagen: ' + (err && err.message ? err.message : err), true);
+    throw err;
+  }
+}
 let cpEditorSnapshot = "";
 let cpDirty = false;
 function cpSetStatus(msg, isError){
@@ -8039,9 +8062,23 @@ function cpWirePetPhotoInputs(){
   const profileBtn = document.getElementById("p_profilePhotoRemove");
   if(vaccInput && !vaccInput.dataset.wired){
     vaccInput.dataset.wired='1';
-    vaccInput.addEventListener('change', ()=>{
+    vaccInput.addEventListener('change', async ()=>{
       const f=vaccInput.files && vaccInput.files[0]; if(!f) return;
-      const r=new FileReader(); r.onload=()=>{ cpVaccinationPassDataUrl=String(r.result||''); cpRefreshVaccinationPhotoPreview(); }; r.readAsDataURL(f);
+      try{
+        const r=new FileReader();
+        r.onload=()=>{
+          const img=document.getElementById("p_vaccinationPhotoPreview");
+          const btn=document.getElementById("p_vaccinationPhotoRemove");
+          if(img){ img.src=String(r.result||''); img.style.display='block'; }
+          if(btn) btn.style.display='inline-flex';
+        };
+        r.readAsDataURL(f);
+      }catch(_){ }
+      try{
+        cpVaccinationPassDataUrl = await cpUploadPetPhotoToStorage(f, 'vaccpass');
+        cpRefreshVaccinationPhotoPreview();
+        cpUpdateDirty();
+      }catch(_){ }
     });
   }
   if(vaccBtn && !vaccBtn.dataset.wired){
@@ -8050,9 +8087,23 @@ function cpWirePetPhotoInputs(){
   }
   if(profileInput && !profileInput.dataset.wired){
     profileInput.dataset.wired='1';
-    profileInput.addEventListener('change', ()=>{
+    profileInput.addEventListener('change', async ()=>{
       const f=profileInput.files && profileInput.files[0]; if(!f) return;
-      const r=new FileReader(); r.onload=()=>{ cpProfilePhotoDataUrl=String(r.result||''); cpRefreshProfilePhotoPreview(); }; r.readAsDataURL(f);
+      try{
+        const r=new FileReader();
+        r.onload=()=>{
+          const img=document.getElementById("p_profilePhotoPreview");
+          const btn=document.getElementById("p_profilePhotoRemove");
+          if(img){ img.src=String(r.result||''); img.style.display='block'; }
+          if(btn) btn.style.display='inline-flex';
+        };
+        r.readAsDataURL(f);
+      }catch(_){ }
+      try{
+        cpProfilePhotoDataUrl = await cpUploadPetPhotoToStorage(f, 'profile');
+        cpRefreshProfilePhotoPreview();
+        cpUpdateDirty();
+      }catch(_){ }
     });
   }
   if(profileBtn && !profileBtn.dataset.wired){
