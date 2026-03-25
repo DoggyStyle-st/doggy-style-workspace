@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9EC_AI_MAINAPP_PHOTOAUTHFIX2_MASTER_20260320",
+  tag: "M50.9.9ED_CHAT1_MAINAPP_20260325",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9EC_AI_MAINAPP_PHOTOAUTHFIX2_MASTER_20260320";
+const APP_BUILD = "M50.9.9ED_CHAT1_MAINAPP_20260325";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -3018,6 +3018,9 @@ if(id === "calendar"){
 
   if(id === "compliance"){
     try{ renderCompliancePanel(); }catch(_){ }
+  }
+  if(id === "chat"){
+    try{ renderAdminChatPanel(); }catch(_){ }
   }
 }
 // ==== Dashboard / Schnellaktionen helpers ====
@@ -17172,3 +17175,474 @@ try{
     document.querySelector('[data-tab="inbox"]')?.addEventListener('click', ()=>setTimeout(dsBootInboxAssign, 50));
   }
 }catch(err){ console.warn(err); }
+
+
+/* ===== CHAT (M50.9.9ED) ===== */
+function cloudChatsCol(){
+  const orgId = CLOUD && CLOUD.orgId;
+  if(!orgId) return null;
+  if(CLOUD && CLOUD.enabled && CLOUD.db) return CLOUD.db.collection("orgs").doc(orgId).collection("chats");
+  const compatDb = getCompatFirestoreDb();
+  if(compatDb) return compatDb.collection("orgs").doc(orgId).collection("chats");
+  return null;
+}
+function cloudChatDoc(chatId){
+  const col = cloudChatsCol();
+  return col && chatId ? col.doc(String(chatId)) : null;
+}
+function cloudChatMessagesCol(chatId){
+  const doc = cloudChatDoc(chatId);
+  return doc ? doc.collection('messages') : null;
+}
+function dsServerTimestamp(){
+  try{
+    if(window.firebase && firebase.firestore && firebase.firestore.FieldValue && firebase.firestore.FieldValue.serverTimestamp){
+      return firebase.firestore.FieldValue.serverTimestamp();
+    }
+  }catch(_){ }
+  return Date.now();
+}
+function dsChatNowLabel(){ return fmtDT(Date.now()); }
+function dsChatUserEmail(){ return String(CLOUD?.user?.email || '').trim().toLowerCase(); }
+function dsChatUserUid(){ return String(CLOUD?.user?.uid || '').trim(); }
+function dsChatCustomerProfile(){
+  const email = dsChatUserEmail();
+  const uid = dsChatUserUid();
+  const customers = Array.isArray(state?.customers) ? state.customers : [];
+  const fromState = customers.find(c=> String(c?.portalUid || c?.uid || '').trim() === uid)
+    || customers.find(c=> String(c?.email || '').trim().toLowerCase() === email)
+    || {};
+  return {
+    customerUid: uid || String(fromState?.portalUid || fromState?.uid || '').trim(),
+    customerEmail: email || String(fromState?.email || '').trim().toLowerCase(),
+    customerName: String(fromState?.name || CLOUD?.userProfile?.name || CLOUD?.user?.displayName || CLOUD?.user?.email || 'Kunde').trim(),
+    customerId: String(fromState?.customerId || fromState?.id || fromState?.email || uid || email || '').trim()
+  };
+}
+function dsChatDisplayTime(v){
+  try{
+    if(v && typeof v.toDate === 'function') return fmtDT(v.toDate().getTime());
+    if(v && typeof v.seconds === 'number') return fmtDT(v.seconds * 1000);
+    return fmtDT(Number(v||0));
+  }catch(_){ return '—'; }
+}
+function dsChatSortByUpdated(arr){
+  return (Array.isArray(arr) ? arr.slice() : []).sort((a,b)=>{
+    const av = Number(a?.updatedAtMs || a?.lastMessageAtMs || a?.createdAtMs || 0);
+    const bv = Number(b?.updatedAtMs || b?.lastMessageAtMs || b?.createdAtMs || 0);
+    return bv - av;
+  });
+}
+async function dsFindCurrentCustomerChats(){
+  const col = cloudChatsCol();
+  if(!col) return [];
+  const uid = dsChatUserUid();
+  const email = dsChatUserEmail();
+  const all = new Map();
+  if(uid){
+    try{
+      const snap = await col.where('customerUid','==',uid).get();
+      snap.forEach(doc=> all.set(doc.id, { id: doc.id, ...(doc.data()||{}) }));
+    }catch(e){ console.warn('chat by uid failed', e); }
+  }
+  if(email){
+    try{
+      const snap = await col.where('customerEmail','==',email).get();
+      snap.forEach(doc=> all.set(doc.id, { id: doc.id, ...(doc.data()||{}) }));
+    }catch(e){ console.warn('chat by email failed', e); }
+  }
+  return dsChatSortByUpdated(Array.from(all.values()));
+}
+async function ensureCurrentCustomerChat(){
+  const existing = await dsFindCurrentCustomerChats();
+  if(existing.length) return existing[0];
+  const col = cloudChatsCol();
+  if(!col) throw new Error('Cloud-Chat ist nicht verfügbar.');
+  const profile = dsChatCustomerProfile();
+  const now = Date.now();
+  const payload = {
+    customerUid: profile.customerUid || '',
+    customerEmail: profile.customerEmail || '',
+    customerName: profile.customerName || 'Kunde',
+    customerId: profile.customerId || '',
+    createdAt: dsServerTimestamp(),
+    updatedAt: dsServerTimestamp(),
+    createdAtMs: now,
+    updatedAtMs: now,
+    lastMessageText: '',
+    lastMessageAt: dsServerTimestamp(),
+    lastMessageAtMs: now,
+    lastMessageFromRole: '',
+    status: 'open'
+  };
+  const ref = await col.add(payload);
+  return { id: ref.id, ...payload };
+}
+async function dsSendChatMessage(chatId, text, extraMeta){
+  const clean = String(text || '').trim();
+  if(!clean) throw new Error('Bitte zuerst eine Nachricht eingeben.');
+  const msgs = cloudChatMessagesCol(chatId);
+  const chatRef = cloudChatDoc(chatId);
+  if(!msgs || !chatRef) throw new Error('Chat ist nicht verfügbar.');
+  const now = Date.now();
+  const profile = dsChatCustomerProfile();
+  const senderRole = isStaff() ? 'staff' : 'customer';
+  const senderName = isStaff()
+    ? String(CLOUD?.userProfile?.name || CLOUD?.user?.displayName || CLOUD?.user?.email || 'Team').trim()
+    : String(profile.customerName || CLOUD?.user?.displayName || CLOUD?.user?.email || 'Kunde').trim();
+  await msgs.add({
+    text: clean,
+    senderRole,
+    senderUid: dsChatUserUid(),
+    senderEmail: dsChatUserEmail(),
+    senderName,
+    createdAt: dsServerTimestamp(),
+    createdAtMs: now
+  });
+  await chatRef.set({
+    customerUid: profile.customerUid || '',
+    customerEmail: profile.customerEmail || '',
+    customerName: profile.customerName || 'Kunde',
+    customerId: profile.customerId || '',
+    updatedAt: dsServerTimestamp(),
+    updatedAtMs: now,
+    lastMessageAt: dsServerTimestamp(),
+    lastMessageAtMs: now,
+    lastMessageText: clean.slice(0, 220),
+    lastMessageFromRole: senderRole,
+    status: 'open',
+    ...(extraMeta || {})
+  }, { merge:true });
+}
+function dsRenderChatMessages(messages, ownRole){
+  if(!Array.isArray(messages) || !messages.length){
+    return '<div class="ds-chat-empty">Noch keine Nachrichten vorhanden.</div>';
+  }
+  return messages.map(msg=>{
+    const own = String(msg?.senderRole || '') === String(ownRole || '');
+    const meta = `${escapeHtml(msg?.senderName || (own ? 'Du' : 'Nachricht'))} · ${escapeHtml(dsChatDisplayTime(msg?.createdAt || msg?.createdAtMs || 0))}`;
+    return `<div class="ds-chat-msg ${own ? 'is-own' : ''}"><div class="ds-chat-bubble"><div class="ds-chat-bubble__meta">${meta}</div><div>${escapeHtml(msg?.text || '')}</div></div></div>`;
+  }).join('');
+}
+function dsAdminChatState(){
+  if(!window.__dsAdminChatState){
+    window.__dsAdminChatState = { listUnsub:null, msgUnsub:null, chats:[], currentChatId:'', currentMessages:[] };
+  }
+  return window.__dsAdminChatState;
+}
+function dsCustomerChatState(){
+  if(!window.__dsCustomerChatState){
+    window.__dsCustomerChatState = { listUnsubs:[], msgUnsub:null, chats:[], currentChatId:'', currentMessages:[] };
+  }
+  return window.__dsCustomerChatState;
+}
+function dsAdminChatRootMarkup(){
+  return `
+    <div class="ds-chat-shell">
+      <div class="ds-chat-col ds-chat-card">
+        <div class="ds-chat-header">
+          <div>
+            <strong>Chats</strong>
+            <div class="muted">Kundenverläufe</div>
+          </div>
+          <div class="ds-chat-pill" id="chatAdminCount">0</div>
+        </div>
+        <div id="chatAdminList" class="ds-chat-list"></div>
+      </div>
+      <div class="ds-chat-main ds-chat-card">
+        <div class="ds-chat-header">
+          <div>
+            <strong id="chatAdminTitle">Kein Chat ausgewählt</strong>
+            <div class="muted" id="chatAdminMeta">Bitte links einen Kundenchat auswählen.</div>
+          </div>
+        </div>
+        <div id="chatAdminMessages" class="ds-chat-thread"><div class="ds-chat-empty">Noch kein Chat ausgewählt.</div></div>
+        <div class="ds-chat-compose">
+          <textarea id="chatAdminInput" class="input" placeholder="Antwort an den Kunden …"></textarea>
+          <div class="ds-chat-compose__actions">
+            <div class="hint" id="chatAdminHint">Bereit.</div>
+            <button class="btn primary" id="btnChatAdminSend" type="button">Nachricht senden</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+function dsCustomerChatRootMarkup(){
+  return `
+    <div class="ds-chat-card">
+      <div class="ds-chat-header">
+        <div>
+          <strong id="customerChatTitle">Doggy Style Team</strong>
+          <div class="muted" id="customerChatMeta">Direkter Austausch zu Betreuung, Aufenthalt und Rückfragen.</div>
+        </div>
+      </div>
+      <div id="customerChatMessages" class="ds-chat-thread"><div class="ds-chat-empty">Nachrichten werden geladen …</div></div>
+      <div class="ds-chat-compose">
+        <textarea id="customerChatInput" class="input" placeholder="Deine Nachricht an Doggy Style …"></textarea>
+        <div class="ds-chat-compose__actions">
+          <div class="hint" id="customerChatHint">Bereit.</div>
+          <button class="btn primary" id="btnCustomerChatSend" type="button">Nachricht senden</button>
+        </div>
+      </div>
+    </div>`;
+}
+function renderAdminChatList(){
+  const st = dsAdminChatState();
+  const list = document.getElementById('chatAdminList');
+  const count = document.getElementById('chatAdminCount');
+  if(count) count.textContent = `${st.chats.length} Chat${st.chats.length===1?'':'s'}`;
+  if(!list) return;
+  if(!st.chats.length){
+    list.innerHTML = '<div class="ds-chat-empty">Noch keine Chats vorhanden.</div>';
+    return;
+  }
+  list.innerHTML = st.chats.map(chat=>{
+    const active = String(chat.id||'') === String(st.currentChatId||'');
+    const name = escapeHtml(chat.customerName || chat.customerEmail || 'Kunde');
+    const sub = escapeHtml(chat.customerEmail || chat.customerUid || '');
+    const when = escapeHtml(dsChatDisplayTime(chat.lastMessageAt || chat.updatedAt || chat.updatedAtMs || 0));
+    const snippet = escapeHtml(chat.lastMessageText || 'Noch keine Nachricht.');
+    return `<button type="button" class="ds-chat-item ${active?'is-active':''}" data-chat-id="${escapeHtml(chat.id)}"><div class="ds-chat-item__title"><div class="ds-chat-item__name">${name}</div><div class="ds-chat-item__time">${when}</div></div><div class="ds-chat-item__meta">${sub}</div><div class="ds-chat-item__snippet">${snippet}</div></button>`;
+  }).join('');
+  list.querySelectorAll('[data-chat-id]').forEach(btn=>{
+    btn.onclick = ()=> dsOpenAdminChat(btn.getAttribute('data-chat-id'));
+  });
+}
+function renderAdminChatMessages(){
+  const st = dsAdminChatState();
+  const title = document.getElementById('chatAdminTitle');
+  const meta = document.getElementById('chatAdminMeta');
+  const body = document.getElementById('chatAdminMessages');
+  const current = st.chats.find(c=> String(c.id||'') === String(st.currentChatId||''));
+  if(title) title.textContent = current ? (current.customerName || current.customerEmail || 'Kunde') : 'Kein Chat ausgewählt';
+  if(meta) meta.textContent = current ? `${current.customerEmail || 'ohne E-Mail'}${current.customerUid ? ' · UID ' + current.customerUid : ''}` : 'Bitte links einen Kundenchat auswählen.';
+  if(body) body.innerHTML = current ? dsRenderChatMessages(st.currentMessages, 'staff') : '<div class="ds-chat-empty">Noch kein Chat ausgewählt.</div>';
+  try{ if(body) body.scrollTop = body.scrollHeight; }catch(_){ }
+}
+function dsBindAdminChatActions(){
+  const sendBtn = document.getElementById('btnChatAdminSend');
+  const input = document.getElementById('chatAdminInput');
+  const hint = document.getElementById('chatAdminHint');
+  const refreshBtn = document.getElementById('btnChatRefresh');
+  if(refreshBtn && !refreshBtn.__chatBound){
+    refreshBtn.__chatBound = true;
+    refreshBtn.onclick = ()=> renderAdminChatPanel(true);
+  }
+  if(input && !input.__chatEnterBound){
+    input.__chatEnterBound = true;
+    input.addEventListener('keydown', (ev)=>{
+      if(ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)){
+        ev.preventDefault();
+        sendBtn?.click();
+      }
+    });
+  }
+  if(sendBtn && !sendBtn.__chatBound){
+    sendBtn.__chatBound = true;
+    sendBtn.onclick = async ()=>{
+      try{
+        const st = dsAdminChatState();
+        if(!st.currentChatId){ throw new Error('Bitte zuerst links einen Chat auswählen.'); }
+        const value = String(input?.value || '').trim();
+        if(!value){ throw new Error('Bitte zuerst eine Nachricht eingeben.'); }
+        if(hint) hint.textContent = 'Sende …';
+        sendBtn.disabled = true;
+        await dsSendChatMessage(st.currentChatId, value);
+        if(input) input.value = '';
+        if(hint) hint.textContent = 'Nachricht gesendet · ' + dsChatNowLabel();
+      }catch(e){
+        if(hint) hint.textContent = '❌ ' + String(e?.message || e || 'Senden fehlgeschlagen');
+      }finally{
+        sendBtn.disabled = false;
+      }
+    };
+  }
+}
+function dsWatchAdminChatMessages(chatId){
+  const st = dsAdminChatState();
+  try{ if(st.msgUnsub) st.msgUnsub(); }catch(_){ }
+  st.msgUnsub = null;
+  st.currentMessages = [];
+  renderAdminChatMessages();
+  const col = cloudChatMessagesCol(chatId);
+  if(!col) return;
+  st.msgUnsub = col.orderBy('createdAt','asc').onSnapshot((snap)=>{
+    st.currentMessages = snap.docs.map(doc=>({ id: doc.id, ...(doc.data()||{}) }));
+    renderAdminChatMessages();
+  }, (err)=>{
+    console.error('admin chat messages', err);
+    const hint = document.getElementById('chatAdminHint');
+    if(hint) hint.textContent = '❌ Nachrichten konnten nicht geladen werden.';
+  });
+}
+function dsOpenAdminChat(chatId){
+  const st = dsAdminChatState();
+  st.currentChatId = String(chatId || '');
+  renderAdminChatList();
+  dsWatchAdminChatMessages(st.currentChatId);
+}
+function renderAdminChatPanel(forceReload){
+  if(!isStaff()) return;
+  const root = document.getElementById('chatAdminRoot');
+  if(!root) return;
+  if(forceReload){
+    const st = dsAdminChatState();
+    try{ if(st.listUnsub) st.listUnsub(); }catch(_){ }
+    try{ if(st.msgUnsub) st.msgUnsub(); }catch(_){ }
+    window.__dsAdminChatState = { listUnsub:null, msgUnsub:null, chats:[], currentChatId:'', currentMessages:[] };
+  }
+  if(!root.dataset.ready){
+    root.innerHTML = dsAdminChatRootMarkup();
+    root.dataset.ready = '1';
+  }
+  dsBindAdminChatActions();
+  const st = dsAdminChatState();
+  const col = cloudChatsCol();
+  if(!col){
+    root.querySelector('#chatAdminMessages').innerHTML = '<div class="ds-chat-empty">Cloud-Chat ist aktuell nicht verfügbar.</div>';
+    return;
+  }
+  if(st.listUnsub) return renderAdminChatList();
+  st.listUnsub = col.orderBy('updatedAt','desc').limit(100).onSnapshot((snap)=>{
+    st.chats = snap.docs.map(doc=>({ id: doc.id, ...(doc.data()||{}) }));
+    renderAdminChatList();
+    if(!st.currentChatId && st.chats.length){ dsOpenAdminChat(st.chats[0].id); return; }
+    const stillThere = st.chats.some(c=> String(c.id||'') === String(st.currentChatId||''));
+    if(st.currentChatId && !stillThere){
+      st.currentChatId = st.chats[0] ? st.chats[0].id : '';
+      if(st.currentChatId) dsWatchAdminChatMessages(st.currentChatId);
+    }
+    renderAdminChatMessages();
+  }, (err)=>{
+    console.error('admin chats', err);
+    root.querySelector('#chatAdminList').innerHTML = '<div class="ds-chat-empty">Chats konnten nicht geladen werden.</div>';
+  });
+}
+function dsBindCustomerChatActions(){
+  const sendBtn = document.getElementById('btnCustomerChatSend');
+  const input = document.getElementById('customerChatInput');
+  const hint = document.getElementById('customerChatHint');
+  const refreshBtn = document.getElementById('btnCustomerChatRefresh');
+  if(refreshBtn && !refreshBtn.__chatBound){
+    refreshBtn.__chatBound = true;
+    refreshBtn.onclick = ()=> renderCustomerChatPanel(true);
+  }
+  if(input && !input.__chatEnterBound){
+    input.__chatEnterBound = true;
+    input.addEventListener('keydown', (ev)=>{
+      if(ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)){
+        ev.preventDefault();
+        sendBtn?.click();
+      }
+    });
+  }
+  if(sendBtn && !sendBtn.__chatBound){
+    sendBtn.__chatBound = true;
+    sendBtn.onclick = async ()=>{
+      try{
+        let st = dsCustomerChatState();
+        let chatId = st.currentChatId;
+        const value = String(input?.value || '').trim();
+        if(!value) throw new Error('Bitte zuerst eine Nachricht eingeben.');
+        if(hint) hint.textContent = 'Sende …';
+        sendBtn.disabled = true;
+        if(!chatId){
+          const chat = await ensureCurrentCustomerChat();
+          chatId = chat.id;
+          st.currentChatId = chatId;
+        }
+        await dsSendChatMessage(chatId, value);
+        if(input) input.value = '';
+        if(hint) hint.textContent = 'Nachricht gesendet · ' + dsChatNowLabel();
+      }catch(e){
+        if(hint) hint.textContent = '❌ ' + String(e?.message || e || 'Senden fehlgeschlagen');
+      }finally{
+        sendBtn.disabled = false;
+      }
+    };
+  }
+}
+function renderCustomerChatMessages(){
+  const st = dsCustomerChatState();
+  const body = document.getElementById('customerChatMessages');
+  const title = document.getElementById('customerChatTitle');
+  const meta = document.getElementById('customerChatMeta');
+  if(title) title.textContent = 'Doggy Style Team';
+  if(meta) meta.textContent = st.currentChatId ? 'Antworten erscheinen direkt in diesem Verlauf.' : 'Starte einfach mit deiner ersten Nachricht.';
+  if(body) body.innerHTML = dsRenderChatMessages(st.currentMessages, 'customer');
+  try{ if(body) body.scrollTop = body.scrollHeight; }catch(_){ }
+}
+function dsWatchCustomerChatMessages(chatId){
+  const st = dsCustomerChatState();
+  try{ if(st.msgUnsub) st.msgUnsub(); }catch(_){ }
+  st.msgUnsub = null;
+  st.currentMessages = [];
+  renderCustomerChatMessages();
+  const col = cloudChatMessagesCol(chatId);
+  if(!col) return;
+  st.msgUnsub = col.orderBy('createdAt','asc').onSnapshot((snap)=>{
+    st.currentMessages = snap.docs.map(doc=>({ id: doc.id, ...(doc.data()||{}) }));
+    renderCustomerChatMessages();
+  }, (err)=>{
+    console.error('customer chat messages', err);
+    const hint = document.getElementById('customerChatHint');
+    if(hint) hint.textContent = '❌ Nachrichten konnten nicht geladen werden.';
+  });
+}
+function renderCustomerChatPanel(forceReload){
+  const root = document.getElementById('customerChatRoot');
+  if(!root) return;
+  if(forceReload){
+    const st = dsCustomerChatState();
+    (st.listUnsubs || []).forEach(fn=>{ try{ fn(); }catch(_){ } });
+    try{ if(st.msgUnsub) st.msgUnsub(); }catch(_){ }
+    window.__dsCustomerChatState = { listUnsubs:[], msgUnsub:null, chats:[], currentChatId:'', currentMessages:[] };
+  }
+  if(!root.dataset.ready){
+    root.innerHTML = dsCustomerChatRootMarkup();
+    root.dataset.ready = '1';
+  }
+  dsBindCustomerChatActions();
+  const col = cloudChatsCol();
+  if(!col){
+    root.querySelector('#customerChatMessages').innerHTML = '<div class="ds-chat-empty">Cloud-Chat ist aktuell nicht verfügbar.</div>';
+    return;
+  }
+  const st = dsCustomerChatState();
+  if((st.listUnsubs || []).length){
+    renderCustomerChatMessages();
+    return;
+  }
+  const seen = new Map();
+  const publish = ()=>{
+    st.chats = dsChatSortByUpdated(Array.from(seen.values()));
+    if(!st.currentChatId && st.chats.length){
+      st.currentChatId = st.chats[0].id;
+      dsWatchCustomerChatMessages(st.currentChatId);
+      return;
+    }
+    const stillThere = st.chats.some(c=> String(c.id||'') === String(st.currentChatId||''));
+    if(st.currentChatId && !stillThere){
+      st.currentChatId = st.chats[0] ? st.chats[0].id : '';
+      if(st.currentChatId) dsWatchCustomerChatMessages(st.currentChatId);
+    }
+    renderCustomerChatMessages();
+  };
+  const attaches = [];
+  const uid = dsChatUserUid();
+  const email = dsChatUserEmail();
+  const attach = (q)=> q.onSnapshot((snap)=>{
+    snap.docChanges().forEach(ch=>{
+      if(ch.type === 'removed') seen.delete(ch.doc.id);
+      else seen.set(ch.doc.id, { id: ch.doc.id, ...(ch.doc.data()||{}) });
+    });
+    publish();
+  }, (err)=>{ console.error('customer chat list', err); publish(); });
+  if(uid) attaches.push(attach(col.where('customerUid','==',uid)));
+  if(email) attaches.push(attach(col.where('customerEmail','==',email)));
+  st.listUnsubs = attaches;
+  publish();
+}
+try{ window.renderAdminChatPanel = renderAdminChatPanel; }catch(_){ }
+try{ window.renderCustomerChatPanel = renderCustomerChatPanel; }catch(_){ }
+/* ===== END CHAT ===== */

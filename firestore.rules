@@ -14,6 +14,20 @@ service cloud.firestore {
 
     function isAdmin(orgId) { return role(orgId) == 'admin'; }
     function isStaff(orgId) { return role(orgId) == 'admin' || role(orgId) == 'staff'; }
+    function sameEmail(email) {
+      return signedIn()
+        && request.auth.token.email != null
+        && email != null
+        && request.auth.token.email == email;
+    }
+    function isChatOwner(data) {
+      return signedIn()
+        && data != null
+        && (
+          (data.customerUid != null && data.customerUid == request.auth.uid) ||
+          (data.customerEmail != null && sameEmail(data.customerEmail))
+        );
+    }
 
     match /orgs/{orgId}/users/{uid} {
       allow read: if signedIn() && (isStaff(orgId) || request.auth.uid == uid);
@@ -28,6 +42,31 @@ service cloud.firestore {
     match /orgs/{orgId}/tasks/{taskId} {
       allow create, update, delete: if signedIn() && isStaff(orgId);
       allow read: if signedIn() && (isStaff(orgId) || (resource.data.customerUid == request.auth.uid));
+    }
+
+    match /orgs/{orgId}/chats/{chatId} {
+      allow read: if signedIn() && (isStaff(orgId) || isChatOwner(resource.data));
+      allow create: if signedIn() && (
+        isStaff(orgId)
+        || isChatOwner(request.resource.data)
+      );
+      allow update: if signedIn() && (
+        isStaff(orgId)
+        || isChatOwner(resource.data)
+      );
+      allow delete: if signedIn() && isStaff(orgId);
+
+      match /messages/{messageId} {
+        allow read: if signedIn() && (
+          isStaff(orgId)
+          || isChatOwner(get(/databases/$(database)/documents/orgs/$(orgId)/chats/$(chatId)).data)
+        );
+        allow create: if signedIn() && (
+          isStaff(orgId)
+          || isChatOwner(get(/databases/$(database)/documents/orgs/$(orgId)/chats/$(chatId)).data)
+        );
+        allow update, delete: if signedIn() && isStaff(orgId);
+      }
     }
 
     match /{document=**} { allow read, write: if false; }
