@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9EI_CHAT2_TEAMSELECT_MAINAPP_20260325",
+  tag: "M50.9.9EJ_CHAT2_SWITCHFIX_MAINLIST_20260325",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9EI_CHAT2_TEAMSELECT_MAINAPP_20260325";
+const APP_BUILD = "M50.9.9EJ_CHAT2_SWITCHFIX_MAINLIST_20260325";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -17236,13 +17236,14 @@ function dsChatAdminAllowed(){
 
 function dsChatTeamMembers(){
   return [
+    { key:'all', label:'Alle', fullLabel:'Alle Chats', roleLabel:'Übersicht', email:'' },
     { key:'raphael', label:'Raphael', fullLabel:'Raphael', roleLabel:'Inhaber', email:'raphael@boch-plan.de' },
     { key:'anschi', label:'Anschi', fullLabel:'Anschi', roleLabel:'Team', email:'anschi@doggystyle.local' }
   ];
 }
 function dsChatTeamByKey(key){
   const k = String(key || '').trim().toLowerCase();
-  return dsChatTeamMembers().find(x=>x.key===k) || dsChatTeamMembers()[0];
+  return dsChatTeamMembers().find(x=>x.key===k) || dsChatTeamMembers().find(x=>x.key==='raphael');
 }
 function dsChatInferStaffKey(){
   const email = dsChatUserEmail();
@@ -17252,13 +17253,16 @@ function dsChatInferStaffKey(){
   if(profileName.includes('anschi') || profileName.includes('angelika')) return 'anschi';
   return 'raphael';
 }
-function dsChatNormalizeTeamKey(value){
+function dsChatNormalizeTeamKey(value, allowAll){
   const v = String(value || '').trim().toLowerCase();
-  return dsChatTeamMembers().some(x=>x.key===v) ? v : 'raphael';
+  if(allowAll && v === 'all') return 'all';
+  return dsChatTeamMembers().some(x=>x.key===v && x.key !== 'all') ? v : 'raphael';
 }
 function dsChatFilterForTeam(chats, teamKey){
-  const key = dsChatNormalizeTeamKey(teamKey);
-  return (Array.isArray(chats) ? chats : []).filter(chat=> dsChatNormalizeTeamKey(chat?.teamMemberKey || chat?.channel || '') === key);
+  const key = dsChatNormalizeTeamKey(teamKey, true);
+  const arr = Array.isArray(chats) ? chats : [];
+  if(key === 'all') return dsChatSortByUpdated(arr);
+  return arr.filter(chat=> dsChatNormalizeTeamKey(chat?.teamMemberKey || chat?.channel || '') === key);
 }
 function dsChatTargetLabel(teamKey){
   const item = dsChatTeamByKey(teamKey);
@@ -17425,7 +17429,7 @@ function dsRenderChatMessages(messages, ownRole){
 }
 function dsAdminChatState(){
   if(!window.__dsAdminChatState){
-    window.__dsAdminChatState = { listUnsub:null, msgUnsub:null, chats:[], filteredChats:[], currentChatId:'', currentMessages:[], currentTeamKey:'raphael' };
+    window.__dsAdminChatState = { listUnsub:null, msgUnsub:null, chats:[], filteredChats:[], currentChatId:'', currentMessages:[], currentTeamKey:'all' };
   }
   return window.__dsAdminChatState;
 }
@@ -17436,7 +17440,7 @@ function dsCustomerChatState(){
   return window.__dsCustomerChatState;
 }
 function dsAdminChatRootMarkup(){
-  const teams = dsChatTeamMembers();
+  const teams = dsChatTeamMembers().filter(t=> t.key !== 'all');
   return `
     <div class="ds-chat-shell">
       <div class="ds-chat-col ds-chat-card">
@@ -17471,7 +17475,7 @@ function dsAdminChatRootMarkup(){
     </div>`;
 }
 function dsCustomerChatRootMarkup(){
-  const teams = dsChatTeamMembers();
+  const teams = dsChatTeamMembers().filter(t=> t.key !== 'all');
   return `
     <div class="ds-chat-card">
       <div class="ds-chat-header">
@@ -17502,7 +17506,7 @@ function renderAdminChatList(){
   if(count) count.textContent = `${st.filteredChats.length} Chat${st.filteredChats.length===1?'':'s'}`;
   if(picker){
     picker.querySelectorAll('[data-chat-team]').forEach(btn=>{
-      const key = dsChatNormalizeTeamKey(btn.getAttribute('data-chat-team'));
+      const key = dsChatNormalizeTeamKey(btn.getAttribute('data-chat-team'), true);
       btn.classList.toggle('primary', key === st.currentTeamKey);
       if(!btn.__teamBound){
         btn.__teamBound = true;
@@ -17606,7 +17610,7 @@ async function dsOpenAdminChat(chatId){
   const st = dsAdminChatState();
   st.currentChatId = String(chatId || '');
   const current = (st.chats || []).find(c=> String(c?.id||'') === st.currentChatId) || {};
-  st.currentTeamKey = dsChatNormalizeTeamKey(current.teamMemberKey || st.currentTeamKey);
+  st.currentTeamKey = dsChatNormalizeTeamKey(current.teamMemberKey || st.currentTeamKey, true);
   renderAdminChatList();
   try{
     await dsEnsureWelcomeMessage(st.currentChatId, {
@@ -17629,7 +17633,9 @@ function renderAdminChatPanel(forceReload){
     const st = dsAdminChatState();
     try{ if(st.listUnsub) st.listUnsub(); }catch(_){ }
     try{ if(st.msgUnsub) st.msgUnsub(); }catch(_){ }
-    window.__dsAdminChatState = { listUnsub:null, msgUnsub:null, chats:[], filteredChats:[], currentChatId:'', currentMessages:[], currentTeamKey: dsChatInferStaffKey() };
+    root.innerHTML = '';
+    root.dataset.ready = '';
+    window.__dsAdminChatState = { listUnsub:null, msgUnsub:null, chats:[], filteredChats:[], currentChatId:'', currentMessages:[], currentTeamKey: 'all' };
   }
   if(!root.dataset.ready){
     root.innerHTML = dsAdminChatRootMarkup();
@@ -17637,7 +17643,7 @@ function renderAdminChatPanel(forceReload){
   }
   dsBindAdminChatActions();
   const st = dsAdminChatState();
-  if(!st.currentTeamKey) st.currentTeamKey = dsChatInferStaffKey();
+  if(!st.currentTeamKey) st.currentTeamKey = 'all';
   const col = cloudChatsCol();
   if(!col){
     root.querySelector('#chatAdminMessages').innerHTML = '<div class="ds-chat-empty">Cloud-Chat ist aktuell nicht verfügbar.</div>';
@@ -17697,6 +17703,8 @@ function dsBindCustomerChatActions(){
         }
         await dsSendChatMessage(chatId, value, { teamMemberKey: st.currentTeamKey });
         if(input) input.value = '';
+        st.currentChatId = chatId;
+        await dsLoadCustomerChatsForTeam(st.currentTeamKey, false).catch(console.warn);
         if(hint) hint.textContent = 'Nachricht gesendet · ' + dsChatNowLabel();
       }catch(e){
         const msg = String(e?.message || e || 'Senden fehlgeschlagen');
@@ -17717,6 +17725,27 @@ function renderCustomerChatMessages(){
   if(body) body.innerHTML = dsRenderChatMessages(st.currentMessages, 'customer');
   try{ if(body) body.scrollTop = body.scrollHeight; }catch(_){ }
 }
+async function dsLoadCustomerChatsForTeam(teamKey, autoCreate){
+  const st = dsCustomerChatState();
+  const key = dsChatNormalizeTeamKey(teamKey);
+  st.currentTeamKey = key;
+  st.currentMessages = [];
+  try{ if(st.msgUnsub) st.msgUnsub(); }catch(_){ }
+  st.msgUnsub = null;
+  let chats = await dsFindCurrentCustomerChats(key);
+  if(!chats.length && autoCreate){
+    const created = await ensureCurrentCustomerChat(key);
+    chats = created ? [created] : [];
+  }
+  st.chats = chats;
+  st.currentChatId = chats[0] ? String(chats[0].id || '') : '';
+  renderCustomerChatMessages();
+  if(st.currentChatId){
+    await dsEnsureWelcomeMessage(st.currentChatId, dsChatCustomerProfile()).catch(console.warn);
+    dsWatchCustomerChatMessages(st.currentChatId);
+  }
+}
+
 function dsWatchCustomerChatMessages(chatId){
   const st = dsCustomerChatState();
   try{ if(st.msgUnsub) st.msgUnsub(); }catch(_){ }
@@ -17743,6 +17772,8 @@ function renderCustomerChatPanel(forceReload){
     prevTeamKey = dsChatNormalizeTeamKey(prev.currentTeamKey || 'raphael');
     (prev.listUnsubs || []).forEach(fn=>{ try{ fn(); }catch(_){ } });
     try{ if(prev.msgUnsub) prev.msgUnsub(); }catch(_){ }
+    root.innerHTML = '';
+    root.dataset.ready = '';
     window.__dsCustomerChatState = { listUnsubs:[], msgUnsub:null, chats:[], currentChatId:'', currentMessages:[], currentTeamKey: prevTeamKey };
   }
   if(!root.dataset.ready){
@@ -17762,18 +17793,19 @@ function renderCustomerChatPanel(forceReload){
     picker.querySelectorAll('[data-customer-chat-team]').forEach(btn=>{
       const key = dsChatNormalizeTeamKey(btn.getAttribute('data-customer-chat-team'));
       btn.classList.toggle('primary', key === st.currentTeamKey);
-      if(!btn.__teamBound){
-        btn.__teamBound = true;
-        btn.onclick = ()=>{
-          if(st.currentTeamKey === key) return;
-          st.currentTeamKey = key;
-          st.currentChatId = '';
-          st.currentMessages = [];
-          try{ if(st.msgUnsub) st.msgUnsub(); }catch(_){ }
-          st.msgUnsub = null;
-          renderCustomerChatPanel(true);
-        };
-      }
+      btn.onclick = async ()=>{
+        if(dsChatNormalizeTeamKey(dsCustomerChatState().currentTeamKey) === key) return;
+        const hint = document.getElementById('customerChatHint');
+        try{
+          if(hint) hint.textContent = 'Lade Chat …';
+          await dsLoadCustomerChatsForTeam(key, false);
+          renderCustomerChatPanel(false);
+          if(hint) hint.textContent = 'Bereit.';
+        }catch(err){
+          console.error('customer team switch', err);
+          if(hint) hint.textContent = '❌ Chat konnte nicht gewechselt werden.';
+        }
+      };
     });
   }
   if((st.listUnsubs || []).length){
@@ -17781,17 +17813,24 @@ function renderCustomerChatPanel(forceReload){
     return;
   }
   const seen = new Map();
-  const publish = ()=>{
+  const publish = async ()=>{
     st.chats = dsChatSortByUpdated(dsChatFilterForTeam(Array.from(seen.values()), st.currentTeamKey));
     if(!st.currentChatId && st.chats.length){
       st.currentChatId = st.chats[0].id;
-      Promise.resolve(dsEnsureWelcomeMessage(st.currentChatId, dsChatCustomerProfile())).catch(console.warn).finally(()=> dsWatchCustomerChatMessages(st.currentChatId));
+      await dsEnsureWelcomeMessage(st.currentChatId, dsChatCustomerProfile()).catch(console.warn);
+      dsWatchCustomerChatMessages(st.currentChatId);
       return;
     }
     const stillThere = st.chats.some(c=> String(c.id||'') === String(st.currentChatId||''));
     if(st.currentChatId && !stillThere){
       st.currentChatId = st.chats[0] ? st.chats[0].id : '';
-      if(st.currentChatId) Promise.resolve(dsEnsureWelcomeMessage(st.currentChatId, dsChatCustomerProfile())).catch(console.warn).finally(()=> dsWatchCustomerChatMessages(st.currentChatId));
+      if(st.currentChatId){
+        await dsEnsureWelcomeMessage(st.currentChatId, dsChatCustomerProfile()).catch(console.warn);
+        dsWatchCustomerChatMessages(st.currentChatId);
+      } else {
+        st.currentMessages = [];
+        renderCustomerChatMessages();
+      }
     }
     renderCustomerChatMessages();
   };
@@ -17803,12 +17842,12 @@ function renderCustomerChatPanel(forceReload){
       if(ch.type === 'removed') seen.delete(ch.doc.id);
       else seen.set(ch.doc.id, { id: ch.doc.id, ...(ch.doc.data()||{}) });
     });
-    publish();
-  }, (err)=>{ console.error('customer chat list', err); publish(); });
+    publish().catch(console.warn);
+  }, (err)=>{ console.error('customer chat list', err); publish().catch(console.warn); });
   if(uid) attaches.push(attach(col.where('customerUid','==',uid)));
   if(email) attaches.push(attach(col.where('customerEmail','==',email)));
   st.listUnsubs = attaches;
-  publish();
+  publish().catch(console.warn);
 }
 try{ window.renderAdminChatPanel = renderAdminChatPanel; }catch(_){ }
 try{ window.renderCustomerChatPanel = renderCustomerChatPanel; }catch(_){ }
