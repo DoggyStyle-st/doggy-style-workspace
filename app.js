@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9EF_CHAT1_CLEAN_SYNC_20260325",
+  tag: "M50.9.9EG_CHAT1_ADMINFIX_WELCOME_20260325",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9EF_CHAT1_CLEAN_SYNC_20260325";
+const APP_BUILD = "M50.9.9EG_CHAT1_ADMINFIX_WELCOME_20260325";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -11623,6 +11623,10 @@ return;
       return;
     }
     showAuthGate(false);
+    try{
+      const chatPanel = document.getElementById('panel-chat');
+      if(chatPanel && chatPanel.classList.contains('is-active')) renderAdminChatPanel(true);
+    }catch(_){ }
     // Cloud-Erreichbarkeit prüfen, damit Status nicht erst nach einer Aktion auf Online springt
     try{ scheduleCloudPing(50,'auth-login'); }catch(e){}
     if(btnLogout) btnLogout.style.display = "inline-block";
@@ -17226,6 +17230,29 @@ function dsChatDisplayTime(v){
     return fmtDT(Number(v||0));
   }catch(_){ return '—'; }
 }
+async function dsSeedWelcomeMessage(chatId, profile){
+  const msgs = cloudChatMessagesCol(chatId);
+  if(!msgs) return;
+  const now = Date.now();
+  const welcomeText = [
+    'Willkommen im Doggy Style Chat.',
+    'Hier kannst du uns direkt zu Aufenthalt, Betreuung, Bring- und Abholzeiten oder Rückfragen schreiben.',
+    'Wir antworten dir so schnell wie möglich direkt hier im Verlauf.'
+  ].join(' ');
+  await msgs.add({
+    text: welcomeText,
+    senderRole: 'staff',
+    senderName: 'Doggy Style Team',
+    senderUid: 'system',
+    senderEmail: '',
+    system: true,
+    createdAt: now,
+    createdAtMs: now,
+    customerUid: profile?.customerUid || '',
+    customerEmail: profile?.customerEmail || '',
+    customerName: profile?.customerName || ''
+  });
+}
 function dsChatSortByUpdated(arr){
   return (Array.isArray(arr) ? arr.slice() : []).sort((a,b)=>{
     const av = Number(a?.updatedAtMs || a?.lastMessageAtMs || a?.createdAtMs || 0);
@@ -17276,6 +17303,7 @@ async function ensureCurrentCustomerChat(){
     status: 'open'
   };
   const ref = await col.add(payload);
+  try{ await dsSeedWelcomeMessage(ref.id, profile); }catch(e){ console.warn('welcome message failed', e); }
   return { id: ref.id, ...payload };
 }
 async function dsSendChatMessage(chatId, text, extraMeta){
@@ -17483,9 +17511,17 @@ function dsOpenAdminChat(chatId){
   dsWatchAdminChatMessages(st.currentChatId);
 }
 function renderAdminChatPanel(forceReload){
-  if(!isStaff()) return;
   const root = document.getElementById('chatAdminRoot');
+  const refreshBtn = document.getElementById('btnChatRefresh');
+  if(refreshBtn && !refreshBtn.__chatHeaderBound){
+    refreshBtn.__chatHeaderBound = true;
+    refreshBtn.onclick = ()=> renderAdminChatPanel(true);
+  }
   if(!root) return;
+  if(!isStaff()){
+    root.innerHTML = '<div class="ds-chat-card"><div class="ds-chat-empty">Chat wird geladen …</div></div>';
+    return;
+  }
   if(forceReload){
     const st = dsAdminChatState();
     try{ if(st.listUnsub) st.listUnsub(); }catch(_){ }

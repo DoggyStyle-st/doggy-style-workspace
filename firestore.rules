@@ -14,8 +14,13 @@ service cloud.firestore {
         : 'guest';
     }
 
-    function isAdmin(orgId) { return role(orgId) == 'admin'; }
-    function isStaff(orgId) { return role(orgId) == 'admin' || role(orgId) == 'staff'; }
+    function isWhitelistedAdmin() {
+      return signedIn()
+        && request.auth.token.email != null
+        && request.auth.token.email == 'raphael@boch-plan.de';
+    }
+    function isAdmin(orgId) { return isWhitelistedAdmin() || role(orgId) == 'admin'; }
+    function isStaff(orgId) { return isAdmin(orgId) || role(orgId) == 'staff'; }
     function sameEmail(email) {
       return signedIn()
         && request.auth.token.email != null
