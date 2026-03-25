@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9EG_CHAT1_ADMINFIX_WELCOME_20260325",
+  tag: "M50.9.9EH_CHAT1_ADMINREADY_WELCOMEFIX_20260325",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9EG_CHAT1_ADMINFIX_WELCOME_20260325";
+const APP_BUILD = "M50.9.9EH_CHAT1_ADMINREADY_WELCOMEFIX_20260325";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -17223,6 +17223,35 @@ function dsChatCustomerProfile(){
     customerId: String(fromState?.customerId || fromState?.id || fromState?.email || uid || email || '').trim()
   };
 }
+function dsChatAdminAllowed(){
+  try{
+    if(isStaff()) return true;
+    const email = dsChatUserEmail();
+    const admins = Array.isArray(CLOUD?.adminEmails) ? CLOUD.adminEmails.map(x=>String(x||'').trim().toLowerCase()).filter(Boolean) : [];
+    if(email && admins.includes(email)) return true;
+    if(email === 'raphael@boch-plan.de') return true;
+  }catch(_){ }
+  return false;
+}
+async function dsEnsureWelcomeMessage(chatId, profile){
+  const msgs = cloudChatMessagesCol(chatId);
+  if(!msgs || !chatId) return false;
+  try{
+    const existing = await msgs.where('system','==',true).limit(1).get();
+    if(existing && !existing.empty) return false;
+  }catch(err){
+    try{
+      const fallback = await msgs.orderBy('createdAt','asc').limit(5).get();
+      const hasWelcome = fallback.docs.some(doc=>{
+        const d = doc.data() || {};
+        return d.system === true || String(d.senderUid||'') === 'system' || String(d.senderName||'').toLowerCase().includes('doggy style team');
+      });
+      if(hasWelcome) return false;
+    }catch(_){ }
+  }
+  await dsSeedWelcomeMessage(chatId, profile);
+  return true;
+}
 function dsChatDisplayTime(v){
   try{
     if(v && typeof v.toDate === 'function') return fmtDT(v.toDate().getTime());
@@ -17282,7 +17311,10 @@ async function dsFindCurrentCustomerChats(){
 }
 async function ensureCurrentCustomerChat(){
   const existing = await dsFindCurrentCustomerChats();
-  if(existing.length) return existing[0];
+  if(existing.length){
+    try{ await dsEnsureWelcomeMessage(existing[0].id, dsChatCustomerProfile()); }catch(e){ console.warn('welcome ensure failed', e); }
+    return existing[0];
+  }
   const col = cloudChatsCol();
   if(!col) throw new Error('Cloud-Chat ist nicht verfügbar.');
   const profile = dsChatCustomerProfile();
@@ -17504,10 +17536,18 @@ function dsWatchAdminChatMessages(chatId){
     if(hint) hint.textContent = '❌ Nachrichten konnten nicht geladen werden.';
   });
 }
-function dsOpenAdminChat(chatId){
+async function dsOpenAdminChat(chatId){
   const st = dsAdminChatState();
   st.currentChatId = String(chatId || '');
   renderAdminChatList();
+  try{
+    const current = (st.chats || []).find(c=> String(c?.id||'') === st.currentChatId) || {};
+    await dsEnsureWelcomeMessage(st.currentChatId, {
+      customerUid: String(current.customerUid || ''),
+      customerEmail: String(current.customerEmail || ''),
+      customerName: String(current.customerName || 'Kunde')
+    });
+  }catch(e){ console.warn('admin welcome ensure failed', e); }
   dsWatchAdminChatMessages(st.currentChatId);
 }
 function renderAdminChatPanel(forceReload){
@@ -17518,10 +17558,17 @@ function renderAdminChatPanel(forceReload){
     refreshBtn.onclick = ()=> renderAdminChatPanel(true);
   }
   if(!root) return;
-  if(!isStaff()){
+  if(!dsChatAdminAllowed()){
+    const retryCount = Number(root.dataset.chatRetryCount || 0);
     root.innerHTML = '<div class="ds-chat-card"><div class="ds-chat-empty">Chat wird geladen …</div></div>';
+    if(retryCount < 20){
+      root.dataset.chatRetryCount = String(retryCount + 1);
+      clearTimeout(root.__chatRetryTimer);
+      root.__chatRetryTimer = setTimeout(()=> renderAdminChatPanel(false), 500);
+    }
     return;
   }
+  root.dataset.chatRetryCount = '0';
   if(forceReload){
     const st = dsAdminChatState();
     try{ if(st.listUnsub) st.listUnsub(); }catch(_){ }
@@ -17543,11 +17590,11 @@ function renderAdminChatPanel(forceReload){
   st.listUnsub = col.orderBy('updatedAt','desc').limit(100).onSnapshot((snap)=>{
     st.chats = snap.docs.map(doc=>({ id: doc.id, ...(doc.data()||{}) }));
     renderAdminChatList();
-    if(!st.currentChatId && st.chats.length){ dsOpenAdminChat(st.chats[0].id); return; }
+    if(!st.currentChatId && st.chats.length){ Promise.resolve(dsOpenAdminChat(st.chats[0].id)).catch(console.warn); return; }
     const stillThere = st.chats.some(c=> String(c.id||'') === String(st.currentChatId||''));
     if(st.currentChatId && !stillThere){
       st.currentChatId = st.chats[0] ? st.chats[0].id : '';
-      if(st.currentChatId) dsWatchAdminChatMessages(st.currentChatId);
+      if(st.currentChatId) Promise.resolve(dsOpenAdminChat(st.currentChatId)).catch(console.warn);
     }
     renderAdminChatMessages();
   }, (err)=>{
@@ -17656,13 +17703,13 @@ function renderCustomerChatPanel(forceReload){
     st.chats = dsChatSortByUpdated(Array.from(seen.values()));
     if(!st.currentChatId && st.chats.length){
       st.currentChatId = st.chats[0].id;
-      dsWatchCustomerChatMessages(st.currentChatId);
+      Promise.resolve(dsEnsureWelcomeMessage(st.currentChatId, dsChatCustomerProfile())).catch(console.warn).finally(()=> dsWatchCustomerChatMessages(st.currentChatId));
       return;
     }
     const stillThere = st.chats.some(c=> String(c.id||'') === String(st.currentChatId||''));
     if(st.currentChatId && !stillThere){
       st.currentChatId = st.chats[0] ? st.chats[0].id : '';
-      if(st.currentChatId) dsWatchCustomerChatMessages(st.currentChatId);
+      if(st.currentChatId) Promise.resolve(dsEnsureWelcomeMessage(st.currentChatId, dsChatCustomerProfile())).catch(console.warn).finally(()=> dsWatchCustomerChatMessages(st.currentChatId));
     }
     renderCustomerChatMessages();
   };

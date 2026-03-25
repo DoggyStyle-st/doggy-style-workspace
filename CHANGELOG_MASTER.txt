@@ -17,7 +17,7 @@ Included:
 
 M50.8.0_FINAL_MASTER_20260301 - Version sync fix (meta/buildBadge/sw cache)
 
-M50.9.9EG_CHAT1_ADMINFIX_WELCOME_20260325
+M50.9.9EH_CHAT1_ADMINREADY_WELCOMEFIX_20260325
 - Neu: Chat Tab in der Haupt-App (Admin/Staff)
 - Neu: Chat Bereich im Kundenportal
 - Firestore Regeln erweitert um orgs/{orgId}/chats/{chatId}/messages
