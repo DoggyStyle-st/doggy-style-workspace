@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9EJ_CHAT2_SWITCHFIX_MAINLIST_20260325",
+  tag: "M50.9.9EK_CHAT2_ADMINLIST_PICKERFIX_20260325",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9EJ_CHAT2_SWITCHFIX_MAINLIST_20260325";
+const APP_BUILD = "M50.9.9EK_CHAT2_ADMINLIST_PICKERFIX_20260325";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -17181,7 +17181,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9ED) ===== */
+/* ===== CHAT (M50.9.9EK) ===== */
 function cloudChatsCol(){
   const orgId = CLOUD && CLOUD.orgId;
   if(!orgId) return null;
@@ -17452,7 +17452,15 @@ function dsAdminChatRootMarkup(){
           <div class="ds-chat-pill" id="chatAdminCount">0</div>
         </div>
         <div id="chatAdminTeamPicker" class="seg" style="margin-bottom:10px; display:flex; gap:8px; flex-wrap:wrap;">
+          <button type="button" class="btn" data-chat-team="all">Alle</button>
           ${teams.map(t=>`<button type="button" class="btn" data-chat-team="${escapeHtml(t.key)}">${escapeHtml(t.label)}</button>`).join('')}
+        </div>
+        <div style="display:grid; grid-template-columns:1fr auto; gap:8px; margin-bottom:10px; align-items:end;">
+          <div>
+            <div class="muted" style="margin-bottom:6px;">Kunde öffnen</div>
+            <select id="chatAdminCustomerSelect" class="input"><option value="">Kunde auswählen …</option></select>
+          </div>
+          <button class="btn" id="btnChatAdminOpenCustomer" type="button">Öffnen</button>
         </div>
         <div id="chatAdminList" class="ds-chat-list"></div>
       </div>
@@ -17474,6 +17482,77 @@ function dsAdminChatRootMarkup(){
       </div>
     </div>`;
 }
+function dsAdminCustomerOptions(){
+  const customers = Array.isArray(state?.customers) ? state.customers : [];
+  const seen = new Map();
+  customers.forEach(c=>{
+    const email = String(c?.email || '').trim().toLowerCase();
+    const uid = String(c?.portalUid || c?.uid || '').trim();
+    const id = String(c?.customerId || c?.id || email || uid).trim();
+    const name = String(c?.name || c?.fullName || email || uid || 'Kunde').trim();
+    const key = email || uid || id;
+    if(!key) return;
+    if(!seen.has(key)) seen.set(key, { id, email, uid, name });
+  });
+  return Array.from(seen.values()).sort((a,b)=> String(a.name||'').localeCompare(String(b.name||''), 'de', { sensitivity:'base' }));
+}
+async function dsAdminOpenChatForCustomer(){
+  const select = document.getElementById('chatAdminCustomerSelect');
+  const hint = document.getElementById('chatAdminHint');
+  const key = String(select?.value || '').trim();
+  if(!key){ if(hint) hint.textContent = 'Bitte zuerst einen Kunden auswählen.'; return; }
+  const customer = dsAdminCustomerOptions().find(x=> String(x.id)===key || String(x.email)===key || String(x.uid)===key);
+  if(!customer){ if(hint) hint.textContent = 'Kunde wurde nicht gefunden.'; return; }
+  const col = cloudChatsCol();
+  if(!col){ if(hint) hint.textContent = 'Cloud-Chat ist aktuell nicht verfügbar.'; return; }
+  const teamKey = dsChatNormalizeTeamKey(dsAdminChatState().currentTeamKey, true) === 'all' ? dsChatInferStaffKey() : dsChatNormalizeTeamKey(dsAdminChatState().currentTeamKey);
+  const all = [];
+  try{
+    if(customer.uid){
+      const byUid = await col.where('customerUid','==',customer.uid).get();
+      byUid.forEach(doc=> all.push({ id: doc.id, ...(doc.data()||{}) }));
+    }
+    if(customer.email){
+      const byEmail = await col.where('customerEmail','==',customer.email).get();
+      byEmail.forEach(doc=> all.push({ id: doc.id, ...(doc.data()||{}) }));
+    }
+  }catch(err){ console.warn('admin open customer existing chats', err); }
+  let matches = dsChatFilterForTeam(all, teamKey);
+  let chat = matches[0];
+  if(!chat){
+    const now = Date.now();
+    const payload = {
+      customerUid: customer.uid || '',
+      customerEmail: customer.email || '',
+      customerName: customer.name || 'Kunde',
+      customerId: customer.id || customer.email || customer.uid || '',
+      createdAt: dsServerTimestamp(),
+      updatedAt: dsServerTimestamp(),
+      createdAtMs: now,
+      updatedAtMs: now,
+      lastMessageText: '',
+      lastMessageAt: dsServerTimestamp(),
+      lastMessageAtMs: now,
+      lastMessageFromRole: '',
+      status: 'open',
+      teamMemberKey: teamKey,
+      teamMemberLabel: dsChatTargetLabel(teamKey)
+    };
+    const ref = await col.add(payload);
+    chat = { id: ref.id, ...payload };
+    try{ await dsEnsureWelcomeMessage(ref.id, payload); }catch(e){ console.warn('admin welcome seed failed', e); }
+  }
+  const st = dsAdminChatState();
+  const existingIndex = (st.chats || []).findIndex(x=> String(x.id||'') === String(chat.id||''));
+  if(existingIndex >= 0) st.chats[existingIndex] = { ...(st.chats[existingIndex]||{}), ...chat };
+  else st.chats = dsChatSortByUpdated([chat].concat(st.chats || []));
+  st.currentTeamKey = teamKey;
+  st.currentChatId = String(chat.id || '');
+  renderAdminChatList();
+  await dsOpenAdminChat(chat.id);
+  if(hint) hint.textContent = 'Chat geöffnet.';
+}
+
 function dsCustomerChatRootMarkup(){
   const teams = dsChatTeamMembers().filter(t=> t.key !== 'all');
   return `
@@ -17502,7 +17581,22 @@ function renderAdminChatList(){
   const list = document.getElementById('chatAdminList');
   const count = document.getElementById('chatAdminCount');
   const picker = document.getElementById('chatAdminTeamPicker');
+  const customerSelect = document.getElementById('chatAdminCustomerSelect');
+  const openCustomerBtn = document.getElementById('btnChatAdminOpenCustomer');
   st.filteredChats = dsChatFilterForTeam(st.chats, st.currentTeamKey);
+  if(customerSelect && !customerSelect.__chatBound){
+    customerSelect.__chatBound = true;
+    const options = dsAdminCustomerOptions();
+    customerSelect.innerHTML = '<option value="">Kunde auswählen …</option>' + options.map(c=>`<option value="${escapeHtml(c.id || c.email || c.uid)}">${escapeHtml(c.name)}${c.email ? ' · ' + escapeHtml(c.email) : ''}</option>`).join('');
+  }
+  if(openCustomerBtn && !openCustomerBtn.__chatBound){
+    openCustomerBtn.__chatBound = true;
+    openCustomerBtn.onclick = ()=> dsAdminOpenChatForCustomer().catch(err=>{
+      console.error('admin open customer', err);
+      const hint = document.getElementById('chatAdminHint');
+      if(hint) hint.textContent = '❌ Kundenchat konnte nicht geöffnet werden.';
+    });
+  }
   if(count) count.textContent = `${st.filteredChats.length} Chat${st.filteredChats.length===1?'':'s'}`;
   if(picker){
     picker.querySelectorAll('[data-chat-team]').forEach(btn=>{
@@ -17650,8 +17744,8 @@ function renderAdminChatPanel(forceReload){
     return;
   }
   if(st.listUnsub) return renderAdminChatList();
-  st.listUnsub = col.orderBy('updatedAt','desc').limit(200).onSnapshot((snap)=>{
-    st.chats = snap.docs.map(doc=>({ id: doc.id, ...(doc.data()||{}) }));
+  st.listUnsub = col.limit(300).onSnapshot((snap)=>{
+    st.chats = dsChatSortByUpdated(snap.docs.map(doc=>({ id: doc.id, ...(doc.data()||{}) })));
     st.filteredChats = dsChatFilterForTeam(st.chats, st.currentTeamKey);
     if(!st.currentChatId && st.filteredChats.length){ Promise.resolve(dsOpenAdminChat(st.filteredChats[0].id)).catch(console.warn); return; }
     const stillThere = st.filteredChats.some(c=> String(c.id||'') === String(st.currentChatId||''));
@@ -17798,9 +17892,11 @@ function renderCustomerChatPanel(forceReload){
         const hint = document.getElementById('customerChatHint');
         try{
           if(hint) hint.textContent = 'Lade Chat …';
-          await dsLoadCustomerChatsForTeam(key, false);
-          renderCustomerChatPanel(false);
-          if(hint) hint.textContent = 'Bereit.';
+          const stNow = dsCustomerChatState();
+          stNow.currentTeamKey = key;
+          stNow.currentChatId = '';
+          stNow.currentMessages = [];
+          renderCustomerChatPanel(true);
         }catch(err){
           console.error('customer team switch', err);
           if(hint) hint.textContent = '❌ Chat konnte nicht gewechselt werden.';
