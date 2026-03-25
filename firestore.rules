@@ -9,7 +9,9 @@ service cloud.firestore {
     }
 
     function role(orgId) {
-      return (signedIn() && userDoc(orgId).exists()) ? userDoc(orgId).data.role : 'guest';
+      return signedIn() && userDoc(orgId).data != null && userDoc(orgId).data.role != null
+        ? userDoc(orgId).data.role
+        : 'guest';
     }
 
     function isAdmin(orgId) { return role(orgId) == 'admin'; }
@@ -46,14 +48,8 @@ service cloud.firestore {
 
     match /orgs/{orgId}/chats/{chatId} {
       allow read: if signedIn() && (isStaff(orgId) || isChatOwner(resource.data));
-      allow create: if signedIn() && (
-        isStaff(orgId)
-        || isChatOwner(request.resource.data)
-      );
-      allow update: if signedIn() && (
-        isStaff(orgId)
-        || isChatOwner(resource.data)
-      );
+      allow create: if signedIn() && (isStaff(orgId) || isChatOwner(request.resource.data));
+      allow update: if signedIn() && (isStaff(orgId) || isChatOwner(resource.data) || isChatOwner(request.resource.data));
       allow delete: if signedIn() && isStaff(orgId);
 
       match /messages/{messageId} {

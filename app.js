@@ -17290,15 +17290,6 @@ async function dsSendChatMessage(chatId, text, extraMeta){
   const senderName = isStaff()
     ? String(CLOUD?.userProfile?.name || CLOUD?.user?.displayName || CLOUD?.user?.email || 'Team').trim()
     : String(profile.customerName || CLOUD?.user?.displayName || CLOUD?.user?.email || 'Kunde').trim();
-  await msgs.add({
-    text: clean,
-    senderRole,
-    senderUid: dsChatUserUid(),
-    senderEmail: dsChatUserEmail(),
-    senderName,
-    createdAt: dsServerTimestamp(),
-    createdAtMs: now
-  });
   await chatRef.set({
     customerUid: profile.customerUid || '',
     customerEmail: profile.customerEmail || '',
@@ -17313,6 +17304,15 @@ async function dsSendChatMessage(chatId, text, extraMeta){
     status: 'open',
     ...(extraMeta || {})
   }, { merge:true });
+  await msgs.add({
+    text: clean,
+    senderRole,
+    senderUid: dsChatUserUid(),
+    senderEmail: dsChatUserEmail(),
+    senderName,
+    createdAt: dsServerTimestamp(),
+    createdAtMs: now
+  });
 }
 function dsRenderChatMessages(messages, ownRole){
   if(!Array.isArray(messages) || !messages.length){
@@ -17451,7 +17451,8 @@ function dsBindAdminChatActions(){
         if(input) input.value = '';
         if(hint) hint.textContent = 'Nachricht gesendet · ' + dsChatNowLabel();
       }catch(e){
-        if(hint) hint.textContent = '❌ ' + String(e?.message || e || 'Senden fehlgeschlagen');
+        const msg = String(e?.message || e || 'Senden fehlgeschlagen');
+        if(hint) hint.textContent = '❌ ' + (msg.includes('Missing or insufficient permissions') ? 'Keine Berechtigung für Chat. Bitte Firestore Rules neu veröffentlichen.' : msg);
       }finally{
         sendBtn.disabled = false;
       }
@@ -17555,7 +17556,8 @@ function dsBindCustomerChatActions(){
         if(input) input.value = '';
         if(hint) hint.textContent = 'Nachricht gesendet · ' + dsChatNowLabel();
       }catch(e){
-        if(hint) hint.textContent = '❌ ' + String(e?.message || e || 'Senden fehlgeschlagen');
+        const msg = String(e?.message || e || 'Senden fehlgeschlagen');
+        if(hint) hint.textContent = '❌ ' + (msg.includes('Missing or insufficient permissions') ? 'Keine Berechtigung für Chat. Bitte Firestore Rules neu veröffentlichen.' : msg);
       }finally{
         sendBtn.disabled = false;
       }
