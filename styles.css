@@ -1111,3 +1111,7 @@ body.page-login .btnLink--text:hover{
   .ds-chat-list,.ds-chat-thread{max-height:none}
 }
 /* ===== END Chat ===== */
+
+.ds-chat-bubble__status{margin-top:8px;font-size:11px;opacity:.9;display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border-radius:999px;border:1px solid rgba(255,255,255,.12)}
+.ds-chat-bubble__status.is-read{color:#9ee1ac;border-color:rgba(120,220,140,.28);background:rgba(80,160,90,.10)}
+.ds-chat-bubble__status.is-unread{color:#ffd37a;border-color:rgba(245,182,46,.35);background:rgba(245,182,46,.10)}
