@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9EK_CHAT2_ADMINLIST_PICKERFIX_20260325",
+  tag: "M50.9.9EL_CHAT2_ADMINPICKER_REFRESH_20260325",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9EK_CHAT2_ADMINLIST_PICKERFIX_20260325";
+const APP_BUILD = "M50.9.9EL_CHAT2_ADMINPICKER_REFRESH_20260325";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -17181,7 +17181,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9EK) ===== */
+/* ===== CHAT (M50.9.9EL) ===== */
 function cloudChatsCol(){
   const orgId = CLOUD && CLOUD.orgId;
   if(!orgId) return null;
@@ -17483,17 +17483,36 @@ function dsAdminChatRootMarkup(){
     </div>`;
 }
 function dsAdminCustomerOptions(){
-  const customers = Array.isArray(state?.customers) ? state.customers : [];
   const seen = new Map();
-  customers.forEach(c=>{
-    const email = String(c?.email || '').trim().toLowerCase();
-    const uid = String(c?.portalUid || c?.uid || '').trim();
-    const id = String(c?.customerId || c?.id || email || uid).trim();
-    const name = String(c?.name || c?.fullName || email || uid || 'Kunde').trim();
-    const key = email || uid || id;
+  const add = (raw={})=>{
+    if(!raw || typeof raw !== 'object') return;
+    const email = String(raw.email || raw.mail || raw.customerEmail || '').trim().toLowerCase();
+    const uid = String(raw.portalUid || raw.uid || raw.customerUid || raw.userUid || '').trim();
+    const id = String(raw.customerId || raw.id || email || uid || '').trim();
+    const name = String(raw.name || raw.fullName || raw.customerName || raw.displayName || email || uid || 'Kunde').trim();
+    const key = String(email || uid || id || name).trim().toLowerCase();
     if(!key) return;
-    if(!seen.has(key)) seen.set(key, { id, email, uid, name });
-  });
+    if(!seen.has(key)) seen.set(key, { id: id || email || uid || key, email, uid, name });
+  };
+
+  try{
+    if(typeof buildCanonicalCustomerList === 'function'){
+      (buildCanonicalCustomerList() || []).forEach(add);
+    }
+  }catch(err){ console.warn('chat canonical customers', err); }
+
+  const customers = Array.isArray(state?.customers) ? state.customers : [];
+  customers.forEach(add);
+
+  const chats = Array.isArray(dsAdminChatState()?.chats) ? dsAdminChatState().chats : [];
+  chats.forEach(c=> add({
+    id: c?.customerId || c?.customerEmail || c?.customerUid || c?.id,
+    customerId: c?.customerId || c?.customerEmail || c?.customerUid || c?.id,
+    customerEmail: c?.customerEmail || '',
+    customerUid: c?.customerUid || '',
+    customerName: c?.customerName || ''
+  }));
+
   return Array.from(seen.values()).sort((a,b)=> String(a.name||'').localeCompare(String(b.name||''), 'de', { sensitivity:'base' }));
 }
 async function dsAdminOpenChatForCustomer(){
@@ -17584,10 +17603,13 @@ function renderAdminChatList(){
   const customerSelect = document.getElementById('chatAdminCustomerSelect');
   const openCustomerBtn = document.getElementById('btnChatAdminOpenCustomer');
   st.filteredChats = dsChatFilterForTeam(st.chats, st.currentTeamKey);
-  if(customerSelect && !customerSelect.__chatBound){
-    customerSelect.__chatBound = true;
+  if(customerSelect){
+    const prevValue = String(customerSelect.value || '').trim();
     const options = dsAdminCustomerOptions();
     customerSelect.innerHTML = '<option value="">Kunde auswählen …</option>' + options.map(c=>`<option value="${escapeHtml(c.id || c.email || c.uid)}">${escapeHtml(c.name)}${c.email ? ' · ' + escapeHtml(c.email) : ''}</option>`).join('');
+    if(prevValue && Array.from(customerSelect.options).some(opt=>String(opt.value||'') === prevValue)){
+      customerSelect.value = prevValue;
+    }
   }
   if(openCustomerBtn && !openCustomerBtn.__chatBound){
     openCustomerBtn.__chatBound = true;
@@ -17737,6 +17759,12 @@ function renderAdminChatPanel(forceReload){
   }
   dsBindAdminChatActions();
   const st = dsAdminChatState();
+  try{
+    clearTimeout(window.__dsAdminChatPickerRefresh1);
+    clearTimeout(window.__dsAdminChatPickerRefresh2);
+    window.__dsAdminChatPickerRefresh1 = setTimeout(()=>{ try{ renderAdminChatList(); }catch(_){ } }, 500);
+    window.__dsAdminChatPickerRefresh2 = setTimeout(()=>{ try{ renderAdminChatList(); }catch(_){ } }, 2000);
+  }catch(_){ }
   if(!st.currentTeamKey) st.currentTeamKey = 'all';
   const col = cloudChatsCol();
   if(!col){
