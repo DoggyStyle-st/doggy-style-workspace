@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9EM_CHAT2_ADMINOPEN_SEND_20260326",
+  tag: "M50.9.9EN_CHAT2_ADMINSELECT_FIX_20260326",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9EM_CHAT2_ADMINOPEN_SEND_20260326";
+const APP_BUILD = "M50.9.9EN_CHAT2_ADMINSELECT_FIX_20260326";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -17181,7 +17181,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9EL) ===== */
+/* ===== CHAT (M50.9.9EN) ===== */
 function cloudChatsCol(){
   const orgId = CLOUD && CLOUD.orgId;
   if(!orgId) return null;
@@ -17515,11 +17515,12 @@ function dsAdminCustomerOptions(){
 
   return Array.from(seen.values()).sort((a,b)=> String(a.name||'').localeCompare(String(b.name||''), 'de', { sensitivity:'base' }));
 }
-async function dsAdminSelectedCustomer(){
+function dsAdminSelectedCustomer(){
   const select = document.getElementById('chatAdminCustomerSelect');
   const key = String(select?.value || '').trim();
   if(!key) return null;
-  return dsAdminCustomerOptions().find(x=> String(x.id)===key || String(x.email)===key || String(x.uid)===key) || null;
+  const options = dsAdminCustomerOptions();
+  return options.find(x=> String(x.id||'')===key || String(x.email||'')===key || String(x.uid||'')===key) || null;
 }
 async function dsAdminEnsureChatForCustomer(customer, preferredTeamKey){
   if(!customer) throw new Error('Bitte zuerst einen Kunden auswählen.');
@@ -17591,13 +17592,21 @@ async function dsAdminOpenChatForCustomer(){
   const teamKey = dsChatNormalizeTeamKey(dsAdminChatState().currentTeamKey, true) === 'all' ? dsChatInferStaffKey() : dsChatNormalizeTeamKey(dsAdminChatState().currentTeamKey);
   const chat = await dsAdminEnsureChatForCustomer(customer, teamKey);
   const st = dsAdminChatState();
-  const existingIndex = (st.chats || []).findIndex(x=> String(x.id||'') === String(chat.id||''));
-  if(existingIndex >= 0) st.chats[existingIndex] = { ...(st.chats[existingIndex]||{}), ...chat };
-  else st.chats = dsChatSortByUpdated([chat].concat(st.chats || []));
-  st.currentTeamKey = teamKey;
-  st.currentChatId = String(chat.id || '');
+  const mergedChat = {
+    ...(chat || {}),
+    customerUid: String(chat?.customerUid || customer?.uid || ''),
+    customerEmail: String(chat?.customerEmail || customer?.email || ''),
+    customerName: String(chat?.customerName || customer?.name || 'Kunde'),
+    customerId: String(chat?.customerId || customer?.id || customer?.email || customer?.uid || '')
+  };
+  const existingIndex = (st.chats || []).findIndex(x=> String(x.id||'') === String(mergedChat.id||''));
+  if(existingIndex >= 0) st.chats[existingIndex] = { ...(st.chats[existingIndex]||{}), ...mergedChat };
+  else st.chats = dsChatSortByUpdated([mergedChat].concat(st.chats || []));
+  st.currentTeamKey = dsChatNormalizeTeamKey(mergedChat.teamMemberKey || teamKey, true);
+  st.currentChatId = String(mergedChat.id || '');
   renderAdminChatList();
-  await dsOpenAdminChat(chat.id);
+  renderAdminChatMessages();
+  await dsOpenAdminChat(mergedChat.id);
   if(hint) hint.textContent = 'Chat geöffnet.';
 }
 
