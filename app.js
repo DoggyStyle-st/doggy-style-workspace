@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9ER_CHAT2_MAINAPP_ADMINOPEN_SENDREAL_20260326",
+  tag: "M50.9.9ES_CHAT2_MAINAPP_SYNC_CACHE_20260326",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9ER_CHAT2_MAINAPP_ADMINOPEN_SENDREAL_20260326";
+const APP_BUILD = "M50.9.9ES_CHAT2_MAINAPP_SYNC_CACHE_20260326";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -17181,7 +17181,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9EQ) ===== */
+/* ===== CHAT (M50.9.9ES_CHAT2_MAINAPP_SYNC_CACHE_20260326) ===== */
 function cloudChatsCol(){
   const orgId = CLOUD && CLOUD.orgId;
   if(!orgId) return null;
@@ -17221,17 +17221,6 @@ function dsChatCustomerProfile(){
     customerEmail: email || String(fromState?.email || '').trim().toLowerCase(),
     customerName: String(fromState?.name || CLOUD?.userProfile?.name || CLOUD?.user?.displayName || CLOUD?.user?.email || 'Kunde').trim(),
     customerId: String(fromState?.customerId || fromState?.id || fromState?.email || uid || email || '').trim()
-  };
-}
-function dsChatResolveTargetCustomer(extraMeta){
-  const profile = dsChatCustomerProfile();
-  const meta = (extraMeta && typeof extraMeta === 'object') ? extraMeta : {};
-  if(!isStaff()) return profile;
-  return {
-    customerUid: String(meta.customerUid || profile.customerUid || '').trim(),
-    customerEmail: String(meta.customerEmail || profile.customerEmail || '').trim().toLowerCase(),
-    customerName: String(meta.customerName || profile.customerName || 'Kunde').trim(),
-    customerId: String(meta.customerId || profile.customerId || meta.customerEmail || meta.customerUid || '').trim()
   };
 }
 function dsChatAdminAllowed(){
@@ -17396,18 +17385,49 @@ async function dsSendChatMessage(chatId, text, extraMeta){
   const chatRef = cloudChatDoc(chatId);
   if(!msgs || !chatRef) throw new Error('Chat ist nicht verfügbar.');
   const now = Date.now();
-  const meta = (extraMeta && typeof extraMeta === 'object') ? { ...extraMeta } : {};
-  const targetCustomer = dsChatResolveTargetCustomer(meta);
+  const viewerProfile = dsChatCustomerProfile();
   const senderRole = isStaff() ? 'staff' : 'customer';
   const senderName = isStaff()
     ? String(CLOUD?.userProfile?.name || CLOUD?.user?.displayName || CLOUD?.user?.email || 'Team').trim()
-    : String(targetCustomer.customerName || CLOUD?.user?.displayName || CLOUD?.user?.email || 'Kunde').trim();
-  const teamKey = dsChatNormalizeTeamKey(meta.teamMemberKey || targetCustomer.teamMemberKey || dsCustomerChatState().currentTeamKey || dsAdminChatState().currentTeamKey);
+    : String(viewerProfile.customerName || CLOUD?.user?.displayName || CLOUD?.user?.email || 'Kunde').trim();
+  let existing = {};
+  try{
+    const snap = await chatRef.get();
+    existing = (snap && snap.exists && typeof snap.data === 'function') ? (snap.data() || {}) : {};
+  }catch(_){ existing = {}; }
+  const teamKey = dsChatNormalizeTeamKey(
+    (extraMeta && extraMeta.teamMemberKey)
+    || existing.teamMemberKey
+    || (senderRole === 'staff' ? dsAdminChatState().currentTeamKey : dsCustomerChatState().currentTeamKey)
+    || dsChatInferStaffKey(),
+    true
+  ) === 'all' ? dsChatInferStaffKey() : dsChatNormalizeTeamKey(
+    (extraMeta && extraMeta.teamMemberKey)
+    || existing.teamMemberKey
+    || (senderRole === 'staff' ? dsAdminChatState().currentTeamKey : dsCustomerChatState().currentTeamKey)
+    || dsChatInferStaffKey()
+  );
+  const customerMeta = senderRole === 'staff'
+    ? {
+        customerUid: String(existing.customerUid || extraMeta?.customerUid || '').trim(),
+        customerEmail: String(existing.customerEmail || extraMeta?.customerEmail || '').trim().toLowerCase(),
+        customerName: String(existing.customerName || extraMeta?.customerName || 'Kunde').trim(),
+        customerId: String(existing.customerId || extraMeta?.customerId || existing.customerEmail || existing.customerUid || '').trim()
+      }
+    : {
+        customerUid: viewerProfile.customerUid || '',
+        customerEmail: viewerProfile.customerEmail || '',
+        customerName: viewerProfile.customerName || 'Kunde',
+        customerId: viewerProfile.customerId || ''
+      };
+  if(senderRole === 'staff' && !customerMeta.customerEmail && !customerMeta.customerUid && !customerMeta.customerId){
+    throw new Error('Kundenchat konnte nicht geöffnet werden.');
+  }
   await chatRef.set({
-    customerUid: targetCustomer.customerUid || '',
-    customerEmail: targetCustomer.customerEmail || '',
-    customerName: targetCustomer.customerName || 'Kunde',
-    customerId: targetCustomer.customerId || '',
+    customerUid: customerMeta.customerUid || '',
+    customerEmail: customerMeta.customerEmail || '',
+    customerName: customerMeta.customerName || 'Kunde',
+    customerId: customerMeta.customerId || '',
     updatedAt: dsServerTimestamp(),
     updatedAtMs: now,
     lastMessageAt: dsServerTimestamp(),
@@ -17417,7 +17437,7 @@ async function dsSendChatMessage(chatId, text, extraMeta){
     status: 'open',
     teamMemberKey: teamKey,
     teamMemberLabel: dsChatTargetLabel(teamKey),
-    ...meta
+    ...(extraMeta || {})
   }, { merge:true });
   await msgs.add({
     text: clean,
@@ -17426,7 +17446,10 @@ async function dsSendChatMessage(chatId, text, extraMeta){
     senderEmail: dsChatUserEmail(),
     senderName,
     createdAt: dsServerTimestamp(),
-    createdAtMs: now
+    createdAtMs: now,
+    customerUid: customerMeta.customerUid || '',
+    customerEmail: customerMeta.customerEmail || '',
+    customerName: customerMeta.customerName || ''
   });
 }
 function dsRenderChatMessages(messages, ownRole){
@@ -17531,7 +17554,7 @@ function dsAdminSelectedCustomer(){
   const select = document.getElementById('chatAdminCustomerSelect');
   const key = String(select?.value || '').trim();
   if(!key) return null;
-  return dsAdminCustomerOptions().find(x=> String(x.id||'').trim()===key || String(x.email||'').trim().toLowerCase()===key.toLowerCase() || String(x.uid||'').trim()===key) || null;
+  return dsAdminCustomerOptions().find(x=> String(x.id)===key || String(x.email)===key || String(x.uid)===key) || null;
 }
 async function dsAdminEnsureChatForCustomer(customer, preferredTeamKey){
   customer = await Promise.resolve(customer);
@@ -17542,20 +17565,17 @@ async function dsAdminEnsureChatForCustomer(customer, preferredTeamKey){
   const found = new Map();
   const push = (doc)=>{
     if(!doc) return;
-    const row = (doc && typeof doc.data === 'function') ? { id: doc.id, ...(doc.data()||{}) } : doc;
-    const id = String(row?.id || '').trim();
+    const id = String(doc.id || '').trim();
     if(!id) return;
-    found.set(id, { ...row, id });
+    found.set(id, { id, ...(doc.data ? (doc.data()||{}) : doc) });
   };
   try{
-    (Array.isArray(dsAdminChatState().chats) ? dsAdminChatState().chats : []).forEach(push);
     if(customer.uid){
       const byUid = await col.where('customerUid','==',customer.uid).get();
       byUid.forEach(push);
     }
     if(customer.email){
-      const mail = String(customer.email || '').trim().toLowerCase();
-      const byEmail = await col.where('customerEmail','==',mail).get();
+      const byEmail = await col.where('customerEmail','==',customer.email).get();
       byEmail.forEach(push);
     }
     if(customer.id){
@@ -17568,10 +17588,10 @@ async function dsAdminEnsureChatForCustomer(customer, preferredTeamKey){
   if(!chat){
     const now = Date.now();
     const payload = {
-      customerUid: String(customer.uid || '').trim(),
-      customerEmail: String(customer.email || '').trim().toLowerCase(),
-      customerName: String(customer.name || 'Kunde').trim(),
-      customerId: String(customer.id || customer.email || customer.uid || '').trim(),
+      customerUid: customer.uid || '',
+      customerEmail: customer.email || '',
+      customerName: customer.name || 'Kunde',
+      customerId: customer.id || customer.email || customer.uid || '',
       createdAt: dsServerTimestamp(),
       updatedAt: dsServerTimestamp(),
       createdAtMs: now,
@@ -17584,24 +17604,21 @@ async function dsAdminEnsureChatForCustomer(customer, preferredTeamKey){
       teamMemberKey: teamKey,
       teamMemberLabel: dsChatTargetLabel(teamKey)
     };
+    const ref = await col.add(payload);
+    chat = { id: ref.id, ...payload };
+    try{ await dsEnsureWelcomeMessage(ref.id, payload); }catch(e){ console.warn('admin welcome seed failed', e); }
+  }else if(dsChatNormalizeTeamKey(chat.teamMemberKey || '') !== teamKey){
     try{
-      const ref = await col.add(payload);
-      chat = { id: ref.id, ...payload };
-      try{ await dsEnsureWelcomeMessage(ref.id, payload); }catch(e){ console.warn('admin welcome seed failed', e); }
-    }catch(err){
-      console.error('admin create customer chat failed', err);
-      throw new Error('Kundenchat konnte nicht geöffnet werden.');
-    }
+      await cloudChatDoc(chat.id)?.set({
+        teamMemberKey: teamKey,
+        teamMemberLabel: dsChatTargetLabel(teamKey),
+        updatedAt: dsServerTimestamp(),
+        updatedAtMs: Date.now()
+      }, { merge:true });
+      chat = { ...chat, teamMemberKey: teamKey, teamMemberLabel: dsChatTargetLabel(teamKey), updatedAtMs: Date.now() };
+    }catch(err){ console.warn('admin retarget customer chat failed', err); }
   }
-  return {
-    ...(chat || {}),
-    customerUid: String((chat && chat.customerUid) || customer.uid || '').trim(),
-    customerEmail: String((chat && chat.customerEmail) || customer.email || '').trim().toLowerCase(),
-    customerName: String((chat && chat.customerName) || customer.name || 'Kunde').trim(),
-    customerId: String((chat && chat.customerId) || customer.id || customer.email || customer.uid || '').trim(),
-    teamMemberKey: dsChatNormalizeTeamKey((chat && chat.teamMemberKey) || teamKey),
-    teamMemberLabel: dsChatTargetLabel((chat && chat.teamMemberKey) || teamKey)
-  };
+  return chat;
 }
 async function dsAdminOpenChatForCustomer(){
   const hint = document.getElementById('chatAdminHint');
@@ -17613,7 +17630,7 @@ async function dsAdminOpenChatForCustomer(){
   const existingIndex = (st.chats || []).findIndex(x=> String(x.id||'') === String(chat.id||''));
   if(existingIndex >= 0) st.chats[existingIndex] = { ...(st.chats[existingIndex]||{}), ...chat };
   else st.chats = dsChatSortByUpdated([chat].concat(st.chats || []));
-  st.currentTeamKey = dsChatNormalizeTeamKey(chat.teamMemberKey || teamKey, true);
+  st.currentTeamKey = teamKey;
   st.currentChatId = String(chat.id || '');
   renderAdminChatList();
   await dsOpenAdminChat(chat.id);
@@ -17664,7 +17681,7 @@ function renderAdminChatList(){
     openCustomerBtn.onclick = ()=> dsAdminOpenChatForCustomer().catch(err=>{
       console.error('admin open customer', err);
       const hint = document.getElementById('chatAdminHint');
-      if(hint) hint.textContent = '❌ Kundenchat konnte nicht geöffnet werden.';
+      if(hint) hint.textContent = '❌ ' + String(err?.message || err || 'Kundenchat konnte nicht geöffnet werden.');
     });
   }
   if(count) count.textContent = `${st.filteredChats.length} Chat${st.filteredChats.length===1?'':'s'}`;
@@ -17754,14 +17771,7 @@ function dsBindAdminChatActions(){
           await dsOpenAdminChat(chat.id);
           chatId = String(chat.id || '');
         }
-        const currentChat = (st.chats || []).find(c=> String(c?.id||'') === String(chatId||'')) || {};
-        await dsSendChatMessage(chatId, value, {
-          teamMemberKey: dsChatNormalizeTeamKey(currentChat.teamMemberKey || st.currentTeamKey, true) === 'all' ? dsChatInferStaffKey() : dsChatNormalizeTeamKey(currentChat.teamMemberKey || st.currentTeamKey),
-          customerUid: String(currentChat.customerUid || '').trim(),
-          customerEmail: String(currentChat.customerEmail || '').trim().toLowerCase(),
-          customerName: String(currentChat.customerName || 'Kunde').trim(),
-          customerId: String(currentChat.customerId || currentChat.customerEmail || currentChat.customerUid || '').trim()
-        });
+        await dsSendChatMessage(chatId, value, { teamMemberKey: dsChatNormalizeTeamKey(st.currentTeamKey, true) === 'all' ? dsChatInferStaffKey() : dsChatNormalizeTeamKey(st.currentTeamKey) });
         if(input) input.value = '';
         if(hint) hint.textContent = 'Nachricht gesendet · ' + dsChatNowLabel();
       }catch(e){
