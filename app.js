@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9ET_CHAT2_MAINAPP_DIAGOPEN_20260326",
+  tag: "M50.9.9EU_CHAT2_MAINAPP_DETERMINISTIC_OPEN_20260326",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9ET_CHAT2_MAINAPP_DIAGOPEN_20260326";
+const APP_BUILD = "M50.9.9EU_CHAT2_MAINAPP_DETERMINISTIC_OPEN_20260326";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -17181,7 +17181,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9ET_CHAT2_MAINAPP_DIAGOPEN_20260326) ===== */
+/* ===== CHAT (M50.9.9EU_CHAT2_MAINAPP_DETERMINISTIC_OPEN_20260326) ===== */
 function cloudChatsCol(){
   const orgId = CLOUD && CLOUD.orgId;
   if(!orgId) return null;
@@ -17558,6 +17558,18 @@ function dsAdminCustomerOptions(){
 
   return Array.from(seen.values()).sort((a,b)=> String(a.name||'').localeCompare(String(b.name||''), 'de', { sensitivity:'base' }));
 }
+
+function dsChatCustomerStableKey(customer){
+  const email = String(customer?.email || customer?.customerEmail || '').trim().toLowerCase();
+  const uid = String(customer?.uid || customer?.portalUid || customer?.customerUid || '').trim();
+  const cid = String(customer?.id || customer?.customerId || '').trim();
+  const raw = email || uid || cid || 'kunde';
+  return raw.replace(/[^a-z0-9._-]+/gi,'_').replace(/^_+|_+$/g,'').toLowerCase() || 'kunde';
+}
+function dsAdminDeterministicChatId(customer, teamKey){
+  const team = dsChatNormalizeTeamKey(teamKey, true) === 'all' ? dsChatInferStaffKey() : dsChatNormalizeTeamKey(teamKey);
+  return `chat_${team}_${dsChatCustomerStableKey(customer)}`;
+}
 function dsAdminSelectedCustomer(){
   const select = document.getElementById('chatAdminCustomerSelect');
   const key = String(select?.value || '').trim();
@@ -17570,13 +17582,6 @@ async function dsAdminEnsureChatForCustomer(customer, preferredTeamKey){
   const col = cloudChatsCol();
   if(!col) throw new Error('Cloud-Chat ist aktuell nicht verfügbar.');
   const teamKey = dsChatNormalizeTeamKey(preferredTeamKey, true) === 'all' ? dsChatInferStaffKey() : dsChatNormalizeTeamKey(preferredTeamKey);
-  const found = new Map();
-  const push = (doc)=>{
-    if(!doc) return;
-    const id = String(doc.id || '').trim();
-    if(!id) return;
-    found.set(id, { id, ...(doc.data ? (doc.data()||{}) : doc) });
-  };
   const debug = {
     role: String(CLOUD?.role || ''),
     email: dsChatUserEmail(),
@@ -17588,6 +17593,47 @@ async function dsAdminEnsureChatForCustomer(customer, preferredTeamKey){
     customerUid: String(customer?.uid || ''),
     steps: []
   };
+  const stableId = dsAdminDeterministicChatId(customer, teamKey);
+  const payload = {
+    customerUid: String(customer.uid || '').trim(),
+    customerEmail: String(customer.email || '').trim().toLowerCase(),
+    customerName: String(customer.name || 'Kunde').trim(),
+    customerId: String(customer.id || customer.email || customer.uid || '').trim(),
+    updatedAt: dsServerTimestamp(),
+    updatedAtMs: Date.now(),
+    lastMessageText: '',
+    lastMessageAt: dsServerTimestamp(),
+    lastMessageAtMs: Date.now(),
+    lastMessageFromRole: '',
+    status: 'open',
+    teamMemberKey: teamKey,
+    teamMemberLabel: dsChatTargetLabel(teamKey)
+  };
+
+  try{
+    debug.steps.push('direct:get:' + stableId);
+    const directSnap = await cloudChatDoc(stableId)?.get();
+    if(directSnap && directSnap.exists){
+      debug.steps.push('direct:exists');
+      const existing = { id: stableId, ...(directSnap.data() || {}) };
+      if(dsChatNormalizeTeamKey(existing.teamMemberKey || '') !== teamKey || String(existing.customerEmail||'').trim().toLowerCase() !== payload.customerEmail || String(existing.customerUid||'').trim() !== payload.customerUid || String(existing.customerId||'').trim() !== payload.customerId){
+        await cloudChatDoc(stableId)?.set(payload, { merge:true });
+        return { ...existing, ...payload, id: stableId };
+      }
+      return existing;
+    }
+  }catch(err){
+    console.warn('admin direct chat get failed', err);
+    debug.steps.push('direct:error:' + dsChatErrorText(err));
+  }
+
+  const found = new Map();
+  const push = (doc)=>{
+    if(!doc) return;
+    const id = String(doc.id || '').trim();
+    if(!id) return;
+    found.set(id, { id, ...(doc.data ? (doc.data()||{}) : doc) });
+  };
   try{
     if(customer.uid){
       debug.steps.push('query:uid');
@@ -17597,7 +17643,7 @@ async function dsAdminEnsureChatForCustomer(customer, preferredTeamKey){
     }
     if(customer.email){
       debug.steps.push('query:email');
-      const byEmail = await col.where('customerEmail','==',customer.email).get();
+      const byEmail = await col.where('customerEmail','==',payload.customerEmail).get();
       byEmail.forEach(push);
       debug.steps.push('email=' + String(byEmail.size || 0));
     }
@@ -17612,54 +17658,34 @@ async function dsAdminEnsureChatForCustomer(customer, preferredTeamKey){
     debug.steps.push('query-error:' + dsChatErrorText(err));
   }
   const all = dsChatSortByUpdated(Array.from(found.values()));
-  let chat = dsChatFilterForTeam(all, teamKey)[0] || all[0];
-  if(!chat){
-    const now = Date.now();
-    const payload = {
-      customerUid: customer.uid || '',
-      customerEmail: customer.email || '',
-      customerName: customer.name || 'Kunde',
-      customerId: customer.id || customer.email || customer.uid || '',
-      createdAt: dsServerTimestamp(),
-      updatedAt: dsServerTimestamp(),
-      createdAtMs: now,
-      updatedAtMs: now,
-      lastMessageText: '',
-      lastMessageAt: dsServerTimestamp(),
-      lastMessageAtMs: now,
-      lastMessageFromRole: '',
-      status: 'open',
-      teamMemberKey: teamKey,
-      teamMemberLabel: dsChatTargetLabel(teamKey)
-    };
+  let chat = dsChatFilterForTeam(all, teamKey)[0] || all[0] || null;
+  if(chat){
     try{
-      debug.steps.push('create:start');
-      const ref = await col.add(payload);
-      chat = { id: ref.id, ...payload };
-      debug.steps.push('create:ok:' + String(ref.id || '')); 
-      try{ await dsEnsureWelcomeMessage(ref.id, payload); }catch(e){ console.warn('admin welcome seed failed', e); debug.steps.push('welcome:' + dsChatErrorText(e)); }
+      debug.steps.push('existing:merge:' + String(chat.id || ''));
+      await cloudChatDoc(chat.id)?.set(payload, { merge:true });
+      chat = { ...chat, ...payload, id: chat.id };
+      return chat;
     }catch(err){
-      debug.steps.push('create:error:' + dsChatErrorText(err));
-      throw new Error('Kundenchat konnte nicht geöffnet werden. ' + debug.steps.join(' | '));
-    }
-  }else if(dsChatNormalizeTeamKey(chat.teamMemberKey || '') !== teamKey){
-    try{
-      debug.steps.push('retarget:start');
-      await cloudChatDoc(chat.id)?.set({
-        teamMemberKey: teamKey,
-        teamMemberLabel: dsChatTargetLabel(teamKey),
-        updatedAt: dsServerTimestamp(),
-        updatedAtMs: Date.now()
-      }, { merge:true });
-      chat = { ...chat, teamMemberKey: teamKey, teamMemberLabel: dsChatTargetLabel(teamKey), updatedAtMs: Date.now() };
-      debug.steps.push('retarget:ok');
-    }catch(err){
-      console.warn('admin retarget customer chat failed', err);
-      debug.steps.push('retarget:error:' + dsChatErrorText(err));
+      debug.steps.push('existing:error:' + dsChatErrorText(err));
       throw new Error('Kundenchat konnte nicht geöffnet werden. ' + debug.steps.join(' | '));
     }
   }
-  return chat;
+
+  try{
+    debug.steps.push('create:deterministic:' + stableId);
+    await cloudChatDoc(stableId)?.set({
+      ...payload,
+      createdAt: dsServerTimestamp(),
+      createdAtMs: Date.now()
+    }, { merge:true });
+    const chat = { id: stableId, ...payload, createdAtMs: Date.now() };
+    try{ await dsEnsureWelcomeMessage(stableId, chat); }catch(e){ console.warn('admin welcome seed failed', e); debug.steps.push('welcome:' + dsChatErrorText(e)); }
+    debug.steps.push('create:ok');
+    return chat;
+  }catch(err){
+    debug.steps.push('create:error:' + dsChatErrorText(err));
+    throw new Error('Kundenchat konnte nicht geöffnet werden. ' + debug.steps.join(' | '));
+  }
 }
 async function dsAdminOpenChatForCustomer(){
   const hint = document.getElementById('chatAdminHint');
