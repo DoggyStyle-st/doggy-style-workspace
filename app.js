@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9EP_CHAT2_ADMINAWAIT_FIX_20260326",
+  tag: "M50.9.9EM_CHAT2_ADMINOPEN_SEND_20260326",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9EP_CHAT2_ADMINAWAIT_FIX_20260326";
+const APP_BUILD = "M50.9.9EM_CHAT2_ADMINOPEN_SEND_20260326";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -17181,7 +17181,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9EL) ===== */
+/* ===== CHAT (M50.9.9EQ) ===== */
 function cloudChatsCol(){
   const orgId = CLOUD && CLOUD.orgId;
   if(!orgId) return null;
@@ -17522,6 +17522,7 @@ function dsAdminSelectedCustomer(){
   return dsAdminCustomerOptions().find(x=> String(x.id)===key || String(x.email)===key || String(x.uid)===key) || null;
 }
 async function dsAdminEnsureChatForCustomer(customer, preferredTeamKey){
+  customer = await Promise.resolve(customer);
   if(!customer) throw new Error('Bitte zuerst einen Kunden auswählen.');
   const col = cloudChatsCol();
   if(!col) throw new Error('Cloud-Chat ist aktuell nicht verfügbar.');
@@ -17586,7 +17587,7 @@ async function dsAdminEnsureChatForCustomer(customer, preferredTeamKey){
 }
 async function dsAdminOpenChatForCustomer(){
   const hint = document.getElementById('chatAdminHint');
-  const customer = dsAdminSelectedCustomer(); // sync selection
+  const customer = await Promise.resolve(dsAdminSelectedCustomer());
   if(!customer){ if(hint) hint.textContent = 'Bitte zuerst einen Kunden auswählen.'; return; }
   const teamKey = dsChatNormalizeTeamKey(dsAdminChatState().currentTeamKey, true) === 'all' ? dsChatInferStaffKey() : dsChatNormalizeTeamKey(dsAdminChatState().currentTeamKey);
   const chat = await dsAdminEnsureChatForCustomer(customer, teamKey);
@@ -17723,7 +17724,7 @@ function dsBindAdminChatActions(){
         sendBtn.disabled = true;
         let chatId = String(st.currentChatId || '').trim();
         if(!chatId){
-          const customer = dsAdminSelectedCustomer(); // sync selection
+          const customer = await Promise.resolve(dsAdminSelectedCustomer());
           if(!customer) throw new Error('Bitte zuerst links einen Chat auswählen oder einen Kunden öffnen.');
           const chat = await dsAdminEnsureChatForCustomer(customer, st.currentTeamKey || dsChatInferStaffKey());
           const existingIndex = (st.chats || []).findIndex(x=> String(x.id||'') === String(chat.id||''));
