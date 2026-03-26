@@ -50,10 +50,7 @@
       .customer-task{align-items:flex-start}
       .customer-field-grid{grid-template-columns:1fr}
     }
-      .chat-unread-badge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 6px;margin-left:8px;border-radius:999px;background:#ff5a5f;color:#fff;font-size:11px;font-weight:800;line-height:1;border:1px solid rgba(255,255,255,.16);box-shadow:0 4px 14px rgba(0,0,0,.28);vertical-align:middle}
-    .chat-unread-badge[hidden]{display:none!important}
-    .nav-btn.has-unread-badge{border-color:rgba(255,90,95,.45)}
-</style>
+  </style>
 </head>
 <body class="bg-watermark">
   <main class="customer-shell">
@@ -62,7 +59,7 @@
         <button class="btn nav-btn" data-view="dogs" type="button">Kunde/Hund</button>
         <button class="btn nav-btn" data-view="contract" type="button">Betreuungsvertrag</button>
         <button class="btn nav-btn" data-view="stay" type="button">Neuer Aufenthalt</button>
-        <button class="btn nav-btn" data-view="chat" id="btnCustomerChatNav" type="button">Chat<span class="chat-unread-badge" hidden></span></button>
+        <button class="btn nav-btn" data-view="chat" type="button">Chat</button>
         <button class="btn" id="btnCustomerLogout" type="button">Abmelden</button>
       </div>
     </div>

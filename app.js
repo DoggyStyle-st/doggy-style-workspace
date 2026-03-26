@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9FB_CHAT2_MAINAPP_STAFFROLE_FIX_20260326",
+  tag: "M50.9.9FC_CHAT3_UNREADBADGE_20260326",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9FB_CHAT2_MAINAPP_STAFFROLE_FIX_20260326";
+const APP_BUILD = "M50.9.9FC_CHAT3_UNREADBADGE_20260326";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -17245,6 +17245,122 @@ function dsServerTimestamp(){
   }catch(_){ }
   return Date.now();
 }
+function dsFieldValueIncrement(n){
+  try{
+    if(window.firebase && firebase.firestore && firebase.firestore.FieldValue && firebase.firestore.FieldValue.increment){
+      return firebase.firestore.FieldValue.increment(Number(n || 0));
+    }
+  }catch(_){ }
+  return Number(n || 0);
+}
+function dsUnreadCountForRole(chat, role){
+  const data = chat || {};
+  if(String(role||'') === 'staff') return Math.max(0, Number(data.unreadForStaff || 0));
+  if(String(role||'') === 'customer') return Math.max(0, Number(data.unreadForCustomer || 0));
+  return 0;
+}
+function dsEnsureBadgeChip(el){
+  if(!el) return null;
+  let chip = el.querySelector('.ds-chat-nav-badge');
+  if(chip) return chip;
+  chip = document.createElement('span');
+  chip.className = 'ds-chat-nav-badge is-hidden';
+  chip.textContent = '0';
+  el.appendChild(chip);
+  return chip;
+}
+function dsSetBadgeValue(el, count){
+  const chip = dsEnsureBadgeChip(el);
+  if(!chip) return;
+  const safe = Math.max(0, Number(count || 0));
+  chip.textContent = String(safe);
+  chip.classList.toggle('is-hidden', safe <= 0);
+}
+function dsUpdateAdminUnreadBadge(){
+  const el = document.getElementById('tabChat');
+  const st = dsAdminChatState();
+  const chats = Array.isArray(st?.chats) ? st.chats : [];
+  const total = chats.reduce((sum, chat)=> sum + dsUnreadCountForRole(chat, 'staff'), 0);
+  dsSetBadgeValue(el, total);
+}
+function dsUpdateCustomerUnreadBadge(){
+  const el = document.querySelector('[data-view="chat"].nav-btn');
+  const ws = dsUnreadWatchState();
+  const fromWatcher = ws?.customerSeen instanceof Map ? Array.from(ws.customerSeen.values()) : [];
+  const st = dsCustomerChatState();
+  const chats = fromWatcher.length ? fromWatcher : (Array.isArray(st?.chats) ? st.chats : []);
+  const total = chats.reduce((sum, chat)=> sum + dsUnreadCountForRole(chat, 'customer'), 0);
+  dsSetBadgeValue(el, total);
+}
+async function dsMarkChatRead(chatId, role){
+  const ref = cloudChatDoc(chatId);
+  if(!ref || !chatId) return;
+  const patch = String(role||'') === 'staff'
+    ? { unreadForStaff: 0, staffLastReadAt: dsServerTimestamp(), staffLastReadAtMs: Date.now() }
+    : { unreadForCustomer: 0, customerLastReadAt: dsServerTimestamp(), customerLastReadAtMs: Date.now() };
+  try{ await ref.set(patch, { merge:true }); }catch(_){ }
+}
+function dsUnreadWatchState(){
+  if(!window.__dsUnreadWatchState){
+    window.__dsUnreadWatchState = { started:false, adminUnsub:null, customerUnsubs:[], customerSeen:new Map() };
+  }
+  return window.__dsUnreadWatchState;
+}
+function dsPublishCustomerUnreadSeen(){
+  const ws = dsUnreadWatchState();
+  const st = dsCustomerChatState();
+  st.chats = dsChatSortByUpdated(Array.from(ws.customerSeen.values()));
+  dsUpdateCustomerUnreadBadge();
+}
+function dsStartAdminUnreadWatcher(){
+  const ws = dsUnreadWatchState();
+  if(ws.adminUnsub) return;
+  const col = cloudChatsCol();
+  if(!col || !dsChatAdminAllowed()) return;
+  ws.adminUnsub = col.onSnapshot((snap)=>{
+    const st = dsAdminChatState();
+    st.chats = dsChatSortByUpdated(snap.docs.map(doc=>({ id: doc.id, ...(doc.data()||{}) })));
+    st.filteredChats = dsChatFilterForTeam(st.chats, st.currentTeamKey || 'all');
+    dsUpdateAdminUnreadBadge();
+    if(document.getElementById('chatAdminList')) renderAdminChatList();
+  }, (_err)=>{ dsUpdateAdminUnreadBadge(); });
+}
+function dsStartCustomerUnreadWatcher(){
+  const ws = dsUnreadWatchState();
+  if((ws.customerUnsubs || []).length) return;
+  const col = cloudChatsCol();
+  const uid = dsChatUserUid();
+  const email = dsChatUserEmail();
+  if(!col || (!uid && !email)) return;
+  const seen = ws.customerSeen = new Map();
+  const publish = ()=> dsPublishCustomerUnreadSeen();
+  const attach = (q)=> q.onSnapshot((snap)=>{
+    snap.docChanges().forEach(ch=>{
+      if(ch.type === 'removed') seen.delete(ch.doc.id);
+      else seen.set(ch.doc.id, { id: ch.doc.id, ...(ch.doc.data()||{}) });
+    });
+    publish();
+  }, (_err)=> publish());
+  const unsubs = [];
+  if(uid) unsubs.push(attach(col.where('customerUid','==',uid)));
+  if(email) unsubs.push(attach(col.where('customerEmail','==',email)));
+  ws.customerUnsubs = unsubs;
+  publish();
+}
+function dsInitUnreadBadgeWatchers(){
+  const ws = dsUnreadWatchState();
+  if(ws.started) return;
+  ws.started = true;
+  const tick = ()=>{
+    try{
+      if(!dsEnsureChatDb() || (!dsChatUserUid() && !dsChatUserEmail())) return;
+      if(document.getElementById('tabChat') && dsChatAdminAllowed()) dsStartAdminUnreadWatcher();
+      if(document.querySelector('[data-view="chat"].nav-btn')) dsStartCustomerUnreadWatcher();
+    }catch(_){ }
+  };
+  tick();
+  ws.timer = setInterval(tick, 2000);
+}
 function dsChatNowLabel(){ return fmtDT(Date.now()); }
 function dsChatUserEmail(){ return String(CLOUD?.user?.email || '').trim().toLowerCase(); }
 function dsChatUserUid(){ return String(CLOUD?.user?.uid || '').trim(); }
@@ -17335,62 +17451,6 @@ async function dsEnsureWelcomeMessage(chatId, profile){
   await dsSeedWelcomeMessage(chatId, profile);
   return true;
 }
-
-function dsChatUnreadStaff(chat){
-  return Math.max(0, Number(chat?.unreadForStaff || 0) || 0);
-}
-function dsChatUnreadCustomer(chat){
-  return Math.max(0, Number(chat?.unreadForCustomer || 0) || 0);
-}
-function dsUpdateChatNavBadge(count, opts){
-  const n = Math.max(0, Number(count || 0) || 0);
-  const isCustomer = !!(opts && opts.customer);
-  let host = null;
-  if(isCustomer){
-    host = document.getElementById('btnCustomerChatNav') || document.querySelector('.nav-btn[data-view="chat"]');
-  }else{
-    host = document.getElementById('tabChat');
-  }
-  if(!host) return;
-  let badge = host.querySelector('.chat-unread-badge');
-  if(!badge){
-    badge = document.createElement('span');
-    badge.className = 'chat-unread-badge';
-    badge.setAttribute('aria-live', 'polite');
-    host.appendChild(badge);
-  }
-  if(n > 0){
-    badge.hidden = false;
-    badge.textContent = String(n > 99 ? '99+' : n);
-    host.classList.add('has-unread-badge');
-    host.setAttribute('data-unread-count', String(n));
-  }else{
-    badge.hidden = true;
-    badge.textContent = '';
-    host.classList.remove('has-unread-badge');
-    host.removeAttribute('data-unread-count');
-  }
-}
-async function dsMarkChatRead(chatId, role){
-  const ref = cloudChatDoc(chatId);
-  if(!ref || !chatId) return;
-  const now = Date.now();
-  const payload = role === 'staff'
-    ? { unreadForStaff:0, lastReadByStaffAt: dsServerTimestamp(), lastReadByStaffAtMs: now }
-    : { unreadForCustomer:0, lastReadByCustomerAt: dsServerTimestamp(), lastReadByCustomerAtMs: now };
-  try{ await ref.set(payload, { merge:true }); }catch(err){ console.warn('mark chat read failed', err); }
-}
-function dsRefreshAdminChatBadge(){
-  const chats = Array.isArray(dsAdminChatState()?.chats) ? dsAdminChatState().chats : [];
-  const total = chats.reduce((sum, chat)=> sum + dsChatUnreadStaff(chat), 0);
-  dsUpdateChatNavBadge(total);
-}
-function dsRefreshCustomerChatBadge(){
-  const chats = Array.isArray(dsCustomerChatState()?.chats) ? dsCustomerChatState().chats : [];
-  const total = chats.reduce((sum, chat)=> sum + dsChatUnreadCustomer(chat), 0);
-  dsUpdateChatNavBadge(total, { customer:true });
-}
-
 function dsChatDisplayTime(v){
   try{
     if(v && typeof v.toDate === 'function') return fmtDT(v.toDate().getTime());
@@ -17474,6 +17534,8 @@ async function ensureCurrentCustomerChat(teamKey){
     lastMessageAtMs: now,
     lastMessageFromRole: '',
     status: 'open',
+    unreadForStaff: 0,
+    unreadForCustomer: 0,
     teamMemberKey: chosenTeamKey,
     teamMemberLabel: dsChatTargetLabel(chosenTeamKey)
   };
@@ -17549,13 +17611,10 @@ async function dsSendChatMessage(chatId, text, extraMeta){
     lastMessageText: clean.slice(0, 220),
     lastMessageFromRole: senderRole,
     status: 'open',
+    unreadForStaff: senderRole === 'customer' ? dsFieldValueIncrement(1) : 0,
+    unreadForCustomer: senderRole === 'staff' ? dsFieldValueIncrement(1) : 0,
     teamMemberKey: teamKey,
     teamMemberLabel: dsChatTargetLabel(teamKey),
-    unreadForStaff: senderRole === 'customer' ? (Math.max(0, Number(existing.unreadForStaff || 0) || 0) + 1) : 0,
-    unreadForCustomer: senderRole === 'staff' ? (Math.max(0, Number(existing.unreadForCustomer || 0) || 0) + 1) : 0,
-    ...(senderRole === 'staff'
-      ? { lastReadByStaffAt: dsServerTimestamp(), lastReadByStaffAtMs: now }
-      : { lastReadByCustomerAt: dsServerTimestamp(), lastReadByCustomerAtMs: now }),
     ...(extraMeta || {})
   }, { merge:true });
   await msgs.add({
@@ -17740,6 +17799,8 @@ async function dsAdminEnsureChatForCustomer(customer, preferredTeamKey){
       lastMessageAtMs: now,
       lastMessageFromRole: '',
       status: 'open',
+      unreadForStaff: 0,
+      unreadForCustomer: 0,
       teamMemberKey: teamKey,
       teamMemberLabel: dsChatTargetLabel(teamKey)
     };
@@ -17837,6 +17898,7 @@ function renderAdminChatList(){
     });
   }
   if(count) count.textContent = `${st.filteredChats.length} Chat${st.filteredChats.length===1?'':'s'}`;
+  dsUpdateAdminUnreadBadge();
   if(picker){
     picker.querySelectorAll('[data-chat-team]').forEach(btn=>{
       const key = dsChatNormalizeTeamKey(btn.getAttribute('data-chat-team'), true);
@@ -17865,7 +17927,9 @@ function renderAdminChatList(){
     const when = escapeHtml(dsChatDisplayTime(chat.lastMessageAt || chat.updatedAt || chat.updatedAtMs || 0));
     const snippet = escapeHtml(chat.lastMessageText || 'Noch keine Nachricht.');
     const team = escapeHtml(dsChatTargetLabel(chat.teamMemberKey));
-    return `<button type="button" class="ds-chat-item ${active?'is-active':''}" data-chat-id="${escapeHtml(chat.id)}"><div class="ds-chat-item__title"><div class="ds-chat-item__name">${name}</div><div class="ds-chat-item__time">${when}</div></div><div class="ds-chat-item__meta">${sub} · ${team}</div><div class="ds-chat-item__snippet">${snippet}</div></button>`;
+    const unread = dsUnreadCountForRole(chat, 'staff');
+    const unreadBadge = unread > 0 ? `<span class="ds-chat-list__badge">${unread}</span>` : '';
+    return `<button type="button" class="ds-chat-item ${active?'is-active':''}" data-chat-id="${escapeHtml(chat.id)}"><div class="ds-chat-item__title"><div class="ds-chat-item__name">${name}</div><div style="display:flex;align-items:center;gap:8px;"><div class="ds-chat-item__time">${when}</div>${unreadBadge}</div></div><div class="ds-chat-item__meta">${sub} · ${team}</div><div class="ds-chat-item__snippet">${snippet}</div></button>`;
   }).join('');
   list.querySelectorAll('[data-chat-id]').forEach(btn=>{
     btn.onclick = ()=> dsOpenAdminChat(btn.getAttribute('data-chat-id'));
@@ -17881,6 +17945,7 @@ function renderAdminChatMessages(){
   if(meta) meta.textContent = current ? `${current.customerEmail || 'ohne E-Mail'}${current.customerUid ? ' · UID ' + current.customerUid : ''}` : 'Bitte links einen Kundenchat auswählen.';
   if(body) body.innerHTML = current ? dsRenderChatMessages(st.currentMessages, 'staff') : '<div class="ds-chat-empty">Noch kein Chat ausgewählt.</div>';
   try{ if(body) body.scrollTop = body.scrollHeight; }catch(_){ }
+  dsUpdateAdminUnreadBadge();
 }
 function dsBindAdminChatActions(){
   const sendBtn = document.getElementById('btnChatAdminSend');
@@ -17967,6 +18032,7 @@ async function dsOpenAdminChat(chatId){
     });
   }catch(e){ console.warn('admin welcome ensure failed', e); }
   dsWatchAdminChatMessages(st.currentChatId);
+  dsMarkChatRead(st.currentChatId, 'staff').catch(console.warn);
 }
 function renderAdminChatPanel(forceReload){
   const root = document.getElementById('chatAdminRoot');
@@ -18000,7 +18066,6 @@ function renderAdminChatPanel(forceReload){
   const col = cloudChatsCol();
   if(!col){
     root.querySelector('#chatAdminMessages').innerHTML = '<div class="ds-chat-empty">Cloud-Chat ist aktuell nicht verfügbar.</div>';
-    dsUpdateChatNavBadge(0);
     return;
   }
   if(st.listUnsub) return renderAdminChatList();
@@ -18015,7 +18080,6 @@ function renderAdminChatPanel(forceReload){
     }
     renderAdminChatList();
     renderAdminChatMessages();
-    dsRefreshAdminChatBadge();
   }, (err)=>{
     console.error('admin chats', err);
     root.querySelector('#chatAdminList').innerHTML = '<div class="ds-chat-empty">Chats konnten nicht geladen werden.</div>';
@@ -18079,7 +18143,7 @@ function renderCustomerChatMessages(){
   if(meta) meta.textContent = st.currentChatId ? 'Antworten erscheinen direkt in diesem Verlauf.' : 'Starte einfach mit deiner ersten Nachricht an ' + dsChatTargetLabel(st.currentTeamKey) + '.';
   if(body) body.innerHTML = dsRenderChatMessages(st.currentMessages, 'customer');
   try{ if(body) body.scrollTop = body.scrollHeight; }catch(_){ }
-  dsRefreshCustomerChatBadge();
+  dsUpdateCustomerUnreadBadge();
 }
 async function dsLoadCustomerChatsForTeam(teamKey, autoCreate){
   const st = dsCustomerChatState();
@@ -18099,7 +18163,9 @@ async function dsLoadCustomerChatsForTeam(teamKey, autoCreate){
   if(st.currentChatId){
     await dsEnsureWelcomeMessage(st.currentChatId, dsChatCustomerProfile()).catch(console.warn);
     dsWatchCustomerChatMessages(st.currentChatId);
+    dsMarkChatRead(st.currentChatId, 'customer').catch(console.warn);
   }
+  dsUpdateCustomerUnreadBadge();
 }
 
 function dsWatchCustomerChatMessages(chatId){
@@ -18141,7 +18207,6 @@ function renderCustomerChatPanel(forceReload){
   const col = cloudChatsCol();
   if(!col){
     root.querySelector('#customerChatMessages').innerHTML = '<div class="ds-chat-empty">Cloud-Chat ist aktuell nicht verfügbar.</div>';
-    dsUpdateChatNavBadge(0, { customer:true });
     return;
   }
   const st = dsCustomerChatState();
@@ -18175,6 +18240,7 @@ function renderCustomerChatPanel(forceReload){
   const seen = new Map();
   const publish = async ()=>{
     st.chats = dsChatSortByUpdated(dsChatFilterForTeam(Array.from(seen.values()), st.currentTeamKey));
+    dsUpdateCustomerUnreadBadge();
     if(!st.currentChatId && st.chats.length){
       st.currentChatId = st.chats[0].id;
       await dsEnsureWelcomeMessage(st.currentChatId, dsChatCustomerProfile()).catch(console.warn);
@@ -18193,7 +18259,6 @@ function renderCustomerChatPanel(forceReload){
       }
     }
     renderCustomerChatMessages();
-    dsRefreshCustomerChatBadge();
   };
   const attaches = [];
   const uid = dsChatUserUid();
@@ -18212,4 +18277,5 @@ function renderCustomerChatPanel(forceReload){
 }
 try{ window.renderAdminChatPanel = renderAdminChatPanel; }catch(_){ }
 try{ window.renderCustomerChatPanel = renderCustomerChatPanel; }catch(_){ }
+try{ dsInitUnreadBadgeWatchers(); }catch(_){ }
 /* ===== END CHAT ===== */
