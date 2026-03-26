@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9ET_CHAT2_MAINAPP_DIAGOPEN_20260326",
+  tag: "M50.9.9FA_CHAT2_MAINAPP_SENDERLABEL_FIX_20260326",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9ET_CHAT2_MAINAPP_DIAGOPEN_20260326";
+const APP_BUILD = "M50.9.9FA_CHAT2_MAINAPP_SENDERLABEL_FIX_20260326";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -17182,13 +17182,52 @@ try{
 
 
 /* ===== CHAT (M50.9.9ET_CHAT2_MAINAPP_DIAGOPEN_20260326) ===== */
+function dsResolveOrgId(){
+  const raw = [
+    CLOUD && CLOUD.orgId,
+    window.firebaseOrgId,
+    window.CLOUD_ORG_ID,
+    (window.firebaseConfig && window.firebaseConfig.orgId),
+    localStorage.getItem('ds_orgId')
+  ].find(v => String(v || '').trim());
+  return String(raw || 'doggystyle').trim();
+}
+function dsEnsureChatDb(){
+  try{
+    if(CLOUD){
+      const resolvedOrgId = dsResolveOrgId();
+      if(resolvedOrgId) CLOUD.orgId = resolvedOrgId;
+    }
+    if(CLOUD && CLOUD.db) return CLOUD.db;
+    const fb = (typeof firebase !== 'undefined' && firebase) ? firebase : window.firebase;
+    const cfg = window.firebaseConfig || null;
+    if(!fb || typeof fb.firestore !== 'function') return null;
+    try{
+      if(cfg && typeof fb.initializeApp === 'function' && (!fb.apps || !fb.apps.length)){
+        fb.initializeApp(cfg);
+      }
+    }catch(_){ }
+    const db = fb.firestore();
+    if(CLOUD){
+      CLOUD.enabled = true;
+      CLOUD.db = db;
+      if(!CLOUD.auth && typeof fb.auth === 'function'){
+        try{ CLOUD.auth = fb.auth(); }catch(_){ }
+      }
+      if(!CLOUD.app && fb.apps && fb.apps.length){
+        try{ CLOUD.app = fb.apps[0]; }catch(_){ }
+      }
+    }
+    return db;
+  }catch(_){
+    return null;
+  }
+}
 function cloudChatsCol(){
-  const orgId = CLOUD && CLOUD.orgId;
-  if(!orgId) return null;
-  if(CLOUD && CLOUD.enabled && CLOUD.db) return CLOUD.db.collection("orgs").doc(orgId).collection("chats");
-  const compatDb = getCompatFirestoreDb();
-  if(compatDb) return compatDb.collection("orgs").doc(orgId).collection("chats");
-  return null;
+  const orgId = dsResolveOrgId();
+  const db = dsEnsureChatDb();
+  if(!db || !orgId || typeof db.collection !== 'function') return null;
+  return db.collection("orgs").doc(orgId).collection("chats");
 }
 function cloudChatDoc(chatId){
   const col = cloudChatsCol();
@@ -17395,6 +17434,14 @@ async function dsSendChatMessage(chatId, text, extraMeta){
   const now = Date.now();
   const viewerProfile = dsChatCustomerProfile();
   const senderRole = isStaff() ? 'staff' : 'customer';
+  const senderName = isStaff()
+    ? (function(){
+        const explicit = dsChatNormalizeTeamKey((extraMeta && extraMeta.teamMemberKey) || existing.teamMemberKey || dsAdminChatState().currentTeamKey || dsChatInferStaffKey(), true);
+        if(explicit === 'raphael') return 'Raphael';
+        if(explicit === 'anschi') return 'Anschi';
+        return 'Doggy Style Team';
+      })()
+    : String(viewerProfile.customerName || CLOUD?.user?.displayName || CLOUD?.user?.email || 'Kunde').trim();
   let existing = {};
   try{
     const snap = await chatRef.get();
@@ -17412,13 +17459,6 @@ async function dsSendChatMessage(chatId, text, extraMeta){
     || (senderRole === 'staff' ? dsAdminChatState().currentTeamKey : dsCustomerChatState().currentTeamKey)
     || dsChatInferStaffKey()
   );
-  const senderName = senderRole === 'staff'
-    ? (teamKey === 'raphael'
-        ? 'Raphael'
-        : (teamKey === 'anschi'
-            ? 'Anschi'
-            : 'Doggy Style Team'))
-    : String(viewerProfile.customerName || CLOUD?.user?.displayName || CLOUD?.user?.email || 'Kunde').trim();
   const customerMeta = senderRole === 'staff'
     ? {
         customerUid: String(existing.customerUid || extraMeta?.customerUid || '').trim(),
