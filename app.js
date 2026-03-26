@@ -17335,6 +17335,62 @@ async function dsEnsureWelcomeMessage(chatId, profile){
   await dsSeedWelcomeMessage(chatId, profile);
   return true;
 }
+
+function dsChatUnreadStaff(chat){
+  return Math.max(0, Number(chat?.unreadForStaff || 0) || 0);
+}
+function dsChatUnreadCustomer(chat){
+  return Math.max(0, Number(chat?.unreadForCustomer || 0) || 0);
+}
+function dsUpdateChatNavBadge(count, opts){
+  const n = Math.max(0, Number(count || 0) || 0);
+  const isCustomer = !!(opts && opts.customer);
+  let host = null;
+  if(isCustomer){
+    host = document.getElementById('btnCustomerChatNav') || document.querySelector('.nav-btn[data-view="chat"]');
+  }else{
+    host = document.getElementById('tabChat');
+  }
+  if(!host) return;
+  let badge = host.querySelector('.chat-unread-badge');
+  if(!badge){
+    badge = document.createElement('span');
+    badge.className = 'chat-unread-badge';
+    badge.setAttribute('aria-live', 'polite');
+    host.appendChild(badge);
+  }
+  if(n > 0){
+    badge.hidden = false;
+    badge.textContent = String(n > 99 ? '99+' : n);
+    host.classList.add('has-unread-badge');
+    host.setAttribute('data-unread-count', String(n));
+  }else{
+    badge.hidden = true;
+    badge.textContent = '';
+    host.classList.remove('has-unread-badge');
+    host.removeAttribute('data-unread-count');
+  }
+}
+async function dsMarkChatRead(chatId, role){
+  const ref = cloudChatDoc(chatId);
+  if(!ref || !chatId) return;
+  const now = Date.now();
+  const payload = role === 'staff'
+    ? { unreadForStaff:0, lastReadByStaffAt: dsServerTimestamp(), lastReadByStaffAtMs: now }
+    : { unreadForCustomer:0, lastReadByCustomerAt: dsServerTimestamp(), lastReadByCustomerAtMs: now };
+  try{ await ref.set(payload, { merge:true }); }catch(err){ console.warn('mark chat read failed', err); }
+}
+function dsRefreshAdminChatBadge(){
+  const chats = Array.isArray(dsAdminChatState()?.chats) ? dsAdminChatState().chats : [];
+  const total = chats.reduce((sum, chat)=> sum + dsChatUnreadStaff(chat), 0);
+  dsUpdateChatNavBadge(total);
+}
+function dsRefreshCustomerChatBadge(){
+  const chats = Array.isArray(dsCustomerChatState()?.chats) ? dsCustomerChatState().chats : [];
+  const total = chats.reduce((sum, chat)=> sum + dsChatUnreadCustomer(chat), 0);
+  dsUpdateChatNavBadge(total, { customer:true });
+}
+
 function dsChatDisplayTime(v){
   try{
     if(v && typeof v.toDate === 'function') return fmtDT(v.toDate().getTime());
@@ -17495,6 +17551,11 @@ async function dsSendChatMessage(chatId, text, extraMeta){
     status: 'open',
     teamMemberKey: teamKey,
     teamMemberLabel: dsChatTargetLabel(teamKey),
+    unreadForStaff: senderRole === 'customer' ? (Math.max(0, Number(existing.unreadForStaff || 0) || 0) + 1) : 0,
+    unreadForCustomer: senderRole === 'staff' ? (Math.max(0, Number(existing.unreadForCustomer || 0) || 0) + 1) : 0,
+    ...(senderRole === 'staff'
+      ? { lastReadByStaffAt: dsServerTimestamp(), lastReadByStaffAtMs: now }
+      : { lastReadByCustomerAt: dsServerTimestamp(), lastReadByCustomerAtMs: now }),
     ...(extraMeta || {})
   }, { merge:true });
   await msgs.add({
@@ -17885,6 +17946,7 @@ function dsWatchAdminChatMessages(chatId){
   st.msgUnsub = col.orderBy('createdAt','asc').onSnapshot((snap)=>{
     st.currentMessages = snap.docs.map(doc=>({ id: doc.id, ...(doc.data()||{}) }));
     renderAdminChatMessages();
+    dsMarkChatRead(chatId, 'staff').catch(console.warn);
   }, (err)=>{
     console.error('admin chat messages', err);
     const hint = document.getElementById('chatAdminHint');
@@ -17938,6 +18000,7 @@ function renderAdminChatPanel(forceReload){
   const col = cloudChatsCol();
   if(!col){
     root.querySelector('#chatAdminMessages').innerHTML = '<div class="ds-chat-empty">Cloud-Chat ist aktuell nicht verfügbar.</div>';
+    dsUpdateChatNavBadge(0);
     return;
   }
   if(st.listUnsub) return renderAdminChatList();
@@ -17952,6 +18015,7 @@ function renderAdminChatPanel(forceReload){
     }
     renderAdminChatList();
     renderAdminChatMessages();
+    dsRefreshAdminChatBadge();
   }, (err)=>{
     console.error('admin chats', err);
     root.querySelector('#chatAdminList').innerHTML = '<div class="ds-chat-empty">Chats konnten nicht geladen werden.</div>';
@@ -18015,6 +18079,7 @@ function renderCustomerChatMessages(){
   if(meta) meta.textContent = st.currentChatId ? 'Antworten erscheinen direkt in diesem Verlauf.' : 'Starte einfach mit deiner ersten Nachricht an ' + dsChatTargetLabel(st.currentTeamKey) + '.';
   if(body) body.innerHTML = dsRenderChatMessages(st.currentMessages, 'customer');
   try{ if(body) body.scrollTop = body.scrollHeight; }catch(_){ }
+  dsRefreshCustomerChatBadge();
 }
 async function dsLoadCustomerChatsForTeam(teamKey, autoCreate){
   const st = dsCustomerChatState();
@@ -18048,6 +18113,7 @@ function dsWatchCustomerChatMessages(chatId){
   st.msgUnsub = col.orderBy('createdAt','asc').onSnapshot((snap)=>{
     st.currentMessages = snap.docs.map(doc=>({ id: doc.id, ...(doc.data()||{}) }));
     renderCustomerChatMessages();
+    dsMarkChatRead(chatId, 'customer').catch(console.warn);
   }, (err)=>{
     console.error('customer chat messages', err);
     const hint = document.getElementById('customerChatHint');
@@ -18075,6 +18141,7 @@ function renderCustomerChatPanel(forceReload){
   const col = cloudChatsCol();
   if(!col){
     root.querySelector('#customerChatMessages').innerHTML = '<div class="ds-chat-empty">Cloud-Chat ist aktuell nicht verfügbar.</div>';
+    dsUpdateChatNavBadge(0, { customer:true });
     return;
   }
   const st = dsCustomerChatState();
@@ -18126,6 +18193,7 @@ function renderCustomerChatPanel(forceReload){
       }
     }
     renderCustomerChatMessages();
+    dsRefreshCustomerChatBadge();
   };
   const attaches = [];
   const uid = dsChatUserUid();
