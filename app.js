@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9FA_CHAT2_MAINAPP_SENDERLABEL_FIX_20260326",
+  tag: "M50.9.9FB_CHAT2_MAINAPP_STAFFROLE_FIX_20260326",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9FA_CHAT2_MAINAPP_SENDERLABEL_FIX_20260326";
+const APP_BUILD = "M50.9.9FB_CHAT2_MAINAPP_STAFFROLE_FIX_20260326";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -17432,33 +17432,39 @@ async function dsSendChatMessage(chatId, text, extraMeta){
   const chatRef = cloudChatDoc(chatId);
   if(!msgs || !chatRef) throw new Error('Chat ist nicht verfügbar.');
   const now = Date.now();
-  const viewerProfile = dsChatCustomerProfile();
-  const senderRole = isStaff() ? 'staff' : 'customer';
-  const senderName = isStaff()
-    ? (function(){
-        const explicit = dsChatNormalizeTeamKey((extraMeta && extraMeta.teamMemberKey) || existing.teamMemberKey || dsAdminChatState().currentTeamKey || dsChatInferStaffKey(), true);
-        if(explicit === 'raphael') return 'Raphael';
-        if(explicit === 'anschi') return 'Anschi';
-        return 'Doggy Style Team';
-      })()
-    : String(viewerProfile.customerName || CLOUD?.user?.displayName || CLOUD?.user?.email || 'Kunde').trim();
   let existing = {};
   try{
     const snap = await chatRef.get();
     existing = (snap && snap.exists && typeof snap.data === 'function') ? (snap.data() || {}) : {};
   }catch(_){ existing = {}; }
-  const teamKey = dsChatNormalizeTeamKey(
+
+  const adminState = dsAdminChatState();
+  const customerState = dsCustomerChatState();
+  const isAdminContext = !!(
+    (adminState && String(adminState.currentChatId || '') === String(chatId || ''))
+    || document.getElementById('chatAdminInput')
+    || document.getElementById('chatAdminMessages')
+  );
+  const senderRole = isAdminContext || isStaff() ? 'staff' : 'customer';
+  const viewerProfile = dsChatCustomerProfile();
+  const rawTeamKey = (
     (extraMeta && extraMeta.teamMemberKey)
     || existing.teamMemberKey
-    || (senderRole === 'staff' ? dsAdminChatState().currentTeamKey : dsCustomerChatState().currentTeamKey)
-    || dsChatInferStaffKey(),
-    true
-  ) === 'all' ? dsChatInferStaffKey() : dsChatNormalizeTeamKey(
-    (extraMeta && extraMeta.teamMemberKey)
-    || existing.teamMemberKey
-    || (senderRole === 'staff' ? dsAdminChatState().currentTeamKey : dsCustomerChatState().currentTeamKey)
+    || (senderRole === 'staff' ? adminState.currentTeamKey : customerState.currentTeamKey)
     || dsChatInferStaffKey()
   );
+  const teamKey = dsChatNormalizeTeamKey(rawTeamKey, true) === 'all'
+    ? dsChatInferStaffKey()
+    : dsChatNormalizeTeamKey(rawTeamKey);
+  const senderName = senderRole === 'staff'
+    ? (function(){
+        const explicit = dsChatNormalizeTeamKey(teamKey, true);
+        if(explicit === 'raphael') return 'Raphael';
+        if(explicit === 'anschi') return 'Anschi';
+        return 'Doggy Style Team';
+      })()
+    : String(viewerProfile.customerName || CLOUD?.user?.displayName || CLOUD?.user?.email || 'Kunde').trim();
+
   const customerMeta = senderRole === 'staff'
     ? {
         customerUid: String(existing.customerUid || extraMeta?.customerUid || '').trim(),
