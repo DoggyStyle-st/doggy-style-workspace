@@ -1447,21 +1447,51 @@ async function submitCustomerDogsProposal(){
 function initCustomerMainDogsMode(){
   try{
     showAuthGate(false);
+    try{ document.body.dataset.customerMode = 'dogs'; }catch(_){ }
     const nav = document.querySelector('nav.tabs');
     if(nav) nav.style.display = '';
+    const startPaw = document.querySelector('.paw-start');
+    if(startPaw) startPaw.style.display = 'none';
     document.querySelectorAll('.tab').forEach(btn=>{
-      const t = btn.dataset.tab;
+      const t = String(btn.dataset.tab || '');
       btn.style.display = (t === 'dogs') ? '' : 'none';
+      btn.disabled = (t !== 'dogs');
+      if(t !== 'dogs') btn.setAttribute('aria-hidden','true');
     });
     const top = document.getElementById('btnLogoutTop'); if(top) top.style.display = 'inline-flex';
     const app = document.getElementById('btnLogoutApp'); if(app) app.style.display = 'inline-block';
+    try{ const inboxBtn = document.getElementById('tabInbox'); if(inboxBtn) inboxBtn.style.display='none'; }catch(_){ }
+    try{ const userEl = document.getElementById('syncUser'); if(userEl) userEl.style.display='none'; }catch(_){ }
+
+    const __origShowPanelCustomer = showPanel;
+    showPanel = function(id){ return __origShowPanelCustomer('dogs'); };
+    const __origSelectTabCustomer = selectTab;
+    selectTab = function(tabId){ return __origSelectTabCustomer('dogs'); };
+
+    document.addEventListener('click', function(ev){
+      const btn = ev.target && ev.target.closest ? ev.target.closest('.tab') : null;
+      if(!btn) return;
+      const t = String(btn.dataset.tab || '');
+      if(t !== 'dogs'){
+        ev.preventDefault();
+        ev.stopPropagation();
+        try{ __origSelectTabCustomer('dogs'); }catch(_){ }
+      }
+    }, true);
+
     document.querySelectorAll('.panel').forEach(p=>{ p.style.display='none'; p.classList.remove('is-active'); });
-    const dogsPanel = document.getElementById('dogs'); if(dogsPanel){ dogsPanel.style.display=''; dogsPanel.classList.add('is-active'); }
+    try{ __origSelectTabCustomer('dogs'); }catch(_){ }
+    const dogsPanel = document.getElementById('dogs');
+    if(dogsPanel){ dogsPanel.style.display=''; dogsPanel.classList.add('is-active'); }
     renderDogs();
     const ctx = getCustomerMainDogsContext();
     if(ctx.customerId){ fillCustomerFieldsOnly(ctx.customerId); }
     const ownPet = ctx.pets[0] || null;
-    if(ownPet){ setTimeout(()=>{ try{ openCpEditor('edit', ownPet.id); }catch(e){ console.error('customer main dogs open failed', e); } }, 80); }
+    if(ownPet){
+      setTimeout(()=>{ try{ openCpEditor('edit', ownPet.id); }catch(e){ console.error('customer main dogs open failed', e); } }, 80);
+    }else{
+      setTimeout(()=>{ try{ openCpEditor('new'); }catch(e){ console.error('customer main dogs open new failed', e); } }, 80);
+    }
     cpSetStatus('Kundenmodus: Kunde/Hund');
   }catch(e){ console.error('initCustomerMainDogsMode failed', e); }
 }
