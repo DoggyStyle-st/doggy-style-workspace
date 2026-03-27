@@ -7,7 +7,7 @@
   <link href="manifest.json" rel="manifest"/>
   <meta name="theme-color" content="#101014"/>
   <link href="assets/logo.png" rel="apple-touch-icon"/>
-  <link href="styles.css?v=M50.9.9FS_CUSTOMERAPP_DOGEDITOR_20260327" rel="stylesheet"/>
+  <link href="styles.css?v=M50.9.9FT_CUSTOMERAPP_DOGOPEN_MINIFIX_20260327" rel="stylesheet"/>
   <style>
     body.bg-watermark{background:radial-gradient(circle at top, rgba(255,255,255,.08), transparent 35%), linear-gradient(180deg,#0e1017 0%, #121521 100%) !important}
     body.bg-watermark::before{opacity:.12 !important;filter:none !important}
@@ -231,17 +231,17 @@
     <div class="customer-hidden" id="customerTaskListCard"></div>
     <div class="customer-hidden list" id="customerTaskList"></div>
     <div class="customer-hidden" id="customerPortalSubtitle"></div>
-    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9FS_CUSTOMERAPP_DOGEDITOR_20260327</div>
+    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9FT_CUSTOMERAPP_DOGOPEN_MINIFIX_20260327</div>
   </main>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=M50.9.9FS_CUSTOMERAPP_DOGEDITOR_20260327"></script>
-  <script src="app.js?v=M50.9.9FS_CUSTOMERAPP_DOGEDITOR_20260327"></script>
+  <script src="firebase-config.js?v=M50.9.9FT_CUSTOMERAPP_DOGOPEN_MINIFIX_20260327"></script>
+  <script src="app.js?v=M50.9.9FT_CUSTOMERAPP_DOGOPEN_MINIFIX_20260327"></script>
   <script>
     (function(){
-      const BUILD = 'Build CUSTOMER M50.9.9FS_CUSTOMERAPP_DOGEDITOR_20260327';
+      const BUILD = 'Build CUSTOMER M50.9.9FT_CUSTOMERAPP_DOGOPEN_MINIFIX_20260327';
       const DRAFT_KEY = 'ds_customer_app_drafts_v1';
       const viewNames = ['home','dogs','contract','stay','chat'];
       let currentView = 'home';
@@ -549,9 +549,7 @@
         setView(btn.dataset.view);
       });
       document.getElementById('btnCustomerTaskBack')?.addEventListener('click', ()=>{ document.getElementById('customerTaskEditorWrap')?.classList.remove('is-active'); setView(currentView); });
-      document.getElementById('btnOpenNewStay')?.addEventListener('click', ()=>{ setView('stay'); setTimeout(()=>openRealSection('hundeannahme', makeSyntheticTask('hundeannahme', 'Neuer Aufenthalt')),0); });
-      document.getElementById('btnCustomerOpenDogsTask')?.addEventListener('click', ()=>{ setView('dogs'); setTimeout(()=>openRealSection('customer_data', makeSyntheticTask('customer_data', 'Kunde & Hund')),0); });
-      document.getElementById('btnCustomerOpenContractTask')?.addEventListener('click', ()=>{ setView('contract'); const tasks = getTasks(); const t = tasks.find(x=>String(x.templateId||'')==='boarding_contract'); setTimeout(()=>openRealSection('boarding_contract', t || makeSyntheticTask('boarding_contract', 'Betreuungsvertrag')),0); });
+      bindMainEditorOpeners();
       
       function renderMainlikeInfoList(targetId, rows){
         const el = document.getElementById(targetId); if(!el) return;
@@ -635,48 +633,25 @@ document.getElementById('btnCustomerTaskSubmit')?.addEventListener('click', ()=>
           street: customer.street || '',
           zip: customer.zip || '',
           city: customer.city || '',
-          emergencyName: customer.emergencyName || customer.em_name || '',
-          emergencyPhone: customer.emergencyPhone || customer.em_phone || '',
-          pickupAuth: customer.pickupAuth || customer.pickup_auth || '',
+          emergencyName: customer.emergencyName || '',
+          emergencyPhone: customer.emergencyPhone || '',
+          pickupAuth: customer.pickupAuth || '',
           customerNote: customer.note || customer.notes || '',
           dogName: pet.name || '',
           breed: pet.breed || '',
-          birthDate: pet.birthDate || pet.birthdate || pet.dob || '',
+          birthDate: pet.birthDate || pet.dob || '',
           sex: pet.sex || '',
-          chipStatus: pet.chipStatus || (pet.chipNumber ? 'yes' : ''),
+          chipStatus: pet.chipNumber ? 'yes' : '',
           chipNumber: pet.chipNumber || '',
           vet: pet.vet || '',
           vetPhone: pet.vetPhone || '',
-          vetEmail: pet.vetEmail || '',
-          vetStreet: pet.vetStreet || '',
-          vetZip: pet.vetZip || '',
-          vetCity: pet.vetCity || '',
-          vetEmergencyName: pet.vetEmergencyName || '',
-          vetEmergencyPhone: pet.vetEmergencyPhone || '',
           allergies: pet.allergies || '',
-          medicalConditions: pet.medicalConditions || '',
-          insuranceStatus: pet.insuranceStatus || '',
-          insuranceCompany: pet.insuranceCompany || '',
-          insurancePolicy: pet.insurancePolicy || '',
-          insuranceNotes: pet.insuranceNotes || '',
           vaccinatedConfirmed: !!(pet.vaccinatedConfirmed || pet.vaccinated),
           rabiesDate: pet.rabiesDate || '',
           mixedVaccineDate: pet.mixedVaccineDate || '',
           food: pet.food || '',
-          treatsAllowed: pet.treatsAllowed || '',
-          aloneTime: pet.aloneTime || '',
-          houseTrained: pet.houseTrained || '',
-          transport: pet.transport || '',
           feeding: pet.feeding || '',
-          compatDogs: pet.compatDogs || '',
-          compatCats: pet.compatCats || '',
-          compatKids: pet.compatKids || '',
           compat: pet.compat || '',
-          leashBehavior: pet.leashBehavior || '',
-          recall: pet.recall || '',
-          resourceBehavior: pet.resourceBehavior || '',
-          dailyRoutine: pet.dailyRoutine || '',
-          commands: pet.commands || '',
           behavior: pet.behavior || '',
           notes: pet.notes || ''
         }, payload, draft);
@@ -763,112 +738,44 @@ document.getElementById('btnCustomerTaskSubmit')?.addEventListener('click', ()=>
 function renderCustomerDataRealForm(doc){
   const root = getCurrentEditorRoot(); if(!root) return;
   const f = doc.fields || {};
-  const opt = (items, cur, placeholder='') => {
-    const head = placeholder ? `<option value="">${esc(placeholder)}</option>` : '<option value=""></option>';
-    return head + items.map(it=>`<option value="${esc(it.value)}" ${String(cur||'')===String(it.value)?'selected':''}>${esc(it.label)}</option>`).join('');
-  };
-  root.innerHTML = `
-    <section class="card" style="margin-top:14px">
-      <div class="grid2">
-        <div class="card">
-          <h3>Kunde (Halter)</h3>
-          <div class="row" style="flex-wrap:wrap; gap:12px;">
-            <label class="field"><span>Name <span class="req">*</span></span><input data-key="fullName" value="${esc(f.fullName)}" type="text"></label>
-            <label class="field"><span>E‑Mail <span class="req">*</span></span><input data-key="email" value="${esc(f.email)}" type="email"></label>
-          </div>
-          <details class="opt">
-            <summary>Adresse & Kontakt (optional)</summary>
-            <div class="row" style="flex-wrap:wrap; gap:12px; margin-top:10px;">
-              <label class="field"><span>Telefon</span><input data-key="phone" value="${esc(f.phone)}" type="tel"></label>
-              <label class="field"><span>Straße/Hausnr.</span><input data-key="street" value="${esc(f.street)}" type="text"></label>
-              <label class="field"><span>PLZ</span><input data-key="zip" value="${esc(f.zip)}" type="text"></label>
-              <label class="field"><span>Ort</span><input data-key="city" value="${esc(f.city)}" type="text"></label>
-            </div>
-          </details>
-          <details class="opt">
-            <summary>Notfall & Abholung (optional)</summary>
-            <div class="row" style="flex-wrap:wrap; gap:12px; margin-top:10px;">
-              <label class="field"><span>Notfallkontakt – Name</span><input data-key="emergencyName" value="${esc(f.emergencyName)}" type="text"></label>
-              <label class="field"><span>Notfallkontakt – Telefon</span><input data-key="emergencyPhone" value="${esc(f.emergencyPhone)}" type="tel"></label>
-              <label class="field" style="min-width:100%;"><span>Abholberechtigt (Freitext)</span><input data-key="pickupAuth" value="${esc(f.pickupAuth)}" type="text"></label>
-            </div>
-          </details>
-          <details class="opt" open>
-            <summary>Notizen (optional)</summary>
-            <div class="row" style="flex-wrap:wrap; gap:12px; margin-top:10px;">
-              <label class="field" style="min-width:100%;"><span>Interne Notiz</span><textarea data-key="customerNote" rows="2">${esc(f.customerNote)}</textarea></label>
-            </div>
-          </details>
-        </div>
-        <div class="card">
-          <h3>Hund</h3>
-          <div class="row" style="flex-wrap:wrap; gap:12px;">
-            <label class="field"><span>Name <span class="req">*</span></span><input data-key="dogName" value="${esc(f.dogName)}" type="text"></label>
-            <label class="field"><span>Rasse / Mix</span><input data-key="breed" value="${esc(f.breed)}" type="text"></label>
-            <label class="field"><span>Geburtsdatum</span><input data-key="birthDate" value="${esc(f.birthDate)}" type="date"></label>
-            <label class="field"><span>Geschlecht</span><select data-key="sex">${opt([{value:'m',label:'männlich'},{value:'w',label:'weiblich'},{value:'k',label:'kastriert (Rüde)'},{value:'s',label:'kastriert (Hündin)'}], f.sex, '—')}</select></label>
-          </div>
-          <div class="row" style="flex-wrap:wrap; gap:12px; margin-top:10px;">
-            <label class="field"><span>Gechippt? <span class="req">*</span></span><select data-key="chipStatus">${opt([{value:'yes',label:'Ja'},{value:'no',label:'Nein'}], f.chipStatus, '— bitte wählen —')}</select></label>
-            <label class="field"><span>Chipnummer (wenn Ja)</span><input data-key="chipNumber" value="${esc(f.chipNumber)}" type="text"></label>
-          </div>
-          <details class="opt" open>
-            <summary>Gesundheit & Impfstatus</summary>
-            <div class="row" style="flex-wrap:wrap; gap:12px; margin-top:10px;">
-              <label class="field"><span>Tierarzt (Name/Ort)</span><input data-key="vet" value="${esc(f.vet)}" type="text"></label>
-              <label class="field"><span>Tierarzt Telefon</span><input data-key="vetPhone" value="${esc(f.vetPhone)}" type="tel"></label>
-              <label class="field"><span>Tierarzt E-Mail</span><input data-key="vetEmail" value="${esc(f.vetEmail)}" type="email"></label>
-              <label class="field"><span>Straße/Hausnr. Tierarzt</span><input data-key="vetStreet" value="${esc(f.vetStreet)}" type="text"></label>
-              <label class="field"><span>PLZ Tierarzt</span><input data-key="vetZip" value="${esc(f.vetZip)}" type="text"></label>
-              <label class="field"><span>Ort Tierarzt</span><input data-key="vetCity" value="${esc(f.vetCity)}" type="text"></label>
-              <label class="field"><span>Notfallklinik / Notdienst</span><input data-key="vetEmergencyName" value="${esc(f.vetEmergencyName)}" type="text"></label>
-              <label class="field"><span>Telefon Notfallklinik</span><input data-key="vetEmergencyPhone" value="${esc(f.vetEmergencyPhone)}" type="tel"></label>
-              <label class="field" style="min-width:100%;"><span>Allergien / Unverträglichkeiten</span><textarea data-key="allergies" rows="2">${esc(f.allergies)}</textarea></label>
-              <label class="field" style="min-width:100%;"><span>Erkrankungen / wichtige medizinische Hinweise</span><textarea data-key="medicalConditions" rows="2">${esc(f.medicalConditions)}</textarea></label>
-              <label class="field"><span>Haftpflichtversicherung vorhanden</span><select data-key="insuranceStatus">${opt([{value:'yes',label:'Ja'},{value:'no',label:'Nein'}], f.insuranceStatus)}</select></label>
-              <label class="field"><span>Versicherungsgesellschaft</span><input data-key="insuranceCompany" value="${esc(f.insuranceCompany)}" type="text"></label>
-              <label class="field"><span>Policen- / Versicherungsnummer</span><input data-key="insurancePolicy" value="${esc(f.insurancePolicy)}" type="text"></label>
-              <label class="field" style="min-width:100%;"><span>Deckung / Besonderheiten</span><textarea data-key="insuranceNotes" rows="2">${esc(f.insuranceNotes)}</textarea></label>
-            </div>
-            <div class="row" style="flex-wrap:wrap; gap:12px; margin-top:10px; align-items:end;">
-              <label class="field checkbox-inline" style="min-width:280px; flex:1;"><input data-key="vaccinatedConfirmed" type="checkbox" ${f.vaccinatedConfirmed ? 'checked' : ''}><span>Hund ist altersgerecht und aktuell geimpft</span></label>
-              <label class="field"><span>Letzte Tollwut-Impfung</span><input data-key="rabiesDate" value="${esc(f.rabiesDate)}" type="date"></label>
-              <label class="field"><span>Letzte Kombi-Impfung</span><input data-key="mixedVaccineDate" value="${esc(f.mixedVaccineDate)}" type="date"></label>
-            </div>
-          </details>
-          <details class="opt">
-            <summary>Alltag & Verhalten (optional)</summary>
-            <div class="row" style="flex-wrap:wrap; gap:12px; margin-top:10px;">
-              <label class="field"><span>Standard-Futter</span><input data-key="food" value="${esc(f.food)}" type="text"></label>
-              <label class="field"><span>Leckerlis erlaubt</span><select data-key="treatsAllowed">${opt([{value:'yes',label:'Ja'},{value:'no',label:'Nein'},{value:'limited',label:'Nur eingeschränkt'}], f.treatsAllowed)}</select></label>
-              <label class="field"><span>Alleinbleiben</span><input data-key="aloneTime" value="${esc(f.aloneTime)}" type="text"></label>
-              <label class="field"><span>Stubenrein</span><select data-key="houseTrained">${opt([{value:'yes',label:'Ja'},{value:'partial',label:'Teilweise'},{value:'no',label:'Nein'}], f.houseTrained)}</select></label>
-              <label class="field"><span>Transport / Autofahren</span><input data-key="transport" value="${esc(f.transport)}" type="text"></label>
-              <label class="field"><span>Fütterung (Menge/Zeiten)</span><input data-key="feeding" value="${esc(f.feeding)}" type="text"></label>
-              <label class="field"><span>Verträglichkeit Hunde</span><input data-key="compatDogs" value="${esc(f.compatDogs)}" type="text"></label>
-              <label class="field"><span>Verträglichkeit Katzen</span><input data-key="compatCats" value="${esc(f.compatCats)}" type="text"></label>
-              <label class="field"><span>Verträglichkeit Kinder</span><input data-key="compatKids" value="${esc(f.compatKids)}" type="text"></label>
-              <label class="field"><span>Allgemeine Verträglichkeit</span><input data-key="compat" value="${esc(f.compat)}" type="text"></label>
-              <label class="field"><span>Leinenverhalten</span><input data-key="leashBehavior" value="${esc(f.leashBehavior)}" type="text"></label>
-              <label class="field"><span>Rückruf / Freilauf</span><input data-key="recall" value="${esc(f.recall)}" type="text"></label>
-              <label class="field"><span>Ressourcenverhalten</span><input data-key="resourceBehavior" value="${esc(f.resourceBehavior)}" type="text"></label>
-              <label class="field" style="min-width:100%;"><span>Tagesroutine / Schlafplatz</span><textarea data-key="dailyRoutine" rows="2">${esc(f.dailyRoutine)}</textarea></label>
-              <label class="field" style="min-width:100%;"><span>Kommandos / Signale</span><textarea data-key="commands" rows="2">${esc(f.commands)}</textarea></label>
-              <label class="field" style="min-width:100%;"><span>Ängste/Trigger/Besonderheiten</span><textarea data-key="behavior" rows="2">${esc(f.behavior)}</textarea></label>
-            </div>
-          </details>
-          <details class="opt" open>
-            <summary>Notizen (optional)</summary>
-            <div class="row" style="flex-wrap:wrap; gap:12px; margin-top:10px;">
-              <label class="field" style="min-width:100%;"><span>Interne Notiz</span><textarea data-key="notes" rows="2">${esc(f.notes)}</textarea></label>
-            </div>
-          </details>
-        </div>
-      </div>
-    </section>`;
+  const options = (vals, cur)=> '<option value=""></option>' + vals.map(v=>'<option value="'+esc(v)+'" '+(String(cur||'')===String(v)?'selected':'')+'>'+esc(v)+'</option>').join('');
+  root.innerHTML = `<div class="customer-real-form">
+    <section class="card"><h3>Kunde (Halter)</h3>
+      ${customerField('Name','fullName',f.fullName,'text')}
+      ${customerField('E-Mail','email',f.email,'email')}
+      ${customerField('Telefon','phone',f.phone,'text')}
+      ${customerField('Straße / Hausnummer','street',f.street,'text')}
+      ${customerField('PLZ','zip',f.zip,'text')}
+      ${customerField('Ort','city',f.city,'text')}
+      ${customerField('Notfallkontakt Name','emergencyName',f.emergencyName,'text')}
+      ${customerField('Notfallkontakt Telefon','emergencyPhone',f.emergencyPhone,'text')}
+      ${customerField('Abholberechtigte Personen','pickupAuth',f.pickupAuth,'textarea')}
+      ${customerField('Hinweise zum Kunden','customerNote',f.customerNote,'textarea')}
+    </section>
+    <section class="card"><h3>Hund</h3>
+      ${customerField('Hundename','dogName',f.dogName,'text')}
+      ${customerField('Rasse / Mix','breed',f.breed,'text')}
+      ${customerField('Geburtsdatum','birthDate',f.birthDate,'date')}
+      <label class="field"><span>Geschlecht</span><select data-key="sex">${options(['männlich','weiblich','unklar'], f.sex)}</select></label>
+      <label class="field"><span>Gechippt?</span><select data-key="chipStatus">${options(['yes','no'], f.chipStatus || (f.chipNumber?'yes':''))}</select></label>
+      ${customerField('Chipnummer','chipNumber',f.chipNumber,'text')}
+      ${customerField('Tierarzt / Praxis','vet',f.vet,'text')}
+      ${customerField('Telefon Tierarzt','vetPhone',f.vetPhone,'text')}
+      ${customerField('Allergien / Unverträglichkeiten','allergies',f.allergies,'textarea')}
+      ${customerField('Impfdatum Tollwut','rabiesDate',f.rabiesDate,'date')}
+      ${customerField('Impfdatum Kombi','mixedVaccineDate',f.mixedVaccineDate,'date')}
+      ${customerField('Futter','food',f.food,'text')}
+      ${customerField('Fütterung','feeding',f.feeding,'textarea')}
+      ${customerField('Verträglichkeit','compat',f.compat,'textarea')}
+      ${customerField('Verhalten / Besonderheiten','behavior',f.behavior,'textarea')}
+      ${customerField('Wichtige Hinweise','notes',f.notes,'textarea')}
+      ${customerField('Hund ist altersgerecht und aktuell geimpft','vaccinatedConfirmed',!!f.vaccinatedConfirmed,'checkbox')}
+    </section>
+  </div>`;
 }
 
-      function renderStayRealForm(doc){
+      
+function renderStayRealForm(doc){
   const root = getCurrentEditorRoot(); if(!root) return;
   const f = doc.fields || {}; const m = doc.meta || {};
   const petName = esc((doc.petName || f.dogName || customerContextIds().pet?.name || ''));
@@ -982,6 +889,35 @@ function renderCustomerDataRealForm(doc){
         }
         setStatus('Editor ' + templateId);
       }
+      function bindMainEditorOpeners(){
+        const bind = (id, fn)=>{
+          const el = document.getElementById(id);
+          if(!el) return;
+          el.onclick = function(ev){ try{ ev.preventDefault(); }catch(_){} try{ fn(); }catch(e){ console.error('customer opener failed', id, e); setStatus('Open-Fehler ' + id); } };
+        };
+        bind('btnOpenNewStay', ()=>{ setView('stay'); setTimeout(()=>openRealSection('hundeannahme', makeSyntheticTask('hundeannahme', 'Neuer Aufenthalt')), 0); });
+        bind('btnCustomerOpenDogsTask', ()=>{ setView('dogs'); setTimeout(()=>openRealSection('customer_data', makeSyntheticTask('customer_data', 'Kunde & Hund')), 0); });
+        bind('btnCustomerOpenContractTask', ()=>{
+          setView('contract');
+          const tasks = getTasks();
+          const t = tasks.find(x=>String(x.templateId||'')==='boarding_contract');
+          setTimeout(()=>openRealSection('boarding_contract', t || makeSyntheticTask('boarding_contract', 'Betreuungsvertrag')), 0);
+        });
+      }
+
+      function ensureCustomerEditorVisible(view){
+        try{
+          if(view === 'dogs'){
+            const host = document.getElementById('dogsEditorHost');
+            if(host && !host.children.length) openRealSection('customer_data', getLatestTask('customer_data') || makeSyntheticTask('customer_data', 'Kunde & Hund'));
+          }
+          if(view === 'stay'){
+            const host = document.getElementById('stayEditorHost');
+            if(host && !host.children.length) openRealSection('hundeannahme', getLatestTask('hundeannahme') || makeSyntheticTask('hundeannahme', 'Neuer Aufenthalt'));
+          }
+        }catch(e){ console.error('ensureCustomerEditorVisible failed', view, e); }
+      }
+
       const __origSetView = setView;
       setView = function(name){
         currentView = viewNames.includes(name) ? name : 'home';
@@ -993,6 +929,8 @@ function renderCustomerDataRealForm(doc){
         if(currentView === 'dogs') openRealSection('customer_data', getLatestTask('customer_data'));
         if(currentView === 'contract') openRealSection('boarding_contract', getLatestTask('boarding_contract'));
         if(currentView === 'stay') openRealSection('hundeannahme', getLatestTask('hundeannahme'));
+        bindMainEditorOpeners();
+        ensureCustomerEditorVisible(currentView);
         setStatus('Ansicht ' + currentView);
       };
       openTask = function(task){
@@ -1003,6 +941,8 @@ function renderCustomerDataRealForm(doc){
       refreshCustomUI = function(){
         renderHomeOverview();
         try{ renderCustomerMainlikePanels(); }catch(_){ }
+        bindMainEditorOpeners();
+        ensureCustomerEditorVisible(currentView);
         if(typeof window.renderCustomerChatPanel === 'function'){ try{ window.renderCustomerChatPanel(); }catch(_){ } }
       };
 
@@ -1023,6 +963,8 @@ function renderCustomerDataRealForm(doc){
               if(typeof initCustomerPortal === 'function') await initCustomerPortal();
               refreshCustomUI();
               try{ renderCustomerMainlikePanels(); }catch(_){ }
+              bindMainEditorOpeners();
+              ensureCustomerEditorVisible(currentView);
               setStatus('init ok');
             }catch(e){ console.error('customer boot failed', e); setStatus('Boot-Fehler'); }
           });
