@@ -7,7 +7,7 @@
   <link href="manifest.json" rel="manifest"/>
   <meta name="theme-color" content="#101014"/>
   <link href="assets/logo.png" rel="apple-touch-icon"/>
-  <link href="styles.css?v=M50.9.9FN_CUSTOMERAPP_REALOPEN_CONTRACTFIX_20260327" rel="stylesheet"/>
+  <link href="styles.css?v=M50.9.9FP_CUSTOMERAPP_DIRECTFORMS_20260327" rel="stylesheet"/>
   <style>
     body.bg-watermark{background:radial-gradient(circle at top, rgba(255,255,255,.08), transparent 35%), linear-gradient(180deg,#0e1017 0%, #121521 100%) !important}
     body.bg-watermark::before{opacity:.12 !important;filter:none !important}
@@ -54,7 +54,7 @@
     .contract-shell-customer .field.checkbox-inline input{width:24px;height:24px;flex:0 0 auto;margin-top:2px}
     
     .contract-shell-customer, .contract-shell-customer *{writing-mode:horizontal-tb !important;text-orientation:mixed !important;word-break:normal !important;overflow-wrap:anywhere}
-    .contract-shell-customer .field.checkbox-inline label, .contract-shell-customer .field.checkbox-inline span{display:block !important;white-space:normal !important}
+    .contract-shell-customer .field.checkbox-inline label, .contract-shell-customer .field.checkbox-inline span{display:block !important;white-space:normal !important;writing-mode:horizontal-tb !important;text-orientation:mixed !important;max-width:none !important}
 
     @media (max-width: 980px){.contract-shell-customer{grid-template-columns:1fr}.customer-editor-wrap .customer-real-form{grid-template-columns:1fr}}
     .customer-hidden{display:none !important}
@@ -231,17 +231,17 @@
     <div class="customer-hidden" id="customerTaskListCard"></div>
     <div class="customer-hidden list" id="customerTaskList"></div>
     <div class="customer-hidden" id="customerPortalSubtitle"></div>
-    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9FN_CUSTOMERAPP_REALOPEN_CONTRACTFIX_20260327</div>
+    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9FP_CUSTOMERAPP_DIRECTFORMS_20260327</div>
   </main>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=M50.9.9FN_CUSTOMERAPP_REALOPEN_CONTRACTFIX_20260327"></script>
-  <script src="app.js?v=M50.9.9FN_CUSTOMERAPP_REALOPEN_CONTRACTFIX_20260327"></script>
+  <script src="firebase-config.js?v=M50.9.9FP_CUSTOMERAPP_DIRECTFORMS_20260327"></script>
+  <script src="app.js?v=M50.9.9FP_CUSTOMERAPP_DIRECTFORMS_20260327"></script>
   <script>
     (function(){
-      const BUILD = 'Build CUSTOMER M50.9.9FN_CUSTOMERAPP_REALOPEN_CONTRACTFIX_20260327';
+      const BUILD = 'Build CUSTOMER M50.9.9FP_CUSTOMERAPP_DIRECTFORMS_20260327';
       const DRAFT_KEY = 'ds_customer_app_drafts_v1';
       const viewNames = ['home','dogs','contract','stay','chat'];
       let currentView = 'home';
@@ -496,12 +496,12 @@
       }
       function collectEditorData(){
         const data = Object.assign({}, currentData);
-        document.querySelectorAll('#formRoot [data-key]').forEach(el=>{ data[el.dataset.key] = el.type === 'checkbox' ? !!el.checked : el.value; });
+        document.querySelectorAll('#formRoot [data-key], #dogsFormRoot [data-key], #stayFormRoot [data-key]').forEach(el=>{ data[el.dataset.key] = el.type === 'checkbox' ? !!el.checked : el.value; });
         return data;
       }
       function bindEditorInputs(){
         const hint = document.getElementById('customerTaskSaveHint');
-        document.querySelectorAll('#formRoot [data-key]').forEach(el=>{
+        document.querySelectorAll('#formRoot [data-key], #dogsFormRoot [data-key], #stayFormRoot [data-key]').forEach(el=>{
           el.addEventListener('input', ()=>{
             currentData = collectEditorData();
             if(currentTask) setDraft(currentTask.id || currentTask.taskId || currentTask.templateId, currentData);
@@ -716,9 +716,29 @@ document.getElementById('btnCustomerTaskSubmit')?.addEventListener('click', ()=>
         if(type==='checkbox') return `<label class="field checkbox-inline"><input type="checkbox" data-key="${esc(key)}" ${safe ? 'checked' : ''}><span>${esc(label)}</span></label>`;
         return `<label class="field"><span>${esc(label)}</span><input type="${esc(type||'text')}" data-key="${esc(key)}" value="${esc(safe)}"></label>`;
       }
+      function getCurrentEditorRoot(){
+        if(currentTask && String(currentTask.templateId||'')==='customer_data') return document.getElementById('dogsFormRoot') || document.getElementById('formRoot');
+        if(currentTask && String(currentTask.templateId||'')==='hundeannahme') return document.getElementById('stayFormRoot') || document.getElementById('formRoot');
+        return document.getElementById('formRoot');
+      }
+      function bindInlineEditorButtons(templateId){
+        const back = document.getElementById('btnInlineBack');
+        const submit = document.getElementById('btnInlineSubmit');
+        if(back){ back.onclick = ()=> setView(templateId==='hundeannahme' ? 'stay' : 'dogs'); }
+        if(submit){ submit.onclick = ()=> { saveCurrentCustomerEditor(); alert(templateId==='hundeannahme' ? 'Anfrage lokal gespeichert. Die Übergabe an Eingänge folgt im nächsten Schritt.' : 'Änderungen lokal gespeichert. Die Übergabe an Eingänge folgt im nächsten Schritt.'); }; }
+      }
+      function renderInlineEditorShell(templateId, title, sub){
+        const host = document.getElementById(templateId==='hundeannahme' ? 'stayEditorHost' : 'dogsEditorHost');
+        if(!host) return null;
+        const rootId = templateId==='hundeannahme' ? 'stayFormRoot' : 'dogsFormRoot';
+        const submitText = templateId==='hundeannahme' ? 'Anfrage senden' : 'Änderung senden';
+        host.innerHTML = `<section class="card" style="margin-top:14px"><div class="row between" style="gap:10px; flex-wrap:wrap; align-items:flex-start;"><div><h1 style="margin:0">${title}</h1><div class="muted" style="margin-top:6px">${sub}</div></div><div class="row" style="gap:10px; flex-wrap:wrap;"><button class="btn" id="btnInlineBack" type="button">Zurück</button><button class="btn primary" id="btnInlineSubmit" type="button">${submitText}</button></div></div><div id="${rootId}" style="margin-top:14px"></div><div class="hint" id="customerTaskSaveHint" style="margin-top:12px"></div></section>`;
+        bindInlineEditorButtons(templateId);
+        return document.getElementById(rootId);
+      }
       
 function renderCustomerDataRealForm(doc){
-  const root = document.getElementById('formRoot'); if(!root) return;
+  const root = getCurrentEditorRoot(); if(!root) return;
   const f = doc.fields || {};
   const options = (vals, cur)=> '<option value=""></option>' + vals.map(v=>'<option value="'+esc(v)+'" '+(String(cur||'')===String(v)?'selected':'')+'>'+esc(v)+'</option>').join('');
   root.innerHTML = `<div class="customer-real-form">
@@ -758,7 +778,7 @@ function renderCustomerDataRealForm(doc){
 
       
 function renderStayRealForm(doc){
-  const root = document.getElementById('formRoot'); if(!root) return;
+  const root = getCurrentEditorRoot(); if(!root) return;
   const f = doc.fields || {}; const m = doc.meta || {};
   const petName = esc((doc.petName || f.dogName || customerContextIds().pet?.name || ''));
   const customerName = esc((doc.customerName || f.fullName || customerContextIds().customer?.name || ''));
@@ -784,7 +804,7 @@ function renderStayRealForm(doc){
 
       function collectCustomerRealEditor(templateId){
         const data = {};
-        document.querySelectorAll('#formRoot [data-key]').forEach(el=>{
+        document.querySelectorAll('#formRoot [data-key], #dogsFormRoot [data-key], #stayFormRoot [data-key]').forEach(el=>{
           data[el.dataset.key] = el.type==='checkbox' ? !!el.checked : el.value;
         });
         if(templateId==='hundeannahme'){
@@ -842,6 +862,7 @@ function renderStayRealForm(doc){
           });
         }catch(_){ }
       }
+
       function openRealSection(templateId, task){
         if(templateId==='boarding_contract'){
           currentTask = task || getLatestTask('boarding_contract') || makeSyntheticTask('boarding_contract','Betreuungsvertrag');
@@ -856,23 +877,17 @@ function renderStayRealForm(doc){
         const view = templateId==='hundeannahme' ? 'stay' : 'dogs';
         currentTask = task || getLatestTask(templateId) || makeSyntheticTask(templateId, templateId==='hundeannahme'?'Neuer Aufenthalt':'Kunde/Hund');
         currentData = buildInitialData(currentTask);
-        const wrap = ensureEditorHost(view);
-        if(wrap) wrap.classList.add('is-active');
+        document.getElementById('customerTaskEditorWrap')?.classList.remove('is-active');
         document.querySelectorAll('.customer-panel').forEach(el=>el.classList.toggle('is-active', el.id === 'view-' + view));
         document.querySelectorAll('.nav-btn').forEach(btn=>btn.classList.toggle('is-active', btn.dataset.view === view));
-        ensureEditorButtons(templateId);
         currentDoc = templateId==='hundeannahme' ? buildRealStayDoc(currentTask) : buildRealCustomerDoc(currentTask);
         try{ window.currentDoc = currentDoc; window.currentSection = (templateId==='hundeannahme' ? 'stays' : 'docs'); }catch(_){ }
-        const root = document.getElementById('formRoot');
-        if(root) root.innerHTML='';
         if(templateId==='customer_data'){
+          renderInlineEditorShell('customer_data','Kunde/Hund','Hier bearbeitest du deine Daten im gleichen Editor wie in der Haupt-App.');
           renderCustomerDataRealForm(currentDoc);
         }else if(templateId==='hundeannahme'){
+          renderInlineEditorShell('hundeannahme','Neuer Aufenthalt','Hier bearbeitest du den Aufenthalt im gleichen Editor wie in der Haupt-App.');
           renderStayRealForm(currentDoc);
-        }else if(typeof window.renderEditor === 'function'){
-          window.renderEditor(currentDoc);
-        }else{
-          renderEditor(currentDoc);
         }
         setStatus('Editor ' + templateId);
       }
