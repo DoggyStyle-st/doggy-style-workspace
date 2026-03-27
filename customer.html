@@ -7,7 +7,7 @@
   <link href="manifest.json" rel="manifest"/>
   <meta name="theme-color" content="#101014"/>
   <link href="assets/logo.png" rel="apple-touch-icon"/>
-  <link href="styles.css?v=M50.9.9FG_CHAT3_CLICKREAD_MODAL_20260326" rel="stylesheet"/>
+  <link href="styles.css?v=M50.9.9FH_CUSTOMERAPP_HOME_STARTFLOW_20260327" rel="stylesheet"/>
   <style>
     body.bg-watermark{background:radial-gradient(circle at top, rgba(255,255,255,.08), transparent 35%), linear-gradient(180deg,#0e1017 0%, #121521 100%) !important}
     body.bg-watermark::before{opacity:.12 !important;filter:none !important}
@@ -30,6 +30,15 @@
     .customer-tasklist{display:grid;gap:12px}
     .customer-task{display:flex;justify-content:space-between;gap:14px;align-items:center;flex-wrap:wrap;padding:14px 16px;border-radius:18px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12)}
     .customer-task strong{display:block}.customer-task small{display:block;opacity:.82;margin-top:4px}
+    .customer-home-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:18px}
+    .customer-home-card{padding:18px;border-radius:22px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);display:grid;gap:10px;align-content:start}
+    .customer-home-card h3{margin:0;font-size:20px}
+    .customer-home-card p{margin:0;color:#ececf3}
+    .customer-home-meta{font-size:13px;color:#dcdcea}
+    .customer-home-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px}
+    .customer-chip-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
+    .customer-chip{padding:8px 12px;border-radius:999px;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.12);font-size:13px;color:#f2f2f8}
+    .customer-highlight{padding:16px 18px;border-radius:20px;background:rgba(245,182,46,.14);border:1px solid rgba(245,182,46,.28);margin-top:18px}
     .customer-section-note{margin-top:8px;color:#ececf3}
     .customer-editor-wrap{display:none;margin-top:14px;background:rgba(255,255,255,.14)!important;border:1px solid rgba(255,255,255,.18)!important;backdrop-filter:blur(8px)!important;-webkit-backdrop-filter:blur(8px)!important}
     .customer-editor-wrap.is-active{display:block}
@@ -49,6 +58,7 @@
       .customer-nav .btn{min-width:unset;flex:1 1 calc(50% - 10px)}
       .customer-task{align-items:flex-start}
       .customer-field-grid{grid-template-columns:1fr}
+      .customer-home-grid{grid-template-columns:1fr}
     }
   </style>
 </head>
@@ -56,6 +66,7 @@
   <main class="customer-shell">
     <div class="customer-top">
       <div class="customer-nav card">
+        <button class="btn nav-btn" data-view="home" type="button">Start</button>
         <button class="btn nav-btn" data-view="dogs" type="button">Kunde/Hund</button>
         <button class="btn nav-btn" data-view="contract" type="button">Betreuungsvertrag</button>
         <button class="btn nav-btn" data-view="stay" type="button">Neuer Aufenthalt</button>
@@ -68,8 +79,11 @@
       <div class="customer-hero">
         <img src="assets/logo.png" alt="Doggy Style Hundepension"/>
         <div class="customer-quote handwriting quote-strong">Dein Schatz ist bei uns in guten Pfoten –<br/>mit Herz, Ruhe und ganz viel Fürsorge.</div>
-        <p class="customer-sub">Willkommen in deiner Kunden App. Hier kannst du die Daten zu deinem Hund prüfen, den Betreuungsvertrag öffnen und einen neuen Aufenthalt anfragen.</p>
+        <p class="customer-sub">Willkommen in deiner Kunden App. Hier kannst du deine Daten prüfen, Aufgaben direkt öffnen, einen neuen Aufenthalt anfragen und mit uns chatten.</p>
       </div>
+      <div class="customer-highlight" id="customerHomeWelcome">Dein persönlicher Bereich wird geladen …</div>
+      <div class="customer-chip-row" id="customerHomeChips"></div>
+      <div class="customer-home-grid" id="customerHomeGrid"></div>
     </section>
 
     <section class="card customer-panel" id="view-dogs">
@@ -130,17 +144,17 @@
     <div class="customer-hidden" id="customerTaskListCard"></div>
     <div class="customer-hidden list" id="customerTaskList"></div>
     <div class="customer-hidden" id="customerPortalSubtitle"></div>
-    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9FG_CHAT3_CLICKREAD_MODAL_20260326</div>
+    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9FH_CUSTOMERAPP_HOME_STARTFLOW_20260327</div>
   </main>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=M50.9.9FG_CHAT3_CLICKREAD_MODAL_20260326"></script>
-  <script src="app.js?v=M50.9.9FG_CHAT3_CLICKREAD_MODAL_20260326"></script>
+  <script src="firebase-config.js?v=M50.9.9FH_CUSTOMERAPP_HOME_STARTFLOW_20260327"></script>
+  <script src="app.js?v=M50.9.9FH_CUSTOMERAPP_HOME_STARTFLOW_20260327"></script>
   <script>
     (function(){
-      const BUILD = 'Build CUSTOMER M50.9.9FG_CHAT3_CLICKREAD_MODAL_20260326';
+      const BUILD = 'Build CUSTOMER M50.9.9FH_CUSTOMERAPP_HOME_STARTFLOW_20260327';
       const DRAFT_KEY = 'ds_customer_app_drafts_v1';
       const viewNames = ['home','dogs','contract','stay','chat'];
       let currentView = 'home';
@@ -220,6 +234,47 @@
           btn.onclick = ()=> openTask(task);
           row.appendChild(btn); el.appendChild(row);
         });
+      }
+
+      function renderHomeOverview(){
+        const { customer, pets } = getContext();
+        const tasks = getTasks();
+        const welcome = document.getElementById('customerHomeWelcome');
+        const chips = document.getElementById('customerHomeChips');
+        const grid = document.getElementById('customerHomeGrid');
+        if(!welcome || !chips || !grid) return;
+        const name = String(customer?.name || '').trim() || 'Willkommen';
+        const openTaskCount = tasks.length;
+        const dogCount = pets.length;
+        welcome.innerHTML = '<strong>Hallo ' + esc(name) + '.</strong><br>Hier findest du deinen schnellsten Einstieg in alle freigegebenen Bereiche.';
+        chips.innerHTML = ''
+          + '<div class="customer-chip">Offene Aufgaben: ' + esc(openTaskCount) + '</div>'
+          + '<div class="customer-chip">Verknüpfte Hunde: ' + esc(dogCount) + '</div>'
+          + '<div class="customer-chip">Chat direkt in der App</div>';
+        const cfg = [
+          {view:'dogs', title:'Kunde & Hund', desc:'Prüfe deine Kunden- und Hundedaten und öffne freigegebene Änderungen direkt.', action:'Bereich öffnen', taskId:'customer_data'},
+          {view:'contract', title:'Betreuungsvertrag', desc:'Öffne den Vertrag, ergänze Angaben und sende den Stand an uns zurück.', action:'Vertrag öffnen', taskId:'boarding_contract'},
+          {view:'stay', title:'Neuer Aufenthalt', desc:'Lege schnell eine neue Aufenthaltsanfrage an oder öffne eine freigegebene Aufgabe.', action:'Aufenthalt öffnen', taskId:'hundeannahme'},
+          {view:'chat', title:'Chat', desc:'Schreibe uns direkt. Antworten erscheinen hier im Verlauf.', action:'Zum Chat', taskId:''}
+        ];
+        grid.innerHTML = cfg.map(card => {
+          const task = card.taskId ? getLatestTask(card.taskId) : null;
+          const meta = task ? 'Freigegebene Aufgabe vorhanden.' : (card.taskId ? 'Aktuell keine freigegebene Aufgabe.' : 'Direktnachricht an unser Team.');
+          const openAttr = task ? ' data-open-task="' + esc(task.id || task.taskId || '') + '"' : '';
+          const secondary = card.taskId ? '<button class="btn" type="button" data-open-view="' + esc(card.view) + '">Bereich ansehen</button>' : '';
+          const primaryLabel = task ? 'Direkt öffnen' : card.action;
+          const primaryAttr = task ? openAttr : (' data-open-view="' + esc(card.view) + '"');
+          return ''
+            + '<div class="customer-home-card">'
+            +   '<h3>' + esc(card.title) + '</h3>'
+            +   '<p>' + esc(card.desc) + '</p>'
+            +   '<div class="customer-home-meta">' + esc(meta) + '</div>'
+            +   '<div class="customer-home-actions">'
+            +     '<button class="btn primary" type="button"' + primaryAttr + '>' + esc(primaryLabel) + '</button>'
+            +     secondary
+            +   '</div>'
+            + '</div>';
+        }).join('');
       }
 
       function getLatestTask(templateId){
@@ -375,6 +430,7 @@
       function openTask(task){ if(task) renderEditor(task); }
       function refreshCustomUI(){
         const tasks = getTasks();
+        renderHomeOverview();
         renderSummary();
         renderDogsAction();
         renderTaskList(document.getElementById('contractTaskList'), tasks.filter(t => String(t.templateId||'') === 'boarding_contract').slice(0,1), 'Aktuell liegt kein Betreuungsvertrag zur Bearbeitung vor.');
@@ -382,7 +438,29 @@
         if(typeof window.renderCustomerChatPanel === 'function'){ try{ window.renderCustomerChatPanel(); }catch(_){ } }
       }
 
-      document.addEventListener('click', (ev)=>{ const btn = ev.target.closest('.nav-btn'); if(!btn) return; ev.preventDefault(); try{ if(btn.dataset.view === 'chat' && typeof window.dsSetChatExplicitOpen === 'function') window.dsSetChatExplicitOpen('customer', true); }catch(_){ } setView(btn.dataset.view); });
+      document.addEventListener('click', (ev)=>{
+        const taskBtn = ev.target.closest('[data-open-task]');
+        if(taskBtn){
+          ev.preventDefault();
+          const id = String(taskBtn.getAttribute('data-open-task') || '');
+          const task = getTasks().find(t => String(t.id || t.taskId || '') === id);
+          if(task){ openTask(task); return; }
+        }
+        const viewBtn = ev.target.closest('[data-open-view]');
+        if(viewBtn){
+          ev.preventDefault();
+          const view = String(viewBtn.getAttribute('data-open-view') || 'home');
+          if(view === 'chat' && typeof window.dsSetChatExplicitOpen === 'function'){ try{ window.dsSetChatExplicitOpen('customer', true); }catch(_){ } }
+          setView(view);
+          if(view === 'stay' && viewBtn.id === 'btnOpenNewStayHome'){ openTask(makeSyntheticTask('hundeannahme', 'Neuer Aufenthalt')); }
+          return;
+        }
+        const btn = ev.target.closest('.nav-btn');
+        if(!btn) return;
+        ev.preventDefault();
+        try{ if(btn.dataset.view === 'chat' && typeof window.dsSetChatExplicitOpen === 'function') window.dsSetChatExplicitOpen('customer', true); }catch(_){ }
+        setView(btn.dataset.view);
+      });
       document.getElementById('btnCustomerTaskBack')?.addEventListener('click', ()=>{ document.getElementById('customerTaskEditorWrap')?.classList.remove('is-active'); setView(currentView); });
       document.getElementById('btnOpenNewStay')?.addEventListener('click', ()=>{ setView('stay'); openTask(makeSyntheticTask('hundeannahme', 'Neuer Aufenthalt')); });
       document.getElementById('btnCustomerTaskSubmit')?.addEventListener('click', ()=>{
