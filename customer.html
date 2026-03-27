@@ -7,7 +7,7 @@
   <link href="manifest.json" rel="manifest"/>
   <meta name="theme-color" content="#101014"/>
   <link href="assets/logo.png" rel="apple-touch-icon"/>
-  <link href="styles.css?v=M50.9.9FM_CUSTOMERAPP_EDITORFIELDS_LAYOUTFIX_20260327" rel="stylesheet"/>
+  <link href="styles.css?v=M50.9.9FN_CUSTOMERAPP_REALOPEN_CONTRACTFIX_20260327" rel="stylesheet"/>
   <style>
     body.bg-watermark{background:radial-gradient(circle at top, rgba(255,255,255,.08), transparent 35%), linear-gradient(180deg,#0e1017 0%, #121521 100%) !important}
     body.bg-watermark::before{opacity:.12 !important;filter:none !important}
@@ -96,11 +96,12 @@
     }
 
     /* FK fixes */
-    #view-contract .contract-wrap{grid-template-columns:1fr !important;}
-    #view-contract .contract-side{max-width:none !important;}
-    #view-contract .checkline{align-items:flex-start !important; gap:10px !important; white-space:normal !important;}
-    #view-contract .checkline span{display:block !important; writing-mode:horizontal-tb !important; text-orientation:mixed !important; white-space:normal !important; line-height:1.35 !important;}
+    #view-contract .contract-wrap, #view-contract .contract-shell, #view-contract .row{grid-template-columns:1fr !important;display:grid !important;gap:18px !important;align-items:start !important;}
+    #view-contract .contract-side, #view-contract .contract-doc, #view-contract .contract-card{max-width:none !important;width:100% !important;min-width:0 !important;}
+    #view-contract .checkline{align-items:flex-start !important; gap:10px !important; white-space:normal !important; writing-mode:horizontal-tb !important; text-orientation:mixed !important;}
+    #view-contract .checkline span, #view-contract label, #view-contract .field span, #view-contract .contract-card *, #view-contract .contract-side *{display:block !important; writing-mode:horizontal-tb !important; text-orientation:mixed !important; white-space:normal !important; line-height:1.35 !important; word-break:normal !important; overflow-wrap:anywhere !important;}
     #view-contract .sigbox{min-height:180px;}
+    #view-contract canvas{max-width:100% !important;height:auto !important;}
   </style>
 </head>
 <body class="bg-watermark">
@@ -230,17 +231,17 @@
     <div class="customer-hidden" id="customerTaskListCard"></div>
     <div class="customer-hidden list" id="customerTaskList"></div>
     <div class="customer-hidden" id="customerPortalSubtitle"></div>
-    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9FM_CUSTOMERAPP_EDITORFIELDS_LAYOUTFIX_20260327</div>
+    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9FN_CUSTOMERAPP_REALOPEN_CONTRACTFIX_20260327</div>
   </main>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=M50.9.9FM_CUSTOMERAPP_EDITORFIELDS_LAYOUTFIX_20260327"></script>
-  <script src="app.js?v=M50.9.9FM_CUSTOMERAPP_EDITORFIELDS_LAYOUTFIX_20260327"></script>
+  <script src="firebase-config.js?v=M50.9.9FN_CUSTOMERAPP_REALOPEN_CONTRACTFIX_20260327"></script>
+  <script src="app.js?v=M50.9.9FN_CUSTOMERAPP_REALOPEN_CONTRACTFIX_20260327"></script>
   <script>
     (function(){
-      const BUILD = 'Build CUSTOMER M50.9.9FM_CUSTOMERAPP_EDITORFIELDS_LAYOUTFIX_20260327';
+      const BUILD = 'Build CUSTOMER M50.9.9FN_CUSTOMERAPP_REALOPEN_CONTRACTFIX_20260327';
       const DRAFT_KEY = 'ds_customer_app_drafts_v1';
       const viewNames = ['home','dogs','contract','stay','chat'];
       let currentView = 'home';
@@ -847,8 +848,9 @@ function renderStayRealForm(doc){
           currentView = 'contract';
           document.querySelectorAll('.customer-panel').forEach(el=>el.classList.toggle('is-active', el.id === 'view-contract'));
           document.querySelectorAll('.nav-btn').forEach(btn=>btn.classList.toggle('is-active', btn.dataset.view === 'contract'));
+          const wrap = document.getElementById('customerTaskEditorWrap'); if(wrap) wrap.classList.remove('is-active');
           renderContractCustomerMode();
-          setStatus('Ansicht contract');
+          setStatus('Editor ' + templateId);
           return;
         }
         const view = templateId==='hundeannahme' ? 'stay' : 'dogs';
@@ -861,19 +863,16 @@ function renderStayRealForm(doc){
         ensureEditorButtons(templateId);
         currentDoc = templateId==='hundeannahme' ? buildRealStayDoc(currentTask) : buildRealCustomerDoc(currentTask);
         try{ window.currentDoc = currentDoc; window.currentSection = (templateId==='hundeannahme' ? 'stays' : 'docs'); }catch(_){ }
-        try{
-          if(templateId==='customer_data'){
-            renderCustomerDataRealForm(currentDoc);
-          }else if(templateId==='hundeannahme'){
-            renderStayRealForm(currentDoc);
-          }else if(typeof window.renderEditor === 'function'){
-            window.renderEditor(currentDoc);
-          }else{
-            renderEditor(currentDoc);
-          }
-        }catch(e){
-          console.error('customer real editor failed', e);
-          try{ if(templateId==='customer_data') renderCustomerDataRealForm(currentDoc); else if(templateId==='hundeannahme') renderStayRealForm(currentDoc); else renderEditor(currentDoc); }catch(_){ }
+        const root = document.getElementById('formRoot');
+        if(root) root.innerHTML='';
+        if(templateId==='customer_data'){
+          renderCustomerDataRealForm(currentDoc);
+        }else if(templateId==='hundeannahme'){
+          renderStayRealForm(currentDoc);
+        }else if(typeof window.renderEditor === 'function'){
+          window.renderEditor(currentDoc);
+        }else{
+          renderEditor(currentDoc);
         }
         setStatus('Editor ' + templateId);
       }
@@ -885,9 +884,9 @@ function renderStayRealForm(doc){
         const wrap = document.getElementById('customerTaskEditorWrap');
         if(currentView==='home' || currentView==='chat') wrap?.classList.remove('is-active');
         if(currentView === 'chat' && typeof window.renderCustomerChatPanel === 'function'){ try{ window.renderCustomerChatPanel(); }catch(_){ } }
-        if(currentView === 'dogs') setTimeout(()=>openRealSection('customer_data', getLatestTask('customer_data')), 0);
-        if(currentView === 'contract') setTimeout(()=>openRealSection('boarding_contract', getLatestTask('boarding_contract')), 0);
-        if(currentView === 'stay') setTimeout(()=>openRealSection('hundeannahme', getLatestTask('hundeannahme')), 0);
+        if(currentView === 'dogs') openRealSection('customer_data', getLatestTask('customer_data'));
+        if(currentView === 'contract') openRealSection('boarding_contract', getLatestTask('boarding_contract'));
+        if(currentView === 'stay') openRealSection('hundeannahme', getLatestTask('hundeannahme'));
         setStatus('Ansicht ' + currentView);
       };
       openTask = function(task){
