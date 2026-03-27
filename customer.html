@@ -7,7 +7,7 @@
   <link href="manifest.json" rel="manifest"/>
   <meta name="theme-color" content="#101014"/>
   <link href="assets/logo.png" rel="apple-touch-icon"/>
-  <link href="styles.css?v=M50.9.9FV_CUSTOMERAPP_DOGOPEN_RENDERFIX_20260327" rel="stylesheet"/>
+  <link href="styles.css?v=M50.9.9FW_CUSTOMERAPP_DOGOPEN_HARDFIX_20260327" rel="stylesheet"/>
   <style>
     body.bg-watermark{background:radial-gradient(circle at top, rgba(255,255,255,.08), transparent 35%), linear-gradient(180deg,#0e1017 0%, #121521 100%) !important}
     body.bg-watermark::before{opacity:.12 !important;filter:none !important}
@@ -231,17 +231,17 @@
     <div class="customer-hidden" id="customerTaskListCard"></div>
     <div class="customer-hidden list" id="customerTaskList"></div>
     <div class="customer-hidden" id="customerPortalSubtitle"></div>
-    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9FV_CUSTOMERAPP_DOGOPEN_RENDERFIX_20260327</div>
+    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9FW_CUSTOMERAPP_DOGOPEN_HARDFIX_20260327</div>
   </main>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=M50.9.9FV_CUSTOMERAPP_DOGOPEN_RENDERFIX_20260327"></script>
-  <script src="app.js?v=M50.9.9FV_CUSTOMERAPP_DOGOPEN_RENDERFIX_20260327"></script>
+  <script src="firebase-config.js?v=M50.9.9FW_CUSTOMERAPP_DOGOPEN_HARDFIX_20260327"></script>
+  <script src="app.js?v=M50.9.9FW_CUSTOMERAPP_DOGOPEN_HARDFIX_20260327"></script>
   <script>
     (function(){
-      const BUILD = 'Build CUSTOMER M50.9.9FV_CUSTOMERAPP_DOGOPEN_RENDERFIX_20260327';
+      const BUILD = 'Build CUSTOMER M50.9.9FW_CUSTOMERAPP_DOGOPEN_HARDFIX_20260327';
       const DRAFT_KEY = 'ds_customer_app_drafts_v1';
       const viewNames = ['home','dogs','contract','stay','chat'];
       let currentView = 'home';
@@ -737,7 +737,7 @@ document.getElementById('btnCustomerTaskSubmit')?.addEventListener('click', ()=>
       
 function renderCustomerDataRealForm(doc){
   const root = getCurrentEditorRoot(); if(!root) return;
-  const f = doc.fields || {};
+  const f = (doc && doc.fields) ? doc.fields : {};
   const options = (vals, cur)=> '<option value=""></option>' + vals.map(v=>'<option value="'+esc(v)+'" '+(String(cur||'')===String(v)?'selected':'')+'>'+esc(v)+'</option>').join('');
   root.innerHTML = `<div class="customer-real-form">
     <section class="card"><h3>Kunde (Halter)</h3>
@@ -760,21 +760,15 @@ function renderCustomerDataRealForm(doc){
       <label class="field"><span>Gechippt?</span><select data-key="chipStatus">${options(['yes','no'], f.chipStatus || (f.chipNumber?'yes':''))}</select></label>
       ${customerField('Chipnummer','chipNumber',f.chipNumber,'text')}
       ${customerField('Tierarzt / Praxis','vet',f.vet,'text')}
-      ${customerField('Telefon Tierarzt','vetPhone',f.vetPhone,'text')}
+      ${customerField('Tierarzt Telefon','vetPhone',f.vetPhone,'text')}
       ${customerField('Allergien / Unverträglichkeiten','allergies',f.allergies,'textarea')}
-      ${customerField('Impfdatum Tollwut','rabiesDate',f.rabiesDate,'date')}
-      ${customerField('Impfdatum Kombi','mixedVaccineDate',f.mixedVaccineDate,'date')}
-      ${customerField('Futter','food',f.food,'text')}
-      ${customerField('Fütterung','feeding',f.feeding,'textarea')}
-      ${customerField('Verträglichkeit','compat',f.compat,'textarea')}
-      ${customerField('Verhalten / Besonderheiten','behavior',f.behavior,'textarea')}
-      ${customerField('Wichtige Hinweise','notes',f.notes,'textarea')}
-      ${customerField('Hund ist altersgerecht und aktuell geimpft','vaccinatedConfirmed',!!f.vaccinatedConfirmed,'checkbox')}
+      ${customerField('Fütterung / Besonderheiten','feeding',f.feeding,'textarea')}
+      ${customerField('Medikamente / Hinweise','medication',f.medication,'textarea')}
+      ${customerField('Weitere Hinweise','notes',f.notes,'textarea')}
     </section>
   </div>`;
 }
 
-      
 function renderStayRealForm(doc){
   const root = getCurrentEditorRoot(); if(!root) return;
   const f = doc.fields || {}; const m = doc.meta || {};
@@ -895,17 +889,16 @@ function renderStayRealForm(doc){
           currentView = 'dogs';
           document.querySelectorAll('.customer-panel').forEach(el=>el.classList.toggle('is-active', el.id === 'view-dogs'));
           document.querySelectorAll('.nav-btn').forEach(btn=>btn.classList.toggle('is-active', btn.dataset.view === 'dogs'));
-          const task = getLatestTask('customer_data') || makeSyntheticTask('customer_data', 'Kunde/Hund');
-          currentTask = task || { templateId:'customer_data', taskType:'customer_data', title:'Kunde/Hund' };
+          currentTask = { id:'customer_data_direct', taskId:'customer_data_direct', templateId:'customer_data', title:'Kunde/Hund' };
           try{ currentData = buildInitialData(currentTask); }catch(_){ currentData = {}; }
-          let doc = null;
-          try{ doc = buildRealCustomerDoc(currentTask); }catch(_){ doc = null; }
-          if(!doc || typeof doc !== 'object') doc = { fields:{} };
-          currentDoc = doc;
-          try{ window.currentDoc = currentDoc; window.currentSection = 'docs'; }catch(_){ }
-          renderInlineEditorShell('customer_data','Kunde/Hund','Hier bearbeitest du deine Daten im gleichen Editor wie in der Haupt-App.');
-          renderCustomerDataRealForm(currentDoc);
-          bindEditorInputs();
+          try{ currentDoc = buildRealCustomerDoc(currentTask); }catch(_){ currentDoc = { fields: currentData || {} }; }
+          const host = document.getElementById('dogsEditorHost');
+          if(!host) throw new Error('dogsEditorHost missing');
+          host.innerHTML = `<section class="card" style="margin-top:14px"><div class="row between" style="gap:10px; flex-wrap:wrap; align-items:flex-start;"><div><h1 style="margin:0">Kunde/Hund</h1><div class="muted" style="margin-top:6px">Hier bearbeitest du deine Daten im gleichen Editor wie in der Haupt-App.</div></div><div class="row" style="gap:10px; flex-wrap:wrap;"><button class="btn" id="btnInlineBack" type="button">Zurück</button><button class="btn primary" id="btnInlineSubmit" type="button">Änderung senden</button></div></div><div id="dogsFormRoot" style="margin-top:14px"></div><div class="hint" id="customerTaskSaveHint" style="margin-top:12px"></div></section>`;
+          const back=document.getElementById('btnInlineBack'); if(back) back.onclick=()=> setView('dogs');
+          const submit=document.getElementById('btnInlineSubmit'); if(submit) submit.onclick=()=>{ try{ saveCurrentCustomerEditor(); }catch(_){} alert('Änderungen lokal gespeichert. Die Übergabe an Eingänge folgt im nächsten Schritt.'); };
+          renderCustomerDataRealForm(currentDoc || { fields:{} });
+          try{ bindEditorInputs(); }catch(_){ }
           setStatus('Editor customer_data');
         }catch(e){
           console.error('openDogsDirectSafe failed', e);
