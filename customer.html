@@ -7,7 +7,7 @@
   <link href="manifest.json" rel="manifest"/>
   <meta name="theme-color" content="#101014"/>
   <link href="assets/logo.png" rel="apple-touch-icon"/>
-  <link href="styles.css?v=M50.9.9FK_CUSTOMERAPP_REAL_EDITORS_FIX_20260327" rel="stylesheet"/>
+  <link href="styles.css?v=M50.9.9FL_CUSTOMERAPP_REAL_EDITORS_OPENFIX_20260327" rel="stylesheet"/>
   <style>
     body.bg-watermark{background:radial-gradient(circle at top, rgba(255,255,255,.08), transparent 35%), linear-gradient(180deg,#0e1017 0%, #121521 100%) !important}
     body.bg-watermark::before{opacity:.12 !important;filter:none !important}
@@ -42,6 +42,17 @@
     .customer-section-note{margin-top:8px;color:#ececf3}
     .customer-editor-wrap{display:none;margin-top:14px;background:rgba(255,255,255,.14)!important;border:1px solid rgba(255,255,255,.18)!important;backdrop-filter:blur(8px)!important;-webkit-backdrop-filter:blur(8px)!important}
     .customer-editor-wrap.is-active{display:block}
+    .customer-editor-wrap .customer-real-form{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:12px}
+    .customer-editor-wrap .customer-real-form .card{margin:0}
+    .customer-editor-wrap .field textarea{min-height:96px}
+    .customer-editor-wrap .field.checkbox-inline{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+    .customer-editor-wrap .field.checkbox-inline span{margin:0}
+    .customer-editor-wrap .field.checkbox-inline input{width:24px;height:24px;flex:0 0 auto}
+    .contract-shell-customer{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(340px,.95fr);gap:18px;align-items:start}
+    .contract-shell-customer .field.checkbox-inline{display:flex;align-items:flex-start;gap:12px;flex-wrap:nowrap}
+    .contract-shell-customer .field.checkbox-inline span{white-space:normal;line-height:1.35}
+    .contract-shell-customer .field.checkbox-inline input{width:24px;height:24px;flex:0 0 auto;margin-top:2px}
+    @media (max-width: 980px){.contract-shell-customer{grid-template-columns:1fr}.customer-editor-wrap .customer-real-form{grid-template-columns:1fr}}
     .customer-hidden{display:none !important}
     .customer-fields{display:grid;gap:14px}
     .customer-field-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
@@ -215,17 +226,17 @@
     <div class="customer-hidden" id="customerTaskListCard"></div>
     <div class="customer-hidden list" id="customerTaskList"></div>
     <div class="customer-hidden" id="customerPortalSubtitle"></div>
-    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9FK_CUSTOMERAPP_REAL_EDITORS_FIX_20260327</div>
+    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9FL_CUSTOMERAPP_REAL_EDITORS_OPENFIX_20260327</div>
   </main>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=M50.9.9FK_CUSTOMERAPP_REAL_EDITORS_FIX_20260327"></script>
-  <script src="app.js?v=M50.9.9FK_CUSTOMERAPP_REAL_EDITORS_FIX_20260327"></script>
+  <script src="firebase-config.js?v=M50.9.9FL_CUSTOMERAPP_REAL_EDITORS_OPENFIX_20260327"></script>
+  <script src="app.js?v=M50.9.9FL_CUSTOMERAPP_REAL_EDITORS_OPENFIX_20260327"></script>
   <script>
     (function(){
-      const BUILD = 'Build CUSTOMER M50.9.9FK_CUSTOMERAPP_REAL_EDITORS_FIX_20260327';
+      const BUILD = 'Build CUSTOMER M50.9.9FL_CUSTOMERAPP_REAL_EDITORS_OPENFIX_20260327';
       const DRAFT_KEY = 'ds_customer_app_drafts_v1';
       const viewNames = ['home','dogs','contract','stay','chat'];
       let currentView = 'home';
@@ -533,9 +544,9 @@
         setView(btn.dataset.view);
       });
       document.getElementById('btnCustomerTaskBack')?.addEventListener('click', ()=>{ document.getElementById('customerTaskEditorWrap')?.classList.remove('is-active'); setView(currentView); });
-      document.getElementById('btnOpenNewStay')?.addEventListener('click', ()=>{ setView('stay'); openTask(makeSyntheticTask('hundeannahme', 'Neuer Aufenthalt')); });
-      document.getElementById('btnCustomerOpenDogsTask')?.addEventListener('click', ()=>{ setView('dogs'); openTask(makeSyntheticTask('customer_data', 'Kunde & Hund')); });
-      document.getElementById('btnCustomerOpenContractTask')?.addEventListener('click', ()=>{ setView('contract'); const tasks = getTasks(); const t = tasks.find(x=>String(x.templateId||'')==='boarding_contract'); if(t) openTask(t); else openTask(makeSyntheticTask('boarding_contract', 'Betreuungsvertrag')); });
+      document.getElementById('btnOpenNewStay')?.addEventListener('click', ()=>{ setView('stay'); setTimeout(()=>openRealSection('hundeannahme', makeSyntheticTask('hundeannahme', 'Neuer Aufenthalt')),0); });
+      document.getElementById('btnCustomerOpenDogsTask')?.addEventListener('click', ()=>{ setView('dogs'); setTimeout(()=>openRealSection('customer_data', makeSyntheticTask('customer_data', 'Kunde & Hund')),0); });
+      document.getElementById('btnCustomerOpenContractTask')?.addEventListener('click', ()=>{ setView('contract'); const tasks = getTasks(); const t = tasks.find(x=>String(x.templateId||'')==='boarding_contract'); setTimeout(()=>openRealSection('boarding_contract', t || makeSyntheticTask('boarding_contract', 'Betreuungsvertrag')),0); });
       
       function renderMainlikeInfoList(targetId, rows){
         const el = document.getElementById(targetId); if(!el) return;
@@ -676,7 +687,9 @@ document.getElementById('btnCustomerTaskSubmit')?.addEventListener('click', ()=>
       function saveCurrentCustomerEditor(){
         const hint = document.getElementById('customerTaskSaveHint');
         try{
-          if(currentTask && String(currentTask.templateId||'')==='hundeannahme'){
+          if(currentTask && (String(currentTask.templateId||'')==='hundeannahme' || String(currentTask.templateId||'')==='customer_data')){
+            collectCustomerRealEditor(String(currentTask.templateId||''));
+          }else if(currentTask && String(currentTask.templateId||'')==='hundeannahme'){
             if(typeof syncStayEditorInputsToDoc==='function') syncStayEditorInputsToDoc();
             currentData = Object.assign({}, currentData, {
               startDate: currentDoc?.meta?.von || '',
@@ -692,10 +705,85 @@ document.getElementById('btnCustomerTaskSubmit')?.addEventListener('click', ()=>
           if(hint) hint.textContent = 'Änderungen lokal gespeichert. Die Übergabe an Eingänge folgt im nächsten Schritt.';
         }catch(e){ if(hint) hint.textContent = 'Speichern fehlgeschlagen.'; }
       }
+      function customerField(label,key,value,type){
+        const safe = (value ?? '');
+        if(type==='textarea') return `<label class="field"><span>${esc(label)}</span><textarea data-key="${esc(key)}">${esc(safe)}</textarea></label>`;
+        if(type==='checkbox') return `<label class="field checkbox-inline"><input type="checkbox" data-key="${esc(key)}" ${safe ? 'checked' : ''}><span>${esc(label)}</span></label>`;
+        return `<label class="field"><span>${esc(label)}</span><input type="${esc(type||'text')}" data-key="${esc(key)}" value="${esc(safe)}"></label>`;
+      }
+      function renderCustomerDataRealForm(doc){
+        const root = document.getElementById('formRoot'); if(!root) return;
+        const f = doc.fields || {};
+        root.innerHTML = `<div class="customer-real-form">
+          <section class="card"><h3>Kunde (Halter)</h3>
+            ${customerField('Name','fullName',f.fullName,'text')}
+            ${customerField('E-Mail','email',f.email,'email')}
+            ${customerField('Telefon','phone',f.phone,'text')}
+            ${customerField('Straße / Hausnummer','street',f.street,'text')}
+            ${customerField('PLZ','zip',f.zip,'text')}
+            ${customerField('Ort','city',f.city,'text')}
+            ${customerField('Notfallkontakt Name','emergencyName',f.emergencyName,'text')}
+            ${customerField('Notfallkontakt Telefon','emergencyPhone',f.emergencyPhone,'text')}
+            ${customerField('Abholberechtigte Personen','pickupAuth',f.pickupAuth,'textarea')}
+            ${customerField('Hinweise zum Kunden','customerNote',f.customerNote,'textarea')}
+          </section>
+          <section class="card"><h3>Hund</h3>
+            ${customerField('Hundename','dogName',f.dogName,'text')}
+            ${customerField('Rasse','breed',f.breed,'text')}
+            ${customerField('Geburtsdatum','birthDate',f.birthDate,'date')}
+            ${customerField('Geschlecht','sex',f.sex,'text')}
+            ${customerField('Chipnummer','chipNumber',f.chipNumber,'text')}
+            ${customerField('Tierarzt / Praxis','vet',f.vet,'text')}
+            ${customerField('Telefon Tierarzt','vetPhone',f.vetPhone,'text')}
+            ${customerField('Allergien / Unverträglichkeiten','allergies',f.allergies,'textarea')}
+            ${customerField('Futter','food',f.food,'text')}
+            ${customerField('Fütterung','feeding',f.feeding,'textarea')}
+            ${customerField('Verträglichkeit','compat',f.compat,'textarea')}
+            ${customerField('Verhalten / Besonderheiten','behavior',f.behavior,'textarea')}
+            ${customerField('Wichtige Hinweise','notes',f.notes,'textarea')}
+            ${customerField('Hund ist altersgerecht und aktuell geimpft','vaccinatedConfirmed',!!f.vaccinatedConfirmed,'checkbox')}
+          </section>
+        </div>`;
+      }
+      function renderStayRealForm(doc){
+        const root = document.getElementById('formRoot'); if(!root) return;
+        const f = doc.fields || {}; const m = doc.meta || {};
+        root.innerHTML = `<div class="customer-real-form">
+          <section class="card"><h3>Zeitraum</h3>
+            ${customerField('Von','meta_von',m.von,'date')}
+            ${customerField('Bis','meta_bis',m.bis,'date')}
+            ${customerField('Betreuungsart','meta_betreuung',m.betreuung,'text')}
+          </section>
+          <section class="card"><h3>Hinweise</h3>
+            ${customerField('Hinweise zum Aufenthalt','notes',f.notes || f.stayNotes,'textarea')}
+          </section>
+        </div>`;
+      }
+      function collectCustomerRealEditor(templateId){
+        const data = {};
+        document.querySelectorAll('#formRoot [data-key]').forEach(el=>{
+          data[el.dataset.key] = el.type==='checkbox' ? !!el.checked : el.value;
+        });
+        if(templateId==='hundeannahme'){
+          currentDoc.meta = currentDoc.meta || {};
+          currentDoc.fields = currentDoc.fields || {};
+          currentDoc.meta.von = data.meta_von || '';
+          currentDoc.meta.bis = data.meta_bis || '';
+          currentDoc.meta.betreuung = data.meta_betreuung || '';
+          currentDoc.fields.notes = data.notes || '';
+          currentData = Object.assign({}, currentData, {startDate:currentDoc.meta.von,endDate:currentDoc.meta.bis,betreuung:currentDoc.meta.betreuung,stayNotes:currentDoc.fields.notes});
+        } else {
+          currentDoc.fields = Object.assign({}, currentDoc.fields || {}, data);
+          currentData = Object.assign({}, currentData, currentDoc.fields);
+        }
+      }
+
       function renderContractCustomerMode(){
         const wrap = document.getElementById('customerTaskEditorWrap');
         if(wrap) wrap.classList.remove('is-active');
         try{ if(typeof renderContractPanel==='function') renderContractPanel(); }catch(e){ console.error(e); }
+        const shell = document.querySelector('#view-contract .contract-shell, #view-contract .row');
+        if(shell) shell.classList.add('contract-shell-customer');
         const info = customerContextIds();
         const cs = document.getElementById('contractCustomerSelect');
         const ps = document.getElementById('contractPetSelect');
@@ -737,14 +825,18 @@ document.getElementById('btnCustomerTaskSubmit')?.addEventListener('click', ()=>
         currentDoc = templateId==='hundeannahme' ? buildRealStayDoc(currentTask) : buildRealCustomerDoc(currentTask);
         try{ window.currentDoc = currentDoc; window.currentSection = (templateId==='hundeannahme' ? 'stays' : 'docs'); }catch(_){ }
         try{
-          if(typeof window.renderEditor === 'function'){
+          if(templateId==='customer_data'){
+            renderCustomerDataRealForm(currentDoc);
+          }else if(templateId==='hundeannahme'){
+            renderStayRealForm(currentDoc);
+          }else if(typeof window.renderEditor === 'function'){
             window.renderEditor(currentDoc);
           }else{
             renderEditor(currentDoc);
           }
         }catch(e){
           console.error('customer real editor failed', e);
-          try{ renderEditor(currentDoc); }catch(_){ }
+          try{ if(templateId==='customer_data') renderCustomerDataRealForm(currentDoc); else if(templateId==='hundeannahme') renderStayRealForm(currentDoc); else renderEditor(currentDoc); }catch(_){ }
         }
         setStatus('Editor ' + templateId);
       }
