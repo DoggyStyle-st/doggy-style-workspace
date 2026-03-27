@@ -7,7 +7,7 @@
   <link href="manifest.json" rel="manifest"/>
   <meta name="theme-color" content="#101014"/>
   <link href="assets/logo.png" rel="apple-touch-icon"/>
-  <link href="styles.css?v=M50.9.9FJ_CUSTOMERAPP_REAL_MAIN_EDITORS_20260327" rel="stylesheet"/>
+  <link href="styles.css?v=M50.9.9FK_CUSTOMERAPP_REAL_EDITORS_FIX_20260327" rel="stylesheet"/>
   <style>
     body.bg-watermark{background:radial-gradient(circle at top, rgba(255,255,255,.08), transparent 35%), linear-gradient(180deg,#0e1017 0%, #121521 100%) !important}
     body.bg-watermark::before{opacity:.12 !important;filter:none !important}
@@ -79,6 +79,13 @@
       .customer-home-grid{grid-template-columns:1fr}
       .customer-mainlike .mainlike-grid2, .customer-mainlike .mainlike-kv{grid-template-columns:1fr}
     }
+
+    /* FK fixes */
+    #view-contract .contract-wrap{grid-template-columns:1fr !important;}
+    #view-contract .contract-side{max-width:none !important;}
+    #view-contract .checkline{align-items:flex-start !important; gap:10px !important; white-space:normal !important;}
+    #view-contract .checkline span{display:block !important; writing-mode:horizontal-tb !important; text-orientation:mixed !important; white-space:normal !important; line-height:1.35 !important;}
+    #view-contract .sigbox{min-height:180px;}
   </style>
 </head>
 <body class="bg-watermark">
@@ -114,7 +121,7 @@
       </div>
       <div class="mainlike-shell">
         <div class="card">
-          <div class="customer-section-note">Hier bearbeitest du deine Kunden- und Hundedaten im gleichen Editor wie in der Haupt-App.</div>
+          <div class="customer-section-note">Hier öffnest du deine Kunden- und Hundedaten im echten Haupt-App-Editor.</div>
         </div>
         <div id="dogsEditorHost"></div>
       </div>
@@ -173,7 +180,7 @@
         </div>
       </div>
       <div class="mainlike-shell">
-        <div class="card"><div class="customer-section-note">Hier bearbeitest du Aufenthalte im gleichen Editor wie in der Haupt-App.</div></div>
+        <div class="card"><div class="customer-section-note">Hier öffnest du Aufenthalte im echten Haupt-App-Editor.</div></div>
         <div id="stayEditorHost"></div>
       </div>
     </section>
@@ -208,17 +215,17 @@
     <div class="customer-hidden" id="customerTaskListCard"></div>
     <div class="customer-hidden list" id="customerTaskList"></div>
     <div class="customer-hidden" id="customerPortalSubtitle"></div>
-    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9FJ_CUSTOMERAPP_REAL_MAIN_EDITORS_20260327</div>
+    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9FK_CUSTOMERAPP_REAL_EDITORS_FIX_20260327</div>
   </main>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=M50.9.9FJ_CUSTOMERAPP_REAL_MAIN_EDITORS_20260327"></script>
-  <script src="app.js?v=M50.9.9FJ_CUSTOMERAPP_REAL_MAIN_EDITORS_20260327"></script>
+  <script src="firebase-config.js?v=M50.9.9FK_CUSTOMERAPP_REAL_EDITORS_FIX_20260327"></script>
+  <script src="app.js?v=M50.9.9FK_CUSTOMERAPP_REAL_EDITORS_FIX_20260327"></script>
   <script>
     (function(){
-      const BUILD = 'Build CUSTOMER M50.9.9FJ_CUSTOMERAPP_REAL_MAIN_EDITORS_20260327';
+      const BUILD = 'Build CUSTOMER M50.9.9FK_CUSTOMERAPP_REAL_EDITORS_FIX_20260327';
       const DRAFT_KEY = 'ds_customer_app_drafts_v1';
       const viewNames = ['home','dogs','contract','stay','chat'];
       let currentView = 'home';
@@ -729,7 +736,16 @@ document.getElementById('btnCustomerTaskSubmit')?.addEventListener('click', ()=>
         ensureEditorButtons(templateId);
         currentDoc = templateId==='hundeannahme' ? buildRealStayDoc(currentTask) : buildRealCustomerDoc(currentTask);
         try{ window.currentDoc = currentDoc; window.currentSection = (templateId==='hundeannahme' ? 'stays' : 'docs'); }catch(_){ }
-        try{ renderEditor(currentDoc); }catch(e){ console.error('customer real editor failed', e); }
+        try{
+          if(typeof window.renderEditor === 'function'){
+            window.renderEditor(currentDoc);
+          }else{
+            renderEditor(currentDoc);
+          }
+        }catch(e){
+          console.error('customer real editor failed', e);
+          try{ renderEditor(currentDoc); }catch(_){ }
+        }
         setStatus('Editor ' + templateId);
       }
       const __origSetView = setView;
