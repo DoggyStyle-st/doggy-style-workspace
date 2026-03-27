@@ -1319,11 +1319,159 @@ function showStaffUI(){
     if(tabCal) tabCal.style.display = isStaff() ? '' : 'none';
   }catch(_){ }
 }
+
+function isCustomerMainDogsMode(){
+  try{
+    const p = (location && location.pathname) ? location.pathname.toLowerCase() : '';
+    const qs = new URLSearchParams((location && location.search) ? location.search : '');
+    return (p.endsWith('/app.html') || p.endsWith('app.html')) && qs.get('customer_mode') === 'dogs' && CLOUD.role === ROLES.CUSTOMER;
+  }catch(_){ return false; }
+}
+function getCustomerMainDogsContext(){
+  const email = String(CLOUD?.user?.email || '').trim().toLowerCase();
+  const uidVal = String(CLOUD?.user?.uid || '').trim();
+  const customers = Array.isArray(state.customers) ? state.customers : [];
+  let customer = customers.find(c => String(c.portalUid || c.customerUid || c.uid || '').trim() === uidVal)
+    || customers.find(c => String(c.email || '').trim().toLowerCase() === email);
+  if(!customer && email){
+    const pets = Array.isArray(state.pets) ? state.pets : [];
+    const matching = pets.find(p => {
+      const c = getCustomer(p.customerId);
+      return String(c?.email || '').trim().toLowerCase() === email;
+    });
+    if(matching) customer = getCustomer(matching.customerId);
+  }
+  const pets = Array.isArray(state.pets) ? state.pets.filter(p => customer ? String(p.customerId||'') === String(customer.id||customer.customerId||'') : false) : [];
+  return { email, uid: uidVal, customer: customer || null, customerId: customer ? String(customer.id || customer.customerId || '') : '', pets };
+}
+async function submitCustomerDogsProposal(){
+  try{
+    ensureStateShape();
+    const ctx = getCustomerMainDogsContext();
+    if(!ctx.customer){ alert('Kundendaten konnten nicht zugeordnet werden.'); return; }
+    const pet = (cpEdit && cpEdit.petId) ? getPet(cpEdit.petId) : (ctx.pets[0] || null);
+    if(!pet){ alert('Es wurde kein Hund zum Bearbeiten gefunden.'); return; }
+    const cs = document.getElementById('p_chipStatus')?.value || '';
+    if(!String(document.getElementById('c_name')?.value || '').trim()){ alert('Bitte Kundennamen eintragen.'); return; }
+    if(!String(document.getElementById('c_email')?.value || '').trim()){ alert('Bitte E-Mail eintragen.'); return; }
+    if(!String(document.getElementById('p_name')?.value || '').trim()){ alert('Bitte Hundename eintragen.'); return; }
+    if(!cs){ alert('Bitte bei „Gechippt?“ Ja oder Nein wählen.'); return; }
+    const customerProposal = {
+      id: ctx.customerId,
+      name: String(document.getElementById('c_name')?.value || '').trim(),
+      phone: String(document.getElementById('c_phone')?.value || '').trim(),
+      email: String(document.getElementById('c_email')?.value || '').trim(),
+      street: String(document.getElementById('c_street')?.value || '').trim(),
+      zip: String(document.getElementById('c_zip')?.value || '').trim(),
+      city: String(document.getElementById('c_city')?.value || '').trim(),
+      emergencyName: String(document.getElementById('c_em_name')?.value || '').trim(),
+      emergencyPhone: String(document.getElementById('c_em_phone')?.value || '').trim(),
+      pickupAuth: String(document.getElementById('c_pickup_auth')?.value || '').trim(),
+      note: String(document.getElementById('c_note')?.value || '').trim()
+    };
+    const petProposal = {
+      id: String(pet.id||''),
+      customerId: ctx.customerId,
+      name: String(document.getElementById('p_name')?.value || '').trim(),
+      breed: String(document.getElementById('p_breed')?.value || '').trim(),
+      birthdate: String(document.getElementById('p_birthdate')?.value || ''),
+      sex: String(document.getElementById('p_sex')?.value || ''),
+      chip: cs === 'yes',
+      chipNumber: String(document.getElementById('p_chipNumber')?.value || '').trim(),
+      vet: String(document.getElementById('p_vet')?.value || '').trim(),
+      vetPhone: String(document.getElementById('p_vetPhone')?.value || '').trim(),
+      vetEmail: String(document.getElementById('p_vetEmail')?.value || '').trim(),
+      vetStreet: String(document.getElementById('p_vetStreet')?.value || '').trim(),
+      vetZip: String(document.getElementById('p_vetZip')?.value || '').trim(),
+      vetCity: String(document.getElementById('p_vetCity')?.value || '').trim(),
+      vetEmergencyName: String(document.getElementById('p_vetEmergencyName')?.value || '').trim(),
+      vetEmergencyPhone: String(document.getElementById('p_vetEmergencyPhone')?.value || '').trim(),
+      allergies: String(document.getElementById('p_allergies')?.value || '').trim(),
+      medicalConditions: String(document.getElementById('p_medicalConditions')?.value || '').trim(),
+      insuranceStatus: String(document.getElementById('p_insuranceStatus')?.value || ''),
+      insuranceCompany: String(document.getElementById('p_insuranceCompany')?.value || '').trim(),
+      insurancePolicy: String(document.getElementById('p_insurancePolicy')?.value || '').trim(),
+      insuranceNotes: String(document.getElementById('p_insuranceNotes')?.value || '').trim(),
+      vaccinatedConfirmed: !!document.getElementById('p_vaccinatedConfirmed')?.checked,
+      rabiesDate: String(document.getElementById('p_rabiesDate')?.value || ''),
+      mixedVaccineDate: String(document.getElementById('p_mixedVaccineDate')?.value || ''),
+      vaccinationPassPhoto: cpVaccinationPassDataUrl || String(pet.vaccinationPassPhoto || ''),
+      profilePhoto: cpProfilePhotoDataUrl || String(pet.profilePhoto || ''),
+      food: String(document.getElementById('p_food')?.value || '').trim(),
+      treatsAllowed: String(document.getElementById('p_treatsAllowed')?.value || ''),
+      aloneTime: String(document.getElementById('p_aloneTime')?.value || '').trim(),
+      houseTrained: String(document.getElementById('p_houseTrained')?.value || ''),
+      transport: String(document.getElementById('p_transport')?.value || '').trim(),
+      feeding: String(document.getElementById('p_feeding')?.value || '').trim(),
+      compatDogs: String(document.getElementById('p_compatDogs')?.value || '').trim(),
+      compatCats: String(document.getElementById('p_compatCats')?.value || '').trim(),
+      compatKids: String(document.getElementById('p_compatKids')?.value || '').trim(),
+      compat: String(document.getElementById('p_compat')?.value || '').trim(),
+      leashBehavior: String(document.getElementById('p_leashBehavior')?.value || '').trim(),
+      recall: String(document.getElementById('p_recall')?.value || '').trim(),
+      resourceBehavior: String(document.getElementById('p_resourceBehavior')?.value || '').trim(),
+      behavior: String(document.getElementById('p_behavior')?.value || '').trim(),
+      dailyRoutine: String(document.getElementById('p_dailyRoutine')?.value || '').trim(),
+      commands: String(document.getElementById('p_commands')?.value || '').trim(),
+      note: String(document.getElementById('p_note')?.value || '').trim()
+    };
+    const stamp = Date.now();
+    const task = {
+      id: uid(), taskId: uid(),
+      templateId: 'customer_data',
+      title: 'Kunde/Hund Änderungsvorschlag',
+      status: 'submitted',
+      submittedAt: stamp,
+      createdAt: stamp,
+      updatedAt: stamp,
+      customerUid: String(CLOUD?.user?.uid || ''),
+      customerEmail: String(CLOUD?.user?.email || '').trim().toLowerCase(),
+      customerName: customerProposal.name || String(CLOUD?.user?.email || 'Kunde'),
+      customerId: ctx.customerId,
+      payloadSubmitted: { source: 'customer-main-dogs', mode: 'proposal', customer: customerProposal, pet: petProposal }
+    };
+    if(CLOUD?.enabled && cloudTasksCol){
+      await cloudTasksCol().doc(task.id).set(task, {merge:true});
+    } else {
+      const raw = localStorage.getItem(LS_KEY); const local = raw ? JSON.parse(raw) : {};
+      local.inboxAssignments = Array.isArray(local.inboxAssignments) ? local.inboxAssignments : [];
+      local.inboxAssignments.unshift(task);
+      localStorage.setItem(LS_KEY, JSON.stringify(local));
+    }
+    cpSetStatus('Als Vorschlag an Eingänge gesendet.');
+    try{ alert('Änderungsvorschlag wurde an Eingänge gesendet.'); }catch(_){ }
+    closeCpEditor();
+    renderDogs();
+  }catch(err){ console.error('submitCustomerDogsProposal failed', err); cpSetStatus('Senden fehlgeschlagen.', true); alert('Senden fehlgeschlagen.'); }
+}
+function initCustomerMainDogsMode(){
+  try{
+    showAuthGate(false);
+    const nav = document.querySelector('nav.tabs');
+    if(nav) nav.style.display = '';
+    document.querySelectorAll('.tab').forEach(btn=>{
+      const t = btn.dataset.tab;
+      btn.style.display = (t === 'dogs') ? '' : 'none';
+    });
+    const top = document.getElementById('btnLogoutTop'); if(top) top.style.display = 'inline-flex';
+    const app = document.getElementById('btnLogoutApp'); if(app) app.style.display = 'inline-block';
+    document.querySelectorAll('.panel').forEach(p=>{ p.style.display='none'; p.classList.remove('is-active'); });
+    const dogsPanel = document.getElementById('dogs'); if(dogsPanel){ dogsPanel.style.display=''; dogsPanel.classList.add('is-active'); }
+    renderDogs();
+    const ctx = getCustomerMainDogsContext();
+    if(ctx.customerId){ fillCustomerFieldsOnly(ctx.customerId); }
+    const ownPet = ctx.pets[0] || null;
+    if(ownPet){ setTimeout(()=>{ try{ openCpEditor('edit', ownPet.id); }catch(e){ console.error('customer main dogs open failed', e); } }, 80); }
+    cpSetStatus('Kundenmodus: Kunde/Hund');
+  }catch(e){ console.error('initCustomerMainDogsMode failed', e); }
+}
 async function initCustomerPortal(){
   // Kunden sollen NICHT in die interne App – bei Direktaufruf app.html ins Kundenportal umleiten
   try{
     const p = (location && location.pathname) ? location.pathname.toLowerCase() : '';
-    if(p.endsWith('/app.html') || p.endsWith('app.html')){
+    const qs = new URLSearchParams((location && location.search) ? location.search : '');
+    const allowMainCustomerMode = qs.get('customer_mode') === 'dogs';
+    if((p.endsWith('/app.html') || p.endsWith('app.html')) && !allowMainCustomerMode){
       location.replace('customer.html');
       return;
     }
@@ -10031,7 +10179,12 @@ function renderDogs(){
   const list = $("#dogList");
   if(!list) return;
   list.innerHTML = "";
-  const petsAll = (state.pets||[]).slice();
+  let petsAll = (state.pets||[]).slice();
+  const __customerMainDogs = isCustomerMainDogsMode();
+  const __customerCtx = __customerMainDogs ? getCustomerMainDogsContext() : null;
+  if(__customerMainDogs && __customerCtx && __customerCtx.customerId){
+    petsAll = petsAll.filter(p=>String(p.customerId||'') === String(__customerCtx.customerId));
+  }
   // Sortierung: Kunden A-Z, Hunde je Kunde A-Z (de)
   const collator = new Intl.Collator("de", { sensitivity: "base", numeric: true });
   // Letzter Aufenthalt pro Kunde (für Übersicht in der Kundenzeile)
@@ -10125,14 +10278,13 @@ function renderDogs(){
               <small>${chipTxt}${badge}</small>
             </div>
           </div>
-          <div class="actions">
-            <button class="smallbtn" data-v="1">Vertrag</button>
-            <button class="smallbtn" data-e="1">Bearbeiten</button>
-            <button class="smallbtn" data-d="1">Löschen</button>
-          </div>`;
-        el.querySelector('[data-v="1"]').onclick = ()=>openContractForPet(p.customerId, p.id);
-        el.querySelector('[data-e="1"]').onclick = ()=>openCpEditor("edit", p.id);
-        el.querySelector('[data-d="1"]').onclick = ()=>{
+          <div class="actions">${__customerMainDogs ? `<button class="smallbtn" data-e="1">Bearbeiten</button>` : `<button class="smallbtn" data-v="1">Vertrag</button><button class="smallbtn" data-e="1">Bearbeiten</button><button class="smallbtn" data-d="1">Löschen</button>`}</div>`;
+        const btnV = el.querySelector('[data-v="1"]');
+        const btnE = el.querySelector('[data-e="1"]');
+        const btnD = el.querySelector('[data-d="1"]');
+        if(btnV) btnV.onclick = ()=>openContractForPet(p.customerId, p.id);
+        if(btnE) btnE.onclick = ()=>openCpEditor("edit", p.id);
+        if(btnD) btnD.onclick = ()=>{
           if(confirm("Hund wirklich löschen? (Aufenthalte/Rechnungen bleiben als Historie bestehen)")){
             state.pets = (state.pets||[]).filter(x=>x.id!==p.id);
             // legacy dog nicht automatisch löschen (Sicherheit), aber Mapping entfernen
@@ -10204,6 +10356,10 @@ $("#btnCpSave").addEventListener("click",(e)=>{
   try{ e.preventDefault(); e.stopPropagation(); }catch(_){}
   cpSetStatus("Speichern läuft …");
   try{
+    if(isCustomerMainDogsMode()){
+      submitCustomerDogsProposal();
+      return;
+    }
     ensureStateShape();
     ensureContractDefaults();
     const mode = cpEdit.mode;
@@ -11618,9 +11774,15 @@ return;
       console.warn('Role load failed, fallback to staff', e);
       CLOUD.role = ROLES.STAFF;
     }
-    // Kunden-Portal: kein Workspace-State, keine Tabs
+    // Kundenmodus: entweder Kundenportal oder eingeschränkte Haupt-App
     if(CLOUD.role === ROLES.CUSTOMER){
-      try{ await initCustomerPortal(); }catch(e){ console.error(e); }
+      try{
+        if(isCustomerMainDogsMode()){
+          initCustomerMainDogsMode();
+        } else {
+          await initCustomerPortal();
+        }
+      }catch(e){ console.error(e); }
       return;
     }
     showAuthGate(false);
