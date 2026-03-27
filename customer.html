@@ -7,7 +7,7 @@
   <link href="manifest.json" rel="manifest"/>
   <meta name="theme-color" content="#101014"/>
   <link href="assets/logo.png" rel="apple-touch-icon"/>
-  <link href="styles.css?v=M50.9.9FQ_CUSTOMERAPP_SUBMISSION_EDITORS_20260327" rel="stylesheet"/>
+  <link href="styles.css?v=M50.9.9FR_CUSTOMERAPP_SUBMISSION_STABLE_20260327" rel="stylesheet"/>
   <style>
     body.bg-watermark{background:radial-gradient(circle at top, rgba(255,255,255,.08), transparent 35%), linear-gradient(180deg,#0e1017 0%, #121521 100%) !important}
     body.bg-watermark::before{opacity:.12 !important;filter:none !important}
@@ -121,17 +121,17 @@
     <div class="customer-hidden" id="customerTaskListCard"></div>
     <div class="customer-hidden list" id="customerTaskList"></div>
     <div class="customer-hidden" id="customerPortalSubtitle"></div>
-    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9FQ_CUSTOMERAPP_SUBMISSION_EDITORS_20260327</div>
+    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9FR_CUSTOMERAPP_SUBMISSION_STABLE_20260327</div>
   </main>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=M50.9.9FQ_CUSTOMERAPP_SUBMISSION_EDITORS_20260327"></script>
-  <script src="app.js?v=M50.9.9FQ_CUSTOMERAPP_SUBMISSION_EDITORS_20260327"></script>
+  <script src="firebase-config.js?v=M50.9.9FR_CUSTOMERAPP_SUBMISSION_STABLE_20260327"></script>
+  <script src="app.js?v=M50.9.9FR_CUSTOMERAPP_SUBMISSION_STABLE_20260327"></script>
   <script>
     (function(){
-      const BUILD = 'Build CUSTOMER M50.9.9FQ_CUSTOMERAPP_SUBMISSION_EDITORS_20260327';
+      const BUILD = 'Build CUSTOMER M50.9.9FR_CUSTOMERAPP_SUBMISSION_STABLE_20260327';
       const DRAFT_KEY = 'ds_customer_app_drafts_v2';
       const viewNames = ['home','dogs','contract','stay','chat'];
       let currentView = 'home';
@@ -364,42 +364,68 @@
       function initSignatureCanvas(canvas){
         const ctx = canvas.getContext('2d');
         let drawing = false;
-        function resize(){
-          const ratio = Math.max(window.devicePixelRatio || 1, 1);
-          const rect = canvas.getBoundingClientRect();
-          canvas.width = Math.max(1, Math.round(rect.width * ratio));
-          canvas.height = Math.max(1, Math.round(rect.height * ratio));
-          ctx.setTransform(ratio,0,0,ratio,0,0);
+        let hasInk = false;
+        let last = null;
+        function setupContext(){
           ctx.lineWidth = 2.5;
           ctx.lineCap = 'round';
           ctx.lineJoin = 'round';
           ctx.strokeStyle = '#ffffff';
         }
-        function pos(ev){
+        function resize(preserve = true){
+          const ratio = Math.max(window.devicePixelRatio || 1, 1);
           const rect = canvas.getBoundingClientRect();
-          const pt = ev.touches ? ev.touches[0] : ev;
+          const snapshot = preserve && hasInk ? canvas.toDataURL('image/png') : '';
+          canvas.width = Math.max(1, Math.round(rect.width * ratio));
+          canvas.height = Math.max(1, Math.round(rect.height * ratio));
+          ctx.setTransform(ratio,0,0,ratio,0,0);
+          setupContext();
+          if(snapshot){
+            const img = new Image();
+            img.onload = ()=>{ ctx.clearRect(0,0,canvas.width,canvas.height); ctx.drawImage(img,0,0,canvas.clientWidth,canvas.clientHeight); };
+            img.src = snapshot;
+          }
+        }
+        function point(ev){
+          const rect = canvas.getBoundingClientRect();
+          const pt = ev.touches ? ev.touches[0] : (ev.changedTouches ? ev.changedTouches[0] : ev);
           return { x: pt.clientX - rect.left, y: pt.clientY - rect.top };
         }
-        function start(ev){ drawing = true; const p = pos(ev); ctx.beginPath(); ctx.moveTo(p.x,p.y); ev.preventDefault(); }
-        function move(ev){ if(!drawing) return; const p = pos(ev); ctx.lineTo(p.x,p.y); ctx.stroke(); ev.preventDefault(); }
-        function end(){ drawing = false; }
-        resize();
-        window.addEventListener('resize', resize);
-        canvas.addEventListener('mousedown', start);
-        canvas.addEventListener('mousemove', move);
-        window.addEventListener('mouseup', end);
-        canvas.addEventListener('touchstart', start, {passive:false});
-        canvas.addEventListener('touchmove', move, {passive:false});
-        canvas.addEventListener('touchend', end);
+        function begin(ev){
+          drawing = true;
+          const p = point(ev);
+          last = p;
+          ctx.beginPath();
+          ctx.moveTo(p.x,p.y);
+          ctx.lineTo(p.x + 0.01, p.y + 0.01);
+          ctx.stroke();
+          hasInk = true;
+          if(ev.cancelable) ev.preventDefault();
+        }
+        function draw(ev){
+          if(!drawing) return;
+          const p = point(ev);
+          if(!last){ last = p; }
+          ctx.beginPath();
+          ctx.moveTo(last.x,last.y);
+          ctx.lineTo(p.x,p.y);
+          ctx.stroke();
+          last = p;
+          hasInk = true;
+          if(ev.cancelable) ev.preventDefault();
+        }
+        function finish(ev){ drawing = false; last = null; if(ev && ev.cancelable) ev.preventDefault(); }
+        resize(False)
+        window.addEventListener('resize', ()=>resize(True));
+        ['pointerdown','mousedown','touchstart'].forEach(name=> canvas.addEventListener(name, begin, {passive:false}));
+        ['pointermove','mousemove','touchmove'].forEach(name=> canvas.addEventListener(name, draw, {passive:false}));
+        ['pointerup','pointerleave','pointercancel','mouseup','touchend','touchcancel'].forEach(name=> window.addEventListener(name, finish, {passive:false}));
+        canvas.style.touchAction = 'none';
         return {
-          clear(){ ctx.clearRect(0,0,canvas.width,canvas.height); },
-          dataUrl(){ return canvas.toDataURL('image/png'); },
-          isEmpty(){
-            const pixels = ctx.getImageData(0,0,canvas.width,canvas.height).data;
-            for(let i=3;i<pixels.length;i+=4){ if(pixels[i]!==0) return false; }
-            return true;
-          },
-          load(dataUrl){ if(!dataUrl) return; const img=new Image(); img.onload=()=>{ ctx.clearRect(0,0,canvas.width,canvas.height); ctx.drawImage(img,0,0,canvas.clientWidth,canvas.clientHeight); }; img.src=dataUrl; }
+          clear(){ ctx.clearRect(0,0,canvas.width,canvas.height); hasInk = false; },
+          dataUrl(){ return hasInk ? canvas.toDataURL('image/png') : ''; },
+          isEmpty(){ return !hasInk; },
+          load(dataUrl){ if(!dataUrl) return; const img=new Image(); img.onload=()=>{ ctx.clearRect(0,0,canvas.width,canvas.height); setupContext(); ctx.drawImage(img,0,0,canvas.clientWidth,canvas.clientHeight); hasInk=true; }; img.src=dataUrl; }
         };
       }
 
@@ -411,12 +437,12 @@
           <div class="customer-contract-layout">
             <div class="customer-card customer-contract-text">
               <h2 style="margin:0 0 12px 0">Betreuungsvertrag für Hunde</h2>
-              <p><strong>1. Vertragsgegenstand</strong><br>Der Betreiber übernimmt die zeitweise Betreuung des vom Hundehalter angegebenen Hundes im Rahmen einer Tages- oder Urlaubsbetreuung.</p>
-              <p><strong>2. Pflichten des Hundehalters</strong><br>Der Hund ist gesund, geimpft und wahrheitsgemäß beschrieben. Bekannte Besonderheiten und Medikamente werden vollständig angegeben.</p>
-              <p><strong>3. Gesundheitszustand & Verantwortung</strong><br>Der Betreiber ist berechtigt, bei Auffälligkeiten zum Wohl des Tieres zu handeln und nötigenfalls tierärztliche Maßnahmen einzuleiten.</p>
-              <p><strong>4. Haftung</strong><br>Die Betreuung erfolgt auf eigenes Risiko des Halters. Eine Haftung besteht nur bei Vorsatz oder grober Fahrlässigkeit.</p>
+              <p><strong>1. Vertragsgegenstand</strong><br>Der Betreiber übernimmt die zeitweise Betreuung des vom Hundehalter angegebenen Hundes im Rahmen einer Tages- oder Urlaubsbetreuung. Die Betreuung erfolgt nach bestem Wissen und Gewissen sowie unter Beachtung des Tierschutzes und der betrieblichen Abläufe.</p>
+              <p><strong>2. Pflichten des Hundehalters</strong><br>Der Hund ist gesund; es liegen keine ansteckenden Krankheiten vor. Der Impfstatus ist altersgerecht und aktuell. Bekannte Verhaltensauffälligkeiten, gesundheitliche Besonderheiten oder Medikamentengaben wurden vollständig und wahrheitsgemäß angegeben. Der Hund ist haftpflichtversichert.</p>
+              <p><strong>3. Gesundheitszustand &amp; Verantwortung</strong><br>Der Betreiber ist berechtigt, den Hund bei Auffälligkeiten von der Betreuung auszuschließen oder den Halter zur Abholung aufzufordern. Der Betreiber entscheidet im Sinne des Tierschutzes und der Sicherheit aller Hunde. Tierärztliche Maßnahmen dürfen im Notfall veranlasst werden.</p>
+              <p><strong>4. Haftung &amp; Haftungsausschluss</strong><br>Die Betreuung erfolgt auf eigenes Risiko des Hundehalters. Der Betreiber haftet nicht für Verletzungen oder Erkrankungen, die durch typisches Hundeverhalten entstehen, sowie nicht für Verlust oder Beschädigung persönlicher Gegenstände, soweit kein Vorsatz oder grobe Fahrlässigkeit vorliegt.</p>
               <p><strong>5. Läufige Hündinnen</strong><br>Läufige Hündinnen werden grundsätzlich nicht betreut.</p>
-              <p><strong>6. Einverständnis</strong><br>Mit der Unterschrift bestätigt der Hundehalter die Richtigkeit der Angaben und die Zustimmung zum Vertrag.</p>
+              <p><strong>6. Einverständnis</strong><br>Mit der digitalen Unterschrift bestätigt der Hundehalter, den Vertrag vollständig gelesen zu haben, den Inhalt zu akzeptieren und die Angaben wahrheitsgemäß gemacht zu haben. Ort und Datum werden automatisch erfasst.</p>
             </div>
             <div class="customer-card customer-signature-box">
               <h2 style="margin:0 0 12px 0">Unterschrift</h2>
@@ -442,8 +468,8 @@
           document.getElementById('contractSigInfo').textContent = contractDraft.signatureDataUrl ? '✅ Unterschrift vorhanden.' : 'Noch keine Unterschrift gesichert.';
         };
         updateInfo();
-        document.getElementById('btnContractClear').onclick = ()=>{ signaturePad.clear(); contractDraft.signatureDataUrl=''; updateInfo(); document.getElementById('contractStatus').textContent='Unterschrift gelöscht.'; };
-        document.getElementById('btnContractSaveSig').onclick = ()=>{ contractDraft.signatureDataUrl = signaturePad.isEmpty() ? '' : signaturePad.dataUrl(); setDraft('boarding_contract_signature', { signatureDataUrl: contractDraft.signatureDataUrl }); updateInfo(); document.getElementById('contractStatus').textContent='Unterschrift lokal gesichert.'; };
+        document.getElementById('btnContractClear').onclick = ()=>{ signaturePad.clear(); contractDraft.signatureDataUrl=''; setDraft('boarding_contract_signature', { signatureDataUrl: '' }); updateInfo(); document.getElementById('contractStatus').textContent='Unterschrift gelöscht.'; };
+        document.getElementById('btnContractSaveSig').onclick = ()=>{ const sig = signaturePad.isEmpty() ? '' : signaturePad.dataUrl(); if(!sig){ document.getElementById('contractStatus').textContent='Bitte zuerst im Unterschriftenfeld unterschreiben.'; return; } contractDraft.signatureDataUrl = sig; setDraft('boarding_contract_signature', { signatureDataUrl: contractDraft.signatureDataUrl }); updateInfo(); document.getElementById('contractStatus').textContent='✅ Unterschrift lokal gesichert.'; };
         document.getElementById('btnContractPdf').onclick = ()=>{
           const fields = readFormData(root);
           const sig = contractDraft.signatureDataUrl || (!signaturePad.isEmpty() ? signaturePad.dataUrl() : '');
