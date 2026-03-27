@@ -7,7 +7,7 @@
   <link href="manifest.json" rel="manifest"/>
   <meta name="theme-color" content="#101014"/>
   <link href="assets/logo.png" rel="apple-touch-icon"/>
-  <link href="styles.css?v=M50.9.9FL_CUSTOMERAPP_REAL_EDITORS_OPENFIX_20260327" rel="stylesheet"/>
+  <link href="styles.css?v=M50.9.9FM_CUSTOMERAPP_EDITORFIELDS_LAYOUTFIX_20260327" rel="stylesheet"/>
   <style>
     body.bg-watermark{background:radial-gradient(circle at top, rgba(255,255,255,.08), transparent 35%), linear-gradient(180deg,#0e1017 0%, #121521 100%) !important}
     body.bg-watermark::before{opacity:.12 !important;filter:none !important}
@@ -48,10 +48,14 @@
     .customer-editor-wrap .field.checkbox-inline{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
     .customer-editor-wrap .field.checkbox-inline span{margin:0}
     .customer-editor-wrap .field.checkbox-inline input{width:24px;height:24px;flex:0 0 auto}
-    .contract-shell-customer{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(340px,.95fr);gap:18px;align-items:start}
+    .contract-shell-customer{display:grid;grid-template-columns:1fr !important;gap:18px;align-items:start}.contract-shell-customer>*{min-width:0 !important;max-width:none !important;width:100% !important}
     .contract-shell-customer .field.checkbox-inline{display:flex;align-items:flex-start;gap:12px;flex-wrap:nowrap}
     .contract-shell-customer .field.checkbox-inline span{white-space:normal;line-height:1.35}
     .contract-shell-customer .field.checkbox-inline input{width:24px;height:24px;flex:0 0 auto;margin-top:2px}
+    
+    .contract-shell-customer, .contract-shell-customer *{writing-mode:horizontal-tb !important;text-orientation:mixed !important;word-break:normal !important;overflow-wrap:anywhere}
+    .contract-shell-customer .field.checkbox-inline label, .contract-shell-customer .field.checkbox-inline span{display:block !important;white-space:normal !important}
+
     @media (max-width: 980px){.contract-shell-customer{grid-template-columns:1fr}.customer-editor-wrap .customer-real-form{grid-template-columns:1fr}}
     .customer-hidden{display:none !important}
     .customer-fields{display:grid;gap:14px}
@@ -226,17 +230,17 @@
     <div class="customer-hidden" id="customerTaskListCard"></div>
     <div class="customer-hidden list" id="customerTaskList"></div>
     <div class="customer-hidden" id="customerPortalSubtitle"></div>
-    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9FL_CUSTOMERAPP_REAL_EDITORS_OPENFIX_20260327</div>
+    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9FM_CUSTOMERAPP_EDITORFIELDS_LAYOUTFIX_20260327</div>
   </main>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=M50.9.9FL_CUSTOMERAPP_REAL_EDITORS_OPENFIX_20260327"></script>
-  <script src="app.js?v=M50.9.9FL_CUSTOMERAPP_REAL_EDITORS_OPENFIX_20260327"></script>
+  <script src="firebase-config.js?v=M50.9.9FM_CUSTOMERAPP_EDITORFIELDS_LAYOUTFIX_20260327"></script>
+  <script src="app.js?v=M50.9.9FM_CUSTOMERAPP_EDITORFIELDS_LAYOUTFIX_20260327"></script>
   <script>
     (function(){
-      const BUILD = 'Build CUSTOMER M50.9.9FL_CUSTOMERAPP_REAL_EDITORS_OPENFIX_20260327';
+      const BUILD = 'Build CUSTOMER M50.9.9FM_CUSTOMERAPP_EDITORFIELDS_LAYOUTFIX_20260327';
       const DRAFT_KEY = 'ds_customer_app_drafts_v1';
       const viewNames = ['home','dogs','contract','stay','chat'];
       let currentView = 'home';
@@ -711,54 +715,72 @@ document.getElementById('btnCustomerTaskSubmit')?.addEventListener('click', ()=>
         if(type==='checkbox') return `<label class="field checkbox-inline"><input type="checkbox" data-key="${esc(key)}" ${safe ? 'checked' : ''}><span>${esc(label)}</span></label>`;
         return `<label class="field"><span>${esc(label)}</span><input type="${esc(type||'text')}" data-key="${esc(key)}" value="${esc(safe)}"></label>`;
       }
-      function renderCustomerDataRealForm(doc){
-        const root = document.getElementById('formRoot'); if(!root) return;
-        const f = doc.fields || {};
-        root.innerHTML = `<div class="customer-real-form">
-          <section class="card"><h3>Kunde (Halter)</h3>
-            ${customerField('Name','fullName',f.fullName,'text')}
-            ${customerField('E-Mail','email',f.email,'email')}
-            ${customerField('Telefon','phone',f.phone,'text')}
-            ${customerField('Straße / Hausnummer','street',f.street,'text')}
-            ${customerField('PLZ','zip',f.zip,'text')}
-            ${customerField('Ort','city',f.city,'text')}
-            ${customerField('Notfallkontakt Name','emergencyName',f.emergencyName,'text')}
-            ${customerField('Notfallkontakt Telefon','emergencyPhone',f.emergencyPhone,'text')}
-            ${customerField('Abholberechtigte Personen','pickupAuth',f.pickupAuth,'textarea')}
-            ${customerField('Hinweise zum Kunden','customerNote',f.customerNote,'textarea')}
-          </section>
-          <section class="card"><h3>Hund</h3>
-            ${customerField('Hundename','dogName',f.dogName,'text')}
-            ${customerField('Rasse','breed',f.breed,'text')}
-            ${customerField('Geburtsdatum','birthDate',f.birthDate,'date')}
-            ${customerField('Geschlecht','sex',f.sex,'text')}
-            ${customerField('Chipnummer','chipNumber',f.chipNumber,'text')}
-            ${customerField('Tierarzt / Praxis','vet',f.vet,'text')}
-            ${customerField('Telefon Tierarzt','vetPhone',f.vetPhone,'text')}
-            ${customerField('Allergien / Unverträglichkeiten','allergies',f.allergies,'textarea')}
-            ${customerField('Futter','food',f.food,'text')}
-            ${customerField('Fütterung','feeding',f.feeding,'textarea')}
-            ${customerField('Verträglichkeit','compat',f.compat,'textarea')}
-            ${customerField('Verhalten / Besonderheiten','behavior',f.behavior,'textarea')}
-            ${customerField('Wichtige Hinweise','notes',f.notes,'textarea')}
-            ${customerField('Hund ist altersgerecht und aktuell geimpft','vaccinatedConfirmed',!!f.vaccinatedConfirmed,'checkbox')}
-          </section>
-        </div>`;
-      }
-      function renderStayRealForm(doc){
-        const root = document.getElementById('formRoot'); if(!root) return;
-        const f = doc.fields || {}; const m = doc.meta || {};
-        root.innerHTML = `<div class="customer-real-form">
-          <section class="card"><h3>Zeitraum</h3>
-            ${customerField('Von','meta_von',m.von,'date')}
-            ${customerField('Bis','meta_bis',m.bis,'date')}
-            ${customerField('Betreuungsart','meta_betreuung',m.betreuung,'text')}
-          </section>
-          <section class="card"><h3>Hinweise</h3>
-            ${customerField('Hinweise zum Aufenthalt','notes',f.notes || f.stayNotes,'textarea')}
-          </section>
-        </div>`;
-      }
+      
+function renderCustomerDataRealForm(doc){
+  const root = document.getElementById('formRoot'); if(!root) return;
+  const f = doc.fields || {};
+  const options = (vals, cur)=> '<option value=""></option>' + vals.map(v=>'<option value="'+esc(v)+'" '+(String(cur||'')===String(v)?'selected':'')+'>'+esc(v)+'</option>').join('');
+  root.innerHTML = `<div class="customer-real-form">
+    <section class="card"><h3>Kunde (Halter)</h3>
+      ${customerField('Name','fullName',f.fullName,'text')}
+      ${customerField('E-Mail','email',f.email,'email')}
+      ${customerField('Telefon','phone',f.phone,'text')}
+      ${customerField('Straße / Hausnummer','street',f.street,'text')}
+      ${customerField('PLZ','zip',f.zip,'text')}
+      ${customerField('Ort','city',f.city,'text')}
+      ${customerField('Notfallkontakt Name','emergencyName',f.emergencyName,'text')}
+      ${customerField('Notfallkontakt Telefon','emergencyPhone',f.emergencyPhone,'text')}
+      ${customerField('Abholberechtigte Personen','pickupAuth',f.pickupAuth,'textarea')}
+      ${customerField('Hinweise zum Kunden','customerNote',f.customerNote,'textarea')}
+    </section>
+    <section class="card"><h3>Hund</h3>
+      ${customerField('Hundename','dogName',f.dogName,'text')}
+      ${customerField('Rasse / Mix','breed',f.breed,'text')}
+      ${customerField('Geburtsdatum','birthDate',f.birthDate,'date')}
+      <label class="field"><span>Geschlecht</span><select data-key="sex">${options(['männlich','weiblich','unklar'], f.sex)}</select></label>
+      <label class="field"><span>Gechippt?</span><select data-key="chipStatus">${options(['yes','no'], f.chipStatus || (f.chipNumber?'yes':''))}</select></label>
+      ${customerField('Chipnummer','chipNumber',f.chipNumber,'text')}
+      ${customerField('Tierarzt / Praxis','vet',f.vet,'text')}
+      ${customerField('Telefon Tierarzt','vetPhone',f.vetPhone,'text')}
+      ${customerField('Allergien / Unverträglichkeiten','allergies',f.allergies,'textarea')}
+      ${customerField('Impfdatum Tollwut','rabiesDate',f.rabiesDate,'date')}
+      ${customerField('Impfdatum Kombi','mixedVaccineDate',f.mixedVaccineDate,'date')}
+      ${customerField('Futter','food',f.food,'text')}
+      ${customerField('Fütterung','feeding',f.feeding,'textarea')}
+      ${customerField('Verträglichkeit','compat',f.compat,'textarea')}
+      ${customerField('Verhalten / Besonderheiten','behavior',f.behavior,'textarea')}
+      ${customerField('Wichtige Hinweise','notes',f.notes,'textarea')}
+      ${customerField('Hund ist altersgerecht und aktuell geimpft','vaccinatedConfirmed',!!f.vaccinatedConfirmed,'checkbox')}
+    </section>
+  </div>`;
+}
+
+      
+function renderStayRealForm(doc){
+  const root = document.getElementById('formRoot'); if(!root) return;
+  const f = doc.fields || {}; const m = doc.meta || {};
+  const petName = esc((doc.petName || f.dogName || customerContextIds().pet?.name || ''));
+  const customerName = esc((doc.customerName || f.fullName || customerContextIds().customer?.name || ''));
+  const options = (vals, cur)=> vals.map(v=>'<option value="'+esc(v)+'" '+(String(cur||'')===String(v)?'selected':'')+'>'+esc(v)+'</option>').join('');
+  root.innerHTML = `<div class="customer-real-form">
+    <section class="card"><h3>Aufenthalt</h3>
+      <label class="field"><span>Kunde</span><input type="text" value="${customerName}" disabled></label>
+      <label class="field"><span>Hund</span><input type="text" value="${petName}" disabled></label>
+      ${customerField('Von','meta_von',m.von,'date')}
+      ${customerField('Bis','meta_bis',m.bis,'date')}
+      <label class="field"><span>Betreuungsart</span><select data-key="meta_betreuung">${options(['Urlaubsbetreuung','Tagesbetreuung','Probetag'], m.betreuung || 'Urlaubsbetreuung')}</select></label>
+      ${customerField('Hinweise zum Aufenthalt','notes',f.notes || f.stayNotes,'textarea')}
+    </section>
+    <section class="card"><h3>Bestätigungen</h3>
+      ${customerField('Datenschutz (DSGVO) bestätigt','consentDsGvo',!!f.consentDsGvo,'checkbox')}
+      ${customerField('AGB gelesen & akzeptiert','consentAgb',!!f.consentAgb,'checkbox')}
+      ${customerField('Tierarzt-/Notfallzustimmung','consentVet',!!f.consentVet,'checkbox')}
+      ${customerField('Hund gesund & frei von ansteckenden Krankheiten','consentHealth',!!f.consentHealth,'checkbox')}
+      ${customerField('Angaben wahrheitsgemäß','consentTruth',!!f.consentTruth,'checkbox')}
+    </section>
+  </div>`;
+}
+
       function collectCustomerRealEditor(templateId){
         const data = {};
         document.querySelectorAll('#formRoot [data-key]').forEach(el=>{
@@ -771,6 +793,11 @@ document.getElementById('btnCustomerTaskSubmit')?.addEventListener('click', ()=>
           currentDoc.meta.bis = data.meta_bis || '';
           currentDoc.meta.betreuung = data.meta_betreuung || '';
           currentDoc.fields.notes = data.notes || '';
+          currentDoc.fields.consentDsGvo = !!data.consentDsGvo;
+          currentDoc.fields.consentAgb = !!data.consentAgb;
+          currentDoc.fields.consentVet = !!data.consentVet;
+          currentDoc.fields.consentHealth = !!data.consentHealth;
+          currentDoc.fields.consentTruth = !!data.consentTruth;
           currentData = Object.assign({}, currentData, {startDate:currentDoc.meta.von,endDate:currentDoc.meta.bis,betreuung:currentDoc.meta.betreuung,stayNotes:currentDoc.fields.notes});
         } else {
           currentDoc.fields = Object.assign({}, currentDoc.fields || {}, data);
@@ -803,6 +830,16 @@ document.getElementById('btnCustomerTaskSubmit')?.addEventListener('click', ()=>
           try{ ps.dispatchEvent(new Event('change',{bubbles:true})); }catch(_){ }
         }
         const adminBox = document.getElementById('contractAdminBox'); if(adminBox) adminBox.style.display='none';
+        try{
+          const contractView = document.getElementById('view-contract');
+          contractView?.querySelectorAll('.card,.field,label,span,div,p').forEach(el=>{
+            el.style.writingMode='horizontal-tb';
+            el.style.textOrientation='mixed';
+            el.style.whiteSpace='normal';
+            el.style.wordBreak='normal';
+            el.style.overflowWrap='anywhere';
+          });
+        }catch(_){ }
       }
       function openRealSection(templateId, task){
         if(templateId==='boarding_contract'){
