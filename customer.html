@@ -7,7 +7,7 @@
   <link href="manifest.json" rel="manifest"/>
   <meta name="theme-color" content="#101014"/>
   <link href="assets/logo.png" rel="apple-touch-icon"/>
-  <link href="styles.css?v=M50.9.9FH_CUSTOMERAPP_HOME_STARTFLOW_20260327" rel="stylesheet"/>
+  <link href="styles.css?v=M50.9.9FI_CUSTOMERAPP_MAINLIKE_SECTIONS_20260327" rel="stylesheet"/>
   <style>
     body.bg-watermark{background:radial-gradient(circle at top, rgba(255,255,255,.08), transparent 35%), linear-gradient(180deg,#0e1017 0%, #121521 100%) !important}
     body.bg-watermark::before{opacity:.12 !important;filter:none !important}
@@ -54,11 +54,30 @@
     .customer-check input{width:auto;margin-top:3px}
     .customer-help{font-size:13px;color:#e7e7ef}
     #customerTaskSaveHint{color:#f0f0f7}
+
+    .customer-mainlike .row.between{align-items:center}
+    .customer-mainlike .card{background:rgba(255,255,255,.08)!important;border:1px solid rgba(255,255,255,.12)!important;box-shadow:none}
+    .customer-mainlike .panel-head{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center}
+    .customer-mainlike .panel-head h1{margin:0}
+    .customer-mainlike .panel-toolbar{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+    .customer-mainlike .mainlike-shell{display:grid;gap:14px;margin-top:14px}
+    .customer-mainlike .mainlike-grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+    .customer-mainlike .mainlike-block{padding:16px;border-radius:18px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)}
+    .customer-mainlike .mainlike-block h3{margin:0 0 10px 0}
+    .customer-mainlike .mainlike-kv{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .customer-mainlike .mainlike-kv .field{margin:0}
+    .customer-mainlike .mainlike-kv .field span{display:block;font-size:12px;color:#d7d7df;margin-bottom:4px}
+    .customer-mainlike .mainlike-kv .value{min-height:44px;padding:12px 14px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:rgba(17,20,29,.50);color:#fff}
+    .customer-mainlike .mainlike-note{color:#ececf3}
+    .customer-mainlike .mainlike-list{display:grid;gap:12px}
+    .customer-mainlike .mainlike-list .row-card{padding:14px 16px;border-radius:18px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12)}
+
     @media (max-width:800px){
       .customer-nav .btn{min-width:unset;flex:1 1 calc(50% - 10px)}
       .customer-task{align-items:flex-start}
       .customer-field-grid{grid-template-columns:1fr}
       .customer-home-grid{grid-template-columns:1fr}
+      .customer-mainlike .mainlike-grid2, .customer-mainlike .mainlike-kv{grid-template-columns:1fr}
     }
   </style>
 </head>
@@ -86,32 +105,82 @@
       <div class="customer-home-grid" id="customerHomeGrid"></div>
     </section>
 
-    <section class="card customer-panel" id="view-dogs">
-      <div>
-        <h1 style="margin:0">Kunde/Hund</h1>
-        <div class="muted" id="dogsSubtitle" style="margin-top:6px">Hier siehst du nur deinen eigenen Kunden- und Hunde-Eintrag.</div>
-      </div>
-      <div class="customer-grid customer-summary" id="customerSummary" style="margin-top:12px"></div>
-      <div class="customer-action" id="dogsActionRow" style="margin-top:14px"></div>
-    </section>
-
-    <section class="card customer-panel" id="view-contract">
-      <div>
-        <h1 style="margin:0">Betreuungsvertrag</h1>
-        <div class="customer-section-note">Hier kannst du deinen Betreuungsvertrag öffnen, prüfen und ergänzen.</div>
-      </div>
-      <div class="customer-tasklist" id="contractTaskList" style="margin-top:14px"></div>
-    </section>
-
-    <section class="card customer-panel" id="view-stay">
-      <div class="row between" style="gap:12px;flex-wrap:wrap;align-items:flex-start">
-        <div>
-          <h1 style="margin:0">Neuer Aufenthalt</h1>
-          <div class="customer-section-note">Hier kannst du einen neuen Aufenthalt vorbereiten.</div>
+    <section class="card customer-panel customer-mainlike" id="view-dogs">
+      <div class="panel-head">
+        <h1>Hunde/Kunden</h1>
+        <div class="panel-toolbar">
+          <button class="btn primary" id="btnCustomerOpenDogsTask" type="button">Neu anlegen / Bearbeiten</button>
         </div>
-        <button class="btn primary" id="btnOpenNewStay" type="button">Neuen Aufenthalt öffnen</button>
       </div>
-      <div class="customer-tasklist" id="stayTaskList" style="margin-top:14px"></div>
+      <div class="mainlike-shell">
+        <div class="card" id="customerDogsMainCard">
+          <h2 style="margin:0 0 12px 0">Kunde &amp; Hund</h2>
+          <div class="mainlike-grid2">
+            <div class="mainlike-block">
+              <h3>Kunde (Halter)</h3>
+              <div class="mainlike-kv" id="customerMainCustomerInfo"></div>
+            </div>
+            <div class="mainlike-block">
+              <h3>Hund</h3>
+              <div class="mainlike-kv" id="customerMainDogInfo"></div>
+            </div>
+          </div>
+          <div class="customer-action" id="dogsActionRow" style="margin-top:14px"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card customer-panel customer-mainlike" id="view-contract">
+      <div class="panel-head">
+        <h1>Betreuungsvertrag</h1>
+        <div class="panel-toolbar">
+          <button class="btn primary" id="btnCustomerOpenContractTask" type="button">Vertrag öffnen</button>
+        </div>
+      </div>
+      <div class="mainlike-shell">
+        <div class="card">
+          <div class="contract-wrap">
+            <div class="contract-doc">
+              <div class="contract-head">
+                <div class="contract-brand">
+                  <img src="assets/logo.png" alt="Doggy Style" class="contract-logo"/>
+                  <div>
+                    <div class="contract-title">Betreuungsvertrag für Hunde</div>
+                    <div class="contract-meta">Doggy Style Hundepension · Kundenbereich</div>
+                  </div>
+                </div>
+              </div>
+              <div class="customer-section-note">Hier kannst du den Vertrag direkt aus dem Kundenbereich öffnen, prüfen und an uns zurückgeben.</div>
+              <div class="customer-tasklist" id="contractTaskList" style="margin-top:14px"></div>
+            </div>
+            <div class="contract-side">
+              <div class="contract-card">
+                <h3>Vertragsstatus</h3>
+                <div class="mainlike-note">Freigegebene Aufgaben und dein aktueller Bearbeitungsstand erscheinen hier.</div>
+                <div class="customer-chip-row" style="margin-top:12px">
+                  <div class="customer-chip">Direkt aus der Haupt-App übernommen</div>
+                  <div class="customer-chip">Kundenmodus</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card customer-panel customer-mainlike" id="view-stay">
+      <div class="panel-head">
+        <h1>Aufenthalte</h1>
+        <div class="panel-toolbar">
+          <button class="btn primary" id="btnOpenNewStay" type="button">➕ Neuer Aufenthalt</button>
+        </div>
+      </div>
+      <div class="mainlike-shell">
+        <div class="card">
+          <div class="customer-section-note">Hier kannst du neue Aufenthalte anfragen oder freigegebene Aufenthaltsaufgaben direkt öffnen.</div>
+          <div class="customer-tasklist" id="stayTaskList" style="margin-top:14px"></div>
+        </div>
+      </div>
     </section>
 
     <section class="card customer-panel" id="view-chat">
@@ -144,17 +213,17 @@
     <div class="customer-hidden" id="customerTaskListCard"></div>
     <div class="customer-hidden list" id="customerTaskList"></div>
     <div class="customer-hidden" id="customerPortalSubtitle"></div>
-    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9FH_CUSTOMERAPP_HOME_STARTFLOW_20260327</div>
+    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9FI_CUSTOMERAPP_MAINLIKE_SECTIONS_20260327</div>
   </main>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=M50.9.9FH_CUSTOMERAPP_HOME_STARTFLOW_20260327"></script>
-  <script src="app.js?v=M50.9.9FH_CUSTOMERAPP_HOME_STARTFLOW_20260327"></script>
+  <script src="firebase-config.js?v=M50.9.9FI_CUSTOMERAPP_MAINLIKE_SECTIONS_20260327"></script>
+  <script src="app.js?v=M50.9.9FI_CUSTOMERAPP_MAINLIKE_SECTIONS_20260327"></script>
   <script>
     (function(){
-      const BUILD = 'Build CUSTOMER M50.9.9FH_CUSTOMERAPP_HOME_STARTFLOW_20260327';
+      const BUILD = 'Build CUSTOMER M50.9.9FI_CUSTOMERAPP_MAINLIKE_SECTIONS_20260327';
       const DRAFT_KEY = 'ds_customer_app_drafts_v1';
       const viewNames = ['home','dogs','contract','stay','chat'];
       let currentView = 'home';
@@ -463,7 +532,40 @@
       });
       document.getElementById('btnCustomerTaskBack')?.addEventListener('click', ()=>{ document.getElementById('customerTaskEditorWrap')?.classList.remove('is-active'); setView(currentView); });
       document.getElementById('btnOpenNewStay')?.addEventListener('click', ()=>{ setView('stay'); openTask(makeSyntheticTask('hundeannahme', 'Neuer Aufenthalt')); });
-      document.getElementById('btnCustomerTaskSubmit')?.addEventListener('click', ()=>{
+      document.getElementById('btnCustomerOpenDogsTask')?.addEventListener('click', ()=>{ setView('dogs'); openTask(makeSyntheticTask('customer_data', 'Kunde & Hund')); });
+      document.getElementById('btnCustomerOpenContractTask')?.addEventListener('click', ()=>{ setView('contract'); const tasks = getTasks(); const t = tasks.find(x=>String(x.templateId||'')==='boarding_contract'); if(t) openTask(t); else openTask(makeSyntheticTask('boarding_contract', 'Betreuungsvertrag')); });
+      
+      function renderMainlikeInfoList(targetId, rows){
+        const el = document.getElementById(targetId); if(!el) return;
+        const list = Array.isArray(rows) ? rows.filter(Boolean) : [];
+        el.innerHTML = list.map(row => '<label class="field"><span>'+esc(row.label||'')+'</span><div class="value">'+esc(row.value||'—')+'</div></label>').join('');
+      }
+      function renderCustomerMainlikePanels(){
+        const s = (window.state || {});
+        const customers = Array.isArray(s.customers) ? s.customers : [];
+        const dogs = Array.isArray(s.dogs) ? s.dogs : (Array.isArray(s.pets) ? s.pets : []);
+        const email = String((window.CLOUD && CLOUD.user && CLOUD.user.email) || '').trim().toLowerCase();
+        const uid = String((window.CLOUD && CLOUD.user && CLOUD.user.uid) || '').trim();
+        const customer = customers.find(c => String(c?.portalUid || c?.uid || '').trim() === uid) || customers.find(c => String(c?.email || '').trim().toLowerCase() === email) || customers[0] || {};
+        const dog = dogs.find(d => String(d?.customerId || d?.ownerId || '').trim() === String(customer?.id || customer?.customerId || '').trim()) || dogs[0] || {};
+        renderMainlikeInfoList('customerMainCustomerInfo', [
+          {label:'Name', value: customer.name || customer.customerName || '—'},
+          {label:'E‑Mail', value: customer.email || '—'},
+          {label:'Telefon', value: customer.phone || '—'},
+          {label:'Ort', value: [customer.zip, customer.city].filter(Boolean).join(' ') || '—'},
+          {label:'Straße/Hausnr.', value: customer.street || '—'},
+          {label:'Notiz', value: customer.note || customer.notes || '—'}
+        ]);
+        renderMainlikeInfoList('customerMainDogInfo', [
+          {label:'Name', value: dog.name || dog.petName || '—'},
+          {label:'Rasse / Mix', value: dog.breed || '—'},
+          {label:'Geburtsdatum', value: dog.birthdate || dog.dob || '—'},
+          {label:'Geschlecht', value: dog.sex || '—'},
+          {label:'Chipnummer', value: dog.chipNumber || '—'},
+          {label:'Tierarzt', value: dog.vet || '—'}
+        ]);
+      }
+document.getElementById('btnCustomerTaskSubmit')?.addEventListener('click', ()=>{
         currentData = collectEditorData();
         if(currentTask) setDraft(currentTask.id || currentTask.taskId || currentTask.templateId, currentData);
         const hint = document.getElementById('customerTaskSaveHint');
@@ -487,6 +589,7 @@
               setStatus('auth ok');
               if(typeof initCustomerPortal === 'function') await initCustomerPortal();
               refreshCustomUI();
+              try{ renderCustomerMainlikePanels(); }catch(_){ }
               setStatus('init ok');
             }catch(e){ console.error('customer boot failed', e); setStatus('Boot-Fehler'); }
           });
