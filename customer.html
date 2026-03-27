@@ -7,7 +7,7 @@
   <link href="manifest.json" rel="manifest"/>
   <meta name="theme-color" content="#101014"/>
   <link href="assets/logo.png" rel="apple-touch-icon"/>
-  <link href="styles.css?v=M50.9.9FT_CUSTOMERAPP_DOGOPEN_MINIFIX_20260327" rel="stylesheet"/>
+  <link href="styles.css?v=M50.9.9FU_CUSTOMERAPP_DOGOPEN_DIRECTFIX_20260327" rel="stylesheet"/>
   <style>
     body.bg-watermark{background:radial-gradient(circle at top, rgba(255,255,255,.08), transparent 35%), linear-gradient(180deg,#0e1017 0%, #121521 100%) !important}
     body.bg-watermark::before{opacity:.12 !important;filter:none !important}
@@ -231,17 +231,17 @@
     <div class="customer-hidden" id="customerTaskListCard"></div>
     <div class="customer-hidden list" id="customerTaskList"></div>
     <div class="customer-hidden" id="customerPortalSubtitle"></div>
-    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9FT_CUSTOMERAPP_DOGOPEN_MINIFIX_20260327</div>
+    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9FU_CUSTOMERAPP_DOGOPEN_DIRECTFIX_20260327</div>
   </main>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=M50.9.9FT_CUSTOMERAPP_DOGOPEN_MINIFIX_20260327"></script>
-  <script src="app.js?v=M50.9.9FT_CUSTOMERAPP_DOGOPEN_MINIFIX_20260327"></script>
+  <script src="firebase-config.js?v=M50.9.9FU_CUSTOMERAPP_DOGOPEN_DIRECTFIX_20260327"></script>
+  <script src="app.js?v=M50.9.9FU_CUSTOMERAPP_DOGOPEN_DIRECTFIX_20260327"></script>
   <script>
     (function(){
-      const BUILD = 'Build CUSTOMER M50.9.9FT_CUSTOMERAPP_DOGOPEN_MINIFIX_20260327';
+      const BUILD = 'Build CUSTOMER M50.9.9FU_CUSTOMERAPP_DOGOPEN_DIRECTFIX_20260327';
       const DRAFT_KEY = 'ds_customer_app_drafts_v1';
       const viewNames = ['home','dogs','contract','stay','chat'];
       let currentView = 'home';
@@ -896,7 +896,7 @@ function renderStayRealForm(doc){
           el.onclick = function(ev){ try{ ev.preventDefault(); }catch(_){} try{ fn(); }catch(e){ console.error('customer opener failed', id, e); setStatus('Open-Fehler ' + id); } };
         };
         bind('btnOpenNewStay', ()=>{ setView('stay'); setTimeout(()=>openRealSection('hundeannahme', makeSyntheticTask('hundeannahme', 'Neuer Aufenthalt')), 0); });
-        bind('btnCustomerOpenDogsTask', ()=>{ setView('dogs'); setTimeout(()=>openRealSection('customer_data', makeSyntheticTask('customer_data', 'Kunde & Hund')), 0); });
+        bind('btnCustomerOpenDogsTask', ()=>{ currentView='dogs'; document.querySelectorAll('.customer-panel').forEach(el=>el.classList.toggle('is-active', el.id === 'view-dogs')); document.querySelectorAll('.nav-btn').forEach(btn=>btn.classList.toggle('is-active', btn.dataset.view === 'dogs')); setStatus('Ansicht dogs'); setTimeout(()=>{ try{ openRealSection('customer_data', getLatestTask('customer_data') || makeSyntheticTask('customer_data', 'Kunde & Hund')); }catch(e){ console.error('customer dogs direct opener failed', e); setStatus('Open-Fehler dogs-direct'); } }, 0); });
         bind('btnCustomerOpenContractTask', ()=>{
           setView('contract');
           const tasks = getTasks();
@@ -907,10 +907,6 @@ function renderStayRealForm(doc){
 
       function ensureCustomerEditorVisible(view){
         try{
-          if(view === 'dogs'){
-            const host = document.getElementById('dogsEditorHost');
-            if(host && !host.children.length) openRealSection('customer_data', getLatestTask('customer_data') || makeSyntheticTask('customer_data', 'Kunde & Hund'));
-          }
           if(view === 'stay'){
             const host = document.getElementById('stayEditorHost');
             if(host && !host.children.length) openRealSection('hundeannahme', getLatestTask('hundeannahme') || makeSyntheticTask('hundeannahme', 'Neuer Aufenthalt'));
@@ -926,7 +922,6 @@ function renderStayRealForm(doc){
         const wrap = document.getElementById('customerTaskEditorWrap');
         if(currentView==='home' || currentView==='chat') wrap?.classList.remove('is-active');
         if(currentView === 'chat' && typeof window.renderCustomerChatPanel === 'function'){ try{ window.renderCustomerChatPanel(); }catch(_){ } }
-        if(currentView === 'dogs') openRealSection('customer_data', getLatestTask('customer_data'));
         if(currentView === 'contract') openRealSection('boarding_contract', getLatestTask('boarding_contract'));
         if(currentView === 'stay') openRealSection('hundeannahme', getLatestTask('hundeannahme'));
         bindMainEditorOpeners();
