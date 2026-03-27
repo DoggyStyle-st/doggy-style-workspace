@@ -7,7 +7,7 @@
   <link href="manifest.json" rel="manifest"/>
   <meta name="theme-color" content="#101014"/>
   <link href="assets/logo.png" rel="apple-touch-icon"/>
-  <link href="styles.css?v=M50.9.9FI_CUSTOMERAPP_MAINLIKE_SECTIONS_20260327" rel="stylesheet"/>
+  <link href="styles.css?v=M50.9.9FJ_CUSTOMERAPP_REAL_MAIN_EDITORS_20260327" rel="stylesheet"/>
   <style>
     body.bg-watermark{background:radial-gradient(circle at top, rgba(255,255,255,.08), transparent 35%), linear-gradient(180deg,#0e1017 0%, #121521 100%) !important}
     body.bg-watermark::before{opacity:.12 !important;filter:none !important}
@@ -109,24 +109,14 @@
       <div class="panel-head">
         <h1>Hunde/Kunden</h1>
         <div class="panel-toolbar">
-          <button class="btn primary" id="btnCustomerOpenDogsTask" type="button">Neu anlegen / Bearbeiten</button>
+          <button class="btn primary" id="btnCustomerOpenDogsTask" type="button">Daten öffnen</button>
         </div>
       </div>
       <div class="mainlike-shell">
-        <div class="card" id="customerDogsMainCard">
-          <h2 style="margin:0 0 12px 0">Kunde &amp; Hund</h2>
-          <div class="mainlike-grid2">
-            <div class="mainlike-block">
-              <h3>Kunde (Halter)</h3>
-              <div class="mainlike-kv" id="customerMainCustomerInfo"></div>
-            </div>
-            <div class="mainlike-block">
-              <h3>Hund</h3>
-              <div class="mainlike-kv" id="customerMainDogInfo"></div>
-            </div>
-          </div>
-          <div class="customer-action" id="dogsActionRow" style="margin-top:14px"></div>
+        <div class="card">
+          <div class="customer-section-note">Hier bearbeitest du deine Kunden- und Hundedaten im gleichen Editor wie in der Haupt-App.</div>
         </div>
+        <div id="dogsEditorHost"></div>
       </div>
     </section>
 
@@ -139,28 +129,35 @@
       </div>
       <div class="mainlike-shell">
         <div class="card">
+          <div id="contractStatusBanner" class="muted" style="margin-bottom:10px;"></div>
           <div class="contract-wrap">
             <div class="contract-doc">
               <div class="contract-head">
                 <div class="contract-brand">
                   <img src="assets/logo.png" alt="Doggy Style" class="contract-logo"/>
                   <div>
-                    <div class="contract-title">Betreuungsvertrag für Hunde</div>
-                    <div class="contract-meta">Doggy Style Hundepension · Kundenbereich</div>
+                    <div class="contract-title" id="contractTitle">Betreuungsvertrag für Hunde</div>
+                    <div class="contract-meta" id="contractMeta">Doggy Style Hundepension · Version v1.0 · Gültig ab 27.12.2025</div>
                   </div>
                 </div>
               </div>
-              <div class="customer-section-note">Hier kannst du den Vertrag direkt aus dem Kundenbereich öffnen, prüfen und an uns zurückgeben.</div>
-              <div class="customer-tasklist" id="contractTaskList" style="margin-top:14px"></div>
+              <div class="contract-text" id="contractText"></div>
             </div>
             <div class="contract-side">
               <div class="contract-card">
-                <h3>Vertragsstatus</h3>
-                <div class="mainlike-note">Freigegebene Aufgaben und dein aktueller Bearbeitungsstand erscheinen hier.</div>
-                <div class="customer-chip-row" style="margin-top:12px">
-                  <div class="customer-chip">Direkt aus der Haupt-App übernommen</div>
-                  <div class="customer-chip">Kundenmodus</div>
+                <h3>Unterschrift</h3>
+                <div class="row"><label>Kunde</label><select id="contractCustomerSelect"></select></div>
+                <div class="row"><label>Hund</label><select id="contractPetSelect"></select></div>
+                <label class="checkline"><input type="checkbox" id="contractAcceptChk"><span>Ich habe den Betreuungsvertrag gelesen und akzeptiere ihn.</span></label>
+                <div class="sigbox"><canvas id="contractSig" width="520" height="180"></canvas></div>
+                <div class="actions">
+                  <button class="smallbtn" id="contractSigClear" type="button">Unterschrift löschen</button>
+                  <button class="primary" id="contractSignBtn" type="button">Unterschreiben</button>
+                  <button class="btn" id="contractSaveBtn" type="button">💾 Speichern</button>
+                  <button class="btn" id="contractPdfBtn" type="button">📄 PDF</button>
                 </div>
+                <div class="muted" id="contractSignedInfo" style="margin-top:10px;"></div>
+                <div class="muted" id="contractSavedInfo" style="margin-top:6px;"></div>
               </div>
             </div>
           </div>
@@ -170,16 +167,14 @@
 
     <section class="card customer-panel customer-mainlike" id="view-stay">
       <div class="panel-head">
-        <h1>Aufenthalte</h1>
+        <h1>Neuer Aufenthalt</h1>
         <div class="panel-toolbar">
           <button class="btn primary" id="btnOpenNewStay" type="button">➕ Neuer Aufenthalt</button>
         </div>
       </div>
       <div class="mainlike-shell">
-        <div class="card">
-          <div class="customer-section-note">Hier kannst du neue Aufenthalte anfragen oder freigegebene Aufenthaltsaufgaben direkt öffnen.</div>
-          <div class="customer-tasklist" id="stayTaskList" style="margin-top:14px"></div>
-        </div>
+        <div class="card"><div class="customer-section-note">Hier bearbeitest du Aufenthalte im gleichen Editor wie in der Haupt-App.</div></div>
+        <div id="stayEditorHost"></div>
       </div>
     </section>
 
@@ -213,17 +208,17 @@
     <div class="customer-hidden" id="customerTaskListCard"></div>
     <div class="customer-hidden list" id="customerTaskList"></div>
     <div class="customer-hidden" id="customerPortalSubtitle"></div>
-    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9FI_CUSTOMERAPP_MAINLIKE_SECTIONS_20260327</div>
+    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9FJ_CUSTOMERAPP_REAL_MAIN_EDITORS_20260327</div>
   </main>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=M50.9.9FI_CUSTOMERAPP_MAINLIKE_SECTIONS_20260327"></script>
-  <script src="app.js?v=M50.9.9FI_CUSTOMERAPP_MAINLIKE_SECTIONS_20260327"></script>
+  <script src="firebase-config.js?v=M50.9.9FJ_CUSTOMERAPP_REAL_MAIN_EDITORS_20260327"></script>
+  <script src="app.js?v=M50.9.9FJ_CUSTOMERAPP_REAL_MAIN_EDITORS_20260327"></script>
   <script>
     (function(){
-      const BUILD = 'Build CUSTOMER M50.9.9FI_CUSTOMERAPP_MAINLIKE_SECTIONS_20260327';
+      const BUILD = 'Build CUSTOMER M50.9.9FJ_CUSTOMERAPP_REAL_MAIN_EDITORS_20260327';
       const DRAFT_KEY = 'ds_customer_app_drafts_v1';
       const viewNames = ['home','dogs','contract','stay','chat'];
       let currentView = 'home';
@@ -572,6 +567,194 @@ document.getElementById('btnCustomerTaskSubmit')?.addEventListener('click', ()=>
         if(hint) hint.textContent = 'Änderungen lokal gespeichert. Die Übergabe an Eingänge folgt im nächsten Schritt.';
         alert('Änderungen lokal gespeichert. Die Übergabe an Eingänge folgt im nächsten Schritt.');
       });
+
+
+      /* --- FJ overrides: echte Haupt-App-Editoren in Kunden-App --- */
+      function customerContextIds(){
+        const ctx = getContext();
+        const customer = ctx.customer || {};
+        const pet = ctx.pet || {};
+        return { ctx, customerId:String(customer.id||customer.customerId||''), petId:String(pet.id||pet.petId||''), customer, pet };
+      }
+      function ensureEditorHost(view){
+        const wrap = document.getElementById('customerTaskEditorWrap');
+        if(!wrap) return null;
+        let host = null;
+        if(view==='dogs') host = document.getElementById('dogsEditorHost');
+        if(view==='stay') host = document.getElementById('stayEditorHost');
+        if(host && wrap.parentElement !== host) host.appendChild(wrap);
+        return wrap;
+      }
+      function ensureEditorButtons(templateId){
+        const titleEl = document.getElementById('editorTitle');
+        const metaEl = document.getElementById('editorMeta');
+        const submitBtn = document.getElementById('btnCustomerTaskSubmit');
+        const backBtn = document.getElementById('btnCustomerTaskBack');
+        const titleMap = { customer_data:'Kunde/Hund', hundeannahme:'Neuer Aufenthalt' };
+        const metaMap = {
+          customer_data:'Hier bearbeitest du deine Daten im gleichen Editor wie in der Haupt-App.',
+          hundeannahme:'Hier bearbeitest du den Aufenthalt im gleichen Editor wie in der Haupt-App.'
+        };
+        if(titleEl) titleEl.textContent = titleMap[templateId] || 'Editor';
+        if(metaEl) metaEl.textContent = metaMap[templateId] || '';
+        if(submitBtn) submitBtn.textContent = templateId==='hundeannahme' ? 'Anfrage senden' : 'Änderung senden';
+        if(backBtn) backBtn.textContent = 'Zurück';
+      }
+      function buildRealCustomerDoc(task){
+        const info = customerContextIds();
+        const draft = getDraft(task.id || task.taskId || task.templateId);
+        const payload = Object.assign({}, task?.payloadDraft?.fields || {}, task?.payloadSubmitted?.fields || {});
+        const customer = info.customer || {}; const pet = info.pet || {};
+        const fields = Object.assign({
+          fullName: customer.name || customer.fullName || '',
+          email: customer.email || '',
+          phone: customer.phone || '',
+          street: customer.street || '',
+          zip: customer.zip || '',
+          city: customer.city || '',
+          emergencyName: customer.emergencyName || '',
+          emergencyPhone: customer.emergencyPhone || '',
+          pickupAuth: customer.pickupAuth || '',
+          customerNote: customer.note || customer.notes || '',
+          dogName: pet.name || '',
+          breed: pet.breed || '',
+          birthDate: pet.birthDate || pet.dob || '',
+          sex: pet.sex || '',
+          chipStatus: pet.chipNumber ? 'yes' : '',
+          chipNumber: pet.chipNumber || '',
+          vet: pet.vet || '',
+          vetPhone: pet.vetPhone || '',
+          allergies: pet.allergies || '',
+          vaccinatedConfirmed: !!(pet.vaccinatedConfirmed || pet.vaccinated),
+          rabiesDate: pet.rabiesDate || '',
+          mixedVaccineDate: pet.mixedVaccineDate || '',
+          food: pet.food || '',
+          feeding: pet.feeding || '',
+          compat: pet.compat || '',
+          behavior: pet.behavior || '',
+          notes: pet.notes || ''
+        }, payload, draft);
+        return {
+          id: task.id || task.taskId || ('customer_data_'+Date.now()),
+          title:'Kunde/Hund',
+          templateId:'customer_data',
+          templateName:'Kundendaten ergänzen',
+          fields,
+          meta:{ place: customer.city || '', date: '' },
+          customerId: info.customerId || '', dogId: info.petId || '', petId: info.petId || '',
+          updatedAt: Date.now(), saved:false
+        };
+      }
+      function buildRealStayDoc(task){
+        const info = customerContextIds();
+        const draft = getDraft(task.id || task.taskId || task.templateId);
+        const payload = Object.assign({}, task?.payloadDraft?.fields || {}, task?.payloadSubmitted?.fields || {});
+        const pet = info.pet || {};
+        return {
+          id: task.id || task.taskId || ('hundeannahme_'+Date.now()),
+          title:'Aufenthalt',
+          templateId:'hundeannahme',
+          templateName:'Aufenthalte',
+          fields:{ notes: draft.stayNotes || payload.notes || payload.stayNotes || '' },
+          meta:{
+            von: draft.startDate || payload.startDate || payload.von || '',
+            bis: draft.endDate || payload.endDate || payload.bis || '',
+            betreuung: draft.betreuung || payload.betreuung || 'Urlaubsbetreuung'
+          },
+          customerId: info.customerId || '', dogId: info.petId || '', petId: info.petId || '',
+          signature: (task && task.signature) ? task.signature : null,
+          updatedAt: Date.now(), saved:false
+        };
+      }
+      function saveCurrentCustomerEditor(){
+        const hint = document.getElementById('customerTaskSaveHint');
+        try{
+          if(currentTask && String(currentTask.templateId||'')==='hundeannahme'){
+            if(typeof syncStayEditorInputsToDoc==='function') syncStayEditorInputsToDoc();
+            currentData = Object.assign({}, currentData, {
+              startDate: currentDoc?.meta?.von || '',
+              endDate: currentDoc?.meta?.bis || '',
+              betreuung: currentDoc?.meta?.betreuung || '',
+              stayNotes: currentDoc?.fields?.notes || ''
+            });
+          }else{
+            if(typeof syncCurrentDocFromForm==='function') syncCurrentDocFromForm();
+            currentData = Object.assign({}, currentData, currentDoc?.fields || {});
+          }
+          if(currentTask) setDraft(currentTask.id || currentTask.taskId || currentTask.templateId, currentData);
+          if(hint) hint.textContent = 'Änderungen lokal gespeichert. Die Übergabe an Eingänge folgt im nächsten Schritt.';
+        }catch(e){ if(hint) hint.textContent = 'Speichern fehlgeschlagen.'; }
+      }
+      function renderContractCustomerMode(){
+        const wrap = document.getElementById('customerTaskEditorWrap');
+        if(wrap) wrap.classList.remove('is-active');
+        try{ if(typeof renderContractPanel==='function') renderContractPanel(); }catch(e){ console.error(e); }
+        const info = customerContextIds();
+        const cs = document.getElementById('contractCustomerSelect');
+        const ps = document.getElementById('contractPetSelect');
+        if(cs){
+          const opts = Array.from(cs.options||[]).filter(o=>String(o.value||'')===String(info.customerId||'') || !String(o.value||''));
+          if(opts.length){ cs.innerHTML=''; opts.forEach(o=>cs.appendChild(o)); }
+          cs.value = info.customerId || '';
+          cs.disabled = true;
+          try{ cs.dispatchEvent(new Event('change',{bubbles:true})); }catch(_){ }
+        }
+        if(ps){
+          const petIds = new Set((info.ctx?.pets||[]).map(p=>String(p.id||p.petId||'')).filter(Boolean));
+          const opts = Array.from(ps.options||[]).filter(o=>petIds.has(String(o.value||'')) || !String(o.value||''));
+          if(opts.length){ ps.innerHTML=''; opts.forEach(o=>ps.appendChild(o)); }
+          ps.value = info.petId || '';
+          ps.disabled = true;
+          try{ ps.dispatchEvent(new Event('change',{bubbles:true})); }catch(_){ }
+        }
+        const adminBox = document.getElementById('contractAdminBox'); if(adminBox) adminBox.style.display='none';
+      }
+      function openRealSection(templateId, task){
+        if(templateId==='boarding_contract'){
+          currentTask = task || getLatestTask('boarding_contract') || makeSyntheticTask('boarding_contract','Betreuungsvertrag');
+          currentView = 'contract';
+          document.querySelectorAll('.customer-panel').forEach(el=>el.classList.toggle('is-active', el.id === 'view-contract'));
+          document.querySelectorAll('.nav-btn').forEach(btn=>btn.classList.toggle('is-active', btn.dataset.view === 'contract'));
+          renderContractCustomerMode();
+          setStatus('Ansicht contract');
+          return;
+        }
+        const view = templateId==='hundeannahme' ? 'stay' : 'dogs';
+        currentTask = task || getLatestTask(templateId) || makeSyntheticTask(templateId, templateId==='hundeannahme'?'Neuer Aufenthalt':'Kunde/Hund');
+        currentData = buildInitialData(currentTask);
+        const wrap = ensureEditorHost(view);
+        if(wrap) wrap.classList.add('is-active');
+        document.querySelectorAll('.customer-panel').forEach(el=>el.classList.toggle('is-active', el.id === 'view-' + view));
+        document.querySelectorAll('.nav-btn').forEach(btn=>btn.classList.toggle('is-active', btn.dataset.view === view));
+        ensureEditorButtons(templateId);
+        currentDoc = templateId==='hundeannahme' ? buildRealStayDoc(currentTask) : buildRealCustomerDoc(currentTask);
+        try{ window.currentDoc = currentDoc; window.currentSection = (templateId==='hundeannahme' ? 'stays' : 'docs'); }catch(_){ }
+        try{ renderEditor(currentDoc); }catch(e){ console.error('customer real editor failed', e); }
+        setStatus('Editor ' + templateId);
+      }
+      const __origSetView = setView;
+      setView = function(name){
+        currentView = viewNames.includes(name) ? name : 'home';
+        document.querySelectorAll('.customer-panel').forEach(el=>el.classList.toggle('is-active', el.id === 'view-' + currentView));
+        document.querySelectorAll('.nav-btn').forEach(btn=>btn.classList.toggle('is-active', btn.dataset.view === currentView));
+        const wrap = document.getElementById('customerTaskEditorWrap');
+        if(currentView==='home' || currentView==='chat') wrap?.classList.remove('is-active');
+        if(currentView === 'chat' && typeof window.renderCustomerChatPanel === 'function'){ try{ window.renderCustomerChatPanel(); }catch(_){ } }
+        if(currentView === 'dogs') setTimeout(()=>openRealSection('customer_data', getLatestTask('customer_data')), 0);
+        if(currentView === 'contract') setTimeout(()=>openRealSection('boarding_contract', getLatestTask('boarding_contract')), 0);
+        if(currentView === 'stay') setTimeout(()=>openRealSection('hundeannahme', getLatestTask('hundeannahme')), 0);
+        setStatus('Ansicht ' + currentView);
+      };
+      openTask = function(task){
+        if(!task) return;
+        const tid = String(task.templateId||'');
+        if(tid==='customer_data' || tid==='boarding_contract' || tid==='hundeannahme') return openRealSection(tid, task);
+      };
+      refreshCustomUI = function(){
+        renderHomeOverview();
+        try{ renderCustomerMainlikePanels(); }catch(_){ }
+        if(typeof window.renderCustomerChatPanel === 'function'){ try{ window.renderCustomerChatPanel(); }catch(_){ } }
+      };
 
       async function bootCustomerPortal(){
         try{
