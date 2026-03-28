@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB13_INBOX_PROPOSAL_RENDERFIX_20260328",
+  tag: "M50.9.9GB14_INBOX_REFRESHWIRE_20260328",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB13_INBOX_PROPOSAL_RENDERFIX_20260328";
+const APP_BUILD = "M50.9.9GB14_INBOX_REFRESHWIRE_20260328";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -2112,9 +2112,12 @@ async function wireInbox(){
       }catch(_){ }
     }));
     tasks.forEach(t=>{ if(!t.customerEmail) t.customerEmail = map[t.customerUid]||''; });
+    try{ window.__dsInboxLastTasks = Array.isArray(tasks) ? tasks.slice() : []; }catch(_){ }
     renderList(tasks);
+    try{ window.__dsInboxLastCount = tasks.length; }catch(_){ }
     return tasks;
   };
+  try{ window.__dsInboxReload = ()=>loadSubmitted(); }catch(_){ }
   const openDetail = (task)=>{
     currentTask = task;
     if(detail) detail.style.display = '';
@@ -2551,7 +2554,22 @@ async function wireInboxAssignments(){
     return cloudPromise;
   };
 
-  btnRefresh?.addEventListener('click', ()=>{ refresh().catch(e=>{ console.error(e); setMsg('Aktualisieren fehlgeschlagen.', true); }); });
+  btnRefresh?.addEventListener('click', ()=>{
+    Promise.resolve().then(async()=>{
+      await refresh();
+      try{
+        if(typeof window.__dsInboxReload === 'function'){
+          const tasks = await window.__dsInboxReload();
+          const count = Array.isArray(tasks) ? tasks.length : Number(window.__dsInboxLastCount||0);
+          if(count > 0) setMsg(`Eingänge geladen: ${count}`, false);
+          else setMsg('Keine Eingänge gefunden.', true);
+        }
+      }catch(err){
+        console.error('inbox reload from refresh failed', err);
+        setMsg('Eingänge-Aktualisierung fehlgeschlagen: ' + ((err && err.message) || err || 'reload-failed'), true);
+      }
+    }).catch(e=>{ console.error(e); setMsg('Aktualisieren fehlgeschlagen.', true); });
+  });
   window.addEventListener('pageshow', ()=>{ refresh().catch(()=>{}); });
   document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) refresh().catch(()=>{}); });
   document.querySelector('[data-tab="inbox"]')?.addEventListener('click', ()=>setTimeout(()=>refresh().catch(()=>{}), 0));
@@ -17611,7 +17629,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB13_INBOX_PROPOSAL_RENDERFIX_20260328) ===== */
+/* ===== CHAT (M50.9.9GB14_INBOX_REFRESHWIRE_20260328) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
