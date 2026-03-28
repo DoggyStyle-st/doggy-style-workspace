@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB15_INBOX_BUTTONHARDFIX_20260328",
+  tag: "M50.9.9GB16_INBOX_DIRECTRELOAD_20260328",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB15_INBOX_BUTTONHARDFIX_20260328";
+const APP_BUILD = "M50.9.9GB16_INBOX_DIRECTRELOAD_20260328";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -1902,6 +1902,143 @@ async function initCustomerPortal(){
     return null;
   };
 }
+
+
+async function dsHardRefreshInboxUI(){
+  const listEl = document.getElementById('inboxList');
+  const msgEl = document.getElementById('assignMsg');
+  const diagEl = document.getElementById('assignDiag');
+  const selCustomer = document.getElementById('assignCustomer');
+  const selTemplate = document.getElementById('assignTemplate');
+  const setMsg = (txt, isErr=false)=>{
+    if(!msgEl) return;
+    msgEl.textContent = txt || '';
+    msgEl.style.color = isErr ? '#ffb3b3' : '';
+  };
+  const renderTasks = (tasks)=>{
+    if(!listEl) return;
+    listEl.innerHTML = '';
+    if(!tasks.length){
+      listEl.innerHTML = '<div class="muted">— keine Eingänge —</div>';
+      return;
+    }
+    tasks.forEach(t=>{
+      const row = document.createElement('div');
+      row.className = 'list-item';
+      const when = t.submittedAt ? fmtDT(t.submittedAt) : '';
+      row.innerHTML = `<div><strong>${escapeHtml(t.title||'Eingang')}</strong><small>${escapeHtml(t.customerEmail||t.customerUid||'')}${when?(' · '+when):''}</small></div>`;
+      listEl.appendChild(row);
+    });
+  };
+  const tasks = [];
+  const seen = new Set();
+  const pushTask = (obj)=>{
+    if(!obj || typeof obj !== 'object') return;
+    const key = String(obj.id || obj.taskId || obj.customerUid || obj.customerEmail || Math.random());
+    if(seen.has(key)) return;
+    seen.add(key);
+    tasks.push(obj);
+  };
+  setMsg('… lädt …');
+  try{
+    try{
+      const col = cloudTasksCol && cloudTasksCol();
+      if(col && typeof col.where === 'function'){
+        let snap;
+        try{ snap = await col.where('status','==','submitted').orderBy('submittedAt','desc').limit(100).get(); }
+        catch(_){ snap = await col.where('status','==','submitted').limit(100).get(); }
+        snap && snap.forEach(d=>pushTask({id:d.id, ...d.data()}));
+      }
+    }catch(err){ console.warn('dsHardRefreshInboxUI tasks failed', err); }
+    try{
+      const col = cloudProposalsCol && cloudProposalsCol();
+      if(col && typeof col.where === 'function'){
+        let snap;
+        try{ snap = await col.where('proposalStatus','==','pending').orderBy('submittedAt','desc').limit(100).get(); }
+        catch(_){ snap = await col.where('proposalStatus','==','pending').limit(100).get(); }
+        snap && snap.forEach(d=>pushTask({id:d.id, ...d.data()}));
+      }
+    }catch(err){ console.warn('dsHardRefreshInboxUI proposals failed', err); }
+    try{
+      const raw = localStorage.getItem(LS_KEY);
+      const data = raw ? JSON.parse(raw) : {};
+      const list = Array.isArray(data.inboxAssignments) ? data.inboxAssignments : [];
+      list.filter(x=>{
+        const status = String((x && x.status) || '').trim().toLowerCase();
+        const pstatus = String((x && x.proposalStatus) || '').trim().toLowerCase();
+        return status === 'submitted' || pstatus === 'pending' || !!(x && x.mirroredFromCloud);
+      }).forEach(pushTask);
+    }catch(err){ console.warn('dsHardRefreshInboxUI local failed', err); }
+    try{
+      ensureStateShape();
+      const stateList = [].concat(Array.isArray(state.inboxAssignments) ? state.inboxAssignments : []).concat(Array.isArray(state.inboxSubmissions) ? state.inboxSubmissions : []);
+      stateList.filter(x=>{
+        const status = String((x && x.status) || '').trim().toLowerCase();
+        const pstatus = String((x && x.proposalStatus) || '').trim().toLowerCase();
+        return status === 'submitted' || pstatus === 'pending' || !!(x && x.mirroredFromCloud);
+      }).forEach(pushTask);
+    }catch(err){ console.warn('dsHardRefreshInboxUI state failed', err); }
+    try{
+      (loadCustomerProposalBuffer() || []).filter(x=>{
+        const status = String((x && x.status) || '').trim().toLowerCase();
+        const pstatus = String((x && x.proposalStatus) || '').trim().toLowerCase();
+        return status === 'submitted' || pstatus === 'pending' || !!(x && x.mirroredFromCloud);
+      }).forEach(pushTask);
+    }catch(err){ console.warn('dsHardRefreshInboxUI buffer failed', err); }
+
+    tasks.sort((a,b)=> Number(b && b.submittedAt || 0) - Number(a && a.submittedAt || 0));
+    try{ window.__dsInboxLastTasks = tasks.slice(); window.__dsInboxLastCount = tasks.length; }catch(_){ }
+    renderTasks(tasks);
+    if(selCustomer && tasks.length){
+      const customerMap = new Map();
+      tasks.forEach(t=>{
+        const key = String(t.customerUid || t.customerEmail || t.customerId || t.id || '').trim();
+        if(!key || customerMap.has(key)) return;
+        customerMap.set(key, {
+          value: key,
+          label: [String(t.customerName||'').trim(), String(t.customerEmail||t.customerUid||'').trim()].filter(Boolean).join(' · ') || key
+        });
+      });
+      selCustomer.innerHTML = '<option value="">Bitte auswählen…</option>' + Array.from(customerMap.values()).map(c=>`<option value="${escapeHtml(c.value)}">${escapeHtml(c.label)}</option>`).join('');
+    }
+    if(selTemplate && tasks.length){
+      const tplMap = new Map();
+      tasks.forEach(t=>{
+        const key = String(t.templateId || '').trim();
+        if(!key || tplMap.has(key)) return;
+        tplMap.set(key, { value:key, label: key });
+      });
+      const current = Array.from(selTemplate.options).map(o=>o.value);
+      Array.from(tplMap.values()).forEach(t=>{
+        if(!current.includes(t.value)){
+          const o = document.createElement('option'); o.value=t.value; o.textContent=t.label; selTemplate.appendChild(o);
+        }
+      });
+    }
+    setMsg(tasks.length ? `Eingänge geladen: ${tasks.length}` : 'Keine Eingänge gefunden.', !tasks.length);
+    if(diagEl) diagEl.textContent = 'Diagnose: hard-refresh=' + tasks.length;
+    return tasks;
+  }catch(err){
+    console.error('dsHardRefreshInboxUI failed', err);
+    setMsg('Aktualisieren fehlgeschlagen: ' + String(err && (err.message || err) || 'Unbekannter Fehler'), true);
+    if(diagEl) diagEl.textContent = 'Diagnose: hard-refresh-error=' + String(err && (err.message || err) || err);
+    throw err;
+  }
+}
+
+function wireInboxRefreshHard(){
+  if(window.__dsInboxRefreshHardWired) return;
+  window.__dsInboxRefreshHardWired = true;
+  document.addEventListener('click', (ev)=>{
+    const btn = ev.target && ev.target.closest ? ev.target.closest('#btnInboxRefresh') : null;
+    if(!btn) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    Promise.resolve().then(()=>dsHardRefreshInboxUI()).catch(()=>{});
+  }, true);
+  window.__dsInboxHardRefresh = dsHardRefreshInboxUI;
+}
+
 async function initStaffFeatures(){
   showStaffUI();
   updateSyncUI();
@@ -1927,6 +2064,7 @@ async function initStaffFeatures(){
   try{ Promise.resolve().then(()=>wireInbox()).catch(e=>console.warn(e)); }catch(e){ console.warn(e); }
   // Inbox: Aufgaben freigeben (offline-first, lokal)
   try{ await wireInboxAssignments(); }catch(e){ console.warn(e); }
+  try{ wireInboxRefreshHard(); }catch(e){ console.warn(e); }
 }
 async function wireTaskCreation(){
   // Historischer Zweitweg für Aufgabenfreigaben.
@@ -17703,7 +17841,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB15_INBOX_BUTTONHARDFIX_20260328) ===== */
+/* ===== CHAT (M50.9.9GB16_INBOX_DIRECTRELOAD_20260328) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
