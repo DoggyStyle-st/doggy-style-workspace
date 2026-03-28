@@ -17,6 +17,7 @@
 
 /* --- Statusanzeige oben rechts entschärfen (nicht alarmierend) --- */
 .page-app .status-dot.offline{ background: rgba(248,81,73,.65) !important; }
+.page-app .status-dot.online{ background: #39d353 !important; }
 .page-app .sync-text{ opacity: .78; font-weight: 600; }
 .page-app .sync-label{ opacity: .70; }
 
