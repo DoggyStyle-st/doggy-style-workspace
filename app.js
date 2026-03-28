@@ -1906,38 +1906,46 @@ async function wireInbox(){
   };
   const loadSubmitted = async ()=>{
     const tasks = [];
-    const col = cloudTasksCol && cloudTasksCol();
-    if(!col){ renderList([]); return; }
-    let snap = null;
+    const seen = new Set();
+    const pushTask = (obj)=>{
+      if(!obj || typeof obj !== 'object') return;
+      const key = String(obj.id || obj.taskId || '');
+      if(key && seen.has(key)) return;
+      if(key) seen.add(key);
+      tasks.push(obj);
+    };
     try{
-      snap = await col.where('status','==','submitted').orderBy('submittedAt','desc').limit(100).get();
-    }catch(err){
-      console.warn('loadSubmitted primary query failed, fallback to full scan', err);
       try{
-        snap = await col.limit(300).get();
-      }catch(err2){
-        console.warn('loadSubmitted fallback query failed', err2);
-        renderList([]);
-        return;
+        const snap = await cloudTasksCol().where('status','==','submitted').orderBy('submittedAt','desc').limit(100).get();
+        snap.forEach(d=>pushTask({id:d.id, ...d.data()}));
+      }catch(err){
+        console.warn('loadSubmitted primary query failed', err);
+        const snap = await cloudTasksCol().where('status','==','submitted').limit(100).get();
+        snap.forEach(d=>pushTask({id:d.id, ...d.data()}));
       }
+    }catch(err){
+      console.warn('loadSubmitted cloud fallback failed', err);
     }
-    snap.forEach(d=>tasks.push({id:d.id, ...d.data()}));
-    const filtered = tasks
-      .filter(t => String(t.status||'') === 'submitted')
-      .sort((a,b) => Number(b.submittedAt||b.updatedAt||0) - Number(a.submittedAt||a.updatedAt||0))
-      .slice(0,100);
-    const uids = Array.from(new Set(filtered.map(t=>t.customerUid).filter(Boolean)));
+    try{
+      const raw = localStorage.getItem(LS_KEY);
+      const data = raw ? JSON.parse(raw) : {};
+      const list = Array.isArray(data.inboxAssignments) ? data.inboxAssignments : [];
+      list.filter(x=>String((x && x.status) || '') === 'submitted').forEach(pushTask);
+    }catch(err){
+      console.warn('loadSubmitted local fallback failed', err);
+    }
+    tasks.sort((a,b)=> Number(b && b.submittedAt || 0) - Number(a && a.submittedAt || 0));
+    const uids = Array.from(new Set(tasks.map(t=>t.customerUid).filter(Boolean)));
     const map = {};
     await Promise.all(uids.map(async uid=>{
       try{
-        const ref = cloudUserDoc(uid);
-        if(!ref) return;
-        const us = await ref.get();
+        const us = await cloudUserDoc(uid).get();
         if(us.exists) map[uid] = us.data().email || uid;
       }catch(_){ }
     }));
-    filtered.forEach(t=>t.customerEmail = t.customerEmail || map[t.customerUid] || '');
-    renderList(filtered);
+    tasks.forEach(t=>{ if(!t.customerEmail) t.customerEmail = map[t.customerUid]||''; });
+    renderList(tasks);
+    return tasks;
   };
   const openDetail = (task)=>{
     currentTask = task;
@@ -2021,7 +2029,7 @@ async function wireInbox(){
     if(listEl) listEl.style.display='';
     await loadSubmitted();
   };
-  if(btnRef) btnRef.onclick = ()=>loadSubmitted().catch(console.error);
+  if(btnRef) btnRef.onclick = ()=>loadSubmitted().catch(e=>{ console.error(e); try{ alert('Aktualisieren fehlgeschlagen: ' + (e.message||e)); }catch(_){}; });
   await loadSubmitted();
 }
 
