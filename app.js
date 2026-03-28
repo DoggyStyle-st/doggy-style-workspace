@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB9_CUSTOMER_FIRESTOREPROPOSALS_20260328",
+  tag: "M50.9.9GB10_CUSTOMER_FIRESTOREWRITEFIX_20260328",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB9_CUSTOMER_FIRESTOREPROPOSALS_20260328";
+const APP_BUILD = "M50.9.9GB10_CUSTOMER_FIRESTOREWRITEFIX_20260328";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -1470,49 +1470,68 @@ async function submitCustomerDogsProposal(){
     };
     let cloudWriteOk = false;
     let cloudWriteErr = null;
-    if(CLOUD?.enabled && cloudProposalsCol){
+    let cloudWritePath = '';
+    const taskLite = {
+      ...task,
+      payloadSubmitted: {
+        source: 'customer-main-dogs',
+        mode: 'proposal-cloud-fallback',
+        customer: {
+          name: customerProposal.name || '',
+          email: customerProposal.email || '',
+          phone: customerProposal.phone || ''
+        },
+        pet: {
+          name: petProposal.name || '',
+          breed: petProposal.breed || '',
+          sex: petProposal.sex || '',
+          note: petProposal.note || ''
+        }
+      }
+    };
+    if(CLOUD?.enabled){
       try{
-        await cloudProposalsCol().doc(task.id).set(task, {merge:true});
-        cloudWriteOk = true;
+        const col = cloudProposalsCol && cloudProposalsCol();
+        if(col && typeof col.doc === 'function'){
+          await col.doc(task.id).set(task, {merge:true});
+          cloudWriteOk = true;
+          cloudWritePath = 'proposals';
+        }
       }catch(err){
         cloudWriteErr = err;
-        console.warn('submitCustomerDogsProposal cloud proposal write failed, using local fallback', err);
+        console.warn('submitCustomerDogsProposal cloud proposal write failed, trying tasks fallback', err);
+      }
+      if(!cloudWriteOk){
+        try{
+          const col = cloudTasksCol && cloudTasksCol();
+          if(col && typeof col.doc === 'function'){
+            await col.doc(task.id).set(taskLite, {merge:true});
+            cloudWriteOk = true;
+            cloudWritePath = 'tasks';
+          }
+        }catch(err2){
+          cloudWriteErr = err2 || cloudWriteErr;
+          console.warn('submitCustomerDogsProposal cloud tasks fallback failed, using local fallback', err2);
+        }
       }
     }
     if(!cloudWriteOk){
-      const taskLite = {
-        ...task,
-        payloadSubmitted: {
-          source: 'customer-main-dogs',
-          mode: 'proposal-local-fallback',
-          customer: {
-            name: customerProposal.name || '',
-            email: customerProposal.email || '',
-            phone: customerProposal.phone || ''
-          },
-          pet: {
-            name: petProposal.name || '',
-            breed: petProposal.breed || '',
-            sex: petProposal.sex || '',
-            note: petProposal.note || ''
-          }
-        }
-      };
+      const taskLocal = { ...taskLite, payloadSubmitted: { ...(taskLite.payloadSubmitted||{}), mode: 'proposal-local-fallback' } };
       try{
         const raw = localStorage.getItem(LS_KEY); const local = raw ? JSON.parse(raw) : {};
         local.inboxAssignments = Array.isArray(local.inboxAssignments) ? local.inboxAssignments : [];
-        local.inboxAssignments.unshift(taskLite);
+        local.inboxAssignments.unshift(taskLocal);
         localStorage.setItem(LS_KEY, JSON.stringify(local));
       }catch(localErr){
         const reason = cloudWriteErr?.message || localErr?.message || localErr || cloudWriteErr || 'Unbekannter Fehler';
         throw new Error(String(reason));
       }
-      try{ pushCustomerProposalBuffer(taskLite); }catch(_){ }
+      try{ pushCustomerProposalBuffer(taskLocal); }catch(_){ }
     } else {
-      try{ pushCustomerProposalBuffer(task); }catch(_){ }
+      try{ pushCustomerProposalBuffer(cloudWritePath==='tasks' ? taskLite : task); }catch(_){ }
     }
     cpSetStatus(cloudWriteOk ? 'Dein Änderungsvorschlag wurde gespeichert und wird geprüft.' : 'Dein Änderungsvorschlag wurde lokal vorgemerkt.');
-    try{ alert(cloudWriteOk ? 'Dein Änderungsvorschlag wurde gespeichert und wird von uns geprüft.' : 'Dein Änderungsvorschlag wurde lokal vorgemerkt. Sollte er nicht erscheinen, bitte später erneut senden.'); }catch(_){ }
+    try{ alert(cloudWriteOk ? 'Dein Änderungsvorschlag wurde gespeichert und wird von uns geprüft.' : ('Dein Änderungsvorschlag wurde lokal vorgemerkt. Cloud-Speicherung fehlgeschlagen: ' + String(cloudWriteErr?.message || cloudWriteErr || 'Unbekannter Fehler'))); }catch(_){ }
     closeCpEditor();
     renderDogs();
   }catch(err){ console.error('submitCustomerDogsProposal failed', err); cpSetStatus('Senden fehlgeschlagen.', true); alert('Senden fehlgeschlagen: ' + String(err?.message || err || 'Unbekannter Fehler')); }
@@ -17528,7 +17547,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB9_CUSTOMER_FIRESTOREPROPOSALS_20260328) ===== */
+/* ===== CHAT (M50.9.9GB10_CUSTOMER_FIRESTOREWRITEFIX_20260328) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
