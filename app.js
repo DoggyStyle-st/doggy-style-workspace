@@ -17625,6 +17625,80 @@ try{
     window.addEventListener('pageshow', ()=>setTimeout(dsBootInboxList, 80));
     document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) setTimeout(dsBootInboxList, 80); });
     document.querySelector('[data-tab="inbox"]')?.addEventListener('click', ()=>setTimeout(dsBootInboxList, 80));
+
+// GB15: hard-wire inbox refresh button and direct render for customer proposals
+try{
+  window.__dsInboxForceRefresh = async function(){
+    const listEl = document.getElementById('inboxList');
+    const msgEl = document.getElementById('assignMsg');
+    const setMsg = (txt, err=false)=>{ try{ if(msgEl){ msgEl.textContent = txt || ''; msgEl.style.color = err ? '#ffb3b3' : ''; } }catch(_){} };
+    const tasks = [];
+    const seen = new Set();
+    const pushTask = (obj)=>{
+      if(!obj || typeof obj !== 'object') return;
+      const key = String(obj.id || obj.taskId || obj.proposalId || '');
+      if(key && seen.has(key)) return;
+      if(key) seen.add(key);
+      tasks.push(obj);
+    };
+    setMsg('Eingänge werden geladen …', false);
+    try{
+      try{
+        const snap = await cloudTasksCol().where('status','==','submitted').limit(100).get();
+        snap.forEach(d=>pushTask({id:d.id, ...d.data()}));
+      }catch(err){ console.warn('GB15 tasks load failed', err); }
+      try{
+        const snap = await cloudProposalsCol().where('proposalStatus','==','pending').limit(100).get();
+        snap.forEach(d=>pushTask({id:d.id, ...d.data()}));
+      }catch(err){ console.warn('GB15 proposals load failed', err); }
+      try{
+        const raw = localStorage.getItem(LS_KEY);
+        const data = raw ? JSON.parse(raw) : {};
+        (Array.isArray(data.inboxAssignments) ? data.inboxAssignments : []).forEach(pushTask);
+      }catch(err){ console.warn('GB15 local load failed', err); }
+      try{
+        ensureStateShape();
+        ([]).concat(Array.isArray(state.inboxAssignments)?state.inboxAssignments:[]).concat(Array.isArray(state.inboxSubmissions)?state.inboxSubmissions:[]).forEach(pushTask);
+      }catch(err){ console.warn('GB15 state load failed', err); }
+      try{ (loadCustomerProposalBuffer() || []).forEach(pushTask); }catch(err){ console.warn('GB15 proposal buffer load failed', err); }
+      tasks.sort((a,b)=> Number((b&&b.submittedAt)||0) - Number((a&&a.submittedAt)||0));
+      try{ window.__dsInboxLastTasks = tasks.slice(); window.__dsInboxLastCount = tasks.length; }catch(_){}
+      if(listEl){
+        listEl.innerHTML = '';
+        if(!tasks.length){
+          listEl.innerHTML = '<div class="muted">— keine Eingänge —</div>';
+        } else {
+          tasks.forEach(t=>{
+            const row = document.createElement('div');
+            row.className = 'list-item';
+            const when = t.submittedAt ? fmtDT(t.submittedAt) : '';
+            const form = t.templateId || t.proposalType || t.kind || 'Änderungsvorschlag';
+            const cust = t.customerEmail || t.customerUid || t.email || '';
+            row.innerHTML = `<div><strong>${escapeHtml(form)}</strong><small>${escapeHtml(cust)}${when?(' · '+when):''}</small></div>`;
+            listEl.appendChild(row);
+          });
+        }
+      }
+      setMsg(tasks.length ? ('Eingänge geladen: ' + tasks.length) : 'Keine Eingänge gefunden.', !tasks.length);
+      return tasks;
+    }catch(err){
+      console.error('GB15 inbox force refresh failed', err);
+      setMsg('Aktualisieren fehlgeschlagen: ' + ((err && err.message) || err || 'reload-failed'), true);
+      throw err;
+    }
+  };
+}catch(_){}
+
+try{
+  document.addEventListener('click', function(ev){
+    const btn = ev.target && ev.target.closest ? ev.target.closest('#btnInboxRefresh') : null;
+    if(!btn) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    Promise.resolve().then(()=>window.__dsInboxForceRefresh && window.__dsInboxForceRefresh()).catch(err=>console.error('GB15 click refresh failed', err));
+  }, true);
+}catch(_){}
+
   }
 }catch(err){ console.warn(err); }
 
