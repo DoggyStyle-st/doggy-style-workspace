@@ -66,6 +66,26 @@ service cloud.firestore {
       );
     }
 
+    match /orgs/{orgId}/proposals/{proposalId} {
+      allow create: if signedIn() && (
+        isStaff(orgId)
+        || (
+          request.resource.data != null
+          && request.resource.data.proposalStatus == 'pending'
+          && request.resource.data.customerUid == request.auth.uid
+          && request.resource.data.customerEmail != null
+          && sameEmail(request.resource.data.customerEmail)
+          && request.resource.data.templateId in ['customer_data', 'boarding_contract', 'hundeannahme']
+        )
+      );
+      allow read: if signedIn() && (
+        isStaff(orgId)
+        || (resource.data.customerUid == request.auth.uid)
+        || sameEmail(resource.data.customerEmail)
+      );
+      allow update, delete: if signedIn() && isStaff(orgId);
+    }
+
     match /orgs/{orgId}/chats/{chatId} {
       allow read: if signedIn() && (isStaff(orgId) || isChatOwner(resource.data));
       allow create: if signedIn() && (isStaff(orgId) || isChatOwner(request.resource.data));

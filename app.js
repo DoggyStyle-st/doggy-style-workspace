@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB8_CUSTOMER_FIREBASEPROPOSALS_20260328",
+  tag: "M50.9.9GB9_CUSTOMER_FIRESTOREPROPOSALS_20260328",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB8_CUSTOMER_FIREBASEPROPOSALS_20260328";
+const APP_BUILD = "M50.9.9GB9_CUSTOMER_FIRESTOREPROPOSALS_20260328";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -1091,6 +1091,14 @@ function cloudTasksCol(){
   if(compatDb) return compatDb.collection("orgs").doc(orgId).collection("tasks");
   return null;
 }
+function cloudProposalsCol(){
+  const orgId = CLOUD && CLOUD.orgId;
+  if(!orgId) return null;
+  if(CLOUD && CLOUD.enabled && CLOUD.db) return CLOUD.db.collection("orgs").doc(orgId).collection("proposals");
+  const compatDb = getCompatFirestoreDb();
+  if(compatDb) return compatDb.collection("orgs").doc(orgId).collection("proposals");
+  return null;
+}
 
 function loadCustomerProposalBuffer(){
   try{
@@ -1450,6 +1458,7 @@ async function submitCustomerDogsProposal(){
       templateId: 'customer_data',
       title: 'Kunde/Hund Änderungsvorschlag',
       status: 'submitted',
+      proposalStatus: 'pending',
       submittedAt: stamp,
       createdAt: stamp,
       updatedAt: stamp,
@@ -1461,13 +1470,13 @@ async function submitCustomerDogsProposal(){
     };
     let cloudWriteOk = false;
     let cloudWriteErr = null;
-    if(CLOUD?.enabled && cloudTasksCol){
+    if(CLOUD?.enabled && cloudProposalsCol){
       try{
-        await cloudTasksCol().doc(task.id).set(task, {merge:true});
+        await cloudProposalsCol().doc(task.id).set(task, {merge:true});
         cloudWriteOk = true;
       }catch(err){
         cloudWriteErr = err;
-        console.warn('submitCustomerDogsProposal cloud write failed, using local fallback', err);
+        console.warn('submitCustomerDogsProposal cloud proposal write failed, using local fallback', err);
       }
     }
     if(!cloudWriteOk){
@@ -1502,8 +1511,8 @@ async function submitCustomerDogsProposal(){
     } else {
       try{ pushCustomerProposalBuffer(task); }catch(_){ }
     }
-    cpSetStatus(cloudWriteOk ? 'Als Vorschlag an Eingänge gesendet.' : 'Als lokaler Vorschlag an Eingänge gespeichert.');
-    try{ alert(cloudWriteOk ? 'Änderungsvorschlag wurde an Eingänge gesendet.' : 'Änderungsvorschlag lokal gespeichert. Bitte Eingänge aktualisieren.'); }catch(_){ }
+    cpSetStatus(cloudWriteOk ? 'Dein Änderungsvorschlag wurde gespeichert und wird geprüft.' : 'Dein Änderungsvorschlag wurde lokal vorgemerkt.');
+    try{ alert(cloudWriteOk ? 'Dein Änderungsvorschlag wurde gespeichert und wird von uns geprüft.' : 'Dein Änderungsvorschlag wurde lokal vorgemerkt. Sollte er nicht erscheinen, bitte später erneut senden.'); }catch(_){ }
     closeCpEditor();
     renderDogs();
   }catch(err){ console.error('submitCustomerDogsProposal failed', err); cpSetStatus('Senden fehlgeschlagen.', true); alert('Senden fehlgeschlagen: ' + String(err?.message || err || 'Unbekannter Fehler')); }
@@ -1990,6 +1999,18 @@ async function wireInbox(){
       console.warn('loadSubmitted cloud fallback failed', err);
     }
     try{
+      try{
+        const snap = await cloudProposalsCol().where('proposalStatus','==','pending').orderBy('submittedAt','desc').limit(100).get();
+        snap.forEach(d=>pushTask({id:d.id, ...d.data()}));
+      }catch(err){
+        console.warn('loadSubmitted proposals primary query failed', err);
+        const snap = await cloudProposalsCol().where('proposalStatus','==','pending').limit(100).get();
+        snap.forEach(d=>pushTask({id:d.id, ...d.data()}));
+      }
+    }catch(err){
+      console.warn('loadSubmitted proposals cloud fallback failed', err);
+    }
+    try{
       const raw = localStorage.getItem(LS_KEY);
       const data = raw ? JSON.parse(raw) : {};
       const list = Array.isArray(data.inboxAssignments) ? data.inboxAssignments : [];
@@ -2035,18 +2056,31 @@ async function wireInbox(){
       return el;
     };
     if(t && root){
-      t.sections.forEach(sec=>{
-        const card=document.createElement('div');
-        card.className='card';
-        card.innerHTML=`<h2>${escapeHtml(sec.title)}</h2>`;
-        sec.fields.forEach(f=>card.appendChild(renderFieldRO(f.label, fields[f.key])));
-        root.appendChild(card);
-      });
-      const metaCard=document.createElement('div');
-      metaCard.className='card';
-      metaCard.innerHTML=`<h2>Ort / Datum</h2>`;
-      (t.meta||[]).forEach(f=>metaCard.appendChild(renderFieldRO(f.label, meta[f.key])));
-      root.appendChild(metaCard);
+      if(payload && payload.source === 'customer-main-dogs' && payload.customer && payload.pet){
+        const cCard=document.createElement('div');
+        cCard.className='card';
+        cCard.innerHTML=`<h2>Kunde</h2>`;
+        [['Name', payload.customer.name], ['E-Mail', payload.customer.email], ['Telefon', payload.customer.phone], ['Straße', payload.customer.street], ['PLZ', payload.customer.zip], ['Ort', payload.customer.city], ['Notfallkontakt', payload.customer.emergencyContact], ['Notfalltelefon', payload.customer.emergencyPhone], ['Notizen', payload.customer.note]].forEach(([l,v])=>cCard.appendChild(renderFieldRO(l,v)));
+        root.appendChild(cCard);
+        const pCard=document.createElement('div');
+        pCard.className='card';
+        pCard.innerHTML=`<h2>Hund</h2>`;
+        [['Hundename', payload.pet.name], ['Rasse', payload.pet.breed], ['Geburtsdatum', payload.pet.birthDate], ['Geschlecht', payload.pet.sex], ['Chipnummer', payload.pet.chipNumber], ['Tierarzt', payload.pet.vet], ['Tierarzt Telefon', payload.pet.vetPhone], ['Allergien', payload.pet.allergies], ['Vorerkrankungen', payload.pet.medicalConditions], ['Fütterung', payload.pet.feeding], ['Verhalten', payload.pet.behavior], ['Notiz', payload.pet.note]].forEach(([l,v])=>pCard.appendChild(renderFieldRO(l,v)));
+        root.appendChild(pCard);
+      } else {
+        t.sections.forEach(sec=>{
+          const card=document.createElement('div');
+          card.className='card';
+          card.innerHTML=`<h2>${escapeHtml(sec.title)}</h2>`;
+          sec.fields.forEach(f=>card.appendChild(renderFieldRO(f.label, fields[f.key])));
+          root.appendChild(card);
+        });
+        const metaCard=document.createElement('div');
+        metaCard.className='card';
+        metaCard.innerHTML=`<h2>Ort / Datum</h2>`;
+        (t.meta||[]).forEach(f=>metaCard.appendChild(renderFieldRO(f.label, meta[f.key])));
+        root.appendChild(metaCard);
+      }
     }
   };
   if(btnBack) btnBack.onclick = ()=>{
@@ -17494,7 +17528,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB8_CUSTOMER_FIREBASEPROPOSALS_20260328) ===== */
+/* ===== CHAT (M50.9.9GB9_CUSTOMER_FIRESTOREPROPOSALS_20260328) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
