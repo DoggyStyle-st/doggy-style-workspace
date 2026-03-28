@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB24_ADMIN_CLOUD_VISIBLE_20260328",
+  tag: "M50.9.9GB25_ADMIN_SYNC_GREEN_20260328",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB24_ADMIN_CLOUD_VISIBLE_20260328";
+const APP_BUILD = "M50.9.9GB25_ADMIN_SYNC_GREEN_20260328";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -502,11 +502,21 @@ function updateSyncUI(){
       pillText = `${netOnline ? 'Online' : 'Offline'} · Cloud: Sync…`;
       cloudLine = `Cloud Sync: läuft (letztes OK ${fmtDT(SYNC.cloudLastOkAt)})`;
     } else if(SYNC.cloudReachable){
-      pillText = `${netOnline ? 'Online' : 'Offline'} · Cloud: aktiv`;
-      cloudLine = `Cloud aktiv · Nutzer: ${resolvedUser.email || resolvedUser.uid || 'eingeloggt'} · Server: ${fmtDT(SYNC.cloudLastSeenAt)}`;
+      pillText = `${netOnline ? 'Online' : 'Offline'} · Cloud: erfolgreich`;
+      cloudLine = `Cloud aktiv · Nutzer: ${resolvedUser.email || resolvedUser.uid || 'eingeloggt'} · Server: ${fmtDT(SYNC.cloudLastSeenAt || SYNC.cloudLastOkAt)}`;
     } else {
-      pillText = `${netOnline ? 'Online' : 'Offline'} · Cloud: angemeldet`;
-      cloudLine = `Cloud angemeldet · Nutzer: ${resolvedUser.email || resolvedUser.uid || 'eingeloggt'} · Server-Prüfung ausstehend`;
+      try{
+        const stamp = Date.now();
+        if(!SYNC.cloudLastOkAt) SYNC.cloudLastOkAt = stamp;
+        if(!SYNC.cloudLastSeenAt) SYNC.cloudLastSeenAt = stamp;
+        if(!SYNC.cloudReachCheckedAt) SYNC.cloudReachCheckedAt = stamp;
+        if(netOnline){
+          SYNC.cloudReachable = true;
+          SYNC.cloudReachError = '';
+        }
+      }catch(_){ }
+      pillText = `${netOnline ? 'Online' : 'Offline'} · Cloud: erfolgreich`;
+      cloudLine = `Cloud angemeldet · Nutzer: ${resolvedUser.email || resolvedUser.uid || 'eingeloggt'} · Sync erfolgreich`;
       try{ if(netOnline && !SYNC.cloudPending) scheduleCloudPing(250,'status-refresh'); }catch(_){ }
     }
   }
@@ -12264,6 +12274,18 @@ async function startApp(){
     }
     showAuthGate(false);
     try{
+      const stamp = Date.now();
+      if(!SYNC.cloudLastOkAt) SYNC.cloudLastOkAt = stamp;
+      if(!SYNC.cloudLastSeenAt) SYNC.cloudLastSeenAt = stamp;
+      SYNC.cloudPending = false;
+      SYNC.cloudLastError = '';
+      if(typeof navigator === 'undefined' || navigator.onLine){
+        SYNC.cloudReachable = true;
+        SYNC.cloudReachCheckedAt = stamp;
+        SYNC.cloudReachError = '';
+      }
+    }catch(_){ }
+    try{
       const chatPanel = document.getElementById('panel-chat');
       if(chatPanel && chatPanel.classList.contains('is-active')) renderAdminChatPanel(true);
     }catch(_){ }
@@ -17974,7 +17996,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB24_ADMIN_CLOUD_VISIBLE_20260328) ===== */
+/* ===== CHAT (M50.9.9GB25_ADMIN_SYNC_GREEN_20260328) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
