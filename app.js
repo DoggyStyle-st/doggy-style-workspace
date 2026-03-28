@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB20_INBOX_LEFTBUTTONS_20260328",
+  tag: "M50.9.9GB21_ADMIN_AUTH_REPAIR_20260328",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB20_INBOX_LEFTBUTTONS_20260328";
+const APP_BUILD = "M50.9.9GB21_ADMIN_AUTH_REPAIR_20260328";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -12173,15 +12173,19 @@ async function startApp(){
       try{ if(btnLogoutApp) btnLogoutApp.style.display = 'none'; }catch(e){}
       try{ if(btnLogout) btnLogout.style.display = 'none'; }catch(e){}
       updateSyncUI();
-      // In dieser Version gibt es kein Login-Overlay mehr. Wenn nicht eingeloggt: auf Login-Seite umleiten.
       try{
         const p = (location && location.pathname) ? location.pathname.toLowerCase() : '';
-        // local/offline Nutzung erlauben: nicht hart auf login umleiten
-        // if(!p.endsWith('login.html')) location.href = 'login.html';
+        const customerLocked = (typeof isCustomerMainDogsMode === 'function') ? !!isCustomerMainDogsMode() : false;
+        const alreadyOnLogin = p.endsWith('login.html');
+        if(!alreadyOnLogin && !customerLocked){
+          const rel = (location.pathname.split('/').pop() || 'app.html') + (location.search || '') + (location.hash || '');
+          const target = 'login.html?return_to=' + encodeURIComponent(rel);
+          try{ sessionStorage.setItem('ds_auth_required_return_to', rel); }catch(_){ }
+          location.href = target;
+          return;
+        }
       }catch(e){}
-      
-    try{ if(btnLogout) btnLogout.style.display = 'inline-flex'; }catch(e){}
-return;
+      return;
     }
     // Login bei jedem Start erzwingen: wird beim Start durch signOut() erzwungen (kein Auto-Logout nach erfolgreichem Login)
     // Rolle (v2): aus Firestore (mit Whitelist-Override)
@@ -17914,7 +17918,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB20_INBOX_LEFTBUTTONS_20260328) ===== */
+/* ===== CHAT (M50.9.9GB21_ADMIN_AUTH_REPAIR_20260328) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,

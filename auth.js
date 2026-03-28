@@ -103,9 +103,17 @@ async function init(){
       async function goAfterAuth(email){
         const role = await getUserRole(auth, db);
         const lowerEmail = String(email || (auth.currentUser && auth.currentUser.email) || '').trim().toLowerCase();
-        const target = (role === 'customer')
+        let target = (role === 'customer')
           ? 'customer.html'
           : ('app.html?login_email=' + encodeURIComponent(lowerEmail));
+        try{
+          const url = new URL(location.href);
+          const raw = String(url.searchParams.get('return_to') || sessionStorage.getItem('ds_auth_required_return_to') || '').trim();
+          if(raw && !/^https?:/i.test(raw) && !raw.startsWith('//')){
+            target = raw;
+          }
+          try{ sessionStorage.removeItem('ds_auth_required_return_to'); }catch(_){ }
+        }catch(_){ }
         location.href = target;
       }
 
