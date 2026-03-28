@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB5_CUSTOMER_INBOXLOAD_FIX_20260328",
+  tag: "M50.9.9GB6_CUSTOMER_INBOXRENDER_FIX_20260328",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB5_CUSTOMER_INBOXLOAD_FIX_20260328";
+const APP_BUILD = "M50.9.9GB6_CUSTOMER_INBOXRENDER_FIX_20260328";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -123,6 +123,7 @@ window.addEventListener('error', (e) => {
   console.error('APP_ERROR', e.error || e.message);
 });
 const LS_KEY="ds_workspace_test_optik_01";
+const CUSTOMER_PROPOSALS_KEY="ds_customer_proposals_v1";
 // --- Datum (lokal) ohne UTC-Verschiebung ---
 // Wichtig für Kalender/"Heute" auf iPad (sonst springt es abends auf den nächsten Tag).
 function toISODateLocal(date = new Date()){
@@ -1090,6 +1091,24 @@ function cloudTasksCol(){
   if(compatDb) return compatDb.collection("orgs").doc(orgId).collection("tasks");
   return null;
 }
+
+function loadCustomerProposalBuffer(){
+  try{
+    const raw = localStorage.getItem(CUSTOMER_PROPOSALS_KEY);
+    const list = raw ? JSON.parse(raw) : [];
+    return Array.isArray(list) ? list : [];
+  }catch(_){ return []; }
+}
+function saveCustomerProposalBuffer(list){
+  try{ localStorage.setItem(CUSTOMER_PROPOSALS_KEY, JSON.stringify(Array.isArray(list)?list:[])); }catch(_){ }
+}
+function pushCustomerProposalBuffer(task){
+  try{
+    const list = loadCustomerProposalBuffer();
+    list.unshift(task);
+    saveCustomerProposalBuffer(list.slice(0,200));
+  }catch(_){ }
+}
 async function loadOrCreateUserProfile(user){
   if(!CLOUD.enabled || !user) return null;
   const uid = user.uid;
@@ -1441,6 +1460,7 @@ async function submitCustomerDogsProposal(){
       local.inboxAssignments.unshift(task);
       localStorage.setItem(LS_KEY, JSON.stringify(local));
     }
+    pushCustomerProposalBuffer(task);
     cpSetStatus('Als Vorschlag an Eingänge gesendet.');
     try{ alert('Änderungsvorschlag wurde an Eingänge gesendet.'); }catch(_){ }
     closeCpEditor();
@@ -1883,6 +1903,8 @@ async function wireInbox(){
   if(!listEl) return;
   let currentTask = null;
   const renderList = (tasks)=>{
+    try{ if(detail) detail.style.display = 'none'; }catch(_){}
+    try{ if(listEl) listEl.style.display = ''; }catch(_){}
     listEl.innerHTML = '';
     if(!tasks.length){
       listEl.innerHTML = `<div class="muted">— keine Eingänge —</div>`;
@@ -1933,6 +1955,12 @@ async function wireInbox(){
       list.filter(x=>String((x && x.status) || '') === 'submitted').forEach(pushTask);
     }catch(err){
       console.warn('loadSubmitted local fallback failed', err);
+    }
+    try{
+      const list = loadCustomerProposalBuffer();
+      list.filter(x=>String((x && x.status) || '') === 'submitted').forEach(pushTask);
+    }catch(err){
+      console.warn('loadSubmitted proposal buffer failed', err);
     }
     tasks.sort((a,b)=> Number(b && b.submittedAt || 0) - Number(a && a.submittedAt || 0));
     const uids = Array.from(new Set(tasks.map(t=>t.customerUid).filter(Boolean)));
@@ -17415,11 +17443,17 @@ try{
     window.addEventListener('pageshow', ()=>setTimeout(dsBootInboxAssign, 50));
     document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) setTimeout(dsBootInboxAssign, 50); });
     document.querySelector('[data-tab="inbox"]')?.addEventListener('click', ()=>setTimeout(dsBootInboxAssign, 50));
+    const dsBootInboxList = ()=>{ try{ Promise.resolve().then(()=>wireInbox()).catch(err=>console.warn('dsBootInboxList', err)); }catch(err){ console.warn('dsBootInboxList outer', err); } };
+    if(document.readyState === 'loading'){ document.addEventListener('DOMContentLoaded', ()=>setTimeout(dsBootInboxList, 80)); } else { setTimeout(dsBootInboxList, 80); }
+    window.addEventListener('load', ()=>setTimeout(dsBootInboxList, 80));
+    window.addEventListener('pageshow', ()=>setTimeout(dsBootInboxList, 80));
+    document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) setTimeout(dsBootInboxList, 80); });
+    document.querySelector('[data-tab="inbox"]')?.addEventListener('click', ()=>setTimeout(dsBootInboxList, 80));
   }
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB5_CUSTOMER_INBOXLOAD_FIX_20260328) ===== */
+/* ===== CHAT (M50.9.9GB6_CUSTOMER_INBOXRENDER_FIX_20260328) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
