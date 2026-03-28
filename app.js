@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB16_INBOX_DIRECTRELOAD_20260328",
+  tag: "M50.9.9GB17_INBOX_DIAGBLOCK_20260328",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB16_INBOX_DIRECTRELOAD_20260328";
+const APP_BUILD = "M50.9.9GB17_INBOX_DIAGBLOCK_20260328";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -17837,11 +17837,84 @@ try{
   }, true);
 }catch(_){}
 
+// GB17: separate direct proposal diagnostic block, bypassing normal inbox render path
+try{
+  window.__dsInboxProposalDebugLoad = async function(){
+    const listEl = document.getElementById('inboxProposalList');
+    const msgEl = document.getElementById('inboxProposalMsg');
+    const setMsg = (txt, err=false)=>{ try{ if(msgEl){ msgEl.textContent = txt || ''; msgEl.style.color = err ? '#ffb3b3' : ''; } }catch(_){} };
+    const rows = [];
+    const seen = new Set();
+    const pushRow = (obj, source)=>{
+      if(!obj || typeof obj !== 'object') return;
+      const key = String(obj.id || obj.taskId || obj.proposalId || obj.submissionId || Math.random());
+      const full = source + ':' + key;
+      if(seen.has(full)) return;
+      seen.add(full);
+      rows.push({ ...obj, __source: source, __key: key });
+    };
+    setMsg('Vorschläge werden geladen …', false);
+    if(listEl) listEl.innerHTML = '<div class="muted">lädt …</div>';
+    try{
+      try{
+        const pcol = cloudProposalsCol();
+        const snap = await pcol.limit(100).get();
+        snap.forEach(d => pushRow({ id:d.id, ...d.data() }, 'proposals'));
+      }catch(err){ console.warn('GB17 proposals direct load failed', err); }
+      try{
+        const tcol = cloudTasksCol();
+        const snap = await tcol.where('status','==','submitted').limit(100).get();
+        snap.forEach(d => pushRow({ id:d.id, ...d.data() }, 'tasks'));
+      }catch(err){ console.warn('GB17 tasks direct load failed', err); }
+      try{
+        ensureStateShape();
+        ([]).concat(Array.isArray(state.inboxAssignments)?state.inboxAssignments:[]).concat(Array.isArray(state.inboxSubmissions)?state.inboxSubmissions:[]).forEach(x=>pushRow(x,'state'));
+      }catch(err){ console.warn('GB17 state direct load failed', err); }
+      try{ (loadCustomerProposalBuffer() || []).forEach(x=>pushRow(x,'buffer')); }catch(err){ console.warn('GB17 buffer direct load failed', err); }
+      rows.sort((a,b)=> Number((b&&b.submittedAt)||0) - Number((a&&a.submittedAt)||0));
+      if(listEl){
+        listEl.innerHTML = '';
+        if(!rows.length){
+          listEl.innerHTML = '<div class="muted">— keine Vorschläge gefunden —</div>';
+        } else {
+          rows.forEach(r=>{
+            const div = document.createElement('div');
+            div.className = 'list-item';
+            const title = r.templateId || r.proposalType || r.kind || r.formKey || 'Änderungsvorschlag';
+            const customer = r.customerName || r.customerEmail || r.email || r.customerUid || 'Unbekannt';
+            const when = r.submittedAt ? fmtDT(r.submittedAt) : '';
+            const source = r.__source || '';
+            div.innerHTML = `<div><strong>${escapeHtml(title)}</strong><small>${escapeHtml(customer)}${when?(' · '+when):''} · ${escapeHtml(source)}</small></div>`;
+            listEl.appendChild(div);
+          });
+        }
+      }
+      setMsg(rows.length ? ('Vorschläge geladen: ' + rows.length) : 'Keine Vorschläge gefunden.', !rows.length);
+      return rows;
+    }catch(err){
+      console.error('GB17 direct proposal load failed', err);
+      if(listEl) listEl.innerHTML = '<div class="muted">— Laden fehlgeschlagen —</div>';
+      setMsg('Vorschläge laden fehlgeschlagen: ' + ((err && err.message) || err || 'unbekannt'), true);
+      throw err;
+    }
+  };
+}catch(_){}
+
+try{
+  document.addEventListener('click', function(ev){
+    const btn = ev.target && ev.target.closest ? ev.target.closest('#btnInboxProposalLoad') : null;
+    if(!btn) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    Promise.resolve().then(()=>window.__dsInboxProposalDebugLoad && window.__dsInboxProposalDebugLoad()).catch(err=>console.error('GB17 click proposal load failed', err));
+  }, true);
+}catch(_){}
+
   }
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB16_INBOX_DIRECTRELOAD_20260328) ===== */
+/* ===== CHAT (M50.9.9GB17_INBOX_DIAGBLOCK_20260328) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
