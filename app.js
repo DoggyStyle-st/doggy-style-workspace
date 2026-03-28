@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB4_CUSTOMER_MAINAPP_HARDLOCK_20260328",
+  tag: "M50.9.9GB5_CUSTOMER_INBOXLOAD_FIX_20260328",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB4_CUSTOMER_MAINAPP_HARDLOCK_20260328";
+const APP_BUILD = "M50.9.9GB5_CUSTOMER_INBOXLOAD_FIX_20260328";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -1879,7 +1879,7 @@ async function wireInbox(){
   const btnAdopt = document.getElementById('btnInboxAdopt');
   const titleEl = document.getElementById('inboxDetailTitle');
   const metaEl = document.getElementById('inboxDetailMeta');
-  const root = document.getElementById('inboxDetailFormRoot');
+  const root = document.getElementById('inboxDetailFormRoot') || document.getElementById('inboxDetailForm');
   if(!listEl) return;
   let currentTask = null;
   const renderList = (tasks)=>{
@@ -1905,20 +1905,39 @@ async function wireInbox(){
     });
   };
   const loadSubmitted = async ()=>{
-    const snap = await cloudTasksCol().where('status','==','submitted').orderBy('submittedAt','desc').limit(100).get();
     const tasks = [];
+    const col = cloudTasksCol && cloudTasksCol();
+    if(!col){ renderList([]); return; }
+    let snap = null;
+    try{
+      snap = await col.where('status','==','submitted').orderBy('submittedAt','desc').limit(100).get();
+    }catch(err){
+      console.warn('loadSubmitted primary query failed, fallback to full scan', err);
+      try{
+        snap = await col.limit(300).get();
+      }catch(err2){
+        console.warn('loadSubmitted fallback query failed', err2);
+        renderList([]);
+        return;
+      }
+    }
     snap.forEach(d=>tasks.push({id:d.id, ...d.data()}));
-    // Emails der Kunden auflösen (best effort)
-    const uids = Array.from(new Set(tasks.map(t=>t.customerUid).filter(Boolean)));
+    const filtered = tasks
+      .filter(t => String(t.status||'') === 'submitted')
+      .sort((a,b) => Number(b.submittedAt||b.updatedAt||0) - Number(a.submittedAt||a.updatedAt||0))
+      .slice(0,100);
+    const uids = Array.from(new Set(filtered.map(t=>t.customerUid).filter(Boolean)));
     const map = {};
     await Promise.all(uids.map(async uid=>{
       try{
-        const us = await cloudUserDoc(uid).get();
+        const ref = cloudUserDoc(uid);
+        if(!ref) return;
+        const us = await ref.get();
         if(us.exists) map[uid] = us.data().email || uid;
       }catch(_){ }
     }));
-    tasks.forEach(t=>t.customerEmail = map[t.customerUid]||'');
-    renderList(tasks);
+    filtered.forEach(t=>t.customerEmail = t.customerEmail || map[t.customerUid] || '');
+    renderList(filtered);
   };
   const openDetail = (task)=>{
     currentTask = task;
@@ -17392,7 +17411,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB4_CUSTOMER_MAINAPP_HARDLOCK_20260328) ===== */
+/* ===== CHAT (M50.9.9GB5_CUSTOMER_INBOXLOAD_FIX_20260328) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
