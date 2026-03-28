@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB10_CUSTOMER_FIRESTOREWRITEFIX_20260328",
+  tag: "M50.9.9GB11_CUSTOMER_FIRESTOREDEBUG_20260328",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB10_CUSTOMER_FIRESTOREWRITEFIX_20260328";
+const APP_BUILD = "M50.9.9GB11_CUSTOMER_FIRESTOREDEBUG_20260328";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -1071,33 +1071,47 @@ function getCompatFirestoreDb(){
   }catch(_){ }
   return null;
 }
-function cloudUsersCol(){
-  const orgId = CLOUD && CLOUD.orgId;
-  if(!orgId) return null;
-  if(CLOUD && CLOUD.enabled && CLOUD.db) return CLOUD.db.collection("orgs").doc(orgId).collection("users");
+function dsResolveCloudOrgId(){
+  try{
+    const raw = [
+      CLOUD && CLOUD.orgId,
+      window.firebaseOrgId,
+      window.CLOUD_ORG_ID,
+      (window.firebaseConfig && window.firebaseConfig.orgId),
+      localStorage.getItem('ds_orgId')
+    ].find(v => String(v || '').trim());
+    const orgId = String(raw || 'doggystyle').trim();
+    if(CLOUD && orgId) CLOUD.orgId = orgId;
+    return orgId;
+  }catch(_){ return 'doggystyle'; }
+}
+function dsEnsureCloudDb(){
+  try{ return dsEnsureChatDb(); }catch(_){ }
+  if(CLOUD && CLOUD.db) return CLOUD.db;
   const compatDb = getCompatFirestoreDb();
-  if(compatDb) return compatDb.collection("orgs").doc(orgId).collection("users");
-  return null;
+  return compatDb || null;
+}
+function cloudUsersCol(){
+  const orgId = dsResolveCloudOrgId();
+  const db = dsEnsureCloudDb();
+  if(!orgId || !db || typeof db.collection !== 'function') return null;
+  return db.collection("orgs").doc(orgId).collection("users");
 }
 function cloudUserDoc(uid){
   const col = cloudUsersCol();
   return col && typeof col.doc === 'function' ? col.doc(uid) : null;
 }
 function cloudTasksCol(){
-  const orgId = CLOUD && CLOUD.orgId;
-  if(!orgId) return null;
-  if(CLOUD && CLOUD.enabled && CLOUD.db) return CLOUD.db.collection("orgs").doc(orgId).collection("tasks");
-  const compatDb = getCompatFirestoreDb();
-  if(compatDb) return compatDb.collection("orgs").doc(orgId).collection("tasks");
-  return null;
+  const orgId = dsResolveCloudOrgId();
+  const db = dsEnsureCloudDb();
+  if(!orgId || !db || typeof db.collection !== 'function') return null;
+  return db.collection("orgs").doc(orgId).collection("tasks");
 }
 function cloudProposalsCol(){
-  const orgId = CLOUD && CLOUD.orgId;
-  if(!orgId) return null;
-  if(CLOUD && CLOUD.enabled && CLOUD.db) return CLOUD.db.collection("orgs").doc(orgId).collection("proposals");
-  const compatDb = getCompatFirestoreDb();
-  if(compatDb) return compatDb.collection("orgs").doc(orgId).collection("proposals");
-  return null;
+  const orgId = dsResolveCloudOrgId();
+  const db = dsEnsureCloudDb();
+  if(!orgId || !db || typeof db.collection !== 'function') return null;
+  return db.collection("orgs").doc(orgId).collection("proposals");
 }
 
 function loadCustomerProposalBuffer(){
@@ -1492,11 +1506,10 @@ async function submitCustomerDogsProposal(){
     if(CLOUD?.enabled){
       try{
         const col = cloudProposalsCol && cloudProposalsCol();
-        if(col && typeof col.doc === 'function'){
-          await col.doc(task.id).set(task, {merge:true});
-          cloudWriteOk = true;
-          cloudWritePath = 'proposals';
-        }
+        if(!col || typeof col.doc !== 'function') throw new Error('cloud-proposals-unavailable');
+        await col.doc(task.id).set(task, {merge:true});
+        cloudWriteOk = true;
+        cloudWritePath = 'proposals';
       }catch(err){
         cloudWriteErr = err;
         console.warn('submitCustomerDogsProposal cloud proposal write failed, trying tasks fallback', err);
@@ -1504,11 +1517,10 @@ async function submitCustomerDogsProposal(){
       if(!cloudWriteOk){
         try{
           const col = cloudTasksCol && cloudTasksCol();
-          if(col && typeof col.doc === 'function'){
-            await col.doc(task.id).set(taskLite, {merge:true});
-            cloudWriteOk = true;
-            cloudWritePath = 'tasks';
-          }
+          if(!col || typeof col.doc !== 'function') throw new Error('cloud-tasks-unavailable');
+          await col.doc(task.id).set(taskLite, {merge:true});
+          cloudWriteOk = true;
+          cloudWritePath = 'tasks';
         }catch(err2){
           cloudWriteErr = err2 || cloudWriteErr;
           console.warn('submitCustomerDogsProposal cloud tasks fallback failed, using local fallback', err2);
@@ -1523,7 +1535,7 @@ async function submitCustomerDogsProposal(){
         local.inboxAssignments.unshift(taskLocal);
         localStorage.setItem(LS_KEY, JSON.stringify(local));
       }catch(localErr){
-        const reason = cloudWriteErr?.message || localErr?.message || localErr || cloudWriteErr || 'Unbekannter Fehler';
+        const reason = [cloudWriteErr?.code, cloudWriteErr?.message, localErr?.message, localErr, cloudWriteErr, 'Unbekannter Fehler'].filter(Boolean).join(' · ');
         throw new Error(String(reason));
       }
       try{ pushCustomerProposalBuffer(taskLocal); }catch(_){ }
@@ -1531,7 +1543,7 @@ async function submitCustomerDogsProposal(){
       try{ pushCustomerProposalBuffer(cloudWritePath==='tasks' ? taskLite : task); }catch(_){ }
     }
     cpSetStatus(cloudWriteOk ? 'Dein Änderungsvorschlag wurde gespeichert und wird geprüft.' : 'Dein Änderungsvorschlag wurde lokal vorgemerkt.');
-    try{ alert(cloudWriteOk ? 'Dein Änderungsvorschlag wurde gespeichert und wird von uns geprüft.' : ('Dein Änderungsvorschlag wurde lokal vorgemerkt. Cloud-Speicherung fehlgeschlagen: ' + String(cloudWriteErr?.message || cloudWriteErr || 'Unbekannter Fehler'))); }catch(_){ }
+    try{ alert(cloudWriteOk ? 'Dein Änderungsvorschlag wurde gespeichert und wird von uns geprüft.' : ('Dein Änderungsvorschlag wurde lokal vorgemerkt. Cloud-Speicherung fehlgeschlagen: ' + [cloudWriteErr?.code, cloudWriteErr?.message, cloudWriteErr || 'Unbekannter Fehler', 'orgId=' + String(dsResolveCloudOrgId()), 'uid=' + String(CLOUD?.user?.uid || CLOUD?.auth?.currentUser?.uid || ''), 'email=' + String(CLOUD?.user?.email || CLOUD?.auth?.currentUser?.email || '')].filter(Boolean).join(' · '))); }catch(_){ }
     closeCpEditor();
     renderDogs();
   }catch(err){ console.error('submitCustomerDogsProposal failed', err); cpSetStatus('Senden fehlgeschlagen.', true); alert('Senden fehlgeschlagen: ' + String(err?.message || err || 'Unbekannter Fehler')); }
@@ -17547,7 +17559,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB10_CUSTOMER_FIRESTOREWRITEFIX_20260328) ===== */
+/* ===== CHAT (M50.9.9GB11_CUSTOMER_FIRESTOREDEBUG_20260328) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
