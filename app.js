@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9FG_CHAT3_CLICKREAD_MODAL_20260326",
+  tag: "M50.9.9ET_CHAT2_MAINAPP_DIAGOPEN_20260326",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9FG_CHAT3_CLICKREAD_MODAL_20260326";
+const APP_BUILD = "M50.9.9ET_CHAT2_MAINAPP_DIAGOPEN_20260326";
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -1319,189 +1319,11 @@ function showStaffUI(){
     if(tabCal) tabCal.style.display = isStaff() ? '' : 'none';
   }catch(_){ }
 }
-
-function isCustomerMainDogsMode(){
-  try{
-    const p = (location && location.pathname) ? location.pathname.toLowerCase() : '';
-    const qs = new URLSearchParams((location && location.search) ? location.search : '');
-    return (p.endsWith('/app.html') || p.endsWith('app.html')) && qs.get('customer_mode') === 'dogs' && CLOUD.role === ROLES.CUSTOMER;
-  }catch(_){ return false; }
-}
-function getCustomerMainDogsContext(){
-  const email = String(CLOUD?.user?.email || '').trim().toLowerCase();
-  const uidVal = String(CLOUD?.user?.uid || '').trim();
-  const customers = Array.isArray(state.customers) ? state.customers : [];
-  let customer = customers.find(c => String(c.portalUid || c.customerUid || c.uid || '').trim() === uidVal)
-    || customers.find(c => String(c.email || '').trim().toLowerCase() === email);
-  if(!customer && email){
-    const pets = Array.isArray(state.pets) ? state.pets : [];
-    const matching = pets.find(p => {
-      const c = getCustomer(p.customerId);
-      return String(c?.email || '').trim().toLowerCase() === email;
-    });
-    if(matching) customer = getCustomer(matching.customerId);
-  }
-  const pets = Array.isArray(state.pets) ? state.pets.filter(p => customer ? String(p.customerId||'') === String(customer.id||customer.customerId||'') : false) : [];
-  return { email, uid: uidVal, customer: customer || null, customerId: customer ? String(customer.id || customer.customerId || '') : '', pets };
-}
-async function submitCustomerDogsProposal(){
-  try{
-    ensureStateShape();
-    const ctx = getCustomerMainDogsContext();
-    if(!ctx.customer){ alert('Kundendaten konnten nicht zugeordnet werden.'); return; }
-    const pet = (cpEdit && cpEdit.petId) ? getPet(cpEdit.petId) : (ctx.pets[0] || null);
-    if(!pet){ alert('Es wurde kein Hund zum Bearbeiten gefunden.'); return; }
-    const cs = document.getElementById('p_chipStatus')?.value || '';
-    if(!String(document.getElementById('c_name')?.value || '').trim()){ alert('Bitte Kundennamen eintragen.'); return; }
-    if(!String(document.getElementById('c_email')?.value || '').trim()){ alert('Bitte E-Mail eintragen.'); return; }
-    if(!String(document.getElementById('p_name')?.value || '').trim()){ alert('Bitte Hundename eintragen.'); return; }
-    if(!cs){ alert('Bitte bei „Gechippt?“ Ja oder Nein wählen.'); return; }
-    const customerProposal = {
-      id: ctx.customerId,
-      name: String(document.getElementById('c_name')?.value || '').trim(),
-      phone: String(document.getElementById('c_phone')?.value || '').trim(),
-      email: String(document.getElementById('c_email')?.value || '').trim(),
-      street: String(document.getElementById('c_street')?.value || '').trim(),
-      zip: String(document.getElementById('c_zip')?.value || '').trim(),
-      city: String(document.getElementById('c_city')?.value || '').trim(),
-      emergencyName: String(document.getElementById('c_em_name')?.value || '').trim(),
-      emergencyPhone: String(document.getElementById('c_em_phone')?.value || '').trim(),
-      pickupAuth: String(document.getElementById('c_pickup_auth')?.value || '').trim(),
-      note: String(document.getElementById('c_note')?.value || '').trim()
-    };
-    const petProposal = {
-      id: String(pet.id||''),
-      customerId: ctx.customerId,
-      name: String(document.getElementById('p_name')?.value || '').trim(),
-      breed: String(document.getElementById('p_breed')?.value || '').trim(),
-      birthdate: String(document.getElementById('p_birthdate')?.value || ''),
-      sex: String(document.getElementById('p_sex')?.value || ''),
-      chip: cs === 'yes',
-      chipNumber: String(document.getElementById('p_chipNumber')?.value || '').trim(),
-      vet: String(document.getElementById('p_vet')?.value || '').trim(),
-      vetPhone: String(document.getElementById('p_vetPhone')?.value || '').trim(),
-      vetEmail: String(document.getElementById('p_vetEmail')?.value || '').trim(),
-      vetStreet: String(document.getElementById('p_vetStreet')?.value || '').trim(),
-      vetZip: String(document.getElementById('p_vetZip')?.value || '').trim(),
-      vetCity: String(document.getElementById('p_vetCity')?.value || '').trim(),
-      vetEmergencyName: String(document.getElementById('p_vetEmergencyName')?.value || '').trim(),
-      vetEmergencyPhone: String(document.getElementById('p_vetEmergencyPhone')?.value || '').trim(),
-      allergies: String(document.getElementById('p_allergies')?.value || '').trim(),
-      medicalConditions: String(document.getElementById('p_medicalConditions')?.value || '').trim(),
-      insuranceStatus: String(document.getElementById('p_insuranceStatus')?.value || ''),
-      insuranceCompany: String(document.getElementById('p_insuranceCompany')?.value || '').trim(),
-      insurancePolicy: String(document.getElementById('p_insurancePolicy')?.value || '').trim(),
-      insuranceNotes: String(document.getElementById('p_insuranceNotes')?.value || '').trim(),
-      vaccinatedConfirmed: !!document.getElementById('p_vaccinatedConfirmed')?.checked,
-      rabiesDate: String(document.getElementById('p_rabiesDate')?.value || ''),
-      mixedVaccineDate: String(document.getElementById('p_mixedVaccineDate')?.value || ''),
-      vaccinationPassPhoto: cpVaccinationPassDataUrl || String(pet.vaccinationPassPhoto || ''),
-      profilePhoto: cpProfilePhotoDataUrl || String(pet.profilePhoto || ''),
-      food: String(document.getElementById('p_food')?.value || '').trim(),
-      treatsAllowed: String(document.getElementById('p_treatsAllowed')?.value || ''),
-      aloneTime: String(document.getElementById('p_aloneTime')?.value || '').trim(),
-      houseTrained: String(document.getElementById('p_houseTrained')?.value || ''),
-      transport: String(document.getElementById('p_transport')?.value || '').trim(),
-      feeding: String(document.getElementById('p_feeding')?.value || '').trim(),
-      compatDogs: String(document.getElementById('p_compatDogs')?.value || '').trim(),
-      compatCats: String(document.getElementById('p_compatCats')?.value || '').trim(),
-      compatKids: String(document.getElementById('p_compatKids')?.value || '').trim(),
-      compat: String(document.getElementById('p_compat')?.value || '').trim(),
-      leashBehavior: String(document.getElementById('p_leashBehavior')?.value || '').trim(),
-      recall: String(document.getElementById('p_recall')?.value || '').trim(),
-      resourceBehavior: String(document.getElementById('p_resourceBehavior')?.value || '').trim(),
-      behavior: String(document.getElementById('p_behavior')?.value || '').trim(),
-      dailyRoutine: String(document.getElementById('p_dailyRoutine')?.value || '').trim(),
-      commands: String(document.getElementById('p_commands')?.value || '').trim(),
-      note: String(document.getElementById('p_note')?.value || '').trim()
-    };
-    const stamp = Date.now();
-    const task = {
-      id: uid(), taskId: uid(),
-      templateId: 'customer_data',
-      title: 'Kunde/Hund Änderungsvorschlag',
-      status: 'submitted',
-      submittedAt: stamp,
-      createdAt: stamp,
-      updatedAt: stamp,
-      customerUid: String(CLOUD?.user?.uid || ''),
-      customerEmail: String(CLOUD?.user?.email || '').trim().toLowerCase(),
-      customerName: customerProposal.name || String(CLOUD?.user?.email || 'Kunde'),
-      customerId: ctx.customerId,
-      payloadSubmitted: { source: 'customer-main-dogs', mode: 'proposal', customer: customerProposal, pet: petProposal }
-    };
-    if(CLOUD?.enabled && cloudTasksCol){
-      await cloudTasksCol().doc(task.id).set(task, {merge:true});
-    } else {
-      const raw = localStorage.getItem(LS_KEY); const local = raw ? JSON.parse(raw) : {};
-      local.inboxAssignments = Array.isArray(local.inboxAssignments) ? local.inboxAssignments : [];
-      local.inboxAssignments.unshift(task);
-      localStorage.setItem(LS_KEY, JSON.stringify(local));
-    }
-    cpSetStatus('Als Vorschlag an Eingänge gesendet.');
-    try{ alert('Änderungsvorschlag wurde an Eingänge gesendet.'); }catch(_){ }
-    closeCpEditor();
-    renderDogs();
-  }catch(err){ console.error('submitCustomerDogsProposal failed', err); cpSetStatus('Senden fehlgeschlagen.', true); alert('Senden fehlgeschlagen.'); }
-}
-function initCustomerMainDogsMode(){
-  try{
-    showAuthGate(false);
-    try{ document.body.dataset.customerMode = 'dogs'; }catch(_){ }
-    const nav = document.querySelector('nav.tabs');
-    if(nav) nav.style.display = '';
-    const startPaw = document.querySelector('.paw-start');
-    if(startPaw) startPaw.style.display = 'none';
-    document.querySelectorAll('.tab').forEach(btn=>{
-      const t = String(btn.dataset.tab || '');
-      btn.style.display = (t === 'dogs') ? '' : 'none';
-      btn.disabled = (t !== 'dogs');
-      if(t !== 'dogs') btn.setAttribute('aria-hidden','true');
-    });
-    const top = document.getElementById('btnLogoutTop'); if(top) top.style.display = 'inline-flex';
-    const app = document.getElementById('btnLogoutApp'); if(app) app.style.display = 'inline-block';
-    try{ const inboxBtn = document.getElementById('tabInbox'); if(inboxBtn) inboxBtn.style.display='none'; }catch(_){ }
-    try{ const userEl = document.getElementById('syncUser'); if(userEl) userEl.style.display='none'; }catch(_){ }
-
-    const __origShowPanelCustomer = showPanel;
-    showPanel = function(id){ return __origShowPanelCustomer('dogs'); };
-    const __origSelectTabCustomer = selectTab;
-    selectTab = function(tabId){ return __origSelectTabCustomer('dogs'); };
-
-    document.addEventListener('click', function(ev){
-      const btn = ev.target && ev.target.closest ? ev.target.closest('.tab') : null;
-      if(!btn) return;
-      const t = String(btn.dataset.tab || '');
-      if(t !== 'dogs'){
-        ev.preventDefault();
-        ev.stopPropagation();
-        try{ __origSelectTabCustomer('dogs'); }catch(_){ }
-      }
-    }, true);
-
-    document.querySelectorAll('.panel').forEach(p=>{ p.style.display='none'; p.classList.remove('is-active'); });
-    try{ __origSelectTabCustomer('dogs'); }catch(_){ }
-    const dogsPanel = document.getElementById('dogs');
-    if(dogsPanel){ dogsPanel.style.display=''; dogsPanel.classList.add('is-active'); }
-    renderDogs();
-    const ctx = getCustomerMainDogsContext();
-    if(ctx.customerId){ fillCustomerFieldsOnly(ctx.customerId); }
-    const ownPet = ctx.pets[0] || null;
-    if(ownPet){
-      setTimeout(()=>{ try{ openCpEditor('edit', ownPet.id); }catch(e){ console.error('customer main dogs open failed', e); } }, 80);
-    }else{
-      setTimeout(()=>{ try{ openCpEditor('new'); }catch(e){ console.error('customer main dogs open new failed', e); } }, 80);
-    }
-    cpSetStatus('Kundenmodus: Kunde/Hund');
-  }catch(e){ console.error('initCustomerMainDogsMode failed', e); }
-}
 async function initCustomerPortal(){
   // Kunden sollen NICHT in die interne App – bei Direktaufruf app.html ins Kundenportal umleiten
   try{
     const p = (location && location.pathname) ? location.pathname.toLowerCase() : '';
-    const qs = new URLSearchParams((location && location.search) ? location.search : '');
-    const allowMainCustomerMode = qs.get('customer_mode') === 'dogs';
-    if((p.endsWith('/app.html') || p.endsWith('app.html')) && !allowMainCustomerMode){
+    if(p.endsWith('/app.html') || p.endsWith('app.html')){
       location.replace('customer.html');
       return;
     }
@@ -3198,7 +3020,6 @@ if(id === "calendar"){
     try{ renderCompliancePanel(); }catch(_){ }
   }
   if(id === "chat"){
-    try{ dsSetChatExplicitOpen('staff', true); }catch(_){ }
     try{ renderAdminChatPanel(); }catch(_){ }
   }
 }
@@ -10209,12 +10030,7 @@ function renderDogs(){
   const list = $("#dogList");
   if(!list) return;
   list.innerHTML = "";
-  let petsAll = (state.pets||[]).slice();
-  const __customerMainDogs = isCustomerMainDogsMode();
-  const __customerCtx = __customerMainDogs ? getCustomerMainDogsContext() : null;
-  if(__customerMainDogs && __customerCtx && __customerCtx.customerId){
-    petsAll = petsAll.filter(p=>String(p.customerId||'') === String(__customerCtx.customerId));
-  }
+  const petsAll = (state.pets||[]).slice();
   // Sortierung: Kunden A-Z, Hunde je Kunde A-Z (de)
   const collator = new Intl.Collator("de", { sensitivity: "base", numeric: true });
   // Letzter Aufenthalt pro Kunde (für Übersicht in der Kundenzeile)
@@ -10308,13 +10124,14 @@ function renderDogs(){
               <small>${chipTxt}${badge}</small>
             </div>
           </div>
-          <div class="actions">${__customerMainDogs ? `<button class="smallbtn" data-e="1">Bearbeiten</button>` : `<button class="smallbtn" data-v="1">Vertrag</button><button class="smallbtn" data-e="1">Bearbeiten</button><button class="smallbtn" data-d="1">Löschen</button>`}</div>`;
-        const btnV = el.querySelector('[data-v="1"]');
-        const btnE = el.querySelector('[data-e="1"]');
-        const btnD = el.querySelector('[data-d="1"]');
-        if(btnV) btnV.onclick = ()=>openContractForPet(p.customerId, p.id);
-        if(btnE) btnE.onclick = ()=>openCpEditor("edit", p.id);
-        if(btnD) btnD.onclick = ()=>{
+          <div class="actions">
+            <button class="smallbtn" data-v="1">Vertrag</button>
+            <button class="smallbtn" data-e="1">Bearbeiten</button>
+            <button class="smallbtn" data-d="1">Löschen</button>
+          </div>`;
+        el.querySelector('[data-v="1"]').onclick = ()=>openContractForPet(p.customerId, p.id);
+        el.querySelector('[data-e="1"]').onclick = ()=>openCpEditor("edit", p.id);
+        el.querySelector('[data-d="1"]').onclick = ()=>{
           if(confirm("Hund wirklich löschen? (Aufenthalte/Rechnungen bleiben als Historie bestehen)")){
             state.pets = (state.pets||[]).filter(x=>x.id!==p.id);
             // legacy dog nicht automatisch löschen (Sicherheit), aber Mapping entfernen
@@ -10386,10 +10203,6 @@ $("#btnCpSave").addEventListener("click",(e)=>{
   try{ e.preventDefault(); e.stopPropagation(); }catch(_){}
   cpSetStatus("Speichern läuft …");
   try{
-    if(isCustomerMainDogsMode()){
-      submitCustomerDogsProposal();
-      return;
-    }
     ensureStateShape();
     ensureContractDefaults();
     const mode = cpEdit.mode;
@@ -11804,15 +11617,9 @@ return;
       console.warn('Role load failed, fallback to staff', e);
       CLOUD.role = ROLES.STAFF;
     }
-    // Kundenmodus: entweder Kundenportal oder eingeschränkte Haupt-App
+    // Kunden-Portal: kein Workspace-State, keine Tabs
     if(CLOUD.role === ROLES.CUSTOMER){
-      try{
-        if(isCustomerMainDogsMode()){
-          initCustomerMainDogsMode();
-        } else {
-          await initCustomerPortal();
-        }
-      }catch(e){ console.error(e); }
+      try{ await initCustomerPortal(); }catch(e){ console.error(e); }
       return;
     }
     showAuthGate(false);
@@ -17374,53 +17181,14 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9FG_CHAT3_CLICKREAD_MODAL_20260326) ===== */
-function dsResolveOrgId(){
-  const raw = [
-    CLOUD && CLOUD.orgId,
-    window.firebaseOrgId,
-    window.CLOUD_ORG_ID,
-    (window.firebaseConfig && window.firebaseConfig.orgId),
-    localStorage.getItem('ds_orgId')
-  ].find(v => String(v || '').trim());
-  return String(raw || 'doggystyle').trim();
-}
-function dsEnsureChatDb(){
-  try{
-    if(CLOUD){
-      const resolvedOrgId = dsResolveOrgId();
-      if(resolvedOrgId) CLOUD.orgId = resolvedOrgId;
-    }
-    if(CLOUD && CLOUD.db) return CLOUD.db;
-    const fb = (typeof firebase !== 'undefined' && firebase) ? firebase : window.firebase;
-    const cfg = window.firebaseConfig || null;
-    if(!fb || typeof fb.firestore !== 'function') return null;
-    try{
-      if(cfg && typeof fb.initializeApp === 'function' && (!fb.apps || !fb.apps.length)){
-        fb.initializeApp(cfg);
-      }
-    }catch(_){ }
-    const db = fb.firestore();
-    if(CLOUD){
-      CLOUD.enabled = true;
-      CLOUD.db = db;
-      if(!CLOUD.auth && typeof fb.auth === 'function'){
-        try{ CLOUD.auth = fb.auth(); }catch(_){ }
-      }
-      if(!CLOUD.app && fb.apps && fb.apps.length){
-        try{ CLOUD.app = fb.apps[0]; }catch(_){ }
-      }
-    }
-    return db;
-  }catch(_){
-    return null;
-  }
-}
+/* ===== CHAT (M50.9.9ET_CHAT2_MAINAPP_DIAGOPEN_20260326) ===== */
 function cloudChatsCol(){
-  const orgId = dsResolveOrgId();
-  const db = dsEnsureChatDb();
-  if(!db || !orgId || typeof db.collection !== 'function') return null;
-  return db.collection("orgs").doc(orgId).collection("chats");
+  const orgId = CLOUD && CLOUD.orgId;
+  if(!orgId) return null;
+  if(CLOUD && CLOUD.enabled && CLOUD.db) return CLOUD.db.collection("orgs").doc(orgId).collection("chats");
+  const compatDb = getCompatFirestoreDb();
+  if(compatDb) return compatDb.collection("orgs").doc(orgId).collection("chats");
+  return null;
 }
 function cloudChatDoc(chatId){
   const col = cloudChatsCol();
@@ -17437,260 +17205,6 @@ function dsServerTimestamp(){
     }
   }catch(_){ }
   return Date.now();
-}
-function dsFieldValueIncrement(n){
-  try{
-    if(window.firebase && firebase.firestore && firebase.firestore.FieldValue && firebase.firestore.FieldValue.increment){
-      return firebase.firestore.FieldValue.increment(Number(n || 0));
-    }
-  }catch(_){ }
-  return Number(n || 0);
-}
-function dsUnreadCountForRole(chat, role){
-  const data = chat || {};
-  if(String(role||'') === 'staff') return Math.max(0, Number(data.unreadForStaff || 0));
-  if(String(role||'') === 'customer') return Math.max(0, Number(data.unreadForCustomer || 0));
-  return 0;
-}
-function dsEnsureBadgeChip(el){
-  if(!el) return null;
-  let chip = el.querySelector('.ds-chat-nav-badge');
-  if(chip) return chip;
-  chip = document.createElement('span');
-  chip.className = 'ds-chat-nav-badge is-hidden';
-  chip.textContent = '0';
-  el.appendChild(chip);
-  return chip;
-}
-function dsSetBadgeValue(el, count){
-  const chip = dsEnsureBadgeChip(el);
-  if(!chip) return;
-  const safe = Math.max(0, Number(count || 0));
-  chip.textContent = String(safe);
-  chip.classList.toggle('is-hidden', safe <= 0);
-}
-function dsUpdateAdminUnreadBadge(){
-  const el = document.getElementById('tabChat');
-  const st = dsAdminChatState();
-  const chats = Array.isArray(st?.chats) ? st.chats : [];
-  const total = chats.reduce((sum, chat)=> sum + dsUnreadCountForRole(chat, 'staff'), 0);
-  dsSetBadgeValue(el, total);
-}
-function dsUpdateCustomerUnreadBadge(){
-  const el = document.querySelector('[data-view="chat"].nav-btn');
-  const ws = dsUnreadWatchState();
-  const fromWatcher = ws?.customerSeen instanceof Map ? Array.from(ws.customerSeen.values()) : [];
-  const st = dsCustomerChatState();
-  const chats = fromWatcher.length ? fromWatcher : (Array.isArray(st?.chats) ? st.chats : []);
-  const total = chats.reduce((sum, chat)=> sum + dsUnreadCountForRole(chat, 'customer'), 0);
-  dsSetBadgeValue(el, total);
-}
-async function dsMarkChatRead(chatId, role){
-  const ref = cloudChatDoc(chatId);
-  if(!ref || !chatId) return;
-  const patch = String(role||'') === 'staff'
-    ? { unreadForStaff: 0, staffLastReadAt: dsServerTimestamp(), staffLastReadAtMs: Date.now() }
-    : { unreadForCustomer: 0, customerLastReadAt: dsServerTimestamp(), customerLastReadAtMs: Date.now() };
-  try{ await ref.set(patch, { merge:true }); }catch(_){ }
-}
-function dsGetChatReadMs(chat, role){
-  return String(role||'') === 'staff'
-    ? Number(chat?.staffLastReadAtMs || dsTsMs(chat?.staffLastReadAt) || 0)
-    : Number(chat?.customerLastReadAtMs || dsTsMs(chat?.customerLastReadAt) || 0);
-}
-function dsGetIncomingUnreadCount(messages, role, readMs){
-  const safeRead = Number(readMs || 0);
-  return (Array.isArray(messages) ? messages : []).reduce((sum, msg)=>{
-    const msgMs = Number(msg?.createdAtMs || dsTsMs(msg?.createdAt) || 0);
-    return String(msg?.senderRole || '') !== String(role || '') && msgMs > safeRead ? sum + 1 : sum;
-  }, 0);
-}
-function dsPatchLocalChatReadState(chatId, role, readMs, unreadCount){
-  const safeRead = Number(readMs || 0);
-  const safeUnread = Math.max(0, Number(unreadCount || 0));
-  const apply = (chat)=>{
-    if(!chat || String(chat.id || '') !== String(chatId || '')) return chat;
-    if(String(role || '') === 'staff'){
-      chat.staffLastReadAtMs = safeRead;
-      chat.unreadForStaff = safeUnread;
-    }else{
-      chat.customerLastReadAtMs = safeRead;
-      chat.unreadForCustomer = safeUnread;
-    }
-    return chat;
-  };
-  try{
-    const a = dsAdminChatState();
-    a.chats = (a.chats || []).map(c=>apply(c));
-    a.filteredChats = (a.filteredChats || []).map(c=>apply(c));
-  }catch(_){ }
-  try{
-    const c = dsCustomerChatState();
-    c.chats = (c.chats || []).map(x=>apply(x));
-  }catch(_){ }
-  try{
-    const ws = dsUnreadWatchState();
-    if(ws?.customerSeen instanceof Map && ws.customerSeen.has(String(chatId || ''))){
-      const cur = ws.customerSeen.get(String(chatId || '')) || {};
-      apply(cur);
-      ws.customerSeen.set(String(chatId || ''), cur);
-    }
-  }catch(_){ }
-}
-async function dsMarkChatReadUpTo(chatId, role, readMs, messages){
-  const safeRead = Number(readMs || 0);
-  if(!chatId || !safeRead) return;
-  const adminState = (()=>{ try{ return dsAdminChatState(); }catch(_){ return null; } })();
-  const customerState = (()=>{ try{ return dsCustomerChatState(); }catch(_){ return null; } })();
-  const localChat = (adminState?.chats || []).find(c=>String(c.id||'')===String(chatId||''))
-    || (customerState?.chats || []).find(c=>String(c.id||'')===String(chatId||''))
-    || null;
-  const prevRead = dsGetChatReadMs(localChat, role);
-  const nextRead = Math.max(prevRead, safeRead);
-  const unreadCount = dsGetIncomingUnreadCount(messages, role, nextRead);
-  const ref = cloudChatDoc(chatId);
-  if(!ref) return;
-  const patch = String(role||'') === 'staff'
-    ? { unreadForStaff: unreadCount, staffLastReadAt: dsServerTimestamp(), staffLastReadAtMs: nextRead }
-    : { unreadForCustomer: unreadCount, customerLastReadAt: dsServerTimestamp(), customerLastReadAtMs: nextRead };
-  try{ await ref.set(patch, { merge:true }); }catch(_){ }
-  dsPatchLocalChatReadState(chatId, role, nextRead, unreadCount);
-  try{ dsUpdateAdminUnreadBadge(); }catch(_){ }
-  try{ dsUpdateCustomerUnreadBadge(); }catch(_){ }
-}
-function dsLatestIncomingReadMs(messages, role){
-  return (Array.isArray(messages) ? messages : []).reduce((max, msg)=>{
-    if(String(msg?.senderRole || '') === String(role || '')) return max;
-    const msgMs = Number(msg?.createdAtMs || dsTsMs(msg?.createdAt) || 0);
-    return msgMs > max ? msgMs : max;
-  }, 0);
-}
-function dsChatPreviewState(){
-  if(!window.__dsChatPreviewState) window.__dsChatPreviewState = { open:false };
-  return window.__dsChatPreviewState;
-}
-function dsEnsureChatPreviewModal(){
-  let modal = document.getElementById('dsChatPreviewModal');
-  if(modal) return modal;
-  modal = document.createElement('div');
-  modal.id = 'dsChatPreviewModal';
-  modal.className = 'ds-chat-preview-modal is-hidden';
-  modal.innerHTML = '<div class="ds-chat-preview-modal__backdrop" data-close="1"></div><div class="ds-chat-preview-modal__panel" role="dialog" aria-modal="true" aria-labelledby="dsChatPreviewTitle"><div class="ds-chat-preview-modal__head"><strong id="dsChatPreviewTitle">Nachricht</strong><button type="button" class="btn" data-close="1">Schließen</button></div><div id="dsChatPreviewMeta" class="muted"></div><div id="dsChatPreviewBody" class="ds-chat-preview-modal__body"></div></div>';
-  document.body.appendChild(modal);
-  modal.addEventListener('click', (ev)=>{
-    if(ev.target && ev.target.getAttribute && ev.target.getAttribute('data-close') === '1') dsCloseChatPreviewModal();
-  });
-  return modal;
-}
-function dsOpenChatPreviewModal(msg){
-  const modal = dsEnsureChatPreviewModal();
-  if(!modal) return;
-  const meta = modal.querySelector('#dsChatPreviewMeta');
-  const body = modal.querySelector('#dsChatPreviewBody');
-  if(meta) meta.textContent = `${String(msg?.senderName || 'Nachricht')} · ${dsChatDisplayTime(msg?.createdAt || msg?.createdAtMs || 0)}`;
-  if(body) body.textContent = String(msg?.text || '');
-  modal.classList.remove('is-hidden');
-  dsChatPreviewState().open = true;
-}
-function dsCloseChatPreviewModal(){
-  const modal = document.getElementById('dsChatPreviewModal');
-  if(modal) modal.classList.add('is-hidden');
-  dsChatPreviewState().open = false;
-}
-function dsBindMessageBubbleClicks(container, role, chat, messages, rerender){
-  if(!container) return;
-  container.querySelectorAll('[data-chat-msg-index]').forEach(btn=>{
-    if(btn.__chatMsgBound) return;
-    btn.__chatMsgBound = true;
-    btn.addEventListener('click', async ()=>{
-      const idx = Number(btn.getAttribute('data-chat-msg-index') || -1);
-      const msg = Array.isArray(messages) ? messages[idx] : null;
-      if(!msg) return;
-      dsOpenChatPreviewModal(msg);
-      if(String(msg?.senderRole || '') !== String(role || '') && chat?.id){
-        const msgMs = Number(msg?.createdAtMs || dsTsMs(msg?.createdAt) || 0);
-        if(msgMs){
-          await dsMarkChatReadUpTo(chat.id, role, msgMs, messages);
-          if(typeof rerender === 'function') rerender();
-        }
-      }
-    });
-  });
-}
-function dsChatOpenIntentState(){
-  if(!window.__dsChatOpenIntentState){
-    window.__dsChatOpenIntentState = { staff:false, customer:false };
-  }
-  return window.__dsChatOpenIntentState;
-}
-function dsSetChatExplicitOpen(role, value){
-  const st = dsChatOpenIntentState();
-  st[String(role||'') === 'staff' ? 'staff' : 'customer'] = value !== false;
-}
-function dsHasChatExplicitOpen(role){
-  const st = dsChatOpenIntentState();
-  return !!st[String(role||'') === 'staff' ? 'staff' : 'customer'];
-}
-function dsUnreadWatchState(){
-  if(!window.__dsUnreadWatchState){
-    window.__dsUnreadWatchState = { started:false, adminUnsub:null, customerUnsubs:[], customerSeen:new Map() };
-  }
-  return window.__dsUnreadWatchState;
-}
-function dsPublishCustomerUnreadSeen(){
-  const ws = dsUnreadWatchState();
-  const st = dsCustomerChatState();
-  st.chats = dsChatSortByUpdated(Array.from(ws.customerSeen.values()));
-  dsUpdateCustomerUnreadBadge();
-}
-function dsStartAdminUnreadWatcher(){
-  const ws = dsUnreadWatchState();
-  if(ws.adminUnsub) return;
-  const col = cloudChatsCol();
-  if(!col || !dsChatAdminAllowed()) return;
-  ws.adminUnsub = col.onSnapshot((snap)=>{
-    const st = dsAdminChatState();
-    st.chats = dsChatSortByUpdated(snap.docs.map(doc=>({ id: doc.id, ...(doc.data()||{}) })));
-    st.filteredChats = dsChatFilterForTeam(st.chats, st.currentTeamKey || 'all');
-    dsUpdateAdminUnreadBadge();
-    if(document.getElementById('chatAdminList')) renderAdminChatList();
-  }, (_err)=>{ dsUpdateAdminUnreadBadge(); });
-}
-function dsStartCustomerUnreadWatcher(){
-  const ws = dsUnreadWatchState();
-  if((ws.customerUnsubs || []).length) return;
-  const col = cloudChatsCol();
-  const uid = dsChatUserUid();
-  const email = dsChatUserEmail();
-  if(!col || (!uid && !email)) return;
-  const seen = ws.customerSeen = new Map();
-  const publish = ()=> dsPublishCustomerUnreadSeen();
-  const attach = (q)=> q.onSnapshot((snap)=>{
-    snap.docChanges().forEach(ch=>{
-      if(ch.type === 'removed') seen.delete(ch.doc.id);
-      else seen.set(ch.doc.id, { id: ch.doc.id, ...(ch.doc.data()||{}) });
-    });
-    publish();
-  }, (_err)=> publish());
-  const unsubs = [];
-  if(uid) unsubs.push(attach(col.where('customerUid','==',uid)));
-  if(email) unsubs.push(attach(col.where('customerEmail','==',email)));
-  ws.customerUnsubs = unsubs;
-  publish();
-}
-function dsInitUnreadBadgeWatchers(){
-  const ws = dsUnreadWatchState();
-  if(ws.started) return;
-  ws.started = true;
-  const tick = ()=>{
-    try{
-      if(!dsEnsureChatDb() || (!dsChatUserUid() && !dsChatUserEmail())) return;
-      if(document.getElementById('tabChat') && dsChatAdminAllowed()) dsStartAdminUnreadWatcher();
-      if(document.querySelector('[data-view="chat"].nav-btn')) dsStartCustomerUnreadWatcher();
-    }catch(_){ }
-  };
-  tick();
-  ws.timer = setInterval(tick, 2000);
 }
 function dsChatNowLabel(){ return fmtDT(Date.now()); }
 function dsChatUserEmail(){ return String(CLOUD?.user?.email || '').trim().toLowerCase(); }
@@ -17865,8 +17379,6 @@ async function ensureCurrentCustomerChat(teamKey){
     lastMessageAtMs: now,
     lastMessageFromRole: '',
     status: 'open',
-    unreadForStaff: 0,
-    unreadForCustomer: 0,
     teamMemberKey: chosenTeamKey,
     teamMemberLabel: dsChatTargetLabel(chosenTeamKey)
   };
@@ -17881,39 +17393,28 @@ async function dsSendChatMessage(chatId, text, extraMeta){
   const chatRef = cloudChatDoc(chatId);
   if(!msgs || !chatRef) throw new Error('Chat ist nicht verfügbar.');
   const now = Date.now();
+  const viewerProfile = dsChatCustomerProfile();
+  const senderRole = isStaff() ? 'staff' : 'customer';
+  const senderName = isStaff()
+    ? String(CLOUD?.userProfile?.name || CLOUD?.user?.displayName || CLOUD?.user?.email || 'Team').trim()
+    : String(viewerProfile.customerName || CLOUD?.user?.displayName || CLOUD?.user?.email || 'Kunde').trim();
   let existing = {};
   try{
     const snap = await chatRef.get();
     existing = (snap && snap.exists && typeof snap.data === 'function') ? (snap.data() || {}) : {};
   }catch(_){ existing = {}; }
-
-  const adminState = dsAdminChatState();
-  const customerState = dsCustomerChatState();
-  const isAdminContext = !!(
-    (adminState && String(adminState.currentChatId || '') === String(chatId || ''))
-    || document.getElementById('chatAdminInput')
-    || document.getElementById('chatAdminMessages')
-  );
-  const senderRole = isAdminContext || isStaff() ? 'staff' : 'customer';
-  const viewerProfile = dsChatCustomerProfile();
-  const rawTeamKey = (
+  const teamKey = dsChatNormalizeTeamKey(
     (extraMeta && extraMeta.teamMemberKey)
     || existing.teamMemberKey
-    || (senderRole === 'staff' ? adminState.currentTeamKey : customerState.currentTeamKey)
+    || (senderRole === 'staff' ? dsAdminChatState().currentTeamKey : dsCustomerChatState().currentTeamKey)
+    || dsChatInferStaffKey(),
+    true
+  ) === 'all' ? dsChatInferStaffKey() : dsChatNormalizeTeamKey(
+    (extraMeta && extraMeta.teamMemberKey)
+    || existing.teamMemberKey
+    || (senderRole === 'staff' ? dsAdminChatState().currentTeamKey : dsCustomerChatState().currentTeamKey)
     || dsChatInferStaffKey()
   );
-  const teamKey = dsChatNormalizeTeamKey(rawTeamKey, true) === 'all'
-    ? dsChatInferStaffKey()
-    : dsChatNormalizeTeamKey(rawTeamKey);
-  const senderName = senderRole === 'staff'
-    ? (function(){
-        const explicit = dsChatNormalizeTeamKey(teamKey, true);
-        if(explicit === 'raphael') return 'Raphael';
-        if(explicit === 'anschi') return 'Anschi';
-        return 'Doggy Style Team';
-      })()
-    : String(viewerProfile.customerName || CLOUD?.user?.displayName || CLOUD?.user?.email || 'Kunde').trim();
-
   const customerMeta = senderRole === 'staff'
     ? {
         customerUid: String(existing.customerUid || extraMeta?.customerUid || '').trim(),
@@ -17942,8 +17443,6 @@ async function dsSendChatMessage(chatId, text, extraMeta){
     lastMessageText: clean.slice(0, 220),
     lastMessageFromRole: senderRole,
     status: 'open',
-    unreadForStaff: senderRole === 'customer' ? dsFieldValueIncrement(1) : 0,
-    unreadForCustomer: senderRole === 'staff' ? dsFieldValueIncrement(1) : 0,
     teamMemberKey: teamKey,
     teamMemberLabel: dsChatTargetLabel(teamKey),
     ...(extraMeta || {})
@@ -17961,37 +17460,14 @@ async function dsSendChatMessage(chatId, text, extraMeta){
     customerName: customerMeta.customerName || ''
   });
 }
-function dsTsMs(v){
-  try{
-    if(v == null) return 0;
-    if(typeof v === 'number') return Number(v) || 0;
-    if(typeof v?.toMillis === 'function') return Number(v.toMillis()) || 0;
-    if(typeof v?.seconds === 'number') return Number(v.seconds) * 1000 + Math.round(Number(v.nanoseconds || 0) / 1e6);
-    const d = new Date(v);
-    const t = d.getTime();
-    return Number.isFinite(t) ? t : 0;
-  }catch(_){ return 0; }
-}
-function dsMessageReadStateLabel(msg, ownRole, chat){
-  const msgMs = Number(msg?.createdAtMs || dsTsMs(msg?.createdAt) || 0);
-  if(!msgMs) return '';
-  const role = String(ownRole || 'customer');
-  const own = String(msg?.senderRole || '') === role;
-  const readMs = own
-    ? (role === 'staff' ? Number(chat?.customerLastReadAtMs || dsTsMs(chat?.customerLastReadAt) || 0) : Number(chat?.staffLastReadAtMs || dsTsMs(chat?.staffLastReadAt) || 0))
-    : (role === 'staff' ? Number(chat?.staffLastReadAtMs || dsTsMs(chat?.staffLastReadAt) || 0) : Number(chat?.customerLastReadAtMs || dsTsMs(chat?.customerLastReadAt) || 0));
-  return readMs >= msgMs ? 'gelesen' : 'ungelesen';
-}
-function dsRenderChatMessages(messages, ownRole, chat){
+function dsRenderChatMessages(messages, ownRole){
   if(!Array.isArray(messages) || !messages.length){
     return '<div class="ds-chat-empty">Noch keine Nachrichten vorhanden.</div>';
   }
-  return messages.map((msg, idx)=>{
+  return messages.map(msg=>{
     const own = String(msg?.senderRole || '') === String(ownRole || '');
     const meta = `${escapeHtml(msg?.senderName || (own ? 'Du' : 'Nachricht'))} · ${escapeHtml(dsChatDisplayTime(msg?.createdAt || msg?.createdAtMs || 0))}`;
-    const status = dsMessageReadStateLabel(msg, ownRole, chat);
-    const statusHtml = status ? `<div class="ds-chat-bubble__status ${status === 'gelesen' ? 'is-read' : 'is-unread'}">${escapeHtml(status)}</div>` : '';
-    return `<div class="ds-chat-msg ${own ? 'is-own' : ''}"><button type="button" class="ds-chat-bubble" data-chat-msg-index="${idx}" aria-label="Nachricht öffnen"><div class="ds-chat-bubble__meta">${meta}</div><div>${escapeHtml(msg?.text || '')}</div>${statusHtml}</button></div>`;
+    return `<div class="ds-chat-msg ${own ? 'is-own' : ''}"><div class="ds-chat-bubble"><div class="ds-chat-bubble__meta">${meta}</div><div>${escapeHtml(msg?.text || '')}</div></div></div>`;
   }).join('');
 }
 function dsAdminChatState(){
@@ -18153,8 +17629,6 @@ async function dsAdminEnsureChatForCustomer(customer, preferredTeamKey){
       lastMessageAtMs: now,
       lastMessageFromRole: '',
       status: 'open',
-      unreadForStaff: 0,
-      unreadForCustomer: 0,
       teamMemberKey: teamKey,
       teamMemberLabel: dsChatTargetLabel(teamKey)
     };
@@ -18252,7 +17726,6 @@ function renderAdminChatList(){
     });
   }
   if(count) count.textContent = `${st.filteredChats.length} Chat${st.filteredChats.length===1?'':'s'}`;
-  dsUpdateAdminUnreadBadge();
   if(picker){
     picker.querySelectorAll('[data-chat-team]').forEach(btn=>{
       const key = dsChatNormalizeTeamKey(btn.getAttribute('data-chat-team'), true);
@@ -18281,9 +17754,7 @@ function renderAdminChatList(){
     const when = escapeHtml(dsChatDisplayTime(chat.lastMessageAt || chat.updatedAt || chat.updatedAtMs || 0));
     const snippet = escapeHtml(chat.lastMessageText || 'Noch keine Nachricht.');
     const team = escapeHtml(dsChatTargetLabel(chat.teamMemberKey));
-    const unread = dsUnreadCountForRole(chat, 'staff');
-    const unreadBadge = unread > 0 ? `<span class="ds-chat-list__badge">${unread}</span>` : '';
-    return `<button type="button" class="ds-chat-item ${active?'is-active':''}" data-chat-id="${escapeHtml(chat.id)}"><div class="ds-chat-item__title"><div class="ds-chat-item__name">${name}</div><div style="display:flex;align-items:center;gap:8px;"><div class="ds-chat-item__time">${when}</div>${unreadBadge}</div></div><div class="ds-chat-item__meta">${sub} · ${team}</div><div class="ds-chat-item__snippet">${snippet}</div></button>`;
+    return `<button type="button" class="ds-chat-item ${active?'is-active':''}" data-chat-id="${escapeHtml(chat.id)}"><div class="ds-chat-item__title"><div class="ds-chat-item__name">${name}</div><div class="ds-chat-item__time">${when}</div></div><div class="ds-chat-item__meta">${sub} · ${team}</div><div class="ds-chat-item__snippet">${snippet}</div></button>`;
   }).join('');
   list.querySelectorAll('[data-chat-id]').forEach(btn=>{
     btn.onclick = ()=> dsOpenAdminChat(btn.getAttribute('data-chat-id'));
@@ -18297,10 +17768,8 @@ function renderAdminChatMessages(){
   const current = (st.filteredChats || st.chats || []).find(c=> String(c.id||'') === String(st.currentChatId||''));
   if(title) title.textContent = current ? `${current.customerName || current.customerEmail || 'Kunde'} · ${dsChatTargetLabel(current.teamMemberKey)}` : 'Kein Chat ausgewählt';
   if(meta) meta.textContent = current ? `${current.customerEmail || 'ohne E-Mail'}${current.customerUid ? ' · UID ' + current.customerUid : ''}` : 'Bitte links einen Kundenchat auswählen.';
-  if(body) body.innerHTML = current ? dsRenderChatMessages(st.currentMessages, 'staff', current) : '<div class="ds-chat-empty">Noch kein Chat ausgewählt.</div>';
+  if(body) body.innerHTML = current ? dsRenderChatMessages(st.currentMessages, 'staff') : '<div class="ds-chat-empty">Noch kein Chat ausgewählt.</div>';
   try{ if(body) body.scrollTop = body.scrollHeight; }catch(_){ }
-  try{ dsBindMessageBubbleClicks(body, 'staff', current, st.currentMessages, renderAdminChatMessages); }catch(_){ }
-  dsUpdateAdminUnreadBadge();
 }
 function dsBindAdminChatActions(){
   const sendBtn = document.getElementById('btnChatAdminSend');
@@ -18309,19 +17778,7 @@ function dsBindAdminChatActions(){
   const refreshBtn = document.getElementById('btnChatRefresh');
   if(refreshBtn && !refreshBtn.__chatBound){
     refreshBtn.__chatBound = true;
-    refreshBtn.onclick = async ()=>{
-      const stNow = dsAdminChatState();
-      const cur = String(stNow.currentChatId || '');
-      const current = (stNow.filteredChats || stNow.chats || []).find(c=> String(c.id||'') === cur) || null;
-      const latestIncoming = dsLatestIncomingReadMs(stNow.currentMessages, 'staff');
-      if(cur && latestIncoming){
-        try{ await dsMarkChatReadUpTo(cur, 'staff', latestIncoming, stNow.currentMessages); }catch(_){ }
-      }
-      renderAdminChatMessages();
-      renderAdminChatList();
-      const hint = document.getElementById('chatAdminHint');
-      if(hint) hint.textContent = latestIncoming ? 'Gelesen markiert · ' + dsChatNowLabel() : 'Keine neuen Kundennachrichten.';
-    };
+    refreshBtn.onclick = ()=> renderAdminChatPanel(true);
   }
   if(input && !input.__chatEnterBound){
     input.__chatEnterBound = true;
@@ -18459,17 +17916,7 @@ function dsBindCustomerChatActions(){
   const refreshBtn = document.getElementById('btnCustomerChatRefresh');
   if(refreshBtn && !refreshBtn.__chatBound){
     refreshBtn.__chatBound = true;
-    refreshBtn.onclick = async ()=>{
-      const stNow = dsCustomerChatState();
-      const cur = String(stNow.currentChatId || '');
-      const latestIncoming = dsLatestIncomingReadMs(stNow.currentMessages, 'customer');
-      if(cur && latestIncoming){
-        try{ await dsMarkChatReadUpTo(cur, 'customer', latestIncoming, stNow.currentMessages); }catch(_){ }
-      }
-      renderCustomerChatMessages();
-      const hint = document.getElementById('customerChatHint');
-      if(hint) hint.textContent = latestIncoming ? 'Gelesen markiert · ' + dsChatNowLabel() : 'Keine neuen Team-Nachrichten.';
-    };
+    refreshBtn.onclick = ()=> renderCustomerChatPanel(true);
   }
   if(input && !input.__chatEnterBound){
     input.__chatEnterBound = true;
@@ -18514,13 +17961,10 @@ function renderCustomerChatMessages(){
   const body = document.getElementById('customerChatMessages');
   const title = document.getElementById('customerChatTitle');
   const meta = document.getElementById('customerChatMeta');
-  const current = (st.chats || []).find(c=> String(c.id||'') === String(st.currentChatId||'')) || null;
   if(title) title.textContent = 'Doggy Style Team · ' + dsChatTargetLabel(st.currentTeamKey);
   if(meta) meta.textContent = st.currentChatId ? 'Antworten erscheinen direkt in diesem Verlauf.' : 'Starte einfach mit deiner ersten Nachricht an ' + dsChatTargetLabel(st.currentTeamKey) + '.';
-  if(body) body.innerHTML = dsRenderChatMessages(st.currentMessages, 'customer', current);
+  if(body) body.innerHTML = dsRenderChatMessages(st.currentMessages, 'customer');
   try{ if(body) body.scrollTop = body.scrollHeight; }catch(_){ }
-  try{ dsBindMessageBubbleClicks(body, 'customer', current, st.currentMessages, renderCustomerChatMessages); }catch(_){ }
-  dsUpdateCustomerUnreadBadge();
 }
 async function dsLoadCustomerChatsForTeam(teamKey, autoCreate){
   const st = dsCustomerChatState();
@@ -18541,7 +17985,6 @@ async function dsLoadCustomerChatsForTeam(teamKey, autoCreate){
     await dsEnsureWelcomeMessage(st.currentChatId, dsChatCustomerProfile()).catch(console.warn);
     dsWatchCustomerChatMessages(st.currentChatId);
   }
-  dsUpdateCustomerUnreadBadge();
 }
 
 function dsWatchCustomerChatMessages(chatId){
@@ -18600,7 +18043,6 @@ function renderCustomerChatPanel(forceReload){
           stNow.currentTeamKey = key;
           stNow.currentChatId = '';
           stNow.currentMessages = [];
-          dsSetChatExplicitOpen('customer', true);
           renderCustomerChatPanel(true);
         }catch(err){
           console.error('customer team switch', err);
@@ -18616,7 +18058,6 @@ function renderCustomerChatPanel(forceReload){
   const seen = new Map();
   const publish = async ()=>{
     st.chats = dsChatSortByUpdated(dsChatFilterForTeam(Array.from(seen.values()), st.currentTeamKey));
-    dsUpdateCustomerUnreadBadge();
     if(!st.currentChatId && st.chats.length){
       st.currentChatId = st.chats[0].id;
       await dsEnsureWelcomeMessage(st.currentChatId, dsChatCustomerProfile()).catch(console.warn);
@@ -18653,6 +18094,4 @@ function renderCustomerChatPanel(forceReload){
 }
 try{ window.renderAdminChatPanel = renderAdminChatPanel; }catch(_){ }
 try{ window.renderCustomerChatPanel = renderCustomerChatPanel; }catch(_){ }
-try{ window.dsSetChatExplicitOpen = dsSetChatExplicitOpen; }catch(_){ }
-try{ dsInitUnreadBadgeWatchers(); }catch(_){ }
 /* ===== END CHAT ===== */
