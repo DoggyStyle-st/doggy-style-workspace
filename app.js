@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB22_ADMIN_AUTH_HARDINIT_20260328",
+  tag: "M50.9.9GB23_INBOX_FIRESTOREMAP_20260328",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB22_ADMIN_AUTH_HARDINIT_20260328";
+const APP_BUILD = "M50.9.9GB23_INBOX_FIRESTOREMAP_20260328";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -17957,7 +17957,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB22_ADMIN_AUTH_HARDINIT_20260328) ===== */
+/* ===== CHAT (M50.9.9GB23_INBOX_FIRESTOREMAP_20260328) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -19393,3 +19393,143 @@ try{
     Promise.resolve().then(()=>window.__dsInboxAutoLoadProposals && window.__dsInboxAutoLoadProposals()).catch(err=>console.warn('GB19 manual autoload failed', err));
   }, true);
 }catch(err){ console.warn('GB19 bootstrap failed', err); }
+
+
+// GB23: map pending customer proposals from Firestore directly into Eingänge selections
+(function(){
+  const wait = (ms)=>new Promise(r=>setTimeout(r, ms));
+  const setText = (id, txt, isErr=false)=>{ try{ const el=document.getElementById(id); if(el){ el.textContent = txt || ''; el.style.color = isErr ? '#ffb3b3' : ''; } }catch(_){ } };
+  const optExists = (sel, value)=>{ try{ return Array.from(sel.options||[]).some(o=>String(o.value||'')===String(value||'')); }catch(_){ return false; } };
+  const addOption = (sel, value, label)=>{
+    if(!sel || !String(value||'').trim()) return;
+    try{
+      if(optExists(sel, value)) return;
+      const o = document.createElement('option');
+      o.value = String(value||'').trim();
+      o.textContent = String(label || value || '').trim();
+      sel.appendChild(o);
+    }catch(_){ }
+  };
+  const normTemplate = (row)=>{
+    const raw = String(row.templateId || row.proposalType || row.kind || row.formKey || '').trim().toLowerCase();
+    if(raw === 'customer_data' || raw === 'customer-main-dogs' || raw === 'dogs' || raw === 'kunde_hund' || raw === 'kundehund') return { id:'customer_data', name:'Kundendaten ergänzen' };
+    if(raw === 'boarding_contract' || raw === 'contract' || raw === 'betreuungsvertrag') return { id:'boarding_contract', name:'Betreuungsvertrag freigeben' };
+    if(raw === 'stay_request' || raw === 'stay' || raw === 'aufenthalt' || raw === 'new_stay') return { id:'stay_request', name:'Aufenthalt anfragen' };
+    return { id:'customer_data', name:'Kundendaten ergänzen' };
+  };
+  const rowToCustomer = (row)=>{
+    const payload = row.payloadSubmitted || row.payload || {};
+    const c = payload.customer || row.customer || {};
+    const email = String(row.customerEmail || c.email || row.email || '').trim().toLowerCase();
+    const name = String(row.customerName || c.name || row.name || '').trim();
+    const uid = String(row.customerUid || row.uid || row.portalUid || '').trim();
+    const id = String(row.customerId || uid || email || name || row.id || '').trim();
+    return {
+      id: id || uid || email || name,
+      customerId: id || uid || email || name,
+      portalUid: uid,
+      email,
+      name: name || email || 'Kunde',
+      phone: String(c.phone || row.phone || '').trim(),
+      source: row.__source || 'proposal'
+    };
+  };
+  const dedupe = (rows)=>{
+    const seen = new Set(); const out=[];
+    rows.forEach(r=>{
+      const key = String(r.id || r.taskId || r.proposalId || '') || JSON.stringify([r.customerEmail,r.customerName,r.templateId,r.submittedAt]);
+      if(!key || seen.has(key)) return; seen.add(key); out.push(r);
+    });
+    return out;
+  };
+  async function loadRows(){
+    const rows=[];
+    const push=(r,src)=>{ if(!r||typeof r!=='object') return; rows.push({__source:src, ...r}); };
+    try{
+      const pcol = typeof cloudProposalsCol==='function' ? cloudProposalsCol() : null;
+      if(pcol && typeof pcol.where==='function'){
+        let snap=null;
+        try{ snap = await pcol.where('proposalStatus','==','pending').limit(100).get(); }catch(err){ console.warn('GB23 proposals query failed', err); }
+        if(snap && typeof snap.forEach==='function') snap.forEach(d=>push({id:d.id, ...d.data()}, 'cloud-proposals'));
+      }
+    }catch(err){ console.warn('GB23 cloud proposals load failed', err); }
+    try{
+      const tcol = typeof cloudTasksCol==='function' ? cloudTasksCol() : null;
+      if(tcol && typeof tcol.where==='function'){
+        let snap=null;
+        try{ snap = await tcol.where('proposalStatus','==','pending').limit(100).get(); }catch(err){ console.warn('GB23 tasks query failed', err); }
+        if(snap && typeof snap.forEach==='function') snap.forEach(d=>push({id:d.id, taskId:d.id, ...d.data()}, 'cloud-tasks'));
+      }
+    }catch(err){ console.warn('GB23 cloud tasks load failed', err); }
+    try{ (loadCustomerProposalBuffer()||[]).forEach(x=>push(x,'proposal-buffer')); }catch(_){ }
+    try{ (Array.isArray(state?.inboxAssignments)?state.inboxAssignments:[]).forEach(x=>push(x,'state-assignments')); }catch(_){ }
+    try{ (Array.isArray(state?.inboxSubmissions)?state.inboxSubmissions:[]).forEach(x=>push(x,'state-submissions')); }catch(_){ }
+    try{
+      const raw = localStorage.getItem(typeof LS_KEY !== 'undefined' ? LS_KEY : 'doggystyle_workspace_state_v1');
+      const data = raw ? JSON.parse(raw) : {};
+      (Array.isArray(data?.inboxAssignments)?data.inboxAssignments:[]).forEach(x=>push(x,'local-inboxAssignments'));
+    }catch(_){ }
+    return dedupe(rows).filter(r=>{
+      const ps = String(r.proposalStatus || '').toLowerCase();
+      return !ps || ps==='pending' || ps==='submitted';
+    });
+  }
+  function renderRows(rows){
+    const listEl = document.getElementById('inboxProposalList') || document.getElementById('inboxList');
+    if(!listEl) return;
+    if(!rows.length){ listEl.innerHTML = '<div class="muted">— keine Kundenvorschläge —</div>'; return; }
+    listEl.innerHTML = rows.map(r=>{
+      const c = rowToCustomer(r);
+      const tpl = normTemplate(r);
+      const ts = Number(r.submittedAt || r.createdAt || Date.now());
+      const when = isFinite(ts) ? new Date(ts).toLocaleString('de-DE') : '—';
+      return `<div class="item"><strong>${escapeHtml(c.name || 'Kunde')}</strong><div class="muted">${escapeHtml(c.email || '')} · ${escapeHtml(tpl.name)} · ${escapeHtml(when)} · ${escapeHtml(String(r.__source||''))}</div></div>`;
+    }).join('');
+  }
+  function mapIntoSelections(rows){
+    const selCustomer = document.getElementById('assignCustomer');
+    const selTemplate = document.getElementById('assignTemplate');
+    if(!selCustomer || !selTemplate) return {customers:0, templates:0};
+    const customers=[]; const templates=[]; const cseen=new Set(); const tseen=new Set();
+    rows.forEach(r=>{
+      const c = rowToCustomer(r); const tpl = normTemplate(r);
+      const ckey = String(c.customerId || c.email || c.name || '').trim();
+      if(ckey && !cseen.has(ckey)){
+        cseen.add(ckey); customers.push(c);
+        const label = c.email ? `${c.name} · ${c.email}` : c.name;
+        addOption(selCustomer, ckey, label);
+      }
+      if(tpl.id && !tseen.has(tpl.id)){
+        tseen.add(tpl.id); templates.push(tpl);
+        addOption(selTemplate, tpl.id, tpl.name);
+      }
+    });
+    try{ window.__dsInboxInlineCustomers = customers; }catch(_){ }
+    if(customers.length && !String(selCustomer.value||'').trim()) selCustomer.value = String(customers[0].customerId || customers[0].email || customers[0].name || '');
+    if(templates.length && !String(selTemplate.value||'').trim()) selTemplate.value = String(templates[0].id || '');
+    return {customers:customers.length, templates:templates.length};
+  }
+  async function run(source){
+    setText('assignMsg', 'Kundenvorschläge werden geladen …', false);
+    setText('inboxProposalMsg', 'Kundenvorschläge werden geladen …', false);
+    const rows = await loadRows();
+    const info = mapIntoSelections(rows);
+    renderRows(rows);
+    const msg = rows.length ? `Kundenvorschläge geladen: ${rows.length}` : 'Keine Kundenvorschläge gefunden.';
+    setText('assignMsg', msg, !rows.length);
+    setText('inboxProposalMsg', msg + (source ? ` · ${source}` : ''), !rows.length);
+    try{ const diag = document.getElementById('assignDiag'); if(diag) diag.textContent = `Diagnose: phase=gb23-map · proposals=${rows.length} · customers=${info.customers} · templates=${info.templates}`; }catch(_){ }
+    return rows;
+  }
+  window.__dsGb23MapInboxProposals = run;
+  const kick = ()=>{ Promise.resolve().then(()=>run('auto')).catch(err=>{ setText('assignMsg', 'Vorschläge laden fehlgeschlagen: ' + ((err&&err.message)||err||'unbekannt'), true); setText('inboxProposalMsg', 'Vorschläge laden fehlgeschlagen: ' + ((err&&err.message)||err||'unbekannt'), true); }); };
+  window.addEventListener('pageshow', ()=>setTimeout(kick, 250));
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) setTimeout(kick, 200); });
+  document.querySelector('[data-tab="inbox"]')?.addEventListener('click', ()=>setTimeout(kick, 120));
+  document.addEventListener('click', (ev)=>{
+    const btn = ev.target && ev.target.closest ? ev.target.closest('#btnInboxRefresh, #btnInboxProposalLoad') : null;
+    if(!btn) return;
+    ev.preventDefault(); ev.stopPropagation(); setTimeout(kick, 10);
+  }, true);
+  setTimeout(kick, 800);
+})();
