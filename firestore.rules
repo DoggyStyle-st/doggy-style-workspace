@@ -47,8 +47,23 @@ service cloud.firestore {
     }
 
     match /orgs/{orgId}/tasks/{taskId} {
-      allow create, update, delete: if signedIn() && isStaff(orgId);
-      allow read: if signedIn() && (isStaff(orgId) || (resource.data.customerUid == request.auth.uid));
+      allow create: if signedIn() && (
+        isStaff(orgId)
+        || (
+          request.resource.data != null
+          && request.resource.data.status == 'submitted'
+          && request.resource.data.customerUid == request.auth.uid
+          && request.resource.data.customerEmail != null
+          && sameEmail(request.resource.data.customerEmail)
+          && request.resource.data.templateId in ['customer_data', 'boarding_contract', 'hundeannahme']
+        )
+      );
+      allow update, delete: if signedIn() && isStaff(orgId);
+      allow read: if signedIn() && (
+        isStaff(orgId)
+        || (resource.data.customerUid == request.auth.uid)
+        || sameEmail(resource.data.customerEmail)
+      );
     }
 
     match /orgs/{orgId}/chats/{chatId} {

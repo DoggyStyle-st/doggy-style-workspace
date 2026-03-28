@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB7_CUSTOMER_SUBMITPROPOSAL_FIX_20260328",
+  tag: "M50.9.9GB8_CUSTOMER_FIREBASEPROPOSALS_20260328",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB7_CUSTOMER_SUBMITPROPOSAL_FIX_20260328";
+const APP_BUILD = "M50.9.9GB8_CUSTOMER_FIREBASEPROPOSALS_20260328";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -1438,6 +1438,13 @@ async function submitCustomerDogsProposal(){
       note: String(document.getElementById('p_note')?.value || '').trim()
     };
     const stamp = Date.now();
+    const sanitizeProposalMedia = (value)=>{
+      const v = String(value || '');
+      if(!v) return '';
+      return /^data:/i.test(v) ? '' : v;
+    };
+    petProposal.vaccinationPassPhoto = sanitizeProposalMedia(petProposal.vaccinationPassPhoto);
+    petProposal.profilePhoto = sanitizeProposalMedia(petProposal.profilePhoto);
     const task = {
       id: uid(), taskId: uid(),
       templateId: 'customer_data',
@@ -1453,21 +1460,48 @@ async function submitCustomerDogsProposal(){
       payloadSubmitted: { source: 'customer-main-dogs', mode: 'proposal', customer: customerProposal, pet: petProposal }
     };
     let cloudWriteOk = false;
+    let cloudWriteErr = null;
     if(CLOUD?.enabled && cloudTasksCol){
       try{
         await cloudTasksCol().doc(task.id).set(task, {merge:true});
         cloudWriteOk = true;
       }catch(err){
+        cloudWriteErr = err;
         console.warn('submitCustomerDogsProposal cloud write failed, using local fallback', err);
       }
     }
     if(!cloudWriteOk){
-      const raw = localStorage.getItem(LS_KEY); const local = raw ? JSON.parse(raw) : {};
-      local.inboxAssignments = Array.isArray(local.inboxAssignments) ? local.inboxAssignments : [];
-      local.inboxAssignments.unshift(task);
-      localStorage.setItem(LS_KEY, JSON.stringify(local));
+      const taskLite = {
+        ...task,
+        payloadSubmitted: {
+          source: 'customer-main-dogs',
+          mode: 'proposal-local-fallback',
+          customer: {
+            name: customerProposal.name || '',
+            email: customerProposal.email || '',
+            phone: customerProposal.phone || ''
+          },
+          pet: {
+            name: petProposal.name || '',
+            breed: petProposal.breed || '',
+            sex: petProposal.sex || '',
+            note: petProposal.note || ''
+          }
+        }
+      };
+      try{
+        const raw = localStorage.getItem(LS_KEY); const local = raw ? JSON.parse(raw) : {};
+        local.inboxAssignments = Array.isArray(local.inboxAssignments) ? local.inboxAssignments : [];
+        local.inboxAssignments.unshift(taskLite);
+        localStorage.setItem(LS_KEY, JSON.stringify(local));
+      }catch(localErr){
+        const reason = cloudWriteErr?.message || localErr?.message || localErr || cloudWriteErr || 'Unbekannter Fehler';
+        throw new Error(String(reason));
+      }
+      try{ pushCustomerProposalBuffer(taskLite); }catch(_){ }
+    } else {
+      try{ pushCustomerProposalBuffer(task); }catch(_){ }
     }
-    pushCustomerProposalBuffer(task);
     cpSetStatus(cloudWriteOk ? 'Als Vorschlag an Eingänge gesendet.' : 'Als lokaler Vorschlag an Eingänge gespeichert.');
     try{ alert(cloudWriteOk ? 'Änderungsvorschlag wurde an Eingänge gesendet.' : 'Änderungsvorschlag lokal gespeichert. Bitte Eingänge aktualisieren.'); }catch(_){ }
     closeCpEditor();
@@ -17460,7 +17494,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB7_CUSTOMER_SUBMITPROPOSAL_FIX_20260328) ===== */
+/* ===== CHAT (M50.9.9GB8_CUSTOMER_FIREBASEPROPOSALS_20260328) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
