@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB11_CUSTOMER_FIRESTOREDEBUG_20260328",
+  tag: "M50.9.9GB12_CUSTOMER_AUTHPERSIST_FIX_20260328",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB11_CUSTOMER_FIRESTOREDEBUG_20260328";
+const APP_BUILD = "M50.9.9GB12_CUSTOMER_AUTHPERSIST_FIX_20260328";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -1459,6 +1459,9 @@ async function submitCustomerDogsProposal(){
       commands: String(document.getElementById('p_commands')?.value || '').trim(),
       note: String(document.getElementById('p_note')?.value || '').trim()
     };
+    const authUser = await cpWaitForFirebaseUser(10000);
+    if(!authUser || !authUser.uid) throw new Error('Keine aktive Firebase-Anmeldung in der Haupt-App. Bitte Haupt-App kurz neu öffnen und erneut versuchen.');
+    try{ window.CLOUD = window.CLOUD || {}; CLOUD.user = authUser; if(CLOUD.auth && CLOUD.auth.currentUser && CLOUD.auth.currentUser.uid !== authUser.uid){ /* keep auth object */ } if(!CLOUD.orgId) CLOUD.orgId = dsResolveCloudOrgId(); }catch(_){ }
     const stamp = Date.now();
     const sanitizeProposalMedia = (value)=>{
       const v = String(value || '');
@@ -1543,7 +1546,7 @@ async function submitCustomerDogsProposal(){
       try{ pushCustomerProposalBuffer(cloudWritePath==='tasks' ? taskLite : task); }catch(_){ }
     }
     cpSetStatus(cloudWriteOk ? 'Dein Änderungsvorschlag wurde gespeichert und wird geprüft.' : 'Dein Änderungsvorschlag wurde lokal vorgemerkt.');
-    try{ alert(cloudWriteOk ? 'Dein Änderungsvorschlag wurde gespeichert und wird von uns geprüft.' : ('Dein Änderungsvorschlag wurde lokal vorgemerkt. Cloud-Speicherung fehlgeschlagen: ' + [cloudWriteErr?.code, cloudWriteErr?.message, cloudWriteErr || 'Unbekannter Fehler', 'orgId=' + String(dsResolveCloudOrgId()), 'uid=' + String(CLOUD?.user?.uid || CLOUD?.auth?.currentUser?.uid || ''), 'email=' + String(CLOUD?.user?.email || CLOUD?.auth?.currentUser?.email || '')].filter(Boolean).join(' · '))); }catch(_){ }
+    try{ alert(cloudWriteOk ? 'Dein Änderungsvorschlag wurde gespeichert und wird von uns geprüft.' : ('Dein Änderungsvorschlag wurde lokal vorgemerkt. Cloud-Speicherung fehlgeschlagen: ' + [cloudWriteErr?.code, cloudWriteErr?.message, cloudWriteErr || 'Unbekannter Fehler', 'orgId=' + String(dsResolveCloudOrgId()), 'uid=' + String(CLOUD?.user?.uid || CLOUD?.auth?.currentUser?.uid || ''), 'email=' + String(CLOUD?.user?.email || CLOUD?.auth?.currentUser?.email || ''), (!(CLOUD?.user?.uid || CLOUD?.auth?.currentUser?.uid) ? 'Hinweis=keine aktive Auth-Session in app.html' : '')].filter(Boolean).join(' · '))); }catch(_){ }
     closeCpEditor();
     renderDogs();
   }catch(err){ console.error('submitCustomerDogsProposal failed', err); cpSetStatus('Senden fehlgeschlagen.', true); alert('Senden fehlgeschlagen: ' + String(err?.message || err || 'Unbekannter Fehler')); }
@@ -1573,6 +1576,7 @@ function enforceCustomerMainDogsUI(){
 
 function initCustomerMainDogsMode(){
   try{
+    try{ cpWaitForFirebaseUser(10000).then(function(u){ try{ if(u){ window.CLOUD = window.CLOUD || {}; CLOUD.user = u; if(!CLOUD.orgId) CLOUD.orgId = dsResolveCloudOrgId(); } }catch(_){ } }).catch(function(){}); }catch(_){ }
     enforceCustomerMainDogsUI();
     try{
       const __origShowPanelCustomer = showPanel;
@@ -17559,7 +17563,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB11_CUSTOMER_FIRESTOREDEBUG_20260328) ===== */
+/* ===== CHAT (M50.9.9GB12_CUSTOMER_AUTHPERSIST_FIX_20260328) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
