@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB3_CUSTOMER_MAINAPP_ENFORCEDDOGS_20260327",
+  tag: "M50.9.9GB4_CUSTOMER_MAINAPP_HARDLOCK_20260328",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,8 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB3_CUSTOMER_MAINAPP_ENFORCEDDOGS_20260327";
+const APP_BUILD = "M50.9.9GB4_CUSTOMER_MAINAPP_HARDLOCK_20260328";
+try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -1446,61 +1447,73 @@ async function submitCustomerDogsProposal(){
     renderDogs();
   }catch(err){ console.error('submitCustomerDogsProposal failed', err); cpSetStatus('Senden fehlgeschlagen.', true); alert('Senden fehlgeschlagen.'); }
 }
+
+function enforceCustomerMainDogsUI(){
+  try{ document.body.dataset.customerMode = 'dogs'; }catch(_){ }
+  try{ sessionStorage.setItem('ds_customer_main_mode','dogs'); }catch(_){ }
+  try{ showAuthGate(false); }catch(_){ }
+  try{ const startPaw = document.querySelector('.paw-start'); if(startPaw) startPaw.style.display = 'none'; }catch(_){ }
+  try{ const nav = document.querySelector('nav.tabs'); if(nav) nav.style.display = ''; }catch(_){ }
+  try{ document.querySelectorAll('.tab').forEach(btn=>{
+    const t = String(btn.dataset.tab || '');
+    const allow = (t === 'dogs');
+    btn.style.display = allow ? '' : 'none';
+    btn.disabled = !allow;
+    btn.style.pointerEvents = allow ? 'auto' : 'none';
+    btn.setAttribute('aria-hidden', allow ? 'false' : 'true');
+  }); }catch(_){ }
+  try{ const top = document.getElementById('btnLogoutTop'); if(top) top.style.display = 'inline-flex'; }catch(_){ }
+  try{ const app = document.getElementById('btnLogoutApp'); if(app) app.style.display = 'inline-block'; }catch(_){ }
+  try{ const userEl = document.getElementById('syncUser'); if(userEl) userEl.style.display = 'none'; }catch(_){ }
+  try{ document.querySelectorAll('.panel').forEach(p=>{ const keep = (p.id === 'dogs'); p.style.display = keep ? '' : 'none'; p.classList.toggle('is-active', keep); }); }catch(_){ }
+  try{ document.querySelectorAll('#quickActions .btn, .start-actions .btn, .panel .btn[data-tab], .hero-card, .glass-card, .quick-card').forEach(el=>{ if(!el.closest('#dogs')) el.style.display = 'none'; }); }catch(_){ }
+  try{ if(typeof selectTab === 'function') selectTab('dogs'); }catch(_){ }
+}
+
 function initCustomerMainDogsMode(){
   try{
-    showAuthGate(false);
-    try{ document.body.dataset.customerMode = 'dogs'; }catch(_){ }
-    try{ sessionStorage.setItem('ds_customer_main_mode','dogs'); }catch(_){ }
-    const nav = document.querySelector('nav.tabs');
-    if(nav) nav.style.display = '';
-    const startPaw = document.querySelector('.paw-start');
-    if(startPaw) startPaw.style.display = 'none';
-    document.querySelectorAll('.tab').forEach(btn=>{
-      const t = String(btn.dataset.tab || '');
-      btn.style.display = (t === 'dogs') ? '' : 'none';
-      btn.disabled = (t !== 'dogs');
-      if(t !== 'dogs') btn.setAttribute('aria-hidden','true');
-    });
-    const top = document.getElementById('btnLogoutTop'); if(top) top.style.display = 'inline-flex';
-    const app = document.getElementById('btnLogoutApp'); if(app) app.style.display = 'inline-block';
-    try{ const inboxBtn = document.getElementById('tabInbox'); if(inboxBtn) inboxBtn.style.display='none'; }catch(_){ }
-    try{ const userEl = document.getElementById('syncUser'); if(userEl) userEl.style.display='none'; }catch(_){ }
-    try{ document.querySelectorAll('#quickActions .btn, .start-actions .btn, .panel .btn[data-tab]').forEach(el=>{ if(!el.closest('#dogs')) el.style.display='none'; }); }catch(_){ }
-    try{ document.querySelectorAll('.hero-card, .glass-card, .quick-card').forEach(el=>{ if(!el.closest('#dogs')) el.style.display='none'; }); }catch(_){ }
-
-    const __origShowPanelCustomer = showPanel;
-    showPanel = function(id){ return __origShowPanelCustomer('dogs'); };
-    const __origSelectTabCustomer = selectTab;
-    selectTab = function(tabId){ return __origSelectTabCustomer('dogs'); };
-
-    document.addEventListener('click', function(ev){
-      const btn = ev.target && ev.target.closest ? ev.target.closest('.tab') : null;
-      if(!btn) return;
-      const t = String(btn.dataset.tab || '');
-      if(t !== 'dogs'){
-        ev.preventDefault();
-        ev.stopPropagation();
-        try{ __origSelectTabCustomer('dogs'); }catch(_){ }
+    enforceCustomerMainDogsUI();
+    try{
+      const __origShowPanelCustomer = showPanel;
+      showPanel = function(id){ return __origShowPanelCustomer('dogs'); };
+    }catch(_){ }
+    try{
+      const __origSelectTabCustomer = selectTab;
+      selectTab = function(tabId){ return __origSelectTabCustomer('dogs'); };
+    }catch(_){ }
+    try{
+      if(!window.__dsCustomerDogsClickLock){
+        window.__dsCustomerDogsClickLock = true;
+        document.addEventListener('click', function(ev){
+          const btn = ev.target && ev.target.closest ? ev.target.closest('.tab') : null;
+          if(!btn) return;
+          const t = String(btn.dataset.tab || '');
+          if(t !== 'dogs'){
+            ev.preventDefault();
+            ev.stopPropagation();
+            try{ enforceCustomerMainDogsUI(); }catch(_){ }
+          }
+        }, true);
       }
-    }, true);
-
-    document.querySelectorAll('.panel').forEach(p=>{ p.style.display='none'; p.classList.remove('is-active'); });
-    try{ __origSelectTabCustomer('dogs'); }catch(_){ }
-    const dogsPanel = document.getElementById('dogs');
-    if(dogsPanel){ dogsPanel.style.display=''; dogsPanel.classList.add('is-active'); }
-    try{ document.querySelectorAll('.panel:not(#dogs)').forEach(p=>{ p.style.display='none'; p.classList.remove('is-active'); }); }catch(_){ }
+    }catch(_){ }
+    try{
+      if(window.__dsCustomerDogsModeTimer) clearInterval(window.__dsCustomerDogsModeTimer);
+      window.__dsCustomerDogsModeTimer = setInterval(function(){ try{ if(isCustomerMainDogsMode()) enforceCustomerMainDogsUI(); }catch(_){ } }, 600);
+    }catch(_){ }
+    enforceCustomerMainDogsUI();
     renderDogs();
     const ctx = getCustomerMainDogsContext();
     if(ctx.customerId){ fillCustomerFieldsOnly(ctx.customerId); }
     const ownPet = ctx.pets[0] || null;
     if(ownPet){
-      setTimeout(()=>{ try{ openCpEditor('edit', ownPet.id); }catch(e){ console.error('customer main dogs open failed', e); } }, 80);
+      setTimeout(function(){ try{ openCpEditor('edit', ownPet.id); }catch(e){ console.error('customer main dogs open failed', e); } }, 80);
     }else{
-      setTimeout(()=>{ try{ openCpEditor('new'); }catch(e){ console.error('customer main dogs open new failed', e); } }, 80);
+      setTimeout(function(){ try{ openCpEditor('new'); }catch(e){ console.error('customer main dogs open new failed', e); } }, 80);
     }
     cpSetStatus('Kundenmodus: Kunde/Hund');
   }catch(e){ console.error('initCustomerMainDogsMode failed', e); }
 }
+
 async function initCustomerPortal(){
   // Kunden sollen NICHT in die interne App – bei Direktaufruf app.html ins Kundenportal umleiten
   try{
@@ -17379,7 +17392,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB3_CUSTOMER_MAINAPP_ENFORCEDDOGS_20260327) ===== */
+/* ===== CHAT (M50.9.9GB4_CUSTOMER_MAINAPP_HARDLOCK_20260328) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
