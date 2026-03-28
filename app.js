@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB23_INBOX_FIRESTOREMAP_20260328",
+  tag: "M50.9.9GB24_ADMIN_CLOUD_VISIBLE_20260328",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB23_INBOX_FIRESTOREMAP_20260328";
+const APP_BUILD = "M50.9.9GB24_ADMIN_CLOUD_VISIBLE_20260328";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -450,15 +450,28 @@ async function performLogout(){
   try{ sessionStorage.removeItem("dstest_sw_reloaded"); }catch(e){}
   try{ location.href = "login.html"; }catch(e){}
 }
+function getCloudUserResolved(){
+  try{
+    const u = (window.CLOUD && (CLOUD.user || (CLOUD.auth && CLOUD.auth.currentUser)))
+      || (window.firebase && firebase.auth ? firebase.auth().currentUser : null)
+      || null;
+    if(u && window.CLOUD){
+      CLOUD.user = u;
+      if(!CLOUD.orgId) CLOUD.orgId = dsResolveCloudOrgId();
+    }
+    return u || null;
+  }catch(_){ return (window.CLOUD && CLOUD.user) || null; }
+}
 function updateSyncUI(){
   const pill = document.getElementById('syncStatus');
   const userEl = document.getElementById('syncUser');
   const details = document.getElementById('syncDetails');
   const manualBtn = document.getElementById('manualSaveBtn');
+  const resolvedUser = getCloudUserResolved();
   if(userEl){
-    if(CLOUD.enabled && CLOUD.user){
+    if(CLOUD.enabled && resolvedUser){
       userEl.style.display = 'inline-flex';
-      userEl.textContent = (CLOUD.user.email || 'eingeloggt');
+      userEl.textContent = (resolvedUser.email || 'eingeloggt');
     } else {
       try{ const ba=document.querySelector(".bottom-actions"); if(ba) ba.style.display="block"; }catch(e){}
       userEl.style.display = 'none';
@@ -466,42 +479,46 @@ function updateSyncUI(){
     }
   }
   const netOnline = (typeof navigator !== 'undefined') ? !!navigator.onLine : false;
-  const cloudOk = !!(netOnline && cloudIsEnabled() && CLOUD && CLOUD.enabled && CLOUD.user && SYNC.cloudReachable);
-  try{ if(pill){ pill.classList.toggle('is-online', !!cloudOk); pill.classList.toggle('is-offline', !cloudOk); } }catch(e){}
+  const hasAuth = !!(CLOUD && CLOUD.enabled && resolvedUser);
+  const cloudOk = !!(netOnline && cloudIsEnabled() && CLOUD && CLOUD.enabled && resolvedUser && SYNC.cloudReachable);
+  try{ if(pill){ pill.classList.toggle('is-online', !!(cloudOk || hasAuth)); pill.classList.toggle('is-offline', !(cloudOk || hasAuth)); } }catch(e){}
   const localLine = `Lokal gespeichert: ${fmtDT(SYNC.localSavedAt)}`;
-  // Internet-Status (nicht gleich Cloud!)
-  const netLine = `Internet: ${cloudOk ? 'Online' : 'Offline'}`;
-  let pillText = cloudOk ? 'Online' : 'Offline';
+  const netLine = `Internet: ${netOnline ? 'Online' : 'Offline'}`;
+  let pillText = cloudOk ? 'Online' : (hasAuth ? 'Online' : 'Offline');
   let cloudLine = 'Cloud: aus';
   if(!cloudIsEnabled()){
-    // Cloud nicht möglich (SDK fehlt) – das ist der Hauptgrund für "immer Offline" in der Wahrnehmung
     cloudLine = window.firebaseConfig ? 'Cloud: bereit (SDK nicht geladen)' : 'Cloud: aus';
     if(window.firebaseConfig && CLOUD.reason){
       cloudLine += ` · ${CLOUD.reason}`;
     }
   } else if(CLOUD.enabled){
-    if(!CLOUD.user){
-      pillText = `${cloudOk ? 'Online' : 'Offline'} · Cloud: Login nötig`;
+    if(!resolvedUser){
+      pillText = `${netOnline ? 'Online' : 'Offline'} · Cloud: Login nötig`;
       cloudLine = 'Cloud: nicht angemeldet';
     } else if(SYNC.cloudLastError){
-      pillText = `${cloudOk ? 'Online' : 'Offline'} · Cloud: Fehler`;
+      pillText = `${netOnline ? 'Online' : 'Offline'} · Cloud: Fehler`;
       cloudLine = `Cloud Fehler: ${SYNC.cloudLastError}`;
     } else if(SYNC.cloudPending){
-      pillText = `${cloudOk ? 'Online' : 'Offline'} · Cloud: Sync…`;
+      pillText = `${netOnline ? 'Online' : 'Offline'} · Cloud: Sync…`;
       cloudLine = `Cloud Sync: läuft (letztes OK ${fmtDT(SYNC.cloudLastOkAt)})`;
+    } else if(SYNC.cloudReachable){
+      pillText = `${netOnline ? 'Online' : 'Offline'} · Cloud: aktiv`;
+      cloudLine = `Cloud aktiv · Nutzer: ${resolvedUser.email || resolvedUser.uid || 'eingeloggt'} · Server: ${fmtDT(SYNC.cloudLastSeenAt)}`;
     } else {
-      pillText = `${cloudOk ? 'Online' : 'Offline'} · Cloud: OK`;
-      cloudLine = `Cloud zuletzt OK: ${fmtDT(SYNC.cloudLastOkAt)} · Server: ${fmtDT(SYNC.cloudLastSeenAt)}`;
+      pillText = `${netOnline ? 'Online' : 'Offline'} · Cloud: angemeldet`;
+      cloudLine = `Cloud angemeldet · Nutzer: ${resolvedUser.email || resolvedUser.uid || 'eingeloggt'} · Server-Prüfung ausstehend`;
+      try{ if(netOnline && !SYNC.cloudPending) scheduleCloudPing(250,'status-refresh'); }catch(_){ }
     }
   }
   if(pill) pill.textContent = `${pillText} · ${fmtDT(SYNC.localSavedAt)}`;
   const dot=document.getElementById('syncDot');
-  if(dot){ dot.classList.toggle('online', !!netOnline); dot.classList.toggle('offline', !netOnline); }
-  if(details) details.textContent = `${localLine}\n${netLine}\n${cloudLine}\nCloud-Ping: ${fmtDT(SYNC.cloudReachCheckedAt)}${SYNC.cloudReachError ? ' · '+SYNC.cloudReachError : ''}`;
-  // Manual cloud save: only enable when Cloud is active + logged in
+  if(dot){ dot.classList.toggle('online', !!(netOnline || hasAuth)); dot.classList.toggle('offline', !(netOnline || hasAuth)); }
+  if(details) details.textContent = `${localLine}
+${netLine}
+${cloudLine}
+Cloud-Ping: ${fmtDT(SYNC.cloudReachCheckedAt)}${SYNC.cloudReachError ? ' · '+SYNC.cloudReachError : ''}`;
   if(manualBtn){
-    const ok = !!(CLOUD.enabled && CLOUD.user);
-    // Wenn Cloud grundsätzlich nicht verfügbar: Button ausblenden (wirkt sonst "kaputt")
+    const ok = !!(CLOUD.enabled && resolvedUser);
     if(!cloudIsEnabled()){
       manualBtn.style.display = 'none';
     } else {
@@ -17957,7 +17974,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB23_INBOX_FIRESTOREMAP_20260328) ===== */
+/* ===== CHAT (M50.9.9GB24_ADMIN_CLOUD_VISIBLE_20260328) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
