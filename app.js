@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB21_ADMIN_AUTH_REPAIR_20260328",
+  tag: "M50.9.9GB22_ADMIN_AUTH_HARDINIT_20260328",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB21_ADMIN_AUTH_REPAIR_20260328";
+const APP_BUILD = "M50.9.9GB22_ADMIN_AUTH_HARDINIT_20260328";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -12158,6 +12158,45 @@ async function startApp(){
     await bootOnce();
     return;
   }
+  // GB22: Admin-Firebase-Session hart initialisieren, bevor die Haupt-App weiterläuft.
+  try{
+    const customerLocked = (typeof isCustomerMainDogsMode === 'function') ? !!isCustomerMainDogsMode() : false;
+    const p = (location && location.pathname) ? location.pathname.toLowerCase() : '';
+    const alreadyOnLogin = p.endsWith('login.html');
+    if(!customerLocked && !alreadyOnLogin){
+      const auth = CLOUD && CLOUD.auth ? CLOUD.auth : null;
+      const current = (auth && auth.currentUser) ? auth.currentUser : null;
+      if(current){
+        try{ CLOUD.user = current; }catch(_){ }
+      } else if(auth && auth.onAuthStateChanged){
+        const settled = await new Promise((resolve)=>{
+          let done = false;
+          let unsub = null;
+          const finish = (user)=>{
+            if(done) return;
+            done = true;
+            try{ if(unsub) unsub(); }catch(_){ }
+            resolve(user || null);
+          };
+          const t = setTimeout(()=>finish((auth && auth.currentUser) ? auth.currentUser : null), 2500);
+          try{
+            unsub = auth.onAuthStateChanged((user)=>{ clearTimeout(t); finish(user || null); });
+          }catch(_){
+            clearTimeout(t);
+            finish((auth && auth.currentUser) ? auth.currentUser : null);
+          }
+        });
+        if(settled){
+          try{ CLOUD.user = settled; }catch(_){ }
+        } else {
+          const rel = (location.pathname.split('/').pop() || 'app.html') + (location.search || '') + (location.hash || '');
+          try{ sessionStorage.setItem('ds_auth_required_return_to', rel); }catch(_){ }
+          try{ location.replace('login.html?return_to=' + encodeURIComponent(rel)); }catch(_){ location.href = 'login.html?return_to=' + encodeURIComponent(rel); }
+          return;
+        }
+      }
+    }
+  }catch(_){ }
   // Option C: immer Login erzwingen (Session bei jedem Start beenden)
   if(CLOUD.forceLoginAlways){
     try{ await CLOUD.auth.signOut(); }catch(e){}
@@ -17918,7 +17957,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB21_ADMIN_AUTH_REPAIR_20260328) ===== */
+/* ===== CHAT (M50.9.9GB22_ADMIN_AUTH_HARDINIT_20260328) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
