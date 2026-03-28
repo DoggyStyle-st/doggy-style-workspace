@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB18_INBOX_INLINECLICK_FIX_20260328",
+  tag: "M50.9.9GB19_INBOX_AUTOLOAD_PROPOSALS_20260328",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB18_INBOX_INLINECLICK_FIX_20260328";
+const APP_BUILD = "M50.9.9GB19_INBOX_AUTOLOAD_PROPOSALS_20260328";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -17914,7 +17914,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB18_INBOX_INLINECLICK_FIX_20260328) ===== */
+/* ===== CHAT (M50.9.9GB19_INBOX_AUTOLOAD_PROPOSALS_20260328) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -19221,3 +19221,132 @@ try{
     return [];
   };
 }catch(_){}
+
+
+// GB19: auto-load pending customer proposals directly into Eingänge selections and lists
+try{
+  window.__dsInboxAutoLoadProposals = async function(){
+    const selCustomer = document.getElementById('assignCustomer');
+    const selTemplate = document.getElementById('assignTemplate');
+    const msgEl = document.getElementById('assignMsg');
+    const diagEl = document.getElementById('assignDiag');
+    const listEl = document.getElementById('inboxProposalList') || document.getElementById('inboxList');
+    const setMsg = (txt, err=false)=>{ try{ if(msgEl){ msgEl.textContent = txt || ''; msgEl.style.color = err ? '#ffb3b3' : ''; } }catch(_){} };
+    const rows=[]; const seen=new Set();
+    const pushRow=(obj, source)=>{
+      if(!obj || typeof obj !== 'object') return;
+      const key = String(obj.id || obj.taskId || obj.proposalId || obj.submissionId || Math.random());
+      const sig = source + ':' + key;
+      if(seen.has(sig)) return; seen.add(sig);
+      rows.push({ ...obj, __source: source, __key: key });
+    };
+    try{
+      if(typeof ensureStateShape === 'function') ensureStateShape();
+    }catch(_){ }
+    try{
+      const pcol = cloudProposalsCol();
+      let snap;
+      try{ snap = await pcol.where('proposalStatus','==','pending').limit(100).get(); }
+      catch(_){ snap = await pcol.limit(100).get(); }
+      snap && snap.forEach && snap.forEach(d => pushRow({ id:d.id, ...d.data() }, 'proposals'));
+    }catch(err){ console.warn('GB19 cloud proposals load failed', err); }
+    try{
+      const tcol = cloudTasksCol();
+      let snap;
+      try{ snap = await tcol.where('status','==','submitted').limit(100).get(); }
+      catch(_){ snap = await tcol.limit(100).get(); }
+      snap && snap.forEach && snap.forEach(d => {
+        const data = { id:d.id, ...d.data() };
+        const pstatus = String((data && data.proposalStatus) || '').trim().toLowerCase();
+        if(pstatus === 'pending' || String((data && data.status) || '').trim().toLowerCase() === 'submitted') pushRow(data, 'tasks');
+      });
+    }catch(err){ console.warn('GB19 cloud tasks load failed', err); }
+    try{ (Array.isArray(state?.inboxAssignments)?state.inboxAssignments:[]).forEach(x=>pushRow(x,'state')); }catch(_){ }
+    try{ (Array.isArray(state?.inboxSubmissions)?state.inboxSubmissions:[]).forEach(x=>pushRow(x,'state')); }catch(_){ }
+    try{ (loadCustomerProposalBuffer() || []).forEach(x=>pushRow(x,'buffer')); }catch(_){ }
+    rows.sort((a,b)=> Number((b&&b.submittedAt)||0) - Number((a&&a.submittedAt)||0));
+    window.__dsInboxLoadedProposals = rows.slice();
+
+    if(selCustomer){
+      const prev=String(selCustomer.value||'');
+      const opts=[]; const seenCust=new Set();
+      rows.forEach(r=>{
+        const cid = String(r.customerUid || r.portalUid || r.customerId || r.email || r.customerEmail || r.__key || '').trim();
+        if(!cid || seenCust.has(cid)) return;
+        seenCust.add(cid);
+        const name = String(r.customerName || r.name || 'Kunde').trim();
+        const mail = String(r.customerEmail || r.email || r.customerUid || '').trim();
+        opts.push({value:cid, label: mail ? `${name} · ${mail}` : name});
+      });
+      if(opts.length){
+        selCustomer.innerHTML = '<option value="">Bitte auswählen...</option>';
+        opts.forEach(o=> selCustomer.insertAdjacentHTML('beforeend', `<option value="${escapeHtml(o.value)}">${escapeHtml(o.label)}</option>`));
+        if(prev && Array.from(selCustomer.options).some(o=>o.value===prev)) selCustomer.value=prev;
+      }
+    }
+    if(selTemplate){
+      const prev=String(selTemplate.value||'');
+      const opts=[]; const seenTpl=new Set();
+      rows.forEach(r=>{
+        const tpl = String(r.templateId || r.proposalType || r.kind || r.formKey || 'customer_data').trim();
+        if(!tpl || seenTpl.has(tpl)) return;
+        seenTpl.add(tpl);
+        let label = tpl;
+        if(tpl === 'customer_data') label = 'Kundendaten ergänzen';
+        else if(tpl === 'boarding_contract') label = 'Betreuungsvertrag';
+        else if(tpl === 'stay_request') label = 'Neuer Aufenthalt';
+        opts.push({value:tpl, label});
+      });
+      if(opts.length){
+        selTemplate.innerHTML = '<option value="">Bitte auswählen...</option>';
+        opts.forEach(o=> selTemplate.insertAdjacentHTML('beforeend', `<option value="${escapeHtml(o.value)}">${escapeHtml(o.label)}</option>`));
+        if(prev && Array.from(selTemplate.options).some(o=>o.value===prev)) selTemplate.value=prev;
+      }
+    }
+    if(listEl){
+      listEl.innerHTML='';
+      if(!rows.length){
+        listEl.innerHTML = '<div class="muted">— keine Vorschläge gefunden —</div>';
+      }else{
+        rows.forEach(r=>{
+          const div=document.createElement('div');
+          div.className='list-item';
+          const title = r.templateId || r.proposalType || r.kind || r.formKey || 'Änderungsvorschlag';
+          const name = r.customerName || r.name || r.customerEmail || r.email || r.customerUid || 'Kunde';
+          const when = r.submittedAt ? fmtDT(r.submittedAt) : '';
+          div.innerHTML = `<div><strong>${escapeHtml(String(title))}</strong><small>${escapeHtml(String(name))}${when?(' · '+when):''}</small></div>`;
+          listEl.appendChild(div);
+        });
+      }
+    }
+    setMsg(rows.length ? ('Kundenvorschläge geladen: ' + rows.length) : 'Keine Kundenvorschläge gefunden.', !rows.length);
+    try{ if(diagEl) diagEl.textContent = 'Diagnose: phase=gb19-autoload · proposals=' + rows.length; }catch(_){ }
+    return rows;
+  };
+
+  window.__dsInboxMaybeAutoLoad = function(){
+    try{
+      const inboxCard = document.getElementById('taskAssignCard') || document.getElementById('inboxProposalDebug') || document.getElementById('inboxList');
+      if(!inboxCard) return;
+      clearTimeout(window.__dsInboxAutoLoadTimer);
+      window.__dsInboxAutoLoadTimer = setTimeout(()=>{
+        Promise.resolve().then(()=>window.__dsInboxAutoLoadProposals && window.__dsInboxAutoLoadProposals()).catch(err=>console.warn('GB19 autoload failed', err));
+      }, 80);
+    }catch(err){ console.warn('GB19 maybe autoload failed', err); }
+  };
+
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ()=>setTimeout(()=>window.__dsInboxMaybeAutoLoad && window.__dsInboxMaybeAutoLoad(), 120));
+  else setTimeout(()=>window.__dsInboxMaybeAutoLoad && window.__dsInboxMaybeAutoLoad(), 120);
+  window.addEventListener('load', ()=>setTimeout(()=>window.__dsInboxMaybeAutoLoad && window.__dsInboxMaybeAutoLoad(), 120));
+  window.addEventListener('pageshow', ()=>setTimeout(()=>window.__dsInboxMaybeAutoLoad && window.__dsInboxMaybeAutoLoad(), 120));
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) setTimeout(()=>window.__dsInboxMaybeAutoLoad && window.__dsInboxMaybeAutoLoad(), 120); });
+  document.querySelector('[data-tab="inbox"]')?.addEventListener('click', ()=>setTimeout(()=>window.__dsInboxMaybeAutoLoad && window.__dsInboxMaybeAutoLoad(), 120));
+
+  document.addEventListener('click', function(ev){
+    const btn = ev.target && ev.target.closest ? ev.target.closest('#btnInboxRefresh, #btnInboxProposalLoad') : null;
+    if(!btn) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    Promise.resolve().then(()=>window.__dsInboxAutoLoadProposals && window.__dsInboxAutoLoadProposals()).catch(err=>console.warn('GB19 manual autoload failed', err));
+  }, true);
+}catch(err){ console.warn('GB19 bootstrap failed', err); }
