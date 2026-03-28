@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB6_CUSTOMER_INBOXRENDER_FIX_20260328",
+  tag: "M50.9.9GB7_CUSTOMER_SUBMITPROPOSAL_FIX_20260328",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB6_CUSTOMER_INBOXRENDER_FIX_20260328";
+const APP_BUILD = "M50.9.9GB7_CUSTOMER_SUBMITPROPOSAL_FIX_20260328";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -1452,20 +1452,27 @@ async function submitCustomerDogsProposal(){
       customerId: ctx.customerId,
       payloadSubmitted: { source: 'customer-main-dogs', mode: 'proposal', customer: customerProposal, pet: petProposal }
     };
+    let cloudWriteOk = false;
     if(CLOUD?.enabled && cloudTasksCol){
-      await cloudTasksCol().doc(task.id).set(task, {merge:true});
-    } else {
+      try{
+        await cloudTasksCol().doc(task.id).set(task, {merge:true});
+        cloudWriteOk = true;
+      }catch(err){
+        console.warn('submitCustomerDogsProposal cloud write failed, using local fallback', err);
+      }
+    }
+    if(!cloudWriteOk){
       const raw = localStorage.getItem(LS_KEY); const local = raw ? JSON.parse(raw) : {};
       local.inboxAssignments = Array.isArray(local.inboxAssignments) ? local.inboxAssignments : [];
       local.inboxAssignments.unshift(task);
       localStorage.setItem(LS_KEY, JSON.stringify(local));
     }
     pushCustomerProposalBuffer(task);
-    cpSetStatus('Als Vorschlag an Eingänge gesendet.');
-    try{ alert('Änderungsvorschlag wurde an Eingänge gesendet.'); }catch(_){ }
+    cpSetStatus(cloudWriteOk ? 'Als Vorschlag an Eingänge gesendet.' : 'Als lokaler Vorschlag an Eingänge gespeichert.');
+    try{ alert(cloudWriteOk ? 'Änderungsvorschlag wurde an Eingänge gesendet.' : 'Änderungsvorschlag lokal gespeichert. Bitte Eingänge aktualisieren.'); }catch(_){ }
     closeCpEditor();
     renderDogs();
-  }catch(err){ console.error('submitCustomerDogsProposal failed', err); cpSetStatus('Senden fehlgeschlagen.', true); alert('Senden fehlgeschlagen.'); }
+  }catch(err){ console.error('submitCustomerDogsProposal failed', err); cpSetStatus('Senden fehlgeschlagen.', true); alert('Senden fehlgeschlagen: ' + String(err?.message || err || 'Unbekannter Fehler')); }
 }
 
 function enforceCustomerMainDogsUI(){
@@ -17453,7 +17460,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB6_CUSTOMER_INBOXRENDER_FIX_20260328) ===== */
+/* ===== CHAT (M50.9.9GB7_CUSTOMER_SUBMITPROPOSAL_FIX_20260328) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
