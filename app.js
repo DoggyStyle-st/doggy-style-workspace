@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB12_CUSTOMER_AUTHPERSIST_FIX_20260328",
+  tag: "M50.9.9GB13_INBOX_PROPOSAL_RENDERFIX_20260328",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB12_CUSTOMER_AUTHPERSIST_FIX_20260328";
+const APP_BUILD = "M50.9.9GB13_INBOX_PROPOSAL_RENDERFIX_20260328";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -1543,7 +1543,29 @@ async function submitCustomerDogsProposal(){
       }
       try{ pushCustomerProposalBuffer(taskLocal); }catch(_){ }
     } else {
-      try{ pushCustomerProposalBuffer(cloudWritePath==='tasks' ? taskLite : task); }catch(_){ }
+      try{
+        const mirroredTask = cloudWritePath==='tasks' ? taskLite : task;
+        pushCustomerProposalBuffer(mirroredTask);
+        try{
+          const raw = localStorage.getItem(LS_KEY); const local = raw ? JSON.parse(raw) : {};
+          local.inboxAssignments = Array.isArray(local.inboxAssignments) ? local.inboxAssignments : [];
+          const mirrorId = String(mirroredTask.id || mirroredTask.taskId || ('mirror_'+Date.now()));
+          const idx = local.inboxAssignments.findIndex(x => String((x && (x.id || x.taskId)) || '') === mirrorId);
+          const mergedMirror = { ...mirroredTask, id: mirrorId, taskId: mirrorId, status: String(mirroredTask.status || 'submitted') || 'submitted', proposalStatus: String(mirroredTask.proposalStatus || 'pending') || 'pending', mirroredFromCloud: true };
+          if(idx >= 0) local.inboxAssignments[idx] = { ...local.inboxAssignments[idx], ...mergedMirror };
+          else local.inboxAssignments.unshift(mergedMirror);
+          localStorage.setItem(LS_KEY, JSON.stringify(local));
+        }catch(_){ }
+        try{
+          ensureStateShape();
+          state.inboxAssignments = Array.isArray(state.inboxAssignments) ? state.inboxAssignments : [];
+          state.inboxSubmissions = Array.isArray(state.inboxSubmissions) ? state.inboxSubmissions : [];
+          const mirrored = { ...mirroredTask, id: String(mirroredTask.id || mirroredTask.taskId || ('mirror_'+Date.now())), taskId: String(mirroredTask.taskId || mirroredTask.id || ('mirror_'+Date.now())), status: String(mirroredTask.status || 'submitted') || 'submitted', proposalStatus: String(mirroredTask.proposalStatus || 'pending') || 'pending', mirroredFromCloud: true };
+          state.inboxAssignments.unshift(mirrored);
+          state.inboxSubmissions.unshift(mirrored);
+          saveState();
+        }catch(_){ }
+      }catch(_){ }
     }
     cpSetStatus(cloudWriteOk ? 'Dein Änderungsvorschlag wurde gespeichert und wird geprüft.' : 'Dein Änderungsvorschlag wurde lokal vorgemerkt.');
     try{ alert(cloudWriteOk ? 'Dein Änderungsvorschlag wurde gespeichert und wird von uns geprüft.' : ('Dein Änderungsvorschlag wurde lokal vorgemerkt. Cloud-Speicherung fehlgeschlagen: ' + [cloudWriteErr?.code, cloudWriteErr?.message, cloudWriteErr || 'Unbekannter Fehler', 'orgId=' + String(dsResolveCloudOrgId()), 'uid=' + String(CLOUD?.user?.uid || CLOUD?.auth?.currentUser?.uid || ''), 'email=' + String(CLOUD?.user?.email || CLOUD?.auth?.currentUser?.email || ''), (!(CLOUD?.user?.uid || CLOUD?.auth?.currentUser?.uid) ? 'Hinweis=keine aktive Auth-Session in app.html' : '')].filter(Boolean).join(' · '))); }catch(_){ }
@@ -2049,13 +2071,34 @@ async function wireInbox(){
       const raw = localStorage.getItem(LS_KEY);
       const data = raw ? JSON.parse(raw) : {};
       const list = Array.isArray(data.inboxAssignments) ? data.inboxAssignments : [];
-      list.filter(x=>String((x && x.status) || '') === 'submitted').forEach(pushTask);
+      list.filter(x=>{
+        const status = String((x && x.status) || '').trim().toLowerCase();
+        const pstatus = String((x && x.proposalStatus) || '').trim().toLowerCase();
+        return status === 'submitted' || pstatus === 'pending' || !!(x && x.mirroredFromCloud);
+      }).forEach(pushTask);
     }catch(err){
       console.warn('loadSubmitted local fallback failed', err);
     }
     try{
+      ensureStateShape();
+      const stateList = []
+        .concat(Array.isArray(state.inboxAssignments) ? state.inboxAssignments : [])
+        .concat(Array.isArray(state.inboxSubmissions) ? state.inboxSubmissions : []);
+      stateList.filter(x=>{
+        const status = String((x && x.status) || '').trim().toLowerCase();
+        const pstatus = String((x && x.proposalStatus) || '').trim().toLowerCase();
+        return status === 'submitted' || pstatus === 'pending' || !!(x && x.mirroredFromCloud);
+      }).forEach(pushTask);
+    }catch(err){
+      console.warn('loadSubmitted state fallback failed', err);
+    }
+    try{
       const list = loadCustomerProposalBuffer();
-      list.filter(x=>String((x && x.status) || '') === 'submitted').forEach(pushTask);
+      list.filter(x=>{
+        const status = String((x && x.status) || '').trim().toLowerCase();
+        const pstatus = String((x && x.proposalStatus) || '').trim().toLowerCase();
+        return status === 'submitted' || pstatus === 'pending' || !!(x && x.mirroredFromCloud);
+      }).forEach(pushTask);
     }catch(err){
       console.warn('loadSubmitted proposal buffer failed', err);
     }
@@ -2167,7 +2210,12 @@ async function wireInbox(){
     if(listEl) listEl.style.display='';
     await loadSubmitted();
   };
-  if(btnRef) btnRef.onclick = ()=>loadSubmitted().catch(e=>{ console.error(e); try{ alert('Aktualisieren fehlgeschlagen: ' + (e.message||e)); }catch(_){}; });
+  if(btnRef) btnRef.onclick = ()=>loadSubmitted().then(tasks=>{
+    try{ if(listEl) listEl.style.display=''; if(detail) detail.style.display='none'; }catch(_){ }
+    if(!Array.isArray(tasks) || !tasks.length){
+      try{ listEl.innerHTML = `<div class="muted">— keine Eingänge —</div>`; }catch(_){ }
+    }
+  }).catch(e=>{ console.error(e); try{ alert('Aktualisieren fehlgeschlagen: ' + (e.message||e)); }catch(_){}; });
   await loadSubmitted();
 }
 
@@ -17563,7 +17611,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB12_CUSTOMER_AUTHPERSIST_FIX_20260328) ===== */
+/* ===== CHAT (M50.9.9GB13_INBOX_PROPOSAL_RENDERFIX_20260328) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
