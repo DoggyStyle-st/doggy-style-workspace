@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB45_EINGAENGE_DIAGRECOVERY_20260329",
+  tag: "M50.9.9GB46_EINGAENGE_TASKMIRROR_20260329",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB45_EINGAENGE_DIAGRECOVERY_20260329";
+const APP_BUILD = "M50.9.9GB46_EINGAENGE_TASKMIRROR_20260329";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -1592,6 +1592,17 @@ async function submitCustomerDogsProposal(){
       }catch(err){
         cloudWriteErr = err;
         console.warn('submitCustomerDogsProposal cloud proposal write failed, trying tasks fallback', err);
+      }
+      if(cloudWriteOk){
+        try{
+          const tcolMirror = cloudTasksCol && cloudTasksCol();
+          if(tcolMirror && typeof tcolMirror.doc === 'function'){
+            await tcolMirror.doc(task.id).set({ ...taskLite, mirroredFromProposal:true, updatedAt: Date.now() }, {merge:true});
+            cloudWritePath = 'proposals+tasks';
+          }
+        }catch(mirrorErr){
+          console.warn('submitCustomerDogsProposal tasks mirror after proposal write failed', mirrorErr);
+        }
       }
       if(!cloudWriteOk){
         try{
@@ -18045,7 +18056,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB45_EINGAENGE_DIAGRECOVERY_20260329) ===== */
+/* ===== CHAT (M50.9.9GB46_EINGAENGE_TASKMIRROR_20260329) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -19625,7 +19636,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB45_EINGAENGE_DIAGRECOVERY_20260329";
+  const BUILD = "M50.9.9GB46_EINGAENGE_TASKMIRROR_20260329";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -20185,7 +20196,17 @@ try{
       const info = window.__dsInboxDiagSources || { sources:{}, errors:[] };
       if(diagEl){
         const parts = Object.entries(info.sources || {}).map(([k,v])=>`${k}:${v}`).filter(Boolean);
-        diagEl.textContent = rows.length ? ('Quellen · ' + (parts.join(' · ') || 'Einträge vorhanden')) : ('Keine Eingänge gefunden' + (parts.length ? ' · Quellen ' + parts.join(' · ') : '') + ((info.errors||[]).length ? ' · Fehler ' + info.errors.join(' | ') : ''));
+        const authMail = String(CLOUD?.user?.email || CLOUD?.auth?.currentUser?.email || '');
+        const authUid = String(CLOUD?.user?.uid || CLOUD?.auth?.currentUser?.uid || '');
+        const orgId = String((typeof dsResolveCloudOrgId === 'function' ? dsResolveCloudOrgId() : (CLOUD?.orgId || '')) || '');
+        diagEl.textContent = rows.length
+          ? ('Quellen · ' + (parts.join(' · ') || 'Einträge vorhanden') + (orgId ? ' · org=' + orgId : ''))
+          : ('Keine Eingänge gefunden'
+             + (parts.length ? ' · Quellen ' + parts.join(' · ') : '')
+             + ((info.errors||[]).length ? ' · Fehler ' + info.errors.join(' | ') : '')
+             + (orgId ? ' · org=' + orgId : '')
+             + (authMail ? ' · user=' + authMail : '')
+             + (authUid ? ' · uid=' + authUid : ''));
         diagEl.style.color = rows.length ? '' : '#ffb3b3';
       }
     }catch(_){ }
