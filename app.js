@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB28_SYNC_DOT_FINALGREEN_20260329",
+  tag: "M50.9.9GB29_SYNC_DOT_INLINEGREEN_20260329",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB28_SYNC_DOT_FINALGREEN_20260329";
+const APP_BUILD = "M50.9.9GB29_SYNC_DOT_INLINEGREEN_20260329";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -526,6 +526,11 @@ function updateSyncUI(){
     const dotOnline = !!((hasAuth && !SYNC.cloudLastError && !SYNC.cloudPending) || /erfolgreich/i.test(String(document.getElementById('syncStatus')?.textContent||'')) || /Cloud:\s*erfolgreich/i.test(String(details?.textContent||'')));
     dot.classList.toggle('online', dotOnline);
     dot.classList.toggle('offline', !dotOnline);
+    try{
+      dot.style.setProperty('background', dotOnline ? '#39d353' : 'rgba(248,81,73,.85)', 'important');
+      dot.style.setProperty('background-color', dotOnline ? '#39d353' : 'rgba(248,81,73,.85)', 'important');
+      dot.style.setProperty('box-shadow', dotOnline ? '0 0 0 2px rgba(255,255,255,.06) inset, 0 0 10px rgba(57,211,83,.35)' : '0 0 0 2px rgba(255,255,255,.06) inset, 0 0 10px rgba(248,81,73,.25)', 'important');
+    }catch(_){ }
   }
   if(details){
     const detailsCloudLine = (hasAuth && !SYNC.cloudLastError && !SYNC.cloudPending) ? `Cloud: erfolgreich · Nutzer: ${resolvedUser && (resolvedUser.email || resolvedUser.uid) || 'eingeloggt'}` : cloudLine;
@@ -18003,7 +18008,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB28_SYNC_DOT_FINALGREEN_20260329) ===== */
+/* ===== CHAT (M50.9.9GB29_SYNC_DOT_INLINEGREEN_20260329) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
