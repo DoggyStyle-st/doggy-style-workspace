@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB41_EINGAENGE_ACTIONS_REALFIX_20260329",
+  tag: "M50.9.9GB42_EINGAENGE_PROPOSAL_RECOVERY_20260329",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB41_EINGAENGE_ACTIONS_REALFIX_20260329";
+const APP_BUILD = "M50.9.9GB42_EINGAENGE_PROPOSAL_RECOVERY_20260329";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -18045,7 +18045,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB41_EINGAENGE_ACTIONS_REALFIX_20260329) ===== */
+/* ===== CHAT (M50.9.9GB42_EINGAENGE_PROPOSAL_RECOVERY_20260329) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -19625,7 +19625,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB41_EINGAENGE_ACTIONS_REALFIX_20260329";
+  const BUILD = "M50.9.9GB42_EINGAENGE_PROPOSAL_RECOVERY_20260329";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -19727,8 +19727,8 @@ try{
     const push = (obj, source)=>{
       const n = normalizeRow(obj, source);
       if(!n) return;
-      const status = lower(n.status);
-      if(status && !['pending','submitted','open'].includes(status) && lower(n.proposalStatus) !== 'pending') return;
+      const status = lower(n.status || n.proposalStatus || '');
+      if(status && ['rejected','adopted','closed','done','completed','accepted'].includes(status)) return;
       rows.push(n);
     };
     try{
@@ -19736,10 +19736,9 @@ try{
       if(tcol && typeof tcol.limit === 'function'){
         let snap = null;
         try{ snap = await tcol.where('proposalStatus','==','pending').limit(100).get(); }catch(_){ }
-        if(snap && typeof snap.forEach === 'function') snap.forEach(d=>push({ id:d.id, taskId:d.id, ...d.data() }, 'cloud-tasks-pending'));
-        let snap2 = null;
-        try{ snap2 = await tcol.where('status','==','submitted').limit(100).get(); }catch(_){ }
-        if(snap2 && typeof snap2.forEach === 'function') snap2.forEach(d=>push({ id:d.id, taskId:d.id, ...d.data() }, 'cloud-tasks-submitted'));
+        if(!snap){ try{ snap = await tcol.where('status','==','submitted').limit(100).get(); }catch(_){ } }
+        if(!snap){ try{ snap = await tcol.limit(100).get(); }catch(_){ } }
+        if(snap && typeof snap.forEach === 'function') snap.forEach(d=>push({ id:d.id, taskId:d.id, ...d.data() }, 'cloud-tasks'));
       }
     }catch(err){ console.warn('GB31 tasks load failed', err); }
     try{
@@ -19967,6 +19966,143 @@ try{
     if(listEl) listEl.style.display = 'none';
     if(detail) detail.style.display = '';
   }
+  function matchesInboxRow(a,b){
+    try{
+      if(!a || !b) return false;
+      const aid = lower(a.__rowId || a.id || a.taskId || a.proposalId || '');
+      const bid = lower(b.__rowId || b.id || b.taskId || b.proposalId || '');
+      if(aid && bid) return aid === bid;
+      const aKey = lower([a.customerEmail || '', a.customerName || '', a.templateId || '', a.submittedAt || ''].join('|'));
+      const bKey = lower([b.customerEmail || '', b.customerName || '', b.templateId || '', b.submittedAt || ''].join('|'));
+      return !!aKey && aKey === bKey;
+    }catch(_){ return false; }
+  }
+  function removeInboxRowEverywhere(row){
+    const filterList = (arr)=> asArray(arr).filter(x=>!matchesInboxRow(x,row));
+    try{ window.__dsInboxLoadedProposals = filterList(window.__dsInboxLoadedProposals); }catch(_){ }
+    try{ window.__dsInboxLastTasks = filterList(window.__dsInboxLastTasks); }catch(_){ }
+    try{ state.inboxAssignments = filterList(state && state.inboxAssignments); }catch(_){ }
+    try{ state.inboxSubmissions = filterList(state && state.inboxSubmissions); }catch(_){ }
+    try{ if(typeof saveState === 'function') saveState(); }catch(_){ }
+    try{
+      const list = filterList(typeof loadCustomerProposalBuffer === 'function' ? loadCustomerProposalBuffer() : []);
+      if(typeof saveCustomerProposalBuffer === 'function') saveCustomerProposalBuffer(list);
+    }catch(_){ }
+    try{
+      const raw = localStorage.getItem(typeof LS_KEY !== 'undefined' ? LS_KEY : 'doggystyle_workspace_state_v1');
+      const data = raw ? JSON.parse(raw) : {};
+      data.inboxAssignments = filterList(data.inboxAssignments);
+      data.inboxSubmissions = filterList(data.inboxSubmissions);
+      localStorage.setItem(typeof LS_KEY !== 'undefined' ? LS_KEY : 'doggystyle_workspace_state_v1', JSON.stringify(data));
+    }catch(_){ }
+  }
+  async function patchInboxRowStatus(row, status){
+    const payload = { proposalStatus: status, status: status === 'pending' ? 'submitted' : status, reviewedAt: Date.now() };
+    try{
+      const pcol = typeof cloudProposalsCol === 'function' ? cloudProposalsCol() : null;
+      const pid = norm(row && (row.proposalId || row.id));
+      if(pcol && pid && typeof pcol.doc === 'function') await pcol.doc(pid).set(payload, { merge:true });
+    }catch(err){ console.warn('patchInboxRowStatus proposal failed', err); }
+    try{
+      const tcol = typeof cloudTasksCol === 'function' ? cloudTasksCol() : null;
+      const tid = norm(row && (row.taskId || row.id));
+      if(tcol && tid && typeof tcol.doc === 'function') await tcol.doc(tid).set(payload, { merge:true });
+    }catch(err){ console.warn('patchInboxRowStatus task failed', err); }
+  }
+  function upsertCustomerFromProposal(row){
+    ensureStateShape();
+    const payload = row.payloadSubmitted || row.payload || {};
+    const src = payload.customer || row.customer || {};
+    let customer = findExistingCustomerForInboxRow(row, src);
+    if(!customer){
+      customer = { id: uid(), customerId: uid() };
+      state.customers.push(customer);
+    }
+    const cid = norm(customer.id || customer.customerId) || uid();
+    customer.id = cid;
+    customer.customerId = cid;
+    const map = {
+      name: src.name || row.customerName,
+      email: src.email || row.customerEmail,
+      phone: src.phone || src.mobile || src.tel,
+      mobile: src.mobile || src.phone || src.tel,
+      tel: src.tel || src.phone || src.mobile,
+      street: src.street,
+      zip: src.zip,
+      city: src.city,
+      emergencyContact: src.emergencyContact,
+      emergencyPhone: src.emergencyPhone,
+      note: src.note
+    };
+    Object.keys(map).forEach(k=>{ const v = map[k]; if(v != null && String(v).trim() !== '') customer[k] = v; });
+    return customer;
+  }
+  function upsertPetFromProposal(row, customer){
+    ensureStateShape();
+    const payload = row.payloadSubmitted || row.payload || {};
+    const src = payload.pet || row.pet || {};
+    let pet = findExistingPetForInboxRow(customer, src);
+    if(!pet){
+      pet = { id: uid() };
+      state.pets.push(pet);
+    }
+    const cid = norm(customer && (customer.id || customer.customerId));
+    pet.id = norm(pet.id) || uid();
+    pet.customerId = cid;
+    const map = {
+      name: src.name,
+      breed: src.breed,
+      birthDate: src.birthDate || src.birthdate,
+      birthdate: src.birthdate || src.birthDate,
+      sex: src.sex,
+      chipNumber: src.chipNumber,
+      vet: src.vet,
+      vetPhone: src.vetPhone,
+      allergies: src.allergies,
+      medicalConditions: src.medicalConditions,
+      feeding: src.feeding || src.food,
+      food: src.food || src.feeding,
+      behavior: src.behavior,
+      note: src.note
+    };
+    Object.keys(map).forEach(k=>{ const v = map[k]; if(v != null && String(v).trim() !== '') pet[k] = v; });
+    try{ if(typeof upsertLegacyDogForPet === 'function') upsertLegacyDogForPet(pet, customer); }catch(_){ }
+    return pet;
+  }
+  window.__dsInboxRejectCurrent = async function(){
+    const row = window.__dsInboxCurrentTask;
+    if(!row) return false;
+    try{ await patchInboxRowStatus(row, 'rejected'); }catch(_){ }
+    removeInboxRowEverywhere(row);
+    const detail = document.getElementById('inboxDetail');
+    const listEl = document.getElementById('inboxList');
+    if(detail) detail.style.display = 'none';
+    if(listEl) listEl.style.display = '';
+    await refreshInboxHard('reject-current');
+    return false;
+  };
+  window.__dsInboxAdoptCurrent = async function(){
+    const row = window.__dsInboxCurrentTask;
+    if(!row) return false;
+    try{
+      const customer = upsertCustomerFromProposal(row);
+      upsertPetFromProposal(row, customer);
+      try{ if(typeof saveState === 'function') saveState(); }catch(_){ }
+      try{ await patchInboxRowStatus(row, 'adopted'); }catch(_){ }
+      removeInboxRowEverywhere(row);
+      const detail = document.getElementById('inboxDetail');
+      const listEl = document.getElementById('inboxList');
+      if(detail) detail.style.display = 'none';
+      if(listEl) listEl.style.display = '';
+      try{ if(typeof renderDogs === 'function') renderDogs(); }catch(_){ }
+      await refreshInboxHard('adopt-current');
+    }catch(err){
+      console.error('Inbox adopt failed', err);
+      try{ ensureInboxDiag({ phase:'adopt-error', error:String((err && err.message) || err || 'adopt-failed') }); }catch(_){ }
+      try{ alert('Übernehmen fehlgeschlagen: ' + String((err && err.message) || err || 'Unbekannter Fehler')); }catch(_){ }
+    }
+    return false;
+  };
   function bindDetailButtons(){
     const btnBack = document.getElementById('btnInboxBack');
     const btnClose = document.getElementById('btnInboxClose');
