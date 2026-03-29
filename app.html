@@ -6,13 +6,13 @@
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
 <meta charset="utf-8"/>
-  <meta name="app-build" content="M50.9.9GB47_CACHEALIGN_EINGAENGE_20260329">
+  <meta name="app-build" content="M50.9.9GB48_EINGAENGE_DIRECTREAD_20260329">
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <title>Doggy Style Workspace · App</title>
 <link href="manifest.json" rel="manifest"/>
 <meta content="#101014" name="theme-color"/>
 <link href="assets/logo.png" rel="apple-touch-icon"/>
-<link href="styles.css?v=M50.9.9GB47_CACHEALIGN_EINGAENGE_20260329" rel="stylesheet"/>
+<link href="styles.css?v=M50.9.9GB48_EINGAENGE_DIRECTREAD_20260329" rel="stylesheet"/>
 <link href="dashboard_master.css?v=20260104v13logout" rel="stylesheet"/>
 <style>
   /* Topbar Layout (iPad & Desktop stabil) */
@@ -102,7 +102,7 @@
   .doc-modal__actions{ margin-left:auto; display:flex; flex-wrap: wrap; gap: 8px; }
   .doc-modal__frame{ width: 100%; border: 0; border-radius: 12px; background: #fff; flex:1; min-height: 0; }
 </style>
-  <meta name="app-version" content="M50.9.9GB47_CACHEALIGN_EINGAENGE_20260329">
+  <meta name="app-version" content="M50.9.9GB48_EINGAENGE_DIRECTREAD_20260329">
   <meta name="release-channel" content="MASTER">
 </head>
 <body class="bg-watermark page-app">
@@ -1194,7 +1194,7 @@
 </section>
 
 <section class="panel" id="statistics">
-<!-- Statistics panel is rendered by app.js?v=M50.9.9GB47_CACHEALIGN_EINGAENGE_20260329 (renderStatisticsPanel) -->
+<!-- Statistics panel is rendered by app.js?v=M50.9.9GB48_EINGAENGE_DIRECTREAD_20260329 (renderStatisticsPanel) -->
 </section>
 
 
@@ -1261,12 +1261,12 @@
 </footer>
 </div>
 <!-- Firebase (optional) + Config -->
-<script defer="defer" src="firebase-config.js?v=M50.9.9GB47_CACHEALIGN_EINGAENGE_20260329"></script>
+<script defer="defer" src="firebase-config.js?v=M50.9.9GB48_EINGAENGE_DIRECTREAD_20260329"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
-<script defer="defer" src="app.js?v=M50.9.9GB47_CACHEALIGN_EINGAENGE_20260329"></script>
+<script defer="defer" src="app.js?v=M50.9.9GB48_EINGAENGE_DIRECTREAD_20260329"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1309,7 +1309,7 @@
 </script>
 
 <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB47_CACHEALIGN_EINGAENGE_20260329');
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB48_EINGAENGE_DIRECTREAD_20260329');
   </script>
 
 <script>
@@ -1373,7 +1373,7 @@
   <!-- Bottom logout button removed (duplicate of header logout; also overlaps editor on iPad) -->
 </div>
 <!-- test-badge removed (requested) -->
-  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB47_CACHEALIGN_EINGAENGE_20260329</div>
+  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB48_EINGAENGE_DIRECTREAD_20260329</div>
 
 <script>
 (function visibleMailFallback(){
@@ -1797,6 +1797,8 @@
   async function collectFallbackRows(){
     var rows = [];
     var seen = {};
+    var diagParts = [];
+    function addDiag(txt){ try{ if(txt) diagParts.push(String(txt)); }catch(_){} }
     function push(x){
       if(!x || typeof x !== 'object') return;
       var pstatus = String((x && x.proposalStatus) || '').toLowerCase();
@@ -1810,20 +1812,80 @@
     }
     try{
       var st = window.state || {};
-      (Array.isArray(st.inboxAssignments) ? st.inboxAssignments : []).forEach(push);
-      (Array.isArray(st.inboxSubmissions) ? st.inboxSubmissions : []).forEach(push);
+      var a1 = Array.isArray(st.inboxAssignments) ? st.inboxAssignments : [];
+      var a2 = Array.isArray(st.inboxSubmissions) ? st.inboxSubmissions : [];
+      a1.forEach(push); a2.forEach(push);
+      addDiag('state=' + (a1.length + a2.length));
     }catch(_){ }
     try{
       var raw = localStorage.getItem(window.LS_KEY || 'doggystyle_workspace_state_v1');
       var data = raw ? JSON.parse(raw) : {};
-      (Array.isArray(data.inboxAssignments) ? data.inboxAssignments : []).forEach(push);
-      (Array.isArray(data.inboxSubmissions) ? data.inboxSubmissions : []).forEach(push);
+      var l1 = Array.isArray(data.inboxAssignments) ? data.inboxAssignments : [];
+      var l2 = Array.isArray(data.inboxSubmissions) ? data.inboxSubmissions : [];
+      l1.forEach(push); l2.forEach(push);
+      addDiag('local=' + (l1.length + l2.length));
     }catch(_){ }
     try{
       if(typeof window.loadCustomerProposalBuffer === 'function'){
-        (window.loadCustomerProposalBuffer() || []).forEach(push);
+        var buf = (window.loadCustomerProposalBuffer() || []);
+        buf.forEach(push);
+        addDiag('buffer=' + buf.length);
       }
     }catch(_){ }
+    try{
+      var directRaw = localStorage.getItem('ds_customer_proposals_v1');
+      var directBuf = directRaw ? JSON.parse(directRaw) : [];
+      if(Array.isArray(directBuf)){
+        directBuf.forEach(push);
+        addDiag('bufferDirect=' + directBuf.length);
+      }
+    }catch(_){ }
+    try{
+      var orgId = String((window.CLOUD && window.CLOUD.orgId) || window.CLOUD_ORG_ID || window.firebaseOrgId || (window.firebaseConfig && window.firebaseConfig.orgId) || localStorage.getItem('ds_orgId') || 'doggystyle');
+      var db = null;
+      try{ db = window.CLOUD && window.CLOUD.db ? window.CLOUD.db : null; }catch(_){ }
+      try{ if(!db && window.firebase && typeof window.firebase.firestore === 'function') db = window.firebase.firestore(); }catch(_){ }
+      if(db && typeof db.collection === 'function'){
+        async function readCloud(name){
+          var col = db.collection('orgs').doc(orgId).collection(name);
+          var snap = null;
+          var count = 0;
+          var attempts = [
+            function(){ return col.where('proposalStatus','==','pending').limit(100).get(); },
+            function(){ return col.where('status','==','submitted').limit(100).get(); },
+            function(){ return col.orderBy('submittedAt','desc').limit(100).get(); },
+            function(){ return col.limit(100).get(); }
+          ];
+          var lastErr = null;
+          for(var i=0;i<attempts.length;i++){
+            try{ snap = await attempts[i](); if(snap && typeof snap.forEach === 'function') break; }catch(err){ lastErr = err; snap = null; }
+          }
+          if(snap && typeof snap.forEach === 'function'){
+            snap.forEach(function(d){ count++; push(Object.assign({ id:d.id }, (typeof d.data === 'function' ? d.data() : {}))); });
+            addDiag(name + '=' + count);
+          }else if(lastErr){
+            addDiag(name + '-err=' + String((lastErr && lastErr.message) || lastErr || 'error'));
+          }
+        }
+        await readCloud('tasks');
+        await readCloud('proposals');
+      } else {
+        addDiag('db=none');
+      }
+      try{
+        var diagEl = document.getElementById('inboxDiag');
+        if(diagEl){
+          var mail = String((window.CLOUD && window.CLOUD.user && window.CLOUD.user.email) || (window.CLOUD && window.CLOUD.auth && window.CLOUD.auth.currentUser && window.CLOUD.auth.currentUser.email) || '');
+          diagEl.textContent = (rows.length ? 'Quellen · ' : 'Keine Eingänge gefunden · ') + diagParts.join(' · ') + (orgId ? ' · org=' + orgId : '') + (mail ? ' · user=' + mail : '');
+          diagEl.style.color = rows.length ? '' : '#ffb3b3';
+        }
+      }catch(_){ }
+    }catch(err){
+      try{
+        var diagEl2 = document.getElementById('inboxDiag');
+        if(diagEl2){ diagEl2.textContent = 'Keine Eingänge gefunden · fallback-cloud-error=' + String((err && err.message) || err || 'unbekannt'); diagEl2.style.color = '#ffb3b3'; }
+      }catch(_){ }
+    }
     rows.sort(function(a,b){ return Number((b&&b.submittedAt)||0) - Number((a&&a.submittedAt)||0); });
     return rows;
   }
@@ -1834,8 +1896,9 @@
     var runner = isProposal ? (window.__dsInboxProposalButtonHard || window.__dsInboxProposalDebugLoad || window.__dsInboxAutoLoadProposals || window.__dsInboxForceRefresh || window.__dsInboxReload) : (window.__dsInboxRefreshButtonHard || window.__dsInboxForceRefresh || window.__dsInboxReload || window.__dsInboxAutoLoadProposals);
     if(typeof runner === 'function'){
       try{
-        await runner();
-        return false;
+        var result = await runner();
+        var count = Array.isArray(result) ? result.length : Number(window.__dsInboxLastCount || 0);
+        if(count > 0) return false;
       }catch(err){
         setMsg(isProposal ? 'inboxProposalMsg' : 'assignMsg', (isProposal ? 'Vorschläge laden fehlgeschlagen: ' : 'Aktualisieren fehlgeschlagen: ') + String((err && err.message) || err || 'Unbekannter Fehler'), true);
       }
