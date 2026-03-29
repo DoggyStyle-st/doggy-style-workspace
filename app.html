@@ -1798,6 +1798,10 @@
     var seen = {};
     function push(x){
       if(!x || typeof x !== 'object') return;
+      var pstatus = String((x && x.proposalStatus) || '').toLowerCase();
+      var status = String((x && x.status) || '').toLowerCase();
+      if(pstatus === 'rejected' || pstatus === 'adopted' || status === 'closed') return;
+      if(isProposalRowHidden(x)) return;
       var key = String(x.id || x.taskId || x.proposalId || x.submissionId || JSON.stringify([x.customerEmail,x.customerName,x.templateId,x.submittedAt]));
       if(seen[key]) return;
       seen[key] = true;
@@ -1846,33 +1850,55 @@
       var payload = row.payloadSubmitted || row.payload || row.payloadDraft || row;
       var customer = payload && payload.customer ? payload.customer : null;
       var pet = payload && payload.pet ? payload.pet : null;
-      var html = '';
-      function card(title, entries){
-        var body = (entries || []).filter(function(pair){ return pair && String(pair[1] == null ? '' : pair[1]).trim() !== ''; }).map(function(pair){
-          return '<label class="field"><span>' + escHtml(pair[0]) + '</span><input type="text" value="' + escHtml(pair[1]) + '" readonly></label>';
+      var st = window.state || {};
+      var existingCustomer = findExistingCustomerForProposal(st, row, customer || {});
+      var existingPet = findExistingPetForProposal(st, existingCustomer, pet || {});
+      function diffEntries(entries, base){
+        return (entries || []).filter(function(pair){
+          if(!pair) return false;
+          var label = pair[0], key = pair[1], val = pair[2];
+          var sval = String(val == null ? '' : val).trim();
+          if(!sval) return false;
+          var oldVal = String(base && base[key] != null ? base[key] : '').trim();
+          return sval !== oldVal;
+        });
+      }
+      function card(title, entries, base){
+        var changed = diffEntries(entries, base);
+        var use = changed.length ? changed : (entries || []).filter(function(pair){ return String(pair && pair[2] == null ? '' : pair[2]).trim() !== ''; });
+        var body = use.map(function(pair){
+          var label = pair[0], key = pair[1], val = pair[2];
+          var sval = String(val == null ? '' : val);
+          var oldVal = String(base && base[key] != null ? base[key] : '').trim();
+          var changedMark = (String(sval).trim() !== oldVal && oldVal) ? '<div class="muted" style="margin-top:4px">Bisher: ' + escHtml(oldVal) + '</div>' : '';
+          return '<label class="field"><span>' + escHtml(label) + (String(sval).trim() !== oldVal ? ' <strong style="color:#d9b36a">(neu)</strong>' : '') + '</span><div class="sync-box" style="padding:10px 12px">' + escHtml(sval) + changedMark + '</div></label>';
         }).join('');
         if(!body) return '';
         return '<div class="card"><h2 style="margin-top:0">' + escHtml(title) + '</h2><div class="grid cols-2">' + body + '</div></div>';
       }
-      if(customer || pet){
-        html += card('Kunde', [
-          ['Name', customer && customer.name], ['E-Mail', customer && customer.email], ['Telefon', customer && customer.phone],
-          ['Straße', customer && customer.street], ['PLZ', customer && customer.zip], ['Ort', customer && customer.city], ['Notiz', customer && customer.note]
-        ]);
-        html += card('Hund', [
-          ['Name', pet && pet.name], ['Rasse', pet && pet.breed], ['Geschlecht', pet && pet.sex], ['Geburtsdatum', pet && (pet.birthdate || pet.birthDate)],
-          ['Chipnummer', pet && pet.chipNumber], ['Tierarzt', pet && pet.vet], ['Tierarzt Telefon', pet && pet.vetPhone], ['Allergien', pet && pet.allergies],
-          ['Vorerkrankungen', pet && pet.medicalConditions], ['Fütterung', pet && (pet.feeding || pet.food)], ['Verhalten', pet && pet.behavior], ['Notiz', pet && pet.note]
-        ]);
-      }
+      var customerEntries = customer ? [
+          ['Name','name', customer.name], ['E-Mail','email', customer.email], ['Telefon','phone', customer.phone],
+          ['Straße','street', customer.street], ['PLZ','zip', customer.zip], ['Ort','city', customer.city], ['Notiz','note', customer.note]
+      ] : [];
+      var petEntries = pet ? [
+          ['Name','name', pet.name], ['Rasse','breed', pet.breed], ['Geschlecht','sex', pet.sex], ['Geburtsdatum','birthdate', (pet.birthdate || pet.birthDate)],
+          ['Chipnummer','chipNumber', pet.chipNumber], ['Tierarzt','vet', pet.vet], ['Tierarzt Telefon','vetPhone', pet.vetPhone], ['Allergien','allergies', pet.allergies],
+          ['Vorerkrankungen','medicalConditions', pet.medicalConditions], ['Fütterung','feeding', (pet.feeding || pet.food)], ['Verhalten','behavior', pet.behavior], ['Notiz','note', pet.note]
+      ] : [];
+      var html = '';
+      html += card('Kunde', customerEntries, existingCustomer || {});
+      html += card('Hund', petEntries, existingPet || {});
       if(!html){
         var pretty = '';
         try{ pretty = JSON.stringify(payload, null, 2); }catch(_){ pretty = String(payload || ''); }
         html = '<div class="sync-box" style="padding:12px; white-space:pre-wrap; word-break:break-word;">' + escHtml(pretty) + '</div>';
       }
       formEl.innerHTML = html;
-    }catch(_){ }
+    }catch(err){
+      try{ formEl.innerHTML = '<div class="sync-box" style="padding:12px">Detailansicht fehlgeschlagen: ' + escHtml(String((err && err.message) || err || 'Unbekannter Fehler')) + '</div>'; }catch(_){ }
+    }
   }
+
   function pruneFallbackRow(row, status){
     try{
       var key = String((row && (row.id || row.taskId || row.proposalId || row.submissionId)) || '').trim();
@@ -1895,15 +1921,17 @@
     var lastErr = null;
     try{
       var isProposal = /proposal/i.test(String(row.__source || row.source || row.mode || '')) && typeof cloudProposalsCol === 'function';
-      if(isProposal && row.id){
+      if(isProposal){
         var pcol = cloudProposalsCol();
-        if(pcol){ await pcol.doc(String(row.id)).set(patch, { merge:true }); return true; }
+        var pid = String(row.id || row.proposalId || row.submissionId || '').trim();
+        if(pcol && pid){ await pcol.doc(pid).set(patch, { merge:true }); return true; }
       }
     }catch(err){ lastErr = err; }
     try{
-      if(typeof cloudTasksCol === 'function' && row.id){
+      if(typeof cloudTasksCol === 'function'){
         var tcol = cloudTasksCol();
-        if(tcol){ await tcol.doc(String(row.id)).set(patch, { merge:true }); return true; }
+        var tid = String(row.id || row.taskId || row.proposalId || row.submissionId || '').trim();
+        if(tcol && tid){ await tcol.doc(tid).set(patch, { merge:true }); return true; }
       }
     }catch(err2){ lastErr = err2; }
     if(lastErr) throw lastErr;
@@ -1925,10 +1953,7 @@
     try{
       if(typeof window.saveCustomerProposalBuffer === 'function' && typeof window.loadCustomerProposalBuffer === 'function'){
         var list = window.loadCustomerProposalBuffer() || [];
-        list = filterOutRow(list, row).map(function(item){
-          if(rowSameAs(item,row)) item.proposalStatus = status || 'closed';
-          return item;
-        });
+        list = filterOutRow(list, row);
         window.saveCustomerProposalBuffer(list);
       }
     }catch(_){ }
@@ -1990,8 +2015,10 @@
         if(metaEl){ metaEl.textContent = 'Vorschlag wird abgelehnt …'; metaEl.style.color = ''; }
         var patch = { status:'closed', proposalStatus:'rejected', closedAt: Date.now(), rejectedAt: Date.now(), updatedAt: Date.now() };
         try{ await patchRemoteProposalStatus(row, patch); }catch(_){ }
+        hideProposalRow(row);
         pruneFallbackRow(row, 'rejected');
         renderNow();
+        try{ alert('Vorschlag abgelehnt.'); }catch(_){ }
       }catch(_){ }
     }
     if(detail) detail.style.display = 'none';
@@ -2001,7 +2028,6 @@
       renderRows('inboxList', (window.__dsInboxFallbackRows && window.__dsInboxFallbackRows.inboxList) || [], 'keine Eingänge');
       renderRows('inboxProposalList', (window.__dsInboxFallbackRows && window.__dsInboxFallbackRows.inboxProposalList) || [], 'keine Vorschläge gefunden');
     }catch(_){ }
-    try{ if(typeof window.__dsInboxForceRefresh === 'function') await window.__dsInboxForceRefresh(); }catch(_){ }
     return false;
   }
   async function adoptFallbackRow(){
@@ -2066,6 +2092,10 @@
       }
 
       try{ if(typeof saveState === 'function') saveState(); }catch(_){ }
+      try{
+        var lsKey2 = window.LS_KEY || 'ds_workspace_test_optik_01';
+        localStorage.setItem(lsKey2, JSON.stringify(st));
+      }catch(_){ }
       try{ if(typeof syncDogSelect === 'function') syncDogSelect(); }catch(_){ }
       try{ if(typeof renderDogs === 'function') renderDogs(); }catch(_){ }
       try{ if(typeof fillCustomerFieldsOnly === 'function' && customerObj.id) fillCustomerFieldsOnly(customerObj.id); }catch(_){ }
@@ -2074,6 +2104,7 @@
       try{
         var patch = { status:'closed', proposalStatus:'adopted', adoptedAt: Date.now(), updatedAt: Date.now() };
         try{ await patchRemoteProposalStatus(row, patch); }catch(_){ }
+        hideProposalRow(row);
         pruneFallbackRow(row, 'adopted');
         renderNow();
       }catch(_){ }
