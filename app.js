@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB43_EINGAENGE_SIMPLIFY_20260329",
+  tag: "M50.9.9GB44_EINGAENGE_RECOVERY_20260329",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB43_EINGAENGE_SIMPLIFY_20260329";
+const APP_BUILD = "M50.9.9GB44_EINGAENGE_RECOVERY_20260329";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -18045,7 +18045,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB43_EINGAENGE_SIMPLIFY_20260329) ===== */
+/* ===== CHAT (M50.9.9GB44_EINGAENGE_RECOVERY_20260329) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -19625,7 +19625,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB43_EINGAENGE_SIMPLIFY_20260329";
+  const BUILD = "M50.9.9GB44_EINGAENGE_RECOVERY_20260329";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -19731,25 +19731,38 @@ try{
       if(status && ['rejected','adopted','closed','done','completed','accepted'].includes(status)) return;
       rows.push(n);
     };
+    const readSnap = async (col, modes, source, decorate)=>{
+      if(!col || typeof col.limit !== 'function') return;
+      let snap = null;
+      for(const mode of modes){
+        try{
+          if(mode.type === 'where2') snap = await col.where(mode.field1, mode.op1, mode.value1).where(mode.field2, mode.op2, mode.value2).limit(100).get();
+          else if(mode.type === 'where') snap = await col.where(mode.field, mode.op, mode.value).limit(100).get();
+          else if(mode.type === 'order') snap = await col.orderBy(mode.field, mode.dir || 'desc').limit(100).get();
+          else snap = await col.limit(100).get();
+          if(snap && typeof snap.forEach === 'function') break;
+        }catch(_){ snap = null; }
+      }
+      if(snap && typeof snap.forEach === 'function') snap.forEach(d=>push(decorate(d), source));
+    };
     try{
       const tcol = typeof cloudTasksCol === 'function' ? cloudTasksCol() : null;
-      if(tcol && typeof tcol.limit === 'function'){
-        let snap = null;
-        try{ snap = await tcol.where('proposalStatus','==','pending').limit(100).get(); }catch(_){ }
-        if(!snap){ try{ snap = await tcol.where('status','==','submitted').limit(100).get(); }catch(_){ } }
-        if(!snap){ try{ snap = await tcol.limit(100).get(); }catch(_){ } }
-        if(snap && typeof snap.forEach === 'function') snap.forEach(d=>push({ id:d.id, taskId:d.id, ...d.data() }, 'cloud-tasks'));
-      }
-    }catch(err){ console.warn('GB31 tasks load failed', err); }
+      await readSnap(tcol, [
+        {type:'where', field:'proposalStatus', op:'==', value:'pending'},
+        {type:'where', field:'status', op:'==', value:'submitted'},
+        {type:'order', field:'submittedAt', dir:'desc'},
+        {type:'all'}
+      ], 'cloud-tasks', d=>({ id:d.id, taskId:d.id, ...d.data() }));
+    }catch(err){ console.warn('GB44 tasks load failed', err); }
     try{
       const pcol = typeof cloudProposalsCol === 'function' ? cloudProposalsCol() : null;
-      if(pcol && typeof pcol.limit === 'function'){
-        let snap = null;
-        try{ snap = await pcol.where('proposalStatus','==','pending').limit(100).get(); }catch(_){ }
-        if(!snap){ try{ snap = await pcol.limit(100).get(); }catch(_){ } }
-        if(snap && typeof snap.forEach === 'function') snap.forEach(d=>push({ id:d.id, proposalId:d.id, ...d.data() }, 'cloud-proposals'));
-      }
-    }catch(err){ console.warn('GB31 proposals load failed', err); }
+      await readSnap(pcol, [
+        {type:'where', field:'proposalStatus', op:'==', value:'pending'},
+        {type:'where', field:'status', op:'==', value:'submitted'},
+        {type:'order', field:'submittedAt', dir:'desc'},
+        {type:'all'}
+      ], 'cloud-proposals', d=>({ id:d.id, proposalId:d.id, ...d.data() }));
+    }catch(err){ console.warn('GB44 proposals load failed', err); }
     try{ asArray(state && state.inboxAssignments).forEach(x=>push(x,'state-inboxAssignments')); }catch(_){ }
     try{ asArray(state && state.inboxSubmissions).forEach(x=>push(x,'state-inboxSubmissions')); }catch(_){ }
     try{ asArray(typeof loadCustomerProposalBuffer === 'function' ? loadCustomerProposalBuffer() : []).forEach(x=>push(x,'proposal-buffer')); }catch(_){ }
@@ -19758,9 +19771,15 @@ try{
       const data = raw ? JSON.parse(raw) : {};
       asArray(data.inboxAssignments).forEach(x=>push(x,'local-inboxAssignments'));
       asArray(data.inboxSubmissions).forEach(x=>push(x,'local-inboxSubmissions'));
+      asArray(data.customerProposals).forEach(x=>push(x,'local-customerProposals'));
+    }catch(_){ }
+    try{
+      const raw2 = localStorage.getItem(typeof CUSTOMER_PROPOSALS_KEY !== 'undefined' ? CUSTOMER_PROPOSALS_KEY : 'ds_customer_proposals_v1');
+      const data2 = raw2 ? JSON.parse(raw2) : [];
+      asArray(data2).forEach(x=>push(x,'proposal-buffer-direct'));
     }catch(_){ }
     const deduped = dedupeRows(rows);
-    try{ window.__dsInboxLastTasks = deduped.slice(); window.__dsInboxLastCount = deduped.length; window.__dsInboxLoadedProposals = deduped.slice(); }catch(_){ }
+    try{ window.__dsInboxLastTasks = deduped.slice(); window.__dsInboxLastCount = deduped.length; window.__dsInboxLoadedProposals = deduped.slice(); window.__dsCollectInboxRows = collectInboxRows; }catch(_){ }
     return deduped;
   }
   function renderProposalList(rows){
