@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB30_SYNC_DOT_HARDGUARD_20260329",
+  tag: "M50.9.9GB31_EINGAENGE_HARDGUARD_20260329",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB30_SYNC_DOT_HARDGUARD_20260329";
+const APP_BUILD = "M50.9.9GB31_EINGAENGE_HARDGUARD_20260329";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -18044,7 +18044,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB30_SYNC_DOT_HARDGUARD_20260329) ===== */
+/* ===== CHAT (M50.9.9GB31_EINGAENGE_HARDGUARD_20260329) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -19619,4 +19619,374 @@ try{
     ev.preventDefault(); ev.stopPropagation(); setTimeout(kick, 10);
   }, true);
   setTimeout(kick, 800);
+})();
+
+
+/* ===== GB31 EINGÄNGE HARDGUARD ===== */
+(function(){
+  const BUILD = "M50.9.9GB31_EINGAENGE_HARDGUARD_20260329";
+  const norm = v => String(v == null ? '' : v).trim();
+  const lower = v => norm(v).toLowerCase();
+  const asArray = v => Array.isArray(v) ? v : [];
+  const safeNum = v => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+  };
+  const setText = (id, txt, isErr=false)=>{
+    try{
+      const el = document.getElementById(id);
+      if(!el) return;
+      el.textContent = txt || '';
+      el.style.color = isErr ? '#ffb3b3' : '';
+    }catch(_){ }
+  };
+  const escapeSafe = (v)=>{
+    try{ return typeof escapeHtml === 'function' ? escapeHtml(v == null ? '' : String(v)) : String(v == null ? '' : v); }catch(_){ return String(v == null ? '' : v); }
+  };
+  const fmtSafe = (v)=>{
+    try{ return typeof fmtDT === 'function' ? fmtDT(v) : new Date(Number(v||Date.now())).toLocaleString('de-DE'); }catch(_){ return ''; }
+  };
+  const ensureInboxDiag = (extra={})=>{
+    try{
+      window.__dsInboxGb31Diag = Object.assign({}, window.__dsInboxGb31Diag || {}, extra || {});
+      const d = window.__dsInboxGb31Diag || {};
+      const parts = [
+        'build=' + BUILD,
+        'phase=' + norm(d.phase || '-'),
+        'rows=' + norm(d.rows || 0),
+        'customers=' + norm(d.customers || 0),
+        'templates=' + norm(d.templates || 0),
+        'source=' + norm(d.source || '-')
+      ];
+      if(d.error) parts.push('error=' + norm(d.error));
+      const diagEl = document.getElementById('assignDiag');
+      if(diagEl){
+        diagEl.textContent = 'Diagnose: ' + parts.join(' · ');
+        diagEl.style.color = d.error ? '#ffb3b3' : '';
+      }
+    }catch(_){ }
+  };
+  const normalizeTemplate = (row)=>{
+    const raw = lower(row && (row.templateId || row.taskId || row.proposalType || row.kind || row.formKey));
+    if(raw === 'customer-main-dogs' || raw === 'customer_data' || raw === 'dogs' || raw === 'kunde_hund' || raw === 'kundehund') return { id:'customer_data', label:'Kundendaten ergänzen' };
+    if(raw === 'boarding_contract' || raw === 'contract' || raw === 'betreuungsvertrag') return { id:'boarding_contract', label:'Betreuungsvertrag' };
+    if(raw === 'stay_request' || raw === 'stay' || raw === 'aufenthalt' || raw === 'new_stay' || raw === 'hundeannahme') return { id:'hundeannahme', label:'Aufenthalt anfragen' };
+    if(raw) return { id: raw, label: norm(row && (row.title || row.templateName || raw)) || raw };
+    return { id:'customer_data', label:'Kundendaten ergänzen' };
+  };
+  const pullPayload = (row)=> row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
+  const normalizeRow = (row, source)=>{
+    if(!row || typeof row !== 'object') return null;
+    const payload = pullPayload(row);
+    const customer = payload.customer || row.customer || {};
+    const pet = payload.pet || row.pet || {};
+    const template = normalizeTemplate(row);
+    const customerEmail = lower(row.customerEmail || row.email || customer.email || payload.email);
+    const customerUid = norm(row.customerUid || row.portalUid || row.uid || customer.portalUid || customer.uid);
+    const customerName = norm(row.customerName || row.name || customer.name || customer.displayName || [customer.firstName, customer.lastName].filter(Boolean).join(' ') || customerEmail || customerUid || 'Kunde');
+    const customerId = norm(row.customerId || customer.customerId || customer.id || customerUid || customerEmail || customerName || row.id);
+    const rowId = norm(row.id || row.taskId || row.proposalId || row.submissionId);
+    const status = lower(row.status || row.proposalStatus || 'pending');
+    const submittedAt = safeNum(row.submittedAt || row.createdAt || payload.submittedAt || Date.now());
+    const title = norm(row.title || row.templateName || template.label || 'Eingang');
+    return {
+      ...row,
+      __source: source || row.__source || 'unknown',
+      __rowId: rowId || ('row_' + submittedAt + '_' + Math.random().toString(36).slice(2,8)),
+      __customerKey: customerId || customerUid || customerEmail || customerName,
+      __template: template,
+      templateId: template.id,
+      title,
+      customerId,
+      customerUid,
+      customerEmail,
+      customerName,
+      status,
+      submittedAt,
+      payloadSubmitted: row.payloadSubmitted || payload,
+      payloadDraft: row.payloadDraft || row.payload || null,
+      payload,
+      customer,
+      pet
+    };
+  };
+  const dedupeRows = (rows)=>{
+    const map = new Map();
+    rows.forEach(r=>{
+      if(!r) return;
+      const key = lower(r.__rowId || r.id || r.taskId || '') || lower([r.customerEmail, r.customerUid, r.templateId, r.submittedAt].join('|'));
+      if(!key) return;
+      const prev = map.get(key);
+      if(!prev || safeNum(r.submittedAt) >= safeNum(prev.submittedAt)) map.set(key, r);
+    });
+    return Array.from(map.values()).sort((a,b)=>safeNum(b.submittedAt)-safeNum(a.submittedAt));
+  };
+  async function collectInboxRows(){
+    const rows = [];
+    const push = (obj, source)=>{
+      const n = normalizeRow(obj, source);
+      if(!n) return;
+      const status = lower(n.status);
+      if(status && !['pending','submitted','open'].includes(status) && lower(n.proposalStatus) !== 'pending') return;
+      rows.push(n);
+    };
+    try{
+      const tcol = typeof cloudTasksCol === 'function' ? cloudTasksCol() : null;
+      if(tcol && typeof tcol.limit === 'function'){
+        let snap = null;
+        try{ snap = await tcol.where('proposalStatus','==','pending').limit(100).get(); }catch(_){ }
+        if(snap && typeof snap.forEach === 'function') snap.forEach(d=>push({ id:d.id, taskId:d.id, ...d.data() }, 'cloud-tasks-pending'));
+        let snap2 = null;
+        try{ snap2 = await tcol.where('status','==','submitted').limit(100).get(); }catch(_){ }
+        if(snap2 && typeof snap2.forEach === 'function') snap2.forEach(d=>push({ id:d.id, taskId:d.id, ...d.data() }, 'cloud-tasks-submitted'));
+      }
+    }catch(err){ console.warn('GB31 tasks load failed', err); }
+    try{
+      const pcol = typeof cloudProposalsCol === 'function' ? cloudProposalsCol() : null;
+      if(pcol && typeof pcol.limit === 'function'){
+        let snap = null;
+        try{ snap = await pcol.where('proposalStatus','==','pending').limit(100).get(); }catch(_){ }
+        if(!snap){ try{ snap = await pcol.limit(100).get(); }catch(_){ } }
+        if(snap && typeof snap.forEach === 'function') snap.forEach(d=>push({ id:d.id, proposalId:d.id, ...d.data() }, 'cloud-proposals'));
+      }
+    }catch(err){ console.warn('GB31 proposals load failed', err); }
+    try{ asArray(state && state.inboxAssignments).forEach(x=>push(x,'state-inboxAssignments')); }catch(_){ }
+    try{ asArray(state && state.inboxSubmissions).forEach(x=>push(x,'state-inboxSubmissions')); }catch(_){ }
+    try{ asArray(typeof loadCustomerProposalBuffer === 'function' ? loadCustomerProposalBuffer() : []).forEach(x=>push(x,'proposal-buffer')); }catch(_){ }
+    try{
+      const raw = localStorage.getItem(typeof LS_KEY !== 'undefined' ? LS_KEY : 'doggystyle_workspace_state_v1');
+      const data = raw ? JSON.parse(raw) : {};
+      asArray(data.inboxAssignments).forEach(x=>push(x,'local-inboxAssignments'));
+      asArray(data.inboxSubmissions).forEach(x=>push(x,'local-inboxSubmissions'));
+    }catch(_){ }
+    const deduped = dedupeRows(rows);
+    try{ window.__dsInboxLastTasks = deduped.slice(); window.__dsInboxLastCount = deduped.length; window.__dsInboxLoadedProposals = deduped.slice(); }catch(_){ }
+    return deduped;
+  }
+  function renderProposalList(rows){
+    const listEl = document.getElementById('inboxProposalList');
+    if(!listEl) return;
+    if(!rows.length){ listEl.innerHTML = '<div class="muted">— keine Kundenvorschläge —</div>'; return; }
+    listEl.innerHTML = rows.map(r=>{
+      const when = r.submittedAt ? fmtSafe(r.submittedAt) : '';
+      return '<div class="list-item"><div><strong>' + escapeSafe(r.__template.label || r.title || 'Eingang') + '</strong><small>' + escapeSafe(r.customerName || 'Kunde') + (r.customerEmail ? ' · ' + escapeSafe(r.customerEmail) : '') + (when ? ' · ' + escapeSafe(when) : '') + '</small></div></div>';
+    }).join('');
+  }
+  function renderInboxList(rows){
+    const listEl = document.getElementById('inboxList');
+    if(!listEl) return;
+    listEl.innerHTML = '';
+    if(!rows.length){ listEl.innerHTML = '<div class="muted">— keine Eingänge —</div>'; return; }
+    rows.forEach(r=>{
+      const row = document.createElement('div');
+      row.className = 'list-item';
+      const when = r.submittedAt ? fmtSafe(r.submittedAt) : '';
+      row.innerHTML = '<div><strong>' + escapeSafe(r.title || r.__template.label || 'Eingang') + '</strong><small>' + escapeSafe(r.customerName || 'Kunde') + (r.customerEmail ? ' · ' + escapeSafe(r.customerEmail) : '') + (when ? ' · ' + escapeSafe(when) : '') + '</small></div>';
+      const actions = document.createElement('div');
+      actions.className = 'actions';
+      const btn = document.createElement('button');
+      btn.className = 'smallbtn';
+      btn.textContent = 'Öffnen';
+      btn.onclick = ()=>openInboxDetail(r);
+      actions.appendChild(btn);
+      row.appendChild(actions);
+      row.onclick = (ev)=>{ if(ev.target && ev.target.closest && ev.target.closest('button')) return; openInboxDetail(r); };
+      listEl.appendChild(row);
+    });
+  }
+  function appendMissingSelectOptions(rows){
+    const selCustomer = document.getElementById('assignCustomer');
+    const selTemplate = document.getElementById('assignTemplate');
+    let customerCount = 0, templateCount = 0;
+    if(selCustomer){
+      const current = norm(selCustomer.value);
+      const seen = new Set(Array.from(selCustomer.options || []).map(o=>norm(o.value)).filter(Boolean));
+      const inline = Array.isArray(window.__dsInboxInlineCustomers) ? window.__dsInboxInlineCustomers.slice() : [];
+      rows.forEach(r=>{
+        const value = norm(r.__customerKey);
+        if(!value || seen.has(value)) return;
+        seen.add(value);
+        const opt = document.createElement('option');
+        opt.value = value;
+        opt.textContent = r.customerEmail ? (r.customerName + ' · ' + r.customerEmail) : r.customerName;
+        selCustomer.appendChild(opt);
+        inline.push({ customerId:value, id:value, portalUid:r.customerUid, email:r.customerEmail, name:r.customerName });
+      });
+      window.__dsInboxInlineCustomers = inline;
+      customerCount = Math.max(0, (selCustomer.options || []).length - 1);
+      if(!current && customerCount > 0) selCustomer.selectedIndex = 1;
+      else if(current && Array.from(selCustomer.options||[]).some(o=>o.value===current)) selCustomer.value = current;
+      selCustomer.disabled = customerCount === 0;
+    }
+    if(selTemplate){
+      const current = norm(selTemplate.value);
+      const seen = new Set(Array.from(selTemplate.options || []).map(o=>lower(o.value)).filter(Boolean));
+      rows.forEach(r=>{
+        const value = lower(r.templateId || r.__template.id);
+        if(!value || seen.has(value)) return;
+        seen.add(value);
+        const opt = document.createElement('option');
+        opt.value = value;
+        opt.textContent = norm(r.__template.label || r.title || value);
+        selTemplate.appendChild(opt);
+      });
+      templateCount = Math.max(0, (selTemplate.options || []).length - 1);
+      if(!current && templateCount > 0) selTemplate.selectedIndex = 1;
+      else if(current && Array.from(selTemplate.options||[]).some(o=>o.value===current)) selTemplate.value = current;
+      selTemplate.disabled = templateCount === 0;
+    }
+    return { customers: customerCount, templates: templateCount };
+  }
+  function renderReadonlyField(label, value){
+    const el = document.createElement('div');
+    el.className = 'field';
+    el.style.minWidth = '260px';
+    el.innerHTML = '<span>' + escapeSafe(label) + '</span><div class="sync-box" style="padding:10px">' + escapeSafe(value == null ? '' : String(value)) + '</div>';
+    return el;
+  }
+  function renderPayloadIntoRoot(root, row){
+    if(!root) return;
+    root.innerHTML = '';
+    const payload = row.payloadSubmitted || row.payload || {};
+    const customer = payload.customer || row.customer || {};
+    const pet = payload.pet || row.pet || {};
+    const fields = payload.fields || {};
+    const meta = payload.meta || {};
+    const sections = [];
+    const addSection = (title, entries)=>{
+      const usable = entries.filter(([_,v])=>!(v == null || String(v).trim()===''));
+      if(!usable.length) return;
+      sections.push({ title, entries: usable });
+    };
+    addSection('Kunde', [
+      ['Name', row.customerName || customer.name],
+      ['E-Mail', row.customerEmail || customer.email],
+      ['Telefon', customer.phone || customer.mobile || customer.tel],
+      ['Straße', customer.street],
+      ['PLZ', customer.zip],
+      ['Ort', customer.city],
+      ['Notfallkontakt', customer.emergencyContact],
+      ['Notfalltelefon', customer.emergencyPhone],
+      ['Notiz', customer.note]
+    ]);
+    addSection('Hund', [
+      ['Hundename', pet.name],
+      ['Rasse', pet.breed],
+      ['Geburtsdatum', pet.birthDate],
+      ['Geschlecht', pet.sex],
+      ['Chipnummer', pet.chipNumber],
+      ['Tierarzt', pet.vet],
+      ['Tierarzt Telefon', pet.vetPhone],
+      ['Allergien', pet.allergies],
+      ['Vorerkrankungen', pet.medicalConditions],
+      ['Fütterung', pet.feeding],
+      ['Verhalten', pet.behavior],
+      ['Notiz', pet.note]
+    ]);
+    const fieldEntries = Object.keys(fields).sort().map(k=>[k, fields[k]]);
+    const metaEntries = Object.keys(meta).sort().map(k=>[k, meta[k]]);
+    addSection('Formularfelder', fieldEntries);
+    addSection('Meta', metaEntries);
+    if(!sections.length){
+      addSection('Info', [
+        ['Typ', row.__template.label || row.title],
+        ['Kunde', row.customerName || row.customerEmail || row.customerUid],
+        ['Quelle', row.__source],
+        ['Zeit', row.submittedAt ? fmtSafe(row.submittedAt) : '']
+      ]);
+    }
+    sections.forEach(sec=>{
+      const card = document.createElement('div');
+      card.className = 'card';
+      const h = document.createElement('h2');
+      h.textContent = sec.title;
+      card.appendChild(h);
+      sec.entries.forEach(([label,value])=>card.appendChild(renderReadonlyField(label, value)));
+      root.appendChild(card);
+    });
+  }
+  function openInboxDetail(row){
+    try{ window.__dsInboxCurrentTask = row; }catch(_){ }
+    const detail = document.getElementById('inboxDetail');
+    const listEl = document.getElementById('inboxList');
+    const titleEl = document.getElementById('inboxDetailTitle');
+    const metaEl = document.getElementById('inboxDetailMeta');
+    const root = document.getElementById('inboxDetailFormRoot') || document.getElementById('inboxDetailForm');
+    if(titleEl) titleEl.textContent = row.title || row.__template.label || 'Eingang';
+    if(metaEl) metaEl.textContent = 'Formular: ' + norm(row.__template.label || row.templateId) + ' · Kunde: ' + norm(row.customerName || row.customerEmail || row.customerUid || '-') + ' · Abgesendet: ' + norm(row.submittedAt ? fmtSafe(row.submittedAt) : '-');
+    renderPayloadIntoRoot(root, row);
+    if(listEl) listEl.style.display = 'none';
+    if(detail) detail.style.display = '';
+  }
+  function bindDetailButtons(){
+    const btnBack = document.getElementById('btnInboxBack');
+    const btnClose = document.getElementById('btnInboxClose');
+    const detail = document.getElementById('inboxDetail');
+    const listEl = document.getElementById('inboxList');
+    if(btnBack && !btnBack.__gb31Bound){
+      btnBack.__gb31Bound = true;
+      btnBack.onclick = ()=>{ if(detail) detail.style.display='none'; if(listEl) listEl.style.display=''; };
+    }
+    if(btnClose && !btnClose.__gb31Bound){
+      btnClose.__gb31Bound = true;
+      btnClose.onclick = async ()=>{
+        const row = window.__dsInboxCurrentTask;
+        if(!row) return;
+        try{
+          const closePatch = { status:'closed', proposalStatus:'closed', closedAt: Date.now(), updatedAt: Date.now() };
+          const isProposal = /proposal/i.test(String(row.__source || '')) && typeof cloudProposalsCol === 'function';
+          if(isProposal && row.id){
+            const pcol = cloudProposalsCol();
+            if(pcol) await pcol.doc(String(row.id)).set(closePatch, { merge:true });
+          }else{
+            const tcol = typeof cloudTasksCol === 'function' ? cloudTasksCol() : null;
+            if(tcol && row.id) await tcol.doc(String(row.id)).set(closePatch, { merge:true });
+          }
+        }catch(err){ console.warn('GB31 close inbox row failed', err); }
+        if(detail) detail.style.display='none';
+        if(listEl) listEl.style.display='';
+        await refreshInboxHard('close');
+      };
+    }
+  }
+  async function refreshInboxHard(source){
+    setText('assignMsg', 'Eingänge werden geladen …', false);
+    setText('inboxProposalMsg', 'Kundenvorschläge werden geladen …', false);
+    ensureInboxDiag({ phase:'load-start', source: source || 'manual', error:'' });
+    try{
+      if(typeof ensureStateShape === 'function') ensureStateShape();
+    }catch(_){ }
+    const rows = await collectInboxRows();
+    const counts = appendMissingSelectOptions(rows);
+    renderProposalList(rows);
+    renderInboxList(rows);
+    bindDetailButtons();
+    setText('assignMsg', rows.length ? ('Eingänge geladen: ' + rows.length) : 'Keine Eingänge gefunden.', !rows.length);
+    setText('inboxProposalMsg', rows.length ? ('Kundenvorschläge geladen: ' + rows.length) : 'Keine Kundenvorschläge gefunden.', !rows.length);
+    ensureInboxDiag({ phase:'ready', rows: rows.length, customers: counts.customers, templates: counts.templates, source: source || 'manual', error:'' });
+    return rows;
+  }
+  window.__dsInboxRefreshButtonHard = ()=>refreshInboxHard('refresh-button');
+  window.__dsInboxProposalButtonHard = ()=>refreshInboxHard('proposal-button');
+  window.__dsInboxForceRefresh = ()=>refreshInboxHard('force-refresh');
+  window.__dsInboxProposalDebugLoad = ()=>refreshInboxHard('proposal-debug');
+  window.__dsInboxAutoLoadProposals = ()=>refreshInboxHard('autoload');
+  window.__dsGb23MapInboxProposals = ()=>refreshInboxHard('gb23-map');
+  window.__dsInboxReload = ()=>refreshInboxHard('reload');
+  window.__dsOpenInboxDetail = openInboxDetail;
+  const kick = ()=>{ Promise.resolve().then(()=>refreshInboxHard('auto')).catch(err=>ensureInboxDiag({ phase:'auto-error', error:String((err && err.message) || err || 'load-failed') })); };
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ()=>setTimeout(kick, 120));
+  else setTimeout(kick, 120);
+  window.addEventListener('load', ()=>setTimeout(kick, 160));
+  window.addEventListener('pageshow', ()=>setTimeout(kick, 180));
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) setTimeout(kick, 160); });
+  const inboxTab = document.querySelector('[data-tab="inbox"]') || document.getElementById('tabInbox');
+  if(inboxTab && !inboxTab.__gb31Bound){ inboxTab.__gb31Bound = true; inboxTab.addEventListener('click', ()=>setTimeout(kick, 40)); }
+  document.addEventListener('click', function(ev){
+    const btn = ev.target && ev.target.closest ? ev.target.closest('#btnInboxRefresh, #btnInboxProposalLoad') : null;
+    if(!btn) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    Promise.resolve().then(()=>refreshInboxHard(btn.id || 'click')).catch(err=>ensureInboxDiag({ phase:'click-error', error:String((err && err.message) || err || 'click-failed') }));
+  }, true);
 })();
