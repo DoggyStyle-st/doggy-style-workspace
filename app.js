@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB50_EINGAENGE_COLFIX_20260329",
+  tag: "M50.9.9GB52_EINGAENGE_REVIEW_EDITOR_20260329",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB50_EINGAENGE_COLFIX_20260329";
+const APP_BUILD = "M50.9.9GB52_EINGAENGE_REVIEW_EDITOR_20260329";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -9283,9 +9283,158 @@ function cpMedRenderInlineList(){
     console.warn("cpMedRenderInlineList failed", e);
   }
 }
+
+const __dsProposalReview = { active:false, row:null, baseCustomer:null, basePet:null };
+function dsEnsureReviewStyles(){
+  try{
+    if(document.getElementById('dsProposalReviewStyle')) return;
+    const st = document.createElement('style');
+    st.id = 'dsProposalReviewStyle';
+    st.textContent = `
+      .ds-review-changed{ border-color:#b94141 !important; box-shadow:0 0 0 1px rgba(185,65,65,.45) inset !important; background:rgba(120,20,20,.18) !important; color:#fff !important; }
+      .ds-review-note{ margin-top:6px; font-size:12px; color:#ffb3b3; }
+      .ds-review-banner{ margin:0 0 12px 0; padding:10px 12px; border-radius:12px; border:1px solid rgba(185,65,65,.45); background:rgba(120,20,20,.18); color:#ffd2d2; }
+    `;
+    document.head.appendChild(st);
+  }catch(_){ }
+}
+function dsReviewFieldMap(){
+  return {
+    customer: {
+      c_name:'name', c_phone:'phone', c_email:'email', c_street:'street', c_zip:'zip', c_city:'city', c_em_name:'emergencyName', c_em_phone:'emergencyPhone', c_pickup_auth:'pickupAuth', c_note:'note'
+    },
+    pet: {
+      p_name:'name', p_breed:'breed', p_birthdate:'birthdate', p_sex:'sex', p_chipStatus:'chip', p_chipNumber:'chipNumber', p_vet:'vet', p_vetPhone:'vetPhone', p_vetEmail:'vetEmail', p_vetStreet:'vetStreet', p_vetZip:'vetZip', p_vetCity:'vetCity', p_vetEmergencyName:'vetEmergencyName', p_vetEmergencyPhone:'vetEmergencyPhone',
+      p_allergies:'allergies', p_medicalConditions:'medicalConditions', p_insuranceStatus:'insuranceStatus', p_insuranceCompany:'insuranceCompany', p_insurancePolicy:'insurancePolicy', p_insuranceNotes:'insuranceNotes', p_vaccinatedConfirmed:'vaccinatedConfirmed', p_rabiesDate:'rabiesDate', p_mixedVaccineDate:'mixedVaccineDate',
+      p_food:'food', p_treatsAllowed:'treatsAllowed', p_aloneTime:'aloneTime', p_houseTrained:'houseTrained', p_transport:'transport', p_feeding:'feeding', p_compatDogs:'compatDogs', p_compatCats:'compatCats', p_compatKids:'compatKids', p_compat:'compat', p_leashBehavior:'leashBehavior', p_recall:'recall', p_resourceBehavior:'resourceBehavior', p_behavior:'behavior', p_dailyRoutine:'dailyRoutine', p_commands:'commands', p_note:'note'
+    }
+  };
+}
+function dsNormalizeReviewValue(value, inputId){
+  if(inputId === 'p_chipStatus') return value === true ? 'yes' : value === false ? 'no' : String(value || '');
+  if(typeof value === 'boolean') return value ? '1' : '0';
+  return String(value == null ? '' : value).trim();
+}
+function dsReadFieldValue(inputId){
+  const el = document.getElementById(inputId);
+  if(!el) return '';
+  if(inputId === 'p_chipStatus') return String(el.value || '');
+  if(el.type === 'checkbox') return el.checked ? '1' : '0';
+  return String(el.value == null ? '' : el.value).trim();
+}
+function dsSetFieldValue(inputId, value){
+  const el = document.getElementById(inputId);
+  if(!el) return;
+  if(inputId === 'p_chipStatus') el.value = value === true ? 'yes' : value === false ? 'no' : String(value || '');
+  else if(el.type === 'checkbox') el.checked = !!value;
+  else el.value = String(value == null ? '' : value);
+}
+function dsClearProposalReviewUI(){
+  try{ document.querySelectorAll('.ds-review-note').forEach(n=>n.remove()); }catch(_){ }
+  try{ document.querySelectorAll('.ds-review-changed').forEach(el=>el.classList.remove('ds-review-changed')); }catch(_){ }
+  try{ document.getElementById('cpReviewBanner')?.remove(); }catch(_){ }
+  try{ document.getElementById('btnCpRejectProposal')?.remove(); }catch(_){ }
+}
+async function dsRejectProposalReview(){
+  const row = __dsProposalReview.row;
+  if(!row) return false;
+  try{ await patchInboxRowStatus(row, 'rejected'); }catch(_){ }
+  try{ removeInboxRowEverywhere(row); }catch(_){ }
+  __dsProposalReview.active = false; __dsProposalReview.row = null; __dsProposalReview.baseCustomer = null; __dsProposalReview.basePet = null;
+  dsClearProposalReviewUI();
+  try{ closeCpEditor(); }catch(_){ }
+  try{ await refreshInboxHard('reject-review'); }catch(_){ }
+  return false;
+}
+function dsArmProposalReviewControls(){
+  try{
+    const saveBtn = document.getElementById('btnCpSave');
+    const cancelBtn = document.getElementById('btnCpCancel');
+    const row = saveBtn && saveBtn.parentElement;
+    if(!row || !saveBtn || !cancelBtn) return;
+    let rejectBtn = document.getElementById('btnCpRejectProposal');
+    if(!rejectBtn){
+      rejectBtn = document.createElement('button');
+      rejectBtn.id = 'btnCpRejectProposal';
+      rejectBtn.className = 'btn danger';
+      rejectBtn.type = 'button';
+      rejectBtn.textContent = 'Vorschlag ablehnen';
+      row.insertBefore(rejectBtn, cancelBtn);
+    }
+    rejectBtn.onclick = (ev)=>{ try{ ev.preventDefault(); ev.stopPropagation(); }catch(_){} return dsRejectProposalReview(); };
+  }catch(_){ }
+}
+function dsApplyProposalReviewBanner(row){
+  try{
+    const editor = document.getElementById('cpEditor');
+    if(!editor) return;
+    document.getElementById('cpReviewBanner')?.remove();
+    const banner = document.createElement('div');
+    banner.id = 'cpReviewBanner';
+    banner.className = 'ds-review-banner';
+    banner.textContent = 'Prüfmodus · Kundenvorschlag im Original-Editor geladen. Rot markierte Felder sind geändert. Erst mit Speichern wird die Änderung fest übernommen.';
+    editor.insertBefore(banner, editor.firstChild.nextSibling || editor.firstChild);
+  }catch(_){ }
+}
+function dsMarkChangedField(inputId, oldValue, newValue){
+  const el = document.getElementById(inputId);
+  if(!el) return;
+  el.classList.add('ds-review-changed');
+  const note = document.createElement('div');
+  note.className = 'ds-review-note';
+  note.textContent = 'Bisher: ' + (String(oldValue || '').trim() || '— leer —') + ' · Neu: ' + (String(newValue || '').trim() || '— leer —');
+  try{ if(el.parentElement) el.parentElement.appendChild(note); }catch(_){ }
+}
+function dsOpenProposalInCustomerEditor(row){
+  try{
+    dsEnsureReviewStyles();
+    dsClearProposalReviewUI();
+    ensureStateShape();
+    const payload = row.payloadSubmitted || row.payload || {};
+    if((payload && payload.source) !== 'customer-main-dogs' || !payload.customer || !payload.pet) return false;
+    const baseCustomer = findExistingCustomerForInboxRow(row, payload.customer) || null;
+    const basePet = findExistingPetForInboxRow(baseCustomer || {}, payload.pet) || null;
+    __dsProposalReview.active = true;
+    __dsProposalReview.row = row;
+    __dsProposalReview.baseCustomer = baseCustomer ? JSON.parse(JSON.stringify(baseCustomer)) : null;
+    __dsProposalReview.basePet = basePet ? JSON.parse(JSON.stringify(basePet)) : null;
+    try{ selectTab('dogs'); }catch(_){ }
+    if(basePet && basePet.id) openCpEditor('edit', basePet.id);
+    else openCpEditor('new');
+    try{
+      const title = document.getElementById('cpEditorTitle');
+      if(title) title.textContent = 'Kunde & Hund prüfen';
+    }catch(_){ }
+    dsApplyProposalReviewBanner(row);
+    dsArmProposalReviewControls();
+    const maps = dsReviewFieldMap();
+    Object.entries(maps.customer).forEach(([inputId,key])=>{
+      const current = dsNormalizeReviewValue(baseCustomer ? baseCustomer[key] : '', inputId);
+      const proposed = dsNormalizeReviewValue(payload.customer[key], inputId);
+      if(proposed !== '' && proposed !== current){
+        dsSetFieldValue(inputId, inputId === 'p_chipStatus' ? proposed : payload.customer[key]);
+        dsMarkChangedField(inputId, current, proposed);
+      }
+    });
+    Object.entries(maps.pet).forEach(([inputId,key])=>{
+      const current = dsNormalizeReviewValue(basePet ? basePet[key] : '', inputId);
+      const proposedRaw = payload.pet[key];
+      const proposed = dsNormalizeReviewValue(proposedRaw, inputId);
+      if(proposed !== '' && proposed !== current){
+        dsSetFieldValue(inputId, proposedRaw);
+        dsMarkChangedField(inputId, current, proposed);
+      }
+    });
+    try{ cpUpdateDirty && cpUpdateDirty(); }catch(_){ }
+    return true;
+  }catch(err){ console.error('dsOpenProposalInCustomerEditor failed', err); return false; }
+}
+
 function closeCpEditor(){
   const box = document.getElementById("cpEditor");
   if(box) box.style.display="none";
+  dsClearProposalReviewUI();
+  __dsProposalReview.active = false; __dsProposalReview.row = null; __dsProposalReview.baseCustomer = null; __dsProposalReview.basePet = null;
   clearCpEditor();
 }
 function upsertLegacyDogForPet(pet, customer){
@@ -10972,6 +11121,13 @@ $("#btnCpSave").addEventListener("click",(e)=>{
       pet.updatedAt = Date.now();
       upsertLegacyDogForPet(pet, getCustomer(pet.customerId));
       saveState();
+      try{
+        if(__dsProposalReview.active && __dsProposalReview.row){
+          Promise.resolve(patchInboxRowStatus(__dsProposalReview.row, 'adopted')).catch(()=>{});
+          removeInboxRowEverywhere(__dsProposalReview.row);
+          Promise.resolve(refreshInboxHard('adopt-review-save')).catch(()=>{});
+        }
+      }catch(_){ }
       cpSetStatus("Gespeichert.");
       closeCpEditor();
       renderDogs();
@@ -11028,6 +11184,13 @@ $("#btnCpSave").addEventListener("click",(e)=>{
     upsertLegacyDogForPet(pet, getCustomer(customerId));
     state.schemaVersion = Math.max(state.schemaVersion||1, 2);
     saveState();
+    try{
+      if(__dsProposalReview.active && __dsProposalReview.row){
+        Promise.resolve(patchInboxRowStatus(__dsProposalReview.row, 'adopted')).catch(()=>{});
+        removeInboxRowEverywhere(__dsProposalReview.row);
+        Promise.resolve(refreshInboxHard('adopt-review-save')).catch(()=>{});
+      }
+    }catch(_){ }
     cpSetStatus("Gespeichert.");
     closeCpEditor();
     renderDogs();
@@ -18058,7 +18221,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB50_EINGAENGE_COLFIX_20260329) ===== */
+/* ===== CHAT (M50.9.9GB52_EINGAENGE_REVIEW_EDITOR_20260329) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -19638,7 +19801,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB50_EINGAENGE_COLFIX_20260329";
+  const BUILD = "M50.9.9GB52_EINGAENGE_REVIEW_EDITOR_20260329";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -20005,6 +20168,12 @@ try{
   }
   function openInboxDetail(row){
     try{ window.__dsInboxCurrentTask = row; }catch(_){ }
+    try{
+      const payload = row && (row.payloadSubmitted || row.payload || {});
+      if(payload && payload.source === 'customer-main-dogs' && payload.customer && payload.pet){
+        if(dsOpenProposalInCustomerEditor(row)) return;
+      }
+    }catch(_){ }
     const detail = document.getElementById('inboxDetail');
     const listEl = document.getElementById('inboxList');
     const titleEl = document.getElementById('inboxDetailTitle');
