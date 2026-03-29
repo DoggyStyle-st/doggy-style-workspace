@@ -20231,7 +20231,10 @@ try{
   function openInboxDetail(row){
     try{ window.__dsInboxCurrentTask = row; }catch(_){ }
     try{
-      const payload = row && (row.payloadSubmitted || row.payload || {});
+      if(typeof dsOpenProposalInCustomerEditor === 'function' && dsOpenProposalInCustomerEditor(row)) return;
+    }catch(err){ console.warn('openInboxDetail review-open failed', err); }
+    try{
+      const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {});
       if(payload && payload.source === 'customer-main-dogs' && payload.customer && payload.pet){
         if(dsOpenProposalInCustomerEditor(row)) return;
       }
