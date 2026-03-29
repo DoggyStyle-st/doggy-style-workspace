@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB52_EINGAENGE_REVIEW_EDITOR_20260329",
+  tag: "M50.9.9GB53_EINGAENGE_EDITOR_OPENFIX_20260329",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB52_EINGAENGE_REVIEW_EDITOR_20260329";
+const APP_BUILD = "M50.9.9GB53_EINGAENGE_EDITOR_OPENFIX_20260329";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -9385,6 +9385,47 @@ function dsMarkChangedField(inputId, oldValue, newValue){
   note.textContent = 'Bisher: ' + (String(oldValue || '').trim() || '— leer —') + ' · Neu: ' + (String(newValue || '').trim() || '— leer —');
   try{ if(el.parentElement) el.parentElement.appendChild(note); }catch(_){ }
 }
+function dsFindExistingCustomerForInboxRow(row, customer){
+  try{
+    const customers = asArray(state && state.customers);
+    const email = lower((customer && customer.email) || (row && row.customerEmail));
+    const name = lower((customer && customer.name) || (row && row.customerName));
+    const directId = norm((customer && (customer.id || customer.customerId)) || (row && row.customerId));
+    if(directId){
+      const hit = customers.find(c=>norm(c.id || c.customerId) === directId);
+      if(hit) return hit;
+    }
+    if(email){
+      const hit = customers.find(c=>lower(c.email) === email);
+      if(hit) return hit;
+    }
+    if(name){
+      const hit = customers.find(c=>lower(c.name) === name);
+      if(hit) return hit;
+    }
+  }catch(_){ }
+  return null;
+}
+function dsFindExistingPetForInboxRow(customerObj, pet){
+  try{
+    const pets = asArray(state && (state.pets || state.dogs));
+    const cid = norm(customerObj && (customerObj.id || customerObj.customerId));
+    const name = lower(pet && pet.name);
+    const chip = norm(pet && pet.chipNumber);
+    let list = pets;
+    if(cid) list = list.filter(x=>norm(x.customerId) === cid || norm(x.ownerId) === cid);
+    if(chip){
+      const hit = list.find(x=>norm(x.chipNumber) === chip);
+      if(hit) return hit;
+    }
+    if(name){
+      const hit = list.find(x=>lower(x.name) === name);
+      if(hit) return hit;
+    }
+  }catch(_){ }
+  return null;
+}
+
 function dsOpenProposalInCustomerEditor(row){
   try{
     dsEnsureReviewStyles();
@@ -9392,8 +9433,8 @@ function dsOpenProposalInCustomerEditor(row){
     ensureStateShape();
     const payload = row.payloadSubmitted || row.payload || {};
     if((payload && payload.source) !== 'customer-main-dogs' || !payload.customer || !payload.pet) return false;
-    const baseCustomer = findExistingCustomerForInboxRow(row, payload.customer) || null;
-    const basePet = findExistingPetForInboxRow(baseCustomer || {}, payload.pet) || null;
+    const baseCustomer = dsFindExistingCustomerForInboxRow(row, payload.customer) || null;
+    const basePet = dsFindExistingPetForInboxRow(baseCustomer || {}, payload.pet) || null;
     __dsProposalReview.active = true;
     __dsProposalReview.row = row;
     __dsProposalReview.baseCustomer = baseCustomer ? JSON.parse(JSON.stringify(baseCustomer)) : null;
@@ -18221,7 +18262,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB52_EINGAENGE_REVIEW_EDITOR_20260329) ===== */
+/* ===== CHAT (M50.9.9GB53_EINGAENGE_EDITOR_OPENFIX_20260329) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -19801,7 +19842,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB52_EINGAENGE_REVIEW_EDITOR_20260329";
+  const BUILD = "M50.9.9GB53_EINGAENGE_EDITOR_OPENFIX_20260329";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
