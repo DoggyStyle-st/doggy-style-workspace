@@ -1754,6 +1754,14 @@
     return false;
   }
   window.__dsInboxFallbackOpen = fallbackOpenInboxRow;
+  function isProposalRowHidden(row){
+    try{
+      if(!row || typeof row !== 'object') return false;
+      var s1 = String(row.proposalStatus || '').toLowerCase();
+      var s2 = String(row.status || '').toLowerCase();
+      return s1 === 'rejected' || s1 === 'adopted' || s2 === 'closed' || s2 === 'rejected' || s2 === 'adopted';
+    }catch(_){ return false; }
+  }
   function renderRows(targetId, rows, emptyText){
     try{
       var el = document.getElementById(targetId);
