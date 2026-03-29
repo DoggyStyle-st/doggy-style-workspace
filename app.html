@@ -6,13 +6,13 @@
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
 <meta charset="utf-8"/>
-  <meta name="app-build" content="M50.9.9GB37_EINGAENGE_DETAIL_ACTIONS_20260329">
+  <meta name="app-build" content="M50.9.9GB38_EINGAENGE_ADOPT_REJECT_20260329">
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <title>Doggy Style Workspace · App</title>
 <link href="manifest.json" rel="manifest"/>
 <meta content="#101014" name="theme-color"/>
 <link href="assets/logo.png" rel="apple-touch-icon"/>
-<link href="styles.css?v=M50.9.9GB37_EINGAENGE_DETAIL_ACTIONS_20260329" rel="stylesheet"/>
+<link href="styles.css?v=M50.9.9GB38_EINGAENGE_ADOPT_REJECT_20260329" rel="stylesheet"/>
 <link href="dashboard_master.css?v=20260104v13logout" rel="stylesheet"/>
 <style>
   /* Topbar Layout (iPad & Desktop stabil) */
@@ -102,7 +102,7 @@
   .doc-modal__actions{ margin-left:auto; display:flex; flex-wrap: wrap; gap: 8px; }
   .doc-modal__frame{ width: 100%; border: 0; border-radius: 12px; background: #fff; flex:1; min-height: 0; }
 </style>
-  <meta name="app-version" content="M50.9.9GB37_EINGAENGE_DETAIL_ACTIONS_20260329">
+  <meta name="app-version" content="M50.9.9GB38_EINGAENGE_ADOPT_REJECT_20260329">
   <meta name="release-channel" content="MASTER">
 </head>
 <body class="bg-watermark page-app">
@@ -498,7 +498,7 @@
       </div>
       <div class="row" style="gap:10px; flex-wrap:wrap;">
         <button class="btn" id="btnInboxBack">Zurück</button>
-        <button class="btn" id="btnInboxClose">Schließen</button>
+        <button class="btn danger" id="btnInboxClose">Vorschlag ablehnen</button>
         <button class="btn primary" id="btnInboxAdopt">In Workspace übernehmen</button>
       </div>
     </div>
@@ -1193,7 +1193,7 @@
 </section>
 
 <section class="panel" id="statistics">
-<!-- Statistics panel is rendered by app.js?v=M50.9.9GB37_EINGAENGE_DETAIL_ACTIONS_20260329 (renderStatisticsPanel) -->
+<!-- Statistics panel is rendered by app.js?v=M50.9.9GB38_EINGAENGE_ADOPT_REJECT_20260329 (renderStatisticsPanel) -->
 </section>
 
 
@@ -1260,12 +1260,12 @@
 </footer>
 </div>
 <!-- Firebase (optional) + Config -->
-<script defer="defer" src="firebase-config.js?v=M50.9.9GB37_EINGAENGE_DETAIL_ACTIONS_20260329"></script>
+<script defer="defer" src="firebase-config.js?v=M50.9.9GB38_EINGAENGE_ADOPT_REJECT_20260329"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
-<script defer="defer" src="app.js?v=M50.9.9GB37_EINGAENGE_DETAIL_ACTIONS_20260329"></script>
+<script defer="defer" src="app.js?v=M50.9.9GB38_EINGAENGE_ADOPT_REJECT_20260329"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1308,7 +1308,7 @@
 </script>
 
 <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB37_EINGAENGE_DETAIL_ACTIONS_20260329');
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB38_EINGAENGE_ADOPT_REJECT_20260329');
   </script>
 
 <script>
@@ -1372,7 +1372,7 @@
   <!-- Bottom logout button removed (duplicate of header logout; also overlaps editor on iPad) -->
 </div>
 <!-- test-badge removed (requested) -->
-  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB37_EINGAENGE_DETAIL_ACTIONS_20260329</div>
+  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB38_EINGAENGE_ADOPT_REJECT_20260329</div>
 
 <script>
 (function visibleMailFallback(){
@@ -1894,21 +1894,32 @@
   async function adoptFallbackRow(){
     var row = window.__dsInboxCurrentTask;
     if(!row) return false;
+    var metaEl = document.getElementById('inboxDetailMeta');
     try{
+      if(metaEl){ metaEl.textContent = 'Vorschlag wird in Kunde/Hund übernommen …'; metaEl.style.color = ''; }
+      if(typeof ensureStateShape === 'function') ensureStateShape();
       window.state = window.state || {};
-      state.customers = Array.isArray(state.customers) ? state.customers : [];
-      state.pets = Array.isArray(state.pets) ? state.pets : [];
+      var st = window.state;
+      st.customers = Array.isArray(st.customers) ? st.customers : [];
+      st.pets = Array.isArray(st.pets) ? st.pets : [];
+      st.dogs = Array.isArray(st.dogs) ? st.dogs : [];
       var payload = row.payloadSubmitted || row.payload || row.payloadDraft || {};
       var customer = payload.customer || {};
       var pet = payload.pet || {};
       var customerObj = null;
       var email = String(customer.email || row.customerEmail || '').trim().toLowerCase();
-      if(email){ customerObj = state.customers.find(function(c){ return String(c && c.email || '').trim().toLowerCase() === email; }) || null; }
+      if(email){ customerObj = st.customers.find(function(c){ return String((c && c.email) || '').trim().toLowerCase() === email; }) || null; }
       if(!customerObj){
         var name = String(customer.name || row.customerName || '').trim();
-        if(name) customerObj = state.customers.find(function(c){ return String(c && c.name || '').trim() === name; }) || null;
+        if(name) customerObj = st.customers.find(function(c){ return String((c && c.name) || '').trim() === name; }) || null;
       }
-      if(!customerObj){ customerObj = { id:(typeof uid==='function'?uid():('c_'+Date.now())), createdAt:Date.now() }; state.customers.unshift(customerObj); }
+      if(!customerObj){
+        customerObj = { id:(typeof uid==='function'?uid():('c_'+Date.now())), customerId:'', createdAt:Date.now() };
+        customerObj.customerId = customerObj.id;
+        st.customers.unshift(customerObj);
+      }
+      customerObj.id = String(customerObj.id || customerObj.customerId || (typeof uid==='function'?uid():('c_'+Date.now())));
+      customerObj.customerId = String(customerObj.customerId || customerObj.id);
       customerObj.name = String(customer.name || customerObj.name || row.customerName || '').trim();
       customerObj.email = String(customer.email || customerObj.email || row.customerEmail || '').trim();
       customerObj.phone = String(customer.phone || customerObj.phone || '').trim();
@@ -1917,16 +1928,25 @@
       customerObj.city = String(customer.city || customerObj.city || '').trim();
       customerObj.note = String(customer.note || customerObj.note || '').trim();
       customerObj.updatedAt = Date.now();
+
       var petObj = null;
       var petName = String(pet.name || '').trim();
-      if(customerObj.id && petName){ petObj = state.pets.find(function(p){ return String(p && p.customerId || '') === String(customerObj.id) && String(p && p.name || '').trim() === petName; }) || null; }
-      if(!petObj && petName){ petObj = { id:(typeof uid==='function'?uid():('p_'+Date.now())), customerId:customerObj.id, createdAt:Date.now() }; state.pets.unshift(petObj); }
+      if(customerObj.id && petName){
+        petObj = st.pets.find(function(p){
+          return String((p && (p.customerId || p.ownerId)) || '') === String(customerObj.id) && String((p && p.name) || '').trim() === petName;
+        }) || null;
+      }
+      if(!petObj && petName){
+        petObj = { id:(typeof uid==='function'?uid():('p_'+Date.now())), customerId:customerObj.id, createdAt:Date.now() };
+        st.pets.unshift(petObj);
+      }
       if(petObj){
         petObj.customerId = customerObj.id;
         petObj.name = petName || petObj.name || '';
         petObj.breed = String(pet.breed || petObj.breed || '').trim();
         petObj.sex = String(pet.sex || petObj.sex || '').trim();
         petObj.birthdate = String(pet.birthdate || pet.birthDate || petObj.birthdate || '').trim();
+        petObj.birthDate = String(pet.birthDate || pet.birthdate || petObj.birthDate || petObj.birthdate || '').trim();
         petObj.chipNumber = String(pet.chipNumber || petObj.chipNumber || '').trim();
         petObj.vet = String(pet.vet || petObj.vet || '').trim();
         petObj.vetPhone = String(pet.vetPhone || petObj.vetPhone || '').trim();
@@ -1938,18 +1958,24 @@
         petObj.updatedAt = Date.now();
         try{ if(typeof upsertLegacyDogForPet === 'function') upsertLegacyDogForPet(petObj, customerObj); }catch(_){ }
       }
+
       try{ if(typeof saveState === 'function') saveState(); }catch(_){ }
+      try{ if(typeof syncDogSelect === 'function') syncDogSelect(); }catch(_){ }
       try{ if(typeof renderDogs === 'function') renderDogs(); }catch(_){ }
+      try{ if(typeof fillCustomerFieldsOnly === 'function' && customerObj.id) fillCustomerFieldsOnly(customerObj.id); }catch(_){ }
       try{
         var patch = { status:'closed', proposalStatus:'adopted', adoptedAt: Date.now(), updatedAt: Date.now() };
         var isProposal = /proposal/i.test(String(row.__source || row.source || row.mode || '')) && typeof cloudProposalsCol === 'function';
         if(isProposal && row.id){ var pcol = cloudProposalsCol(); if(pcol) await pcol.doc(String(row.id)).set(patch, { merge:true }); }
         else if(typeof cloudTasksCol === 'function' && row.id){ var tcol = cloudTasksCol(); if(tcol) await tcol.doc(String(row.id)).set(patch, { merge:true }); }
       }catch(_){ }
-      try{ alert('✅ Vorschlag übernommen. Änderungen wurden in Kunde/Hund eingespielt.'); }catch(_){ }
+      if(metaEl){ metaEl.textContent = '✅ Vorschlag übernommen und in Kunde/Hund eingespielt.'; metaEl.style.color = '#b7f7c4'; }
       await closeFallbackDetail(false);
       try{ if(typeof window.__dsInboxForceRefresh === 'function') await window.__dsInboxForceRefresh(); }catch(_){ }
+      try{ if(typeof showTab === 'function') showTab('dogs'); }catch(_){ }
+      try{ alert('✅ Vorschlag übernommen. Änderungen wurden in Kunde/Hund eingespielt.'); }catch(_){ }
     }catch(err){
+      try{ if(metaEl){ metaEl.textContent = 'Übernehmen fehlgeschlagen: ' + String((err && err.message) || err || 'Unbekannter Fehler'); metaEl.style.color = '#ffb3b3'; } }catch(_){ }
       try{ alert('Übernehmen fehlgeschlagen: ' + String((err && err.message) || err || 'Unbekannter Fehler')); }catch(_){ }
     }
     return false;
@@ -1960,7 +1986,13 @@
      ['btnInboxAdopt', function(ev){ try{ if(ev){ ev.preventDefault(); ev.stopPropagation(); } }catch(_){} return adoptFallbackRow(); }]
     ].forEach(function(pair){
       var btn = document.getElementById(pair[0]);
-      if(!btn || btn.__dsFallbackBound) return;
+      if(!btn) return;
+      if(pair[0] === 'btnInboxClose') btn.textContent = 'Vorschlag ablehnen';
+      if(pair[0] === 'btnInboxAdopt') btn.textContent = 'In Workspace übernehmen';
+      btn.disabled = false;
+      btn.style.pointerEvents = 'auto';
+      btn.onclick = pair[1];
+      if(btn.__dsFallbackBound) return;
       btn.__dsFallbackBound = true;
       btn.addEventListener('click', pair[1], true);
       btn.addEventListener('touchend', pair[1], true);
