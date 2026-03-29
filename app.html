@@ -1774,11 +1774,26 @@
           var ts = Number(r.submittedAt || r.createdAt || 0);
           if(ts) when = new Date(ts).toLocaleString('de-DE');
         }catch(_){ }
-        return '<div class="list-item" style="display:flex; justify-content:space-between; gap:12px; align-items:center; cursor:pointer;" onclick="return window.__dsInboxFallbackOpen ? window.__dsInboxFallbackOpen('' + escHtml(targetId) + '',' + idx + ') : false;">'
+        return '<div class="list-item ds-inbox-row" data-target="' + escHtml(targetId) + '" data-idx="' + idx + '" style="display:flex; justify-content:space-between; gap:12px; align-items:center; cursor:pointer;">'
           + '<div><strong>' + escHtml(title) + '</strong><small>' + escHtml(customer) + (when ? (' · ' + escHtml(when)) : '') + '</small></div>'
-          + '<div class="actions"><button class="smallbtn" type="button" onclick="event.preventDefault(); event.stopPropagation(); return window.__dsInboxFallbackOpen ? window.__dsInboxFallbackOpen('' + escHtml(targetId) + '',' + idx + ') : false;">Öffnen</button></div>'
+          + '<div class="actions"><button class="smallbtn ds-inbox-open" type="button" data-target="' + escHtml(targetId) + '" data-idx="' + idx + '">Öffnen</button></div>'
           + '</div>';
       }).join('');
+      Array.prototype.forEach.call(el.querySelectorAll('.ds-inbox-row, .ds-inbox-open'), function(node){
+        if(node.__dsBound) return;
+        node.__dsBound = true;
+        var handler = function(ev){
+          try{ if(ev){ ev.preventDefault(); ev.stopPropagation(); } }catch(_){ }
+          var src = ev && ev.currentTarget ? ev.currentTarget : node;
+          var tid = src && src.getAttribute ? src.getAttribute('data-target') : targetId;
+          var idx = src && src.getAttribute ? Number(src.getAttribute('data-idx')) : NaN;
+          if(!Number.isFinite(idx)) idx = 0;
+          return window.__dsInboxFallbackOpen ? window.__dsInboxFallbackOpen(String(tid || targetId), idx) : false;
+        };
+        node.addEventListener('click', handler, true);
+        node.addEventListener('touchend', handler, true);
+        node.addEventListener('pointerup', handler, true);
+      });
     }catch(_){ }
   }
   async function collectFallbackRows(){
