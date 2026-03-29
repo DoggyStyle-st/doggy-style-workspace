@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB39_EINGAENGE_DIFF_APPLY_20260329",
+  tag: "M50.9.9GB40_EINGAENGE_ACTIONS_FIX_20260329",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB39_EINGAENGE_DIFF_APPLY_20260329";
+const APP_BUILD = "M50.9.9GB40_EINGAENGE_ACTIONS_FIX_20260329";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -1199,6 +1199,7 @@ function loadCustomerProposalBuffer(){
 function saveCustomerProposalBuffer(list){
   try{ localStorage.setItem(CUSTOMER_PROPOSALS_KEY, JSON.stringify(Array.isArray(list)?list:[])); }catch(_){ }
 }
+try{ window.loadCustomerProposalBuffer = loadCustomerProposalBuffer; window.saveCustomerProposalBuffer = saveCustomerProposalBuffer; }catch(_){ }
 function pushCustomerProposalBuffer(task){
   try{
     const list = loadCustomerProposalBuffer();
@@ -18044,7 +18045,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB39_EINGAENGE_DIFF_APPLY_20260329) ===== */
+/* ===== CHAT (M50.9.9GB40_EINGAENGE_ACTIONS_FIX_20260329) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -19624,7 +19625,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB39_EINGAENGE_DIFF_APPLY_20260329";
+  const BUILD = "M50.9.9GB40_EINGAENGE_ACTIONS_FIX_20260329";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -19837,12 +19838,57 @@ try{
     }
     return { customers: customerCount, templates: templateCount };
   }
-  function renderReadonlyField(label, value){
+  function renderReadonlyField(label, value, oldValue){
     const el = document.createElement('div');
     el.className = 'field';
     el.style.minWidth = '260px';
-    el.innerHTML = '<span>' + escapeSafe(label) + '</span><div class="sync-box" style="padding:10px">' + escapeSafe(value == null ? '' : String(value)) + '</div>';
+    const newTxt = value == null ? '' : String(value);
+    const oldTxt = oldValue == null ? '' : String(oldValue);
+    const body = oldTxt && oldTxt !== newTxt
+      ? ('<div class="sync-box" style="padding:10px"><div><strong>Neu:</strong> ' + escapeSafe(newTxt) + '</div><div class="muted" style="margin-top:6px"><strong>Bisher:</strong> ' + escapeSafe(oldTxt) + '</div></div>')
+      : ('<div class="sync-box" style="padding:10px">' + escapeSafe(newTxt) + '</div>');
+    el.innerHTML = '<span>' + escapeSafe(label) + '</span>' + body;
     return el;
+  }
+  function findExistingCustomerForInboxRow(row, customer){
+    try{
+      const customers = asArray(state && state.customers);
+      const email = lower((customer && customer.email) || row.customerEmail);
+      const name = lower((customer && customer.name) || row.customerName);
+      const directId = norm((customer && (customer.id || customer.customerId)) || row.customerId);
+      if(directId){
+        const hit = customers.find(c=>norm(c.id || c.customerId) === directId);
+        if(hit) return hit;
+      }
+      if(email){
+        const hit = customers.find(c=>lower(c.email) === email);
+        if(hit) return hit;
+      }
+      if(name){
+        const hit = customers.find(c=>lower(c.name) === name);
+        if(hit) return hit;
+      }
+    }catch(_){ }
+    return null;
+  }
+  function findExistingPetForInboxRow(customerObj, pet){
+    try{
+      const pets = asArray(state && (state.pets || state.dogs));
+      const cid = norm(customerObj && (customerObj.id || customerObj.customerId));
+      const name = lower(pet && pet.name);
+      const chip = norm(pet && pet.chipNumber);
+      let list = pets;
+      if(cid) list = list.filter(x=>norm(x.customerId) === cid || norm(x.ownerId) === cid);
+      if(chip){
+        const hit = list.find(x=>norm(x.chipNumber) === chip);
+        if(hit) return hit;
+      }
+      if(name){
+        const hit = list.find(x=>lower(x.name) === name);
+        if(hit) return hit;
+      }
+    }catch(_){ }
+    return null;
   }
   function renderPayloadIntoRoot(root, row){
     if(!root) return;
@@ -19852,47 +19898,50 @@ try{
     const pet = payload.pet || row.pet || {};
     const fields = payload.fields || {};
     const meta = payload.meta || {};
+    const currentCustomer = findExistingCustomerForInboxRow(row, customer) || {};
+    const currentPet = findExistingPetForInboxRow(currentCustomer, pet) || {};
     const sections = [];
     const addSection = (title, entries)=>{
       const usable = entries.filter(([_,v])=>!(v == null || String(v).trim()===''));
       if(!usable.length) return;
-      sections.push({ title, entries: usable });
+      const changed = usable.filter(([_,v,oldV])=> String(v == null ? '' : v).trim() !== String(oldV == null ? '' : oldV).trim());
+      sections.push({ title, entries: changed.length ? changed : usable });
     };
-    addSection('Kunde', [
-      ['Name', row.customerName || customer.name],
-      ['E-Mail', row.customerEmail || customer.email],
-      ['Telefon', customer.phone || customer.mobile || customer.tel],
-      ['Straße', customer.street],
-      ['PLZ', customer.zip],
-      ['Ort', customer.city],
-      ['Notfallkontakt', customer.emergencyContact],
-      ['Notfalltelefon', customer.emergencyPhone],
-      ['Notiz', customer.note]
+    addSection('Geänderte Kundendaten', [
+      ['Name', row.customerName || customer.name, currentCustomer.name],
+      ['E-Mail', row.customerEmail || customer.email, currentCustomer.email],
+      ['Telefon', customer.phone || customer.mobile || customer.tel, currentCustomer.phone || currentCustomer.mobile || currentCustomer.tel],
+      ['Straße', customer.street, currentCustomer.street],
+      ['PLZ', customer.zip, currentCustomer.zip],
+      ['Ort', customer.city, currentCustomer.city],
+      ['Notfallkontakt', customer.emergencyContact, currentCustomer.emergencyContact],
+      ['Notfalltelefon', customer.emergencyPhone, currentCustomer.emergencyPhone],
+      ['Notiz', customer.note, currentCustomer.note]
     ]);
-    addSection('Hund', [
-      ['Hundename', pet.name],
-      ['Rasse', pet.breed],
-      ['Geburtsdatum', pet.birthDate],
-      ['Geschlecht', pet.sex],
-      ['Chipnummer', pet.chipNumber],
-      ['Tierarzt', pet.vet],
-      ['Tierarzt Telefon', pet.vetPhone],
-      ['Allergien', pet.allergies],
-      ['Vorerkrankungen', pet.medicalConditions],
-      ['Fütterung', pet.feeding],
-      ['Verhalten', pet.behavior],
-      ['Notiz', pet.note]
+    addSection('Geänderte Hundedaten', [
+      ['Hundename', pet.name, currentPet.name],
+      ['Rasse', pet.breed, currentPet.breed],
+      ['Geburtsdatum', pet.birthDate || pet.birthdate, currentPet.birthDate || currentPet.birthdate],
+      ['Geschlecht', pet.sex, currentPet.sex],
+      ['Chipnummer', pet.chipNumber, currentPet.chipNumber],
+      ['Tierarzt', pet.vet, currentPet.vet],
+      ['Tierarzt Telefon', pet.vetPhone, currentPet.vetPhone],
+      ['Allergien', pet.allergies, currentPet.allergies],
+      ['Vorerkrankungen', pet.medicalConditions, currentPet.medicalConditions],
+      ['Fütterung', pet.feeding || pet.food, currentPet.feeding || currentPet.food],
+      ['Verhalten', pet.behavior, currentPet.behavior],
+      ['Notiz', pet.note, currentPet.note]
     ]);
-    const fieldEntries = Object.keys(fields).sort().map(k=>[k, fields[k]]);
-    const metaEntries = Object.keys(meta).sort().map(k=>[k, meta[k]]);
-    addSection('Formularfelder', fieldEntries);
+    const fieldEntries = Object.keys(fields).sort().map(k=>[k, fields[k], '']);
+    const metaEntries = Object.keys(meta).sort().map(k=>[k, meta[k], '']);
+    addSection('Weitere Formularfelder', fieldEntries);
     addSection('Meta', metaEntries);
     if(!sections.length){
       addSection('Info', [
-        ['Typ', row.__template.label || row.title],
-        ['Kunde', row.customerName || row.customerEmail || row.customerUid],
-        ['Quelle', row.__source],
-        ['Zeit', row.submittedAt ? fmtSafe(row.submittedAt) : '']
+        ['Typ', row.__template.label || row.title, ''],
+        ['Kunde', row.customerName || row.customerEmail || row.customerUid, ''],
+        ['Quelle', row.__source, ''],
+        ['Zeit', row.submittedAt ? fmtSafe(row.submittedAt) : '', '']
       ]);
     }
     sections.forEach(sec=>{
@@ -19901,7 +19950,7 @@ try{
       const h = document.createElement('h2');
       h.textContent = sec.title;
       card.appendChild(h);
-      sec.entries.forEach(([label,value])=>card.appendChild(renderReadonlyField(label, value)));
+      sec.entries.forEach(([label,value,oldValue])=>card.appendChild(renderReadonlyField(label, value, oldValue)));
       root.appendChild(card);
     });
   }
@@ -19921,32 +19970,22 @@ try{
   function bindDetailButtons(){
     const btnBack = document.getElementById('btnInboxBack');
     const btnClose = document.getElementById('btnInboxClose');
+    const btnAdopt = document.getElementById('btnInboxAdopt');
     const detail = document.getElementById('inboxDetail');
     const listEl = document.getElementById('inboxList');
-    if(btnBack && !btnBack.__gb31Bound){
-      btnBack.__gb31Bound = true;
-      btnBack.onclick = ()=>{ if(detail) detail.style.display='none'; if(listEl) listEl.style.display=''; };
+    if(btnBack && !btnBack.__gb40Bound){
+      btnBack.__gb40Bound = true;
+      btnBack.onclick = (ev)=>{ try{ ev && ev.preventDefault && ev.preventDefault(); ev && ev.stopPropagation && ev.stopPropagation(); }catch(_){ } if(detail) detail.style.display='none'; if(listEl) listEl.style.display=''; return false; };
     }
-    if(btnClose && !btnClose.__gb31Bound){
-      btnClose.__gb31Bound = true;
-      btnClose.onclick = async ()=>{
-        const row = window.__dsInboxCurrentTask;
-        if(!row) return;
-        try{
-          const closePatch = { status:'closed', proposalStatus:'closed', closedAt: Date.now(), updatedAt: Date.now() };
-          const isProposal = /proposal/i.test(String(row.__source || '')) && typeof cloudProposalsCol === 'function';
-          if(isProposal && row.id){
-            const pcol = cloudProposalsCol();
-            if(pcol) await pcol.doc(String(row.id)).set(closePatch, { merge:true });
-          }else{
-            const tcol = typeof cloudTasksCol === 'function' ? cloudTasksCol() : null;
-            if(tcol && row.id) await tcol.doc(String(row.id)).set(closePatch, { merge:true });
-          }
-        }catch(err){ console.warn('GB31 close inbox row failed', err); }
-        if(detail) detail.style.display='none';
-        if(listEl) listEl.style.display='';
-        await refreshInboxHard('close');
-      };
+    if(btnClose && !btnClose.__gb40Bound){
+      btnClose.__gb40Bound = true;
+      btnClose.textContent = 'Vorschlag ablehnen';
+      btnClose.onclick = (ev)=>{ try{ ev && ev.preventDefault && ev.preventDefault(); ev && ev.stopPropagation && ev.stopPropagation(); }catch(_){ } return (typeof window.__dsInboxRejectCurrent === 'function') ? window.__dsInboxRejectCurrent() : false; };
+    }
+    if(btnAdopt && !btnAdopt.__gb40Bound){
+      btnAdopt.__gb40Bound = true;
+      btnAdopt.textContent = 'In Workspace übernehmen';
+      btnAdopt.onclick = (ev)=>{ try{ ev && ev.preventDefault && ev.preventDefault(); ev && ev.stopPropagation && ev.stopPropagation(); }catch(_){ } return (typeof window.__dsInboxAdoptCurrent === 'function') ? window.__dsInboxAdoptCurrent() : false; };
     }
   }
   async function refreshInboxHard(source){

@@ -497,9 +497,9 @@
         <div class="muted" id="inboxDetailMeta" style="margin-top:6px"></div>
       </div>
       <div class="row" style="gap:10px; flex-wrap:wrap;">
-        <button class="btn" id="btnInboxBack">Zurück</button>
-        <button class="btn danger" id="btnInboxClose">Vorschlag ablehnen</button>
-        <button class="btn primary" id="btnInboxAdopt">In Workspace übernehmen</button>
+        <button class="btn" id="btnInboxBack" onclick="return window.__dsInboxBackCurrent ? window.__dsInboxBackCurrent(event) : false;">Zurück</button>
+        <button class="btn danger" id="btnInboxClose" onclick="return window.__dsInboxRejectCurrent ? window.__dsInboxRejectCurrent(event) : false;">Vorschlag ablehnen</button>
+        <button class="btn primary" id="btnInboxAdopt" onclick="return window.__dsInboxAdoptCurrent ? window.__dsInboxAdoptCurrent(event) : false;">In Workspace übernehmen</button>
       </div>
     </div>
     <div id="inboxDetailForm" style="margin-top:12px"></div>
@@ -1909,6 +1909,76 @@
     if(lastErr) throw lastErr;
     return false;
   }
+  function rowKeyOf(item){
+    try{ return String((item && (item.id || item.taskId || item.proposalId || item.submissionId)) || '').trim(); }catch(_){ return ''; }
+  }
+  function rowSameAs(a, b){
+    var ak = rowKeyOf(a), bk = rowKeyOf(b);
+    if(ak && bk) return ak === bk;
+    return String((a && a.customerEmail) || '') === String((b && b.customerEmail) || '') && String((a && a.submittedAt) || '') === String((b && b.submittedAt) || '');
+  }
+  function filterOutRow(arr, row){
+    arr = Array.isArray(arr) ? arr : [];
+    return arr.filter(function(item){ return !rowSameAs(item, row); });
+  }
+  function patchProposalBufferStatus(row, status){
+    try{
+      if(typeof window.saveCustomerProposalBuffer === 'function' && typeof window.loadCustomerProposalBuffer === 'function'){
+        var list = window.loadCustomerProposalBuffer() || [];
+        list = filterOutRow(list, row).map(function(item){
+          if(rowSameAs(item,row)) item.proposalStatus = status || 'closed';
+          return item;
+        });
+        window.saveCustomerProposalBuffer(list);
+      }
+    }catch(_){ }
+    try{
+      window.state = window.state || {};
+      ['inboxAssignments','inboxSubmissions'].forEach(function(key){
+        var list = Array.isArray(window.state[key]) ? window.state[key] : [];
+        window.state[key] = list.filter(function(item){ return !rowSameAs(item, row); }).map(function(item){ item.proposalStatus = item.proposalStatus || status || 'closed'; item.status = item.status || 'closed'; return item; });
+      });
+      if(typeof window.saveState === 'function') window.saveState();
+    }catch(_){ }
+    try{
+      var lsKey = window.LS_KEY || 'doggystyle_workspace_state_v1';
+      var raw = localStorage.getItem(lsKey);
+      var data = raw ? JSON.parse(raw) : {};
+      ['inboxAssignments','inboxSubmissions'].forEach(function(key){
+        var list = Array.isArray(data[key]) ? data[key] : [];
+        data[key] = list.filter(function(item){ return !rowSameAs(item, row); });
+      });
+      localStorage.setItem(lsKey, JSON.stringify(data));
+    }catch(_){ }
+  }
+  function findExistingCustomerForProposal(st, row, customer){
+    st = st || {}; customer = customer || {};
+    var customers = Array.isArray(st.customers) ? st.customers : [];
+    var id = String(customer.id || customer.customerId || row.customerId || '').trim();
+    var email = String(customer.email || row.customerEmail || '').trim().toLowerCase();
+    var name = String(customer.name || row.customerName || '').trim().toLowerCase();
+    var hit = null;
+    if(id) hit = customers.find(function(c){ return String(c.id || c.customerId || '').trim() === id; });
+    if(!hit && email) hit = customers.find(function(c){ return String(c.email || '').trim().toLowerCase() === email; });
+    if(!hit && name) hit = customers.find(function(c){ return String(c.name || '').trim().toLowerCase() === name; });
+    return hit || null;
+  }
+  function findExistingPetForProposal(st, customerObj, pet){
+    st = st || {}; pet = pet || {};
+    var pets = Array.isArray(st.pets) ? st.pets : (Array.isArray(st.dogs) ? st.dogs : []);
+    var cid = String((customerObj && (customerObj.id || customerObj.customerId)) || '').trim();
+    var name = String(pet.name || '').trim().toLowerCase();
+    var chip = String(pet.chipNumber || '').trim();
+    var pool = cid ? pets.filter(function(x){ return String(x.customerId || x.ownerId || '').trim() === cid; }) : pets.slice();
+    var hit = null;
+    if(chip) hit = pool.find(function(x){ return String(x.chipNumber || '').trim() === chip; });
+    if(!hit && name) hit = pool.find(function(x){ return String(x.name || '').trim().toLowerCase() === name; });
+    return hit || null;
+  }
+  function renderNow(){
+    try{ renderRows('inboxList', (window.__dsInboxFallbackRows && window.__dsInboxFallbackRows.inboxList) || [], 'keine Eingänge'); }catch(_){ }
+    try{ renderRows('inboxProposalList', (window.__dsInboxFallbackRows && window.__dsInboxFallbackRows.inboxProposalList) || [], 'keine Vorschläge gefunden'); }catch(_){ }
+  }
   async function closeFallbackDetail(markClosed){
     var row = window.__dsInboxCurrentTask;
     var detail = document.getElementById('inboxDetail');
@@ -1921,6 +1991,7 @@
         var patch = { status:'closed', proposalStatus:'rejected', closedAt: Date.now(), rejectedAt: Date.now(), updatedAt: Date.now() };
         try{ await patchRemoteProposalStatus(row, patch); }catch(_){ }
         pruneFallbackRow(row, 'rejected');
+        renderNow();
       }catch(_){ }
     }
     if(detail) detail.style.display = 'none';
@@ -2004,6 +2075,7 @@
         var patch = { status:'closed', proposalStatus:'adopted', adoptedAt: Date.now(), updatedAt: Date.now() };
         try{ await patchRemoteProposalStatus(row, patch); }catch(_){ }
         pruneFallbackRow(row, 'adopted');
+        renderNow();
       }catch(_){ }
       if(metaEl){ metaEl.textContent = '✅ Vorschlag übernommen und in Kunde/Hund eingespielt.'; metaEl.style.color = '#b7f7c4'; }
       await closeFallbackDetail(false);
@@ -2038,6 +2110,9 @@
     });
   }
 
+  window.__dsInboxBackCurrent = function(ev){ try{ if(ev){ ev.preventDefault(); ev.stopPropagation(); } }catch(_){} return closeFallbackDetail(false); };
+  window.__dsInboxRejectCurrent = function(ev){ try{ if(ev){ ev.preventDefault(); ev.stopPropagation(); } }catch(_){} return closeFallbackDetail(true); };
+  window.__dsInboxAdoptCurrent = function(ev){ try{ if(ev){ ev.preventDefault(); ev.stopPropagation(); } }catch(_){} return adoptFallbackRow(); };
   window.__dsInboxHtmlClickRefresh = function(ev){ window.event = ev; return run('refresh'); };
   window.__dsInboxHtmlClickProposal = function(ev){ window.event = ev; return run('proposal'); };
 })();
