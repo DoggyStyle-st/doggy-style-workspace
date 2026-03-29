@@ -1873,29 +1873,73 @@
       formEl.innerHTML = html;
     }catch(_){ }
   }
+  function pruneFallbackRow(row, status){
+    try{
+      var key = String((row && (row.id || row.taskId || row.proposalId || row.submissionId)) || '').trim();
+      var bag = window.__dsInboxFallbackRows || {};
+      Object.keys(bag).forEach(function(targetId){
+        var arr = Array.isArray(bag[targetId]) ? bag[targetId] : [];
+        bag[targetId] = arr.filter(function(item){
+          var itemKey = String((item && (item.id || item.taskId || item.proposalId || item.submissionId)) || '').trim();
+          if(key && itemKey) return itemKey !== key;
+          return !(String((item && item.customerEmail) || '') === String((row && row.customerEmail) || '') && String((item && item.submittedAt) || '') === String((row && row.submittedAt) || ''));
+        });
+      });
+      window.__dsInboxFallbackRows = bag;
+      patchProposalBufferStatus(row, status || 'closed');
+    }catch(_){ }
+  }
+  async function patchRemoteProposalStatus(row, patch){
+    row = row || {};
+    patch = patch || {};
+    var lastErr = null;
+    try{
+      var isProposal = /proposal/i.test(String(row.__source || row.source || row.mode || '')) && typeof cloudProposalsCol === 'function';
+      if(isProposal && row.id){
+        var pcol = cloudProposalsCol();
+        if(pcol){ await pcol.doc(String(row.id)).set(patch, { merge:true }); return true; }
+      }
+    }catch(err){ lastErr = err; }
+    try{
+      if(typeof cloudTasksCol === 'function' && row.id){
+        var tcol = cloudTasksCol();
+        if(tcol){ await tcol.doc(String(row.id)).set(patch, { merge:true }); return true; }
+      }
+    }catch(err2){ lastErr = err2; }
+    if(lastErr) throw lastErr;
+    return false;
+  }
   async function closeFallbackDetail(markClosed){
     var row = window.__dsInboxCurrentTask;
     var detail = document.getElementById('inboxDetail');
     var listEl = document.getElementById('inboxList');
     var propEl = document.getElementById('inboxProposalList');
+    var metaEl = document.getElementById('inboxDetailMeta');
     if(markClosed && row){
       try{
-        var patch = { status:'closed', proposalStatus:'closed', closedAt: Date.now(), updatedAt: Date.now() };
-        var isProposal = /proposal/i.test(String(row.__source || row.source || row.mode || '')) && typeof cloudProposalsCol === 'function';
-        if(isProposal && row.id){ var pcol = cloudProposalsCol(); if(pcol) await pcol.doc(String(row.id)).set(patch, { merge:true }); }
-        else if(typeof cloudTasksCol === 'function' && row.id){ var tcol = cloudTasksCol(); if(tcol) await tcol.doc(String(row.id)).set(patch, { merge:true }); }
+        if(metaEl){ metaEl.textContent = 'Vorschlag wird abgelehnt …'; metaEl.style.color = ''; }
+        var patch = { status:'closed', proposalStatus:'rejected', closedAt: Date.now(), rejectedAt: Date.now(), updatedAt: Date.now() };
+        try{ await patchRemoteProposalStatus(row, patch); }catch(_){ }
+        pruneFallbackRow(row, 'rejected');
       }catch(_){ }
     }
     if(detail) detail.style.display = 'none';
     if(listEl) listEl.style.display = '';
     if(propEl) propEl.style.display = '';
+    try{
+      renderRows('inboxList', (window.__dsInboxFallbackRows && window.__dsInboxFallbackRows.inboxList) || [], 'keine Eingänge');
+      renderRows('inboxProposalList', (window.__dsInboxFallbackRows && window.__dsInboxFallbackRows.inboxProposalList) || [], 'keine Vorschläge gefunden');
+    }catch(_){ }
+    try{ if(typeof window.__dsInboxForceRefresh === 'function') await window.__dsInboxForceRefresh(); }catch(_){ }
     return false;
   }
   async function adoptFallbackRow(){
     var row = window.__dsInboxCurrentTask;
     if(!row) return false;
     var metaEl = document.getElementById('inboxDetailMeta');
+    var btn = document.getElementById('btnInboxAdopt');
     try{
+      if(btn){ btn.disabled = true; btn.textContent = 'Übernehme …'; }
       if(metaEl){ metaEl.textContent = 'Vorschlag wird in Kunde/Hund übernommen …'; metaEl.style.color = ''; }
       if(typeof ensureStateShape === 'function') ensureStateShape();
       window.state = window.state || {};
@@ -1906,13 +1950,7 @@
       var payload = row.payloadSubmitted || row.payload || row.payloadDraft || {};
       var customer = payload.customer || {};
       var pet = payload.pet || {};
-      var customerObj = null;
-      var email = String(customer.email || row.customerEmail || '').trim().toLowerCase();
-      if(email){ customerObj = st.customers.find(function(c){ return String((c && c.email) || '').trim().toLowerCase() === email; }) || null; }
-      if(!customerObj){
-        var name = String(customer.name || row.customerName || '').trim();
-        if(name) customerObj = st.customers.find(function(c){ return String((c && c.name) || '').trim() === name; }) || null;
-      }
+      var customerObj = findExistingCustomerForProposal(st, row, customer);
       if(!customerObj){
         customerObj = { id:(typeof uid==='function'?uid():('c_'+Date.now())), customerId:'', createdAt:Date.now() };
         customerObj.customerId = customerObj.id;
@@ -1929,30 +1967,27 @@
       customerObj.note = String(customer.note || customerObj.note || '').trim();
       customerObj.updatedAt = Date.now();
 
-      var petObj = null;
-      var petName = String(pet.name || '').trim();
-      if(customerObj.id && petName){
-        petObj = st.pets.find(function(p){
-          return String((p && (p.customerId || p.ownerId)) || '') === String(customerObj.id) && String((p && p.name) || '').trim() === petName;
-        }) || null;
-      }
+      var petObj = findExistingPetForProposal(st, customerObj, pet);
+      var petName = String(pet.name || petObj && petObj.name || '').trim();
       if(!petObj && petName){
         petObj = { id:(typeof uid==='function'?uid():('p_'+Date.now())), customerId:customerObj.id, createdAt:Date.now() };
         st.pets.unshift(petObj);
       }
       if(petObj){
+        petObj.id = String(petObj.id || (typeof uid==='function'?uid():('p_'+Date.now())));
         petObj.customerId = customerObj.id;
         petObj.name = petName || petObj.name || '';
         petObj.breed = String(pet.breed || petObj.breed || '').trim();
         petObj.sex = String(pet.sex || petObj.sex || '').trim();
-        petObj.birthdate = String(pet.birthdate || pet.birthDate || petObj.birthdate || '').trim();
+        petObj.birthdate = String(pet.birthdate || pet.birthDate || petObj.birthdate || petObj.birthDate || '').trim();
         petObj.birthDate = String(pet.birthDate || pet.birthdate || petObj.birthDate || petObj.birthdate || '').trim();
         petObj.chipNumber = String(pet.chipNumber || petObj.chipNumber || '').trim();
         petObj.vet = String(pet.vet || petObj.vet || '').trim();
         petObj.vetPhone = String(pet.vetPhone || petObj.vetPhone || '').trim();
         petObj.allergies = String(pet.allergies || petObj.allergies || '').trim();
         petObj.medicalConditions = String(pet.medicalConditions || petObj.medicalConditions || '').trim();
-        petObj.feeding = String(pet.feeding || pet.food || petObj.feeding || '').trim();
+        petObj.food = String(pet.food || pet.feeding || petObj.food || petObj.feeding || '').trim();
+        petObj.feeding = String(pet.feeding || pet.food || petObj.feeding || petObj.food || '').trim();
         petObj.behavior = String(pet.behavior || petObj.behavior || '').trim();
         petObj.note = String(pet.note || petObj.note || '').trim();
         petObj.updatedAt = Date.now();
@@ -1963,20 +1998,23 @@
       try{ if(typeof syncDogSelect === 'function') syncDogSelect(); }catch(_){ }
       try{ if(typeof renderDogs === 'function') renderDogs(); }catch(_){ }
       try{ if(typeof fillCustomerFieldsOnly === 'function' && customerObj.id) fillCustomerFieldsOnly(customerObj.id); }catch(_){ }
+      try{ if(typeof refreshCustomerSelect === 'function') refreshCustomerSelect(); }catch(_){ }
+      try{ if(typeof renderCustomerPanel === 'function') renderCustomerPanel(customerObj.id); }catch(_){ }
       try{
         var patch = { status:'closed', proposalStatus:'adopted', adoptedAt: Date.now(), updatedAt: Date.now() };
-        var isProposal = /proposal/i.test(String(row.__source || row.source || row.mode || '')) && typeof cloudProposalsCol === 'function';
-        if(isProposal && row.id){ var pcol = cloudProposalsCol(); if(pcol) await pcol.doc(String(row.id)).set(patch, { merge:true }); }
-        else if(typeof cloudTasksCol === 'function' && row.id){ var tcol = cloudTasksCol(); if(tcol) await tcol.doc(String(row.id)).set(patch, { merge:true }); }
+        try{ await patchRemoteProposalStatus(row, patch); }catch(_){ }
+        pruneFallbackRow(row, 'adopted');
       }catch(_){ }
       if(metaEl){ metaEl.textContent = '✅ Vorschlag übernommen und in Kunde/Hund eingespielt.'; metaEl.style.color = '#b7f7c4'; }
       await closeFallbackDetail(false);
-      try{ if(typeof window.__dsInboxForceRefresh === 'function') await window.__dsInboxForceRefresh(); }catch(_){ }
       try{ if(typeof showTab === 'function') showTab('dogs'); }catch(_){ }
+      try{ if(typeof openCpEditor === 'function' && customerObj && customerObj.id) openCpEditor(customerObj.id); }catch(_){ }
       try{ alert('✅ Vorschlag übernommen. Änderungen wurden in Kunde/Hund eingespielt.'); }catch(_){ }
     }catch(err){
       try{ if(metaEl){ metaEl.textContent = 'Übernehmen fehlgeschlagen: ' + String((err && err.message) || err || 'Unbekannter Fehler'); metaEl.style.color = '#ffb3b3'; } }catch(_){ }
       try{ alert('Übernehmen fehlgeschlagen: ' + String((err && err.message) || err || 'Unbekannter Fehler')); }catch(_){ }
+    }finally{
+      try{ if(btn){ btn.disabled = false; btn.textContent = 'In Workspace übernehmen'; } }catch(_){ }
     }
     return false;
   }
