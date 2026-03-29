@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB31_EINGAENGE_HARDGUARD_20260329",
+  tag: "M50.9.9GB32_EINGAENGE_BUTTONFIX_20260329",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB31_EINGAENGE_HARDGUARD_20260329";
+const APP_BUILD = "M50.9.9GB32_EINGAENGE_BUTTONFIX_20260329";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -18044,7 +18044,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB31_EINGAENGE_HARDGUARD_20260329) ===== */
+/* ===== CHAT (M50.9.9GB32_EINGAENGE_BUTTONFIX_20260329) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -19624,7 +19624,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB31_EINGAENGE_HARDGUARD_20260329";
+  const BUILD = "M50.9.9GB32_EINGAENGE_BUTTONFIX_20260329";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -19974,7 +19974,38 @@ try{
   window.__dsGb23MapInboxProposals = ()=>refreshInboxHard('gb23-map');
   window.__dsInboxReload = ()=>refreshInboxHard('reload');
   window.__dsOpenInboxDetail = openInboxDetail;
-  const kick = ()=>{ Promise.resolve().then(()=>refreshInboxHard('auto')).catch(err=>ensureInboxDiag({ phase:'auto-error', error:String((err && err.message) || err || 'load-failed') })); };
+  window.__dsInboxButtonsBindHard = function(){
+    try{
+      const bind = (id, fn, msgId, label)=>{
+        const btn = document.getElementById(id);
+        if(!btn) return;
+        btn.disabled = false;
+        btn.style.pointerEvents = 'auto';
+        btn.onclick = function(ev){
+          try{ if(ev){ ev.preventDefault(); ev.stopPropagation(); } }catch(_){}
+          try{
+            const msgEl = document.getElementById(msgId);
+            if(msgEl){ msgEl.textContent = label; msgEl.style.color = ''; }
+          }catch(_){}
+          return Promise.resolve().then(()=>fn(id)).catch(err=>{
+            ensureInboxDiag({ phase:'button-error', source:id, error:String((err && err.message) || err || 'button-failed') });
+            try{
+              const msgEl = document.getElementById(msgId);
+              if(msgEl){ msgEl.textContent = label.replace('…','') + ' fehlgeschlagen: ' + String((err && err.message) || err || 'Unbekannter Fehler'); msgEl.style.color = '#ffb3b3'; }
+            }catch(_){}
+            console.error('GB32 inbox button failed', id, err);
+            throw err;
+          });
+        };
+      };
+      bind('btnInboxRefresh', ()=>refreshInboxHard('refresh-button-hardbind'), 'assignMsg', 'Klick erkannt · Eingänge werden geladen …');
+      bind('btnInboxProposalLoad', ()=>refreshInboxHard('proposal-button-hardbind'), 'inboxProposalMsg', 'Klick erkannt · Vorschläge werden geladen …');
+    }catch(err){ console.warn('GB32 bind hard buttons failed', err); }
+  };
+  const kick = ()=>{
+    try{ window.__dsInboxButtonsBindHard && window.__dsInboxButtonsBindHard(); }catch(_){}
+    Promise.resolve().then(()=>refreshInboxHard('auto')).catch(err=>ensureInboxDiag({ phase:'auto-error', error:String((err && err.message) || err || 'load-failed') }));
+  };
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ()=>setTimeout(kick, 120));
   else setTimeout(kick, 120);
   window.addEventListener('load', ()=>setTimeout(kick, 160));
@@ -19982,6 +20013,7 @@ try{
   document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) setTimeout(kick, 160); });
   const inboxTab = document.querySelector('[data-tab="inbox"]') || document.getElementById('tabInbox');
   if(inboxTab && !inboxTab.__gb31Bound){ inboxTab.__gb31Bound = true; inboxTab.addEventListener('click', ()=>setTimeout(kick, 40)); }
+  document.addEventListener('pointerup', function(){ try{ window.__dsInboxButtonsBindHard && window.__dsInboxButtonsBindHard(); }catch(_){} }, true);
   document.addEventListener('click', function(ev){
     const btn = ev.target && ev.target.closest ? ev.target.closest('#btnInboxRefresh, #btnInboxProposalLoad') : null;
     if(!btn) return;
