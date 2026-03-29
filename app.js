@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB29_SYNC_DOT_INLINEGREEN_20260329",
+  tag: "M50.9.9GB30_SYNC_DOT_HARDGUARD_20260329",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB29_SYNC_DOT_INLINEGREEN_20260329";
+const APP_BUILD = "M50.9.9GB30_SYNC_DOT_HARDGUARD_20260329";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -462,6 +462,45 @@ function getCloudUserResolved(){
     return u || null;
   }catch(_){ return (window.CLOUD && CLOUD.user) || null; }
 }
+function forceSyncDotState(isOnline){
+  try{
+    const dot = document.getElementById('syncDot');
+    if(!dot) return;
+    const online = !!isOnline;
+    dot.classList.remove('online','offline');
+    dot.classList.add(online ? 'online' : 'offline');
+    dot.style.cssText = (dot.style.cssText || '') + ';background:#39d353 !important;background-color:#39d353 !important;border-color:#39d353 !important;box-shadow:0 0 0 2px rgba(255,255,255,.06) inset, 0 0 10px rgba(57,211,83,.35) !important;';
+    if(!online){
+      dot.style.cssText = (dot.style.cssText || '') + ';background:rgba(248,81,73,.85) !important;background-color:rgba(248,81,73,.85) !important;border-color:rgba(248,81,73,.85) !important;box-shadow:0 0 0 2px rgba(255,255,255,.06) inset, 0 0 10px rgba(248,81,73,.25) !important;';
+    }
+    dot.setAttribute('data-sync-state', online ? 'online' : 'offline');
+  }catch(_){ }
+}
+function installSyncDotHardGuard(){
+  try{
+    if(window.__dsSyncDotGuardInstalled) return;
+    window.__dsSyncDotGuardInstalled = true;
+    const apply = ()=>{
+      try{
+        const text = String(document.getElementById('syncStatus')?.textContent || '');
+        const details = String(document.getElementById('syncDetails')?.textContent || '');
+        const online = /erfolgreich/i.test(text) || /Cloud:\s*erfolgreich/i.test(details);
+        forceSyncDotState(online);
+      }catch(_){ }
+    };
+    window.__dsApplySyncDotState = apply;
+    setInterval(apply, 800);
+    const textEl = document.getElementById('syncStatus');
+    if(textEl && window.MutationObserver){
+      new MutationObserver(apply).observe(textEl,{childList:true,subtree:true,characterData:true});
+    }
+    const detailsEl = document.getElementById('syncDetails');
+    if(detailsEl && window.MutationObserver){
+      new MutationObserver(apply).observe(detailsEl,{childList:true,subtree:true,characterData:true});
+    }
+    setTimeout(apply,50); setTimeout(apply,500); setTimeout(apply,1500);
+  }catch(_){ }
+}
 function updateSyncUI(){
   const pill = document.getElementById('syncStatus');
   const userEl = document.getElementById('syncUser');
@@ -526,11 +565,7 @@ function updateSyncUI(){
     const dotOnline = !!((hasAuth && !SYNC.cloudLastError && !SYNC.cloudPending) || /erfolgreich/i.test(String(document.getElementById('syncStatus')?.textContent||'')) || /Cloud:\s*erfolgreich/i.test(String(details?.textContent||'')));
     dot.classList.toggle('online', dotOnline);
     dot.classList.toggle('offline', !dotOnline);
-    try{
-      dot.style.setProperty('background', dotOnline ? '#39d353' : 'rgba(248,81,73,.85)', 'important');
-      dot.style.setProperty('background-color', dotOnline ? '#39d353' : 'rgba(248,81,73,.85)', 'important');
-      dot.style.setProperty('box-shadow', dotOnline ? '0 0 0 2px rgba(255,255,255,.06) inset, 0 0 10px rgba(57,211,83,.35)' : '0 0 0 2px rgba(255,255,255,.06) inset, 0 0 10px rgba(248,81,73,.25)', 'important');
-    }catch(_){ }
+    try{ forceSyncDotState(dotOnline); }catch(_){ }
   }
   if(details){
     const detailsCloudLine = (hasAuth && !SYNC.cloudLastError && !SYNC.cloudPending) ? `Cloud: erfolgreich · Nutzer: ${resolvedUser && (resolvedUser.email || resolvedUser.uid) || 'eingeloggt'}` : cloudLine;
@@ -551,6 +586,7 @@ Cloud-Ping: ${fmtDT(SYNC.cloudReachCheckedAt)}${SYNC.cloudReachError ? ' · '+SY
     }
   }
 }
+installSyncDotHardGuard();
 /* ===== Dokument/PDF Modal (PWA/iPad-friendly) ===== */
 const DOCMOD = { url: null, filename: null };
 // Mini Toast helper (kurzes Feedback bei Kopieren/Teilen)
@@ -18008,7 +18044,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB29_SYNC_DOT_INLINEGREEN_20260329) ===== */
+/* ===== CHAT (M50.9.9GB30_SYNC_DOT_HARDGUARD_20260329) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
