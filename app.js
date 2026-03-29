@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB42_EINGAENGE_PROPOSAL_RECOVERY_20260329",
+  tag: "M50.9.9GB43_EINGAENGE_SIMPLIFY_20260329",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB42_EINGAENGE_PROPOSAL_RECOVERY_20260329";
+const APP_BUILD = "M50.9.9GB43_EINGAENGE_SIMPLIFY_20260329";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -18045,7 +18045,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB42_EINGAENGE_PROPOSAL_RECOVERY_20260329) ===== */
+/* ===== CHAT (M50.9.9GB43_EINGAENGE_SIMPLIFY_20260329) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -19625,7 +19625,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB42_EINGAENGE_PROPOSAL_RECOVERY_20260329";
+  const BUILD = "M50.9.9GB43_EINGAENGE_SIMPLIFY_20260329";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -20125,19 +20125,23 @@ try{
     }
   }
   async function refreshInboxHard(source){
-    setText('assignMsg', 'Eingänge werden geladen …', false);
-    setText('inboxProposalMsg', 'Kundenvorschläge werden geladen …', false);
+    setText('assignMsg', '', false);
+    setText('inboxProposalMsg', '', false);
     ensureInboxDiag({ phase:'load-start', source: source || 'manual', error:'' });
-    try{
-      if(typeof ensureStateShape === 'function') ensureStateShape();
-    }catch(_){ }
+    try{ if(typeof ensureStateShape === 'function') ensureStateShape(); }catch(_){ }
     const rows = await collectInboxRows();
     const counts = appendMissingSelectOptions(rows);
     renderProposalList(rows);
     renderInboxList(rows);
     bindDetailButtons();
-    setText('assignMsg', rows.length ? ('Eingänge geladen: ' + rows.length) : 'Keine Eingänge gefunden.', !rows.length);
-    setText('inboxProposalMsg', rows.length ? ('Kundenvorschläge geladen: ' + rows.length) : 'Keine Kundenvorschläge gefunden.', !rows.length);
+    try{
+      const diagCard = document.getElementById('inboxProposalDebug');
+      const assignCard = document.getElementById('taskAssignCard');
+      if(diagCard) diagCard.style.display = 'none';
+      if(assignCard) assignCard.style.display = 'none';
+    }catch(_){ }
+    setText('assignMsg', '', false);
+    setText('inboxProposalMsg', '', false);
     ensureInboxDiag({ phase:'ready', rows: rows.length, customers: counts.customers, templates: counts.templates, source: source || 'manual', error:'' });
     return rows;
   }
