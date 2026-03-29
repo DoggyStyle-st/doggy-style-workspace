@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB44_EINGAENGE_RECOVERY_20260329",
+  tag: "M50.9.9GB45_EINGAENGE_DIAGRECOVERY_20260329",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB44_EINGAENGE_RECOVERY_20260329";
+const APP_BUILD = "M50.9.9GB45_EINGAENGE_DIAGRECOVERY_20260329";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -18045,7 +18045,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB44_EINGAENGE_RECOVERY_20260329) ===== */
+/* ===== CHAT (M50.9.9GB45_EINGAENGE_DIAGRECOVERY_20260329) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -19625,7 +19625,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB44_EINGAENGE_RECOVERY_20260329";
+  const BUILD = "M50.9.9GB45_EINGAENGE_DIAGRECOVERY_20260329";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -19724,16 +19724,33 @@ try{
   };
   async function collectInboxRows(){
     const rows = [];
+    const diag = { sources:{}, errors:[] };
+    const addDiag = (key, count=0)=>{ try{ diag.sources[key] = (diag.sources[key] || 0) + Number(count || 0); }catch(_){ } };
+    const addErr = (key, err)=>{ try{ diag.errors.push(key + ':' + String((err && err.message) || err || 'error')); }catch(_){ } };
+    const isProposalLike = (n)=>{
+      try{
+        const payload = n.payloadSubmitted || n.payload || {};
+        const src = lower(payload.source || n.source || n.kind || n.templateId || '');
+        if(src.includes('customer-main-dogs') || src.includes('proposal')) return true;
+        if(payload.customer || payload.pet) return true;
+        const st = lower(n.status || n.proposalStatus || '');
+        if(st === 'submitted' || st === 'pending') return true;
+      }catch(_){ }
+      return false;
+    };
     const push = (obj, source)=>{
       const n = normalizeRow(obj, source);
       if(!n) return;
       const status = lower(n.status || n.proposalStatus || '');
       if(status && ['rejected','adopted','closed','done','completed','accepted'].includes(status)) return;
+      if(!isProposalLike(n)) return;
       rows.push(n);
+      addDiag(source, 1);
     };
     const readSnap = async (col, modes, source, decorate)=>{
       if(!col || typeof col.limit !== 'function') return;
       let snap = null;
+      let lastErr = null;
       for(const mode of modes){
         try{
           if(mode.type === 'where2') snap = await col.where(mode.field1, mode.op1, mode.value1).where(mode.field2, mode.op2, mode.value2).limit(100).get();
@@ -19741,8 +19758,9 @@ try{
           else if(mode.type === 'order') snap = await col.orderBy(mode.field, mode.dir || 'desc').limit(100).get();
           else snap = await col.limit(100).get();
           if(snap && typeof snap.forEach === 'function') break;
-        }catch(_){ snap = null; }
+        }catch(err){ lastErr = err; snap = null; }
       }
+      if(lastErr && !snap) addErr(source, lastErr);
       if(snap && typeof snap.forEach === 'function') snap.forEach(d=>push(decorate(d), source));
     };
     try{
@@ -19753,7 +19771,7 @@ try{
         {type:'order', field:'submittedAt', dir:'desc'},
         {type:'all'}
       ], 'cloud-tasks', d=>({ id:d.id, taskId:d.id, ...d.data() }));
-    }catch(err){ console.warn('GB44 tasks load failed', err); }
+    }catch(err){ addErr('cloud-tasks-outer', err); }
     try{
       const pcol = typeof cloudProposalsCol === 'function' ? cloudProposalsCol() : null;
       await readSnap(pcol, [
@@ -19762,24 +19780,24 @@ try{
         {type:'order', field:'submittedAt', dir:'desc'},
         {type:'all'}
       ], 'cloud-proposals', d=>({ id:d.id, proposalId:d.id, ...d.data() }));
-    }catch(err){ console.warn('GB44 proposals load failed', err); }
-    try{ asArray(state && state.inboxAssignments).forEach(x=>push(x,'state-inboxAssignments')); }catch(_){ }
-    try{ asArray(state && state.inboxSubmissions).forEach(x=>push(x,'state-inboxSubmissions')); }catch(_){ }
-    try{ asArray(typeof loadCustomerProposalBuffer === 'function' ? loadCustomerProposalBuffer() : []).forEach(x=>push(x,'proposal-buffer')); }catch(_){ }
+    }catch(err){ addErr('cloud-proposals-outer', err); }
+    try{ asArray(state && state.inboxAssignments).forEach(x=>push(x,'state-inboxAssignments')); }catch(err){ addErr('state-inboxAssignments', err); }
+    try{ asArray(state && state.inboxSubmissions).forEach(x=>push(x,'state-inboxSubmissions')); }catch(err){ addErr('state-inboxSubmissions', err); }
+    try{ asArray(typeof loadCustomerProposalBuffer === 'function' ? loadCustomerProposalBuffer() : []).forEach(x=>push(x,'proposal-buffer')); }catch(err){ addErr('proposal-buffer', err); }
     try{
       const raw = localStorage.getItem(typeof LS_KEY !== 'undefined' ? LS_KEY : 'doggystyle_workspace_state_v1');
       const data = raw ? JSON.parse(raw) : {};
       asArray(data.inboxAssignments).forEach(x=>push(x,'local-inboxAssignments'));
       asArray(data.inboxSubmissions).forEach(x=>push(x,'local-inboxSubmissions'));
       asArray(data.customerProposals).forEach(x=>push(x,'local-customerProposals'));
-    }catch(_){ }
+    }catch(err){ addErr('local-workspace', err); }
     try{
       const raw2 = localStorage.getItem(typeof CUSTOMER_PROPOSALS_KEY !== 'undefined' ? CUSTOMER_PROPOSALS_KEY : 'ds_customer_proposals_v1');
       const data2 = raw2 ? JSON.parse(raw2) : [];
       asArray(data2).forEach(x=>push(x,'proposal-buffer-direct'));
-    }catch(_){ }
+    }catch(err){ addErr('proposal-buffer-direct', err); }
     const deduped = dedupeRows(rows);
-    try{ window.__dsInboxLastTasks = deduped.slice(); window.__dsInboxLastCount = deduped.length; window.__dsInboxLoadedProposals = deduped.slice(); window.__dsCollectInboxRows = collectInboxRows; }catch(_){ }
+    try{ window.__dsInboxLastTasks = deduped.slice(); window.__dsInboxLastCount = deduped.length; window.__dsInboxLoadedProposals = deduped.slice(); window.__dsCollectInboxRows = collectInboxRows; window.__dsInboxDiagSources = diag; }catch(_){ }
     return deduped;
   }
   function renderProposalList(rows){
@@ -20162,6 +20180,15 @@ try{
     setText('assignMsg', '', false);
     setText('inboxProposalMsg', '', false);
     ensureInboxDiag({ phase:'ready', rows: rows.length, customers: counts.customers, templates: counts.templates, source: source || 'manual', error:'' });
+    try{
+      const diagEl = document.getElementById('inboxDiag');
+      const info = window.__dsInboxDiagSources || { sources:{}, errors:[] };
+      if(diagEl){
+        const parts = Object.entries(info.sources || {}).map(([k,v])=>`${k}:${v}`).filter(Boolean);
+        diagEl.textContent = rows.length ? ('Quellen · ' + (parts.join(' · ') || 'Einträge vorhanden')) : ('Keine Eingänge gefunden' + (parts.length ? ' · Quellen ' + parts.join(' · ') : '') + ((info.errors||[]).length ? ' · Fehler ' + info.errors.join(' | ') : ''));
+        diagEl.style.color = rows.length ? '' : '#ffb3b3';
+      }
+    }catch(_){ }
     return rows;
   }
   window.__dsInboxRefreshButtonHard = ()=>refreshInboxHard('refresh-button');
