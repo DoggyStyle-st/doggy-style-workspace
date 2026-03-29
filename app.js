@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB36_EINGAENGE_APPHTML_SYNC_20260329",
+  tag: "M50.9.9GB37_EINGAENGE_DETAIL_ACTIONS_20260329",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB36_EINGAENGE_APPHTML_SYNC_20260329";
+const APP_BUILD = "M50.9.9GB37_EINGAENGE_DETAIL_ACTIONS_20260329";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -18044,7 +18044,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB36_EINGAENGE_APPHTML_SYNC_20260329) ===== */
+/* ===== CHAT (M50.9.9GB37_EINGAENGE_DETAIL_ACTIONS_20260329) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -19624,7 +19624,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB36_EINGAENGE_APPHTML_SYNC_20260329";
+  const BUILD = "M50.9.9GB37_EINGAENGE_DETAIL_ACTIONS_20260329";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];

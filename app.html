@@ -6,13 +6,13 @@
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
 <meta charset="utf-8"/>
-  <meta name="app-build" content="M50.9.9GB36_EINGAENGE_APPHTML_SYNC_20260329">
+  <meta name="app-build" content="M50.9.9GB37_EINGAENGE_DETAIL_ACTIONS_20260329">
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <title>Doggy Style Workspace · App</title>
 <link href="manifest.json" rel="manifest"/>
 <meta content="#101014" name="theme-color"/>
 <link href="assets/logo.png" rel="apple-touch-icon"/>
-<link href="styles.css?v=M50.9.9GB36_EINGAENGE_APPHTML_SYNC_20260329" rel="stylesheet"/>
+<link href="styles.css?v=M50.9.9GB37_EINGAENGE_DETAIL_ACTIONS_20260329" rel="stylesheet"/>
 <link href="dashboard_master.css?v=20260104v13logout" rel="stylesheet"/>
 <style>
   /* Topbar Layout (iPad & Desktop stabil) */
@@ -102,7 +102,7 @@
   .doc-modal__actions{ margin-left:auto; display:flex; flex-wrap: wrap; gap: 8px; }
   .doc-modal__frame{ width: 100%; border: 0; border-radius: 12px; background: #fff; flex:1; min-height: 0; }
 </style>
-  <meta name="app-version" content="M50.9.9GB36_EINGAENGE_APPHTML_SYNC_20260329">
+  <meta name="app-version" content="M50.9.9GB37_EINGAENGE_DETAIL_ACTIONS_20260329">
   <meta name="release-channel" content="MASTER">
 </head>
 <body class="bg-watermark page-app">
@@ -1193,7 +1193,7 @@
 </section>
 
 <section class="panel" id="statistics">
-<!-- Statistics panel is rendered by app.js?v=M50.9.9GB36_EINGAENGE_APPHTML_SYNC_20260329 (renderStatisticsPanel) -->
+<!-- Statistics panel is rendered by app.js?v=M50.9.9GB37_EINGAENGE_DETAIL_ACTIONS_20260329 (renderStatisticsPanel) -->
 </section>
 
 
@@ -1260,12 +1260,12 @@
 </footer>
 </div>
 <!-- Firebase (optional) + Config -->
-<script defer="defer" src="firebase-config.js?v=M50.9.9GB36_EINGAENGE_APPHTML_SYNC_20260329"></script>
+<script defer="defer" src="firebase-config.js?v=M50.9.9GB37_EINGAENGE_DETAIL_ACTIONS_20260329"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
-<script defer="defer" src="app.js?v=M50.9.9GB36_EINGAENGE_APPHTML_SYNC_20260329"></script>
+<script defer="defer" src="app.js?v=M50.9.9GB37_EINGAENGE_DETAIL_ACTIONS_20260329"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1308,7 +1308,7 @@
 </script>
 
 <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB36_EINGAENGE_APPHTML_SYNC_20260329');
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB37_EINGAENGE_DETAIL_ACTIONS_20260329');
   </script>
 
 <script>
@@ -1372,7 +1372,7 @@
   <!-- Bottom logout button removed (duplicate of header logout; also overlaps editor on iPad) -->
 </div>
 <!-- test-badge removed (requested) -->
-  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB36_EINGAENGE_APPHTML_SYNC_20260329</div>
+  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB37_EINGAENGE_DETAIL_ACTIONS_20260329</div>
 
 <script>
 (function visibleMailFallback(){
@@ -1744,14 +1744,11 @@
       }catch(_){ }
       if(titleEl) titleEl.textContent = title;
       if(metaEl) metaEl.textContent = 'Kunde: ' + customer + (when ? (' · Abgesendet: ' + when) : '');
-      if(formEl){
-        var payload = row.payloadSubmitted || row.payload || row.payloadDraft || row;
-        var pretty = '';
-        try{ pretty = JSON.stringify(payload, null, 2); }catch(_){ pretty = String(payload || ''); }
-        formEl.innerHTML = '<div class="sync-box" style="padding:12px; white-space:pre-wrap; word-break:break-word;">' + escHtml(pretty) + '</div>';
-      }
+      if(formEl) renderFallbackPayload(formEl, row);
       if(listEl) listEl.style.display = 'none';
+      try{ var propEl = document.getElementById('inboxProposalList'); if(propEl) propEl.style.display = 'none'; }catch(_){ }
       if(detail) detail.style.display = '';
+      bindFallbackDetailButtons();
     }catch(_){ }
     return false;
   }
@@ -1843,6 +1840,134 @@
     setMsg(isProposal ? 'inboxProposalMsg' : 'assignMsg', rows.length ? ((isProposal ? 'Vorschläge geladen: ' : 'Eingänge geladen: ') + rows.length + ' (Fallback)') : (isProposal ? 'Keine Vorschläge gefunden.' : 'Keine Eingänge gefunden.'), !rows.length);
     return false;
   }
+  
+  function renderFallbackPayload(formEl, row){
+    try{
+      var payload = row.payloadSubmitted || row.payload || row.payloadDraft || row;
+      var customer = payload && payload.customer ? payload.customer : null;
+      var pet = payload && payload.pet ? payload.pet : null;
+      var html = '';
+      function card(title, entries){
+        var body = (entries || []).filter(function(pair){ return pair && String(pair[1] == null ? '' : pair[1]).trim() !== ''; }).map(function(pair){
+          return '<label class="field"><span>' + escHtml(pair[0]) + '</span><input type="text" value="' + escHtml(pair[1]) + '" readonly></label>';
+        }).join('');
+        if(!body) return '';
+        return '<div class="card"><h2 style="margin-top:0">' + escHtml(title) + '</h2><div class="grid cols-2">' + body + '</div></div>';
+      }
+      if(customer || pet){
+        html += card('Kunde', [
+          ['Name', customer && customer.name], ['E-Mail', customer && customer.email], ['Telefon', customer && customer.phone],
+          ['Straße', customer && customer.street], ['PLZ', customer && customer.zip], ['Ort', customer && customer.city], ['Notiz', customer && customer.note]
+        ]);
+        html += card('Hund', [
+          ['Name', pet && pet.name], ['Rasse', pet && pet.breed], ['Geschlecht', pet && pet.sex], ['Geburtsdatum', pet && (pet.birthdate || pet.birthDate)],
+          ['Chipnummer', pet && pet.chipNumber], ['Tierarzt', pet && pet.vet], ['Tierarzt Telefon', pet && pet.vetPhone], ['Allergien', pet && pet.allergies],
+          ['Vorerkrankungen', pet && pet.medicalConditions], ['Fütterung', pet && (pet.feeding || pet.food)], ['Verhalten', pet && pet.behavior], ['Notiz', pet && pet.note]
+        ]);
+      }
+      if(!html){
+        var pretty = '';
+        try{ pretty = JSON.stringify(payload, null, 2); }catch(_){ pretty = String(payload || ''); }
+        html = '<div class="sync-box" style="padding:12px; white-space:pre-wrap; word-break:break-word;">' + escHtml(pretty) + '</div>';
+      }
+      formEl.innerHTML = html;
+    }catch(_){ }
+  }
+  async function closeFallbackDetail(markClosed){
+    var row = window.__dsInboxCurrentTask;
+    var detail = document.getElementById('inboxDetail');
+    var listEl = document.getElementById('inboxList');
+    var propEl = document.getElementById('inboxProposalList');
+    if(markClosed && row){
+      try{
+        var patch = { status:'closed', proposalStatus:'closed', closedAt: Date.now(), updatedAt: Date.now() };
+        var isProposal = /proposal/i.test(String(row.__source || row.source || row.mode || '')) && typeof cloudProposalsCol === 'function';
+        if(isProposal && row.id){ var pcol = cloudProposalsCol(); if(pcol) await pcol.doc(String(row.id)).set(patch, { merge:true }); }
+        else if(typeof cloudTasksCol === 'function' && row.id){ var tcol = cloudTasksCol(); if(tcol) await tcol.doc(String(row.id)).set(patch, { merge:true }); }
+      }catch(_){ }
+    }
+    if(detail) detail.style.display = 'none';
+    if(listEl) listEl.style.display = '';
+    if(propEl) propEl.style.display = '';
+    return false;
+  }
+  async function adoptFallbackRow(){
+    var row = window.__dsInboxCurrentTask;
+    if(!row) return false;
+    try{
+      window.state = window.state || {};
+      state.customers = Array.isArray(state.customers) ? state.customers : [];
+      state.pets = Array.isArray(state.pets) ? state.pets : [];
+      var payload = row.payloadSubmitted || row.payload || row.payloadDraft || {};
+      var customer = payload.customer || {};
+      var pet = payload.pet || {};
+      var customerObj = null;
+      var email = String(customer.email || row.customerEmail || '').trim().toLowerCase();
+      if(email){ customerObj = state.customers.find(function(c){ return String(c && c.email || '').trim().toLowerCase() === email; }) || null; }
+      if(!customerObj){
+        var name = String(customer.name || row.customerName || '').trim();
+        if(name) customerObj = state.customers.find(function(c){ return String(c && c.name || '').trim() === name; }) || null;
+      }
+      if(!customerObj){ customerObj = { id:(typeof uid==='function'?uid():('c_'+Date.now())), createdAt:Date.now() }; state.customers.unshift(customerObj); }
+      customerObj.name = String(customer.name || customerObj.name || row.customerName || '').trim();
+      customerObj.email = String(customer.email || customerObj.email || row.customerEmail || '').trim();
+      customerObj.phone = String(customer.phone || customerObj.phone || '').trim();
+      customerObj.street = String(customer.street || customerObj.street || '').trim();
+      customerObj.zip = String(customer.zip || customerObj.zip || '').trim();
+      customerObj.city = String(customer.city || customerObj.city || '').trim();
+      customerObj.note = String(customer.note || customerObj.note || '').trim();
+      customerObj.updatedAt = Date.now();
+      var petObj = null;
+      var petName = String(pet.name || '').trim();
+      if(customerObj.id && petName){ petObj = state.pets.find(function(p){ return String(p && p.customerId || '') === String(customerObj.id) && String(p && p.name || '').trim() === petName; }) || null; }
+      if(!petObj && petName){ petObj = { id:(typeof uid==='function'?uid():('p_'+Date.now())), customerId:customerObj.id, createdAt:Date.now() }; state.pets.unshift(petObj); }
+      if(petObj){
+        petObj.customerId = customerObj.id;
+        petObj.name = petName || petObj.name || '';
+        petObj.breed = String(pet.breed || petObj.breed || '').trim();
+        petObj.sex = String(pet.sex || petObj.sex || '').trim();
+        petObj.birthdate = String(pet.birthdate || pet.birthDate || petObj.birthdate || '').trim();
+        petObj.chipNumber = String(pet.chipNumber || petObj.chipNumber || '').trim();
+        petObj.vet = String(pet.vet || petObj.vet || '').trim();
+        petObj.vetPhone = String(pet.vetPhone || petObj.vetPhone || '').trim();
+        petObj.allergies = String(pet.allergies || petObj.allergies || '').trim();
+        petObj.medicalConditions = String(pet.medicalConditions || petObj.medicalConditions || '').trim();
+        petObj.feeding = String(pet.feeding || pet.food || petObj.feeding || '').trim();
+        petObj.behavior = String(pet.behavior || petObj.behavior || '').trim();
+        petObj.note = String(pet.note || petObj.note || '').trim();
+        petObj.updatedAt = Date.now();
+        try{ if(typeof upsertLegacyDogForPet === 'function') upsertLegacyDogForPet(petObj, customerObj); }catch(_){ }
+      }
+      try{ if(typeof saveState === 'function') saveState(); }catch(_){ }
+      try{ if(typeof renderDogs === 'function') renderDogs(); }catch(_){ }
+      try{
+        var patch = { status:'closed', proposalStatus:'adopted', adoptedAt: Date.now(), updatedAt: Date.now() };
+        var isProposal = /proposal/i.test(String(row.__source || row.source || row.mode || '')) && typeof cloudProposalsCol === 'function';
+        if(isProposal && row.id){ var pcol = cloudProposalsCol(); if(pcol) await pcol.doc(String(row.id)).set(patch, { merge:true }); }
+        else if(typeof cloudTasksCol === 'function' && row.id){ var tcol = cloudTasksCol(); if(tcol) await tcol.doc(String(row.id)).set(patch, { merge:true }); }
+      }catch(_){ }
+      try{ alert('✅ Vorschlag übernommen. Änderungen wurden in Kunde/Hund eingespielt.'); }catch(_){ }
+      await closeFallbackDetail(false);
+      try{ if(typeof window.__dsInboxForceRefresh === 'function') await window.__dsInboxForceRefresh(); }catch(_){ }
+    }catch(err){
+      try{ alert('Übernehmen fehlgeschlagen: ' + String((err && err.message) || err || 'Unbekannter Fehler')); }catch(_){ }
+    }
+    return false;
+  }
+  function bindFallbackDetailButtons(){
+    [['btnInboxBack', function(ev){ try{ if(ev){ ev.preventDefault(); ev.stopPropagation(); } }catch(_){} return closeFallbackDetail(false); }],
+     ['btnInboxClose', function(ev){ try{ if(ev){ ev.preventDefault(); ev.stopPropagation(); } }catch(_){} return closeFallbackDetail(true); }],
+     ['btnInboxAdopt', function(ev){ try{ if(ev){ ev.preventDefault(); ev.stopPropagation(); } }catch(_){} return adoptFallbackRow(); }]
+    ].forEach(function(pair){
+      var btn = document.getElementById(pair[0]);
+      if(!btn || btn.__dsFallbackBound) return;
+      btn.__dsFallbackBound = true;
+      btn.addEventListener('click', pair[1], true);
+      btn.addEventListener('touchend', pair[1], true);
+      btn.addEventListener('pointerup', pair[1], true);
+    });
+  }
+
   window.__dsInboxHtmlClickRefresh = function(ev){ window.event = ev; return run('refresh'); };
   window.__dsInboxHtmlClickProposal = function(ev){ window.event = ev; return run('proposal'); };
 })();
