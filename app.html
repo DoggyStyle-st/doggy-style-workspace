@@ -6,13 +6,13 @@
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
 <meta charset="utf-8"/>
-  <meta name="app-build" content="M50.9.9GB65_EINGAENGE_REVIEW_STRICTMERGE_20260330">
+  <meta name="app-build" content="M50.9.9GB66_EINGAENGE_REVIEW_BRIDGE_20260330">
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <title>Doggy Style Workspace · App</title>
 <link href="manifest.json" rel="manifest"/>
 <meta content="#101014" name="theme-color"/>
 <link href="assets/logo.png" rel="apple-touch-icon"/>
-<link href="styles.css?v=M50.9.9GB65_EINGAENGE_REVIEW_STRICTMERGE_20260330" rel="stylesheet"/>
+<link href="styles.css?v=M50.9.9GB66_EINGAENGE_REVIEW_BRIDGE_20260330" rel="stylesheet"/>
 <link href="dashboard_master.css?v=20260104v13logout" rel="stylesheet"/>
 <style>
   /* Topbar Layout (iPad & Desktop stabil) */
@@ -102,7 +102,7 @@
   .doc-modal__actions{ margin-left:auto; display:flex; flex-wrap: wrap; gap: 8px; }
   .doc-modal__frame{ width: 100%; border: 0; border-radius: 12px; background: #fff; flex:1; min-height: 0; }
 </style>
-  <meta name="app-version" content="M50.9.9GB65_EINGAENGE_REVIEW_STRICTMERGE_20260330">
+  <meta name="app-version" content="M50.9.9GB66_EINGAENGE_REVIEW_BRIDGE_20260330">
   <meta name="release-channel" content="MASTER">
 </head>
 <body class="bg-watermark page-app">
@@ -1194,7 +1194,7 @@
 </section>
 
 <section class="panel" id="statistics">
-<!-- Statistics panel is rendered by app.js?v=M50.9.9GB65_EINGAENGE_REVIEW_STRICTMERGE_20260330 (renderStatisticsPanel) -->
+<!-- Statistics panel is rendered by app.js?v=M50.9.9GB66_EINGAENGE_REVIEW_BRIDGE_20260330 (renderStatisticsPanel) -->
 </section>
 
 
@@ -1261,12 +1261,12 @@
 </footer>
 </div>
 <!-- Firebase (optional) + Config -->
-<script defer="defer" src="firebase-config.js?v=M50.9.9GB65_EINGAENGE_REVIEW_STRICTMERGE_20260330"></script>
+<script defer="defer" src="firebase-config.js?v=M50.9.9GB66_EINGAENGE_REVIEW_BRIDGE_20260330"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
-<script defer="defer" src="app.js?v=M50.9.9GB65_EINGAENGE_REVIEW_STRICTMERGE_20260330"></script>
+<script defer="defer" src="app.js?v=M50.9.9GB66_EINGAENGE_REVIEW_BRIDGE_20260330"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1309,7 +1309,7 @@
 </script>
 
 <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB65_EINGAENGE_REVIEW_STRICTMERGE_20260330');
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB66_EINGAENGE_REVIEW_BRIDGE_20260330');
   </script>
 
 <script>
@@ -1373,7 +1373,7 @@
   <!-- Bottom logout button removed (duplicate of header logout; also overlaps editor on iPad) -->
 </div>
 <!-- test-badge removed (requested) -->
-  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB65_EINGAENGE_REVIEW_STRICTMERGE_20260330</div>
+  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB66_EINGAENGE_REVIEW_BRIDGE_20260330</div>
 
 <script>
 (function visibleMailFallback(){
@@ -1778,94 +1778,19 @@
       var src = String((payload && payload.source) || row.templateId || row.proposalType || row.kind || row.formKey || '').toLowerCase();
       var looksLikeCustomerProposal = src.indexOf('customer-main-dogs') >= 0 || src.indexOf('customer') >= 0 || Object.keys(customer).length > 0 || Object.keys(pet).length > 0;
       if(!looksLikeCustomerProposal) return false;
-      ds62ForcePanel('dogs');
+      try{ ds62ForcePanel('dogs'); }catch(_){ }
       try{ document.getElementById('inboxDetail').style.display = 'none'; }catch(_){ }
       try{ document.getElementById('inboxList').style.display = 'none'; }catch(_){ }
       try{ document.getElementById('inboxProposalList').style.display = 'none'; }catch(_){ }
-      var existingCustomer = ds62FindExistingCustomer(row || {}, customer || {});
-      var existingPet = ds62FindExistingPet(existingCustomer || {}, pet || {});
+      try{ document.getElementById('btnInboxClose').style.display = 'none'; }catch(_){ }
+      try{ document.getElementById('btnInboxAdopt').style.display = 'none'; }catch(_){ }
       try{
-        if(existingPet && existingPet.id && typeof openCpEditor === 'function') openCpEditor('edit', existingPet.id);
-        else if(typeof openCpEditor === 'function') openCpEditor('new');
-      }catch(_){ }
-      var apply = function(){
-        try{ ds62ForcePanel('dogs'); }catch(_){ }
-        try{
-          if(existingCustomer && (existingCustomer.id || existingCustomer.customerId)){
-            var useExisting = document.getElementById('useExistingCustomer');
-            var sel = document.getElementById('customerSelect');
-            if(useExisting) useExisting.checked = true;
-            try{ if(typeof refreshCustomerSelect === 'function') refreshCustomerSelect(); }catch(_){ }
-            if(sel) sel.value = existingCustomer.id || existingCustomer.customerId || '';
-          }
-          try{ if(typeof setCustomerFieldsDisabled === 'function') setCustomerFieldsDisabled(false); }catch(_){ }
-          var cMap = {
-            c_name: customer.name,
-            c_phone: customer.phone,
-            c_email: customer.email,
-            c_street: customer.street,
-            c_zip: customer.zip,
-            c_city: customer.city,
-            c_em_name: customer.emergencyName || customer.emergencyContact,
-            c_em_phone: customer.emergencyPhone,
-            c_pickup_auth: customer.pickupAuth,
-            c_note: customer.note
-          };
-          var pMap = {
-            p_name: pet.name,
-            p_breed: pet.breed,
-            p_birthdate: pet.birthdate || pet.birthDate,
-            p_sex: pet.sex,
-            p_chipStatus: pet.chip,
-            p_chipNumber: pet.chipNumber,
-            p_vet: pet.vet,
-            p_vetPhone: pet.vetPhone,
-            p_vetEmail: pet.vetEmail,
-            p_vetStreet: pet.vetStreet,
-            p_vetZip: pet.vetZip,
-            p_vetCity: pet.vetCity,
-            p_vetEmergencyName: pet.vetEmergencyName,
-            p_vetEmergencyPhone: pet.vetEmergencyPhone,
-            p_allergies: pet.allergies,
-            p_medicalConditions: pet.medicalConditions,
-            p_insuranceStatus: pet.insuranceStatus,
-            p_insuranceCompany: pet.insuranceCompany,
-            p_insurancePolicy: pet.insurancePolicy,
-            p_insuranceNotes: pet.insuranceNotes,
-            p_vaccinatedConfirmed: pet.vaccinatedConfirmed,
-            p_rabiesDate: pet.rabiesDate,
-            p_mixedVaccineDate: pet.mixedVaccineDate,
-            p_food: pet.food,
-            p_treatsAllowed: pet.treatsAllowed,
-            p_aloneTime: pet.aloneTime,
-            p_houseTrained: pet.houseTrained,
-            p_transport: pet.transport,
-            p_feeding: pet.feeding,
-            p_compatDogs: pet.compatDogs,
-            p_compatCats: pet.compatCats,
-            p_compatKids: pet.compatKids,
-            p_compat: pet.compat,
-            p_leashBehavior: pet.leashBehavior,
-            p_recall: pet.recall,
-            p_resourceBehavior: pet.resourceBehavior,
-            p_behavior: pet.behavior,
-            p_dailyRoutine: pet.dailyRoutine,
-            p_commands: pet.commands,
-            p_note: pet.note
-          };
-          Object.keys(cMap).forEach(function(id){ if(cMap[id] != null && cMap[id] !== '') ds62SetField(id, cMap[id]); });
-          Object.keys(pMap).forEach(function(id){ if(pMap[id] != null && pMap[id] !== '') ds62SetField(id, pMap[id]); });
-          var editor = document.getElementById('cpEditor');
-          if(editor){
-            editor.style.display = 'block';
-            if(editor.scrollIntoView) editor.scrollIntoView({ behavior:'smooth', block:'start' });
-          }
-        }catch(_){ }
-      };
-      setTimeout(apply, 0);
-      setTimeout(apply, 120);
-      setTimeout(apply, 320);
-      return true;
+        if(typeof window.dsOpenProposalInCustomerEditor === 'function'){
+          var ok = window.dsOpenProposalInCustomerEditor(row);
+          if(ok) return true;
+        }
+      }catch(err){ try{ console.warn('ds62 review-open bridge failed', err); }catch(_){ } }
+      return false;
     }catch(_){ return false; }
   }
 
