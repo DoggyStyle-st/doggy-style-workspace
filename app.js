@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB62_EINGAENGE_STEP1_TRUE_EDITOR_20260330",
+  tag: "M50.9.9GB63_EINGAENGE_SAVE_AND_HIGHLIGHT_20260330",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB62_EINGAENGE_STEP1_TRUE_EDITOR_20260330";
+const APP_BUILD = "M50.9.9GB63_EINGAENGE_SAVE_AND_HIGHLIGHT_20260330";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -1365,6 +1365,16 @@ function cloudPushQueued(){
   SYNC.cloudPending = true;
   updateSyncUI();
   CLOUD._pushTimer = setTimeout(()=>cloudPushNow().catch(console.error), 700);
+}
+function cloudSchedulePush(){
+  try{
+    cloudPushQueued();
+    return true;
+  }catch(err){
+    try{ console.warn('cloudSchedulePush fallback failed, pushing now', err); }catch(_){ }
+    try{ Promise.resolve(cloudPushNow()).catch(console.error); return true; }catch(_){ }
+  }
+  return false;
 }
 async function cloudPushNow(){
   if(!CLOUD.enabled) return;
@@ -9285,6 +9295,7 @@ function cpMedRenderInlineList(){
 }
 
 const __dsProposalReview = { active:false, row:null, baseCustomer:null, basePet:null };
+let __dsProposalReviewFirstChangedId = "";
 function dsEnsureReviewStyles(){
   try{
     if(document.getElementById('dsProposalReviewStyle')) return;
@@ -9330,6 +9341,7 @@ function dsSetFieldValue(inputId, value){
   else el.value = String(value == null ? '' : value);
 }
 function dsClearProposalReviewUI(){
+  __dsProposalReviewFirstChangedId = "";
   try{ document.querySelectorAll('.ds-review-note').forEach(n=>n.remove()); }catch(_){ }
   try{ document.querySelectorAll('.ds-review-changed').forEach(el=>el.classList.remove('ds-review-changed')); }catch(_){ }
   try{ document.getElementById('cpReviewBanner')?.remove(); }catch(_){ }
@@ -9380,6 +9392,14 @@ function dsMarkChangedField(inputId, oldValue, newValue){
   const el = document.getElementById(inputId);
   if(!el) return;
   el.classList.add('ds-review-changed');
+  if(!__dsProposalReviewFirstChangedId) __dsProposalReviewFirstChangedId = inputId;
+  try{
+    let parent = el.parentElement;
+    while(parent){
+      if(parent.tagName && String(parent.tagName).toLowerCase() === 'details') parent.open = true;
+      parent = parent.parentElement;
+    }
+  }catch(_){ }
   const note = document.createElement('div');
   note.className = 'ds-review-note';
   note.textContent = 'Bisher: ' + (String(oldValue || '').trim() || '— leer —') + ' · Neu: ' + (String(newValue || '').trim() || '— leer —');
@@ -9496,6 +9516,7 @@ function dsOpenProposalInCustomerEditor(row){
     }catch(_){ }
 
     const maps = dsReviewFieldMap();
+    try{ dsApplyProposalReviewBanner(row); }catch(_){ }
     Object.entries(maps.customer).forEach(([inputId,key])=>{
       const current = dsNormalizeReviewValue(baseCustomer ? baseCustomer[key] : '', inputId);
       const proposedRaw = customerPayload[key];
@@ -9520,7 +9541,13 @@ function dsOpenProposalInCustomerEditor(row){
       if(editor){
         editor.style.display = 'block';
         try{ dsForceShowPanel('dogs'); }catch(_){ }
-        if(editor.scrollIntoView) editor.scrollIntoView({ behavior:'smooth', block:'start' });
+        const firstChanged = __dsProposalReviewFirstChangedId ? document.getElementById(__dsProposalReviewFirstChangedId) : null;
+        if(firstChanged && firstChanged.scrollIntoView){
+          firstChanged.scrollIntoView({ behavior:'smooth', block:'center' });
+          try{ firstChanged.focus({ preventScroll:true }); }catch(_){ }
+        }else if(editor.scrollIntoView){
+          editor.scrollIntoView({ behavior:'smooth', block:'start' });
+        }
       }
     }catch(_){ }
     try{ if(typeof cpUpdateDirty === 'function') cpUpdateDirty(); }catch(_){ }
@@ -18320,7 +18347,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB62_EINGAENGE_STEP1_TRUE_EDITOR_20260330) ===== */
+/* ===== CHAT (M50.9.9GB63_EINGAENGE_SAVE_AND_HIGHLIGHT_20260330) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -19900,7 +19927,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB62_EINGAENGE_STEP1_TRUE_EDITOR_20260330";
+  const BUILD = "M50.9.9GB63_EINGAENGE_SAVE_AND_HIGHLIGHT_20260330";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
