@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB60_EINGAENGE_EDITOR_RETRY_20260330",
+  tag: "M50.9.9GB61_EINGAENGE_EDITOR_PANELFORCE_20260330",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB60_EINGAENGE_EDITOR_RETRY_20260330";
+const APP_BUILD = "M50.9.9GB61_EINGAENGE_EDITOR_PANELFORCE_20260330";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -9426,6 +9426,20 @@ function dsFindExistingPetForInboxRow(customerObj, pet){
   return null;
 }
 
+function dsForceShowPanel(panelId){
+  try{
+    document.querySelectorAll(".tab").forEach(function(b){
+      try{ b.classList.toggle("is-active", String(b.dataset && b.dataset.tab || '') === String(panelId||'')); }catch(_){ }
+    });
+    document.querySelectorAll(".panel").forEach(function(p){
+      try{ p.classList.toggle("is-active", String(p.id||'') === String(panelId||'')); }catch(_){ }
+    });
+    if(panelId === 'dogs'){
+      try{ if(typeof renderDogs === 'function') renderDogs(); }catch(_){ }
+    }
+  }catch(_){ }
+}
+
 function dsOpenProposalInCustomerEditor(row){
   try{
     dsEnsureReviewStyles();
@@ -9448,7 +9462,7 @@ function dsOpenProposalInCustomerEditor(row){
     __dsProposalReview.baseCustomer = baseCustomer ? JSON.parse(JSON.stringify(baseCustomer)) : null;
     __dsProposalReview.basePet = basePet ? JSON.parse(JSON.stringify(basePet)) : null;
 
-    try{ selectTab('dogs'); }catch(_){ }
+    try{ dsForceShowPanel('dogs'); }catch(_){ }
     try{
       document.getElementById('inboxDetail')?.style && (document.getElementById('inboxDetail').style.display = 'none');
       document.getElementById('inboxList')?.style && (document.getElementById('inboxList').style.display = '');
@@ -9474,6 +9488,11 @@ function dsOpenProposalInCustomerEditor(row){
       const rejectBtn = document.getElementById('btnCpRejectProposal');
       if(rejectBtn) rejectBtn.remove();
       document.getElementById('cpReviewBanner')?.remove();
+      try{ document.getElementById('inboxDetail').style.display = 'none'; }catch(_){ }
+      try{ document.getElementById('inboxList').style.display = 'none'; }catch(_){ }
+      try{ document.getElementById('inboxProposalList').style.display = 'none'; }catch(_){ }
+      try{ document.getElementById('btnInboxClose').style.display = 'none'; }catch(_){ }
+      try{ document.getElementById('btnInboxAdopt').style.display = 'none'; }catch(_){ }
     }catch(_){ }
 
     const maps = dsReviewFieldMap();
@@ -9498,9 +9517,14 @@ function dsOpenProposalInCustomerEditor(row){
 
     try{
       const editor = document.getElementById('cpEditor');
-      if(editor && editor.scrollIntoView) editor.scrollIntoView({ behavior:'smooth', block:'start' });
+      if(editor){
+        editor.style.display = 'block';
+        try{ dsForceShowPanel('dogs'); }catch(_){ }
+        if(editor.scrollIntoView) editor.scrollIntoView({ behavior:'smooth', block:'start' });
+      }
     }catch(_){ }
     try{ if(typeof cpUpdateDirty === 'function') cpUpdateDirty(); }catch(_){ }
+    try{ window.__dsProposalReviewLastOpenedAt = Date.now(); }catch(_){ }
     return true;
   }catch(err){ console.error('dsOpenProposalInCustomerEditor failed', err); return false; }
 }
@@ -18296,7 +18320,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB60_EINGAENGE_EDITOR_RETRY_20260330) ===== */
+/* ===== CHAT (M50.9.9GB61_EINGAENGE_EDITOR_PANELFORCE_20260330) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -19876,7 +19900,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB60_EINGAENGE_EDITOR_RETRY_20260330";
+  const BUILD = "M50.9.9GB61_EINGAENGE_EDITOR_PANELFORCE_20260330";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -20257,7 +20281,7 @@ function dsLaunchProposalInCustomerEditor(row){
   try{ document.getElementById('inboxDetail')?.style && (document.getElementById('inboxDetail').style.display = 'none'); }catch(_){ }
   try{ document.getElementById('inboxList')?.style && (document.getElementById('inboxList').style.display = ''); }catch(_){ }
   try{ document.getElementById('inboxProposalList')?.style && (document.getElementById('inboxProposalList').style.display = 'none'); }catch(_){ }
-  try{ selectTab('dogs'); }catch(_){ }
+  try{ dsForceShowPanel('dogs'); }catch(_){ }
   const attempts = [0, 80, 180, 360, 720, 1200];
   let idx = 0;
   let lastErr = '';
@@ -20267,21 +20291,26 @@ function dsLaunchProposalInCustomerEditor(row){
     if(ok) return;
     idx += 1;
     if(idx < attempts.length){
-      try{ selectTab('dogs'); }catch(_){ }
+      try{ dsForceShowPanel('dogs'); }catch(_){ }
       setTimeout(tryOpen, attempts[idx]);
       return;
     }
     try{ ensureInboxDiag({ phase:'review-open-failed', error:lastErr || 'editor-not-opened' }); }catch(_){ }
-    try{ alert('Original-Editor konnte nicht geöffnet werden.'); }catch(_){ }
-    try{ selectTab('inbox'); }catch(_){ }
+    try{ console.warn('Original-Editor konnte nicht geöffnet werden.'); }catch(_){ }
   };
   setTimeout(tryOpen, attempts[0]);
   return true;
 }
 function openInboxDetail(row){
+    try{
+      const now = Date.now();
+      if(window.__dsInboxOpenLock && (now - window.__dsInboxOpenLock) < 900) return;
+      window.__dsInboxOpenLock = now;
+    }catch(_){ }
     try{ window.__dsInboxCurrentTask = row; }catch(_){ }
     try{
       if(isCustomerProposalInboxRow(row)){
+        try{ dsForceShowPanel('dogs'); }catch(_){ }
         dsLaunchProposalInCustomerEditor(row);
         return;
       }
@@ -20289,12 +20318,6 @@ function openInboxDetail(row){
     try{
       if(typeof dsOpenProposalInCustomerEditor === 'function' && dsOpenProposalInCustomerEditor(row)) return;
     }catch(err){ console.warn('openInboxDetail review-open failed', err); }
-    try{
-      const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {});
-      if(payload && payload.source === 'customer-main-dogs' && payload.customer && payload.pet){
-        if(dsOpenProposalInCustomerEditor(row)) return;
-      }
-    }catch(_){ }
     const detail = document.getElementById('inboxDetail');
     const listEl = document.getElementById('inboxList');
     const titleEl = document.getElementById('inboxDetailTitle');
