@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB66_EINGAENGE_REVIEW_BRIDGE_20260330",
+  tag: "M50.9.9GB67_EINGAENGE_REVIEW_PICKFIX_20260330",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB66_EINGAENGE_REVIEW_BRIDGE_20260330";
+const APP_BUILD = "M50.9.9GB67_EINGAENGE_REVIEW_PICKFIX_20260330";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -9347,6 +9347,74 @@ function dsIsInboxRowHandled(row){
   }catch(_){ return false; }
 }
 
+function dsScoreCustomerForReview(customer){
+  try{
+    if(!customer || typeof customer !== 'object') return -1e9;
+    let score = 0;
+    ['name','phone','email','street','zip','city','emergencyName','emergencyPhone','pickupAuth','note'].forEach(function(k){ if(String(customer[k] || '').trim()) score += 1; });
+    const cid = norm(customer.id || customer.customerId || '');
+    if(cid){
+      try{
+        const pets = asArray(state && (state.pets || state.dogs));
+        const own = pets.filter(x=>norm(x && (x.customerId || x.ownerId || '')) === cid);
+        score += own.length * 0.25;
+        own.forEach(function(p){ score += dsScorePetForReview(p) * 0.05; });
+      }catch(_){ }
+    }
+    return score;
+  }catch(_){ return -1e9; }
+}
+function dsScorePetForReview(pet){
+  try{
+    if(!pet || typeof pet !== 'object') return -1e9;
+    let score = 0;
+    ['name','breed','birthdate','chipNumber','vet','vetPhone','vetEmail','vetStreet','vetZip','vetCity','allergies','medicalConditions','food','feeding','compat','behavior','dailyRoutine','commands','note'].forEach(function(k){ if(String(pet[k] || '').trim()) score += 1; });
+    if(pet.chip === true) score += 1;
+    if(String(pet.profilePhoto || '').trim()) score += 8;
+    if(String(pet.vaccinationPassPhoto || '').trim()) score += 8;
+    try{ if(typeof hasValidContract === 'function' && hasValidContract(pet.customerId || pet.ownerId || '', pet.id || pet.petId || '')) score += 6; }catch(_){ }
+    try{ if(typeof getLegacyDogIdForPet === 'function' && getLegacyDogIdForPet(pet.id || pet.petId || '')) score += 4; }catch(_){ }
+    score += Number(pet.updatedAt || pet.createdAt || 0) / 1e13;
+    return score;
+  }catch(_){ return -1e9; }
+}
+function dsChooseBestCustomerForReview(list, petName, chipNumber){
+  try{
+    const arr = asArray(list);
+    if(!arr.length) return null;
+    const pets = asArray(state && (state.pets || state.dogs));
+    const petNameNorm = lower(petName || '');
+    const chipNorm = norm(chipNumber || '');
+    let best = null, bestScore = -1e18;
+    arr.forEach(function(c){
+      let score = dsScoreCustomerForReview(c);
+      const cid = norm(c && (c.id || c.customerId || ''));
+      if(cid){
+        const own = pets.filter(x=>norm(x && (x.customerId || x.ownerId || '')) === cid);
+        if(petNameNorm){
+          const sameName = own.filter(p=>lower(p && p.name) === petNameNorm);
+          if(sameName.length) score += 6;
+          sameName.forEach(function(p){ score += dsScorePetForReview(p); if(chipNorm && norm(p && p.chipNumber) === chipNorm) score += 8; });
+        }
+      }
+      if(score > bestScore){ bestScore = score; best = c; }
+    });
+    return best || null;
+  }catch(_){ return null; }
+}
+function dsChooseBestPetForReview(list){
+  try{
+    const arr = asArray(list);
+    if(!arr.length) return null;
+    let best = null, bestScore = -1e18;
+    arr.forEach(function(p){
+      const score = dsScorePetForReview(p);
+      if(score > bestScore){ bestScore = score; best = p; }
+    });
+    return best || null;
+  }catch(_){ return null; }
+}
+
 function dsReviewFieldMap(){
   return {
     customer: {
@@ -9445,33 +9513,22 @@ function dsFindExistingCustomerForInboxRow(row, customer){
       norm(pet && pet.customerId)
     ].filter(Boolean);
     for(const id of ids){
-      const hit = customers.find(c=>norm(c.id || c.customerId) === id);
-      if(hit) return hit;
+      const hits = customers.filter(c=>norm(c.id || c.customerId) === id);
+      if(hits.length === 1) return hits[0];
+      if(hits.length > 1) return dsChooseBestCustomerForReview(hits, pet && pet.name, pet && pet.chipNumber);
     }
     const email = lower((customer && customer.email) || (row && row.customerEmail));
     if(email){
       const hits = customers.filter(c=>lower(c.email) === email);
       if(hits.length === 1) return hits[0];
-      if(hits.length > 1){
-        const petName = lower((pet && pet.name) || '');
-        if(petName){
-          const pets = asArray(state && (state.pets || state.dogs));
-          for(const c of hits){
-            const cid = norm(c.id || c.customerId);
-            const hitPet = pets.find(x=>(norm(x.customerId) === cid || norm(x.ownerId) === cid) && lower(x.name) === petName);
-            if(hitPet) return c;
-          }
-        }
-      }
+      if(hits.length > 1) return dsChooseBestCustomerForReview(hits, pet && pet.name, pet && pet.chipNumber);
     }
     const name = lower((customer && customer.name) || (row && row.customerName));
     if(name){
-      const hits = customers.filter(c=>lower(c.name) === name);
+      let hits = customers.filter(c=>lower(c.name) === name);
+      if(email) hits = hits.filter(c=>!String(c.email||'').trim() || lower(c.email) === email || hits.length===1);
       if(hits.length === 1) return hits[0];
-      if(hits.length > 1 && email){
-        const hit = hits.find(c=>lower(c.email) === email);
-        if(hit) return hit;
-      }
+      if(hits.length > 1) return dsChooseBestCustomerForReview(hits, pet && pet.name, pet && pet.chipNumber);
     }
   }catch(_){ }
   return null;
@@ -9487,8 +9544,9 @@ function dsFindExistingPetForInboxRow(customerObj, pet, row){
       norm(payload && payload.pet && (payload.pet.id || payload.pet.petId))
     ].filter(Boolean);
     for(const id of directIds){
-      const hit = pets.find(x=>norm((x && (x.id || x.petId)) || '') === id);
-      if(hit) return hit;
+      const hits = pets.filter(x=>norm((x && (x.id || x.petId)) || '') === id);
+      if(hits.length === 1) return hits[0];
+      if(hits.length > 1) return dsChooseBestPetForReview(hits);
     }
     const cid = norm((pet && pet.customerId) || (customerObj && (customerObj.id || customerObj.customerId)) || '');
     const chip = norm(pet && pet.chipNumber);
@@ -9498,13 +9556,18 @@ function dsFindExistingPetForInboxRow(customerObj, pet, row){
     if(chip){
       const hits = list.filter(x=>norm(x.chipNumber) === chip);
       if(hits.length === 1) return hits[0];
+      if(hits.length > 1) return dsChooseBestPetForReview(hits);
     }
     if(name){
       const hits = list.filter(x=>lower(x.name) === name);
       if(hits.length === 1) return hits[0];
-      if(hits.length > 1 && chip){
-        const hit = hits.find(x=>norm(x.chipNumber) === chip);
-        if(hit) return hit;
+      if(hits.length > 1){
+        if(chip){
+          const chipHit = hits.filter(x=>norm(x.chipNumber) === chip);
+          if(chipHit.length === 1) return chipHit[0];
+          if(chipHit.length > 1) return dsChooseBestPetForReview(chipHit);
+        }
+        return dsChooseBestPetForReview(hits);
       }
     }
   }catch(_){ }
@@ -9661,7 +9724,8 @@ function dsOpenProposalInCustomerEditor(row){
     if(!baseCustomer || !basePet || !basePet.id){
       try{ alert('Bestehender Kunde/Hund für Vorschlag nicht eindeutig gefunden. Es wurde nichts geöffnet.'); }catch(_){ }
       try{ cpSetStatus('Bestehender Kunde/Hund für Vorschlag nicht gefunden.', true); }catch(_){ }
-      return false;
+      try{ window.__dsProposalOpenBlocked = String(dsInboxHandledKey(row) || row.id || '1'); }catch(_){ }
+      return true;
     }
 
     __dsProposalReview.active = true;
@@ -18538,7 +18602,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB66_EINGAENGE_REVIEW_BRIDGE_20260330) ===== */
+/* ===== CHAT (M50.9.9GB67_EINGAENGE_REVIEW_PICKFIX_20260330) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -20118,7 +20182,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB66_EINGAENGE_REVIEW_BRIDGE_20260330";
+  const BUILD = "M50.9.9GB67_EINGAENGE_REVIEW_PICKFIX_20260330";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
