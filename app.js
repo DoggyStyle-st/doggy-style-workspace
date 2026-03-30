@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB59_EINGAENGE_TRUE_EDITOR_MINFIX_20260330",
+  tag: "M50.9.9GB60_EINGAENGE_EDITOR_RETRY_20260330",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB59_EINGAENGE_TRUE_EDITOR_MINFIX_20260330";
+const APP_BUILD = "M50.9.9GB60_EINGAENGE_EDITOR_RETRY_20260330";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -18296,7 +18296,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB59_EINGAENGE_TRUE_EDITOR_MINFIX_20260330) ===== */
+/* ===== CHAT (M50.9.9GB60_EINGAENGE_EDITOR_RETRY_20260330) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -19876,7 +19876,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB59_EINGAENGE_TRUE_EDITOR_MINFIX_20260330";
+  const BUILD = "M50.9.9GB60_EINGAENGE_EDITOR_RETRY_20260330";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -20241,8 +20241,51 @@ try{
       root.appendChild(card);
     });
   }
-  function openInboxDetail(row){
+  function isCustomerProposalInboxRow(row){
+  try{
+    const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
+    const customerPayload = (payload && payload.customer && typeof payload.customer === 'object') ? payload.customer : (row && row.customer && typeof row.customer === 'object' ? row.customer : {});
+    const petPayload = (payload && payload.pet && typeof payload.pet === 'object') ? payload.pet : (row && row.pet && typeof row.pet === 'object' ? row.pet : {});
+    return String((row && (row.templateId || row.proposalType || row.kind || row.formKey)) || '').toLowerCase().includes('customer')
+      || String((payload && payload.source) || '').toLowerCase().includes('customer-main-dogs')
+      || !!(customerPayload && Object.keys(customerPayload).length)
+      || !!(petPayload && Object.keys(petPayload).length);
+  }catch(_){ return false; }
+}
+function dsLaunchProposalInCustomerEditor(row){
+  try{ window.__dsInboxCurrentTask = row; }catch(_){ }
+  try{ document.getElementById('inboxDetail')?.style && (document.getElementById('inboxDetail').style.display = 'none'); }catch(_){ }
+  try{ document.getElementById('inboxList')?.style && (document.getElementById('inboxList').style.display = ''); }catch(_){ }
+  try{ document.getElementById('inboxProposalList')?.style && (document.getElementById('inboxProposalList').style.display = 'none'); }catch(_){ }
+  try{ selectTab('dogs'); }catch(_){ }
+  const attempts = [0, 80, 180, 360, 720, 1200];
+  let idx = 0;
+  let lastErr = '';
+  const tryOpen = ()=>{
+    let ok = false;
+    try{ ok = !!dsOpenProposalInCustomerEditor(row); }catch(err){ lastErr = String((err && err.message) || err || 'review-open-failed'); }
+    if(ok) return;
+    idx += 1;
+    if(idx < attempts.length){
+      try{ selectTab('dogs'); }catch(_){ }
+      setTimeout(tryOpen, attempts[idx]);
+      return;
+    }
+    try{ ensureInboxDiag({ phase:'review-open-failed', error:lastErr || 'editor-not-opened' }); }catch(_){ }
+    try{ alert('Original-Editor konnte nicht geöffnet werden.'); }catch(_){ }
+    try{ selectTab('inbox'); }catch(_){ }
+  };
+  setTimeout(tryOpen, attempts[0]);
+  return true;
+}
+function openInboxDetail(row){
     try{ window.__dsInboxCurrentTask = row; }catch(_){ }
+    try{
+      if(isCustomerProposalInboxRow(row)){
+        dsLaunchProposalInCustomerEditor(row);
+        return;
+      }
+    }catch(err){ console.warn('openInboxDetail review-launch failed', err); }
     try{
       if(typeof dsOpenProposalInCustomerEditor === 'function' && dsOpenProposalInCustomerEditor(row)) return;
     }catch(err){ console.warn('openInboxDetail review-open failed', err); }
@@ -20263,7 +20306,7 @@ try{
     if(listEl) listEl.style.display = 'none';
     if(detail) detail.style.display = '';
   }
-  function matchesInboxRow(a,b){
+function matchesInboxRow(a,b){
     try{
       if(!a || !b) return false;
       const aid = lower(a.__rowId || a.id || a.taskId || a.proposalId || '');
