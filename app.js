@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB58_EINGAENGE_TRUE_EDITOR_20260330",
+  tag: "M50.9.9GB59_EINGAENGE_TRUE_EDITOR_MINFIX_20260330",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB58_EINGAENGE_TRUE_EDITOR_20260330";
+const APP_BUILD = "M50.9.9GB59_EINGAENGE_TRUE_EDITOR_MINFIX_20260330";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -9431,15 +9431,14 @@ function dsOpenProposalInCustomerEditor(row){
     dsEnsureReviewStyles();
     dsClearProposalReviewUI();
     ensureStateShape();
-    const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || row) || {};
-    const customerPayload = (payload && payload.customer && typeof payload.customer === 'object') ? payload.customer : ((row && row.customer && typeof row.customer === 'object') ? row.customer : {});
-    const petPayload = (payload && payload.pet && typeof payload.pet === 'object') ? payload.pet : ((row && row.pet && typeof row.pet === 'object') ? row.pet : {});
-    const titleHint = String((row && (row.title || row.templateId || row.proposalType || row.kind || row.formKey)) || '').toLowerCase();
-    const sourceHint = String((payload && payload.source) || '').toLowerCase();
-    const hasCustomerPayload = !!(customerPayload && Object.keys(customerPayload).length);
-    const hasPetPayload = !!(petPayload && Object.keys(petPayload).length);
-    const isCustomerProposal = titleHint.includes('kunde') || titleHint.includes('hund') || titleHint.includes('customer') || sourceHint.includes('customer-main-dogs') || hasCustomerPayload || hasPetPayload;
-    if(!isCustomerProposal) return false;
+    const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
+    const customerPayload = (payload && payload.customer && typeof payload.customer === 'object') ? payload.customer : (row && row.customer && typeof row.customer === 'object' ? row.customer : {});
+    const petPayload = (payload && payload.pet && typeof payload.pet === 'object') ? payload.pet : (row && row.pet && typeof row.pet === 'object' ? row.pet : {});
+    const isCustomerProposal = String((row && (row.templateId || row.proposalType || row.kind || row.formKey)) || '').toLowerCase().includes('customer')
+      || String((payload && payload.source) || '').toLowerCase().includes('customer-main-dogs')
+      || !!(customerPayload && Object.keys(customerPayload).length)
+      || !!(petPayload && Object.keys(petPayload).length);
+    if(!isCustomerProposal || (!Object.keys(customerPayload).length && !Object.keys(petPayload).length)) return false;
 
     const baseCustomer = dsFindExistingCustomerForInboxRow(row, customerPayload) || null;
     const basePet = dsFindExistingPetForInboxRow(baseCustomer || {}, petPayload) || null;
@@ -9449,67 +9448,64 @@ function dsOpenProposalInCustomerEditor(row){
     __dsProposalReview.baseCustomer = baseCustomer ? JSON.parse(JSON.stringify(baseCustomer)) : null;
     __dsProposalReview.basePet = basePet ? JSON.parse(JSON.stringify(basePet)) : null;
 
-    try{ if(typeof selectTab === 'function') selectTab('dogs'); }catch(_){ }
+    try{ selectTab('dogs'); }catch(_){ }
     try{
-      const detail = document.getElementById('inboxDetail');
-      const listEl = document.getElementById('inboxList');
-      const propEl = document.getElementById('inboxProposalList');
-      if(detail) detail.style.display = 'none';
-      if(listEl) listEl.style.display = '';
-      if(propEl) propEl.style.display = '';
+      document.getElementById('inboxDetail')?.style && (document.getElementById('inboxDetail').style.display = 'none');
+      document.getElementById('inboxList')?.style && (document.getElementById('inboxList').style.display = '');
+      document.getElementById('inboxProposalList')?.style && (document.getElementById('inboxProposalList').style.display = 'none');
     }catch(_){ }
 
-    try{ openCpEditor(basePet && basePet.id ? 'edit' : 'new', basePet && basePet.id ? basePet.id : ''); }catch(err){ console.warn('openCpEditor review failed', err); return false; }
+    if(basePet && basePet.id) openCpEditor('edit', basePet.id);
+    else openCpEditor('new');
 
     try{
-      const box = document.getElementById('cpEditor');
-      if(box) box.style.display = 'block';
+      const editor = document.getElementById('cpEditor');
+      if(editor) editor.style.display = 'block';
       const title = document.getElementById('cpEditorTitle');
       if(title) title.textContent = 'Kunde & Hund prüfen';
       const useExisting = document.getElementById('useExistingCustomer');
       const sel = document.getElementById('customerSelect');
-      if(baseCustomer && baseCustomer.id && useExisting && sel){
+      if(baseCustomer && (baseCustomer.id || baseCustomer.customerId) && useExisting && sel){
         useExisting.checked = true;
         if(typeof refreshCustomerSelect === 'function') refreshCustomerSelect();
         sel.value = baseCustomer.id || baseCustomer.customerId || '';
-        if(typeof setCustomerFieldsDisabled === 'function') setCustomerFieldsDisabled(false);
       }
+      if(typeof setCustomerFieldsDisabled === 'function') setCustomerFieldsDisabled(false);
+      const rejectBtn = document.getElementById('btnCpRejectProposal');
+      if(rejectBtn) rejectBtn.remove();
+      document.getElementById('cpReviewBanner')?.remove();
     }catch(_){ }
-
-    dsApplyProposalReviewBanner(row);
-    dsArmProposalReviewControls();
 
     const maps = dsReviewFieldMap();
     Object.entries(maps.customer).forEach(([inputId,key])=>{
-      try{
-        const current = dsNormalizeReviewValue(baseCustomer ? baseCustomer[key] : '', inputId);
-        const proposedRaw = customerPayload[key];
-        const proposed = dsNormalizeReviewValue(proposedRaw, inputId);
-        if(proposed !== '' && proposed !== current){
-          dsSetFieldValue(inputId, proposedRaw);
-          dsMarkChangedField(inputId, current, proposed);
-        }
-      }catch(_){ }
+      const current = dsNormalizeReviewValue(baseCustomer ? baseCustomer[key] : '', inputId);
+      const proposedRaw = customerPayload[key];
+      const proposed = dsNormalizeReviewValue(proposedRaw, inputId);
+      if(proposed !== '' && proposed !== current){
+        dsSetFieldValue(inputId, proposedRaw);
+        dsMarkChangedField(inputId, current, proposed);
+      }
     });
     Object.entries(maps.pet).forEach(([inputId,key])=>{
-      try{
-        const current = dsNormalizeReviewValue(basePet ? basePet[key] : '', inputId);
-        const proposedRaw = petPayload[key];
-        const proposed = dsNormalizeReviewValue(proposedRaw, inputId);
-        if(proposed !== '' && proposed !== current){
-          dsSetFieldValue(inputId, proposedRaw);
-          dsMarkChangedField(inputId, current, proposed);
-        }
-      }catch(_){ }
+      const current = dsNormalizeReviewValue(basePet ? basePet[key] : '', inputId);
+      const proposedRaw = petPayload[key];
+      const proposed = dsNormalizeReviewValue(proposedRaw, inputId);
+      if(proposed !== '' && proposed !== current){
+        dsSetFieldValue(inputId, proposedRaw);
+        dsMarkChangedField(inputId, current, proposed);
+      }
     });
 
-    try{ cpUpdateDirty && cpUpdateDirty(); }catch(_){ }
-    try{ document.getElementById('cpEditor')?.scrollIntoView({behavior:'smooth', block:'start'}); }catch(_){ }
+    try{
+      const editor = document.getElementById('cpEditor');
+      if(editor && editor.scrollIntoView) editor.scrollIntoView({ behavior:'smooth', block:'start' });
+    }catch(_){ }
+    try{ if(typeof cpUpdateDirty === 'function') cpUpdateDirty(); }catch(_){ }
     return true;
   }catch(err){ console.error('dsOpenProposalInCustomerEditor failed', err); return false; }
 }
 
-function closeCpEditor()function closeCpEditor(){
+function closeCpEditor(){
   const box = document.getElementById("cpEditor");
   if(box) box.style.display="none";
   dsClearProposalReviewUI();
@@ -18300,7 +18296,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB58_EINGAENGE_TRUE_EDITOR_20260330) ===== */
+/* ===== CHAT (M50.9.9GB59_EINGAENGE_TRUE_EDITOR_MINFIX_20260330) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -19880,7 +19876,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB58_EINGAENGE_TRUE_EDITOR_20260330";
+  const BUILD = "M50.9.9GB59_EINGAENGE_TRUE_EDITOR_MINFIX_20260330";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -20248,12 +20244,14 @@ try{
   function openInboxDetail(row){
     try{ window.__dsInboxCurrentTask = row; }catch(_){ }
     try{
-      const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || row) || {};
-      const looksLikeCustomerProposal = !!((payload && payload.customer) || (payload && payload.pet) || (row && row.customer) || (row && row.pet) || String(row && (row.title || row.templateId || row.proposalType || '')).toLowerCase().includes('hund') || String(row && (row.title || row.templateId || row.proposalType || '')).toLowerCase().includes('kunde'));
-      if(looksLikeCustomerProposal && typeof dsOpenProposalInCustomerEditor === 'function'){
+      if(typeof dsOpenProposalInCustomerEditor === 'function' && dsOpenProposalInCustomerEditor(row)) return;
+    }catch(err){ console.warn('openInboxDetail review-open failed', err); }
+    try{
+      const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {});
+      if(payload && payload.source === 'customer-main-dogs' && payload.customer && payload.pet){
         if(dsOpenProposalInCustomerEditor(row)) return;
       }
-    }catch(err){ console.warn('openInboxDetail review-open failed', err); }
+    }catch(_){ }
     const detail = document.getElementById('inboxDetail');
     const listEl = document.getElementById('inboxList');
     const titleEl = document.getElementById('inboxDetailTitle');
