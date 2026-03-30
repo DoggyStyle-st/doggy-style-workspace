@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB67_EINGAENGE_REVIEW_PICKFIX_20260330",
+  tag: "M50.9.9GB68_EINGAENGE_REVIEW_RESOLVEFALLBACK_20260330",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB67_EINGAENGE_REVIEW_PICKFIX_20260330";
+const APP_BUILD = "M50.9.9GB68_EINGAENGE_REVIEW_RESOLVEFALLBACK_20260330";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -9581,14 +9581,48 @@ function dsResolveProposalReviewTargets(){
     const payload = row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {};
     const customerPayload = (payload && payload.customer && typeof payload.customer === 'object') ? payload.customer : (row.customer && typeof row.customer === 'object' ? row.customer : {});
     const petPayload = (payload && payload.pet && typeof payload.pet === 'object') ? payload.pet : (row.pet && typeof row.pet === 'object' ? row.pet : {});
+    const customers = asArray(state && state.customers);
+    const pets = asArray(state && state.pets);
     let customer = dsFindExistingCustomerForInboxRow(row, customerPayload) || null;
     let pet = dsFindExistingPetForInboxRow(customer || {}, petPayload, row) || null;
+
+    if(!customer && pets.length === 1){
+      const onlyPet = pets[0] || null;
+      const cid = norm(onlyPet && (onlyPet.customerId || onlyPet.ownerId || ''));
+      if(cid && typeof getCustomer === 'function') customer = getCustomer(cid) || null;
+      if(!customer && customers.length === 1) customer = customers[0] || null;
+      if(!pet) pet = onlyPet;
+    }
+    if(!pet && customers.length === 1 && pets.length === 1){
+      customer = customer || customers[0] || null;
+      pet = pets[0] || null;
+    }
+    if(!pet && pets.length === 1){
+      pet = pets[0] || null;
+    }
+    if(!customer && customers.length === 1){
+      customer = customers[0] || null;
+    }
+    if(!pet){
+      const pname = lower(petPayload && petPayload.name);
+      const pchip = norm(petPayload && petPayload.chipNumber);
+      let hits = pets.slice();
+      if(pname) hits = hits.filter(x=>lower(x && x.name) === pname);
+      if(pchip){
+        const chipHits = hits.filter(x=>norm(x && x.chipNumber) === pchip);
+        if(chipHits.length === 1) pet = chipHits[0];
+        else if(chipHits.length > 1) pet = dsChooseBestPetForReview(chipHits);
+      }
+      if(!pet && hits.length === 1) pet = hits[0];
+      if(!pet && hits.length > 1) pet = dsChooseBestPetForReview(hits);
+    }
     if(!customer && pet){
       const cid = norm(pet.customerId || pet.ownerId || '');
       if(cid && typeof getCustomer === 'function') customer = getCustomer(cid) || null;
     }
     if(customer && !pet){
       pet = dsFindExistingPetForInboxRow(customer, petPayload, row) || null;
+      if(!pet && pets.length === 1) pet = pets[0] || null;
     }
     return { customer: customer || null, pet: pet || null, customerPayload, petPayload };
   }catch(_){ return { customer:null, pet:null }; }
@@ -18602,7 +18636,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB67_EINGAENGE_REVIEW_PICKFIX_20260330) ===== */
+/* ===== CHAT (M50.9.9GB68_EINGAENGE_REVIEW_RESOLVEFALLBACK_20260330) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -20182,7 +20216,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB67_EINGAENGE_REVIEW_PICKFIX_20260330";
+  const BUILD = "M50.9.9GB68_EINGAENGE_REVIEW_RESOLVEFALLBACK_20260330";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
