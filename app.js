@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB64_EINGAENGE_REVIEW_MERGEFIX_20260330",
+  tag: "M50.9.9GB65_EINGAENGE_REVIEW_STRICTMERGE_20260330",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB64_EINGAENGE_REVIEW_MERGEFIX_20260330";
+const APP_BUILD = "M50.9.9GB65_EINGAENGE_REVIEW_STRICTMERGE_20260330";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -9302,13 +9302,51 @@ function dsEnsureReviewStyles(){
     const st = document.createElement('style');
     st.id = 'dsProposalReviewStyle';
     st.textContent = `
-      .ds-review-changed{ border-color:#b94141 !important; box-shadow:0 0 0 1px rgba(185,65,65,.45) inset !important; background:rgba(120,20,20,.18) !important; color:#fff !important; }
+      .ds-review-changed{ border:2px solid #ff6b6b !important; box-shadow:0 0 0 2px rgba(255,107,107,.35) inset !important; background:rgba(120,20,20,.28) !important; color:#fff !important; }
       .ds-review-note{ margin-top:6px; font-size:12px; color:#ffb3b3; }
       .ds-review-banner{ margin:0 0 12px 0; padding:10px 12px; border-radius:12px; border:1px solid rgba(185,65,65,.45); background:rgba(120,20,20,.18); color:#ffd2d2; }
     `;
     document.head.appendChild(st);
   }catch(_){ }
 }
+function dsInboxHandledStore(){
+  try{
+    const raw = localStorage.getItem('ds_inbox_handled_v1');
+    const data = raw ? JSON.parse(raw) : {};
+    return data && typeof data === 'object' ? data : {};
+  }catch(_){ return {}; }
+}
+function dsInboxHandledKey(row){
+  try{
+    const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
+    return lower(
+      norm(row && (row.__rowId || row.id || row.taskId || row.proposalId || row.submissionId))
+      || [
+        norm((row && (row.customerId || row.customerEmail || row.customerName)) || (payload.customer && (payload.customer.customerId || payload.customer.email || payload.customer.name)) || ''),
+        norm((row && (row.petId || row.petName)) || (payload.pet && (payload.pet.id || payload.pet.petId || payload.pet.chipNumber || payload.pet.name)) || ''),
+        norm(row && (row.submittedAt || row.createdAt || payload.submittedAt || ''))
+      ].join('|')
+    );
+  }catch(_){ return ''; }
+}
+function dsMarkInboxRowHandled(row, status){
+  try{
+    const key = dsInboxHandledKey(row);
+    if(!key) return;
+    const data = dsInboxHandledStore();
+    data[key] = String(status || 'handled');
+    localStorage.setItem('ds_inbox_handled_v1', JSON.stringify(data));
+  }catch(_){ }
+}
+function dsIsInboxRowHandled(row){
+  try{
+    const key = dsInboxHandledKey(row);
+    if(!key) return false;
+    const data = dsInboxHandledStore();
+    return !!data[key];
+  }catch(_){ return false; }
+}
+
 function dsReviewFieldMap(){
   return {
     customer: {
@@ -9354,26 +9392,17 @@ async function dsRejectProposalReview(){
   try{ removeInboxRowEverywhere(row); }catch(_){ }
   __dsProposalReview.active = false; __dsProposalReview.row = null; __dsProposalReview.baseCustomer = null; __dsProposalReview.basePet = null;
   dsClearProposalReviewUI();
+  try{ cpDirty = false; cpEditorSnapshot = cpCaptureSnapshot(); }catch(_){ }
   try{ closeCpEditor(); }catch(_){ }
   try{ await refreshInboxHard('reject-review'); }catch(_){ }
   return false;
 }
 function dsArmProposalReviewControls(){
   try{
-    const saveBtn = document.getElementById('btnCpSave');
     const cancelBtn = document.getElementById('btnCpCancel');
-    const row = saveBtn && saveBtn.parentElement;
-    if(!row || !saveBtn || !cancelBtn) return;
-    let rejectBtn = document.getElementById('btnCpRejectProposal');
-    if(!rejectBtn){
-      rejectBtn = document.createElement('button');
-      rejectBtn.id = 'btnCpRejectProposal';
-      rejectBtn.className = 'btn danger';
-      rejectBtn.type = 'button';
-      rejectBtn.textContent = 'Vorschlag ablehnen';
-      row.insertBefore(rejectBtn, cancelBtn);
-    }
-    rejectBtn.onclick = (ev)=>{ try{ ev.preventDefault(); ev.stopPropagation(); }catch(_){} return dsRejectProposalReview(); };
+    const rejectBtn = document.getElementById('btnCpRejectProposal');
+    if(rejectBtn) rejectBtn.remove();
+    if(cancelBtn) cancelBtn.textContent = 'Abbrechen';
   }catch(_){ }
 }
 function dsApplyProposalReviewBanner(row){
@@ -9408,49 +9437,75 @@ function dsMarkChangedField(inputId, oldValue, newValue){
 function dsFindExistingCustomerForInboxRow(row, customer){
   try{
     const customers = asArray(state && state.customers);
+    const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
+    const pet = (payload && payload.pet && typeof payload.pet === 'object') ? payload.pet : (row && row.pet && typeof row.pet === 'object' ? row.pet : {});
+    const ids = [
+      norm(customer && (customer.id || customer.customerId)),
+      norm(row && row.customerId),
+      norm(pet && pet.customerId)
+    ].filter(Boolean);
+    for(const id of ids){
+      const hit = customers.find(c=>norm(c.id || c.customerId) === id);
+      if(hit) return hit;
+    }
     const email = lower((customer && customer.email) || (row && row.customerEmail));
-    const name = lower((customer && customer.name) || (row && row.customerName));
-    const directId = norm((customer && (customer.id || customer.customerId)) || (row && row.customerId));
-    if(directId){
-      const hit = customers.find(c=>norm(c.id || c.customerId) === directId);
-      if(hit) return hit;
-    }
     if(email){
-      const hit = customers.find(c=>lower(c.email) === email);
-      if(hit) return hit;
+      const hits = customers.filter(c=>lower(c.email) === email);
+      if(hits.length === 1) return hits[0];
+      if(hits.length > 1){
+        const petName = lower((pet && pet.name) || '');
+        if(petName){
+          const pets = asArray(state && (state.pets || state.dogs));
+          for(const c of hits){
+            const cid = norm(c.id || c.customerId);
+            const hitPet = pets.find(x=>(norm(x.customerId) === cid || norm(x.ownerId) === cid) && lower(x.name) === petName);
+            if(hitPet) return c;
+          }
+        }
+      }
     }
+    const name = lower((customer && customer.name) || (row && row.customerName));
     if(name){
-      const hit = customers.find(c=>lower(c.name) === name);
-      if(hit) return hit;
+      const hits = customers.filter(c=>lower(c.name) === name);
+      if(hits.length === 1) return hits[0];
+      if(hits.length > 1 && email){
+        const hit = hits.find(c=>lower(c.email) === email);
+        if(hit) return hit;
+      }
     }
   }catch(_){ }
   return null;
 }
-function dsFindExistingPetForInboxRow(customerObj, pet){
+function dsFindExistingPetForInboxRow(customerObj, pet, row){
   try{
     ensureStateShape();
     const pets = asArray(state && (state.pets || state.dogs));
-    const directId = norm((pet && (pet.id || pet.petId)) || '');
-    if(directId){
-      const hit = pets.find(x=>norm((x && (x.id || x.petId)) || '') === directId);
+    const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
+    const directIds = [
+      norm(pet && (pet.id || pet.petId)),
+      norm(row && row.petId),
+      norm(payload && payload.pet && (payload.pet.id || payload.pet.petId))
+    ].filter(Boolean);
+    for(const id of directIds){
+      const hit = pets.find(x=>norm((x && (x.id || x.petId)) || '') === id);
       if(hit) return hit;
     }
     const cid = norm((pet && pet.customerId) || (customerObj && (customerObj.id || customerObj.customerId)) || '');
-    const name = lower(pet && pet.name);
     const chip = norm(pet && pet.chipNumber);
+    const name = lower(pet && pet.name);
     let list = pets;
     if(cid) list = list.filter(x=>norm(x.customerId) === cid || norm(x.ownerId) === cid);
     if(chip){
-      const hit = list.find(x=>norm(x.chipNumber) === chip);
-      if(hit) return hit;
+      const hits = list.filter(x=>norm(x.chipNumber) === chip);
+      if(hits.length === 1) return hits[0];
     }
     if(name){
-      const hit = list.find(x=>lower(x.name) === name);
-      if(hit) return hit;
-    }
-    if(directId){
-      const hit = pets.find(x=>norm((x && x.customerId) || '') === directId || norm((x && x.ownerId) || '') === directId);
-      if(hit) return hit;
+      const hits = list.filter(x=>lower(x.name) === name);
+      if(hits.length === 1) return hits[0];
+      if(hits.length > 1 && chip){
+        const hit = hits.find(x=>norm(x.chipNumber) === chip);
+        if(hit) return hit;
+      }
     }
   }catch(_){ }
   return null;
@@ -9464,14 +9519,13 @@ function dsResolveProposalReviewTargets(){
     const customerPayload = (payload && payload.customer && typeof payload.customer === 'object') ? payload.customer : (row.customer && typeof row.customer === 'object' ? row.customer : {});
     const petPayload = (payload && payload.pet && typeof payload.pet === 'object') ? payload.pet : (row.pet && typeof row.pet === 'object' ? row.pet : {});
     let customer = dsFindExistingCustomerForInboxRow(row, customerPayload) || null;
-    if(!customer){
-      const cid = norm((customerPayload && (customerPayload.id || customerPayload.customerId)) || (petPayload && petPayload.customerId) || row.customerId || '');
+    let pet = dsFindExistingPetForInboxRow(customer || {}, petPayload, row) || null;
+    if(!customer && pet){
+      const cid = norm(pet.customerId || pet.ownerId || '');
       if(cid && typeof getCustomer === 'function') customer = getCustomer(cid) || null;
     }
-    let pet = dsFindExistingPetForInboxRow(customer || {}, petPayload) || null;
-    if(!pet){
-      const pid = norm((petPayload && (petPayload.id || petPayload.petId)) || row.petId || '');
-      if(pid && typeof getPet === 'function') pet = getPet(pid) || null;
+    if(customer && !pet){
+      pet = dsFindExistingPetForInboxRow(customer, petPayload, row) || null;
     }
     return { customer: customer || null, pet: pet || null, customerPayload, petPayload };
   }catch(_){ return { customer:null, pet:null }; }
@@ -9489,6 +9543,7 @@ async function dsSaveProposalReview(){
     try{ alert('Bestehender Kunde/Hund für Vorschlag nicht gefunden. Es wurde nichts neu angelegt.'); }catch(_){ }
     return false;
   }
+  try{ cpEdit.mode = 'edit'; cpEdit.petId = String(pet.id || ''); }catch(_){ }
   const customerEmail = String(document.getElementById('c_email')?.value || '').trim();
   const customerName = String(document.getElementById('c_name')?.value || '').trim();
   const petName = String(document.getElementById('p_name')?.value || '').trim();
@@ -9557,6 +9612,7 @@ async function dsSaveProposalReview(){
 
   try{ if(typeof upsertLegacyDogForPet === 'function') upsertLegacyDogForPet(pet, customer); }catch(_){ }
   try{ if(typeof saveState === 'function') saveState(); }catch(_){ }
+  try{ dsMarkInboxRowHandled(row, 'adopted'); }catch(_){ }
   try{ await patchInboxRowStatus(row, 'adopted'); }catch(_){ }
   try{ removeInboxRowEverywhere(row); }catch(_){ }
   try{ await refreshInboxHard('review-save'); }catch(_){ }
@@ -9602,6 +9658,11 @@ function dsOpenProposalInCustomerEditor(row){
     const targets = dsResolveProposalReviewTargets();
     const baseCustomer = targets.customer || null;
     const basePet = targets.pet || null;
+    if(!baseCustomer || !basePet || !basePet.id){
+      try{ alert('Bestehender Kunde/Hund für Vorschlag nicht eindeutig gefunden. Es wurde nichts geöffnet.'); }catch(_){ }
+      try{ cpSetStatus('Bestehender Kunde/Hund für Vorschlag nicht gefunden.', true); }catch(_){ }
+      return false;
+    }
 
     __dsProposalReview.active = true;
     __dsProposalReview.row = row;
@@ -9615,8 +9676,8 @@ function dsOpenProposalInCustomerEditor(row){
       document.getElementById('inboxProposalList')?.style && (document.getElementById('inboxProposalList').style.display = 'none');
     }catch(_){ }
 
-    if(basePet && basePet.id) openCpEditor('edit', basePet.id);
-    else openCpEditor('new');
+    openCpEditor('edit', basePet.id);
+    try{ cpEdit.mode = 'edit'; cpEdit.petId = String(basePet.id || ''); }catch(_){ }
 
     try{
       const editor = document.getElementById('cpEditor');
@@ -18477,7 +18538,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB64_EINGAENGE_REVIEW_MERGEFIX_20260330) ===== */
+/* ===== CHAT (M50.9.9GB65_EINGAENGE_REVIEW_STRICTMERGE_20260330) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -20057,7 +20118,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB64_EINGAENGE_REVIEW_MERGEFIX_20260330";
+  const BUILD = "M50.9.9GB65_EINGAENGE_REVIEW_STRICTMERGE_20260330";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -20175,6 +20236,7 @@ try{
       if(!n) return;
       const status = lower(n.status || n.proposalStatus || '');
       if(status && ['rejected','adopted','closed','done','completed','accepted'].includes(status)) return;
+      if(dsIsInboxRowHandled && dsIsInboxRowHandled(n)) return;
       if(!isProposalLike(n)) return;
       rows.push(n);
       addDiag(source, 1);
@@ -20498,6 +20560,7 @@ function matchesInboxRow(a,b){
     }catch(_){ return false; }
   }
   function removeInboxRowEverywhere(row){
+    try{ dsMarkInboxRowHandled(row, 'handled'); }catch(_){ }
     const filterList = (arr)=> asArray(arr).filter(x=>!matchesInboxRow(x,row));
     try{ window.__dsInboxLoadedProposals = filterList(window.__dsInboxLoadedProposals); }catch(_){ }
     try{ window.__dsInboxLastTasks = filterList(window.__dsInboxLastTasks); }catch(_){ }
