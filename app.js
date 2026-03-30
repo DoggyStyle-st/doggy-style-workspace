@@ -2046,7 +2046,7 @@ async function dsHardRefreshInboxUI(){
         let snap;
         try{ snap = await col.where('status','==','submitted').orderBy('submittedAt','desc').limit(100).get(); }
         catch(_){ snap = await col.where('status','==','submitted').limit(100).get(); }
-        snap && snap.forEach(d=>pushTask({id:d.id, ...d.data()}));
+        snap && snap.forEach(d=>pushTask({id:d.id, __source:'cloud-tasks', ...d.data()}, 'cloud-tasks'));
       }
     }catch(err){ console.warn('dsHardRefreshInboxUI tasks failed', err); }
     try{
@@ -2055,7 +2055,7 @@ async function dsHardRefreshInboxUI(){
         let snap;
         try{ snap = await col.where('proposalStatus','==','pending').orderBy('submittedAt','desc').limit(100).get(); }
         catch(_){ snap = await col.where('proposalStatus','==','pending').limit(100).get(); }
-        snap && snap.forEach(d=>pushTask({id:d.id, ...d.data()}));
+        snap && snap.forEach(d=>pushTask({id:d.id, __source:'cloud-tasks', ...d.data()}, 'cloud-tasks'));
       }
     }catch(err){ console.warn('dsHardRefreshInboxUI proposals failed', err); }
     try{
@@ -2066,7 +2066,7 @@ async function dsHardRefreshInboxUI(){
         const status = String((x && x.status) || '').trim().toLowerCase();
         const pstatus = String((x && x.proposalStatus) || '').trim().toLowerCase();
         return status === 'submitted' || pstatus === 'pending' || !!(x && x.mirroredFromCloud);
-      }).forEach(pushTask);
+      }).forEach(x=>pushTask(x,'local'));
     }catch(err){ console.warn('dsHardRefreshInboxUI local failed', err); }
     try{
       ensureStateShape();
@@ -2075,14 +2075,14 @@ async function dsHardRefreshInboxUI(){
         const status = String((x && x.status) || '').trim().toLowerCase();
         const pstatus = String((x && x.proposalStatus) || '').trim().toLowerCase();
         return status === 'submitted' || pstatus === 'pending' || !!(x && x.mirroredFromCloud);
-      }).forEach(pushTask);
+      }).forEach(x=>pushTask(x,'state'));
     }catch(err){ console.warn('dsHardRefreshInboxUI state failed', err); }
     try{
       (loadCustomerProposalBuffer() || []).filter(x=>{
         const status = String((x && x.status) || '').trim().toLowerCase();
         const pstatus = String((x && x.proposalStatus) || '').trim().toLowerCase();
         return status === 'submitted' || pstatus === 'pending' || !!(x && x.mirroredFromCloud);
-      }).forEach(pushTask);
+      }).forEach(x=>pushTask(x,'buffer'));
     }catch(err){ console.warn('dsHardRefreshInboxUI buffer failed', err); }
 
     tasks.sort((a,b)=> Number(b && b.submittedAt || 0) - Number(a && a.submittedAt || 0));
@@ -2273,21 +2273,30 @@ async function wireInbox(){
   const loadSubmitted = async ()=>{
     const tasks = [];
     const seen = new Set();
-    const pushTask = (obj)=>{
+    const pushTask = (obj, sourceTag)=>{
       if(!obj || typeof obj !== 'object') return;
-      const key = String(obj.id || obj.taskId || '');
-      if(key && seen.has(key)) return;
+      if(sourceTag && !obj.__source) obj.__source = sourceTag;
+      const key = String(obj.id || obj.taskId || obj.proposalId || '');
+      if(key && seen.has(key)){
+        const idx = tasks.findIndex(x => String(x && (x.id || x.taskId || x.proposalId || '')) === key);
+        if(idx >= 0){
+          const prev = tasks[idx];
+          const merged = { ...prev, ...obj };
+          tasks[idx] = dsProposalRowQuality(obj) >= dsProposalRowQuality(prev) ? merged : { ...obj, ...prev };
+        }
+        return;
+      }
       if(key) seen.add(key);
       tasks.push(obj);
     };
     try{
       try{
         const snap = await cloudTasksCol().where('status','==','submitted').orderBy('submittedAt','desc').limit(100).get();
-        snap.forEach(d=>pushTask({id:d.id, ...d.data()}));
+        snap.forEach(d=>pushTask({id:d.id, __source:'cloud-proposals', ...d.data()}, 'cloud-proposals'));
       }catch(err){
         console.warn('loadSubmitted primary query failed', err);
         const snap = await cloudTasksCol().where('status','==','submitted').limit(100).get();
-        snap.forEach(d=>pushTask({id:d.id, ...d.data()}));
+        snap.forEach(d=>pushTask({id:d.id, __source:'cloud-proposals', ...d.data()}, 'cloud-proposals'));
       }
     }catch(err){
       console.warn('loadSubmitted cloud fallback failed', err);
@@ -9722,6 +9731,27 @@ async function dsSaveProposalReview(){
   try{ closeCpEditor(); }catch(_){ }
   try{ if(typeof renderDogs === 'function') renderDogs(); }catch(_){ }
   return true;
+}
+
+
+function dsProposalRowQuality(row){
+  try{
+    if(!row || typeof row !== 'object') return -1e9;
+    const payload = row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {};
+    const customer = (payload && payload.customer && typeof payload.customer === 'object') ? payload.customer : (row.customer && typeof row.customer === 'object' ? row.customer : {});
+    const pet = (payload && payload.pet && typeof payload.pet === 'object') ? payload.pet : (row.pet && typeof row.pet === 'object' ? row.pet : {});
+    let score = 0;
+    const src = String(row.__source || row.source || (payload && payload.source) || '').toLowerCase();
+    if(src.includes('proposal')) score += 50; else if(src.includes('task')) score += 30; else if(src.includes('local') || src.includes('state')) score += 20; else if(src.includes('buffer')) score += 10;
+    if(String(customer.id || customer.customerId || row.customerId || '').trim()) score += 20;
+    if(String(pet.id || pet.petId || row.petId || '').trim()) score += 20;
+    if(String(pet.chipNumber || row.chipNumber || '').trim()) score += 4;
+    if(String(customer.email || row.customerEmail || '').trim()) score += 3;
+    if(String(pet.profilePhoto || '').trim()) score += 6;
+    if(String(pet.vaccinationPassPhoto || '').trim()) score += 6;
+    try{ score += JSON.stringify(payload).length / 1000; }catch(_){ }
+    return score;
+  }catch(_){ return -1e9; }
 }
 
 function dsForceShowPanel(panelId){

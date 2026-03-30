@@ -6,13 +6,13 @@
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
 <meta charset="utf-8"/>
-  <meta name="app-build" content="M50.9.9GB68_EINGAENGE_REVIEW_RESOLVEFALLBACK_20260330">
+  <meta name="app-build" content="M50.9.9GB69_EINGAENGE_DEDUPMERGE_20260330">
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <title>Doggy Style Workspace · App</title>
 <link href="manifest.json" rel="manifest"/>
 <meta content="#101014" name="theme-color"/>
 <link href="assets/logo.png" rel="apple-touch-icon"/>
-<link href="styles.css?v=M50.9.9GB68_EINGAENGE_REVIEW_RESOLVEFALLBACK_20260330" rel="stylesheet"/>
+<link href="styles.css?v=M50.9.9GB69_EINGAENGE_DEDUPMERGE_20260330" rel="stylesheet"/>
 <link href="dashboard_master.css?v=20260104v13logout" rel="stylesheet"/>
 <style>
   /* Topbar Layout (iPad & Desktop stabil) */
@@ -102,7 +102,7 @@
   .doc-modal__actions{ margin-left:auto; display:flex; flex-wrap: wrap; gap: 8px; }
   .doc-modal__frame{ width: 100%; border: 0; border-radius: 12px; background: #fff; flex:1; min-height: 0; }
 </style>
-  <meta name="app-version" content="M50.9.9GB68_EINGAENGE_REVIEW_RESOLVEFALLBACK_20260330">
+  <meta name="app-version" content="M50.9.9GB69_EINGAENGE_DEDUPMERGE_20260330">
   <meta name="release-channel" content="MASTER">
 </head>
 <body class="bg-watermark page-app">
@@ -1194,7 +1194,7 @@
 </section>
 
 <section class="panel" id="statistics">
-<!-- Statistics panel is rendered by app.js?v=M50.9.9GB68_EINGAENGE_REVIEW_RESOLVEFALLBACK_20260330 (renderStatisticsPanel) -->
+<!-- Statistics panel is rendered by app.js?v=M50.9.9GB69_EINGAENGE_DEDUPMERGE_20260330 (renderStatisticsPanel) -->
 </section>
 
 
@@ -1261,12 +1261,12 @@
 </footer>
 </div>
 <!-- Firebase (optional) + Config -->
-<script defer="defer" src="firebase-config.js?v=M50.9.9GB68_EINGAENGE_REVIEW_RESOLVEFALLBACK_20260330"></script>
+<script defer="defer" src="firebase-config.js?v=M50.9.9GB69_EINGAENGE_DEDUPMERGE_20260330"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
-<script defer="defer" src="app.js?v=M50.9.9GB68_EINGAENGE_REVIEW_RESOLVEFALLBACK_20260330"></script>
+<script defer="defer" src="app.js?v=M50.9.9GB69_EINGAENGE_DEDUPMERGE_20260330"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1309,7 +1309,7 @@
 </script>
 
 <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB68_EINGAENGE_REVIEW_RESOLVEFALLBACK_20260330');
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB69_EINGAENGE_DEDUPMERGE_20260330');
   </script>
 
 <script>
@@ -1373,7 +1373,7 @@
   <!-- Bottom logout button removed (duplicate of header logout; also overlaps editor on iPad) -->
 </div>
 <!-- test-badge removed (requested) -->
-  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB68_EINGAENGE_REVIEW_RESOLVEFALLBACK_20260330</div>
+  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB69_EINGAENGE_DEDUPMERGE_20260330</div>
 
 <script>
 (function visibleMailFallback(){
@@ -1787,9 +1787,17 @@
       try{
         if(typeof window.dsOpenProposalInCustomerEditor === 'function'){
           var ok = window.dsOpenProposalInCustomerEditor(row);
-          if(ok) return true;
+          var reviewActive = !!(window.__dsProposalReview && window.__dsProposalReview.active);
+          if(ok && reviewActive) return true;
+          if(ok && !reviewActive){
+            try{ document.getElementById('inboxList').style.display = ''; }catch(_){ }
+            try{ var pList = document.getElementById('inboxProposalList'); if(pList) pList.style.display = ''; }catch(_){ }
+            return true;
+          }
         }
       }catch(err){ try{ console.warn('ds62 review-open bridge failed', err); }catch(_){ } }
+      try{ document.getElementById('inboxList').style.display = ''; }catch(_){ }
+      try{ var pList2 = document.getElementById('inboxProposalList'); if(pList2) pList2.style.display = ''; }catch(_){ }
       return false;
     }catch(_){ return false; }
   }
@@ -1876,19 +1884,70 @@
       });
     }catch(_){ }
   }
+  function ds62ProposalRowSourceRank(row){
+    try{
+      var src = String((row && row.__source) || (row && row.source) || (((row && row.payloadSubmitted) || {}).source) || '').toLowerCase();
+      if(src.indexOf('cloud-proposals') >= 0 || src.indexOf('proposal') >= 0) return 50;
+      if(src.indexOf('tasks') >= 0 || src.indexOf('cloud-tasks') >= 0) return 30;
+      if(src.indexOf('local') >= 0 || src.indexOf('state') >= 0) return 20;
+      if(src.indexOf('buffer') >= 0) return 10;
+    }catch(_){ }
+    return 0;
+  }
+  function ds62ProposalRowScore(row){
+    try{
+      if(!row || typeof row !== 'object') return -1e9;
+      var payload = row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {};
+      var customer = (payload && payload.customer && typeof payload.customer === 'object') ? payload.customer : ((row.customer && typeof row.customer === 'object') ? row.customer : {});
+      var pet = (payload && payload.pet && typeof payload.pet === 'object') ? payload.pet : ((row.pet && typeof row.pet === 'object') ? row.pet : {});
+      var score = ds62ProposalRowSourceRank(row);
+      if(String(row.id || row.taskId || row.proposalId || '').trim()) score += 2;
+      if(String(customer.id || customer.customerId || row.customerId || '').trim()) score += 20;
+      if(String(pet.id || pet.petId || row.petId || '').trim()) score += 20;
+      if(String(customer.email || row.customerEmail || '').trim()) score += 3;
+      if(String(customer.name || row.customerName || '').trim()) score += 2;
+      if(String(pet.name || '').trim()) score += 2;
+      if(String(pet.chipNumber || row.chipNumber || '').trim()) score += 4;
+      if(String(pet.profilePhoto || '').trim()) score += 6;
+      if(String(pet.vaccinationPassPhoto || '').trim()) score += 6;
+      try{ score += JSON.stringify(payload).length / 1000; }catch(_){ }
+      return score;
+    }catch(_){ return -1e9; }
+  }
   async function collectFallbackRows(){
     var rows = [];
     var seen = {};
     var diagParts = [];
     function addDiag(txt){ try{ if(txt) diagParts.push(String(txt)); }catch(_){} }
-    function push(x){
+    function push(x, sourceTag){
       if(!x || typeof x !== 'object') return;
+      if(sourceTag && !x.__source) x.__source = sourceTag;
       var pstatus = String((x && x.proposalStatus) || '').toLowerCase();
       var status = String((x && x.status) || '').toLowerCase();
       if(pstatus === 'rejected' || pstatus === 'adopted' || status === 'closed') return;
       if(isProposalRowHidden(x)) return;
       var key = String(x.id || x.taskId || x.proposalId || x.submissionId || JSON.stringify([x.customerEmail,x.customerName,x.templateId,x.submittedAt]));
-      if(seen[key]) return;
+      if(seen[key]){
+        var idx = -1;
+        for(var i=0;i<rows.length;i++){
+          var rk = String(rows[i].id || rows[i].taskId || rows[i].proposalId || rows[i].submissionId || JSON.stringify([rows[i].customerEmail,rows[i].customerName,rows[i].templateId,rows[i].submittedAt]));
+          if(rk === key){ idx = i; break; }
+        }
+        if(idx >= 0){
+          var prev = rows[idx];
+          var merged = Object.assign({}, prev, x);
+          if(prev && x){
+            try{
+              if((!merged.payloadSubmitted || !Object.keys(merged.payloadSubmitted||{}).length) && prev.payloadSubmitted) merged.payloadSubmitted = prev.payloadSubmitted;
+              if((!merged.payloadSubmitted || !Object.keys(merged.payloadSubmitted||{}).length) && x.payloadSubmitted) merged.payloadSubmitted = x.payloadSubmitted;
+            }catch(_){ }
+          }
+          var prevScore = ds62ProposalRowScore(prev);
+          var nextScore = ds62ProposalRowScore(x);
+          rows[idx] = nextScore >= prevScore ? merged : Object.assign({}, x, prev);
+        }
+        return;
+      }
       seen[key] = true;
       rows.push(x);
     }
@@ -1896,7 +1955,7 @@
       var st = window.state || {};
       var a1 = Array.isArray(st.inboxAssignments) ? st.inboxAssignments : [];
       var a2 = Array.isArray(st.inboxSubmissions) ? st.inboxSubmissions : [];
-      a1.forEach(push); a2.forEach(push);
+      a1.forEach(function(x){ push(x, "state-assignments"); }); a2.forEach(function(x){ push(x, "state-submissions"); });
       addDiag('state=' + (a1.length + a2.length));
     }catch(_){ }
     try{
@@ -1904,13 +1963,13 @@
       var data = raw ? JSON.parse(raw) : {};
       var l1 = Array.isArray(data.inboxAssignments) ? data.inboxAssignments : [];
       var l2 = Array.isArray(data.inboxSubmissions) ? data.inboxSubmissions : [];
-      l1.forEach(push); l2.forEach(push);
+      l1.forEach(function(x){ push(x, "local-inboxAssignments"); }); l2.forEach(function(x){ push(x, "local-inboxSubmissions"); });
       addDiag('local=' + (l1.length + l2.length));
     }catch(_){ }
     try{
       if(typeof window.loadCustomerProposalBuffer === 'function'){
         var buf = (window.loadCustomerProposalBuffer() || []);
-        buf.forEach(push);
+        buf.forEach(function(x){ push(x, "proposal-buffer"); });
         addDiag('buffer=' + buf.length);
       }
     }catch(_){ }
@@ -1918,7 +1977,7 @@
       var directRaw = localStorage.getItem('ds_customer_proposals_v1');
       var directBuf = directRaw ? JSON.parse(directRaw) : [];
       if(Array.isArray(directBuf)){
-        directBuf.forEach(push);
+        directBuf.forEach(function(x){ push(x, "buffer-direct"); });
         addDiag('bufferDirect=' + directBuf.length);
       }
     }catch(_){ }
@@ -1946,7 +2005,7 @@
           try{ snap = await attempts[i](); if(snap && typeof snap.forEach === 'function') break; }catch(err){ lastErr = err; snap = null; }
         }
         if(snap && typeof snap.forEach === 'function'){
-          snap.forEach(function(d){ count++; push(Object.assign({ id:d.id }, (typeof d.data === 'function' ? d.data() : {}))); });
+          snap.forEach(function(d){ count++; push(Object.assign({ id:d.id, __source:name }, (typeof d.data === 'function' ? d.data() : {})), name); });
           addDiag(name + '=' + count);
           return true;
         }
