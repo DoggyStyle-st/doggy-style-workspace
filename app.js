@@ -9362,14 +9362,18 @@ function dsScoreCustomerForReview(customer){
     let score = 0;
     ['name','phone','email','street','zip','city','emergencyName','emergencyPhone','pickupAuth','note'].forEach(function(k){ if(String(customer[k] || '').trim()) score += 1; });
     const cid = norm(customer.id || customer.customerId || '');
+    if(cid) score += 50;
+    if(String(customer.email || '').trim()) score += 10;
+    try{ if(typeof hasCustomerContract === 'function' && hasCustomerContract(cid)) score += 8; }catch(_){ }
     if(cid){
       try{
-        const pets = asArray(state && (state.pets || state.dogs));
+        const pets = asArray(state && ((state.pets && state.pets.length) ? state.pets : state.dogs));
         const own = pets.filter(x=>norm(x && (x.customerId || x.ownerId || '')) === cid);
-        score += own.length * 0.25;
-        own.forEach(function(p){ score += dsScorePetForReview(p) * 0.05; });
+        score += own.length * 2;
+        own.forEach(function(p){ score += dsScorePetForReview(p) * 0.15; });
       }catch(_){ }
     }
+    score += Number(customer.updatedAt || customer.createdAt || 0) / 1e13;
     return score;
   }catch(_){ return -1e9; }
 }
@@ -9379,10 +9383,13 @@ function dsScorePetForReview(pet){
     let score = 0;
     ['name','breed','birthdate','chipNumber','vet','vetPhone','vetEmail','vetStreet','vetZip','vetCity','allergies','medicalConditions','food','feeding','compat','behavior','dailyRoutine','commands','note'].forEach(function(k){ if(String(pet[k] || '').trim()) score += 1; });
     if(pet.chip === true) score += 1;
+    if(norm(pet.id || pet.petId || '')) score += 100;
+    if(norm(pet.customerId || pet.ownerId || '')) score += 40;
+    if(norm(pet.chipNumber || '')) score += 20;
     if(String(pet.profilePhoto || '').trim()) score += 8;
     if(String(pet.vaccinationPassPhoto || '').trim()) score += 8;
-    try{ if(typeof hasValidContract === 'function' && hasValidContract(pet.customerId || pet.ownerId || '', pet.id || pet.petId || '')) score += 6; }catch(_){ }
-    try{ if(typeof getLegacyDogIdForPet === 'function' && getLegacyDogIdForPet(pet.id || pet.petId || '')) score += 4; }catch(_){ }
+    try{ if(typeof hasValidContract === 'function' && hasValidContract(pet.customerId || pet.ownerId || '', pet.id || pet.petId || '')) score += 25; }catch(_){ }
+    try{ if(typeof getLegacyDogIdForPet === 'function' && getLegacyDogIdForPet(pet.id || pet.petId || '')) score += 10; }catch(_){ }
     score += Number(pet.updatedAt || pet.createdAt || 0) / 1e13;
     return score;
   }catch(_){ return -1e9; }
@@ -9413,8 +9420,10 @@ function dsChooseBestCustomerForReview(list, petName, chipNumber){
 }
 function dsChooseBestPetForReview(list){
   try{
-    const arr = asArray(list);
+    let arr = asArray(list);
     if(!arr.length) return null;
+    const withIds = arr.filter(function(p){ return !!norm((p && (p.id || p.petId)) || ''); });
+    if(withIds.length) arr = withIds;
     let best = null, bestScore = -1e18;
     arr.forEach(function(p){
       const score = dsScorePetForReview(p);
@@ -9631,6 +9640,13 @@ function dsResolveProposalReviewTargets(){
       if(pchip){ const chipHits = hits.filter(x=>norm(x && x.chipNumber) === pchip); if(chipHits.length) hits = chipHits; }
       if(hits.length === 1) pet = hits[0] || null;
       else if(hits.length > 1) pet = dsChooseBestPetForReview(hits);
+    }
+
+    if(customer && !pet){
+      let ownerHits = pets.filter(x=>norm(x && (x.customerId || x.ownerId || '')) === norm(customer.id || customer.customerId || ''));
+      const idHits = ownerHits.filter(x=>norm(x && (x.id || x.petId || '')));
+      if(idHits.length === 1) pet = idHits[0] || null;
+      else if(idHits.length > 1) pet = dsChooseBestPetForReview(idHits);
     }
 
     return { customer: customer || null, pet: pet || null, customerPayload, petPayload };
