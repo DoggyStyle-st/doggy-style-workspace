@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB63_EINGAENGE_SAVE_AND_HIGHLIGHT_20260330",
+  tag: "M50.9.9GB64_EINGAENGE_REVIEW_MERGEFIX_20260330",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB63_EINGAENGE_SAVE_AND_HIGHLIGHT_20260330";
+const APP_BUILD = "M50.9.9GB64_EINGAENGE_REVIEW_MERGEFIX_20260330";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -9428,8 +9428,14 @@ function dsFindExistingCustomerForInboxRow(row, customer){
 }
 function dsFindExistingPetForInboxRow(customerObj, pet){
   try{
+    ensureStateShape();
     const pets = asArray(state && (state.pets || state.dogs));
-    const cid = norm(customerObj && (customerObj.id || customerObj.customerId));
+    const directId = norm((pet && (pet.id || pet.petId)) || '');
+    if(directId){
+      const hit = pets.find(x=>norm((x && (x.id || x.petId)) || '') === directId);
+      if(hit) return hit;
+    }
+    const cid = norm((pet && pet.customerId) || (customerObj && (customerObj.id || customerObj.customerId)) || '');
     const name = lower(pet && pet.name);
     const chip = norm(pet && pet.chipNumber);
     let list = pets;
@@ -9442,8 +9448,127 @@ function dsFindExistingPetForInboxRow(customerObj, pet){
       const hit = list.find(x=>lower(x.name) === name);
       if(hit) return hit;
     }
+    if(directId){
+      const hit = pets.find(x=>norm((x && x.customerId) || '') === directId || norm((x && x.ownerId) || '') === directId);
+      if(hit) return hit;
+    }
   }catch(_){ }
   return null;
+}
+
+function dsResolveProposalReviewTargets(){
+  try{
+    const row = __dsProposalReview && __dsProposalReview.row;
+    if(!row) return { customer:null, pet:null };
+    const payload = row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {};
+    const customerPayload = (payload && payload.customer && typeof payload.customer === 'object') ? payload.customer : (row.customer && typeof row.customer === 'object' ? row.customer : {});
+    const petPayload = (payload && payload.pet && typeof payload.pet === 'object') ? payload.pet : (row.pet && typeof row.pet === 'object' ? row.pet : {});
+    let customer = dsFindExistingCustomerForInboxRow(row, customerPayload) || null;
+    if(!customer){
+      const cid = norm((customerPayload && (customerPayload.id || customerPayload.customerId)) || (petPayload && petPayload.customerId) || row.customerId || '');
+      if(cid && typeof getCustomer === 'function') customer = getCustomer(cid) || null;
+    }
+    let pet = dsFindExistingPetForInboxRow(customer || {}, petPayload) || null;
+    if(!pet){
+      const pid = norm((petPayload && (petPayload.id || petPayload.petId)) || row.petId || '');
+      if(pid && typeof getPet === 'function') pet = getPet(pid) || null;
+    }
+    return { customer: customer || null, pet: pet || null, customerPayload, petPayload };
+  }catch(_){ return { customer:null, pet:null }; }
+}
+async function dsSaveProposalReview(){
+  const row = __dsProposalReview && __dsProposalReview.row;
+  if(!row) return false;
+  ensureStateShape();
+  ensureContractDefaults();
+  const targets = dsResolveProposalReviewTargets();
+  const customer = targets.customer;
+  const pet = targets.pet;
+  if(!customer || !pet){
+    cpSetStatus('Bestehender Kunde/Hund für Vorschlag nicht gefunden.', true);
+    try{ alert('Bestehender Kunde/Hund für Vorschlag nicht gefunden. Es wurde nichts neu angelegt.'); }catch(_){ }
+    return false;
+  }
+  const customerEmail = String(document.getElementById('c_email')?.value || '').trim();
+  const customerName = String(document.getElementById('c_name')?.value || '').trim();
+  const petName = String(document.getElementById('p_name')?.value || '').trim();
+  const chipSelect = String(document.getElementById('p_chipStatus')?.value || '');
+  if(!customerName){ cpSetStatus('Bitte Kundennamen eintragen.', true); try{ alert('Bitte Kundennamen eintragen.'); }catch(_){ } return false; }
+  if(!customerEmail){ cpSetStatus('Bitte eine E-Mail-Adresse eintragen.', true); try{ alert('Bitte eine E-Mail-Adresse eintragen.'); }catch(_){ } return false; }
+  if(!petName){ cpSetStatus('Bitte Hundename eintragen.', true); try{ alert('Bitte Hundename eintragen.'); }catch(_){ } return false; }
+  if(!chipSelect){ cpSetStatus('Bitte bei „Gechippt?“ Ja oder Nein wählen.', true); try{ alert('Bitte bei „Gechippt?“ Ja oder Nein wählen.'); }catch(_){ } return false; }
+  customer.name = customerName;
+  customer.phone = String(document.getElementById('c_phone')?.value || '').trim();
+  customer.email = customerEmail;
+  customer.street = String(document.getElementById('c_street')?.value || '').trim();
+  customer.zip = String(document.getElementById('c_zip')?.value || '').trim();
+  customer.city = String(document.getElementById('c_city')?.value || '').trim();
+  customer.emergencyName = String(document.getElementById('c_em_name')?.value || '').trim();
+  customer.emergencyPhone = String(document.getElementById('c_em_phone')?.value || '').trim();
+  customer.pickupAuth = String(document.getElementById('c_pickup_auth')?.value || '').trim();
+  customer.note = String(document.getElementById('c_note')?.value || '').trim();
+  customer.updatedAt = Date.now();
+
+  pet.customerId = norm(customer.id || customer.customerId || pet.customerId || '');
+  pet.name = petName;
+  pet.breed = String(document.getElementById('p_breed')?.value || '').trim();
+  pet.birthdate = String(document.getElementById('p_birthdate')?.value || '');
+  try{ const sx = document.getElementById('p_sex'); if(sx) pet.sex = sx.value || ''; }catch(_){ }
+  pet.chip = chipSelect === 'yes';
+  pet.chipNumber = String(document.getElementById('p_chipNumber')?.value || '').trim();
+  if(pet.chip && !pet.chipNumber){ cpSetStatus('Bitte die Chipnummer eintragen.', true); try{ alert('Bitte die Chipnummer eintragen.'); }catch(_){ } return false; }
+  pet.vet = String(document.getElementById('p_vet')?.value || '').trim();
+  pet.vetPhone = String(document.getElementById('p_vetPhone')?.value || '').trim();
+  pet.vetEmail = String(document.getElementById('p_vetEmail')?.value || '').trim();
+  pet.vetStreet = String(document.getElementById('p_vetStreet')?.value || '').trim();
+  pet.vetZip = String(document.getElementById('p_vetZip')?.value || '').trim();
+  pet.vetCity = String(document.getElementById('p_vetCity')?.value || '').trim();
+  pet.vetEmergencyName = String(document.getElementById('p_vetEmergencyName')?.value || '').trim();
+  pet.vetEmergencyPhone = String(document.getElementById('p_vetEmergencyPhone')?.value || '').trim();
+  pet.allergies = String(document.getElementById('p_allergies')?.value || '').trim();
+  pet.medicalConditions = String(document.getElementById('p_medicalConditions')?.value || '').trim();
+  pet.insuranceStatus = String(document.getElementById('p_insuranceStatus')?.value || '');
+  pet.insuranceCompany = String(document.getElementById('p_insuranceCompany')?.value || '').trim();
+  pet.insurancePolicy = String(document.getElementById('p_insurancePolicy')?.value || '').trim();
+  pet.insuranceNotes = String(document.getElementById('p_insuranceNotes')?.value || '').trim();
+  pet.vaccinatedConfirmed = !!document.getElementById('p_vaccinatedConfirmed')?.checked;
+  pet.rabiesDate = String(document.getElementById('p_rabiesDate')?.value || '');
+  pet.mixedVaccineDate = String(document.getElementById('p_mixedVaccineDate')?.value || '');
+  pet.vaccinationPassPhoto = cpVaccinationPassDataUrl || pet.vaccinationPassPhoto || '';
+  pet.profilePhoto = cpProfilePhotoDataUrl || pet.profilePhoto || '';
+  pet.food = String(document.getElementById('p_food')?.value || '').trim();
+  pet.treatsAllowed = String(document.getElementById('p_treatsAllowed')?.value || '');
+  pet.aloneTime = String(document.getElementById('p_aloneTime')?.value || '').trim();
+  pet.houseTrained = String(document.getElementById('p_houseTrained')?.value || '');
+  pet.transport = String(document.getElementById('p_transport')?.value || '').trim();
+  pet.feeding = String(document.getElementById('p_feeding')?.value || '').trim();
+  pet.compatDogs = String(document.getElementById('p_compatDogs')?.value || '').trim();
+  pet.compatCats = String(document.getElementById('p_compatCats')?.value || '').trim();
+  pet.compatKids = String(document.getElementById('p_compatKids')?.value || '').trim();
+  pet.compat = String(document.getElementById('p_compat')?.value || '').trim();
+  pet.leashBehavior = String(document.getElementById('p_leashBehavior')?.value || '').trim();
+  pet.recall = String(document.getElementById('p_recall')?.value || '').trim();
+  pet.resourceBehavior = String(document.getElementById('p_resourceBehavior')?.value || '').trim();
+  pet.behavior = String(document.getElementById('p_behavior')?.value || '').trim();
+  pet.dailyRoutine = String(document.getElementById('p_dailyRoutine')?.value || '').trim();
+  pet.commands = String(document.getElementById('p_commands')?.value || '').trim();
+  pet.note = String(document.getElementById('p_note')?.value || '').trim();
+  pet.updatedAt = Date.now();
+
+  try{ if(typeof upsertLegacyDogForPet === 'function') upsertLegacyDogForPet(pet, customer); }catch(_){ }
+  try{ if(typeof saveState === 'function') saveState(); }catch(_){ }
+  try{ await patchInboxRowStatus(row, 'adopted'); }catch(_){ }
+  try{ removeInboxRowEverywhere(row); }catch(_){ }
+  try{ await refreshInboxHard('review-save'); }catch(_){ }
+  cpSetStatus('Gespeichert.');
+  __dsProposalReview.active = false;
+  __dsProposalReview.row = null;
+  __dsProposalReview.baseCustomer = null;
+  __dsProposalReview.basePet = null;
+  dsClearProposalReviewUI();
+  try{ closeCpEditor(); }catch(_){ }
+  try{ if(typeof renderDogs === 'function') renderDogs(); }catch(_){ }
+  return true;
 }
 
 function dsForceShowPanel(panelId){
@@ -9474,8 +9599,9 @@ function dsOpenProposalInCustomerEditor(row){
       || !!(petPayload && Object.keys(petPayload).length);
     if(!isCustomerProposal || (!Object.keys(customerPayload).length && !Object.keys(petPayload).length)) return false;
 
-    const baseCustomer = dsFindExistingCustomerForInboxRow(row, customerPayload) || null;
-    const basePet = dsFindExistingPetForInboxRow(baseCustomer || {}, petPayload) || null;
+    const targets = dsResolveProposalReviewTargets();
+    const baseCustomer = targets.customer || null;
+    const basePet = targets.pet || null;
 
     __dsProposalReview.active = true;
     __dsProposalReview.row = row;
@@ -11138,6 +11264,10 @@ $("#btnCpSave").addEventListener("click",(e)=>{
   try{ e.preventDefault(); e.stopPropagation(); }catch(_){}
   cpSetStatus("Speichern läuft …");
   try{
+    if(__dsProposalReview && __dsProposalReview.active){
+      dsSaveProposalReview();
+      return;
+    }
     if(isCustomerMainDogsMode()){
       submitCustomerDogsProposal();
       return;
@@ -18347,7 +18477,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB63_EINGAENGE_SAVE_AND_HIGHLIGHT_20260330) ===== */
+/* ===== CHAT (M50.9.9GB64_EINGAENGE_REVIEW_MERGEFIX_20260330) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -19927,7 +20057,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB63_EINGAENGE_SAVE_AND_HIGHLIGHT_20260330";
+  const BUILD = "M50.9.9GB64_EINGAENGE_REVIEW_MERGEFIX_20260330";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
