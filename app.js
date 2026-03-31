@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB81_EINGAENGE_REVIEWSTATE_MAINEDITOR_20260331",
+  tag: "M50.9.9GB82_EINGAENGE_TRUE_EDITOR_VISIBILITY_20260331",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB81_EINGAENGE_REVIEWSTATE_MAINEDITOR_20260331";
+const APP_BUILD = "M50.9.9GB82_EINGAENGE_TRUE_EDITOR_VISIBILITY_20260331";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -8942,7 +8942,8 @@ function openCpEditor(mode, petId){
   cpDirty = false;
   cpSetStatus("");
   const list = document.getElementById("dogList");
-  if(list) list.scrollIntoView({behavior:"smooth", block:"start"});
+  const __reviewOpening = !!((typeof window !== 'undefined' && window.__dsProposalReviewOpening) || (__dsProposalReview && __dsProposalReview.active));
+  if(list && !__reviewOpening) list.scrollIntoView({behavior:"smooth", block:"start"});
 }
 // === 2A.x Erweiterung: "Weiteren Hund" für bestehenden Kunden ===
 function getCurrentCpCustomerId(){
@@ -9304,6 +9305,7 @@ function cpMedRenderInlineList(){
 }
 
 const __dsProposalReview = { active:false, row:null, baseCustomer:null, basePet:null };
+try{ window.__dsProposalReview = __dsProposalReview; }catch(_){ }
 let __dsProposalReviewFirstChangedId = "";
 function dsEnsureReviewStyles(){
   try{
@@ -9975,7 +9977,7 @@ function dsOpenProposalInCustomerEditor(row, opts){
           }
         }catch(_){ }
       }
-      return true;
+      return false;
     }
 
     __dsProposalReview.active = true;
@@ -9986,7 +9988,9 @@ function dsOpenProposalInCustomerEditor(row, opts){
     try{ dsForceShowPanel('dogs'); }catch(_){ }
     try{ dsResetInboxDetailView(); }catch(_){ }
 
+    try{ window.__dsProposalReviewOpening = true; }catch(_){ }
     openCpEditor('edit', basePet.id);
+    try{ window.__dsProposalReviewOpening = false; }catch(_){ }
     try{ cpEdit.mode = 'edit'; cpEdit.petId = String(basePet.id || ''); }catch(_){ }
 
     try{
@@ -18850,7 +18854,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB81_EINGAENGE_REVIEWSTATE_MAINEDITOR_20260331) ===== */
+/* ===== CHAT (M50.9.9GB82_EINGAENGE_TRUE_EDITOR_VISIBILITY_20260331) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -20430,7 +20434,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB81_EINGAENGE_REVIEWSTATE_MAINEDITOR_20260331";
+  const BUILD = "M50.9.9GB82_EINGAENGE_TRUE_EDITOR_VISIBILITY_20260331";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
