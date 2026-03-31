@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB92_EINGAENGE_OPENDIAG_20260331",
+  tag: "M50.9.9GB93_EINGAENGE_GLOBAL_OPENDIAG_20260331",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB92_EINGAENGE_OPENDIAG_20260331";
+const APP_BUILD = "M50.9.9GB93_EINGAENGE_GLOBAL_OPENDIAG_20260331";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -10125,14 +10125,57 @@ function dsFindVisiblePetRowForProposal(row){
   }catch(_){ return null; }
 }
 
+function dsEnsureGlobalProposalOpenDiag(){
+  try{
+    let box = document.getElementById('dsGlobalProposalOpenDiag');
+    if(box) return box;
+    box = document.createElement('div');
+    box.id = 'dsGlobalProposalOpenDiag';
+    box.setAttribute('role','status');
+    box.style.position = 'fixed';
+    box.style.left = '12px';
+    box.style.right = '12px';
+    box.style.top = '78px';
+    box.style.zIndex = '9999';
+    box.style.pointerEvents = 'none';
+    box.style.padding = '8px 12px';
+    box.style.borderRadius = '12px';
+    box.style.border = '1px solid rgba(255,255,255,.12)';
+    box.style.background = 'rgba(12,14,24,.92)';
+    box.style.backdropFilter = 'blur(8px)';
+    box.style.webkitBackdropFilter = 'blur(8px)';
+    box.style.fontSize = '12px';
+    box.style.lineHeight = '1.35';
+    box.style.whiteSpace = 'pre-wrap';
+    box.style.wordBreak = 'break-word';
+    box.style.boxShadow = '0 10px 30px rgba(0,0,0,.28)';
+    box.style.display = 'none';
+    box.textContent = '';
+    const mount = document.body || document.documentElement;
+    if(mount) mount.appendChild(box);
+    return box;
+  }catch(_){ return null; }
+}
 function dsSetProposalOpenDiag(msg, isError){
   try{
-    const el = document.getElementById('inboxDiag');
-    if(!el) return;
     const base = 'OpenDiag: ' + String(msg || '');
-    el.textContent = base;
-    el.style.color = isError ? '#ffb3b3' : '#d7dbe8';
     try{ window.__dsProposalOpenDiag = base; }catch(_){ }
+    try{
+      const el = document.getElementById('inboxDiag');
+      if(el){
+        el.textContent = base;
+        el.style.color = isError ? '#ffb3b3' : '#d7dbe8';
+      }
+    }catch(_){ }
+    try{
+      const box = dsEnsureGlobalProposalOpenDiag();
+      if(box){
+        box.textContent = base;
+        box.style.display = 'block';
+        box.style.color = isError ? '#ffb3b3' : '#d7dbe8';
+        box.style.borderColor = isError ? 'rgba(255,107,107,.45)' : 'rgba(120,170,255,.25)';
+      }
+    }catch(_){ }
   }catch(_){ }
 }
 
@@ -10543,6 +10586,9 @@ try{ window.dsOpenProposalInCustomerEditor = dsOpenProposalInCustomerEditor; }ca
 try{ window.__dsResolveProposalReviewTargets = dsResolveProposalReviewTargets; }catch(_){ }
 try{ window.__dsEnrichProposalReviewRow = dsEnrichProposalReviewRow; }catch(_){ }
 try{ window.__dsTryVisibleProposalButtonOpen = dsTryVisibleProposalButtonOpen; }catch(_){ }
+
+try{ window.dsEnsureGlobalProposalOpenDiag = dsEnsureGlobalProposalOpenDiag; }catch(_){ }
+try{ setTimeout(function(){ try{ const cur = String(window.__dsProposalOpenDiag || ''); if(cur) dsSetProposalOpenDiag(cur.replace(/^OpenDiag:\s*/,''), false); }catch(_){} }, 300); }catch(_){ }
 
 function closeCpEditor(){
   const box = document.getElementById("cpEditor");
@@ -19356,7 +19402,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB92_EINGAENGE_OPENDIAG_20260331) ===== */
+/* ===== CHAT (M50.9.9GB93_EINGAENGE_GLOBAL_OPENDIAG_20260331) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -20936,7 +20982,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB92_EINGAENGE_OPENDIAG_20260331";
+  const BUILD = "M50.9.9GB93_EINGAENGE_GLOBAL_OPENDIAG_20260331";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
