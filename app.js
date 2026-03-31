@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB80_EINGAENGE_OPTSCLEAN_REAL_20260331",
+  tag: "M50.9.9GB81_EINGAENGE_REVIEWSTATE_MAINEDITOR_20260331",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB80_EINGAENGE_OPTSCLEAN_REAL_20260331";
+const APP_BUILD = "M50.9.9GB81_EINGAENGE_REVIEWSTATE_MAINEDITOR_20260331";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -9920,6 +9920,26 @@ function dsForceShowPanel(panelId){
     }
   }catch(_){ }
 }
+function dsResetInboxDetailView(){
+  try{ const detail = document.getElementById('inboxDetail'); if(detail) detail.style.display = 'none'; }catch(_){ }
+  try{ const listEl = document.getElementById('inboxList'); if(listEl) listEl.style.display = ''; }catch(_){ }
+  try{ const proposalList = document.getElementById('inboxProposalList'); if(proposalList) proposalList.style.display = 'none'; }catch(_){ }
+  try{ const btnClose = document.getElementById('btnInboxClose'); if(btnClose) btnClose.style.display = 'none'; }catch(_){ }
+  try{ const btnAdopt = document.getElementById('btnInboxAdopt'); if(btnAdopt) btnAdopt.style.display = 'none'; }catch(_){ }
+  try{ const meta = document.getElementById('inboxDetailMeta'); if(meta) meta.textContent = ''; }catch(_){ }
+  try{ const root = document.getElementById('inboxDetailFormRoot') || document.getElementById('inboxDetailForm'); if(root) root.innerHTML = ''; }catch(_){ }
+}
+function dsEnsureProposalReviewMainEditorVisible(){
+  try{
+    const editor = document.getElementById('cpEditor');
+    if(!editor) return;
+    editor.style.display = 'block';
+    editor.scrollIntoView({ behavior:'smooth', block:'start' });
+    try{ const title = document.getElementById('cpEditorTitle'); if(title) title.textContent = 'Kunde & Hund prüfen'; }catch(_){ }
+    const firstChanged = __dsProposalReviewFirstChangedId ? document.getElementById(__dsProposalReviewFirstChangedId) : null;
+    if(firstChanged && firstChanged.focus){ try{ firstChanged.focus({ preventScroll:true }); }catch(_){ } }
+  }catch(_){ }
+}
 
 function dsOpenProposalInCustomerEditor(row, opts){
   try{
@@ -9964,11 +9984,7 @@ function dsOpenProposalInCustomerEditor(row, opts){
     __dsProposalReview.basePet = basePet ? JSON.parse(JSON.stringify(basePet)) : null;
 
     try{ dsForceShowPanel('dogs'); }catch(_){ }
-    try{
-      document.getElementById('inboxDetail')?.style && (document.getElementById('inboxDetail').style.display = 'none');
-      document.getElementById('inboxList')?.style && (document.getElementById('inboxList').style.display = '');
-      document.getElementById('inboxProposalList')?.style && (document.getElementById('inboxProposalList').style.display = 'none');
-    }catch(_){ }
+    try{ dsResetInboxDetailView(); }catch(_){ }
 
     openCpEditor('edit', basePet.id);
     try{ cpEdit.mode = 'edit'; cpEdit.petId = String(basePet.id || ''); }catch(_){ }
@@ -9989,11 +10005,12 @@ function dsOpenProposalInCustomerEditor(row, opts){
       const rejectBtn = document.getElementById('btnCpRejectProposal');
       if(rejectBtn) rejectBtn.remove();
       document.getElementById('cpReviewBanner')?.remove();
-      try{ document.getElementById('inboxDetail').style.display = 'none'; }catch(_){ }
-      try{ document.getElementById('inboxList').style.display = 'none'; }catch(_){ }
-      try{ document.getElementById('inboxProposalList').style.display = 'none'; }catch(_){ }
-      try{ document.getElementById('btnInboxClose').style.display = 'none'; }catch(_){ }
-      try{ document.getElementById('btnInboxAdopt').style.display = 'none'; }catch(_){ }
+      try{ window.__dsInboxCurrentTask = null; }catch(_){ }
+      try{ window.__dsInboxReviewMainEditor = true; }catch(_){ }
+      try{ dsResetInboxDetailView(); }catch(_){ }
+      try{ dsEnsureProposalReviewMainEditorVisible(); }catch(_){ }
+      try{ setTimeout(dsEnsureProposalReviewMainEditorVisible, 40); }catch(_){ }
+      try{ setTimeout(dsEnsureProposalReviewMainEditorVisible, 140); }catch(_){ }
     }catch(_){ }
 
     const maps = dsReviewFieldMap();
@@ -10022,6 +10039,7 @@ function dsOpenProposalInCustomerEditor(row, opts){
       if(editor){
         editor.style.display = 'block';
         try{ dsForceShowPanel('dogs'); }catch(_){ }
+        try{ dsEnsureProposalReviewMainEditorVisible(); }catch(_){ }
         const firstChanged = __dsProposalReviewFirstChangedId ? document.getElementById(__dsProposalReviewFirstChangedId) : null;
         if(firstChanged && firstChanged.scrollIntoView){
           firstChanged.scrollIntoView({ behavior:'smooth', block:'center' });
@@ -18832,7 +18850,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB80_EINGAENGE_OPTSCLEAN_REAL_20260331) ===== */
+/* ===== CHAT (M50.9.9GB81_EINGAENGE_REVIEWSTATE_MAINEDITOR_20260331) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -20412,7 +20430,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB80_EINGAENGE_OPTSCLEAN_REAL_20260331";
+  const BUILD = "M50.9.9GB81_EINGAENGE_REVIEWSTATE_MAINEDITOR_20260331";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -20791,9 +20809,7 @@ try{
 }
 function dsLaunchProposalInCustomerEditor(row){
   try{ window.__dsInboxCurrentTask = row; }catch(_){ }
-  try{ document.getElementById('inboxDetail')?.style && (document.getElementById('inboxDetail').style.display = 'none'); }catch(_){ }
-  try{ document.getElementById('inboxList')?.style && (document.getElementById('inboxList').style.display = ''); }catch(_){ }
-  try{ document.getElementById('inboxProposalList')?.style && (document.getElementById('inboxProposalList').style.display = 'none'); }catch(_){ }
+  try{ dsResetInboxDetailView(); }catch(_){ }
   let ok = false;
   let lastErr = '';
   try{ ok = !!dsOpenProposalInCustomerEditor(row, { silent:false }); }catch(err){ lastErr = String((err && err.message) || err || 'review-open-failed'); }
@@ -21075,6 +21091,12 @@ function matchesInboxRow(a,b){
   window.addEventListener('pageshow', ()=>setTimeout(kick, 180));
   document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) setTimeout(kick, 160); });
   const inboxTab = document.querySelector('[data-tab="inbox"]') || document.getElementById('tabInbox');
+  try{
+    if(inboxTab && !inboxTab.__gb81ReviewResetBound){
+      inboxTab.__gb81ReviewResetBound = true;
+      inboxTab.addEventListener('click', ()=>setTimeout(()=>{ try{ dsResetInboxDetailView(); }catch(_){} }, 0));
+    }
+  }catch(_){ }
   if(inboxTab && !inboxTab.__gb31Bound){ inboxTab.__gb31Bound = true; inboxTab.addEventListener('click', ()=>setTimeout(kick, 40)); }
   document.addEventListener('pointerup', function(){ try{ window.__dsInboxButtonsBindHard && window.__dsInboxButtonsBindHard(); }catch(_){} }, true);
   document.addEventListener('click', function(ev){

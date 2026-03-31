@@ -3,4 +3,4 @@ GB36
 - app.js/sw.js/version konsistent auf GB36 gezogen
 - sonst keine Moduländerungen
 
-GB80: Entfernt fehlerhafte opts-Initialisierungen im Eingänge-Resolver/Handled-Key/Open-Pfad.
+GB81: Entfernt fehlerhafte opts-Initialisierungen im Eingänge-Resolver/Handled-Key/Open-Pfad.
