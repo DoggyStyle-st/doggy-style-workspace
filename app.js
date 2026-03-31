@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB77_EINGAENGE_RICHROWFIX_20260331",
+  tag: "M50.9.9GB78_EINGAENGE_ROWPASS_REALFIX_20260331",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB77_EINGAENGE_RICHROWFIX_20260331";
+const APP_BUILD = "M50.9.9GB78_EINGAENGE_ROWPASS_REALFIX_20260331";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -1692,10 +1692,6 @@ function enforceCustomerMainDogsUI(){
   try{ const userEl = document.getElementById('syncUser'); if(userEl) userEl.style.display = 'none'; }catch(_){ }
   try{ document.querySelectorAll('.panel').forEach(p=>{ const keep = (p.id === 'dogs'); p.style.display = keep ? '' : 'none'; p.classList.toggle('is-active', keep); }); }catch(_){ }
   try{ document.querySelectorAll('#quickActions .btn, .start-actions .btn, .panel .btn[data-tab], .hero-card, .glass-card, .quick-card').forEach(el=>{ if(!el.closest('#dogs')) el.style.display = 'none'; }); }catch(_){ }
-  try{ const addBtn = document.getElementById('btnAddDog'); if(addBtn){ addBtn.style.display='none'; addBtn.disabled=true; addBtn.onclick=(ev)=>{ try{ ev.preventDefault(); ev.stopPropagation(); }catch(_){ } return false; }; } }catch(_){ }
-  try{ const addAnother = document.getElementById('btnCpAddAnotherDog'); if(addAnother){ addAnother.style.display='none'; addAnother.disabled=true; } }catch(_){ }
-  try{ const useExisting = document.getElementById('useExistingCustomer'); if(useExisting){ useExisting.checked = true; useExisting.disabled = true; } }catch(_){ }
-  try{ const custSel = document.getElementById('customerSelect'); if(custSel){ custSel.disabled = true; } }catch(_){ }
   try{ if(typeof selectTab === 'function') selectTab('dogs'); }catch(_){ }
 }
 
@@ -1738,7 +1734,7 @@ function initCustomerMainDogsMode(){
     if(ownPet){
       setTimeout(function(){ try{ openCpEditor('edit', ownPet.id); }catch(e){ console.error('customer main dogs open failed', e); } }, 80);
     }else{
-      try{ cpSetStatus('Kundenmodus: Kein Hund zum Bearbeiten gefunden.', true); }catch(_){ }
+      setTimeout(function(){ try{ openCpEditor('new'); }catch(e){ console.error('customer main dogs open new failed', e); } }, 80);
     }
     cpSetStatus('Kundenmodus: Kunde/Hund');
   }catch(e){ console.error('initCustomerMainDogsMode failed', e); }
@@ -8903,16 +8899,6 @@ function fillCpEditorForPet(pet){
 function openCpEditor(mode, petId){
   ensureStateShape();
   ensureContractDefaults();
-  try{
-    if(isCustomerMainDogsMode() && mode !== "edit"){
-      const ctx = getCustomerMainDogsContext();
-      const ownPet = (ctx && Array.isArray(ctx.pets) && ctx.pets[0]) ? ctx.pets[0] : null;
-      if(ownPet && String(ownPet.id||'')){
-        mode = 'edit';
-        petId = String(ownPet.id||'');
-      }
-    }
-  }catch(_){ }
   cpEdit.mode = mode || "new";
   cpEdit.petId = petId || "";
   const box = document.getElementById("cpEditor");
@@ -9029,10 +9015,6 @@ function ensureAddAnotherDogButton(){
     }
   }
   b.onclick = ()=>{
-    if(isCustomerMainDogsMode()){
-      cpSetStatus('Kundenmodus: Neuanlage ist nicht erlaubt.', true);
-      return;
-    }
     const customerId = getCurrentCpCustomerId();
     if(!customerId){
       alert("Bitte zuerst einen bestehenden Kunden auswählen oder den Kunden speichern, bevor du einen weiteren Hund anlegst.");
@@ -9610,9 +9592,9 @@ function dsFindExistingPetForInboxRow(customerObj, pet, row){
   return null;
 }
 
-function dsResolveProposalReviewTargets(rowOverride){
+function dsResolveProposalReviewTargets(sourceRow){
   try{
-    const row = rowOverride || (__dsProposalReview && __dsProposalReview.row);
+    const row = sourceRow || (__dsProposalReview && __dsProposalReview.row);
     if(!row) return { customer:null, pet:null };
     const payload = row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {};
     const customerPayload = (payload && payload.customer && typeof payload.customer === 'object') ? payload.customer : (row.customer && typeof row.customer === 'object' ? row.customer : {});
@@ -9788,70 +9770,6 @@ function dsProposalRowQuality(row){
   }catch(_){ return -1e9; }
 }
 
-function dsFindRicherProposalRow(seedRow){
-  try{
-    const seed = seedRow || null;
-    if(!seed || typeof seed !== 'object') return seedRow || null;
-    const all = [];
-    const pushAll = (arr)=>{ try{ asArray(arr).forEach(x=>{ if(x && typeof x === 'object') all.push(x); }); }catch(_){ } };
-    pushAll(window.__dsInboxLastTasks);
-    pushAll(window.__dsInboxLoadedProposals);
-    try{
-      const bag = window.__dsInboxFallbackRows || {};
-      Object.keys(bag).forEach(k=>pushAll(bag[k]));
-    }catch(_){ }
-    if(!all.length) return seed;
-    const sameish = (a,b)=>{
-      try{
-        const aid = norm(a && (a.__rowId || a.id || a.taskId || a.proposalId || a.submissionId));
-        const bid = norm(b && (b.__rowId || b.id || b.taskId || b.proposalId || b.submissionId));
-        if(aid && bid && aid === bid) return true;
-        const ap = (a && (a.payloadSubmitted || a.payloadDraft || a.payload || a.data)) || {};
-        const bp = (b && (b.payloadSubmitted || b.payloadDraft || b.payload || b.data)) || {};
-        const ac = ap.customer || a.customer || {};
-        const bc = bp.customer || b.customer || {};
-        const ad = ap.pet || a.pet || {};
-        const bd = bp.pet || b.pet || {};
-        const aKey = [
-          lower(a && (a.customerEmail || a.email || ac.email || '')),
-          lower(a && (a.customerName || ac.name || '')),
-          lower(a && (a.templateId || a.proposalType || a.kind || a.formKey || ap.source || '')),
-          norm(a && (a.submittedAt || a.createdAt || '')),
-          norm(ad && (ad.id || ad.petId || '')),
-          lower(ad && ad.name),
-        ].join('|');
-        const bKey = [
-          lower(b && (b.customerEmail || b.email || bc.email || '')),
-          lower(b && (b.customerName || bc.name || '')),
-          lower(b && (b.templateId || b.proposalType || b.kind || b.formKey || bp.source || '')),
-          norm(b && (b.submittedAt || b.createdAt || '')),
-          norm(bd && (bd.id || bd.petId || '')),
-          lower(bd && bd.name),
-        ].join('|');
-        return !!aKey && aKey === bKey;
-      }catch(_){ return false; }
-    };
-    let best = seed;
-    let bestScore = dsProposalRowQuality(seed);
-    all.forEach(candidate=>{
-      if(!sameish(seed, candidate)) return;
-      const score = dsProposalRowQuality(candidate);
-      if(score >= bestScore){ best = Object.assign({}, best, candidate); bestScore = score; }
-    });
-    return best || seed;
-  }catch(_){ return seedRow || null; }
-}
-function dsShowSingleProposalResolveAlert(message, row){
-  try{
-    const key = String((row && (row.__rowId || row.id || row.taskId || row.proposalId || row.submissionId)) || 'proposal') + '|' + String(message || '');
-    const now = Date.now();
-    const memo = window.__dsProposalAlertMemo || { key:'', at:0 };
-    if(memo.key === key && (now - Number(memo.at || 0)) < 1500) return;
-    window.__dsProposalAlertMemo = { key:key, at:now };
-  }catch(_){ }
-  try{ alert(message); }catch(_){ }
-}
-
 function dsForceShowPanel(panelId){
   try{
     document.querySelectorAll(".tab").forEach(function(b){
@@ -9868,7 +9786,6 @@ function dsForceShowPanel(panelId){
 
 function dsOpenProposalInCustomerEditor(row){
   try{
-    row = dsFindRicherProposalRow(row) || row;
     dsEnsureReviewStyles();
     dsClearProposalReviewUI();
     ensureStateShape();
@@ -9881,11 +9798,12 @@ function dsOpenProposalInCustomerEditor(row){
       || !!(petPayload && Object.keys(petPayload).length);
     if(!isCustomerProposal || (!Object.keys(customerPayload).length && !Object.keys(petPayload).length)) return false;
 
+    try{ __dsProposalReview.row = row || null; }catch(_){ }
     const targets = dsResolveProposalReviewTargets(row);
     const baseCustomer = targets.customer || null;
     const basePet = targets.pet || null;
     if(!baseCustomer || !basePet || !basePet.id){
-      dsShowSingleProposalResolveAlert('Bestehender Kunde/Hund für Vorschlag nicht eindeutig gefunden. Es wurde nichts geöffnet.', row);
+      try{ alert('Bestehender Kunde/Hund für Vorschlag nicht eindeutig gefunden. Es wurde nichts geöffnet.'); }catch(_){ }
       try{ cpSetStatus('Bestehender Kunde/Hund für Vorschlag nicht gefunden.', true); }catch(_){ }
       try{ window.__dsProposalOpenBlocked = String(dsInboxHandledKey(row) || row.id || '1'); }catch(_){ }
       return true;
@@ -11519,18 +11437,7 @@ function renderDogs(){
   refreshCustomerSelect();
   syncDogSelect();
 }
-$("#btnAddDog").addEventListener("click",()=>{
-  if(isCustomerMainDogsMode()){
-    try{
-      const ctx = getCustomerMainDogsContext();
-      const ownPet = (ctx && Array.isArray(ctx.pets) && ctx.pets[0]) ? ctx.pets[0] : null;
-      if(ownPet && String(ownPet.id||'')) return openCpEditor('edit', ownPet.id);
-      cpSetStatus('Kundenmodus: Neuanlage ist nicht erlaubt.', true);
-      return;
-    }catch(_){ return; }
-  }
-  openCpEditor("new");
-});
+$("#btnAddDog").addEventListener("click",()=>openCpEditor("new"));
 $("#btnCpCancel").addEventListener("click",(e)=>{
   try{ e.preventDefault(); e.stopPropagation(); }catch(_){}
   cpUpdateDirty();
@@ -18776,7 +18683,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB77_EINGAENGE_RICHROWFIX_20260331) ===== */
+/* ===== CHAT (M50.9.9GB78_EINGAENGE_ROWPASS_REALFIX_20260331) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -20356,7 +20263,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB77_EINGAENGE_RICHROWFIX_20260331";
+  const BUILD = "M50.9.9GB78_EINGAENGE_ROWPASS_REALFIX_20260331";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -20734,9 +20641,7 @@ try{
   }catch(_){ return false; }
 }
 function dsLaunchProposalInCustomerEditor(row){
-  row = dsFindRicherProposalRow(row) || row;
   try{ window.__dsInboxCurrentTask = row; }catch(_){ }
-  try{ window.__dsProposalReview = window.__dsProposalReview || {}; window.__dsProposalReview.row = row; }catch(_){ }
   try{ document.getElementById('inboxDetail')?.style && (document.getElementById('inboxDetail').style.display = 'none'); }catch(_){ }
   try{ document.getElementById('inboxList')?.style && (document.getElementById('inboxList').style.display = ''); }catch(_){ }
   try{ document.getElementById('inboxProposalList')?.style && (document.getElementById('inboxProposalList').style.display = 'none'); }catch(_){ }
