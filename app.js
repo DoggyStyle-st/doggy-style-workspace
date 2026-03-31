@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB75_CUSTOMER_NO_NEW_20260331",
+  tag: "M50.9.9GB76_EINGAENGE_ROWPASS_20260331",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB75_CUSTOMER_NO_NEW_20260331";
+const APP_BUILD = "M50.9.9GB76_EINGAENGE_ROWPASS_20260331";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -9610,9 +9610,9 @@ function dsFindExistingPetForInboxRow(customerObj, pet, row){
   return null;
 }
 
-function dsResolveProposalReviewTargets(){
+function dsResolveProposalReviewTargets(rowOverride){
   try{
-    const row = __dsProposalReview && __dsProposalReview.row;
+    const row = rowOverride || (__dsProposalReview && __dsProposalReview.row);
     if(!row) return { customer:null, pet:null };
     const payload = row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {};
     const customerPayload = (payload && payload.customer && typeof payload.customer === 'object') ? payload.customer : (row.customer && typeof row.customer === 'object' ? row.customer : {});
@@ -9675,7 +9675,7 @@ async function dsSaveProposalReview(){
   if(!row) return false;
   ensureStateShape();
   ensureContractDefaults();
-  const targets = dsResolveProposalReviewTargets();
+  const targets = dsResolveProposalReviewTargets(row);
   const customer = targets.customer;
   const pet = targets.pet;
   if(!customer || !pet){
@@ -9816,7 +9816,7 @@ function dsOpenProposalInCustomerEditor(row){
       || !!(petPayload && Object.keys(petPayload).length);
     if(!isCustomerProposal || (!Object.keys(customerPayload).length && !Object.keys(petPayload).length)) return false;
 
-    const targets = dsResolveProposalReviewTargets();
+    const targets = dsResolveProposalReviewTargets(row);
     const baseCustomer = targets.customer || null;
     const basePet = targets.pet || null;
     if(!baseCustomer || !basePet || !basePet.id){
@@ -18711,7 +18711,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB75_CUSTOMER_NO_NEW_20260331) ===== */
+/* ===== CHAT (M50.9.9GB76_EINGAENGE_ROWPASS_20260331) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -20291,7 +20291,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB75_CUSTOMER_NO_NEW_20260331";
+  const BUILD = "M50.9.9GB76_EINGAENGE_ROWPASS_20260331";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -20670,6 +20670,7 @@ try{
 }
 function dsLaunchProposalInCustomerEditor(row){
   try{ window.__dsInboxCurrentTask = row; }catch(_){ }
+  try{ window.__dsProposalReview = window.__dsProposalReview || {}; window.__dsProposalReview.row = row; }catch(_){ }
   try{ document.getElementById('inboxDetail')?.style && (document.getElementById('inboxDetail').style.display = 'none'); }catch(_){ }
   try{ document.getElementById('inboxList')?.style && (document.getElementById('inboxList').style.display = ''); }catch(_){ }
   try{ document.getElementById('inboxProposalList')?.style && (document.getElementById('inboxProposalList').style.display = 'none'); }catch(_){ }
