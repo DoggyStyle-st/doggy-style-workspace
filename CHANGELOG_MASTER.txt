@@ -4,3 +4,8 @@ GB36
 - sonst keine Moduländerungen
 
 GB81: Entfernt fehlerhafte opts-Initialisierungen im Eingänge-Resolver/Handled-Key/Open-Pfad.
+
+GB85 EINGAENGE_ROWIDENTITYOPEN_20260331
+- normalizeRow schreibt direkte Ziel-IDs (__targetCustomerId/__targetPetId) in jede Eingangszeile
+- Resolver bevorzugt direkte Zeilen-IDs vor Name/Email-Fallback
+- Öffnen nutzt zusätzliche direkte petId/customerId-Fallbacks, bevor ein Alert erscheint
