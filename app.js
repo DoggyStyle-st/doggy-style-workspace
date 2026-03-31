@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB87_EINGAENGE_SINGLE_DOG_FALLBACK_20260331",
+  tag: "M50.9.9GB88_EINGAENGE_UI_ROW_OPEN_20260331",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB87_EINGAENGE_SINGLE_DOG_FALLBACK_20260331";
+const APP_BUILD = "M50.9.9GB88_EINGAENGE_UI_ROW_OPEN_20260331";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -10061,6 +10061,57 @@ function dsEnsureProposalReviewMainEditorVisible(){
   }catch(_){ }
 }
 
+function dsFindVisiblePetEditIdForRow(row){
+  try{
+    ensureStateShape();
+    try{ if(typeof renderDogs === 'function') renderDogs(); }catch(_){ }
+    const list = document.getElementById('dogList');
+    if(!list) return '';
+    const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
+    const customerPayload = (payload && payload.customer && typeof payload.customer === 'object') ? payload.customer : (row && row.customer && typeof row.customer === 'object' ? row.customer : {});
+    const petPayload = (payload && payload.pet && typeof payload.pet === 'object') ? payload.pet : (row && row.pet && typeof row.pet === 'object' ? row.pet : {});
+    const targetCid = norm((row && (row.__targetCustomerId || row.customerId)) || (customerPayload && (customerPayload.id || customerPayload.customerId)) || '');
+    const targetPid = norm((row && (row.__targetPetId || row.petId)) || (petPayload && (petPayload.id || petPayload.petId)) || '');
+    const targetCustomerName = lower((customerPayload && customerPayload.name) || (row && row.customerName) || '');
+    const targetPetName = lower((petPayload && petPayload.name) || (row && row.petName) || '');
+    const targetChip = norm((petPayload && petPayload.chipNumber) || (row && row.chipNumber) || '');
+    const petRows = Array.from(list.querySelectorAll('[data-role="pet-row"]'));
+    if(!petRows.length) return '';
+    let hits = petRows.slice();
+    if(targetPid){
+      const pidHits = hits.filter(function(el){ return norm((el.dataset && el.dataset.petId) || '') === targetPid; });
+      if(pidHits.length) hits = pidHits;
+    }
+    if(targetCid){
+      const cidHits = hits.filter(function(el){ return norm((el.dataset && el.dataset.customerId) || '') === targetCid; });
+      if(cidHits.length) hits = cidHits;
+      else {
+        const owned = petRows.filter(function(el){ return norm((el.dataset && el.dataset.customerId) || '') === targetCid; });
+        if(owned.length === 1) hits = owned;
+      }
+    }
+    if(targetCustomerName){
+      const nameHits = hits.filter(function(el){ return lower((el.dataset && el.dataset.customerName) || '') === targetCustomerName; });
+      if(nameHits.length) hits = nameHits;
+    }
+    if(targetChip){
+      const chipHits = hits.filter(function(el){ return norm((el.dataset && el.dataset.petChip) || '') === targetChip; });
+      if(chipHits.length) hits = chipHits;
+    }
+    if(targetPetName){
+      const petNameHits = hits.filter(function(el){ return lower((el.dataset && el.dataset.petName) || '') === targetPetName; });
+      if(petNameHits.length) hits = petNameHits;
+    }
+    if(!targetPid && !targetPetName && !targetChip && targetCid){
+      const owned = petRows.filter(function(el){ return norm((el.dataset && el.dataset.customerId) || '') === targetCid; });
+      if(owned.length === 1) hits = owned;
+    }
+    if(hits.length !== 1) return '';
+    const btn = hits[0] && hits[0].querySelector('[data-pet-edit-id],[data-e="1"]');
+    return String((btn && (btn.dataset.petEditId || hits[0].dataset.petId)) || '').trim();
+  }catch(_){ return ''; }
+}
+
 function dsOpenProposalInCustomerEditor(row, opts){
   opts = opts || {};
   try{
@@ -10098,6 +10149,25 @@ function dsOpenProposalInCustomerEditor(row, opts){
         if(!baseCustomer && basePet && typeof getCustomer === 'function') baseCustomer = getCustomer(basePet.customerId || basePet.ownerId || '') || null;
         if(basePet && !basePetId) basePetId = String(basePet.id || basePet.petId || '');
       }catch(_){ }
+    }
+    if((!baseCustomer || !basePet || !basePetId)){
+      try{
+        if(typeof selectTab === 'function') selectTab('dogs');
+        else if(typeof showPanel === 'function') showPanel('dogs');
+        else dsForceShowPanel('dogs');
+      }catch(_){ }
+      let uiPetId = '';
+      try{ uiPetId = dsFindVisiblePetEditIdForRow(row); }catch(_){ uiPetId = ''; }
+      if(uiPetId){
+        basePetId = String(uiPetId || '').trim();
+        try{ basePet = basePet || (typeof getPet === 'function' ? getPet(basePetId) : null) || null; }catch(_){ }
+        try{
+          if(!baseCustomer){
+            const ownerId = norm((basePet && (basePet.customerId || basePet.ownerId)) || (row && row.__targetCustomerId) || (row && row.customerId) || '');
+            if(ownerId && typeof getCustomer === 'function') baseCustomer = getCustomer(ownerId) || null;
+          }
+        }catch(_){ }
+      }
     }
     if(!baseCustomer || !basePet || !basePetId){
       try{ cpSetStatus('Bestehender Kunde/Hund für Vorschlag nicht gefunden.', true); }catch(_){ }
@@ -11660,8 +11730,16 @@ function renderDogs(){
       header.style.opacity = g.isNoCustomer ? "0.9" : "1";
       const cname = g.isNoCustomer ? "Ohne Kunde verknüpft" : (g.customer?.name || "Kunde");
       const cphone = g.isNoCustomer ? "" : (g.customer?.phone || "");
+      const cemail = g.isNoCustomer ? "" : (g.customer?.email || "");
       const cnt = g.pets.length;
       const cntTxt = cnt===1 ? "1 Hund" : `${cnt} Hunde`;
+      try{
+        header.dataset.role = 'customer-group';
+        header.dataset.customerId = String(g.customerId || '');
+        header.dataset.customerName = String(cname || '');
+        header.dataset.customerEmail = String(cemail || '');
+        header.dataset.customerCount = String(cnt || 0);
+      }catch(_){ }
       header.innerHTML = `
         <div>
           <strong>🧑🏼‍🦰 ${escapeHtml(cname)}</strong>
@@ -11676,6 +11754,14 @@ function renderDogs(){
         el.className = "item";
         el.style.marginLeft = "14px";
         el.style.borderLeft = "3px solid rgba(255,255,255,.08)";
+        try{
+          el.dataset.role = 'pet-row';
+          el.dataset.petId = String(p.id || p.petId || '');
+          el.dataset.petName = String(p.name || '');
+          el.dataset.petChip = String(p.chipNumber || '');
+          el.dataset.customerId = String(p.customerId || p.ownerId || g.customerId || '');
+          el.dataset.customerName = String((g.customer && g.customer.name) || '');
+        }catch(_){ }
         const chipTxt = p.chip ? (` · Chip: ${escapeHtml(p.chipNumber||"ja")}`) : "";
         const badge = contractBadge(p.customerId, p.id);
         const profileThumb = p.profilePhoto ? `<img src="${escapeHtml(p.profilePhoto)}" alt="Profilfoto" style="width:54px;height:54px;object-fit:cover;border-radius:12px;border:1px solid rgba(255,255,255,.12);margin-right:10px;">` : "";
@@ -11691,6 +11777,7 @@ function renderDogs(){
         const btnV = el.querySelector('[data-v="1"]');
         const btnE = el.querySelector('[data-e="1"]');
         const btnD = el.querySelector('[data-d="1"]');
+        try{ if(btnE){ btnE.dataset.petEditId = String(p.id || ''); btnE.dataset.customerId = String(p.customerId || g.customerId || ''); btnE.dataset.petName = String(p.name || ''); btnE.dataset.customerName = String((g.customer && g.customer.name) || ''); } }catch(_){ }
         if(btnV) btnV.onclick = ()=>openContractForPet(p.customerId, p.id);
         if(btnE) btnE.onclick = ()=>openCpEditor("edit", p.id);
         if(btnD) btnD.onclick = ()=>{
@@ -18978,7 +19065,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB87_EINGAENGE_SINGLE_DOG_FALLBACK_20260331) ===== */
+/* ===== CHAT (M50.9.9GB88_EINGAENGE_UI_ROW_OPEN_20260331) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -20558,7 +20645,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB87_EINGAENGE_SINGLE_DOG_FALLBACK_20260331";
+  const BUILD = "M50.9.9GB88_EINGAENGE_UI_ROW_OPEN_20260331";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
