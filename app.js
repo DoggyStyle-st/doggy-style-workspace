@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB82_EINGAENGE_TRUE_EDITOR_VISIBILITY_20260331",
+  tag: "M50.9.9GB83_EINGAENGE_REALBUTTON_OPENPATH_20260331",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB82_EINGAENGE_TRUE_EDITOR_VISIBILITY_20260331";
+const APP_BUILD = "M50.9.9GB83_EINGAENGE_REALBUTTON_OPENPATH_20260331";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -9988,8 +9988,25 @@ function dsOpenProposalInCustomerEditor(row, opts){
     try{ dsForceShowPanel('dogs'); }catch(_){ }
     try{ dsResetInboxDetailView(); }catch(_){ }
 
+    function dsOpenExistingPetViaRealButton(){
+      try{
+        const wantId = String(basePet && (basePet.id || basePet.petId) || '').trim();
+        if(!wantId) return false;
+        const buttons = Array.from(document.querySelectorAll('#dogList [data-pet-edit-id]'));
+        const btn = buttons.find(function(node){ return String(node && node.getAttribute && node.getAttribute('data-pet-edit-id') || '').trim() === wantId; }) || null;
+        if(!btn) return false;
+        btn.click();
+        return true;
+      }catch(_){ return false; }
+    }
+
     try{ window.__dsProposalReviewOpening = true; }catch(_){ }
-    openCpEditor('edit', basePet.id);
+    let openedByRealButton = false;
+    try{ if(typeof renderDogs === 'function') renderDogs(); }catch(_){ }
+    try{ openedByRealButton = dsOpenExistingPetViaRealButton(); }catch(_){ }
+    if(!openedByRealButton){
+      openCpEditor('edit', basePet.id);
+    }
     try{ window.__dsProposalReviewOpening = false; }catch(_){ }
     try{ cpEdit.mode = 'edit'; cpEdit.petId = String(basePet.id || ''); }catch(_){ }
 
@@ -10013,8 +10030,8 @@ function dsOpenProposalInCustomerEditor(row, opts){
       try{ window.__dsInboxReviewMainEditor = true; }catch(_){ }
       try{ dsResetInboxDetailView(); }catch(_){ }
       try{ dsEnsureProposalReviewMainEditorVisible(); }catch(_){ }
-      try{ setTimeout(dsEnsureProposalReviewMainEditorVisible, 40); }catch(_){ }
-      try{ setTimeout(dsEnsureProposalReviewMainEditorVisible, 140); }catch(_){ }
+      try{ setTimeout(function(){ try{ if(typeof renderDogs === 'function') renderDogs(); }catch(_){} try{ dsOpenExistingPetViaRealButton(); }catch(_){} try{ dsEnsureProposalReviewMainEditorVisible(); }catch(_){} }, 40); }catch(_){ }
+      try{ setTimeout(function(){ try{ dsEnsureProposalReviewMainEditorVisible(); }catch(_){} }, 140); }catch(_){ }
     }catch(_){ }
 
     const maps = dsReviewFieldMap();
@@ -11563,7 +11580,7 @@ function renderDogs(){
               <small>${chipTxt}${badge}</small>
             </div>
           </div>
-          <div class="actions">${__customerMainDogs ? `<button class="smallbtn" data-e="1">Bearbeiten</button>` : `<button class="smallbtn" data-v="1">Vertrag</button><button class="smallbtn" data-e="1">Bearbeiten</button><button class="smallbtn" data-d="1">Löschen</button>`}</div>`;
+          <div class="actions">${__customerMainDogs ? `<button class="smallbtn" data-e="1" data-pet-edit-id="${escapeHtml(p.id||'')}">Bearbeiten</button>` : `<button class="smallbtn" data-v="1">Vertrag</button><button class="smallbtn" data-e="1" data-pet-edit-id="${escapeHtml(p.id||'')}">Bearbeiten</button><button class="smallbtn" data-d="1">Löschen</button>`}</div>`;
         const btnV = el.querySelector('[data-v="1"]');
         const btnE = el.querySelector('[data-e="1"]');
         const btnD = el.querySelector('[data-d="1"]');
@@ -18854,7 +18871,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB82_EINGAENGE_TRUE_EDITOR_VISIBILITY_20260331) ===== */
+/* ===== CHAT (M50.9.9GB83_EINGAENGE_REALBUTTON_OPENPATH_20260331) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -20434,7 +20451,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB82_EINGAENGE_TRUE_EDITOR_VISIBILITY_20260331";
+  const BUILD = "M50.9.9GB83_EINGAENGE_REALBUTTON_OPENPATH_20260331";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
