@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB95_EINGAENGE_DOMINSPECT_FALLBACK_20260331",
+  tag: "M50.9.9GB96_EINGAENGE_GLOBAL_ROOTSCAN_20260331",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB95_EINGAENGE_DOMINSPECT_FALLBACK_20260331";
+const APP_BUILD = "M50.9.9GB96_EINGAENGE_GLOBAL_ROOTSCAN_20260331";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -10074,19 +10074,92 @@ function dsIsCpEditorActuallyOpen(){
 }
 
 
+function dsCollectInspectableRoots(){
+  try{
+    const roots = [];
+    const seen = new Set();
+    const walk = function(root){
+      try{
+        if(!root || seen.has(root)) return;
+        seen.add(root);
+        roots.push(root);
+        const nodes = root.querySelectorAll ? Array.from(root.querySelectorAll('*')) : [];
+        nodes.forEach(function(el){ try{ if(el && el.shadowRoot) walk(el.shadowRoot); }catch(_){ } });
+      }catch(_){ }
+    };
+    walk(document);
+    return roots;
+  }catch(_){ return [document]; }
+}
+
+function dsScanDogsDom(){
+  try{
+    const roots = dsCollectInspectableRoots();
+    const seenItems = new Set();
+    const seenRows = new Set();
+    const seenBtns = new Set();
+    const items = [];
+    const petRows = [];
+    const buttons = [];
+    let rexCount = 0;
+    let customerCount = 0;
+    roots.forEach(function(root){
+      try{
+        const localItems = root.querySelectorAll ? Array.from(root.querySelectorAll('#dogList .item, section.panel#dogs .item, .panel#dogs .item, #dogs .item')) : [];
+        localItems.forEach(function(el){ if(el && !seenItems.has(el)){ seenItems.add(el); items.push(el); } });
+      }catch(_){ }
+      try{
+        const localRows = root.querySelectorAll ? Array.from(root.querySelectorAll('[data-role="pet-row"]')) : [];
+        localRows.forEach(function(el){ if(el && !seenRows.has(el)){ seenRows.add(el); petRows.push(el); } });
+      }catch(_){ }
+      try{
+        const localBtns = root.querySelectorAll ? Array.from(root.querySelectorAll('button, .smallbtn, [data-e="1"], [data-pet-edit-id]')) : [];
+        localBtns.forEach(function(el){
+          try{
+            if(!el || seenBtns.has(el)) return;
+            const txt = norm((el.textContent || el.value || '') || '');
+            if(!/bearbeiten/i.test(txt)) return;
+            seenBtns.add(el);
+            buttons.push(el);
+          }catch(_){ }
+        });
+      }catch(_){ }
+    });
+    try{
+      const rexSeen = new Set();
+      items.forEach(function(el){
+        try{
+          if(!el || rexSeen.has(el)) return;
+          rexSeen.add(el);
+          const txt = lower((el.textContent || '') || '');
+          if(/\brex\b/.test(txt)) rexCount += 1;
+          if(/max mustermann/.test(txt)) customerCount += 1;
+        }catch(_){ }
+      });
+    }catch(_){ }
+    return { roots: roots.length || 0, items: items, petRows: petRows, buttons: buttons, rexCount: rexCount, customerCount: customerCount };
+  }catch(_){ return { roots: 0, items: [], petRows: [], buttons: [], rexCount: 0, customerCount: 0 }; }
+}
+
 function dsCollectVisiblePetRowCandidates(){
   try{
-    const items = Array.from(document.querySelectorAll('#dogList .item, [data-tab-panel="dogs"] .item, #tab-dogs .item'));
+    const scan = dsScanDogsDom();
+    const items = (scan && Array.isArray(scan.items) && scan.items.length)
+      ? scan.items
+      : Array.from(document.querySelectorAll('#dogList .item, [data-tab-panel="dogs"] .item, #tab-dogs .item, section.panel#dogs .item, #dogs .item'));
     const seen = new Set();
     const out = [];
-    items.forEach(function(item){
+    const addItem = function(item, forcedBtn){
       try{
         if(!item || seen.has(item)) return;
         seen.add(item);
-        const strong = item.querySelector('strong');
+        const strong = item.querySelector ? item.querySelector('strong') : null;
         const strongTxt = norm((strong && strong.textContent) || '');
-        const isPetLike = /^🐶/.test(strongTxt) || /bearbeiten/i.test(norm(item.textContent || ''));
-        const btns = Array.from(item.querySelectorAll('button, .smallbtn')).filter(function(b){ return /bearbeiten/i.test(norm((b && b.textContent) || '')); });
+        const allBtns = item.querySelectorAll ? Array.from(item.querySelectorAll('button, .smallbtn, [data-e="1"], [data-pet-edit-id]')) : [];
+        const btns = allBtns.filter(function(b){ return /bearbeiten/i.test(norm((b && b.textContent) || '')); });
+        if(forcedBtn && !btns.includes(forcedBtn)) btns.unshift(forcedBtn);
+        const itemTxt = norm((item.textContent || '') || '');
+        const isPetLike = /^🐶/.test(strongTxt) || /bearbeiten/i.test(itemTxt) || /\brex\b/i.test(itemTxt);
         if(!isPetLike && !btns.length) return;
         let customerName = norm((item.dataset && item.dataset.customerName) || '');
         let customerId = norm((item.dataset && item.dataset.customerId) || (btns[0] && btns[0].dataset && btns[0].dataset.customerId) || '');
@@ -10103,12 +10176,21 @@ function dsCollectVisiblePetRowCandidates(){
             prev = prev.previousElementSibling;
           }
         }
-        const petName = strongTxt.replace(/^🐶\s*/,'').trim();
+        const petName = (strongTxt || itemTxt).replace(/^🐶\s*/,'').trim();
         const btn = btns[0] || null;
         const petId = norm((item.dataset && item.dataset.petId) || (btn && btn.dataset && (btn.dataset.petEditId || btn.dataset.petId)) || '');
-        out.append({ el:item, button:btn, petId:petId, customerId:customerId, customerName:customerName, petName:petName, hasDogIcon:/^🐶/.test(strongTxt) });
+        out.push({ el:item, button:btn, petId:petId, customerId:customerId, customerName:customerName, petName:petName, hasDogIcon:/^🐶/.test(strongTxt) });
       }catch(_){ }
-    });
+    };
+    items.forEach(function(item){ addItem(item, null); });
+    try{
+      (scan.buttons || []).forEach(function(btn){
+        try{
+          const row = btn.closest ? (btn.closest('[data-role="pet-row"]') || btn.closest('.item')) : null;
+          if(row) addItem(row, btn);
+        }catch(_){ }
+      });
+    }catch(_){ }
     return out;
   }catch(_){ return []; }
 }
@@ -10126,8 +10208,10 @@ function dsFindVisiblePetRowForProposal(row){
     const targetPetName = lower((petPayload && petPayload.name) || (row && row.petName) || '');
     const targetChip = norm((petPayload && petPayload.chipNumber) || (row && row.chipNumber) || '');
     const list = document.getElementById('dogList');
+    const globalScan = dsScanDogsDom();
     let petRows = [];
     try{ if(list) petRows = Array.from(list.querySelectorAll('[data-role="pet-row"]')); }catch(_){ petRows = []; }
+    try{ if(!petRows.length && globalScan && Array.isArray(globalScan.petRows) && globalScan.petRows.length) petRows = globalScan.petRows.slice(); }catch(_){ }
     let usedRaw = false;
     let candidates = [];
     if(petRows.length){
@@ -10158,7 +10242,7 @@ function dsFindVisiblePetRowForProposal(row){
       });
     }
     if(!candidates.length){
-      try{ if(row && typeof row === 'object'){ row.__openDiagRowCount='0'; row.__openDiagRaw=usedRaw?'1':'0'; row.__openDiagBtnCount='0'; } }catch(_){ }
+      try{ if(row && typeof row === 'object'){ row.__openDiagRowCount='0'; row.__openDiagRaw=usedRaw?'1':'0'; row.__openDiagBtnCount='0'; row.__openDiagRootCount=String((globalScan && globalScan.roots) || 0); row.__openDiagGlobalBtnCount=String((globalScan && globalScan.buttons && globalScan.buttons.length) || 0); row.__openDiagGlobalRexCount=String((globalScan && globalScan.rexCount) || 0); row.__openDiagGlobalCustomerCount=String((globalScan && globalScan.customerCount) || 0); } }catch(_){ }
       return null;
     }
     let hits = candidates.slice();
@@ -10191,6 +10275,10 @@ function dsFindVisiblePetRowForProposal(row){
         row.__openDiagRowCid = String((hit && hit.customerId) || '--');
         row.__openDiagBtnCount = String(btnCount || 0);
         row.__openDiagRaw = usedRaw ? '1':'0';
+        row.__openDiagRootCount = String((globalScan && globalScan.roots) || 0);
+        row.__openDiagGlobalBtnCount = String((globalScan && globalScan.buttons && globalScan.buttons.length) || 0);
+        row.__openDiagGlobalRexCount = String((globalScan && globalScan.rexCount) || 0);
+        row.__openDiagGlobalCustomerCount = String((globalScan && globalScan.customerCount) || 0);
       }
     }catch(_){ }
     if(!hit) return null;
@@ -10334,7 +10422,7 @@ function dsFindVisiblePetEditIdForRow(row){
     ensureStateShape();
     try{ if(typeof renderDogs === 'function') renderDogs(); }catch(_){ }
     const list = document.getElementById('dogList');
-    if(!list) return '';
+    const globalScan = dsScanDogsDom();
     const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
     const customerPayload = (payload && payload.customer && typeof payload.customer === 'object') ? payload.customer : (row && row.customer && typeof row.customer === 'object' ? row.customer : {});
     const petPayload = (payload && payload.pet && typeof payload.pet === 'object') ? payload.pet : (row && row.pet && typeof row.pet === 'object' ? row.pet : {});
@@ -10343,8 +10431,14 @@ function dsFindVisiblePetEditIdForRow(row){
     const targetCustomerName = lower((customerPayload && customerPayload.name) || (row && row.customerName) || '');
     const targetPetName = lower((petPayload && petPayload.name) || (row && row.petName) || '');
     const targetChip = norm((petPayload && petPayload.chipNumber) || (row && row.chipNumber) || '');
-    const petRows = Array.from(list.querySelectorAll('[data-role="pet-row"]'));
-    if(!petRows.length) return '';
+    let petRows = [];
+    try{ if(list) petRows = Array.from(list.querySelectorAll('[data-role="pet-row"]')); }catch(_){ petRows = []; }
+    try{ if(!petRows.length && globalScan && Array.isArray(globalScan.petRows) && globalScan.petRows.length) petRows = globalScan.petRows.slice(); }catch(_){ }
+    try{ if(row && typeof row === 'object'){ row.__openDiagRootCount = String((globalScan && globalScan.roots) || 0); row.__openDiagGlobalBtnCount = String((globalScan && globalScan.buttons && globalScan.buttons.length) || 0); row.__openDiagGlobalRexCount = String((globalScan && globalScan.rexCount) || 0); row.__openDiagGlobalCustomerCount = String((globalScan && globalScan.customerCount) || 0); } }catch(_){ }
+    if(!petRows.length){
+      try{ const hit = dsFindVisiblePetRowForProposal(row); if(hit && hit.petId) return String(hit.petId || '').trim(); }catch(_){ }
+      return '';
+    }
     let hits = petRows.slice();
     if(targetPid){
       const pidHits = hits.filter(function(el){ return norm((el.dataset && el.dataset.petId) || '') === targetPid; });
@@ -10507,7 +10601,7 @@ function dsScheduleProposalReviewUiOpen(row, customerPayload, petPayload, opts){
       try{ if(dsTryVisibleProposalButtonOpen(row, customerPayload, petPayload, Object.assign({}, opts, { silent: opts && opts.silent })) ) return; }catch(_){ }
       let uiPetId = '';
       try{ uiPetId = dsGetDirectProposalReviewPetId(row); }catch(_){ uiPetId = ''; }
-      try{ dsSetProposalOpenDiag('schedule try=' + tries + ' uiPetId=' + (uiPetId||'--') + ' cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0') + ' rows=' + String((row && row.__openDiagRowCount) || '--') + ' btns=' + String((row && row.__openDiagBtnCount) || '--') + ' raw=' + String((row && row.__openDiagRaw) || '--') + ' rowPet=' + String((row && row.__openDiagRowPetId) || '--') + ' btnPet=' + String((row && row.__openDiagBtnPetId) || '--'), false); }catch(_){ }
+      try{ dsSetProposalOpenDiag('schedule try=' + tries + ' uiPetId=' + (uiPetId||'--') + ' cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0') + ' rows=' + String((row && row.__openDiagRowCount) || '--') + ' btns=' + String((row && row.__openDiagBtnCount) || '--') + ' raw=' + String((row && row.__openDiagRaw) || '--') + ' roots=' + String((row && row.__openDiagRootCount) || '--') + ' gbtn=' + String((row && row.__openDiagGlobalBtnCount) || '--') + ' grex=' + String((row && row.__openDiagGlobalRexCount) || '--') + ' gmax=' + String((row && row.__openDiagGlobalCustomerCount) || '--') + ' rowPet=' + String((row && row.__openDiagRowPetId) || '--') + ' btnPet=' + String((row && row.__openDiagBtnPetId) || '--'), false); }catch(_){ }
       if(uiPetId){
         try{ if(typeof openCpEditor === 'function') openCpEditor('edit', uiPetId); }catch(_){ }
         try{
@@ -10549,7 +10643,7 @@ function dsScheduleProposalReviewUiOpen(row, customerPayload, petPayload, opts){
       tries += 1;
       if(tries < maxTries) setTimeout(tick, 140);
       else {
-        try{ dsSetProposalOpenDiag('fail-no-ui petId=' + (uiPetId||'--') + ' tries=' + tries + ' cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0') + ' rows=' + String((row && row.__openDiagRowCount) || '--') + ' btns=' + String((row && row.__openDiagBtnCount) || '--') + ' raw=' + String((row && row.__openDiagRaw) || '--') + ' rowPet=' + String((row && row.__openDiagRowPetId) || '--') + ' btnPet=' + String((row && row.__openDiagBtnPetId) || '--'), true); }catch(_){ }
+        try{ dsSetProposalOpenDiag('fail-no-ui petId=' + (uiPetId||'--') + ' tries=' + tries + ' cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0') + ' rows=' + String((row && row.__openDiagRowCount) || '--') + ' btns=' + String((row && row.__openDiagBtnCount) || '--') + ' raw=' + String((row && row.__openDiagRaw) || '--') + ' roots=' + String((row && row.__openDiagRootCount) || '--') + ' gbtn=' + String((row && row.__openDiagGlobalBtnCount) || '--') + ' grex=' + String((row && row.__openDiagGlobalRexCount) || '--') + ' gmax=' + String((row && row.__openDiagGlobalCustomerCount) || '--') + ' rowPet=' + String((row && row.__openDiagRowPetId) || '--') + ' btnPet=' + String((row && row.__openDiagBtnPetId) || '--'), true); }catch(_){ }
         try{ cpSetStatus('Bestehender Kunde/Hund für Vorschlag nicht gefunden.', true); }catch(_){ }
         if(!opts.silent){
           try{ alert('Bestehender Kunde/Hund für Vorschlag nicht eindeutig gefunden. Es wurde nichts geöffnet.'); }catch(_){ }
@@ -19476,7 +19570,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB95_EINGAENGE_DOMINSPECT_FALLBACK_20260331) ===== */
+/* ===== CHAT (M50.9.9GB96_EINGAENGE_GLOBAL_ROOTSCAN_20260331) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -21056,7 +21150,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB95_EINGAENGE_DOMINSPECT_FALLBACK_20260331";
+  const BUILD = "M50.9.9GB96_EINGAENGE_GLOBAL_ROOTSCAN_20260331";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
