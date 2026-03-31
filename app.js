@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB89_EINGAENGE_UI_BUTTON_RETRY_20260331",
+  tag: "M50.9.9GB90_EINGAENGE_DIRECT_HANDLER_OPEN_20260331",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB89_EINGAENGE_UI_BUTTON_RETRY_20260331";
+const APP_BUILD = "M50.9.9GB90_EINGAENGE_DIRECT_HANDLER_OPEN_20260331";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -10112,6 +10112,44 @@ function dsFindVisiblePetEditIdForRow(row){
   }catch(_){ return ''; }
 }
 
+function dsGetDirectProposalReviewPetId(row){
+  try{
+    ensureStateShape();
+    const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
+    const customerPayload = (payload && payload.customer && typeof payload.customer === 'object') ? payload.customer : (row && row.customer && typeof row.customer === 'object' ? row.customer : {});
+    const petPayload = (payload && payload.pet && typeof payload.pet === 'object') ? payload.pet : (row && row.pet && typeof row.pet === 'object' ? row.pet : {});
+    const targetCid = norm((row && (row.__targetCustomerId || row.customerId)) || (customerPayload && (customerPayload.id || customerPayload.customerId)) || '');
+    const targetPid = norm((row && (row.__targetPetId || row.petId)) || (petPayload && (petPayload.id || petPayload.petId)) || '');
+    const targetPetName = lower((petPayload && petPayload.name) || (row && row.petName) || '');
+    const targetChip = norm((petPayload && petPayload.chipNumber) || (row && row.chipNumber) || '');
+    if(targetPid) return targetPid;
+    let uiPetId = '';
+    try{ uiPetId = dsFindVisiblePetEditIdForRow(row); }catch(_){ uiPetId=''; }
+    if(uiPetId) return String(uiPetId || '').trim();
+    const pets = asArray(state && (((state.pets||[]).length ? state.pets : state.dogs) || []));
+    let hits = pets.slice();
+    if(targetCid){
+      const cidHits = hits.filter(function(x){ return norm((x && (x.customerId || x.ownerId || '')) || '') === targetCid; });
+      if(cidHits.length) hits = cidHits;
+    }
+    if(targetChip){
+      const chipHits = hits.filter(function(x){ return norm((x && x.chipNumber) || '') === targetChip; });
+      if(chipHits.length) hits = chipHits;
+    }
+    if(targetPetName){
+      const nameHits = hits.filter(function(x){ return lower((x && x.name) || '') === targetPetName; });
+      if(nameHits.length) hits = nameHits;
+    }
+    if(hits.length === 1) return String((hits[0] && (hits[0].id || hits[0].petId)) || '').trim();
+    if(targetCid){
+      const owned = pets.filter(function(x){ return norm((x && (x.customerId || x.ownerId || '')) || '') === targetCid; });
+      if(owned.length === 1) return String((owned[0] && (owned[0].id || owned[0].petId)) || '').trim();
+    }
+    if(pets.length === 1) return String((pets[0] && (pets[0].id || pets[0].petId)) || '').trim();
+    return '';
+  }catch(_){ return ''; }
+}
+
 function dsFinalizeProposalReviewEditor(row, baseCustomer, basePet, basePetId, customerPayload, petPayload, opts){
   opts = opts || {};
   try{
@@ -10197,13 +10235,14 @@ function dsScheduleProposalReviewUiOpen(row, customerPayload, petPayload, opts){
       }catch(_){ }
       try{ if(typeof renderDogs === 'function') renderDogs(); }catch(_){ }
       let uiPetId = '';
-      try{ uiPetId = dsFindVisiblePetEditIdForRow(row); }catch(_){ uiPetId = ''; }
+      try{ uiPetId = dsGetDirectProposalReviewPetId(row); }catch(_){ uiPetId = ''; }
       if(uiPetId){
+        try{ if(typeof openCpEditor === 'function') openCpEditor('edit', uiPetId); }catch(_){ }
         try{
           const btn = document.querySelector('[data-pet-edit-id="' + String(uiPetId || '').replace(/"/g,'\"') + '"]');
-          if(btn && typeof btn.click === 'function') btn.click();
-          else if(typeof openCpEditor === 'function') openCpEditor('edit', uiPetId);
-        }catch(_){ try{ if(typeof openCpEditor === 'function') openCpEditor('edit', uiPetId); }catch(__){} }
+          if(btn && typeof btn.onclick === 'function') btn.onclick();
+          else if(btn && typeof btn.click === 'function') btn.click();
+        }catch(_){ }
         setTimeout(function(){
           try{ if(window.__dsProposalUiOpenToken !== token) return; }catch(_){ }
           let basePet = null, baseCustomer = null;
@@ -10220,6 +10259,9 @@ function dsScheduleProposalReviewUiOpen(row, customerPayload, petPayload, opts){
             if(editor){
               editor.style.display = 'block';
               try{ dsEnsureProposalReviewMainEditorVisible(); }catch(_){ }
+              if(!basePet && uiPetId){ try{ basePet = (typeof getPet === 'function' ? getPet(uiPetId) : null) || null; }catch(_){ } }
+              if(!baseCustomer && basePet){ try{ baseCustomer = (typeof getCustomer === 'function' ? getCustomer(basePet.customerId || basePet.ownerId || '') : null) || null; }catch(_){ } }
+              if(baseCustomer && basePet){ dsFinalizeProposalReviewEditor(row, baseCustomer, basePet, uiPetId || (basePet && (basePet.id || basePet.petId)) || '', customerPayload || {}, petPayload || {}, opts); return; }
               return;
             }
           }catch(_){ }
@@ -10262,10 +10304,14 @@ function dsOpenProposalInCustomerEditor(row, opts){
       || !!(petPayload && Object.keys(petPayload).length);
     if(!isCustomerProposal || (!Object.keys(customerPayload).length && !Object.keys(petPayload).length)) return false;
 
+    let directPetId = '';
+    try{ directPetId = dsGetDirectProposalReviewPetId(row); }catch(_){ directPetId = ''; }
     const targets = dsResolveProposalReviewTargets(row);
     let baseCustomer = targets.customer || null;
     let basePet = targets.pet || null;
-    let basePetId = String((basePet && (basePet.id || basePet.petId)) || (row && row.__targetPetId) || (row && row.petId) || '').trim();
+    let basePetId = String((directPetId || (basePet && (basePet.id || basePet.petId)) || (row && row.__targetPetId) || (row && row.petId) || '')).trim();
+    if(!basePet && basePetId){ try{ basePet = (typeof getPet === 'function' ? getPet(basePetId) : null) || null; }catch(_){ } }
+    if(!baseCustomer && basePet){ try{ baseCustomer = (typeof getCustomer === 'function' ? getCustomer(basePet.customerId || basePet.ownerId || '') : null) || null; }catch(_){ } }
     if((!baseCustomer || !basePet || !basePetId) && basePetId){
       try{
         const allPets = asArray(state && (((state.pets||[]).length ? state.pets : state.dogs) || []));
@@ -10290,10 +10336,12 @@ function dsOpenProposalInCustomerEditor(row, opts){
         else if(typeof showPanel === 'function') showPanel('dogs');
         else dsForceShowPanel('dogs');
       }catch(_){ }
+      try{ if(typeof renderDogs === 'function') renderDogs(); }catch(_){ }
       let uiPetId = '';
-      try{ uiPetId = dsFindVisiblePetEditIdForRow(row); }catch(_){ uiPetId = ''; }
+      try{ uiPetId = dsGetDirectProposalReviewPetId(row); }catch(_){ uiPetId = ''; }
       if(uiPetId){
         basePetId = String(uiPetId || '').trim();
+        try{ if(typeof openCpEditor === 'function') openCpEditor('edit', basePetId); }catch(_){ }
         try{ basePet = basePet || (typeof getPet === 'function' ? getPet(basePetId) : null) || null; }catch(_){ }
         try{
           if(!baseCustomer){
@@ -19148,7 +19196,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB89_EINGAENGE_UI_BUTTON_RETRY_20260331) ===== */
+/* ===== CHAT (M50.9.9GB90_EINGAENGE_DIRECT_HANDLER_OPEN_20260331) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -20728,7 +20776,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB89_EINGAENGE_UI_BUTTON_RETRY_20260331";
+  const BUILD = "M50.9.9GB90_EINGAENGE_DIRECT_HANDLER_OPEN_20260331";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
