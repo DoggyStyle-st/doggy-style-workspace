@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB91_EINGAENGE_VISIBLE_BUTTON_HANDLER_20260331",
+  tag: "M50.9.9GB92_EINGAENGE_OPENDIAG_20260331",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB91_EINGAENGE_VISIBLE_BUTTON_HANDLER_20260331";
+const APP_BUILD = "M50.9.9GB92_EINGAENGE_OPENDIAG_20260331";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -10125,12 +10125,29 @@ function dsFindVisiblePetRowForProposal(row){
   }catch(_){ return null; }
 }
 
+function dsSetProposalOpenDiag(msg, isError){
+  try{
+    const el = document.getElementById('inboxDiag');
+    if(!el) return;
+    const base = 'OpenDiag: ' + String(msg || '');
+    el.textContent = base;
+    el.style.color = isError ? '#ffb3b3' : '#d7dbe8';
+    try{ window.__dsProposalOpenDiag = base; }catch(_){ }
+  }catch(_){ }
+}
+
 function dsTryVisibleProposalButtonOpen(row, customerPayload, petPayload, opts){
   opts = opts || {};
   try{
     const hit = dsFindVisiblePetRowForProposal(row);
-    if(!hit || !hit.petId) return false;
+    const debugCid = norm((row && (row.__targetCustomerId || row.customerId)) || '');
+    const debugPid = norm((row && (row.__targetPetId || row.petId)) || '');
+    if(!hit || !hit.petId){
+      try{ dsSetProposalOpenDiag('start cid=' + (debugCid||'--') + ' pid=' + (debugPid||'--') + ' hit=0 petId=--', true); }catch(_){ }
+      return false;
+    }
     const petId = String(hit.petId || '').trim();
+    try{ dsSetProposalOpenDiag('start cid=' + (debugCid||'--') + ' pid=' + (debugPid||'--') + ' hit=1 petId=' + (petId||'--') + ' btn=' + (!!(hit && hit.button) ? '1':'0') + ' cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0'), false); }catch(_){ }
     let basePet = null, baseCustomer = null;
     try{ basePet = (typeof getPet === 'function' ? getPet(petId) : null) || null; }catch(_){ }
     try{ if(basePet && typeof getCustomer === 'function') baseCustomer = getCustomer(basePet.customerId || basePet.ownerId || '') || null; }catch(_){ }
@@ -10147,6 +10164,7 @@ function dsTryVisibleProposalButtonOpen(row, customerPayload, petPayload, opts){
         const fresh = dsFindVisiblePetRowForProposal(row);
         if(fresh && fresh.petId){ btn = fresh.button || null; }
       }catch(_){ }
+      try{ dsSetProposalOpenDiag('kick=' + tries + ' petId=' + (petId||'--') + ' btn=' + (!!btn ? '1':'0') + ' onclick=' + (!!(btn && typeof btn.onclick === 'function') ? '1':'0') + ' click=' + (!!(btn && typeof btn.click === 'function') ? '1':'0') + ' cpBefore=' + (dsIsCpEditorActuallyOpen() ? '1':'0'), false); }catch(_){ }
       try{ if(btn && typeof btn.onclick === 'function') btn.onclick(); }catch(_){ }
       try{ if(btn && typeof btn.click === 'function') btn.click(); }catch(_){ }
       try{ if(btn) btn.dispatchEvent(new MouseEvent('click', { bubbles:true, cancelable:true, view:window })); }catch(_){ }
@@ -10158,6 +10176,7 @@ function dsTryVisibleProposalButtonOpen(row, customerPayload, petPayload, opts){
         try{ if(!finalCustomer && finalPet && typeof getCustomer === 'function') finalCustomer = getCustomer(finalPet.customerId || finalPet.ownerId || '') || null; }catch(_){ }
         const opened = dsIsCpEditorActuallyOpen() || (cpEdit && cpEdit.mode === 'edit' && norm(cpEdit.petId) === norm(petId));
         if(opened){
+          try{ dsSetProposalOpenDiag('opened petId=' + (petId||'--') + ' cp=1 mode=' + String((cpEdit && cpEdit.mode) || '--') + ' cpPet=' + String((cpEdit && cpEdit.petId) || '--'), false); }catch(_){ }
           try{ window.__dsProposalReviewOpening = false; }catch(_){ }
           if(finalPet && finalCustomer){
             dsFinalizeProposalReviewEditor(row, finalCustomer, finalPet, petId, customerPayload || {}, petPayload || {}, opts);
@@ -10170,6 +10189,7 @@ function dsTryVisibleProposalButtonOpen(row, customerPayload, petPayload, opts){
           setTimeout(kick, 120);
           return;
         }
+        try{ dsSetProposalOpenDiag('fail petId=' + (petId||'--') + ' tries=' + tries + ' cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0') + ' btn=' + (!!btn ? '1':'0'), true); }catch(_){ }
         try{ window.__dsProposalReviewOpening = false; }catch(_){ }
         try{ cpSetStatus('Bestehender Kunde/Hund für Vorschlag nicht gefunden.', true); }catch(_){ }
         if(!opts.silent){
@@ -10307,6 +10327,7 @@ function dsFinalizeProposalReviewEditor(row, baseCustomer, basePet, basePetId, c
 
     const editor = document.getElementById('cpEditor');
     if(!editor){
+      try{ dsSetProposalOpenDiag('finalize-missing-editor basePetId=' + String(basePetId || '--') + ' cp=0', true); }catch(_){ }
       if(!opts.silent){ try{ alert('Original-Editor konnte nicht geöffnet werden.'); }catch(_){ } }
       return false;
     }
@@ -10342,6 +10363,7 @@ function dsFinalizeProposalReviewEditor(row, baseCustomer, basePet, basePetId, c
     try{ dsEnsureProposalReviewMainEditorVisible(); }catch(_){ }
     try{ setTimeout(function(){ try{ dsEnsureProposalReviewMainEditorVisible(); }catch(_){} }, 80); }catch(_){ }
     try{ window.__dsProposalReviewLastOpenedAt = Date.now(); }catch(_){ }
+    try{ dsSetProposalOpenDiag('finalize-ok basePetId=' + String(basePetId || '--') + ' cp=1', false); }catch(_){ }
     return true;
   }catch(err){
     try{ window.__dsProposalReviewOpening = false; }catch(_){ }
@@ -10368,6 +10390,7 @@ function dsScheduleProposalReviewUiOpen(row, customerPayload, petPayload, opts){
       try{ if(dsTryVisibleProposalButtonOpen(row, customerPayload, petPayload, Object.assign({}, opts, { silent: opts && opts.silent })) ) return; }catch(_){ }
       let uiPetId = '';
       try{ uiPetId = dsGetDirectProposalReviewPetId(row); }catch(_){ uiPetId = ''; }
+      try{ dsSetProposalOpenDiag('schedule try=' + tries + ' uiPetId=' + (uiPetId||'--') + ' cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0'), false); }catch(_){ }
       if(uiPetId){
         try{ if(typeof openCpEditor === 'function') openCpEditor('edit', uiPetId); }catch(_){ }
         try{
@@ -10409,6 +10432,7 @@ function dsScheduleProposalReviewUiOpen(row, customerPayload, petPayload, opts){
       tries += 1;
       if(tries < maxTries) setTimeout(tick, 140);
       else {
+        try{ dsSetProposalOpenDiag('fail-no-ui petId=' + (uiPetId||'--') + ' tries=' + tries + ' cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0'), true); }catch(_){ }
         try{ cpSetStatus('Bestehender Kunde/Hund für Vorschlag nicht gefunden.', true); }catch(_){ }
         if(!opts.silent){
           try{ alert('Bestehender Kunde/Hund für Vorschlag nicht eindeutig gefunden. Es wurde nichts geöffnet.'); }catch(_){ }
@@ -10435,6 +10459,8 @@ function dsOpenProposalInCustomerEditor(row, opts){
       || !!(customerPayload && Object.keys(customerPayload).length)
       || !!(petPayload && Object.keys(petPayload).length);
     if(!isCustomerProposal || (!Object.keys(customerPayload).length && !Object.keys(petPayload).length)) return false;
+
+    try{ dsSetProposalOpenDiag('entry row=' + String((row && (row.id || row.proposalId || row.taskId)) || '--') + ' cid=' + String((row && (row.__targetCustomerId || row.customerId)) || '--') + ' pid=' + String((row && (row.__targetPetId || row.petId)) || '--'), false); }catch(_){ }
 
     let directPetId = '';
     try{ directPetId = dsGetDirectProposalReviewPetId(row); }catch(_){ directPetId = ''; }
@@ -19330,7 +19356,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB91_EINGAENGE_VISIBLE_BUTTON_HANDLER_20260331) ===== */
+/* ===== CHAT (M50.9.9GB92_EINGAENGE_OPENDIAG_20260331) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -20910,7 +20936,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB91_EINGAENGE_VISIBLE_BUTTON_HANDLER_20260331";
+  const BUILD = "M50.9.9GB92_EINGAENGE_OPENDIAG_20260331";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
