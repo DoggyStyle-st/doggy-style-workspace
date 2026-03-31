@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB93_EINGAENGE_GLOBAL_OPENDIAG_20260331",
+  tag: "M50.9.9GB94_EINGAENGE_ROW_PETID_20260331",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB93_EINGAENGE_GLOBAL_OPENDIAG_20260331";
+const APP_BUILD = "M50.9.9GB94_EINGAENGE_ROW_PETID_20260331";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -10118,10 +10118,22 @@ function dsFindVisiblePetRowForProposal(row){
       const owned = petRows.filter(function(el){ return norm((el.dataset && el.dataset.customerId) || '') === targetCid; });
       if(owned.length === 1) hits = owned;
     }
-    if(hits.length !== 1) return null;
-    const hit = hits[0] || null;
+    let hit = null;
+    if(hits.length === 1) hit = hits[0] || null;
+    if(!hit && petRows.length === 1) hit = petRows[0] || null;
+    if(!hit) return null;
     const btn = hit ? hit.querySelector('[data-pet-edit-id],[data-e="1"]') : null;
-    return { row: hit, button: btn || null, petId: String((btn && btn.dataset && btn.dataset.petEditId) || (hit && hit.dataset && hit.dataset.petId) || '').trim() };
+    const petId = String((btn && btn.dataset && btn.dataset.petEditId) || (hit && hit.dataset && hit.dataset.petId) || '').trim();
+    try{
+      if(row && typeof row === 'object'){
+        row.__openDiagRowCount = String(petRows.length || 0);
+        row.__openDiagHitCount = String(hits.length || 0);
+        row.__openDiagRowPetId = String((hit && hit.dataset && hit.dataset.petId) || '--');
+        row.__openDiagBtnPetId = String((btn && btn.dataset && btn.dataset.petEditId) || '--');
+        row.__openDiagRowCid = String((hit && hit.dataset && hit.dataset.customerId) || '--');
+      }
+    }catch(_){ }
+    return { row: hit, button: btn || null, petId: petId };
   }catch(_){ return null; }
 }
 
@@ -10186,11 +10198,11 @@ function dsTryVisibleProposalButtonOpen(row, customerPayload, petPayload, opts){
     const debugCid = norm((row && (row.__targetCustomerId || row.customerId)) || '');
     const debugPid = norm((row && (row.__targetPetId || row.petId)) || '');
     if(!hit || !hit.petId){
-      try{ dsSetProposalOpenDiag('start cid=' + (debugCid||'--') + ' pid=' + (debugPid||'--') + ' hit=0 petId=--', true); }catch(_){ }
+      try{ dsSetProposalOpenDiag('start cid=' + (debugCid||'--') + ' pid=' + (debugPid||'--') + ' hit=0 petId=-- rows=' + String((row && row.__openDiagRowCount) || '--') + ' rowPet=' + String((row && row.__openDiagRowPetId) || '--') + ' btnPet=' + String((row && row.__openDiagBtnPetId) || '--'), true); }catch(_){ }
       return false;
     }
     const petId = String(hit.petId || '').trim();
-    try{ dsSetProposalOpenDiag('start cid=' + (debugCid||'--') + ' pid=' + (debugPid||'--') + ' hit=1 petId=' + (petId||'--') + ' btn=' + (!!(hit && hit.button) ? '1':'0') + ' cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0'), false); }catch(_){ }
+    try{ dsSetProposalOpenDiag('start cid=' + (debugCid||'--') + ' pid=' + (debugPid||'--') + ' hit=1 petId=' + (petId||'--') + ' btn=' + (!!(hit && hit.button) ? '1':'0') + ' cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0') + ' rows=' + String((row && row.__openDiagRowCount) || '--') + ' rowPet=' + String((row && row.__openDiagRowPetId) || '--') + ' btnPet=' + String((row && row.__openDiagBtnPetId) || '--'), false); }catch(_){ }
     let basePet = null, baseCustomer = null;
     try{ basePet = (typeof getPet === 'function' ? getPet(petId) : null) || null; }catch(_){ }
     try{ if(basePet && typeof getCustomer === 'function') baseCustomer = getCustomer(basePet.customerId || basePet.ownerId || '') || null; }catch(_){ }
@@ -10433,7 +10445,7 @@ function dsScheduleProposalReviewUiOpen(row, customerPayload, petPayload, opts){
       try{ if(dsTryVisibleProposalButtonOpen(row, customerPayload, petPayload, Object.assign({}, opts, { silent: opts && opts.silent })) ) return; }catch(_){ }
       let uiPetId = '';
       try{ uiPetId = dsGetDirectProposalReviewPetId(row); }catch(_){ uiPetId = ''; }
-      try{ dsSetProposalOpenDiag('schedule try=' + tries + ' uiPetId=' + (uiPetId||'--') + ' cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0'), false); }catch(_){ }
+      try{ dsSetProposalOpenDiag('schedule try=' + tries + ' uiPetId=' + (uiPetId||'--') + ' cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0') + ' rows=' + String((row && row.__openDiagRowCount) || '--') + ' rowPet=' + String((row && row.__openDiagRowPetId) || '--') + ' btnPet=' + String((row && row.__openDiagBtnPetId) || '--'), false); }catch(_){ }
       if(uiPetId){
         try{ if(typeof openCpEditor === 'function') openCpEditor('edit', uiPetId); }catch(_){ }
         try{
@@ -10475,7 +10487,7 @@ function dsScheduleProposalReviewUiOpen(row, customerPayload, petPayload, opts){
       tries += 1;
       if(tries < maxTries) setTimeout(tick, 140);
       else {
-        try{ dsSetProposalOpenDiag('fail-no-ui petId=' + (uiPetId||'--') + ' tries=' + tries + ' cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0'), true); }catch(_){ }
+        try{ dsSetProposalOpenDiag('fail-no-ui petId=' + (uiPetId||'--') + ' tries=' + tries + ' cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0') + ' rows=' + String((row && row.__openDiagRowCount) || '--') + ' rowPet=' + String((row && row.__openDiagRowPetId) || '--') + ' btnPet=' + String((row && row.__openDiagBtnPetId) || '--'), true); }catch(_){ }
         try{ cpSetStatus('Bestehender Kunde/Hund für Vorschlag nicht gefunden.', true); }catch(_){ }
         if(!opts.silent){
           try{ alert('Bestehender Kunde/Hund für Vorschlag nicht eindeutig gefunden. Es wurde nichts geöffnet.'); }catch(_){ }
@@ -12110,11 +12122,11 @@ function renderDogs(){
               <small>${chipTxt}${badge}</small>
             </div>
           </div>
-          <div class="actions">${__customerMainDogs ? `<button class="smallbtn" data-e="1" data-pet-edit-id="${escapeHtml(p.id||'')}">Bearbeiten</button>` : `<button class="smallbtn" data-v="1">Vertrag</button><button class="smallbtn" data-e="1" data-pet-edit-id="${escapeHtml(p.id||'')}">Bearbeiten</button><button class="smallbtn" data-d="1">Löschen</button>`}</div>`;
+          <div class="actions">${__customerMainDogs ? `<button class="smallbtn" data-e="1" data-pet-edit-id="${escapeHtml(p.id||'')}" data-pet-id="${escapeHtml(p.id||'')}">Bearbeiten</button>` : `<button class="smallbtn" data-v="1">Vertrag</button><button class="smallbtn" data-e="1" data-pet-edit-id="${escapeHtml(p.id||'')}" data-pet-id="${escapeHtml(p.id||'')}">Bearbeiten</button><button class="smallbtn" data-d="1">Löschen</button>`}</div>`;
         const btnV = el.querySelector('[data-v="1"]');
         const btnE = el.querySelector('[data-e="1"]');
         const btnD = el.querySelector('[data-d="1"]');
-        try{ if(btnE){ btnE.dataset.petEditId = String(p.id || ''); btnE.dataset.customerId = String(p.customerId || g.customerId || ''); btnE.dataset.petName = String(p.name || ''); btnE.dataset.customerName = String((g.customer && g.customer.name) || ''); } }catch(_){ }
+        try{ if(btnE){ btnE.dataset.petEditId = String(p.id || ''); btnE.dataset.petId = String(p.id || ''); btnE.dataset.customerId = String(p.customerId || g.customerId || ''); btnE.dataset.petName = String(p.name || ''); btnE.dataset.customerName = String((g.customer && g.customer.name) || ''); } }catch(_){ }
         if(btnV) btnV.onclick = ()=>openContractForPet(p.customerId, p.id);
         if(btnE) btnE.onclick = ()=>openCpEditor("edit", p.id);
         if(btnD) btnD.onclick = ()=>{
@@ -19402,7 +19414,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB93_EINGAENGE_GLOBAL_OPENDIAG_20260331) ===== */
+/* ===== CHAT (M50.9.9GB94_EINGAENGE_ROW_PETID_20260331) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -20982,7 +20994,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB93_EINGAENGE_GLOBAL_OPENDIAG_20260331";
+  const BUILD = "M50.9.9GB94_EINGAENGE_ROW_PETID_20260331";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
