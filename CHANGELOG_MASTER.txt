@@ -1,3 +1,4 @@
+GB87: Single-dog fallback für Eingänge-Resolver; Kunde/Hund-Zuordnung bevorzugt resolve+Owner-Pets statt leerer pid.
 GB36
 - app.html Buildstring korrigiert
 - app.js/sw.js/version konsistent auf GB36 gezogen
