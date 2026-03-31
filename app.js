@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB83_EINGAENGE_REALBUTTON_OPENPATH_20260331",
+  tag: "M50.9.9GB84_EINGAENGE_DIRECTMAINOPEN_20260331",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB83_EINGAENGE_REALBUTTON_OPENPATH_20260331";
+const APP_BUILD = "M50.9.9GB84_EINGAENGE_DIRECTMAINOPEN_20260331";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -3696,6 +3696,9 @@ if(id === "calendar"){
   if(id === "chat"){
     try{ dsSetChatExplicitOpen('staff', true); }catch(_){ }
     try{ renderAdminChatPanel(); }catch(_){ }
+  }
+  if(id === "inbox"){
+    try{ dsResetInboxDetailView(); }catch(_){ }
   }
 }
 // ==== Dashboard / Schnellaktionen helpers ====
@@ -9944,11 +9947,12 @@ function dsEnsureProposalReviewMainEditorVisible(){
 }
 
 function dsOpenProposalInCustomerEditor(row, opts){
+  opts = opts || {};
   try{
     dsEnsureReviewStyles();
     dsClearProposalReviewUI();
     ensureStateShape();
-        const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
+    const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
     const customerPayload = (payload && payload.customer && typeof payload.customer === 'object') ? payload.customer : (row && row.customer && typeof row.customer === 'object' ? row.customer : {});
     const petPayload = (payload && payload.pet && typeof payload.pet === 'object') ? payload.pet : (row && row.pet && typeof row.pet === 'object' ? row.pet : {});
     const isCustomerProposal = String((row && (row.templateId || row.proposalType || row.kind || row.formKey)) || '').toLowerCase().includes('customer')
@@ -9957,13 +9961,12 @@ function dsOpenProposalInCustomerEditor(row, opts){
       || !!(petPayload && Object.keys(petPayload).length);
     if(!isCustomerProposal || (!Object.keys(customerPayload).length && !Object.keys(petPayload).length)) return false;
 
-    try{ __dsProposalReview.row = row || null; }catch(_){ }
     const targets = dsResolveProposalReviewTargets(row);
     const baseCustomer = targets.customer || null;
     const basePet = targets.pet || null;
-    if(!baseCustomer || !basePet || !basePet.id){
+    const basePetId = String((basePet && (basePet.id || basePet.petId)) || '').trim();
+    if(!baseCustomer || !basePet || !basePetId){
       try{ cpSetStatus('Bestehender Kunde/Hund für Vorschlag nicht gefunden.', true); }catch(_){ }
-      try{ window.__dsProposalOpenBlocked = String(dsInboxHandledKey(row) || row.id || '1'); }catch(_){ }
       if(!opts.silent){
         try{
           const sig = String(dsInboxHandledKey(row) || row.id || '1');
@@ -9984,58 +9987,33 @@ function dsOpenProposalInCustomerEditor(row, opts){
     __dsProposalReview.row = row;
     __dsProposalReview.baseCustomer = baseCustomer ? JSON.parse(JSON.stringify(baseCustomer)) : null;
     __dsProposalReview.basePet = basePet ? JSON.parse(JSON.stringify(basePet)) : null;
-
-    try{ dsForceShowPanel('dogs'); }catch(_){ }
-    try{ dsResetInboxDetailView(); }catch(_){ }
-
-    function dsOpenExistingPetViaRealButton(){
-      try{
-        const wantId = String(basePet && (basePet.id || basePet.petId) || '').trim();
-        if(!wantId) return false;
-        const buttons = Array.from(document.querySelectorAll('#dogList [data-pet-edit-id]'));
-        const btn = buttons.find(function(node){ return String(node && node.getAttribute && node.getAttribute('data-pet-edit-id') || '').trim() === wantId; }) || null;
-        if(!btn) return false;
-        btn.click();
-        return true;
-      }catch(_){ return false; }
-    }
-
+    try{ window.__dsInboxReviewMainEditor = true; }catch(_){ }
     try{ window.__dsProposalReviewOpening = true; }catch(_){ }
-    let openedByRealButton = false;
-    try{ if(typeof renderDogs === 'function') renderDogs(); }catch(_){ }
-    try{ openedByRealButton = dsOpenExistingPetViaRealButton(); }catch(_){ }
-    if(!openedByRealButton){
-      openCpEditor('edit', basePet.id);
-    }
-    try{ window.__dsProposalReviewOpening = false; }catch(_){ }
-    try{ cpEdit.mode = 'edit'; cpEdit.petId = String(basePet.id || ''); }catch(_){ }
 
     try{
-      const editor = document.getElementById('cpEditor');
-      if(editor) editor.style.display = 'block';
-      const title = document.getElementById('cpEditorTitle');
-      if(title) title.textContent = 'Kunde & Hund prüfen';
-      const useExisting = document.getElementById('useExistingCustomer');
-      const sel = document.getElementById('customerSelect');
-      if(baseCustomer && (baseCustomer.id || baseCustomer.customerId) && useExisting && sel){
-        useExisting.checked = true;
-        if(typeof refreshCustomerSelect === 'function') refreshCustomerSelect();
-        sel.value = baseCustomer.id || baseCustomer.customerId || '';
-      }
-      if(typeof setCustomerFieldsDisabled === 'function') setCustomerFieldsDisabled(false);
-      const rejectBtn = document.getElementById('btnCpRejectProposal');
-      if(rejectBtn) rejectBtn.remove();
-      document.getElementById('cpReviewBanner')?.remove();
-      try{ window.__dsInboxCurrentTask = null; }catch(_){ }
-      try{ window.__dsInboxReviewMainEditor = true; }catch(_){ }
-      try{ dsResetInboxDetailView(); }catch(_){ }
-      try{ dsEnsureProposalReviewMainEditorVisible(); }catch(_){ }
-      try{ setTimeout(function(){ try{ if(typeof renderDogs === 'function') renderDogs(); }catch(_){} try{ dsOpenExistingPetViaRealButton(); }catch(_){} try{ dsEnsureProposalReviewMainEditorVisible(); }catch(_){} }, 40); }catch(_){ }
-      try{ setTimeout(function(){ try{ dsEnsureProposalReviewMainEditorVisible(); }catch(_){} }, 140); }catch(_){ }
+      if(typeof selectTab === 'function') selectTab('dogs');
+      else if(typeof showPanel === 'function') showPanel('dogs');
+      else dsForceShowPanel('dogs');
     }catch(_){ }
+    try{ dsResetInboxDetailView(); }catch(_){ }
+    try{ openCpEditor('edit', basePetId); }catch(_){ }
+    try{ cpEdit.mode = 'edit'; cpEdit.petId = basePetId; }catch(_){ }
+    try{ window.__dsProposalReviewOpening = false; }catch(_){ }
+
+    const editor = document.getElementById('cpEditor');
+    if(!editor){
+      if(!opts.silent){ try{ alert('Original-Editor konnte nicht geöffnet werden.'); }catch(_){ } }
+      return false;
+    }
+    editor.style.display = 'block';
+    try{ const title = document.getElementById('cpEditorTitle'); if(title) title.textContent = 'Kunde & Hund prüfen'; }catch(_){ }
+    try{ const useExisting = document.getElementById('useExistingCustomer'); if(useExisting) useExisting.checked = true; }catch(_){ }
+    try{ refreshCustomerSelect(); }catch(_){ }
+    try{ const sel = document.getElementById('customerSelect'); if(sel) sel.value = String(baseCustomer.id || baseCustomer.customerId || ''); }catch(_){ }
+    try{ if(typeof setCustomerFieldsDisabled === 'function') setCustomerFieldsDisabled(false); }catch(_){ }
+    try{ dsApplyProposalReviewBanner(row); }catch(_){ }
 
     const maps = dsReviewFieldMap();
-    try{ dsApplyProposalReviewBanner(row); }catch(_){ }
     Object.entries(maps.customer).forEach(([inputId,key])=>{
       const current = dsNormalizeReviewValue(baseCustomer ? baseCustomer[key] : '', inputId);
       const proposedRaw = customerPayload[key];
@@ -10055,26 +10033,19 @@ function dsOpenProposalInCustomerEditor(row, opts){
       }
     });
 
-    try{
-      const editor = document.getElementById('cpEditor');
-      if(editor){
-        editor.style.display = 'block';
-        try{ dsForceShowPanel('dogs'); }catch(_){ }
-        try{ dsEnsureProposalReviewMainEditorVisible(); }catch(_){ }
-        const firstChanged = __dsProposalReviewFirstChangedId ? document.getElementById(__dsProposalReviewFirstChangedId) : null;
-        if(firstChanged && firstChanged.scrollIntoView){
-          firstChanged.scrollIntoView({ behavior:'smooth', block:'center' });
-          try{ firstChanged.focus({ preventScroll:true }); }catch(_){ }
-        }else if(editor.scrollIntoView){
-          editor.scrollIntoView({ behavior:'smooth', block:'start' });
-        }
-      }
-    }catch(_){ }
     try{ if(typeof cpUpdateDirty === 'function') cpUpdateDirty(); }catch(_){ }
+    try{ dsEnsureProposalReviewMainEditorVisible(); }catch(_){ }
+    try{ setTimeout(function(){ try{ dsEnsureProposalReviewMainEditorVisible(); }catch(_){} }, 80); }catch(_){ }
     try{ window.__dsProposalReviewLastOpenedAt = Date.now(); }catch(_){ }
     return true;
-  }catch(err){ console.error('dsOpenProposalInCustomerEditor failed', err); return false; }
+  }catch(err){
+    try{ window.__dsProposalReviewOpening = false; }catch(_){ }
+    console.error('dsOpenProposalInCustomerEditor failed', err);
+    return false;
+  }
 }
+
+try{ window.dsOpenProposalInCustomerEditor = dsOpenProposalInCustomerEditor; }catch(_){ }
 
 function closeCpEditor(){
   const box = document.getElementById("cpEditor");
@@ -18871,7 +18842,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB83_EINGAENGE_REALBUTTON_OPENPATH_20260331) ===== */
+/* ===== CHAT (M50.9.9GB84_EINGAENGE_DIRECTMAINOPEN_20260331) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -20451,7 +20422,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB83_EINGAENGE_REALBUTTON_OPENPATH_20260331";
+  const BUILD = "M50.9.9GB84_EINGAENGE_DIRECTMAINOPEN_20260331";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -20833,12 +20804,12 @@ function dsLaunchProposalInCustomerEditor(row){
   try{ dsResetInboxDetailView(); }catch(_){ }
   let ok = false;
   let lastErr = '';
-  try{ ok = !!dsOpenProposalInCustomerEditor(row, { silent:false }); }catch(err){ lastErr = String((err && err.message) || err || 'review-open-failed'); }
+  try{ ok = !!dsOpenProposalInCustomerEditor(row, { silent:false, forceMainEditor:true }); }catch(err){ lastErr = String((err && err.message) || err || 'review-open-failed'); }
   if(!ok){
     try{ ensureInboxDiag({ phase:'review-open-failed', error:lastErr || 'editor-not-opened' }); }catch(_){ }
     try{ console.warn('Original-Editor konnte nicht geöffnet werden.'); }catch(_){ }
   }
-  return true;
+  return ok;
 }
 function openInboxDetail(row){
     try{
