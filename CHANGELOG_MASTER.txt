@@ -2,3 +2,5 @@ GB36
 - app.html Buildstring korrigiert
 - app.js/sw.js/version konsistent auf GB36 gezogen
 - sonst keine Moduländerungen
+
+GB80: Entfernt fehlerhafte opts-Initialisierungen im Eingänge-Resolver/Handled-Key/Open-Pfad.

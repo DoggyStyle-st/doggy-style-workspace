@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB79_EINGAENGE_CANONICALFALLBACK_REAL_20260331",
+  tag: "M50.9.9GB80_EINGAENGE_OPTSCLEAN_REAL_20260331",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB79_EINGAENGE_CANONICALFALLBACK_REAL_20260331";
+const APP_BUILD = "M50.9.9GB80_EINGAENGE_OPTSCLEAN_REAL_20260331";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -9327,8 +9327,7 @@ function dsInboxHandledStore(){
 }
 function dsInboxHandledKey(row){
   try{
-    opts = opts && typeof opts === 'object' ? opts : {};
-    const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
+        const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
     return lower(
       norm(row && (row.__rowId || row.id || row.taskId || row.proposalId || row.submissionId))
       || [
@@ -9524,8 +9523,7 @@ function dsMarkChangedField(inputId, oldValue, newValue){
 function dsFindExistingCustomerForInboxRow(row, customer){
   try{
     const customers = asArray(state && state.customers);
-    opts = opts && typeof opts === 'object' ? opts : {};
-    const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
+        const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
     const pet = (payload && payload.pet && typeof payload.pet === 'object') ? payload.pet : (row && row.pet && typeof row.pet === 'object' ? row.pet : {});
     const ids = [
       norm(customer && (customer.id || customer.customerId)),
@@ -9557,8 +9555,7 @@ function dsFindExistingPetForInboxRow(customerObj, pet, row){
   try{
     ensureStateShape();
     const pets = asArray(state && (state.pets || state.dogs));
-    opts = opts && typeof opts === 'object' ? opts : {};
-    const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
+        const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
     const directIds = [
       norm(pet && (pet.id || pet.petId)),
       norm(row && row.petId),
@@ -9604,8 +9601,7 @@ function dsEnsureCanonicalProposalTargets(row, customerPayload, petPayload, curr
     const customers = asArray(state && state.customers);
     const pets = asArray(state && state.pets);
     const legacyDogs = asArray(state && state.dogs).filter(function(d){ return d && !d.isPlaceholder; });
-    opts = opts && typeof opts === 'object' ? opts : {};
-    const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
+        const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
     const cname = lower((customerPayload && customerPayload.name) || (row && row.customerName) || '');
     const cemail = lower((customerPayload && customerPayload.email) || (row && row.customerEmail) || '');
     const cphone = norm((customerPayload && customerPayload.phone) || (row && row.customerPhone) || '');
@@ -9930,8 +9926,7 @@ function dsOpenProposalInCustomerEditor(row, opts){
     dsEnsureReviewStyles();
     dsClearProposalReviewUI();
     ensureStateShape();
-    opts = opts && typeof opts === 'object' ? opts : {};
-    const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
+        const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
     const customerPayload = (payload && payload.customer && typeof payload.customer === 'object') ? payload.customer : (row && row.customer && typeof row.customer === 'object' ? row.customer : {});
     const petPayload = (payload && payload.pet && typeof payload.pet === 'object') ? payload.pet : (row && row.pet && typeof row.pet === 'object' ? row.pet : {});
     const isCustomerProposal = String((row && (row.templateId || row.proposalType || row.kind || row.formKey)) || '').toLowerCase().includes('customer')
@@ -18837,7 +18832,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB79_EINGAENGE_CANONICALFALLBACK_REAL_20260331) ===== */
+/* ===== CHAT (M50.9.9GB80_EINGAENGE_OPTSCLEAN_REAL_20260331) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -20417,7 +20412,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB79_EINGAENGE_CANONICALFALLBACK_REAL_20260331";
+  const BUILD = "M50.9.9GB80_EINGAENGE_OPTSCLEAN_REAL_20260331";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -20785,8 +20780,7 @@ try{
   }
   function isCustomerProposalInboxRow(row){
   try{
-    opts = opts && typeof opts === 'object' ? opts : {};
-    const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
+        const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
     const customerPayload = (payload && payload.customer && typeof payload.customer === 'object') ? payload.customer : (row && row.customer && typeof row.customer === 'object' ? row.customer : {});
     const petPayload = (payload && payload.pet && typeof payload.pet === 'object') ? payload.pet : (row && row.pet && typeof row.pet === 'object' ? row.pet : {});
     return String((row && (row.templateId || row.proposalType || row.kind || row.formKey)) || '').toLowerCase().includes('customer')
