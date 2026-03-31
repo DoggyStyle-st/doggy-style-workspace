@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB90_EINGAENGE_DIRECT_HANDLER_OPEN_20260331",
+  tag: "M50.9.9GB91_EINGAENGE_VISIBLE_BUTTON_HANDLER_20260331",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB90_EINGAENGE_DIRECT_HANDLER_OPEN_20260331";
+const APP_BUILD = "M50.9.9GB91_EINGAENGE_VISIBLE_BUTTON_HANDLER_20260331";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -10061,6 +10061,137 @@ function dsEnsureProposalReviewMainEditorVisible(){
   }catch(_){ }
 }
 
+
+function dsIsCpEditorActuallyOpen(){
+  try{
+    const editor = document.getElementById('cpEditor');
+    if(!editor) return false;
+    const st = window.getComputedStyle ? window.getComputedStyle(editor) : null;
+    if(st && (st.display === 'none' || st.visibility === 'hidden')) return false;
+    if(editor.style && editor.style.display === 'none') return false;
+    return true;
+  }catch(_){ return false; }
+}
+
+function dsFindVisiblePetRowForProposal(row){
+  try{
+    ensureStateShape();
+    try{ if(typeof renderDogs === 'function') renderDogs(); }catch(_){ }
+    const list = document.getElementById('dogList');
+    if(!list) return null;
+    const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
+    const customerPayload = (payload && payload.customer && typeof payload.customer === 'object') ? payload.customer : (row && row.customer && typeof row.customer === 'object' ? row.customer : {});
+    const petPayload = (payload && payload.pet && typeof payload.pet === 'object') ? payload.pet : (row && row.pet && typeof row.pet === 'object' ? row.pet : {});
+    const targetCid = norm((row && (row.__targetCustomerId || row.customerId)) || (customerPayload && (customerPayload.id || customerPayload.customerId)) || '');
+    const targetPid = norm((row && (row.__targetPetId || row.petId)) || (petPayload && (petPayload.id || petPayload.petId)) || '');
+    const targetCustomerName = lower((customerPayload && customerPayload.name) || (row && row.customerName) || '');
+    const targetPetName = lower((petPayload && petPayload.name) || (row && row.petName) || '');
+    const targetChip = norm((petPayload && petPayload.chipNumber) || (row && row.chipNumber) || '');
+    const petRows = Array.from(list.querySelectorAll('[data-role="pet-row"]'));
+    if(!petRows.length) return null;
+    let hits = petRows.slice();
+    if(targetPid){
+      const pidHits = hits.filter(function(el){ return norm((el.dataset && el.dataset.petId) || '') === targetPid; });
+      if(pidHits.length) hits = pidHits;
+    }
+    if(targetCid){
+      const cidHits = hits.filter(function(el){ return norm((el.dataset && el.dataset.customerId) || '') === targetCid; });
+      if(cidHits.length) hits = cidHits;
+      else {
+        const owned = petRows.filter(function(el){ return norm((el.dataset && el.dataset.customerId) || '') === targetCid; });
+        if(owned.length === 1) hits = owned;
+      }
+    }
+    if(targetCustomerName){
+      const nameHits = hits.filter(function(el){ return lower((el.dataset && el.dataset.customerName) || '') === targetCustomerName; });
+      if(nameHits.length) hits = nameHits;
+    }
+    if(targetChip){
+      const chipHits = hits.filter(function(el){ return norm((el.dataset && el.dataset.petChip) || '') === targetChip; });
+      if(chipHits.length) hits = chipHits;
+    }
+    if(targetPetName){
+      const petNameHits = hits.filter(function(el){ return lower((el.dataset && el.dataset.petName) || '') === targetPetName; });
+      if(petNameHits.length) hits = petNameHits;
+    }
+    if(!targetPid && !targetPetName && !targetChip && targetCid){
+      const owned = petRows.filter(function(el){ return norm((el.dataset && el.dataset.customerId) || '') === targetCid; });
+      if(owned.length === 1) hits = owned;
+    }
+    if(hits.length !== 1) return null;
+    const hit = hits[0] || null;
+    const btn = hit ? hit.querySelector('[data-pet-edit-id],[data-e="1"]') : null;
+    return { row: hit, button: btn || null, petId: String((btn && btn.dataset && btn.dataset.petEditId) || (hit && hit.dataset && hit.dataset.petId) || '').trim() };
+  }catch(_){ return null; }
+}
+
+function dsTryVisibleProposalButtonOpen(row, customerPayload, petPayload, opts){
+  opts = opts || {};
+  try{
+    const hit = dsFindVisiblePetRowForProposal(row);
+    if(!hit || !hit.petId) return false;
+    const petId = String(hit.petId || '').trim();
+    let basePet = null, baseCustomer = null;
+    try{ basePet = (typeof getPet === 'function' ? getPet(petId) : null) || null; }catch(_){ }
+    try{ if(basePet && typeof getCustomer === 'function') baseCustomer = getCustomer(basePet.customerId || basePet.ownerId || '') || null; }catch(_){ }
+    try{ if(!baseCustomer){ const cid = norm((hit.row && hit.row.dataset && hit.row.dataset.customerId) || (row && row.__targetCustomerId) || ''); if(cid && typeof getCustomer === 'function') baseCustomer = getCustomer(cid) || null; } }catch(_){ }
+    let tries = 0;
+    const maxTries = 6;
+    const kick = function(){
+      tries += 1;
+      try{ window.__dsProposalReviewOpening = true; }catch(_){ }
+      try{ if(typeof selectTab === 'function') selectTab('dogs'); else if(typeof showPanel === 'function') showPanel('dogs'); else dsForceShowPanel('dogs'); }catch(_){ }
+      try{ if(typeof renderDogs === 'function') renderDogs(); }catch(_){ }
+      let btn = null;
+      try{
+        const fresh = dsFindVisiblePetRowForProposal(row);
+        if(fresh && fresh.petId){ btn = fresh.button || null; }
+      }catch(_){ }
+      try{ if(btn && typeof btn.onclick === 'function') btn.onclick(); }catch(_){ }
+      try{ if(btn && typeof btn.click === 'function') btn.click(); }catch(_){ }
+      try{ if(btn) btn.dispatchEvent(new MouseEvent('click', { bubbles:true, cancelable:true, view:window })); }catch(_){ }
+      try{ if(typeof openCpEditor === 'function') openCpEditor('edit', petId); }catch(_){ }
+      setTimeout(function(){
+        let finalPet = basePet;
+        let finalCustomer = baseCustomer;
+        try{ if(!finalPet) finalPet = (typeof getPet === 'function' ? getPet(petId) : null) || null; }catch(_){ }
+        try{ if(!finalCustomer && finalPet && typeof getCustomer === 'function') finalCustomer = getCustomer(finalPet.customerId || finalPet.ownerId || '') || null; }catch(_){ }
+        const opened = dsIsCpEditorActuallyOpen() || (cpEdit && cpEdit.mode === 'edit' && norm(cpEdit.petId) === norm(petId));
+        if(opened){
+          try{ window.__dsProposalReviewOpening = false; }catch(_){ }
+          if(finalPet && finalCustomer){
+            dsFinalizeProposalReviewEditor(row, finalCustomer, finalPet, petId, customerPayload || {}, petPayload || {}, opts);
+          } else {
+            try{ const ed = document.getElementById('cpEditor'); if(ed){ ed.style.display = 'block'; ed.scrollIntoView({ behavior:'smooth', block:'start' }); } }catch(_){ }
+          }
+          return;
+        }
+        if(tries < maxTries){
+          setTimeout(kick, 120);
+          return;
+        }
+        try{ window.__dsProposalReviewOpening = false; }catch(_){ }
+        try{ cpSetStatus('Bestehender Kunde/Hund für Vorschlag nicht gefunden.', true); }catch(_){ }
+        if(!opts.silent){
+          try{
+            const sig = String((row && row.__sourceKey) || dsInboxHandledKey(row) || row.id || '1');
+            const now = Date.now();
+            const prevSig = String(window.__dsProposalOpenAlertSig || '');
+            const prevAt = Number(window.__dsProposalOpenAlertAt || 0);
+            if(prevSig !== sig || (now - prevAt) > 1200){
+              window.__dsProposalOpenAlertSig = sig;
+              window.__dsProposalOpenAlertAt = now;
+              alert('Bestehender Kunde/Hund für Vorschlag nicht eindeutig gefunden. Es wurde nichts geöffnet.');
+            }
+          }catch(_){ }
+        }
+      }, 90);
+    };
+    setTimeout(kick, 0);
+    return true;
+  }catch(_){ try{ window.__dsProposalReviewOpening = false; }catch(__){} return false; }
+}
+
 function dsFindVisiblePetEditIdForRow(row){
   try{
     ensureStateShape();
@@ -10234,6 +10365,7 @@ function dsScheduleProposalReviewUiOpen(row, customerPayload, petPayload, opts){
         else dsForceShowPanel('dogs');
       }catch(_){ }
       try{ if(typeof renderDogs === 'function') renderDogs(); }catch(_){ }
+      try{ if(dsTryVisibleProposalButtonOpen(row, customerPayload, petPayload, Object.assign({}, opts, { silent: opts && opts.silent })) ) return; }catch(_){ }
       let uiPetId = '';
       try{ uiPetId = dsGetDirectProposalReviewPetId(row); }catch(_){ uiPetId = ''; }
       if(uiPetId){
@@ -10352,6 +10484,7 @@ function dsOpenProposalInCustomerEditor(row, opts){
       }
     }
     if(!baseCustomer || !basePet || !basePetId){
+      try{ if(dsTryVisibleProposalButtonOpen(row, customerPayload, petPayload, opts)) return true; }catch(_){ }
       try{
         if(dsScheduleProposalReviewUiOpen(row, customerPayload, petPayload, opts)) return true;
       }catch(_){ }
@@ -10383,6 +10516,7 @@ function dsOpenProposalInCustomerEditor(row, opts){
 try{ window.dsOpenProposalInCustomerEditor = dsOpenProposalInCustomerEditor; }catch(_){ }
 try{ window.__dsResolveProposalReviewTargets = dsResolveProposalReviewTargets; }catch(_){ }
 try{ window.__dsEnrichProposalReviewRow = dsEnrichProposalReviewRow; }catch(_){ }
+try{ window.__dsTryVisibleProposalButtonOpen = dsTryVisibleProposalButtonOpen; }catch(_){ }
 
 function closeCpEditor(){
   const box = document.getElementById("cpEditor");
@@ -19196,7 +19330,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB90_EINGAENGE_DIRECT_HANDLER_OPEN_20260331) ===== */
+/* ===== CHAT (M50.9.9GB91_EINGAENGE_VISIBLE_BUTTON_HANDLER_20260331) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -20776,7 +20910,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB90_EINGAENGE_DIRECT_HANDLER_OPEN_20260331";
+  const BUILD = "M50.9.9GB91_EINGAENGE_VISIBLE_BUTTON_HANDLER_20260331";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
