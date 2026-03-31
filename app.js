@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB74_EINGAENGE_IDPREFER_SYNC_20260330",
+  tag: "M50.9.9GB75_CUSTOMER_NO_NEW_20260331",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB74_EINGAENGE_IDPREFER_SYNC_20260330";
+const APP_BUILD = "M50.9.9GB75_CUSTOMER_NO_NEW_20260331";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -1692,6 +1692,10 @@ function enforceCustomerMainDogsUI(){
   try{ const userEl = document.getElementById('syncUser'); if(userEl) userEl.style.display = 'none'; }catch(_){ }
   try{ document.querySelectorAll('.panel').forEach(p=>{ const keep = (p.id === 'dogs'); p.style.display = keep ? '' : 'none'; p.classList.toggle('is-active', keep); }); }catch(_){ }
   try{ document.querySelectorAll('#quickActions .btn, .start-actions .btn, .panel .btn[data-tab], .hero-card, .glass-card, .quick-card').forEach(el=>{ if(!el.closest('#dogs')) el.style.display = 'none'; }); }catch(_){ }
+  try{ const addBtn = document.getElementById('btnAddDog'); if(addBtn){ addBtn.style.display='none'; addBtn.disabled=true; addBtn.onclick=(ev)=>{ try{ ev.preventDefault(); ev.stopPropagation(); }catch(_){ } return false; }; } }catch(_){ }
+  try{ const addAnother = document.getElementById('btnCpAddAnotherDog'); if(addAnother){ addAnother.style.display='none'; addAnother.disabled=true; } }catch(_){ }
+  try{ const useExisting = document.getElementById('useExistingCustomer'); if(useExisting){ useExisting.checked = true; useExisting.disabled = true; } }catch(_){ }
+  try{ const custSel = document.getElementById('customerSelect'); if(custSel){ custSel.disabled = true; } }catch(_){ }
   try{ if(typeof selectTab === 'function') selectTab('dogs'); }catch(_){ }
 }
 
@@ -1734,7 +1738,7 @@ function initCustomerMainDogsMode(){
     if(ownPet){
       setTimeout(function(){ try{ openCpEditor('edit', ownPet.id); }catch(e){ console.error('customer main dogs open failed', e); } }, 80);
     }else{
-      setTimeout(function(){ try{ openCpEditor('new'); }catch(e){ console.error('customer main dogs open new failed', e); } }, 80);
+      try{ cpSetStatus('Kundenmodus: Kein Hund zum Bearbeiten gefunden.', true); }catch(_){ }
     }
     cpSetStatus('Kundenmodus: Kunde/Hund');
   }catch(e){ console.error('initCustomerMainDogsMode failed', e); }
@@ -8899,6 +8903,16 @@ function fillCpEditorForPet(pet){
 function openCpEditor(mode, petId){
   ensureStateShape();
   ensureContractDefaults();
+  try{
+    if(isCustomerMainDogsMode() && mode !== "edit"){
+      const ctx = getCustomerMainDogsContext();
+      const ownPet = (ctx && Array.isArray(ctx.pets) && ctx.pets[0]) ? ctx.pets[0] : null;
+      if(ownPet && String(ownPet.id||'')){
+        mode = 'edit';
+        petId = String(ownPet.id||'');
+      }
+    }
+  }catch(_){ }
   cpEdit.mode = mode || "new";
   cpEdit.petId = petId || "";
   const box = document.getElementById("cpEditor");
@@ -9015,6 +9029,10 @@ function ensureAddAnotherDogButton(){
     }
   }
   b.onclick = ()=>{
+    if(isCustomerMainDogsMode()){
+      cpSetStatus('Kundenmodus: Neuanlage ist nicht erlaubt.', true);
+      return;
+    }
     const customerId = getCurrentCpCustomerId();
     if(!customerId){
       alert("Bitte zuerst einen bestehenden Kunden auswählen oder den Kunden speichern, bevor du einen weiteren Hund anlegst.");
@@ -11436,7 +11454,18 @@ function renderDogs(){
   refreshCustomerSelect();
   syncDogSelect();
 }
-$("#btnAddDog").addEventListener("click",()=>openCpEditor("new"));
+$("#btnAddDog").addEventListener("click",()=>{
+  if(isCustomerMainDogsMode()){
+    try{
+      const ctx = getCustomerMainDogsContext();
+      const ownPet = (ctx && Array.isArray(ctx.pets) && ctx.pets[0]) ? ctx.pets[0] : null;
+      if(ownPet && String(ownPet.id||'')) return openCpEditor('edit', ownPet.id);
+      cpSetStatus('Kundenmodus: Neuanlage ist nicht erlaubt.', true);
+      return;
+    }catch(_){ return; }
+  }
+  openCpEditor("new");
+});
 $("#btnCpCancel").addEventListener("click",(e)=>{
   try{ e.preventDefault(); e.stopPropagation(); }catch(_){}
   cpUpdateDirty();
@@ -18682,7 +18711,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB74_EINGAENGE_IDPREFER_SYNC_20260330) ===== */
+/* ===== CHAT (M50.9.9GB75_CUSTOMER_NO_NEW_20260331) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -20262,7 +20291,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB74_EINGAENGE_IDPREFER_SYNC_20260330";
+  const BUILD = "M50.9.9GB75_CUSTOMER_NO_NEW_20260331";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
