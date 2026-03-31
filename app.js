@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB94_EINGAENGE_ROW_PETID_20260331",
+  tag: "M50.9.9GB95_EINGAENGE_DOMINSPECT_FALLBACK_20260331",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB94_EINGAENGE_ROW_PETID_20260331";
+const APP_BUILD = "M50.9.9GB95_EINGAENGE_DOMINSPECT_FALLBACK_20260331";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -10073,12 +10073,50 @@ function dsIsCpEditorActuallyOpen(){
   }catch(_){ return false; }
 }
 
+
+function dsCollectVisiblePetRowCandidates(){
+  try{
+    const items = Array.from(document.querySelectorAll('#dogList .item, [data-tab-panel="dogs"] .item, #tab-dogs .item'));
+    const seen = new Set();
+    const out = [];
+    items.forEach(function(item){
+      try{
+        if(!item || seen.has(item)) return;
+        seen.add(item);
+        const strong = item.querySelector('strong');
+        const strongTxt = norm((strong && strong.textContent) || '');
+        const isPetLike = /^🐶/.test(strongTxt) || /bearbeiten/i.test(norm(item.textContent || ''));
+        const btns = Array.from(item.querySelectorAll('button, .smallbtn')).filter(function(b){ return /bearbeiten/i.test(norm((b && b.textContent) || '')); });
+        if(!isPetLike && !btns.length) return;
+        let customerName = norm((item.dataset && item.dataset.customerName) || '');
+        let customerId = norm((item.dataset && item.dataset.customerId) || (btns[0] && btns[0].dataset && btns[0].dataset.customerId) || '');
+        if(!customerName || !customerId){
+          let prev = item.previousElementSibling;
+          while(prev){
+            const ps = prev.querySelector ? prev.querySelector('strong') : null;
+            const pst = norm((ps && ps.textContent) || '');
+            if(pst && !/^🐶/.test(pst)){
+              if(!customerName) customerName = pst.replace(/^[^\p{L}\p{N}]+/u,'').trim();
+              if(!customerId) customerId = norm((prev.dataset && prev.dataset.customerId) || '');
+              break;
+            }
+            prev = prev.previousElementSibling;
+          }
+        }
+        const petName = strongTxt.replace(/^🐶\s*/,'').trim();
+        const btn = btns[0] || null;
+        const petId = norm((item.dataset && item.dataset.petId) || (btn && btn.dataset && (btn.dataset.petEditId || btn.dataset.petId)) || '');
+        out.append({ el:item, button:btn, petId:petId, customerId:customerId, customerName:customerName, petName:petName, hasDogIcon:/^🐶/.test(strongTxt) });
+      }catch(_){ }
+    });
+    return out;
+  }catch(_){ return []; }
+}
+
 function dsFindVisiblePetRowForProposal(row){
   try{
     ensureStateShape();
     try{ if(typeof renderDogs === 'function') renderDogs(); }catch(_){ }
-    const list = document.getElementById('dogList');
-    if(!list) return null;
     const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
     const customerPayload = (payload && payload.customer && typeof payload.customer === 'object') ? payload.customer : (row && row.customer && typeof row.customer === 'object' ? row.customer : {});
     const petPayload = (payload && payload.pet && typeof payload.pet === 'object') ? payload.pet : (row && row.pet && typeof row.pet === 'object' ? row.pet : {});
@@ -10087,53 +10125,77 @@ function dsFindVisiblePetRowForProposal(row){
     const targetCustomerName = lower((customerPayload && customerPayload.name) || (row && row.customerName) || '');
     const targetPetName = lower((petPayload && petPayload.name) || (row && row.petName) || '');
     const targetChip = norm((petPayload && petPayload.chipNumber) || (row && row.chipNumber) || '');
-    const petRows = Array.from(list.querySelectorAll('[data-role="pet-row"]'));
-    if(!petRows.length) return null;
-    let hits = petRows.slice();
-    if(targetPid){
-      const pidHits = hits.filter(function(el){ return norm((el.dataset && el.dataset.petId) || '') === targetPid; });
-      if(pidHits.length) hits = pidHits;
+    const list = document.getElementById('dogList');
+    let petRows = [];
+    try{ if(list) petRows = Array.from(list.querySelectorAll('[data-role="pet-row"]')); }catch(_){ petRows = []; }
+    let usedRaw = false;
+    let candidates = [];
+    if(petRows.length){
+      candidates = petRows.map(function(el){
+        const btn = el ? el.querySelector('[data-pet-edit-id],[data-e="1"],button,.smallbtn') : null;
+        return {
+          el: el,
+          button: btn || null,
+          petId: norm((el.dataset && el.dataset.petId) || (btn && btn.dataset && (btn.dataset.petEditId || btn.dataset.petId)) || ''),
+          customerId: norm((el.dataset && el.dataset.customerId) || (btn && btn.dataset && btn.dataset.customerId) || ''),
+          customerName: norm((el.dataset && el.dataset.customerName) || (btn && btn.dataset && btn.dataset.customerName) || ''),
+          petName: norm((el.dataset && el.dataset.petName) || ''),
+          petChip: norm((el.dataset && el.dataset.petChip) || ''),
+        };
+      });
+    } else {
+      usedRaw = true;
+      candidates = dsCollectVisiblePetRowCandidates().map(function(x){
+        return {
+          el: x.el,
+          button: x.button,
+          petId: norm(x.petId || ''),
+          customerId: norm(x.customerId || ''),
+          customerName: norm(x.customerName || ''),
+          petName: norm(x.petName || ''),
+          petChip: '',
+        };
+      });
     }
+    if(!candidates.length){
+      try{ if(row && typeof row === 'object'){ row.__openDiagRowCount='0'; row.__openDiagRaw=usedRaw?'1':'0'; row.__openDiagBtnCount='0'; } }catch(_){ }
+      return null;
+    }
+    let hits = candidates.slice();
+    if(targetPid){ const x = hits.filter(function(c){ return norm(c.petId||'') === targetPid; }); if(x.length) hits = x; }
     if(targetCid){
-      const cidHits = hits.filter(function(el){ return norm((el.dataset && el.dataset.customerId) || '') === targetCid; });
-      if(cidHits.length) hits = cidHits;
+      const x = hits.filter(function(c){ return norm(c.customerId||'') === targetCid; });
+      if(x.length) hits = x;
       else {
-        const owned = petRows.filter(function(el){ return norm((el.dataset && el.dataset.customerId) || '') === targetCid; });
+        const owned = candidates.filter(function(c){ return norm(c.customerId||'') === targetCid; });
         if(owned.length === 1) hits = owned;
       }
     }
-    if(targetCustomerName){
-      const nameHits = hits.filter(function(el){ return lower((el.dataset && el.dataset.customerName) || '') === targetCustomerName; });
-      if(nameHits.length) hits = nameHits;
-    }
-    if(targetChip){
-      const chipHits = hits.filter(function(el){ return norm((el.dataset && el.dataset.petChip) || '') === targetChip; });
-      if(chipHits.length) hits = chipHits;
-    }
-    if(targetPetName){
-      const petNameHits = hits.filter(function(el){ return lower((el.dataset && el.dataset.petName) || '') === targetPetName; });
-      if(petNameHits.length) hits = petNameHits;
-    }
+    if(targetCustomerName){ const x = hits.filter(function(c){ return lower(c.customerName||'') === targetCustomerName; }); if(x.length) hits = x; }
+    if(targetChip){ const x = hits.filter(function(c){ return norm(c.petChip||'') === targetChip; }); if(x.length) hits = x; }
+    if(targetPetName){ const x = hits.filter(function(c){ return lower(c.petName||'') === targetPetName; }); if(x.length) hits = x; }
     if(!targetPid && !targetPetName && !targetChip && targetCid){
-      const owned = petRows.filter(function(el){ return norm((el.dataset && el.dataset.customerId) || '') === targetCid; });
+      const owned = candidates.filter(function(c){ return norm(c.customerId||'') === targetCid; });
       if(owned.length === 1) hits = owned;
     }
     let hit = null;
     if(hits.length === 1) hit = hits[0] || null;
-    if(!hit && petRows.length === 1) hit = petRows[0] || null;
-    if(!hit) return null;
-    const btn = hit ? hit.querySelector('[data-pet-edit-id],[data-e="1"]') : null;
-    const petId = String((btn && btn.dataset && btn.dataset.petEditId) || (hit && hit.dataset && hit.dataset.petId) || '').trim();
+    if(!hit && candidates.length === 1) hit = candidates[0] || null;
+    const btnCount = candidates.filter(function(c){ return !!c.button; }).length;
     try{
       if(row && typeof row === 'object'){
-        row.__openDiagRowCount = String(petRows.length || 0);
+        row.__openDiagRowCount = String(candidates.length || 0);
         row.__openDiagHitCount = String(hits.length || 0);
-        row.__openDiagRowPetId = String((hit && hit.dataset && hit.dataset.petId) || '--');
-        row.__openDiagBtnPetId = String((btn && btn.dataset && btn.dataset.petEditId) || '--');
-        row.__openDiagRowCid = String((hit && hit.dataset && hit.dataset.customerId) || '--');
+        row.__openDiagRowPetId = String((hit && hit.petId) || '--');
+        row.__openDiagBtnPetId = String((hit && hit.button && hit.button.dataset && (hit.button.dataset.petEditId || hit.button.dataset.petId)) || '--');
+        row.__openDiagRowCid = String((hit && hit.customerId) || '--');
+        row.__openDiagBtnCount = String(btnCount || 0);
+        row.__openDiagRaw = usedRaw ? '1':'0';
       }
     }catch(_){ }
-    return { row: hit, button: btn || null, petId: petId };
+    if(!hit) return null;
+    const petId = String((hit && hit.petId) || '').trim();
+    return { row: hit.el || null, button: hit.button || null, petId: petId };
   }catch(_){ return null; }
 }
 
@@ -10445,7 +10507,7 @@ function dsScheduleProposalReviewUiOpen(row, customerPayload, petPayload, opts){
       try{ if(dsTryVisibleProposalButtonOpen(row, customerPayload, petPayload, Object.assign({}, opts, { silent: opts && opts.silent })) ) return; }catch(_){ }
       let uiPetId = '';
       try{ uiPetId = dsGetDirectProposalReviewPetId(row); }catch(_){ uiPetId = ''; }
-      try{ dsSetProposalOpenDiag('schedule try=' + tries + ' uiPetId=' + (uiPetId||'--') + ' cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0') + ' rows=' + String((row && row.__openDiagRowCount) || '--') + ' rowPet=' + String((row && row.__openDiagRowPetId) || '--') + ' btnPet=' + String((row && row.__openDiagBtnPetId) || '--'), false); }catch(_){ }
+      try{ dsSetProposalOpenDiag('schedule try=' + tries + ' uiPetId=' + (uiPetId||'--') + ' cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0') + ' rows=' + String((row && row.__openDiagRowCount) || '--') + ' btns=' + String((row && row.__openDiagBtnCount) || '--') + ' raw=' + String((row && row.__openDiagRaw) || '--') + ' rowPet=' + String((row && row.__openDiagRowPetId) || '--') + ' btnPet=' + String((row && row.__openDiagBtnPetId) || '--'), false); }catch(_){ }
       if(uiPetId){
         try{ if(typeof openCpEditor === 'function') openCpEditor('edit', uiPetId); }catch(_){ }
         try{
@@ -10487,7 +10549,7 @@ function dsScheduleProposalReviewUiOpen(row, customerPayload, petPayload, opts){
       tries += 1;
       if(tries < maxTries) setTimeout(tick, 140);
       else {
-        try{ dsSetProposalOpenDiag('fail-no-ui petId=' + (uiPetId||'--') + ' tries=' + tries + ' cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0') + ' rows=' + String((row && row.__openDiagRowCount) || '--') + ' rowPet=' + String((row && row.__openDiagRowPetId) || '--') + ' btnPet=' + String((row && row.__openDiagBtnPetId) || '--'), true); }catch(_){ }
+        try{ dsSetProposalOpenDiag('fail-no-ui petId=' + (uiPetId||'--') + ' tries=' + tries + ' cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0') + ' rows=' + String((row && row.__openDiagRowCount) || '--') + ' btns=' + String((row && row.__openDiagBtnCount) || '--') + ' raw=' + String((row && row.__openDiagRaw) || '--') + ' rowPet=' + String((row && row.__openDiagRowPetId) || '--') + ' btnPet=' + String((row && row.__openDiagBtnPetId) || '--'), true); }catch(_){ }
         try{ cpSetStatus('Bestehender Kunde/Hund für Vorschlag nicht gefunden.', true); }catch(_){ }
         if(!opts.silent){
           try{ alert('Bestehender Kunde/Hund für Vorschlag nicht eindeutig gefunden. Es wurde nichts geöffnet.'); }catch(_){ }
@@ -19414,7 +19476,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB94_EINGAENGE_ROW_PETID_20260331) ===== */
+/* ===== CHAT (M50.9.9GB95_EINGAENGE_DOMINSPECT_FALLBACK_20260331) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -20994,7 +21056,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB94_EINGAENGE_ROW_PETID_20260331";
+  const BUILD = "M50.9.9GB95_EINGAENGE_DOMINSPECT_FALLBACK_20260331";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
