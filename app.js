@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB85_EINGAENGE_ROWIDENTITYOPEN_20260331",
+  tag: "M50.9.9GB86_EINGAENGE_ROWDIAG_DIRECTOPEN_20260331",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB85_EINGAENGE_ROWIDENTITYOPEN_20260331";
+const APP_BUILD = "M50.9.9GB86_EINGAENGE_ROWDIAG_DIRECTOPEN_20260331";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -9817,6 +9817,24 @@ function dsResolveProposalReviewTargets(sourceRow){
     return { customer: customer || null, pet: pet || null, customerPayload, petPayload };
   }catch(_){ return { customer:null, pet:null }; }
 }
+function dsEnrichProposalReviewRow(sourceRow){
+  try{
+    const row = sourceRow && typeof sourceRow === "object" ? Object.assign({}, sourceRow) : {};
+    const targets = dsResolveProposalReviewTargets(row);
+    const customer = targets && targets.customer ? targets.customer : null;
+    const pet = targets && targets.pet ? targets.pet : null;
+    const customerId = norm((row && row.__targetCustomerId) || (customer && (customer.id || customer.customerId)) || (row && row.customerId) || ((targets && targets.customerPayload) ? (targets.customerPayload.id || targets.customerPayload.customerId) : '') || '');
+    const petId = norm((row && row.__targetPetId) || (pet && (pet.id || pet.petId)) || (row && row.petId) || ((targets && targets.petPayload) ? (targets.petPayload.id || targets.petPayload.petId) : '') || '');
+    row.__targetCustomerId = customerId;
+    row.__targetPetId = petId;
+    row.__debugCustomerId = customerId;
+    row.__debugPetId = petId;
+    row.__debugProposalId = norm((row && (row.proposalId || row.id || row.taskId || row.submissionId)) || '');
+    row.__debugSourceKey = norm((row && (row.__sourceKey || row.__rowId)) || '');
+    row.__debugResolved = !!(customerId && petId);
+    return row;
+  }catch(_){ return sourceRow || {}; }
+}
 async function dsSaveProposalReview(){
   const row = __dsProposalReview && __dsProposalReview.row;
   if(!row) return false;
@@ -9972,6 +9990,7 @@ function dsEnsureProposalReviewMainEditorVisible(){
 function dsOpenProposalInCustomerEditor(row, opts){
   opts = opts || {};
   try{
+    row = dsEnrichProposalReviewRow(row);
     dsEnsureReviewStyles();
     dsClearProposalReviewUI();
     ensureStateShape();
@@ -10087,6 +10106,8 @@ function dsOpenProposalInCustomerEditor(row, opts){
 }
 
 try{ window.dsOpenProposalInCustomerEditor = dsOpenProposalInCustomerEditor; }catch(_){ }
+try{ window.__dsResolveProposalReviewTargets = dsResolveProposalReviewTargets; }catch(_){ }
+try{ window.__dsEnrichProposalReviewRow = dsEnrichProposalReviewRow; }catch(_){ }
 
 function closeCpEditor(){
   const box = document.getElementById("cpEditor");
@@ -18883,7 +18904,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB85_EINGAENGE_ROWIDENTITYOPEN_20260331) ===== */
+/* ===== CHAT (M50.9.9GB86_EINGAENGE_ROWDIAG_DIRECTOPEN_20260331) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -20463,7 +20484,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB85_EINGAENGE_ROWIDENTITYOPEN_20260331";
+  const BUILD = "M50.9.9GB86_EINGAENGE_ROWDIAG_DIRECTOPEN_20260331";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];

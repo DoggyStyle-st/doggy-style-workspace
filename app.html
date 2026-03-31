@@ -6,13 +6,13 @@
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
 <meta charset="utf-8"/>
-  <meta name="app-build" content="M50.9.9GB85_EINGAENGE_ROWIDENTITYOPEN_20260331">
+  <meta name="app-build" content="M50.9.9GB86_EINGAENGE_ROWDIAG_DIRECTOPEN_20260331">
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <title>Doggy Style Workspace · App</title>
 <link href="manifest.json" rel="manifest"/>
 <meta content="#101014" name="theme-color"/>
 <link href="assets/logo.png" rel="apple-touch-icon"/>
-<link href="styles.css?v=M50.9.9GB85_EINGAENGE_ROWIDENTITYOPEN_20260331" rel="stylesheet"/>
+<link href="styles.css?v=M50.9.9GB86_EINGAENGE_ROWDIAG_DIRECTOPEN_20260331" rel="stylesheet"/>
 <link href="dashboard_master.css?v=20260104v13logout" rel="stylesheet"/>
 <style>
   /* Topbar Layout (iPad & Desktop stabil) */
@@ -102,7 +102,7 @@
   .doc-modal__actions{ margin-left:auto; display:flex; flex-wrap: wrap; gap: 8px; }
   .doc-modal__frame{ width: 100%; border: 0; border-radius: 12px; background: #fff; flex:1; min-height: 0; }
 </style>
-  <meta name="app-version" content="M50.9.9GB85_EINGAENGE_ROWIDENTITYOPEN_20260331">
+  <meta name="app-version" content="M50.9.9GB86_EINGAENGE_ROWDIAG_DIRECTOPEN_20260331">
   <meta name="release-channel" content="MASTER">
 </head>
 <body class="bg-watermark page-app">
@@ -1194,7 +1194,7 @@
 </section>
 
 <section class="panel" id="statistics">
-<!-- Statistics panel is rendered by app.js?v=M50.9.9GB85_EINGAENGE_ROWIDENTITYOPEN_20260331 (renderStatisticsPanel) -->
+<!-- Statistics panel is rendered by app.js?v=M50.9.9GB86_EINGAENGE_ROWDIAG_DIRECTOPEN_20260331 (renderStatisticsPanel) -->
 </section>
 
 
@@ -1261,12 +1261,12 @@
 </footer>
 </div>
 <!-- Firebase (optional) + Config -->
-<script defer="defer" src="firebase-config.js?v=M50.9.9GB85_EINGAENGE_ROWIDENTITYOPEN_20260331"></script>
+<script defer="defer" src="firebase-config.js?v=M50.9.9GB86_EINGAENGE_ROWDIAG_DIRECTOPEN_20260331"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
-<script defer="defer" src="app.js?v=M50.9.9GB85_EINGAENGE_ROWIDENTITYOPEN_20260331"></script>
+<script defer="defer" src="app.js?v=M50.9.9GB86_EINGAENGE_ROWDIAG_DIRECTOPEN_20260331"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1309,7 +1309,7 @@
 </script>
 
 <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB85_EINGAENGE_ROWIDENTITYOPEN_20260331');
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB86_EINGAENGE_ROWDIAG_DIRECTOPEN_20260331');
   </script>
 
 <script>
@@ -1373,7 +1373,7 @@
   <!-- Bottom logout button removed (duplicate of header logout; also overlaps editor on iPad) -->
 </div>
 <!-- test-badge removed (requested) -->
-  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB85_EINGAENGE_ROWIDENTITYOPEN_20260331</div>
+  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB86_EINGAENGE_ROWDIAG_DIRECTOPEN_20260331</div>
 
 <script>
 (function visibleMailFallback(){
@@ -1795,12 +1795,36 @@
     }catch(_){ return false; }
   }
 
+  function ds86EnrichFallbackRow(row){
+    try{
+      if(typeof window.__dsEnrichProposalReviewRow === 'function') return window.__dsEnrichProposalReviewRow(row || {});
+    }catch(_){ }
+    try{
+      if(typeof window.__dsResolveProposalReviewTargets === 'function'){
+        var out = Object.assign({}, row || {});
+        var t = window.__dsResolveProposalReviewTargets(out) || {};
+        var c = t.customer || null;
+        var p = t.pet || null;
+        out.__targetCustomerId = String((out.__targetCustomerId || (c && (c.id || c.customerId)) || out.customerId || '')).trim();
+        out.__targetPetId = String((out.__targetPetId || (p && (p.id || p.petId)) || out.petId || '')).trim();
+        out.__debugCustomerId = out.__targetCustomerId;
+        out.__debugPetId = out.__targetPetId;
+        out.__debugProposalId = String((out.proposalId || out.id || out.taskId || out.submissionId || '')).trim();
+        out.__debugSourceKey = String((out.__sourceKey || out.__rowId || '')).trim();
+        return out;
+      }
+    }catch(_){ }
+    return row || {};
+  }
+
   function fallbackOpenInboxRow(targetId, index){
     try{
       var bag = window.__dsInboxFallbackRows || {};
       var rows = Array.isArray(bag[targetId]) ? bag[targetId] : [];
       var row = rows[index];
       if(!row) return false;
+      row = ds86EnrichFallbackRow(row);
+      rows[index] = row;
       var payload = (row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data)) || {};
       var customer = (payload && payload.customer && typeof payload.customer === 'object') ? payload.customer : ((row && row.customer && typeof row.customer === 'object') ? row.customer : {});
       var pet = (payload && payload.pet && typeof payload.pet === 'object') ? payload.pet : ((row && row.pet && typeof row.pet === 'object') ? row.pet : {});
@@ -1863,8 +1887,13 @@
           var ts = Number(r.submittedAt || r.createdAt || 0);
           if(ts) when = new Date(ts).toLocaleString('de-DE');
         }catch(_){ }
+        var cid = String((r && (r.__targetCustomerId || r.__debugCustomerId || r.customerId)) || '').trim();
+        var pid = String((r && (r.__targetPetId || r.__debugPetId || r.petId)) || '').trim();
+        var prid = String((r && (r.__debugProposalId || r.proposalId || r.id || r.taskId)) || '').trim();
+        var sk = String((r && (r.__debugSourceKey || r.__sourceKey || r.__rowId)) || '').trim();
+        var diag = 'cid=' + (cid || '-') + ' · pid=' + (pid || '-') + ' · proposal=' + (prid || '-') + (sk ? (' · key=' + sk) : '');
         return '<div class="list-item ds-inbox-row" data-target="' + escHtml(targetId) + '" data-idx="' + idx + '" style="display:flex; justify-content:space-between; gap:12px; align-items:center; cursor:pointer;">'
-          + '<div><strong>' + escHtml(title) + '</strong><small>' + escHtml(customer) + (when ? (' · ' + escHtml(when)) : '') + '</small></div>'
+          + '<div><strong>' + escHtml(title) + '</strong><small>' + escHtml(customer) + (when ? (' · ' + escHtml(when)) : '') + '</small><small style="display:block; opacity:.78; font-size:12px;">' + escHtml(diag) + '</small></div>'
           + '<div class="actions"><button class="smallbtn ds-inbox-open" type="button" data-target="' + escHtml(targetId) + '" data-idx="' + idx + '">Öffnen</button></div>'
           + '</div>';
       }).join('');
@@ -2050,6 +2079,7 @@
         if(diagEl2){ diagEl2.textContent = 'Keine Eingänge gefunden · fallback-cloud-error=' + String((err && err.message) || err || 'unbekannt'); diagEl2.style.color = '#ffb3b3'; }
       }catch(_){ }
     }
+    rows = rows.map(function(x){ return ds86EnrichFallbackRow(x); });
     rows.sort(function(a,b){ return Number((b&&b.submittedAt)||0) - Number((a&&a.submittedAt)||0); });
     return rows;
   }
