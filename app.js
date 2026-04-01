@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB97_EINGAENGE_RENDER_OBSERVER_20260331",
+  tag: "M50.9.9GB98_EINGAENGE_VISIBLE_EDIT_PICK_20260331",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB97_EINGAENGE_RENDER_OBSERVER_20260331";
+const APP_BUILD = "M50.9.9GB98_EINGAENGE_VISIBLE_EDIT_PICK_20260331";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -10097,7 +10097,7 @@ function dsCountVisibleDogsUiMarkers(){
 
 function dsWaitForDogsUiReady(row, token, timeoutMs, onReady, onTimeout){
   timeoutMs = Number(timeoutMs || 0) || 4500;
-  try{ if(row && typeof row === 'object'){ row.__openDiagObserverHit = '0'; row.__openDiagSeenMax='0'; row.__openDiagSeenRex='0'; row.__openDiagSeenEdit='0'; row.__openDiagAfterRender='0'; } }catch(_){ }
+  try{ if(row && typeof row === 'object'){ row.__openDiagObserverHit = '0'; row.__openDiagSeenMax='0'; row.__openDiagSeenRex='0'; row.__openDiagSeenEdit='0'; row.__openDiagAfterRender='0'; row.__openDiagEditVisible='0'; row.__openDiagPickedVisible='0'; row.__openDiagPickedBy='--'; row.__openDiagPickedRect='--'; row.__openDiagClicked='0'; } }catch(_){ }
   let done = false;
   let obs = null;
   const started = Date.now();
@@ -10402,22 +10402,109 @@ function dsSetProposalOpenDiag(msg, isError){
   }catch(_){ }
 }
 
+function dsIsActuallyVisibleEditTarget(el){
+  try{
+    if(!el) return false;
+    const cs = window.getComputedStyle ? getComputedStyle(el) : null;
+    if(cs){
+      if(cs.display === 'none' || cs.visibility === 'hidden' || Number(cs.opacity || '1') <= 0.01) return false;
+    }
+    const r = el.getBoundingClientRect ? el.getBoundingClientRect() : null;
+    if(!r || r.width <= 0 || r.height <= 0) return false;
+    const vw = Math.max(document.documentElement ? document.documentElement.clientWidth : 0, window.innerWidth || 0);
+    const vh = Math.max(document.documentElement ? document.documentElement.clientHeight : 0, window.innerHeight || 0);
+    if(r.bottom < 0 || r.right < 0 || r.top > vh || r.left > vw) return false;
+    const cx = Math.max(1, Math.min(vw - 1, r.left + (r.width / 2)));
+    const cy = Math.max(1, Math.min(vh - 1, r.top + (r.height / 2)));
+    const topEl = document.elementFromPoint ? document.elementFromPoint(cx, cy) : null;
+    if(topEl && topEl !== el && !(el.contains && el.contains(topEl)) && !(topEl.contains && topEl.contains(el))) return false;
+    return true;
+  }catch(_){ return false; }
+}
+
+function dsCollectVisibleProposalEditButtons(){
+  try{
+    const all = Array.from(document.querySelectorAll('button, .smallbtn, [data-e="1"], [data-pet-edit-id]'));
+    const seen = new Set();
+    const out = [];
+    all.forEach(function(btn){
+      try{
+        if(!btn || seen.has(btn)) return;
+        seen.add(btn);
+        const txt = String(btn.textContent || btn.value || '').trim();
+        if(!/bearbeiten/i.test(txt)) return;
+        if(!dsIsActuallyVisibleEditTarget(btn)) return;
+        out.push(btn);
+      }catch(_){ }
+    });
+    out.sort(function(a,b){
+      try{
+        const ar = a.getBoundingClientRect();
+        const br = b.getBoundingClientRect();
+        if(Math.abs(ar.top - br.top) > 4) return ar.top - br.top;
+        return ar.left - br.left;
+      }catch(_){ return 0; }
+    });
+    return out;
+  }catch(_){ return []; }
+}
+
+function dsResolveProposalFallbackBasePet(row, customerPayload, petPayload){
+  try{
+    const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
+    const cp = (customerPayload && typeof customerPayload === 'object') ? customerPayload : ((payload && payload.customer && typeof payload.customer === 'object') ? payload.customer : {});
+    const pp = (petPayload && typeof petPayload === 'object') ? petPayload : ((payload && payload.pet && typeof payload.pet === 'object') ? payload.pet : {});
+    const targetCid = norm((row && (row.__targetCustomerId || row.customerId)) || (cp && (cp.id || cp.customerId)) || '');
+    const targetPid = norm((row && (row.__targetPetId || row.petId)) || (pp && (pp.id || pp.petId)) || '');
+    const targetPetName = lower((pp && pp.name) || (row && row.petName) || '');
+    const targetChip = norm((pp && pp.chipNumber) || (row && row.chipNumber) || '');
+    let pets = [];
+    try{ pets = asArray(state && (((state.pets||[]).length ? state.pets : state.dogs) || [])); }catch(_){ pets = []; }
+    if(targetPid){
+      const byId = pets.find(function(x){ return norm((x && (x.id || x.petId)) || '') === targetPid; });
+      if(byId) return byId;
+    }
+    let hits = pets.slice();
+    if(targetCid) hits = hits.filter(function(x){ return norm((x && (x.customerId || x.ownerId)) || '') === targetCid; });
+    if(targetChip){ const chipHits = hits.filter(function(x){ return norm((x && (x.chipNumber || x.chip || '')) || '') === targetChip; }); if(chipHits.length) hits = chipHits; }
+    if(targetPetName){ const nameHits = hits.filter(function(x){ return lower((x && x.name) || '') === targetPetName; }); if(nameHits.length) hits = nameHits; }
+    if(hits.length === 1) return hits[0] || null;
+    return null;
+  }catch(_){ return null; }
+}
+
+function dsPickVisibleProposalEditButton(row, customerPayload, petPayload){
+  try{
+    const visible = dsCollectVisibleProposalEditButtons();
+    const picked = visible.length ? visible[0] : null;
+    let rect = '--';
+    try{ if(picked){ const r = picked.getBoundingClientRect(); rect = [Math.round(r.left),Math.round(r.top),Math.round(r.width),Math.round(r.height)].join(','); } }catch(_){ }
+    try{ if(row && typeof row === 'object'){ row.__openDiagEditVisible = String(visible.length || 0); row.__openDiagPickedVisible = picked ? '1':'0'; row.__openDiagPickedRect = rect; row.__openDiagPickedBy = picked ? 'firstVisible':'none'; } }catch(_){ }
+    return { button:picked, visibleCount:visible.length || 0, pickedBy:(picked?'firstVisible':'none'), pickedRect:rect };
+  }catch(_){ try{ if(row && typeof row === 'object'){ row.__openDiagEditVisible='0'; row.__openDiagPickedVisible='0'; row.__openDiagPickedRect='--'; row.__openDiagPickedBy='err'; } }catch(__){} return { button:null, visibleCount:0, pickedBy:'err', pickedRect:'--' }; }
+}
+
 function dsTryVisibleProposalButtonOpen(row, customerPayload, petPayload, opts){
   opts = opts || {};
   try{
+    try{ if(row && typeof row === 'object'){ row.__openDiagClicked='0'; } }catch(_){ }
     const hit = dsFindVisiblePetRowForProposal(row);
+    const picked = dsPickVisibleProposalEditButton(row, customerPayload, petPayload);
     const debugCid = norm((row && (row.__targetCustomerId || row.customerId)) || '');
     const debugPid = norm((row && (row.__targetPetId || row.petId)) || '');
-    if(!hit || !hit.petId){
-      try{ dsSetProposalOpenDiag('start cid=' + (debugCid||'--') + ' pid=' + (debugPid||'--') + ' hit=0 petId=-- rows=' + String((row && row.__openDiagRowCount) || '--') + ' rowPet=' + String((row && row.__openDiagRowPetId) || '--') + ' btnPet=' + String((row && row.__openDiagBtnPetId) || '--'), true); }catch(_){ }
+    const hitPetId = String((hit && hit.petId) || '').trim();
+    const primaryBtn = (hit && hit.button) ? hit.button : ((picked && picked.button) ? picked.button : null);
+    if(!hitPetId && !primaryBtn){
+      try{ dsSetProposalOpenDiag('start cid=' + (debugCid||'--') + ' pid=' + (debugPid||'--') + ' hit=0 petId=-- editVisible=' + String((row && row.__openDiagEditVisible) || '--') + ' pickedVisible=' + String((row && row.__openDiagPickedVisible) || '--') + ' pickedBy=' + String((row && row.__openDiagPickedBy) || '--') + ' pickedRect=' + String((row && row.__openDiagPickedRect) || '--'), true); }catch(_){ }
       return false;
     }
-    const petId = String(hit.petId || '').trim();
-    try{ dsSetProposalOpenDiag('start cid=' + (debugCid||'--') + ' pid=' + (debugPid||'--') + ' hit=1 petId=' + (petId||'--') + ' btn=' + (!!(hit && hit.button) ? '1':'0') + ' cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0') + ' rows=' + String((row && row.__openDiagRowCount) || '--') + ' rowPet=' + String((row && row.__openDiagRowPetId) || '--') + ' btnPet=' + String((row && row.__openDiagBtnPetId) || '--'), false); }catch(_){ }
+    const petId = hitPetId;
+    try{ dsSetProposalOpenDiag('start cid=' + (debugCid||'--') + ' pid=' + (debugPid||'--') + ' hit=' + (hit ? '1':'0') + ' petId=' + (petId||'--') + ' btn=' + (!!primaryBtn ? '1':'0') + ' editVisible=' + String((row && row.__openDiagEditVisible) || '--') + ' pickedVisible=' + String((row && row.__openDiagPickedVisible) || '--') + ' pickedBy=' + String((row && row.__openDiagPickedBy) || '--') + ' pickedRect=' + String((row && row.__openDiagPickedRect) || '--') + ' cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0'), false); }catch(_){ }
     let basePet = null, baseCustomer = null;
-    try{ basePet = (typeof getPet === 'function' ? getPet(petId) : null) || null; }catch(_){ }
+    try{ if(petId) basePet = (typeof getPet === 'function' ? getPet(petId) : null) || null; }catch(_){ }
+    try{ if(!basePet) basePet = dsResolveProposalFallbackBasePet(row, customerPayload, petPayload) || null; }catch(_){ }
     try{ if(basePet && typeof getCustomer === 'function') baseCustomer = getCustomer(basePet.customerId || basePet.ownerId || '') || null; }catch(_){ }
-    try{ if(!baseCustomer){ const cid = norm((hit.row && hit.row.dataset && hit.row.dataset.customerId) || (row && row.__targetCustomerId) || ''); if(cid && typeof getCustomer === 'function') baseCustomer = getCustomer(cid) || null; } }catch(_){ }
+    try{ if(!baseCustomer){ const cid = norm((hit && hit.row && hit.row.dataset && hit.row.dataset.customerId) || (row && row.__targetCustomerId) || ''); if(cid && typeof getCustomer === 'function') baseCustomer = getCustomer(cid) || null; } }catch(_){ }
     let tries = 0;
     const maxTries = 6;
     const kick = function(){
@@ -10428,24 +10515,30 @@ function dsTryVisibleProposalButtonOpen(row, customerPayload, petPayload, opts){
       let btn = null;
       try{
         const fresh = dsFindVisiblePetRowForProposal(row);
-        if(fresh && fresh.petId){ btn = fresh.button || null; }
-      }catch(_){ }
-      try{ dsSetProposalOpenDiag('kick=' + tries + ' petId=' + (petId||'--') + ' btn=' + (!!btn ? '1':'0') + ' onclick=' + (!!(btn && typeof btn.onclick === 'function') ? '1':'0') + ' click=' + (!!(btn && typeof btn.click === 'function') ? '1':'0') + ' cpBefore=' + (dsIsCpEditorActuallyOpen() ? '1':'0'), false); }catch(_){ }
-      try{ if(btn && typeof btn.onclick === 'function') btn.onclick(); }catch(_){ }
-      try{ if(btn && typeof btn.click === 'function') btn.click(); }catch(_){ }
-      try{ if(btn) btn.dispatchEvent(new MouseEvent('click', { bubbles:true, cancelable:true, view:window })); }catch(_){ }
-      try{ if(typeof openCpEditor === 'function') openCpEditor('edit', petId); }catch(_){ }
+        const freshPicked = dsPickVisibleProposalEditButton(row, customerPayload, petPayload);
+        btn = (fresh && fresh.button) ? fresh.button : ((freshPicked && freshPicked.button) ? freshPicked.button : primaryBtn);
+      }catch(_){ btn = primaryBtn; }
+      try{ dsSetProposalOpenDiag('kick=' + tries + ' petId=' + (petId||'--') + ' btn=' + (!!btn ? '1':'0') + ' clicked=' + String((row && row.__openDiagClicked) || '0') + ' editVisible=' + String((row && row.__openDiagEditVisible) || '--') + ' pickedVisible=' + String((row && row.__openDiagPickedVisible) || '--') + ' pickedBy=' + String((row && row.__openDiagPickedBy) || '--') + ' pickedRect=' + String((row && row.__openDiagPickedRect) || '--') + ' cpBefore=' + (dsIsCpEditorActuallyOpen() ? '1':'0'), false); }catch(_){ }
+      let clicked = false;
+      try{ if(btn && typeof btn.onclick === 'function'){ btn.onclick(); clicked = true; } }catch(_){ }
+      try{ if(btn && typeof btn.click === 'function'){ btn.click(); clicked = true; } }catch(_){ }
+      try{ if(btn){ btn.dispatchEvent(new MouseEvent('click', { bubbles:true, cancelable:true, view:window })); clicked = true; } }catch(_){ }
+      try{ if(petId && typeof openCpEditor === 'function'){ openCpEditor('edit', petId); clicked = true; } }catch(_){ }
+      try{ if(row && typeof row === 'object') row.__openDiagClicked = clicked ? '1' : String(row.__openDiagClicked || '0'); }catch(_){ }
       setTimeout(function(){
         let finalPet = basePet;
         let finalCustomer = baseCustomer;
-        try{ if(!finalPet) finalPet = (typeof getPet === 'function' ? getPet(petId) : null) || null; }catch(_){ }
+        try{ if(!finalPet && cpEdit && cpEdit.petId) finalPet = (typeof getPet === 'function' ? getPet(cpEdit.petId) : null) || null; }catch(_){ }
+        try{ if(!finalPet && petId) finalPet = (typeof getPet === 'function' ? getPet(petId) : null) || null; }catch(_){ }
+        try{ if(!finalPet) finalPet = dsResolveProposalFallbackBasePet(row, customerPayload, petPayload) || null; }catch(_){ }
         try{ if(!finalCustomer && finalPet && typeof getCustomer === 'function') finalCustomer = getCustomer(finalPet.customerId || finalPet.ownerId || '') || null; }catch(_){ }
-        const opened = dsIsCpEditorActuallyOpen() || (cpEdit && cpEdit.mode === 'edit' && norm(cpEdit.petId) === norm(petId));
+        const activePetId = norm((cpEdit && cpEdit.petId) || petId || (finalPet && (finalPet.id || finalPet.petId)) || '');
+        const opened = dsIsCpEditorActuallyOpen() || (!!(cpEdit && cpEdit.mode === 'edit' && activePetId));
         if(opened){
-          try{ dsSetProposalOpenDiag('opened petId=' + (petId||'--') + ' cp=1 mode=' + String((cpEdit && cpEdit.mode) || '--') + ' cpPet=' + String((cpEdit && cpEdit.petId) || '--'), false); }catch(_){ }
+          try{ dsSetProposalOpenDiag('opened petId=' + (activePetId||'--') + ' clicked=' + String((row && row.__openDiagClicked) || '0') + ' editVisible=' + String((row && row.__openDiagEditVisible) || '--') + ' pickedBy=' + String((row && row.__openDiagPickedBy) || '--') + ' cp=1 mode=' + String((cpEdit && cpEdit.mode) || '--') + ' cpPet=' + String((cpEdit && cpEdit.petId) || '--'), false); }catch(_){ }
           try{ window.__dsProposalReviewOpening = false; }catch(_){ }
           if(finalPet && finalCustomer){
-            dsFinalizeProposalReviewEditor(row, finalCustomer, finalPet, petId, customerPayload || {}, petPayload || {}, opts);
+            dsFinalizeProposalReviewEditor(row, finalCustomer, finalPet, activePetId, customerPayload || {}, petPayload || {}, opts);
           } else {
             try{ const ed = document.getElementById('cpEditor'); if(ed){ ed.style.display = 'block'; ed.scrollIntoView({ behavior:'smooth', block:'start' }); } }catch(_){ }
           }
@@ -10455,7 +10548,7 @@ function dsTryVisibleProposalButtonOpen(row, customerPayload, petPayload, opts){
           setTimeout(kick, 120);
           return;
         }
-        try{ dsSetProposalOpenDiag('fail petId=' + (petId||'--') + ' tries=' + tries + ' cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0') + ' btn=' + (!!btn ? '1':'0'), true); }catch(_){ }
+        try{ dsSetProposalOpenDiag('fail petId=' + (activePetId||petId||'--') + ' tries=' + tries + ' cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0') + ' btn=' + (!!btn ? '1':'0') + ' clicked=' + String((row && row.__openDiagClicked) || '0') + ' editVisible=' + String((row && row.__openDiagEditVisible) || '--') + ' pickedBy=' + String((row && row.__openDiagPickedBy) || '--') + ' pickedRect=' + String((row && row.__openDiagPickedRect) || '--'), true); }catch(_){ }
         try{ window.__dsProposalReviewOpening = false; }catch(_){ }
         try{ cpSetStatus('Bestehender Kunde/Hund für Vorschlag nicht gefunden.', true); }catch(_){ }
         if(!opts.silent){
@@ -10659,7 +10752,7 @@ function dsScheduleProposalReviewUiOpen(row, customerPayload, petPayload, opts){
         try{ if(dsTryVisibleProposalButtonOpen(row, customerPayload, petPayload, Object.assign({}, opts, { silent: opts && opts.silent })) ) return; }catch(_){ }
         let uiPetId = '';
         try{ uiPetId = dsGetDirectProposalReviewPetId(row); }catch(_){ uiPetId = ''; }
-        try{ dsSetProposalOpenDiag('schedule try=' + tries + ' uiPetId=' + (uiPetId||'--') + ' cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0') + ' rows=' + String((row && row.__openDiagRowCount) || '--') + ' btns=' + String((row && row.__openDiagBtnCount) || '--') + ' raw=' + String((row && row.__openDiagRaw) || '--') + ' roots=' + String((row && row.__openDiagRootCount) || '--') + ' gbtn=' + String((row && row.__openDiagGlobalBtnCount) || '--') + ' grex=' + String((row && row.__openDiagGlobalRexCount) || '--') + ' gmax=' + String((row && row.__openDiagGlobalCustomerCount) || '--') + ' seenMax=' + String((row && row.__openDiagSeenMax) || '--') + ' seenRex=' + String((row && row.__openDiagSeenRex) || '--') + ' seenEdit=' + String((row && row.__openDiagSeenEdit) || '--') + ' observer=' + String((row && row.__openDiagObserverHit) || '--') + ' after=' + String((row && row.__openDiagAfterRender) || '--') + ' rowPet=' + String((row && row.__openDiagRowPetId) || '--') + ' btnPet=' + String((row && row.__openDiagBtnPetId) || '--'), false); }catch(_){ }
+        try{ dsSetProposalOpenDiag('schedule try=' + tries + ' uiPetId=' + (uiPetId||'--') + ' cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0') + ' rows=' + String((row && row.__openDiagRowCount) || '--') + ' btns=' + String((row && row.__openDiagBtnCount) || '--') + ' raw=' + String((row && row.__openDiagRaw) || '--') + ' roots=' + String((row && row.__openDiagRootCount) || '--') + ' gbtn=' + String((row && row.__openDiagGlobalBtnCount) || '--') + ' grex=' + String((row && row.__openDiagGlobalRexCount) || '--') + ' gmax=' + String((row && row.__openDiagGlobalCustomerCount) || '--') + ' seenMax=' + String((row && row.__openDiagSeenMax) || '--') + ' seenRex=' + String((row && row.__openDiagSeenRex) || '--') + ' seenEdit=' + String((row && row.__openDiagSeenEdit) || '--') + ' observer=' + String((row && row.__openDiagObserverHit) || '--') + ' after=' + String((row && row.__openDiagAfterRender) || '--') + ' editVisible=' + String((row && row.__openDiagEditVisible) || '--') + ' pickedVisible=' + String((row && row.__openDiagPickedVisible) || '--') + ' pickedBy=' + String((row && row.__openDiagPickedBy) || '--') + ' pickedRect=' + String((row && row.__openDiagPickedRect) || '--') + ' clicked=' + String((row && row.__openDiagClicked) || '--') + ' rowPet=' + String((row && row.__openDiagRowPetId) || '--') + ' btnPet=' + String((row && row.__openDiagBtnPetId) || '--'), false); }catch(_){ }
         if(uiPetId){
           try{ if(typeof openCpEditor === 'function') openCpEditor('edit', uiPetId); }catch(_){ }
           try{
@@ -10696,7 +10789,7 @@ function dsScheduleProposalReviewUiOpen(row, customerPayload, petPayload, opts){
         tries += 1;
         if(tries < maxTries) setTimeout(tick, 220);
         else {
-          try{ dsSetProposalOpenDiag('fail-no-ui petId=' + (uiPetId||'--') + ' tries=' + tries + ' cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0') + ' rows=' + String((row && row.__openDiagRowCount) || '--') + ' btns=' + String((row && row.__openDiagBtnCount) || '--') + ' raw=' + String((row && row.__openDiagRaw) || '--') + ' roots=' + String((row && row.__openDiagRootCount) || '--') + ' gbtn=' + String((row && row.__openDiagGlobalBtnCount) || '--') + ' grex=' + String((row && row.__openDiagGlobalRexCount) || '--') + ' gmax=' + String((row && row.__openDiagGlobalCustomerCount) || '--') + ' seenMax=' + String((row && row.__openDiagSeenMax) || '--') + ' seenRex=' + String((row && row.__openDiagSeenRex) || '--') + ' seenEdit=' + String((row && row.__openDiagSeenEdit) || '--') + ' observer=' + String((row && row.__openDiagObserverHit) || '--') + ' after=' + String((row && row.__openDiagAfterRender) || '--') + ' rowPet=' + String((row && row.__openDiagRowPetId) || '--') + ' btnPet=' + String((row && row.__openDiagBtnPetId) || '--'), true); }catch(_){ }
+          try{ dsSetProposalOpenDiag('fail-no-ui petId=' + (uiPetId||'--') + ' tries=' + tries + ' cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0') + ' rows=' + String((row && row.__openDiagRowCount) || '--') + ' btns=' + String((row && row.__openDiagBtnCount) || '--') + ' raw=' + String((row && row.__openDiagRaw) || '--') + ' roots=' + String((row && row.__openDiagRootCount) || '--') + ' gbtn=' + String((row && row.__openDiagGlobalBtnCount) || '--') + ' grex=' + String((row && row.__openDiagGlobalRexCount) || '--') + ' gmax=' + String((row && row.__openDiagGlobalCustomerCount) || '--') + ' seenMax=' + String((row && row.__openDiagSeenMax) || '--') + ' seenRex=' + String((row && row.__openDiagSeenRex) || '--') + ' seenEdit=' + String((row && row.__openDiagSeenEdit) || '--') + ' observer=' + String((row && row.__openDiagObserverHit) || '--') + ' after=' + String((row && row.__openDiagAfterRender) || '--') + ' editVisible=' + String((row && row.__openDiagEditVisible) || '--') + ' pickedVisible=' + String((row && row.__openDiagPickedVisible) || '--') + ' pickedBy=' + String((row && row.__openDiagPickedBy) || '--') + ' pickedRect=' + String((row && row.__openDiagPickedRect) || '--') + ' clicked=' + String((row && row.__openDiagClicked) || '--') + ' rowPet=' + String((row && row.__openDiagRowPetId) || '--') + ' btnPet=' + String((row && row.__openDiagBtnPetId) || '--'), true); }catch(_){ }
           try{ cpSetStatus('Bestehender Kunde/Hund für Vorschlag nicht gefunden.', true); }catch(_){ }
           if(!opts.silent){ try{ alert('Bestehender Kunde/Hund für Vorschlag nicht eindeutig gefunden. Es wurde nichts geöffnet.'); }catch(_){ } }
         }
@@ -19640,7 +19733,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB97_EINGAENGE_RENDER_OBSERVER_20260331) ===== */
+/* ===== CHAT (M50.9.9GB98_EINGAENGE_VISIBLE_EDIT_PICK_20260331) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -21220,7 +21313,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB97_EINGAENGE_RENDER_OBSERVER_20260331";
+  const BUILD = "M50.9.9GB98_EINGAENGE_VISIBLE_EDIT_PICK_20260331";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
