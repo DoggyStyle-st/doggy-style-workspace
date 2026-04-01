@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB106_EINGAENGE_SAVE_REVIEW_FIX2_20260401",
+  tag: "M50.9.9GB107_EINGAENGE_SAVE_NONBLOCK_20260401",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB106_EINGAENGE_SAVE_REVIEW_FIX2_20260401";
+const APP_BUILD = "M50.9.9GB107_EINGAENGE_SAVE_NONBLOCK_20260401";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -10134,12 +10134,13 @@ async function dsSaveProposalReview(){
 
   try{ if(typeof upsertLegacyDogForPet === 'function') upsertLegacyDogForPet(pet, customer); }catch(_){ }
   try{ if(typeof saveState === 'function') saveState(); }catch(_){ }
+  const savedPetId = String(pet.id || pet.petId || '--');
+  const savedCustomerId = String(customer.id || customer.customerId || '--');
+  const rowForBg = row ? JSON.parse(JSON.stringify(row)) : null;
+
   try{ dsMarkInboxRowHandled(row, 'adopted'); }catch(_){ }
-  try{ await patchInboxRowStatus(row, 'adopted'); }catch(_){ }
   try{ removeInboxRowEverywhere(row); }catch(_){ }
-  try{ await refreshInboxHard('review-save'); }catch(_){ }
-  cpSetStatus('Gespeichert.');
-  try{ dsSetProposalOpenDiag('save-ok pet=' + String(pet.id || pet.petId || '--') + ' customer=' + String(customer.id || customer.customerId || '--') + ' cp=1', false); }catch(_){ }
+
   __dsProposalReview.active = false;
   __dsProposalReview.row = null;
   __dsProposalReview.baseCustomer = null;
@@ -10148,8 +10149,27 @@ async function dsSaveProposalReview(){
   __dsProposalReview.basePetId = '';
   __dsProposalReview.saveDiag = '';
   dsClearProposalReviewUI();
+
+  try{ cpDirty = false; cpEditorSnapshot = cpCaptureSnapshot(); }catch(_){ }
+  cpSetStatus('Gespeichert.');
+  try{ dsSetProposalOpenDiag('saveLocalOk pet=' + savedPetId + ' customer=' + savedCustomerId + ' cp=1', false); }catch(_){ }
   try{ closeCpEditor(); }catch(_){ }
   try{ if(typeof renderDogs === 'function') renderDogs(); }catch(_){ }
+
+  try{
+    const withTimeout = (promise, ms)=> new Promise(resolve=>{
+      let done = false;
+      const t = setTimeout(()=>{ if(!done){ done = true; resolve(false); } }, ms);
+      Promise.resolve(promise).then(()=>{ if(!done){ done = true; clearTimeout(t); resolve(true); } }).catch(()=>{ if(!done){ done = true; clearTimeout(t); resolve(false); } });
+    });
+    setTimeout(async ()=>{
+      let bgPatch = '0';
+      let bgRefresh = '0';
+      try{ if(rowForBg) bgPatch = (await withTimeout(patchInboxRowStatus(rowForBg, 'adopted'), 1500)) ? '1' : '0'; }catch(_){ bgPatch = '0'; }
+      try{ bgRefresh = (await withTimeout(refreshInboxHard('review-save-bg'), 1500)) ? '1' : '0'; }catch(_){ bgRefresh = '0'; }
+      try{ dsSetProposalOpenDiag('saveBgPatch=' + bgPatch + ' saveBgRefresh=' + bgRefresh + ' pet=' + savedPetId + ' customer=' + savedCustomerId, bgPatch !== '1'); }catch(_){ }
+    }, 0);
+  }catch(_){ }
   return true;
 }
 
@@ -20174,7 +20194,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB106_EINGAENGE_SAVE_REVIEW_FIX2_20260401) ===== */
+/* ===== CHAT (M50.9.9GB107_EINGAENGE_SAVE_NONBLOCK_20260401) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -21754,7 +21774,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB106_EINGAENGE_SAVE_REVIEW_FIX2_20260401";
+  const BUILD = "M50.9.9GB107_EINGAENGE_SAVE_NONBLOCK_20260401";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
