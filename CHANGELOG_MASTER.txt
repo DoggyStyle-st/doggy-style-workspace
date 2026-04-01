@@ -13,4 +13,4 @@ GB85 EINGAENGE_ROWIDENTITYOPEN_20260331
 
 GB111: Eingänge-Filter auf handled/accepted robuster gemacht (zusätzliche Schlüssel für Wiedererkennung nach Refresh).
 
-GB112: Annahme von Eingängen persistenter gemacht (accept-store + Filter über proposal/task/sourceKey; patchInboxRowStatus nutzt proposal/task IDs und resolvedAt).
+GB113: Exakte persistent akzeptierte Proposal-/Task-IDs gespeichert und vor Render gefiltert; Save-Diag enthält proposalId.

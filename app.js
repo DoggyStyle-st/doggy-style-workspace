@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB112_EINGAENGE_ACCEPT_PERSIST_FILTER_20260401_ROOTONLY",
+  tag: "M50.9.9GB113_EINGAENGE_ACCEPT_EXACTID_20260401_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB112_EINGAENGE_ACCEPT_PERSIST_FILTER_20260401_ROOTONLY";
+const APP_BUILD = "M50.9.9GB113_EINGAENGE_ACCEPT_EXACTID_20260401_ROOTONLY";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -9356,6 +9356,52 @@ function dsProposalAcceptedStore(){
     return data && typeof data === 'object' ? data : {};
   }catch(_){ return {}; }
 }
+function dsProposalExactAcceptedStore(){
+  try{
+    const raw = localStorage.getItem('ds_proposal_exact_accepted_v1');
+    const data = raw ? JSON.parse(raw) : {};
+    return data && typeof data === 'object' ? data : {};
+  }catch(_){ return {}; }
+}
+function dsProposalExactAcceptedIds(row){
+  try{
+    const ids = [];
+    const add = function(v){
+      try{
+        const key = lower(String(v == null ? '' : v).trim());
+        if(key) ids.push(key);
+      }catch(_){ }
+    };
+    const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
+    add(row && row.proposalId);
+    add(row && row.proposal);
+    add(row && row.taskId);
+    add(row && row.task);
+    add(row && row.id);
+    add(row && row.__rowId);
+    add(payload && payload.proposalId);
+    add(payload && payload.proposal);
+    add(payload && payload.taskId);
+    add(payload && payload.task);
+    add(payload && payload.id);
+    return Array.from(new Set(ids));
+  }catch(_){ return []; }
+}
+function dsMarkProposalAcceptedExact(row, status){
+  try{
+    const data = dsProposalExactAcceptedStore();
+    const val = String(status || 'accepted');
+    dsProposalExactAcceptedIds(row).forEach(function(id){ try{ if(id) data[id] = val; }catch(_){ } });
+    localStorage.setItem('ds_proposal_exact_accepted_v1', JSON.stringify(data));
+  }catch(_){ }
+}
+function dsIsProposalAcceptedExact(row){
+  try{
+    const data = dsProposalExactAcceptedStore();
+    const ids = dsProposalExactAcceptedIds(row);
+    return ids.some(function(id){ return !!data[id]; });
+  }catch(_){ return false; }
+}
 function dsProposalAcceptedKeys(row){
   try{
     const keys = [];
@@ -9402,10 +9448,12 @@ function dsMarkProposalAcceptedPersistent(row, status){
     dsProposalAcceptedKeys(row).forEach(function(key){ try{ if(key) data[key] = val; }catch(_){ } });
     localStorage.setItem('ds_proposal_accepted_v2', JSON.stringify(data));
   }catch(_){ }
+  try{ dsMarkProposalAcceptedExact(row, status || 'accepted'); }catch(_){ }
   try{ dsMarkInboxRowHandled(row, status || 'accepted'); }catch(_){ }
 }
 function dsIsProposalAcceptedPersistent(row){
   try{
+    if(dsIsProposalAcceptedExact && dsIsProposalAcceptedExact(row)) return true;
     const data = dsProposalAcceptedStore();
     const keys = dsProposalAcceptedKeys(row);
     return keys.some(function(k){ return !!data[k]; });
@@ -10347,7 +10395,7 @@ async function dsSaveProposalReview(){
       let bgRefresh = '0';
       try{ if(rowForBg) bgPatch = (await withTimeout(patchInboxRowStatus(rowForBg, 'adopted'), 1500)) ? '1' : '0'; }catch(_){ bgPatch = '0'; }
       try{ bgRefresh = (await withTimeout(refreshInboxHard('review-save-bg'), 1500)) ? '1' : '0'; }catch(_){ bgRefresh = '0'; }
-      try{ var acc = ((rowForBg && dsIsProposalAcceptedPersistent && dsIsProposalAcceptedPersistent(rowForBg)) || (rowForBg && dsIsInboxRowHandled && dsIsInboxRowHandled(rowForBg))) ? '1' : '0'; dsSetProposalOpenDiag('proposalAccepted=' + acc + ' proposalRemovedLocal=1 proposalRefreshOk=' + bgRefresh + ' saveBgPatch=' + bgPatch + ' saveBgRefresh=' + bgRefresh + ' pet=' + savedPetId + ' customer=' + savedCustomerId, bgPatch !== '1' && acc !== '1'); }catch(_){ }
+      try{ var proposalId = String((rowForBg && (rowForBg.proposalId || rowForBg.proposal || rowForBg.id)) || '--'); var acc = ((rowForBg && dsIsProposalAcceptedExact && dsIsProposalAcceptedExact(rowForBg)) || (rowForBg && dsIsProposalAcceptedPersistent && dsIsProposalAcceptedPersistent(rowForBg)) || (rowForBg && dsIsInboxRowHandled && dsIsInboxRowHandled(rowForBg))) ? '1' : '0'; dsSetProposalOpenDiag('proposalId=' + proposalId + ' proposalAccepted=' + acc + ' proposalRemovedLocal=1 proposalRefreshOk=' + bgRefresh + ' saveBgPatch=' + bgPatch + ' saveBgRefresh=' + bgRefresh + ' pet=' + savedPetId + ' customer=' + savedCustomerId, bgPatch !== '1' && acc !== '1'); }catch(_){ }
     }, 0);
   }catch(_){ }
   return true;
@@ -20412,7 +20460,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB112_EINGAENGE_ACCEPT_PERSIST_FILTER_20260401_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB113_EINGAENGE_ACCEPT_EXACTID_20260401_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -21992,7 +22040,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB112_EINGAENGE_ACCEPT_PERSIST_FILTER_20260401_ROOTONLY";
+  const BUILD = "M50.9.9GB113_EINGAENGE_ACCEPT_EXACTID_20260401_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -22143,6 +22191,7 @@ try{
       if(!n) return;
       const status = lower(n.status || n.proposalStatus || '');
       if(status && ['rejected','adopted','closed','done','completed','accepted','handled'].includes(status)) return;
+      if(dsIsProposalAcceptedExact && dsIsProposalAcceptedExact(n)) return;
       if(dsIsProposalAcceptedPersistent && dsIsProposalAcceptedPersistent(n)) return;
       if(dsIsInboxRowHandled && dsIsInboxRowHandled(n)) return;
       if(!isProposalLike(n)) return;
@@ -22493,8 +22542,9 @@ function matchesInboxRow(a,b){
         ok = true;
       }
     }catch(err){ console.warn('patchInboxRowStatus task failed', err); }
+    try{ if(status && lower(status) !== 'pending') dsMarkProposalAcceptedExact(row, status); }catch(_){ }
     try{ if(status && lower(status) !== 'pending') dsMarkProposalAcceptedPersistent(row, status); }catch(_){ }
-    return ok || (dsIsProposalAcceptedPersistent && dsIsProposalAcceptedPersistent(row));
+    return ok || ((dsIsProposalAcceptedExact && dsIsProposalAcceptedExact(row)) || (dsIsProposalAcceptedPersistent && dsIsProposalAcceptedPersistent(row)));
   }
   function upsertCustomerFromProposal(row){
     ensureStateShape();
