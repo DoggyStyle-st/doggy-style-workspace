@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB104_EINGAENGE_FORCE_CUSTOMER_APPLY_20260401",
+  tag: "M50.9.9GB105_EINGAENGE_OPEN_DOM_RESOLVE_20260401",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB104_EINGAENGE_FORCE_CUSTOMER_APPLY_20260401";
+const APP_BUILD = "M50.9.9GB105_EINGAENGE_OPEN_DOM_RESOLVE_20260401";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -8951,18 +8951,36 @@ function openCpEditor(mode, petId){
 // === 2A.x Erweiterung: "Weiteren Hund" für bestehenden Kunden ===
 function getCurrentCpCustomerId(){
   try{
-    // Edit-Modus: Kunde des aktuell bearbeiteten Hundes
     if(cpEdit && cpEdit.mode==="edit" && cpEdit.petId){
-      const p = getPet(cpEdit.petId);
-      if(p && p.customerId) return p.customerId;
+      const rawPid = String(cpEdit.petId || '').trim();
+      let p = null;
+      try{ p = getPet(rawPid); }catch(_){ p = null; }
+      try{ if(!p && typeof getPetByDogId === 'function') p = getPetByDogId(rawPid) || null; }catch(_){ }
+      try{
+        if(!p){
+          const pets = asArray(state && (((state.pets||[]).length ? state.pets : state.dogs) || []));
+          const pid = norm(rawPid);
+          p = pets.find(function(x){
+            return norm((x && (x.id || x.petId || x.dogId || x.legacyDogId || '')) || '') === pid;
+          }) || null;
+        }
+      }catch(_){ }
+      if(p && (p.customerId || p.ownerId)) return String(p.customerId || p.ownerId || '');
+      try{
+        if(rawPid && typeof getCustomerByDogId === 'function'){
+          const c = getCustomerByDogId(rawPid);
+          if(c && (c.id || c.customerId)) return String(c.id || c.customerId || '');
+        }
+      }catch(_){ }
     }
-    // New-Modus mit bestehendem Kunden
     const use = document.getElementById("useExistingCustomer");
     const sel = document.getElementById("customerSelect");
     if(use && use.checked && sel && sel.value) return sel.value;
-  }catch(_){}
+    if(sel && sel.value) return sel.value;
+  }catch(_){ }
   return "";
 }
+
 function fillCustomerFieldsOnly(customerId){
   const c = getCustomer(customerId);
   if(!c) return;
@@ -10792,51 +10810,6 @@ function dsGetDirectProposalReviewPetId(row){
   }catch(_){ return ''; }
 }
 
-function dsResolveCustomerForcedFromPet(cpPet, row, customerPayload){
-  try{
-    ensureStateShape();
-    const customers = asArray((state && state.customers) || []);
-    const pet = cpPet || null;
-    const targetCid = norm((row && (row.__targetCustomerId || row.customerId)) || (customerPayload && (customerPayload.id || customerPayload.customerId)) || '');
-    const payloadEmail = lower((customerPayload && customerPayload.email) || (customerPayload && customerPayload.mail) || '');
-    const payloadName = lower((customerPayload && customerPayload.name) || '');
-    const candidateIds = [
-      pet && (pet.customerId || pet.ownerId || pet.customer || pet.customerID || pet.holderId || pet.ownerID),
-      targetCid || '',
-      row && row.__targetCustomerId,
-      row && row.customerId
-    ].map(function(v){ return norm(v || ''); }).filter(Boolean);
-    for(const cid of candidateIds){
-      try{ if(typeof getCustomer === 'function'){ const hit = getCustomer(cid) || null; if(hit) return hit; } }catch(_){ }
-      try{ const hit = customers.find(function(c){ return norm((c && (c.id || c.customerId || c.ownerId || c.customerID || '')) || '') === cid; }) || null; if(hit) return hit; }catch(_){ }
-    }
-    try{
-      const dogKeys = [pet && (pet.dogId || pet.id || pet.petId), row && (row.__targetPetId || row.petId)].map(function(v){ return String(v || '').trim(); }).filter(Boolean);
-      for(const dk of dogKeys){
-        try{ if(typeof getCustomerByDogId === 'function'){ const hit = getCustomerByDogId(dk) || null; if(hit) return hit; } }catch(_){ }
-      }
-    }catch(_){ }
-    if(payloadEmail){
-      try{
-        const hits = customers.filter(function(c){
-          return lower((c && (c.email || c.mail || '')) || '') === payloadEmail;
-        });
-        if(hits.length === 1) return hits[0] || null;
-      }catch(_){ }
-    }
-    if(payloadName){
-      try{
-        const hits = customers.filter(function(c){ return lower((c && c.name) || '') === payloadName; });
-        if(hits.length === 1) return hits[0] || null;
-      }catch(_){ }
-    }
-    try{
-      if(customers.length === 1) return customers[0] || null;
-    }catch(_){ }
-    return null;
-  }catch(_){ return null; }
-}
-
 function dsResolveTargetsFromOpenCpEditor(row, customerPayload, petPayload){
   try{
     ensureStateShape();
@@ -10849,24 +10822,52 @@ function dsResolveTargetsFromOpenCpEditor(row, customerPayload, petPayload){
     const cNameEl = document.getElementById('c_name');
     const pNameEl = document.getElementById('p_name');
     const pChipEl = document.getElementById('p_chipNumber');
-    const cpCustomerId = norm((customerSelect && customerSelect.value) || '');
+    const cpCustomerIdRaw = String((customerSelect && customerSelect.value) || getCurrentCpCustomerId() || '').trim();
+    const cpCustomerId = norm(cpCustomerIdRaw);
     const cpCustomerName = String((cNameEl && cNameEl.value) || '').trim();
     const cpPetName = String((pNameEl && pNameEl.value) || '').trim();
     const cpChipRaw = String((pChipEl && pChipEl.value) || '').trim();
     const cpChip = norm(cpChipRaw);
-    out.customerId = cpCustomerId || '';
+    out.customerId = cpCustomerIdRaw || '';
     out.petName = cpPetName || '';
     out.chip = cpChipRaw || '';
-    const targetCid = norm((row && (row.__targetCustomerId || row.customerId)) || (customerPayload && (customerPayload.id || customerPayload.customerId)) || '');
+    const targetCidRaw = String((row && (row.__targetCustomerId || row.customerId)) || (customerPayload && (customerPayload.id || customerPayload.customerId)) || '').trim();
+    const targetCid = norm(targetCidRaw);
     const payloadName = String((petPayload && petPayload.name) || (row && row.petName) || '').trim();
     const payloadChip = norm((petPayload && petPayload.chipNumber) || (row && row.chipNumber) || '');
-    const activePetId = norm((cpEdit && cpEdit.petId) || '');
-    if(activePetId){
-      try{ out.pet = (typeof getPet === 'function' ? getPet(activePetId) : null) || null; }catch(_){ out.pet = null; }
-      try{ if(!out.pet && typeof getPetByDogId === 'function') out.pet = getPetByDogId(activePetId) || null; }catch(_){ }
-      try{ if(!out.pet){ out.pet = pets.find(function(x){ return norm((x && (x.id || x.petId || x.dogId || '')) || '') === activePetId; }) || null; } }catch(_){ }
-      if(out.pet){ out.petId = String(out.pet.id || out.pet.petId || activePetId); out.resolvedBy = 'cpEdit'; }
-    }
+    const activePetIdRaw = String((cpEdit && cpEdit.petId) || '').trim();
+    const activePetId = norm(activePetIdRaw);
+
+    const resolvePetFromAnyId = function(rawId){
+      const id = String(rawId || '').trim();
+      if(!id) return null;
+      let pet = null;
+      try{ if(typeof getPet === 'function') pet = getPet(id) || null; }catch(_){ pet = null; }
+      try{ if(!pet && typeof getPetByDogId === 'function') pet = getPetByDogId(id) || null; }catch(_){ }
+      try{
+        if(!pet){
+          const pid = norm(id);
+          pet = pets.find(function(x){
+            return norm((x && (x.id || x.petId || x.dogId || x.legacyDogId || '')) || '') === pid;
+          }) || null;
+        }
+      }catch(_){ }
+      return pet || null;
+    };
+    const resolveCustomerFromAnyId = function(rawId){
+      const id = String(rawId || '').trim();
+      if(!id) return null;
+      let customer = null;
+      try{ if(typeof getCustomer === 'function') customer = getCustomer(id) || null; }catch(_){ customer = null; }
+      try{ if(!customer && typeof getCustomerByDogId === 'function') customer = getCustomerByDogId(id) || null; }catch(_){ }
+      try{
+        if(!customer){
+          const cid = norm(id);
+          customer = customers.find(function(x){ return norm((x && (x.id || x.customerId || '')) || '') === cid; }) || null;
+        }
+      }catch(_){ }
+      return customer || null;
+    };
     const pickFromHits = function(list, why){
       if(!list || !list.length) return false;
       let hits = list.slice();
@@ -10875,45 +10876,45 @@ function dsResolveTargetsFromOpenCpEditor(row, customerPayload, petPayload){
       if(cpPetName){ const nameHits = hits.filter(function(x){ return lower((x && x.name) || '') === lower(cpPetName); }); if(nameHits.length) hits = nameHits; }
       else if(payloadName){ const nameHits = hits.filter(function(x){ return lower((x && x.name) || '') === lower(payloadName); }); if(nameHits.length) hits = nameHits; }
       if(hits.length === 1){ out.pet = hits[0] || null; out.petId = String((out.pet && (out.pet.id || out.pet.petId)) || ''); out.resolvedBy = why || 'hits'; return true; }
-      if(!out.pet && hits.length > 1 && typeof dsChooseBestPetForReview === 'function'){ try{ const best = dsChooseBestPetForReview(hits); if(best){ out.pet = best; out.petId = String(best.id || best.petId || ''); out.resolvedBy = why || 'best'; return true; } }catch(_){ } }
+      if(!out.pet && hits.length > 1 && typeof dsChooseBestPetForReview === 'function'){
+        try{ const best = dsChooseBestPetForReview(hits); if(best){ out.pet = best; out.petId = String(best.id || best.petId || ''); out.resolvedBy = why || 'best'; return true; } }catch(_){ }
+      }
       return false;
     };
-    if(!out.pet && cpCustomerId){
-      pickFromHits(pets.filter(function(x){ return norm((x && (x.customerId || x.ownerId)) || '') === cpCustomerId; }), 'customerSelect');
+
+    if(activePetId){
+      out.pet = resolvePetFromAnyId(activePetIdRaw);
+      if(out.pet){
+        out.petId = String(out.pet.id || out.pet.petId || '');
+        out.resolvedBy = 'cpEdit';
+      }
     }
-    if(!out.pet && targetCid){
-      pickFromHits(pets.filter(function(x){ return norm((x && (x.customerId || x.ownerId)) || '') === targetCid; }), 'targetCustomer');
-    }
-    if(!out.pet && cpChip){
-      pickFromHits(pets.filter(function(x){ return norm((x && x.chipNumber) || '') === cpChip; }), 'chip');
-    }
-    if(!out.pet && payloadChip){
-      pickFromHits(pets.filter(function(x){ return norm((x && x.chipNumber) || '') === payloadChip; }), 'payloadChip');
-    }
-    if(!out.pet && cpPetName){
-      pickFromHits(pets.filter(function(x){ return lower((x && x.name) || '') === lower(cpPetName); }), 'name');
-    }
-    if(!out.pet && payloadName){
-      pickFromHits(pets.filter(function(x){ return lower((x && x.name) || '') === lower(payloadName); }), 'payloadName');
-    }
-    if(!out.customer && cpCustomerId){
-      try{ out.customer = (typeof getCustomer === 'function' ? getCustomer(cpCustomerId) : null) || null; }catch(_){ out.customer = null; }
-    }
-    if(!out.customer && out.pet){
-      try{ out.customer = (typeof getCustomer === 'function' ? getCustomer(out.pet.customerId || out.pet.ownerId || '') : null) || null; }catch(_){ out.customer = null; }
-      try{ if(!out.customer && typeof getCustomerByDogId === 'function'){ out.customer = getCustomerByDogId(String(out.pet.dogId || activePetId || '')) || null; } }catch(_){ }
-      try{ if(!out.customer && targetCid && typeof getCustomer === 'function'){ out.customer = getCustomer(targetCid) || null; } }catch(_){ }
-      try{ if(!out.customer){
-        const hit = customers.find(function(c){ return norm((c && (c.id || c.customerId || '')) || '') === norm((out.pet && (out.pet.customerId || out.pet.ownerId || '')) || targetCid || ''); }) || null;
-        if(hit) out.customer = hit;
-      } }catch(_){ }
-    }
+    if(!out.pet && cpCustomerId){ pickFromHits(pets.filter(function(x){ return norm((x && (x.customerId || x.ownerId)) || '') === cpCustomerId; }), 'customerSelect'); }
+    if(!out.pet && targetCid){ pickFromHits(pets.filter(function(x){ return norm((x && (x.customerId || x.ownerId)) || '') === targetCid; }), 'targetCustomer'); }
+    if(!out.pet && cpChip){ pickFromHits(pets.filter(function(x){ return norm((x && x.chipNumber) || '') === cpChip; }), 'chip'); }
+    if(!out.pet && payloadChip){ pickFromHits(pets.filter(function(x){ return norm((x && x.chipNumber) || '') === payloadChip; }), 'payloadChip'); }
+    if(!out.pet && cpPetName){ pickFromHits(pets.filter(function(x){ return lower((x && x.name) || '') === lower(cpPetName); }), 'name'); }
+    if(!out.pet && payloadName){ pickFromHits(pets.filter(function(x){ return lower((x && x.name) || '') === lower(payloadName); }), 'payloadName'); }
+
+    if(!out.customer && cpCustomerId){ out.customer = resolveCustomerFromAnyId(cpCustomerIdRaw); }
+    if(!out.customer && activePetIdRaw){ out.customer = resolveCustomerFromAnyId(activePetIdRaw); }
+    if(!out.customer && out.pet){ out.customer = resolveCustomerFromAnyId(String((out.pet.customerId || out.pet.ownerId || ''))); }
+    if(!out.customer && targetCid){ out.customer = resolveCustomerFromAnyId(targetCidRaw); }
     if(!out.customer && cpCustomerName){
       const hits = customers.filter(function(x){ return lower((x && x.name) || '') === lower(cpCustomerName); });
       if(hits.length === 1) out.customer = hits[0] || null;
     }
-    out.customerId = String((out.customer && (out.customer.id || out.customer.customerId)) || cpCustomerId || targetCid || '');
+    if(!out.customer && customers.length === 1){ out.customer = customers[0] || null; }
+
+    if(!out.pet && out.customer){
+      const ownerCid = norm(String(out.customer.id || out.customer.customerId || ''));
+      if(ownerCid) pickFromHits(pets.filter(function(x){ return norm((x && (x.customerId || x.ownerId)) || '') === ownerCid; }), 'customerResolved');
+    }
+
+    if(out.customer && !out.customerId) out.customerId = String(out.customer.id || out.customer.customerId || '');
+    if(!out.customerId) out.customerId = cpCustomerIdRaw || targetCidRaw || '';
     if(!out.petId && out.pet) out.petId = String(out.pet.id || out.pet.petId || '');
+    if(out.pet && !out.resolvedBy) out.resolvedBy = 'resolved';
     return out;
   }catch(_){ return { pet:null, customer:null, petId:'', customerId:'', petName:'', chip:'', resolvedBy:'0' }; }
 }
@@ -10923,47 +10924,32 @@ function dsTryAdoptOpenProposalReviewEditor(row, customerPayload, petPayload, op
   try{
     const editorOpen = dsIsCpEditorActuallyOpen() || !!(window.cpEdit && cpEdit.mode === 'edit');
     if(!editorOpen) return false;
-    ensureStateShape();
-    const activePetId = norm((cpEdit && cpEdit.petId) || '');
-    const targetCid = norm((row && (row.__targetCustomerId || row.customerId)) || (customerPayload && (customerPayload.id || customerPayload.customerId)) || '');
-    let cpPet = null, cpCustomer = null, cpCustomerForced = null;
-    if(activePetId){
-      try{ cpPet = (typeof getPet === 'function' ? getPet(activePetId) : null) || null; }catch(_){ cpPet = null; }
-      try{ if(!cpPet && typeof getPetByDogId === 'function') cpPet = getPetByDogId(activePetId) || null; }catch(_){ }
-      try{ if(!cpPet){ const pets = asArray(state && (((state.pets||[]).length ? state.pets : state.dogs) || [])); cpPet = pets.find(function(x){ return norm((x && (x.id || x.petId || x.dogId || '')) || '') === activePetId; }) || null; } }catch(_){ }
-      try{ if(cpPet && typeof getCustomer === 'function') cpCustomer = getCustomer(cpPet.customerId || cpPet.ownerId || cpPet.customer || cpPet.customerID || '') || null; }catch(_){ cpCustomer = null; }
-      try{ if(!cpCustomer && typeof getCustomerByDogId === 'function') cpCustomer = getCustomerByDogId(activePetId) || null; }catch(_){ }
-      try{ if(!cpCustomer && targetCid && typeof getCustomer === 'function') cpCustomer = getCustomer(targetCid) || null; }catch(_){ }
-      try{ if(!cpCustomer) cpCustomerForced = dsResolveCustomerForcedFromPet(cpPet, row, customerPayload || {}); }catch(_){ cpCustomerForced = null; }
-      if(!cpCustomer && cpCustomerForced) cpCustomer = cpCustomerForced;
-    }
-    try{ if(row && typeof row === 'object'){
-      row.__openDiagCpOpenAdopted = editorOpen ? '1' : '0';
-      row.__openDiagCpPet = String((cpPet && (cpPet.id || cpPet.petId)) || activePetId || '--');
-      row.__openDiagCpCustomer = String((cpCustomer && (cpCustomer.id || cpCustomer.customerId)) || targetCid || '--');
-      row.__openDiagCpName = String(((document.getElementById('p_name')||{}).value) || '--');
-      row.__openDiagCpChip = String(((document.getElementById('p_chipNumber')||{}).value) || '--');
-      row.__openDiagResolvedByCpPet = cpPet ? '1' : '0';
-      row.__openDiagResolvedCustomerForced = cpCustomerForced ? '1' : '0';
-      row.__openDiagResolvedFromOpenEditor = cpPet && cpCustomer ? 'cpPet' : '0';
-      row.__openDiagFinalizedByCpPet = '0';
-    } }catch(_){ }
-    if(cpPet && cpCustomer){
-      try{ cpEdit.mode = 'edit'; cpEdit.petId = String(cpPet.id || cpPet.petId || activePetId || ''); }catch(_){ }
-      const ok = !!dsFinalizeProposalReviewEditor(row, cpCustomer, cpPet, String(cpPet.id || cpPet.petId || activePetId || ''), customerPayload || {}, petPayload || {}, opts);
-      try{ if(row && typeof row === 'object') row.__openDiagFinalizedByCpPet = ok ? '1':'0'; }catch(_){ }
-      try{ dsSetProposalOpenDiag('adopt-open cpOpenAdopted=1 cpPet=' + String((row && row.__openDiagCpPet) || '--') + ' cpCustomer=' + String((row && row.__openDiagCpCustomer) || '--') + ' cpName=' + String((row && row.__openDiagCpName) || '--') + ' cpChip=' + String((row && row.__openDiagCpChip) || '--') + ' resolvedByCpPet=' + String((row && row.__openDiagResolvedByCpPet) || '--') + ' resolvedCustomerForced=' + String((row && row.__openDiagResolvedCustomerForced) || '--') + ' finalizedByCpPet=' + String((row && row.__openDiagFinalizedByCpPet) || '--') + ' proposalApplied=' + String((row && row.__openDiagProposalApplied) || '--') + ' appliedToOpenEditor=' + String((row && row.__openDiagAppliedToOpenEditor) || '--') + ' diffFields=' + String((row && row.__openDiagDiffFields) || '--') + ' highlightCount=' + String((row && row.__openDiagHighlightCount) || '--') + ' resolvedFromOpenEditor=' + String((row && row.__openDiagResolvedFromOpenEditor) || '--'), false); }catch(_){ }
-      return ok;
-    }
     const resolved = dsResolveTargetsFromOpenCpEditor(row, customerPayload || {}, petPayload || {});
-    try{ if(row && typeof row === 'object'){ row.__openDiagCpOpenAdopted = editorOpen ? '1' : '0'; row.__openDiagCpPet = String((resolved && resolved.petId) || (cpEdit && cpEdit.petId) || '--'); row.__openDiagCpCustomer = String((resolved && resolved.customerId) || targetCid || '--'); row.__openDiagCpName = String((resolved && resolved.petName) || '--'); row.__openDiagCpChip = String((resolved && resolved.chip) || '--'); row.__openDiagResolvedFromOpenEditor = String((resolved && resolved.resolvedBy) || '0'); row.__openDiagResolvedByCpPet = String((row.__openDiagResolvedByCpPet) || '0'); row.__openDiagFinalizedByCpPet = String((row.__openDiagFinalizedByCpPet) || '0'); } }catch(_){ }
-    if(resolved && resolved.pet && resolved.customer){
-      try{ cpEdit.mode = 'edit'; cpEdit.petId = String(resolved.pet.id || resolved.pet.petId || cpEdit.petId || ''); }catch(_){ }
-      const ok = !!dsFinalizeProposalReviewEditor(row, resolved.customer, resolved.pet, String(resolved.pet.id || resolved.pet.petId || ''), customerPayload || {}, petPayload || {}, opts);
-      try{ dsSetProposalOpenDiag('adopt-open cpOpenAdopted=1 cpPet=' + String((row && row.__openDiagCpPet) || '--') + ' cpCustomer=' + String((row && row.__openDiagCpCustomer) || '--') + ' cpName=' + String((row && row.__openDiagCpName) || '--') + ' cpChip=' + String((row && row.__openDiagCpChip) || '--') + ' resolvedByCpPet=' + String((row && row.__openDiagResolvedByCpPet) || '--') + ' resolvedCustomerForced=' + String((row && row.__openDiagResolvedCustomerForced) || '--') + ' finalizedByCpPet=' + String((row && row.__openDiagFinalizedByCpPet) || '--') + ' proposalApplied=' + String((row && row.__openDiagProposalApplied) || '--') + ' appliedToOpenEditor=' + String((row && row.__openDiagAppliedToOpenEditor) || '--') + ' diffFields=' + String((row && row.__openDiagDiffFields) || '--') + ' highlightCount=' + String((row && row.__openDiagHighlightCount) || '--') + ' resolvedFromOpenEditor=' + String((row && row.__openDiagResolvedFromOpenEditor) || '--'), false); }catch(_){ }
-      return ok;
+    let finalPet = (resolved && resolved.pet) || null;
+    let finalCustomer = (resolved && resolved.customer) || null;
+    let finalPetId = String((resolved && resolved.petId) || (cpEdit && cpEdit.petId) || '').trim();
+    try{
+      if(!finalPet && finalPetId){
+        if(typeof getPet === 'function') finalPet = getPet(finalPetId) || null;
+        if(!finalPet && typeof getPetByDogId === 'function') finalPet = getPetByDogId(finalPetId) || null;
+      }
+    }catch(_){ }
+    try{
+      if(!finalCustomer){
+        const cid = String((resolved && resolved.customerId) || getCurrentCpCustomerId() || (row && (row.__targetCustomerId || row.customerId)) || (customerPayload && (customerPayload.id || customerPayload.customerId)) || '').trim();
+        if(cid && typeof getCustomer === 'function') finalCustomer = getCustomer(cid) || null;
+        if(!finalCustomer && finalPet && typeof getCustomer === 'function') finalCustomer = getCustomer(finalPet.customerId || finalPet.ownerId || '') || null;
+        if(!finalCustomer && finalPetId && typeof getCustomerByDogId === 'function') finalCustomer = getCustomerByDogId(finalPetId) || null;
+      }
+    }catch(_){ }
+    try{ if(row && typeof row === 'object'){ row.__openDiagCpOpenAdopted = editorOpen ? '1' : '0'; row.__openDiagCpPet = String((finalPet && (finalPet.id || finalPet.petId)) || finalPetId || '--'); row.__openDiagCpCustomer = String((finalCustomer && (finalCustomer.id || finalCustomer.customerId)) || (resolved && resolved.customerId) || '--'); row.__openDiagCpName = String((resolved && resolved.petName) || '--'); row.__openDiagCpChip = String((resolved && resolved.chip) || '--'); row.__openDiagResolvedFromOpenEditor = String((resolved && resolved.resolvedBy) || (finalPet ? 'cpPet' : '0')); } }catch(_){ }
+    if(finalPet && finalCustomer){
+      finalPetId = String(finalPet.id || finalPet.petId || finalPetId || '');
+      try{ cpEdit.mode = 'edit'; cpEdit.petId = finalPetId; }catch(_){ }
+      try{ dsSetProposalOpenDiag('adopt-open cpOpenAdopted=1 cpPet=' + String((row && row.__openDiagCpPet) || '--') + ' cpCustomer=' + String((row && row.__openDiagCpCustomer) || '--') + ' cpName=' + String((row && row.__openDiagCpName) || '--') + ' cpChip=' + String((row && row.__openDiagCpChip) || '--') + ' resolvedFromOpenEditor=' + String((row && row.__openDiagResolvedFromOpenEditor) || '--'), false); }catch(_){ }
+      return !!dsFinalizeProposalReviewEditor(row, finalCustomer, finalPet, finalPetId, customerPayload || {}, petPayload || {}, opts);
     }
-    try{ dsSetProposalOpenDiag('adopt-open unresolved cpOpenAdopted=1 cpPet=' + String((row && row.__openDiagCpPet) || '--') + ' cpCustomer=' + String((row && row.__openDiagCpCustomer) || '--') + ' cpName=' + String((row && row.__openDiagCpName) || '--') + ' cpChip=' + String((row && row.__openDiagCpChip) || '--') + ' resolvedByCpPet=' + String((row && row.__openDiagResolvedByCpPet) || '--') + ' resolvedCustomerForced=' + String((row && row.__openDiagResolvedCustomerForced) || '--') + ' finalizedByCpPet=' + String((row && row.__openDiagFinalizedByCpPet) || '--') + ' proposalApplied=' + String((row && row.__openDiagProposalApplied) || '--') + ' appliedToOpenEditor=' + String((row && row.__openDiagAppliedToOpenEditor) || '--') + ' diffFields=' + String((row && row.__openDiagDiffFields) || '--') + ' highlightCount=' + String((row && row.__openDiagHighlightCount) || '--') + ' resolvedFromOpenEditor=' + String((row && row.__openDiagResolvedFromOpenEditor) || '--'), true); }catch(_){ }
+    try{ dsSetProposalOpenDiag('adopt-open unresolved cpOpenAdopted=1 cpPet=' + String((row && row.__openDiagCpPet) || '--') + ' cpCustomer=' + String((row && row.__openDiagCpCustomer) || '--') + ' cpName=' + String((row && row.__openDiagCpName) || '--') + ' cpChip=' + String((row && row.__openDiagCpChip) || '--') + ' resolvedFromOpenEditor=' + String((row && row.__openDiagResolvedFromOpenEditor) || '--'), true); }catch(_){ }
     return true;
   }catch(_){ return false; }
 }
@@ -10985,12 +10971,9 @@ function dsFinalizeProposalReviewEditor(row, baseCustomer, basePet, basePetId, c
     }catch(_){ }
     try{ dsResetInboxDetailView(); }catch(_){ }
     try{
-      const alreadyOpen = !!(document.getElementById('cpEditor') && (document.getElementById('cpEditor').style.display !== 'none') && window.cpEdit && cpEdit.mode === 'edit' && String(cpEdit.petId || '') === String(basePetId || ''));
-      if(!alreadyOpen){
-        const openBtn = document.querySelector('[data-pet-edit-id="' + String(basePetId || '').replace(/"/g,'\"') + '"]');
-        if(openBtn && typeof openBtn.click === 'function') openBtn.click();
-        else openCpEditor('edit', basePetId);
-      }
+      const openBtn = document.querySelector('[data-pet-edit-id="' + String(basePetId || '').replace(/"/g,'\"') + '"]');
+      if(openBtn && typeof openBtn.click === 'function') openBtn.click();
+      else openCpEditor('edit', basePetId);
     }catch(_){ try{ openCpEditor('edit', basePetId); }catch(__){} }
     try{ cpEdit.mode = 'edit'; cpEdit.petId = basePetId; }catch(_){ }
     try{ window.__dsProposalReviewOpening = false; }catch(_){ }
@@ -11010,7 +10993,6 @@ function dsFinalizeProposalReviewEditor(row, baseCustomer, basePet, basePetId, c
     try{ dsApplyProposalReviewBanner(row); }catch(_){ }
 
     const maps = dsReviewFieldMap();
-    let __dsProposalAppliedCount = 0;
     Object.entries(maps.customer).forEach(([inputId,key])=>{
       const current = dsNormalizeReviewValue(baseCustomer ? baseCustomer[key] : '', inputId);
       const proposedRaw = customerPayload[key];
@@ -11018,7 +11000,6 @@ function dsFinalizeProposalReviewEditor(row, baseCustomer, basePet, basePetId, c
       if(proposed !== '' && proposed !== current){
         dsSetFieldValue(inputId, proposedRaw);
         dsMarkChangedField(inputId, current, proposed);
-        __dsProposalAppliedCount += 1;
       }
     });
     Object.entries(maps.pet).forEach(([inputId,key])=>{
@@ -11028,10 +11009,8 @@ function dsFinalizeProposalReviewEditor(row, baseCustomer, basePet, basePetId, c
       if(proposed !== '' && proposed !== current){
         dsSetFieldValue(inputId, proposedRaw);
         dsMarkChangedField(inputId, current, proposed);
-        __dsProposalAppliedCount += 1;
       }
     });
-    try{ if(row && typeof row === 'object'){ row.__openDiagProposalApplied = __dsProposalAppliedCount > 0 ? '1':'0'; row.__openDiagAppliedToOpenEditor = __dsProposalAppliedCount > 0 ? '1':'0'; row.__openDiagDiffFields = String(__dsProposalAppliedCount || 0); row.__openDiagHighlightCount = String((document.querySelectorAll && document.querySelectorAll('.ds-review-changed').length) || 0); } }catch(_){ }
 
     try{ if(typeof cpUpdateDirty === 'function') cpUpdateDirty(); }catch(_){ }
     try{ dsEnsureProposalReviewMainEditorVisible(); }catch(_){ }
@@ -11079,7 +11058,7 @@ function dsScheduleProposalReviewUiOpen(row, customerPayload, petPayload, opts){
         try{ if(dsTryAdoptOpenProposalReviewEditor(row, customerPayload || {}, petPayload || {}, opts)) return; }catch(_){ }
         let uiPetId = '';
         try{ uiPetId = dsGetDirectProposalReviewPetId(row); }catch(_){ uiPetId = ''; }
-        try{ dsSetProposalOpenDiag('schedule try=' + tries + ' uiPetId=' + (uiPetId||'--') + ' cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0') + ' rows=' + String((row && row.__openDiagRowCount) || '--') + ' btns=' + String((row && row.__openDiagBtnCount) || '--') + ' raw=' + String((row && row.__openDiagRaw) || '--') + ' roots=' + String((row && row.__openDiagRootCount) || '--') + ' gbtn=' + String((row && row.__openDiagGlobalBtnCount) || '--') + ' grex=' + String((row && row.__openDiagGlobalRexCount) || '--') + ' gmax=' + String((row && row.__openDiagGlobalCustomerCount) || '--') + ' seenMax=' + String((row && row.__openDiagSeenMax) || '--') + ' seenRex=' + String((row && row.__openDiagSeenRex) || '--') + ' seenEdit=' + String((row && row.__openDiagSeenEdit) || '--') + ' observer=' + String((row && row.__openDiagObserverHit) || '--') + ' after=' + String((row && row.__openDiagAfterRender) || '--') + ' editVisible=' + String((row && row.__openDiagEditVisible) || '--') + ' pickedVisible=' + String((row && row.__openDiagPickedVisible) || '--') + ' pickedBy=' + String((row && row.__openDiagPickedBy) || '--') + ' pickedRect=' + String((row && row.__openDiagPickedRect) || '--') + ' clicked=' + String((row && row.__openDiagClicked) || '--') + ' atPointTag=' + String((row && row.__openDiagAtPointTag) || '--') + ' atPointText=' + String((row && row.__openDiagAtPointText) || '--') + ' atPointBtn=' + String((row && row.__openDiagAtPointBtn) || '--') + ' nativeClick=' + String((row && row.__openDiagNativeClick) || '--') + ' directBtn=' + String((row && row.__openDiagDirectBtn) || '--') + ' directClick=' + String((row && row.__openDiagDirectClick) || '--') + ' directOnclick=' + String((row && row.__openDiagDirectOnclick) || '--') + ' vvLeft=' + String((row && row.__openDiagVvLeft) || '--') + ' vvTop=' + String((row && row.__openDiagVvTop) || '--') + ' pointRetry=' + String((row && row.__openDiagPointRetry) || '--') + ' directBtnRef=' + String((row && row.__openDiagDirectBtnRef) || '--') + ' immediateClick=' + String((row && row.__openDiagImmediateClick) || '--') + ' immediateOnclick=' + String((row && row.__openDiagImmediateOnclick) || '--') + ' immediateDispatch=' + String((row && row.__openDiagImmediateDispatch) || '--') + ' cpOpenAdopted=' + String((row && row.__openDiagCpOpenAdopted) || '--') + ' cpPet=' + String((row && row.__openDiagCpPet) || '--') + ' cpCustomer=' + String((row && row.__openDiagCpCustomer) || '--') + ' cpName=' + String((row && row.__openDiagCpName) || '--') + ' cpChip=' + String((row && row.__openDiagCpChip) || '--') + ' resolvedFromOpenEditor=' + String((row && row.__openDiagResolvedFromOpenEditor) || '--') + ' resolvedByCpPet=' + String((row && row.__openDiagResolvedByCpPet) || '--') + ' finalizedByCpPet=' + String((row && row.__openDiagFinalizedByCpPet) || '--') + ' proposalApplied=' + String((row && row.__openDiagProposalApplied) || '--') + ' highlightCount=' + String((row && row.__openDiagHighlightCount) || '--') + ' rowPet=' + String((row && row.__openDiagRowPetId) || '--') + ' btnPet=' + String((row && row.__openDiagBtnPetId) || '--'), false); }catch(_){ }
+        try{ dsSetProposalOpenDiag('schedule try=' + tries + ' uiPetId=' + (uiPetId||'--') + ' cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0') + ' rows=' + String((row && row.__openDiagRowCount) || '--') + ' btns=' + String((row && row.__openDiagBtnCount) || '--') + ' raw=' + String((row && row.__openDiagRaw) || '--') + ' roots=' + String((row && row.__openDiagRootCount) || '--') + ' gbtn=' + String((row && row.__openDiagGlobalBtnCount) || '--') + ' grex=' + String((row && row.__openDiagGlobalRexCount) || '--') + ' gmax=' + String((row && row.__openDiagGlobalCustomerCount) || '--') + ' seenMax=' + String((row && row.__openDiagSeenMax) || '--') + ' seenRex=' + String((row && row.__openDiagSeenRex) || '--') + ' seenEdit=' + String((row && row.__openDiagSeenEdit) || '--') + ' observer=' + String((row && row.__openDiagObserverHit) || '--') + ' after=' + String((row && row.__openDiagAfterRender) || '--') + ' editVisible=' + String((row && row.__openDiagEditVisible) || '--') + ' pickedVisible=' + String((row && row.__openDiagPickedVisible) || '--') + ' pickedBy=' + String((row && row.__openDiagPickedBy) || '--') + ' pickedRect=' + String((row && row.__openDiagPickedRect) || '--') + ' clicked=' + String((row && row.__openDiagClicked) || '--') + ' atPointTag=' + String((row && row.__openDiagAtPointTag) || '--') + ' atPointText=' + String((row && row.__openDiagAtPointText) || '--') + ' atPointBtn=' + String((row && row.__openDiagAtPointBtn) || '--') + ' nativeClick=' + String((row && row.__openDiagNativeClick) || '--') + ' directBtn=' + String((row && row.__openDiagDirectBtn) || '--') + ' directClick=' + String((row && row.__openDiagDirectClick) || '--') + ' directOnclick=' + String((row && row.__openDiagDirectOnclick) || '--') + ' vvLeft=' + String((row && row.__openDiagVvLeft) || '--') + ' vvTop=' + String((row && row.__openDiagVvTop) || '--') + ' pointRetry=' + String((row && row.__openDiagPointRetry) || '--') + ' directBtnRef=' + String((row && row.__openDiagDirectBtnRef) || '--') + ' immediateClick=' + String((row && row.__openDiagImmediateClick) || '--') + ' immediateOnclick=' + String((row && row.__openDiagImmediateOnclick) || '--') + ' immediateDispatch=' + String((row && row.__openDiagImmediateDispatch) || '--') + ' cpOpenAdopted=' + String((row && row.__openDiagCpOpenAdopted) || '--') + ' cpPet=' + String((row && row.__openDiagCpPet) || '--') + ' cpCustomer=' + String((row && row.__openDiagCpCustomer) || '--') + ' cpName=' + String((row && row.__openDiagCpName) || '--') + ' cpChip=' + String((row && row.__openDiagCpChip) || '--') + ' resolvedFromOpenEditor=' + String((row && row.__openDiagResolvedFromOpenEditor) || '--') + ' rowPet=' + String((row && row.__openDiagRowPetId) || '--') + ' btnPet=' + String((row && row.__openDiagBtnPetId) || '--'), false); }catch(_){ }
         if(uiPetId){
           try{ if(typeof openCpEditor === 'function') openCpEditor('edit', uiPetId); }catch(_){ }
           try{
@@ -11118,7 +11097,7 @@ function dsScheduleProposalReviewUiOpen(row, customerPayload, petPayload, opts){
         if(tries < maxTries) setTimeout(tick, 220);
         else {
           try{ if(dsTryAdoptOpenProposalReviewEditor(row, customerPayload || {}, petPayload || {}, opts)) return; }catch(_){ }
-          try{ dsSetProposalOpenDiag('fail-no-ui petId=' + (uiPetId||'--') + ' tries=' + tries + ' cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0') + ' rows=' + String((row && row.__openDiagRowCount) || '--') + ' btns=' + String((row && row.__openDiagBtnCount) || '--') + ' raw=' + String((row && row.__openDiagRaw) || '--') + ' roots=' + String((row && row.__openDiagRootCount) || '--') + ' gbtn=' + String((row && row.__openDiagGlobalBtnCount) || '--') + ' grex=' + String((row && row.__openDiagGlobalRexCount) || '--') + ' gmax=' + String((row && row.__openDiagGlobalCustomerCount) || '--') + ' seenMax=' + String((row && row.__openDiagSeenMax) || '--') + ' seenRex=' + String((row && row.__openDiagSeenRex) || '--') + ' seenEdit=' + String((row && row.__openDiagSeenEdit) || '--') + ' observer=' + String((row && row.__openDiagObserverHit) || '--') + ' after=' + String((row && row.__openDiagAfterRender) || '--') + ' editVisible=' + String((row && row.__openDiagEditVisible) || '--') + ' pickedVisible=' + String((row && row.__openDiagPickedVisible) || '--') + ' pickedBy=' + String((row && row.__openDiagPickedBy) || '--') + ' pickedRect=' + String((row && row.__openDiagPickedRect) || '--') + ' clicked=' + String((row && row.__openDiagClicked) || '--') + ' atPointTag=' + String((row && row.__openDiagAtPointTag) || '--') + ' atPointText=' + String((row && row.__openDiagAtPointText) || '--') + ' atPointBtn=' + String((row && row.__openDiagAtPointBtn) || '--') + ' nativeClick=' + String((row && row.__openDiagNativeClick) || '--') + ' directBtn=' + String((row && row.__openDiagDirectBtn) || '--') + ' directClick=' + String((row && row.__openDiagDirectClick) || '--') + ' directOnclick=' + String((row && row.__openDiagDirectOnclick) || '--') + ' vvLeft=' + String((row && row.__openDiagVvLeft) || '--') + ' vvTop=' + String((row && row.__openDiagVvTop) || '--') + ' pointRetry=' + String((row && row.__openDiagPointRetry) || '--') + ' directBtnRef=' + String((row && row.__openDiagDirectBtnRef) || '--') + ' immediateClick=' + String((row && row.__openDiagImmediateClick) || '--') + ' immediateOnclick=' + String((row && row.__openDiagImmediateOnclick) || '--') + ' immediateDispatch=' + String((row && row.__openDiagImmediateDispatch) || '--') + ' cpOpenAdopted=' + String((row && row.__openDiagCpOpenAdopted) || '--') + ' cpPet=' + String((row && row.__openDiagCpPet) || '--') + ' cpCustomer=' + String((row && row.__openDiagCpCustomer) || '--') + ' cpName=' + String((row && row.__openDiagCpName) || '--') + ' cpChip=' + String((row && row.__openDiagCpChip) || '--') + ' resolvedFromOpenEditor=' + String((row && row.__openDiagResolvedFromOpenEditor) || '--') + ' resolvedByCpPet=' + String((row && row.__openDiagResolvedByCpPet) || '--') + ' finalizedByCpPet=' + String((row && row.__openDiagFinalizedByCpPet) || '--') + ' proposalApplied=' + String((row && row.__openDiagProposalApplied) || '--') + ' highlightCount=' + String((row && row.__openDiagHighlightCount) || '--') + ' rowPet=' + String((row && row.__openDiagRowPetId) || '--') + ' btnPet=' + String((row && row.__openDiagBtnPetId) || '--'), true); }catch(_){ }
+          try{ dsSetProposalOpenDiag('fail-no-ui petId=' + (uiPetId||'--') + ' tries=' + tries + ' cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0') + ' rows=' + String((row && row.__openDiagRowCount) || '--') + ' btns=' + String((row && row.__openDiagBtnCount) || '--') + ' raw=' + String((row && row.__openDiagRaw) || '--') + ' roots=' + String((row && row.__openDiagRootCount) || '--') + ' gbtn=' + String((row && row.__openDiagGlobalBtnCount) || '--') + ' grex=' + String((row && row.__openDiagGlobalRexCount) || '--') + ' gmax=' + String((row && row.__openDiagGlobalCustomerCount) || '--') + ' seenMax=' + String((row && row.__openDiagSeenMax) || '--') + ' seenRex=' + String((row && row.__openDiagSeenRex) || '--') + ' seenEdit=' + String((row && row.__openDiagSeenEdit) || '--') + ' observer=' + String((row && row.__openDiagObserverHit) || '--') + ' after=' + String((row && row.__openDiagAfterRender) || '--') + ' editVisible=' + String((row && row.__openDiagEditVisible) || '--') + ' pickedVisible=' + String((row && row.__openDiagPickedVisible) || '--') + ' pickedBy=' + String((row && row.__openDiagPickedBy) || '--') + ' pickedRect=' + String((row && row.__openDiagPickedRect) || '--') + ' clicked=' + String((row && row.__openDiagClicked) || '--') + ' atPointTag=' + String((row && row.__openDiagAtPointTag) || '--') + ' atPointText=' + String((row && row.__openDiagAtPointText) || '--') + ' atPointBtn=' + String((row && row.__openDiagAtPointBtn) || '--') + ' nativeClick=' + String((row && row.__openDiagNativeClick) || '--') + ' directBtn=' + String((row && row.__openDiagDirectBtn) || '--') + ' directClick=' + String((row && row.__openDiagDirectClick) || '--') + ' directOnclick=' + String((row && row.__openDiagDirectOnclick) || '--') + ' vvLeft=' + String((row && row.__openDiagVvLeft) || '--') + ' vvTop=' + String((row && row.__openDiagVvTop) || '--') + ' pointRetry=' + String((row && row.__openDiagPointRetry) || '--') + ' directBtnRef=' + String((row && row.__openDiagDirectBtnRef) || '--') + ' immediateClick=' + String((row && row.__openDiagImmediateClick) || '--') + ' immediateOnclick=' + String((row && row.__openDiagImmediateOnclick) || '--') + ' immediateDispatch=' + String((row && row.__openDiagImmediateDispatch) || '--') + ' cpOpenAdopted=' + String((row && row.__openDiagCpOpenAdopted) || '--') + ' cpPet=' + String((row && row.__openDiagCpPet) || '--') + ' cpCustomer=' + String((row && row.__openDiagCpCustomer) || '--') + ' cpName=' + String((row && row.__openDiagCpName) || '--') + ' cpChip=' + String((row && row.__openDiagCpChip) || '--') + ' resolvedFromOpenEditor=' + String((row && row.__openDiagResolvedFromOpenEditor) || '--') + ' rowPet=' + String((row && row.__openDiagRowPetId) || '--') + ' btnPet=' + String((row && row.__openDiagBtnPetId) || '--'), true); }catch(_){ }
           try{ cpSetStatus('Bestehender Kunde/Hund für Vorschlag nicht gefunden.', true); }catch(_){ }
           if(!opts.silent){ try{ alert('Bestehender Kunde/Hund für Vorschlag nicht eindeutig gefunden. Es wurde nichts geöffnet.'); }catch(_){ } }
         }
@@ -20062,7 +20041,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB104_EINGAENGE_FORCE_CUSTOMER_APPLY_20260401) ===== */
+/* ===== CHAT (M50.9.9GB105_EINGAENGE_OPEN_DOM_RESOLVE_20260401) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -21642,7 +21621,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB104_EINGAENGE_FORCE_CUSTOMER_APPLY_20260401";
+  const BUILD = "M50.9.9GB105_EINGAENGE_OPEN_DOM_RESOLVE_20260401";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
