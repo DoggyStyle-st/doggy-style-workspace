@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB108_EINGAENGE_SAVE_TRACE_TIMEOUT_20260401",
+  tag: "M50.9.9GB109_EINGAENGE_SAVE_NORMFIX_20260401",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB108_EINGAENGE_SAVE_TRACE_TIMEOUT_20260401";
+const APP_BUILD = "M50.9.9GB109_EINGAENGE_SAVE_NORMFIX_20260401";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -9928,6 +9928,7 @@ function dsEnrichProposalReviewRow(sourceRow){
   }catch(_){ return sourceRow || {}; }
 }
 async function dsSaveProposalReview(){
+  const norm = function(v){ return String(v == null ? '' : v).trim(); };
   const row = __dsProposalReview && __dsProposalReview.row;
   if(!row){
     try{ dsSetProposalOpenDiag('save-start-missing-row active=' + ((__dsProposalReview && __dsProposalReview.active) ? '1':'0') + ' basePet=' + String((__dsProposalReview && __dsProposalReview.basePetId) || '--') + ' cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0'), true); }catch(_){ }
@@ -20238,7 +20239,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB108_EINGAENGE_SAVE_TRACE_TIMEOUT_20260401) ===== */
+/* ===== CHAT (M50.9.9GB109_EINGAENGE_SAVE_NORMFIX_20260401) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -21818,7 +21819,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB108_EINGAENGE_SAVE_TRACE_TIMEOUT_20260401";
+  const BUILD = "M50.9.9GB109_EINGAENGE_SAVE_NORMFIX_20260401";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
