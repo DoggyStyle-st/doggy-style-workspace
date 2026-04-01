@@ -9363,6 +9363,12 @@ function dsProposalExactAcceptedStore(){
     return data && typeof data === 'object' ? data : {};
   }catch(_){ return {}; }
 }
+function dsAcceptNorm(v){
+  try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; }
+}
+function dsAcceptLower(v){
+  try{ return dsAcceptNorm(v).toLowerCase(); }catch(_){ return ''; }
+}
 function dsProposalDirectAcceptedStore(){
   try{
     const raw = localStorage.getItem('ds_proposal_direct_accepted_v1');
@@ -9375,7 +9381,7 @@ function dsProposalExactAcceptedIds(row){
     const ids = [];
     const add = function(v){
       try{
-        const key = lower(String(v == null ? '' : v).trim());
+        const key = dsAcceptLower(String(v == null ? '' : v).trim());
         if(key) ids.push(key);
       }catch(_){ }
     };
@@ -9436,7 +9442,7 @@ function dsProposalAcceptedKeys(row){
     const keys = [];
     const add = function(v){
       try{
-        const key = lower(String(v == null ? '' : v).trim());
+        const key = dsAcceptLower(String(v == null ? '' : v).trim());
         if(key) keys.push(key);
       }catch(_){ }
     };
@@ -9463,9 +9469,9 @@ function dsProposalAcceptedKeys(row){
     add((payload.customer && (payload.customer.id || payload.customer.customerId || payload.customer.email || payload.customer.name)) || '');
     add((payload.pet && (payload.pet.id || payload.pet.petId || payload.pet.chipNumber || payload.pet.name)) || '');
     add([
-      norm((row && (row.customerId || row.customerEmail || row.customerName)) || (payload.customer && (payload.customer.id || payload.customer.customerId || payload.customer.email || payload.customer.name)) || ''),
-      norm((row && (row.petId || row.petName)) || (payload.pet && (payload.pet.id || payload.pet.petId || payload.pet.chipNumber || payload.pet.name)) || ''),
-      norm((row && (row.submittedAt || row.createdAt)) || (payload && payload.submittedAt) || '')
+      dsAcceptNorm((row && (row.customerId || row.customerEmail || row.customerName)) || (payload.customer && (payload.customer.id || payload.customer.customerId || payload.customer.email || payload.customer.name)) || ''),
+      dsAcceptNorm((row && (row.petId || row.petName)) || (payload.pet && (payload.pet.id || payload.pet.petId || payload.pet.chipNumber || payload.pet.name)) || ''),
+      dsAcceptNorm((row && (row.submittedAt || row.createdAt)) || (payload && payload.submittedAt) || '')
     ].join('|'));
     return Array.from(new Set(keys));
   }catch(_){ return []; }
@@ -9491,12 +9497,12 @@ function dsIsProposalAcceptedPersistent(row){
 function dsInboxHandledKey(row){
   try{
         const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
-    return lower(
-      norm(row && (row.__rowId || row.id || row.taskId || row.proposalId || row.submissionId))
+    return dsAcceptLower(
+      dsAcceptNorm(row && (row.__rowId || row.id || row.taskId || row.proposalId || row.submissionId))
       || [
-        norm((row && (row.customerId || row.customerEmail || row.customerName)) || (payload.customer && (payload.customer.customerId || payload.customer.email || payload.customer.name)) || ''),
-        norm((row && (row.petId || row.petName)) || (payload.pet && (payload.pet.id || payload.pet.petId || payload.pet.chipNumber || payload.pet.name)) || ''),
-        norm(row && (row.submittedAt || row.createdAt || payload.submittedAt || ''))
+        dsAcceptNorm((row && (row.customerId || row.customerEmail || row.customerName)) || (payload.customer && (payload.customer.customerId || payload.customer.email || payload.customer.name)) || ''),
+        dsAcceptNorm((row && (row.petId || row.petName)) || (payload.pet && (payload.pet.id || payload.pet.petId || payload.pet.chipNumber || payload.pet.name)) || ''),
+        dsAcceptNorm(row && (row.submittedAt || row.createdAt || payload.submittedAt || ''))
       ].join('|')
     );
   }catch(_){ return ''; }
@@ -9507,7 +9513,7 @@ function dsMarkInboxRowHandled(row, status){
     const val = String(status || 'handled');
     const add = function(v){
       try{
-        const key = lower(String(v == null ? '' : v).trim());
+        const key = dsAcceptLower(String(v == null ? '' : v).trim());
         if(key) data[key] = val;
       }catch(_){ }
     };
@@ -9525,9 +9531,9 @@ function dsMarkInboxRowHandled(row, status){
     add(row && row.petId);
     add(row && row.petName);
     add([
-      norm(row && (row.customerId || row.customerEmail || row.customerName) || ''),
-      norm(row && (row.petId || row.petName) || ''),
-      norm(row && (row.submittedAt || row.createdAt || '') || '')
+      dsAcceptNorm(row && (row.customerId || row.customerEmail || row.customerName) || ''),
+      dsAcceptNorm(row && (row.petId || row.petName) || ''),
+      dsAcceptNorm(row && (row.submittedAt || row.createdAt || '') || '')
     ].join('|'));
     try{
       const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
@@ -9539,9 +9545,9 @@ function dsMarkInboxRowHandled(row, status){
       add(payload && payload.customer && (payload.customer.id || payload.customer.customerId || payload.customer.email || payload.customer.name));
       add(payload && payload.pet && (payload.pet.id || payload.pet.petId || payload.pet.chipNumber || payload.pet.name));
       add([
-        norm((payload && payload.customer && (payload.customer.id || payload.customer.customerId || payload.customer.email || payload.customer.name)) || ''),
-        norm((payload && payload.pet && (payload.pet.id || payload.pet.petId || payload.pet.chipNumber || payload.pet.name)) || ''),
-        norm((row && (row.submittedAt || row.createdAt)) || (payload && payload.submittedAt) || '')
+        dsAcceptNorm((payload && payload.customer && (payload.customer.id || payload.customer.customerId || payload.customer.email || payload.customer.name)) || ''),
+        dsAcceptNorm((payload && payload.pet && (payload.pet.id || payload.pet.petId || payload.pet.chipNumber || payload.pet.name)) || ''),
+        dsAcceptNorm((row && (row.submittedAt || row.createdAt)) || (payload && payload.submittedAt) || '')
       ].join('|'));
     }catch(_){ }
     localStorage.setItem('ds_inbox_handled_v1', JSON.stringify(data));
@@ -9553,7 +9559,7 @@ function dsIsInboxRowHandled(row){
     const keys = [];
     const add = function(v){
       try{
-        const key = lower(String(v == null ? '' : v).trim());
+        const key = dsAcceptLower(String(v == null ? '' : v).trim());
         if(key) keys.push(key);
       }catch(_){ }
     };
@@ -9571,9 +9577,9 @@ function dsIsInboxRowHandled(row){
     add(row && row.petId);
     add(row && row.petName);
     add([
-      norm(row && (row.customerId || row.customerEmail || row.customerName) || ''),
-      norm(row && (row.petId || row.petName) || ''),
-      norm(row && (row.submittedAt || row.createdAt || '') || '')
+      dsAcceptNorm(row && (row.customerId || row.customerEmail || row.customerName) || ''),
+      dsAcceptNorm(row && (row.petId || row.petName) || ''),
+      dsAcceptNorm(row && (row.submittedAt || row.createdAt || '') || '')
     ].join('|'));
     try{
       const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
@@ -9585,9 +9591,9 @@ function dsIsInboxRowHandled(row){
       add(payload && payload.customer && (payload.customer.id || payload.customer.customerId || payload.customer.email || payload.customer.name));
       add(payload && payload.pet && (payload.pet.id || payload.pet.petId || payload.pet.chipNumber || payload.pet.name));
       add([
-        norm((payload && payload.customer && (payload.customer.id || payload.customer.customerId || payload.customer.email || payload.customer.name)) || ''),
-        norm((payload && payload.pet && (payload.pet.id || payload.pet.petId || payload.pet.chipNumber || payload.pet.name)) || ''),
-        norm((row && (row.submittedAt || row.createdAt)) || (payload && payload.submittedAt) || '')
+        dsAcceptNorm((payload && payload.customer && (payload.customer.id || payload.customer.customerId || payload.customer.email || payload.customer.name)) || ''),
+        dsAcceptNorm((payload && payload.pet && (payload.pet.id || payload.pet.petId || payload.pet.chipNumber || payload.pet.name)) || ''),
+        dsAcceptNorm((row && (row.submittedAt || row.createdAt)) || (payload && payload.submittedAt) || '')
       ].join('|'));
     }catch(_){ }
     return keys.some(function(k){ return !!data[k]; });
@@ -9930,7 +9936,7 @@ function dsEnsureCanonicalProposalTargets(row, customerPayload, petPayload, curr
     if(!pet || !customer){
       let hits = legacyDogs.slice();
       if(pname){
-        const nameHits = hits.filter(function(d){ return lower(d && d.name) === pname; });
+        const nameHits = hits.filter(function(d){ return dsAcceptLower(d && d.name) === pname; });
         if(nameHits.length) hits = nameHits;
       }
       if(pchip){
@@ -9938,11 +9944,11 @@ function dsEnsureCanonicalProposalTargets(row, customerPayload, petPayload, curr
         if(chipHits.length) hits = chipHits;
       }
       if(cname){
-        const ownerHits = hits.filter(function(d){ return lower((d && (d.owner || d.ownerName || d.customerName)) || '') === cname; });
+        const ownerHits = hits.filter(function(d){ return dsAcceptLower((d && (d.owner || d.ownerName || d.customerName)) || '') === cname; });
         if(ownerHits.length) hits = ownerHits;
       }
       if(cemail){
-        const emailHits = hits.filter(function(d){ return lower((d && (d.email || d.ownerEmail || d.customerEmail)) || '') === cemail; });
+        const emailHits = hits.filter(function(d){ return dsAcceptLower((d && (d.email || d.ownerEmail || d.customerEmail)) || '') === cemail; });
         if(emailHits.length) hits = emailHits;
       }
       if(cphone){
@@ -10742,9 +10748,9 @@ function dsFindVisiblePetRowForProposal(row){
         if(owned.length === 1) hits = owned;
       }
     }
-    if(targetCustomerName){ const x = hits.filter(function(c){ return lower(c.customerName||'') === targetCustomerName; }); if(x.length) hits = x; }
+    if(targetCustomerName){ const x = hits.filter(function(c){ return dsAcceptLower(c.customerName||'') === targetCustomerName; }); if(x.length) hits = x; }
     if(targetChip){ const x = hits.filter(function(c){ return norm(c.petChip||'') === targetChip; }); if(x.length) hits = x; }
-    if(targetPetName){ const x = hits.filter(function(c){ return lower(c.petName||'') === targetPetName; }); if(x.length) hits = x; }
+    if(targetPetName){ const x = hits.filter(function(c){ return dsAcceptLower(c.petName||'') === targetPetName; }); if(x.length) hits = x; }
     if(!targetPid && !targetPetName && !targetChip && targetCid){
       const owned = candidates.filter(function(c){ return norm(c.customerId||'') === targetCid; });
       if(owned.length === 1) hits = owned;
@@ -10959,7 +10965,7 @@ function dsResolveProposalFallbackBasePet(row, customerPayload, petPayload){
     let hits = pets.slice();
     if(targetCid) hits = hits.filter(function(x){ return norm((x && (x.customerId || x.ownerId)) || '') === targetCid; });
     if(targetChip){ const chipHits = hits.filter(function(x){ return norm((x && (x.chipNumber || x.chip || '')) || '') === targetChip; }); if(chipHits.length) hits = chipHits; }
-    if(targetPetName){ const nameHits = hits.filter(function(x){ return lower((x && x.name) || '') === targetPetName; }); if(nameHits.length) hits = nameHits; }
+    if(targetPetName){ const nameHits = hits.filter(function(x){ return dsAcceptLower((x && x.name) || '') === targetPetName; }); if(nameHits.length) hits = nameHits; }
     if(hits.length === 1) return hits[0] || null;
     return null;
   }catch(_){ return null; }
@@ -11159,7 +11165,7 @@ function dsFindVisiblePetEditIdForRow(row){
       }
     }
     if(targetCustomerName){
-      const nameHits = hits.filter(function(el){ return lower((el.dataset && el.dataset.customerName) || '') === targetCustomerName; });
+      const nameHits = hits.filter(function(el){ return dsAcceptLower((el.dataset && el.dataset.customerName) || '') === targetCustomerName; });
       if(nameHits.length) hits = nameHits;
     }
     if(targetChip){
@@ -11167,7 +11173,7 @@ function dsFindVisiblePetEditIdForRow(row){
       if(chipHits.length) hits = chipHits;
     }
     if(targetPetName){
-      const petNameHits = hits.filter(function(el){ return lower((el.dataset && el.dataset.petName) || '') === targetPetName; });
+      const petNameHits = hits.filter(function(el){ return dsAcceptLower((el.dataset && el.dataset.petName) || '') === targetPetName; });
       if(petNameHits.length) hits = petNameHits;
     }
     if(!targetPid && !targetPetName && !targetChip && targetCid){
@@ -11205,7 +11211,7 @@ function dsGetDirectProposalReviewPetId(row){
       if(chipHits.length) hits = chipHits;
     }
     if(targetPetName){
-      const nameHits = hits.filter(function(x){ return lower((x && x.name) || '') === targetPetName; });
+      const nameHits = hits.filter(function(x){ return dsAcceptLower((x && x.name) || '') === targetPetName; });
       if(nameHits.length) hits = nameHits;
     }
     if(hits.length === 1) return String((hits[0] && (hits[0].id || hits[0].petId)) || '').trim();
@@ -11281,8 +11287,8 @@ function dsResolveTargetsFromOpenCpEditor(row, customerPayload, petPayload){
       let hits = list.slice();
       if(cpChip){ const chipHits = hits.filter(function(x){ return norm((x && x.chipNumber) || '') === cpChip; }); if(chipHits.length) hits = chipHits; }
       else if(payloadChip){ const chipHits = hits.filter(function(x){ return norm((x && x.chipNumber) || '') === payloadChip; }); if(chipHits.length) hits = chipHits; }
-      if(cpPetName){ const nameHits = hits.filter(function(x){ return lower((x && x.name) || '') === lower(cpPetName); }); if(nameHits.length) hits = nameHits; }
-      else if(payloadName){ const nameHits = hits.filter(function(x){ return lower((x && x.name) || '') === lower(payloadName); }); if(nameHits.length) hits = nameHits; }
+      if(cpPetName){ const nameHits = hits.filter(function(x){ return dsAcceptLower((x && x.name) || '') === lower(cpPetName); }); if(nameHits.length) hits = nameHits; }
+      else if(payloadName){ const nameHits = hits.filter(function(x){ return dsAcceptLower((x && x.name) || '') === lower(payloadName); }); if(nameHits.length) hits = nameHits; }
       if(hits.length === 1){ out.pet = hits[0] || null; out.petId = String((out.pet && (out.pet.id || out.pet.petId)) || ''); out.resolvedBy = why || 'hits'; return true; }
       if(!out.pet && hits.length > 1 && typeof dsChooseBestPetForReview === 'function'){
         try{ const best = dsChooseBestPetForReview(hits); if(best){ out.pet = best; out.petId = String(best.id || best.petId || ''); out.resolvedBy = why || 'best'; return true; } }catch(_){ }
@@ -11301,15 +11307,15 @@ function dsResolveTargetsFromOpenCpEditor(row, customerPayload, petPayload){
     if(!out.pet && targetCid){ pickFromHits(pets.filter(function(x){ return norm((x && (x.customerId || x.ownerId)) || '') === targetCid; }), 'targetCustomer'); }
     if(!out.pet && cpChip){ pickFromHits(pets.filter(function(x){ return norm((x && x.chipNumber) || '') === cpChip; }), 'chip'); }
     if(!out.pet && payloadChip){ pickFromHits(pets.filter(function(x){ return norm((x && x.chipNumber) || '') === payloadChip; }), 'payloadChip'); }
-    if(!out.pet && cpPetName){ pickFromHits(pets.filter(function(x){ return lower((x && x.name) || '') === lower(cpPetName); }), 'name'); }
-    if(!out.pet && payloadName){ pickFromHits(pets.filter(function(x){ return lower((x && x.name) || '') === lower(payloadName); }), 'payloadName'); }
+    if(!out.pet && cpPetName){ pickFromHits(pets.filter(function(x){ return dsAcceptLower((x && x.name) || '') === lower(cpPetName); }), 'name'); }
+    if(!out.pet && payloadName){ pickFromHits(pets.filter(function(x){ return dsAcceptLower((x && x.name) || '') === lower(payloadName); }), 'payloadName'); }
 
     if(!out.customer && cpCustomerId){ out.customer = resolveCustomerFromAnyId(cpCustomerIdRaw); }
     if(!out.customer && activePetIdRaw){ out.customer = resolveCustomerFromAnyId(activePetIdRaw); }
     if(!out.customer && out.pet){ out.customer = resolveCustomerFromAnyId(String((out.pet.customerId || out.pet.ownerId || ''))); }
     if(!out.customer && targetCid){ out.customer = resolveCustomerFromAnyId(targetCidRaw); }
     if(!out.customer && cpCustomerName){
-      const hits = customers.filter(function(x){ return lower((x && x.name) || '') === lower(cpCustomerName); });
+      const hits = customers.filter(function(x){ return dsAcceptLower((x && x.name) || '') === lower(cpCustomerName); });
       if(hits.length === 1) out.customer = hits[0] || null;
     }
     if(!out.customer && customers.length === 1){ out.customer = customers[0] || null; }
@@ -22157,7 +22163,7 @@ try{
           var pname = lower((pet && pet.name) || '');
           var pchip = norm((pet && pet.chipNumber) || '');
           if(pchip){ var chipOwn = own.filter(function(x){ return norm(x && x.chipNumber) === pchip; }); if(chipOwn.length === 1) resolvedPet = chipOwn[0] || null; else if(chipOwn.length > 1) resolvedPet = dsChooseBestPetForReview(chipOwn); }
-          if(!resolvedPet && pname){ var nameOwn = own.filter(function(x){ return lower(x && x.name) === pname; }); if(nameOwn.length === 1) resolvedPet = nameOwn[0] || null; else if(nameOwn.length > 1) resolvedPet = dsChooseBestPetForReview(nameOwn); }
+          if(!resolvedPet && pname){ var nameOwn = own.filter(function(x){ return dsAcceptLower(x && x.name) === pname; }); if(nameOwn.length === 1) resolvedPet = nameOwn[0] || null; else if(nameOwn.length > 1) resolvedPet = dsChooseBestPetForReview(nameOwn); }
         }
       }
     }catch(_){ }
