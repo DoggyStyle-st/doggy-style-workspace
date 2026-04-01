@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB107_EINGAENGE_SAVE_NONBLOCK_20260401",
+  tag: "M50.9.9GB108_EINGAENGE_SAVE_TRACE_TIMEOUT_20260401",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB107_EINGAENGE_SAVE_NONBLOCK_20260401";
+const APP_BUILD = "M50.9.9GB108_EINGAENGE_SAVE_TRACE_TIMEOUT_20260401";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -9929,7 +9929,10 @@ function dsEnrichProposalReviewRow(sourceRow){
 }
 async function dsSaveProposalReview(){
   const row = __dsProposalReview && __dsProposalReview.row;
-  if(!row) return false;
+  if(!row){
+    try{ dsSetProposalOpenDiag('save-start-missing-row active=' + ((__dsProposalReview && __dsProposalReview.active) ? '1':'0') + ' basePet=' + String((__dsProposalReview && __dsProposalReview.basePetId) || '--') + ' cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0'), true); }catch(_){ }
+    return false;
+  }
   ensureStateShape();
   ensureContractDefaults();
 
@@ -10133,7 +10136,9 @@ async function dsSaveProposalReview(){
   }catch(_){ }
 
   try{ if(typeof upsertLegacyDogForPet === 'function') upsertLegacyDogForPet(pet, customer); }catch(_){ }
+  try{ dsSetProposalOpenDiag('save-before-write pet=' + String(pet.id || pet.petId || '--') + ' customer=' + String(customer.id || customer.customerId || '--') + ' cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0'), false); }catch(_){ }
   try{ if(typeof saveState === 'function') saveState(); }catch(_){ }
+  try{ dsSetProposalOpenDiag('save-after-write pet=' + String(pet.id || pet.petId || '--') + ' customer=' + String(customer.id || customer.customerId || '--') + ' cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0'), false); }catch(_){ }
   const savedPetId = String(pet.id || pet.petId || '--');
   const savedCustomerId = String(customer.id || customer.customerId || '--');
   const rowForBg = row ? JSON.parse(JSON.stringify(row)) : null;
@@ -10155,6 +10160,7 @@ async function dsSaveProposalReview(){
   try{ dsSetProposalOpenDiag('saveLocalOk pet=' + savedPetId + ' customer=' + savedCustomerId + ' cp=1', false); }catch(_){ }
   try{ closeCpEditor(); }catch(_){ }
   try{ if(typeof renderDogs === 'function') renderDogs(); }catch(_){ }
+  try{ dsSetProposalOpenDiag('save-finally pet=' + savedPetId + ' customer=' + savedCustomerId + ' cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0'), false); }catch(_){ }
 
   try{
     const withTimeout = (promise, ms)=> new Promise(resolve=>{
@@ -12977,12 +12983,12 @@ try{
     };
   }
 }catch(_){}
-$("#btnCpSave").addEventListener("click",(e)=>{
+$("#btnCpSave").addEventListener("click",async (e)=>{
   try{ e.preventDefault(); e.stopPropagation(); }catch(_){}
   cpSetStatus("Speichern läuft …");
   try{
-    if(__dsProposalReview && __dsProposalReview.active){
-      dsSaveProposalReview();
+    if(dsIsProposalReviewSaveMode()){
+      await dsRunProposalReviewSaveGuarded();
       return;
     }
     if(isCustomerMainDogsMode()){
@@ -13173,6 +13179,44 @@ $("#btnCpSave").addEventListener("click",(e)=>{
     try{ alert("Speichern fehlgeschlagen. Details: " + (err && err.message ? err.message : err)); }catch(_){}
   }
 });
+function dsIsProposalReviewSaveMode(){
+  try{
+    if(__dsProposalReview && (__dsProposalReview.active || __dsProposalReview.row || __dsProposalReview.basePetId || __dsProposalReview.baseCustomerId)) return true;
+    if(typeof window !== 'undefined' && window.__dsInboxReviewMainEditor) return true;
+    if(document.querySelector('.ds-review-banner')) return true;
+    const title = String(document.getElementById('cpEditorTitle')?.textContent || '').toLowerCase();
+    if(title.includes('prüfen') || title.includes('pruefen')) return true;
+  }catch(_){ }
+  return false;
+}
+async function dsRunProposalReviewSaveGuarded(){
+  try{ dsSetProposalOpenDiag('save-start cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0') + ' active=' + ((__dsProposalReview && __dsProposalReview.active) ? '1':'0') + ' row=' + ((__dsProposalReview && __dsProposalReview.row) ? '1':'0') + ' basePet=' + String((__dsProposalReview && __dsProposalReview.basePetId) || '--'), false); }catch(_){ }
+  let timeoutId = 0;
+  try{
+    const result = await Promise.race([
+      Promise.resolve().then(()=>dsSaveProposalReview()),
+      new Promise(resolve=>{ timeoutId = setTimeout(()=>resolve('__timeout__'), 4500); })
+    ]);
+    if(timeoutId) clearTimeout(timeoutId);
+    if(result === '__timeout__'){
+      try{ dsSetProposalOpenDiag('save-timeout cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0') + ' active=' + ((__dsProposalReview && __dsProposalReview.active) ? '1':'0') + ' row=' + ((__dsProposalReview && __dsProposalReview.row) ? '1':'0') + ' basePet=' + String((__dsProposalReview && __dsProposalReview.basePetId) || '--'), true); }catch(_){ }
+      cpSetStatus('Speichern fehlgeschlagen oder dauert zu lange.', true);
+      return false;
+    }
+    try{ dsSetProposalOpenDiag('save-finally result=' + (result ? '1':'0') + ' cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0') + ' active=' + ((__dsProposalReview && __dsProposalReview.active) ? '1':'0'), !result); }catch(_){ }
+    if(!result){
+      const cur = String(document.getElementById('cpStatus')?.textContent || '');
+      if(!cur || /speichern läuft/i.test(cur)) cpSetStatus('Speichern fehlgeschlagen.', true);
+    }
+    return !!result;
+  }catch(err){
+    if(timeoutId) clearTimeout(timeoutId);
+    try{ dsSetProposalOpenDiag('save-error ' + String((err && err.message) || err || 'unknown'), true); }catch(_){ }
+    cpSetStatus('Speichern fehlgeschlagen.', true);
+    return false;
+  }
+}
+
 function renderDocs(){
   const list=$("#docList");
   list.innerHTML="";
@@ -20194,7 +20238,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB107_EINGAENGE_SAVE_NONBLOCK_20260401) ===== */
+/* ===== CHAT (M50.9.9GB108_EINGAENGE_SAVE_TRACE_TIMEOUT_20260401) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -21774,7 +21818,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB107_EINGAENGE_SAVE_NONBLOCK_20260401";
+  const BUILD = "M50.9.9GB108_EINGAENGE_SAVE_TRACE_TIMEOUT_20260401";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
