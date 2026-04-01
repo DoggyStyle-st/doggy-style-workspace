@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB98_EINGAENGE_VISIBLE_EDIT_PICK_20260331",
+  tag: "M50.9.9GB99_EINGAENGE_POINTCLICK_20260401",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB98_EINGAENGE_VISIBLE_EDIT_PICK_20260331";
+const APP_BUILD = "M50.9.9GB99_EINGAENGE_POINTCLICK_20260401";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -10449,6 +10449,44 @@ function dsCollectVisibleProposalEditButtons(){
   }catch(_){ return []; }
 }
 
+function dsResolvePointTargetFromRect(rectStr, fallbackBtn){
+  try{
+    let r = null;
+    try{
+      const parts = String(rectStr || '').split(',').map(function(x){ return Number(String(x||'').trim()); });
+      if(parts.length >= 4 && isFinite(parts[0]) && isFinite(parts[1]) && isFinite(parts[2]) && isFinite(parts[3])){
+        r = { left:parts[0], top:parts[1], width:parts[2], height:parts[3] };
+      }
+    }catch(_){ }
+    let topEl = null;
+    if(r && document.elementFromPoint){
+      const vw = Math.max(document.documentElement ? document.documentElement.clientWidth : 0, window.innerWidth || 0);
+      const vh = Math.max(document.documentElement ? document.documentElement.clientHeight : 0, window.innerHeight || 0);
+      const cx = Math.max(1, Math.min(vw - 1, r.left + (r.width / 2)));
+      const cy = Math.max(1, Math.min(vh - 1, r.top + (r.height / 2)));
+      try{ topEl = document.elementFromPoint(cx, cy) || null; }catch(_){ topEl = null; }
+    }
+    let btn = null;
+    try{ if(topEl && topEl.closest) btn = topEl.closest('button, .smallbtn, [data-e="1"], [data-pet-edit-id]') || null; }catch(_){ }
+    if(!btn && fallbackBtn) btn = fallbackBtn;
+    return { topEl: topEl || null, button: btn || null };
+  }catch(_){ return { topEl:null, button:fallbackBtn || null }; }
+}
+
+function dsFireNativeClickSequence(target){
+  try{
+    if(!target) return false;
+    const opts = { bubbles:true, cancelable:true, view:window };
+    try{ target.dispatchEvent(new PointerEvent('pointerdown', Object.assign({ pointerType:'touch', isPrimary:true }, opts))); }catch(_){ try{ target.dispatchEvent(new MouseEvent('mousedown', opts)); }catch(__){} }
+    try{ target.dispatchEvent(new MouseEvent('mousedown', opts)); }catch(_){ }
+    try{ target.dispatchEvent(new PointerEvent('pointerup', Object.assign({ pointerType:'touch', isPrimary:true }, opts))); }catch(_){ try{ target.dispatchEvent(new MouseEvent('mouseup', opts)); }catch(__){} }
+    try{ target.dispatchEvent(new MouseEvent('mouseup', opts)); }catch(_){ }
+    try{ if(typeof target.click === 'function') target.click(); }catch(_){ }
+    try{ target.dispatchEvent(new MouseEvent('click', opts)); }catch(_){ }
+    return true;
+  }catch(_){ return false; }
+}
+
 function dsResolveProposalFallbackBasePet(row, customerPayload, petPayload){
   try{
     const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
@@ -10520,11 +10558,28 @@ function dsTryVisibleProposalButtonOpen(row, customerPayload, petPayload, opts){
       }catch(_){ btn = primaryBtn; }
       try{ dsSetProposalOpenDiag('kick=' + tries + ' petId=' + (petId||'--') + ' btn=' + (!!btn ? '1':'0') + ' clicked=' + String((row && row.__openDiagClicked) || '0') + ' editVisible=' + String((row && row.__openDiagEditVisible) || '--') + ' pickedVisible=' + String((row && row.__openDiagPickedVisible) || '--') + ' pickedBy=' + String((row && row.__openDiagPickedBy) || '--') + ' pickedRect=' + String((row && row.__openDiagPickedRect) || '--') + ' cpBefore=' + (dsIsCpEditorActuallyOpen() ? '1':'0'), false); }catch(_){ }
       let clicked = false;
-      try{ if(btn && typeof btn.onclick === 'function'){ btn.onclick(); clicked = true; } }catch(_){ }
-      try{ if(btn && typeof btn.click === 'function'){ btn.click(); clicked = true; } }catch(_){ }
-      try{ if(btn){ btn.dispatchEvent(new MouseEvent('click', { bubbles:true, cancelable:true, view:window })); clicked = true; } }catch(_){ }
+      let nativeClick = false;
+      let pointTop = null;
+      let pointBtn = null;
+      try{
+        const pt = dsResolvePointTargetFromRect(String((row && row.__openDiagPickedRect) || '--'), btn);
+        pointTop = pt && pt.topEl ? pt.topEl : null;
+        pointBtn = pt && pt.button ? pt.button : null;
+      }catch(_){ pointTop = null; pointBtn = btn; }
+      try{
+        if(row && typeof row === 'object'){
+          row.__openDiagAtPointTag = pointTop ? String((pointTop.tagName || '--')).toLowerCase() : '--';
+          row.__openDiagAtPointText = pointTop ? norm((pointTop.textContent || pointTop.value || '')).slice(0,40) || '--' : '--';
+          row.__openDiagAtPointBtn = pointBtn ? '1' : '0';
+          row.__openDiagNativeClick = '0';
+        }
+      }catch(_){ }
+      try{ if(pointBtn && typeof pointBtn.onclick === 'function'){ pointBtn.onclick(); clicked = true; } }catch(_){ }
+      try{ if(pointBtn && dsFireNativeClickSequence(pointBtn)){ nativeClick = true; clicked = true; } }catch(_){ }
+      try{ if(!clicked && btn && typeof btn.onclick === 'function'){ btn.onclick(); clicked = true; } }catch(_){ }
+      try{ if(!clicked && btn && dsFireNativeClickSequence(btn)){ nativeClick = true; clicked = true; } }catch(_){ }
       try{ if(petId && typeof openCpEditor === 'function'){ openCpEditor('edit', petId); clicked = true; } }catch(_){ }
-      try{ if(row && typeof row === 'object') row.__openDiagClicked = clicked ? '1' : String(row.__openDiagClicked || '0'); }catch(_){ }
+      try{ if(row && typeof row === 'object'){ row.__openDiagClicked = clicked ? '1' : String(row.__openDiagClicked || '0'); row.__openDiagNativeClick = nativeClick ? '1' : String(row.__openDiagNativeClick || '0'); } }catch(_){ }
       setTimeout(function(){
         let finalPet = basePet;
         let finalCustomer = baseCustomer;
@@ -10752,7 +10807,7 @@ function dsScheduleProposalReviewUiOpen(row, customerPayload, petPayload, opts){
         try{ if(dsTryVisibleProposalButtonOpen(row, customerPayload, petPayload, Object.assign({}, opts, { silent: opts && opts.silent })) ) return; }catch(_){ }
         let uiPetId = '';
         try{ uiPetId = dsGetDirectProposalReviewPetId(row); }catch(_){ uiPetId = ''; }
-        try{ dsSetProposalOpenDiag('schedule try=' + tries + ' uiPetId=' + (uiPetId||'--') + ' cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0') + ' rows=' + String((row && row.__openDiagRowCount) || '--') + ' btns=' + String((row && row.__openDiagBtnCount) || '--') + ' raw=' + String((row && row.__openDiagRaw) || '--') + ' roots=' + String((row && row.__openDiagRootCount) || '--') + ' gbtn=' + String((row && row.__openDiagGlobalBtnCount) || '--') + ' grex=' + String((row && row.__openDiagGlobalRexCount) || '--') + ' gmax=' + String((row && row.__openDiagGlobalCustomerCount) || '--') + ' seenMax=' + String((row && row.__openDiagSeenMax) || '--') + ' seenRex=' + String((row && row.__openDiagSeenRex) || '--') + ' seenEdit=' + String((row && row.__openDiagSeenEdit) || '--') + ' observer=' + String((row && row.__openDiagObserverHit) || '--') + ' after=' + String((row && row.__openDiagAfterRender) || '--') + ' editVisible=' + String((row && row.__openDiagEditVisible) || '--') + ' pickedVisible=' + String((row && row.__openDiagPickedVisible) || '--') + ' pickedBy=' + String((row && row.__openDiagPickedBy) || '--') + ' pickedRect=' + String((row && row.__openDiagPickedRect) || '--') + ' clicked=' + String((row && row.__openDiagClicked) || '--') + ' rowPet=' + String((row && row.__openDiagRowPetId) || '--') + ' btnPet=' + String((row && row.__openDiagBtnPetId) || '--'), false); }catch(_){ }
+        try{ dsSetProposalOpenDiag('schedule try=' + tries + ' uiPetId=' + (uiPetId||'--') + ' cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0') + ' rows=' + String((row && row.__openDiagRowCount) || '--') + ' btns=' + String((row && row.__openDiagBtnCount) || '--') + ' raw=' + String((row && row.__openDiagRaw) || '--') + ' roots=' + String((row && row.__openDiagRootCount) || '--') + ' gbtn=' + String((row && row.__openDiagGlobalBtnCount) || '--') + ' grex=' + String((row && row.__openDiagGlobalRexCount) || '--') + ' gmax=' + String((row && row.__openDiagGlobalCustomerCount) || '--') + ' seenMax=' + String((row && row.__openDiagSeenMax) || '--') + ' seenRex=' + String((row && row.__openDiagSeenRex) || '--') + ' seenEdit=' + String((row && row.__openDiagSeenEdit) || '--') + ' observer=' + String((row && row.__openDiagObserverHit) || '--') + ' after=' + String((row && row.__openDiagAfterRender) || '--') + ' editVisible=' + String((row && row.__openDiagEditVisible) || '--') + ' pickedVisible=' + String((row && row.__openDiagPickedVisible) || '--') + ' pickedBy=' + String((row && row.__openDiagPickedBy) || '--') + ' pickedRect=' + String((row && row.__openDiagPickedRect) || '--') + ' clicked=' + String((row && row.__openDiagClicked) || '--') + ' atPointTag=' + String((row && row.__openDiagAtPointTag) || '--') + ' atPointText=' + String((row && row.__openDiagAtPointText) || '--') + ' atPointBtn=' + String((row && row.__openDiagAtPointBtn) || '--') + ' nativeClick=' + String((row && row.__openDiagNativeClick) || '--') + ' rowPet=' + String((row && row.__openDiagRowPetId) || '--') + ' btnPet=' + String((row && row.__openDiagBtnPetId) || '--'), false); }catch(_){ }
         if(uiPetId){
           try{ if(typeof openCpEditor === 'function') openCpEditor('edit', uiPetId); }catch(_){ }
           try{
@@ -10789,7 +10844,7 @@ function dsScheduleProposalReviewUiOpen(row, customerPayload, petPayload, opts){
         tries += 1;
         if(tries < maxTries) setTimeout(tick, 220);
         else {
-          try{ dsSetProposalOpenDiag('fail-no-ui petId=' + (uiPetId||'--') + ' tries=' + tries + ' cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0') + ' rows=' + String((row && row.__openDiagRowCount) || '--') + ' btns=' + String((row && row.__openDiagBtnCount) || '--') + ' raw=' + String((row && row.__openDiagRaw) || '--') + ' roots=' + String((row && row.__openDiagRootCount) || '--') + ' gbtn=' + String((row && row.__openDiagGlobalBtnCount) || '--') + ' grex=' + String((row && row.__openDiagGlobalRexCount) || '--') + ' gmax=' + String((row && row.__openDiagGlobalCustomerCount) || '--') + ' seenMax=' + String((row && row.__openDiagSeenMax) || '--') + ' seenRex=' + String((row && row.__openDiagSeenRex) || '--') + ' seenEdit=' + String((row && row.__openDiagSeenEdit) || '--') + ' observer=' + String((row && row.__openDiagObserverHit) || '--') + ' after=' + String((row && row.__openDiagAfterRender) || '--') + ' editVisible=' + String((row && row.__openDiagEditVisible) || '--') + ' pickedVisible=' + String((row && row.__openDiagPickedVisible) || '--') + ' pickedBy=' + String((row && row.__openDiagPickedBy) || '--') + ' pickedRect=' + String((row && row.__openDiagPickedRect) || '--') + ' clicked=' + String((row && row.__openDiagClicked) || '--') + ' rowPet=' + String((row && row.__openDiagRowPetId) || '--') + ' btnPet=' + String((row && row.__openDiagBtnPetId) || '--'), true); }catch(_){ }
+          try{ dsSetProposalOpenDiag('fail-no-ui petId=' + (uiPetId||'--') + ' tries=' + tries + ' cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0') + ' rows=' + String((row && row.__openDiagRowCount) || '--') + ' btns=' + String((row && row.__openDiagBtnCount) || '--') + ' raw=' + String((row && row.__openDiagRaw) || '--') + ' roots=' + String((row && row.__openDiagRootCount) || '--') + ' gbtn=' + String((row && row.__openDiagGlobalBtnCount) || '--') + ' grex=' + String((row && row.__openDiagGlobalRexCount) || '--') + ' gmax=' + String((row && row.__openDiagGlobalCustomerCount) || '--') + ' seenMax=' + String((row && row.__openDiagSeenMax) || '--') + ' seenRex=' + String((row && row.__openDiagSeenRex) || '--') + ' seenEdit=' + String((row && row.__openDiagSeenEdit) || '--') + ' observer=' + String((row && row.__openDiagObserverHit) || '--') + ' after=' + String((row && row.__openDiagAfterRender) || '--') + ' editVisible=' + String((row && row.__openDiagEditVisible) || '--') + ' pickedVisible=' + String((row && row.__openDiagPickedVisible) || '--') + ' pickedBy=' + String((row && row.__openDiagPickedBy) || '--') + ' pickedRect=' + String((row && row.__openDiagPickedRect) || '--') + ' clicked=' + String((row && row.__openDiagClicked) || '--') + ' atPointTag=' + String((row && row.__openDiagAtPointTag) || '--') + ' atPointText=' + String((row && row.__openDiagAtPointText) || '--') + ' atPointBtn=' + String((row && row.__openDiagAtPointBtn) || '--') + ' nativeClick=' + String((row && row.__openDiagNativeClick) || '--') + ' rowPet=' + String((row && row.__openDiagRowPetId) || '--') + ' btnPet=' + String((row && row.__openDiagBtnPetId) || '--'), true); }catch(_){ }
           try{ cpSetStatus('Bestehender Kunde/Hund für Vorschlag nicht gefunden.', true); }catch(_){ }
           if(!opts.silent){ try{ alert('Bestehender Kunde/Hund für Vorschlag nicht eindeutig gefunden. Es wurde nichts geöffnet.'); }catch(_){ } }
         }
@@ -19733,7 +19788,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB98_EINGAENGE_VISIBLE_EDIT_PICK_20260331) ===== */
+/* ===== CHAT (M50.9.9GB99_EINGAENGE_POINTCLICK_20260401) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -21313,7 +21368,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB98_EINGAENGE_VISIBLE_EDIT_PICK_20260331";
+  const BUILD = "M50.9.9GB99_EINGAENGE_POINTCLICK_20260401";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
