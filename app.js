@@ -9348,6 +9348,69 @@ function dsInboxHandledStore(){
     return data && typeof data === 'object' ? data : {};
   }catch(_){ return {}; }
 }
+
+function dsProposalAcceptedStore(){
+  try{
+    const raw = localStorage.getItem('ds_proposal_accepted_v2');
+    const data = raw ? JSON.parse(raw) : {};
+    return data && typeof data === 'object' ? data : {};
+  }catch(_){ return {}; }
+}
+function dsProposalAcceptedKeys(row){
+  try{
+    const keys = [];
+    const add = function(v){
+      try{
+        const key = lower(String(v == null ? '' : v).trim());
+        if(key) keys.push(key);
+      }catch(_){ }
+    };
+    const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
+    add(row && row.__rowId);
+    add(row && row.__sourceKey);
+    add(row && row.id);
+    add(row && row.taskId);
+    add(row && row.task);
+    add(row && row.proposalId);
+    add(row && row.proposal);
+    add(row && row.submissionId);
+    add(payload && payload.id);
+    add(payload && payload.taskId);
+    add(payload && payload.task);
+    add(payload && payload.proposalId);
+    add(payload && payload.proposal);
+    add(payload && payload.submissionId);
+    add(row && row.customerId);
+    add(row && row.customerEmail);
+    add(row && row.customerName);
+    add(row && row.petId);
+    add(row && row.petName);
+    add((payload.customer && (payload.customer.id || payload.customer.customerId || payload.customer.email || payload.customer.name)) || '');
+    add((payload.pet && (payload.pet.id || payload.pet.petId || payload.pet.chipNumber || payload.pet.name)) || '');
+    add([
+      norm((row && (row.customerId || row.customerEmail || row.customerName)) || (payload.customer && (payload.customer.id || payload.customer.customerId || payload.customer.email || payload.customer.name)) || ''),
+      norm((row && (row.petId || row.petName)) || (payload.pet && (payload.pet.id || payload.pet.petId || payload.pet.chipNumber || payload.pet.name)) || ''),
+      norm((row && (row.submittedAt || row.createdAt)) || (payload && payload.submittedAt) || '')
+    ].join('|'));
+    return Array.from(new Set(keys));
+  }catch(_){ return []; }
+}
+function dsMarkProposalAcceptedPersistent(row, status){
+  try{
+    const data = dsProposalAcceptedStore();
+    const val = String(status || 'accepted');
+    dsProposalAcceptedKeys(row).forEach(function(key){ try{ if(key) data[key] = val; }catch(_){ } });
+    localStorage.setItem('ds_proposal_accepted_v2', JSON.stringify(data));
+  }catch(_){ }
+  try{ dsMarkInboxRowHandled(row, status || 'accepted'); }catch(_){ }
+}
+function dsIsProposalAcceptedPersistent(row){
+  try{
+    const data = dsProposalAcceptedStore();
+    const keys = dsProposalAcceptedKeys(row);
+    return keys.some(function(k){ return !!data[k]; });
+  }catch(_){ return false; }
+}
 function dsInboxHandledKey(row){
   try{
         const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
@@ -9377,6 +9440,7 @@ function dsMarkInboxRowHandled(row, status){
     add(row && row.id);
     add(row && row.taskId);
     add(row && row.proposalId);
+    add(row && row.proposal);
     add(row && row.submissionId);
     add(row && row.customerId);
     add(row && row.customerEmail);
@@ -9393,6 +9457,7 @@ function dsMarkInboxRowHandled(row, status){
       add(payload && payload.id);
       add(payload && payload.taskId);
       add(payload && payload.proposalId);
+      add(payload && payload.proposal);
       add(payload && payload.submissionId);
       add(payload && payload.customer && (payload.customer.id || payload.customer.customerId || payload.customer.email || payload.customer.name));
       add(payload && payload.pet && (payload.pet.id || payload.pet.petId || payload.pet.chipNumber || payload.pet.name));
@@ -9421,6 +9486,7 @@ function dsIsInboxRowHandled(row){
     add(row && row.id);
     add(row && row.taskId);
     add(row && row.proposalId);
+    add(row && row.proposal);
     add(row && row.submissionId);
     add(row && row.customerId);
     add(row && row.customerEmail);
@@ -9437,6 +9503,7 @@ function dsIsInboxRowHandled(row){
       add(payload && payload.id);
       add(payload && payload.taskId);
       add(payload && payload.proposalId);
+      add(payload && payload.proposal);
       add(payload && payload.submissionId);
       add(payload && payload.customer && (payload.customer.id || payload.customer.customerId || payload.customer.email || payload.customer.name));
       add(payload && payload.pet && (payload.pet.id || payload.pet.petId || payload.pet.chipNumber || payload.pet.name));
@@ -9450,6 +9517,7 @@ function dsIsInboxRowHandled(row){
   }catch(_){ return false; }
 }
 function dsFinalizeAcceptedProposalLocal(row){
+  try{ dsMarkProposalAcceptedPersistent(row, 'accepted'); }catch(_){ }
   try{ dsMarkInboxRowHandled(row, 'accepted'); }catch(_){ }
   try{
     const mark = function(obj){
@@ -10279,7 +10347,7 @@ async function dsSaveProposalReview(){
       let bgRefresh = '0';
       try{ if(rowForBg) bgPatch = (await withTimeout(patchInboxRowStatus(rowForBg, 'adopted'), 1500)) ? '1' : '0'; }catch(_){ bgPatch = '0'; }
       try{ bgRefresh = (await withTimeout(refreshInboxHard('review-save-bg'), 1500)) ? '1' : '0'; }catch(_){ bgRefresh = '0'; }
-      try{ dsSetProposalOpenDiag('proposalAccepted=' + ((rowForBg && dsIsInboxRowHandled && dsIsInboxRowHandled(rowForBg)) ? '1':'0') + ' proposalRemovedLocal=1 proposalRefreshOk=' + bgRefresh + ' saveBgPatch=' + bgPatch + ' saveBgRefresh=' + bgRefresh + ' pet=' + savedPetId + ' customer=' + savedCustomerId, bgPatch !== '1'); }catch(_){ }
+      try{ var acc = ((rowForBg && dsIsProposalAcceptedPersistent && dsIsProposalAcceptedPersistent(rowForBg)) || (rowForBg && dsIsInboxRowHandled && dsIsInboxRowHandled(rowForBg))) ? '1' : '0'; dsSetProposalOpenDiag('proposalAccepted=' + acc + ' proposalRemovedLocal=1 proposalRefreshOk=' + bgRefresh + ' saveBgPatch=' + bgPatch + ' saveBgRefresh=' + bgRefresh + ' pet=' + savedPetId + ' customer=' + savedCustomerId, bgPatch !== '1' && acc !== '1'); }catch(_){ }
     }, 0);
   }catch(_){ }
   return true;
@@ -22074,7 +22142,8 @@ try{
       const n = normalizeRow(obj, source);
       if(!n) return;
       const status = lower(n.status || n.proposalStatus || '');
-      if(status && ['rejected','adopted','closed','done','completed','accepted'].includes(status)) return;
+      if(status && ['rejected','adopted','closed','done','completed','accepted','handled'].includes(status)) return;
+      if(dsIsProposalAcceptedPersistent && dsIsProposalAcceptedPersistent(n)) return;
       if(dsIsInboxRowHandled && dsIsInboxRowHandled(n)) return;
       if(!isProposalLike(n)) return;
       rows.push(n);
@@ -22385,6 +22454,7 @@ function matchesInboxRow(a,b){
     }catch(_){ return false; }
   }
   function removeInboxRowEverywhere(row){
+    try{ dsMarkProposalAcceptedPersistent(row, 'handled'); }catch(_){ }
     try{ dsMarkInboxRowHandled(row, 'handled'); }catch(_){ }
     const filterList = (arr)=> asArray(arr).filter(x=>!matchesInboxRow(x,row));
     try{ window.__dsInboxLoadedProposals = filterList(window.__dsInboxLoadedProposals); }catch(_){ }
@@ -22405,17 +22475,26 @@ function matchesInboxRow(a,b){
     }catch(_){ }
   }
   async function patchInboxRowStatus(row, status){
-    const payload = { proposalStatus: status, status: status === 'pending' ? 'submitted' : status, reviewedAt: Date.now() };
+    const payload = { proposalStatus: status, status: status === 'pending' ? 'submitted' : status, reviewedAt: Date.now(), resolvedAt: Date.now() };
+    let ok = false;
     try{
       const pcol = typeof cloudProposalsCol === 'function' ? cloudProposalsCol() : null;
-      const pid = norm(row && (row.proposalId || row.id));
-      if(pcol && pid && typeof pcol.doc === 'function') await pcol.doc(pid).set(payload, { merge:true });
+      const pid = norm(row && (row.proposalId || row.proposal || row.id));
+      if(pcol && pid && typeof pcol.doc === 'function'){
+        await pcol.doc(pid).set(payload, { merge:true });
+        ok = true;
+      }
     }catch(err){ console.warn('patchInboxRowStatus proposal failed', err); }
     try{
       const tcol = typeof cloudTasksCol === 'function' ? cloudTasksCol() : null;
-      const tid = norm(row && (row.taskId || row.id));
-      if(tcol && tid && typeof tcol.doc === 'function') await tcol.doc(tid).set(payload, { merge:true });
+      const tid = norm(row && (row.taskId || row.task || row.id));
+      if(tcol && tid && typeof tcol.doc === 'function'){
+        await tcol.doc(tid).set(payload, { merge:true });
+        ok = true;
+      }
     }catch(err){ console.warn('patchInboxRowStatus task failed', err); }
+    try{ if(status && lower(status) !== 'pending') dsMarkProposalAcceptedPersistent(row, status); }catch(_){ }
+    return ok || (dsIsProposalAcceptedPersistent && dsIsProposalAcceptedPersistent(row));
   }
   function upsertCustomerFromProposal(row){
     ensureStateShape();

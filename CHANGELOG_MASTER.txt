@@ -12,3 +12,5 @@ GB85 EINGAENGE_ROWIDENTITYOPEN_20260331
 - Öffnen nutzt zusätzliche direkte petId/customerId-Fallbacks, bevor ein Alert erscheint
 
 GB111: Eingänge-Filter auf handled/accepted robuster gemacht (zusätzliche Schlüssel für Wiedererkennung nach Refresh).
+
+GB112: Annahme von Eingängen persistenter gemacht (accept-store + Filter über proposal/task/sourceKey; patchInboxRowStatus nutzt proposal/task IDs und resolvedAt).
