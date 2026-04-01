@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB103_EINGAENGE_CP_PET_FINALIZE_20260401",
+  tag: "M50.9.9GB104_EINGAENGE_FORCE_CUSTOMER_APPLY_20260401",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB103_EINGAENGE_CP_PET_FINALIZE_20260401";
+const APP_BUILD = "M50.9.9GB104_EINGAENGE_FORCE_CUSTOMER_APPLY_20260401";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -10792,6 +10792,51 @@ function dsGetDirectProposalReviewPetId(row){
   }catch(_){ return ''; }
 }
 
+function dsResolveCustomerForcedFromPet(cpPet, row, customerPayload){
+  try{
+    ensureStateShape();
+    const customers = asArray((state && state.customers) || []);
+    const pet = cpPet || null;
+    const targetCid = norm((row && (row.__targetCustomerId || row.customerId)) || (customerPayload && (customerPayload.id || customerPayload.customerId)) || '');
+    const payloadEmail = lower((customerPayload && customerPayload.email) || (customerPayload && customerPayload.mail) || '');
+    const payloadName = lower((customerPayload && customerPayload.name) || '');
+    const candidateIds = [
+      pet && (pet.customerId || pet.ownerId || pet.customer || pet.customerID || pet.holderId || pet.ownerID),
+      targetCid || '',
+      row && row.__targetCustomerId,
+      row && row.customerId
+    ].map(function(v){ return norm(v || ''); }).filter(Boolean);
+    for(const cid of candidateIds){
+      try{ if(typeof getCustomer === 'function'){ const hit = getCustomer(cid) || null; if(hit) return hit; } }catch(_){ }
+      try{ const hit = customers.find(function(c){ return norm((c && (c.id || c.customerId || c.ownerId || c.customerID || '')) || '') === cid; }) || null; if(hit) return hit; }catch(_){ }
+    }
+    try{
+      const dogKeys = [pet && (pet.dogId || pet.id || pet.petId), row && (row.__targetPetId || row.petId)].map(function(v){ return String(v || '').trim(); }).filter(Boolean);
+      for(const dk of dogKeys){
+        try{ if(typeof getCustomerByDogId === 'function'){ const hit = getCustomerByDogId(dk) || null; if(hit) return hit; } }catch(_){ }
+      }
+    }catch(_){ }
+    if(payloadEmail){
+      try{
+        const hits = customers.filter(function(c){
+          return lower((c && (c.email || c.mail || '')) || '') === payloadEmail;
+        });
+        if(hits.length === 1) return hits[0] || null;
+      }catch(_){ }
+    }
+    if(payloadName){
+      try{
+        const hits = customers.filter(function(c){ return lower((c && c.name) || '') === payloadName; });
+        if(hits.length === 1) return hits[0] || null;
+      }catch(_){ }
+    }
+    try{
+      if(customers.length === 1) return customers[0] || null;
+    }catch(_){ }
+    return null;
+  }catch(_){ return null; }
+}
+
 function dsResolveTargetsFromOpenCpEditor(row, customerPayload, petPayload){
   try{
     ensureStateShape();
@@ -10881,14 +10926,16 @@ function dsTryAdoptOpenProposalReviewEditor(row, customerPayload, petPayload, op
     ensureStateShape();
     const activePetId = norm((cpEdit && cpEdit.petId) || '');
     const targetCid = norm((row && (row.__targetCustomerId || row.customerId)) || (customerPayload && (customerPayload.id || customerPayload.customerId)) || '');
-    let cpPet = null, cpCustomer = null;
+    let cpPet = null, cpCustomer = null, cpCustomerForced = null;
     if(activePetId){
       try{ cpPet = (typeof getPet === 'function' ? getPet(activePetId) : null) || null; }catch(_){ cpPet = null; }
       try{ if(!cpPet && typeof getPetByDogId === 'function') cpPet = getPetByDogId(activePetId) || null; }catch(_){ }
       try{ if(!cpPet){ const pets = asArray(state && (((state.pets||[]).length ? state.pets : state.dogs) || [])); cpPet = pets.find(function(x){ return norm((x && (x.id || x.petId || x.dogId || '')) || '') === activePetId; }) || null; } }catch(_){ }
-      try{ if(cpPet && typeof getCustomer === 'function') cpCustomer = getCustomer(cpPet.customerId || cpPet.ownerId || '') || null; }catch(_){ cpCustomer = null; }
+      try{ if(cpPet && typeof getCustomer === 'function') cpCustomer = getCustomer(cpPet.customerId || cpPet.ownerId || cpPet.customer || cpPet.customerID || '') || null; }catch(_){ cpCustomer = null; }
       try{ if(!cpCustomer && typeof getCustomerByDogId === 'function') cpCustomer = getCustomerByDogId(activePetId) || null; }catch(_){ }
       try{ if(!cpCustomer && targetCid && typeof getCustomer === 'function') cpCustomer = getCustomer(targetCid) || null; }catch(_){ }
+      try{ if(!cpCustomer) cpCustomerForced = dsResolveCustomerForcedFromPet(cpPet, row, customerPayload || {}); }catch(_){ cpCustomerForced = null; }
+      if(!cpCustomer && cpCustomerForced) cpCustomer = cpCustomerForced;
     }
     try{ if(row && typeof row === 'object'){
       row.__openDiagCpOpenAdopted = editorOpen ? '1' : '0';
@@ -10897,6 +10944,7 @@ function dsTryAdoptOpenProposalReviewEditor(row, customerPayload, petPayload, op
       row.__openDiagCpName = String(((document.getElementById('p_name')||{}).value) || '--');
       row.__openDiagCpChip = String(((document.getElementById('p_chipNumber')||{}).value) || '--');
       row.__openDiagResolvedByCpPet = cpPet ? '1' : '0';
+      row.__openDiagResolvedCustomerForced = cpCustomerForced ? '1' : '0';
       row.__openDiagResolvedFromOpenEditor = cpPet && cpCustomer ? 'cpPet' : '0';
       row.__openDiagFinalizedByCpPet = '0';
     } }catch(_){ }
@@ -10904,7 +10952,7 @@ function dsTryAdoptOpenProposalReviewEditor(row, customerPayload, petPayload, op
       try{ cpEdit.mode = 'edit'; cpEdit.petId = String(cpPet.id || cpPet.petId || activePetId || ''); }catch(_){ }
       const ok = !!dsFinalizeProposalReviewEditor(row, cpCustomer, cpPet, String(cpPet.id || cpPet.petId || activePetId || ''), customerPayload || {}, petPayload || {}, opts);
       try{ if(row && typeof row === 'object') row.__openDiagFinalizedByCpPet = ok ? '1':'0'; }catch(_){ }
-      try{ dsSetProposalOpenDiag('adopt-open cpOpenAdopted=1 cpPet=' + String((row && row.__openDiagCpPet) || '--') + ' cpCustomer=' + String((row && row.__openDiagCpCustomer) || '--') + ' cpName=' + String((row && row.__openDiagCpName) || '--') + ' cpChip=' + String((row && row.__openDiagCpChip) || '--') + ' resolvedByCpPet=' + String((row && row.__openDiagResolvedByCpPet) || '--') + ' finalizedByCpPet=' + String((row && row.__openDiagFinalizedByCpPet) || '--') + ' proposalApplied=' + String((row && row.__openDiagProposalApplied) || '--') + ' highlightCount=' + String((row && row.__openDiagHighlightCount) || '--') + ' resolvedFromOpenEditor=' + String((row && row.__openDiagResolvedFromOpenEditor) || '--'), false); }catch(_){ }
+      try{ dsSetProposalOpenDiag('adopt-open cpOpenAdopted=1 cpPet=' + String((row && row.__openDiagCpPet) || '--') + ' cpCustomer=' + String((row && row.__openDiagCpCustomer) || '--') + ' cpName=' + String((row && row.__openDiagCpName) || '--') + ' cpChip=' + String((row && row.__openDiagCpChip) || '--') + ' resolvedByCpPet=' + String((row && row.__openDiagResolvedByCpPet) || '--') + ' resolvedCustomerForced=' + String((row && row.__openDiagResolvedCustomerForced) || '--') + ' finalizedByCpPet=' + String((row && row.__openDiagFinalizedByCpPet) || '--') + ' proposalApplied=' + String((row && row.__openDiagProposalApplied) || '--') + ' appliedToOpenEditor=' + String((row && row.__openDiagAppliedToOpenEditor) || '--') + ' diffFields=' + String((row && row.__openDiagDiffFields) || '--') + ' highlightCount=' + String((row && row.__openDiagHighlightCount) || '--') + ' resolvedFromOpenEditor=' + String((row && row.__openDiagResolvedFromOpenEditor) || '--'), false); }catch(_){ }
       return ok;
     }
     const resolved = dsResolveTargetsFromOpenCpEditor(row, customerPayload || {}, petPayload || {});
@@ -10912,15 +10960,15 @@ function dsTryAdoptOpenProposalReviewEditor(row, customerPayload, petPayload, op
     if(resolved && resolved.pet && resolved.customer){
       try{ cpEdit.mode = 'edit'; cpEdit.petId = String(resolved.pet.id || resolved.pet.petId || cpEdit.petId || ''); }catch(_){ }
       const ok = !!dsFinalizeProposalReviewEditor(row, resolved.customer, resolved.pet, String(resolved.pet.id || resolved.pet.petId || ''), customerPayload || {}, petPayload || {}, opts);
-      try{ dsSetProposalOpenDiag('adopt-open cpOpenAdopted=1 cpPet=' + String((row && row.__openDiagCpPet) || '--') + ' cpCustomer=' + String((row && row.__openDiagCpCustomer) || '--') + ' cpName=' + String((row && row.__openDiagCpName) || '--') + ' cpChip=' + String((row && row.__openDiagCpChip) || '--') + ' resolvedByCpPet=' + String((row && row.__openDiagResolvedByCpPet) || '--') + ' finalizedByCpPet=' + String((row && row.__openDiagFinalizedByCpPet) || '--') + ' proposalApplied=' + String((row && row.__openDiagProposalApplied) || '--') + ' highlightCount=' + String((row && row.__openDiagHighlightCount) || '--') + ' resolvedFromOpenEditor=' + String((row && row.__openDiagResolvedFromOpenEditor) || '--'), false); }catch(_){ }
+      try{ dsSetProposalOpenDiag('adopt-open cpOpenAdopted=1 cpPet=' + String((row && row.__openDiagCpPet) || '--') + ' cpCustomer=' + String((row && row.__openDiagCpCustomer) || '--') + ' cpName=' + String((row && row.__openDiagCpName) || '--') + ' cpChip=' + String((row && row.__openDiagCpChip) || '--') + ' resolvedByCpPet=' + String((row && row.__openDiagResolvedByCpPet) || '--') + ' resolvedCustomerForced=' + String((row && row.__openDiagResolvedCustomerForced) || '--') + ' finalizedByCpPet=' + String((row && row.__openDiagFinalizedByCpPet) || '--') + ' proposalApplied=' + String((row && row.__openDiagProposalApplied) || '--') + ' appliedToOpenEditor=' + String((row && row.__openDiagAppliedToOpenEditor) || '--') + ' diffFields=' + String((row && row.__openDiagDiffFields) || '--') + ' highlightCount=' + String((row && row.__openDiagHighlightCount) || '--') + ' resolvedFromOpenEditor=' + String((row && row.__openDiagResolvedFromOpenEditor) || '--'), false); }catch(_){ }
       return ok;
     }
-    try{ dsSetProposalOpenDiag('adopt-open unresolved cpOpenAdopted=1 cpPet=' + String((row && row.__openDiagCpPet) || '--') + ' cpCustomer=' + String((row && row.__openDiagCpCustomer) || '--') + ' cpName=' + String((row && row.__openDiagCpName) || '--') + ' cpChip=' + String((row && row.__openDiagCpChip) || '--') + ' resolvedByCpPet=' + String((row && row.__openDiagResolvedByCpPet) || '--') + ' finalizedByCpPet=' + String((row && row.__openDiagFinalizedByCpPet) || '--') + ' proposalApplied=' + String((row && row.__openDiagProposalApplied) || '--') + ' highlightCount=' + String((row && row.__openDiagHighlightCount) || '--') + ' resolvedFromOpenEditor=' + String((row && row.__openDiagResolvedFromOpenEditor) || '--'), true); }catch(_){ }
+    try{ dsSetProposalOpenDiag('adopt-open unresolved cpOpenAdopted=1 cpPet=' + String((row && row.__openDiagCpPet) || '--') + ' cpCustomer=' + String((row && row.__openDiagCpCustomer) || '--') + ' cpName=' + String((row && row.__openDiagCpName) || '--') + ' cpChip=' + String((row && row.__openDiagCpChip) || '--') + ' resolvedByCpPet=' + String((row && row.__openDiagResolvedByCpPet) || '--') + ' resolvedCustomerForced=' + String((row && row.__openDiagResolvedCustomerForced) || '--') + ' finalizedByCpPet=' + String((row && row.__openDiagFinalizedByCpPet) || '--') + ' proposalApplied=' + String((row && row.__openDiagProposalApplied) || '--') + ' appliedToOpenEditor=' + String((row && row.__openDiagAppliedToOpenEditor) || '--') + ' diffFields=' + String((row && row.__openDiagDiffFields) || '--') + ' highlightCount=' + String((row && row.__openDiagHighlightCount) || '--') + ' resolvedFromOpenEditor=' + String((row && row.__openDiagResolvedFromOpenEditor) || '--'), true); }catch(_){ }
     return true;
   }catch(_){ return false; }
 }
 
-function dsFinalizeProposalReviewEditorfunction dsFinalizeProposalReviewEditor(row, baseCustomer, basePet, basePetId, customerPayload, petPayload, opts){
+function dsFinalizeProposalReviewEditor(row, baseCustomer, basePet, basePetId, customerPayload, petPayload, opts){
   opts = opts || {};
   try{
     __dsProposalReview.active = true;
@@ -10937,9 +10985,12 @@ function dsFinalizeProposalReviewEditorfunction dsFinalizeProposalReviewEditor(r
     }catch(_){ }
     try{ dsResetInboxDetailView(); }catch(_){ }
     try{
-      const openBtn = document.querySelector('[data-pet-edit-id="' + String(basePetId || '').replace(/"/g,'\"') + '"]');
-      if(openBtn && typeof openBtn.click === 'function') openBtn.click();
-      else openCpEditor('edit', basePetId);
+      const alreadyOpen = !!(document.getElementById('cpEditor') && (document.getElementById('cpEditor').style.display !== 'none') && window.cpEdit && cpEdit.mode === 'edit' && String(cpEdit.petId || '') === String(basePetId || ''));
+      if(!alreadyOpen){
+        const openBtn = document.querySelector('[data-pet-edit-id="' + String(basePetId || '').replace(/"/g,'\"') + '"]');
+        if(openBtn && typeof openBtn.click === 'function') openBtn.click();
+        else openCpEditor('edit', basePetId);
+      }
     }catch(_){ try{ openCpEditor('edit', basePetId); }catch(__){} }
     try{ cpEdit.mode = 'edit'; cpEdit.petId = basePetId; }catch(_){ }
     try{ window.__dsProposalReviewOpening = false; }catch(_){ }
@@ -10980,7 +11031,7 @@ function dsFinalizeProposalReviewEditorfunction dsFinalizeProposalReviewEditor(r
         __dsProposalAppliedCount += 1;
       }
     });
-    try{ if(row && typeof row === 'object'){ row.__openDiagProposalApplied = __dsProposalAppliedCount > 0 ? '1':'0'; row.__openDiagHighlightCount = String((document.querySelectorAll && document.querySelectorAll('.ds-review-changed').length) || 0); } }catch(_){ }
+    try{ if(row && typeof row === 'object'){ row.__openDiagProposalApplied = __dsProposalAppliedCount > 0 ? '1':'0'; row.__openDiagAppliedToOpenEditor = __dsProposalAppliedCount > 0 ? '1':'0'; row.__openDiagDiffFields = String(__dsProposalAppliedCount || 0); row.__openDiagHighlightCount = String((document.querySelectorAll && document.querySelectorAll('.ds-review-changed').length) || 0); } }catch(_){ }
 
     try{ if(typeof cpUpdateDirty === 'function') cpUpdateDirty(); }catch(_){ }
     try{ dsEnsureProposalReviewMainEditorVisible(); }catch(_){ }
@@ -20011,7 +20062,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB103_EINGAENGE_CP_PET_FINALIZE_20260401) ===== */
+/* ===== CHAT (M50.9.9GB104_EINGAENGE_FORCE_CUSTOMER_APPLY_20260401) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -21591,7 +21642,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB103_EINGAENGE_CP_PET_FINALIZE_20260401";
+  const BUILD = "M50.9.9GB104_EINGAENGE_FORCE_CUSTOMER_APPLY_20260401";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
