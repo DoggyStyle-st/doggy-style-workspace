@@ -1,0 +1,4 @@
+[app.js] contains ROOTONLY=True
+[app.html] contains ROOTONLY=True
+[sw.js] contains ROOTONLY=True
+[version.txt] contains ROOTONLY=True
