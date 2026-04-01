@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB109_EINGAENGE_SAVE_NORMFIX_20260401",
+  tag: "M50.9.9GB110_EINGAENGE_ACCEPT_LOCAL_REMOVE_20260401",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB109_EINGAENGE_SAVE_NORMFIX_20260401";
+const APP_BUILD = "M50.9.9GB110_EINGAENGE_ACCEPT_LOCAL_REMOVE_20260401";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -9363,20 +9363,92 @@ function dsInboxHandledKey(row){
 }
 function dsMarkInboxRowHandled(row, status){
   try{
-    const key = dsInboxHandledKey(row);
-    if(!key) return;
     const data = dsInboxHandledStore();
-    data[key] = String(status || 'handled');
+    const val = String(status || 'handled');
+    const add = function(v){
+      try{
+        const key = lower(String(v == null ? '' : v).trim());
+        if(key) data[key] = val;
+      }catch(_){ }
+    };
+    add(dsInboxHandledKey(row));
+    add(row && row.__rowId);
+    add(row && row.id);
+    add(row && row.taskId);
+    add(row && row.proposalId);
+    add(row && row.submissionId);
+    try{
+      const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
+      add(payload && payload.id);
+      add(payload && payload.taskId);
+      add(payload && payload.proposalId);
+      add(payload && payload.submissionId);
+      add(payload && payload.customer && (payload.customer.id || payload.customer.customerId || payload.customer.email));
+      add(payload && payload.pet && (payload.pet.id || payload.pet.petId || payload.pet.chipNumber || payload.pet.name));
+    }catch(_){ }
     localStorage.setItem('ds_inbox_handled_v1', JSON.stringify(data));
   }catch(_){ }
 }
 function dsIsInboxRowHandled(row){
   try{
-    const key = dsInboxHandledKey(row);
-    if(!key) return false;
     const data = dsInboxHandledStore();
-    return !!data[key];
+    const keys = [];
+    const add = function(v){
+      try{
+        const key = lower(String(v == null ? '' : v).trim());
+        if(key) keys.push(key);
+      }catch(_){ }
+    };
+    add(dsInboxHandledKey(row));
+    add(row && row.__rowId);
+    add(row && row.id);
+    add(row && row.taskId);
+    add(row && row.proposalId);
+    add(row && row.submissionId);
+    try{
+      const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
+      add(payload && payload.id);
+      add(payload && payload.taskId);
+      add(payload && payload.proposalId);
+      add(payload && payload.submissionId);
+    }catch(_){ }
+    return keys.some(function(k){ return !!data[k]; });
   }catch(_){ return false; }
+}
+function dsFinalizeAcceptedProposalLocal(row){
+  try{ dsMarkInboxRowHandled(row, 'accepted'); }catch(_){ }
+  try{
+    const mark = function(obj){
+      try{
+        const out = Object.assign({}, obj || {});
+        out.proposalStatus = 'accepted';
+        out.status = 'accepted';
+        out.reviewedAt = Date.now();
+        return out;
+      }catch(_){ return obj; }
+    };
+    const matches = function(a,b){ try{ return matchesInboxRow(a,b); }catch(_){ return false; } };
+    const mapList = function(arr){ return asArray(arr).map(function(x){ return matches(x,row) ? mark(x) : x; }).filter(function(x){ return !matches(x,row); }); };
+    try{ window.__dsInboxLoadedProposals = mapList(window.__dsInboxLoadedProposals); }catch(_){ }
+    try{ window.__dsInboxLastTasks = mapList(window.__dsInboxLastTasks); }catch(_){ }
+    try{ state.inboxAssignments = mapList(state && state.inboxAssignments); }catch(_){ }
+    try{ state.inboxSubmissions = mapList(state && state.inboxSubmissions); }catch(_){ }
+    try{ if(typeof saveState === 'function') saveState(); }catch(_){ }
+    try{
+      const list = mapList(typeof loadCustomerProposalBuffer === 'function' ? loadCustomerProposalBuffer() : []);
+      if(typeof saveCustomerProposalBuffer === 'function') saveCustomerProposalBuffer(list);
+    }catch(_){ }
+    try{
+      const raw = localStorage.getItem(typeof LS_KEY !== 'undefined' ? LS_KEY : 'doggystyle_workspace_state_v1');
+      const data = raw ? JSON.parse(raw) : {};
+      data.inboxAssignments = mapList(data.inboxAssignments);
+      data.inboxSubmissions = mapList(data.inboxSubmissions);
+      localStorage.setItem(typeof LS_KEY !== 'undefined' ? LS_KEY : 'doggystyle_workspace_state_v1', JSON.stringify(data));
+    }catch(_){ }
+  }catch(_){ }
+  try{ removeInboxRowEverywhere(row); }catch(_){ }
+  try{ if(typeof wireInboxReloadButton === 'function') wireInboxReloadButton(); }catch(_){ }
+  try{ if(typeof dsHardRefreshInboxUI === 'function') dsHardRefreshInboxUI(); }catch(_){ }
 }
 
 function dsScoreCustomerForReview(customer){
@@ -10144,8 +10216,7 @@ async function dsSaveProposalReview(){
   const savedCustomerId = String(customer.id || customer.customerId || '--');
   const rowForBg = row ? JSON.parse(JSON.stringify(row)) : null;
 
-  try{ dsMarkInboxRowHandled(row, 'adopted'); }catch(_){ }
-  try{ removeInboxRowEverywhere(row); }catch(_){ }
+  try{ dsFinalizeAcceptedProposalLocal(row); }catch(_){ }
 
   __dsProposalReview.active = false;
   __dsProposalReview.row = null;
@@ -10174,7 +10245,7 @@ async function dsSaveProposalReview(){
       let bgRefresh = '0';
       try{ if(rowForBg) bgPatch = (await withTimeout(patchInboxRowStatus(rowForBg, 'adopted'), 1500)) ? '1' : '0'; }catch(_){ bgPatch = '0'; }
       try{ bgRefresh = (await withTimeout(refreshInboxHard('review-save-bg'), 1500)) ? '1' : '0'; }catch(_){ bgRefresh = '0'; }
-      try{ dsSetProposalOpenDiag('saveBgPatch=' + bgPatch + ' saveBgRefresh=' + bgRefresh + ' pet=' + savedPetId + ' customer=' + savedCustomerId, bgPatch !== '1'); }catch(_){ }
+      try{ dsSetProposalOpenDiag('proposalAccepted=' + ((rowForBg && dsIsInboxRowHandled && dsIsInboxRowHandled(rowForBg)) ? '1':'0') + ' proposalRemovedLocal=1 proposalRefreshOk=' + bgRefresh + ' saveBgPatch=' + bgPatch + ' saveBgRefresh=' + bgRefresh + ' pet=' + savedPetId + ' customer=' + savedCustomerId, bgPatch !== '1'); }catch(_){ }
     }, 0);
   }catch(_){ }
   return true;
@@ -20239,7 +20310,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB109_EINGAENGE_SAVE_NORMFIX_20260401) ===== */
+/* ===== CHAT (M50.9.9GB110_EINGAENGE_ACCEPT_LOCAL_REMOVE_20260401) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -21819,7 +21890,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB109_EINGAENGE_SAVE_NORMFIX_20260401";
+  const BUILD = "M50.9.9GB110_EINGAENGE_ACCEPT_LOCAL_REMOVE_20260401";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
