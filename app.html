@@ -6,13 +6,13 @@
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
 <meta charset="utf-8"/>
-  <meta name="app-build" content="M50.9.9GB134_INBOX_STRICTID_HIDEFIX_20260402_ROOTONLY">
+  <meta name="app-build" content="M50.9.9GB135_INBOX_CHATROLE_REFRESHDEDUPE_20260402_ROOTONLY">
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <title>Doggy Style Workspace · App</title>
 <link href="manifest.json" rel="manifest"/>
 <meta content="#101014" name="theme-color"/>
 <link href="assets/logo.png" rel="apple-touch-icon"/>
-<link href="styles.css?v=M50.9.9GB134_INBOX_STRICTID_HIDEFIX_20260402_ROOTONLY" rel="stylesheet"/>
+<link href="styles.css?v=M50.9.9GB135_INBOX_CHATROLE_REFRESHDEDUPE_20260402_ROOTONLY" rel="stylesheet"/>
 <link href="dashboard_master.css?v=20260104v13logout" rel="stylesheet"/>
 <style>
   /* Topbar Layout (iPad & Desktop stabil) */
@@ -102,7 +102,7 @@
   .doc-modal__actions{ margin-left:auto; display:flex; flex-wrap: wrap; gap: 8px; }
   .doc-modal__frame{ width: 100%; border: 0; border-radius: 12px; background: #fff; flex:1; min-height: 0; }
 </style>
-  <meta name="app-version" content="M50.9.9GB134_INBOX_STRICTID_HIDEFIX_20260402_ROOTONLY">
+  <meta name="app-version" content="M50.9.9GB135_INBOX_CHATROLE_REFRESHDEDUPE_20260402_ROOTONLY">
   <meta name="release-channel" content="MASTER">
 </head>
 <body class="bg-watermark page-app">
@@ -1194,7 +1194,7 @@
 </section>
 
 <section class="panel" id="statistics">
-<!-- Statistics panel is rendered by app.js?v=M50.9.9GB134_INBOX_STRICTID_HIDEFIX_20260402_ROOTONLY (renderStatisticsPanel) -->
+<!-- Statistics panel is rendered by app.js?v=M50.9.9GB135_INBOX_CHATROLE_REFRESHDEDUPE_20260402_ROOTONLY (renderStatisticsPanel) -->
 </section>
 
 
@@ -1261,12 +1261,12 @@
 </footer>
 </div>
 <!-- Firebase (optional) + Config -->
-<script defer="defer" src="firebase-config.js?v=M50.9.9GB134_INBOX_STRICTID_HIDEFIX_20260402_ROOTONLY"></script>
+<script defer="defer" src="firebase-config.js?v=M50.9.9GB135_INBOX_CHATROLE_REFRESHDEDUPE_20260402_ROOTONLY"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
-<script defer="defer" src="app.js?v=M50.9.9GB134_INBOX_STRICTID_HIDEFIX_20260402_ROOTONLY"></script>
+<script defer="defer" src="app.js?v=M50.9.9GB135_INBOX_CHATROLE_REFRESHDEDUPE_20260402_ROOTONLY"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1309,7 +1309,7 @@
 </script>
 
 <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB134_INBOX_STRICTID_HIDEFIX_20260402_ROOTONLY');
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB135_INBOX_CHATROLE_REFRESHDEDUPE_20260402_ROOTONLY');
   </script>
 
 <script>
@@ -1373,7 +1373,7 @@
   <!-- Bottom logout button removed (duplicate of header logout; also overlaps editor on iPad) -->
 </div>
 <!-- test-badge removed (requested) -->
-  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB134_INBOX_STRICTID_HIDEFIX_20260402_ROOTONLY</div>
+  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB135_INBOX_CHATROLE_REFRESHDEDUPE_20260402_ROOTONLY</div>
 
 <script>
 (function visibleMailFallback(){
@@ -1880,21 +1880,14 @@
         }catch(_){ }
       }
       var payload = (row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data)) || {};
-      var proposalId = String((row && (row.__debugProposalId || row.proposalId)) || (payload && payload.proposalId) || '').trim();
+      var rowId = String((row && (row.id || row.taskId || row.__rowId)) || '').trim();
+      var proposalId = String((row && (row.__debugProposalId || row.proposalId || row.proposal || row.id)) || (payload && (payload.proposalId || payload.proposal || payload.id)) || '').trim();
       var submissionId = String((row && row.submissionId) || (payload && payload.submissionId) || '').trim();
-      var rowId = String((row && (row.id || row.taskId)) || '').trim();
       var payloadId = String((payload && payload.id) || '').trim();
-      var customerKey = String((row && (row.customerId || row.__targetCustomerId || row.customerUid || row.customerEmail || row.customerName)) || (payload.customer && (payload.customer.id || payload.customer.customerId || payload.customer.uid || payload.customer.portalUid || payload.customer.email || payload.customer.name)) || '').trim().toLowerCase();
-      var petKey = String((row && (row.petId || row.__targetPetId || row.petName)) || (payload.pet && (payload.pet.id || payload.pet.petId || payload.pet.chipNumber || payload.pet.name)) || '').trim().toLowerCase();
-      var submittedAt = String((row && (row.submittedAt || row.createdAt)) || (payload && payload.submittedAt) || '').trim().toLowerCase();
-      var templateKey = String((row && (row.templateId || row.title || row.formKey || row.proposalType || row.kind)) || (payload && (payload.templateId || payload.title || payload.formKey || payload.proposalType || payload.kind)) || '').trim().toLowerCase();
       add(proposalId, 'proposal');
       add(submissionId, 'submission');
-      if(proposalId || submissionId) add(rowId, 'row');
-      if((proposalId || submissionId) && payloadId) add(payloadId, 'payload');
-      if((proposalId || submissionId || rowId) && customerKey && submittedAt){
-        add([customerKey, petKey || '-', submittedAt, templateKey || '-'].join('|'), 'sig');
-      }
+      add(rowId, 'row');
+      if(payloadId && payloadId !== rowId) add(payloadId, 'payload');
       return Array.from(new Set(keys));
     }catch(_){ return []; }
   }
@@ -1933,13 +1926,40 @@
       };
       var teamKey = (typeof dsChatInferStaffKey === 'function') ? dsChatInferStaffKey() : 'raphael';
       var chat = await dsAdminEnsureChatForCustomer(customer, teamKey);
-      if(chat && chat.id) await dsSendChatMessage(chat.id, text, {
-        teamMemberKey: teamKey,
-        customerId: customer.id || customer.customerId || '',
-        customerUid: customer.uid || customer.customerUid || '',
-        customerEmail: customer.email || '',
-        customerName: customer.name || 'Kunde'
-      });
+      var proposalKey = String((row && (row.__debugProposalId || row.proposalId || row.id || row.taskId || row.submissionId)) || '').trim().toLowerCase();
+      var dedupeStoreKey = 'ds_inbox_auto_chat_sent_v2';
+      var dedupeKey = [String((chat && chat.id) || ''), proposalKey || '--', String(teamKey || ''), String(text || '')].join('|');
+      try{
+        var raw = localStorage.getItem(dedupeStoreKey);
+        var data = raw ? JSON.parse(raw) : {};
+        if(data && data[dedupeKey]) return true;
+      }catch(_){ }
+      if(chat && chat.id){
+        var staffName = (function(){
+          var explicit = (typeof dsChatNormalizeTeamKey === 'function') ? dsChatNormalizeTeamKey(teamKey, true) : String(teamKey || '').toLowerCase();
+          if(explicit === 'raphael') return 'Raphael';
+          if(explicit === 'anschi') return 'Anschi';
+          return 'Doggy Style Team';
+        })();
+        await dsSendChatMessage(chat.id, text, {
+          teamMemberKey: teamKey,
+          customerId: customer.id || customer.customerId || '',
+          customerUid: customer.uid || customer.customerUid || '',
+          customerEmail: customer.email || '',
+          customerName: customer.name || 'Kunde',
+          forceSenderRole: 'staff',
+          senderName: staffName,
+          senderUid: (typeof dsChatUserUid === 'function') ? dsChatUserUid() : '',
+          senderEmail: (typeof dsChatUserEmail === 'function') ? dsChatUserEmail() : '',
+          autoReplyKey: proposalKey ? ('proposal:' + proposalKey + ':fallback') : ''
+        });
+        try{
+          var raw2 = localStorage.getItem(dedupeStoreKey);
+          var data2 = raw2 ? JSON.parse(raw2) : {};
+          data2[dedupeKey] = Date.now();
+          localStorage.setItem(dedupeStoreKey, JSON.stringify(data2));
+        }catch(_){ }
+      }
       return true;
     }catch(err){
       try{ alert('Chat konnte nicht gesendet werden: ' + String((err && err.message) || err || 'Unbekannter Fehler')); }catch(_){ }

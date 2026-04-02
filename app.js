@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB134_INBOX_STRICTID_HIDEFIX_20260402_ROOTONLY",
+  tag: "M50.9.9GB135_INBOX_CHATROLE_REFRESHDEDUPE_20260402_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB134_INBOX_STRICTID_HIDEFIX_20260402_ROOTONLY";
+const APP_BUILD = "M50.9.9GB135_INBOX_CHATROLE_REFRESHDEDUPE_20260402_ROOTONLY";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -9437,20 +9437,14 @@ function dsProposalStrictKeys(row){
       }catch(_){ }
     };
     const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
-    const src = lower(String((row && row.__source) || (row && row.source) || (payload && payload.source) || '').trim());
-    const rowId = norm(row && row.id);
-    const proposalId = norm((row && (row.proposalId || row.proposal)) || (payload && (payload.proposalId || payload.proposal)) || '');
+    const rowId = norm(row && (row.id || row.taskId || row.__rowId));
+    const proposalId = norm((row && (row.__debugProposalId || row.proposalId || row.proposal || row.id)) || (payload && (payload.proposalId || payload.proposal || payload.id)) || '');
     const submissionId = norm((row && row.submissionId) || (payload && payload.submissionId) || '');
     const payloadId = norm(payload && payload.id);
-    const customerKey = lower(String((row && (row.customerId || row.__targetCustomerId || row.customerUid || row.customerEmail || row.customerName)) || (payload.customer && (payload.customer.id || payload.customer.customerId || payload.customer.uid || payload.customer.portalUid || payload.customer.email || payload.customer.name)) || '').trim());
-    const petKey = lower(String((row && (row.petId || row.__targetPetId || row.petName)) || (payload.pet && (payload.pet.id || payload.pet.petId || payload.pet.chipNumber || payload.pet.name)) || '').trim());
-    const submittedAt = lower(String((row && (row.submittedAt || row.createdAt)) || payload.submittedAt || '').trim());
-    const templateKey = lower(String((row && (row.templateId || row.title || row.formKey || row.proposalType || row.kind)) || (payload && (payload.templateId || payload.title || payload.formKey || payload.proposalType || payload.kind)) || '').trim());
     add(proposalId, 'proposal');
     add(submissionId, 'submission');
-    if(src.includes('proposal') || src.includes('customer') || proposalId || submissionId) add(rowId, 'row');
-    if((proposalId || submissionId) && payloadId) add(payloadId, 'payload');
-    if((proposalId || submissionId || rowId) && customerKey && submittedAt) add([customerKey, petKey || '-', submittedAt, templateKey || '-'].join('|'), 'sig');
+    add(rowId, 'row');
+    if(payloadId && payloadId !== rowId) add(payloadId, 'payload');
     return Array.from(new Set(keys.filter(Boolean)));
   }catch(_){ return []; }
 }
@@ -20492,7 +20486,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB134_INBOX_STRICTID_HIDEFIX_20260402_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB135_INBOX_CHATROLE_REFRESHDEDUPE_20260402_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -22088,7 +22082,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB134_INBOX_STRICTID_HIDEFIX_20260402_ROOTONLY";
+  const BUILD = "M50.9.9GB135_INBOX_CHATROLE_REFRESHDEDUPE_20260402_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -22398,6 +22392,7 @@ try{
       return false;
     }
   }
+try{ window.dsInboxSendAnswerChat = dsInboxSendAnswerChat; }catch(_){ }
 async function dsInboxAnswerRow(row){
     try{
       if(!row) return false;
