@@ -1,3 +1,8 @@
+GB131 CUSTOMER_BUILD_SYNC_20260402
+- customer.html von veralteten GB84-Cache-Parametern auf aktuellen Master-Build gezogen
+- Kundenportal-Buildlabel auf APP_BUILD umgestellt, damit künftige Buildwechsel nicht mehr hart codiert driften
+- version/app/sw/verify auf GB131 angehoben fuer sauberes Cache-Busting
+
 GB127
 - Basis GB125
 - Beantworten-Testdialog durch einfache Prompt-Kette ersetzt
