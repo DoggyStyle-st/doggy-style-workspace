@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB141_AUTHSYNC_LOGOUT_CLEAN_BASEGB137_20260403_ROOTONLY",
+  tag: "M50.9.9GB142_SYNC_DIAG_TRACE_BASEGB141_20260403_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,53 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB141_AUTHSYNC_LOGOUT_CLEAN_BASEGB137_20260403_ROOTONLY";
+const APP_BUILD = "M50.9.9GB142_SYNC_DIAG_TRACE_BASEGB141_20260403_ROOTONLY";
+
+function dsSyncDiagStateSummary(){
+  try{
+    const s = state || {};
+    const customers = Array.isArray(s.customers) ? s.customers.length : 0;
+    const pets = Array.isArray(s.pets) ? s.pets.length : 0;
+    const docs = Array.isArray(s.docs) ? s.docs.length : 0;
+    const inboxSub = Array.isArray(s.inboxSubmissions) ? s.inboxSubmissions.length : 0;
+    const inboxAssign = Array.isArray(s.inboxAssignments) ? s.inboxAssignments.length : 0;
+    return `cust=${customers} pets=${pets} docs=${docs} sub=${inboxSub} assign=${inboxAssign}`;
+  }catch(_){ return 'state=unavailable'; }
+}
+function dsSetSyncDiag(msg, isError){
+  try{
+    const stamp = Date.now();
+    const box = window.__dsSyncDiag || (window.__dsSyncDiag = { current:'', isError:false, at:0, history:[] });
+    box.current = String(msg || '');
+    box.isError = !!isError;
+    box.at = stamp;
+    try{ box.history.push({ at:stamp, msg:box.current, isError:!!isError }); if(box.history.length > 25) box.history = box.history.slice(-25); }catch(_){ }
+    try{ window.__dsSyncDiagText = box.current; }catch(_){ }
+    try{ dsRenderSyncDiag(); }catch(_){ }
+  }catch(_){ }
+}
+function dsRenderSyncDiag(){
+  try{
+    let el = document.getElementById('syncDiagBar');
+    const box = window.__dsSyncDiag || {};
+    const text = String(box.current || '');
+    const visible = !!text;
+    if(!el){
+      el = document.createElement('div');
+      el.id = 'syncDiagBar';
+      el.style.cssText = 'display:none;position:sticky;top:0;z-index:9997;margin:8px 12px 0;padding:10px 14px;border-radius:14px;border:1px solid rgba(248,81,73,.45);background:rgba(34,14,18,.92);color:#f6c1c1;font-size:13px;line-height:1.35;white-space:normal;word-break:break-word;';
+      const host = document.body || document.documentElement;
+      if(host) host.appendChild(el);
+    }
+    if(!visible){ el.style.display='none'; return; }
+    el.style.display='block';
+    el.style.borderColor = box.isError ? 'rgba(248,81,73,.55)' : 'rgba(255,193,7,.45)';
+    el.style.background = box.isError ? 'rgba(34,14,18,.92)' : 'rgba(37,28,8,.92)';
+    el.style.color = box.isError ? '#f6c1c1' : '#ffe7a3';
+    el.textContent = 'SyncDiag: ' + text;
+  }catch(_){ }
+}
+try{ window.__dsSyncDiagDump = function(){ try{ return JSON.stringify(window.__dsSyncDiag || {}, null, 2); }catch(_){ return String((window.__dsSyncDiag && window.__dsSyncDiag.current) || ''); } }; }catch(_){ }
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -603,11 +649,13 @@ function updateSyncUI(){
   }
   if(details){
     const detailsCloudLine = (hasAuth && !SYNC.cloudLastError && !SYNC.cloudPending) ? `Cloud: erfolgreich · Nutzer: ${resolvedUser && (resolvedUser.email || resolvedUser.uid) || 'eingeloggt'}` : cloudLine;
+    const syncDiagLine = (()=>{ try{ return String((window.__dsSyncDiag && window.__dsSyncDiag.current) || ''); }catch(_){ return ''; } })();
     details.textContent = `${localLine}
 ${netLine}
 ${detailsCloudLine}
-Cloud-Ping: ${fmtDT(SYNC.cloudReachCheckedAt)}${SYNC.cloudReachError ? ' · '+SYNC.cloudReachError : ''}`;
+Cloud-Ping: ${fmtDT(SYNC.cloudReachCheckedAt)}${SYNC.cloudReachError ? ' · '+SYNC.cloudReachError : ''}${syncDiagLine ? '\nSyncDiag: ' + syncDiagLine : ''}`;
   }
+  try{ if(SYNC.cloudLastError){ dsSetSyncDiag('lastError=' + String(SYNC.cloudLastError || '') + ' · ' + dsSyncDiagStateSummary(), true); } else if(!(window.__dsSyncDiag && window.__dsSyncDiag.current)) { dsRenderSyncDiag(); } }catch(_){ }
   if(manualBtn){
     const ok = !!(CLOUD.enabled && resolvedUser);
     if(!cloudIsEnabled()){
@@ -1397,6 +1445,7 @@ function cloudPushQueued(){
   clearTimeout(CLOUD._pushTimer);
   SYNC.cloudPending = true;
   updateSyncUI();
+  try{ dsSetSyncDiag('cloudPush:queued delay=700 · ' + dsSyncDiagStateSummary(), false); }catch(_){ }
   CLOUD._pushTimer = setTimeout(()=>cloudPushNow().catch(console.error), 700);
 }
 function cloudSchedulePush(){
@@ -1413,6 +1462,7 @@ async function cloudPushNow(){
   if(!CLOUD.enabled) return;
   if(!CLOUD.user) throw new Error("Nicht angemeldet");
   SYNC.cloudPending = true;
+  try{ dsSetSyncDiag('cloudPush:start user=' + String((CLOUD.user && (CLOUD.user.email || CLOUD.user.uid)) || '--') + ' · ' + dsSyncDiagStateSummary(), false); }catch(_){ }
   updateSyncUI();
   const stamp = Date.now();
   // Marker im State, damit wir Remote-Updates sauber vergleichen können
@@ -1420,19 +1470,22 @@ async function cloudPushNow(){
   // last write wins (v1). Später: echtes Merge pro Objekt.
   try{
     const ref = cloudStateRef();
-  if(!ref) return;
+  if(!ref){ try{ dsSetSyncDiag('cloudPush:no-ref · ' + dsSyncDiagStateSummary(), true); }catch(_){ } return; }
   await ref.set({
       payload: state,
       updatedAt: stamp,
       updatedBy: CLOUD.user.email || CLOUD.user.uid
     }, {merge: true});
+    try{ dsSetSyncDiag('cloudPush:ok updatedAt=' + String(stamp) + ' · ' + dsSyncDiagStateSummary(), false); }catch(_){ }
     CLOUD.lastPushOkAt = stamp;
     CLOUD.lastPushError = "";
     SYNC.cloudLastOkAt = stamp;
     SYNC.cloudLastError = "";
     SYNC.cloudPending = false;
   }catch(e){
-    CLOUD.lastPushError = String(e?.message||e||"Cloud write failed");
+    const errMsg = String(e?.message||e||"Cloud write failed");
+    try{ dsSetSyncDiag('cloudPush:fail msg=' + errMsg + ' · ' + dsSyncDiagStateSummary(), true); }catch(_){ }
+    CLOUD.lastPushError = errMsg;
     SYNC.cloudLastError = CLOUD.lastPushError;
     SYNC.cloudPending = false;
     throw e;
@@ -14954,6 +15007,7 @@ document.addEventListener("visibilitychange", () => {
 })();
 // Start
 startApp().catch(console.error);
+setTimeout(()=>{ try{ dsRenderSyncDiag(); }catch(_){ } }, 120);
 // UI: Sync-Status regelmäßig auffrischen (auch bei Tab-Wechsel/PWA)
 setInterval(()=>{ try{ updateSyncUI(); }catch(_){ } }, 1500);
 window.addEventListener('online', ()=>{ try{ scheduleCloudPing(0,'online-event'); }catch(_){ try{ updateSyncUI(); }catch(__){} } });
@@ -20527,7 +20581,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB141_AUTHSYNC_LOGOUT_CLEAN_BASEGB137_20260403_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB142_SYNC_DIAG_TRACE_BASEGB141_20260403_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -22123,7 +22177,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB141_AUTHSYNC_LOGOUT_CLEAN_BASEGB137_20260403_ROOTONLY";
+  const BUILD = "M50.9.9GB142_SYNC_DIAG_TRACE_BASEGB141_20260403_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -22482,17 +22536,29 @@ async function dsInboxAnswerRow(row){
       if(chatPick == null) return false;
       const chatMode = String(chatPick).trim() === '1' ? 'standard' : (String(chatPick).trim() === '2' ? 'edit' : (String(chatPick).trim() === '3' ? 'none' : ''));
       if(!chatMode){ try{ alert('Ungültige Auswahl.'); }catch(_){ } return false; }
+      try{ dsSetSyncDiag('answer:start status=' + String(status||'--') + ' row=' + String((row && (row.proposalId || row.id || row.taskId)) || '--'), false); }catch(_){ }
       if(status === 'accepted'){
         try{ if(typeof dsFinalizeAcceptedProposalLocal === 'function') dsFinalizeAcceptedProposalLocal(row); }catch(_){ }
+        try{ dsSetSyncDiag('answer:accepted-local-finalized row=' + String((row && (row.proposalId || row.id || row.taskId)) || '--'), false); }catch(_){ }
       }
       try{ if(typeof dsMarkInboxRowHandled === 'function') dsMarkInboxRowHandled(row, status); }catch(_){ }
+      try{ dsSetSyncDiag('answer:handled-marked status=' + String(status||'--') + ' row=' + String((row && (row.proposalId || row.id || row.taskId)) || '--'), false); }catch(_){ }
       try{ removeInboxRowEverywhere(row); }catch(_){ }
+      try{ dsSetSyncDiag('answer:removed-local row=' + String((row && (row.proposalId || row.id || row.taskId)) || '--') + ' · ' + dsSyncDiagStateSummary(), false); }catch(_){ }
+      try{ dsSetSyncDiag('answer:chat-start mode=' + String(chatMode||'--') + ' status=' + String(status||'--'), false); }catch(_){ }
       await dsInboxSendAnswerChat(row, status, chatMode);
+      try{ dsSetSyncDiag('answer:chat-done mode=' + String(chatMode||'--') + ' status=' + String(status||'--'), false); }catch(_){ }
+      try{ dsSetSyncDiag('answer:patch-start status=' + String(status||'--'), false); }catch(_){ }
       try{ if(typeof patchInboxRowStatus === 'function') await patchInboxRowStatus(row, status); }catch(_){ }
+      try{ dsSetSyncDiag('answer:patch-finished status=' + String(status||'--'), false); }catch(_){ }
+      try{ dsSetSyncDiag('answer:refresh-start reason=' + String('answer-' + status), false); }catch(_){ }
       try{ await refreshInboxHard('answer-' + status); }catch(_){ }
+      try{ dsSetSyncDiag('answer:refresh-done reason=' + String('answer-' + status) + ' · ' + dsSyncDiagStateSummary(), false); }catch(_){ }
+      try{ dsSetSyncDiag('answer:done status=' + String(status||'--') + ' row=' + String((row && (row.proposalId || row.id || row.taskId)) || '--'), false); }catch(_){ }
       markRecent = true;
       return false;
     }catch(err){
+      try{ dsSetSyncDiag('answer:fail msg=' + String((err && err.message) || err || 'unknown'), true); }catch(_){ }
       try{ alert('Beantworten fehlgeschlagen: ' + String((err && err.message) || err || 'Unbekannter Fehler')); }catch(_){ }
       return false;
     }finally{
@@ -22797,26 +22863,33 @@ function removeInboxRowEverywhere(row){
   async function patchInboxRowStatus(row, status){
     const payload = { proposalStatus: status, status: status === 'pending' ? 'submitted' : status, reviewedAt: Date.now(), resolvedAt: Date.now() };
     let ok = false;
+    const pidDiag = norm(row && (row.proposalId || row.proposal || row.id));
+    const tidDiag = norm(row && (row.taskId || row.task || row.id));
+    try{ dsSetSyncDiag('patchStatus:start status=' + String(status||'--') + ' pid=' + String(pidDiag||'--') + ' tid=' + String(tidDiag||'--'), false); }catch(_){ }
     try{
       const pcol = typeof cloudProposalsCol === 'function' ? cloudProposalsCol() : null;
-      const pid = norm(row && (row.proposalId || row.proposal || row.id));
+      const pid = pidDiag;
       if(pcol && pid && typeof pcol.doc === 'function'){
         await pcol.doc(pid).set(payload, { merge:true });
         ok = true;
+        try{ dsSetSyncDiag('patchStatus:proposal-ok pid=' + String(pid||'--') + ' status=' + String(status||'--'), false); }catch(_){ }
       }
-    }catch(err){ console.warn('patchInboxRowStatus proposal failed', err); }
+    }catch(err){ try{ dsSetSyncDiag('patchStatus:proposal-fail pid=' + String(pidDiag||'--') + ' msg=' + String((err && err.message) || err || 'unknown'), true); }catch(_){ } console.warn('patchInboxRowStatus proposal failed', err); }
     try{
       const tcol = typeof cloudTasksCol === 'function' ? cloudTasksCol() : null;
-      const tid = norm(row && (row.taskId || row.task || row.id));
+      const tid = tidDiag;
       if(tcol && tid && typeof tcol.doc === 'function'){
         await tcol.doc(tid).set(payload, { merge:true });
         ok = true;
+        try{ dsSetSyncDiag('patchStatus:task-ok tid=' + String(tid||'--') + ' status=' + String(status||'--'), false); }catch(_){ }
       }
-    }catch(err){ console.warn('patchInboxRowStatus task failed', err); }
+    }catch(err){ try{ dsSetSyncDiag('patchStatus:task-fail tid=' + String(tidDiag||'--') + ' msg=' + String((err && err.message) || err || 'unknown'), true); }catch(_){ } console.warn('patchInboxRowStatus task failed', err); }
     try{ if(status && lower(status) !== 'pending') dsMarkAcceptedProposalId(row, status); }catch(_){ }
     try{ if(status && lower(status) !== 'pending') dsMarkProposalAcceptedExact(row, status); }catch(_){ }
     try{ if(status && lower(status) !== 'pending') dsMarkProposalAcceptedPersistent(row, status); }catch(_){ }
-    return ok || ((dsIsAcceptedProposalIdHit && dsIsAcceptedProposalIdHit(row)) || (dsIsProposalAcceptedExact && dsIsProposalAcceptedExact(row)) || (dsIsProposalAcceptedPersistent && dsIsProposalAcceptedPersistent(row)));
+    const result = ok || ((dsIsAcceptedProposalIdHit && dsIsAcceptedProposalIdHit(row)) || (dsIsProposalAcceptedExact && dsIsProposalAcceptedExact(row)) || (dsIsProposalAcceptedPersistent && dsIsProposalAcceptedPersistent(row)));
+    try{ dsSetSyncDiag('patchStatus:done result=' + (result ? '1':'0') + ' pid=' + String(pidDiag||'--') + ' tid=' + String(tidDiag||'--'), !result); }catch(_){ }
+    return result;
   }
   function upsertCustomerFromProposal(row){
     ensureStateShape();

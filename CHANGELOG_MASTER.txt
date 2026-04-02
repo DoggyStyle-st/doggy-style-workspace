@@ -1,4 +1,4 @@
-- M50.9.9GB141_AUTHSYNC_LOGOUT_CLEAN_BASEGB137_20260403_ROOTONLY
+- M50.9.9GB142_SYNC_DIAG_TRACE_BASEGB141_20260403_ROOTONLY
   - Beantworten-Button in app.html wieder ohne inline touch/pointer-Blocker
   - iPad/Safari-Tap soll wieder den Antwortdialog öffnen statt den Click zu schlucken
 
@@ -30,6 +30,6 @@ GB111: Eingänge-Filter auf handled/accepted robuster gemacht (zusätzliche Schl
 
 GB113: Exakte persistent akzeptierte Proposal-/Task-IDs gespeichert und vor Render gefiltert; Save-Diag enthält proposalId.
 
-- M50.9.9GB141_AUTHSYNC_LOGOUT_CLEAN_BASEGB137_20260403_ROOTONLY
+- M50.9.9GB142_SYNC_DIAG_TRACE_BASEGB141_20260403_ROOTONLY
   - Eingänge: Entfernen/Handled nur noch exact-match über proposal/task/source keys, keine breite customer/pet-Ausblendung mehr.
   - Chat: Auto-Antworten aus Eingänge werden als staff gesendet, in bestehende team-spezifische Threads gelegt und lokal gegen Doppelsendungen geschützt.
