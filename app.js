@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB118_EINGAENGE_BEANTWORTEN_ISOLATED_20260402_ROOTONLY",
+  tag: "M50.9.9GB119_EINGAENGE_BEANTWORTEN_BUTTON_20260402_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB118_EINGAENGE_BEANTWORTEN_ISOLATED_20260402_ROOTONLY";
+const APP_BUILD = "M50.9.9GB119_EINGAENGE_BEANTWORTEN_BUTTON_20260402_ROOTONLY";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -2246,6 +2246,14 @@ async function wireInbox(){
   const root = document.getElementById('inboxDetailFormRoot') || document.getElementById('inboxDetailForm');
   if(!listEl) return;
   let currentTask = null;
+  const replyTest = (task)=>{
+    try{
+      const key = String((task && (task.id || task.proposalId || task.taskId)) || '—');
+      const title = String((task && (task.title || task.templateId || task.proposalType || task.kind)) || 'Änderungsvorschlag');
+      alert('Beantworten-Test\n\n' + title + '\nID: ' + key);
+    }catch(_){ }
+  };
+  try{ window.__dsInboxReplyTest = replyTest; }catch(_){ }
   const renderList = (tasks)=>{
     try{ if(detail) detail.style.display = 'none'; }catch(_){}
     try{ if(listEl) listEl.style.display = ''; }catch(_){}
@@ -2266,6 +2274,12 @@ async function wireInbox(){
       b.textContent='Öffnen';
       b.onclick = ()=>openDetail(t);
       actions.appendChild(b);
+      const br = document.createElement('button');
+      br.className='smallbtn';
+      br.textContent='Beantworten';
+      br.style.marginLeft='8px';
+      br.onclick = ()=>replyTest(t);
+      actions.appendChild(br);
       row.appendChild(actions);
       listEl.appendChild(row);
     });
@@ -20537,7 +20551,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB118_EINGAENGE_BEANTWORTEN_ISOLATED_20260402_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB119_EINGAENGE_BEANTWORTEN_BUTTON_20260402_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -22118,7 +22132,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB118_EINGAENGE_BEANTWORTEN_ISOLATED_20260402_ROOTONLY";
+  const BUILD = "M50.9.9GB119_EINGAENGE_BEANTWORTEN_BUTTON_20260402_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
