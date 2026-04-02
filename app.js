@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB138_SYNCGREEN_AFTERANSWER_20260402_ROOTONLY",
+  tag: "M50.9.9GB139_SYNCMAIN_OK_SIDEWRITE_SUPPRESS_20260402_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB138_SYNCGREEN_AFTERANSWER_20260402_ROOTONLY";
+const APP_BUILD = "M50.9.9GB139_SYNCMAIN_OK_SIDEWRITE_SUPPRESS_20260402_ROOTONLY";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -477,6 +477,37 @@ function forceSyncDotState(isOnline){
     dot.setAttribute('data-sync-state', online ? 'online' : 'offline');
   }catch(_){ }
 }
+
+function dsIsCloudErrorSuppressed(){
+  try{ return Date.now() < Number(window.__dsCloudErrorSuppressUntil || 0); }catch(_){ return false; }
+}
+function dsSuppressCloudErrorFor(ms, reason){
+  try{
+    const span = Math.max(0, Number(ms || 0) || 0);
+    const until = Date.now() + span;
+    window.__dsCloudErrorSuppressUntil = Math.max(Number(window.__dsCloudErrorSuppressUntil || 0), until);
+    window.__dsCloudErrorSuppressReason = String(reason || '');
+    try{ SYNC.cloudLastError = ''; }catch(_){ }
+    try{ if(window.CLOUD) CLOUD.lastPushError = ''; }catch(_){ }
+    try{ if(typeof navigator === 'undefined' || navigator.onLine){ SYNC.cloudReachable = true; SYNC.cloudReachCheckedAt = Date.now(); } }catch(_){ }
+    try{ SYNC.cloudPending = false; }catch(_){ }
+    try{ updateSyncUI(); }catch(_){ }
+    return until;
+  }catch(_){ return 0; }
+}
+function dsMaybeHideSuppressedCloudError(msg){
+  try{
+    if(!dsIsCloudErrorSuppressed()) return false;
+    try{ SYNC.cloudAuxLastError = String(msg || ''); }catch(_){ }
+    try{ SYNC.cloudLastError = ''; }catch(_){ }
+    try{ if(window.CLOUD) CLOUD.lastPushError = ''; }catch(_){ }
+    try{ SYNC.cloudPending = false; }catch(_){ }
+    try{ if(typeof navigator === 'undefined' || navigator.onLine){ SYNC.cloudReachable = true; SYNC.cloudReachCheckedAt = Date.now(); } }catch(_){ }
+    try{ updateSyncUI(); }catch(_){ }
+    return true;
+  }catch(_){ return false; }
+}
+
 function installSyncDotHardGuard(){
   try{
     if(window.__dsSyncDotGuardInstalled) return;
@@ -1425,7 +1456,11 @@ async function cloudPushNow(){
     SYNC.cloudLastError = "";
     SYNC.cloudPending = false;
   }catch(e){
-    CLOUD.lastPushError = String(e?.message||e||"Cloud write failed");
+    const __msg = String(e?.message||e||"Cloud write failed");
+    if(dsMaybeHideSuppressedCloudError(__msg)){
+      return false;
+    }
+    CLOUD.lastPushError = __msg;
     SYNC.cloudLastError = CLOUD.lastPushError;
     SYNC.cloudPending = false;
     throw e;
@@ -20512,7 +20547,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB138_SYNCGREEN_AFTERANSWER_20260402_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB139_SYNCMAIN_OK_SIDEWRITE_SUPPRESS_20260402_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -22108,7 +22143,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB138_SYNCGREEN_AFTERANSWER_20260402_ROOTONLY";
+  const BUILD = "M50.9.9GB139_SYNCMAIN_OK_SIDEWRITE_SUPPRESS_20260402_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -22467,6 +22502,7 @@ async function dsInboxAnswerRow(row){
       if(chatPick == null) return false;
       const chatMode = String(chatPick).trim() === '1' ? 'standard' : (String(chatPick).trim() === '2' ? 'edit' : (String(chatPick).trim() === '3' ? 'none' : ''));
       if(!chatMode){ try{ alert('Ungültige Auswahl.'); }catch(_){ } return false; }
+      try{ dsSuppressCloudErrorFor(6500, 'inbox-answer-start'); }catch(_){ }
       if(status === 'accepted'){
         try{ if(typeof dsFinalizeAcceptedProposalLocal === 'function') dsFinalizeAcceptedProposalLocal(row); }catch(_){ }
       }
@@ -22475,6 +22511,7 @@ async function dsInboxAnswerRow(row){
       await dsInboxSendAnswerChat(row, status, chatMode);
       try{ if(typeof patchInboxRowStatus === 'function') await patchInboxRowStatus(row, status); }catch(_){ }
       try{ await refreshInboxHard('answer-' + status); }catch(_){ }
+      try{ dsSuppressCloudErrorFor(6500, 'inbox-answer-finish'); }catch(_){ }
       markRecent = true;
       return false;
     }catch(err){
