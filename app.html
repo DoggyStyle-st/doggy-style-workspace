@@ -6,13 +6,13 @@
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
 <meta charset="utf-8"/>
-  <meta name="app-build" content="M50.9.9GB135_INBOX_CHATROLE_REFRESHDEDUPE_20260402_ROOTONLY">
+  <meta name="app-build" content="M50.9.9GB136_INBOX_SINGLESHOT_ANSWERFLOW_20260402_ROOTONLY">
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <title>Doggy Style Workspace · App</title>
 <link href="manifest.json" rel="manifest"/>
 <meta content="#101014" name="theme-color"/>
 <link href="assets/logo.png" rel="apple-touch-icon"/>
-<link href="styles.css?v=M50.9.9GB135_INBOX_CHATROLE_REFRESHDEDUPE_20260402_ROOTONLY" rel="stylesheet"/>
+<link href="styles.css?v=M50.9.9GB136_INBOX_SINGLESHOT_ANSWERFLOW_20260402_ROOTONLY" rel="stylesheet"/>
 <link href="dashboard_master.css?v=20260104v13logout" rel="stylesheet"/>
 <style>
   /* Topbar Layout (iPad & Desktop stabil) */
@@ -102,7 +102,7 @@
   .doc-modal__actions{ margin-left:auto; display:flex; flex-wrap: wrap; gap: 8px; }
   .doc-modal__frame{ width: 100%; border: 0; border-radius: 12px; background: #fff; flex:1; min-height: 0; }
 </style>
-  <meta name="app-version" content="M50.9.9GB135_INBOX_CHATROLE_REFRESHDEDUPE_20260402_ROOTONLY">
+  <meta name="app-version" content="M50.9.9GB136_INBOX_SINGLESHOT_ANSWERFLOW_20260402_ROOTONLY">
   <meta name="release-channel" content="MASTER">
 </head>
 <body class="bg-watermark page-app">
@@ -1194,7 +1194,7 @@
 </section>
 
 <section class="panel" id="statistics">
-<!-- Statistics panel is rendered by app.js?v=M50.9.9GB135_INBOX_CHATROLE_REFRESHDEDUPE_20260402_ROOTONLY (renderStatisticsPanel) -->
+<!-- Statistics panel is rendered by app.js?v=M50.9.9GB136_INBOX_SINGLESHOT_ANSWERFLOW_20260402_ROOTONLY (renderStatisticsPanel) -->
 </section>
 
 
@@ -1261,12 +1261,12 @@
 </footer>
 </div>
 <!-- Firebase (optional) + Config -->
-<script defer="defer" src="firebase-config.js?v=M50.9.9GB135_INBOX_CHATROLE_REFRESHDEDUPE_20260402_ROOTONLY"></script>
+<script defer="defer" src="firebase-config.js?v=M50.9.9GB136_INBOX_SINGLESHOT_ANSWERFLOW_20260402_ROOTONLY"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
-<script defer="defer" src="app.js?v=M50.9.9GB135_INBOX_CHATROLE_REFRESHDEDUPE_20260402_ROOTONLY"></script>
+<script defer="defer" src="app.js?v=M50.9.9GB136_INBOX_SINGLESHOT_ANSWERFLOW_20260402_ROOTONLY"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1309,7 +1309,7 @@
 </script>
 
 <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB135_INBOX_CHATROLE_REFRESHDEDUPE_20260402_ROOTONLY');
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB136_INBOX_SINGLESHOT_ANSWERFLOW_20260402_ROOTONLY');
   </script>
 
 <script>
@@ -1373,7 +1373,7 @@
   <!-- Bottom logout button removed (duplicate of header logout; also overlaps editor on iPad) -->
 </div>
 <!-- test-badge removed (requested) -->
-  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB135_INBOX_CHATROLE_REFRESHDEDUPE_20260402_ROOTONLY</div>
+  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB136_INBOX_SINGLESHOT_ANSWERFLOW_20260402_ROOTONLY</div>
 
 <script>
 (function visibleMailFallback(){
@@ -1910,6 +1910,32 @@
       return true;
     }catch(_){ return false; }
   }
+
+  function fallbackAnswerFlowKey(row){
+    try{
+      return String((row && (row.__debugProposalId || row.proposalId || row.id || row.taskId || row.submissionId || row.__rowId || row.__sourceKey)) || '').trim().toLowerCase() || ('row:' + String(Date.now()));
+    }catch(_){ return 'row:' + String(Date.now()); }
+  }
+  function fallbackAcquireAnswerFlow(row){
+    try{
+      var key = fallbackAnswerFlowKey(row);
+      var box = window.__dsInboxAnswerFlowState || (window.__dsInboxAnswerFlowState = { active:{}, recent:{} });
+      var now = Date.now();
+      try{ Object.keys(box.recent || {}).forEach(function(k){ if((now - Number(box.recent[k] || 0)) > 4000) delete box.recent[k]; }); }catch(_){ }
+      if(box.active && box.active[key]) return null;
+      if(box.recent && box.recent[key] && (now - Number(box.recent[key] || 0)) < 1200) return null;
+      box.active[key] = now;
+      return { key:key };
+    }catch(_){ return { key:'row:' + String(Date.now()) }; }
+  }
+  function fallbackReleaseAnswerFlow(handle, markRecent){
+    try{
+      if(!handle || !handle.key) return;
+      var box = window.__dsInboxAnswerFlowState || (window.__dsInboxAnswerFlowState = { active:{}, recent:{} });
+      try{ if(box.active) delete box.active[handle.key]; }catch(_){ }
+      if(markRecent){ try{ box.recent[handle.key] = Date.now(); }catch(_){ } }
+    }catch(_){ }
+  }
   async function fallbackSendAnswerChat(row, text){
     try{
       text = String(text || '').trim();
@@ -1967,10 +1993,14 @@
     }
   }
   async function fallbackAnswerInboxRow(targetId, idx){
+    var flow = null;
+    var markRecent = false;
     try{
       var rows = (window.__dsInboxFallbackRows && window.__dsInboxFallbackRows[String(targetId||'')]) || [];
       var row = rows && rows[idx];
       if(!row) return false;
+      flow = fallbackAcquireAnswerFlow(row);
+      if(!flow) return false;
       var title = String(row.title || row.templateId || row.proposalType || row.kind || row.formKey || 'Änderungsvorschlag');
       var prid = String((row && (row.__debugProposalId || row.proposalId || row.id || row.taskId)) || '—').trim();
       var pick = prompt('Vorschlag beantworten:\n1 = Angenommen\n2 = Abgelehnt\n3 = Später entscheiden', '1');
@@ -2029,8 +2059,11 @@
         + '\nAus Liste entfernt: ' + (removeNow ? 'Ja' : 'Nein');
       if(text) summary += '\n\nText:\n' + text;
       alert(summary);
+      markRecent = true;
     }catch(err){
       try{ alert('Beantworten fehlgeschlagen: ' + String((err && err.message) || err || 'Unbekannter Fehler')); }catch(_){ }
+    }finally{
+      fallbackReleaseAnswerFlow(flow, markRecent);
     }
     return false;
   }
@@ -2099,8 +2132,6 @@
           return window.__dsInboxFallbackOpen ? window.__dsInboxFallbackOpen(String(tid || targetId), idx) : false;
         };
         node.addEventListener('click', handler, true);
-        node.addEventListener('touchend', handler, {capture:true, passive:false});
-        node.addEventListener('pointerup', handler, true);
       });
     }catch(_){ }
   }

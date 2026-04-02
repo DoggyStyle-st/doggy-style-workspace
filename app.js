@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB135_INBOX_CHATROLE_REFRESHDEDUPE_20260402_ROOTONLY",
+  tag: "M50.9.9GB136_INBOX_SINGLESHOT_ANSWERFLOW_20260402_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB135_INBOX_CHATROLE_REFRESHDEDUPE_20260402_ROOTONLY";
+const APP_BUILD = "M50.9.9GB136_INBOX_SINGLESHOT_ANSWERFLOW_20260402_ROOTONLY";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -20486,7 +20486,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB135_INBOX_CHATROLE_REFRESHDEDUPE_20260402_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB136_INBOX_SINGLESHOT_ANSWERFLOW_20260402_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -22082,7 +22082,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB135_INBOX_CHATROLE_REFRESHDEDUPE_20260402_ROOTONLY";
+  const BUILD = "M50.9.9GB136_INBOX_SINGLESHOT_ANSWERFLOW_20260402_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -22340,6 +22340,34 @@ try{
     }catch(_){ }
     return false;
   }
+
+  function dsInboxAnswerFlowKey(row){
+    try{
+      return lower(String((row && (row.proposalId || row.id || row.taskId || row.submissionId || row.__rowId || row.__sourceKey)) || '').trim()) || ('row:' + String(Date.now()));
+    }catch(_){ return 'row:' + String(Date.now()); }
+  }
+  function dsInboxAcquireAnswerFlow(row){
+    try{
+      const key = dsInboxAnswerFlowKey(row);
+      const box = window.__dsInboxAnswerFlowState || (window.__dsInboxAnswerFlowState = { active:{}, recent:{} });
+      const now = Date.now();
+      try{ Object.keys(box.recent || {}).forEach(k=>{ if((now - Number(box.recent[k] || 0)) > 4000) delete box.recent[k]; }); }catch(_){ }
+      if(box.active && box.active[key]) return null;
+      if(box.recent && box.recent[key] && (now - Number(box.recent[key] || 0)) < 1200) return null;
+      box.active[key] = now;
+      return { key };
+    }catch(_){ return { key: 'row:' + String(Date.now()) }; }
+  }
+  function dsInboxReleaseAnswerFlow(handle, markRecent){
+    try{
+      if(!handle || !handle.key) return;
+      const box = window.__dsInboxAnswerFlowState || (window.__dsInboxAnswerFlowState = { active:{}, recent:{} });
+      try{ if(box.active) delete box.active[handle.key]; }catch(_){ }
+      if(markRecent){
+        try{ box.recent[handle.key] = Date.now(); }catch(_){ }
+      }
+    }catch(_){ }
+  }
   async function dsInboxSendAnswerChat(row, status, mode){
     try{
       if(String(mode||'') === 'none') return true;
@@ -22394,6 +22422,9 @@ try{
   }
 try{ window.dsInboxSendAnswerChat = dsInboxSendAnswerChat; }catch(_){ }
 async function dsInboxAnswerRow(row){
+    const flow = dsInboxAcquireAnswerFlow(row);
+    if(!flow) return false;
+    let markRecent = false;
     try{
       if(!row) return false;
       const pick = prompt(`Vorschlag beantworten:
@@ -22418,10 +22449,13 @@ async function dsInboxAnswerRow(row){
       await dsInboxSendAnswerChat(row, status, chatMode);
       try{ if(typeof patchInboxRowStatus === 'function') await patchInboxRowStatus(row, status); }catch(_){ }
       try{ await refreshInboxHard('answer-' + status); }catch(_){ }
+      markRecent = true;
       return false;
     }catch(err){
       try{ alert('Beantworten fehlgeschlagen: ' + String((err && err.message) || err || 'Unbekannter Fehler')); }catch(_){ }
       return false;
+    }finally{
+      dsInboxReleaseAnswerFlow(flow, markRecent);
     }
   }
 
@@ -22456,7 +22490,13 @@ async function dsInboxAnswerRow(row){
       btnAnswer.style.marginLeft = '0';
       btnAnswer.style.marginTop = '8px';
       btnAnswer.style.width = '100%';
-      btnAnswer.onclick = (ev)=>{ try{ ev && ev.preventDefault && ev.preventDefault(); ev && ev.stopPropagation && ev.stopPropagation(); }catch(_){ } return dsInboxAnswerRow(r); };
+      btnAnswer.onclick = (ev)=>{
+        try{ ev && ev.preventDefault && ev.preventDefault(); ev && ev.stopPropagation && ev.stopPropagation(); }catch(_){ }
+        if(btnAnswer.dataset.busy === '1') return false;
+        btnAnswer.dataset.busy = '1';
+        Promise.resolve(dsInboxAnswerRow(r)).finally(()=>{ try{ delete btnAnswer.dataset.busy; }catch(_){ btnAnswer.dataset.busy = ''; } });
+        return false;
+      };
       actions.appendChild(btnAnswer);
       row.appendChild(actions);
       row.onclick = (ev)=>{ if(ev.target && ev.target.closest && ev.target.closest('button')) return; openInboxDetail(r); };
@@ -23009,7 +23049,7 @@ function removeInboxRowEverywhere(row){
           actions.style.gap = '8px';
           actions.style.overflow = 'visible';
         }catch(_){ }
-        if(actions.querySelector('button[' + ANSWER_ATTR + ']')) return;
+        if(actions.querySelector('button[' + ANSWER_ATTR + '], button[data-inbox-answer]')) return;
         const a = document.createElement('button');
         a.className = 'smallbtn';
         a.textContent = 'Beantworten';
