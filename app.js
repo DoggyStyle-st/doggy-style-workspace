@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB132_INBOX_EXACTMATCH_CHATSTAFFTHREAD_20260402_ROOTONLY",
+  tag: "M50.9.9GB133_INBOX_RAWFALLBACK_STRICTHIDE_20260402_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB132_INBOX_EXACTMATCH_CHATSTAFFTHREAD_20260402_ROOTONLY";
+const APP_BUILD = "M50.9.9GB133_INBOX_RAWFALLBACK_STRICTHIDE_20260402_ROOTONLY";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -9425,27 +9425,64 @@ function dsAcceptedProposalIdStore(){
     return data && typeof data === 'object' ? data : {};
   }catch(_){ return {}; }
 }
-function dsAcceptedProposalIdsForRow(row){
+function dsProposalStrictKeys(row){
   try{
-    const ids = [];
+    const keys = [];
     const add = function(v){
       try{
         const key = lower(String(v == null ? '' : v).trim());
-        if(key) ids.push(key);
+        if(key) keys.push(key);
       }catch(_){ }
     };
     const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
     add(row && row.proposalId);
     add(row && row.proposal);
-    add(row && row.taskId);
-    add(row && row.task);
-    add(row && row.id);
+    add(row && row.submissionId);
     add(payload && payload.proposalId);
     add(payload && payload.proposal);
-    add(payload && payload.taskId);
-    add(payload && payload.task);
-    add(payload && payload.id);
-    return Array.from(new Set(ids));
+    add(payload && payload.submissionId);
+    add(row && row.__sourceKey);
+    add(payload && payload.sourceKey);
+    const src = lower(String((row && row.__source) || (row && row.source) || (payload && payload.source) || '').trim());
+    const rowId = norm(row && row.id);
+    const payloadId = norm(payload && payload.id);
+    if(src.includes('proposal') || src.includes('customer')){
+      add(rowId);
+      add(payloadId);
+    }
+    return Array.from(new Set(keys));
+  }catch(_){ return []; }
+}
+function dsGetProposalHideReason(row){
+  try{
+    if(!row) return '';
+    const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
+    const status = lower(row && (row.status || row.proposalStatus || payload.status || payload.proposalStatus || ''));
+    if(status && ['rejected','adopted','closed','done','completed','accepted','handled'].includes(status)) return 'status:' + status;
+    const keys = (typeof dsProposalStrictKeys === 'function' ? dsProposalStrictKeys(row) : []).filter(Boolean);
+    if(!keys.length) return '';
+    const stores = [
+      ['accepted-id', (typeof dsAcceptedProposalIdStore === 'function' ? dsAcceptedProposalIdStore() : {})],
+      ['accepted-direct', (typeof dsProposalDirectAcceptedStore === 'function' ? dsProposalDirectAcceptedStore() : {})],
+      ['accepted-exact', (typeof dsProposalExactAcceptedStore === 'function' ? dsProposalExactAcceptedStore() : {})],
+      ['accepted-persist', (typeof dsProposalAcceptedStore === 'function' ? dsProposalAcceptedStore() : {})],
+      ['handled', (typeof dsInboxHandledStore === 'function' ? dsInboxHandledStore() : {})]
+    ];
+    for(const entry of stores){
+      const label = entry[0];
+      const data = entry[1] || {};
+      for(const key of keys){
+        try{
+          if(key && data && data[key]) return label + ':' + key;
+        }catch(_){ }
+      }
+    }
+    return '';
+  }catch(_){ return ''; }
+}
+function dsAcceptedProposalIdsForRow(row){
+  try{
+    return (typeof dsProposalStrictKeys === 'function' ? dsProposalStrictKeys(row) : []).filter(Boolean);
   }catch(_){ return []; }
 }
 function dsMarkAcceptedProposalId(row, status){
@@ -9464,26 +9501,7 @@ function dsIsAcceptedProposalIdHit(row){
 }
 function dsProposalExactAcceptedIds(row){
   try{
-    const ids = [];
-    const add = function(v){
-      try{
-        const key = lower(String(v == null ? '' : v).trim());
-        if(key) ids.push(key);
-      }catch(_){ }
-    };
-    const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
-    add(row && row.proposalId);
-    add(row && row.proposal);
-    add(row && row.taskId);
-    add(row && row.task);
-    add(row && row.id);
-    add(row && row.__rowId);
-    add(payload && payload.proposalId);
-    add(payload && payload.proposal);
-    add(payload && payload.taskId);
-    add(payload && payload.task);
-    add(payload && payload.id);
-    return Array.from(new Set(ids));
+    return (typeof dsProposalStrictKeys === 'function' ? dsProposalStrictKeys(row) : []).filter(Boolean);
   }catch(_){ return []; }
 }
 function dsProposalDirectAcceptedIds(row){
@@ -9525,18 +9543,7 @@ function dsIsProposalAcceptedExact(row){
 }
 function dsProposalAcceptedKeys(row){
   try{
-    const keys = [];
-    const add = function(v){
-      try{
-        const key = lower(String(v == null ? '' : v).trim());
-        if(key) keys.push(key);
-      }catch(_){ }
-    };
-    try{ (typeof dsProposalExactAcceptedIds === 'function' ? dsProposalExactAcceptedIds(row) : []).forEach(add); }catch(_){ }
-    add(row && row.__sourceKey);
-    const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
-    add(payload && payload.sourceKey);
-    return Array.from(new Set(keys));
+    return (typeof dsProposalStrictKeys === 'function' ? dsProposalStrictKeys(row) : []).filter(Boolean);
   }catch(_){ return []; }
 }
 function dsMarkProposalAcceptedPersistent(row, status){
@@ -9561,12 +9568,8 @@ function dsIsProposalAcceptedPersistent(row){
 }
 function dsInboxHandledKey(row){
   try{
-    const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
-    return lower(
-      norm(row && (row.__rowId || row.id || row.taskId || row.proposalId || row.submissionId || row.__sourceKey))
-      || norm(payload && (payload.id || payload.taskId || payload.proposalId || payload.submissionId || payload.sourceKey))
-      || ''
-    );
+    const keys = (typeof dsProposalStrictKeys === 'function' ? dsProposalStrictKeys(row) : []).filter(Boolean);
+    return keys[0] || '';
   }catch(_){ return ''; }
 }
 function dsMarkInboxRowHandled(row, status){
@@ -9579,31 +9582,14 @@ function dsMarkInboxRowHandled(row, status){
         if(key) data[key] = val;
       }catch(_){ }
     };
-    add(dsInboxHandledKey(row));
-    try{ (typeof dsProposalExactAcceptedIds === 'function' ? dsProposalExactAcceptedIds(row) : []).forEach(add); }catch(_){ }
-    try{
-      const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
-      add(payload && payload.sourceKey);
-    }catch(_){ }
+    try{ (typeof dsProposalStrictKeys === 'function' ? dsProposalStrictKeys(row) : []).forEach(add); }catch(_){ }
     localStorage.setItem('ds_inbox_handled_v1', JSON.stringify(data));
   }catch(_){ }
 }
 function dsIsInboxRowHandled(row){
   try{
     const data = dsInboxHandledStore();
-    const keys = [];
-    const add = function(v){
-      try{
-        const key = lower(String(v == null ? '' : v).trim());
-        if(key) keys.push(key);
-      }catch(_){ }
-    };
-    add(dsInboxHandledKey(row));
-    try{ (typeof dsProposalExactAcceptedIds === 'function' ? dsProposalExactAcceptedIds(row) : []).forEach(add); }catch(_){ }
-    try{
-      const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
-      add(payload && payload.sourceKey);
-    }catch(_){ }
+    const keys = (typeof dsProposalStrictKeys === 'function' ? dsProposalStrictKeys(row) : []).filter(Boolean);
     return keys.some(function(k){ return !!data[k]; });
   }catch(_){ return false; }
 }
@@ -20505,7 +20491,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB132_INBOX_EXACTMATCH_CHATSTAFFTHREAD_20260402_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB133_INBOX_RAWFALLBACK_STRICTHIDE_20260402_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -22101,7 +22087,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB132_INBOX_EXACTMATCH_CHATSTAFFTHREAD_20260402_ROOTONLY";
+  const BUILD = "M50.9.9GB133_INBOX_RAWFALLBACK_STRICTHIDE_20260402_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -22234,8 +22220,15 @@ try{
   async function collectInboxRows(){
     const rows = [];
     const diag = { sources:{}, errors:[] };
+    const hidden = [];
     const addDiag = (key, count=0)=>{ try{ diag.sources[key] = (diag.sources[key] || 0) + Number(count || 0); }catch(_){ } };
     const addErr = (key, err)=>{ try{ diag.errors.push(key + ':' + String((err && err.message) || err || 'error')); }catch(_){ } };
+    const isClosedStatus = (n)=>{
+      try{
+        const status = lower(n && (n.status || n.proposalStatus || ''));
+        return !!(status && ['rejected','adopted','closed','done','completed','accepted','handled'].includes(status));
+      }catch(_){ return false; }
+    };
     const isProposalLike = (n)=>{
       try{
         const payload = n.payloadSubmitted || n.payload || {};
@@ -22248,16 +22241,9 @@ try{
       return false;
     };
     const push = (obj, source)=>{
-      if(dsIsAcceptedProposalIdHit && dsIsAcceptedProposalIdHit(obj)) return;
       const n = normalizeRow(obj, source);
       if(!n) return;
-      const status = lower(n.status || n.proposalStatus || '');
-      if(status && ['rejected','adopted','closed','done','completed','accepted','handled'].includes(status)) return;
-      if(dsIsAcceptedProposalIdHit && dsIsAcceptedProposalIdHit(n)) return;
-      if(dsIsProposalAcceptedDirect && dsIsProposalAcceptedDirect(n)) return;
-      if(dsIsProposalAcceptedExact && dsIsProposalAcceptedExact(n)) return;
-      if(dsIsProposalAcceptedPersistent && dsIsProposalAcceptedPersistent(n)) return;
-      if(dsIsInboxRowHandled && dsIsInboxRowHandled(n)) return;
+      if(isClosedStatus(n)) return;
       if(!isProposalLike(n)) return;
       rows.push(n);
       addDiag(source, 1);
@@ -22314,16 +22300,31 @@ try{
         asArray(data2).forEach(x=>push(x,'proposal-buffer-direct'));
       }
     }catch(err){ addErr('proposal-buffer-direct', err); }
-    const deduped = dedupeRows(rows).filter(function(r){
+    const deduped = dedupeRows(rows);
+    const visible = deduped.filter(function(r){
       try{
-        if(dsIsAcceptedProposalIdHit && dsIsAcceptedProposalIdHit(r)) return false;
-        if(dsIsProposalAcceptedPersistent && dsIsProposalAcceptedPersistent(r)) return false;
-        if(dsIsInboxRowHandled && dsIsInboxRowHandled(r)) return false;
+        const reason = (typeof dsGetProposalHideReason === 'function') ? dsGetProposalHideReason(r) : '';
+        if(reason){
+          hidden.push({ id: String((r && (r.proposalId || r.id || r.__sourceKey || r.__rowId)) || '--'), reason: reason, keys: (typeof dsProposalStrictKeys === 'function' ? dsProposalStrictKeys(r) : []) });
+          return false;
+        }
       }catch(_){ }
       return true;
     });
-    try{ window.__dsInboxLastTasks = deduped.slice(); window.__dsInboxLastCount = deduped.length; window.__dsInboxLoadedProposals = deduped.slice(); window.__dsCollectInboxRows = collectInboxRows; window.__dsInboxDiagSources = diag; }catch(_){ }
-    return deduped;
+    const fallbackVisible = (!visible.length && deduped.length)
+      ? deduped.filter(function(r){ return !isClosedStatus(r); }).map(function(r){ try{ return { ...r, __forceVisible:true }; }catch(_){ return r; } })
+      : visible;
+    try{
+      window.__dsInboxLastTasks = fallbackVisible.slice();
+      window.__dsInboxLastCount = fallbackVisible.length;
+      window.__dsInboxLoadedProposals = fallbackVisible.slice();
+      window.__dsCollectInboxRows = collectInboxRows;
+      window.__dsInboxDiagSources = diag;
+      window.__dsInboxRawRows = deduped.slice();
+      window.__dsInboxHiddenRows = hidden.slice();
+      window.__dsInboxFallbackUsed = !!(!visible.length && deduped.length && fallbackVisible.length);
+    }catch(_){ }
+    return fallbackVisible;
   }
   function renderProposalList(rows){
     const listEl = document.getElementById('inboxProposalList');
@@ -22337,11 +22338,11 @@ try{
   }
   function dsInboxIsResolvedRow(row){
     try{ if(!row) return false; }catch(_){ return false; }
-    try{ if(dsIsAcceptedProposalIdHit && dsIsAcceptedProposalIdHit(row)) return true; }catch(_){ }
-    try{ if(dsIsProposalAcceptedDirect && dsIsProposalAcceptedDirect(row)) return true; }catch(_){ }
-    try{ if(dsIsProposalAcceptedExact && dsIsProposalAcceptedExact(row)) return true; }catch(_){ }
-    try{ if(dsIsProposalAcceptedPersistent && dsIsProposalAcceptedPersistent(row)) return true; }catch(_){ }
-    try{ if(dsIsInboxRowHandled && dsIsInboxRowHandled(row)) return true; }catch(_){ }
+    try{ if(row && row.__forceVisible) return false; }catch(_){ }
+    try{
+      const reason = (typeof dsGetProposalHideReason === 'function') ? dsGetProposalHideReason(row) : '';
+      if(reason) return true;
+    }catch(_){ }
     return false;
   }
   async function dsInboxSendAnswerChat(row, status, mode){
@@ -22680,13 +22681,11 @@ function matchesInboxRow(a,b){
       if(!a || !b) return false;
       const keysFor = (row)=>{
         try{
-          const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
           const keys = [];
           const add = (v)=>{ try{ const key = lower(String(v == null ? '' : v).trim()); if(key) keys.push(key); }catch(_){ } };
-          try{ (typeof dsProposalExactAcceptedIds === 'function' ? dsProposalExactAcceptedIds(row) : []).forEach(add); }catch(_){ }
-          add(row && row.__sourceKey);
-          add(payload && payload.sourceKey);
+          try{ (typeof dsProposalStrictKeys === 'function' ? dsProposalStrictKeys(row) : []).forEach(add); }catch(_){ }
           if(!keys.length){
+            const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
             add([row && (row.customerId || row.customerEmail || row.customerName) || '', row && (row.petId || row.petName) || '', row && (row.submittedAt || row.createdAt || payload.submittedAt || '') || '', row && (row.templateId || row.title || row.formKey || '') || ''].join('|'));
           }
           return Array.from(new Set(keys));
