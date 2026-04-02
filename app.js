@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB130_FIXINBOXDEDUP_CHATREMOVE_20260402_ROOTONLY",
+  tag: "M50.9.9GB132_INBOX_EXACTMATCH_CHATSTAFFTHREAD_20260402_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB130_FIXINBOXDEDUP_CHATREMOVE_20260402_ROOTONLY";
+const APP_BUILD = "M50.9.9GB132_INBOX_EXACTMATCH_CHATSTAFFTHREAD_20260402_ROOTONLY";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -9532,33 +9532,10 @@ function dsProposalAcceptedKeys(row){
         if(key) keys.push(key);
       }catch(_){ }
     };
-    const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
-    add(row && row.__rowId);
+    try{ (typeof dsProposalExactAcceptedIds === 'function' ? dsProposalExactAcceptedIds(row) : []).forEach(add); }catch(_){ }
     add(row && row.__sourceKey);
-    add(row && row.id);
-    add(row && row.taskId);
-    add(row && row.task);
-    add(row && row.proposalId);
-    add(row && row.proposal);
-    add(row && row.submissionId);
-    add(payload && payload.id);
-    add(payload && payload.taskId);
-    add(payload && payload.task);
-    add(payload && payload.proposalId);
-    add(payload && payload.proposal);
-    add(payload && payload.submissionId);
-    add(row && row.customerId);
-    add(row && row.customerEmail);
-    add(row && row.customerName);
-    add(row && row.petId);
-    add(row && row.petName);
-    add((payload.customer && (payload.customer.id || payload.customer.customerId || payload.customer.email || payload.customer.name)) || '');
-    add((payload.pet && (payload.pet.id || payload.pet.petId || payload.pet.chipNumber || payload.pet.name)) || '');
-    add([
-      norm((row && (row.customerId || row.customerEmail || row.customerName)) || (payload.customer && (payload.customer.id || payload.customer.customerId || payload.customer.email || payload.customer.name)) || ''),
-      norm((row && (row.petId || row.petName)) || (payload.pet && (payload.pet.id || payload.pet.petId || payload.pet.chipNumber || payload.pet.name)) || ''),
-      norm((row && (row.submittedAt || row.createdAt)) || (payload && payload.submittedAt) || '')
-    ].join('|'));
+    const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
+    add(payload && payload.sourceKey);
     return Array.from(new Set(keys));
   }catch(_){ return []; }
 }
@@ -9584,14 +9561,11 @@ function dsIsProposalAcceptedPersistent(row){
 }
 function dsInboxHandledKey(row){
   try{
-        const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
+    const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
     return lower(
-      norm(row && (row.__rowId || row.id || row.taskId || row.proposalId || row.submissionId))
-      || [
-        norm((row && (row.customerId || row.customerEmail || row.customerName)) || (payload.customer && (payload.customer.customerId || payload.customer.email || payload.customer.name)) || ''),
-        norm((row && (row.petId || row.petName)) || (payload.pet && (payload.pet.id || payload.pet.petId || payload.pet.chipNumber || payload.pet.name)) || ''),
-        norm(row && (row.submittedAt || row.createdAt || payload.submittedAt || ''))
-      ].join('|')
+      norm(row && (row.__rowId || row.id || row.taskId || row.proposalId || row.submissionId || row.__sourceKey))
+      || norm(payload && (payload.id || payload.taskId || payload.proposalId || payload.submissionId || payload.sourceKey))
+      || ''
     );
   }catch(_){ return ''; }
 }
@@ -9606,37 +9580,10 @@ function dsMarkInboxRowHandled(row, status){
       }catch(_){ }
     };
     add(dsInboxHandledKey(row));
-    add(row && row.__rowId);
-    add(row && row.__sourceKey);
-    add(row && row.id);
-    add(row && row.taskId);
-    add(row && row.proposalId);
-    add(row && row.proposal);
-    add(row && row.submissionId);
-    add(row && row.customerId);
-    add(row && row.customerEmail);
-    add(row && row.customerName);
-    add(row && row.petId);
-    add(row && row.petName);
-    add([
-      norm(row && (row.customerId || row.customerEmail || row.customerName) || ''),
-      norm(row && (row.petId || row.petName) || ''),
-      norm(row && (row.submittedAt || row.createdAt || '') || '')
-    ].join('|'));
+    try{ (typeof dsProposalExactAcceptedIds === 'function' ? dsProposalExactAcceptedIds(row) : []).forEach(add); }catch(_){ }
     try{
       const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
-      add(payload && payload.id);
-      add(payload && payload.taskId);
-      add(payload && payload.proposalId);
-      add(payload && payload.proposal);
-      add(payload && payload.submissionId);
-      add(payload && payload.customer && (payload.customer.id || payload.customer.customerId || payload.customer.email || payload.customer.name));
-      add(payload && payload.pet && (payload.pet.id || payload.pet.petId || payload.pet.chipNumber || payload.pet.name));
-      add([
-        norm((payload && payload.customer && (payload.customer.id || payload.customer.customerId || payload.customer.email || payload.customer.name)) || ''),
-        norm((payload && payload.pet && (payload.pet.id || payload.pet.petId || payload.pet.chipNumber || payload.pet.name)) || ''),
-        norm((row && (row.submittedAt || row.createdAt)) || (payload && payload.submittedAt) || '')
-      ].join('|'));
+      add(payload && payload.sourceKey);
     }catch(_){ }
     localStorage.setItem('ds_inbox_handled_v1', JSON.stringify(data));
   }catch(_){ }
@@ -9652,37 +9599,10 @@ function dsIsInboxRowHandled(row){
       }catch(_){ }
     };
     add(dsInboxHandledKey(row));
-    add(row && row.__rowId);
-    add(row && row.__sourceKey);
-    add(row && row.id);
-    add(row && row.taskId);
-    add(row && row.proposalId);
-    add(row && row.proposal);
-    add(row && row.submissionId);
-    add(row && row.customerId);
-    add(row && row.customerEmail);
-    add(row && row.customerName);
-    add(row && row.petId);
-    add(row && row.petName);
-    add([
-      norm(row && (row.customerId || row.customerEmail || row.customerName) || ''),
-      norm(row && (row.petId || row.petName) || ''),
-      norm(row && (row.submittedAt || row.createdAt || '') || '')
-    ].join('|'));
+    try{ (typeof dsProposalExactAcceptedIds === 'function' ? dsProposalExactAcceptedIds(row) : []).forEach(add); }catch(_){ }
     try{
       const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
-      add(payload && payload.id);
-      add(payload && payload.taskId);
-      add(payload && payload.proposalId);
-      add(payload && payload.proposal);
-      add(payload && payload.submissionId);
-      add(payload && payload.customer && (payload.customer.id || payload.customer.customerId || payload.customer.email || payload.customer.name));
-      add(payload && payload.pet && (payload.pet.id || payload.pet.petId || payload.pet.chipNumber || payload.pet.name));
-      add([
-        norm((payload && payload.customer && (payload.customer.id || payload.customer.customerId || payload.customer.email || payload.customer.name)) || ''),
-        norm((payload && payload.pet && (payload.pet.id || payload.pet.petId || payload.pet.chipNumber || payload.pet.name)) || ''),
-        norm((row && (row.submittedAt || row.createdAt)) || (payload && payload.submittedAt) || '')
-      ].join('|'));
+      add(payload && payload.sourceKey);
     }catch(_){ }
     return keys.some(function(k){ return !!data[k]; });
   }catch(_){ return false; }
@@ -20585,7 +20505,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB130_FIXINBOXDEDUP_CHATREMOVE_20260402_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB132_INBOX_EXACTMATCH_CHATSTAFFTHREAD_20260402_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -21098,6 +21018,7 @@ async function dsSendChatMessage(chatId, text, extraMeta){
     existing = (snap && snap.exists && typeof snap.data === 'function') ? (snap.data() || {}) : {};
   }catch(_){ existing = {}; }
 
+  const meta = (extraMeta && typeof extraMeta === 'object') ? { ...extraMeta } : {};
   const adminState = dsAdminChatState();
   const customerState = dsCustomerChatState();
   const isAdminContext = !!(
@@ -21105,10 +21026,13 @@ async function dsSendChatMessage(chatId, text, extraMeta){
     || document.getElementById('chatAdminInput')
     || document.getElementById('chatAdminMessages')
   );
-  const senderRole = isAdminContext || isStaff() ? 'staff' : 'customer';
+  const forcedRole = String(meta.forceSenderRole || '').trim().toLowerCase();
+  const senderRole = forcedRole === 'staff' || forcedRole === 'customer'
+    ? forcedRole
+    : (isAdminContext || isStaff() ? 'staff' : 'customer');
   const viewerProfile = dsChatCustomerProfile();
   const rawTeamKey = (
-    (extraMeta && extraMeta.teamMemberKey)
+    meta.teamMemberKey
     || existing.teamMemberKey
     || (senderRole === 'staff' ? adminState.currentTeamKey : customerState.currentTeamKey)
     || dsChatInferStaffKey()
@@ -21116,21 +21040,25 @@ async function dsSendChatMessage(chatId, text, extraMeta){
   const teamKey = dsChatNormalizeTeamKey(rawTeamKey, true) === 'all'
     ? dsChatInferStaffKey()
     : dsChatNormalizeTeamKey(rawTeamKey);
-  const senderName = senderRole === 'staff'
-    ? (function(){
-        const explicit = dsChatNormalizeTeamKey(teamKey, true);
-        if(explicit === 'raphael') return 'Raphael';
-        if(explicit === 'anschi') return 'Anschi';
-        return 'Doggy Style Team';
-      })()
-    : String(viewerProfile.customerName || CLOUD?.user?.displayName || CLOUD?.user?.email || 'Kunde').trim();
+  const senderName = String(
+    meta.senderName || (
+      senderRole === 'staff'
+        ? (function(){
+            const explicit = dsChatNormalizeTeamKey(teamKey, true);
+            if(explicit === 'raphael') return 'Raphael';
+            if(explicit === 'anschi') return 'Anschi';
+            return 'Doggy Style Team';
+          })()
+        : (viewerProfile.customerName || CLOUD?.user?.displayName || CLOUD?.user?.email || 'Kunde')
+    )
+  ).trim() || (senderRole === 'staff' ? 'Doggy Style Team' : 'Kunde');
 
   const customerMeta = senderRole === 'staff'
     ? {
-        customerUid: String(existing.customerUid || extraMeta?.customerUid || '').trim(),
-        customerEmail: String(existing.customerEmail || extraMeta?.customerEmail || '').trim().toLowerCase(),
-        customerName: String(existing.customerName || extraMeta?.customerName || 'Kunde').trim(),
-        customerId: String(existing.customerId || extraMeta?.customerId || existing.customerEmail || existing.customerUid || '').trim()
+        customerUid: String(existing.customerUid || meta.customerUid || '').trim(),
+        customerEmail: String(existing.customerEmail || meta.customerEmail || '').trim().toLowerCase(),
+        customerName: String(existing.customerName || meta.customerName || 'Kunde').trim(),
+        customerId: String(existing.customerId || meta.customerId || existing.customerEmail || existing.customerUid || '').trim()
       }
     : {
         customerUid: viewerProfile.customerUid || '',
@@ -21141,6 +21069,11 @@ async function dsSendChatMessage(chatId, text, extraMeta){
   if(senderRole === 'staff' && !customerMeta.customerEmail && !customerMeta.customerUid && !customerMeta.customerId){
     throw new Error('Kundenchat konnte nicht geöffnet werden.');
   }
+  delete meta.forceSenderRole;
+  delete meta.senderName;
+  delete meta.senderUid;
+  delete meta.senderEmail;
+
   await chatRef.set({
     customerUid: customerMeta.customerUid || '',
     customerEmail: customerMeta.customerEmail || '',
@@ -21157,19 +21090,20 @@ async function dsSendChatMessage(chatId, text, extraMeta){
     unreadForCustomer: senderRole === 'staff' ? dsFieldValueIncrement(1) : 0,
     teamMemberKey: teamKey,
     teamMemberLabel: dsChatTargetLabel(teamKey),
-    ...(extraMeta || {})
+    ...(meta || {})
   }, { merge:true });
   await msgs.add({
     text: clean,
     senderRole,
-    senderUid: dsChatUserUid(),
-    senderEmail: dsChatUserEmail(),
+    senderUid: String(meta.senderUid || dsChatUserUid() || '').trim(),
+    senderEmail: String(meta.senderEmail || dsChatUserEmail() || '').trim(),
     senderName,
     createdAt: dsServerTimestamp(),
     createdAtMs: now,
     customerUid: customerMeta.customerUid || '',
     customerEmail: customerMeta.customerEmail || '',
-    customerName: customerMeta.customerName || ''
+    customerName: customerMeta.customerName || '',
+    teamMemberKey: teamKey
   });
 }
 function dsTsMs(v){
@@ -21347,7 +21281,8 @@ async function dsAdminEnsureChatForCustomer(customer, preferredTeamKey){
     debug.steps.push('query-error:' + dsChatErrorText(err));
   }
   const all = dsChatSortByUpdated(Array.from(found.values()));
-  let chat = dsChatFilterForTeam(all, teamKey)[0] || all[0];
+  const sameTeam = dsChatFilterForTeam(all, teamKey);
+  let chat = sameTeam[0] || (all.length === 1 ? all[0] : null);
   if(!chat){
     const now = Date.now();
     const payload = {
@@ -21373,13 +21308,13 @@ async function dsAdminEnsureChatForCustomer(customer, preferredTeamKey){
       debug.steps.push('create:start');
       const ref = await col.add(payload);
       chat = { id: ref.id, ...payload };
-      debug.steps.push('create:ok:' + String(ref.id || '')); 
+      debug.steps.push('create:ok:' + String(ref.id || ''));
       try{ await dsEnsureWelcomeMessage(ref.id, payload); }catch(e){ console.warn('admin welcome seed failed', e); debug.steps.push('welcome:' + dsChatErrorText(e)); }
     }catch(err){
       debug.steps.push('create:error:' + dsChatErrorText(err));
       throw new Error('Kundenchat konnte nicht geöffnet werden. ' + debug.steps.join(' | '));
     }
-  }else if(dsChatNormalizeTeamKey(chat.teamMemberKey || '') !== teamKey){
+  }else if(dsChatNormalizeTeamKey(chat.teamMemberKey || '') !== teamKey && all.length === 1){
     try{
       debug.steps.push('retarget:start');
       await cloudChatDoc(chat.id)?.set({
@@ -22166,7 +22101,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB130_FIXINBOXDEDUP_CHATREMOVE_20260402_ROOTONLY";
+  const BUILD = "M50.9.9GB132_INBOX_EXACTMATCH_CHATSTAFFTHREAD_20260402_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -22432,14 +22367,36 @@ try{
       const teamKey = (typeof dsChatInferStaffKey === 'function' ? dsChatInferStaffKey() : 'raphael');
       if(typeof dsAdminEnsureChatForCustomer !== 'function' || typeof dsSendChatMessage !== 'function') return true;
       const chat = await dsAdminEnsureChatForCustomer(customer, teamKey);
-      if(chat && chat.id && text) await dsSendChatMessage(chat.id, text, { teamMemberKey: teamKey, customerId: customer.id || customer.customerId || '', customerUid: customer.uid || customer.customerUid || '', customerEmail: customer.email || '', customerName: customer.name || 'Kunde' });
+      const proposalKey = lower(String((row && (row.proposalId || row.id || row.taskId || row.__rowId || row.__sourceKey)) || '').trim());
+      const dedupeStoreKey = 'ds_inbox_auto_chat_sent_v1';
+      const dedupeKey = [String(chat && chat.id || ''), proposalKey || '--', String(status || ''), String(teamKey || ''), String(text || '')].join('|');
+      try{
+        const raw = localStorage.getItem(dedupeStoreKey);
+        const data = raw ? JSON.parse(raw) : {};
+        if(data && data[dedupeKey]) return true;
+      }catch(_){ }
+      if(chat && chat.id && text){
+        const staffName = (function(){
+          const explicit = dsChatNormalizeTeamKey(teamKey, true);
+          if(explicit === 'raphael') return 'Raphael';
+          if(explicit === 'anschi') return 'Anschi';
+          return 'Doggy Style Team';
+        })();
+        await dsSendChatMessage(chat.id, text, { teamMemberKey: teamKey, customerId: customer.id || customer.customerId || '', customerUid: customer.uid || customer.customerUid || '', customerEmail: customer.email || '', customerName: customer.name || 'Kunde', forceSenderRole: 'staff', senderName: staffName, senderUid: dsChatUserUid(), senderEmail: dsChatUserEmail(), autoReplyKey: proposalKey ? ('proposal:' + proposalKey + ':' + String(status || '')) : '' });
+        try{
+          const raw = localStorage.getItem(dedupeStoreKey);
+          const data = raw ? JSON.parse(raw) : {};
+          data[dedupeKey] = Date.now();
+          localStorage.setItem(dedupeStoreKey, JSON.stringify(data));
+        }catch(_){ }
+      }
       return true;
     }catch(err){
       try{ alert('Chat konnte nicht gesendet werden: ' + String((err && err.message) || err || 'Unbekannter Fehler')); }catch(_){ }
       return false;
     }
   }
-  async function dsInboxAnswerRow(row){
+async function dsInboxAnswerRow(row){
     try{
       if(!row) return false;
       const pick = prompt(`Vorschlag beantworten:
@@ -22724,23 +22681,22 @@ function matchesInboxRow(a,b){
       const keysFor = (row)=>{
         try{
           const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
-          const keys = [
-            row && row.__rowId, row && row.__sourceKey, row && row.id, row && row.taskId, row && row.proposalId, row && row.submissionId,
-            payload && payload.id, payload && payload.taskId, payload && payload.proposalId, payload && payload.submissionId,
-            [row && (row.customerId || row.customerEmail || row.customerName) || '', row && (row.petId || row.petName) || '', row && (row.submittedAt || row.createdAt || '') || '', row && (row.templateId || row.title || row.formKey || '') || ''].join('|'),
-            [(payload.customer && (payload.customer.id || payload.customer.customerId || payload.customer.email || payload.customer.name)) || '', (payload.pet && (payload.pet.id || payload.pet.petId || payload.pet.chipNumber || payload.pet.name)) || '', (row && (row.submittedAt || row.createdAt || '')) || (payload && payload.submittedAt) || '', row && (row.templateId || row.title || row.formKey || '') || ''].join('|')
-          ].map(v=> lower(String(v == null ? '' : v).trim())).filter(Boolean);
+          const keys = [];
+          const add = (v)=>{ try{ const key = lower(String(v == null ? '' : v).trim()); if(key) keys.push(key); }catch(_){ } };
+          try{ (typeof dsProposalExactAcceptedIds === 'function' ? dsProposalExactAcceptedIds(row) : []).forEach(add); }catch(_){ }
+          add(row && row.__sourceKey);
+          add(payload && payload.sourceKey);
+          if(!keys.length){
+            add([row && (row.customerId || row.customerEmail || row.customerName) || '', row && (row.petId || row.petName) || '', row && (row.submittedAt || row.createdAt || payload.submittedAt || '') || '', row && (row.templateId || row.title || row.formKey || '') || ''].join('|'));
+          }
           return Array.from(new Set(keys));
         }catch(_){ return []; }
       };
       const aKeys = keysFor(a), bKeys = keysFor(b);
-      if(aKeys.length && bKeys.length) return aKeys.some(k=> bKeys.includes(k));
-      const aKey = lower([a.customerEmail || '', a.customerName || '', a.templateId || '', a.submittedAt || ''].join('|'));
-      const bKey = lower([b.customerEmail || '', b.customerName || '', b.templateId || '', b.submittedAt || ''].join('|'));
-      return !!aKey && aKey === bKey;
+      return !!(aKeys.length && bKeys.length && aKeys.some(k=> bKeys.includes(k)));
     }catch(_){ return false; }
   }
-  function removeInboxRowEverywhere(row){
+function removeInboxRowEverywhere(row){
     try{ dsMarkAcceptedProposalId(row, 'handled'); }catch(_){ }
     try{ dsMarkProposalAcceptedPersistent(row, 'handled'); }catch(_){ }
     try{ dsMarkInboxRowHandled(row, 'handled'); }catch(_){ }
