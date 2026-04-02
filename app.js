@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB120_EINGAENGE_BEANTWORTEN_VISIBLE_20260402_ROOTONLY",
+  tag: "M50.9.9GB121_EINGAENGE_DOM_ANSWER_INJECT_20260402_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB120_EINGAENGE_BEANTWORTEN_VISIBLE_20260402_ROOTONLY";
+const APP_BUILD = "M50.9.9GB121_EINGAENGE_DOM_ANSWER_INJECT_20260402_ROOTONLY";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -20559,7 +20559,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB120_EINGAENGE_BEANTWORTEN_VISIBLE_20260402_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB121_EINGAENGE_DOM_ANSWER_INJECT_20260402_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -22140,7 +22140,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB120_EINGAENGE_BEANTWORTEN_VISIBLE_20260402_ROOTONLY";
+  const BUILD = "M50.9.9GB121_EINGAENGE_DOM_ANSWER_INJECT_20260402_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -22962,4 +22962,91 @@ function matchesInboxRow(a,b){
     ev.stopPropagation();
     Promise.resolve().then(()=>refreshInboxHard(btn.id || 'click')).catch(err=>ensureInboxDiag({ phase:'click-error', error:String((err && err.message) || err || 'click-failed') }));
   }, true);
+})();
+
+
+/* ===== GB121 DOM Inbox Answer Injector ===== */
+(function(){
+  const ANSWER_ATTR = 'data-ds-answer-injected';
+  function dsFindInboxOpenButtons(){
+    try{
+      const list = document.getElementById('inboxList');
+      if(!list) return [];
+      return Array.from(list.querySelectorAll('button.smallbtn'))
+        .filter(btn => String((btn.textContent||'')).trim() === 'Öffnen');
+    }catch(_){ return []; }
+  }
+  function dsInboxRowTitleFromButton(btn){
+    try{
+      const row = btn.closest('.list-item');
+      if(!row) return 'Änderungsvorschlag';
+      const strong = row.querySelector('strong');
+      return String((strong && strong.textContent) || 'Änderungsvorschlag').trim();
+    }catch(_){ return 'Änderungsvorschlag'; }
+  }
+  function dsInboxRowIdFromButton(btn){
+    try{
+      const row = btn.closest('.list-item');
+      if(!row) return '—';
+      const txt = String(row.textContent || '');
+      const m = txt.match(/proposal=([A-Za-z0-9_-]+)/);
+      if(m && m[1]) return m[1];
+      const m2 = txt.match(/cid=([A-Za-z0-9_-]+)/);
+      if(m2 && m2[1]) return m2[1];
+      return '—';
+    }catch(_){ return '—'; }
+  }
+  function dsInboxAnswerTestFromButton(btn){
+    try{
+      const title = dsInboxRowTitleFromButton(btn);
+      const id = dsInboxRowIdFromButton(btn);
+      alert('Beantworten-Test\n\n' + title + '\nID: ' + id);
+    }catch(_){ }
+  }
+  function dsInjectInboxAnswerButtons(){
+    try{
+      const opens = dsFindInboxOpenButtons();
+      opens.forEach(btn => {
+        const actions = btn.parentElement;
+        if(!actions) return;
+        try{
+          actions.style.display = 'flex';
+          actions.style.flexDirection = 'column';
+          actions.style.alignItems = 'stretch';
+          actions.style.minWidth = '128px';
+          actions.style.gap = '8px';
+          actions.style.overflow = 'visible';
+        }catch(_){ }
+        if(actions.querySelector('button[' + ANSWER_ATTR + ']')) return;
+        const a = document.createElement('button');
+        a.className = 'smallbtn';
+        a.textContent = 'Beantworten';
+        a.setAttribute(ANSWER_ATTR, '1');
+        a.style.width = '100%';
+        a.style.marginLeft = '0';
+        a.onclick = function(ev){ try{ ev && ev.preventDefault && ev.preventDefault(); ev && ev.stopPropagation && ev.stopPropagation(); }catch(_){} dsInboxAnswerTestFromButton(btn); return false; };
+        try{ btn.style.width = '100%'; }catch(_){ }
+        actions.appendChild(a);
+        const row = btn.closest('.list-item');
+        if(row){
+          try{ row.style.alignItems = 'flex-start'; row.style.minHeight = '84px'; }catch(_){ }
+        }
+      });
+    }catch(_){ }
+  }
+  function dsArmInboxAnswerInjector(){
+    try{ dsInjectInboxAnswerButtons(); }catch(_){ }
+    try{
+      const list = document.getElementById('inboxList');
+      if(list && !list.__dsAnswerObs){
+        const obs = new MutationObserver(function(){ try{ dsInjectInboxAnswerButtons(); }catch(_){ } });
+        obs.observe(list,{childList:true,subtree:true});
+        list.__dsAnswerObs = obs;
+      }
+    }catch(_){ }
+  }
+  try{ window.dsInjectInboxAnswerButtons = dsInjectInboxAnswerButtons; }catch(_){ }
+  try{ document.addEventListener('DOMContentLoaded', function(){ dsArmInboxAnswerInjector(); setTimeout(dsInjectInboxAnswerButtons, 300); setTimeout(dsInjectInboxAnswerButtons, 1200); }); }catch(_){ }
+  try{ window.addEventListener('load', function(){ dsArmInboxAnswerInjector(); setTimeout(dsInjectInboxAnswerButtons, 300); setTimeout(dsInjectInboxAnswerButtons, 1200); }); }catch(_){ }
+  try{ setInterval(dsInjectInboxAnswerButtons, 1500); }catch(_){ }
 })();
