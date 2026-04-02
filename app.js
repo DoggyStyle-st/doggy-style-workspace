@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB117_EINGAENGE_BEANTWORTEN_20260402_ROOTONLY",
+  tag: "M50.9.9GB118_EINGAENGE_BEANTWORTEN_ISOLATED_20260402_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB117_EINGAENGE_BEANTWORTEN_20260402_ROOTONLY";
+const APP_BUILD = "M50.9.9GB118_EINGAENGE_BEANTWORTEN_ISOLATED_20260402_ROOTONLY";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -9413,124 +9413,6 @@ function dsIsAcceptedProposalIdHit(row){
     const data = dsAcceptedProposalIdStore();
     return dsAcceptedProposalIdsForRow(row).some(function(id){ return !!data[id]; });
   }catch(_){ return false; }
-}
-function dsInboxAnsweredStore(){
-  try{ return JSON.parse(localStorage.getItem('ds_inbox_answered_rows_v1') || '{}') || {}; }catch(_){ return {}; }
-}
-function dsInboxAnsweredIdsForRow(row){
-  try{
-    const ids = [];
-    const add = function(v){
-      try{ const key = lower(String(v == null ? '' : v).trim()); if(key) ids.push(key); }catch(_){ }
-    };
-    const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
-    add(row && row.proposalId);
-    add(row && row.proposal);
-    add(row && row.taskId);
-    add(row && row.task);
-    add(row && row.id);
-    add(row && row.__rowId);
-    add(row && row.__sourceKey);
-    add(payload && payload.proposalId);
-    add(payload && payload.proposal);
-    add(payload && payload.taskId);
-    add(payload && payload.task);
-    add(payload && payload.id);
-    return Array.from(new Set(ids));
-  }catch(_){ return []; }
-}
-function dsMarkInboxRowAnswered(row, status, meta){
-  try{
-    const data = dsInboxAnsweredStore();
-    const entry = Object.assign({ status:String(status||'answered'), at:Date.now() }, meta || {});
-    dsInboxAnsweredIdsForRow(row).forEach(function(id){ try{ if(id) data[id] = entry; }catch(_){ } });
-    localStorage.setItem('ds_inbox_answered_rows_v1', JSON.stringify(data));
-    return true;
-  }catch(_){ return false; }
-}
-function dsIsInboxRowAnswered(row){
-  try{
-    const data = dsInboxAnsweredStore();
-    return dsInboxAnsweredIdsForRow(row).some(function(id){ return !!data[id]; });
-  }catch(_){ return false; }
-}
-function dsGetInboxResponseCustomer(row){
-  try{
-    const customer = (row && (row.customer || ((row.payloadSubmitted||row.payload||{}).customer))) || {};
-    return {
-      id: String((row && (row.customerId || row.__targetCustomerId)) || customer.customerId || customer.id || customer.email || customer.uid || '').trim(),
-      email: String((row && row.customerEmail) || customer.email || '').trim(),
-      uid: String((row && row.customerUid) || customer.portalUid || customer.uid || '').trim(),
-      name: String((row && row.customerName) || customer.name || customer.displayName || '').trim() || 'Kunde'
-    };
-  }catch(_){ return { id:'', email:'', uid:'', name:'Kunde' }; }
-}
-function dsInboxResponseDefaultText(kind, row){
-  try{
-    const petName = String((row && ((row.pet && row.pet.name) || ((row.payloadSubmitted||row.payload||{}).pet||{}).name)) || '').trim();
-    const subject = petName ? ('für ' + petName) : 'zu deinem Vorschlag';
-    if(kind === 'accepted') return 'Dein Änderungsvorschlag ' + subject + ' wurde geprüft und übernommen.';
-    if(kind === 'rejected') return 'Dein Änderungsvorschlag ' + subject + ' wurde geprüft, aber nicht übernommen.';
-    return 'Dein Änderungsvorschlag ' + subject + ' ist eingegangen und wird noch geprüft.';
-  }catch(_){ return 'Dein Änderungsvorschlag wurde geprüft.'; }
-}
-async function dsInboxRespond(row){
-  try{
-    if(!row) return false;
-    const choiceRaw = prompt('Vorschlag beantworten:
-1 = Angenommen
-2 = Abgelehnt
-3 = Später entscheiden', '1');
-    if(choiceRaw == null) return false;
-    const choice = String(choiceRaw || '').trim();
-    let status = '';
-    if(choice === '1') status = 'accepted';
-    else if(choice === '2') status = 'rejected';
-    else if(choice === '3') status = 'later';
-    else { alert('Ungültige Auswahl. Bitte 1, 2 oder 3 eingeben.'); return false; }
-    const sendRaw = prompt('Chat-Antwort:
-1 = Standardtext senden
-2 = Text bearbeiten
-3 = Ohne Chat', '1');
-    if(sendRaw == null) return false;
-    const sendMode = String(sendRaw || '').trim();
-    let text = dsInboxResponseDefaultText(status, row);
-    if(sendMode === '2'){
-      const edited = prompt('Chat-Nachricht bearbeiten:', text);
-      if(edited == null) return false;
-      text = String(edited || '').trim();
-    }else if(sendMode === '3'){
-      text = '';
-    }else if(sendMode !== '1'){
-      alert('Ungültige Auswahl. Bitte 1, 2 oder 3 eingeben.'); return false;
-    }
-    let chatOk = false;
-    let chatErr = '';
-    if(text){
-      try{
-        const customer = dsGetInboxResponseCustomer(row);
-        const teamKey = (typeof dsChatInferStaffKey === 'function' ? dsChatInferStaffKey() : 'raphael') || 'raphael';
-        const chat = await dsAdminEnsureChatForCustomer(customer, teamKey);
-        await dsSendChatMessage(String(chat && chat.id || ''), text, { responseStatus:status, source:'inbox-response', proposalId:String((row && (row.proposalId || row.proposal || row.id)) || '') });
-        chatOk = true;
-      }catch(err){
-        chatErr = String((err && err.message) || err || 'chat-failed');
-        try{ alert('Chat-Nachricht konnte nicht gesendet werden: ' + chatErr); }catch(_){ }
-      }
-    }
-    try{ dsMarkInboxRowAnswered(row, status, { chat: chatOk ? 'sent' : (text ? 'failed' : 'none') }); }catch(_){ }
-    try{ dsMarkAcceptedProposalId(row, status); }catch(_){ }
-    try{ dsMarkProposalAcceptedPersistent(row, status); }catch(_){ }
-    try{ dsMarkInboxRowHandled(row, status); }catch(_){ }
-    try{ removeInboxRowEverywhere(row); }catch(_){ }
-    try{ if(typeof patchInboxRowStatus === 'function') patchInboxRowStatus(row, status).catch(function(){}); }catch(_){ }
-    try{ if(typeof refreshInboxHard === 'function') setTimeout(function(){ refreshInboxHard('response-button'); }, 50); }catch(_){ }
-    try{ dsSetProposalOpenDiag('responseStatus=' + status + ' responseChat=' + (chatOk ? '1' : (text ? '0' : 'none')) + (chatErr ? ' responseChatErr=' + chatErr : ''), false); }catch(_){ }
-    return true;
-  }catch(err){
-    try{ alert('Beantworten fehlgeschlagen: ' + String((err && err.message) || err || 'unbekannt')); }catch(_){ }
-    return false;
-  }
 }
 function dsProposalExactAcceptedIds(row){
   try{
@@ -20655,7 +20537,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB117_EINGAENGE_BEANTWORTEN_20260402_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB118_EINGAENGE_BEANTWORTEN_ISOLATED_20260402_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -22175,6 +22057,7 @@ try{
   function renderRows(rows){
     const listEl = document.getElementById('inboxProposalList') || document.getElementById('inboxList');
     if(!listEl) return;
+    rows = (rows || []).filter(function(r){ return !dsInboxIsResolvedRow(r); });
     if(!rows.length){ listEl.innerHTML = '<div class="muted">— keine Kundenvorschläge —</div>'; return; }
     listEl.innerHTML = rows.map(r=>{
       const c = rowToCustomer(r);
@@ -22235,7 +22118,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB117_EINGAENGE_BEANTWORTEN_20260402_ROOTONLY";
+  const BUILD = "M50.9.9GB118_EINGAENGE_BEANTWORTEN_ISOLATED_20260402_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -22382,13 +22265,11 @@ try{
       return false;
     };
     const push = (obj, source)=>{
-      if(dsIsInboxRowAnswered && dsIsInboxRowAnswered(obj)) return;
       if(dsIsAcceptedProposalIdHit && dsIsAcceptedProposalIdHit(obj)) return;
       const n = normalizeRow(obj, source);
       if(!n) return;
       const status = lower(n.status || n.proposalStatus || '');
       if(status && ['rejected','adopted','closed','done','completed','accepted','handled'].includes(status)) return;
-      if(dsIsInboxRowAnswered && dsIsInboxRowAnswered(n)) return;
       if(dsIsAcceptedProposalIdHit && dsIsAcceptedProposalIdHit(n)) return;
       if(dsIsProposalAcceptedDirect && dsIsProposalAcceptedDirect(n)) return;
       if(dsIsProposalAcceptedExact && dsIsProposalAcceptedExact(n)) return;
@@ -22449,7 +22330,6 @@ try{
     }catch(err){ addErr('proposal-buffer-direct', err); }
     const deduped = dedupeRows(rows).filter(function(r){
       try{
-        if(dsIsInboxRowAnswered && dsIsInboxRowAnswered(r)) return false;
         if(dsIsAcceptedProposalIdHit && dsIsAcceptedProposalIdHit(r)) return false;
         if(dsIsProposalAcceptedPersistent && dsIsProposalAcceptedPersistent(r)) return false;
         if(dsIsInboxRowHandled && dsIsInboxRowHandled(r)) return false;
@@ -22462,18 +22342,91 @@ try{
   function renderProposalList(rows){
     const listEl = document.getElementById('inboxProposalList');
     if(!listEl) return;
+    rows = (rows || []).filter(function(r){ return !dsInboxIsResolvedRow(r); });
     if(!rows.length){ listEl.innerHTML = '<div class="muted">— keine Kundenvorschläge —</div>'; return; }
     listEl.innerHTML = rows.map(r=>{
       const when = r.submittedAt ? fmtSafe(r.submittedAt) : '';
       return '<div class="list-item"><div><strong>' + escapeSafe(r.__template.label || r.title || 'Eingang') + '</strong><small>' + escapeSafe(r.customerName || 'Kunde') + (r.customerEmail ? ' · ' + escapeSafe(r.customerEmail) : '') + (when ? ' · ' + escapeSafe(when) : '') + '</small></div></div>';
     }).join('');
   }
+  function dsInboxIsResolvedRow(row){
+    try{ if(!row) return false; }catch(_){ return false; }
+    try{ if(dsIsAcceptedProposalIdHit && dsIsAcceptedProposalIdHit(row)) return true; }catch(_){ }
+    try{ if(dsIsProposalAcceptedDirect && dsIsProposalAcceptedDirect(row)) return true; }catch(_){ }
+    try{ if(dsIsProposalAcceptedExact && dsIsProposalAcceptedExact(row)) return true; }catch(_){ }
+    try{ if(dsIsProposalAcceptedPersistent && dsIsProposalAcceptedPersistent(row)) return true; }catch(_){ }
+    try{ if(dsIsInboxRowHandled && dsIsInboxRowHandled(row)) return true; }catch(_){ }
+    return false;
+  }
+  async function dsInboxSendAnswerChat(row, status, mode){
+    try{
+      if(String(mode||'') === 'none') return true;
+      const map = { accepted:'Dein Änderungsvorschlag wurde geprüft und übernommen.', rejected:'Dein Änderungsvorschlag wurde geprüft, aber nicht übernommen.', deferred:'Dein Änderungsvorschlag ist eingegangen und wird noch geprüft.' };
+      let text = map[String(status||'deferred')] || map.deferred;
+      if(String(mode||'') === 'edit'){
+        const custom = prompt('Chat-Nachricht bearbeiten', text);
+        if(custom == null) return false;
+        text = String(custom||'').trim();
+        if(!text) return true;
+      }
+      const customer = {
+        id: row && row.customerId || '',
+        customerId: row && row.customerId || '',
+        email: row && row.customerEmail || '',
+        name: row && row.customerName || '',
+        customerUid: row && row.customerUid || '',
+        portalUid: row && row.customerUid || ''
+      };
+      const teamKey = (typeof dsChatInferStaffKey === 'function' ? dsChatInferStaffKey() : 'raphael');
+      if(typeof dsAdminEnsureChatForCustomer !== 'function' || typeof dsSendChatMessage !== 'function') return true;
+      const chat = await dsAdminEnsureChatForCustomer(customer, teamKey);
+      if(chat && chat.id && text) await dsSendChatMessage(chat.id, text, { teamMemberKey: teamKey });
+      return true;
+    }catch(err){
+      try{ alert('Chat konnte nicht gesendet werden: ' + String((err && err.message) || err || 'Unbekannter Fehler')); }catch(_){ }
+      return false;
+    }
+  }
+  async function dsInboxAnswerRow(row){
+    try{
+      if(!row) return false;
+      const pick = prompt(`Vorschlag beantworten:
+1 = Angenommen
+2 = Abgelehnt
+3 = Später entscheiden`, '1');
+      if(pick == null) return false;
+      const status = String(pick).trim() === '1' ? 'accepted' : (String(pick).trim() === '2' ? 'rejected' : (String(pick).trim() === '3' ? 'deferred' : ''));
+      if(!status){ try{ alert('Ungültige Auswahl.'); }catch(_){ } return false; }
+      const chatPick = prompt(`Chat-Rückmeldung:
+1 = Standardtext senden
+2 = Text bearbeiten
+3 = Ohne Chat`, '1');
+      if(chatPick == null) return false;
+      const chatMode = String(chatPick).trim() === '1' ? 'standard' : (String(chatPick).trim() === '2' ? 'edit' : (String(chatPick).trim() === '3' ? 'none' : ''));
+      if(!chatMode){ try{ alert('Ungültige Auswahl.'); }catch(_){ } return false; }
+      if(status === 'accepted'){
+        try{ if(typeof dsFinalizeAcceptedProposalLocal === 'function') dsFinalizeAcceptedProposalLocal(row); }catch(_){ }
+      }
+      try{ if(typeof dsMarkInboxRowHandled === 'function') dsMarkInboxRowHandled(row, status); }catch(_){ }
+      try{ removeInboxRowEverywhere(row); }catch(_){ }
+      await dsInboxSendAnswerChat(row, status, chatMode);
+      try{ if(typeof patchInboxRowStatus === 'function') await patchInboxRowStatus(row, status); }catch(_){ }
+      try{ await refreshInboxHard('answer-' + status); }catch(_){ }
+      return false;
+    }catch(err){
+      try{ alert('Beantworten fehlgeschlagen: ' + String((err && err.message) || err || 'Unbekannter Fehler')); }catch(_){ }
+      return false;
+    }
+  }
+
   function renderInboxList(rows){
     const listEl = document.getElementById('inboxList');
     if(!listEl) return;
     listEl.innerHTML = '';
+    rows = (rows || []).filter(function(r){ return !dsInboxIsResolvedRow(r); });
     if(!rows.length){ listEl.innerHTML = '<div class="muted">— keine Eingänge —</div>'; return; }
     rows.forEach(r=>{
+      if(dsInboxIsResolvedRow(r)) return;
       const row = document.createElement('div');
       row.className = 'list-item';
       const when = r.submittedAt ? fmtSafe(r.submittedAt) : '';
@@ -22483,14 +22436,14 @@ try{
       const btn = document.createElement('button');
       btn.className = 'smallbtn';
       btn.textContent = 'Öffnen';
-      btn.onclick = ()=>openInboxDetail(r);
+      btn.onclick = (ev)=>{ try{ ev && ev.preventDefault && ev.preventDefault(); ev && ev.stopPropagation && ev.stopPropagation(); }catch(_){ } openInboxDetail(r); return false; };
       actions.appendChild(btn);
-      const btnReply = document.createElement('button');
-      btnReply.className = 'smallbtn';
-      btnReply.textContent = 'Beantworten';
-      btnReply.style.marginLeft = '8px';
-      btnReply.onclick = (ev)=>{ try{ ev.preventDefault(); ev.stopPropagation(); }catch(_){ } dsInboxRespond(r); };
-      actions.appendChild(btnReply);
+      const btnAnswer = document.createElement('button');
+      btnAnswer.className = 'smallbtn';
+      btnAnswer.textContent = 'Beantworten';
+      btnAnswer.style.marginLeft = '8px';
+      btnAnswer.onclick = (ev)=>{ try{ ev && ev.preventDefault && ev.preventDefault(); ev && ev.stopPropagation && ev.stopPropagation(); }catch(_){ } return dsInboxAnswerRow(r); };
+      actions.appendChild(btnAnswer);
       row.appendChild(actions);
       row.onclick = (ev)=>{ if(ev.target && ev.target.closest && ev.target.closest('button')) return; openInboxDetail(r); };
       listEl.appendChild(row);
@@ -22883,9 +22836,10 @@ function matchesInboxRow(a,b){
     ensureInboxDiag({ phase:'load-start', source: source || 'manual', error:'' });
     try{ if(typeof ensureStateShape === 'function') ensureStateShape(); }catch(_){ }
     const rows = await collectInboxRows();
-    const counts = appendMissingSelectOptions(rows);
-    renderProposalList(rows);
-    renderInboxList(rows);
+    const visibleRows = (rows || []).filter(function(r){ return !dsInboxIsResolvedRow(r); });
+    const counts = appendMissingSelectOptions(visibleRows);
+    renderProposalList(visibleRows);
+    renderInboxList(visibleRows);
     bindDetailButtons();
     try{
       const diagCard = document.getElementById('inboxProposalDebug');
@@ -22895,7 +22849,7 @@ function matchesInboxRow(a,b){
     }catch(_){ }
     setText('assignMsg', '', false);
     setText('inboxProposalMsg', '', false);
-    ensureInboxDiag({ phase:'ready', rows: rows.length, customers: counts.customers, templates: counts.templates, source: source || 'manual', error:'' });
+    ensureInboxDiag({ phase:'ready', rows: visibleRows.length, customers: counts.customers, templates: counts.templates, source: source || 'manual', error:'' });
     try{
       const diagEl = document.getElementById('inboxDiag');
       const info = window.__dsInboxDiagSources || { sources:{}, errors:[] };
@@ -22925,7 +22879,6 @@ function matchesInboxRow(a,b){
   window.__dsGb23MapInboxProposals = ()=>refreshInboxHard('gb23-map');
   window.__dsInboxReload = ()=>refreshInboxHard('reload');
   window.__dsOpenInboxDetail = openInboxDetail;
-  window.__dsInboxRespond = dsInboxRespond;
   window.__dsInboxButtonsBindHard = function(){
     try{
       const bind = (id, fn, msgId, label)=>{
