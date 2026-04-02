@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB124_EINGAENGE_BEANTWORTEN_HANDLERFIX_20260402_ROOTONLY",
+  tag: "M50.9.9GB125_EINGAENGE_BEANTWORTEN_ISOLATED_CLICK_20260402_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB124_EINGAENGE_BEANTWORTEN_HANDLERFIX_20260402_ROOTONLY";
+const APP_BUILD = "M50.9.9GB125_EINGAENGE_BEANTWORTEN_ISOLATED_CLICK_20260402_ROOTONLY";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -20559,7 +20559,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB124_EINGAENGE_BEANTWORTEN_HANDLERFIX_20260402_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB125_EINGAENGE_BEANTWORTEN_ISOLATED_CLICK_20260402_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -22140,7 +22140,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB124_EINGAENGE_BEANTWORTEN_HANDLERFIX_20260402_ROOTONLY";
+  const BUILD = "M50.9.9GB125_EINGAENGE_BEANTWORTEN_ISOLATED_CLICK_20260402_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -22472,7 +22472,7 @@ try{
       btnAnswer.style.marginLeft = '0';
       btnAnswer.style.marginTop = '8px';
       btnAnswer.style.width = '100%';
-      btnAnswer.onclick = (ev)=>{ try{ ev && ev.preventDefault && ev.preventDefault(); ev && ev.stopPropagation && ev.stopPropagation(); ev && ev.stopImmediatePropagation && ev.stopImmediatePropagation(); }catch(_){ } return dsInboxAnswerRow(r); };
+      btnAnswer.onclick = (ev)=>{ try{ ev && ev.preventDefault && ev.preventDefault(); ev && ev.stopPropagation && ev.stopPropagation(); }catch(_){ } return dsInboxAnswerRow(r); };
       actions.appendChild(btnAnswer);
       row.appendChild(actions);
       row.onclick = (ev)=>{ if(ev.target && ev.target.closest && ev.target.closest('button')) return; openInboxDetail(r); };
@@ -23024,7 +23024,7 @@ function matchesInboxRow(a,b){
         a.setAttribute(ANSWER_ATTR, '1');
         a.style.width = '100%';
         a.style.marginLeft = '0';
-        a.onclick = function(ev){ try{ ev && ev.preventDefault && ev.preventDefault(); ev && ev.stopPropagation && ev.stopPropagation(); ev && ev.stopImmediatePropagation && ev.stopImmediatePropagation(); }catch(_){} if(typeof window.dsInboxAnswerRow === 'function'){ try{ const id = String(dsInboxRowIdFromButton(btn)||''); const rows = (window.__dsInboxFallbackRows && window.__dsInboxFallbackRows.inboxList) || []; const row = (Array.isArray(rows)?rows:[]).find(r => String((r && (r.__debugProposalId || r.proposalId || r.id || r.taskId)) || '') === id); if(row) return window.dsInboxAnswerRow(row); }catch(_){} } dsInboxAnswerTestFromButton(btn); return false; };
+        a.onclick = function(ev){ try{ ev && ev.preventDefault && ev.preventDefault(); ev && ev.stopPropagation && ev.stopPropagation(); }catch(_){} dsInboxAnswerTestFromButton(btn); return false; };
         try{ btn.style.width = '100%'; }catch(_){ }
         actions.appendChild(a);
         const row = btn.closest('.list-item');

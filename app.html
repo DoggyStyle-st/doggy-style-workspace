@@ -6,13 +6,13 @@
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
 <meta charset="utf-8"/>
-  <meta name="app-build" content="M50.9.9GB124_EINGAENGE_BEANTWORTEN_HANDLERFIX_20260402_ROOTONLY">
+  <meta name="app-build" content="M50.9.9GB125_EINGAENGE_BEANTWORTEN_ISOLATED_CLICK_20260402_ROOTONLY">
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <title>Doggy Style Workspace · App</title>
 <link href="manifest.json" rel="manifest"/>
 <meta content="#101014" name="theme-color"/>
 <link href="assets/logo.png" rel="apple-touch-icon"/>
-<link href="styles.css?v=M50.9.9GB124_EINGAENGE_BEANTWORTEN_HANDLERFIX_20260402_ROOTONLY" rel="stylesheet"/>
+<link href="styles.css?v=M50.9.9GB125_EINGAENGE_BEANTWORTEN_ISOLATED_CLICK_20260402_ROOTONLY" rel="stylesheet"/>
 <link href="dashboard_master.css?v=20260104v13logout" rel="stylesheet"/>
 <style>
   /* Topbar Layout (iPad & Desktop stabil) */
@@ -102,7 +102,7 @@
   .doc-modal__actions{ margin-left:auto; display:flex; flex-wrap: wrap; gap: 8px; }
   .doc-modal__frame{ width: 100%; border: 0; border-radius: 12px; background: #fff; flex:1; min-height: 0; }
 </style>
-  <meta name="app-version" content="M50.9.9GB124_EINGAENGE_BEANTWORTEN_HANDLERFIX_20260402_ROOTONLY">
+  <meta name="app-version" content="M50.9.9GB125_EINGAENGE_BEANTWORTEN_ISOLATED_CLICK_20260402_ROOTONLY">
   <meta name="release-channel" content="MASTER">
 </head>
 <body class="bg-watermark page-app">
@@ -1194,7 +1194,7 @@
 </section>
 
 <section class="panel" id="statistics">
-<!-- Statistics panel is rendered by app.js?v=M50.9.9GB124_EINGAENGE_BEANTWORTEN_HANDLERFIX_20260402_ROOTONLY (renderStatisticsPanel) -->
+<!-- Statistics panel is rendered by app.js?v=M50.9.9GB125_EINGAENGE_BEANTWORTEN_ISOLATED_CLICK_20260402_ROOTONLY (renderStatisticsPanel) -->
 </section>
 
 
@@ -1261,12 +1261,12 @@
 </footer>
 </div>
 <!-- Firebase (optional) + Config -->
-<script defer="defer" src="firebase-config.js?v=M50.9.9GB124_EINGAENGE_BEANTWORTEN_HANDLERFIX_20260402_ROOTONLY"></script>
+<script defer="defer" src="firebase-config.js?v=M50.9.9GB125_EINGAENGE_BEANTWORTEN_ISOLATED_CLICK_20260402_ROOTONLY"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
-<script defer="defer" src="app.js?v=M50.9.9GB124_EINGAENGE_BEANTWORTEN_HANDLERFIX_20260402_ROOTONLY"></script>
+<script defer="defer" src="app.js?v=M50.9.9GB125_EINGAENGE_BEANTWORTEN_ISOLATED_CLICK_20260402_ROOTONLY"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1309,7 +1309,7 @@
 </script>
 
 <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB124_EINGAENGE_BEANTWORTEN_HANDLERFIX_20260402_ROOTONLY');
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB125_EINGAENGE_BEANTWORTEN_ISOLATED_CLICK_20260402_ROOTONLY');
   </script>
 
 <script>
@@ -1373,7 +1373,7 @@
   <!-- Bottom logout button removed (duplicate of header logout; also overlaps editor on iPad) -->
 </div>
 <!-- test-badge removed (requested) -->
-  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB124_EINGAENGE_BEANTWORTEN_HANDLERFIX_20260402_ROOTONLY</div>
+  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB125_EINGAENGE_BEANTWORTEN_ISOLATED_CLICK_20260402_ROOTONLY</div>
 
 <script>
 (function visibleMailFallback(){
@@ -1866,13 +1866,9 @@
       var rows = (window.__dsInboxFallbackRows && window.__dsInboxFallbackRows[String(targetId||'')]) || [];
       var row = rows && rows[idx];
       if(!row) return false;
-      if(typeof window.dsInboxAnswerRow === 'function') return window.dsInboxAnswerRow(row);
       var title = String(row.title || row.templateId || row.proposalType || row.kind || row.formKey || 'Änderungsvorschlag');
       var prid = String((row && (row.__debugProposalId || row.proposalId || row.id || row.taskId)) || '—').trim();
-      alert('Beantworten-Test
-
-' + title + '
-ID: ' + (prid || '—'));
+      alert('Beantworten-Test\n\n' + title + '\nID: ' + (prid || '—'));
     }catch(_){ }
     return false;
   }
@@ -1912,18 +1908,16 @@ ID: ' + (prid || '—'));
           + '<div><strong>' + escHtml(title) + '</strong><small>' + escHtml(customer) + (when ? (' · ' + escHtml(when)) : '') + '</small><small style="display:block; opacity:.78; font-size:12px;">' + escHtml(diag) + '</small></div>'
           + '<div class="actions" style="display:flex; flex-direction:column; align-items:stretch; min-width:132px; gap:8px;">'
           + '<button class="smallbtn ds-inbox-open" type="button" data-target="' + escHtml(targetId) + '" data-idx="' + idx + '">Öffnen</button>'
-          + '<button class="smallbtn ds-inbox-answer" type="button" data-target="' + escHtml(targetId) + '" data-idx="' + idx + '">Beantworten</button>'
+          + '<button class="smallbtn ds-inbox-answer" type="button" data-target="' + escHtml(targetId) + '" data-idx="' + idx + '" onclick="return false;" ontouchend="return false;" onpointerup="return false;">Beantworten</button>'
           + '</div>'
           + '</div>';
       }).join('');
-      Array.prototype.forEach.call(el.querySelectorAll('.ds-inbox-row, .ds-inbox-open, .ds-inbox-answer'), function(node){
+      Array.prototype.forEach.call(el.querySelectorAll('.ds-inbox-open, .ds-inbox-answer'), function(node){
         if(node.__dsBound) return;
         node.__dsBound = true;
         var handler = function(ev){
           try{ if(ev){ ev.preventDefault(); ev.stopPropagation(); if(ev.stopImmediatePropagation) ev.stopImmediatePropagation(); } }catch(_){ }
-          var hit = null;
-          try{ hit = ev && ev.target && ev.target.closest ? ev.target.closest('.ds-inbox-answer, .ds-inbox-open') : null; }catch(_){ hit = null; }
-          var src = hit || (ev && ev.currentTarget ? ev.currentTarget : node);
+          var src = node;
           var tid = src && src.getAttribute ? src.getAttribute('data-target') : targetId;
           var idx = src && src.getAttribute ? Number(src.getAttribute('data-idx')) : NaN;
           if(!Number.isFinite(idx)) idx = 0;
@@ -1942,6 +1936,8 @@ ID: ' + (prid || '—'));
           return window.__dsInboxFallbackOpen ? window.__dsInboxFallbackOpen(String(tid || targetId), idx) : false;
         };
         node.addEventListener('click', handler, true);
+        node.addEventListener('touchend', handler, {capture:true, passive:false});
+        node.addEventListener('pointerup', handler, true);
       });
     }catch(_){ }
   }
