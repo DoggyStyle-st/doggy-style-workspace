@@ -1117,3 +1117,8 @@ body.page-login .btnLink--text:hover{
 .ds-chat-bubble__status.is-unread{color:#ffd37a;border-color:rgba(245,182,46,.35);background:rgba(245,182,46,.10)}
 
 .ds-chat-bubble{cursor:pointer;text-align:left}.ds-chat-preview-modal{position:fixed;inset:0;z-index:2147483646;display:flex;align-items:center;justify-content:center;padding:16px}.ds-chat-preview-modal.is-hidden{display:none}.ds-chat-preview-modal__backdrop{position:absolute;inset:0;background:rgba(0,0,0,.62)}.ds-chat-preview-modal__panel{position:relative;z-index:1;width:min(760px,100%);max-height:min(80vh,900px);overflow:auto;padding:18px;border-radius:20px;background:rgba(22,22,26,.98);border:1px solid rgba(255,255,255,.12);box-shadow:0 20px 60px rgba(0,0,0,.35)}.ds-chat-preview-modal__head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:8px}.ds-chat-preview-modal__body{margin-top:14px;padding:14px 16px;border-radius:18px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);white-space:pre-wrap;line-height:1.55;word-break:break-word;font-size:16px}
+
+/* GB120: Eingänge Buttons sichtbar untereinander */
+#inboxList .list-item .actions{display:flex;flex-direction:column;align-items:stretch;min-width:128px;}
+#inboxList .list-item .actions .smallbtn{width:100%;}
+#inboxList .list-item .actions .smallbtn + .smallbtn{margin-top:8px;}

@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB119_EINGAENGE_BEANTWORTEN_BUTTON_20260402_ROOTONLY",
+  tag: "M50.9.9GB120_EINGAENGE_BEANTWORTEN_VISIBLE_20260402_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB119_EINGAENGE_BEANTWORTEN_BUTTON_20260402_ROOTONLY";
+const APP_BUILD = "M50.9.9GB120_EINGAENGE_BEANTWORTEN_VISIBLE_20260402_ROOTONLY";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -2269,15 +2269,23 @@ async function wireInbox(){
       row.innerHTML = `<div><strong>${escapeHtml(t.title||'Eingang')}</strong><small>${escapeHtml(t.customerEmail||t.customerUid||'')}${when?(' · '+when):''}</small></div>`;
       const actions = document.createElement('div');
       actions.className = 'actions';
+      actions.style.display = 'flex';
+      actions.style.flexDirection = 'column';
+      actions.style.alignItems = 'stretch';
+      actions.style.minWidth = '128px';
       const b = document.createElement('button');
       b.className='smallbtn';
       b.textContent='Öffnen';
+      b.style.width = '100%';
       b.onclick = ()=>openDetail(t);
       actions.appendChild(b);
       const br = document.createElement('button');
       br.className='smallbtn';
       br.textContent='Beantworten';
-      br.style.marginLeft='8px';
+      br.dataset.inboxAnswer = '1';
+      br.style.marginLeft='0';
+      br.style.marginTop='8px';
+      br.style.width = '100%';
       br.onclick = ()=>replyTest(t);
       actions.appendChild(br);
       row.appendChild(actions);
@@ -20551,7 +20559,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB119_EINGAENGE_BEANTWORTEN_BUTTON_20260402_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB120_EINGAENGE_BEANTWORTEN_VISIBLE_20260402_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -22132,7 +22140,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB119_EINGAENGE_BEANTWORTEN_BUTTON_20260402_ROOTONLY";
+  const BUILD = "M50.9.9GB120_EINGAENGE_BEANTWORTEN_VISIBLE_20260402_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -22447,15 +22455,23 @@ try{
       row.innerHTML = '<div><strong>' + escapeSafe(r.title || r.__template.label || 'Eingang') + '</strong><small>' + escapeSafe(r.customerName || 'Kunde') + (r.customerEmail ? ' · ' + escapeSafe(r.customerEmail) : '') + (when ? ' · ' + escapeSafe(when) : '') + '</small></div>';
       const actions = document.createElement('div');
       actions.className = 'actions';
+      actions.style.display = 'flex';
+      actions.style.flexDirection = 'column';
+      actions.style.alignItems = 'stretch';
+      actions.style.minWidth = '128px';
       const btn = document.createElement('button');
       btn.className = 'smallbtn';
       btn.textContent = 'Öffnen';
+      btn.style.width = '100%';
       btn.onclick = (ev)=>{ try{ ev && ev.preventDefault && ev.preventDefault(); ev && ev.stopPropagation && ev.stopPropagation(); }catch(_){ } openInboxDetail(r); return false; };
       actions.appendChild(btn);
       const btnAnswer = document.createElement('button');
       btnAnswer.className = 'smallbtn';
       btnAnswer.textContent = 'Beantworten';
-      btnAnswer.style.marginLeft = '8px';
+      btnAnswer.dataset.inboxAnswer = '1';
+      btnAnswer.style.marginLeft = '0';
+      btnAnswer.style.marginTop = '8px';
+      btnAnswer.style.width = '100%';
       btnAnswer.onclick = (ev)=>{ try{ ev && ev.preventDefault && ev.preventDefault(); ev && ev.stopPropagation && ev.stopPropagation(); }catch(_){ } return dsInboxAnswerRow(r); };
       actions.appendChild(btnAnswer);
       row.appendChild(actions);
