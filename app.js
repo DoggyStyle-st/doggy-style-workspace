@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB133_INBOX_RAWFALLBACK_STRICTHIDE_20260402_ROOTONLY",
+  tag: "M50.9.9GB134_INBOX_STRICTID_HIDEFIX_20260402_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB133_INBOX_RAWFALLBACK_STRICTHIDE_20260402_ROOTONLY";
+const APP_BUILD = "M50.9.9GB134_INBOX_STRICTID_HIDEFIX_20260402_ROOTONLY";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -9391,7 +9391,7 @@ function dsEnsureReviewStyles(){
 }
 function dsInboxHandledStore(){
   try{
-    const raw = localStorage.getItem('ds_inbox_handled_v1');
+    const raw = localStorage.getItem('ds_inbox_handled_exact_v2');
     const data = raw ? JSON.parse(raw) : {};
     return data && typeof data === 'object' ? data : {};
   }catch(_){ return {}; }
@@ -9399,28 +9399,28 @@ function dsInboxHandledStore(){
 
 function dsProposalAcceptedStore(){
   try{
-    const raw = localStorage.getItem('ds_proposal_accepted_v2');
+    const raw = localStorage.getItem('ds_proposal_accepted_exact_v3');
     const data = raw ? JSON.parse(raw) : {};
     return data && typeof data === 'object' ? data : {};
   }catch(_){ return {}; }
 }
 function dsProposalExactAcceptedStore(){
   try{
-    const raw = localStorage.getItem('ds_proposal_exact_accepted_v1');
+    const raw = localStorage.getItem('ds_proposal_exact_ids_v2');
     const data = raw ? JSON.parse(raw) : {};
     return data && typeof data === 'object' ? data : {};
   }catch(_){ return {}; }
 }
 function dsProposalDirectAcceptedStore(){
   try{
-    const raw = localStorage.getItem('ds_proposal_direct_accepted_v1');
+    const raw = localStorage.getItem('ds_proposal_direct_ids_v2');
     const data = raw ? JSON.parse(raw) : {};
     return data && typeof data === 'object' ? data : {};
   }catch(_){ return {}; }
 }
 function dsAcceptedProposalIdStore(){
   try{
-    const raw = localStorage.getItem('ds_accepted_proposal_ids_v1');
+    const raw = localStorage.getItem('ds_accepted_proposal_ids_exact_v2');
     const data = raw ? JSON.parse(raw) : {};
     return data && typeof data === 'object' ? data : {};
   }catch(_){ return {}; }
@@ -9428,29 +9428,30 @@ function dsAcceptedProposalIdStore(){
 function dsProposalStrictKeys(row){
   try{
     const keys = [];
-    const add = function(v){
+    const add = function(v, prefix){
       try{
-        const key = lower(String(v == null ? '' : v).trim());
-        if(key) keys.push(key);
+        const raw = String(v == null ? '' : v).trim();
+        const key = lower(raw);
+        if(!key) return;
+        keys.push(prefix ? (prefix + ':' + key) : key);
       }catch(_){ }
     };
     const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
-    add(row && row.proposalId);
-    add(row && row.proposal);
-    add(row && row.submissionId);
-    add(payload && payload.proposalId);
-    add(payload && payload.proposal);
-    add(payload && payload.submissionId);
-    add(row && row.__sourceKey);
-    add(payload && payload.sourceKey);
     const src = lower(String((row && row.__source) || (row && row.source) || (payload && payload.source) || '').trim());
     const rowId = norm(row && row.id);
+    const proposalId = norm((row && (row.proposalId || row.proposal)) || (payload && (payload.proposalId || payload.proposal)) || '');
+    const submissionId = norm((row && row.submissionId) || (payload && payload.submissionId) || '');
     const payloadId = norm(payload && payload.id);
-    if(src.includes('proposal') || src.includes('customer')){
-      add(rowId);
-      add(payloadId);
-    }
-    return Array.from(new Set(keys));
+    const customerKey = lower(String((row && (row.customerId || row.__targetCustomerId || row.customerUid || row.customerEmail || row.customerName)) || (payload.customer && (payload.customer.id || payload.customer.customerId || payload.customer.uid || payload.customer.portalUid || payload.customer.email || payload.customer.name)) || '').trim());
+    const petKey = lower(String((row && (row.petId || row.__targetPetId || row.petName)) || (payload.pet && (payload.pet.id || payload.pet.petId || payload.pet.chipNumber || payload.pet.name)) || '').trim());
+    const submittedAt = lower(String((row && (row.submittedAt || row.createdAt)) || payload.submittedAt || '').trim());
+    const templateKey = lower(String((row && (row.templateId || row.title || row.formKey || row.proposalType || row.kind)) || (payload && (payload.templateId || payload.title || payload.formKey || payload.proposalType || payload.kind)) || '').trim());
+    add(proposalId, 'proposal');
+    add(submissionId, 'submission');
+    if(src.includes('proposal') || src.includes('customer') || proposalId || submissionId) add(rowId, 'row');
+    if((proposalId || submissionId) && payloadId) add(payloadId, 'payload');
+    if((proposalId || submissionId || rowId) && customerKey && submittedAt) add([customerKey, petKey || '-', submittedAt, templateKey || '-'].join('|'), 'sig');
+    return Array.from(new Set(keys.filter(Boolean)));
   }catch(_){ return []; }
 }
 function dsGetProposalHideReason(row){
@@ -9490,7 +9491,7 @@ function dsMarkAcceptedProposalId(row, status){
     const data = dsAcceptedProposalIdStore();
     const val = String(status || 'accepted');
     dsAcceptedProposalIdsForRow(row).forEach(function(id){ try{ if(id) data[id] = val; }catch(_){ } });
-    localStorage.setItem('ds_accepted_proposal_ids_v1', JSON.stringify(data));
+    localStorage.setItem('ds_accepted_proposal_ids_exact_v2', JSON.stringify(data));
   }catch(_){ }
 }
 function dsIsAcceptedProposalIdHit(row){
@@ -9514,7 +9515,7 @@ function dsMarkProposalAcceptedDirect(row, status){
     const data = dsProposalDirectAcceptedStore();
     const val = String(status || 'accepted');
     dsProposalDirectAcceptedIds(row).forEach(function(id){ try{ if(id) data[id] = val; }catch(_){ } });
-    localStorage.setItem('ds_proposal_direct_accepted_v1', JSON.stringify(data));
+    localStorage.setItem('ds_proposal_direct_ids_v2', JSON.stringify(data));
   }catch(_){ }
 }
 function dsIsProposalAcceptedDirect(row){
@@ -9529,7 +9530,7 @@ function dsMarkProposalAcceptedExact(row, status){
     const data = dsProposalExactAcceptedStore();
     const val = String(status || 'accepted');
     dsProposalExactAcceptedIds(row).forEach(function(id){ try{ if(id) data[id] = val; }catch(_){ } });
-    localStorage.setItem('ds_proposal_exact_accepted_v1', JSON.stringify(data));
+    localStorage.setItem('ds_proposal_exact_ids_v2', JSON.stringify(data));
   }catch(_){ }
   try{ dsMarkProposalAcceptedDirect(row, status || 'accepted'); }catch(_){ }
 }
@@ -9551,7 +9552,7 @@ function dsMarkProposalAcceptedPersistent(row, status){
     const data = dsProposalAcceptedStore();
     const val = String(status || 'accepted');
     dsProposalAcceptedKeys(row).forEach(function(key){ try{ if(key) data[key] = val; }catch(_){ } });
-    localStorage.setItem('ds_proposal_accepted_v2', JSON.stringify(data));
+    localStorage.setItem('ds_proposal_accepted_exact_v3', JSON.stringify(data));
   }catch(_){ }
   try{ dsMarkProposalAcceptedExact(row, status || 'accepted'); }catch(_){ }
   try{ dsMarkAcceptedProposalId(row, status || 'accepted'); }catch(_){ }
@@ -9583,7 +9584,7 @@ function dsMarkInboxRowHandled(row, status){
       }catch(_){ }
     };
     try{ (typeof dsProposalStrictKeys === 'function' ? dsProposalStrictKeys(row) : []).forEach(add); }catch(_){ }
-    localStorage.setItem('ds_inbox_handled_v1', JSON.stringify(data));
+    localStorage.setItem('ds_inbox_handled_exact_v2', JSON.stringify(data));
   }catch(_){ }
 }
 function dsIsInboxRowHandled(row){
@@ -20491,7 +20492,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB133_INBOX_RAWFALLBACK_STRICTHIDE_20260402_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB134_INBOX_STRICTID_HIDEFIX_20260402_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -22087,7 +22088,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB133_INBOX_RAWFALLBACK_STRICTHIDE_20260402_ROOTONLY";
+  const BUILD = "M50.9.9GB134_INBOX_STRICTID_HIDEFIX_20260402_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
