@@ -6,13 +6,13 @@
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
 <meta charset="utf-8"/>
-  <meta name="app-build" content="M50.9.9GB125_EINGAENGE_BEANTWORTEN_ISOLATED_CLICK_20260402_ROOTONLY">
+  <meta name="app-build" content="M50.9.9GB126_EINGAENGE_BEANTWORTEN_DIALOG_20260402_ROOTONLY">
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <title>Doggy Style Workspace · App</title>
 <link href="manifest.json" rel="manifest"/>
 <meta content="#101014" name="theme-color"/>
 <link href="assets/logo.png" rel="apple-touch-icon"/>
-<link href="styles.css?v=M50.9.9GB125_EINGAENGE_BEANTWORTEN_ISOLATED_CLICK_20260402_ROOTONLY" rel="stylesheet"/>
+<link href="styles.css?v=M50.9.9GB126_EINGAENGE_BEANTWORTEN_DIALOG_20260402_ROOTONLY" rel="stylesheet"/>
 <link href="dashboard_master.css?v=20260104v13logout" rel="stylesheet"/>
 <style>
   /* Topbar Layout (iPad & Desktop stabil) */
@@ -102,7 +102,7 @@
   .doc-modal__actions{ margin-left:auto; display:flex; flex-wrap: wrap; gap: 8px; }
   .doc-modal__frame{ width: 100%; border: 0; border-radius: 12px; background: #fff; flex:1; min-height: 0; }
 </style>
-  <meta name="app-version" content="M50.9.9GB125_EINGAENGE_BEANTWORTEN_ISOLATED_CLICK_20260402_ROOTONLY">
+  <meta name="app-version" content="M50.9.9GB126_EINGAENGE_BEANTWORTEN_DIALOG_20260402_ROOTONLY">
   <meta name="release-channel" content="MASTER">
 </head>
 <body class="bg-watermark page-app">
@@ -1194,7 +1194,7 @@
 </section>
 
 <section class="panel" id="statistics">
-<!-- Statistics panel is rendered by app.js?v=M50.9.9GB125_EINGAENGE_BEANTWORTEN_ISOLATED_CLICK_20260402_ROOTONLY (renderStatisticsPanel) -->
+<!-- Statistics panel is rendered by app.js?v=M50.9.9GB126_EINGAENGE_BEANTWORTEN_DIALOG_20260402_ROOTONLY (renderStatisticsPanel) -->
 </section>
 
 
@@ -1261,12 +1261,12 @@
 </footer>
 </div>
 <!-- Firebase (optional) + Config -->
-<script defer="defer" src="firebase-config.js?v=M50.9.9GB125_EINGAENGE_BEANTWORTEN_ISOLATED_CLICK_20260402_ROOTONLY"></script>
+<script defer="defer" src="firebase-config.js?v=M50.9.9GB126_EINGAENGE_BEANTWORTEN_DIALOG_20260402_ROOTONLY"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
-<script defer="defer" src="app.js?v=M50.9.9GB125_EINGAENGE_BEANTWORTEN_ISOLATED_CLICK_20260402_ROOTONLY"></script>
+<script defer="defer" src="app.js?v=M50.9.9GB126_EINGAENGE_BEANTWORTEN_DIALOG_20260402_ROOTONLY"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1309,7 +1309,7 @@
 </script>
 
 <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB125_EINGAENGE_BEANTWORTEN_ISOLATED_CLICK_20260402_ROOTONLY');
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB126_EINGAENGE_BEANTWORTEN_DIALOG_20260402_ROOTONLY');
   </script>
 
 <script>
@@ -1373,7 +1373,7 @@
   <!-- Bottom logout button removed (duplicate of header logout; also overlaps editor on iPad) -->
 </div>
 <!-- test-badge removed (requested) -->
-  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB125_EINGAENGE_BEANTWORTEN_ISOLATED_CLICK_20260402_ROOTONLY</div>
+  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB126_EINGAENGE_BEANTWORTEN_DIALOG_20260402_ROOTONLY</div>
 
 <script>
 (function visibleMailFallback(){
@@ -1866,10 +1866,40 @@
       var rows = (window.__dsInboxFallbackRows && window.__dsInboxFallbackRows[String(targetId||'')]) || [];
       var row = rows && rows[idx];
       if(!row) return false;
-      var title = String(row.title || row.templateId || row.proposalType || row.kind || row.formKey || 'Änderungsvorschlag');
-      var prid = String((row && (row.__debugProposalId || row.proposalId || row.id || row.taskId)) || '—').trim();
-      alert('Beantworten-Test\n\n' + title + '\nID: ' + (prid || '—'));
-    }catch(_){ }
+      var pick = prompt('Vorschlag beantworten:
+1 = Angenommen
+2 = Abgelehnt
+3 = Später entscheiden', '1');
+      if(pick == null) return false;
+      pick = String(pick || '').trim();
+      var status = pick === '1' ? 'accepted' : (pick === '2' ? 'rejected' : (pick === '3' ? 'deferred' : ''));
+      if(!status){ try{ alert('Ungültige Auswahl.'); }catch(_){ } return false; }
+      var chatPick = prompt('Chat-Rückmeldung:
+1 = Standardtext senden
+2 = Text bearbeiten
+3 = Ohne Chat', '1');
+      if(chatPick == null) return false;
+      chatPick = String(chatPick || '').trim();
+      var chatMode = chatPick === '1' ? 'standard' : (chatPick === '2' ? 'edit' : (chatPick === '3' ? 'none' : ''));
+      if(!chatMode){ try{ alert('Ungültige Auswahl.'); }catch(_){ } return false; }
+      try{ if(status === 'accepted' && typeof dsFinalizeAcceptedProposalLocal === 'function') dsFinalizeAcceptedProposalLocal(row); }catch(_){ }
+      try{ if(typeof dsMarkInboxRowHandled === 'function') dsMarkInboxRowHandled(row, status); }catch(_){ }
+      try{ if(typeof removeInboxRowEverywhere === 'function') removeInboxRowEverywhere(row); }catch(_){ }
+      try{
+        var nextRows = Array.isArray(rows) ? rows.slice() : [];
+        if(idx >= 0 && idx < nextRows.length) nextRows.splice(idx, 1);
+        window.__dsInboxFallbackRows = window.__dsInboxFallbackRows || {};
+        window.__dsInboxFallbackRows[String(targetId||'')] = nextRows;
+        renderRows(String(targetId||''), nextRows, String(targetId||'') === 'inboxProposalList' ? 'keine Vorschläge gefunden' : 'keine Eingänge');
+      }catch(_){ }
+      setTimeout(function(){
+        try{ if(typeof dsInboxSendAnswerChat === 'function') Promise.resolve(dsInboxSendAnswerChat(row, status, chatMode)).catch(function(){}); }catch(_){ }
+        try{ if(typeof patchInboxRowStatus === 'function') Promise.resolve(patchInboxRowStatus(row, status)).catch(function(){}); }catch(_){ }
+        try{ if(typeof refreshInboxHard === 'function') Promise.resolve(refreshInboxHard('fallback-answer-' + status)).catch(function(){}); }catch(_){ }
+      }, 0);
+    }catch(err){
+      try{ alert('Beantworten fehlgeschlagen: ' + String((err && err.message) || err || 'Unbekannter Fehler')); }catch(_){ }
+    }
     return false;
   }
   window.__dsInboxFallbackAnswer = fallbackAnswerInboxRow;
