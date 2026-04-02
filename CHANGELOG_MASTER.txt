@@ -1,3 +1,8 @@
+GB127
+- Basis GB125
+- Beantworten-Testdialog durch einfache Prompt-Kette ersetzt
+- Kein Status-Patch, kein Chat-Versand, kein Refresh-Eingriff
+
 GB87: Single-dog fallback für Eingänge-Resolver; Kunde/Hund-Zuordnung bevorzugt resolve+Owner-Pets statt leerer pid.
 GB36
 - app.html Buildstring korrigiert

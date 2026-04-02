@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB126_EINGAENGE_BEANTWORTEN_DIALOG_20260402_ROOTONLY",
+  tag: "M50.9.9GB127_EINGAENGE_BEANTWORTEN_PROMPTCHAIN_20260402_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB126_EINGAENGE_BEANTWORTEN_DIALOG_20260402_ROOTONLY";
+const APP_BUILD = "M50.9.9GB127_EINGAENGE_BEANTWORTEN_PROMPTCHAIN_20260402_ROOTONLY";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -2250,8 +2250,34 @@ async function wireInbox(){
     try{
       const key = String((task && (task.id || task.proposalId || task.taskId)) || '—');
       const title = String((task && (task.title || task.templateId || task.proposalType || task.kind)) || 'Änderungsvorschlag');
-      alert('Beantworten-Test\n\n' + title + '\nID: ' + key);
+      const pick = prompt('Vorschlag beantworten:\n1 = Angenommen\n2 = Abgelehnt\n3 = Später entscheiden', '1');
+      if(pick == null) return false;
+      const p = String(pick).trim();
+      const status = p === '1' ? 'Angenommen' : (p === '2' ? 'Abgelehnt' : (p === '3' ? 'Später entscheiden' : ''));
+      if(!status){ alert('Ungültige Auswahl.'); return false; }
+      const chatPick = prompt('Chat-Rückmeldung:\n1 = Standardtext senden\n2 = Text bearbeiten\n3 = Ohne Chat', '1');
+      if(chatPick == null) return false;
+      const c = String(chatPick).trim();
+      const chatMode = c === '1' ? 'Standardtext senden' : (c === '2' ? 'Text bearbeiten' : (c === '3' ? 'Ohne Chat' : ''));
+      if(!chatMode){ alert('Ungültige Auswahl.'); return false; }
+      let text = '';
+      if(c === '1' || c === '2'){
+        text = status === 'Angenommen'
+          ? 'Dein Änderungsvorschlag wurde geprüft und übernommen.'
+          : (status === 'Abgelehnt'
+            ? 'Dein Änderungsvorschlag wurde geprüft, aber nicht übernommen.'
+            : 'Dein Änderungsvorschlag ist eingegangen und wird noch geprüft.');
+      }
+      if(c === '2'){
+        const custom = prompt('Chat-Nachricht bearbeiten', text);
+        if(custom == null) return false;
+        text = String(custom || '').trim();
+      }
+      let summary = 'Antwort-Auswahl gespeichert (noch ohne Versand).\n\n' + title + '\nID: ' + key + '\nStatus: ' + status + '\nChat: ' + chatMode;
+      if(text) summary += '\n\nText:\n' + text;
+      alert(summary);
     }catch(_){ }
+    return false;
   };
   try{ window.__dsInboxReplyTest = replyTest; }catch(_){ }
   const renderList = (tasks)=>{
@@ -20559,7 +20585,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB126_EINGAENGE_BEANTWORTEN_DIALOG_20260402_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB127_EINGAENGE_BEANTWORTEN_PROMPTCHAIN_20260402_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -22140,7 +22166,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB126_EINGAENGE_BEANTWORTEN_DIALOG_20260402_ROOTONLY";
+  const BUILD = "M50.9.9GB127_EINGAENGE_BEANTWORTEN_PROMPTCHAIN_20260402_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
