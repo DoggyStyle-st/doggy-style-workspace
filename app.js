@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB140_SYNCDIAG_MINIFIX_BASEGB137_20260402_ROOTONLY",
+  tag: "M50.9.9GB141_AUTHSYNC_LOGOUT_CLEAN_BASEGB137_20260403_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB140_SYNCDIAG_MINIFIX_BASEGB137_20260402_ROOTONLY";
+const APP_BUILD = "M50.9.9GB141_AUTHSYNC_LOGOUT_CLEAN_BASEGB137_20260403_ROOTONLY";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -447,10 +447,43 @@ function fmtDT(ts){
   }catch(_){ return "—"; }
 }
 async function performLogout(){
+  try{ window.__dsLogoutInFlight = true; }catch(_){ }
+  try{ if(typeof window.__dsPrepareHardLogout === 'function') window.__dsPrepareHardLogout(); }catch(_){ }
   try{ if(CLOUD && CLOUD.enabled && CLOUD.auth){ await CLOUD.auth.signOut(); } }catch(e){}
   try{ sessionStorage.removeItem("dstest_sw_reloaded"); }catch(e){}
   try{ location.href = "login.html"; }catch(e){}
 }
+function dsCollectAuthSyncDiag(){
+  let resolved = null;
+  try{ resolved = (window.CLOUD && (CLOUD.user || (CLOUD.auth && CLOUD.auth.currentUser))) || null; }catch(_){ resolved = null; }
+  return {
+    build: APP_BUILD,
+    authUser: !!resolved,
+    authEmail: resolved ? String(resolved.email || resolved.uid || '') : '',
+    orgId: (()=>{ try{ return String((window.CLOUD && CLOUD.orgId) || dsResolveCloudOrgId() || ''); }catch(_){ return ''; } })(),
+    firestoreReady: (()=>{ try{ return !!(window.CLOUD && CLOUD.db); }catch(_){ return false; } })(),
+    lastCloudError: (()=>{ try{ return String(SYNC && SYNC.cloudLastError || ''); }catch(_){ return ''; } })(),
+    lastPushError: (()=>{ try{ return String(CLOUD && CLOUD.lastPushError || ''); }catch(_){ return ''; } })(),
+    cloudPending: (()=>{ try{ return !!(SYNC && SYNC.cloudPending); }catch(_){ return false; } })(),
+    logoutInFlight: (()=>{ try{ return !!window.__dsLogoutInFlight; }catch(_){ return false; } })()
+  };
+}
+window.__dsAuthSyncDiag = dsCollectAuthSyncDiag;
+window.__dsPrepareHardLogout = function(){
+  try{ window.__dsLogoutInFlight = true; }catch(_){ }
+  try{ if(CLOUD && CLOUD._unsubWorkspace){ CLOUD._unsubWorkspace(); CLOUD._unsubWorkspace = null; } }catch(_){ }
+  try{ clearTimeout(CLOUD && CLOUD._pushTimer); }catch(_){ }
+  try{ if(window.__dsCloudPushSuppressCount != null) window.__dsCloudPushSuppressCount = 0; }catch(_){ }
+  try{ if(window.CLOUD){ CLOUD.user = null; CLOUD.role = 'guest'; } }catch(_){ }
+  try{
+    if(window.SYNC){
+      SYNC.cloudPending = false;
+      SYNC.cloudReachable = false;
+      SYNC.cloudReachError = '';
+    }
+  }catch(_){ }
+  try{ updateSyncUI(); }catch(_){ }
+};
 function getCloudUserResolved(){
   try{
     const u = (window.CLOUD && (CLOUD.user || (CLOUD.auth && CLOUD.auth.currentUser)))
@@ -13010,46 +13043,6 @@ function closePdfOverlay(){
   document.body.classList.remove("printOverlayActive");
 }
 function loadState(){try{const raw=localStorage.getItem(LS_KEY);return raw?JSON.parse(raw):{dogs:[],docs:[]};}catch{return {dogs:[],docs:[]};}}
-function dsIsCloudPushSuppressed(){
-  try{ return Number(window.__dsCloudPushSuppressCount || 0) > 0; }catch(_){ return false; }
-}
-function dsSetCloudPushSuppressed(on){
-  try{
-    const cur = Number(window.__dsCloudPushSuppressCount || 0);
-    const next = on ? (cur + 1) : Math.max(0, cur - 1);
-    window.__dsCloudPushSuppressCount = next;
-    if(next > 0){
-      try{ clearTimeout(CLOUD && CLOUD._pushTimer); }catch(_){ }
-      try{ SYNC.cloudPending = false; }catch(_){ }
-    }
-    return next;
-  }catch(_){ return 0; }
-}
-async function dsWithCloudPushSuppressed(fn){
-  dsSetCloudPushSuppressed(true);
-  try{
-    return await Promise.resolve().then(fn);
-  }finally{
-    dsSetCloudPushSuppressed(false);
-  }
-}
-function dsMarkCloudDirectOk(reason){
-  try{
-    const stamp = Date.now();
-    CLOUD.lastPushOkAt = stamp;
-    CLOUD.lastPushError = '';
-    SYNC.cloudLastOkAt = stamp;
-    SYNC.cloudLastError = '';
-    SYNC.cloudPending = false;
-    if(typeof navigator === 'undefined' || navigator.onLine){
-      SYNC.cloudReachable = true;
-      SYNC.cloudReachCheckedAt = stamp;
-      SYNC.cloudReachError = '';
-    }
-    try{ if(window.__dsCloudDiagLast) window.__dsCloudDiagLast.reason = String(reason || 'direct-ok'); }catch(_){ }
-  }catch(_){ }
-  try{ updateSyncUI(); }catch(_){ }
-}
 function saveState(){
   try{
     state._localUpdatedAt = Date.now();
@@ -13060,15 +13053,7 @@ function saveState(){
   SYNC.localSavedAt = (state && state._localUpdatedAt) ? state._localUpdatedAt : Date.now();
   updateSyncUI();
   // Cloud Sync (Weg 2B): Änderungen nach außen spiegeln
-  if(CLOUD.enabled && CLOUD.user){
-    if(dsIsCloudPushSuppressed()){
-      try{ clearTimeout(CLOUD && CLOUD._pushTimer); }catch(_){ }
-      try{ SYNC.cloudPending = false; }catch(_){ }
-      try{ updateSyncUI(); }catch(_){ }
-    }else{
-      cloudSchedulePush();
-    }
-  }
+  if(CLOUD.enabled && CLOUD.user) cloudSchedulePush();
 }
 function ensureDefaultDog(){
   if(!state.dogs || state.dogs.length===0){
@@ -14774,6 +14759,7 @@ async function startApp(){
     if(!user){
       try{ const ba=document.querySelector(".bottom-actions"); if(ba) ba.style.display="none"; }catch(e){}
       CLOUD.role = 'guest';
+      try{ CLOUD.user = null; }catch(_){ }
       try{ if(btnLogoutApp) btnLogoutApp.style.display = 'none'; }catch(e){}
       try{ if(btnLogout) btnLogout.style.display = 'none'; }catch(e){}
       updateSyncUI();
@@ -14781,7 +14767,13 @@ async function startApp(){
         const p = (location && location.pathname) ? location.pathname.toLowerCase() : '';
         const customerLocked = (typeof isCustomerMainDogsMode === 'function') ? !!isCustomerMainDogsMode() : false;
         const alreadyOnLogin = p.endsWith('login.html');
+        const hardLogout = !!window.__dsLogoutInFlight;
         if(!alreadyOnLogin && !customerLocked){
+          if(hardLogout){
+            try{ sessionStorage.removeItem('ds_auth_required_return_to'); }catch(_){ }
+            try{ location.replace('login.html'); }catch(_){ location.href = 'login.html'; }
+            return;
+          }
           const rel = (location.pathname.split('/').pop() || 'app.html') + (location.search || '') + (location.hash || '');
           const target = 'login.html?return_to=' + encodeURIComponent(rel);
           try{ sessionStorage.setItem('ds_auth_required_return_to', rel); }catch(_){ }
@@ -14791,6 +14783,7 @@ async function startApp(){
       }catch(e){}
       return;
     }
+    try{ window.__dsLogoutInFlight = false; }catch(_){ }
     // Login bei jedem Start erzwingen: wird beim Start durch signOut() erzwungen (kein Auto-Logout nach erfolgreichem Login)
     // Rolle (v2): aus Firestore (mit Whitelist-Override)
     try{
@@ -20534,7 +20527,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB140_SYNCDIAG_MINIFIX_BASEGB137_20260402_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB141_AUTHSYNC_LOGOUT_CLEAN_BASEGB137_20260403_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -22130,7 +22123,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB140_SYNCDIAG_MINIFIX_BASEGB137_20260402_ROOTONLY";
+  const BUILD = "M50.9.9GB141_AUTHSYNC_LOGOUT_CLEAN_BASEGB137_20260403_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -22489,19 +22482,13 @@ async function dsInboxAnswerRow(row){
       if(chatPick == null) return false;
       const chatMode = String(chatPick).trim() === '1' ? 'standard' : (String(chatPick).trim() === '2' ? 'edit' : (String(chatPick).trim() === '3' ? 'none' : ''));
       if(!chatMode){ try{ alert('Ungültige Auswahl.'); }catch(_){ } return false; }
-      await dsWithCloudPushSuppressed(async ()=>{
-        if(status === 'accepted'){
-          try{ if(typeof dsFinalizeAcceptedProposalLocal === 'function') dsFinalizeAcceptedProposalLocal(row); }catch(_){ }
-        }
-        try{ if(typeof dsMarkInboxRowHandled === 'function') dsMarkInboxRowHandled(row, status); }catch(_){ }
-        try{ removeInboxRowEverywhere(row); }catch(_){ }
-      });
-      const chatOk = await dsInboxSendAnswerChat(row, status, chatMode);
-      let patchOk = false;
-      try{ if(typeof patchInboxRowStatus === 'function') patchOk = !!(await patchInboxRowStatus(row, status)); }catch(_){ }
-      if(chatOk !== false && patchOk !== false){
-        try{ dsMarkCloudDirectOk('inbox-answer'); }catch(_){ }
+      if(status === 'accepted'){
+        try{ if(typeof dsFinalizeAcceptedProposalLocal === 'function') dsFinalizeAcceptedProposalLocal(row); }catch(_){ }
       }
+      try{ if(typeof dsMarkInboxRowHandled === 'function') dsMarkInboxRowHandled(row, status); }catch(_){ }
+      try{ removeInboxRowEverywhere(row); }catch(_){ }
+      await dsInboxSendAnswerChat(row, status, chatMode);
+      try{ if(typeof patchInboxRowStatus === 'function') await patchInboxRowStatus(row, status); }catch(_){ }
       try{ await refreshInboxHard('answer-' + status); }catch(_){ }
       markRecent = true;
       return false;

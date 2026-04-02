@@ -6,13 +6,13 @@
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
 <meta charset="utf-8"/>
-  <meta name="app-build" content="M50.9.9GB140_SYNCDIAG_MINIFIX_BASEGB137_20260402_ROOTONLY">
+  <meta name="app-build" content="M50.9.9GB141_AUTHSYNC_LOGOUT_CLEAN_BASEGB137_20260403_ROOTONLY">
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <title>Doggy Style Workspace · App</title>
 <link href="manifest.json" rel="manifest"/>
 <meta content="#101014" name="theme-color"/>
 <link href="assets/logo.png" rel="apple-touch-icon"/>
-<link href="styles.css?v=M50.9.9GB140_SYNCDIAG_MINIFIX_BASEGB137_20260402_ROOTONLY" rel="stylesheet"/>
+<link href="styles.css?v=M50.9.9GB141_AUTHSYNC_LOGOUT_CLEAN_BASEGB137_20260403_ROOTONLY" rel="stylesheet"/>
 <link href="dashboard_master.css?v=20260104v13logout" rel="stylesheet"/>
 <style>
   /* Topbar Layout (iPad & Desktop stabil) */
@@ -102,7 +102,7 @@
   .doc-modal__actions{ margin-left:auto; display:flex; flex-wrap: wrap; gap: 8px; }
   .doc-modal__frame{ width: 100%; border: 0; border-radius: 12px; background: #fff; flex:1; min-height: 0; }
 </style>
-  <meta name="app-version" content="M50.9.9GB140_SYNCDIAG_MINIFIX_BASEGB137_20260402_ROOTONLY">
+  <meta name="app-version" content="M50.9.9GB141_AUTHSYNC_LOGOUT_CLEAN_BASEGB137_20260403_ROOTONLY">
   <meta name="release-channel" content="MASTER">
 </head>
 <body class="bg-watermark page-app">
@@ -1194,7 +1194,7 @@
 </section>
 
 <section class="panel" id="statistics">
-<!-- Statistics panel is rendered by app.js?v=M50.9.9GB140_SYNCDIAG_MINIFIX_BASEGB137_20260402_ROOTONLY (renderStatisticsPanel) -->
+<!-- Statistics panel is rendered by app.js?v=M50.9.9GB141_AUTHSYNC_LOGOUT_CLEAN_BASEGB137_20260403_ROOTONLY (renderStatisticsPanel) -->
 </section>
 
 
@@ -1261,41 +1261,17 @@
 </footer>
 </div>
 <!-- Firebase (optional) + Config -->
-<script defer="defer" src="firebase-config.js?v=M50.9.9GB140_SYNCDIAG_MINIFIX_BASEGB137_20260402_ROOTONLY"></script>
+<script defer="defer" src="firebase-config.js?v=M50.9.9GB141_AUTHSYNC_LOGOUT_CLEAN_BASEGB137_20260403_ROOTONLY"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
-<script defer="defer" src="app.js?v=M50.9.9GB140_SYNCDIAG_MINIFIX_BASEGB137_20260402_ROOTONLY"></script>
+<script defer="defer" src="app.js?v=M50.9.9GB141_AUTHSYNC_LOGOUT_CLEAN_BASEGB137_20260403_ROOTONLY"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
   if(!btn) return;
-
   const show = (on) => { btn.style.display = on ? 'inline-flex' : 'none'; };
-
-  const doLogout = () => {
-    const appBtn = document.getElementById('btnLogoutApp');
-    // If the app already has its own logout handler wired up, reuse it
-    if(appBtn && appBtn.style.display !== 'none'){
-      appBtn.click();
-      return;
-    }
-    // Fallback: Firebase Auth signOut (compat)
-    try{
-      if(window.firebase && firebase.auth){
-        firebase.auth().signOut()
-          .then(() => { location.href = location.href.split('#')[0]; })
-          .catch(() => location.reload());
-        return;
-      }
-    }catch(e){}
-    location.reload();
-  };
-
-  btn.addEventListener('click', doLogout);
-
-  // Only show when a user is logged in
   try{
     if(window.firebase && firebase.auth){
       firebase.auth().onAuthStateChanged((u) => show(!!u));
@@ -1309,59 +1285,97 @@
 </script>
 
 <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB140_SYNCDIAG_MINIFIX_BASEGB137_20260402_ROOTONLY');
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB141_AUTHSYNC_LOGOUT_CLEAN_BASEGB137_20260403_ROOTONLY');
   </script>
 
 <script>
-/* Logout-Fix: verhindert Tab-Navigation (Startseite) und führt echtes SignOut aus */
+/* Logout-Fix GB141: ein Klick = echter Logout, ohne Doppel-Handler oder Pseudo-Reset */
 (function(){
   const btnTop = document.getElementById('btnLogoutTop');
   const btnBottom = document.getElementById('btnLogoutBottom');
+
+  function setBusy(on){
+    [btnTop, btnBottom].forEach(btn => {
+      if(!btn) return;
+      btn.disabled = !!on;
+      btn.style.opacity = on ? '0.75' : '';
+      btn.style.pointerEvents = on ? 'none' : '';
+    });
+  }
+
+  async function waitForSignedOut(timeoutMs){
+    const timeout = Number(timeoutMs || 1800);
+    try{
+      if(window.firebase && firebase.auth){
+        const auth = firebase.auth();
+        if(!auth.currentUser) return true;
+        await new Promise((resolve) => {
+          let done = false;
+          let off = null;
+          const finish = () => {
+            if(done) return;
+            done = true;
+            try{ if(typeof off === 'function') off(); }catch(_){ }
+            resolve();
+          };
+          const t = setTimeout(finish, timeout);
+          try{
+            off = auth.onAuthStateChanged((user) => {
+              if(!user){ clearTimeout(t); finish(); }
+            });
+          }catch(_){
+            clearTimeout(t);
+            finish();
+          }
+        });
+      }
+    }catch(_){ }
+    return true;
+  }
 
   async function doLogout(ev){
     if(ev){
       ev.preventDefault();
       ev.stopPropagation();
+      try{ ev.stopImmediatePropagation && ev.stopImmediatePropagation(); }catch(_){ }
     }
+    if(window.__dsLogoutInFlight) return false;
+    window.__dsLogoutInFlight = true;
+    setBusy(true);
+    try{ if(typeof window.__dsPrepareHardLogout === 'function') window.__dsPrepareHardLogout(); }catch(_){ }
 
     try{
-      // 1) Projekt-spezifische Wrapper (falls vorhanden)
       if (window.DS && window.DS.auth && typeof window.DS.auth.signOut === 'function'){
         await window.DS.auth.signOut();
       } else if (window.DS && window.DS.auth && typeof window.DS.auth.logout === 'function'){
         await window.DS.auth.logout();
-      }
-      // 2) Globaler Logout-Handler (Legacy)
-      else if (typeof window.logout === 'function'){
-        await window.logout();
-      }
-      // 3) Firebase Auth (typisch)
-      else if (window.firebase && firebase.auth){
+      } else if (window.CLOUD && window.CLOUD.auth && typeof window.CLOUD.auth.signOut === 'function'){
+        await window.CLOUD.auth.signOut();
+      } else if (window.firebase && firebase.auth){
         await firebase.auth().signOut();
-      }
-      // 4) Falls auth-Instanz global verfügbar ist
-      else if (window.auth && typeof window.auth.signOut === 'function'){
+      } else if (window.auth && typeof window.auth.signOut === 'function'){
         await window.auth.signOut();
-      }
-      // 5) signOut(auth) (modular) wenn global verfügbar
-      else if (typeof window.signOut === 'function' && window.auth){
+      } else if (typeof window.signOut === 'function' && window.auth){
         await window.signOut(window.auth);
       }
     }catch(err){
       console.error('Logout failed:', err);
     }
 
-    // Optional: lokale Session-Spuren entfernen
-    try{ localStorage.removeItem('ds_user'); }catch(e){}
-    try{ sessionStorage.clear(); }catch(e){}
+    try{ await waitForSignedOut(2200); }catch(_){ }
+    try{ localStorage.removeItem('ds_user'); }catch(_){ }
+    try{ localStorage.removeItem('ds_auth_required_return_to'); }catch(_){ }
+    try{ sessionStorage.removeItem('ds_auth_required_return_to'); }catch(_){ }
+    try{ sessionStorage.removeItem('dstest_sw_reloaded'); }catch(_){ }
 
-    // Nach Logout zur Login-Seite
-    try{ window.location.href = 'login.html'; }catch(e){}
+    try{ window.location.replace('login.html'); }catch(_){ try{ window.location.href='login.html'; }catch(__){ } }
+    return false;
   }
 
   [btnTop, btnBottom].forEach(btn => {
     if(btn){
-      btn.addEventListener('click', doLogout, { passive:false });
+      btn.onclick = null;
+      btn.addEventListener('click', doLogout, { passive:false, capture:true });
     }
   });
 })();
@@ -1373,7 +1387,7 @@
   <!-- Bottom logout button removed (duplicate of header logout; also overlaps editor on iPad) -->
 </div>
 <!-- test-badge removed (requested) -->
-  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB140_SYNCDIAG_MINIFIX_BASEGB137_20260402_ROOTONLY</div>
+  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB141_AUTHSYNC_LOGOUT_CLEAN_BASEGB137_20260403_ROOTONLY</div>
 
 <script>
 (function visibleMailFallback(){
