@@ -1,3 +1,9 @@
+GB130 FIXINBOXDEDUP CHATREMOVE
+- app.html Fallback-Eingänge: doppelte lokale Proposal-Quelle entfernt (bufferDirect nur noch ohne loadCustomerProposalBuffer)
+- Hidden-/Remove-Logik auf mehrere Proposal-/Task-/Source-Keys erweitert, damit beantwortete Vorschläge zuverlässig verschwinden
+- Beantworten im Fallback schreibt Status-Patch + Persistent-Handled-Marker und sendet Chat robuster mit Customer-Metadaten
+- app.js: gleiche Chat-Metadaten + robustere Row-Match/Local-Dedupe-Logik für Eingänge
+
 GB127
 - Basis GB125
 - Beantworten-Testdialog durch einfache Prompt-Kette ersetzt

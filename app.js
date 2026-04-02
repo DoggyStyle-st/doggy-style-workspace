@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB130_EINGAENGE_BEANTWORTEN_SEND_LOCALREMOVE_SAFE_20260402_ROOTONLY",
+  tag: "M50.9.9GB130_FIXINBOXDEDUP_CHATREMOVE_20260402_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB130_EINGAENGE_BEANTWORTEN_SEND_LOCALREMOVE_SAFE_20260402_ROOTONLY";
+const APP_BUILD = "M50.9.9GB130_FIXINBOXDEDUP_CHATREMOVE_20260402_ROOTONLY";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -20585,7 +20585,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB130_EINGAENGE_BEANTWORTEN_SEND_LOCALREMOVE_SAFE_20260402_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB130_FIXINBOXDEDUP_CHATREMOVE_20260402_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -22166,7 +22166,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB130_EINGAENGE_BEANTWORTEN_SEND_LOCALREMOVE_SAFE_20260402_ROOTONLY";
+  const BUILD = "M50.9.9GB130_FIXINBOXDEDUP_CHATREMOVE_20260402_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -22363,7 +22363,8 @@ try{
     }catch(err){ addErr('cloud-proposals-outer', err); }
     try{ asArray(state && state.inboxAssignments).forEach(x=>push(x,'state-inboxAssignments')); }catch(err){ addErr('state-inboxAssignments', err); }
     try{ asArray(state && state.inboxSubmissions).forEach(x=>push(x,'state-inboxSubmissions')); }catch(err){ addErr('state-inboxSubmissions', err); }
-    try{ asArray(typeof loadCustomerProposalBuffer === 'function' ? loadCustomerProposalBuffer() : []).forEach(x=>push(x,'proposal-buffer')); }catch(err){ addErr('proposal-buffer', err); }
+    let usedProposalBufferFn = false;
+    try{ const proposalBuf = asArray(typeof loadCustomerProposalBuffer === 'function' ? loadCustomerProposalBuffer() : []); proposalBuf.forEach(x=>push(x,'proposal-buffer')); usedProposalBufferFn = typeof loadCustomerProposalBuffer === 'function'; }catch(err){ addErr('proposal-buffer', err); }
     try{
       const raw = localStorage.getItem(typeof LS_KEY !== 'undefined' ? LS_KEY : 'doggystyle_workspace_state_v1');
       const data = raw ? JSON.parse(raw) : {};
@@ -22372,9 +22373,11 @@ try{
       asArray(data.customerProposals).forEach(x=>push(x,'local-customerProposals'));
     }catch(err){ addErr('local-workspace', err); }
     try{
-      const raw2 = localStorage.getItem(typeof CUSTOMER_PROPOSALS_KEY !== 'undefined' ? CUSTOMER_PROPOSALS_KEY : 'ds_customer_proposals_v1');
-      const data2 = raw2 ? JSON.parse(raw2) : [];
-      asArray(data2).forEach(x=>push(x,'proposal-buffer-direct'));
+      if(!usedProposalBufferFn){
+        const raw2 = localStorage.getItem(typeof CUSTOMER_PROPOSALS_KEY !== 'undefined' ? CUSTOMER_PROPOSALS_KEY : 'ds_customer_proposals_v1');
+        const data2 = raw2 ? JSON.parse(raw2) : [];
+        asArray(data2).forEach(x=>push(x,'proposal-buffer-direct'));
+      }
     }catch(err){ addErr('proposal-buffer-direct', err); }
     const deduped = dedupeRows(rows).filter(function(r){
       try{
@@ -22422,13 +22425,14 @@ try{
         customerId: row && row.customerId || '',
         email: row && row.customerEmail || '',
         name: row && row.customerName || '',
+        uid: row && row.customerUid || '',
         customerUid: row && row.customerUid || '',
         portalUid: row && row.customerUid || ''
       };
       const teamKey = (typeof dsChatInferStaffKey === 'function' ? dsChatInferStaffKey() : 'raphael');
       if(typeof dsAdminEnsureChatForCustomer !== 'function' || typeof dsSendChatMessage !== 'function') return true;
       const chat = await dsAdminEnsureChatForCustomer(customer, teamKey);
-      if(chat && chat.id && text) await dsSendChatMessage(chat.id, text, { teamMemberKey: teamKey });
+      if(chat && chat.id && text) await dsSendChatMessage(chat.id, text, { teamMemberKey: teamKey, customerId: customer.id || customer.customerId || '', customerUid: customer.uid || customer.customerUid || '', customerEmail: customer.email || '', customerName: customer.name || 'Kunde' });
       return true;
     }catch(err){
       try{ alert('Chat konnte nicht gesendet werden: ' + String((err && err.message) || err || 'Unbekannter Fehler')); }catch(_){ }
@@ -22717,9 +22721,20 @@ function openInboxDetail(row){
 function matchesInboxRow(a,b){
     try{
       if(!a || !b) return false;
-      const aid = lower(a.__rowId || a.id || a.taskId || a.proposalId || '');
-      const bid = lower(b.__rowId || b.id || b.taskId || b.proposalId || '');
-      if(aid && bid) return aid === bid;
+      const keysFor = (row)=>{
+        try{
+          const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
+          const keys = [
+            row && row.__rowId, row && row.__sourceKey, row && row.id, row && row.taskId, row && row.proposalId, row && row.submissionId,
+            payload && payload.id, payload && payload.taskId, payload && payload.proposalId, payload && payload.submissionId,
+            [row && (row.customerId || row.customerEmail || row.customerName) || '', row && (row.petId || row.petName) || '', row && (row.submittedAt || row.createdAt || '') || '', row && (row.templateId || row.title || row.formKey || '') || ''].join('|'),
+            [(payload.customer && (payload.customer.id || payload.customer.customerId || payload.customer.email || payload.customer.name)) || '', (payload.pet && (payload.pet.id || payload.pet.petId || payload.pet.chipNumber || payload.pet.name)) || '', (row && (row.submittedAt || row.createdAt || '')) || (payload && payload.submittedAt) || '', row && (row.templateId || row.title || row.formKey || '') || ''].join('|')
+          ].map(v=> lower(String(v == null ? '' : v).trim())).filter(Boolean);
+          return Array.from(new Set(keys));
+        }catch(_){ return []; }
+      };
+      const aKeys = keysFor(a), bKeys = keysFor(b);
+      if(aKeys.length && bKeys.length) return aKeys.some(k=> bKeys.includes(k));
       const aKey = lower([a.customerEmail || '', a.customerName || '', a.templateId || '', a.submittedAt || ''].join('|'));
       const bKey = lower([b.customerEmail || '', b.customerName || '', b.templateId || '', b.submittedAt || ''].join('|'));
       return !!aKey && aKey === bKey;

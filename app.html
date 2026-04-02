@@ -6,13 +6,13 @@
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
 <meta charset="utf-8"/>
-  <meta name="app-build" content="M50.9.9GB130_EINGAENGE_BEANTWORTEN_SEND_LOCALREMOVE_SAFE_20260402_ROOTONLY">
+  <meta name="app-build" content="M50.9.9GB130_FIXINBOXDEDUP_CHATREMOVE_20260402_ROOTONLY">
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <title>Doggy Style Workspace · App</title>
 <link href="manifest.json" rel="manifest"/>
 <meta content="#101014" name="theme-color"/>
 <link href="assets/logo.png" rel="apple-touch-icon"/>
-<link href="styles.css?v=M50.9.9GB130_EINGAENGE_BEANTWORTEN_SEND_LOCALREMOVE_SAFE_20260402_ROOTONLY" rel="stylesheet"/>
+<link href="styles.css?v=M50.9.9GB130_FIXINBOXDEDUP_CHATREMOVE_20260402_ROOTONLY" rel="stylesheet"/>
 <link href="dashboard_master.css?v=20260104v13logout" rel="stylesheet"/>
 <style>
   /* Topbar Layout (iPad & Desktop stabil) */
@@ -102,7 +102,7 @@
   .doc-modal__actions{ margin-left:auto; display:flex; flex-wrap: wrap; gap: 8px; }
   .doc-modal__frame{ width: 100%; border: 0; border-radius: 12px; background: #fff; flex:1; min-height: 0; }
 </style>
-  <meta name="app-version" content="M50.9.9GB130_EINGAENGE_BEANTWORTEN_SEND_LOCALREMOVE_SAFE_20260402_ROOTONLY">
+  <meta name="app-version" content="M50.9.9GB130_FIXINBOXDEDUP_CHATREMOVE_20260402_ROOTONLY">
   <meta name="release-channel" content="MASTER">
 </head>
 <body class="bg-watermark page-app">
@@ -1194,7 +1194,7 @@
 </section>
 
 <section class="panel" id="statistics">
-<!-- Statistics panel is rendered by app.js?v=M50.9.9GB130_EINGAENGE_BEANTWORTEN_SEND_LOCALREMOVE_SAFE_20260402_ROOTONLY (renderStatisticsPanel) -->
+<!-- Statistics panel is rendered by app.js?v=M50.9.9GB130_FIXINBOXDEDUP_CHATREMOVE_20260402_ROOTONLY (renderStatisticsPanel) -->
 </section>
 
 
@@ -1261,12 +1261,12 @@
 </footer>
 </div>
 <!-- Firebase (optional) + Config -->
-<script defer="defer" src="firebase-config.js?v=M50.9.9GB130_EINGAENGE_BEANTWORTEN_SEND_LOCALREMOVE_SAFE_20260402_ROOTONLY"></script>
+<script defer="defer" src="firebase-config.js?v=M50.9.9GB130_FIXINBOXDEDUP_CHATREMOVE_20260402_ROOTONLY"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
-<script defer="defer" src="app.js?v=M50.9.9GB130_EINGAENGE_BEANTWORTEN_SEND_LOCALREMOVE_SAFE_20260402_ROOTONLY"></script>
+<script defer="defer" src="app.js?v=M50.9.9GB130_FIXINBOXDEDUP_CHATREMOVE_20260402_ROOTONLY"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1309,7 +1309,7 @@
 </script>
 
 <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB130_EINGAENGE_BEANTWORTEN_SEND_LOCALREMOVE_SAFE_20260402_ROOTONLY');
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB130_FIXINBOXDEDUP_CHATREMOVE_20260402_ROOTONLY');
   </script>
 
 <script>
@@ -1373,7 +1373,7 @@
   <!-- Bottom logout button removed (duplicate of header logout; also overlaps editor on iPad) -->
 </div>
 <!-- test-badge removed (requested) -->
-  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB130_EINGAENGE_BEANTWORTEN_SEND_LOCALREMOVE_SAFE_20260402_ROOTONLY</div>
+  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB130_FIXINBOXDEDUP_CHATREMOVE_20260402_ROOTONLY</div>
 
 <script>
 (function visibleMailFallback(){
@@ -1868,14 +1868,58 @@
   function fallbackSaveHiddenIds(map){
     try{ localStorage.setItem(fallbackHiddenStoreKey(), JSON.stringify(map || {})); }catch(_){ }
   }
+  function fallbackRowKeys(row){
+    try{
+      var keys = [];
+      function add(v){
+        try{
+          var key = String(v == null ? '' : v).trim().toLowerCase();
+          if(key) keys.push(key);
+        }catch(_){ }
+      }
+      var payload = (row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data)) || {};
+      add(row && row.__debugProposalId);
+      add(row && row.proposalId);
+      add(row && row.id);
+      add(row && row.taskId);
+      add(row && row.submissionId);
+      add(row && row.__sourceKey);
+      add(row && row.__rowId);
+      add(payload && payload.id);
+      add(payload && payload.proposalId);
+      add(payload && payload.taskId);
+      add(payload && payload.submissionId);
+      add((row && (row.customerId || row.__targetCustomerId)) || (payload.customer && (payload.customer.id || payload.customer.customerId)) || '');
+      add((row && (row.petId || row.__targetPetId)) || (payload.pet && (payload.pet.id || payload.pet.petId || payload.pet.chipNumber)) || '');
+      add((row && row.customerEmail) || (payload.customer && payload.customer.email) || '');
+      add((row && row.customerUid) || (payload.customer && (payload.customer.uid || payload.customer.portalUid)) || '');
+      add([
+        String((row && (row.customerId || row.__targetCustomerId || row.customerEmail || row.customerName)) || (payload.customer && (payload.customer.id || payload.customer.customerId || payload.customer.email || payload.customer.name)) || '').trim().toLowerCase(),
+        String((row && (row.petId || row.__targetPetId || row.petName)) || (payload.pet && (payload.pet.id || payload.pet.petId || payload.pet.chipNumber || payload.pet.name)) || '').trim().toLowerCase(),
+        String((row && (row.submittedAt || row.createdAt)) || (payload && payload.submittedAt) || '').trim().toLowerCase(),
+        String((row && (row.templateId || row.title || row.formKey)) || '').trim().toLowerCase()
+      ].join('|'));
+      return Array.from(new Set(keys));
+    }catch(_){ return []; }
+  }
   function fallbackRowProposalId(row){
-    try{ return String((row && (row.__debugProposalId || row.proposalId || row.id || row.taskId || row.submissionId)) || '').trim(); }catch(_){ return ''; }
+    try{ return String((fallbackRowKeys(row)[0]) || '').trim(); }catch(_){ return ''; }
   }
   function fallbackIsRowHidden(row){
-    try{ var pid = fallbackRowProposalId(row); if(!pid) return false; var map = fallbackHiddenIds(); return !!map[pid]; }catch(_){ return false; }
+    try{
+      var map = fallbackHiddenIds();
+      return fallbackRowKeys(row).some(function(pid){ return !!map[pid]; });
+    }catch(_){ return false; }
   }
   function fallbackMarkRowHidden(row, status){
-    try{ var pid = fallbackRowProposalId(row); if(!pid) return false; var map = fallbackHiddenIds(); map[pid] = { hidden:true, status:String(status||''), at:Date.now() }; fallbackSaveHiddenIds(map); return true; }catch(_){ return false; }
+    try{
+      var keys = fallbackRowKeys(row);
+      if(!keys.length) return false;
+      var map = fallbackHiddenIds();
+      keys.forEach(function(pid){ try{ if(pid) map[pid] = { hidden:true, status:String(status||''), at:Date.now() }; }catch(_){ } });
+      fallbackSaveHiddenIds(map);
+      return true;
+    }catch(_){ return false; }
   }
   async function fallbackSendAnswerChat(row, text){
     try{
@@ -1887,12 +1931,19 @@
         customerId: String((row && (row.customerId || row.__targetCustomerId)) || '').trim(),
         email: String((row && (row.customerEmail || row.email)) || '').trim(),
         name: String((row && (row.customerName || row.name)) || '').trim(),
+        uid: String((row && row.customerUid) || '').trim(),
         customerUid: String((row && row.customerUid) || '').trim(),
         portalUid: String((row && row.customerUid) || '').trim()
       };
       var teamKey = (typeof dsChatInferStaffKey === 'function') ? dsChatInferStaffKey() : 'raphael';
       var chat = await dsAdminEnsureChatForCustomer(customer, teamKey);
-      if(chat && chat.id) await dsSendChatMessage(chat.id, text, { teamMemberKey: teamKey });
+      if(chat && chat.id) await dsSendChatMessage(chat.id, text, {
+        teamMemberKey: teamKey,
+        customerId: customer.id || customer.customerId || '',
+        customerUid: customer.uid || customer.customerUid || '',
+        customerEmail: customer.email || '',
+        customerName: customer.name || 'Kunde'
+      });
       return true;
     }catch(err){
       try{ alert('Chat konnte nicht gesendet werden: ' + String((err && err.message) || err || 'Unbekannter Fehler')); }catch(_){ }
@@ -1910,7 +1961,8 @@
       if(pick == null) return false;
       pick = String(pick).trim();
       var status = pick === '1' ? 'Angenommen' : (pick === '2' ? 'Abgelehnt' : (pick === '3' ? 'Später entscheiden' : ''));
-      if(!status){ alert('Ungültige Auswahl.'); return false; }
+      var statusKey = pick === '1' ? 'accepted' : (pick === '2' ? 'rejected' : (pick === '3' ? 'pending' : ''));
+      if(!status || !statusKey){ alert('Ungültige Auswahl.'); return false; }
       var chatPick = prompt('Chat-Rückmeldung:\n1 = Standardtext senden\n2 = Text bearbeiten\n3 = Ohne Chat', '1');
       if(chatPick == null) return false;
       chatPick = String(chatPick).trim();
@@ -1938,9 +1990,19 @@
       if(chatPick !== '3'){
         chatSent = await fallbackSendAnswerChat(row, text);
       }
+      try{
+        if(statusKey !== 'pending'){
+          var patch = { proposalStatus: statusKey, status: statusKey, reviewedAt: Date.now(), resolvedAt: Date.now(), updatedAt: Date.now() };
+          try{ await patchRemoteProposalStatus(row, patch); }catch(_){ }
+          try{ if(typeof dsMarkAcceptedProposalId === 'function') dsMarkAcceptedProposalId(row, statusKey); }catch(_){ }
+          try{ if(typeof dsMarkProposalAcceptedExact === 'function') dsMarkProposalAcceptedExact(row, statusKey); }catch(_){ }
+          try{ if(typeof dsMarkProposalAcceptedPersistent === 'function') dsMarkProposalAcceptedPersistent(row, statusKey); }catch(_){ }
+          try{ if(typeof dsMarkInboxRowHandled === 'function') dsMarkInboxRowHandled(row, statusKey); }catch(_){ }
+        }
+      }catch(_){ }
       if(removeNow){
-        try{ fallbackMarkRowHidden(row, status); }catch(_){ }
-        try{ pruneFallbackRow(row, status === 'Angenommen' ? 'accepted' : (status === 'Abgelehnt' ? 'rejected' : 'handled')); }catch(_){ }
+        try{ fallbackMarkRowHidden(row, statusKey); }catch(_){ }
+        try{ pruneFallbackRow(row, statusKey === 'pending' ? 'handled' : statusKey); }catch(_){ }
         try{ renderNow(); }catch(_){ }
       }
       var summary = 'Antwort gespeichert.\n\n'
@@ -2067,31 +2129,32 @@
       var pstatus = String((x && x.proposalStatus) || '').toLowerCase();
       var status = String((x && x.status) || '').toLowerCase();
       if(pstatus === 'rejected' || pstatus === 'adopted' || status === 'closed') return;
-      if(isProposalRowHidden(x)) return;
-      var key = String(x.id || x.taskId || x.proposalId || x.submissionId || JSON.stringify([x.customerEmail,x.customerName,x.templateId,x.submittedAt]));
-      if(seen[key]){
-        var idx = -1;
-        for(var i=0;i<rows.length;i++){
-          var rk = String(rows[i].id || rows[i].taskId || rows[i].proposalId || rows[i].submissionId || JSON.stringify([rows[i].customerEmail,rows[i].customerName,rows[i].templateId,rows[i].submittedAt]));
-          if(rk === key){ idx = i; break; }
+      if(isProposalRowHidden(x) || fallbackIsRowHidden(x)) return;
+      var keys = fallbackRowKeys(x);
+      var key = String((keys && keys[0]) || JSON.stringify([x.customerEmail,x.customerName,x.templateId,x.submittedAt]));
+      var existingIdx = -1;
+      for(var k=0;k<keys.length;k++){
+        if(typeof seen[keys[k]] === 'number'){ existingIdx = seen[keys[k]]; key = keys[k]; break; }
+      }
+      if(existingIdx >= 0){
+        var prev = rows[existingIdx];
+        var merged = Object.assign({}, prev, x);
+        if(prev && x){
+          try{
+            if((!merged.payloadSubmitted || !Object.keys(merged.payloadSubmitted||{}).length) && prev.payloadSubmitted) merged.payloadSubmitted = prev.payloadSubmitted;
+            if((!merged.payloadSubmitted || !Object.keys(merged.payloadSubmitted||{}).length) && x.payloadSubmitted) merged.payloadSubmitted = x.payloadSubmitted;
+          }catch(_){ }
         }
-        if(idx >= 0){
-          var prev = rows[idx];
-          var merged = Object.assign({}, prev, x);
-          if(prev && x){
-            try{
-              if((!merged.payloadSubmitted || !Object.keys(merged.payloadSubmitted||{}).length) && prev.payloadSubmitted) merged.payloadSubmitted = prev.payloadSubmitted;
-              if((!merged.payloadSubmitted || !Object.keys(merged.payloadSubmitted||{}).length) && x.payloadSubmitted) merged.payloadSubmitted = x.payloadSubmitted;
-            }catch(_){ }
-          }
-          var prevScore = ds62ProposalRowScore(prev);
-          var nextScore = ds62ProposalRowScore(x);
-          rows[idx] = nextScore >= prevScore ? merged : Object.assign({}, x, prev);
-        }
+        var prevScore = ds62ProposalRowScore(prev);
+        var nextScore = ds62ProposalRowScore(x);
+        rows[existingIdx] = nextScore >= prevScore ? merged : Object.assign({}, x, prev);
+        var mergedKeys = fallbackRowKeys(rows[existingIdx]);
+        mergedKeys.forEach(function(rk){ try{ if(rk) seen[rk] = existingIdx; }catch(_){ } });
         return;
       }
-      seen[key] = true;
-      rows.push(x);
+      var idx = rows.push(x) - 1;
+      keys.forEach(function(rk){ try{ if(rk) seen[rk] = idx; }catch(_){ } });
+      if(!keys.length) seen[key] = idx;
     }
     try{
       var st = window.state || {};
@@ -2108,19 +2171,23 @@
       l1.forEach(function(x){ push(x, "local-inboxAssignments"); }); l2.forEach(function(x){ push(x, "local-inboxSubmissions"); });
       addDiag('local=' + (l1.length + l2.length));
     }catch(_){ }
+    var usedProposalBufferFn = false;
     try{
       if(typeof window.loadCustomerProposalBuffer === 'function'){
         var buf = (window.loadCustomerProposalBuffer() || []);
         buf.forEach(function(x){ push(x, "proposal-buffer"); });
         addDiag('buffer=' + buf.length);
+        usedProposalBufferFn = true;
       }
     }catch(_){ }
     try{
-      var directRaw = localStorage.getItem('ds_customer_proposals_v1');
-      var directBuf = directRaw ? JSON.parse(directRaw) : [];
-      if(Array.isArray(directBuf)){
-        directBuf.forEach(function(x){ push(x, "buffer-direct"); });
-        addDiag('bufferDirect=' + directBuf.length);
+      if(!usedProposalBufferFn){
+        var directRaw = localStorage.getItem('ds_customer_proposals_v1');
+        var directBuf = directRaw ? JSON.parse(directRaw) : [];
+        if(Array.isArray(directBuf)){
+          directBuf.forEach(function(x){ push(x, "buffer-direct"); });
+          addDiag('bufferDirect=' + directBuf.length);
+        }
       }
     }catch(_){ }
     try{
@@ -2301,12 +2368,18 @@
     return false;
   }
   function rowKeyOf(item){
-    try{ return String((item && (item.id || item.taskId || item.proposalId || item.submissionId)) || '').trim(); }catch(_){ return ''; }
+    try{ return String((fallbackRowKeys(item)[0]) || '').trim(); }catch(_){ return ''; }
   }
   function rowSameAs(a, b){
+    try{
+      var aKeys = fallbackRowKeys(a), bKeys = fallbackRowKeys(b);
+      if(aKeys.length && bKeys.length){
+        for(var i=0;i<aKeys.length;i++) if(bKeys.indexOf(aKeys[i]) >= 0) return true;
+      }
+    }catch(_){ }
     var ak = rowKeyOf(a), bk = rowKeyOf(b);
     if(ak && bk) return ak === bk;
-    return String((a && a.customerEmail) || '') === String((b && b.customerEmail) || '') && String((a && a.submittedAt) || '') === String((b && b.submittedAt) || '');
+    return String((a && a.customerEmail) || '') === String((b && b.customerEmail) || '') && String((a && a.submittedAt) || '') === String((b && b.submittedAt) || '') && String((a && (a.templateId || a.title || a.formKey)) || '') === String((b && (b.templateId || b.title || b.formKey)) || '');
   }
   function filterOutRow(arr, row){
     arr = Array.isArray(arr) ? arr : [];
