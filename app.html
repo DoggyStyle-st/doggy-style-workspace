@@ -6,13 +6,13 @@
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
 <meta charset="utf-8"/>
-  <meta name="app-build" content="M50.9.9GB128_EINGAENGE_BEANTWORTEN_SEND_REMOVE_20260402_ROOTONLY">
+  <meta name="app-build" content="M50.9.9GB129_EINGAENGE_BEANTWORTEN_SEND_LOCALREMOVE_20260402_ROOTONLY">
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <title>Doggy Style Workspace · App</title>
 <link href="manifest.json" rel="manifest"/>
 <meta content="#101014" name="theme-color"/>
 <link href="assets/logo.png" rel="apple-touch-icon"/>
-<link href="styles.css?v=M50.9.9GB128_EINGAENGE_BEANTWORTEN_SEND_REMOVE_20260402_ROOTONLY" rel="stylesheet"/>
+<link href="styles.css?v=M50.9.9GB129_EINGAENGE_BEANTWORTEN_SEND_LOCALREMOVE_20260402_ROOTONLY" rel="stylesheet"/>
 <link href="dashboard_master.css?v=20260104v13logout" rel="stylesheet"/>
 <style>
   /* Topbar Layout (iPad & Desktop stabil) */
@@ -102,7 +102,7 @@
   .doc-modal__actions{ margin-left:auto; display:flex; flex-wrap: wrap; gap: 8px; }
   .doc-modal__frame{ width: 100%; border: 0; border-radius: 12px; background: #fff; flex:1; min-height: 0; }
 </style>
-  <meta name="app-version" content="M50.9.9GB128_EINGAENGE_BEANTWORTEN_SEND_REMOVE_20260402_ROOTONLY">
+  <meta name="app-version" content="M50.9.9GB129_EINGAENGE_BEANTWORTEN_SEND_LOCALREMOVE_20260402_ROOTONLY">
   <meta name="release-channel" content="MASTER">
 </head>
 <body class="bg-watermark page-app">
@@ -1194,7 +1194,7 @@
 </section>
 
 <section class="panel" id="statistics">
-<!-- Statistics panel is rendered by app.js?v=M50.9.9GB128_EINGAENGE_BEANTWORTEN_SEND_REMOVE_20260402_ROOTONLY (renderStatisticsPanel) -->
+<!-- Statistics panel is rendered by app.js?v=M50.9.9GB129_EINGAENGE_BEANTWORTEN_SEND_LOCALREMOVE_20260402_ROOTONLY (renderStatisticsPanel) -->
 </section>
 
 
@@ -1261,12 +1261,12 @@
 </footer>
 </div>
 <!-- Firebase (optional) + Config -->
-<script defer="defer" src="firebase-config.js?v=M50.9.9GB128_EINGAENGE_BEANTWORTEN_SEND_REMOVE_20260402_ROOTONLY"></script>
+<script defer="defer" src="firebase-config.js?v=M50.9.9GB129_EINGAENGE_BEANTWORTEN_SEND_LOCALREMOVE_20260402_ROOTONLY"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
-<script defer="defer" src="app.js?v=M50.9.9GB128_EINGAENGE_BEANTWORTEN_SEND_REMOVE_20260402_ROOTONLY"></script>
+<script defer="defer" src="app.js?v=M50.9.9GB129_EINGAENGE_BEANTWORTEN_SEND_LOCALREMOVE_20260402_ROOTONLY"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1309,7 +1309,7 @@
 </script>
 
 <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB128_EINGAENGE_BEANTWORTEN_SEND_REMOVE_20260402_ROOTONLY');
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB129_EINGAENGE_BEANTWORTEN_SEND_LOCALREMOVE_20260402_ROOTONLY');
   </script>
 
 <script>
@@ -1373,7 +1373,7 @@
   <!-- Bottom logout button removed (duplicate of header logout; also overlaps editor on iPad) -->
 </div>
 <!-- test-badge removed (requested) -->
-  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB128_EINGAENGE_BEANTWORTEN_SEND_REMOVE_20260402_ROOTONLY</div>
+  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB129_EINGAENGE_BEANTWORTEN_SEND_LOCALREMOVE_20260402_ROOTONLY</div>
 
 <script>
 (function visibleMailFallback(){
@@ -1874,8 +1874,8 @@
 3 = Später entscheiden', '1');
       if(pick == null) return false;
       pick = String(pick).trim();
-      var status = pick === '1' ? 'accepted' : (pick === '2' ? 'rejected' : (pick === '3' ? 'deferred' : ''));
-      var statusLabel = pick === '1' ? 'Angenommen' : (pick === '2' ? 'Abgelehnt' : (pick === '3' ? 'Später entscheiden' : ''));
+      var statusKey = pick === '1' ? 'accepted' : (pick === '2' ? 'rejected' : (pick === '3' ? 'deferred' : ''));
+      var status = statusKey === 'accepted' ? 'Angenommen' : (statusKey === 'rejected' ? 'Abgelehnt' : (statusKey === 'deferred' ? 'Später entscheiden' : ''));
       if(!status){ alert('Ungültige Auswahl.'); return false; }
       var chatPick = prompt('Chat-Rückmeldung:
 1 = Standardtext senden
@@ -1884,8 +1884,21 @@
       if(chatPick == null) return false;
       chatPick = String(chatPick).trim();
       var chatMode = chatPick === '1' ? 'standard' : (chatPick === '2' ? 'edit' : (chatPick === '3' ? 'none' : ''));
-      var chatLabel = chatPick === '1' ? 'Standardtext senden' : (chatPick === '2' ? 'Text bearbeiten' : (chatPick === '3' ? 'Ohne Chat' : ''));
-      if(!chatMode){ alert('Ungültige Auswahl.'); return false; }
+      var chatLabel = chatMode === 'standard' ? 'Standardtext senden' : (chatMode === 'edit' ? 'Text bearbeiten' : (chatMode === 'none' ? 'Ohne Chat' : ''));
+      if(!chatLabel){ alert('Ungültige Auswahl.'); return false; }
+      var text = '';
+      if(chatMode === 'standard' || chatMode === 'edit'){
+        text = statusKey === 'accepted'
+          ? 'Dein Änderungsvorschlag wurde geprüft und übernommen.'
+          : (statusKey === 'rejected'
+            ? 'Dein Änderungsvorschlag wurde geprüft, aber nicht übernommen.'
+            : 'Dein Änderungsvorschlag ist eingegangen und wird noch geprüft.');
+      }
+      if(chatMode === 'edit'){
+        var custom = prompt('Chat-Nachricht bearbeiten', text);
+        if(custom == null) return false;
+        text = String(custom || '').trim();
+      }
       var removePick = prompt('Vorschlag aus Liste entfernen?
 1 = Ja, entfernen
 2 = Nein, in Liste behalten', '1');
@@ -1894,53 +1907,61 @@
       var removeNow = removePick === '1';
       if(!(removePick === '1' || removePick === '2')){ alert('Ungültige Auswahl.'); return false; }
 
-      var text = '';
-      if(chatMode !== 'none'){
-        text = status === 'accepted'
-          ? 'Dein Änderungsvorschlag wurde geprüft und übernommen.'
-          : (status === 'rejected'
-            ? 'Dein Änderungsvorschlag wurde geprüft, aber nicht übernommen.'
-            : 'Dein Änderungsvorschlag ist eingegangen und wird noch geprüft.');
-        if(chatMode === 'edit'){
-          var custom = prompt('Chat-Nachricht bearbeiten', text);
-          if(custom == null) return false;
-          text = String(custom || '').trim();
+      Promise.resolve().then(async function(){
+        var sent = false;
+        var sendErr = '';
+        if(chatMode !== 'none' && text){
+          try{
+            if(typeof dsAdminEnsureChatForCustomer === 'function' && typeof dsSendChatMessage === 'function'){
+              var customer = {
+                id: row && row.customerId || '',
+                customerId: row && row.customerId || '',
+                email: row && row.customerEmail || '',
+                name: row && row.customerName || '',
+                customerUid: row && row.customerUid || '',
+                portalUid: row && row.customerUid || ''
+              };
+              var teamKey = (typeof dsChatInferStaffKey === 'function' ? dsChatInferStaffKey() : 'raphael');
+              var chat = await dsAdminEnsureChatForCustomer(customer, teamKey);
+              if(chat && chat.id){
+                await dsSendChatMessage(chat.id, text, { teamMemberKey: teamKey });
+                sent = true;
+              }
+            }
+          }catch(err){
+            sendErr = String((err && err.message) || err || 'Unbekannter Fehler');
+            try{ alert('Chat konnte nicht gesendet werden: ' + sendErr); }catch(_){ }
+          }
         }
-      }
 
-      var sent = false;
-      if(chatMode !== 'none' && typeof dsInboxSendAnswerChat === 'function'){
-        try{ sent = !!(await dsInboxSendAnswerChat(row, status, chatMode === 'edit' ? 'edit' : 'standard')); }catch(_){ sent = false; }
-      }
+        var removed = false;
+        if(removeNow){
+          try{ pruneFallbackRow(row, statusKey === 'deferred' ? 'pending' : statusKey); removed = true; }catch(_){ }
+          try{ if(typeof patchRemoteProposalStatus === 'function') await patchRemoteProposalStatus(row, { proposalStatus: statusKey === 'deferred' ? 'pending' : statusKey, status: statusKey === 'deferred' ? 'submitted' : statusKey, reviewedAt: Date.now(), resolvedAt: Date.now() }); }catch(_){ }
+          try{
+            var bag = window.__dsInboxFallbackRows || {};
+            renderRows('inboxList', bag.inboxList || [], 'keine Eingänge');
+            renderRows('inboxProposalList', bag.inboxProposalList || [], 'keine Vorschläge gefunden');
+          }catch(_){ }
+        }
 
-      var removed = false;
-      if(removeNow){
-        try{ if(status === 'accepted' && typeof dsFinalizeAcceptedProposalLocal === 'function') dsFinalizeAcceptedProposalLocal(row); }catch(_){ }
-        try{ if(typeof dsMarkInboxRowHandled === 'function') dsMarkInboxRowHandled(row, status); }catch(_){ }
-        try{ if(typeof removeInboxRowEverywhere === 'function') removeInboxRowEverywhere(row); removed = true; }catch(_){ }
-        try{ if(typeof patchInboxRowStatus === 'function') patchInboxRowStatus(row, status); }catch(_){ }
-        try{ rows = rows.filter(function(x, i){ return i !== idx; }); window.__dsInboxFallbackRows[String(targetId||'')] = rows; }catch(_){ }
-        try{ renderRows(String(targetId||''), rows, 'keine Einträge'); }catch(_){ }
-      }
-
-      var summary = 'Antwort verarbeitet.
+        var summary = 'Antwort verarbeitet.
 
 '
-        + title + '
+          + title + '
 ID: ' + (prid || '—')
-        + '
-Status: ' + statusLabel
-        + '
+          + '
+Status: ' + status
+          + '
 Chat: ' + chatLabel
-        + '
+          + '
 Nachricht gesendet: ' + (chatMode === 'none' ? 'Nein' : (sent ? 'Ja' : 'Nein'))
-        + '
+          + '
 Aus Liste entfernt: ' + (removed ? 'Ja' : 'Nein');
-      if(text) summary += '
-
-Text:
-' + text;
-      alert(summary);
+        if(sendErr) summary += '
+Chat-Fehler: ' + sendErr;
+        try{ alert(summary); }catch(_){ }
+      });
     }catch(_){ }
     return false;
   }

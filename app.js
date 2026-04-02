@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB128_EINGAENGE_BEANTWORTEN_SEND_REMOVE_20260402_ROOTONLY",
+  tag: "M50.9.9GB129_EINGAENGE_BEANTWORTEN_SEND_LOCALREMOVE_20260402_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB128_EINGAENGE_BEANTWORTEN_SEND_REMOVE_20260402_ROOTONLY";
+const APP_BUILD = "M50.9.9GB129_EINGAENGE_BEANTWORTEN_SEND_LOCALREMOVE_20260402_ROOTONLY";
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -20585,7 +20585,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB128_EINGAENGE_BEANTWORTEN_SEND_REMOVE_20260402_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB129_EINGAENGE_BEANTWORTEN_SEND_LOCALREMOVE_20260402_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -22166,7 +22166,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB128_EINGAENGE_BEANTWORTEN_SEND_REMOVE_20260402_ROOTONLY";
+  const BUILD = "M50.9.9GB129_EINGAENGE_BEANTWORTEN_SEND_LOCALREMOVE_20260402_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -22443,56 +22443,23 @@ try{
 2 = Abgelehnt
 3 = Später entscheiden`, '1');
       if(pick == null) return false;
-      const p = String(pick).trim();
-      const status = p === '1' ? 'accepted' : (p === '2' ? 'rejected' : (p === '3' ? 'deferred' : ''));
+      const status = String(pick).trim() === '1' ? 'accepted' : (String(pick).trim() === '2' ? 'rejected' : (String(pick).trim() === '3' ? 'deferred' : ''));
       if(!status){ try{ alert('Ungültige Auswahl.'); }catch(_){ } return false; }
       const chatPick = prompt(`Chat-Rückmeldung:
 1 = Standardtext senden
 2 = Text bearbeiten
 3 = Ohne Chat`, '1');
       if(chatPick == null) return false;
-      const c = String(chatPick).trim();
-      const chatMode = c === '1' ? 'standard' : (c === '2' ? 'edit' : (c === '3' ? 'none' : ''));
+      const chatMode = String(chatPick).trim() === '1' ? 'standard' : (String(chatPick).trim() === '2' ? 'edit' : (String(chatPick).trim() === '3' ? 'none' : ''));
       if(!chatMode){ try{ alert('Ungültige Auswahl.'); }catch(_){ } return false; }
-      const removePick = prompt(`Vorschlag aus Liste entfernen?
-1 = Ja, entfernen
-2 = Nein, in Liste behalten`, '1');
-      if(removePick == null) return false;
-      const removeMode = String(removePick).trim() === '1' ? 'remove' : (String(removePick).trim() === '2' ? 'keep' : '');
-      if(!removeMode){ try{ alert('Ungültige Auswahl.'); }catch(_){ } return false; }
-
-      const label = status === 'accepted' ? 'Angenommen' : (status === 'rejected' ? 'Abgelehnt' : 'Später entscheiden');
-      let sent = false;
-      if(chatMode !== 'none'){
-        sent = !!(await dsInboxSendAnswerChat(row, status, chatMode));
+      if(status === 'accepted'){
+        try{ if(typeof dsFinalizeAcceptedProposalLocal === 'function') dsFinalizeAcceptedProposalLocal(row); }catch(_){ }
       }
-
-      let removed = false;
-      if(removeMode === 'remove'){
-        if(status === 'accepted'){
-          try{ if(typeof dsFinalizeAcceptedProposalLocal === 'function') dsFinalizeAcceptedProposalLocal(row); }catch(_){ }
-        }
-        try{ if(typeof dsMarkInboxRowHandled === 'function') dsMarkInboxRowHandled(row, status); }catch(_){ }
-        try{ removeInboxRowEverywhere(row); removed = true; }catch(_){ }
-        try{ if(typeof patchInboxRowStatus === 'function') await patchInboxRowStatus(row, status); }catch(_){ }
-        try{ renderInboxList((window.__dsInboxLastTasks || []).filter(function(x){ return !dsInboxIsResolvedRow(x); })); }catch(_){ }
-        try{ renderProposalList((window.__dsInboxLoadedProposals || []).filter(function(x){ return !dsInboxIsResolvedRow(x); })); }catch(_){ }
-      }
-
-      const map = {accepted:'Dein Änderungsvorschlag wurde geprüft und übernommen.', rejected:'Dein Änderungsvorschlag wurde geprüft, aber nicht übernommen.', deferred:'Dein Änderungsvorschlag ist eingegangen und wird noch geprüft.'};
-      let text = map[status] || map.deferred;
-      if(chatMode === 'edit') text = '(bearbeiteter Text wurde versendet)';
-      let summary = 'Antwort verarbeitet.
-
-Status: ' + label + '
-Chat: ' + (chatMode === 'standard' ? 'Standardtext' : (chatMode === 'edit' ? 'Text bearbeiten' : 'Ohne Chat')) + '
-Nachricht gesendet: ' + (chatMode === 'none' ? 'Nein' : (sent ? 'Ja' : 'Nein')) + '
-Aus Liste entfernt: ' + (removed ? 'Ja' : 'Nein');
-      if(chatMode !== 'none') summary += '
-
-Text:
-' + text;
-      try{ alert(summary); }catch(_){ }
+      try{ if(typeof dsMarkInboxRowHandled === 'function') dsMarkInboxRowHandled(row, status); }catch(_){ }
+      try{ removeInboxRowEverywhere(row); }catch(_){ }
+      await dsInboxSendAnswerChat(row, status, chatMode);
+      try{ if(typeof patchInboxRowStatus === 'function') await patchInboxRowStatus(row, status); }catch(_){ }
+      try{ await refreshInboxHard('answer-' + status); }catch(_){ }
       return false;
     }catch(err){
       try{ alert('Beantworten fehlgeschlagen: ' + String((err && err.message) || err || 'Unbekannter Fehler')); }catch(_){ }
