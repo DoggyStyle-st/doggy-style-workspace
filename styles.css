@@ -1097,11 +1097,20 @@ body.page-login .btnLink--text:hover{
 .ds-chat-empty{padding:18px;border-radius:16px;background:rgba(255,255,255,.05);border:1px dashed rgba(255,255,255,.12);opacity:.86}
 .ds-chat-msg{display:flex}
 .ds-chat-msg.is-own{justify-content:flex-end}
-.ds-chat-bubble{max-width:min(82%,680px);padding:12px 14px;border-radius:18px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);line-height:1.4;white-space:pre-wrap;word-break:break-word}
+.ds-chat-bubble{max-width:min(82%,680px);padding:12px 14px;border-radius:18px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);line-height:1.4;white-space:pre-wrap;word-break:break-word;cursor:pointer;text-align:left}
 .ds-chat-msg.is-own .ds-chat-bubble{background:rgba(245,182,46,.15);border-color:rgba(245,182,46,.45)}
-.ds-chat-bubble__meta{font-size:12px;opacity:.72;margin-bottom:6px}
+.ds-chat-bubble.is-deleted{opacity:.7;border-style:dashed;cursor:default}
+.ds-chat-bubble__meta{font-size:12px;opacity:.72;margin-bottom:6px;display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
+.ds-chat-bubble__text{white-space:pre-wrap}
+.ds-chat-delete-chip{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid rgba(255,255,255,.12);opacity:.82}
+.ds-chat-deleted{font-style:italic;opacity:.8}
 .ds-chat-compose{display:grid;gap:10px;margin-top:12px}
 .ds-chat-compose textarea{width:100%;min-height:110px;resize:vertical}
+.ds-chat-compose__tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.ds-chat-file-input{display:none}
+.ds-chat-attach-list{display:flex;gap:8px;flex-wrap:wrap}
+.ds-chat-attach-chip{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.10);font-size:12px}
+.ds-chat-attach-chip .btn{min-width:auto;padding:2px 8px;border-radius:999px}
 .ds-chat-compose__actions{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
 .ds-chat-compose__actions .hint,.ds-chat-compose__actions .muted{margin:0}
 .ds-chat-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.10);font-size:12px}
@@ -1122,3 +1131,13 @@ body.page-login .btnLink--text:hover{
 #inboxList .list-item .actions{display:flex;flex-direction:column;align-items:stretch;min-width:128px;}
 #inboxList .list-item .actions .smallbtn{width:100%;}
 #inboxList .list-item .actions .smallbtn + .smallbtn{margin-top:8px;}
+
+
+.ds-chat-attachments{display:grid;gap:8px;margin-top:8px}
+.ds-chat-attachments.is-compact{gap:6px}
+.ds-chat-attachment{display:block;padding:8px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.10);text-decoration:none;color:inherit}
+.ds-chat-attachment img{display:block;max-width:100%;max-height:220px;border-radius:12px;margin-bottom:6px}
+.ds-chat-attachment--video video{display:block;width:min(100%,360px);max-height:240px;border-radius:12px;margin-bottom:6px;background:#000}
+.ds-chat-attachment--file{display:inline-flex;align-items:center;gap:8px}
+.ds-chat-preview-modal__actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.ds-chat-preview-modal__text{white-space:pre-wrap;line-height:1.55;margin-bottom:10px}

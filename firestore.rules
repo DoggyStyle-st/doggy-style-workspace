@@ -36,6 +36,15 @@ service cloud.firestore {
         );
     }
 
+    function isOwnMessage(data) {
+      return signedIn()
+        && data != null
+        && (
+          (data.senderUid != null && data.senderUid == request.auth.uid) ||
+          (data.senderEmail != null && sameEmail(data.senderEmail))
+        );
+    }
+
     match /orgs/{orgId}/users/{uid} {
       allow read: if signedIn() && (isStaff(orgId) || request.auth.uid == uid);
       allow create: if signedIn() && request.auth.uid == uid;
@@ -101,7 +110,13 @@ service cloud.firestore {
           isStaff(orgId)
           || isChatOwner(get(/databases/$(database)/documents/orgs/$(orgId)/chats/$(chatId)).data)
         );
-        allow update, delete: if signedIn() && isStaff(orgId);
+        allow update, delete: if signedIn() && (
+          isStaff(orgId)
+          || (
+            isChatOwner(get(/databases/$(database)/documents/orgs/$(orgId)/chats/$(chatId)).data)
+            && isOwnMessage(resource.data)
+          )
+        );
       }
     }
 
