@@ -24524,3 +24524,104 @@ function removeInboxRowEverywhere(row){
   try{ window.addEventListener('load', function(){ dsArmInboxAnswerInjector(); setTimeout(dsInjectInboxAnswerButtons, 300); setTimeout(dsInjectInboxAnswerButtons, 1200); }); }catch(_){ }
   try{ setInterval(dsInjectInboxAnswerButtons, 1500); }catch(_){ }
 })();
+
+
+/* ===== GB162 inbox open fix for contract/stay proposals ===== */
+(function(){
+  try{
+    const __oldOpenInboxDetail = (typeof window !== 'undefined' && window.__dsOpenInboxDetail) ? window.__dsOpenInboxDetail : null;
+    async function ds162FetchFullProposalRow(row){
+      try{
+        const base = row && typeof row === 'object' ? JSON.parse(JSON.stringify(row)) : (row || {});
+        const ids = [];
+        const add = (v)=>{ try{ v = String(v || '').trim(); if(v && !ids.includes(v)) ids.push(v); }catch(_){ } };
+        add(base && base.proposalId);
+        add(base && base.id);
+        add(base && base.taskId);
+        const pcol = (typeof cloudProposalsCol === 'function') ? cloudProposalsCol() : null;
+        if(pcol && typeof pcol.doc === 'function'){
+          for(const id of ids){
+            try{
+              const snap = await pcol.doc(id).get();
+              if(snap && snap.exists){
+                const data = snap.data ? (snap.data() || {}) : {};
+                return Object.assign({}, base, data, { id: String((data && data.id) || id) || id });
+              }
+            }catch(_){ }
+          }
+        }
+        const tcol = (typeof cloudTasksCol === 'function') ? cloudTasksCol() : null;
+        if(tcol && typeof tcol.doc === 'function'){
+          for(const id of ids){
+            try{
+              const snap = await tcol.doc(id).get();
+              if(snap && snap.exists){
+                const data = snap.data ? (snap.data() || {}) : {};
+                return Object.assign({}, base, data, { id: String((data && data.id) || id) || id });
+              }
+            }catch(_){ }
+          }
+        }
+        return base;
+      }catch(_){ return row || {}; }
+    }
+    function ds162SetOpenDiag(msg){
+      try{ window.__dsOpenDiagGb162 = String(msg || ''); }catch(_){ }
+      try{ if(typeof dsSetProposalOpenDiag === 'function') dsSetProposalOpenDiag(String(msg || ''), false); }catch(_){ }
+    }
+    function ds162ForcePanel(tabId, panelId){
+      try{ if(typeof selectTab === 'function' && tabId) selectTab(tabId); }catch(_){ }
+      try{ if(typeof showPanel === 'function' && panelId) showPanel(panelId); }catch(_){ }
+      try{ if(typeof dsForceShowPanel === 'function' && panelId) dsForceShowPanel(panelId); }catch(_){ }
+      try{
+        if(panelId){
+          const panel = document.getElementById(panelId);
+          if(panel){ panel.style.display = ''; panel.classList.add('is-active'); }
+        }
+      }catch(_){ }
+      try{ window.scrollTo({ top:0, behavior:'smooth' }); }catch(_){ }
+    }
+    async function ds162OpenContract(row){
+      const full = await ds162FetchFullProposalRow(row);
+      let ok = false;
+      try{ ok = !!(typeof dsOpenContractProposalEditor === 'function' && dsOpenContractProposalEditor(full)); }catch(_){ ok = false; }
+      if(!ok){
+        ds162ForcePanel('contract', 'contract');
+        try{ renderContractPanel(); }catch(_){ }
+        ok = true;
+      }
+      ds162SetOpenDiag('gb162-open contract id=' + String((full && (full.id || full.proposalId || full.taskId)) || '--') + ' ok=' + (ok ? '1':'0'));
+      return ok;
+    }
+    async function ds162OpenStay(row){
+      const full = await ds162FetchFullProposalRow(row);
+      let ok = false;
+      try{ ok = !!(typeof dsOpenStayProposalEditor === 'function' && dsOpenStayProposalEditor(full)); }catch(_){ ok = false; }
+      if(!ok){
+        ds162ForcePanel('documents', 'editor');
+        try{ if(typeof createStay === 'function') createStay(); }catch(_){ }
+        ok = true;
+      }
+      ds162SetOpenDiag('gb162-open stay id=' + String((full && (full.id || full.proposalId || full.taskId)) || '--') + ' ok=' + (ok ? '1':'0'));
+      return ok;
+    }
+    if(typeof window !== 'undefined'){
+      window.__dsOpenInboxDetail = async function(row){
+        try{
+          const full = await ds162FetchFullProposalRow(row);
+          const isContract = (typeof dsIsContractProposalInboxRow === 'function') ? !!dsIsContractProposalInboxRow(full) : false;
+          const isStay = (typeof dsIsStayProposalInboxRow === 'function') ? !!dsIsStayProposalInboxRow(full) : false;
+          if(isContract) return ds162OpenContract(full);
+          if(isStay) return ds162OpenStay(full);
+          if(__oldOpenInboxDetail) return __oldOpenInboxDetail(full);
+          if(typeof openInboxDetail === 'function') return openInboxDetail(full);
+          return false;
+        }catch(err){
+          ds162SetOpenDiag('gb162-open failed ' + String((err && err.message) || err || 'unknown'));
+          try{ if(__oldOpenInboxDetail) return __oldOpenInboxDetail(row); }catch(_){ }
+          return false;
+        }
+      };
+    }
+  }catch(_){ }
+})();
