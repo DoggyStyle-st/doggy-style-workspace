@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB147_SYNC_PROFILEPHOTO_FIX_CUSTOMERLOCK_20260403_ROOTONLY",
+  tag: "M50.9.9GB148_SYNC_FINALSNAPSHOT_TRANSIENTOMIT_20260403_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB147_SYNC_PROFILEPHOTO_FIX_CUSTOMERLOCK_20260403_ROOTONLY";
+const APP_BUILD = "M50.9.9GB148_SYNC_FINALSNAPSHOT_TRANSIENTOMIT_20260403_ROOTONLY";
 
 function dsSyncDiagStateSummary(){
   try{
@@ -180,6 +180,15 @@ function dsPruneProblemSyncFields(root){
         });
       });
     });
+    if(root && typeof root === 'object'){
+      const transient = ['inboxAssignments','inboxSubmissions','assignments','submissions'];
+      const counts = {};
+      transient.forEach(function(key){
+        try{ counts[key] = Array.isArray(root[key]) ? root[key].length : 0; }catch(_){ counts[key] = 0; }
+        try{ delete root[key]; }catch(_){ try{ root[key] = []; }catch(__){} }
+      });
+      try{ root._syncTransientOmitted = counts; }catch(_){ }
+    }
   }catch(_){ }
   return root;
 }
@@ -1823,7 +1832,7 @@ async function cloudPushNow(){
       updatedAt: stamp,
       updatedBy: CLOUD.user.email || CLOUD.user.uid
     }, {merge: true});
-    try{ dsSetSyncDiag('cloudPush:ok updatedAt=' + String(stamp) + ' drop=' + String((prepared && prepared.stats && prepared.stats.droppedCount) || 0) + ' · ' + dsSyncDiagStateSummary(), false); }catch(_){ }
+    try{ dsSetSyncDiag('cloudPush:ok updatedAt=' + String(stamp) + ' drop=' + String((prepared && prepared.stats && prepared.stats.droppedCount) || 0) + ' omitted=' + JSON.stringify(((safeState && safeState._syncTransientOmitted) || {})) + ' · ' + dsSyncDiagStateSummary(), false); }catch(_){ }
     CLOUD.lastPushOkAt = stamp;
     CLOUD.lastPushError = "";
     SYNC.cloudLastOkAt = stamp;
@@ -1854,7 +1863,7 @@ async function cloudPushNow(){
         retried = true;
         const strictFirst = (strictTrace && strictTrace.first) || null;
         const strictDetail = strictFirst ? (' strictFirst=' + String(strictFirst.section || '--') + '/' + String(strictFirst.kind || '--') + '@' + String(strictFirst.path || '--')) : '';
-        try{ dsSetSyncDiag('cloudPush:retry-ok updatedAt=' + String(stamp) + strictDetail + ' · ' + dsSyncDiagStateSummary(), false); }catch(_){ }
+        try{ dsSetSyncDiag('cloudPush:retry-ok updatedAt=' + String(stamp) + ' omitted=' + JSON.stringify(((strictState && strictState._syncTransientOmitted) || {})) + strictDetail + ' · ' + dsSyncDiagStateSummary(), false); }catch(_){ }
         CLOUD.lastPushOkAt = stamp;
         CLOUD.lastPushError = "";
         SYNC.cloudLastOkAt = stamp;
