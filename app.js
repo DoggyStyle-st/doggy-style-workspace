@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB155_CUSTOMER_CONTRACT_STAY_MAINAPPFLOW_20260403_ROOTONLY",
+  tag: "M50.9.9GB156_CUSTOMER_CONTRACT_STAY_MAINAPPFLOW_FIX_20260403_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB155_CUSTOMER_CONTRACT_STAY_MAINAPPFLOW_20260403_ROOTONLY";
+const APP_BUILD = "M50.9.9GB156_CUSTOMER_CONTRACT_STAY_MAINAPPFLOW_FIX_20260403_ROOTONLY";
 
 function dsSyncDiagStateSummary(){
   try{
@@ -2260,6 +2260,7 @@ async function submitCustomerDogsProposal(){
 function enforceCustomerMainCustomerModeUI(){
   const mode = getCustomerMainMode() || 'dogs';
   const targetTab = (mode === 'dogs') ? 'dogs' : ((mode === 'contract') ? 'contract' : 'documents');
+  const allowEditorPanel = (mode === 'stay');
   try{ document.body.dataset.customerMode = mode; }catch(_){ }
   try{ sessionStorage.setItem('ds_customer_main_mode', mode); }catch(_){ }
   try{ showAuthGate(false); }catch(_){ }
@@ -2286,7 +2287,7 @@ function enforceCustomerMainCustomerModeUI(){
   try{ const app = document.getElementById('btnLogoutApp'); if(app) app.style.display = 'inline-block'; }catch(_){ }
   try{ const userEl = document.getElementById('syncUser'); if(userEl) userEl.style.display = 'none'; }catch(_){ }
   try{ const btnAddDog = document.getElementById('btnAddDog'); if(btnAddDog){ btnAddDog.style.display = (mode === 'dogs' ? 'none' : btnAddDog.style.display); btnAddDog.disabled = (mode === 'dogs'); } }catch(_){ }
-  try{ document.querySelectorAll('.panel').forEach(p=>{ const keep = (p.id === targetTab); p.style.display = keep ? '' : 'none'; p.classList.toggle('is-active', keep); }); }catch(_){ }
+  try{ document.querySelectorAll('.panel').forEach(p=>{ const keep = (p.id === targetTab) || (allowEditorPanel && p.id === 'editor'); p.style.display = keep ? '' : 'none'; p.classList.toggle('is-active', keep); }); }catch(_){ }
   try{ document.querySelectorAll('#quickActions .btn, .start-actions .btn, .panel .btn[data-tab], .hero-card, .glass-card, .quick-card').forEach(el=>{ if(!el.closest('#' + targetTab)) el.style.display = 'none'; }); }catch(_){ }
   try{ if(typeof selectTab === 'function') selectTab(targetTab); }catch(_){ }
 }
@@ -2384,10 +2385,12 @@ function prepareCustomerContractMode(){
 function prepareCustomerStayMode(){
   try{ window.__dsCustomerStaySubmitHook = submitCustomerStayProposalMain; }catch(_){ }
   const ctx = getCustomerMainDogsContext();
-  try{ createStay(); }catch(e){ console.error('createStay customer stay failed', e); }
   let tries = 0;
   (function fill(){
     try{
+      if(!currentDoc || String(currentDoc.templateId || '') !== 'hundeannahme'){
+        try{ createStay(); }catch(e){ console.error('createStay customer stay failed', e); }
+      }
       const dogSel = document.getElementById('stayDogSelect');
       const custSel = document.getElementById('stayCustomerSelect');
       const pet = ctx.pets[0] || null;
@@ -2399,8 +2402,9 @@ function prepareCustomerStayMode(){
       const btnPrint = document.getElementById('btnStayPrint'); if(btnPrint) btnPrint.style.display = 'none';
       const btnInvoice = document.getElementById('btnCreateInvoice'); if(btnInvoice) btnInvoice.style.display = 'none';
       const btnMed = document.getElementById('btnStayOpenMedication'); if(btnMed) btnMed.style.display = 'none';
+      try{ showPanel('editor'); }catch(_){ }
     }catch(_){ }
-    if(++tries < 12) setTimeout(fill, 300);
+    if(++tries < 16 && (!currentDoc || String(currentDoc.templateId || '') !== 'hundeannahme' || !document.getElementById('editor') || document.getElementById('editor').style.display === 'none')) setTimeout(fill, 300);
   })();
 }
 
@@ -2412,11 +2416,19 @@ function initCustomerMainDogsMode(){
     const targetTab = (mode === 'dogs') ? 'dogs' : ((mode === 'contract') ? 'contract' : 'documents');
     try{
       const __origShowPanelCustomer = showPanel;
-      showPanel = function(id){ return __origShowPanelCustomer(targetTab); };
+      showPanel = function(id){
+        const wanted = String(id || '');
+        if(mode === 'stay' && wanted === 'editor') return __origShowPanelCustomer('editor');
+        return __origShowPanelCustomer(targetTab);
+      };
     }catch(_){ }
     try{
       const __origSelectTabCustomer = selectTab;
-      selectTab = function(tabId){ return __origSelectTabCustomer((tabId === 'home') ? 'home' : targetTab); };
+      selectTab = function(tabId){
+        const wanted = String(tabId || '');
+        if(mode === 'stay' && wanted === 'editor') return __origSelectTabCustomer('editor');
+        return __origSelectTabCustomer((wanted === 'home') ? 'home' : targetTab);
+      };
     }catch(_){ }
     try{
       if(!window.__dsCustomerDogsClickLock){
@@ -16894,7 +16906,7 @@ function renderContractPanel(){
         }
         if (isSaveBtn){
           try{
-            if (typeof window.__dsCustomerContractSubmitHook === 'function' && document.getElementById('customerPortal')){
+            if (typeof window.__dsCustomerContractSubmitHook === 'function' && (isCustomerMainMode('contract') || document.getElementById('customerPortal'))){
               window.__dsCustomerContractSubmitHook();
               return;
             }
@@ -21223,7 +21235,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB155_CUSTOMER_CONTRACT_STAY_MAINAPPFLOW_20260403_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB156_CUSTOMER_CONTRACT_STAY_MAINAPPFLOW_FIX_20260403_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -23196,7 +23208,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB155_CUSTOMER_CONTRACT_STAY_MAINAPPFLOW_20260403_ROOTONLY";
+  const BUILD = "M50.9.9GB156_CUSTOMER_CONTRACT_STAY_MAINAPPFLOW_FIX_20260403_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
