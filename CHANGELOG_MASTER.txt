@@ -42,3 +42,5 @@ GB152
 - Kundenchat: Verlauf löschen ergänzt
 - Kundenchat: Storage-Erkennung robuster
 - Kundenseite: Zurück zur Startseite in Kunde/Hund
+
+GB157: Kundenmodus Vertrag/Aufenthalt auf Vorschlagslogik fixiert; gemischte Altdateien bereinigt.
