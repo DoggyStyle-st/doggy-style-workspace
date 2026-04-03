@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB157_CUSTOMER_CONTRACT_STAY_PROPOSALLOCK_20260403_ROOTONLY",
+  tag: "M50.9.9GB159_CUSTOMER_CONTRACT_STAY_PROPOSALHARDLOCK_20260403_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB157_CUSTOMER_CONTRACT_STAY_PROPOSALLOCK_20260403_ROOTONLY";
+const APP_BUILD = "M50.9.9GB159_CUSTOMER_CONTRACT_STAY_PROPOSALHARDLOCK_20260403_ROOTONLY";
 
 function dsSyncDiagStateSummary(){
   try{
@@ -1954,6 +1954,22 @@ function isCustomerMainMode(mode){
 function isCustomerMainDogsMode(){
   try{ return isCustomerMainMode('dogs'); }catch(_){ return false; }
 }
+function getCustomerMainModeLoose(){
+  try{
+    const strict = getCustomerMainMode();
+    if(strict) return strict;
+    const p = (location && location.pathname) ? location.pathname.toLowerCase() : '';
+    if(!((p.endsWith('/app.html') || p.endsWith('app.html')))) return '';
+    const ss = String((sessionStorage.getItem('ds_customer_main_mode') || window.__dsCustomerMainModeActive || '')).trim().toLowerCase();
+    return ['dogs','contract','stay'].includes(ss) ? ss : '';
+  }catch(_){ return ''; }
+}
+function isCustomerMainModeLoose(mode){
+  try{
+    const current = getCustomerMainModeLoose();
+    return mode ? current === String(mode||'') : !!current;
+  }catch(_){ return false; }
+}
 function getCustomerMainDogsContext(){
   const email = String(CLOUD?.user?.email || '').trim().toLowerCase();
   const uidVal = String(CLOUD?.user?.uid || '').trim();
@@ -2293,6 +2309,21 @@ function enforceCustomerMainCustomerModeUI(){
 }
 function enforceCustomerMainDogsUI(){ try{ enforceCustomerMainCustomerModeUI(); }catch(_){ } }
 
+function dsCustomerForceMode(mode){
+  try{
+    const want = String(mode||'').trim().toLowerCase();
+    const bodyMode = String((document.body && document.body.dataset && document.body.dataset.customerMode) || '').trim().toLowerCase();
+    const winMode = String((window.__dsCustomerMainModeActive || '')).trim().toLowerCase();
+    const forceContract = !!window.__dsForceCustomerContractProposal;
+    const forceStay = !!window.__dsForceCustomerStayProposal;
+    const ssMode = String((sessionStorage.getItem('ds_customer_main_mode') || '')).trim().toLowerCase();
+    const qMode = String((new URLSearchParams(String(location.search||'')).get('customer_mode') || '')).trim().toLowerCase();
+    if(want === 'contract') return forceContract || bodyMode === 'contract' || winMode === 'contract' || ssMode === 'contract' || qMode === 'contract';
+    if(want === 'stay') return forceStay || bodyMode === 'stay' || winMode === 'stay' || ssMode === 'stay' || qMode === 'stay';
+    return !!(bodyMode || winMode || ssMode || qMode || forceContract || forceStay);
+  }catch(_){ return false; }
+}
+
 async function submitCustomerContractProposalMain(){
   try{
     ensureStateShape();
@@ -2364,6 +2395,7 @@ async function submitCustomerStayProposalMain(){
 
 function prepareCustomerContractMode(){
   try{ window.__dsCustomerContractSubmitHook = submitCustomerContractProposalMain; }catch(_){ }
+  try{ window.__dsForceCustomerContractProposal = true; }catch(_){ }
   try{ renderContractPanel(); }catch(e){ console.error('renderContractPanel customer contract failed', e); }
   const ctx = getCustomerMainDogsContext();
   const customerId = String(ctx.customerId || '');
@@ -2381,6 +2413,7 @@ function prepareCustomerContractMode(){
         cs.value = customerId;
         cs.disabled = true;
         cs.setAttribute('disabled','disabled');
+        cs.style.pointerEvents = 'none';
         try{ cs.dispatchEvent(new Event('change',{bubbles:true})); }catch(_){ }
       }
       if(ps){
@@ -2388,6 +2421,7 @@ function prepareCustomerContractMode(){
         if(petId) ps.value = petId;
         ps.disabled = true;
         ps.setAttribute('disabled','disabled');
+        ps.style.pointerEvents = 'none';
         try{ ps.dispatchEvent(new Event('change',{bubbles:true})); }catch(_){ }
       }
       const saveBtn = document.getElementById('contractSaveBtn'); if(saveBtn) saveBtn.textContent = 'Vorschlag senden';
@@ -2399,6 +2433,7 @@ function prepareCustomerContractMode(){
 
 function prepareCustomerStayMode(){
   try{ window.__dsCustomerStaySubmitHook = submitCustomerStayProposalMain; }catch(_){ }
+  try{ window.__dsForceCustomerStayProposal = true; }catch(_){ }
   const ctx = getCustomerMainDogsContext();
   let tries = 0;
   (function fill(){
@@ -2417,6 +2452,7 @@ function prepareCustomerStayMode(){
         custSel.value = String(ctx.customerId || '');
         custSel.disabled = true;
         custSel.setAttribute('disabled','disabled');
+        custSel.style.pointerEvents = 'none';
         try{ custSel.dispatchEvent(new Event('change',{bubbles:true})); }catch(_){ }
       }
       if(dogSel && dogId){
@@ -2424,13 +2460,33 @@ function prepareCustomerStayMode(){
         dogSel.value = dogId;
         dogSel.disabled = true;
         dogSel.setAttribute('disabled','disabled');
+        dogSel.style.pointerEvents = 'none';
         try{ dogSel.dispatchEvent(new Event('change',{bubbles:true})); }catch(_){ }
       }
+      try{
+        const genericCustomerSel = document.getElementById('customerSelect');
+        if(genericCustomerSel){
+          genericCustomerSel.innerHTML = '<option value="' + escapeHtml(String(ctx.customerId || '')) + '">' + escapeHtml(customerLabel) + '</option>';
+          genericCustomerSel.value = String(ctx.customerId || '');
+          genericCustomerSel.disabled = true; genericCustomerSel.setAttribute('disabled','disabled'); genericCustomerSel.style.pointerEvents = 'none';
+        }
+      }catch(_){ }
+      try{
+        const genericDogSel = document.getElementById('dogSelect');
+        if(genericDogSel && dogId){
+          genericDogSel.innerHTML = '<option value="' + escapeHtml(dogId) + '">' + escapeHtml(dogLabel) + '</option>';
+          genericDogSel.value = dogId;
+          genericDogSel.disabled = true; genericDogSel.setAttribute('disabled','disabled'); genericDogSel.style.pointerEvents = 'none';
+        }
+      }catch(_){ }
       const btnSave = document.getElementById('btnSave'); if(btnSave) btnSave.textContent = 'Vorschlag senden';
       const btnSave2 = document.getElementById('btnStaySave2'); if(btnSave2) btnSave2.textContent = 'Vorschlag senden';
       const btnPrint = document.getElementById('btnStayPrint'); if(btnPrint) btnPrint.style.display = 'none';
       const btnInvoice = document.getElementById('btnCreateInvoice'); if(btnInvoice) btnInvoice.style.display = 'none';
       const btnMed = document.getElementById('btnStayOpenMedication'); if(btnMed) btnMed.style.display = 'none';
+      const btnNewStayTop = document.getElementById('btnNewStayTop'); if(btnNewStayTop) btnNewStayTop.style.display = 'none';
+      const btnNewStayOnPage = document.getElementById('btnNewStayOnPage'); if(btnNewStayOnPage) btnNewStayOnPage.style.display = 'none';
+      try{ if(currentDoc){ currentDoc.customerId = String(ctx.customerId || currentDoc.customerId || ''); currentDoc.dogId = dogId || currentDoc.dogId || ''; updateDocCustomerPetFromDogId(currentDoc); } }catch(_){ }
       try{ showPanel('editor'); }catch(_){ }
     }catch(_){ }
     if(++tries < 18 && (!currentDoc || String(currentDoc.templateId || '') !== 'hundeannahme' || !document.getElementById('editor') || document.getElementById('editor').style.display === 'none')) setTimeout(fill, 300);
@@ -2441,7 +2497,9 @@ function initCustomerMainDogsMode(){
   try{
     try{ cpWaitForFirebaseUser(10000).then(function(u){ try{ if(u){ window.CLOUD = window.CLOUD || {}; CLOUD.user = u; if(!CLOUD.orgId) CLOUD.orgId = dsResolveCloudOrgId(); } }catch(_){ } }).catch(function(){}); }catch(_){ }
     enforceCustomerMainCustomerModeUI();
-    const mode = getCustomerMainMode() || 'dogs';
+    const mode = getCustomerMainModeLoose() || getCustomerMainMode() || 'dogs';
+    try{ window.__dsCustomerMainModeActive = mode; }catch(_){ }
+    try{ sessionStorage.setItem('ds_customer_main_mode', mode); }catch(_){ }
     const targetTab = (mode === 'dogs') ? 'dogs' : ((mode === 'contract') ? 'contract' : 'documents');
     try{
       const __origShowPanelCustomer = showPanel;
@@ -14453,14 +14511,14 @@ root.appendChild(sigCard);
       bind('btnStaySave', () => {
         try { syncStayEditorInputsToDoc(doc); } catch (_) {}
         try { warnStaySignatureMissing(doc); } catch (_) {}
-        if (typeof window.__dsCustomerStaySubmitHook === 'function' && isCustomerMainMode('stay')) { window.__dsCustomerStaySubmitHook(); return; }
+        if (typeof window.__dsCustomerStaySubmitHook === 'function' && (dsCustomerForceMode('stay') || isCustomerMainModeLoose('stay'))) { window.__dsCustomerStaySubmitHook(); return; }
         saveCurrent(true);
       });
       // Speichern im Unterschrift-Bereich
       bind('btnStaySave2', () => {
         try { syncStayEditorInputsToDoc(doc); } catch (_) {}
         try { warnStaySignatureMissing(doc); } catch (_) {}
-        if (typeof window.__dsCustomerStaySubmitHook === 'function' && isCustomerMainMode('stay')) { window.__dsCustomerStaySubmitHook(); return; }
+        if (typeof window.__dsCustomerStaySubmitHook === 'function' && (dsCustomerForceMode('stay') || isCustomerMainModeLoose('stay'))) { window.__dsCustomerStaySubmitHook(); return; }
         saveCurrent(true);
       });
       // Als PDF speichern / Drucken (falls Button existiert)
@@ -14573,7 +14631,7 @@ $("#dogSelect").addEventListener("change", () => {
   try{ renderStayQuickLinks(currentDoc); }catch(e){}
   dirty = true;
 });
-$("#btnSave").addEventListener("click",()=>{ if (typeof window.__dsCustomerStaySubmitHook === 'function' && isCustomerMainMode('stay')) { window.__dsCustomerStaySubmitHook(); return; } saveCurrent(true); });
+$("#btnSave").addEventListener("click",()=>{ if (typeof window.__dsCustomerStaySubmitHook === 'function' && (dsCustomerForceMode('stay') || isCustomerMainModeLoose('stay'))) { window.__dsCustomerStaySubmitHook(); return; } saveCurrent(true); });
 $("#btnClose").addEventListener("click",()=>{
   if(dirty && !confirm("Änderungen sind nicht gespeichert. Schließen?")) return;
   $$(".tab").forEach((t,i)=>t.classList.toggle("is-active", i===0));
@@ -14807,7 +14865,7 @@ function populateStayEditorFromDoc(doc){
 function saveCurrent(alertOk){
 updateCreateInvoiceButton();
   try{
-    if (typeof window.__dsCustomerStaySubmitHook === 'function' && isCustomerMainMode('stay') && window.currentDoc && String(window.currentDoc.templateId || '') === 'hundeannahme' && !window.__dsCustomerStaySavingProposal){
+    if (typeof window.__dsCustomerStaySubmitHook === 'function' && (dsCustomerForceMode('stay') || isCustomerMainModeLoose('stay')) && window.currentDoc && (String(window.currentDoc.templateId || '') === 'hundeannahme' || String(window.currentDoc.templateName || '').toLowerCase() === 'aufenthalte' || String(window.currentDoc.type || '').toLowerCase() === 'stay') && !window.__dsCustomerStaySavingProposal){
       window.__dsCustomerStaySavingProposal = true;
       Promise.resolve().then(function(){ return window.__dsCustomerStaySubmitHook(); }).finally(function(){ try{ window.__dsCustomerStaySavingProposal = false; }catch(_){ } });
       return true;
@@ -14887,7 +14945,7 @@ if (Number(limit||0) > 0 && used >= limit) {
   }
 currentDoc.updatedAt = new Date().toISOString();
 // 🧾 Variante A: Rechnung automatisch beim Abschließen erstellen
-if(currentDoc.saved && currentDoc.pricing){
+if(currentDoc.saved && currentDoc.pricing && !(dsCustomerForceMode('stay') || isCustomerMainModeLoose('stay'))){
   const exists = (state.invoices||[]).some(x=>x.sourceDocId===currentDoc.id);
   if(!exists){
     createInvoiceFromDoc(currentDoc);
@@ -16622,7 +16680,7 @@ function renderContractPanel(){
   }
   function saveAgreement(){
     try{
-      if (typeof window.__dsCustomerContractSubmitHook === 'function' && isCustomerMainMode('contract')){
+      if (typeof window.__dsCustomerContractSubmitHook === 'function' && (dsCustomerForceMode('contract') || isCustomerMainModeLoose('contract'))){
         window.__dsCustomerContractSubmitHook();
         return;
       }
@@ -16751,6 +16809,18 @@ function renderContractPanel(){
     try{
       populateCustomerSelect();
       populatePetSelect();
+      if (dsCustomerForceMode('contract') || isCustomerMainModeLoose('contract')){
+        try{
+          const ctx = getCustomerMainDogsContext();
+          const onlyCustomerId = String(ctx.customerId || '');
+          const onlyPet = (ctx.pets && ctx.pets[0]) ? ctx.pets[0] : null;
+          const onlyPetId = String((onlyPet && (onlyPet.id || onlyPet.petId)) || '');
+          const onlyCustomerLabel = String((ctx.customer && (ctx.customer.name || ctx.customer.lastName || ctx.customer.email)) || 'Kunde');
+          const onlyPetLabel = String((onlyPet && (onlyPet.name || onlyPet.dogName || onlyPet.petName)) || 'Hund');
+          if (cs && onlyCustomerId){ cs.innerHTML = '<option value="' + escapeHtml(onlyCustomerId) + '">' + escapeHtml(onlyCustomerLabel) + '</option>'; cs.value = onlyCustomerId; cs.disabled = true; cs.setAttribute('disabled','disabled'); }
+          if (ps && onlyPetId){ ps.innerHTML = '<option value="' + escapeHtml(onlyPetId) + '">' + escapeHtml(onlyPetLabel) + '</option>'; ps.value = onlyPetId; ps.disabled = true; ps.setAttribute('disabled','disabled'); }
+        }catch(_){ }
+      }
       updateSignedInfo();
     }catch(e){
       console.error('contract refreshSelectors error', e);
@@ -16948,7 +17018,7 @@ function renderContractPanel(){
         }
         if (isSaveBtn){
           try{
-            if (typeof window.__dsCustomerContractSubmitHook === 'function' && (isCustomerMainMode('contract') || document.getElementById('customerPortal'))){
+            if (typeof window.__dsCustomerContractSubmitHook === 'function' && (dsCustomerForceMode('contract') || isCustomerMainModeLoose('contract') || document.getElementById('customerPortal'))){
               window.__dsCustomerContractSubmitHook();
               return;
             }
@@ -21277,7 +21347,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB157_CUSTOMER_CONTRACT_STAY_PROPOSALLOCK_20260403_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB159_CUSTOMER_CONTRACT_STAY_PROPOSALHARDLOCK_20260403_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -23250,7 +23320,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB157_CUSTOMER_CONTRACT_STAY_PROPOSALLOCK_20260403_ROOTONLY";
+  const BUILD = "M50.9.9GB159_CUSTOMER_CONTRACT_STAY_PROPOSALHARDLOCK_20260403_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
