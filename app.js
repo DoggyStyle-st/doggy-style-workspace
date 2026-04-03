@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB164_INBOX_OPEN_ROUTER_REBIND_20260403_ROOTONLY",
+  tag: "M50.9.9GB165_INBOX_WIREOPEN_CONTRACT_STAY_FIX_20260403_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB164_INBOX_OPEN_ROUTER_REBIND_20260403_ROOTONLY";
+const APP_BUILD = "M50.9.9GB165_INBOX_WIREOPEN_CONTRACT_STAY_FIX_20260403_ROOTONLY";
 
 function dsSyncDiagStateSummary(){
   try{
@@ -3058,6 +3058,34 @@ async function wireInbox(){
   const root = document.getElementById('inboxDetailFormRoot') || document.getElementById('inboxDetailForm');
   if(!listEl) return;
   let currentTask = null;
+  async function openTaskSmart(task){
+    try{
+      const payload = task && (task.payloadSubmitted || task.payloadDraft || task.payload || task.data || {}) || {};
+      const rawType = String((task && (task.templateId || task.proposalType || task.kind || task.formKey || task.title)) || '').toLowerCase();
+      const src = String((payload && payload.source) || '').toLowerCase();
+      const isContract = rawType.indexOf('boarding_contract') >= 0 || rawType.indexOf('betreuungsvertrag') >= 0 || src.indexOf('customer-main-contract') >= 0;
+      const isStay = rawType.indexOf('hundeannahme') >= 0 || rawType.indexOf('neuer aufenthalt') >= 0 || rawType.indexOf('aufenthalt vorschlag') >= 0 || src.indexOf('customer-main-stay') >= 0;
+      if(isContract || isStay){
+        let full = task;
+        try{ if(typeof window.__dsFetchFullInboxProposal === 'function') full = await window.__dsFetchFullInboxProposal(task); }catch(_){ }
+        if(isContract){
+          try{ if(typeof dsOpenContractProposalEditor === 'function' && dsOpenContractProposalEditor(full)) return true; }catch(err){ console.warn('wireInbox contract-open failed', err); }
+          try{ if(typeof selectTab === 'function') selectTab('contract'); else if(typeof showPanel === 'function') showPanel('contract'); }catch(_){ }
+          try{ renderContractPanel(); }catch(_){ }
+          return true;
+        }
+        if(isStay){
+          try{ if(typeof dsOpenStayProposalEditor === 'function' && dsOpenStayProposalEditor(full)) return true; }catch(err){ console.warn('wireInbox stay-open failed', err); }
+          try{ if(typeof selectTab === 'function') selectTab('documents'); }catch(_){ }
+          try{ if(typeof showPanel === 'function') showPanel('editor'); }catch(_){ }
+          try{ if(typeof createStay === 'function') createStay(); }catch(_){ }
+          return true;
+        }
+      }
+    }catch(err){ console.warn('openTaskSmart failed', err); }
+    return openDetail(task);
+  }
+
   const replyTest = (task)=>{
     try{
       const key = String((task && (task.id || task.proposalId || task.taskId)) || '—');
@@ -3115,7 +3143,7 @@ async function wireInbox(){
       b.className='smallbtn';
       b.textContent='Öffnen';
       b.style.width = '100%';
-      b.onclick = ()=>{ try{ if(typeof window.__dsOpenInboxDetail === 'function') return window.__dsOpenInboxDetail(t); }catch(_){} return openDetail(t); };
+      b.onclick = ()=>{ try{ return openTaskSmart(t); }catch(_){} return openDetail(t); };
       actions.appendChild(b);
       const br = document.createElement('button');
       br.className='smallbtn';
@@ -21363,7 +21391,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB164_INBOX_OPEN_ROUTER_REBIND_20260403_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB165_INBOX_WIREOPEN_CONTRACT_STAY_FIX_20260403_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -23336,7 +23364,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB164_INBOX_OPEN_ROUTER_REBIND_20260403_ROOTONLY";
+  const BUILD = "M50.9.9GB165_INBOX_WIREOPEN_CONTRACT_STAY_FIX_20260403_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -24565,6 +24593,7 @@ function removeInboxRowEverywhere(row){
         return base;
       }catch(_){ return row || {}; }
     }
+    try{ if(typeof window !== 'undefined') window.__dsFetchFullInboxProposal = ds162FetchFullProposalRow; }catch(_){ }
     function ds162SetOpenDiag(msg){
       try{ window.__dsOpenDiagGb162 = String(msg || ''); }catch(_){ }
       try{ if(typeof dsSetProposalOpenDiag === 'function') dsSetProposalOpenDiag(String(msg || ''), false); }catch(_){ }
