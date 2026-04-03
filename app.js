@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB142_SYNC_DIAG_TRACE_BASEGB141_20260403_ROOTONLY",
+  tag: "M50.9.9GB143_SYNC_PAYLOAD_SANITIZE_20260403_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB142_SYNC_DIAG_TRACE_BASEGB141_20260403_ROOTONLY";
+const APP_BUILD = "M50.9.9GB143_SYNC_PAYLOAD_SANITIZE_20260403_ROOTONLY";
 
 function dsSyncDiagStateSummary(){
   try{
@@ -59,6 +59,113 @@ function dsRenderSyncDiag(){
   }catch(_){ }
 }
 try{ window.__dsSyncDiagDump = function(){ try{ return JSON.stringify(window.__dsSyncDiag || {}, null, 2); }catch(_){ return String((window.__dsSyncDiag && window.__dsSyncDiag.current) || ''); } }; }catch(_){ }
+
+function dsSyncDiagNoteDrop(path, kind, stats){
+  try{
+    if(!stats) return;
+    stats.droppedCount = Number(stats.droppedCount || 0) + 1;
+    const safeKind = String(kind || 'invalid');
+    stats.droppedKinds = stats.droppedKinds || {};
+    stats.droppedKinds[safeKind] = Number(stats.droppedKinds[safeKind] || 0) + 1;
+    if(path && (!stats.droppedPaths || stats.droppedPaths.length < 8)){
+      (stats.droppedPaths || (stats.droppedPaths = [])).push(String(path));
+    }
+  }catch(_){ }
+}
+function dsSanitizeCloudPayload(value, path, seen, stats){
+  try{
+    if(value === undefined){ dsSyncDiagNoteDrop(path, 'undefined', stats); return undefined; }
+    if(value === null) return null;
+    const t = typeof value;
+    if(t === 'string' || t === 'boolean') return value;
+    if(t === 'number') return Number.isFinite(value) ? value : null;
+    if(t === 'bigint') return String(value);
+    if(t === 'function' || t === 'symbol'){ dsSyncDiagNoteDrop(path, t, stats); return undefined; }
+
+    if(t !== 'object') return value;
+
+    try{
+      if(typeof window !== 'undefined'){
+        if(value === window || value === document){ dsSyncDiagNoteDrop(path, 'window', stats); return undefined; }
+        if(typeof Node !== 'undefined' && value instanceof Node){ dsSyncDiagNoteDrop(path, 'dom-node', stats); return undefined; }
+        if(typeof Event !== 'undefined' && value instanceof Event){ dsSyncDiagNoteDrop(path, 'event', stats); return undefined; }
+      }
+    }catch(_){ }
+
+    try{ if(typeof Blob !== 'undefined' && value instanceof Blob){ dsSyncDiagNoteDrop(path, 'blob', stats); return undefined; } }catch(_){ }
+    try{ if(typeof File !== 'undefined' && value instanceof File){ dsSyncDiagNoteDrop(path, 'file', stats); return undefined; } }catch(_){ }
+    if(value instanceof Date) return value.getTime();
+    if(value instanceof RegExp) return String(value);
+    if(value instanceof Error) return { name:String(value.name||'Error'), message:String(value.message||'') };
+    if(typeof URL !== 'undefined' && value instanceof URL) return String(value);
+    if(typeof Map !== 'undefined' && value instanceof Map){
+      const obj = {};
+      let idx = 0;
+      value.forEach(function(v, k){
+        const key = String(k);
+        const sv = dsSanitizeCloudPayload(v, (path||'root') + '.<map>.' + key, seen, stats);
+        if(sv !== undefined) obj[key] = sv;
+        idx += 1;
+      });
+      return obj;
+    }
+    if(typeof Set !== 'undefined' && value instanceof Set){
+      const arr = [];
+      let idx = 0;
+      value.forEach(function(v){
+        const sv = dsSanitizeCloudPayload(v, (path||'root') + '.<set>[' + idx + ']', seen, stats);
+        if(sv !== undefined) arr.push(sv);
+        idx += 1;
+      });
+      return arr;
+    }
+    try{ if(value && typeof value.toMillis === 'function') return Number(value.toMillis()); }catch(_){ }
+    try{ if(value && typeof value.seconds === 'number' && typeof value.nanoseconds === 'number'){ return (value.seconds * 1000) + Math.floor((value.nanoseconds||0) / 1000000); } }catch(_){ }
+
+    if(Array.isArray(value)){
+      if(seen.has(value)){ dsSyncDiagNoteDrop(path, 'circular-array', stats); return []; }
+      seen.add(value);
+      const arr = [];
+      for(let i=0;i<value.length;i++){
+        const sv = dsSanitizeCloudPayload(value[i], (path||'root') + '[' + i + ']', seen, stats);
+        if(sv !== undefined) arr.push(sv);
+      }
+      seen.delete(value);
+      return arr;
+    }
+
+    const proto = Object.getPrototypeOf(value);
+    const plain = !proto || proto === Object.prototype;
+    if(!plain){
+      try{
+        if(value && typeof value.toJSON === 'function'){
+          const j = value.toJSON();
+          return dsSanitizeCloudPayload(j, (path||'root') + '.toJSON', seen, stats);
+        }
+      }catch(_){ }
+      dsSyncDiagNoteDrop(path, 'non-plain-object', stats);
+      return undefined;
+    }
+
+    if(seen.has(value)){ dsSyncDiagNoteDrop(path, 'circular-object', stats); return undefined; }
+    seen.add(value);
+    const out = {};
+    Object.keys(value).forEach(function(key){
+      const sv = dsSanitizeCloudPayload(value[key], (path ? path + '.' : '') + key, seen, stats);
+      if(sv !== undefined) out[key] = sv;
+    });
+    seen.delete(value);
+    return out;
+  }catch(_){
+    dsSyncDiagNoteDrop(path, 'sanitize-exception', stats);
+    return undefined;
+  }
+}
+function dsPrepareCloudPayload(src){
+  const stats = { droppedCount:0, droppedPaths:[], droppedKinds:{} };
+  const clean = dsSanitizeCloudPayload(src, 'payload', new WeakSet(), stats) || {};
+  return { clean, stats };
+}
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -1467,16 +1574,31 @@ async function cloudPushNow(){
   const stamp = Date.now();
   // Marker im State, damit wir Remote-Updates sauber vergleichen können
   try{ state._cloudUpdatedAt = stamp; state._localUpdatedAt = stamp; }catch(_){/* ignore */}
+  const prepared = dsPrepareCloudPayload(state);
+  const safeState = prepared && prepared.clean ? prepared.clean : {};
+  try{
+    if(safeState && typeof safeState === 'object'){
+      safeState._cloudUpdatedAt = stamp;
+      if(safeState._localUpdatedAt == null) safeState._localUpdatedAt = stamp;
+    }
+  }catch(_){ }
+  try{
+    const dropped = Number((prepared && prepared.stats && prepared.stats.droppedCount) || 0);
+    if(dropped > 0){
+      const sample = ((prepared && prepared.stats && prepared.stats.droppedPaths) || []).slice(0,3).join(', ');
+      dsSetSyncDiag('cloudPush:sanitized drop=' + String(dropped) + (sample ? ' sample=' + sample : '') + ' · ' + dsSyncDiagStateSummary(), false);
+    }
+  }catch(_){ }
   // last write wins (v1). Später: echtes Merge pro Objekt.
   try{
     const ref = cloudStateRef();
   if(!ref){ try{ dsSetSyncDiag('cloudPush:no-ref · ' + dsSyncDiagStateSummary(), true); }catch(_){ } return; }
   await ref.set({
-      payload: state,
+      payload: safeState,
       updatedAt: stamp,
       updatedBy: CLOUD.user.email || CLOUD.user.uid
     }, {merge: true});
-    try{ dsSetSyncDiag('cloudPush:ok updatedAt=' + String(stamp) + ' · ' + dsSyncDiagStateSummary(), false); }catch(_){ }
+    try{ dsSetSyncDiag('cloudPush:ok updatedAt=' + String(stamp) + ' drop=' + String((prepared && prepared.stats && prepared.stats.droppedCount) || 0) + ' · ' + dsSyncDiagStateSummary(), false); }catch(_){ }
     CLOUD.lastPushOkAt = stamp;
     CLOUD.lastPushError = "";
     SYNC.cloudLastOkAt = stamp;
@@ -1484,7 +1606,10 @@ async function cloudPushNow(){
     SYNC.cloudPending = false;
   }catch(e){
     const errMsg = String(e?.message||e||"Cloud write failed");
-    try{ dsSetSyncDiag('cloudPush:fail msg=' + errMsg + ' · ' + dsSyncDiagStateSummary(), true); }catch(_){ }
+    try{
+      const sample = ((prepared && prepared.stats && prepared.stats.droppedPaths) || []).slice(0,4).join(', ');
+      dsSetSyncDiag('cloudPush:fail msg=' + errMsg + (((prepared && prepared.stats && prepared.stats.droppedCount) || 0) ? ' drop=' + String((prepared && prepared.stats && prepared.stats.droppedCount) || 0) : '') + (sample ? ' sample=' + sample : '') + ' · ' + dsSyncDiagStateSummary(), true);
+    }catch(_){ }
     CLOUD.lastPushError = errMsg;
     SYNC.cloudLastError = CLOUD.lastPushError;
     SYNC.cloudPending = false;
@@ -20581,7 +20706,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB142_SYNC_DIAG_TRACE_BASEGB141_20260403_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB143_SYNC_PAYLOAD_SANITIZE_20260403_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -22177,7 +22302,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB142_SYNC_DIAG_TRACE_BASEGB141_20260403_ROOTONLY";
+  const BUILD = "M50.9.9GB143_SYNC_PAYLOAD_SANITIZE_20260403_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
