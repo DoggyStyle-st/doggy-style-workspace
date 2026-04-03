@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB149_CHAT_MEDIA_DELETE_20260403_ROOTONLY",
+  tag: "M50.9.9GB150_CHAT_MEDIA_STORAGEFIX_DELETECONFIRM_20260403_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB149_CHAT_MEDIA_DELETE_20260403_ROOTONLY";
+const APP_BUILD = "M50.9.9GB150_CHAT_MEDIA_STORAGEFIX_DELETECONFIRM_20260403_ROOTONLY";
 
 function dsSyncDiagStateSummary(){
   try{
@@ -20988,7 +20988,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB149_CHAT_MEDIA_DELETE_20260403_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB150_CHAT_MEDIA_STORAGEFIX_DELETECONFIRM_20260403_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -21302,6 +21302,7 @@ async function dsDeleteChatMessage(chatId, msg, role, rerender){
   if(!messageId) throw new Error('Nachricht konnte nicht gelöscht werden.');
   if(!dsCanDeleteChatMessage(msg, role)) throw new Error('Diese Nachricht kann hier nicht gelöscht werden.');
   if(!confirm('Nachricht wirklich löschen?')) return false;
+  if(!confirm('Wirklich endgültig löschen?')) return false;
   await dsDeleteChatAttachmentFiles(msg).catch(()=>{});
   await cloudChatMessagesCol(chatId).doc(messageId).delete();
   await dsRefreshChatMetaFromMessages(chatId).catch(console.warn);
@@ -21363,41 +21364,7 @@ function dsBindMessageBubbleClicks(container, role, chat, messages, rerender){
     });
   });
 }
-function dsOpenChatPreviewModal(msg){
-  const modal = dsEnsureChatPreviewModal();
-  if(!modal) return;
-  const meta = modal.querySelector('#dsChatPreviewMeta');
-  const body = modal.querySelector('#dsChatPreviewBody');
-  if(meta) meta.textContent = `${String(msg?.senderName || 'Nachricht')} · ${dsChatDisplayTime(msg?.createdAt || msg?.createdAtMs || 0)}`;
-  if(body) body.textContent = String(msg?.text || '');
-  modal.classList.remove('is-hidden');
-  dsChatPreviewState().open = true;
-}
-function dsCloseChatPreviewModal(){
-  const modal = document.getElementById('dsChatPreviewModal');
-  if(modal) modal.classList.add('is-hidden');
-  dsChatPreviewState().open = false;
-}
-function dsBindMessageBubbleClicks(container, role, chat, messages, rerender){
-  if(!container) return;
-  container.querySelectorAll('[data-chat-msg-index]').forEach(btn=>{
-    if(btn.__chatMsgBound) return;
-    btn.__chatMsgBound = true;
-    btn.addEventListener('click', async ()=>{
-      const idx = Number(btn.getAttribute('data-chat-msg-index') || -1);
-      const msg = Array.isArray(messages) ? messages[idx] : null;
-      if(!msg) return;
-      dsOpenChatPreviewModal(msg);
-      if(String(msg?.senderRole || '') !== String(role || '') && chat?.id){
-        const msgMs = Number(msg?.createdAtMs || dsTsMs(msg?.createdAt) || 0);
-        if(msgMs){
-          await dsMarkChatReadUpTo(chat.id, role, msgMs, messages);
-          if(typeof rerender === 'function') rerender();
-        }
-      }
-    });
-  });
-}
+/* GB150: legacy duplicate chat preview helpers removed; the richer implementations above stay authoritative. */
 function dsChatOpenIntentState(){
   if(!window.__dsChatOpenIntentState){
     window.__dsChatOpenIntentState = { staff:false, customer:false };
@@ -21905,7 +21872,15 @@ async function dsUploadChatMediaFiles(chatId, files, statusSetter){
     const path = `orgs/${orgId}/chatMedia/${safeChatId}/${Date.now()}_${Math.random().toString(36).slice(2,8)}_${safeName}`;
     const ref = firebase.storage().ref().child(path);
     if(typeof statusSetter === 'function') statusSetter(`Upload ${i+1}/${selected.length}: ${file.name || safeName}`);
-    await ref.put(file, { contentType: file.type || (kind === 'video' ? 'video/mp4' : 'image/jpeg'), customMetadata: { orgId, chatId: safeChatId, uploadedBy: user.uid, kind } });
+    try{
+      await ref.put(file, { contentType: file.type || (kind === 'video' ? 'video/mp4' : 'image/jpeg'), customMetadata: { orgId, chatId: safeChatId, uploadedBy: user.uid, kind } });
+    }catch(err){
+      const code = String(err?.code || '');
+      if(code.includes('storage/unauthorized')){
+        throw new Error('Firebase Storage verweigert den Upload. Bitte die Storage Rules veröffentlichen (nicht nur Firestore Rules).');
+      }
+      throw err;
+    }
     const url = await ref.getDownloadURL();
     out.push({ kind, url, path, name: String(file?.name || safeName), size: Number(file?.size || 0) || 0, contentType: String(file?.type || '') });
   }
@@ -21916,6 +21891,7 @@ async function dsClearCurrentAdminChat(){
   const chatId = String(st.currentChatId || '').trim();
   if(!chatId) throw new Error('Kein Chat ausgewählt.');
   if(!confirm('Diesen gesamten Chatverlauf wirklich löschen?')) return false;
+  if(!confirm('Wirklich den gesamten Verlauf endgültig löschen?')) return false;
   const col = cloudChatMessagesCol(chatId);
   const chatRef = cloudChatDoc(chatId);
   if(!col || !chatRef) throw new Error('Chat ist nicht verfügbar.');
@@ -22915,7 +22891,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB149_CHAT_MEDIA_DELETE_20260403_ROOTONLY";
+  const BUILD = "M50.9.9GB150_CHAT_MEDIA_STORAGEFIX_DELETECONFIRM_20260403_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
