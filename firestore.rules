@@ -112,10 +112,7 @@ service cloud.firestore {
         );
         allow update, delete: if signedIn() && (
           isStaff(orgId)
-          || (
-            isChatOwner(get(/databases/$(database)/documents/orgs/$(orgId)/chats/$(chatId)).data)
-            && isOwnMessage(resource.data)
-          )
+          || isChatOwner(get(/databases/$(database)/documents/orgs/$(orgId)/chats/$(chatId)).data)
         );
       }
     }
