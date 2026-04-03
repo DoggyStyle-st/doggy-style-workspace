@@ -2367,33 +2367,18 @@ function prepareCustomerContractMode(){
   try{ renderContractPanel(); }catch(e){ console.error('renderContractPanel customer contract failed', e); }
   const ctx = getCustomerMainDogsContext();
   const customerId = String(ctx.customerId || '');
-  const pet = ctx.pets[0] || null;
-  const petId = String(((pet && (pet.id || pet.petId)) || '') || '');
-  const customerLabel = String((ctx.customer && (ctx.customer.name || ctx.customer.lastName || ctx.customer.email)) || 'Kunde');
-  const petLabel = String((pet && (pet.name || pet.dogName || pet.petName || pet.id || pet.petId)) || 'Hund');
+  const petId = String(((ctx.pets[0] && (ctx.pets[0].id || ctx.pets[0].petId)) || '') || '');
   let tries = 0;
   (function fill(){
     try{
       const cs = document.getElementById('contractCustomerSelect');
       const ps = document.getElementById('contractPetSelect');
-      if(cs){
-        cs.innerHTML = '<option value="' + escapeHtml(customerId) + '">' + escapeHtml(customerLabel) + '</option>';
-        cs.value = customerId;
-        cs.disabled = true;
-        cs.setAttribute('disabled','disabled');
-        try{ cs.dispatchEvent(new Event('change',{bubbles:true})); }catch(_){ }
-      }
-      if(ps){
-        ps.innerHTML = '<option value="' + escapeHtml(petId) + '">' + escapeHtml(petLabel) + '</option>';
-        if(petId) ps.value = petId;
-        ps.disabled = true;
-        ps.setAttribute('disabled','disabled');
-        try{ ps.dispatchEvent(new Event('change',{bubbles:true})); }catch(_){ }
-      }
+      if(cs){ cs.value = customerId; cs.disabled = true; try{ cs.dispatchEvent(new Event('change',{bubbles:true})); }catch(_){ } }
+      if(ps){ if(petId) ps.value = petId; ps.disabled = true; try{ ps.dispatchEvent(new Event('change',{bubbles:true})); }catch(_){ } }
       const saveBtn = document.getElementById('contractSaveBtn'); if(saveBtn) saveBtn.textContent = 'Vorschlag senden';
       const adminBox = document.getElementById('contractAdminBox'); if(adminBox) adminBox.style.display = 'none';
     }catch(_){ }
-    if(++tries < 12) setTimeout(fill, 300);
+    if(++tries < 8) setTimeout(fill, 300);
   })();
 }
 
@@ -2410,22 +2395,8 @@ function prepareCustomerStayMode(){
       const custSel = document.getElementById('stayCustomerSelect');
       const pet = ctx.pets[0] || null;
       const dogId = String((pet && (pet.dogId || pet.id || pet.petId)) || '');
-      const dogLabel = String((pet && (pet.name || pet.dogName || pet.petName || pet.id || pet.petId)) || 'Hund');
-      const customerLabel = String((ctx.customer && (ctx.customer.name || ctx.customer.lastName || ctx.customer.email)) || 'Kunde');
-      if(custSel){
-        custSel.innerHTML = '<option value="' + escapeHtml(String(ctx.customerId || '')) + '">' + escapeHtml(customerLabel) + '</option>';
-        custSel.value = String(ctx.customerId || '');
-        custSel.disabled = true;
-        custSel.setAttribute('disabled','disabled');
-        try{ custSel.dispatchEvent(new Event('change',{bubbles:true})); }catch(_){ }
-      }
-      if(dogSel && dogId){
-        dogSel.innerHTML = '<option value="' + escapeHtml(dogId) + '">' + escapeHtml(dogLabel) + '</option>';
-        dogSel.value = dogId;
-        dogSel.disabled = true;
-        dogSel.setAttribute('disabled','disabled');
-        try{ dogSel.dispatchEvent(new Event('change',{bubbles:true})); }catch(_){ }
-      }
+      if(custSel){ custSel.value = String(ctx.customerId || ''); custSel.disabled = true; try{ custSel.dispatchEvent(new Event('change',{bubbles:true})); }catch(_){ } }
+      if(dogSel && dogId){ dogSel.value = dogId; dogSel.disabled = true; try{ dogSel.dispatchEvent(new Event('change',{bubbles:true})); }catch(_){ } }
       const btnSave = document.getElementById('btnSave'); if(btnSave) btnSave.textContent = 'Vorschlag senden';
       const btnSave2 = document.getElementById('btnStaySave2'); if(btnSave2) btnSave2.textContent = 'Vorschlag senden';
       const btnPrint = document.getElementById('btnStayPrint'); if(btnPrint) btnPrint.style.display = 'none';
@@ -2433,7 +2404,7 @@ function prepareCustomerStayMode(){
       const btnMed = document.getElementById('btnStayOpenMedication'); if(btnMed) btnMed.style.display = 'none';
       try{ showPanel('editor'); }catch(_){ }
     }catch(_){ }
-    if(++tries < 18 && (!currentDoc || String(currentDoc.templateId || '') !== 'hundeannahme' || !document.getElementById('editor') || document.getElementById('editor').style.display === 'none')) setTimeout(fill, 300);
+    if(++tries < 16 && (!currentDoc || String(currentDoc.templateId || '') !== 'hundeannahme' || !document.getElementById('editor') || document.getElementById('editor').style.display === 'none')) setTimeout(fill, 300);
   })();
 }
 
@@ -14806,13 +14777,6 @@ function populateStayEditorFromDoc(doc){
 }
 function saveCurrent(alertOk){
 updateCreateInvoiceButton();
-  try{
-    if (typeof window.__dsCustomerStaySubmitHook === 'function' && isCustomerMainMode('stay') && window.currentDoc && String(window.currentDoc.templateId || '') === 'hundeannahme' && !window.__dsCustomerStaySavingProposal){
-      window.__dsCustomerStaySavingProposal = true;
-      Promise.resolve().then(function(){ return window.__dsCustomerStaySubmitHook(); }).finally(function(){ try{ window.__dsCustomerStaySavingProposal = false; }catch(_){ } });
-      return true;
-    }
-  }catch(_){ }
   if(!currentDoc) return false;
   // Embedded stay editor: make sure the current DOM values are written into
   // currentDoc before persisting (prevents "values lost after signature save").
@@ -16621,12 +16585,6 @@ function renderContractPanel(){
     return saveAgreement();
   }
   function saveAgreement(){
-    try{
-      if (typeof window.__dsCustomerContractSubmitHook === 'function' && isCustomerMainMode('contract')){
-        window.__dsCustomerContractSubmitHook();
-        return;
-      }
-    }catch(_){ }
     const {customerId, petId} = getSelectedIds();
     if (!customerId || !petId){
       alert('Bitte zuerst Kunde und Hund wählen.');
