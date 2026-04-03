@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB145_CLOUDWRITE_CALLSITE_TRACE_RETRY_20260403_ROOTONLY",
+  tag: "M50.9.9GB146_SYNC_SUB_ASSIGN_DEEPTRACE_20260403_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB145_CLOUDWRITE_CALLSITE_TRACE_RETRY_20260403_ROOTONLY";
+const APP_BUILD = "M50.9.9GB146_SYNC_SUB_ASSIGN_DEEPTRACE_20260403_ROOTONLY";
 
 function dsSyncDiagStateSummary(){
   try{
@@ -285,6 +285,84 @@ function dsTracePayloadSections(payload){
   return out;
 }
 try{ window.__dsPayloadTraceDump = function(){ try{ return JSON.stringify(window.__dsPayloadTrace || {}, null, 2); }catch(_){ return ''; } }; }catch(_){ }
+
+async function dsProbeCloudValue(ref, path, value){
+  const out = { path:String(path||'payload'), kind:'unknown', message:'', tries:0 };
+  try{
+    if(!ref || !ref.parent || !ref.id){ out.kind='no-probe-ref'; return out; }
+    const probeRef = ref.parent.doc(String(ref.id) + '__diagprobe');
+    async function tryWrite(node, wrapArray){
+      out.tries += 1;
+      if(wrapArray) return await probeRef.set({ probe:[node], probedAt: Date.now() }, { merge:false });
+      return await probeRef.set({ probe:node, probedAt: Date.now() }, { merge:false });
+    }
+    async function walk(node, nodePath, arrayCtx){
+      try{
+        await tryWrite(node, arrayCtx);
+        return null;
+      }catch(err){
+        const msg = String((err && err.message) || err || 'probe-failed');
+        if(node == null){ return { path:nodePath, kind:'nullish', message:msg }; }
+        const t = typeof node;
+        if(t !== 'object') return { path:nodePath, kind:t, message:msg };
+        if(Array.isArray(node)){
+          for(let i=0;i<node.length;i++){
+            const fail = await walk(node[i], nodePath + '[' + i + ']', true);
+            if(fail) return fail;
+          }
+          return { path:nodePath, kind:'array-combination', message:msg };
+        }
+        const keys = Object.keys(node || {});
+        for(let i=0;i<keys.length;i++){
+          const key = keys[i];
+          try{
+            await tryWrite({ [key]: node[key] }, false);
+          }catch(_singleErr){
+            const fail = await walk(node[key], nodePath + '.' + key, false);
+            if(fail) return fail;
+            return { path:nodePath + '.' + key, kind:'object-key-combination', message:String((_singleErr && _singleErr.message) || _singleErr || msg) };
+          }
+        }
+        return { path:nodePath, kind:'object-combination', message:msg };
+      }
+    }
+    const found = await walk(value, String(path||'payload'), false);
+    if(found) return found;
+    out.kind='no-fail-found';
+    return out;
+  }catch(err){
+    out.kind='probe-exception';
+    out.message = String((err && err.message) || err || 'unknown');
+    return out;
+  }
+}
+async function dsProbeCloudSuspectSections(ref, payload){
+  const root = (payload && typeof payload === 'object') ? payload : {};
+  const preferred = ['inboxSubmissions','inboxAssignments','submissions','assignments'];
+  const names = [];
+  preferred.forEach(function(k){ if(Object.prototype.hasOwnProperty.call(root, k)) names.push(k); });
+  if(!names.length){
+    Object.keys(root || {}).forEach(function(k){
+      if(names.length >= 4) return;
+      if(/sub/i.test(k) || /assign/i.test(k)) names.push(k);
+    });
+  }
+  const results = [];
+  for(let i=0;i<names.length;i++){
+    const name = names[i];
+    try{
+      const res = await dsProbeCloudValue(ref, 'payload.' + name, root[name]);
+      results.push({ section:name, path:String((res && res.path) || ('payload.' + name)), kind:String((res && res.kind) || 'unknown'), message:String((res && res.message) || ''), tries:Number((res && res.tries) || 0) });
+      if(res && res.kind && res.kind !== 'no-fail-found') break;
+    }catch(err){
+      results.push({ section:name, path:'payload.' + name, kind:'probe-crash', message:String((err && err.message) || err || 'unknown'), tries:0 });
+      break;
+    }
+  }
+  try{ window.__dsProbeResults = results; }catch(_){ }
+  return results;
+}
+try{ window.__dsProbeDump = function(){ try{ return JSON.stringify(window.__dsProbeResults || [], null, 2); }catch(_){ return ''; } }; }catch(_){ }
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -1766,6 +1844,19 @@ async function cloudPushNow(){
       const strictFirst = (strictTrace && strictTrace.first) || null;
       const retryTrace = strictFirst ? (' strictFirst=' + String(strictFirst.section || '--') + '/' + String(strictFirst.kind || '--') + '@' + String(strictFirst.path || '--')) : (strictTrace && strictTrace.summary ? (' strictSections=' + String(strictTrace.summary || '').slice(0,220)) : '');
       detail += ' retry=' + retryMsg + retryTrace;
+      try{
+        const probePayload = (typeof strictState !== 'undefined' && strictState && typeof strictState === 'object') ? strictState : ((safeState && typeof safeState === 'object') ? safeState : {});
+        const probeRef = cloudStateRef();
+        const probeRows = await dsProbeCloudSuspectSections(probeRef, probePayload);
+        const firstProbe = Array.isArray(probeRows) ? probeRows.find(function(x){ return x && x.kind && x.kind !== 'no-fail-found'; }) : null;
+        if(firstProbe){
+          detail += ' probe=' + String(firstProbe.section || '--') + '/' + String(firstProbe.kind || '--') + '@' + String(firstProbe.path || '--');
+        }else if(Array.isArray(probeRows) && probeRows.length){
+          detail += ' probe=' + probeRows.map(function(x){ return String((x && x.section) || '--') + ':' + String((x && x.kind) || '--'); }).join('|').slice(0,220);
+        }
+      }catch(probeErr){
+        detail += ' probeErr=' + String((probeErr && probeErr.message) || probeErr || 'unknown');
+      }
       try{ dsSetSyncDiag('cloudPush:retry-fail ' + detail + ' · ' + dsSyncDiagStateSummary(), true); }catch(_){ }
     }
     if(!retried){
