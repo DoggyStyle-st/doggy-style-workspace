@@ -7,7 +7,7 @@
   <link href="manifest.json" rel="manifest"/>
   <meta name="theme-color" content="#101014"/>
   <link href="assets/logo.png" rel="apple-touch-icon"/>
-  <link href="styles.css?v=M50.9.9GB153_CUSTOMER_PAWSTART_NAVCLEAN_20260403_ROOTONLY" rel="stylesheet"/>
+  <link href="styles.css?v=M50.9.9GB154_CUSTOMER_CONTRACT_STAY_PROPOSALS_20260403_ROOTONLY" rel="stylesheet"/>
   <style>
     body.bg-watermark{background:radial-gradient(circle at top, rgba(255,255,255,.08), transparent 35%), linear-gradient(180deg,#0e1017 0%, #121521 100%) !important}
     body.bg-watermark::before{opacity:.12 !important;filter:none !important}
@@ -231,18 +231,18 @@
     <div class="customer-hidden" id="customerTaskListCard"></div>
     <div class="customer-hidden list" id="customerTaskList"></div>
     <div class="customer-hidden" id="customerPortalSubtitle"></div>
-    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9GB153_CUSTOMER_PAWSTART_NAVCLEAN_20260403_ROOTONLY</div>
+    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9GB154_CUSTOMER_CONTRACT_STAY_PROPOSALS_20260403_ROOTONLY</div>
   </main>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
-  <script src="firebase-config.js?v=M50.9.9GB153_CUSTOMER_PAWSTART_NAVCLEAN_20260403_ROOTONLY"></script>
-  <script src="app.js?v=M50.9.9GB153_CUSTOMER_PAWSTART_NAVCLEAN_20260403_ROOTONLY"></script>
+  <script src="firebase-config.js?v=M50.9.9GB154_CUSTOMER_CONTRACT_STAY_PROPOSALS_20260403_ROOTONLY"></script>
+  <script src="app.js?v=M50.9.9GB154_CUSTOMER_CONTRACT_STAY_PROPOSALS_20260403_ROOTONLY"></script>
   <script>
     (function(){
-      const BUILD = 'Build CUSTOMER M50.9.9GB153_CUSTOMER_PAWSTART_NAVCLEAN_20260403_ROOTONLY';
+      const BUILD = 'Build CUSTOMER M50.9.9GB154_CUSTOMER_CONTRACT_STAY_PROPOSALS_20260403_ROOTONLY';
       const DRAFT_KEY = 'ds_customer_app_drafts_v1';
       const viewNames = ['home','dogs','contract','stay','chat'];
       let currentView = 'home';
@@ -586,9 +586,7 @@
 document.getElementById('btnCustomerTaskSubmit')?.addEventListener('click', ()=>{
         currentData = collectEditorData();
         if(currentTask) setDraft(currentTask.id || currentTask.taskId || currentTask.templateId, currentData);
-        const hint = document.getElementById('customerTaskSaveHint');
-        if(hint) hint.textContent = 'Änderungen lokal gespeichert. Die Übergabe an Eingänge folgt im nächsten Schritt.';
-        alert('Änderungen lokal gespeichert. Die Übergabe an Eingänge folgt im nächsten Schritt.');
+        submitCurrentCustomerTaskProposal();
       });
 
 
@@ -707,8 +705,82 @@ document.getElementById('btnCustomerTaskSubmit')?.addEventListener('click', ()=>
             currentData = Object.assign({}, currentData, currentDoc?.fields || {});
           }
           if(currentTask) setDraft(currentTask.id || currentTask.taskId || currentTask.templateId, currentData);
-          if(hint) hint.textContent = 'Änderungen lokal gespeichert. Die Übergabe an Eingänge folgt im nächsten Schritt.';
+          if(hint) hint.textContent = 'Änderungen lokal gespeichert. Der Vorschlag wird beim Absenden an Eingänge übergeben.';
         }catch(e){ if(hint) hint.textContent = 'Speichern fehlgeschlagen.'; }
+      }
+      async function submitCurrentCustomerTaskProposal(forceTemplateId){
+        const hint = document.getElementById('customerTaskSaveHint');
+        const templateId = String(forceTemplateId || currentTask?.templateId || '').trim();
+        if(!templateId) return;
+        if(templateId === 'customer_data' && typeof submitCustomerDogsProposal === 'function'){
+          return submitCustomerDogsProposal();
+        }
+        try{
+          if(hint) hint.textContent = 'Vorschlag wird gespeichert …';
+          const info = customerContextIds();
+          const customer = info.customer || {};
+          const pet = info.pet || {};
+          const customerName = String(customer.name || customer.fullName || getUserEmail() || 'Kunde');
+          const baseCustomer = { id: info.customerId || '', name: customer.name || '', email: customer.email || getUserEmail() || '', phone: customer.phone || '' };
+          const basePet = { id: info.petId || '', name: pet.name || '', breed: pet.breed || '', sex: pet.sex || '' };
+          let payloadSubmitted = { source: 'customer-'+templateId, mode:'proposal' };
+          let litePayloadSubmitted = { source: 'customer-'+templateId, mode:'proposal-cloud-fallback' };
+          let title = templateId === 'boarding_contract' ? 'Betreuungsvertrag Vorschlag' : 'Neuer Aufenthalt Vorschlag';
+          if(templateId === 'hundeannahme'){
+            collectCustomerRealEditor('hundeannahme');
+            const fields = Object.assign({}, currentDoc?.fields || {});
+            const meta = Object.assign({}, currentDoc?.meta || {});
+            fields.dogName = fields.dogName || pet.name || '';
+            payloadSubmitted = Object.assign(payloadSubmitted, { customer: baseCustomer, pet: basePet, fields, meta });
+            litePayloadSubmitted = Object.assign(litePayloadSubmitted, { customer: { name: baseCustomer.name, email: baseCustomer.email }, pet: { name: basePet.name }, fields: { notes: String(fields.notes || '') }, meta: { von: String(meta.von || ''), bis: String(meta.bis || ''), betreuung: String(meta.betreuung || '') } });
+          } else if(templateId === 'boarding_contract'){
+            const cs = document.getElementById('contractCustomerSelect');
+            const ps = document.getElementById('contractPetSelect');
+            const accept = document.getElementById('contractAcceptChk');
+            const customerId = String(cs?.value || info.customerId || '');
+            const petId = String(ps?.value || info.petId || '');
+            if(!customerId || !petId){ alert('Bitte zuerst Kunde und Hund wählen.'); return; }
+            if(!accept?.checked){ alert('Bitte den Betreuungsvertrag bestätigen.'); return; }
+            const version = String((window.state && state.contractVersion) || 'v1.0');
+            const sigStore = (window.state && state.contractSignatures) || {};
+            const sigRec = sigStore[version + '__' + customerId + '__' + petId] || null;
+            if(!sigRec || !sigRec.dataUrl){ alert('Bitte zuerst unterschreiben.'); return; }
+            const selectedCustomer = (info.ctx?.state?.customers || []).find(x => String(x?.id||x?.customerId||'') === customerId) || customer;
+            const selectedPet = (info.ctx?.pets || []).find(x => String(x?.id||x?.petId||'') === petId) || pet;
+            const fields = {
+              contractAccepted: true,
+              contractVersion: version,
+              customerName: String(selectedCustomer?.name || baseCustomer.name || ''),
+              dogName: String(selectedPet?.name || basePet.name || ''),
+              signatureDataUrl: String(sigRec.dataUrl || ''),
+              signatureAt: sigRec.signedAt || Date.now()
+            };
+            const meta = { customerId, petId, version };
+            payloadSubmitted = Object.assign(payloadSubmitted, { customer: { id: customerId, name: fields.customerName, email: selectedCustomer?.email || baseCustomer.email || '' }, pet: { id: petId, name: fields.dogName }, fields, meta });
+            litePayloadSubmitted = Object.assign(litePayloadSubmitted, { customer: { name: fields.customerName, email: selectedCustomer?.email || baseCustomer.email || '' }, pet: { name: fields.dogName }, fields: { contractAccepted: true, contractVersion: version }, meta });
+          } else {
+            return;
+          }
+          const res = await (window.dsSubmitCustomerPortalProposal ? window.dsSubmitCustomerPortalProposal({
+            templateId,
+            title,
+            customerId: String(payloadSubmitted?.customer?.id || info.customerId || ''),
+            petId: String(payloadSubmitted?.pet?.id || info.petId || ''),
+            customerName,
+            payloadSubmitted,
+            litePayloadSubmitted
+          }) : Promise.reject(new Error('Vorschlagsfunktion nicht verfügbar')));
+          if(currentTask) setDraft(currentTask.id || currentTask.taskId || currentTask.templateId, {});
+          if(hint) hint.textContent = res && res.ok ? '✅ Vorschlag gespeichert und an Eingänge übergeben.' : '✅ Vorschlag lokal vorgemerkt.';
+          alert(res && res.ok ? (templateId === 'boarding_contract' ? 'Betreuungsvertrag als Vorschlag gespeichert und an Eingänge übergeben.' : 'Aufenthaltsanfrage als Vorschlag gespeichert und an Eingänge übergeben.') : 'Vorschlag lokal vorgemerkt.');
+          if(templateId === 'hundeannahme') closeInlineEditor('hundeannahme');
+          setView(templateId === 'boarding_contract' ? 'contract' : 'stay');
+          refreshCustomUI();
+        }catch(err){
+          console.error('submitCurrentCustomerTaskProposal failed', err);
+          if(hint) hint.textContent = '❌ Vorschlag konnte nicht gespeichert werden.';
+          alert('Vorschlag konnte nicht gespeichert werden: ' + String(err?.message || err || 'Unbekannter Fehler'));
+        }
       }
       function customerField(label,key,value,type){
         const safe = (value ?? '');
@@ -732,7 +804,7 @@ document.getElementById('btnCustomerTaskSubmit')?.addEventListener('click', ()=>
         const back = document.getElementById('btnInlineBack');
         const submit = document.getElementById('btnInlineSubmit');
         if(back){ back.onclick = ()=> closeInlineEditor(templateId); }
-        if(submit){ submit.onclick = ()=> { saveCurrentCustomerEditor(); alert(templateId==='hundeannahme' ? 'Anfrage lokal gespeichert. Die Übergabe an Eingänge folgt im nächsten Schritt.' : 'Änderungen lokal gespeichert. Die Übergabe an Eingänge folgt im nächsten Schritt.'); }; }
+        if(submit){ submit.onclick = ()=> { saveCurrentCustomerEditor(); submitCurrentCustomerTaskProposal(templateId); }; }
       }
       function renderInlineEditorShell(templateId, title, sub){
         const host = document.getElementById(templateId==='hundeannahme' ? 'stayEditorHost' : 'dogsEditorHost');
@@ -830,6 +902,7 @@ function renderStayRealForm(doc){
       function renderContractCustomerMode(){
         const wrap = document.getElementById('customerTaskEditorWrap');
         if(wrap) wrap.classList.remove('is-active');
+        try{ window.__dsCustomerContractSubmitHook = function(){ submitCurrentCustomerTaskProposal('boarding_contract'); }; }catch(_){ }
         try{ if(typeof renderContractPanel==='function') renderContractPanel(); }catch(e){ console.error(e); }
         const shell = document.querySelector('#view-contract .contract-shell, #view-contract .row');
         if(shell) shell.classList.add('contract-shell-customer');
@@ -852,6 +925,7 @@ function renderStayRealForm(doc){
           try{ ps.dispatchEvent(new Event('change',{bubbles:true})); }catch(_){ }
         }
         const adminBox = document.getElementById('contractAdminBox'); if(adminBox) adminBox.style.display='none';
+        const saveBtn = document.getElementById('contractSaveBtn'); if(saveBtn) saveBtn.textContent = 'Vorschlag senden';
         try{
           const contractView = document.getElementById('view-contract');
           contractView?.querySelectorAll('.card,.field,label,span,div,p').forEach(el=>{

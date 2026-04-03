@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB153_CUSTOMER_PAWSTART_NAVCLEAN_20260403_ROOTONLY",
+  tag: "M50.9.9GB154_CUSTOMER_CONTRACT_STAY_PROPOSALS_20260403_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB153_CUSTOMER_PAWSTART_NAVCLEAN_20260403_ROOTONLY";
+const APP_BUILD = "M50.9.9GB154_CUSTOMER_CONTRACT_STAY_PROPOSALS_20260403_ROOTONLY";
 
 function dsSyncDiagStateSummary(){
   try{
@@ -1961,6 +1961,95 @@ function getCustomerMainDogsContext(){
   const pets = Array.isArray(state.pets) ? state.pets.filter(p => customer ? String(p.customerId||'') === String(customer.id||customer.customerId||'') : false) : [];
   return { email, uid: uidVal, customer: customer || null, customerId: customer ? String(customer.id || customer.customerId || '') : '', pets };
 }
+
+async function dsSubmitCustomerPortalProposal(opts){
+  opts = opts || {};
+  ensureStateShape();
+  const authUser = await cpWaitForFirebaseUser(10000);
+  if(!authUser || !authUser.uid) throw new Error('Keine aktive Firebase-Anmeldung. Bitte Kunden-App kurz neu öffnen und erneut versuchen.');
+  try{ window.CLOUD = window.CLOUD || {}; CLOUD.user = authUser; if(!CLOUD.orgId) CLOUD.orgId = dsResolveCloudOrgId(); }catch(_){ }
+  const stamp = Date.now();
+  const payloadSubmitted = opts.payloadSubmitted || {};
+  const templateId = String(opts.templateId || '').trim() || 'customer_data';
+  const title = String(opts.title || templateId || 'Vorschlag').trim();
+  const baseTask = {
+    id: uid(), taskId: uid(),
+    templateId,
+    title,
+    status: 'submitted',
+    proposalStatus: 'pending',
+    submittedAt: stamp,
+    createdAt: stamp,
+    updatedAt: stamp,
+    customerUid: String(authUser.uid || ''),
+    customerEmail: String(authUser.email || '').trim().toLowerCase(),
+    customerName: String(opts.customerName || authUser.email || 'Kunde'),
+    customerId: String(opts.customerId || ''),
+    dogId: String(opts.petId || opts.dogId || ''),
+    petId: String(opts.petId || opts.dogId || ''),
+    payloadSubmitted
+  };
+  let cloudWriteOk = false, cloudWriteErr = null, cloudWritePath = '';
+  const litePayload = opts.litePayloadSubmitted || { source: String(payloadSubmitted.source || ('customer-' + templateId + '-fallback')), mode:'proposal-cloud-fallback' };
+  const taskLite = { ...baseTask, payloadSubmitted: litePayload };
+  if(CLOUD?.enabled){
+    try{
+      const col = cloudProposalsCol && cloudProposalsCol();
+      if(!col || typeof col.doc !== 'function') throw new Error('cloud-proposals-unavailable');
+      await col.doc(baseTask.id).set(baseTask, {merge:true});
+      cloudWriteOk = true; cloudWritePath = 'proposals';
+    }catch(err){ cloudWriteErr = err; console.warn('dsSubmitCustomerPortalProposal proposals write failed', err); }
+    if(cloudWriteOk){
+      try{
+        const tcolMirror = cloudTasksCol && cloudTasksCol();
+        if(tcolMirror && typeof tcolMirror.doc === 'function'){
+          await tcolMirror.doc(baseTask.id).set({ ...taskLite, mirroredFromProposal:true, updatedAt: Date.now() }, {merge:true});
+          cloudWritePath = 'proposals+tasks';
+        }
+      }catch(mirrorErr){ console.warn('dsSubmitCustomerPortalProposal tasks mirror failed', mirrorErr); }
+    }
+    if(!cloudWriteOk){
+      try{
+        const col = cloudTasksCol && cloudTasksCol();
+        if(!col || typeof col.doc !== 'function') throw new Error('cloud-tasks-unavailable');
+        await col.doc(baseTask.id).set(taskLite, {merge:true});
+        cloudWriteOk = true; cloudWritePath = 'tasks';
+      }catch(err2){ cloudWriteErr = err2 || cloudWriteErr; console.warn('dsSubmitCustomerPortalProposal tasks fallback failed', err2); }
+    }
+  }
+  const storeLocal = function(taskObj){
+    try{
+      const raw = localStorage.getItem(LS_KEY); const local = raw ? JSON.parse(raw) : {};
+      local.inboxAssignments = Array.isArray(local.inboxAssignments) ? local.inboxAssignments : [];
+      local.inboxAssignments.unshift(taskObj);
+      localStorage.setItem(LS_KEY, JSON.stringify(local));
+    }catch(localErr){
+      const reason = [cloudWriteErr?.code, cloudWriteErr?.message, localErr?.message, localErr, cloudWriteErr, 'Unbekannter Fehler'].filter(Boolean).join(' · ');
+      throw new Error(String(reason));
+    }
+  };
+  if(!cloudWriteOk){
+    const taskLocal = { ...taskLite, payloadSubmitted: { ...(taskLite.payloadSubmitted||{}), mode:'proposal-local-fallback' } };
+    storeLocal(taskLocal);
+    try{ pushCustomerProposalBuffer(taskLocal); }catch(_){ }
+  } else {
+    const mirroredTask = cloudWritePath === 'tasks' ? taskLite : baseTask;
+    try{ pushCustomerProposalBuffer(mirroredTask); }catch(_){ }
+    try{ storeLocal({ ...mirroredTask, mirroredFromCloud:true }); }catch(_){ }
+    try{
+      ensureStateShape();
+      state.inboxAssignments = Array.isArray(state.inboxAssignments) ? state.inboxAssignments : [];
+      state.inboxSubmissions = Array.isArray(state.inboxSubmissions) ? state.inboxSubmissions : [];
+      const mirrored = { ...mirroredTask, mirroredFromCloud:true };
+      state.inboxAssignments.unshift(mirrored);
+      state.inboxSubmissions.unshift(mirrored);
+      saveState();
+    }catch(_){ }
+  }
+  return { ok: !!cloudWriteOk, path: cloudWritePath || (cloudWriteOk ? 'proposals' : 'local'), error: cloudWriteErr || null, task: baseTask };
+}
+window.dsSubmitCustomerPortalProposal = dsSubmitCustomerPortalProposal;
+
 async function submitCustomerDogsProposal(){
   try{
     ensureStateShape();
@@ -16677,6 +16766,12 @@ function renderContractPanel(){
           return;
         }
         if (isSaveBtn){
+          try{
+            if (typeof window.__dsCustomerContractSubmitHook === 'function' && document.getElementById('customerPortal')){
+              window.__dsCustomerContractSubmitHook();
+              return;
+            }
+          }catch(_){ }
           saveContractSelection();
           return;
         }
@@ -21001,7 +21096,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB153_CUSTOMER_PAWSTART_NAVCLEAN_20260403_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB154_CUSTOMER_CONTRACT_STAY_PROPOSALS_20260403_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -22974,7 +23069,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB153_CUSTOMER_PAWSTART_NAVCLEAN_20260403_ROOTONLY";
+  const BUILD = "M50.9.9GB154_CUSTOMER_CONTRACT_STAY_PROPOSALS_20260403_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
