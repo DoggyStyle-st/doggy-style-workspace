@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB144_SYNC_PAYLOAD_SECTIONTRACE_20260403_ROOTONLY",
+  tag: "M50.9.9GB145_CLOUDWRITE_CALLSITE_TRACE_RETRY_20260403_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB144_SYNC_PAYLOAD_SECTIONTRACE_20260403_ROOTONLY";
+const APP_BUILD = "M50.9.9GB145_CLOUDWRITE_CALLSITE_TRACE_RETRY_20260403_ROOTONLY";
 
 function dsSyncDiagStateSummary(){
   try{
@@ -165,6 +165,51 @@ function dsPrepareCloudPayload(src){
   const stats = { droppedCount:0, droppedPaths:[], droppedKinds:{} };
   const clean = dsSanitizeCloudPayload(src, 'payload', new WeakSet(), stats) || {};
   return { clean, stats };
+}
+
+
+function dsStrictJsonReplacer(key, value){
+  try{
+    if(value === undefined) return null;
+    const t = typeof value;
+    if(t === 'function' || t === 'symbol') return null;
+    if(t === 'bigint') return String(value);
+    if(t === 'number') return Number.isFinite(value) ? value : null;
+    if(value === null) return null;
+    if(value instanceof Date) return value.getTime();
+    if(value instanceof RegExp) return String(value);
+    if(value instanceof Error) return { name:String(value.name||'Error'), message:String(value.message||'') };
+    try{ if(typeof URL !== 'undefined' && value instanceof URL) return String(value); }catch(_){ }
+    try{ if(typeof Blob !== 'undefined' && value instanceof Blob) return null; }catch(_){ }
+    try{ if(typeof File !== 'undefined' && value instanceof File) return null; }catch(_){ }
+    try{ if(typeof window !== 'undefined'){ if(value === window || value === document) return null; if(typeof Node !== 'undefined' && value instanceof Node) return null; if(typeof Event !== 'undefined' && value instanceof Event) return null; } }catch(_){ }
+    try{ if(value && typeof value.toMillis === 'function') return Number(value.toMillis()); }catch(_){ }
+    try{ if(value && typeof value.seconds === 'number' && typeof value.nanoseconds === 'number') return (value.seconds * 1000) + Math.floor((value.nanoseconds||0) / 1000000); }catch(_){ }
+    try{ if(typeof Map !== 'undefined' && value instanceof Map) return Object.fromEntries(Array.from(value.entries()).map(function(entry){ return [String(entry[0]), entry[1]]; })); }catch(_){ }
+    try{ if(typeof Set !== 'undefined' && value instanceof Set) return Array.from(value.values()); }catch(_){ }
+    if(Array.isArray(value)) return value;
+    if(value && typeof value === 'object'){
+      const proto = Object.getPrototypeOf(value);
+      if(proto && proto !== Object.prototype){
+        try{ if(typeof value.toJSON === 'function') return value.toJSON(); }catch(_){ }
+        const out = {};
+        try{ Object.keys(value).forEach(function(k){ out[k] = value[k]; }); }catch(_){ }
+        return out;
+      }
+    }
+    return value;
+  }catch(_){
+    return null;
+  }
+}
+function dsPrepareCloudPayloadStrict(src){
+  try{
+    const json = JSON.stringify(src, dsStrictJsonReplacer);
+    const clean = json ? JSON.parse(json) : {};
+    return { clean: clean || {}, stats:{ mode:'json-replacer' } };
+  }catch(err){
+    return { clean: {}, stats:{ mode:'json-replacer', error:String((err && err.message) || err || 'unknown') } };
+  }
 }
 
 function dsTracePayloadSections(payload){
@@ -836,7 +881,7 @@ ${netLine}
 ${detailsCloudLine}
 Cloud-Ping: ${fmtDT(SYNC.cloudReachCheckedAt)}${SYNC.cloudReachError ? ' · '+SYNC.cloudReachError : ''}${syncDiagLine ? '\nSyncDiag: ' + syncDiagLine : ''}`;
   }
-  try{ if(SYNC.cloudLastError){ dsSetSyncDiag('lastError=' + String(SYNC.cloudLastError || '') + ' · ' + dsSyncDiagStateSummary(), true); } else if(!(window.__dsSyncDiag && window.__dsSyncDiag.current)) { dsRenderSyncDiag(); } }catch(_){ }
+  try{ if(SYNC.cloudLastError){ const msg=String(SYNC.cloudLastError || ''); dsSetSyncDiag((/^lastError=/.test(msg)?msg:('lastError=' + msg)) + ' · ' + dsSyncDiagStateSummary(), true); } else if(!(window.__dsSyncDiag && window.__dsSyncDiag.current)) { dsRenderSyncDiag(); } }catch(_){ }
   if(manualBtn){
     const ok = !!(CLOUD.enabled && resolvedUser);
     if(!cloudIsEnabled()){
@@ -1671,8 +1716,8 @@ async function cloudPushNow(){
   // last write wins (v1). Später: echtes Merge pro Objekt.
   try{
     const ref = cloudStateRef();
-  if(!ref){ try{ dsSetSyncDiag('cloudPush:no-ref · ' + dsSyncDiagStateSummary(), true); }catch(_){ } return; }
-  await ref.set({
+    if(!ref){ try{ dsSetSyncDiag('cloudPush:no-ref · ' + dsSyncDiagStateSummary(), true); }catch(_){ } return; }
+    await ref.set({
       payload: safeState,
       updatedAt: stamp,
       updatedBy: CLOUD.user.email || CLOUD.user.uid
@@ -1685,16 +1730,50 @@ async function cloudPushNow(){
     SYNC.cloudPending = false;
   }catch(e){
     const errMsg = String(e?.message||e||"Cloud write failed");
+    const sample = ((prepared && prepared.stats && prepared.stats.droppedPaths) || []).slice(0,4).join(', ');
+    const first = (payloadTrace && payloadTrace.first) || null;
+    const trace = first ? (' first=' + String(first.section || '--') + '/' + String(first.kind || '--') + '@' + String(first.path || '--')) : (payloadTrace && payloadTrace.summary ? (' sections=' + String(payloadTrace.summary || '').slice(0,220)) : '');
+    let detail = 'msg=' + errMsg + trace + (((prepared && prepared.stats && prepared.stats.droppedCount) || 0) ? ' drop=' + String((prepared && prepared.stats && prepared.stats.droppedCount) || 0) : '') + (sample ? ' sample=' + sample : '');
+    try{ dsSetSyncDiag('cloudPush:fail ' + detail + ' · ' + dsSyncDiagStateSummary(), true); }catch(_){ }
+    let retried = false;
     try{
-      const sample = ((prepared && prepared.stats && prepared.stats.droppedPaths) || []).slice(0,4).join(', ');
-      const first = (payloadTrace && payloadTrace.first) || null;
-      const trace = first ? (' first=' + String(first.section || '--') + '/' + String(first.kind || '--') + '@' + String(first.path || '--')) : (payloadTrace && payloadTrace.summary ? (' sections=' + String(payloadTrace.summary || '').slice(0,220)) : '');
-      dsSetSyncDiag('cloudPush:fail msg=' + errMsg + trace + (((prepared && prepared.stats && prepared.stats.droppedCount) || 0) ? ' drop=' + String((prepared && prepared.stats && prepared.stats.droppedCount) || 0) : '') + (sample ? ' sample=' + sample : '') + ' · ' + dsSyncDiagStateSummary(), true);
-    }catch(_){ }
-    CLOUD.lastPushError = errMsg;
-    SYNC.cloudLastError = CLOUD.lastPushError;
-    SYNC.cloudPending = false;
-    throw e;
+      const strictPrepared = dsPrepareCloudPayloadStrict(state);
+      const strictState = (strictPrepared && strictPrepared.clean) ? strictPrepared.clean : {};
+      try{ if(strictState && typeof strictState === 'object'){ strictState._cloudUpdatedAt = stamp; if(strictState._localUpdatedAt == null) strictState._localUpdatedAt = stamp; } }catch(_){ }
+      const strictTrace = dsTracePayloadSections(strictState);
+      try{ window.__dsPayloadTraceStrict = strictTrace; }catch(_){ }
+      try{ dsSetSyncDiag('cloudPush:retry-strict mode=' + String((strictPrepared && strictPrepared.stats && strictPrepared.stats.mode) || 'json') + ((strictPrepared && strictPrepared.stats && strictPrepared.stats.error) ? ' prepErr=' + String(strictPrepared.stats.error) : '') + ' · ' + dsSyncDiagStateSummary(), false); }catch(_){ }
+      const ref2 = cloudStateRef();
+      if(ref2){
+        await ref2.set({
+          payload: strictState,
+          updatedAt: stamp,
+          updatedBy: CLOUD.user.email || CLOUD.user.uid
+        }, {merge:true});
+        retried = true;
+        const strictFirst = (strictTrace && strictTrace.first) || null;
+        const strictDetail = strictFirst ? (' strictFirst=' + String(strictFirst.section || '--') + '/' + String(strictFirst.kind || '--') + '@' + String(strictFirst.path || '--')) : '';
+        try{ dsSetSyncDiag('cloudPush:retry-ok updatedAt=' + String(stamp) + strictDetail + ' · ' + dsSyncDiagStateSummary(), false); }catch(_){ }
+        CLOUD.lastPushOkAt = stamp;
+        CLOUD.lastPushError = "";
+        SYNC.cloudLastOkAt = stamp;
+        SYNC.cloudLastError = "";
+        SYNC.cloudPending = false;
+      }
+    }catch(retryErr){
+      const retryMsg = String((retryErr && retryErr.message) || retryErr || 'retry-failed');
+      const strictTrace = (typeof window !== 'undefined' && window.__dsPayloadTraceStrict) ? window.__dsPayloadTraceStrict : null;
+      const strictFirst = (strictTrace && strictTrace.first) || null;
+      const retryTrace = strictFirst ? (' strictFirst=' + String(strictFirst.section || '--') + '/' + String(strictFirst.kind || '--') + '@' + String(strictFirst.path || '--')) : (strictTrace && strictTrace.summary ? (' strictSections=' + String(strictTrace.summary || '').slice(0,220)) : '');
+      detail += ' retry=' + retryMsg + retryTrace;
+      try{ dsSetSyncDiag('cloudPush:retry-fail ' + detail + ' · ' + dsSyncDiagStateSummary(), true); }catch(_){ }
+    }
+    if(!retried){
+      CLOUD.lastPushError = detail;
+      SYNC.cloudLastError = CLOUD.lastPushError;
+      SYNC.cloudPending = false;
+      throw e;
+    }
   }finally{
     updateSyncUI();
   }
