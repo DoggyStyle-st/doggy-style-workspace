@@ -7,7 +7,7 @@
   <link href="manifest.json" rel="manifest"/>
   <meta name="theme-color" content="#101014"/>
   <link href="assets/logo.png" rel="apple-touch-icon"/>
-  <link href="styles.css?v=M50.9.9GB154_CUSTOMER_CONTRACT_STAY_PROPOSALS_20260403_ROOTONLY" rel="stylesheet"/>
+  <link href="styles.css?v=M50.9.9GB155_CUSTOMER_CONTRACT_STAY_MAINAPPFLOW_20260403_ROOTONLY" rel="stylesheet"/>
   <style>
     body.bg-watermark{background:radial-gradient(circle at top, rgba(255,255,255,.08), transparent 35%), linear-gradient(180deg,#0e1017 0%, #121521 100%) !important}
     body.bg-watermark::before{opacity:.12 !important;filter:none !important}
@@ -231,18 +231,18 @@
     <div class="customer-hidden" id="customerTaskListCard"></div>
     <div class="customer-hidden list" id="customerTaskList"></div>
     <div class="customer-hidden" id="customerPortalSubtitle"></div>
-    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9GB154_CUSTOMER_CONTRACT_STAY_PROPOSALS_20260403_ROOTONLY</div>
+    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9GB155_CUSTOMER_CONTRACT_STAY_MAINAPPFLOW_20260403_ROOTONLY</div>
   </main>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
-  <script src="firebase-config.js?v=M50.9.9GB154_CUSTOMER_CONTRACT_STAY_PROPOSALS_20260403_ROOTONLY"></script>
-  <script src="app.js?v=M50.9.9GB154_CUSTOMER_CONTRACT_STAY_PROPOSALS_20260403_ROOTONLY"></script>
+  <script src="firebase-config.js?v=M50.9.9GB155_CUSTOMER_CONTRACT_STAY_MAINAPPFLOW_20260403_ROOTONLY"></script>
+  <script src="app.js?v=M50.9.9GB155_CUSTOMER_CONTRACT_STAY_MAINAPPFLOW_20260403_ROOTONLY"></script>
   <script>
     (function(){
-      const BUILD = 'Build CUSTOMER M50.9.9GB154_CUSTOMER_CONTRACT_STAY_PROPOSALS_20260403_ROOTONLY';
+      const BUILD = 'Build CUSTOMER M50.9.9GB155_CUSTOMER_CONTRACT_STAY_MAINAPPFLOW_20260403_ROOTONLY';
       const DRAFT_KEY = 'ds_customer_app_drafts_v1';
       const viewNames = ['home','dogs','contract','stay','chat'];
       let currentView = 'home';
@@ -995,30 +995,28 @@ function renderStayRealForm(doc){
         // btnCustomerDogsHome removed; paw/start navigation is used instead.
       }
 
+      function openCustomerMainAppMode(mode){
+        try{
+          const safeMode = ['dogs','contract','stay'].includes(String(mode||'')) ? String(mode||'') : 'dogs';
+          try{ sessionStorage.setItem('ds_customer_main_mode', safeMode); }catch(_){ }
+          try{ sessionStorage.setItem('ds_customer_auth_handoff_ts', String(Date.now())); }catch(_){ }
+          try{ const u = (window.firebase && firebase.auth) ? firebase.auth().currentUser : null; if(u){ sessionStorage.setItem('ds_customer_auth_handoff_uid', String(u.uid||'')); sessionStorage.setItem('ds_customer_auth_handoff_email', String(u.email||'')); } }catch(_){ }
+          location.href = 'app.html?customer_mode=' + encodeURIComponent(safeMode);
+        }catch(e){
+          console.error('redirect to app customer mode failed', mode, e);
+          setStatus('Open-Fehler ' + safeMode + '-button');
+        }
+      }
+
       function bindMainEditorOpeners(){
         const bind = (id, fn)=>{
           const el = document.getElementById(id);
           if(!el) return;
           el.onclick = function(ev){ try{ ev.preventDefault(); }catch(_){} try{ fn(); }catch(e){ console.error('customer opener failed', id, e); setStatus('Open-Fehler ' + id); } };
         };
-        bind('btnOpenNewStay', ()=>{ setView('stay'); setTimeout(()=>openRealSection('hundeannahme', makeSyntheticTask('hundeannahme', 'Neuer Aufenthalt')), 0); });
-        bind('btnCustomerOpenDogsTask', ()=>{
-          try{
-            try{ sessionStorage.setItem('ds_customer_main_mode','dogs'); }catch(_){ }
-            try{ sessionStorage.setItem('ds_customer_auth_handoff_ts', String(Date.now())); }catch(_){ }
-            try{ const u = (window.firebase && firebase.auth) ? firebase.auth().currentUser : null; if(u){ sessionStorage.setItem('ds_customer_auth_handoff_uid', String(u.uid||'')); sessionStorage.setItem('ds_customer_auth_handoff_email', String(u.email||'')); } }catch(_){ }
-            location.href = 'app.html?customer_mode=dogs';
-          }catch(e){
-            console.error('redirect to app customer mode failed', e);
-            setStatus('Open-Fehler dogs-button');
-          }
-        });
-        bind('btnCustomerOpenContractTask', ()=>{
-          setView('contract');
-          const tasks = getTasks();
-          const t = tasks.find(x=>String(x.templateId||'')==='boarding_contract');
-          setTimeout(()=>openRealSection('boarding_contract', t || makeSyntheticTask('boarding_contract', 'Betreuungsvertrag')), 0);
-        });
+        bind('btnOpenNewStay', ()=> openCustomerMainAppMode('stay'));
+        bind('btnCustomerOpenDogsTask', ()=> openCustomerMainAppMode('dogs'));
+        bind('btnCustomerOpenContractTask', ()=> openCustomerMainAppMode('contract'));
       }
 
       function ensureCustomerEditorVisible(view){

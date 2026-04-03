@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB154_CUSTOMER_CONTRACT_STAY_PROPOSALS_20260403_ROOTONLY",
+  tag: "M50.9.9GB155_CUSTOMER_CONTRACT_STAY_MAINAPPFLOW_20260403_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB154_CUSTOMER_CONTRACT_STAY_PROPOSALS_20260403_ROOTONLY";
+const APP_BUILD = "M50.9.9GB155_CUSTOMER_CONTRACT_STAY_MAINAPPFLOW_20260403_ROOTONLY";
 
 function dsSyncDiagStateSummary(){
   try{
@@ -386,7 +386,7 @@ async function dsProbeCloudSuspectSections(ref, payload){
   return results;
 }
 try{ window.__dsProbeDump = function(){ try{ return JSON.stringify(window.__dsProbeResults || [], null, 2); }catch(_){ return ''; } }; }catch(_){ }
-try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
+try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=(dogs|contract|stay)(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainCustomerModeUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
 // NOTE:
@@ -1917,7 +1917,7 @@ function hideStaffUIForCustomer(){
 }
 function showStaffUI(){
   try{
-    if(isCustomerMainDogsMode()) return;
+    if(isCustomerMainMode()) return;
     const nav = document.querySelector('nav.tabs');
     if(nav) nav.style.display = '';
     $$('.panel').forEach(p=>{ p.style.display = ''; });
@@ -1936,13 +1936,23 @@ function showStaffUI(){
   }catch(_){ }
 }
 
-function isCustomerMainDogsMode(){
+function getCustomerMainMode(){
   try{
     const p = (location && location.pathname) ? location.pathname.toLowerCase() : '';
     const qs = new URLSearchParams((location && location.search) ? location.search : '');
-    const forced = qs.get('customer_mode') === 'dogs';
-    return (p.endsWith('/app.html') || p.endsWith('app.html')) && forced;
+    const forced = String(qs.get('customer_mode') || '').trim().toLowerCase();
+    if(!((p.endsWith('/app.html') || p.endsWith('app.html')) && forced)) return '';
+    return ['dogs','contract','stay'].includes(forced) ? forced : '';
+  }catch(_){ return ''; }
+}
+function isCustomerMainMode(mode){
+  try{
+    const current = getCustomerMainMode();
+    return mode ? current === String(mode||'') : !!current;
   }catch(_){ return false; }
+}
+function isCustomerMainDogsMode(){
+  try{ return isCustomerMainMode('dogs'); }catch(_){ return false; }
 }
 function getCustomerMainDogsContext(){
   const email = String(CLOUD?.user?.email || '').trim().toLowerCase();
@@ -2247,9 +2257,11 @@ async function submitCustomerDogsProposal(){
   }catch(err){ console.error('submitCustomerDogsProposal failed', err); cpSetStatus('Senden fehlgeschlagen.', true); alert('Senden fehlgeschlagen: ' + String(err?.message || err || 'Unbekannter Fehler')); }
 }
 
-function enforceCustomerMainDogsUI(){
-  try{ document.body.dataset.customerMode = 'dogs'; }catch(_){ }
-  try{ sessionStorage.setItem('ds_customer_main_mode','dogs'); }catch(_){ }
+function enforceCustomerMainCustomerModeUI(){
+  const mode = getCustomerMainMode() || 'dogs';
+  const targetTab = (mode === 'dogs') ? 'dogs' : ((mode === 'contract') ? 'contract' : 'documents');
+  try{ document.body.dataset.customerMode = mode; }catch(_){ }
+  try{ sessionStorage.setItem('ds_customer_main_mode', mode); }catch(_){ }
   try{ showAuthGate(false); }catch(_){ }
   try{
     const startPaw = document.querySelector('.paw-start');
@@ -2258,17 +2270,13 @@ function enforceCustomerMainDogsUI(){
       startPaw.disabled = false;
       startPaw.style.pointerEvents = 'auto';
       startPaw.setAttribute('aria-hidden','false');
-      startPaw.onclick = function(ev){
-        try{ ev.preventDefault(); ev.stopPropagation(); }catch(_){ }
-        try{ location.href = 'customer.html'; }catch(_){ }
-        return false;
-      };
+      startPaw.onclick = function(ev){ try{ ev.preventDefault(); ev.stopPropagation(); }catch(_){ } try{ location.href = 'customer.html'; }catch(_){ } return false; };
     }
   }catch(_){ }
   try{ const nav = document.querySelector('nav.tabs'); if(nav) nav.style.display = ''; }catch(_){ }
   try{ document.querySelectorAll('.tab').forEach(btn=>{
     const t = String(btn.dataset.tab || '');
-    const allow = (t === 'dogs' || t === 'home');
+    const allow = (t === targetTab || t === 'home');
     btn.style.display = allow ? '' : 'none';
     btn.disabled = !allow;
     btn.style.pointerEvents = allow ? 'auto' : 'none';
@@ -2276,24 +2284,139 @@ function enforceCustomerMainDogsUI(){
   }); }catch(_){ }
   try{ const top = document.getElementById('btnLogoutTop'); if(top) top.style.display = 'inline-flex'; }catch(_){ }
   try{ const app = document.getElementById('btnLogoutApp'); if(app) app.style.display = 'inline-block'; }catch(_){ }
-  try{ const btnAddDog = document.getElementById('btnAddDog'); if(btnAddDog){ btnAddDog.style.display = 'none'; btnAddDog.disabled = true; } }catch(_){ }
   try{ const userEl = document.getElementById('syncUser'); if(userEl) userEl.style.display = 'none'; }catch(_){ }
-  try{ document.querySelectorAll('.panel').forEach(p=>{ const keep = (p.id === 'dogs'); p.style.display = keep ? '' : 'none'; p.classList.toggle('is-active', keep); }); }catch(_){ }
-  try{ document.querySelectorAll('#quickActions .btn, .start-actions .btn, .panel .btn[data-tab], .hero-card, .glass-card, .quick-card').forEach(el=>{ if(!el.closest('#dogs')) el.style.display = 'none'; }); }catch(_){ }
-  try{ if(typeof selectTab === 'function') selectTab('dogs'); }catch(_){ }
+  try{ const btnAddDog = document.getElementById('btnAddDog'); if(btnAddDog){ btnAddDog.style.display = (mode === 'dogs' ? 'none' : btnAddDog.style.display); btnAddDog.disabled = (mode === 'dogs'); } }catch(_){ }
+  try{ document.querySelectorAll('.panel').forEach(p=>{ const keep = (p.id === targetTab); p.style.display = keep ? '' : 'none'; p.classList.toggle('is-active', keep); }); }catch(_){ }
+  try{ document.querySelectorAll('#quickActions .btn, .start-actions .btn, .panel .btn[data-tab], .hero-card, .glass-card, .quick-card').forEach(el=>{ if(!el.closest('#' + targetTab)) el.style.display = 'none'; }); }catch(_){ }
+  try{ if(typeof selectTab === 'function') selectTab(targetTab); }catch(_){ }
+}
+function enforceCustomerMainDogsUI(){ try{ enforceCustomerMainCustomerModeUI(); }catch(_){ } }
+
+async function submitCustomerContractProposalMain(){
+  try{
+    ensureStateShape();
+    const ctx = getCustomerMainDogsContext();
+    const cs = document.getElementById('contractCustomerSelect');
+    const ps = document.getElementById('contractPetSelect');
+    const accept = document.getElementById('contractAcceptChk');
+    const customerId = String((cs && cs.value) || ctx.customerId || '');
+    const petId = String((ps && ps.value) || ((ctx.pets[0] && (ctx.pets[0].id || ctx.pets[0].petId)) || '') || '');
+    if(!customerId || !petId){ alert('Bitte zuerst Kunde und Hund wählen.'); return; }
+    if(!(accept && accept.checked)){ alert('Bitte den Vertrag akzeptieren.'); return; }
+    const sigStore = state.contractSignatures || {};
+    const sigKey = String((state.contractVersion || 'v1.0')) + '__' + customerId + '__' + petId;
+    const rec = sigStore[sigKey];
+    if(!rec || !rec.dataUrl){ alert('Bitte zuerst unterschreiben.'); return; }
+    const customer = getCustomer(customerId) || {};
+    const pet = getPet(petId) || {};
+    const payloadSubmitted = {
+      source: 'customer-main-contract',
+      customerId, petId,
+      contractVersion: String(state.contractVersion || state.contract?.version || 'v1.0'),
+      accepted: true,
+      signature: { dataUrl: String(rec.dataUrl || ''), signedAt: rec.signedAt || Date.now() }
+    };
+    const litePayloadSubmitted = { source:'customer-main-contract', customerId, petId, accepted:true, contractVersion: payloadSubmitted.contractVersion };
+    const res = await dsSubmitCustomerPortalProposal({
+      templateId:'boarding_contract',
+      title:'Betreuungsvertrag Vorschlag',
+      customerId, petId, customerName:String(customer.name || customer.lastName || CLOUD?.user?.email || 'Kunde'),
+      payloadSubmitted, litePayloadSubmitted
+    });
+    try{ alert(res && res.ok ? 'Betreuungsvertrag als Vorschlag gespeichert und an Eingänge übergeben.' : 'Betreuungsvertrag lokal vorgemerkt.'); }catch(_){ }
+    try{ location.replace('customer.html?view=contract'); }catch(_){ }
+  }catch(err){ console.error('submitCustomerContractProposalMain failed', err); alert('Vertrag senden fehlgeschlagen: ' + String(err?.message || err || 'Unbekannter Fehler')); }
+}
+
+async function submitCustomerStayProposalMain(){
+  try{
+    ensureStateShape();
+    try{ syncStayEditorInputsToDoc(); }catch(_){ }
+    const ctx = getCustomerMainDogsContext();
+    const dogId = String(currentDoc?.dogId || '');
+    const pet = getPetByDogId(dogId) || getPet(dogId) || (ctx.pets[0] || null);
+    const customer = getCustomerByDogId(dogId) || (pet ? getCustomer(pet.customerId) : null) || ctx.customer;
+    const customerId = String((customer && (customer.id || customer.customerId)) || currentDoc?.customerId || ctx.customerId || '');
+    const petId = String((pet && (pet.id || pet.petId)) || '');
+    if(!customerId || !petId){ alert('Kunde/Hund konnten nicht zugeordnet werden.'); return; }
+    const payloadSubmitted = {
+      source:'customer-main-stay', customerId, petId,
+      meta: JSON.parse(JSON.stringify(currentDoc?.meta || {})),
+      fields: JSON.parse(JSON.stringify(currentDoc?.fields || {}))
+    };
+    const litePayloadSubmitted = {
+      source:'customer-main-stay', customerId, petId,
+      von: String(payloadSubmitted.meta?.von || ''),
+      bis: String(payloadSubmitted.meta?.bis || ''),
+      betreuung: String(payloadSubmitted.meta?.betreuung || '')
+    };
+    const res = await dsSubmitCustomerPortalProposal({
+      templateId:'hundeannahme',
+      title:'Neuer Aufenthalt Vorschlag',
+      customerId, petId, customerName:String(customer?.name || customer?.lastName || CLOUD?.user?.email || 'Kunde'),
+      payloadSubmitted, litePayloadSubmitted
+    });
+    try{ alert(res && res.ok ? 'Aufenthaltsanfrage als Vorschlag gespeichert und an Eingänge übergeben.' : 'Aufenthaltsanfrage lokal vorgemerkt.'); }catch(_){ }
+    try{ location.replace('customer.html?view=stay'); }catch(_){ }
+  }catch(err){ console.error('submitCustomerStayProposalMain failed', err); alert('Aufenthalt senden fehlgeschlagen: ' + String(err?.message || err || 'Unbekannter Fehler')); }
+}
+
+function prepareCustomerContractMode(){
+  try{ window.__dsCustomerContractSubmitHook = submitCustomerContractProposalMain; }catch(_){ }
+  try{ renderContractPanel(); }catch(e){ console.error('renderContractPanel customer contract failed', e); }
+  const ctx = getCustomerMainDogsContext();
+  const customerId = String(ctx.customerId || '');
+  const petId = String(((ctx.pets[0] && (ctx.pets[0].id || ctx.pets[0].petId)) || '') || '');
+  let tries = 0;
+  (function fill(){
+    try{
+      const cs = document.getElementById('contractCustomerSelect');
+      const ps = document.getElementById('contractPetSelect');
+      if(cs){ cs.value = customerId; cs.disabled = true; try{ cs.dispatchEvent(new Event('change',{bubbles:true})); }catch(_){ } }
+      if(ps){ if(petId) ps.value = petId; ps.disabled = true; try{ ps.dispatchEvent(new Event('change',{bubbles:true})); }catch(_){ } }
+      const saveBtn = document.getElementById('contractSaveBtn'); if(saveBtn) saveBtn.textContent = 'Vorschlag senden';
+      const adminBox = document.getElementById('contractAdminBox'); if(adminBox) adminBox.style.display = 'none';
+    }catch(_){ }
+    if(++tries < 8) setTimeout(fill, 300);
+  })();
+}
+
+function prepareCustomerStayMode(){
+  try{ window.__dsCustomerStaySubmitHook = submitCustomerStayProposalMain; }catch(_){ }
+  const ctx = getCustomerMainDogsContext();
+  try{ createStay(); }catch(e){ console.error('createStay customer stay failed', e); }
+  let tries = 0;
+  (function fill(){
+    try{
+      const dogSel = document.getElementById('stayDogSelect');
+      const custSel = document.getElementById('stayCustomerSelect');
+      const pet = ctx.pets[0] || null;
+      const dogId = String((pet && (pet.dogId || pet.id || pet.petId)) || '');
+      if(custSel){ custSel.value = String(ctx.customerId || ''); custSel.disabled = true; try{ custSel.dispatchEvent(new Event('change',{bubbles:true})); }catch(_){ } }
+      if(dogSel && dogId){ dogSel.value = dogId; dogSel.disabled = true; try{ dogSel.dispatchEvent(new Event('change',{bubbles:true})); }catch(_){ } }
+      const btnSave = document.getElementById('btnSave'); if(btnSave) btnSave.textContent = 'Vorschlag senden';
+      const btnSave2 = document.getElementById('btnStaySave2'); if(btnSave2) btnSave2.textContent = 'Vorschlag senden';
+      const btnPrint = document.getElementById('btnStayPrint'); if(btnPrint) btnPrint.style.display = 'none';
+      const btnInvoice = document.getElementById('btnCreateInvoice'); if(btnInvoice) btnInvoice.style.display = 'none';
+      const btnMed = document.getElementById('btnStayOpenMedication'); if(btnMed) btnMed.style.display = 'none';
+    }catch(_){ }
+    if(++tries < 12) setTimeout(fill, 300);
+  })();
 }
 
 function initCustomerMainDogsMode(){
   try{
     try{ cpWaitForFirebaseUser(10000).then(function(u){ try{ if(u){ window.CLOUD = window.CLOUD || {}; CLOUD.user = u; if(!CLOUD.orgId) CLOUD.orgId = dsResolveCloudOrgId(); } }catch(_){ } }).catch(function(){}); }catch(_){ }
-    enforceCustomerMainDogsUI();
+    enforceCustomerMainCustomerModeUI();
+    const mode = getCustomerMainMode() || 'dogs';
+    const targetTab = (mode === 'dogs') ? 'dogs' : ((mode === 'contract') ? 'contract' : 'documents');
     try{
       const __origShowPanelCustomer = showPanel;
-      showPanel = function(id){ return __origShowPanelCustomer('dogs'); };
+      showPanel = function(id){ return __origShowPanelCustomer(targetTab); };
     }catch(_){ }
     try{
       const __origSelectTabCustomer = selectTab;
-      selectTab = function(tabId){ return __origSelectTabCustomer(tabId === 'home' ? 'home' : 'dogs'); };
+      selectTab = function(tabId){ return __origSelectTabCustomer((tabId === 'home') ? 'home' : targetTab); };
     }catch(_){ }
     try{
       if(!window.__dsCustomerDogsClickLock){
@@ -2302,38 +2425,40 @@ function initCustomerMainDogsMode(){
           const btn = ev.target && ev.target.closest ? ev.target.closest('.tab') : null;
           if(!btn) return;
           const t = String(btn.dataset.tab || '');
-          if(t !== 'dogs'){
-            ev.preventDefault();
-            ev.stopPropagation();
-            try{ enforceCustomerMainDogsUI(); }catch(_){ }
-          }
+          if(t !== targetTab){ ev.preventDefault(); ev.stopPropagation(); try{ enforceCustomerMainCustomerModeUI(); }catch(_){ } }
         }, true);
       }
     }catch(_){ }
     try{
       if(window.__dsCustomerDogsModeTimer) clearInterval(window.__dsCustomerDogsModeTimer);
-      window.__dsCustomerDogsModeTimer = setInterval(function(){ try{ if(isCustomerMainDogsMode()) enforceCustomerMainDogsUI(); }catch(_){ } }, 600);
+      window.__dsCustomerDogsModeTimer = setInterval(function(){ try{ if(isCustomerMainMode()) enforceCustomerMainCustomerModeUI(); }catch(_){ } }, 600);
     }catch(_){ }
-    enforceCustomerMainDogsUI();
-    renderDogs();
+    enforceCustomerMainCustomerModeUI();
     const ctx = getCustomerMainDogsContext();
-    if(ctx.customerId){ fillCustomerFieldsOnly(ctx.customerId); }
-    const ownPet = ctx.pets[0] || null;
-    if(ownPet){
-      setTimeout(function(){ try{ openCpEditor('edit', ownPet.id); }catch(e){ console.error('customer main dogs open failed', e); } }, 80);
-    }else{
-      setTimeout(function(){ try{ openCpEditor('new'); }catch(e){ console.error('customer main dogs open new failed', e); } }, 80);
+    if(mode === 'dogs'){
+      renderDogs();
+      if(ctx.customerId){ fillCustomerFieldsOnly(ctx.customerId); }
+      const ownPet = ctx.pets[0] || null;
+      if(ownPet){ setTimeout(function(){ try{ openCpEditor('edit', ownPet.id); }catch(e){ console.error('customer main dogs open failed', e); } }, 80); }
+      else{ setTimeout(function(){ try{ openCpEditor('new'); }catch(e){ console.error('customer main dogs open new failed', e); } }, 80); }
+      cpSetStatus('Kundenmodus: Kunde/Hund');
+    } else if(mode === 'contract'){
+      try{ if(typeof selectTab === 'function') selectTab('contract'); }catch(_){ }
+      setTimeout(prepareCustomerContractMode, 80);
+      cpSetStatus('Kundenmodus: Betreuungsvertrag');
+    } else if(mode === 'stay'){
+      try{ if(typeof selectTab === 'function') selectTab('documents'); }catch(_){ }
+      setTimeout(prepareCustomerStayMode, 100);
+      cpSetStatus('Kundenmodus: Neuer Aufenthalt');
     }
-    cpSetStatus('Kundenmodus: Kunde/Hund');
-  }catch(e){ console.error('initCustomerMainDogsMode failed', e); }
+  }catch(e){ console.error('initCustomerMainMode failed', e); }
 }
-
 async function initCustomerPortal(){
   // Kunden sollen NICHT in die interne App – bei Direktaufruf app.html ins Kundenportal umleiten
   try{
     const p = (location && location.pathname) ? location.pathname.toLowerCase() : '';
     const qs = new URLSearchParams((location && location.search) ? location.search : '');
-    const allowMainCustomerMode = qs.get('customer_mode') === 'dogs';
+    const allowMainCustomerMode = ['dogs','contract','stay'].includes(String(qs.get('customer_mode')||''));
     if((p.endsWith('/app.html') || p.endsWith('app.html')) && !allowMainCustomerMode){
       location.replace('customer.html');
       return;
@@ -14287,12 +14412,14 @@ root.appendChild(sigCard);
       bind('btnStaySave', () => {
         try { syncStayEditorInputsToDoc(doc); } catch (_) {}
         try { warnStaySignatureMissing(doc); } catch (_) {}
+        if (typeof window.__dsCustomerStaySubmitHook === 'function' && isCustomerMainMode('stay')) { window.__dsCustomerStaySubmitHook(); return; }
         saveCurrent(true);
       });
       // Speichern im Unterschrift-Bereich
       bind('btnStaySave2', () => {
         try { syncStayEditorInputsToDoc(doc); } catch (_) {}
         try { warnStaySignatureMissing(doc); } catch (_) {}
+        if (typeof window.__dsCustomerStaySubmitHook === 'function' && isCustomerMainMode('stay')) { window.__dsCustomerStaySubmitHook(); return; }
         saveCurrent(true);
       });
       // Als PDF speichern / Drucken (falls Button existiert)
@@ -14405,7 +14532,7 @@ $("#dogSelect").addEventListener("change", () => {
   try{ renderStayQuickLinks(currentDoc); }catch(e){}
   dirty = true;
 });
-$("#btnSave").addEventListener("click",()=>saveCurrent(true));
+$("#btnSave").addEventListener("click",()=>{ if (typeof window.__dsCustomerStaySubmitHook === 'function' && isCustomerMainMode('stay')) { window.__dsCustomerStaySubmitHook(); return; } saveCurrent(true); });
 $("#btnClose").addEventListener("click",()=>{
   if(dirty && !confirm("Änderungen sind nicht gespeichert. Schließen?")) return;
   $$(".tab").forEach((t,i)=>t.classList.toggle("is-active", i===0));
@@ -21096,7 +21223,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB154_CUSTOMER_CONTRACT_STAY_PROPOSALS_20260403_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB155_CUSTOMER_CONTRACT_STAY_MAINAPPFLOW_20260403_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -23069,7 +23196,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB154_CUSTOMER_CONTRACT_STAY_PROPOSALS_20260403_ROOTONLY";
+  const BUILD = "M50.9.9GB155_CUSTOMER_CONTRACT_STAY_MAINAPPFLOW_20260403_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
