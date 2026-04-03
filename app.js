@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB146_SYNC_SUB_ASSIGN_DEEPTRACE_20260403_ROOTONLY",
+  tag: "M50.9.9GB147_SYNC_PROFILEPHOTO_FIX_CUSTOMERLOCK_20260403_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB146_SYNC_SUB_ASSIGN_DEEPTRACE_20260403_ROOTONLY";
+const APP_BUILD = "M50.9.9GB147_SYNC_PROFILEPHOTO_FIX_CUSTOMERLOCK_20260403_ROOTONLY";
 
 function dsSyncDiagStateSummary(){
   try{
@@ -161,9 +161,32 @@ function dsSanitizeCloudPayload(value, path, seen, stats){
     return undefined;
   }
 }
+
+function dsPruneProblemSyncFields(root){
+  try{
+    const topKeys = ['inboxAssignments','inboxSubmissions','assignments','submissions'];
+    topKeys.forEach(function(topKey){
+      const list = root && Array.isArray(root[topKey]) ? root[topKey] : null;
+      if(!list) return;
+      list.forEach(function(row){
+        if(!row || typeof row !== 'object') return;
+        ['payloadSubmitted','payloadDraft','payload'].forEach(function(payloadKey){
+          const payload = row[payloadKey];
+          if(!payload || typeof payload !== 'object') return;
+          const pet = payload.pet;
+          if(!pet || typeof pet !== 'object') return;
+          try{ delete pet.profilePhoto; }catch(_){ try{ pet.profilePhoto = ''; }catch(__){} }
+          try{ delete pet.vaccinationPassPhoto; }catch(_){ try{ pet.vaccinationPassPhoto = ''; }catch(__){} }
+        });
+      });
+    });
+  }catch(_){ }
+  return root;
+}
+
 function dsPrepareCloudPayload(src){
   const stats = { droppedCount:0, droppedPaths:[], droppedKinds:{} };
-  const clean = dsSanitizeCloudPayload(src, 'payload', new WeakSet(), stats) || {};
+  const clean = dsPruneProblemSyncFields(dsSanitizeCloudPayload(src, 'payload', new WeakSet(), stats) || {});
   return { clean, stats };
 }
 
@@ -205,7 +228,7 @@ function dsStrictJsonReplacer(key, value){
 function dsPrepareCloudPayloadStrict(src){
   try{
     const json = JSON.stringify(src, dsStrictJsonReplacer);
-    const clean = json ? JSON.parse(json) : {};
+    const clean = dsPruneProblemSyncFields(json ? JSON.parse(json) : {});
     return { clean: clean || {}, stats:{ mode:'json-replacer' } };
   }catch(err){
     return { clean: {}, stats:{ mode:'json-replacer', error:String((err && err.message) || err || 'unknown') } };
@@ -2151,6 +2174,7 @@ function enforceCustomerMainDogsUI(){
   }); }catch(_){ }
   try{ const top = document.getElementById('btnLogoutTop'); if(top) top.style.display = 'inline-flex'; }catch(_){ }
   try{ const app = document.getElementById('btnLogoutApp'); if(app) app.style.display = 'inline-block'; }catch(_){ }
+  try{ const btnAddDog = document.getElementById('btnAddDog'); if(btnAddDog){ btnAddDog.style.display = 'none'; btnAddDog.disabled = true; } }catch(_){ }
   try{ const userEl = document.getElementById('syncUser'); if(userEl) userEl.style.display = 'none'; }catch(_){ }
   try{ document.querySelectorAll('.panel').forEach(p=>{ const keep = (p.id === 'dogs'); p.style.display = keep ? '' : 'none'; p.classList.toggle('is-active', keep); }); }catch(_){ }
   try{ document.querySelectorAll('#quickActions .btn, .start-actions .btn, .panel .btn[data-tab], .hero-card, .glass-card, .quick-card').forEach(el=>{ if(!el.closest('#dogs')) el.style.display = 'none'; }); }catch(_){ }
@@ -13506,6 +13530,13 @@ function renderDogs(){
   let petsAll = (state.pets||[]).slice();
   const __customerMainDogs = isCustomerMainDogsMode();
   const __customerCtx = __customerMainDogs ? getCustomerMainDogsContext() : null;
+  try{
+    const btnAddDog = document.getElementById('btnAddDog');
+    if(btnAddDog){
+      btnAddDog.style.display = __customerMainDogs ? 'none' : '';
+      btnAddDog.disabled = !!__customerMainDogs;
+    }
+  }catch(_){ }
   if(__customerMainDogs && __customerCtx && __customerCtx.customerId){
     petsAll = petsAll.filter(p=>String(p.customerId||'') === String(__customerCtx.customerId));
   }
