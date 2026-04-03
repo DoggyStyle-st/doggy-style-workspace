@@ -7,7 +7,7 @@
   <link href="manifest.json" rel="manifest"/>
   <meta name="theme-color" content="#101014"/>
   <link href="assets/logo.png" rel="apple-touch-icon"/>
-  <link href="styles.css?v=M50.9.9GB151_CUSTOMERCHAT_MEDIA_DELETE_FIX_20260403_ROOTONLY" rel="stylesheet"/>
+  <link href="styles.css?v=M50.9.9GB152_CUSTOMERCHAT_DELETEALL_MEDIACUSTOMER_NAVFIX_20260403_ROOTONLY" rel="stylesheet"/>
   <style>
     body.bg-watermark{background:radial-gradient(circle at top, rgba(255,255,255,.08), transparent 35%), linear-gradient(180deg,#0e1017 0%, #121521 100%) !important}
     body.bg-watermark::before{opacity:.12 !important;filter:none !important}
@@ -132,6 +132,7 @@
       <div class="panel-head">
         <h1>Hunde/Kunden</h1>
         <div class="panel-toolbar">
+          <button class="btn" id="btnCustomerDogsHome" type="button">Zurück zur Startseite</button>
           <button class="btn primary" id="btnCustomerOpenDogsTask" type="button">Daten öffnen</button>
         </div>
       </div>
@@ -231,18 +232,18 @@
     <div class="customer-hidden" id="customerTaskListCard"></div>
     <div class="customer-hidden list" id="customerTaskList"></div>
     <div class="customer-hidden" id="customerPortalSubtitle"></div>
-    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9GB151_CUSTOMERCHAT_MEDIA_DELETE_FIX_20260403_ROOTONLY</div>
+    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9GB152_CUSTOMERCHAT_DELETEALL_MEDIACUSTOMER_NAVFIX_20260403_ROOTONLY</div>
   </main>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
-  <script src="firebase-config.js?v=M50.9.9GB151_CUSTOMERCHAT_MEDIA_DELETE_FIX_20260403_ROOTONLY"></script>
-  <script src="app.js?v=M50.9.9GB151_CUSTOMERCHAT_MEDIA_DELETE_FIX_20260403_ROOTONLY"></script>
+  <script src="firebase-config.js?v=M50.9.9GB152_CUSTOMERCHAT_DELETEALL_MEDIACUSTOMER_NAVFIX_20260403_ROOTONLY"></script>
+  <script src="app.js?v=M50.9.9GB152_CUSTOMERCHAT_DELETEALL_MEDIACUSTOMER_NAVFIX_20260403_ROOTONLY"></script>
   <script>
     (function(){
-      const BUILD = 'Build CUSTOMER M50.9.9GB151_CUSTOMERCHAT_MEDIA_DELETE_FIX_20260403_ROOTONLY';
+      const BUILD = 'Build CUSTOMER M50.9.9GB152_CUSTOMERCHAT_DELETEALL_MEDIACUSTOMER_NAVFIX_20260403_ROOTONLY';
       const DRAFT_KEY = 'ds_customer_app_drafts_v1';
       const viewNames = ['home','dogs','contract','stay','chat'];
       let currentView = 'home';
@@ -550,6 +551,7 @@
         setView(btn.dataset.view);
       });
       document.getElementById('btnCustomerTaskBack')?.addEventListener('click', ()=>{ document.getElementById('customerTaskEditorWrap')?.classList.remove('is-active'); setView(currentView); });
+      bindCustomerNavButtons();
       bindMainEditorOpeners();
       
       function renderMainlikeInfoList(targetId, rows){
@@ -906,6 +908,27 @@ function renderStayRealForm(doc){
         }
       }
 
+      function bindCustomerNavButtons(){
+        document.querySelectorAll('.nav-btn').forEach(btn=>{
+          if(btn.__customerNavBound) return;
+          btn.__customerNavBound = true;
+          btn.addEventListener('click', function(ev){
+            try{ ev.preventDefault(); ev.stopPropagation(); }catch(_){ }
+            const view = String(btn.dataset.view || 'home');
+            try{ if(view === 'chat' && typeof window.dsSetChatExplicitOpen === 'function') window.dsSetChatExplicitOpen('customer', true); }catch(_){ }
+            setView(view);
+          }, { passive:false });
+        });
+        const dogsHome = document.getElementById('btnCustomerDogsHome');
+        if(dogsHome && !dogsHome.__customerBackBound){
+          dogsHome.__customerBackBound = true;
+          dogsHome.addEventListener('click', function(ev){
+            try{ ev.preventDefault(); ev.stopPropagation(); }catch(_){ }
+            setView('home');
+          }, { passive:false });
+        }
+      }
+
       function bindMainEditorOpeners(){
         const bind = (id, fn)=>{
           const el = document.getElementById(id);
@@ -952,6 +975,7 @@ function renderStayRealForm(doc){
         if(currentView === 'contract') openRealSection('boarding_contract', getLatestTask('boarding_contract'));
         if(currentView === 'stay') openRealSection('hundeannahme', getLatestTask('hundeannahme'));
         
+        bindCustomerNavButtons();
         bindMainEditorOpeners();
         ensureCustomerEditorVisible(currentView);
         setStatus('Ansicht ' + currentView);
@@ -964,6 +988,7 @@ function renderStayRealForm(doc){
       refreshCustomUI = function(){
         renderHomeOverview();
         try{ renderCustomerMainlikePanels(); }catch(_){ }
+        bindCustomerNavButtons();
         bindMainEditorOpeners();
         ensureCustomerEditorVisible(currentView);
         if(typeof window.renderCustomerChatPanel === 'function'){ try{ window.renderCustomerChatPanel(); }catch(_){ } }
@@ -986,6 +1011,7 @@ function renderStayRealForm(doc){
               if(typeof initCustomerPortal === 'function') await initCustomerPortal();
               refreshCustomUI();
               try{ renderCustomerMainlikePanels(); }catch(_){ }
+              bindCustomerNavButtons();
               bindMainEditorOpeners();
               ensureCustomerEditorVisible(currentView);
               setStatus('init ok');
@@ -995,7 +1021,7 @@ function renderStayRealForm(doc){
       }
       const mo = new MutationObserver(()=>refreshCustomUI());
       window.addEventListener('load', ()=>{ try{ mo.observe(document.getElementById('customerTaskList') || document.body, { childList:true, subtree:true }); }catch(_){ } });
-      setInterval(refreshCustomUI, 1500);
+      setInterval(()=>{ try{ if(currentView === 'chat' || currentView === 'dogs') return; refreshCustomUI(); }catch(_){ } }, 3000);
       setView('home');
       if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootCustomerPortal); else bootCustomerPortal();
     })();

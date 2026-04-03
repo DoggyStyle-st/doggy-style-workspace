@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB151_CUSTOMERCHAT_MEDIA_DELETE_FIX_20260403_ROOTONLY",
+  tag: "M50.9.9GB152_CUSTOMERCHAT_DELETEALL_MEDIACUSTOMER_NAVFIX_20260403_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB151_CUSTOMERCHAT_MEDIA_DELETE_FIX_20260403_ROOTONLY";
+const APP_BUILD = "M50.9.9GB152_CUSTOMERCHAT_DELETEALL_MEDIACUSTOMER_NAVFIX_20260403_ROOTONLY";
 
 function dsSyncDiagStateSummary(){
   try{
@@ -20988,7 +20988,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB151_CUSTOMERCHAT_MEDIA_DELETE_FIX_20260403_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB152_CUSTOMERCHAT_DELETEALL_MEDIACUSTOMER_NAVFIX_20260403_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -21247,10 +21247,11 @@ function dsChatPreviewBodyHtml(msg){
   if(!parts.length) parts.push('<div class="muted">Kein Inhalt.</div>');
   return parts.join('');
 }
-function dsCanDeleteChatMessage(msg, role){
+function dsCanDeleteChatMessage(msg, role, chat){
   if(!msg || !msg.id) return false;
-  const ownRole = String(role || 'customer');
+  const ownRole = String(role || 'customer').trim().toLowerCase();
   if(ownRole === 'staff') return true;
+  if(ownRole === 'customer' && dsIsChatOwnerClient(chat)) return true;
   const uid = String(dsChatUserUid() || '').trim();
   const email = String(dsChatUserEmail() || '').trim().toLowerCase();
   const msgUid = String(msg?.senderUid || '').trim();
@@ -21296,11 +21297,11 @@ async function dsRefreshChatMetaFromMessages(chatId){
     unreadForCustomer
   }, { merge:true });
 }
-async function dsDeleteChatMessage(chatId, msg, role, rerender){
+async function dsDeleteChatMessage(chatId, msg, role, rerender, chat){
   if(!chatId || !msg?.id) throw new Error('Nachricht konnte nicht gelöscht werden.');
   const messageId = String(msg.id || '').trim();
   if(!messageId) throw new Error('Nachricht konnte nicht gelöscht werden.');
-  if(!dsCanDeleteChatMessage(msg, role)) throw new Error('Diese Nachricht kann hier nicht gelöscht werden.');
+  if(!dsCanDeleteChatMessage(msg, role, chat)) throw new Error('Diese Nachricht kann hier nicht gelöscht werden.');
   if(!confirm('Nachricht wirklich löschen?')) return false;
   if(!confirm('Wirklich endgültig löschen?')) return false;
   await dsDeleteChatAttachmentFiles(msg).catch(()=>{});
@@ -21319,10 +21320,10 @@ function dsOpenChatPreviewModal(msg, role, chat, rerender){
   if(meta) meta.textContent = `${String(msg?.senderName || 'Nachricht')} · ${dsChatDisplayTime(msg?.createdAt || msg?.createdAtMs || 0)}`;
   if(body) body.innerHTML = dsChatPreviewBodyHtml(msg);
   if(deleteBtn){
-    const canDelete = dsCanDeleteChatMessage(msg, role);
+    const canDelete = dsCanDeleteChatMessage(msg, role, chat);
     deleteBtn.classList.toggle('is-hidden', !canDelete);
     deleteBtn.onclick = async ()=>{
-      try{ await dsDeleteChatMessage(chat?.id, msg, role, rerender); }
+      try{ await dsDeleteChatMessage(chat?.id, msg, role, rerender, chat); }
       catch(err){ alert(String(err?.message || err || 'Löschen fehlgeschlagen.')); }
     };
   }
@@ -21456,6 +21457,13 @@ function dsChatCustomerProfile(){
     customerName: String(fromState?.name || CLOUD?.userProfile?.name || CLOUD?.user?.displayName || CLOUD?.user?.email || 'Kunde').trim(),
     customerId: String(fromState?.customerId || fromState?.id || fromState?.email || uid || email || '').trim()
   };
+}
+function dsIsChatOwnerClient(chat){
+  const uid = dsChatUserUid();
+  const email = dsChatUserEmail();
+  const chatUid = String(chat?.customerUid || '').trim();
+  const chatEmail = String(chat?.customerEmail || '').trim().toLowerCase();
+  return !!((uid && chatUid && uid === chatUid) || (email && chatEmail && email === chatEmail));
 }
 function dsChatAdminAllowed(){
   try{
@@ -21760,7 +21768,7 @@ function dsRenderChatMessages(messages, ownRole, chat){
     const deletedHtml = msg?.deleted ? '<div class="ds-chat-deleted">Nachricht gelöscht.</div>' : '';
     const textHtml = !msg?.deleted && String(msg?.text || '').trim() ? `<div class="ds-chat-bubble__text">${escapeHtml(msg?.text || '')}</div>` : '';
     const mediaHtml = !msg?.deleted ? dsChatAttachmentHtml(msg?.attachments, true) : '';
-    const deletable = dsCanDeleteChatMessage(msg, ownRole) ? '<span class="ds-chat-delete-chip">Löschen</span>' : '';
+    const deletable = dsCanDeleteChatMessage(msg, ownRole, chat) ? '<span class="ds-chat-delete-chip">Löschen</span>' : '';
     return `<div class="ds-chat-msg ${own ? 'is-own' : ''}"><div class="ds-chat-bubble ${msg?.deleted ? 'is-deleted' : ''}" data-chat-msg-index="${idx}" tabindex="0" role="button" aria-label="Nachricht öffnen"><div class="ds-chat-bubble__meta">${meta}${deletable}</div>${deletedHtml}${textHtml}${mediaHtml}${statusHtml}</div></div>`;
   }).join('');
 }
@@ -21807,7 +21815,7 @@ function dsClearChatSelectedFiles(role){
 function dsChatFileAccept(){ return 'image/*,video/*'; }
 function dsChatComposeMarkup(prefix){
   const attachBtnId = prefix === 'chatAdmin' ? 'btnChatAdminAttach' : 'btnCustomerChatAttach';
-  const clearBtnHtml = prefix === 'chatAdmin' ? '<button class="btn danger" id="btnChatAdminClear" type="button">Verlauf löschen</button>' : '';
+  const clearBtnHtml = prefix === 'chatAdmin' ? '<button class="btn danger" id="btnChatAdminClear" type="button">Verlauf löschen</button>' : '<button class="btn danger" id="btnCustomerChatClear" type="button">Verlauf löschen</button>';
   return `<div class="ds-chat-compose__tools"><input id="${prefix}FileInput" class="ds-chat-file-input" type="file" accept="${dsChatFileAccept()}" multiple /><button class="btn" id="${attachBtnId}" type="button">Bild/Video</button>${clearBtnHtml}</div><div id="${prefix}AttachList" class="ds-chat-attach-list"></div>`;
 }
 function dsFormatFileSize(bytes){
@@ -21856,9 +21864,10 @@ async function dsUploadChatMediaFiles(chatId, files, statusSetter){
   try{
     if(!(window.firebase && firebase.storage && firebase.auth)){
       if(typeof cloudInit === 'function') await cloudInit();
+      dsEnsureFirebaseStorageCompat();
     }
   }catch(_){ }
-  if(!(window.firebase && firebase.storage && firebase.auth)) throw new Error('Firebase Storage ist nicht verfügbar.');
+  if(!(window.firebase && firebase.storage && firebase.auth) && !dsEnsureFirebaseStorageCompat()) throw new Error('Firebase Storage ist nicht verfügbar.');
   const user = await cpWaitForFirebaseUser(8000);
   if(!user || !user.uid) throw new Error('Nicht angemeldet.');
   const orgId = (window.CLOUD && CLOUD.orgId) ? CLOUD.orgId : 'doggystyle';
@@ -21901,17 +21910,54 @@ async function dsClearCurrentAdminChat(){
     await dsDeleteChatAttachmentFiles(data).catch(()=>{});
     await doc.ref.delete();
   }
-  await chatRef.set({
-    updatedAt: dsServerTimestamp(),
-    updatedAtMs: Date.now(),
-    lastMessageText: '',
-    lastMessageFromRole: '',
-    lastMessageAtMs: 0,
-    unreadForStaff: 0,
-    unreadForCustomer: 0
-  }, { merge:true });
+  try{ await chatRef.delete(); }
+  catch(_){
+    await chatRef.set({
+      updatedAt: dsServerTimestamp(),
+      updatedAtMs: Date.now(),
+      lastMessageText: '',
+      lastMessageFromRole: '',
+      lastMessageAtMs: 0,
+      unreadForStaff: 0,
+      unreadForCustomer: 0
+    }, { merge:true });
+  }
   dsAdminChatState().currentMessages = [];
   renderAdminChatMessages();
+  return true;
+}
+async function dsClearCurrentCustomerChat(){
+  const st = dsCustomerChatState();
+  const chatId = String(st.currentChatId || '').trim();
+  if(!chatId) throw new Error('Kein Chat ausgewählt.');
+  if(!confirm('Diesen gesamten Chatverlauf wirklich löschen?')) return false;
+  if(!confirm('Wirklich den gesamten Verlauf endgültig löschen?')) return false;
+  const col = cloudChatMessagesCol(chatId);
+  const chatRef = cloudChatDoc(chatId);
+  if(!col || !chatRef) throw new Error('Chat ist nicht verfügbar.');
+  const snap = await col.get();
+  for(const doc of snap.docs){
+    const data = doc.data() || {};
+    await dsDeleteChatAttachmentFiles(data).catch(()=>{});
+    await doc.ref.delete();
+  }
+  try{ await chatRef.delete(); }
+  catch(_){
+    await chatRef.set({
+      updatedAt: dsServerTimestamp(),
+      updatedAtMs: Date.now(),
+      lastMessageText: '',
+      lastMessageFromRole: '',
+      lastMessageAtMs: 0,
+      unreadForStaff: 0,
+      unreadForCustomer: 0
+    }, { merge:true });
+  }
+  st.currentMessages = [];
+  st.currentChatId = '';
+  st.__lastRenderKey = '';
+  await dsLoadCustomerChatsForTeam(st.currentTeamKey, false).catch(console.warn);
+  renderCustomerChatMessages();
   return true;
 }
 function dsAdminChatRootMarkup(){
@@ -22389,6 +22435,7 @@ function dsBindCustomerChatActions(){
   const input = document.getElementById('customerChatInput');
   const hint = document.getElementById('customerChatHint');
   const refreshBtn = document.getElementById('btnCustomerChatRefresh');
+  const clearBtn = document.getElementById('btnCustomerChatClear');
   dsBindChatFilePicker('customer');
   if(refreshBtn && !refreshBtn.__chatBound){
     refreshBtn.__chatBound = true;
@@ -22412,6 +22459,18 @@ function dsBindCustomerChatActions(){
         sendBtn?.click();
       }
     });
+  }
+  if(clearBtn && !clearBtn.__chatClearBound){
+    clearBtn.__chatClearBound = true;
+    clearBtn.onclick = async ()=>{
+      try{
+        await dsClearCurrentCustomerChat();
+        const hint = document.getElementById('customerChatHint');
+        if(hint) hint.textContent = 'Verlauf gelöscht · ' + dsChatNowLabel();
+      }catch(err){
+        if(String(err?.message || err || '').trim()){ alert(String(err?.message || err)); }
+      }
+    };
   }
   if(sendBtn && !sendBtn.__chatBound){
     sendBtn.__chatBound = true;
@@ -22902,7 +22961,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB151_CUSTOMERCHAT_MEDIA_DELETE_FIX_20260403_ROOTONLY";
+  const BUILD = "M50.9.9GB152_CUSTOMERCHAT_DELETEALL_MEDIACUSTOMER_NAVFIX_20260403_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];

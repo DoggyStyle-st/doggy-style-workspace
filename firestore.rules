@@ -99,7 +99,7 @@ service cloud.firestore {
       allow read: if signedIn() && (isStaff(orgId) || isChatOwner(resource.data));
       allow create: if signedIn() && (isStaff(orgId) || isChatOwner(request.resource.data));
       allow update: if signedIn() && (isStaff(orgId) || isChatOwner(resource.data) || isChatOwner(request.resource.data));
-      allow delete: if signedIn() && isStaff(orgId);
+      allow delete: if signedIn() && (isStaff(orgId) || isChatOwner(resource.data));
 
       match /messages/{messageId} {
         allow read: if signedIn() && (
