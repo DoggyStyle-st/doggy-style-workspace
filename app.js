@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB160_CUSTOMER_CONTRACT_STAY_PROPOSALFLOWFIX_20260403_ROOTONLY",
+  tag: "M50.9.9GB161_INBOX_OPEN_CONTRACT_STAY_EDITOR_20260403_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB160_CUSTOMER_CONTRACT_STAY_PROPOSALFLOWFIX_20260403_ROOTONLY";
+const APP_BUILD = "M50.9.9GB161_INBOX_OPEN_CONTRACT_STAY_EDITOR_20260403_ROOTONLY";
 
 function dsSyncDiagStateSummary(){
   try{
@@ -3115,7 +3115,7 @@ async function wireInbox(){
       b.className='smallbtn';
       b.textContent='Öffnen';
       b.style.width = '100%';
-      b.onclick = ()=>openDetail(t);
+      b.onclick = ()=>{ try{ if(typeof window.__dsOpenInboxDetail === 'function') return window.__dsOpenInboxDetail(t); }catch(_){} return openDetail(t); };
       actions.appendChild(b);
       const br = document.createElement('button');
       br.className='smallbtn';
@@ -21363,7 +21363,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB160_CUSTOMER_CONTRACT_STAY_PROPOSALFLOWFIX_20260403_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB161_INBOX_OPEN_CONTRACT_STAY_EDITOR_20260403_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -23336,7 +23336,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB160_CUSTOMER_CONTRACT_STAY_PROPOSALFLOWFIX_20260403_ROOTONLY";
+  const BUILD = "M50.9.9GB161_INBOX_OPEN_CONTRACT_STAY_EDITOR_20260403_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -23951,6 +23951,165 @@ function dsLaunchProposalInCustomerEditor(row){
   }
   return ok;
 }
+function dsIsContractProposalInboxRow(row){
+  try{
+    const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
+    const tpl = lower((row && (row.templateId || row.proposalType || row.kind || row.formKey)) || '');
+    const src = lower((payload && payload.source) || '');
+    const title = lower((row && row.title) || '');
+    return tpl === 'boarding_contract' || src.indexOf('customer-main-contract') >= 0 || title.indexOf('betreuungsvertrag') >= 0;
+  }catch(_){ return false; }
+}
+function dsIsStayProposalInboxRow(row){
+  try{
+    const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
+    const tpl = lower((row && (row.templateId || row.proposalType || row.kind || row.formKey)) || '');
+    const src = lower((payload && payload.source) || '');
+    const title = lower((row && row.title) || '');
+    return tpl === 'hundeannahme' || src.indexOf('customer-main-stay') >= 0 || title.indexOf('neuer aufenthalt') >= 0 || title.indexOf('aufenthalt vorschlag') >= 0;
+  }catch(_){ return false; }
+}
+function dsResolveProposalCustomerPet(row){
+  try{
+    ensureStateShape();
+    const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
+    const cid = norm((payload && payload.customerId) || (row && (row.customerId || row.__targetCustomerId)) || (payload.customer && (payload.customer.id || payload.customer.customerId)) || '');
+    const pid = norm((payload && payload.petId) || (row && (row.petId || row.__targetPetId)) || (payload.pet && (payload.pet.id || payload.pet.petId)) || '');
+    let customer = cid ? ((typeof getCustomer === 'function' ? getCustomer(cid) : null) || null) : null;
+    let pet = pid ? ((typeof getPet === 'function' ? getPet(pid) : null) || null) : null;
+    if(!pet && cid){
+      const pets = asArray(state && state.pets);
+      pet = pets.find(p=> norm((p && (p.customerId || p.ownerId)) || '') === cid) || null;
+    }
+    if(!customer && pet && typeof getCustomer === 'function') customer = getCustomer(pet.customerId || pet.ownerId || '') || null;
+    let dogId = '';
+    try{
+      if(pet && typeof getLegacyDogIdForPet === 'function') dogId = String(getLegacyDogIdForPet(pet.id || pet.petId || '') || '');
+      if(!dogId && pet && customer && typeof upsertLegacyDogForPet === 'function') dogId = String(upsertLegacyDogForPet(pet, customer) || '');
+      if(!dogId && pet) dogId = String((pet && (pet.dogId || pet.id || pet.petId)) || '');
+    }catch(_){ }
+    if(!pet && dogId && typeof getPetByDogId === 'function') pet = getPetByDogId(dogId) || null;
+    if(!customer && dogId && typeof getCustomerByDogId === 'function') customer = getCustomerByDogId(dogId) || null;
+    return { payload, customerId: cid, petId: pid, customer, pet, dogId };
+  }catch(_){ return { payload:{}, customerId:'', petId:'', customer:null, pet:null, dogId:'' }; }
+}
+function dsOpenContractProposalEditor(row){
+  try{
+    const info = dsResolveProposalCustomerPet(row);
+    const payload = info.payload || {};
+    const customerId = String(info.customerId || '');
+    const petId = String(info.petId || '');
+    const customerLabel = String((info.customer && (info.customer.name || info.customer.lastName || info.customer.email)) || row.customerName || row.customerEmail || 'Kunde');
+    const petLabel = String((info.pet && (info.pet.name || info.pet.petName || info.pet.dogName)) || row.petName || 'Hund');
+    try{ window.__dsInboxCurrentTask = row; }catch(_){ }
+    try{ state.contractSelection = { customerId: customerId, petId: petId }; }catch(_){ }
+    try{ if(typeof selectTab === 'function') selectTab('contract'); else if(typeof showPanel === 'function') showPanel('contract'); }catch(_){ }
+    try{ renderContractPanel(); }catch(err){ console.warn('renderContractPanel proposal-open failed', err); }
+    try{
+      const signature = payload && payload.signature;
+      const ver = String((payload && payload.contractVersion) || state.contractVersion || 'v1.0');
+      if(signature && signature.dataUrl && customerId && petId){
+        state.contractSignatures = state.contractSignatures || {};
+        state.contractSignatures[ver + '__' + customerId + '__' + petId] = { dataUrl: String(signature.dataUrl || ''), signedAt: signature.signedAt || Date.now() };
+      }
+    }catch(_){ }
+    let tries = 0;
+    (function fill(){
+      try{
+        const cs = document.getElementById('contractCustomerSelect');
+        const ps = document.getElementById('contractPetSelect');
+        const accept = document.getElementById('contractAcceptChk');
+        if(cs && customerId){
+          cs.innerHTML = '<option value="' + escapeHtml(customerId) + '">' + escapeHtml(customerLabel) + '</option>';
+          cs.value = customerId;
+          cs.disabled = true; cs.setAttribute('disabled','disabled'); cs.style.pointerEvents = 'none';
+          try{ cs.dispatchEvent(new Event('change', { bubbles:true })); }catch(_){ }
+        }
+        if(ps && petId){
+          ps.innerHTML = '<option value="' + escapeHtml(petId) + '">' + escapeHtml(petLabel) + '</option>';
+          ps.value = petId;
+          ps.disabled = true; ps.setAttribute('disabled','disabled'); ps.style.pointerEvents = 'none';
+          try{ ps.dispatchEvent(new Event('change', { bubbles:true })); }catch(_){ }
+        }
+        if(accept) accept.checked = !!(payload && payload.accepted);
+        const canvas = document.getElementById('contractSig');
+        const sig = payload && payload.signature;
+        if(canvas && sig && sig.dataUrl){
+          const img = new Image();
+          img.onload = function(){ try{ const c2 = canvas.getContext('2d'); c2.clearRect(0,0,canvas.width,canvas.height); c2.drawImage(img,0,0,canvas.width,canvas.height); }catch(_){ } };
+          img.src = String(sig.dataUrl || '');
+        }
+      }catch(_){ }
+      if(++tries < 8) setTimeout(fill, 220);
+    })();
+    return true;
+  }catch(err){ console.warn('dsOpenContractProposalEditor failed', err); return false; }
+}
+function dsOpenStayProposalEditor(row){
+  try{
+    const info = dsResolveProposalCustomerPet(row);
+    const payload = info.payload || {};
+    const customerId = String(info.customerId || '');
+    const petId = String(info.petId || '');
+    const dogId = String(info.dogId || '');
+    const customerLabel = String((info.customer && (info.customer.name || info.customer.lastName || info.customer.email)) || row.customerName || row.customerEmail || 'Kunde');
+    const petLabel = String((info.pet && (info.pet.name || info.pet.petName || info.pet.dogName)) || row.petName || 'Hund');
+    const now = new Date().toISOString();
+    const docObj = {
+      id: 'proposal_review_' + uid(),
+      templateId: 'hundeannahme',
+      templateName: 'Aufenthalte',
+      title: 'Aufenthalte',
+      dogId: dogId,
+      petId: petId,
+      customerId: customerId,
+      fields: JSON.parse(JSON.stringify((payload && payload.fields) || {})),
+      meta: JSON.parse(JSON.stringify((payload && payload.meta) || {})),
+      signature: (payload && payload.signature) ? JSON.parse(JSON.stringify(payload.signature)) : null,
+      saved: false,
+      versionOf: null,
+      createdAt: now,
+      updatedAt: now,
+      __proposalReview: true
+    };
+    try{ ensureDocLinks(docObj); }catch(_){ }
+    try{ updateDocCustomerPetFromDogId(docObj); }catch(_){ }
+    try{ normalizeMeta(docObj); }catch(_){ }
+    currentDoc = docObj;
+    try{ window.currentDoc = docObj; }catch(_){ }
+    try{ if(typeof selectTab === 'function') selectTab('documents'); }catch(_){ }
+    try{ const et = document.getElementById('editorTitle'); if(et) et.textContent = docObj.title || 'Aufenthalte'; }catch(_){ }
+    try{ const em = document.getElementById('editorMeta'); if(em) em.textContent = docObj.templateName || 'Aufenthalte'; }catch(_){ }
+    try{ const dn = document.getElementById('docName'); if(dn) dn.value = docObj.title || 'Aufenthalte'; }catch(_){ }
+    try{ syncDogSelect(); }catch(_){ }
+    try{ const ds = document.getElementById('dogSelect'); if(ds && dogId) ds.value = dogId; }catch(_){ }
+    try{ renderCustomerInfoForDogId(dogId); }catch(_){ }
+    try{ renderEditor(docObj); }catch(_){ }
+    try{ updateContractWarnBanner(docObj); }catch(_){ }
+    try{ autofillAufenthalteFieldsFromMaster(dogId, { overwrite:false }); }catch(_){ }
+    try{ renderVersions(docObj); }catch(_){ }
+    try{ renderStayQuickLinks(docObj); }catch(_){ }
+    try{ showPanel('editor'); }catch(_){ }
+    try{ window.scrollTo({ top:0, behavior:'smooth' }); }catch(_){ }
+    setTimeout(function(){
+      try{
+        const dogSel = document.getElementById('dogSelect');
+        const custSel = document.getElementById('customerSelect') || document.getElementById('stayCustomerSelect');
+        if(dogSel && dogId){
+          dogSel.innerHTML = '<option value="' + escapeHtml(dogId) + '">' + escapeHtml(petLabel) + '</option>';
+          dogSel.value = dogId;
+          dogSel.disabled = true; dogSel.setAttribute('disabled','disabled'); dogSel.style.pointerEvents = 'none';
+        }
+        if(custSel && customerId){
+          custSel.innerHTML = '<option value="' + escapeHtml(customerId) + '">' + escapeHtml(customerLabel) + '</option>';
+          custSel.value = customerId;
+          custSel.disabled = true; custSel.setAttribute('disabled','disabled'); custSel.style.pointerEvents = 'none';
+        }
+      }catch(_){ }
+    }, 140);
+    return true;
+  }catch(err){ console.warn('dsOpenStayProposalEditor failed', err); return false; }
+}
 function openInboxDetail(row){
     try{
       const now = Date.now();
@@ -23958,6 +24117,16 @@ function openInboxDetail(row){
       window.__dsInboxOpenLock = now;
     }catch(_){ }
     try{ window.__dsInboxCurrentTask = row; }catch(_){ }
+    try{
+      if(dsIsContractProposalInboxRow(row)){
+        if(dsOpenContractProposalEditor(row)) return;
+      }
+    }catch(err){ console.warn('openInboxDetail contract-open failed', err); }
+    try{
+      if(dsIsStayProposalInboxRow(row)){
+        if(dsOpenStayProposalEditor(row)) return;
+      }
+    }catch(err){ console.warn('openInboxDetail stay-open failed', err); }
     try{
       if(isCustomerProposalInboxRow(row)){
         dsLaunchProposalInCustomerEditor(row);
