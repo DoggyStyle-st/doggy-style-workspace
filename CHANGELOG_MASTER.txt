@@ -1,4 +1,4 @@
-- M50.9.9GB143_SYNC_PAYLOAD_SANITIZE_20260403_ROOTONLY
+- M50.9.9GB144_SYNC_PAYLOAD_SECTIONTRACE_20260403_ROOTONLY
   - Cloud-payload vor Firestore-Write rekursiv Firestore-safe bereinigt
   - problematische nested Werte (undefined, DOM/Event, Blob/File, nicht-plain Objekte, Zyklen) werden entfernt/umgewandelt
   - Ziel: Sync-Fehler nach erfolgreichem Beantworten beseitigen, ohne Eingänge-/Chat-Logik anzufassen
@@ -32,6 +32,6 @@ GB111: Eingänge-Filter auf handled/accepted robuster gemacht (zusätzliche Schl
 
 GB113: Exakte persistent akzeptierte Proposal-/Task-IDs gespeichert und vor Render gefiltert; Save-Diag enthält proposalId.
 
-- M50.9.9GB143_SYNC_PAYLOAD_SANITIZE_20260403_ROOTONLY
+- M50.9.9GB144_SYNC_PAYLOAD_SECTIONTRACE_20260403_ROOTONLY
   - Eingänge: Entfernen/Handled nur noch exact-match über proposal/task/source keys, keine breite customer/pet-Ausblendung mehr.
   - Chat: Auto-Antworten aus Eingänge werden als staff gesendet, in bestehende team-spezifische Threads gelegt und lokal gegen Doppelsendungen geschützt.

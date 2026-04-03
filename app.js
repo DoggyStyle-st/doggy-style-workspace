@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB143_SYNC_PAYLOAD_SANITIZE_20260403_ROOTONLY",
+  tag: "M50.9.9GB144_SYNC_PAYLOAD_SECTIONTRACE_20260403_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB143_SYNC_PAYLOAD_SANITIZE_20260403_ROOTONLY";
+const APP_BUILD = "M50.9.9GB144_SYNC_PAYLOAD_SECTIONTRACE_20260403_ROOTONLY";
 
 function dsSyncDiagStateSummary(){
   try{
@@ -166,6 +166,80 @@ function dsPrepareCloudPayload(src){
   const clean = dsSanitizeCloudPayload(src, 'payload', new WeakSet(), stats) || {};
   return { clean, stats };
 }
+
+function dsTracePayloadSections(payload){
+  const out = { first:null, sections:[], summary:'' };
+  try{
+    const root = (payload && typeof payload === 'object') ? payload : {};
+    const keys = Object.keys(root || {});
+    const seen = new WeakSet();
+    function mark(section, path, kind){
+      const row = { section:String(section||'payload'), path:String(path||'payload'), kind:String(kind||'invalid') };
+      if(!out.first) out.first = row;
+      return row;
+    }
+    function inspect(value, path, section, inArray){
+      if(value === undefined) return mark(section, path, 'undefined');
+      if(value === null) return null;
+      const t = typeof value;
+      if(t === 'string' || t === 'boolean') return null;
+      if(t === 'number') return Number.isFinite(value) ? null : mark(section, path, 'non-finite-number');
+      if(t === 'bigint') return mark(section, path, 'bigint');
+      if(t === 'function' || t === 'symbol') return mark(section, path, t);
+      if(t !== 'object') return null;
+      try{
+        if(typeof window !== 'undefined'){
+          if(value === window || value === document) return mark(section, path, 'window');
+          if(typeof Node !== 'undefined' && value instanceof Node) return mark(section, path, 'dom-node');
+          if(typeof Event !== 'undefined' && value instanceof Event) return mark(section, path, 'event');
+        }
+      }catch(_){ }
+      try{ if(typeof Blob !== 'undefined' && value instanceof Blob) return mark(section, path, 'blob'); }catch(_){ }
+      try{ if(typeof File !== 'undefined' && value instanceof File) return mark(section, path, 'file'); }catch(_){ }
+      if(value instanceof Date || value instanceof RegExp || value instanceof Error) return null;
+      try{ if(typeof URL !== 'undefined' && value instanceof URL) return null; }catch(_){ }
+      if(Array.isArray(value)){
+        if(inArray) return mark(section, path, 'nested-array');
+        if(seen.has(value)) return mark(section, path, 'circular-array');
+        seen.add(value);
+        for(let i=0;i<value.length;i++){
+          const fail = inspect(value[i], path + '[' + i + ']', section, true);
+          if(fail){ seen.delete(value); return fail; }
+        }
+        seen.delete(value);
+        return null;
+      }
+      const proto = Object.getPrototypeOf(value);
+      const plain = !proto || proto === Object.prototype;
+      if(!plain) return mark(section, path, 'non-plain-object');
+      if(seen.has(value)) return mark(section, path, 'circular-object');
+      seen.add(value);
+      const keys2 = Object.keys(value || {});
+      for(let i=0;i<keys2.length;i++){
+        const k = keys2[i];
+        const fail = inspect(value[k], path + '.' + k, section, false);
+        if(fail){ seen.delete(value); return fail; }
+      }
+      seen.delete(value);
+      return null;
+    }
+    keys.forEach(function(key){
+      try{
+        const fail = inspect(root[key], 'payload.' + key, key, false);
+        out.sections.push(fail ? (String(key) + ':FAIL<' + fail.kind + '> @ ' + fail.path) : (String(key) + ':ok'));
+      }catch(err){
+        out.sections.push(String(key) + ':TRACEERR<' + String((err && err.message) || err || 'unknown') + '>');
+        if(!out.first) out.first = { section:String(key), path:'payload.' + String(key), kind:'trace-error' };
+      }
+    });
+    out.summary = out.sections.slice(0,6).join(' | ');
+  }catch(err){
+    out.first = { section:'payload', path:'payload', kind:'trace-error:' + String((err && err.message) || err || 'unknown') };
+    out.summary = 'trace-error';
+  }
+  return out;
+}
+try{ window.__dsPayloadTraceDump = function(){ try{ return JSON.stringify(window.__dsPayloadTrace || {}, null, 2); }catch(_){ return ''; } }; }catch(_){ }
 try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=dogs(?:&|$)/.test(String(location.search||''))) { window.addEventListener('DOMContentLoaded', function(){ try{ enforceCustomerMainDogsUI(); }catch(_){ } }); } }catch(_){ }
 
 // ===== DS_BUILD_GUARD_RECOVERY (4F-3) =====
@@ -1576,6 +1650,8 @@ async function cloudPushNow(){
   try{ state._cloudUpdatedAt = stamp; state._localUpdatedAt = stamp; }catch(_){/* ignore */}
   const prepared = dsPrepareCloudPayload(state);
   const safeState = prepared && prepared.clean ? prepared.clean : {};
+  const payloadTrace = dsTracePayloadSections(safeState);
+  try{ window.__dsPayloadTrace = payloadTrace; }catch(_){ }
   try{
     if(safeState && typeof safeState === 'object'){
       safeState._cloudUpdatedAt = stamp;
@@ -1584,7 +1660,10 @@ async function cloudPushNow(){
   }catch(_){ }
   try{
     const dropped = Number((prepared && prepared.stats && prepared.stats.droppedCount) || 0);
-    if(dropped > 0){
+    if(payloadTrace && payloadTrace.first){
+      const first = payloadTrace.first || {};
+      dsSetSyncDiag('payloadTrace:first section=' + String(first.section || '--') + ' kind=' + String(first.kind || '--') + ' path=' + String(first.path || '--') + ' · ' + dsSyncDiagStateSummary(), true);
+    }else if(dropped > 0){
       const sample = ((prepared && prepared.stats && prepared.stats.droppedPaths) || []).slice(0,3).join(', ');
       dsSetSyncDiag('cloudPush:sanitized drop=' + String(dropped) + (sample ? ' sample=' + sample : '') + ' · ' + dsSyncDiagStateSummary(), false);
     }
@@ -1608,7 +1687,9 @@ async function cloudPushNow(){
     const errMsg = String(e?.message||e||"Cloud write failed");
     try{
       const sample = ((prepared && prepared.stats && prepared.stats.droppedPaths) || []).slice(0,4).join(', ');
-      dsSetSyncDiag('cloudPush:fail msg=' + errMsg + (((prepared && prepared.stats && prepared.stats.droppedCount) || 0) ? ' drop=' + String((prepared && prepared.stats && prepared.stats.droppedCount) || 0) : '') + (sample ? ' sample=' + sample : '') + ' · ' + dsSyncDiagStateSummary(), true);
+      const first = (payloadTrace && payloadTrace.first) || null;
+      const trace = first ? (' first=' + String(first.section || '--') + '/' + String(first.kind || '--') + '@' + String(first.path || '--')) : (payloadTrace && payloadTrace.summary ? (' sections=' + String(payloadTrace.summary || '').slice(0,220)) : '');
+      dsSetSyncDiag('cloudPush:fail msg=' + errMsg + trace + (((prepared && prepared.stats && prepared.stats.droppedCount) || 0) ? ' drop=' + String((prepared && prepared.stats && prepared.stats.droppedCount) || 0) : '') + (sample ? ' sample=' + sample : '') + ' · ' + dsSyncDiagStateSummary(), true);
     }catch(_){ }
     CLOUD.lastPushError = errMsg;
     SYNC.cloudLastError = CLOUD.lastPushError;
