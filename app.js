@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB177_INBOX_OPEN_MARKEDTYPE_CONTRACT_STAY_20260404_ROOTONLY",
+  tag: "M50.9.9GB178_INBOX_OPENDIAG_CLICKTRACE_20260404_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB177_INBOX_OPEN_MARKEDTYPE_CONTRACT_STAY_20260404_ROOTONLY";
+const APP_BUILD = "M50.9.9GB178_INBOX_OPENDIAG_CLICKTRACE_20260404_ROOTONLY";
 
 function dsSyncDiagStateSummary(){
   try{
@@ -11664,6 +11664,7 @@ function dsSetProposalOpenDiag(msg, isError){
     }catch(_){ }
   }catch(_){ }
 }
+try{ window.dsSetProposalOpenDiag = dsSetProposalOpenDiag; }catch(_){ }
 
 function dsIsActuallyVisibleEditTarget(el){
   try{
@@ -21392,7 +21393,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB177_INBOX_OPEN_MARKEDTYPE_CONTRACT_STAY_20260404_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB178_INBOX_OPENDIAG_CLICKTRACE_20260404_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -23365,7 +23366,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB177_INBOX_OPEN_MARKEDTYPE_CONTRACT_STAY_20260404_ROOTONLY";
+  const BUILD = "M50.9.9GB178_INBOX_OPENDIAG_CLICKTRACE_20260404_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -24911,8 +24912,9 @@ try{ window.__dsOpenInboxDetail = openInboxDetail; }catch(_){ }
 
 /* ===== GB176 sync-first proposal open like Kunde/Hund ===== */
 (function(){
-  function ds176SetDiag(msg){
-    try{ if(typeof dsSetProposalOpenDiag === 'function') dsSetProposalOpenDiag(String(msg||''), false); }catch(_){ }
+  function ds176SetDiag(msg, isError){
+    try{ if(typeof dsSetProposalOpenDiag === 'function') dsSetProposalOpenDiag('gb178 ' + String(msg||''), !!isError); }catch(_){ }
+    try{ var el = document.getElementById('inboxDiag'); if(el){ el.textContent = 'OpenDiag: gb178 ' + String(msg||''); el.style.color = isError ? '#ffb3b3' : '#d7dbe8'; } }catch(_){ }
     try{ console.warn('GB176', msg); }catch(_){ }
   }
   function ds176EnrichRow(row){
@@ -24921,6 +24923,7 @@ try{ window.__dsOpenInboxDetail = openInboxDetail; }catch(_){ }
   }
   function ds176OpenImmediate(row){
     var full = ds176EnrichRow(row || {});
+    try{ ds176SetDiag('openImmediate kind=' + String((full && full.__fallbackOpenKind) || '--') + ' title=' + String((full && (full.title || full.__fallbackDisplayedTitle || full.templateId || full.proposalType || full.kind || full.formKey)) || '--')); }catch(_){ }
     try{ window.__dsInboxCurrentTask = full; }catch(_){ }
     try{ if(typeof dsResetInboxDetailView === 'function') dsResetInboxDetailView(); }catch(_){ }
     try{ var detail = document.getElementById('inboxDetail'); if(detail) detail.style.display = 'none'; }catch(_){ }
@@ -24951,6 +24954,7 @@ try{ window.__dsOpenInboxDetail = openInboxDetail; }catch(_){ }
         return !!dsLaunchProposalInCustomerEditor(full);
       }
     }catch(_){ }
+    try{ ds176SetDiag('openImmediate no-match kind=' + String((full && full.__fallbackOpenKind) || '--') + ' source=' + String(((full && full.source) || (((full||{}).payloadSubmitted||{}).source) || '--')) , true); }catch(_){ }
     return false;
   }
   async function ds176FetchFull(row){
