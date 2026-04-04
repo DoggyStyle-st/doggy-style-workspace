@@ -72,7 +72,7 @@ GB188 – Inbox Clear Error Line
 - Zweite Diagnosezeile für klare Fehlerursache beim Öffnen von Vorschlägen.
 - Meldet ret=0, generischen Dokument-Editor statt Aufenthaltseditor und unvollständige Snapshot-Übernahme.
 
-GB190 – Inbox Global Error Line
+GB191 – Inbox Global Error Line
 - Globale feste OpenError-Zeile ergänzt (sichtbar auch nach Panelwechsel)
 - Öffnungs-Diagnose in app.html erweitert: row-lookup, snapshotFn, fallbackFn, template, source, title
 - Zusätzlicher UI-Check nach dem Öffnen: generischer Dokument-Editor bei Aufenthalt wird klar benannt
