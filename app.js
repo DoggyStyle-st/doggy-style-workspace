@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB168_INBOX_OPEN_ORIGEDITOR_CONTRACT_STAY_20260404_ROOTONLY",
+  tag: "M50.9.9GB169_INBOX_DIRECTOPEN_BYPASSJSON_20260404_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB168_INBOX_OPEN_ORIGEDITOR_CONTRACT_STAY_20260404_ROOTONLY";
+const APP_BUILD = "M50.9.9GB169_INBOX_DIRECTOPEN_BYPASSJSON_20260404_ROOTONLY";
 
 function dsSyncDiagStateSummary(){
   try{
@@ -21392,7 +21392,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB168_INBOX_OPEN_ORIGEDITOR_CONTRACT_STAY_20260404_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB169_INBOX_DIRECTOPEN_BYPASSJSON_20260404_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -23365,7 +23365,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB168_INBOX_OPEN_ORIGEDITOR_CONTRACT_STAY_20260404_ROOTONLY";
+  const BUILD = "M50.9.9GB169_INBOX_DIRECTOPEN_BYPASSJSON_20260404_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -24208,6 +24208,45 @@ function dsOpenStayProposalEditor(row){
 }
 try{ window.dsOpenContractProposalEditor = dsOpenContractProposalEditor; }catch(_){}
 try{ window.dsOpenStayProposalEditor = dsOpenStayProposalEditor; }catch(_){}
+
+
+try{ window.dsOpenContractProposalEditor = dsOpenContractProposalEditor; }catch(_){ }
+try{ window.dsOpenStayProposalEditor = dsOpenStayProposalEditor; }catch(_){ }
+async function ds169OpenProposalOriginalEditorBridge(row){
+  try{
+    var full = row || {};
+    try{ if(typeof window.__dsFetchFullInboxProposal === 'function') full = await window.__dsFetchFullInboxProposal(row); }catch(_){ }
+    try{ window.__dsInboxCurrentTask = full; }catch(_){ }
+    try{ var detail = document.getElementById('inboxDetail'); if(detail) detail.style.display = 'none'; }catch(_){ }
+    try{ var listEl = document.getElementById('inboxList'); if(listEl) listEl.style.display = ''; }catch(_){ }
+    try{ var pList = document.getElementById('inboxProposalList'); if(pList) pList.style.display = 'none'; }catch(_){ }
+    try{ var b1 = document.getElementById('btnInboxClose'); if(b1) b1.style.display = 'none'; }catch(_){ }
+    try{ var b2 = document.getElementById('btnInboxAdopt'); if(b2) b2.style.display = 'none'; }catch(_){ }
+    try{ var b3 = document.getElementById('btnInboxReject'); if(b3) b3.style.display = 'none'; }catch(_){ }
+    if(typeof dsIsContractProposalInboxRow === 'function' && dsIsContractProposalInboxRow(full)){
+      try{ if(typeof dsSetProposalOpenDiag === 'function') dsSetProposalOpenDiag('gb169-direct contract', false); }catch(_){ }
+      try{ if(typeof selectTab === 'function') selectTab('contract'); }catch(_){ }
+      try{ if(typeof showPanel === 'function') showPanel('contract'); }catch(_){ }
+      try{ if(typeof dsForceShowPanel === 'function') dsForceShowPanel('contract'); }catch(_){ }
+      try{ if(typeof renderContractPanel === 'function') renderContractPanel(); }catch(_){ }
+      if(typeof dsOpenContractProposalEditor === 'function') return !!dsOpenContractProposalEditor(full);
+      return false;
+    }
+    if(typeof dsIsStayProposalInboxRow === 'function' && dsIsStayProposalInboxRow(full)){
+      try{ if(typeof dsSetProposalOpenDiag === 'function') dsSetProposalOpenDiag('gb169-direct stay', false); }catch(_){ }
+      try{ if(typeof selectTab === 'function') selectTab('documents'); }catch(_){ }
+      try{ if(typeof showPanel === 'function') showPanel('editor'); }catch(_){ }
+      try{ if(typeof dsForceShowPanel === 'function') dsForceShowPanel('editor'); }catch(_){ }
+      if(typeof dsOpenStayProposalEditor === 'function') return !!dsOpenStayProposalEditor(full);
+      return false;
+    }
+    return false;
+  }catch(err){
+    try{ if(typeof dsSetProposalOpenDiag === 'function') dsSetProposalOpenDiag('gb169-direct failed ' + String((err && err.message) || err || 'unknown'), false); }catch(_){ }
+    return false;
+  }
+}
+try{ window.__dsOpenProposalOriginalEditorBridge = ds169OpenProposalOriginalEditorBridge; }catch(_){ }
 
 function ds166OpenInboxDetailFallback(row){
     try{
