@@ -67,3 +67,7 @@ GB187 – Inbox FallbackOpen DirectReal
 - __dsInboxFallbackOpen hart auf neuesten Direkt-Dispatcher umgestellt
 - Fallback-Öffnen nutzt jetzt __fallbackOpenKind / source / template robust für Aufenthalt und Betreuungsvertrag
 - Aufenthalt/Vertrag aus Eingänge öffnen direkt in den echten Original-Editor statt im generischen Detail/Fallback zu landen
+
+GB188 – Inbox Clear Error Line
+- Zweite Diagnosezeile für klare Fehlerursache beim Öffnen von Vorschlägen.
+- Meldet ret=0, generischen Dokument-Editor statt Aufenthaltseditor und unvollständige Snapshot-Übernahme.
