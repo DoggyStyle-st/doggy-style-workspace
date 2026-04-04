@@ -6,13 +6,13 @@
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
 <meta charset="utf-8"/>
-  <meta name="app-build" content="M50.9.9GB173_INBOX_OPEN_MATCH_KUNDEHUND_REALEDITOR_20260404_ROOTONLY">
+  <meta name="app-build" content="M50.9.9GB174_INBOX_OPEN_CONTRACT_STAY_HARDBYPASS_20260404_ROOTONLY">
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <title>Doggy Style Workspace · App</title>
 <link href="manifest.json" rel="manifest"/>
 <meta content="#101014" name="theme-color"/>
 <link href="assets/logo.png" rel="apple-touch-icon"/>
-<link href="styles.css?v=M50.9.9GB173_INBOX_OPEN_MATCH_KUNDEHUND_REALEDITOR_20260404_ROOTONLY" rel="stylesheet"/>
+<link href="styles.css?v=M50.9.9GB174_INBOX_OPEN_CONTRACT_STAY_HARDBYPASS_20260404_ROOTONLY" rel="stylesheet"/>
 <link href="dashboard_master.css?v=20260104v13logout" rel="stylesheet"/>
 <style>
   /* Topbar Layout (iPad & Desktop stabil) */
@@ -102,7 +102,7 @@
   .doc-modal__actions{ margin-left:auto; display:flex; flex-wrap: wrap; gap: 8px; }
   .doc-modal__frame{ width: 100%; border: 0; border-radius: 12px; background: #fff; flex:1; min-height: 0; }
 </style>
-  <meta name="app-version" content="M50.9.9GB173_INBOX_OPEN_MATCH_KUNDEHUND_REALEDITOR_20260404_ROOTONLY">
+  <meta name="app-version" content="M50.9.9GB174_INBOX_OPEN_CONTRACT_STAY_HARDBYPASS_20260404_ROOTONLY">
   <meta name="release-channel" content="MASTER">
 </head>
 <body class="bg-watermark page-app">
@@ -1194,7 +1194,7 @@
 </section>
 
 <section class="panel" id="statistics">
-<!-- Statistics panel is rendered by app.js?v=M50.9.9GB173_INBOX_OPEN_MATCH_KUNDEHUND_REALEDITOR_20260404_ROOTONLY (renderStatisticsPanel) -->
+<!-- Statistics panel is rendered by app.js?v=M50.9.9GB174_INBOX_OPEN_CONTRACT_STAY_HARDBYPASS_20260404_ROOTONLY (renderStatisticsPanel) -->
 </section>
 
 
@@ -1261,12 +1261,12 @@
 </footer>
 </div>
 <!-- Firebase (optional) + Config -->
-<script defer="defer" src="firebase-config.js?v=M50.9.9GB173_INBOX_OPEN_MATCH_KUNDEHUND_REALEDITOR_20260404_ROOTONLY"></script>
+<script defer="defer" src="firebase-config.js?v=M50.9.9GB174_INBOX_OPEN_CONTRACT_STAY_HARDBYPASS_20260404_ROOTONLY"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
-<script defer="defer" src="app.js?v=M50.9.9GB173_INBOX_OPEN_MATCH_KUNDEHUND_REALEDITOR_20260404_ROOTONLY"></script>
+<script defer="defer" src="app.js?v=M50.9.9GB174_INBOX_OPEN_CONTRACT_STAY_HARDBYPASS_20260404_ROOTONLY"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1285,7 +1285,7 @@
 </script>
 
 <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB173_INBOX_OPEN_MATCH_KUNDEHUND_REALEDITOR_20260404_ROOTONLY', { updateViaCache: 'none' });
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB174_INBOX_OPEN_CONTRACT_STAY_HARDBYPASS_20260404_ROOTONLY', { updateViaCache: 'none' });
   </script>
 
 <script>
@@ -1387,7 +1387,7 @@
   <!-- Bottom logout button removed (duplicate of header logout; also overlaps editor on iPad) -->
 </div>
 <!-- test-badge removed (requested) -->
-  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB173_INBOX_OPEN_MATCH_KUNDEHUND_REALEDITOR_20260404_ROOTONLY</div>
+  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB174_INBOX_OPEN_CONTRACT_STAY_HARDBYPASS_20260404_ROOTONLY</div>
 
 <script>
 (function visibleMailFallback(){
@@ -1852,43 +1852,13 @@
       var looksLikeCustomerProposal = src.indexOf('customer-main-dogs') >= 0 || tpl === 'customer_data' || title.indexOf('kunde/hund') >= 0;
       if(isContractProposal || isStayProposal){
         try{
-          var openDirect = function(fullRow){
-            try{ document.getElementById('inboxDetail').style.display = 'none'; }catch(_){ }
-            try{ document.getElementById('inboxList').style.display = ''; }catch(_){ }
-            try{ var pList1 = document.getElementById('inboxProposalList'); if(pList1) pList1.style.display = 'none'; }catch(_){ }
-            try{ document.getElementById('btnInboxClose').style.display = 'none'; }catch(_){ }
-            try{ document.getElementById('btnInboxAdopt').style.display = 'none'; }catch(_){ }
-            try{ document.getElementById('btnInboxReject').style.display = 'none'; }catch(_){ }
-            if(isContractProposal){
-              try{ if(typeof window.ds172ForceOpenContractProposalFromInbox === 'function') return window.ds172ForceOpenContractProposalFromInbox(fullRow || row); }catch(_){ }
-              try{ if(typeof window.dsOpenContractProposalEditor === 'function' && window.dsOpenContractProposalEditor(fullRow || row)) return true; }catch(_){ }
-            }
-            if(isStayProposal){
-              try{ if(typeof window.ds172ForceOpenStayProposalFromInbox === 'function') return window.ds172ForceOpenStayProposalFromInbox(fullRow || row); }catch(_){ }
-              try{ if(typeof window.dsOpenStayProposalEditor === 'function' && window.dsOpenStayProposalEditor(fullRow || row)) return true; }catch(_){ }
-            }
+          if(typeof window.__dsDirectOpenContractStayFromInbox === 'function'){
+            Promise.resolve(window.__dsDirectOpenContractStayFromInbox(row)).catch(function(){});
             return false;
-          };
-          var fetcher = (typeof window.__dsFetchFullInboxProposal === 'function') ? window.__dsFetchFullInboxProposal(row) : row;
-          Promise.resolve(fetcher).then(async function(fullRow){
-            try{
-              var ok = await Promise.resolve(openDirect(fullRow));
-              if(ok) return;
-              try{
-                if(isContractProposal && typeof window.dsOpenContractProposalEditor === 'function' && window.dsOpenContractProposalEditor(fullRow || row)) return;
-                if(isStayProposal && typeof window.dsOpenStayProposalEditor === 'function' && window.dsOpenStayProposalEditor(fullRow || row)) return;
-              }catch(_){ }
-              if(typeof window.__dsOpenInboxDetail === 'function'){ window.__dsOpenInboxDetail(fullRow || row); return; }
-            }catch(_){ }
-          }).catch(function(){
-            try{ if(typeof window.__dsOpenInboxDetail === 'function') window.__dsOpenInboxDetail(row); }catch(_){ }
-          });
-          return false;
+          }
         }catch(_){ }
-        if(typeof window.__dsOpenInboxDetail === 'function'){
-          window.__dsOpenInboxDetail(row);
-          return false;
-        }
+        try{ if(typeof window.__dsOpenInboxDetail === 'function') window.__dsOpenInboxDetail(row); }catch(_){ }
+        return false;
       }
       if(looksLikeCustomerProposal){
         ds62OpenProposalInTrueEditor(row);
@@ -2694,7 +2664,7 @@
 
 <script>
 (function(){
-  const CURRENT_BUILD = 'M50.9.9GB173_INBOX_OPEN_MATCH_KUNDEHUND_REALEDITOR_20260404_ROOTONLY';
+  const CURRENT_BUILD = 'M50.9.9GB174_INBOX_OPEN_CONTRACT_STAY_HARDBYPASS_20260404_ROOTONLY';
   try{
     window.addEventListener('load', function(){
       try{

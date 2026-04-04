@@ -1,4 +1,3 @@
-GB172: Stabile Basis auf hochgeladenem GB170. Build-Referenzen in app.html/app.js/sw.js vereinheitlicht und Öffnen von Betreuungsvertrag-/Aufenthalts-Vorschlägen in Eingänge auf direkten Original-Editor mit Retry umgestellt.
 GB154: Kundenbereiche Betreuungsvertrag und Neuer Aufenthalt senden jetzt Vorschläge an Eingänge zur Admin-Prüfung/Freigabe, analog zu Kunde/Hund.
 - M50.9.9GB151_CUSTOMERCHAT_MEDIA_DELETE_FIX_20260403_ROOTONLY
   - Cloud-payload vor Firestore-Write rekursiv Firestore-safe bereinigt
