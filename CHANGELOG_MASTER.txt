@@ -1,3 +1,11 @@
+GB182
+- Release-Schnitt auf M50.9.9GB182_INBOX_EDITORMAP_REALSTAY_REALCONTRACT_20260404_ROOTONLY
+- Build-/Cache-Strings in app.html, app.js und sw.js auf GB182 angehoben
+- customer.html von altem GB170-Buildstring auf GB182 konsolidiert (Styles/Scripts/Build-Badge/CURRENT_BUILD)
+- version.txt und VERIFY_BUILD.txt auf denselben Buildstand gezogen
+- Kommentarfehler in app.js korrigiert (END GB181 statt END GB180)
+- Keine zusätzliche Fachlogik gegenüber dem gelieferten GB181-Stand geändert
+
 GB154: Kundenbereiche Betreuungsvertrag und Neuer Aufenthalt senden jetzt Vorschläge an Eingänge zur Admin-Prüfung/Freigabe, analog zu Kunde/Hund.
 - M50.9.9GB151_CUSTOMERCHAT_MEDIA_DELETE_FIX_20260403_ROOTONLY
   - Cloud-payload vor Firestore-Write rekursiv Firestore-safe bereinigt
