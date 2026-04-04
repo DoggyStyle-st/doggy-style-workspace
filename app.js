@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB172_STABLEBASE_GB170_INBOX_OPEN_REAL_EDITOR_20260404_ROOTONLY",
+  tag: "M50.9.9GB173_INBOX_OPEN_MATCH_KUNDEHUND_REALEDITOR_20260404_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB172_STABLEBASE_GB170_INBOX_OPEN_REAL_EDITOR_20260404_ROOTONLY";
+const APP_BUILD = "M50.9.9GB173_INBOX_OPEN_MATCH_KUNDEHUND_REALEDITOR_20260404_ROOTONLY";
 
 function dsSyncDiagStateSummary(){
   try{
@@ -21392,7 +21392,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB172_STABLEBASE_GB170_INBOX_OPEN_REAL_EDITOR_20260404_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB173_INBOX_OPEN_MATCH_KUNDEHUND_REALEDITOR_20260404_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -23365,7 +23365,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB172_STABLEBASE_GB170_INBOX_OPEN_REAL_EDITOR_20260404_ROOTONLY";
+  const BUILD = "M50.9.9GB173_INBOX_OPEN_MATCH_KUNDEHUND_REALEDITOR_20260404_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -24214,16 +24214,22 @@ async function ds172ForceOpenContractProposalFromInbox(row){
   var lastErr = '';
   try{ if(typeof window.__dsFetchFullInboxProposal === 'function') full = await window.__dsFetchFullInboxProposal(row); }catch(_){ }
   try{ window.__dsInboxCurrentTask = full; }catch(_){ }
-  for(var i=0;i<8;i++){
+  for(var i=0;i<6;i++){
+    var opened = false;
     try{ if(typeof ds166ActivateTab === 'function') ds166ActivateTab('contract'); else if(typeof selectTab === 'function') selectTab('contract'); }catch(_){ }
     try{ if(typeof showPanel === 'function') showPanel('contract'); }catch(_){ }
     try{ if(typeof dsForceShowPanel === 'function') dsForceShowPanel('contract'); }catch(_){ }
     try{ if(typeof renderContractPanel === 'function') renderContractPanel(); }catch(_){ }
-    try{ if(typeof dsOpenContractProposalEditor === 'function') dsOpenContractProposalEditor(full); }catch(err){ lastErr = String((err && err.message) || err || 'contract-open-failed'); }
-    await ds172Delay(i === 0 ? 40 : 180);
-    try{ var cs = document.getElementById('contractCustomerSelect'); var ps = document.getElementById('contractPetSelect'); if(ds172PanelActive('contract') && cs && ps){ ds172SetOpenDiag('gb172-contract-open ok id=' + String((full && (full.proposalId || full.id || full.taskId)) || '--'), false); return true; } }catch(_){ }
+    try{ if(typeof dsOpenContractProposalEditor === 'function') opened = !!dsOpenContractProposalEditor(full); }catch(err){ lastErr = String((err && err.message) || err || 'contract-open-failed'); opened = false; }
+    await ds172Delay(i === 0 ? 60 : 160);
+    try{
+      var cs = document.getElementById('contractCustomerSelect');
+      var ps = document.getElementById('contractPetSelect');
+      var visible = ds172PanelActive('contract') || !!(cs || ps);
+      if(opened || visible){ ds172SetOpenDiag('gb173-contract-open ok id=' + String((full && (full.proposalId || full.id || full.taskId)) || '--'), false); return true; }
+    }catch(_){ if(opened){ return true; } }
   }
-  ds172SetOpenDiag('gb172-contract-open fail id=' + String((full && (full.proposalId || full.id || full.taskId)) || '--') + ' err=' + String(lastErr || '--'), true);
+  ds172SetOpenDiag('gb173-contract-open fail id=' + String((full && (full.proposalId || full.id || full.taskId)) || '--') + ' err=' + String(lastErr || '--'), true);
   return false;
 }
 async function ds172ForceOpenStayProposalFromInbox(row){
@@ -24231,15 +24237,20 @@ async function ds172ForceOpenStayProposalFromInbox(row){
   var lastErr = '';
   try{ if(typeof window.__dsFetchFullInboxProposal === 'function') full = await window.__dsFetchFullInboxProposal(row); }catch(_){ }
   try{ window.__dsInboxCurrentTask = full; }catch(_){ }
-  for(var i=0;i<8;i++){
+  for(var i=0;i<6;i++){
+    var opened = false;
     try{ if(typeof ds166ActivateTab === 'function') ds166ActivateTab('documents'); else if(typeof selectTab === 'function') selectTab('documents'); }catch(_){ }
     try{ if(typeof showPanel === 'function') showPanel('documents'); }catch(_){ }
     try{ if(typeof dsForceShowPanel === 'function') dsForceShowPanel('documents'); }catch(_){ }
-    try{ if(typeof dsOpenStayProposalEditor === 'function') dsOpenStayProposalEditor(full); }catch(err){ lastErr = String((err && err.message) || err || 'stay-open-failed'); }
-    await ds172Delay(i === 0 ? 40 : 180);
-    try{ var dogSel = document.getElementById('dogSelect'); if(ds172PanelActive('editor') && dogSel){ ds172SetOpenDiag('gb172-stay-open ok id=' + String((full && (full.proposalId || full.id || full.taskId)) || '--'), false); return true; } }catch(_){ }
+    try{ if(typeof dsOpenStayProposalEditor === 'function') opened = !!dsOpenStayProposalEditor(full); }catch(err){ lastErr = String((err && err.message) || err || 'stay-open-failed'); opened = false; }
+    await ds172Delay(i === 0 ? 60 : 160);
+    try{
+      var dogSel = document.getElementById('dogSelect');
+      var visible = ds172PanelActive('editor') || ds172PanelActive('documents') || !!dogSel || !!window.currentDoc;
+      if(opened || visible){ ds172SetOpenDiag('gb173-stay-open ok id=' + String((full && (full.proposalId || full.id || full.taskId)) || '--'), false); return true; }
+    }catch(_){ if(opened){ return true; } }
   }
-  ds172SetOpenDiag('gb172-stay-open fail id=' + String((full && (full.proposalId || full.id || full.taskId)) || '--') + ' err=' + String(lastErr || '--'), true);
+  ds172SetOpenDiag('gb173-stay-open fail id=' + String((full && (full.proposalId || full.id || full.taskId)) || '--') + ' err=' + String(lastErr || '--'), true);
   return false;
 }
 try{ window.ds172ForceOpenContractProposalFromInbox = ds172ForceOpenContractProposalFromInbox; }catch(_){ }
