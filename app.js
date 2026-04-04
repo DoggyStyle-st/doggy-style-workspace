@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB180_INBOX_FALLBACK_DIRECTCALL_EDITORTRACE_20260404_ROOTONLY",
+  tag: "M50.9.9GB181_INBOX_EDITORMAP_REALSTAY_REALCONTRACT_20260404_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB180_INBOX_FALLBACK_DIRECTCALL_EDITORTRACE_20260404_ROOTONLY";
+const APP_BUILD = "M50.9.9GB181_INBOX_EDITORMAP_REALSTAY_REALCONTRACT_20260404_ROOTONLY";
 
 function dsSyncDiagStateSummary(){
   try{
@@ -21393,7 +21393,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB180_INBOX_FALLBACK_DIRECTCALL_EDITORTRACE_20260404_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB181_INBOX_EDITORMAP_REALSTAY_REALCONTRACT_20260404_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -23366,7 +23366,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB180_INBOX_FALLBACK_DIRECTCALL_EDITORTRACE_20260404_ROOTONLY";
+  const BUILD = "M50.9.9GB181_INBOX_EDITORMAP_REALSTAY_REALCONTRACT_20260404_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -25104,6 +25104,154 @@ try{ window.__dsOpenInboxDetail = openInboxDetail; }catch(_){ }
 /* ===== END GB179 ===== */
 
 
-/* ===== GB180 fallback app.html direct editor trace ===== */
-try{ window.__GB180_MARKER = 'active'; }catch(_){ }
+/* ===== GB181 real editor mapping for contract/stay proposals ===== */
+try{ window.__GB181_MARKER = 'active'; }catch(_){ }
 /* ===== END GB180 ===== */
+
+/* ===== GB181 real editor open fix for contract/stay proposals ===== */
+(function(){
+  function ds181Diag(msg, isError){
+    try{ if(typeof dsSetProposalOpenDiag === 'function') dsSetProposalOpenDiag('gb181 ' + String(msg||''), !!isError); }catch(_){ }
+    try{ var el=document.getElementById('inboxDiag'); if(el){ el.textContent='OpenDiag: gb181 ' + String(msg||''); el.style.color = isError ? '#ffb3b3' : '#d7dbe8'; } }catch(_){ }
+  }
+  function ds181Clone(v){ try{ return JSON.parse(JSON.stringify(v==null?{}:v)); }catch(_){ return v; } }
+  function ds181DisableSelect(id, value, label){
+    try{
+      var el = document.getElementById(id);
+      if(!el) return false;
+      el.innerHTML = '<option value="' + escapeHtml(String(value||'')) + '">' + escapeHtml(String(label||'')) + '</option>';
+      el.value = String(value||'');
+      el.disabled = true; el.setAttribute('disabled','disabled'); el.style.pointerEvents = 'none';
+      try{ el.dispatchEvent(new Event('change', { bubbles:true })); }catch(_){ }
+      return true;
+    }catch(_){ return false; }
+  }
+  function ds181EnsureVisible(tabId, panelId){
+    try{ if(typeof selectTab === 'function' && tabId) selectTab(tabId); }catch(_){ }
+    try{ if(typeof showPanel === 'function' && panelId) showPanel(panelId); }catch(_){ }
+    try{ if(typeof dsForceShowPanel === 'function' && panelId) dsForceShowPanel(panelId); }catch(_){ }
+    try{ var panel = panelId ? document.getElementById(panelId) : null; if(panel){ panel.style.display=''; panel.classList.add('is-active'); } }catch(_){ }
+  }
+  function ds181ResolveLabels(full, info){
+    return {
+      customerLabel: String((info.customer && (info.customer.name || info.customer.lastName || info.customer.email)) || full.customerName || full.customerEmail || 'Kunde'),
+      petLabel: String((info.pet && (info.pet.name || info.pet.petName || info.pet.dogName)) || full.petName || 'Hund')
+    };
+  }
+  function ds181OpenContractProposalEditor(row){
+    try{
+      var full = row || {};
+      var info = dsResolveProposalCustomerPet(full);
+      var payload = info.payload || {};
+      var customerId = String(info.customerId || '');
+      var petId = String(info.petId || '');
+      if(!customerId || !petId){ ds181Diag('contract missing customer/pet', true); return false; }
+      var labels = ds181ResolveLabels(full, info);
+      try{ window.__dsInboxCurrentTask = full; }catch(_){ }
+      try{ state.contractSelection = { customerId: customerId, petId: petId }; }catch(_){ }
+      try{ state.contractSignatures = state.contractSignatures || {}; }catch(_){ }
+      var version = String((payload && payload.contractVersion) || state.contractVersion || state.contract?.version || 'v1.0');
+      try{
+        var sig = payload && payload.signature;
+        if(sig && sig.dataUrl){
+          state.contractSignatures[version + '__' + customerId + '__' + petId] = {
+            dataUrl: String(sig.dataUrl || ''),
+            signedAt: sig.signedAt || Date.now()
+          };
+        }
+      }catch(_){ }
+      ds181EnsureVisible('contract','contract');
+      try{ if(typeof renderContractPanel === 'function') renderContractPanel(); }catch(err){ ds181Diag('contract render err ' + String((err && err.message) || err || 'unknown'), true); }
+      var tries = 0;
+      (function fill(){
+        try{
+          ds181EnsureVisible('contract','contract');
+          ds181DisableSelect('contractCustomerSelect', customerId, labels.customerLabel);
+          ds181DisableSelect('contractPetSelect', petId, labels.petLabel);
+          var accept = document.getElementById('contractAcceptChk');
+          if(accept) accept.checked = !!(payload && payload.accepted);
+          var infoEl = document.getElementById('contractSaveInfo') || document.getElementById('contractSaveStatus') || document.getElementById('contractSavedInfo');
+          if(infoEl){
+            infoEl.textContent = 'Vorschlag geladen – prüfen und speichern.';
+            infoEl.classList.remove('ok','warn','muted');
+            infoEl.classList.add('warn');
+          }
+          var canvas = document.getElementById('contractSig');
+          var sig = payload && payload.signature;
+          if(canvas && sig && sig.dataUrl){
+            var img = new Image();
+            img.onload = function(){ try{ var c2 = canvas.getContext('2d'); c2.clearRect(0,0,canvas.width,canvas.height); c2.drawImage(img,0,0,canvas.width,canvas.height); }catch(_){ } };
+            img.src = String(sig.dataUrl || '');
+          }
+          var saveBtn = document.getElementById('contractSaveBtn') || document.getElementById('btnContractSave') || document.getElementById('contractSave');
+          if(saveBtn) saveBtn.textContent = 'Speichern';
+          ds181Diag('contract editor-ok customer=' + customerId + ' pet=' + petId, false);
+        }catch(err2){ ds181Diag('contract fill err ' + String((err2 && err2.message) || err2 || 'unknown'), true); }
+        if(++tries < 10) setTimeout(fill, 180);
+      })();
+      return true;
+    }catch(err){ ds181Diag('contract open err ' + String((err && err.message) || err || 'unknown'), true); return false; }
+  }
+  function ds181OpenStayProposalEditor(row){
+    try{
+      var full = row || {};
+      var info = dsResolveProposalCustomerPet(full);
+      var payload = info.payload || {};
+      var customerId = String(info.customerId || '');
+      var petId = String(info.petId || '');
+      var dogId = String(info.dogId || '');
+      if(!dogId){
+        try{ if(info.pet && typeof getLegacyDogIdForPet === 'function') dogId = String(getLegacyDogIdForPet(info.pet.id || info.pet.petId || '') || ''); }catch(_){ }
+      }
+      if(!dogId && info.pet){ dogId = String((info.pet.dogId || info.pet.id || info.pet.petId) || ''); }
+      var labels = ds181ResolveLabels(full, info);
+      try{ window.__dsInboxCurrentTask = full; }catch(_){ }
+      ds181EnsureVisible('documents','editor');
+      try{ if(typeof createStay === 'function') createStay(); }catch(err){ ds181Diag('stay createStay err ' + String((err && err.message) || err || 'unknown'), true); }
+      var tries = 0;
+      (function fill(){
+        try{
+          ds181EnsureVisible('documents','editor');
+          if(!currentDoc || String(currentDoc.templateId || '') !== 'hundeannahme' || !document.getElementById('formRoot')){
+            if(++tries < 18) return setTimeout(fill, 180);
+            ds181Diag('stay editor-timeout', true);
+            return;
+          }
+          currentDoc.templateId = 'hundeannahme';
+          currentDoc.templateName = 'Aufenthalte';
+          currentDoc.title = 'Aufenthalte';
+          currentDoc.customerId = customerId || currentDoc.customerId || '';
+          currentDoc.petId = petId || currentDoc.petId || '';
+          currentDoc.dogId = dogId || currentDoc.dogId || '';
+          currentDoc.meta = Object.assign({}, currentDoc.meta || {}, ds181Clone(payload.meta || {}));
+          currentDoc.fields = Object.assign({}, currentDoc.fields || {}, ds181Clone(payload.fields || {}));
+          if(payload && payload.signature) currentDoc.signature = ds181Clone(payload.signature);
+          try{ ensureDocLinks(currentDoc); }catch(_){ }
+          try{ updateDocCustomerPetFromDogId(currentDoc); }catch(_){ }
+          try{ normalizeMeta(currentDoc); }catch(_){ }
+          try{ renderStayEditorEmbedded(currentDoc); }catch(err2){ ds181Diag('stay renderEmbedded err ' + String((err2 && err2.message) || err2 || 'unknown'), true); }
+          try{ populateStayEditorFromDoc(currentDoc); }catch(err3){ ds181Diag('stay populate err ' + String((err3 && err3.message) || err3 || 'unknown'), true); }
+          try{ renderStayQuickLinks(currentDoc); }catch(_){ }
+          try{ updateContractWarnBanner(currentDoc); }catch(_){ }
+          try{ renderVersions(currentDoc); }catch(_){ }
+          try{ var et=document.getElementById('editorTitle'); if(et) et.textContent='Aufenthalte'; }catch(_){ }
+          try{ var em=document.getElementById('editorMeta'); if(em) em.textContent='Aufenthalte'; }catch(_){ }
+          try{ var dn=document.getElementById('docName'); if(dn) dn.value='Aufenthalte'; }catch(_){ }
+          ds181DisableSelect('stayCustomerSelect', customerId, labels.customerLabel);
+          ds181DisableSelect('stayDogSelect', dogId || petId, labels.petLabel);
+          ds181DisableSelect('customerSelect', customerId, labels.customerLabel);
+          ds181DisableSelect('dogSelect', dogId || petId, labels.petLabel);
+          var saveBtn = document.getElementById('btnStaySave2') || document.getElementById('btnSave');
+          if(saveBtn) saveBtn.textContent = 'Speichern';
+          ds181Diag('stay editor-ok customer=' + customerId + ' pet=' + petId + ' dog=' + (dogId||'--'), false);
+          return;
+        }catch(err4){ ds181Diag('stay fill err ' + String((err4 && err4.message) || err4 || 'unknown'), true); }
+        if(++tries < 18) setTimeout(fill, 180);
+      })();
+      return true;
+    }catch(err){ ds181Diag('stay open err ' + String((err && err.message) || err || 'unknown'), true); return false; }
+  }
+  try{ window.dsOpenContractProposalEditor = ds181OpenContractProposalEditor; }catch(_){ }
+  try{ window.dsOpenStayProposalEditor = ds181OpenStayProposalEditor; }catch(_){ }
+})();
+/* ===== END GB181 ===== */
