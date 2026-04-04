@@ -6,13 +6,13 @@
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
 <meta charset="utf-8"/>
-  <meta name="app-build" content="M50.9.9GB191_INBOX_ROWKEYFIX_DIRECTROW_20260405_ROOTONLY">
+  <meta name="app-build" content="M50.9.9GB192_INLINEOPEN_RUNTIMECHECK_20260405_ROOTONLY">
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <title>Doggy Style Workspace · App</title>
 <link href="manifest.json" rel="manifest"/>
 <meta content="#101014" name="theme-color"/>
 <link href="assets/logo.png" rel="apple-touch-icon"/>
-<link href="styles.css?v=M50.9.9GB191_INBOX_ROWKEYFIX_DIRECTROW_20260405_ROOTONLY" rel="stylesheet"/>
+<link href="styles.css?v=M50.9.9GB192_INLINEOPEN_RUNTIMECHECK_20260405_ROOTONLY" rel="stylesheet"/>
 <link href="dashboard_master.css?v=20260104v13logout" rel="stylesheet"/>
 <style>
   /* Topbar Layout (iPad & Desktop stabil) */
@@ -102,7 +102,7 @@
   .doc-modal__actions{ margin-left:auto; display:flex; flex-wrap: wrap; gap: 8px; }
   .doc-modal__frame{ width: 100%; border: 0; border-radius: 12px; background: #fff; flex:1; min-height: 0; }
 </style>
-  <meta name="app-version" content="M50.9.9GB191_INBOX_ROWKEYFIX_DIRECTROW_20260405_ROOTONLY">
+  <meta name="app-version" content="M50.9.9GB192_INLINEOPEN_RUNTIMECHECK_20260405_ROOTONLY">
   <meta name="release-channel" content="MASTER">
 </head>
 <body class="bg-watermark page-app">
@@ -1195,7 +1195,7 @@
 </section>
 
 <section class="panel" id="statistics">
-<!-- Statistics panel is rendered by app.js?v=M50.9.9GB191_INBOX_ROWKEYFIX_DIRECTROW_20260405_ROOTONLY (renderStatisticsPanel) -->
+<!-- Statistics panel is rendered by app.js?v=M50.9.9GB192_INLINEOPEN_RUNTIMECHECK_20260405_ROOTONLY (renderStatisticsPanel) -->
 </section>
 
 
@@ -1262,12 +1262,12 @@
 </footer>
 </div>
 <!-- Firebase (optional) + Config -->
-<script defer="defer" src="firebase-config.js?v=M50.9.9GB191_INBOX_ROWKEYFIX_DIRECTROW_20260405_ROOTONLY"></script>
+<script defer="defer" src="firebase-config.js?v=M50.9.9GB192_INLINEOPEN_RUNTIMECHECK_20260405_ROOTONLY"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
-<script defer="defer" src="app.js?v=M50.9.9GB191_INBOX_ROWKEYFIX_DIRECTROW_20260405_ROOTONLY"></script>
+<script defer="defer" src="app.js?v=M50.9.9GB192_INLINEOPEN_RUNTIMECHECK_20260405_ROOTONLY"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1286,7 +1286,7 @@
 </script>
 
 <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB191_INBOX_ROWKEYFIX_DIRECTROW_20260405_ROOTONLY', { updateViaCache: 'none' });
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB192_INLINEOPEN_RUNTIMECHECK_20260405_ROOTONLY', { updateViaCache: 'none' });
   </script>
 
 <script>
@@ -1388,7 +1388,7 @@
   <!-- Bottom logout button removed (duplicate of header logout; also overlaps editor on iPad) -->
 </div>
 <!-- test-badge removed (requested) -->
-  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB191_INBOX_ROWKEYFIX_DIRECTROW_20260405_ROOTONLY</div>
+  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB192_INLINEOPEN_RUNTIMECHECK_20260405_ROOTONLY</div>
 
 <script>
 (function visibleMailFallback(){
@@ -1855,7 +1855,7 @@
       if(isContractProposal || isStayProposal){
         try{
           if(typeof window.dsSetProposalOpenDiag === 'function'){
-            window.dsSetProposalOpenDiag('gb191 fallback-call kind=' + (isContractProposal ? 'contract' : 'stay')
+            window.dsSetProposalOpenDiag('gb192 fallback-call kind=' + (isContractProposal ? 'contract' : 'stay')
               + ' contractFn=' + (typeof window.dsOpenContractProposalEditor)
               + ' stayFn=' + (typeof window.dsOpenStayProposalEditor)
               + ' selectTab=' + (typeof window.selectTab)
@@ -1876,8 +1876,8 @@
             try{ if(typeof window.dsForceShowPanel === 'function') window.dsForceShowPanel('contract'); }catch(_){ }
             var okC = false;
             try{ if(typeof window.renderContractPanel === 'function') window.renderContractPanel(); }catch(_){ }
-            try{ if(typeof window.dsOpenContractProposalEditor === 'function') okC = !!window.dsOpenContractProposalEditor(row); }catch(errC){ try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb191 contract-err ' + String((errC && errC.message) || errC || 'unknown'), true); }catch(_){ } }
-            try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb191 contract-ret=' + (okC ? '1':'0'), !okC); }catch(_){ }
+            try{ if(typeof window.dsOpenContractProposalEditor === 'function') okC = !!window.dsOpenContractProposalEditor(row); }catch(errC){ try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb192 contract-err ' + String((errC && errC.message) || errC || 'unknown'), true); }catch(_){ } }
+            try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb192 contract-ret=' + (okC ? '1':'0'), !okC); }catch(_){ }
             if(window.__dsOpenInboxProposalSnapshot){
               try{ window.__dsOpenInboxProposalSnapshot(row, 'contract'); }catch(_){ }
               return true;
@@ -1892,8 +1892,8 @@
             try{ if(typeof window.showPanel === 'function') window.showPanel('editor'); }catch(_){ }
             try{ if(typeof window.dsForceShowPanel === 'function') window.dsForceShowPanel('editor'); }catch(_){ }
             var okS = false;
-            try{ if(typeof window.dsOpenStayProposalEditor === 'function') okS = !!window.dsOpenStayProposalEditor(row); }catch(errS){ try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb191 stay-err ' + String((errS && errS.message) || errS || 'unknown'), true); }catch(_){ } }
-            try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb191 stay-ret=' + (okS ? '1':'0'), !okS); }catch(_){ }
+            try{ if(typeof window.dsOpenStayProposalEditor === 'function') okS = !!window.dsOpenStayProposalEditor(row); }catch(errS){ try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb192 stay-err ' + String((errS && errS.message) || errS || 'unknown'), true); }catch(_){ } }
+            try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb192 stay-ret=' + (okS ? '1':'0'), !okS); }catch(_){ }
             if(window.__dsOpenInboxProposalSnapshot){
               try{ window.__dsOpenInboxProposalSnapshot(row, 'stay'); }catch(_){ }
               return true;
@@ -1936,7 +1936,291 @@
     }catch(_){ }
     return false;
   }
+
   window.__dsInboxFallbackOpen = fallbackOpenInboxRow;
+  (function(){
+    function ds192Clone(v){ try{ return v == null ? v : JSON.parse(JSON.stringify(v)); }catch(_){ return v; } }
+    function ds192Norm(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
+    function ds192Lower(v){ try{ return String(v == null ? '' : v).trim().toLowerCase(); }catch(_){ return ''; } }
+    function ds192Bool(v){
+      try{
+        if(v === true || v === false) return !!v;
+        var s = String(v == null ? '' : v).trim().toLowerCase();
+        return s === '1' || s === 'true' || s === 'yes' || s === 'ja' || s === 'on';
+      }catch(_){ return false; }
+    }
+    function ds192Diag(msg, isError){
+      try{ window.__dsAppHtmlOpenRuntime = 'GB192-apphtml-inline'; }catch(_){ }
+      try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb192 ' + String(msg||''), !!isError); }catch(_){ }
+    }
+    function ds192Err(msg, isError){
+      try{ if(typeof window.dsSetProposalOpenErrorLine === 'function') window.dsSetProposalOpenErrorLine(String(msg||''), !!isError); }catch(_){ }
+    }
+    function ds192Payload(row){
+      try{
+        var raw = ds192Clone((row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data)) || {});
+        if(!raw || typeof raw !== 'object') raw = {};
+        var fields = ds192Clone(raw.fields || {}); if(!fields || typeof fields !== 'object') fields = {};
+        var meta = ds192Clone(raw.meta || {}); if(!meta || typeof meta !== 'object') meta = {};
+        var customer = ds192Clone((raw.customer && typeof raw.customer === 'object') ? raw.customer : ((row && row.customer && typeof row.customer === 'object') ? row.customer : {}));
+        var pet = ds192Clone((raw.pet && typeof raw.pet === 'object') ? raw.pet : ((row && row.pet && typeof row.pet === 'object') ? row.pet : {}));
+        var customerId = ds192Norm(raw.customerId || meta.customerId || (customer && (customer.id || customer.customerId)) || (row && (row.customerId || row.__targetCustomerId)) || '');
+        var petId = ds192Norm(raw.petId || meta.petId || (pet && (pet.id || pet.petId)) || (row && (row.petId || row.__targetPetId || row.dogId)) || '');
+        var dogId = ds192Norm(raw.dogId || meta.dogId || fields.dogId || (pet && (pet.dogId || pet.legacyDogId || pet.id || pet.petId)) || (row && row.dogId) || '');
+        if(!meta.von) meta.von = ds192Norm(raw.von || raw.startDate || fields.von || fields.startDate || fields.meta_von || fields.from || '');
+        if(!meta.bis) meta.bis = ds192Norm(raw.bis || raw.endDate || fields.bis || fields.endDate || fields.meta_bis || fields.to || '');
+        if(!meta.betreuung) meta.betreuung = ds192Norm(raw.betreuung || raw.careType || fields.betreuung || fields.careType || fields.meta_betreuung || '');
+        if(fields.notes == null){
+          if(raw.notes != null) fields.notes = raw.notes;
+          else if(raw.stayNotes != null) fields.notes = raw.stayNotes;
+          else if(fields.stayNotes != null) fields.notes = fields.stayNotes;
+        }
+        meta.consents = meta.consents || {};
+        meta.consents.dsgvo = ds192Bool(meta.consents.dsgvo != null ? meta.consents.dsgvo : (fields.ev_dsgvo != null ? fields.ev_dsgvo : raw.dsgvoAccepted));
+        meta.consents.agb   = ds192Bool(meta.consents.agb   != null ? meta.consents.agb   : (fields.ev_agb != null ? fields.ev_agb : raw.agbAccepted));
+        meta.consents.vet   = ds192Bool(meta.consents.vet   != null ? meta.consents.vet   : (fields.ev_tierarzt != null ? fields.ev_tierarzt : raw.vetConsent));
+        meta.consents.health= ds192Bool(meta.consents.health!= null ? meta.consents.health: (fields.ev_gesund != null ? fields.ev_gesund : raw.healthConfirmed));
+        meta.consents.truth = ds192Bool(meta.consents.truth != null ? meta.consents.truth : (fields.ev_wahr != null ? fields.ev_wahr : raw.truthConfirmed));
+        fields.ev_dsgvo = ds192Bool(fields.ev_dsgvo != null ? fields.ev_dsgvo : meta.consents.dsgvo);
+        fields.ev_agb = ds192Bool(fields.ev_agb != null ? fields.ev_agb : meta.consents.agb);
+        fields.ev_tierarzt = ds192Bool(fields.ev_tierarzt != null ? fields.ev_tierarzt : meta.consents.vet);
+        fields.ev_gesund = ds192Bool(fields.ev_gesund != null ? fields.ev_gesund : meta.consents.health);
+        fields.ev_wahr = ds192Bool(fields.ev_wahr != null ? fields.ev_wahr : meta.consents.truth);
+        var accepted = ds192Bool(raw.accepted || fields.accepted || fields.contractAccepted || meta.accepted || meta.contractAccepted);
+        var contractVersion = ds192Norm(raw.contractVersion || fields.contractVersion || meta.contractVersion || meta.version || (typeof state !== 'undefined' && state.contractVersion) || 'v1.0') || 'v1.0';
+        var signature = null;
+        if(raw.signature && raw.signature.dataUrl) signature = { dataUrl:String(raw.signature.dataUrl || ''), signedAt: raw.signature.signedAt || raw.signatureAt || Date.now() };
+        else if(raw.signatureDataUrl) signature = { dataUrl:String(raw.signatureDataUrl || ''), signedAt: raw.signatureAt || Date.now() };
+        else if(fields.signatureDataUrl) signature = { dataUrl:String(fields.signatureDataUrl || ''), signedAt: fields.signatureAt || raw.signatureAt || Date.now() };
+        return { raw:raw, fields:fields, meta:meta, customer:customer, pet:pet, customerId:customerId, petId:petId, dogId:dogId, accepted:accepted, contractVersion:contractVersion, signature:signature };
+      }catch(_){ return { raw:{}, fields:{}, meta:{consents:{}}, customer:{}, pet:{}, customerId:'', petId:'', dogId:'', accepted:false, contractVersion:'v1.0', signature:null }; }
+    }
+    function ds192InferKind(row, forcedKind){
+      try{
+        var fk = ds192Lower(forcedKind || (row && row.__fallbackOpenKind) || '');
+        if(fk === 'stay' || fk === 'contract' || fk === 'customer') return fk;
+        var payload = (row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data)) || {};
+        var src = ds192Lower((payload && payload.source) || '');
+        var tpl = ds192Lower((row && (row.templateId || row.proposalType || row.kind || row.formKey)) || '');
+        var title = ds192Lower((row && (row.title || row.__fallbackDisplayedTitle)) || '');
+        if(tpl === 'boarding_contract' || src.indexOf('customer-main-contract') >= 0 || title.indexOf('betreuungsvertrag') >= 0) return 'contract';
+        if(tpl === 'hundeannahme' || src.indexOf('customer-main-stay') >= 0 || title.indexOf('aufenthalt') >= 0) return 'stay';
+        if(src.indexOf('customer-main-dogs') >= 0 || tpl === 'customer_data' || title.indexOf('kunde/hund') >= 0) return 'customer';
+      }catch(_){ }
+      return 'other';
+    }
+    function ds192FetchFull(row){
+      try{
+        if(typeof window.__dsFetchFullInboxProposal === 'function') return Promise.resolve(window.__dsFetchFullInboxProposal(row)).then(function(full){ return (full && typeof full === 'object') ? full : (row || {}); }).catch(function(){ return row || {}; });
+      }catch(_){ }
+      return Promise.resolve(row || {});
+    }
+    function ds192HideInboxChrome(){
+      try{ var detail=document.getElementById('inboxDetail'); if(detail) detail.style.display='none'; }catch(_){ }
+      try{ var list=document.getElementById('inboxList'); if(list) list.style.display=''; }catch(_){ }
+      try{ var p=document.getElementById('inboxProposalList'); if(p) p.style.display='none'; }catch(_){ }
+      try{ var b=document.getElementById('btnInboxClose'); if(b) b.style.display='none'; }catch(_){ }
+      try{ b=document.getElementById('btnInboxAdopt'); if(b) b.style.display='none'; }catch(_){ }
+      try{ b=document.getElementById('btnInboxReject'); if(b) b.style.display='none'; }catch(_){ }
+    }
+    function ds192EnsurePanel(tabId, panelId){
+      try{ if(typeof window.selectTab === 'function' && tabId) window.selectTab(tabId); }catch(_){ }
+      try{ if(typeof window.showPanel === 'function' && panelId) window.showPanel(panelId); }catch(_){ }
+      try{ if(typeof window.dsForceShowPanel === 'function' && panelId) window.dsForceShowPanel(panelId); }catch(_){ }
+      try{ var panel=document.getElementById(panelId||''); if(panel){ panel.style.display=''; panel.classList.add('is-active'); } }catch(_){ }
+    }
+    function ds192Banner(rootId, text){
+      try{
+        var root = document.getElementById(rootId) || document.getElementById('formRoot') || document.getElementById('contractPanel') || document.getElementById('contract');
+        if(!root) return;
+        var old = document.getElementById('dsProposalSnapshotBanner');
+        if(old) old.remove();
+        var box = document.createElement('div');
+        box.id = 'dsProposalSnapshotBanner';
+        box.className = 'card';
+        box.style.border = '1px solid rgba(255,170,90,.45)';
+        box.style.background = 'rgba(255,170,90,.08)';
+        box.style.marginBottom = '12px';
+        box.innerHTML = '<strong>Prüfmodus</strong><div class="muted" style="margin-top:6px">' + String(text||'Original-Vorschlag geladen.') + '</div>';
+        if(root.firstChild) root.insertBefore(box, root.firstChild); else root.appendChild(box);
+      }catch(_){ }
+    }
+    function ds192DisableSelect(id, value, label){
+      try{
+        var el = document.getElementById(id);
+        if(!el) return false;
+        el.innerHTML = '<option value="' + String(value||'') + '">' + String(label||'') + '</option>';
+        el.value = String(value||'');
+        el.disabled = true; el.setAttribute('disabled','disabled'); el.style.pointerEvents = 'none';
+        try{ el.dispatchEvent(new Event('change', { bubbles:true })); }catch(_){ }
+        return true;
+      }catch(_){ return false; }
+    }
+    function ds192ResolveDogId(p){
+      try{
+        var dogId = ds192Norm((p && p.dogId) || '');
+        if(dogId) return dogId;
+        if(p && p.pet && typeof window.getLegacyDogIdForPet === 'function') dogId = ds192Norm(window.getLegacyDogIdForPet(p.pet.id || p.pet.petId || '') || '');
+        if(dogId) return dogId;
+        if(p && p.pet) return ds192Norm((p.pet.dogId || p.pet.id || p.pet.petId) || '');
+      }catch(_){ }
+      return ds192Norm((p && p.petId) || '');
+    }
+    function ds192ApplyStayUi(docObj, full, p){
+      try{ var et=document.getElementById('editorTitle'); if(et) et.textContent='Aufenthalt Vorschlag'; }catch(_){ }
+      try{ var em=document.getElementById('editorMeta'); if(em) em.textContent='Original-Vorschlag aus Eingänge'; }catch(_){ }
+      try{ var dn=document.getElementById('docName'); if(dn) dn.value=String((docObj && docObj.title) || 'Aufenthalt Vorschlag'); }catch(_){ }
+      var customerLabel = String((p.customer && (p.customer.name || p.customer.email)) || full.customerName || full.customerEmail || 'Kunde');
+      var petLabel = String((p.pet && (p.pet.name || p.pet.petName || p.pet.dogName)) || full.petName || 'Hund');
+      ds192DisableSelect('stayCustomerSelect', docObj.customerId, customerLabel);
+      ds192DisableSelect('stayDogSelect', docObj.dogId || docObj.petId, petLabel);
+      ds192DisableSelect('customerSelect', docObj.customerId, customerLabel);
+      ds192DisableSelect('dogSelect', docObj.dogId || docObj.petId, petLabel);
+      try{ var von=document.getElementById('stayVon'); if(von) von.value=String((docObj.meta && docObj.meta.von) || ''); }catch(_){ }
+      try{ var bis=document.getElementById('stayBis'); if(bis) bis.value=String((docObj.meta && docObj.meta.bis) || ''); }catch(_){ }
+      try{ var bet=document.getElementById('stayBetreuung'); if(bet) bet.value=String((docObj.meta && docObj.meta.betreuung) || ''); }catch(_){ }
+      try{ var notes=document.getElementById('stayNotes'); if(notes) notes.value=String((docObj.fields && (docObj.fields.notes || docObj.fields.sonderfall_notiz)) || ''); }catch(_){ }
+      try{
+        var c=(docObj.meta && docObj.meta.consents) || {}, f=docObj.fields || {};
+        var cb=document.getElementById('stayConsentDsGvo'); if(cb){ cb.checked=!!(c.dsgvo || f.ev_dsgvo); cb.disabled=true; }
+        cb=document.getElementById('stayConsentAgb'); if(cb){ cb.checked=!!(c.agb || f.ev_agb); cb.disabled=true; }
+        cb=document.getElementById('stayConsentVet'); if(cb){ cb.checked=!!(c.vet || f.ev_tierarzt); cb.disabled=true; }
+        cb=document.getElementById('stayConsentHealth'); if(cb){ cb.checked=!!(c.health || f.ev_gesund); cb.disabled=true; }
+        cb=document.getElementById('stayConsentTruth'); if(cb){ cb.checked=!!(c.truth || f.ev_wahr); cb.disabled=true; }
+      }catch(_){ }
+      ds192Banner('formRoot', 'Original-Aufenthaltsvorschlag geladen. Sichtbar sind jetzt die abgesendeten Aufenthaltsdaten des Kunden. Erst mit Speichern wird übernommen.');
+    }
+    function ds192OpenStayDirect(full){
+      var p = ds192Payload(full);
+      var docObj = {
+        id: 'proposal_snapshot_' + String(Date.now()),
+        templateId: 'hundeannahme',
+        templateName: 'Aufenthalte',
+        title: String((full && full.title) || 'Aufenthalt Vorschlag'),
+        customerId: p.customerId || '',
+        petId: p.petId || '',
+        dogId: ds192ResolveDogId(p),
+        fields: ds192Clone(p.fields || {}),
+        meta: ds192Clone(p.meta || {}),
+        signature: p.signature ? ds192Clone(p.signature) : null,
+        saved: false,
+        __proposalReview: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      try{ window.__dsInboxCurrentTask = full; }catch(_){ }
+      try{ if(typeof window.ensureEmbeddedTemplates === 'function') window.ensureEmbeddedTemplates(); }catch(_){ }
+      try{ if(typeof window.ensureDocLinks === 'function') window.ensureDocLinks(docObj); }catch(_){ }
+      try{ if(typeof window.updateDocCustomerPetFromDogId === 'function') window.updateDocCustomerPetFromDogId(docObj); }catch(_){ }
+      try{ if(typeof window.normalizeMeta === 'function') window.normalizeMeta(docObj); }catch(_){ }
+      try{ window.currentDoc = docObj; currentDoc = docObj; }catch(_){ }
+      ds192HideInboxChrome();
+      ds192EnsurePanel('documents', 'editor');
+      var render = function(){
+        try{ window.currentDoc = docObj; currentDoc = docObj; }catch(_){ }
+        try{ ds192EnsurePanel('documents', 'editor'); }catch(_){ }
+        try{
+          if(typeof window.renderStayEditorEmbedded === 'function') window.renderStayEditorEmbedded(docObj);
+          else if(typeof window.renderEditor === 'function') window.renderEditor(docObj);
+          else if(typeof window.createStay === 'function') window.createStay();
+        }catch(_){ }
+        try{ if(typeof window.populateStayEditorFromDoc === 'function') window.populateStayEditorFromDoc(docObj); }catch(_){ }
+        try{ if(typeof window.renderStayQuickLinks === 'function') window.renderStayQuickLinks(docObj); }catch(_){ }
+        try{ if(typeof window.updateContractWarnBanner === 'function') window.updateContractWarnBanner(docObj); }catch(_){ }
+        try{ if(typeof window.renderVersions === 'function') window.renderVersions(docObj); }catch(_){ }
+        try{ ds192ApplyStayUi(docObj, full, p); }catch(_){ }
+      };
+      render();
+      setTimeout(render, 140); setTimeout(render, 420); setTimeout(render, 820);
+      return true;
+    }
+    function ds192ApplyContractUi(full, p, tries){
+      tries = Number(tries || 0);
+      try{
+        var customerLabel = String((p.customer && (p.customer.name || p.customer.email)) || full.customerName || full.customerEmail || 'Kunde');
+        var petLabel = String((p.pet && (p.pet.name || p.pet.petName || p.pet.dogName)) || full.petName || 'Hund');
+        if(typeof state !== 'undefined'){
+          state.contractSelection = { customerId: p.customerId || '', petId: p.petId || '' };
+          state.contractSignatures = state.contractSignatures || {};
+          if(p.signature && p.signature.dataUrl && p.customerId && p.petId){
+            state.contractSignatures[(p.contractVersion || 'v1.0') + '__' + p.customerId + '__' + p.petId] = { dataUrl: String(p.signature.dataUrl || ''), signedAt: p.signature.signedAt || Date.now() };
+          }
+        }
+        var cs = document.getElementById('contractCustomerSelect');
+        var ps = document.getElementById('contractPetSelect');
+        var accept = document.getElementById('contractAcceptChk');
+        if(cs && p.customerId){ cs.innerHTML = '<option value="' + String(p.customerId) + '">' + customerLabel + '</option>'; cs.value = p.customerId; cs.disabled = true; cs.setAttribute('disabled','disabled'); cs.style.pointerEvents='none'; }
+        if(ps && p.petId){ ps.innerHTML = '<option value="' + String(p.petId) + '">' + petLabel + '</option>'; ps.value = p.petId; ps.disabled = true; ps.setAttribute('disabled','disabled'); ps.style.pointerEvents='none'; }
+        if(accept){ accept.checked = !!p.accepted; accept.disabled = true; }
+        var canvas = document.getElementById('contractSig');
+        if(canvas && p.signature && p.signature.dataUrl){
+          var img = new Image();
+          img.onload = function(){ try{ var c2=canvas.getContext('2d'); c2.clearRect(0,0,canvas.width,canvas.height); c2.drawImage(img,0,0,canvas.width,canvas.height); }catch(_){ } };
+          img.src = String(p.signature.dataUrl || '');
+        }
+        ds192Banner('contractPanel', 'Original-Vertragsvorschlag geladen. Sichtbar sind die abgesendete Bestätigung und Unterschrift des Kunden. Erst mit Speichern wird übernommen.');
+      }catch(_){ }
+      if(tries < 8){ setTimeout(function(){ ds192ApplyContractUi(full, p, tries + 1); }, 180); }
+    }
+    function ds192OpenContractDirect(full){
+      var p = ds192Payload(full);
+      try{ window.__dsInboxCurrentTask = full; }catch(_){ }
+      ds192HideInboxChrome();
+      ds192EnsurePanel('contract', 'contract');
+      try{ if(typeof window.renderContractPanel === 'function') window.renderContractPanel(); }catch(_){ }
+      ds192ApplyContractUi(full, p, 0);
+      return true;
+    }
+    function ds192ValidateStay(full, p){
+      setTimeout(function(){
+        try{
+          var et = document.getElementById('editorTitle');
+          var hasStay = !!(document.getElementById('stayVon') || document.getElementById('stayBis') || document.getElementById('stayBetreuung'));
+          var title = String((et && et.textContent) || '').trim();
+          if(title === 'Dokument' || !hasStay){
+            ds192Err('FEHLER inline-ui-check -> Aufenthalt landet weiter im generischen Dokument-Editor; runtime=apphtml; title=' + title + '; hasStay=' + (hasStay ? '1':'0') + '; source=' + String((((full||{}).payloadSubmitted||{}).source) || (full && full.source) || '--') + '; template=' + String((full && (full.templateId || full.proposalType || full.kind || full.formKey)) || '--') + '.', true);
+          }
+        }catch(_){ }
+      }, 950);
+    }
+    function ds192ValidateContract(full, p){
+      setTimeout(function(){
+        try{
+          var hasContract = !!(document.getElementById('contractCustomerSelect') || document.getElementById('contractPetSelect') || document.getElementById('contractAcceptChk'));
+          if(!hasContract){
+            ds192Err('FEHLER inline-ui-check -> Vertragseditor-UI fehlt nach Open; runtime=apphtml; source=' + String((((full||{}).payloadSubmitted||{}).source) || (full && full.source) || '--') + '; template=' + String((full && (full.templateId || full.proposalType || full.kind || full.formKey)) || '--') + '.', true);
+          }
+        }catch(_){ }
+      }, 950);
+    }
+    function ds192OpenSnapshotEntry(row, forcedKind){
+      Promise.resolve().then(function(){ return ds192FetchFull(row || {}); }).then(function(full){
+        var kind = ds192InferKind(full, forcedKind);
+        var p = ds192Payload(full);
+        ds192Diag('inline-open kind=' + kind + ' proposal=' + String((full && (full.proposalId || full.id || full.taskId)) || '--') + ' appjs=' + String(window.__dsAppJsRuntimeBuild || '--'), false);
+        if(kind === 'stay'){
+          var okS = ds192OpenStayDirect(full); ds192ValidateStay(full, p); return okS;
+        }
+        if(kind === 'contract'){
+          var okC = ds192OpenContractDirect(full); ds192ValidateContract(full, p); return okC;
+        }
+        if(kind === 'customer'){
+          try{ if(typeof window.dsLaunchProposalInCustomerEditor === 'function') return !!window.dsLaunchProposalInCustomerEditor(full); }catch(_){ }
+          return false;
+        }
+        try{ if(typeof window.ds166OpenInboxDetailFallback === 'function') window.ds166OpenInboxDetailFallback(full); }catch(_){ }
+        ds192Err('FEHLER inline-kind -> kind=' + String(kind || '--') + '; runtime=apphtml.', true);
+        return false;
+      }).catch(function(err){ ds192Err('FEHLER inline-open-error -> ' + String((err && err.message) || err || 'unknown'), true); });
+      return true;
+    }
+    try{ window.__dsAppHtmlOpenRuntime = 'GB192-apphtml-inline'; }catch(_){ }
+    try{ if(typeof window.ds166RememberInboxRow !== 'function'){ window.ds166RememberInboxRow = function(row){ try{ var key = ('row|' + String((row && (row.proposalId || row.id || row.taskId || row.__sourceKey || '')) || '') + '|' + String((row && (row.title || row.templateId || row.formKey || '')) || '') + '|' + String((row && (row.submittedAt || row.createdAt || '')) || '')).toLowerCase(); window.__dsInboxRowMap = window.__dsInboxRowMap || {}; window.__dsInboxRowMap[key]=row; return key; }catch(_){ return ''; } }; } }catch(_){ }
+    try{ window.__dsOpenInboxProposalSnapshot = ds192OpenSnapshotEntry; }catch(_){ }
+    try{ window.dsOpenStayProposalEditor = function(row){ return ds192OpenSnapshotEntry(row, 'stay'); }; }catch(_){ }
+    try{ window.dsOpenContractProposalEditor = function(row){ return ds192OpenSnapshotEntry(row, 'contract'); }; }catch(_){ }
+    try{ window.ds166OpenRowByKey = function(key){ try{ var row = window.__dsInboxRowMap && window.__dsInboxRowMap[key]; return row ? ds192OpenSnapshotEntry(row, '') : false; }catch(_){ return false; } }; }catch(_){ }
+  })();
   function fallbackHiddenStoreKey(){ return 'ds_inbox_answer_hidden_exact_v2'; }
   function fallbackHiddenIds(){
     try{ var raw = localStorage.getItem(fallbackHiddenStoreKey()); return raw ? (JSON.parse(raw) || {}) : {}; }catch(_){ return {}; }
@@ -2223,8 +2507,8 @@
           var rowKey = src && src.getAttribute ? String(src.getAttribute('data-rowkey') || '') : '';
           if(!Number.isFinite(idx)) idx = 0;
           try{
-            if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb191-click kind=' + openKind + ' idx=' + String(idx) + ' target=' + String(tid || targetId) + ' rowKey=' + String(rowKey || '--'), false);
-            else { var diag = document.getElementById('inboxDiag'); if(diag){ diag.textContent = 'OpenDiag: gb191-click kind=' + openKind + ' idx=' + String(idx) + ' target=' + String(tid || targetId) + ' rowKey=' + String(rowKey || '--'); diag.style.color = '#d7dbe8'; } }
+            if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb192-click kind=' + openKind + ' idx=' + String(idx) + ' target=' + String(tid || targetId) + ' rowKey=' + String(rowKey || '--'), false);
+            else { var diag = document.getElementById('inboxDiag'); if(diag){ diag.textContent = 'OpenDiag: gb192-click kind=' + openKind + ' idx=' + String(idx) + ' target=' + String(tid || targetId) + ' rowKey=' + String(rowKey || '--'); diag.style.color = '#d7dbe8'; } }
             if(typeof window.dsSetProposalOpenErrorLine === 'function') window.dsSetProposalOpenErrorLine('', false);
           }catch(_){ }
           if(src && src.classList && src.classList.contains('ds-inbox-answer')){
@@ -2236,7 +2520,7 @@
             var prevKey = String(window.__dsInboxFallbackOpenLockKey || '');
             var prevAt = Number(window.__dsInboxFallbackOpenLockAt || 0);
             if(prevKey === lockKey && (now - prevAt) < 800){
-              try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb191-open-lock kind=' + openKind + ' idx=' + String(idx), true); }catch(_){ }
+              try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb192-open-lock kind=' + openKind + ' idx=' + String(idx), true); }catch(_){ }
               return false;
             }
             window.__dsInboxFallbackOpenLockKey = lockKey;
@@ -2287,8 +2571,8 @@
               via = 'fallback';
               ret = !!window.__dsInboxFallbackOpen(String(tid || targetId), idx);
             }
-            try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb191-open-dispatch kind=' + openKind + ' idx=' + String(idx) + ' rowKey=' + String(rowKey || '--') + ' via=' + via + ' ret=' + (ret ? '1' : '0'), false); }catch(_){ }
-            try{ window.__dsLastOpenDispatch = { kind:String(openKind||''), idx:Number(idx||0), target:String(tid || targetId || ''), ret: !!ret, at: Date.now(), row: !!row, snapshotFn: snapshotFn, fallbackFn: fallbackFn, rowKeyFn: rowKeyFn, via: via, rowKey: String(rowKey || ''), title: rowTitle, template: rowTpl, source: rowSrc }; }catch(_){ }
+            try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb192-open-dispatch kind=' + openKind + ' idx=' + String(idx) + ' rowKey=' + String(rowKey || '--') + ' via=' + via + ' ret=' + (ret ? '1' : '0') + ' appjs=' + String(window.__dsAppJsRuntimeBuild || '--') + ' runtime=' + String(window.__dsAppHtmlOpenRuntime || '--'), false); }catch(_){ }
+            try{ window.__dsLastOpenDispatch = { kind:String(openKind||''), idx:Number(idx||0), target:String(tid || targetId || ''), ret: !!ret, at: Date.now(), row: !!row, snapshotFn: snapshotFn, fallbackFn: fallbackFn, rowKeyFn: rowKeyFn, via: via, rowKey: String(rowKey || ''), title: rowTitle, template: rowTpl, source: rowSrc, appjs:String(window.__dsAppJsRuntimeBuild || '--'), runtime:String(window.__dsAppHtmlOpenRuntime || '--') }; }catch(_){ }
             if(!ret){
               var reason = !row ? 'row-lookup-leer' : ((rowKeyFn !== 'function' && snapshotFn !== 'function' && fallbackFn !== 'function') ? 'keine-open-funktion' : 'dispatcher-lieferte-false');
               __dsSetOpenErr('FEHLER dispatch -> ' + reason + '; kind=' + String(openKind || '--') + '; idx=' + String(idx) + '; target=' + String(tid || targetId || '--') + '; row=' + (row ? '1':'0') + '; rowKey=' + String(rowKey || '--') + '; rowKeyFn=' + rowKeyFn + '; snapshotFn=' + snapshotFn + '; fallbackFn=' + fallbackFn + '; via=' + via + '; template=' + rowTpl + '; source=' + rowSrc + '; title=' + rowTitle + '.', true);
@@ -2314,7 +2598,7 @@
             }, 900);
             return ret;
           }catch(err){
-            try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb191-open-error kind=' + openKind + ' idx=' + String(idx) + ' err=' + String((err && err.message) || err || 'unknown'), true); }catch(_){ }
+            try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb192-open-error kind=' + openKind + ' idx=' + String(idx) + ' err=' + String((err && err.message) || err || 'unknown'), true); }catch(_){ }
             try{ if(typeof window.dsSetProposalOpenErrorLine === 'function') window.dsSetProposalOpenErrorLine('FEHLER open-error -> kind=' + String(openKind || '--') + '; idx=' + String(idx) + '; err=' + String((err && err.message) || err || 'unknown'), true); }catch(_){ }
             return false;
           }
@@ -2822,7 +3106,7 @@
 
 <script>
 (function(){
-  const CURRENT_BUILD = 'M50.9.9GB191_INBOX_ROWKEYFIX_DIRECTROW_20260405_ROOTONLY';
+  const CURRENT_BUILD = 'M50.9.9GB192_INLINEOPEN_RUNTIMECHECK_20260405_ROOTONLY';
   try{
     window.addEventListener('load', function(){
       try{
