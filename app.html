@@ -6,13 +6,13 @@
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
 <meta charset="utf-8"/>
-  <meta name="app-build" content="M50.9.9GB176_INBOX_OPEN_SYNCFIRST_CONTRACT_STAY_20260404_ROOTONLY">
+  <meta name="app-build" content="M50.9.9GB177_INBOX_OPEN_MARKEDTYPE_CONTRACT_STAY_20260404_ROOTONLY">
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <title>Doggy Style Workspace · App</title>
 <link href="manifest.json" rel="manifest"/>
 <meta content="#101014" name="theme-color"/>
 <link href="assets/logo.png" rel="apple-touch-icon"/>
-<link href="styles.css?v=M50.9.9GB176_INBOX_OPEN_SYNCFIRST_CONTRACT_STAY_20260404_ROOTONLY" rel="stylesheet"/>
+<link href="styles.css?v=M50.9.9GB177_INBOX_OPEN_MARKEDTYPE_CONTRACT_STAY_20260404_ROOTONLY" rel="stylesheet"/>
 <link href="dashboard_master.css?v=20260104v13logout" rel="stylesheet"/>
 <style>
   /* Topbar Layout (iPad & Desktop stabil) */
@@ -102,7 +102,7 @@
   .doc-modal__actions{ margin-left:auto; display:flex; flex-wrap: wrap; gap: 8px; }
   .doc-modal__frame{ width: 100%; border: 0; border-radius: 12px; background: #fff; flex:1; min-height: 0; }
 </style>
-  <meta name="app-version" content="M50.9.9GB176_INBOX_OPEN_SYNCFIRST_CONTRACT_STAY_20260404_ROOTONLY">
+  <meta name="app-version" content="M50.9.9GB177_INBOX_OPEN_MARKEDTYPE_CONTRACT_STAY_20260404_ROOTONLY">
   <meta name="release-channel" content="MASTER">
 </head>
 <body class="bg-watermark page-app">
@@ -1194,7 +1194,7 @@
 </section>
 
 <section class="panel" id="statistics">
-<!-- Statistics panel is rendered by app.js?v=M50.9.9GB176_INBOX_OPEN_SYNCFIRST_CONTRACT_STAY_20260404_ROOTONLY (renderStatisticsPanel) -->
+<!-- Statistics panel is rendered by app.js?v=M50.9.9GB177_INBOX_OPEN_MARKEDTYPE_CONTRACT_STAY_20260404_ROOTONLY (renderStatisticsPanel) -->
 </section>
 
 
@@ -1261,12 +1261,12 @@
 </footer>
 </div>
 <!-- Firebase (optional) + Config -->
-<script defer="defer" src="firebase-config.js?v=M50.9.9GB176_INBOX_OPEN_SYNCFIRST_CONTRACT_STAY_20260404_ROOTONLY"></script>
+<script defer="defer" src="firebase-config.js?v=M50.9.9GB177_INBOX_OPEN_MARKEDTYPE_CONTRACT_STAY_20260404_ROOTONLY"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
-<script defer="defer" src="app.js?v=M50.9.9GB176_INBOX_OPEN_SYNCFIRST_CONTRACT_STAY_20260404_ROOTONLY"></script>
+<script defer="defer" src="app.js?v=M50.9.9GB177_INBOX_OPEN_MARKEDTYPE_CONTRACT_STAY_20260404_ROOTONLY"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1285,7 +1285,7 @@
 </script>
 
 <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB176_INBOX_OPEN_SYNCFIRST_CONTRACT_STAY_20260404_ROOTONLY', { updateViaCache: 'none' });
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB177_INBOX_OPEN_MARKEDTYPE_CONTRACT_STAY_20260404_ROOTONLY', { updateViaCache: 'none' });
   </script>
 
 <script>
@@ -1387,7 +1387,7 @@
   <!-- Bottom logout button removed (duplicate of header logout; also overlaps editor on iPad) -->
 </div>
 <!-- test-badge removed (requested) -->
-  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB176_INBOX_OPEN_SYNCFIRST_CONTRACT_STAY_20260404_ROOTONLY</div>
+  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB177_INBOX_OPEN_MARKEDTYPE_CONTRACT_STAY_20260404_ROOTONLY</div>
 
 <script>
 (function visibleMailFallback(){
@@ -1846,10 +1846,11 @@
       var pet = (payload && payload.pet && typeof payload.pet === 'object') ? payload.pet : ((row && row.pet && typeof row.pet === 'object') ? row.pet : {});
       var src = String((payload && payload.source) || row.templateId || row.proposalType || row.kind || row.formKey || '').toLowerCase();
       var tpl = String((row && (row.templateId || row.proposalType || row.kind || row.formKey)) || '').toLowerCase();
-      var title = String((row && row.title) || '').toLowerCase();
-      var isContractProposal = tpl === 'boarding_contract' || src.indexOf('customer-main-contract') >= 0 || title.indexOf('betreuungsvertrag') >= 0;
-      var isStayProposal = tpl === 'hundeannahme' || src.indexOf('customer-main-stay') >= 0 || title.indexOf('neuer aufenthalt') >= 0 || title.indexOf('aufenthalt vorschlag') >= 0;
-      var looksLikeCustomerProposal = src.indexOf('customer-main-dogs') >= 0 || tpl === 'customer_data' || title.indexOf('kunde/hund') >= 0;
+      var title = String((row && (row.title || row.__fallbackDisplayedTitle)) || '').toLowerCase();
+      var kind = String((row && row.__fallbackOpenKind) || '').toLowerCase();
+      var isContractProposal = kind === 'contract' || tpl === 'boarding_contract' || src.indexOf('customer-main-contract') >= 0 || title.indexOf('betreuungsvertrag') >= 0;
+      var isStayProposal = kind === 'stay' || tpl === 'hundeannahme' || src.indexOf('customer-main-stay') >= 0 || title.indexOf('neuer aufenthalt') >= 0 || title.indexOf('aufenthalt vorschlag') >= 0;
+      var looksLikeCustomerProposal = kind === 'customer' || src.indexOf('customer-main-dogs') >= 0 || tpl === 'customer_data' || title.indexOf('kunde/hund') >= 0;
       if(isContractProposal || isStayProposal){
         try{
           if(typeof window.__dsOpenContractStayKundeHundLike === 'function'){
@@ -2121,6 +2122,19 @@
       el.innerHTML = rows.map(function(r, idx){
         var title = String(r.title || r.templateId || r.proposalType || r.kind || r.formKey || 'Änderungsvorschlag');
         var customer = String(r.customerName || r.customerEmail || r.email || r.customerUid || 'Kunde');
+        var titleLc = String(title || '').toLowerCase();
+        var srcLc = '';
+        var tplLc = '';
+        try{
+          var pl = (r && (r.payloadSubmitted || r.payloadDraft || r.payload || r.data)) || {};
+          srcLc = String((pl && pl.source) || '').toLowerCase();
+          tplLc = String((r && (r.templateId || r.proposalType || r.kind || r.formKey)) || '').toLowerCase();
+        }catch(_){ }
+        var openKind = 'generic';
+        if(tplLc === 'boarding_contract' || srcLc.indexOf('customer-main-contract') >= 0 || titleLc.indexOf('betreuungsvertrag') >= 0) openKind = 'contract';
+        else if(tplLc === 'hundeannahme' || srcLc.indexOf('customer-main-stay') >= 0 || titleLc.indexOf('neuer aufenthalt') >= 0 || titleLc.indexOf('aufenthalt vorschlag') >= 0) openKind = 'stay';
+        else if(srcLc.indexOf('customer-main-dogs') >= 0 || tplLc === 'customer_data' || titleLc.indexOf('kunde/hund') >= 0) openKind = 'customer';
+        try{ r.__fallbackOpenKind = openKind; r.__fallbackDisplayedTitle = title; }catch(_){ }
         var when = '';
         try{
           var ts = Number(r.submittedAt || r.createdAt || 0);
@@ -2134,7 +2148,7 @@
         return '<div class="list-item ds-inbox-row" data-target="' + escHtml(targetId) + '" data-idx="' + idx + '" style="display:flex; justify-content:space-between; gap:12px; align-items:center; cursor:pointer;">'
           + '<div><strong>' + escHtml(title) + '</strong><small>' + escHtml(customer) + (when ? (' · ' + escHtml(when)) : '') + '</small><small style="display:block; opacity:.78; font-size:12px;">' + escHtml(diag) + '</small></div>'
           + '<div class="actions" style="display:flex; flex-direction:column; align-items:stretch; min-width:132px; gap:8px;">'
-          + '<button class="smallbtn ds-inbox-open" type="button" data-target="' + escHtml(targetId) + '" data-idx="' + idx + '">Öffnen</button>'
+          + '<button class="smallbtn ds-inbox-open" type="button" data-target="' + escHtml(targetId) + '" data-idx="' + idx + '" data-openkind="' + escHtml(openKind) + '">Öffnen</button>'
           + '<button class="smallbtn ds-inbox-answer" type="button" data-target="' + escHtml(targetId) + '" data-idx="' + idx + '">Beantworten</button>'
           + '</div>'
           + '</div>';
@@ -2665,7 +2679,7 @@
 
 <script>
 (function(){
-  const CURRENT_BUILD = 'M50.9.9GB176_INBOX_OPEN_SYNCFIRST_CONTRACT_STAY_20260404_ROOTONLY';
+  const CURRENT_BUILD = 'M50.9.9GB177_INBOX_OPEN_MARKEDTYPE_CONTRACT_STAY_20260404_ROOTONLY';
   try{
     window.addEventListener('load', function(){
       try{

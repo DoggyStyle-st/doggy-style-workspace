@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB176_INBOX_OPEN_SYNCFIRST_CONTRACT_STAY_20260404_ROOTONLY",
+  tag: "M50.9.9GB177_INBOX_OPEN_MARKEDTYPE_CONTRACT_STAY_20260404_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB176_INBOX_OPEN_SYNCFIRST_CONTRACT_STAY_20260404_ROOTONLY";
+const APP_BUILD = "M50.9.9GB177_INBOX_OPEN_MARKEDTYPE_CONTRACT_STAY_20260404_ROOTONLY";
 
 function dsSyncDiagStateSummary(){
   try{
@@ -21392,7 +21392,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB176_INBOX_OPEN_SYNCFIRST_CONTRACT_STAY_20260404_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB177_INBOX_OPEN_MARKEDTYPE_CONTRACT_STAY_20260404_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -23365,7 +23365,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB176_INBOX_OPEN_SYNCFIRST_CONTRACT_STAY_20260404_ROOTONLY";
+  const BUILD = "M50.9.9GB177_INBOX_OPEN_MARKEDTYPE_CONTRACT_STAY_20260404_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -24052,8 +24052,9 @@ function dsIsContractProposalInboxRow(row){
     const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
     const tpl = lower((row && (row.templateId || row.proposalType || row.kind || row.formKey)) || '');
     const src = lower((payload && payload.source) || '');
-    const title = lower((row && row.title) || '');
-    return tpl === 'boarding_contract' || src.indexOf('customer-main-contract') >= 0 || title.indexOf('betreuungsvertrag') >= 0;
+    const title = lower((row && (row.title || row.__fallbackDisplayedTitle)) || '');
+    const kind = lower((row && row.__fallbackOpenKind) || '');
+    return kind === 'contract' || tpl === 'boarding_contract' || src.indexOf('customer-main-contract') >= 0 || title.indexOf('betreuungsvertrag') >= 0;
   }catch(_){ return false; }
 }
 function dsIsStayProposalInboxRow(row){
@@ -24061,8 +24062,9 @@ function dsIsStayProposalInboxRow(row){
     const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
     const tpl = lower((row && (row.templateId || row.proposalType || row.kind || row.formKey)) || '');
     const src = lower((payload && payload.source) || '');
-    const title = lower((row && row.title) || '');
-    return tpl === 'hundeannahme' || src.indexOf('customer-main-stay') >= 0 || title.indexOf('neuer aufenthalt') >= 0 || title.indexOf('aufenthalt vorschlag') >= 0;
+    const title = lower((row && (row.title || row.__fallbackDisplayedTitle)) || '');
+    const kind = lower((row && row.__fallbackOpenKind) || '');
+    return kind === 'stay' || tpl === 'hundeannahme' || src.indexOf('customer-main-stay') >= 0 || title.indexOf('neuer aufenthalt') >= 0 || title.indexOf('aufenthalt vorschlag') >= 0;
   }catch(_){ return false; }
 }
 function dsResolveProposalCustomerPet(row){
