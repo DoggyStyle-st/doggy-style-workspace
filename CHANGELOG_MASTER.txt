@@ -1,3 +1,10 @@
+GB184 - Original-Vorschlag Rehydrate für Aufenthalt/Betreuungsvertrag: Öffnen aus Eingänge normalisiert jetzt unterschiedliche Payload-Formate (App/Kundenportal), lädt nach Möglichkeit den vollständigen Vorschlag nach und überträgt Vertrags-Akzeptanz/Unterschrift sowie Aufenthaltsdaten/Bestätigungen sichtbar in den Prüf-Editor.
+GB184
+- Release-Schnitt auf M50.9.9GB183_INBOX_ORIGINALPROPOSAL_SNAPSHOT_20260404_ROOTONLY
+- Stay/Contract Vorschläge werden beim Öffnen auf Voll-Payload nachgeladen und erneut rehydriert
+- Betreuungsvertrag liest akzeptiert/Version/Unterschrift jetzt auch aus fields/meta-Fallbacks
+- Aufenthalt mappt Kundenportal-Felder (z. B. consentAgb/consentDsGvo/notes) auf sichtbare Haupt-App-Felder
+
 GB183 - Original-Vorschlag Snapshot-Open für Aufenthalt/Betreuungsvertrag: Öffnen aus Eingänge rehydriert jetzt den abgesendeten Vorschlagszustand direkt im Original-Editor statt nur den Editor-Shell/aktuellen Stammdatensatz.
 GB183
 - Release-Schnitt auf M50.9.9GB182_INBOX_EDITORMAP_REALSTAY_REALCONTRACT_20260404_ROOTONLY
