@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB175_INBOX_OPEN_KUNDEHUNDSTYLE_DIRECT_20260404_ROOTONLY",
+  tag: "M50.9.9GB176_INBOX_OPEN_SYNCFIRST_CONTRACT_STAY_20260404_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB175_INBOX_OPEN_KUNDEHUNDSTYLE_DIRECT_20260404_ROOTONLY";
+const APP_BUILD = "M50.9.9GB176_INBOX_OPEN_SYNCFIRST_CONTRACT_STAY_20260404_ROOTONLY";
 
 function dsSyncDiagStateSummary(){
   try{
@@ -21392,7 +21392,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB175_INBOX_OPEN_KUNDEHUNDSTYLE_DIRECT_20260404_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB176_INBOX_OPEN_SYNCFIRST_CONTRACT_STAY_20260404_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -23365,7 +23365,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB175_INBOX_OPEN_KUNDEHUNDSTYLE_DIRECT_20260404_ROOTONLY";
+  const BUILD = "M50.9.9GB176_INBOX_OPEN_SYNCFIRST_CONTRACT_STAY_20260404_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -24907,25 +24907,18 @@ try{ window.__dsOpenInboxDetail = openInboxDetail; }catch(_){ }
 /* ===== END GB174 ===== */
 
 
-/* ===== GB175 direct proposal open like Kunde/Hund ===== */
+/* ===== GB176 sync-first proposal open like Kunde/Hund ===== */
 (function(){
-  function ds175SetDiag(msg){
+  function ds176SetDiag(msg){
     try{ if(typeof dsSetProposalOpenDiag === 'function') dsSetProposalOpenDiag(String(msg||''), false); }catch(_){ }
-    try{ console.warn('GB175', msg); }catch(_){ }
+    try{ console.warn('GB176', msg); }catch(_){ }
   }
-  async function ds175FetchFull(row){
-    try{
-      if(typeof window.__dsFetchFullInboxProposal === 'function'){
-        const full = await window.__dsFetchFullInboxProposal(row);
-        try{ if(typeof dsEnrichProposalReviewRow === 'function') return dsEnrichProposalReviewRow(full || row || {}); }catch(_){ }
-        return full || row || {};
-      }
-    }catch(err){ ds175SetDiag('fetch-full failed ' + String((err && err.message) || err || 'unknown')); }
+  function ds176EnrichRow(row){
     try{ if(typeof dsEnrichProposalReviewRow === 'function') return dsEnrichProposalReviewRow(row || {}); }catch(_){ }
     return row || {};
   }
-  async function ds175OpenProposalDirect(row){
-    const full = await ds175FetchFull(row || {});
+  function ds176OpenImmediate(row){
+    var full = ds176EnrichRow(row || {});
     try{ window.__dsInboxCurrentTask = full; }catch(_){ }
     try{ if(typeof dsResetInboxDetailView === 'function') dsResetInboxDetailView(); }catch(_){ }
     try{ var detail = document.getElementById('inboxDetail'); if(detail) detail.style.display = 'none'; }catch(_){ }
@@ -24933,40 +24926,75 @@ try{ window.__dsOpenInboxDetail = openInboxDetail; }catch(_){ }
     try{ var plist = document.getElementById('inboxProposalList'); if(plist) plist.style.display = 'none'; }catch(_){ }
     try{
       if(typeof dsIsContractProposalInboxRow === 'function' && dsIsContractProposalInboxRow(full)){
-        ds175SetDiag('direct contract start');
+        ds176SetDiag('sync contract start');
         if(typeof dsOpenContractProposalEditor === 'function'){
-          const ok = !!dsOpenContractProposalEditor(full);
-          ds175SetDiag('direct contract ok=' + (ok ? '1':'0'));
-          return ok;
+          var ok1 = !!dsOpenContractProposalEditor(full);
+          ds176SetDiag('sync contract ok=' + (ok1 ? '1':'0'));
+          return ok1;
         }
       }
-    }catch(err){ ds175SetDiag('direct contract failed ' + String((err && err.message) || err || 'unknown')); }
+    }catch(err){ ds176SetDiag('sync contract failed ' + String((err && err.message) || err || 'unknown')); }
     try{
       if(typeof dsIsStayProposalInboxRow === 'function' && dsIsStayProposalInboxRow(full)){
-        ds175SetDiag('direct stay start');
+        ds176SetDiag('sync stay start');
         if(typeof dsOpenStayProposalEditor === 'function'){
-          const ok = !!dsOpenStayProposalEditor(full);
-          ds175SetDiag('direct stay ok=' + (ok ? '1':'0'));
-          return ok;
+          var ok2 = !!dsOpenStayProposalEditor(full);
+          ds176SetDiag('sync stay ok=' + (ok2 ? '1':'0'));
+          return ok2;
         }
       }
-    }catch(err){ ds175SetDiag('direct stay failed ' + String((err && err.message) || err || 'unknown')); }
+    }catch(err){ ds176SetDiag('sync stay failed ' + String((err && err.message) || err || 'unknown')); }
     try{
       if(typeof isCustomerProposalInboxRow === 'function' && isCustomerProposalInboxRow(full) && typeof dsLaunchProposalInCustomerEditor === 'function'){
         return !!dsLaunchProposalInCustomerEditor(full);
       }
     }catch(_){ }
-    try{ if(typeof ds166OpenInboxDetailFallback === 'function') ds166OpenInboxDetailFallback(full); }catch(_){ }
     return false;
   }
-  function ds175OpenInboxRow(row){
-    try{ Promise.resolve(ds175OpenProposalDirect(row)).catch(function(err){ ds175SetDiag('open failed ' + String((err && err.message) || err || 'unknown')); }); }catch(err){ ds175SetDiag('schedule failed ' + String((err && err.message) || err || 'unknown')); }
+  async function ds176FetchFull(row){
+    try{
+      if(typeof window.__dsFetchFullInboxProposal === 'function'){
+        var full = await window.__dsFetchFullInboxProposal(row);
+        return ds176EnrichRow(full || row || {});
+      }
+    }catch(err){ ds176SetDiag('fetch-full failed ' + String((err && err.message) || err || 'unknown')); }
+    return ds176EnrichRow(row || {});
+  }
+  async function ds176RefreshOpen(row){
+    var full = await ds176FetchFull(row || {});
+    try{ window.__dsInboxCurrentTask = full; }catch(_){ }
+    try{
+      if(typeof dsIsContractProposalInboxRow === 'function' && dsIsContractProposalInboxRow(full)){
+        ds176SetDiag('refresh contract');
+        if(typeof dsOpenContractProposalEditor === 'function') dsOpenContractProposalEditor(full);
+        return true;
+      }
+    }catch(err){ ds176SetDiag('refresh contract failed ' + String((err && err.message) || err || 'unknown')); }
+    try{
+      if(typeof dsIsStayProposalInboxRow === 'function' && dsIsStayProposalInboxRow(full)){
+        ds176SetDiag('refresh stay');
+        if(typeof dsOpenStayProposalEditor === 'function') dsOpenStayProposalEditor(full);
+        return true;
+      }
+    }catch(err){ ds176SetDiag('refresh stay failed ' + String((err && err.message) || err || 'unknown')); }
     return false;
   }
-  try{ window.__dsOpenContractStayKundeHundLike = ds175OpenProposalDirect; }catch(_){ }
-  try{ window.__dsDirectOpenContractStayFromInbox = ds175OpenProposalDirect; }catch(_){ }
-  try{ window.openInboxDetail = ds175OpenInboxRow; }catch(_){ }
-  try{ window.__dsOpenInboxDetail = ds175OpenInboxRow; }catch(_){ }
+  function ds176OpenProposalDirect(row){
+    var handled = false;
+    try{ handled = !!ds176OpenImmediate(row); }catch(err){ ds176SetDiag('immediate open failed ' + String((err && err.message) || err || 'unknown')); handled = false; }
+    try{ Promise.resolve().then(function(){ return ds176RefreshOpen(row); }).catch(function(err){ ds176SetDiag('refresh open failed ' + String((err && err.message) || err || 'unknown')); }); }catch(_){ }
+    if(!handled){
+      try{ if(typeof ds166OpenInboxDetailFallback === 'function') ds166OpenInboxDetailFallback(ds176EnrichRow(row)); }catch(_){ }
+    }
+    return handled;
+  }
+  function ds176OpenInboxRow(row){
+    return ds176OpenProposalDirect(row);
+  }
+  try{ window.__dsOpenContractStayKundeHundLike = ds176OpenProposalDirect; }catch(_){ }
+  try{ window.__dsDirectOpenContractStayFromInbox = ds176OpenProposalDirect; }catch(_){ }
+  try{ window.openInboxDetail = ds176OpenInboxRow; }catch(_){ }
+  try{ window.__dsOpenInboxDetail = ds176OpenInboxRow; }catch(_){ }
   try{
     window.__dsInboxFallbackOpen = function(targetId, index){
       try{
@@ -24974,9 +25002,9 @@ try{ window.__dsOpenInboxDetail = openInboxDetail; }catch(_){ }
         var rows = Array.isArray(bag[targetId]) ? bag[targetId] : [];
         var row = rows[index];
         if(!row) return false;
-        return ds175OpenInboxRow(row);
-      }catch(err){ ds175SetDiag('fallback-open failed ' + String((err && err.message) || err || 'unknown')); return false; }
+        return ds176OpenInboxRow(row);
+      }catch(err){ ds176SetDiag('fallback-open failed ' + String((err && err.message) || err || 'unknown')); return false; }
     };
   }catch(_){ }
 })();
-/* ===== END GB175 ===== */
+/* ===== END GB176 ===== */
