@@ -1852,10 +1852,33 @@
       var looksLikeCustomerProposal = src.indexOf('customer-main-dogs') >= 0 || tpl === 'customer_data' || title.indexOf('kunde/hund') >= 0;
       if(isContractProposal || isStayProposal){
         try{
-          if(typeof window.__dsOpenProposalOriginalEditorBridge === 'function'){
-            window.__dsOpenProposalOriginalEditorBridge(row);
+          var openDirect = function(fullRow){
+            try{ document.getElementById('inboxDetail').style.display = 'none'; }catch(_){ }
+            try{ document.getElementById('inboxList').style.display = ''; }catch(_){ }
+            try{ var pList1 = document.getElementById('inboxProposalList'); if(pList1) pList1.style.display = 'none'; }catch(_){ }
+            try{ document.getElementById('btnInboxClose').style.display = 'none'; }catch(_){ }
+            try{ document.getElementById('btnInboxAdopt').style.display = 'none'; }catch(_){ }
+            try{ document.getElementById('btnInboxReject').style.display = 'none'; }catch(_){ }
+            if(isContractProposal){
+              try{ if(typeof window.dsOpenContractProposalEditor === 'function' && window.dsOpenContractProposalEditor(fullRow || row)) return true; }catch(_){ }
+              try{ if(typeof window.__dsOpenProposalOriginalEditorBridge === 'function') return !!window.__dsOpenProposalOriginalEditorBridge(fullRow || row); }catch(_){ }
+            }
+            if(isStayProposal){
+              try{ if(typeof window.dsOpenStayProposalEditor === 'function' && window.dsOpenStayProposalEditor(fullRow || row)) return true; }catch(_){ }
+              try{ if(typeof window.__dsOpenProposalOriginalEditorBridge === 'function') return !!window.__dsOpenProposalOriginalEditorBridge(fullRow || row); }catch(_){ }
+            }
             return false;
-          }
+          };
+          var fetcher = (typeof window.__dsFetchFullInboxProposal === 'function') ? window.__dsFetchFullInboxProposal(row) : row;
+          Promise.resolve(fetcher).then(function(fullRow){
+            try{
+              if(openDirect(fullRow)) return;
+              if(typeof window.__dsOpenInboxDetail === 'function'){ window.__dsOpenInboxDetail(fullRow || row); return; }
+            }catch(_){ }
+          }).catch(function(){
+            try{ if(typeof window.__dsOpenInboxDetail === 'function') window.__dsOpenInboxDetail(row); }catch(_){ }
+          });
+          return false;
         }catch(_){ }
         if(typeof window.__dsOpenInboxDetail === 'function'){
           window.__dsOpenInboxDetail(row);
