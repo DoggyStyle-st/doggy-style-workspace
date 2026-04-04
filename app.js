@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB189_INBOX_CLEARERRORLINE_20260404_ROOTONLY",
+  tag: "M50.9.9GB190_INBOX_ROWKEYFIRST_DIRECTOPEN_20260404_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB189_INBOX_CLEARERRORLINE_20260404_ROOTONLY";
+const APP_BUILD = "M50.9.9GB190_INBOX_ROWKEYFIRST_DIRECTOPEN_20260404_ROOTONLY";
 
 function dsSyncDiagStateSummary(){
   try{
@@ -21394,7 +21394,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB189_INBOX_CLEARERRORLINE_20260404_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB190_INBOX_ROWKEYFIRST_DIRECTOPEN_20260404_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -23367,7 +23367,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB189_INBOX_CLEARERRORLINE_20260404_ROOTONLY";
+  const BUILD = "M50.9.9GB190_INBOX_ROWKEYFIRST_DIRECTOPEN_20260404_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -25726,12 +25726,12 @@ try{ window.__GB184_MARKER = 'active'; }catch(_){ }
 
 
 /* ===== GB187 direct row-key open + original snapshot hydration ===== */
-try{ window.__GB189_MARKER = 'active'; }catch(_){ }
+try{ window.__GB190_MARKER = 'active'; }catch(_){ }
 (function(){
   function ds185Diag(msg, isError){
-    try{ if(typeof dsSetProposalOpenDiag === 'function') dsSetProposalOpenDiag('gb189 ' + String(msg||''), !!isError); }catch(_){ }
-    try{ var el = document.getElementById('inboxDiag'); if(el){ el.textContent = 'OpenDiag: gb189 ' + String(msg||''); el.style.color = isError ? '#ffb3b3' : '#d7dbe8'; } }catch(_){ }
-    try{ console.warn('GB189', msg); }catch(_){ }
+    try{ if(typeof dsSetProposalOpenDiag === 'function') dsSetProposalOpenDiag('gb190 ' + String(msg||''), !!isError); }catch(_){ }
+    try{ var el = document.getElementById('inboxDiag'); if(el){ el.textContent = 'OpenDiag: gb190 ' + String(msg||''); el.style.color = isError ? '#ffb3b3' : '#d7dbe8'; } }catch(_){ }
+    try{ console.warn('GB190', msg); }catch(_){ }
   }
   function ds185Clone(v){ try{ return JSON.parse(JSON.stringify(v == null ? {} : v)); }catch(_){ return v; } }
   function ds185Norm(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
@@ -26026,16 +26026,16 @@ try{ window.__GB189_MARKER = 'active'; }catch(_){ }
     try{ ds166OpenRowByKey = window.ds166OpenRowByKey; }catch(_){ }
   }catch(_){ }
 })();
-/* ===== END GB189 ===== */
+/* ===== END GB190 ===== */
 
 
 /* ===== GB187 inbox fallback open direct latest-dispatch ===== */
-try{ window.__GB189_MARKER = 'active'; }catch(_){ }
+try{ window.__GB190_MARKER = 'active'; }catch(_){ }
 (function(){
   function ds186Diag(msg, isError){
-    try{ if(typeof dsSetProposalOpenDiag === 'function') dsSetProposalOpenDiag('gb189 ' + String(msg||''), !!isError); }catch(_){ }
-    try{ var el=document.getElementById('inboxDiag'); if(el){ el.textContent='OpenDiag: gb189 ' + String(msg||''); el.style.color = isError ? '#ffb3b3' : '#d7dbe8'; } }catch(_){ }
-    try{ console.warn('GB189', msg); }catch(_){ }
+    try{ if(typeof dsSetProposalOpenDiag === 'function') dsSetProposalOpenDiag('gb190 ' + String(msg||''), !!isError); }catch(_){ }
+    try{ var el=document.getElementById('inboxDiag'); if(el){ el.textContent='OpenDiag: gb190 ' + String(msg||''); el.style.color = isError ? '#ffb3b3' : '#d7dbe8'; } }catch(_){ }
+    try{ console.warn('GB190', msg); }catch(_){ }
   }
   function ds186Norm(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
   function ds186Lower(v){ try{ return String(v == null ? '' : v).trim().toLowerCase(); }catch(_){ return ''; } }
@@ -26127,16 +26127,16 @@ try{ window.__GB189_MARKER = 'active'; }catch(_){ }
   try{ window.__dsOpenContractStayKundeHundLike = ds186OpenByRow; }catch(_){ }
   try{ window.ds166OpenRowByKey = function(key){ try{ var row = window.__dsInboxRowMap && window.__dsInboxRowMap[key]; return row ? ds186OpenByRow(row) : false; }catch(err){ ds186Diag('row-key err ' + String((err && err.message) || err || 'unknown'), true); return false; } }; }catch(_){ }
 })();
-/* ===== END GB189 ===== */
+/* ===== END GB190 ===== */
 
 
-/* ===== GB189 hard direct snapshot open from inbox + clear error line ===== */
-try{ window.__GB189_MARKER = 'active'; }catch(_){ }
+/* ===== GB190 hard direct snapshot open from inbox + clear error line ===== */
+try{ window.__GB190_MARKER = 'active'; }catch(_){ }
 (function(){
   function ds187Diag(msg, isError){
-    try{ if(typeof dsSetProposalOpenDiag === 'function') dsSetProposalOpenDiag('gb189 ' + String(msg||''), !!isError); }catch(_){ }
-    try{ var el=document.getElementById('inboxDiag'); if(el){ el.textContent='OpenDiag: gb189 ' + String(msg||''); el.style.color = isError ? '#ffb3b3' : '#d7dbe8'; } }catch(_){ }
-    try{ console.warn('GB189', msg); }catch(_){ }
+    try{ if(typeof dsSetProposalOpenDiag === 'function') dsSetProposalOpenDiag('gb190 ' + String(msg||''), !!isError); }catch(_){ }
+    try{ var el=document.getElementById('inboxDiag'); if(el){ el.textContent='OpenDiag: gb190 ' + String(msg||''); el.style.color = isError ? '#ffb3b3' : '#d7dbe8'; } }catch(_){ }
+    try{ console.warn('GB190', msg); }catch(_){ }
   }
   function ds189EnsureGlobalOpenErrorBar(){
     try{
@@ -26525,4 +26525,4 @@ try{ window.__GB189_MARKER = 'active'; }catch(_){ }
   try{ window.__dsOpenContractStayKundeHundLike = function(row){ return ds187OpenSnapshotEntry(row, ''); }; }catch(_){ }
   try{ window.ds166OpenRowByKey = function(key){ try{ var row = window.__dsInboxRowMap && window.__dsInboxRowMap[key]; return row ? ds187OpenSnapshotEntry(row, '') : false; }catch(err){ ds187Diag('row-key err ' + String((err && err.message) || err || 'unknown'), true); return false; } }; }catch(_){ }
 })();
-/* ===== END GB189 ===== */
+/* ===== END GB190 ===== */
