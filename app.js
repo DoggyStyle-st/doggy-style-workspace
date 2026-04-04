@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB178_INBOX_OPENDIAG_CLICKTRACE_20260404_ROOTONLY",
+  tag: "M50.9.9GB179_INBOX_DIRECTOPEN_HARDROUTE_20260404_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB178_INBOX_OPENDIAG_CLICKTRACE_20260404_ROOTONLY";
+const APP_BUILD = "M50.9.9GB179_INBOX_DIRECTOPEN_HARDROUTE_20260404_ROOTONLY";
 
 function dsSyncDiagStateSummary(){
   try{
@@ -21393,7 +21393,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB178_INBOX_OPENDIAG_CLICKTRACE_20260404_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB179_INBOX_DIRECTOPEN_HARDROUTE_20260404_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -23366,7 +23366,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB178_INBOX_OPENDIAG_CLICKTRACE_20260404_ROOTONLY";
+  const BUILD = "M50.9.9GB179_INBOX_DIRECTOPEN_HARDROUTE_20260404_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -25014,3 +25014,91 @@ try{ window.__dsOpenInboxDetail = openInboxDetail; }catch(_){ }
   }catch(_){ }
 })();
 /* ===== END GB176 ===== */
+
+
+/* ===== GB179 direct fallback open hard-route ===== */
+(function(){
+  function ds179Diag(msg, isError){
+    try{ if(typeof dsSetProposalOpenDiag === 'function') dsSetProposalOpenDiag('gb179 ' + String(msg||''), !!isError); }catch(_){ }
+    try{ var el=document.getElementById('inboxDiag'); if(el){ el.textContent='OpenDiag: gb179 ' + String(msg||''); el.style.color=isError ? '#ffb3b3' : '#d7dbe8'; } }catch(_){ }
+    try{ console.warn('GB179', msg); }catch(_){ }
+  }
+  function ds179Enrich(row){
+    try{ if(typeof dsEnrichProposalReviewRow === 'function') return dsEnrichProposalReviewRow(row || {}); }catch(_){ }
+    return row || {};
+  }
+  function ds179HideInboxDetail(){
+    try{ var detail=document.getElementById('inboxDetail'); if(detail) detail.style.display='none'; }catch(_){ }
+    try{ var list=document.getElementById('inboxList'); if(list) list.style.display=''; }catch(_){ }
+    try{ var plist=document.getElementById('inboxProposalList'); if(plist) plist.style.display='none'; }catch(_){ }
+    try{ var c1=document.getElementById('btnInboxClose'); if(c1) c1.style.display='none'; }catch(_){ }
+    try{ var c2=document.getElementById('btnInboxAdopt'); if(c2) c2.style.display='none'; }catch(_){ }
+    try{ var c3=document.getElementById('btnInboxReject'); if(c3) c3.style.display='none'; }catch(_){ }
+  }
+  function ds179ShowPanel(tabId, panelId){
+    try{ if(typeof selectTab === 'function' && tabId) selectTab(tabId); }catch(_){ }
+    try{ if(typeof showPanel === 'function' && panelId) showPanel(panelId); }catch(_){ }
+    try{ if(typeof dsForceShowPanel === 'function' && panelId) dsForceShowPanel(panelId); }catch(_){ }
+    try{ document.querySelectorAll('.panel').forEach(function(p){ try{ p.classList.toggle('is-active', p && p.id === panelId); }catch(_){ } }); }catch(_){ }
+    try{ var panel=panelId ? document.getElementById(panelId) : null; if(panel){ panel.style.display=''; panel.classList.add('is-active'); } }catch(_){ }
+  }
+  function ds179IsContract(row){
+    try{ return !!((row && String(row.__fallbackOpenKind||'').toLowerCase()==='contract') || (typeof dsIsContractProposalInboxRow==='function' && dsIsContractProposalInboxRow(row))); }catch(_){ return false; }
+  }
+  function ds179IsStay(row){
+    try{ return !!((row && String(row.__fallbackOpenKind||'').toLowerCase()==='stay') || (typeof dsIsStayProposalInboxRow==='function' && dsIsStayProposalInboxRow(row))); }catch(_){ return false; }
+  }
+  function ds179OpenContractHard(row){
+    var full=ds179Enrich(row || {});
+    try{ window.__dsInboxCurrentTask = full; }catch(_){ }
+    ds179HideInboxDetail();
+    ds179ShowPanel('contract','contract');
+    ds179Diag('contract hard-start', false);
+    [0, 80, 220, 520].forEach(function(delay){
+      setTimeout(function(){
+        try{ ds179ShowPanel('contract','contract'); }catch(_){ }
+        try{ if(typeof renderContractPanel === 'function') renderContractPanel(); }catch(err){ ds179Diag('contract render fail ' + String((err && err.message) || err || 'unknown'), true); }
+        try{ if(typeof dsOpenContractProposalEditor === 'function') dsOpenContractProposalEditor(full); }catch(err){ ds179Diag('contract editor fail ' + String((err && err.message) || err || 'unknown'), true); }
+      }, delay);
+    });
+    return true;
+  }
+  function ds179OpenStayHard(row){
+    var full=ds179Enrich(row || {});
+    try{ window.__dsInboxCurrentTask = full; }catch(_){ }
+    ds179HideInboxDetail();
+    ds179ShowPanel('documents','editor');
+    ds179Diag('stay hard-start', false);
+    [0, 80, 220, 520].forEach(function(delay){
+      setTimeout(function(){
+        try{ ds179ShowPanel('documents','editor'); }catch(_){ }
+        try{ if(typeof dsOpenStayProposalEditor === 'function') dsOpenStayProposalEditor(full); }catch(err){ ds179Diag('stay editor fail ' + String((err && err.message) || err || 'unknown'), true); }
+      }, delay);
+    });
+    return true;
+  }
+  function ds179OpenRow(row){
+    var full=ds179Enrich(row || {});
+    try{ if(ds179IsContract(full)) return ds179OpenContractHard(full); }catch(err){ ds179Diag('contract route fail ' + String((err && err.message) || err || 'unknown'), true); }
+    try{ if(ds179IsStay(full)) return ds179OpenStayHard(full); }catch(err){ ds179Diag('stay route fail ' + String((err && err.message) || err || 'unknown'), true); }
+    try{ if(typeof isCustomerProposalInboxRow === 'function' && isCustomerProposalInboxRow(full) && typeof dsLaunchProposalInCustomerEditor === 'function') return !!dsLaunchProposalInCustomerEditor(full); }catch(_){ }
+    ds179Diag('no-route kind=' + String((full && full.__fallbackOpenKind)||'--'), true);
+    return false;
+  }
+  try{ window.__dsOpenContractStayKundeHundLike = ds179OpenRow; }catch(_){ }
+  try{ window.__dsDirectOpenContractStayFromInbox = ds179OpenRow; }catch(_){ }
+  try{ window.openInboxDetail = ds179OpenRow; }catch(_){ }
+  try{ window.__dsOpenInboxDetail = ds179OpenRow; }catch(_){ }
+  try{
+    window.__dsInboxFallbackOpen = function(targetId, index){
+      try{
+        var bag=window.__dsInboxFallbackRows || {};
+        var rows=Array.isArray(bag[targetId]) ? bag[targetId] : [];
+        var row=rows[index];
+        if(!row){ ds179Diag('fallback row-missing idx=' + String(index), true); return false; }
+        return ds179OpenRow(row);
+      }catch(err){ ds179Diag('fallback hard-open fail ' + String((err && err.message) || err || 'unknown'), true); return false; }
+    };
+  }catch(_){ }
+})();
+/* ===== END GB179 ===== */
