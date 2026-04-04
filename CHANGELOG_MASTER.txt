@@ -62,3 +62,8 @@ GB152
 - Kundenseite: Zurück zur Startseite in Kunde/Hund
 
 GB157: Kundenmodus Vertrag/Aufenthalt auf Vorschlagslogik fixiert; gemischte Altdateien bereinigt.
+
+GB186 – Inbox FallbackOpen DirectReal
+- __dsInboxFallbackOpen hart auf neuesten Direkt-Dispatcher umgestellt
+- Fallback-Öffnen nutzt jetzt __fallbackOpenKind / source / template robust für Aufenthalt und Betreuungsvertrag
+- Aufenthalt/Vertrag aus Eingänge öffnen direkt in den echten Original-Editor statt im generischen Detail/Fallback zu landen

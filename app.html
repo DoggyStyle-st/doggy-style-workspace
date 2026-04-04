@@ -6,13 +6,13 @@
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
 <meta charset="utf-8"/>
-  <meta name="app-build" content="M50.9.9GB185_INBOX_ROWKEY_REALSNAPSHOT_20260404_ROOTONLY">
+  <meta name="app-build" content="M50.9.9GB186_INBOX_FALLBACKOPEN_DIRECTREAL_20260404_ROOTONLY">
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <title>Doggy Style Workspace · App</title>
 <link href="manifest.json" rel="manifest"/>
 <meta content="#101014" name="theme-color"/>
 <link href="assets/logo.png" rel="apple-touch-icon"/>
-<link href="styles.css?v=M50.9.9GB185_INBOX_ROWKEY_REALSNAPSHOT_20260404_ROOTONLY" rel="stylesheet"/>
+<link href="styles.css?v=M50.9.9GB186_INBOX_FALLBACKOPEN_DIRECTREAL_20260404_ROOTONLY" rel="stylesheet"/>
 <link href="dashboard_master.css?v=20260104v13logout" rel="stylesheet"/>
 <style>
   /* Topbar Layout (iPad & Desktop stabil) */
@@ -102,7 +102,7 @@
   .doc-modal__actions{ margin-left:auto; display:flex; flex-wrap: wrap; gap: 8px; }
   .doc-modal__frame{ width: 100%; border: 0; border-radius: 12px; background: #fff; flex:1; min-height: 0; }
 </style>
-  <meta name="app-version" content="M50.9.9GB185_INBOX_ROWKEY_REALSNAPSHOT_20260404_ROOTONLY">
+  <meta name="app-version" content="M50.9.9GB186_INBOX_FALLBACKOPEN_DIRECTREAL_20260404_ROOTONLY">
   <meta name="release-channel" content="MASTER">
 </head>
 <body class="bg-watermark page-app">
@@ -1194,7 +1194,7 @@
 </section>
 
 <section class="panel" id="statistics">
-<!-- Statistics panel is rendered by app.js?v=M50.9.9GB185_INBOX_ROWKEY_REALSNAPSHOT_20260404_ROOTONLY (renderStatisticsPanel) -->
+<!-- Statistics panel is rendered by app.js?v=M50.9.9GB186_INBOX_FALLBACKOPEN_DIRECTREAL_20260404_ROOTONLY (renderStatisticsPanel) -->
 </section>
 
 
@@ -1261,12 +1261,12 @@
 </footer>
 </div>
 <!-- Firebase (optional) + Config -->
-<script defer="defer" src="firebase-config.js?v=M50.9.9GB185_INBOX_ROWKEY_REALSNAPSHOT_20260404_ROOTONLY"></script>
+<script defer="defer" src="firebase-config.js?v=M50.9.9GB186_INBOX_FALLBACKOPEN_DIRECTREAL_20260404_ROOTONLY"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
-<script defer="defer" src="app.js?v=M50.9.9GB185_INBOX_ROWKEY_REALSNAPSHOT_20260404_ROOTONLY"></script>
+<script defer="defer" src="app.js?v=M50.9.9GB186_INBOX_FALLBACKOPEN_DIRECTREAL_20260404_ROOTONLY"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1285,7 +1285,7 @@
 </script>
 
 <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB185_INBOX_ROWKEY_REALSNAPSHOT_20260404_ROOTONLY', { updateViaCache: 'none' });
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB186_INBOX_FALLBACKOPEN_DIRECTREAL_20260404_ROOTONLY', { updateViaCache: 'none' });
   </script>
 
 <script>
@@ -1387,7 +1387,7 @@
   <!-- Bottom logout button removed (duplicate of header logout; also overlaps editor on iPad) -->
 </div>
 <!-- test-badge removed (requested) -->
-  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB185_INBOX_ROWKEY_REALSNAPSHOT_20260404_ROOTONLY</div>
+  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB186_INBOX_FALLBACKOPEN_DIRECTREAL_20260404_ROOTONLY</div>
 
 <script>
 (function visibleMailFallback(){
@@ -1854,7 +1854,7 @@
       if(isContractProposal || isStayProposal){
         try{
           if(typeof window.dsSetProposalOpenDiag === 'function'){
-            window.dsSetProposalOpenDiag('gb180 fallback-call kind=' + (isContractProposal ? 'contract' : 'stay')
+            window.dsSetProposalOpenDiag('gb186 fallback-call kind=' + (isContractProposal ? 'contract' : 'stay')
               + ' contractFn=' + (typeof window.dsOpenContractProposalEditor)
               + ' stayFn=' + (typeof window.dsOpenStayProposalEditor)
               + ' selectTab=' + (typeof window.selectTab)
@@ -1875,8 +1875,8 @@
             try{ if(typeof window.dsForceShowPanel === 'function') window.dsForceShowPanel('contract'); }catch(_){ }
             var okC = false;
             try{ if(typeof window.renderContractPanel === 'function') window.renderContractPanel(); }catch(_){ }
-            try{ if(typeof window.dsOpenContractProposalEditor === 'function') okC = !!window.dsOpenContractProposalEditor(row); }catch(errC){ try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb180 contract-err ' + String((errC && errC.message) || errC || 'unknown'), true); }catch(_){ } }
-            try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb180 contract-ret=' + (okC ? '1':'0'), !okC); }catch(_){ }
+            try{ if(typeof window.dsOpenContractProposalEditor === 'function') okC = !!window.dsOpenContractProposalEditor(row); }catch(errC){ try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb186 contract-err ' + String((errC && errC.message) || errC || 'unknown'), true); }catch(_){ } }
+            try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb186 contract-ret=' + (okC ? '1':'0'), !okC); }catch(_){ }
             if(!okC){
               [120,320,700].forEach(function(delay){ setTimeout(function(){ try{ if(typeof window.selectTab === 'function') window.selectTab('contract'); }catch(_){ } try{ if(typeof window.showPanel === 'function') window.showPanel('contract'); }catch(_){ } try{ if(typeof window.renderContractPanel === 'function') window.renderContractPanel(); }catch(_){ } try{ if(typeof window.dsOpenContractProposalEditor === 'function') window.dsOpenContractProposalEditor(row); }catch(_){ } }, delay); });
             }
@@ -1887,8 +1887,8 @@
             try{ if(typeof window.showPanel === 'function') window.showPanel('editor'); }catch(_){ }
             try{ if(typeof window.dsForceShowPanel === 'function') window.dsForceShowPanel('editor'); }catch(_){ }
             var okS = false;
-            try{ if(typeof window.dsOpenStayProposalEditor === 'function') okS = !!window.dsOpenStayProposalEditor(row); }catch(errS){ try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb180 stay-err ' + String((errS && errS.message) || errS || 'unknown'), true); }catch(_){ } }
-            try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb180 stay-ret=' + (okS ? '1':'0'), !okS); }catch(_){ }
+            try{ if(typeof window.dsOpenStayProposalEditor === 'function') okS = !!window.dsOpenStayProposalEditor(row); }catch(errS){ try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb186 stay-err ' + String((errS && errS.message) || errS || 'unknown'), true); }catch(_){ } }
+            try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb186 stay-ret=' + (okS ? '1':'0'), !okS); }catch(_){ }
             if(!okS){
               [120,320,700].forEach(function(delay){ setTimeout(function(){ try{ if(typeof window.selectTab === 'function') window.selectTab('documents'); }catch(_){ } try{ if(typeof window.showPanel === 'function') window.showPanel('editor'); }catch(_){ } try{ if(typeof window.dsOpenStayProposalEditor === 'function') window.dsOpenStayProposalEditor(row); }catch(_){ } }, delay); });
             }
@@ -2199,8 +2199,8 @@
           var openKind = src && src.getAttribute ? String(src.getAttribute('data-openkind') || '--') : '--';
           if(!Number.isFinite(idx)) idx = 0;
           try{
-            if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb180-click kind=' + openKind + ' idx=' + String(idx) + ' target=' + String(tid || targetId), false);
-            else { var diag = document.getElementById('inboxDiag'); if(diag){ diag.textContent = 'OpenDiag: gb180-click kind=' + openKind + ' idx=' + String(idx) + ' target=' + String(tid || targetId); diag.style.color = '#d7dbe8'; } }
+            if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb186-click kind=' + openKind + ' idx=' + String(idx) + ' target=' + String(tid || targetId), false);
+            else { var diag = document.getElementById('inboxDiag'); if(diag){ diag.textContent = 'OpenDiag: gb186-click kind=' + openKind + ' idx=' + String(idx) + ' target=' + String(tid || targetId); diag.style.color = '#d7dbe8'; } }
           }catch(_){ }
           if(src && src.classList && src.classList.contains('ds-inbox-answer')){
             return window.__dsInboxFallbackAnswer ? window.__dsInboxFallbackAnswer(String(tid || targetId), idx) : false;
@@ -2211,7 +2211,7 @@
             var prevKey = String(window.__dsInboxFallbackOpenLockKey || '');
             var prevAt = Number(window.__dsInboxFallbackOpenLockAt || 0);
             if(prevKey === lockKey && (now - prevAt) < 800){
-              try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb180-open-lock kind=' + openKind + ' idx=' + String(idx), true); }catch(_){ }
+              try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb186-open-lock kind=' + openKind + ' idx=' + String(idx), true); }catch(_){ }
               return false;
             }
             window.__dsInboxFallbackOpenLockKey = lockKey;
@@ -2219,10 +2219,10 @@
           }catch(_){ }
           try{
             var ret = window.__dsInboxFallbackOpen ? window.__dsInboxFallbackOpen(String(tid || targetId), idx) : false;
-            try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb180-open-dispatch kind=' + openKind + ' idx=' + String(idx) + ' ret=' + (ret ? '1' : '0'), false); }catch(_){ }
+            try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb186-open-dispatch kind=' + openKind + ' idx=' + String(idx) + ' ret=' + (ret ? '1' : '0'), false); }catch(_){ }
             return ret;
           }catch(err){
-            try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb180-open-error kind=' + openKind + ' idx=' + String(idx) + ' err=' + String((err && err.message) || err || 'unknown'), true); }catch(_){ }
+            try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb186-open-error kind=' + openKind + ' idx=' + String(idx) + ' err=' + String((err && err.message) || err || 'unknown'), true); }catch(_){ }
             return false;
           }
         };
@@ -2729,7 +2729,7 @@
 
 <script>
 (function(){
-  const CURRENT_BUILD = 'M50.9.9GB185_INBOX_ROWKEY_REALSNAPSHOT_20260404_ROOTONLY';
+  const CURRENT_BUILD = 'M50.9.9GB186_INBOX_FALLBACKOPEN_DIRECTREAL_20260404_ROOTONLY';
   try{
     window.addEventListener('load', function(){
       try{

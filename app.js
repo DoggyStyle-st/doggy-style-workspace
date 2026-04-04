@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB185_INBOX_ROWKEY_REALSNAPSHOT_20260404_ROOTONLY",
+  tag: "M50.9.9GB186_INBOX_ROWKEY_REALSNAPSHOT_20260404_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB185_INBOX_ROWKEY_REALSNAPSHOT_20260404_ROOTONLY";
+const APP_BUILD = "M50.9.9GB186_INBOX_ROWKEY_REALSNAPSHOT_20260404_ROOTONLY";
 
 function dsSyncDiagStateSummary(){
   try{
@@ -21393,7 +21393,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB185_INBOX_ROWKEY_REALSNAPSHOT_20260404_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB186_INBOX_ROWKEY_REALSNAPSHOT_20260404_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -23366,7 +23366,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB185_INBOX_ROWKEY_REALSNAPSHOT_20260404_ROOTONLY";
+  const BUILD = "M50.9.9GB186_INBOX_ROWKEY_REALSNAPSHOT_20260404_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -25724,13 +25724,13 @@ try{ window.__GB184_MARKER = 'active'; }catch(_){ }
 /* ===== END GB184 ===== */
 
 
-/* ===== GB185 direct row-key open + original snapshot hydration ===== */
-try{ window.__GB185_MARKER = 'active'; }catch(_){ }
+/* ===== GB186 direct row-key open + original snapshot hydration ===== */
+try{ window.__GB186_MARKER = 'active'; }catch(_){ }
 (function(){
   function ds185Diag(msg, isError){
-    try{ if(typeof dsSetProposalOpenDiag === 'function') dsSetProposalOpenDiag('gb185 ' + String(msg||''), !!isError); }catch(_){ }
-    try{ var el = document.getElementById('inboxDiag'); if(el){ el.textContent = 'OpenDiag: gb185 ' + String(msg||''); el.style.color = isError ? '#ffb3b3' : '#d7dbe8'; } }catch(_){ }
-    try{ console.warn('GB185', msg); }catch(_){ }
+    try{ if(typeof dsSetProposalOpenDiag === 'function') dsSetProposalOpenDiag('gb186 ' + String(msg||''), !!isError); }catch(_){ }
+    try{ var el = document.getElementById('inboxDiag'); if(el){ el.textContent = 'OpenDiag: gb186 ' + String(msg||''); el.style.color = isError ? '#ffb3b3' : '#d7dbe8'; } }catch(_){ }
+    try{ console.warn('GB186', msg); }catch(_){ }
   }
   function ds185Clone(v){ try{ return JSON.parse(JSON.stringify(v == null ? {} : v)); }catch(_){ return v; } }
   function ds185Norm(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
@@ -26025,4 +26025,105 @@ try{ window.__GB185_MARKER = 'active'; }catch(_){ }
     try{ ds166OpenRowByKey = window.ds166OpenRowByKey; }catch(_){ }
   }catch(_){ }
 })();
-/* ===== END GB185 ===== */
+/* ===== END GB186 ===== */
+
+
+/* ===== GB186 inbox fallback open direct latest-dispatch ===== */
+try{ window.__GB186_MARKER = 'active'; }catch(_){ }
+(function(){
+  function ds186Diag(msg, isError){
+    try{ if(typeof dsSetProposalOpenDiag === 'function') dsSetProposalOpenDiag('gb186 ' + String(msg||''), !!isError); }catch(_){ }
+    try{ var el=document.getElementById('inboxDiag'); if(el){ el.textContent='OpenDiag: gb186 ' + String(msg||''); el.style.color = isError ? '#ffb3b3' : '#d7dbe8'; } }catch(_){ }
+    try{ console.warn('GB186', msg); }catch(_){ }
+  }
+  function ds186Norm(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
+  function ds186Lower(v){ try{ return String(v == null ? '' : v).trim().toLowerCase(); }catch(_){ return ''; } }
+  function ds186Clone(v){ try{ return JSON.parse(JSON.stringify(v == null ? null : v)); }catch(_){ return v; } }
+  function ds186InferKind(row){
+    try{
+      var payload = (row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data)) || {};
+      var kind = ds186Lower((row && row.__fallbackOpenKind) || (row && row.openKind) || '');
+      if(kind === 'stay' || kind === 'contract' || kind === 'customer') return kind;
+      var src = ds186Lower((payload && payload.source) || '');
+      var tpl = ds186Lower((row && (row.templateId || row.proposalType || row.kind || row.formKey)) || '');
+      var title = ds186Lower((row && (row.title || row.__fallbackDisplayedTitle)) || '');
+      if(tpl === 'boarding_contract' || src.indexOf('customer-main-contract') >= 0 || title.indexOf('betreuungsvertrag') >= 0) return 'contract';
+      if(tpl === 'hundeannahme' || src.indexOf('customer-main-stay') >= 0 || title.indexOf('neuer aufenthalt') >= 0 || title.indexOf('aufenthalt vorschlag') >= 0 || title.indexOf('aufenthaltsanfrage') >= 0) return 'stay';
+      if(src.indexOf('customer-main-dogs') >= 0 || tpl === 'customer_data' || title.indexOf('kunde/hund') >= 0) return 'customer';
+    }catch(_){ }
+    return 'other';
+  }
+  async function ds186FetchFull(row){
+    var base = row || {};
+    try{
+      if(typeof window.__dsFetchFullInboxProposal === 'function'){
+        var full = await window.__dsFetchFullInboxProposal(base);
+        if(full && typeof full === 'object'){
+          if(base && typeof base === 'object'){
+            if(!full.__fallbackOpenKind && base.__fallbackOpenKind) full.__fallbackOpenKind = base.__fallbackOpenKind;
+            if(!full.__fallbackDisplayedTitle && base.__fallbackDisplayedTitle) full.__fallbackDisplayedTitle = base.__fallbackDisplayedTitle;
+          }
+          return full;
+        }
+      }
+    }catch(err){ ds186Diag('fetch-full err ' + String((err && err.message) || err || 'unknown'), true); }
+    return base;
+  }
+  function ds186HideInboxChrome(){
+    try{ var detail=document.getElementById('inboxDetail'); if(detail) detail.style.display='none'; }catch(_){ }
+    try{ var list=document.getElementById('inboxList'); if(list) list.style.display=''; }catch(_){ }
+    try{ var plist=document.getElementById('inboxProposalList'); if(plist) plist.style.display='none'; }catch(_){ }
+    try{ var b=document.getElementById('btnInboxClose'); if(b) b.style.display='none'; }catch(_){ }
+    try{ b=document.getElementById('btnInboxAdopt'); if(b) b.style.display='none'; }catch(_){ }
+    try{ b=document.getElementById('btnInboxReject'); if(b) b.style.display='none'; }catch(_){ }
+  }
+  function ds186OpenByRow(row){
+    Promise.resolve().then(async function(){
+      var full = await ds186FetchFull(row || {});
+      var kind = ds186InferKind(full);
+      ds186HideInboxChrome();
+      try{ window.__dsInboxCurrentTask = full; }catch(_){ }
+      ds186Diag('open-dispatch kind=' + kind + ' id=' + String((full && (full.id || full.proposalId || full.taskId)) || '--'), false);
+      if(kind === 'contract'){
+        try{ if(typeof selectTab === 'function') selectTab('contract'); }catch(_){ }
+        try{ if(typeof showPanel === 'function') showPanel('contract'); }catch(_){ }
+        try{ if(typeof dsForceShowPanel === 'function') dsForceShowPanel('contract'); }catch(_){ }
+        try{ if(typeof renderContractPanel === 'function') renderContractPanel(); }catch(_){ }
+        try{ if(typeof window.dsOpenContractProposalEditor === 'function') window.dsOpenContractProposalEditor(full); }catch(err){ ds186Diag('contract err ' + String((err && err.message) || err || 'unknown'), true); }
+        return true;
+      }
+      if(kind === 'stay'){
+        try{ if(typeof selectTab === 'function') selectTab('documents'); }catch(_){ }
+        try{ if(typeof showPanel === 'function') showPanel('editor'); }catch(_){ }
+        try{ if(typeof dsForceShowPanel === 'function') dsForceShowPanel('editor'); }catch(_){ }
+        try{ if(typeof window.dsOpenStayProposalEditor === 'function') window.dsOpenStayProposalEditor(full); }catch(err){ ds186Diag('stay err ' + String((err && err.message) || err || 'unknown'), true); }
+        return true;
+      }
+      if(kind === 'customer'){
+        try{ if(typeof dsLaunchProposalInCustomerEditor === 'function') return !!dsLaunchProposalInCustomerEditor(full); }catch(err){ ds186Diag('customer err ' + String((err && err.message) || err || 'unknown'), true); }
+        return false;
+      }
+      try{ if(typeof ds166OpenInboxDetailFallback === 'function') ds166OpenInboxDetailFallback(full); }catch(err){ ds186Diag('fallback err ' + String((err && err.message) || err || 'unknown'), true); }
+      return false;
+    }).catch(function(err){ ds186Diag('open async err ' + String((err && err.message) || err || 'unknown'), true); });
+    return true;
+  }
+  function ds186FallbackOpen(targetId, index){
+    try{
+      var bag = window.__dsInboxFallbackRows || {};
+      var rows = Array.isArray(bag[targetId]) ? bag[targetId] : [];
+      var row = rows[index];
+      if(!row){ ds186Diag('row-miss target=' + String(targetId||'--') + ' idx=' + String(index), true); return false; }
+      try{ if(typeof ds86EnrichFallbackRow === 'function') row = ds86EnrichFallbackRow(ds186Clone(row) || row); }catch(_){ }
+      try{ row.__fallbackOpenKind = row.__fallbackOpenKind || ds186InferKind(row); }catch(_){ }
+      return ds186OpenByRow(row);
+    }catch(err){ ds186Diag('fallback-open err ' + String((err && err.message) || err || 'unknown'), true); return false; }
+  }
+  try{ window.__dsInboxFallbackOpen = ds186FallbackOpen; }catch(_){ }
+  try{ window.__dsOpenInboxDetail = ds186OpenByRow; }catch(_){ }
+  try{ window.openInboxDetail = ds186OpenByRow; }catch(_){ }
+  try{ window.__dsDirectOpenContractStayFromInbox = ds186OpenByRow; }catch(_){ }
+  try{ window.__dsOpenContractStayKundeHundLike = ds186OpenByRow; }catch(_){ }
+  try{ window.ds166OpenRowByKey = function(key){ try{ var row = window.__dsInboxRowMap && window.__dsInboxRowMap[key]; return row ? ds186OpenByRow(row) : false; }catch(err){ ds186Diag('row-key err ' + String((err && err.message) || err || 'unknown'), true); return false; } }; }catch(_){ }
+})();
+/* ===== END GB186 ===== */
