@@ -1,4 +1,5 @@
-GB182
+GB183 - Original-Vorschlag Snapshot-Open für Aufenthalt/Betreuungsvertrag: Öffnen aus Eingänge rehydriert jetzt den abgesendeten Vorschlagszustand direkt im Original-Editor statt nur den Editor-Shell/aktuellen Stammdatensatz.
+GB183
 - Release-Schnitt auf M50.9.9GB182_INBOX_EDITORMAP_REALSTAY_REALCONTRACT_20260404_ROOTONLY
 - Build-/Cache-Strings in app.html, app.js und sw.js auf GB182 angehoben
 - customer.html von altem GB170-Buildstring auf GB182 konsolidiert (Styles/Scripts/Build-Badge/CURRENT_BUILD)
