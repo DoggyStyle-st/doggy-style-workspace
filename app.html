@@ -6,13 +6,13 @@
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
 <meta charset="utf-8"/>
-  <meta name="app-build" content="M50.9.9GB198_INLINE_REVIEWSAVE_SYNCPILLFIX_20260405_ROOTONLY">
+  <meta name="app-build" content="M50.9.9GB199_INBOXREFRESH_SAFE_20260405_ROOTONLY">
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <title>Doggy Style Workspace · App</title>
 <link href="manifest.json" rel="manifest"/>
 <meta content="#101014" name="theme-color"/>
 <link href="assets/logo.png" rel="apple-touch-icon"/>
-<link href="styles.css?v=M50.9.9GB198_INLINE_REVIEWSAVE_SYNCPILLFIX_20260405_ROOTONLY" rel="stylesheet"/>
+<link href="styles.css?v=M50.9.9GB199_INBOXREFRESH_SAFE_20260405_ROOTONLY" rel="stylesheet"/>
 <link href="dashboard_master.css?v=20260104v13logout" rel="stylesheet"/>
 <style>
   /* Topbar Layout (iPad & Desktop stabil) */
@@ -102,7 +102,7 @@
   .doc-modal__actions{ margin-left:auto; display:flex; flex-wrap: wrap; gap: 8px; }
   .doc-modal__frame{ width: 100%; border: 0; border-radius: 12px; background: #fff; flex:1; min-height: 0; }
 </style>
-  <meta name="app-version" content="M50.9.9GB198_INLINE_REVIEWSAVE_SYNCPILLFIX_20260405_ROOTONLY">
+  <meta name="app-version" content="M50.9.9GB199_INBOXREFRESH_SAFE_20260405_ROOTONLY">
   <meta name="release-channel" content="MASTER">
 </head>
 <body class="bg-watermark page-app">
@@ -1195,7 +1195,7 @@
 </section>
 
 <section class="panel" id="statistics">
-<!-- Statistics panel is rendered by app.js?v=M50.9.9GB198_INLINE_REVIEWSAVE_SYNCPILLFIX_20260405_ROOTONLY (renderStatisticsPanel) -->
+<!-- Statistics panel is rendered by app.js?v=M50.9.9GB199_INBOXREFRESH_SAFE_20260405_ROOTONLY (renderStatisticsPanel) -->
 </section>
 
 
@@ -1262,12 +1262,12 @@
 </footer>
 </div>
 <!-- Firebase (optional) + Config -->
-<script defer="defer" src="firebase-config.js?v=M50.9.9GB198_INLINE_REVIEWSAVE_SYNCPILLFIX_20260405_ROOTONLY"></script>
+<script defer="defer" src="firebase-config.js?v=M50.9.9GB199_INBOXREFRESH_SAFE_20260405_ROOTONLY"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
-<script defer="defer" src="app.js?v=M50.9.9GB198_INLINE_REVIEWSAVE_SYNCPILLFIX_20260405_ROOTONLY"></script>
+<script defer="defer" src="app.js?v=M50.9.9GB199_INBOXREFRESH_SAFE_20260405_ROOTONLY"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1286,7 +1286,7 @@
 </script>
 
 <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB198_INLINE_REVIEWSAVE_SYNCPILLFIX_20260405_ROOTONLY', { updateViaCache: 'none' });
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB199_INBOXREFRESH_SAFE_20260405_ROOTONLY', { updateViaCache: 'none' });
   </script>
 
 <script>
@@ -1388,7 +1388,7 @@
   <!-- Bottom logout button removed (duplicate of header logout; also overlaps editor on iPad) -->
 </div>
 <!-- test-badge removed (requested) -->
-  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB198_INLINE_REVIEWSAVE_SYNCPILLFIX_20260405_ROOTONLY</div>
+  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB199_INBOXREFRESH_SAFE_20260405_ROOTONLY</div>
 
 <script>
 (function visibleMailFallback(){
@@ -1950,7 +1950,7 @@
       }catch(_){ return false; }
     }
     function ds192Diag(msg, isError){
-      try{ window.__dsAppHtmlOpenRuntime = 'GB198-apphtml-inline'; }catch(_){ }
+      try{ window.__dsAppHtmlOpenRuntime = 'GB199-apphtml-inline'; }catch(_){ }
       try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb196 ' + String(msg||''), !!isError); }catch(_){ }
     }
     function ds192Err(msg, isError){
@@ -2432,7 +2432,7 @@
         try{ if(typeof removeInboxRowEverywhere === 'function') removeInboxRowEverywhere(full); }catch(_){ }
         try{ if(typeof refreshInboxHard === 'function') await refreshInboxHard('gb196-inline-save-' + String(kind || 'review')); }catch(_){ }
         try{ ds196ClearReviewSyncError(kind || 'review'); }catch(_){ }
-        try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb198 save-adopt kind=' + String(kind || '--') + ' proposal=' + String((full && (full.proposalId || full.id || full.taskId)) || '--'), false); }catch(_){ }
+        try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb199 save-adopt kind=' + String(kind || '--') + ' proposal=' + String((full && (full.proposalId || full.id || full.taskId)) || '--'), false); }catch(_){ }
         try{ window.__dsInlineInboxReview = null; }catch(_){ }
         try{ ds194ShowInboxAfterReview(); }catch(_){ }
         return true;
@@ -2625,7 +2625,7 @@
       }).catch(function(err){ ds192Err('FEHLER inline-open-error -> ' + String((err && err.message) || err || 'unknown'), true); });
       return true;
     }
-    try{ window.__dsAppHtmlOpenRuntime = 'GB198-apphtml-inline'; }catch(_){ }
+    try{ window.__dsAppHtmlOpenRuntime = 'GB199-apphtml-inline'; }catch(_){ }
     try{ if(typeof window.ds166RememberInboxRow !== 'function'){ window.ds166RememberInboxRow = function(row){ try{ var key = ('row|' + String((row && (row.proposalId || row.id || row.taskId || row.__sourceKey || '')) || '') + '|' + String((row && (row.title || row.templateId || row.formKey || '')) || '') + '|' + String((row && (row.submittedAt || row.createdAt || '')) || '')).toLowerCase(); window.__dsInboxRowMap = window.__dsInboxRowMap || {}; window.__dsInboxRowMap[key]=row; return key; }catch(_){ return ''; } }; } }catch(_){ }
     try{ window.__dsOpenInboxProposalSnapshot = ds192OpenSnapshotEntry; }catch(_){ }
     try{ window.dsOpenStayProposalEditor = function(row){ return ds192OpenSnapshotEntry(row, 'stay'); }; }catch(_){ }
@@ -3517,7 +3517,98 @@
 
 <script>
 (function(){
-  const CURRENT_BUILD = 'M50.9.9GB198_INLINE_REVIEWSAVE_SYNCPILLFIX_20260405_ROOTONLY';
+  function ds199HasInboxRows(){
+    try{
+      var ids=['inboxList','inboxProposalList'];
+      for(var i=0;i<ids.length;i++){
+        var el=document.getElementById(ids[i]);
+        if(!el) continue;
+        if(el.querySelector('.ds-inbox-row')) return true;
+        var t=String(el.textContent||'').trim();
+        if(t && t.indexOf('keine ') !== 0 && t.indexOf('— keine') !== 0) return true;
+      }
+    }catch(_){ }
+    return false;
+  }
+  function ds199CachedRowsCount(){
+    try{
+      var bag=window.__dsInboxFallbackRows||{};
+      return (Array.isArray(bag.inboxList)?bag.inboxList.length:0) + (Array.isArray(bag.inboxProposalList)?bag.inboxProposalList.length:0);
+    }catch(_){ return 0; }
+  }
+  function ds199RenderFromCache(){
+    try{
+      var bag=window.__dsInboxFallbackRows||{};
+      if(typeof renderRows === 'function'){
+        renderRows('inboxList', Array.isArray(bag.inboxList)?bag.inboxList:[], 'keine Eingänge');
+        renderRows('inboxProposalList', Array.isArray(bag.inboxProposalList)?bag.inboxProposalList:[], 'keine Vorschläge gefunden');
+      }
+    }catch(_){ }
+  }
+  function ds199LoadInboxNow(reason){
+    try{ window.__dsAppHtmlOpenRuntime='GB199-apphtml-inline'; }catch(_){ }
+    try{ if(typeof refreshInboxHard === 'function') refreshInboxHard('gb199-'+String(reason||'open')); }catch(_){ }
+    setTimeout(function(){
+      try{
+        if(ds199HasInboxRows()) return;
+        if(ds199CachedRowsCount() > 0){ ds199RenderFromCache(); }
+      }catch(_){ }
+    }, 120);
+    setTimeout(function(){
+      try{
+        if(ds199HasInboxRows()) return;
+        if(typeof collectFallbackRows === 'function'){
+          Promise.resolve(collectFallbackRows()).then(function(rows){
+            try{
+              rows = Array.isArray(rows) ? rows : [];
+              window.__dsInboxFallbackRows = window.__dsInboxFallbackRows || {};
+              window.__dsInboxFallbackRows.inboxList = rows.slice();
+              if(typeof renderRows === 'function') renderRows('inboxList', rows, 'keine Eingänge');
+              try{ var p=document.getElementById('inboxProposalList'); if(p && !p.innerHTML.trim()) renderRows('inboxProposalList', [], 'keine Vorschläge gefunden'); }catch(_){ }
+            }catch(_){ }
+          }).catch(function(){});
+        }
+      }catch(_){ }
+    }, 450);
+  }
+  try{ window.ds199LoadInboxNow = ds199LoadInboxNow; }catch(_){ }
+  function ds199Wire(){
+    try{
+      var btn=document.getElementById('tabInbox');
+      if(btn && !btn.__ds199Bound){
+        btn.__ds199Bound=true;
+        btn.addEventListener('click', function(){ ds199LoadInboxNow('tab'); }, true);
+      }
+    }catch(_){ }
+    try{
+      var btn2=document.getElementById('btnInboxRefresh');
+      if(btn2 && !btn2.__ds199Bound){
+        btn2.__ds199Bound=true;
+        btn2.addEventListener('click', function(){ setTimeout(function(){ ds199LoadInboxNow('refresh-btn'); }, 20); }, true);
+      }
+    }catch(_){ }
+    try{
+      setTimeout(function(){
+        try{
+          var panel=document.getElementById('inbox');
+          if(panel){
+            var visible = panel.style.display !== 'none' && panel.hidden !== true;
+            if(visible) ds199LoadInboxNow('visible');
+          }
+        }catch(_){ }
+      }, 200);
+    }catch(_){ }
+  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ds199Wire);
+  else ds199Wire();
+  window.addEventListener('load', function(){ setTimeout(function(){ ds199Wire(); ds199LoadInboxNow('load'); }, 250); });
+})();
+</script>
+
+
+<script>
+(function(){
+  const CURRENT_BUILD = 'M50.9.9GB199_INBOXREFRESH_SAFE_20260405_ROOTONLY';
   try{
     window.addEventListener('load', function(){
       try{
