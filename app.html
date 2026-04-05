@@ -6,13 +6,13 @@
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
 <meta charset="utf-8"/>
-  <meta name="app-build" content="M50.9.9GB201_INBOXRECOVER_PENDING_20260405_ROOTONLY">
+  <meta name="app-build" content="M50.9.9GB202_INBOXROLLBACK_SYNCED_20260405_ROOTONLY">
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <title>Doggy Style Workspace · App</title>
 <link href="manifest.json" rel="manifest"/>
 <meta content="#101014" name="theme-color"/>
 <link href="assets/logo.png" rel="apple-touch-icon"/>
-<link href="styles.css?v=M50.9.9GB201_INBOXRECOVER_PENDING_20260405_ROOTONLY" rel="stylesheet"/>
+<link href="styles.css?v=M50.9.9GB202_INBOXROLLBACK_SYNCED_20260405_ROOTONLY" rel="stylesheet"/>
 <link href="dashboard_master.css?v=20260104v13logout" rel="stylesheet"/>
 <style>
   /* Topbar Layout (iPad & Desktop stabil) */
@@ -102,7 +102,7 @@
   .doc-modal__actions{ margin-left:auto; display:flex; flex-wrap: wrap; gap: 8px; }
   .doc-modal__frame{ width: 100%; border: 0; border-radius: 12px; background: #fff; flex:1; min-height: 0; }
 </style>
-  <meta name="app-version" content="M50.9.9GB201_INBOXRECOVER_PENDING_20260405_ROOTONLY">
+  <meta name="app-version" content="M50.9.9GB202_INBOXROLLBACK_SYNCED_20260405_ROOTONLY">
   <meta name="release-channel" content="MASTER">
 </head>
 <body class="bg-watermark page-app">
@@ -1195,7 +1195,7 @@
 </section>
 
 <section class="panel" id="statistics">
-<!-- Statistics panel is rendered by app.js?v=M50.9.9GB201_INBOXRECOVER_PENDING_20260405_ROOTONLY (renderStatisticsPanel) -->
+<!-- Statistics panel is rendered by app.js?v=M50.9.9GB202_INBOXROLLBACK_SYNCED_20260405_ROOTONLY (renderStatisticsPanel) -->
 </section>
 
 
@@ -1262,12 +1262,12 @@
 </footer>
 </div>
 <!-- Firebase (optional) + Config -->
-<script defer="defer" src="firebase-config.js?v=M50.9.9GB201_INBOXRECOVER_PENDING_20260405_ROOTONLY"></script>
+<script defer="defer" src="firebase-config.js?v=M50.9.9GB202_INBOXROLLBACK_SYNCED_20260405_ROOTONLY"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
-<script defer="defer" src="app.js?v=M50.9.9GB201_INBOXRECOVER_PENDING_20260405_ROOTONLY"></script>
+<script defer="defer" src="app.js?v=M50.9.9GB202_INBOXROLLBACK_SYNCED_20260405_ROOTONLY"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1286,7 +1286,7 @@
 </script>
 
 <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB201_INBOXRECOVER_PENDING_20260405_ROOTONLY', { updateViaCache: 'none' });
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB202_INBOXROLLBACK_SYNCED_20260405_ROOTONLY', { updateViaCache: 'none' });
   </script>
 
 <script>
@@ -1388,7 +1388,7 @@
   <!-- Bottom logout button removed (duplicate of header logout; also overlaps editor on iPad) -->
 </div>
 <!-- test-badge removed (requested) -->
-  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB201_INBOXRECOVER_PENDING_20260405_ROOTONLY</div>
+  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB202_INBOXROLLBACK_SYNCED_20260405_ROOTONLY</div>
 
 <script>
 (function visibleMailFallback(){
@@ -1950,7 +1950,7 @@
       }catch(_){ return false; }
     }
     function ds192Diag(msg, isError){
-      try{ window.__dsAppHtmlOpenRuntime = 'GB200-apphtml-inline'; }catch(_){ }
+      try{ window.__dsAppHtmlOpenRuntime = 'GB202-apphtml-inline'; }catch(_){ }
       try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb196 ' + String(msg||''), !!isError); }catch(_){ }
     }
     function ds192Err(msg, isError){
@@ -2126,77 +2126,18 @@
       try{ if(typeof window.dsClearSyncDiag === 'function') window.dsClearSyncDiag(); }catch(_){ }
       try{ if(typeof dsRenderSyncDiag === 'function') dsRenderSyncDiag(); }catch(_){ }
     }
-    function ds198ForceSyncPill(text){
-      try{
-        var el=document.getElementById('syncStatus');
-        if(el) el.textContent=String(text||'');
-      }catch(_){ }
-      try{
-        var details=document.getElementById('syncDetails');
-        if(details){
-          var raw=String(details.textContent||'');
-          if(/Cloud:\s*Fehler/i.test(raw) || /Cloud Fehler:/i.test(raw) || /SyncDiag:/i.test(raw)){
-            var rows=raw.split(/
-+/).filter(Boolean).filter(function(line){ return !/Cloud Fehler:/i.test(line) && !/SyncDiag:/i.test(line); });
-            var next='';
-            var hasCloud=false;
-            rows.forEach(function(line){ if(/Cloud:/i.test(line)){ hasCloud=true; next += (next?'
-':'') + 'Cloud: ' + String(text||''); } else { next += (next?'
-':'') + line; } });
-            if(!hasCloud) next += (next?'
-':'') + 'Cloud: ' + String(text||'');
-            details.textContent=next;
-          }
-        }
-      }catch(_){ }
-    }
-    function ds198StartSyncUiWatch(reason){
-      try{
-        window.__dsReviewSyncWatch = { reason:String(reason||''), startedAt:Date.now() };
-      }catch(_){ }
-      try{ if(window.__dsReviewSyncWatchTimer){ clearInterval(window.__dsReviewSyncWatchTimer); } }catch(_){ }
-      try{
-        window.__dsReviewSyncWatchTimer = setInterval(function(){
-          try{
-            var statusEl=document.getElementById('syncStatus');
-            var details=document.getElementById('syncDetails');
-            var status=String((statusEl && statusEl.textContent) || '');
-            var detailText=String((details && details.textContent) || '');
-            var success=/erfolgreich/i.test(status) || /Cloud:\s*erfolgreich/i.test(detailText);
-            var pending=/Sync/i.test(status) || /Cloud:\s*Sync/i.test(detailText);
-            if(success){
-              try{ if(window.CLOUD) window.CLOUD.lastPushError=''; }catch(_){ }
-              try{ if(window.SYNC){ window.SYNC.cloudLastError=''; window.SYNC.cloudPending=false; window.SYNC.cloudLastOkAt=Date.now(); } }catch(_){ }
-              try{ ds197HideSyncDiagBar(); }catch(_){ }
-              try{ clearInterval(window.__dsReviewSyncWatchTimer); }catch(_){ }
-              return;
-            }
-            if(window.__dsReviewSyncWatch && (Date.now() - Number(window.__dsReviewSyncWatch.startedAt||0) > 9000)){
-              try{ clearInterval(window.__dsReviewSyncWatchTimer); }catch(_){ }
-              return;
-            }
-            try{ ds197HideSyncDiagBar(); }catch(_){ }
-            if(!pending){
-              try{ ds198ForceSyncPill('Sync…'); }catch(_){ }
-            }
-          }catch(_){ }
-        }, 350);
-      }catch(_){ }
-    }
     function ds196ClearReviewSyncError(reason){
       try{ if(window.CLOUD) window.CLOUD.lastPushError = ''; }catch(_){ }
       try{
         if(window.SYNC){
           window.SYNC.cloudLastError = '';
-          window.SYNC.cloudPending = true;
+          window.SYNC.cloudPending = false;
           window.SYNC.cloudLastOkAt = Date.now();
         }
       }catch(_){ }
       try{ ds197HideSyncDiagBar(); }catch(_){ }
-      try{ ds198ForceSyncPill('Sync…'); }catch(_){ }
       try{ if(typeof updateSyncUI === 'function') updateSyncUI(); }catch(_){ }
-      try{ ds198StartSyncUiWatch(reason || 'review'); }catch(_){ }
-      try{ [120,600,1400,2400,4200,7000].forEach(function(ms){ setTimeout(function(){ try{ if(!(window.SYNC && window.SYNC.cloudLastError)) ds197HideSyncDiagBar(); }catch(_){ } try{ ds198StartSyncUiWatch(reason || 'review'); }catch(_){ } }, ms); }); }catch(_){ }
+      try{ [120,600,1400,2400].forEach(function(ms){ setTimeout(function(){ try{ if(!(window.SYNC && window.SYNC.cloudLastError)) ds197HideSyncDiagBar(); }catch(_){ } }, ms); }); }catch(_){ }
       try{ if(typeof cloudSchedulePush === 'function') setTimeout(function(){ try{ cloudSchedulePush(); }catch(_){ } }, 40); }catch(_){ }
     }
     function ds194PersistContractReviewLocally(full){
@@ -2432,7 +2373,7 @@
         try{ if(typeof removeInboxRowEverywhere === 'function') removeInboxRowEverywhere(full); }catch(_){ }
         try{ if(typeof refreshInboxHard === 'function') await refreshInboxHard('gb196-inline-save-' + String(kind || 'review')); }catch(_){ }
         try{ ds196ClearReviewSyncError(kind || 'review'); }catch(_){ }
-        try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb199 save-adopt kind=' + String(kind || '--') + ' proposal=' + String((full && (full.proposalId || full.id || full.taskId)) || '--'), false); }catch(_){ }
+        try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb196 save-adopt kind=' + String(kind || '--') + ' proposal=' + String((full && (full.proposalId || full.id || full.taskId)) || '--'), false); }catch(_){ }
         try{ window.__dsInlineInboxReview = null; }catch(_){ }
         try{ ds194ShowInboxAfterReview(); }catch(_){ }
         return true;
@@ -2625,7 +2566,7 @@
       }).catch(function(err){ ds192Err('FEHLER inline-open-error -> ' + String((err && err.message) || err || 'unknown'), true); });
       return true;
     }
-    try{ window.__dsAppHtmlOpenRuntime = 'GB200-apphtml-inline'; }catch(_){ }
+    try{ window.__dsAppHtmlOpenRuntime = 'GB202-apphtml-inline'; }catch(_){ }
     try{ if(typeof window.ds166RememberInboxRow !== 'function'){ window.ds166RememberInboxRow = function(row){ try{ var key = ('row|' + String((row && (row.proposalId || row.id || row.taskId || row.__sourceKey || '')) || '') + '|' + String((row && (row.title || row.templateId || row.formKey || '')) || '') + '|' + String((row && (row.submittedAt || row.createdAt || '')) || '')).toLowerCase(); window.__dsInboxRowMap = window.__dsInboxRowMap || {}; window.__dsInboxRowMap[key]=row; return key; }catch(_){ return ''; } }; } }catch(_){ }
     try{ window.__dsOpenInboxProposalSnapshot = ds192OpenSnapshotEntry; }catch(_){ }
     try{ window.dsOpenStayProposalEditor = function(row){ return ds192OpenSnapshotEntry(row, 'stay'); }; }catch(_){ }
@@ -3517,116 +3458,7 @@
 
 <script>
 (function(){
-  function ds200VisibleInbox(){
-    try{
-      var panel=document.getElementById('inbox');
-      if(!panel) return false;
-      return panel.style.display !== 'none' && panel.hidden !== true;
-    }catch(_){ return false; }
-  }
-  function ds200NormalizeInboxUi(){
-    try{ var detail=document.getElementById('inboxDetail'); if(detail) detail.style.display='none'; }catch(_){ }
-    try{ var list=document.getElementById('inboxList'); if(list) list.style.display=''; }catch(_){ }
-    try{ var plist=document.getElementById('inboxProposalList'); if(plist) plist.style.display='none'; }catch(_){ }
-    try{ var diag=document.getElementById('inboxDiag'); if(diag && !String(diag.textContent||'').trim()) diag.textContent='Eingänge werden geladen …'; }catch(_){ }
-  }
-  function ds200HasVisibleRows(){
-    try{
-      var el=document.getElementById('inboxList');
-      if(!el) return false;
-      if(el.style.display==='none') return false;
-      if(el.querySelector('.ds-inbox-row,.list-item')) return true;
-      var t=String(el.textContent||'').trim().toLowerCase();
-      if(!t) return false;
-      if(t.indexOf('keine eingänge')>=0 || t.indexOf('— keine eingänge')>=0) return false;
-      return true;
-    }catch(_){ return false; }
-  }
-  function ds200StoreRows(rows){
-    try{
-      window.__dsInboxFallbackRows = window.__dsInboxFallbackRows || {};
-      window.__dsInboxFallbackRows.inboxList = Array.isArray(rows) ? rows.slice() : [];
-    }catch(_){ }
-  }
-  function ds200RenderRows(rows, reason){
-    try{ ds200NormalizeInboxUi(); }catch(_){ }
-    try{ ds200StoreRows(rows); }catch(_){ }
-    try{
-      if(typeof renderRows === 'function'){
-        renderRows('inboxList', Array.isArray(rows)?rows:[], 'keine Eingänge');
-      }else{
-        var el=document.getElementById('inboxList');
-        if(el) el.innerHTML = Array.isArray(rows) && rows.length ? ('<div class="muted">Eingänge geladen: '+rows.length+'</div>') : '<div class="muted">— keine Eingänge —</div>';
-      }
-    }catch(_){ }
-    try{
-      var diag=document.getElementById('inboxDiag');
-      if(diag){
-        var cnt=(Array.isArray(rows)?rows.length:0);
-        diag.textContent = cnt ? ('GB200 · Eingänge geladen: ' + cnt + (reason?(' · '+reason):'')) : ('Keine Eingänge gefunden' + (reason?(' · '+reason):''));
-        diag.style.color = cnt ? '' : '#ffb3b3';
-      }
-    }catch(_){ }
-  }
-  async function ds200CollectAndRender(reason){
-    try{ window.__dsAppHtmlOpenRuntime='GB200-apphtml-inline'; }catch(_){ }
-    try{ ds200NormalizeInboxUi(); }catch(_){ }
-    var rows=[];
-    try{
-      if(typeof collectFallbackRows === 'function') rows = await collectFallbackRows();
-    }catch(_){ rows=[]; }
-    rows = Array.isArray(rows) ? rows : [];
-    ds200RenderRows(rows, reason || 'fallback');
-    return rows;
-  }
-  function ds200LoadInboxNow(reason){
-    try{ ds200NormalizeInboxUi(); }catch(_){ }
-    try{ if(typeof refreshInboxHard === 'function') Promise.resolve(refreshInboxHard('gb200-'+String(reason||'open'))).catch(function(){}); }catch(_){ }
-    setTimeout(function(){
-      try{ if(!ds200VisibleInbox()) return; if(ds200HasVisibleRows()) return; ds200CollectAndRender(String(reason||'open')+'-t120'); }catch(_){ }
-    },120);
-    setTimeout(function(){
-      try{ if(!ds200VisibleInbox()) return; if(ds200HasVisibleRows()) return; ds200CollectAndRender(String(reason||'open')+'-t500'); }catch(_){ }
-    },500);
-    setTimeout(function(){
-      try{ if(!ds200VisibleInbox()) return; if(ds200HasVisibleRows()) return; ds200CollectAndRender(String(reason||'open')+'-t1200'); }catch(_){ }
-    },1200);
-  }
-  try{ window.ds200LoadInboxNow = ds200LoadInboxNow; }catch(_){ }
-  function ds200Wire(){
-    try{
-      var btn=document.getElementById('tabInbox');
-      if(btn && !btn.__ds200Bound){
-        btn.__ds200Bound=true;
-        btn.addEventListener('click', function(){ ds200LoadInboxNow('tab'); }, true);
-      }
-    }catch(_){ }
-    try{
-      var btn2=document.getElementById('btnInboxRefresh');
-      if(btn2 && !btn2.__ds200Bound){
-        btn2.__ds200Bound=true;
-        btn2.addEventListener('click', function(){ ds200LoadInboxNow('refresh-btn'); }, true);
-      }
-    }catch(_){ }
-    try{
-      var panel=document.getElementById('inbox');
-      if(panel && !panel.__ds200ObserverBound){
-        panel.__ds200ObserverBound=true;
-        var mo=new MutationObserver(function(){ try{ if(ds200VisibleInbox()) ds200LoadInboxNow('panel-visible'); }catch(_){ } });
-        mo.observe(panel,{attributes:true,attributeFilter:['style','class','hidden']});
-      }
-    }catch(_){ }
-  }
-  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ds200Wire);
-  else ds200Wire();
-  window.addEventListener('load', function(){ setTimeout(function(){ ds200Wire(); if(ds200VisibleInbox()) ds200LoadInboxNow('load'); }, 250); });
-})();
-</script>
-
-
-<script>
-(function(){
-  const CURRENT_BUILD = 'M50.9.9GB201_INBOXRECOVER_PENDING_20260405_ROOTONLY';
+  const CURRENT_BUILD = 'M50.9.9GB202_INBOXROLLBACK_SYNCED_20260405_ROOTONLY';
   try{
     window.addEventListener('load', function(){
       try{
@@ -3645,116 +3477,5 @@
   }catch(_){ }
 })();
 </script>
-
-<script>
-(function(){
-  function ds201VisibleInbox(){
-    try{
-      var panel=document.getElementById('inbox');
-      if(!panel) return false;
-      return panel.style.display !== 'none' && panel.hidden !== true;
-    }catch(_){ return false; }
-  }
-  function ds201NormalizeInbox(){
-    try{ var detail=document.getElementById('inboxDetail'); if(detail) detail.style.display='none'; }catch(_){ }
-    try{ var list=document.getElementById('inboxList'); if(list) list.style.display=''; }catch(_){ }
-    try{ var p=document.getElementById('inboxProposalList'); if(p) p.style.display='none'; }catch(_){ }
-  }
-  function ds201HasRows(){
-    try{
-      var el=document.getElementById('inboxList');
-      if(!el) return false;
-      if(el.querySelector('.ds-inbox-row,.list-item')) return true;
-      var t=String(el.textContent||'').trim().toLowerCase();
-      return !!(t && t.indexOf('keine eingänge')<0 && t.indexOf('— keine eingänge')<0);
-    }catch(_){ return false; }
-  }
-  function ds201SetDiag(msg,isErr){
-    try{
-      var diag=document.getElementById('inboxDiag');
-      if(diag){ diag.textContent=String(msg||''); diag.style.color=isErr?'#ffb3b3':''; }
-    }catch(_){ }
-  }
-  function ds201ClearLocalHideStores(){
-    try{
-      [
-        'ds_inbox_answer_hidden_exact_v2',
-        'ds_accepted_proposal_ids_exact_v2',
-        'ds_proposal_direct_ids_v2',
-        'ds_proposal_exact_ids_v2',
-        'ds_proposal_accepted_exact_v3',
-        'ds_inbox_handled_exact_v2'
-      ].forEach(function(k){ try{ localStorage.removeItem(k); }catch(_){} });
-    }catch(_){ }
-  }
-  async function ds201CollectRows(){
-    try{
-      if(typeof collectFallbackRows === 'function'){
-        var rows = await collectFallbackRows();
-        return Array.isArray(rows) ? rows : [];
-      }
-    }catch(_){ }
-    return [];
-  }
-  async function ds201RecoverInbox(reason){
-    try{ window.__dsAppHtmlOpenRuntime='GB201-apphtml-inline'; }catch(_){ }
-    try{ ds201NormalizeInbox(); }catch(_){ }
-    ds201SetDiag('GB201 · Eingänge werden geladen …' + (reason?(' · '+reason):''), false);
-    var rows=[];
-    try{ rows = await ds201CollectRows(); }catch(_){ rows=[]; }
-    if(!rows.length){
-      try{ ds201ClearLocalHideStores(); }catch(_){ }
-      try{ rows = await ds201CollectRows(); }catch(_){ rows=[]; }
-    }
-    try{
-      if(typeof renderRows === 'function') renderRows('inboxList', rows, 'keine Eingänge');
-    }catch(_){ }
-    try{
-      if(typeof refreshInboxHard === 'function' && !rows.length){
-        var hard = await Promise.resolve(refreshInboxHard('gb201-recover-' + String(reason||'manual'))).catch(function(){ return []; });
-        if(Array.isArray(hard) && hard.length) rows = hard;
-      }
-    }catch(_){ }
-    try{
-      if(typeof renderRows === 'function') renderRows('inboxList', rows, 'keine Eingänge');
-      else {
-        var el=document.getElementById('inboxList');
-        if(el) el.innerHTML = Array.isArray(rows) && rows.length ? ('<div class="muted">Eingänge geladen: '+rows.length+'</div>') : '<div class="muted">— keine Eingänge —</div>';
-      }
-    }catch(_){ }
-    ds201SetDiag((rows && rows.length) ? ('GB201 · Eingänge geladen: ' + rows.length + (reason?(' · '+reason):'')) : ('GB201 · Keine Eingänge gefunden' + (reason?(' · '+reason):'')), !(rows && rows.length));
-    return false;
-  }
-  function ds201Kick(reason){
-    setTimeout(function(){ try{ if(ds201VisibleInbox() && !ds201HasRows()) ds201RecoverInbox(reason||'auto'); }catch(_){} }, 80);
-    setTimeout(function(){ try{ if(ds201VisibleInbox() && !ds201HasRows()) ds201RecoverInbox((reason||'auto')+'-retry'); }catch(_){} }, 500);
-  }
-  try{ window.__dsInboxHtmlClickRefresh = function(ev){ try{ if(ev){ ev.preventDefault(); ev.stopPropagation(); } }catch(_){} ds201RecoverInbox('refresh'); return false; }; }catch(_){ }
-  try{ window.ds201RecoverInbox = ds201RecoverInbox; }catch(_){ }
-  function ds201Wire(){
-    try{
-      var tab=document.getElementById('tabInbox');
-      if(tab && !tab.__ds201Bound){
-        tab.__ds201Bound=true;
-        tab.addEventListener('click', function(){ ds201Kick('tab'); }, true);
-        tab.addEventListener('pointerup', function(){ ds201Kick('tab-pointer'); }, true);
-      }
-    }catch(_){ }
-    try{
-      var btn=document.getElementById('btnInboxRefresh');
-      if(btn && !btn.__ds201Bound){
-        btn.__ds201Bound=true;
-        btn.onclick=function(ev){ try{ if(ev){ ev.preventDefault(); ev.stopPropagation(); } }catch(_){} ds201RecoverInbox('refresh-button'); return false; };
-      }
-    }catch(_){ }
-    try{ if(ds201VisibleInbox()) ds201Kick('wire-visible'); }catch(_){ }
-  }
-  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ds201Wire);
-  else ds201Wire();
-  window.addEventListener('load', function(){ setTimeout(ds201Wire, 120); setTimeout(function(){ ds201Kick('load'); }, 180); });
-  window.addEventListener('pageshow', function(){ setTimeout(function(){ ds201Kick('pageshow'); }, 180); });
-})();
-</script>
-
 </body>
 </html>
