@@ -6,13 +6,13 @@
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
 <meta charset="utf-8"/>
-  <meta name="app-build" content="M50.9.9GB200_INBOXREFRESH_RESTORE_20260405_ROOTONLY">
+  <meta name="app-build" content="M50.9.9GB201_INBOXRECOVER_PENDING_20260405_ROOTONLY">
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <title>Doggy Style Workspace · App</title>
 <link href="manifest.json" rel="manifest"/>
 <meta content="#101014" name="theme-color"/>
 <link href="assets/logo.png" rel="apple-touch-icon"/>
-<link href="styles.css?v=M50.9.9GB200_INBOXREFRESH_RESTORE_20260405_ROOTONLY" rel="stylesheet"/>
+<link href="styles.css?v=M50.9.9GB201_INBOXRECOVER_PENDING_20260405_ROOTONLY" rel="stylesheet"/>
 <link href="dashboard_master.css?v=20260104v13logout" rel="stylesheet"/>
 <style>
   /* Topbar Layout (iPad & Desktop stabil) */
@@ -102,7 +102,7 @@
   .doc-modal__actions{ margin-left:auto; display:flex; flex-wrap: wrap; gap: 8px; }
   .doc-modal__frame{ width: 100%; border: 0; border-radius: 12px; background: #fff; flex:1; min-height: 0; }
 </style>
-  <meta name="app-version" content="M50.9.9GB200_INBOXREFRESH_RESTORE_20260405_ROOTONLY">
+  <meta name="app-version" content="M50.9.9GB201_INBOXRECOVER_PENDING_20260405_ROOTONLY">
   <meta name="release-channel" content="MASTER">
 </head>
 <body class="bg-watermark page-app">
@@ -1195,7 +1195,7 @@
 </section>
 
 <section class="panel" id="statistics">
-<!-- Statistics panel is rendered by app.js?v=M50.9.9GB200_INBOXREFRESH_RESTORE_20260405_ROOTONLY (renderStatisticsPanel) -->
+<!-- Statistics panel is rendered by app.js?v=M50.9.9GB201_INBOXRECOVER_PENDING_20260405_ROOTONLY (renderStatisticsPanel) -->
 </section>
 
 
@@ -1262,12 +1262,12 @@
 </footer>
 </div>
 <!-- Firebase (optional) + Config -->
-<script defer="defer" src="firebase-config.js?v=M50.9.9GB200_INBOXREFRESH_RESTORE_20260405_ROOTONLY"></script>
+<script defer="defer" src="firebase-config.js?v=M50.9.9GB201_INBOXRECOVER_PENDING_20260405_ROOTONLY"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
-<script defer="defer" src="app.js?v=M50.9.9GB200_INBOXREFRESH_RESTORE_20260405_ROOTONLY"></script>
+<script defer="defer" src="app.js?v=M50.9.9GB201_INBOXRECOVER_PENDING_20260405_ROOTONLY"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1286,7 +1286,7 @@
 </script>
 
 <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB200_INBOXREFRESH_RESTORE_20260405_ROOTONLY', { updateViaCache: 'none' });
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB201_INBOXRECOVER_PENDING_20260405_ROOTONLY', { updateViaCache: 'none' });
   </script>
 
 <script>
@@ -1388,7 +1388,7 @@
   <!-- Bottom logout button removed (duplicate of header logout; also overlaps editor on iPad) -->
 </div>
 <!-- test-badge removed (requested) -->
-  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB200_INBOXREFRESH_RESTORE_20260405_ROOTONLY</div>
+  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB201_INBOXRECOVER_PENDING_20260405_ROOTONLY</div>
 
 <script>
 (function visibleMailFallback(){
@@ -3626,7 +3626,7 @@
 
 <script>
 (function(){
-  const CURRENT_BUILD = 'M50.9.9GB200_INBOXREFRESH_RESTORE_20260405_ROOTONLY';
+  const CURRENT_BUILD = 'M50.9.9GB201_INBOXRECOVER_PENDING_20260405_ROOTONLY';
   try{
     window.addEventListener('load', function(){
       try{
@@ -3645,5 +3645,116 @@
   }catch(_){ }
 })();
 </script>
+
+<script>
+(function(){
+  function ds201VisibleInbox(){
+    try{
+      var panel=document.getElementById('inbox');
+      if(!panel) return false;
+      return panel.style.display !== 'none' && panel.hidden !== true;
+    }catch(_){ return false; }
+  }
+  function ds201NormalizeInbox(){
+    try{ var detail=document.getElementById('inboxDetail'); if(detail) detail.style.display='none'; }catch(_){ }
+    try{ var list=document.getElementById('inboxList'); if(list) list.style.display=''; }catch(_){ }
+    try{ var p=document.getElementById('inboxProposalList'); if(p) p.style.display='none'; }catch(_){ }
+  }
+  function ds201HasRows(){
+    try{
+      var el=document.getElementById('inboxList');
+      if(!el) return false;
+      if(el.querySelector('.ds-inbox-row,.list-item')) return true;
+      var t=String(el.textContent||'').trim().toLowerCase();
+      return !!(t && t.indexOf('keine eingänge')<0 && t.indexOf('— keine eingänge')<0);
+    }catch(_){ return false; }
+  }
+  function ds201SetDiag(msg,isErr){
+    try{
+      var diag=document.getElementById('inboxDiag');
+      if(diag){ diag.textContent=String(msg||''); diag.style.color=isErr?'#ffb3b3':''; }
+    }catch(_){ }
+  }
+  function ds201ClearLocalHideStores(){
+    try{
+      [
+        'ds_inbox_answer_hidden_exact_v2',
+        'ds_accepted_proposal_ids_exact_v2',
+        'ds_proposal_direct_ids_v2',
+        'ds_proposal_exact_ids_v2',
+        'ds_proposal_accepted_exact_v3',
+        'ds_inbox_handled_exact_v2'
+      ].forEach(function(k){ try{ localStorage.removeItem(k); }catch(_){} });
+    }catch(_){ }
+  }
+  async function ds201CollectRows(){
+    try{
+      if(typeof collectFallbackRows === 'function'){
+        var rows = await collectFallbackRows();
+        return Array.isArray(rows) ? rows : [];
+      }
+    }catch(_){ }
+    return [];
+  }
+  async function ds201RecoverInbox(reason){
+    try{ window.__dsAppHtmlOpenRuntime='GB201-apphtml-inline'; }catch(_){ }
+    try{ ds201NormalizeInbox(); }catch(_){ }
+    ds201SetDiag('GB201 · Eingänge werden geladen …' + (reason?(' · '+reason):''), false);
+    var rows=[];
+    try{ rows = await ds201CollectRows(); }catch(_){ rows=[]; }
+    if(!rows.length){
+      try{ ds201ClearLocalHideStores(); }catch(_){ }
+      try{ rows = await ds201CollectRows(); }catch(_){ rows=[]; }
+    }
+    try{
+      if(typeof renderRows === 'function') renderRows('inboxList', rows, 'keine Eingänge');
+    }catch(_){ }
+    try{
+      if(typeof refreshInboxHard === 'function' && !rows.length){
+        var hard = await Promise.resolve(refreshInboxHard('gb201-recover-' + String(reason||'manual'))).catch(function(){ return []; });
+        if(Array.isArray(hard) && hard.length) rows = hard;
+      }
+    }catch(_){ }
+    try{
+      if(typeof renderRows === 'function') renderRows('inboxList', rows, 'keine Eingänge');
+      else {
+        var el=document.getElementById('inboxList');
+        if(el) el.innerHTML = Array.isArray(rows) && rows.length ? ('<div class="muted">Eingänge geladen: '+rows.length+'</div>') : '<div class="muted">— keine Eingänge —</div>';
+      }
+    }catch(_){ }
+    ds201SetDiag((rows && rows.length) ? ('GB201 · Eingänge geladen: ' + rows.length + (reason?(' · '+reason):'')) : ('GB201 · Keine Eingänge gefunden' + (reason?(' · '+reason):'')), !(rows && rows.length));
+    return false;
+  }
+  function ds201Kick(reason){
+    setTimeout(function(){ try{ if(ds201VisibleInbox() && !ds201HasRows()) ds201RecoverInbox(reason||'auto'); }catch(_){} }, 80);
+    setTimeout(function(){ try{ if(ds201VisibleInbox() && !ds201HasRows()) ds201RecoverInbox((reason||'auto')+'-retry'); }catch(_){} }, 500);
+  }
+  try{ window.__dsInboxHtmlClickRefresh = function(ev){ try{ if(ev){ ev.preventDefault(); ev.stopPropagation(); } }catch(_){} ds201RecoverInbox('refresh'); return false; }; }catch(_){ }
+  try{ window.ds201RecoverInbox = ds201RecoverInbox; }catch(_){ }
+  function ds201Wire(){
+    try{
+      var tab=document.getElementById('tabInbox');
+      if(tab && !tab.__ds201Bound){
+        tab.__ds201Bound=true;
+        tab.addEventListener('click', function(){ ds201Kick('tab'); }, true);
+        tab.addEventListener('pointerup', function(){ ds201Kick('tab-pointer'); }, true);
+      }
+    }catch(_){ }
+    try{
+      var btn=document.getElementById('btnInboxRefresh');
+      if(btn && !btn.__ds201Bound){
+        btn.__ds201Bound=true;
+        btn.onclick=function(ev){ try{ if(ev){ ev.preventDefault(); ev.stopPropagation(); } }catch(_){} ds201RecoverInbox('refresh-button'); return false; };
+      }
+    }catch(_){ }
+    try{ if(ds201VisibleInbox()) ds201Kick('wire-visible'); }catch(_){ }
+  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ds201Wire);
+  else ds201Wire();
+  window.addEventListener('load', function(){ setTimeout(ds201Wire, 120); setTimeout(function(){ ds201Kick('load'); }, 180); });
+  window.addEventListener('pageshow', function(){ setTimeout(function(){ ds201Kick('pageshow'); }, 180); });
+})();
+</script>
+
 </body>
 </html>
