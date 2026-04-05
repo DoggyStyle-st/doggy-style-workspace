@@ -108,4 +108,4 @@ GB208 · Aufenthalte-Liste spiegelt beim Rendern fehlende Stay-Datensätze aus s
 GB209 · Aufenthalte und Betreuungsvertrag erhalten jeweils einen Aktualisieren-Button, der den Zustand frisch aus localStorage lädt und die Listen/Ansicht neu rendert.
 
 GB211 · Cloud/Online-Status stabilisiert: effektiver Online-Status nutzt erfolgreiche Cloud-Reichweite/letzte OK-Zeit statt nur navigator.onLine; Reachability-Ping läuft zusätzlich bei Fokus/Sichtbarkeit und stale Cloud-Fehler werden bei wieder erreichbarer Cloud zurückgesetzt.
-- GB213: Aufenthalt-Öffnen rehydriert Hund robuster im Editor; Betreuungsvertrag bekam Auswahl-/Öffnen-Liste mit Aktualisieren.
+- GB214: Aufenthalt-Öffnen rehydriert Hund robuster im Editor; Betreuungsvertrag bekam Auswahl-/Öffnen-Liste mit Aktualisieren.
