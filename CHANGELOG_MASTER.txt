@@ -104,3 +104,5 @@ GB207 · Übernommene Aufenthalts-Vorschläge bleiben für UI/Stay-Status offen 
 
 GB208 · Aufenthalte-Liste spiegelt beim Rendern fehlende Stay-Datensätze aus state.stays zurück nach state.docs, damit übernommene Aufenthalte nach Reload sofort wieder in Aufenthalte sichtbar sind und nicht erst nach Öffnen über Start/Zuletzt erscheinen.
 GB209 · Aufenthalte und Betreuungsvertrag erhalten jeweils einen Aktualisieren-Button, der den Zustand frisch aus localStorage lädt und die Listen/Ansicht neu rendert.
+
+GB210 · Cloud/Online-Status stabilisiert: effektiver Online-Status nutzt erfolgreiche Cloud-Reichweite/letzte OK-Zeit statt nur navigator.onLine; Reachability-Ping läuft zusätzlich bei Fokus/Sichtbarkeit und stale Cloud-Fehler werden bei wieder erreichbarer Cloud zurückgesetzt.

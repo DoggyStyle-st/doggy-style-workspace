@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB209_REFRESHBUTTONS_20260405_ROOTONLY",
+  tag: "M50.9.9GB210_CLOUDSTATUS_STABLE_20260405_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,8 +12,8 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB209_REFRESHBUTTONS_20260405_ROOTONLY";
-try{ window.__dsAppJsRuntime = 'GB209-appjs'; }catch(_){ }
+const APP_BUILD = "M50.9.9GB210_CLOUDSTATUS_STABLE_20260405_ROOTONLY";
+try{ window.__dsAppJsRuntime = 'GB210-appjs'; }catch(_){ }
 
 function dsSyncDiagStateSummary(){
   try{
@@ -922,6 +922,28 @@ function installSyncDotHardGuard(){
     setTimeout(apply,50); setTimeout(apply,500); setTimeout(apply,1500);
   }catch(_){ }
 }
+function dsNavigatorOnline(){
+  try{ return (typeof navigator !== 'undefined') ? !!navigator.onLine : true; }catch(_){ return true; }
+}
+function dsHasRecentCloudOk(maxAgeMs=10*60*1000){
+  try{
+    const now = Date.now();
+    const stamps = [SYNC && SYNC.cloudLastOkAt, SYNC && SYNC.cloudLastSeenAt, (SYNC && SYNC.cloudReachable) ? (SYNC.cloudReachCheckedAt || 0) : 0, window.__dsForcedOnlineUntil || 0].filter(Boolean).map(Number);
+    const latest = stamps.length ? Math.max.apply(null, stamps) : 0;
+    return !!(latest && (now - latest) <= maxAgeMs);
+  }catch(_){ return false; }
+}
+function dsEffectiveNetOnline(){
+  try{
+    if(dsNavigatorOnline()) return true;
+    if(window.__dsForcedOnlineUntil && Date.now() <= Number(window.__dsForcedOnlineUntil||0)) return true;
+    if(SYNC && SYNC.cloudPending) return true;
+    if(SYNC && SYNC.cloudReachable) return true;
+    if(dsHasRecentCloudOk()) return true;
+  }catch(_){ }
+  return false;
+}
+
 function updateSyncUI(){
   const pill = document.getElementById('syncStatus');
   const userEl = document.getElementById('syncUser');
@@ -938,12 +960,18 @@ function updateSyncUI(){
       userEl.textContent = '';
     }
   }
-  const netOnline = (typeof navigator !== 'undefined') ? !!navigator.onLine : false;
+  const navOnline = dsNavigatorOnline();
+  const netOnline = dsEffectiveNetOnline();
+  try{
+    if(SYNC.cloudLastError && !SYNC.cloudPending && (SYNC.cloudReachable || dsHasRecentCloudOk())){
+      SYNC.cloudLastError = '';
+    }
+  }catch(_){ }
   const hasAuth = !!(CLOUD && CLOUD.enabled && resolvedUser);
   const cloudOk = !!(netOnline && cloudIsEnabled() && CLOUD && CLOUD.enabled && resolvedUser && SYNC.cloudReachable);
-  try{ if(pill){ pill.classList.toggle('is-online', !!(cloudOk || hasAuth)); pill.classList.toggle('is-offline', !(cloudOk || hasAuth)); } }catch(e){}
+  try{ if(pill){ pill.classList.toggle('is-online', !!(cloudOk || hasAuth || netOnline)); pill.classList.toggle('is-offline', !(cloudOk || hasAuth || netOnline)); } }catch(e){}
   const localLine = `Lokal gespeichert: ${fmtDT(SYNC.localSavedAt)}`;
-  const netLine = `Internet: ${netOnline ? 'Online' : 'Offline'}`;
+  const netLine = `Internet: ${netOnline ? 'Online' : 'Offline'}${(!navOnline && netOnline) ? ' · Browser meldet offline' : ''}`;
   let pillText = cloudOk ? 'Online' : (hasAuth ? 'Online' : 'Offline');
   let cloudLine = 'Cloud: aus';
   if(!cloudIsEnabled()){
@@ -1465,15 +1493,12 @@ function withTimeout(promise, ms){
   });
 }
 async function checkCloudReachability(reason){
-  const netOnline = (typeof navigator !== 'undefined') ? !!navigator.onLine : false;
+  const navOnline = dsNavigatorOnline();
+  const netOnline = dsEffectiveNetOnline();
   SYNC.cloudReachCheckedAt = Date.now();
   SYNC.cloudReachError = "";
   // Default: nicht erreichbar
   SYNC.cloudReachable = false;
-  if(!netOnline){
-    SYNC.cloudReachError = "kein Internet";
-    return false;
-  }
   if(!cloudIsEnabled() || !CLOUD || !CLOUD.enabled || !CLOUD.db){
     SYNC.cloudReachError = "Cloud nicht bereit";
     return false;
@@ -1493,6 +1518,7 @@ async function checkCloudReachability(reason){
     await withTimeout(p, 4000);
     SYNC.cloudReachable = true;
     SYNC.cloudReachError = "";
+    try{ window.__dsForcedOnlineUntil = Date.now() + (5*60*1000); }catch(_){ }
     return true;
   }catch(err){
     const code = (err && (err.code || err.name)) ? String(err.code || err.name) : "";
@@ -1503,7 +1529,7 @@ async function checkCloudReachability(reason){
       return true;
     }
     SYNC.cloudReachable = false;
-    SYNC.cloudReachError = (code || "nicht erreichbar");
+    SYNC.cloudReachError = (!navOnline && !code) ? "Browser meldet offline" : (code || "nicht erreichbar");
     return false;
   }
 }
@@ -15969,8 +15995,10 @@ startApp().catch(console.error);
 setTimeout(()=>{ try{ dsRenderSyncDiag(); }catch(_){ } }, 120);
 // UI: Sync-Status regelmäßig auffrischen (auch bei Tab-Wechsel/PWA)
 setInterval(()=>{ try{ updateSyncUI(); }catch(_){ } }, 1500);
-window.addEventListener('online', ()=>{ try{ scheduleCloudPing(0,'online-event'); }catch(_){ try{ updateSyncUI(); }catch(__){} } });
-window.addEventListener('offline', ()=>{ try{ SYNC.cloudReachable=false; SYNC.cloudReachError='kein Internet'; SYNC.cloudReachCheckedAt=Date.now(); }catch(_){ } try{ updateSyncUI(); }catch(__){} });
+window.addEventListener('online', ()=>{ try{ window.__dsForcedOnlineUntil = Date.now() + (5*60*1000); scheduleCloudPing(0,'online-event'); }catch(_){ try{ updateSyncUI(); }catch(__){} } });
+window.addEventListener('offline', ()=>{ try{ SYNC.cloudReachable=false; SYNC.cloudReachError='Browser meldet offline'; SYNC.cloudReachCheckedAt=Date.now(); }catch(_){ } try{ updateSyncUI(); }catch(__){} });
+window.addEventListener('focus', ()=>{ try{ scheduleCloudPing(0,'focus-event'); }catch(_){ try{ updateSyncUI(); }catch(__){} } });
+document.addEventListener('visibilitychange', ()=>{ try{ if(!document.hidden) scheduleCloudPing(0,'visibility-event'); }catch(_){ try{ updateSyncUI(); }catch(__){} } });
 /* ===== B2.2a Freier Rechnungs-Editor ===== */
 function renderInvoiceEditorB2(doc){
   // ===== B2.2c Rechnungsnummer (Pflichtfeld) =====
@@ -21583,7 +21611,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB209_REFRESHBUTTONS_20260405_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB210_CLOUDSTATUS_STABLE_20260405_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -23556,7 +23584,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB209_REFRESHBUTTONS_20260405_ROOTONLY";
+  const BUILD = "M50.9.9GB210_CLOUDSTATUS_STABLE_20260405_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
