@@ -103,3 +103,4 @@ GB205 · Übernommene Aufenthalts-Vorschläge werden jetzt mit saved=true/adopte
 GB207 · Übernommene Aufenthalts-Vorschläge bleiben für UI/Stay-Status offen sichtbar, werden aber weiter in Startseite/Auslastung mitgezählt; zusätzlich bevorzugt die Titelerzeugung jetzt den echten Hundenamen statt des generischen Fallbacks.
 
 GB208 · Aufenthalte-Liste spiegelt beim Rendern fehlende Stay-Datensätze aus state.stays zurück nach state.docs, damit übernommene Aufenthalte nach Reload sofort wieder in Aufenthalte sichtbar sind und nicht erst nach Öffnen über Start/Zuletzt erscheinen.
+GB209 · Aufenthalte und Betreuungsvertrag erhalten jeweils einen Aktualisieren-Button, der den Zustand frisch aus localStorage lädt und die Listen/Ansicht neu rendert.
