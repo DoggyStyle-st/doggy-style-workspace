@@ -98,3 +98,4 @@ GB202 - Rollback auf letzten voll synchronen Eingänge-Stand (Basis echter GB197
 GB203 · Sync-Pill/SyncDiag stale error nach Übernehmen inline bereinigt; obere Sync-Anzeige wird im Prüfmodus auf Sync…/erfolgreich gesetzt, unterer SyncDiag-Banner aktiv versteckt, keine Änderung an Eingänge-Logik.
 
 GB204 · Aufenthalts-Übernahme aus Eingänge erzeugt jetzt stabilen Aufenthaltstitel statt „Neuer Aufenthalt Vorschlag“, nutzt proposal-stabile IDs/SourceProposalId und bereinigt Dubletten aus wiederholten Test-Übernahmen.
+GB205 · Übernommene Aufenthalts-Vorschläge werden jetzt mit saved=true/adoptedFromProposal gespeichert, damit Startseite/Auslastung sie sofort mitzählt und nicht nur unter Aufenthalte sichtbar sind.
