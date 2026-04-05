@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB196_INLINE_REVIEWSAVE_CLOUDRESET_20260405_ROOTONLY",
+  tag: "M50.9.9GB197_INLINE_REVIEWSAVE_SYNCDIAGCLEAR_20260405_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,8 +12,8 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB196_INLINE_REVIEWSAVE_CLOUDRESET_20260405_ROOTONLY";
-try{ window.__dsAppJsRuntime = 'GB196-appjs'; }catch(_){ }
+const APP_BUILD = "M50.9.9GB197_INLINE_REVIEWSAVE_SYNCDIAGCLEAR_20260405_ROOTONLY";
+try{ window.__dsAppJsRuntime = 'GB197-appjs'; }catch(_){ }
 
 function dsSyncDiagStateSummary(){
   try{
@@ -38,12 +38,24 @@ function dsSetSyncDiag(msg, isError){
     try{ dsRenderSyncDiag(); }catch(_){ }
   }catch(_){ }
 }
+function dsClearSyncDiag(){
+  try{
+    const box = window.__dsSyncDiag || (window.__dsSyncDiag = { current:'', isError:false, at:0, history:[] });
+    box.current = '';
+    box.isError = false;
+    box.at = Date.now();
+    try{ window.__dsSyncDiagText = ''; }catch(_){ }
+    try{ const el = document.getElementById('syncDiagBar'); if(el) el.style.display = 'none'; }catch(_){ }
+    return true;
+  }catch(_){ return false; }
+}
+try{ window.dsClearSyncDiag = dsClearSyncDiag; }catch(_){ }
 function dsRenderSyncDiag(){
   try{
     let el = document.getElementById('syncDiagBar');
     const box = window.__dsSyncDiag || {};
     const text = String(box.current || '');
-    const visible = !!text;
+    const visible = !!text && !!box.isError;
     if(!el){
       el = document.createElement('div');
       el.id = 'syncDiagBar';
@@ -852,6 +864,7 @@ window.__dsPrepareHardLogout = function(){
   try{
     if(window.SYNC){
       SYNC.cloudPending = false;
+    try{ dsClearSyncDiag(); }catch(_){ }
       SYNC.cloudReachable = false;
       SYNC.cloudReachError = '';
     }
@@ -983,7 +996,15 @@ ${netLine}
 ${detailsCloudLine}
 Cloud-Ping: ${fmtDT(SYNC.cloudReachCheckedAt)}${SYNC.cloudReachError ? ' · '+SYNC.cloudReachError : ''}${syncDiagLine ? '\nSyncDiag: ' + syncDiagLine : ''}`;
   }
-  try{ if(SYNC.cloudLastError){ const msg=String(SYNC.cloudLastError || ''); dsSetSyncDiag((/^lastError=/.test(msg)?msg:('lastError=' + msg)) + ' · ' + dsSyncDiagStateSummary(), true); } else if(!(window.__dsSyncDiag && window.__dsSyncDiag.current)) { dsRenderSyncDiag(); } }catch(_){ }
+  try{
+    if(SYNC.cloudLastError){
+      const msg=String(SYNC.cloudLastError || '');
+      dsSetSyncDiag((/^lastError=/.test(msg)?msg:('lastError=' + msg)) + ' · ' + dsSyncDiagStateSummary(), true);
+    } else {
+      try{ dsClearSyncDiag(); }catch(_){ }
+      try{ dsRenderSyncDiag(); }catch(_){ }
+    }
+  }catch(_){ }
   if(manualBtn){
     const ok = !!(CLOUD.enabled && resolvedUser);
     if(!cloudIsEnabled()){
@@ -1861,6 +1882,7 @@ async function cloudPushNow(){
         SYNC.cloudLastOkAt = stamp;
         SYNC.cloudLastError = "";
         SYNC.cloudPending = false;
+        try{ dsClearSyncDiag(); }catch(_){ }
       }
     }catch(retryErr){
       const retryMsg = String((retryErr && retryErr.message) || retryErr || 'retry-failed');
@@ -21402,7 +21424,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB196_INLINE_REVIEWSAVE_CLOUDRESET_20260405_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB197_INLINE_REVIEWSAVE_SYNCDIAGCLEAR_20260405_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -23375,7 +23397,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB196_INLINE_REVIEWSAVE_CLOUDRESET_20260405_ROOTONLY";
+  const BUILD = "M50.9.9GB197_INLINE_REVIEWSAVE_SYNCDIAGCLEAR_20260405_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];

@@ -1,3 +1,4 @@
+GB197 – Inline Review-Save SyncDiag-Clear: Nach erfolgreichem Übernehmen im Prüfmodus wird ein alter/staler SyncDiag-Banner aktiv geleert und bei erfolgreicher Cloud-Sync nicht mehr stehen gelassen.
 GB196 – Inline Review-Save Cloud-Reset: Nach erfolgreichem Übernehmen im Prüfmodus wird ein alter Cloud-/Sync-Fehler sofort zurückgesetzt, die Admin-UI aktualisiert und ein frischer Cloud-Push angestoßen.
 GB185 - Öffnen aus Eingänge greift jetzt direkt über die Row-Key-Buttons auf den neuesten Dispatcher zu. Aufenthalts-Vorschläge werden im echten Aufenthalts-Editor über createStay + Snapshot-Hydration geladen; Betreuungsvertrag lädt den abgesendeten Vertrags-Snapshot robuster inklusive Bestätigung/Unterschrift.
 GB185
