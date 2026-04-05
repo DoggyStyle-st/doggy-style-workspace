@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB206_STAYADOPT_OPENSTATUS_20260405_ROOTONLY",
+  tag: "M50.9.9GB207_STAYINVOICE_SYNCRESET_20260405_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,8 +12,8 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB206_STAYADOPT_OPENSTATUS_20260405_ROOTONLY";
-try{ window.__dsAppJsRuntime = 'GB206-appjs'; }catch(_){ }
+const APP_BUILD = "M50.9.9GB207_STAYINVOICE_SYNCRESET_20260405_ROOTONLY";
+try{ window.__dsAppJsRuntime = 'GB207-appjs'; }catch(_){ }
 
 function dsSyncDiagStateSummary(){
   try{
@@ -12865,10 +12865,24 @@ function renderInvoiceList(){
     </table>
   `;
 }
+
+function ds207ResetStaleCloudForInvoice(reason){
+  try{
+    SYNC.cloudLastError = '';
+    try{ CLOUD.lastPushError = ''; }catch(_){ }
+    try{ if(window.__dsSyncDiag){ window.__dsSyncDiag.current=''; window.__dsSyncDiag.isError=false; window.__dsSyncDiag.at=Date.now(); } }catch(_){ }
+    try{ window.__dsSyncDiagText=''; }catch(_){ }
+    try{ if(typeof dsClearSyncDiag === 'function') dsClearSyncDiag(); }catch(_){ }
+    try{ if(CLOUD && CLOUD.enabled && CLOUD.user){ SYNC.cloudPending = true; } }catch(_){ }
+    try{ updateSyncUI(); }catch(_){ }
+    try{ window.__dsLastInvoiceSyncReset = { at: Date.now(), reason: String(reason||'invoice-open') }; }catch(_){ }
+  }catch(_){ }
+}
 // --- 2B: Aufenthalt -> Rechnung öffnen/erstellen -------------------------------
 // Minimal: verknüpft Aufenthalt (doc) mit Rechnung (invoice) via doc.invoiceId
 function openOrCreateInvoiceForDocId(docId){
   try{
+    try{ ds207ResetStaleCloudForInvoice('stay-invoice-open'); }catch(_){ }
     const doc = (state.docs||[]).find(d=>d.id===docId);
     if(!doc){
       alert("Aufenthalt nicht gefunden.");
@@ -12934,6 +12948,11 @@ function openOrCreateInvoiceForDocId(docId){
     try{ showSection("invoices"); }catch(e){}
     try{ renderInvoiceList(); }catch(e){}
     try{ openInvoice(inv.id); }catch(e){ console.warn("openInvoice failed", e); }
+    try{
+      [120,700,1600].forEach(function(ms){ setTimeout(function(){
+        try{ if(!(SYNC && SYNC.cloudLastError)){ SYNC.cloudPending = false; updateSyncUI(); if(typeof dsClearSyncDiag === 'function') dsClearSyncDiag(); } }catch(_){ }
+      }, ms); });
+    }catch(_){ }
   }catch(e){
     console.error("openOrCreateInvoiceForDocId failed", e);
     alert("Rechnung konnte nicht geöffnet/erstellt werden.");
@@ -21431,7 +21450,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB206_STAYADOPT_OPENSTATUS_20260405_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB207_STAYINVOICE_SYNCRESET_20260405_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -23404,7 +23423,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB206_STAYADOPT_OPENSTATUS_20260405_ROOTONLY";
+  const BUILD = "M50.9.9GB207_STAYINVOICE_SYNCRESET_20260405_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
