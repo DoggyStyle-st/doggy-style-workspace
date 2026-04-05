@@ -92,3 +92,5 @@ GB195 – Inline Review Save Admin Fix
 - Betreuungsvertrag übernimmt Vorschläge lokal statt neu zu senden
 - Aufenthalt übernimmt Vorschläge als normale Dokumente im Workspace
 - Customer-Portal-Fehlpfad für Admin-Review entschärft
+
+GB198 = Review-Save Sync-Pill/SyncDiag stale error clear hardened; inline force Sync… after adopt and hide stale SyncDiag until success.
