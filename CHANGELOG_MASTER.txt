@@ -1,3 +1,4 @@
+GB212 · Aufenthalt-Öffnen rehydriert Hundename/petId/dogId/Unterschrift robuster; Aufenthalte↔docs Spiegelung ergänzt Signatur-/Pet-Normalisierung; Betreuungsvertrag-Aktualisieren baut Kunden-/Hundelisten robuster neu auf und setzt die Auswahl auf Listenmodus zurück.
 GB211 · Aufenthalt-Öffnen rehydriert Hund/Unterschrift robuster aus petId/signature-Feldern; Aufenthalte↔state.stays Spiegelung trägt dogId/petId/customerId/signature stabiler; Betreuungsvertrag-Aktualisieren lädt Kunden/Hunde neu und setzt Auswahl bei Bedarf zurück.
 GB202 – Inline Review-Save SyncDiag-Clear: Nach erfolgreichem Übernehmen im Prüfmodus wird ein alter/staler SyncDiag-Banner aktiv geleert und bei erfolgreicher Cloud-Sync nicht mehr stehen gelassen.
 GB196 – Inline Review-Save Cloud-Reset: Nach erfolgreichem Übernehmen im Prüfmodus wird ein alter Cloud-/Sync-Fehler sofort zurückgesetzt, die Admin-UI aktualisiert und ein frischer Cloud-Push angestoßen.
