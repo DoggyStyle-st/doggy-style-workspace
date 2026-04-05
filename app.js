@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB212_STAYOPEN_SIGNATURE_CONTRACTLIST_20260405_ROOTONLY",
+  tag: "M50.9.9GB213_STAYDOG_CONTRACTLIST_20260405_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB212_STAYOPEN_SIGNATURE_CONTRACTLIST_20260405_ROOTONLY";
+const APP_BUILD = "M50.9.9GB213_STAYDOG_CONTRACTLIST_20260405_ROOTONLY";
 try{ window.__dsAppJsRuntime = 'GB212-appjs'; }catch(_){ }
 
 function dsSyncDiagStateSummary(){
@@ -14643,6 +14643,8 @@ function ds209RefreshStaysList(){
 function ds209RefreshContractPanel(){
   try{ ds209ReloadStateFromStorage(); }catch(_){ }
   try{ ds212EnsureContractSelectorData(); }catch(_){ }
+  try{ if(typeof scheduleCloudPing === 'function') scheduleCloudPing(0,'contract-refresh'); }catch(_){ }
+  try{ if(typeof navigator === 'undefined' || navigator.onLine){ window.__dsForcedOnlineUntil = Date.now() + 120000; } }catch(_){ }
   try{ window.__dsInlineInboxReview = null; }catch(_){ }
   try{ if(state) state.contractSelection = { customerId:'', petId:'' }; }catch(_){ }
   try{ renderContractPanel(); }catch(err){ console.warn('ds209RefreshContractPanel renderContractPanel failed', err); }
@@ -14660,6 +14662,7 @@ function ds209RefreshContractPanel(){
         if(cs2){ cs2.disabled = false; cs2.removeAttribute('disabled'); }
         if(ps2){ ps2.disabled = false; ps2.removeAttribute('disabled'); }
       }catch(_){ }
+      try{ updateSyncUI(); }catch(_){ }
     }, 180);
   }catch(_){ }
 }
@@ -14849,7 +14852,28 @@ normalizeMeta(currentDoc);
   $("#editorMeta").textContent=currentDoc.templateName;
   $("#docName").value=currentDoc.title||"";
   syncDogSelect();
-  $("#dogSelect").value=currentDoc.dogId||state.dogs?.[0]?.id||"";
+  try{
+    const dogSel = $("#dogSelect");
+    let wantDogId = String(currentDoc.dogId || '').trim();
+    if((!wantDogId || !state.dogs || !state.dogs.some(function(d){ return String((d&&d.id)||'') === wantDogId; })) && currentDoc.petId){
+      try{ wantDogId = String((typeof getLegacyDogIdForPet === 'function' ? getLegacyDogIdForPet(currentDoc.petId) : '') || '').trim(); }catch(_){ }
+      if(!wantDogId){
+        try{
+          const petObj = (typeof getPet === 'function') ? (getPet(currentDoc.petId) || {}) : {};
+          const custObj = (typeof getCustomer === 'function') ? (getCustomer(currentDoc.customerId || petObj.customerId || '') || {}) : {};
+          wantDogId = String((typeof upsertLegacyDogForPet === 'function' ? upsertLegacyDogForPet(petObj, custObj) : '') || '').trim();
+          if(wantDogId) try{ syncDogSelect(); }catch(_){ }
+        }catch(_){ }
+      }
+    }
+    if(dogSel && wantDogId && !Array.from(dogSel.options || []).some(function(o){ return String(o.value||'') === wantDogId; })){
+      const o = document.createElement('option');
+      o.value = wantDogId;
+      o.textContent = String(currentDoc.petName || currentDoc.dogName || 'Hund').trim() || 'Hund';
+      dogSel.appendChild(o);
+    }
+    if(dogSel) dogSel.value = wantDogId || currentDoc.dogId || state.dogs?.[0]?.id || "";
+  }catch(_){ $("#dogSelect").value=currentDoc.dogId||state.dogs?.[0]?.id||""; }
   renderCustomerInfoForDogId($("#dogSelect").value);
   renderEditor(currentDoc);
   updateContractWarnBanner(currentDoc);
@@ -17255,6 +17279,79 @@ function renderContractPanel(){
       setInfo('⚠ Contract UI Fehler (Selectors).', 'muted');
     }
   }
+  function renderContractSelectionList(){
+    try{
+      const side = document.querySelector('#contract .contract-side');
+      if(!side) return;
+      let card = document.getElementById('contractSelectionListCard');
+      if(!card){
+        card = document.createElement('div');
+        card.id = 'contractSelectionListCard';
+        card.className = 'contract-card';
+        side.appendChild(card);
+      }
+      const agreements = state.contractAgreements && typeof state.contractAgreements === 'object' ? state.contractAgreements : {};
+      const sigs = state.contractSignatures && typeof state.contractSignatures === 'object' ? state.contractSignatures : {};
+      const rows = [];
+      Object.keys(agreements||{}).forEach(function(key){
+        try{
+          const rec = agreements[key] || {};
+          const customerId = String(rec.customerId || '').trim();
+          const petId = String(rec.petId || '').trim();
+          const version = String(rec.version || state.contractVersion || 'v1.0').trim();
+          const sig = sigs[(version || 'v1.0') + '__' + customerId + '__' + petId] || null;
+          rows.push({ customerId, petId, version, savedAt: rec.savedAt || rec.signatureAt || 0, sig: sig });
+        }catch(_){ }
+      });
+      if(!rows.length){
+        Object.keys(sigs||{}).forEach(function(key){
+          try{
+            const m = String(key||'').split('__');
+            if(m.length < 3) return;
+            const version = String(m[0]||'').trim() || String(state.contractVersion||'v1.0');
+            const customerId = String(m[1]||'').trim();
+            const petId = String(m[2]||'').trim();
+            rows.push({ customerId, petId, version, savedAt: ((sigs[key]||{}).signedAt || 0), sig: sigs[key]||null });
+          }catch(_){ }
+        });
+      }
+      const seen = new Set();
+      const clean = rows.filter(function(r){
+        const k = String(r.customerId||'') + '|' + String(r.petId||'') + '|' + String(r.version||'');
+        if(!r.customerId || !r.petId || seen.has(k)) return false;
+        seen.add(k); return true;
+      }).sort(function(a,b){ return Number(b.savedAt||0) - Number(a.savedAt||0); });
+      let html = '<h3>Vorhandene Betreuungsverträge</h3>';
+      if(!clean.length){
+        html += '<div class="muted">Noch keine gespeicherten Betreuungsverträge.</div>';
+      }else{
+        html += clean.map(function(r){
+          var customer = '';
+          var pet = '';
+          try{ var c = typeof getCustomer === 'function' ? (getCustomer(r.customerId) || {}) : {}; customer = String((c && (c.name || c.lastName || c.email)) || '').trim(); }catch(_){ }
+          try{ var p = typeof getPet === 'function' ? (getPet(r.petId) || {}) : {}; pet = String((p && (p.name || p.petName || p.dogName)) || '').trim(); }catch(_){ }
+          customer = customer || 'Kunde';
+          pet = pet || 'Hund';
+          var when = '';
+          try{ when = r.savedAt ? new Date(r.savedAt).toLocaleString('de-DE') : ''; }catch(_){ }
+          return '<div class="item" style="margin-top:10px"><div><strong>' + escapeHtml(customer + ' · ' + pet) + '</strong><small>' + escapeHtml((r.version||'v1.0') + (when ? (' · ' + when) : '')) + '</small></div><div class="actions"><button class="smallbtn" type="button" data-contract-open="1" data-customer-id="' + escapeHtml(r.customerId) + '" data-pet-id="' + escapeHtml(r.petId) + '">Öffnen</button></div></div>';
+        }).join('');
+      }
+      card.innerHTML = html;
+      card.querySelectorAll('[data-contract-open="1"]').forEach(function(btn){
+        if(btn.dataset.bound) return;
+        btn.dataset.bound = '1';
+        btn.addEventListener('click', function(ev){
+          ev.preventDefault();
+          try{
+            state.contractSelection = { customerId: String(btn.dataset.customerId || ''), petId: String(btn.dataset.petId || '') };
+            renderContractPanel();
+            try{ updateSyncUI(); }catch(_){ }
+          }catch(_){ }
+        });
+      });
+    }catch(_){ }
+  }
   // retry if data is not yet there
   let tries = 0;
   (function retry(){
@@ -17527,6 +17624,7 @@ function renderContractPanel(){
     });
   }
   updateSignedInfo();
+  try{ renderContractSelectionList(); }catch(_){ }
 }
 // --- Signature Pad (inline) ---
 let _contractSig = {canvas:null, ctx:null, drawing:false, hasInk:false, last:null};
@@ -21782,7 +21880,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB212_STAYOPEN_SIGNATURE_CONTRACTLIST_20260405_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB213_STAYDOG_CONTRACTLIST_20260405_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -23755,7 +23853,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB212_STAYOPEN_SIGNATURE_CONTRACTLIST_20260405_ROOTONLY";
+  const BUILD = "M50.9.9GB213_STAYDOG_CONTRACTLIST_20260405_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
