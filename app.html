@@ -6,13 +6,13 @@
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
 <meta charset="utf-8"/>
-  <meta name="app-build" content="M50.9.9GB193_INLINEOPEN_REVIEWSAVE_20260405_ROOTONLY">
+  <meta name="app-build" content="M50.9.9GB194_INLINEOPEN_REVIEWSAVE_20260405_ROOTONLY">
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <title>Doggy Style Workspace · App</title>
 <link href="manifest.json" rel="manifest"/>
 <meta content="#101014" name="theme-color"/>
 <link href="assets/logo.png" rel="apple-touch-icon"/>
-<link href="styles.css?v=M50.9.9GB193_INLINEOPEN_REVIEWSAVE_20260405_ROOTONLY" rel="stylesheet"/>
+<link href="styles.css?v=M50.9.9GB194_INLINEOPEN_REVIEWSAVE_20260405_ROOTONLY" rel="stylesheet"/>
 <link href="dashboard_master.css?v=20260104v13logout" rel="stylesheet"/>
 <style>
   /* Topbar Layout (iPad & Desktop stabil) */
@@ -102,7 +102,7 @@
   .doc-modal__actions{ margin-left:auto; display:flex; flex-wrap: wrap; gap: 8px; }
   .doc-modal__frame{ width: 100%; border: 0; border-radius: 12px; background: #fff; flex:1; min-height: 0; }
 </style>
-  <meta name="app-version" content="M50.9.9GB193_INLINEOPEN_REVIEWSAVE_20260405_ROOTONLY">
+  <meta name="app-version" content="M50.9.9GB194_INLINEOPEN_REVIEWSAVE_20260405_ROOTONLY">
   <meta name="release-channel" content="MASTER">
 </head>
 <body class="bg-watermark page-app">
@@ -1195,7 +1195,7 @@
 </section>
 
 <section class="panel" id="statistics">
-<!-- Statistics panel is rendered by app.js?v=M50.9.9GB193_INLINEOPEN_REVIEWSAVE_20260405_ROOTONLY (renderStatisticsPanel) -->
+<!-- Statistics panel is rendered by app.js?v=M50.9.9GB194_INLINEOPEN_REVIEWSAVE_20260405_ROOTONLY (renderStatisticsPanel) -->
 </section>
 
 
@@ -1262,12 +1262,12 @@
 </footer>
 </div>
 <!-- Firebase (optional) + Config -->
-<script defer="defer" src="firebase-config.js?v=M50.9.9GB193_INLINEOPEN_REVIEWSAVE_20260405_ROOTONLY"></script>
+<script defer="defer" src="firebase-config.js?v=M50.9.9GB194_INLINEOPEN_REVIEWSAVE_20260405_ROOTONLY"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
-<script defer="defer" src="app.js?v=M50.9.9GB193_INLINEOPEN_REVIEWSAVE_20260405_ROOTONLY"></script>
+<script defer="defer" src="app.js?v=M50.9.9GB194_INLINEOPEN_REVIEWSAVE_20260405_ROOTONLY"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1286,7 +1286,7 @@
 </script>
 
 <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB193_INLINEOPEN_REVIEWSAVE_20260405_ROOTONLY', { updateViaCache: 'none' });
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB194_INLINEOPEN_REVIEWSAVE_20260405_ROOTONLY', { updateViaCache: 'none' });
   </script>
 
 <script>
@@ -1388,7 +1388,7 @@
   <!-- Bottom logout button removed (duplicate of header logout; also overlaps editor on iPad) -->
 </div>
 <!-- test-badge removed (requested) -->
-  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB193_INLINEOPEN_REVIEWSAVE_20260405_ROOTONLY</div>
+  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB194_INLINEOPEN_REVIEWSAVE_20260405_ROOTONLY</div>
 
 <script>
 (function visibleMailFallback(){
@@ -1855,7 +1855,7 @@
       if(isContractProposal || isStayProposal){
         try{
           if(typeof window.dsSetProposalOpenDiag === 'function'){
-            window.dsSetProposalOpenDiag('gb193 fallback-call kind=' + (isContractProposal ? 'contract' : 'stay')
+            window.dsSetProposalOpenDiag('gb194 fallback-call kind=' + (isContractProposal ? 'contract' : 'stay')
               + ' contractFn=' + (typeof window.dsOpenContractProposalEditor)
               + ' stayFn=' + (typeof window.dsOpenStayProposalEditor)
               + ' selectTab=' + (typeof window.selectTab)
@@ -1876,8 +1876,8 @@
             try{ if(typeof window.dsForceShowPanel === 'function') window.dsForceShowPanel('contract'); }catch(_){ }
             var okC = false;
             try{ if(typeof window.renderContractPanel === 'function') window.renderContractPanel(); }catch(_){ }
-            try{ if(typeof window.dsOpenContractProposalEditor === 'function') okC = !!window.dsOpenContractProposalEditor(row); }catch(errC){ try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb193 contract-err ' + String((errC && errC.message) || errC || 'unknown'), true); }catch(_){ } }
-            try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb193 contract-ret=' + (okC ? '1':'0'), !okC); }catch(_){ }
+            try{ if(typeof window.dsOpenContractProposalEditor === 'function') okC = !!window.dsOpenContractProposalEditor(row); }catch(errC){ try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb194 contract-err ' + String((errC && errC.message) || errC || 'unknown'), true); }catch(_){ } }
+            try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb194 contract-ret=' + (okC ? '1':'0'), !okC); }catch(_){ }
             if(window.__dsOpenInboxProposalSnapshot){
               try{ window.__dsOpenInboxProposalSnapshot(row, 'contract'); }catch(_){ }
               return true;
@@ -1892,8 +1892,8 @@
             try{ if(typeof window.showPanel === 'function') window.showPanel('editor'); }catch(_){ }
             try{ if(typeof window.dsForceShowPanel === 'function') window.dsForceShowPanel('editor'); }catch(_){ }
             var okS = false;
-            try{ if(typeof window.dsOpenStayProposalEditor === 'function') okS = !!window.dsOpenStayProposalEditor(row); }catch(errS){ try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb193 stay-err ' + String((errS && errS.message) || errS || 'unknown'), true); }catch(_){ } }
-            try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb193 stay-ret=' + (okS ? '1':'0'), !okS); }catch(_){ }
+            try{ if(typeof window.dsOpenStayProposalEditor === 'function') okS = !!window.dsOpenStayProposalEditor(row); }catch(errS){ try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb194 stay-err ' + String((errS && errS.message) || errS || 'unknown'), true); }catch(_){ } }
+            try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb194 stay-ret=' + (okS ? '1':'0'), !okS); }catch(_){ }
             if(window.__dsOpenInboxProposalSnapshot){
               try{ window.__dsOpenInboxProposalSnapshot(row, 'stay'); }catch(_){ }
               return true;
@@ -1950,8 +1950,8 @@
       }catch(_){ return false; }
     }
     function ds192Diag(msg, isError){
-      try{ window.__dsAppHtmlOpenRuntime = 'GB193-apphtml-inline'; }catch(_){ }
-      try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb193 ' + String(msg||''), !!isError); }catch(_){ }
+      try{ window.__dsAppHtmlOpenRuntime = 'GB194-apphtml-inline'; }catch(_){ }
+      try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb194 ' + String(msg||''), !!isError); }catch(_){ }
     }
     function ds192Err(msg, isError){
       try{ if(typeof window.dsSetProposalOpenErrorLine === 'function') window.dsSetProposalOpenErrorLine(String(msg||''), !!isError); }catch(_){ }
@@ -2113,19 +2113,93 @@
       try{ sessionStorage.removeItem('ds_customer_main_mode'); }catch(_){ }
       try{ sessionStorage.removeItem('customer_mode'); }catch(_){ }
     }
+    function ds194ShowInboxAfterReview(){
+      try{ if(typeof showPanel === 'function') showPanel('inbox'); }catch(_){ }
+      try{ if(typeof selectTab === 'function') selectTab('inbox'); }catch(_){ }
+      try{ var inboxTab = document.querySelector('[data-tab="inbox"]') || document.getElementById('tabInbox'); if(inboxTab && typeof inboxTab.click === 'function') inboxTab.click(); }catch(_){ }
+      try{ var cp = document.getElementById('customerPortal'); if(cp) cp.style.display='none'; }catch(_){ }
+    }
+    function ds194PersistContractReviewLocally(full){
+      return Promise.resolve().then(function(){
+        var review = window.__dsInlineInboxReview || {};
+        var row = full || review.row || null;
+        var cs = document.getElementById('contractCustomerSelect');
+        var ps = document.getElementById('contractPetSelect');
+        var accept = document.getElementById('contractAcceptChk');
+        var customerId = String((cs && cs.value) || '').trim();
+        var petId = String((ps && ps.value) || '').trim();
+        if(!customerId || !petId){ try{ alert('Bitte zuerst Kunde und Hund wählen.'); }catch(_){ } return false; }
+        if(!(accept && accept.checked)){ try{ alert('Bitte bestätigen: „Ich habe den Betreuungsvertrag gelesen und akzeptiere ihn.“'); }catch(_){ } return false; }
+        try{ if(typeof ensureSigStore === 'function') ensureSigStore(); }catch(_){ }
+        var sigStore = (typeof state !== 'undefined' && state && state.contractSignatures) ? state.contractSignatures : {};
+        var sigKeyVal = '';
+        try{ sigKeyVal = (typeof sigKey === 'function') ? String(sigKey(customerId, petId) || '') : ''; }catch(_){ sigKeyVal = ''; }
+        if(!sigKeyVal) sigKeyVal = String(customerId + '__' + petId);
+        var rec = sigStore ? sigStore[sigKeyVal] : null;
+        if(!rec || !rec.dataUrl){ try{ alert('Bitte zuerst unterschreiben.'); }catch(_){ } return false; }
+        try{ if(typeof ensureContractStore === 'function') ensureContractStore(); }catch(_){ }
+        if(typeof state !== 'undefined' && state){
+          state.contractAgreements = state.contractAgreements || {};
+          var agrKey = '';
+          try{ agrKey = (typeof agreementKey === 'function') ? String(agreementKey(customerId, petId) || '') : ''; }catch(_){ agrKey = ''; }
+          if(!agrKey) agrKey = String(customerId + '__' + petId + '::' + String((state && state.contractVersion) || 'v1.0'));
+          state.contractAgreements[agrKey] = {
+            customerId: customerId,
+            petId: petId,
+            version: String((state && state.contractVersion) || (state && state.contract && state.contract.version) || 'v1.0'),
+            accepted: true,
+            signatureAt: rec.signedAt || Date.now(),
+            savedAt: Date.now(),
+            reviewAdoptedAt: Date.now(),
+            sourceProposalId: String((row && (row.proposalId || row.id || row.taskId)) || '--')
+          };
+          try{ state.contractSelection = { customerId: customerId, petId: petId }; }catch(_){ }
+        }
+        try{ if(typeof saveState === 'function') saveState(); }catch(_){ }
+        try{ if(typeof updateSaveInfo === 'function') updateSaveInfo(); }catch(_){ }
+        try{ if(typeof updateSignedInfo === 'function') updateSignedInfo(); }catch(_){ }
+        return true;
+      });
+    }
+    function ds194InstallReviewHooks(kind, full){
+      try{
+        var row = full || null;
+        if(String(kind||'') === 'contract'){
+          window.__dsCustomerContractSubmitHook = function(){
+            return ds194PersistContractReviewLocally(row).then(function(ok){
+              if(ok === false) return false;
+              return ds193FinalizeReview('contract', row).then(function(){
+                try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb194 review-contract-save proposal=' + String((row && (row.proposalId || row.id || row.taskId)) || '--'), false); }catch(_){ }
+                try{ alert('Betreuungsvertrag übernommen.'); }catch(_){ }
+                return true;
+              });
+            });
+          };
+        }
+        if(String(kind||'') === 'stay'){
+          window.__dsCustomerStaySubmitHook = function(){
+            try{ ds193ClearCustomerProposalModes(); }catch(_){ }
+            try{ if(typeof window.saveCurrent === 'function') return window.saveCurrent(true); }catch(_){ }
+            return false;
+          };
+        }
+      }catch(_){ }
+    }
     function ds193SetReviewContext(kind, full){
       try{ window.__dsInlineInboxReview = { kind:String(kind||''), row:full || null, proposalId:String((full && (full.proposalId || full.id || full.taskId)) || '--') }; }catch(_){ }
       try{ window.__dsInboxCurrentTask = full || null; }catch(_){ }
       ds193ClearCustomerProposalModes();
+      ds194InstallReviewHooks(kind, full);
     }
     function ds193FinalizeReview(kind, full){
       return Promise.resolve().then(async function(){
         try{ ds193ClearCustomerProposalModes(); }catch(_){ }
         try{ if(typeof patchInboxRowStatus === 'function') await patchInboxRowStatus(full, 'adopted'); }catch(_){ }
         try{ if(typeof removeInboxRowEverywhere === 'function') removeInboxRowEverywhere(full); }catch(_){ }
-        try{ if(typeof refreshInboxHard === 'function') await refreshInboxHard('gb193-inline-save-' + String(kind || 'review')); }catch(_){ }
-        try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb193 save-adopt kind=' + String(kind || '--') + ' proposal=' + String((full && (full.proposalId || full.id || full.taskId)) || '--'), false); }catch(_){ }
+        try{ if(typeof refreshInboxHard === 'function') await refreshInboxHard('gb194-inline-save-' + String(kind || 'review')); }catch(_){ }
+        try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb194 save-adopt kind=' + String(kind || '--') + ' proposal=' + String((full && (full.proposalId || full.id || full.taskId)) || '--'), false); }catch(_){ }
         try{ window.__dsInlineInboxReview = null; }catch(_){ }
+        try{ ds194ShowInboxAfterReview(); }catch(_){ }
         return true;
       });
     }
@@ -2316,7 +2390,7 @@
       }).catch(function(err){ ds192Err('FEHLER inline-open-error -> ' + String((err && err.message) || err || 'unknown'), true); });
       return true;
     }
-    try{ window.__dsAppHtmlOpenRuntime = 'GB193-apphtml-inline'; }catch(_){ }
+    try{ window.__dsAppHtmlOpenRuntime = 'GB194-apphtml-inline'; }catch(_){ }
     try{ if(typeof window.ds166RememberInboxRow !== 'function'){ window.ds166RememberInboxRow = function(row){ try{ var key = ('row|' + String((row && (row.proposalId || row.id || row.taskId || row.__sourceKey || '')) || '') + '|' + String((row && (row.title || row.templateId || row.formKey || '')) || '') + '|' + String((row && (row.submittedAt || row.createdAt || '')) || '')).toLowerCase(); window.__dsInboxRowMap = window.__dsInboxRowMap || {}; window.__dsInboxRowMap[key]=row; return key; }catch(_){ return ''; } }; } }catch(_){ }
     try{ window.__dsOpenInboxProposalSnapshot = ds192OpenSnapshotEntry; }catch(_){ }
     try{ window.dsOpenStayProposalEditor = function(row){ return ds192OpenSnapshotEntry(row, 'stay'); }; }catch(_){ }
@@ -2609,8 +2683,8 @@
           var rowKey = src && src.getAttribute ? String(src.getAttribute('data-rowkey') || '') : '';
           if(!Number.isFinite(idx)) idx = 0;
           try{
-            if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb193-click kind=' + openKind + ' idx=' + String(idx) + ' target=' + String(tid || targetId) + ' rowKey=' + String(rowKey || '--'), false);
-            else { var diag = document.getElementById('inboxDiag'); if(diag){ diag.textContent = 'OpenDiag: gb193-click kind=' + openKind + ' idx=' + String(idx) + ' target=' + String(tid || targetId) + ' rowKey=' + String(rowKey || '--'); diag.style.color = '#d7dbe8'; } }
+            if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb194-click kind=' + openKind + ' idx=' + String(idx) + ' target=' + String(tid || targetId) + ' rowKey=' + String(rowKey || '--'), false);
+            else { var diag = document.getElementById('inboxDiag'); if(diag){ diag.textContent = 'OpenDiag: gb194-click kind=' + openKind + ' idx=' + String(idx) + ' target=' + String(tid || targetId) + ' rowKey=' + String(rowKey || '--'); diag.style.color = '#d7dbe8'; } }
             if(typeof window.dsSetProposalOpenErrorLine === 'function') window.dsSetProposalOpenErrorLine('', false);
           }catch(_){ }
           if(src && src.classList && src.classList.contains('ds-inbox-answer')){
@@ -2622,7 +2696,7 @@
             var prevKey = String(window.__dsInboxFallbackOpenLockKey || '');
             var prevAt = Number(window.__dsInboxFallbackOpenLockAt || 0);
             if(prevKey === lockKey && (now - prevAt) < 800){
-              try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb193-open-lock kind=' + openKind + ' idx=' + String(idx), true); }catch(_){ }
+              try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb194-open-lock kind=' + openKind + ' idx=' + String(idx), true); }catch(_){ }
               return false;
             }
             window.__dsInboxFallbackOpenLockKey = lockKey;
@@ -2673,7 +2747,7 @@
               via = 'fallback';
               ret = !!window.__dsInboxFallbackOpen(String(tid || targetId), idx);
             }
-            try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb193-open-dispatch kind=' + openKind + ' idx=' + String(idx) + ' rowKey=' + String(rowKey || '--') + ' via=' + via + ' ret=' + (ret ? '1' : '0') + ' appjs=' + String(window.__dsAppJsRuntimeBuild || '--') + ' runtime=' + String(window.__dsAppHtmlOpenRuntime || '--'), false); }catch(_){ }
+            try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb194-open-dispatch kind=' + openKind + ' idx=' + String(idx) + ' rowKey=' + String(rowKey || '--') + ' via=' + via + ' ret=' + (ret ? '1' : '0') + ' appjs=' + String(window.__dsAppJsRuntimeBuild || '--') + ' runtime=' + String(window.__dsAppHtmlOpenRuntime || '--'), false); }catch(_){ }
             try{ window.__dsLastOpenDispatch = { kind:String(openKind||''), idx:Number(idx||0), target:String(tid || targetId || ''), ret: !!ret, at: Date.now(), row: !!row, snapshotFn: snapshotFn, fallbackFn: fallbackFn, rowKeyFn: rowKeyFn, via: via, rowKey: String(rowKey || ''), title: rowTitle, template: rowTpl, source: rowSrc, appjs:String(window.__dsAppJsRuntimeBuild || '--'), runtime:String(window.__dsAppHtmlOpenRuntime || '--') }; }catch(_){ }
             if(!ret){
               var reason = !row ? 'row-lookup-leer' : ((rowKeyFn !== 'function' && snapshotFn !== 'function' && fallbackFn !== 'function') ? 'keine-open-funktion' : 'dispatcher-lieferte-false');
@@ -2700,7 +2774,7 @@
             }, 900);
             return ret;
           }catch(err){
-            try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb193-open-error kind=' + openKind + ' idx=' + String(idx) + ' err=' + String((err && err.message) || err || 'unknown'), true); }catch(_){ }
+            try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb194-open-error kind=' + openKind + ' idx=' + String(idx) + ' err=' + String((err && err.message) || err || 'unknown'), true); }catch(_){ }
             try{ if(typeof window.dsSetProposalOpenErrorLine === 'function') window.dsSetProposalOpenErrorLine('FEHLER open-error -> kind=' + String(openKind || '--') + '; idx=' + String(idx) + '; err=' + String((err && err.message) || err || 'unknown'), true); }catch(_){ }
             return false;
           }
@@ -3208,7 +3282,7 @@
 
 <script>
 (function(){
-  const CURRENT_BUILD = 'M50.9.9GB193_INLINEOPEN_REVIEWSAVE_20260405_ROOTONLY';
+  const CURRENT_BUILD = 'M50.9.9GB194_INLINEOPEN_REVIEWSAVE_20260405_ROOTONLY';
   try{
     window.addEventListener('load', function(){
       try{

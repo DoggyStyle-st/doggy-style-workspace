@@ -79,7 +79,7 @@ GB192 – Inbox Global Error Line
 
 - Zusätzlich: Inline-Open in app.html ergänzt, damit Vorschlags-Öffnung auch bei stale/gecachtem app.js nicht mehr nur vom Fallback abhängt.
 
-GB193 – Inline Review Save / Adopt Fix
+GB194 – Inline Review Save / Adopt Fix
 - Inline-Open bleibt aktiv auch bei stale app.js
 - Review-Save für Aufenthalt/Betreuungsvertrag adoptiert Vorschlag statt neuen Vorschlag zu senden
 - Kundenmodus/Proposal-Hooks beim Öffnen aus Eingänge hart deaktiviert
