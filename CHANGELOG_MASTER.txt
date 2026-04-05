@@ -84,3 +84,9 @@ GB194 – Inline Review Save / Adopt Fix
 - Review-Save für Aufenthalt/Betreuungsvertrag adoptiert Vorschlag statt neuen Vorschlag zu senden
 - Kundenmodus/Proposal-Hooks beim Öffnen aus Eingänge hart deaktiviert
 - Kunden-/Hundelabel im Review aus State ergänzt, wenn Payload nur IDs enthält
+
+GB195 – Inline Review Save Admin Fix
+- Admin-Prüfmodus fängt Speichern direkt in app.html ab
+- Betreuungsvertrag übernimmt Vorschläge lokal statt neu zu senden
+- Aufenthalt übernimmt Vorschläge als normale Dokumente im Workspace
+- Customer-Portal-Fehlpfad für Admin-Review entschärft

@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB194_INLINEOPEN_REVIEWSAVE_20260405_ROOTONLY",
+  tag: "M50.9.9GB195_INLINE_REVIEWSAVE_ADMINFIX_20260405_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB194_INLINEOPEN_REVIEWSAVE_20260405_ROOTONLY";
+const APP_BUILD = "M50.9.9GB195_INLINE_REVIEWSAVE_ADMINFIX_20260405_ROOTONLY";
 
 function dsSyncDiagStateSummary(){
   try{
@@ -16726,6 +16726,12 @@ function renderContractPanel(){
         return;
       }
     }catch(_){ }
+    try{
+      const review = window.__dsInlineInboxReview;
+      if(review && review.kind === 'contract' && review.row && typeof window.__dsCustomerContractSubmitHook === 'function'){
+        return window.__dsCustomerContractSubmitHook();
+      }
+    }catch(_){ }
     const {customerId, petId} = getSelectedIds();
     if (!customerId || !petId){
       alert('Bitte zuerst Kunde und Hund wählen.');
@@ -17059,7 +17065,8 @@ function renderContractPanel(){
         }
         if (isSaveBtn){
           try{
-            const customerContractMode = !!(dsCustomerForceMode('contract') || isCustomerMainModeLoose('contract') || document.getElementById('customerPortal') || String((typeof getCustomerMainModeLoose==='function' ? getCustomerMainModeLoose() : '') || '').trim().toLowerCase() === 'contract');
+            const reviewMode = !!(window.__dsInlineInboxReview && window.__dsInlineInboxReview.kind === 'contract' && window.__dsInlineInboxReview.row);
+            const customerContractMode = !reviewMode && !!(dsCustomerForceMode('contract') || isCustomerMainModeLoose('contract') || String((typeof getCustomerMainModeLoose==='function' ? getCustomerMainModeLoose() : '') || '').trim().toLowerCase() === 'contract');
             if (customerContractMode){
               if (window.__dsCustomerContractSubmittingProposal) return;
               window.__dsCustomerContractSubmittingProposal = true;
@@ -21394,7 +21401,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB194_INLINEOPEN_REVIEWSAVE_20260405_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB195_INLINE_REVIEWSAVE_ADMINFIX_20260405_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -23367,7 +23374,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB194_INLINEOPEN_REVIEWSAVE_20260405_ROOTONLY";
+  const BUILD = "M50.9.9GB195_INLINE_REVIEWSAVE_ADMINFIX_20260405_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -26030,7 +26037,7 @@ try{ window.__GB191_MARKER = 'active'; }catch(_){ }
     try{ ds166OpenRowByKey = window.ds166OpenRowByKey; }catch(_){ }
   }catch(_){ }
 })();
-try{ window.__dsAppJsRuntimeBuild = 'GB194-appjs'; }catch(_){}
+try{ window.__dsAppJsRuntimeBuild = 'GB195-appjs'; }catch(_){}
 /* ===== END GB194 ===== */
 
 

@@ -6,13 +6,13 @@
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
 <meta charset="utf-8"/>
-  <meta name="app-build" content="M50.9.9GB194_INLINEOPEN_REVIEWSAVE_20260405_ROOTONLY">
+  <meta name="app-build" content="M50.9.9GB195_INLINE_REVIEWSAVE_ADMINFIX_20260405_ROOTONLY">
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <title>Doggy Style Workspace · App</title>
 <link href="manifest.json" rel="manifest"/>
 <meta content="#101014" name="theme-color"/>
 <link href="assets/logo.png" rel="apple-touch-icon"/>
-<link href="styles.css?v=M50.9.9GB194_INLINEOPEN_REVIEWSAVE_20260405_ROOTONLY" rel="stylesheet"/>
+<link href="styles.css?v=M50.9.9GB195_INLINE_REVIEWSAVE_ADMINFIX_20260405_ROOTONLY" rel="stylesheet"/>
 <link href="dashboard_master.css?v=20260104v13logout" rel="stylesheet"/>
 <style>
   /* Topbar Layout (iPad & Desktop stabil) */
@@ -102,7 +102,7 @@
   .doc-modal__actions{ margin-left:auto; display:flex; flex-wrap: wrap; gap: 8px; }
   .doc-modal__frame{ width: 100%; border: 0; border-radius: 12px; background: #fff; flex:1; min-height: 0; }
 </style>
-  <meta name="app-version" content="M50.9.9GB194_INLINEOPEN_REVIEWSAVE_20260405_ROOTONLY">
+  <meta name="app-version" content="M50.9.9GB195_INLINE_REVIEWSAVE_ADMINFIX_20260405_ROOTONLY">
   <meta name="release-channel" content="MASTER">
 </head>
 <body class="bg-watermark page-app">
@@ -1195,7 +1195,7 @@
 </section>
 
 <section class="panel" id="statistics">
-<!-- Statistics panel is rendered by app.js?v=M50.9.9GB194_INLINEOPEN_REVIEWSAVE_20260405_ROOTONLY (renderStatisticsPanel) -->
+<!-- Statistics panel is rendered by app.js?v=M50.9.9GB195_INLINE_REVIEWSAVE_ADMINFIX_20260405_ROOTONLY (renderStatisticsPanel) -->
 </section>
 
 
@@ -1262,12 +1262,12 @@
 </footer>
 </div>
 <!-- Firebase (optional) + Config -->
-<script defer="defer" src="firebase-config.js?v=M50.9.9GB194_INLINEOPEN_REVIEWSAVE_20260405_ROOTONLY"></script>
+<script defer="defer" src="firebase-config.js?v=M50.9.9GB195_INLINE_REVIEWSAVE_ADMINFIX_20260405_ROOTONLY"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
-<script defer="defer" src="app.js?v=M50.9.9GB194_INLINEOPEN_REVIEWSAVE_20260405_ROOTONLY"></script>
+<script defer="defer" src="app.js?v=M50.9.9GB195_INLINE_REVIEWSAVE_ADMINFIX_20260405_ROOTONLY"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1286,7 +1286,7 @@
 </script>
 
 <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB194_INLINEOPEN_REVIEWSAVE_20260405_ROOTONLY', { updateViaCache: 'none' });
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB195_INLINE_REVIEWSAVE_ADMINFIX_20260405_ROOTONLY', { updateViaCache: 'none' });
   </script>
 
 <script>
@@ -1388,7 +1388,7 @@
   <!-- Bottom logout button removed (duplicate of header logout; also overlaps editor on iPad) -->
 </div>
 <!-- test-badge removed (requested) -->
-  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB194_INLINEOPEN_REVIEWSAVE_20260405_ROOTONLY</div>
+  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB195_INLINE_REVIEWSAVE_ADMINFIX_20260405_ROOTONLY</div>
 
 <script>
 (function visibleMailFallback(){
@@ -1855,7 +1855,7 @@
       if(isContractProposal || isStayProposal){
         try{
           if(typeof window.dsSetProposalOpenDiag === 'function'){
-            window.dsSetProposalOpenDiag('gb194 fallback-call kind=' + (isContractProposal ? 'contract' : 'stay')
+            window.dsSetProposalOpenDiag('gb195 fallback-call kind=' + (isContractProposal ? 'contract' : 'stay')
               + ' contractFn=' + (typeof window.dsOpenContractProposalEditor)
               + ' stayFn=' + (typeof window.dsOpenStayProposalEditor)
               + ' selectTab=' + (typeof window.selectTab)
@@ -1876,8 +1876,8 @@
             try{ if(typeof window.dsForceShowPanel === 'function') window.dsForceShowPanel('contract'); }catch(_){ }
             var okC = false;
             try{ if(typeof window.renderContractPanel === 'function') window.renderContractPanel(); }catch(_){ }
-            try{ if(typeof window.dsOpenContractProposalEditor === 'function') okC = !!window.dsOpenContractProposalEditor(row); }catch(errC){ try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb194 contract-err ' + String((errC && errC.message) || errC || 'unknown'), true); }catch(_){ } }
-            try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb194 contract-ret=' + (okC ? '1':'0'), !okC); }catch(_){ }
+            try{ if(typeof window.dsOpenContractProposalEditor === 'function') okC = !!window.dsOpenContractProposalEditor(row); }catch(errC){ try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb195 contract-err ' + String((errC && errC.message) || errC || 'unknown'), true); }catch(_){ } }
+            try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb195 contract-ret=' + (okC ? '1':'0'), !okC); }catch(_){ }
             if(window.__dsOpenInboxProposalSnapshot){
               try{ window.__dsOpenInboxProposalSnapshot(row, 'contract'); }catch(_){ }
               return true;
@@ -1892,8 +1892,8 @@
             try{ if(typeof window.showPanel === 'function') window.showPanel('editor'); }catch(_){ }
             try{ if(typeof window.dsForceShowPanel === 'function') window.dsForceShowPanel('editor'); }catch(_){ }
             var okS = false;
-            try{ if(typeof window.dsOpenStayProposalEditor === 'function') okS = !!window.dsOpenStayProposalEditor(row); }catch(errS){ try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb194 stay-err ' + String((errS && errS.message) || errS || 'unknown'), true); }catch(_){ } }
-            try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb194 stay-ret=' + (okS ? '1':'0'), !okS); }catch(_){ }
+            try{ if(typeof window.dsOpenStayProposalEditor === 'function') okS = !!window.dsOpenStayProposalEditor(row); }catch(errS){ try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb195 stay-err ' + String((errS && errS.message) || errS || 'unknown'), true); }catch(_){ } }
+            try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb195 stay-ret=' + (okS ? '1':'0'), !okS); }catch(_){ }
             if(window.__dsOpenInboxProposalSnapshot){
               try{ window.__dsOpenInboxProposalSnapshot(row, 'stay'); }catch(_){ }
               return true;
@@ -1950,8 +1950,8 @@
       }catch(_){ return false; }
     }
     function ds192Diag(msg, isError){
-      try{ window.__dsAppHtmlOpenRuntime = 'GB194-apphtml-inline'; }catch(_){ }
-      try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb194 ' + String(msg||''), !!isError); }catch(_){ }
+      try{ window.__dsAppHtmlOpenRuntime = 'GB195-apphtml-inline'; }catch(_){ }
+      try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb195 ' + String(msg||''), !!isError); }catch(_){ }
     }
     function ds192Err(msg, isError){
       try{ if(typeof window.dsSetProposalOpenErrorLine === 'function') window.dsSetProposalOpenErrorLine(String(msg||''), !!isError); }catch(_){ }
@@ -2136,6 +2136,7 @@
         try{ sigKeyVal = (typeof sigKey === 'function') ? String(sigKey(customerId, petId) || '') : ''; }catch(_){ sigKeyVal = ''; }
         if(!sigKeyVal) sigKeyVal = String(customerId + '__' + petId);
         var rec = sigStore ? sigStore[sigKeyVal] : null;
+        if(!rec || !rec.dataUrl) rec = ds195EnsureContractReviewSignature(row);
         if(!rec || !rec.dataUrl){ try{ alert('Bitte zuerst unterschreiben.'); }catch(_){ } return false; }
         try{ if(typeof ensureContractStore === 'function') ensureContractStore(); }catch(_){ }
         if(typeof state !== 'undefined' && state){
@@ -2161,6 +2162,159 @@
         return true;
       });
     }
+
+    function ds195StrictClone(value){
+      try{
+        return JSON.parse(JSON.stringify(value, function(_k, v){
+          try{
+            if(v === undefined) return null;
+            if(v === null) return null;
+            var t = typeof v;
+            if(t === 'function' || t === 'symbol') return null;
+            if(t === 'bigint') return String(v);
+            if(t === 'number') return isFinite(v) ? v : null;
+            try{ if(typeof window !== 'undefined'){ if(v === window || v === document) return null; if(typeof Node !== 'undefined' && v instanceof Node) return null; if(typeof Event !== 'undefined' && v instanceof Event) return null; } }catch(_){ }
+            try{ if(typeof Blob !== 'undefined' && v instanceof Blob) return null; }catch(_){ }
+            try{ if(typeof File !== 'undefined' && v instanceof File) return null; }catch(_){ }
+            if(v && typeof v === 'object'){
+              try{ if(typeof v.toJSON === 'function') return v.toJSON(); }catch(_){ }
+            }
+            return v;
+          }catch(_){ return null; }
+        }));
+      }catch(_){ return null; }
+    }
+    function ds195EnsureContractReviewSignature(full){
+      try{
+        var review = window.__dsInlineInboxReview || {};
+        var row = full || review.row || null;
+        var p = ds192Payload(row || {});
+        var cs = document.getElementById('contractCustomerSelect');
+        var ps = document.getElementById('contractPetSelect');
+        var accept = document.getElementById('contractAcceptChk');
+        var customerId = String((cs && cs.value) || p.customerId || '').trim();
+        var petId = String((ps && ps.value) || p.petId || '').trim();
+        if(accept && p.accepted) accept.checked = true;
+        try{ if(typeof ensureSigStore === 'function') ensureSigStore(); }catch(_){ }
+        var sigStore = (typeof state !== 'undefined' && state) ? (state.contractSignatures = state.contractSignatures || {}) : {};
+        var sigKeyVal = '';
+        try{ sigKeyVal = (typeof sigKey === 'function') ? String(sigKey(customerId, petId) || '') : ''; }catch(_){ sigKeyVal = ''; }
+        if(!sigKeyVal) sigKeyVal = String(((state && state.contractVersion) || 'v1.0') + '__' + customerId + '__' + petId);
+        var rec = sigStore ? sigStore[sigKeyVal] : null;
+        if((!rec || !rec.dataUrl) && p.signature && p.signature.dataUrl){
+          rec = { dataUrl:String(p.signature.dataUrl || ''), signedAt:p.signature.signedAt || Date.now() };
+          try{ sigStore[sigKeyVal] = rec; }catch(_){ }
+        }
+        if((!rec || !rec.dataUrl)){
+          try{
+            var canvas = document.getElementById('contractSig');
+            if(canvas && typeof canvas.toDataURL === 'function'){
+              var dataUrl = String(canvas.toDataURL('image/png') || '');
+              if(dataUrl && dataUrl.length > 128){
+                rec = { dataUrl:dataUrl, signedAt: Date.now() };
+                try{ sigStore[sigKeyVal] = rec; }catch(_){ }
+              }
+            }
+          }catch(_){ }
+        }
+        try{ if(typeof saveState === 'function') saveState(); }catch(_){ }
+        return rec || null;
+      }catch(_){ return null; }
+    }
+    function ds195PersistStayReviewLocally(full){
+      return Promise.resolve().then(function(){
+        var review = window.__dsInlineInboxReview || {};
+        var row = full || review.row || null;
+        if(!currentDoc){ try{ alert('Kein Aufenthaltsdokument geladen.'); }catch(_){ } return false; }
+        try{ if(typeof syncStayEditorInputsToDoc === 'function') syncStayEditorInputsToDoc(); }catch(_){ }
+        var docNameEl = document.getElementById('docName');
+        if(docNameEl && docNameEl.value) currentDoc.title = String(docNameEl.value || '').trim() || currentDoc.title;
+        var dogSel = document.getElementById('stayDogSelect') || document.getElementById('dogSelect');
+        var customerSel = document.getElementById('stayCustomerSelect') || document.getElementById('customerSelect');
+        var p = ds192Payload(row || {});
+        var clean = ds195StrictClone({
+          id: String((currentDoc && currentDoc.id) || ('review_adopt_' + Date.now())),
+          templateId: String((currentDoc && currentDoc.templateId) || 'hundeannahme'),
+          templateName: String((currentDoc && currentDoc.templateName) || 'Aufenthalte'),
+          title: String((currentDoc && currentDoc.title) || 'Aufenthalt Vorschlag'),
+          dogId: String((dogSel && dogSel.value) || (currentDoc && currentDoc.dogId) || ds192ResolveDogId(p) || ''),
+          petId: String((currentDoc && currentDoc.petId) || p.petId || ''),
+          customerId: String((customerSel && customerSel.value) || (currentDoc && currentDoc.customerId) || p.customerId || ''),
+          fields: (currentDoc && currentDoc.fields) || {},
+          meta: (currentDoc && currentDoc.meta) || {},
+          signature: (currentDoc && currentDoc.signature) || null,
+          pricing: (currentDoc && currentDoc.pricing) || null,
+          saved: !!(currentDoc && currentDoc.saved),
+          versionOf: (currentDoc && currentDoc.versionOf) || null,
+          createdAt: (currentDoc && currentDoc.createdAt) || new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }) || {};
+        clean.fields = clean.fields && typeof clean.fields === 'object' ? clean.fields : {};
+        clean.meta = clean.meta && typeof clean.meta === 'object' ? clean.meta : {};
+        if(!clean.petId) clean.petId = String(p.petId || '');
+        if(!clean.customerId) clean.customerId = String(p.customerId || '');
+        if(!clean.dogId) clean.dogId = ds192ResolveDogId(p) || '';
+        try{ if(typeof calculateInvoicePricing === 'function' && clean.meta && clean.meta.betreuung && clean.meta.von && clean.meta.bis) calculateInvoicePricing(clean); }catch(_){ }
+        if(typeof state !== 'undefined' && state){
+          state.docs = Array.isArray(state.docs) ? state.docs : [];
+          var idx = -1;
+          try{ idx = state.docs.findIndex(function(x){ return x && String(x.id || '') === String(clean.id || ''); }); }catch(_){ idx = -1; }
+          if(idx >= 0) state.docs[idx] = clean; else state.docs.unshift(clean);
+        }
+        try{ if(typeof saveState === 'function') saveState(); }catch(_){ }
+        try{ if(typeof renderDocs === 'function') renderDocs(); }catch(_){ }
+        try{ if(typeof renderDashboard === 'function') renderDashboard(); }catch(_){ }
+        try{ if(typeof renderTodayStatus === 'function') renderTodayStatus(); }catch(_){ }
+        return true;
+      });
+    }
+    function ds195InterceptReviewSave(ev){
+      try{
+        var review = window.__dsInlineInboxReview || {};
+        if(!review || !review.kind || !review.row) return;
+        var target = ev && ev.target;
+        if(!target || !target.closest) return;
+        var btn = target.closest('button');
+        if(!btn) return;
+        var id = String(btn.id || '');
+        var txt = String(btn.textContent || '').trim().toLowerCase();
+        if(review.kind === 'contract'){
+          var inContract = !!btn.closest('#contract');
+          var isSave = inContract && (id === 'contractSaveBtn' || id === 'btnContractSave' || id === 'contractSave' || id === 'contractSaveButton' || txt === 'speichern' || txt.indexOf(' speichern') >= 0);
+          if(!isSave) return;
+          ev.preventDefault();
+          try{ ev.stopImmediatePropagation(); }catch(_){ }
+          try{ ev.stopPropagation(); }catch(_){ }
+          Promise.resolve().then(function(){
+            ds193ClearCustomerProposalModes();
+            ds195EnsureContractReviewSignature(review.row);
+            return ds194PersistContractReviewLocally(review.row);
+          }).then(function(ok){
+            if(ok === false) return false;
+            return ds193FinalizeReview('contract', review.row).then(function(){ try{ alert('Betreuungsvertrag übernommen.'); }catch(_){ } return true; });
+          }).catch(function(err){ try{ alert('Übernehmen fehlgeschlagen: ' + String((err && err.message) || err || 'Unbekannter Fehler')); }catch(_){ } });
+          return false;
+        }
+        if(review.kind === 'stay'){
+          var inStay = !!(btn.closest('#editor') || btn.closest('#stayEditor') || btn.closest('#formRoot'));
+          var isStaySave = inStay && (id === 'btnSave' || txt === 'speichern' || txt.indexOf(' speichern') >= 0);
+          if(!isStaySave) return;
+          ev.preventDefault();
+          try{ ev.stopImmediatePropagation(); }catch(_){ }
+          try{ ev.stopPropagation(); }catch(_){ }
+          Promise.resolve().then(function(){
+            ds193ClearCustomerProposalModes();
+            return ds195PersistStayReviewLocally(review.row);
+          }).then(function(ok){
+            if(ok === false) return false;
+            return ds193FinalizeReview('stay', review.row).then(function(){ try{ alert('Aufenthalt übernommen.'); }catch(_){ } return true; });
+          }).catch(function(err){ try{ alert('Übernehmen fehlgeschlagen: ' + String((err && err.message) || err || 'Unbekannter Fehler')); }catch(_){ } });
+          return false;
+        }
+      }catch(_){ }
+    }
+    try{ if(!window.__dsGb195ReviewCapture){ window.__dsGb195ReviewCapture = true; window.addEventListener('click', ds195InterceptReviewSave, true); } }catch(_){ }
+
     function ds194InstallReviewHooks(kind, full){
       try{
         var row = full || null;
@@ -2169,7 +2323,7 @@
             return ds194PersistContractReviewLocally(row).then(function(ok){
               if(ok === false) return false;
               return ds193FinalizeReview('contract', row).then(function(){
-                try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb194 review-contract-save proposal=' + String((row && (row.proposalId || row.id || row.taskId)) || '--'), false); }catch(_){ }
+                try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb195 review-contract-save proposal=' + String((row && (row.proposalId || row.id || row.taskId)) || '--'), false); }catch(_){ }
                 try{ alert('Betreuungsvertrag übernommen.'); }catch(_){ }
                 return true;
               });
@@ -2196,8 +2350,8 @@
         try{ ds193ClearCustomerProposalModes(); }catch(_){ }
         try{ if(typeof patchInboxRowStatus === 'function') await patchInboxRowStatus(full, 'adopted'); }catch(_){ }
         try{ if(typeof removeInboxRowEverywhere === 'function') removeInboxRowEverywhere(full); }catch(_){ }
-        try{ if(typeof refreshInboxHard === 'function') await refreshInboxHard('gb194-inline-save-' + String(kind || 'review')); }catch(_){ }
-        try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb194 save-adopt kind=' + String(kind || '--') + ' proposal=' + String((full && (full.proposalId || full.id || full.taskId)) || '--'), false); }catch(_){ }
+        try{ if(typeof refreshInboxHard === 'function') await refreshInboxHard('gb195-inline-save-' + String(kind || 'review')); }catch(_){ }
+        try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb195 save-adopt kind=' + String(kind || '--') + ' proposal=' + String((full && (full.proposalId || full.id || full.taskId)) || '--'), false); }catch(_){ }
         try{ window.__dsInlineInboxReview = null; }catch(_){ }
         try{ ds194ShowInboxAfterReview(); }catch(_){ }
         return true;
@@ -2390,7 +2544,7 @@
       }).catch(function(err){ ds192Err('FEHLER inline-open-error -> ' + String((err && err.message) || err || 'unknown'), true); });
       return true;
     }
-    try{ window.__dsAppHtmlOpenRuntime = 'GB194-apphtml-inline'; }catch(_){ }
+    try{ window.__dsAppHtmlOpenRuntime = 'GB195-apphtml-inline'; }catch(_){ }
     try{ if(typeof window.ds166RememberInboxRow !== 'function'){ window.ds166RememberInboxRow = function(row){ try{ var key = ('row|' + String((row && (row.proposalId || row.id || row.taskId || row.__sourceKey || '')) || '') + '|' + String((row && (row.title || row.templateId || row.formKey || '')) || '') + '|' + String((row && (row.submittedAt || row.createdAt || '')) || '')).toLowerCase(); window.__dsInboxRowMap = window.__dsInboxRowMap || {}; window.__dsInboxRowMap[key]=row; return key; }catch(_){ return ''; } }; } }catch(_){ }
     try{ window.__dsOpenInboxProposalSnapshot = ds192OpenSnapshotEntry; }catch(_){ }
     try{ window.dsOpenStayProposalEditor = function(row){ return ds192OpenSnapshotEntry(row, 'stay'); }; }catch(_){ }
@@ -2683,8 +2837,8 @@
           var rowKey = src && src.getAttribute ? String(src.getAttribute('data-rowkey') || '') : '';
           if(!Number.isFinite(idx)) idx = 0;
           try{
-            if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb194-click kind=' + openKind + ' idx=' + String(idx) + ' target=' + String(tid || targetId) + ' rowKey=' + String(rowKey || '--'), false);
-            else { var diag = document.getElementById('inboxDiag'); if(diag){ diag.textContent = 'OpenDiag: gb194-click kind=' + openKind + ' idx=' + String(idx) + ' target=' + String(tid || targetId) + ' rowKey=' + String(rowKey || '--'); diag.style.color = '#d7dbe8'; } }
+            if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb195-click kind=' + openKind + ' idx=' + String(idx) + ' target=' + String(tid || targetId) + ' rowKey=' + String(rowKey || '--'), false);
+            else { var diag = document.getElementById('inboxDiag'); if(diag){ diag.textContent = 'OpenDiag: gb195-click kind=' + openKind + ' idx=' + String(idx) + ' target=' + String(tid || targetId) + ' rowKey=' + String(rowKey || '--'); diag.style.color = '#d7dbe8'; } }
             if(typeof window.dsSetProposalOpenErrorLine === 'function') window.dsSetProposalOpenErrorLine('', false);
           }catch(_){ }
           if(src && src.classList && src.classList.contains('ds-inbox-answer')){
@@ -2696,7 +2850,7 @@
             var prevKey = String(window.__dsInboxFallbackOpenLockKey || '');
             var prevAt = Number(window.__dsInboxFallbackOpenLockAt || 0);
             if(prevKey === lockKey && (now - prevAt) < 800){
-              try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb194-open-lock kind=' + openKind + ' idx=' + String(idx), true); }catch(_){ }
+              try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb195-open-lock kind=' + openKind + ' idx=' + String(idx), true); }catch(_){ }
               return false;
             }
             window.__dsInboxFallbackOpenLockKey = lockKey;
@@ -2747,7 +2901,7 @@
               via = 'fallback';
               ret = !!window.__dsInboxFallbackOpen(String(tid || targetId), idx);
             }
-            try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb194-open-dispatch kind=' + openKind + ' idx=' + String(idx) + ' rowKey=' + String(rowKey || '--') + ' via=' + via + ' ret=' + (ret ? '1' : '0') + ' appjs=' + String(window.__dsAppJsRuntimeBuild || '--') + ' runtime=' + String(window.__dsAppHtmlOpenRuntime || '--'), false); }catch(_){ }
+            try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb195-open-dispatch kind=' + openKind + ' idx=' + String(idx) + ' rowKey=' + String(rowKey || '--') + ' via=' + via + ' ret=' + (ret ? '1' : '0') + ' appjs=' + String(window.__dsAppJsRuntimeBuild || '--') + ' runtime=' + String(window.__dsAppHtmlOpenRuntime || '--'), false); }catch(_){ }
             try{ window.__dsLastOpenDispatch = { kind:String(openKind||''), idx:Number(idx||0), target:String(tid || targetId || ''), ret: !!ret, at: Date.now(), row: !!row, snapshotFn: snapshotFn, fallbackFn: fallbackFn, rowKeyFn: rowKeyFn, via: via, rowKey: String(rowKey || ''), title: rowTitle, template: rowTpl, source: rowSrc, appjs:String(window.__dsAppJsRuntimeBuild || '--'), runtime:String(window.__dsAppHtmlOpenRuntime || '--') }; }catch(_){ }
             if(!ret){
               var reason = !row ? 'row-lookup-leer' : ((rowKeyFn !== 'function' && snapshotFn !== 'function' && fallbackFn !== 'function') ? 'keine-open-funktion' : 'dispatcher-lieferte-false');
@@ -2774,7 +2928,7 @@
             }, 900);
             return ret;
           }catch(err){
-            try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb194-open-error kind=' + openKind + ' idx=' + String(idx) + ' err=' + String((err && err.message) || err || 'unknown'), true); }catch(_){ }
+            try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb195-open-error kind=' + openKind + ' idx=' + String(idx) + ' err=' + String((err && err.message) || err || 'unknown'), true); }catch(_){ }
             try{ if(typeof window.dsSetProposalOpenErrorLine === 'function') window.dsSetProposalOpenErrorLine('FEHLER open-error -> kind=' + String(openKind || '--') + '; idx=' + String(idx) + '; err=' + String((err && err.message) || err || 'unknown'), true); }catch(_){ }
             return false;
           }
@@ -3282,7 +3436,7 @@
 
 <script>
 (function(){
-  const CURRENT_BUILD = 'M50.9.9GB194_INLINEOPEN_REVIEWSAVE_20260405_ROOTONLY';
+  const CURRENT_BUILD = 'M50.9.9GB195_INLINE_REVIEWSAVE_ADMINFIX_20260405_ROOTONLY';
   try{
     window.addEventListener('load', function(){
       try{
