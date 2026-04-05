@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB205_STAYADOPT_DASHBOARDCOUNT_20260405_ROOTONLY",
+  tag: "M50.9.9GB206_STAYADOPT_OPENSTATUS_20260405_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,8 +12,8 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB205_STAYADOPT_DASHBOARDCOUNT_20260405_ROOTONLY";
-try{ window.__dsAppJsRuntime = 'GB205-appjs'; }catch(_){ }
+const APP_BUILD = "M50.9.9GB206_STAYADOPT_OPENSTATUS_20260405_ROOTONLY";
+try{ window.__dsAppJsRuntime = 'GB206-appjs'; }catch(_){ }
 
 function dsSyncDiagStateSummary(){
   try{
@@ -9373,7 +9373,7 @@ function migrateToV2(){
         fields: doc.fields || {},
         meta: doc.meta || {},
         signature: doc.signature || null,
-        status: doc.saved ? "closed" : "open",
+        status: ((doc.meta && doc.meta.adoptedFromProposal) || doc.adoptedFromProposal) ? "open" : (doc.saved ? "closed" : "open"),
         docId: doc.id, // Rückverweis
         createdAt: doc.createdAt || new Date().toISOString(),
         updatedAt: doc.updatedAt || new Date().toISOString()
@@ -14353,11 +14353,18 @@ function renderRecent(){
   docs.forEach(d=>list.appendChild(docItem(d)));
   if(!docs.length) list.innerHTML=`<div class="muted">Noch keine Aufenthalte.</div>`;
 }
+function ds206IsStayOpenForUi(d){
+  try{
+    if(!d) return false;
+    if((d.meta && d.meta.adoptedFromProposal) || d.adoptedFromProposal) return true;
+    return !d.saved;
+  }catch(_){ return !d || !d.saved; }
+}
 function docItem(d){
   const el=document.createElement("div");
   el.className="item";
   const dt=new Date(d.updatedAt).toLocaleString("de-DE");
-  const subtitle = `${escapeHtml(d.templateName||"")}${d.saved ? " · abgeschlossen" : " · offen"} · zuletzt: ${dt}`;
+  const subtitle = `${escapeHtml(d.templateName||"")}${ds206IsStayOpenForUi(d) ? " · offen" : " · abgeschlossen"} · zuletzt: ${dt}`;
   const actions = document.createElement("div");
   actions.className = "actions";
   const btnOpen = document.createElement("button");
@@ -21424,7 +21431,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB205_STAYADOPT_DASHBOARDCOUNT_20260405_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB206_STAYADOPT_OPENSTATUS_20260405_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -23397,7 +23404,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB205_STAYADOPT_DASHBOARDCOUNT_20260405_ROOTONLY";
+  const BUILD = "M50.9.9GB206_STAYADOPT_OPENSTATUS_20260405_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
