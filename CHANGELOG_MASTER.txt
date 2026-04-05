@@ -1,3 +1,4 @@
+GB211 · Aufenthalt-Öffnen rehydriert Hund/Unterschrift robuster aus petId/signature-Feldern; Aufenthalte↔state.stays Spiegelung trägt dogId/petId/customerId/signature stabiler; Betreuungsvertrag-Aktualisieren lädt Kunden/Hunde neu und setzt Auswahl bei Bedarf zurück.
 GB202 – Inline Review-Save SyncDiag-Clear: Nach erfolgreichem Übernehmen im Prüfmodus wird ein alter/staler SyncDiag-Banner aktiv geleert und bei erfolgreicher Cloud-Sync nicht mehr stehen gelassen.
 GB196 – Inline Review-Save Cloud-Reset: Nach erfolgreichem Übernehmen im Prüfmodus wird ein alter Cloud-/Sync-Fehler sofort zurückgesetzt, die Admin-UI aktualisiert und ein frischer Cloud-Push angestoßen.
 GB185 - Öffnen aus Eingänge greift jetzt direkt über die Row-Key-Buttons auf den neuesten Dispatcher zu. Aufenthalts-Vorschläge werden im echten Aufenthalts-Editor über createStay + Snapshot-Hydration geladen; Betreuungsvertrag lädt den abgesendeten Vertrags-Snapshot robuster inklusive Bestätigung/Unterschrift.
@@ -105,4 +106,4 @@ GB207 · Übernommene Aufenthalts-Vorschläge bleiben für UI/Stay-Status offen 
 GB208 · Aufenthalte-Liste spiegelt beim Rendern fehlende Stay-Datensätze aus state.stays zurück nach state.docs, damit übernommene Aufenthalte nach Reload sofort wieder in Aufenthalte sichtbar sind und nicht erst nach Öffnen über Start/Zuletzt erscheinen.
 GB209 · Aufenthalte und Betreuungsvertrag erhalten jeweils einen Aktualisieren-Button, der den Zustand frisch aus localStorage lädt und die Listen/Ansicht neu rendert.
 
-GB210 · Cloud/Online-Status stabilisiert: effektiver Online-Status nutzt erfolgreiche Cloud-Reichweite/letzte OK-Zeit statt nur navigator.onLine; Reachability-Ping läuft zusätzlich bei Fokus/Sichtbarkeit und stale Cloud-Fehler werden bei wieder erreichbarer Cloud zurückgesetzt.
+GB211 · Cloud/Online-Status stabilisiert: effektiver Online-Status nutzt erfolgreiche Cloud-Reichweite/letzte OK-Zeit statt nur navigator.onLine; Reachability-Ping läuft zusätzlich bei Fokus/Sichtbarkeit und stale Cloud-Fehler werden bei wieder erreichbarer Cloud zurückgesetzt.
