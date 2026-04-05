@@ -94,3 +94,5 @@ GB195 – Inline Review Save Admin Fix
 - Customer-Portal-Fehlpfad für Admin-Review entschärft
 
 GB202 - Rollback auf letzten voll synchronen Eingänge-Stand (Basis echter GB197-ZIP) mit überall sauber synchronisiertem Build.
+
+GB203 · Sync-Pill/SyncDiag stale error nach Übernehmen inline bereinigt; obere Sync-Anzeige wird im Prüfmodus auf Sync…/erfolgreich gesetzt, unterer SyncDiag-Banner aktiv versteckt, keine Änderung an Eingänge-Logik.
