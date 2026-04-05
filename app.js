@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB207_STAYINVOICE_SYNCRESET_20260405_ROOTONLY",
+  tag: "M50.9.9GB208_STAYLIST_MIRRORFIX_20260405_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,8 +12,8 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB207_STAYINVOICE_SYNCRESET_20260405_ROOTONLY";
-try{ window.__dsAppJsRuntime = 'GB207-appjs'; }catch(_){ }
+const APP_BUILD = "M50.9.9GB208_STAYLIST_MIRRORFIX_20260405_ROOTONLY";
+try{ window.__dsAppJsRuntime = 'GB208-appjs'; }catch(_){ }
 
 function dsSyncDiagStateSummary(){
   try{
@@ -14357,7 +14357,112 @@ async function dsRunProposalReviewSaveGuarded(){
   }
 }
 
+function ds208StayTypeLabel(raw){
+  const v = String(raw || '').trim().toLowerCase();
+  if(v === 'urlaubsbetreuung') return 'Urlaubsbetreuung';
+  if(v === 'tagesbetreuung') return 'Tagesbetreuung';
+  return String(raw || '').trim();
+}
+function ds208FormatStayMirrorTitle(docLike){
+  try{
+    const d = docLike || {};
+    const meta = d.meta || {};
+    let petName = '';
+    try{
+      const pet = d.petId ? getPet(d.petId) : null;
+      petName = String((pet && (pet.name || pet.petName || pet.dogName)) || '').trim();
+    }catch(_){ }
+    if(!petName){
+      petName = String(d.petName || d.dogName || '').trim();
+    }
+    const von = String(meta.von || d.from || '').trim();
+    const bis = String(meta.bis || d.to || '').trim();
+    const parts = [];
+    if(petName) parts.push(petName);
+    if(von || bis) parts.push([von || 'offen', bis || 'offen'].join(' - '));
+    return parts.length ? ('Aufenthalt · ' + parts.join(' · ')) : 'Aufenthalt';
+  }catch(_){
+    return 'Aufenthalt';
+  }
+}
+function ds208EnsureDocsFromStays(){
+  try{
+    ensureStateShape();
+    state.docs = Array.isArray(state.docs) ? state.docs : [];
+    state.stays = Array.isArray(state.stays) ? state.stays : [];
+    let changed = false;
+    const docsById = new Map((state.docs || []).filter(Boolean).map(x=>[String(x.id||''), x]));
+    (state.stays || []).forEach(stay=>{
+      try{
+        if(!stay) return;
+        const docId = String(stay.docId || '').trim() || ('staydoc_' + String(stay.id || uid()));
+        const existing = docsById.get(docId) || null;
+        const meta = (existing && existing.meta && typeof existing.meta === 'object') ? existing.meta : ((stay.meta && typeof stay.meta === 'object') ? JSON.parse(JSON.stringify(stay.meta)) : {});
+        if(!meta.von && stay.from) meta.von = String(stay.from || '').trim();
+        if(!meta.bis && stay.to) meta.bis = String(stay.to || '').trim();
+        if(!meta.betreuung && stay.type) meta.betreuung = ds208StayTypeLabel(stay.type);
+        if(stay.adoptedFromProposal || (stay.meta && stay.meta.adoptedFromProposal)) meta.adoptedFromProposal = true;
+        const petId = String((existing && existing.petId) || stay.petId || '').trim();
+        const customerId = String((existing && existing.customerId) || stay.customerId || '').trim();
+        let dogId = String((existing && existing.dogId) || stay.dogId || '').trim();
+        if(!dogId && petId){
+          try{ dogId = String((getPet(petId) || {}).dogId || '').trim(); }catch(_){ }
+        }
+        const savedFlag = (String(stay.status || '').toLowerCase() === 'open') ? !!(meta.adoptedFromProposal || (existing && existing.saved)) : true;
+        if(existing){
+          let touched = false;
+          if(String(existing.templateId || '') !== 'hundeannahme'){ existing.templateId = 'hundeannahme'; touched = true; }
+          if(String(existing.templateName || '') !== 'Aufenthalte'){ existing.templateName = 'Aufenthalte'; touched = true; }
+          if(!existing.petId && petId){ existing.petId = petId; touched = true; }
+          if(!existing.customerId && customerId){ existing.customerId = customerId; touched = true; }
+          if(!existing.dogId && dogId){ existing.dogId = dogId; touched = true; }
+          if(!existing.meta || typeof existing.meta !== 'object'){ existing.meta = meta; touched = true; }
+          else {
+            const before = JSON.stringify(existing.meta || {});
+            existing.meta = { ...(existing.meta || {}), ...meta };
+            if(JSON.stringify(existing.meta || {}) !== before) touched = true;
+          }
+          if(!existing.title || /^aufenthalt(|\s|$)/i.test(String(existing.title || ''))){
+            const nextTitle = ds208FormatStayMirrorTitle({ ...existing, petId, dogId, meta: existing.meta });
+            if(nextTitle && nextTitle !== existing.title){ existing.title = nextTitle; touched = true; }
+          }
+          if(!existing.updatedAt && stay.updatedAt){ existing.updatedAt = stay.updatedAt; touched = true; }
+          if(existing.saved !== savedFlag){ existing.saved = savedFlag; touched = true; }
+          if(touched) changed = true;
+        } else {
+          const doc = {
+            id: docId,
+            templateId: 'hundeannahme',
+            templateName: 'Aufenthalte',
+            title: ds208FormatStayMirrorTitle({ petId, dogId, meta }),
+            dogId,
+            petId,
+            customerId,
+            fields: (stay.fields && typeof stay.fields === 'object') ? JSON.parse(JSON.stringify(stay.fields)) : {},
+            meta,
+            signature: stay.signature || null,
+            pricing: stay.pricing || null,
+            saved: savedFlag,
+            versionOf: null,
+            createdAt: stay.createdAt || new Date().toISOString(),
+            updatedAt: stay.updatedAt || stay.createdAt || new Date().toISOString()
+          };
+          state.docs.unshift(doc);
+          docsById.set(docId, doc);
+          changed = true;
+        }
+      }catch(_){ }
+    });
+    if(changed){
+      try{ saveState(); }catch(_){ }
+    }
+    return changed;
+  }catch(_){
+    return false;
+  }
+}
 function renderDocs(){
+  try{ ds208EnsureDocsFromStays(); }catch(_){ }
   const list=$("#docList");
   list.innerHTML="";
   const docs=(state.docs||[]).filter(d=>d.type!=="invoice").slice().sort((a,b)=> (b.updatedAt||"").localeCompare(a.updatedAt||""));
@@ -14366,6 +14471,7 @@ function renderDocs(){
   renderRecent();
 }
 function renderRecent(){
+  try{ ds208EnsureDocsFromStays(); }catch(_){ }
   const list=$("#recentList");
   const docs=(state.docs||[]).filter(d=>d.type!=="invoice").slice().sort((a,b)=> (b.updatedAt||"").localeCompare(a.updatedAt||"")).slice(0,3);
   list.innerHTML="";
@@ -21450,7 +21556,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB207_STAYINVOICE_SYNCRESET_20260405_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB208_STAYLIST_MIRRORFIX_20260405_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -23423,7 +23529,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB207_STAYINVOICE_SYNCRESET_20260405_ROOTONLY";
+  const BUILD = "M50.9.9GB208_STAYLIST_MIRRORFIX_20260405_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];

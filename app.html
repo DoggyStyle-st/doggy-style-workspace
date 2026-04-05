@@ -6,13 +6,13 @@
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
 <meta charset="utf-8"/>
-  <meta name="app-build" content="M50.9.9GB207_STAYINVOICE_SYNCRESET_20260405_ROOTONLY">
+  <meta name="app-build" content="M50.9.9GB208_STAYLIST_MIRRORFIX_20260405_ROOTONLY">
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <title>Doggy Style Workspace · App</title>
 <link href="manifest.json" rel="manifest"/>
 <meta content="#101014" name="theme-color"/>
 <link href="assets/logo.png" rel="apple-touch-icon"/>
-<link href="styles.css?v=M50.9.9GB207_STAYINVOICE_SYNCRESET_20260405_ROOTONLY" rel="stylesheet"/>
+<link href="styles.css?v=M50.9.9GB208_STAYLIST_MIRRORFIX_20260405_ROOTONLY" rel="stylesheet"/>
 <link href="dashboard_master.css?v=20260104v13logout" rel="stylesheet"/>
 <style>
   /* Topbar Layout (iPad & Desktop stabil) */
@@ -102,7 +102,7 @@
   .doc-modal__actions{ margin-left:auto; display:flex; flex-wrap: wrap; gap: 8px; }
   .doc-modal__frame{ width: 100%; border: 0; border-radius: 12px; background: #fff; flex:1; min-height: 0; }
 </style>
-  <meta name="app-version" content="M50.9.9GB207_STAYINVOICE_SYNCRESET_20260405_ROOTONLY">
+  <meta name="app-version" content="M50.9.9GB208_STAYLIST_MIRRORFIX_20260405_ROOTONLY">
   <meta name="release-channel" content="MASTER">
 </head>
 <body class="bg-watermark page-app">
@@ -1195,7 +1195,7 @@
 </section>
 
 <section class="panel" id="statistics">
-<!-- Statistics panel is rendered by app.js?v=M50.9.9GB207_STAYINVOICE_SYNCRESET_20260405_ROOTONLY (renderStatisticsPanel) -->
+<!-- Statistics panel is rendered by app.js?v=M50.9.9GB208_STAYLIST_MIRRORFIX_20260405_ROOTONLY (renderStatisticsPanel) -->
 </section>
 
 
@@ -1262,12 +1262,12 @@
 </footer>
 </div>
 <!-- Firebase (optional) + Config -->
-<script defer="defer" src="firebase-config.js?v=M50.9.9GB207_STAYINVOICE_SYNCRESET_20260405_ROOTONLY"></script>
+<script defer="defer" src="firebase-config.js?v=M50.9.9GB208_STAYLIST_MIRRORFIX_20260405_ROOTONLY"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
-<script defer="defer" src="app.js?v=M50.9.9GB207_STAYINVOICE_SYNCRESET_20260405_ROOTONLY"></script>
+<script defer="defer" src="app.js?v=M50.9.9GB208_STAYLIST_MIRRORFIX_20260405_ROOTONLY"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1286,7 +1286,7 @@
 </script>
 
 <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB207_STAYINVOICE_SYNCRESET_20260405_ROOTONLY', { updateViaCache: 'none' });
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB208_STAYLIST_MIRRORFIX_20260405_ROOTONLY', { updateViaCache: 'none' });
   </script>
 
 <script>
@@ -1388,7 +1388,7 @@
   <!-- Bottom logout button removed (duplicate of header logout; also overlaps editor on iPad) -->
 </div>
 <!-- test-badge removed (requested) -->
-  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB207_STAYINVOICE_SYNCRESET_20260405_ROOTONLY</div>
+  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB208_STAYLIST_MIRRORFIX_20260405_ROOTONLY</div>
 
 <script>
 (function visibleMailFallback(){
@@ -1950,7 +1950,7 @@
       }catch(_){ return false; }
     }
     function ds192Diag(msg, isError){
-      try{ window.__dsAppHtmlOpenRuntime = 'GB207-apphtml-inline'; }catch(_){ }
+      try{ window.__dsAppHtmlOpenRuntime = 'GB208-apphtml-inline'; }catch(_){ }
       try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb196 ' + String(msg||''), !!isError); }catch(_){ }
     }
     function ds192Err(msg, isError){
@@ -2683,7 +2683,7 @@
       }).catch(function(err){ ds192Err('FEHLER inline-open-error -> ' + String((err && err.message) || err || 'unknown'), true); });
       return true;
     }
-    try{ window.__dsAppHtmlOpenRuntime = 'GB207-apphtml-inline'; }catch(_){ }
+    try{ window.__dsAppHtmlOpenRuntime = 'GB208-apphtml-inline'; }catch(_){ }
     try{ if(typeof window.ds166RememberInboxRow !== 'function'){ window.ds166RememberInboxRow = function(row){ try{ var key = ('row|' + String((row && (row.proposalId || row.id || row.taskId || row.__sourceKey || '')) || '') + '|' + String((row && (row.title || row.templateId || row.formKey || '')) || '') + '|' + String((row && (row.submittedAt || row.createdAt || '')) || '')).toLowerCase(); window.__dsInboxRowMap = window.__dsInboxRowMap || {}; window.__dsInboxRowMap[key]=row; return key; }catch(_){ return ''; } }; } }catch(_){ }
     try{ window.__dsOpenInboxProposalSnapshot = ds192OpenSnapshotEntry; }catch(_){ }
     try{ window.dsOpenStayProposalEditor = function(row){ return ds192OpenSnapshotEntry(row, 'stay'); }; }catch(_){ }
@@ -3575,7 +3575,7 @@
 
 <script>
 (function(){
-  const CURRENT_BUILD = 'M50.9.9GB207_STAYINVOICE_SYNCRESET_20260405_ROOTONLY';
+  const CURRENT_BUILD = 'M50.9.9GB208_STAYLIST_MIRRORFIX_20260405_ROOTONLY';
   try{
     window.addEventListener('load', function(){
       try{
