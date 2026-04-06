@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB214_SYNCSTATUS_STABLE_20260405_ROOTONLY",
+  tag: "M50.9.9GB215_CONTRACTSYNC_STABLE_20260405_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,8 +12,8 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB214_SYNCSTATUS_STABLE_20260405_ROOTONLY";
-try{ window.__dsAppJsRuntime = 'GB214-appjs'; }catch(_){ }
+const APP_BUILD = "M50.9.9GB215_CONTRACTSYNC_STABLE_20260405_ROOTONLY";
+try{ window.__dsAppJsRuntime = 'GB215-appjs'; }catch(_){ }
 
 function dsSyncDiagStateSummary(){
   try{
@@ -1547,6 +1547,27 @@ function scheduleCloudPing(delayMs=0, reason=""){
       updateSyncUI();
     }, Math.max(0, delayMs));
   }catch(e){}
+}
+function ds215StabilizeContractSync(reason="contract-open"){
+  try{
+    const resolvedUser = (typeof getCloudUserResolved === 'function') ? getCloudUserResolved() : null;
+    if(!(cloudIsEnabled() && CLOUD && CLOUD.enabled && resolvedUser)) return false;
+    const now = Date.now();
+    const recentOk = dsHasRecentCloudOk(12*60*60*1000);
+    if(recentOk || SYNC.cloudReachable || SYNC.cloudLastOkAt || SYNC.cloudLastSeenAt){
+      SYNC.cloudReachable = true;
+      SYNC.cloudReachError = '';
+      SYNC.cloudReachCheckedAt = now;
+      SYNC.cloudLastSeenAt = Math.max(Number(SYNC.cloudLastSeenAt||0), Number(SYNC.cloudLastOkAt||0), now);
+      if(!SYNC.cloudLastOkAt) SYNC.cloudLastOkAt = now;
+      window.__dsForcedOnlineUntil = Math.max(Number(window.__dsForcedOnlineUntil||0), now + (15*60*1000));
+      if(SYNC.cloudLastError && (recentOk || SYNC.cloudLastOkAt)) SYNC.cloudLastError = '';
+      try{ updateSyncUI(); }catch(_){ }
+      try{ if(!SYNC.cloudPending) scheduleCloudPing(450, reason); }catch(_){ }
+      return true;
+    }
+  }catch(_){ }
+  return false;
 }
 function showAuthGate(show){
   const el = document.getElementById("authGate");
@@ -4649,6 +4670,12 @@ function selectTab(tabId){
   // activate tab button
   $$(".tab").forEach(b=>b.classList.toggle("is-active", b.dataset.tab===tabId));
   showPanel(tabId);
+  try{
+    if(tabId === "contract"){
+      ds215StabilizeContractSync("contract-tab");
+      setTimeout(function(){ try{ ds215StabilizeContractSync("contract-tab-post"); }catch(_){ } }, 300);
+    }
+  }catch(_){ }
 }
 function createStay(){
   // v18: Neuer Aufenthalt (Aufenthalte) – immer zuverlässig, ohne externes Template-Fetch.
@@ -14648,6 +14675,7 @@ function ds209RefreshStaysList(){
 function ds209RefreshContractPanel(){
   try{ ds209ReloadStateFromStorage(); }catch(_){ }
   try{ ds212EnsureContractSelectorData(); }catch(_){ }
+  try{ ds215StabilizeContractSync("contract-refresh-pre"); }catch(_){ }
   try{ if(typeof scheduleCloudPing === 'function') scheduleCloudPing(0,'contract-refresh'); }catch(_){ }
   try{ if(typeof navigator === 'undefined' || navigator.onLine){ window.__dsForcedOnlineUntil = Date.now() + 120000; } }catch(_){ }
   try{ window.__dsInlineInboxReview = null; }catch(_){ }
@@ -17630,6 +17658,8 @@ function renderContractPanel(){
   }
   updateSignedInfo();
   try{ renderContractSelectionList(); }catch(_){ }
+  try{ ds215StabilizeContractSync("contract-render"); }catch(_){ }
+  try{ setTimeout(function(){ ds215StabilizeContractSync("contract-render-post"); }, 250); }catch(_){ }
 }
 // --- Signature Pad (inline) ---
 let _contractSig = {canvas:null, ctx:null, drawing:false, hasInk:false, last:null};
@@ -21885,7 +21915,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB214_SYNCSTATUS_STABLE_20260405_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB215_CONTRACTSYNC_STABLE_20260405_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -23858,7 +23888,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB214_SYNCSTATUS_STABLE_20260405_ROOTONLY";
+  const BUILD = "M50.9.9GB215_CONTRACTSYNC_STABLE_20260405_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];

@@ -109,3 +109,5 @@ GB209 · Aufenthalte und Betreuungsvertrag erhalten jeweils einen Aktualisieren-
 
 GB211 · Cloud/Online-Status stabilisiert: effektiver Online-Status nutzt erfolgreiche Cloud-Reichweite/letzte OK-Zeit statt nur navigator.onLine; Reachability-Ping läuft zusätzlich bei Fokus/Sichtbarkeit und stale Cloud-Fehler werden bei wieder erreichbarer Cloud zurückgesetzt.
 - GB214: Aufenthalt-Öffnen rehydriert Hund robuster im Editor; Betreuungsvertrag bekam Auswahl-/Öffnen-Liste mit Aktualisieren.
+
+- GB215: Sync-/Offline-Status beim Öffnen/Aktualisieren von Betreuungsvertrag stabilisiert; Contract-Tab hält Cloud-Status mit Soft-Online und Ping stabiler.
