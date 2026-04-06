@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB230_CUSTOMEROPEN_ALIASDIAG_20260406_ROOTONLY",
+  tag: "M50.9.9GB231_INVOICEPDF_DIAGHIDE_20260406_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,8 +12,8 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB230_CUSTOMEROPEN_ALIASDIAG_20260406_ROOTONLY";
-try{ window.__dsAppJsRuntimeBuild = "GB230-appjs"; }catch(_){}
+const APP_BUILD = "M50.9.9GB231_INVOICEPDF_DIAGHIDE_20260406_ROOTONLY";
+try{ window.__dsAppJsRuntimeBuild = "GB231-appjs"; }catch(_){}
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
 function dsSyncDiagStateSummary(){
@@ -11826,14 +11826,27 @@ function dsSetProposalOpenDiag(msg, isError){
       const box = dsEnsureGlobalProposalOpenDiag();
       if(box){
         box.textContent = base;
-        box.style.display = 'block';
         box.style.color = isError ? '#ffb3b3' : '#d7dbe8';
         box.style.borderColor = isError ? 'rgba(255,107,107,.45)' : 'rgba(120,170,255,.25)';
+        if(isError){
+          box.style.display = 'block';
+          try{ clearTimeout(window.__dsProposalOpenDiagHideTimer); }catch(_){ }
+        }else{
+          box.style.display = 'none';
+          try{ clearTimeout(window.__dsProposalOpenDiagHideTimer); }catch(_){ }
+        }
       }
     }catch(_){ }
   }catch(_){ }
 }
 try{ window.dsSetProposalOpenDiag = dsSetProposalOpenDiag; }catch(_){ }
+function dsHideProposalOpenDiag(){
+  try{
+    const box = document.getElementById('proposalOpenDiagGlobal');
+    if(box) box.style.display = 'none';
+  }catch(_){ }
+}
+try{ window.dsHideProposalOpenDiag = dsHideProposalOpenDiag; }catch(_){ }
 
 function dsIsActuallyVisibleEditTarget(el){
   try{
@@ -13917,6 +13930,7 @@ if(!inv) return;
     </div>
   `;
   openPdfOverlay("Rechnung " + (inv.invoiceNumber||""), html);
+  try{ dsHideProposalOpenDiag(); }catch(_){}
 }
 function ensurePdfOverlayStyles(){
   if(document.getElementById("pdfOverlayStyles")) return;
@@ -19248,7 +19262,7 @@ function renderComplianceHazards(root){
       if(act==='view') openHazardView(haz);
       if(act==='dl'){
         if(haz.sds && haz.sds.dataUrl){
-          openPdfOverlay({title:`SDB – ${haz.name||''}`, dataUrl: haz.sds.dataUrl, filename:`SDB_${(haz.name||'Produkt').replace(/[^a-z0-9_-]+/gi,'_')}.pdf`});
+          openPdfDocumentOverlay({title:`SDB – ${haz.name||''}`, dataUrl: haz.sds.dataUrl, filename:`SDB_${(haz.name||'Produkt').replace(/[^a-z0-9_-]+/gi,'_')}.pdf`});
         }
       }
       if(act==='del'){
@@ -19351,11 +19365,14 @@ function _dataUrlToBlob(dataUrl){
   }
 }
 
-function openPdfOverlay(opts){
+function openPdfDocumentOverlay(opts){
   // opts: {title, dataUrl, filename, onDelete}
   const title = opts?.title || "PDF";
   const dataUrl = opts?.dataUrl;
-  if(!dataUrl){ alert("Keine PDF-Daten vorhanden."); return; }
+  if(!dataUrl){
+    alert("Für dieses Dokument sind aktuell keine gespeicherten PDF-Daten vorhanden.");
+    return;
+  }
 
   // Create overlay once
   let wrap = document.getElementById("pdfDocOverlay");
@@ -19440,7 +19457,7 @@ function openPdfOverlay(opts){
 
 function openHazardView(haz){
   if(!haz.sds || !haz.sds.dataUrl){ alert("Kein Sicherheitsdatenblatt hinterlegt."); return; }
-  openPdfOverlay({
+  openPdfDocumentOverlay({
     title: `SDB – ${haz.name||''}`,
     dataUrl: haz.sds.dataUrl,
     filename: `SDB_${(haz.name||"Produkt").replace(/[^a-z0-9_-]+/gi,"_")}.pdf`,
@@ -22157,7 +22174,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB230_CUSTOMEROPEN_ALIASDIAG_20260406_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB231_INVOICEPDF_DIAGHIDE_20260406_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -24130,7 +24147,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB230_CUSTOMEROPEN_ALIASDIAG_20260406_ROOTONLY";
+  const BUILD = "M50.9.9GB231_INVOICEPDF_DIAGHIDE_20260406_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -26796,7 +26813,7 @@ try{ window.__GB191_MARKER = 'active'; }catch(_){ }
     try{ ds166OpenRowByKey = window.ds166OpenRowByKey; }catch(_){ }
   }catch(_){ }
 })();
-try{ window.__dsAppJsRuntimeBuild = 'GB230-appjs'; }catch(_){}
+try{ window.__dsAppJsRuntimeBuild = 'GB231-appjs'; }catch(_){}
 /* ===== END GB194 ===== */
 
 
