@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB222_CUSTOMEROPEN_RETTRUE_20260406_ROOTONLY",
+  tag: "M50.9.9GB223_CUSTOMEROPEN_NOPAYLOAD_20260406_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB222_CUSTOMEROPEN_RETTRUE_20260406_ROOTONLY";
+const APP_BUILD = "M50.9.9GB223_CUSTOMEROPEN_NOPAYLOAD_20260406_ROOTONLY";
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
 function dsSyncDiagStateSummary(){
@@ -12555,9 +12555,10 @@ function dsOpenProposalInCustomerEditor(row, opts){
     const petPayload = (payload && payload.pet && typeof payload.pet === 'object') ? payload.pet : (row && row.pet && typeof row.pet === 'object' ? row.pet : {});
     const isCustomerProposal = String((row && (row.templateId || row.proposalType || row.kind || row.formKey)) || '').toLowerCase().includes('customer')
       || String((payload && payload.source) || '').toLowerCase().includes('customer-main-dogs')
+      || String((row && (row.title || row.__fallbackDisplayedTitle)) || '').toLowerCase().includes('kunde/hund')
       || !!(customerPayload && Object.keys(customerPayload).length)
       || !!(petPayload && Object.keys(petPayload).length);
-    if(!isCustomerProposal || (!Object.keys(customerPayload).length && !Object.keys(petPayload).length)) return false;
+    if(!isCustomerProposal) return false;
 
     try{ dsSetProposalOpenDiag('entry row=' + String((row && (row.id || row.proposalId || row.taskId)) || '--') + ' cid=' + String((row && (row.__targetCustomerId || row.customerId)) || '--') + ' pid=' + String((row && (row.__targetPetId || row.petId)) || '--'), false); }catch(_){ }
 
@@ -22138,7 +22139,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB222_CUSTOMEROPEN_RETTRUE_20260406_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB223_CUSTOMEROPEN_NOPAYLOAD_20260406_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -24111,7 +24112,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB222_CUSTOMEROPEN_RETTRUE_20260406_ROOTONLY";
+  const BUILD = "M50.9.9GB223_CUSTOMEROPEN_NOPAYLOAD_20260406_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -26774,7 +26775,7 @@ try{ window.__GB191_MARKER = 'active'; }catch(_){ }
     try{ ds166OpenRowByKey = window.ds166OpenRowByKey; }catch(_){ }
   }catch(_){ }
 })();
-try{ window.__dsAppJsRuntimeBuild = 'GB195-appjs'; }catch(_){}
+try{ window.__dsAppJsRuntimeBuild = 'GB223-appjs'; }catch(_){}
 /* ===== END GB194 ===== */
 
 
