@@ -119,3 +119,5 @@ GB217 = Contract Sync Session-Hint Stabilisierung (Betreuungsvertrag nutzt gelad
 GB218 – Contract Sync Visuals
 - Sync-Dot im Betreuungsvertrag an Online/erfolgreich gekoppelt
 - Öffnen vorhandener Betreuungsverträge stellt Häkchen und Unterschrift robuster wieder her
+
+GB220: Statistik-Hundeauswahl nutzt wieder Hundename statt Pet-ID; robuste Auflösung für state.pets Array/Objekt.

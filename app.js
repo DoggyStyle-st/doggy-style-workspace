@@ -20338,6 +20338,62 @@ function populateStatDogs(dateISO){
 }
 
 
+
+function _statGetPetListNormalized(){
+  try{
+    var arr = Array.isArray(state && state.pets) ? state.pets.slice() : [];
+    if(!arr.length && state && state.pets && typeof state.pets === 'object'){
+      arr = Object.keys(state.pets||{}).map(function(k){ return state.pets[k]; }).filter(Boolean);
+    }
+    if(!arr.length && Array.isArray(state && state.dogs)){
+      arr = state.dogs.map(function(d){
+        var id = String((d && (d.petId || d.id || d.dogId)) || '').trim();
+        return Object.assign({}, d || {}, {
+          id: id || String((typeof uid === 'function' ? uid() : Math.random().toString(36).slice(2)) || ''),
+          petId: String((d && (d.petId || d.id || d.dogId)) || '').trim() || id,
+          name: String((d && (d.name || d.petName || d.dogName || d.hundename)) || '').trim(),
+          dogId: String((d && (d.dogId || d.id)) || '').trim(),
+          customerId: String((d && (d.customerId || d.ownerId)) || '').trim()
+        });
+      }).filter(function(x){ return !!String((x && (x.id || x.petId || x.dogId)) || '').trim(); });
+    }
+    var seen = new Set();
+    return arr.map(function(p, idx){
+      var out = Object.assign({}, p || {});
+      var id = String((out.id || out.petId || out.dogId || idx) || '').trim();
+      if(!id) return null;
+      out.id = id;
+      if(!out.petId) out.petId = id;
+      if(!out.name) out.name = String((out.petName || out.dogName || out.hundename || out.label || id) || '').trim();
+      var key = id.toLowerCase();
+      if(seen.has(key)) return null;
+      seen.add(key);
+      return out;
+    }).filter(Boolean);
+  }catch(_){ return []; }
+}
+function _statGetPetByAnyId(pid){
+  try{
+    var id = String(pid || '').trim();
+    if(!id) return null;
+    if(typeof getPet === 'function'){
+      var direct = getPet(id);
+      if(direct) return direct;
+    }
+    if(typeof getPetByDogId === 'function'){
+      var byDog = getPetByDogId(id);
+      if(byDog) return byDog;
+    }
+    var list = _statGetPetListNormalized();
+    return list.find(function(p){
+      return String((p && (p.id || p.petId || p.dogId)) || '').trim() === id;
+    }) || null;
+  }catch(_){ return null; }
+}
+function _statGetPetIdsFallback(){
+  try{ return _statGetPetListNormalized().map(function(p){ return String((p && p.id) || '').trim(); }).filter(Boolean); }catch(_){ return []; }
+}
+
 // =====================
 // Statistik (M50.10+ Research Core) – professionell wissenschaftlich
 // Nur dieser Bereich wurde neu aufgebaut. Rest der App bleibt unverändert.
@@ -20655,6 +20711,7 @@ function initStatCaptureBindings(){
   };
 }
 
+
 function populateStatDogsForAll(dateISO){
   const dogEl = document.getElementById('statDogSelect');
   const breedEl = document.getElementById('statBreed');
@@ -20670,33 +20727,31 @@ function populateStatDogsForAll(dateISO){
   }catch(_){ }
 
   if(!petIds.length){
-    petIds = Object.keys(state.pets || {});
+    petIds = _statGetPetIdsFallback();
   }
 
   const opts = petIds.map(pid => {
-    const p = state.pets && state.pets[pid];
-    const name = p?.name || p?.dogName || pid;
-    return {id:pid, name};
-  }).sort((a,b)=> String(a.name).localeCompare(String(b.name)));
+    const p = _statGetPetByAnyId(pid);
+    const id = String((p && (p.id || p.petId || p.dogId)) || pid || '').trim();
+    const name = String((p && (p.name || p.petName || p.dogName || p.hundename)) || pid || 'Hund').trim() || 'Hund';
+    return {id, name, pet:p||null};
+  }).filter(o=>!!o.id).sort((a,b)=> String(a.name).localeCompare(String(b.name), 'de'));
 
   dogEl.innerHTML = '<option value="">— bitte wählen —</option>' + opts.map(o=>`<option value="${escapeHtml(o.id)}">${escapeHtml(o.name)}</option>`).join('');
 
   const updateMeta = ()=>{
     const pid = dogEl.value || '';
-    const p = (state.pets && state.pets[pid]) || null;
+    const p = _statGetPetByAnyId(pid);
 
-    // Breed
     const breed = (p && (p.breed || p.race || p.rasse || p.mainBreed)) ? String(p.breed||p.race||p.rasse||p.mainBreed) : '';
     if(breedEl) breedEl.value = breed || '—';
 
-    // Sex / Gender (normalize to select values m/w/k/s)
     const sexCode = _statNormalizeSexCode((p && (p.sex || p.gender || p.geschlecht || p.sexLabel)) ? String(p.sex||p.gender||p.geschlecht||p.sexLabel) : '', p);
     if(sexEl){
       if(sexCode) sexEl.value = sexCode;
       else if(!sexEl.value) sexEl.value = '';
     }
 
-    // Age (years) – if birthdate known
     const ageYearsRaw = (p && (p.ageYears || p.age || p.alter)) ? Number(p.ageYears||p.age||p.alter) : NaN;
     let ageYears = Number.isFinite(ageYearsRaw) ? ageYearsRaw : NaN;
     if(!Number.isFinite(ageYears)){
