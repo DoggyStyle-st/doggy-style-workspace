@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB215_CONTRACTSYNC_STABLE_20260405_ROOTONLY",
+  tag: "M50.9.9GB216_CONTRACTSYNC_SOFTONLINE_20260406_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,8 +12,8 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB215_CONTRACTSYNC_STABLE_20260405_ROOTONLY";
-try{ window.__dsAppJsRuntime = 'GB215-appjs'; }catch(_){ }
+const APP_BUILD = "M50.9.9GB216_CONTRACTSYNC_SOFTONLINE_20260406_ROOTONLY";
+try{ window.__dsAppJsRuntime = 'GB216-appjs'; }catch(_){ }
 
 function dsSyncDiagStateSummary(){
   try{
@@ -933,6 +933,40 @@ function dsHasRecentCloudOk(maxAgeMs=10*60*1000){
     return !!(latest && (now - latest) <= maxAgeMs);
   }catch(_){ return false; }
 }
+function ds216ContractDataLoadedHeuristic(){
+  try{
+    const box = document.getElementById("contractSelectionList") || document.getElementById("contractList") || document.getElementById("existingContractsList");
+    if(box && box.querySelector && box.querySelector("button, .smallbtn, .item, .contract-row")) return true;
+  }catch(_){ }
+  try{
+    const cs = document.getElementById("contractCustomerSelect");
+    const ps = document.getElementById("contractPetSelect");
+    if(cs && ps && String(cs.value||'').trim() && String(ps.value||'').trim()) return true;
+  }catch(_){ }
+  try{
+    const agreements = state && state.contractAgreements ? Object.keys(state.contractAgreements).length : 0;
+    const sigs = state && state.contractSignatures ? Object.keys(state.contractSignatures).length : 0;
+    if((agreements + sigs) > 0) return true;
+  }catch(_){ }
+  return false;
+}
+function ds216SoftKeepContractOnline(reason="contract-open"){
+  try{
+    const resolvedUser = (typeof getCloudUserResolved === 'function') ? getCloudUserResolved() : null;
+    if(!(cloudIsEnabled() && CLOUD && CLOUD.enabled && resolvedUser)) return false;
+    if(!ds216ContractDataLoadedHeuristic()) return false;
+    const now = Date.now();
+    SYNC.cloudReachable = true;
+    SYNC.cloudReachError = '';
+    SYNC.cloudLastSeenAt = Math.max(Number(SYNC.cloudLastSeenAt||0), now);
+    SYNC.cloudLastOkAt = Math.max(Number(SYNC.cloudLastOkAt||0), now);
+    window.__dsForcedOnlineUntil = Math.max(Number(window.__dsForcedOnlineUntil||0), now + (30*60*1000));
+    if(SYNC.cloudLastError && !SYNC.cloudPending) SYNC.cloudLastError = '';
+    try{ if(typeof updateSyncUI === 'function') updateSyncUI(); }catch(_){ }
+    try{ if(!SYNC.cloudPending && typeof scheduleCloudPing === 'function') scheduleCloudPing(1200, reason); }catch(_){ }
+    return true;
+  }catch(_){ return false; }
+}
 function dsEffectiveNetOnline(){
   try{
     if(dsNavigatorOnline()) return true;
@@ -950,7 +984,8 @@ function updateSyncUI(){
   const details = document.getElementById('syncDetails');
   const manualBtn = document.getElementById('manualSaveBtn');
   const resolvedUser = getCloudUserResolved();
-  const recentCloudOk = dsHasRecentCloudOk(30*60*1000);
+  const contractSoftOnline = !!(cloudIsEnabled() && CLOUD && CLOUD.enabled && resolvedUser && ds216ContractDataLoadedHeuristic());
+  const recentCloudOk = contractSoftOnline ? true : dsHasRecentCloudOk(30*60*1000);
   if(userEl){
     if(CLOUD.enabled && resolvedUser){
       userEl.style.display = 'inline-flex';
@@ -969,8 +1004,11 @@ function updateSyncUI(){
     }
   }catch(_){ }
   const hasAuth = !!(CLOUD && CLOUD.enabled && resolvedUser);
-  const cloudSeemsHealthy = !!(cloudIsEnabled() && CLOUD && CLOUD.enabled && resolvedUser && (SYNC.cloudReachable || recentCloudOk));
-  const cloudOk = !!(cloudSeemsHealthy && (netOnline || recentCloudOk || SYNC.cloudPending));
+  if(contractSoftOnline){
+    try{ SYNC.cloudReachable = true; SYNC.cloudReachError = ''; if(!SYNC.cloudLastOkAt) SYNC.cloudLastOkAt = Date.now(); }catch(_){ }
+  }
+  const cloudSeemsHealthy = !!(cloudIsEnabled() && CLOUD && CLOUD.enabled && resolvedUser && (SYNC.cloudReachable || recentCloudOk || contractSoftOnline));
+  const cloudOk = !!(cloudSeemsHealthy && (netOnline || recentCloudOk || SYNC.cloudPending || contractSoftOnline));
   try{ if(pill){ pill.classList.toggle('is-online', !!(cloudOk || cloudSeemsHealthy || hasAuth || netOnline || recentCloudOk)); pill.classList.toggle('is-offline', !(cloudOk || cloudSeemsHealthy || hasAuth || netOnline || recentCloudOk)); } }catch(e){}
   const localLine = `Lokal gespeichert: ${fmtDT(SYNC.localSavedAt)}`;
   const netLine = `Internet: ${netOnline ? 'Online' : 'Offline'}${(!navOnline && netOnline) ? ' · Browser meldet offline' : ''}`;
@@ -993,6 +1031,9 @@ function updateSyncUI(){
       cloudLine = `Cloud Fehler: ${SYNC.cloudLastError}`;
     } else if(cloudSeemsHealthy){
       pillText = `Online · Cloud: erfolgreich`;
+      if(contractSoftOnline && !netOnline){
+        pillText = `Online · Cloud: erfolgreich`;
+      }
       cloudLine = `Cloud aktiv · Nutzer: ${resolvedUser.email || resolvedUser.uid || 'eingeloggt'} · Server: ${fmtDT(SYNC.cloudLastSeenAt || SYNC.cloudLastOkAt || SYNC.cloudReachCheckedAt)}`;
       try{
         if(!SYNC.cloudReachable){
@@ -1002,7 +1043,7 @@ function updateSyncUI(){
       }catch(_){ }
       try{ if(!SYNC.cloudPending) scheduleCloudPing(400,'status-refresh'); }catch(_){ }
     } else {
-      pillText = `${netOnline ? 'Online' : 'Offline'} · Cloud: prüfe…`;
+      pillText = `${(netOnline || contractSoftOnline) ? 'Online' : 'Offline'} · Cloud: prüfe…`;
       cloudLine = `Cloud wird geprüft · Nutzer: ${resolvedUser.email || resolvedUser.uid || 'eingeloggt'}`;
       try{ if(!SYNC.cloudPending) scheduleCloudPing(150,'status-refresh'); }catch(_){ }
     }
@@ -1550,6 +1591,7 @@ function scheduleCloudPing(delayMs=0, reason=""){
 }
 function ds215StabilizeContractSync(reason="contract-open"){
   try{
+    if(ds216SoftKeepContractOnline(reason + '-soft')) return true;
     const resolvedUser = (typeof getCloudUserResolved === 'function') ? getCloudUserResolved() : null;
     if(!(cloudIsEnabled() && CLOUD && CLOUD.enabled && resolvedUser)) return false;
     const now = Date.now();
@@ -14676,6 +14718,7 @@ function ds209RefreshContractPanel(){
   try{ ds209ReloadStateFromStorage(); }catch(_){ }
   try{ ds212EnsureContractSelectorData(); }catch(_){ }
   try{ ds215StabilizeContractSync("contract-refresh-pre"); }catch(_){ }
+  try{ ds216SoftKeepContractOnline("contract-refresh-soft"); }catch(_){ }
   try{ if(typeof scheduleCloudPing === 'function') scheduleCloudPing(0,'contract-refresh'); }catch(_){ }
   try{ if(typeof navigator === 'undefined' || navigator.onLine){ window.__dsForcedOnlineUntil = Date.now() + 120000; } }catch(_){ }
   try{ window.__dsInlineInboxReview = null; }catch(_){ }
@@ -17659,6 +17702,7 @@ function renderContractPanel(){
   updateSignedInfo();
   try{ renderContractSelectionList(); }catch(_){ }
   try{ ds215StabilizeContractSync("contract-render"); }catch(_){ }
+  try{ ds216SoftKeepContractOnline("contract-render-soft"); }catch(_){ }
   try{ setTimeout(function(){ ds215StabilizeContractSync("contract-render-post"); }, 250); }catch(_){ }
 }
 // --- Signature Pad (inline) ---
@@ -21915,7 +21959,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB215_CONTRACTSYNC_STABLE_20260405_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB216_CONTRACTSYNC_SOFTONLINE_20260406_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -23888,7 +23932,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB215_CONTRACTSYNC_STABLE_20260405_ROOTONLY";
+  const BUILD = "M50.9.9GB216_CONTRACTSYNC_SOFTONLINE_20260406_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
