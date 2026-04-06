@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB219_STAYTITLE_STAYDOGFIX_20260406_ROOTONLY",
+  tag: "M50.9.9GB221_CUSTOMEROPEN_FALLBACKPET_20260406_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB219_STAYTITLE_STAYDOGFIX_20260406_ROOTONLY";
+const APP_BUILD = "M50.9.9GB221_CUSTOMEROPEN_FALLBACKPET_20260406_ROOTONLY";
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
 function dsSyncDiagStateSummary(){
@@ -12587,6 +12587,19 @@ function dsOpenProposalInCustomerEditor(row, opts){
         if(basePet && !basePetId) basePetId = String(basePet.id || basePet.petId || '');
       }catch(_){ }
     }
+    if((!basePet || !basePetId) && baseCustomer){
+      try{
+        let owned = (typeof dsOwnedPetsForCustomer === 'function') ? dsOwnedPetsForCustomer(baseCustomer) : [];
+        owned = asArray(owned);
+        const pp = (petPayload && typeof petPayload === 'object') ? petPayload : {};
+        const targetPetName = lower((pp && pp.name) || (row && row.petName) || '');
+        const targetChip = norm((pp && (pp.chipNumber || pp.chip)) || (row && row.chipNumber) || '');
+        if(targetChip){ const chipHits = owned.filter(function(x){ return norm((x && (x.chipNumber || x.chip || '')) || '') === targetChip; }); if(chipHits.length) owned = chipHits; }
+        if(targetPetName){ const nameHits = owned.filter(function(x){ return lower((x && x.name) || '') === targetPetName; }); if(nameHits.length) owned = nameHits; }
+        if(!basePet && owned.length) basePet = owned[0] || null;
+        if(basePet && !basePetId) basePetId = String(basePet.id || basePet.petId || '');
+      }catch(_){ }
+    }
     if((!baseCustomer || !basePet || !basePetId)){
       try{
         if(typeof selectTab === 'function') selectTab('dogs');
@@ -22125,7 +22138,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB219_STAYTITLE_STAYDOGFIX_20260406_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB221_CUSTOMEROPEN_FALLBACKPET_20260406_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -24098,7 +24111,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB219_STAYTITLE_STAYDOGFIX_20260406_ROOTONLY";
+  const BUILD = "M50.9.9GB221_CUSTOMEROPEN_FALLBACKPET_20260406_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
