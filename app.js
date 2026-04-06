@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB218_CONTRACTSYNC_VISUALS_20260406_ROOTONLY",
+  tag: "M50.9.9GB219_STAYTITLE_STAYDOGFIX_20260406_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB218_CONTRACTSYNC_VISUALS_20260406_ROOTONLY";
+const APP_BUILD = "M50.9.9GB219_STAYTITLE_STAYDOGFIX_20260406_ROOTONLY";
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
 function dsSyncDiagStateSummary(){
@@ -14577,6 +14577,61 @@ function ds212NormalizeStayDoc(docLike){
   }catch(_){ }
   return docLike;
 }
+function ds219ResolveStayDogId(docLike){
+  try{
+    var d = docLike || {};
+    var did = String((d.dogId || (d.meta && d.meta.dogId) || '') || '').trim();
+    if(did) return did;
+    try{ did = String((typeof ds212GuessDogIdForDoc === 'function' ? ds212GuessDogIdForDoc(d) : '') || '').trim(); }catch(_){ }
+    if(did) return did;
+    if(d.petId) return String(d.petId || '').trim();
+  }catch(_){ }
+  return '';
+}
+function ds219EnsureStayDogOption(selectEl, docLike){
+  try{
+    if(!selectEl) return '';
+    var d = docLike || {};
+    var did = ds219ResolveStayDogId(d);
+    if(!did) return '';
+    var label = '';
+    try{ label = String((typeof ds212GuessPetNameForDoc === 'function' ? ds212GuessPetNameForDoc(d) : '') || '').trim(); }catch(_){ }
+    if(!label) label = String((d.petName || d.dogName || (d.fields && (d.fields.petName || d.fields.dogName)) || 'Hund') || 'Hund').trim() || 'Hund';
+    if(!Array.from(selectEl.options || []).some(function(o){ return String((o && o.value) || '') === did; })){
+      var opt = document.createElement('option');
+      opt.value = did;
+      opt.textContent = label;
+      selectEl.appendChild(opt);
+    }
+    try{ selectEl.value = did; }catch(_){ }
+    return did;
+  }catch(_){ }
+  return '';
+}
+function ds219RefreshStayTitles(){
+  try{
+    ensureStateShape();
+    state.docs = Array.isArray(state.docs) ? state.docs : [];
+    var changed = false;
+    state.docs.forEach(function(d){
+      try{
+        if(!d || d.type === 'invoice') return;
+        if(String(d.templateId || '') !== 'hundeannahme' && String(d.templateName || '') !== 'Aufenthalte' && String(d.type || '') !== 'stay') return;
+        try{ ds212NormalizeStayDoc(d); }catch(_){ }
+        var nextTitle = '';
+        try{ nextTitle = String((typeof ds208FormatStayMirrorTitle === 'function' ? ds208FormatStayMirrorTitle(d) : '') || '').trim(); }catch(_){ }
+        var curTitle = String((d.title || '')).trim();
+        if(nextTitle && (!curTitle || /^aufenthalt(\b|\s|$)/i.test(curTitle) || curTitle.indexOf('· Hund ·') >= 0 || curTitle === 'Aufenthalt')){
+          if(curTitle !== nextTitle){ d.title = nextTitle; changed = true; }
+        }
+      }catch(_){ }
+    });
+    if(changed){ try{ saveState(); }catch(_){ } }
+    return changed;
+  }catch(_){ }
+  return false;
+}
+
 function ds212EnsureContractSelectorData(){
   try{
     ensureStateShape();
@@ -14714,6 +14769,7 @@ function ds208EnsureDocsFromStays(){
 }
 function renderDocs(){
   try{ ds208EnsureDocsFromStays(); }catch(_){ }
+  try{ ds219RefreshStayTitles(); }catch(_){ }
   const list=$("#docList");
   list.innerHTML="";
   const docs=(state.docs||[]).filter(d=>d.type!=="invoice").slice().sort((a,b)=> (b.updatedAt||"").localeCompare(a.updatedAt||""));
@@ -14723,6 +14779,7 @@ function renderDocs(){
 }
 function renderRecent(){
   try{ ds208EnsureDocsFromStays(); }catch(_){ }
+  try{ ds219RefreshStayTitles(); }catch(_){ }
   const list=$("#recentList");
   const docs=(state.docs||[]).filter(d=>d.type!=="invoice").slice().sort((a,b)=> (b.updatedAt||"").localeCompare(a.updatedAt||"")).slice(0,3);
   list.innerHTML="";
@@ -14743,6 +14800,7 @@ function ds209ReloadStateFromStorage(){
 }
 function ds209RefreshStaysList(){
   try{ ds209ReloadStateFromStorage(); }catch(_){}
+  try{ ds219RefreshStayTitles(); }catch(_){}
   try{ renderDocs(); }catch(err){ console.warn('ds209RefreshStaysList renderDocs failed', err); }
 }
 function ds209RefreshContractPanel(){
@@ -15348,7 +15406,11 @@ function populateStayEditorFromDoc(doc){
     // IDs can live either at root (current format) or in meta (legacy hotfixes)
     const dogId = doc.dogId || doc.meta?.dogId || '';
     const customerId = doc.customerId || doc.meta?.customerId || '';
-    if(dogSel && dogId) dogSel.value = dogId;
+    if(dogSel){
+      try{ if(!doc.dogId){ var _did = ds219ResolveStayDogId(doc); if(_did) doc.dogId = _did; } }catch(_){ }
+      try{ ds219EnsureStayDogOption(dogSel, doc); }catch(_){ }
+      if(dogId || doc.dogId || doc.petId) dogSel.value = (doc.dogId || dogId || doc.petId || '');
+    }
     if(custSel && customerId) custSel.value = customerId;
     const von = document.getElementById('stayVon');
     const bis = document.getElementById('stayBis');
@@ -16719,8 +16781,10 @@ function renderStayEditorEmbedded(doc){
   if(dogSel){
     const dogs = Array.isArray(state?.dogs) ? state.dogs : [];
     dogSel.innerHTML = `<option value="">(Auswahl)</option>` + dogs.map(d=>`<option value="${escapeHtml(d.id)}">${escapeHtml(d.name||d.dogName||d.id)}</option>`).join('');
-    dogSel.value = doc.dogId || "";
-    dogSel.onchange = e=>{ doc.dogId = e.target.value; dirty = true; try{ updateAutoHolidayFields(); populateStayEditorFromDoc(doc); }catch(_e){} };
+    try{ var stayDogId = ds219ResolveStayDogId(doc); if(stayDogId && !doc.dogId) doc.dogId = stayDogId; }catch(_){ }
+    try{ ds219EnsureStayDogOption(dogSel, doc); }catch(_){ }
+    dogSel.value = doc.dogId || doc.petId || "";
+    dogSel.onchange = e=>{ doc.dogId = e.target.value; try{ if(!doc.petId) doc.petId = String((typeof getPetByDogId === 'function' ? ((getPetByDogId(doc.dogId) || {}).id || '') : '') || '').trim(); }catch(_){ } dirty = true; try{ updateAutoHolidayFields(); populateStayEditorFromDoc(doc); }catch(_e){} };
   }
   // Kunden
   const custSel = document.getElementById('stayCustomerSelect');
@@ -22006,7 +22070,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB218_CONTRACTSYNC_VISUALS_20260406_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB219_STAYTITLE_STAYDOGFIX_20260406_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -23979,7 +24043,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB218_CONTRACTSYNC_VISUALS_20260406_ROOTONLY";
+  const BUILD = "M50.9.9GB219_STAYTITLE_STAYDOGFIX_20260406_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
