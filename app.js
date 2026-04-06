@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB216_CONTRACTSYNC_SOFTONLINE_20260406_ROOTONLY",
+  tag: "M50.9.9GB217_CONTRACTSYNC_SESSIONHINT_20260406_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,8 +12,8 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB216_CONTRACTSYNC_SOFTONLINE_20260406_ROOTONLY";
-try{ window.__dsAppJsRuntime = 'GB216-appjs'; }catch(_){ }
+const APP_BUILD = "M50.9.9GB217_CONTRACTSYNC_SESSIONHINT_20260406_ROOTONLY";
+try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
 function dsSyncDiagStateSummary(){
   try{
@@ -933,6 +933,31 @@ function dsHasRecentCloudOk(maxAgeMs=10*60*1000){
     return !!(latest && (now - latest) <= maxAgeMs);
   }catch(_){ return false; }
 }
+function ds217LocalUserHint(){
+  try{
+    const direct = String((window.CLOUD && CLOUD.user && (CLOUD.user.email || CLOUD.user.uid)) || (window.firebase && firebase.auth && firebase.auth().currentUser && (firebase.auth().currentUser.email || firebase.auth().currentUser.uid)) || '').trim();
+    if(direct) return direct;
+  }catch(_){ }
+  try{ const ui = String(document.getElementById('syncUser')?.textContent || '').trim(); if(ui) return ui; }catch(_){ }
+  try{ const ls = String(localStorage.getItem('login_email') || localStorage.getItem('ds_last_email') || sessionStorage.getItem('ds_auth_required_return_to') || '').trim(); if(ls) return ls; }catch(_){ }
+  return '';
+}
+function ds217ContractUiReady(){
+  try{
+    const current = String(state && state.ui && state.ui.currentTab || '').toLowerCase();
+    if(current === 'contracts' || current === 'vertrag' || current === 'betreuungsvertrag') return ds216ContractDataLoadedHeuristic();
+  }catch(_){ }
+  try{
+    const panel = document.getElementById('viewContracts') || document.getElementById('contractsView') || document.getElementById('tab-contents-contracts');
+    const visible = !!(panel && panel.offsetParent !== null);
+    if(visible) return ds216ContractDataLoadedHeuristic();
+  }catch(_){ }
+  try{
+    const title = String(document.querySelector('h2')?.textContent || '').toLowerCase();
+    if(title.indexOf('betreuungsvertrag') >= 0) return ds216ContractDataLoadedHeuristic();
+  }catch(_){ }
+  return false;
+}
 function ds216ContractDataLoadedHeuristic(){
   try{
     const box = document.getElementById("contractSelectionList") || document.getElementById("contractList") || document.getElementById("existingContractsList");
@@ -953,7 +978,7 @@ function ds216ContractDataLoadedHeuristic(){
 function ds216SoftKeepContractOnline(reason="contract-open"){
   try{
     const resolvedUser = (typeof getCloudUserResolved === 'function') ? getCloudUserResolved() : null;
-    if(!(cloudIsEnabled() && CLOUD && CLOUD.enabled && resolvedUser)) return false;
+    if(!(resolvedUser || ds217LocalUserHint())) return false;
     if(!ds216ContractDataLoadedHeuristic()) return false;
     const now = Date.now();
     SYNC.cloudReachable = true;
@@ -984,12 +1009,14 @@ function updateSyncUI(){
   const details = document.getElementById('syncDetails');
   const manualBtn = document.getElementById('manualSaveBtn');
   const resolvedUser = getCloudUserResolved();
-  const contractSoftOnline = !!(cloudIsEnabled() && CLOUD && CLOUD.enabled && resolvedUser && ds216ContractDataLoadedHeuristic());
+  const localUserHint = ds217LocalUserHint();
+  const contractUiReady = ds217ContractUiReady();
+  const contractSoftOnline = !!contractUiReady;
   const recentCloudOk = contractSoftOnline ? true : dsHasRecentCloudOk(30*60*1000);
   if(userEl){
-    if(CLOUD.enabled && resolvedUser){
+    if((CLOUD.enabled && resolvedUser) || localUserHint){
       userEl.style.display = 'inline-flex';
-      userEl.textContent = (resolvedUser.email || 'eingeloggt');
+      userEl.textContent = (resolvedUser && (resolvedUser.email || resolvedUser.uid) || localUserHint || 'eingeloggt');
     } else {
       try{ const ba=document.querySelector(".bottom-actions"); if(ba) ba.style.display="block"; }catch(e){}
       userEl.style.display = 'none';
@@ -1004,17 +1031,21 @@ function updateSyncUI(){
     }
   }catch(_){ }
   const hasAuth = !!(CLOUD && CLOUD.enabled && resolvedUser);
+  const hasSessionHint = !!localUserHint;
   if(contractSoftOnline){
     try{ SYNC.cloudReachable = true; SYNC.cloudReachError = ''; if(!SYNC.cloudLastOkAt) SYNC.cloudLastOkAt = Date.now(); }catch(_){ }
   }
-  const cloudSeemsHealthy = !!(cloudIsEnabled() && CLOUD && CLOUD.enabled && resolvedUser && (SYNC.cloudReachable || recentCloudOk || contractSoftOnline));
-  const cloudOk = !!(cloudSeemsHealthy && (netOnline || recentCloudOk || SYNC.cloudPending || contractSoftOnline));
-  try{ if(pill){ pill.classList.toggle('is-online', !!(cloudOk || cloudSeemsHealthy || hasAuth || netOnline || recentCloudOk)); pill.classList.toggle('is-offline', !(cloudOk || cloudSeemsHealthy || hasAuth || netOnline || recentCloudOk)); } }catch(e){}
+  const cloudSeemsHealthy = !!((cloudIsEnabled() && CLOUD && CLOUD.enabled && resolvedUser && (SYNC.cloudReachable || recentCloudOk || contractSoftOnline)) || (contractSoftOnline && hasSessionHint));
+  const cloudOk = !!(cloudSeemsHealthy && (netOnline || recentCloudOk || SYNC.cloudPending || contractSoftOnline || hasSessionHint));
+  try{ if(pill){ pill.classList.toggle('is-online', !!(cloudOk || cloudSeemsHealthy || hasAuth || hasSessionHint || netOnline || recentCloudOk)); pill.classList.toggle('is-offline', !(cloudOk || cloudSeemsHealthy || hasAuth || hasSessionHint || netOnline || recentCloudOk)); } }catch(e){}
   const localLine = `Lokal gespeichert: ${fmtDT(SYNC.localSavedAt)}`;
   const netLine = `Internet: ${netOnline ? 'Online' : 'Offline'}${(!navOnline && netOnline) ? ' · Browser meldet offline' : ''}`;
-  let pillText = (cloudOk || cloudSeemsHealthy || recentCloudOk) ? 'Online' : (hasAuth ? 'Online' : 'Offline');
+  let pillText = (cloudOk || cloudSeemsHealthy || recentCloudOk || hasSessionHint) ? 'Online' : (hasAuth ? 'Online' : 'Offline');
   let cloudLine = 'Cloud: aus';
-  if(!cloudIsEnabled()){
+  if(contractSoftOnline && hasSessionHint){
+    pillText = `Online · Cloud: erfolgreich`;
+    cloudLine = `Cloud: erfolgreich · Nutzer: ${localUserHint || 'eingeloggt'} · Vertrag lokal bereit`;
+  } else if(!cloudIsEnabled()){
     cloudLine = window.firebaseConfig ? 'Cloud: bereit (SDK nicht geladen)' : 'Cloud: aus';
     if(window.firebaseConfig && CLOUD.reason){
       cloudLine += ` · ${CLOUD.reason}`;
@@ -1051,13 +1082,13 @@ function updateSyncUI(){
   if(pill) pill.textContent = `${pillText} · ${fmtDT(SYNC.localSavedAt)}`;
   const dot=document.getElementById('syncDot');
   if(dot){
-    const dotOnline = !!(cloudSeemsHealthy || recentCloudOk || (hasAuth && !SYNC.cloudLastError && !SYNC.cloudPending) || /erfolgreich/i.test(String(document.getElementById('syncStatus')?.textContent||'')) || /Cloud:\s*erfolgreich/i.test(String(details?.textContent||'')));
+    const dotOnline = !!(cloudSeemsHealthy || recentCloudOk || hasSessionHint || (hasAuth && !SYNC.cloudLastError && !SYNC.cloudPending) || /erfolgreich/i.test(String(document.getElementById('syncStatus')?.textContent||'')) || /Cloud:\s*erfolgreich/i.test(String(details?.textContent||'')));
     dot.classList.toggle('online', dotOnline);
     dot.classList.toggle('offline', !dotOnline);
     try{ forceSyncDotState(dotOnline); }catch(_){ }
   }
   if(details){
-    const detailsCloudLine = (cloudSeemsHealthy || (hasAuth && !SYNC.cloudLastError && !SYNC.cloudPending)) ? `Cloud: erfolgreich · Nutzer: ${resolvedUser && (resolvedUser.email || resolvedUser.uid) || 'eingeloggt'}` : cloudLine;
+    const detailsCloudLine = (cloudSeemsHealthy || (hasAuth && !SYNC.cloudLastError && !SYNC.cloudPending) || (contractSoftOnline && hasSessionHint)) ? `Cloud: erfolgreich · Nutzer: ${resolvedUser && (resolvedUser.email || resolvedUser.uid) || localUserHint || 'eingeloggt'}` : cloudLine;
     const syncDiagLine = (()=>{ try{ return String((window.__dsSyncDiag && window.__dsSyncDiag.current) || ''); }catch(_){ return ''; } })();
     details.textContent = `${localLine}
 ${netLine}
@@ -1593,7 +1624,7 @@ function ds215StabilizeContractSync(reason="contract-open"){
   try{
     if(ds216SoftKeepContractOnline(reason + '-soft')) return true;
     const resolvedUser = (typeof getCloudUserResolved === 'function') ? getCloudUserResolved() : null;
-    if(!(cloudIsEnabled() && CLOUD && CLOUD.enabled && resolvedUser)) return false;
+    if(!(resolvedUser || ds217LocalUserHint())) return false;
     const now = Date.now();
     const recentOk = dsHasRecentCloudOk(12*60*60*1000);
     if(recentOk || SYNC.cloudReachable || SYNC.cloudLastOkAt || SYNC.cloudLastSeenAt){
@@ -21959,7 +21990,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB216_CONTRACTSYNC_SOFTONLINE_20260406_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB217_CONTRACTSYNC_SESSIONHINT_20260406_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -23932,7 +23963,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB216_CONTRACTSYNC_SOFTONLINE_20260406_ROOTONLY";
+  const BUILD = "M50.9.9GB217_CONTRACTSYNC_SESSIONHINT_20260406_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
