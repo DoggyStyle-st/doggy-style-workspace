@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB225_CUSTOMEROPEN_INLINEFIRST_20260406_ROOTONLY",
+  tag: "M50.9.9GB226_CUSTOMEROPEN_HARDFINAL_20260406_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,8 +12,8 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB225_CUSTOMEROPEN_INLINEFIRST_20260406_ROOTONLY";
-try{ window.__dsAppJsRuntimeBuild = "GB225-appjs"; }catch(_){}
+const APP_BUILD = "M50.9.9GB226_CUSTOMEROPEN_HARDFINAL_20260406_ROOTONLY";
+try{ window.__dsAppJsRuntimeBuild = "GB226-appjs"; }catch(_){}
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
 function dsSyncDiagStateSummary(){
@@ -12544,6 +12544,19 @@ function dsScheduleProposalReviewUiOpen(row, customerPayload, petPayload, opts){
   }catch(_){ return false; }
 }
 
+function dsTryDirectProposalReviewEditor(row, customerPayload, petPayload, opts){
+  try{
+    row = dsEnrichProposalReviewRow(row);
+    const targets = dsResolveProposalReviewTargets(row) || {};
+    const baseCustomer = targets.customer || null;
+    const basePet = targets.pet || null;
+    const basePetId = norm((basePet && (basePet.id || basePet.petId)) || (row && row.__targetPetId) || (row && row.petId) || '');
+    if(!baseCustomer || !basePet || !basePetId) return false;
+    try{ dsSetProposalOpenDiag('hard-direct customer=' + String((baseCustomer && (baseCustomer.id || baseCustomer.customerId)) || '--') + ' pet=' + String(basePetId || '--'), false); }catch(_){ }
+    return !!dsFinalizeProposalReviewEditor(row, baseCustomer, basePet, basePetId, customerPayload || {}, petPayload || {}, opts || {});
+  }catch(_){ return false; }
+}
+
 function dsOpenProposalInCustomerEditor(row, opts){
   opts = opts || {};
   try{
@@ -12602,6 +12615,8 @@ function dsOpenProposalInCustomerEditor(row, opts){
         if(basePet && !basePetId) basePetId = String(basePet.id || basePet.petId || '');
       }catch(_){ }
     }
+    if(dsTryDirectProposalReviewEditor(row, customerPayload, petPayload, opts)) return true;
+
     if((!baseCustomer || !basePet || !basePetId)){
       try{
         if(typeof selectTab === 'function') selectTab('dogs');
@@ -12654,6 +12669,8 @@ function dsOpenProposalInCustomerEditor(row, opts){
 }
 
 try{ window.dsOpenProposalInCustomerEditor = dsOpenProposalInCustomerEditor; }catch(_){ }
+try{ window.dsFinalizeProposalReviewEditor = dsFinalizeProposalReviewEditor; }catch(_){ }
+try{ window.dsResolveProposalReviewTargets = dsResolveProposalReviewTargets; }catch(_){ }
 try{ window.__dsResolveProposalReviewTargets = dsResolveProposalReviewTargets; }catch(_){ }
 try{ window.__dsEnrichProposalReviewRow = dsEnrichProposalReviewRow; }catch(_){ }
 try{ window.__dsTryVisibleProposalButtonOpen = dsTryVisibleProposalButtonOpen; }catch(_){ }
@@ -22140,7 +22157,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB225_CUSTOMEROPEN_INLINEFIRST_20260406_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB226_CUSTOMEROPEN_HARDFINAL_20260406_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -24113,7 +24130,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB225_CUSTOMEROPEN_INLINEFIRST_20260406_ROOTONLY";
+  const BUILD = "M50.9.9GB226_CUSTOMEROPEN_HARDFINAL_20260406_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -24788,11 +24805,12 @@ async function dsInboxAnswerRow(row){
   }catch(_){ return false; }
 }
 function dsLaunchProposalInCustomerEditor(row){
+  try{ row = dsEnrichProposalReviewRow(row); }catch(_){ }
   try{ window.__dsInboxCurrentTask = row; }catch(_){ }
   try{ dsResetInboxDetailView(); }catch(_){ }
   let ok = false;
   let lastErr = '';
-  try{ ok = !!dsOpenProposalInCustomerEditor(row, { silent:false, forceMainEditor:true }); }catch(err){ lastErr = String((err && err.message) || err || 'review-open-failed'); }
+  try{ ok = !!dsOpenProposalInCustomerEditor(row, { silent:false, forceMainEditor:true, hardDirect:true }); }catch(err){ lastErr = String((err && err.message) || err || 'review-open-failed'); }
   if(!ok){
     try{ ensureInboxDiag({ phase:'review-open-failed', error:lastErr || 'editor-not-opened' }); }catch(_){ }
     try{ console.warn('Original-Editor konnte nicht geöffnet werden.'); }catch(_){ }
@@ -26776,7 +26794,7 @@ try{ window.__GB191_MARKER = 'active'; }catch(_){ }
     try{ ds166OpenRowByKey = window.ds166OpenRowByKey; }catch(_){ }
   }catch(_){ }
 })();
-try{ window.__dsAppJsRuntimeBuild = 'GB225-appjs'; }catch(_){}
+try{ window.__dsAppJsRuntimeBuild = 'GB226-appjs'; }catch(_){}
 /* ===== END GB194 ===== */
 
 

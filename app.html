@@ -6,13 +6,13 @@
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
 <meta charset="utf-8"/>
-  <meta name="app-build" content="M50.9.9GB225_CUSTOMEROPEN_INLINEFIRST_20260406_ROOTONLY">
+  <meta name="app-build" content="M50.9.9GB226_CUSTOMEROPEN_HARDFINAL_20260406_ROOTONLY">
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <title>Doggy Style Workspace · App</title>
 <link href="manifest.json" rel="manifest"/>
 <meta content="#101014" name="theme-color"/>
 <link href="assets/logo.png" rel="apple-touch-icon"/>
-<link href="styles.css?v=M50.9.9GB225_CUSTOMEROPEN_INLINEFIRST_20260406_ROOTONLY" rel="stylesheet"/>
+<link href="styles.css?v=M50.9.9GB226_CUSTOMEROPEN_HARDFINAL_20260406_ROOTONLY" rel="stylesheet"/>
 <link href="dashboard_master.css?v=20260104v13logout" rel="stylesheet"/>
 <style>
   /* Topbar Layout (iPad & Desktop stabil) */
@@ -102,7 +102,7 @@
   .doc-modal__actions{ margin-left:auto; display:flex; flex-wrap: wrap; gap: 8px; }
   .doc-modal__frame{ width: 100%; border: 0; border-radius: 12px; background: #fff; flex:1; min-height: 0; }
 </style>
-  <meta name="app-version" content="M50.9.9GB225_CUSTOMEROPEN_INLINEFIRST_20260406_ROOTONLY">
+  <meta name="app-version" content="M50.9.9GB226_CUSTOMEROPEN_HARDFINAL_20260406_ROOTONLY">
   <meta name="release-channel" content="MASTER">
 </head>
 <body class="bg-watermark page-app">
@@ -1199,7 +1199,7 @@
 </section>
 
 <section class="panel" id="statistics">
-<!-- Statistics panel is rendered by app.js?v=M50.9.9GB225_CUSTOMEROPEN_INLINEFIRST_20260406_ROOTONLY (renderStatisticsPanel) -->
+<!-- Statistics panel is rendered by app.js?v=M50.9.9GB226_CUSTOMEROPEN_HARDFINAL_20260406_ROOTONLY (renderStatisticsPanel) -->
 </section>
 
 
@@ -1266,12 +1266,12 @@
 </footer>
 </div>
 <!-- Firebase (optional) + Config -->
-<script defer="defer" src="firebase-config.js?v=M50.9.9GB225_CUSTOMEROPEN_INLINEFIRST_20260406_ROOTONLY"></script>
+<script defer="defer" src="firebase-config.js?v=M50.9.9GB226_CUSTOMEROPEN_HARDFINAL_20260406_ROOTONLY"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
-<script defer="defer" src="app.js?v=M50.9.9GB225_CUSTOMEROPEN_INLINEFIRST_20260406_ROOTONLY"></script>
+<script defer="defer" src="app.js?v=M50.9.9GB226_CUSTOMEROPEN_HARDFINAL_20260406_ROOTONLY"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1290,7 +1290,7 @@
 </script>
 
 <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB225_CUSTOMEROPEN_INLINEFIRST_20260406_ROOTONLY', { updateViaCache: 'none' });
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB226_CUSTOMEROPEN_HARDFINAL_20260406_ROOTONLY', { updateViaCache: 'none' });
   </script>
 
 <script>
@@ -1392,7 +1392,7 @@
   <!-- Bottom logout button removed (duplicate of header logout; also overlaps editor on iPad) -->
 </div>
 <!-- test-badge removed (requested) -->
-  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB225_CUSTOMEROPEN_INLINEFIRST_20260406_ROOTONLY</div>
+  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB226_CUSTOMEROPEN_HARDFINAL_20260406_ROOTONLY</div>
 
 <script>
 (function visibleMailFallback(){
@@ -1955,7 +1955,7 @@
       }catch(_){ return false; }
     }
     function ds192Diag(msg, isError){
-      try{ window.__dsAppHtmlOpenRuntime = 'GB225-apphtml-customerinline-first'; }catch(_){ }
+      try{ window.__dsAppHtmlOpenRuntime = 'GB226-apphtml-customerhardopen'; }catch(_){ }
       try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb196 ' + String(msg||''), !!isError); }catch(_){ }
     }
     function ds192Err(msg, isError){
@@ -2711,6 +2711,12 @@
     }
     function ds224ResolveCustomer(full, payload){
       try{
+        if(typeof window.dsResolveProposalReviewTargets === 'function'){
+          var t0 = window.dsResolveProposalReviewTargets(full || {}) || {};
+          if(t0 && t0.customer) return t0.customer;
+        }
+      }catch(_){ }
+      try{
         var st = window.state || {};
         var customers = ds224List(st.customers);
         var cp = (payload && payload.customer && typeof payload.customer === 'object') ? payload.customer : {};
@@ -2728,6 +2734,12 @@
       return null;
     }
     function ds224ResolvePet(full, payload, customer){
+      try{
+        if(typeof window.dsResolveProposalReviewTargets === 'function'){
+          var t0 = window.dsResolveProposalReviewTargets(full || {}) || {};
+          if(t0 && t0.pet) return t0.pet;
+        }
+      }catch(_){ }
       try{
         var st = window.state || {};
         var pets = ds224List(st.pets && st.pets.length ? st.pets : st.dogs);
@@ -2766,15 +2778,19 @@
         var pp = (payload && payload.pet && typeof payload.pet === 'object') ? payload.pet : {};
         var customer = ds224ResolveCustomer(full, payload);
         var pet = ds224ResolvePet(full, payload, customer);
-        if(!customer || !pet){
+        var petId = ds224Norm((pet && (pet.id || pet.petId)) || (full && (full.__targetPetId || full.petId)) || (pp && (pp.id || pp.petId)) || '');
+        if(!customer || !pet || !petId){
           try{ if(typeof window.dsSetProposalOpenErrorLine === 'function') window.dsSetProposalOpenErrorLine('FEHLER inline-customer -> Kunde/Hund nicht eindeutig gefunden; cid=' + ds224Norm(full && (full.__targetCustomerId || full.customerId)) + '; pid=' + ds224Norm(full && (full.__targetPetId || full.petId)) + '; customer=' + (customer ? '1':'0') + '; pet=' + (pet ? '1':'0') + '.', true); }catch(_){ }
           return false;
         }
+        try{ full.__targetCustomerId = ds224Norm((customer && (customer.id || customer.customerId)) || full.__targetCustomerId || full.customerId || ''); }catch(_){ }
+        try{ full.__targetPetId = petId; }catch(_){ }
         try{ window.__dsInboxCurrentTask = full; }catch(_){ }
         try{ ds192HideInboxChrome(); }catch(_){ }
+        try{ if(typeof window.dsFinalizeProposalReviewEditor === 'function'){ return !!window.dsFinalizeProposalReviewEditor(full, customer, pet, petId, cp || {}, pp || {}, { silent:false, forceMainEditor:true }); } }catch(_){ }
         try{ if(typeof selectTab === 'function') selectTab('dogs'); else if(typeof showPanel === 'function') showPanel('dogs'); else if(typeof dsForceShowPanel === 'function') dsForceShowPanel('dogs'); }catch(_){ }
         try{ if(typeof renderDogs === 'function') renderDogs(); }catch(_){ }
-        try{ if(typeof openCpEditor === 'function') openCpEditor('edit', String(pet.id || pet.petId || '')); }catch(_){ }
+        try{ if(typeof openCpEditor === 'function') openCpEditor('edit', petId); }catch(_){ }
         setTimeout(function(){
           try{ var editor = document.getElementById('cpEditor'); if(editor) editor.style.display = 'block'; }catch(_){ }
           try{ var title = document.getElementById('cpEditorTitle'); if(title) title.textContent = 'Kunde & Hund prüfen'; }catch(_){ }
@@ -2843,14 +2859,14 @@
         }
         if(kind === 'customer'){
           try{
-            if(ds224OpenCustomerInline(full)){
-              try{ ds192Diag('customer-open via=apphtml-inline proposal=' + String((full && (full.proposalId || full.id || full.taskId)) || '--'), false); }catch(_){ }
+            if(typeof window.dsLaunchProposalInCustomerEditor === 'function' && window.dsLaunchProposalInCustomerEditor(full)){
+              try{ ds192Diag('customer-open via=appjs-review proposal=' + String((full && (full.proposalId || full.id || full.taskId)) || '--'), false); }catch(_){ }
               return true;
             }
           }catch(_){ }
           try{
-            if(typeof window.dsLaunchProposalInCustomerEditor === 'function' && window.dsLaunchProposalInCustomerEditor(full)){
-              try{ ds192Diag('customer-open via=appjs-review proposal=' + String((full && (full.proposalId || full.id || full.taskId)) || '--'), false); }catch(_){ }
+            if(ds224OpenCustomerInline(full)){
+              try{ ds192Diag('customer-open via=apphtml-inline proposal=' + String((full && (full.proposalId || full.id || full.taskId)) || '--'), false); }catch(_){ }
               return true;
             }
           }catch(_){ }
@@ -2863,7 +2879,7 @@
       }).catch(function(err){ ds192Err('FEHLER inline-open-error -> ' + String((err && err.message) || err || 'unknown'), true); });
       return true;
     }
-    try{ window.__dsAppHtmlOpenRuntime = 'GB225-apphtml-customerinline-first'; }catch(_){ }
+    try{ window.__dsAppHtmlOpenRuntime = 'GB226-apphtml-customerhardopen'; }catch(_){ }
     try{ if(typeof window.ds166RememberInboxRow !== 'function'){ window.ds166RememberInboxRow = function(row){ try{ var key = ('row|' + String((row && (row.proposalId || row.id || row.taskId || row.__sourceKey || '')) || '') + '|' + String((row && (row.title || row.templateId || row.formKey || '')) || '') + '|' + String((row && (row.submittedAt || row.createdAt || '')) || '')).toLowerCase(); window.__dsInboxRowMap = window.__dsInboxRowMap || {}; window.__dsInboxRowMap[key]=row; return key; }catch(_){ return ''; } }; } }catch(_){ }
     try{ window.__dsOpenInboxProposalSnapshot = ds192OpenSnapshotEntry; }catch(_){ }
     try{ window.dsOpenStayProposalEditor = function(row){ return ds192OpenSnapshotEntry(row, 'stay'); }; }catch(_){ }
@@ -3755,7 +3771,7 @@
 
 <script>
 (function(){
-  const CURRENT_BUILD = 'M50.9.9GB225_CUSTOMEROPEN_INLINEFIRST_20260406_ROOTONLY';
+  const CURRENT_BUILD = 'M50.9.9GB226_CUSTOMEROPEN_HARDFINAL_20260406_ROOTONLY';
   try{
     window.addEventListener('load', function(){
       try{
