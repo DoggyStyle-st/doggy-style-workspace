@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB217_CONTRACTSYNC_SESSIONHINT_20260406_ROOTONLY",
+  tag: "M50.9.9GB218_CONTRACTSYNC_VISUALS_20260406_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB217_CONTRACTSYNC_SESSIONHINT_20260406_ROOTONLY";
+const APP_BUILD = "M50.9.9GB218_CONTRACTSYNC_VISUALS_20260406_ROOTONLY";
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
 function dsSyncDiagStateSummary(){
@@ -905,7 +905,7 @@ function installSyncDotHardGuard(){
       try{
         const text = String(document.getElementById('syncStatus')?.textContent || '');
         const details = String(document.getElementById('syncDetails')?.textContent || '');
-        const online = /erfolgreich/i.test(text) || /Cloud:\s*erfolgreich/i.test(details);
+        const online = /erfolgreich/i.test(text) || /^\s*online\b/i.test(text) || /Cloud:\s*erfolgreich/i.test(details) || /Cloud:\s*aktiv/i.test(details);
         forceSyncDotState(online);
       }catch(_){ }
     };
@@ -1082,7 +1082,7 @@ function updateSyncUI(){
   if(pill) pill.textContent = `${pillText} · ${fmtDT(SYNC.localSavedAt)}`;
   const dot=document.getElementById('syncDot');
   if(dot){
-    const dotOnline = !!(cloudSeemsHealthy || recentCloudOk || hasSessionHint || (hasAuth && !SYNC.cloudLastError && !SYNC.cloudPending) || /erfolgreich/i.test(String(document.getElementById('syncStatus')?.textContent||'')) || /Cloud:\s*erfolgreich/i.test(String(details?.textContent||'')));
+    const dotOnline = !!(cloudSeemsHealthy || recentCloudOk || hasSessionHint || (hasAuth && !SYNC.cloudLastError && !SYNC.cloudPending) || /erfolgreich/i.test(String(document.getElementById('syncStatus')?.textContent||'')) || /^\s*online\b/i.test(String(document.getElementById('syncStatus')?.textContent||'')) || /Cloud:\s*erfolgreich/i.test(String(details?.textContent||'')) || /Cloud:\s*aktiv/i.test(String(details?.textContent||'')));
     dot.classList.toggle('online', dotOnline);
     dot.classList.toggle('offline', !dotOnline);
     try{ forceSyncDotState(dotOnline); }catch(_){ }
@@ -17273,12 +17273,28 @@ function renderContractPanel(){
   }
   function updateSignedInfo(){
     ensureSigStore();
+    ensureContractStore();
     const {customerId, petId} = getSelectedIds();
     if (!customerId || !petId){
+      try{ if(accept) accept.checked = false; }catch(_){ }
+      try{ if(canvas){ const ctx = canvas.getContext('2d'); if(ctx) ctx.clearRect(0,0,canvas.width,canvas.height); } }catch(_){ }
       setInfo("⚠ Bitte zuerst Kunde und Hund wählen.", 'muted');
       return;
     }
     const rec = state.contractSignatures[sigKey(customerId, petId)];
+    const agr = state.contractAgreements[agreementKey(customerId, petId)] || null;
+    try{ if(accept) accept.checked = !!(agr && agr.accepted); }catch(_){ }
+    try{
+      if(canvas){
+        const ctx = canvas.getContext('2d');
+        if(ctx) ctx.clearRect(0,0,canvas.width,canvas.height);
+        if(rec && rec.dataUrl){
+          const img = new Image();
+          img.onload = ()=>{ try{ const c2 = canvas.getContext('2d'); if(c2){ c2.clearRect(0,0,canvas.width,canvas.height); c2.drawImage(img,0,0,canvas.width,canvas.height); } }catch(_){ } };
+          img.src = rec.dataUrl;
+        }
+      }
+    }catch(_){ }
     if (rec && rec.dataUrl){
       const ts = rec.signedAt ? new Date(rec.signedAt) : null;
       const when = ts ? ` · ${ts.toLocaleString()}` : "";
@@ -21990,7 +22006,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB217_CONTRACTSYNC_SESSIONHINT_20260406_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB218_CONTRACTSYNC_VISUALS_20260406_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -23963,7 +23979,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB217_CONTRACTSYNC_SESSIONHINT_20260406_ROOTONLY";
+  const BUILD = "M50.9.9GB218_CONTRACTSYNC_VISUALS_20260406_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];

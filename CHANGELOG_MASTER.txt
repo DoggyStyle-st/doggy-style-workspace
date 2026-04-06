@@ -115,3 +115,7 @@ GB211 · Cloud/Online-Status stabilisiert: effektiver Online-Status nutzt erfolg
 GB216 = Contract Sync Soft-Online Heuristic (Betreuungsvertrag hält Sync bei geladenen Vertragsdaten stabil).
 
 GB217 = Contract Sync Session-Hint Stabilisierung (Betreuungsvertrag nutzt geladene Vertragsdaten + lokale Session-Hinweise für stabilen Online/erfolgreich-Status).
+
+GB218 – Contract Sync Visuals
+- Sync-Dot im Betreuungsvertrag an Online/erfolgreich gekoppelt
+- Öffnen vorhandener Betreuungsverträge stellt Häkchen und Unterschrift robuster wieder her
