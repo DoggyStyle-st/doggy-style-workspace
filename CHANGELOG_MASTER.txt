@@ -121,3 +121,5 @@ GB218 – Contract Sync Visuals
 - Öffnen vorhandener Betreuungsverträge stellt Häkchen und Unterschrift robuster wieder her
 
 GB220: Statistik-Hundeauswahl nutzt wieder Hundename statt Pet-ID; robuste Auflösung für state.pets Array/Objekt.
+
+GB224: Kunde/Hund Vorschläge öffnen wieder direkt. App.html bekommt Inline-Fallback für customer-Proposals und der Öffnungs-Lock blockiert customer nicht mehr.
