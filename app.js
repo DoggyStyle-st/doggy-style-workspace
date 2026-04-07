@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB238_COMPLIANCE_SDBMULTIPAGEFIX_20260407_ROOTONLY",
+  tag: "M50.9.9GB239_COMPLIANCE_SDBMULTIPAGE_UPLOADFIX_20260407_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB238_COMPLIANCE_SDBMULTIPAGEFIX_20260407_ROOTONLY";
+const APP_BUILD = "M50.9.9GB239_COMPLIANCE_SDBMULTIPAGE_UPLOADFIX_20260407_ROOTONLY";
 try{ window.__dsAppJsRuntimeBuild = "GB232-appjs"; }catch(_){}
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -19329,27 +19329,67 @@ function openHazardEditor(haz){
     close();
   };
 }
+function _readFileAsDataUrl(file){
+  return new Promise((resolve, reject)=>{
+    try{
+      const reader = new FileReader();
+      reader.onload = ()=>resolve(reader.result);
+      reader.onerror = ()=>reject(reader.error || new Error('Datei konnte nicht gelesen werden.'));
+      reader.readAsDataURL(file);
+    }catch(err){
+      reject(err);
+    }
+  });
+}
 function openHazardUpload(haz){
   const input = document.createElement('input');
   input.type = 'file';
-  input.accept = 'application/pdf';
-  input.onchange = async ()=>{
-    const f = input.files && input.files[0];
-    if(!f) return;
-    if(f.size > 8*1024*1024){
-      alert("PDF ist zu groß (max 8MB). Bitte komprimieren.");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = ()=>{
-      haz.sds = { name: f.name, mime: f.type || 'application/pdf', dataUrl: reader.result };
+  input.accept = 'application/pdf,.pdf';
+  input.style.position = 'fixed';
+  input.style.left = '-9999px';
+  input.style.top = '-9999px';
+  input.style.opacity = '0';
+  input.value = '';
+  document.body.appendChild(input);
+
+  const cleanup = ()=>{
+    try{ input.value = ''; }catch(_){ }
+    try{ input.remove(); }catch(_){ }
+  };
+
+  input.addEventListener('change', async ()=>{
+    try{
+      const f = input.files && input.files[0];
+      if(!f){ cleanup(); return; }
+      if(f.size > 8*1024*1024){
+        alert('PDF ist zu groß (max 8MB). Bitte komprimieren.');
+        cleanup();
+        return;
+      }
+      const dataUrl = await _readFileAsDataUrl(f);
+      if(!String(dataUrl||'').startsWith('data:application/pdf')){
+        console.warn('SDB upload: MIME/type unexpected, speichere trotzdem als PDF.', f && f.type);
+      }
+      haz.sds = {
+        name: f.name,
+        mime: f.type || 'application/pdf',
+        size: Number(f.size || 0),
+        updatedAt: Date.now(),
+        dataUrl
+      };
       haz.updatedAt = Date.now();
       saveState();
       renderCompliancePanel();
-    };
-    reader.readAsDataURL(f);
-  };
-  input.click();
+      try{ toast('SDB hochgeladen.'); }catch(_){ }
+    }catch(err){
+      console.error('SDB upload failed', err);
+      alert('SDB konnte nicht hochgeladen werden: ' + (err && err.message ? err.message : err));
+    }finally{
+      cleanup();
+    }
+  }, { once:true });
+
+  try{ input.click(); }catch(err){ cleanup(); throw err; }
 }
 function _dataUrlToBlob(dataUrl){
   try{
@@ -19367,236 +19407,229 @@ function _dataUrlToBlob(dataUrl){
     return null;
   }
 }
+
 function _dataUrlToUint8Array(dataUrl){
   try{
-    const parts = String(dataUrl||"").split(',');
+    const parts = String(dataUrl||'').split(',');
     const b64 = parts[1] || '';
     const bin = atob(b64);
     const len = bin.length;
     const arr = new Uint8Array(len);
     for(let i=0;i<len;i++) arr[i] = bin.charCodeAt(i);
     return arr;
-  }catch(e){
-    console.warn("dataUrlToUint8Array failed", e);
+  }catch(err){
+    console.warn('dataUrlToUint8Array failed', err);
     return null;
   }
 }
-
-const PDFJS_DIST_VERSION = "5.6.205";
-const PDFJS_LIB_URL = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_DIST_VERSION}/legacy/build/pdf.mjs`;
-const PDFJS_WORKER_URL = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_DIST_VERSION}/legacy/build/pdf.worker.mjs`;
-let __pdfJsLibPromise = null;
-
-async function loadPdfJsLib(){
-  if(window.pdfjsLib?.getDocument){
-    try{ window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL; }catch(_){ }
-    return window.pdfjsLib;
-  }
-  if(__pdfJsLibPromise) return __pdfJsLibPromise;
-  __pdfJsLibPromise = import(PDFJS_LIB_URL).then((mod)=>{
-    const lib = mod?.default || mod;
-    if(!lib?.getDocument) throw new Error("PDF.js konnte nicht geladen werden.");
-    try{ lib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL; }catch(_){ }
-    window.pdfjsLib = lib;
-    return lib;
-  }).catch((err)=>{
-    __pdfJsLibPromise = null;
-    throw err;
+async function _loadPdfJsLib(){
+  if(window.pdfjsLib) return window.pdfjsLib;
+  if(window['pdfjs-dist/build/pdf']) return window['pdfjs-dist/build/pdf'];
+  await new Promise((resolve, reject)=>{
+    const existing = document.getElementById('pdfjsCdnScript');
+    if(existing){
+      existing.addEventListener('load', ()=>resolve(), { once:true });
+      existing.addEventListener('error', ()=>reject(new Error('PDF.js konnte nicht geladen werden.')), { once:true });
+      return;
+    }
+    const s = document.createElement('script');
+    s.id = 'pdfjsCdnScript';
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/pdf.min.js';
+    s.async = true;
+    s.onload = ()=>resolve();
+    s.onerror = ()=>reject(new Error('PDF.js konnte nicht geladen werden.'));
+    document.head.appendChild(s);
   });
-  return __pdfJsLibPromise;
+  return window.pdfjsLib || window['pdfjs-dist/build/pdf'] || null;
 }
-
-async function renderPdfIntoContainer(container, statusEl, dataUrl, renderToken){
-  if(!container) throw new Error("PDF-Container fehlt.");
+function _ensurePdfDocumentOverlay(){
+  let wrap = document.getElementById('pdfDocOverlay');
+  if(wrap) return wrap;
+  wrap = document.createElement('div');
+  wrap.id = 'pdfDocOverlay';
+  wrap.style.cssText = 'position:fixed;inset:0;z-index:12000;background:rgba(0,0,0,.65);display:none;';
+  wrap.innerHTML = `
+    <div style="position:absolute;inset:0;display:flex;flex-direction:column;">
+      <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 12px;background:rgba(20,20,22,.96);border-bottom:1px solid rgba(255,255,255,.10);">
+        <div id="pdfDocTitle" style="font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">PDF</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+          <button class="btn" id="pdfDocPrint">Drucken</button>
+          <button class="btn" id="pdfDocDownload">Download</button>
+          <button class="btn" id="pdfDocDelete" style="display:none">Löschen</button>
+          <button class="btn" id="pdfDocClose">Schließen</button>
+        </div>
+      </div>
+      <div id="pdfDocStatus" class="muted" style="padding:10px 12px;background:rgba(20,20,22,.96);border-bottom:1px solid rgba(255,255,255,.08);"></div>
+      <div id="pdfDocBody" style="flex:1;min-height:0;background:#111;overflow:auto;-webkit-overflow-scrolling:touch;">
+        <div id="pdfDocPages" style="padding:18px 12px 28px;display:flex;flex-direction:column;align-items:center;gap:18px;"></div>
+        <iframe id="pdfDocFrame" style="display:none;border:0;width:100%;height:100%;" allow="fullscreen"></iframe>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(wrap);
+  return wrap;
+}
+function _setPdfOverlayStatus(wrap, msg, isError){
+  const el = wrap?.querySelector('#pdfDocStatus');
+  if(!el) return;
+  el.textContent = msg || '';
+  el.style.color = isError ? '#ffb4b4' : '';
+}
+function _fitPdfPageWidth(pageWrap){
+  const body = pageWrap?.closest('#pdfDocBody');
+  if(!body) return 900;
+  return Math.max(320, Math.min(1100, body.clientWidth - 32));
+}
+async function _renderPdfIntoOverlay(wrap, dataUrl, blobUrl){
+  const pagesHost = wrap.querySelector('#pdfDocPages');
+  const frame = wrap.querySelector('#pdfDocFrame');
+  pagesHost.innerHTML = '';
+  frame.style.display = 'none';
+  frame.src = 'about:blank';
   const bytes = _dataUrlToUint8Array(dataUrl);
-  if(!bytes?.length) throw new Error("PDF-Daten konnten nicht gelesen werden.");
-
-  statusEl && (statusEl.textContent = "PDF wird vorbereitet …");
-  const pdfjsLib = await loadPdfJsLib();
-  const task = pdfjsLib.getDocument({
-    data: bytes,
-    useSystemFonts: true,
-    stopAtErrors: false,
-    isEvalSupported: false,
-  });
-  const pdf = await task.promise;
-  if(renderToken.cancelled) return;
-
-  container.innerHTML = "";
-  const total = pdf.numPages || 0;
-  const viewportWidth = Math.max(320, container.clientWidth || 820);
-  const outputScale = Math.min(window.devicePixelRatio || 1, 1.5);
-
-  for(let pageNo = 1; pageNo <= total; pageNo++){
-    if(renderToken.cancelled) return;
-    statusEl && (statusEl.textContent = `Seite ${pageNo} / ${total} wird geladen …`);
-
+  if(!bytes) throw new Error('PDF-Daten sind ungültig.');
+  const pdfjsLib = await _loadPdfJsLib();
+  if(!pdfjsLib || typeof pdfjsLib.getDocument !== 'function'){
+    throw new Error('PDF.js ist nicht verfügbar.');
+  }
+  try{ if('disableWorker' in pdfjsLib) pdfjsLib.disableWorker = true; }catch(_){ }
+  const loadingTask = pdfjsLib.getDocument({ data: bytes, disableWorker: true });
+  const pdf = await loadingTask.promise;
+  const token = String(Date.now()) + '_' + Math.random().toString(36).slice(2);
+  wrap.dataset.renderToken = token;
+  const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+  for(let pageNo=1; pageNo<=pdf.numPages; pageNo++){
+    if(wrap.dataset.renderToken !== token) return;
+    _setPdfOverlayStatus(wrap, `Lade Seite ${pageNo} von ${pdf.numPages} …`, false);
     const page = await pdf.getPage(pageNo);
-    if(renderToken.cancelled) return;
+    const baseViewport = page.getViewport({ scale:1 });
+    const maxCssWidth = _fitPdfPageWidth(pagesHost);
+    const cssScale = Math.max(0.55, Math.min(2.25, maxCssWidth / baseViewport.width));
+    const renderScale = cssScale * dpr;
+    const viewport = page.getViewport({ scale: renderScale });
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d', { alpha:false });
+    canvas.width = Math.max(1, Math.floor(viewport.width));
+    canvas.height = Math.max(1, Math.floor(viewport.height));
+    canvas.style.width = Math.max(1, Math.floor(viewport.width / dpr)) + 'px';
+    canvas.style.height = Math.max(1, Math.floor(viewport.height / dpr)) + 'px';
+    canvas.style.display = 'block';
+    canvas.style.background = '#fff';
+    canvas.style.borderRadius = '4px';
+    canvas.style.boxShadow = '0 8px 24px rgba(0,0,0,.28)';
 
-    const shell = document.createElement("div");
-    shell.style.cssText = "margin:0 auto 18px auto;padding:10px;background:#1b1b1d;border:1px solid rgba(255,255,255,.08);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.24);max-width:100%;";
-    const label = document.createElement("div");
-    label.style.cssText = "font-size:12px;opacity:.72;margin:0 0 8px 2px;";
-    label.textContent = `Seite ${pageNo} / ${total}`;
-    const canvas = document.createElement("canvas");
-    canvas.style.cssText = "display:block;width:100%;height:auto;background:#fff;border-radius:8px;";
-    shell.appendChild(label);
-    shell.appendChild(canvas);
-    container.appendChild(shell);
+    const pageWrap = document.createElement('div');
+    pageWrap.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:8px;width:100%;';
+    const label = document.createElement('div');
+    label.className = 'muted';
+    label.textContent = `Seite ${pageNo} von ${pdf.numPages}`;
+    pageWrap.appendChild(label);
+    pageWrap.appendChild(canvas);
+    pagesHost.appendChild(pageWrap);
 
-    const rawViewport = page.getViewport({ scale: 1 });
-    const availableWidth = Math.max(280, Math.min(viewportWidth - 20, 980));
-    const cssScale = Math.max(0.55, availableWidth / rawViewport.width);
-    const viewport = page.getViewport({ scale: cssScale });
-    const ctx = canvas.getContext("2d", { alpha:false });
-    canvas.width = Math.max(1, Math.floor(viewport.width * outputScale));
-    canvas.height = Math.max(1, Math.floor(viewport.height * outputScale));
-    canvas.style.width = `${Math.floor(viewport.width)}px`;
-    canvas.style.height = `${Math.floor(viewport.height)}px`;
-
-    await page.render({
-      canvasContext: ctx,
-      viewport,
-      transform: outputScale !== 1 ? [outputScale,0,0,outputScale,0,0] : null,
-    }).promise;
-
-    await new Promise((resolve)=>setTimeout(resolve, 0));
+    await page.render({ canvasContext: ctx, viewport }).promise;
   }
-
-  statusEl && (statusEl.textContent = total ? `${total} Seiten geladen.` : "PDF geladen.");
+  _setPdfOverlayStatus(wrap, `${pdf.numPages} Seiten geladen.`, false);
+  frame.style.display = 'none';
+  frame.src = 'about:blank';
 }
-
-function cleanupPdfDocumentOverlay(){
-  const wrap = document.getElementById("pdfDocOverlay");
-  if(!wrap) return;
-  try{ wrap._renderToken && (wrap._renderToken.cancelled = true); }catch(_){}
-  try{ if(wrap._blobUrl) URL.revokeObjectURL(wrap._blobUrl); }catch(_){}
-  wrap._blobUrl = null;
-  const frame = wrap.querySelector("#pdfDocFrame");
-  if(frame){
-    frame.src = "about:blank";
-    frame.style.display = "none";
-    frame.style.height = "100%";
-  }
-  const pages = wrap.querySelector("#pdfDocPages");
-  if(pages) pages.innerHTML = "";
-  const status = wrap.querySelector("#pdfDocStatus");
-  if(status) status.textContent = "";
+function _showPdfIframeFallback(wrap, blobUrl, reason){
+  const pagesHost = wrap.querySelector('#pdfDocPages');
+  const frame = wrap.querySelector('#pdfDocFrame');
+  pagesHost.innerHTML = '';
+  frame.style.display = 'block';
+  frame.src = blobUrl;
+  _setPdfOverlayStatus(wrap, reason || 'Mehrseiten-Ansicht konnte nicht geladen werden. Fallback auf Standard-PDF-Anzeige aktiv.', true);
 }
-
 function openPdfDocumentOverlay(opts){
-  // opts: {title, dataUrl, filename, onDelete}
-  const title = opts?.title || "PDF";
+  const title = opts?.title || 'PDF';
   const dataUrl = opts?.dataUrl;
   if(!dataUrl){
-    alert("Für dieses Dokument sind aktuell keine gespeicherten PDF-Daten vorhanden.");
+    alert('Für dieses Dokument sind aktuell keine gespeicherten PDF-Daten vorhanden.');
     return;
   }
 
-  let wrap = document.getElementById("pdfDocOverlay");
-  if(!wrap){
-    wrap = document.createElement("div");
-    wrap.id = "pdfDocOverlay";
-    wrap.style.cssText = "position:fixed;inset:0;z-index:12000;background:rgba(0,0,0,.65);display:none;";
-    wrap.innerHTML = `
-      <div style="position:absolute;inset:0;display:flex;flex-direction:column;">
-        <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 12px;background:rgba(20,20,22,.96);border-bottom:1px solid rgba(255,255,255,.10);">
-          <div id="pdfDocTitle" style="font-weight:700">PDF</div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
-            <button class="btn" id="pdfDocPrint">Drucken</button>
-            <button class="btn" id="pdfDocDownload">Download</button>
-            <button class="btn" id="pdfDocDelete" style="display:none">Löschen</button>
-            <button class="btn" id="pdfDocClose">Schließen</button>
-          </div>
-        </div>
-        <div style="flex:1;min-height:0;background:#111;display:flex;flex-direction:column;">
-          <div id="pdfDocStatus" style="padding:10px 14px;font-size:13px;opacity:.82;background:rgba(255,255,255,.04);border-bottom:1px solid rgba(255,255,255,.06);"></div>
-          <div id="pdfDocScroll" style="flex:1;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch;padding:14px;">
-            <div id="pdfDocPages" style="display:block;max-width:1020px;margin:0 auto;"></div>
-            <iframe id="pdfDocFrame" style="display:none;border:0;width:100%;height:100%;background:#fff;" allow="fullscreen"></iframe>
-          </div>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(wrap);
+  const wrap = _ensurePdfDocumentOverlay();
+  const titleEl = wrap.querySelector('#pdfDocTitle');
+  const btnClose = wrap.querySelector('#pdfDocClose');
+  const btnPrint = wrap.querySelector('#pdfDocPrint');
+  const btnDl = wrap.querySelector('#pdfDocDownload');
+  const btnDel = wrap.querySelector('#pdfDocDelete');
+  const frame = wrap.querySelector('#pdfDocFrame');
+
+  const prevUrl = wrap.dataset.blobUrl;
+  if(prevUrl){
+    try{ URL.revokeObjectURL(prevUrl); }catch(_){ }
+    wrap.dataset.blobUrl = '';
   }
-
-  cleanupPdfDocumentOverlay();
-
-  const titleEl = wrap.querySelector("#pdfDocTitle");
-  const statusEl = wrap.querySelector("#pdfDocStatus");
-  const pagesEl = wrap.querySelector("#pdfDocPages");
-  const frame = wrap.querySelector("#pdfDocFrame");
-  const btnClose = wrap.querySelector("#pdfDocClose");
-  const btnPrint = wrap.querySelector("#pdfDocPrint");
-  const btnDl = wrap.querySelector("#pdfDocDownload");
-  const btnDel = wrap.querySelector("#pdfDocDelete");
 
   const blob = _dataUrlToBlob(dataUrl);
-  if(!blob){ alert("PDF konnte nicht geöffnet werden."); return; }
+  if(!blob){ alert('PDF konnte nicht geöffnet werden.'); return; }
   const blobUrl = URL.createObjectURL(blob);
-  wrap._blobUrl = blobUrl;
-  wrap._renderToken = { cancelled:false };
+  wrap.dataset.blobUrl = blobUrl;
+  wrap.dataset.renderToken = String(Date.now()) + '_init';
 
-  if(titleEl) titleEl.textContent = title;
-  wrap.style.display = "block";
-  document.body.style.overflow = "hidden";
-  statusEl && (statusEl.textContent = "PDF wird geöffnet …");
-  pagesEl && (pagesEl.innerHTML = "");
-  if(frame){
-    frame.style.display = "none";
-    frame.style.height = "100%";
-    frame.src = blobUrl;
-  }
+  titleEl.textContent = title;
+  wrap.style.display = 'block';
+  document.body.style.overflow = 'hidden';
+  _setPdfOverlayStatus(wrap, 'PDF wird geladen …', false);
+  wrap.querySelector('#pdfDocPages').innerHTML = '';
+  frame.style.display = 'none';
+  frame.src = 'about:blank';
 
-  btnClose.onclick = ()=>{
-    cleanupPdfDocumentOverlay();
-    wrap.style.display="none";
-    document.body.style.overflow="";
+  const closeOverlay = ()=>{
+    wrap.dataset.renderToken = 'closed';
+    const oldUrl = wrap.dataset.blobUrl;
+    if(oldUrl){
+      try{ URL.revokeObjectURL(oldUrl); }catch(_){ }
+      wrap.dataset.blobUrl = '';
+    }
+    frame.src = 'about:blank';
+    wrap.style.display = 'none';
+    document.body.style.overflow = '';
   };
 
+  btnClose.onclick = closeOverlay;
   btnDl.onclick = ()=>{
-    const a = document.createElement("a");
+    const a = document.createElement('a');
     a.href = blobUrl;
-    a.download = (opts?.filename || "dokument.pdf");
+    a.download = (opts?.filename || 'dokument.pdf');
     document.body.appendChild(a);
     a.click();
     a.remove();
   };
-
   btnPrint.onclick = ()=>{
     try{
+      const w = window.open(blobUrl, '_blank');
+      if(w) return;
+    }catch(_){ }
+    try{
+      frame.style.display = 'block';
+      frame.src = blobUrl;
       frame.contentWindow?.focus();
       frame.contentWindow?.print();
-    }catch(e){
-      try{ window.open(blobUrl, "_blank"); }catch(_){ }
-    }
+    }catch(_){ }
   };
 
-  if(typeof opts?.onDelete === "function"){
-    btnDel.style.display="";
+  if(typeof opts?.onDelete === 'function'){
+    btnDel.style.display = '';
     btnDel.onclick = ()=>{
-      if(confirm("PDF wirklich löschen?")){
+      if(confirm('PDF wirklich löschen?')){
         opts.onDelete();
-        btnClose.click();
+        closeOverlay();
       }
     };
   }else{
-    btnDel.style.display="none";
+    btnDel.style.display = 'none';
+    btnDel.onclick = null;
   }
 
-  renderPdfIntoContainer(pagesEl, statusEl, dataUrl, wrap._renderToken).catch((err)=>{
-    console.warn("PDF.js viewer failed, fallback to native viewer", err);
-    if(wrap._renderToken?.cancelled) return;
-    if(statusEl){
-      statusEl.textContent = "Mehrseiten-Ansicht konnte nicht geladen werden. Fallback auf Standard-PDF-Anzeige aktiv.";
-    }
-    if(frame){
-      frame.style.display = "block";
-      frame.style.height = "100%";
-    }
-  });
+  Promise.resolve()
+    .then(()=>_renderPdfIntoOverlay(wrap, dataUrl, blobUrl))
+    .catch(err=>{
+      console.error('PDF render failed', err);
+      _showPdfIframeFallback(wrap, blobUrl, 'Mehrseiten-Ansicht konnte nicht geladen werden. Fallback auf Standard-PDF-Anzeige aktiv.');
+    });
 }
 
 function openHazardView(haz){
@@ -22318,7 +22351,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB238_COMPLIANCE_SDBMULTIPAGEFIX_20260407_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB239_COMPLIANCE_SDBMULTIPAGE_UPLOADFIX_20260407_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -24291,7 +24324,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB238_COMPLIANCE_SDBMULTIPAGEFIX_20260407_ROOTONLY";
+  const BUILD = "M50.9.9GB239_COMPLIANCE_SDBMULTIPAGE_UPLOADFIX_20260407_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
