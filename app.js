@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB243_CUSTOMER_SCOPE_HANDOFFLOCK_20260407_ROOTONLY",
+  tag: "M50.9.9GB244_CUSTOMER_SCOPE_AUTHLOCK_20260407_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,8 +12,8 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB243_CUSTOMER_SCOPE_HANDOFFLOCK_20260407_ROOTONLY";
-try{ window.__dsAppJsRuntimeBuild = "GB243-appjs"; }catch(_){}
+const APP_BUILD = "M50.9.9GB244_CUSTOMER_SCOPE_AUTHLOCK_20260407_ROOTONLY";
+try{ window.__dsAppJsRuntimeBuild = "GB244-appjs"; }catch(_){}
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
 function dsSyncDiagStateSummary(){
@@ -2134,13 +2134,26 @@ function dsGetCustomerAuthProfile(){
     const prof = (CLOUD && (CLOUD.userProfile || CLOUD.profile)) || {};
     const handoffEmail = String(sessionStorage.getItem('ds_customer_auth_handoff_email') || '').trim().toLowerCase();
     const handoffUid = String(sessionStorage.getItem('ds_customer_auth_handoff_uid') || '').trim();
+    const handoffName = String(sessionStorage.getItem('ds_customer_auth_handoff_name') || '').trim();
     const activeCustomerMain = !!(typeof getCustomerMainModeLoose === 'function' ? getCustomerMainModeLoose() : '');
-    const email = String((authUser && authUser.email) || prof.email || (activeCustomerMain ? handoffEmail : '') || localStorage.getItem('ds_last_email') || localStorage.getItem('last_email') || '').trim().toLowerCase();
-    const uidVal = String((authUser && authUser.uid) || prof.uid || (activeCustomerMain ? handoffUid : '') || '').trim();
-    const displayName = String(prof.displayName || prof.name || prof.fullName || (authUser && authUser.displayName) || (email ? email.split('@')[0] : '') || '').trim();
+    const primaryEmail = activeCustomerMain
+      ? (handoffEmail || String((authUser && authUser.email) || prof.email || localStorage.getItem('ds_last_email') || localStorage.getItem('last_email') || '').trim().toLowerCase())
+      : String((authUser && authUser.email) || prof.email || localStorage.getItem('ds_last_email') || localStorage.getItem('last_email') || '').trim().toLowerCase();
+    const primaryUid = activeCustomerMain
+      ? (handoffUid || String((authUser && authUser.uid) || prof.uid || '').trim())
+      : String((authUser && authUser.uid) || prof.uid || '').trim();
+    const email = String(primaryEmail || '').trim().toLowerCase();
+    const uidVal = String(primaryUid || '').trim();
+    const displayName = String(
+      (activeCustomerMain ? (handoffName || (handoffEmail ? handoffEmail.split('@')[0] : '')) : '')
+      || prof.displayName || prof.name || prof.fullName
+      || (authUser && authUser.displayName)
+      || (email ? email.split('@')[0] : '')
+      || ''
+    ).trim();
     const phone = String(prof.phone || prof.tel || prof.mobile || '').trim();
-    return { user: authUser || null, email, uid: uidVal, displayName, phone, profile: prof || {} };
-  }catch(_){ return { user:null, email:'', uid:'', displayName:'', phone:'', profile:{} }; }
+    return { user: authUser || null, email, uid: uidVal, displayName, phone, profile: prof || {}, handoffEmail, handoffUid, handoffName, activeCustomerMain };
+  }catch(_){ return { user:null, email:'', uid:'', displayName:'', phone:'', profile:{}, handoffEmail:'', handoffUid:'', handoffName:'', activeCustomerMain:false }; }
 }
 function dsBuildCustomerShadow(existing){
   try{
@@ -2259,6 +2272,7 @@ async function dsSubmitCustomerPortalProposal(opts){
   const authUser = await cpWaitForFirebaseUser(10000);
   if(!authUser || !authUser.uid) throw new Error('Keine aktive Firebase-Anmeldung. Bitte Kunden-App kurz neu öffnen und erneut versuchen.');
   try{ window.CLOUD = window.CLOUD || {}; CLOUD.user = authUser; if(!CLOUD.orgId) CLOUD.orgId = dsResolveCloudOrgId(); }catch(_){ }
+  const scopeAuth = (typeof dsGetCustomerAuthProfile === 'function') ? dsGetCustomerAuthProfile() : { email:String(authUser.email||'').trim().toLowerCase(), uid:String(authUser.uid||'').trim(), displayName:String((authUser && authUser.displayName) || (authUser && authUser.email) || 'Kunde').trim() };
   const stamp = Date.now();
   const payloadSubmitted = opts.payloadSubmitted || {};
   const templateId = String(opts.templateId || '').trim() || 'customer_data';
@@ -2272,9 +2286,9 @@ async function dsSubmitCustomerPortalProposal(opts){
     submittedAt: stamp,
     createdAt: stamp,
     updatedAt: stamp,
-    customerUid: String(authUser.uid || ''),
-    customerEmail: String(authUser.email || '').trim().toLowerCase(),
-    customerName: String(opts.customerName || authUser.email || 'Kunde'),
+    customerUid: String(scopeAuth.uid || authUser.uid || ''),
+    customerEmail: String(scopeAuth.email || authUser.email || '').trim().toLowerCase(),
+    customerName: String(opts.customerName || scopeAuth.displayName || scopeAuth.email || authUser.email || 'Kunde'),
     customerId: String(opts.customerId || ''),
     dogId: String(opts.petId || opts.dogId || ''),
     petId: String(opts.petId || opts.dogId || ''),
@@ -15116,9 +15130,28 @@ function ds208EnsureDocsFromStays(){
 function renderDocs(){
   try{ ds208EnsureDocsFromStays(); }catch(_){ }
   try{ ds219RefreshStayTitles(); }catch(_){ }
-  const list=$("#docList");
+  const list=$("docList");
   list.innerHTML="";
-  const docs=(state.docs||[]).filter(d=>d.type!=="invoice").slice().sort((a,b)=> (b.updatedAt||"").localeCompare(a.updatedAt||""));
+  let docs=(state.docs||[]).filter(d=>d.type!=="invoice").slice();
+  try{
+    const scoped = (typeof dsGetScopedCustomerCollections === 'function') ? dsGetScopedCustomerCollections() : null;
+    if(scoped){
+      const scopedCustomerId = String((scoped.customerId || '')).trim();
+      const scopedPetIds = new Set((Array.isArray(scoped.pets) ? scoped.pets : []).map(function(p){ return String((p && (p.id || p.petId || p.dogId)) || '').trim(); }).filter(Boolean));
+      const scopedDogIds = new Set((Array.isArray(scoped.pets) ? scoped.pets : []).map(function(p){ return String((p && (p.dogId || p.id || p.petId)) || '').trim(); }).filter(Boolean));
+      docs = docs.filter(function(d){
+        if(!d || typeof d !== 'object') return false;
+        const rowCustomerId = String((d.customerId || (d.meta && (d.meta.customerId || d.meta.customer_id)) || '')).trim();
+        const rowPetId = String((d.petId || (d.meta && (d.meta.petId || d.meta.pet_id)) || '')).trim();
+        const rowDogId = String((d.dogId || (d.meta && (d.meta.dogId || d.meta.dog_id)) || '')).trim();
+        if(scopedCustomerId && rowCustomerId && rowCustomerId === scopedCustomerId) return true;
+        if(rowPetId && scopedPetIds.has(rowPetId)) return true;
+        if(rowDogId && scopedDogIds.has(rowDogId)) return true;
+        return false;
+      });
+    }
+  }catch(_){ }
+  docs.sort((a,b)=> (b.updatedAt||"").localeCompare(a.updatedAt||""));
   docs.forEach(d=>list.appendChild(docItem(d)));
   if(!docs.length) list.innerHTML=`<div class="muted">Noch keine Aufenthalte erstellt.</div>`;
   renderRecent();
@@ -15126,8 +15159,27 @@ function renderDocs(){
 function renderRecent(){
   try{ ds208EnsureDocsFromStays(); }catch(_){ }
   try{ ds219RefreshStayTitles(); }catch(_){ }
-  const list=$("#recentList");
-  const docs=(state.docs||[]).filter(d=>d.type!=="invoice").slice().sort((a,b)=> (b.updatedAt||"").localeCompare(a.updatedAt||"")).slice(0,3);
+  const list=$("recentList");
+  let docs=(state.docs||[]).filter(d=>d.type!=="invoice").slice();
+  try{
+    const scoped = (typeof dsGetScopedCustomerCollections === 'function') ? dsGetScopedCustomerCollections() : null;
+    if(scoped){
+      const scopedCustomerId = String((scoped.customerId || '')).trim();
+      const scopedPetIds = new Set((Array.isArray(scoped.pets) ? scoped.pets : []).map(function(p){ return String((p && (p.id || p.petId || p.dogId)) || '').trim(); }).filter(Boolean));
+      const scopedDogIds = new Set((Array.isArray(scoped.pets) ? scoped.pets : []).map(function(p){ return String((p && (p.dogId || p.id || p.petId)) || '').trim(); }).filter(Boolean));
+      docs = docs.filter(function(d){
+        if(!d || typeof d !== 'object') return false;
+        const rowCustomerId = String((d.customerId || (d.meta && (d.meta.customerId || d.meta.customer_id)) || '')).trim();
+        const rowPetId = String((d.petId || (d.meta && (d.meta.petId || d.meta.pet_id)) || '')).trim();
+        const rowDogId = String((d.dogId || (d.meta && (d.meta.dogId || d.meta.dog_id)) || '')).trim();
+        if(scopedCustomerId && rowCustomerId && rowCustomerId === scopedCustomerId) return true;
+        if(rowPetId && scopedPetIds.has(rowPetId)) return true;
+        if(rowDogId && scopedDogIds.has(rowDogId)) return true;
+        return false;
+      });
+    }
+  }catch(_){ }
+  docs = docs.sort((a,b)=> (b.updatedAt||"").localeCompare(a.updatedAt||"")).slice(0,3);
   list.innerHTML="";
   docs.forEach(d=>list.appendChild(docItem(d)));
   if(!docs.length) list.innerHTML=`<div class="muted">Noch keine Aufenthalte.</div>`;
@@ -16542,11 +16594,20 @@ async function startApp(){
       CLOUD.role = ROLES.STAFF;
     }
     try{
-      if(CLOUD.role !== ROLES.CUSTOMER){
+      const keepCustomerMainHandoff = (function(){
+        try{
+          const qs = new URLSearchParams((location && location.search) ? location.search : '');
+          const qMode = String(qs.get('customer_mode') || '').trim().toLowerCase();
+          const ssMode = String(sessionStorage.getItem('ds_customer_main_mode') || '').trim().toLowerCase();
+          return ['dogs','contract','stay'].includes(qMode) || ['dogs','contract','stay'].includes(ssMode);
+        }catch(_e){ return false; }
+      })();
+      if(CLOUD.role !== ROLES.CUSTOMER && !keepCustomerMainHandoff){
         sessionStorage.removeItem('ds_customer_main_mode');
         sessionStorage.removeItem('ds_customer_auth_handoff_ts');
         sessionStorage.removeItem('ds_customer_auth_handoff_uid');
         sessionStorage.removeItem('ds_customer_auth_handoff_email');
+        sessionStorage.removeItem('ds_customer_auth_handoff_name');
       }
     }catch(_){ }
     // Erzwungener Kundenmodus in Haupt-App via Query/Handoff
@@ -22691,7 +22752,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB243_CUSTOMER_SCOPE_HANDOFFLOCK_20260407_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB244_CUSTOMER_SCOPE_AUTHLOCK_20260407_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -24664,7 +24725,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB243_CUSTOMER_SCOPE_HANDOFFLOCK_20260407_ROOTONLY";
+  const BUILD = "M50.9.9GB244_CUSTOMER_SCOPE_AUTHLOCK_20260407_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -27330,7 +27391,7 @@ try{ window.__GB191_MARKER = 'active'; }catch(_){ }
     try{ ds166OpenRowByKey = window.ds166OpenRowByKey; }catch(_){ }
   }catch(_){ }
 })();
-try{ window.__dsAppJsRuntimeBuild = 'GB243-appjs'; }catch(_){}
+try{ window.__dsAppJsRuntimeBuild = 'GB244-appjs'; }catch(_){}
 /* ===== END GB194 ===== */
 
 
