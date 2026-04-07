@@ -1,3 +1,4 @@
+GB237: Compliance SDB-Upload auf iPad/Safari robust gemacht (PDF-Dateiauswahl als echtes DOM-Input, .pdf akzeptiert, Cleanup/Fallback verbessert).
 - M50.9.9GB234_CUSTOMERAPP_IMAGE_DISPLAYFIX_20260407_ROOTONLY
   - Kunden-App Themenbilder als breite Darstellungen mit sichtbarem Gesamtmotiv
   - Kein harter Beschnitt mehr in Start, Kunde/Hund, Betreuungsvertrag, Neuer Aufenthalt, Chat
