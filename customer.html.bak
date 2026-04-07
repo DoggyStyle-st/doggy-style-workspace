@@ -37,12 +37,11 @@
     .customer-home-meta{font-size:13px;color:#dcdcea}
     .customer-home-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px}
 
-    .customer-topic-visual{width:min(100%,760px);margin:18px auto 0;border-radius:28px;overflow:hidden;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);box-shadow:0 18px 36px rgba(0,0,0,.18)}
-    .customer-topic-visual img{display:block;width:100%;aspect-ratio:5/4;object-fit:cover;object-position:center}
-    .customer-topic-visual.is-centered{margin-left:auto;margin-right:auto}
-    .customer-topic-visual.is-compact,.customer-topic-visual.is-wide,.customer-topic-visual.is-feature{max-width:760px}
-    .customer-contract-static{display:grid;gap:14px}
-    .customer-contract-static p{margin:0;color:#ececf3}
+    .customer-topic-visual{margin-top:16px;border-radius:24px;overflow:hidden;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);box-shadow:0 18px 36px rgba(0,0,0,.18)}
+    .customer-topic-visual img{display:block;width:100%;height:auto}
+    .customer-topic-visual.is-centered{max-width:420px;margin-left:auto;margin-right:auto}
+    .customer-topic-visual.is-compact{max-width:360px}
+    .customer-topic-visual.is-wide{max-width:480px}
     .customer-chip-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
     .customer-chip{padding:8px 12px;border-radius:999px;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.12);font-size:13px;color:#f2f2f8}
     .customer-highlight{padding:16px 18px;border-radius:20px;background:rgba(245,182,46,.14);border:1px solid rgba(245,182,46,.28);margin-top:18px}
@@ -100,7 +99,6 @@
       .customer-field-grid{grid-template-columns:1fr}
       .customer-home-grid{grid-template-columns:1fr}
       .customer-mainlike .mainlike-grid2, .customer-mainlike .mainlike-kv{grid-template-columns:1fr}
-      .customer-topic-visual img{aspect-ratio:4/5}
     }
 
     /* FK fixes */
@@ -130,7 +128,7 @@
         <img src="assets/logo.png" alt="Doggy Style Hundepension"/>
         <div class="customer-quote handwriting quote-strong">Dein Schatz ist bei uns in guten Pfoten –<br/>mit Herz, Ruhe und ganz viel Fürsorge.</div>
         <p class="customer-sub">Willkommen in deiner Kunden App. Hier kannst du deine Daten prüfen, Aufgaben direkt öffnen, einen neuen Aufenthalt anfragen und mit uns chatten.</p>
-        <div class="customer-topic-visual is-centered is-feature"><img src="assets/customer_start_light.jpg" loading="lazy" alt="Startbild Kunden App"/></div>
+        <div class="customer-topic-visual is-centered is-compact"><img src="assets/customer_start_light.jpg" loading="lazy" alt="Startbild Kunden App"/></div>
       </div>
       <div class="customer-highlight" id="customerHomeWelcome">Dein persönlicher Bereich wird geladen …</div>
       <div class="customer-chip-row" id="customerHomeChips"></div>
@@ -147,7 +145,7 @@
       <div class="mainlike-shell">
         <div class="card">
           <div class="customer-section-note">Hier öffnest du deine Kunden- und Hundedaten im echten Haupt-App-Editor.</div>
-          <div class="customer-topic-visual is-centered is-feature"><img src="assets/customer_dogs_dark.jpg" loading="lazy" alt="Bild Kunde und Hund"/></div>
+          <div class="customer-topic-visual is-centered is-compact"><img src="assets/customer_dogs_dark.jpg" loading="lazy" alt="Bild Kunde und Hund"/></div>
         </div>
         <div id="dogsEditorHost"></div>
       </div>
@@ -161,11 +159,8 @@
         </div>
       </div>
       <div class="mainlike-shell">
-        <div class="card customer-contract-static">
-          <p>Hier öffnest du deinen Betreuungsvertrag im echten Haupt-App-Editor, prüfst die Angaben und ergänzt dort deine Bestätigung und Unterschrift.</p>
-          <div class="customer-topic-visual is-centered is-feature"><img src="assets/customer_contract_light.jpg" loading="lazy" alt="Bild Betreuungsvertrag"/></div>
-        </div>
-        <div class="customer-hidden" aria-hidden="true">
+        <div class="card">
+          <div class="customer-topic-visual is-centered is-wide"><img src="assets/customer_contract_light.jpg" loading="lazy" alt="Bild Betreuungsvertrag"/></div>
           <div id="contractStatusBanner" class="muted" style="margin:12px 0 10px;"></div>
           <div class="contract-wrap">
             <div class="contract-doc">
@@ -210,7 +205,7 @@
         </div>
       </div>
       <div class="mainlike-shell">
-        <div class="card"><div class="customer-section-note">Hier öffnest du Aufenthalte im echten Haupt-App-Editor.</div><div class="customer-topic-visual is-centered is-feature"><img src="assets/customer_stay_dark.jpg" loading="lazy" alt="Bild Neuer Aufenthalt"/></div></div>
+        <div class="card"><div class="customer-section-note">Hier öffnest du Aufenthalte im echten Haupt-App-Editor.</div><div class="customer-topic-visual is-centered is-compact"><img src="assets/customer_stay_dark.jpg" loading="lazy" alt="Bild Neuer Aufenthalt"/></div></div>
         <div id="stayEditorHost"></div>
       </div>
     </section>
@@ -223,7 +218,7 @@
         </div>
         <button class="btn" id="btnCustomerChatRefresh" type="button">Aktualisieren</button>
       </div>
-      <div class="customer-topic-visual is-centered is-feature" style="margin-top:14px;"><img src="assets/customer_chat_light.jpg" loading="lazy" alt="Bild Chat"/></div>
+      <div class="customer-topic-visual is-centered is-compact" style="margin-top:14px;"><img src="assets/customer_chat_light.jpg" loading="lazy" alt="Bild Chat"/></div>
       <div id="customerChatRoot" style="margin-top:14px;"></div>
     </section>
 
