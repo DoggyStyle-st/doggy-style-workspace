@@ -1,7 +1,7 @@
 // DoggyStyle Workspace Service Worker
 // Clean, consistent cache strategy (network-first for HTML, cache-first for static)
 
-const BUILD_VERSION = "M50.9.9GB231_INVOICEPDF_DIAGHIDE_20260406_ROOTONLY";
+const BUILD_VERSION = "M50.9.9GB232_CUSTOMERAPP_THEMED_IMAGES_20260407_ROOTONLY";
 const CACHE_NAME = "doggystyle-" + BUILD_VERSION;
 
 // Keep this list conservative; do NOT include versioned query variants.
@@ -17,6 +17,12 @@ const STATIC_ASSETS = [
   "./manifest.json",
   "./login.html",
   "./login_override.css",
+  "./customer.html",
+  "./assets/customer_start_light.jpg",
+  "./assets/customer_dogs_dark.jpg",
+  "./assets/customer_contract_light.jpg",
+  "./assets/customer_stay_dark.jpg",
+  "./assets/customer_chat_light.jpg",
 ];
 
 self.addEventListener("install", (event) => {

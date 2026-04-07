@@ -1,3 +1,8 @@
+- M50.9.9GB232_CUSTOMERAPP_THEMED_IMAGES_20260407_ROOTONLY
+  - Kunden-App optisch aufgewertet: pro Bereich ein thematisch passendes Bild im Wechsel heller Hund / schwarzer Hund.
+  - Startseite zeigt nur noch das eigene Themenbild statt einer Bildsammlung.
+  - Keine Funktionsänderung an Kunden-App-Workflows; nur visuelle Ergänzung.
+
 GB212 · Aufenthalt-Öffnen rehydriert Hundename/petId/dogId/Unterschrift robuster; Aufenthalte↔docs Spiegelung ergänzt Signatur-/Pet-Normalisierung; Betreuungsvertrag-Aktualisieren baut Kunden-/Hundelisten robuster neu auf und setzt die Auswahl auf Listenmodus zurück.
 GB211 · Aufenthalt-Öffnen rehydriert Hund/Unterschrift robuster aus petId/signature-Feldern; Aufenthalte↔state.stays Spiegelung trägt dogId/petId/customerId/signature stabiler; Betreuungsvertrag-Aktualisieren lädt Kunden/Hunde neu und setzt Auswahl bei Bedarf zurück.
 GB202 – Inline Review-Save SyncDiag-Clear: Nach erfolgreichem Übernehmen im Prüfmodus wird ein alter/staler SyncDiag-Banner aktiv geleert und bei erfolgreicher Cloud-Sync nicht mehr stehen gelassen.
