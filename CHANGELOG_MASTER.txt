@@ -1,4 +1,6 @@
-- M50.9.9GB233_CUSTOMERAPP_IMAGE_LAYOUTFIX_20260407_ROOTONLY
+- M50.9.9GB234_CUSTOMERAPP_IMAGE_DISPLAYFIX_20260407_ROOTONLY
+  - Kunden-App Themenbilder als breite Darstellungen mit sichtbarem Gesamtmotiv
+  - Kein harter Beschnitt mehr in Start, Kunde/Hund, Betreuungsvertrag, Neuer Aufenthalt, Chat
   - Kunden-App optisch aufgewertet: pro Bereich ein thematisch passendes Bild im Wechsel heller Hund / schwarzer Hund.
   - Startseite zeigt nur noch das eigene Themenbild statt einer Bildsammlung.
   - Keine Funktionsänderung an Kunden-App-Workflows; nur visuelle Ergänzung.

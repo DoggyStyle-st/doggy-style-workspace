@@ -7,7 +7,7 @@
   <link href="manifest.json" rel="manifest"/>
   <meta name="theme-color" content="#101014"/>
   <link href="assets/logo.png" rel="apple-touch-icon"/>
-  <link href="styles.css?v=M50.9.9GB233_CUSTOMERAPP_IMAGE_LAYOUTFIX_20260407_ROOTONLY" rel="stylesheet"/>
+  <link href="styles.css?v=M50.9.9GB234_CUSTOMERAPP_IMAGE_DISPLAYFIX_20260407_ROOTONLY" rel="stylesheet"/>
   <style>
     body.bg-watermark{background:radial-gradient(circle at top, rgba(255,255,255,.08), transparent 35%), linear-gradient(180deg,#0e1017 0%, #121521 100%) !important}
     body.bg-watermark::before{opacity:.12 !important;filter:none !important}
@@ -37,10 +37,10 @@
     .customer-home-meta{font-size:13px;color:#dcdcea}
     .customer-home-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px}
 
-    .customer-topic-visual{width:min(100%,760px);margin:18px auto 0;border-radius:28px;overflow:hidden;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);box-shadow:0 18px 36px rgba(0,0,0,.18)}
-    .customer-topic-visual img{display:block;width:100%;aspect-ratio:5/4;object-fit:cover;object-position:center}
+    .customer-topic-visual{width:min(100%,920px);margin:18px auto 0;border-radius:28px;overflow:hidden;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);box-shadow:0 18px 36px rgba(0,0,0,.18)}
+    .customer-topic-visual img{display:block;width:100%;height:auto;max-height:min(62vh,680px);object-fit:contain;object-position:center;background:rgba(10,12,18,.28)}
     .customer-topic-visual.is-centered{margin-left:auto;margin-right:auto}
-    .customer-topic-visual.is-compact,.customer-topic-visual.is-wide,.customer-topic-visual.is-feature{max-width:760px}
+    .customer-topic-visual.is-compact,.customer-topic-visual.is-wide,.customer-topic-visual.is-feature{max-width:920px}
     .customer-contract-static{display:grid;gap:14px}
     .customer-contract-static p{margin:0;color:#ececf3}
     .customer-chip-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
@@ -100,7 +100,6 @@
       .customer-field-grid{grid-template-columns:1fr}
       .customer-home-grid{grid-template-columns:1fr}
       .customer-mainlike .mainlike-grid2, .customer-mainlike .mainlike-kv{grid-template-columns:1fr}
-      .customer-topic-visual img{aspect-ratio:4/5}
     }
 
     /* FK fixes */
@@ -130,7 +129,7 @@
         <img src="assets/logo.png" alt="Doggy Style Hundepension"/>
         <div class="customer-quote handwriting quote-strong">Dein Schatz ist bei uns in guten Pfoten –<br/>mit Herz, Ruhe und ganz viel Fürsorge.</div>
         <p class="customer-sub">Willkommen in deiner Kunden App. Hier kannst du deine Daten prüfen, Aufgaben direkt öffnen, einen neuen Aufenthalt anfragen und mit uns chatten.</p>
-        <div class="customer-topic-visual is-centered is-feature"><img src="assets/customer_start_light.jpg" loading="lazy" alt="Startbild Kunden App"/></div>
+        <div class="customer-topic-visual is-centered is-feature"><img src="assets/customer_start_light_wide.jpg" loading="lazy" alt="Startbild Kunden App"/></div>
       </div>
       <div class="customer-highlight" id="customerHomeWelcome">Dein persönlicher Bereich wird geladen …</div>
       <div class="customer-chip-row" id="customerHomeChips"></div>
@@ -147,7 +146,7 @@
       <div class="mainlike-shell">
         <div class="card">
           <div class="customer-section-note">Hier öffnest du deine Kunden- und Hundedaten im echten Haupt-App-Editor.</div>
-          <div class="customer-topic-visual is-centered is-feature"><img src="assets/customer_dogs_dark.jpg" loading="lazy" alt="Bild Kunde und Hund"/></div>
+          <div class="customer-topic-visual is-centered is-feature"><img src="assets/customer_dogs_dark_wide.jpg" loading="lazy" alt="Bild Kunde und Hund"/></div>
         </div>
         <div id="dogsEditorHost"></div>
       </div>
@@ -163,7 +162,7 @@
       <div class="mainlike-shell">
         <div class="card customer-contract-static">
           <p>Hier öffnest du deinen Betreuungsvertrag im echten Haupt-App-Editor, prüfst die Angaben und ergänzt dort deine Bestätigung und Unterschrift.</p>
-          <div class="customer-topic-visual is-centered is-feature"><img src="assets/customer_contract_light.jpg" loading="lazy" alt="Bild Betreuungsvertrag"/></div>
+          <div class="customer-topic-visual is-centered is-feature"><img src="assets/customer_contract_light_wide.jpg" loading="lazy" alt="Bild Betreuungsvertrag"/></div>
         </div>
         <div class="customer-hidden" aria-hidden="true">
           <div id="contractStatusBanner" class="muted" style="margin:12px 0 10px;"></div>
@@ -210,7 +209,7 @@
         </div>
       </div>
       <div class="mainlike-shell">
-        <div class="card"><div class="customer-section-note">Hier öffnest du Aufenthalte im echten Haupt-App-Editor.</div><div class="customer-topic-visual is-centered is-feature"><img src="assets/customer_stay_dark.jpg" loading="lazy" alt="Bild Neuer Aufenthalt"/></div></div>
+        <div class="card"><div class="customer-section-note">Hier öffnest du Aufenthalte im echten Haupt-App-Editor.</div><div class="customer-topic-visual is-centered is-feature"><img src="assets/customer_stay_dark_wide.jpg" loading="lazy" alt="Bild Neuer Aufenthalt"/></div></div>
         <div id="stayEditorHost"></div>
       </div>
     </section>
@@ -223,7 +222,7 @@
         </div>
         <button class="btn" id="btnCustomerChatRefresh" type="button">Aktualisieren</button>
       </div>
-      <div class="customer-topic-visual is-centered is-feature" style="margin-top:14px;"><img src="assets/customer_chat_light.jpg" loading="lazy" alt="Bild Chat"/></div>
+      <div class="customer-topic-visual is-centered is-feature" style="margin-top:14px;"><img src="assets/customer_chat_light_wide.jpg" loading="lazy" alt="Bild Chat"/></div>
       <div id="customerChatRoot" style="margin-top:14px;"></div>
     </section>
 
@@ -246,18 +245,18 @@
     <div class="customer-hidden" id="customerTaskListCard"></div>
     <div class="customer-hidden list" id="customerTaskList"></div>
     <div class="customer-hidden" id="customerPortalSubtitle"></div>
-    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9GB233_CUSTOMERAPP_IMAGE_LAYOUTFIX_20260407_ROOTONLY</div>
+    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9GB234_CUSTOMERAPP_IMAGE_DISPLAYFIX_20260407_ROOTONLY</div>
   </main>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
-  <script src="firebase-config.js?v=M50.9.9GB233_CUSTOMERAPP_IMAGE_LAYOUTFIX_20260407_ROOTONLY"></script>
-  <script src="app.js?v=M50.9.9GB233_CUSTOMERAPP_IMAGE_LAYOUTFIX_20260407_ROOTONLY"></script>
+  <script src="firebase-config.js?v=M50.9.9GB234_CUSTOMERAPP_IMAGE_DISPLAYFIX_20260407_ROOTONLY"></script>
+  <script src="app.js?v=M50.9.9GB234_CUSTOMERAPP_IMAGE_DISPLAYFIX_20260407_ROOTONLY"></script>
   <script>
     (function(){
-      const BUILD = 'Build CUSTOMER M50.9.9GB233_CUSTOMERAPP_IMAGE_LAYOUTFIX_20260407_ROOTONLY';
+      const BUILD = 'Build CUSTOMER M50.9.9GB234_CUSTOMERAPP_IMAGE_DISPLAYFIX_20260407_ROOTONLY';
       const DRAFT_KEY = 'ds_customer_app_drafts_v1';
       const viewNames = ['home','dogs','contract','stay','chat'];
       let currentView = 'home';
@@ -1105,7 +1104,7 @@ function renderStayRealForm(doc){
 
 <script>
 (function(){
-  const CURRENT_BUILD = 'M50.9.9GB233_CUSTOMERAPP_IMAGE_LAYOUTFIX_20260407_ROOTONLY';
+  const CURRENT_BUILD = 'M50.9.9GB234_CUSTOMERAPP_IMAGE_DISPLAYFIX_20260407_ROOTONLY';
   try{
     window.addEventListener('load', function(){
       try{
