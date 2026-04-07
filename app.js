@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB239_COMPLIANCE_SDBMULTIPAGE_UPLOADFIX_20260407_ROOTONLY",
+  tag: "M50.9.9GB240_COMPLIANCE_TRNMODAL_VISFIX_20260407_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB239_COMPLIANCE_SDBMULTIPAGE_UPLOADFIX_20260407_ROOTONLY";
+const APP_BUILD = "M50.9.9GB240_COMPLIANCE_TRNMODAL_VISFIX_20260407_ROOTONLY";
 try{ window.__dsAppJsRuntimeBuild = "GB232-appjs"; }catch(_){}
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -19769,9 +19769,9 @@ function openTrainingRun(trainingId){
   wrap.innerHTML = `
     <div style="position:fixed;inset:0;z-index:21474836479;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px">
       <div style="width:min(900px,100%);max-height:calc(100vh - 32px);overflow:auto;background:rgba(30,30,34,.98);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:14px">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
-          <strong>${escapeHtml(t.title)}</strong>
-          <button class="btn" id="trRunClose">✕</button>
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+          <strong class="trRunTitle">${escapeHtml(t.title)}</strong>
+          <button class="btn trRunClose" id="trRunClose" aria-label="Schließen">✕</button>
         </div>
         <div class="muted" style="margin-top:6px">${escapeHtml(t.legal||'')}</div>
 
@@ -22351,7 +22351,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB239_COMPLIANCE_SDBMULTIPAGE_UPLOADFIX_20260407_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB240_COMPLIANCE_TRNMODAL_VISFIX_20260407_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -24324,7 +24324,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB239_COMPLIANCE_SDBMULTIPAGE_UPLOADFIX_20260407_ROOTONLY";
+  const BUILD = "M50.9.9GB240_COMPLIANCE_TRNMODAL_VISFIX_20260407_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
