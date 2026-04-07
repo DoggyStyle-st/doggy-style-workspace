@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB237_COMPLIANCE_SDBUPLOADFIX_20260407_ROOTONLY",
+  tag: "M50.9.9GB238_COMPLIANCE_SDBMULTIPAGEFIX_20260407_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB237_COMPLIANCE_SDBUPLOADFIX_20260407_ROOTONLY";
+const APP_BUILD = "M50.9.9GB238_COMPLIANCE_SDBMULTIPAGEFIX_20260407_ROOTONLY";
 try{ window.__dsAppJsRuntimeBuild = "GB232-appjs"; }catch(_){}
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -19367,6 +19367,123 @@ function _dataUrlToBlob(dataUrl){
     return null;
   }
 }
+function _dataUrlToUint8Array(dataUrl){
+  try{
+    const parts = String(dataUrl||"").split(',');
+    const b64 = parts[1] || '';
+    const bin = atob(b64);
+    const len = bin.length;
+    const arr = new Uint8Array(len);
+    for(let i=0;i<len;i++) arr[i] = bin.charCodeAt(i);
+    return arr;
+  }catch(e){
+    console.warn("dataUrlToUint8Array failed", e);
+    return null;
+  }
+}
+
+const PDFJS_DIST_VERSION = "5.6.205";
+const PDFJS_LIB_URL = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_DIST_VERSION}/legacy/build/pdf.mjs`;
+const PDFJS_WORKER_URL = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_DIST_VERSION}/legacy/build/pdf.worker.mjs`;
+let __pdfJsLibPromise = null;
+
+async function loadPdfJsLib(){
+  if(window.pdfjsLib?.getDocument){
+    try{ window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL; }catch(_){ }
+    return window.pdfjsLib;
+  }
+  if(__pdfJsLibPromise) return __pdfJsLibPromise;
+  __pdfJsLibPromise = import(PDFJS_LIB_URL).then((mod)=>{
+    const lib = mod?.default || mod;
+    if(!lib?.getDocument) throw new Error("PDF.js konnte nicht geladen werden.");
+    try{ lib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL; }catch(_){ }
+    window.pdfjsLib = lib;
+    return lib;
+  }).catch((err)=>{
+    __pdfJsLibPromise = null;
+    throw err;
+  });
+  return __pdfJsLibPromise;
+}
+
+async function renderPdfIntoContainer(container, statusEl, dataUrl, renderToken){
+  if(!container) throw new Error("PDF-Container fehlt.");
+  const bytes = _dataUrlToUint8Array(dataUrl);
+  if(!bytes?.length) throw new Error("PDF-Daten konnten nicht gelesen werden.");
+
+  statusEl && (statusEl.textContent = "PDF wird vorbereitet …");
+  const pdfjsLib = await loadPdfJsLib();
+  const task = pdfjsLib.getDocument({
+    data: bytes,
+    useSystemFonts: true,
+    stopAtErrors: false,
+    isEvalSupported: false,
+  });
+  const pdf = await task.promise;
+  if(renderToken.cancelled) return;
+
+  container.innerHTML = "";
+  const total = pdf.numPages || 0;
+  const viewportWidth = Math.max(320, container.clientWidth || 820);
+  const outputScale = Math.min(window.devicePixelRatio || 1, 1.5);
+
+  for(let pageNo = 1; pageNo <= total; pageNo++){
+    if(renderToken.cancelled) return;
+    statusEl && (statusEl.textContent = `Seite ${pageNo} / ${total} wird geladen …`);
+
+    const page = await pdf.getPage(pageNo);
+    if(renderToken.cancelled) return;
+
+    const shell = document.createElement("div");
+    shell.style.cssText = "margin:0 auto 18px auto;padding:10px;background:#1b1b1d;border:1px solid rgba(255,255,255,.08);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.24);max-width:100%;";
+    const label = document.createElement("div");
+    label.style.cssText = "font-size:12px;opacity:.72;margin:0 0 8px 2px;";
+    label.textContent = `Seite ${pageNo} / ${total}`;
+    const canvas = document.createElement("canvas");
+    canvas.style.cssText = "display:block;width:100%;height:auto;background:#fff;border-radius:8px;";
+    shell.appendChild(label);
+    shell.appendChild(canvas);
+    container.appendChild(shell);
+
+    const rawViewport = page.getViewport({ scale: 1 });
+    const availableWidth = Math.max(280, Math.min(viewportWidth - 20, 980));
+    const cssScale = Math.max(0.55, availableWidth / rawViewport.width);
+    const viewport = page.getViewport({ scale: cssScale });
+    const ctx = canvas.getContext("2d", { alpha:false });
+    canvas.width = Math.max(1, Math.floor(viewport.width * outputScale));
+    canvas.height = Math.max(1, Math.floor(viewport.height * outputScale));
+    canvas.style.width = `${Math.floor(viewport.width)}px`;
+    canvas.style.height = `${Math.floor(viewport.height)}px`;
+
+    await page.render({
+      canvasContext: ctx,
+      viewport,
+      transform: outputScale !== 1 ? [outputScale,0,0,outputScale,0,0] : null,
+    }).promise;
+
+    await new Promise((resolve)=>setTimeout(resolve, 0));
+  }
+
+  statusEl && (statusEl.textContent = total ? `${total} Seiten geladen.` : "PDF geladen.");
+}
+
+function cleanupPdfDocumentOverlay(){
+  const wrap = document.getElementById("pdfDocOverlay");
+  if(!wrap) return;
+  try{ wrap._renderToken && (wrap._renderToken.cancelled = true); }catch(_){}
+  try{ if(wrap._blobUrl) URL.revokeObjectURL(wrap._blobUrl); }catch(_){}
+  wrap._blobUrl = null;
+  const frame = wrap.querySelector("#pdfDocFrame");
+  if(frame){
+    frame.src = "about:blank";
+    frame.style.display = "none";
+    frame.style.height = "100%";
+  }
+  const pages = wrap.querySelector("#pdfDocPages");
+  if(pages) pages.innerHTML = "";
+  const status = wrap.querySelector("#pdfDocStatus");
+  if(status) status.textContent = "";
+}
 
 function openPdfDocumentOverlay(opts){
   // opts: {title, dataUrl, filename, onDelete}
@@ -19377,7 +19494,6 @@ function openPdfDocumentOverlay(opts){
     return;
   }
 
-  // Create overlay once
   let wrap = document.getElementById("pdfDocOverlay");
   if(!wrap){
     wrap = document.createElement("div");
@@ -19386,7 +19502,7 @@ function openPdfDocumentOverlay(opts){
     wrap.innerHTML = `
       <div style="position:absolute;inset:0;display:flex;flex-direction:column;">
         <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 12px;background:rgba(20,20,22,.96);border-bottom:1px solid rgba(255,255,255,.10);">
-          <div style="font-weight:700">${escapeHtml(title)}</div>
+          <div id="pdfDocTitle" style="font-weight:700">PDF</div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
             <button class="btn" id="pdfDocPrint">Drucken</button>
             <button class="btn" id="pdfDocDownload">Download</button>
@@ -19394,34 +19510,48 @@ function openPdfDocumentOverlay(opts){
             <button class="btn" id="pdfDocClose">Schließen</button>
           </div>
         </div>
-        <div style="flex:1;min-height:0;background:#111;">
-          <iframe id="pdfDocFrame" style="border:0;width:100%;height:100%;" allow="fullscreen"></iframe>
+        <div style="flex:1;min-height:0;background:#111;display:flex;flex-direction:column;">
+          <div id="pdfDocStatus" style="padding:10px 14px;font-size:13px;opacity:.82;background:rgba(255,255,255,.04);border-bottom:1px solid rgba(255,255,255,.06);"></div>
+          <div id="pdfDocScroll" style="flex:1;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch;padding:14px;">
+            <div id="pdfDocPages" style="display:block;max-width:1020px;margin:0 auto;"></div>
+            <iframe id="pdfDocFrame" style="display:none;border:0;width:100%;height:100%;background:#fff;" allow="fullscreen"></iframe>
+          </div>
         </div>
       </div>
     `;
     document.body.appendChild(wrap);
   }
 
+  cleanupPdfDocumentOverlay();
+
+  const titleEl = wrap.querySelector("#pdfDocTitle");
+  const statusEl = wrap.querySelector("#pdfDocStatus");
+  const pagesEl = wrap.querySelector("#pdfDocPages");
   const frame = wrap.querySelector("#pdfDocFrame");
   const btnClose = wrap.querySelector("#pdfDocClose");
   const btnPrint = wrap.querySelector("#pdfDocPrint");
   const btnDl = wrap.querySelector("#pdfDocDownload");
   const btnDel = wrap.querySelector("#pdfDocDelete");
 
-  // Build Blob URL (multi-page safe)
   const blob = _dataUrlToBlob(dataUrl);
   if(!blob){ alert("PDF konnte nicht geöffnet werden."); return; }
   const blobUrl = URL.createObjectURL(blob);
+  wrap._blobUrl = blobUrl;
+  wrap._renderToken = { cancelled:false };
 
-  // Show
-  wrap.style.display="block";
-  document.body.style.overflow="hidden";
-  frame.src = blobUrl;
+  if(titleEl) titleEl.textContent = title;
+  wrap.style.display = "block";
+  document.body.style.overflow = "hidden";
+  statusEl && (statusEl.textContent = "PDF wird geöffnet …");
+  pagesEl && (pagesEl.innerHTML = "");
+  if(frame){
+    frame.style.display = "none";
+    frame.style.height = "100%";
+    frame.src = blobUrl;
+  }
 
-  // Buttons
   btnClose.onclick = ()=>{
-    try{ URL.revokeObjectURL(blobUrl); }catch(_){}
-    frame.src = "about:blank";
+    cleanupPdfDocumentOverlay();
     wrap.style.display="none";
     document.body.style.overflow="";
   };
@@ -19440,8 +19570,7 @@ function openPdfDocumentOverlay(opts){
       frame.contentWindow?.focus();
       frame.contentWindow?.print();
     }catch(e){
-      // Fallback: open in new tab (native print/share)
-      try{ window.open(blobUrl, "_blank"); }catch(_){}
+      try{ window.open(blobUrl, "_blank"); }catch(_){ }
     }
   };
 
@@ -19456,6 +19585,18 @@ function openPdfDocumentOverlay(opts){
   }else{
     btnDel.style.display="none";
   }
+
+  renderPdfIntoContainer(pagesEl, statusEl, dataUrl, wrap._renderToken).catch((err)=>{
+    console.warn("PDF.js viewer failed, fallback to native viewer", err);
+    if(wrap._renderToken?.cancelled) return;
+    if(statusEl){
+      statusEl.textContent = "Mehrseiten-Ansicht konnte nicht geladen werden. Fallback auf Standard-PDF-Anzeige aktiv.";
+    }
+    if(frame){
+      frame.style.display = "block";
+      frame.style.height = "100%";
+    }
+  });
 }
 
 function openHazardView(haz){
@@ -22177,7 +22318,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB237_COMPLIANCE_SDBUPLOADFIX_20260407_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB238_COMPLIANCE_SDBMULTIPAGEFIX_20260407_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -24150,7 +24291,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB237_COMPLIANCE_SDBUPLOADFIX_20260407_ROOTONLY";
+  const BUILD = "M50.9.9GB238_COMPLIANCE_SDBMULTIPAGEFIX_20260407_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
