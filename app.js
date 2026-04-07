@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB242_CUSTOMER_SCOPE_STRICTFIX_20260407_ROOTONLY",
+  tag: "M50.9.9GB243_CUSTOMER_SCOPE_HANDOFFLOCK_20260407_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,8 +12,8 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB242_CUSTOMER_SCOPE_STRICTFIX_20260407_ROOTONLY";
-try{ window.__dsAppJsRuntimeBuild = "GB242-appjs"; }catch(_){}
+const APP_BUILD = "M50.9.9GB243_CUSTOMER_SCOPE_HANDOFFLOCK_20260407_ROOTONLY";
+try{ window.__dsAppJsRuntimeBuild = "GB243-appjs"; }catch(_){}
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
 function dsSyncDiagStateSummary(){
@@ -2088,10 +2088,17 @@ function showStaffUI(){
 function getCustomerMainMode(){
   try{
     const p = (location && location.pathname) ? location.pathname.toLowerCase() : '';
+    if(!((p.endsWith('/app.html') || p.endsWith('app.html')))) return '';
     const qs = new URLSearchParams((location && location.search) ? location.search : '');
     const forced = String(qs.get('customer_mode') || '').trim().toLowerCase();
-    if(!((p.endsWith('/app.html') || p.endsWith('app.html')) && forced)) return '';
-    return ['dogs','contract','stay'].includes(forced) ? forced : '';
+    if(['dogs','contract','stay'].includes(forced)) return forced;
+    const bodyMode = String((document.body && document.body.dataset && document.body.dataset.customerMode) || '').trim().toLowerCase();
+    if(['dogs','contract','stay'].includes(bodyMode)) return bodyMode;
+    const ssMode = String((sessionStorage.getItem('ds_customer_main_mode') || window.__dsCustomerMainModeActive || '')).trim().toLowerCase();
+    const handoffUid = String(sessionStorage.getItem('ds_customer_auth_handoff_uid') || '').trim();
+    const handoffEmail = String(sessionStorage.getItem('ds_customer_auth_handoff_email') || '').trim().toLowerCase();
+    if((handoffUid || handoffEmail) && ['dogs','contract','stay'].includes(ssMode)) return ssMode;
+    return '';
   }catch(_){ return ''; }
 }
 function isCustomerMainMode(mode){
@@ -2125,8 +2132,11 @@ function dsGetCustomerAuthProfile(){
       || (window.firebase && firebase.auth ? firebase.auth().currentUser : null)
       || null;
     const prof = (CLOUD && (CLOUD.userProfile || CLOUD.profile)) || {};
-    const email = String((authUser && authUser.email) || prof.email || localStorage.getItem('ds_last_email') || localStorage.getItem('last_email') || '').trim().toLowerCase();
-    const uidVal = String((authUser && authUser.uid) || prof.uid || '').trim();
+    const handoffEmail = String(sessionStorage.getItem('ds_customer_auth_handoff_email') || '').trim().toLowerCase();
+    const handoffUid = String(sessionStorage.getItem('ds_customer_auth_handoff_uid') || '').trim();
+    const activeCustomerMain = !!(typeof getCustomerMainModeLoose === 'function' ? getCustomerMainModeLoose() : '');
+    const email = String((authUser && authUser.email) || prof.email || (activeCustomerMain ? handoffEmail : '') || localStorage.getItem('ds_last_email') || localStorage.getItem('last_email') || '').trim().toLowerCase();
+    const uidVal = String((authUser && authUser.uid) || prof.uid || (activeCustomerMain ? handoffUid : '') || '').trim();
     const displayName = String(prof.displayName || prof.name || prof.fullName || (authUser && authUser.displayName) || (email ? email.split('@')[0] : '') || '').trim();
     const phone = String(prof.phone || prof.tel || prof.mobile || '').trim();
     return { user: authUser || null, email, uid: uidVal, displayName, phone, profile: prof || {} };
@@ -9826,7 +9836,8 @@ function buildCanonicalCustomerList(){
 function refreshCustomerSelect(){
   const sel = document.getElementById("customerSelect");
   if(!sel) return;
-  const customers = buildCanonicalCustomerList();
+  const scoped = (typeof dsGetScopedCustomerCollections === 'function') ? dsGetScopedCustomerCollections() : null;
+  const customers = (scoped && Array.isArray(scoped.customers) && scoped.customers.length) ? scoped.customers : buildCanonicalCustomerList();
   if(!customers.length){
     sel.innerHTML = '<option value="">(Kunde wählen)</option>';
     return;
@@ -14376,7 +14387,7 @@ function renderDogs(){
   if(!list) return;
   list.innerHTML = "";
   let petsAll = (state.pets||[]).slice();
-  const __customerMainDogs = isCustomerMainDogsMode();
+  const __customerMainDogs = isCustomerMainModeLoose('dogs');
   const __customerCtx = __customerMainDogs ? getCustomerMainDogsContext() : null;
   try{
     const btnAddDog = document.getElementById('btnAddDog');
@@ -16530,8 +16541,17 @@ async function startApp(){
       console.warn('Role load failed, fallback to staff', e);
       CLOUD.role = ROLES.STAFF;
     }
-    // Erzwungener Kundenmodus in Haupt-App via Query-Parameter
-    if(isCustomerMainDogsMode()){
+    try{
+      if(CLOUD.role !== ROLES.CUSTOMER){
+        sessionStorage.removeItem('ds_customer_main_mode');
+        sessionStorage.removeItem('ds_customer_auth_handoff_ts');
+        sessionStorage.removeItem('ds_customer_auth_handoff_uid');
+        sessionStorage.removeItem('ds_customer_auth_handoff_email');
+      }
+    }catch(_){ }
+    // Erzwungener Kundenmodus in Haupt-App via Query/Handoff
+    const forcedCustomerMainMode = (typeof getCustomerMainModeLoose === 'function') ? getCustomerMainModeLoose() : '';
+    if(forcedCustomerMainMode){
       try{ initCustomerMainDogsMode(); }catch(e){ console.error(e); }
       return;
     }
@@ -17858,11 +17878,25 @@ function renderContractPanel(){
         });
       }
       const seen = new Set();
-      const clean = rows.filter(function(r){
+      let clean = rows.filter(function(r){
         const k = String(r.customerId||'') + '|' + String(r.petId||'') + '|' + String(r.version||'');
         if(!r.customerId || !r.petId || seen.has(k)) return false;
         seen.add(k); return true;
       }).sort(function(a,b){ return Number(b.savedAt||0) - Number(a.savedAt||0); });
+      try{
+        const scoped = (typeof dsGetScopedCustomerCollections === 'function') ? dsGetScopedCustomerCollections() : null;
+        if(scoped){
+          const scopedCustomerId = String(scoped.customerId || '').trim();
+          const scopedPetIds = new Set((Array.isArray(scoped.pets) ? scoped.pets : []).map(function(p){ return String((p && (p.id || p.petId || p.dogId)) || '').trim(); }).filter(Boolean));
+          clean = clean.filter(function(r){
+            const rowCustomerId = String(r.customerId || '').trim();
+            const rowPetId = String(r.petId || '').trim();
+            if(scopedCustomerId && rowCustomerId === scopedCustomerId) return true;
+            if(rowPetId && scopedPetIds.has(rowPetId)) return true;
+            return false;
+          });
+        }
+      }catch(_){ }
       let html = '<h3>Vorhandene Betreuungsverträge</h3>';
       if(!clean.length){
         html += '<div class="muted">Noch keine gespeicherten Betreuungsverträge.</div>';
@@ -22657,7 +22691,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB242_CUSTOMER_SCOPE_STRICTFIX_20260407_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB243_CUSTOMER_SCOPE_HANDOFFLOCK_20260407_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -24630,7 +24664,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB242_CUSTOMER_SCOPE_STRICTFIX_20260407_ROOTONLY";
+  const BUILD = "M50.9.9GB243_CUSTOMER_SCOPE_HANDOFFLOCK_20260407_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -27296,7 +27330,7 @@ try{ window.__GB191_MARKER = 'active'; }catch(_){ }
     try{ ds166OpenRowByKey = window.ds166OpenRowByKey; }catch(_){ }
   }catch(_){ }
 })();
-try{ window.__dsAppJsRuntimeBuild = 'GB242-appjs'; }catch(_){}
+try{ window.__dsAppJsRuntimeBuild = 'GB243-appjs'; }catch(_){}
 /* ===== END GB194 ===== */
 
 
