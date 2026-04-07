@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB244_CUSTOMER_SCOPE_AUTHLOCK_20260407_ROOTONLY",
+  tag: "M50.9.9GB245_CUSTOMER_SCOPE_EXPLICITHANDOFF_20260407_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB244_CUSTOMER_SCOPE_AUTHLOCK_20260407_ROOTONLY";
+const APP_BUILD = "M50.9.9GB245_CUSTOMER_SCOPE_EXPLICITHANDOFF_20260407_ROOTONLY";
 try{ window.__dsAppJsRuntimeBuild = "GB244-appjs"; }catch(_){}
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -2085,6 +2085,19 @@ function showStaffUI(){
   }catch(_){ }
 }
 
+function dsGetCustomerMainHandoff(){
+  try{
+    const raw = String(sessionStorage.getItem('ds_customer_main_handoff') || '').trim();
+    if(!raw) return null;
+    const parsed = JSON.parse(raw);
+    if(!parsed || typeof parsed !== 'object') return null;
+    const auth = (parsed.auth && typeof parsed.auth === 'object') ? parsed.auth : {};
+    const customer = (parsed.customer && typeof parsed.customer === 'object') ? parsed.customer : {};
+    const pets = Array.isArray(parsed.pets) ? parsed.pets.filter(Boolean) : [];
+    const mode = String(parsed.mode || sessionStorage.getItem('ds_customer_main_mode') || '').trim().toLowerCase();
+    return { mode, auth, customer, pets, ts: Number(parsed.ts || 0) || 0 };
+  }catch(_){ return null; }
+}
 function getCustomerMainMode(){
   try{
     const p = (location && location.pathname) ? location.pathname.toLowerCase() : '';
@@ -2095,9 +2108,12 @@ function getCustomerMainMode(){
     const bodyMode = String((document.body && document.body.dataset && document.body.dataset.customerMode) || '').trim().toLowerCase();
     if(['dogs','contract','stay'].includes(bodyMode)) return bodyMode;
     const ssMode = String((sessionStorage.getItem('ds_customer_main_mode') || window.__dsCustomerMainModeActive || '')).trim().toLowerCase();
-    const handoffUid = String(sessionStorage.getItem('ds_customer_auth_handoff_uid') || '').trim();
-    const handoffEmail = String(sessionStorage.getItem('ds_customer_auth_handoff_email') || '').trim().toLowerCase();
-    if((handoffUid || handoffEmail) && ['dogs','contract','stay'].includes(ssMode)) return ssMode;
+    const handoff = (typeof dsGetCustomerMainHandoff === 'function') ? dsGetCustomerMainHandoff() : null;
+    const handoffUid = String((handoff && handoff.auth && handoff.auth.uid) || sessionStorage.getItem('ds_customer_auth_handoff_uid') || '').trim();
+    const handoffEmail = String((handoff && handoff.auth && handoff.auth.email) || sessionStorage.getItem('ds_customer_auth_handoff_email') || '').trim().toLowerCase();
+    const handoffCustomerId = String((handoff && handoff.customer && (handoff.customer.customerId || handoff.customer.id)) || '').trim();
+    if((handoffUid || handoffEmail || handoffCustomerId) && ['dogs','contract','stay'].includes(ssMode)) return ssMode;
+    if(handoff && ['dogs','contract','stay'].includes(String(handoff.mode || '').trim().toLowerCase())) return String(handoff.mode || '').trim().toLowerCase();
     return '';
   }catch(_){ return ''; }
 }
@@ -2132,33 +2148,37 @@ function dsGetCustomerAuthProfile(){
       || (window.firebase && firebase.auth ? firebase.auth().currentUser : null)
       || null;
     const prof = (CLOUD && (CLOUD.userProfile || CLOUD.profile)) || {};
-    const handoffEmail = String(sessionStorage.getItem('ds_customer_auth_handoff_email') || '').trim().toLowerCase();
-    const handoffUid = String(sessionStorage.getItem('ds_customer_auth_handoff_uid') || '').trim();
-    const handoffName = String(sessionStorage.getItem('ds_customer_auth_handoff_name') || '').trim();
+    const handoff = (typeof dsGetCustomerMainHandoff === 'function') ? dsGetCustomerMainHandoff() : null;
+    const handoffAuth = (handoff && handoff.auth && typeof handoff.auth === 'object') ? handoff.auth : {};
+    const handoffCustomer = (handoff && handoff.customer && typeof handoff.customer === 'object') ? handoff.customer : {};
+    const handoffEmail = String(handoffAuth.email || sessionStorage.getItem('ds_customer_auth_handoff_email') || '').trim().toLowerCase();
+    const handoffUid = String(handoffAuth.uid || sessionStorage.getItem('ds_customer_auth_handoff_uid') || '').trim();
+    const handoffName = String(handoffAuth.name || handoffAuth.displayName || sessionStorage.getItem('ds_customer_auth_handoff_name') || '').trim();
     const activeCustomerMain = !!(typeof getCustomerMainModeLoose === 'function' ? getCustomerMainModeLoose() : '');
     const primaryEmail = activeCustomerMain
-      ? (handoffEmail || String((authUser && authUser.email) || prof.email || localStorage.getItem('ds_last_email') || localStorage.getItem('last_email') || '').trim().toLowerCase())
+      ? (handoffEmail || String(handoffCustomer.email || '').trim().toLowerCase() || String((authUser && authUser.email) || prof.email || localStorage.getItem('ds_last_email') || localStorage.getItem('last_email') || '').trim().toLowerCase())
       : String((authUser && authUser.email) || prof.email || localStorage.getItem('ds_last_email') || localStorage.getItem('last_email') || '').trim().toLowerCase();
     const primaryUid = activeCustomerMain
-      ? (handoffUid || String((authUser && authUser.uid) || prof.uid || '').trim())
+      ? (handoffUid || String(handoffCustomer.portalUid || handoffCustomer.customerUid || handoffCustomer.uid || '').trim() || String((authUser && authUser.uid) || prof.uid || '').trim())
       : String((authUser && authUser.uid) || prof.uid || '').trim();
     const email = String(primaryEmail || '').trim().toLowerCase();
     const uidVal = String(primaryUid || '').trim();
     const displayName = String(
-      (activeCustomerMain ? (handoffName || (handoffEmail ? handoffEmail.split('@')[0] : '')) : '')
+      (activeCustomerMain ? (handoffName || handoffCustomer.name || handoffCustomer.displayName || (handoffEmail ? handoffEmail.split('@')[0] : '')) : '')
       || prof.displayName || prof.name || prof.fullName
       || (authUser && authUser.displayName)
       || (email ? email.split('@')[0] : '')
       || ''
     ).trim();
-    const phone = String(prof.phone || prof.tel || prof.mobile || '').trim();
-    return { user: authUser || null, email, uid: uidVal, displayName, phone, profile: prof || {}, handoffEmail, handoffUid, handoffName, activeCustomerMain };
-  }catch(_){ return { user:null, email:'', uid:'', displayName:'', phone:'', profile:{}, handoffEmail:'', handoffUid:'', handoffName:'', activeCustomerMain:false }; }
+    const phone = String(handoffCustomer.phone || prof.phone || prof.tel || prof.mobile || '').trim();
+    return { user: authUser || null, email, uid: uidVal, displayName, phone, profile: prof || {}, handoffEmail, handoffUid, handoffName, handoffCustomer, handoffPets: (handoff && handoff.pets) || [], handoffPayload: handoff || null, activeCustomerMain };
+  }catch(_){ return { user:null, email:'', uid:'', displayName:'', phone:'', profile:{}, handoffEmail:'', handoffUid:'', handoffName:'', handoffCustomer:{}, handoffPets:[], handoffPayload:null, activeCustomerMain:false }; }
 }
 function dsBuildCustomerShadow(existing){
   try{
     const auth = dsGetCustomerAuthProfile();
-    const raw = (existing && typeof existing === 'object') ? existing : {};
+    const handoffCustomer = (auth && auth.handoffCustomer && typeof auth.handoffCustomer === 'object') ? auth.handoffCustomer : {};
+    const raw = { ...((existing && typeof existing === 'object') ? existing : {}), ...(auth.activeCustomerMain ? handoffCustomer : {}) };
     const id = String(raw.id || raw.customerId || raw.portalUid || raw.customerUid || auth.uid || auth.email || '').trim();
     if(!id && !auth.email && !auth.uid) return null;
     return {
@@ -2178,26 +2198,47 @@ function dsGetCustomerScopeContext(){
   const auth = dsGetCustomerAuthProfile();
   const email = String(auth.email || '').trim().toLowerCase();
   const uidVal = String(auth.uid || '').trim();
+  const explicitCustomer = (auth && auth.handoffCustomer && typeof auth.handoffCustomer === 'object') ? auth.handoffCustomer : {};
+  const explicitCustomerId = String(explicitCustomer.customerId || explicitCustomer.id || '').trim();
+  const explicitUid = String(explicitCustomer.portalUid || explicitCustomer.customerUid || explicitCustomer.uid || uidVal || '').trim();
+  const explicitEmail = String(explicitCustomer.email || email || '').trim().toLowerCase();
+  const explicitPetIds = new Set((Array.isArray(auth && auth.handoffPets) ? auth.handoffPets : []).map(function(p){ return String((p && (p.id || p.petId || p.dogId)) || '').trim(); }).filter(Boolean));
   const customers = Array.isArray(state && state.customers) ? state.customers : [];
   const petsAll = Array.isArray(state && state.pets) ? state.pets : (Array.isArray(state && state.dogs) ? state.dogs : []);
-  let customer = customers.find(c => String(c && (c.portalUid || c.customerUid || c.uid) || '').trim() === uidVal)
-    || customers.find(c => String(c && (c.email || '') || '').trim().toLowerCase() === email);
-  if(!customer && email){
+  let customer = null;
+  if(explicitCustomerId){
+    customer = customers.find(c => String(c && (c.customerId || c.id) || '').trim() === explicitCustomerId) || null;
+  }
+  if(!customer && explicitUid){
+    customer = customers.find(c => String(c && (c.portalUid || c.customerUid || c.uid) || '').trim() === explicitUid) || null;
+  }
+  if(!customer && explicitEmail){
+    customer = customers.find(c => String(c && (c.email || '') || '').trim().toLowerCase() === explicitEmail) || null;
+  }
+  if(!customer){
+    customer = customers.find(c => String(c && (c.portalUid || c.customerUid || c.uid) || '').trim() === uidVal)
+      || customers.find(c => String(c && (c.email || '') || '').trim().toLowerCase() === email)
+      || null;
+  }
+  if(!customer && explicitEmail){
     const matching = petsAll.find(function(p){
       if(!p || typeof p !== 'object') return false;
       const directMail = String(p.customerEmail || p.ownerEmail || p.email || '').trim().toLowerCase();
-      if(directMail && directMail === email) return true;
+      if(directMail && directMail === explicitEmail) return true;
       try{
         const c = getCustomer(p.customerId || p.ownerId || '');
-        return String(c && c.email || '').trim().toLowerCase() === email;
+        return String(c && c.email || '').trim().toLowerCase() === explicitEmail;
       }catch(_){ return false; }
     });
     if(matching){
       try{ customer = getCustomer(matching.customerId || matching.ownerId || '') || null; }catch(_){ customer = null; }
     }
   }
-  const shadow = dsBuildCustomerShadow(customer || null);
-  const customerId = String((shadow && (shadow.id || shadow.customerId)) || '').trim();
+  if(customer && explicitCustomer && Object.keys(explicitCustomer).length){
+    customer = { ...(customer || {}), ...(explicitCustomer || {}) };
+  }
+  const shadow = dsBuildCustomerShadow(customer || explicitCustomer || null);
+  const customerId = String((shadow && (shadow.id || shadow.customerId)) || explicitCustomerId || '').trim();
   const pets = [];
   const seen = new Set();
   try{
@@ -2209,27 +2250,42 @@ function dsGetCustomerScopeContext(){
       const petUid = String(p.customerUid || p.portalUid || p.uid || '').trim();
       const petMail = String(p.customerEmail || p.ownerEmail || p.email || '').trim().toLowerCase();
       let match = false;
-      if(customer && customerId && petCustomerId && petCustomerId === customerId) match = true;
+      if(!match && pid && explicitPetIds.has(pid)) match = true;
+      if(!match && customerId && petCustomerId && petCustomerId === customerId) match = true;
+      if(!match && explicitCustomerId && petCustomerId && petCustomerId === explicitCustomerId) match = true;
+      if(!match && explicitUid && petUid && petUid === explicitUid) match = true;
+      if(!match && explicitEmail && petMail && petMail === explicitEmail) match = true;
       if(!match && uidVal && petUid && petUid === uidVal) match = true;
       if(!match && email && petMail && petMail === email) match = true;
-      if(!match && customer && petCustomerId){
+      if(!match && (customer || explicitCustomer) && petCustomerId){
         try{
           const owner = getCustomer(petCustomerId) || null;
           if(owner){
             const ownerUid = String(owner.portalUid || owner.customerUid || owner.uid || '').trim();
             const ownerMail = String(owner.email || '').trim().toLowerCase();
-            if((uidVal && ownerUid && ownerUid === uidVal) || (email && ownerMail && ownerMail === email)) match = true;
+            if((explicitUid && ownerUid && ownerUid === explicitUid) || (explicitEmail && ownerMail && ownerMail === explicitEmail) || (uidVal && ownerUid && ownerUid === uidVal) || (email && ownerMail && ownerMail === email)) match = true;
           }
         }catch(_){ }
       }
       if(match){ seen.add(pid); pets.push(p); }
     });
   }catch(_){ }
+  if(!pets.length){
+    try{
+      (Array.isArray(auth && auth.handoffPets) ? auth.handoffPets : []).forEach(function(p){
+        if(!p || typeof p !== 'object') return;
+        const pid = String(p.id || p.petId || p.dogId || '').trim() || JSON.stringify(p);
+        if(seen.has(pid)) return;
+        seen.add(pid);
+        pets.push({ ...(p||{}), id: String(p.id || p.petId || p.dogId || pid).trim(), customerId: String(p.customerId || explicitCustomerId || customerId || '').trim() });
+      });
+    }catch(_){ }
+  }
   return {
-    email,
-    uid: uidVal,
+    email: explicitEmail || email,
+    uid: explicitUid || uidVal,
     customer: shadow || null,
-    customerId,
+    customerId: customerId || explicitCustomerId,
     pets,
     isShadowCustomer: !!(shadow && shadow.__customerShadow),
     authProfile: auth
@@ -14411,7 +14467,9 @@ function renderDogs(){
     }
   }catch(_){ }
   if(__customerMainDogs){
-    if(__customerCtx && __customerCtx.customerId){
+    if(__customerCtx && Array.isArray(__customerCtx.pets)){
+      petsAll = __customerCtx.pets.slice();
+    }else if(__customerCtx && __customerCtx.customerId){
       petsAll = petsAll.filter(p=>String(p.customerId||'') === String(__customerCtx.customerId));
     }else{
       petsAll = [];
@@ -22752,7 +22810,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB244_CUSTOMER_SCOPE_AUTHLOCK_20260407_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB245_CUSTOMER_SCOPE_EXPLICITHANDOFF_20260407_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -24725,7 +24783,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB244_CUSTOMER_SCOPE_AUTHLOCK_20260407_ROOTONLY";
+  const BUILD = "M50.9.9GB245_CUSTOMER_SCOPE_EXPLICITHANDOFF_20260407_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
