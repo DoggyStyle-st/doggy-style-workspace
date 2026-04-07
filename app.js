@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB240_COMPLIANCE_TRNMODAL_VISFIX_20260407_ROOTONLY",
+  tag: "M50.9.9GB241_CUSTOMER_SCOPE_FIX_20260407_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,8 +12,8 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB240_COMPLIANCE_TRNMODAL_VISFIX_20260407_ROOTONLY";
-try{ window.__dsAppJsRuntimeBuild = "GB232-appjs"; }catch(_){}
+const APP_BUILD = "M50.9.9GB241_CUSTOMER_SCOPE_FIX_20260407_ROOTONLY";
+try{ window.__dsAppJsRuntimeBuild = "GB241-appjs"; }catch(_){}
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
 function dsSyncDiagStateSummary(){
@@ -2119,22 +2119,102 @@ function isCustomerMainModeLoose(mode){
     return mode ? current === String(mode||'') : !!current;
   }catch(_){ return false; }
 }
-function getCustomerMainDogsContext(){
-  const email = String(CLOUD?.user?.email || '').trim().toLowerCase();
-  const uidVal = String(CLOUD?.user?.uid || '').trim();
-  const customers = Array.isArray(state.customers) ? state.customers : [];
-  let customer = customers.find(c => String(c.portalUid || c.customerUid || c.uid || '').trim() === uidVal)
-    || customers.find(c => String(c.email || '').trim().toLowerCase() === email);
+function dsGetCustomerAuthProfile(){
+  try{
+    const authUser = (CLOUD && (CLOUD.user || (CLOUD.auth && CLOUD.auth.currentUser)))
+      || (window.firebase && firebase.auth ? firebase.auth().currentUser : null)
+      || null;
+    const prof = (CLOUD && (CLOUD.userProfile || CLOUD.profile)) || {};
+    const email = String((authUser && authUser.email) || prof.email || localStorage.getItem('ds_last_email') || localStorage.getItem('last_email') || '').trim().toLowerCase();
+    const uidVal = String((authUser && authUser.uid) || prof.uid || '').trim();
+    const displayName = String(prof.displayName || prof.name || prof.fullName || (authUser && authUser.displayName) || (email ? email.split('@')[0] : '') || '').trim();
+    const phone = String(prof.phone || prof.tel || prof.mobile || '').trim();
+    return { user: authUser || null, email, uid: uidVal, displayName, phone, profile: prof || {} };
+  }catch(_){ return { user:null, email:'', uid:'', displayName:'', phone:'', profile:{} }; }
+}
+function dsBuildCustomerShadow(existing){
+  try{
+    const auth = dsGetCustomerAuthProfile();
+    const raw = (existing && typeof existing === 'object') ? existing : {};
+    const id = String(raw.id || raw.customerId || raw.portalUid || raw.customerUid || auth.uid || auth.email || '').trim();
+    if(!id && !auth.email && !auth.uid) return null;
+    return {
+      ...(raw||{}),
+      id: id || ('shadow:' + String(auth.uid || auth.email || 'customer')),
+      customerId: String(raw.customerId || raw.id || id || ('shadow:' + String(auth.uid || auth.email || 'customer'))).trim(),
+      name: String(raw.name || raw.displayName || raw.fullName || auth.displayName || auth.email || 'Kunde').trim(),
+      email: String(raw.email || auth.email || '').trim().toLowerCase(),
+      phone: String(raw.phone || auth.phone || '').trim(),
+      portalUid: String(raw.portalUid || raw.customerUid || raw.uid || auth.uid || '').trim(),
+      customerUid: String(raw.customerUid || raw.portalUid || raw.uid || auth.uid || '').trim(),
+      __customerShadow: !existing
+    };
+  }catch(_){ return null; }
+}
+function dsGetCustomerScopeContext(){
+  const auth = dsGetCustomerAuthProfile();
+  const email = String(auth.email || '').trim().toLowerCase();
+  const uidVal = String(auth.uid || '').trim();
+  const customers = Array.isArray(state && state.customers) ? state.customers : [];
+  const petsAll = Array.isArray(state && state.pets) ? state.pets : (Array.isArray(state && state.dogs) ? state.dogs : []);
+  let customer = customers.find(c => String(c && (c.portalUid || c.customerUid || c.uid) || '').trim() === uidVal)
+    || customers.find(c => String(c && (c.email || '') || '').trim().toLowerCase() === email);
   if(!customer && email){
-    const pets = Array.isArray(state.pets) ? state.pets : [];
-    const matching = pets.find(p => {
-      const c = getCustomer(p.customerId);
-      return String(c?.email || '').trim().toLowerCase() === email;
+    const matching = petsAll.find(function(p){
+      if(!p || typeof p !== 'object') return false;
+      const directMail = String(p.customerEmail || p.ownerEmail || p.email || '').trim().toLowerCase();
+      if(directMail && directMail === email) return true;
+      try{
+        const c = getCustomer(p.customerId || p.ownerId || '');
+        return String(c && c.email || '').trim().toLowerCase() === email;
+      }catch(_){ return false; }
     });
-    if(matching) customer = getCustomer(matching.customerId);
+    if(matching){
+      try{ customer = getCustomer(matching.customerId || matching.ownerId || '') || null; }catch(_){ customer = null; }
+    }
   }
-  const pets = Array.isArray(state.pets) ? state.pets.filter(p => customer ? String(p.customerId||'') === String(customer.id||customer.customerId||'') : false) : [];
-  return { email, uid: uidVal, customer: customer || null, customerId: customer ? String(customer.id || customer.customerId || '') : '', pets };
+  const shadow = dsBuildCustomerShadow(customer || null);
+  const customerId = String((shadow && (shadow.id || shadow.customerId)) || '').trim();
+  const pets = [];
+  const seen = new Set();
+  try{
+    petsAll.forEach(function(p){
+      if(!p || typeof p !== 'object') return;
+      const pid = String(p.id || p.petId || p.dogId || '').trim() || JSON.stringify(p);
+      if(seen.has(pid)) return;
+      const petCustomerId = String(p.customerId || p.ownerId || '').trim();
+      const petUid = String(p.customerUid || p.portalUid || p.uid || '').trim();
+      const petMail = String(p.customerEmail || p.ownerEmail || p.email || '').trim().toLowerCase();
+      let match = false;
+      if(customer && customerId && petCustomerId && petCustomerId === customerId) match = true;
+      if(!match && uidVal && petUid && petUid === uidVal) match = true;
+      if(!match && email && petMail && petMail === email) match = true;
+      if(!match && customer && petCustomerId){
+        try{
+          const owner = getCustomer(petCustomerId) || null;
+          if(owner){
+            const ownerUid = String(owner.portalUid || owner.customerUid || owner.uid || '').trim();
+            const ownerMail = String(owner.email || '').trim().toLowerCase();
+            if((uidVal && ownerUid && ownerUid === uidVal) || (email && ownerMail && ownerMail === email)) match = true;
+          }
+        }catch(_){ }
+      }
+      if(match){ seen.add(pid); pets.push(p); }
+    });
+  }catch(_){ }
+  return {
+    email,
+    uid: uidVal,
+    customer: shadow || null,
+    customerId,
+    pets,
+    isShadowCustomer: !!(shadow && shadow.__customerShadow),
+    authProfile: auth
+  };
+}
+try{ window.dsGetCustomerScopeContext = dsGetCustomerScopeContext; }catch(_){ }
+function getCustomerMainDogsContext(){
+  return dsGetCustomerScopeContext();
 }
 
 async function dsSubmitCustomerPortalProposal(opts){
@@ -2229,16 +2309,18 @@ async function submitCustomerDogsProposal(){
   try{
     ensureStateShape();
     const ctx = getCustomerMainDogsContext();
-    if(!ctx.customer){ alert('Kundendaten konnten nicht zugeordnet werden.'); return; }
-    const pet = (cpEdit && cpEdit.petId) ? getPet(cpEdit.petId) : (ctx.pets[0] || null);
-    if(!pet){ alert('Es wurde kein Hund zum Bearbeiten gefunden.'); return; }
+    const authUser = await cpWaitForFirebaseUser(10000);
+    if(!authUser || !authUser.uid) throw new Error('Keine aktive Firebase-Anmeldung in der Haupt-App. Bitte Haupt-App kurz neu öffnen und erneut versuchen.');
+    try{ window.CLOUD = window.CLOUD || {}; CLOUD.user = authUser; if(!CLOUD.orgId) CLOUD.orgId = dsResolveCloudOrgId(); }catch(_){ }
+    const pet = (cpEdit && cpEdit.petId) ? (getPet(cpEdit.petId) || null) : (ctx.pets[0] || null);
     const cs = document.getElementById('p_chipStatus')?.value || '';
     if(!String(document.getElementById('c_name')?.value || '').trim()){ alert('Bitte Kundennamen eintragen.'); return; }
     if(!String(document.getElementById('c_email')?.value || '').trim()){ alert('Bitte E-Mail eintragen.'); return; }
     if(!String(document.getElementById('p_name')?.value || '').trim()){ alert('Bitte Hundename eintragen.'); return; }
     if(!cs){ alert('Bitte bei „Gechippt?“ Ja oder Nein wählen.'); return; }
+    const resolvedCustomerId = String(ctx.customerId || authUser.uid || authUser.email || '').trim();
     const customerProposal = {
-      id: ctx.customerId,
+      id: resolvedCustomerId,
       name: String(document.getElementById('c_name')?.value || '').trim(),
       phone: String(document.getElementById('c_phone')?.value || '').trim(),
       email: String(document.getElementById('c_email')?.value || '').trim(),
@@ -2251,8 +2333,8 @@ async function submitCustomerDogsProposal(){
       note: String(document.getElementById('c_note')?.value || '').trim()
     };
     const petProposal = {
-      id: String(pet.id||''),
-      customerId: ctx.customerId,
+      id: String((pet && (pet.id || pet.petId || pet.dogId)) || ''),
+      customerId: resolvedCustomerId,
       name: String(document.getElementById('p_name')?.value || '').trim(),
       breed: String(document.getElementById('p_breed')?.value || '').trim(),
       birthdate: String(document.getElementById('p_birthdate')?.value || ''),
@@ -2276,8 +2358,8 @@ async function submitCustomerDogsProposal(){
       vaccinatedConfirmed: !!document.getElementById('p_vaccinatedConfirmed')?.checked,
       rabiesDate: String(document.getElementById('p_rabiesDate')?.value || ''),
       mixedVaccineDate: String(document.getElementById('p_mixedVaccineDate')?.value || ''),
-      vaccinationPassPhoto: cpVaccinationPassDataUrl || String(pet.vaccinationPassPhoto || ''),
-      profilePhoto: cpProfilePhotoDataUrl || String(pet.profilePhoto || ''),
+      vaccinationPassPhoto: cpVaccinationPassDataUrl || String((pet && pet.vaccinationPassPhoto) || ''),
+      profilePhoto: cpProfilePhotoDataUrl || String((pet && pet.profilePhoto) || ''),
       food: String(document.getElementById('p_food')?.value || '').trim(),
       treatsAllowed: String(document.getElementById('p_treatsAllowed')?.value || ''),
       aloneTime: String(document.getElementById('p_aloneTime')?.value || '').trim(),
@@ -2296,9 +2378,6 @@ async function submitCustomerDogsProposal(){
       commands: String(document.getElementById('p_commands')?.value || '').trim(),
       note: String(document.getElementById('p_note')?.value || '').trim()
     };
-    const authUser = await cpWaitForFirebaseUser(10000);
-    if(!authUser || !authUser.uid) throw new Error('Keine aktive Firebase-Anmeldung in der Haupt-App. Bitte Haupt-App kurz neu öffnen und erneut versuchen.');
-    try{ window.CLOUD = window.CLOUD || {}; CLOUD.user = authUser; if(CLOUD.auth && CLOUD.auth.currentUser && CLOUD.auth.currentUser.uid !== authUser.uid){ /* keep auth object */ } if(!CLOUD.orgId) CLOUD.orgId = dsResolveCloudOrgId(); }catch(_){ }
     const stamp = Date.now();
     const sanitizeProposalMedia = (value)=>{
       const v = String(value || '');
@@ -2319,7 +2398,7 @@ async function submitCustomerDogsProposal(){
       customerUid: String(CLOUD?.user?.uid || ''),
       customerEmail: String(CLOUD?.user?.email || '').trim().toLowerCase(),
       customerName: customerProposal.name || String(CLOUD?.user?.email || 'Kunde'),
-      customerId: ctx.customerId,
+      customerId: resolvedCustomerId,
       payloadSubmitted: { source: 'customer-main-dogs', mode: 'proposal', customer: customerProposal, pet: petProposal }
     };
     let cloudWriteOk = false;
@@ -2685,10 +2764,29 @@ function initCustomerMainDogsMode(){
     const ctx = getCustomerMainDogsContext();
     if(mode === 'dogs'){
       renderDogs();
-      if(ctx.customerId){ fillCustomerFieldsOnly(ctx.customerId); }
       const ownPet = ctx.pets[0] || null;
-      if(ownPet){ setTimeout(function(){ try{ openCpEditor('edit', ownPet.id); }catch(e){ console.error('customer main dogs open failed', e); } }, 80); }
-      else{ setTimeout(function(){ try{ openCpEditor('new'); }catch(e){ console.error('customer main dogs open new failed', e); } }, 80); }
+      setTimeout(function(){
+        try{
+          if(ownPet){
+            openCpEditor('edit', ownPet.id || ownPet.petId || ownPet.dogId || '');
+          }else{
+            openCpEditor('new');
+            const use = document.getElementById('useExistingCustomer');
+            const sel = document.getElementById('customerSelect');
+            const useExisting = !!(ctx.customer && !ctx.isShadowCustomer && ctx.customerId);
+            if(use) use.checked = useExisting;
+            try{ refreshCustomerSelect(); }catch(_){ }
+            if(useExisting && sel){
+              sel.value = String(ctx.customerId || '');
+              try{ setCustomerFieldsDisabled(true); }catch(_){ }
+              try{ fillCustomerFieldsOnly(ctx.customerId); }catch(_){ }
+            }else{
+              try{ setCustomerFieldsDisabled(false); }catch(_){ }
+              try{ fillCpCustomerFieldsFromObject(ctx.customer || {}); }catch(_){ }
+            }
+          }
+        }catch(e){ console.error('customer main dogs open failed', e); }
+      }, 80);
       cpSetStatus('Kundenmodus: Kunde/Hund');
     } else if(mode === 'contract'){
       try{ if(typeof selectTab === 'function') selectTab('contract'); }catch(_){ }
@@ -10042,19 +10140,23 @@ function getCurrentCpCustomerId(){
   return "";
 }
 
+function fillCpCustomerFieldsFromObject(c){
+  if(!c) return;
+  try{ $("#c_name").value = c.name||c.displayName||c.fullName||""; }catch(_){ }
+  try{ $("#c_phone").value = c.phone||""; }catch(_){ }
+  try{ $("#c_email").value = c.email||""; }catch(_){ }
+  try{ $("#c_street").value = c.street||""; }catch(_){ }
+  try{ $("#c_zip").value = c.zip||""; }catch(_){ }
+  try{ $("#c_city").value = c.city||""; }catch(_){ }
+  try{ $("#c_em_name").value = c.emergencyName||""; }catch(_){ }
+  try{ $("#c_em_phone").value = c.emergencyPhone||""; }catch(_){ }
+  try{ $("#c_pickup_auth").value = c.pickupAuth||""; }catch(_){ }
+  try{ $("#c_note").value = c.note||c.notes||""; }catch(_){ }
+}
 function fillCustomerFieldsOnly(customerId){
   const c = getCustomer(customerId);
   if(!c) return;
-  $("#c_name").value = c.name||"";
-  $("#c_phone").value = c.phone||"";
-  $("#c_email").value = c.email||"";
-  $("#c_street").value = c.street||"";
-  $("#c_zip").value = c.zip||"";
-  $("#c_city").value = c.city||"";
-  $("#c_em_name").value = c.emergencyName||"";
-  $("#c_em_phone").value = c.emergencyPhone||"";
-  $("#c_pickup_auth").value = c.pickupAuth||"";
-  $("#c_note").value = c.note||"";
+  fillCpCustomerFieldsFromObject(c);
 }
 function clearPetFieldsOnly(){
   $("#p_name").value = "";
@@ -11300,11 +11402,49 @@ async function dsSaveProposalReview(){
     try{ alert('Bestehender Hund für Vorschlag nicht gefunden. Es wurde nichts neu angelegt.'); }catch(_){ }
     return false;
   }
+  if(!pet){
+    const newPetId = norm(cpPetId || storedBasePetId || (row && row.petId) || (row && row.__targetPetId) || 'p_' + Date.now());
+    pet = {
+      id: newPetId,
+      petId: newPetId,
+      customerId: norm((customer && (customer.id || customer.customerId)) || cpCustomerId || selectedCustomerId || ''),
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
+    try{
+      state.pets = asArray(state.pets);
+      const idx = state.pets.findIndex(x=>norm((x && (x.id || x.petId)) || '') === newPetId);
+      if(idx >= 0) state.pets[idx] = Object.assign({}, state.pets[idx], pet);
+      else state.pets.push(pet);
+    }catch(_){ }
+  }
   if(!customer){
-    cpSetStatus('Bestehender Kunde für Vorschlag nicht gefunden.', true);
-    try{ dsSetProposalOpenDiag('save-fail pet=' + String(cpPetId||'--') + ' customer=' + String(cpCustomerId||'--') + ' reason=no-customer', true); }catch(_){ }
-    try{ alert('Bestehender Kunde für Vorschlag nicht gefunden. Es wurde nichts neu angelegt.'); }catch(_){ }
-    return false;
+    const fallbackCustomerId = norm(cpCustomerId || storedBaseCustomerId || (row && row.customerId) || (row && row.customerUid) || (row && row.customerEmail) || String(document.getElementById('c_email')?.value || '') || ('c_' + Date.now()));
+    const fallbackCustomerName = String(document.getElementById('c_name')?.value || reviewBaseCustomer?.name || '').trim();
+    const fallbackCustomerEmail = String(document.getElementById('c_email')?.value || reviewBaseCustomer?.email || '').trim();
+    if(!fallbackCustomerId && !fallbackCustomerEmail){
+      cpSetStatus('Bestehender Kunde für Vorschlag nicht gefunden.', true);
+      try{ dsSetProposalOpenDiag('save-fail pet=' + String(cpPetId||'--') + ' customer=' + String(cpCustomerId||'--') + ' reason=no-customer', true); }catch(_){ }
+      try{ alert('Bestehender Kunde für Vorschlag nicht gefunden. Es wurde nichts neu angelegt.'); }catch(_){ }
+      return false;
+    }
+    customer = {
+      id: fallbackCustomerId || fallbackCustomerEmail,
+      customerId: fallbackCustomerId || fallbackCustomerEmail,
+      portalUid: norm((row && row.customerUid) || (reviewBaseCustomer && reviewBaseCustomer.portalUid) || ''),
+      customerUid: norm((row && row.customerUid) || (reviewBaseCustomer && reviewBaseCustomer.customerUid) || ''),
+      name: fallbackCustomerName || fallbackCustomerEmail || 'Kunde',
+      email: fallbackCustomerEmail,
+      phone: String(document.getElementById('c_phone')?.value || (reviewBaseCustomer && reviewBaseCustomer.phone) || '').trim(),
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
+    try{
+      state.customers = asArray(state.customers);
+      const idx = state.customers.findIndex(x=>norm((x && (x.id || x.customerId)) || '') === norm(customer.id || customer.customerId || ''));
+      if(idx >= 0) state.customers[idx] = Object.assign({}, state.customers[idx], customer);
+      else state.customers.push(customer);
+    }catch(_){ }
   }
 
   const liveCustomer = (customer && norm(customer.id || customer.customerId || '') && typeof getCustomer === 'function') ? (getCustomer(norm(customer.id || customer.customerId || '')) || findCustomerInState(norm(customer.id || customer.customerId || '')) || customer) : customer;
@@ -12659,6 +12799,9 @@ function dsOpenProposalInCustomerEditor(row, opts){
       try{
         if(dsScheduleProposalReviewUiOpen(row, customerPayload, petPayload, opts)) return true;
       }catch(_){ }
+      if((customerPayload && Object.keys(customerPayload).length) || (petPayload && Object.keys(petPayload).length)){
+        try{ return dsOpenProposalAsNewCustomerReview(row, customerPayload, petPayload, opts); }catch(_){ }
+      }
       try{ cpSetStatus('Bestehender Kunde/Hund für Vorschlag nicht gefunden.', true); }catch(_){ }
       if(!opts.silent){
         try{
@@ -12684,6 +12827,60 @@ function dsOpenProposalInCustomerEditor(row, opts){
   }
 }
 
+function dsOpenProposalAsNewCustomerReview(row, customerPayload, petPayload, opts){
+  opts = opts || {};
+  try{
+    ensureStateShape();
+    dsEnsureReviewStyles();
+    dsClearProposalReviewUI();
+    try{
+      if(typeof selectTab === 'function') selectTab('dogs');
+      else if(typeof showPanel === 'function') showPanel('dogs');
+      else dsForceShowPanel('dogs');
+    }catch(_){ }
+    try{ openCpEditor('new'); }catch(err){ console.error('openCpEditor new proposal review failed', err); return false; }
+    const editor = document.getElementById('cpEditor');
+    if(!editor) return false;
+    editor.style.display = 'block';
+    try{ const title = document.getElementById('cpEditorTitle'); if(title) title.textContent = 'Kunde & Hund prüfen'; }catch(_){ }
+    try{ const useExisting = document.getElementById('useExistingCustomer'); if(useExisting) useExisting.checked = false; }catch(_){ }
+    try{ if(typeof setCustomerFieldsDisabled === 'function') setCustomerFieldsDisabled(false); }catch(_){ }
+    const derivedCustomerId = String((row && (row.customerId || row.customerUid || row.customerEmail)) || customerPayload.id || customerPayload.customerId || customerPayload.portalUid || customerPayload.customerUid || customerPayload.email || '').trim();
+    const derivedPetId = String((row && row.petId) || petPayload.id || petPayload.petId || petPayload.dogId || '').trim();
+    __dsProposalReview.active = true;
+    __dsProposalReview.row = row;
+    __dsProposalReview.baseCustomer = null;
+    __dsProposalReview.basePet = null;
+    __dsProposalReview.baseCustomerId = derivedCustomerId;
+    __dsProposalReview.basePetId = derivedPetId;
+    __dsProposalReview.saveDiag = '';
+    try{ window.__dsInboxReviewMainEditor = true; }catch(_){ }
+    try{ dsApplyProposalReviewBanner(row); }catch(_){ }
+    const maps = dsReviewFieldMap();
+    Object.entries(maps.customer).forEach(function(entry){
+      const inputId = entry[0], key = entry[1];
+      const proposedRaw = customerPayload ? customerPayload[key] : '';
+      const proposed = dsNormalizeReviewValue(proposedRaw, inputId);
+      if(proposed !== ''){
+        dsSetFieldValue(inputId, proposedRaw);
+        dsMarkChangedField(inputId, '', proposed);
+      }
+    });
+    Object.entries(maps.pet).forEach(function(entry){
+      const inputId = entry[0], key = entry[1];
+      const proposedRaw = petPayload ? petPayload[key] : '';
+      const proposed = dsNormalizeReviewValue(proposedRaw, inputId);
+      if(proposed !== ''){
+        dsSetFieldValue(inputId, proposedRaw);
+        dsMarkChangedField(inputId, '', proposed);
+      }
+    });
+    try{ if(typeof cpUpdateDirty === 'function') cpUpdateDirty(); }catch(_){ }
+    try{ dsEnsureProposalReviewMainEditorVisible(); }catch(_){ }
+    try{ dsSetProposalOpenDiag('finalize-new-review customer=' + String(derivedCustomerId || '--') + ' pet=' + String(derivedPetId || '--') + ' cp=1', false); }catch(_){ }
+    return true;
+  }catch(err){ console.error('dsOpenProposalAsNewCustomerReview failed', err); return false; }
+}
 try{ window.dsOpenProposalInCustomerEditor = dsOpenProposalInCustomerEditor; }catch(_){ }
 try{ window.dsFinalizeProposalReviewEditor = dsFinalizeProposalReviewEditor; }catch(_){ }
 try{ window.dsResolveProposalReviewTargets = dsResolveProposalReviewTargets; }catch(_){ }
@@ -22351,7 +22548,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB240_COMPLIANCE_TRNMODAL_VISFIX_20260407_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB241_CUSTOMER_SCOPE_FIX_20260407_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -24324,7 +24521,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB240_COMPLIANCE_TRNMODAL_VISFIX_20260407_ROOTONLY";
+  const BUILD = "M50.9.9GB241_CUSTOMER_SCOPE_FIX_20260407_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -26990,7 +27187,7 @@ try{ window.__GB191_MARKER = 'active'; }catch(_){ }
     try{ ds166OpenRowByKey = window.ds166OpenRowByKey; }catch(_){ }
   }catch(_){ }
 })();
-try{ window.__dsAppJsRuntimeBuild = 'GB232-appjs'; }catch(_){}
+try{ window.__dsAppJsRuntimeBuild = 'GB241-appjs'; }catch(_){}
 /* ===== END GB194 ===== */
 
 

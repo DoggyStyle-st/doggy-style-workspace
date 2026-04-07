@@ -7,7 +7,7 @@
   <link href="manifest.json" rel="manifest"/>
   <meta name="theme-color" content="#101014"/>
   <link href="assets/logo.png" rel="apple-touch-icon"/>
-  <link href="styles.css?v=M50.9.9GB236_MEDICATION_RENDERFIX_20260407_ROOTONLY" rel="stylesheet"/>
+  <link href="styles.css?v=M50.9.9GB241_CUSTOMER_SCOPE_FIX_20260407_ROOTONLY" rel="stylesheet"/>
   <style>
     body.bg-watermark{background:radial-gradient(circle at top, rgba(255,255,255,.08), transparent 35%), linear-gradient(180deg,#0e1017 0%, #121521 100%) !important}
     body.bg-watermark::before{opacity:.12 !important;filter:none !important}
@@ -245,18 +245,18 @@
     <div class="customer-hidden" id="customerTaskListCard"></div>
     <div class="customer-hidden list" id="customerTaskList"></div>
     <div class="customer-hidden" id="customerPortalSubtitle"></div>
-    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9GB236_MEDICATION_RENDERFIX_20260407_ROOTONLY</div>
+    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9GB241_CUSTOMER_SCOPE_FIX_20260407_ROOTONLY</div>
   </main>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
-  <script src="firebase-config.js?v=M50.9.9GB236_MEDICATION_RENDERFIX_20260407_ROOTONLY"></script>
-  <script src="app.js?v=M50.9.9GB236_MEDICATION_RENDERFIX_20260407_ROOTONLY"></script>
+  <script src="firebase-config.js?v=M50.9.9GB241_CUSTOMER_SCOPE_FIX_20260407_ROOTONLY"></script>
+  <script src="app.js?v=M50.9.9GB241_CUSTOMER_SCOPE_FIX_20260407_ROOTONLY"></script>
   <script>
     (function(){
-      const BUILD = 'Build CUSTOMER M50.9.9GB236_MEDICATION_RENDERFIX_20260407_ROOTONLY';
+      const BUILD = 'Build CUSTOMER M50.9.9GB241_CUSTOMER_SCOPE_FIX_20260407_ROOTONLY';
       const DRAFT_KEY = 'ds_customer_app_drafts_v1';
       const viewNames = ['home','dogs','contract','stay','chat'];
       let currentView = 'home';
@@ -281,9 +281,18 @@
         setStatus('Ansicht ' + currentView);
       }
       function findOwnCustomer(state){
+        try{
+          if(typeof window.dsGetCustomerScopeContext === 'function'){
+            const ctx = window.dsGetCustomerScopeContext();
+            if(ctx && ctx.customer) return ctx.customer;
+          }
+        }catch(_){ }
         const email = getUserEmail();
+        const uid = String((window.CLOUD && CLOUD.user && CLOUD.user.uid) || '').trim();
         const customers = Array.isArray(state?.customers) ? state.customers : [];
-        return customers.find(c => String(c?.email || '').trim().toLowerCase() === email) || null;
+        return customers.find(c => String(c?.portalUid || c?.customerUid || c?.uid || '').trim() === uid)
+          || customers.find(c => String(c?.email || '').trim().toLowerCase() === email)
+          || null;
       }
       function taskMappedCustomer(state){
         const tasks = getTasks();
@@ -308,6 +317,17 @@
       }
       function getContext(){
         const state = getStateSafe();
+        try{
+          if(typeof window.dsGetCustomerScopeContext === 'function'){
+            const scope = window.dsGetCustomerScopeContext();
+            if(scope){
+              const customer = scope.customer || findOwnCustomer(state) || taskMappedCustomer(state) || {};
+              const pets = Array.isArray(scope.pets) && scope.pets.length ? scope.pets : findOwnPets(state, customer);
+              const pet = pets[0] || {};
+              return { state, customer, pets, pet, scope };
+            }
+          }
+        }catch(_){ }
         const customer = findOwnCustomer(state) || taskMappedCustomer(state) || {};
         const pets = findOwnPets(state, customer);
         const pet = pets[0] || {};
@@ -573,13 +593,9 @@
         el.innerHTML = list.map(row => '<label class="field"><span>'+esc(row.label||'')+'</span><div class="value">'+esc(row.value||'—')+'</div></label>').join('');
       }
       function renderCustomerMainlikePanels(){
-        const s = (window.state || {});
-        const customers = Array.isArray(s.customers) ? s.customers : [];
-        const dogs = Array.isArray(s.dogs) ? s.dogs : (Array.isArray(s.pets) ? s.pets : []);
-        const email = String((window.CLOUD && CLOUD.user && CLOUD.user.email) || '').trim().toLowerCase();
-        const uid = String((window.CLOUD && CLOUD.user && CLOUD.user.uid) || '').trim();
-        const customer = customers.find(c => String(c?.portalUid || c?.uid || '').trim() === uid) || customers.find(c => String(c?.email || '').trim().toLowerCase() === email) || customers[0] || {};
-        const dog = dogs.find(d => String(d?.customerId || d?.ownerId || '').trim() === String(customer?.id || customer?.customerId || '').trim()) || dogs[0] || {};
+        const ctx = getContext();
+        const customer = ctx.customer || {};
+        const dog = (ctx.pets && ctx.pets[0]) || ctx.pet || {};
         renderMainlikeInfoList('customerMainCustomerInfo', [
           {label:'Name', value: customer.name || customer.customerName || '—'},
           {label:'E‑Mail', value: customer.email || '—'},
@@ -1104,7 +1120,7 @@ function renderStayRealForm(doc){
 
 <script>
 (function(){
-  const CURRENT_BUILD = 'M50.9.9GB236_MEDICATION_RENDERFIX_20260407_ROOTONLY';
+  const CURRENT_BUILD = 'M50.9.9GB241_CUSTOMER_SCOPE_FIX_20260407_ROOTONLY';
   try{
     window.addEventListener('load', function(){
       try{
