@@ -7,7 +7,7 @@
   <link href="manifest.json" rel="manifest"/>
   <meta name="theme-color" content="#101014"/>
   <link href="assets/logo.png" rel="apple-touch-icon"/>
-  <link href="styles.css?v=M50.9.9GB249_CUSTOMER_STAY_HEADERDOGLOCK_20260408_ROOTONLY" rel="stylesheet"/>
+  <link href="styles.css?v=M50.9.9GB250_CUSTOMER_HOME_NAMEFIX_20260408_ROOTONLY" rel="stylesheet"/>
   <style>
     body.bg-watermark{background:radial-gradient(circle at top, rgba(255,255,255,.08), transparent 35%), linear-gradient(180deg,#0e1017 0%, #121521 100%) !important}
     body.bg-watermark::before{opacity:.12 !important;filter:none !important}
@@ -245,18 +245,18 @@
     <div class="customer-hidden" id="customerTaskListCard"></div>
     <div class="customer-hidden list" id="customerTaskList"></div>
     <div class="customer-hidden" id="customerPortalSubtitle"></div>
-    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9GB249_CUSTOMER_STAY_HEADERDOGLOCK_20260408_ROOTONLY</div>
+    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9GB250_CUSTOMER_HOME_NAMEFIX_20260408_ROOTONLY</div>
   </main>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
-  <script src="firebase-config.js?v=M50.9.9GB249_CUSTOMER_STAY_HEADERDOGLOCK_20260408_ROOTONLY"></script>
-  <script src="app.js?v=M50.9.9GB249_CUSTOMER_STAY_HEADERDOGLOCK_20260408_ROOTONLY"></script>
+  <script src="firebase-config.js?v=M50.9.9GB250_CUSTOMER_HOME_NAMEFIX_20260408_ROOTONLY"></script>
+  <script src="app.js?v=M50.9.9GB250_CUSTOMER_HOME_NAMEFIX_20260408_ROOTONLY"></script>
   <script>
     (function(){
-      const BUILD = 'Build CUSTOMER M50.9.9GB249_CUSTOMER_STAY_HEADERDOGLOCK_20260408_ROOTONLY';
+      const BUILD = 'Build CUSTOMER M50.9.9GB250_CUSTOMER_HOME_NAMEFIX_20260408_ROOTONLY';
       const DRAFT_KEY = 'ds_customer_app_drafts_v1';
       const viewNames = ['home','dogs','contract','stay','chat'];
       let currentView = 'home';
@@ -281,12 +281,6 @@
         setStatus('Ansicht ' + currentView);
       }
       function findOwnCustomer(state){
-        try{
-          if(typeof window.dsGetCustomerScopeContext === 'function'){
-            const ctx = window.dsGetCustomerScopeContext();
-            if(ctx && ctx.customer) return ctx.customer;
-          }
-        }catch(_){ }
         const email = getUserEmail();
         const uid = String((window.CLOUD && CLOUD.user && CLOUD.user.uid) || '').trim();
         const customers = Array.isArray(state?.customers) ? state.customers : [];
@@ -355,22 +349,17 @@
       }
 
       function getContext(){
+        const strictCtx = (typeof getStrictPortalHandoffContext === 'function') ? getStrictPortalHandoffContext() : null;
+        if(strictCtx && strictCtx.customer){
+          const strictCustomer = strictCtx.customer || {};
+          const strictPets = Array.isArray(strictCtx.pets) ? strictCtx.pets : [];
+          return { state: strictCtx.state || getStateSafe(), customer: strictCustomer, pets: strictPets, pet: strictPets[0] || strictCtx.pet || {}, scope: strictCtx.scope || { strictPortal:true } };
+        }
         const state = getStateSafe();
-        try{
-          if(typeof window.dsGetCustomerScopeContext === 'function'){
-            const scope = window.dsGetCustomerScopeContext();
-            if(scope){
-              const customer = scope.customer || findOwnCustomer(state) || taskMappedCustomer(state) || {};
-              const pets = Array.isArray(scope.pets) && scope.pets.length ? scope.pets : findOwnPets(state, customer);
-              const pet = pets[0] || {};
-              return { state, customer, pets, pet, scope };
-            }
-          }
-        }catch(_){ }
         const customer = findOwnCustomer(state) || taskMappedCustomer(state) || {};
         const pets = findOwnPets(state, customer);
         const pet = pets[0] || {};
-        return { state, customer, pets, pet };
+        return { state, customer, pets, pet, scope: { strictPortal:true } };
       }
       function makeSyntheticTask(templateId, title){
         const now = Date.now();
@@ -597,6 +586,32 @@
         renderTaskList(document.getElementById('contractTaskList'), tasks.filter(t => String(t.templateId||'') === 'boarding_contract').slice(0,1), 'Aktuell liegt kein Betreuungsvertrag zur Bearbeitung vor.');
         renderTaskList(document.getElementById('stayTaskList'), tasks.filter(t => String(t.templateId||'') === 'hundeannahme').slice(0,1), 'Aktuell liegt noch kein Aufenthalt vor. Über den Button oben kannst du eine neue Anfrage öffnen.');
         if(typeof window.renderCustomerChatPanel === 'function'){ try{ window.renderCustomerChatPanel(); }catch(_){ } }
+      }
+      function clearCustomerPortalStaleMainHandoff(user){
+        try{
+          const raw = String(sessionStorage.getItem('ds_customer_main_handoff') || '').trim();
+          if(!raw) return;
+          let payload = null;
+          try{ payload = JSON.parse(raw); }catch(_){ payload = null; }
+          if(!payload || typeof payload !== 'object'){
+            sessionStorage.removeItem('ds_customer_main_handoff');
+            sessionStorage.removeItem('ds_customer_main_mode');
+            return;
+          }
+          const currentUid = String((user && user.uid) || '').trim();
+          const currentEmail = String((user && user.email) || '').trim().toLowerCase();
+          const handoffUid = String((payload.auth && payload.auth.uid) || '').trim();
+          const handoffEmail = String((payload.auth && payload.auth.email) || '').trim().toLowerCase();
+          const sameUid = !!(currentUid && handoffUid && currentUid === handoffUid);
+          const sameEmail = !!(currentEmail && handoffEmail && currentEmail === handoffEmail);
+          if(sameUid || sameEmail) return;
+          sessionStorage.removeItem('ds_customer_main_handoff');
+          sessionStorage.removeItem('ds_customer_main_mode');
+          sessionStorage.removeItem('ds_customer_auth_handoff_ts');
+          sessionStorage.removeItem('ds_customer_auth_handoff_uid');
+          sessionStorage.removeItem('ds_customer_auth_handoff_email');
+          sessionStorage.removeItem('ds_customer_auth_handoff_name');
+        }catch(_){ }
       }
 
       document.addEventListener('click', (ev)=>{
@@ -1173,6 +1188,7 @@ function renderStayRealForm(doc){
           auth.onAuthStateChanged(async function(user){
             if(!user){ location.href='login.html'; return; }
             try{ window.CLOUD = window.CLOUD || {}; CLOUD.auth = auth; CLOUD.db = db; CLOUD.user = user; CLOUD.orgId = orgId; CLOUD.enabled = true; }catch(_){ }
+            try{ clearCustomerPortalStaleMainHandoff(user); }catch(_){ }
             const btn = document.getElementById('btnCustomerLogout');
             if(btn) btn.onclick = async function(){ try{ await auth.signOut(); }catch(_){ } location.href='login.html'; };
             try{
@@ -1183,6 +1199,8 @@ function renderStayRealForm(doc){
               bindCustomerNavButtons();
               bindMainEditorOpeners();
               ensureCustomerEditorVisible(currentView);
+              window.setTimeout(function(){ try{ refreshCustomUI(); renderCustomerMainlikePanels(); }catch(_){ } }, 120);
+              window.setTimeout(function(){ try{ refreshCustomUI(); renderCustomerMainlikePanels(); }catch(_){ } }, 650);
               setStatus('init ok');
             }catch(e){ console.error('customer boot failed', e); setStatus('Boot-Fehler'); }
           });
@@ -1198,7 +1216,7 @@ function renderStayRealForm(doc){
 
 <script>
 (function(){
-  const CURRENT_BUILD = 'M50.9.9GB249_CUSTOMER_STAY_HEADERDOGLOCK_20260408_ROOTONLY';
+  const CURRENT_BUILD = 'M50.9.9GB250_CUSTOMER_HOME_NAMEFIX_20260408_ROOTONLY';
   try{
     window.addEventListener('load', function(){
       try{
