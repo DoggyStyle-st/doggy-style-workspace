@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB247_CUSTOMER_STAY_SCOPEFIX_20260408_ROOTONLY",
+  tag: "M50.9.9GB249_CUSTOMER_STAY_HEADERDOGLOCK_20260408_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB247_CUSTOMER_STAY_SCOPEFIX_20260408_ROOTONLY";
+const APP_BUILD = "M50.9.9GB249_CUSTOMER_STAY_HEADERDOGLOCK_20260408_ROOTONLY";
 try{ window.__dsAppJsRuntimeBuild = "GB244-appjs"; }catch(_){}
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -13291,6 +13291,29 @@ function updateDocCustomerPetFromDogId(doc){
 function renderCustomerInfoForDogId(dogId){
   const box = document.getElementById("customerInfo");
   if(!box) return;
+  try{
+    const scoped = ((typeof isCustomerMainModeLoose === 'function' && isCustomerMainModeLoose('stay')) || (typeof dsCustomerForceMode === 'function' && dsCustomerForceMode('stay')))
+      ? ((typeof dsGetScopedCustomerCollections === 'function' ? dsGetScopedCustomerCollections() : null) || null)
+      : null;
+    if(scoped && Array.isArray(scoped.pets) && scoped.pets.length){
+      const pet = scoped.pets[0] || null;
+      const cust = scoped.customer || (Array.isArray(scoped.customers) ? scoped.customers[0] : null) || null;
+      const parts = [];
+      if(cust){
+        const addr = [cust.street, [cust.zip, cust.city].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+        parts.push(`${cust.name||cust.displayName||cust.fullName||cust.email||""}${cust.phone?" · "+cust.phone:""}${cust.email?" · "+cust.email:""}`.trim());
+        if(addr) parts.push(addr);
+      }
+      if(pet){
+        const hasChip = !!(pet.chip || pet.chipNumber);
+        const chip = hasChip ? (`Chip: ${pet.chipNumber||"ja"}`) : "kein Chip";
+        const breed = pet.breed ? ` · ${pet.breed}` : "";
+        parts.push(`${pet.name||pet.petName||pet.dogName||"Hund"}${breed} · ${chip}`);
+      }
+      box.textContent = parts.filter(Boolean).join(" | ");
+      return;
+    }
+  }catch(_){ }
   const pet = getPetByDogId(dogId);
   const cust = getCustomerByDogId(dogId);
   if(!pet && !cust){ box.textContent = ""; return; }
@@ -15664,8 +15687,23 @@ updateCreateInvoiceButton();
       if(nextTitle) currentDoc.title = nextTitle;
     }
   }catch(_){ }
+  const __customerStayScopedOpen = ((typeof isCustomerMainModeLoose === 'function' && isCustomerMainModeLoose('stay')) || (typeof dsCustomerForceMode === 'function' && dsCustomerForceMode('stay')))
+    ? ((typeof dsGetScopedCustomerCollections === 'function' ? dsGetScopedCustomerCollections() : null) || null)
+    : null;
+  try{
+    const isStayDoc = !!(currentDoc && (String(currentDoc.templateId || '') === 'hundeannahme' || String(currentDoc.templateName || '') === 'Aufenthalte' || String(currentDoc.type || '') === 'stay'));
+    if(isStayDoc && __customerStayScopedOpen && typeof dsApplyCustomerScopeToStayDoc === 'function'){
+      dsApplyCustomerScopeToStayDoc(currentDoc, __customerStayScopedOpen.ctx || __customerStayScopedOpen);
+    }
+  }catch(_){ }
   ensureDocLinks(currentDoc);
   updateDocCustomerPetFromDogId(currentDoc);
+  try{
+    const isStayDoc = !!(currentDoc && (String(currentDoc.templateId || '') === 'hundeannahme' || String(currentDoc.templateName || '') === 'Aufenthalte' || String(currentDoc.type || '') === 'stay'));
+    if(isStayDoc && __customerStayScopedOpen && typeof dsApplyCustomerScopeToStayDoc === 'function'){
+      dsApplyCustomerScopeToStayDoc(currentDoc, __customerStayScopedOpen.ctx || __customerStayScopedOpen);
+    }
+  }catch(_){ }
 normalizeMeta(currentDoc);
   $("#editorTitle").textContent=currentDoc.title||"Dokument";
   $("#editorMeta").textContent=currentDoc.templateName;
@@ -15673,25 +15711,46 @@ normalizeMeta(currentDoc);
   syncDogSelect();
   try{
     const dogSel = $("#dogSelect");
+    const __customerStayScopedDog = ((typeof isCustomerMainModeLoose === 'function' && isCustomerMainModeLoose('stay')) || (typeof dsCustomerForceMode === 'function' && dsCustomerForceMode('stay')))
+      ? ((typeof dsGetScopedCustomerCollections === 'function' ? dsGetScopedCustomerCollections() : null) || null)
+      : null;
     let wantDogId = String(currentDoc.dogId || '').trim();
-    if((!wantDogId || !state.dogs || !state.dogs.some(function(d){ return String((d&&d.id)||'') === wantDogId; })) && currentDoc.petId){
-      try{ wantDogId = String((typeof getLegacyDogIdForPet === 'function' ? getLegacyDogIdForPet(currentDoc.petId) : '') || '').trim(); }catch(_){ }
-      if(!wantDogId){
-        try{
-          const petObj = (typeof getPet === 'function') ? (getPet(currentDoc.petId) || {}) : {};
-          const custObj = (typeof getCustomer === 'function') ? (getCustomer(currentDoc.customerId || petObj.customerId || '') || {}) : {};
-          wantDogId = String((typeof upsertLegacyDogForPet === 'function' ? upsertLegacyDogForPet(petObj, custObj) : '') || '').trim();
-          if(wantDogId) try{ syncDogSelect(); }catch(_){ }
-        }catch(_){ }
+    if(__customerStayScopedDog && Array.isArray(__customerStayScopedDog.pets) && __customerStayScopedDog.pets.length){
+      const ownPet = __customerStayScopedDog.pets[0] || null;
+      const ownDogId = String((ownPet && (ownPet.dogId || ownPet.id || ownPet.petId)) || '').trim();
+      const ownDogLabel = String((ownPet && (ownPet.name || ownPet.petName || ownPet.dogName || ownPet.id || ownPet.petId || 'Hund')) || 'Hund').trim() || 'Hund';
+      wantDogId = ownDogId || wantDogId;
+      if(dogSel){
+        dogSel.innerHTML = '<option value="' + escapeHtml(String(wantDogId || '')) + '">' + escapeHtml(String(wantDogId ? ownDogLabel : 'Noch kein Hund erfasst')) + '</option>';
+        if(wantDogId) dogSel.value = wantDogId;
+        dogSel.disabled = true;
+        dogSel.setAttribute('disabled','disabled');
+        dogSel.style.pointerEvents = 'none';
       }
+      if(wantDogId){
+        currentDoc.dogId = wantDogId;
+        if(!currentDoc.petId) currentDoc.petId = String((ownPet && (ownPet.id || ownPet.petId || ownPet.dogId)) || '').trim();
+      }
+    }else{
+      if((!wantDogId || !state.dogs || !state.dogs.some(function(d){ return String((d&&d.id)||'') === wantDogId; })) && currentDoc.petId){
+        try{ wantDogId = String((typeof getLegacyDogIdForPet === 'function' ? getLegacyDogIdForPet(currentDoc.petId) : '') || '').trim(); }catch(_){ }
+        if(!wantDogId){
+          try{
+            const petObj = (typeof getPet === 'function') ? (getPet(currentDoc.petId) || {}) : {};
+            const custObj = (typeof getCustomer === 'function') ? (getCustomer(currentDoc.customerId || petObj.customerId || '') || {}) : {};
+            wantDogId = String((typeof upsertLegacyDogForPet === 'function' ? upsertLegacyDogForPet(petObj, custObj) : '') || '').trim();
+            if(wantDogId) try{ syncDogSelect(); }catch(_){ }
+          }catch(_){ }
+        }
+      }
+      if(dogSel && wantDogId && !Array.from(dogSel.options || []).some(function(o){ return String(o.value||'') === wantDogId; })){
+        const o = document.createElement('option');
+        o.value = wantDogId;
+        o.textContent = String(currentDoc.petName || currentDoc.dogName || 'Hund').trim() || 'Hund';
+        dogSel.appendChild(o);
+      }
+      if(dogSel) dogSel.value = wantDogId || currentDoc.dogId || state.dogs?.[0]?.id || "";
     }
-    if(dogSel && wantDogId && !Array.from(dogSel.options || []).some(function(o){ return String(o.value||'') === wantDogId; })){
-      const o = document.createElement('option');
-      o.value = wantDogId;
-      o.textContent = String(currentDoc.petName || currentDoc.dogName || 'Hund').trim() || 'Hund';
-      dogSel.appendChild(o);
-    }
-    if(dogSel) dogSel.value = wantDogId || currentDoc.dogId || state.dogs?.[0]?.id || "";
   }catch(_){ $("#dogSelect").value=currentDoc.dogId||state.dogs?.[0]?.id||""; }
   renderCustomerInfoForDogId($("#dogSelect").value);
   renderEditor(currentDoc);
@@ -16046,6 +16105,7 @@ function syncStayEditorInputsToDoc(){
       }
     }catch(_e){ }
     dirty = true;
+    try{ dsSyncGenericStayHeaderFromEmbedded(currentDoc); }catch(_){ }
   }catch(e){}
 }
 function populateStayEditorFromDoc(doc){
@@ -16111,6 +16171,7 @@ function populateStayEditorFromDoc(doc){
         if(walkInp) walkInp.disabled = (doc.fields.walks_enabled === false || (walkCb && !walkCb.checked));
       }
     }catch(_e){ }
+    try{ dsSyncGenericStayHeaderFromEmbedded(doc); }catch(_){ }
   }catch(e){
     console.warn('populateStayEditorFromDoc failed', e);
   }
@@ -16157,7 +16218,7 @@ updateCreateInvoiceButton();
     meta   = f.meta   || {};
   }
   currentDoc.title=$("#docName").value.trim()||currentDoc.templateName;
-  currentDoc.dogId=$("#dogSelect").value;
+  currentDoc.dogId=((isStay && document.getElementById('stayDogSelect')) ? document.getElementById('stayDogSelect').value : $("#dogSelect").value);
   ensureDocLinks(currentDoc);
   currentDoc.fields=fields;
   currentDoc.meta=meta;
@@ -17132,6 +17193,61 @@ const tbody = document.getElementById("invItems");
 }
 /* ===== Ende B2.2a ===== */
 // ===== AKTIVER Editor-Switch (B2.x) =====
+
+function dsSyncGenericStayHeaderFromEmbedded(docLike){
+  try{
+    const inCustomerStay = !!((typeof isCustomerMainModeLoose === 'function' && isCustomerMainModeLoose('stay')) || (typeof dsCustomerForceMode === 'function' && dsCustomerForceMode('stay')));
+    if(!inCustomerStay) return false;
+    const doc = docLike || window.currentDoc || {};
+    const scoped = (typeof dsGetScopedCustomerCollections === 'function') ? (dsGetScopedCustomerCollections() || null) : null;
+    const pet = (scoped && Array.isArray(scoped.pets) && scoped.pets.length) ? (scoped.pets[0] || null) : null;
+    const customer = (scoped && (scoped.customer || (Array.isArray(scoped.customers) ? scoped.customers[0] : null))) || null;
+    const dogId = String((pet && (pet.dogId || pet.id || pet.petId)) || doc.dogId || doc.petId || '').trim();
+    const petId = String((pet && (pet.id || pet.petId || pet.dogId)) || doc.petId || doc.dogId || '').trim();
+    const customerId = String((scoped && scoped.customerId) || (customer && (customer.id || customer.customerId)) || doc.customerId || '').trim();
+    const dogLabel = String((pet && (pet.name || pet.petName || pet.dogName || pet.id || pet.petId || pet.dogId)) || doc.petName || doc.dogName || 'Hund').trim() || 'Hund';
+    const customerLabel = String((customer && (customer.name || customer.displayName || customer.fullName || customer.email)) || doc.customerName || doc.customerEmail || 'Kunde').trim() || 'Kunde';
+    if(window.currentDoc && typeof window.currentDoc === 'object'){
+      if(dogId) window.currentDoc.dogId = dogId;
+      if(petId) window.currentDoc.petId = petId;
+      if(customerId) window.currentDoc.customerId = customerId;
+    }
+    try{
+      const genericDogSel = document.getElementById('dogSelect');
+      if(genericDogSel){
+        genericDogSel.innerHTML = '<option value="' + escapeHtml(String(dogId || '')) + '">' + escapeHtml(String(dogId ? dogLabel : 'Noch kein Hund erfasst')) + '</option>';
+        if(dogId) genericDogSel.value = dogId;
+        genericDogSel.disabled = true;
+        genericDogSel.setAttribute('disabled','disabled');
+        genericDogSel.style.pointerEvents = 'none';
+      }
+    }catch(_){ }
+    try{
+      const info = document.getElementById('customerInfo');
+      if(info){
+        const parts = [];
+        if(customer){
+          const addr = [customer.street, [customer.zip, customer.city].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+          parts.push((customerLabel || 'Kunde') + (customer.email ? ' · ' + customer.email : ''));
+          if(addr) parts.push(addr);
+        } else if(customerLabel){
+          parts.push(customerLabel);
+        }
+        if(pet){
+          const hasChip = !!(pet.chip || pet.chipNumber);
+          const chip = hasChip ? ('Chip: ' + (pet.chipNumber || 'ja')) : 'kein Chip';
+          const breed = pet.breed ? (' · ' + pet.breed) : '';
+          parts.push((dogLabel || 'Hund') + breed + ' · ' + chip);
+        } else if(dogLabel){
+          parts.push(dogLabel);
+        }
+        info.textContent = parts.filter(Boolean).join(' | ');
+      }
+    }catch(_){ }
+    return true;
+  }catch(_){ return false; }
+}
+
 function renderStayEditorEmbedded(doc){
   const root = document.getElementById("formRoot");
   if(!root) return;
@@ -17495,6 +17611,10 @@ function renderStayEditorEmbedded(doc){
       custSel.style.pointerEvents = 'none';
     }
   }
+  try{ dsSyncGenericStayHeaderFromEmbedded(doc); }catch(_){ }
+  try{ setTimeout(function(){ dsSyncGenericStayHeaderFromEmbedded(doc); }, 0); }catch(_){ }
+  try{ setTimeout(function(){ dsSyncGenericStayHeaderFromEmbedded(doc); }, 180); }catch(_){ }
+  try{ setTimeout(function(){ dsSyncGenericStayHeaderFromEmbedded(doc); }, 520); }catch(_){ }
   const von = document.getElementById('stayVon');
   if(von){
     von.value = doc.meta.von || "";
@@ -23037,7 +23157,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB247_CUSTOMER_STAY_SCOPEFIX_20260408_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB249_CUSTOMER_STAY_HEADERDOGLOCK_20260408_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -25010,7 +25130,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB247_CUSTOMER_STAY_SCOPEFIX_20260408_ROOTONLY";
+  const BUILD = "M50.9.9GB249_CUSTOMER_STAY_HEADERDOGLOCK_20260408_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
