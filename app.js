@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB246_CUSTOMER_SCOPE_STRICTHANDOFFDIAG_20260407_ROOTONLY",
+  tag: "M50.9.9GB247_CUSTOMER_STAY_SCOPEFIX_20260408_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB246_CUSTOMER_SCOPE_STRICTHANDOFFDIAG_20260407_ROOTONLY";
+const APP_BUILD = "M50.9.9GB247_CUSTOMER_STAY_SCOPEFIX_20260408_ROOTONLY";
 try{ window.__dsAppJsRuntimeBuild = "GB244-appjs"; }catch(_){}
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -2417,6 +2417,69 @@ try{ window.dsGetCustomerScopeContext = dsGetCustomerScopeContext; }catch(_){ }
 function getCustomerMainDogsContext(){
   return dsGetCustomerScopeContext();
 }
+function dsStayDocMatchesCustomerScope(docLike, ctxLike){
+  try{
+    const doc = docLike || {};
+    const ctx = ctxLike || (typeof getCustomerMainDogsContext === 'function' ? getCustomerMainDogsContext() : null) || {};
+    const scopedCustomerId = String((ctx && ctx.customerId) || '').trim();
+    const scopedPetIds = new Set((Array.isArray(ctx && ctx.pets) ? ctx.pets : []).map(function(p){ return String((p && (p.id || p.petId || p.dogId)) || '').trim(); }).filter(Boolean));
+    const scopedDogIds = new Set((Array.isArray(ctx && ctx.pets) ? ctx.pets : []).map(function(p){ return String((p && (p.dogId || p.id || p.petId)) || '').trim(); }).filter(Boolean));
+    const rowCustomerId = String((doc.customerId || (doc.meta && (doc.meta.customerId || doc.meta.customer_id)) || '')).trim();
+    const rowPetId = String((doc.petId || (doc.meta && (doc.meta.petId || doc.meta.pet_id)) || '')).trim();
+    const rowDogId = String((doc.dogId || (doc.meta && (doc.meta.dogId || doc.meta.dog_id)) || '')).trim();
+    if(scopedCustomerId && rowCustomerId && rowCustomerId === scopedCustomerId) return true;
+    if(rowPetId && scopedPetIds.has(rowPetId)) return true;
+    if(rowDogId && scopedDogIds.has(rowDogId)) return true;
+    return false;
+  }catch(_){ return false; }
+}
+function dsApplyCustomerScopeToStayDoc(docLike, ctxLike){
+  try{
+    const doc = docLike || {};
+    const ctx = ctxLike || (typeof getCustomerMainDogsContext === 'function' ? getCustomerMainDogsContext() : null) || {};
+    const customer = (ctx && ctx.customer) ? ctx.customer : {};
+    const pet = (Array.isArray(ctx && ctx.pets) && ctx.pets.length) ? ctx.pets[0] : null;
+    const customerId = String((ctx && ctx.customerId) || (customer && (customer.customerId || customer.id)) || '').trim();
+    const dogId = String((pet && (pet.dogId || pet.id || pet.petId)) || '').trim();
+    const petId = String((pet && (pet.id || pet.petId || pet.dogId)) || '').trim();
+    const petName = String((pet && (pet.name || pet.petName || pet.dogName || '')) || '').trim();
+    doc.meta = doc.meta && typeof doc.meta === 'object' ? doc.meta : {};
+    doc.fields = doc.fields && typeof doc.fields === 'object' ? doc.fields : {};
+    if(customerId){
+      doc.customerId = customerId;
+      doc.meta.customerId = customerId;
+      doc.meta.customer_id = customerId;
+    }
+    if(dogId){
+      doc.dogId = dogId;
+      doc.meta.dogId = dogId;
+      doc.meta.dog_id = dogId;
+    }
+    if(petId){
+      doc.petId = petId;
+      doc.meta.petId = petId;
+      doc.meta.pet_id = petId;
+    }
+    if(petName){
+      doc.petName = petName;
+      if(!doc.fields.petName) doc.fields.petName = petName;
+      if(!doc.fields.dogName) doc.fields.dogName = petName;
+    }
+    if(customer && typeof customer === 'object'){
+      const customerName = String(customer.name || customer.displayName || customer.fullName || customer.email || '').trim();
+      if(customerName){
+        doc.customerName = customerName;
+        if(!doc.fields.customerName) doc.fields.customerName = customerName;
+      }
+      const customerEmail = String(customer.email || '').trim().toLowerCase();
+      if(customerEmail){
+        doc.customerEmail = customerEmail;
+        if(!doc.fields.customerEmail) doc.fields.customerEmail = customerEmail;
+      }
+    }
+    return doc;
+  }catch(_){ return docLike; }
+}
 function dsGetScopedCustomerCollections(){
   try{
     const active = !!(typeof isCustomerMainModeLoose === 'function' ? isCustomerMainModeLoose() : false);
@@ -2893,9 +2956,13 @@ function prepareCustomerStayMode(){
   try{ window.__dsForceCustomerStayProposal = true; }catch(_){ }
   const ctx = getCustomerMainDogsContext();
   let tries = 0;
+  let createRequested = false;
   (function fill(){
     try{
-      if(!currentDoc || String(currentDoc.templateId || '') !== 'hundeannahme'){
+      const needsFreshStay = (!currentDoc || String(currentDoc.templateId || '') !== 'hundeannahme' || !(typeof dsStayDocMatchesCustomerScope === 'function' ? dsStayDocMatchesCustomerScope(currentDoc, ctx) : true));
+      if(needsFreshStay && !createRequested){
+        createRequested = true;
+        try{ currentDoc = null; }catch(_){ }
         try{ createStay(); }catch(e){ console.error('createStay customer stay failed', e); }
       }
       const dogSel = document.getElementById('stayDogSelect');
@@ -2943,10 +3010,17 @@ function prepareCustomerStayMode(){
       const btnMed = document.getElementById('btnStayOpenMedication'); if(btnMed) btnMed.style.display = 'none';
       const btnNewStayTop = document.getElementById('btnNewStayTop'); if(btnNewStayTop) btnNewStayTop.style.display = 'none';
       const btnNewStayOnPage = document.getElementById('btnNewStayOnPage'); if(btnNewStayOnPage) btnNewStayOnPage.style.display = 'none';
-      try{ if(currentDoc){ currentDoc.customerId = String(ctx.customerId || currentDoc.customerId || ''); currentDoc.dogId = dogId || currentDoc.dogId || ''; updateDocCustomerPetFromDogId(currentDoc); } }catch(_){ }
+      try{
+        if(currentDoc){
+          try{ if(typeof dsApplyCustomerScopeToStayDoc === 'function') dsApplyCustomerScopeToStayDoc(currentDoc, ctx); }catch(_){ }
+          try{ updateDocCustomerPetFromDogId(currentDoc); }catch(_){ }
+        }
+      }catch(_){ }
       try{ showPanel('editor'); }catch(_){ }
     }catch(_){ }
-    if(++tries < 18 && (!currentDoc || String(currentDoc.templateId || '') !== 'hundeannahme' || !document.getElementById('editor') || document.getElementById('editor').style.display === 'none')) setTimeout(fill, 300);
+    const editorHidden = !document.getElementById('editor') || document.getElementById('editor').style.display === 'none';
+    const stillWrongDoc = !currentDoc || String(currentDoc.templateId || '') !== 'hundeannahme' || !(typeof dsStayDocMatchesCustomerScope === 'function' ? dsStayDocMatchesCustomerScope(currentDoc, ctx) : true);
+    if(++tries < 18 && (stillWrongDoc || editorHidden)) setTimeout(fill, 300);
   })();
 }
 
@@ -17375,22 +17449,51 @@ function renderStayEditorEmbedded(doc){
     }
   }, 0);
   // Hunde
+  const __stayScoped = ((typeof isCustomerMainModeLoose === 'function' && isCustomerMainModeLoose('stay')) || (typeof dsCustomerForceMode === 'function' && dsCustomerForceMode('stay'))) ? ((typeof dsGetScopedCustomerCollections === 'function' ? dsGetScopedCustomerCollections() : null) || null) : null;
+  if(__stayScoped && typeof dsApplyCustomerScopeToStayDoc === 'function'){
+    try{ dsApplyCustomerScopeToStayDoc(doc, __stayScoped.ctx || __stayScoped); }catch(_){ }
+  }
   const dogSel = document.getElementById('stayDogSelect');
   if(dogSel){
-    const dogs = Array.isArray(state?.dogs) ? state.dogs : [];
+    const dogs = __stayScoped
+      ? (Array.isArray(__stayScoped.pets) ? __stayScoped.pets : []).map(function(d){
+          return {
+            id: String((d && (d.dogId || d.id || d.petId)) || '').trim(),
+            petId: String((d && (d.id || d.petId || d.dogId)) || '').trim(),
+            name: String((d && (d.name || d.petName || d.dogName || d.id || d.petId || d.dogId)) || '').trim()
+          };
+        }).filter(function(d){ return !!d.id; })
+      : (Array.isArray(state?.dogs) ? state.dogs : []);
     dogSel.innerHTML = `<option value="">(Auswahl)</option>` + dogs.map(d=>`<option value="${escapeHtml(d.id)}">${escapeHtml(d.name||d.dogName||d.id)}</option>`).join('');
     try{ var stayDogId = ds219ResolveStayDogId(doc); if(stayDogId && !doc.dogId) doc.dogId = stayDogId; }catch(_){ }
+    if(__stayScoped && !doc.dogId && dogs[0]){
+      doc.dogId = String(dogs[0].id || '').trim();
+      if(!doc.petId) doc.petId = String(dogs[0].petId || dogs[0].id || '').trim();
+    }
     try{ ds219EnsureStayDogOption(dogSel, doc); }catch(_){ }
     dogSel.value = doc.dogId || doc.petId || "";
     dogSel.onchange = e=>{ doc.dogId = e.target.value; try{ if(!doc.petId) doc.petId = String((typeof getPetByDogId === 'function' ? ((getPetByDogId(doc.dogId) || {}).id || '') : '') || '').trim(); }catch(_){ } dirty = true; try{ updateAutoHolidayFields(); populateStayEditorFromDoc(doc); }catch(_e){} };
+    if(__stayScoped){
+      dogSel.disabled = true;
+      dogSel.setAttribute('disabled','disabled');
+      dogSel.style.pointerEvents = 'none';
+    }
   }
   // Kunden
   const custSel = document.getElementById('stayCustomerSelect');
   if(custSel){
-    const customers = Array.isArray(state?.customers) ? state.customers : [];
-    custSel.innerHTML = `<option value="">(Auswahl)</option>` + customers.map(c=>`<option value="${escapeHtml(c.id)}">${escapeHtml(c.name||c.fullName||c.id)}</option>`).join('');
+    const customers = __stayScoped
+      ? (Array.isArray(__stayScoped.customers) ? __stayScoped.customers : [])
+      : (Array.isArray(state?.customers) ? state.customers : []);
+    custSel.innerHTML = `<option value="">(Auswahl)</option>` + customers.map(c=>`<option value="${escapeHtml(c.id || c.customerId || '')}">${escapeHtml(c.name||c.fullName||c.id||c.customerId||'Kunde')}</option>`).join('');
+    if(__stayScoped && !doc.customerId) doc.customerId = String(__stayScoped.customerId || '').trim();
     custSel.value = doc.customerId || "";
     custSel.onchange = e=>{ doc.customerId = e.target.value; dirty = true; };
+    if(__stayScoped){
+      custSel.disabled = true;
+      custSel.setAttribute('disabled','disabled');
+      custSel.style.pointerEvents = 'none';
+    }
   }
   const von = document.getElementById('stayVon');
   if(von){
@@ -22934,7 +23037,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB246_CUSTOMER_SCOPE_STRICTHANDOFFDIAG_20260407_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB247_CUSTOMER_STAY_SCOPEFIX_20260408_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -24907,7 +25010,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB246_CUSTOMER_SCOPE_STRICTHANDOFFDIAG_20260407_ROOTONLY";
+  const BUILD = "M50.9.9GB247_CUSTOMER_STAY_SCOPEFIX_20260408_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
