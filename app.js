@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB256_ADMIN_CUSTOMER_SCOPEHARDRESET_20260408_ROOTONLY",
+  tag: "M50.9.9GB257_PROPOSAL_ADOPT_PERSISTFIX_20260408_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,8 +12,8 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB256_ADMIN_CUSTOMER_SCOPEHARDRESET_20260408_ROOTONLY";
-try{ window.__dsAppJsRuntimeBuild = "GB256-appjs"; }catch(_){}
+const APP_BUILD = "M50.9.9GB257_PROPOSAL_ADOPT_PERSISTFIX_20260408_ROOTONLY";
+try{ window.__dsAppJsRuntimeBuild = "GB257-appjs"; }catch(_){}
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
 function dsSyncDiagStateSummary(){
@@ -2041,6 +2041,24 @@ async function cloudPushNow(){
     updateSyncUI();
   }
 }
+async function dsForceProposalPersist(reason){
+  const tag = String(reason || 'proposal-adopt').trim() || 'proposal-adopt';
+  if(!(CLOUD && CLOUD.enabled && CLOUD.user)) return { ok:true, skipped:true, reason:tag };
+  let lastErr = null;
+  for(let attempt=1; attempt<=2; attempt++){
+    try{
+      await cloudPushNow();
+      try{ dsSetSyncDiag('proposalPersist:ok reason=' + tag + ' try=' + String(attempt) + ' · ' + dsSyncDiagStateSummary(), false); }catch(_){ }
+      return { ok:true, skipped:false, reason:tag, attempt };
+    }catch(err){
+      lastErr = err || lastErr;
+      try{ dsSetSyncDiag('proposalPersist:fail reason=' + tag + ' try=' + String(attempt) + ' msg=' + String((err && err.message) || err || 'unknown') + ' · ' + dsSyncDiagStateSummary(), true); }catch(_){ }
+      try{ await new Promise(resolve=>setTimeout(resolve, 350)); }catch(_){ }
+    }
+  }
+  throw (lastErr || new Error('Cloud push failed'));
+}
+try{ window.dsForceProposalPersist = dsForceProposalPersist; }catch(_){ }
 /* ===== Rollen, Kundenportal & Aufgaben (Weg A) ===== */
 function hideStaffUIForCustomer(){
   // Tabs / Panels umschalten
@@ -11888,6 +11906,12 @@ async function dsSaveProposalReview(){
   try{ if(typeof upsertLegacyDogForPet === 'function') upsertLegacyDogForPet(pet, customer); }catch(_){ }
   try{ dsSetProposalOpenDiag('save-before-write pet=' + String(pet.id || pet.petId || '--') + ' customer=' + String(customer.id || customer.customerId || '--') + ' cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0'), false); }catch(_){ }
   try{ if(typeof saveState === 'function') saveState(); }catch(_){ }
+  try{ if(typeof dsForceProposalPersist === 'function') await dsForceProposalPersist('cp-review-save'); }catch(syncErr){
+    cpSetStatus('Übernahme lokal gespeichert, Cloud-Sync fehlgeschlagen.', true);
+    try{ dsSetProposalOpenDiag('save-cloud-fail pet=' + String(pet.id || pet.petId || '--') + ' customer=' + String(customer.id || customer.customerId || '--') + ' msg=' + String((syncErr && syncErr.message) || syncErr || 'unknown'), true); }catch(_){ }
+    try{ alert('Übernahme lokal gespeichert, aber Cloud-Sync fehlgeschlagen. Bitte erneut speichern.\n\nDetails: ' + String((syncErr && syncErr.message) || syncErr || 'Unbekannter Fehler')); }catch(_){ }
+    return false;
+  }
   try{ dsSetProposalOpenDiag('save-after-write pet=' + String(pet.id || pet.petId || '--') + ' customer=' + String(customer.id || customer.customerId || '--') + ' cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0'), false); }catch(_){ }
   const savedPetId = String(pet.id || pet.petId || '--');
   const savedCustomerId = String(customer.id || customer.customerId || '--');
@@ -23389,7 +23413,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB256_ADMIN_CUSTOMER_SCOPEHARDRESET_20260408_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB257_PROPOSAL_ADOPT_PERSISTFIX_20260408_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -25362,7 +25386,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB256_ADMIN_CUSTOMER_SCOPEHARDRESET_20260408_ROOTONLY";
+  const BUILD = "M50.9.9GB257_PROPOSAL_ADOPT_PERSISTFIX_20260408_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -26448,6 +26472,9 @@ function removeInboxRowEverywhere(row){
       const customer = upsertCustomerFromProposal(row);
       upsertPetFromProposal(row, customer);
       try{ if(typeof saveState === 'function') saveState(); }catch(_){ }
+      try{ if(typeof dsForceProposalPersist === 'function') await dsForceProposalPersist('inbox-adopt-current'); }catch(syncErr){
+        throw new Error('Cloud-Sync nach Übernahme fehlgeschlagen: ' + String((syncErr && syncErr.message) || syncErr || 'unknown'));
+      }
       try{ await patchInboxRowStatus(row, 'adopted'); }catch(_){ }
       removeInboxRowEverywhere(row);
       const detail = document.getElementById('inboxDetail');
@@ -28033,7 +28060,7 @@ try{ window.__GB191_MARKER = 'active'; }catch(_){ }
     try{ ds166OpenRowByKey = window.ds166OpenRowByKey; }catch(_){ }
   }catch(_){ }
 })();
-try{ window.__dsAppJsRuntimeBuild = 'GB256-appjs'; }catch(_){}
+try{ window.__dsAppJsRuntimeBuild = 'GB257-appjs'; }catch(_){}
 /* ===== END GB194 ===== */
 
 
