@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB252_SCOPE_CONTRACT_REVIEWFIX_20260408_ROOTONLY",
+  tag: "M50.9.9GB253_CUSTOMER_SCOPE_RELOCK_20260408_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,8 +12,8 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB252_SCOPE_CONTRACT_REVIEWFIX_20260408_ROOTONLY";
-try{ window.__dsAppJsRuntimeBuild = "GB252-appjs"; }catch(_){}
+const APP_BUILD = "M50.9.9GB253_CUSTOMER_SCOPE_RELOCK_20260408_ROOTONLY";
+try{ window.__dsAppJsRuntimeBuild = "GB253-appjs"; }catch(_){}
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
 function dsSyncDiagStateSummary(){
@@ -2199,6 +2199,22 @@ function dsBuildCustomerShadow(existing){
   }catch(_){ return null; }
 }
 
+
+function dsIsCustomerScopedSession(){
+  try{
+    const role = String((window.CLOUD && CLOUD.role) || '').trim().toLowerCase();
+    if(role !== 'customer') return false;
+    const p = String((location && location.pathname) || '').toLowerCase();
+    const inKnownCustomerSurface = (p.endsWith('/app.html') || p.endsWith('app.html') || p.endsWith('/customer.html') || p.endsWith('customer.html'));
+    if(!inKnownCustomerSurface) return false;
+    const auth = (typeof dsGetCustomerAuthProfile === 'function') ? dsGetCustomerAuthProfile() : { email:'', uid:'' };
+    const hasPortalDom = !!document.getElementById('customerPortal');
+    const hasMode = !!(typeof getCustomerMainModeLoose === 'function' ? getCustomerMainModeLoose() : '') || !!sessionStorage.getItem('ds_customer_main_mode') || !!sessionStorage.getItem('ds_customer_main_handoff');
+    const hasAuthMarkers = !!String((auth && auth.email) || '').trim() || !!String((auth && auth.uid) || '').trim() || !!sessionStorage.getItem('ds_customer_auth_handoff_email') || !!sessionStorage.getItem('ds_customer_auth_handoff_uid');
+    return !!(hasPortalDom || hasMode || hasAuthMarkers);
+  }catch(_){ return false; }
+}
+
 function dsGetStrictCustomerMainHandoffContext(){
   try{
     const active = !!(typeof getCustomerMainModeLoose === 'function' ? getCustomerMainModeLoose() : '');
@@ -2486,7 +2502,7 @@ function dsApplyCustomerScopeToStayDoc(docLike, ctxLike){
 }
 function dsGetScopedCustomerCollections(){
   try{
-    const active = !!(typeof isCustomerMainModeLoose === 'function' ? isCustomerMainModeLoose() : false);
+    const active = !!((typeof isCustomerMainModeLoose === 'function' ? isCustomerMainModeLoose() : false) || (typeof dsIsCustomerScopedSession === 'function' ? dsIsCustomerScopedSession() : false));
     if(!active) return null;
     const ctx = (typeof dsGetCustomerScopeContext === 'function') ? dsGetCustomerScopeContext() : null;
     const baseCustomer = (ctx && ctx.customer) ? ctx.customer : null;
@@ -14767,8 +14783,9 @@ function renderDogs(){
   if(!list) return;
   list.innerHTML = "";
   let petsAll = (state.pets||[]).slice();
-  const __customerMainDogs = isCustomerMainModeLoose('dogs');
-  const __customerCtx = __customerMainDogs ? getCustomerMainDogsContext() : null;
+  const __scopedCollections = (typeof dsGetScopedCustomerCollections === 'function') ? (dsGetScopedCustomerCollections() || null) : null;
+  const __customerMainDogs = !!(isCustomerMainModeLoose('dogs') || __scopedCollections);
+  const __customerCtx = __scopedCollections ? ((__scopedCollections && (__scopedCollections.ctx || __scopedCollections)) || null) : (__customerMainDogs ? getCustomerMainDogsContext() : null);
   try{
     const btnAddDog = document.getElementById('btnAddDog');
     if(btnAddDog){
@@ -17284,7 +17301,7 @@ const tbody = document.getElementById("invItems");
 
 function dsSyncGenericStayHeaderFromEmbedded(docLike){
   try{
-    const inCustomerStay = !!((typeof isCustomerMainModeLoose === 'function' && isCustomerMainModeLoose('stay')) || (typeof dsCustomerForceMode === 'function' && dsCustomerForceMode('stay')));
+    const inCustomerStay = !!((typeof isCustomerMainModeLoose === 'function' && isCustomerMainModeLoose('stay')) || (typeof dsCustomerForceMode === 'function' && dsCustomerForceMode('stay')) || (typeof dsIsCustomerScopedSession === 'function' && dsIsCustomerScopedSession()));
     if(!inCustomerStay) return false;
     const doc = docLike || window.currentDoc || {};
     const scoped = (typeof dsGetScopedCustomerCollections === 'function') ? (dsGetScopedCustomerCollections() || null) : null;
@@ -17653,7 +17670,7 @@ function renderStayEditorEmbedded(doc){
     }
   }, 0);
   // Hunde
-  const __stayScoped = ((typeof isCustomerMainModeLoose === 'function' && isCustomerMainModeLoose('stay')) || (typeof dsCustomerForceMode === 'function' && dsCustomerForceMode('stay'))) ? ((typeof dsGetScopedCustomerCollections === 'function' ? dsGetScopedCustomerCollections() : null) || null) : null;
+  const __stayScoped = ((typeof isCustomerMainModeLoose === 'function' && isCustomerMainModeLoose('stay')) || (typeof dsCustomerForceMode === 'function' && dsCustomerForceMode('stay')) || (typeof dsIsCustomerScopedSession === 'function' && dsIsCustomerScopedSession())) ? ((typeof dsGetScopedCustomerCollections === 'function' ? dsGetScopedCustomerCollections() : null) || null) : null;
   if(__stayScoped && typeof dsApplyCustomerScopeToStayDoc === 'function'){
     try{ dsApplyCustomerScopeToStayDoc(doc, __stayScoped.ctx || __stayScoped); }catch(_){ }
   }
@@ -18286,7 +18303,7 @@ function renderContractPanel(){
   }
   function saveAgreement(){
     try{
-      const customerContractMode = !!(dsCustomerForceMode('contract') || isCustomerMainModeLoose('contract') || String((typeof getCustomerMainModeLoose==='function' ? getCustomerMainModeLoose() : '') || '').trim().toLowerCase() === 'contract');
+      const customerContractMode = !!(dsCustomerForceMode('contract') || isCustomerMainModeLoose('contract') || (typeof dsIsCustomerScopedSession === 'function' ? dsIsCustomerScopedSession() : false) || String((typeof getCustomerMainModeLoose==='function' ? getCustomerMainModeLoose() : '') || '').trim().toLowerCase() === 'contract');
       if (customerContractMode){
         if (window.__dsCustomerContractSubmittingProposal) return;
         window.__dsCustomerContractSubmittingProposal = true;
@@ -18464,7 +18481,7 @@ function renderContractPanel(){
     try{
       populateCustomerSelect();
       populatePetSelect();
-      if (dsCustomerForceMode('contract') || isCustomerMainModeLoose('contract')){
+      if (dsCustomerForceMode('contract') || isCustomerMainModeLoose('contract') || (typeof dsIsCustomerScopedSession === 'function' ? dsIsCustomerScopedSession() : false)){
         try{
           const ctx = getCustomerMainDogsContext();
           const onlyCustomerId = String(ctx.customerId || '');
@@ -18769,7 +18786,7 @@ function renderContractPanel(){
         if (isSaveBtn){
           try{
             const reviewMode = !!(window.__dsInlineInboxReview && window.__dsInlineInboxReview.kind === 'contract' && window.__dsInlineInboxReview.row);
-            const customerContractMode = !reviewMode && !!(dsCustomerForceMode('contract') || isCustomerMainModeLoose('contract') || String((typeof getCustomerMainModeLoose==='function' ? getCustomerMainModeLoose() : '') || '').trim().toLowerCase() === 'contract');
+            const customerContractMode = !reviewMode && !!(dsCustomerForceMode('contract') || isCustomerMainModeLoose('contract') || (typeof dsIsCustomerScopedSession === 'function' ? dsIsCustomerScopedSession() : false) || String((typeof getCustomerMainModeLoose==='function' ? getCustomerMainModeLoose() : '') || '').trim().toLowerCase() === 'contract');
             if (customerContractMode){
               if (window.__dsCustomerContractSubmittingProposal) return;
               window.__dsCustomerContractSubmittingProposal = true;
@@ -23340,7 +23357,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB252_SCOPE_CONTRACT_REVIEWFIX_20260408_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB253_CUSTOMER_SCOPE_RELOCK_20260408_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -25313,7 +25330,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB252_SCOPE_CONTRACT_REVIEWFIX_20260408_ROOTONLY";
+  const BUILD = "M50.9.9GB253_CUSTOMER_SCOPE_RELOCK_20260408_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -27984,7 +28001,7 @@ try{ window.__GB191_MARKER = 'active'; }catch(_){ }
     try{ ds166OpenRowByKey = window.ds166OpenRowByKey; }catch(_){ }
   }catch(_){ }
 })();
-try{ window.__dsAppJsRuntimeBuild = 'GB252-appjs'; }catch(_){}
+try{ window.__dsAppJsRuntimeBuild = 'GB253-appjs'; }catch(_){}
 /* ===== END GB194 ===== */
 
 
