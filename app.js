@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB250_CUSTOMER_HOME_NAMEFIX_20260408_ROOTONLY",
+  tag: "M50.9.9GB251_ADMIN_RESTORE_CONTRACTBADGEFIX_20260408_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,8 +12,8 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB250_CUSTOMER_HOME_NAMEFIX_20260408_ROOTONLY";
-try{ window.__dsAppJsRuntimeBuild = "GB244-appjs"; }catch(_){}
+const APP_BUILD = "M50.9.9GB251_ADMIN_RESTORE_CONTRACTBADGEFIX_20260408_ROOTONLY";
+try{ window.__dsAppJsRuntimeBuild = "GB251-appjs"; }catch(_){}
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
 function dsSyncDiagStateSummary(){
@@ -14626,7 +14626,51 @@ function closePdfOverlay(){
   document.body.classList.remove("printOverlayActive");
 }
 function loadState(){try{const raw=localStorage.getItem(LS_KEY);return raw?JSON.parse(raw):{dogs:[],docs:[]};}catch{return {dogs:[],docs:[]};}}
+function dsIsCustomerPortalRuntime(){
+  try{
+    const p = String((location && location.pathname) || '').toLowerCase();
+    return p.endsWith('/customer.html') || p.endsWith('customer.html');
+  }catch(_){ return false; }
+}
+function dsIsCustomerScopedRuntime(){
+  try{
+    return !!(dsIsCustomerPortalRuntime() || (typeof isCustomerMainModeLoose === 'function' && isCustomerMainModeLoose()));
+  }catch(_){ return false; }
+}
+function dsMarkStateOriginBeforeSave(){
+  try{
+    if(!state || typeof state !== 'object') return;
+    if(dsIsCustomerScopedRuntime()){
+      let auth = null;
+      try{ auth = (typeof dsGetCustomerAuthProfile === 'function') ? dsGetCustomerAuthProfile() : null; }catch(_){ auth = null; }
+      state.__lastSavedFromCustomerScope = {
+        ts: Date.now(),
+        page: dsIsCustomerPortalRuntime() ? 'customer.html' : 'app.html',
+        mode: (typeof getCustomerMainModeLoose === 'function' ? String(getCustomerMainModeLoose() || '') : ''),
+        email: String((auth && auth.email) || '').trim().toLowerCase(),
+        uid: String((auth && auth.uid) || '').trim()
+      };
+    }else if(state.__lastSavedFromCustomerScope){
+      delete state.__lastSavedFromCustomerScope;
+    }
+  }catch(_){ }
+}
+function dsClearCustomerMainSessionArtifacts(){
+  try{
+    sessionStorage.removeItem('ds_customer_main_mode');
+    sessionStorage.removeItem('ds_customer_main_handoff');
+    sessionStorage.removeItem('ds_customer_auth_handoff_ts');
+    sessionStorage.removeItem('ds_customer_auth_handoff_uid');
+    sessionStorage.removeItem('ds_customer_auth_handoff_email');
+    sessionStorage.removeItem('ds_customer_auth_handoff_name');
+  }catch(_){ }
+  try{ delete window.__dsCustomerMainModeActive; }catch(_){ }
+  try{ delete window.__dsCustomerMainMode; }catch(_){ }
+  try{ if(document && document.body && document.body.dataset){ delete document.body.dataset.customerMode; } }catch(_){ }
+}
+
 function saveState(){
+  try{ dsMarkStateOriginBeforeSave(); }catch(_){ }
   try{
     state._localUpdatedAt = Date.now();
     localStorage.setItem(LS_KEY,JSON.stringify(state));
@@ -16920,11 +16964,7 @@ async function startApp(){
         }catch(_e){ return false; }
       })();
       if(CLOUD.role !== ROLES.CUSTOMER && !keepCustomerMainHandoff){
-        sessionStorage.removeItem('ds_customer_main_mode');
-        sessionStorage.removeItem('ds_customer_auth_handoff_ts');
-        sessionStorage.removeItem('ds_customer_auth_handoff_uid');
-        sessionStorage.removeItem('ds_customer_auth_handoff_email');
-        sessionStorage.removeItem('ds_customer_auth_handoff_name');
+        try{ dsClearCustomerMainSessionArtifacts(); }catch(_){ }
       }
     }catch(_){ }
     // Erzwungener Kundenmodus in Haupt-App via Query/Handoff
@@ -17028,6 +17068,11 @@ try{
     // Wenn lokal leer: Remote immer übernehmen
     if(localEmpty){
       applyRemoteState(remote, remoteUpdated, "initial-read-empty-local");
+    } else if(CLOUD.role !== ROLES.CUSTOMER && state && state.__lastSavedFromCustomerScope){
+      // Lokaler Stand stammt aus Kundenportal/Kundenmodus und darf die Admin-Ansicht nicht verengen.
+      applyRemoteState(remote, remoteUpdated, "initial-read-admin-restore");
+      try{ if(state && state.__lastSavedFromCustomerScope) delete state.__lastSavedFromCustomerScope; }catch(_){ }
+      try{ saveState(); }catch(_){ }
     } else if(localUpdated && localUpdated > remoteUpdated){
       // Lokal ist neuer -> lokal behalten und pushen
       if(CLOUD.user){
@@ -17796,42 +17841,106 @@ function _contractSigKey(customerId, petId, version){
   const v = version || state.contractVersion || state.contract?.version || 'v1.0';
   return `${v}__${customerId||''}__${petId||''}`;
 }
-// Returns a normalized signature record or null.
-// Supports legacy array format and current map/object format.
-function getContractSignature(customerId, petId){
-  const v = state.contractVersion || state.contract?.version || 'v1.0';
+function _contractCustomerAliases(customerId, petId){
+  const out = [];
+  const add = (val)=>{ const s = String(val || '').trim(); if(s && !out.includes(s)) out.push(s); };
+  add(customerId);
+  try{
+    const pet = petId ? ((typeof getPet === 'function' ? getPet(petId) : null) || (typeof getPetByDogId === 'function' ? getPetByDogId(petId) : null) || null) : null;
+    if(pet){
+      add(pet.customerId || pet.ownerId || '');
+      add(pet.customerUid || pet.portalUid || pet.uid || '');
+      add(pet.customerEmail || pet.ownerEmail || pet.email || '');
+      try{
+        const owner = (typeof getCustomer === 'function') ? (getCustomer(pet.customerId || pet.ownerId || '') || null) : null;
+        if(owner){
+          add(owner.id || owner.customerId || '');
+          add(owner.portalUid || owner.customerUid || owner.uid || '');
+          add(owner.email || '');
+        }
+      }catch(_){ }
+    }
+  }catch(_){ }
+  return out;
+}
+function _findContractSignatureMatch(customerId, petId, version){
+  const v = version || state.contractVersion || state.contract?.version || 'v1.0';
   const store = state.contractSignatures;
-  // New format: object/map keyed by `${version}__${customerId}__${petId}`
+  const aliases = _contractCustomerAliases(customerId, petId);
   if(store && !Array.isArray(store) && typeof store === 'object'){
-    const rec = store[_contractSigKey(customerId, petId, v)];
-    if(rec && (rec.dataUrl || rec.signatureDataUrl)){
-      return {
-        customerId,
-        petId,
-        contractVersion: v,
-        signedAt: rec.signedAt || rec.signatureAt || rec.ts || null,
-        signatureDataUrl: rec.signatureDataUrl || rec.dataUrl
-      };
+    for(const cid of aliases){
+      const rec = store[_contractSigKey(cid, petId, v)];
+      if(rec && (rec.dataUrl || rec.signatureDataUrl)) return { customerId: cid, petId, contractVersion: v, rec };
+    }
+    const suffix = `__${petId||''}`;
+    const candidates = Object.keys(store).filter(k => typeof k === 'string' && k.endsWith(suffix) && k.startsWith(String(v) + '__'));
+    if(candidates.length === 1){
+      const key = candidates[0];
+      const rec = store[key];
+      if(rec && (rec.dataUrl || rec.signatureDataUrl)){
+        const cid = key.slice(String(v).length + 2, key.length - suffix.length);
+        return { customerId: cid, petId, contractVersion: v, rec };
+      }
     }
   }
-  // Legacy format: array of records
   if(Array.isArray(store)){
-    const rec = store.find(s=>s && s.customerId===customerId && s.petId===petId && (s.contractVersion||s.version||'v1.0')===v);
+    let rec = store.find(s=>s && aliases.includes(String(s.customerId || '').trim()) && String(s.petId || '') === String(petId || '') && (s.contractVersion||s.version||'v1.0')===v) || null;
+    if(!rec){
+      const candidates = store.filter(s=>s && String(s.petId || '') === String(petId || '') && (s.contractVersion||s.version||'v1.0')===v);
+      if(candidates.length === 1) rec = candidates[0];
+    }
     if(rec && (rec.signatureDataUrl || rec.dataUrl)){
-      return {
-        customerId,
-        petId,
-        contractVersion: rec.contractVersion || rec.version || v,
-        signedAt: rec.signedAt || rec.signatureAt || rec.ts || null,
-        signatureDataUrl: rec.signatureDataUrl || rec.dataUrl
-      };
+      return { customerId: String(rec.customerId || customerId || '').trim(), petId, contractVersion: rec.contractVersion || rec.version || v, rec };
     }
   }
   return null;
 }
+// Returns a normalized signature record or null.
+// Supports legacy array format and current map/object format.
+function getContractSignature(customerId, petId){
+  const match = _findContractSignatureMatch(customerId, petId);
+  if(!match || !match.rec) return null;
+  const rec = match.rec;
+  return {
+    customerId: match.customerId || String(customerId || '').trim(),
+    petId,
+    contractVersion: match.contractVersion || state.contractVersion || state.contract?.version || 'v1.0',
+    signedAt: rec.signedAt || rec.signatureAt || rec.ts || null,
+    signatureDataUrl: rec.signatureDataUrl || rec.dataUrl
+  };
+}
 function _agreementKey(customerId, petId, version){
   const v = version || state.contractVersion || 'v1.0';
   return _contractSigKey(customerId, petId, v) + '::' + v;
+}
+function dsMirrorContractToPetOwner(customerId, petId, version){
+  try{
+    const v = version || state.contractVersion || state.contract?.version || 'v1.0';
+    if(!petId) return;
+    state.contractSignatures = state.contractSignatures || {};
+    state.contractAgreements = state.contractAgreements || {};
+    const sig = getContractSignature(customerId, petId);
+    const pet = (typeof getPet === 'function' ? getPet(petId) : null) || (typeof getPetByDogId === 'function' ? getPetByDogId(petId) : null) || null;
+    const ownerCustomerId = String((pet && (pet.customerId || pet.ownerId)) || '').trim();
+    if(!ownerCustomerId || ownerCustomerId === String(customerId || '').trim()) return;
+    if(sig && sig.signatureDataUrl){
+      state.contractSignatures[_contractSigKey(ownerCustomerId, petId, v)] = { dataUrl:String(sig.signatureDataUrl || ''), signedAt:sig.signedAt || Date.now() };
+    }
+    const srcAgreement = state.contractAgreements && typeof state.contractAgreements === 'object'
+      ? (state.contractAgreements[_agreementKey(String(customerId || '').trim(), petId, v)] || state.contractAgreements[_agreementKey(ownerCustomerId, petId, v)] || null)
+      : null;
+    if(srcAgreement || sig){
+      state.contractAgreements[_agreementKey(ownerCustomerId, petId, v)] = {
+        customerId: ownerCustomerId,
+        petId,
+        version: v,
+        accepted: !!((srcAgreement && srcAgreement.accepted) || sig),
+        signatureAt: (srcAgreement && (srcAgreement.signatureAt || srcAgreement.savedAt)) || (sig && sig.signedAt) || Date.now(),
+        savedAt: (srcAgreement && srcAgreement.savedAt) || Date.now(),
+        source: (srcAgreement && srcAgreement.source) || 'contract-owner-mirror'
+      };
+    }
+  }catch(_){ }
 }
 // Option B validity: signature exists AND agreement has been saved.
 function hasValidContract(customerId, petId){
@@ -17839,7 +17948,9 @@ function hasValidContract(customerId, petId){
   if(!sig) return false;
   const ag = state.contractAgreements;
   if(ag && typeof ag === 'object'){
-    return !!ag[_agreementKey(customerId, petId, sig.contractVersion)];
+    if(ag[_agreementKey(String(customerId || '').trim(), petId, sig.contractVersion)]) return true;
+    const aliases = _contractCustomerAliases(customerId, petId);
+    return aliases.some(cid => !!ag[_agreementKey(cid, petId, sig.contractVersion)]);
   }
   return false;
 }
@@ -18153,6 +18264,7 @@ function renderContractPanel(){
       signatureAt: rec.signedAt || Date.now(),
       savedAt: Date.now()
     };
+    try{ dsMirrorContractToPetOwner(customerId, petId, state.contractVersion||'v1.0'); }catch(_){ }
     try { saveState(); } catch(e) {}
     updateSaveInfo();
   }
@@ -23157,7 +23269,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB250_CUSTOMER_HOME_NAMEFIX_20260408_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB251_ADMIN_RESTORE_CONTRACTBADGEFIX_20260408_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -25130,7 +25242,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB250_CUSTOMER_HOME_NAMEFIX_20260408_ROOTONLY";
+  const BUILD = "M50.9.9GB251_ADMIN_RESTORE_CONTRACTBADGEFIX_20260408_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -27727,6 +27839,7 @@ try{ window.__GB191_MARKER = 'active'; }catch(_){ }
             savedAt: p.signature && p.signature.signedAt ? p.signature.signedAt : Date.now(),
             source: 'proposal-review'
           };
+          try{ dsMirrorContractToPetOwner(customerId, petId, version); }catch(_){ }
         }
       }catch(_){ }
       var accept = document.getElementById('contractAcceptChk');
@@ -27796,7 +27909,7 @@ try{ window.__GB191_MARKER = 'active'; }catch(_){ }
     try{ ds166OpenRowByKey = window.ds166OpenRowByKey; }catch(_){ }
   }catch(_){ }
 })();
-try{ window.__dsAppJsRuntimeBuild = 'GB244-appjs'; }catch(_){}
+try{ window.__dsAppJsRuntimeBuild = 'GB251-appjs'; }catch(_){}
 /* ===== END GB194 ===== */
 
 
