@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB255_ADMIN_LOGIN_SANITIZE_SCOPE_20260408_ROOTONLY",
+  tag: "M50.9.9GB256_ADMIN_CUSTOMER_SCOPEHARDRESET_20260408_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,8 +12,8 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB255_ADMIN_LOGIN_SANITIZE_SCOPE_20260408_ROOTONLY";
-try{ window.__dsAppJsRuntimeBuild = "GB255-appjs"; }catch(_){}
+const APP_BUILD = "M50.9.9GB256_ADMIN_CUSTOMER_SCOPEHARDRESET_20260408_ROOTONLY";
+try{ window.__dsAppJsRuntimeBuild = "GB256-appjs"; }catch(_){}
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
 function dsSyncDiagStateSummary(){
@@ -2109,11 +2109,10 @@ function getCustomerMainMode(){
     if(['dogs','contract','stay'].includes(bodyMode)) return bodyMode;
     const ssMode = String((sessionStorage.getItem('ds_customer_main_mode') || window.__dsCustomerMainModeActive || '')).trim().toLowerCase();
     const handoff = (typeof dsGetCustomerMainHandoff === 'function') ? dsGetCustomerMainHandoff() : null;
-    const handoffUid = String((handoff && handoff.auth && handoff.auth.uid) || sessionStorage.getItem('ds_customer_auth_handoff_uid') || '').trim();
-    const handoffEmail = String((handoff && handoff.auth && handoff.auth.email) || sessionStorage.getItem('ds_customer_auth_handoff_email') || '').trim().toLowerCase();
-    const handoffCustomerId = String((handoff && handoff.customer && (handoff.customer.customerId || handoff.customer.id)) || '').trim();
-    if((handoffUid || handoffEmail || handoffCustomerId) && ['dogs','contract','stay'].includes(ssMode)) return ssMode;
-    if(handoff && ['dogs','contract','stay'].includes(String(handoff.mode || '').trim().toLowerCase())) return String(handoff.mode || '').trim().toLowerCase();
+    const allow = (typeof dsCustomerMainArtifactsMatchUser === 'function') ? !!dsCustomerMainArtifactsMatchUser() : false;
+    if(allow && ['dogs','contract','stay'].includes(ssMode)) return ssMode;
+    const handoffMode = String((handoff && handoff.mode) || '').trim().toLowerCase();
+    if(allow && ['dogs','contract','stay'].includes(handoffMode)) return handoffMode;
     return '';
   }catch(_){ return ''; }
 }
@@ -14751,7 +14750,6 @@ function dsCustomerMainArtifactsMatchUser(){
     if(role === 'customer') return true;
     if(handoffUid && currentUid && handoffUid === currentUid) return true;
     if(handoffEmail && currentEmail && handoffEmail === currentEmail) return true;
-    if(typeof dsCustomerMainHasFreshLaunchMarker === 'function' && dsCustomerMainHasFreshLaunchMarker()) return true;
     return false;
   }catch(_){ return false; }
 }
@@ -17153,9 +17151,15 @@ try{
   } else {
     const remoteUpdated = Number(remote._cloudUpdatedAt || CLOUD._lastRemoteStamp || 0);
     const localEmpty = isStateEffectivelyEmpty(state);
+    const forceAdminRestore = !!(CLOUD.role !== ROLES.CUSTOMER && String(sessionStorage.getItem('ds_force_admin_remote_restore') || '').trim() === '1');
     // Wenn lokal leer: Remote immer übernehmen
     if(localEmpty){
       applyRemoteState(remote, remoteUpdated, "initial-read-empty-local");
+    } else if(forceAdminRestore){
+      applyRemoteState(remote, remoteUpdated, "initial-read-admin-force-restore");
+      try{ sessionStorage.removeItem('ds_force_admin_remote_restore'); }catch(_){ }
+      try{ if(state && state.__lastSavedFromCustomerScope) delete state.__lastSavedFromCustomerScope; }catch(_){ }
+      try{ saveState(); }catch(_){ }
     } else if(CLOUD.role !== ROLES.CUSTOMER && state && state.__lastSavedFromCustomerScope){
       // Lokaler Stand stammt aus Kundenportal/Kundenmodus und darf die Admin-Ansicht nicht verengen.
       applyRemoteState(remote, remoteUpdated, "initial-read-admin-restore");
@@ -23385,7 +23389,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB255_ADMIN_LOGIN_SANITIZE_SCOPE_20260408_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB256_ADMIN_CUSTOMER_SCOPEHARDRESET_20260408_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -25358,7 +25362,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB255_ADMIN_LOGIN_SANITIZE_SCOPE_20260408_ROOTONLY";
+  const BUILD = "M50.9.9GB256_ADMIN_CUSTOMER_SCOPEHARDRESET_20260408_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -28029,7 +28033,7 @@ try{ window.__GB191_MARKER = 'active'; }catch(_){ }
     try{ ds166OpenRowByKey = window.ds166OpenRowByKey; }catch(_){ }
   }catch(_){ }
 })();
-try{ window.__dsAppJsRuntimeBuild = 'GB255-appjs'; }catch(_){}
+try{ window.__dsAppJsRuntimeBuild = 'GB256-appjs'; }catch(_){}
 /* ===== END GB194 ===== */
 
 

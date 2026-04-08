@@ -100,6 +100,18 @@ async function init(){
 
       let registerMode = false;
 
+      function clearCustomerPortalScopeArtifacts(){
+        try{
+          sessionStorage.removeItem('ds_customer_main_mode');
+          sessionStorage.removeItem('ds_customer_main_handoff');
+          sessionStorage.removeItem('ds_customer_main_launch_ts');
+          sessionStorage.removeItem('ds_customer_auth_handoff_ts');
+          sessionStorage.removeItem('ds_customer_auth_handoff_uid');
+          sessionStorage.removeItem('ds_customer_auth_handoff_email');
+          sessionStorage.removeItem('ds_customer_auth_handoff_name');
+        }catch(_){ }
+      }
+
       async function goAfterAuth(email){
         const role = await getUserRole(auth, db);
         const lowerEmail = String(email || (auth.currentUser && auth.currentUser.email) || '').trim().toLowerCase();
@@ -107,6 +119,10 @@ async function init(){
           ? 'customer.html'
           : ('app.html?login_email=' + encodeURIComponent(lowerEmail));
         try{
+          if(role !== 'customer'){
+            try{ clearCustomerPortalScopeArtifacts(); }catch(_){ }
+            try{ sessionStorage.setItem('ds_force_admin_remote_restore', '1'); }catch(_){ }
+          }
           const url = new URL(location.href);
           const raw = String(url.searchParams.get('return_to') || sessionStorage.getItem('ds_auth_required_return_to') || '').trim();
           if(raw && !/^https?:/i.test(raw) && !raw.startsWith('//')){
