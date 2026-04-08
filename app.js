@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB254_CUSTOMER_SCOPE_PORTALQUERYLOCK_20260408_ROOTONLY",
+  tag: "M50.9.9GB255_ADMIN_LOGIN_SANITIZE_SCOPE_20260408_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,8 +12,8 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB254_CUSTOMER_SCOPE_PORTALQUERYLOCK_20260408_ROOTONLY";
-try{ window.__dsAppJsRuntimeBuild = "GB254-appjs"; }catch(_){}
+const APP_BUILD = "M50.9.9GB255_ADMIN_LOGIN_SANITIZE_SCOPE_20260408_ROOTONLY";
+try{ window.__dsAppJsRuntimeBuild = "GB255-appjs"; }catch(_){}
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
 function dsSyncDiagStateSummary(){
@@ -14701,6 +14701,18 @@ function dsClearCustomerMainSessionArtifacts(){
   try{ delete window.__dsCustomerMainMode; }catch(_){ }
   try{ if(document && document.body && document.body.dataset){ delete document.body.dataset.customerMode; } }catch(_){ }
 }
+function dsGetNonCustomerCleanAppHref(){
+  try{
+    const url = new URL(String(location.href || ''), location.origin);
+    const p = String((url.pathname || '')).toLowerCase();
+    if(!(p.endsWith('/app.html') || p.endsWith('app.html'))) return '';
+    const hadCustomerMode = url.searchParams.has('customer_mode');
+    url.searchParams.delete('customer_mode');
+    url.searchParams.delete('portal_start');
+    const href = url.pathname + (url.searchParams.toString() ? ('?' + url.searchParams.toString()) : '') + (url.hash || '');
+    return hadCustomerMode ? href : '';
+  }catch(_){ return ''; }
+}
 
 function dsCustomerMainHasFreshLaunchMarker(){
   try{
@@ -17031,14 +17043,16 @@ async function startApp(){
       CLOUD.role = ROLES.STAFF;
     }
     try{
-      const keepCustomerMainHandoff = (function(){
-        try{
-          if(typeof dsCustomerMainArtifactsMatchUser === 'function') return !!dsCustomerMainArtifactsMatchUser();
-          return false;
-        }catch(_e){ return false; }
-      })();
-      if(CLOUD.role !== ROLES.CUSTOMER && !keepCustomerMainHandoff){
+      if(CLOUD.role !== ROLES.CUSTOMER){
         try{ dsClearCustomerMainSessionArtifacts(); }catch(_){ }
+        try{
+          const cleanHref = (typeof dsGetNonCustomerCleanAppHref === 'function') ? dsGetNonCustomerCleanAppHref() : '';
+          if(cleanHref){
+            try{ sessionStorage.removeItem('ds_auth_required_return_to'); }catch(_e){}
+            try{ location.replace(cleanHref); }catch(_e){ location.href = cleanHref; }
+            return;
+          }
+        }catch(_e){ }
       }
     }catch(_){ }
     // Erzwungener Kundenmodus in Haupt-App via Query/Handoff
@@ -23371,7 +23385,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB254_CUSTOMER_SCOPE_PORTALQUERYLOCK_20260408_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB255_ADMIN_LOGIN_SANITIZE_SCOPE_20260408_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -25344,7 +25358,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB254_CUSTOMER_SCOPE_PORTALQUERYLOCK_20260408_ROOTONLY";
+  const BUILD = "M50.9.9GB255_ADMIN_LOGIN_SANITIZE_SCOPE_20260408_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -28015,7 +28029,7 @@ try{ window.__GB191_MARKER = 'active'; }catch(_){ }
     try{ ds166OpenRowByKey = window.ds166OpenRowByKey; }catch(_){ }
   }catch(_){ }
 })();
-try{ window.__dsAppJsRuntimeBuild = 'GB254-appjs'; }catch(_){}
+try{ window.__dsAppJsRuntimeBuild = 'GB255-appjs'; }catch(_){}
 /* ===== END GB194 ===== */
 
 
