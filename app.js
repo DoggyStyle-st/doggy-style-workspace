@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB251_ADMIN_RESTORE_CONTRACTBADGEFIX_20260408_ROOTONLY",
+  tag: "M50.9.9GB252_SCOPE_CONTRACT_REVIEWFIX_20260408_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,8 +12,8 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB251_ADMIN_RESTORE_CONTRACTBADGEFIX_20260408_ROOTONLY";
-try{ window.__dsAppJsRuntimeBuild = "GB251-appjs"; }catch(_){}
+const APP_BUILD = "M50.9.9GB252_SCOPE_CONTRACT_REVIEWFIX_20260408_ROOTONLY";
+try{ window.__dsAppJsRuntimeBuild = "GB252-appjs"; }catch(_){}
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
 function dsSyncDiagStateSummary(){
@@ -2129,9 +2129,13 @@ function isCustomerMainDogsMode(){
 function getCustomerMainModeLoose(){
   try{
     const strict = getCustomerMainMode();
-    if(strict) return strict;
+    if(strict){
+      if(typeof dsCustomerMainArtifactsMatchUser === 'function' && !dsCustomerMainArtifactsMatchUser()) return '';
+      return strict;
+    }
     const p = (location && location.pathname) ? location.pathname.toLowerCase() : '';
     if(!((p.endsWith('/app.html') || p.endsWith('app.html')))) return '';
+    if(typeof dsCustomerMainArtifactsMatchUser === 'function' && !dsCustomerMainArtifactsMatchUser()) return '';
     const ss = String((sessionStorage.getItem('ds_customer_main_mode') || window.__dsCustomerMainModeActive || '')).trim().toLowerCase();
     return ['dogs','contract','stay'].includes(ss) ? ss : '';
   }catch(_){ return ''; }
@@ -2861,10 +2865,23 @@ async function submitCustomerContractProposalMain(){
     if(!rec || !rec.dataUrl){ alert('Bitte zuerst unterschreiben.'); return; }
     const customer = getCustomer(customerId) || {};
     const pet = getPet(petId) || {};
+    const contractVersion = String(state.contractVersion || state.contract?.version || 'v1.0');
+    try{
+      state.contractAgreements = state.contractAgreements || {};
+      state.contractAgreements[contractVersion + '__' + customerId + '__' + petId + '::' + contractVersion] = {
+        customerId, petId, version: contractVersion,
+        accepted: true,
+        signatureAt: rec.signedAt || Date.now(),
+        savedAt: Date.now(),
+        source: 'customer-main-proposal-pending'
+      };
+      try{ dsMirrorContractToPetOwner(customerId, petId, contractVersion); }catch(_){ }
+      try{ saveState(); }catch(_){ }
+    }catch(_){ }
     const payloadSubmitted = {
       source: 'customer-main-contract',
       customerId, petId,
-      contractVersion: String(state.contractVersion || state.contract?.version || 'v1.0'),
+      contractVersion: contractVersion,
       accepted: true,
       signature: { dataUrl: String(rec.dataUrl || ''), signedAt: rec.signedAt || Date.now() }
     };
@@ -14669,6 +14686,34 @@ function dsClearCustomerMainSessionArtifacts(){
   try{ if(document && document.body && document.body.dataset){ delete document.body.dataset.customerMode; } }catch(_){ }
 }
 
+function dsCustomerMainArtifactsMatchUser(){
+  try{
+    const role = String((window.CLOUD && CLOUD.role) || '').trim().toLowerCase();
+    if(role && role !== 'customer') return false;
+    const rawUser = (window.CLOUD && (CLOUD.user || (CLOUD.auth && CLOUD.auth.currentUser)))
+      || (window.firebase && firebase.auth ? firebase.auth().currentUser : null)
+      || null;
+    const rawProfile = (window.CLOUD && (CLOUD.userProfile || CLOUD.profile)) || {};
+    const qMode = String((new URLSearchParams(String((location && location.search) || '')).get('customer_mode') || '')).trim().toLowerCase();
+    const ssMode = String((sessionStorage.getItem('ds_customer_main_mode') || window.__dsCustomerMainModeActive || '')).trim().toLowerCase();
+    const bodyMode = String((document && document.body && document.body.dataset && document.body.dataset.customerMode) || '').trim().toLowerCase();
+    const hasMode = ['dogs','contract','stay'].includes(qMode) || ['dogs','contract','stay'].includes(ssMode) || ['dogs','contract','stay'].includes(bodyMode);
+    if(!hasMode) return false;
+    let handoff = null;
+    try{ handoff = (typeof dsGetCustomerMainHandoff === 'function') ? dsGetCustomerMainHandoff() : null; }catch(_){ handoff = null; }
+    const handoffAuth = (handoff && handoff.auth && typeof handoff.auth === 'object') ? handoff.auth : {};
+    const handoffCustomer = (handoff && handoff.customer && typeof handoff.customer === 'object') ? handoff.customer : {};
+    const handoffEmail = String(handoffAuth.email || handoffCustomer.email || sessionStorage.getItem('ds_customer_auth_handoff_email') || '').trim().toLowerCase();
+    const handoffUid = String(handoffAuth.uid || handoffCustomer.portalUid || handoffCustomer.customerUid || handoffCustomer.uid || sessionStorage.getItem('ds_customer_auth_handoff_uid') || '').trim();
+    const currentEmail = String((rawUser && rawUser.email) || rawProfile.email || '').trim().toLowerCase();
+    const currentUid = String((rawUser && rawUser.uid) || rawProfile.uid || '').trim();
+    if(role === 'customer') return true;
+    if(handoffUid && currentUid && handoffUid === currentUid) return true;
+    if(handoffEmail && currentEmail && handoffEmail === currentEmail) return true;
+    return false;
+  }catch(_){ return false; }
+}
+
 function saveState(){
   try{ dsMarkStateOriginBeforeSave(); }catch(_){ }
   try{
@@ -16957,10 +17002,8 @@ async function startApp(){
     try{
       const keepCustomerMainHandoff = (function(){
         try{
-          const qs = new URLSearchParams((location && location.search) ? location.search : '');
-          const qMode = String(qs.get('customer_mode') || '').trim().toLowerCase();
-          const ssMode = String(sessionStorage.getItem('ds_customer_main_mode') || '').trim().toLowerCase();
-          return ['dogs','contract','stay'].includes(qMode) || ['dogs','contract','stay'].includes(ssMode);
+          if(typeof dsCustomerMainArtifactsMatchUser === 'function') return !!dsCustomerMainArtifactsMatchUser();
+          return false;
         }catch(_e){ return false; }
       })();
       if(CLOUD.role !== ROLES.CUSTOMER && !keepCustomerMainHandoff){
@@ -17897,6 +17940,30 @@ function _findContractSignatureMatch(customerId, petId, version){
 }
 // Returns a normalized signature record or null.
 // Supports legacy array format and current map/object format.
+function _findContractAgreementMatch(customerId, petId, version){
+  const v = version || state.contractVersion || state.contract?.version || 'v1.0';
+  const store = state.contractAgreements;
+  const aliases = _contractCustomerAliases(customerId, petId);
+  if(store && !Array.isArray(store) && typeof store === 'object'){
+    for(const cid of aliases){
+      const key = _agreementKey(cid, petId, v);
+      const rec = store[key];
+      if(rec && (rec.accepted || rec.savedAt || rec.signatureAt)) return { customerId: cid, petId, contractVersion: v, rec, key };
+    }
+    const suffix = `__${petId||''}::${v}`;
+    const prefix = `${v}__`;
+    const candidates = Object.keys(store).filter(k => typeof k === 'string' && k.startsWith(prefix) && k.endsWith(suffix));
+    if(candidates.length === 1){
+      const key = candidates[0];
+      const rec = store[key];
+      if(rec && (rec.accepted || rec.savedAt || rec.signatureAt)){
+        const cid = key.slice(prefix.length, key.length - suffix.length);
+        return { customerId: String(cid || customerId || '').trim(), petId, contractVersion: v, rec, key };
+      }
+    }
+  }
+  return null;
+}
 function getContractSignature(customerId, petId){
   const match = _findContractSignatureMatch(customerId, petId);
   if(!match || !match.rec) return null;
@@ -17946,13 +18013,8 @@ function dsMirrorContractToPetOwner(customerId, petId, version){
 function hasValidContract(customerId, petId){
   const sig = getContractSignature(customerId, petId);
   if(!sig) return false;
-  const ag = state.contractAgreements;
-  if(ag && typeof ag === 'object'){
-    if(ag[_agreementKey(String(customerId || '').trim(), petId, sig.contractVersion)]) return true;
-    const aliases = _contractCustomerAliases(customerId, petId);
-    return aliases.some(cid => !!ag[_agreementKey(cid, petId, sig.contractVersion)]);
-  }
-  return false;
+  const agMatch = (typeof _findContractAgreementMatch === 'function') ? _findContractAgreementMatch(customerId, petId, sig.contractVersion) : null;
+  return !!(agMatch && agMatch.rec);
 }
 function contractBadge(customerId, petId){
   if(!customerId || !petId) return "";
@@ -18199,7 +18261,8 @@ function renderContractPanel(){
   }
   function isAgreementSaved(customerId, petId){
     ensureContractStore();
-    return !!state.contractAgreements[agreementKey(customerId, petId)];
+    if (state.contractAgreements[agreementKey(customerId, petId)]) return true;
+    try{ return !!(typeof _findContractAgreementMatch === 'function' && _findContractAgreementMatch(customerId, petId, state.contractVersion||'v1.0')); }catch(_){ return false; }
   }
   function updateSaveInfo(){
     const {customerId, petId} = getSelectedIds();
@@ -18279,7 +18342,7 @@ function renderContractPanel(){
       return;
     }
     const rec = state.contractSignatures[sigKey(customerId, petId)];
-    const agr = state.contractAgreements[agreementKey(customerId, petId)] || null;
+    const agr = state.contractAgreements[agreementKey(customerId, petId)] || ((typeof _findContractAgreementMatch === 'function' ? (_findContractAgreementMatch(customerId, petId, state.contractVersion||'v1.0') || {}).rec : null) || null);
     try{ if(accept) accept.checked = !!(agr && agr.accepted); }catch(_){ }
     try{
       if(canvas){
@@ -18436,9 +18499,17 @@ function renderContractPanel(){
       Object.keys(agreements||{}).forEach(function(key){
         try{
           const rec = agreements[key] || {};
-          const customerId = String(rec.customerId || '').trim();
-          const petId = String(rec.petId || '').trim();
-          const version = String(rec.version || state.contractVersion || 'v1.0').trim();
+          let customerId = String(rec.customerId || '').trim();
+          let petId = String(rec.petId || '').trim();
+          let version = String(rec.version || state.contractVersion || 'v1.0').trim();
+          if((!customerId || !petId) && typeof key === 'string'){
+            const m = String(key).match(/^(.+?)__(.+?)__(.+?)::(.+)$/);
+            if(m){
+              version = String(version || m[1] || m[4] || state.contractVersion || 'v1.0').trim();
+              customerId = customerId || String(m[2] || '').trim();
+              petId = petId || String(m[3] || '').trim();
+            }
+          }
           const sig = sigs[(version || 'v1.0') + '__' + customerId + '__' + petId] || null;
           rows.push({ customerId, petId, version, savedAt: rec.savedAt || rec.signatureAt || 0, sig: sig });
         }catch(_){ }
@@ -23269,7 +23340,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB251_ADMIN_RESTORE_CONTRACTBADGEFIX_20260408_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB252_SCOPE_CONTRACT_REVIEWFIX_20260408_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -25242,7 +25313,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB251_ADMIN_RESTORE_CONTRACTBADGEFIX_20260408_ROOTONLY";
+  const BUILD = "M50.9.9GB252_SCOPE_CONTRACT_REVIEWFIX_20260408_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -27835,7 +27906,11 @@ try{ window.__GB191_MARKER = 'active'; }catch(_){ }
         }
         if(customerId && petId && (p.accepted || (p.signature && p.signature.dataUrl))){
           state.contractAgreements[version + '__' + customerId + '__' + petId + '::' + version] = {
+            customerId: customerId,
+            petId: petId,
+            version: version,
             accepted: !!p.accepted,
+            signatureAt: p.signature && p.signature.signedAt ? p.signature.signedAt : Date.now(),
             savedAt: p.signature && p.signature.signedAt ? p.signature.signedAt : Date.now(),
             source: 'proposal-review'
           };
@@ -27909,7 +27984,7 @@ try{ window.__GB191_MARKER = 'active'; }catch(_){ }
     try{ ds166OpenRowByKey = window.ds166OpenRowByKey; }catch(_){ }
   }catch(_){ }
 })();
-try{ window.__dsAppJsRuntimeBuild = 'GB251-appjs'; }catch(_){}
+try{ window.__dsAppJsRuntimeBuild = 'GB252-appjs'; }catch(_){}
 /* ===== END GB194 ===== */
 
 
