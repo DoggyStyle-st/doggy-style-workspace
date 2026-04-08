@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB253_CUSTOMER_SCOPE_RELOCK_20260408_ROOTONLY",
+  tag: "M50.9.9GB254_CUSTOMER_SCOPE_PORTALQUERYLOCK_20260408_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,8 +12,8 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB253_CUSTOMER_SCOPE_RELOCK_20260408_ROOTONLY";
-try{ window.__dsAppJsRuntimeBuild = "GB253-appjs"; }catch(_){}
+const APP_BUILD = "M50.9.9GB254_CUSTOMER_SCOPE_PORTALQUERYLOCK_20260408_ROOTONLY";
+try{ window.__dsAppJsRuntimeBuild = "GB254-appjs"; }catch(_){}
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
 function dsSyncDiagStateSummary(){
@@ -2129,15 +2129,14 @@ function isCustomerMainDogsMode(){
 function getCustomerMainModeLoose(){
   try{
     const strict = getCustomerMainMode();
-    if(strict){
-      if(typeof dsCustomerMainArtifactsMatchUser === 'function' && !dsCustomerMainArtifactsMatchUser()) return '';
-      return strict;
-    }
+    if(strict) return strict;
     const p = (location && location.pathname) ? location.pathname.toLowerCase() : '';
     if(!((p.endsWith('/app.html') || p.endsWith('app.html')))) return '';
-    if(typeof dsCustomerMainArtifactsMatchUser === 'function' && !dsCustomerMainArtifactsMatchUser()) return '';
     const ss = String((sessionStorage.getItem('ds_customer_main_mode') || window.__dsCustomerMainModeActive || '')).trim().toLowerCase();
-    return ['dogs','contract','stay'].includes(ss) ? ss : '';
+    if(!['dogs','contract','stay'].includes(ss)) return '';
+    const allow = (typeof dsCustomerMainArtifactsMatchUser === 'function') ? dsCustomerMainArtifactsMatchUser() : false;
+    if(!allow) return '';
+    return ss;
   }catch(_){ return ''; }
 }
 function isCustomerMainModeLoose(mode){
@@ -14692,6 +14691,7 @@ function dsClearCustomerMainSessionArtifacts(){
   try{
     sessionStorage.removeItem('ds_customer_main_mode');
     sessionStorage.removeItem('ds_customer_main_handoff');
+    sessionStorage.removeItem('ds_customer_main_launch_ts');
     sessionStorage.removeItem('ds_customer_auth_handoff_ts');
     sessionStorage.removeItem('ds_customer_auth_handoff_uid');
     sessionStorage.removeItem('ds_customer_auth_handoff_email');
@@ -14702,10 +14702,23 @@ function dsClearCustomerMainSessionArtifacts(){
   try{ if(document && document.body && document.body.dataset){ delete document.body.dataset.customerMode; } }catch(_){ }
 }
 
+function dsCustomerMainHasFreshLaunchMarker(){
+  try{
+    const qMode = String((new URLSearchParams(String((location && location.search) || '')).get('customer_mode') || '')).trim().toLowerCase();
+    const ts = Number(sessionStorage.getItem('ds_customer_main_launch_ts') || 0) || 0;
+    const handoff = (typeof dsGetCustomerMainHandoff === 'function') ? dsGetCustomerMainHandoff() : null;
+    const handoffAuth = (handoff && handoff.auth && typeof handoff.auth === 'object') ? handoff.auth : {};
+    const handoffCustomer = (handoff && handoff.customer && typeof handoff.customer === 'object') ? handoff.customer : {};
+    const hasHandoff = !!(handoff || String(handoffAuth.uid || handoffAuth.email || handoffCustomer.customerId || handoffCustomer.id || handoffCustomer.email || '').trim());
+    if(['dogs','contract','stay'].includes(qMode) && hasHandoff) return true;
+    if(!ts || !hasHandoff) return false;
+    return (Date.now() - ts) < (2 * 60 * 60 * 1000);
+  }catch(_){ return false; }
+}
+
 function dsCustomerMainArtifactsMatchUser(){
   try{
     const role = String((window.CLOUD && CLOUD.role) || '').trim().toLowerCase();
-    if(role && role !== 'customer') return false;
     const rawUser = (window.CLOUD && (CLOUD.user || (CLOUD.auth && CLOUD.auth.currentUser)))
       || (window.firebase && firebase.auth ? firebase.auth().currentUser : null)
       || null;
@@ -14726,6 +14739,7 @@ function dsCustomerMainArtifactsMatchUser(){
     if(role === 'customer') return true;
     if(handoffUid && currentUid && handoffUid === currentUid) return true;
     if(handoffEmail && currentEmail && handoffEmail === currentEmail) return true;
+    if(typeof dsCustomerMainHasFreshLaunchMarker === 'function' && dsCustomerMainHasFreshLaunchMarker()) return true;
     return false;
   }catch(_){ return false; }
 }
@@ -23357,7 +23371,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB253_CUSTOMER_SCOPE_RELOCK_20260408_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB254_CUSTOMER_SCOPE_PORTALQUERYLOCK_20260408_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -25330,7 +25344,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB253_CUSTOMER_SCOPE_RELOCK_20260408_ROOTONLY";
+  const BUILD = "M50.9.9GB254_CUSTOMER_SCOPE_PORTALQUERYLOCK_20260408_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -28001,7 +28015,7 @@ try{ window.__GB191_MARKER = 'active'; }catch(_){ }
     try{ ds166OpenRowByKey = window.ds166OpenRowByKey; }catch(_){ }
   }catch(_){ }
 })();
-try{ window.__dsAppJsRuntimeBuild = 'GB253-appjs'; }catch(_){}
+try{ window.__dsAppJsRuntimeBuild = 'GB254-appjs'; }catch(_){}
 /* ===== END GB194 ===== */
 
 
