@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB245_CUSTOMER_SCOPE_EXPLICITHANDOFF_20260407_ROOTONLY",
+  tag: "M50.9.9GB246_CUSTOMER_SCOPE_STRICTHANDOFFDIAG_20260407_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB245_CUSTOMER_SCOPE_EXPLICITHANDOFF_20260407_ROOTONLY";
+const APP_BUILD = "M50.9.9GB246_CUSTOMER_SCOPE_STRICTHANDOFFDIAG_20260407_ROOTONLY";
 try{ window.__dsAppJsRuntimeBuild = "GB244-appjs"; }catch(_){}
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -2194,7 +2194,129 @@ function dsBuildCustomerShadow(existing){
     };
   }catch(_){ return null; }
 }
+
+function dsGetStrictCustomerMainHandoffContext(){
+  try{
+    const active = !!(typeof getCustomerMainModeLoose === 'function' ? getCustomerMainModeLoose() : '');
+    if(!active) return null;
+    const handoff = (typeof dsGetCustomerMainHandoff === 'function') ? dsGetCustomerMainHandoff() : null;
+    if(!handoff || typeof handoff !== 'object') return null;
+    const auth = dsGetCustomerAuthProfile();
+    const explicitCustomer = (handoff.customer && typeof handoff.customer === 'object') ? handoff.customer : {};
+    const explicitPetsRaw = Array.isArray(handoff.pets) ? handoff.pets.filter(Boolean) : [];
+    const explicitCustomerId = String(explicitCustomer.customerId || explicitCustomer.id || '').trim();
+    const explicitUid = String(explicitCustomer.portalUid || explicitCustomer.customerUid || explicitCustomer.uid || auth.handoffUid || auth.uid || '').trim();
+    const explicitEmail = String(explicitCustomer.email || auth.handoffEmail || auth.email || '').trim().toLowerCase();
+    const explicitName = String(explicitCustomer.name || explicitCustomer.displayName || explicitCustomer.fullName || auth.handoffName || auth.displayName || explicitEmail || 'Kunde').trim();
+    const exactCustomers = Array.isArray(state && state.customers) ? state.customers : [];
+    let exactCustomer = null;
+    if(explicitCustomerId){
+      exactCustomer = exactCustomers.find(function(c){ return String((c && (c.customerId || c.id)) || '').trim() === explicitCustomerId; }) || null;
+    }
+    if(!exactCustomer && explicitUid){
+      exactCustomer = exactCustomers.find(function(c){ return String((c && (c.portalUid || c.customerUid || c.uid)) || '').trim() === explicitUid; }) || null;
+    }
+    if(!exactCustomer && explicitEmail){
+      exactCustomer = exactCustomers.find(function(c){ return String((c && c.email) || '').trim().toLowerCase() === explicitEmail; }) || null;
+    }
+    const seedCustomer = {
+      ...(exactCustomer || {}),
+      ...(explicitCustomer || {}),
+      id: String(explicitCustomer.id || explicitCustomer.customerId || (exactCustomer && (exactCustomer.id || exactCustomer.customerId)) || explicitCustomerId || '').trim(),
+      customerId: String(explicitCustomer.customerId || explicitCustomer.id || (exactCustomer && (exactCustomer.customerId || exactCustomer.id)) || explicitCustomerId || '').trim(),
+      portalUid: String(explicitCustomer.portalUid || explicitCustomer.customerUid || explicitCustomer.uid || (exactCustomer && (exactCustomer.portalUid || exactCustomer.customerUid || exactCustomer.uid)) || explicitUid || '').trim(),
+      customerUid: String(explicitCustomer.customerUid || explicitCustomer.portalUid || explicitCustomer.uid || (exactCustomer && (exactCustomer.customerUid || exactCustomer.portalUid || exactCustomer.uid)) || explicitUid || '').trim(),
+      email: explicitEmail || String((exactCustomer && exactCustomer.email) || '').trim().toLowerCase(),
+      phone: String(explicitCustomer.phone || (exactCustomer && exactCustomer.phone) || '').trim(),
+      name: explicitName
+    };
+    const shadow = (typeof dsBuildCustomerShadow === 'function') ? dsBuildCustomerShadow(seedCustomer) : seedCustomer;
+    const finalCustomer = shadow || seedCustomer;
+    const finalCustomerId = String((finalCustomer && (finalCustomer.customerId || finalCustomer.id)) || explicitCustomerId || '').trim();
+    const petsAll = Array.isArray(state && state.pets) ? state.pets : (Array.isArray(state && state.dogs) ? state.dogs : []);
+    const seen = new Set();
+    const pets = [];
+    explicitPetsRaw.forEach(function(p){
+      if(!p || typeof p !== 'object') return;
+      const pid = String(p.id || p.petId || p.dogId || '').trim() || JSON.stringify(p);
+      if(seen.has(pid)) return;
+      seen.add(pid);
+      pets.push({
+        ...(p || {}),
+        id: String(p.id || p.petId || p.dogId || pid).trim(),
+        petId: String(p.petId || p.id || p.dogId || pid).trim(),
+        dogId: String(p.dogId || p.id || p.petId || pid).trim(),
+        name: String(p.name || p.petName || p.dogName || '').trim(),
+        customerId: String(p.customerId || p.ownerId || finalCustomerId || '').trim(),
+        customerEmail: String(p.customerEmail || p.ownerEmail || p.email || explicitEmail || '').trim().toLowerCase(),
+        customerUid: String(p.customerUid || p.portalUid || p.uid || explicitUid || '').trim()
+      });
+    });
+    if(!pets.length){
+      petsAll.forEach(function(p){
+        if(!p || typeof p !== 'object') return;
+        const pid = String(p.id || p.petId || p.dogId || '').trim() || JSON.stringify(p);
+        if(seen.has(pid)) return;
+        const petCustomerId = String(p.customerId || p.ownerId || '').trim();
+        const petUid = String(p.customerUid || p.portalUid || p.uid || '').trim();
+        const petMail = String(p.customerEmail || p.ownerEmail || p.email || '').trim().toLowerCase();
+        let match = false;
+        if(!match && finalCustomerId && petCustomerId && petCustomerId === finalCustomerId) match = true;
+        if(!match && explicitCustomerId && petCustomerId && petCustomerId === explicitCustomerId) match = true;
+        if(!match && explicitUid && petUid && petUid === explicitUid) match = true;
+        if(!match && explicitEmail && petMail && petMail === explicitEmail) match = true;
+        if(!match && petCustomerId){
+          try{
+            const owner = getCustomer(petCustomerId) || null;
+            if(owner){
+              const ownerUid = String(owner.portalUid || owner.customerUid || owner.uid || '').trim();
+              const ownerMail = String(owner.email || '').trim().toLowerCase();
+              if((explicitUid && ownerUid && ownerUid === explicitUid) || (explicitEmail && ownerMail && ownerMail === explicitEmail)) match = true;
+            }
+          }catch(_){ }
+        }
+        if(match){ seen.add(pid); pets.push(p); }
+      });
+    }
+    return {
+      email: explicitEmail,
+      uid: explicitUid,
+      customer: finalCustomer || null,
+      customerId: finalCustomerId || explicitCustomerId,
+      pets,
+      isShadowCustomer: !!(finalCustomer && finalCustomer.__customerShadow),
+      authProfile: auth,
+      strictHandoff: true
+    };
+  }catch(_){ return null; }
+}
+function dsRenderCustomerModeDebug(ctx){
+  try{
+    if(!(typeof getCustomerMainModeLoose === 'function' ? getCustomerMainModeLoose() : '')) return;
+    const payload = (typeof dsGetCustomerMainHandoff === 'function') ? dsGetCustomerMainHandoff() : null;
+    const handoffEmail = String((payload && payload.auth && payload.auth.email) || sessionStorage.getItem('ds_customer_auth_handoff_email') || '').trim().toLowerCase();
+    const handoffUid = String((payload && payload.auth && payload.auth.uid) || sessionStorage.getItem('ds_customer_auth_handoff_uid') || '').trim();
+    const handoffName = String((payload && payload.customer && (payload.customer.name || payload.customer.email)) || '').trim();
+    const resolvedId = String((ctx && ctx.customerId) || '').trim();
+    const resolvedName = String((ctx && ctx.customer && (ctx.customer.name || ctx.customer.email)) || '').trim();
+    let el = document.getElementById('customerModeDebugLine');
+    if(!el){
+      el = document.createElement('div');
+      el.id = 'customerModeDebugLine';
+      el.style.cssText = 'margin:8px 0 10px 0;padding:8px 10px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.10);font-size:12px;line-height:1.45;color:#d9d9e3;word-break:break-word;';
+    }
+    el.textContent = 'Kundenmodus-DIAG · Handoff=' + (handoffName || '—') + ' · Email=' + (handoffEmail || '—') + ' · UID=' + (handoffUid || '—') + ' · Kunde=' + (resolvedName || '—') + ' · customerId=' + (resolvedId || '—');
+    const dogsPanel = document.getElementById('dogs');
+    const contractPanel = document.getElementById('contract');
+    const docsPanel = document.getElementById('documents');
+    const activePanel = (dogsPanel && dogsPanel.style.display !== 'none' && dogsPanel) || (contractPanel && contractPanel.style.display !== 'none' && contractPanel) || docsPanel || dogsPanel || contractPanel;
+    if(activePanel && !el.parentNode){ activePanel.insertBefore(el, activePanel.firstChild); }
+  }catch(_){ }
+}
+
 function dsGetCustomerScopeContext(){
+  const strictHandoffCtx = (typeof dsGetStrictCustomerMainHandoffContext === 'function') ? dsGetStrictCustomerMainHandoffContext() : null;
+  if(strictHandoffCtx) return strictHandoffCtx;
   const auth = dsGetCustomerAuthProfile();
   const email = String(auth.email || '').trim().toLowerCase();
   const uidVal = String(auth.uid || '').trim();
@@ -2415,6 +2537,7 @@ async function submitCustomerDogsProposal(){
   try{
     ensureStateShape();
     const ctx = getCustomerMainDogsContext();
+    try{ dsRenderCustomerModeDebug(ctx); }catch(_){ }
     const authUser = await cpWaitForFirebaseUser(10000);
     if(!authUser || !authUser.uid) throw new Error('Keine aktive Firebase-Anmeldung in der Haupt-App. Bitte Haupt-App kurz neu öffnen und erneut versuchen.');
     try{ window.CLOUD = window.CLOUD || {}; CLOUD.user = authUser; if(!CLOUD.orgId) CLOUD.orgId = dsResolveCloudOrgId(); }catch(_){ }
@@ -2870,6 +2993,7 @@ function initCustomerMainDogsMode(){
     const ctx = getCustomerMainDogsContext();
     if(mode === 'dogs'){
       renderDogs();
+      try{ dsRenderCustomerModeDebug(ctx); }catch(_){ }
       const ownPet = ctx.pets[0] || null;
       setTimeout(function(){
         try{
@@ -22810,7 +22934,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB245_CUSTOMER_SCOPE_EXPLICITHANDOFF_20260407_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB246_CUSTOMER_SCOPE_STRICTHANDOFFDIAG_20260407_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -24783,7 +24907,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB245_CUSTOMER_SCOPE_EXPLICITHANDOFF_20260407_ROOTONLY";
+  const BUILD = "M50.9.9GB246_CUSTOMER_SCOPE_STRICTHANDOFFDIAG_20260407_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
