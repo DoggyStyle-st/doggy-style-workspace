@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB257_PROPOSAL_ADOPT_PERSISTFIX_20260408_ROOTONLY",
+  tag: "M50.9.9GB258_PROPOSAL_REVIEW_TARGETFIX_20260409_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,8 +12,8 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB257_PROPOSAL_ADOPT_PERSISTFIX_20260408_ROOTONLY";
-try{ window.__dsAppJsRuntimeBuild = "GB257-appjs"; }catch(_){}
+const APP_BUILD = "M50.9.9GB258_PROPOSAL_REVIEW_TARGETFIX_20260409_ROOTONLY";
+try{ window.__dsAppJsRuntimeBuild = "GB258-appjs"; }catch(_){}
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
 function dsSyncDiagStateSummary(){
@@ -11516,6 +11516,94 @@ function dsEnsureCanonicalProposalTargets(row, customerPayload, petPayload, curr
   }catch(_){ return { customer: currentCustomer || null, pet: currentPet || null }; }
 }
 
+function dsResolveProposalIdentityTargets(row, customerPayload, petPayload){
+  try{
+    ensureStateShape();
+    const customers = asArray(state && state.customers);
+    const pets = asArray(state && (((state.pets||[]).length ? state.pets : state.dogs) || []));
+    const cemail = lower((customerPayload && customerPayload.email) || (row && row.customerEmail) || '');
+    const cname = lower((customerPayload && customerPayload.name) || (row && row.customerName) || '');
+    const cphone = norm((customerPayload && customerPayload.phone) || (row && row.customerPhone) || '');
+    const pname = lower((petPayload && petPayload.name) || (row && row.petName) || '');
+    const pchip = norm((petPayload && (petPayload.chipNumber || petPayload.chip)) || (row && row.chipNumber) || '');
+    let customer = null;
+    let pet = null;
+
+    let customerHits = customers.slice();
+    if(cemail){
+      const emailHits = customerHits.filter(c=>lower((c && c.email) || '') === cemail);
+      if(emailHits.length) customerHits = emailHits;
+    }
+    if(cname){
+      const nameHits = customerHits.filter(c=>lower((c && c.name) || '') === cname);
+      if(nameHits.length) customerHits = nameHits;
+    }
+    if(cphone && customerHits.length !== 1){
+      const phoneHits = customerHits.filter(c=>norm((c && c.phone) || '') === cphone);
+      if(phoneHits.length) customerHits = phoneHits;
+    }
+    if(customerHits.length === 1) customer = customerHits[0] || null;
+    else if(customerHits.length > 1) customer = dsChooseBestCustomerForReview(customerHits, pname, pchip) || null;
+
+    let petHits = pets.slice();
+    if(customer){
+      const cid = norm((customer && (customer.id || customer.customerId)) || '');
+      if(cid){
+        const ownerHits = petHits.filter(p=>norm((p && (p.customerId || p.ownerId || '')) || '') === cid);
+        if(ownerHits.length) petHits = ownerHits;
+      }
+    }
+    if(pchip){
+      const chipHits = petHits.filter(p=>norm((p && (p.chipNumber || p.chip || '')) || '') === pchip);
+      if(chipHits.length) petHits = chipHits;
+    }
+    if(pname){
+      const nameHits = petHits.filter(p=>lower((p && p.name) || '') === pname);
+      if(nameHits.length) petHits = nameHits;
+    }
+    if(petHits.length === 1) pet = petHits[0] || null;
+    else if(petHits.length > 1) pet = dsChooseBestPetForReview(petHits) || null;
+
+    if(!customer && pet){
+      const ownerId = norm((pet && (pet.customerId || pet.ownerId)) || '');
+      if(ownerId){
+        customer = customers.find(c=>norm((c && (c.id || c.customerId || '')) || '') === ownerId) || null;
+        if(!customer && typeof getCustomer === 'function') customer = getCustomer(ownerId) || null;
+      }
+    }
+    if(customer && !pet){
+      let owned = pets.filter(p=>norm((p && (p.customerId || p.ownerId || '')) || '') === norm((customer && (customer.id || customer.customerId)) || ''));
+      if(pchip){ const chipHits = owned.filter(p=>norm((p && (p.chipNumber || p.chip || '')) || '') === pchip); if(chipHits.length) owned = chipHits; }
+      if(pname){ const nameHits = owned.filter(p=>lower((p && p.name) || '') === pname); if(nameHits.length) owned = nameHits; }
+      if(owned.length === 1) pet = owned[0] || null;
+      else if(owned.length > 1) pet = dsChooseBestPetForReview(owned) || null;
+    }
+    return { customer: customer || null, pet: pet || null };
+  }catch(_){ return { customer:null, pet:null }; }
+}
+function dsProposalIdentityConflictsWithTarget(targetCustomer, targetPet, customerPayload, petPayload, identityCustomer, identityPet){
+  try{
+    if(identityCustomer){
+      const targetCid = norm((targetCustomer && (targetCustomer.id || targetCustomer.customerId)) || '');
+      const identityCid = norm((identityCustomer && (identityCustomer.id || identityCustomer.customerId)) || '');
+      const cemail = lower((customerPayload && customerPayload.email) || '');
+      const cname = lower((customerPayload && customerPayload.name) || '');
+      if(identityCid && targetCid && identityCid !== targetCid){
+        if((cemail && lower((targetCustomer && targetCustomer.email) || '') !== cemail) || (cname && lower((targetCustomer && targetCustomer.name) || '') !== cname)) return true;
+      }
+    }
+    if(identityPet){
+      const targetPid = norm((targetPet && (targetPet.id || targetPet.petId)) || '');
+      const identityPid = norm((identityPet && (identityPet.id || identityPet.petId)) || '');
+      const pname = lower((petPayload && petPayload.name) || '');
+      const pchip = norm((petPayload && (petPayload.chipNumber || petPayload.chip)) || '');
+      if(identityPid && targetPid && identityPid !== targetPid){
+        if((pchip && norm((targetPet && (targetPet.chipNumber || targetPet.chip)) || '') !== pchip) || (pname && lower((targetPet && targetPet.name) || '') !== pname)) return true;
+      }
+    }
+  }catch(_){ }
+  return false;
+}
 function dsResolveProposalReviewTargets(sourceRow){
   try{
     const row = sourceRow || (__dsProposalReview && __dsProposalReview.row);
@@ -11548,8 +11636,19 @@ function dsResolveProposalReviewTargets(sourceRow){
       if(hits.length === 1){ pet = hits[0] || null; break; }
       if(hits.length > 1){ pet = dsChooseBestPetForReview(hits); break; }
     }
+    const identityTargets = dsResolveProposalIdentityTargets(row, customerPayload, petPayload) || {};
+    const identityCustomer = identityTargets.customer || null;
+    const identityPet = identityTargets.pet || null;
+
     customer = customer || dsFindExistingCustomerForInboxRow(row, customerPayload) || null;
     pet = pet || dsFindExistingPetForInboxRow(customer || {}, petPayload, row) || null;
+
+    if(dsProposalIdentityConflictsWithTarget(customer, pet, customerPayload, petPayload, identityCustomer, identityPet)){
+      if(identityCustomer) customer = identityCustomer;
+      if(identityPet) pet = identityPet;
+    }
+    if(!customer && identityCustomer) customer = identityCustomer;
+    if(!pet && identityPet) pet = identityPet;
 
     const pname = lower((petPayload && petPayload.name) || '');
     const pchip = norm((petPayload && petPayload.chipNumber) || '');
@@ -11621,6 +11720,11 @@ function dsResolveProposalReviewTargets(sourceRow){
     if(customer && !pet){
       const owned = dsOwnedPetsForCustomer(customer);
       if(owned.length === 1) pet = owned[0] || null;
+    }
+
+    if(dsProposalIdentityConflictsWithTarget(customer, pet, customerPayload, petPayload, identityCustomer, identityPet)){
+      if(identityCustomer) customer = identityCustomer;
+      if(identityPet) pet = identityPet;
     }
 
     if(!customer || !pet){
@@ -23413,7 +23517,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB257_PROPOSAL_ADOPT_PERSISTFIX_20260408_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB258_PROPOSAL_REVIEW_TARGETFIX_20260409_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -25386,7 +25490,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB257_PROPOSAL_ADOPT_PERSISTFIX_20260408_ROOTONLY";
+  const BUILD = "M50.9.9GB258_PROPOSAL_REVIEW_TARGETFIX_20260409_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -28060,7 +28164,7 @@ try{ window.__GB191_MARKER = 'active'; }catch(_){ }
     try{ ds166OpenRowByKey = window.ds166OpenRowByKey; }catch(_){ }
   }catch(_){ }
 })();
-try{ window.__dsAppJsRuntimeBuild = 'GB257-appjs'; }catch(_){}
+try{ window.__dsAppJsRuntimeBuild = 'GB258-appjs'; }catch(_){}
 /* ===== END GB194 ===== */
 
 
