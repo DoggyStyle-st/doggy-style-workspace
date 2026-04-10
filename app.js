@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB261_PROPOSAL_REVIEW_PORTALAUTHMATCHFIX_20260410_ROOTONLY",
+  tag: "M50.9.9GB262_PROPOSAL_REVIEW_BASEPETSYNCFIX_20260410_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB261_PROPOSAL_REVIEW_PORTALAUTHMATCHFIX_20260410_ROOTONLY";
+const APP_BUILD = "M50.9.9GB262_PROPOSAL_REVIEW_BASEPETSYNCFIX_20260410_ROOTONLY";
 try{ window.__dsAppJsRuntimeBuild = "GB261-appjs"; }catch(_){}
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -13270,6 +13270,32 @@ function dsFinalizeProposalReviewEditor(row, baseCustomer, basePet, basePetId, c
       else openCpEditor('edit', basePetId);
     }catch(_){ try{ openCpEditor('edit', basePetId); }catch(__){} }
     try{ cpEdit.mode = 'edit'; cpEdit.petId = basePetId; }catch(_){ }
+
+    try{
+      const livePet = (typeof getPet === 'function' ? getPet(basePetId) : null) || null;
+      const liveCustomer = livePet && (typeof getCustomer === 'function')
+        ? (getCustomer(livePet.customerId || livePet.ownerId || '') || null)
+        : null;
+      const staleCustomerId = norm((baseCustomer && (baseCustomer.id || baseCustomer.customerId)) || '');
+      const stalePetId = norm((basePet && (basePet.id || basePet.petId)) || '');
+      const liveCustomerId = norm((liveCustomer && (liveCustomer.id || liveCustomer.customerId)) || '');
+      const livePetId = norm((livePet && (livePet.id || livePet.petId)) || '');
+      const mismatch = (!!livePetId && !!stalePetId && livePetId !== stalePetId)
+        || (!!liveCustomerId && !!staleCustomerId && liveCustomerId !== staleCustomerId)
+        || (!!livePetId && !stalePetId)
+        || (!!liveCustomerId && !staleCustomerId);
+      if(mismatch){
+        basePet = livePet || basePet || null;
+        baseCustomer = liveCustomer || baseCustomer || null;
+      }else{
+        if(!basePet && livePet) basePet = livePet;
+        if(!baseCustomer && liveCustomer) baseCustomer = liveCustomer;
+      }
+      __dsProposalReview.baseCustomer = baseCustomer ? JSON.parse(JSON.stringify(baseCustomer)) : null;
+      __dsProposalReview.basePet = basePet ? JSON.parse(JSON.stringify(basePet)) : null;
+      __dsProposalReview.baseCustomerId = String((baseCustomer && (baseCustomer.id || baseCustomer.customerId)) || '').trim();
+      __dsProposalReview.basePetId = String((basePetId || (basePet && (basePet.id || basePet.petId)) || '')).trim();
+    }catch(_){ }
     try{ window.__dsProposalReviewOpening = false; }catch(_){ }
 
     const editor = document.getElementById('cpEditor');
@@ -13282,7 +13308,7 @@ function dsFinalizeProposalReviewEditor(row, baseCustomer, basePet, basePetId, c
     try{ const title = document.getElementById('cpEditorTitle'); if(title) title.textContent = 'Kunde & Hund prüfen'; }catch(_){ }
     try{ const useExisting = document.getElementById('useExistingCustomer'); if(useExisting) useExisting.checked = true; }catch(_){ }
     try{ refreshCustomerSelect(); }catch(_){ }
-    try{ const sel = document.getElementById('customerSelect'); if(sel) sel.value = String(baseCustomer.id || baseCustomer.customerId || ''); }catch(_){ }
+    try{ const sel = document.getElementById('customerSelect'); if(sel) sel.value = String((baseCustomer && (baseCustomer.id || baseCustomer.customerId)) || ''); }catch(_){ }
     try{ if(typeof setCustomerFieldsDisabled === 'function') setCustomerFieldsDisabled(false); }catch(_){ }
     try{ dsApplyProposalReviewBanner(row); }catch(_){ }
 
@@ -23761,7 +23787,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB261_PROPOSAL_REVIEW_PORTALAUTHMATCHFIX_20260410_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB262_PROPOSAL_REVIEW_BASEPETSYNCFIX_20260410_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -25734,7 +25760,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB261_PROPOSAL_REVIEW_PORTALAUTHMATCHFIX_20260410_ROOTONLY";
+  const BUILD = "M50.9.9GB262_PROPOSAL_REVIEW_BASEPETSYNCFIX_20260410_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
