@@ -11328,8 +11328,8 @@ function dsUpdateProposalReviewMatchDiag(row, phase, extra){
     const lines = [
       'ReviewDiag phase=' + String(phase || '--'),
       'row: id=' + String((row && (row.id || row.proposalId || row.taskId || '')) || '--')
-        + ' cid=' + String((row && (row.customerId || row.__targetCustomerId || '')) || '--')
-        + ' pid=' + String((row && (row.petId || row.__targetPetId || '')) || '--')
+        + ' cid=' + String((row && (row.customerId || row.cid || row.__targetCustomerId || '')) || '--')
+        + ' pid=' + String((row && (row.petId || row.pid || row.__targetPetId || '')) || '--')
         + ' source=' + String((payload && payload.source) || (row && row.source) || '--'),
       'payload.customer: ' + JSON.stringify({
         email: String((customerPayload && customerPayload.email) || (row && row.customerEmail) || ''),
@@ -12149,6 +12149,77 @@ function dsResolveCustomerDogsProposalByForm(row, customerPayload, petPayload){
   }catch(_){ return { customer:null, pet:null, matched:false }; }
 }
 
+
+function dsResolveProposalRowBoundTargets(row, customerPayload, petPayload){
+  try{
+    const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
+    const cp = (customerPayload && typeof customerPayload === 'object') ? customerPayload : ((payload && payload.customer && typeof payload.customer === 'object') ? payload.customer : {});
+    const pp = (petPayload && typeof petPayload === 'object') ? petPayload : ((payload && payload.pet && typeof payload.pet === 'object') ? payload.pet : {});
+    const customers = asArray(state && state.customers);
+    const pets = asArray(state && (((state.pets||[]).length ? state.pets : state.dogs) || []));
+    const targetCid = norm((row && (row.__targetCustomerId || row.customerId || row.cid)) || (cp && (cp.customerId || cp.id)) || (payload && payload.customerId) || '');
+    const targetPid = norm((row && (row.__targetPetId || row.petId || row.pid)) || (pp && (pp.id || pp.petId || pp.dogId)) || (payload && payload.petId) || '');
+    const cemail = lower((cp && cp.email) || (row && row.customerEmail) || '');
+    const cname = lower((cp && cp.name) || (row && row.customerName) || '');
+    const cphone = norm((cp && cp.phone) || (row && row.customerPhone) || '');
+    const pname = lower((pp && pp.name) || (row && row.petName) || '');
+    const pchip = norm((pp && (pp.chipNumber || pp.chip)) || (row && row.chipNumber) || '');
+    const pbirth = norm((pp && (pp.birthdate || pp.birthDate || pp.birth)) || (row && row.birthdate) || '');
+    let customer = null;
+    let pet = null;
+    if(targetCid){
+      customer = customers.find(function(c){ return norm((c && (c.id || c.customerId || '')) || '') === targetCid; }) || null;
+    }
+    if(!customer && cemail){
+      const hits = customers.filter(function(c){ return lower((c && c.email) || '') === cemail; });
+      if(hits.length === 1) customer = hits[0] || null;
+    }
+    if(!customer && cname){
+      let hits = customers.filter(function(c){ return lower((c && (c.name || c.displayName || c.fullName)) || '') === cname; });
+      if(cphone){ const phoneHits = hits.filter(function(c){ return norm((c && c.phone) || '') === cphone; }); if(phoneHits.length) hits = phoneHits; }
+      if(hits.length === 1) customer = hits[0] || null;
+    }
+    if(targetPid){
+      const hitPet = pets.find(function(p){ return norm((p && (p.id || p.petId || p.dogId || '')) || '') === targetPid; }) || null;
+      if(hitPet){
+        const ownerId = norm((hitPet && (hitPet.customerId || hitPet.ownerId || '')) || '');
+        if(!targetCid || !ownerId || ownerId === targetCid) pet = hitPet;
+      }
+    }
+    let owned = [];
+    if(targetCid) owned = pets.filter(function(p){ return norm((p && (p.customerId || p.ownerId || '')) || '') === targetCid; });
+    else if(customer) owned = pets.filter(function(p){ return norm((p && (p.customerId || p.ownerId || '')) || '') === norm((customer && (customer.id || customer.customerId || '')) || ''); });
+    if(!pet && owned.length){
+      let hits = owned.slice();
+      if(pchip){ const chipHits = hits.filter(function(p){ return norm((p && (p.chipNumber || p.chip || '')) || '') === pchip; }); if(chipHits.length) hits = chipHits; }
+      if(pname){ const nameHits = hits.filter(function(p){ return lower((p && p.name) || '') === pname; }); if(nameHits.length) hits = nameHits; }
+      if(pbirth && hits.length !== 1){
+        const birthHits = hits.filter(function(p){ return norm((p && (p.birthdate || p.birthDate || p.birth || '')) || '') === pbirth; });
+        if(birthHits.length) hits = birthHits;
+      }
+      if(hits.length === 1) pet = hits[0] || null;
+      else if(hits.length > 1) pet = dsChooseBestPetForReview(hits) || null;
+      else if(owned.length === 1) pet = owned[0] || null;
+    }
+    if(!customer && pet){
+      const ownerId = norm((pet && (pet.customerId || pet.ownerId || '')) || '');
+      if(ownerId && typeof getCustomer === 'function') customer = getCustomer(ownerId) || null;
+      if(!customer && ownerId) customer = customers.find(function(c){ return norm((c && (c.id || c.customerId || '')) || '') === ownerId; }) || null;
+    }
+    if(customer && !pet){
+      let hits = pets.filter(function(p){ return norm((p && (p.customerId || p.ownerId || '')) || '') === norm((customer && (customer.id || customer.customerId || '')) || ''); });
+      if(pchip){ const chipHits = hits.filter(function(p){ return norm((p && (p.chipNumber || p.chip || '')) || '') === pchip; }); if(chipHits.length) hits = chipHits; }
+      if(pname){ const nameHits = hits.filter(function(p){ return lower((p && p.name) || '') === pname; }); if(nameHits.length) hits = nameHits; }
+      if(pbirth && hits.length !== 1){
+        const birthHits = hits.filter(function(p){ return norm((p && (p.birthdate || p.birthDate || p.birth || '')) || '') === pbirth; });
+        if(birthHits.length) hits = birthHits;
+      }
+      if(hits.length === 1) pet = hits[0] || null;
+      else if(hits.length > 1) pet = dsChooseBestPetForReview(hits) || null;
+    }
+    return { customer: customer || null, pet: pet || null, matched: !!(customer || pet), targetCid: targetCid, targetPid: targetPid };
+  }catch(_){ return { customer:null, pet:null, matched:false, targetCid:'', targetPid:'' }; }
+}
 function dsResolveProposalReviewTargets(sourceRow){
   try{
     const row = sourceRow || (__dsProposalReview && __dsProposalReview.row);
@@ -12161,10 +12232,25 @@ function dsResolveProposalReviewTargets(sourceRow){
     let customer = null;
     let pet = null;
 
+    const rowBoundTargets = dsResolveProposalRowBoundTargets(row, customerPayload, petPayload) || {};
+    const rowBoundCustomer = rowBoundTargets.customer || null;
+    const rowBoundPet = rowBoundTargets.pet || null;
+
     try{
       const src = lower((payload && payload.source) || (row && row.source) || '');
       const tpl = lower((row && (row.templateId || row.proposalType || row.kind || row.formKey)) || '');
       const isCustomerDogsProposal = src.indexOf('customer-main-dogs') >= 0 || tpl === 'customer_data';
+      if(isCustomerDogsProposal && (rowBoundCustomer || rowBoundPet)){
+        customer = rowBoundCustomer || null;
+        pet = rowBoundPet || null;
+        if(customer && !pet){
+          const owned = dsOwnedPetsForCustomer(customer);
+          if(owned.length === 1) pet = owned[0] || null;
+        }
+        if(customer || pet){
+          return { customer: customer || null, pet: pet || null, customerPayload, petPayload };
+        }
+      }
       if(isCustomerDogsProposal){
         const exactCid = norm((row && row.customerId) || (customerPayload && (customerPayload.customerId || customerPayload.id)) || '');
         const exactCustomer = exactCid ? (customers.find(function(c){ return norm((c && (c.id || c.customerId || '')) || '') === exactCid; }) || null) : null;
@@ -12419,8 +12505,8 @@ function dsEnrichProposalReviewRow(sourceRow){
     const targets = dsResolveProposalReviewTargets(row);
     const customer = targets && targets.customer ? targets.customer : null;
     const pet = targets && targets.pet ? targets.pet : null;
-    const customerId = norm((customer && (customer.id || customer.customerId)) || (row && row.__targetCustomerId) || (row && row.customerId) || ((targets && targets.customerPayload) ? (targets.customerPayload.id || targets.customerPayload.customerId) : '') || '');
-    const petId = norm((pet && (pet.id || pet.petId)) || (row && row.__targetPetId) || (row && row.petId) || ((targets && targets.petPayload) ? (targets.petPayload.id || targets.petPayload.petId) : '') || '');
+    const customerId = norm((customer && (customer.id || customer.customerId)) || (row && row.__targetCustomerId) || (row && row.customerId) || (row && row.cid) || ((targets && targets.customerPayload) ? (targets.customerPayload.id || targets.customerPayload.customerId) : '') || '');
+    const petId = norm((pet && (pet.id || pet.petId)) || (row && row.__targetPetId) || (row && row.petId) || (row && row.pid) || ((targets && targets.petPayload) ? (targets.petPayload.id || targets.petPayload.petId) : '') || '');
     row.__targetCustomerId = customerId;
     row.__targetPetId = petId;
     row.__debugCustomerId = customerId;
@@ -13713,6 +13799,15 @@ function dsFinalizeProposalReviewEditor(row, baseCustomer, basePet, basePetId, c
   opts = opts || {};
   try{
     try{
+      const rowBoundTargets = dsResolveProposalRowBoundTargets(row, customerPayload || {}, petPayload || {}) || {};
+      const rowBoundCustomer = rowBoundTargets.customer || null;
+      const rowBoundPet = rowBoundTargets.pet || null;
+      const rowBoundCustomerId = norm((rowBoundCustomer && (rowBoundCustomer.id || rowBoundCustomer.customerId)) || '');
+      const rowBoundPetId = norm((rowBoundPet && (rowBoundPet.id || rowBoundPet.petId)) || '');
+      if(rowBoundCustomerId && rowBoundCustomerId !== norm((baseCustomer && (baseCustomer.id || baseCustomer.customerId)) || '')) baseCustomer = rowBoundCustomer;
+      if(rowBoundPetId && rowBoundPetId !== norm((basePet && (basePet.id || basePet.petId)) || (basePetId || ''))){ basePet = rowBoundPet; basePetId = rowBoundPetId; }
+    }catch(_){ }
+    try{
       const exactTargets = dsResolveProposalFormExactTargets(row, customerPayload || {}, petPayload || {}) || {};
       const strictTargets = dsResolveProposalStrictPayloadTargets(row, customerPayload || {}, petPayload || {}) || {};
       const primaryTargets = dsResolveProposalPrimaryPayloadTargets(row, customerPayload || {}, petPayload || {}) || {};
@@ -13964,9 +14059,10 @@ function dsOpenProposalInCustomerEditor(row, opts){
     let directPetId = '';
     try{ directPetId = dsGetDirectProposalReviewPetId(row); }catch(_){ directPetId = ''; }
     const targets = dsResolveProposalReviewTargets(row);
-    let baseCustomer = targets.customer || null;
-    let basePet = targets.pet || null;
-    let basePetId = String((directPetId || (basePet && (basePet.id || basePet.petId)) || (row && row.__targetPetId) || (row && row.petId) || '')).trim();
+    const rowBoundTargets = dsResolveProposalRowBoundTargets(row, customerPayload, petPayload) || {};
+    let baseCustomer = rowBoundTargets.customer || targets.customer || null;
+    let basePet = rowBoundTargets.pet || targets.pet || null;
+    let basePetId = String((directPetId || (basePet && (basePet.id || basePet.petId)) || (row && row.__targetPetId) || (row && row.petId) || (row && row.pid) || '')).trim();
     if(!basePet && basePetId){ try{ basePet = (typeof getPet === 'function' ? getPet(basePetId) : null) || null; }catch(_){ } }
     if(!baseCustomer && basePet){ try{ baseCustomer = (typeof getCustomer === 'function' ? getCustomer(basePet.customerId || basePet.ownerId || '') : null) || null; }catch(_){ } }
     if((!baseCustomer || !basePet || !basePetId) && basePetId){
