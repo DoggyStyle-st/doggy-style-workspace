@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB267_PROPOSAL_REVIEW_FORMPAYLOAD_OVERRIDEFIX_20260410_ROOTONLY",
+  tag: "M50.9.9GB268_PROPOSAL_REVIEW_ROWCID_HARDMATCH_20260410_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,8 +12,8 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB267_PROPOSAL_REVIEW_FORMPAYLOAD_OVERRIDEFIX_20260410_ROOTONLY";
-try{ window.__dsAppJsRuntimeBuild = "GB267-appjs"; }catch(_){}
+const APP_BUILD = "M50.9.9GB268_PROPOSAL_REVIEW_ROWCID_HARDMATCH_20260410_ROOTONLY";
+try{ window.__dsAppJsRuntimeBuild = "GB268-appjs"; }catch(_){}
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
 function dsSyncDiagStateSummary(){
@@ -12060,6 +12060,45 @@ function dsResolveProposalReviewTargets(sourceRow){
     const pets = asArray(state && (((state.pets||[]).length ? state.pets : state.dogs) || []));
     let customer = null;
     let pet = null;
+
+    try{
+      const src = lower((payload && payload.source) || (row && row.source) || '');
+      const tpl = lower((row && (row.templateId || row.proposalType || row.kind || row.formKey)) || '');
+      const isCustomerDogsProposal = src.indexOf('customer-main-dogs') >= 0 || tpl === 'customer_data';
+      if(isCustomerDogsProposal){
+        const exactCid = norm((row && row.customerId) || (customerPayload && (customerPayload.customerId || customerPayload.id)) || '');
+        const exactCustomer = exactCid ? (customers.find(function(c){ return norm((c && (c.id || c.customerId || '')) || '') === exactCid; }) || null) : null;
+        if(exactCustomer){
+          customer = exactCustomer;
+          let owned = pets.filter(function(p){ return norm((p && (p.customerId || p.ownerId || '')) || '') === exactCid; });
+          const exactPid = norm((petPayload && (petPayload.id || petPayload.petId || petPayload.dogId)) || (row && row.petId) || '');
+          const exactChip = norm((petPayload && (petPayload.chipNumber || petPayload.chip)) || (row && row.chipNumber) || '');
+          const exactName = lower((petPayload && petPayload.name) || (row && row.petName) || '');
+          const exactBirth = norm((petPayload && (petPayload.birthdate || petPayload.birthDate)) || '');
+          if(exactPid){
+            const hits = owned.filter(function(p){ return norm((p && (p.id || p.petId || p.dogId || '')) || '') === exactPid; });
+            if(hits.length) owned = hits;
+          }
+          if(exactChip){
+            const hits = owned.filter(function(p){ return norm((p && (p.chipNumber || p.chip || '')) || '') === exactChip; });
+            if(hits.length) owned = hits;
+          }
+          if(exactName){
+            const hits = owned.filter(function(p){ return lower((p && p.name) || '') === exactName; });
+            if(hits.length) owned = hits;
+          }
+          if(exactBirth && owned.length !== 1){
+            const hits = owned.filter(function(p){ return norm((p && (p.birthdate || p.birthDate || '')) || '') === exactBirth; });
+            if(hits.length) owned = hits;
+          }
+          if(owned.length === 1) pet = owned[0] || null;
+          else if(owned.length > 1) pet = dsChooseBestPetForReview(owned) || null;
+          if(customer || pet){
+            return { customer: customer || null, pet: pet || null, customerPayload, petPayload };
+          }
+        }
+      }
+    }catch(_){ }
     const customerDogsFormTargets = dsResolveCustomerDogsProposalByForm(row, customerPayload, petPayload) || {};
     const customerDogsFormCustomer = customerDogsFormTargets.customer || null;
     const customerDogsFormPet = customerDogsFormTargets.pet || null;
@@ -24129,7 +24168,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB267_PROPOSAL_REVIEW_FORMPAYLOAD_OVERRIDEFIX_20260410_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB268_PROPOSAL_REVIEW_ROWCID_HARDMATCH_20260410_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -26102,7 +26141,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB267_PROPOSAL_REVIEW_FORMPAYLOAD_OVERRIDEFIX_20260410_ROOTONLY";
+  const BUILD = "M50.9.9GB268_PROPOSAL_REVIEW_ROWCID_HARDMATCH_20260410_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -28779,7 +28818,7 @@ try{ window.__GB191_MARKER = 'active'; }catch(_){ }
     try{ ds166OpenRowByKey = window.ds166OpenRowByKey; }catch(_){ }
   }catch(_){ }
 })();
-try{ window.__dsAppJsRuntimeBuild = 'GB267-appjs'; }catch(_){}
+try{ window.__dsAppJsRuntimeBuild = 'GB268-appjs'; }catch(_){}
 /* ===== END GB194 ===== */
 
 
