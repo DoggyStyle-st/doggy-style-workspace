@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB266_PROPOSAL_REVIEW_EXACTFORMTARGETLOCK_20260410_ROOTONLY",
+  tag: "M50.9.9GB267_PROPOSAL_REVIEW_FORMPAYLOAD_OVERRIDEFIX_20260410_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,8 +12,8 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB266_PROPOSAL_REVIEW_EXACTFORMTARGETLOCK_20260410_ROOTONLY";
-try{ window.__dsAppJsRuntimeBuild = "GB266-appjs"; }catch(_){}
+const APP_BUILD = "M50.9.9GB267_PROPOSAL_REVIEW_FORMPAYLOAD_OVERRIDEFIX_20260410_ROOTONLY";
+try{ window.__dsAppJsRuntimeBuild = "GB267-appjs"; }catch(_){}
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
 function dsSyncDiagStateSummary(){
@@ -11969,6 +11969,86 @@ function dsResolveCustomerPortalProposalTargets(row, customerPayload, petPayload
   }catch(_){ return { customer:null, pet:null, matched:false }; }
 }
 
+
+function dsResolveCustomerDogsProposalByForm(row, customerPayload, petPayload){
+  try{
+    ensureStateShape();
+    const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
+    const src = lower((payload && payload.source) || (row && row.source) || '');
+    const tpl = lower((row && (row.templateId || row.proposalType || row.kind || row.formKey)) || '');
+    const isCustomerDogsProposal = src.indexOf('customer-main-dogs') >= 0 || tpl === 'customer_data';
+    if(!isCustomerDogsProposal) return { customer:null, pet:null, matched:false };
+    const customers = asArray(state && state.customers);
+    const pets = asArray(state && (((state.pets||[]).length ? state.pets : state.dogs) || []));
+    const formEmail = lower((customerPayload && customerPayload.email) || (row && row.customerEmail) || '');
+    const formName = lower((customerPayload && customerPayload.name) || (row && row.customerName) || '');
+    const formPhone = norm((customerPayload && customerPayload.phone) || (row && row.customerPhone) || '');
+    const proposedPetId = norm((petPayload && (petPayload.id || petPayload.petId || petPayload.dogId)) || (row && row.petId) || '');
+    const petName = lower((petPayload && petPayload.name) || (row && row.petName) || '');
+    const petChip = norm((petPayload && (petPayload.chipNumber || petPayload.chip)) || (row && row.chipNumber) || '');
+    const petBirth = norm((petPayload && (petPayload.birthdate || petPayload.birthDate)) || '');
+
+    let customerHits = customers.slice();
+    if(formEmail){
+      const hits = customers.filter(function(c){ return lower((c && c.email) || '') === formEmail; });
+      if(hits.length) customerHits = hits;
+    }
+    if(formName && customerHits.length !== 1){
+      const hits = customerHits.filter(function(c){ return lower((c && c.name) || '') === formName; });
+      if(hits.length) customerHits = hits;
+    }
+    if(formPhone && customerHits.length !== 1){
+      const hits = customerHits.filter(function(c){ return norm((c && c.phone) || '') === formPhone; });
+      if(hits.length) customerHits = hits;
+    }
+    let customer = null;
+    if(customerHits.length === 1) customer = customerHits[0] || null;
+    else if(customerHits.length > 1) customer = dsChooseBestCustomerForReview(customerHits, petName, petChip) || null;
+
+    let petHits = pets.slice();
+    if(customer){
+      const cid = norm((customer && (customer.id || customer.customerId)) || '');
+      if(cid){
+        const owned = petHits.filter(function(p){ return norm((p && (p.customerId || p.ownerId || '')) || '') === cid; });
+        if(owned.length) petHits = owned;
+      }
+    }
+    if(proposedPetId){
+      const hits = petHits.filter(function(p){ return norm((p && (p.id || p.petId || p.dogId || '')) || '') === proposedPetId; });
+      if(hits.length) petHits = hits;
+    }
+    if(petChip){
+      const hits = petHits.filter(function(p){ return norm((p && (p.chipNumber || p.chip || '')) || '') === petChip; });
+      if(hits.length) petHits = hits;
+    }
+    if(petName){
+      const hits = petHits.filter(function(p){ return lower((p && p.name) || '') === petName; });
+      if(hits.length) petHits = hits;
+    }
+    if(petBirth && petHits.length !== 1){
+      const hits = petHits.filter(function(p){ return norm((p && (p.birthdate || p.birthDate || '')) || '') === petBirth; });
+      if(hits.length) petHits = hits;
+    }
+    let pet = null;
+    if(petHits.length === 1) pet = petHits[0] || null;
+    else if(petHits.length > 1) pet = dsChooseBestPetForReview(petHits) || null;
+
+    if(!pet && customer){
+      let owned = pets.filter(function(p){ return norm((p && (p.customerId || p.ownerId || '')) || '') === norm((customer && (customer.id || customer.customerId)) || ''); });
+      if(petChip){ const hits = owned.filter(function(p){ return norm((p && (p.chipNumber || p.chip || '')) || '') === petChip; }); if(hits.length) owned = hits; }
+      if(petName){ const hits = owned.filter(function(p){ return lower((p && p.name) || '') === petName; }); if(hits.length) owned = hits; }
+      if(petBirth && owned.length !== 1){ const hits = owned.filter(function(p){ return norm((p && (p.birthdate || p.birthDate || '')) || '') === petBirth; }); if(hits.length) owned = hits; }
+      if(owned.length === 1) pet = owned[0] || null;
+      else if(owned.length > 1) pet = dsChooseBestPetForReview(owned) || null;
+    }
+    if(!customer && pet){
+      const ownerId = norm((pet && (pet.customerId || pet.ownerId)) || '');
+      if(ownerId) customer = customers.find(function(c){ return norm((c && (c.id || c.customerId || '')) || '') === ownerId; }) || null;
+    }
+    return { customer: customer || null, pet: pet || null, matched: !!(customer || pet) };
+  }catch(_){ return { customer:null, pet:null, matched:false }; }
+}
+
 function dsResolveProposalReviewTargets(sourceRow){
   try{
     const row = sourceRow || (__dsProposalReview && __dsProposalReview.row);
@@ -11980,6 +12060,12 @@ function dsResolveProposalReviewTargets(sourceRow){
     const pets = asArray(state && (((state.pets||[]).length ? state.pets : state.dogs) || []));
     let customer = null;
     let pet = null;
+    const customerDogsFormTargets = dsResolveCustomerDogsProposalByForm(row, customerPayload, petPayload) || {};
+    const customerDogsFormCustomer = customerDogsFormTargets.customer || null;
+    const customerDogsFormPet = customerDogsFormTargets.pet || null;
+    const customerDogsFormMatched = !!customerDogsFormTargets.matched;
+    if(customerDogsFormCustomer) customer = customerDogsFormCustomer;
+    if(customerDogsFormPet) pet = customerDogsFormPet;
     const exactTargets = dsResolveProposalFormExactTargets(row, customerPayload, petPayload) || {};
     const exactCustomer = exactTargets.customer || null;
     const exactPet = exactTargets.pet || null;
@@ -12004,7 +12090,7 @@ function dsResolveProposalReviewTargets(sourceRow){
       norm(customerPayload && (customerPayload.id || customerPayload.customerId)),
       norm(petPayload && petPayload.customerId)
     ].filter(Boolean);
-    if(!customer || !portalMatched){
+    if((!customer || !portalMatched) && !customerDogsFormMatched){
     for(const id of directCustomerIds){
       const hits = customers.filter(function(c){ return norm((c && (c.id || c.customerId || '')) || '') === id; });
       if(hits.length === 1){ customer = hits[0] || null; break; }
@@ -12016,7 +12102,7 @@ function dsResolveProposalReviewTargets(sourceRow){
       norm(row && row.petId),
       norm(petPayload && (petPayload.id || petPayload.petId))
     ].filter(Boolean);
-    if(!pet || !portalMatched){
+    if((!pet || !portalMatched) && !customerDogsFormMatched){
     for(const id of directPetIds){
       const hits = pets.filter(function(x){ return norm((x && (x.id || x.petId || '')) || '') === id; });
       if(hits.length === 1){ pet = hits[0] || null; break; }
@@ -12032,8 +12118,10 @@ function dsResolveProposalReviewTargets(sourceRow){
 
     if(strictCustomer) customer = strictCustomer;
     if(strictPet) pet = strictPet;
-    if(portalCustomer && (!customer || portalMatched)) customer = portalCustomer;
-    if(portalPet && (!pet || portalMatched)) pet = portalPet;
+    if(!customerDogsFormMatched){
+      if(portalCustomer && (!customer || portalMatched)) customer = portalCustomer;
+      if(portalPet && (!pet || portalMatched)) pet = portalPet;
+    }
 
     customer = customer || dsFindExistingCustomerForInboxRow(row, customerPayload) || null;
     pet = pet || dsFindExistingPetForInboxRow(customer || strictCustomer || {}, petPayload, row) || null;
@@ -12159,6 +12247,19 @@ function dsResolveProposalReviewTargets(sourceRow){
         if(owned.length === 1) pet = owned[0] || null;
       }
     }
+    if(customerDogsFormMatched){
+      if(customerDogsFormCustomer) customer = customerDogsFormCustomer;
+      if(customerDogsFormPet) pet = customerDogsFormPet;
+      if(!pet && customerDogsFormCustomer){
+        const owned = dsOwnedPetsForCustomer(customerDogsFormCustomer);
+        if(owned.length === 1) pet = owned[0] || null;
+        else if(owned.length > 1) pet = dsChooseBestPetForReview(owned);
+      }
+      if(!customer && customerDogsFormPet){
+        const ownerId = norm((customerDogsFormPet && (customerDogsFormPet.customerId || customerDogsFormPet.ownerId)) || '');
+        if(ownerId) customer = customers.find(function(c){ return norm((c && (c.id || c.customerId || '')) || '') === ownerId; }) || null;
+      }
+    }
 
     return { customer: customer || null, pet: pet || null, customerPayload, petPayload };
   }catch(_){ return { customer:null, pet:null }; }
@@ -12166,6 +12267,16 @@ function dsResolveProposalReviewTargets(sourceRow){
 function dsEnrichProposalReviewRow(sourceRow){
   try{
     const row = sourceRow && typeof sourceRow === "object" ? Object.assign({}, sourceRow) : {};
+    try{
+      const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
+      const src = lower((payload && payload.source) || (row && row.source) || '');
+      const tpl = lower((row && (row.templateId || row.proposalType || row.kind || row.formKey)) || '');
+      const isCustomerDogsProposal = src.indexOf('customer-main-dogs') >= 0 || tpl === 'customer_data';
+      if(isCustomerDogsProposal){
+        delete row.__targetCustomerId;
+        delete row.__targetPetId;
+      }
+    }catch(_){ }
     const targets = dsResolveProposalReviewTargets(row);
     const customer = targets && targets.customer ? targets.customer : null;
     const pet = targets && targets.pet ? targets.pet : null;
@@ -24018,7 +24129,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB266_PROPOSAL_REVIEW_EXACTFORMTARGETLOCK_20260410_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB267_PROPOSAL_REVIEW_FORMPAYLOAD_OVERRIDEFIX_20260410_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -25991,7 +26102,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB266_PROPOSAL_REVIEW_EXACTFORMTARGETLOCK_20260410_ROOTONLY";
+  const BUILD = "M50.9.9GB267_PROPOSAL_REVIEW_FORMPAYLOAD_OVERRIDEFIX_20260410_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -28668,7 +28779,7 @@ try{ window.__GB191_MARKER = 'active'; }catch(_){ }
     try{ ds166OpenRowByKey = window.ds166OpenRowByKey; }catch(_){ }
   }catch(_){ }
 })();
-try{ window.__dsAppJsRuntimeBuild = 'GB266-appjs'; }catch(_){}
+try{ window.__dsAppJsRuntimeBuild = 'GB267-appjs'; }catch(_){}
 /* ===== END GB194 ===== */
 
 
