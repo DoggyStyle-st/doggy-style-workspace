@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB264_PROPOSAL_REVIEW_SELECTLOCK_TARGETPRIORITY_20260410_ROOTONLY",
+  tag: "M50.9.9GB265_PROPOSAL_REVIEW_PRIMARYPAYLOADLOCK_20260410_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,8 +12,8 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB264_PROPOSAL_REVIEW_SELECTLOCK_TARGETPRIORITY_20260410_ROOTONLY";
-try{ window.__dsAppJsRuntimeBuild = "GB264-appjs"; }catch(_){}
+const APP_BUILD = "M50.9.9GB265_PROPOSAL_REVIEW_PRIMARYPAYLOADLOCK_20260410_ROOTONLY";
+try{ window.__dsAppJsRuntimeBuild = "GB265-appjs"; }catch(_){}
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
 function dsSyncDiagStateSummary(){
@@ -11713,6 +11713,77 @@ function dsResolveProposalStrictPayloadTargets(row, customerPayload, petPayload)
   return { customer:null, pet:null };
 }
 
+function dsResolveProposalPrimaryPayloadTargets(row, customerPayload, petPayload){
+  try{
+    ensureStateShape();
+    const customers = asArray(state && state.customers);
+    const pets = asArray(state && (((state.pets||[]).length ? state.pets : state.dogs) || []));
+    const formEmail = lower((customerPayload && customerPayload.email) || '');
+    const authEmail = lower((row && row.customerEmail) || '');
+    const cname = lower((customerPayload && customerPayload.name) || (row && row.customerName) || '');
+    const cphone = norm((customerPayload && customerPayload.phone) || (row && row.customerPhone) || '');
+    const proposedPetId = norm((petPayload && (petPayload.id || petPayload.petId)) || (row && row.petId) || '');
+    const pname = lower((petPayload && petPayload.name) || (row && row.petName) || '');
+    const pchip = norm((petPayload && (petPayload.chipNumber || petPayload.chip)) || (row && row.chipNumber) || '');
+    const pbirth = norm((petPayload && (petPayload.birthdate || petPayload.birthDate)) || '');
+
+    let customer = null;
+    if(formEmail){
+      const hits = customers.filter(function(c){ return lower((c && c.email) || '') === formEmail; });
+      if(hits.length === 1) customer = hits[0] || null;
+      else if(hits.length > 1) customer = dsChooseBestCustomerForReview(hits, pname, pchip) || null;
+    }
+    if(!customer && authEmail){
+      const hits = customers.filter(function(c){ return lower((c && c.email) || '') === authEmail; });
+      if(hits.length === 1) customer = hits[0] || null;
+      else if(hits.length > 1) customer = dsChooseBestCustomerForReview(hits, pname, pchip) || null;
+    }
+    if(!customer && cname){
+      let hits = customers.filter(function(c){ return lower((c && c.name) || '') === cname; });
+      if(cphone){
+        const phoneHits = hits.filter(function(c){ return norm((c && c.phone) || '') === cphone; });
+        if(phoneHits.length) hits = phoneHits;
+      }
+      if(hits.length === 1) customer = hits[0] || null;
+      else if(hits.length > 1) customer = dsChooseBestCustomerForReview(hits, pname, pchip) || null;
+    }
+
+    let pet = null;
+    let owned = pets.slice();
+    if(customer){
+      const cid = norm((customer && (customer.id || customer.customerId)) || '');
+      if(cid) owned = owned.filter(function(p){ return norm((p && (p.customerId || p.ownerId || '')) || '') === cid; });
+    }
+    if(proposedPetId){
+      const hits = owned.filter(function(p){ return norm((p && (p.id || p.petId || p.dogId || '')) || '') === proposedPetId; });
+      if(hits.length === 1) pet = hits[0] || null;
+      else if(hits.length > 1) pet = dsChooseBestPetForReview(hits) || null;
+    }
+    if(!pet && pchip){
+      const hits = owned.filter(function(p){ return norm((p && (p.chipNumber || p.chip || '')) || '') === pchip; });
+      if(hits.length === 1) pet = hits[0] || null;
+      else if(hits.length > 1) pet = dsChooseBestPetForReview(hits) || null;
+    }
+    if(!pet && pname){
+      let hits = owned.filter(function(p){ return lower((p && p.name) || '') === pname; });
+      if(pbirth){
+        const birthHits = hits.filter(function(p){ return norm((p && (p.birthdate || p.birthDate || '')) || '') === pbirth; });
+        if(birthHits.length) hits = birthHits;
+      }
+      if(hits.length === 1) pet = hits[0] || null;
+      else if(hits.length > 1) pet = dsChooseBestPetForReview(hits) || null;
+    }
+    if(!customer && pet){
+      const ownerId = norm((pet && (pet.customerId || pet.ownerId)) || '');
+      if(ownerId){
+        customer = customers.find(function(c){ return norm((c && (c.id || c.customerId || '')) || '') === ownerId; }) || null;
+      }
+    }
+    const matched = !!(customer || pet) && (!!formEmail || !!authEmail || !!proposedPetId || !!pchip || !!pname);
+    return { customer: customer || null, pet: pet || null, matched: matched };
+  }catch(_){ return { customer:null, pet:null, matched:false }; }
+}
+
 function dsResolveCustomerPortalProposalTargets(row, customerPayload, petPayload){
   try{
     ensureStateShape();
@@ -11830,12 +11901,18 @@ function dsResolveProposalReviewTargets(sourceRow){
     const pets = asArray(state && (((state.pets||[]).length ? state.pets : state.dogs) || []));
     let customer = null;
     let pet = null;
+    const primaryTargets = dsResolveProposalPrimaryPayloadTargets(row, customerPayload, petPayload) || {};
+    const primaryCustomer = primaryTargets.customer || null;
+    const primaryPet = primaryTargets.pet || null;
+    const primaryMatched = !!primaryTargets.matched;
     const portalTargets = dsResolveCustomerPortalProposalTargets(row, customerPayload, petPayload) || {};
     const portalCustomer = portalTargets.customer || null;
     const portalPet = portalTargets.pet || null;
     const portalMatched = !!portalTargets.matched;
-    if(portalCustomer) customer = portalCustomer;
-    if(portalPet) pet = portalPet;
+    if(primaryCustomer) customer = primaryCustomer;
+    if(primaryPet) pet = primaryPet;
+    if(!customer && portalCustomer) customer = portalCustomer;
+    if(!pet && portalPet) pet = portalPet;
     const directCustomerIds = [
       norm(row && row.__targetCustomerId),
       norm(row && row.customerId),
@@ -11889,7 +11966,10 @@ function dsResolveProposalReviewTargets(sourceRow){
     }
     if(!customer && (strictCustomer || identityCustomer)) customer = strictCustomer || identityCustomer;
     if(!pet && (strictPet || identityPet)) pet = strictPet || identityPet;
-    if(portalMatched){
+    if(primaryMatched){
+      if(primaryCustomer) customer = primaryCustomer;
+      if(primaryPet) pet = primaryPet;
+    } else if(portalMatched){
       if(portalCustomer) customer = portalCustomer;
       if(portalPet) pet = portalPet;
     }
@@ -13287,10 +13367,11 @@ function dsFinalizeProposalReviewEditor(row, baseCustomer, basePet, basePetId, c
   try{
     try{
       const strictTargets = dsResolveProposalStrictPayloadTargets(row, customerPayload || {}, petPayload || {}) || {};
+      const primaryTargets = dsResolveProposalPrimaryPayloadTargets(row, customerPayload || {}, petPayload || {}) || {};
       const portalTargets = dsResolveCustomerPortalProposalTargets(row, customerPayload || {}, petPayload || {}) || {};
       const identityTargets = dsResolveProposalIdentityTargets(row, customerPayload || {}, petPayload || {}) || {};
-      const preferredCustomer = strictTargets.customer || portalTargets.customer || identityTargets.customer || null;
-      const preferredPet = strictTargets.pet || portalTargets.pet || identityTargets.pet || null;
+      const preferredCustomer = strictTargets.customer || primaryTargets.customer || identityTargets.customer || portalTargets.customer || null;
+      const preferredPet = strictTargets.pet || primaryTargets.pet || identityTargets.pet || portalTargets.pet || null;
       const preferredCustomerId = norm((preferredCustomer && (preferredCustomer.id || preferredCustomer.customerId)) || '');
       const preferredPetId = norm((preferredPet && (preferredPet.id || preferredPet.petId)) || '');
       const currentCustomerId = norm((baseCustomer && (baseCustomer.id || baseCustomer.customerId)) || '');
@@ -23839,7 +23920,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB264_PROPOSAL_REVIEW_SELECTLOCK_TARGETPRIORITY_20260410_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB265_PROPOSAL_REVIEW_PRIMARYPAYLOADLOCK_20260410_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -25812,7 +25893,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB264_PROPOSAL_REVIEW_SELECTLOCK_TARGETPRIORITY_20260410_ROOTONLY";
+  const BUILD = "M50.9.9GB265_PROPOSAL_REVIEW_PRIMARYPAYLOADLOCK_20260410_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -28489,7 +28570,7 @@ try{ window.__GB191_MARKER = 'active'; }catch(_){ }
     try{ ds166OpenRowByKey = window.ds166OpenRowByKey; }catch(_){ }
   }catch(_){ }
 })();
-try{ window.__dsAppJsRuntimeBuild = 'GB264-appjs'; }catch(_){}
+try{ window.__dsAppJsRuntimeBuild = 'GB265-appjs'; }catch(_){}
 /* ===== END GB194 ===== */
 
 
