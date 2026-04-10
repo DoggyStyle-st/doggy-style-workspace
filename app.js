@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB276_PROPOSAL_REVIEW_DOMROWFORCEFIX_20260410_ROOTONLY",
+  tag: "M50.9.9GB277_PROPOSAL_REVIEW_MATCHHELPERSFIX_20260410_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,9 +12,16 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB276_PROPOSAL_REVIEW_DOMROWFORCEFIX_20260410_ROOTONLY";
-try{ window.__dsAppJsRuntimeBuild = "GB276-appjs"; }catch(_){}
+const APP_BUILD = "M50.9.9GB277_PROPOSAL_REVIEW_MATCHHELPERSFIX_20260410_ROOTONLY";
+try{ window.__dsAppJsRuntimeBuild = "GB277-appjs"; }catch(_){}
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
+
+// Global helper functions used across proposal-review matching.
+// Some review resolver paths expect norm()/lower() to exist in the outer scope.
+// Keep these lightweight and side-effect free.
+function norm(v){ return String(v == null ? '' : v).trim(); }
+function lower(v){ return norm(v).toLowerCase(); }
+try{ window.norm = norm; window.lower = lower; }catch(_){ }
 
 function dsSyncDiagStateSummary(){
   try{
@@ -24645,7 +24652,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB276_PROPOSAL_REVIEW_DOMROWFORCEFIX_20260410_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB277_PROPOSAL_REVIEW_MATCHHELPERSFIX_20260410_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -26618,7 +26625,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB276_PROPOSAL_REVIEW_DOMROWFORCEFIX_20260410_ROOTONLY";
+  const BUILD = "M50.9.9GB277_PROPOSAL_REVIEW_MATCHHELPERSFIX_20260410_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
