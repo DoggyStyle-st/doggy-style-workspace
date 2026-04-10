@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB275_PROPOSAL_REVIEW_DEEPDIAG_20260410_ROOTONLY",
+  tag: "M50.9.9GB276_PROPOSAL_REVIEW_DOMROWFORCEFIX_20260410_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,8 +12,8 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB275_PROPOSAL_REVIEW_DEEPDIAG_20260410_ROOTONLY";
-try{ window.__dsAppJsRuntimeBuild = "GB275-appjs"; }catch(_){}
+const APP_BUILD = "M50.9.9GB276_PROPOSAL_REVIEW_DOMROWFORCEFIX_20260410_ROOTONLY";
+try{ window.__dsAppJsRuntimeBuild = "GB276-appjs"; }catch(_){}
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
 function dsSyncDiagStateSummary(){
@@ -14261,6 +14261,33 @@ function dsOpenProposalInCustomerEditor(row, opts){
     const targets = dsResolveProposalReviewTargets(row);
     const rowBoundTargets = dsResolveProposalRowBoundTargets(row, customerPayload, petPayload) || {};
     try{
+      const src = lower((payload && payload.source) || (row && row.source) || '');
+      const tpl = lower((row && (row.templateId || row.proposalType || row.kind || row.formKey)) || '');
+      const isCustomerDogsProposal = src.indexOf('customer-main-dogs') >= 0 || tpl === 'customer_data';
+      if(isCustomerDogsProposal){
+        const domHit = (typeof dsFindVisiblePetRowForProposal === 'function') ? dsFindVisiblePetRowForProposal(row) : null;
+        const domPetId = String((domHit && domHit.petId) || '').trim();
+        let domPet = null;
+        let domCustomer = null;
+        if(domPetId){
+          try{ if(typeof getPet === 'function') domPet = getPet(domPetId) || null; }catch(_){ domPet = null; }
+          try{ if(!domPet && typeof getPetByDogId === 'function') domPet = getPetByDogId(domPetId) || null; }catch(_){ }
+        }
+        try{
+          const domCid = String((domHit && domHit.row && domHit.row.dataset && domHit.row.dataset.customerId) || (domPet && (domPet.customerId || domPet.ownerId)) || '').trim();
+          if(domCid && typeof getCustomer === 'function') domCustomer = getCustomer(domCid) || null;
+          if(!domCustomer && domPet && typeof getCustomer === 'function') domCustomer = getCustomer(domPet.customerId || domPet.ownerId || '') || null;
+        }catch(_){ domCustomer = null; }
+        if(domPet && domCustomer){
+          try{ row.__targetCustomerId = String((domCustomer.id || domCustomer.customerId || '')).trim(); }catch(_){ }
+          try{ row.__targetPetId = String((domPet.id || domPet.petId || domPetId || '')).trim(); }catch(_){ }
+          try{ window.__dsProposalReviewOpenTrace = Object.assign({}, window.__dsProposalReviewOpenTrace || {}, { stage:'dom-row-force', domCustomer: dsProposalReviewDiagCustomerLabel(domCustomer), domPet: dsProposalReviewDiagPetLabel(domPet), domPetId: String((domPet.id || domPet.petId || domPetId || '')).trim() }); }catch(_){ }
+          try{ dsUpdateProposalReviewMatchDiag(row, 'dom-row-force', { domPetId:String((domPet.id || domPet.petId || domPetId || '')).trim() }); }catch(_){ }
+          return !!dsFinalizeProposalReviewEditor(row, domCustomer, domPet, String((domPet.id || domPet.petId || domPetId || '')).trim(), customerPayload, petPayload, opts);
+        }
+      }
+    }catch(_){ }
+    try{
       window.__dsProposalReviewOpenTrace = {
         stage: 'open-start',
         rowId: String((row && (row.id || row.proposalId || row.taskId)) || ''),
@@ -24618,7 +24645,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB275_PROPOSAL_REVIEW_DEEPDIAG_20260410_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB276_PROPOSAL_REVIEW_DOMROWFORCEFIX_20260410_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -26591,7 +26618,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB275_PROPOSAL_REVIEW_DEEPDIAG_20260410_ROOTONLY";
+  const BUILD = "M50.9.9GB276_PROPOSAL_REVIEW_DOMROWFORCEFIX_20260410_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
