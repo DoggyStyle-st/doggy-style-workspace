@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB269_PROPOSAL_REVIEW_MATCHDIAG_20260410_ROOTONLY",
+  tag: "M50.9.9GB272_PROPOSAL_REVIEW_MATCHDIAG_ROWFORCEFIX_REPACK_20260410_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,8 +12,8 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB269_PROPOSAL_REVIEW_MATCHDIAG_20260410_ROOTONLY";
-try{ window.__dsAppJsRuntimeBuild = "GB269-appjs"; }catch(_){}
+const APP_BUILD = "M50.9.9GB272_PROPOSAL_REVIEW_MATCHDIAG_ROWFORCEFIX_REPACK_20260410_ROOTONLY";
+try{ window.__dsAppJsRuntimeBuild = "GB272-appjs"; }catch(_){}
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
 function dsSyncDiagStateSummary(){
@@ -11343,6 +11343,7 @@ function dsUpdateProposalReviewMatchDiag(row, phase, extra){
         chip: String((petPayload && (petPayload.chipNumber || petPayload.chip)) || (row && row.chipNumber) || ''),
         birth: String((petPayload && (petPayload.birthdate || petPayload.birthDate)) || '')
       }),
+      'rowBoundTargets: customer=' + dsProposalReviewDiagCustomerLabel(rowBoundTargets.customer) + ' pet=' + dsProposalReviewDiagPetLabel(rowBoundTargets.pet),
       'formTargets: customer=' + dsProposalReviewDiagCustomerLabel(formTargets.customer) + ' pet=' + dsProposalReviewDiagPetLabel(formTargets.pet),
       'portalTargets: customer=' + dsProposalReviewDiagCustomerLabel(portalTargets.customer) + ' pet=' + dsProposalReviewDiagPetLabel(portalTargets.pet),
       'strictTargets: customer=' + dsProposalReviewDiagCustomerLabel(strictTargets.customer) + ' pet=' + dsProposalReviewDiagPetLabel(strictTargets.pet),
@@ -13798,6 +13799,10 @@ function dsLockProposalReviewSelectors(baseCustomer, basePet){
 function dsFinalizeProposalReviewEditor(row, baseCustomer, basePet, basePetId, customerPayload, petPayload, opts){
   opts = opts || {};
   try{
+    let hardRowCustomer = null;
+    let hardRowPet = null;
+    let hardRowCustomerId = '';
+    let hardRowPetId = '';
     try{
       const rowBoundTargets = dsResolveProposalRowBoundTargets(row, customerPayload || {}, petPayload || {}) || {};
       const rowBoundCustomer = rowBoundTargets.customer || null;
@@ -13806,6 +13811,10 @@ function dsFinalizeProposalReviewEditor(row, baseCustomer, basePet, basePetId, c
       const rowBoundPetId = norm((rowBoundPet && (rowBoundPet.id || rowBoundPet.petId)) || '');
       if(rowBoundCustomerId && rowBoundCustomerId !== norm((baseCustomer && (baseCustomer.id || baseCustomer.customerId)) || '')) baseCustomer = rowBoundCustomer;
       if(rowBoundPetId && rowBoundPetId !== norm((basePet && (basePet.id || basePet.petId)) || (basePetId || ''))){ basePet = rowBoundPet; basePetId = rowBoundPetId; }
+      hardRowCustomer = rowBoundCustomer || null;
+      hardRowPet = rowBoundPet || null;
+      hardRowCustomerId = rowBoundCustomerId || '';
+      hardRowPetId = rowBoundPetId || '';
     }catch(_){ }
     try{
       const exactTargets = dsResolveProposalFormExactTargets(row, customerPayload || {}, petPayload || {}) || {};
@@ -13819,10 +13828,21 @@ function dsFinalizeProposalReviewEditor(row, baseCustomer, basePet, basePetId, c
       const preferredPetId = norm((preferredPet && (preferredPet.id || preferredPet.petId)) || '');
       const currentCustomerId = norm((baseCustomer && (baseCustomer.id || baseCustomer.customerId)) || '');
       const currentPetId = norm((basePet && (basePet.id || basePet.petId)) || (basePetId || ''));
-      if(preferredCustomer && (!currentCustomerId || (preferredCustomerId && preferredCustomerId !== currentCustomerId))) baseCustomer = preferredCustomer;
-      if(preferredPet && (!currentPetId || (preferredPetId && preferredPetId !== currentPetId))) {
+      const hardCustomerId = norm(hardRowCustomerId || (hardRowCustomer && (hardRowCustomer.id || hardRowCustomer.customerId)) || '');
+      const hardPetId = norm(hardRowPetId || (hardRowPet && (hardRowPet.id || hardRowPet.petId)) || '');
+      const canReplaceCustomer = !hardCustomerId || !preferredCustomerId || preferredCustomerId === hardCustomerId;
+      const canReplacePet = !hardPetId || !preferredPetId || preferredPetId === hardPetId;
+      if(preferredCustomer && canReplaceCustomer && (!currentCustomerId || (preferredCustomerId && preferredCustomerId !== currentCustomerId))) baseCustomer = preferredCustomer;
+      if(preferredPet && canReplacePet && (!currentPetId || (preferredPetId && preferredPetId !== currentPetId))) {
         basePet = preferredPet;
         basePetId = String((preferredPet && (preferredPet.id || preferredPet.petId)) || (basePetId || '')).trim();
+      }
+      if(hardCustomerId){
+        baseCustomer = hardRowCustomer || baseCustomer || null;
+      }
+      if(hardPetId){
+        basePet = hardRowPet || basePet || null;
+        basePetId = String(hardPetId || basePetId || '').trim();
       }
     }catch(_){ }
     __dsProposalReview.active = true;
@@ -24366,7 +24386,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB269_PROPOSAL_REVIEW_MATCHDIAG_20260410_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB272_PROPOSAL_REVIEW_MATCHDIAG_ROWFORCEFIX_REPACK_20260410_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -26339,7 +26359,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB269_PROPOSAL_REVIEW_MATCHDIAG_20260410_ROOTONLY";
+  const BUILD = "M50.9.9GB272_PROPOSAL_REVIEW_MATCHDIAG_ROWFORCEFIX_REPACK_20260410_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -29016,7 +29036,7 @@ try{ window.__GB191_MARKER = 'active'; }catch(_){ }
     try{ ds166OpenRowByKey = window.ds166OpenRowByKey; }catch(_){ }
   }catch(_){ }
 })();
-try{ window.__dsAppJsRuntimeBuild = 'GB269-appjs'; }catch(_){}
+try{ window.__dsAppJsRuntimeBuild = 'GB272-appjs'; }catch(_){}
 /* ===== END GB194 ===== */
 
 
