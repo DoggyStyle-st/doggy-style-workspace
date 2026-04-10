@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB274_PROPOSAL_REVIEW_DIRECTPETIDFIX_20260410_ROOTONLY",
+  tag: "M50.9.9GB275_PROPOSAL_REVIEW_DEEPDIAG_20260410_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,8 +12,8 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB274_PROPOSAL_REVIEW_DIRECTPETIDFIX_20260410_ROOTONLY";
-try{ window.__dsAppJsRuntimeBuild = "GB273-appjs"; }catch(_){}
+const APP_BUILD = "M50.9.9GB275_PROPOSAL_REVIEW_DEEPDIAG_20260410_ROOTONLY";
+try{ window.__dsAppJsRuntimeBuild = "GB275-appjs"; }catch(_){}
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
 function dsSyncDiagStateSummary(){
@@ -11286,6 +11286,71 @@ function dsProposalReviewDiagPetLabel(obj){
     return [id || '--', name || '--', chip || '--', birth || '--'].join(' | ');
   }catch(_){ return '--'; }
 }
+
+function dsProposalReviewDiagCollectCandidates(row, customerPayload, petPayload){
+  try{
+    ensureStateShape();
+    const customers = asArray(state && state.customers);
+    const pets = asArray(state && (((state.pets||[]).length ? state.pets : state.dogs) || []));
+    const rowCid = norm((row && (row.customerId || row.cid || row.__targetCustomerId)) || '');
+    const rowPid = norm((row && (row.petId || row.pid || row.__targetPetId)) || '');
+    const formEmail = lower((customerPayload && customerPayload.email) || (row && row.customerEmail) || '');
+    const formName = lower((customerPayload && customerPayload.name) || (row && row.customerName) || '');
+    const formPhone = norm((customerPayload && customerPayload.phone) || (row && row.customerPhone) || '');
+    const petName = lower((petPayload && petPayload.name) || (row && row.petName) || '');
+    const petChip = norm((petPayload && (petPayload.chipNumber || petPayload.chip)) || (row && row.chipNumber) || '');
+    const petBirth = norm((petPayload && (petPayload.birthdate || petPayload.birthDate || petPayload.birth)) || (row && row.birthdate) || '');
+    const out = { customerCandidates:[], petCandidates:[], counts:{ customers: customers.length, pets: pets.length } };
+    customers.forEach(function(c){
+      try{
+        let score = 0; const reasons = [];
+        const cid = norm((c && (c.id || c.customerId)) || '');
+        const email = lower((c && c.email) || '');
+        const name = lower((c && c.name) || '');
+        const phone = norm((c && c.phone) || '');
+        if(rowCid && cid && cid === rowCid){ score += 1000; reasons.push('rowCid'); }
+        if(formEmail && email && email === formEmail){ score += 300; reasons.push('email'); }
+        if(formName && name && name === formName){ score += 120; reasons.push('name'); }
+        if(formPhone && phone && phone === formPhone){ score += 80; reasons.push('phone'); }
+        if(score > 0) out.customerCandidates.push({ score:score, reasons:reasons, item:c });
+      }catch(_){ }
+    });
+    out.customerCandidates.sort(function(a,b){ return (Number(b.score||0)-Number(a.score||0)); });
+    pets.forEach(function(p){
+      try{
+        let score = 0; const reasons = [];
+        const pid = norm((p && (p.id || p.petId || p.dogId)) || '');
+        const owner = norm((p && (p.customerId || p.ownerId)) || '');
+        const name = lower((p && p.name) || '');
+        const chip = norm((p && (p.chipNumber || p.chip)) || '');
+        const birth = norm((p && (p.birthdate || p.birthDate || p.birth)) || '');
+        if(rowPid && pid && pid === rowPid){ score += 1000; reasons.push('rowPid'); }
+        if(rowCid && owner && owner === rowCid){ score += 150; reasons.push('owner=rowCid'); }
+        if(petChip && chip && chip === petChip){ score += 300; reasons.push('chip'); }
+        if(petName && name && name === petName){ score += 120; reasons.push('name'); }
+        if(petBirth && birth && birth === petBirth){ score += 80; reasons.push('birth'); }
+        if(score > 0) out.petCandidates.push({ score:score, reasons:reasons, item:p });
+      }catch(_){ }
+    });
+    out.petCandidates.sort(function(a,b){ return (Number(b.score||0)-Number(a.score||0)); });
+    out.customerCandidates = out.customerCandidates.slice(0, 6);
+    out.petCandidates = out.petCandidates.slice(0, 8);
+    return out;
+  }catch(_){ return { customerCandidates:[], petCandidates:[], counts:{ customers:0, pets:0 } }; }
+}
+function dsProposalReviewDiagRenderCandidates(prefix, arr, petMode){
+  try{
+    arr = Array.isArray(arr) ? arr : [];
+    if(!arr.length) return prefix + ': --';
+    return prefix + ':\n' + arr.map(function(entry, idx){
+      const item = (entry && entry.item) || {};
+      const label = petMode ? dsProposalReviewDiagPetLabel(item) : dsProposalReviewDiagCustomerLabel(item);
+      const reasons = Array.isArray(entry && entry.reasons) ? entry.reasons.join(',') : '--';
+      return '  [' + String(idx+1) + '] score=' + String((entry && entry.score) || 0) + ' reasons=' + reasons + ' :: ' + label;
+    }).join('\n');
+  }catch(_){ return prefix + ': --'; }
+}
+
 function dsUpdateProposalReviewMatchDiag(row, phase, extra){
   try{
     const editor = document.getElementById('cpEditor');
@@ -11311,13 +11376,17 @@ function dsUpdateProposalReviewMatchDiag(row, phase, extra){
     const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
     const customerPayload = (payload && payload.customer && typeof payload.customer === 'object') ? payload.customer : (row && row.customer && typeof row.customer === 'object' ? row.customer : {});
     const petPayload = (payload && payload.pet && typeof payload.pet === 'object') ? payload.pet : (row && row.pet && typeof row.pet === 'object' ? row.pet : {});
+    const rowBoundTargets = (typeof dsResolveProposalRowBoundTargets === 'function') ? (dsResolveProposalRowBoundTargets(row, customerPayload, petPayload) || {}) : {};
     const formTargets = (typeof dsResolveCustomerDogsProposalByForm === 'function') ? (dsResolveCustomerDogsProposalByForm(row, customerPayload, petPayload) || {}) : {};
     const portalTargets = (typeof dsResolveCustomerPortalProposalTargets === 'function') ? (dsResolveCustomerPortalProposalTargets(row, customerPayload, petPayload) || {}) : {};
     const strictTargets = (typeof dsResolveProposalStrictPayloadTargets === 'function') ? (dsResolveProposalStrictPayloadTargets(row, customerPayload, petPayload) || {}) : {};
     const primaryTargets = (typeof dsResolveProposalPrimaryPayloadTargets === 'function') ? (dsResolveProposalPrimaryPayloadTargets(row, customerPayload, petPayload) || {}) : {};
     const identityTargets = (typeof dsResolveProposalIdentityTargets === 'function') ? (dsResolveProposalIdentityTargets(row, customerPayload, petPayload) || {}) : {};
+    const hardBaseTargets = (typeof dsResolveCustomerDogsProposalHardBase === 'function') ? (dsResolveCustomerDogsProposalHardBase(row, customerPayload, petPayload) || {}) : {};
     const finalTargets = (typeof dsResolveProposalReviewTargets === 'function') ? (dsResolveProposalReviewTargets(row) || {}) : {};
     const review = (typeof __dsProposalReview !== 'undefined' && __dsProposalReview) ? __dsProposalReview : {};
+    const openTrace = (typeof window !== 'undefined' && window.__dsProposalReviewOpenTrace) ? window.__dsProposalReviewOpenTrace : {};
+    const candidateDump = dsProposalReviewDiagCollectCandidates(row, customerPayload, petPayload);
     const customerSelect = document.getElementById('customerSelect');
     const selectedOpt = customerSelect && customerSelect.options ? customerSelect.options[customerSelect.selectedIndex] : null;
     const options = customerSelect && customerSelect.options ? Array.from(customerSelect.options).map(function(opt){
@@ -13951,6 +14020,7 @@ function dsFinalizeProposalReviewEditor(row, baseCustomer, basePet, basePetId, c
     try{ dsLockProposalReviewSelectors(baseCustomer, basePet); }catch(_){ }
     try{ if(typeof setCustomerFieldsDisabled === 'function') setCustomerFieldsDisabled(false); }catch(_){ }
     try{ dsApplyProposalReviewBanner(row); }catch(_){ }
+    try{ window.__dsProposalReviewOpenTrace = Object.assign({}, window.__dsProposalReviewOpenTrace || {}, { stage:'finalize-before-mark', finalizeBaseCustomer: dsProposalReviewDiagCustomerLabel(baseCustomer), finalizeBasePet: dsProposalReviewDiagPetLabel(basePet), finalizeBasePetId:String((basePet && (basePet.id || basePet.petId)) || (basePetId || '')) }); }catch(_){ }
     try{ dsUpdateProposalReviewMatchDiag(row, 'finalize-before-mark', { baseCustomerId:String((baseCustomer && (baseCustomer.id || baseCustomer.customerId)) || '--'), basePetId:String((basePet && (basePet.id || basePet.petId)) || (basePetId || '--')) }); }catch(_){ }
 
     const maps = dsReviewFieldMap();
@@ -14190,6 +14260,28 @@ function dsOpenProposalInCustomerEditor(row, opts){
     const hardBase = dsResolveCustomerDogsProposalHardBase(row, customerPayload, petPayload) || {};
     const targets = dsResolveProposalReviewTargets(row);
     const rowBoundTargets = dsResolveProposalRowBoundTargets(row, customerPayload, petPayload) || {};
+    try{
+      window.__dsProposalReviewOpenTrace = {
+        stage: 'open-start',
+        rowId: String((row && (row.id || row.proposalId || row.taskId)) || ''),
+        rowCid: String((row && (row.customerId || row.cid || row.__targetCustomerId)) || ''),
+        rowPid: String((row && (row.petId || row.pid || row.__targetPetId)) || ''),
+        payloadCustomerEmail: String((customerPayload && customerPayload.email) || ''),
+        payloadCustomerName: String((customerPayload && customerPayload.name) || ''),
+        payloadPetId: String((petPayload && (petPayload.id || petPayload.petId || petPayload.dogId)) || ''),
+        payloadPetName: String((petPayload && petPayload.name) || ''),
+        directPetId: String(directPetId || ''),
+        hardBaseCustomer: dsProposalReviewDiagCustomerLabel(hardBase.customer),
+        hardBasePet: dsProposalReviewDiagPetLabel(hardBase.pet),
+        hardBaseCustomerId: String((hardBase && hardBase.customerId) || ''),
+        hardBasePetId: String((hardBase && hardBase.petId) || ''),
+        rowBoundCustomer: dsProposalReviewDiagCustomerLabel(rowBoundTargets.customer),
+        rowBoundPet: dsProposalReviewDiagPetLabel(rowBoundTargets.pet),
+        targetCustomer: dsProposalReviewDiagCustomerLabel(targets.customer),
+        targetPet: dsProposalReviewDiagPetLabel(targets.pet)
+      };
+    }catch(_){ }
+    try{ dsUpdateProposalReviewMatchDiag(row, 'open-start', { marker:'pre-finalize' }); }catch(_){ }
     let baseCustomer = hardBase.customer || rowBoundTargets.customer || targets.customer || null;
     let basePet = hardBase.pet || rowBoundTargets.pet || targets.pet || null;
     let basePetId = String((hardBase.petId || directPetId || (basePet && (basePet.id || basePet.petId)) || (row && row.petId) || (row && row.pid) || (row && row.__targetPetId) || '')).trim();
@@ -14239,10 +14331,21 @@ function dsOpenProposalInCustomerEditor(row, opts){
         if(forcedCustomer && forcedPet && forcedPetId){
           try{ row.__targetCustomerId = String((forcedCustomer.id || forcedCustomer.customerId || hardBase.customerId || '')).trim(); }catch(_){ }
           try{ row.__targetPetId = String(forcedPetId || '').trim(); }catch(_){ }
+          try{ window.__dsProposalReviewOpenTrace = Object.assign({}, window.__dsProposalReviewOpenTrace || {}, {
+            stage:'forced-finalize',
+            forcedCustomer: dsProposalReviewDiagCustomerLabel(forcedCustomer),
+            forcedPet: dsProposalReviewDiagPetLabel(forcedPet),
+            forcedPetId: String(forcedPetId || ''),
+            rowTargetCustomerId: String((row && row.__targetCustomerId) || ''),
+            rowTargetPetId: String((row && row.__targetPetId) || '')
+          }); }catch(_){ }
+          try{ dsUpdateProposalReviewMatchDiag(row, 'before-forced-finalize', { forcedPetId:String(forcedPetId || '') }); }catch(_){ }
           if(dsFinalizeProposalReviewEditor(row, forcedCustomer, forcedPet, forcedPetId, customerPayload, petPayload, opts)) return true;
         }
       }catch(_){ }
     }
+    try{ window.__dsProposalReviewOpenTrace = Object.assign({}, window.__dsProposalReviewOpenTrace || {}, { stage:'before-direct-open', baseCustomer: dsProposalReviewDiagCustomerLabel(baseCustomer), basePet: dsProposalReviewDiagPetLabel(basePet), basePetId: String(basePetId || '') }); }catch(_){ }
+    try{ dsUpdateProposalReviewMatchDiag(row, 'before-direct-open', { basePetId:String(basePetId || '') }); }catch(_){ }
     if(dsTryDirectProposalReviewEditor(row, customerPayload, petPayload, opts)) return true;
 
     if((!baseCustomer || !basePet || !basePetId)){
@@ -14267,6 +14370,8 @@ function dsOpenProposalInCustomerEditor(row, opts){
       }
     }
     if(!baseCustomer || !basePet || !basePetId){
+      try{ window.__dsProposalReviewOpenTrace = Object.assign({}, window.__dsProposalReviewOpenTrace || {}, { stage:'fallback-open', fallbackBaseCustomer: dsProposalReviewDiagCustomerLabel(baseCustomer), fallbackBasePet: dsProposalReviewDiagPetLabel(basePet), fallbackBasePetId: String(basePetId || '') }); }catch(_){ }
+      try{ dsUpdateProposalReviewMatchDiag(row, 'fallback-open', { fallbackBasePetId:String(basePetId || '') }); }catch(_){ }
       try{ if(dsTryVisibleProposalButtonOpen(row, customerPayload, petPayload, opts)) return true; }catch(_){ }
       try{
         if(dsScheduleProposalReviewUiOpen(row, customerPayload, petPayload, opts)) return true;
@@ -24513,7 +24618,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB274_PROPOSAL_REVIEW_DIRECTPETIDFIX_20260410_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB275_PROPOSAL_REVIEW_DEEPDIAG_20260410_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -26486,7 +26591,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB274_PROPOSAL_REVIEW_DIRECTPETIDFIX_20260410_ROOTONLY";
+  const BUILD = "M50.9.9GB275_PROPOSAL_REVIEW_DEEPDIAG_20260410_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
