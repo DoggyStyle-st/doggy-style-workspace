@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB259_PROPOSAL_REVIEW_IDENTITYLOCK_20260410_ROOTONLY",
+  tag: "M50.9.9GB260_PROPOSAL_REVIEW_PORTALMATCHFIX_20260410_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,8 +12,8 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB259_PROPOSAL_REVIEW_IDENTITYLOCK_20260410_ROOTONLY";
-try{ window.__dsAppJsRuntimeBuild = "GB259-appjs"; }catch(_){}
+const APP_BUILD = "M50.9.9GB260_PROPOSAL_REVIEW_PORTALMATCHFIX_20260410_ROOTONLY";
+try{ window.__dsAppJsRuntimeBuild = "GB260-appjs"; }catch(_){}
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
 function dsSyncDiagStateSummary(){
@@ -11691,6 +11691,92 @@ function dsResolveProposalStrictPayloadTargets(row, customerPayload, petPayload)
   return { customer:null, pet:null };
 }
 
+function dsResolveCustomerPortalProposalTargets(row, customerPayload, petPayload){
+  try{
+    ensureStateShape();
+    const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
+    const src = lower((payload && payload.source) || (row && row.source) || '');
+    const tpl = lower((row && (row.templateId || row.proposalType || row.kind || row.formKey)) || '');
+    const isCustomerDogsProposal = src.indexOf('customer-main-dogs') >= 0 || tpl === 'customer_data';
+    if(!isCustomerDogsProposal) return { customer:null, pet:null, matched:false };
+    const customers = asArray(state && state.customers);
+    const pets = asArray(state && (((state.pets||[]).length ? state.pets : state.dogs) || []));
+    const cemail = lower((customerPayload && customerPayload.email) || (row && row.customerEmail) || '');
+    const cuid = norm((row && row.customerUid) || (customerPayload && (customerPayload.customerUid || customerPayload.portalUid || customerPayload.uid)) || '');
+    const cname = lower((customerPayload && customerPayload.name) || (row && row.customerName) || '');
+    const cphone = norm((customerPayload && customerPayload.phone) || (row && row.customerPhone) || '');
+    const pname = lower((petPayload && petPayload.name) || (row && row.petName) || '');
+    const pchip = norm((petPayload && (petPayload.chipNumber || petPayload.chip)) || (row && row.chipNumber) || '');
+    const pbirth = norm((petPayload && (petPayload.birthdate || petPayload.birthDate)) || '');
+    let customerHits = customers.slice();
+    if(cuid){
+      const hits = customerHits.filter(c => norm((c && (c.customerUid || c.portalUid || c.uid)) || '') === cuid);
+      if(hits.length) customerHits = hits;
+    }
+    if(cemail && customerHits.length !== 1){
+      const hits = customerHits.filter(c => lower((c && c.email) || '') === cemail);
+      if(hits.length) customerHits = hits;
+    }
+    if(cname && customerHits.length !== 1){
+      const hits = customerHits.filter(c => lower((c && c.name) || '') === cname);
+      if(hits.length) customerHits = hits;
+    }
+    if(cphone && customerHits.length !== 1){
+      const hits = customerHits.filter(c => norm((c && c.phone) || '') === cphone);
+      if(hits.length) customerHits = hits;
+    }
+    let customer = null;
+    if(customerHits.length === 1) customer = customerHits[0] || null;
+    else if(customerHits.length > 1) customer = dsChooseBestCustomerForReview(customerHits, pname, pchip) || null;
+
+    let pet = null;
+    let petHits = pets.slice();
+    if(customer){
+      const cid = norm((customer && (customer.id || customer.customerId)) || '');
+      if(cid){
+        const ownerHits = petHits.filter(p => norm((p && (p.customerId || p.ownerId || '')) || '') === cid);
+        if(ownerHits.length) petHits = ownerHits;
+      }
+    }
+    if(pchip){
+      const hits = petHits.filter(p => norm((p && (p.chipNumber || p.chip || '')) || '') === pchip);
+      if(hits.length) petHits = hits;
+    }
+    if(pname && petHits.length !== 1){
+      const hits = petHits.filter(p => lower((p && p.name) || '') === pname);
+      if(hits.length) petHits = hits;
+    }
+    if(pbirth && petHits.length !== 1){
+      const hits = petHits.filter(p => norm((p && (p.birthdate || p.birthDate || '')) || '') === pbirth);
+      if(hits.length) petHits = hits;
+    }
+    if(petHits.length === 1) pet = petHits[0] || null;
+    else if(petHits.length > 1) pet = dsChooseBestPetForReview(petHits) || null;
+
+    if(!pet && customer){
+      const cid = norm((customer && (customer.id || customer.customerId)) || '');
+      const owned = pets.filter(p => norm((p && (p.customerId || p.ownerId || '')) || '') === cid);
+      if(owned.length === 1) pet = owned[0] || null;
+      else if(owned.length > 1){
+        let narrowed = owned;
+        if(pchip){ const hits = narrowed.filter(p => norm((p && (p.chipNumber || p.chip || '')) || '') === pchip); if(hits.length) narrowed = hits; }
+        if(pname && narrowed.length !== 1){ const hits = narrowed.filter(p => lower((p && p.name) || '') === pname); if(hits.length) narrowed = hits; }
+        if(pbirth && narrowed.length !== 1){ const hits = narrowed.filter(p => norm((p && (p.birthdate || p.birthDate || '')) || '') === pbirth); if(hits.length) narrowed = hits; }
+        if(narrowed.length === 1) pet = narrowed[0] || null;
+        else if(narrowed.length > 1) pet = dsChooseBestPetForReview(narrowed) || null;
+      }
+    }
+
+    if(!customer && pet){
+      const ownerId = norm((pet && (pet.customerId || pet.ownerId)) || '');
+      if(ownerId){
+        customer = customers.find(c => norm((c && (c.id || c.customerId || '')) || '') === ownerId) || null;
+      }
+    }
+    return { customer: customer || null, pet: pet || null, matched: !!(customer || pet) };
+  }catch(_){ return { customer:null, pet:null, matched:false }; }
+}
+
 function dsResolveProposalReviewTargets(sourceRow){
   try{
     const row = sourceRow || (__dsProposalReview && __dsProposalReview.row);
@@ -11702,26 +11788,36 @@ function dsResolveProposalReviewTargets(sourceRow){
     const pets = asArray(state && (((state.pets||[]).length ? state.pets : state.dogs) || []));
     let customer = null;
     let pet = null;
+    const portalTargets = dsResolveCustomerPortalProposalTargets(row, customerPayload, petPayload) || {};
+    const portalCustomer = portalTargets.customer || null;
+    const portalPet = portalTargets.pet || null;
+    const portalMatched = !!portalTargets.matched;
+    if(portalCustomer) customer = portalCustomer;
+    if(portalPet) pet = portalPet;
     const directCustomerIds = [
       norm(row && row.__targetCustomerId),
       norm(row && row.customerId),
       norm(customerPayload && (customerPayload.id || customerPayload.customerId)),
       norm(petPayload && petPayload.customerId)
     ].filter(Boolean);
+    if(!customer || !portalMatched){
     for(const id of directCustomerIds){
       const hits = customers.filter(function(c){ return norm((c && (c.id || c.customerId || '')) || '') === id; });
       if(hits.length === 1){ customer = hits[0] || null; break; }
       if(hits.length > 1){ customer = dsChooseBestCustomerForReview(hits, petPayload && petPayload.name, petPayload && petPayload.chipNumber); break; }
+    }
     }
     const directPetIds = [
       norm(row && row.__targetPetId),
       norm(row && row.petId),
       norm(petPayload && (petPayload.id || petPayload.petId))
     ].filter(Boolean);
+    if(!pet || !portalMatched){
     for(const id of directPetIds){
       const hits = pets.filter(function(x){ return norm((x && (x.id || x.petId || '')) || '') === id; });
       if(hits.length === 1){ pet = hits[0] || null; break; }
       if(hits.length > 1){ pet = dsChooseBestPetForReview(hits); break; }
+    }
     }
     const strictPayloadTargets = dsResolveProposalStrictPayloadTargets(row, customerPayload, petPayload) || {};
     const strictCustomer = strictPayloadTargets.customer || null;
@@ -11732,6 +11828,8 @@ function dsResolveProposalReviewTargets(sourceRow){
 
     if(strictCustomer) customer = strictCustomer;
     if(strictPet) pet = strictPet;
+    if(portalCustomer && (!customer || portalMatched)) customer = portalCustomer;
+    if(portalPet && (!pet || portalMatched)) pet = portalPet;
 
     customer = customer || dsFindExistingCustomerForInboxRow(row, customerPayload) || null;
     pet = pet || dsFindExistingPetForInboxRow(customer || strictCustomer || {}, petPayload, row) || null;
@@ -11749,6 +11847,10 @@ function dsResolveProposalReviewTargets(sourceRow){
     }
     if(!customer && (strictCustomer || identityCustomer)) customer = strictCustomer || identityCustomer;
     if(!pet && (strictPet || identityPet)) pet = strictPet || identityPet;
+    if(portalMatched){
+      if(portalCustomer) customer = portalCustomer;
+      if(portalPet) pet = portalPet;
+    }
 
     const pname = lower((petPayload && petPayload.name) || '');
     const pchip = norm((petPayload && petPayload.chipNumber) || '');
@@ -23617,7 +23719,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB259_PROPOSAL_REVIEW_IDENTITYLOCK_20260410_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB260_PROPOSAL_REVIEW_PORTALMATCHFIX_20260410_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -25590,7 +25692,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB259_PROPOSAL_REVIEW_IDENTITYLOCK_20260410_ROOTONLY";
+  const BUILD = "M50.9.9GB260_PROPOSAL_REVIEW_PORTALMATCHFIX_20260410_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -28267,7 +28369,7 @@ try{ window.__GB191_MARKER = 'active'; }catch(_){ }
     try{ ds166OpenRowByKey = window.ds166OpenRowByKey; }catch(_){ }
   }catch(_){ }
 })();
-try{ window.__dsAppJsRuntimeBuild = 'GB259-appjs'; }catch(_){}
+try{ window.__dsAppJsRuntimeBuild = 'GB260-appjs'; }catch(_){}
 /* ===== END GB194 ===== */
 
 
