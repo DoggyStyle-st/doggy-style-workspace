@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB268_PROPOSAL_REVIEW_ROWCID_HARDMATCH_20260410_ROOTONLY",
+  tag: "M50.9.9GB269_PROPOSAL_REVIEW_MATCHDIAG_20260410_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,8 +12,8 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB268_PROPOSAL_REVIEW_ROWCID_HARDMATCH_20260410_ROOTONLY";
-try{ window.__dsAppJsRuntimeBuild = "GB268-appjs"; }catch(_){}
+const APP_BUILD = "M50.9.9GB269_PROPOSAL_REVIEW_MATCHDIAG_20260410_ROOTONLY";
+try{ window.__dsAppJsRuntimeBuild = "GB269-appjs"; }catch(_){}
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
 function dsSyncDiagStateSummary(){
@@ -11266,6 +11266,106 @@ function dsApplyProposalReviewBanner(row){
     editor.insertBefore(banner, editor.firstChild.nextSibling || editor.firstChild);
   }catch(_){ }
 }
+
+function dsProposalReviewDiagCustomerLabel(obj){
+  try{
+    if(!obj) return '--';
+    const id = String((obj && (obj.id || obj.customerId || '')) || '').trim();
+    const name = String((obj && obj.name) || '').trim();
+    const email = String((obj && obj.email) || '').trim();
+    return [id || '--', name || '--', email || '--'].join(' | ');
+  }catch(_){ return '--'; }
+}
+function dsProposalReviewDiagPetLabel(obj){
+  try{
+    if(!obj) return '--';
+    const id = String((obj && (obj.id || obj.petId || '')) || '').trim();
+    const name = String((obj && obj.name) || '').trim();
+    const chip = String((obj && (obj.chipNumber || obj.chip || '')) || '').trim();
+    const birth = String((obj && (obj.birthdate || obj.birthDate || '')) || '').trim();
+    return [id || '--', name || '--', chip || '--', birth || '--'].join(' | ');
+  }catch(_){ return '--'; }
+}
+function dsUpdateProposalReviewMatchDiag(row, phase, extra){
+  try{
+    const editor = document.getElementById('cpEditor');
+    if(!editor) return;
+    let box = document.getElementById('cpReviewDiag');
+    if(!box){
+      box = document.createElement('div');
+      box.id = 'cpReviewDiag';
+      box.style.margin = '8px 0 14px';
+      box.style.padding = '10px 12px';
+      box.style.borderRadius = '12px';
+      box.style.border = '1px solid rgba(120,170,255,.28)';
+      box.style.background = 'rgba(12,14,24,.55)';
+      box.style.color = '#d7dbe8';
+      box.style.fontSize = '12px';
+      box.style.lineHeight = '1.45';
+      box.style.whiteSpace = 'pre-wrap';
+      box.style.wordBreak = 'break-word';
+      const banner = document.getElementById('cpReviewBanner');
+      if(banner && banner.parentNode) banner.parentNode.insertBefore(box, banner.nextSibling);
+      else editor.insertBefore(box, editor.firstChild ? editor.firstChild.nextSibling : null);
+    }
+    const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
+    const customerPayload = (payload && payload.customer && typeof payload.customer === 'object') ? payload.customer : (row && row.customer && typeof row.customer === 'object' ? row.customer : {});
+    const petPayload = (payload && payload.pet && typeof payload.pet === 'object') ? payload.pet : (row && row.pet && typeof row.pet === 'object' ? row.pet : {});
+    const formTargets = (typeof dsResolveCustomerDogsProposalByForm === 'function') ? (dsResolveCustomerDogsProposalByForm(row, customerPayload, petPayload) || {}) : {};
+    const portalTargets = (typeof dsResolveCustomerPortalProposalTargets === 'function') ? (dsResolveCustomerPortalProposalTargets(row, customerPayload, petPayload) || {}) : {};
+    const strictTargets = (typeof dsResolveProposalStrictPayloadTargets === 'function') ? (dsResolveProposalStrictPayloadTargets(row, customerPayload, petPayload) || {}) : {};
+    const primaryTargets = (typeof dsResolveProposalPrimaryPayloadTargets === 'function') ? (dsResolveProposalPrimaryPayloadTargets(row, customerPayload, petPayload) || {}) : {};
+    const identityTargets = (typeof dsResolveProposalIdentityTargets === 'function') ? (dsResolveProposalIdentityTargets(row, customerPayload, petPayload) || {}) : {};
+    const finalTargets = (typeof dsResolveProposalReviewTargets === 'function') ? (dsResolveProposalReviewTargets(row) || {}) : {};
+    const review = (typeof __dsProposalReview !== 'undefined' && __dsProposalReview) ? __dsProposalReview : {};
+    const customerSelect = document.getElementById('customerSelect');
+    const selectedOpt = customerSelect && customerSelect.options ? customerSelect.options[customerSelect.selectedIndex] : null;
+    const options = customerSelect && customerSelect.options ? Array.from(customerSelect.options).map(function(opt){
+      const v = String(opt && opt.value || '').trim();
+      const t = String(opt && opt.textContent || '').replace(/\s+/g,' ').trim();
+      return (v || '--') + ' => ' + (t || '--');
+    }) : [];
+    const lines = [
+      'ReviewDiag phase=' + String(phase || '--'),
+      'row: id=' + String((row && (row.id || row.proposalId || row.taskId || '')) || '--')
+        + ' cid=' + String((row && (row.customerId || row.__targetCustomerId || '')) || '--')
+        + ' pid=' + String((row && (row.petId || row.__targetPetId || '')) || '--')
+        + ' source=' + String((payload && payload.source) || (row && row.source) || '--'),
+      'payload.customer: ' + JSON.stringify({
+        email: String((customerPayload && customerPayload.email) || (row && row.customerEmail) || ''),
+        name: String((customerPayload && customerPayload.name) || (row && row.customerName) || ''),
+        uid: String((customerPayload && (customerPayload.customerUid || customerPayload.portalUid || customerPayload.uid)) || (row && row.customerUid) || ''),
+        phone: String((customerPayload && customerPayload.phone) || (row && row.customerPhone) || '')
+      }),
+      'payload.pet: ' + JSON.stringify({
+        id: String((petPayload && (petPayload.id || petPayload.petId || petPayload.dogId)) || (row && row.petId) || ''),
+        name: String((petPayload && petPayload.name) || (row && row.petName) || ''),
+        chip: String((petPayload && (petPayload.chipNumber || petPayload.chip)) || (row && row.chipNumber) || ''),
+        birth: String((petPayload && (petPayload.birthdate || petPayload.birthDate)) || '')
+      }),
+      'formTargets: customer=' + dsProposalReviewDiagCustomerLabel(formTargets.customer) + ' pet=' + dsProposalReviewDiagPetLabel(formTargets.pet),
+      'portalTargets: customer=' + dsProposalReviewDiagCustomerLabel(portalTargets.customer) + ' pet=' + dsProposalReviewDiagPetLabel(portalTargets.pet),
+      'strictTargets: customer=' + dsProposalReviewDiagCustomerLabel(strictTargets.customer) + ' pet=' + dsProposalReviewDiagPetLabel(strictTargets.pet),
+      'primaryTargets: customer=' + dsProposalReviewDiagCustomerLabel(primaryTargets.customer) + ' pet=' + dsProposalReviewDiagPetLabel(primaryTargets.pet),
+      'identityTargets: customer=' + dsProposalReviewDiagCustomerLabel(identityTargets.customer) + ' pet=' + dsProposalReviewDiagPetLabel(identityTargets.pet),
+      'finalTargets: customer=' + dsProposalReviewDiagCustomerLabel(finalTargets.customer) + ' pet=' + dsProposalReviewDiagPetLabel(finalTargets.pet),
+      'reviewBase: customer=' + dsProposalReviewDiagCustomerLabel(review.baseCustomer) + ' pet=' + dsProposalReviewDiagPetLabel(review.basePet)
+        + ' baseCustomerId=' + String((review && review.baseCustomerId) || '--')
+        + ' basePetId=' + String((review && review.basePetId) || '--'),
+      'customerSelect: value=' + String((customerSelect && customerSelect.value) || '--')
+        + ' selected=' + String((selectedOpt && selectedOpt.textContent || '--')).replace(/\s+/g,' ').trim()
+        + ' options=' + String(options.length),
+      'customerSelectOptions:\n' + (options.length ? options.join('\n') : '--')
+    ];
+    if(extra){
+      try{ lines.push('extra: ' + JSON.stringify(extra)); }catch(_){ lines.push('extra: ' + String(extra)); }
+    }
+    box.textContent = lines.join('\n');
+  }catch(err){
+    try{ console.warn('dsUpdateProposalReviewMatchDiag failed', err); }catch(_){ }
+  }
+}
+
 function dsMarkChangedField(inputId, oldValue, newValue){
   const el = document.getElementById(inputId);
   if(!el) return;
@@ -13692,6 +13792,7 @@ function dsFinalizeProposalReviewEditor(row, baseCustomer, basePet, basePetId, c
     try{ dsLockProposalReviewSelectors(baseCustomer, basePet); }catch(_){ }
     try{ if(typeof setCustomerFieldsDisabled === 'function') setCustomerFieldsDisabled(false); }catch(_){ }
     try{ dsApplyProposalReviewBanner(row); }catch(_){ }
+    try{ dsUpdateProposalReviewMatchDiag(row, 'finalize-before-mark', { baseCustomerId:String((baseCustomer && (baseCustomer.id || baseCustomer.customerId)) || '--'), basePetId:String((basePet && (basePet.id || basePet.petId)) || (basePetId || '--')) }); }catch(_){ }
 
     const maps = dsReviewFieldMap();
     Object.entries(maps.customer).forEach(([inputId,key])=>{
@@ -13715,7 +13816,8 @@ function dsFinalizeProposalReviewEditor(row, baseCustomer, basePet, basePetId, c
 
     try{ if(typeof cpUpdateDirty === 'function') cpUpdateDirty(); }catch(_){ }
     try{ dsEnsureProposalReviewMainEditorVisible(); }catch(_){ }
-    try{ setTimeout(function(){ try{ dsEnsureProposalReviewMainEditorVisible(); }catch(_){} }, 80); }catch(_){ }
+    try{ dsUpdateProposalReviewMatchDiag(row, 'finalize-after-mark', { changedFirst:String(__dsProposalReviewFirstChangedId || '--') }); }catch(_){ }
+    try{ setTimeout(function(){ try{ dsEnsureProposalReviewMainEditorVisible(); }catch(_){} try{ dsUpdateProposalReviewMatchDiag(row, 'finalize-late', { changedFirst:String(__dsProposalReviewFirstChangedId || '--') }); }catch(__){} }, 80); }catch(_){ }
     try{ window.__dsProposalReviewLastOpenedAt = Date.now(); }catch(_){ }
     try{ dsSetProposalOpenDiag('finalize-ok basePetId=' + String(basePetId || '--') + ' cp=1', false); }catch(_){ }
     return true;
@@ -24168,7 +24270,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB268_PROPOSAL_REVIEW_ROWCID_HARDMATCH_20260410_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB269_PROPOSAL_REVIEW_MATCHDIAG_20260410_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -26141,7 +26243,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB268_PROPOSAL_REVIEW_ROWCID_HARDMATCH_20260410_ROOTONLY";
+  const BUILD = "M50.9.9GB269_PROPOSAL_REVIEW_MATCHDIAG_20260410_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -28818,7 +28920,7 @@ try{ window.__GB191_MARKER = 'active'; }catch(_){ }
     try{ ds166OpenRowByKey = window.ds166OpenRowByKey; }catch(_){ }
   }catch(_){ }
 })();
-try{ window.__dsAppJsRuntimeBuild = 'GB268-appjs'; }catch(_){}
+try{ window.__dsAppJsRuntimeBuild = 'GB269-appjs'; }catch(_){}
 /* ===== END GB194 ===== */
 
 
