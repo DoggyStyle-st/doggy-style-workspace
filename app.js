@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB260_PROPOSAL_REVIEW_PORTALMATCHFIX_20260410_ROOTONLY",
+  tag: "M50.9.9GB261_PROPOSAL_REVIEW_PORTALAUTHMATCHFIX_20260410_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,8 +12,8 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB260_PROPOSAL_REVIEW_PORTALMATCHFIX_20260410_ROOTONLY";
-try{ window.__dsAppJsRuntimeBuild = "GB260-appjs"; }catch(_){}
+const APP_BUILD = "M50.9.9GB261_PROPOSAL_REVIEW_PORTALAUTHMATCHFIX_20260410_ROOTONLY";
+try{ window.__dsAppJsRuntimeBuild = "GB261-appjs"; }catch(_){}
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
 function dsSyncDiagStateSummary(){
@@ -11610,7 +11610,8 @@ function dsResolveProposalStrictPayloadTargets(row, customerPayload, petPayload)
     const customers = asArray(state && state.customers);
     const pets = asArray(state && (((state.pets||[]).length ? state.pets : state.dogs) || []));
     const payload = row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || {}) || {};
-    const cemail = lower((customerPayload && customerPayload.email) || (row && row.customerEmail) || '');
+    const authEmail = lower((row && row.customerEmail) || '');
+    const formEmail = lower((customerPayload && customerPayload.email) || '');
     const cuid = norm((row && row.customerUid) || (customerPayload && (customerPayload.customerUid || customerPayload.portalUid || customerPayload.uid)) || '');
     const cname = lower((customerPayload && customerPayload.name) || (row && row.customerName) || '');
     const cphone = norm((customerPayload && customerPayload.phone) || (row && row.customerPhone) || '');
@@ -11618,23 +11619,38 @@ function dsResolveProposalStrictPayloadTargets(row, customerPayload, petPayload)
     const pname = lower((petPayload && petPayload.name) || (row && row.petName) || '');
     const pchip = norm((petPayload && (petPayload.chipNumber || petPayload.chip)) || (row && row.chipNumber) || '');
     const pbirth = norm((petPayload && (petPayload.birthdate || petPayload.birthDate)) || '');
+    const intersectById = function(current, hits, getId){
+      const arr = asArray(hits);
+      if(!arr.length) return current;
+      const currentArr = asArray(current);
+      if(!currentArr.length) return arr;
+      try{
+        const wanted = new Set(arr.map(function(x){ return String(getId(x) || ''); }).filter(Boolean));
+        const overlap = currentArr.filter(function(x){ return wanted.has(String(getId(x) || '')); });
+        return overlap.length ? overlap : arr;
+      }catch(_){ return arr; }
+    };
 
     let customerHits = customers.slice();
-    if(cemail){
-      const hits = customerHits.filter(c => lower((c && c.email) || '') === cemail);
-      if(hits.length) customerHits = hits;
+    if(authEmail){
+      const hits = customers.filter(function(c){ return lower((c && c.email) || '') === authEmail; });
+      customerHits = intersectById(customerHits, hits, function(c){ return norm((c && (c.id || c.customerId)) || ''); });
     }
-    if(cuid && customerHits.length !== 1){
-      const hits = customerHits.filter(c => norm((c && (c.customerUid || c.portalUid || c.uid)) || '') === cuid);
-      if(hits.length) customerHits = hits;
+    if(formEmail){
+      const hits = customers.filter(function(c){ return lower((c && c.email) || '') === formEmail; });
+      customerHits = intersectById(customerHits, hits, function(c){ return norm((c && (c.id || c.customerId)) || ''); });
     }
-    if(cname && customerHits.length !== 1){
-      const hits = customerHits.filter(c => lower((c && c.name) || '') === cname);
-      if(hits.length) customerHits = hits;
+    if(cuid){
+      const hits = customers.filter(function(c){ return norm((c && (c.customerUid || c.portalUid || c.uid)) || '') === cuid; });
+      customerHits = intersectById(customerHits, hits, function(c){ return norm((c && (c.id || c.customerId)) || ''); });
     }
-    if(cphone && customerHits.length !== 1){
-      const hits = customerHits.filter(c => norm((c && c.phone) || '') === cphone);
-      if(hits.length) customerHits = hits;
+    if(cname){
+      const hits = customers.filter(function(c){ return lower((c && c.name) || '') === cname; });
+      customerHits = intersectById(customerHits, hits, function(c){ return norm((c && (c.id || c.customerId)) || ''); });
+    }
+    if(cphone){
+      const hits = customers.filter(function(c){ return norm((c && c.phone) || '') === cphone; });
+      customerHits = intersectById(customerHits, hits, function(c){ return norm((c && (c.id || c.customerId)) || ''); });
     }
 
     let customer = null;
@@ -11646,44 +11662,50 @@ function dsResolveProposalStrictPayloadTargets(row, customerPayload, petPayload)
     if(customer){
       const cid = norm((customer && (customer.id || customer.customerId)) || '');
       if(cid){
-        const ownerHits = petHits.filter(p => norm((p && (p.customerId || p.ownerId || '')) || '') === cid);
-        if(ownerHits.length) petHits = ownerHits;
+        const ownerHits = petHits.filter(function(p){ return norm((p && (p.customerId || p.ownerId || '')) || '') === cid; });
+        petHits = intersectById(petHits, ownerHits, function(p){ return norm((p && (p.id || p.petId)) || ''); });
       }
     }
     if(proposedPetId){
-      const hits = petHits.filter(p => norm((p && (p.id || p.petId || '')) || '') === proposedPetId || norm((p && (p.dogId || '')) || '') === proposedPetId);
-      if(hits.length === 1) pet = hits[0] || null;
-      else if(hits.length > 1) pet = dsChooseBestPetForReview(hits) || null;
+      const hits = pets.filter(function(p){ return norm((p && (p.id || p.petId || '')) || '') === proposedPetId || norm((p && (p.dogId || '')) || '') === proposedPetId; });
+      petHits = intersectById(petHits, hits, function(p){ return norm((p && (p.id || p.petId)) || ''); });
     }
-    if(!pet && pchip){
-      const hits = petHits.filter(p => norm((p && (p.chipNumber || p.chip || '')) || '') === pchip);
-      if(hits.length === 1) pet = hits[0] || null;
-      else if(hits.length > 1) pet = dsChooseBestPetForReview(hits) || null;
+    if(pchip){
+      const hits = pets.filter(function(p){ return norm((p && (p.chipNumber || p.chip || '')) || '') === pchip; });
+      petHits = intersectById(petHits, hits, function(p){ return norm((p && (p.id || p.petId)) || ''); });
     }
-    if(!pet && pname){
-      const hits = petHits.filter(p => lower((p && p.name) || '') === pname);
-      if(hits.length === 1) pet = hits[0] || null;
-      else if(hits.length > 1){
-        const exactBirth = pbirth ? hits.filter(p => norm((p && (p.birthdate || p.birthDate || '')) || '') === pbirth) : [];
-        if(exactBirth.length === 1) pet = exactBirth[0] || null;
-        else pet = dsChooseBestPetForReview(exactBirth.length ? exactBirth : hits) || null;
+    if(pname){
+      const hits = pets.filter(function(p){ return lower((p && p.name) || '') === pname; });
+      petHits = intersectById(petHits, hits, function(p){ return norm((p && (p.id || p.petId)) || ''); });
+    }
+    if(pbirth){
+      const hits = pets.filter(function(p){ return norm((p && (p.birthdate || p.birthDate || '')) || '') === pbirth; });
+      petHits = intersectById(petHits, hits, function(p){ return norm((p && (p.id || p.petId)) || ''); });
+    }
+    if(customer && petHits.length > 1){
+      const cid = norm((customer && (customer.id || customer.customerId)) || '');
+      if(cid){
+        const ownedHits = petHits.filter(function(p){ return norm((p && (p.customerId || p.ownerId || '')) || '') === cid; });
+        if(ownedHits.length) petHits = ownedHits;
       }
     }
+    if(petHits.length === 1) pet = petHits[0] || null;
+    else if(petHits.length > 1) pet = dsChooseBestPetForReview(petHits) || null;
+
     if(!pet && customer){
-      const owned = pets.filter(p => norm((p && (p.customerId || p.ownerId || '')) || '') === norm((customer && (customer.id || customer.customerId)) || ''));
+      const cid = norm((customer && (customer.id || customer.customerId)) || '');
+      let owned = pets.filter(function(p){ return norm((p && (p.customerId || p.ownerId || '')) || '') === cid; });
+      if(proposedPetId){ const hits = owned.filter(function(p){ return norm((p && (p.id || p.petId || '')) || '') === proposedPetId || norm((p && (p.dogId || '')) || '') === proposedPetId; }); if(hits.length) owned = hits; }
+      if(pchip){ const hits = owned.filter(function(p){ return norm((p && (p.chipNumber || p.chip || '')) || '') === pchip; }); if(hits.length) owned = hits; }
+      if(pname){ const hits = owned.filter(function(p){ return lower((p && p.name) || '') === pname; }); if(hits.length) owned = hits; }
+      if(pbirth){ const hits = owned.filter(function(p){ return norm((p && (p.birthdate || p.birthDate || '')) || '') === pbirth; }); if(hits.length) owned = hits; }
       if(owned.length === 1) pet = owned[0] || null;
-      else if(owned.length > 1){
-        let narrowed = owned;
-        if(pname){ const hits = narrowed.filter(p => lower((p && p.name) || '') === pname); if(hits.length) narrowed = hits; }
-        if(pchip){ const hits = narrowed.filter(p => norm((p && (p.chipNumber || p.chip || '')) || '') === pchip); if(hits.length) narrowed = hits; }
-        if(narrowed.length === 1) pet = narrowed[0] || null;
-        else if(narrowed.length > 1) pet = dsChooseBestPetForReview(narrowed) || null;
-      }
+      else if(owned.length > 1) pet = dsChooseBestPetForReview(owned) || null;
     }
     if(!customer && pet){
       const ownerId = norm((pet && (pet.customerId || pet.ownerId)) || '');
       if(ownerId){
-        customer = customers.find(c => norm((c && (c.id || c.customerId || '')) || '') === ownerId) || null;
+        customer = customers.find(function(c){ return norm((c && (c.id || c.customerId || '')) || '') === ownerId; }) || null;
       }
     }
     if(customer || pet) return { customer: customer || null, pet: pet || null };
@@ -11701,29 +11723,46 @@ function dsResolveCustomerPortalProposalTargets(row, customerPayload, petPayload
     if(!isCustomerDogsProposal) return { customer:null, pet:null, matched:false };
     const customers = asArray(state && state.customers);
     const pets = asArray(state && (((state.pets||[]).length ? state.pets : state.dogs) || []));
-    const cemail = lower((customerPayload && customerPayload.email) || (row && row.customerEmail) || '');
+    const authEmail = lower((row && row.customerEmail) || '');
+    const formEmail = lower((customerPayload && customerPayload.email) || '');
     const cuid = norm((row && row.customerUid) || (customerPayload && (customerPayload.customerUid || customerPayload.portalUid || customerPayload.uid)) || '');
     const cname = lower((customerPayload && customerPayload.name) || (row && row.customerName) || '');
     const cphone = norm((customerPayload && customerPayload.phone) || (row && row.customerPhone) || '');
     const pname = lower((petPayload && petPayload.name) || (row && row.petName) || '');
     const pchip = norm((petPayload && (petPayload.chipNumber || petPayload.chip)) || (row && row.chipNumber) || '');
     const pbirth = norm((petPayload && (petPayload.birthdate || petPayload.birthDate)) || '');
+    const intersectById = function(current, hits, getId){
+      const arr = asArray(hits);
+      if(!arr.length) return current;
+      const currentArr = asArray(current);
+      if(!currentArr.length) return arr;
+      try{
+        const wanted = new Set(arr.map(function(x){ return String(getId(x) || ''); }).filter(Boolean));
+        const overlap = currentArr.filter(function(x){ return wanted.has(String(getId(x) || '')); });
+        return overlap.length ? overlap : arr;
+      }catch(_){ return arr; }
+    };
+
     let customerHits = customers.slice();
+    if(authEmail){
+      const hits = customers.filter(function(c){ return lower((c && c.email) || '') === authEmail; });
+      customerHits = intersectById(customerHits, hits, function(c){ return norm((c && (c.id || c.customerId)) || ''); });
+    }
+    if(formEmail){
+      const hits = customers.filter(function(c){ return lower((c && c.email) || '') === formEmail; });
+      customerHits = intersectById(customerHits, hits, function(c){ return norm((c && (c.id || c.customerId)) || ''); });
+    }
     if(cuid){
-      const hits = customerHits.filter(c => norm((c && (c.customerUid || c.portalUid || c.uid)) || '') === cuid);
-      if(hits.length) customerHits = hits;
+      const hits = customers.filter(function(c){ return norm((c && (c.customerUid || c.portalUid || c.uid)) || '') === cuid; });
+      customerHits = intersectById(customerHits, hits, function(c){ return norm((c && (c.id || c.customerId)) || ''); });
     }
-    if(cemail && customerHits.length !== 1){
-      const hits = customerHits.filter(c => lower((c && c.email) || '') === cemail);
-      if(hits.length) customerHits = hits;
+    if(cname){
+      const hits = customers.filter(function(c){ return lower((c && c.name) || '') === cname; });
+      customerHits = intersectById(customerHits, hits, function(c){ return norm((c && (c.id || c.customerId)) || ''); });
     }
-    if(cname && customerHits.length !== 1){
-      const hits = customerHits.filter(c => lower((c && c.name) || '') === cname);
-      if(hits.length) customerHits = hits;
-    }
-    if(cphone && customerHits.length !== 1){
-      const hits = customerHits.filter(c => norm((c && c.phone) || '') === cphone);
-      if(hits.length) customerHits = hits;
+    if(cphone){
+      const hits = customers.filter(function(c){ return norm((c && c.phone) || '') === cphone; });
+      customerHits = intersectById(customerHits, hits, function(c){ return norm((c && (c.id || c.customerId)) || ''); });
     }
     let customer = null;
     if(customerHits.length === 1) customer = customerHits[0] || null;
@@ -11734,43 +11773,46 @@ function dsResolveCustomerPortalProposalTargets(row, customerPayload, petPayload
     if(customer){
       const cid = norm((customer && (customer.id || customer.customerId)) || '');
       if(cid){
-        const ownerHits = petHits.filter(p => norm((p && (p.customerId || p.ownerId || '')) || '') === cid);
-        if(ownerHits.length) petHits = ownerHits;
+        const ownerHits = petHits.filter(function(p){ return norm((p && (p.customerId || p.ownerId || '')) || '') === cid; });
+        petHits = intersectById(petHits, ownerHits, function(p){ return norm((p && (p.id || p.petId)) || ''); });
       }
     }
     if(pchip){
-      const hits = petHits.filter(p => norm((p && (p.chipNumber || p.chip || '')) || '') === pchip);
-      if(hits.length) petHits = hits;
+      const hits = pets.filter(function(p){ return norm((p && (p.chipNumber || p.chip || '')) || '') === pchip; });
+      petHits = intersectById(petHits, hits, function(p){ return norm((p && (p.id || p.petId)) || ''); });
     }
-    if(pname && petHits.length !== 1){
-      const hits = petHits.filter(p => lower((p && p.name) || '') === pname);
-      if(hits.length) petHits = hits;
+    if(pname){
+      const hits = pets.filter(function(p){ return lower((p && p.name) || '') === pname; });
+      petHits = intersectById(petHits, hits, function(p){ return norm((p && (p.id || p.petId)) || ''); });
     }
-    if(pbirth && petHits.length !== 1){
-      const hits = petHits.filter(p => norm((p && (p.birthdate || p.birthDate || '')) || '') === pbirth);
-      if(hits.length) petHits = hits;
+    if(pbirth){
+      const hits = pets.filter(function(p){ return norm((p && (p.birthdate || p.birthDate || '')) || '') === pbirth; });
+      petHits = intersectById(petHits, hits, function(p){ return norm((p && (p.id || p.petId)) || ''); });
+    }
+    if(customer && petHits.length > 1){
+      const cid = norm((customer && (customer.id || customer.customerId)) || '');
+      if(cid){
+        const ownedHits = petHits.filter(function(p){ return norm((p && (p.customerId || p.ownerId || '')) || '') === cid; });
+        if(ownedHits.length) petHits = ownedHits;
+      }
     }
     if(petHits.length === 1) pet = petHits[0] || null;
     else if(petHits.length > 1) pet = dsChooseBestPetForReview(petHits) || null;
 
     if(!pet && customer){
       const cid = norm((customer && (customer.id || customer.customerId)) || '');
-      const owned = pets.filter(p => norm((p && (p.customerId || p.ownerId || '')) || '') === cid);
+      let owned = pets.filter(function(p){ return norm((p && (p.customerId || p.ownerId || '')) || '') === cid; });
+      if(pchip){ const hits = owned.filter(function(p){ return norm((p && (p.chipNumber || p.chip || '')) || '') === pchip; }); if(hits.length) owned = hits; }
+      if(pname){ const hits = owned.filter(function(p){ return lower((p && p.name) || '') === pname; }); if(hits.length) owned = hits; }
+      if(pbirth){ const hits = owned.filter(function(p){ return norm((p && (p.birthdate || p.birthDate || '')) || '') === pbirth; }); if(hits.length) owned = hits; }
       if(owned.length === 1) pet = owned[0] || null;
-      else if(owned.length > 1){
-        let narrowed = owned;
-        if(pchip){ const hits = narrowed.filter(p => norm((p && (p.chipNumber || p.chip || '')) || '') === pchip); if(hits.length) narrowed = hits; }
-        if(pname && narrowed.length !== 1){ const hits = narrowed.filter(p => lower((p && p.name) || '') === pname); if(hits.length) narrowed = hits; }
-        if(pbirth && narrowed.length !== 1){ const hits = narrowed.filter(p => norm((p && (p.birthdate || p.birthDate || '')) || '') === pbirth); if(hits.length) narrowed = hits; }
-        if(narrowed.length === 1) pet = narrowed[0] || null;
-        else if(narrowed.length > 1) pet = dsChooseBestPetForReview(narrowed) || null;
-      }
+      else if(owned.length > 1) pet = dsChooseBestPetForReview(owned) || null;
     }
 
     if(!customer && pet){
       const ownerId = norm((pet && (pet.customerId || pet.ownerId)) || '');
       if(ownerId){
-        customer = customers.find(c => norm((c && (c.id || c.customerId || '')) || '') === ownerId) || null;
+        customer = customers.find(function(c){ return norm((c && (c.id || c.customerId || '')) || '') === ownerId; }) || null;
       }
     }
     return { customer: customer || null, pet: pet || null, matched: !!(customer || pet) };
@@ -23719,7 +23761,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB260_PROPOSAL_REVIEW_PORTALMATCHFIX_20260410_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB261_PROPOSAL_REVIEW_PORTALAUTHMATCHFIX_20260410_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -25692,7 +25734,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB260_PROPOSAL_REVIEW_PORTALMATCHFIX_20260410_ROOTONLY";
+  const BUILD = "M50.9.9GB261_PROPOSAL_REVIEW_PORTALAUTHMATCHFIX_20260410_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -28369,7 +28411,7 @@ try{ window.__GB191_MARKER = 'active'; }catch(_){ }
     try{ ds166OpenRowByKey = window.ds166OpenRowByKey; }catch(_){ }
   }catch(_){ }
 })();
-try{ window.__dsAppJsRuntimeBuild = 'GB260-appjs'; }catch(_){}
+try{ window.__dsAppJsRuntimeBuild = 'GB261-appjs'; }catch(_){}
 /* ===== END GB194 ===== */
 
 
