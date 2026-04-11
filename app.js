@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB277_PROPOSAL_REVIEW_MATCHHELPERSFIX_20260410_ROOTONLY",
+  tag: "M50.9.9GB279_PROPOSAL_REVIEW_CLOUDPAYLOADLITEFIX_20260410_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,8 +12,8 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB277_PROPOSAL_REVIEW_MATCHHELPERSFIX_20260410_ROOTONLY";
-try{ window.__dsAppJsRuntimeBuild = "GB277-appjs"; }catch(_){}
+const APP_BUILD = "M50.9.9GB279_PROPOSAL_REVIEW_CLOUDPAYLOADLITEFIX_20260410_ROOTONLY";
+try{ window.__dsAppJsRuntimeBuild = "GB279-appjs"; }catch(_){}
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
 // Global helper functions used across proposal-review matching.
@@ -183,22 +183,89 @@ function dsSanitizeCloudPayload(value, path, seen, stats){
   }
 }
 
+function dsProjectCloudSafeProposalPayload(payload){
+  try{
+    const src = (payload && typeof payload === 'object') ? payload : {};
+    const customerSrc = (src.customer && typeof src.customer === 'object') ? src.customer : {};
+    const petSrc = (src.pet && typeof src.pet === 'object') ? src.pet : {};
+    const clean = {
+      source: String(src.source || ''),
+      mode: String(src.mode || ''),
+      customerId: String(src.customerId || customerSrc.customerId || customerSrc.id || ''),
+      petId: String(src.petId || petSrc.petId || petSrc.id || petSrc.dogId || ''),
+      contractVersion: String(src.contractVersion || ''),
+      accepted: !!src.accepted,
+      submittedAt: src.submittedAt == null ? null : src.submittedAt,
+      customer: {
+        id: String(customerSrc.id || customerSrc.customerId || ''),
+        customerId: String(customerSrc.customerId || customerSrc.id || ''),
+        uid: String(customerSrc.uid || customerSrc.customerUid || customerSrc.portalUid || ''),
+        name: String(customerSrc.name || ''),
+        email: String(customerSrc.email || ''),
+        phone: String(customerSrc.phone || customerSrc.mobile || customerSrc.tel || ''),
+        street: String(customerSrc.street || ''),
+        zip: String(customerSrc.zip || ''),
+        city: String(customerSrc.city || ''),
+        emergencyContact: String(customerSrc.emergencyContact || customerSrc.emergencyName || ''),
+        emergencyPhone: String(customerSrc.emergencyPhone || ''),
+        note: String(customerSrc.note || '')
+      },
+      pet: {
+        id: String(petSrc.id || petSrc.petId || petSrc.dogId || ''),
+        petId: String(petSrc.petId || petSrc.id || petSrc.dogId || ''),
+        customerId: String(petSrc.customerId || petSrc.ownerId || ''),
+        name: String(petSrc.name || ''),
+        breed: String(petSrc.breed || ''),
+        birth: String(petSrc.birth || petSrc.birthdate || petSrc.birthDate || ''),
+        birthdate: String(petSrc.birthdate || petSrc.birthDate || petSrc.birth || ''),
+        sex: String(petSrc.sex || ''),
+        chip: String(petSrc.chipNumber || petSrc.chip || ''),
+        chipNumber: String(petSrc.chipNumber || petSrc.chip || ''),
+        insuranceStatus: String(petSrc.insuranceStatus || ''),
+        vaccinatedConfirmed: !!petSrc.vaccinatedConfirmed,
+        note: String(petSrc.note || '')
+      }
+    };
+    try{ if(!clean.customerId) clean.customerId = clean.customer.customerId || ''; }catch(_){ }
+    try{ if(!clean.petId) clean.petId = clean.pet.petId || ''; }catch(_){ }
+    return clean;
+  }catch(_){ return {}; }
+}
+function dsProjectCloudSafeInboxRow(row){
+  try{
+    const src = (row && typeof row === 'object') ? row : {};
+    const out = {};
+    [
+      'id','proposalId','proposal','taskId','task','title','status','proposalStatus','templateId','formKey','kind','proposalType',
+      'customerId','cid','customerUid','customerEmail','customerName','petId','pid','petName','dogId',
+      'submittedAt','createdAt','updatedAt','reviewedAt','resolvedAt','ownerId','orgId','rowKey','__rowId','__sourceKey','mirroredFromProposal'
+    ].forEach(function(key){
+      try{ if(src[key] !== undefined) out[key] = src[key]; }catch(_){ }
+    });
+    if(src.payloadSubmitted) out.payloadSubmitted = dsProjectCloudSafeProposalPayload(src.payloadSubmitted);
+    if(src.payloadDraft) out.payloadDraft = dsProjectCloudSafeProposalPayload(src.payloadDraft);
+    if(src.payload) out.payload = dsProjectCloudSafeProposalPayload(src.payload);
+    if(src.customer && typeof src.customer === 'object') out.customer = dsProjectCloudSafeProposalPayload({ customer: src.customer }).customer;
+    if(src.pet && typeof src.pet === 'object') out.pet = dsProjectCloudSafeProposalPayload({ pet: src.pet }).pet;
+    return out;
+  }catch(_){ return {}; }
+}
 function dsPruneProblemSyncFields(root){
   try{
     const topKeys = ['inboxAssignments','inboxSubmissions','assignments','submissions'];
     topKeys.forEach(function(topKey){
       const list = root && Array.isArray(root[topKey]) ? root[topKey] : null;
       if(!list) return;
-      list.forEach(function(row){
-        if(!row || typeof row !== 'object') return;
+      root[topKey] = list.map(function(row){
+        const safeRow = dsProjectCloudSafeInboxRow(row);
         ['payloadSubmitted','payloadDraft','payload'].forEach(function(payloadKey){
-          const payload = row[payloadKey];
-          if(!payload || typeof payload !== 'object') return;
-          const pet = payload.pet;
-          if(!pet || typeof pet !== 'object') return;
+          const payload = safeRow[payloadKey];
+          const pet = payload && payload.pet && typeof payload.pet === 'object' ? payload.pet : null;
+          if(!pet) return;
           try{ delete pet.profilePhoto; }catch(_){ try{ pet.profilePhoto = ''; }catch(__){} }
           try{ delete pet.vaccinationPassPhoto; }catch(_){ try{ pet.vaccinationPassPhoto = ''; }catch(__){} }
         });
+        return safeRow;
       });
     });
   }catch(_){ }
@@ -12610,6 +12677,30 @@ function dsEnrichProposalReviewRow(sourceRow){
     return row;
   }catch(_){ return sourceRow || {}; }
 }
+function dsSanitizeReviewFlatBase(src){
+  try{
+    const input = (src && typeof src === "object") ? src : {};
+    const out = {};
+    Object.keys(input).forEach(function(key){
+      try{
+        const k = String(key || '');
+        if(!k || k === '__proto__' || k === 'constructor' || k === 'prototype') return;
+        if(k.startsWith('__')) return;
+        const v = input[key];
+        if(v == null){ out[key] = null; return; }
+        const t = typeof v;
+        if(t === 'string' || t === 'boolean'){ out[key] = v; return; }
+        if(t === 'number'){ out[key] = Number.isFinite(v) ? v : null; return; }
+        if(t === 'bigint'){ out[key] = String(v); return; }
+        if(v instanceof Date){ out[key] = v.getTime(); return; }
+        if(Array.isArray(v)) return;
+        if(t === 'object') return;
+      }catch(_){ }
+    });
+    return out;
+  }catch(_){ return {}; }
+}
+
 async function dsSaveProposalReview(){
   const norm = function(v){ return String(v == null ? '' : v).trim(); };
   const row = __dsProposalReview && __dsProposalReview.row;
@@ -12782,67 +12873,74 @@ async function dsSaveProposalReview(){
   if(!petName){ cpSetStatus('Bitte Hundename eintragen.', true); try{ alert('Bitte Hundename eintragen.'); }catch(_){ } return false; }
   if(!chipSelect){ cpSetStatus('Bitte bei „Gechippt?“ Ja oder Nein wählen.', true); try{ alert('Bitte bei „Gechippt?“ Ja oder Nein wählen.'); }catch(_){ } return false; }
 
-  customer.id = norm(customer.id || customer.customerId || cpCustomerId || selectedCustomerId || '');
-  customer.customerId = customer.id;
-  customer.name = customerName;
-  customer.phone = String(document.getElementById('c_phone')?.value || '').trim();
-  customer.email = customerEmail;
-  customer.street = String(document.getElementById('c_street')?.value || '').trim();
-  customer.zip = String(document.getElementById('c_zip')?.value || '').trim();
-  customer.city = String(document.getElementById('c_city')?.value || '').trim();
-  customer.emergencyName = String(document.getElementById('c_em_name')?.value || '').trim();
-  customer.emergencyPhone = String(document.getElementById('c_em_phone')?.value || '').trim();
-  customer.pickupAuth = String(document.getElementById('c_pickup_auth')?.value || '').trim();
-  customer.note = String(document.getElementById('c_note')?.value || '').trim();
-  customer.updatedAt = Date.now();
+  const customerBase = dsSanitizeReviewFlatBase(customer);
+  const petBase = dsSanitizeReviewFlatBase(pet);
 
-  pet.id = norm(pet.id || pet.petId || cpPetId || storedBasePetId || '');
-  pet.petId = pet.id;
-  pet.customerId = norm(customer.id || customer.customerId || pet.customerId || pet.ownerId || cpCustomerId || selectedCustomerId || '');
-  pet.name = petName;
-  pet.breed = String(document.getElementById('p_breed')?.value || '').trim();
-  pet.birthdate = String(document.getElementById('p_birthdate')?.value || '');
-  try{ const sx = document.getElementById('p_sex'); if(sx) pet.sex = sx.value || ''; }catch(_){ }
-  pet.chip = chipSelect === 'yes';
-  pet.chipNumber = String(document.getElementById('p_chipNumber')?.value || '').trim();
+  customer = Object.assign({}, customerBase, {
+    id: norm((customerBase && (customerBase.id || customerBase.customerId)) || customer?.id || customer?.customerId || cpCustomerId || selectedCustomerId || ''),
+    customerId: norm((customerBase && (customerBase.id || customerBase.customerId)) || customer?.id || customer?.customerId || cpCustomerId || selectedCustomerId || ''),
+    name: customerName,
+    phone: String(document.getElementById('c_phone')?.value || '').trim(),
+    email: customerEmail,
+    street: String(document.getElementById('c_street')?.value || '').trim(),
+    zip: String(document.getElementById('c_zip')?.value || '').trim(),
+    city: String(document.getElementById('c_city')?.value || '').trim(),
+    emergencyName: String(document.getElementById('c_em_name')?.value || '').trim(),
+    emergencyPhone: String(document.getElementById('c_em_phone')?.value || '').trim(),
+    pickupAuth: String(document.getElementById('c_pickup_auth')?.value || '').trim(),
+    note: String(document.getElementById('c_note')?.value || '').trim(),
+    updatedAt: Date.now()
+  });
+
+  pet = Object.assign({}, petBase, {
+    id: norm((petBase && (petBase.id || petBase.petId)) || pet?.id || pet?.petId || cpPetId || storedBasePetId || ''),
+    petId: norm((petBase && (petBase.id || petBase.petId)) || pet?.id || pet?.petId || cpPetId || storedBasePetId || ''),
+    customerId: norm((customer && (customer.id || customer.customerId)) || (petBase && (petBase.customerId || petBase.ownerId)) || pet?.customerId || pet?.ownerId || cpCustomerId || selectedCustomerId || ''),
+    name: petName,
+    breed: String(document.getElementById('p_breed')?.value || '').trim(),
+    birthdate: String(document.getElementById('p_birthdate')?.value || ''),
+    sex: String(document.getElementById('p_sex')?.value || ''),
+    chip: chipSelect === 'yes',
+    chipNumber: String(document.getElementById('p_chipNumber')?.value || '').trim(),
+    vet: String(document.getElementById('p_vet')?.value || '').trim(),
+    vetPhone: String(document.getElementById('p_vetPhone')?.value || '').trim(),
+    vetEmail: String(document.getElementById('p_vetEmail')?.value || '').trim(),
+    vetStreet: String(document.getElementById('p_vetStreet')?.value || '').trim(),
+    vetZip: String(document.getElementById('p_vetZip')?.value || '').trim(),
+    vetCity: String(document.getElementById('p_vetCity')?.value || '').trim(),
+    vetEmergencyName: String(document.getElementById('p_vetEmergencyName')?.value || '').trim(),
+    vetEmergencyPhone: String(document.getElementById('p_vetEmergencyPhone')?.value || '').trim(),
+    allergies: String(document.getElementById('p_allergies')?.value || '').trim(),
+    medicalConditions: String(document.getElementById('p_medicalConditions')?.value || '').trim(),
+    insuranceStatus: String(document.getElementById('p_insuranceStatus')?.value || ''),
+    insuranceCompany: String(document.getElementById('p_insuranceCompany')?.value || '').trim(),
+    insurancePolicy: String(document.getElementById('p_insurancePolicy')?.value || '').trim(),
+    insuranceNotes: String(document.getElementById('p_insuranceNotes')?.value || '').trim(),
+    vaccinatedConfirmed: !!document.getElementById('p_vaccinatedConfirmed')?.checked,
+    rabiesDate: String(document.getElementById('p_rabiesDate')?.value || ''),
+    mixedVaccineDate: String(document.getElementById('p_mixedVaccineDate')?.value || ''),
+    vaccinationPassPhoto: String(cpVaccinationPassDataUrl || (petBase && petBase.vaccinationPassPhoto) || pet?.vaccinationPassPhoto || ''),
+    profilePhoto: String(cpProfilePhotoDataUrl || (petBase && petBase.profilePhoto) || pet?.profilePhoto || ''),
+    food: String(document.getElementById('p_food')?.value || '').trim(),
+    treatsAllowed: String(document.getElementById('p_treatsAllowed')?.value || ''),
+    aloneTime: String(document.getElementById('p_aloneTime')?.value || '').trim(),
+    houseTrained: String(document.getElementById('p_houseTrained')?.value || ''),
+    transport: String(document.getElementById('p_transport')?.value || '').trim(),
+    feeding: String(document.getElementById('p_feeding')?.value || '').trim(),
+    compatDogs: String(document.getElementById('p_compatDogs')?.value || '').trim(),
+    compatCats: String(document.getElementById('p_compatCats')?.value || '').trim(),
+    compatKids: String(document.getElementById('p_compatKids')?.value || '').trim(),
+    compat: String(document.getElementById('p_compat')?.value || '').trim(),
+    leashBehavior: String(document.getElementById('p_leashBehavior')?.value || '').trim(),
+    recall: String(document.getElementById('p_recall')?.value || '').trim(),
+    resourceBehavior: String(document.getElementById('p_resourceBehavior')?.value || '').trim(),
+    behavior: String(document.getElementById('p_behavior')?.value || '').trim(),
+    dailyRoutine: String(document.getElementById('p_dailyRoutine')?.value || '').trim(),
+    commands: String(document.getElementById('p_commands')?.value || '').trim(),
+    note: String(document.getElementById('p_note')?.value || '').trim(),
+    updatedAt: Date.now()
+  });
   if(pet.chip && !pet.chipNumber){ cpSetStatus('Bitte die Chipnummer eintragen.', true); try{ alert('Bitte die Chipnummer eintragen.'); }catch(_){ } return false; }
-  pet.vet = String(document.getElementById('p_vet')?.value || '').trim();
-  pet.vetPhone = String(document.getElementById('p_vetPhone')?.value || '').trim();
-  pet.vetEmail = String(document.getElementById('p_vetEmail')?.value || '').trim();
-  pet.vetStreet = String(document.getElementById('p_vetStreet')?.value || '').trim();
-  pet.vetZip = String(document.getElementById('p_vetZip')?.value || '').trim();
-  pet.vetCity = String(document.getElementById('p_vetCity')?.value || '').trim();
-  pet.vetEmergencyName = String(document.getElementById('p_vetEmergencyName')?.value || '').trim();
-  pet.vetEmergencyPhone = String(document.getElementById('p_vetEmergencyPhone')?.value || '').trim();
-  pet.allergies = String(document.getElementById('p_allergies')?.value || '').trim();
-  pet.medicalConditions = String(document.getElementById('p_medicalConditions')?.value || '').trim();
-  pet.insuranceStatus = String(document.getElementById('p_insuranceStatus')?.value || '');
-  pet.insuranceCompany = String(document.getElementById('p_insuranceCompany')?.value || '').trim();
-  pet.insurancePolicy = String(document.getElementById('p_insurancePolicy')?.value || '').trim();
-  pet.insuranceNotes = String(document.getElementById('p_insuranceNotes')?.value || '').trim();
-  pet.vaccinatedConfirmed = !!document.getElementById('p_vaccinatedConfirmed')?.checked;
-  pet.rabiesDate = String(document.getElementById('p_rabiesDate')?.value || '');
-  pet.mixedVaccineDate = String(document.getElementById('p_mixedVaccineDate')?.value || '');
-  pet.vaccinationPassPhoto = cpVaccinationPassDataUrl || pet.vaccinationPassPhoto || '';
-  pet.profilePhoto = cpProfilePhotoDataUrl || pet.profilePhoto || '';
-  pet.food = String(document.getElementById('p_food')?.value || '').trim();
-  pet.treatsAllowed = String(document.getElementById('p_treatsAllowed')?.value || '');
-  pet.aloneTime = String(document.getElementById('p_aloneTime')?.value || '').trim();
-  pet.houseTrained = String(document.getElementById('p_houseTrained')?.value || '');
-  pet.transport = String(document.getElementById('p_transport')?.value || '').trim();
-  pet.feeding = String(document.getElementById('p_feeding')?.value || '').trim();
-  pet.compatDogs = String(document.getElementById('p_compatDogs')?.value || '').trim();
-  pet.compatCats = String(document.getElementById('p_compatCats')?.value || '').trim();
-  pet.compatKids = String(document.getElementById('p_compatKids')?.value || '').trim();
-  pet.compat = String(document.getElementById('p_compat')?.value || '').trim();
-  pet.leashBehavior = String(document.getElementById('p_leashBehavior')?.value || '').trim();
-  pet.recall = String(document.getElementById('p_recall')?.value || '').trim();
-  pet.resourceBehavior = String(document.getElementById('p_resourceBehavior')?.value || '').trim();
-  pet.behavior = String(document.getElementById('p_behavior')?.value || '').trim();
-  pet.dailyRoutine = String(document.getElementById('p_dailyRoutine')?.value || '').trim();
-  pet.commands = String(document.getElementById('p_commands')?.value || '').trim();
-  pet.note = String(document.getElementById('p_note')?.value || '').trim();
-  pet.updatedAt = Date.now();
 
   try{
     state.customers = asArray(state.customers);
@@ -24652,7 +24750,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB277_PROPOSAL_REVIEW_MATCHHELPERSFIX_20260410_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB279_PROPOSAL_REVIEW_CLOUDPAYLOADLITEFIX_20260410_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -26625,7 +26723,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB277_PROPOSAL_REVIEW_MATCHHELPERSFIX_20260410_ROOTONLY";
+  const BUILD = "M50.9.9GB279_PROPOSAL_REVIEW_CLOUDPAYLOADLITEFIX_20260410_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
