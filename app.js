@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB281_PROPOSAL_REVIEW_TARGETEDMERGECLOUDFIX_20260411_ROOTONLY",
+  tag: "M50.9.9GB282_PROPOSAL_REVIEW_TARGETEDMERGEREMOTEWRAPPERFIX_20260411_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB281_PROPOSAL_REVIEW_TARGETEDMERGECLOUDFIX_20260411_ROOTONLY";
+const APP_BUILD = "M50.9.9GB282_PROPOSAL_REVIEW_TARGETEDMERGEREMOTEWRAPPERFIX_20260411_ROOTONLY";
 try{ window.__dsAppJsRuntimeBuild = "GB281-appjs"; }catch(_){}
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -2249,7 +2249,12 @@ async function dsForceProposalPersistTargetedReviewRow(row, customer, pet, reaso
   const ref = cloudStateRef();
   if(!ref) return { ok:true, skipped:true, reason:tag, noRef:true };
   let remote = null;
-  try{ remote = await cloudLoadStateWithRetry(2); }catch(_){ remote = null; }
+  try{
+    const loaded = await cloudLoadStateWithRetry(2);
+    remote = (loaded && typeof loaded === 'object' && Object.prototype.hasOwnProperty.call(loaded, 'remote'))
+      ? (loaded.remote || null)
+      : (loaded || null);
+  }catch(_){ remote = null; }
   let clean = dsBuildTargetedCloudStateForProposalReview(row, customer, pet, (remote && typeof remote === 'object') ? remote : {});
   const stamp = Date.now();
   await ref.set({ payload: clean, updatedAt: stamp, updatedBy: CLOUD.user.email || CLOUD.user.uid }, { merge:true });
@@ -24901,7 +24906,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB281_PROPOSAL_REVIEW_TARGETEDMERGECLOUDFIX_20260411_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB282_PROPOSAL_REVIEW_TARGETEDMERGEREMOTEWRAPPERFIX_20260411_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -26874,7 +26879,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB281_PROPOSAL_REVIEW_TARGETEDMERGECLOUDFIX_20260411_ROOTONLY";
+  const BUILD = "M50.9.9GB282_PROPOSAL_REVIEW_TARGETEDMERGEREMOTEWRAPPERFIX_20260411_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
