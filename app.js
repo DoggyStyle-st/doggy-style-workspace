@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB279_PROPOSAL_REVIEW_CLOUDPAYLOADLITEFIX_20260410_ROOTONLY",
+  tag: "M50.9.9GB280_PROPOSAL_REVIEW_PRUNEDCLOUDSYNCFIX_20260411_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,8 +12,8 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB279_PROPOSAL_REVIEW_CLOUDPAYLOADLITEFIX_20260410_ROOTONLY";
-try{ window.__dsAppJsRuntimeBuild = "GB279-appjs"; }catch(_){}
+const APP_BUILD = "M50.9.9GB280_PROPOSAL_REVIEW_PRUNEDCLOUDSYNCFIX_20260411_ROOTONLY";
+try{ window.__dsAppJsRuntimeBuild = "GB280-appjs"; }catch(_){}
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
 // Global helper functions used across proposal-review matching.
@@ -2133,6 +2133,53 @@ async function dsForceProposalPersist(reason){
   throw (lastErr || new Error('Cloud push failed'));
 }
 try{ window.dsForceProposalPersist = dsForceProposalPersist; }catch(_){ }
+function dsReviewRowMatchesLite(a,b){
+  try{
+    if(!a || !b) return false;
+    const vals = function(x){
+      return [
+        String((x && (x.id || x.proposalId || x.proposal || x.taskId || x.task || x.rowKey || x.__rowId || x.__sourceKey)) || ''),
+        String((x && (x.customerId || x.cid)) || ''),
+        String((x && (x.petId || x.pid || x.dogId)) || ''),
+        String((x && (x.payloadSubmitted && x.payloadSubmitted.customerId)) || ''),
+        String((x && (x.payloadSubmitted && x.payloadSubmitted.petId)) || '')
+      ].map(function(v){ return String(v || '').trim(); }).filter(Boolean);
+    };
+    const av = vals(a), bv = vals(b);
+    if(!av.length || !bv.length) return false;
+    return av.some(function(v){ return bv.includes(v); });
+  }catch(_){ return false; }
+}
+function dsBuildStrictCloudStateWithoutReviewRow(row){
+  try{
+    const prepared = dsPrepareCloudPayloadStrict(state);
+    const clean = (prepared && prepared.clean && typeof prepared.clean === 'object') ? prepared.clean : {};
+    ['inboxAssignments','inboxSubmissions','assignments','submissions'].forEach(function(key){
+      try{
+        const list = Array.isArray(clean[key]) ? clean[key] : null;
+        if(!list) return;
+        clean[key] = list.filter(function(item){ return !dsReviewRowMatchesLite(item, row); }).map(function(item){ return dsProjectCloudSafeInboxRow(item); });
+      }catch(_){ }
+    });
+    return clean;
+  }catch(_){ return {}; }
+}
+async function dsForceProposalPersistPrunedReviewRow(row, reason){
+  const tag = String(reason || 'proposal-adopt-pruned').trim() || 'proposal-adopt-pruned';
+  if(!(CLOUD && CLOUD.enabled && CLOUD.user)) return { ok:true, skipped:true, reason:tag };
+  const ref = cloudStateRef();
+  if(!ref) return { ok:true, skipped:true, reason:tag, noRef:true };
+  const stamp = Date.now();
+  const clean = dsBuildStrictCloudStateWithoutReviewRow(row);
+  await ref.set({ payload: clean, updatedAt: stamp, updatedBy: CLOUD.user.email || CLOUD.user.uid }, { merge:true });
+  try{ CLOUD.lastPushOkAt = stamp; CLOUD.lastPushError = ''; }catch(_){ }
+  try{ SYNC.cloudLastOkAt = stamp; SYNC.cloudLastError = ''; SYNC.cloudPending = false; }catch(_){ }
+  try{ dsSetSyncDiag('proposalPersist:pruned-ok reason=' + tag + ' · ' + dsSyncDiagStateSummary(), false); }catch(_){ }
+  try{ dsClearSyncDiag(); }catch(_){ }
+  try{ updateSyncUI(); }catch(_){ }
+  return { ok:true, skipped:false, reason:tag, pruned:true };
+}
+try{ window.dsForceProposalPersistPrunedReviewRow = dsForceProposalPersistPrunedReviewRow; }catch(_){ }
 /* ===== Rollen, Kundenportal & Aufgaben (Weg A) ===== */
 function hideStaffUIForCustomer(){
   // Tabs / Panels umschalten
@@ -12959,10 +13006,23 @@ async function dsSaveProposalReview(){
   try{ dsSetProposalOpenDiag('save-before-write pet=' + String(pet.id || pet.petId || '--') + ' customer=' + String(customer.id || customer.customerId || '--') + ' cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0'), false); }catch(_){ }
   try{ if(typeof saveState === 'function') saveState(); }catch(_){ }
   try{ if(typeof dsForceProposalPersist === 'function') await dsForceProposalPersist('cp-review-save'); }catch(syncErr){
-    cpSetStatus('Übernahme lokal gespeichert, Cloud-Sync fehlgeschlagen.', true);
-    try{ dsSetProposalOpenDiag('save-cloud-fail pet=' + String(pet.id || pet.petId || '--') + ' customer=' + String(customer.id || customer.customerId || '--') + ' msg=' + String((syncErr && syncErr.message) || syncErr || 'unknown'), true); }catch(_){ }
-    try{ alert('Übernahme lokal gespeichert, aber Cloud-Sync fehlgeschlagen. Bitte erneut speichern.\n\nDetails: ' + String((syncErr && syncErr.message) || syncErr || 'Unbekannter Fehler')); }catch(_){ }
-    return false;
+    let recovered = false;
+    try{
+      const syncMsg = String((syncErr && syncErr.message) || syncErr || 'unknown');
+      if(row && /invalid nested entity/i.test(syncMsg) && typeof dsForceProposalPersistPrunedReviewRow === 'function'){
+        await dsForceProposalPersistPrunedReviewRow(row, 'cp-review-save-pruned');
+        recovered = true;
+        try{ dsSetProposalOpenDiag('save-cloud-pruned-ok pet=' + String(pet.id || pet.petId || '--') + ' customer=' + String(customer.id || customer.customerId || '--'), false); }catch(_){ }
+      }
+    }catch(retryErr){
+      syncErr = retryErr || syncErr;
+    }
+    if(!recovered){
+      cpSetStatus('Übernahme lokal gespeichert, Cloud-Sync fehlgeschlagen.', true);
+      try{ dsSetProposalOpenDiag('save-cloud-fail pet=' + String(pet.id || pet.petId || '--') + ' customer=' + String(customer.id || customer.customerId || '--') + ' msg=' + String((syncErr && syncErr.message) || syncErr || 'unknown'), true); }catch(_){ }
+      try{ alert('Übernahme lokal gespeichert, aber Cloud-Sync fehlgeschlagen. Bitte erneut speichern.\n\nDetails: ' + String((syncErr && syncErr.message) || syncErr || 'Unbekannter Fehler')); }catch(_){ }
+      return false;
+    }
   }
   try{ dsSetProposalOpenDiag('save-after-write pet=' + String(pet.id || pet.petId || '--') + ' customer=' + String(customer.id || customer.customerId || '--') + ' cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0'), false); }catch(_){ }
   const savedPetId = String(pet.id || pet.petId || '--');
@@ -24750,7 +24810,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB279_PROPOSAL_REVIEW_CLOUDPAYLOADLITEFIX_20260410_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB280_PROPOSAL_REVIEW_PRUNEDCLOUDSYNCFIX_20260411_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -26723,7 +26783,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB279_PROPOSAL_REVIEW_CLOUDPAYLOADLITEFIX_20260410_ROOTONLY";
+  const BUILD = "M50.9.9GB280_PROPOSAL_REVIEW_PRUNEDCLOUDSYNCFIX_20260411_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
