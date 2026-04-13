@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB284_NESTEDARRAYSAFE_20260413_ROOTONLY",
+  tag: "M50.9.9GB285_TARGETEDCLOUDPATCH_20260413_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,8 +12,8 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB284_NESTEDARRAYSAFE_20260413_ROOTONLY";
-try{ window.__dsAppJsRuntimeBuild = "GB284-appjs"; }catch(_){ }
+const APP_BUILD = "M50.9.9GB285_TARGETEDCLOUDPATCH_20260413_ROOTONLY";
+try{ window.__dsAppJsRuntimeBuild = "GB285-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
 // Global helper functions used across proposal-review matching.
@@ -2249,69 +2249,116 @@ async function dsForceProposalPersistPrunedReviewRow(row, reason){
   return { ok:true, skipped:false, reason:tag, pruned:true };
 }
 function dsBuildTargetedCloudStateForProposalReview(row, customer, pet, baseState){
-  const safeClone = (value)=>{
-    try{ return JSON.parse(JSON.stringify(value == null ? null : value)); }catch(_){ return value && typeof value === 'object' ? Object.assign({}, value) : value; }
-  };
-  const ensureArr = (obj, key)=>{
-    try{ if(!Array.isArray(obj[key])) obj[key] = []; }catch(_){ obj[key] = []; }
-    return obj[key];
-  };
   const normId = (v)=>{ try{ return norm(v || ''); }catch(_){ return String(v || '').trim(); } };
-  const clean = dsPrepareCloudPayloadStrict((baseState && typeof baseState === 'object') ? baseState : {}).clean || {};
-  ['customers','pets','dogs','docs','stays','chatThreads','chatMessages','inboxAssignments','inboxSubmissions','assignments','submissions'].forEach(function(key){
-    if(clean[key] == null && Array.isArray((state||{})[key])) clean[key] = [];
-  });
-  const customerId = normId((customer && (customer.id || customer.customerId)) || (row && (row.customerId || row.cid)) || '');
-  const petId = normId((pet && (pet.id || pet.petId)) || (row && (row.petId || row.pid)) || '');
+  const pickList = (key)=>{
+    try{
+      if(baseState && Array.isArray(baseState[key])) return baseState[key];
+      if(state && Array.isArray(state[key])) return state[key];
+    }catch(_){ }
+    return null;
+  };
+  const safeFlatList = (input)=>{
+    try{
+      if(!Array.isArray(input)) return [];
+      return input.map(function(item){ return dsSanitizeReviewFlatBase(item || {}); }).filter(function(item){ return item && typeof item === 'object' && Object.keys(item).length; });
+    }catch(_){ return []; }
+  };
+  const upsertByKeys = (list, item, keys)=>{
+    try{
+      const safeList = Array.isArray(list) ? list : [];
+      const safeItem = (item && typeof item === 'object') ? item : {};
+      const wanted = (Array.isArray(keys) ? keys : []).map(function(key){ return normId(safeItem && safeItem[key]); }).filter(Boolean);
+      if(!wanted.length){ safeList.push(safeItem); return safeList; }
+      const idx = safeList.findIndex(function(entry){
+        return (Array.isArray(keys) ? keys : []).some(function(key){ return wanted.includes(normId(entry && entry[key])); });
+      });
+      if(idx >= 0) safeList[idx] = Object.assign({}, safeList[idx] || {}, safeItem);
+      else safeList.push(safeItem);
+      return safeList;
+    }catch(_){ return Array.isArray(list) ? list : []; }
+  };
+  const safeLegacyMap = (input)=>{
+    try{
+      const src = (input && typeof input === 'object') ? input : {};
+      const out = {};
+      Object.keys(src).forEach(function(key){
+        try{
+          const sk = String(key || '').trim();
+          if(!sk) return;
+          const sv = String(src[key] == null ? '' : src[key]).trim();
+          if(!sv) return;
+          out[sk] = sv;
+        }catch(_){ }
+      });
+      return out;
+    }catch(_){ return {}; }
+  };
+  const clean = {};
+  const customerId = normId((customer && (customer.id || customer.customerId)) || (row && (row.customerId || row.cid || row.__targetCustomerId)) || '');
+  const petId = normId((pet && (pet.id || pet.petId)) || (row && (row.petId || row.pid || row.__targetPetId)) || '');
   const customerOut = dsSanitizeReviewFlatBase(customer || {});
   const petOut = dsSanitizeReviewFlatBase(pet || {});
+
+  let customers = safeFlatList(pickList('customers'));
   if(customerId){
     customerOut.id = customerId;
     customerOut.customerId = customerId;
-    const list = ensureArr(clean, 'customers');
-    const idx = list.findIndex(function(x){ return normId(x && (x.id || x.customerId)) === customerId; });
-    if(idx >= 0) list[idx] = Object.assign({}, dsSanitizeReviewFlatBase(list[idx] || {}), customerOut);
-    else list.push(customerOut);
+    customers = upsertByKeys(customers, customerOut, ['id','customerId']);
   }
+  if(customers.length) clean.customers = customers;
+
+  let pets = safeFlatList(pickList('pets'));
   if(petId){
     petOut.id = petId;
     petOut.petId = petId;
     if(customerId && !petOut.customerId) petOut.customerId = customerId;
-    const list = ensureArr(clean, 'pets');
-    const idx = list.findIndex(function(x){ return normId(x && (x.id || x.petId)) === petId; });
-    if(idx >= 0) list[idx] = Object.assign({}, dsSanitizeReviewFlatBase(list[idx] || {}), petOut);
-    else list.push(petOut);
+    pets = upsertByKeys(pets, petOut, ['id','petId']);
   }
-  try{
-    if(petId){
-      const legacy = clean._legacy = (clean._legacy && typeof clean._legacy === 'object') ? clean._legacy : {};
-      legacy.dogIdToPetId = (legacy.dogIdToPetId && typeof legacy.dogIdToPetId === 'object') ? legacy.dogIdToPetId : {};
-      legacy.dogIdToCustomerId = (legacy.dogIdToCustomerId && typeof legacy.dogIdToCustomerId === 'object') ? legacy.dogIdToCustomerId : {};
-      const localLegacyDogId = (typeof getLegacyDogIdForPet === 'function') ? String(getLegacyDogIdForPet(petId) || '') : '';
-      let dogId = localLegacyDogId;
-      if(!dogId){
-        Object.keys(legacy.dogIdToPetId || {}).some(function(did){ if(normId(legacy.dogIdToPetId[did]) === petId){ dogId = String(did || ''); return true; } return false; });
-      }
-      if(dogId){
-        legacy.dogIdToPetId[dogId] = petId;
-        if(customerId) legacy.dogIdToCustomerId[dogId] = customerId;
-        const dogs = ensureArr(clean, 'dogs');
-        const didx = dogs.findIndex(function(x){ return normId(x && x.id) === dogId; });
-        const dogPatch = { id: dogId, name: String((petOut && petOut.name) || ''), owner: String((customerOut && customerOut.name) || ''), phone: String((customerOut && customerOut.phone) || ''), note: String((petOut && petOut.note) || '') };
-        if(didx >= 0) dogs[didx] = Object.assign({}, dsSanitizeReviewFlatBase(dogs[didx] || {}), dogPatch);
-        else dogs.push(dogPatch);
-      }
-    }
-  }catch(_){ }
+  if(pets.length) clean.pets = pets;
+
+  const legacySource = (baseState && baseState._legacy && typeof baseState._legacy === 'object')
+    ? baseState._legacy
+    : ((state && state._legacy && typeof state._legacy === 'object') ? state._legacy : {});
+  const legacy = {
+    dogIdToPetId: safeLegacyMap(legacySource && legacySource.dogIdToPetId),
+    dogIdToCustomerId: safeLegacyMap(legacySource && legacySource.dogIdToCustomerId)
+  };
+  let dogId = '';
+  try{ dogId = (typeof getLegacyDogIdForPet === 'function') ? String(getLegacyDogIdForPet(petId) || '') : ''; }catch(_){ dogId = ''; }
+  if(!dogId && petId){
+    try{ Object.keys(legacy.dogIdToPetId || {}).some(function(did){ if(normId(legacy.dogIdToPetId[did]) === petId){ dogId = String(did || ''); return true; } return false; }); }catch(_){ }
+  }
+  let dogs = safeFlatList(pickList('dogs'));
+  if(dogId){
+    legacy.dogIdToPetId[dogId] = petId;
+    if(customerId) legacy.dogIdToCustomerId[dogId] = customerId;
+    const dogPatch = dsSanitizeReviewFlatBase({
+      id: dogId,
+      name: String((petOut && petOut.name) || ''),
+      owner: String((customerOut && customerOut.name) || ''),
+      phone: String((customerOut && customerOut.phone) || ''),
+      note: String((petOut && petOut.note) || '')
+    });
+    dogs = upsertByKeys(dogs, dogPatch, ['id']);
+  }
+  if(dogs.length) clean.dogs = dogs;
+  if(Object.keys(legacy.dogIdToPetId || {}).length || Object.keys(legacy.dogIdToCustomerId || {}).length) clean._legacy = legacy;
+
   ['inboxAssignments','inboxSubmissions','assignments','submissions'].forEach(function(key){
     try{
-      const list = ensureArr(clean, key);
-      clean[key] = list.filter(function(item){ return !dsReviewRowMatchesLite(item, row); }).map(function(item){ return dsProjectCloudSafeInboxRow(item); });
+      const srcList = pickList(key);
+      if(!Array.isArray(srcList)) return;
+      clean[key] = srcList
+        .filter(function(item){ return !dsReviewRowMatchesLite(item, row); })
+        .map(function(item){ return dsProjectCloudSafeInboxRow(item); });
     }catch(_){ }
   });
+
+  try{ clean.schemaVersion = Math.max(Number((state && state.schemaVersion) || (baseState && baseState.schemaVersion) || 2) || 2, 2); }catch(_){ clean.schemaVersion = 2; }
   try{ clean._cloudUpdatedAt = Date.now(); if(clean._localUpdatedAt == null) clean._localUpdatedAt = clean._cloudUpdatedAt; }catch(_){ }
   return clean;
 }
+
 async function dsForceProposalPersistTargetedReviewRow(row, customer, pet, reason){
   const tag = String(reason || 'proposal-adopt-targeted').trim() || 'proposal-adopt-targeted';
   if(!(CLOUD && CLOUD.enabled && CLOUD.user)) return { ok:true, skipped:true, reason:tag };
@@ -24993,7 +25040,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB284_NESTEDARRAYSAFE_20260413_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB285_TARGETEDCLOUDPATCH_20260413_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -26966,7 +27013,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB284_NESTEDARRAYSAFE_20260413_ROOTONLY";
+  const BUILD = "M50.9.9GB285_TARGETEDCLOUDPATCH_20260413_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
