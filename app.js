@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB283_PROPOSAL_REVIEW_TARGETEDFINALSTRICTPROBEFIX_20260411_ROOTONLY",
+  tag: "M50.9.9GB284_NESTEDARRAYSAFE_20260413_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,8 +12,8 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB283_PROPOSAL_REVIEW_TARGETEDFINALSTRICTPROBEFIX_20260411_ROOTONLY";
-try{ window.__dsAppJsRuntimeBuild = "GB281-appjs"; }catch(_){}
+const APP_BUILD = "M50.9.9GB284_NESTEDARRAYSAFE_20260413_ROOTONLY";
+try{ window.__dsAppJsRuntimeBuild = "GB284-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
 // Global helper functions used across proposal-review matching.
@@ -231,6 +231,69 @@ function dsProjectCloudSafeProposalPayload(payload){
     return clean;
   }catch(_){ return {}; }
 }
+
+function dsNormalizeFirestoreShape(value, path, seen, stats, insideArray){
+  try{
+    if(value === undefined) return undefined;
+    if(value === null) return null;
+    const t = typeof value;
+    if(t === 'string' || t === 'boolean') return value;
+    if(t === 'number') return Number.isFinite(value) ? value : null;
+    if(t === 'bigint') return String(value);
+    if(t === 'function' || t === 'symbol') return undefined;
+    if(t !== 'object') return value;
+    try{ if(value instanceof Date) return value.getTime(); }catch(_){ }
+    try{ if(value instanceof RegExp) return String(value); }catch(_){ }
+    try{ if(value instanceof Error) return { name:String(value.name||'Error'), message:String(value.message||'') }; }catch(_){ }
+    try{ if(typeof URL !== 'undefined' && value instanceof URL) return String(value); }catch(_){ }
+    try{ if(value && typeof value.toMillis === 'function') return Number(value.toMillis()); }catch(_){ }
+    try{ if(value && typeof value.seconds === 'number' && typeof value.nanoseconds === 'number') return (value.seconds * 1000) + Math.floor((value.nanoseconds||0) / 1000000); }catch(_){ }
+    try{ if(typeof Blob !== 'undefined' && value instanceof Blob) return undefined; }catch(_){ }
+    try{ if(typeof File !== 'undefined' && value instanceof File) return undefined; }catch(_){ }
+    if(Array.isArray(value)){
+      if(seen && seen.has(value)) return [];
+      try{ if(seen) seen.add(value); }catch(_){ }
+      const arr = [];
+      for(let i=0;i<value.length;i++){
+        const itemPath = (path || 'payload') + '[' + i + ']';
+        const sv = dsNormalizeFirestoreShape(value[i], itemPath, seen, stats, true);
+        if(sv === undefined) continue;
+        if(Array.isArray(sv)){
+          try{ dsSyncDiagNoteDrop(itemPath, 'nested-array-stringified', stats); }catch(_){ }
+          try{ arr.push(JSON.stringify(sv)); }catch(_){ arr.push('[]'); }
+        }else{
+          arr.push(sv);
+        }
+      }
+      try{ if(seen) seen.delete(value); }catch(_){ }
+      return arr;
+    }
+    const proto = Object.getPrototypeOf(value);
+    const plain = !proto || proto === Object.prototype;
+    if(!plain){
+      try{
+        if(value && typeof value.toJSON === 'function'){
+          return dsNormalizeFirestoreShape(value.toJSON(), (path || 'payload') + '.toJSON', seen, stats, insideArray);
+        }
+      }catch(_){ }
+      const outLoose = {};
+      try{ Object.keys(value).forEach(function(k){ outLoose[k] = value[k]; }); }catch(_){ }
+      return dsNormalizeFirestoreShape(outLoose, path, seen, stats, insideArray);
+    }
+    if(seen && seen.has(value)) return undefined;
+    try{ if(seen) seen.add(value); }catch(_){ }
+    const out = {};
+    Object.keys(value || {}).forEach(function(key){
+      const sv = dsNormalizeFirestoreShape(value[key], (path ? path + '.' : '') + key, seen, stats, false);
+      if(sv !== undefined) out[key] = sv;
+    });
+    try{ if(seen) seen.delete(value); }catch(_){ }
+    return out;
+  }catch(_){
+    return undefined;
+  }
+}
+
 function dsProjectCloudSafeInboxRow(row){
   try{
     const src = (row && typeof row === 'object') ? row : {};
@@ -274,7 +337,9 @@ function dsPruneProblemSyncFields(root){
 
 function dsPrepareCloudPayload(src){
   const stats = { droppedCount:0, droppedPaths:[], droppedKinds:{} };
-  const clean = dsPruneProblemSyncFields(dsSanitizeCloudPayload(src, 'payload', new WeakSet(), stats) || {});
+  const sanitized = dsSanitizeCloudPayload(src, 'payload', new WeakSet(), stats) || {};
+  const normalized = dsNormalizeFirestoreShape(sanitized, 'payload', new WeakSet(), stats, false) || {};
+  const clean = dsPruneProblemSyncFields(normalized);
   return { clean, stats };
 }
 
@@ -314,12 +379,16 @@ function dsStrictJsonReplacer(key, value){
   }
 }
 function dsPrepareCloudPayloadStrict(src){
+  const stats = { mode:'json-replacer', droppedCount:0, droppedPaths:[], droppedKinds:{} };
   try{
     const json = JSON.stringify(src, dsStrictJsonReplacer);
-    const clean = dsPruneProblemSyncFields(json ? JSON.parse(json) : {});
-    return { clean: clean || {}, stats:{ mode:'json-replacer' } };
+    const parsed = json ? JSON.parse(json) : {};
+    const normalized = dsNormalizeFirestoreShape(parsed, 'payload', new WeakSet(), stats, false) || {};
+    const clean = dsPruneProblemSyncFields(normalized);
+    return { clean: clean || {}, stats };
   }catch(err){
-    return { clean: {}, stats:{ mode:'json-replacer', error:String((err && err.message) || err || 'unknown') } };
+    stats.error = String((err && err.message) || err || 'unknown');
+    return { clean: {}, stats };
   }
 }
 
@@ -24924,7 +24993,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB283_PROPOSAL_REVIEW_TARGETEDFINALSTRICTPROBEFIX_20260411_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB284_NESTEDARRAYSAFE_20260413_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -26897,7 +26966,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB283_PROPOSAL_REVIEW_TARGETEDFINALSTRICTPROBEFIX_20260411_ROOTONLY";
+  const BUILD = "M50.9.9GB284_NESTEDARRAYSAFE_20260413_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
