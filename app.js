@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB290_REVIEWSAVE_SIGFIX_20260413_ROOTONLY",
+  tag: "M50.9.9GB292_REVIEWHOOKSUBSETSTAYSIG_20260413_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,8 +12,8 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB290_REVIEWSAVE_SIGFIX_20260413_ROOTONLY";
-try{ window.__dsAppJsRuntimeBuild = "GB290-appjs"; }catch(_){ }
+const APP_BUILD = "M50.9.9GB292_REVIEWHOOKSUBSETSTAYSIG_20260413_ROOTONLY";
+try{ window.__dsAppJsRuntimeBuild = "GB292-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
 // Global helper functions used across proposal-review matching.
@@ -1987,6 +1987,7 @@ function dsInflateCloudRescueMaps(payload){
     out.customers = dsUpsertFlatRecordsFromMap(out.customers, src.customerRecords, ['id','customerId']);
     out.pets = dsUpsertFlatRecordsFromMap(out.pets, src.petRecords, ['id','petId']);
     out.dogs = dsUpsertFlatRecordsFromMap(out.dogs, src.dogRecords, ['id']);
+    out.docs = dsUpsertFlatRecordsFromMap(out.docs, src.docRecords, ['id']);
     return out;
   }catch(_){ return payload; }
 }
@@ -2690,6 +2691,106 @@ async function dsForceProposalPersistFieldwiseReviewRow(row, customer, pet, reas
   return { ok:true, skipped:false, reason:tag, fieldwise:true, stages:stages.slice() };
 }
 try{ window.dsForceProposalPersistFieldwiseReviewRow = dsForceProposalPersistFieldwiseReviewRow; }catch(_){ }
+
+function dsBuildReviewSubsetPersistPayload(kind, opts){
+  try{
+    const mode = String(kind || '').trim().toLowerCase();
+    const options = (opts && typeof opts === 'object') ? opts : {};
+    const stamp = Date.now();
+    let payload = {
+      schemaVersion: Math.max(Number((state && state.schemaVersion) || 2) || 2, 2),
+      _cloudUpdatedAt: stamp,
+      _localUpdatedAt: stamp
+    };
+    if(mode === 'stay'){
+      const doc = (options.doc && typeof options.doc === 'object') ? options.doc : null;
+      const docId = String((options.docId || (doc && doc.id) || '') || '').trim();
+      if(doc && docId){
+        let prepared = {};
+        try{
+          prepared = dsPrepareCloudPayloadStrict({ docRecords:{ [docId]: doc } });
+        }catch(_){ prepared = {}; }
+        const cleanRoot = (prepared && prepared.clean && typeof prepared.clean === 'object') ? prepared.clean : {};
+        const cleanMap = (cleanRoot.docRecords && typeof cleanRoot.docRecords === 'object') ? cleanRoot.docRecords : {};
+        const cleanDoc = cleanMap[docId];
+        if(cleanDoc && typeof cleanDoc === 'object'){
+          payload.docRecords = { [docId]: cleanDoc };
+        }
+      }
+    }
+    if(mode === 'contract'){
+      const sigKey = String((options.signatureKey || '') || '').trim();
+      const agrKey = String((options.agreementKey || '') || '').trim();
+      const sigRec = options.signatureRec && typeof options.signatureRec === 'object' ? options.signatureRec : null;
+      const agrRec = options.agreementRec && typeof options.agreementRec === 'object' ? options.agreementRec : null;
+      if(sigKey && sigRec){
+        let preparedSig = {};
+        try{ preparedSig = dsPrepareCloudPayloadStrict({ contractSignatures:{ [sigKey]: sigRec } }); }catch(_){ preparedSig = {}; }
+        const cleanSigRoot = (preparedSig && preparedSig.clean && typeof preparedSig.clean === 'object') ? preparedSig.clean : {};
+        if(cleanSigRoot.contractSignatures && typeof cleanSigRoot.contractSignatures === 'object' && cleanSigRoot.contractSignatures[sigKey]){
+          payload.contractSignatures = { [sigKey]: cleanSigRoot.contractSignatures[sigKey] };
+        }
+      }
+      if(agrKey && agrRec){
+        let preparedAgr = {};
+        try{ preparedAgr = dsPrepareCloudPayloadStrict({ contractAgreements:{ [agrKey]: agrRec } }); }catch(_){ preparedAgr = {}; }
+        const cleanAgrRoot = (preparedAgr && preparedAgr.clean && typeof preparedAgr.clean === 'object') ? preparedAgr.clean : {};
+        if(cleanAgrRoot.contractAgreements && typeof cleanAgrRoot.contractAgreements === 'object' && cleanAgrRoot.contractAgreements[agrKey]){
+          payload.contractAgreements = { [agrKey]: cleanAgrRoot.contractAgreements[agrKey] };
+        }
+      }
+    }
+    return payload;
+  }catch(_){ return { schemaVersion:2, _cloudUpdatedAt:Date.now(), _localUpdatedAt:Date.now() }; }
+}
+async function dsForceReviewSubsetPersist(kind, opts){
+  const mode = String(kind || '').trim().toLowerCase();
+  const options = (opts && typeof opts === 'object') ? opts : {};
+  const tag = String(options.reason || ('review-subset-' + (mode || 'unknown'))).trim() || ('review-subset-' + (mode || 'unknown'));
+  if(!(CLOUD && CLOUD.enabled && CLOUD.user)) return { ok:true, skipped:true, reason:tag };
+  const ref = cloudStateRef();
+  if(!ref) return { ok:true, skipped:true, reason:tag, noRef:true };
+  const stamp = Date.now();
+  const stages = [];
+  try{
+    if((mode === 'stay' || mode === 'contract') && typeof dsForceProposalPersistFieldwiseReviewRow === 'function'){
+      try{
+        const row = options.row || null;
+        const customer = options.customer || null;
+        const pet = options.pet || null;
+        await dsForceProposalPersistFieldwiseReviewRow(row, customer, pet, tag + '-fieldwise');
+        stages.push('fieldwise:ok');
+      }catch(fieldErr){
+        stages.push('fieldwise:fail');
+        try{ dsSetProposalOpenDiag('save-review-subset-fieldwise-fail kind=' + String(mode || '--') + ' msg=' + String((fieldErr && fieldErr.message) || fieldErr || 'unknown'), true); }catch(_){ }
+      }
+    }
+    const payload = dsBuildReviewSubsetPersistPayload(mode, options);
+    const hasPayload = !!(payload && typeof payload === 'object' && (
+      (payload.docRecords && Object.keys(payload.docRecords).length) ||
+      (payload.contractSignatures && Object.keys(payload.contractSignatures).length) ||
+      (payload.contractAgreements && Object.keys(payload.contractAgreements).length)
+    ));
+    if(!hasPayload){
+      stages.push('subset:skip');
+      return { ok:true, skipped:true, reason:tag, stages:stages.slice() };
+    }
+    await ref.set({ payload, updatedAt: stamp, updatedBy: CLOUD.user.email || CLOUD.user.uid }, { merge:true });
+    stages.push('subset:ok');
+  }catch(err){
+    try{ dsSetProposalOpenDiag('save-review-subset-fail kind=' + String(mode || '--') + ' stage=' + String(stages.join('|') || '--') + ' msg=' + String((err && err.message) || err || 'unknown'), true); }catch(_){ }
+    throw err;
+  }
+  try{ CLOUD.lastPushOkAt = stamp; CLOUD.lastPushError = ''; }catch(_){ }
+  try{ SYNC.cloudLastOkAt = stamp; SYNC.cloudLastError = ''; SYNC.cloudPending = false; }catch(_){ }
+  try{ dsSetSyncDiag('reviewSubsetPersist:ok reason=' + tag + ' kind=' + mode + ' stage=' + stages.join('|') + ' · ' + dsSyncDiagStateSummary(), false); }catch(_){ }
+  try{ dsSetProposalOpenDiag('save-review-subset-ok kind=' + String(mode || '--') + ' stage=' + stages.join('|'), false); }catch(_){ }
+  try{ dsClearSyncDiag(); }catch(_){ }
+  try{ updateSyncUI(); }catch(_){ }
+  return { ok:true, skipped:false, reason:tag, stages:stages.slice(), subset:true };
+}
+try{ window.dsForceReviewSubsetPersist = dsForceReviewSubsetPersist; }catch(_){ }
+
 /* ===== Rollen, Kundenportal & Aufgaben (Weg A) ===== */
 function hideStaffUIForCustomer(){
   // Tabs / Panels umschalten
@@ -3572,6 +3673,12 @@ async function submitCustomerStayProposalMain(){
     const petId = String((pet && (pet.id || pet.petId)) || '');
     if(!customerId || !petId){ alert('Kunde/Hund konnten nicht zugeordnet werden.'); return; }
     const staySignature = (()=>{
+      try{
+        if(typeof ds212ExtractSignature === 'function'){
+          const sig = ds212ExtractSignature(currentDoc || {});
+          if(sig && sig.dataUrl) return JSON.parse(JSON.stringify(sig));
+        }
+      }catch(_){ }
       try{
         if(currentDoc && currentDoc.signature && currentDoc.signature.dataUrl){
           return JSON.parse(JSON.stringify(currentDoc.signature));
@@ -25427,7 +25534,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB290_REVIEWSAVE_SIGFIX_20260413_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB292_REVIEWHOOKSUBSETSTAYSIG_20260413_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -27400,7 +27507,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB290_REVIEWSAVE_SIGFIX_20260413_ROOTONLY";
+  const BUILD = "M50.9.9GB292_REVIEWHOOKSUBSETSTAYSIG_20260413_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -30077,7 +30184,7 @@ try{ window.__GB191_MARKER = 'active'; }catch(_){ }
     try{ ds166OpenRowByKey = window.ds166OpenRowByKey; }catch(_){ }
   }catch(_){ }
 })();
-try{ window.__dsAppJsRuntimeBuild = 'GB273-appjs'; }catch(_){}
+try{ window.__dsAppJsRuntimeBuild = 'GB292-appjs'; }catch(_){}
 /* ===== END GB194 ===== */
 
 
@@ -30578,3 +30685,244 @@ try{ window.__GB191_MARKER = 'active'; }catch(_){ }
   try{ window.ds166OpenRowByKey = function(key){ try{ var row = window.__dsInboxRowMap && window.__dsInboxRowMap[key]; return row ? ds187OpenSnapshotEntry(row, '') : false; }catch(err){ ds187Diag('row-key err ' + String((err && err.message) || err || 'unknown'), true); return false; } }; }catch(_){ }
 })();
 /* ===== END GB191 ===== */
+
+
+/* ===== GB292 review save hooks + subset persist + stay signature hydrate ===== */
+try{ window.__GB292_MARKER = 'active'; }catch(_){ }
+(function(){
+  function ds292Clone(v){ try{ return JSON.parse(JSON.stringify(v)); }catch(_){ return v; } }
+  function ds292Norm(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
+  function ds292Bool(v){ try{ if(v === true || v === false) return !!v; const s = String(v == null ? '' : v).trim().toLowerCase(); return s === '1' || s === 'true' || s === 'ja' || s === 'yes' || s === 'on'; }catch(_){ return false; } }
+  function ds292Payload(row){ try{ return ds292Clone((row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data)) || {}) || {}; }catch(_){ return {}; } }
+  function ds292ResolveRowInfo(row){
+    try{ if(typeof dsResolveProposalCustomerPet === 'function') return dsResolveProposalCustomerPet(row || {}) || {}; }catch(_){ }
+    const payload = ds292Payload(row);
+    return { payload:payload, customerId: ds292Norm(payload.customerId || (row && (row.customerId || row.__targetCustomerId)) || ''), petId: ds292Norm(payload.petId || (row && (row.petId || row.__targetPetId || row.dogId)) || ''), customer: ds292Clone(payload.customer || (row && row.customer) || {}) || {}, pet: ds292Clone(payload.pet || (row && row.pet) || {}) || {} };
+  }
+  function ds292ResolveCustomerPet(row){
+    const info = ds292ResolveRowInfo(row);
+    const customerId = ds292Norm((info && info.customerId) || '');
+    const petId = ds292Norm((info && info.petId) || '');
+    let customer = (info && info.customer && typeof info.customer === 'object') ? ds292Clone(info.customer) : null;
+    let pet = (info && info.pet && typeof info.pet === 'object') ? ds292Clone(info.pet) : null;
+    try{ if((!customer || !Object.keys(customer).length) && customerId && typeof getCustomer === 'function') customer = ds292Clone(getCustomer(customerId) || null); }catch(_){ }
+    try{ if((!pet || !Object.keys(pet).length) && petId && typeof getPet === 'function') pet = ds292Clone(getPet(petId) || null); }catch(_){ }
+    if(!customer) customer = {}; if(!pet) pet = {};
+    if(customerId){ customer.id = ds292Norm(customer.id || customer.customerId || customerId) || customerId; customer.customerId = customer.id; }
+    if(petId){ pet.id = ds292Norm(pet.id || pet.petId || petId) || petId; pet.petId = pet.id; if(customerId && !pet.customerId) pet.customerId = customerId; }
+    return { info:info, customerId:customerId, petId:petId, customer:customer, pet:pet };
+  }
+  function ds292SigObj(val, signedAt){
+    try{
+      if(!val) return null;
+      if(typeof val === 'string'){
+        const s = String(val || '').trim();
+        return s ? { dataUrl:s, signedAt:signedAt || Date.now() } : null;
+      }
+      if(typeof val === 'object'){
+        const dataUrl = ds292Norm(val.dataUrl || val.signatureDataUrl || val.signature || '');
+        return dataUrl ? { dataUrl:dataUrl, signedAt: val.signedAt || val.signatureAt || signedAt || Date.now() } : null;
+      }
+    }catch(_){ }
+    return null;
+  }
+  function ds292ExtractStaySignature(row, doc){
+    const candidates = [];
+    try{ if(doc && doc.signature) candidates.push(ds292SigObj(doc.signature, doc.signature && doc.signature.signedAt)); }catch(_){ }
+    try{ if(doc && doc.fields) candidates.push(ds292SigObj(doc.fields.signatureDataUrl, doc.fields.signatureAt)); }catch(_){ }
+    try{ if(doc && doc.signatures) candidates.push(ds292SigObj(doc.signatures.halter || doc.signatures.owner || doc.signatures.customer, Date.now())); }catch(_){ }
+    const raw = ds292Payload(row);
+    const fields = (raw && raw.fields && typeof raw.fields === 'object') ? raw.fields : {};
+    const signs = (raw && raw.signatures && typeof raw.signatures === 'object') ? raw.signatures : {};
+    candidates.push(ds292SigObj(raw.signature, raw.signatureAt));
+    candidates.push(ds292SigObj(raw.signatureDataUrl, raw.signatureAt));
+    candidates.push(ds292SigObj(fields.signatureDataUrl, fields.signatureAt || raw.signatureAt));
+    candidates.push(ds292SigObj(fields.signature, fields.signatureAt || raw.signatureAt));
+    candidates.push(ds292SigObj(signs.halter || signs.owner || signs.customer, raw.signatureAt));
+    try{ if(fields.signatures && typeof fields.signatures === 'object') candidates.push(ds292SigObj(fields.signatures.halter || fields.signatures.owner || fields.signatures.customer, fields.signatureAt || raw.signatureAt)); }catch(_){ }
+    for(const sig of candidates){ if(sig && sig.dataUrl) return sig; }
+    return null;
+  }
+  function ds292ApplyStaySignatureUi(sig){
+    try{
+      const statusEl = document.getElementById('staySigStatus');
+      const imgWrap  = document.getElementById('staySigPreview');
+      const imgEl    = document.getElementById('staySigImg');
+      const btnClear = document.getElementById('btnSignatureClear');
+      const btnOpen  = document.getElementById('btnSignatureOpen');
+      if(statusEl){
+        statusEl.textContent = sig && sig.dataUrl ? ('✔ Unterschrieben am ' + new Date(sig.signedAt || Date.now()).toLocaleString('de-DE')) : '— noch keine Unterschrift —';
+        statusEl.className = sig && sig.dataUrl ? 'muted ok' : 'muted';
+      }
+      if(imgWrap && imgEl){
+        if(sig && sig.dataUrl){ imgEl.src = String(sig.dataUrl || ''); imgWrap.style.display = 'block'; }
+        else { try{ imgEl.removeAttribute('src'); }catch(_){ } imgWrap.style.display = 'none'; }
+      }
+      if(btnClear) btnClear.style.display = sig && sig.dataUrl ? '' : 'none';
+      if(btnOpen) btnOpen.style.display = sig && sig.dataUrl ? 'none' : '';
+    }catch(_){ }
+  }
+  function ds292HydrateStayReviewSignature(row){
+    try{
+      const review = window.__dsInlineInboxReview;
+      if(!(review && review.kind === 'stay')) return false;
+      const doc = (typeof currentDoc !== 'undefined') ? currentDoc : (window.currentDoc || null);
+      if(!doc || String(doc.templateId || '') !== 'hundeannahme') return false;
+      const sig = ds292ExtractStaySignature(row || review.row, doc);
+      if(sig && sig.dataUrl){
+        try{ doc.signature = ds292Clone(sig); }catch(_){ }
+        try{ doc.fields = doc.fields || {}; if(!doc.fields.signatureDataUrl) doc.fields.signatureDataUrl = sig.dataUrl; if(!doc.fields.signatureAt) doc.fields.signatureAt = sig.signedAt || Date.now(); }catch(_){ }
+        ds292ApplyStaySignatureUi(sig);
+        try{ if(typeof dsSetProposalOpenDiag === 'function') dsSetProposalOpenDiag('gb292 stay-signature-hydrated pet=' + String((doc.petId || doc.dogId || '--')) + ' visible=1', false); }catch(_){ }
+        return true;
+      }
+      ds292ApplyStaySignatureUi(null);
+    }catch(_){ }
+    return false;
+  }
+  function ds292RememberReview(kind, row){
+    try{ window.__dsInlineInboxReview = { kind:String(kind || ''), row:row || null, at:Date.now() }; }catch(_){ }
+    try{ if(kind === 'stay') window.__dsStayReviewSubmitHook = ds292SubmitStayReview; }catch(_){ }
+    try{ if(kind === 'contract') window.__dsContractReviewSubmitHook = ds292SubmitContractReview; }catch(_){ }
+  }
+  function ds292ClearReview(){
+    try{ window.__dsInlineInboxReview = null; }catch(_){ }
+    try{ window.__dsStayReviewSubmitHook = null; }catch(_){ }
+    try{ window.__dsContractReviewSubmitHook = null; }catch(_){ }
+  }
+  async function ds292FinalizeReview(row, source){
+    try{ if(typeof patchInboxRowStatus === 'function') await patchInboxRowStatus(row, 'adopted'); }catch(_){ }
+    try{ if(typeof removeInboxRowEverywhere === 'function') removeInboxRowEverywhere(row); }catch(_){ }
+    try{ if(typeof refreshInboxHard === 'function') await refreshInboxHard(String(source || 'gb292-review-save')); }catch(_){ }
+    try{ if(typeof renderDogs === 'function') renderDogs(); }catch(_){ }
+    try{ if(typeof renderDocs === 'function') renderDocs(); }catch(_){ }
+    try{ if(typeof updateSyncUI === 'function') updateSyncUI(); }catch(_){ }
+    ds292ClearReview();
+  }
+  function ds292NormalizeStayDoc(doc, row){
+    const out = ds292Clone(doc || {}) || {};
+    const nowIso = new Date().toISOString();
+    try{ ensureDocLinks(out); }catch(_){ }
+    try{ updateDocCustomerPetFromDogId(out); }catch(_){ }
+    try{ normalizeMeta(out); }catch(_){ }
+    const id = ds292Norm(out.id || '');
+    if(!id || /^proposal_(review|snapshot)_/i.test(id)) out.id = (typeof uid === 'function' ? uid() : ('stay_' + Date.now()));
+    if(!out.templateId) out.templateId = 'hundeannahme';
+    if(!out.templateName) out.templateName = 'Aufenthalte';
+    const title = ds292Norm(out.title || '');
+    if(!title || /vorschlag/i.test(title)) out.title = 'Aufenthalt';
+    out.updatedAt = nowIso;
+    if(!out.createdAt) out.createdAt = nowIso;
+    out.saved = true;
+    out.__proposalReview = false;
+    out.adoptedFromProposal = true;
+    try{ out.meta = out.meta || {}; out.meta.adoptedFromProposal = true; }catch(_){ }
+    try{ out.fields = out.fields || {}; }catch(_){ }
+    return out;
+  }
+  async function ds292SubmitStayReview(){
+    const review = window.__dsInlineInboxReview || {};
+    const row = review.row || window.__dsInboxCurrentTask || null;
+    try{
+      try{ if(typeof syncStayEditorInputsToDoc === 'function') syncStayEditorInputsToDoc(currentDoc); }catch(_){ }
+      let doc = (typeof currentDoc !== 'undefined' && currentDoc) ? currentDoc : (window.currentDoc || null);
+      if(!doc) throw new Error('Kein Aufenthaltsdokument geöffnet.');
+      const links = ds292ResolveCustomerPet(row);
+      const sig = ds292ExtractStaySignature(row, doc);
+      if(sig && sig.dataUrl){
+        doc.signature = ds292Clone(sig);
+        doc.fields = doc.fields || {};
+        doc.fields.signatureDataUrl = doc.fields.signatureDataUrl || sig.dataUrl;
+        doc.fields.signatureAt = doc.fields.signatureAt || sig.signedAt || Date.now();
+        ds292ApplyStaySignatureUi(sig);
+      }
+      doc = ds292NormalizeStayDoc(doc, row);
+      try{ currentDoc = doc; window.currentDoc = doc; }catch(_){ }
+      ensureStateShape();
+      state.docs = Array.isArray(state.docs) ? state.docs : [];
+      const idx = state.docs.findIndex(function(x){ return !!x && String((x.id || '')) === String(doc.id || ''); });
+      if(idx >= 0) state.docs[idx] = ds292Clone(doc); else state.docs.unshift(ds292Clone(doc));
+      try{ saveState(); }catch(_){ }
+      try{ ds209ReloadStateFromStorage(); }catch(_){ }
+      try{ if(typeof dsForceReviewSubsetPersist === 'function') await dsForceReviewSubsetPersist('stay', { row:row, customer:links.customer, pet:links.pet, doc:doc, docId:doc.id, reason:'gb292-stay-review-save' }); }
+      catch(syncErr){ throw new Error('Cloud-Sync nach Aufenthaltsübernahme fehlgeschlagen: ' + String((syncErr && syncErr.message) || syncErr || 'unknown')); }
+      await ds292FinalizeReview(row, 'gb292-stay-review-save');
+      try{ if(typeof toast === 'function') toast('Aufenthalt übernommen'); }catch(_){ }
+      return true;
+    }catch(err){
+      console.error('GB292 stay review save failed', err);
+      try{ alert('Übernehmen fehlgeschlagen: ' + String((err && err.message) || err || 'Unbekannter Fehler')); }catch(_){ }
+      try{ if(typeof dsSetProposalOpenDiag === 'function') dsSetProposalOpenDiag('gb292 stay-save-fail msg=' + String((err && err.message) || err || 'unknown'), true); }catch(_){ }
+      return false;
+    }
+  }
+  async function ds292SubmitContractReview(){
+    const review = window.__dsInlineInboxReview || {};
+    const row = review.row || window.__dsInboxCurrentTask || null;
+    try{
+      ensureStateShape();
+      const ids = (typeof getSelectedIds === 'function') ? getSelectedIds() : { customerId:'', petId:'' };
+      const links = ds292ResolveCustomerPet(row);
+      const customerId = ds292Norm(ids.customerId || links.customerId || '');
+      const petId = ds292Norm(ids.petId || links.petId || '');
+      if(!customerId || !petId) throw new Error('Kunde/Hund konnten nicht zugeordnet werden.');
+      const accept = document.getElementById('contractAcceptChk');
+      if(accept && !accept.checked) throw new Error('Bitte den Vertrag bestätigen.');
+      const version = String((state && state.contractVersion) || (state && state.contract && state.contract.version) || 'v1.0');
+      state.contractSignatures = state.contractSignatures || {};
+      state.contractAgreements = state.contractAgreements || {};
+      const sigKey = (typeof _contractSigKey === 'function') ? _contractSigKey(customerId, petId, version) : (version + '__' + customerId + '__' + petId);
+      let sigRec = state.contractSignatures[sigKey] || null;
+      if(!(sigRec && sigRec.dataUrl)){
+        const sig = ds292ExtractStaySignature(row, null);
+        if(sig && sig.dataUrl){ sigRec = { dataUrl:String(sig.dataUrl || ''), signedAt:sig.signedAt || Date.now() }; state.contractSignatures[sigKey] = ds292Clone(sigRec); }
+      }
+      if(!(sigRec && sigRec.dataUrl)) throw new Error('Keine gültige Unterschrift gefunden.');
+      const agrKey = version + '__' + customerId + '__' + petId + '::' + version;
+      const agrRec = { customerId:customerId, petId:petId, version:version, accepted:true, signatureAt:sigRec.signedAt || Date.now(), savedAt:Date.now(), source:'proposal-review' };
+      state.contractAgreements[agrKey] = ds292Clone(agrRec);
+      try{ if(typeof dsMirrorContractToPetOwner === 'function') dsMirrorContractToPetOwner(customerId, petId, version); }catch(_){ }
+      try{ saveState(); }catch(_){ }
+      try{ if(typeof dsForceReviewSubsetPersist === 'function') await dsForceReviewSubsetPersist('contract', { row:row, customer:links.customer, pet:links.pet, signatureKey:sigKey, signatureRec:sigRec, agreementKey:agrKey, agreementRec:agrRec, reason:'gb292-contract-review-save' }); }
+      catch(syncErr){ throw new Error('Cloud-Sync nach Vertragsübernahme fehlgeschlagen: ' + String((syncErr && syncErr.message) || syncErr || 'unknown')); }
+      await ds292FinalizeReview(row, 'gb292-contract-review-save');
+      try{ if(typeof toast === 'function') toast('Betreuungsvertrag übernommen'); }catch(_){ }
+      return true;
+    }catch(err){
+      console.error('GB292 contract review save failed', err);
+      try{ alert('Übernehmen fehlgeschlagen: ' + String((err && err.message) || err || 'Unbekannter Fehler')); }catch(_){ }
+      try{ if(typeof dsSetProposalOpenDiag === 'function') dsSetProposalOpenDiag('gb292 contract-save-fail msg=' + String((err && err.message) || err || 'unknown'), true); }catch(_){ }
+      return false;
+    }
+  }
+  function ds292WrapOpeners(){
+    try{
+      if(window.dsOpenStayProposalEditor && !window.dsOpenStayProposalEditor.__gb292Wrapped){
+        const origStay = window.dsOpenStayProposalEditor;
+        const wrappedStay = function(row){
+          ds292RememberReview('stay', row);
+          const ret = origStay.apply(this, arguments);
+          [120, 320, 720, 1200].forEach(function(ms){ setTimeout(function(){ ds292HydrateStayReviewSignature(row); }, ms); });
+          return ret;
+        };
+        wrappedStay.__gb292Wrapped = true;
+        window.dsOpenStayProposalEditor = wrappedStay;
+      }
+    }catch(_){ }
+    try{
+      if(window.dsOpenContractProposalEditor && !window.dsOpenContractProposalEditor.__gb292Wrapped){
+        const origContract = window.dsOpenContractProposalEditor;
+        const wrappedContract = function(row){
+          ds292RememberReview('contract', row);
+          return origContract.apply(this, arguments);
+        };
+        wrappedContract.__gb292Wrapped = true;
+        window.dsOpenContractProposalEditor = wrappedContract;
+      }
+    }catch(_){ }
+  }
+  try{ window.__dsStayReviewSubmitHook = ds292SubmitStayReview; }catch(_){ }
+  try{ window.__dsContractReviewSubmitHook = ds292SubmitContractReview; }catch(_){ }
+  ds292WrapOpeners();
+})();
+/* ===== END GB292 ===== */

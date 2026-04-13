@@ -6,13 +6,13 @@
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
 <meta charset="utf-8"/>
-  <meta name="app-build" content="M50.9.9GB290_REVIEWSAVE_SIGFIX_20260413_ROOTONLY">
+  <meta name="app-build" content="M50.9.9GB292_REVIEWHOOKSUBSETSTAYSIG_20260413_ROOTONLY">
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <title>Doggy Style Workspace · App</title>
 <link href="manifest.json" rel="manifest"/>
 <meta content="#101014" name="theme-color"/>
 <link href="assets/logo.png" rel="apple-touch-icon"/>
-<link href="styles.css?v=M50.9.9GB290_REVIEWSAVE_SIGFIX_20260413_ROOTONLY" rel="stylesheet"/>
+<link href="styles.css?v=M50.9.9GB292_REVIEWHOOKSUBSETSTAYSIG_20260413_ROOTONLY" rel="stylesheet"/>
 <link href="dashboard_master.css?v=20260104v13logout" rel="stylesheet"/>
 <style>
   /* Topbar Layout (iPad & Desktop stabil) */
@@ -102,7 +102,7 @@
   .doc-modal__actions{ margin-left:auto; display:flex; flex-wrap: wrap; gap: 8px; }
   .doc-modal__frame{ width: 100%; border: 0; border-radius: 12px; background: #fff; flex:1; min-height: 0; }
 </style>
-  <meta name="app-version" content="M50.9.9GB290_REVIEWSAVE_SIGFIX_20260413_ROOTONLY">
+  <meta name="app-version" content="M50.9.9GB292_REVIEWHOOKSUBSETSTAYSIG_20260413_ROOTONLY">
   <meta name="release-channel" content="MASTER">
 </head>
 <body class="bg-watermark page-app">
@@ -1199,7 +1199,7 @@
 </section>
 
 <section class="panel" id="statistics">
-<!-- Statistics panel is rendered by app.js?v=M50.9.9GB290_REVIEWSAVE_SIGFIX_20260413_ROOTONLY (renderStatisticsPanel) -->
+<!-- Statistics panel is rendered by app.js?v=M50.9.9GB292_REVIEWHOOKSUBSETSTAYSIG_20260413_ROOTONLY (renderStatisticsPanel) -->
 </section>
 
 
@@ -1266,13 +1266,13 @@
 </footer>
 </div>
 <!-- Firebase (optional) + Config -->
-<script defer="defer" src="firebase-config.js?v=M50.9.9GB290_REVIEWSAVE_SIGFIX_20260413_ROOTONLY"></script>
+<script defer="defer" src="firebase-config.js?v=M50.9.9GB292_REVIEWHOOKSUBSETSTAYSIG_20260413_ROOTONLY"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
 <script defer="defer" src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/pdf.min.js"></script>
-<script defer="defer" src="app.js?v=M50.9.9GB290_REVIEWSAVE_SIGFIX_20260413_ROOTONLY"></script>
+<script defer="defer" src="app.js?v=M50.9.9GB292_REVIEWHOOKSUBSETSTAYSIG_20260413_ROOTONLY"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1291,7 +1291,7 @@
 </script>
 
 <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB290_REVIEWSAVE_SIGFIX_20260413_ROOTONLY', { updateViaCache: 'none' });
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB292_REVIEWHOOKSUBSETSTAYSIG_20260413_ROOTONLY', { updateViaCache: 'none' });
   </script>
 
 <script>
@@ -1393,7 +1393,7 @@
   <!-- Bottom logout button removed (duplicate of header logout; also overlaps editor on iPad) -->
 </div>
 <!-- test-badge removed (requested) -->
-  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB290_REVIEWSAVE_SIGFIX_20260413_ROOTONLY</div>
+  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB292_REVIEWHOOKSUBSETSTAYSIG_20260413_ROOTONLY</div>
 
 <script>
 (function visibleMailFallback(){
@@ -1996,6 +1996,7 @@
         var contractVersion = ds192Norm(raw.contractVersion || fields.contractVersion || meta.contractVersion || meta.version || (typeof state !== 'undefined' && state.contractVersion) || 'v1.0') || 'v1.0';
         var signature = null;
         if(raw.signature && raw.signature.dataUrl) signature = { dataUrl:String(raw.signature.dataUrl || ''), signedAt: raw.signature.signedAt || raw.signatureAt || Date.now() };
+        else if(raw.signatures && raw.signatures.halter && raw.signatures.halter.dataUrl) signature = { dataUrl:String(raw.signatures.halter.dataUrl || ''), signedAt: raw.signatures.halter.signedAt || raw.signatureAt || Date.now() };
         else if(raw.signatureDataUrl) signature = { dataUrl:String(raw.signatureDataUrl || ''), signedAt: raw.signatureAt || Date.now() };
         else if(fields.signatureDataUrl) signature = { dataUrl:String(fields.signatureDataUrl || ''), signedAt: fields.signatureAt || raw.signatureAt || Date.now() };
         return { raw:raw, fields:fields, meta:meta, customer:customer, pet:pet, customerId:customerId, petId:petId, dogId:dogId, accepted:accepted, contractVersion:contractVersion, signature:signature };
@@ -2256,8 +2257,32 @@
         }
         try{ if(typeof saveState === 'function') saveState(); }catch(_){ }
         return Promise.resolve().then(async function(){
-          try{ if(typeof window.dsForceProposalPersist === 'function') await window.dsForceProposalPersist('inline-contract-review'); }catch(syncErr){
-            throw new Error('Cloud-Sync nach Vertragsübernahme fehlgeschlagen: ' + String((syncErr && syncErr.message) || syncErr || 'unknown'));
+          try{
+            if(typeof window.dsForceProposalPersist === 'function') await window.dsForceProposalPersist('inline-contract-review');
+          }catch(syncErr){
+            var syncMsg = String((syncErr && syncErr.message) || syncErr || 'unknown');
+            var recovered = false;
+            if(/invalid nested entity/i.test(syncMsg) && typeof window.dsForceReviewSubsetPersist === 'function'){
+              try{
+                await window.dsForceReviewSubsetPersist('contract', {
+                  reason:'inline-contract-review-subset',
+                  row: row,
+                  customer: (typeof getCustomer === 'function') ? (getCustomer(customerId) || { id:customerId, customerId:customerId }) : { id:customerId, customerId:customerId },
+                  pet: (typeof getPet === 'function') ? (getPet(petId) || { id:petId, petId:petId, customerId:customerId }) : { id:petId, petId:petId, customerId:customerId },
+                  signatureKey: sigKeyVal,
+                  signatureRec: rec,
+                  agreementKey: agrKey,
+                  agreementRec: (typeof state !== 'undefined' && state && state.contractAgreements) ? state.contractAgreements[agrKey] : null
+                });
+                recovered = true;
+              }catch(recoverErr){
+                syncErr = recoverErr;
+                syncMsg = String((recoverErr && recoverErr.message) || recoverErr || syncMsg);
+              }
+            }
+            if(!recovered){
+              throw new Error('Cloud-Sync nach Vertragsübernahme fehlgeschlagen: ' + syncMsg);
+            }
           }
           try{ if(typeof updateSaveInfo === 'function') updateSaveInfo(); }catch(_){ }
           try{ if(typeof updateSignedInfo === 'function') updateSignedInfo(); }catch(_){ }
@@ -2436,8 +2461,30 @@
         try{ window.currentDoc = clean; currentDoc = clean; }catch(_){ }
         try{ if(typeof saveState === 'function') saveState(); }catch(_){ }
         return Promise.resolve().then(async function(){
-          try{ if(typeof window.dsForceProposalPersist === 'function') await window.dsForceProposalPersist('inline-stay-review'); }catch(syncErr){
-            throw new Error('Cloud-Sync nach Aufenthaltsübernahme fehlgeschlagen: ' + String((syncErr && syncErr.message) || syncErr || 'unknown'));
+          try{
+            if(typeof window.dsForceProposalPersist === 'function') await window.dsForceProposalPersist('inline-stay-review');
+          }catch(syncErr){
+            var syncMsg = String((syncErr && syncErr.message) || syncErr || 'unknown');
+            var recovered = false;
+            if(/invalid nested entity/i.test(syncMsg) && typeof window.dsForceReviewSubsetPersist === 'function'){
+              try{
+                await window.dsForceReviewSubsetPersist('stay', {
+                  reason:'inline-stay-review-subset',
+                  row: row,
+                  doc: clean,
+                  docId: clean && clean.id,
+                  customer: (typeof getCustomer === 'function') ? (getCustomer(clean.customerId) || { id:clean.customerId, customerId:clean.customerId }) : { id:clean.customerId, customerId:clean.customerId },
+                  pet: (typeof getPet === 'function') ? (getPet(clean.petId) || { id:clean.petId, petId:clean.petId, customerId:clean.customerId }) : { id:clean.petId, petId:clean.petId, customerId:clean.customerId }
+                });
+                recovered = true;
+              }catch(recoverErr){
+                syncErr = recoverErr;
+                syncMsg = String((recoverErr && recoverErr.message) || recoverErr || syncMsg);
+              }
+            }
+            if(!recovered){
+              throw new Error('Cloud-Sync nach Aufenthaltsübernahme fehlgeschlagen: ' + syncMsg);
+            }
           }
           try{ if(typeof renderDocs === 'function') renderDocs(); }catch(_){ }
           try{ if(typeof renderDashboard === 'function') renderDashboard(); }catch(_){ }
@@ -2602,7 +2649,9 @@
         cb=document.getElementById('stayConsentTruth'); if(cb){ cb.checked=!!(c.truth || f.ev_wahr); cb.disabled=true; }
       }catch(_){ }
       try{
-        var reviewSig = (docObj && docObj.signature && docObj.signature.dataUrl) ? docObj.signature : ((p && p.signature && p.signature.dataUrl) ? p.signature : null);
+        var reviewSig = null;
+        try{ if(typeof window.ds212ExtractSignature === 'function') reviewSig = window.ds212ExtractSignature(docObj || {}) || window.ds212ExtractSignature((p && p.raw) || {}) || null; }catch(_){ reviewSig = null; }
+        if(!reviewSig) reviewSig = (docObj && docObj.signature && docObj.signature.dataUrl) ? docObj.signature : ((p && p.signature && p.signature.dataUrl) ? p.signature : null);
         var sigStatus = document.getElementById('staySigStatus');
         var sigWrap = document.getElementById('staySigPreview');
         var sigImg = document.getElementById('staySigImg');
@@ -2616,6 +2665,17 @@
       try{
         var staySaveBtn = document.getElementById('btnStaySave2') || document.getElementById('btnSave');
         if(staySaveBtn && !staySaveBtn.id) staySaveBtn.id = 'btnStaySave2';
+        if(staySaveBtn && !staySaveBtn.__gb291ReviewBound){
+          staySaveBtn.__gb291ReviewBound = true;
+          staySaveBtn.onclick = function(ev){
+            try{ if(ev){ ev.preventDefault(); ev.stopPropagation(); } }catch(_){ }
+            if(window.__dsInlineInboxReview && window.__dsInlineInboxReview.kind === 'stay' && typeof window.__dsStayReviewSubmitHook === 'function'){
+              return window.__dsStayReviewSubmitHook();
+            }
+            if(typeof window.saveCurrent === 'function') return window.saveCurrent(true);
+            return false;
+          };
+        }
       }catch(_){ }
       ds192Banner('formRoot', 'Original-Aufenthaltsvorschlag geladen. Sichtbar sind jetzt die abgesendeten Aufenthaltsdaten des Kunden. Erst mit Speichern wird übernommen.');
     }
@@ -2692,6 +2752,18 @@
         try{
           var contractSaveBtn = document.getElementById('contractSaveBtn') || document.getElementById('btnContractSave') || document.getElementById('contractSave') || Array.prototype.find.call(document.querySelectorAll('#contract button'), function(b){ return String((b.textContent || '')).trim().toLowerCase() === 'speichern'; });
           if(contractSaveBtn && !contractSaveBtn.id) contractSaveBtn.id = 'contractSaveBtn';
+          if(contractSaveBtn && !contractSaveBtn.__gb291ReviewBound){
+            contractSaveBtn.__gb291ReviewBound = true;
+            contractSaveBtn.onclick = function(ev){
+              try{ if(ev){ ev.preventDefault(); ev.stopPropagation(); } }catch(_){ }
+              if(window.__dsInlineInboxReview && window.__dsInlineInboxReview.kind === 'contract' && typeof window.__dsContractReviewSubmitHook === 'function'){
+                return window.__dsContractReviewSubmitHook();
+              }
+              if(typeof window.saveAgreement === 'function') return window.saveAgreement();
+              if(typeof window.saveContractSelection === 'function') return window.saveContractSelection();
+              return false;
+            };
+          }
         }catch(_){ }
         ds192Banner('contractPanel', 'Original-Vertragsvorschlag geladen. Sichtbar sind die abgesendete Bestätigung und Unterschrift des Kunden. Erst mit Speichern wird übernommen.');
       }catch(_){ }
@@ -3891,7 +3963,7 @@
 
 <script>
 (function(){
-  const CURRENT_BUILD = 'M50.9.9GB290_REVIEWSAVE_SIGFIX_20260413_ROOTONLY';
+  const CURRENT_BUILD = 'M50.9.9GB292_REVIEWHOOKSUBSETSTAYSIG_20260413_ROOTONLY';
   try{
     window.addEventListener('load', function(){
       try{
