@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB295_CONTRACTREVIEW_VERIFIEDOPENRESET_20260413_ROOTONLY",
+  tag: "M50.9.9GB296_CONTRACTPERSIST_RELOADRESETFIX_20260413_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB295_CONTRACTREVIEW_VERIFIEDOPENRESET_20260413_ROOTONLY";
+const APP_BUILD = "M50.9.9GB296_CONTRACTPERSIST_RELOADRESETFIX_20260413_ROOTONLY";
 try{ window.__dsAppJsRuntimeBuild = "GB292-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -25534,7 +25534,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB295_CONTRACTREVIEW_VERIFIEDOPENRESET_20260413_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB296_CONTRACTPERSIST_RELOADRESETFIX_20260413_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -27507,7 +27507,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB295_CONTRACTREVIEW_VERIFIEDOPENRESET_20260413_ROOTONLY";
+  const BUILD = "M50.9.9GB296_CONTRACTPERSIST_RELOADRESETFIX_20260413_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -31097,7 +31097,7 @@ try{ window.__GB294_MARKER = 'active'; }catch(_){ }
 /* ===== GB295 contract review verified open + reset fix ===== */
 try{ window.__GB295_MARKER = 'active'; }catch(_){ }
 (function(){
-  const BUILD = "M50.9.9GB295_CONTRACTREVIEW_VERIFIEDOPENRESET_20260413_ROOTONLY";
+  const BUILD = "M50.9.9GB296_CONTRACTPERSIST_RELOADRESETFIX_20260413_ROOTONLY";
   function ds295Clone(v){ try{ return JSON.parse(JSON.stringify(v == null ? null : v)); }catch(_){ return v; } }
   function ds295Norm(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
   function ds295Bool(v){ try{ if(v===true||v===false) return !!v; const s=String(v==null?'':v).trim().toLowerCase(); return s==='1'||s==='true'||s==='yes'||s==='ja'||s==='on'; }catch(_){ return false; } }
@@ -31386,3 +31386,198 @@ try{ window.__GB295_MARKER = 'active'; }catch(_){ }
   }catch(_){ }
 })();
 /* ===== END GB295 ===== */
+
+/* ===== GB296 contract persist + reload render + reset fix ===== */
+try{ window.__GB296_MARKER = 'active'; }catch(_){ }
+(function(){
+  function ds296Clone(v){ try{ return JSON.parse(JSON.stringify(v == null ? null : v)); }catch(_){ return v; } }
+  function ds296Norm(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
+  function ds296Diag(msg, isErr){
+    try{ if(typeof dsSetProposalOpenDiag === 'function') dsSetProposalOpenDiag('gb296 ' + String(msg||''), !!isErr); }catch(_){ }
+    try{ const el=document.getElementById('inboxDiag'); if(el){ el.textContent='OpenDiag: gb296 ' + String(msg||''); el.style.color=isErr?'#ffb3b3':'#d7dbe8'; } }catch(_){ }
+    try{ console[isErr?'warn':'log']('GB296', msg); }catch(_){ }
+  }
+  function ds296SigObj(val, signedAt){
+    try{
+      if(!val) return null;
+      if(typeof val === 'string'){
+        const s = ds296Norm(val);
+        return s ? { dataUrl:s, signedAt:signedAt || Date.now() } : null;
+      }
+      if(typeof val === 'object'){
+        const s = ds296Norm(val.dataUrl || val.signatureDataUrl || val.signature || '');
+        return s ? { dataUrl:s, signedAt: val.signedAt || val.signatureAt || signedAt || Date.now() } : null;
+      }
+    }catch(_){ }
+    return null;
+  }
+  function ds296CurrentContractSnapshot(){
+    const snap = ds296Clone(window.__dsContractReviewSnapshot || null);
+    if(snap) return snap;
+    const review = (window.__dsInlineInboxReview && window.__dsInlineInboxReview.kind === 'contract') ? window.__dsInlineInboxReview : null;
+    const row = review && review.row ? ds296Clone(review.row) : ds296Clone(window.__dsInboxCurrentTask || null);
+    if(!row) return null;
+    const raw = ds296Clone((row.payloadSubmitted || row.payloadDraft || row.payload || row.data) || {}) || {};
+    const fields = (raw.fields && typeof raw.fields === 'object') ? raw.fields : {};
+    const meta = (raw.meta && typeof raw.meta === 'object') ? raw.meta : {};
+    let customerId = ds296Norm(raw.customerId || row.customerId || row.cid || row.__targetCustomerId || '');
+    let petId = ds296Norm(raw.petId || row.petId || row.pid || row.__targetPetId || row.dogId || '');
+    try{
+      if((!customerId || !petId) && typeof dsResolveProposalCustomerPet === 'function'){
+        const info = dsResolveProposalCustomerPet(row || {}) || {};
+        customerId = customerId || ds296Norm(info.customerId || (info.customer && (info.customer.id || info.customer.customerId)) || '');
+        petId = petId || ds296Norm(info.petId || (info.pet && (info.pet.id || info.pet.petId || info.pet.dogId)) || '');
+      }
+    }catch(_){ }
+    const version = ds296Norm(raw.contractVersion || fields.contractVersion || meta.contractVersion || (state && (state.contractVersion || (state.contract && state.contract.version))) || 'v1.0') || 'v1.0';
+    const accepted = !!(raw.accepted || fields.accepted || fields.contractAccepted || meta.accepted || meta.contractAccepted || row.accepted);
+    const signature = [
+      ds296SigObj(raw.signature, raw.signatureAt),
+      ds296SigObj(raw.signatureDataUrl, raw.signatureAt),
+      ds296SigObj(fields.signatureDataUrl, fields.signatureAt),
+      ds296SigObj(fields.signature, fields.signatureAt),
+      ds296SigObj((raw.signatures||{}).halter || (raw.signatures||{}).owner || (raw.signatures||{}).customer, raw.signatureAt),
+      ds296SigObj(meta.signatureDataUrl, meta.signatureAt)
+    ].find(Boolean) || null;
+    return {
+      customerId,
+      petId,
+      version,
+      accepted,
+      signature,
+      customer: ds296Clone(raw.customer || row.customer || {}),
+      pet: ds296Clone(raw.pet || row.pet || {})
+    };
+  }
+  function ds296ReleaseNormalContractUi(){
+    try{ if(window.__dsInlineInboxReview && window.__dsInlineInboxReview.kind === 'contract') window.__dsInlineInboxReview = null; }catch(_){ }
+    try{ window.__dsContractReviewSnapshot = null; }catch(_){ }
+    try{ if(window.__dsContractReviewSubmitHook) window.__dsContractReviewSubmitHook = null; }catch(_){ }
+    try{ const old = document.getElementById('dsProposalSnapshotBanner'); if(old) old.remove(); }catch(_){ }
+    try{ if(typeof state !== 'undefined' && state){ state.contractSelection = { customerId:'', petId:'' }; } }catch(_){ }
+    try{ if(typeof renderContractPanel === 'function') renderContractPanel(); }catch(_){ }
+    setTimeout(function(){
+      try{
+        const cs = document.getElementById('contractCustomerSelect');
+        const ps = document.getElementById('contractPetSelect');
+        if(cs){ cs.disabled = false; cs.removeAttribute('disabled'); cs.style.pointerEvents = 'auto'; }
+        if(ps){ ps.disabled = false; ps.removeAttribute('disabled'); ps.style.pointerEvents = 'auto'; }
+      }catch(_){ }
+    }, 80);
+  }
+  async function ds296VerifyPersistEverywhere(sigKey, agrKey){
+    const out = { localSig:false, localAgr:false, remoteSig:false, remoteAgr:false };
+    try{ out.localSig = !!(state && state.contractSignatures && state.contractSignatures[sigKey]); }catch(_){ }
+    try{ out.localAgr = !!(state && state.contractAgreements && state.contractAgreements[agrKey]); }catch(_){ }
+    try{
+      const loaded = (typeof cloudLoadStateWithRetry === 'function') ? await cloudLoadStateWithRetry(3) : { remote:null, err:null };
+      const remote = loaded && loaded.remote ? loaded.remote : null;
+      if(remote){
+        out.remoteSig = !!(remote.contractSignatures && remote.contractSignatures[sigKey]);
+        out.remoteAgr = !!(remote.contractAgreements && remote.contractAgreements[agrKey]);
+        try{ if(typeof applyRemoteState === 'function') applyRemoteState(remote, Number(remote._cloudUpdatedAt || Date.now()) || Date.now(), 'gb296-contract-verify'); }catch(_){ }
+      }
+    }catch(_){ }
+    return out;
+  }
+  async function ds296SubmitContractReview(){
+    const review = (window.__dsInlineInboxReview && window.__dsInlineInboxReview.kind === 'contract') ? window.__dsInlineInboxReview : null;
+    const row = review && review.row ? ds296Clone(review.row) : ds296Clone(window.__dsInboxCurrentTask || null);
+    const snap = ds296CurrentContractSnapshot();
+    try{
+      ensureStateShape();
+      if(!snap) throw new Error('Kein Vertrags-Vorschlag geladen.');
+      const customerId = ds296Norm((snap && snap.customerId) || '');
+      const petId = ds296Norm((snap && snap.petId) || '');
+      if(!customerId || !petId) throw new Error('Kunde/Hund konnten nicht aus dem Vorschlag gelesen werden.');
+      const accept = document.getElementById('contractAcceptChk');
+      const accepted = !!((accept && accept.checked) || (snap && snap.accepted));
+      if(!accepted) throw new Error('Bitte den Vertrag bestätigen.');
+      const version = ds296Norm((snap && snap.version) || (state && state.contractVersion) || (state && state.contract && state.contract.version) || 'v1.0') || 'v1.0';
+      state.contractVersion = version;
+      state.contractSelection = { customerId, petId };
+      state.contractSignatures = state.contractSignatures || {};
+      state.contractAgreements = state.contractAgreements || {};
+      const sigKey = (typeof _contractSigKey === 'function') ? _contractSigKey(customerId, petId, version) : (version + '__' + customerId + '__' + petId);
+      let sigRec = state.contractSignatures[sigKey] || null;
+      if(!(sigRec && sigRec.dataUrl) && snap.signature && snap.signature.dataUrl){
+        sigRec = { dataUrl:String(snap.signature.dataUrl || ''), signedAt:snap.signature.signedAt || Date.now() };
+      }
+      if(!(sigRec && sigRec.dataUrl)) throw new Error('Keine gültige Unterschrift im Vorschlag gefunden.');
+      state.contractSignatures[sigKey] = ds296Clone(sigRec);
+      const agrKey = version + '__' + customerId + '__' + petId + '::' + version;
+      const agrRec = { customerId, petId, version, accepted:true, signatureAt:sigRec.signedAt || Date.now(), savedAt:Date.now(), source:'proposal-review-gb296' };
+      state.contractAgreements[agrKey] = ds296Clone(agrRec);
+      try{ if(typeof dsMirrorContractToPetOwner === 'function') dsMirrorContractToPetOwner(customerId, petId, version); }catch(_){ }
+      try{ saveState(); }catch(_){ }
+      if(typeof dsForceReviewSubsetPersist === 'function'){
+        await dsForceReviewSubsetPersist('contract', {
+          row: row,
+          customer: snap.customer || {},
+          pet: snap.pet || {},
+          signatureKey: sigKey,
+          signatureRec: sigRec,
+          agreementKey: agrKey,
+          agreementRec: agrRec,
+          reason: 'gb296-contract-review-save'
+        });
+      }
+      const verify = await ds296VerifyPersistEverywhere(sigKey, agrKey);
+      if(!verify.localSig || !verify.localAgr) throw new Error('Vertragsdaten lokal nicht verifiziert.');
+      if(CLOUD && CLOUD.enabled && CLOUD.user && (!verify.remoteSig || !verify.remoteAgr)) throw new Error('Vertragsdaten wurden nach Reload nicht aus der Cloud bestätigt.');
+      try{ saveState(); }catch(_){ }
+      try{ if(typeof patchInboxRowStatus === 'function') await patchInboxRowStatus(row, 'adopted'); }catch(_){ }
+      try{ if(typeof removeInboxRowEverywhere === 'function') removeInboxRowEverywhere(row); }catch(_){ }
+      try{ if(typeof refreshInboxHard === 'function') await refreshInboxHard('gb296-contract-review-save'); }catch(_){ }
+      ds296ReleaseNormalContractUi();
+      try{ if(typeof toast === 'function') toast('Betreuungsvertrag übernommen'); }catch(_){ }
+      ds296Diag('contract save-ok customer=' + customerId + ' pet=' + petId + ' remote=1', false);
+      return true;
+    }catch(err){
+      ds296Diag('contract save-fail msg=' + String((err && err.message) || err || 'unknown'), true);
+      try{ alert('Übernehmen fehlgeschlagen: ' + String((err && err.message) || err || 'Unbekannter Fehler')); }catch(_){ }
+      return false;
+    }
+  }
+  try{ window.__dsContractReviewSubmitHook = ds296SubmitContractReview; }catch(_){ }
+  try{
+    const prevApply = (typeof applyRemoteState === 'function') ? applyRemoteState : null;
+    if(prevApply && !prevApply.__gb296Wrapped){
+      const wrappedApply = function(remote, remoteStamp, source){
+        const ok = prevApply.apply(this, arguments);
+        try{
+          setTimeout(function(){
+            try{
+              const reviewActive = !!(window.__dsInlineInboxReview && window.__dsInlineInboxReview.kind === 'contract' && window.__dsContractReviewSnapshot);
+              if(reviewActive) return;
+              const panel = document.getElementById('contract');
+              if(panel && typeof renderContractPanel === 'function') renderContractPanel();
+            }catch(_){ }
+          }, 80);
+        }catch(_){ }
+        return ok;
+      };
+      wrappedApply.__gb296Wrapped = true;
+      applyRemoteState = wrappedApply;
+      try{ window.applyRemoteState = wrappedApply; }catch(_){ }
+    }
+  }catch(_){ }
+  try{
+    const prevSelectTab = (typeof selectTab === 'function') ? selectTab : null;
+    if(prevSelectTab && !prevSelectTab.__gb296Wrapped){
+      const wrappedSelectTab = function(tab){
+        const ret = prevSelectTab.apply(this, arguments);
+        try{
+          if(String(tab||'').toLowerCase() === 'contract'){
+            setTimeout(function(){ ds296ReleaseNormalContractUi(); }, 0);
+          }
+        }catch(_){ }
+        return ret;
+      };
+      wrappedSelectTab.__gb296Wrapped = true;
+      selectTab = wrappedSelectTab;
+      try{ window.selectTab = wrappedSelectTab; }catch(_){ }
+    }
+  }catch(_){ }
+})();
+/* ===== END GB296 ===== */
