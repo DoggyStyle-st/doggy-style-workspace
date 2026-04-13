@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB289_FIELDWISERESCUE_20260413_ROOTONLY",
+  tag: "M50.9.9GB290_REVIEWSAVE_SIGFIX_20260413_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,8 +12,8 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB289_FIELDWISERESCUE_20260413_ROOTONLY";
-try{ window.__dsAppJsRuntimeBuild = "GB289-appjs"; }catch(_){ }
+const APP_BUILD = "M50.9.9GB290_REVIEWSAVE_SIGFIX_20260413_ROOTONLY";
+try{ window.__dsAppJsRuntimeBuild = "GB290-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
 // Global helper functions used across proposal-review matching.
@@ -3571,16 +3571,32 @@ async function submitCustomerStayProposalMain(){
     const customerId = String((customer && (customer.id || customer.customerId)) || currentDoc?.customerId || ctx.customerId || '');
     const petId = String((pet && (pet.id || pet.petId)) || '');
     if(!customerId || !petId){ alert('Kunde/Hund konnten nicht zugeordnet werden.'); return; }
+    const staySignature = (()=>{
+      try{
+        if(currentDoc && currentDoc.signature && currentDoc.signature.dataUrl){
+          return JSON.parse(JSON.stringify(currentDoc.signature));
+        }
+      }catch(_){ }
+      try{
+        const dataUrl = String((((currentDoc||{}).fields||{}).signatureDataUrl) || '').trim();
+        if(dataUrl){
+          return { dataUrl, signedAt: (((currentDoc||{}).fields||{}).signatureAt) || Date.now() };
+        }
+      }catch(_){ }
+      return null;
+    })();
     const payloadSubmitted = {
       source:'customer-main-stay', customerId, petId,
       meta: JSON.parse(JSON.stringify(currentDoc?.meta || {})),
-      fields: JSON.parse(JSON.stringify(currentDoc?.fields || {}))
+      fields: JSON.parse(JSON.stringify(currentDoc?.fields || {})),
+      signature: staySignature
     };
     const litePayloadSubmitted = {
       source:'customer-main-stay', customerId, petId,
       von: String(payloadSubmitted.meta?.von || ''),
       bis: String(payloadSubmitted.meta?.bis || ''),
-      betreuung: String(payloadSubmitted.meta?.betreuung || '')
+      betreuung: String(payloadSubmitted.meta?.betreuung || ''),
+      signaturePresent: !!(payloadSubmitted.signature && payloadSubmitted.signature.dataUrl)
     };
     const res = await dsSubmitCustomerPortalProposal({
       templateId:'hundeannahme',
@@ -17928,6 +17944,13 @@ root.appendChild(sigCard);
       bind('btnStaySave', () => {
         try { syncStayEditorInputsToDoc(doc); } catch (_) {}
         try { warnStaySignatureMissing(doc); } catch (_) {}
+        try {
+          const review = window.__dsInlineInboxReview;
+          if(review && review.kind === 'stay' && review.row && typeof window.__dsStayReviewSubmitHook === 'function'){
+            window.__dsStayReviewSubmitHook();
+            return;
+          }
+        } catch (_e) {}
         if (typeof window.__dsCustomerStaySubmitHook === 'function' && (dsCustomerForceMode('stay') || isCustomerMainModeLoose('stay'))) { window.__dsCustomerStaySubmitHook(); return; }
         saveCurrent(true);
       });
@@ -17935,6 +17958,13 @@ root.appendChild(sigCard);
       bind('btnStaySave2', () => {
         try { syncStayEditorInputsToDoc(doc); } catch (_) {}
         try { warnStaySignatureMissing(doc); } catch (_) {}
+        try {
+          const review = window.__dsInlineInboxReview;
+          if(review && review.kind === 'stay' && review.row && typeof window.__dsStayReviewSubmitHook === 'function'){
+            window.__dsStayReviewSubmitHook();
+            return;
+          }
+        } catch (_e) {}
         if (typeof window.__dsCustomerStaySubmitHook === 'function' && (dsCustomerForceMode('stay') || isCustomerMainModeLoose('stay'))) { window.__dsCustomerStaySubmitHook(); return; }
         saveCurrent(true);
       });
@@ -18048,7 +18078,17 @@ $("#dogSelect").addEventListener("change", () => {
   try{ renderStayQuickLinks(currentDoc); }catch(e){}
   dirty = true;
 });
-$("#btnSave").addEventListener("click",()=>{ if (typeof window.__dsCustomerStaySubmitHook === 'function' && (dsCustomerForceMode('stay') || isCustomerMainModeLoose('stay'))) { window.__dsCustomerStaySubmitHook(); return; } saveCurrent(true); });
+$("#btnSave").addEventListener("click",()=>{
+  try{
+    const review = window.__dsInlineInboxReview;
+    if(review && review.kind === 'stay' && review.row && typeof window.__dsStayReviewSubmitHook === 'function'){
+      window.__dsStayReviewSubmitHook();
+      return;
+    }
+  }catch(_){ }
+  if (typeof window.__dsCustomerStaySubmitHook === 'function' && (dsCustomerForceMode('stay') || isCustomerMainModeLoose('stay'))) { window.__dsCustomerStaySubmitHook(); return; }
+  saveCurrent(true);
+});
 $("#btnClose").addEventListener("click",()=>{
   if(dirty && !confirm("Änderungen sind nicht gespeichert. Schließen?")) return;
   $$(".tab").forEach((t,i)=>t.classList.toggle("is-active", i===0));
@@ -18287,6 +18327,14 @@ function populateStayEditorFromDoc(doc){
 }
 function saveCurrent(alertOk){
 updateCreateInvoiceButton();
+  try{
+    const review = window.__dsInlineInboxReview;
+    if(review && review.kind === 'stay' && review.row && typeof window.__dsStayReviewSubmitHook === 'function' && !window.__dsStayReviewSaving){
+      window.__dsStayReviewSaving = true;
+      Promise.resolve().then(function(){ return window.__dsStayReviewSubmitHook(); }).finally(function(){ try{ window.__dsStayReviewSaving = false; }catch(_){ } });
+      return true;
+    }
+  }catch(_){ }
   try{
     const customerStayMode = !!(dsCustomerForceMode('stay') || isCustomerMainModeLoose('stay') || String((typeof getCustomerMainModeLoose==='function' ? getCustomerMainModeLoose() : '') || '').trim().toLowerCase() === 'stay');
     if (customerStayMode && !window.__dsCustomerStaySavingProposal){
@@ -19670,6 +19718,13 @@ function renderStayEditorEmbedded(doc){
           ev.preventDefault();
           ev.stopPropagation();
           try { syncStayEditorInputsToDoc(doc); } catch (e) { /* noop */ }
+          try {
+            const review = window.__dsInlineInboxReview;
+            if(review && review.kind === 'stay' && review.row && typeof window.__dsStayReviewSubmitHook === 'function'){
+              window.__dsStayReviewSubmitHook();
+              return;
+            }
+          } catch (_e) {}
           try { saveCurrent(true); } catch (e) {
             console.error('Stay save failed', e);
             try { toast('Speichern fehlgeschlagen'); } catch (_) {}
@@ -20797,6 +20852,10 @@ function renderContractPanel(){
         if (isSaveBtn){
           try{
             const reviewMode = !!(window.__dsInlineInboxReview && window.__dsInlineInboxReview.kind === 'contract' && window.__dsInlineInboxReview.row);
+            if(reviewMode && typeof window.__dsContractReviewSubmitHook === 'function'){
+              window.__dsContractReviewSubmitHook();
+              return;
+            }
             const customerContractMode = !reviewMode && !!(dsCustomerForceMode('contract') || isCustomerMainModeLoose('contract') || (typeof dsIsCustomerScopedSession === 'function' ? dsIsCustomerScopedSession() : false) || String((typeof getCustomerMainModeLoose==='function' ? getCustomerMainModeLoose() : '') || '').trim().toLowerCase() === 'contract');
             if (customerContractMode){
               if (window.__dsCustomerContractSubmittingProposal) return;
@@ -25368,7 +25427,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB289_FIELDWISERESCUE_20260413_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB290_REVIEWSAVE_SIGFIX_20260413_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -27341,7 +27400,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB289_FIELDWISERESCUE_20260413_ROOTONLY";
+  const BUILD = "M50.9.9GB290_REVIEWSAVE_SIGFIX_20260413_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
