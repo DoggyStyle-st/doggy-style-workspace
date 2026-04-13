@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB296_CONTRACTPERSIST_RELOADRESETFIX_20260413_ROOTONLY",
+  tag: "M50.9.9GB297_CONTRACTMERGE_REFRESHFIX_20260413_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB296_CONTRACTPERSIST_RELOADRESETFIX_20260413_ROOTONLY";
+const APP_BUILD = "M50.9.9GB297_CONTRACTMERGE_REFRESHFIX_20260413_ROOTONLY";
 try{ window.__dsAppJsRuntimeBuild = "GB292-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -25534,7 +25534,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB296_CONTRACTPERSIST_RELOADRESETFIX_20260413_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB297_CONTRACTMERGE_REFRESHFIX_20260413_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -27507,7 +27507,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB296_CONTRACTPERSIST_RELOADRESETFIX_20260413_ROOTONLY";
+  const BUILD = "M50.9.9GB297_CONTRACTMERGE_REFRESHFIX_20260413_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -31097,7 +31097,7 @@ try{ window.__GB294_MARKER = 'active'; }catch(_){ }
 /* ===== GB295 contract review verified open + reset fix ===== */
 try{ window.__GB295_MARKER = 'active'; }catch(_){ }
 (function(){
-  const BUILD = "M50.9.9GB296_CONTRACTPERSIST_RELOADRESETFIX_20260413_ROOTONLY";
+  const BUILD = "M50.9.9GB297_CONTRACTMERGE_REFRESHFIX_20260413_ROOTONLY";
   function ds295Clone(v){ try{ return JSON.parse(JSON.stringify(v == null ? null : v)); }catch(_){ return v; } }
   function ds295Norm(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
   function ds295Bool(v){ try{ if(v===true||v===false) return !!v; const s=String(v==null?'':v).trim().toLowerCase(); return s==='1'||s==='true'||s==='yes'||s==='ja'||s==='on'; }catch(_){ return false; } }
@@ -31581,3 +31581,168 @@ try{ window.__GB296_MARKER = 'active'; }catch(_){ }
   }catch(_){ }
 })();
 /* ===== END GB296 ===== */
+
+
+/* ===== GB297 contract merge + refresh selector fix ===== */
+try{ window.__GB297_MARKER = 'active'; }catch(_){ }
+(function(){
+  function ds297Clone(v){ try{ return JSON.parse(JSON.stringify(v == null ? null : v)); }catch(_){ return v; } }
+  function ds297Norm(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
+  function ds297Ts(rec, fields){
+    try{
+      if(!rec || typeof rec !== 'object') return 0;
+      const keys = Array.isArray(fields) ? fields : [];
+      let best = 0;
+      for(const key of keys){
+        const val = Number(rec[key] || 0);
+        if(val > best) best = val;
+      }
+      return best;
+    }catch(_){ return 0; }
+  }
+  function ds297MergeMap(remoteMap, localMap, tsFields){
+    const out = {};
+    const remote = (remoteMap && typeof remoteMap === 'object' && !Array.isArray(remoteMap)) ? remoteMap : {};
+    const local = (localMap && typeof localMap === 'object' && !Array.isArray(localMap)) ? localMap : {};
+    try{
+      Object.keys(remote).forEach(function(key){ try{ out[key] = ds297Clone(remote[key]); }catch(_){ out[key] = remote[key]; } });
+      Object.keys(local).forEach(function(key){
+        const l = local[key];
+        const r = out[key];
+        if(!(key in out)){ out[key] = ds297Clone(l); return; }
+        const lt = ds297Ts(l, tsFields);
+        const rt = ds297Ts(r, tsFields);
+        if(lt >= rt) out[key] = ds297Clone(l);
+      });
+    }catch(_){ }
+    return out;
+  }
+  try{
+    if(typeof mergeStatePreferRemote === 'function' && !mergeStatePreferRemote.__gb297Wrapped){
+      const prevMerge = mergeStatePreferRemote;
+      const wrappedMerge = function(remoteRaw, localRaw){
+        const remote = remoteRaw || {};
+        const local = localRaw || {};
+        const out = prevMerge.apply(this, arguments) || {};
+        try{ out.contractSignatures = ds297MergeMap(remote.contractSignatures, local.contractSignatures, ['signedAt','savedAt','updatedAt','signatureAt']); }catch(_){ }
+        try{ out.contractAgreements = ds297MergeMap(remote.contractAgreements, local.contractAgreements, ['savedAt','updatedAt','signatureAt']); }catch(_){ }
+        return out;
+      };
+      wrappedMerge.__gb297Wrapped = true;
+      mergeStatePreferRemote = wrappedMerge;
+      try{ window.mergeStatePreferRemote = wrappedMerge; }catch(_){ }
+    }
+  }catch(_){ }
+  function ds297InReviewMode(){
+    try{ return !!(window.__dsInlineInboxReview && window.__dsInlineInboxReview.kind === 'contract' && window.__dsInlineInboxReview.row); }catch(_){ return false; }
+  }
+  function ds297InCustomerMode(){
+    try{
+      return !!((typeof dsCustomerForceMode === 'function' && dsCustomerForceMode('contract')) ||
+                (typeof isCustomerMainModeLoose === 'function' && isCustomerMainModeLoose('contract')) ||
+                (typeof dsIsCustomerScopedSession === 'function' && dsIsCustomerScopedSession()));
+    }catch(_){ return false; }
+  }
+  function ds297BuildCustomerOptions(selectEl){
+    try{
+      if(!selectEl) return;
+      const prev = ds297Norm(selectEl.value || '');
+      selectEl.innerHTML = '';
+      const first = document.createElement('option');
+      first.value = '';
+      first.textContent = '(Kunde wählen)';
+      selectEl.appendChild(first);
+      const customers = Array.isArray((state && state.customers)) ? state.customers.slice() : [];
+      customers.sort(function(a,b){ return String((a && (a.lastName || a.name || a.firstName || a.email)) || '').localeCompare(String((b && (b.lastName || b.name || b.firstName || b.email)) || ''), 'de'); });
+      customers.forEach(function(c){
+        try{
+          const id = ds297Norm((c && (c.id || c.customerId || c.uid || c.key)) || '');
+          if(!id) return;
+          const labelBase = ds297Norm((c && (c.lastName || c.name || c.firstName || c.email)) || 'Kunde') || 'Kunde';
+          const labelMeta = ds297Norm((c && (c.phone || c.email)) || '');
+          const opt = document.createElement('option');
+          opt.value = id;
+          opt.textContent = labelMeta ? (labelBase + ' · ' + labelMeta) : labelBase;
+          selectEl.appendChild(opt);
+        }catch(_){ }
+      });
+      if(prev && Array.from(selectEl.options || []).some(function(o){ return String(o.value||'') === prev; })) selectEl.value = prev;
+    }catch(_){ }
+  }
+  function ds297BuildPetOptions(selectEl, customerId){
+    try{
+      if(!selectEl) return;
+      const prev = ds297Norm(selectEl.value || '');
+      selectEl.innerHTML = '';
+      const first = document.createElement('option');
+      first.value = '';
+      first.textContent = '(Hund wählen)';
+      selectEl.appendChild(first);
+      let pets = Array.isArray((state && state.pets)) ? state.pets.slice() : [];
+      if(customerId) pets = pets.filter(function(p){ return ds297Norm((p && (p.customerId || p.ownerId || p.customer || '')) || '') === customerId; });
+      pets.sort(function(a,b){ return String((a && (a.name || a.petName || a.dogName)) || '').localeCompare(String((b && (b.name || b.petName || b.dogName)) || ''), 'de'); });
+      pets.forEach(function(p){
+        try{
+          const id = ds297Norm((p && (p.id || p.petId || p.dogId || p.uid || p.key)) || '');
+          if(!id) return;
+          const label = ds297Norm((p && (p.name || p.petName || p.dogName)) || 'Hund') || 'Hund';
+          const opt = document.createElement('option');
+          opt.value = id;
+          opt.textContent = label;
+          selectEl.appendChild(opt);
+        }catch(_){ }
+      });
+      if(prev && Array.from(selectEl.options || []).some(function(o){ return String(o.value||'') === prev; })) selectEl.value = prev;
+    }catch(_){ }
+  }
+  function ds297RestoreContractSelectors(){
+    try{
+      if(ds297InReviewMode() || ds297InCustomerMode()) return;
+      const cs = document.getElementById('contractCustomerSelect');
+      const ps = document.getElementById('contractPetSelect');
+      if(!cs || !ps) return;
+      const hasCustomers = Array.isArray((state && state.customers)) && state.customers.length > 0;
+      if(hasCustomers && (!cs.options || cs.options.length <= 1)) ds297BuildCustomerOptions(cs);
+      const selectedCustomerId = ds297Norm(cs.value || '');
+      const hasPets = Array.isArray((state && state.pets)) && state.pets.length > 0;
+      if(hasPets && (!ps.options || ps.options.length <= 1 || selectedCustomerId)) ds297BuildPetOptions(ps, selectedCustomerId);
+      cs.disabled = false; cs.removeAttribute('disabled'); cs.style.pointerEvents = 'auto';
+      ps.disabled = false; ps.removeAttribute('disabled'); ps.style.pointerEvents = 'auto';
+      if(!cs.dataset.gb297Bound){
+        cs.addEventListener('change', function(){ try{ ds297BuildPetOptions(ps, ds297Norm(cs.value || '')); }catch(_){ } });
+        cs.dataset.gb297Bound = '1';
+      }
+    }catch(_){ }
+  }
+  try{
+    const prevRender = (typeof renderContractPanel === 'function') ? renderContractPanel : null;
+    if(prevRender && !prevRender.__gb297Wrapped){
+      const wrappedRender = function(){
+        const ret = prevRender.apply(this, arguments);
+        setTimeout(ds297RestoreContractSelectors, 30);
+        setTimeout(ds297RestoreContractSelectors, 180);
+        return ret;
+      };
+      wrappedRender.__gb297Wrapped = true;
+      renderContractPanel = wrappedRender;
+      try{ window.renderContractPanel = wrappedRender; }catch(_){ }
+    }
+  }catch(_){ }
+  try{
+    const prevRefresh = (typeof ds209RefreshContractPanel === 'function') ? ds209RefreshContractPanel : null;
+    if(prevRefresh && !prevRefresh.__gb297Wrapped){
+      const wrappedRefresh = function(){
+        const ret = prevRefresh.apply(this, arguments);
+        setTimeout(ds297RestoreContractSelectors, 30);
+        setTimeout(ds297RestoreContractSelectors, 220);
+        return ret;
+      };
+      wrappedRefresh.__gb297Wrapped = true;
+      ds209RefreshContractPanel = wrappedRefresh;
+      try{ window.ds209RefreshContractPanel = wrappedRefresh; }catch(_){ }
+      try{ const btn = document.getElementById('btnContractRefresh'); if(btn){ btn.onclick = null; btn.addEventListener('click', wrappedRefresh); } }catch(_){ }
+    }
+  }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB297-appjs'; }catch(_){ }
+})();
+/* ===== END GB297 ===== */
