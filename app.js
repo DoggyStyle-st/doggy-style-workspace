@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB286_ULTRAMINIMALCLOUDPATCH_20260413_ROOTONLY",
+  tag: "M50.9.9GB288_RECORDMAPRESCUE_20260413_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,8 +12,8 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB286_ULTRAMINIMALCLOUDPATCH_20260413_ROOTONLY";
-try{ window.__dsAppJsRuntimeBuild = "GB286-appjs"; }catch(_){ }
+const APP_BUILD = "M50.9.9GB288_RECORDMAPRESCUE_20260413_ROOTONLY";
+try{ window.__dsAppJsRuntimeBuild = "GB288-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
 // Global helper functions used across proposal-review matching.
@@ -1947,6 +1947,110 @@ async function loadOrCreateUserProfile(user){
     createdAt: data.createdAt || 0
   };
 }
+function dsUpsertFlatRecordsFromMap(list, recordMap, idKeys){
+  try{
+    const out = Array.isArray(list) ? list.map(function(item){ return (item && typeof item === "object") ? Object.assign({}, item) : item; }).filter(Boolean) : [];
+    const keys = Array.isArray(idKeys) && idKeys.length ? idKeys.slice() : ['id'];
+    const src = (recordMap && typeof recordMap === 'object') ? recordMap : {};
+    const normId = function(v){ return String(v == null ? '' : v).trim(); };
+    const findIndex = function(id){
+      const nid = normId(id);
+      if(!nid) return -1;
+      for(let i=0;i<out.length;i++){
+        const item = out[i] || {};
+        for(let k=0;k<keys.length;k++){
+          const key = keys[k];
+          if(normId(item && item[key]) === nid) return i;
+        }
+      }
+      return -1;
+    };
+    Object.keys(src).forEach(function(rawId){
+      const cleanId = normId(rawId);
+      if(!cleanId) return;
+      const flat = dsSanitizeReviewFlatBase(src[rawId] || {});
+      if(!flat || typeof flat !== 'object') return;
+      if(!flat.id) flat.id = cleanId;
+      keys.forEach(function(key){ try{ if(!flat[key]) flat[key] = cleanId; }catch(_){ } });
+      const idx = findIndex(cleanId);
+      if(idx >= 0) out[idx] = Object.assign({}, out[idx] || {}, flat);
+      else out.push(flat);
+    });
+    return out;
+  }catch(_){ return Array.isArray(list) ? list : []; }
+}
+
+function dsInflateCloudRescueMaps(payload){
+  try{
+    const src = (payload && typeof payload === 'object') ? payload : {};
+    const out = Object.assign({}, src);
+    out.customers = dsUpsertFlatRecordsFromMap(out.customers, src.customerRecords, ['id','customerId']);
+    out.pets = dsUpsertFlatRecordsFromMap(out.pets, src.petRecords, ['id','petId']);
+    out.dogs = dsUpsertFlatRecordsFromMap(out.dogs, src.dogRecords, ['id']);
+    return out;
+  }catch(_){ return payload; }
+}
+
+function dsBuildProposalReviewCloudRecordPatch(row, customer, pet, baseState){
+  const normId = function(v){ try{ return norm(v || ''); }catch(_){ return String(v == null ? '' : v).trim(); } };
+  const pickLegacy = function(input){
+    try{
+      const src = (input && typeof input === 'object') ? input : {};
+      const out = {};
+      Object.keys(src).forEach(function(key){
+        try{
+          const sk = String(key || '').trim();
+          const sv = String(src[key] == null ? '' : src[key]).trim();
+          if(sk && sv) out[sk] = sv;
+        }catch(_){ }
+      });
+      return out;
+    }catch(_){ return {}; }
+  };
+  const patch = { customerRecords:{}, petRecords:{}, dogRecords:{} };
+  const customerId = normId((customer && (customer.id || customer.customerId)) || (row && (row.customerId || row.cid || row.__targetCustomerId)) || '');
+  const petId = normId((pet && (pet.id || pet.petId)) || (row && (row.petId || row.pid || row.__targetPetId)) || '');
+  const customerOut = dsSanitizeReviewFlatBase(customer || {});
+  const petOut = dsSanitizeReviewFlatBase(pet || {});
+  if(customerId){
+    customerOut.id = customerId;
+    customerOut.customerId = customerId;
+    patch.customerRecords[customerId] = customerOut;
+  }
+  if(petId){
+    petOut.id = petId;
+    petOut.petId = petId;
+    if(customerId && !petOut.customerId) petOut.customerId = customerId;
+    patch.petRecords[petId] = petOut;
+  }
+  let dogId = '';
+  try{ dogId = (typeof getLegacyDogIdForPet === 'function') ? String(getLegacyDogIdForPet(petId) || '') : ''; }catch(_){ dogId = ''; }
+  const legacySource = (baseState && baseState._legacy && typeof baseState._legacy === 'object') ? baseState._legacy : ((state && state._legacy && typeof state._legacy === 'object') ? state._legacy : {});
+  const legacy = {
+    dogIdToPetId: pickLegacy(legacySource && legacySource.dogIdToPetId),
+    dogIdToCustomerId: pickLegacy(legacySource && legacySource.dogIdToCustomerId)
+  };
+  if(!dogId && petId){
+    try{ Object.keys(legacy.dogIdToPetId || {}).some(function(did){ if(normId(legacy.dogIdToPetId[did]) === petId){ dogId = String(did || ''); return true; } return false; }); }catch(_){ }
+  }
+  if(dogId){
+    legacy.dogIdToPetId[dogId] = petId;
+    if(customerId) legacy.dogIdToCustomerId[dogId] = customerId;
+    patch.dogRecords[dogId] = dsSanitizeReviewFlatBase({
+      id: dogId,
+      name: String((petOut && petOut.name) || ''),
+      owner: String((customerOut && customerOut.name) || ''),
+      phone: String((customerOut && customerOut.phone) || ''),
+      note: String((petOut && petOut.note) || '')
+    });
+  }
+  patch._legacy = legacy;
+  try{ patch.schemaVersion = Math.max(Number((state && state.schemaVersion) || (baseState && baseState.schemaVersion) || 2) || 2, 2); }catch(_){ patch.schemaVersion = 2; }
+  patch._cloudUpdatedAt = Date.now();
+  patch._localUpdatedAt = patch._cloudUpdatedAt;
+  return patch;
+}
+
 async function cloudLoadState(){
   if(!CLOUD.enabled) return null;
   const ref = cloudStateRef();
@@ -1955,10 +2059,11 @@ async function cloudLoadState(){
   if(!snap.exists) return null;
   const data = snap.data();
   if(!data || !data.payload) return null;
+  const payload = dsInflateCloudRescueMaps(data.payload);
   CLOUD._lastRemoteStamp = Number(data.updatedAt || 0);
   SYNC.cloudLastSeenAt = CLOUD._lastRemoteStamp;
   updateSyncUI();
-  return data.payload;
+  return payload;
 }
 // --- Robust Startup Sync Helpers ---
 // In iOS/Safari kann es vorkommen, dass beim Reload der erste Firestore-Read leer/zu früh ist.
@@ -2344,7 +2449,7 @@ function dsBuildTargetedCloudStateForProposalReview(row, customer, pet, baseStat
   if(dogs.length) clean.dogs = dogs;
   if(Object.keys(legacy.dogIdToPetId || {}).length || Object.keys(legacy.dogIdToCustomerId || {}).length) clean._legacy = legacy;
 
-  // GB286: absichtlich keine inbox/assignments/submissions im Targeted-Fallback mitschreiben.
+  // GB288: Rescue-Map-Fallback speichert Kunden/Hunde zusätzlich als Firestore-Maps ohne Array-Write.
   // Der bisherige Fehler trat weiterhin als Firestore-Entity-Fehler auf; damit begrenzen wir den Patch
   // auf die wirklich übernommenen Stammdaten (Kunde/Hund + Legacy-Mapping).
 
@@ -2440,6 +2545,44 @@ async function dsForceProposalPersistTargetedReviewRow(row, customer, pet, reaso
 try{ window.dsForceProposalPersistPrunedReviewRow = dsForceProposalPersistPrunedReviewRow; }catch(_){ }
 try{ window.dsForceProposalPersistTargetedReviewRow = dsForceProposalPersistTargetedReviewRow; }catch(_){ }
 try{ window.dsForceProposalPersistUltraMinimalReviewRow = dsForceProposalPersistUltraMinimalReviewRow; }catch(_){ }
+
+async function dsForceProposalPersistSectionedReviewRow(row, customer, pet, reason){
+  const tag = String(reason || 'proposal-adopt-sectioned').trim() || 'proposal-adopt-sectioned';
+  if(!(CLOUD && CLOUD.enabled && CLOUD.user)) return { ok:true, skipped:true, reason:tag };
+  const ref = cloudStateRef();
+  if(!ref) return { ok:true, skipped:true, reason:tag, noRef:true };
+  let remote = null;
+  try{
+    const loaded = await cloudLoadStateWithRetry(2);
+    remote = (loaded && typeof loaded === 'object' && Object.prototype.hasOwnProperty.call(loaded, 'remote'))
+      ? (loaded.remote || null)
+      : (loaded || null);
+  }catch(_){ remote = null; }
+  const patch = dsBuildProposalReviewCloudRecordPatch(row, customer, pet, (remote && typeof remote === 'object') ? remote : {});
+  const stamp = Date.now();
+  const wrapper = { updatedAt: stamp, updatedBy: CLOUD.user.email || CLOUD.user.uid, payload: {} };
+  try{
+    if(patch.customerRecords && Object.keys(patch.customerRecords).length) wrapper.payload.customerRecords = patch.customerRecords;
+    if(patch.petRecords && Object.keys(patch.petRecords).length) wrapper.payload.petRecords = patch.petRecords;
+    if(patch.dogRecords && Object.keys(patch.dogRecords).length) wrapper.payload.dogRecords = patch.dogRecords;
+    if(patch._legacy && typeof patch._legacy === 'object') wrapper.payload._legacy = patch._legacy;
+    if(patch.schemaVersion != null) wrapper.payload.schemaVersion = patch.schemaVersion;
+    wrapper.payload._cloudUpdatedAt = stamp;
+    wrapper.payload._localUpdatedAt = stamp;
+    await ref.set(wrapper, { merge:true });
+  }catch(err){
+    try{ dsSetProposalOpenDiag('save-sectioned-map-fail pet=' + String((pet && (pet.id || pet.petId)) || '--') + ' customer=' + String((customer && (customer.id || customer.customerId)) || '--') + ' msg=' + String((err && err.message) || err || 'unknown'), true); }catch(_){ }
+    throw err;
+  }
+  try{ CLOUD.lastPushOkAt = stamp; CLOUD.lastPushError = ''; }catch(_){ }
+  try{ SYNC.cloudLastOkAt = stamp; SYNC.cloudLastError = ''; SYNC.cloudPending = false; }catch(_){ }
+  try{ dsSetSyncDiag('proposalPersist:sectioned-map-ok reason=' + tag + ' · ' + dsSyncDiagStateSummary(), false); }catch(_){ }
+  try{ dsSetProposalOpenDiag('save-sectioned-map-ok pet=' + String((pet && (pet.id || pet.petId)) || '--') + ' customer=' + String((customer && (customer.id || customer.customerId)) || '--'), false); }catch(_){ }
+  try{ dsClearSyncDiag(); }catch(_){ }
+  try{ updateSyncUI(); }catch(_){ }
+  return { ok:true, skipped:false, reason:tag, sectioned:true, mapRescue:true };
+}
+try{ window.dsForceProposalPersistSectionedReviewRow = dsForceProposalPersistSectionedReviewRow; }catch(_){ }
 /* ===== Rollen, Kundenportal & Aufgaben (Weg A) ===== */
 function hideStaffUIForCustomer(){
   // Tabs / Panels umschalten
@@ -13288,9 +13431,18 @@ async function dsSaveProposalReview(){
         }
       }
       if(!recovered && row && /invalid nested entity/i.test(String((syncErr && syncErr.message) || syncErr || '')) && typeof dsForceProposalPersistUltraMinimalReviewRow === 'function'){
-        await dsForceProposalPersistUltraMinimalReviewRow(row, customer, pet, 'cp-review-save-ultra-minimal');
+        try{
+          await dsForceProposalPersistUltraMinimalReviewRow(row, customer, pet, 'cp-review-save-ultra-minimal');
+          recovered = true;
+          try{ dsSetProposalOpenDiag('save-cloud-ultra-minimal-ok pet=' + String(pet.id || pet.petId || '--') + ' customer=' + String(customer.id || customer.customerId || '--'), false); }catch(_){ }
+        }catch(ultraErr){
+          syncErr = ultraErr || syncErr;
+        }
+      }
+      if(!recovered && row && /invalid nested entity/i.test(String((syncErr && syncErr.message) || syncErr || '')) && typeof dsForceProposalPersistSectionedReviewRow === 'function'){
+        await dsForceProposalPersistSectionedReviewRow(row, customer, pet, 'cp-review-save-sectioned');
         recovered = true;
-        try{ dsSetProposalOpenDiag('save-cloud-ultra-minimal-ok pet=' + String(pet.id || pet.petId || '--') + ' customer=' + String(customer.id || customer.customerId || '--'), false); }catch(_){ }
+        try{ dsSetProposalOpenDiag('save-cloud-sectioned-ok pet=' + String(pet.id || pet.petId || '--') + ' customer=' + String(customer.id || customer.customerId || '--'), false); }catch(_){ }
       }
     }catch(retryErr){
       syncErr = retryErr || syncErr;
@@ -16944,26 +17096,29 @@ function dsIsProposalReviewSaveMode(){
 }
 async function dsRunProposalReviewSaveGuarded(){
   try{ dsSetProposalOpenDiag('save-start cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0') + ' active=' + ((__dsProposalReview && __dsProposalReview.active) ? '1':'0') + ' row=' + ((__dsProposalReview && __dsProposalReview.row) ? '1':'0') + ' basePet=' + String((__dsProposalReview && __dsProposalReview.basePetId) || '--'), false); }catch(_){ }
-  let timeoutId = 0;
+  let slowTimer = 0;
+  let slowNoted = false;
   try{
-    const result = await Promise.race([
-      Promise.resolve().then(()=>dsSaveProposalReview()),
-      new Promise(resolve=>{ timeoutId = setTimeout(()=>resolve('__timeout__'), 4500); })
-    ]);
-    if(timeoutId) clearTimeout(timeoutId);
-    if(result === '__timeout__'){
-      try{ dsSetProposalOpenDiag('save-timeout cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0') + ' active=' + ((__dsProposalReview && __dsProposalReview.active) ? '1':'0') + ' row=' + ((__dsProposalReview && __dsProposalReview.row) ? '1':'0') + ' basePet=' + String((__dsProposalReview && __dsProposalReview.basePetId) || '--'), true); }catch(_){ }
-      cpSetStatus('Speichern fehlgeschlagen oder dauert zu lange.', true);
-      return false;
-    }
-    try{ dsSetProposalOpenDiag('save-finally result=' + (result ? '1':'0') + ' cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0') + ' active=' + ((__dsProposalReview && __dsProposalReview.active) ? '1':'0'), !result); }catch(_){ }
+    slowTimer = setTimeout(function(){
+      try{
+        slowNoted = true;
+        dsSetProposalOpenDiag('save-slow cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0') + ' active=' + ((__dsProposalReview && __dsProposalReview.active) ? '1':'0') + ' row=' + ((__dsProposalReview && __dsProposalReview.row) ? '1':'0') + ' basePet=' + String((__dsProposalReview && __dsProposalReview.basePetId) || '--'), false);
+      }catch(_){ }
+      try{
+        const cur = String(document.getElementById('cpStatus')?.textContent || '');
+        if(!/cloud-sync fehlgeschlagen|speichern fehlgeschlagen/i.test(cur)) cpSetStatus('Speichern läuft … bitte kurz warten.');
+      }catch(_){ }
+    }, 4500);
+    const result = await dsSaveProposalReview();
+    if(slowTimer) clearTimeout(slowTimer);
+    try{ dsSetProposalOpenDiag('save-finally result=' + (result ? '1':'0') + ' cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0') + ' active=' + ((__dsProposalReview && __dsProposalReview.active) ? '1':'0') + (slowNoted ? ' slow=1' : ' slow=0'), !result); }catch(_){ }
     if(!result){
       const cur = String(document.getElementById('cpStatus')?.textContent || '');
       if(!cur || /speichern läuft/i.test(cur)) cpSetStatus('Speichern fehlgeschlagen.', true);
     }
     return !!result;
   }catch(err){
-    if(timeoutId) clearTimeout(timeoutId);
+    if(slowTimer) clearTimeout(slowTimer);
     try{ dsSetProposalOpenDiag('save-error ' + String((err && err.message) || err || 'unknown'), true); }catch(_){ }
     cpSetStatus('Speichern fehlgeschlagen.', true);
     return false;
@@ -25088,7 +25243,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB286_ULTRAMINIMALCLOUDPATCH_20260413_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB288_RECORDMAPRESCUE_20260413_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -27061,7 +27216,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB286_ULTRAMINIMALCLOUDPATCH_20260413_ROOTONLY";
+  const BUILD = "M50.9.9GB288_RECORDMAPRESCUE_20260413_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
