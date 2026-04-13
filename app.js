@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB285_TARGETEDCLOUDPATCH_20260413_ROOTONLY",
+  tag: "M50.9.9GB286_ULTRAMINIMALCLOUDPATCH_20260413_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,8 +12,8 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB285_TARGETEDCLOUDPATCH_20260413_ROOTONLY";
-try{ window.__dsAppJsRuntimeBuild = "GB285-appjs"; }catch(_){ }
+const APP_BUILD = "M50.9.9GB286_ULTRAMINIMALCLOUDPATCH_20260413_ROOTONLY";
+try{ window.__dsAppJsRuntimeBuild = "GB286-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
 // Global helper functions used across proposal-review matching.
@@ -2344,19 +2344,57 @@ function dsBuildTargetedCloudStateForProposalReview(row, customer, pet, baseStat
   if(dogs.length) clean.dogs = dogs;
   if(Object.keys(legacy.dogIdToPetId || {}).length || Object.keys(legacy.dogIdToCustomerId || {}).length) clean._legacy = legacy;
 
-  ['inboxAssignments','inboxSubmissions','assignments','submissions'].forEach(function(key){
-    try{
-      const srcList = pickList(key);
-      if(!Array.isArray(srcList)) return;
-      clean[key] = srcList
-        .filter(function(item){ return !dsReviewRowMatchesLite(item, row); })
-        .map(function(item){ return dsProjectCloudSafeInboxRow(item); });
-    }catch(_){ }
-  });
+  // GB286: absichtlich keine inbox/assignments/submissions im Targeted-Fallback mitschreiben.
+  // Der bisherige Fehler trat weiterhin als Firestore-Entity-Fehler auf; damit begrenzen wir den Patch
+  // auf die wirklich übernommenen Stammdaten (Kunde/Hund + Legacy-Mapping).
 
   try{ clean.schemaVersion = Math.max(Number((state && state.schemaVersion) || (baseState && baseState.schemaVersion) || 2) || 2, 2); }catch(_){ clean.schemaVersion = 2; }
   try{ clean._cloudUpdatedAt = Date.now(); if(clean._localUpdatedAt == null) clean._localUpdatedAt = clean._cloudUpdatedAt; }catch(_){ }
   return clean;
+}
+
+
+function dsBuildUltraMinimalCloudStateForProposalReview(row, customer, pet, baseState){
+  let clean = {};
+  try{
+    clean = dsBuildTargetedCloudStateForProposalReview(row, customer, pet, baseState);
+  }catch(_){ clean = {}; }
+  try{
+    const keep = {};
+    ['customers','pets','dogs','_legacy','schemaVersion','_cloudUpdatedAt','_localUpdatedAt'].forEach(function(key){
+      try{ if(clean && Object.prototype.hasOwnProperty.call(clean, key)) keep[key] = clean[key]; }catch(_){ }
+    });
+    clean = keep;
+  }catch(_){ }
+  try{
+    const prepared = dsPrepareCloudPayloadStrict(clean || {});
+    clean = dsPruneProblemSyncFields((prepared && prepared.clean && typeof prepared.clean === 'object') ? prepared.clean : (clean || {}));
+  }catch(_){ }
+  return clean || {};
+}
+
+async function dsForceProposalPersistUltraMinimalReviewRow(row, customer, pet, reason){
+  const tag = String(reason || 'proposal-adopt-ultra-minimal').trim() || 'proposal-adopt-ultra-minimal';
+  if(!(CLOUD && CLOUD.enabled && CLOUD.user)) return { ok:true, skipped:true, reason:tag };
+  const ref = cloudStateRef();
+  if(!ref) return { ok:true, skipped:true, reason:tag, noRef:true };
+  let remote = null;
+  try{
+    const loaded = await cloudLoadStateWithRetry(2);
+    remote = (loaded && typeof loaded === 'object' && Object.prototype.hasOwnProperty.call(loaded, 'remote'))
+      ? (loaded.remote || null)
+      : (loaded || null);
+  }catch(_){ remote = null; }
+  const clean = dsBuildUltraMinimalCloudStateForProposalReview(row, customer, pet, (remote && typeof remote === 'object') ? remote : {});
+  const stamp = Date.now();
+  await ref.set({ payload: clean, updatedAt: stamp, updatedBy: CLOUD.user.email || CLOUD.user.uid }, { merge:true });
+  try{ CLOUD.lastPushOkAt = stamp; CLOUD.lastPushError = ''; }catch(_){ }
+  try{ SYNC.cloudLastOkAt = stamp; SYNC.cloudLastError = ''; SYNC.cloudPending = false; }catch(_){ }
+  try{ dsSetSyncDiag('proposalPersist:ultra-minimal-ok reason=' + tag + ' · ' + dsSyncDiagStateSummary(), false); }catch(_){ }
+  try{ dsSetProposalOpenDiag('save-ultra-minimal-ok pet=' + String((pet && (pet.id || pet.petId)) || '--') + ' customer=' + String((customer && (customer.id || customer.customerId)) || '--'), false); }catch(_){ }
+  try{ dsClearSyncDiag(); }catch(_){ }
+  try{ updateSyncUI(); }catch(_){ }
+  return { ok:true, skipped:false, reason:tag, ultraMinimal:true };
 }
 
 async function dsForceProposalPersistTargetedReviewRow(row, customer, pet, reason){
@@ -2401,6 +2439,7 @@ async function dsForceProposalPersistTargetedReviewRow(row, customer, pet, reaso
 }
 try{ window.dsForceProposalPersistPrunedReviewRow = dsForceProposalPersistPrunedReviewRow; }catch(_){ }
 try{ window.dsForceProposalPersistTargetedReviewRow = dsForceProposalPersistTargetedReviewRow; }catch(_){ }
+try{ window.dsForceProposalPersistUltraMinimalReviewRow = dsForceProposalPersistUltraMinimalReviewRow; }catch(_){ }
 /* ===== Rollen, Kundenportal & Aufgaben (Weg A) ===== */
 function hideStaffUIForCustomer(){
   // Tabs / Panels umschalten
@@ -13240,9 +13279,18 @@ async function dsSaveProposalReview(){
         }
       }
       if(!recovered && row && /invalid nested entity/i.test(syncMsg) && typeof dsForceProposalPersistTargetedReviewRow === 'function'){
-        await dsForceProposalPersistTargetedReviewRow(row, customer, pet, 'cp-review-save-targeted');
+        try{
+          await dsForceProposalPersistTargetedReviewRow(row, customer, pet, 'cp-review-save-targeted');
+          recovered = true;
+          try{ dsSetProposalOpenDiag('save-cloud-targeted-ok pet=' + String(pet.id || pet.petId || '--') + ' customer=' + String(customer.id || customer.customerId || '--'), false); }catch(_){ }
+        }catch(targetedErr){
+          syncErr = targetedErr || syncErr;
+        }
+      }
+      if(!recovered && row && /invalid nested entity/i.test(String((syncErr && syncErr.message) || syncErr || '')) && typeof dsForceProposalPersistUltraMinimalReviewRow === 'function'){
+        await dsForceProposalPersistUltraMinimalReviewRow(row, customer, pet, 'cp-review-save-ultra-minimal');
         recovered = true;
-        try{ dsSetProposalOpenDiag('save-cloud-targeted-ok pet=' + String(pet.id || pet.petId || '--') + ' customer=' + String(customer.id || customer.customerId || '--'), false); }catch(_){ }
+        try{ dsSetProposalOpenDiag('save-cloud-ultra-minimal-ok pet=' + String(pet.id || pet.petId || '--') + ' customer=' + String(customer.id || customer.customerId || '--'), false); }catch(_){ }
       }
     }catch(retryErr){
       syncErr = retryErr || syncErr;
@@ -25040,7 +25088,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB285_TARGETEDCLOUDPATCH_20260413_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB286_ULTRAMINIMALCLOUDPATCH_20260413_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -27013,7 +27061,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB285_TARGETEDCLOUDPATCH_20260413_ROOTONLY";
+  const BUILD = "M50.9.9GB286_ULTRAMINIMALCLOUDPATCH_20260413_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
