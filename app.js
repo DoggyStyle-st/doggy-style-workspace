@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB297_CONTRACTMERGE_REFRESHFIX_20260413_ROOTONLY",
+  tag: "M50.9.9GB298_CONTRACTLOCALRESCUE_SELECTORFIX_20260413_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB297_CONTRACTMERGE_REFRESHFIX_20260413_ROOTONLY";
+const APP_BUILD = "M50.9.9GB298_CONTRACTLOCALRESCUE_SELECTORFIX_20260413_ROOTONLY";
 try{ window.__dsAppJsRuntimeBuild = "GB292-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -25534,7 +25534,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB297_CONTRACTMERGE_REFRESHFIX_20260413_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB298_CONTRACTLOCALRESCUE_SELECTORFIX_20260413_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -27507,7 +27507,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB297_CONTRACTMERGE_REFRESHFIX_20260413_ROOTONLY";
+  const BUILD = "M50.9.9GB298_CONTRACTLOCALRESCUE_SELECTORFIX_20260413_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -31097,7 +31097,7 @@ try{ window.__GB294_MARKER = 'active'; }catch(_){ }
 /* ===== GB295 contract review verified open + reset fix ===== */
 try{ window.__GB295_MARKER = 'active'; }catch(_){ }
 (function(){
-  const BUILD = "M50.9.9GB297_CONTRACTMERGE_REFRESHFIX_20260413_ROOTONLY";
+  const BUILD = "M50.9.9GB298_CONTRACTLOCALRESCUE_SELECTORFIX_20260413_ROOTONLY";
   function ds295Clone(v){ try{ return JSON.parse(JSON.stringify(v == null ? null : v)); }catch(_){ return v; } }
   function ds295Norm(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
   function ds295Bool(v){ try{ if(v===true||v===false) return !!v; const s=String(v==null?'':v).trim().toLowerCase(); return s==='1'||s==='true'||s==='yes'||s==='ja'||s==='on'; }catch(_){ return false; } }
@@ -31746,3 +31746,277 @@ try{ window.__GB297_MARKER = 'active'; }catch(_){ }
   try{ window.__dsAppJsRuntimeBuild = 'GB297-appjs'; }catch(_){ }
 })();
 /* ===== END GB297 ===== */
+
+
+/* ===== GB298 contract local rescue + selector normalize ===== */
+try{ window.__GB298_MARKER = 'active'; }catch(_){ }
+(function(){
+  const DS298_KEY = 'ds_contract_rescue_v1';
+  function ds298Clone(v){ try{ return JSON.parse(JSON.stringify(v == null ? null : v)); }catch(_){ return v; } }
+  function ds298Norm(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
+  function ds298Ts(rec, fields){
+    try{
+      if(!rec || typeof rec !== 'object') return 0;
+      let best = 0;
+      (Array.isArray(fields) ? fields : []).forEach(function(key){
+        var raw = rec[key];
+        var num = Number(raw || 0);
+        if(num > best) best = num;
+        if(!num && raw){
+          try{ var parsed = Date.parse(String(raw)); if(parsed > best) best = parsed; }catch(_){ }
+        }
+      });
+      return best;
+    }catch(_){ return 0; }
+  }
+  function ds298MergeMap(baseMap, rescueMap, tsFields){
+    const out = {};
+    const base = (baseMap && typeof baseMap === 'object' && !Array.isArray(baseMap)) ? baseMap : {};
+    const rescue = (rescueMap && typeof rescueMap === 'object' && !Array.isArray(rescueMap)) ? rescueMap : {};
+    try{
+      Object.keys(base).forEach(function(key){ try{ out[key] = ds298Clone(base[key]); }catch(_){ out[key] = base[key]; } });
+      Object.keys(rescue).forEach(function(key){
+        const cur = out[key];
+        const nxt = rescue[key];
+        if(!(key in out)){ out[key] = ds298Clone(nxt); return; }
+        const ct = ds298Ts(cur, tsFields);
+        const nt = ds298Ts(nxt, tsFields);
+        if(nt >= ct) out[key] = ds298Clone(nxt);
+      });
+    }catch(_){ }
+    return out;
+  }
+  function ds298ReadRescue(){
+    try{
+      const raw = localStorage.getItem(DS298_KEY);
+      if(!raw) return { contractSignatures:{}, contractAgreements:{}, savedAt:0 };
+      const parsed = JSON.parse(raw) || {};
+      return {
+        contractSignatures: (parsed.contractSignatures && typeof parsed.contractSignatures === 'object' && !Array.isArray(parsed.contractSignatures)) ? parsed.contractSignatures : {},
+        contractAgreements: (parsed.contractAgreements && typeof parsed.contractAgreements === 'object' && !Array.isArray(parsed.contractAgreements)) ? parsed.contractAgreements : {},
+        savedAt: Number(parsed.savedAt || 0) || 0
+      };
+    }catch(_){ return { contractSignatures:{}, contractAgreements:{}, savedAt:0 }; }
+  }
+  function ds298WriteRescue(){
+    try{
+      if(typeof state === 'undefined' || !state) return false;
+      const payload = {
+        savedAt: Date.now(),
+        contractSignatures: (state.contractSignatures && typeof state.contractSignatures === 'object' && !Array.isArray(state.contractSignatures)) ? ds298Clone(state.contractSignatures) : {},
+        contractAgreements: (state.contractAgreements && typeof state.contractAgreements === 'object' && !Array.isArray(state.contractAgreements)) ? ds298Clone(state.contractAgreements) : {}
+      };
+      localStorage.setItem(DS298_KEY, JSON.stringify(payload));
+      return true;
+    }catch(_){ return false; }
+  }
+  function ds298ApplyRescueIntoState(){
+    try{
+      if(typeof ensureStateShape === 'function') ensureStateShape();
+      if(typeof ensureContractDefaults === 'function') ensureContractDefaults();
+      if(typeof state === 'undefined' || !state) return false;
+      const rescue = ds298ReadRescue();
+      const beforeSig = Object.keys((state.contractSignatures && typeof state.contractSignatures === 'object') ? state.contractSignatures : {}).length;
+      const beforeAgr = Object.keys((state.contractAgreements && typeof state.contractAgreements === 'object') ? state.contractAgreements : {}).length;
+      state.contractSignatures = ds298MergeMap(state.contractSignatures, rescue.contractSignatures, ['signedAt','savedAt','updatedAt','signatureAt']);
+      state.contractAgreements = ds298MergeMap(state.contractAgreements, rescue.contractAgreements, ['savedAt','updatedAt','signatureAt']);
+      const afterSig = Object.keys((state.contractSignatures && typeof state.contractSignatures === 'object') ? state.contractSignatures : {}).length;
+      const afterAgr = Object.keys((state.contractAgreements && typeof state.contractAgreements === 'object') ? state.contractAgreements : {}).length;
+      return afterSig !== beforeSig || afterAgr !== beforeAgr;
+    }catch(_){ return false; }
+  }
+  function ds298PersistStateSilently(){
+    try{
+      if(typeof state === 'undefined' || !state) return;
+      localStorage.setItem(typeof LS_KEY !== 'undefined' ? LS_KEY : 'doggystyle_workspace_state_v1', JSON.stringify(state));
+    }catch(_){ }
+  }
+  function ds298InReviewMode(){
+    try{ return !!(window.__dsInlineInboxReview && window.__dsInlineInboxReview.kind === 'contract' && window.__dsInlineInboxReview.row); }catch(_){ return false; }
+  }
+  function ds298InCustomerMode(){
+    try{
+      return !!((typeof dsCustomerForceMode === 'function' && dsCustomerForceMode('contract')) ||
+                (typeof isCustomerMainModeLoose === 'function' && isCustomerMainModeLoose('contract')) ||
+                (typeof dsIsCustomerScopedSession === 'function' && dsIsCustomerScopedSession()));
+    }catch(_){ return false; }
+  }
+  function ds298CustomerRows(){
+    try{
+      if(typeof ds212EnsureContractSelectorData === 'function') ds212EnsureContractSelectorData();
+      let rows = Array.isArray(state && state.customers) ? state.customers.slice() : [];
+      if(!rows.length){
+        const pets = Array.isArray(state && state.pets) ? state.pets : [];
+        const seen = {};
+        rows = pets.map(function(p){
+          const id = ds298Norm((p && (p.customerId || p.ownerId || p.customer)) || '');
+          if(!id || seen[id]) return null;
+          seen[id] = 1;
+          return { id:id, customerId:id, name: ds298Norm((typeof getCustomer === 'function' ? ((getCustomer(id)||{}).name || (getCustomer(id)||{}).lastName || (getCustomer(id)||{}).email || '') : '')) || id };
+        }).filter(Boolean);
+      }
+      return rows;
+    }catch(_){ return []; }
+  }
+  function ds298PetRows(customerId){
+    try{
+      if(typeof ds212EnsureContractSelectorData === 'function') ds212EnsureContractSelectorData();
+      let pets = Array.isArray(state && state.pets) ? state.pets.slice() : [];
+      if(customerId) pets = pets.filter(function(p){ return ds298Norm((p && (p.customerId || p.ownerId || p.customer)) || '') === customerId; });
+      return pets;
+    }catch(_){ return []; }
+  }
+  function ds298LabelCustomer(c){
+    try{
+      const base = ds298Norm((c && (c.lastName || c.name || c.firstName || c.email)) || 'Kunde') || 'Kunde';
+      const meta = ds298Norm((c && (c.phone || c.email)) || '');
+      return meta ? (base + ' · ' + meta) : base;
+    }catch(_){ return 'Kunde'; }
+  }
+  function ds298LabelPet(p){
+    try{ return ds298Norm((p && (p.name || p.petName || p.dogName)) || 'Hund') || 'Hund'; }catch(_){ return 'Hund'; }
+  }
+  function ds298PopulateNormalSelectors(){
+    try{
+      if(ds298InReviewMode() || ds298InCustomerMode()) return false;
+      const cs = document.getElementById('contractCustomerSelect');
+      const ps = document.getElementById('contractPetSelect');
+      const accept = document.getElementById('contractAcceptChk');
+      if(!cs || !ps) return false;
+      const prevCustomer = ds298Norm((state && state.contractSelection && state.contractSelection.customerId) || cs.value || '');
+      const prevPet = ds298Norm((state && state.contractSelection && state.contractSelection.petId) || ps.value || '');
+      const customers = ds298CustomerRows();
+      cs.innerHTML = '';
+      var o0 = document.createElement('option');
+      o0.value = '';
+      o0.textContent = '(Kunde wählen)';
+      cs.appendChild(o0);
+      customers.forEach(function(c){
+        try{
+          const id = ds298Norm((c && (c.id || c.customerId || c.uid || c.key)) || '');
+          if(!id) return;
+          const opt = document.createElement('option');
+          opt.value = id;
+          opt.textContent = ds298LabelCustomer(c);
+          cs.appendChild(opt);
+        }catch(_){ }
+      });
+      if(prevCustomer && Array.from(cs.options || []).some(function(o){ return String(o.value||'') === prevCustomer; })) cs.value = prevCustomer;
+      else cs.value = '';
+      const selectedCustomer = ds298Norm(cs.value || '');
+      const pets = ds298PetRows(selectedCustomer);
+      ps.innerHTML = '';
+      var p0 = document.createElement('option');
+      p0.value = '';
+      p0.textContent = '(Hund wählen)';
+      ps.appendChild(p0);
+      pets.forEach(function(p){
+        try{
+          const id = ds298Norm((p && (p.id || p.petId || p.dogId || p.uid || p.key)) || '');
+          if(!id) return;
+          const opt = document.createElement('option');
+          opt.value = id;
+          opt.textContent = ds298LabelPet(p);
+          ps.appendChild(opt);
+        }catch(_){ }
+      });
+      if(prevPet && Array.from(ps.options || []).some(function(o){ return String(o.value||'') === prevPet; })) ps.value = prevPet;
+      else ps.value = '';
+      cs.disabled = false; cs.removeAttribute('disabled'); cs.style.pointerEvents = 'auto';
+      ps.disabled = false; ps.removeAttribute('disabled'); ps.style.pointerEvents = 'auto';
+      if(accept){ accept.disabled = false; accept.removeAttribute('disabled'); accept.style.pointerEvents = 'auto'; }
+      if(!cs.dataset.gb298Bound){
+        cs.addEventListener('change', function(){
+          try{
+            if(ds298InReviewMode() || ds298InCustomerMode()) return;
+            state.contractSelection = { customerId: ds298Norm(cs.value || ''), petId: '' };
+            ds298PopulateNormalSelectors();
+          }catch(_){ }
+        });
+        cs.dataset.gb298Bound = '1';
+      }
+      if(!ps.dataset.gb298Bound){
+        ps.addEventListener('change', function(){
+          try{
+            if(ds298InReviewMode() || ds298InCustomerMode()) return;
+            state.contractSelection = { customerId: ds298Norm(cs.value || ''), petId: ds298Norm(ps.value || '') };
+          }catch(_){ }
+        });
+        ps.dataset.gb298Bound = '1';
+      }
+      return true;
+    }catch(_){ return false; }
+  }
+  try{
+    const prevSave = (typeof saveState === 'function') ? saveState : null;
+    if(prevSave && !prevSave.__gb298Wrapped){
+      const wrappedSave = function(){
+        const ret = prevSave.apply(this, arguments);
+        try{ ds298WriteRescue(); }catch(_){ }
+        return ret;
+      };
+      wrappedSave.__gb298Wrapped = true;
+      saveState = wrappedSave;
+      try{ window.saveState = wrappedSave; }catch(_){ }
+    }
+  }catch(_){ }
+  try{
+    const prevReload = (typeof ds209ReloadStateFromStorage === 'function') ? ds209ReloadStateFromStorage : null;
+    if(prevReload && !prevReload.__gb298Wrapped){
+      const wrappedReload = function(){
+        const ok = prevReload.apply(this, arguments);
+        try{ if(ds298ApplyRescueIntoState()) ds298PersistStateSilently(); }catch(_){ }
+        return ok;
+      };
+      wrappedReload.__gb298Wrapped = true;
+      ds209ReloadStateFromStorage = wrappedReload;
+      try{ window.ds209ReloadStateFromStorage = wrappedReload; }catch(_){ }
+    }
+  }catch(_){ }
+  try{
+    const prevApplyRemote = (typeof applyRemoteState === 'function') ? applyRemoteState : null;
+    if(prevApplyRemote && !prevApplyRemote.__gb298Wrapped){
+      const wrappedApplyRemote = function(remote, remoteStamp, source){
+        const ok = prevApplyRemote.apply(this, arguments);
+        try{ if(ds298ApplyRescueIntoState()) ds298PersistStateSilently(); }catch(_){ }
+        return ok;
+      };
+      wrappedApplyRemote.__gb298Wrapped = true;
+      applyRemoteState = wrappedApplyRemote;
+      try{ window.applyRemoteState = wrappedApplyRemote; }catch(_){ }
+    }
+  }catch(_){ }
+  try{
+    const prevRefresh = (typeof ds209RefreshContractPanel === 'function') ? ds209RefreshContractPanel : null;
+    if(prevRefresh && !prevRefresh.__gb298Wrapped){
+      const wrappedRefresh = function(){
+        const ret = prevRefresh.apply(this, arguments);
+        setTimeout(function(){ try{ ds298ApplyRescueIntoState(); ds298PopulateNormalSelectors(); ds298PersistStateSilently(); }catch(_){ } }, 40);
+        setTimeout(function(){ try{ ds298ApplyRescueIntoState(); ds298PopulateNormalSelectors(); }catch(_){ } }, 220);
+        return ret;
+      };
+      wrappedRefresh.__gb298Wrapped = true;
+      ds209RefreshContractPanel = wrappedRefresh;
+      try{ window.ds209RefreshContractPanel = wrappedRefresh; }catch(_){ }
+    }
+  }catch(_){ }
+  try{
+    const prevRender = (typeof renderContractPanel === 'function') ? renderContractPanel : null;
+    if(prevRender && !prevRender.__gb298Wrapped){
+      const wrappedRender = function(){
+        const ret = prevRender.apply(this, arguments);
+        setTimeout(function(){ try{ ds298ApplyRescueIntoState(); ds298PopulateNormalSelectors(); }catch(_){ } }, 25);
+        setTimeout(function(){ try{ ds298ApplyRescueIntoState(); ds298PopulateNormalSelectors(); }catch(_){ } }, 180);
+        return ret;
+      };
+      wrappedRender.__gb298Wrapped = true;
+      renderContractPanel = wrappedRender;
+      try{ window.renderContractPanel = wrappedRender; }catch(_){ }
+    }
+  }catch(_){ }
+  try{
+    if(ds298ApplyRescueIntoState()) ds298PersistStateSilently();
+  }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB298-appjs'; }catch(_){ }
+})();
+/* ===== END GB298 ===== */
