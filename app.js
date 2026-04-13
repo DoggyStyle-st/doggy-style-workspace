@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB288_RECORDMAPRESCUE_20260413_ROOTONLY",
+  tag: "M50.9.9GB289_FIELDWISERESCUE_20260413_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,8 +12,8 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB288_RECORDMAPRESCUE_20260413_ROOTONLY";
-try{ window.__dsAppJsRuntimeBuild = "GB288-appjs"; }catch(_){ }
+const APP_BUILD = "M50.9.9GB289_FIELDWISERESCUE_20260413_ROOTONLY";
+try{ window.__dsAppJsRuntimeBuild = "GB289-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
 // Global helper functions used across proposal-review matching.
@@ -2583,6 +2583,113 @@ async function dsForceProposalPersistSectionedReviewRow(row, customer, pet, reas
   return { ok:true, skipped:false, reason:tag, sectioned:true, mapRescue:true };
 }
 try{ window.dsForceProposalPersistSectionedReviewRow = dsForceProposalPersistSectionedReviewRow; }catch(_){ }
+
+function dsBuildProposalReviewFieldwisePatch(row, customer, pet, baseState){
+  const normId = function(v){ try{ return norm(v || ''); }catch(_){ return String(v == null ? '' : v).trim(); } };
+  const customerId = normId((customer && (customer.id || customer.customerId)) || (row && (row.customerId || row.cid || row.__targetCustomerId)) || '');
+  const petId = normId((pet && (pet.id || pet.petId)) || (row && (row.petId || row.pid || row.__targetPetId)) || '');
+  const customerSrc = dsSanitizeReviewFlatBase(customer || {});
+  const petSrc = dsSanitizeReviewFlatBase(pet || {});
+  const pick = function(src, keys){
+    const out = {};
+    try{
+      (keys || []).forEach(function(key){
+        try{
+          if(!src || !Object.prototype.hasOwnProperty.call(src, key)) return;
+          const v = src[key];
+          if(v === undefined) return;
+          out[key] = v;
+        }catch(_){ }
+      });
+    }catch(_){ }
+    return out;
+  };
+  const patch = { customerRecords:{}, petRecords:{}, dogRecords:{}, _legacy:{ dogIdToPetId:{}, dogIdToCustomerId:{} } };
+  if(customerId){
+    const customerCore = pick(customerSrc, ['id','customerId','name','email','phone']);
+    customerCore.id = customerId;
+    customerCore.customerId = customerId;
+    patch.customerRecords[customerId] = customerCore;
+  }
+  if(petId){
+    const petCore = pick(petSrc, ['id','petId','customerId','name','breed','birthdate','sex','chip','chipNumber']);
+    petCore.id = petId;
+    petCore.petId = petId;
+    if(customerId && !petCore.customerId) petCore.customerId = customerId;
+    patch.petRecords[petId] = petCore;
+  }
+  let dogId = '';
+  try{ dogId = (typeof getLegacyDogIdForPet === 'function') ? String(getLegacyDogIdForPet(petId) || '') : ''; }catch(_){ dogId = ''; }
+  const legacySource = (baseState && baseState._legacy && typeof baseState._legacy === 'object') ? baseState._legacy : ((state && state._legacy && typeof state._legacy === 'object') ? state._legacy : {});
+  try{
+    const src1 = (legacySource && legacySource.dogIdToPetId && typeof legacySource.dogIdToPetId === 'object') ? legacySource.dogIdToPetId : {};
+    Object.keys(src1).forEach(function(key){ try{ const k = String(key||'').trim(); const v = String(src1[key] == null ? '' : src1[key]).trim(); if(k && v) patch._legacy.dogIdToPetId[k] = v; }catch(_){ } });
+    const src2 = (legacySource && legacySource.dogIdToCustomerId && typeof legacySource.dogIdToCustomerId === 'object') ? legacySource.dogIdToCustomerId : {};
+    Object.keys(src2).forEach(function(key){ try{ const k = String(key||'').trim(); const v = String(src2[key] == null ? '' : src2[key]).trim(); if(k && v) patch._legacy.dogIdToCustomerId[k] = v; }catch(_){ } });
+  }catch(_){ }
+  if(!dogId && petId){
+    try{ Object.keys(patch._legacy.dogIdToPetId || {}).some(function(did){ if(normId(patch._legacy.dogIdToPetId[did]) === petId){ dogId = String(did || ''); return true; } return false; }); }catch(_){ }
+  }
+  if(dogId){
+    patch._legacy.dogIdToPetId[dogId] = petId;
+    if(customerId) patch._legacy.dogIdToCustomerId[dogId] = customerId;
+    patch.dogRecords[dogId] = {
+      id: dogId,
+      name: String((petSrc && petSrc.name) || ''),
+      owner: String((customerSrc && customerSrc.name) || ''),
+      phone: String((customerSrc && customerSrc.phone) || '')
+    };
+  }
+  try{ patch.schemaVersion = Math.max(Number((state && state.schemaVersion) || (baseState && baseState.schemaVersion) || 2) || 2, 2); }catch(_){ patch.schemaVersion = 2; }
+  patch._cloudUpdatedAt = Date.now();
+  patch._localUpdatedAt = patch._cloudUpdatedAt;
+  return patch;
+}
+
+async function dsForceProposalPersistFieldwiseReviewRow(row, customer, pet, reason){
+  const tag = String(reason || 'proposal-adopt-fieldwise').trim() || 'proposal-adopt-fieldwise';
+  if(!(CLOUD && CLOUD.enabled && CLOUD.user)) return { ok:true, skipped:true, reason:tag };
+  const ref = cloudStateRef();
+  if(!ref) return { ok:true, skipped:true, reason:tag, noRef:true };
+  let remote = null;
+  try{
+    const loaded = await cloudLoadStateWithRetry(2);
+    remote = (loaded && typeof loaded === 'object' && Object.prototype.hasOwnProperty.call(loaded, 'remote')) ? (loaded.remote || null) : (loaded || null);
+  }catch(_){ remote = null; }
+  const patch = dsBuildProposalReviewFieldwisePatch(row, customer, pet, (remote && typeof remote === 'object') ? remote : {});
+  const stamp = Date.now();
+  const stages = [];
+  const writeStage = async function(name, obj){
+    if(!obj || typeof obj !== 'object' || !Object.keys(obj).length){ stages.push(name + ':skip'); return; }
+    await ref.set({ payload: obj, updatedAt: stamp, updatedBy: CLOUD.user.email || CLOUD.user.uid }, { merge:true });
+    stages.push(name + ':ok');
+  };
+  try{
+    if(patch.customerRecords && Object.keys(patch.customerRecords).length){
+      await writeStage('customer', { customerRecords: patch.customerRecords, schemaVersion: patch.schemaVersion, _cloudUpdatedAt: stamp, _localUpdatedAt: stamp });
+    }else{ stages.push('customer:skip'); }
+    if(patch.petRecords && Object.keys(patch.petRecords).length){
+      await writeStage('pet', { petRecords: patch.petRecords, schemaVersion: patch.schemaVersion, _cloudUpdatedAt: stamp, _localUpdatedAt: stamp });
+    }else{ stages.push('pet:skip'); }
+    if(patch.dogRecords && Object.keys(patch.dogRecords).length){
+      await writeStage('dog', { dogRecords: patch.dogRecords, schemaVersion: patch.schemaVersion, _cloudUpdatedAt: stamp, _localUpdatedAt: stamp });
+    }else{ stages.push('dog:skip'); }
+    if(patch._legacy && ((patch._legacy.dogIdToPetId && Object.keys(patch._legacy.dogIdToPetId).length) || (patch._legacy.dogIdToCustomerId && Object.keys(patch._legacy.dogIdToCustomerId).length))){
+      await writeStage('legacy', { _legacy: patch._legacy, schemaVersion: patch.schemaVersion, _cloudUpdatedAt: stamp, _localUpdatedAt: stamp });
+    }else{ stages.push('legacy:skip'); }
+  }catch(err){
+    try{ dsSetProposalOpenDiag('save-fieldwise-fail pet=' + String((pet && (pet.id || pet.petId)) || '--') + ' customer=' + String((customer && (customer.id || customer.customerId)) || '--') + ' stage=' + String(stages.join('|') || '--') + ' msg=' + String((err && err.message) || err || 'unknown'), true); }catch(_){ }
+    throw err;
+  }
+  try{ CLOUD.lastPushOkAt = stamp; CLOUD.lastPushError = ''; }catch(_){ }
+  try{ SYNC.cloudLastOkAt = stamp; SYNC.cloudLastError = ''; SYNC.cloudPending = false; }catch(_){ }
+  try{ dsSetSyncDiag('proposalPersist:fieldwise-ok reason=' + tag + ' stages=' + stages.join('|') + ' · ' + dsSyncDiagStateSummary(), false); }catch(_){ }
+  try{ dsSetProposalOpenDiag('save-fieldwise-ok pet=' + String((pet && (pet.id || pet.petId)) || '--') + ' customer=' + String((customer && (customer.id || customer.customerId)) || '--') + ' stage=' + stages.join('|'), false); }catch(_){ }
+  try{ dsClearSyncDiag(); }catch(_){ }
+  try{ updateSyncUI(); }catch(_){ }
+  return { ok:true, skipped:false, reason:tag, fieldwise:true, stages:stages.slice() };
+}
+try{ window.dsForceProposalPersistFieldwiseReviewRow = dsForceProposalPersistFieldwiseReviewRow; }catch(_){ }
 /* ===== Rollen, Kundenportal & Aufgaben (Weg A) ===== */
 function hideStaffUIForCustomer(){
   // Tabs / Panels umschalten
@@ -13440,9 +13547,22 @@ async function dsSaveProposalReview(){
         }
       }
       if(!recovered && row && /invalid nested entity/i.test(String((syncErr && syncErr.message) || syncErr || '')) && typeof dsForceProposalPersistSectionedReviewRow === 'function'){
-        await dsForceProposalPersistSectionedReviewRow(row, customer, pet, 'cp-review-save-sectioned');
-        recovered = true;
-        try{ dsSetProposalOpenDiag('save-cloud-sectioned-ok pet=' + String(pet.id || pet.petId || '--') + ' customer=' + String(customer.id || customer.customerId || '--'), false); }catch(_){ }
+        try{
+          await dsForceProposalPersistSectionedReviewRow(row, customer, pet, 'cp-review-save-sectioned');
+          recovered = true;
+          try{ dsSetProposalOpenDiag('save-cloud-sectioned-ok pet=' + String(pet.id || pet.petId || '--') + ' customer=' + String(customer.id || customer.customerId || '--'), false); }catch(_){ }
+        }catch(sectionedErr){
+          syncErr = sectionedErr || syncErr;
+        }
+      }
+      if(!recovered && row && typeof dsForceProposalPersistFieldwiseReviewRow === 'function'){
+        try{
+          await dsForceProposalPersistFieldwiseReviewRow(row, customer, pet, 'cp-review-save-fieldwise');
+          recovered = true;
+          try{ dsSetProposalOpenDiag('save-cloud-fieldwise-ok pet=' + String(pet.id || pet.petId || '--') + ' customer=' + String(customer.id || customer.customerId || '--'), false); }catch(_){ }
+        }catch(fieldwiseErr){
+          syncErr = fieldwiseErr || syncErr;
+        }
       }
     }catch(retryErr){
       syncErr = retryErr || syncErr;
@@ -13872,6 +13992,7 @@ function dsSetProposalOpenDiag(msg, isError){
   try{
     const base = 'OpenDiag: ' + String(msg || '');
     try{ window.__dsProposalOpenDiag = base; }catch(_){ }
+    try{ if(typeof __dsProposalReview === 'object' && __dsProposalReview) __dsProposalReview.saveDiag = String(msg || ''); }catch(_){ }
     try{
       const el = document.getElementById('inboxDiag');
       if(el){
@@ -17111,7 +17232,11 @@ async function dsRunProposalReviewSaveGuarded(){
     }, 4500);
     const result = await dsSaveProposalReview();
     if(slowTimer) clearTimeout(slowTimer);
-    try{ dsSetProposalOpenDiag('save-finally result=' + (result ? '1':'0') + ' cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0') + ' active=' + ((__dsProposalReview && __dsProposalReview.active) ? '1':'0') + (slowNoted ? ' slow=1' : ' slow=0'), !result); }catch(_){ }
+    try{
+      const prevDiag = String((__dsProposalReview && __dsProposalReview.saveDiag) || '');
+      const finalMsg = 'save-finally result=' + (result ? '1':'0') + ' cp=' + (dsIsCpEditorActuallyOpen() ? '1':'0') + ' active=' + ((__dsProposalReview && __dsProposalReview.active) ? '1':'0') + (slowNoted ? ' slow=1' : ' slow=0');
+      if(result || !prevDiag || /^save-start|^save-slow/.test(prevDiag)) dsSetProposalOpenDiag(finalMsg, !result);
+    }catch(_){ }
     if(!result){
       const cur = String(document.getElementById('cpStatus')?.textContent || '');
       if(!cur || /speichern läuft/i.test(cur)) cpSetStatus('Speichern fehlgeschlagen.', true);
@@ -25243,7 +25368,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB288_RECORDMAPRESCUE_20260413_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB289_FIELDWISERESCUE_20260413_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -27216,7 +27341,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB288_RECORDMAPRESCUE_20260413_ROOTONLY";
+  const BUILD = "M50.9.9GB289_FIELDWISERESCUE_20260413_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
