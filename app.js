@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB307_CONTRACT_DIAG_PANEL_20260414_ROOTONLY",
+  tag: "M50.9.9GB308A_SYNCFIX_DIAG_HARDMOUNT_20260414_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,8 +12,8 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB307_CONTRACT_DIAG_PANEL_20260414_ROOTONLY";
-try{ window.__dsAppJsRuntimeBuild = "GB292-appjs"; }catch(_){ }
+const APP_BUILD = "M50.9.9GB308A_SYNCFIX_DIAG_HARDMOUNT_20260414_ROOTONLY";
+try{ window.__dsAppJsRuntimeBuild = "GB308A-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
 // Global helper functions used across proposal-review matching.
