@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB302_CONTRACTSAVE_RESETBADGEFIX_20260413_ROOTONLY",
+  tag: "M50.9.9GB303_CONTRACTREFRESHBYPASS_BADGEPERSIST_20260414_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB302_CONTRACTSAVE_RESETBADGEFIX_20260413_ROOTONLY";
+const APP_BUILD = "M50.9.9GB303_CONTRACTREFRESHBYPASS_BADGEPERSIST_20260414_ROOTONLY";
 try{ window.__dsAppJsRuntimeBuild = "GB292-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -25534,7 +25534,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB302_CONTRACTSAVE_RESETBADGEFIX_20260413_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB303_CONTRACTREFRESHBYPASS_BADGEPERSIST_20260414_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -27507,7 +27507,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB302_CONTRACTSAVE_RESETBADGEFIX_20260413_ROOTONLY";
+  const BUILD = "M50.9.9GB303_CONTRACTREFRESHBYPASS_BADGEPERSIST_20260414_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -31097,7 +31097,7 @@ try{ window.__GB294_MARKER = 'active'; }catch(_){ }
 /* ===== GB295 contract review verified open + reset fix ===== */
 try{ window.__GB295_MARKER = 'active'; }catch(_){ }
 (function(){
-  const BUILD = "M50.9.9GB302_CONTRACTSAVE_RESETBADGEFIX_20260413_ROOTONLY";
+  const BUILD = "M50.9.9GB303_CONTRACTREFRESHBYPASS_BADGEPERSIST_20260414_ROOTONLY";
   function ds295Clone(v){ try{ return JSON.parse(JSON.stringify(v == null ? null : v)); }catch(_){ return v; } }
   function ds295Norm(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
   function ds295Bool(v){ try{ if(v===true||v===false) return !!v; const s=String(v==null?'':v).trim().toLowerCase(); return s==='1'||s==='true'||s==='yes'||s==='ja'||s==='on'; }catch(_){ return false; } }
@@ -33308,3 +33308,463 @@ try{ window.__GB302_MARKER = 'active'; }catch(_){ }
   try{ window.__dsAppJsRuntimeBuild = 'GB302-appjs'; }catch(_){ }
 })();
 /* ===== END GB302 ===== */
+
+
+/* ===== GB303 contract refresh bypass + badge persist ===== */
+try{ window.__GB303_MARKER = 'active'; }catch(_){ }
+(function(){
+  const DS303_KEYS = ['ds_contract_rescue_union_gb303','ds_contract_rescue_union_gb302','ds_contract_rescue_union_gb301','ds_contract_rescue_union_gb300','ds_contract_rescue_union_gb299'];
+  function ds303Clone(v){ try{ return JSON.parse(JSON.stringify(v == null ? null : v)); }catch(_){ return v; } }
+  function ds303Norm(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
+  function ds303Ts(rec){
+    try{
+      if(!rec || typeof rec !== 'object') return 0;
+      const vals = [rec.savedAt, rec.updatedAt, rec.signatureAt, rec.signedAt, rec.ts];
+      let best = 0;
+      vals.forEach(function(raw){
+        const n = Number(raw || 0);
+        if(n > best) best = n;
+        if(!n && raw){ try{ const d = Date.parse(String(raw)); if(d > best) best = d; }catch(_){ } }
+      });
+      return best;
+    }catch(_){ return 0; }
+  }
+  function ds303MergeMap(a,b){
+    const out = {};
+    const left = (a && typeof a === 'object' && !Array.isArray(a)) ? a : {};
+    const right = (b && typeof b === 'object' && !Array.isArray(b)) ? b : {};
+    try{ Object.keys(left).forEach(function(k){ out[k] = ds303Clone(left[k]); }); }catch(_){ }
+    try{ Object.keys(right).forEach(function(k){ if(!(k in out) || ds303Ts(right[k]) >= ds303Ts(out[k])) out[k] = ds303Clone(right[k]); }); }catch(_){ }
+    return out;
+  }
+  function ds303ReadUnion(){
+    let sig = {};
+    let agr = {};
+    try{
+      DS303_KEYS.forEach(function(key){
+        try{
+          const raw = localStorage.getItem(key);
+          if(!raw) return;
+          const parsed = JSON.parse(raw) || {};
+          sig = ds303MergeMap(sig, parsed.contractSignatures);
+          agr = ds303MergeMap(agr, parsed.contractAgreements);
+        }catch(_){ }
+      });
+    }catch(_){ }
+    try{
+      if(typeof state !== 'undefined' && state){
+        sig = ds303MergeMap(sig, state.contractSignatures);
+        agr = ds303MergeMap(agr, state.contractAgreements);
+      }
+    }catch(_){ }
+    return { contractSignatures:sig, contractAgreements:agr };
+  }
+  function ds303WriteUnion(){
+    try{
+      const union = ds303ReadUnion();
+      const payload = { savedAt: Date.now(), contractSignatures: union.contractSignatures || {}, contractAgreements: union.contractAgreements || {} };
+      DS303_KEYS.forEach(function(key){ try{ localStorage.setItem(key, JSON.stringify(payload)); }catch(_){ } });
+      return payload;
+    }catch(_){ return null; }
+  }
+  function ds303ApplyUnion(){
+    try{
+      if(typeof ensureStateShape === 'function') ensureStateShape();
+      if(typeof ensureContractDefaults === 'function') ensureContractDefaults();
+      if(typeof state === 'undefined' || !state) return false;
+      const union = ds303ReadUnion();
+      state.contractSignatures = ds303MergeMap(state.contractSignatures, union.contractSignatures);
+      state.contractAgreements = ds303MergeMap(state.contractAgreements, union.contractAgreements);
+      try{ localStorage.setItem(typeof LS_KEY !== 'undefined' ? LS_KEY : 'doggystyle_workspace_state_v1', JSON.stringify(state)); }catch(_){ }
+      return true;
+    }catch(_){ return false; }
+  }
+  function ds303IsReview(){
+    try{ return !!(window.__dsInlineInboxReview && window.__dsInlineInboxReview.kind === 'contract'); }catch(_){ return false; }
+  }
+  function ds303IsCustomerMode(){
+    try{
+      return !!((typeof dsCustomerForceMode === 'function' && dsCustomerForceMode('contract')) ||
+                (typeof isCustomerMainModeLoose === 'function' && isCustomerMainModeLoose('contract')) ||
+                (typeof dsIsCustomerScopedSession === 'function' && dsIsCustomerScopedSession()));
+    }catch(_){ return false; }
+  }
+  function ds303ClearReviewArtifacts(){
+    try{ if(window.__dsInlineInboxReview && window.__dsInlineInboxReview.kind === 'contract') window.__dsInlineInboxReview = null; }catch(_){ }
+    try{ if(window.__dsInboxCurrentTask && /betreuungsvertrag|contract/i.test(String(window.__dsInboxCurrentTask.templateId || window.__dsInboxCurrentTask.title || ''))) window.__dsInboxCurrentTask = null; }catch(_){ }
+    try{ window.__dsContractReviewSnapshot = null; }catch(_){ }
+    try{ window.__dsContractReviewOpening = 0; }catch(_){ }
+    try{ const old = document.getElementById('dsProposalSnapshotBanner'); if(old) old.remove(); }catch(_){ }
+  }
+  function ds303Aliases(customerId, petId){
+    try{ if(typeof _contractCustomerAliases === 'function') return (_contractCustomerAliases(customerId, petId) || []).map(ds303Norm).filter(Boolean); }catch(_){ }
+    return [ds303Norm(customerId || '')].filter(Boolean);
+  }
+  function ds303FindSig(customerId, petId){
+    try{
+      const pid = ds303Norm(petId || '');
+      if(!pid) return null;
+      const sigs = ds303ReadUnion().contractSignatures || {};
+      const aliases = ds303Aliases(customerId, pid);
+      let best = null;
+      Object.keys(sigs).forEach(function(key){
+        try{
+          const rec = sigs[key] || {};
+          if(!(rec.dataUrl || rec.signatureDataUrl)) return;
+          const parts = String(key || '').split('__');
+          if(parts.length < 3) return;
+          const version = ds303Norm(parts[0] || 'v1.0') || 'v1.0';
+          const cid = ds303Norm(parts[1] || '');
+          const rowPid = ds303Norm(parts.slice(2).join('__') || '');
+          if(rowPid !== pid) return;
+          if(aliases.length && cid && !aliases.includes(cid)) return;
+          const cand = { key:key, customerId: cid || ds303Norm(customerId || ''), petId: pid, version: version, rec: rec };
+          if(!best || ds303Ts(rec) >= ds303Ts(best.rec)) best = cand;
+        }catch(_){ }
+      });
+      return best;
+    }catch(_){ return null; }
+  }
+  function ds303FindAgreement(customerId, petId){
+    try{
+      const pid = ds303Norm(petId || '');
+      if(!pid) return null;
+      const agrs = ds303ReadUnion().contractAgreements || {};
+      const aliases = ds303Aliases(customerId, pid);
+      let best = null;
+      Object.keys(agrs).forEach(function(key){
+        try{
+          const rec = agrs[key] || {};
+          if(!(rec.accepted || rec.savedAt || rec.signatureAt)) return;
+          const m = String(key || '').match(/^(.*?)__(.*?)__(.*?)::(.*)$/);
+          if(!m) return;
+          const version = ds303Norm(m[1] || m[4] || 'v1.0') || 'v1.0';
+          const cid = ds303Norm(m[2] || '');
+          const rowPid = ds303Norm(m[3] || '');
+          if(rowPid !== pid) return;
+          if(aliases.length && cid && !aliases.includes(cid)) return;
+          const cand = { key:key, customerId: cid || ds303Norm(customerId || ''), petId: pid, version: version, rec: rec };
+          if(!best || ds303Ts(rec) >= ds303Ts(best.rec)) best = cand;
+        }catch(_){ }
+      });
+      return best;
+    }catch(_){ return null; }
+  }
+  function ds303HasContract(customerId, petId){
+    try{ return !!(ds303FindSig(customerId, petId) && ds303FindAgreement(customerId, petId)); }catch(_){ return false; }
+  }
+  function ds303CustomerRows(){
+    const map = new Map();
+    function put(raw){
+      try{
+        if(!raw || typeof raw !== 'object') return;
+        const id = ds303Norm(raw.customerId || raw.id || raw.uid || raw.key || raw.portalUid || raw.customerUid || raw.email || '');
+        if(!id) return;
+        const prev = map.get(id) || {};
+        map.set(id, {
+          id:id, customerId:id,
+          name: ds303Norm(raw.name || raw.displayName || raw.lastName || raw.fullName || prev.name || raw.email || id) || id,
+          email: ds303Norm(raw.email || prev.email || '').toLowerCase(),
+          phone: ds303Norm(raw.phone || raw.telefon || raw.mobile || prev.phone || ''),
+          portalUid: ds303Norm(raw.portalUid || raw.customerUid || raw.uid || prev.portalUid || ''),
+          customerUid: ds303Norm(raw.customerUid || raw.portalUid || raw.uid || prev.customerUid || '')
+        });
+      }catch(_){ }
+    }
+    try{ (Array.isArray(state && state.customers) ? state.customers : []).forEach(put); }catch(_){ }
+    try{ (Array.isArray(state && state.pets) ? state.pets : []).forEach(function(p){ put({ customerId:p.customerId || p.ownerId || '', email:p.customerEmail || p.ownerEmail || '', name:p.ownerName || p.owner || '' }); }); }catch(_){ }
+    try{
+      const union = ds303ReadUnion();
+      Object.keys(union.contractAgreements || {}).forEach(function(key){ const rec = union.contractAgreements[key] || {}; put({ customerId: rec.customerId || '' }); });
+    }catch(_){ }
+    return Array.from(map.values()).sort(function(a,b){ return String(a.name || '').localeCompare(String(b.name || ''), 'de'); });
+  }
+  function ds303PetRows(customerId){
+    const cid = ds303Norm(customerId || '');
+    const map = new Map();
+    function put(raw){
+      try{
+        if(!raw || typeof raw !== 'object') return;
+        const id = ds303Norm(raw.id || raw.petId || raw.dogId || raw.uid || raw.key || '');
+        if(!id) return;
+        const owner = ds303Norm(raw.customerId || raw.ownerId || raw.customer || '');
+        if(cid && owner && owner !== cid) return;
+        const prev = map.get(id) || {};
+        map.set(id, { id:id, petId:id, customerId: owner || prev.customerId || cid, name: ds303Norm(raw.name || raw.petName || raw.dogName || prev.name || 'Hund') || 'Hund' });
+      }catch(_){ }
+    }
+    try{ (Array.isArray(state && state.pets) ? state.pets : []).forEach(put); }catch(_){ }
+    try{ (Array.isArray(state && state.dogs) ? state.dogs : []).forEach(put); }catch(_){ }
+    try{
+      const union = ds303ReadUnion();
+      Object.keys(union.contractAgreements || {}).forEach(function(key){
+        try{
+          const rec = union.contractAgreements[key] || {};
+          if(!rec.petId) return;
+          put({ id:rec.petId, petId:rec.petId, customerId: rec.customerId || '' });
+        }catch(_){ }
+      });
+    }catch(_){ }
+    return Array.from(map.values()).sort(function(a,b){ return String(a.name || '').localeCompare(String(b.name || ''), 'de'); });
+  }
+  function ds303CurrentSelection(){
+    try{
+      const cs = document.getElementById('contractCustomerSelect');
+      const ps = document.getElementById('contractPetSelect');
+      const ss = (typeof state !== 'undefined' && state && state.contractSelection) ? state.contractSelection : {};
+      return { customerId: ds303Norm((cs && cs.value) || ss.customerId || ''), petId: ds303Norm((ps && ps.value) || ss.petId || '') };
+    }catch(_){ return { customerId:'', petId:'' }; }
+  }
+  function ds303Paint(customerId, petId){
+    try{
+      const canvas = document.getElementById('contractSig');
+      const accept = document.getElementById('contractAcceptChk');
+      const info = document.getElementById('contractSignedInfo');
+      const sig = ds303FindSig(customerId, petId);
+      const agr = ds303FindAgreement(customerId, petId);
+      if(accept){ accept.disabled = false; accept.removeAttribute('disabled'); accept.style.pointerEvents = 'auto'; accept.checked = !!(agr && agr.rec && agr.rec.accepted); }
+      try{
+        if(canvas){
+          const ctx = canvas.getContext('2d'); if(ctx) ctx.clearRect(0,0,canvas.width,canvas.height);
+          if(sig && sig.rec && (sig.rec.dataUrl || sig.rec.signatureDataUrl)){
+            const img = new Image();
+            img.onload = function(){ try{ const c2 = canvas.getContext('2d'); if(c2){ c2.clearRect(0,0,canvas.width,canvas.height); c2.drawImage(img,0,0,canvas.width,canvas.height); } }catch(_){ } };
+            img.src = String(sig.rec.dataUrl || sig.rec.signatureDataUrl || '');
+          }
+        }
+      }catch(_){ }
+      if(info){
+        if(sig && sig.rec && (sig.rec.dataUrl || sig.rec.signatureDataUrl)){
+          let when = '';
+          try{ const raw = sig.rec.signedAt || sig.rec.signatureAt || sig.rec.savedAt || 0; if(raw) when = ' (' + new Date(raw).toLocaleString('de-DE') + ')'; }catch(_){ }
+          info.textContent = '✅ Unterschrift vorhanden (' + String(sig.version || 'v1.0') + when + ')';
+          info.className = 'ok';
+        }else{
+          info.textContent = '⚠ Bitte zuerst Kunde und Hund wählen.';
+          info.className = 'muted';
+        }
+      }
+    }catch(_){ }
+  }
+  function ds303RenderList(){
+    try{
+      const side = document.querySelector('#contract .contract-side');
+      if(!side) return false;
+      let card = document.getElementById('contractSelectionListCard');
+      if(!card){ card = document.createElement('div'); card.id = 'contractSelectionListCard'; card.className = 'contract-card'; side.appendChild(card); }
+      const union = ds303ReadUnion();
+      const rows = [];
+      const seen = new Set();
+      Object.keys(union.contractAgreements || {}).forEach(function(key){
+        try{
+          const rec = union.contractAgreements[key] || {};
+          const m = String(key || '').match(/^(.*?)__(.*?)__(.*?)::(.*)$/);
+          if(!m) return;
+          const version = ds303Norm(m[1] || m[4] || 'v1.0') || 'v1.0';
+          const customerId = ds303Norm(rec.customerId || m[2] || '');
+          const petId = ds303Norm(rec.petId || m[3] || '');
+          if(!customerId || !petId) return;
+          const uniq = customerId + '|' + petId + '|' + version;
+          if(seen.has(uniq)) return;
+          seen.add(uniq);
+          rows.push({ customerId:customerId, petId:petId, version:version, savedAt: ds303Ts(rec) || Date.now() });
+        }catch(_){ }
+      });
+      rows.sort(function(a,b){ return Number(b.savedAt||0) - Number(a.savedAt||0); });
+      let html = '<h3>Vorhandene Betreuungsverträge</h3>';
+      if(!rows.length){ html += '<div class="muted">Noch keine gespeicherten Betreuungsverträge.</div>'; }
+      else {
+        html += rows.map(function(r){
+          let customer='Kunde', pet='Hund';
+          try{ const c = (typeof getCustomer === 'function') ? (getCustomer(r.customerId) || null) : null; if(c) customer = String(c.name || c.lastName || c.email || customer).trim() || customer; }catch(_){ }
+          try{ const p = (typeof getPet === 'function') ? (getPet(r.petId) || null) : null; if(p) pet = String(p.name || p.petName || p.dogName || pet).trim() || pet; }catch(_){ }
+          let when=''; try{ if(r.savedAt) when = new Date(r.savedAt).toLocaleString('de-DE'); }catch(_){ }
+          return '<div class="item" style="margin-top:10px"><div><strong>' + escapeHtml(customer + ' · ' + pet) + '</strong><small>' + escapeHtml(String(r.version || 'v1.0') + (when ? (' · ' + when) : '')) + '</small></div><div class="actions"><button class="smallbtn" type="button" data-ds303-open="1" data-customer-id="' + escapeHtml(r.customerId) + '" data-pet-id="' + escapeHtml(r.petId) + '">Öffnen</button></div></div>';
+        }).join('');
+      }
+      card.innerHTML = html;
+      card.querySelectorAll('[data-ds303-open="1"]').forEach(function(btn){
+        if(btn.dataset.ds303Bound) return;
+        btn.dataset.ds303Bound = '1';
+        btn.addEventListener('click', function(ev){
+          try{ ev.preventDefault(); ev.stopPropagation(); }catch(_){ }
+          try{ ds303ClearReviewArtifacts(); }catch(_){ }
+          try{ ds303ApplyUnion(); }catch(_){ }
+          try{ if(typeof state !== 'undefined' && state) state.contractSelection = { customerId: ds303Norm(btn.dataset.customerId || ''), petId: ds303Norm(btn.dataset.petId || '') }; }catch(_){ }
+          setTimeout(function(){ try{ ds303NormalizeMainUi(true); }catch(_){ } }, 0);
+        });
+      });
+      return true;
+    }catch(_){ return false; }
+  }
+  function ds303NormalizeMainUi(keepSelection){
+    try{
+      if(ds303IsCustomerMode() || ds303IsReview()) return false;
+      ds303ClearReviewArtifacts();
+      ds303ApplyUnion();
+      const cs = document.getElementById('contractCustomerSelect');
+      const ps = document.getElementById('contractPetSelect');
+      const accept = document.getElementById('contractAcceptChk');
+      if(!cs || !ps) return false;
+      const prev = keepSelection ? ds303CurrentSelection() : { customerId:'', petId:'' };
+      const customers = ds303CustomerRows();
+      cs.innerHTML = '';
+      let o = document.createElement('option'); o.value=''; o.textContent='(Kunde wählen)'; cs.appendChild(o);
+      customers.forEach(function(c){
+        try{
+          const id = ds303Norm(c.customerId || c.id || ''); if(!id) return;
+          const label = String(c.name || c.email || id).trim() || id;
+          const meta = String(c.phone || c.email || '').trim();
+          const opt = document.createElement('option'); opt.value = id; opt.textContent = (meta && meta !== label) ? (label + ' · ' + meta) : label; cs.appendChild(opt);
+        }catch(_){ }
+      });
+      if(prev.customerId && Array.from(cs.options || []).some(function(opt){ return ds303Norm(opt.value || '') === prev.customerId; })) cs.value = prev.customerId; else cs.value = '';
+      const pets = ds303PetRows(ds303Norm(cs.value || ''));
+      ps.innerHTML = '';
+      o = document.createElement('option'); o.value=''; o.textContent='(Hund wählen)'; ps.appendChild(o);
+      pets.forEach(function(p){
+        try{
+          const id = ds303Norm(p.id || p.petId || ''); if(!id) return;
+          const opt = document.createElement('option'); opt.value = id; opt.textContent = String(p.name || p.petName || p.dogName || 'Hund').trim() || 'Hund'; ps.appendChild(opt);
+        }catch(_){ }
+      });
+      if(prev.petId && Array.from(ps.options || []).some(function(opt){ return ds303Norm(opt.value || '') === prev.petId; })) ps.value = prev.petId; else ps.value = '';
+      [cs,ps,accept,document.getElementById('contractSaveBtn'),document.getElementById('contractDeleteSigBtn'),document.getElementById('contractSignBtn')].forEach(function(el){ try{ if(el){ el.disabled=false; el.removeAttribute('disabled'); el.style.pointerEvents='auto'; el.style.opacity='1'; } }catch(_){ } });
+      try{ if(accept) accept.checked = false; }catch(_){ }
+      try{ if(typeof state !== 'undefined' && state) state.contractSelection = { customerId: ds303Norm(cs.value || ''), petId: ds303Norm(ps.value || '') }; }catch(_){ }
+      ds303Paint(ds303Norm(cs.value || ''), ds303Norm(ps.value || ''));
+      ds303RenderList();
+      if(!cs.dataset.ds303Bound){
+        cs.addEventListener('change', function(){ try{ if(typeof state !== 'undefined' && state) state.contractSelection = { customerId: ds303Norm(cs.value || ''), petId:'' }; ds303NormalizeMainUi(true); }catch(_){ } });
+        cs.dataset.ds303Bound = '1';
+      }
+      if(!ps.dataset.ds303Bound){
+        ps.addEventListener('change', function(){ try{ if(typeof state !== 'undefined' && state) state.contractSelection = { customerId: ds303Norm(cs.value || ''), petId:ds303Norm(ps.value || '') }; ds303Paint(ds303Norm(cs.value || ''), ds303Norm(ps.value || '')); }catch(_){ } });
+        ps.dataset.ds303Bound = '1';
+      }
+      try{ if(typeof renderDogs === 'function') renderDogs(); }catch(_){ }
+      try{ ds303WriteUnion(); }catch(_){ }
+      return true;
+    }catch(_){ return false; }
+  }
+  function ds303SafeRefresh(){
+    try{
+      if(ds303IsCustomerMode() || ds303IsReview()){
+        if(typeof ds209RefreshContractPanel === 'function' && ds209RefreshContractPanel.__gb303Base) return ds209RefreshContractPanel.__gb303Base.apply(this, arguments);
+        return false;
+      }
+      ds303ClearReviewArtifacts();
+      ds303ApplyUnion();
+      try{ if(typeof saveState === 'function') saveState(); }catch(_){ }
+      try{
+        const baseRender = (typeof renderContractPanel === 'function' && renderContractPanel.__gb303Base) ? renderContractPanel.__gb303Base : (typeof renderContractPanel === 'function' ? renderContractPanel : null);
+        if(baseRender) baseRender();
+      }catch(_){ }
+      setTimeout(function(){ try{ ds303NormalizeMainUi(true); }catch(_){ } }, 30);
+      setTimeout(function(){ try{ ds303NormalizeMainUi(true); }catch(_){ } }, 180);
+      return true;
+    }catch(_){ return false; }
+  }
+  try{
+    const prevHas = (typeof hasValidContract === 'function') ? hasValidContract : null;
+    if(prevHas && !prevHas.__gb303Wrapped){
+      const wrapped = function(customerId, petId){
+        try{ if(prevHas(customerId, petId)) return true; }catch(_){ }
+        return ds303HasContract(customerId, petId);
+      };
+      wrapped.__gb303Wrapped = true;
+      wrapped.__gb303Base = prevHas;
+      hasValidContract = wrapped;
+      try{ window.hasValidContract = wrapped; }catch(_){ }
+    }
+  }catch(_){ }
+  try{
+    const prevBadge = (typeof contractBadge === 'function') ? contractBadge : null;
+    if(prevBadge && !prevBadge.__gb303Wrapped){
+      const wrapped = function(customerId, petId){ return (!customerId || !petId) ? '' : (ds303HasContract(customerId, petId) ? ' · Vertrag: 🟢' : ' · Vertrag: 🔴'); };
+      wrapped.__gb303Wrapped = true;
+      wrapped.__gb303Base = prevBadge;
+      contractBadge = wrapped;
+      try{ window.contractBadge = wrapped; }catch(_){ }
+    }
+  }catch(_){ }
+  try{
+    const prevRender = (typeof renderContractPanel === 'function') ? renderContractPanel : null;
+    if(prevRender && !prevRender.__gb303Wrapped){
+      const wrapped = function(){
+        const ret = prevRender.apply(this, arguments);
+        if(!ds303IsCustomerMode() && !ds303IsReview()){
+          setTimeout(function(){ try{ ds303NormalizeMainUi(true); }catch(_){ } }, 40);
+          setTimeout(function(){ try{ ds303NormalizeMainUi(true); }catch(_){ } }, 220);
+        }
+        return ret;
+      };
+      wrapped.__gb303Wrapped = true;
+      wrapped.__gb303Base = prevRender;
+      renderContractPanel = wrapped;
+      try{ window.renderContractPanel = wrapped; }catch(_){ }
+    }
+  }catch(_){ }
+  try{
+    const prevRefresh = (typeof ds209RefreshContractPanel === 'function') ? ds209RefreshContractPanel : null;
+    if(prevRefresh && !prevRefresh.__gb303Wrapped){
+      const wrapped = function(){ return ds303SafeRefresh.apply(this, arguments); };
+      wrapped.__gb303Wrapped = true;
+      wrapped.__gb303Base = prevRefresh;
+      ds209RefreshContractPanel = wrapped;
+      try{ window.ds209RefreshContractPanel = wrapped; }catch(_){ }
+    }
+    const btn = document.getElementById('btnContractRefresh');
+    if(btn){
+      const clone = btn.cloneNode(true);
+      btn.parentNode.replaceChild(clone, btn);
+      clone.addEventListener('click', function(ev){ try{ ev.preventDefault(); ev.stopPropagation(); }catch(_){ } ds303SafeRefresh(); });
+    }
+  }catch(_){ }
+  try{
+    let current = window.__dsContractReviewSubmitHook || null;
+    Object.defineProperty(window, '__dsContractReviewSubmitHook', {
+      configurable:true,
+      enumerable:true,
+      get:function(){ return this.__dsContractReviewSubmitHookGB303 || null; },
+      set:function(fn){
+        if(typeof fn !== 'function'){ this.__dsContractReviewSubmitHookGB303 = fn; return; }
+        const wrapped = async function(){
+          const ok = await fn.apply(this, arguments);
+          if(ok){
+            try{ ds303ApplyUnion(); }catch(_){ }
+            try{ ds303WriteUnion(); }catch(_){ }
+            try{ ds303ClearReviewArtifacts(); }catch(_){ }
+            try{ if(typeof state !== 'undefined' && state) state.contractSelection = { customerId:'', petId:'' }; }catch(_){ }
+            try{ if(typeof saveState === 'function') saveState(); }catch(_){ }
+            setTimeout(function(){ try{ if(typeof renderContractPanel === 'function') renderContractPanel(); }catch(_){ } try{ ds303NormalizeMainUi(false); }catch(_){ } }, 30);
+            setTimeout(function(){ try{ if(typeof renderDogs === 'function') renderDogs(); }catch(_){ } }, 80);
+          }
+          return ok;
+        };
+        wrapped.__gb303Wrapped = true;
+        wrapped.__gb303Base = fn;
+        this.__dsContractReviewSubmitHookGB303 = wrapped;
+      }
+    });
+    window.__dsContractReviewSubmitHook = current;
+  }catch(_){ }
+  try{
+    const prevSelectTab = (typeof selectTab === 'function') ? selectTab : null;
+    if(prevSelectTab && !prevSelectTab.__gb303Wrapped){
+      const wrapped = function(tab){
+        const ret = prevSelectTab.apply(this, arguments);
+        try{ if(String(tab || '').toLowerCase() === 'contract' && !ds303IsCustomerMode() && !ds303IsReview()) setTimeout(function(){ ds303NormalizeMainUi(true); }, 20); }catch(_){ }
+        return ret;
+      };
+      wrapped.__gb303Wrapped = true;
+      wrapped.__gb303Base = prevSelectTab;
+      selectTab = wrapped;
+      try{ window.selectTab = wrapped; }catch(_){ }
+    }
+  }catch(_){ }
+  try{ ds303ApplyUnion(); ds303WriteUnion(); }catch(_){ }
+  try{ window.__dsContractMainNormalize = ds303NormalizeMainUi; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB303-appjs'; }catch(_){ }
+})();
+/* ===== END GB303 ===== */
