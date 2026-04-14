@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB305_CONTRACTPROPOSAL_CANONICAL_MATCH_20260414_ROOTONLY",
+  tag: "M50.9.9GB306_CONTRACTREFRESH_CAPTURE_MAINSAVE_20260414_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB305_CONTRACTPROPOSAL_CANONICAL_MATCH_20260414_ROOTONLY";
+const APP_BUILD = "M50.9.9GB306_CONTRACTREFRESH_CAPTURE_MAINSAVE_20260414_ROOTONLY";
 try{ window.__dsAppJsRuntimeBuild = "GB292-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -25534,7 +25534,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB305_CONTRACTPROPOSAL_CANONICAL_MATCH_20260414_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB306_CONTRACTREFRESH_CAPTURE_MAINSAVE_20260414_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -27507,7 +27507,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB305_CONTRACTPROPOSAL_CANONICAL_MATCH_20260414_ROOTONLY";
+  const BUILD = "M50.9.9GB306_CONTRACTREFRESH_CAPTURE_MAINSAVE_20260414_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -31097,7 +31097,7 @@ try{ window.__GB294_MARKER = 'active'; }catch(_){ }
 /* ===== GB295 contract review verified open + reset fix ===== */
 try{ window.__GB295_MARKER = 'active'; }catch(_){ }
 (function(){
-  const BUILD = "M50.9.9GB305_CONTRACTPROPOSAL_CANONICAL_MATCH_20260414_ROOTONLY";
+  const BUILD = "M50.9.9GB306_CONTRACTREFRESH_CAPTURE_MAINSAVE_20260414_ROOTONLY";
   function ds295Clone(v){ try{ return JSON.parse(JSON.stringify(v == null ? null : v)); }catch(_){ return v; } }
   function ds295Norm(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
   function ds295Bool(v){ try{ if(v===true||v===false) return !!v; const s=String(v==null?'':v).trim().toLowerCase(); return s==='1'||s==='true'||s==='yes'||s==='ja'||s==='on'; }catch(_){ return false; } }
@@ -33884,7 +33884,7 @@ try{ window.__GB304_MARKER = 'active'; }catch(_){ }
     }
   }catch(_){ }
   try{ window.__dsContractReviewExitToMainGB304 = ds304ExitReviewToMain; }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB305-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB306-appjs'; }catch(_){ }
 })();
 /* ===== END GB304 ===== */
 
@@ -34067,6 +34067,210 @@ try{ window.__GB305_MARKER = 'active'; }catch(_){ }
       try{ window.hasValidContract = wrapped; }catch(_){ }
     }
   }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB305-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB306-appjs'; }catch(_){ }
 })();
 /* ===== END GB305 ===== */
+
+
+/* ===== GB306 contract refresh capture + main save cloud subset + canonical repair ===== */
+try{ window.__GB306_MARKER = 'active'; }catch(_){ }
+(function(){
+  function ds306Norm(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
+  function ds306Lower(v){ return ds306Norm(v).toLowerCase(); }
+  function ds306Clone(v){ try{ return JSON.parse(JSON.stringify(v == null ? null : v)); }catch(_){ return v; } }
+  function ds306StateCustomers(){ try{ return Array.isArray(state && state.customers) ? state.customers.slice() : []; }catch(_){ return []; } }
+  function ds306StatePets(){ try{ if(Array.isArray(state && state.pets)) return state.pets.slice(); }catch(_){ }
+    try{ if(Array.isArray(state && state.dogs)) return state.dogs.slice(); }catch(_){ }
+    return []; }
+  function ds306FindCustomer(rawId, rawName, rawEmail){
+    let found = null;
+    const id = ds306Norm(rawId || '');
+    const name = ds306Lower(rawName || '');
+    const email = ds306Lower(rawEmail || '');
+    try{ if(id && typeof getCustomer === 'function') found = getCustomer(id) || null; }catch(_){ }
+    if(found) return ds306Clone(found);
+    const rows = ds306StateCustomers();
+    if(id){
+      found = rows.find(function(c){ return [c&&c.id,c&&c.customerId,c&&c.uid,c&&c.portalUid,c&&c.customerUid].map(ds306Norm).filter(Boolean).includes(id); }) || null;
+      if(found) return ds306Clone(found);
+    }
+    if(email){ found = rows.find(function(c){ return ds306Lower(c&&c.email) === email; }) || null; if(found) return ds306Clone(found); }
+    if(name){
+      found = rows.find(function(c){
+        const vals = [c&&c.name,c&&c.displayName,c&&c.lastName,c&&c.firstName].map(ds306Lower).filter(Boolean);
+        return vals.includes(name);
+      }) || null;
+      if(found) return ds306Clone(found);
+    }
+    return null;
+  }
+  function ds306FindPet(rawId, customerId, rawName){
+    let found = null;
+    const id = ds306Norm(rawId || '');
+    const customer = ds306Norm(customerId || '');
+    const name = ds306Lower(rawName || '');
+    try{ if(id && typeof getPet === 'function') found = getPet(id) || null; }catch(_){ }
+    try{ if(!found && id && typeof getPetByDogId === 'function') found = getPetByDogId(id) || null; }catch(_){ }
+    if(found) return ds306Clone(found);
+    const rows = ds306StatePets();
+    if(id){
+      found = rows.find(function(p){ return [p&&p.id,p&&p.petId,p&&p.dogId,p&&p.uid,p&&p.key].map(ds306Norm).filter(Boolean).includes(id); }) || null;
+      if(found) return ds306Clone(found);
+    }
+    let scoped = rows;
+    if(customer) scoped = rows.filter(function(p){ return ds306Norm((p&& (p.customerId || p.ownerId)) || '') === customer; });
+    if(name){
+      found = scoped.find(function(p){ return [p&&p.name,p&&p.petName,p&&p.dogName].map(ds306Lower).filter(Boolean).includes(name); }) || null;
+      if(!found) found = rows.find(function(p){ return [p&&p.name,p&&p.petName,p&&p.dogName].map(ds306Lower).filter(Boolean).includes(name); }) || null;
+      if(found) return ds306Clone(found);
+    }
+    return null;
+  }
+  function ds306CanonicalFromSignals(input){
+    const raw = input && typeof input === 'object' ? input : {};
+    const customer = ds306FindCustomer(raw.customerId || '', raw.customerName || (raw.customer && (raw.customer.name || raw.customer.displayName || raw.customer.lastName)) || '', raw.customerEmail || (raw.customer && raw.customer.email) || '');
+    let customerId = ds306Norm((customer && (customer.id || customer.customerId || customer.uid || customer.portalUid || customer.customerUid)) || raw.customerId || '');
+    const pet = ds306FindPet(raw.petId || raw.dogId || '', customerId, raw.petName || (raw.pet && (raw.pet.name || raw.pet.petName || raw.pet.dogName)) || '');
+    let petId = ds306Norm((pet && (pet.id || pet.petId || pet.dogId)) || raw.petId || raw.dogId || '');
+    if(!customerId && pet) customerId = ds306Norm((pet.customerId || pet.ownerId) || '');
+    return { customerId, petId, customer, pet };
+  }
+  async function ds306PersistContractSubset(customerId, petId, sigRec, agrRec){
+    try{
+      const version = ds306Norm((agrRec && agrRec.version) || (state && state.contractVersion) || (state && state.contract && state.contract.version) || 'v1.0') || 'v1.0';
+      const sigKey = (typeof _contractSigKey === 'function') ? _contractSigKey(customerId, petId, version) : (version + '__' + customerId + '__' + petId);
+      const agrKey = version + '__' + customerId + '__' + petId + '::' + version;
+      if(typeof dsForceReviewSubsetPersist === 'function'){
+        await dsForceReviewSubsetPersist('contract', {
+          customer: (typeof getCustomer === 'function' ? (getCustomer(customerId) || {}) : {}),
+          pet: (typeof getPet === 'function' ? (getPet(petId) || {}) : {}),
+          signatureKey: sigKey,
+          signatureRec: sigRec,
+          agreementKey: agrKey,
+          agreementRec: agrRec,
+          reason: 'gb306-contract-main-save'
+        });
+      }
+      return { sigKey, agrKey };
+    }catch(_){ return null; }
+  }
+  try{
+    const prevSaveAgreement = (typeof renderContractPanel === 'function') ? null : null;
+  }catch(_){ }
+  try{
+    const originalRender = (typeof renderContractPanel === 'function') ? renderContractPanel : null;
+    if(originalRender && !originalRender.__gb306WrappedMainSave){
+      const wrappedRender = function(){
+        const ret = originalRender.apply(this, arguments);
+        try{
+          const saveBtn = document.getElementById('contractSaveBtn') || document.getElementById('btnContractSave') || document.getElementById('contractSave');
+          if(saveBtn && !saveBtn.dataset.gb306MainBound){
+            saveBtn.dataset.gb306MainBound = '1';
+            saveBtn.addEventListener('click', function(){
+              setTimeout(async function(){
+                try{
+                  const cs = document.getElementById('contractCustomerSelect');
+                  const ps = document.getElementById('contractPetSelect');
+                  const accept = document.getElementById('contractAcceptChk');
+                  const customerId = ds306Norm(cs && cs.value || '');
+                  const petId = ds306Norm(ps && ps.value || '');
+                  if(!customerId || !petId || !(accept && accept.checked)) return;
+                  const version = ds306Norm((state && state.contractVersion) || (state && state.contract && state.contract.version) || 'v1.0') || 'v1.0';
+                  const sigKey = (typeof _contractSigKey === 'function') ? _contractSigKey(customerId, petId, version) : (version + '__' + customerId + '__' + petId);
+                  const sigRec = state && state.contractSignatures ? (state.contractSignatures[sigKey] || null) : null;
+                  const agrKey = version + '__' + customerId + '__' + petId + '::' + version;
+                  const agrRec = state && state.contractAgreements ? (state.contractAgreements[agrKey] || null) : null;
+                  if(sigRec && agrRec){ await ds306PersistContractSubset(customerId, petId, ds306Clone(sigRec), ds306Clone(agrRec)); }
+                }catch(_){ }
+              }, 20);
+            }, true);
+          }
+        }catch(_){ }
+        return ret;
+      };
+      wrappedRender.__gb306WrappedMainSave = true;
+      wrappedRender.__gb306Base = originalRender;
+      renderContractPanel = wrappedRender;
+      try{ window.renderContractPanel = wrappedRender; }catch(_){ }
+    }
+  }catch(_){ }
+  function ds306SafeRefresh(){
+    try{
+      try{ if(typeof ensureStateShape === 'function') ensureStateShape(); }catch(_){ }
+      try{ if(typeof ensureContractDefaults === 'function') ensureContractDefaults(); }catch(_){ }
+      try{ if(typeof window.__dsContractMainNormalize === 'function') window.__dsContractMainNormalize(true); }catch(_){ }
+      try{ if(typeof renderContractPanel === 'function') renderContractPanel(); }catch(_){ }
+      setTimeout(function(){ try{ if(typeof window.__dsContractMainNormalize === 'function') window.__dsContractMainNormalize(true); }catch(_){ } }, 30);
+      setTimeout(function(){ try{ if(typeof renderDogs === 'function') renderDogs(); }catch(_){ } }, 60);
+      return false;
+    }catch(_){ return false; }
+  }
+  try{
+    ds209RefreshContractPanel = ds306SafeRefresh;
+    try{ window.ds209RefreshContractPanel = ds306SafeRefresh; }catch(_){ }
+    const bindBtn = function(){
+      try{
+        const btn = document.getElementById('btnContractRefresh');
+        if(!btn || btn.dataset.gb306Bound) return;
+        btn.dataset.gb306Bound = '1';
+        btn.onclick = function(ev){ try{ ev.preventDefault(); ev.stopPropagation(); }catch(_){ } return ds306SafeRefresh(); };
+        btn.addEventListener('click', function(ev){ try{ ev.preventDefault(); ev.stopPropagation(); ev.stopImmediatePropagation(); }catch(_){ } return ds306SafeRefresh(); }, true);
+      }catch(_){ }
+    };
+    bindBtn();
+    setTimeout(bindBtn, 50);
+    setTimeout(bindBtn, 500);
+  }catch(_){ }
+  try{
+    const prevReviewHook = window.__dsContractReviewSubmitHook;
+    if(typeof prevReviewHook === 'function' && !prevReviewHook.__gb306Wrapped){
+      const wrappedReviewHook = async function(){
+        let review = null, row = null, snap = null;
+        try{ review = (window.__dsInlineInboxReview && window.__dsInlineInboxReview.kind === 'contract') ? window.__dsInlineInboxReview : null; }catch(_){ }
+        try{ row = review && review.row ? ds306Clone(review.row) : ds306Clone(window.__dsInboxCurrentTask || null); }catch(_){ }
+        try{ snap = review && review.snapshot ? ds306Clone(review.snapshot) : ds306Clone(window.__dsContractReviewSnapshot || null); }catch(_){ }
+        const ok = await prevReviewHook.apply(this, arguments);
+        if(ok){
+          try{
+            const fixed = ds306CanonicalFromSignals({
+              customerId: snap && snap.customerId,
+              petId: snap && snap.petId,
+              dogId: row && (row.dogId || row.pid),
+              customerName: (snap && snap.customer && (snap.customer.name || snap.customer.displayName || snap.customer.lastName)) || (row && (row.customerName || row.name)),
+              customerEmail: (snap && snap.customer && snap.customer.email) || (row && (row.customerEmail || row.email)),
+              petName: (snap && snap.pet && (snap.pet.name || snap.pet.petName || snap.pet.dogName)) || (row && (row.petName || row.dogName)),
+              customer: snap && snap.customer,
+              pet: snap && snap.pet
+            });
+            const customerId = fixed.customerId;
+            const petId = fixed.petId;
+            const version = ds306Norm((snap && snap.version) || (state && state.contractVersion) || (state && state.contract && state.contract.version) || 'v1.0') || 'v1.0';
+            if(customerId && petId){
+              state.contractSignatures = state.contractSignatures || {};
+              state.contractAgreements = state.contractAgreements || {};
+              let rawSigKey = (typeof _contractSigKey === 'function') ? _contractSigKey(ds306Norm(snap && snap.customerId || ''), ds306Norm(snap && snap.petId || ''), version) : (version + '__' + ds306Norm(snap && snap.customerId || '') + '__' + ds306Norm(snap && snap.petId || ''));
+              let sigRec = (state.contractSignatures && state.contractSignatures[rawSigKey]) || null;
+              if(!(sigRec && (sigRec.dataUrl || sigRec.signatureDataUrl)) && snap && snap.signature && snap.signature.dataUrl) sigRec = { dataUrl:String(snap.signature.dataUrl || ''), signedAt: snap.signature.signedAt || Date.now() };
+              const canonSigKey = (typeof _contractSigKey === 'function') ? _contractSigKey(customerId, petId, version) : (version + '__' + customerId + '__' + petId);
+              if(sigRec && (sigRec.dataUrl || sigRec.signatureDataUrl)) state.contractSignatures[canonSigKey] = ds306Clone(sigRec);
+              const agrKey = version + '__' + customerId + '__' + petId + '::' + version;
+              const agrRec = { customerId:customerId, petId:petId, version:version, accepted:true, signatureAt:(sigRec && (sigRec.signedAt || sigRec.signatureAt)) || Date.now(), savedAt:Date.now(), source:'proposal-review-gb306-repair' };
+              state.contractAgreements[agrKey] = ds306Clone(agrRec);
+              try{ if(typeof dsMirrorContractToPetOwner === 'function') dsMirrorContractToPetOwner(customerId, petId, version); }catch(_){ }
+              try{ if(state) state.contractSelection = { customerId:customerId, petId:petId }; }catch(_){ }
+              try{ if(typeof saveState === 'function') saveState(); }catch(_){ }
+              try{ await ds306PersistContractSubset(customerId, petId, ds306Clone(sigRec || {}), ds306Clone(agrRec)); }catch(_){ }
+              try{ if(typeof renderDogs === 'function') renderDogs(); }catch(_){ }
+            }
+          }catch(_){ }
+        }
+        return ok;
+      };
+      wrappedReviewHook.__gb306Wrapped = true;
+      wrappedReviewHook.__gb306Base = prevReviewHook;
+      window.__dsContractReviewSubmitHook = wrappedReviewHook;
+    }
+  }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB306-appjs'; }catch(_){ }
+})();
+/* ===== END GB306 ===== */
