@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB304_CONTRACTPROPOSAL_CANONICALID_EXITFIX_20260414_ROOTONLY",
+  tag: "M50.9.9GB305_CONTRACTPROPOSAL_CANONICAL_MATCH_20260414_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB304_CONTRACTPROPOSAL_CANONICALID_EXITFIX_20260414_ROOTONLY";
+const APP_BUILD = "M50.9.9GB305_CONTRACTPROPOSAL_CANONICAL_MATCH_20260414_ROOTONLY";
 try{ window.__dsAppJsRuntimeBuild = "GB292-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -25534,7 +25534,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB304_CONTRACTPROPOSAL_CANONICALID_EXITFIX_20260414_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB305_CONTRACTPROPOSAL_CANONICAL_MATCH_20260414_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -27507,7 +27507,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB304_CONTRACTPROPOSAL_CANONICALID_EXITFIX_20260414_ROOTONLY";
+  const BUILD = "M50.9.9GB305_CONTRACTPROPOSAL_CANONICAL_MATCH_20260414_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -31097,7 +31097,7 @@ try{ window.__GB294_MARKER = 'active'; }catch(_){ }
 /* ===== GB295 contract review verified open + reset fix ===== */
 try{ window.__GB295_MARKER = 'active'; }catch(_){ }
 (function(){
-  const BUILD = "M50.9.9GB304_CONTRACTPROPOSAL_CANONICALID_EXITFIX_20260414_ROOTONLY";
+  const BUILD = "M50.9.9GB305_CONTRACTPROPOSAL_CANONICAL_MATCH_20260414_ROOTONLY";
   function ds295Clone(v){ try{ return JSON.parse(JSON.stringify(v == null ? null : v)); }catch(_){ return v; } }
   function ds295Norm(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
   function ds295Bool(v){ try{ if(v===true||v===false) return !!v; const s=String(v==null?'':v).trim().toLowerCase(); return s==='1'||s==='true'||s==='yes'||s==='ja'||s==='on'; }catch(_){ return false; } }
@@ -33884,6 +33884,189 @@ try{ window.__GB304_MARKER = 'active'; }catch(_){ }
     }
   }catch(_){ }
   try{ window.__dsContractReviewExitToMainGB304 = ds304ExitReviewToMain; }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB304-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB305-appjs'; }catch(_){ }
 })();
 /* ===== END GB304 ===== */
+
+
+/* ===== GB305 contract proposal canonical entity resolver ===== */
+try{ window.__GB305_MARKER = 'active'; }catch(_){ }
+(function(){
+  const DS305_BUILD = 'GB305';
+  function ds305Norm(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
+  function ds305Clone(v){ try{ return JSON.parse(JSON.stringify(v == null ? null : v)); }catch(_){ return v; } }
+  function ds305Lower(v){ return ds305Norm(v).toLowerCase(); }
+  function ds305CustomerRows(){
+    try{ return Array.isArray(state && state.customers) ? state.customers.slice() : []; }catch(_){ return []; }
+  }
+  function ds305PetRows(){
+    try{ if(Array.isArray(state && state.pets)) return state.pets.slice(); }catch(_){ }
+    try{ if(Array.isArray(state && state.dogs)) return state.dogs.slice(); }catch(_){ }
+    return [];
+  }
+  function ds305FindCustomerBySignals(rawId, customerObj, row){
+    let found = null;
+    const id = ds305Norm(rawId || (customerObj && (customerObj.id || customerObj.customerId || customerObj.uid || customerObj.portalUid)) || '');
+    const email = ds305Lower((customerObj && customerObj.email) || (row && (row.customerEmail || row.email)) || '');
+    const name = ds305Lower((customerObj && (customerObj.name || customerObj.displayName || customerObj.lastName)) || (row && (row.customerName || row.name)) || '');
+    try{ if(id && typeof getCustomer === 'function') found = getCustomer(id) || null; }catch(_){ }
+    if(found) return ds305Clone(found);
+    const customers = ds305CustomerRows();
+    if(id){
+      found = customers.find(function(c){
+        const ids = [c && c.id, c && c.customerId, c && c.uid, c && c.portalUid, c && c.customerUid].map(ds305Norm).filter(Boolean);
+        return ids.includes(id);
+      }) || null;
+      if(found) return ds305Clone(found);
+    }
+    if(email){
+      found = customers.find(function(c){ return ds305Lower(c && c.email) === email; }) || null;
+      if(found) return ds305Clone(found);
+    }
+    if(name){
+      found = customers.find(function(c){
+        const names = [c && c.name, c && c.displayName, c && c.lastName, c && c.firstName].map(ds305Lower).filter(Boolean);
+        return names.includes(name);
+      }) || null;
+      if(found) return ds305Clone(found);
+    }
+    return customerObj && typeof customerObj === 'object' ? ds305Clone(customerObj) : null;
+  }
+  function ds305FindPetBySignals(rawId, customerId, petObj, row){
+    let found = null;
+    const id = ds305Norm(rawId || (petObj && (petObj.id || petObj.petId || petObj.dogId)) || (row && (row.petId || row.pid || row.dogId)) || '');
+    const name = ds305Lower((petObj && (petObj.name || petObj.petName || petObj.dogName)) || (row && (row.petName || row.dogName)) || '');
+    try{ if(id && typeof getPet === 'function') found = getPet(id) || null; }catch(_){ }
+    try{ if(!found && id && typeof getPetByDogId === 'function') found = getPetByDogId(id) || null; }catch(_){ }
+    if(found) return ds305Clone(found);
+    const pets = ds305PetRows();
+    if(id){
+      found = pets.find(function(p){
+        const ids = [p && p.id, p && p.petId, p && p.dogId, p && p.uid, p && p.key].map(ds305Norm).filter(Boolean);
+        return ids.includes(id);
+      }) || null;
+      if(found) return ds305Clone(found);
+    }
+    const scopedPets = customerId ? pets.filter(function(p){
+      const cid = ds305Norm((p && (p.customerId || p.ownerId)) || '');
+      return !customerId || cid === ds305Norm(customerId);
+    }) : pets;
+    if(name){
+      found = scopedPets.find(function(p){
+        const names = [p && p.name, p && p.petName, p && p.dogName].map(ds305Lower).filter(Boolean);
+        return names.includes(name);
+      }) || null;
+      if(found) return ds305Clone(found);
+      found = pets.find(function(p){
+        const names = [p && p.name, p && p.petName, p && p.dogName].map(ds305Lower).filter(Boolean);
+        return names.includes(name);
+      }) || null;
+      if(found) return ds305Clone(found);
+    }
+    return petObj && typeof petObj === 'object' ? ds305Clone(petObj) : null;
+  }
+  function ds305Canonicalize(customerId, petId, customerObj, petObj, row){
+    const customer = ds305FindCustomerBySignals(customerId, customerObj, row);
+    let cid = ds305Norm((customer && (customer.id || customer.customerId || customer.uid || customer.portalUid || customer.customerUid)) || customerId || '');
+    const pet = ds305FindPetBySignals(petId, cid, petObj, row);
+    let pid = ds305Norm((pet && (pet.id || pet.petId || pet.dogId)) || petId || '');
+    if(!cid && pet) cid = ds305Norm((pet.customerId || pet.ownerId) || '');
+    if(customer){ customer.id = ds305Norm(customer.id || customer.customerId || cid); customer.customerId = customer.id; }
+    if(pet){
+      pet.id = ds305Norm(pet.id || pet.petId || pid);
+      pet.petId = pet.id;
+      if(cid) pet.customerId = ds305Norm(pet.customerId || pet.ownerId || cid);
+      if(!pid) pid = pet.id;
+    }
+    return { customerId:cid, petId:pid, customer:customer, pet:pet };
+  }
+  function ds305ApplyCanonicalToSnapshot(snap, row){
+    try{
+      const fixed = ds305Canonicalize(snap && snap.customerId, snap && snap.petId, snap && snap.customer, snap && snap.pet, row || null);
+      if(fixed.customerId) snap.customerId = fixed.customerId;
+      if(fixed.petId) snap.petId = fixed.petId;
+      if(fixed.customer) snap.customer = fixed.customer;
+      if(fixed.pet) snap.pet = fixed.pet;
+      return snap;
+    }catch(_){ return snap; }
+  }
+  try{
+    const prevHook = window.__dsContractReviewSubmitHook;
+    if(typeof prevHook === 'function' && !prevHook.__gb305Wrapped){
+      const wrapped = async function(){
+        try{
+          const review = (window.__dsInlineInboxReview && window.__dsInlineInboxReview.kind === 'contract') ? window.__dsInlineInboxReview : null;
+          const row = review && review.row ? ds305Clone(review.row) : ds305Clone(window.__dsInboxCurrentTask || null);
+          let snap = ds305Clone((review && review.snapshot) || window.__dsContractReviewSnapshot || null);
+          if(snap){
+            snap = ds305ApplyCanonicalToSnapshot(snap, row);
+            try{ if(review) review.snapshot = ds305Clone(snap); }catch(_){ }
+            try{ window.__dsContractReviewSnapshot = ds305Clone(snap); }catch(_){ }
+          }
+        }catch(_){ }
+        const ok = await prevHook.apply(this, arguments);
+        if(ok){
+          try{ if(typeof saveState === 'function') saveState(); }catch(_){ }
+          try{ if(typeof renderDogs === 'function') renderDogs(); }catch(_){ }
+          try{ if(typeof window.__dsContractMainNormalize === 'function') window.__dsContractMainNormalize(false); }catch(_){ }
+        }
+        return ok;
+      };
+      wrapped.__gb305Wrapped = true;
+      wrapped.__gb305Base = prevHook;
+      window.__dsContractReviewSubmitHook = wrapped;
+    }
+  }catch(_){ }
+  try{
+    const prevResolve = (typeof dsResolveProposalCustomerPet === 'function') ? dsResolveProposalCustomerPet : null;
+    if(prevResolve && !prevResolve.__gb305Wrapped){
+      const wrapped = function(row){
+        const info = ds305Clone(prevResolve.apply(this, arguments) || {}) || {};
+        const fixed = ds305Canonicalize(info.customerId || '', info.petId || '', info.customer || null, info.pet || null, row || null);
+        if(fixed.customerId) info.customerId = fixed.customerId;
+        if(fixed.petId) info.petId = fixed.petId;
+        if(fixed.customer) info.customer = fixed.customer;
+        if(fixed.pet) info.pet = fixed.pet;
+        return info;
+      };
+      wrapped.__gb305Wrapped = true;
+      wrapped.__gb305Base = prevResolve;
+      dsResolveProposalCustomerPet = wrapped;
+      try{ window.dsResolveProposalCustomerPet = wrapped; }catch(_){ }
+    }
+  }catch(_){ }
+  try{
+    const prevBuild = (typeof ds295BuildContractSnapshot === 'function') ? ds295BuildContractSnapshot : null;
+    if(prevBuild && !prevBuild.__gb305Wrapped){
+      const wrapped = function(row){
+        const snap = ds305Clone(prevBuild.apply(this, arguments) || {}) || {};
+        return ds305ApplyCanonicalToSnapshot(snap, row || null);
+      };
+      wrapped.__gb305Wrapped = true;
+      wrapped.__gb305Base = prevBuild;
+      ds295BuildContractSnapshot = wrapped;
+      try{ window.ds295BuildContractSnapshot = wrapped; }catch(_){ }
+    }
+  }catch(_){ }
+  try{
+    const prevHas = (typeof hasValidContract === 'function') ? hasValidContract : null;
+    if(prevHas && !prevHas.__gb305Wrapped){
+      const wrapped = function(customerId, petId){
+        try{ if(prevHas(customerId, petId)) return true; }catch(_){ }
+        try{
+          const fixed = ds305Canonicalize(customerId, petId, null, null, null);
+          if((fixed.customerId && fixed.customerId !== ds305Norm(customerId)) || (fixed.petId && fixed.petId !== ds305Norm(petId))){
+            return !!prevHas(fixed.customerId || customerId, fixed.petId || petId);
+          }
+        }catch(_){ }
+        return false;
+      };
+      wrapped.__gb305Wrapped = true;
+      wrapped.__gb305Base = prevHas;
+      hasValidContract = wrapped;
+      try{ window.hasValidContract = wrapped; }catch(_){ }
+    }
+  }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB305-appjs'; }catch(_){ }
+})();
+/* ===== END GB305 ===== */
