@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB309B_BUILDLABEL_HARDOVERLAY_20260415_ROOTONLY",
+  tag: "M50.9.9GB311_CLEANREBASE_BASELINE_20260415_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,8 +12,8 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB309B_BUILDLABEL_HARDOVERLAY_20260415_ROOTONLY";
-try{ window.__dsAppJsRuntimeBuild = "GB309B-appjs"; }catch(_){ }
+const APP_BUILD = "M50.9.9GB311_CLEANREBASE_BASELINE_20260415_ROOTONLY";
+try{ window.__dsAppJsRuntimeBuild = "GB311-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
 // Global helper functions used across proposal-review matching.
@@ -34860,3 +34860,7 @@ try{ window.__dsAppJsRuntimeBuild = 'GB309B-appjs'; }catch(_){ }
   setTimeout(ensureBuildOverlay, 1500);
 })();
 /* ===== END GB309B ===== */
+
+
+/* GB311 runtime normalizer */
+try{ window.__APP_BUILD = 'M50.9.9GB311_CLEANREBASE_BASELINE_20260415_ROOTONLY'; window.__dsAppJsRuntimeBuild='GB311-appjs'; }catch(_ ){}
