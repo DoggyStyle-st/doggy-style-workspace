@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB309_CONTRACT_REFRESH_BUTTON_OVERRIDE_20260414_ROOTONLY";
+const APP_BUILD = "M50.9.9GB309A_BUILDLABEL_SYNCFIX_20260415_ROOTONLY";
 try{ window.__dsAppJsRuntimeBuild = "GB309-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -588,8 +588,21 @@ function warnStaySignatureMissing(doc){
 // --- Build-Sync (Anzeige + Migration) ---
 (function syncBuildBadge(){
   try{
-    const el = document.getElementById('buildBadge');
-    if(el) el.textContent = 'Build (MASTER) ' + APP_BUILD;
+    let el = document.getElementById('buildBadge');
+    if(!el){
+      el = document.createElement('div');
+      el.id = 'buildBadge';
+      el.className = 'build-badge';
+      el.style.position = 'fixed';
+      el.style.left = '10px';
+      el.style.bottom = '8px';
+      el.style.zIndex = '9999';
+      document.body.appendChild(el);
+    }
+    el.textContent = 'Build (MASTER) ' + APP_BUILD;
+    el.style.display = 'block';
+    el.style.visibility = 'visible';
+    el.style.opacity = '1';
   }catch(_){}
   try{
     const key = 'ds_app_build';
