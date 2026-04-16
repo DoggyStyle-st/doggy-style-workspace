@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB311_CLEANREBASE_BASELINE_20260415_ROOTONLY",
+  tag: "M50.9.9GB309_CONTRACT_REFRESH_BUTTON_OVERRIDE_20260414_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,8 +12,8 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB311_CLEANREBASE_BASELINE_20260415_ROOTONLY";
-try{ window.__dsAppJsRuntimeBuild = "GB311-appjs"; }catch(_){ }
+const APP_BUILD = "M50.9.9GB309_CONTRACT_REFRESH_BUTTON_OVERRIDE_20260414_ROOTONLY";
+try{ window.__dsAppJsRuntimeBuild = "GB309-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
 // Global helper functions used across proposal-review matching.
@@ -588,21 +588,8 @@ function warnStaySignatureMissing(doc){
 // --- Build-Sync (Anzeige + Migration) ---
 (function syncBuildBadge(){
   try{
-    let el = document.getElementById('buildBadge');
-    if(!el){
-      el = document.createElement('div');
-      el.id = 'buildBadge';
-      el.className = 'build-badge';
-      el.style.position = 'fixed';
-      el.style.left = '10px';
-      el.style.bottom = '8px';
-      el.style.zIndex = '9999';
-      document.body.appendChild(el);
-    }
-    el.textContent = 'Build (MASTER) ' + APP_BUILD;
-    el.style.display = 'block';
-    el.style.visibility = 'visible';
-    el.style.opacity = '1';
+    const el = document.getElementById('buildBadge');
+    if(el) el.textContent = 'Build (MASTER) ' + APP_BUILD;
   }catch(_){}
   try{
     const key = 'ds_app_build';
@@ -34625,8 +34612,8 @@ try{ window.__dsAppJsRuntimeBuild = 'GB308-appjs'; }catch(_){ }
 
 
 /* ===== GB309 contract refresh replace + canonical persist ===== */
-try{ window.__GB309B_MARKER = 'active'; }catch(_){ }
-try{ window.__dsAppJsRuntimeBuild = 'GB309B-appjs'; }catch(_){ }
+try{ window.__GB309_MARKER = 'active'; }catch(_){ }
+try{ window.__dsAppJsRuntimeBuild = 'GB309-appjs'; }catch(_){ }
 (function(){
   function n(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
   function clone(v){ try{ return JSON.parse(JSON.stringify(v == null ? null : v)); }catch(_){ return v; } }
@@ -34829,38 +34816,3 @@ try{ window.__dsAppJsRuntimeBuild = 'GB309B-appjs'; }catch(_){ }
   setTimeout(boot, 100); setTimeout(boot, 800); setInterval(function(){ try{ if(document.getElementById('contract')){ hardBindRefresh(); forceAcceptedFromReview(); } }catch(_){ } }, 1200);
 })();
 /* ===== END GB309 ===== */
-
-
-/* ===== GB309B build label hard overlay ===== */
-(function(){
-  function ensureBuildOverlay(){
-    try{
-      var id='buildBadgeHard';
-      var el=document.getElementById(id);
-      if(!el){
-        el=document.createElement('div');
-        el.id=id;
-        document.body.appendChild(el);
-      }
-      el.textContent='Build (MASTER) '+APP_BUILD;
-      el.setAttribute('style', [
-        'position:fixed','left:10px','bottom:10px','z-index:2147483647',
-        'background:rgba(0,0,0,0.75)','color:#d7d7d7','padding:6px 10px',
-        'border-radius:10px','font:12px/1.3 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif',
-        'box-shadow:0 2px 12px rgba(0,0,0,0.35)','pointer-events:none','display:block',
-        'visibility:visible','opacity:1','max-width:90vw','word-break:break-word'
-      ].join(';'));
-    }catch(e){}
-  }
-  if(document.readyState==='loading'){
-    document.addEventListener('DOMContentLoaded', ensureBuildOverlay, {once:true});
-  } else ensureBuildOverlay();
-  window.addEventListener('load', ensureBuildOverlay);
-  setTimeout(ensureBuildOverlay, 300);
-  setTimeout(ensureBuildOverlay, 1500);
-})();
-/* ===== END GB309B ===== */
-
-
-/* GB311 runtime normalizer */
-try{ window.__APP_BUILD = 'M50.9.9GB311_CLEANREBASE_BASELINE_20260415_ROOTONLY'; window.__dsAppJsRuntimeBuild='GB311-appjs'; }catch(_ ){}
