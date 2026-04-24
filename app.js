@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB307_CONTRACT_DIAG_PANEL_20260414_ROOTONLY",
+  tag: "M50.9.9GB310_BASE_RELOCK_INBOX_KEEP_20260424_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,9 +12,9 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB307_CONTRACT_DIAG_PANEL_20260414_ROOTONLY";
-try{ window.__dsAppJsRuntimeBuild = "GB292-appjs"; }catch(_){ }
-try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
+const APP_BUILD = "M50.9.9GB310_BASE_RELOCK_INBOX_KEEP_20260424_ROOTONLY";
+try{ window.__dsAppJsRuntimeBuild = "GB310-appjs"; }catch(_){ }
+try{ window.__dsAppJsRuntime = 'GB310-appjs'; }catch(_){ }
 
 // Global helper functions used across proposal-review matching.
 // Some review resolver paths expect norm()/lower() to exist in the outer scope.
@@ -588,8 +588,19 @@ function warnStaySignatureMissing(doc){
 // --- Build-Sync (Anzeige + Migration) ---
 (function syncBuildBadge(){
   try{
-    const el = document.getElementById('buildBadge');
-    if(el) el.textContent = 'Build (MASTER) ' + APP_BUILD;
+    let el = document.getElementById("buildBadge");
+    if(!el && document && document.body){
+      el = document.createElement("div");
+      el.id = "buildBadge";
+      el.className = "build-badge";
+      el.setAttribute("data-ds-build-failsafe","1");
+      document.body.appendChild(el);
+    }
+    if(el){
+      el.textContent = "Build (MASTER) " + APP_BUILD;
+      el.style.display = "block";
+      el.style.visibility = "visible";
+    }
   }catch(_){}
   try{
     const key = 'ds_app_build';
@@ -25534,7 +25545,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB307_CONTRACT_DIAG_PANEL_20260414_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB310_BASE_RELOCK_INBOX_KEEP_20260424_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -27507,7 +27518,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB307_CONTRACT_DIAG_PANEL_20260414_ROOTONLY";
+  const BUILD = "M50.9.9GB310_BASE_RELOCK_INBOX_KEEP_20260424_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -30184,7 +30195,7 @@ try{ window.__GB191_MARKER = 'active'; }catch(_){ }
     try{ ds166OpenRowByKey = window.ds166OpenRowByKey; }catch(_){ }
   }catch(_){ }
 })();
-try{ window.__dsAppJsRuntimeBuild = 'GB292-appjs'; }catch(_){}
+try{ window.__dsAppJsRuntimeBuild = 'GB310-appjs'; }catch(_){}
 /* ===== END GB194 ===== */
 
 
@@ -31097,7 +31108,7 @@ try{ window.__GB294_MARKER = 'active'; }catch(_){ }
 /* ===== GB295 contract review verified open + reset fix ===== */
 try{ window.__GB295_MARKER = 'active'; }catch(_){ }
 (function(){
-  const BUILD = "M50.9.9GB307_CONTRACT_DIAG_PANEL_20260414_ROOTONLY";
+  const BUILD = "M50.9.9GB310_BASE_RELOCK_INBOX_KEEP_20260424_ROOTONLY";
   function ds295Clone(v){ try{ return JSON.parse(JSON.stringify(v == null ? null : v)); }catch(_){ return v; } }
   function ds295Norm(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
   function ds295Bool(v){ try{ if(v===true||v===false) return !!v; const s=String(v==null?'':v).trim().toLowerCase(); return s==='1'||s==='true'||s==='yes'||s==='ja'||s==='on'; }catch(_){ return false; } }
@@ -34278,7 +34289,7 @@ try{ window.__GB306_MARKER = 'active'; }catch(_){ }
 
 /* ===== GB307 contract diagnostics panel ===== */
 try{ window.__GB307_MARKER = 'active'; }catch(_){ }
-try{ window.__dsAppJsRuntimeBuild = 'GB307-appjs'; }catch(_){ }
+try{ window.__dsAppJsRuntimeBuild = 'GB310-appjs'; }catch(_){ }
 (function(){
   const DIAG = window.__dsContractDiag = window.__dsContractDiag || {};
   const UNION_KEYS = [
@@ -34500,7 +34511,7 @@ try{ window.__dsAppJsRuntimeBuild = 'GB307-appjs'; }catch(_){ }
 
 /* ===== GB308 contract diagnostics hard mount ===== */
 try{ window.__GB308_MARKER = 'active'; }catch(_){ }
-try{ window.__dsAppJsRuntimeBuild = 'GB308-appjs'; }catch(_){ }
+try{ window.__dsAppJsRuntimeBuild = 'GB310-appjs'; }catch(_){ }
 (function(){
   const DIAG = window.__dsContractDiag = window.__dsContractDiag || {};
   function norm(v){ return String(v == null ? '' : v).trim(); }

@@ -1,0 +1,14 @@
+GB310_BASE_RELOCK_INBOX_KEEP_20260424_ROOTONLY
+
+Basis:
+- Direkt aus dem vom Nutzer hochgeladenen GitHub-ZIP erzeugt.
+- Keine bestehenden Inhalte/Module entfernt.
+
+Gezielte Änderung:
+- app.html, app.js, sw.js, version.txt und VERIFY_BUILD.txt auf dieselbe Build-ID synchronisiert.
+- Service-Worker/Cache-Buster bekommt eine neue eindeutige Version.
+- Build-Badge unten links wird in app.js notfalls neu erzeugt, falls es durch HTML/Cache/DOM-Zustand fehlt.
+
+Absicht:
+- Diesen Rücksprung-Stand als neue saubere Basis fixieren.
+- Vorschläge/Eingänge-Logik aus dem hochgeladenen Stand bleibt erhalten.
