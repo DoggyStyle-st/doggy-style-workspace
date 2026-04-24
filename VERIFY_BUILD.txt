@@ -1,2 +1,1 @@
-VERIFY BUILD: M50.9.9GB310_BASE_RELOCK_INBOX_KEEP_20260424_ROOTONLY
-Basis: Nutzer-ZIP vom GitHub-Rueckstand. Inhalte nicht entfernt; Build/Cache synchronisiert; Build-Badge abgesichert.
+VERIFY BUILD: M50.9.9GB311_CONTRACT_ACCEPT_MEDTODO_FIX_20260424_ROOTONLY

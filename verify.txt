@@ -1,14 +1,1 @@
-/tmp/tmp.K3MNhXMi8w/app.js:4:  tag: "M50.9.9GB112_EINGAENGE_ACCEPT_PERSIST_FILTER_20260401",
-/tmp/tmp.K3MNhXMi8w/app.js:15:const APP_BUILD = "M50.9.9GB112_EINGAENGE_ACCEPT_PERSIST_FILTER_20260401";
-/tmp/tmp.K3MNhXMi8w/app.js:20415:/* ===== CHAT (M50.9.9GB112_EINGAENGE_ACCEPT_PERSIST_FILTER_20260401) ===== */
-/tmp/tmp.K3MNhXMi8w/app.js:21995:  const BUILD = "M50.9.9GB112_EINGAENGE_ACCEPT_PERSIST_FILTER_20260401";
-/tmp/tmp.K3MNhXMi8w/app.html:9:  <meta name="app-build" content="M50.9.9GB112_EINGAENGE_ACCEPT_PERSIST_FILTER_20260401">
-/tmp/tmp.K3MNhXMi8w/app.html:15:<link href="styles.css?v=M50.9.9GB112_EINGAENGE_ACCEPT_PERSIST_FILTER_20260401" rel="stylesheet"/>
-/tmp/tmp.K3MNhXMi8w/app.html:105:  <meta name="app-version" content="M50.9.9GB112_EINGAENGE_ACCEPT_PERSIST_FILTER_20260401">
-/tmp/tmp.K3MNhXMi8w/app.html:1197:<!-- Statistics panel is rendered by app.js?v=M50.9.9GB112_EINGAENGE_ACCEPT_PERSIST_FILTER_20260401 (renderStatisticsPanel) -->
-/tmp/tmp.K3MNhXMi8w/app.html:1264:<script defer="defer" src="firebase-config.js?v=M50.9.9GB112_EINGAENGE_ACCEPT_PERSIST_FILTER_20260401"></script>
-/tmp/tmp.K3MNhXMi8w/app.html:1269:<script defer="defer" src="app.js?v=M50.9.9GB112_EINGAENGE_ACCEPT_PERSIST_FILTER_20260401"></script>
-/tmp/tmp.K3MNhXMi8w/app.html:1312:    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB112_EINGAENGE_ACCEPT_PERSIST_FILTER_20260401');
-/tmp/tmp.K3MNhXMi8w/app.html:1376:  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB112_EINGAENGE_ACCEPT_PERSIST_FILTER_20260401</div>
-/tmp/tmp.K3MNhXMi8w/version.txt:1:M50.9.9GB112_EINGAENGE_ACCEPT_PERSIST_FILTER_20260401
-/tmp/tmp.K3MNhXMi8w/sw.js:4:const BUILD_VERSION = "M50.9.9GB112_EINGAENGE_ACCEPT_PERSIST_FILTER_20260401";
+VERIFY M50.9.9GB311_CONTRACT_ACCEPT_MEDTODO_FIX_20260424_ROOTONLY

@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB310_BASE_RELOCK_INBOX_KEEP_20260424_ROOTONLY",
+  tag: "M50.9.9GB311_CONTRACT_ACCEPT_MEDTODO_FIX_20260424_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,9 +12,9 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB310_BASE_RELOCK_INBOX_KEEP_20260424_ROOTONLY";
-try{ window.__dsAppJsRuntimeBuild = "GB310-appjs"; }catch(_){ }
-try{ window.__dsAppJsRuntime = 'GB310-appjs'; }catch(_){ }
+const APP_BUILD = "M50.9.9GB311_CONTRACT_ACCEPT_MEDTODO_FIX_20260424_ROOTONLY";
+try{ window.__dsAppJsRuntimeBuild = "GB292-appjs"; }catch(_){ }
+try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
 // Global helper functions used across proposal-review matching.
 // Some review resolver paths expect norm()/lower() to exist in the outer scope.
@@ -588,19 +588,8 @@ function warnStaySignatureMissing(doc){
 // --- Build-Sync (Anzeige + Migration) ---
 (function syncBuildBadge(){
   try{
-    let el = document.getElementById("buildBadge");
-    if(!el && document && document.body){
-      el = document.createElement("div");
-      el.id = "buildBadge";
-      el.className = "build-badge";
-      el.setAttribute("data-ds-build-failsafe","1");
-      document.body.appendChild(el);
-    }
-    if(el){
-      el.textContent = "Build (MASTER) " + APP_BUILD;
-      el.style.display = "block";
-      el.style.visibility = "visible";
-    }
+    const el = document.getElementById('buildBadge');
+    if(el) el.textContent = 'Build (MASTER) ' + APP_BUILD;
   }catch(_){}
   try{
     const key = 'ds_app_build';
@@ -6161,9 +6150,11 @@ function renderDashboard(){
   try{
     const isoM = todayISO();
     const inCareM = getPetIdsInCare(isoM);
-    const dueM = medDueOccurrences(isoM, (inCareM.length ? inCareM : null));
+    // GB311: Medikamenten-To-do auf dem Dashboard nur anzeigen, wenn heute tatsächlich Hunde in Betreuung sind.
+    // Ohne Aufenthalt dürfen Dauermedikationen nicht als heutiges Pensions-To-do erscheinen.
+    const dueM = inCareM.length ? medDueOccurrences(isoM, inCareM) : [];
     const openM = dueM.filter(x=>!x.done).length;
-    if(openM > 0) warnings.unshift(`💊 ${openM} Medikamenten‑Gabe(n) heute fällig${inCareM.length ? " (in Betreuung)" : ""}`);
+    if(openM > 0) warnings.unshift(`💊 ${openM} Medikamenten‑Gabe(n) heute fällig (in Betreuung)`);
   }catch(e){ /* ignore */ }
   // Gesundheitsnotizen heute (Info)
   try{
@@ -20500,8 +20491,11 @@ function renderContractPanel(){
     }catch(_){ }
     try{
       const review = window.__dsInlineInboxReview;
-      if(review && review.kind === 'contract' && review.row && typeof window.__dsCustomerContractSubmitHook === 'function'){
-        return window.__dsCustomerContractSubmitHook();
+      // GB311: Im Admin-Prüfmodus muss Speichern/Übernehmen den Review-Hook aufrufen,
+      // nicht den Kundenportal-Submit-Hook. Sonst verschwindet der Eingang ggf.,
+      // aber contractAgreements/contractSignatures werden nicht sauber finalisiert.
+      if(review && review.kind === 'contract' && review.row && typeof window.__dsContractReviewSubmitHook === 'function'){
+        return window.__dsContractReviewSubmitHook();
       }
     }catch(_){ }
     const {customerId, petId} = getSelectedIds();
@@ -25545,7 +25539,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB310_BASE_RELOCK_INBOX_KEEP_20260424_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB311_CONTRACT_ACCEPT_MEDTODO_FIX_20260424_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -27518,7 +27512,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB310_BASE_RELOCK_INBOX_KEEP_20260424_ROOTONLY";
+  const BUILD = "M50.9.9GB311_CONTRACT_ACCEPT_MEDTODO_FIX_20260424_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -30195,7 +30189,7 @@ try{ window.__GB191_MARKER = 'active'; }catch(_){ }
     try{ ds166OpenRowByKey = window.ds166OpenRowByKey; }catch(_){ }
   }catch(_){ }
 })();
-try{ window.__dsAppJsRuntimeBuild = 'GB310-appjs'; }catch(_){}
+try{ window.__dsAppJsRuntimeBuild = 'GB292-appjs'; }catch(_){}
 /* ===== END GB194 ===== */
 
 
@@ -31108,7 +31102,7 @@ try{ window.__GB294_MARKER = 'active'; }catch(_){ }
 /* ===== GB295 contract review verified open + reset fix ===== */
 try{ window.__GB295_MARKER = 'active'; }catch(_){ }
 (function(){
-  const BUILD = "M50.9.9GB310_BASE_RELOCK_INBOX_KEEP_20260424_ROOTONLY";
+  const BUILD = "M50.9.9GB311_CONTRACT_ACCEPT_MEDTODO_FIX_20260424_ROOTONLY";
   function ds295Clone(v){ try{ return JSON.parse(JSON.stringify(v == null ? null : v)); }catch(_){ return v; } }
   function ds295Norm(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
   function ds295Bool(v){ try{ if(v===true||v===false) return !!v; const s=String(v==null?'':v).trim().toLowerCase(); return s==='1'||s==='true'||s==='yes'||s==='ja'||s==='on'; }catch(_){ return false; } }
@@ -34289,7 +34283,7 @@ try{ window.__GB306_MARKER = 'active'; }catch(_){ }
 
 /* ===== GB307 contract diagnostics panel ===== */
 try{ window.__GB307_MARKER = 'active'; }catch(_){ }
-try{ window.__dsAppJsRuntimeBuild = 'GB310-appjs'; }catch(_){ }
+try{ window.__dsAppJsRuntimeBuild = 'GB307-appjs'; }catch(_){ }
 (function(){
   const DIAG = window.__dsContractDiag = window.__dsContractDiag || {};
   const UNION_KEYS = [
@@ -34511,7 +34505,7 @@ try{ window.__dsAppJsRuntimeBuild = 'GB310-appjs'; }catch(_){ }
 
 /* ===== GB308 contract diagnostics hard mount ===== */
 try{ window.__GB308_MARKER = 'active'; }catch(_){ }
-try{ window.__dsAppJsRuntimeBuild = 'GB310-appjs'; }catch(_){ }
+try{ window.__dsAppJsRuntimeBuild = 'GB308-appjs'; }catch(_){ }
 (function(){
   const DIAG = window.__dsContractDiag = window.__dsContractDiag || {};
   function norm(v){ return String(v == null ? '' : v).trim(); }
@@ -34620,3 +34614,72 @@ try{ window.__dsAppJsRuntimeBuild = 'GB310-appjs'; }catch(_){ }
   setInterval(tick, 1200);
 })();
 /* ===== END GB308 ===== */
+
+
+/* ===== GB311 contract agreement harden + dashboard med todo guard ===== */
+try{ window.__GB311_MARKER = 'active'; }catch(_){ }
+(function(){
+  function gb311Norm(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
+  function gb311AgrKey(customerId, petId, version){
+    try{ if(typeof _agreementKey === 'function') return _agreementKey(customerId, petId, version); }catch(_){ }
+    var v = gb311Norm(version || (state && (state.contractVersion || (state.contract && state.contract.version))) || 'v1.0') || 'v1.0';
+    return v + '__' + gb311Norm(customerId) + '__' + gb311Norm(petId) + '::' + v;
+  }
+  function gb311SigKey(customerId, petId, version){
+    try{ if(typeof _contractSigKey === 'function') return _contractSigKey(customerId, petId, version); }catch(_){ }
+    var v = gb311Norm(version || (state && (state.contractVersion || (state.contract && state.contract.version))) || 'v1.0') || 'v1.0';
+    return v + '__' + gb311Norm(customerId) + '__' + gb311Norm(petId);
+  }
+  function gb311MirrorAgreement(customerId, petId, version, sigRec, source){
+    try{
+      if(!state) return;
+      customerId = gb311Norm(customerId); petId = gb311Norm(petId);
+      if(!customerId || !petId) return;
+      version = gb311Norm(version || state.contractVersion || (state.contract && state.contract.version) || 'v1.0') || 'v1.0';
+      state.contractVersion = version;
+      state.contractAgreements = state.contractAgreements || {};
+      state.contractSignatures = state.contractSignatures || {};
+      var sk = gb311SigKey(customerId, petId, version);
+      if(sigRec && (sigRec.dataUrl || sigRec.signatureDataUrl)){
+        state.contractSignatures[sk] = { dataUrl:String(sigRec.dataUrl || sigRec.signatureDataUrl || ''), signedAt:sigRec.signedAt || sigRec.signatureAt || Date.now() };
+      }
+      var ak = gb311AgrKey(customerId, petId, version);
+      state.contractAgreements[ak] = {
+        customerId:customerId,
+        petId:petId,
+        version:version,
+        accepted:true,
+        signatureAt:(sigRec && (sigRec.signedAt || sigRec.signatureAt)) || Date.now(),
+        savedAt:Date.now(),
+        source:source || 'gb311-contract-mirror'
+      };
+      try{ if(typeof dsMirrorContractToPetOwner === 'function') dsMirrorContractToPetOwner(customerId, petId, version); }catch(_){ }
+    }catch(_){ }
+  }
+  try{
+    var prev = window.__dsContractReviewSubmitHook;
+    if(typeof prev === 'function' && !prev.__gb311Wrapped){
+      var wrapped = async function(){
+        var review = null, snap = null;
+        try{ review = window.__dsInlineInboxReview || null; snap = (review && review.snapshot) || window.__dsContractReviewSnapshot || null; }catch(_){ }
+        var ret = await prev.apply(this, arguments);
+        try{
+          if(snap){
+            var sig = snap.signature || null;
+            if((!sig || !(sig.dataUrl || sig.signatureDataUrl)) && state && state.contractSignatures){
+              var version = gb311Norm(snap.version || state.contractVersion || 'v1.0') || 'v1.0';
+              sig = state.contractSignatures[gb311SigKey(snap.customerId, snap.petId, version)] || null;
+            }
+            gb311MirrorAgreement(snap.customerId, snap.petId, snap.version, sig, 'gb311-after-review-save');
+            try{ saveState(); }catch(_){ }
+            try{ if(typeof renderDogs === 'function') renderDogs(); }catch(_){ }
+          }
+        }catch(_){ }
+        return ret;
+      };
+      wrapped.__gb311Wrapped = true;
+      window.__dsContractReviewSubmitHook = wrapped;
+    }
+  }catch(_){ }
+})();
+/* ===== END GB311 ===== */
