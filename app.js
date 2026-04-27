@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB315_CONTRACT_ACCEPT_DIRECT_DOM_GREEN_FIX_20260424_ROOTONLY",
+  tag: "M50.9.9GB316_CONTRACT_SIGNATURE_VALID_BADGE_REPAIR_20260427_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB315_CONTRACT_ACCEPT_DIRECT_DOM_GREEN_FIX_20260424_ROOTONLY";
+const APP_BUILD = "M50.9.9GB316_CONTRACT_SIGNATURE_VALID_BADGE_REPAIR_20260427_ROOTONLY";
 try{ window.__dsAppJsRuntimeBuild = "GB292-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -25540,7 +25540,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB315_CONTRACT_ACCEPT_DIRECT_DOM_GREEN_FIX_20260424_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB316_CONTRACT_SIGNATURE_VALID_BADGE_REPAIR_20260427_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -27513,7 +27513,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB315_CONTRACT_ACCEPT_DIRECT_DOM_GREEN_FIX_20260424_ROOTONLY";
+  const BUILD = "M50.9.9GB316_CONTRACT_SIGNATURE_VALID_BADGE_REPAIR_20260427_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -31103,7 +31103,7 @@ try{ window.__GB294_MARKER = 'active'; }catch(_){ }
 /* ===== GB295 contract review verified open + reset fix ===== */
 try{ window.__GB295_MARKER = 'active'; }catch(_){ }
 (function(){
-  const BUILD = "M50.9.9GB315_CONTRACT_ACCEPT_DIRECT_DOM_GREEN_FIX_20260424_ROOTONLY";
+  const BUILD = "M50.9.9GB316_CONTRACT_SIGNATURE_VALID_BADGE_REPAIR_20260427_ROOTONLY";
   function ds295Clone(v){ try{ return JSON.parse(JSON.stringify(v == null ? null : v)); }catch(_){ return v; } }
   function ds295Norm(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
   function ds295Bool(v){ try{ if(v===true||v===false) return !!v; const s=String(v==null?'':v).trim().toLowerCase(); return s==='1'||s==='true'||s==='yes'||s==='ja'||s==='on'; }catch(_){ return false; } }
@@ -35106,9 +35106,9 @@ try{ window.__GB314_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB314-app
 /* ===== END GB314 ===== */
 
 /* ===== GB315 final contract acceptance + badge DOM hardfix ===== */
-try{ window.__GB315_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB315-appjs'; }catch(_){ }
+try{ window.__GB315_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB316-appjs'; }catch(_){ }
 (function(){
-  var BUILD='M50.9.9GB315_CONTRACT_ACCEPT_DIRECT_DOM_GREEN_FIX_20260424_ROOTONLY';
+  var BUILD='M50.9.9GB316_CONTRACT_SIGNATURE_VALID_BADGE_REPAIR_20260427_ROOTONLY';
   function S(v){ try{return String(v==null?'':v).trim();}catch(_){return '';} }
   function L(v){ return S(v).toLowerCase(); }
   function esc(v){ try{return CSS && CSS.escape ? CSS.escape(S(v)) : S(v).replace(/[^a-zA-Z0-9_-]/g,'\\$&');}catch(_){return S(v);} }
@@ -35251,3 +35251,44 @@ try{ window.__GB315_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB315-app
   window.__dsGB315WriteAccepted=writeAccepted; window.__dsGB315GreenDom=greenDom;
 })();
 /* ===== END GB315 ===== */
+
+/* ===== GB316 contract signature-valid + passive repair loop ===== */
+try{ window.__GB316_MARKER='active'; window.__dsAppJsRuntimeBuild='GB316-appjs'; }catch(_){ }
+(function(){
+  function S(v){ try{ return String(v==null?'':v).trim(); }catch(_){ return ''; } }
+  function L(v){ return S(v).toLowerCase(); }
+  function A(v){ return Array.isArray(v)?v:[]; }
+  function V(){ try{ return S((state&&state.contractVersion)||(state&&state.contract&&state.contract.version)||'v1.0')||'v1.0'; }catch(_){ return 'v1.0'; } }
+  function sk(c,p,v){ v=S(v)||V(); return v+'__'+S(c)+'__'+S(p); }
+  function ak(c,p,v){ v=S(v)||V(); return sk(c,p,v)+'::'+v; }
+  function dn(p){ return S(p&&(p.name||p.petName||p.dogName)); }
+  function cn(c){ return S(c&&(c.name||c.displayName||c.fullName||c.lastName||c.email)); }
+  function pets(){ try{ return (A(state&&state.pets).length?A(state.pets):A(state&&state.dogs)).slice(); }catch(_){ return []; } }
+  function customers(){ try{ return A(state&&state.customers).slice(); }catch(_){ return []; } }
+  function fc(x){ var lx=L(x), r=null; try{ if(x&&typeof getCustomer==='function') r=getCustomer(S(x))||null; }catch(_){ } if(r) return r; return customers().find(function(c){return [c.id,c.customerId,c.uid,c.key,c.portalUid,c.email,c.name,c.displayName,c.fullName,c.lastName].map(L).indexOf(lx)>=0;})||null; }
+  function fp(x,cid){ var lx=L(x), c=S(cid), r=null; try{ if(x&&typeof getPet==='function') r=getPet(S(x))||null; }catch(_){ } try{ if(!r&&x&&typeof getPetByDogId==='function') r=getPetByDogId(S(x))||null; }catch(_){ } if(r) return r; var list=pets(), scoped=c?list.filter(function(p){return S(p&&(p.customerId||p.ownerId))===c;}):list; r=scoped.find(function(p){return [p.id,p.petId,p.dogId,p.uid,p.key,p.name,p.petName,p.dogName].map(L).indexOf(lx)>=0;})||null; if(!r) r=list.find(function(p){return [p.id,p.petId,p.dogId,p.uid,p.key,p.name,p.petName,p.dogName].map(L).indexOf(lx)>=0;})||null; return r; }
+  function can(c,p){ var cc=fc(c), cid=S((cc&&(cc.id||cc.customerId||cc.uid||cc.key||cc.email))||c); var pp=fp(p,cid), pid=S((pp&&(pp.id||pp.petId||pp.dogId||pp.uid||pp.key))||p); if(pp&&S(pp.customerId||pp.ownerId)) cid=S(pp.customerId||pp.ownerId); return {c:cid,p:pid,co:cc||fc(cid),po:pp||fp(pid,cid)}; }
+  function stores(){ var out={a:[],s:[],i:[]}; try{out.a.push(state&&state.contractAgreements||{});out.s.push(state&&state.contractSignatures||{});out.i.push(state&&state.__gb315ContractGreenIndex||[]);}catch(_){ } ['ds_contract_union_gb316','ds_contract_union_gb315','ds_contract_union_gb314','ds_contract_rescue_union_gb313','ds_contract_rescue_union_gb312','ds_contract_rescue_union_gb303','ds_contract_rescue_union_gb302','ds_contract_rescue_union_gb301','ds_contract_rescue_union_gb300','ds_contract_rescue_union_gb299','ds_contract_rescue_v1','ds_contract_green_index_gb315'].forEach(function(k){try{var raw=localStorage.getItem(k);if(!raw)return;var j=JSON.parse(raw)||{};if(k.indexOf('green_index')>=0){out.i.push(Array.isArray(j)?j:[]);return;}out.a.push(j.contractAgreements||j.agreements||{});out.s.push(j.contractSignatures||j.signatures||{});out.i.push(j.greenIndex||j.index||[]);}catch(_){ }}); return out; }
+  function parse(k,agr){ if(agr){var m=String(k||'').match(/^(.+?)__(.+?)__(.+?)::(.+)$/); if(m)return {v:S(m[1]||m[4]),c:S(m[2]),p:S(m[3])};} var a=String(k||'').split('__'); return {v:S(a[0]),c:S(a[1]),p:S(a[2])}; }
+  function text(k,r){ return L([k,r&&r.customerId,r&&r.customerName,r&&r.petId,r&&r.petName,r&&r.dogName,r&&r.name,r&&r.version,r&&r.contractVersion].join(' ')); }
+  function match(k,r,c,p,agr){ var ca=can(c,p), cid=S(ca.c||c), pid=S(ca.p||p), cnam=L(cn(ca.co)||c), pnam=L(dn(ca.po)||p), inf=parse(k,agr), rc=S((r&&r.customerId)||inf.c), rp=S((r&&r.petId)||inf.p), rpo=fp(rp,rc), rco=fc(rc), rpn=L((r&&r.petName)||dn(rpo)||rp), rcn=L((r&&r.customerName)||cn(rco)||rc), t=text(k,r); var ph=(pid&&rp&&pid===rp)||(pid&&t.indexOf(L(pid))>=0)||(pnam&&rpn&&pnam===rpn)||(pnam&&t.indexOf(pnam)>=0); var ch=!cid&&!cnam||(cid&&rc&&cid===rc)||(cid&&t.indexOf(L(cid))>=0)||(cnam&&rcn&&cnam===rcn)||(cnam&&t.indexOf(cnam)>=0); return !!(ph&&ch); }
+  function first(kind,c,p){ var st=stores(), pools=kind==='s'?st.s:st.a; for(var pi=0;pi<pools.length;pi++){var pool=pools[pi]||{}, keys=Array.isArray(pool)?pool.map(function(_,i){return String(i);}):Object.keys(pool); for(var i=0;i<keys.length;i++){var k=keys[i], r=Array.isArray(pool)?pool[Number(k)]:pool[k]; if(!r)continue; if(kind==='s'&&!(r.dataUrl||r.signatureDataUrl||r.signature))continue; if(match(k,r,c,p,kind!=='s'))return {key:k,rec:r};}} return null; }
+  function any(c,p){ return !!(first('a',c,p)||first('s',c,p)); }
+  function write(c,p,src){ try{ if(!state)return false; var ca=can(c,p), cid=S(ca.c||c), pid=S(ca.p||p); if(!cid||!pid)return false; var vv=V(), now=Date.now(), sg=first('s',cid,pid)||first('s',c,p), ag=first('a',cid,pid)||first('a',c,p), data=S(sg&&sg.rec&&(sg.rec.dataUrl||sg.rec.signatureDataUrl||sg.rec.signature)); state.contractAgreements=state.contractAgreements||{}; state.contractSignatures=state.contractSignatures||{}; var recA={customerId:cid,petId:pid,customerName:cn(ca.co)||S(c),petName:dn(ca.po)||S(p),version:vv,accepted:true,signatureAt:(ag&&ag.rec&&(ag.rec.signatureAt||ag.rec.savedAt))||(sg&&sg.rec&&(sg.rec.signatureAt||sg.rec.signedAt))||now,savedAt:(ag&&ag.rec&&ag.rec.savedAt)||now,source:src||'gb316'}; state.contractAgreements[ak(cid,pid,vv)]=recA; if(data){state.contractSignatures[sk(cid,pid,vv)]={customerId:cid,petId:pid,customerName:recA.customerName,petName:recA.petName,version:vv,dataUrl:data,signatureDataUrl:data,signedAt:(sg&&sg.rec&&(sg.rec.signedAt||sg.rec.signatureAt))||new Date().toISOString(),signatureAt:(sg&&sg.rec&&(sg.rec.signatureAt||sg.rec.signedAt))||now,source:src||'gb316'};} var u={agreements:{},signatures:{},savedAt:now}; try{u=JSON.parse(localStorage.getItem('ds_contract_union_gb316')||'{}')||u;}catch(_){ } u.agreements=u.agreements||{};u.signatures=u.signatures||{};u.agreements[ak(cid,pid,vv)]=recA;if(data)u.signatures[sk(cid,pid,vv)]=state.contractSignatures[sk(cid,pid,vv)];u.savedAt=now;try{localStorage.setItem('ds_contract_union_gb316',JSON.stringify(u));}catch(_){ } try{var po=ca.po;if(po){po.contractAccepted=true;po.contractValid=true;po.contractAcceptedAt=now;}}catch(_){ } try{saveState();}catch(_){ } return true;}catch(e){console.warn('GB316 write failed',e);return false;} }
+  var oldHas=typeof hasValidContract==='function'?hasValidContract:null, oldSig=typeof getContractSignature==='function'?getContractSignature:null, oldAgr=typeof _findContractAgreementMatch==='function'?_findContractAgreementMatch:null;
+  try{hasValidContract=function(c,p){try{if(any(c,p)){write(c,p,'gb316-has');return true;}}catch(_){ }try{return oldHas?!!oldHas(c,p):false;}catch(_){return false;}};window.hasValidContract=hasValidContract;}catch(_){ }
+  try{contractBadge=function(c,p){return(!S(c)||!S(p))?'':(hasValidContract(c,p)?' · Vertrag: 🟢':' · Vertrag: 🔴');};window.contractBadge=contractBadge;}catch(_){ }
+  try{getContractSignature=function(c,p){var s=first('s',c,p);if(s&&s.rec){var ca=can(c,p);write(c,p,'gb316-sig');return{customerId:ca.c||S(c),petId:ca.p||S(p),contractVersion:S(s.rec.version||s.rec.contractVersion||V()),signedAt:s.rec.signedAt||s.rec.signatureAt||s.rec.ts||null,signatureDataUrl:s.rec.signatureDataUrl||s.rec.dataUrl||s.rec.signature};}try{return oldSig?oldSig(c,p):null;}catch(_){return null;}};window.getContractSignature=getContractSignature;}catch(_){ }
+  try{_findContractAgreementMatch=function(c,p,v){var a=first('a',c,p)||first('s',c,p);if(a&&a.rec){var ca=can(c,p);write(c,p,'gb316-agr');return{customerId:ca.c||S(c),petId:ca.p||S(p),contractVersion:S(a.rec.version||a.rec.contractVersion||v||V()),rec:Object.assign({accepted:true},a.rec),key:a.key};}try{return oldAgr?oldAgr(c,p,v):null;}catch(_){return null;}};window._findContractAgreementMatch=_findContractAgreementMatch;}catch(_){ }
+  function ui(){var cs=document.getElementById('contractCustomerSelect'),ps=document.getElementById('contractPetSelect');return{c:S(cs&&cs.value),p:S(ps&&ps.value),ct:S(cs&&cs.options&&cs.selectedIndex>=0&&cs.options[cs.selectedIndex].textContent).split(' · ')[0],pt:S(ps&&ps.options&&ps.selectedIndex>=0&&ps.options[ps.selectedIndex].textContent).split(' · ')[0]};}
+  function unlock(){['contractCustomerSelect','contractPetSelect','contractAcceptChk','contractSaveBtn','btnContractSave','contractSignBtn','contractSigBtn','contractPdfBtn','btnContractRefresh'].forEach(function(id){try{var el=document.getElementById(id);if(el){el.disabled=false;el.removeAttribute('disabled');el.style.pointerEvents='auto';el.style.opacity='1';}}catch(_){ }});}
+  function panel(){try{unlock();var x=ui(),c=x.c||x.ct,p=x.p||x.pt;if(c&&p&&any(c,p)){write(c,p,'gb316-panel');var ch=document.getElementById('contractAcceptChk');if(ch)ch.checked=true;var info=document.getElementById('contractSignedInfo');if(info&&!/✅/.test(info.textContent||'')){var s=first('s',c,p);if(s&&s.rec)info.textContent='✅ Unterschrift vorhanden ('+V()+')';}}}catch(_){ }}
+  function statefix(){try{pets().forEach(function(p){var pid=S(p.id||p.petId||p.dogId||p.uid||p.key||p.name),cid=S(p.customerId||p.ownerId||'');if(pid&&any(cid,pid))write(cid,pid,'gb316-loop');});}catch(_){ }}
+  function green(){try{var list=document.getElementById('dogList');if(!list)return;list.querySelectorAll('[data-role="pet-row"], .item').forEach(function(row){var pid=S(row.dataset&&row.dataset.petId),cid=S(row.dataset&&row.dataset.customerId),pn=S(row.dataset&&row.dataset.petName)||S((row.querySelector('strong')||{}).textContent||'').replace(/^🐶\s*/,'');var cname=S(row.dataset&&row.dataset.customerName);if(!cname){var prev=row.previousElementSibling;while(prev){if(prev.dataset&&prev.dataset.role==='customer-group'){cname=S(prev.dataset.customerName)||S((prev.querySelector('strong')||{}).textContent||'').replace(/^🧑🏼‍🦰\s*/,'');break;}prev=prev.previousElementSibling;}}if((pid||pn)&&any(cid||cname,pid||pn)){row.querySelectorAll('small').forEach(function(s){if((s.textContent||'').indexOf('Vertrag: 🔴')>=0)s.textContent=(s.textContent||'').replace('Vertrag: 🔴','Vertrag: 🟢');});}});}catch(_){ }}
+  try{var rd=typeof renderDogs==='function'?renderDogs:null;if(rd&&!rd.__gb316Wrapped){renderDogs=function(){statefix();var r=rd.apply(this,arguments);setTimeout(green,20);setTimeout(green,250);return r;};renderDogs.__gb316Wrapped=true;window.renderDogs=renderDogs;}}catch(_){ }
+  try{var rc=typeof renderContractPanel==='function'?renderContractPanel:null;if(rc&&!rc.__gb316Wrapped){renderContractPanel=function(){var r=rc.apply(this,arguments);setTimeout(panel,40);setTimeout(panel,300);return r;};renderContractPanel.__gb316Wrapped=true;window.renderContractPanel=renderContractPanel;}}catch(_){ }
+  window.addEventListener('click',function(ev){try{if(!(ev.target&&ev.target.closest&&ev.target.closest('#contract button')))return;setTimeout(function(){panel();statefix();try{if(typeof renderDogs==='function')renderDogs();}catch(_){ }green();},250);setTimeout(function(){panel();statefix();green();},900);}catch(_){ }},false);
+  function boot(){panel();statefix();green();}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();setTimeout(boot,500);setTimeout(boot,1800);setInterval(boot,2500);window.__dsGB316RepairContracts=boot;
+})();
+/* ===== END GB316 ===== */
