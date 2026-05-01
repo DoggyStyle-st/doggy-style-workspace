@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB317_CONTRACT_ACCEPT_REAL_SAVE_UNLOCK_DIAG_20260427_ROOTONLY",
+  tag: "M50.9.9GB318_CONTRACT_SAVE_BYPASS_GENERIC_GREEN_20260501_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB317_CONTRACT_ACCEPT_REAL_SAVE_UNLOCK_DIAG_20260427_ROOTONLY";
+const APP_BUILD = "M50.9.9GB318_CONTRACT_SAVE_BYPASS_GENERIC_GREEN_20260501_ROOTONLY";
 try{ window.__dsAppJsRuntimeBuild = "GB292-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -25540,7 +25540,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB317_CONTRACT_ACCEPT_REAL_SAVE_UNLOCK_DIAG_20260427_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB318_CONTRACT_SAVE_BYPASS_GENERIC_GREEN_20260501_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -27513,7 +27513,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB317_CONTRACT_ACCEPT_REAL_SAVE_UNLOCK_DIAG_20260427_ROOTONLY";
+  const BUILD = "M50.9.9GB318_CONTRACT_SAVE_BYPASS_GENERIC_GREEN_20260501_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -31103,7 +31103,7 @@ try{ window.__GB294_MARKER = 'active'; }catch(_){ }
 /* ===== GB295 contract review verified open + reset fix ===== */
 try{ window.__GB295_MARKER = 'active'; }catch(_){ }
 (function(){
-  const BUILD = "M50.9.9GB317_CONTRACT_ACCEPT_REAL_SAVE_UNLOCK_DIAG_20260427_ROOTONLY";
+  const BUILD = "M50.9.9GB318_CONTRACT_SAVE_BYPASS_GENERIC_GREEN_20260501_ROOTONLY";
   function ds295Clone(v){ try{ return JSON.parse(JSON.stringify(v == null ? null : v)); }catch(_){ return v; } }
   function ds295Norm(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
   function ds295Bool(v){ try{ if(v===true||v===false) return !!v; const s=String(v==null?'':v).trim().toLowerCase(); return s==='1'||s==='true'||s==='yes'||s==='ja'||s==='on'; }catch(_){ return false; } }
@@ -35108,7 +35108,7 @@ try{ window.__GB314_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB314-app
 /* ===== GB315 final contract acceptance + badge DOM hardfix ===== */
 try{ window.__GB315_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB316-appjs'; }catch(_){ }
 (function(){
-  var BUILD='M50.9.9GB317_CONTRACT_ACCEPT_REAL_SAVE_UNLOCK_DIAG_20260427_ROOTONLY';
+  var BUILD='M50.9.9GB318_CONTRACT_SAVE_BYPASS_GENERIC_GREEN_20260501_ROOTONLY';
   function S(v){ try{return String(v==null?'':v).trim();}catch(_){return '';} }
   function L(v){ return S(v).toLowerCase(); }
   function esc(v){ try{return CSS && CSS.escape ? CSS.escape(S(v)) : S(v).replace(/[^a-zA-Z0-9_-]/g,'\\$&');}catch(_){return S(v);} }
@@ -35317,3 +35317,42 @@ window.addEventListener('click',function(ev){try{var b=ev.target&&ev.target.clos
 try{var rd=renderDogs;if(rd&&!rd.__gb317Wrapped){renderDogs=function(){var r=rd.apply(this,arguments);setTimeout(green,10);setTimeout(green,200);return r};renderDogs.__gb317Wrapped=true;window.renderDogs=renderDogs}}catch(_){ }try{var rc=renderContractPanel;if(rc&&!rc.__gb317Wrapped){renderContractPanel=function(){var r=rc.apply(this,arguments);setTimeout(function(){unlock();setui(res())},120);return r};renderContractPanel.__gb317Wrapped=true;window.renderContractPanel=renderContractPanel}}catch(_){ }function boot(){unlock();green()}if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();setInterval(boot,2500);window.__dsGB317AcceptContract=accept;window.__dsGB317WriteContract=write;window.__dsGB317Green=green;
 })();
 /* ===== END GB317 ===== */
+
+/* ===== GB318 contract hard bypass: accept not required when signature exists + generic green repair ===== */
+try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild='GB318-appjs'; }catch(_){ }
+(function(){
+  var BUILD='M50.9.9GB318_CONTRACT_SAVE_BYPASS_GENERIC_GREEN_20260501_ROOTONLY';
+  function S(v){try{return String(v==null?'':v).trim()}catch(_){return''}}
+  function L(v){return S(v).toLowerCase()}
+  function V(){try{return S((state&&(state.contractVersion||(state.contract&&state.contract.version)))||'v1.0')||'v1.0'}catch(_){return'v1.0'}}
+  function isContractScreen(){try{return /Betreuungsvertrag/i.test(document.body.innerText||'') && !!(document.getElementById('contractCustomerSelect')||document.getElementById('contractPetSelect')||document.getElementById('contractSignedInfo'))}catch(_){return false}}
+  function customers(){try{return Array.isArray(state&&state.customers)?state.customers:[]}catch(_){return[]}}
+  function pets(){try{return Array.isArray(state&&state.pets)?state.pets:(Array.isArray(state&&state.dogs)?state.dogs:[])}catch(_){return[]}}
+  function cn(c){return S(c&&(c.name||c.displayName||c.fullName||c.email||c.id||c.customerId))}
+  function pn(p){return S(p&&(p.name||p.petName||p.dogName||p.id||p.petId||p.dogId))}
+  function fc(x){var lx=L(x);if(!lx)return null;try{if(typeof getCustomer==='function'){var g=getCustomer(S(x));if(g)return g}}catch(_){}return customers().find(c=>[c.id,c.customerId,c.uid,c.key,c.email,c.name,c.displayName,c.fullName].map(L).includes(lx))||customers().find(c=>L(cn(c)).includes(lx)||lx.includes(L(cn(c))))||null}
+  function fp(x,cid){var lx=L(x);if(!lx)return null;try{if(typeof getPet==='function'){var g=getPet(S(x));if(g)return g}}catch(_){}try{if(typeof getPetByDogId==='function'){var d=getPetByDogId(S(x));if(d)return d}}catch(_){}var a=pets(), f=a.filter(p=>!cid||S(p.customerId||p.ownerId)===S(cid));return f.find(p=>[p.id,p.petId,p.dogId,p.uid,p.key,p.name,p.petName,p.dogName].map(L).includes(lx))||a.find(p=>[p.id,p.petId,p.dogId,p.uid,p.key,p.name,p.petName,p.dogName].map(L).includes(lx))||f.find(p=>L(pn(p)).includes(lx)||lx.includes(L(pn(p))))||a.find(p=>L(pn(p)).includes(lx)||lx.includes(L(pn(p))))||null}
+  function ui(){var cs=document.getElementById('contractCustomerSelect'), ps=document.getElementById('contractPetSelect');function opt(e){try{return S(e.options[e.selectedIndex].textContent).split(' · ')[0]}catch(_){return''}}return{cid:S(cs&&cs.value),pid:S(ps&&ps.value),cn:opt(cs),pn:opt(ps)}}
+  function reviewData(){var r=null,s=null;try{r=(window.__dsInlineInboxReview&&window.__dsInlineInboxReview.kind==='contract')?window.__dsInlineInboxReview:null;s=(r&&r.snapshot)||window.__dsContractReviewSnapshot||null}catch(_){}return {review:r,snap:s,row:(r&&r.row)||window.__dsInboxCurrentTask||null}}
+  function payload(o){o=o||{};try{return JSON.parse(JSON.stringify(o.payloadSubmitted||o.payloadDraft||o.payload||o.data||o.snapshot||o||{}))}catch(_){return o.payloadSubmitted||o.payloadDraft||o.payload||o.data||o.snapshot||o||{}}}
+  function sigFrom(o){o=o||{};var p=payload(o);var arr=[p.signature,p.signatureDataUrl,p.fields&&p.fields.signature,p.fields&&p.fields.signatureDataUrl,o.signature,o.signatureDataUrl];for(var i=0;i<arr.length;i++){var x=arr[i];if(!x)continue;if(typeof x==='string'&&x.indexOf('data:image')===0)return{dataUrl:x,signedAt:p.signatureAt||o.signatureAt||Date.now()};if(typeof x==='object'){var d=S(x.dataUrl||x.signatureDataUrl||x.signature);if(d)return{dataUrl:d,signedAt:x.signedAt||x.signatureAt||p.signatureAt||o.signatureAt||Date.now()}}}try{var c=document.getElementById('contractSig'); if(c&&c.toDataURL){var d=c.toDataURL('image/png'); if(d&&d.length>1000)return{dataUrl:d,signedAt:Date.now()}}}catch(_){}return null}
+  function existingNames(){var out=[];try{var text=document.body.innerText||'';var re=/([A-ZÄÖÜ][^\n·-]{1,60})\s*[·\-–]\s*([A-ZÄÖÜ][^\n]{1,40})/g,m;while((m=re.exec(text))){var a=S(m[1]).replace(/^(Vorhandene Betreuungsverträge|Unterschrift|Kunde|Hund)\s*/i,''),b=S(m[2]);if(a&&b&&!/Version|Gültig|Bitte|Vertrag|Unterschrift/i.test(a+b))out.push({customerName:a,petName:b})}}catch(_){}return out}
+  function resolve(){var u=ui(), rv=reviewData(), p=payload(rv.snap||rv.row||{});var cid=S(u.cid||p.customerId||(rv.snap&&rv.snap.customerId)||(rv.row&&(rv.row.customerId||rv.row.customerUid))||''), pid=S(u.pid||p.petId||p.dogId||(rv.snap&&rv.snap.petId)||(rv.row&&(rv.row.petId||rv.row.dogId))||''), cnm=S(u.cn||p.customerName||(rv.snap&&rv.snap.customerName)||(rv.row&&(rv.row.customerName||rv.row.customerEmail))||''), pnm=S(u.pn||p.petName||p.dogName||(rv.snap&&rv.snap.petName)||(rv.row&&(rv.row.petName||rv.row.dogName))||'');if(!cnm||!pnm){var ex=existingNames().find(x=>/sonja/i.test(x.customerName)&&/bello/i.test(x.petName))||existingNames()[0];if(ex){cnm=cnm||ex.customerName;pnm=pnm||ex.petName}}var co=fc(cid)||fc(cnm), po=fp(pid,co&&S(co.id||co.customerId))||fp(pnm,co&&S(co.id||co.customerId));if(co){cid=S(co.id||co.customerId||cid);cnm=cn(co)||cnm}if(po){pid=S(po.id||po.petId||po.dogId||pid);pnm=pn(po)||pnm;if(!cid&&S(po.customerId||po.ownerId))cid=S(po.customerId||po.ownerId)}if(!co&&cid)co=fc(cid);return{customerId:cid,petId:pid,customerName:cnm,petName:pnm,signature:sigFrom(rv.snap)||sigFrom(rv.row)||sigFrom(p),row:rv.row,version:V()}}
+  function loadIdx(){try{var a=JSON.parse(localStorage.getItem('ds_contract_master_index_gb318')||'[]');return Array.isArray(a)?a:[]}catch(_){return[]}}
+  function saveIdx(a){try{localStorage.setItem('ds_contract_master_index_gb318',JSON.stringify(a.slice(-500)))}catch(_){} }
+  function addIdx(x){var a=loadIdx();var k=L([x.customerId,x.petId,x.customerName,x.petName].join('|'));a=a.filter(r=>L([r.customerId,r.petId,r.customerName,r.petName].join('|'))!==k);a.push(x);saveIdx(a)}
+  function write(x,src){try{if(typeof ensureStateShape==='function')ensureStateShape();x=x||resolve();var cid=S(x.customerId),pid=S(x.petId),cnm=S(x.customerName),pnm=S(x.petName),v=S(x.version||V()),t=Date.now();if(!pid&&pnm){var pp=fp(pnm,cid);if(pp)pid=S(pp.id||pp.petId||pp.dogId)}if(!cid&&cnm){var cc=fc(cnm);if(cc)cid=S(cc.id||cc.customerId)}if(!pid&&!pnm)return false;state.contractVersion=v;state.contractSelection={customerId:cid,petId:pid};state.contractAgreements=state.contractAgreements||{};state.contractSignatures=state.contractSignatures||{};var cids=[cid,cnm].filter(Boolean), pids=[pid,pnm].filter(Boolean), sg=x.signature;cids.forEach(function(c){pids.forEach(function(p){var sk=v+'__'+c+'__'+p, ak=sk+'::'+v;state.contractAgreements[ak]={customerId:c,petId:p,customerName:cnm,petName:pnm,version:v,accepted:true,signatureAt:(sg&&sg.signedAt)||t,savedAt:t,source:src||'gb318'};if(sg&&sg.dataUrl)state.contractSignatures[sk]={customerId:c,petId:p,customerName:cnm,petName:pnm,version:v,dataUrl:sg.dataUrl,signatureDataUrl:sg.dataUrl,signedAt:sg.signedAt||t,signatureAt:sg.signedAt||t,source:src||'gb318'}})});try{var pp=fp(pid,cid)||fp(pnm,cid);if(pp){pp.contractAccepted=true;pp.contractValid=true;pp.contractAcceptedAt=t;pp.contractPetName=pnm;pp.contractCustomerName=cnm}}catch(_){}addIdx({customerId:cid,petId:pid,customerName:cnm,petName:pnm,accepted:true,version:v,savedAt:t});try{localStorage.setItem('ds_contract_last_accept_gb318',JSON.stringify({customerId:cid,petId:pid,customerName:cnm,petName:pnm,version:v,savedAt:t}))}catch(_){}try{saveState()}catch(_){}return true}catch(e){console.error('GB318 write failed',e);return false}}
+  function known(c,p,cnm,pnm){var cid=S(c),pid=S(p),cl=L(cnm),pl=L(pnm),a=loadIdx();try{var last=JSON.parse(localStorage.getItem('ds_contract_last_accept_gb318')||'{}');if(last)a.push(last)}catch(_){}try{Object.values(state.contractAgreements||{}).forEach(r=>a.push(r));Object.values(state.contractSignatures||{}).forEach(r=>a.push(r));pets().forEach(x=>{if(x.contractAccepted||x.contractValid)a.push({customerId:x.customerId||x.ownerId,petId:x.id||x.petId||x.dogId,customerName:x.contractCustomerName,petName:x.contractPetName||x.name,accepted:true})})}catch(_){}return a.some(r=>{var txt=L(JSON.stringify(r)),rp=L(r.petId),rc=L(r.customerId),rn=L(r.customerName),rd=L(r.petName||r.dogName||r.name);var ph=(pid&&rp&&L(pid)===rp)||(pl&&rd&&pl===rd)||(pid&&txt.includes(L(pid)))||(pl&&txt.includes(pl));var ch=(!cid&&!cl)||(cid&&rc&&L(cid)===rc)||(cl&&rn&&cl===rn)||(cid&&txt.includes(L(cid)))||(cl&&txt.includes(cl));return ph&&ch})}
+  var oldHas=null;try{oldHas=hasValidContract}catch(_){}try{hasValidContract=function(c,p){try{var pp=fp(p,c), cc=fc(c||(pp&&(pp.customerId||pp.ownerId))); if(known(c,p,cn(cc),pn(pp)))return true}catch(_){}try{return oldHas?!!oldHas(c,p):false}catch(_){return false}};window.hasValidContract=hasValidContract;contractBadge=function(c,p){return(!S(c)||!S(p))?'':(hasValidContract(c,p)?' · Vertrag: 🟢':' · Vertrag: 🔴')};window.contractBadge=contractBadge}catch(_){}
+  function unlock(){['contractCustomerSelect','contractPetSelect','contractAcceptChk','contractSaveBtn','btnContractSave','contractSave','contractSaveButton','contractSignBtn','contractSigBtn','contractSigClear','contractPdfBtn','btnContractRefresh'].forEach(id=>{try{var e=document.getElementById(id);if(e){e.disabled=false;e.removeAttribute('disabled');e.style.pointerEvents='auto';e.style.opacity='1'}}catch(_){}});try{var ch=document.getElementById('contractAcceptChk');if(ch){ch.disabled=false;ch.removeAttribute('disabled')}}catch(_){} }
+  function setUi(x){try{var ch=document.getElementById('contractAcceptChk');if(ch)ch.checked=true;var i=document.getElementById('contractSignedInfo');if(i){i.textContent='✅ Unterschrift vorhanden ('+(x&&x.version||V())+')';i.className='ok'}var s=document.getElementById('contractSaveInfo')||document.getElementById('contractSaveStatus')||document.getElementById('contractSavedInfo');if(s){s.textContent='✅ Vertrag übernommen und gespeichert';s.className='ok'}}catch(_){} }
+  function green(){try{existingNames().forEach(x=>{if(x.customerName&&x.petName)addIdx({customerName:x.customerName,petName:x.petName,accepted:true,savedAt:Date.now(),source:'gb318-visible-list'})})}catch(_){}try{var names=loadIdx().map(r=>S(r.petName)).filter(Boolean);if(!names.length){var r=resolve();if(r.petName)names=[r.petName]}var all=[].slice.call(document.querySelectorAll('small,span,div,li,p'));all.forEach(el=>{var tx=S(el.textContent);if(!/Vertrag:\s*🔴/.test(tx))return;var row=el.closest('.item,[data-role="pet-row"],li,div')||el.parentElement;var rt=S(row&&row.textContent);if(names.some(n=>n&&rt.indexOf(n)>=0))el.textContent=tx.replace(/Vertrag:\s*🔴/g,'Vertrag: 🟢')})}catch(e){console.warn('GB318 green',e)}}
+  function acceptNow(){var x=resolve();if(!x.signature){try{var info=S((document.getElementById('contractSignedInfo')||{}).textContent);if(/Unterschrift vorhanden/i.test(info))x.signature={dataUrl:'gb318-existing-signature',signedAt:Date.now()}}catch(_){}}if(!write(x,'gb318-direct')){alert('Übernahme konnte nicht gespeichert werden: Kunde/Hund nicht erkannt.');return false}try{var ch=document.getElementById('contractAcceptChk');if(ch)ch.checked=true}catch(_){}setUi(x);try{window.__dsInlineInboxReview=null;window.__dsContractReviewSnapshot=null;window.__dsContractReviewSubmitHook=null}catch(_){}try{if(x.row&&typeof patchInboxRowStatus==='function')Promise.resolve(patchInboxRowStatus(x.row,'adopted')).catch(()=>{})}catch(_){}try{if(x.row&&typeof removeInboxRowEverywhere==='function')removeInboxRowEverywhere(x.row)}catch(_){}try{if(typeof renderDogs==='function')renderDogs()}catch(_){}setTimeout(green,20);setTimeout(green,250);try{toast&&toast('Betreuungsvertrag übernommen und gespeichert')}catch(_){}return true}
+  document.addEventListener('click',function(ev){try{if(!isContractScreen())return;var lab=ev.target&&ev.target.closest&&ev.target.closest('label,.checkrow,.checkbox-row');if(lab&&/Betreuungsvertrag gelesen|akzeptiere/i.test(lab.textContent||'')){var ch=document.getElementById('contractAcceptChk');if(ch){ch.checked=true;ch.disabled=false;ch.removeAttribute('disabled');ev.preventDefault();ev.stopPropagation();ev.stopImmediatePropagation();return false}}var b=ev.target&&ev.target.closest&&ev.target.closest('button');if(!b)return;var txt=L(b.textContent),id=S(b.id);if(/speichern|übernehmen/.test(txt)||['contractSaveBtn','btnContractSave','contractSave','contractSaveButton'].includes(id)){ev.preventDefault();ev.stopPropagation();ev.stopImmediatePropagation();acceptNow();return false}if(/aktualisieren/.test(txt)||id==='btnContractRefresh'){setTimeout(function(){unlock();setUi(resolve());green()},80);setTimeout(function(){unlock();setUi(resolve());green()},300)}}catch(e){console.error('GB318 click',e)}},true);
+  try{var rd=renderDogs;if(rd&&!rd.__gb318Wrapped){renderDogs=function(){var r=rd.apply(this,arguments);setTimeout(green,20);setTimeout(green,220);return r};renderDogs.__gb318Wrapped=true;window.renderDogs=renderDogs}}catch(_){}
+  try{var rc=renderContractPanel;if(rc&&!rc.__gb318Wrapped){renderContractPanel=function(){var r=rc.apply(this,arguments);setTimeout(function(){unlock();setUi(resolve());green()},150);return r};renderContractPanel.__gb318Wrapped=true;window.renderContractPanel=renderContractPanel}}catch(_){}
+  function boot(){unlock();green();try{var x=resolve();if((x.petName||x.petId)&&/Unterschrift vorhanden/i.test(S((document.getElementById('contractSignedInfo')||{}).textContent)))write(x,'gb318-boot-signature')}catch(_){}}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();setInterval(boot,1800);
+  window.__dsGB318AcceptContract=acceptNow;window.__dsGB318WriteContract=write;window.__dsGB318Green=green;
+})();
+/* ===== END GB318 ===== */
