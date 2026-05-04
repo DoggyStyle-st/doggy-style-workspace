@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB323_CONTRACT_ACCEPT_FULL_AGREEMENT_TIMESTAMP_FIX_20260504_ROOTONLY",
+  tag: "M50.9.9GB324_CONTRACT_REVIEW_AGREEMENT_KEY_SAVE_FIX_20260504_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB323_CONTRACT_ACCEPT_FULL_AGREEMENT_TIMESTAMP_FIX_20260504_ROOTONLY";
+const APP_BUILD = "M50.9.9GB324_CONTRACT_REVIEW_AGREEMENT_KEY_SAVE_FIX_20260504_ROOTONLY";
 try{ window.__dsAppJsRuntimeBuild = "GB292-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -25540,7 +25540,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB323_CONTRACT_ACCEPT_FULL_AGREEMENT_TIMESTAMP_FIX_20260504_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB324_CONTRACT_REVIEW_AGREEMENT_KEY_SAVE_FIX_20260504_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -27513,7 +27513,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB323_CONTRACT_ACCEPT_FULL_AGREEMENT_TIMESTAMP_FIX_20260504_ROOTONLY";
+  const BUILD = "M50.9.9GB324_CONTRACT_REVIEW_AGREEMENT_KEY_SAVE_FIX_20260504_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -31103,7 +31103,7 @@ try{ window.__GB294_MARKER = 'active'; }catch(_){ }
 /* ===== GB295 contract review verified open + reset fix ===== */
 try{ window.__GB295_MARKER = 'active'; }catch(_){ }
 (function(){
-  const BUILD = "M50.9.9GB323_CONTRACT_ACCEPT_FULL_AGREEMENT_TIMESTAMP_FIX_20260504_ROOTONLY";
+  const BUILD = "M50.9.9GB324_CONTRACT_REVIEW_AGREEMENT_KEY_SAVE_FIX_20260504_ROOTONLY";
   function ds295Clone(v){ try{ return JSON.parse(JSON.stringify(v == null ? null : v)); }catch(_){ return v; } }
   function ds295Norm(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
   function ds295Bool(v){ try{ if(v===true||v===false) return !!v; const s=String(v==null?'':v).trim().toLowerCase(); return s==='1'||s==='true'||s==='yes'||s==='ja'||s==='on'; }catch(_){ return false; } }
@@ -35108,7 +35108,7 @@ try{ window.__GB314_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB314-app
 /* ===== GB315 final contract acceptance + badge DOM hardfix ===== */
 try{ window.__GB315_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB316-appjs'; }catch(_){ }
 (function(){
-  var BUILD='M50.9.9GB323_CONTRACT_ACCEPT_FULL_AGREEMENT_TIMESTAMP_FIX_20260504_ROOTONLY';
+  var BUILD='M50.9.9GB324_CONTRACT_REVIEW_AGREEMENT_KEY_SAVE_FIX_20260504_ROOTONLY';
   function S(v){ try{return String(v==null?'':v).trim();}catch(_){return '';} }
   function L(v){ return S(v).toLowerCase(); }
   function esc(v){ try{return CSS && CSS.escape ? CSS.escape(S(v)) : S(v).replace(/[^a-zA-Z0-9_-]/g,'\\$&');}catch(_){return S(v);} }
@@ -35321,7 +35321,7 @@ try{var rd=renderDogs;if(rd&&!rd.__gb317Wrapped){renderDogs=function(){var r=rd.
 /* ===== GB318 contract hard bypass: accept not required when signature exists + generic green repair ===== */
 try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild='GB318-appjs'; }catch(_){ }
 (function(){
-  var BUILD='M50.9.9GB323_CONTRACT_ACCEPT_FULL_AGREEMENT_TIMESTAMP_FIX_20260504_ROOTONLY';
+  var BUILD='M50.9.9GB324_CONTRACT_REVIEW_AGREEMENT_KEY_SAVE_FIX_20260504_ROOTONLY';
   function S(v){try{return String(v==null?'':v).trim()}catch(_){return''}}
   function L(v){return S(v).toLowerCase()}
   function V(){try{return S((state&&(state.contractVersion||(state.contract&&state.contract.version)))||'v1.0')||'v1.0'}catch(_){return'v1.0'}}
@@ -35358,7 +35358,7 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild='GB318-appjs';
 /* ===== END GB318 ===== */
 
 /* ===== GB322 contract accept canonical persist + safe dashboard rollback ===== */
-try{ window.__GB322_MARKER = 'M50.9.9GB323_CONTRACT_ACCEPT_FULL_AGREEMENT_TIMESTAMP_FIX_20260504_ROOTONLY'; }catch(_){ }
+try{ window.__GB322_MARKER = 'M50.9.9GB324_CONTRACT_REVIEW_AGREEMENT_KEY_SAVE_FIX_20260504_ROOTONLY'; }catch(_){ }
 (function(){
   var BUILD = 'GB322';
   function S(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
@@ -35675,7 +35675,7 @@ try{ window.__GB322_MARKER = 'M50.9.9GB323_CONTRACT_ACCEPT_FULL_AGREEMENT_TIMEST
 
 
 /* ===== GB323 contract proposal accept = full agreement + timestamp (no second save required) ===== */
-try{ window.__GB323_MARKER = 'M50.9.9GB323_CONTRACT_ACCEPT_FULL_AGREEMENT_TIMESTAMP_FIX_20260504_ROOTONLY'; }catch(_){ }
+try{ window.__GB323_MARKER = 'M50.9.9GB324_CONTRACT_REVIEW_AGREEMENT_KEY_SAVE_FIX_20260504_ROOTONLY'; }catch(_){ }
 (function(){
   var BUILD = 'GB323';
   function S(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
@@ -36042,3 +36042,96 @@ try{ window.__GB323_MARKER = 'M50.9.9GB323_CONTRACT_ACCEPT_FULL_AGREEMENT_TIMEST
   try{ window.addEventListener('mousedown', press, true); }catch(_){ }
 })();
 /* ===== END GB323.1 ===== */
+
+/* ===== GB324 contract malformed-agreement-key migration + panel/badge repair ===== */
+(function(){
+  function S(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
+  function V(rec){ try{ return S((rec && (rec.version || rec.contractVersion)) || (state && (state.contractVersion || (state.contract && state.contract.version))) || 'v1.0') || 'v1.0'; }catch(_){ return 'v1.0'; } }
+  function clone(v){ try{ return JSON.parse(JSON.stringify(v)); }catch(_){ return v; } }
+  function goodKey(c,p,v){ return S(v)+'__'+S(c)+'__'+S(p)+'::'+S(v); }
+  function sigKey(c,p,v){ return S(v)+'__'+S(c)+'__'+S(p); }
+  function parseBadKey(k){
+    try{
+      var parts = String(k || '').split('::');
+      if(parts.length !== 2) return null;
+      var left = parts[0], v = S(parts[1] || 'v1.0');
+      var a = left.split('__');
+      // malformed GB195 key: customer__pet::version. Correct key has version__customer__pet::version.
+      if(a.length === 2 && !/^v\d/i.test(a[0])) return { customerId:S(a[0]), petId:S(a[1]), version:v };
+      return null;
+    }catch(_){ return null; }
+  }
+  function petFor(pid){ try{ if(typeof getPet === 'function'){ var p=getPet(pid); if(p) return p; } }catch(_){ } try{ if(typeof getPetByDogId === 'function'){ var q=getPetByDogId(pid); if(q) return q; } }catch(_){ } try{ return (Array.isArray(state&&state.pets)?state.pets:[]).find(function(p){ return S(p && (p.id||p.petId||p.dogId||p.uid||p.key||p.name)) === S(pid); }) || null; }catch(_){ return null; } }
+  function markPet(cid,pid,v,agrKey,skey){
+    try{ var p=petFor(pid); if(!p) return; p.contractAccepted=true; p.contractValid=true; p.contractAgreementSaved=true; p.contractAcceptedAt=p.contractAcceptedAt || Date.now(); p.contractSavedAt=p.contractSavedAt || Date.now(); p.contractVersion=v; p.contractAgreementKey=agrKey; p.contractSignatureKey=skey; p.contractStatus='accepted'; if(!p.customerId && cid) p.customerId=cid; }catch(_){ }
+  }
+  function repairContractsGB324(reason){
+    try{
+      if(!state) return false;
+      state.contractAgreements = (state.contractAgreements && typeof state.contractAgreements === 'object' && !Array.isArray(state.contractAgreements)) ? state.contractAgreements : {};
+      state.contractSignatures = (state.contractSignatures && typeof state.contractSignatures === 'object' && !Array.isArray(state.contractSignatures)) ? state.contractSignatures : {};
+      var changed=false;
+      Object.keys(state.contractAgreements).forEach(function(k){
+        try{
+          var rec = state.contractAgreements[k] || {};
+          var info = parseBadKey(k) || {};
+          var cid = S(rec.customerId || info.customerId);
+          var pid = S(rec.petId || info.petId);
+          var v = V(rec || info);
+          if(!cid || !pid) return;
+          var gk = goodKey(cid,pid,v);
+          if(k !== gk){
+            var nrec = clone(rec) || {};
+            nrec.customerId = cid;
+            nrec.petId = pid;
+            nrec.version = v;
+            nrec.accepted = true;
+            nrec.contractAccepted = true;
+            nrec.agreementSaved = true;
+            nrec.savedAt = nrec.savedAt || Date.now();
+            nrec.acceptedAt = nrec.acceptedAt || nrec.savedAt;
+            nrec.source = nrec.source || 'gb324-migrated-malformed-key';
+            if(!state.contractAgreements[gk]) state.contractAgreements[gk] = nrec;
+            changed=true;
+          }
+          markPet(cid,pid,v,gk,sigKey(cid,pid,v));
+        }catch(_){ }
+      });
+      // If an accepted index exists but no canonical agreement survived, rebuild from it.
+      ['ds_contract_accept_gb324','ds_contract_accept_gb323','ds_contract_accept_gb322','ds_contract_last_accept_gb318'].forEach(function(ls){
+        try{
+          var raw=localStorage.getItem(ls); if(!raw) return;
+          var j=JSON.parse(raw); var rows=Array.isArray(j)?j:[j];
+          rows.forEach(function(r){
+            if(!r || !(r.accepted || r.contractAccepted || r.agreementSaved || r.savedAt || r.acceptedAt)) return;
+            var cid=S(r.customerId||r.canonicalCustomerId), pid=S(r.petId||r.canonicalPetId), v=V(r);
+            if(!cid || !pid) return;
+            var gk=goodKey(cid,pid,v), sk=sigKey(cid,pid,v);
+            if(!state.contractAgreements[gk]){ state.contractAgreements[gk]={customerId:cid,petId:pid,customerName:S(r.customerName),petName:S(r.petName),version:v,accepted:true,contractAccepted:true,agreementSaved:true,savedAt:r.savedAt||r.acceptedAt||Date.now(),acceptedAt:r.acceptedAt||r.savedAt||Date.now(),source:'gb324-rebuilt-from-index'}; changed=true; }
+            markPet(cid,pid,v,gk,sk);
+          });
+        }catch(_){ }
+      });
+      if(changed){ try{ saveState(); }catch(_){ } try{ if(typeof dsSetSyncDiag==='function') dsSetSyncDiag('gb324 contract agreement-key repaired ' + S(reason||''), false); }catch(_){ } }
+      return changed;
+    }catch(_){ return false; }
+  }
+  try{ window.__dsGB324RepairContracts = repairContractsGB324; }catch(_){ }
+  try{
+    var oldHas = (typeof hasValidContract === 'function') ? hasValidContract : null;
+    hasValidContract = function(customerId, petId){ try{ repairContractsGB324('hasValidContract'); }catch(_){ } try{ return oldHas ? !!oldHas(customerId, petId) : false; }catch(_){ return false; } };
+    window.hasValidContract = hasValidContract;
+  }catch(_){ }
+  try{
+    var oldRenderDogs = (typeof renderDogs === 'function') ? renderDogs : null;
+    if(oldRenderDogs && !oldRenderDogs.__gb324Wrapped){ renderDogs = function(){ try{ repairContractsGB324('renderDogs-before'); }catch(_){ } var r=oldRenderDogs.apply(this, arguments); setTimeout(function(){ try{ repairContractsGB324('renderDogs-after'); }catch(_){ } }, 50); return r; }; renderDogs.__gb324Wrapped=true; window.renderDogs=renderDogs; }
+  }catch(_){ }
+  try{
+    var oldPanel = (typeof renderContractPanel === 'function') ? renderContractPanel : null;
+    if(oldPanel && !oldPanel.__gb324Wrapped){ renderContractPanel = function(){ try{ repairContractsGB324('renderContractPanel-before'); }catch(_){ } var r=oldPanel.apply(this, arguments); setTimeout(function(){ try{ repairContractsGB324('renderContractPanel-after'); var ch=document.getElementById('contractAcceptChk'); var cs=document.getElementById('contractCustomerSelect'); var ps=document.getElementById('contractPetSelect'); var v=V({}); if(ch&&cs&&ps&&state&&state.contractAgreements&&state.contractAgreements[goodKey(cs.value,ps.value,v)]) ch.checked=true; }catch(_){ } }, 120); return r; }; renderContractPanel.__gb324Wrapped=true; window.renderContractPanel=renderContractPanel; }
+  }catch(_){ }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function(){ repairContractsGB324('boot'); }, {once:true}); else repairContractsGB324('boot');
+  setTimeout(function(){ repairContractsGB324('boot-700'); }, 700);
+  setTimeout(function(){ repairContractsGB324('boot-2000'); }, 2000);
+})();
+/* ===== END GB324 ===== */
