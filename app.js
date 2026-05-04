@@ -35347,8 +35347,8 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild='GB318-appjs';
   function unlock(){['contractCustomerSelect','contractPetSelect','contractAcceptChk','contractSaveBtn','btnContractSave','contractSave','contractSaveButton','contractSignBtn','contractSigBtn','contractSigClear','contractPdfBtn','btnContractRefresh'].forEach(id=>{try{var e=document.getElementById(id);if(e){e.disabled=false;e.removeAttribute('disabled');e.style.pointerEvents='auto';e.style.opacity='1'}}catch(_){}});try{var ch=document.getElementById('contractAcceptChk');if(ch){ch.disabled=false;ch.removeAttribute('disabled')}}catch(_){} }
   function setUi(x){try{var ch=document.getElementById('contractAcceptChk');if(ch)ch.checked=true;var i=document.getElementById('contractSignedInfo');if(i){i.textContent='✅ Unterschrift vorhanden ('+(x&&x.version||V())+')';i.className='ok'}var s=document.getElementById('contractSaveInfo')||document.getElementById('contractSaveStatus')||document.getElementById('contractSavedInfo');if(s){s.textContent='✅ Vertrag übernommen und gespeichert';s.className='ok'}}catch(_){} }
   function green(){try{existingNames().forEach(x=>{if(x.customerName&&x.petName)addIdx({customerName:x.customerName,petName:x.petName,accepted:true,savedAt:Date.now(),source:'gb318-visible-list'})})}catch(_){}try{var names=loadIdx().map(r=>S(r.petName)).filter(Boolean);if(!names.length){var r=resolve();if(r.petName)names=[r.petName]}var all=[].slice.call(document.querySelectorAll('small,span,div,li,p'));all.forEach(el=>{var tx=S(el.textContent);if(!/Vertrag:\s*🔴/.test(tx))return;var row=el.closest('.item,[data-role="pet-row"],li,div')||el.parentElement;var rt=S(row&&row.textContent);if(names.some(n=>n&&rt.indexOf(n)>=0))el.textContent=tx.replace(/Vertrag:\s*🔴/g,'Vertrag: 🟢')})}catch(e){console.warn('GB318 green',e)}}
-  function acceptNow(){var x=resolve();if(!x.signature){try{var info=S((document.getElementById('contractSignedInfo')||{}).textContent);if(/Unterschrift vorhanden/i.test(info))x.signature={dataUrl:'gb318-existing-signature',signedAt:Date.now()}}catch(_){}}if(!write(x,'gb318-direct')){alert('Übernahme konnte nicht gespeichert werden: Kunde/Hund nicht erkannt.');return false}try{var ch=document.getElementById('contractAcceptChk');if(ch)ch.checked=true}catch(_){}setUi(x);try{window.__dsInlineInboxReview=null;window.__dsContractReviewSnapshot=null;window.__dsContractReviewSubmitHook=null}catch(_){}try{if(x.row&&typeof patchInboxRowStatus==='function')Promise.resolve(patchInboxRowStatus(x.row,'adopted')).catch(()=>{})}catch(_){}try{if(x.row&&typeof removeInboxRowEverywhere==='function')removeInboxRowEverywhere(x.row)}catch(_){}try{if(typeof renderDogs==='function')renderDogs()}catch(_){}setTimeout(green,20);setTimeout(green,250);try{toast&&toast('Betreuungsvertrag übernommen und gespeichert')}catch(_){}return true}
-  document.addEventListener('click',function(ev){try{if(!isContractScreen())return;var lab=ev.target&&ev.target.closest&&ev.target.closest('label,.checkrow,.checkbox-row');if(lab&&/Betreuungsvertrag gelesen|akzeptiere/i.test(lab.textContent||'')){var ch=document.getElementById('contractAcceptChk');if(ch){ch.checked=true;ch.disabled=false;ch.removeAttribute('disabled');ev.preventDefault();ev.stopPropagation();ev.stopImmediatePropagation();return false}}var b=ev.target&&ev.target.closest&&ev.target.closest('button');if(!b)return;var txt=L(b.textContent),id=S(b.id);if(/speichern|übernehmen/.test(txt)||['contractSaveBtn','btnContractSave','contractSave','contractSaveButton'].includes(id)){ev.preventDefault();ev.stopPropagation();ev.stopImmediatePropagation();acceptNow();return false}if(/aktualisieren/.test(txt)||id==='btnContractRefresh'){setTimeout(function(){unlock();setUi(resolve());green()},80);setTimeout(function(){unlock();setUi(resolve());green()},300)}}catch(e){console.error('GB318 click',e)}},true);
+  function acceptContractProposalGB319(){var x=resolve();if(!x.signature){try{var info=S((document.getElementById('contractSignedInfo')||{}).textContent);if(/Unterschrift vorhanden/i.test(info))x.signature={dataUrl:'gb318-existing-signature',signedAt:Date.now()}}catch(_){}}if(!write(x,'gb318-direct')){alert('Übernahme konnte nicht gespeichert werden: Kunde/Hund nicht erkannt.');return false}try{var ch=document.getElementById('contractAcceptChk');if(ch)ch.checked=true}catch(_){}setUi(x);try{window.__dsInlineInboxReview=null;window.__dsContractReviewSnapshot=null;window.__dsContractReviewSubmitHook=null}catch(_){}try{if(x.row&&typeof patchInboxRowStatus==='function')Promise.resolve(patchInboxRowStatus(x.row,'adopted')).catch(()=>{})}catch(_){}try{if(x.row&&typeof removeInboxRowEverywhere==='function')removeInboxRowEverywhere(x.row)}catch(_){}try{if(typeof renderDogs==='function')renderDogs()}catch(_){}setTimeout(green,20);setTimeout(green,250);try{toast&&toast('Betreuungsvertrag übernommen und gespeichert')}catch(_){}return true}
+  document.addEventListener('click',function(ev){try{if(!isContractScreen())return;var lab=ev.target&&ev.target.closest&&ev.target.closest('label,.checkrow,.checkbox-row');if(lab&&/Betreuungsvertrag gelesen|akzeptiere/i.test(lab.textContent||'')){var ch=document.getElementById('contractAcceptChk');if(ch){ch.checked=true;ch.disabled=false;ch.removeAttribute('disabled');ev.preventDefault();ev.stopPropagation();ev.stopImmediatePropagation();return false}}var b=ev.target&&ev.target.closest&&ev.target.closest('button');if(!b)return;var txt=L(b.textContent),id=S(b.id);if(/speichern|übernehmen/.test(txt)||['contractSaveBtn','btnContractSave','contractSave','contractSaveButton'].includes(id)){ev.preventDefault();ev.stopPropagation();ev.stopImmediatePropagation();acceptContractProposalGB319();return false}if(/aktualisieren/.test(txt)||id==='btnContractRefresh'){setTimeout(function(){unlock();setUi(resolve());green()},80);setTimeout(function(){unlock();setUi(resolve());green()},300)}}catch(e){console.error('GB318 click',e)}},true);
   try{var rd=renderDogs;if(rd&&!rd.__gb318Wrapped){renderDogs=function(){var r=rd.apply(this,arguments);setTimeout(green,20);setTimeout(green,220);return r};renderDogs.__gb318Wrapped=true;window.renderDogs=renderDogs}}catch(_){}
   try{var rc=renderContractPanel;if(rc&&!rc.__gb318Wrapped){renderContractPanel=function(){var r=rc.apply(this,arguments);setTimeout(function(){unlock();setUi(resolve());green()},150);return r};renderContractPanel.__gb318Wrapped=true;window.renderContractPanel=renderContractPanel}}catch(_){}
   function boot(){unlock();green();try{var x=resolve();if((x.petName||x.petId)&&/Unterschrift vorhanden/i.test(S((document.getElementById('contractSignedInfo')||{}).textContent)))write(x,'gb318-boot-signature')}catch(_){}}
@@ -35356,3 +35356,90 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild='GB318-appjs';
   window.__dsGB318AcceptContract=acceptNow;window.__dsGB318WriteContract=write;window.__dsGB318Green=green;
 })();
 /* ===== END GB318 ===== */
+
+
+// ===============================
+// GB319 PATCH START
+// ===============================
+async function acceptContractProposalGB319(proposal){
+
+  try {
+    if(typeof lock === "function") lock();
+
+    const x = resolveProposalGB319(proposal);
+    if(!x || !x.customerId){
+      throw new Error("Resolve fehlgeschlagen");
+    }
+
+    const cid = x.customerId;
+    const pid = x.petId || "_";
+    const key = cid + "|" + pid;
+    const now = Date.now();
+
+    if(!window.state) window.state = {};
+    if(!state.contractAgreements) state.contractAgreements = {};
+
+    const entry = {
+      customerId: cid,
+      petId: pid,
+      accepted: true,
+      signatureAt: now,
+      savedAt: now,
+      source: "gb319"
+    };
+
+    state.contractAgreements[key] = entry;
+
+    if(typeof write === "function"){
+      await write("contractAgreements", entry);
+    }
+
+    state.contractSelection = {
+      customerId: cid,
+      petId: pid
+    };
+
+    safeRenderGB319();
+
+    if(typeof dsSetSyncDiag === "function"){
+      dsSetSyncDiag("✔ Vertrag übernommen: " + cid + "/" + pid, false);
+    }
+
+    console.log("GB319 ACCEPT OK", entry);
+
+  } catch(e){
+    console.error("GB319 ERROR", e);
+    if(typeof dsSetSyncDiag === "function"){
+      dsSetSyncDiag("❌ Fehler: " + e.message, true);
+    }
+  }
+
+  if(typeof unlock === "function") unlock();
+}
+
+function resolveProposalGB319(p){
+  if(!p) return null;
+
+  return {
+    customerId: p.customerId || p.cid || p.customer || null,
+    petId: p.petId || p.pid || "_"
+  };
+}
+
+function safeRenderGB319(){
+  try{
+    if(typeof renderContractPanel === "function") renderContractPanel();
+  }catch(e){ console.warn("renderContractPanel fail"); }
+
+  try{
+    if(typeof renderCustomerDogs === "function") renderCustomerDogs();
+  }catch(e){ console.warn("renderCustomerDogs fail"); }
+
+  try{
+    if(typeof renderEntries === "function") renderEntries();
+  }catch(e){ console.warn("renderEntries fail"); }
+}
+
+// ===============================
+// GB319 PATCH END
+// ===============================
