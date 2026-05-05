@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB332_CONTRACT_ID_NAME_MATCH_REFRESH_FIX_20260505_ROOTONLY",
+  tag: "M50.9.9GB333_CONTRACT_REFRESH_CANONICAL_LOADSTATE_FIX_20260505_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB332_CONTRACT_ID_NAME_MATCH_REFRESH_FIX_20260505_ROOTONLY";
+const APP_BUILD = "M50.9.9GB333_CONTRACT_REFRESH_CANONICAL_LOADSTATE_FIX_20260505_ROOTONLY";
 try{ window.__dsAppJsRuntimeBuild = "GB292-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -2117,7 +2117,7 @@ function mergeStatePreferRemote(remoteRaw, localRaw){
     }
   }
   // Objekte: remote überschreibt, aber lokale Defaults bleiben erhalten
-  const objKeys = ['settings','templates','company','meta','roles'];
+  const objKeys = ['settings','templates','company','meta','roles','customerRecords','petRecords','dogRecords','contractAgreements','contractSignatures','contractAdoptionBundles'];
   for (const k of objKeys){
     out[k] = _shallowMergeObj(remote[k], local[k]);
   }
@@ -2128,7 +2128,9 @@ function applyRemoteState(remote, remoteStamp, source){
   if(!remote) return false;
   try{
     // Merge: Remote ist nicht alleinige Wahrheit, lokale Stammdaten dürfen nicht verschwinden
+    try{ if(window.__ds333RehydrateLoadedState) window.__ds333RehydrateLoadedState(state,'remote-before'); }catch(_){}
     state = mergeStatePreferRemote(remote, state);
+    try{ if(window.__ds333RehydrateLoadedState) window.__ds333RehydrateLoadedState(state,'remote-after'); }catch(_){}
     // Falls der Remote-State keinen Stempel trägt: konservativ setzen
     if(remoteStamp && (!state._cloudUpdatedAt || Number(state._cloudUpdatedAt) < Number(remoteStamp))){
       state._cloudUpdatedAt = Number(remoteStamp);
@@ -16753,7 +16755,7 @@ function closePdfOverlay(){
   if(c) c.innerHTML = "";
   document.body.classList.remove("printOverlayActive");
 }
-function loadState(){try{const raw=localStorage.getItem(LS_KEY);return raw?JSON.parse(raw):{dogs:[],docs:[]};}catch{return {dogs:[],docs:[]};}}
+function loadState(){try{const raw=localStorage.getItem(LS_KEY);const out=raw?JSON.parse(raw):{dogs:[],docs:[]};try{if(window.__ds333RehydrateLoadedState) window.__ds333RehydrateLoadedState(out,'loadState');}catch(_){}return out;}catch{return {dogs:[],docs:[]};}}
 function dsIsCustomerPortalRuntime(){
   try{
     const p = String((location && location.pathname) || '').toLowerCase();
@@ -17722,7 +17724,8 @@ function ds209RefreshContractPanel(){
   try{ if(typeof scheduleCloudPing === 'function') scheduleCloudPing(0,'contract-refresh'); }catch(_){ }
   try{ if(typeof navigator === 'undefined' || navigator.onLine){ window.__dsForcedOnlineUntil = Date.now() + 120000; } }catch(_){ }
   try{ window.__dsInlineInboxReview = null; }catch(_){ }
-  try{ if(state) state.contractSelection = { customerId:'', petId:'' }; }catch(_){ }
+  try{ if(state && window.__ds333KeepContractSelection && state.contractSelection && state.contractSelection.customerId){ /* GB333 keep current selection */ } else if(state) state.contractSelection = state.contractSelection || { customerId:'', petId:'' }; }catch(_){ }
+  try{ if(window.__ds333RehydrateLoadedState) window.__ds333RehydrateLoadedState(state,'ds209-pre-render'); }catch(_){ }
   try{ renderContractPanel(); }catch(err){ console.warn('ds209RefreshContractPanel renderContractPanel failed', err); }
   try{
     const cs = document.getElementById('contractCustomerSelect');
@@ -25540,7 +25543,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB332_CONTRACT_ID_NAME_MATCH_REFRESH_FIX_20260505_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB333_CONTRACT_REFRESH_CANONICAL_LOADSTATE_FIX_20260505_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -27513,7 +27516,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB332_CONTRACT_ID_NAME_MATCH_REFRESH_FIX_20260505_ROOTONLY";
+  const BUILD = "M50.9.9GB333_CONTRACT_REFRESH_CANONICAL_LOADSTATE_FIX_20260505_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -31103,7 +31106,7 @@ try{ window.__GB294_MARKER = 'active'; }catch(_){ }
 /* ===== GB295 contract review verified open + reset fix ===== */
 try{ window.__GB295_MARKER = 'active'; }catch(_){ }
 (function(){
-  const BUILD = "M50.9.9GB332_CONTRACT_ID_NAME_MATCH_REFRESH_FIX_20260505_ROOTONLY";
+  const BUILD = "M50.9.9GB333_CONTRACT_REFRESH_CANONICAL_LOADSTATE_FIX_20260505_ROOTONLY";
   function ds295Clone(v){ try{ return JSON.parse(JSON.stringify(v == null ? null : v)); }catch(_){ return v; } }
   function ds295Norm(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
   function ds295Bool(v){ try{ if(v===true||v===false) return !!v; const s=String(v==null?'':v).trim().toLowerCase(); return s==='1'||s==='true'||s==='yes'||s==='ja'||s==='on'; }catch(_){ return false; } }
@@ -35108,7 +35111,7 @@ try{ window.__GB314_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB314-app
 /* ===== GB315 final contract acceptance + badge DOM hardfix ===== */
 try{ window.__GB315_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB316-appjs'; }catch(_){ }
 (function(){
-  var BUILD='M50.9.9GB332_CONTRACT_ID_NAME_MATCH_REFRESH_FIX_20260505_ROOTONLY';
+  var BUILD='M50.9.9GB333_CONTRACT_REFRESH_CANONICAL_LOADSTATE_FIX_20260505_ROOTONLY';
   function S(v){ try{return String(v==null?'':v).trim();}catch(_){return '';} }
   function L(v){ return S(v).toLowerCase(); }
   function esc(v){ try{return CSS && CSS.escape ? CSS.escape(S(v)) : S(v).replace(/[^a-zA-Z0-9_-]/g,'\\$&');}catch(_){return S(v);} }
@@ -35321,7 +35324,7 @@ try{var rd=renderDogs;if(rd&&!rd.__gb317Wrapped){renderDogs=function(){var r=rd.
 /* ===== GB318 contract hard bypass: accept not required when signature exists + generic green repair ===== */
 try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild='GB318-appjs'; }catch(_){ }
 (function(){
-  var BUILD='M50.9.9GB332_CONTRACT_ID_NAME_MATCH_REFRESH_FIX_20260505_ROOTONLY';
+  var BUILD='M50.9.9GB333_CONTRACT_REFRESH_CANONICAL_LOADSTATE_FIX_20260505_ROOTONLY';
   function S(v){try{return String(v==null?'':v).trim()}catch(_){return''}}
   function L(v){return S(v).toLowerCase()}
   function V(){try{return S((state&&(state.contractVersion||(state.contract&&state.contract.version)))||'v1.0')||'v1.0'}catch(_){return'v1.0'}}
@@ -35363,7 +35366,7 @@ try{ window.__GB327_MARKER='active'; window.__dsAppJsRuntimeBuild='GB327-appjs';
 (function(){
   'use strict';
   var STORE='ds_contract_adopted_records_gb327';
-  var BUILD='M50.9.9GB332_CONTRACT_ID_NAME_MATCH_REFRESH_FIX_20260505_ROOTONLY';
+  var BUILD='M50.9.9GB333_CONTRACT_REFRESH_CANONICAL_LOADSTATE_FIX_20260505_ROOTONLY';
   var LOCK=false;
   function S(v){ try{ return String(v==null?'':v).trim(); }catch(_){ return ''; } }
   function A(v){ return Array.isArray(v)?v:[]; }
@@ -35424,7 +35427,7 @@ try{ window.__GB327_MARKER='active'; window.__dsAppJsRuntimeBuild='GB327-appjs';
 try{ window.__GB328_MARKER='active'; window.__dsAppJsRuntimeBuild='GB328-appjs'; }catch(_){ }
 (function(){
   'use strict';
-  var BUILD='M50.9.9GB332_CONTRACT_ID_NAME_MATCH_REFRESH_FIX_20260505_ROOTONLY';
+  var BUILD='M50.9.9GB333_CONTRACT_REFRESH_CANONICAL_LOADSTATE_FIX_20260505_ROOTONLY';
   var STORES=['ds_contract_adopted_records_gb328','ds_contract_adopted_records_gb327','ds_contract_adopted_records_gb326','ds_contract_adopted_records_gb325'];
   var LASTS=['ds_contract_last_accept_gb328','ds_contract_last_accept_gb327','ds_contract_last_accept_gb326','ds_contract_last_accept_gb325'];
   var LOCK=false;
@@ -35656,7 +35659,7 @@ try{ window.__GB328_MARKER='active'; window.__dsAppJsRuntimeBuild='GB328-appjs';
 try{ window.__GB329_MARKER='active'; window.__dsAppJsRuntimeBuild='GB329-appjs'; }catch(_){ }
 (function(){
   'use strict';
-  var BUILD='M50.9.9GB332_CONTRACT_ID_NAME_MATCH_REFRESH_FIX_20260505_ROOTONLY';
+  var BUILD='M50.9.9GB333_CONTRACT_REFRESH_CANONICAL_LOADSTATE_FIX_20260505_ROOTONLY';
   var PIN='ds_contract_pinned_accept_gb329';
   var LIST='ds_contract_adopted_records_gb329';
   var LOCK=false;
@@ -35825,7 +35828,7 @@ try{ window.__GB329_MARKER='active'; window.__dsAppJsRuntimeBuild='GB329-appjs';
 try{ window.__GB330_MARKER='active'; window.__dsAppJsRuntimeBuild='GB330-appjs'; }catch(_){ }
 (function(){
   'use strict';
-  var BUILD='M50.9.9GB332_CONTRACT_ID_NAME_MATCH_REFRESH_FIX_20260505_ROOTONLY';
+  var BUILD='M50.9.9GB333_CONTRACT_REFRESH_CANONICAL_LOADSTATE_FIX_20260505_ROOTONLY';
   var STORE='ds_contract_dom_sticky_gb330';
   var BUSY=false, LAST_CLOUD=0, LAST_TOUCH=0;
   function S(v){ try{ return String(v==null?'':v).trim(); }catch(_){ return ''; } }
@@ -36036,7 +36039,7 @@ try{ window.__GB330_MARKER='active'; window.__dsAppJsRuntimeBuild='GB330-appjs';
 
 /* ===== GB331 CONTRACT REFRESH SELECTION REAL STATE FIX ===== */
 (function(){
-  var BUILD='M50.9.9GB332_CONTRACT_ID_NAME_MATCH_REFRESH_FIX_20260505_ROOTONLY';
+  var BUILD='M50.9.9GB333_CONTRACT_REFRESH_CANONICAL_LOADSTATE_FIX_20260505_ROOTONLY';
   var STORE='ds_contract_adopted_records_gb331';
   var LAST=0, BUSY=false;
   function S(v){try{return String(v==null?'':v).trim();}catch(_){return '';}}
@@ -36095,7 +36098,7 @@ try{ window.__GB330_MARKER='active'; window.__dsAppJsRuntimeBuild='GB330-appjs';
 try{ window.__GB332_MARKER='active'; window.__dsAppJsRuntimeBuild='GB332-appjs'; }catch(_){ }
 (function(){
   'use strict';
-  var BUILD='M50.9.9GB332_CONTRACT_ID_NAME_MATCH_REFRESH_FIX_20260505_ROOTONLY';
+  var BUILD='M50.9.9GB333_CONTRACT_REFRESH_CANONICAL_LOADSTATE_FIX_20260505_ROOTONLY';
   var STORE='ds_contract_canonical_records_gb332';
   var BUSY=false, LAST_SAVE=0, LAST_CLOUD=0;
   function S(v){ try{ return String(v==null?'':v).trim(); }catch(_){ return ''; } }
@@ -36325,3 +36328,56 @@ try{ window.__GB332_MARKER='active'; window.__dsAppJsRuntimeBuild='GB332-appjs';
   setTimeout(boot,1200); setTimeout(boot,4200); setInterval(function(){ try{ applyAll('interval'); paintDogs(); }catch(_){ } }, 1800);
 })();
 /* ===== END GB332 ===== */
+
+
+/* ===== GB333 contract refresh canonical loadState + hard refresh intercept ===== */
+try{ window.__GB333_MARKER='active'; window.__dsAppJsRuntimeBuild='GB333-appjs'; }catch(_){ }
+(function(){
+  'use strict';
+  var STORE='ds_contract_canonical_records_gb333';
+  var PIN='ds_contract_pinned_record_gb333';
+  var BUSY=false;
+  function S(v){ try{return String(v==null?'':v).trim();}catch(_){return '';} }
+  function L(v){ return S(v).toLowerCase().replace(/\s+/g,' '); }
+  function A(v){ return Array.isArray(v)?v:[]; }
+  function O(v){ return (v&&typeof v==='object'&&!Array.isArray(v))?v:{}; }
+  function C(v){ try{return JSON.parse(JSON.stringify(v==null?null:v));}catch(_){return v;} }
+  function now(){ return Date.now(); }
+  function read(k,f){ try{var raw=localStorage.getItem(k); if(!raw) return f; var x=JSON.parse(raw); return x==null?f:x;}catch(_){return f;} }
+  function write(k,v){ try{localStorage.setItem(k,JSON.stringify(C(v)));}catch(_){ } }
+  function st(){ try{ if(typeof state!=='undefined'&&state) return state;}catch(_){ } try{return window.state||null;}catch(_){return null;} }
+  function ensure(x){ x=x||st(); if(!x) return null; x.customers=A(x.customers); x.pets=A(x.pets); x.dogs=A(x.dogs); x.customerRecords=O(x.customerRecords); x.petRecords=O(x.petRecords); x.dogRecords=O(x.dogRecords); x.contractAgreements=O(x.contractAgreements); x.contractSignatures=O(x.contractSignatures); x.contractAdoptionBundles=O(x.contractAdoptionBundles); x.contractAdoptedRecords=A(x.contractAdoptedRecords); x._legacy=O(x._legacy); x._legacy.dogIdToPetId=O(x._legacy.dogIdToPetId); x._legacy.dogIdToCustomerId=O(x._legacy.dogIdToCustomerId); return x; }
+  function ver(v){ try{return S(v||(st()&&(st().contractVersion||(st().contract&&st().contract.version)))||'v1.0')||'v1.0';}catch(_){return 'v1.0';} }
+  function sk(c,p,v){ return ver(v)+'__'+S(c)+'__'+S(p); }
+  function ak(c,p,v){ v=ver(v); return v+'__'+S(c)+'__'+S(p)+'::'+v; }
+  function ak2(c,p,v){ return S(c)+'__'+S(p)+'::'+ver(v); }
+  function idC(c){c=O(c);return S(c.id||c.customerId||c.uid||c.key||c.portalUid||c.email);} function idP(p){p=O(p);return S(p.id||p.petId||p.dogId||p.uid||p.key);} 
+  function nmC(c){c=O(c);return S(c.name||c.displayName||c.fullName||c.customerName||c.lastName||c.email||c.id||c.customerId);} function nmP(p){p=O(p);return S(p.name||p.petName||p.dogName||p.hundName||p.id||p.petId||p.dogId);} 
+  function slug(x){return L(x).replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'')||String(now());}
+  function upsert(a,item,keys){a=A(a);item=O(item);var idx=-1; for(var i=0;i<a.length;i++){for(var j=0;j<keys.length;j++){var k=keys[j]; if(S(item[k])&&S(a[i]&&a[i][k])&&S(item[k])===S(a[i][k])){idx=i;break;}} if(idx>=0)break;} if(idx>=0)a[idx]=Object.assign({},O(a[idx]),item); else a.push(item); return a;}
+  function findC(x,id,name){x=ensure(x)||{}; var iid=S(id), nn=L(name), arr=A(x.customers).concat(Object.keys(O(x.customerRecords)).map(function(k){return x.customerRecords[k];})); var hit=null; if(iid) hit=arr.find(function(c){return [c&&c.id,c&&c.customerId,c&&c.uid,c&&c.key,c&&c.portalUid,c&&c.email].some(function(v){return S(v)===iid;});})||null; if(!hit&&nn) hit=arr.find(function(c){return L(nmC(c))===nn;})||null; return hit;}
+  function findP(x,id,name,cid,cname){x=ensure(x)||{}; var iid=S(id), nn=L(name), cc=S(cid), cn=L(cname), arr=A(x.pets).concat(A(x.dogs)).concat(Object.keys(O(x.petRecords)).map(function(k){return x.petRecords[k];}),Object.keys(O(x.dogRecords)).map(function(k){return x.dogRecords[k];})); var hit=null; if(iid) hit=arr.find(function(p){return [p&&p.id,p&&p.petId,p&&p.dogId,p&&p.uid,p&&p.key].some(function(v){return S(v)===iid;});})||null; if(!hit&&nn){var hits=arr.filter(function(p){ if(L(nmP(p))!==nn)return false; var pc=S(p&&(p.customerId||p.ownerId||p.customer)); if(cc&&pc&&pc===cc)return true; if(!cc&&!cn)return true; return !pc;}); hit=hits[0]||null;} return hit;}
+  function norm(raw,x){try{raw=O(raw);x=ensure(x)||st(); var agr=O(raw.agreementRec||raw.agreement||raw.contractAgreement), sig=O(raw.signatureRec||raw.signature||raw.contractSignature), c=O(raw.customer), p=O(raw.pet||raw.dog); var v=ver(raw.version||agr.version||sig.version); var cid=S(raw.customerId||agr.customerId||sig.customerId||idC(c)), pid=S(raw.petId||raw.dogId||agr.petId||sig.petId||idP(p)); var cn=S(raw.customerName||agr.customerName||sig.customerName||nmC(c)), pn=S(raw.petName||raw.dogName||agr.petName||sig.petName||nmP(p)); var fc=findC(x,cid,cn); if(fc){c=Object.assign({},C(fc),c); cid=S(idC(c)||cid); cn=S(nmC(c)||cn);} var fp=findP(x,pid,pn,cid,cn); if(fp){p=Object.assign({},C(fp),p); pid=S(idP(p)||pid); pn=S(nmP(p)||pn); if(!cid)cid=S(p.customerId||p.ownerId||cid);} if(!cid&&cn)cid='contract_customer_'+slug(cn); if(!pid&&pn)pid='contract_pet_'+slug(pn); if(!cid||!pid||/wählen|geladen/i.test(cid+pid+cn+pn))return null; if(!cn)cn=cid; if(!pn)pn=pid; var saved=Number(raw.savedAt||agr.savedAt||agr.acceptedAt||agr.signatureAt||sig.savedAt||sig.signatureAt||sig.signedAt)||now(); c=Object.assign({},c,{id:S(c.id||c.customerId||cid),customerId:S(c.customerId||c.id||cid),name:S(c.name||cn),updatedAt:Math.max(Number(c.updatedAt||0)||0,saved),source:S(c.source)||'gb333-contract'}); p=Object.assign({},p,{id:S(p.id||p.petId||p.dogId||pid),petId:S(p.petId||p.id||pid),customerId:S(p.customerId||p.ownerId||cid),ownerId:S(p.ownerId||p.customerId||cid),name:S(p.name||p.petName||p.dogName||pn),updatedAt:Math.max(Number(p.updatedAt||0)||0,saved),contractAccepted:true,contractValid:true,contractAgreementSaved:true,contractSavedAt:saved,contractStatus:'accepted',source:S(p.source)||'gb333-contract'}); agr=Object.assign({},agr,{customerId:cid,petId:pid,customerName:cn,petName:pn,version:v,contractVersion:v,accepted:true,contractAccepted:true,agreementSaved:true,saved:true,status:'accepted',savedAt:saved,acceptedAt:agr.acceptedAt||saved,signatureAt:agr.signatureAt||sig.signatureAt||sig.signedAt||saved,source:S(agr.source)||'gb333-contract'}); if(!sig.dataUrl&&sig.signatureDataUrl)sig.dataUrl=sig.signatureDataUrl; if(!sig.signatureDataUrl&&sig.dataUrl)sig.signatureDataUrl=sig.dataUrl; sig=Object.assign({},sig,{customerId:cid,petId:pid,customerName:cn,petName:pn,version:v,contractVersion:v,signatureAt:sig.signatureAt||sig.signedAt||saved,signedAt:sig.signedAt||sig.signatureAt||saved,source:S(sig.source)||'gb333-contract'}); return {build:'GB333',customerId:cid,petId:pid,customerName:cn,petName:pn,version:v,savedAt:saved,customer:c,pet:p,agreementKey:S(raw.agreementKey)||ak(cid,pid,v),signatureKey:S(raw.signatureKey)||sk(cid,pid,v),agreementRec:agr,signatureRec:sig};}catch(e){return null;}}
+  function rawRecords(x){var out=[];x=ensure(x)||st(); try{ if(window.__dsGB332Records) out=out.concat(A(window.__dsGB332Records())); }catch(_){ } ['ds_contract_canonical_records_gb332',STORE,'ds_contract_last_accept_gb332','ds_contract_last_accept_gb331','ds_contract_last_accept_gb327',PIN,'ds_contract_pinned_accept_gb329','ds_contract_dom_sticky_gb330','ds_contract_adopted_records_gb331','ds_contract_adopted_records_gb329','ds_contract_adopted_records_gb327','ds_contract_adopted_records_v1'].forEach(function(k){try{var j=read(k,null); if(Array.isArray(j))out=out.concat(j); else if(j)out.push(j);}catch(_){}}); try{out=out.concat(A(x&&x.contractAdoptedRecords));}catch(_){ } try{Object.keys(O(x&&x.contractAdoptionBundles)).forEach(function(k){out.push(x.contractAdoptionBundles[k]);});}catch(_){ } try{Object.keys(O(x&&x.contractAgreements)).forEach(function(k){var a=O(x.contractAgreements[k]); if(a&&(a.accepted||a.saved||a.agreementSaved||a.savedAt)){var m=String(k).match(/^(.+?)__(.+?)__(.+?)(::(.+))?$/); var cid=S(a.customerId||(m&&m[2])), pid=S(a.petId||(m&&m[3])), v=ver(a.version||(m&&m[1])); out.push({customerId:cid,petId:pid,customerName:a.customerName,petName:a.petName,version:v,savedAt:a.savedAt||a.acceptedAt||a.signatureAt,agreementKey:k,agreementRec:a,signatureKey:sk(cid,pid,v),signatureRec:O(x.contractSignatures&&x.contractSignatures[sk(cid,pid,v)])});}});}catch(_){ } return out;}
+  function records(x){var m={}; rawRecords(x).forEach(function(r){var b=norm(r,x); if(!b)return; var key=L(b.customerName)+'|'+L(b.petName)+'|'+b.version; if(!m[key]||Number(b.savedAt)>=Number(m[key].savedAt||0))m[key]=b;}); var list=Object.keys(m).map(function(k){return m[k];}).sort(function(a,b){return Number(b.savedAt||0)-Number(a.savedAt||0);}); try{write(STORE,list.slice(0,200)); if(list[0])write(PIN,list[0]);}catch(_){ } return list;}
+  function apply(b,x,setSel){ if(!b||BUSY)return false; x=ensure(x)||st(); if(!x)return false; b=norm(b,x); if(!b)return false; BUSY=true; try{var cid=b.customerId,pid=b.petId,v=b.version,dog=Object.assign({},b.pet,{id:S(b.pet.dogId||b.pet.id||pid),dogId:S(b.pet.dogId||b.pet.id||pid),petId:pid,customerId:cid,ownerId:cid,owner:b.customerName,name:b.petName,contractAccepted:true,contractValid:true,contractAgreementSaved:true,contractStatus:'accepted',contractSavedAt:b.savedAt}); x.customers=upsert(x.customers,b.customer,['id','customerId','email']); x.pets=upsert(x.pets,b.pet,['id','petId','dogId']); x.dogs=upsert(x.dogs,dog,['id','dogId','petId']); x.customerRecords[cid]=Object.assign({},O(x.customerRecords[cid]),b.customer); x.petRecords[pid]=Object.assign({},O(x.petRecords[pid]),b.pet); x.dogRecords[dog.id]=Object.assign({},O(x.dogRecords[dog.id]),dog); x._legacy.dogIdToPetId[dog.id]=pid; x._legacy.dogIdToCustomerId[dog.id]=cid; [ak(cid,pid,v),ak2(cid,pid,v),b.agreementKey,ak(b.customerName,b.petName,v),ak2(b.customerName,b.petName,v)].forEach(function(k){k=S(k); if(k)x.contractAgreements[k]=C(b.agreementRec);}); [sk(cid,pid,v),b.signatureKey,sk(b.customerName,b.petName,v)].forEach(function(k){k=S(k); if(k)x.contractSignatures[k]=C(b.signatureRec);}); x.contractAdoptionBundles[pid]=C(b); x.contractAdoptionBundles[cid+'__'+pid]=C(b); x.contractAdoptionBundles[b.agreementKey]=C(b); x.contractAdoptedRecords=A(x.contractAdoptedRecords).filter(function(r){return !(L(r&&r.customerName)===L(b.customerName)&&L(r&&r.petName)===L(b.petName));}).concat([C(b)]).slice(-300); if(setSel!==false)x.contractSelection={customerId:cid,petId:pid}; return true;}catch(e){try{console.warn('GB333 apply failed',e);}catch(_){ } return false;}finally{BUSY=false;}}
+  function rehydrate(x,why){try{x=ensure(x)||st(); var list=records(x); var changed=false; list.forEach(function(b){if(apply(b,x,false))changed=true;}); if(list[0]&&x){x.contractSelection={customerId:list[0].customerId,petId:list[0].petId}; changed=true;} if(changed&&x===st()){try{localStorage.setItem((typeof LS_KEY!=='undefined'?LS_KEY:'doggystyle_workspace_state_v1'),JSON.stringify(x));}catch(_){ }} return x;}catch(_){return x;}}
+  function uiRecord(){try{var cs=document.getElementById('contractCustomerSelect'),ps=document.getElementById('contractPetSelect'),chk=document.getElementById('contractAcceptChk');var cid=S(cs&&cs.value),pid=S(ps&&ps.value),cn='',pn=''; try{cn=S(cs.options[cs.selectedIndex].textContent);}catch(_){ } try{pn=S(ps.options[ps.selectedIndex].textContent);}catch(_){ } if(/wählen|geladen/i.test(cid+pid+cn+pn)){cid=pid='';} var sel=st()&&st().contractSelection; if(sel){cid=cid||S(sel.customerId);pid=pid||S(sel.petId);} var rec=records(st())[0]; if(rec)return rec; if((cid||cn)&&(pid||pn)&&(chk&&chk.checked))return norm({customerId:cid,petId:pid,customerName:cn,petName:pn,savedAt:now()},st());}catch(_){ } return null;}
+  function opt(sel,val,label){try{if(!sel||!val)return; var found=false; Array.prototype.forEach.call(sel.options||[],function(o){if(S(o.value)===S(val))found=true;}); if(!found){var o=document.createElement('option'); o.value=S(val); o.textContent=S(label)||S(val); sel.appendChild(o);} sel.value=S(val); sel.disabled=false; sel.removeAttribute('disabled'); sel.style.pointerEvents='auto'; sel.style.opacity='1';}catch(_){ }}
+  function forcePanel(reason){try{rehydrate(st(),reason); var b=records(st())[0]; if(!b)return; apply(b,st(),true); var cs=document.getElementById('contractCustomerSelect'),ps=document.getElementById('contractPetSelect'),chk=document.getElementById('contractAcceptChk'); opt(cs,b.customerId,b.customerName); opt(ps,b.petId,b.petName); if(chk){chk.checked=true;chk.defaultChecked=true;chk.disabled=false;chk.removeAttribute('disabled');chk.style.pointerEvents='auto';} ['contractSaveBtn','btnContractSave','contractSave','contractSignBtn','contractSigBtn','contractSigClear','contractPdfBtn','btnContractRefresh'].forEach(function(id){try{var el=document.getElementById(id);if(el){el.disabled=false;el.removeAttribute('disabled');el.style.pointerEvents='auto';el.style.opacity='1';}}catch(_){}}); var sv=document.getElementById('contractSavedInfo')||document.getElementById('contractSaveInfo')||document.getElementById('contractSaveStatus'); if(sv){sv.textContent='✅ Vertrag gespeichert ('+b.version+' · '+new Date(Number(b.savedAt)||now()).toLocaleString('de-DE')+')';sv.className='ok';} var si=document.getElementById('contractSignedInfo'); if(si&&b.signatureRec&&(b.signatureRec.dataUrl||b.signatureRec.signatureDataUrl||b.signatureRec.signedAt||b.signatureRec.signatureAt)){si.textContent='✅ Unterschrift vorhanden ('+b.version+' · '+new Date(Number(b.signatureRec.signatureAt||b.signatureRec.signedAt||b.savedAt)||b.savedAt).toLocaleString('de-DE')+')';si.className='ok';} renderList(); paintDogs();}catch(e){try{console.warn('GB333 forcePanel failed',e);}catch(_){ }}}
+  function renderList(){try{var list=records(st()); if(!list.length)return; var side=document.querySelector('#contract .contract-side')||document.querySelector('#contract')||null; if(!side)return; var card=document.getElementById('contractSelectionListCard'); if(!card){card=document.createElement('div');card.id='contractSelectionListCard';card.className='contract-card';side.appendChild(card);} card.innerHTML='<h3>Vorhandene Betreuungsverträge</h3>'+list.map(function(b){return '<div class="item" style="margin-top:10px"><div><strong>'+S(b.customerName)+' · '+S(b.petName)+'</strong><small>'+S(b.version)+' · '+new Date(Number(b.savedAt)||now()).toLocaleString('de-DE')+'</small></div><div class="actions"><button class="smallbtn" type="button" data-gb333-open="1" data-customer-id="'+S(b.customerId)+'" data-pet-id="'+S(b.petId)+'">Öffnen</button></div></div>';}).join('');}catch(_){ }}
+  function paintDogs(){try{var list=records(st()); if(!list.length)return; document.querySelectorAll('#dogs, #dogList, #customers, #pets, .card, .item').forEach(function(row){try{var txt=S(row.textContent); var ok=list.some(function(b){return txt.indexOf(b.petName)>=0 && (txt.indexOf(b.customerName)>=0 || true);}); if(ok){row.innerHTML=row.innerHTML.replace(/Vertrag:\s*🔴/g,'Vertrag: 🟢');}}catch(_){}});}catch(_){ }}
+  function safeRefresh(){try{var b=uiRecord(); if(b){write(PIN,b); apply(b,st(),true);} rehydrate(st(),'safe-refresh'); if(typeof saveState==='function')saveState(); else try{localStorage.setItem((typeof LS_KEY!=='undefined'?LS_KEY:'doggystyle_workspace_state_v1'),JSON.stringify(st()));}catch(_){} if(typeof renderContractPanel==='function')renderContractPanel(); [20,80,180,400,900,1600].forEach(function(ms){setTimeout(function(){forcePanel('safe-refresh-'+ms);},ms);}); setTimeout(function(){try{if(typeof renderDogs==='function')renderDogs();}catch(_){ } paintDogs();},120); return false;}catch(e){try{console.warn('GB333 refresh failed',e);}catch(_){ } return false;}}
+  function bind(){try{var btn=document.getElementById('btnContractRefresh'); if(!btn)return; if(btn.dataset.gb333Bound==='1')return; var clone=btn.cloneNode(true); clone.dataset.gb333Bound='1'; clone.onclick=null; clone.addEventListener('click',function(ev){try{ev.preventDefault();ev.stopPropagation();ev.stopImmediatePropagation();}catch(_){ } return safeRefresh();},true); btn.parentNode.replaceChild(clone,btn);}catch(_){ }}
+  try{window.__ds333KeepContractSelection=true; window.__ds333RehydrateLoadedState=rehydrate; window.__dsGB333Records=function(){return records(st());}; window.__dsGB333Refresh=safeRefresh; window.__dsGB333Repair=function(){forcePanel('manual');};}catch(_){ }
+  try{var oldMerge=(typeof mergeStatePreferRemote==='function')?mergeStatePreferRemote:null; if(oldMerge&&!oldMerge.__gb333){mergeStatePreferRemote=function(remote,local){try{rehydrate(local,'merge-local');rehydrate(remote,'merge-remote');}catch(_){} var out=oldMerge.apply(this,arguments); try{rehydrate(out,'merge-out');}catch(_){} return out;}; mergeStatePreferRemote.__gb333=true; window.mergeStatePreferRemote=mergeStatePreferRemote;}}catch(_){ }
+  try{var oldHas=(typeof hasValidContract==='function')?hasValidContract:null; hasValidContract=function(c,p){try{if(oldHas&&oldHas(c,p))return true;}catch(_){} try{var cc=S(c),pp=S(p); return records(st()).some(function(b){return S(b.petId)===pp||L(b.petName)===L(pp)||S(b.customerId)===cc&&S(b.petId)===pp;});}catch(_){return false;}}; window.hasValidContract=hasValidContract; contractBadge=function(c,p){return (!S(c)||!S(p))?'':(hasValidContract(c,p)?' · Vertrag: 🟢':' · Vertrag: 🔴');}; window.contractBadge=contractBadge;}catch(_){ }
+  try{var oldR=(typeof renderContractPanel==='function')?renderContractPanel:null; if(oldR&&!oldR.__gb333){renderContractPanel=function(){var r=oldR.apply(this,arguments); [0,60,220].forEach(function(ms){setTimeout(function(){forcePanel('render-'+ms);bind();},ms);}); return r;}; renderContractPanel.__gb333=true; window.renderContractPanel=renderContractPanel;}}catch(_){ }
+  try{var oldD=(typeof renderDogs==='function')?renderDogs:null; if(oldD&&!oldD.__gb333){renderDogs=function(){rehydrate(st(),'dogs-pre'); var r=oldD.apply(this,arguments); setTimeout(paintDogs,20); setTimeout(paintDogs,120); return r;}; renderDogs.__gb333=true; window.renderDogs=renderDogs;}}catch(_){ }
+  try{var oldRefresh=(typeof ds209RefreshContractPanel==='function')?ds209RefreshContractPanel:null; ds209RefreshContractPanel=safeRefresh; ds209RefreshContractPanel.__gb333Base=oldRefresh; window.ds209RefreshContractPanel=safeRefresh;}catch(_){ }
+  try{window.addEventListener('click',function(ev){try{var b=ev.target&&ev.target.closest&&ev.target.closest('#btnContractRefresh'); if(b){ev.preventDefault();ev.stopPropagation();ev.stopImmediatePropagation(); return safeRefresh();} var open=ev.target&&ev.target.closest&&ev.target.closest('[data-gb333-open]'); if(open){ev.preventDefault();ev.stopPropagation();ev.stopImmediatePropagation(); var cid=S(open.getAttribute('data-customer-id')),pid=S(open.getAttribute('data-pet-id')); var rec=records(st()).find(function(x){return S(x.customerId)===cid&&S(x.petId)===pid;}); if(rec){apply(rec,st(),true); if(typeof renderContractPanel==='function')renderContractPanel(); forcePanel('open');} return false;}}catch(_){ }},true);}catch(_){ }
+  try{var mo=new MutationObserver(function(){bind(); forcePanel('mutation');}); if(document.body)mo.observe(document.body,{childList:true,subtree:true});}catch(_){ }
+  function boot(){try{rehydrate(st(),'boot'); bind(); forcePanel('boot'); paintDogs();}catch(_){ }}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true}); else boot(); setTimeout(boot,500); setTimeout(boot,1600); setTimeout(boot,4200);
+})();
+/* ===== END GB333 ===== */
