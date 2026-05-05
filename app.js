@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB329_CONTRACT_REFRESH_PINNED_REHYDRATE_MAPMERGE_20260505_ROOTONLY",
+  tag: "M50.9.9GB330_CONTRACT_REFRESH_DOM_STICKY_LIST_REHYDRATE_20260505_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB329_CONTRACT_REFRESH_PINNED_REHYDRATE_MAPMERGE_20260505_ROOTONLY";
+const APP_BUILD = "M50.9.9GB330_CONTRACT_REFRESH_DOM_STICKY_LIST_REHYDRATE_20260505_ROOTONLY";
 try{ window.__dsAppJsRuntimeBuild = "GB292-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -25540,7 +25540,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB329_CONTRACT_REFRESH_PINNED_REHYDRATE_MAPMERGE_20260505_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB330_CONTRACT_REFRESH_DOM_STICKY_LIST_REHYDRATE_20260505_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -27513,7 +27513,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB329_CONTRACT_REFRESH_PINNED_REHYDRATE_MAPMERGE_20260505_ROOTONLY";
+  const BUILD = "M50.9.9GB330_CONTRACT_REFRESH_DOM_STICKY_LIST_REHYDRATE_20260505_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -31103,7 +31103,7 @@ try{ window.__GB294_MARKER = 'active'; }catch(_){ }
 /* ===== GB295 contract review verified open + reset fix ===== */
 try{ window.__GB295_MARKER = 'active'; }catch(_){ }
 (function(){
-  const BUILD = "M50.9.9GB329_CONTRACT_REFRESH_PINNED_REHYDRATE_MAPMERGE_20260505_ROOTONLY";
+  const BUILD = "M50.9.9GB330_CONTRACT_REFRESH_DOM_STICKY_LIST_REHYDRATE_20260505_ROOTONLY";
   function ds295Clone(v){ try{ return JSON.parse(JSON.stringify(v == null ? null : v)); }catch(_){ return v; } }
   function ds295Norm(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
   function ds295Bool(v){ try{ if(v===true||v===false) return !!v; const s=String(v==null?'':v).trim().toLowerCase(); return s==='1'||s==='true'||s==='yes'||s==='ja'||s==='on'; }catch(_){ return false; } }
@@ -35108,7 +35108,7 @@ try{ window.__GB314_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB314-app
 /* ===== GB315 final contract acceptance + badge DOM hardfix ===== */
 try{ window.__GB315_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB316-appjs'; }catch(_){ }
 (function(){
-  var BUILD='M50.9.9GB329_CONTRACT_REFRESH_PINNED_REHYDRATE_MAPMERGE_20260505_ROOTONLY';
+  var BUILD='M50.9.9GB330_CONTRACT_REFRESH_DOM_STICKY_LIST_REHYDRATE_20260505_ROOTONLY';
   function S(v){ try{return String(v==null?'':v).trim();}catch(_){return '';} }
   function L(v){ return S(v).toLowerCase(); }
   function esc(v){ try{return CSS && CSS.escape ? CSS.escape(S(v)) : S(v).replace(/[^a-zA-Z0-9_-]/g,'\\$&');}catch(_){return S(v);} }
@@ -35321,7 +35321,7 @@ try{var rd=renderDogs;if(rd&&!rd.__gb317Wrapped){renderDogs=function(){var r=rd.
 /* ===== GB318 contract hard bypass: accept not required when signature exists + generic green repair ===== */
 try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild='GB318-appjs'; }catch(_){ }
 (function(){
-  var BUILD='M50.9.9GB329_CONTRACT_REFRESH_PINNED_REHYDRATE_MAPMERGE_20260505_ROOTONLY';
+  var BUILD='M50.9.9GB330_CONTRACT_REFRESH_DOM_STICKY_LIST_REHYDRATE_20260505_ROOTONLY';
   function S(v){try{return String(v==null?'':v).trim()}catch(_){return''}}
   function L(v){return S(v).toLowerCase()}
   function V(){try{return S((state&&(state.contractVersion||(state.contract&&state.contract.version)))||'v1.0')||'v1.0'}catch(_){return'v1.0'}}
@@ -35363,7 +35363,7 @@ try{ window.__GB327_MARKER='active'; window.__dsAppJsRuntimeBuild='GB327-appjs';
 (function(){
   'use strict';
   var STORE='ds_contract_adopted_records_gb327';
-  var BUILD='M50.9.9GB329_CONTRACT_REFRESH_PINNED_REHYDRATE_MAPMERGE_20260505_ROOTONLY';
+  var BUILD='M50.9.9GB330_CONTRACT_REFRESH_DOM_STICKY_LIST_REHYDRATE_20260505_ROOTONLY';
   var LOCK=false;
   function S(v){ try{ return String(v==null?'':v).trim(); }catch(_){ return ''; } }
   function A(v){ return Array.isArray(v)?v:[]; }
@@ -35424,7 +35424,7 @@ try{ window.__GB327_MARKER='active'; window.__dsAppJsRuntimeBuild='GB327-appjs';
 try{ window.__GB328_MARKER='active'; window.__dsAppJsRuntimeBuild='GB328-appjs'; }catch(_){ }
 (function(){
   'use strict';
-  var BUILD='M50.9.9GB329_CONTRACT_REFRESH_PINNED_REHYDRATE_MAPMERGE_20260505_ROOTONLY';
+  var BUILD='M50.9.9GB330_CONTRACT_REFRESH_DOM_STICKY_LIST_REHYDRATE_20260505_ROOTONLY';
   var STORES=['ds_contract_adopted_records_gb328','ds_contract_adopted_records_gb327','ds_contract_adopted_records_gb326','ds_contract_adopted_records_gb325'];
   var LASTS=['ds_contract_last_accept_gb328','ds_contract_last_accept_gb327','ds_contract_last_accept_gb326','ds_contract_last_accept_gb325'];
   var LOCK=false;
@@ -35656,7 +35656,7 @@ try{ window.__GB328_MARKER='active'; window.__dsAppJsRuntimeBuild='GB328-appjs';
 try{ window.__GB329_MARKER='active'; window.__dsAppJsRuntimeBuild='GB329-appjs'; }catch(_){ }
 (function(){
   'use strict';
-  var BUILD='M50.9.9GB329_CONTRACT_REFRESH_PINNED_REHYDRATE_MAPMERGE_20260505_ROOTONLY';
+  var BUILD='M50.9.9GB330_CONTRACT_REFRESH_DOM_STICKY_LIST_REHYDRATE_20260505_ROOTONLY';
   var PIN='ds_contract_pinned_accept_gb329';
   var LIST='ds_contract_adopted_records_gb329';
   var LOCK=false;
@@ -35820,3 +35820,215 @@ try{ window.__GB329_MARKER='active'; window.__dsAppJsRuntimeBuild='GB329-appjs';
   setTimeout(boot,900); setTimeout(boot,2400); setInterval(function(){ try{ rehydrate('interval'); paint(); }catch(_){ } }, 3500);
 })();
 /* ===== END GB329 ===== */
+
+/* ===== GB330 contract adoption sticky DOM + state rehydrate after refresh ===== */
+try{ window.__GB330_MARKER='active'; window.__dsAppJsRuntimeBuild='GB330-appjs'; }catch(_){ }
+(function(){
+  'use strict';
+  var BUILD='M50.9.9GB330_CONTRACT_REFRESH_DOM_STICKY_LIST_REHYDRATE_20260505_ROOTONLY';
+  var STORE='ds_contract_dom_sticky_gb330';
+  var BUSY=false, LAST_CLOUD=0, LAST_TOUCH=0;
+  function S(v){ try{ return String(v==null?'':v).trim(); }catch(_){ return ''; } }
+  function L(v){ return S(v).toLowerCase(); }
+  function O(v){ return (v && typeof v === 'object' && !Array.isArray(v)) ? v : {}; }
+  function A(v){ return Array.isArray(v) ? v : []; }
+  function esc(s){ try{ return (typeof escapeHtml==='function') ? escapeHtml(S(s)) : S(s).replace(/[&<>"']/g,function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]); }); }catch(_){ return S(s); } }
+  function clean(v){ try{ return JSON.parse(JSON.stringify(v || {})); }catch(_){ return {}; } }
+  function version(){ try{ return S((state && (state.contractVersion || (state.contract && state.contract.version))) || 'v1.0') || 'v1.0'; }catch(_){ return 'v1.0'; } }
+  function skey(c,p,v){ v=S(v)||version(); return v+'__'+S(c)+'__'+S(p); }
+  function akey(c,p,v){ v=S(v)||version(); return v+'__'+S(c)+'__'+S(p)+'::'+v; }
+  function altAkey(c,p,v){ v=S(v)||version(); return S(c)+'__'+S(p)+'::'+v; }
+  function makeId(prefix, name){ var base=L(name).replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'') || String(Date.now()); return prefix+'_'+base; }
+  function cname(c){ c=O(c); return S(c.name||c.displayName||c.fullName||c.customerName||c.email||c.id||c.customerId||''); }
+  function pname(p){ p=O(p); return S(p.name||p.petName||p.dogName||p.hundName||p.id||p.petId||''); }
+  function getByIdOrName(arr, id, name, owner){
+    arr=A(arr); id=S(id); name=L(name); owner=S(owner);
+    var hit=null;
+    if(id) hit=arr.find(function(x){ return S(x && (x.id||x.customerId||x.petId||x.dogId||x.uid||x.key))===id; }) || null;
+    if(!hit && name){
+      var hits=arr.filter(function(x){ var n=L((x&&(x.name||x.petName||x.dogName||x.displayName||x.fullName||x.email))||''); if(n!==name) return false; if(!owner) return true; var o=S((x&&(x.customerId||x.ownerId))||''); return !o || o===owner; });
+      if(hits.length) hit=hits[0];
+    }
+    return hit;
+  }
+  function readJson(key, fallback){ try{ var v=JSON.parse(localStorage.getItem(key)||''); return v==null?fallback:v; }catch(_){ return fallback; } }
+  function saveSticky(list){ try{ localStorage.setItem(STORE, JSON.stringify(A(list).slice(-200))); }catch(_){ } }
+  function rawBundles(){
+    var out=[];
+    try{ out=out.concat(A(readJson(STORE, []))); }catch(_){ }
+    try{ out=out.concat(A(readJson('ds_contract_adopted_records_gb327', []))); }catch(_){ }
+    try{ var x=readJson('ds_contract_last_accept_gb327', null); if(x) out.push(x); }catch(_){ }
+    try{ var y=readJson('ds_contract_pinned_accept_gb329', null); if(y) out.push(y); }catch(_){ }
+    try{ var z=readJson('ds_contract_last_accept_gb318', null); if(z) out.push(z); }catch(_){ }
+    try{ Object.keys(O(state&&state.contractAdoptionBundles)).forEach(function(k){ if(state.contractAdoptionBundles[k]) out.push(state.contractAdoptionBundles[k]); }); }catch(_){ }
+    try{ A(state&&state.contractAdoptedRecords).forEach(function(x){ if(x) out.push(x); }); }catch(_){ }
+    try{
+      var st=state||{}, agrs=O(st.contractAgreements), sigs=O(st.contractSignatures);
+      Object.keys(agrs).forEach(function(k){
+        var a=O(agrs[k]); if(!(a.accepted||a.contractAccepted||a.agreementSaved||a.saved||a.status==='accepted')) return;
+        var m=S(k).match(/^(.+?)__(.+?)__(.+?)::(.+)$/);
+        var v=S(a.version||a.contractVersion||(m&&m[1])||version());
+        var c=S(a.customerId||(m&&m[2])||''), p=S(a.petId||(m&&m[3])||'');
+        if(!c || !p) return;
+        var cust=getByIdOrName(A(st.customers), c, a.customerName, '' )||O(st.customerRecords&&st.customerRecords[c]);
+        var pet=getByIdOrName(A(st.pets), p, a.petName, c)||O(st.petRecords&&st.petRecords[p]);
+        out.push({ build:'GB330-from-state-agreement', savedAt:a.savedAt||a.acceptedAt||a.signatureAt||Date.now(), customerId:c, petId:p, customerName:S(a.customerName)||cname(cust), petName:S(a.petName)||pname(pet), version:v, customer:cust, pet:pet, agreementKey:akey(c,p,v), agreementRec:a, signatureKey:skey(c,p,v), signatureRec:O(sigs[skey(c,p,v)]) });
+      });
+    }catch(_){ }
+    return out;
+  }
+  function normalizeBundle(b){
+    try{
+      b=O(b); var now=Date.now(), v=S(b.version||b.contractVersion||version())||'v1.0';
+      var cust=clean(b.customer||b.customerObj||{}), pet=clean(b.pet||b.petObj||{}), agr=clean(b.agreementRec||b.agreement||{}), sig=clean(b.signatureRec||b.signature||{});
+      var cid=S(b.customerId||agr.customerId||sig.customerId||cust.id||cust.customerId||''), pid=S(b.petId||agr.petId||sig.petId||pet.id||pet.petId||pet.dogId||'');
+      var cn=S(b.customerName||agr.customerName||sig.customerName||cname(cust)||''), pn=S(b.petName||agr.petName||sig.petName||pname(pet)||'');
+      try{ var st=state||{}; var ec=getByIdOrName(A(st.customers), cid, cn, ''); if(ec){ cust=Object.assign({}, clean(ec), cust); cid=S(ec.id||ec.customerId||cid); cn=cn||cname(ec); } }catch(_){ }
+      try{ var ep=getByIdOrName(A(state&&state.pets), pid, pn, cid); if(ep){ pet=Object.assign({}, clean(ep), pet); pid=S(ep.id||ep.petId||ep.dogId||pid); pn=pn||pname(ep); if(!cid && S(ep.customerId||ep.ownerId)) cid=S(ep.customerId||ep.ownerId); } }catch(_){ }
+      if(!cid && cn) cid=makeId('cust', cn);
+      if(!pid && pn) pid=makeId('pet', pn);
+      if(!cn) cn=cname(cust) || cid;
+      if(!pn) pn=pname(pet) || pid;
+      if(!cid || !pid || !cn || !pn) return null;
+      cust=Object.assign({}, cust, { id:cid, customerId:cid, name:cn, updatedAt:now, source:S(cust.source)||'gb330-sticky-customer' });
+      pet=Object.assign({}, pet, { id:pid, petId:pid, customerId:cid, ownerId:cid, name:pn, updatedAt:now, contractAccepted:true, contractValid:true, contractAgreementSaved:true, contractStatus:'accepted', source:S(pet.source)||'gb330-sticky-pet' });
+      var saved=Number(b.savedAt||agr.savedAt||agr.acceptedAt||sig.savedAt||now)||now;
+      if(!sig.dataUrl && sig.signatureDataUrl) sig.dataUrl=sig.signatureDataUrl;
+      if(!sig.signatureDataUrl && sig.dataUrl) sig.signatureDataUrl=sig.dataUrl;
+      sig=Object.assign({}, sig, { customerId:cid, petId:pid, customerName:cn, petName:pn, version:v, contractVersion:v, signedAt:sig.signedAt||sig.signatureAt||saved, signatureAt:sig.signatureAt||sig.signedAt||saved, source:S(sig.source)||'gb330-sticky-signature' });
+      agr=Object.assign({}, agr, { customerId:cid, petId:pid, customerName:cn, petName:pn, version:v, contractVersion:v, accepted:true, contractAccepted:true, agreementSaved:true, saved:true, status:'accepted', signatureAt:agr.signatureAt||sig.signatureAt||saved, acceptedAt:agr.acceptedAt||saved, savedAt:saved, source:S(agr.source)||'gb330-sticky-agreement' });
+      var ak=S(b.agreementKey)||akey(cid,pid,v), sk=S(b.signatureKey)||skey(cid,pid,v);
+      return { build:'GB330', savedAt:saved, customerId:cid, petId:pid, customerName:cn, petName:pn, version:v, customer:cust, pet:pet, agreementKey:ak, agreementRec:agr, signatureKey:sk, signatureRec:sig };
+    }catch(_){ return null; }
+  }
+  function readBundles(){
+    var map={};
+    rawBundles().forEach(function(raw){ var b=normalizeBundle(raw); if(!b) return; var k=S(b.customerId)+'__'+S(b.petId)+'__'+S(b.version); var old=map[k]; if(!old || Number(b.savedAt||0)>=Number(old.savedAt||0)) map[k]=b; });
+    var list=Object.keys(map).map(function(k){ return map[k]; }).sort(function(a,b){ return Number(b.savedAt||0)-Number(a.savedAt||0); });
+    if(list.length) saveSticky(list);
+    return list;
+  }
+  function upsert(arr, item, keys){
+    arr=A(arr); item=O(item); keys=A(keys); var idx=-1;
+    for(var i=0;i<arr.length;i++){ for(var j=0;j<keys.length;j++){ var k=keys[j]; if(S(arr[i]&&arr[i][k]) && S(arr[i]&&arr[i][k])===S(item[k])){ idx=i; break; } } if(idx>=0) break; }
+    if(idx>=0) arr[idx]=Object.assign({}, arr[idx]||{}, item); else arr.push(item);
+    return arr;
+  }
+  function ensureState(){
+    if(!window.state || typeof window.state!=='object') window.state={};
+    var st=window.state;
+    st.customers=A(st.customers); st.pets=A(st.pets); st.dogs=A(st.dogs);
+    st.customerRecords=O(st.customerRecords); st.petRecords=O(st.petRecords); st.dogRecords=O(st.dogRecords);
+    st.contractAgreements=O(st.contractAgreements); st.contractSignatures=O(st.contractSignatures); st.contractAdoptionBundles=O(st.contractAdoptionBundles);
+    st.contractAdoptedRecords=A(st.contractAdoptedRecords);
+    st._legacy=O(st._legacy); st._legacy.dogIdToPetId=O(st._legacy.dogIdToPetId); st._legacy.dogIdToCustomerId=O(st._legacy.dogIdToCustomerId);
+    return st;
+  }
+  function applyBundle(b, reason){
+    b=normalizeBundle(b); if(!b || BUSY) return false;
+    BUSY=true;
+    try{
+      var st=ensureState(), c=S(b.customerId), p=S(b.petId), v=S(b.version)||version(), ak=akey(c,p,v), ak2=altAkey(c,p,v), sk=skey(c,p,v);
+      var cust=clean(b.customer), pet=clean(Object.assign({}, b.pet, {customerId:c, ownerId:c, contractAccepted:true, contractValid:true, contractAgreementSaved:true, contractAcceptedAt:b.savedAt, contractSavedAt:b.savedAt, contractVersion:v, contractAgreementKey:ak, contractSignatureKey:sk, contractStatus:'accepted'}));
+      st.customers=upsert(st.customers, cust, ['id','customerId']);
+      st.pets=upsert(st.pets, pet, ['id','petId','dogId']);
+      var dog=Object.assign({}, pet, { id:S(pet.dogId||pet.id||p), dogId:S(pet.dogId||pet.id||p), petId:p, customerId:c, ownerId:c, owner:S(cust.name||b.customerName), name:S(pet.name||b.petName), contractAccepted:true, contractValid:true, contractAgreementSaved:true });
+      st.dogs=upsert(st.dogs, dog, ['id','dogId','petId']);
+      st.customerRecords[c]=clean(cust); st.petRecords[p]=clean(pet); st.dogRecords[dog.id]=clean(dog);
+      st._legacy.dogIdToPetId[dog.id]=p; st._legacy.dogIdToCustomerId[dog.id]=c;
+      var agr=clean(Object.assign({}, b.agreementRec, {customerId:c, petId:p, customerName:b.customerName, petName:b.petName, version:v, contractVersion:v, accepted:true, contractAccepted:true, agreementSaved:true, saved:true, status:'accepted', savedAt:b.savedAt||Date.now()}));
+      var sig=clean(Object.assign({}, b.signatureRec, {customerId:c, petId:p, customerName:b.customerName, petName:b.petName, version:v, contractVersion:v}));
+      st.contractAgreements[ak]=agr; st.contractAgreements[ak2]=agr; if(S(b.agreementKey)) st.contractAgreements[S(b.agreementKey)]=agr;
+      st.contractSignatures[sk]=sig; if(S(b.signatureKey)) st.contractSignatures[S(b.signatureKey)]=sig;
+      st.contractAdoptionBundles[p]=b; st.contractAdoptionBundles[c+'__'+p]=b; st.contractAdoptionBundles[ak]=b;
+      st.contractSelection={customerId:c, petId:p}; st.contractVersion=v; st._localUpdatedAt=Math.max(Number(st._localUpdatedAt||0), Date.now());
+      st.contractAdoptedRecords=st.contractAdoptedRecords.filter(function(x){ return !(S(x&&x.customerId)===c && S(x&&x.petId)===p); }).concat([clean(b)]).slice(-300);
+      try{ saveSticky(readBundles().filter(function(x){ return !(S(x.customerId)===c && S(x.petId)===p); }).concat([b])); }catch(_){ }
+      try{ var l=readJson('ds_contract_adopted_records_gb327', []); if(!Array.isArray(l)) l=[]; l=l.filter(function(x){return !(S(x&&x.customerId)===c && S(x&&x.petId)===p);}); l.push(clean(b)); localStorage.setItem('ds_contract_adopted_records_gb327', JSON.stringify(l.slice(-200))); localStorage.setItem('ds_contract_last_accept_gb327', JSON.stringify(clean(b))); }catch(_){ }
+      try{ if(typeof saveState==='function') saveState(); else localStorage.setItem('doggystyle_workspace_state_v1', JSON.stringify(st)); }catch(_){ }
+      try{ window.__dsGB330LastApply={reason:S(reason), at:Date.now(), customerId:c, petId:p, list:readBundles().length}; }catch(_){ }
+      return true;
+    }catch(e){ try{ console.warn('GB330 apply failed', e); }catch(_){ } return false; }
+    finally{ BUSY=false; }
+  }
+  function rehydrate(reason){ var list=readBundles(); list.forEach(function(b){ applyBundle(b, reason||'rehydrate'); }); return list.length; }
+  function fmt(ts){ try{ return ts ? new Date(ts).toLocaleString('de-DE') : ''; }catch(_){ return ''; } }
+  function ensureContractList(){
+    try{
+      var list=readBundles(); if(!list.length) return;
+      var side=document.querySelector('#contract .contract-side') || document.querySelector('#contract') || document.body;
+      if(!side) return;
+      var card=document.getElementById('contractSelectionListCard');
+      if(!card){ card=document.createElement('div'); card.id='contractSelectionListCard'; card.className='contract-card'; side.appendChild(card); card.innerHTML='<h3>Vorhandene Betreuungsverträge</h3>'; }
+      if(!/Vorhandene Betreuungsverträge/i.test(card.textContent||'')){
+        var h=document.createElement('h3'); h.textContent='Vorhandene Betreuungsverträge'; card.insertBefore(h, card.firstChild||null);
+      }
+      list.forEach(function(b){
+        b=normalizeBundle(b); if(!b) return;
+        var rowId='ds-gb330-contract-'+S(b.customerId).replace(/[^a-zA-Z0-9_-]/g,'_')+'-'+S(b.petId).replace(/[^a-zA-Z0-9_-]/g,'_');
+        var txt=L(card.textContent||'');
+        if(document.getElementById(rowId) || (txt.indexOf(L(b.customerName))>=0 && txt.indexOf(L(b.petName))>=0)) return;
+        var div=document.createElement('div'); div.className='item ds-gb330-contract-row'; div.id=rowId; div.style.marginTop='10px'; div.setAttribute('data-gb330-contract-row','1');
+        div.innerHTML='<div><strong>'+esc(b.customerName+' · '+b.petName)+'</strong><small>'+esc((b.version||'v1.0')+(b.savedAt?' · '+fmt(b.savedAt):''))+'</small></div><div class="actions"><button class="smallbtn ds-gb330-contract-open" type="button" data-customer-id="'+esc(b.customerId)+'" data-pet-id="'+esc(b.petId)+'">Öffnen</button></div>';
+        var firstItem=card.querySelector('.item');
+        if(firstItem) card.insertBefore(div, firstItem); else card.appendChild(div);
+      });
+    }catch(e){ try{ console.warn('GB330 list inject failed', e); }catch(_){ } }
+  }
+  function ensureContractPanelSelection(){
+    try{
+      var list=readBundles(); if(!list.length) return; var b=list[0]; applyBundle(b,'panel-selection');
+      var cs=document.getElementById('contractCustomerSelect'), ps=document.getElementById('contractPetSelect'), ch=document.getElementById('contractAcceptChk');
+      function opt(sel,val,label){ if(!sel||!val) return; var exists=false; Array.prototype.forEach.call(sel.options||[],function(o){ if(S(o.value)===S(val)) exists=true; }); if(!exists){ var o=document.createElement('option'); o.value=S(val); o.textContent=S(label)||S(val); sel.appendChild(o); } sel.value=S(val); }
+      opt(cs,b.customerId,b.customerName); opt(ps,b.petId,b.petName); if(ch){ ch.checked=true; ch.defaultChecked=true; ch.disabled=false; ch.removeAttribute('disabled'); ch.style.pointerEvents='auto'; }
+      var si=document.getElementById('contractSignedInfo'); if(si && (b.signatureRec && (b.signatureRec.signatureAt||b.signatureRec.signedAt||b.signatureRec.dataUrl||b.signatureRec.signatureDataUrl))){ si.textContent='✅ Unterschrift vorhanden ('+(b.version||'v1.0')+' · '+fmt((b.signatureRec.signatureAt||b.signatureRec.signedAt)||b.savedAt)+')'; si.className='ok'; }
+      var sv=document.getElementById('contractSavedInfo')||document.getElementById('contractSaveInfo')||document.getElementById('contractSaveStatus'); if(sv){ sv.textContent='✅ Vertrag gespeichert ('+(b.version||'v1.0')+' · '+fmt(b.savedAt)+')'; sv.className='ok'; }
+    }catch(_){ }
+  }
+  function paintDogsGreen(){
+    try{
+      var names=readBundles().map(function(b){return L(b.petName);}).filter(Boolean); if(!names.length) return;
+      Array.prototype.forEach.call(document.querySelectorAll('#dogs .item,#dogs small,.item small,.item'), function(el){
+        try{ var t=L(el.textContent||''); if(names.some(function(n){return t.indexOf(n)>=0;}) && /vertrag:\s*🔴/i.test(el.textContent||'')){ el.innerHTML=el.innerHTML.replace(/Vertrag:\s*🔴/g,'Vertrag: 🟢'); } }catch(_){ }
+      });
+    }catch(_){ }
+  }
+  function repair(reason){ try{ rehydrate(reason); }catch(_){ } try{ ensureContractList(); }catch(_){ } try{ ensureContractPanelSelection(); }catch(_){ } try{ paintDogsGreen(); }catch(_){ } }
+  function repairLater(reason){ [0,80,250,600,1200,2200,4000].forEach(function(ms){ setTimeout(function(){ repair(reason+'+'+ms); }, ms); }); }
+  async function cloudPatch(reason){
+    try{
+      var now=Date.now(); if(now-LAST_CLOUD<2500) return; LAST_CLOUD=now;
+      var list=readBundles(); if(!list.length || !(window.CLOUD&&CLOUD.enabled&&CLOUD.user) || typeof cloudStateRef!=='function') return;
+      var payload={ schemaVersion:Math.max(Number((state&&state.schemaVersion)||2)||2,2), _cloudUpdatedAt:now, _localUpdatedAt:now, customerRecords:{}, petRecords:{}, dogRecords:{}, contractAgreements:{}, contractSignatures:{}, contractAdoptionBundles:{}, contractAdoptedRecords:[] };
+      list.forEach(function(b){ b=normalizeBundle(b); if(!b) return; var c=S(b.customerId), p=S(b.petId), v=S(b.version)||version(), ak=akey(c,p,v), ak2=altAkey(c,p,v), sk=skey(c,p,v); payload.customerRecords[c]=clean(b.customer); payload.petRecords[p]=clean(Object.assign({}, b.pet, {customerId:c, ownerId:c})); payload.dogRecords[p]=clean(Object.assign({}, b.pet, {id:p, dogId:p, petId:p, customerId:c, ownerId:c, owner:b.customerName})); payload.contractAgreements[ak]=clean(b.agreementRec); payload.contractAgreements[ak2]=clean(b.agreementRec); payload.contractSignatures[sk]=clean(b.signatureRec); payload.contractAdoptionBundles[p]=clean(b); payload.contractAdoptionBundles[c+'__'+p]=clean(b); payload.contractAdoptedRecords.push(clean(b)); });
+      var ref=cloudStateRef(); if(ref) await ref.set({payload:payload, updatedAt:now, updatedBy:(CLOUD.user.email||CLOUD.user.uid)}, {merge:true});
+      try{ if(typeof dsSetSyncDiag==='function') dsSetSyncDiag('GB330 sticky cloud patch ok '+S(reason), false); }catch(_){ }
+    }catch(e){ try{ console.warn('GB330 cloud patch failed', e); }catch(_){ } }
+  }
+  try{
+    var oldApply=(typeof applyRemoteState==='function')?applyRemoteState:null;
+    if(oldApply && !oldApply.__gb330Wrapped){ applyRemoteState=function(){ var r=oldApply.apply(this, arguments); repairLater('applyRemoteState'); setTimeout(function(){ cloudPatch('after-remote'); },1500); return r; }; applyRemoteState.__gb330Wrapped=true; window.applyRemoteState=applyRemoteState; }
+  }catch(_){ }
+  try{ var oldMerge=(typeof mergeStatePreferRemote==='function')?mergeStatePreferRemote:null; if(oldMerge && !oldMerge.__gb330Wrapped){ mergeStatePreferRemote=function(remote, local){ var out=oldMerge(remote, local); try{ ['customerRecords','petRecords','dogRecords','contractAgreements','contractSignatures','contractAdoptionBundles'].forEach(function(k){ out[k]=Object.assign({}, O(remote&&remote[k]), O(local&&local[k]), O(out&&out[k])); }); out.contractAdoptedRecords=A(remote&&remote.contractAdoptedRecords).concat(A(local&&local.contractAdoptedRecords), A(out&&out.contractAdoptedRecords)).slice(-400); }catch(_){ } return out; }; mergeStatePreferRemote.__gb330Wrapped=true; window.mergeStatePreferRemote=mergeStatePreferRemote; } }catch(_){ }
+  try{ var oldPanel=(typeof renderContractPanel==='function')?renderContractPanel:null; if(oldPanel && !oldPanel.__gb330Wrapped){ renderContractPanel=function(){ repair('renderPanel-pre'); var r=oldPanel.apply(this, arguments); repairLater('renderPanel-post'); return r; }; renderContractPanel.__gb330Wrapped=true; window.renderContractPanel=renderContractPanel; } }catch(_){ }
+  try{ var oldDogs=(typeof renderDogs==='function')?renderDogs:null; if(oldDogs && !oldDogs.__gb330Wrapped){ renderDogs=function(){ repair('renderDogs-pre'); var r=oldDogs.apply(this, arguments); repairLater('renderDogs-post'); return r; }; renderDogs.__gb330Wrapped=true; window.renderDogs=renderDogs; } }catch(_){ }
+  try{ var oldSave=(typeof saveState==='function')?saveState:null; if(oldSave && !oldSave.__gb330Wrapped){ saveState=function(){ if(!BUSY) repair('saveState-pre'); return oldSave.apply(this, arguments); }; saveState.__gb330Wrapped=true; window.saveState=saveState; } }catch(_){ }
+  try{
+    document.addEventListener('click', function(ev){
+      try{
+        var open=ev.target&&ev.target.closest&&ev.target.closest('.ds-gb330-contract-open,[data-contract-open]');
+        if(open){ var cid=S(open.getAttribute('data-customer-id')), pid=S(open.getAttribute('data-pet-id')); var b=readBundles().find(function(x){return S(x.customerId)===cid && S(x.petId)===pid;})||null; if(b){ ev.preventDefault(); ev.stopPropagation(); try{ state.contractSelection={customerId:b.customerId, petId:b.petId}; }catch(_){ } applyBundle(b,'open-click'); repairLater('open-click'); } return; }
+        var btn=ev.target&&ev.target.closest&&ev.target.closest('button'); if(!btn) return; var txt=L(btn.textContent), id=S(btn.id); if(txt.indexOf('aktualisieren')>=0 || txt.indexOf('übernehmen')>=0 || txt==='speichern' || id==='btnContractRefresh' || id==='contractSaveBtn'){ repair('click-capture'); repairLater('click-'+(id||txt)); setTimeout(function(){ cloudPatch('click-'+(id||txt)); },700); }
+      }catch(_){ }
+    }, true);
+  }catch(_){ }
+  try{
+    var mo=new MutationObserver(function(){ var now=Date.now(); if(now-LAST_TOUCH<250) return; LAST_TOUCH=now; repair('mutation'); });
+    if(document.body) mo.observe(document.body, {childList:true, subtree:true});
+  }catch(_){ }
+  function boot(){ repair('boot'); repairLater('boot'); setTimeout(function(){ cloudPatch('boot'); },1200); }
+  try{ window.__dsGB330Repair=repair; window.__dsGB330Bundles=readBundles; window.__dsGB330CloudPatch=cloudPatch; }catch(_){ }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', boot, {once:true}); else boot();
+  setTimeout(boot,1000); setTimeout(boot,3500); setInterval(function(){ repair('interval'); }, 2500);
+})();
+/* ===== END GB330 ===== */
