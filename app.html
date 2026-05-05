@@ -6,13 +6,13 @@
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
 <meta charset="utf-8"/>
-  <meta name="app-build" content="M50.9.9GB324_CONTRACT_REVIEW_AGREEMENT_KEY_SAVE_FIX_20260504_ROOTONLY">
+  <meta name="app-build" content="M50.9.9GB325_CONTRACT_ACCEPT_ADOPT_CUSTOMER_PET_UNLOCK_PERSIST_20260505_ROOTONLY">
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <title>Doggy Style Workspace · App</title>
 <link href="manifest.json" rel="manifest"/>
 <meta content="#101014" name="theme-color"/>
 <link href="assets/logo.png" rel="apple-touch-icon"/>
-<link href="styles.css?v=M50.9.9GB324_CONTRACT_REVIEW_AGREEMENT_KEY_SAVE_FIX_20260504_ROOTONLY" rel="stylesheet"/>
+<link href="styles.css?v=M50.9.9GB325_CONTRACT_ACCEPT_ADOPT_CUSTOMER_PET_UNLOCK_PERSIST_20260505_ROOTONLY" rel="stylesheet"/>
 <link href="dashboard_master.css?v=20260104v13logout" rel="stylesheet"/>
 <style>
   /* Topbar Layout (iPad & Desktop stabil) */
@@ -102,7 +102,7 @@
   .doc-modal__actions{ margin-left:auto; display:flex; flex-wrap: wrap; gap: 8px; }
   .doc-modal__frame{ width: 100%; border: 0; border-radius: 12px; background: #fff; flex:1; min-height: 0; }
 </style>
-  <meta name="app-version" content="M50.9.9GB324_CONTRACT_REVIEW_AGREEMENT_KEY_SAVE_FIX_20260504_ROOTONLY">
+  <meta name="app-version" content="M50.9.9GB325_CONTRACT_ACCEPT_ADOPT_CUSTOMER_PET_UNLOCK_PERSIST_20260505_ROOTONLY">
   <meta name="release-channel" content="MASTER">
 </head>
 <body class="bg-watermark page-app">
@@ -1199,7 +1199,7 @@
 </section>
 
 <section class="panel" id="statistics">
-<!-- Statistics panel is rendered by app.js?v=M50.9.9GB324_CONTRACT_REVIEW_AGREEMENT_KEY_SAVE_FIX_20260504_ROOTONLY (renderStatisticsPanel) -->
+<!-- Statistics panel is rendered by app.js?v=M50.9.9GB325_CONTRACT_ACCEPT_ADOPT_CUSTOMER_PET_UNLOCK_PERSIST_20260505_ROOTONLY (renderStatisticsPanel) -->
 </section>
 
 
@@ -1266,13 +1266,13 @@
 </footer>
 </div>
 <!-- Firebase (optional) + Config -->
-<script defer="defer" src="firebase-config.js?v=M50.9.9GB324_CONTRACT_REVIEW_AGREEMENT_KEY_SAVE_FIX_20260504_ROOTONLY"></script>
+<script defer="defer" src="firebase-config.js?v=M50.9.9GB325_CONTRACT_ACCEPT_ADOPT_CUSTOMER_PET_UNLOCK_PERSIST_20260505_ROOTONLY"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
 <script defer="defer" src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/pdf.min.js"></script>
-<script defer="defer" src="app.js?v=M50.9.9GB324_CONTRACT_REVIEW_AGREEMENT_KEY_SAVE_FIX_20260504_ROOTONLY"></script>
+<script defer="defer" src="app.js?v=M50.9.9GB325_CONTRACT_ACCEPT_ADOPT_CUSTOMER_PET_UNLOCK_PERSIST_20260505_ROOTONLY"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1291,7 +1291,7 @@
 </script>
 
 <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB324_CONTRACT_REVIEW_AGREEMENT_KEY_SAVE_FIX_20260504_ROOTONLY', { updateViaCache: 'none' });
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB325_CONTRACT_ACCEPT_ADOPT_CUSTOMER_PET_UNLOCK_PERSIST_20260505_ROOTONLY', { updateViaCache: 'none' });
   </script>
 
 <script>
@@ -1393,7 +1393,7 @@
   <!-- Bottom logout button removed (duplicate of header logout; also overlaps editor on iPad) -->
 </div>
 <!-- test-badge removed (requested) -->
-  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB324_CONTRACT_REVIEW_AGREEMENT_KEY_SAVE_FIX_20260504_ROOTONLY</div>
+  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB325_CONTRACT_ACCEPT_ADOPT_CUSTOMER_PET_UNLOCK_PERSIST_20260505_ROOTONLY</div>
 
 <script>
 (function visibleMailFallback(){
@@ -1962,6 +1962,155 @@
     function ds192Err(msg, isError){
       try{ if(typeof window.dsSetProposalOpenErrorLine === 'function') window.dsSetProposalOpenErrorLine(String(msg||''), !!isError); }catch(_){ }
     }
+
+    // GB325: Wenn ein Betreuungsvertrag-Vorschlag übernommen wird, muss der zugehörige Kunde/Hund
+    // als echter Datensatz in state.customers/state.pets existieren. Sonst ist der Vertrag lokal zwar grün,
+    // verschwindet aber nach Aktualisieren/Reload wieder, weil nur Signatur/Agreement gespeichert wurden.
+    function ds325Norm(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
+    function ds325First(){
+      for(var i=0;i<arguments.length;i++){
+        var v = ds325Norm(arguments[i]);
+        if(v) return v;
+      }
+      return '';
+    }
+    function ds325EnsureArrays(){
+      try{ if(typeof state === 'undefined' || !state) return false; }catch(_){ return false; }
+      try{ if(!Array.isArray(state.customers)) state.customers = []; }catch(_){ state.customers = []; }
+      try{ if(!Array.isArray(state.pets)) state.pets = []; }catch(_){ state.pets = []; }
+      try{ if(!Array.isArray(state.dogs)) state.dogs = []; }catch(_){ state.dogs = []; }
+      return true;
+    }
+    function ds325FindCustomerByIdOrIdentity(customerId, customerObj, full){
+      try{
+        if(!ds325EnsureArrays()) return null;
+        var cid = ds325Norm(customerId || (customerObj && (customerObj.id || customerObj.customerId)) || '');
+        var email = ds325Norm((customerObj && customerObj.email) || (full && (full.customerEmail || full.email)) || '').toLowerCase();
+        var name = ds325Norm((customerObj && (customerObj.name || customerObj.displayName)) || (full && full.customerName) || '');
+        var list = state.customers || [];
+        var hit = null;
+        if(cid) hit = list.find(function(c){ return ds325Norm(c && (c.id || c.customerId)) === cid; }) || null;
+        if(!hit && email) hit = list.find(function(c){ return ds325Norm(c && c.email).toLowerCase() === email; }) || null;
+        if(!hit && name) hit = list.find(function(c){ return ds325Norm(c && (c.name || c.displayName)).toLowerCase() === name.toLowerCase(); }) || null;
+        return hit || null;
+      }catch(_){ return null; }
+    }
+    function ds325FindPetByIdOrIdentity(petId, customerId, petObj, full){
+      try{
+        if(!ds325EnsureArrays()) return null;
+        var pid = ds325Norm(petId || (petObj && (petObj.id || petObj.petId || petObj.dogId)) || '');
+        var cid = ds325Norm(customerId || (petObj && (petObj.customerId || petObj.ownerId)) || '');
+        var name = ds325Norm((petObj && (petObj.name || petObj.petName || petObj.dogName)) || (full && (full.petName || full.dogName)) || '');
+        var list = state.pets || [];
+        var hit = null;
+        if(pid) hit = list.find(function(p){ return ds325Norm(p && (p.id || p.petId || p.dogId)) === pid; }) || null;
+        if(!hit && cid && name) hit = list.find(function(p){ return ds325Norm(p && (p.customerId || p.ownerId)) === cid && ds325Norm(p && (p.name || p.petName || p.dogName)).toLowerCase() === name.toLowerCase(); }) || null;
+        if(!hit && cid){
+          var owned = list.filter(function(p){ return ds325Norm(p && (p.customerId || p.ownerId)) === cid; });
+          if(owned.length === 1) hit = owned[0];
+        }
+        return hit || null;
+      }catch(_){ return null; }
+    }
+    function ds325AdoptCustomerPetForContractReview(full){
+      try{
+        if(!ds325EnsureArrays()) return {customerId:'', petId:'', createdCustomer:false, createdPet:false};
+        var p = (typeof ds192Payload === 'function') ? ds192Payload(full || {}) : { customer:{}, pet:{}, customerId:'', petId:'' };
+        var raw = (p && p.raw) || (full && (full.payloadSubmitted || full.payloadDraft || full.payload || full.data)) || {};
+        var customerObj = (p && p.customer && typeof p.customer === 'object') ? p.customer : ((raw && raw.customer) || (full && full.customer) || {});
+        var petObj = (p && p.pet && typeof p.pet === 'object') ? p.pet : ((raw && raw.pet) || (full && full.pet) || {});
+        var now = Date.now();
+        var customerName = ds325First(customerObj.name, customerObj.displayName, full && full.customerName, raw && raw.customerName, customerObj.email, full && full.customerEmail, 'Kunde');
+        var customerEmail = ds325First(customerObj.email, full && full.customerEmail, raw && raw.customerEmail, raw && raw.email);
+        var customerPhone = ds325First(customerObj.phone, customerObj.telefon, customerObj.mobile, full && full.customerPhone, raw && raw.customerPhone);
+        var customerId = ds325First(p && p.customerId, customerObj.id, customerObj.customerId, full && full.customerId, full && full.__targetCustomerId);
+        var customer = ds325FindCustomerByIdOrIdentity(customerId, customerObj, full);
+        var createdCustomer = false;
+        if(!customer){
+          if(!customerId){
+            try{ customerId = (typeof uid === 'function') ? uid('cust') : ('cust_' + now); }catch(_){ customerId = 'cust_' + now; }
+          }
+          customer = {
+            id: customerId,
+            name: customerName,
+            phone: customerPhone,
+            email: customerEmail,
+            street: ds325First(customerObj.street, customerObj.strasse, raw && raw.street),
+            zip: ds325First(customerObj.zip, customerObj.plz, raw && raw.zip),
+            city: ds325First(customerObj.city, customerObj.ort, raw && raw.city),
+            emergencyName: ds325First(customerObj.emergencyName, customerObj.notfallName),
+            emergencyPhone: ds325First(customerObj.emergencyPhone, customerObj.notfallTelefon),
+            note: ds325First(customerObj.note, customerObj.notes),
+            createdAt: now,
+            updatedAt: now,
+            source: 'gb325-contract-review-adopt-customer'
+          };
+          state.customers.push(customer);
+          createdCustomer = true;
+        }else{
+          customerId = ds325Norm(customer.id || customer.customerId || customerId);
+          if(customerName && (!customer.name || customer.name === 'Kunde')) customer.name = customerName;
+          if(customerEmail && !customer.email) customer.email = customerEmail;
+          if(customerPhone && !customer.phone) customer.phone = customerPhone;
+          customer.updatedAt = now;
+          customer.source = customer.source || 'gb325-contract-review-merge-customer';
+        }
+        var petName = ds325First(petObj.name, petObj.petName, petObj.dogName, full && full.petName, raw && raw.petName, raw && raw.dogName, 'Hund');
+        var petId = ds325First(p && p.petId, petObj.id, petObj.petId, petObj.dogId, full && full.petId, full && full.__targetPetId, full && full.dogId);
+        var pet = ds325FindPetByIdOrIdentity(petId, customerId, petObj, full);
+        var createdPet = false;
+        if(!pet){
+          if(!petId){
+            try{ petId = (typeof uid === 'function') ? uid('pet') : ('pet_' + now); }catch(_){ petId = 'pet_' + now; }
+          }
+          pet = {
+            id: petId,
+            customerId: customerId,
+            name: petName,
+            breed: ds325First(petObj.breed, petObj.rasse, raw && raw.breed),
+            birthdate: ds325First(petObj.birthdate, petObj.birthDate, petObj.geburtsdatum),
+            sex: ds325First(petObj.sex, petObj.gender, petObj.geschlecht),
+            chip: !!(petObj.chip || petObj.chipped || petObj.gechippt),
+            chipNumber: ds325First(petObj.chipNumber, petObj.chipNr, petObj.chipnummer),
+            vet: ds325First(petObj.vet, petObj.tierarzt),
+            allergies: ds325First(petObj.allergies, petObj.allergien),
+            medicalConditions: ds325First(petObj.medicalConditions, petObj.healthNotes, petObj.gesundheit),
+            note: ds325First(petObj.note, petObj.notes),
+            createdAt: now,
+            updatedAt: now,
+            source: 'gb325-contract-review-adopt-pet'
+          };
+          state.pets.push(pet);
+          createdPet = true;
+        }else{
+          petId = ds325Norm(pet.id || pet.petId || pet.dogId || petId);
+          pet.customerId = customerId || pet.customerId;
+          if(petName && (!pet.name || pet.name === 'Hund')) pet.name = petName;
+          pet.updatedAt = now;
+          pet.source = pet.source || 'gb325-contract-review-merge-pet';
+        }
+        try{ if(typeof upsertLegacyDogForPet === 'function') upsertLegacyDogForPet(pet, customer); }catch(_){ }
+        try{ state.schemaVersion = Math.max(Number(state.schemaVersion || 1), 2); }catch(_){ state.schemaVersion = 2; }
+        return {customerId:customerId, petId:petId, customer:customer, pet:pet, createdCustomer:createdCustomer, createdPet:createdPet, payload:p};
+      }catch(e){
+        try{ console.warn('GB325 adopt customer/pet failed', e); }catch(_){ }
+        return {customerId:'', petId:'', error:String((e && e.message) || e || 'unknown')};
+      }
+    }
+    function ds325UnlockReviewUi(){
+      try{ document.body.style.pointerEvents = 'auto'; document.body.style.opacity = ''; }catch(_){ }
+      try{ if(document.documentElement) document.documentElement.style.pointerEvents = 'auto'; }catch(_){ }
+      try{
+        var ids = ['contractCustomerSelect','contractPetSelect','contractAcceptChk','contractSaveBtn','btnContractSave','contractSave','contractSaveButton','contractSignBtn','contractSigBtn','contractSigClear','contractPdfBtn','btnContractRefresh','btnInboxRefresh'];
+        ids.forEach(function(id){ try{ var el=document.getElementById(id); if(el){ el.disabled=false; el.removeAttribute('disabled'); el.style.pointerEvents='auto'; el.style.opacity='1'; } }catch(_){ } });
+      }catch(_){ }
+      try{
+        document.querySelectorAll('nav button,.tabs button,.topbar button,#dogList button,.item button,.smallbtn,.btn').forEach(function(el){
+          try{ el.disabled=false; el.removeAttribute('disabled'); el.style.pointerEvents='auto'; el.style.opacity='1'; }catch(_){ }
+        });
+      }catch(_){ }
+      try{ var banner=document.getElementById('dsProposalSnapshotBanner'); if(banner) banner.remove(); }catch(_){ }
+    }
     function ds192Payload(row){
       try{
         var raw = ds192Clone((row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data)) || {});
@@ -2222,11 +2371,15 @@
       return Promise.resolve().then(function(){
         var review = window.__dsInlineInboxReview || {};
         var row = full || review.row || null;
+        var gb325Adopt = null;
+        try{ gb325Adopt = ds325AdoptCustomerPetForContractReview(row); }catch(_){ gb325Adopt = null; }
         var cs = document.getElementById('contractCustomerSelect');
         var ps = document.getElementById('contractPetSelect');
         var accept = document.getElementById('contractAcceptChk');
-        var customerId = String((cs && cs.value) || '').trim();
-        var petId = String((ps && ps.value) || '').trim();
+        var customerId = String((cs && cs.value) || (gb325Adopt && gb325Adopt.customerId) || '').trim();
+        var petId = String((ps && ps.value) || (gb325Adopt && gb325Adopt.petId) || '').trim();
+        try{ if(cs && customerId && !cs.value){ cs.innerHTML = '<option value="' + customerId + '">' + String(((gb325Adopt && gb325Adopt.customer && (gb325Adopt.customer.name || gb325Adopt.customer.email)) || customerId)) + '</option>'; cs.value = customerId; } }catch(_){ }
+        try{ if(ps && petId && !ps.value){ ps.innerHTML = '<option value="' + petId + '">' + String(((gb325Adopt && gb325Adopt.pet && gb325Adopt.pet.name) || petId)) + '</option>'; ps.value = petId; } }catch(_){ }
         if(!customerId || !petId){ try{ alert('Bitte zuerst Kunde und Hund wählen.'); }catch(_){ } return false; }
         // GB324: Beim Übernehmen eines Betreuungsvertrag-Vorschlags gilt der Vertrag
         // als vom Admin übernommen/gespeichert. Deshalb nicht erneut am UI-Haken scheitern.
@@ -2281,6 +2434,7 @@
           }catch(_){ }
           try{
             var __pet = (typeof getPet === 'function') ? getPet(petId) : null;
+            if(!__pet && gb325Adopt && gb325Adopt.pet) __pet = gb325Adopt.pet;
             if(__pet){
               __pet.contractAccepted = true;
               __pet.contractValid = true;
@@ -2296,6 +2450,8 @@
           try{ state.contractSelection = { customerId: customerId, petId: petId }; }catch(_){ }
         }
         try{ if(typeof saveState === 'function') saveState(); }catch(_){ }
+        try{ ds325UnlockReviewUi(); }catch(_){ }
+        try{ if(typeof renderDogs === 'function') renderDogs(); }catch(_){ }
         return Promise.resolve().then(async function(){
           try{
             if(typeof window.dsForceProposalPersist === 'function') await window.dsForceProposalPersist('inline-contract-review');
@@ -2326,6 +2482,8 @@
           }
           try{ if(typeof updateSaveInfo === 'function') updateSaveInfo(); }catch(_){ }
           try{ if(typeof updateSignedInfo === 'function') updateSignedInfo(); }catch(_){ }
+          try{ ds325UnlockReviewUi(); }catch(_){ }
+          try{ if(typeof renderDogs === 'function') renderDogs(); }catch(_){ }
           return true;
         });
       });
@@ -2628,6 +2786,9 @@
         try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb206 save-adopt kind=' + String(kind || '--') + ' proposal=' + String((full && (full.proposalId || full.id || full.taskId)) || '--'), false); }catch(_){ }
         try{ window.__dsInlineInboxReview = null; }catch(_){ }
         try{ ds194ShowInboxAfterReview(); }catch(_){ }
+        try{ ds325UnlockReviewUi(); }catch(_){ }
+        try{ if(typeof renderDogs === 'function') renderDogs(); }catch(_){ }
+        try{ if(typeof saveState === 'function') saveState(); }catch(_){ }
         return true;
       });
     }
@@ -2805,7 +2966,7 @@
             };
           }
         }catch(_){ }
-        ds192Banner('contractPanel', 'Original-Vertragsvorschlag geladen. Sichtbar sind die abgesendete Bestätigung und Unterschrift des Kunden. Erst mit Speichern wird übernommen.');
+        ds192Banner('contractPanel', 'Original-Vertragsvorschlag geladen. Mit Speichern wird jetzt Kunde/Hund, Unterschrift und vollständiger Betreuungsvertrag übernommen.');
       }catch(_){ }
       if(tries < 8){ setTimeout(function(){ ds192ApplyContractUi(full, p, tries + 1); }, 180); }
     }
@@ -4003,7 +4164,7 @@
 
 <script>
 (function(){
-  const CURRENT_BUILD = 'M50.9.9GB324_CONTRACT_REVIEW_AGREEMENT_KEY_SAVE_FIX_20260504_ROOTONLY';
+  const CURRENT_BUILD = 'M50.9.9GB325_CONTRACT_ACCEPT_ADOPT_CUSTOMER_PET_UNLOCK_PERSIST_20260505_ROOTONLY';
   try{
     window.addEventListener('load', function(){
       try{
