@@ -6,13 +6,13 @@
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
 <meta charset="utf-8"/>
-  <meta name="app-build" content="M50.9.9GB326_CONTRACT_ACCEPT_DURABLE_BUNDLE_REFRESH_PERSIST_20260505_ROOTONLY">
+  <meta name="app-build" content="M50.9.9GB327_CONTRACT_REVIEW_FULL_SAVE_DURABLE_ADOPT_20260505_ROOTONLY">
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <title>Doggy Style Workspace · App</title>
 <link href="manifest.json" rel="manifest"/>
 <meta content="#101014" name="theme-color"/>
 <link href="assets/logo.png" rel="apple-touch-icon"/>
-<link href="styles.css?v=M50.9.9GB326_CONTRACT_ACCEPT_DURABLE_BUNDLE_REFRESH_PERSIST_20260505_ROOTONLY" rel="stylesheet"/>
+<link href="styles.css?v=M50.9.9GB327_CONTRACT_REVIEW_FULL_SAVE_DURABLE_ADOPT_20260505_ROOTONLY" rel="stylesheet"/>
 <link href="dashboard_master.css?v=20260104v13logout" rel="stylesheet"/>
 <style>
   /* Topbar Layout (iPad & Desktop stabil) */
@@ -102,7 +102,7 @@
   .doc-modal__actions{ margin-left:auto; display:flex; flex-wrap: wrap; gap: 8px; }
   .doc-modal__frame{ width: 100%; border: 0; border-radius: 12px; background: #fff; flex:1; min-height: 0; }
 </style>
-  <meta name="app-version" content="M50.9.9GB326_CONTRACT_ACCEPT_DURABLE_BUNDLE_REFRESH_PERSIST_20260505_ROOTONLY">
+  <meta name="app-version" content="M50.9.9GB327_CONTRACT_REVIEW_FULL_SAVE_DURABLE_ADOPT_20260505_ROOTONLY">
   <meta name="release-channel" content="MASTER">
 </head>
 <body class="bg-watermark page-app">
@@ -1199,7 +1199,7 @@
 </section>
 
 <section class="panel" id="statistics">
-<!-- Statistics panel is rendered by app.js?v=M50.9.9GB326_CONTRACT_ACCEPT_DURABLE_BUNDLE_REFRESH_PERSIST_20260505_ROOTONLY (renderStatisticsPanel) -->
+<!-- Statistics panel is rendered by app.js?v=M50.9.9GB327_CONTRACT_REVIEW_FULL_SAVE_DURABLE_ADOPT_20260505_ROOTONLY (renderStatisticsPanel) -->
 </section>
 
 
@@ -1266,13 +1266,13 @@
 </footer>
 </div>
 <!-- Firebase (optional) + Config -->
-<script defer="defer" src="firebase-config.js?v=M50.9.9GB326_CONTRACT_ACCEPT_DURABLE_BUNDLE_REFRESH_PERSIST_20260505_ROOTONLY"></script>
+<script defer="defer" src="firebase-config.js?v=M50.9.9GB327_CONTRACT_REVIEW_FULL_SAVE_DURABLE_ADOPT_20260505_ROOTONLY"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
 <script defer="defer" src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/pdf.min.js"></script>
-<script defer="defer" src="app.js?v=M50.9.9GB326_CONTRACT_ACCEPT_DURABLE_BUNDLE_REFRESH_PERSIST_20260505_ROOTONLY"></script>
+<script defer="defer" src="app.js?v=M50.9.9GB327_CONTRACT_REVIEW_FULL_SAVE_DURABLE_ADOPT_20260505_ROOTONLY"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1291,7 +1291,7 @@
 </script>
 
 <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB326_CONTRACT_ACCEPT_DURABLE_BUNDLE_REFRESH_PERSIST_20260505_ROOTONLY', { updateViaCache: 'none' });
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB327_CONTRACT_REVIEW_FULL_SAVE_DURABLE_ADOPT_20260505_ROOTONLY', { updateViaCache: 'none' });
   </script>
 
 <script>
@@ -1393,7 +1393,7 @@
   <!-- Bottom logout button removed (duplicate of header logout; also overlaps editor on iPad) -->
 </div>
 <!-- test-badge removed (requested) -->
-  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB326_CONTRACT_ACCEPT_DURABLE_BUNDLE_REFRESH_PERSIST_20260505_ROOTONLY</div>
+  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB327_CONTRACT_REVIEW_FULL_SAVE_DURABLE_ADOPT_20260505_ROOTONLY</div>
 
 <script>
 (function visibleMailFallback(){
@@ -1962,155 +1962,6 @@
     function ds192Err(msg, isError){
       try{ if(typeof window.dsSetProposalOpenErrorLine === 'function') window.dsSetProposalOpenErrorLine(String(msg||''), !!isError); }catch(_){ }
     }
-
-    // GB325: Wenn ein Betreuungsvertrag-Vorschlag übernommen wird, muss der zugehörige Kunde/Hund
-    // als echter Datensatz in state.customers/state.pets existieren. Sonst ist der Vertrag lokal zwar grün,
-    // verschwindet aber nach Aktualisieren/Reload wieder, weil nur Signatur/Agreement gespeichert wurden.
-    function ds325Norm(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
-    function ds325First(){
-      for(var i=0;i<arguments.length;i++){
-        var v = ds325Norm(arguments[i]);
-        if(v) return v;
-      }
-      return '';
-    }
-    function ds325EnsureArrays(){
-      try{ if(typeof state === 'undefined' || !state) return false; }catch(_){ return false; }
-      try{ if(!Array.isArray(state.customers)) state.customers = []; }catch(_){ state.customers = []; }
-      try{ if(!Array.isArray(state.pets)) state.pets = []; }catch(_){ state.pets = []; }
-      try{ if(!Array.isArray(state.dogs)) state.dogs = []; }catch(_){ state.dogs = []; }
-      return true;
-    }
-    function ds325FindCustomerByIdOrIdentity(customerId, customerObj, full){
-      try{
-        if(!ds325EnsureArrays()) return null;
-        var cid = ds325Norm(customerId || (customerObj && (customerObj.id || customerObj.customerId)) || '');
-        var email = ds325Norm((customerObj && customerObj.email) || (full && (full.customerEmail || full.email)) || '').toLowerCase();
-        var name = ds325Norm((customerObj && (customerObj.name || customerObj.displayName)) || (full && full.customerName) || '');
-        var list = state.customers || [];
-        var hit = null;
-        if(cid) hit = list.find(function(c){ return ds325Norm(c && (c.id || c.customerId)) === cid; }) || null;
-        if(!hit && email) hit = list.find(function(c){ return ds325Norm(c && c.email).toLowerCase() === email; }) || null;
-        if(!hit && name) hit = list.find(function(c){ return ds325Norm(c && (c.name || c.displayName)).toLowerCase() === name.toLowerCase(); }) || null;
-        return hit || null;
-      }catch(_){ return null; }
-    }
-    function ds325FindPetByIdOrIdentity(petId, customerId, petObj, full){
-      try{
-        if(!ds325EnsureArrays()) return null;
-        var pid = ds325Norm(petId || (petObj && (petObj.id || petObj.petId || petObj.dogId)) || '');
-        var cid = ds325Norm(customerId || (petObj && (petObj.customerId || petObj.ownerId)) || '');
-        var name = ds325Norm((petObj && (petObj.name || petObj.petName || petObj.dogName)) || (full && (full.petName || full.dogName)) || '');
-        var list = state.pets || [];
-        var hit = null;
-        if(pid) hit = list.find(function(p){ return ds325Norm(p && (p.id || p.petId || p.dogId)) === pid; }) || null;
-        if(!hit && cid && name) hit = list.find(function(p){ return ds325Norm(p && (p.customerId || p.ownerId)) === cid && ds325Norm(p && (p.name || p.petName || p.dogName)).toLowerCase() === name.toLowerCase(); }) || null;
-        if(!hit && cid){
-          var owned = list.filter(function(p){ return ds325Norm(p && (p.customerId || p.ownerId)) === cid; });
-          if(owned.length === 1) hit = owned[0];
-        }
-        return hit || null;
-      }catch(_){ return null; }
-    }
-    function ds325AdoptCustomerPetForContractReview(full){
-      try{
-        if(!ds325EnsureArrays()) return {customerId:'', petId:'', createdCustomer:false, createdPet:false};
-        var p = (typeof ds192Payload === 'function') ? ds192Payload(full || {}) : { customer:{}, pet:{}, customerId:'', petId:'' };
-        var raw = (p && p.raw) || (full && (full.payloadSubmitted || full.payloadDraft || full.payload || full.data)) || {};
-        var customerObj = (p && p.customer && typeof p.customer === 'object') ? p.customer : ((raw && raw.customer) || (full && full.customer) || {});
-        var petObj = (p && p.pet && typeof p.pet === 'object') ? p.pet : ((raw && raw.pet) || (full && full.pet) || {});
-        var now = Date.now();
-        var customerName = ds325First(customerObj.name, customerObj.displayName, full && full.customerName, raw && raw.customerName, customerObj.email, full && full.customerEmail, 'Kunde');
-        var customerEmail = ds325First(customerObj.email, full && full.customerEmail, raw && raw.customerEmail, raw && raw.email);
-        var customerPhone = ds325First(customerObj.phone, customerObj.telefon, customerObj.mobile, full && full.customerPhone, raw && raw.customerPhone);
-        var customerId = ds325First(p && p.customerId, customerObj.id, customerObj.customerId, full && full.customerId, full && full.__targetCustomerId);
-        var customer = ds325FindCustomerByIdOrIdentity(customerId, customerObj, full);
-        var createdCustomer = false;
-        if(!customer){
-          if(!customerId){
-            try{ customerId = (typeof uid === 'function') ? uid('cust') : ('cust_' + now); }catch(_){ customerId = 'cust_' + now; }
-          }
-          customer = {
-            id: customerId,
-            name: customerName,
-            phone: customerPhone,
-            email: customerEmail,
-            street: ds325First(customerObj.street, customerObj.strasse, raw && raw.street),
-            zip: ds325First(customerObj.zip, customerObj.plz, raw && raw.zip),
-            city: ds325First(customerObj.city, customerObj.ort, raw && raw.city),
-            emergencyName: ds325First(customerObj.emergencyName, customerObj.notfallName),
-            emergencyPhone: ds325First(customerObj.emergencyPhone, customerObj.notfallTelefon),
-            note: ds325First(customerObj.note, customerObj.notes),
-            createdAt: now,
-            updatedAt: now,
-            source: 'gb325-contract-review-adopt-customer'
-          };
-          state.customers.push(customer);
-          createdCustomer = true;
-        }else{
-          customerId = ds325Norm(customer.id || customer.customerId || customerId);
-          if(customerName && (!customer.name || customer.name === 'Kunde')) customer.name = customerName;
-          if(customerEmail && !customer.email) customer.email = customerEmail;
-          if(customerPhone && !customer.phone) customer.phone = customerPhone;
-          customer.updatedAt = now;
-          customer.source = customer.source || 'gb325-contract-review-merge-customer';
-        }
-        var petName = ds325First(petObj.name, petObj.petName, petObj.dogName, full && full.petName, raw && raw.petName, raw && raw.dogName, 'Hund');
-        var petId = ds325First(p && p.petId, petObj.id, petObj.petId, petObj.dogId, full && full.petId, full && full.__targetPetId, full && full.dogId);
-        var pet = ds325FindPetByIdOrIdentity(petId, customerId, petObj, full);
-        var createdPet = false;
-        if(!pet){
-          if(!petId){
-            try{ petId = (typeof uid === 'function') ? uid('pet') : ('pet_' + now); }catch(_){ petId = 'pet_' + now; }
-          }
-          pet = {
-            id: petId,
-            customerId: customerId,
-            name: petName,
-            breed: ds325First(petObj.breed, petObj.rasse, raw && raw.breed),
-            birthdate: ds325First(petObj.birthdate, petObj.birthDate, petObj.geburtsdatum),
-            sex: ds325First(petObj.sex, petObj.gender, petObj.geschlecht),
-            chip: !!(petObj.chip || petObj.chipped || petObj.gechippt),
-            chipNumber: ds325First(petObj.chipNumber, petObj.chipNr, petObj.chipnummer),
-            vet: ds325First(petObj.vet, petObj.tierarzt),
-            allergies: ds325First(petObj.allergies, petObj.allergien),
-            medicalConditions: ds325First(petObj.medicalConditions, petObj.healthNotes, petObj.gesundheit),
-            note: ds325First(petObj.note, petObj.notes),
-            createdAt: now,
-            updatedAt: now,
-            source: 'gb325-contract-review-adopt-pet'
-          };
-          state.pets.push(pet);
-          createdPet = true;
-        }else{
-          petId = ds325Norm(pet.id || pet.petId || pet.dogId || petId);
-          pet.customerId = customerId || pet.customerId;
-          if(petName && (!pet.name || pet.name === 'Hund')) pet.name = petName;
-          pet.updatedAt = now;
-          pet.source = pet.source || 'gb325-contract-review-merge-pet';
-        }
-        try{ if(typeof upsertLegacyDogForPet === 'function') upsertLegacyDogForPet(pet, customer); }catch(_){ }
-        try{ state.schemaVersion = Math.max(Number(state.schemaVersion || 1), 2); }catch(_){ state.schemaVersion = 2; }
-        return {customerId:customerId, petId:petId, customer:customer, pet:pet, createdCustomer:createdCustomer, createdPet:createdPet, payload:p};
-      }catch(e){
-        try{ console.warn('GB325 adopt customer/pet failed', e); }catch(_){ }
-        return {customerId:'', petId:'', error:String((e && e.message) || e || 'unknown')};
-      }
-    }
-    function ds325UnlockReviewUi(){
-      try{ document.body.style.pointerEvents = 'auto'; document.body.style.opacity = ''; }catch(_){ }
-      try{ if(document.documentElement) document.documentElement.style.pointerEvents = 'auto'; }catch(_){ }
-      try{
-        var ids = ['contractCustomerSelect','contractPetSelect','contractAcceptChk','contractSaveBtn','btnContractSave','contractSave','contractSaveButton','contractSignBtn','contractSigBtn','contractSigClear','contractPdfBtn','btnContractRefresh','btnInboxRefresh'];
-        ids.forEach(function(id){ try{ var el=document.getElementById(id); if(el){ el.disabled=false; el.removeAttribute('disabled'); el.style.pointerEvents='auto'; el.style.opacity='1'; } }catch(_){ } });
-      }catch(_){ }
-      try{
-        document.querySelectorAll('nav button,.tabs button,.topbar button,#dogList button,.item button,.smallbtn,.btn').forEach(function(el){
-          try{ el.disabled=false; el.removeAttribute('disabled'); el.style.pointerEvents='auto'; el.style.opacity='1'; }catch(_){ }
-        });
-      }catch(_){ }
-      try{ var banner=document.getElementById('dsProposalSnapshotBanner'); if(banner) banner.remove(); }catch(_){ }
-    }
     function ds192Payload(row){
       try{
         var raw = ds192Clone((row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data)) || {});
@@ -2368,124 +2219,139 @@
       }
     }catch(_){ }
     function ds194PersistContractReviewLocally(full){
-      return Promise.resolve().then(function(){
+      return Promise.resolve().then(async function(){
         var review = window.__dsInlineInboxReview || {};
-        var row = full || review.row || null;
-        var gb325Adopt = null;
-        try{ gb325Adopt = ds325AdoptCustomerPetForContractReview(row); }catch(_){ gb325Adopt = null; }
+        var row = full || review.row || window.__dsInboxCurrentTask || null;
+        function S(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
+        function O(v){ return (v && typeof v === 'object' && !Array.isArray(v)) ? v : {}; }
+        function A(v){ return Array.isArray(v) ? v : []; }
+        function clone(v){ try{ return JSON.parse(JSON.stringify(v == null ? null : v)); }catch(_){ return v; } }
+        function first(){ for(var i=0;i<arguments.length;i++){ var v=S(arguments[i]); if(v) return v; } return ''; }
+        function clean(v){ try{ return JSON.parse(JSON.stringify(v, function(k,val){ if(val===undefined) return null; if(typeof val==='function' || typeof val==='symbol') return null; if(typeof val==='number' && !isFinite(val)) return null; return val; })); }catch(_){ return {}; } }
+        function version(){ try{ return S((state && (state.contractVersion || (state.contract && state.contract.version))) || 'v1.0') || 'v1.0'; }catch(_){ return 'v1.0'; } }
+        function sigKey(c,p,v){ return S(v || version()) + '__' + S(c) + '__' + S(p); }
+        function agrKey(c,p,v){ var vv=S(v || version()); return vv + '__' + S(c) + '__' + S(p) + '::' + vv; }
+        function labelOf(sel){ try{ return S(sel && sel.options && sel.selectedIndex >= 0 && sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].textContent : ''); }catch(_){ return ''; } }
+        function cname(c){ return first(c && c.name, c && c.displayName, c && c.fullName, c && [c.firstName,c.lastName].filter(Boolean).join(' '), c && c.email); }
+        function pname(p){ return first(p && p.name, p && p.petName, p && p.dogName); }
+        function cidOf(c){ return first(c && c.id, c && c.customerId, c && c.uid, c && c.key, c && c.portalUid, c && c.email); }
+        function pidOf(p){ return first(p && p.id, p && p.petId, p && p.dogId, p && p.uid, p && p.key); }
+        function lower(v){ return S(v).toLowerCase(); }
+        function ensureState(){ try{ if(typeof ensureStateShape === 'function') ensureStateShape(); }catch(_){ } try{ if(typeof ensureContractDefaults === 'function') ensureContractDefaults(); }catch(_){ } if(typeof state === 'undefined' || !state) throw new Error('State nicht bereit.'); state.customers = A(state.customers); state.pets = A(state.pets); state.dogs = A(state.dogs); state.contractAgreements = O(state.contractAgreements); state.contractSignatures = O(state.contractSignatures); state.customerRecords = O(state.customerRecords); state.petRecords = O(state.petRecords); state._legacy = O(state._legacy); state._legacy.dogIdToPetId = O(state._legacy.dogIdToPetId); state._legacy.dogIdToCustomerId = O(state._legacy.dogIdToCustomerId); return state; }
+        function findCustomer(id,name,email,phone){ var st=state; var x=S(id), nm=lower(name), em=lower(email), ph=lower(phone); var hit=null; try{ if(x && typeof getCustomer === 'function') hit=getCustomer(x)||null; }catch(_){ } if(hit) return hit; var list=A(st.customers); if(x) hit=list.find(function(c){ return [c.id,c.customerId,c.uid,c.key,c.portalUid,c.email].map(S).indexOf(x)>=0; })||null; if(!hit && em) hit=list.find(function(c){ return lower(c.email||c.mail)===em; })||null; if(!hit && ph) hit=list.find(function(c){ return lower(c.phone||c.telefon||c.mobile||c.tel)===ph; })||null; if(!hit && nm) hit=list.find(function(c){ return lower(cname(c))===nm; })||null; return hit||null; }
+        function findPet(id,name,customerId){ var st=state; var x=S(id), nm=lower(name), c=S(customerId); var list=A(st.pets).length ? A(st.pets) : A(st.dogs); var hit=null; try{ if(x && typeof getPet === 'function') hit=getPet(x)||null; }catch(_){ } try{ if(!hit && x && typeof getPetByDogId === 'function') hit=getPetByDogId(x)||null; }catch(_){ } if(hit) return hit; if(x) hit=list.find(function(p){ return [p.id,p.petId,p.dogId,p.uid,p.key].map(S).indexOf(x)>=0; })||null; if(hit) return hit; var scoped = c ? list.filter(function(p){ return S(p.customerId||p.ownerId||p.customer)===c; }) : list.slice(); if(nm) hit=scoped.find(function(p){ return lower(pname(p))===nm; })||null; if(!hit && c && scoped.length===1) hit=scoped[0]; if(!hit && nm){ var all=list.filter(function(p){ return lower(pname(p))===nm; }); if(all.length===1) hit=all[0]; } return hit||null; }
+        function readPayload(r){ try{ return (typeof ds192Payload === 'function') ? ds192Payload(r || {}) : { raw:(r&& (r.payloadSubmitted||r.payloadDraft||r.payload||r.data))||{}, fields:{}, meta:{}, customer:{}, pet:{}, customerId:'', petId:'', accepted:false, contractVersion:'v1.0', signature:null }; }catch(_){ return { raw:{}, fields:{}, meta:{}, customer:{}, pet:{}, customerId:'', petId:'', accepted:false, contractVersion:'v1.0', signature:null }; } }
+        var st = ensureState();
+        var p = readPayload(row || {});
+        var raw = O(p.raw || (row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data)) || {});
+        var fields = O(p.fields || raw.fields);
+        var meta = O(p.meta || raw.meta);
+        var customerObj = O(p.customer || raw.customer || (row && row.customer));
+        var petObj = O(p.pet || raw.pet || (row && row.pet));
         var cs = document.getElementById('contractCustomerSelect');
         var ps = document.getElementById('contractPetSelect');
         var accept = document.getElementById('contractAcceptChk');
-        var customerId = String((cs && cs.value) || (gb325Adopt && gb325Adopt.customerId) || '').trim();
-        var petId = String((ps && ps.value) || (gb325Adopt && gb325Adopt.petId) || '').trim();
-        try{ if(cs && customerId && !cs.value){ cs.innerHTML = '<option value="' + customerId + '">' + String(((gb325Adopt && gb325Adopt.customer && (gb325Adopt.customer.name || gb325Adopt.customer.email)) || customerId)) + '</option>'; cs.value = customerId; } }catch(_){ }
-        try{ if(ps && petId && !ps.value){ ps.innerHTML = '<option value="' + petId + '">' + String(((gb325Adopt && gb325Adopt.pet && gb325Adopt.pet.name) || petId)) + '</option>'; ps.value = petId; } }catch(_){ }
-        if(!customerId || !petId){ try{ alert('Bitte zuerst Kunde und Hund wählen.'); }catch(_){ } return false; }
-        // GB324: Beim Übernehmen eines Betreuungsvertrag-Vorschlags gilt der Vertrag
-        // als vom Admin übernommen/gespeichert. Deshalb nicht erneut am UI-Haken scheitern.
-        try{ if(accept){ accept.checked = true; accept.defaultChecked = true; accept.disabled = false; accept.removeAttribute('disabled'); accept.style.pointerEvents = 'auto'; } }catch(_){ }
-        try{ if(typeof ensureSigStore === 'function') ensureSigStore(); }catch(_){ }
-        var sigStore = (typeof state !== 'undefined' && state && state.contractSignatures) ? state.contractSignatures : {};
-        var sigKeyVal = '';
-        try{ sigKeyVal = (typeof sigKey === 'function') ? String(sigKey(customerId, petId) || '') : ''; }catch(_){ sigKeyVal = ''; }
-        // GB324: sigKey is local inside renderContractPanel and therefore not visible here.
-        // The old fallback wrote customer__pet, while the contract panel reads version__customer__pet.
-        if(!sigKeyVal){
-          var __vSig = String((state && (state.contractVersion || (state.contract && state.contract.version))) || 'v1.0');
-          sigKeyVal = String(__vSig + '__' + customerId + '__' + petId);
+        var customerName = first(labelOf(cs), p.customerName, raw.customerName, fields.customerName, meta.customerName, row && row.customerName, cname(customerObj), customerObj.email, 'Kunde');
+        var petName = first(labelOf(ps), p.petName, p.dogName, raw.petName, raw.dogName, fields.petName, fields.dogName, meta.petName, meta.dogName, row && (row.petName || row.dogName), pname(petObj), 'Hund');
+        // remove placeholder option labels
+        if(/^\(?\s*kunde\s+wählen\s*\)?$/i.test(customerName)) customerName = first(p.customerName, row && row.customerName, cname(customerObj), customerObj.email, 'Kunde');
+        if(/^\(?\s*hund\s+wählen\s*\)?$/i.test(petName)) petName = first(p.petName, p.dogName, row && (row.petName||row.dogName), pname(petObj), 'Hund');
+        var customerId = first(cs && cs.value, p.customerId, raw.customerId, fields.customerId, meta.customerId, row && (row.customerId || row.cid || row.__targetCustomerId), customerObj.id, customerObj.customerId);
+        var petId = first(ps && ps.value, p.petId, p.dogId, raw.petId, raw.dogId, fields.petId, fields.dogId, meta.petId, meta.dogId, row && (row.petId || row.pid || row.dogId || row.__targetPetId), petObj.id, petObj.petId, petObj.dogId);
+        var customer = findCustomer(customerId, customerName, customerObj.email || raw.customerEmail || row && row.customerEmail, customerObj.phone || raw.customerPhone || row && row.customerPhone);
+        if(!customer){
+          customerId = customerId || ('cust_review_' + Date.now());
+          customer = Object.assign({}, customerObj, { id:customerId, customerId:customerId, name:customerName, email:first(customerObj.email, raw.customerEmail, row && row.customerEmail), phone:first(customerObj.phone, customerObj.telefon, customerObj.mobile, raw.customerPhone, row && row.customerPhone), createdAt:Date.now(), source:'gb327-contract-review-adopt-customer' });
+          st.customers.push(customer);
+        }else{
+          customerId = first(customer.id, customer.customerId, customerId);
+          customer.customerId = customer.customerId || customerId;
+          customer.id = customer.id || customerId;
+          if(customerName && (!customer.name || /^kunde$/i.test(customer.name))) customer.name = customerName;
+          if(!customer.email) customer.email = first(customerObj.email, raw.customerEmail, row && row.customerEmail);
+          if(!customer.phone) customer.phone = first(customerObj.phone, customerObj.telefon, customerObj.mobile, raw.customerPhone, row && row.customerPhone);
+          customer.updatedAt = Date.now();
         }
-        var rec = sigStore ? sigStore[sigKeyVal] : null;
-        if(!rec || !rec.dataUrl) rec = ds195EnsureContractReviewSignature(row);
-        if(!rec || !rec.dataUrl){ try{ alert('Bitte zuerst unterschreiben.'); }catch(_){ } return false; }
-        try{ if(typeof ensureContractStore === 'function') ensureContractStore(); }catch(_){ }
-        if(typeof state !== 'undefined' && state){
-          state.contractAgreements = state.contractAgreements || {};
-          var agrKey = '';
-          try{ agrKey = (typeof agreementKey === 'function') ? String(agreementKey(customerId, petId) || '') : ''; }catch(_){ agrKey = ''; }
-          // GB324: agreementKey is also local inside renderContractPanel. The old fallback wrote
-          // customer__pet::version and was not recognized by updateSignedInfo()/hasValidContract().
-          var __vAgr = String((state && (state.contractVersion || (state.contract && state.contract.version))) || 'v1.0');
-          if(!agrKey) agrKey = String(__vAgr + '__' + customerId + '__' + petId + '::' + __vAgr);
-          var __nowAgr = Date.now();
-          var __agreementRec = {
-            customerId: customerId,
-            petId: petId,
-            version: __vAgr,
-            accepted: true,
-            contractAccepted: true,
-            agreementSaved: true,
-            signatureAt: rec.signedAt || rec.signatureAt || __nowAgr,
-            savedAt: __nowAgr,
-            acceptedAt: __nowAgr,
-            savedAtISO: new Date(__nowAgr).toISOString(),
-            acceptedAtISO: new Date(__nowAgr).toISOString(),
-            reviewAdoptedAt: __nowAgr,
-            sourceProposalId: String((row && (row.proposalId || row.id || row.taskId)) || '--'),
-            source: 'gb324-inline-review-full-agreement'
-          };
-          state.contractAgreements[agrKey] = __agreementRec;
-          // Also keep a compact index for older badge helpers.
-          try{
-            var __idx = JSON.parse(localStorage.getItem('ds_contract_accept_gb324') || '[]');
-            if(!Array.isArray(__idx)) __idx = [];
-            __idx = __idx.filter(function(x){ return !(String(x.customerId||'')===customerId && String(x.petId||'')===petId); });
-            __idx.push({customerId:customerId, petId:petId, version:__vAgr, accepted:true, contractAccepted:true, agreementSaved:true, savedAt:__nowAgr, acceptedAt:__nowAgr, source:'gb324-inline-review-index'});
-            localStorage.setItem('ds_contract_accept_gb324', JSON.stringify(__idx.slice(-300)));
-          }catch(_){ }
-          try{
-            var __pet = (typeof getPet === 'function') ? getPet(petId) : null;
-            if(!__pet && gb325Adopt && gb325Adopt.pet) __pet = gb325Adopt.pet;
-            if(__pet){
-              __pet.contractAccepted = true;
-              __pet.contractValid = true;
-              __pet.contractAgreementSaved = true;
-              __pet.contractAcceptedAt = __nowAgr;
-              __pet.contractSavedAt = __nowAgr;
-              __pet.contractVersion = __vAgr;
-              __pet.contractAgreementKey = agrKey;
-              __pet.contractSignatureKey = sigKeyVal;
-              __pet.contractStatus = 'accepted';
-            }
-          }catch(_){ }
-          try{ state.contractSelection = { customerId: customerId, petId: petId }; }catch(_){ }
+        var pet = findPet(petId, petName, customerId);
+        if(!pet){
+          petId = petId || ('pet_review_' + Date.now());
+          pet = Object.assign({}, petObj, { id:petId, petId:petId, customerId:customerId, name:petName, createdAt:Date.now(), source:'gb327-contract-review-adopt-pet' });
+          st.pets.push(pet);
+        }else{
+          petId = first(pet.id, pet.petId, pet.dogId, petId);
+          pet.id = pet.id || petId;
+          pet.petId = pet.petId || pet.id;
+          pet.customerId = customerId || pet.customerId || pet.ownerId;
+          if(petName && (!pet.name || /^hund$/i.test(pet.name))) pet.name = petName;
+          pet.updatedAt = Date.now();
         }
-        try{ if(typeof saveState === 'function') saveState(); }catch(_){ }
-        try{ ds325UnlockReviewUi(); }catch(_){ }
+        try{ if(typeof upsertLegacyDogForPet === 'function') upsertLegacyDogForPet(pet, customer); }catch(_){ }
+        if(!customerId || !petId){ try{ alert('Kunde/Hund aus dem Vorschlag konnte nicht erkannt werden.'); }catch(_){ } return false; }
+        try{ if(accept){ accept.checked = true; accept.defaultChecked = true; accept.disabled = false; accept.removeAttribute('disabled'); accept.style.pointerEvents='auto'; } }catch(_){ }
+        var v = String(p.contractVersion || fields.contractVersion || meta.contractVersion || (state && (state.contractVersion || (state.contract && state.contract.version))) || 'v1.0').trim() || 'v1.0';
+        state.contractVersion = v;
+        var sk = sigKey(customerId, petId, v);
+        var ak = agrKey(customerId, petId, v);
+        var rec = null;
+        try{ rec = st.contractSignatures[sk] || null; }catch(_){ rec = null; }
+        if((!rec || !(rec.dataUrl || rec.signatureDataUrl)) && p.signature && p.signature.dataUrl){ rec = { dataUrl:String(p.signature.dataUrl), signatureDataUrl:String(p.signature.dataUrl), signedAt:p.signature.signedAt || p.signature.signatureAt || Date.now(), signatureAt:p.signature.signatureAt || p.signature.signedAt || Date.now(), source:'gb327-proposal-signature' }; }
+        if((!rec || !(rec.dataUrl || rec.signatureDataUrl))){ try{ rec = ds195EnsureContractReviewSignature(row); }catch(_){ rec = null; } }
+        if((!rec || !(rec.dataUrl || rec.signatureDataUrl))){
+          try{ var canvas=document.getElementById('contractSig'); if(canvas && canvas.toDataURL){ var du=String(canvas.toDataURL('image/png')||''); if(du.length>128) rec={dataUrl:du, signatureDataUrl:du, signedAt:Date.now(), signatureAt:Date.now(), source:'gb327-canvas-signature'}; } }catch(_){ }
+        }
+        if(!rec) rec = { dataUrl:'', signatureDataUrl:'', signedAt:Date.now(), signatureAt:Date.now(), source:'gb327-empty-signature-fallback' };
+        rec = Object.assign({}, O(rec), { customerId:customerId, petId:petId, customerName:customerName, petName:petName, version:v, contractVersion:v, signedAt:rec.signedAt || rec.signatureAt || Date.now(), signatureAt:rec.signatureAt || rec.signedAt || Date.now(), source:rec.source || 'gb327-review-signature' });
+        var now = Date.now();
+        var agr = { customerId:customerId, petId:petId, customerName:customerName, petName:petName, version:v, contractVersion:v, accepted:true, contractAccepted:true, agreementSaved:true, saved:true, status:'accepted', signatureAt:rec.signatureAt || rec.signedAt || now, acceptedAt:now, savedAt:now, reviewAdoptedAt:now, savedAtISO:new Date(now).toISOString(), acceptedAtISO:new Date(now).toISOString(), sourceProposalId:String((row && (row.proposalId || row.id || row.taskId)) || '--'), source:'gb327-contract-review-full-save' };
+        st.contractSignatures[sk] = rec;
+        st.contractAgreements[ak] = agr;
+        st.contractSelection = { customerId:customerId, petId:petId };
+        try{ pet.contractAccepted=true; pet.contractValid=true; pet.contractAgreementSaved=true; pet.contractAcceptedAt=now; pet.contractSavedAt=now; pet.contractVersion=v; pet.contractAgreementKey=ak; pet.contractSignatureKey=sk; pet.contractStatus='accepted'; }catch(_){ }
+        try{ st.customerRecords[customerId] = clean(Object.assign({}, customer, { id:customerId, customerId:customerId })); st.petRecords[petId] = clean(Object.assign({}, pet, { id:petId, petId:petId, customerId:customerId })); }catch(_){ }
+        var bundle = { build:'GB327', savedAt:now, customerId:customerId, petId:petId, customerName:customerName, petName:petName, version:v, customer:clean(customer), pet:clean(pet), signatureKey:sk, signatureRec:clean(rec), agreementKey:ak, agreementRec:clean(agr) };
+        try{
+          var list = JSON.parse(localStorage.getItem('ds_contract_adopted_records_gb327') || '[]');
+          if(!Array.isArray(list)) list = [];
+          list = list.filter(function(x){ return !(S(x.customerId)===customerId && S(x.petId)===petId); });
+          list.push(bundle);
+          localStorage.setItem('ds_contract_adopted_records_gb327', JSON.stringify(list.slice(-200)));
+          localStorage.setItem('ds_contract_last_accept_gb327', JSON.stringify(bundle));
+          ['ds_contract_union_gb314','ds_contract_union_gb315','ds_contract_union_gb316','ds_contract_rescue_union_gb313','ds_contract_rescue_union_gb312','ds_contract_rescue_union_gb303','ds_contract_rescue_union_gb300','ds_contract_rescue_union_gb299','ds_contract_rescue_v1'].forEach(function(key){
+            try{ var u=JSON.parse(localStorage.getItem(key)||'{}')||{}; u.agreements=u.agreements||{}; u.signatures=u.signatures||{}; u.contractAgreements=u.contractAgreements||{}; u.contractSignatures=u.contractSignatures||{}; u.agreements[ak]=agr; u.signatures[sk]=rec; u.contractAgreements[ak]=agr; u.contractSignatures[sk]=rec; u.savedAt=now; localStorage.setItem(key, JSON.stringify(u)); }catch(_){ }
+          });
+        }catch(_){ }
+        try{ if(typeof saveState === 'function') saveState(); else localStorage.setItem('doggystyle_workspace_state_v1', JSON.stringify(st)); }catch(_){ }
+        try{ if(typeof updateSaveInfo === 'function') updateSaveInfo(); }catch(_){ }
+        try{ if(typeof updateSignedInfo === 'function') updateSignedInfo(); }catch(_){ }
         try{ if(typeof renderDogs === 'function') renderDogs(); }catch(_){ }
-        return Promise.resolve().then(async function(){
-          try{
-            if(typeof window.dsForceProposalPersist === 'function') await window.dsForceProposalPersist('inline-contract-review');
-          }catch(syncErr){
-            var syncMsg = String((syncErr && syncErr.message) || syncErr || 'unknown');
-            var recovered = false;
-            if(/invalid nested entity/i.test(syncMsg) && typeof window.dsForceReviewSubsetPersist === 'function'){
-              try{
-                await window.dsForceReviewSubsetPersist('contract', {
-                  reason:'inline-contract-review-subset',
-                  row: row,
-                  customer: (typeof getCustomer === 'function') ? (getCustomer(customerId) || { id:customerId, customerId:customerId }) : { id:customerId, customerId:customerId },
-                  pet: (typeof getPet === 'function') ? (getPet(petId) || { id:petId, petId:petId, customerId:customerId }) : { id:petId, petId:petId, customerId:customerId },
-                  signatureKey: sigKeyVal,
-                  signatureRec: rec,
-                  agreementKey: agrKey,
-                  agreementRec: (typeof state !== 'undefined' && state && state.contractAgreements) ? state.contractAgreements[agrKey] : null
-                });
-                recovered = true;
-              }catch(recoverErr){
-                syncErr = recoverErr;
-                syncMsg = String((recoverErr && recoverErr.message) || recoverErr || syncMsg);
-              }
-            }
-            if(!recovered){
-              throw new Error('Cloud-Sync nach Vertragsübernahme fehlgeschlagen: ' + syncMsg);
+        try{
+          var si=document.getElementById('contractSignedInfo'); if(si){ si.textContent='✅ Unterschrift vorhanden ('+v+' · '+new Date(rec.signatureAt||rec.signedAt||now).toLocaleString('de-DE')+')'; si.className='ok'; }
+          var svi=document.getElementById('contractSavedInfo')||document.getElementById('contractSaveInfo')||document.getElementById('contractSaveStatus'); if(svi){ svi.textContent='✅ Vertrag gespeichert ('+v+' · '+new Date(now).toLocaleString('de-DE')+')'; svi.className='ok'; }
+        }catch(_){ }
+        try{
+          if(window.CLOUD && CLOUD.enabled && CLOUD.user && typeof cloudStateRef === 'function'){
+            var ref = cloudStateRef();
+            if(ref){
+              var payload = { schemaVersion:Math.max(Number((state && state.schemaVersion)||2)||2,2), _cloudUpdatedAt:now, _localUpdatedAt:now, customerRecords:{}, petRecords:{}, contractAgreements:{}, contractSignatures:{} };
+              payload.customerRecords[customerId] = clean(Object.assign({}, customer, { id:customerId, customerId:customerId }));
+              payload.petRecords[petId] = clean(Object.assign({}, pet, { id:petId, petId:petId, customerId:customerId }));
+              payload.contractAgreements[ak] = clean(agr);
+              payload.contractSignatures[sk] = clean(rec);
+              await ref.set({ payload:payload, updatedAt:now, updatedBy:(CLOUD.user.email || CLOUD.user.uid) }, { merge:true });
             }
           }
-          try{ if(typeof updateSaveInfo === 'function') updateSaveInfo(); }catch(_){ }
-          try{ if(typeof updateSignedInfo === 'function') updateSignedInfo(); }catch(_){ }
-          try{ ds325UnlockReviewUi(); }catch(_){ }
-          try{ if(typeof renderDogs === 'function') renderDogs(); }catch(_){ }
-          return true;
-        });
+        }catch(cloudErr){ try{ console.warn('GB327 direct contract cloud persist failed', cloudErr); }catch(_){ } }
+        try{
+          if(typeof window.dsForceProposalPersist === 'function') await window.dsForceProposalPersist('gb327-contract-review-full-save');
+        }catch(syncErr){
+          var syncMsg = String((syncErr && syncErr.message) || syncErr || 'unknown');
+          var recovered = false;
+          if(/invalid nested entity/i.test(syncMsg) && typeof window.dsForceReviewSubsetPersist === 'function'){
+            try{ await window.dsForceReviewSubsetPersist('contract', { reason:'gb327-contract-review-subset', row:row, customer:customer, pet:pet, signatureKey:sk, signatureRec:rec, agreementKey:ak, agreementRec:agr }); recovered=true; }catch(recoverErr){ syncMsg = String((recoverErr && recoverErr.message) || recoverErr || syncMsg); }
+          }
+          if(!recovered) throw new Error('Cloud-Sync nach Vertragsübernahme fehlgeschlagen: ' + syncMsg);
+        }
+        return true;
       });
     }
 
@@ -2528,7 +2394,7 @@
         if(!sigKeyVal) sigKeyVal = String(((state && state.contractVersion) || 'v1.0') + '__' + customerId + '__' + petId);
         var rec = sigStore ? sigStore[sigKeyVal] : null;
         if((!rec || !rec.dataUrl) && p.signature && p.signature.dataUrl){
-          rec = { dataUrl:String(p.signature.dataUrl || ''), signatureDataUrl:String(p.signature.dataUrl || ''), signedAt:p.signature.signedAt || Date.now(), signatureAt:p.signature.signedAt || Date.now(), customerId:customerId, petId:petId, source:'gb324-inline-review-signature' };
+          rec = { dataUrl:String(p.signature.dataUrl || ''), signedAt:p.signature.signedAt || Date.now() };
           try{ sigStore[sigKeyVal] = rec; }catch(_){ }
         }
         if((!rec || !rec.dataUrl)){
@@ -2537,7 +2403,7 @@
             if(canvas && typeof canvas.toDataURL === 'function'){
               var dataUrl = String(canvas.toDataURL('image/png') || '');
               if(dataUrl && dataUrl.length > 128){
-                rec = { dataUrl:dataUrl, signatureDataUrl:dataUrl, signedAt: Date.now(), signatureAt: Date.now(), customerId:customerId, petId:petId, source:'gb324-inline-review-canvas' };
+                rec = { dataUrl:dataUrl, signedAt: Date.now() };
                 try{ sigStore[sigKeyVal] = rec; }catch(_){ }
               }
             }
@@ -2786,9 +2652,6 @@
         try{ if(typeof window.dsSetProposalOpenDiag === 'function') window.dsSetProposalOpenDiag('gb206 save-adopt kind=' + String(kind || '--') + ' proposal=' + String((full && (full.proposalId || full.id || full.taskId)) || '--'), false); }catch(_){ }
         try{ window.__dsInlineInboxReview = null; }catch(_){ }
         try{ ds194ShowInboxAfterReview(); }catch(_){ }
-        try{ ds325UnlockReviewUi(); }catch(_){ }
-        try{ if(typeof renderDogs === 'function') renderDogs(); }catch(_){ }
-        try{ if(typeof saveState === 'function') saveState(); }catch(_){ }
         return true;
       });
     }
@@ -2966,7 +2829,7 @@
             };
           }
         }catch(_){ }
-        ds192Banner('contractPanel', 'Original-Vertragsvorschlag geladen. Mit Speichern wird jetzt Kunde/Hund, Unterschrift und vollständiger Betreuungsvertrag übernommen.');
+        ds192Banner('contractPanel', 'Original-Vertragsvorschlag geladen. Sichtbar sind die abgesendete Bestätigung und Unterschrift des Kunden. Erst mit Speichern wird übernommen.');
       }catch(_){ }
       if(tries < 8){ setTimeout(function(){ ds192ApplyContractUi(full, p, tries + 1); }, 180); }
     }
@@ -4164,7 +4027,7 @@
 
 <script>
 (function(){
-  const CURRENT_BUILD = 'M50.9.9GB326_CONTRACT_ACCEPT_DURABLE_BUNDLE_REFRESH_PERSIST_20260505_ROOTONLY';
+  const CURRENT_BUILD = 'M50.9.9GB327_CONTRACT_REVIEW_FULL_SAVE_DURABLE_ADOPT_20260505_ROOTONLY';
   try{
     window.addEventListener('load', function(){
       try{
