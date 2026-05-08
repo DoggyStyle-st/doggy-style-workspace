@@ -6,13 +6,13 @@
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
 <meta charset="utf-8"/>
-  <meta name="app-build" content="M50.9.9GB345_MED_DASHBOARD_ACTIVE_STAYS_ONLY_20260508_ROOTONLY">
+  <meta name="app-build" content="M50.9.9GB346_MED_ACTIVE_STAYS_CONTRACT_PRESERVE_20260508_ROOTONLY">
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <title>Doggy Style Workspace · App</title>
 <link href="manifest.json" rel="manifest"/>
 <meta content="#101014" name="theme-color"/>
 <link href="assets/logo.png" rel="apple-touch-icon"/>
-<link href="styles.css?v=M50.9.9GB345_MED_DASHBOARD_ACTIVE_STAYS_ONLY_20260508_ROOTONLY" rel="stylesheet"/>
+<link href="styles.css?v=M50.9.9GB346_MED_ACTIVE_STAYS_CONTRACT_PRESERVE_20260508_ROOTONLY" rel="stylesheet"/>
 <link href="dashboard_master.css?v=20260104v13logout" rel="stylesheet"/>
 <style>
   /* Topbar Layout (iPad & Desktop stabil) */
@@ -102,7 +102,7 @@
   .doc-modal__actions{ margin-left:auto; display:flex; flex-wrap: wrap; gap: 8px; }
   .doc-modal__frame{ width: 100%; border: 0; border-radius: 12px; background: #fff; flex:1; min-height: 0; }
 </style>
-  <meta name="app-version" content="M50.9.9GB345_MED_DASHBOARD_ACTIVE_STAYS_ONLY_20260508_ROOTONLY">
+  <meta name="app-version" content="M50.9.9GB346_MED_ACTIVE_STAYS_CONTRACT_PRESERVE_20260508_ROOTONLY">
   <meta name="release-channel" content="MASTER">
 </head>
 <body class="bg-watermark page-app">
@@ -1199,7 +1199,7 @@
 </section>
 
 <section class="panel" id="statistics">
-<!-- Statistics panel is rendered by app.js?v=M50.9.9GB345_MED_DASHBOARD_ACTIVE_STAYS_ONLY_20260508_ROOTONLY (renderStatisticsPanel) -->
+<!-- Statistics panel is rendered by app.js?v=M50.9.9GB346_MED_ACTIVE_STAYS_CONTRACT_PRESERVE_20260508_ROOTONLY (renderStatisticsPanel) -->
 </section>
 
 
@@ -1266,7 +1266,7 @@
 </footer>
 </div>
 <!-- Firebase (optional) + Config -->
-<script defer="defer" src="firebase-config.js?v=M50.9.9GB345_MED_DASHBOARD_ACTIVE_STAYS_ONLY_20260508_ROOTONLY"></script>
+<script defer="defer" src="firebase-config.js?v=M50.9.9GB346_MED_ACTIVE_STAYS_CONTRACT_PRESERVE_20260508_ROOTONLY"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
@@ -1437,11 +1437,53 @@
   window.addEventListener('focus',function(){FORCE_UNTIL=Date.now()+8000;setTimeout(function(){forceRestore('focus');},100);});
   window.addEventListener('pageshow',function(){FORCE_UNTIL=Date.now()+8000;setTimeout(function(){forceRestore('pageshow');},100);});
 })();
+
+/* ===== GB346 CONTRACT PRESERVE BEFORE CLOUD/MED REFRESH =====
+   GB345 only changed medication filtering, but a later cloud/local refresh could still push a
+   state that no longer contained the accepted contract mirror. This guard re-applies the
+   existing GB344 contract backup before cloud payload creation/push and after login snapshots.
+*/
+(function(){
+  'use strict';
+  var INSTALLED=false, LAST_RESTORE=0;
+  function S(v){try{return String(v==null?'':v).trim();}catch(_){return '';}}
+  function A(v){return Array.isArray(v)?v:[];}
+  function O(v){return (v&&typeof v==='object'&&!Array.isArray(v))?v:{};}
+  function C(v){try{return JSON.parse(JSON.stringify(v==null?null:v));}catch(_){return v;}}
+  function lsKey(){try{return (typeof LS_KEY!=='undefined'&&LS_KEY)||'ds_workspace_test_optik_01';}catch(_){return 'ds_workspace_test_optik_01';}}
+  function read(k,f){try{var raw=localStorage.getItem(k);return raw?JSON.parse(raw):f;}catch(_){return f;}}
+  function write(k,v){try{localStorage.setItem(k,JSON.stringify(C(v)));}catch(_){}}
+  function getState(){try{if(typeof state!=='undefined'&&state)return state;}catch(_){ }return read(lsKey(),{});}
+  function setState(st){try{if(typeof state!=='undefined')state=st;}catch(_){ }try{window.state=st;}catch(_){ }write(lsKey(),st);}
+  function ensure(st){st=O(st||{});st.customers=A(st.customers);st.pets=A(st.pets);st.dogs=A(st.dogs);st.customerRecords=O(st.customerRecords);st.petRecords=O(st.petRecords);st.dogRecords=O(st.dogRecords);st.contractAgreements=O(st.contractAgreements);st.contractSignatures=O(st.contractSignatures);st.contractAdoptionBundles=O(st.contractAdoptionBundles);st.contractCanonicalRecords=O(st.contractCanonicalRecords);st.contractAdoptedRecords=A(st.contractAdoptedRecords);st._legacy=O(st._legacy);st._legacy.dogIdToPetId=O(st._legacy.dogIdToPetId);st._legacy.dogIdToCustomerId=O(st._legacy.dogIdToCustomerId);return st;}
+  function upsert(arr,item,keys){arr=A(arr);item=O(item);if(!Object.keys(item).length)return arr;var idx=-1;for(var i=0;i<arr.length;i++){for(var j=0;j<keys.length;j++){var k=keys[j];if(S(item[k])&&S(arr[i]&&arr[i][k])&&S(item[k])===S(arr[i][k])){idx=i;break;}}if(idx>=0)break;}if(idx>=0)arr[idx]=Object.assign({},O(arr[idx]),item);else arr.push(item);return arr;}
+  function normRec(x){x=O(x);var r=O(x.record||x);var customer=O(r.customer||r.customerRecord), pet=O(r.pet||r.dog||r.petRecord||r.dogRecord), agr=O(r.agreementRec||r.contractAgreement), sig=O(r.signatureRec||r.contractSignature||r.signature);var cid=S(r.customerId||agr.customerId||sig.customerId||customer.customerId||customer.id);var pid=S(r.petId||r.dogId||agr.petId||sig.petId||pet.petId||pet.id||pet.dogId);var cn=S(r.customerName||agr.customerName||sig.customerName||customer.name||customer.displayName||customer.fullName);var pn=S(r.petName||r.dogName||agr.petName||sig.petName||pet.name||pet.petName||pet.dogName);if(!cid&&cn)cid='contract_customer_'+cn.toLowerCase().replace(/[^a-z0-9]+/g,'_');if(!pid&&pn)pid='contract_pet_'+String((cid||cn)+'_'+pn).toLowerCase().replace(/[^a-z0-9]+/g,'_');if(!cid||!pid||/wählen|geladen/i.test(cid+pid+cn+pn))return null;var v=S(r.version||r.contractVersion||agr.version||sig.version||'v1.0')||'v1.0';var t=Number(r.savedAt||agr.savedAt||agr.acceptedAt||sig.signatureAt||sig.signedAt)||Date.now();customer=Object.assign({},customer,{id:S(customer.id||customer.customerId||cid),customerId:S(customer.customerId||customer.id||cid),name:S(customer.name||cn),updatedAt:Math.max(Number(customer.updatedAt||0)||0,t),source:S(customer.source)||'gb346-contract-preserve'});pet=Object.assign({},pet,{id:S(pet.id||pet.petId||pet.dogId||pid),petId:S(pet.petId||pet.id||pid),dogId:S(pet.dogId||pet.id||pid),customerId:S(pet.customerId||pet.ownerId||cid),ownerId:S(pet.ownerId||pet.customerId||cid),name:S(pet.name||pn),updatedAt:Math.max(Number(pet.updatedAt||0)||0,t),contractAccepted:true,contractValid:true,contractAgreementSaved:true,contractSavedAt:t,contractStatus:'accepted',source:S(pet.source)||'gb346-contract-preserve'});agr=Object.assign({},agr,{customerId:cid,petId:pid,customerName:S(cn||customer.name),petName:S(pn||pet.name),version:v,contractVersion:v,accepted:true,contractAccepted:true,agreementSaved:true,saved:true,status:'accepted',savedAt:t,acceptedAt:agr.acceptedAt||t,signatureAt:agr.signatureAt||sig.signatureAt||sig.signedAt||t,source:'gb346-contract-preserve'});if(!sig.dataUrl&&sig.signatureDataUrl)sig.dataUrl=sig.signatureDataUrl;if(!sig.signatureDataUrl&&sig.dataUrl)sig.signatureDataUrl=sig.dataUrl;sig=Object.assign({},sig,{customerId:cid,petId:pid,customerName:agr.customerName,petName:agr.petName,version:v,contractVersion:v,signatureAt:sig.signatureAt||sig.signedAt||t,signedAt:sig.signedAt||sig.signatureAt||t,source:S(sig.source)||'gb346-contract-preserve'});return {customerId:cid,petId:pid,customerName:agr.customerName,petName:agr.petName,version:v,savedAt:t,customer:customer,pet:pet,agreementKey:v+'__'+cid+'__'+pid+'::'+v,altAgreementKey:cid+'__'+pid+'::'+v,signatureKey:v+'__'+cid+'__'+pid,agreementRec:agr,signatureRec:sig};}
+  function collect(st){st=ensure(st||getState());var out=[];function add(x){if(!x)return;if(Array.isArray(x))x.forEach(add);else{var r=normRec(x);if(r)out.push(r);}}
+    ['ds_contract_login_restore_v1','doggystyle_contract_login_restore_v1','ds_contract_canonical_records_v1','ds_contract_adopted_records_v1','ds_contract_canonical_records_gb335','ds_contract_last_accept_gb335','ds_contract_pinned_record_gb335','ds_contract_last_accept_gb318'].forEach(function(k){add(read(k,null));});
+    try{Object.keys(O(st.contractAdoptionBundles)).forEach(function(k){add(st.contractAdoptionBundles[k]);});}catch(_){ }
+    try{Object.keys(O(st.contractCanonicalRecords)).forEach(function(k){add(st.contractCanonicalRecords[k]);});}catch(_){ }
+    try{A(st.contractAdoptedRecords).forEach(add);}catch(_){ }
+    try{Object.keys(O(st.contractAgreements)).forEach(function(k){var a=O(st.contractAgreements[k]);if(!(a.accepted||a.saved||a.agreementSaved||a.savedAt))return;var parts=S(k).split('__');var cid=S(a.customerId||parts[1]),pid=S(a.petId||(parts[2]||'').split('::')[0]),v=S(a.version||a.contractVersion||'v1.0');add({customerId:cid,petId:pid,customerName:a.customerName,petName:a.petName,version:v,savedAt:a.savedAt||a.acceptedAt||a.signatureAt,agreementRec:a,signatureRec:O(st.contractSignatures[v+'__'+cid+'__'+pid])});});}catch(_){ }
+    var map={};out.forEach(function(r){var key=(S(r.customerName).toLowerCase()+'|'+S(r.petName).toLowerCase()+'|'+S(r.version));if(!map[key]||Number(r.savedAt)>=Number(map[key].savedAt||0))map[key]=r;});return Object.keys(map).map(function(k){return map[k];});}
+  function applyToState(st,rec){rec=normRec(rec);if(!rec)return;st=ensure(st);var dog=Object.assign({},rec.pet,{id:S(rec.pet.dogId||rec.pet.id||rec.petId),dogId:S(rec.pet.dogId||rec.pet.id||rec.petId),petId:rec.petId,customerId:rec.customerId,ownerId:rec.customerId,owner:rec.customerName,name:rec.petName,contractAccepted:true,contractValid:true,contractAgreementSaved:true,contractSavedAt:rec.savedAt,contractStatus:'accepted'});st.customers=upsert(st.customers,rec.customer,['id','customerId','email','name']);st.pets=upsert(st.pets,rec.pet,['id','petId','dogId','name']);st.dogs=upsert(st.dogs,dog,['id','dogId','petId','name']);st.customerRecords[rec.customerId]=Object.assign({},O(st.customerRecords[rec.customerId]),rec.customer);st.petRecords[rec.petId]=Object.assign({},O(st.petRecords[rec.petId]),rec.pet);st.dogRecords[dog.id]=Object.assign({},O(st.dogRecords[dog.id]),dog);st._legacy.dogIdToPetId[dog.id]=rec.petId;st._legacy.dogIdToCustomerId[dog.id]=rec.customerId;[rec.agreementKey,rec.altAgreementKey,rec.version+'__'+rec.customerName+'__'+rec.petName+'::'+rec.version,rec.customerName+'__'+rec.petName+'::'+rec.version].forEach(function(k){k=S(k);if(k)st.contractAgreements[k]=C(rec.agreementRec);});[rec.signatureKey,rec.version+'__'+rec.customerName+'__'+rec.petName].forEach(function(k){k=S(k);if(k)st.contractSignatures[k]=C(rec.signatureRec);});st.contractAdoptionBundles[rec.petId]=C(rec);st.contractAdoptionBundles[rec.customerId+'__'+rec.petId]=C(rec);st.contractCanonicalRecords[rec.petId]=C(rec);st.contractCanonicalRecords[rec.customerId+'__'+rec.petId]=C(rec);st.contractAdoptedRecords=A(st.contractAdoptedRecords).filter(function(x){return !(S(x&&x.customerName).toLowerCase()===S(rec.customerName).toLowerCase()&&S(x&&x.petName).toLowerCase()===S(rec.petName).toLowerCase());}).concat([C(rec)]).slice(-300);}
+  function saveBackups(list){list=A(list).map(normRec).filter(Boolean).slice(0,300);['ds_contract_login_restore_v1','doggystyle_contract_login_restore_v1','ds_contract_canonical_records_v1','ds_contract_adopted_records_v1'].forEach(function(k){write(k,list);});}
+  function restore(reason){try{if(Date.now()-LAST_RESTORE<120)return false;LAST_RESTORE=Date.now();var st=ensure(getState());var list=collect(st);if(!list.length){try{if(typeof window.__dsGB344ForceRestore==='function')return !!window.__dsGB344ForceRestore(reason||'gb346-delegate-empty');}catch(_){ }return false;}list.forEach(function(r){applyToState(st,r);});saveBackups(list);setState(st);try{if(typeof renderDogs==='function')renderDogs();}catch(_){ }try{if(typeof window.__dsGB344PaintDogs==='function')window.__dsGB344PaintDogs();}catch(_){ }try{window.__dsGB346LastRestore={reason:reason||'',count:list.length,at:Date.now()};}catch(_){ }return true;}catch(e){try{console.warn('GB346 contract preserve restore failed',e);}catch(_){ }return false;}}
+  function mergeIntoPayloadResult(result){try{var st=ensure(getState());restore('before-payload-merge');st=ensure(getState());var list=collect(st);if(!list.length)return result;var clean=result&&result.clean?result.clean:(result&&typeof result==='object'?result:null);if(!clean)return result;clean.customerRecords=Object.assign({},clean.customerRecords||{},st.customerRecords||{});clean.petRecords=Object.assign({},clean.petRecords||{},st.petRecords||{});clean.dogRecords=Object.assign({},clean.dogRecords||{},st.dogRecords||{});clean.contractAgreements=Object.assign({},clean.contractAgreements||{},st.contractAgreements||{});clean.contractSignatures=Object.assign({},clean.contractSignatures||{},st.contractSignatures||{});clean.contractAdoptionBundles=Object.assign({},clean.contractAdoptionBundles||{},st.contractAdoptionBundles||{});clean.contractCanonicalRecords=Object.assign({},clean.contractCanonicalRecords||{},st.contractCanonicalRecords||{});clean.contractAdoptedRecords=A(clean.contractAdoptedRecords).concat(A(st.contractAdoptedRecords||[]));if(result&&result.clean)return result;return clean;}catch(_){return result;}}
+  function install(){try{if(INSTALLED)return;INSTALLED=true;var oldPush=(typeof cloudPushNow==='function')?cloudPushNow:null;if(oldPush&&!oldPush.__gb346){cloudPushNow=function(){restore('before-cloudPush');return oldPush.apply(this,arguments);};cloudPushNow.__gb346=true;window.cloudPushNow=cloudPushNow;}var oldPrep=(typeof dsPrepareCloudPayload==='function')?dsPrepareCloudPayload:null;if(oldPrep&&!oldPrep.__gb346){dsPrepareCloudPayload=function(st){restore('before-prepare');return mergeIntoPayloadResult(oldPrep.apply(this,arguments));};dsPrepareCloudPayload.__gb346=true;window.dsPrepareCloudPayload=dsPrepareCloudPayload;}var oldApply=(typeof applyRemoteState==='function')?applyRemoteState:null;if(oldApply&&!oldApply.__gb346){applyRemoteState=function(){var r=oldApply.apply(this,arguments);[80,300,900,1800].forEach(function(ms){setTimeout(function(){restore('after-remote-'+ms);},ms);});return r;};applyRemoteState.__gb346=true;window.applyRemoteState=applyRemoteState;}var oldHas=(typeof hasValidContract==='function')?hasValidContract:null;if(oldHas&&!oldHas.__gb346){hasValidContract=function(c,p){try{if(oldHas(c,p))return true;}catch(_){ }var cc=S(c),pp=S(p);return collect(getState()).some(function(r){var po=!pp||S(r.petId)===pp||S(r.petName).toLowerCase()===S(pp).toLowerCase();var co=!cc||S(r.customerId)===cc||S(r.customerName).toLowerCase()===S(cc).toLowerCase();return po&&co;});};hasValidContract.__gb346=true;window.hasValidContract=hasValidContract;try{window.contractBadge=function(c,p){return(!S(c)||!S(p))?'':(hasValidContract(c,p)?' · Vertrag: 🟢':' · Vertrag: 🔴');};}catch(_){ }} }catch(e){try{console.warn('GB346 install failed',e);}catch(_){ }} }
+  function boot(){install();restore('boot');[300,800,1600,3000,6000,10000].forEach(function(ms){setTimeout(function(){install();restore('boot-'+ms);},ms);});}
+  window.__dsGB346Restore=restore;
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+  window.addEventListener('pageshow',function(){setTimeout(function(){install();restore('pageshow');},150);});
+  window.addEventListener('focus',function(){setTimeout(function(){install();restore('focus');},150);});
+})();
+/* ===== END GB346 CONTRACT PRESERVE BEFORE CLOUD/MED REFRESH ===== */
+
+
 /* ===== END GB344 LOGIN LOCAL BACKUP FORCE RESTORE ===== */
 
 </script>
 
-<script defer="defer" src="app.js?v=M50.9.9GB345_MED_DASHBOARD_ACTIVE_STAYS_ONLY_20260508_ROOTONLY"></script>
+<script defer="defer" src="app.js?v=M50.9.9GB346_MED_ACTIVE_STAYS_CONTRACT_PRESERVE_20260508_ROOTONLY"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1460,7 +1502,7 @@
 </script>
 
 <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB345_MED_DASHBOARD_ACTIVE_STAYS_ONLY_20260508_ROOTONLY', { updateViaCache: 'none' });
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB346_MED_ACTIVE_STAYS_CONTRACT_PRESERVE_20260508_ROOTONLY', { updateViaCache: 'none' });
   </script>
 
 <script>
@@ -1562,7 +1604,7 @@
   <!-- Bottom logout button removed (duplicate of header logout; also overlaps editor on iPad) -->
 </div>
 <!-- test-badge removed (requested) -->
-  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB345_MED_DASHBOARD_ACTIVE_STAYS_ONLY_20260508_ROOTONLY</div>
+  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB346_MED_ACTIVE_STAYS_CONTRACT_PRESERVE_20260508_ROOTONLY</div>
 
 <script>
 (function visibleMailFallback(){
@@ -4132,7 +4174,7 @@
 
 <script>
 (function(){
-  const CURRENT_BUILD = 'M50.9.9GB345_MED_DASHBOARD_ACTIVE_STAYS_ONLY_20260508_ROOTONLY';
+  const CURRENT_BUILD = 'M50.9.9GB346_MED_ACTIVE_STAYS_CONTRACT_PRESERVE_20260508_ROOTONLY';
   try{
     window.addEventListener('load', function(){
       try{
