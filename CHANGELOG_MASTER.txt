@@ -131,3 +131,8 @@ GB218 – Contract Sync Visuals
 GB220: Statistik-Hundeauswahl nutzt wieder Hundename statt Pet-ID; robuste Auflösung für state.pets Array/Objekt.
 
 GB225: Kunde/Hund Vorschläge öffnen wieder direkt. App.html bekommt Inline-Fallback für customer-Proposals und der Öffnungs-Lock blockiert customer nicht mehr.
+
+GB345 - MED_DASHBOARD_ACTIVE_STAYS_ONLY
+- Startseite: Medikamente heute zeigt fällige Medikamentengaben nur noch für Hunde mit aktivem Aufenthalt am heutigen Datum.
+- Ohne aktuellen Aufenthalt werden Dauermedikationspläne nicht mehr als heutige Pensions-To-dos gewertet.
+- §11-Medikationsstatus nutzt dieselbe Aktiv-Aufenthalt-Prüfung.

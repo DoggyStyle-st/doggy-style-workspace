@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB344_CONTRACT_LOGIN_LOCAL_BACKUP_FORCE_RESTORE_20260508_ROOTONLY",
+  tag: "M50.9.9GB345_MED_DASHBOARD_ACTIVE_STAYS_ONLY_20260508_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB344_CONTRACT_LOGIN_LOCAL_BACKUP_FORCE_RESTORE_20260508_ROOTONLY";
+const APP_BUILD = "M50.9.9GB345_MED_DASHBOARD_ACTIVE_STAYS_ONLY_20260508_ROOTONLY";
 try{ window.__dsAppJsRuntimeBuild = "GB344-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -7785,8 +7785,12 @@ function medDueOccurrences(dateISO, onlyPetIds=null){
   ensureStateShape();
   const d = String(dateISO||"").slice(0,10);
   const out = [];
-  const petFilter = Array.isArray(onlyPetIds) && onlyPetIds.length ? new Set(onlyPetIds) : null;
-  const pets = medGetPets().filter(p=> !petFilter || petFilter.has(p.id));
+  // GB345: Wenn eine explizite Hundeliste übergeben wird, darf eine leere Liste NICHT als "alle Hunde" gelten.
+  // Sonst zeigt die Startseite Dauermedikation als fällig, obwohl heute kein Aufenthalt aktiv ist.
+  const hasExplicitPetFilter = Array.isArray(onlyPetIds);
+  const petFilter = hasExplicitPetFilter ? new Set(onlyPetIds.map(x=>String(x||"")).filter(Boolean)) : null;
+  if(hasExplicitPetFilter && (!petFilter || petFilter.size === 0)) return [];
+  const pets = medGetPets().filter(p=> !petFilter || petFilter.has(String(p.id||"")));
   for(const pet of pets){
     const plans = (state.medication.plans||[]).filter(p=>p && p.petId===pet.id && p.active !== false);
     for(const pl of plans){
@@ -7857,20 +7861,26 @@ function renderMedicationDashboard(){
   ensureStateShape();
   const iso = medISO();
   const inCare = getPetIdsInCare(iso);
-  const due = medDueOccurrences(iso, (inCare.length ? inCare : null));
+  // GB345: Startseite zeigt nur Medikamentengaben für Hunde, die heute wirklich in Betreuung sind.
+  // Ohne aktuellen Aufenthalt darf ein Dauermedikationsplan kein Dashboard-To-do erzeugen.
+  const due = medDueOccurrences(iso, inCare);
   const open = due.filter(x=>!x.done).length;
   const meta = document.getElementById("medTodayMeta");
   const pill = document.getElementById("medTodayStatus");
   const hint = document.getElementById("medTodayHint");
-  const status = medOverallStatus({dateISO: iso, onlyPetIds: (inCare.length ? inCare : null)});
+  const status = medOverallStatus({dateISO: iso, onlyPetIds: inCare});
   medStatusPill(pill, status);
-  if(meta) meta.textContent = (open===0)
-    ? "Keine Gaben offen."
-    : `${open} Gabe(n) offen${inCare.length ? " (nur Hunde in Betreuung)" : ""}.`;
+  if(meta){
+    meta.textContent = (!inCare.length)
+      ? "Keine Hunde aktuell in Betreuung."
+      : (open===0 ? "Keine Gaben offen." : `${open} Gabe(n) offen (nur Hunde in Betreuung).`);
+  }
   if(hint){
-    hint.textContent = open===0
-      ? "Alles erledigt – super. Gesundheitsnotizen kannst du jederzeit ergänzen."
-      : "Bitte fällige Gaben abhaken (gegeben / nicht gegeben) – mit Begründung bei Abweichung.";
+    hint.textContent = (!inCare.length)
+      ? "Dauermedikationen werden erst als fällig angezeigt, wenn der Hund heute in Betreuung ist."
+      : (open===0
+          ? "Alles erledigt – super. Gesundheitsnotizen kannst du jederzeit ergänzen."
+          : "Bitte fällige Gaben abhaken (gegeben / nicht gegeben) – mit Begründung bei Abweichung.");
   }
 }
 function renderMedicationPanel(){
@@ -9460,11 +9470,12 @@ function computeCompliance(){
     hygDetail = `${openHygToday} offen heute, ${overdueWeekly} Wochenaufgabe(n) überfällig.`;
   }
   // Medikation: fällige Gaben heute (nur Hunde in Betreuung)
-  let medStatus='green', medDetail='Keine fälligen Gaben.';
+  let medStatus='green', medDetail='Keine Hunde aktuell in Betreuung.';
   try{
     const inCare = getPetIdsInCare(today);
-    const due = medDueOccurrences(today, (inCare.length ? inCare : null));
+    const due = medDueOccurrences(today, inCare);
     const open = due.filter(x=>!x.done).length;
+    if(inCare.length && open===0) medDetail = 'Keine fälligen Gaben.';
     if(open>0){ medStatus='yellow'; medDetail = `${open} Gabe(n) fällig.`; }
   }catch(e){ /* ignore */ }
   // Verträge: aktive Aufenthalte ohne unterschriebenen Vertrag
@@ -25657,7 +25668,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB344_CONTRACT_LOGIN_LOCAL_BACKUP_FORCE_RESTORE_20260508_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB345_MED_DASHBOARD_ACTIVE_STAYS_ONLY_20260508_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -27630,7 +27641,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB344_CONTRACT_LOGIN_LOCAL_BACKUP_FORCE_RESTORE_20260508_ROOTONLY";
+  const BUILD = "M50.9.9GB345_MED_DASHBOARD_ACTIVE_STAYS_ONLY_20260508_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -31220,7 +31231,7 @@ try{ window.__GB294_MARKER = 'active'; }catch(_){ }
 /* ===== GB295 contract review verified open + reset fix ===== */
 try{ window.__GB295_MARKER = 'active'; }catch(_){ }
 (function(){
-  const BUILD = "M50.9.9GB344_CONTRACT_LOGIN_LOCAL_BACKUP_FORCE_RESTORE_20260508_ROOTONLY";
+  const BUILD = "M50.9.9GB345_MED_DASHBOARD_ACTIVE_STAYS_ONLY_20260508_ROOTONLY";
   function ds295Clone(v){ try{ return JSON.parse(JSON.stringify(v == null ? null : v)); }catch(_){ return v; } }
   function ds295Norm(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
   function ds295Bool(v){ try{ if(v===true||v===false) return !!v; const s=String(v==null?'':v).trim().toLowerCase(); return s==='1'||s==='true'||s==='yes'||s==='ja'||s==='on'; }catch(_){ return false; } }
@@ -35228,7 +35239,7 @@ try{ window.__GB314_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB314-app
 /* ===== GB315 final contract acceptance + badge DOM hardfix ===== */
 try{ window.__GB315_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB316-appjs'; }catch(_){ }
 (function(){
-  var BUILD='M50.9.9GB344_CONTRACT_LOGIN_LOCAL_BACKUP_FORCE_RESTORE_20260508_ROOTONLY';
+  var BUILD='M50.9.9GB345_MED_DASHBOARD_ACTIVE_STAYS_ONLY_20260508_ROOTONLY';
   function S(v){ try{return String(v==null?'':v).trim();}catch(_){return '';} }
   function L(v){ return S(v).toLowerCase(); }
   function esc(v){ try{return CSS && CSS.escape ? CSS.escape(S(v)) : S(v).replace(/[^a-zA-Z0-9_-]/g,'\\$&');}catch(_){return S(v);} }
@@ -35441,7 +35452,7 @@ try{var rd=renderDogs;if(rd&&!rd.__gb317Wrapped){renderDogs=function(){var r=rd.
 /* ===== GB318 contract hard bypass: accept not required when signature exists + generic green repair ===== */
 try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild='GB318-appjs'; }catch(_){ }
 (function(){
-  var BUILD='M50.9.9GB344_CONTRACT_LOGIN_LOCAL_BACKUP_FORCE_RESTORE_20260508_ROOTONLY';
+  var BUILD='M50.9.9GB345_MED_DASHBOARD_ACTIVE_STAYS_ONLY_20260508_ROOTONLY';
   function S(v){try{return String(v==null?'':v).trim()}catch(_){return''}}
   function L(v){return S(v).toLowerCase()}
   function V(){try{return S((state&&(state.contractVersion||(state.contract&&state.contract.version)))||'v1.0')||'v1.0'}catch(_){return'v1.0'}}
