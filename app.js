@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB341_CONTRACT_CLOUD_TOPLEVEL_LOGIN_RESTORE_20260508_ROOTONLY",
+  tag: "M50.9.9GB342_CONTRACT_LOGIN_TOPLEVEL_SNAPSHOT_RESTORE_20260508_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,8 +12,8 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB341_CONTRACT_CLOUD_TOPLEVEL_LOGIN_RESTORE_20260508_ROOTONLY";
-try{ window.__dsAppJsRuntimeBuild = "GB341-appjs"; }catch(_){ }
+const APP_BUILD = "M50.9.9GB342_CONTRACT_LOGIN_TOPLEVEL_SNAPSHOT_RESTORE_20260508_ROOTONLY";
+try{ window.__dsAppJsRuntimeBuild = "GB342-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
 // Global helper functions used across proposal-review matching.
@@ -1838,6 +1838,14 @@ function cloudStateRef(){
   if(!CLOUD.enabled) return null;
   return CLOUD.db.collection("orgs").doc(CLOUD.orgId).collection("meta").doc("workspace_state");
 }
+function cloudContractCanonicalRef(){
+  // GB342: separate durable contract mirror, independent from the big workspace payload.
+  // This avoids logout/login losing adopted contract records when workspace_state.payload is older.
+  try{
+    if(!CLOUD.enabled) return null;
+    return CLOUD.db.collection("orgs").doc(CLOUD.orgId).collection("meta").doc("contract_canonical_records");
+  }catch(_){ return null; }
+}
 function getCompatFirestoreDb(){
   try{
     if(typeof firebase !== 'undefined' && firebase && typeof firebase.firestore === 'function') return firebase.firestore();
@@ -2052,27 +2060,82 @@ function dsBuildProposalReviewCloudRecordPatch(row, customer, pet, baseState){
   return patch;
 }
 
+function dsMergeContractCloudDocData(base, extra){
+  try{
+    base = (base && typeof base === 'object') ? Object.assign({}, base) : {};
+    extra = (extra && typeof extra === 'object') ? extra : {};
+    ['customerRecords','petRecords','dogRecords','contractAgreements','contractSignatures','contractAdoptionBundles','contractCanonicalRecords'].forEach(function(k){
+      try{ if(extra[k] && typeof extra[k] === 'object') base[k] = Object.assign({}, base[k] || {}, extra[k]); }catch(_){ }
+    });
+    ['customers','pets','dogs','contractAdoptedRecords'].forEach(function(k){
+      try{ if(Array.isArray(extra[k]) && extra[k].length) base[k] = (Array.isArray(base[k]) ? base[k] : []).concat(extra[k]); }catch(_){ }
+    });
+    try{
+      const bst = Number(base.updatedAt || base._gb342ContractTopLevelAt || base._gb341ContractTopLevelAt || 0) || 0;
+      const est = Number(extra.updatedAt || extra._gb342ContractTopLevelAt || extra._gb341ContractTopLevelAt || 0) || 0;
+      if(est > bst) base.updatedAt = est;
+      if(extra.updatedBy) base.updatedBy = extra.updatedBy;
+      if(extra._gb342ContractTopLevelAt) base._gb342ContractTopLevelAt = Math.max(Number(base._gb342ContractTopLevelAt || 0) || 0, Number(extra._gb342ContractTopLevelAt || 0) || 0);
+    }catch(_){ }
+    if(extra.payload && typeof extra.payload === 'object'){
+      base.payload = dsMergeContractCloudDocData(base.payload || {}, extra.payload);
+    }
+    return base;
+  }catch(_){ return base || extra || {}; }
+}
+function dsBuildMergedCloudDocPayload(data){
+  try{
+    data = (data && typeof data === 'object') ? data : {};
+    const payloadBase = (data.payload && typeof data.payload === 'object') ? data.payload : {};
+    const mergedPayload = Object.assign({}, payloadBase);
+
+    // GB342: the contract adoption fix writes durable mirrors outside payload.
+    // The realtime snapshot used to read only data.payload, so logout/login restored
+    // the old payload and ignored Sonja/Bello's top-level contract record.
+    ['customerRecords','petRecords','dogRecords','contractAgreements','contractSignatures','contractAdoptionBundles','contractCanonicalRecords'].forEach(function(k){
+      try{ if(data[k] && typeof data[k] === 'object') mergedPayload[k] = Object.assign({}, mergedPayload[k] || {}, data[k]); }catch(_){ }
+    });
+    ['customers','pets','dogs','contractAdoptedRecords'].forEach(function(k){
+      try{ if(Array.isArray(data[k]) && data[k].length) mergedPayload[k] = (Array.isArray(mergedPayload[k]) ? mergedPayload[k] : []).concat(data[k]); }catch(_){ }
+    });
+    const topStamp = Number(data.updatedAt || data._gb341ContractTopLevelAt || data._gb342ContractTopLevelAt || 0) || 0;
+    if(topStamp){
+      mergedPayload._cloudUpdatedAt = Math.max(Number(mergedPayload._cloudUpdatedAt || 0) || 0, topStamp);
+      mergedPayload._gb342ContractTopLevelAt = Math.max(Number(mergedPayload._gb342ContractTopLevelAt || 0) || 0, topStamp);
+    }
+    if(!data.payload && !mergedPayload.customerRecords && !mergedPayload.petRecords && !mergedPayload.contractAgreements && !mergedPayload.contractCanonicalRecords) return null;
+    return dsInflateCloudRescueMaps(mergedPayload);
+  }catch(_){ return (data && data.payload) || null; }
+}
+function dsRemoteHasContractCanonical(remote){
+  try{
+    const r = (remote && typeof remote === 'object') ? remote : {};
+    const hasMap = function(k){ try{ return r[k] && typeof r[k] === 'object' && !Array.isArray(r[k]) && Object.keys(r[k]).length > 0; }catch(_){ return false; } };
+    const hasArr = function(k){ try{ return Array.isArray(r[k]) && r[k].length > 0; }catch(_){ return false; } };
+    return hasMap('contractCanonicalRecords') || hasMap('contractAdoptionBundles') || hasMap('contractAgreements') || hasArr('contractAdoptedRecords');
+  }catch(_){ return false; }
+}
 async function cloudLoadState(){
   if(!CLOUD.enabled) return null;
   const ref = cloudStateRef();
-  if(!ref) return null;
-  const snap = await ref.get();
-  if(!snap.exists) return null;
-  const data = snap.data();
+  const contractRef = (typeof cloudContractCanonicalRef === 'function') ? cloudContractCanonicalRef() : null;
+  let data = null;
+  if(ref){
+    try{
+      const snap = await ref.get();
+      if(snap && snap.exists) data = snap.data() || {};
+    }catch(e){ try{ console.warn('cloudLoadState workspace read failed', e); }catch(_){ } }
+  }
+  if(contractRef){
+    try{
+      const csnap = await contractRef.get();
+      if(csnap && csnap.exists) data = dsMergeContractCloudDocData(data || {}, csnap.data() || {});
+    }catch(e){ try{ console.warn('cloudLoadState contract canonical read failed', e); }catch(_){ } }
+  }
   if(!data) return null;
-  // GB341: restore contract/customer/pet mirrors that are stored outside payload.
-  // Older cloud pushes may replace payload, but top-level mirrors survive merge:true writes.
-  const payloadBase = (data.payload && typeof data.payload === 'object') ? data.payload : {};
-  const mergedPayload = Object.assign({}, payloadBase);
-  ['customerRecords','petRecords','dogRecords','contractAgreements','contractSignatures','contractAdoptionBundles','contractCanonicalRecords'].forEach(function(k){
-    try{ if(data[k] && typeof data[k] === 'object') mergedPayload[k] = Object.assign({}, mergedPayload[k] || {}, data[k]); }catch(_){ }
-  });
-  ['customers','pets','dogs','contractAdoptedRecords'].forEach(function(k){
-    try{ if(Array.isArray(data[k]) && data[k].length) mergedPayload[k] = (Array.isArray(mergedPayload[k]) ? mergedPayload[k] : []).concat(data[k]); }catch(_){ }
-  });
-  if(!data.payload && !mergedPayload.customerRecords && !mergedPayload.petRecords && !mergedPayload.contractAgreements && !mergedPayload.contractCanonicalRecords) return null;
-  const payload = dsInflateCloudRescueMaps(mergedPayload);
-  CLOUD._lastRemoteStamp = Number(data.updatedAt || data._gb341ContractTopLevelAt || 0);
+  const payload = dsBuildMergedCloudDocPayload(data);
+  if(!payload) return null;
+  CLOUD._lastRemoteStamp = Number(data.updatedAt || data._gb341ContractTopLevelAt || data._gb342ContractTopLevelAt || 0);
   SYNC.cloudLastSeenAt = CLOUD._lastRemoteStamp;
   updateSyncUI();
   return payload;
@@ -19256,22 +19319,25 @@ try{
       const data = snap.data() || {};
       const stamp = Number(data.updatedAt || 0);
       if(stamp){ SYNC.cloudLastSeenAt = stamp; updateSyncUI(); }
-      const remotePayload = data.payload || null;
+      const remotePayload = dsBuildMergedCloudDocPayload(data) || null;
       const localUpdated = Number(state && state._localUpdatedAt || 0);
       const localCloudStamp = Number(state && state._cloudUpdatedAt || 0);
       const localEmpty = isStateEffectivelyEmpty(state);
+      const hasContractCanonical = dsRemoteHasContractCanonical(remotePayload);
       // Falls lokal leer (z.B. LocalStorage von iOS geleert) -> Remote sofort übernehmen.
       if(localEmpty && remotePayload){
         applyRemoteState(remotePayload, stamp, "snapshot-initial");
         return;
       }
-      // Wenn wir lokal neuere Änderungen haben (noch nicht gepusht): Remote nicht drüberbügeln
-      if(localUpdated && stamp && stamp <= localUpdated) return;
-      if(stamp && stamp <= localCloudStamp) return;
+      // GB342: Contract-Canonical-Daten müssen auch dann gemerged werden, wenn
+      // der Snapshot von derselben Anmeldung stammt oder lokal scheinbar neuer ist.
+      // Sonst gewinnt nach Logout/Login wieder der alte payload ohne Sonja/Bello.
+      if(!hasContractCanonical && localUpdated && stamp && stamp <= localUpdated) return;
+      if(!hasContractCanonical && stamp && stamp <= localCloudStamp) return;
       // Nicht unsere eigene Änderung nochmal einspielen (aber nur, wenn lokal NICHT leer ist)
-      if(!localEmpty && CLOUD.user && (data.updatedBy === (CLOUD.user.email||CLOUD.user.uid))) return;
+      if(!hasContractCanonical && !localEmpty && CLOUD.user && (data.updatedBy === (CLOUD.user.email||CLOUD.user.uid))) return;
       if(remotePayload){
-        applyRemoteState(remotePayload, stamp, "snapshot");
+        applyRemoteState(remotePayload, stamp, hasContractCanonical ? "snapshot-contract-canonical" : "snapshot");
       }
     });
   }
@@ -19312,6 +19378,10 @@ try{
       applyRemoteState(remote, remoteUpdated, "initial-read-admin-restore");
       try{ if(state && state.__lastSavedFromCustomerScope) delete state.__lastSavedFromCustomerScope; }catch(_){ }
       try{ saveState(); }catch(_){ }
+    } else if(dsRemoteHasContractCanonical(remote)){
+      // GB342: canonical contract mirrors are merge-safe and must be restored
+      // even when localStorage has a newer timestamp from a previous bad refresh.
+      applyRemoteState(remote, remoteUpdated, "initial-read-contract-canonical");
     } else if(localUpdated && localUpdated > remoteUpdated){
       // Lokal ist neuer -> lokal behalten und pushen
       if(CLOUD.user){
@@ -25551,7 +25621,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB341_CONTRACT_CLOUD_TOPLEVEL_LOGIN_RESTORE_20260508_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB342_CONTRACT_LOGIN_TOPLEVEL_SNAPSHOT_RESTORE_20260508_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -27524,7 +27594,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB341_CONTRACT_CLOUD_TOPLEVEL_LOGIN_RESTORE_20260508_ROOTONLY";
+  const BUILD = "M50.9.9GB342_CONTRACT_LOGIN_TOPLEVEL_SNAPSHOT_RESTORE_20260508_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -31114,7 +31184,7 @@ try{ window.__GB294_MARKER = 'active'; }catch(_){ }
 /* ===== GB295 contract review verified open + reset fix ===== */
 try{ window.__GB295_MARKER = 'active'; }catch(_){ }
 (function(){
-  const BUILD = "M50.9.9GB341_CONTRACT_CLOUD_TOPLEVEL_LOGIN_RESTORE_20260508_ROOTONLY";
+  const BUILD = "M50.9.9GB342_CONTRACT_LOGIN_TOPLEVEL_SNAPSHOT_RESTORE_20260508_ROOTONLY";
   function ds295Clone(v){ try{ return JSON.parse(JSON.stringify(v == null ? null : v)); }catch(_){ return v; } }
   function ds295Norm(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
   function ds295Bool(v){ try{ if(v===true||v===false) return !!v; const s=String(v==null?'':v).trim().toLowerCase(); return s==='1'||s==='true'||s==='yes'||s==='ja'||s==='on'; }catch(_){ return false; } }
@@ -35119,7 +35189,7 @@ try{ window.__GB314_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB314-app
 /* ===== GB315 final contract acceptance + badge DOM hardfix ===== */
 try{ window.__GB315_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB316-appjs'; }catch(_){ }
 (function(){
-  var BUILD='M50.9.9GB341_CONTRACT_CLOUD_TOPLEVEL_LOGIN_RESTORE_20260508_ROOTONLY';
+  var BUILD='M50.9.9GB342_CONTRACT_LOGIN_TOPLEVEL_SNAPSHOT_RESTORE_20260508_ROOTONLY';
   function S(v){ try{return String(v==null?'':v).trim();}catch(_){return '';} }
   function L(v){ return S(v).toLowerCase(); }
   function esc(v){ try{return CSS && CSS.escape ? CSS.escape(S(v)) : S(v).replace(/[^a-zA-Z0-9_-]/g,'\\$&');}catch(_){return S(v);} }
@@ -35332,7 +35402,7 @@ try{var rd=renderDogs;if(rd&&!rd.__gb317Wrapped){renderDogs=function(){var r=rd.
 /* ===== GB318 contract hard bypass: accept not required when signature exists + generic green repair ===== */
 try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild='GB318-appjs'; }catch(_){ }
 (function(){
-  var BUILD='M50.9.9GB341_CONTRACT_CLOUD_TOPLEVEL_LOGIN_RESTORE_20260508_ROOTONLY';
+  var BUILD='M50.9.9GB342_CONTRACT_LOGIN_TOPLEVEL_SNAPSHOT_RESTORE_20260508_ROOTONLY';
   function S(v){try{return String(v==null?'':v).trim()}catch(_){return''}}
   function L(v){return S(v).toLowerCase()}
   function V(){try{return S((state&&(state.contractVersion||(state.contract&&state.contract.version)))||'v1.0')||'v1.0'}catch(_){return'v1.0'}}
