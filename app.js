@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB342_CONTRACT_LOGIN_TOPLEVEL_SNAPSHOT_RESTORE_20260508_ROOTONLY",
+  tag: "M50.9.9GB343_CONTRACT_META_DOC_LOGIN_RESTORE_20260508_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,8 +12,8 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB342_CONTRACT_LOGIN_TOPLEVEL_SNAPSHOT_RESTORE_20260508_ROOTONLY";
-try{ window.__dsAppJsRuntimeBuild = "GB342-appjs"; }catch(_){ }
+const APP_BUILD = "M50.9.9GB343_CONTRACT_META_DOC_LOGIN_RESTORE_20260508_ROOTONLY";
+try{ window.__dsAppJsRuntimeBuild = "GB343-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
 // Global helper functions used across proposal-review matching.
@@ -1846,6 +1846,38 @@ function cloudContractCanonicalRef(){
     return CLOUD.db.collection("orgs").doc(CLOUD.orgId).collection("meta").doc("contract_canonical_records");
   }catch(_){ return null; }
 }
+
+async function cloudLoadContractCanonicalMetaDocsGB343(){
+  // GB343: contract canonical records are also stored as individual meta docs.
+  // This avoids losing an adopted contract when the large workspace payload is older.
+  try{
+    if(!CLOUD.enabled || !CLOUD.db) return null;
+    const col = CLOUD.db.collection("orgs").doc(CLOUD.orgId).collection("meta");
+    if(!col || !col.where) return null;
+    const qs = await col.where("type", "==", "contractCanonical").limit(100).get();
+    let merged = null;
+    if(qs && typeof qs.forEach === 'function'){
+      qs.forEach(function(doc){
+        try{
+          const d = (doc && doc.data && doc.data()) || {};
+          if(!d) return;
+          const src = d.patch || d.payload || d;
+          merged = dsMergeContractCloudDocData(merged || {}, src || {});
+          if(d.record){
+            const rec = d.record || {};
+            const p = { payload:{ contractAdoptedRecords:[rec], contractCanonicalRecords:{}, contractAdoptionBundles:{} }, updatedAt:Number(d.updatedAt||rec.savedAt||Date.now())||Date.now(), _gb343ContractMetaDocAt:Number(d.updatedAt||Date.now())||Date.now() };
+            const k = String(d.contractKey || d.id || d.petId || (String(d.customerName||'')+'_'+String(d.petName||'')) || '').trim() || ('contract_'+Date.now());
+            p.payload.contractCanonicalRecords[k] = rec;
+            p.payload.contractAdoptionBundles[k] = rec;
+            merged = dsMergeContractCloudDocData(merged || {}, p);
+          }
+        }catch(_){ }
+      });
+    }
+    return merged;
+  }catch(e){ try{ console.warn('GB343 contract meta docs read failed', e); }catch(_){ } return null; }
+}
+
 function getCompatFirestoreDb(){
   try{
     if(typeof firebase !== 'undefined' && firebase && typeof firebase.firestore === 'function') return firebase.firestore();
@@ -2132,6 +2164,10 @@ async function cloudLoadState(){
       if(csnap && csnap.exists) data = dsMergeContractCloudDocData(data || {}, csnap.data() || {});
     }catch(e){ try{ console.warn('cloudLoadState contract canonical read failed', e); }catch(_){ } }
   }
+  try{
+    const metaContracts = (typeof cloudLoadContractCanonicalMetaDocsGB343 === 'function') ? await cloudLoadContractCanonicalMetaDocsGB343() : null;
+    if(metaContracts) data = dsMergeContractCloudDocData(data || {}, metaContracts || {});
+  }catch(e){ try{ console.warn('cloudLoadState GB343 meta contract merge failed', e); }catch(_){ } }
   if(!data) return null;
   const payload = dsBuildMergedCloudDocPayload(data);
   if(!payload) return null;
@@ -25621,7 +25657,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB342_CONTRACT_LOGIN_TOPLEVEL_SNAPSHOT_RESTORE_20260508_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB343_CONTRACT_META_DOC_LOGIN_RESTORE_20260508_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -27594,7 +27630,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB342_CONTRACT_LOGIN_TOPLEVEL_SNAPSHOT_RESTORE_20260508_ROOTONLY";
+  const BUILD = "M50.9.9GB343_CONTRACT_META_DOC_LOGIN_RESTORE_20260508_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -31184,7 +31220,7 @@ try{ window.__GB294_MARKER = 'active'; }catch(_){ }
 /* ===== GB295 contract review verified open + reset fix ===== */
 try{ window.__GB295_MARKER = 'active'; }catch(_){ }
 (function(){
-  const BUILD = "M50.9.9GB342_CONTRACT_LOGIN_TOPLEVEL_SNAPSHOT_RESTORE_20260508_ROOTONLY";
+  const BUILD = "M50.9.9GB343_CONTRACT_META_DOC_LOGIN_RESTORE_20260508_ROOTONLY";
   function ds295Clone(v){ try{ return JSON.parse(JSON.stringify(v == null ? null : v)); }catch(_){ return v; } }
   function ds295Norm(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
   function ds295Bool(v){ try{ if(v===true||v===false) return !!v; const s=String(v==null?'':v).trim().toLowerCase(); return s==='1'||s==='true'||s==='yes'||s==='ja'||s==='on'; }catch(_){ return false; } }
@@ -31713,6 +31749,9 @@ try{ window.__GB297_MARKER = 'active'; }catch(_){ }
         const out = prevMerge.apply(this, arguments) || {};
         try{ out.contractSignatures = ds297MergeMap(remote.contractSignatures, local.contractSignatures, ['signedAt','savedAt','updatedAt','signatureAt']); }catch(_){ }
         try{ out.contractAgreements = ds297MergeMap(remote.contractAgreements, local.contractAgreements, ['savedAt','updatedAt','signatureAt']); }catch(_){ }
+        try{ out.contractAdoptionBundles = ds297MergeMap(remote.contractAdoptionBundles, local.contractAdoptionBundles, ['savedAt','updatedAt','signatureAt']); }catch(_){ }
+        try{ out.contractCanonicalRecords = ds297MergeMap(remote.contractCanonicalRecords, local.contractCanonicalRecords, ['savedAt','updatedAt','signatureAt']); }catch(_){ }
+        try{ if(Array.isArray(remote.contractAdoptedRecords)||Array.isArray(local.contractAdoptedRecords)){ out.contractAdoptedRecords = (Array.isArray(remote.contractAdoptedRecords)?remote.contractAdoptedRecords:[]).concat(Array.isArray(local.contractAdoptedRecords)?local.contractAdoptedRecords:[]); } }catch(_){ }
         return out;
       };
       wrappedMerge.__gb297Wrapped = true;
@@ -35189,7 +35228,7 @@ try{ window.__GB314_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB314-app
 /* ===== GB315 final contract acceptance + badge DOM hardfix ===== */
 try{ window.__GB315_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB316-appjs'; }catch(_){ }
 (function(){
-  var BUILD='M50.9.9GB342_CONTRACT_LOGIN_TOPLEVEL_SNAPSHOT_RESTORE_20260508_ROOTONLY';
+  var BUILD='M50.9.9GB343_CONTRACT_META_DOC_LOGIN_RESTORE_20260508_ROOTONLY';
   function S(v){ try{return String(v==null?'':v).trim();}catch(_){return '';} }
   function L(v){ return S(v).toLowerCase(); }
   function esc(v){ try{return CSS && CSS.escape ? CSS.escape(S(v)) : S(v).replace(/[^a-zA-Z0-9_-]/g,'\\$&');}catch(_){return S(v);} }
@@ -35402,7 +35441,7 @@ try{var rd=renderDogs;if(rd&&!rd.__gb317Wrapped){renderDogs=function(){var r=rd.
 /* ===== GB318 contract hard bypass: accept not required when signature exists + generic green repair ===== */
 try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild='GB318-appjs'; }catch(_){ }
 (function(){
-  var BUILD='M50.9.9GB342_CONTRACT_LOGIN_TOPLEVEL_SNAPSHOT_RESTORE_20260508_ROOTONLY';
+  var BUILD='M50.9.9GB343_CONTRACT_META_DOC_LOGIN_RESTORE_20260508_ROOTONLY';
   function S(v){try{return String(v==null?'':v).trim()}catch(_){return''}}
   function L(v){return S(v).toLowerCase()}
   function V(){try{return S((state&&(state.contractVersion||(state.contract&&state.contract.version)))||'v1.0')||'v1.0'}catch(_){return'v1.0'}}
