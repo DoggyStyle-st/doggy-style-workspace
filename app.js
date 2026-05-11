@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB346_MED_ACTIVE_STAYS_CONTRACT_PRESERVE_20260508_ROOTONLY",
+  tag: "M50.9.9GB347_DOGS_BUTTON_HANDLERS_PRESERVE_20260511_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB346_MED_ACTIVE_STAYS_CONTRACT_PRESERVE_20260508_ROOTONLY";
+const APP_BUILD = "M50.9.9GB347_DOGS_BUTTON_HANDLERS_PRESERVE_20260511_ROOTONLY";
 try{ window.__dsAppJsRuntimeBuild = "GB346-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -25668,7 +25668,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB346_MED_ACTIVE_STAYS_CONTRACT_PRESERVE_20260508_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB347_DOGS_BUTTON_HANDLERS_PRESERVE_20260511_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -27641,7 +27641,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB346_MED_ACTIVE_STAYS_CONTRACT_PRESERVE_20260508_ROOTONLY";
+  const BUILD = "M50.9.9GB347_DOGS_BUTTON_HANDLERS_PRESERVE_20260511_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -31231,7 +31231,7 @@ try{ window.__GB294_MARKER = 'active'; }catch(_){ }
 /* ===== GB295 contract review verified open + reset fix ===== */
 try{ window.__GB295_MARKER = 'active'; }catch(_){ }
 (function(){
-  const BUILD = "M50.9.9GB346_MED_ACTIVE_STAYS_CONTRACT_PRESERVE_20260508_ROOTONLY";
+  const BUILD = "M50.9.9GB347_DOGS_BUTTON_HANDLERS_PRESERVE_20260511_ROOTONLY";
   function ds295Clone(v){ try{ return JSON.parse(JSON.stringify(v == null ? null : v)); }catch(_){ return v; } }
   function ds295Norm(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
   function ds295Bool(v){ try{ if(v===true||v===false) return !!v; const s=String(v==null?'':v).trim().toLowerCase(); return s==='1'||s==='true'||s==='yes'||s==='ja'||s==='on'; }catch(_){ return false; } }
@@ -35239,7 +35239,7 @@ try{ window.__GB314_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB314-app
 /* ===== GB315 final contract acceptance + badge DOM hardfix ===== */
 try{ window.__GB315_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB316-appjs'; }catch(_){ }
 (function(){
-  var BUILD='M50.9.9GB346_MED_ACTIVE_STAYS_CONTRACT_PRESERVE_20260508_ROOTONLY';
+  var BUILD='M50.9.9GB347_DOGS_BUTTON_HANDLERS_PRESERVE_20260511_ROOTONLY';
   function S(v){ try{return String(v==null?'':v).trim();}catch(_){return '';} }
   function L(v){ return S(v).toLowerCase(); }
   function esc(v){ try{return CSS && CSS.escape ? CSS.escape(S(v)) : S(v).replace(/[^a-zA-Z0-9_-]/g,'\\$&');}catch(_){return S(v);} }
@@ -35452,7 +35452,7 @@ try{var rd=renderDogs;if(rd&&!rd.__gb317Wrapped){renderDogs=function(){var r=rd.
 /* ===== GB318 contract hard bypass: accept not required when signature exists + generic green repair ===== */
 try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild='GB318-appjs'; }catch(_){ }
 (function(){
-  var BUILD='M50.9.9GB346_MED_ACTIVE_STAYS_CONTRACT_PRESERVE_20260508_ROOTONLY';
+  var BUILD='M50.9.9GB347_DOGS_BUTTON_HANDLERS_PRESERVE_20260511_ROOTONLY';
   function S(v){try{return String(v==null?'':v).trim()}catch(_){return''}}
   function L(v){return S(v).toLowerCase()}
   function V(){try{return S((state&&(state.contractVersion||(state.contract&&state.contract.version)))||'v1.0')||'v1.0'}catch(_){return'v1.0'}}
@@ -35487,3 +35487,88 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild='GB318-appjs';
   window.__dsGB318AcceptContract=acceptNow;window.__dsGB318WriteContract=write;window.__dsGB318Green=green;
 })();
 /* ===== END GB318 ===== */
+
+
+/* ===== GB347 DOGS/KUNDEN ACTION BUTTON HANDLER PRESERVE =====
+   GB346 contract paint restored green badges by rewriting dog row innerHTML in app.html.
+   That visually worked, but it destroyed the onclick handlers for Vertrag/Bearbeiten/Löschen.
+   This delegated capture handler keeps the buttons usable even after any later re-render/DOM repair. */
+(function(){
+  'use strict';
+  if(window.__dsGB347DogActionDelegateInstalled) return;
+  window.__dsGB347DogActionDelegateInstalled = true;
+  function S(v){ try{return String(v==null?'':v).trim();}catch(_){return '';} }
+  function same(a,b){ return S(a)===S(b); }
+  function getPet(pid){
+    try{
+      const arr = Array.isArray(state && state.pets) ? state.pets : [];
+      return arr.find(p=>same(p && (p.id||p.petId||p.dogId), pid)) || null;
+    }catch(_){ return null; }
+  }
+  function rowInfo(btn){
+    const row = btn && btn.closest && btn.closest('[data-role="pet-row"], #dogList .item');
+    const pid = S(btn.dataset.petId || btn.dataset.petEditId || (row && row.dataset && row.dataset.petId));
+    const cid = S(btn.dataset.customerId || (row && row.dataset && row.dataset.customerId));
+    return {row, pid, cid};
+  }
+  function deletePet(pid){
+    try{
+      if(!pid) return false;
+      if(!confirm('Hund wirklich löschen? (Aufenthalte/Rechnungen bleiben als Historie bestehen)')) return false;
+      state.pets = (Array.isArray(state.pets)?state.pets:[]).filter(x=>!same(x && (x.id||x.petId||x.dogId), pid));
+      try{
+        if(state._legacy && state._legacy.dogIdToPetId){
+          Object.keys(state._legacy.dogIdToPetId).forEach(function(dogId){
+            if(same(state._legacy.dogIdToPetId[dogId], pid)){
+              delete state._legacy.dogIdToPetId[dogId];
+              if(state._legacy.dogIdToCustomerId) delete state._legacy.dogIdToCustomerId[dogId];
+            }
+          });
+        }
+      }catch(_){ }
+      try{ saveState(); }catch(_){ }
+      try{ renderDogs(); }catch(_){ }
+      try{ syncDogSelect(); }catch(_){ }
+      return true;
+    }catch(e){ try{ console.warn('GB347 delete pet failed', e); }catch(_){ } return false; }
+  }
+  let lockUntil = 0;
+  let lastKey = '';
+  document.addEventListener('click', function(ev){
+    try{
+      const btn = ev && ev.target && ev.target.closest && ev.target.closest('#dogList button.smallbtn');
+      if(!btn) return;
+      const isContract = btn.hasAttribute('data-v');
+      const isEdit = btn.hasAttribute('data-e');
+      const isDelete = btn.hasAttribute('data-d');
+      if(!isContract && !isEdit && !isDelete) return;
+      const info = rowInfo(btn);
+      const key = [isContract?'v':isEdit?'e':'d', info.pid, info.cid].join('|');
+      const now = Date.now();
+      if(now < lockUntil && key === lastKey){
+        ev.preventDefault(); ev.stopPropagation(); try{ev.stopImmediatePropagation();}catch(_){ }
+        return false;
+      }
+      lockUntil = now + 500;
+      lastKey = key;
+      ev.preventDefault();
+      ev.stopPropagation();
+      try{ ev.stopImmediatePropagation(); }catch(_){ }
+      if(isContract){
+        const pet = getPet(info.pid) || {};
+        const cid = S(info.cid || pet.customerId || pet.ownerId);
+        if(typeof openContractForPet === 'function') openContractForPet(cid, info.pid);
+        return false;
+      }
+      if(isEdit){
+        if(typeof openCpEditor === 'function') openCpEditor('edit', info.pid);
+        return false;
+      }
+      if(isDelete){
+        deletePet(info.pid);
+        return false;
+      }
+    }catch(e){ try{ console.warn('GB347 dog action delegate failed', e); }catch(_){ } }
+  }, true);
+})();
+/* ===== END GB347 DOGS/KUNDEN ACTION BUTTON HANDLER PRESERVE ===== */

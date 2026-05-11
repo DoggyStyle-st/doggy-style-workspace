@@ -136,3 +136,9 @@ GB345 - MED_DASHBOARD_ACTIVE_STAYS_ONLY
 - Startseite: Medikamente heute zeigt fällige Medikamentengaben nur noch für Hunde mit aktivem Aufenthalt am heutigen Datum.
 - Ohne aktuellen Aufenthalt werden Dauermedikationspläne nicht mehr als heutige Pensions-To-dos gewertet.
 - §11-Medikationsstatus nutzt dieselbe Aktiv-Aufenthalt-Prüfung.
+
+
+[M50.9.9GB347_DOGS_BUTTON_HANDLERS_PRESERVE_20260511_ROOTONLY]
+- GB347: Hunde/Kunden-Aktionsbuttons Vertrag/Bearbeiten/Löschen repariert.
+- Destruktives row.innerHTML-Rewrite im Vertrags-Badge-Fix entfernt, damit Button-Handler erhalten bleiben.
+- Delegierter Sicherheits-Clickhandler für #dogList ergänzt.
