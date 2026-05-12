@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB347_DOGS_BUTTON_HANDLERS_PRESERVE_20260511_ROOTONLY",
+  tag: "M50.9.9GB348_CUSTOMER_PORTAL_PROPOSAL_SAVE_REPAIR_20260511_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,8 +12,8 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB347_DOGS_BUTTON_HANDLERS_PRESERVE_20260511_ROOTONLY";
-try{ window.__dsAppJsRuntimeBuild = "GB346-appjs"; }catch(_){ }
+const APP_BUILD = "M50.9.9GB348_CUSTOMER_PORTAL_PROPOSAL_SAVE_REPAIR_20260511_ROOTONLY";
+try{ window.__dsAppJsRuntimeBuild = "GB348-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
 // Global helper functions used across proposal-review matching.
@@ -25668,7 +25668,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB347_DOGS_BUTTON_HANDLERS_PRESERVE_20260511_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB348_CUSTOMER_PORTAL_PROPOSAL_SAVE_REPAIR_20260511_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -27641,7 +27641,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB347_DOGS_BUTTON_HANDLERS_PRESERVE_20260511_ROOTONLY";
+  const BUILD = "M50.9.9GB348_CUSTOMER_PORTAL_PROPOSAL_SAVE_REPAIR_20260511_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -31231,7 +31231,7 @@ try{ window.__GB294_MARKER = 'active'; }catch(_){ }
 /* ===== GB295 contract review verified open + reset fix ===== */
 try{ window.__GB295_MARKER = 'active'; }catch(_){ }
 (function(){
-  const BUILD = "M50.9.9GB347_DOGS_BUTTON_HANDLERS_PRESERVE_20260511_ROOTONLY";
+  const BUILD = "M50.9.9GB348_CUSTOMER_PORTAL_PROPOSAL_SAVE_REPAIR_20260511_ROOTONLY";
   function ds295Clone(v){ try{ return JSON.parse(JSON.stringify(v == null ? null : v)); }catch(_){ return v; } }
   function ds295Norm(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
   function ds295Bool(v){ try{ if(v===true||v===false) return !!v; const s=String(v==null?'':v).trim().toLowerCase(); return s==='1'||s==='true'||s==='yes'||s==='ja'||s==='on'; }catch(_){ return false; } }
@@ -35239,7 +35239,7 @@ try{ window.__GB314_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB314-app
 /* ===== GB315 final contract acceptance + badge DOM hardfix ===== */
 try{ window.__GB315_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB316-appjs'; }catch(_){ }
 (function(){
-  var BUILD='M50.9.9GB347_DOGS_BUTTON_HANDLERS_PRESERVE_20260511_ROOTONLY';
+  var BUILD='M50.9.9GB348_CUSTOMER_PORTAL_PROPOSAL_SAVE_REPAIR_20260511_ROOTONLY';
   function S(v){ try{return String(v==null?'':v).trim();}catch(_){return '';} }
   function L(v){ return S(v).toLowerCase(); }
   function esc(v){ try{return CSS && CSS.escape ? CSS.escape(S(v)) : S(v).replace(/[^a-zA-Z0-9_-]/g,'\\$&');}catch(_){return S(v);} }
@@ -35452,7 +35452,7 @@ try{var rd=renderDogs;if(rd&&!rd.__gb317Wrapped){renderDogs=function(){var r=rd.
 /* ===== GB318 contract hard bypass: accept not required when signature exists + generic green repair ===== */
 try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild='GB318-appjs'; }catch(_){ }
 (function(){
-  var BUILD='M50.9.9GB347_DOGS_BUTTON_HANDLERS_PRESERVE_20260511_ROOTONLY';
+  var BUILD='M50.9.9GB348_CUSTOMER_PORTAL_PROPOSAL_SAVE_REPAIR_20260511_ROOTONLY';
   function S(v){try{return String(v==null?'':v).trim()}catch(_){return''}}
   function L(v){return S(v).toLowerCase()}
   function V(){try{return S((state&&(state.contractVersion||(state.contract&&state.contract.version)))||'v1.0')||'v1.0'}catch(_){return'v1.0'}}
@@ -35572,3 +35572,93 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild='GB318-appjs';
   }, true);
 })();
 /* ===== END GB347 DOGS/KUNDEN ACTION BUTTON HANDLER PRESERVE ===== */
+
+
+/* ===== GB348 CUSTOMER PORTAL PROPOSAL SAVE REPAIR =====
+   Fixes customer.html using the old GB290 asset query and provides a direct Firestore fallback
+   for customer portal proposal submits. Does not change GB347 Hunde/Kunden handlers. */
+(function(){
+  'use strict';
+  if(window.__dsGB348CustomerProposalRepairInstalled) return;
+  window.__dsGB348CustomerProposalRepairInstalled = true;
+  var BUILD='M50.9.9GB348_CUSTOMER_PORTAL_PROPOSAL_SAVE_REPAIR_20260511_ROOTONLY';
+  function S(v){try{return String(v==null?'':v).trim()}catch(_){return''}}
+  function lower(v){return S(v).toLowerCase()}
+  function makeId(){try{return (typeof uid==='function'?uid():('proposal_'+Date.now()+'_'+Math.random().toString(36).slice(2,8)))}catch(_){return 'proposal_'+Date.now()}}
+  function orgId(){try{return (typeof dsResolveCloudOrgId==='function'?dsResolveCloudOrgId():(window.CLOUD_ORG_ID||window.firebaseOrgId||'doggystyle'))||'doggystyle'}catch(_){return 'doggystyle'}}
+  async function waitUser(ms){
+    ms=Number(ms||8000)||8000;
+    try{ if(typeof cpWaitForFirebaseUser==='function'){ var u=await cpWaitForFirebaseUser(ms); if(u&&u.uid) return u; } }catch(_){ }
+    return new Promise(function(resolve){
+      try{
+        var auth = (window.firebase&&firebase.auth)?firebase.auth():null;
+        if(!auth) return resolve(null);
+        if(auth.currentUser) return resolve(auth.currentUser);
+        var done=false; var to=setTimeout(function(){ if(done)return; done=true; try{unsub&&unsub()}catch(_){} resolve(auth.currentUser||null); }, ms);
+        var unsub=auth.onAuthStateChanged(function(u){ if(done)return; done=true; clearTimeout(to); try{unsub&&unsub()}catch(_){} resolve(u||null); });
+      }catch(_){ resolve(null); }
+    });
+  }
+  function db(){
+    try{
+      var fb=(typeof firebase!=='undefined'&&firebase)?firebase:window.firebase;
+      if(!fb||typeof fb.firestore!=='function') return null;
+      try{ if(window.firebaseConfig && fb.initializeApp && (!fb.apps||!fb.apps.length)) fb.initializeApp(window.firebaseConfig); }catch(_){ }
+      var d=fb.firestore();
+      try{ window.CLOUD=window.CLOUD||{}; CLOUD.db=d; CLOUD.enabled=true; CLOUD.orgId=orgId(); }catch(_){ }
+      return d;
+    }catch(_){ return null; }
+  }
+  async function directSubmit(opts, previousError){
+    opts=opts||{};
+    var user=await waitUser(10000);
+    if(!user||!user.uid) throw previousError || new Error('Keine aktive Firebase-Anmeldung.');
+    var d=db();
+    if(!d||typeof d.collection!=='function') throw previousError || new Error('Firestore nicht verfügbar.');
+    var stamp=Date.now();
+    var payloadSubmitted=opts.payloadSubmitted||{};
+    var templateId=S(opts.templateId||'customer_data')||'customer_data';
+    var id=S(opts.id||opts.taskId)||makeId();
+    var email=lower((user&&user.email)||opts.customerEmail||'');
+    var task={
+      id:id, taskId:id, templateId:templateId,
+      title:S(opts.title||'Vorschlag')||'Vorschlag',
+      status:'submitted', proposalStatus:'pending',
+      submittedAt:stamp, createdAt:stamp, updatedAt:stamp,
+      customerUid:S(user.uid), customerEmail:email,
+      customerName:S(opts.customerName || (payloadSubmitted.customer&&(payloadSubmitted.customer.name||payloadSubmitted.customer.fullName)) || (user&&user.displayName) || email || 'Kunde'),
+      customerId:S(opts.customerId || (payloadSubmitted.customer&&(payloadSubmitted.customer.id||payloadSubmitted.customer.customerId)) || ''),
+      petId:S(opts.petId || opts.dogId || (payloadSubmitted.pet&&(payloadSubmitted.pet.id||payloadSubmitted.pet.petId||payloadSubmitted.pet.dogId)) || ''),
+      dogId:S(opts.petId || opts.dogId || (payloadSubmitted.pet&&(payloadSubmitted.pet.id||payloadSubmitted.pet.petId||payloadSubmitted.pet.dogId)) || ''),
+      payloadSubmitted:payloadSubmitted,
+      gb348Direct:true,
+      build:BUILD
+    };
+    var ref=d.collection('orgs').doc(orgId()).collection('proposals').doc(id);
+    await ref.set(task, {merge:true});
+    try{ await d.collection('orgs').doc(orgId()).collection('tasks').doc(id).set(Object.assign({}, task, {mirroredFromProposal:true, payloadSubmitted:opts.litePayloadSubmitted||payloadSubmitted, updatedAt:Date.now()}), {merge:true}); }catch(_){ }
+    try{ if(typeof pushCustomerProposalBuffer==='function') pushCustomerProposalBuffer(task); }catch(_){ }
+    try{
+      if(typeof ensureStateShape==='function') ensureStateShape();
+      state.inboxAssignments=Array.isArray(state.inboxAssignments)?state.inboxAssignments:[];
+      state.inboxSubmissions=Array.isArray(state.inboxSubmissions)?state.inboxSubmissions:[];
+      state.inboxAssignments.unshift(Object.assign({}, task, {mirroredFromCloud:true}));
+      state.inboxSubmissions.unshift(Object.assign({}, task, {mirroredFromCloud:true}));
+      if(typeof saveState==='function') saveState();
+    }catch(_){ }
+    return {ok:true, path:'proposals+tasks-gb348-direct', task:task};
+  }
+  var original = window.dsSubmitCustomerPortalProposal;
+  window.dsSubmitCustomerPortalProposal = async function(opts){
+    var lastErr=null;
+    if(typeof original === 'function'){
+      try{
+        var res = await original(opts);
+        if(res && res.ok) return res;
+        if(res && res.error) lastErr = res.error;
+      }catch(e){ lastErr=e; }
+    }
+    return directSubmit(opts, lastErr);
+  };
+})();
+/* ===== END GB348 CUSTOMER PORTAL PROPOSAL SAVE REPAIR ===== */

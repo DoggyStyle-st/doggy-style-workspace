@@ -7,7 +7,7 @@
   <link href="manifest.json" rel="manifest"/>
   <meta name="theme-color" content="#101014"/>
   <link href="assets/logo.png" rel="apple-touch-icon"/>
-  <link href="styles.css?v=M50.9.9GB290_REVIEWSAVE_SIGFIX_20260413_ROOTONLY" rel="stylesheet"/>
+  <link href="styles.css?v=M50.9.9GB348_CUSTOMER_PORTAL_PROPOSAL_SAVE_REPAIR_20260511_ROOTONLY" rel="stylesheet"/>
   <style>
     body.bg-watermark{background:radial-gradient(circle at top, rgba(255,255,255,.08), transparent 35%), linear-gradient(180deg,#0e1017 0%, #121521 100%) !important}
     body.bg-watermark::before{opacity:.12 !important;filter:none !important}
@@ -245,18 +245,18 @@
     <div class="customer-hidden" id="customerTaskListCard"></div>
     <div class="customer-hidden list" id="customerTaskList"></div>
     <div class="customer-hidden" id="customerPortalSubtitle"></div>
-    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9GB290_REVIEWSAVE_SIGFIX_20260413_ROOTONLY</div>
+    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9GB348_CUSTOMER_PORTAL_PROPOSAL_SAVE_REPAIR_20260511_ROOTONLY</div>
   </main>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
-  <script src="firebase-config.js?v=M50.9.9GB290_REVIEWSAVE_SIGFIX_20260413_ROOTONLY"></script>
-  <script src="app.js?v=M50.9.9GB290_REVIEWSAVE_SIGFIX_20260413_ROOTONLY"></script>
+  <script src="firebase-config.js?v=M50.9.9GB348_CUSTOMER_PORTAL_PROPOSAL_SAVE_REPAIR_20260511_ROOTONLY"></script>
+  <script src="app.js?v=M50.9.9GB348_CUSTOMER_PORTAL_PROPOSAL_SAVE_REPAIR_20260511_ROOTONLY"></script>
   <script>
     (function(){
-      const BUILD = 'Build CUSTOMER M50.9.9GB290_REVIEWSAVE_SIGFIX_20260413_ROOTONLY';
+      const BUILD = 'Build CUSTOMER M50.9.9GB348_CUSTOMER_PORTAL_PROPOSAL_SAVE_REPAIR_20260511_ROOTONLY';
       const DRAFT_KEY = 'ds_customer_app_drafts_v1';
       const viewNames = ['home','dogs','contract','stay','chat'];
       let currentView = 'home';
@@ -794,12 +794,116 @@ document.getElementById('btnCustomerTaskSubmit')?.addEventListener('click', ()=>
           if(hint) hint.textContent = 'Änderungen lokal gespeichert. Der Vorschlag wird beim Absenden an Eingänge übergeben.';
         }catch(e){ if(hint) hint.textContent = 'Speichern fehlgeschlagen.'; }
       }
+      async function submitCustomerDogsProposalPortalGB348(){
+        const hint = document.getElementById('customerTaskSaveHint');
+        try{
+          if(hint) hint.textContent = 'Vorschlag wird gespeichert …';
+          collectCustomerRealEditor('customer_data');
+          const info = customerContextIds();
+          const u = (window.firebase && firebase.auth) ? firebase.auth().currentUser : null;
+          const authUid = String((u && u.uid) || '').trim();
+          const authEmail = String((u && u.email) || getUserEmail() || '').trim().toLowerCase();
+          const f = Object.assign({}, (currentDoc && currentDoc.fields) || {}, currentData || {});
+          const customerId = String(info.customerId || authUid || authEmail || '').trim();
+          const petId = String(info.petId || f.petId || f.dogId || '').trim();
+          const customerName = String(f.fullName || f.customerName || info.customer?.name || info.customer?.fullName || info.customer?.email || authEmail || 'Kunde').trim();
+          const petName = String(f.dogName || f.petName || info.pet?.name || info.pet?.petName || 'Hund').trim();
+          const customerProposal = {
+            id: customerId,
+            customerId: customerId,
+            name: customerName,
+            fullName: customerName,
+            email: String(f.email || info.customer?.email || authEmail || '').trim().toLowerCase(),
+            phone: String(f.phone || info.customer?.phone || '').trim(),
+            street: String(f.street || info.customer?.street || '').trim(),
+            zip: String(f.zip || info.customer?.zip || '').trim(),
+            city: String(f.city || info.customer?.city || '').trim(),
+            emergencyName: String(f.emergencyName || info.customer?.emergencyName || '').trim(),
+            emergencyPhone: String(f.emergencyPhone || info.customer?.emergencyPhone || '').trim(),
+            pickupAuth: String(f.pickupAuth || info.customer?.pickupAuth || '').trim(),
+            note: String(f.customerNote || f.note || info.customer?.note || info.customer?.notes || '').trim(),
+            portalUid: authUid,
+            customerUid: authUid
+          };
+          const petProposal = {
+            id: petId,
+            petId: petId,
+            dogId: String(info.pet?.dogId || petId || '').trim(),
+            customerId: customerId,
+            ownerId: customerId,
+            name: petName,
+            petName: petName,
+            dogName: petName,
+            breed: String(f.breed || info.pet?.breed || '').trim(),
+            birthDate: String(f.birthDate || f.birthdate || info.pet?.birthDate || info.pet?.dob || '').trim(),
+            birthdate: String(f.birthDate || f.birthdate || info.pet?.birthdate || '').trim(),
+            sex: String(f.sex || info.pet?.sex || '').trim(),
+            chipStatus: String(f.chipStatus || '').trim(),
+            chip: String(f.chipStatus || '').trim()==='yes' || !!f.chip,
+            chipNumber: String(f.chipNumber || info.pet?.chipNumber || '').trim(),
+            vet: String(f.vet || info.pet?.vet || '').trim(),
+            vetPhone: String(f.vetPhone || info.pet?.vetPhone || '').trim(),
+            allergies: String(f.allergies || info.pet?.allergies || '').trim(),
+            vaccinatedConfirmed: !!f.vaccinatedConfirmed,
+            rabiesDate: String(f.rabiesDate || info.pet?.rabiesDate || '').trim(),
+            mixedVaccineDate: String(f.mixedVaccineDate || info.pet?.mixedVaccineDate || '').trim(),
+            food: String(f.food || info.pet?.food || '').trim(),
+            feeding: String(f.feeding || info.pet?.feeding || '').trim(),
+            compat: String(f.compat || info.pet?.compat || '').trim(),
+            behavior: String(f.behavior || info.pet?.behavior || '').trim(),
+            notes: String(f.notes || f.note || info.pet?.notes || '').trim(),
+            medPlanName: String(f.medPlanName || '').trim(),
+            medPlanDose: String(f.medPlanDose || '').trim(),
+            medPlanUnit: String(f.medPlanUnit || '').trim(),
+            medPlanTimes: String(f.medPlanTimes || '').trim(),
+            medPlanNotes: String(f.medPlanNotes || '').trim(),
+            medPlanOwnerApproval: !!f.medPlanOwnerApproval
+          };
+          const payloadSubmitted = {
+            source: 'customer-portal-dogs-gb348',
+            mode: 'proposal',
+            customer: customerProposal,
+            pet: petProposal,
+            fields: f,
+            meta: { customerId, petId, submittedFrom: 'customer.html', build: 'M50.9.9GB348_CUSTOMER_PORTAL_PROPOSAL_SAVE_REPAIR_20260511_ROOTONLY' }
+          };
+          const litePayloadSubmitted = {
+            source: 'customer-portal-dogs-gb348',
+            mode: 'proposal-cloud-fallback',
+            customer: { name: customerProposal.name, email: customerProposal.email, phone: customerProposal.phone },
+            pet: { name: petProposal.name, breed: petProposal.breed, sex: petProposal.sex, notes: petProposal.notes },
+            meta: { customerId, petId }
+          };
+          const res = await (window.dsSubmitCustomerPortalProposal ? window.dsSubmitCustomerPortalProposal({
+            templateId:'customer_data',
+            title:'Kunde/Hund Änderungsvorschlag',
+            customerId,
+            petId,
+            customerName,
+            payloadSubmitted,
+            litePayloadSubmitted
+          }) : Promise.reject(new Error('Vorschlagsfunktion nicht verfügbar')));
+          if(currentTask) setDraft(currentTask.id || currentTask.taskId || currentTask.templateId, {});
+          if(hint) hint.textContent = res && res.ok ? '✅ Vorschlag gespeichert und an Eingänge übergeben.' : '✅ Vorschlag lokal vorgemerkt.';
+          alert(res && res.ok ? 'Änderungsvorschlag gespeichert und an Eingänge übergeben.' : 'Änderungsvorschlag lokal vorgemerkt.');
+          document.getElementById('customerTaskEditorWrap')?.classList.remove('is-active');
+          setView('dogs');
+          refreshCustomUI();
+          return res;
+        }catch(err){
+          console.error('submitCustomerDogsProposalPortalGB348 failed', err);
+          if(hint) hint.textContent = '❌ Vorschlag konnte nicht gespeichert werden.';
+          alert('Vorschlag konnte nicht gespeichert werden: ' + String(err?.message || err || 'Unbekannter Fehler'));
+          return {ok:false, error:err};
+        }
+      }
+
       async function submitCurrentCustomerTaskProposal(forceTemplateId){
         const hint = document.getElementById('customerTaskSaveHint');
         const templateId = String(forceTemplateId || currentTask?.templateId || '').trim();
         if(!templateId) return;
-        if(templateId === 'customer_data' && typeof submitCustomerDogsProposal === 'function'){
-          return submitCustomerDogsProposal();
+        if(templateId === 'customer_data'){
+          return submitCustomerDogsProposalPortalGB348();
         }
         try{
           if(hint) hint.textContent = 'Vorschlag wird gespeichert …';
@@ -1232,7 +1336,7 @@ function renderStayRealForm(doc){
 
 <script>
 (function(){
-  const CURRENT_BUILD = 'M50.9.9GB290_REVIEWSAVE_SIGFIX_20260413_ROOTONLY';
+  const CURRENT_BUILD = 'M50.9.9GB348_CUSTOMER_PORTAL_PROPOSAL_SAVE_REPAIR_20260511_ROOTONLY';
   try{
     window.addEventListener('load', function(){
       try{
