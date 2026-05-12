@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB348_CUSTOMER_PORTAL_PROPOSAL_SAVE_REPAIR_20260511_ROOTONLY",
+  tag: "M50.9.9GB349_CUSTOMER_PORTAL_SAVE_LOGOUT_REVIEW_FIX_20260512_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB348_CUSTOMER_PORTAL_PROPOSAL_SAVE_REPAIR_20260511_ROOTONLY";
+const APP_BUILD = "M50.9.9GB349_CUSTOMER_PORTAL_SAVE_LOGOUT_REVIEW_FIX_20260512_ROOTONLY";
 try{ window.__dsAppJsRuntimeBuild = "GB348-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -25668,7 +25668,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB348_CUSTOMER_PORTAL_PROPOSAL_SAVE_REPAIR_20260511_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB349_CUSTOMER_PORTAL_SAVE_LOGOUT_REVIEW_FIX_20260512_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -27641,7 +27641,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB348_CUSTOMER_PORTAL_PROPOSAL_SAVE_REPAIR_20260511_ROOTONLY";
+  const BUILD = "M50.9.9GB349_CUSTOMER_PORTAL_SAVE_LOGOUT_REVIEW_FIX_20260512_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -31231,7 +31231,7 @@ try{ window.__GB294_MARKER = 'active'; }catch(_){ }
 /* ===== GB295 contract review verified open + reset fix ===== */
 try{ window.__GB295_MARKER = 'active'; }catch(_){ }
 (function(){
-  const BUILD = "M50.9.9GB348_CUSTOMER_PORTAL_PROPOSAL_SAVE_REPAIR_20260511_ROOTONLY";
+  const BUILD = "M50.9.9GB349_CUSTOMER_PORTAL_SAVE_LOGOUT_REVIEW_FIX_20260512_ROOTONLY";
   function ds295Clone(v){ try{ return JSON.parse(JSON.stringify(v == null ? null : v)); }catch(_){ return v; } }
   function ds295Norm(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
   function ds295Bool(v){ try{ if(v===true||v===false) return !!v; const s=String(v==null?'':v).trim().toLowerCase(); return s==='1'||s==='true'||s==='yes'||s==='ja'||s==='on'; }catch(_){ return false; } }
@@ -35239,7 +35239,7 @@ try{ window.__GB314_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB314-app
 /* ===== GB315 final contract acceptance + badge DOM hardfix ===== */
 try{ window.__GB315_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB316-appjs'; }catch(_){ }
 (function(){
-  var BUILD='M50.9.9GB348_CUSTOMER_PORTAL_PROPOSAL_SAVE_REPAIR_20260511_ROOTONLY';
+  var BUILD='M50.9.9GB349_CUSTOMER_PORTAL_SAVE_LOGOUT_REVIEW_FIX_20260512_ROOTONLY';
   function S(v){ try{return String(v==null?'':v).trim();}catch(_){return '';} }
   function L(v){ return S(v).toLowerCase(); }
   function esc(v){ try{return CSS && CSS.escape ? CSS.escape(S(v)) : S(v).replace(/[^a-zA-Z0-9_-]/g,'\\$&');}catch(_){return S(v);} }
@@ -35452,7 +35452,7 @@ try{var rd=renderDogs;if(rd&&!rd.__gb317Wrapped){renderDogs=function(){var r=rd.
 /* ===== GB318 contract hard bypass: accept not required when signature exists + generic green repair ===== */
 try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild='GB318-appjs'; }catch(_){ }
 (function(){
-  var BUILD='M50.9.9GB348_CUSTOMER_PORTAL_PROPOSAL_SAVE_REPAIR_20260511_ROOTONLY';
+  var BUILD='M50.9.9GB349_CUSTOMER_PORTAL_SAVE_LOGOUT_REVIEW_FIX_20260512_ROOTONLY';
   function S(v){try{return String(v==null?'':v).trim()}catch(_){return''}}
   function L(v){return S(v).toLowerCase()}
   function V(){try{return S((state&&(state.contractVersion||(state.contract&&state.contract.version)))||'v1.0')||'v1.0'}catch(_){return'v1.0'}}
@@ -35574,14 +35574,14 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild='GB318-appjs';
 /* ===== END GB347 DOGS/KUNDEN ACTION BUTTON HANDLER PRESERVE ===== */
 
 
-/* ===== GB348 CUSTOMER PORTAL PROPOSAL SAVE REPAIR =====
+/* ===== GB349 CUSTOMER PORTAL SAVE LOGOUT REVIEW FIX =====
    Fixes customer.html using the old GB290 asset query and provides a direct Firestore fallback
    for customer portal proposal submits. Does not change GB347 Hunde/Kunden handlers. */
 (function(){
   'use strict';
   if(window.__dsGB348CustomerProposalRepairInstalled) return;
   window.__dsGB348CustomerProposalRepairInstalled = true;
-  var BUILD='M50.9.9GB348_CUSTOMER_PORTAL_PROPOSAL_SAVE_REPAIR_20260511_ROOTONLY';
+  var BUILD='M50.9.9GB349_CUSTOMER_PORTAL_SAVE_LOGOUT_REVIEW_FIX_20260512_ROOTONLY';
   function S(v){try{return String(v==null?'':v).trim()}catch(_){return''}}
   function lower(v){return S(v).toLowerCase()}
   function makeId(){try{return (typeof uid==='function'?uid():('proposal_'+Date.now()+'_'+Math.random().toString(36).slice(2,8)))}catch(_){return 'proposal_'+Date.now()}}
@@ -35631,7 +35631,7 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild='GB318-appjs';
       petId:S(opts.petId || opts.dogId || (payloadSubmitted.pet&&(payloadSubmitted.pet.id||payloadSubmitted.pet.petId||payloadSubmitted.pet.dogId)) || ''),
       dogId:S(opts.petId || opts.dogId || (payloadSubmitted.pet&&(payloadSubmitted.pet.id||payloadSubmitted.pet.petId||payloadSubmitted.pet.dogId)) || ''),
       payloadSubmitted:payloadSubmitted,
-      gb348Direct:true,
+      gb349Direct:true,
       build:BUILD
     };
     var ref=d.collection('orgs').doc(orgId()).collection('proposals').doc(id);
@@ -35661,4 +35661,159 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild='GB318-appjs';
     return directSubmit(opts, lastErr);
   };
 })();
-/* ===== END GB348 CUSTOMER PORTAL PROPOSAL SAVE REPAIR ===== */
+/* ===== END GB349 CUSTOMER PORTAL SAVE LOGOUT REVIEW FIX ===== */
+
+
+/* ===== GB349 CUSTOMER PORTAL SAVE/LOGOUT + ADMIN REVIEW FIX =====
+   Keeps GB346/GB347 stable app behavior. Fixes:
+   - customer portal contract save must create a proposal, not local admin contract save
+   - customer portal logout must not be swallowed by old handlers
+   - admin adoption of customer_data proposals must not hang on cloud persist
+*/
+(function(){
+  'use strict';
+  if(window.__dsGB349CustomerReviewFixInstalled) return;
+  window.__dsGB349CustomerReviewFixInstalled = true;
+  var BUILD='M50.9.9GB349_CUSTOMER_PORTAL_SAVE_LOGOUT_REVIEW_FIX_20260512_ROOTONLY';
+  function S(v){ try{return String(v==null?'':v).trim();}catch(_){return '';} }
+  function L(v){ return S(v).toLowerCase(); }
+  function arr(a){ return Array.isArray(a) ? a : []; }
+  function cleanFlat(src){
+    var out={}; src=src&&typeof src==='object'?src:{};
+    Object.keys(src).forEach(function(k){
+      try{
+        if(!k || k==='__proto__' || k==='constructor' || k==='prototype') return;
+        var v=src[k];
+        if(v==null || typeof v==='string' || typeof v==='boolean' || typeof v==='number') out[k]=v;
+      }catch(_){ }
+    });
+    return out;
+  }
+  function payloadOf(row){ return (row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data)) || {}; }
+  function isCustomerDataProposal(row){
+    try{
+      if(!row || typeof row!=='object') return false;
+      var p=payloadOf(row), tpl=L(row.templateId || row.proposalType || row.kind || row.formKey || p.templateId || '');
+      var src=L(row.source || row.__source || p.source || '');
+      return tpl==='customer_data' || src.indexOf('customer-portal-dogs')>=0 || src.indexOf('customer-main-dogs')>=0 || src.indexOf('kunde/hund')>=0;
+    }catch(_){ return false; }
+  }
+  function findCustomer(id,email,name){
+    id=S(id); email=L(email); var lname=L(name);
+    try{
+      return arr(state.customers).find(function(c){ return (id && S(c.id||c.customerId)===id) || (email && L(c.email||c.customerEmail)===email) || (lname && L(c.name||c.fullName)===lname); }) || null;
+    }catch(_){ return null; }
+  }
+  function findPet(id,cid,name){
+    id=S(id); cid=S(cid); var lname=L(name);
+    try{
+      return arr(state.pets).find(function(p){ return (id && S(p.id||p.petId||p.dogId)===id) || (lname && L(p.name||p.petName||p.dogName)===lname && (!cid || S(p.customerId||p.ownerId)===cid)); }) || null;
+    }catch(_){ return null; }
+  }
+  function mergeById(list, id, obj, aliases){
+    aliases=aliases||['id']; id=S(id); list=arr(list);
+    var idx=list.findIndex(function(x){ return aliases.some(function(a){ return S(x && x[a])===id; }); });
+    if(idx>=0){ list[idx]=Object.assign({}, list[idx], obj); return list[idx]; }
+    list.push(obj); return obj;
+  }
+  function withTimeout(promise, ms){
+    return new Promise(function(resolve){
+      var done=false; var t=setTimeout(function(){ if(!done){done=true; resolve(false);} }, ms||1800);
+      Promise.resolve(promise).then(function(v){ if(!done){done=true; clearTimeout(t); resolve(v===false?false:true);} }).catch(function(){ if(!done){done=true; clearTimeout(t); resolve(false);} });
+    });
+  }
+  async function acceptCustomerDataProposal(row){
+    try{
+      if(typeof ensureStateShape==='function') ensureStateShape();
+      state.customers=arr(state.customers); state.pets=arr(state.pets); state.dogs=arr(state.dogs);
+      var p=payloadOf(row);
+      var custP=(p.customer&&typeof p.customer==='object')?p.customer:{};
+      var petP=(p.pet&&typeof p.pet==='object')?p.pet:{};
+      var fields=(p.fields&&typeof p.fields==='object')?p.fields:{};
+      var cid=S(row.customerId || row.__targetCustomerId || custP.id || custP.customerId || fields.customerId || '');
+      var pid=S(row.petId || row.dogId || row.__targetPetId || petP.id || petP.petId || petP.dogId || fields.petId || fields.dogId || '');
+      var cname=S(custP.name || custP.fullName || fields.fullName || fields.customerName || row.customerName || row.customerEmail || 'Kunde');
+      var email=L(custP.email || fields.email || row.customerEmail || '');
+      var pname=S(petP.name || petP.petName || petP.dogName || fields.dogName || fields.petName || 'Hund');
+      var existingC=findCustomer(cid,email,cname);
+      if(existingC && !cid) cid=S(existingC.id||existingC.customerId);
+      if(!cid) cid=email || ('c_'+Date.now());
+      var customer=Object.assign({}, cleanFlat(existingC), cleanFlat(custP), {
+        id:cid, customerId:cid,
+        name:cname, fullName:cname,
+        email:email || L((existingC&&existingC.email)||''),
+        phone:S(custP.phone || fields.phone || (existingC&&existingC.phone) || ''),
+        street:S(custP.street || fields.street || (existingC&&existingC.street) || ''),
+        zip:S(custP.zip || fields.zip || (existingC&&existingC.zip) || ''),
+        city:S(custP.city || fields.city || (existingC&&existingC.city) || ''),
+        emergencyName:S(custP.emergencyName || fields.emergencyName || (existingC&&existingC.emergencyName) || ''),
+        emergencyPhone:S(custP.emergencyPhone || fields.emergencyPhone || (existingC&&existingC.emergencyPhone) || ''),
+        pickupAuth:S(custP.pickupAuth || fields.pickupAuth || (existingC&&existingC.pickupAuth) || ''),
+        note:S(custP.note || fields.customerNote || fields.note || (existingC&&existingC.note) || ''),
+        updatedAt:Date.now()
+      });
+      customer=mergeById(state.customers, cid, customer, ['id','customerId']);
+      var existingP=findPet(pid,cid,pname);
+      if(existingP && !pid) pid=S(existingP.id||existingP.petId||existingP.dogId);
+      if(!pid) pid='p_'+Date.now();
+      var pet=Object.assign({}, cleanFlat(existingP), cleanFlat(petP), {
+        id:pid, petId:pid,
+        dogId:S(petP.dogId || fields.dogId || (existingP&&existingP.dogId) || pid),
+        customerId:cid, ownerId:cid,
+        name:pname, petName:pname, dogName:pname,
+        breed:S(petP.breed || fields.breed || (existingP&&existingP.breed) || ''),
+        birthDate:S(petP.birthDate || petP.birthdate || fields.birthDate || fields.birthdate || (existingP&&existingP.birthDate) || ''),
+        birthdate:S(petP.birthdate || petP.birthDate || fields.birthdate || fields.birthDate || (existingP&&existingP.birthdate) || ''),
+        sex:S(petP.sex || fields.sex || (existingP&&existingP.sex) || ''),
+        chipStatus:S(petP.chipStatus || fields.chipStatus || (existingP&&existingP.chipStatus) || ''),
+        chip:!!(petP.chip || fields.chip || S(petP.chipStatus || fields.chipStatus)==='yes'),
+        chipNumber:S(petP.chipNumber || fields.chipNumber || (existingP&&existingP.chipNumber) || ''),
+        vet:S(petP.vet || fields.vet || (existingP&&existingP.vet) || ''),
+        vetPhone:S(petP.vetPhone || fields.vetPhone || (existingP&&existingP.vetPhone) || ''),
+        allergies:S(petP.allergies || fields.allergies || (existingP&&existingP.allergies) || ''),
+        vaccinatedConfirmed:!!(petP.vaccinatedConfirmed || fields.vaccinatedConfirmed),
+        rabiesDate:S(petP.rabiesDate || fields.rabiesDate || (existingP&&existingP.rabiesDate) || ''),
+        mixedVaccineDate:S(petP.mixedVaccineDate || fields.mixedVaccineDate || (existingP&&existingP.mixedVaccineDate) || ''),
+        food:S(petP.food || fields.food || (existingP&&existingP.food) || ''),
+        feeding:S(petP.feeding || fields.feeding || (existingP&&existingP.feeding) || ''),
+        compat:S(petP.compat || fields.compat || (existingP&&existingP.compat) || ''),
+        behavior:S(petP.behavior || fields.behavior || (existingP&&existingP.behavior) || ''),
+        notes:S(petP.notes || petP.note || fields.notes || fields.note || (existingP&&existingP.notes) || ''),
+        updatedAt:Date.now()
+      });
+      pet=mergeById(state.pets, pid, pet, ['id','petId','dogId']);
+      try{ if(typeof upsertLegacyDogForPet==='function') upsertLegacyDogForPet(pet, customer); }catch(_){ }
+      try{ if(typeof saveState==='function') saveState(); }catch(_){ }
+      try{ if(typeof dsFinalizeAcceptedProposalLocal==='function') dsFinalizeAcceptedProposalLocal(row); }catch(_){ }
+      try{ if(typeof removeInboxRowEverywhere==='function') removeInboxRowEverywhere(row); }catch(_){ }
+      try{ window.__dsProposalReview = window.__dsProposalReview || {}; __dsProposalReview.active=false; __dsProposalReview.row=null; __dsProposalReview.baseCustomer=null; __dsProposalReview.basePet=null; __dsProposalReview.baseCustomerId=''; __dsProposalReview.basePetId=''; }catch(_){ }
+      try{ if(typeof dsClearProposalReviewUI==='function') dsClearProposalReviewUI(); }catch(_){ }
+      try{ if(typeof closeCpEditor==='function') closeCpEditor(); }catch(_){ }
+      try{ if(typeof renderDogs==='function') renderDogs(); }catch(_){ }
+      try{ if(typeof cpSetStatus==='function') cpSetStatus('Gespeichert.'); }catch(_){ }
+      setTimeout(function(){ try{ if(typeof patchInboxRowStatus==='function') withTimeout(patchInboxRowStatus(row,'adopted'),1800); }catch(_){ } },0);
+      setTimeout(function(){ try{ if(typeof refreshInboxHard==='function') refreshInboxHard('gb349-customer-data-accepted'); }catch(_){ } },80);
+      setTimeout(function(){ try{ if(typeof dsForceProposalPersist==='function') withTimeout(dsForceProposalPersist('gb349-customer-data-bg'),2200); }catch(_){ } },120);
+      return true;
+    }catch(e){
+      try{ console.error('GB349 customer data accept failed', e); }catch(_){ }
+      try{ if(typeof cpSetStatus==='function') cpSetStatus('Speichern fehlgeschlagen: '+S(e&&e.message||e), true); }catch(_){ }
+      try{ alert('Speichern fehlgeschlagen: '+S(e&&e.message||e)); }catch(_){ }
+      return false;
+    }
+  }
+  var oldSave = null;
+  try{ oldSave = dsSaveProposalReview; }catch(_){ oldSave = window.dsSaveProposalReview; }
+  if(typeof oldSave === 'function'){
+    var wrapped = async function(){
+      try{
+        var row = (window.__dsProposalReview && window.__dsProposalReview.row) || null;
+        if(isCustomerDataProposal(row)) return await acceptCustomerDataProposal(row);
+      }catch(_){ }
+      return oldSave.apply(this, arguments);
+    };
+    try{ dsSaveProposalReview = wrapped; }catch(_){ }
+    window.dsSaveProposalReview = wrapped;
+  }
+})();
+/* ===== END GB349 CUSTOMER PORTAL SAVE/LOGOUT + ADMIN REVIEW FIX ===== */

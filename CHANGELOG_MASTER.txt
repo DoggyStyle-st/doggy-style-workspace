@@ -145,7 +145,14 @@ GB345 - MED_DASHBOARD_ACTIVE_STAYS_ONLY
 - §11-Medikationsstatus nutzt dieselbe Aktiv-Aufenthalt-Prüfung.
 
 
-[M50.9.9GB348_CUSTOMER_PORTAL_PROPOSAL_SAVE_REPAIR_20260511_ROOTONLY]
+[M50.9.9GB349_CUSTOMER_PORTAL_SAVE_LOGOUT_REVIEW_FIX_20260512_ROOTONLY]
 - GB347: Hunde/Kunden-Aktionsbuttons Vertrag/Bearbeiten/Löschen repariert.
 - Destruktives row.innerHTML-Rewrite im Vertrags-Badge-Fix entfernt, damit Button-Handler erhalten bleiben.
 - Delegierter Sicherheits-Clickhandler für #dogList ergänzt.
+
+
+GB349 - CUSTOMER_PORTAL_SAVE_LOGOUT_REVIEW_FIX - 2026-05-12
+- Kunden-App: früher Capture-Guard vor app.js, damit Betreuungsvertrag-Speichern nicht mehr von alten Haupt-App-Vertragshandlern abgefangen wird.
+- Kunden-App: Betreuungsvertrag wird wieder als Vorschlag in proposals/tasks geschrieben.
+- Kunden-App: Abmelden eigener früher Handler, damit Logout nicht mehr hängen bleibt.
+- Haupt-App: Kunde/Hund-Vorschläge werden beim Bestätigen direkt übernommen und blockieren nicht mehr bei Cloud-Persist.

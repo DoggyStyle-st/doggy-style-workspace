@@ -7,7 +7,7 @@
   <link href="manifest.json" rel="manifest"/>
   <meta name="theme-color" content="#101014"/>
   <link href="assets/logo.png" rel="apple-touch-icon"/>
-  <link href="styles.css?v=M50.9.9GB348_CUSTOMER_PORTAL_PROPOSAL_SAVE_REPAIR_20260511_ROOTONLY" rel="stylesheet"/>
+  <link href="styles.css?v=M50.9.9GB349_CUSTOMER_PORTAL_SAVE_LOGOUT_REVIEW_FIX_20260512_ROOTONLY" rel="stylesheet"/>
   <style>
     body.bg-watermark{background:radial-gradient(circle at top, rgba(255,255,255,.08), transparent 35%), linear-gradient(180deg,#0e1017 0%, #121521 100%) !important}
     body.bg-watermark::before{opacity:.12 !important;filter:none !important}
@@ -245,18 +245,201 @@
     <div class="customer-hidden" id="customerTaskListCard"></div>
     <div class="customer-hidden list" id="customerTaskList"></div>
     <div class="customer-hidden" id="customerPortalSubtitle"></div>
-    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9GB348_CUSTOMER_PORTAL_PROPOSAL_SAVE_REPAIR_20260511_ROOTONLY</div>
+    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9GB349_CUSTOMER_PORTAL_SAVE_LOGOUT_REVIEW_FIX_20260512_ROOTONLY</div>
   </main>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
-  <script src="firebase-config.js?v=M50.9.9GB348_CUSTOMER_PORTAL_PROPOSAL_SAVE_REPAIR_20260511_ROOTONLY"></script>
-  <script src="app.js?v=M50.9.9GB348_CUSTOMER_PORTAL_PROPOSAL_SAVE_REPAIR_20260511_ROOTONLY"></script>
+  <script src="firebase-config.js?v=M50.9.9GB349_CUSTOMER_PORTAL_SAVE_LOGOUT_REVIEW_FIX_20260512_ROOTONLY"></script>
+
+  <script>
+  /* GB349 CUSTOMER PORTAL EARLY ACTION GUARD
+     Registered before app.js so old main-app contract handlers cannot hijack
+     customer proposal submit or logout clicks. */
+  (function(){
+    'use strict';
+    if(window.__dsGB349CustomerEarlyGuardInstalled) return;
+    window.__dsGB349CustomerEarlyGuardInstalled = true;
+    var BUILD = 'M50.9.9GB349_CUSTOMER_PORTAL_SAVE_LOGOUT_REVIEW_FIX_20260512_ROOTONLY';
+    var submitLockUntil = 0;
+    function S(v){ try{return String(v == null ? '' : v).trim();}catch(_){return '';} }
+    function L(v){ return S(v).toLowerCase(); }
+    function orgId(){ return S(window.CLOUD_ORG_ID || window.firebaseOrgId || (window.firebaseConfig && window.firebaseConfig.orgId) || localStorage.getItem('ds_orgId') || 'doggystyle') || 'doggystyle'; }
+    function auth(){ try{return (window.firebase && firebase.auth) ? firebase.auth() : null;}catch(_){return null;} }
+    function db(){
+      try{
+        var fb = window.firebase;
+        if(!fb || typeof fb.firestore !== 'function') return null;
+        try{ if(window.firebaseConfig && fb.initializeApp && (!fb.apps || !fb.apps.length)) fb.initializeApp(window.firebaseConfig); }catch(_){ }
+        return fb.firestore();
+      }catch(_){ return null; }
+    }
+    function waitUser(ms){
+      ms = Number(ms || 8000) || 8000;
+      return new Promise(function(resolve){
+        try{
+          var a = auth();
+          if(!a) return resolve(null);
+          if(a.currentUser) return resolve(a.currentUser);
+          var done=false;
+          var to=setTimeout(function(){ if(done)return; done=true; try{unsub&&unsub();}catch(_){} resolve(a.currentUser || null); }, ms);
+          var unsub=a.onAuthStateChanged(function(u){ if(done)return; done=true; clearTimeout(to); try{unsub&&unsub();}catch(_){} resolve(u || null); });
+        }catch(_){ resolve(null); }
+      });
+    }
+    function makeId(prefix){ return (prefix || 'proposal') + '_' + Date.now() + '_' + Math.random().toString(36).slice(2,8); }
+    function scopedInfo(){
+      try{
+        if(typeof window.dsGetCustomerScopeContext === 'function'){
+          var ctx = window.dsGetCustomerScopeContext() || {};
+          var customer = ctx.customer || {};
+          var pets = Array.isArray(ctx.pets) ? ctx.pets : [];
+          var pet = pets[0] || {};
+          return {ctx:ctx, customer:customer, pet:pet, customerId:S(ctx.customerId || customer.id || customer.customerId), petId:S(pet.id || pet.petId || pet.dogId)};
+        }
+      }catch(_){ }
+      try{
+        var st = (typeof window.loadState === 'function') ? window.loadState() : (window.state || {});
+        var u = auth() && auth().currentUser;
+        var email = L(u && u.email);
+        var customers = Array.isArray(st.customers) ? st.customers : [];
+        var customer = customers.find(function(c){ return L(c.email) === email || L(c.customerEmail) === email || S(c.portalUid || c.customerUid) === S(u && u.uid); }) || customers[0] || {};
+        var cid = S(customer.id || customer.customerId);
+        var pets = (Array.isArray(st.pets) ? st.pets : []).filter(function(p){ return !cid || S(p.customerId || p.ownerId) === cid; });
+        var pet = pets[0] || {};
+        return {ctx:{state:st,pets:pets}, customer:customer, pet:pet, customerId:cid, petId:S(pet.id || pet.petId || pet.dogId)};
+      }catch(_){ return {ctx:null, customer:{}, pet:{}, customerId:'', petId:''}; }
+    }
+    function findSig(version, customerId, petId){
+      try{
+        var st = window.state || (typeof window.loadState === 'function' ? window.loadState() : {}) || {};
+        var store = st.contractSignatures || {};
+        var keys = [version+'__'+customerId+'__'+petId, 'v1.0__'+customerId+'__'+petId, customerId+'__'+petId];
+        for(var i=0;i<keys.length;i++){ if(store[keys[i]] && (store[keys[i]].dataUrl || store[keys[i]].signatureDataUrl)) return store[keys[i]]; }
+        var vals = Object.values(store || {});
+        for(var j=0;j<vals.length;j++){
+          var r = vals[j] || {};
+          if((S(r.customerId)===customerId || S(r.customerName)) && (S(r.petId)===petId || S(r.petName)) && (r.dataUrl || r.signatureDataUrl)) return r;
+        }
+      }catch(_){ }
+      try{
+        var cv = document.getElementById('contractSig');
+        if(cv && cv.toDataURL){
+          var data = cv.toDataURL('image/png');
+          if(data && data.length > 2000) return {dataUrl:data, signedAt:Date.now()};
+        }
+      }catch(_){ }
+      return null;
+    }
+    async function writeProposalDirect(opts){
+      opts = opts || {};
+      var user = await waitUser(10000);
+      if(!user || !user.uid) throw new Error('Keine aktive Firebase-Anmeldung. Bitte neu anmelden und erneut versuchen.');
+      var d = db();
+      if(!d || typeof d.collection !== 'function') throw new Error('Firestore nicht verfügbar.');
+      var stamp = Date.now();
+      var payloadSubmitted = opts.payloadSubmitted || {};
+      var id = S(opts.id || opts.taskId) || makeId('proposal');
+      var email = L(user.email || opts.customerEmail || '');
+      var customer = (payloadSubmitted.customer && typeof payloadSubmitted.customer === 'object') ? payloadSubmitted.customer : {};
+      var pet = (payloadSubmitted.pet && typeof payloadSubmitted.pet === 'object') ? payloadSubmitted.pet : {};
+      var task = {
+        id:id, taskId:id,
+        templateId:S(opts.templateId || 'customer_data') || 'customer_data',
+        title:S(opts.title || 'Vorschlag') || 'Vorschlag',
+        status:'submitted', proposalStatus:'pending',
+        submittedAt:stamp, createdAt:stamp, updatedAt:stamp,
+        customerUid:S(user.uid), customerEmail:email,
+        customerName:S(opts.customerName || customer.name || customer.fullName || user.displayName || email || 'Kunde'),
+        customerId:S(opts.customerId || customer.id || customer.customerId || ''),
+        petId:S(opts.petId || opts.dogId || pet.id || pet.petId || pet.dogId || ''),
+        dogId:S(opts.petId || opts.dogId || pet.id || pet.petId || pet.dogId || ''),
+        payloadSubmitted:payloadSubmitted,
+        build:BUILD,
+        gb349Direct:true
+      };
+      await d.collection('orgs').doc(orgId()).collection('proposals').doc(id).set(task, {merge:true});
+      try{ await d.collection('orgs').doc(orgId()).collection('tasks').doc(id).set(Object.assign({}, task, {mirroredFromProposal:true, payloadSubmitted:opts.litePayloadSubmitted || payloadSubmitted, updatedAt:Date.now()}), {merge:true}); }catch(_){ }
+      try{ if(typeof window.pushCustomerProposalBuffer === 'function') window.pushCustomerProposalBuffer(task); }catch(_){ }
+      return {ok:true, path:'proposals+tasks-gb349-direct', task:task};
+    }
+    window.dsCustomerPortalWriteProposalGB349 = writeProposalDirect;
+    window.dsCustomerPortalLogoutGB349 = async function(){
+      try{ var a = auth(); if(a) await a.signOut(); }catch(_){ }
+      try{ sessionStorage.removeItem('ds_customer_portal_session'); }catch(_){ }
+      try{ localStorage.removeItem('ds_customer_force_mode'); }catch(_){ }
+      location.href = 'login.html?v=' + encodeURIComponent(BUILD);
+    };
+    window.dsCustomerPortalSubmitContractGB349 = async function(){
+      var infoEl = document.getElementById('contractSavedInfo') || document.getElementById('contractSaveInfo') || document.getElementById('customerTaskSaveHint');
+      try{
+        if(infoEl) infoEl.textContent = 'Vorschlag wird gespeichert …';
+        var info = scopedInfo();
+        var cs = document.getElementById('contractCustomerSelect');
+        var ps = document.getElementById('contractPetSelect');
+        var ac = document.getElementById('contractAcceptChk');
+        var customerId = S((cs && cs.value) || info.customerId);
+        var petId = S((ps && ps.value) || info.petId);
+        if(!customerId || !petId){ alert('Bitte zuerst Kunde und Hund wählen.'); return {ok:false}; }
+        if(ac && !ac.checked){ alert('Bitte den Betreuungsvertrag bestätigen.'); return {ok:false}; }
+        var version = S((window.state && state.contractVersion) || 'v1.0') || 'v1.0';
+        var sig = findSig(version, customerId, petId);
+        if(!sig || !(sig.dataUrl || sig.signatureDataUrl)){ alert('Bitte zuerst unterschreiben.'); return {ok:false}; }
+        var customer = info.customer || {};
+        var pet = info.pet || {};
+        var customerName = S(customer.name || customer.fullName || customer.email || (auth() && auth().currentUser && auth().currentUser.email) || 'Kunde');
+        var petName = S(pet.name || pet.petName || pet.dogName || 'Hund');
+        var signatureDataUrl = String(sig.dataUrl || sig.signatureDataUrl || '');
+        var signatureAt = sig.signedAt || sig.signatureAt || Date.now();
+        var payloadSubmitted = {
+          source:'customer-portal-contract-gb349', mode:'proposal',
+          customer:{id:customerId, customerId:customerId, name:customerName, fullName:customerName, email:S(customer.email || (auth() && auth().currentUser && auth().currentUser.email) || '').toLowerCase(), phone:S(customer.phone || '')},
+          pet:{id:petId, petId:petId, dogId:S(pet.dogId || petId), customerId:customerId, name:petName, petName:petName, dogName:petName, breed:S(pet.breed||''), sex:S(pet.sex||'')},
+          fields:{contractAccepted:true, contractVersion:version, customerName:customerName, dogName:petName, petName:petName, signatureDataUrl:signatureDataUrl, signatureAt:signatureAt},
+          meta:{customerId:customerId, petId:petId, version:version, submittedFrom:'customer.html', build:BUILD, signatureDataUrl:signatureDataUrl, signatureAt:signatureAt},
+          signature:{dataUrl:signatureDataUrl, signedAt:signatureAt}
+        };
+        var res = await writeProposalDirect({templateId:'boarding_contract', title:'Betreuungsvertrag Vorschlag', customerId:customerId, petId:petId, customerName:customerName, payloadSubmitted:payloadSubmitted, litePayloadSubmitted:{source:'customer-portal-contract-gb349', mode:'proposal-cloud-fallback', customer:{name:customerName}, pet:{name:petName}, fields:{contractAccepted:true, contractVersion:version}, meta:{customerId:customerId, petId:petId, version:version}}});
+        if(infoEl) infoEl.textContent = '✅ Betreuungsvertrag als Vorschlag gespeichert und an Eingänge übergeben.';
+        alert('Betreuungsvertrag als Vorschlag gespeichert und an Eingänge übergeben.');
+        return res;
+      }catch(err){
+        if(infoEl) infoEl.textContent = '❌ Vorschlag konnte nicht gespeichert werden.';
+        alert('Vorschlag konnte nicht gespeichert werden: ' + S((err && err.message) || err || 'Unbekannter Fehler'));
+        return {ok:false, error:err};
+      }
+    };
+    document.addEventListener('click', function(ev){
+      try{
+        var btn = ev.target && ev.target.closest && ev.target.closest('button');
+        if(!btn) return;
+        if(btn.id === 'btnCustomerLogout'){
+          ev.preventDefault(); ev.stopPropagation(); try{ev.stopImmediatePropagation();}catch(_){ }
+          window.dsCustomerPortalLogoutGB349();
+          return false;
+        }
+        var txt = L(btn.textContent || '');
+        var isContractSave = (btn.id === 'contractSaveBtn' || btn.id === 'btnContractSave' || txt.indexOf('vorschlag senden') >= 0 || txt === 'speichern' || txt.indexOf(' speichern') >= 0);
+        var inContract = !!(btn.closest('#view-contract') || btn.closest('#contract') || btn.closest('.contract-wrap') || btn.closest('.contract-card'));
+        if(isContractSave && inContract){
+          var now = Date.now();
+          ev.preventDefault(); ev.stopPropagation(); try{ev.stopImmediatePropagation();}catch(_){ }
+          if(now < submitLockUntil) return false;
+          submitLockUntil = now + 2500;
+          Promise.resolve(window.dsCustomerPortalSubmitContractGB349()).finally(function(){ setTimeout(function(){ submitLockUntil = 0; }, 250); });
+          return false;
+        }
+      }catch(e){ try{console.warn('GB349 early customer guard failed', e);}catch(_){} }
+    }, true);
+  })();
+  </script>
+
+  <script src="app.js?v=M50.9.9GB349_CUSTOMER_PORTAL_SAVE_LOGOUT_REVIEW_FIX_20260512_ROOTONLY"></script>
   <script>
     (function(){
-      const BUILD = 'Build CUSTOMER M50.9.9GB348_CUSTOMER_PORTAL_PROPOSAL_SAVE_REPAIR_20260511_ROOTONLY';
+      const BUILD = 'Build CUSTOMER M50.9.9GB349_CUSTOMER_PORTAL_SAVE_LOGOUT_REVIEW_FIX_20260512_ROOTONLY';
       const DRAFT_KEY = 'ds_customer_app_drafts_v1';
       const viewNames = ['home','dogs','contract','stay','chat'];
       let currentView = 'home';
@@ -860,15 +1043,15 @@ document.getElementById('btnCustomerTaskSubmit')?.addEventListener('click', ()=>
             medPlanOwnerApproval: !!f.medPlanOwnerApproval
           };
           const payloadSubmitted = {
-            source: 'customer-portal-dogs-gb348',
+            source: 'customer-portal-dogs-gb349',
             mode: 'proposal',
             customer: customerProposal,
             pet: petProposal,
             fields: f,
-            meta: { customerId, petId, submittedFrom: 'customer.html', build: 'M50.9.9GB348_CUSTOMER_PORTAL_PROPOSAL_SAVE_REPAIR_20260511_ROOTONLY' }
+            meta: { customerId, petId, submittedFrom: 'customer.html', build: 'M50.9.9GB349_CUSTOMER_PORTAL_SAVE_LOGOUT_REVIEW_FIX_20260512_ROOTONLY' }
           };
           const litePayloadSubmitted = {
-            source: 'customer-portal-dogs-gb348',
+            source: 'customer-portal-dogs-gb349',
             mode: 'proposal-cloud-fallback',
             customer: { name: customerProposal.name, email: customerProposal.email, phone: customerProposal.phone },
             pet: { name: petProposal.name, breed: petProposal.breed, sex: petProposal.sex, notes: petProposal.notes },
@@ -1336,7 +1519,7 @@ function renderStayRealForm(doc){
 
 <script>
 (function(){
-  const CURRENT_BUILD = 'M50.9.9GB348_CUSTOMER_PORTAL_PROPOSAL_SAVE_REPAIR_20260511_ROOTONLY';
+  const CURRENT_BUILD = 'M50.9.9GB349_CUSTOMER_PORTAL_SAVE_LOGOUT_REVIEW_FIX_20260512_ROOTONLY';
   try{
     window.addEventListener('load', function(){
       try{
@@ -1355,5 +1538,32 @@ function renderStayRealForm(doc){
   }catch(_){ }
 })();
 </script>
+
+<script>
+/* GB349 CUSTOMER PORTAL POST-BOOT STABILIZER */
+(function(){
+  'use strict';
+  if(window.__dsGB349CustomerPostBootInstalled) return;
+  window.__dsGB349CustomerPostBootInstalled = true;
+  var BUILD='M50.9.9GB349_CUSTOMER_PORTAL_SAVE_LOGOUT_REVIEW_FIX_20260512_ROOTONLY';
+  function S(v){try{return String(v==null?'':v).trim();}catch(_){return''}}
+  function bind(){
+    try{ var b=document.getElementById('btnCustomerLogout'); if(b){ b.onclick=function(e){ try{e&&e.preventDefault();e&&e.stopPropagation();}catch(_){} window.dsCustomerPortalLogoutGB349&&window.dsCustomerPortalLogoutGB349(); return false; }; } }catch(_){ }
+    try{
+      var save=document.getElementById('contractSaveBtn');
+      if(save){ save.textContent='Vorschlag senden'; save.onclick=function(e){ try{e&&e.preventDefault();e&&e.stopPropagation();}catch(_){} window.dsCustomerPortalSubmitContractGB349&&window.dsCustomerPortalSubmitContractGB349(); return false; }; }
+    }catch(_){ }
+  }
+  var direct = window.dsCustomerPortalWriteProposalGB349;
+  if(typeof direct === 'function'){
+    window.dsSubmitCustomerPortalProposal = function(opts){ return direct(opts); };
+  }
+  window.addEventListener('load', bind);
+  document.addEventListener('DOMContentLoaded', bind);
+  setInterval(bind, 1500);
+  try{ var bottom=document.getElementById('customerPortalBuildBottom'); if(bottom) bottom.textContent='Build CUSTOMER '+BUILD+' · Ansicht home'; }catch(_){ }
+})();
+</script>
+
 </body>
 </html>
