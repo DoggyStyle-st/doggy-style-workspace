@@ -1,17 +1,23 @@
-M50.9.9GB351_SUCCESS_NOTICE_PROPOSAL_SAVE_20260512_ROOTONLY
+M50.9.9GB352_CUSTOMER_PORTAL_SAVE_LOGOUT_NOTICE_FIX_20260512_ROOTONLY
 
-GB351 baut direkt auf GB350 auf.
+GB352 baut direkt auf GB351 auf.
 
 Ziel:
-- Keine Funktionsänderung am erfolgreichen Vorschlagsfluss.
-- Nur sichtbare Erfolgsmeldungen nach erfolgreichem Speichern ergänzen.
+- Kundenmodus/Kunden-App darf beim Vorschlag-Speichern nicht mehr auf „Speichern läuft …“ hängen bleiben.
+- Kunde/Hund-, Betreuungsvertrag- und Aufenthaltsvorschläge werden zuerst lokal für Eingänge geschrieben, danach Cloud im Hintergrund versucht.
+- Erfolgsmeldung kommt sichtbar zurück, auch wenn Firebase/Auth auf iPad/Safari verzögert ist.
+- Abmelden im Kundenmodus wird nicht mehr von alten Logout-Flush-Routinen blockiert.
 
 Geändert:
-- Kunden-App: nach erfolgreichem Senden eines Kunde/Hund-, Betreuungsvertrag- oder Aufenthalts-Vorschlags wird zusätzlich eine gut sichtbare grüne Erfolgsmeldung eingeblendet.
-- Haupt-App / Eingänge: nach erfolgreichem Übernehmen/Speichern eines Vorschlags wird zusätzlich eine gut sichtbare grüne Erfolgsmeldung eingeblendet.
-- Meldungen sind dedupliziert, damit keine doppelten/dreifachen Bestätigungen entstehen.
+- app.html?customer_mode=dogs: Vorschlag-Speichern lokal-first, sichtbare Erfolgsmeldung, danach optionaler Cloud-Background-Write.
+- app.html?customer_mode=contract: Betreuungsvertrag bleibt prüfbarer Vorschlag mit Signaturdaten; kein Hängen bei Cloud/Auth-Verzögerung.
+- app.html?customer_mode=stay: gleiche local-first Vorschlagsicherung.
+- customer.html: harter Abmelden-Fallback mit Timeout und sichtbarer Erfolgsfallback.
+- app.html: Kundenmodus-Abmelden überspringt den alten Contract-Logout-Flush, damit der Button sofort reagiert.
+- Haupt-App/Eingänge: Erfolgsmeldung auch bei Übernahmefunktionen ohne Rückgabewert.
 
 Geprüft:
 - node --check app.js
 - node --check auth.js / diag.js / sw.js
-- Inline-Skripte aus app.html, customer.html, reset.html, pwreset.html
+- Inline-Skripte aus app.html, customer.html, login.html, reset.html, pwreset.html
+- ZIP-Test ohne Fehler.

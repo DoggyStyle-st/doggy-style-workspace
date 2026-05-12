@@ -7,7 +7,7 @@
   <link href="manifest.json" rel="manifest"/>
   <meta name="theme-color" content="#101014"/>
   <link href="assets/logo.png" rel="apple-touch-icon"/>
-  <link href="styles.css?v=M50.9.9GB351_SUCCESS_NOTICE_PROPOSAL_SAVE_20260512_ROOTONLY" rel="stylesheet"/>
+  <link href="styles.css?v=M50.9.9GB352_CUSTOMER_PORTAL_SAVE_LOGOUT_NOTICE_FIX_20260512_ROOTONLY" rel="stylesheet"/>
   <style>
     body.bg-watermark{background:radial-gradient(circle at top, rgba(255,255,255,.08), transparent 35%), linear-gradient(180deg,#0e1017 0%, #121521 100%) !important}
     body.bg-watermark::before{opacity:.12 !important;filter:none !important}
@@ -245,14 +245,14 @@
     <div class="customer-hidden" id="customerTaskListCard"></div>
     <div class="customer-hidden list" id="customerTaskList"></div>
     <div class="customer-hidden" id="customerPortalSubtitle"></div>
-    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9GB351_SUCCESS_NOTICE_PROPOSAL_SAVE_20260512_ROOTONLY</div>
+    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9GB352_CUSTOMER_PORTAL_SAVE_LOGOUT_NOTICE_FIX_20260512_ROOTONLY</div>
   </main>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
-  <script src="firebase-config.js?v=M50.9.9GB351_SUCCESS_NOTICE_PROPOSAL_SAVE_20260512_ROOTONLY"></script>
+  <script src="firebase-config.js?v=M50.9.9GB352_CUSTOMER_PORTAL_SAVE_LOGOUT_NOTICE_FIX_20260512_ROOTONLY"></script>
 
   <script>
   /* GB350 CUSTOMER PORTAL EARLY ACTION GUARD
@@ -262,7 +262,7 @@
     'use strict';
     if(window.__dsGB350CustomerEarlyGuardInstalled) return;
     window.__dsGB350CustomerEarlyGuardInstalled = true;
-    var BUILD = 'M50.9.9GB351_SUCCESS_NOTICE_PROPOSAL_SAVE_20260512_ROOTONLY';
+    var BUILD = 'M50.9.9GB352_CUSTOMER_PORTAL_SAVE_LOGOUT_NOTICE_FIX_20260512_ROOTONLY';
     var submitLockUntil = 0;
     function S(v){ try{return String(v == null ? '' : v).trim();}catch(_){return '';} }
     function L(v){ return S(v).toLowerCase(); }
@@ -447,10 +447,10 @@
   })();
   </script>
 
-  <script src="app.js?v=M50.9.9GB351_SUCCESS_NOTICE_PROPOSAL_SAVE_20260512_ROOTONLY"></script>
+  <script src="app.js?v=M50.9.9GB352_CUSTOMER_PORTAL_SAVE_LOGOUT_NOTICE_FIX_20260512_ROOTONLY"></script>
   <script>
     (function(){
-      const BUILD = 'Build CUSTOMER M50.9.9GB351_SUCCESS_NOTICE_PROPOSAL_SAVE_20260512_ROOTONLY';
+      const BUILD = 'Build CUSTOMER M50.9.9GB352_CUSTOMER_PORTAL_SAVE_LOGOUT_NOTICE_FIX_20260512_ROOTONLY';
       const DRAFT_KEY = 'ds_customer_app_drafts_v1';
       const viewNames = ['home','dogs','contract','stay','chat'];
       let currentView = 'home';
@@ -1059,7 +1059,7 @@ document.getElementById('btnCustomerTaskSubmit')?.addEventListener('click', ()=>
             customer: customerProposal,
             pet: petProposal,
             fields: f,
-            meta: { customerId, petId, submittedFrom: 'customer.html', build: 'M50.9.9GB351_SUCCESS_NOTICE_PROPOSAL_SAVE_20260512_ROOTONLY' }
+            meta: { customerId, petId, submittedFrom: 'customer.html', build: 'M50.9.9GB352_CUSTOMER_PORTAL_SAVE_LOGOUT_NOTICE_FIX_20260512_ROOTONLY' }
           };
           const litePayloadSubmitted = {
             source: 'customer-portal-dogs-gb350',
@@ -1530,7 +1530,7 @@ function renderStayRealForm(doc){
 
 <script>
 (function(){
-  const CURRENT_BUILD = 'M50.9.9GB351_SUCCESS_NOTICE_PROPOSAL_SAVE_20260512_ROOTONLY';
+  const CURRENT_BUILD = 'M50.9.9GB352_CUSTOMER_PORTAL_SAVE_LOGOUT_NOTICE_FIX_20260512_ROOTONLY';
   try{
     window.addEventListener('load', function(){
       try{
@@ -1556,7 +1556,7 @@ function renderStayRealForm(doc){
   'use strict';
   if(window.__dsGB350CustomerPostBootInstalled) return;
   window.__dsGB350CustomerPostBootInstalled = true;
-  var BUILD='M50.9.9GB351_SUCCESS_NOTICE_PROPOSAL_SAVE_20260512_ROOTONLY';
+  var BUILD='M50.9.9GB352_CUSTOMER_PORTAL_SAVE_LOGOUT_NOTICE_FIX_20260512_ROOTONLY';
   function S(v){try{return String(v==null?'':v).trim();}catch(_){return''}}
   function bind(){
     try{ var b=document.getElementById('btnCustomerLogout'); if(b){ b.onclick=function(e){ try{e&&e.preventDefault();e&&e.stopPropagation();}catch(_){} (window.dsCustomerPortalLogoutGB350||window.dsCustomerPortalLogoutGB349)&& (window.dsCustomerPortalLogoutGB350||window.dsCustomerPortalLogoutGB349)(); return false; }; } }catch(_){ }
@@ -1583,7 +1583,7 @@ function renderStayRealForm(doc){
   'use strict';
   if(window.__dsGB351CustomerSuccessNoticeInstalled) return;
   window.__dsGB351CustomerSuccessNoticeInstalled = true;
-  var BUILD='M50.9.9GB351_SUCCESS_NOTICE_PROPOSAL_SAVE_20260512_ROOTONLY';
+  var BUILD='M50.9.9GB352_CUSTOMER_PORTAL_SAVE_LOGOUT_NOTICE_FIX_20260512_ROOTONLY';
   function S(v){try{return String(v==null?'':v).trim();}catch(_){return''}}
   function L(v){return S(v).toLowerCase()}
   function ok(res){return !!(res && (res.ok===true || (typeof res==='object' && !res.error && !res.skipped)))}
@@ -1658,6 +1658,47 @@ function renderStayRealForm(doc){
   window.addEventListener('load', install, {once:true});
   setTimeout(install,500);
   setTimeout(install,1600);
+})();
+</script>
+
+
+
+<script>
+/* GB352 customer.html hard logout + visible local-first success fallback */
+(function(){
+  'use strict';
+  if(window.__dsGB352CustomerHtmlHardeningInstalled) return;
+  window.__dsGB352CustomerHtmlHardeningInstalled = true;
+  var BUILD='M50.9.9GB352_CUSTOMER_PORTAL_SAVE_LOGOUT_NOTICE_FIX_20260512_ROOTONLY';
+  function S(v){try{return String(v==null?'':v).trim();}catch(_){return''}}
+  function show(msg){
+    try{
+      msg=S(msg)||'✅ Gespeichert.';
+      var hint=document.getElementById('customerTaskSaveHint')||document.getElementById('contractSavedInfo')||document.getElementById('contractSaveInfo'); if(hint) hint.textContent=msg;
+      if(typeof window.dsGB351CustomerShowSuccess==='function') window.dsGB351CustomerShowSuccess(msg,'gb352-customer-html');
+    }catch(_){ }
+  }
+  function timeout(ms){return new Promise(function(resolve){setTimeout(resolve,ms||800);});}
+  function logout(ev){
+    try{
+      var btn=ev&&ev.target&&ev.target.closest&&ev.target.closest('button'); if(!btn||btn.id!=='btnCustomerLogout') return;
+      ev.preventDefault(); ev.stopPropagation(); try{ev.stopImmediatePropagation&&ev.stopImmediatePropagation();}catch(_){ }
+      var done=false; function go(){ if(done)return; done=true; try{location.href='login.html?v='+encodeURIComponent(BUILD);}catch(_){location.href='login.html';} }
+      try{ var a=(window.firebase&&firebase.auth)?firebase.auth():((window.CLOUD&&CLOUD.auth)||null); if(a&&a.signOut){ Promise.race([a.signOut().catch(function(){}), timeout(850)]).then(go).catch(go); }else go(); }catch(_){ go(); }
+      setTimeout(go,1100);
+      return false;
+    }catch(_){ }
+  }
+  ['pointerdown','touchstart','click'].forEach(function(tp){try{document.addEventListener(tp,logout,true);window.addEventListener(tp,logout,true);}catch(_){}});
+  var old=window.dsSubmitCustomerPortalProposal;
+  if(typeof old==='function' && !old.__gb352HtmlWrapped){
+    window.dsSubmitCustomerPortalProposal=async function(opts){
+      var res=await old.apply(this,arguments);
+      if(res && (res.ok===true || !res.error)) show('✅ Vorschlag gespeichert und an Eingänge übergeben.');
+      return res;
+    };
+    window.dsSubmitCustomerPortalProposal.__gb352HtmlWrapped=true;
+  }
 })();
 </script>
 
