@@ -7,7 +7,7 @@
   <link href="manifest.json" rel="manifest"/>
   <meta name="theme-color" content="#101014"/>
   <link href="assets/logo.png" rel="apple-touch-icon"/>
-  <link href="styles.css?v=M50.9.9GB350_CUSTOMER_CONTRACT_PROPOSAL_REVIEW_FIX_20260512_ROOTONLY" rel="stylesheet"/>
+  <link href="styles.css?v=M50.9.9GB351_SUCCESS_NOTICE_PROPOSAL_SAVE_20260512_ROOTONLY" rel="stylesheet"/>
   <style>
     body.bg-watermark{background:radial-gradient(circle at top, rgba(255,255,255,.08), transparent 35%), linear-gradient(180deg,#0e1017 0%, #121521 100%) !important}
     body.bg-watermark::before{opacity:.12 !important;filter:none !important}
@@ -245,14 +245,14 @@
     <div class="customer-hidden" id="customerTaskListCard"></div>
     <div class="customer-hidden list" id="customerTaskList"></div>
     <div class="customer-hidden" id="customerPortalSubtitle"></div>
-    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9GB350_CUSTOMER_CONTRACT_PROPOSAL_REVIEW_FIX_20260512_ROOTONLY</div>
+    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9GB351_SUCCESS_NOTICE_PROPOSAL_SAVE_20260512_ROOTONLY</div>
   </main>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
-  <script src="firebase-config.js?v=M50.9.9GB350_CUSTOMER_CONTRACT_PROPOSAL_REVIEW_FIX_20260512_ROOTONLY"></script>
+  <script src="firebase-config.js?v=M50.9.9GB351_SUCCESS_NOTICE_PROPOSAL_SAVE_20260512_ROOTONLY"></script>
 
   <script>
   /* GB350 CUSTOMER PORTAL EARLY ACTION GUARD
@@ -262,7 +262,7 @@
     'use strict';
     if(window.__dsGB350CustomerEarlyGuardInstalled) return;
     window.__dsGB350CustomerEarlyGuardInstalled = true;
-    var BUILD = 'M50.9.9GB350_CUSTOMER_CONTRACT_PROPOSAL_REVIEW_FIX_20260512_ROOTONLY';
+    var BUILD = 'M50.9.9GB351_SUCCESS_NOTICE_PROPOSAL_SAVE_20260512_ROOTONLY';
     var submitLockUntil = 0;
     function S(v){ try{return String(v == null ? '' : v).trim();}catch(_){return '';} }
     function L(v){ return S(v).toLowerCase(); }
@@ -447,10 +447,10 @@
   })();
   </script>
 
-  <script src="app.js?v=M50.9.9GB350_CUSTOMER_CONTRACT_PROPOSAL_REVIEW_FIX_20260512_ROOTONLY"></script>
+  <script src="app.js?v=M50.9.9GB351_SUCCESS_NOTICE_PROPOSAL_SAVE_20260512_ROOTONLY"></script>
   <script>
     (function(){
-      const BUILD = 'Build CUSTOMER M50.9.9GB350_CUSTOMER_CONTRACT_PROPOSAL_REVIEW_FIX_20260512_ROOTONLY';
+      const BUILD = 'Build CUSTOMER M50.9.9GB351_SUCCESS_NOTICE_PROPOSAL_SAVE_20260512_ROOTONLY';
       const DRAFT_KEY = 'ds_customer_app_drafts_v1';
       const viewNames = ['home','dogs','contract','stay','chat'];
       let currentView = 'home';
@@ -1059,7 +1059,7 @@ document.getElementById('btnCustomerTaskSubmit')?.addEventListener('click', ()=>
             customer: customerProposal,
             pet: petProposal,
             fields: f,
-            meta: { customerId, petId, submittedFrom: 'customer.html', build: 'M50.9.9GB350_CUSTOMER_CONTRACT_PROPOSAL_REVIEW_FIX_20260512_ROOTONLY' }
+            meta: { customerId, petId, submittedFrom: 'customer.html', build: 'M50.9.9GB351_SUCCESS_NOTICE_PROPOSAL_SAVE_20260512_ROOTONLY' }
           };
           const litePayloadSubmitted = {
             source: 'customer-portal-dogs-gb350',
@@ -1530,7 +1530,7 @@ function renderStayRealForm(doc){
 
 <script>
 (function(){
-  const CURRENT_BUILD = 'M50.9.9GB350_CUSTOMER_CONTRACT_PROPOSAL_REVIEW_FIX_20260512_ROOTONLY';
+  const CURRENT_BUILD = 'M50.9.9GB351_SUCCESS_NOTICE_PROPOSAL_SAVE_20260512_ROOTONLY';
   try{
     window.addEventListener('load', function(){
       try{
@@ -1556,7 +1556,7 @@ function renderStayRealForm(doc){
   'use strict';
   if(window.__dsGB350CustomerPostBootInstalled) return;
   window.__dsGB350CustomerPostBootInstalled = true;
-  var BUILD='M50.9.9GB350_CUSTOMER_CONTRACT_PROPOSAL_REVIEW_FIX_20260512_ROOTONLY';
+  var BUILD='M50.9.9GB351_SUCCESS_NOTICE_PROPOSAL_SAVE_20260512_ROOTONLY';
   function S(v){try{return String(v==null?'':v).trim();}catch(_){return''}}
   function bind(){
     try{ var b=document.getElementById('btnCustomerLogout'); if(b){ b.onclick=function(e){ try{e&&e.preventDefault();e&&e.stopPropagation();}catch(_){} (window.dsCustomerPortalLogoutGB350||window.dsCustomerPortalLogoutGB349)&& (window.dsCustomerPortalLogoutGB350||window.dsCustomerPortalLogoutGB349)(); return false; }; } }catch(_){ }
@@ -1573,6 +1573,91 @@ function renderStayRealForm(doc){
   document.addEventListener('DOMContentLoaded', bind);
   setInterval(bind, 1500);
   try{ var bottom=document.getElementById('customerPortalBuildBottom'); if(bottom) bottom.textContent='Build CUSTOMER '+BUILD+' · Ansicht home'; }catch(_){ }
+})();
+</script>
+
+
+<script>
+/* GB351 CUSTOMER SUCCESS NOTICE: reliable single visible success message after proposal saves */
+(function(){
+  'use strict';
+  if(window.__dsGB351CustomerSuccessNoticeInstalled) return;
+  window.__dsGB351CustomerSuccessNoticeInstalled = true;
+  var BUILD='M50.9.9GB351_SUCCESS_NOTICE_PROPOSAL_SAVE_20260512_ROOTONLY';
+  function S(v){try{return String(v==null?'':v).trim();}catch(_){return''}}
+  function L(v){return S(v).toLowerCase()}
+  function ok(res){return !!(res && (res.ok===true || (typeof res==='object' && !res.error && !res.skipped)))}
+  function msgFor(opts){
+    opts=opts||{};
+    var tpl=L(opts.templateId || (opts.task&&opts.task.templateId) || '');
+    var p=opts.payloadSubmitted||{};
+    var src=L(p.source || opts.source || '');
+    if(tpl==='boarding_contract' || src.indexOf('contract')>=0) return '✅ Betreuungsvertrag als Vorschlag gespeichert und an Eingänge übergeben.';
+    if(tpl==='customer_data' || src.indexOf('dogs')>=0 || src.indexOf('kunde')>=0) return '✅ Änderungsvorschlag gespeichert und an Eingänge übergeben.';
+    if(tpl==='hundeannahme' || src.indexOf('stay')>=0 || src.indexOf('aufenthalt')>=0) return '✅ Aufenthaltsanfrage gespeichert und an Eingänge übergeben.';
+    return '✅ Vorschlag gespeichert und an Eingänge übergeben.';
+  }
+  function show(message,key){
+    try{
+      message=S(message)||'✅ Gespeichert.'; key=S(key||message)||message;
+      var now=Date.now(); window.__dsGB351CustomerNoticeLast=window.__dsGB351CustomerNoticeLast||{};
+      if(window.__dsGB351CustomerNoticeLast[key] && (now-window.__dsGB351CustomerNoticeLast[key])<3500) return;
+      window.__dsGB351CustomerNoticeLast[key]=now;
+      try{ var hint=document.getElementById('customerTaskSaveHint')||document.getElementById('contractSavedInfo')||document.getElementById('contractSaveInfo'); if(hint) hint.textContent=message; }catch(_){ }
+      var box=document.getElementById('dsGB351CustomerSaveNotice');
+      if(!box){
+        box=document.createElement('div');
+        box.id='dsGB351CustomerSaveNotice';
+        box.setAttribute('role','status');
+        box.style.cssText='position:fixed;left:50%;top:92px;transform:translateX(-50%);z-index:2147483647;max-width:min(620px,calc(100vw - 32px));padding:16px 20px;border-radius:18px;background:rgba(31,41,35,.96);border:1px solid rgba(119,255,160,.38);box-shadow:0 18px 48px rgba(0,0,0,.42);color:#fff;font:600 16px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.35;text-align:center;white-space:normal;';
+        document.body.appendChild(box);
+      }
+      box.textContent=message;
+      box.style.display='block'; box.style.opacity='1';
+      clearTimeout(window.__dsGB351CustomerNoticeTimer);
+      window.__dsGB351CustomerNoticeTimer=setTimeout(function(){try{box.style.opacity='0';setTimeout(function(){try{box.style.display='none'}catch(_){}},260)}catch(_){}},5200);
+    }catch(_){ }
+  }
+  window.dsGB351CustomerShowSuccess=show;
+  function wrapProposalSubmit(){
+    try{
+      var old=window.dsSubmitCustomerPortalProposal;
+      if(typeof old!=='function' || old.__gb351Wrapped) return;
+      var wrapped=async function(opts){
+        var res=await old.apply(this,arguments);
+        if(ok(res)) show(msgFor(opts||{}), 'proposal-'+S((opts&&opts.templateId)||'generic'));
+        return res;
+      };
+      wrapped.__gb351Wrapped=true;
+      window.dsSubmitCustomerPortalProposal=wrapped;
+    }catch(_){ }
+  }
+  function wrapNamed(name,message,key){
+    try{
+      var old=window[name];
+      if(typeof old!=='function' || old.__gb351Wrapped) return;
+      var wrapped=async function(){
+        var res=await old.apply(this,arguments);
+        if(ok(res)) show(message, key||name);
+        return res;
+      };
+      wrapped.__gb351Wrapped=true;
+      window[name]=wrapped;
+    }catch(_){ }
+  }
+  function install(){
+    wrapProposalSubmit();
+    wrapNamed('dsCustomerPortalSubmitContractGB350','✅ Betreuungsvertrag als Vorschlag gespeichert und an Eingänge übergeben.','contract-submit');
+    wrapNamed('dsCustomerPortalSubmitContractGB349','✅ Betreuungsvertrag als Vorschlag gespeichert und an Eingänge übergeben.','contract-submit');
+    wrapNamed('dsCustomerPortalWriteProposalGB350','✅ Vorschlag gespeichert und an Eingänge übergeben.','direct-write');
+    wrapNamed('dsCustomerPortalWriteProposalGB349','✅ Vorschlag gespeichert und an Eingänge übergeben.','direct-write');
+    try{ var bottom=document.getElementById('customerPortalBuildBottom'); if(bottom) bottom.textContent='Build CUSTOMER '+BUILD+' · Ansicht home'; }catch(_){ }
+  }
+  install();
+  document.addEventListener('DOMContentLoaded', install, {once:true});
+  window.addEventListener('load', install, {once:true});
+  setTimeout(install,500);
+  setTimeout(install,1600);
 })();
 </script>
 

@@ -1,1 +1,17 @@
-M50.9.9GB350_CUSTOMER_CONTRACT_PROPOSAL_REVIEW_FIX_20260512_ROOTONLY
+M50.9.9GB351_SUCCESS_NOTICE_PROPOSAL_SAVE_20260512_ROOTONLY
+
+GB351 baut direkt auf GB350 auf.
+
+Ziel:
+- Keine Funktionsänderung am erfolgreichen Vorschlagsfluss.
+- Nur sichtbare Erfolgsmeldungen nach erfolgreichem Speichern ergänzen.
+
+Geändert:
+- Kunden-App: nach erfolgreichem Senden eines Kunde/Hund-, Betreuungsvertrag- oder Aufenthalts-Vorschlags wird zusätzlich eine gut sichtbare grüne Erfolgsmeldung eingeblendet.
+- Haupt-App / Eingänge: nach erfolgreichem Übernehmen/Speichern eines Vorschlags wird zusätzlich eine gut sichtbare grüne Erfolgsmeldung eingeblendet.
+- Meldungen sind dedupliziert, damit keine doppelten/dreifachen Bestätigungen entstehen.
+
+Geprüft:
+- node --check app.js
+- node --check auth.js / diag.js / sw.js
+- Inline-Skripte aus app.html, customer.html, reset.html, pwreset.html
