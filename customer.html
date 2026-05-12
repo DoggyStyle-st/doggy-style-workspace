@@ -7,7 +7,7 @@
   <link href="manifest.json" rel="manifest"/>
   <meta name="theme-color" content="#101014"/>
   <link href="assets/logo.png" rel="apple-touch-icon"/>
-  <link href="styles.css?v=M50.9.9GB349_CUSTOMER_PORTAL_SAVE_LOGOUT_REVIEW_FIX_20260512_ROOTONLY" rel="stylesheet"/>
+  <link href="styles.css?v=M50.9.9GB350_CUSTOMER_CONTRACT_PROPOSAL_REVIEW_FIX_20260512_ROOTONLY" rel="stylesheet"/>
   <style>
     body.bg-watermark{background:radial-gradient(circle at top, rgba(255,255,255,.08), transparent 35%), linear-gradient(180deg,#0e1017 0%, #121521 100%) !important}
     body.bg-watermark::before{opacity:.12 !important;filter:none !important}
@@ -245,24 +245,24 @@
     <div class="customer-hidden" id="customerTaskListCard"></div>
     <div class="customer-hidden list" id="customerTaskList"></div>
     <div class="customer-hidden" id="customerPortalSubtitle"></div>
-    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9GB349_CUSTOMER_PORTAL_SAVE_LOGOUT_REVIEW_FIX_20260512_ROOTONLY</div>
+    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9GB350_CUSTOMER_CONTRACT_PROPOSAL_REVIEW_FIX_20260512_ROOTONLY</div>
   </main>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
-  <script src="firebase-config.js?v=M50.9.9GB349_CUSTOMER_PORTAL_SAVE_LOGOUT_REVIEW_FIX_20260512_ROOTONLY"></script>
+  <script src="firebase-config.js?v=M50.9.9GB350_CUSTOMER_CONTRACT_PROPOSAL_REVIEW_FIX_20260512_ROOTONLY"></script>
 
   <script>
-  /* GB349 CUSTOMER PORTAL EARLY ACTION GUARD
+  /* GB350 CUSTOMER PORTAL EARLY ACTION GUARD
      Registered before app.js so old main-app contract handlers cannot hijack
      customer proposal submit or logout clicks. */
   (function(){
     'use strict';
-    if(window.__dsGB349CustomerEarlyGuardInstalled) return;
-    window.__dsGB349CustomerEarlyGuardInstalled = true;
-    var BUILD = 'M50.9.9GB349_CUSTOMER_PORTAL_SAVE_LOGOUT_REVIEW_FIX_20260512_ROOTONLY';
+    if(window.__dsGB350CustomerEarlyGuardInstalled) return;
+    window.__dsGB350CustomerEarlyGuardInstalled = true;
+    var BUILD = 'M50.9.9GB350_CUSTOMER_CONTRACT_PROPOSAL_REVIEW_FIX_20260512_ROOTONLY';
     var submitLockUntil = 0;
     function S(v){ try{return String(v == null ? '' : v).trim();}catch(_){return '';} }
     function L(v){ return S(v).toLowerCase(); }
@@ -358,10 +358,11 @@
         dogId:S(opts.petId || opts.dogId || pet.id || pet.petId || pet.dogId || ''),
         payloadSubmitted:payloadSubmitted,
         build:BUILD,
-        gb349Direct:true
+        gb350Direct:true
       };
       await d.collection('orgs').doc(orgId()).collection('proposals').doc(id).set(task, {merge:true});
-      try{ await d.collection('orgs').doc(orgId()).collection('tasks').doc(id).set(Object.assign({}, task, {mirroredFromProposal:true, payloadSubmitted:opts.litePayloadSubmitted || payloadSubmitted, updatedAt:Date.now()}), {merge:true}); }catch(_){ }
+      var mirrorPayload = (task.templateId === 'boarding_contract') ? payloadSubmitted : (opts.litePayloadSubmitted || payloadSubmitted);
+      try{ await d.collection('orgs').doc(orgId()).collection('tasks').doc(id).set(Object.assign({}, task, {mirroredFromProposal:true, payloadSubmitted:mirrorPayload, updatedAt:Date.now()}), {merge:true}); }catch(_){ }
       try{ if(typeof window.pushCustomerProposalBuffer === 'function') window.pushCustomerProposalBuffer(task); }catch(_){ }
       return {ok:true, path:'proposals+tasks-gb349-direct', task:task};
     }
@@ -373,6 +374,11 @@
       location.href = 'login.html?v=' + encodeURIComponent(BUILD);
     };
     window.dsCustomerPortalSubmitContractGB349 = async function(){
+      var nowLock = Date.now();
+      if(window.__dsCustomerContractSubmitActive || nowLock < (window.__dsCustomerContractSubmitLockUntil || 0)) return {ok:false, skipped:true};
+      window.__dsCustomerContractSubmitActive = true;
+      window.__dsCustomerContractSubmitLockUntil = nowLock + 6000;
+      var unlockSubmit = function(){ setTimeout(function(){ window.__dsCustomerContractSubmitActive = false; }, 900); };
       var infoEl = document.getElementById('contractSavedInfo') || document.getElementById('contractSaveInfo') || document.getElementById('customerTaskSaveHint');
       try{
         if(infoEl) infoEl.textContent = 'Vorschlag wird gespeichert …';
@@ -382,11 +388,11 @@
         var ac = document.getElementById('contractAcceptChk');
         var customerId = S((cs && cs.value) || info.customerId);
         var petId = S((ps && ps.value) || info.petId);
-        if(!customerId || !petId){ alert('Bitte zuerst Kunde und Hund wählen.'); return {ok:false}; }
-        if(ac && !ac.checked){ alert('Bitte den Betreuungsvertrag bestätigen.'); return {ok:false}; }
+        if(!customerId || !petId){ alert('Bitte zuerst Kunde und Hund wählen.'); unlockSubmit(); return {ok:false}; }
+        if(ac && !ac.checked){ alert('Bitte den Betreuungsvertrag bestätigen.'); unlockSubmit(); return {ok:false}; }
         var version = S((window.state && state.contractVersion) || 'v1.0') || 'v1.0';
         var sig = findSig(version, customerId, petId);
-        if(!sig || !(sig.dataUrl || sig.signatureDataUrl)){ alert('Bitte zuerst unterschreiben.'); return {ok:false}; }
+        if(!sig || !(sig.dataUrl || sig.signatureDataUrl)){ alert('Bitte zuerst unterschreiben.'); unlockSubmit(); return {ok:false}; }
         var customer = info.customer || {};
         var pet = info.pet || {};
         var customerName = S(customer.name || customer.fullName || customer.email || (auth() && auth().currentUser && auth().currentUser.email) || 'Kunde');
@@ -394,30 +400,35 @@
         var signatureDataUrl = String(sig.dataUrl || sig.signatureDataUrl || '');
         var signatureAt = sig.signedAt || sig.signatureAt || Date.now();
         var payloadSubmitted = {
-          source:'customer-portal-contract-gb349', mode:'proposal',
+          source:'customer-portal-contract-gb350', mode:'proposal',
           customer:{id:customerId, customerId:customerId, name:customerName, fullName:customerName, email:S(customer.email || (auth() && auth().currentUser && auth().currentUser.email) || '').toLowerCase(), phone:S(customer.phone || '')},
           pet:{id:petId, petId:petId, dogId:S(pet.dogId || petId), customerId:customerId, name:petName, petName:petName, dogName:petName, breed:S(pet.breed||''), sex:S(pet.sex||'')},
           fields:{contractAccepted:true, contractVersion:version, customerName:customerName, dogName:petName, petName:petName, signatureDataUrl:signatureDataUrl, signatureAt:signatureAt},
           meta:{customerId:customerId, petId:petId, version:version, submittedFrom:'customer.html', build:BUILD, signatureDataUrl:signatureDataUrl, signatureAt:signatureAt},
           signature:{dataUrl:signatureDataUrl, signedAt:signatureAt}
         };
-        var res = await writeProposalDirect({templateId:'boarding_contract', title:'Betreuungsvertrag Vorschlag', customerId:customerId, petId:petId, customerName:customerName, payloadSubmitted:payloadSubmitted, litePayloadSubmitted:{source:'customer-portal-contract-gb349', mode:'proposal-cloud-fallback', customer:{name:customerName}, pet:{name:petName}, fields:{contractAccepted:true, contractVersion:version}, meta:{customerId:customerId, petId:petId, version:version}}});
+        var res = await writeProposalDirect({templateId:'boarding_contract', title:'Betreuungsvertrag Vorschlag', customerId:customerId, petId:petId, customerName:customerName, payloadSubmitted:payloadSubmitted, litePayloadSubmitted:{source:'customer-portal-contract-gb350', mode:'proposal-cloud-fallback', customer:{name:customerName}, pet:{name:petName}, fields:{contractAccepted:true, contractVersion:version}, meta:{customerId:customerId, petId:petId, version:version}}});
         if(infoEl) infoEl.textContent = '✅ Betreuungsvertrag als Vorschlag gespeichert und an Eingänge übergeben.';
         alert('Betreuungsvertrag als Vorschlag gespeichert und an Eingänge übergeben.');
+        unlockSubmit();
         return res;
       }catch(err){
         if(infoEl) infoEl.textContent = '❌ Vorschlag konnte nicht gespeichert werden.';
         alert('Vorschlag konnte nicht gespeichert werden: ' + S((err && err.message) || err || 'Unbekannter Fehler'));
+        unlockSubmit();
         return {ok:false, error:err};
       }
     };
+    window.dsCustomerPortalSubmitContractGB350 = window.dsCustomerPortalSubmitContractGB349;
+    window.dsCustomerPortalWriteProposalGB350 = window.dsCustomerPortalWriteProposalGB349;
+    window.dsCustomerPortalLogoutGB350 = window.dsCustomerPortalLogoutGB349;
     document.addEventListener('click', function(ev){
       try{
         var btn = ev.target && ev.target.closest && ev.target.closest('button');
         if(!btn) return;
         if(btn.id === 'btnCustomerLogout'){
           ev.preventDefault(); ev.stopPropagation(); try{ev.stopImmediatePropagation();}catch(_){ }
-          window.dsCustomerPortalLogoutGB349();
+          (window.dsCustomerPortalLogoutGB350||window.dsCustomerPortalLogoutGB349)();
           return false;
         }
         var txt = L(btn.textContent || '');
@@ -428,18 +439,18 @@
           ev.preventDefault(); ev.stopPropagation(); try{ev.stopImmediatePropagation();}catch(_){ }
           if(now < submitLockUntil) return false;
           submitLockUntil = now + 2500;
-          Promise.resolve(window.dsCustomerPortalSubmitContractGB349()).finally(function(){ setTimeout(function(){ submitLockUntil = 0; }, 250); });
+          Promise.resolve((window.dsCustomerPortalSubmitContractGB350||window.dsCustomerPortalSubmitContractGB349)()).finally(function(){ setTimeout(function(){ submitLockUntil = 0; }, 250); });
           return false;
         }
-      }catch(e){ try{console.warn('GB349 early customer guard failed', e);}catch(_){} }
+      }catch(e){ try{console.warn('GB350 early customer guard failed', e);}catch(_){} }
     }, true);
   })();
   </script>
 
-  <script src="app.js?v=M50.9.9GB349_CUSTOMER_PORTAL_SAVE_LOGOUT_REVIEW_FIX_20260512_ROOTONLY"></script>
+  <script src="app.js?v=M50.9.9GB350_CUSTOMER_CONTRACT_PROPOSAL_REVIEW_FIX_20260512_ROOTONLY"></script>
   <script>
     (function(){
-      const BUILD = 'Build CUSTOMER M50.9.9GB349_CUSTOMER_PORTAL_SAVE_LOGOUT_REVIEW_FIX_20260512_ROOTONLY';
+      const BUILD = 'Build CUSTOMER M50.9.9GB350_CUSTOMER_CONTRACT_PROPOSAL_REVIEW_FIX_20260512_ROOTONLY';
       const DRAFT_KEY = 'ds_customer_app_drafts_v1';
       const viewNames = ['home','dogs','contract','stay','chat'];
       let currentView = 'home';
@@ -1043,15 +1054,15 @@ document.getElementById('btnCustomerTaskSubmit')?.addEventListener('click', ()=>
             medPlanOwnerApproval: !!f.medPlanOwnerApproval
           };
           const payloadSubmitted = {
-            source: 'customer-portal-dogs-gb349',
+            source: 'customer-portal-dogs-gb350',
             mode: 'proposal',
             customer: customerProposal,
             pet: petProposal,
             fields: f,
-            meta: { customerId, petId, submittedFrom: 'customer.html', build: 'M50.9.9GB349_CUSTOMER_PORTAL_SAVE_LOGOUT_REVIEW_FIX_20260512_ROOTONLY' }
+            meta: { customerId, petId, submittedFrom: 'customer.html', build: 'M50.9.9GB350_CUSTOMER_CONTRACT_PROPOSAL_REVIEW_FIX_20260512_ROOTONLY' }
           };
           const litePayloadSubmitted = {
-            source: 'customer-portal-dogs-gb349',
+            source: 'customer-portal-dogs-gb350',
             mode: 'proposal-cloud-fallback',
             customer: { name: customerProposal.name, email: customerProposal.email, phone: customerProposal.phone },
             pet: { name: petProposal.name, breed: petProposal.breed, sex: petProposal.sex, notes: petProposal.notes },
@@ -1519,7 +1530,7 @@ function renderStayRealForm(doc){
 
 <script>
 (function(){
-  const CURRENT_BUILD = 'M50.9.9GB349_CUSTOMER_PORTAL_SAVE_LOGOUT_REVIEW_FIX_20260512_ROOTONLY';
+  const CURRENT_BUILD = 'M50.9.9GB350_CUSTOMER_CONTRACT_PROPOSAL_REVIEW_FIX_20260512_ROOTONLY';
   try{
     window.addEventListener('load', function(){
       try{
@@ -1540,21 +1551,21 @@ function renderStayRealForm(doc){
 </script>
 
 <script>
-/* GB349 CUSTOMER PORTAL POST-BOOT STABILIZER */
+/* GB350 CUSTOMER PORTAL POST-BOOT STABILIZER */
 (function(){
   'use strict';
-  if(window.__dsGB349CustomerPostBootInstalled) return;
-  window.__dsGB349CustomerPostBootInstalled = true;
-  var BUILD='M50.9.9GB349_CUSTOMER_PORTAL_SAVE_LOGOUT_REVIEW_FIX_20260512_ROOTONLY';
+  if(window.__dsGB350CustomerPostBootInstalled) return;
+  window.__dsGB350CustomerPostBootInstalled = true;
+  var BUILD='M50.9.9GB350_CUSTOMER_CONTRACT_PROPOSAL_REVIEW_FIX_20260512_ROOTONLY';
   function S(v){try{return String(v==null?'':v).trim();}catch(_){return''}}
   function bind(){
-    try{ var b=document.getElementById('btnCustomerLogout'); if(b){ b.onclick=function(e){ try{e&&e.preventDefault();e&&e.stopPropagation();}catch(_){} window.dsCustomerPortalLogoutGB349&&window.dsCustomerPortalLogoutGB349(); return false; }; } }catch(_){ }
+    try{ var b=document.getElementById('btnCustomerLogout'); if(b){ b.onclick=function(e){ try{e&&e.preventDefault();e&&e.stopPropagation();}catch(_){} (window.dsCustomerPortalLogoutGB350||window.dsCustomerPortalLogoutGB349)&& (window.dsCustomerPortalLogoutGB350||window.dsCustomerPortalLogoutGB349)(); return false; }; } }catch(_){ }
     try{
       var save=document.getElementById('contractSaveBtn');
-      if(save){ save.textContent='Vorschlag senden'; save.onclick=function(e){ try{e&&e.preventDefault();e&&e.stopPropagation();}catch(_){} window.dsCustomerPortalSubmitContractGB349&&window.dsCustomerPortalSubmitContractGB349(); return false; }; }
+      if(save){ save.textContent='Vorschlag senden'; save.onclick=function(e){ try{e&&e.preventDefault();e&&e.stopPropagation();}catch(_){} (window.dsCustomerPortalSubmitContractGB350||window.dsCustomerPortalSubmitContractGB349)&& (window.dsCustomerPortalSubmitContractGB350||window.dsCustomerPortalSubmitContractGB349)(); return false; }; }
     }catch(_){ }
   }
-  var direct = window.dsCustomerPortalWriteProposalGB349;
+  var direct = window.dsCustomerPortalWriteProposalGB350 || window.dsCustomerPortalWriteProposalGB349;
   if(typeof direct === 'function'){
     window.dsSubmitCustomerPortalProposal = function(opts){ return direct(opts); };
   }

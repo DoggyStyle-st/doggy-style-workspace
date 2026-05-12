@@ -1,3 +1,10 @@
+GB350 – Kunden-App Betreuungsvertrag wieder reiner Vorschlag
+- auf Basis GB349
+- app.html Früh-Capture speichert im Kundenmodus nicht mehr final als Vertrag, sondern delegiert an den Vorschlags-Submit
+- customer_mode=contract schreibt keine contractAgreements mehr direkt in den Workspace-State
+- Betreuungsvertrag-Vorschlag enthält jetzt sichtbare Signaturdaten in fields/signature/signatureRec für die Prüfung unter Eingänge
+- zusätzliche Einmal-Sperre gegen doppelte Meldungen/Mehrfachspeichern im Kundenportal
+
 GB348 – Customer-Portal Vorschlag speichern repariert
 - auf Basis GB347
 - customer.html Build-/Cache-Version von altem GB290 auf GB348 gehoben
@@ -145,7 +152,7 @@ GB345 - MED_DASHBOARD_ACTIVE_STAYS_ONLY
 - §11-Medikationsstatus nutzt dieselbe Aktiv-Aufenthalt-Prüfung.
 
 
-[M50.9.9GB349_CUSTOMER_PORTAL_SAVE_LOGOUT_REVIEW_FIX_20260512_ROOTONLY]
+[M50.9.9GB350_CUSTOMER_CONTRACT_PROPOSAL_REVIEW_FIX_20260512_ROOTONLY]
 - GB347: Hunde/Kunden-Aktionsbuttons Vertrag/Bearbeiten/Löschen repariert.
 - Destruktives row.innerHTML-Rewrite im Vertrags-Badge-Fix entfernt, damit Button-Handler erhalten bleiben.
 - Delegierter Sicherheits-Clickhandler für #dogList ergänzt.

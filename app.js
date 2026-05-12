@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB349_CUSTOMER_PORTAL_SAVE_LOGOUT_REVIEW_FIX_20260512_ROOTONLY",
+  tag: "M50.9.9GB350_CUSTOMER_CONTRACT_PROPOSAL_REVIEW_FIX_20260512_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB349_CUSTOMER_PORTAL_SAVE_LOGOUT_REVIEW_FIX_20260512_ROOTONLY";
+const APP_BUILD = "M50.9.9GB350_CUSTOMER_CONTRACT_PROPOSAL_REVIEW_FIX_20260512_ROOTONLY";
 try{ window.__dsAppJsRuntimeBuild = "GB348-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -3414,7 +3414,8 @@ async function dsSubmitCustomerPortalProposal(opts){
     payloadSubmitted
   };
   let cloudWriteOk = false, cloudWriteErr = null, cloudWritePath = '';
-  const litePayload = opts.litePayloadSubmitted || { source: String(payloadSubmitted.source || ('customer-' + templateId + '-fallback')), mode:'proposal-cloud-fallback' };
+  const isContractProposal = templateId === 'boarding_contract';
+  const litePayload = isContractProposal ? payloadSubmitted : (opts.litePayloadSubmitted || { source: String(payloadSubmitted.source || ('customer-' + templateId + '-fallback')), mode:'proposal-cloud-fallback' });
   const taskLite = { ...baseTask, payloadSubmitted: litePayload };
   if(CLOUD?.enabled){
     try{
@@ -3724,6 +3725,11 @@ function dsCustomerForceMode(mode){
 
 async function submitCustomerContractProposalMain(){
   try{
+    const __gb350Now = Date.now();
+    if(window.__dsCustomerContractSubmitMainActive || __gb350Now < (window.__dsCustomerContractSubmitMainLockUntil || 0)) return {ok:false, skipped:true};
+    window.__dsCustomerContractSubmitMainActive = true;
+    window.__dsCustomerContractSubmitMainLockUntil = __gb350Now + 6500;
+    const __gb350UnlockMainSubmit = function(){ try{ setTimeout(function(){ window.__dsCustomerContractSubmitMainActive = false; }, 900); }catch(_){ window.__dsCustomerContractSubmitMainActive = false; } };
     ensureStateShape();
     const ctx = getCustomerMainDogsContext();
     const cs = document.getElementById('contractCustomerSelect');
@@ -3731,35 +3737,72 @@ async function submitCustomerContractProposalMain(){
     const accept = document.getElementById('contractAcceptChk');
     const customerId = String((cs && cs.value) || ctx.customerId || '');
     const petId = String((ps && ps.value) || ((ctx.pets[0] && (ctx.pets[0].id || ctx.pets[0].petId)) || '') || '');
-    if(!customerId || !petId){ alert('Bitte zuerst Kunde und Hund wählen.'); return; }
-    if(!(accept && accept.checked)){ alert('Bitte den Vertrag akzeptieren.'); return; }
+    if(!customerId || !petId){ alert('Bitte zuerst Kunde und Hund wählen.'); __gb350UnlockMainSubmit(); return; }
+    if(!(accept && accept.checked)){ alert('Bitte den Vertrag akzeptieren.'); __gb350UnlockMainSubmit(); return; }
+    const contractVersion = String(state.contractVersion || state.contract?.version || 'v1.0');
     const sigStore = state.contractSignatures || {};
-    const sigKey = String((state.contractVersion || 'v1.0')) + '__' + customerId + '__' + petId;
-    const rec = sigStore[sigKey];
-    if(!rec || !rec.dataUrl){ alert('Bitte zuerst unterschreiben.'); return; }
+    const sigKey = contractVersion + '__' + customerId + '__' + petId;
+    let rec = sigStore[sigKey] || null;
+    if(!rec || !rec.dataUrl){
+      try{
+        const cv = document.getElementById('contractSig');
+        const dataUrl = cv && cv.toDataURL ? String(cv.toDataURL('image/png') || '') : '';
+        if(dataUrl && dataUrl.length > 1200){
+          rec = { dataUrl, signedAt: Date.now(), source:'customer-contract-canvas-proposal-only' };
+          state.contractSignatures = state.contractSignatures || {};
+          state.contractSignatures[sigKey] = rec;
+        }
+      }catch(_){ }
+    }
+    if(!rec || !rec.dataUrl){ alert('Bitte zuerst unterschreiben.'); __gb350UnlockMainSubmit(); return; }
     const customer = getCustomer(customerId) || {};
     const pet = getPet(petId) || {};
-    const contractVersion = String(state.contractVersion || state.contract?.version || 'v1.0');
-    try{
-      state.contractAgreements = state.contractAgreements || {};
-      state.contractAgreements[contractVersion + '__' + customerId + '__' + petId + '::' + contractVersion] = {
-        customerId, petId, version: contractVersion,
-        accepted: true,
-        signatureAt: rec.signedAt || Date.now(),
-        savedAt: Date.now(),
-        source: 'customer-main-proposal-pending'
-      };
-      try{ dsMirrorContractToPetOwner(customerId, petId, contractVersion); }catch(_){ }
-      try{ saveState(); }catch(_){ }
-    }catch(_){ }
+    const customerName = String(customer.name || customer.fullName || customer.lastName || CLOUD?.user?.email || 'Kunde');
+    const petName = String(pet.name || pet.petName || pet.dogName || 'Hund');
+    const signatureDataUrl = String(rec.dataUrl || rec.signatureDataUrl || '');
+    const signatureAt = rec.signedAt || rec.signatureAt || Date.now();
+    /* GB350: Kundenmodus darf den Vertrag NICHT direkt final in state.contractAgreements speichern.
+       Es wird ausschließlich ein prüfbarer Vorschlag für Eingänge geschrieben. */
     const payloadSubmitted = {
-      source: 'customer-main-contract',
+      source: 'customer-main-contract-gb350',
+      mode: 'proposal',
+      templateId: 'boarding_contract',
       customerId, petId,
       contractVersion: contractVersion,
       accepted: true,
-      signature: { dataUrl: String(rec.dataUrl || ''), signedAt: rec.signedAt || Date.now() }
+      customer: {
+        id: customerId, customerId: customerId,
+        name: customerName, fullName: customerName,
+        email: String(customer.email || CLOUD?.user?.email || '').trim().toLowerCase(),
+        phone: String(customer.phone || '')
+      },
+      pet: {
+        id: petId, petId: petId, dogId: String(pet.dogId || petId), customerId: customerId,
+        name: petName, petName: petName, dogName: petName,
+        breed: String(pet.breed || ''), sex: String(pet.sex || '')
+      },
+      fields: {
+        contractAccepted: true,
+        contractVersion: contractVersion,
+        customerName: customerName,
+        dogName: petName,
+        petName: petName,
+        signatureDataUrl: signatureDataUrl,
+        signatureAt: signatureAt
+      },
+      meta: {
+        customerId: customerId,
+        petId: petId,
+        version: contractVersion,
+        contractVersion: contractVersion,
+        submittedFrom: 'app.html?customer_mode=contract',
+        build: 'M50.9.9GB350_CUSTOMER_CONTRACT_PROPOSAL_REVIEW_FIX_20260512_ROOTONLY'
+      },
+      signature: { dataUrl: signatureDataUrl, signatureDataUrl: signatureDataUrl, signedAt: signatureAt, signatureAt: signatureAt },
+      signatureRec: { dataUrl: signatureDataUrl, signatureDataUrl: signatureDataUrl, signedAt: signatureAt, signatureAt: signatureAt, customerId, petId, customerName, petName, version: contractVersion, contractVersion },
+      agreementRec: { customerId, petId, customerName, petName, version: contractVersion, contractVersion, accepted: true, contractAccepted: true, status: 'pending', source: 'customer-proposal-only-gb350' }
     };
-    const litePayloadSubmitted = { source:'customer-main-contract', customerId, petId, accepted:true, contractVersion: payloadSubmitted.contractVersion };
+    const litePayloadSubmitted = { source:'customer-main-contract-gb350', mode:'proposal-cloud-fallback', customerId, petId, accepted:true, contractVersion: payloadSubmitted.contractVersion, signaturePresent: !!signatureDataUrl };
     const res = await dsSubmitCustomerPortalProposal({
       templateId:'boarding_contract',
       title:'Betreuungsvertrag Vorschlag',
@@ -3767,8 +3810,10 @@ async function submitCustomerContractProposalMain(){
       payloadSubmitted, litePayloadSubmitted
     });
     try{ alert(res && res.ok ? 'Betreuungsvertrag als Vorschlag gespeichert und an Eingänge übergeben.' : 'Betreuungsvertrag lokal vorgemerkt.'); }catch(_){ }
+    __gb350UnlockMainSubmit();
     try{ location.replace('customer.html?view=contract'); }catch(_){ }
-  }catch(err){ console.error('submitCustomerContractProposalMain failed', err); alert('Vertrag senden fehlgeschlagen: ' + String(err?.message || err || 'Unbekannter Fehler')); }
+    return res;
+  }catch(err){ try{ window.__dsCustomerContractSubmitMainActive = false; }catch(_){ } console.error('submitCustomerContractProposalMain failed', err); alert('Vertrag senden fehlgeschlagen: ' + String(err?.message || err || 'Unbekannter Fehler')); }
 }
 
 async function submitCustomerStayProposalMain(){
@@ -25668,7 +25713,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB349_CUSTOMER_PORTAL_SAVE_LOGOUT_REVIEW_FIX_20260512_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB350_CUSTOMER_CONTRACT_PROPOSAL_REVIEW_FIX_20260512_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -27641,7 +27686,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB349_CUSTOMER_PORTAL_SAVE_LOGOUT_REVIEW_FIX_20260512_ROOTONLY";
+  const BUILD = "M50.9.9GB350_CUSTOMER_CONTRACT_PROPOSAL_REVIEW_FIX_20260512_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -31231,7 +31276,7 @@ try{ window.__GB294_MARKER = 'active'; }catch(_){ }
 /* ===== GB295 contract review verified open + reset fix ===== */
 try{ window.__GB295_MARKER = 'active'; }catch(_){ }
 (function(){
-  const BUILD = "M50.9.9GB349_CUSTOMER_PORTAL_SAVE_LOGOUT_REVIEW_FIX_20260512_ROOTONLY";
+  const BUILD = "M50.9.9GB350_CUSTOMER_CONTRACT_PROPOSAL_REVIEW_FIX_20260512_ROOTONLY";
   function ds295Clone(v){ try{ return JSON.parse(JSON.stringify(v == null ? null : v)); }catch(_){ return v; } }
   function ds295Norm(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
   function ds295Bool(v){ try{ if(v===true||v===false) return !!v; const s=String(v==null?'':v).trim().toLowerCase(); return s==='1'||s==='true'||s==='yes'||s==='ja'||s==='on'; }catch(_){ return false; } }
@@ -35239,7 +35284,7 @@ try{ window.__GB314_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB314-app
 /* ===== GB315 final contract acceptance + badge DOM hardfix ===== */
 try{ window.__GB315_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB316-appjs'; }catch(_){ }
 (function(){
-  var BUILD='M50.9.9GB349_CUSTOMER_PORTAL_SAVE_LOGOUT_REVIEW_FIX_20260512_ROOTONLY';
+  var BUILD='M50.9.9GB350_CUSTOMER_CONTRACT_PROPOSAL_REVIEW_FIX_20260512_ROOTONLY';
   function S(v){ try{return String(v==null?'':v).trim();}catch(_){return '';} }
   function L(v){ return S(v).toLowerCase(); }
   function esc(v){ try{return CSS && CSS.escape ? CSS.escape(S(v)) : S(v).replace(/[^a-zA-Z0-9_-]/g,'\\$&');}catch(_){return S(v);} }
@@ -35452,7 +35497,7 @@ try{var rd=renderDogs;if(rd&&!rd.__gb317Wrapped){renderDogs=function(){var r=rd.
 /* ===== GB318 contract hard bypass: accept not required when signature exists + generic green repair ===== */
 try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild='GB318-appjs'; }catch(_){ }
 (function(){
-  var BUILD='M50.9.9GB349_CUSTOMER_PORTAL_SAVE_LOGOUT_REVIEW_FIX_20260512_ROOTONLY';
+  var BUILD='M50.9.9GB350_CUSTOMER_CONTRACT_PROPOSAL_REVIEW_FIX_20260512_ROOTONLY';
   function S(v){try{return String(v==null?'':v).trim()}catch(_){return''}}
   function L(v){return S(v).toLowerCase()}
   function V(){try{return S((state&&(state.contractVersion||(state.contract&&state.contract.version)))||'v1.0')||'v1.0'}catch(_){return'v1.0'}}
@@ -35581,7 +35626,7 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild='GB318-appjs';
   'use strict';
   if(window.__dsGB348CustomerProposalRepairInstalled) return;
   window.__dsGB348CustomerProposalRepairInstalled = true;
-  var BUILD='M50.9.9GB349_CUSTOMER_PORTAL_SAVE_LOGOUT_REVIEW_FIX_20260512_ROOTONLY';
+  var BUILD='M50.9.9GB350_CUSTOMER_CONTRACT_PROPOSAL_REVIEW_FIX_20260512_ROOTONLY';
   function S(v){try{return String(v==null?'':v).trim()}catch(_){return''}}
   function lower(v){return S(v).toLowerCase()}
   function makeId(){try{return (typeof uid==='function'?uid():('proposal_'+Date.now()+'_'+Math.random().toString(36).slice(2,8)))}catch(_){return 'proposal_'+Date.now()}}
@@ -35631,12 +35676,13 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild='GB318-appjs';
       petId:S(opts.petId || opts.dogId || (payloadSubmitted.pet&&(payloadSubmitted.pet.id||payloadSubmitted.pet.petId||payloadSubmitted.pet.dogId)) || ''),
       dogId:S(opts.petId || opts.dogId || (payloadSubmitted.pet&&(payloadSubmitted.pet.id||payloadSubmitted.pet.petId||payloadSubmitted.pet.dogId)) || ''),
       payloadSubmitted:payloadSubmitted,
-      gb349Direct:true,
+      gb350Direct:true,
       build:BUILD
     };
     var ref=d.collection('orgs').doc(orgId()).collection('proposals').doc(id);
     await ref.set(task, {merge:true});
-    try{ await d.collection('orgs').doc(orgId()).collection('tasks').doc(id).set(Object.assign({}, task, {mirroredFromProposal:true, payloadSubmitted:opts.litePayloadSubmitted||payloadSubmitted, updatedAt:Date.now()}), {merge:true}); }catch(_){ }
+    var mirrorPayload = (templateId === 'boarding_contract') ? payloadSubmitted : (opts.litePayloadSubmitted||payloadSubmitted);
+    try{ await d.collection('orgs').doc(orgId()).collection('tasks').doc(id).set(Object.assign({}, task, {mirroredFromProposal:true, payloadSubmitted:mirrorPayload, updatedAt:Date.now()}), {merge:true}); }catch(_){ }
     try{ if(typeof pushCustomerProposalBuffer==='function') pushCustomerProposalBuffer(task); }catch(_){ }
     try{
       if(typeof ensureStateShape==='function') ensureStateShape();
@@ -35674,7 +35720,7 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild='GB318-appjs';
   'use strict';
   if(window.__dsGB349CustomerReviewFixInstalled) return;
   window.__dsGB349CustomerReviewFixInstalled = true;
-  var BUILD='M50.9.9GB349_CUSTOMER_PORTAL_SAVE_LOGOUT_REVIEW_FIX_20260512_ROOTONLY';
+  var BUILD='M50.9.9GB350_CUSTOMER_CONTRACT_PROPOSAL_REVIEW_FIX_20260512_ROOTONLY';
   function S(v){ try{return String(v==null?'':v).trim();}catch(_){return '';} }
   function L(v){ return S(v).toLowerCase(); }
   function arr(a){ return Array.isArray(a) ? a : []; }
@@ -35792,8 +35838,8 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild='GB318-appjs';
       try{ if(typeof renderDogs==='function') renderDogs(); }catch(_){ }
       try{ if(typeof cpSetStatus==='function') cpSetStatus('Gespeichert.'); }catch(_){ }
       setTimeout(function(){ try{ if(typeof patchInboxRowStatus==='function') withTimeout(patchInboxRowStatus(row,'adopted'),1800); }catch(_){ } },0);
-      setTimeout(function(){ try{ if(typeof refreshInboxHard==='function') refreshInboxHard('gb349-customer-data-accepted'); }catch(_){ } },80);
-      setTimeout(function(){ try{ if(typeof dsForceProposalPersist==='function') withTimeout(dsForceProposalPersist('gb349-customer-data-bg'),2200); }catch(_){ } },120);
+      setTimeout(function(){ try{ if(typeof refreshInboxHard==='function') refreshInboxHard('gb350-customer-data-accepted'); }catch(_){ } },80);
+      setTimeout(function(){ try{ if(typeof dsForceProposalPersist==='function') withTimeout(dsForceProposalPersist('gb350-customer-data-bg'),2200); }catch(_){ } },120);
       return true;
     }catch(e){
       try{ console.error('GB349 customer data accept failed', e); }catch(_){ }
