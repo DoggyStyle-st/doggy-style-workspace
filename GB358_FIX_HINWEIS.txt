@@ -1,0 +1,20 @@
+GB358 gezielter Fix auf Basis GB357
+
+Build:
+M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY
+
+Eingebaut:
+- Hard-Guard gegen workspace_state Voll-Push im Kundenmodus und Prüfmodus.
+- Kunden-App Speichern wird per Capture-Handler direkt in kleine proposals/tasks Dokumente geschrieben.
+- Kunde/Hund, Betreuungsvertrag und Neuer Aufenthalt erzeugen jeweils eindeutige Vorschläge mit customerId/petId.
+- Prüfmodus-Speichern wird abgefangen, übernimmt den Vorschlag und schreibt nur einen verschlankten workspace_state.
+- Fehler showSteuerberaterExportInfo als No-op abgesichert.
+- Betreuungsvertrag-Auswahl im Kundenmodus bleibt strikt auf aktuellen Kunden/Hund beschränkt.
+- Diagnose bleibt aktiv; relevante GB358 Events werden dort protokolliert.
+
+Testreihenfolge:
+1. Kunden-App Sonja/Bello: Kunde/Hund ändern -> Speichern. Erwartung: Erfolgsmeldung, Eintrag in Eingänge.
+2. Haupt-App Eingänge: Vorschlag öffnen -> Speichern. Erwartung: Erfolgsmeldung, keine Endlosschleife.
+3. Kunden-App Betreuungsvertrag: Sonja/Bello bleibt ausgewählt, Max/Rex darf nicht erscheinen; Vorschlag senden.
+4. Kunden-App Neuer Aufenthalt: Aufenthalt speichern/senden; in Eingänge muss ein Aufenthalt-Vorschlag erscheinen.
+5. Diagnose: kein Firestore-Set mehr auf meta/workspace_state mit ca. 11MB nach Kundenvorschlag-Speichern.

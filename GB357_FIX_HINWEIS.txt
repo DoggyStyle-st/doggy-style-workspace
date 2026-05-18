@@ -9,7 +9,7 @@ Schwerpunkt:
 - Kunden-App-Abmelden erneut robust gebunden.
 
 Build:
-M50.9.9GB357_TARGETED_PROPOSAL_PAYLOAD_SCOPE_FIX_20260518_ROOTONLY
+M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY
 
 Testziel:
 1. Kunden-App Sonja/Bello: Kunde/Hund Änderung speichern -> Erfolgsmeldung und Vorschlag in Eingänge.

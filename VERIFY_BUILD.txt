@@ -1,4 +1,2 @@
-Build unter links muss lauten:
-M50.9.9GB356_DIAG_ALWAYS_VISIBLE_SAVE_TRACE_20260518_ROOTONLY
-
-GB356: Diagnose erweitert + dauerhaft sichtbar in Kunden-App und Haupt-App.
+Build M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY
+Geprüft: node --check app.js, ZIP enthält app.html/app.js/customer.html/sw.js/version.txt mit GB358 Tag.

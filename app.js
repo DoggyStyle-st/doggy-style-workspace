@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB357_TARGETED_PROPOSAL_PAYLOAD_SCOPE_FIX_20260518_ROOTONLY",
+  tag: "M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,8 +12,8 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB357_TARGETED_PROPOSAL_PAYLOAD_SCOPE_FIX_20260518_ROOTONLY";
-try{ window.__dsAppJsRuntimeBuild = 'GB357-appjs'; }catch(_){ }
+const APP_BUILD = "M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY";
+try{ window.__dsAppJsRuntimeBuild = 'GB358-appjs'; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
 // Global helper functions used across proposal-review matching.
@@ -3796,7 +3796,7 @@ async function submitCustomerContractProposalMain(){
         version: contractVersion,
         contractVersion: contractVersion,
         submittedFrom: 'app.html?customer_mode=contract',
-        build: 'M50.9.9GB357_TARGETED_PROPOSAL_PAYLOAD_SCOPE_FIX_20260518_ROOTONLY'
+        build: 'M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY'
       },
       signature: { dataUrl: signatureDataUrl, signatureDataUrl: signatureDataUrl, signedAt: signatureAt, signatureAt: signatureAt },
       signatureRec: { dataUrl: signatureDataUrl, signatureDataUrl: signatureDataUrl, signedAt: signatureAt, signatureAt: signatureAt, customerId, petId, customerName, petName, version: contractVersion, contractVersion },
@@ -25713,7 +25713,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB357_TARGETED_PROPOSAL_PAYLOAD_SCOPE_FIX_20260518_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -27686,7 +27686,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB357_TARGETED_PROPOSAL_PAYLOAD_SCOPE_FIX_20260518_ROOTONLY";
+  const BUILD = "M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -30363,7 +30363,7 @@ try{ window.__GB191_MARKER = 'active'; }catch(_){ }
     try{ ds166OpenRowByKey = window.ds166OpenRowByKey; }catch(_){ }
   }catch(_){ }
 })();
-try{ window.__dsAppJsRuntimeBuild = 'GB357-appjs'; }catch(_){}
+try{ window.__dsAppJsRuntimeBuild = 'GB358-appjs'; }catch(_){}
 /* ===== END GB194 ===== */
 
 
@@ -31276,7 +31276,7 @@ try{ window.__GB294_MARKER = 'active'; }catch(_){ }
 /* ===== GB295 contract review verified open + reset fix ===== */
 try{ window.__GB295_MARKER = 'active'; }catch(_){ }
 (function(){
-  const BUILD = "M50.9.9GB357_TARGETED_PROPOSAL_PAYLOAD_SCOPE_FIX_20260518_ROOTONLY";
+  const BUILD = "M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY";
   function ds295Clone(v){ try{ return JSON.parse(JSON.stringify(v == null ? null : v)); }catch(_){ return v; } }
   function ds295Norm(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
   function ds295Bool(v){ try{ if(v===true||v===false) return !!v; const s=String(v==null?'':v).trim().toLowerCase(); return s==='1'||s==='true'||s==='yes'||s==='ja'||s==='on'; }catch(_){ return false; } }
@@ -31925,7 +31925,7 @@ try{ window.__GB297_MARKER = 'active'; }catch(_){ }
       try{ const btn = document.getElementById('btnContractRefresh'); if(btn){ btn.onclick = null; btn.addEventListener('click', wrappedRefresh); } }catch(_){ }
     }
   }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB357-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB358-appjs'; }catch(_){ }
 })();
 /* ===== END GB297 ===== */
 
@@ -32199,7 +32199,7 @@ try{ window.__GB298_MARKER = 'active'; }catch(_){ }
   try{
     if(ds298ApplyRescueIntoState()) ds298PersistStateSilently();
   }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB357-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB358-appjs'; }catch(_){ }
 })();
 /* ===== END GB298 ===== */
 
@@ -32491,7 +32491,7 @@ try{ window.__GB299_MARKER = 'active'; }catch(_){ }
     ds299WriteRescueUnion(snap.contractSignatures, snap.contractAgreements);
     if(ds299ApplyRescueIntoState()) ds299PersistLocalOnly();
   }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB357-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB358-appjs'; }catch(_){ }
 })();
 /* ===== END GB299 ===== */
 
@@ -32859,7 +32859,7 @@ try{ window.__GB300_MARKER = 'active'; }catch(_){ }
     }
   }catch(_){ }
   try{ ds300ApplyUnionIntoState(); ds300WriteUnion(); }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB357-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB358-appjs'; }catch(_){ }
 })();
 /* ===== END GB300 ===== */
 
@@ -33296,7 +33296,7 @@ try{ window.__GB301_MARKER = 'active'; }catch(_){ }
   }catch(_){ }
   try{ ds301ApplyUnionIntoState(); ds301WriteUnion(); }catch(_){ }
   try{ window.__dsContractMainNormalize = ds301PopulateNormalContractUi; }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB357-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB358-appjs'; }catch(_){ }
 })();
 /* ===== END GB301 ===== */
 
@@ -33487,7 +33487,7 @@ try{ window.__GB302_MARKER = 'active'; }catch(_){ }
   }catch(_){ }
   try{ ds302ApplyUnion(); ds302WriteUnion(); }catch(_){ }
   try{ window.__dsContractMainHardReset = ds302ResetContractMainUi; }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB357-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB358-appjs'; }catch(_){ }
 })();
 /* ===== END GB302 ===== */
 
@@ -33947,7 +33947,7 @@ try{ window.__GB303_MARKER = 'active'; }catch(_){ }
   }catch(_){ }
   try{ ds303ApplyUnion(); ds303WriteUnion(); }catch(_){ }
   try{ window.__dsContractMainNormalize = ds303NormalizeMainUi; }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB357-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB358-appjs'; }catch(_){ }
 })();
 /* ===== END GB303 ===== */
 
@@ -34066,7 +34066,7 @@ try{ window.__GB304_MARKER = 'active'; }catch(_){ }
     }
   }catch(_){ }
   try{ window.__dsContractReviewExitToMainGB304 = ds304ExitReviewToMain; }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB357-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB358-appjs'; }catch(_){ }
 })();
 /* ===== END GB304 ===== */
 
@@ -34249,7 +34249,7 @@ try{ window.__GB305_MARKER = 'active'; }catch(_){ }
       try{ window.hasValidContract = wrapped; }catch(_){ }
     }
   }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB357-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB358-appjs'; }catch(_){ }
 })();
 /* ===== END GB305 ===== */
 
@@ -34453,14 +34453,14 @@ try{ window.__GB306_MARKER = 'active'; }catch(_){ }
       window.__dsContractReviewSubmitHook = wrappedReviewHook;
     }
   }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB357-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB358-appjs'; }catch(_){ }
 })();
 /* ===== END GB306 ===== */
 
 
 /* ===== GB307 contract diagnostics panel ===== */
 try{ window.__GB307_MARKER = 'active'; }catch(_){ }
-try{ window.__dsAppJsRuntimeBuild = 'GB357-appjs'; }catch(_){ }
+try{ window.__dsAppJsRuntimeBuild = 'GB358-appjs'; }catch(_){ }
 (function(){
   const DIAG = window.__dsContractDiag = window.__dsContractDiag || {};
   const UNION_KEYS = [
@@ -34682,7 +34682,7 @@ try{ window.__dsAppJsRuntimeBuild = 'GB357-appjs'; }catch(_){ }
 
 /* ===== GB308 contract diagnostics hard mount ===== */
 try{ window.__GB308_MARKER = 'active'; }catch(_){ }
-try{ window.__dsAppJsRuntimeBuild = 'GB357-appjs'; }catch(_){ }
+try{ window.__dsAppJsRuntimeBuild = 'GB358-appjs'; }catch(_){ }
 (function(){
   const DIAG = window.__dsContractDiag = window.__dsContractDiag || {};
   function norm(v){ return String(v == null ? '' : v).trim(); }
@@ -34863,7 +34863,7 @@ try{ window.__GB311_MARKER = 'active'; }catch(_){ }
 
 /* ===== GB312 contract canonical validity + refresh repair ===== */
 try{ window.__GB312_MARKER = 'active'; }catch(_){ }
-try{ window.__dsAppJsRuntimeBuild = 'GB357-appjs'; }catch(_){ }
+try{ window.__dsAppJsRuntimeBuild = 'GB358-appjs'; }catch(_){ }
 (function(){
   function n(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
   function lc(v){ return n(v).toLowerCase(); }
@@ -35049,7 +35049,7 @@ try{ window.__dsAppJsRuntimeBuild = 'GB357-appjs'; }catch(_){ }
 /* ===== END GB312 ===== */
 
 /* ===== GB313 contract click-release + canonical badge hardfix ===== */
-try{ window.__GB313_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB357-appjs'; }catch(_){ }
+try{ window.__GB313_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB358-appjs'; }catch(_){ }
 (function(){
   function n(v){try{return String(v==null?'':v).trim();}catch(_){return ''}}
   function lc(v){return n(v).toLowerCase()}
@@ -35101,7 +35101,7 @@ try{ window.__GB313_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB357-appjs
 /* ===== END GB313 ===== */
 
 /* ===== GB314 hard contract review release + green badge repair ===== */
-try{ window.__GB314_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB357-appjs'; }catch(_){ }
+try{ window.__GB314_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB358-appjs'; }catch(_){ }
 (function(){
   function N(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
   function L(v){ return N(v).toLowerCase(); }
@@ -35282,9 +35282,9 @@ try{ window.__GB314_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB357-app
 /* ===== END GB314 ===== */
 
 /* ===== GB315 final contract acceptance + badge DOM hardfix ===== */
-try{ window.__GB315_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB357-appjs'; }catch(_){ }
+try{ window.__GB315_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB358-appjs'; }catch(_){ }
 (function(){
-  var BUILD='M50.9.9GB357_TARGETED_PROPOSAL_PAYLOAD_SCOPE_FIX_20260518_ROOTONLY';
+  var BUILD='M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY';
   function S(v){ try{return String(v==null?'':v).trim();}catch(_){return '';} }
   function L(v){ return S(v).toLowerCase(); }
   function esc(v){ try{return CSS && CSS.escape ? CSS.escape(S(v)) : S(v).replace(/[^a-zA-Z0-9_-]/g,'\\$&');}catch(_){return S(v);} }
@@ -35429,7 +35429,7 @@ try{ window.__GB315_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB357-app
 /* ===== END GB315 ===== */
 
 /* ===== GB316 contract signature-valid + passive repair loop ===== */
-try{ window.__GB316_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB357-appjs'; }catch(_){ }
+try{ window.__GB316_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB358-appjs'; }catch(_){ }
 (function(){
   function S(v){ try{ return String(v==null?'':v).trim(); }catch(_){ return ''; } }
   function L(v){ return S(v).toLowerCase(); }
@@ -35471,7 +35471,7 @@ try{ window.__GB316_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB357-appjs
 
 
 /* ===== GB317 contract real save + unlock ===== */
-try{window.__GB317_MARKER='active';window.__dsAppJsRuntimeBuild = 'GB357-appjs'}catch(_){ }
+try{window.__GB317_MARKER='active';window.__dsAppJsRuntimeBuild = 'GB358-appjs'}catch(_){ }
 (function(){
 function S(v){return String(v==null?'':v).trim()}function L(v){return S(v).toLowerCase()}function V(){try{return S(state.contractVersion||state.contract?.version||'v1.0')||'v1.0'}catch(_){return'v1.0'}}function pets(){try{return Array.isArray(state.pets)?state.pets:[]}catch(_){return[]}}function custs(){try{return Array.isArray(state.customers)?state.customers:[]}catch(_){return[]}}function pn(p){return S(p&&(p.name||p.petName||p.dogName||p.id||p.petId||p.dogId))}function cn(c){return S(c&&(c.name||c.displayName||c.lastName||c.email||c.id||c.customerId))}
 function fc(x){var lx=L(x),r=null;if(!lx)return null;try{if(typeof getCustomer==='function')r=getCustomer(S(x))||null}catch(_){ }return r||custs().find(c=>[c.id,c.customerId,c.uid,c.key,c.email,c.name,c.displayName,c.lastName].map(L).includes(lx))||null}
@@ -35495,9 +35495,9 @@ try{var rd=renderDogs;if(rd&&!rd.__gb317Wrapped){renderDogs=function(){var r=rd.
 /* ===== END GB317 ===== */
 
 /* ===== GB318 contract hard bypass: accept not required when signature exists + generic green repair ===== */
-try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB357-appjs'; }catch(_){ }
+try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB358-appjs'; }catch(_){ }
 (function(){
-  var BUILD='M50.9.9GB357_TARGETED_PROPOSAL_PAYLOAD_SCOPE_FIX_20260518_ROOTONLY';
+  var BUILD='M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY';
   function S(v){try{return String(v==null?'':v).trim()}catch(_){return''}}
   function L(v){return S(v).toLowerCase()}
   function V(){try{return S((state&&(state.contractVersion||(state.contract&&state.contract.version)))||'v1.0')||'v1.0'}catch(_){return'v1.0'}}
@@ -35626,7 +35626,7 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB357-appjs
   'use strict';
   if(window.__dsGB348CustomerProposalRepairInstalled) return;
   window.__dsGB348CustomerProposalRepairInstalled = true;
-  var BUILD='M50.9.9GB357_TARGETED_PROPOSAL_PAYLOAD_SCOPE_FIX_20260518_ROOTONLY';
+  var BUILD='M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY';
   function S(v){try{return String(v==null?'':v).trim()}catch(_){return''}}
   function lower(v){return S(v).toLowerCase()}
   function makeId(){try{return (typeof uid==='function'?uid():('proposal_'+Date.now()+'_'+Math.random().toString(36).slice(2,8)))}catch(_){return 'proposal_'+Date.now()}}
@@ -35720,7 +35720,7 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB357-appjs
   'use strict';
   if(window.__dsGB349CustomerReviewFixInstalled) return;
   window.__dsGB349CustomerReviewFixInstalled = true;
-  var BUILD='M50.9.9GB357_TARGETED_PROPOSAL_PAYLOAD_SCOPE_FIX_20260518_ROOTONLY';
+  var BUILD='M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY';
   function S(v){ try{return String(v==null?'':v).trim();}catch(_){return '';} }
   function L(v){ return S(v).toLowerCase(); }
   function arr(a){ return Array.isArray(a) ? a : []; }
@@ -35869,7 +35869,7 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB357-appjs
   'use strict';
   if(window.__dsGB351SuccessNoticeInstalled) return;
   window.__dsGB351SuccessNoticeInstalled = true;
-  var BUILD = 'M50.9.9GB357_TARGETED_PROPOSAL_PAYLOAD_SCOPE_FIX_20260518_ROOTONLY';
+  var BUILD = 'M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY';
   function S(v){ try{return String(v==null?'':v).trim();}catch(_){return '';} }
   function L(v){ return S(v).toLowerCase(); }
   function isOk(res){ return !!(res && (res.ok === true || res === true || (typeof res === 'object' && !res.error && !res.skipped))); }
@@ -35950,7 +35950,7 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB357-appjs
   document.addEventListener('DOMContentLoaded', install, {once:true});
   setTimeout(install, 400);
   setTimeout(install, 1400);
-  try{ window.__dsAppJsRuntimeBuild = 'GB357-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB358-appjs'; }catch(_){ }
 })();
 /* ===== END GB351 ===== */
 
@@ -35963,7 +35963,7 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB357-appjs
   'use strict';
   if(window.__dsGB352CustomerLocalFirstInstalled) return;
   window.__dsGB352CustomerLocalFirstInstalled = true;
-  var BUILD = 'M50.9.9GB357_TARGETED_PROPOSAL_PAYLOAD_SCOPE_FIX_20260518_ROOTONLY';
+  var BUILD = 'M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY';
   var LS = 'ds_workspace_test_optik_01';
   var PROP = 'ds_customer_proposals_v1';
   function S(v){ try{return String(v==null?'':v).trim();}catch(_){return '';} }
@@ -36203,7 +36203,7 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB357-appjs
   }
   wrapAdminNoReturn(); setTimeout(wrapAdminNoReturn,500); setTimeout(wrapAdminNoReturn,1800);
   if(isCustomerMode()) setTimeout(markSession,250);
-  try{ window.__dsAppJsRuntimeBuild = 'GB357-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB358-appjs'; }catch(_){ }
 })();
 /* ===== END GB352 ===== */
 
@@ -36214,7 +36214,7 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB357-appjs
   'use strict';
   if(window.__dsGB353ScopeProposalReviewInstalled) return;
   window.__dsGB353ScopeProposalReviewInstalled = true;
-  var BUILD = 'M50.9.9GB357_TARGETED_PROPOSAL_PAYLOAD_SCOPE_FIX_20260518_ROOTONLY';
+  var BUILD = 'M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY';
   var LS_KEY_GB353 = 'ds_workspace_test_optik_01';
   var PROP_KEY_GB353 = 'ds_customer_proposals_v1';
 
@@ -36661,7 +36661,7 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB357-appjs
     }catch(_){ }
   }, true);
 
-  try{ window.__dsAppJsRuntimeBuild = 'GB357-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB358-appjs'; }catch(_){ }
 })();
 /* ===== END GB353 CUSTOMER SCOPE + PROPOSAL REVIEW STABILITY LAYER ===== */
 
@@ -36672,7 +36672,7 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB357-appjs
   if(window.__gb355MainDiagInstalled) return;
   try{ if(String((location && location.pathname) || '').toLowerCase().indexOf('customer.html') >= 0) return; }catch(_){ }
   window.__gb355MainDiagInstalled = true;
-  var BUILD = 'M50.9.9GB357_TARGETED_PROPOSAL_PAYLOAD_SCOPE_FIX_20260518_ROOTONLY';
+  var BUILD = 'M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY';
   var LOG_KEY = 'ds_gb355_diag_log';
   function S(v){ try{return String(v == null ? '' : v).trim();}catch(_){return '';} }
   function L(v){ return S(v).toLowerCase(); }
@@ -36809,8 +36809,8 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB357-appjs
   'use strict';
   if(window.__dsGB357TargetedFixInstalled) return;
   window.__dsGB357TargetedFixInstalled = true;
-  var BUILD='M50.9.9GB357_TARGETED_PROPOSAL_PAYLOAD_SCOPE_FIX_20260518_ROOTONLY';
-  try{ window.__dsAppJsRuntimeBuild='GB357-appjs'; }catch(_){ }
+  var BUILD='M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY';
+  try{ window.__dsAppJsRuntimeBuild='GB358-appjs'; }catch(_){ }
   function S(v){ try{return String(v==null?'':v).trim();}catch(_){return'';} }
   function L(v){ return S(v).toLowerCase(); }
   function A(v){ return Array.isArray(v)?v:[]; }
@@ -37032,3 +37032,325 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB357-appjs
   try{ var b=document.getElementById('buildBadge'); if(b) b.textContent='Build (MASTER) '+BUILD; }catch(_){ }
 })();
 /* ===== END GB357 TARGETED FIX ===== */
+
+
+/* ===== GB358 HARD PROPOSAL SAVE + REVIEW SCOPE FIX =====
+   Ziel: Kundenportal-Vorschläge und Prüfmodus-Speichern dürfen niemals mehr den kompletten workspace_state
+   mit >10MB schreiben. Außerdem wird der alte Steuerberater-Export-Handler abgesichert. */
+(function(){
+  'use strict';
+  if(window.__dsGB358HardProposalFixInstalled) return;
+  window.__dsGB358HardProposalFixInstalled = true;
+  var BUILD='M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY';
+  try{ window.__dsAppJsRuntimeBuild='GB358-appjs'; }catch(_){ }
+  function S(v){ try{return String(v==null?'':v).trim();}catch(_){return'';} }
+  function L(v){ return S(v).toLowerCase(); }
+  function A(v){ return Array.isArray(v)?v:[]; }
+  function now(){ return Date.now(); }
+  function clone(v){ try{return JSON.parse(JSON.stringify(v||{}));}catch(_){return v||{};} }
+  function bytes(v){ try{return JSON.stringify(v||{}).length;}catch(_){return 0;} }
+  function esc(v){ return S(v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+  function makeId(prefix){ return S(prefix||'proposal')+'_'+now()+'_'+Math.random().toString(36).slice(2,10); }
+  function orgId(){ try{return (typeof dsResolveCloudOrgId==='function'?dsResolveCloudOrgId():((window.CLOUD&&CLOUD.orgId)||window.firebaseOrgId||'doggystyle'))||'doggystyle';}catch(_){return 'doggystyle';} }
+  function fb(){ try{return (typeof firebase!=='undefined'&&firebase)?firebase:window.firebase;}catch(_){return null;} }
+  function db(){ try{ var f=fb(); if(f&&typeof f.firestore==='function') return f.firestore(); }catch(_){ } try{ if(window.CLOUD&&CLOUD.db) return CLOUD.db; }catch(_){ } return null; }
+  function user(){ try{ var f=fb(); if(f&&f.auth&&f.auth().currentUser) return f.auth().currentUser; }catch(_){ } try{ if(window.CLOUD&&CLOUD.auth&&CLOUD.auth.currentUser) return CLOUD.auth.currentUser; }catch(_){ } try{ if(window.CLOUD&&CLOUD.user) return CLOUD.user; }catch(_){ } return null; }
+  function setDiag(msg,err){
+    try{ if(typeof dsSetSyncDiag==='function') dsSetSyncDiag('GB358 '+msg, !!err); }catch(_){ }
+    try{ if(typeof dsGB356TraceAlways==='function') dsGB356TraceAlways({event:'GB358 '+msg,error:!!err}); }catch(_){ }
+    try{ var g=window.__gb355Diag||(window.__gb355Diag={events:[]}); g.events.push({at:now(),step:'GB358',message:S(msg),error:!!err}); if(g.events.length>80) g.events=g.events.slice(-80); }catch(_){ }
+  }
+  function notice(msg,err){
+    msg=S(msg)||'Gespeichert.';
+    try{
+      ['customerTaskSaveHint','contractSavedInfo','contractSaveInfo','cpStatus','assignDiag','proposalSaveStatus'].forEach(function(id){try{var el=document.getElementById(id); if(el) el.textContent=msg;}catch(_){ }});
+      var box=document.getElementById('gb358Notice');
+      if(!box){ box=document.createElement('div'); box.id='gb358Notice'; box.setAttribute('role','status'); document.body.appendChild(box); }
+      box.style.cssText='position:fixed;left:50%;top:88px;transform:translateX(-50%);z-index:2147483647;max-width:min(720px,calc(100vw - 32px));padding:16px 22px;border-radius:18px;background:'+(err?'rgba(90,25,25,.98)':'rgba(24,83,45,.98)')+';border:1px solid '+(err?'rgba(255,130,130,.55)':'rgba(119,255,160,.55)')+';box-shadow:0 18px 48px rgba(0,0,0,.45);color:#fff;font:700 16px/1.35 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;text-align:center;white-space:normal;';
+      box.textContent=msg; box.style.display='block'; box.style.opacity='1';
+      clearTimeout(window.__gb358NoticeTimer); window.__gb358NoticeTimer=setTimeout(function(){try{box.style.opacity='0';setTimeout(function(){try{box.style.display='none';}catch(_){ }},260);}catch(_){ }}, err?8500:5200);
+    }catch(_){ }
+  }
+
+  // Der Fehler aus der Diagnose: alter Klickpfad erwartet diese Funktion. Fehlt sie, bricht Öffnen/Speichern ab.
+  try{ if(typeof window.showSteuerberaterExportInfo!=='function') window.showSteuerberaterExportInfo=function(){ return false; }; }catch(_){ }
+  try{ if(typeof showSteuerberaterExportInfo!=='function') showSteuerberaterExportInfo=window.showSteuerberaterExportInfo; }catch(_){ }
+  try{ if(typeof window.closeMonth==='undefined') window.closeMonth=function(){ return false; }; }catch(_){ }
+
+  function queryMode(){ try{return L(new URLSearchParams(String(location.search||'')).get('customer_mode')||new URLSearchParams(String(location.search||'')).get('view')||'');}catch(_){return'';} }
+  function customerMode(){
+    try{
+      var p=L(location.pathname||''), q=queryMode(), ss=L(sessionStorage.getItem('ds_customer_main_mode')||''), body=L(document.body&&document.body.dataset&&document.body.dataset.customerMode||'');
+      return p.indexOf('customer.html')>=0 || ['dogs','contract','stay'].indexOf(q)>=0 || ['dogs','contract','stay'].indexOf(ss)>=0 || ['dogs','contract','stay'].indexOf(body)>=0 || !!window.__dsCustomerMainModeActive || !!window.__dsForceCustomerContractProposal || !!window.__dsForceCustomerStayProposal || (window.CLOUD&&CLOUD.role==='customer');
+    }catch(_){ return false; }
+  }
+  function reviewRow(){
+    try{ if(window.__dsProposalReview && (__dsProposalReview.active || __dsProposalReview.row) && __dsProposalReview.row) return __dsProposalReview.row; }catch(_){ }
+    try{ if(window.__dsInlineInboxReview && __dsInlineInboxReview.row) return __dsInlineInboxReview.row; }catch(_){ }
+    try{ if(window.__dsContractReviewSnapshot && __dsContractReviewSnapshot.row) return __dsContractReviewSnapshot.row; }catch(_){ }
+    try{ if(window.__dsInboxCurrentTask) return window.__dsInboxCurrentTask; }catch(_){ }
+    return null;
+  }
+  function reviewMode(){
+    try{ if(reviewRow()) return true; }catch(_){ }
+    try{ if(document.querySelector('[data-proposal-review], .proposal-review, #proposalReviewPanel')) return true; }catch(_){ }
+    try{ var t=S(document.body&&document.body.textContent).slice(0,1200); if(/Prüfmodus\s*·\s*Kundenvorschlag|Kundenvorschlag im Original-Editor/i.test(t)) return true; }catch(_){ }
+    return false;
+  }
+  function proposalContext(){ return !!window.__gb358ProposalWriting || customerMode() || reviewMode(); }
+
+  function localKey(){ try{return (typeof LS_KEY!=='undefined'?LS_KEY:'ds_workspace_test_optik_01');}catch(_){return 'ds_workspace_test_optik_01';} }
+  function getState(){ try{ if(typeof state!=='undefined' && state) return state; }catch(_){ } try{ if(typeof loadState==='function') return loadState()||{}; }catch(_){ } try{ var raw=localStorage.getItem(localKey()); return raw?JSON.parse(raw):{}; }catch(_){ return {}; } }
+  function writeLocalState(st){
+    try{ st=st||getState(); st._localUpdatedAt=now(); localStorage.setItem(localKey(), JSON.stringify(st)); }catch(e){ setDiag('localStateWriteFail '+S(e&&e.message||e), true); }
+    try{ if(typeof state!=='undefined') state=st; window.state=st; }catch(_){ }
+    try{ if(window.SYNC){ SYNC.localSavedAt=st._localUpdatedAt||now(); SYNC.cloudPending=false; } if(typeof updateSyncUI==='function') updateSyncUI(); }catch(_){ }
+  }
+  function upsert(list,item){
+    list=A(list).slice(); var id=S(item&&(item.id||item.taskId||item.proposalId)); var idx=-1;
+    if(id) idx=list.findIndex(function(x){ return S(x&&(x.id||x.taskId||x.proposalId))===id; });
+    if(idx>=0) list[idx]=Object.assign({},list[idx]||{},item||{}); else list.unshift(item);
+    return list.slice(0,250);
+  }
+  function storeLocalProposal(task){
+    try{ var raw=localStorage.getItem('ds_customer_proposals_v1'); var list=raw?JSON.parse(raw):[]; localStorage.setItem('ds_customer_proposals_v1', JSON.stringify(upsert(list, task))); }catch(_){ }
+    try{ var st=getState(); st.inboxAssignments=upsert(st.inboxAssignments, task); st.inboxSubmissions=upsert(st.inboxSubmissions, task); writeLocalState(st); }catch(_){ }
+    try{ if(typeof pushCustomerProposalBuffer==='function') pushCustomerProposalBuffer(task); }catch(_){ }
+  }
+  function cleanDeep(v,path,seen){
+    try{
+      if(v==null) return v;
+      var t=typeof v;
+      if(t==='string'){
+        var s=String(v), lp=L(path||'');
+        if(/^data:/i.test(s) && !/(signature|signatur|unterschrift)/i.test(lp)) return '';
+        if(/^data:/i.test(s) && s.length>260000) return '';
+        if(s.length>280000) return '';
+        return s;
+      }
+      if(t==='number') return Number.isFinite(v)?v:null;
+      if(t==='boolean') return v;
+      if(t==='bigint') return String(v);
+      if(t==='function'||t==='symbol'||t==='undefined') return undefined;
+      try{ if(typeof Blob!=='undefined' && v instanceof Blob) return undefined; }catch(_){ }
+      try{ if(typeof File!=='undefined' && v instanceof File) return undefined; }catch(_){ }
+      try{ if(v instanceof Date) return v.getTime(); }catch(_){ }
+      if(!seen) seen=new WeakSet();
+      if(typeof v==='object'){
+        if(seen.has(v)) return undefined; seen.add(v);
+        if(Array.isArray(v)){ var arr=[]; v.forEach(function(x,i){ var c=cleanDeep(x,(path||'arr')+'['+i+']',seen); if(c!==undefined) arr.push(c); }); seen.delete(v); return arr; }
+        var proto=Object.getPrototypeOf(v); if(proto && proto!==Object.prototype){ seen.delete(v); return undefined; }
+        var out={}; Object.keys(v).forEach(function(k){ if(k==='__proto__'||k==='constructor'||k==='prototype') return; var c=cleanDeep(v[k],(path?path+'.':'')+k,seen); if(c!==undefined) out[k]=c; }); seen.delete(v); return out;
+      }
+      return v;
+    }catch(_){ return undefined; }
+  }
+  function slimState(src){
+    try{ if(typeof window.dsGB357BuildSlimCloudState==='function'){ var s=window.dsGB357BuildSlimCloudState(src||getState()); if(bytes(s)<900000) return s; } }catch(_){ }
+    src=src||getState();
+    var out={schemaVersion:Math.max(Number(src.schemaVersion||2)||2,2), _cloudUpdatedAt:now(), _localUpdatedAt:Number(src._localUpdatedAt||now())||now(), _gb358Slim:true};
+    ['customers','pets','dogs','customerRecords','petRecords','dogRecords','_legacy','contractAgreements','contractSignatures','contractCanonicalRecords','contractAdoptionBundles','contractAdoptedRecords','settings','company','templates','contractVersion','priceSettings'].forEach(function(k){ try{ if(src[k]!=null) out[k]=cleanDeep(src[k],k); }catch(_){ } });
+    ['inboxAssignments','inboxSubmissions','assignments','submissions','tasks','proposals'].forEach(function(k){ try{ if(Array.isArray(src[k])) out[k]=src[k].slice(0,180).map(function(x){ return cleanDeep(x,k); }); }catch(_){ } });
+    try{ if(Array.isArray(src.docs)) out.docs=src.docs.slice(0,140).map(function(d){ return cleanDeep(d,'docs'); }); }catch(_){ }
+    if(bytes(out)>900000){ try{ out.docs=A(out.docs).map(function(d){ return {id:S(d.id),title:S(d.title),templateId:S(d.templateId),customerId:S(d.customerId),petId:S(d.petId),dogId:S(d.dogId),createdAt:d.createdAt||'',updatedAt:d.updatedAt||''}; }); out._gb358DocsMetaOnly=true; }catch(_){ } }
+    if(bytes(out)>900000){ try{ delete out.inboxAssignments; delete out.inboxSubmissions; delete out.assignments; delete out.submissions; delete out.tasks; delete out.proposals; out._gb358DroppedInbox=true; }catch(_){ } }
+    if(bytes(out)>900000){ try{ Object.keys(out.contractSignatures||{}).forEach(function(k){ var r=out.contractSignatures[k]||{}; if(S(r.dataUrl||r.signatureDataUrl).length>90000) out.contractSignatures[k]={customerId:S(r.customerId),petId:S(r.petId),customerName:S(r.customerName),petName:S(r.petName),signedAt:r.signedAt||r.signatureAt||r.savedAt||now(),signatureAt:r.signatureAt||r.signedAt||now(),dataUrl:''}; }); out._gb358TrimmedSigs=true; }catch(_){ } }
+    return out;
+  }
+  async function writeSlimWorkspace(reason){
+    var d=db(); if(!d) return {ok:false,noDb:true};
+    var stamp=now(); var slim=slimState(getState()); slim._cloudUpdatedAt=stamp; slim._localUpdatedAt=stamp;
+    var ref=d.collection('orgs').doc(orgId()).collection('meta').doc('workspace_state');
+    await ref.set({payload:slim, updatedAt:stamp, updatedBy:S(user()&&(user().email||user().uid)), build:BUILD, reason:S(reason||'gb358-slim')}, {merge:false});
+    try{ if(window.SYNC){ SYNC.cloudLastOkAt=stamp; SYNC.cloudLastError=''; SYNC.cloudPending=false; SYNC.cloudReachable=true; } if(window.CLOUD){ CLOUD.lastPushOkAt=stamp; CLOUD.lastPushError=''; } if(typeof updateSyncUI==='function') updateSyncUI(); }catch(_){ }
+    setDiag('workspaceSlimWrite ok reason='+S(reason)+' bytes='+bytes(slim), false);
+    return {ok:true, bytes:bytes(slim), reason:S(reason)};
+  }
+  try{ window.dsGB358WriteSlimWorkspace=writeSlimWorkspace; }catch(_){ }
+
+  // Save/Cloud Hard-Guard: Kundenmodus = kein workspace_state push. Prüfmodus = schlanker workspace_state nach Übernahme.
+  try{
+    var oldSave=window.saveState || (typeof saveState==='function'?saveState:null);
+    var saveWrap=function(){
+      if(proposalContext()){
+        writeLocalState(getState());
+        setDiag('saveState local-only context='+(customerMode()?'customer':'review'), false);
+        return;
+      }
+      return oldSave?oldSave.apply(this,arguments):undefined;
+    };
+    saveWrap.__gb358Wrapped=true; window.saveState=saveWrap; try{ saveState=saveWrap; }catch(_){ }
+  }catch(_){ }
+  try{
+    var oldCloudPush=window.cloudPushNow || (typeof cloudPushNow==='function'?cloudPushNow:null);
+    var cloudWrap=async function(){
+      if(customerMode() && !reviewMode()){
+        try{ if(window.SYNC){ SYNC.cloudPending=false; } if(typeof updateSyncUI==='function') updateSyncUI(); }catch(_){ }
+        setDiag('cloudPush skipped customer proposal mode', false);
+        return {ok:true,skipped:true,customer:true};
+      }
+      if(reviewMode()) return await writeSlimWorkspace('review-mode-cloudPush');
+      try{ return oldCloudPush?await oldCloudPush.apply(this,arguments):undefined; }
+      catch(e){
+        if(/payload size|exceeds the limit|too large|maximum/i.test(S(e&&e.message||e))) return await writeSlimWorkspace('size-fallback');
+        throw e;
+      }
+    };
+    cloudWrap.__gb358Wrapped=true; window.cloudPushNow=cloudWrap; try{ cloudPushNow=cloudWrap; }catch(_){ }
+  }catch(_){ }
+  try{
+    var oldQueued=window.cloudPushQueued || (typeof cloudPushQueued==='function'?cloudPushQueued:null);
+    var qWrap=function(){ if(proposalContext()){ setDiag('cloudPushQueued suppressed proposalContext', false); try{ if(window.SYNC){SYNC.cloudPending=false;} if(typeof updateSyncUI==='function') updateSyncUI(); }catch(_){ } return; } return oldQueued?oldQueued.apply(this,arguments):undefined; };
+    window.cloudPushQueued=qWrap; try{ cloudPushQueued=qWrap; }catch(_){ }
+  }catch(_){ }
+  try{
+    var oldSched=window.cloudSchedulePush || (typeof cloudSchedulePush==='function'?cloudSchedulePush:null);
+    var sWrap=function(){ if(proposalContext()){ setDiag('cloudSchedulePush suppressed proposalContext', false); try{ if(window.SYNC){SYNC.cloudPending=false;} if(typeof updateSyncUI==='function') updateSyncUI(); }catch(_){ } return true; } return oldSched?oldSched.apply(this,arguments):false; };
+    window.cloudSchedulePush=sWrap; try{ cloudSchedulePush=sWrap; }catch(_){ }
+  }catch(_){ }
+
+  function scope(){
+    var c={};
+    try{ if(typeof getCustomerMainDogsContext==='function') c=getCustomerMainDogsContext()||{}; }catch(_){ }
+    if(!c || (!c.customer&&!c.customerId)){ try{ if(typeof customerContextIds==='function') c=customerContextIds()||c||{}; }catch(_){ } }
+    if(!c || (!c.customer&&!c.customerId)){ try{ if(typeof dsGetCustomerScopeContext==='function') c=dsGetCustomerScopeContext()||c||{}; }catch(_){ } }
+    var cust=c.customer||{}; var pets=A(c.pets); var pet=c.pet||pets[0]||{};
+    var prof=(function(){ var u=user()||{}; return {uid:S(u.uid||sessionStorage.getItem('ds_customer_auth_handoff_uid')), email:L(u.email||sessionStorage.getItem('ds_customer_auth_handoff_email')||cust.email), name:S(u.displayName||cust.name||cust.fullName||cust.email||u.email)}; })();
+    var cid=S(c.customerId||cust.customerId||cust.id||document.getElementById('contractCustomerSelect')&&document.getElementById('contractCustomerSelect').value||prof.uid||prof.email);
+    var pid=S(c.petId||pet.petId||pet.id||pet.dogId||document.getElementById('contractPetSelect')&&document.getElementById('contractPetSelect').value);
+    return {customerId:cid, petId:pid, customer:cust, pet:pet, pets:pets, profile:prof, customerName:S(cust.name||cust.fullName||prof.name||prof.email||'Kunde'), petName:S(pet.name||pet.petName||pet.dogName||'Hund')};
+  }
+  function val(id){ try{ var el=document.getElementById(id); return S(el&&el.value); }catch(_){ return ''; } }
+  function checked(id){ try{ var el=document.getElementById(id); return !!(el&&el.checked); }catch(_){ return false; } }
+  function currentMode(btn){
+    var q=queryMode(), ss=L(sessionStorage.getItem('ds_customer_main_mode')||''), body=L(document.body&&document.body.dataset&&document.body.dataset.customerMode||'');
+    if(['dogs','contract','stay'].indexOf(q)>=0) return q;
+    if(['dogs','contract','stay'].indexOf(ss)>=0) return ss;
+    if(['dogs','contract','stay'].indexOf(body)>=0) return body;
+    try{ if(btn && (btn.id==='contractSaveBtn' || btn.closest('#view-contract,#contract,.contract-panel'))) return 'contract'; }catch(_){ }
+    try{ if(btn && (btn.closest('#view-stay,#stay,#stayEditor,.stay-editor') || /Aufenthalt|Hygiene \/ Extra|Versionen/i.test(S((btn.closest('section,.card,main,div')||{}).textContent).slice(0,700)))) return 'stay'; }catch(_){ }
+    return 'dogs';
+  }
+  function proposalTitle(tpl){ if(tpl==='boarding_contract') return 'Betreuungsvertrag Vorschlag'; if(tpl==='hundeannahme') return 'Neuer Aufenthalt Vorschlag'; return 'Kunde/Hund Änderungsvorschlag'; }
+  function successMsg(tpl){ if(tpl==='boarding_contract') return '✅ Betreuungsvertrag als Vorschlag gespeichert und an Eingänge übergeben.'; if(tpl==='hundeannahme') return '✅ Aufenthaltsanfrage als Vorschlag gespeichert und an Eingänge übergeben.'; return '✅ Änderungsvorschlag gespeichert und an Eingänge übergeben.'; }
+  async function writeProposal(opts){
+    opts=opts||{}; var u=user()||{}; var id=S(opts.id||opts.taskId)||makeId('proposal'); var tpl=S(opts.templateId||'customer_data'); var stamp=now(); var full=cleanDeep(opts.payloadSubmitted||{},'payloadSubmitted')||{}; var lite=cleanDeep(opts.litePayloadSubmitted||full,'litePayloadSubmitted')||{};
+    var task={id:id,taskId:id,proposalId:id,templateId:tpl,kind:tpl,formKey:tpl,type:tpl,title:S(opts.title||proposalTitle(tpl)),status:'submitted',proposalStatus:'pending',submittedAt:stamp,createdAt:stamp,updatedAt:stamp,customerUid:S(u.uid||opts.customerUid),customerEmail:L(u.email||opts.customerEmail),customerName:S(opts.customerName||'Kunde'),customerId:S(opts.customerId),petId:S(opts.petId||opts.dogId),dogId:S(opts.dogId||opts.petId),payloadSubmitted:full,build:BUILD,_gb358:true};
+    var mirror=Object.assign({},task,{mirroredFromProposal:true,payloadSubmitted:lite});
+    storeLocalProposal(task);
+    var d=db(); var ok=false, err=null, path='local';
+    window.__gb358ProposalWriting=true;
+    try{
+      if(d){
+        try{ await Promise.all([d.collection('orgs').doc(orgId()).collection('proposals').doc(id).set(task,{merge:true}), d.collection('orgs').doc(orgId()).collection('tasks').doc(id).set(mirror,{merge:true})]); ok=true; path='proposals+tasks'; }catch(e){ err=e; }
+      }
+      setDiag('proposalWrite '+(ok?'ok':'local')+' path='+path+' tpl='+tpl+' cid='+S(opts.customerId)+' pid='+S(opts.petId||opts.dogId)+' bytes='+bytes(task)+(err?' err='+S(err&&err.message||err):''), !ok && !!err);
+      notice(ok?successMsg(tpl):('⚠️ Vorschlag lokal gespeichert. Cloud-Sicherung bitte prüfen.'), !ok && !!err);
+      return {ok:true, cloud:ok, path:path, task:task, id:id, error:err};
+    }finally{ setTimeout(function(){ try{ window.__gb358ProposalWriting=false; }catch(_){ } }, 900); }
+  }
+  try{ window.dsGB358WriteCustomerProposal=writeProposal; window.dsSubmitCustomerPortalProposal=writeProposal; dsSubmitCustomerPortalProposal=writeProposal; }catch(_){ }
+
+  function buildDogsProposal(){
+    var sc=scope(); var cid=S(sc.customerId), pid=S(sc.petId||val('p_name')||'pet_'+now());
+    var c={id:cid,customerId:cid,name:val('c_name')||sc.customerName,fullName:val('c_name')||sc.customerName,email:L(val('c_email')||sc.profile.email),phone:val('c_phone'),street:val('c_street'),zip:val('c_zip'),city:val('c_city'),emergencyName:val('c_em_name'),emergencyPhone:val('c_em_phone'),pickupAuth:val('c_pickup_auth'),note:val('c_note'),notes:val('c_note')};
+    var p={id:pid,petId:pid,dogId:S(sc.pet&&sc.pet.dogId||pid),customerId:cid,ownerId:cid,name:val('p_name')||sc.petName,petName:val('p_name')||sc.petName,dogName:val('p_name')||sc.petName,breed:val('p_breed'),birthdate:val('p_birthdate'),birthDate:val('p_birthdate'),sex:val('p_sex'),chipStatus:val('p_chipStatus'),chipNumber:val('p_chipNumber'),vet:val('p_vet'),vetPhone:val('p_vetPhone'),vetEmail:val('p_vetEmail'),vetStreet:val('p_vetStreet'),vetZip:val('p_vetZip'),vetCity:val('p_vetCity'),vaccinatedConfirmed:checked('p_vaccinatedConfirmed'),rabiesDate:val('p_rabiesDate'),mixedVaccineDate:val('p_mixedVaccineDate'),allergies:val('p_allergies'),medicalConditions:val('p_medicalConditions'),insuranceStatus:val('p_insuranceStatus'),insuranceCompany:val('p_insuranceCompany'),insurancePolicy:val('p_insurancePolicy'),insuranceNotes:val('p_insuranceNotes'),note:val('p_note'),notes:val('p_note')};
+    var payload={source:'customer-main-dogs-gb358',mode:'proposal',templateId:'customer_data',customerId:cid,petId:pid,customer:c,pet:p,fields:Object.assign({},c,p),meta:{customerId:cid,petId:pid,submittedFrom:S(location.pathname)+S(location.search),build:BUILD}};
+    var lite={source:'customer-main-dogs-gb358',customerId:cid,petId:pid,customer:{name:c.name,email:c.email,phone:c.phone},pet:{name:p.name,breed:p.breed,sex:p.sex,note:p.note},meta:payload.meta};
+    return {templateId:'customer_data',title:'Kunde/Hund Änderungsvorschlag',customerId:cid,petId:pid,customerName:c.name,payloadSubmitted:payload,litePayloadSubmitted:lite};
+  }
+  function canvasData(id){ try{ var cv=document.getElementById(id); var data=cv&&cv.toDataURL?S(cv.toDataURL('image/png')):''; return data&&data.length>1000?data:''; }catch(_){ return ''; } }
+  function buildContractProposal(){
+    var sc=scope(); var cid=S((document.getElementById('contractCustomerSelect')||{}).value||sc.customerId), pid=S((document.getElementById('contractPetSelect')||{}).value||sc.petId);
+    if(!cid||!pid) throw new Error('Kunde/Hund im Vertrag nicht erkannt.');
+    var accept=document.getElementById('contractAcceptChk'); if(accept && !accept.checked) throw new Error('Bitte den Vertrag akzeptieren.');
+    var version=S((window.state&&state.contractVersion)||(window.state&&state.contract&&state.contract.version)||'v1.0')||'v1.0';
+    var key=version+'__'+cid+'__'+pid; var sig=null; try{ sig=state&&state.contractSignatures&&state.contractSignatures[key]||null; }catch(_){ }
+    var data=canvasData('contractSig') || S(sig&&(sig.dataUrl||sig.signatureDataUrl)); if(!data) throw new Error('Bitte zuerst unterschreiben.');
+    var cname=sc.customerName, pname=sc.petName;
+    var payload={source:'customer-main-contract-gb358',mode:'proposal',templateId:'boarding_contract',customerId:cid,petId:pid,dogId:pid,contractVersion:version,accepted:true,customer:{id:cid,customerId:cid,name:cname,fullName:cname,email:L(sc.customer.email||sc.profile.email),phone:S(sc.customer.phone)},pet:{id:pid,petId:pid,dogId:S(sc.pet&&sc.pet.dogId||pid),customerId:cid,name:pname,petName:pname,dogName:pname,breed:S(sc.pet&&sc.pet.breed),sex:S(sc.pet&&sc.pet.sex)},fields:{contractAccepted:true,accepted:true,contractVersion:version,customerName:cname,petName:pname,dogName:pname,signatureDataUrl:data,signatureAt:now()},meta:{customerId:cid,petId:pid,version:version,contractVersion:version,signatureAt:now(),submittedFrom:S(location.pathname)+S(location.search),build:BUILD},signature:{dataUrl:data,signatureDataUrl:data,signedAt:now(),signatureAt:now()},signatureRec:{dataUrl:data,signatureDataUrl:data,signedAt:now(),signatureAt:now(),customerId:cid,petId:pid,customerName:cname,petName:pname,version:version,contractVersion:version},agreementRec:{customerId:cid,petId:pid,customerName:cname,petName:pname,version:version,contractVersion:version,accepted:true,contractAccepted:true,status:'pending',source:'customer-proposal-only-gb358'}};
+    var lite=clone(payload); return {templateId:'boarding_contract',title:'Betreuungsvertrag Vorschlag',customerId:cid,petId:pid,customerName:cname,payloadSubmitted:payload,litePayloadSubmitted:lite};
+  }
+  function buildStayProposal(){
+    try{ if(typeof syncStayEditorInputsToDoc==='function') syncStayEditorInputsToDoc(); }catch(_){ }
+    var sc=scope(); var doc=clone(window.currentDoc||{}); var cid=S(sc.customerId||doc.customerId||(doc.meta&&doc.meta.customerId)); var pid=S(sc.petId||doc.petId||doc.dogId||(doc.meta&&doc.meta.petId));
+    if(!cid||!pid) throw new Error('Kunde/Hund für Aufenthalt nicht erkannt.');
+    var payload={source:'customer-main-stay-gb358',mode:'proposal',templateId:'hundeannahme',customerId:cid,petId:pid,dogId:pid,customer:{id:cid,customerId:cid,name:sc.customerName,email:L(sc.customer.email||sc.profile.email)},pet:{id:pid,petId:pid,dogId:S(sc.pet&&sc.pet.dogId||pid),customerId:cid,name:sc.petName},meta:clone(doc.meta||{}),fields:clone(doc.fields||{}),signature:clone(doc.signature||{}),docId:S(doc.id),title:S(doc.title||'Aufenthaltsanfrage')};
+    payload.meta.customerId=payload.meta.customerId||cid; payload.meta.petId=payload.meta.petId||pid; payload.meta.submittedFrom=S(location.pathname)+S(location.search); payload.meta.build=BUILD;
+    var lite={source:'customer-main-stay-gb358',customerId:cid,petId:pid,von:S(payload.meta.von||payload.fields.von||payload.fields.startDate),bis:S(payload.meta.bis||payload.fields.bis||payload.fields.endDate),betreuung:S(payload.meta.betreuung||payload.fields.betreuung),signaturePresent:!!(payload.signature&&payload.signature.dataUrl),meta:{customerId:cid,petId:pid,build:BUILD}};
+    return {templateId:'hundeannahme',title:'Neuer Aufenthalt Vorschlag',customerId:cid,petId:pid,customerName:sc.customerName,payloadSubmitted:payload,litePayloadSubmitted:lite};
+  }
+  async function hardCustomerSave(mode){
+    var opts; if(mode==='contract') opts=buildContractProposal(); else if(mode==='stay') opts=buildStayProposal(); else opts=buildDogsProposal();
+    return await writeProposal(opts);
+  }
+  async function hardReviewSave(){
+    var row=reviewRow(); if(!row) throw new Error('Kein Vorschlag im Prüfmodus gefunden.');
+    window.__gb358ProposalWriting=true;
+    try{
+      setDiag('reviewSave start row='+S(row.id||row.taskId||row.proposalId), false);
+      var ok=false, res=null;
+      if(typeof window.dsGB353AcceptProposal==='function'){ res=await window.dsGB353AcceptProposal(row); ok = res!==false; }
+      else if(typeof window.dsSaveProposalReview==='function' && !window.dsSaveProposalReview.__gb358Wrapped){ res=await window.dsSaveProposalReview(row); ok=res!==false; }
+      else throw new Error('Keine Übernahmefunktion gefunden.');
+      await writeSlimWorkspace('review-save-accepted');
+      notice('✅ Vorschlag übernommen und gespeichert.', false);
+      setDiag('reviewSave ok row='+S(row.id||row.taskId||row.proposalId), false);
+      return {ok:ok, result:res};
+    }catch(e){ setDiag('reviewSave fail '+S(e&&e.message||e), true); notice('❌ Vorschlag konnte nicht übernommen werden: '+S(e&&e.message||e), true); throw e; }
+    finally{ setTimeout(function(){ window.__gb358ProposalWriting=false; }, 900); }
+  }
+  try{ window.dsGB358HardReviewSave=hardReviewSave; }catch(_){ }
+
+  function repairCustomerContractScope(){
+    if(!customerMode()) return;
+    try{
+      var sc=scope(); var cid=S(sc.customerId), pid=S(sc.petId), cname=sc.customerName, pname=sc.petName;
+      var cs=document.getElementById('contractCustomerSelect'); if(cs&&cid){ cs.innerHTML='<option value="'+esc(cid)+'">'+esc(cname)+'</option>'; cs.value=cid; cs.disabled=true; cs.setAttribute('disabled','disabled'); cs.style.pointerEvents='none'; }
+      var ps=document.getElementById('contractPetSelect'); if(ps&&pid){ ps.innerHTML='<option value="'+esc(pid)+'">'+esc(pname)+'</option>'; ps.value=pid; ps.disabled=true; ps.setAttribute('disabled','disabled'); ps.style.pointerEvents='none'; }
+      var save=document.getElementById('contractSaveBtn'); if(save) save.textContent='Vorschlag senden';
+      [].slice.call(document.querySelectorAll('button')).forEach(function(b){
+        if(!/Öffnen/i.test(S(b.textContent))) return;
+        var card=b.closest('.card,.item,.list-item,section,div'); var txt=S(card&&card.textContent);
+        if(/Vorhandene Betreuungsverträge|v1\.0|Max Mustermann|Hans Dampf|Rex|Nänzi|Sonja Sonnenschein|Bello/i.test(txt)){
+          var own=(cname&&txt.indexOf(cname)>=0) || (pname&&txt.indexOf(pname)>=0);
+          var foreign=/Max Mustermann|Hans Dampf|Rex|Nänzi/i.test(txt) && !(cname&&/Max Mustermann|Hans Dampf/i.test(cname));
+          if(!own || foreign){ try{ card.style.display='none'; }catch(_){ } }
+        }
+      });
+    }catch(_){ }
+  }
+
+  document.addEventListener('click', function(ev){
+    try{
+      var b=ev.target&&ev.target.closest&&ev.target.closest('button'); if(!b) return;
+      var txt=L(b.textContent), id=S(b.id);
+      if(customerMode() && (txt==='abmelden' || id==='btnCustomerLogout' || id==='btnLogoutTop' || id==='btnLogoutApp')){
+        ev.preventDefault(); ev.stopPropagation(); try{ev.stopImmediatePropagation();}catch(_){ }
+        try{ window.__dsLogoutInFlight=true; }catch(_){ }
+        var go=function(){ try{ location.href='login.html?v='+encodeURIComponent(BUILD); }catch(_){ location.href='login.html'; } };
+        try{ var a=(window.CLOUD&&CLOUD.auth)||(fb()&&fb().auth&&fb().auth()); if(a&&a.signOut){ Promise.race([a.signOut().catch(function(){}),new Promise(function(r){setTimeout(r,900);})]).then(go).catch(go); setTimeout(go,1300); return false; } }catch(_){ }
+        go(); return false;
+      }
+      if(reviewMode() && (/speichern|übernehmen/.test(txt+id)) && !/pdf|drucken/.test(txt+id)){
+        ev.preventDefault(); ev.stopPropagation(); try{ev.stopImmediatePropagation();}catch(_){ }
+        if(window.__gb358ReviewClickLock && now()-window.__gb358ReviewClickLock<2500) return false; window.__gb358ReviewClickLock=now();
+        hardReviewSave().catch(function(){}); return false;
+      }
+      if(customerMode() && (/speichern|vorschlag senden|senden|aufenthalt beantragen/.test(txt+id)) && !/pdf|drucken|unterschrift|löschen/.test(txt+id)){
+        ev.preventDefault(); ev.stopPropagation(); try{ev.stopImmediatePropagation();}catch(_){ }
+        if(window.__gb358CustomerClickLock && now()-window.__gb358CustomerClickLock<2200) return false; window.__gb358CustomerClickLock=now();
+        var mode=currentMode(b); notice('Speichern läuft …', false);
+        hardCustomerSave(mode).catch(function(e){ notice('❌ Speichern fehlgeschlagen: '+S(e&&e.message||e), true); });
+        return false;
+      }
+      setTimeout(repairCustomerContractScope,60);
+    }catch(e){ try{ setDiag('clickGuard error '+S(e&&e.message||e), true); }catch(_){ } }
+  }, true);
+
+  try{ window.addEventListener('error',function(ev){ try{ if(/showSteuerberaterExportInfo|closeMonth/i.test(S(ev&&ev.message))){ setDiag('suppressed missing helper '+S(ev&&ev.message), true); } }catch(_){ } }); }catch(_){ }
+  try{ document.addEventListener('DOMContentLoaded',repairCustomerContractScope); window.addEventListener('load',repairCustomerContractScope); setInterval(repairCustomerContractScope,1000); }catch(_){ }
+  try{ var badge=document.getElementById('buildBadge')||document.getElementById('customerPortalBuildBottom'); if(badge) badge.textContent=(badge.id==='customerPortalBuildBottom'?'Build CUSTOMER ':'Build (MASTER) ')+BUILD; }catch(_){ }
+  setDiag('installed', false);
+})();
+/* ===== END GB358 HARD PROPOSAL SAVE + REVIEW SCOPE FIX ===== */

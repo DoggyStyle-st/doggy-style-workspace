@@ -170,3 +170,10 @@ GB356 · M50.9.9GB356_DIAG_ALWAYS_VISIBLE_SAVE_TRACE_20260518_ROOTONLY
 - Diagnose-Brücke in app.html eingebaut, damit die Diagnose nach Weiterleitung in die Haupt-App sichtbar bleibt.
 - Save-Trace erweitert: UI-Klicks, Firestore set/update/delete/add, Promise-/Window-Fehler, cid/pid, Pfad, Payload-Größe.
 - Keine fachliche Übernahme-/Scope-Logik korrigiert; Build dient zur belastbaren Fehlerlokalisierung.
+
+
+GB358 - HARD_PROPOSAL_SAVE_REVIEW_SCOPE
+- Hard-Stop für Full workspace_state Push in Kunden-App und Prüfmodus.
+- Direkte kleine Vorschlagsdokumente für Kunde/Hund, Betreuungsvertrag und Aufenthalt.
+- showSteuerberaterExportInfo Stub gegen ReferenceError.
+- Review-Speichern nutzt schlanken Persist statt 11MB Payload.
