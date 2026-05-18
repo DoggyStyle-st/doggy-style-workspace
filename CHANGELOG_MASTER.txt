@@ -152,7 +152,7 @@ GB345 - MED_DASHBOARD_ACTIVE_STAYS_ONLY
 - §11-Medikationsstatus nutzt dieselbe Aktiv-Aufenthalt-Prüfung.
 
 
-[M50.9.9GB354_VISIBLE_BUILD_CACHE_FORCE_20260518_ROOTONLY]
+[M50.9.9GB355_DIAG_CUSTOMER_PROPOSAL_SCOPE_20260518_ROOTONLY]
 - GB347: Hunde/Kunden-Aktionsbuttons Vertrag/Bearbeiten/Löschen repariert.
 - Destruktives row.innerHTML-Rewrite im Vertrags-Badge-Fix entfernt, damit Button-Handler erhalten bleiben.
 - Delegierter Sicherheits-Clickhandler für #dogList ergänzt.

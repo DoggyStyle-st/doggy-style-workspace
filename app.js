@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB354_VISIBLE_BUILD_CACHE_FORCE_20260518_ROOTONLY",
+  tag: "M50.9.9GB355_DIAG_CUSTOMER_PROPOSAL_SCOPE_20260518_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,8 +12,8 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB354_VISIBLE_BUILD_CACHE_FORCE_20260518_ROOTONLY";
-try{ window.__dsAppJsRuntimeBuild = 'GB354-appjs'; }catch(_){ }
+const APP_BUILD = "M50.9.9GB355_DIAG_CUSTOMER_PROPOSAL_SCOPE_20260518_ROOTONLY";
+try{ window.__dsAppJsRuntimeBuild = 'GB355-appjs'; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
 // Global helper functions used across proposal-review matching.
@@ -3796,7 +3796,7 @@ async function submitCustomerContractProposalMain(){
         version: contractVersion,
         contractVersion: contractVersion,
         submittedFrom: 'app.html?customer_mode=contract',
-        build: 'M50.9.9GB354_VISIBLE_BUILD_CACHE_FORCE_20260518_ROOTONLY'
+        build: 'M50.9.9GB355_DIAG_CUSTOMER_PROPOSAL_SCOPE_20260518_ROOTONLY'
       },
       signature: { dataUrl: signatureDataUrl, signatureDataUrl: signatureDataUrl, signedAt: signatureAt, signatureAt: signatureAt },
       signatureRec: { dataUrl: signatureDataUrl, signatureDataUrl: signatureDataUrl, signedAt: signatureAt, signatureAt: signatureAt, customerId, petId, customerName, petName, version: contractVersion, contractVersion },
@@ -25713,7 +25713,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB354_VISIBLE_BUILD_CACHE_FORCE_20260518_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB355_DIAG_CUSTOMER_PROPOSAL_SCOPE_20260518_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -27686,7 +27686,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB354_VISIBLE_BUILD_CACHE_FORCE_20260518_ROOTONLY";
+  const BUILD = "M50.9.9GB355_DIAG_CUSTOMER_PROPOSAL_SCOPE_20260518_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -30363,7 +30363,7 @@ try{ window.__GB191_MARKER = 'active'; }catch(_){ }
     try{ ds166OpenRowByKey = window.ds166OpenRowByKey; }catch(_){ }
   }catch(_){ }
 })();
-try{ window.__dsAppJsRuntimeBuild = 'GB354-appjs'; }catch(_){}
+try{ window.__dsAppJsRuntimeBuild = 'GB355-appjs'; }catch(_){}
 /* ===== END GB194 ===== */
 
 
@@ -31276,7 +31276,7 @@ try{ window.__GB294_MARKER = 'active'; }catch(_){ }
 /* ===== GB295 contract review verified open + reset fix ===== */
 try{ window.__GB295_MARKER = 'active'; }catch(_){ }
 (function(){
-  const BUILD = "M50.9.9GB354_VISIBLE_BUILD_CACHE_FORCE_20260518_ROOTONLY";
+  const BUILD = "M50.9.9GB355_DIAG_CUSTOMER_PROPOSAL_SCOPE_20260518_ROOTONLY";
   function ds295Clone(v){ try{ return JSON.parse(JSON.stringify(v == null ? null : v)); }catch(_){ return v; } }
   function ds295Norm(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
   function ds295Bool(v){ try{ if(v===true||v===false) return !!v; const s=String(v==null?'':v).trim().toLowerCase(); return s==='1'||s==='true'||s==='yes'||s==='ja'||s==='on'; }catch(_){ return false; } }
@@ -31925,7 +31925,7 @@ try{ window.__GB297_MARKER = 'active'; }catch(_){ }
       try{ const btn = document.getElementById('btnContractRefresh'); if(btn){ btn.onclick = null; btn.addEventListener('click', wrappedRefresh); } }catch(_){ }
     }
   }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB354-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB355-appjs'; }catch(_){ }
 })();
 /* ===== END GB297 ===== */
 
@@ -32199,7 +32199,7 @@ try{ window.__GB298_MARKER = 'active'; }catch(_){ }
   try{
     if(ds298ApplyRescueIntoState()) ds298PersistStateSilently();
   }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB354-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB355-appjs'; }catch(_){ }
 })();
 /* ===== END GB298 ===== */
 
@@ -32491,7 +32491,7 @@ try{ window.__GB299_MARKER = 'active'; }catch(_){ }
     ds299WriteRescueUnion(snap.contractSignatures, snap.contractAgreements);
     if(ds299ApplyRescueIntoState()) ds299PersistLocalOnly();
   }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB354-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB355-appjs'; }catch(_){ }
 })();
 /* ===== END GB299 ===== */
 
@@ -32859,7 +32859,7 @@ try{ window.__GB300_MARKER = 'active'; }catch(_){ }
     }
   }catch(_){ }
   try{ ds300ApplyUnionIntoState(); ds300WriteUnion(); }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB354-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB355-appjs'; }catch(_){ }
 })();
 /* ===== END GB300 ===== */
 
@@ -33296,7 +33296,7 @@ try{ window.__GB301_MARKER = 'active'; }catch(_){ }
   }catch(_){ }
   try{ ds301ApplyUnionIntoState(); ds301WriteUnion(); }catch(_){ }
   try{ window.__dsContractMainNormalize = ds301PopulateNormalContractUi; }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB354-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB355-appjs'; }catch(_){ }
 })();
 /* ===== END GB301 ===== */
 
@@ -33487,7 +33487,7 @@ try{ window.__GB302_MARKER = 'active'; }catch(_){ }
   }catch(_){ }
   try{ ds302ApplyUnion(); ds302WriteUnion(); }catch(_){ }
   try{ window.__dsContractMainHardReset = ds302ResetContractMainUi; }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB354-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB355-appjs'; }catch(_){ }
 })();
 /* ===== END GB302 ===== */
 
@@ -33947,7 +33947,7 @@ try{ window.__GB303_MARKER = 'active'; }catch(_){ }
   }catch(_){ }
   try{ ds303ApplyUnion(); ds303WriteUnion(); }catch(_){ }
   try{ window.__dsContractMainNormalize = ds303NormalizeMainUi; }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB354-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB355-appjs'; }catch(_){ }
 })();
 /* ===== END GB303 ===== */
 
@@ -34066,7 +34066,7 @@ try{ window.__GB304_MARKER = 'active'; }catch(_){ }
     }
   }catch(_){ }
   try{ window.__dsContractReviewExitToMainGB304 = ds304ExitReviewToMain; }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB354-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB355-appjs'; }catch(_){ }
 })();
 /* ===== END GB304 ===== */
 
@@ -34249,7 +34249,7 @@ try{ window.__GB305_MARKER = 'active'; }catch(_){ }
       try{ window.hasValidContract = wrapped; }catch(_){ }
     }
   }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB354-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB355-appjs'; }catch(_){ }
 })();
 /* ===== END GB305 ===== */
 
@@ -34453,14 +34453,14 @@ try{ window.__GB306_MARKER = 'active'; }catch(_){ }
       window.__dsContractReviewSubmitHook = wrappedReviewHook;
     }
   }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB354-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB355-appjs'; }catch(_){ }
 })();
 /* ===== END GB306 ===== */
 
 
 /* ===== GB307 contract diagnostics panel ===== */
 try{ window.__GB307_MARKER = 'active'; }catch(_){ }
-try{ window.__dsAppJsRuntimeBuild = 'GB354-appjs'; }catch(_){ }
+try{ window.__dsAppJsRuntimeBuild = 'GB355-appjs'; }catch(_){ }
 (function(){
   const DIAG = window.__dsContractDiag = window.__dsContractDiag || {};
   const UNION_KEYS = [
@@ -34682,7 +34682,7 @@ try{ window.__dsAppJsRuntimeBuild = 'GB354-appjs'; }catch(_){ }
 
 /* ===== GB308 contract diagnostics hard mount ===== */
 try{ window.__GB308_MARKER = 'active'; }catch(_){ }
-try{ window.__dsAppJsRuntimeBuild = 'GB354-appjs'; }catch(_){ }
+try{ window.__dsAppJsRuntimeBuild = 'GB355-appjs'; }catch(_){ }
 (function(){
   const DIAG = window.__dsContractDiag = window.__dsContractDiag || {};
   function norm(v){ return String(v == null ? '' : v).trim(); }
@@ -34863,7 +34863,7 @@ try{ window.__GB311_MARKER = 'active'; }catch(_){ }
 
 /* ===== GB312 contract canonical validity + refresh repair ===== */
 try{ window.__GB312_MARKER = 'active'; }catch(_){ }
-try{ window.__dsAppJsRuntimeBuild = 'GB354-appjs'; }catch(_){ }
+try{ window.__dsAppJsRuntimeBuild = 'GB355-appjs'; }catch(_){ }
 (function(){
   function n(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
   function lc(v){ return n(v).toLowerCase(); }
@@ -35049,7 +35049,7 @@ try{ window.__dsAppJsRuntimeBuild = 'GB354-appjs'; }catch(_){ }
 /* ===== END GB312 ===== */
 
 /* ===== GB313 contract click-release + canonical badge hardfix ===== */
-try{ window.__GB313_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB354-appjs'; }catch(_){ }
+try{ window.__GB313_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB355-appjs'; }catch(_){ }
 (function(){
   function n(v){try{return String(v==null?'':v).trim();}catch(_){return ''}}
   function lc(v){return n(v).toLowerCase()}
@@ -35101,7 +35101,7 @@ try{ window.__GB313_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB354-appjs
 /* ===== END GB313 ===== */
 
 /* ===== GB314 hard contract review release + green badge repair ===== */
-try{ window.__GB314_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB354-appjs'; }catch(_){ }
+try{ window.__GB314_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB355-appjs'; }catch(_){ }
 (function(){
   function N(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
   function L(v){ return N(v).toLowerCase(); }
@@ -35282,9 +35282,9 @@ try{ window.__GB314_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB354-app
 /* ===== END GB314 ===== */
 
 /* ===== GB315 final contract acceptance + badge DOM hardfix ===== */
-try{ window.__GB315_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB354-appjs'; }catch(_){ }
+try{ window.__GB315_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB355-appjs'; }catch(_){ }
 (function(){
-  var BUILD='M50.9.9GB354_VISIBLE_BUILD_CACHE_FORCE_20260518_ROOTONLY';
+  var BUILD='M50.9.9GB355_DIAG_CUSTOMER_PROPOSAL_SCOPE_20260518_ROOTONLY';
   function S(v){ try{return String(v==null?'':v).trim();}catch(_){return '';} }
   function L(v){ return S(v).toLowerCase(); }
   function esc(v){ try{return CSS && CSS.escape ? CSS.escape(S(v)) : S(v).replace(/[^a-zA-Z0-9_-]/g,'\\$&');}catch(_){return S(v);} }
@@ -35429,7 +35429,7 @@ try{ window.__GB315_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB354-app
 /* ===== END GB315 ===== */
 
 /* ===== GB316 contract signature-valid + passive repair loop ===== */
-try{ window.__GB316_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB354-appjs'; }catch(_){ }
+try{ window.__GB316_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB355-appjs'; }catch(_){ }
 (function(){
   function S(v){ try{ return String(v==null?'':v).trim(); }catch(_){ return ''; } }
   function L(v){ return S(v).toLowerCase(); }
@@ -35471,7 +35471,7 @@ try{ window.__GB316_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB354-appjs
 
 
 /* ===== GB317 contract real save + unlock ===== */
-try{window.__GB317_MARKER='active';window.__dsAppJsRuntimeBuild = 'GB354-appjs'}catch(_){ }
+try{window.__GB317_MARKER='active';window.__dsAppJsRuntimeBuild = 'GB355-appjs'}catch(_){ }
 (function(){
 function S(v){return String(v==null?'':v).trim()}function L(v){return S(v).toLowerCase()}function V(){try{return S(state.contractVersion||state.contract?.version||'v1.0')||'v1.0'}catch(_){return'v1.0'}}function pets(){try{return Array.isArray(state.pets)?state.pets:[]}catch(_){return[]}}function custs(){try{return Array.isArray(state.customers)?state.customers:[]}catch(_){return[]}}function pn(p){return S(p&&(p.name||p.petName||p.dogName||p.id||p.petId||p.dogId))}function cn(c){return S(c&&(c.name||c.displayName||c.lastName||c.email||c.id||c.customerId))}
 function fc(x){var lx=L(x),r=null;if(!lx)return null;try{if(typeof getCustomer==='function')r=getCustomer(S(x))||null}catch(_){ }return r||custs().find(c=>[c.id,c.customerId,c.uid,c.key,c.email,c.name,c.displayName,c.lastName].map(L).includes(lx))||null}
@@ -35495,9 +35495,9 @@ try{var rd=renderDogs;if(rd&&!rd.__gb317Wrapped){renderDogs=function(){var r=rd.
 /* ===== END GB317 ===== */
 
 /* ===== GB318 contract hard bypass: accept not required when signature exists + generic green repair ===== */
-try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB354-appjs'; }catch(_){ }
+try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB355-appjs'; }catch(_){ }
 (function(){
-  var BUILD='M50.9.9GB354_VISIBLE_BUILD_CACHE_FORCE_20260518_ROOTONLY';
+  var BUILD='M50.9.9GB355_DIAG_CUSTOMER_PROPOSAL_SCOPE_20260518_ROOTONLY';
   function S(v){try{return String(v==null?'':v).trim()}catch(_){return''}}
   function L(v){return S(v).toLowerCase()}
   function V(){try{return S((state&&(state.contractVersion||(state.contract&&state.contract.version)))||'v1.0')||'v1.0'}catch(_){return'v1.0'}}
@@ -35626,7 +35626,7 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB354-appjs
   'use strict';
   if(window.__dsGB348CustomerProposalRepairInstalled) return;
   window.__dsGB348CustomerProposalRepairInstalled = true;
-  var BUILD='M50.9.9GB354_VISIBLE_BUILD_CACHE_FORCE_20260518_ROOTONLY';
+  var BUILD='M50.9.9GB355_DIAG_CUSTOMER_PROPOSAL_SCOPE_20260518_ROOTONLY';
   function S(v){try{return String(v==null?'':v).trim()}catch(_){return''}}
   function lower(v){return S(v).toLowerCase()}
   function makeId(){try{return (typeof uid==='function'?uid():('proposal_'+Date.now()+'_'+Math.random().toString(36).slice(2,8)))}catch(_){return 'proposal_'+Date.now()}}
@@ -35720,7 +35720,7 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB354-appjs
   'use strict';
   if(window.__dsGB349CustomerReviewFixInstalled) return;
   window.__dsGB349CustomerReviewFixInstalled = true;
-  var BUILD='M50.9.9GB354_VISIBLE_BUILD_CACHE_FORCE_20260518_ROOTONLY';
+  var BUILD='M50.9.9GB355_DIAG_CUSTOMER_PROPOSAL_SCOPE_20260518_ROOTONLY';
   function S(v){ try{return String(v==null?'':v).trim();}catch(_){return '';} }
   function L(v){ return S(v).toLowerCase(); }
   function arr(a){ return Array.isArray(a) ? a : []; }
@@ -35869,7 +35869,7 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB354-appjs
   'use strict';
   if(window.__dsGB351SuccessNoticeInstalled) return;
   window.__dsGB351SuccessNoticeInstalled = true;
-  var BUILD = 'M50.9.9GB354_VISIBLE_BUILD_CACHE_FORCE_20260518_ROOTONLY';
+  var BUILD = 'M50.9.9GB355_DIAG_CUSTOMER_PROPOSAL_SCOPE_20260518_ROOTONLY';
   function S(v){ try{return String(v==null?'':v).trim();}catch(_){return '';} }
   function L(v){ return S(v).toLowerCase(); }
   function isOk(res){ return !!(res && (res.ok === true || res === true || (typeof res === 'object' && !res.error && !res.skipped))); }
@@ -35950,7 +35950,7 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB354-appjs
   document.addEventListener('DOMContentLoaded', install, {once:true});
   setTimeout(install, 400);
   setTimeout(install, 1400);
-  try{ window.__dsAppJsRuntimeBuild = 'GB354-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB355-appjs'; }catch(_){ }
 })();
 /* ===== END GB351 ===== */
 
@@ -35963,7 +35963,7 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB354-appjs
   'use strict';
   if(window.__dsGB352CustomerLocalFirstInstalled) return;
   window.__dsGB352CustomerLocalFirstInstalled = true;
-  var BUILD = 'M50.9.9GB354_VISIBLE_BUILD_CACHE_FORCE_20260518_ROOTONLY';
+  var BUILD = 'M50.9.9GB355_DIAG_CUSTOMER_PROPOSAL_SCOPE_20260518_ROOTONLY';
   var LS = 'ds_workspace_test_optik_01';
   var PROP = 'ds_customer_proposals_v1';
   function S(v){ try{return String(v==null?'':v).trim();}catch(_){return '';} }
@@ -36203,7 +36203,7 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB354-appjs
   }
   wrapAdminNoReturn(); setTimeout(wrapAdminNoReturn,500); setTimeout(wrapAdminNoReturn,1800);
   if(isCustomerMode()) setTimeout(markSession,250);
-  try{ window.__dsAppJsRuntimeBuild = 'GB354-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB355-appjs'; }catch(_){ }
 })();
 /* ===== END GB352 ===== */
 
@@ -36214,7 +36214,7 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB354-appjs
   'use strict';
   if(window.__dsGB353ScopeProposalReviewInstalled) return;
   window.__dsGB353ScopeProposalReviewInstalled = true;
-  var BUILD = 'M50.9.9GB354_VISIBLE_BUILD_CACHE_FORCE_20260518_ROOTONLY';
+  var BUILD = 'M50.9.9GB355_DIAG_CUSTOMER_PROPOSAL_SCOPE_20260518_ROOTONLY';
   var LS_KEY_GB353 = 'ds_workspace_test_optik_01';
   var PROP_KEY_GB353 = 'ds_customer_proposals_v1';
 
@@ -36661,6 +36661,145 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB354-appjs
     }catch(_){ }
   }, true);
 
-  try{ window.__dsAppJsRuntimeBuild = 'GB354-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB355-appjs'; }catch(_){ }
 })();
 /* ===== END GB353 CUSTOMER SCOPE + PROPOSAL REVIEW STABILITY LAYER ===== */
+
+
+/* ===== GB355 DIAGNOSE: Haupt-App Eingänge / Vorschläge / Scope ===== */
+(function(){
+  'use strict';
+  if(window.__gb355MainDiagInstalled) return;
+  try{ if(String((location && location.pathname) || '').toLowerCase().indexOf('customer.html') >= 0) return; }catch(_){ }
+  window.__gb355MainDiagInstalled = true;
+  var BUILD = 'M50.9.9GB355_DIAG_CUSTOMER_PROPOSAL_SCOPE_20260518_ROOTONLY';
+  var LOG_KEY = 'ds_gb355_diag_log';
+  function S(v){ try{return String(v == null ? '' : v).trim();}catch(_){return '';} }
+  function L(v){ return S(v).toLowerCase(); }
+  function A(v){ return Array.isArray(v) ? v : []; }
+  function safe(fn, fallback){ try{return fn();}catch(_){return fallback;} }
+  function localJSON(k, fallback){ try{ var raw=localStorage.getItem(k); return raw ? JSON.parse(raw) : fallback; }catch(_){ return fallback; } }
+  function stateObj(){ return safe(function(){ return (typeof state !== 'undefined' && state) ? state : (typeof loadState === 'function' ? loadState() : localJSON('ds_workspace_test_optik_01', {})); }, {}); }
+  function authUser(){ return safe(function(){ return (window.CLOUD && CLOUD.user) || (window.firebase && firebase.auth && firebase.auth().currentUser) || null; }, null); }
+  function orgId(){ return S(safe(function(){ return (typeof cloudOrgId === 'function' ? cloudOrgId() : '') || window.CLOUD_ORG_ID || window.firebaseOrgId || (window.firebaseConfig && window.firebaseConfig.orgId) || localStorage.getItem('ds_orgId') || 'doggystyle'; }, 'doggystyle')) || 'doggystyle'; }
+  function recSave(rec){
+    try{
+      rec = Object.assign({at:Date.now(), iso:new Date().toISOString(), build:BUILD, page:'app'}, rec||{});
+      var box = window.__gb355Diag || (window.__gb355Diag = {events:[]});
+      box.events.push(rec); if(box.events.length>80) box.events = box.events.slice(-80);
+      var list = localJSON(LOG_KEY, []); list.push(rec); if(list.length>250) list = list.slice(-250); localStorage.setItem(LOG_KEY, JSON.stringify(list));
+      try{ console.log('GB355_DIAG', rec); }catch(_){ }
+      renderSoon();
+    }catch(_){ }
+  }
+  function typeOfProposal(x){
+    var p = (x && (x.payloadSubmitted || x.payload || x.data)) || {};
+    var raw = L((x && (x.templateId || x.proposalType || x.kind || x.formKey || x.type || x.title)) || (p && (p.templateId || p.type || p.source || p.title)) || '');
+    if(raw.indexOf('hundeannahme')>=0 || raw.indexOf('aufenthalt')>=0 || raw.indexOf('stay')>=0) return 'aufenthalt';
+    if(raw.indexOf('boarding_contract')>=0 || raw.indexOf('betreuungsvertrag')>=0 || raw.indexOf('contract')>=0) return 'betreuungsvertrag';
+    if(raw.indexOf('customer_data')>=0 || raw.indexOf('kunde')>=0 || raw.indexOf('hund')>=0 || raw.indexOf('dog')>=0) return 'kunde/hund';
+    return raw || 'unbekannt';
+  }
+  function typeCounts(list){ var out={}; A(list).forEach(function(x){ var t=typeOfProposal(x); out[t]=(out[t]||0)+1; }); return out; }
+  function proposalKey(x){ return S(x && (x.id || x.taskId || x.proposalId || x.proposal || x.rowKey || x.__sourceKey)); }
+  function shortId(v){ v=S(v); return v ? (v.length>12 ? v.slice(0,6)+'…'+v.slice(-4) : v) : '-'; }
+  function getSelectedContract(){
+    return safe(function(){
+      var cs=document.getElementById('contractCustomerSelect'); var ps=document.getElementById('contractPetSelect');
+      var cTxt=cs && cs.options && cs.selectedIndex>=0 ? S(cs.options[cs.selectedIndex].textContent) : '';
+      var pTxt=ps && ps.options && ps.selectedIndex>=0 ? S(ps.options[ps.selectedIndex].textContent) : '';
+      return {customerId:S(cs&&cs.value), petId:S(ps&&ps.value), customerText:cTxt, petText:pTxt, accept:!!(document.getElementById('contractAcceptChk')&&document.getElementById('contractAcceptChk').checked)};
+    }, {});
+  }
+  function rowLine(x){
+    if(!x) return '';
+    var p=(x.payloadSubmitted||x.payload||{});
+    var cid=S(x.customerId||p.customerId||(p.meta&&p.meta.customerId)||(p.customer&&(p.customer.customerId||p.customer.id)));
+    var pid=S(x.petId||x.dogId||p.petId||p.dogId||(p.meta&&p.meta.petId)||(p.pet&&(p.pet.petId||p.pet.id||p.pet.dogId)));
+    return typeOfProposal(x)+' '+shortId(proposalKey(x))+' '+S(x.customerName||p.customerName||(p.customer&&p.customer.name)||x.customerEmail||'')+'/'+S(x.petName||p.petName||(p.pet&&p.pet.name)||'')+' cid='+shortId(cid)+' pid='+shortId(pid)+' src='+(x.__source||p.source||'-');
+  }
+  function compute(){
+    var st=stateObj(); var u=authUser();
+    var localState=localJSON('ds_workspace_test_optik_01', {});
+    var buffer=localJSON('ds_customer_proposals_v1', []);
+    var pending=localJSON('ds_pending_portal_proposals', []);
+    var inboxLast=A(window.__dsInboxLastTasks);
+    var stateInbox=A(st.inboxAssignments).concat(A(st.inboxSubmissions));
+    var localInbox=A(localState.inboxAssignments).concat(A(localState.inboxSubmissions));
+    var all=inboxLast.length?inboxLast:stateInbox.concat(buffer).concat(pending);
+    var sel=getSelectedContract();
+    var last=(window.__gb355Diag && window.__gb355Diag.events && window.__gb355Diag.events.length) ? window.__gb355Diag.events[window.__gb355Diag.events.length-1] : null;
+    return {
+      build:BUILD, org:orgId(), email:S(u&&u.email), uid:shortId(u&&u.uid), role:S(window.CLOUD&&CLOUD.role),
+      counts:{customers:A(st.customers||st.kunden).length,pets:A(st.pets||st.dogs||st.hunde).length,docs:A(st.docs).length,inboxLast:inboxLast.length,stateInbox:stateInbox.length,localInbox:localInbox.length,buffer:buffer.length,pending:pending.length},
+      typesLast:typeCounts(inboxLast), typesAll:typeCounts(all), selected:sel, latest:A(all).slice(0,6).map(rowLine), last:last
+    };
+  }
+  function panel(){
+    var el=document.getElementById('gb355MainDiagPanel');
+    if(!el){
+      el=document.createElement('div'); el.id='gb355MainDiagPanel';
+      el.style.cssText='position:fixed;left:12px;bottom:48px;z-index:99999;max-width:680px;max-height:38vh;overflow:auto;background:rgba(6,12,22,.94);color:#dbeafe;border:1px solid rgba(96,165,250,.55);border-radius:14px;padding:10px 12px;font:12px/1.35 ui-monospace,SFMono-Regular,Menlo,monospace;box-shadow:0 10px 30px rgba(0,0,0,.38);white-space:pre-wrap;word-break:break-word;';
+      document.body.appendChild(el);
+    }
+    return el;
+  }
+  function render(){
+    try{
+      var d=compute(); var last=d.last||{};
+      var lines=[];
+      lines.push('GB355 DIAG Haupt-App');
+      lines.push('auth: '+(d.email||'-')+' uid='+d.uid+' role='+(d.role||'-')+' org='+d.org);
+      lines.push('state: kunden='+d.counts.customers+' hunde='+d.counts.pets+' docs='+d.counts.docs+' inboxLast='+d.counts.inboxLast+' stateInbox='+d.counts.stateInbox+' localInbox='+d.counts.localInbox+' buffer='+d.counts.buffer+' pending='+d.counts.pending);
+      lines.push('typen last: '+JSON.stringify(d.typesLast)+' | alle: '+JSON.stringify(d.typesAll));
+      lines.push('vertrag-auswahl: cid='+shortId(d.selected.customerId)+' pid='+shortId(d.selected.petId)+' '+(d.selected.customerText||'-')+' / '+(d.selected.petText||'-')+' accept='+(d.selected.accept?'1':'0'));
+      lines.push('letztes event: '+S(last.step||last.fn||last.type||'-')+' '+S(last.status||last.message||last.path||'')+' '+S(last.error||''));
+      lines.push('neueste zeilen:');
+      (d.latest||[]).forEach(function(x,i){ lines.push((i+1)+'. '+x); });
+      var el=panel();
+      el.innerHTML='<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px"><b>GB355 Diagnose</b><button id="gb355CopyDiagMain" type="button" style="font:12px system-ui;padding:3px 8px;border-radius:8px;border:1px solid #60a5fa;background:#111827;color:#dbeafe">Kopieren</button><button id="gb355HideDiagMain" type="button" style="font:12px system-ui;padding:3px 8px;border-radius:8px;border:1px solid #60a5fa;background:#111827;color:#dbeafe">Ausblenden</button></div><pre style="margin:0;white-space:pre-wrap">'+lines.map(function(x){return x.replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}).join('\n')+'</pre>';
+      var c=document.getElementById('gb355CopyDiagMain'); if(c && !c.__bound){ c.__bound=true; c.onclick=function(){ var dump=window.GB355_DIAG_DUMP&&window.GB355_DIAG_DUMP(); try{navigator.clipboard&&navigator.clipboard.writeText(dump||'');}catch(_){} alert('GB355 Diagnose kopiert.'); }; }
+      var h=document.getElementById('gb355HideDiagMain'); if(h && !h.__bound){ h.__bound=true; h.onclick=function(){ panel().style.display='none'; }; }
+    }catch(_){ }
+  }
+  var renderTimer=0; function renderSoon(){ clearTimeout(renderTimer); renderTimer=setTimeout(render,80); }
+  function wrapFunction(name){
+    try{
+      var fn=window[name]; if(typeof fn!=='function' || fn.__gb355Wrapped) return;
+      var wrapped=function(){
+        var args=arguments; var callId=name+'_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
+        recSave({step:'call:start',fn:name,callId:callId,argsCount:args.length});
+        var out, done=false, timer=setTimeout(function(){ if(!done) recSave({step:'call:pending>8s',fn:name,callId:callId}); },8000);
+        try{ out=fn.apply(this,args); }catch(e){ done=true; clearTimeout(timer); recSave({step:'call:throw',fn:name,callId:callId,error:S(e&&e.message||e)}); throw e; }
+        if(out && typeof out.then==='function'){
+          return out.then(function(res){ done=true; clearTimeout(timer); recSave({step:'call:ok',fn:name,callId:callId,ok:!!(res&&res.ok),path:S(res&&res.path),id:S(res&&(res.id||(res.task&&res.task.id)))}); return res; }, function(err){ done=true; clearTimeout(timer); recSave({step:'call:error',fn:name,callId:callId,error:S(err&&err.message||err)}); throw err; });
+        }
+        done=true; clearTimeout(timer); recSave({step:'call:return',fn:name,callId:callId,type:typeof out}); return out;
+      };
+      wrapped.__gb355Wrapped=true; wrapped.__gb355Original=fn; window[name]=wrapped;
+    }catch(_){ }
+  }
+  function patchFirestoreSet(){
+    try{
+      if(!window.firebase || !firebase.firestore || !firebase.firestore.DocumentReference) return;
+      var proto=firebase.firestore.DocumentReference.prototype; if(!proto || proto.__gb355SetWrapped) return;
+      var orig=proto.set; if(typeof orig!=='function') return;
+      proto.set=function(data,opts){
+        var path=S(this && this.path); var relevant=(path.indexOf('/proposals/')>=0 || path.indexOf('/tasks/')>=0 || path.indexOf('proposals/')===0 || path.indexOf('tasks/')===0);
+        if(relevant) recSave({step:'firestore.set:start',path:path,keys:Object.keys(data||{}).slice(0,18).join(','),templateId:S(data&&data.templateId),status:S(data&&data.status),proposalStatus:S(data&&data.proposalStatus)});
+        var p=orig.apply(this, arguments);
+        if(relevant && p && typeof p.then==='function') return p.then(function(v){ recSave({step:'firestore.set:ok',path:path}); return v; }, function(e){ recSave({step:'firestore.set:error',path:path,error:S(e&&e.message||e)}); throw e; });
+        return p;
+      };
+      proto.__gb355SetWrapped=true;
+    }catch(_){ }
+  }
+  function bind(){
+    ['__dsInboxReload','ds166OpenRowByKey','dsOpenContractProposalEditor','dsOpenStayProposalEditor','dsGB353AcceptProposal','dsSaveProposalReview','__dsInboxAdoptCurrent'].forEach(wrapFunction);
+    patchFirestoreSet(); renderSoon();
+  }
+  window.GB355_DIAG_DUMP=function(){ return JSON.stringify({runtime:compute(), events:(window.__gb355Diag&&window.__gb355Diag.events)||[], saved:localJSON(LOG_KEY,[])}, null, 2); };
+  document.addEventListener('click', function(ev){ try{ var b=ev.target&&ev.target.closest&&ev.target.closest('button'); if(!b) return; var txt=S(b.textContent); if(txt==='Öffnen' || txt==='Beantworten' || txt.indexOf('Speichern')>=0 || txt.indexOf('Übernehmen')>=0) recSave({step:'ui.click',button:txt,id:S(b.id),rowKey:S(b.dataset&&b.dataset.rowKey)}); }catch(_){ } }, true);
+  bind(); document.addEventListener('DOMContentLoaded', bind); window.addEventListener('load', bind); setInterval(bind,1600);
+})();
+/* ===== END GB355 DIAGNOSE ===== */

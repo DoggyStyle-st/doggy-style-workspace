@@ -1,0 +1,20 @@
+GB355_DIAG_CUSTOMER_PROPOSAL_SCOPE_20260518_ROOTONLY
+
+Reiner Diagnose-Build, keine fachliche Übernahme-/Speicherlogik absichtlich umgebaut.
+
+Eingebaut:
+- sichtbarer GB355 Diagnosekasten in der Haupt-App für Eingänge/Vorschläge
+- sichtbarer GB355 Portal-Diagnosekasten in der Kunden-App
+- Protokollierung von Vorschlag-Speichern, Vertrags-Speichern, Firestore-Schreibpfaden proposals/tasks
+- Anzeige von auth/email/uid/org, customerId, petId, ausgewähltem Vertrag, lokalen Proposal-Listen und Typ-Zählung
+- Warnzeile bei Vertrag-Mismatch: z.B. wenn Sonja/Bello ausgewählt ist, aber ein Vertrag/Signaturdatensatz mit anderer customerId/petId greift
+- Erkennung von hängenden Speichervorgängen nach >8 Sekunden: call:pending>8s
+- Diagnose kann über Button „Kopieren“ kopiert werden oder in der Konsole über GB355_DIAG_DUMP() / GB355_PORTAL_DIAG_DUMP()
+
+Bitte testen:
+1. Kunden-App als Sonja öffnen.
+2. Kunde/Hund-Vorschlag speichern.
+3. Betreuungsvertrag-Vorschlag speichern.
+4. Neuer Aufenthalt speichern.
+5. Haupt-App Eingänge öffnen und aktualisieren.
+6. Wenn es hängt: Screenshot des GB355 Diagnosekastens oder Button „Kopieren“ verwenden.

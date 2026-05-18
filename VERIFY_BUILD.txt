@@ -1,2 +1,3 @@
-M50.9.9GB354_VISIBLE_BUILD_CACHE_FORCE_20260518_ROOTONLY
-Build-Sichtprüfung: app.html, customer.html, app.js, sw.js, index.html, version.txt und verify.txt auf GB354 gesetzt.
+M50.9.9GB355_DIAG_CUSTOMER_PROPOSAL_SCOPE_20260518_ROOTONLY
+Build-Sichtprüfung: app.html, customer.html, app.js, sw.js, index.html, version.txt und verify.txt auf GB355 gesetzt.
+Diagnose: GB355_DIAGNOSE_HINWEIS.txt beachten.
