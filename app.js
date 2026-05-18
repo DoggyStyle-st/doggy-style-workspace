@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB356_DIAG_ALWAYS_VISIBLE_SAVE_TRACE_20260518_ROOTONLY",
+  tag: "M50.9.9GB357_TARGETED_PROPOSAL_PAYLOAD_SCOPE_FIX_20260518_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,8 +12,8 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB356_DIAG_ALWAYS_VISIBLE_SAVE_TRACE_20260518_ROOTONLY";
-try{ window.__dsAppJsRuntimeBuild = 'GB356-appjs'; }catch(_){ }
+const APP_BUILD = "M50.9.9GB357_TARGETED_PROPOSAL_PAYLOAD_SCOPE_FIX_20260518_ROOTONLY";
+try{ window.__dsAppJsRuntimeBuild = 'GB357-appjs'; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
 // Global helper functions used across proposal-review matching.
@@ -3796,7 +3796,7 @@ async function submitCustomerContractProposalMain(){
         version: contractVersion,
         contractVersion: contractVersion,
         submittedFrom: 'app.html?customer_mode=contract',
-        build: 'M50.9.9GB356_DIAG_ALWAYS_VISIBLE_SAVE_TRACE_20260518_ROOTONLY'
+        build: 'M50.9.9GB357_TARGETED_PROPOSAL_PAYLOAD_SCOPE_FIX_20260518_ROOTONLY'
       },
       signature: { dataUrl: signatureDataUrl, signatureDataUrl: signatureDataUrl, signedAt: signatureAt, signatureAt: signatureAt },
       signatureRec: { dataUrl: signatureDataUrl, signatureDataUrl: signatureDataUrl, signedAt: signatureAt, signatureAt: signatureAt, customerId, petId, customerName, petName, version: contractVersion, contractVersion },
@@ -19099,7 +19099,7 @@ if(_btnBackupExport) _btnBackupExport.addEventListener('click', doBackupExport);
 const _btnMonthExport = document.getElementById('btnMonthExport');
 if(_btnMonthExport) _btnMonthExport.addEventListener('click', exportMonthBundle);
 const _btnMonthClose = document.getElementById('btnMonthClose');
-if(_btnMonthClose) _btnMonthClose.addEventListener('click', closeMonth);
+if(_btnMonthClose) _btnMonthClose.addEventListener('click', (typeof closeMonth==='function'?closeMonth:function(){ try{ var el=document.getElementById('monthModal')||document.getElementById('monthExportModal'); if(el) el.style.display='none'; }catch(_){ } }));
 const _btnSteuerExport = document.getElementById('btnSteuerExport');
 if(_btnSteuerExport) _btnSteuerExport.addEventListener('click', showSteuerberaterExportInfo);
 const _btnExportMonthNow = document.getElementById('btnExportMonthNow');
@@ -25713,7 +25713,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB356_DIAG_ALWAYS_VISIBLE_SAVE_TRACE_20260518_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB357_TARGETED_PROPOSAL_PAYLOAD_SCOPE_FIX_20260518_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -27686,7 +27686,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB356_DIAG_ALWAYS_VISIBLE_SAVE_TRACE_20260518_ROOTONLY";
+  const BUILD = "M50.9.9GB357_TARGETED_PROPOSAL_PAYLOAD_SCOPE_FIX_20260518_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -30363,7 +30363,7 @@ try{ window.__GB191_MARKER = 'active'; }catch(_){ }
     try{ ds166OpenRowByKey = window.ds166OpenRowByKey; }catch(_){ }
   }catch(_){ }
 })();
-try{ window.__dsAppJsRuntimeBuild = 'GB356-appjs'; }catch(_){}
+try{ window.__dsAppJsRuntimeBuild = 'GB357-appjs'; }catch(_){}
 /* ===== END GB194 ===== */
 
 
@@ -31276,7 +31276,7 @@ try{ window.__GB294_MARKER = 'active'; }catch(_){ }
 /* ===== GB295 contract review verified open + reset fix ===== */
 try{ window.__GB295_MARKER = 'active'; }catch(_){ }
 (function(){
-  const BUILD = "M50.9.9GB356_DIAG_ALWAYS_VISIBLE_SAVE_TRACE_20260518_ROOTONLY";
+  const BUILD = "M50.9.9GB357_TARGETED_PROPOSAL_PAYLOAD_SCOPE_FIX_20260518_ROOTONLY";
   function ds295Clone(v){ try{ return JSON.parse(JSON.stringify(v == null ? null : v)); }catch(_){ return v; } }
   function ds295Norm(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
   function ds295Bool(v){ try{ if(v===true||v===false) return !!v; const s=String(v==null?'':v).trim().toLowerCase(); return s==='1'||s==='true'||s==='yes'||s==='ja'||s==='on'; }catch(_){ return false; } }
@@ -31925,7 +31925,7 @@ try{ window.__GB297_MARKER = 'active'; }catch(_){ }
       try{ const btn = document.getElementById('btnContractRefresh'); if(btn){ btn.onclick = null; btn.addEventListener('click', wrappedRefresh); } }catch(_){ }
     }
   }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB356-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB357-appjs'; }catch(_){ }
 })();
 /* ===== END GB297 ===== */
 
@@ -32199,7 +32199,7 @@ try{ window.__GB298_MARKER = 'active'; }catch(_){ }
   try{
     if(ds298ApplyRescueIntoState()) ds298PersistStateSilently();
   }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB356-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB357-appjs'; }catch(_){ }
 })();
 /* ===== END GB298 ===== */
 
@@ -32491,7 +32491,7 @@ try{ window.__GB299_MARKER = 'active'; }catch(_){ }
     ds299WriteRescueUnion(snap.contractSignatures, snap.contractAgreements);
     if(ds299ApplyRescueIntoState()) ds299PersistLocalOnly();
   }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB356-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB357-appjs'; }catch(_){ }
 })();
 /* ===== END GB299 ===== */
 
@@ -32859,7 +32859,7 @@ try{ window.__GB300_MARKER = 'active'; }catch(_){ }
     }
   }catch(_){ }
   try{ ds300ApplyUnionIntoState(); ds300WriteUnion(); }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB356-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB357-appjs'; }catch(_){ }
 })();
 /* ===== END GB300 ===== */
 
@@ -33296,7 +33296,7 @@ try{ window.__GB301_MARKER = 'active'; }catch(_){ }
   }catch(_){ }
   try{ ds301ApplyUnionIntoState(); ds301WriteUnion(); }catch(_){ }
   try{ window.__dsContractMainNormalize = ds301PopulateNormalContractUi; }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB356-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB357-appjs'; }catch(_){ }
 })();
 /* ===== END GB301 ===== */
 
@@ -33487,7 +33487,7 @@ try{ window.__GB302_MARKER = 'active'; }catch(_){ }
   }catch(_){ }
   try{ ds302ApplyUnion(); ds302WriteUnion(); }catch(_){ }
   try{ window.__dsContractMainHardReset = ds302ResetContractMainUi; }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB356-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB357-appjs'; }catch(_){ }
 })();
 /* ===== END GB302 ===== */
 
@@ -33947,7 +33947,7 @@ try{ window.__GB303_MARKER = 'active'; }catch(_){ }
   }catch(_){ }
   try{ ds303ApplyUnion(); ds303WriteUnion(); }catch(_){ }
   try{ window.__dsContractMainNormalize = ds303NormalizeMainUi; }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB356-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB357-appjs'; }catch(_){ }
 })();
 /* ===== END GB303 ===== */
 
@@ -34066,7 +34066,7 @@ try{ window.__GB304_MARKER = 'active'; }catch(_){ }
     }
   }catch(_){ }
   try{ window.__dsContractReviewExitToMainGB304 = ds304ExitReviewToMain; }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB356-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB357-appjs'; }catch(_){ }
 })();
 /* ===== END GB304 ===== */
 
@@ -34249,7 +34249,7 @@ try{ window.__GB305_MARKER = 'active'; }catch(_){ }
       try{ window.hasValidContract = wrapped; }catch(_){ }
     }
   }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB356-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB357-appjs'; }catch(_){ }
 })();
 /* ===== END GB305 ===== */
 
@@ -34453,14 +34453,14 @@ try{ window.__GB306_MARKER = 'active'; }catch(_){ }
       window.__dsContractReviewSubmitHook = wrappedReviewHook;
     }
   }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB356-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB357-appjs'; }catch(_){ }
 })();
 /* ===== END GB306 ===== */
 
 
 /* ===== GB307 contract diagnostics panel ===== */
 try{ window.__GB307_MARKER = 'active'; }catch(_){ }
-try{ window.__dsAppJsRuntimeBuild = 'GB356-appjs'; }catch(_){ }
+try{ window.__dsAppJsRuntimeBuild = 'GB357-appjs'; }catch(_){ }
 (function(){
   const DIAG = window.__dsContractDiag = window.__dsContractDiag || {};
   const UNION_KEYS = [
@@ -34682,7 +34682,7 @@ try{ window.__dsAppJsRuntimeBuild = 'GB356-appjs'; }catch(_){ }
 
 /* ===== GB308 contract diagnostics hard mount ===== */
 try{ window.__GB308_MARKER = 'active'; }catch(_){ }
-try{ window.__dsAppJsRuntimeBuild = 'GB356-appjs'; }catch(_){ }
+try{ window.__dsAppJsRuntimeBuild = 'GB357-appjs'; }catch(_){ }
 (function(){
   const DIAG = window.__dsContractDiag = window.__dsContractDiag || {};
   function norm(v){ return String(v == null ? '' : v).trim(); }
@@ -34863,7 +34863,7 @@ try{ window.__GB311_MARKER = 'active'; }catch(_){ }
 
 /* ===== GB312 contract canonical validity + refresh repair ===== */
 try{ window.__GB312_MARKER = 'active'; }catch(_){ }
-try{ window.__dsAppJsRuntimeBuild = 'GB356-appjs'; }catch(_){ }
+try{ window.__dsAppJsRuntimeBuild = 'GB357-appjs'; }catch(_){ }
 (function(){
   function n(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
   function lc(v){ return n(v).toLowerCase(); }
@@ -35049,7 +35049,7 @@ try{ window.__dsAppJsRuntimeBuild = 'GB356-appjs'; }catch(_){ }
 /* ===== END GB312 ===== */
 
 /* ===== GB313 contract click-release + canonical badge hardfix ===== */
-try{ window.__GB313_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB356-appjs'; }catch(_){ }
+try{ window.__GB313_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB357-appjs'; }catch(_){ }
 (function(){
   function n(v){try{return String(v==null?'':v).trim();}catch(_){return ''}}
   function lc(v){return n(v).toLowerCase()}
@@ -35101,7 +35101,7 @@ try{ window.__GB313_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB356-appjs
 /* ===== END GB313 ===== */
 
 /* ===== GB314 hard contract review release + green badge repair ===== */
-try{ window.__GB314_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB356-appjs'; }catch(_){ }
+try{ window.__GB314_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB357-appjs'; }catch(_){ }
 (function(){
   function N(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
   function L(v){ return N(v).toLowerCase(); }
@@ -35282,9 +35282,9 @@ try{ window.__GB314_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB356-app
 /* ===== END GB314 ===== */
 
 /* ===== GB315 final contract acceptance + badge DOM hardfix ===== */
-try{ window.__GB315_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB356-appjs'; }catch(_){ }
+try{ window.__GB315_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB357-appjs'; }catch(_){ }
 (function(){
-  var BUILD='M50.9.9GB356_DIAG_ALWAYS_VISIBLE_SAVE_TRACE_20260518_ROOTONLY';
+  var BUILD='M50.9.9GB357_TARGETED_PROPOSAL_PAYLOAD_SCOPE_FIX_20260518_ROOTONLY';
   function S(v){ try{return String(v==null?'':v).trim();}catch(_){return '';} }
   function L(v){ return S(v).toLowerCase(); }
   function esc(v){ try{return CSS && CSS.escape ? CSS.escape(S(v)) : S(v).replace(/[^a-zA-Z0-9_-]/g,'\\$&');}catch(_){return S(v);} }
@@ -35429,7 +35429,7 @@ try{ window.__GB315_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB356-app
 /* ===== END GB315 ===== */
 
 /* ===== GB316 contract signature-valid + passive repair loop ===== */
-try{ window.__GB316_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB356-appjs'; }catch(_){ }
+try{ window.__GB316_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB357-appjs'; }catch(_){ }
 (function(){
   function S(v){ try{ return String(v==null?'':v).trim(); }catch(_){ return ''; } }
   function L(v){ return S(v).toLowerCase(); }
@@ -35471,7 +35471,7 @@ try{ window.__GB316_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB356-appjs
 
 
 /* ===== GB317 contract real save + unlock ===== */
-try{window.__GB317_MARKER='active';window.__dsAppJsRuntimeBuild = 'GB356-appjs'}catch(_){ }
+try{window.__GB317_MARKER='active';window.__dsAppJsRuntimeBuild = 'GB357-appjs'}catch(_){ }
 (function(){
 function S(v){return String(v==null?'':v).trim()}function L(v){return S(v).toLowerCase()}function V(){try{return S(state.contractVersion||state.contract?.version||'v1.0')||'v1.0'}catch(_){return'v1.0'}}function pets(){try{return Array.isArray(state.pets)?state.pets:[]}catch(_){return[]}}function custs(){try{return Array.isArray(state.customers)?state.customers:[]}catch(_){return[]}}function pn(p){return S(p&&(p.name||p.petName||p.dogName||p.id||p.petId||p.dogId))}function cn(c){return S(c&&(c.name||c.displayName||c.lastName||c.email||c.id||c.customerId))}
 function fc(x){var lx=L(x),r=null;if(!lx)return null;try{if(typeof getCustomer==='function')r=getCustomer(S(x))||null}catch(_){ }return r||custs().find(c=>[c.id,c.customerId,c.uid,c.key,c.email,c.name,c.displayName,c.lastName].map(L).includes(lx))||null}
@@ -35495,9 +35495,9 @@ try{var rd=renderDogs;if(rd&&!rd.__gb317Wrapped){renderDogs=function(){var r=rd.
 /* ===== END GB317 ===== */
 
 /* ===== GB318 contract hard bypass: accept not required when signature exists + generic green repair ===== */
-try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB356-appjs'; }catch(_){ }
+try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB357-appjs'; }catch(_){ }
 (function(){
-  var BUILD='M50.9.9GB356_DIAG_ALWAYS_VISIBLE_SAVE_TRACE_20260518_ROOTONLY';
+  var BUILD='M50.9.9GB357_TARGETED_PROPOSAL_PAYLOAD_SCOPE_FIX_20260518_ROOTONLY';
   function S(v){try{return String(v==null?'':v).trim()}catch(_){return''}}
   function L(v){return S(v).toLowerCase()}
   function V(){try{return S((state&&(state.contractVersion||(state.contract&&state.contract.version)))||'v1.0')||'v1.0'}catch(_){return'v1.0'}}
@@ -35626,7 +35626,7 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB356-appjs
   'use strict';
   if(window.__dsGB348CustomerProposalRepairInstalled) return;
   window.__dsGB348CustomerProposalRepairInstalled = true;
-  var BUILD='M50.9.9GB356_DIAG_ALWAYS_VISIBLE_SAVE_TRACE_20260518_ROOTONLY';
+  var BUILD='M50.9.9GB357_TARGETED_PROPOSAL_PAYLOAD_SCOPE_FIX_20260518_ROOTONLY';
   function S(v){try{return String(v==null?'':v).trim()}catch(_){return''}}
   function lower(v){return S(v).toLowerCase()}
   function makeId(){try{return (typeof uid==='function'?uid():('proposal_'+Date.now()+'_'+Math.random().toString(36).slice(2,8)))}catch(_){return 'proposal_'+Date.now()}}
@@ -35720,7 +35720,7 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB356-appjs
   'use strict';
   if(window.__dsGB349CustomerReviewFixInstalled) return;
   window.__dsGB349CustomerReviewFixInstalled = true;
-  var BUILD='M50.9.9GB356_DIAG_ALWAYS_VISIBLE_SAVE_TRACE_20260518_ROOTONLY';
+  var BUILD='M50.9.9GB357_TARGETED_PROPOSAL_PAYLOAD_SCOPE_FIX_20260518_ROOTONLY';
   function S(v){ try{return String(v==null?'':v).trim();}catch(_){return '';} }
   function L(v){ return S(v).toLowerCase(); }
   function arr(a){ return Array.isArray(a) ? a : []; }
@@ -35869,7 +35869,7 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB356-appjs
   'use strict';
   if(window.__dsGB351SuccessNoticeInstalled) return;
   window.__dsGB351SuccessNoticeInstalled = true;
-  var BUILD = 'M50.9.9GB356_DIAG_ALWAYS_VISIBLE_SAVE_TRACE_20260518_ROOTONLY';
+  var BUILD = 'M50.9.9GB357_TARGETED_PROPOSAL_PAYLOAD_SCOPE_FIX_20260518_ROOTONLY';
   function S(v){ try{return String(v==null?'':v).trim();}catch(_){return '';} }
   function L(v){ return S(v).toLowerCase(); }
   function isOk(res){ return !!(res && (res.ok === true || res === true || (typeof res === 'object' && !res.error && !res.skipped))); }
@@ -35950,7 +35950,7 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB356-appjs
   document.addEventListener('DOMContentLoaded', install, {once:true});
   setTimeout(install, 400);
   setTimeout(install, 1400);
-  try{ window.__dsAppJsRuntimeBuild = 'GB356-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB357-appjs'; }catch(_){ }
 })();
 /* ===== END GB351 ===== */
 
@@ -35963,7 +35963,7 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB356-appjs
   'use strict';
   if(window.__dsGB352CustomerLocalFirstInstalled) return;
   window.__dsGB352CustomerLocalFirstInstalled = true;
-  var BUILD = 'M50.9.9GB356_DIAG_ALWAYS_VISIBLE_SAVE_TRACE_20260518_ROOTONLY';
+  var BUILD = 'M50.9.9GB357_TARGETED_PROPOSAL_PAYLOAD_SCOPE_FIX_20260518_ROOTONLY';
   var LS = 'ds_workspace_test_optik_01';
   var PROP = 'ds_customer_proposals_v1';
   function S(v){ try{return String(v==null?'':v).trim();}catch(_){return '';} }
@@ -36203,7 +36203,7 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB356-appjs
   }
   wrapAdminNoReturn(); setTimeout(wrapAdminNoReturn,500); setTimeout(wrapAdminNoReturn,1800);
   if(isCustomerMode()) setTimeout(markSession,250);
-  try{ window.__dsAppJsRuntimeBuild = 'GB356-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB357-appjs'; }catch(_){ }
 })();
 /* ===== END GB352 ===== */
 
@@ -36214,7 +36214,7 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB356-appjs
   'use strict';
   if(window.__dsGB353ScopeProposalReviewInstalled) return;
   window.__dsGB353ScopeProposalReviewInstalled = true;
-  var BUILD = 'M50.9.9GB356_DIAG_ALWAYS_VISIBLE_SAVE_TRACE_20260518_ROOTONLY';
+  var BUILD = 'M50.9.9GB357_TARGETED_PROPOSAL_PAYLOAD_SCOPE_FIX_20260518_ROOTONLY';
   var LS_KEY_GB353 = 'ds_workspace_test_optik_01';
   var PROP_KEY_GB353 = 'ds_customer_proposals_v1';
 
@@ -36661,7 +36661,7 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB356-appjs
     }catch(_){ }
   }, true);
 
-  try{ window.__dsAppJsRuntimeBuild = 'GB356-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB357-appjs'; }catch(_){ }
 })();
 /* ===== END GB353 CUSTOMER SCOPE + PROPOSAL REVIEW STABILITY LAYER ===== */
 
@@ -36672,7 +36672,7 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB356-appjs
   if(window.__gb355MainDiagInstalled) return;
   try{ if(String((location && location.pathname) || '').toLowerCase().indexOf('customer.html') >= 0) return; }catch(_){ }
   window.__gb355MainDiagInstalled = true;
-  var BUILD = 'M50.9.9GB356_DIAG_ALWAYS_VISIBLE_SAVE_TRACE_20260518_ROOTONLY';
+  var BUILD = 'M50.9.9GB357_TARGETED_PROPOSAL_PAYLOAD_SCOPE_FIX_20260518_ROOTONLY';
   var LOG_KEY = 'ds_gb355_diag_log';
   function S(v){ try{return String(v == null ? '' : v).trim();}catch(_){return '';} }
   function L(v){ return S(v).toLowerCase(); }
@@ -36803,3 +36803,232 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB356-appjs
   bind(); document.addEventListener('DOMContentLoaded', bind); window.addEventListener('load', bind); setInterval(bind,1600);
 })();
 /* ===== END GB356 DIAGNOSE ===== */
+
+/* ===== GB357 TARGETED FIX: proposals only, slim cloud payload, strict customer scope ===== */
+(function(){
+  'use strict';
+  if(window.__dsGB357TargetedFixInstalled) return;
+  window.__dsGB357TargetedFixInstalled = true;
+  var BUILD='M50.9.9GB357_TARGETED_PROPOSAL_PAYLOAD_SCOPE_FIX_20260518_ROOTONLY';
+  try{ window.__dsAppJsRuntimeBuild='GB357-appjs'; }catch(_){ }
+  function S(v){ try{return String(v==null?'':v).trim();}catch(_){return'';} }
+  function L(v){ return S(v).toLowerCase(); }
+  function A(v){ return Array.isArray(v)?v:[]; }
+  function bytes(v){ try{return JSON.stringify(v).length;}catch(_){return 0;} }
+  function uid2(){ try{ if(typeof uid==='function') return uid(); }catch(_){ } return 'gb357_'+Date.now()+'_'+Math.random().toString(36).slice(2,9); }
+  function orgId(){ try{return (typeof dsResolveCloudOrgId==='function')?dsResolveCloudOrgId():((window.CLOUD&&CLOUD.orgId)||'doggystyle');}catch(_){return 'doggystyle';} }
+  function db(){ try{ if(typeof dsEnsureCloudDb==='function') return dsEnsureCloudDb(); }catch(_){ } try{ if(window.CLOUD&&CLOUD.db) return CLOUD.db; }catch(_){ } try{ if(window.firebase&&firebase.firestore) return firebase.firestore(); }catch(_){ } return null; }
+  function proposalCol(){ var d=db(), o=orgId(); return (d&&d.collection&&o)?d.collection('orgs').doc(o).collection('proposals'):null; }
+  function taskCol(){ var d=db(), o=orgId(); return (d&&d.collection&&o)?d.collection('orgs').doc(o).collection('tasks'):null; }
+  function stateRef(){ try{ if(typeof cloudStateRef==='function') return cloudStateRef(); }catch(_){ } var d=db(), o=orgId(); return (d&&d.collection&&o)?d.collection('orgs').doc(o).collection('meta').doc('workspace_state'):null; }
+  function setDiag(msg,err){ try{ if(typeof dsSetSyncDiag==='function') dsSetSyncDiag('GB357 '+msg, !!err); }catch(_){ } try{ if(typeof dsGB356TraceAlways==='function') dsGB356TraceAlways({event:'GB357 '+msg, error:!!err}); }catch(_){ } }
+  function isCustomerMode(){ try{ var q=L(new URLSearchParams(String(location.search||'')).get('customer_mode')||''); var p=L(location.pathname||''); var ss=L(sessionStorage.getItem('ds_customer_main_mode')||''); return p.indexOf('customer.html')>=0 || ['dogs','contract','stay'].indexOf(q)>=0 || ['dogs','contract','stay'].indexOf(ss)>=0 || !!window.__dsCustomerMainModeActive || !!window.__dsForceCustomerContractProposal || !!window.__dsForceCustomerStayProposal; }catch(_){ return false; } }
+  function isReviewMode(){ try{return !!(window.__dsProposalReview && __dsProposalReview.active);}catch(_){return false;} }
+  function shouldSkipWorkspacePush(){ return !!window.__dsGB357SuppressWorkspacePush || isCustomerMode() || isReviewMode(); }
+
+  function cleanString(key,path,v){
+    var s=String(v||'');
+    var k=L(key), p=L(path);
+    var data=/^data:/i.test(s);
+    var imageKey=/(photo|foto|image|bild|preview|impf|vaccin|file|blob|attachment|pdf|base64)/i.test(k+p);
+    var sigKey=/(signature|signatur|unterschrift|contractsignatures)/i.test(k+p);
+    if(data && !sigKey) return '';
+    if(data && sigKey && s.length>220000) return '';
+    if(imageKey && s.length>45000 && !sigKey) return '';
+    if(s.length>260000) return '';
+    return s;
+  }
+  function cleanDeep(v,path,seen){
+    try{
+      if(v==null) return v;
+      var t=typeof v;
+      if(t==='string') return cleanString(path.split('.').pop(),path,v);
+      if(t==='number') return Number.isFinite(v)?v:null;
+      if(t==='boolean') return v;
+      if(t==='bigint') return String(v);
+      if(t==='function'||t==='symbol'||t==='undefined') return undefined;
+      try{ if(typeof Blob!=='undefined' && v instanceof Blob) return undefined; }catch(_){ }
+      try{ if(typeof File!=='undefined' && v instanceof File) return undefined; }catch(_){ }
+      try{ if(v instanceof Date) return v.getTime(); }catch(_){ }
+      if(!seen) seen=new WeakSet();
+      if(typeof v==='object'){
+        if(seen.has(v)) return undefined; seen.add(v);
+        if(Array.isArray(v)){
+          var arr=[]; for(var i=0;i<v.length;i++){ var cv=cleanDeep(v[i], path+'['+i+']', seen); if(cv!==undefined) arr.push(cv); }
+          seen.delete(v); return arr;
+        }
+        var proto=Object.getPrototypeOf(v); if(proto && proto!==Object.prototype){ try{ if(v.toJSON) return cleanDeep(v.toJSON(), path+'.toJSON', seen); }catch(_){ } return undefined; }
+        var out={}; Object.keys(v||{}).forEach(function(k){
+          if(k==='__proto__'||k==='constructor'||k==='prototype') return;
+          var lk=L(k);
+          if(/^(el|element|node|target|currentTarget|canvas|ctx|context)$/.test(lk)) return;
+          var cv=cleanDeep(v[k], path?path+'.'+k:k, seen); if(cv!==undefined) out[k]=cv;
+        });
+        seen.delete(v); return out;
+      }
+      return v;
+    }catch(_){ return undefined; }
+  }
+  function projectInboxRow(row){ try{ return (typeof dsProjectCloudSafeInboxRow==='function')?dsProjectCloudSafeInboxRow(row):cleanDeep(row||{},'inbox'); }catch(_){ return cleanDeep(row||{},'inbox'); } }
+  function pickMap(obj){ return cleanDeep((obj&&typeof obj==='object')?obj:{},'map')||{}; }
+  function buildSlimState(src){
+    src=(src&&typeof src==='object')?src:{};
+    var out={ schemaVersion: Math.max(Number(src.schemaVersion||2)||2,2), _cloudUpdatedAt: Date.now(), _localUpdatedAt: Number(src._localUpdatedAt||Date.now())||Date.now(), _gb357Slim:true };
+    ['customers','pets','dogs','customerRecords','petRecords','dogRecords','_legacy','contractAgreements','contractSignatures','contractCanonicalRecords','contractAdoptionBundles','contractAdoptedRecords','settings','company','templates','contractVersion','priceSettings'].forEach(function(k){
+      try{ if(src[k]!=null) out[k]=cleanDeep(src[k],k); }catch(_){ }
+    });
+    try{ if(Array.isArray(src.docs)) out.docs=src.docs.slice(0,80).map(function(d){return cleanDeep(d,'docs');}); }catch(_){ }
+    ['inboxAssignments','inboxSubmissions','assignments','submissions'].forEach(function(k){ try{ if(Array.isArray(src[k])) out[k]=src[k].slice(0,160).map(projectInboxRow); }catch(_){ } });
+    ['tasks','proposals'].forEach(function(k){ try{ if(Array.isArray(src[k])) out[k]=src[k].slice(0,160).map(projectInboxRow); }catch(_){ } });
+    var b=bytes(out);
+    if(b>900000){ try{ delete out.inboxAssignments; delete out.inboxSubmissions; delete out.assignments; delete out.submissions; delete out.tasks; delete out.proposals; out._gb357DroppedInbox=true; }catch(_){ } }
+    b=bytes(out);
+    if(b>900000){ try{ out.docs=A(out.docs).map(function(d){ var x=cleanDeep(d,'docs2')||{}; try{ delete x.fields; delete x.signature; delete x.signatures; delete x.pdf; delete x.photos; }catch(_){ } return x; }); out._gb357DocsMetadataOnly=true; }catch(_){ } }
+    b=bytes(out);
+    if(b>900000){ try{ Object.keys(out.contractSignatures||{}).forEach(function(k){ var r=out.contractSignatures[k]||{}; if(r.dataUrl && String(r.dataUrl).length>90000) out.contractSignatures[k]={ signedAt:r.signedAt||r.signatureAt||r.savedAt||Date.now(), dataUrl:'' }; }); out._gb357TrimmedSigs=true; }catch(_){ } }
+    return out;
+  }
+  try{ window.dsGB357BuildSlimCloudState=buildSlimState; }catch(_){ }
+
+  // Payload guard: workspace_state will never exceed the Firestore request/doc size path again.
+  try{
+    var oldPrepare=window.dsPrepareCloudPayload || (typeof dsPrepareCloudPayload==='function'?dsPrepareCloudPayload:null);
+    var newPrepare=function(src){
+      var res=null; try{ res=oldPrepare?oldPrepare(src):null; }catch(_){ res=null; }
+      var clean=(res&&res.clean)||{}; var b=bytes(clean);
+      if(!clean || !b || b>850000){ var slim=buildSlimState(src); return {clean:slim, stats:Object.assign({},(res&&res.stats)||{},{gb357Slim:true,beforeBytes:b,afterBytes:bytes(slim)})}; }
+      return res || {clean:buildSlimState(src), stats:{gb357Slim:true}};
+    };
+    window.dsPrepareCloudPayload=newPrepare; try{ dsPrepareCloudPayload=newPrepare; }catch(_){ }
+  }catch(_){ }
+  try{
+    var oldStrict=window.dsPrepareCloudPayloadStrict || (typeof dsPrepareCloudPayloadStrict==='function'?dsPrepareCloudPayloadStrict:null);
+    var newStrict=function(src){
+      var res=null; try{ res=oldStrict?oldStrict(src):null; }catch(_){ res=null; }
+      var clean=(res&&res.clean)||{}; var b=bytes(clean);
+      if(!clean || !b || b>850000){ var slim=buildSlimState(src); return {clean:slim, stats:Object.assign({},(res&&res.stats)||{},{gb357Slim:true,beforeBytes:b,afterBytes:bytes(slim)})}; }
+      return res || {clean:buildSlimState(src), stats:{gb357Slim:true}};
+    };
+    window.dsPrepareCloudPayloadStrict=newStrict; try{ dsPrepareCloudPayloadStrict=newStrict; }catch(_){ }
+  }catch(_){ }
+
+  // Save wrapper: Kunden-App and review editors must not push the huge complete workspace state.
+  try{
+    var oldSaveState=window.saveState || (typeof saveState==='function'?saveState:null);
+    var newSaveState=function(){
+      if(shouldSkipWorkspacePush()){
+        try{ if(typeof dsMarkStateOriginBeforeSave==='function') dsMarkStateOriginBeforeSave(); }catch(_){ }
+        try{ if(typeof state!=='undefined'&&state){ state._localUpdatedAt=Date.now(); localStorage.setItem((typeof LS_KEY!=='undefined'?LS_KEY:'doggystyle_workspace_state_v1'), JSON.stringify(state)); } }catch(e){ try{ console.error('GB357 local save failed',e); }catch(_){} }
+        try{ if(typeof SYNC!=='undefined'&&SYNC){ SYNC.localSavedAt=(typeof state!=='undefined'&&state&&state._localUpdatedAt)||Date.now(); SYNC.cloudPending=false; } }catch(_){ }
+        try{ if(typeof updateSyncUI==='function') updateSyncUI(); }catch(_){ }
+        setDiag('workspacePush:skip mode='+(isCustomerMode()?'customer':(isReviewMode()?'review':'flag')), false);
+        return;
+      }
+      return oldSaveState?oldSaveState.apply(this,arguments):undefined;
+    };
+    window.saveState=newSaveState; try{ saveState=newSaveState; }catch(_){ }
+  }catch(_){ }
+
+  // Safety net for forced proposal persist from the review editor: write only fieldwise, never the full workspace.
+  try{
+    var oldForce=window.dsForceProposalPersist || (typeof dsForceProposalPersist==='function'?dsForceProposalPersist:null);
+    var newForce=async function(reason){
+      var tag=S(reason||'');
+      if(isReviewMode() || /cp-review-save|proposal-review|review-save/i.test(tag)){
+        try{
+          var row=(window.__dsProposalReview&&__dsProposalReview.row)||null;
+          var cid=S((document.getElementById('customerSelect')||{}).value || (row&&(row.customerId||row.cid||row.__targetCustomerId)) || '');
+          var pid=S((window.cpEdit&&cpEdit.petId) || (row&&(row.petId||row.pid||row.__targetPetId)) || '');
+          var pet=null, customer=null;
+          try{ if(pid && typeof getPet==='function') pet=getPet(pid); }catch(_){ }
+          try{ if(!pet && pid && typeof getPetByDogId==='function') pet=getPetByDogId(pid); }catch(_){ }
+          try{ if(cid && typeof getCustomer==='function') customer=getCustomer(cid); }catch(_){ }
+          try{ if(!customer && pet && typeof getCustomer==='function') customer=getCustomer(pet.customerId||pet.ownerId); }catch(_){ }
+          if(typeof dsForceProposalPersistFieldwiseReviewRow==='function'){
+            var res=await dsForceProposalPersistFieldwiseReviewRow(row, customer||{}, pet||{}, tag||'gb357-review-fieldwise');
+            setDiag('reviewPersist:fieldwise-ok '+S((res&&res.stages)||''), false);
+            return res;
+          }
+        }catch(e){ setDiag('reviewPersist:fieldwise-fail '+S(e&&e.message||e), true); throw e; }
+      }
+      return oldForce?oldForce.apply(this,arguments):{ok:true,skipped:true,reason:tag||'gb357'};
+    };
+    window.dsForceProposalPersist=newForce; try{ dsForceProposalPersist=newForce; }catch(_){ }
+  }catch(_){ }
+
+  function projectLitePayload(p){
+    try{
+      if(typeof dsProjectCloudSafeProposalPayload==='function') return dsProjectCloudSafeProposalPayload(p||{});
+      return cleanDeep(p||{},'proposalLite');
+    }catch(_){ return {}; }
+  }
+  async function waitUser(){
+    try{ if(typeof cpWaitForFirebaseUser==='function') return await cpWaitForFirebaseUser(10000); }catch(_){ }
+    try{ return (window.CLOUD&&CLOUD.user) || (window.firebase&&firebase.auth&&firebase.auth().currentUser) || null; }catch(_){ return null; }
+  }
+  async function submitProposalGB357(opts){
+    opts=opts||{};
+    var u=await waitUser();
+    if(!u || !u.uid) throw new Error('Keine aktive Firebase-Anmeldung. Bitte Kunden-App neu öffnen und erneut versuchen.');
+    try{ window.CLOUD=window.CLOUD||{}; CLOUD.user=u; if(!CLOUD.orgId) CLOUD.orgId=orgId(); }catch(_){ }
+    var stamp=Date.now();
+    var id=S(opts.id||opts.proposalId)||uid2();
+    var templateId=S(opts.templateId)||'customer_data';
+    var fullPayload=cleanDeep(opts.payloadSubmitted||{}, 'payloadSubmitted') || {};
+    var litePayload=cleanDeep(opts.litePayloadSubmitted||projectLitePayload(fullPayload), 'litePayloadSubmitted') || {};
+    var base={
+      id:id, taskId:id, proposalId:id,
+      templateId:templateId, kind:templateId, formKey:templateId,
+      title:S(opts.title)||'Vorschlag', status:'submitted', proposalStatus:'pending',
+      submittedAt:stamp, createdAt:stamp, updatedAt:stamp,
+      customerUid:S((u&&u.uid)||opts.customerUid), customerEmail:S((u&&u.email)||opts.customerEmail).toLowerCase(),
+      customerName:S(opts.customerName)||S((fullPayload.customer&&fullPayload.customer.name)||u.email||'Kunde'),
+      customerId:S(opts.customerId||(fullPayload.customerId)||(fullPayload.meta&&fullPayload.meta.customerId)||(fullPayload.customer&&(fullPayload.customer.id||fullPayload.customer.customerId))),
+      petId:S(opts.petId||opts.dogId||(fullPayload.petId)||(fullPayload.meta&&fullPayload.meta.petId)||(fullPayload.pet&&(fullPayload.pet.id||fullPayload.pet.petId||fullPayload.pet.dogId))),
+      dogId:S(opts.dogId||opts.petId||(fullPayload.dogId)||(fullPayload.pet&&(fullPayload.pet.dogId||fullPayload.pet.id||fullPayload.pet.petId))),
+      payloadSubmitted: fullPayload,
+      _gb357:true
+    };
+    var taskLite=Object.assign({},base,{payloadSubmitted:litePayload, mirroredFromProposal:true});
+    var ok=false, path='', err=null;
+    window.__dsGB357SuppressWorkspacePush=true;
+    try{
+      try{ var pc=proposalCol(); if(!pc || !pc.doc) throw new Error('cloud-proposals-unavailable'); await pc.doc(id).set(base,{merge:true}); ok=true; path='proposals'; }catch(e){ err=e; }
+      if(ok){ try{ var tc=taskCol(); if(tc&&tc.doc){ await tc.doc(id).set(taskLite,{merge:true}); path='proposals+tasks'; } }catch(e2){ setDiag('tasksMirrorFail '+S(e2&&e2.message||e2), true); } }
+      if(!ok){ try{ var tc2=taskCol(); if(!tc2||!tc2.doc) throw new Error('cloud-tasks-unavailable'); await tc2.doc(id).set(taskLite,{merge:true}); ok=true; path='tasks'; }catch(e3){ err=e3||err; } }
+      var localRow=ok?Object.assign({},taskLite,{mirroredFromCloud:true}):Object.assign({},taskLite,{proposalStatus:'pending',status:'submitted',localOnly:true,error:S(err&&err.message||err)});
+      try{ if(typeof pushCustomerProposalBuffer==='function') pushCustomerProposalBuffer(localRow); }catch(_){ }
+      try{
+        var key=(typeof LS_KEY!=='undefined'?LS_KEY:'doggystyle_workspace_state_v1'); var raw=localStorage.getItem(key); var local=raw?JSON.parse(raw):{};
+        local.inboxAssignments=Array.isArray(local.inboxAssignments)?local.inboxAssignments:[]; local.inboxSubmissions=Array.isArray(local.inboxSubmissions)?local.inboxSubmissions:[];
+        local.inboxAssignments.unshift(localRow); local.inboxSubmissions.unshift(localRow); localStorage.setItem(key, JSON.stringify(local));
+      }catch(_){ }
+      try{ if(typeof state!=='undefined'&&state){ state.inboxAssignments=A(state.inboxAssignments); state.inboxSubmissions=A(state.inboxSubmissions); state.inboxAssignments.unshift(localRow); state.inboxSubmissions.unshift(localRow); } }catch(_){ }
+      setDiag('proposalWrite '+(ok?'ok':'local')+' path='+(path||'local')+' tpl='+templateId+' cid='+base.customerId+' pid='+base.petId+' bytes='+bytes(base), !ok);
+      return {ok:!!ok, path:path||'local', error:err||null, task:base, id:id};
+    }finally{
+      setTimeout(function(){ try{ window.__dsGB357SuppressWorkspacePush=false; }catch(_){ } }, 800);
+    }
+  }
+  window.dsGB357SubmitCustomerPortalProposal=submitProposalGB357;
+  try{ window.dsSubmitCustomerPortalProposal=submitProposalGB357; dsSubmitCustomerPortalProposal=submitProposalGB357; }catch(_){ }
+
+  // Contract scope repair for customer mode: no fallback to Max/Rex when Sonja/Bello is active.
+  function currentCustomerCtx(){ try{ if(typeof getCustomerMainDogsContext==='function') return getCustomerMainDogsContext()||{}; }catch(_){ } try{ if(typeof customerContextIds==='function') return customerContextIds()||{}; }catch(_){ } return {}; }
+  function repairContractScope(){
+    if(!isCustomerMode()) return;
+    var ctx=currentCustomerCtx(); var cid=S(ctx.customerId || (ctx.customer&&(ctx.customer.id||ctx.customer.customerId))); var pet=A(ctx.pets)[0] || ctx.pet || null; var pid=S(ctx.petId || (pet&&(pet.id||pet.petId||pet.dogId))); var cname=S((ctx.customer&&(ctx.customer.name||ctx.customer.fullName||ctx.customer.email))||'Kunde'); var pname=S((pet&&(pet.name||pet.petName||pet.dogName))||'Hund');
+    try{ var cs=document.getElementById('contractCustomerSelect'); if(cs && cid){ if(!Array.prototype.some.call(cs.options||[],function(o){return S(o.value)===cid;})){ cs.innerHTML='<option value="'+cid.replace(/"/g,'&quot;')+'">'+cname.replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];})+'</option>'; } cs.value=cid; cs.disabled=true; cs.setAttribute('disabled','disabled'); cs.style.pointerEvents='none'; } }catch(_){ }
+    try{ var ps=document.getElementById('contractPetSelect'); if(ps && pid){ if(!Array.prototype.some.call(ps.options||[],function(o){return S(o.value)===pid;})){ ps.innerHTML='<option value="'+pid.replace(/"/g,'&quot;')+'">'+pname.replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];})+'</option>'; } ps.value=pid; ps.disabled=true; ps.setAttribute('disabled','disabled'); ps.style.pointerEvents='none'; } }catch(_){ }
+    try{ var save=document.getElementById('contractSaveBtn'); if(save) save.textContent='Vorschlag senden'; }catch(_){ }
+    try{
+      var listHeads=[].slice.call(document.querySelectorAll('h3,h2,div'));
+      listHeads.forEach(function(h){ if(!/Vorhandene Betreuungsverträge/i.test(S(h.textContent))) return; var box=h.parentElement; if(!box) return; [].slice.call(box.querySelectorAll('button')).forEach(function(b){ var card=b.closest('.card,.item,.list-item,div'); var txt=S(card&&card.textContent); if(txt && cname && pname && !(txt.indexOf(cname)>=0 && txt.indexOf(pname)>=0) && /Max Mustermann|Hans Dampf|Rex|Nänzi/i.test(txt)){ try{ card.style.display='none'; }catch(_){ } } }); });
+    }catch(_){ }
+  }
+  try{ var oldRenderContract=window.renderContractPanel || (typeof renderContractPanel==='function'?renderContractPanel:null); if(oldRenderContract && !oldRenderContract.__gb357ScopeWrapped){ var wrap=function(){ var r=oldRenderContract.apply(this,arguments); setTimeout(repairContractScope,30); setTimeout(repairContractScope,250); return r; }; wrap.__gb357ScopeWrapped=true; wrap.__gb357Base=oldRenderContract; window.renderContractPanel=wrap; try{ renderContractPanel=wrap; }catch(_){ } } }catch(_){ }
+  try{ document.addEventListener('DOMContentLoaded', function(){ setTimeout(repairContractScope,80); }); window.addEventListener('load', function(){ setTimeout(repairContractScope,100); }); setInterval(repairContractScope, 1200); }catch(_){ }
+
+  try{ var b=document.getElementById('buildBadge'); if(b) b.textContent='Build (MASTER) '+BUILD; }catch(_){ }
+})();
+/* ===== END GB357 TARGETED FIX ===== */
