@@ -2,12 +2,15 @@
 <html lang="de">
 <head>
   <meta charset="utf-8"/>
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0"/>
+  <meta http-equiv="Pragma" content="no-cache"/>
+  <meta http-equiv="Expires" content="0"/>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
   <title>Doggy Style · Kunden App</title>
   <link href="manifest.json" rel="manifest"/>
   <meta name="theme-color" content="#101014"/>
   <link href="assets/logo.png" rel="apple-touch-icon"/>
-  <link href="styles.css?v=M50.9.9GB352_CUSTOMER_PORTAL_SAVE_LOGOUT_NOTICE_FIX_20260512_ROOTONLY" rel="stylesheet"/>
+  <link href="styles.css?v=M50.9.9GB354_VISIBLE_BUILD_CACHE_FORCE_20260518_ROOTONLY" rel="stylesheet"/>
   <style>
     body.bg-watermark{background:radial-gradient(circle at top, rgba(255,255,255,.08), transparent 35%), linear-gradient(180deg,#0e1017 0%, #121521 100%) !important}
     body.bg-watermark::before{opacity:.12 !important;filter:none !important}
@@ -245,14 +248,14 @@
     <div class="customer-hidden" id="customerTaskListCard"></div>
     <div class="customer-hidden list" id="customerTaskList"></div>
     <div class="customer-hidden" id="customerPortalSubtitle"></div>
-    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9GB352_CUSTOMER_PORTAL_SAVE_LOGOUT_NOTICE_FIX_20260512_ROOTONLY</div>
+    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9GB354_VISIBLE_BUILD_CACHE_FORCE_20260518_ROOTONLY</div>
   </main>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
-  <script src="firebase-config.js?v=M50.9.9GB352_CUSTOMER_PORTAL_SAVE_LOGOUT_NOTICE_FIX_20260512_ROOTONLY"></script>
+  <script src="firebase-config.js?v=M50.9.9GB354_VISIBLE_BUILD_CACHE_FORCE_20260518_ROOTONLY"></script>
 
   <script>
   /* GB350 CUSTOMER PORTAL EARLY ACTION GUARD
@@ -262,7 +265,7 @@
     'use strict';
     if(window.__dsGB350CustomerEarlyGuardInstalled) return;
     window.__dsGB350CustomerEarlyGuardInstalled = true;
-    var BUILD = 'M50.9.9GB352_CUSTOMER_PORTAL_SAVE_LOGOUT_NOTICE_FIX_20260512_ROOTONLY';
+    var BUILD = 'M50.9.9GB354_VISIBLE_BUILD_CACHE_FORCE_20260518_ROOTONLY';
     var submitLockUntil = 0;
     function S(v){ try{return String(v == null ? '' : v).trim();}catch(_){return '';} }
     function L(v){ return S(v).toLowerCase(); }
@@ -447,10 +450,10 @@
   })();
   </script>
 
-  <script src="app.js?v=M50.9.9GB352_CUSTOMER_PORTAL_SAVE_LOGOUT_NOTICE_FIX_20260512_ROOTONLY"></script>
+  <script src="app.js?v=M50.9.9GB354_VISIBLE_BUILD_CACHE_FORCE_20260518_ROOTONLY"></script>
   <script>
     (function(){
-      const BUILD = 'Build CUSTOMER M50.9.9GB352_CUSTOMER_PORTAL_SAVE_LOGOUT_NOTICE_FIX_20260512_ROOTONLY';
+      const BUILD = 'Build CUSTOMER M50.9.9GB354_VISIBLE_BUILD_CACHE_FORCE_20260518_ROOTONLY';
       const DRAFT_KEY = 'ds_customer_app_drafts_v1';
       const viewNames = ['home','dogs','contract','stay','chat'];
       let currentView = 'home';
@@ -1059,7 +1062,7 @@ document.getElementById('btnCustomerTaskSubmit')?.addEventListener('click', ()=>
             customer: customerProposal,
             pet: petProposal,
             fields: f,
-            meta: { customerId, petId, submittedFrom: 'customer.html', build: 'M50.9.9GB352_CUSTOMER_PORTAL_SAVE_LOGOUT_NOTICE_FIX_20260512_ROOTONLY' }
+            meta: { customerId, petId, submittedFrom: 'customer.html', build: 'M50.9.9GB354_VISIBLE_BUILD_CACHE_FORCE_20260518_ROOTONLY' }
           };
           const litePayloadSubmitted = {
             source: 'customer-portal-dogs-gb350',
@@ -1129,19 +1132,9 @@ document.getElementById('btnCustomerTaskSubmit')?.addEventListener('click', ()=>
             const sigStore = (window.state && state.contractSignatures) || {};
             const sigRec = sigStore[version + '__' + customerId + '__' + petId] || null;
             if(!sigRec || !sigRec.dataUrl){ alert('Bitte zuerst unterschreiben.'); return; }
-            try{
-              window.state = window.state || {};
-              state.contractAgreements = state.contractAgreements || {};
-              state.contractAgreements[version + '__' + customerId + '__' + petId + '::' + version] = {
-                customerId, petId, version,
-                accepted: true,
-                signatureAt: sigRec.signedAt || Date.now(),
-                savedAt: Date.now(),
-                source: 'customer-portal-proposal-pending'
-              };
-              try{ if(typeof window.dsMirrorContractToPetOwner === 'function') window.dsMirrorContractToPetOwner(customerId, petId, version); }catch(_){ }
-              try{ if(typeof window.saveState === 'function') window.saveState(); }catch(_){ }
-            }catch(_){ }
+            /* GB353: Kunden-App darf beim Betreuungsvertrag niemals direkt final speichern.
+               Hier wird nur ein prüfbarer Vorschlag für Eingänge erzeugt; die Übernahme
+               passiert ausschließlich in der Haupt-App nach Prüfung. */
             const selectedCustomer = (info.ctx?.state?.customers || []).find(x => String(x?.id||x?.customerId||'') === customerId) || customer;
             const selectedPet = (info.ctx?.pets || []).find(x => String(x?.id||x?.petId||'') === petId) || pet;
             const fields = {
@@ -1530,7 +1523,7 @@ function renderStayRealForm(doc){
 
 <script>
 (function(){
-  const CURRENT_BUILD = 'M50.9.9GB352_CUSTOMER_PORTAL_SAVE_LOGOUT_NOTICE_FIX_20260512_ROOTONLY';
+  const CURRENT_BUILD = 'M50.9.9GB354_VISIBLE_BUILD_CACHE_FORCE_20260518_ROOTONLY';
   try{
     window.addEventListener('load', function(){
       try{
@@ -1556,7 +1549,7 @@ function renderStayRealForm(doc){
   'use strict';
   if(window.__dsGB350CustomerPostBootInstalled) return;
   window.__dsGB350CustomerPostBootInstalled = true;
-  var BUILD='M50.9.9GB352_CUSTOMER_PORTAL_SAVE_LOGOUT_NOTICE_FIX_20260512_ROOTONLY';
+  var BUILD='M50.9.9GB354_VISIBLE_BUILD_CACHE_FORCE_20260518_ROOTONLY';
   function S(v){try{return String(v==null?'':v).trim();}catch(_){return''}}
   function bind(){
     try{ var b=document.getElementById('btnCustomerLogout'); if(b){ b.onclick=function(e){ try{e&&e.preventDefault();e&&e.stopPropagation();}catch(_){} (window.dsCustomerPortalLogoutGB350||window.dsCustomerPortalLogoutGB349)&& (window.dsCustomerPortalLogoutGB350||window.dsCustomerPortalLogoutGB349)(); return false; }; } }catch(_){ }
@@ -1583,7 +1576,7 @@ function renderStayRealForm(doc){
   'use strict';
   if(window.__dsGB351CustomerSuccessNoticeInstalled) return;
   window.__dsGB351CustomerSuccessNoticeInstalled = true;
-  var BUILD='M50.9.9GB352_CUSTOMER_PORTAL_SAVE_LOGOUT_NOTICE_FIX_20260512_ROOTONLY';
+  var BUILD='M50.9.9GB354_VISIBLE_BUILD_CACHE_FORCE_20260518_ROOTONLY';
   function S(v){try{return String(v==null?'':v).trim();}catch(_){return''}}
   function L(v){return S(v).toLowerCase()}
   function ok(res){return !!(res && (res.ok===true || (typeof res==='object' && !res.error && !res.skipped)))}
@@ -1669,7 +1662,7 @@ function renderStayRealForm(doc){
   'use strict';
   if(window.__dsGB352CustomerHtmlHardeningInstalled) return;
   window.__dsGB352CustomerHtmlHardeningInstalled = true;
-  var BUILD='M50.9.9GB352_CUSTOMER_PORTAL_SAVE_LOGOUT_NOTICE_FIX_20260512_ROOTONLY';
+  var BUILD='M50.9.9GB354_VISIBLE_BUILD_CACHE_FORCE_20260518_ROOTONLY';
   function S(v){try{return String(v==null?'':v).trim();}catch(_){return''}}
   function show(msg){
     try{
@@ -1699,6 +1692,211 @@ function renderStayRealForm(doc){
     };
     window.dsSubmitCustomerPortalProposal.__gb352HtmlWrapped=true;
   }
+})();
+</script>
+
+
+
+<script>
+/* GB353 CUSTOMER FINAL HARDENING: strict customer proposals, no direct final write, reliable notice/logout */
+(function(){
+  'use strict';
+  if(window.__dsGB353CustomerHtmlFinalInstalled) return;
+  window.__dsGB353CustomerHtmlFinalInstalled = true;
+  var BUILD='M50.9.9GB354_VISIBLE_BUILD_CACHE_FORCE_20260518_ROOTONLY';
+  function S(v){try{return String(v==null?'':v).trim();}catch(_){return''}}
+  function L(v){return S(v).toLowerCase()}
+  function nowIso(){try{return new Date().toISOString();}catch(_){return String(Date.now())}}
+  function arr(v){return Array.isArray(v)?v:[]}
+  function state(){try{return window.state || (typeof getState==='function'&&getState()) || {};}catch(_){return window.state||{};}}
+  function localSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(_){}}
+  function localGet(k,f){try{var v=localStorage.getItem(k);return v?JSON.parse(v):f;}catch(_){return f;}}
+  function statusText(msg){try{var ids=['customerTaskSaveHint','contractSavedInfo','contractSaveInfo','dsCustomerStatus'];for(var i=0;i<ids.length;i++){var el=document.getElementById(ids[i]);if(el) el.textContent=msg;}}catch(_){}}
+  function show(msg,key){
+    try{
+      msg=S(msg)||'✅ Vorschlag gespeichert.'; key=S(key||msg)||msg;
+      statusText(msg);
+      if(typeof window.dsGB351CustomerShowSuccess==='function'){
+        try{window.dsGB351CustomerShowSuccess(msg,key);return;}catch(_){ }
+      }
+      var now=Date.now(); window.__dsGB353NoticeLast=window.__dsGB353NoticeLast||{};
+      if(window.__dsGB353NoticeLast[key] && now-window.__dsGB353NoticeLast[key]<2800) return;
+      window.__dsGB353NoticeLast[key]=now;
+      var box=document.getElementById('dsGB353CustomerNotice');
+      if(!box){
+        box=document.createElement('div'); box.id='dsGB353CustomerNotice'; box.setAttribute('role','status');
+        box.style.cssText='position:fixed;left:50%;top:94px;transform:translateX(-50%);z-index:2147483647;max-width:min(660px,calc(100vw - 32px));padding:16px 22px;border-radius:18px;background:rgba(28,42,33,.97);border:1px solid rgba(129,255,170,.42);box-shadow:0 18px 52px rgba(0,0,0,.44);color:#fff;font:650 16px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.35;text-align:center;white-space:normal;';
+        document.body.appendChild(box);
+      }
+      box.textContent=msg; box.style.display='block'; box.style.opacity='1';
+      clearTimeout(window.__dsGB353NoticeTimer);
+      window.__dsGB353NoticeTimer=setTimeout(function(){try{box.style.opacity='0';setTimeout(function(){try{box.style.display='none';}catch(_){}},260);}catch(_){}},5200);
+    }catch(_){ }
+  }
+  function currentUser(){try{var a=(window.firebase&&firebase.auth)?firebase.auth():((window.CLOUD&&CLOUD.auth)||null);return a&&a.currentUser?a.currentUser:null;}catch(_){return null}}
+  function waitUser(ms){
+    ms=ms||9000;
+    return new Promise(function(resolve){
+      var u=currentUser(); if(u) return resolve(u);
+      var done=false; function finish(v){if(done)return;done=true;resolve(v||currentUser()||null)}
+      try{var a=(window.firebase&&firebase.auth)?firebase.auth():((window.CLOUD&&CLOUD.auth)||null); if(a&&a.onAuthStateChanged){var un=a.onAuthStateChanged(function(x){try{un&&un();}catch(_){};finish(x||null);});}}catch(_){ }
+      setTimeout(function(){finish(null)},ms);
+    });
+  }
+  function getDb(){try{if(window.firebase&&firebase.firestore)return firebase.firestore(); if(window.CLOUD&&CLOUD.db)return CLOUD.db;}catch(_){ } return null;}
+  function orgId(){return S((window.CLOUD&&CLOUD.orgId)||window.CLOUD_ORG_ID||window.firebaseOrgId||'doggystyle')||'doggystyle'}
+  function normEmail(v){return L(v)}
+  function idOf(o){return S(o&&((o.id)||(o._id)||(o.uid)||(o.customerId)||(o.petId)))}
+  function nameOf(o){return S(o&&((o.name)||(o.fullName)||([o.firstName,o.lastName].filter(Boolean).join(' '))||(o.ownerName)||(o.customerName)))}
+  function findCustomerByUser(user){
+    try{
+      if(window.dsGB353ResolveCustomerScope){var sc=window.dsGB353ResolveCustomerScope(); if(sc&&sc.customer) return sc.customer;}
+    }catch(_){ }
+    var st=state(); var uid=S(user&&user.uid), email=normEmail(user&&user.email);
+    var customers=arr(st.customers || st.kunden || st.clients || st.people);
+    var found=null;
+    for(var i=0;i<customers.length;i++){
+      var c=customers[i]||{};
+      if(uid && [c.portalUid,c.customerUid,c.authUid,c.uid,c.userId].some(function(x){return S(x)===uid;})){found=c;break;}
+      if(email && [c.email,c.mail,c.emailAddress,c.loginEmail,c.portalEmail].some(function(x){return normEmail(x)===email;})){found=c;break;}
+    }
+    if(found) return found;
+    try{var h=JSON.parse(sessionStorage.getItem('ds_customer_portal_scope')||sessionStorage.getItem('ds_customer_scope')||'{}'); if(h&&h.customer) return h.customer;}catch(_){ }
+    return null;
+  }
+  function scopedContext(user,explicit){
+    var st=state(); var customer=explicit&&explicit.customer?explicit.customer:findCustomerByUser(user);
+    var cid=S((explicit&&explicit.customerId)||idOf(customer));
+    var email=normEmail(user&&user.email);
+    if(!customer){ customer={id:cid||('portal_'+S(user&&user.uid||email||Date.now())),name:S(user&&user.displayName)||email||'Kunde',email:email,portalUid:S(user&&user.uid)}; cid=idOf(customer); }
+    var pets=arr(st.pets||st.dogs||st.hunde).filter(function(p){
+      var vals=[p.customerId,p.ownerId,p.kundeId,p.clientId,p.customerUid,p.ownerUid];
+      if(cid && vals.some(function(x){return S(x)===cid;})) return true;
+      if(email && [p.customerEmail,p.ownerEmail,p.email].some(function(x){return normEmail(x)===email;})) return true;
+      return false;
+    });
+    var pet=(explicit&&explicit.pet)||null;
+    var pid=S((explicit&&explicit.petId)||idOf(pet));
+    if(!pet && pid){pet=arr(st.pets||st.dogs||st.hunde).find(function(p){return idOf(p)===pid;})||null;}
+    if(!pet && pets.length===1) pet=pets[0];
+    return {customer:customer,customerId:cid,pets:pets,pet:pet,petId:S(pid||idOf(pet)),user:user};
+  }
+  function setSelectValue(id,val){try{var el=document.getElementById(id); if(el && S(val)){el.value=S(val); el.dispatchEvent(new Event('change',{bubbles:true}));}}catch(_){}}
+  function pickSelectedContract(){
+    var st=state();
+    var csel=document.getElementById('contractCustomerSelect');
+    var psel=document.getElementById('contractPetSelect');
+    var cid=S(csel&&csel.value), pid=S(psel&&psel.value);
+    var c=cid?arr(st.customers||st.kunden||st.clients||st.people).find(function(x){return idOf(x)===cid||nameOf(x)===cid;}):null;
+    var p=pid?arr(st.pets||st.dogs||st.hunde).find(function(x){return idOf(x)===pid||nameOf(x)===pid;}):null;
+    return {customer:c,customerId:cid,pet:p,petId:pid};
+  }
+  function signatureData(){
+    try{ if(window.dsGetContractSignatureData){var x=window.dsGetContractSignatureData(); if(S(x)) return S(x);} }catch(_){ }
+    try{var cv=document.getElementById('contractSignatureCanvas')||document.querySelector('canvas'); if(cv&&cv.toDataURL){var d=cv.toDataURL('image/png'); if(d&&d.length>80) return d;}}catch(_){ }
+    try{var st=state(); var sel=pickSelectedContract(); var key=S(sel.customerId)+'::'+S(sel.petId); var cs=st.contractSignatures||{}; var r=cs[key]||cs[S(sel.petId)]||cs[S(sel.customerId)]; return S((r&&r.signatureData)||r); }catch(_){ }
+    return '';
+  }
+  function fullProposal(opts,user){
+    opts=opts||{}; var p=opts.payloadSubmitted||opts.payload||{}; var sc=scopedContext(user,{customerId:opts.customerId||p.customerId,petId:opts.petId||p.petId,customer:p.customer,pet:p.pet});
+    var tpl=S(opts.templateId||p.templateId||p.type||'customer_data')||'customer_data';
+    var id=S(opts.id||p.id)||('prop_'+Date.now()+'_'+Math.random().toString(36).slice(2,8));
+    var payload=Object.assign({},p,{templateId:tpl,customerId:sc.customerId,petId:sc.petId,customerName:nameOf(sc.customer),petName:nameOf(sc.pet),submittedFrom:'customer.html',source:p.source||opts.source||'customer_portal',build:BUILD,submittedAt:p.submittedAt||nowIso()});
+    if(tpl==='boarding_contract'){
+      payload.accepted = true;
+      payload.contractAccepted = true;
+      payload.agreementAccepted = true;
+      payload.signatureData = S(payload.signatureData)||signatureData();
+      payload.signedAt = payload.signedAt || payload.submittedAt;
+      payload.contractVersion = payload.contractVersion || 'v1.0';
+    }
+    return {id:id,type:tpl,templateId:tpl,status:'pending',state:'pending',title:opts.title||p.title||(tpl==='boarding_contract'?'Betreuungsvertrag Vorschlag':'Änderungsvorschlag'),summary:opts.summary||p.summary||'',customerId:sc.customerId,petId:sc.petId,customerName:nameOf(sc.customer),petName:nameOf(sc.pet),customerEmail:normEmail(user&&user.email),createdAt:payload.submittedAt,submittedAt:payload.submittedAt,createdBy:S(user&&user.uid),portalUid:S(user&&user.uid),source:'customer_portal',submittedFrom:'customer.html',build:BUILD,payloadSubmitted:payload,payload:payload,changes:opts.changes||p.changes||[],meta:Object.assign({},opts.meta||p.meta||{},{customerId:sc.customerId,petId:sc.petId,customerEmail:normEmail(user&&user.email),build:BUILD})};
+  }
+  function saveLocal(row){
+    try{var k='ds_customer_proposals_v1'; var list=localGet(k,[]); list=arr(list).filter(function(x){return S(x&&x.id)!==S(row.id)}); list.unshift(row); localSet(k,list.slice(0,80));}catch(_){ }
+    try{var k2='ds_pending_portal_proposals'; var l2=localGet(k2,[]); l2=arr(l2).filter(function(x){return S(x&&x.id)!==S(row.id)}); l2.unshift(row); localSet(k2,l2.slice(0,80));}catch(_){ }
+  }
+  async function writeCloud(row){
+    var db=getDb(); if(!db) throw new Error('Firestore nicht bereit');
+    var org=orgId();
+    var base=db.collection('orgs').doc(org);
+    var payload=JSON.parse(JSON.stringify(row));
+    var jobs=[];
+    jobs.push(base.collection('proposals').doc(row.id).set(payload,{merge:true}));
+    jobs.push(base.collection('tasks').doc(row.id).set(payload,{merge:true}));
+    try{jobs.push(db.collection('proposals').doc(row.id).set(payload,{merge:true}));}catch(_){ }
+    await Promise.all(jobs);
+    return true;
+  }
+  async function submitProposal(opts){
+    opts=opts||{};
+    statusText('Speichern läuft …');
+    var user=await waitUser(9000);
+    if(!user){
+      var local=fullProposal(opts,{uid:'local',email:''}); saveLocal(local);
+      show('⚠️ Vorschlag lokal vorgemerkt. Bitte neu anmelden, damit er in Eingänge landet.','local-noauth');
+      return {ok:false,local:true,needsLogin:true,id:local.id,error:'no-auth'};
+    }
+    var row=fullProposal(opts,user); saveLocal(row);
+    try{
+      await writeCloud(row);
+      show(row.templateId==='boarding_contract'?'✅ Betreuungsvertrag als Vorschlag gespeichert und an Eingänge übergeben.':'✅ Änderungsvorschlag gespeichert und an Eingänge übergeben.','submit-'+row.id);
+      return {ok:true,id:row.id,proposal:row,task:row};
+    }catch(e){
+      try{console.warn('GB353 customer proposal cloud failed',e);}catch(_){ }
+      show('⚠️ Vorschlag lokal gespeichert. Cloud-Sicherung bitte prüfen.','cloud-failed-'+row.id);
+      return {ok:false,local:true,id:row.id,error:e&&e.message,proposal:row};
+    }
+  }
+  submitProposal.__gb353Final=true;
+  window.dsGB353CustomerSubmitProposalFinal=submitProposal;
+  window.dsSubmitCustomerPortalProposal=submitProposal;
+  function contractMessage(){return 'Betreuungsvertrag Vorschlag';}
+  async function submitContract(ev){
+    try{ev&&ev.preventDefault&&ev.preventDefault();ev&&ev.stopPropagation&&ev.stopPropagation();try{ev&&ev.stopImmediatePropagation&&ev.stopImmediatePropagation();}catch(_){ }}catch(_){ }
+    var sel=pickSelectedContract();
+    var user=await waitUser(9000);
+    var sc=scopedContext(user,sel);
+    var sig=signatureData();
+    var accepted=!!(document.getElementById('contractAcceptChk')&&document.getElementById('contractAcceptChk').checked);
+    if(!sc.customerId || !sc.petId){show('⚠️ Bitte zuerst Kunde und Hund wählen.','contract-missing'); return {ok:false,error:'missing-customer-pet'};}
+    if(!accepted){show('⚠️ Bitte Vertrag akzeptieren.','contract-accept'); return {ok:false,error:'missing-acceptance'};}
+    if(!S(sig)){show('⚠️ Bitte zuerst unterschreiben.','contract-signature'); return {ok:false,error:'missing-signature'};}
+    return submitProposal({templateId:'boarding_contract',title:contractMessage(),customerId:sc.customerId,petId:sc.petId,payloadSubmitted:{templateId:'boarding_contract',type:'boarding_contract',source:'customer_contract',customerId:sc.customerId,petId:sc.petId,customerName:nameOf(sc.customer),petName:nameOf(sc.pet),signatureData:sig,accepted:true,contractAccepted:true,agreementAccepted:true,contractVersion:'v1.0'}});
+  }
+  submitContract.__gb353Final=true;
+  window.dsCustomerPortalSubmitContractGB353=submitContract;
+  window.dsCustomerPortalSubmitContractGB350=submitContract;
+  window.dsCustomerPortalSubmitContractGB349=submitContract;
+  window.__dsCustomerContractSubmitHook=submitContract;
+  function bindContractSave(){
+    try{
+      var btn=document.getElementById('contractSaveBtn');
+      if(btn && !btn.__gb353FinalBound){
+        btn.__gb353FinalBound=true; btn.textContent='Vorschlag senden';
+        ['pointerdown','touchstart','click'].forEach(function(tp){btn.addEventListener(tp,submitContract,true);});
+        btn.onclick=submitContract;
+      }
+    }catch(_){ }
+  }
+  function hardLogout(ev){
+    try{
+      var btn=ev&&ev.target&&ev.target.closest&&ev.target.closest('button'); if(!btn || btn.id!=='btnCustomerLogout') return;
+      ev.preventDefault(); ev.stopPropagation(); try{ev.stopImmediatePropagation&&ev.stopImmediatePropagation();}catch(_){ }
+      var done=false; function go(){if(done)return;done=true;try{location.href='login.html?v='+encodeURIComponent(BUILD);}catch(_){location.href='login.html';}}
+      try{var a=(window.firebase&&firebase.auth)?firebase.auth():((window.CLOUD&&CLOUD.auth)||null); if(a&&a.signOut){Promise.race([a.signOut().catch(function(){}),new Promise(function(r){setTimeout(r,900);})]).then(go).catch(go);}else go();}catch(_){go();}
+      setTimeout(go,1250); return false;
+    }catch(_){ }
+  }
+  ['pointerdown','touchstart','click'].forEach(function(tp){try{document.addEventListener(tp,hardLogout,true);window.addEventListener(tp,hardLogout,true);}catch(_){} });
+  function tick(){
+    bindContractSave();
+    try{var bottom=document.getElementById('customerPortalBuildBottom'); if(bottom && bottom.textContent.indexOf('GB354')<0) bottom.textContent='Build CUSTOMER '+BUILD+' · Vorschlagmodus';}catch(_){ }
+    try{
+      if(typeof window.dsGetCustomerScopeContext!=='function' && window.dsGB353ResolveCustomerScope){window.dsGetCustomerScopeContext=window.dsGB353ResolveCustomerScope;}
+    }catch(_){ }
+  }
+  tick(); document.addEventListener('DOMContentLoaded',tick); window.addEventListener('load',tick); setInterval(tick,1400);
 })();
 </script>
 

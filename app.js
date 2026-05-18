@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB352_CUSTOMER_PORTAL_SAVE_LOGOUT_NOTICE_FIX_20260512_ROOTONLY",
+  tag: "M50.9.9GB354_VISIBLE_BUILD_CACHE_FORCE_20260518_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,8 +12,8 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB352_CUSTOMER_PORTAL_SAVE_LOGOUT_NOTICE_FIX_20260512_ROOTONLY";
-try{ window.__dsAppJsRuntimeBuild = "GB348-appjs"; }catch(_){ }
+const APP_BUILD = "M50.9.9GB354_VISIBLE_BUILD_CACHE_FORCE_20260518_ROOTONLY";
+try{ window.__dsAppJsRuntimeBuild = 'GB354-appjs'; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
 // Global helper functions used across proposal-review matching.
@@ -3796,7 +3796,7 @@ async function submitCustomerContractProposalMain(){
         version: contractVersion,
         contractVersion: contractVersion,
         submittedFrom: 'app.html?customer_mode=contract',
-        build: 'M50.9.9GB352_CUSTOMER_PORTAL_SAVE_LOGOUT_NOTICE_FIX_20260512_ROOTONLY'
+        build: 'M50.9.9GB354_VISIBLE_BUILD_CACHE_FORCE_20260518_ROOTONLY'
       },
       signature: { dataUrl: signatureDataUrl, signatureDataUrl: signatureDataUrl, signedAt: signatureAt, signatureAt: signatureAt },
       signatureRec: { dataUrl: signatureDataUrl, signatureDataUrl: signatureDataUrl, signedAt: signatureAt, signatureAt: signatureAt, customerId, petId, customerName, petName, version: contractVersion, contractVersion },
@@ -25713,7 +25713,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB352_CUSTOMER_PORTAL_SAVE_LOGOUT_NOTICE_FIX_20260512_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB354_VISIBLE_BUILD_CACHE_FORCE_20260518_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -27686,7 +27686,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB352_CUSTOMER_PORTAL_SAVE_LOGOUT_NOTICE_FIX_20260512_ROOTONLY";
+  const BUILD = "M50.9.9GB354_VISIBLE_BUILD_CACHE_FORCE_20260518_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -30363,7 +30363,7 @@ try{ window.__GB191_MARKER = 'active'; }catch(_){ }
     try{ ds166OpenRowByKey = window.ds166OpenRowByKey; }catch(_){ }
   }catch(_){ }
 })();
-try{ window.__dsAppJsRuntimeBuild = 'GB292-appjs'; }catch(_){}
+try{ window.__dsAppJsRuntimeBuild = 'GB354-appjs'; }catch(_){}
 /* ===== END GB194 ===== */
 
 
@@ -31276,7 +31276,7 @@ try{ window.__GB294_MARKER = 'active'; }catch(_){ }
 /* ===== GB295 contract review verified open + reset fix ===== */
 try{ window.__GB295_MARKER = 'active'; }catch(_){ }
 (function(){
-  const BUILD = "M50.9.9GB352_CUSTOMER_PORTAL_SAVE_LOGOUT_NOTICE_FIX_20260512_ROOTONLY";
+  const BUILD = "M50.9.9GB354_VISIBLE_BUILD_CACHE_FORCE_20260518_ROOTONLY";
   function ds295Clone(v){ try{ return JSON.parse(JSON.stringify(v == null ? null : v)); }catch(_){ return v; } }
   function ds295Norm(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
   function ds295Bool(v){ try{ if(v===true||v===false) return !!v; const s=String(v==null?'':v).trim().toLowerCase(); return s==='1'||s==='true'||s==='yes'||s==='ja'||s==='on'; }catch(_){ return false; } }
@@ -31925,7 +31925,7 @@ try{ window.__GB297_MARKER = 'active'; }catch(_){ }
       try{ const btn = document.getElementById('btnContractRefresh'); if(btn){ btn.onclick = null; btn.addEventListener('click', wrappedRefresh); } }catch(_){ }
     }
   }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB297-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB354-appjs'; }catch(_){ }
 })();
 /* ===== END GB297 ===== */
 
@@ -32199,7 +32199,7 @@ try{ window.__GB298_MARKER = 'active'; }catch(_){ }
   try{
     if(ds298ApplyRescueIntoState()) ds298PersistStateSilently();
   }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB298-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB354-appjs'; }catch(_){ }
 })();
 /* ===== END GB298 ===== */
 
@@ -32491,7 +32491,7 @@ try{ window.__GB299_MARKER = 'active'; }catch(_){ }
     ds299WriteRescueUnion(snap.contractSignatures, snap.contractAgreements);
     if(ds299ApplyRescueIntoState()) ds299PersistLocalOnly();
   }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB299-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB354-appjs'; }catch(_){ }
 })();
 /* ===== END GB299 ===== */
 
@@ -32859,7 +32859,7 @@ try{ window.__GB300_MARKER = 'active'; }catch(_){ }
     }
   }catch(_){ }
   try{ ds300ApplyUnionIntoState(); ds300WriteUnion(); }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB301-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB354-appjs'; }catch(_){ }
 })();
 /* ===== END GB300 ===== */
 
@@ -33296,7 +33296,7 @@ try{ window.__GB301_MARKER = 'active'; }catch(_){ }
   }catch(_){ }
   try{ ds301ApplyUnionIntoState(); ds301WriteUnion(); }catch(_){ }
   try{ window.__dsContractMainNormalize = ds301PopulateNormalContractUi; }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB301-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB354-appjs'; }catch(_){ }
 })();
 /* ===== END GB301 ===== */
 
@@ -33487,7 +33487,7 @@ try{ window.__GB302_MARKER = 'active'; }catch(_){ }
   }catch(_){ }
   try{ ds302ApplyUnion(); ds302WriteUnion(); }catch(_){ }
   try{ window.__dsContractMainHardReset = ds302ResetContractMainUi; }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB302-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB354-appjs'; }catch(_){ }
 })();
 /* ===== END GB302 ===== */
 
@@ -33947,7 +33947,7 @@ try{ window.__GB303_MARKER = 'active'; }catch(_){ }
   }catch(_){ }
   try{ ds303ApplyUnion(); ds303WriteUnion(); }catch(_){ }
   try{ window.__dsContractMainNormalize = ds303NormalizeMainUi; }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB303-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB354-appjs'; }catch(_){ }
 })();
 /* ===== END GB303 ===== */
 
@@ -34066,7 +34066,7 @@ try{ window.__GB304_MARKER = 'active'; }catch(_){ }
     }
   }catch(_){ }
   try{ window.__dsContractReviewExitToMainGB304 = ds304ExitReviewToMain; }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB306-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB354-appjs'; }catch(_){ }
 })();
 /* ===== END GB304 ===== */
 
@@ -34249,7 +34249,7 @@ try{ window.__GB305_MARKER = 'active'; }catch(_){ }
       try{ window.hasValidContract = wrapped; }catch(_){ }
     }
   }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB306-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB354-appjs'; }catch(_){ }
 })();
 /* ===== END GB305 ===== */
 
@@ -34453,14 +34453,14 @@ try{ window.__GB306_MARKER = 'active'; }catch(_){ }
       window.__dsContractReviewSubmitHook = wrappedReviewHook;
     }
   }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB306-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB354-appjs'; }catch(_){ }
 })();
 /* ===== END GB306 ===== */
 
 
 /* ===== GB307 contract diagnostics panel ===== */
 try{ window.__GB307_MARKER = 'active'; }catch(_){ }
-try{ window.__dsAppJsRuntimeBuild = 'GB307-appjs'; }catch(_){ }
+try{ window.__dsAppJsRuntimeBuild = 'GB354-appjs'; }catch(_){ }
 (function(){
   const DIAG = window.__dsContractDiag = window.__dsContractDiag || {};
   const UNION_KEYS = [
@@ -34682,7 +34682,7 @@ try{ window.__dsAppJsRuntimeBuild = 'GB307-appjs'; }catch(_){ }
 
 /* ===== GB308 contract diagnostics hard mount ===== */
 try{ window.__GB308_MARKER = 'active'; }catch(_){ }
-try{ window.__dsAppJsRuntimeBuild = 'GB308-appjs'; }catch(_){ }
+try{ window.__dsAppJsRuntimeBuild = 'GB354-appjs'; }catch(_){ }
 (function(){
   const DIAG = window.__dsContractDiag = window.__dsContractDiag || {};
   function norm(v){ return String(v == null ? '' : v).trim(); }
@@ -34863,7 +34863,7 @@ try{ window.__GB311_MARKER = 'active'; }catch(_){ }
 
 /* ===== GB312 contract canonical validity + refresh repair ===== */
 try{ window.__GB312_MARKER = 'active'; }catch(_){ }
-try{ window.__dsAppJsRuntimeBuild = 'GB312-appjs'; }catch(_){ }
+try{ window.__dsAppJsRuntimeBuild = 'GB354-appjs'; }catch(_){ }
 (function(){
   function n(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
   function lc(v){ return n(v).toLowerCase(); }
@@ -35049,7 +35049,7 @@ try{ window.__dsAppJsRuntimeBuild = 'GB312-appjs'; }catch(_){ }
 /* ===== END GB312 ===== */
 
 /* ===== GB313 contract click-release + canonical badge hardfix ===== */
-try{ window.__GB313_MARKER='active'; window.__dsAppJsRuntimeBuild='GB313-appjs'; }catch(_){ }
+try{ window.__GB313_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB354-appjs'; }catch(_){ }
 (function(){
   function n(v){try{return String(v==null?'':v).trim();}catch(_){return ''}}
   function lc(v){return n(v).toLowerCase()}
@@ -35101,7 +35101,7 @@ try{ window.__GB313_MARKER='active'; window.__dsAppJsRuntimeBuild='GB313-appjs';
 /* ===== END GB313 ===== */
 
 /* ===== GB314 hard contract review release + green badge repair ===== */
-try{ window.__GB314_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB314-appjs'; }catch(_){ }
+try{ window.__GB314_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB354-appjs'; }catch(_){ }
 (function(){
   function N(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
   function L(v){ return N(v).toLowerCase(); }
@@ -35282,9 +35282,9 @@ try{ window.__GB314_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB314-app
 /* ===== END GB314 ===== */
 
 /* ===== GB315 final contract acceptance + badge DOM hardfix ===== */
-try{ window.__GB315_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB316-appjs'; }catch(_){ }
+try{ window.__GB315_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB354-appjs'; }catch(_){ }
 (function(){
-  var BUILD='M50.9.9GB352_CUSTOMER_PORTAL_SAVE_LOGOUT_NOTICE_FIX_20260512_ROOTONLY';
+  var BUILD='M50.9.9GB354_VISIBLE_BUILD_CACHE_FORCE_20260518_ROOTONLY';
   function S(v){ try{return String(v==null?'':v).trim();}catch(_){return '';} }
   function L(v){ return S(v).toLowerCase(); }
   function esc(v){ try{return CSS && CSS.escape ? CSS.escape(S(v)) : S(v).replace(/[^a-zA-Z0-9_-]/g,'\\$&');}catch(_){return S(v);} }
@@ -35429,7 +35429,7 @@ try{ window.__GB315_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB316-app
 /* ===== END GB315 ===== */
 
 /* ===== GB316 contract signature-valid + passive repair loop ===== */
-try{ window.__GB316_MARKER='active'; window.__dsAppJsRuntimeBuild='GB316-appjs'; }catch(_){ }
+try{ window.__GB316_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB354-appjs'; }catch(_){ }
 (function(){
   function S(v){ try{ return String(v==null?'':v).trim(); }catch(_){ return ''; } }
   function L(v){ return S(v).toLowerCase(); }
@@ -35471,7 +35471,7 @@ try{ window.__GB316_MARKER='active'; window.__dsAppJsRuntimeBuild='GB316-appjs';
 
 
 /* ===== GB317 contract real save + unlock ===== */
-try{window.__GB317_MARKER='active';window.__dsAppJsRuntimeBuild='GB317-appjs'}catch(_){ }
+try{window.__GB317_MARKER='active';window.__dsAppJsRuntimeBuild = 'GB354-appjs'}catch(_){ }
 (function(){
 function S(v){return String(v==null?'':v).trim()}function L(v){return S(v).toLowerCase()}function V(){try{return S(state.contractVersion||state.contract?.version||'v1.0')||'v1.0'}catch(_){return'v1.0'}}function pets(){try{return Array.isArray(state.pets)?state.pets:[]}catch(_){return[]}}function custs(){try{return Array.isArray(state.customers)?state.customers:[]}catch(_){return[]}}function pn(p){return S(p&&(p.name||p.petName||p.dogName||p.id||p.petId||p.dogId))}function cn(c){return S(c&&(c.name||c.displayName||c.lastName||c.email||c.id||c.customerId))}
 function fc(x){var lx=L(x),r=null;if(!lx)return null;try{if(typeof getCustomer==='function')r=getCustomer(S(x))||null}catch(_){ }return r||custs().find(c=>[c.id,c.customerId,c.uid,c.key,c.email,c.name,c.displayName,c.lastName].map(L).includes(lx))||null}
@@ -35495,9 +35495,9 @@ try{var rd=renderDogs;if(rd&&!rd.__gb317Wrapped){renderDogs=function(){var r=rd.
 /* ===== END GB317 ===== */
 
 /* ===== GB318 contract hard bypass: accept not required when signature exists + generic green repair ===== */
-try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild='GB318-appjs'; }catch(_){ }
+try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB354-appjs'; }catch(_){ }
 (function(){
-  var BUILD='M50.9.9GB352_CUSTOMER_PORTAL_SAVE_LOGOUT_NOTICE_FIX_20260512_ROOTONLY';
+  var BUILD='M50.9.9GB354_VISIBLE_BUILD_CACHE_FORCE_20260518_ROOTONLY';
   function S(v){try{return String(v==null?'':v).trim()}catch(_){return''}}
   function L(v){return S(v).toLowerCase()}
   function V(){try{return S((state&&(state.contractVersion||(state.contract&&state.contract.version)))||'v1.0')||'v1.0'}catch(_){return'v1.0'}}
@@ -35626,7 +35626,7 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild='GB318-appjs';
   'use strict';
   if(window.__dsGB348CustomerProposalRepairInstalled) return;
   window.__dsGB348CustomerProposalRepairInstalled = true;
-  var BUILD='M50.9.9GB352_CUSTOMER_PORTAL_SAVE_LOGOUT_NOTICE_FIX_20260512_ROOTONLY';
+  var BUILD='M50.9.9GB354_VISIBLE_BUILD_CACHE_FORCE_20260518_ROOTONLY';
   function S(v){try{return String(v==null?'':v).trim()}catch(_){return''}}
   function lower(v){return S(v).toLowerCase()}
   function makeId(){try{return (typeof uid==='function'?uid():('proposal_'+Date.now()+'_'+Math.random().toString(36).slice(2,8)))}catch(_){return 'proposal_'+Date.now()}}
@@ -35720,7 +35720,7 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild='GB318-appjs';
   'use strict';
   if(window.__dsGB349CustomerReviewFixInstalled) return;
   window.__dsGB349CustomerReviewFixInstalled = true;
-  var BUILD='M50.9.9GB352_CUSTOMER_PORTAL_SAVE_LOGOUT_NOTICE_FIX_20260512_ROOTONLY';
+  var BUILD='M50.9.9GB354_VISIBLE_BUILD_CACHE_FORCE_20260518_ROOTONLY';
   function S(v){ try{return String(v==null?'':v).trim();}catch(_){return '';} }
   function L(v){ return S(v).toLowerCase(); }
   function arr(a){ return Array.isArray(a) ? a : []; }
@@ -35869,7 +35869,7 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild='GB318-appjs';
   'use strict';
   if(window.__dsGB351SuccessNoticeInstalled) return;
   window.__dsGB351SuccessNoticeInstalled = true;
-  var BUILD = 'M50.9.9GB352_CUSTOMER_PORTAL_SAVE_LOGOUT_NOTICE_FIX_20260512_ROOTONLY';
+  var BUILD = 'M50.9.9GB354_VISIBLE_BUILD_CACHE_FORCE_20260518_ROOTONLY';
   function S(v){ try{return String(v==null?'':v).trim();}catch(_){return '';} }
   function L(v){ return S(v).toLowerCase(); }
   function isOk(res){ return !!(res && (res.ok === true || res === true || (typeof res === 'object' && !res.error && !res.skipped))); }
@@ -35950,7 +35950,7 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild='GB318-appjs';
   document.addEventListener('DOMContentLoaded', install, {once:true});
   setTimeout(install, 400);
   setTimeout(install, 1400);
-  try{ window.__dsAppJsRuntimeBuild = 'GB351-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB354-appjs'; }catch(_){ }
 })();
 /* ===== END GB351 ===== */
 
@@ -35963,7 +35963,7 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild='GB318-appjs';
   'use strict';
   if(window.__dsGB352CustomerLocalFirstInstalled) return;
   window.__dsGB352CustomerLocalFirstInstalled = true;
-  var BUILD = 'M50.9.9GB352_CUSTOMER_PORTAL_SAVE_LOGOUT_NOTICE_FIX_20260512_ROOTONLY';
+  var BUILD = 'M50.9.9GB354_VISIBLE_BUILD_CACHE_FORCE_20260518_ROOTONLY';
   var LS = 'ds_workspace_test_optik_01';
   var PROP = 'ds_customer_proposals_v1';
   function S(v){ try{return String(v==null?'':v).trim();}catch(_){return '';} }
@@ -36203,6 +36203,464 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild='GB318-appjs';
   }
   wrapAdminNoReturn(); setTimeout(wrapAdminNoReturn,500); setTimeout(wrapAdminNoReturn,1800);
   if(isCustomerMode()) setTimeout(markSession,250);
-  try{ window.__dsAppJsRuntimeBuild='GB352-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB354-appjs'; }catch(_){ }
 })();
 /* ===== END GB352 ===== */
+
+/* ===== GB353 CUSTOMER SCOPE + PROPOSAL REVIEW STABILITY LAYER =====
+   Ziel: Kunden sauber trennen, Kunden-App schreibt nur Vorschläge,
+   Admin-Übernahme schreibt erst nach Prüfung in die echten Stammdaten/Verträge/Aufenthalte. */
+(function(){
+  'use strict';
+  if(window.__dsGB353ScopeProposalReviewInstalled) return;
+  window.__dsGB353ScopeProposalReviewInstalled = true;
+  var BUILD = 'M50.9.9GB354_VISIBLE_BUILD_CACHE_FORCE_20260518_ROOTONLY';
+  var LS_KEY_GB353 = 'ds_workspace_test_optik_01';
+  var PROP_KEY_GB353 = 'ds_customer_proposals_v1';
+
+  function S(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
+  function L(v){ return S(v).toLowerCase(); }
+  function A(v){ return Array.isArray(v) ? v : []; }
+  function now(){ return Date.now(); }
+  function clone(v){ try{ return JSON.parse(JSON.stringify(v || {})); }catch(_){ return v || {}; } }
+  function makeId(prefix){ return S(prefix || 'proposal') + '_' + now() + '_' + Math.random().toString(36).slice(2,8); }
+  function orgId(){ try{ return S((window.CLOUD && CLOUD.orgId) || (typeof dsResolveCloudOrgId === 'function' && dsResolveCloudOrgId()) || window.firebaseOrgId || window.CLOUD_ORG_ID || 'doggystyle') || 'doggystyle'; }catch(_){ return 'doggystyle'; } }
+  function getDb(){
+    try{
+      var fb = (typeof firebase !== 'undefined' && firebase) ? firebase : window.firebase;
+      if(!fb || typeof fb.firestore !== 'function') return null;
+      try{ if(window.firebaseConfig && fb.initializeApp && (!fb.apps || !fb.apps.length)) fb.initializeApp(window.firebaseConfig); }catch(_){ }
+      var db = fb.firestore();
+      try{ window.CLOUD = window.CLOUD || {}; CLOUD.db = db; CLOUD.enabled = true; CLOUD.orgId = orgId(); }catch(_){ }
+      return db;
+    }catch(_){ return null; }
+  }
+  function authObj(){ try{ return (window.CLOUD && CLOUD.auth) || ((window.firebase && firebase.auth) ? firebase.auth() : null); }catch(_){ return null; } }
+  async function waitUser(timeoutMs){
+    var ms = Number(timeoutMs || 9000) || 9000;
+    try{
+      var a = authObj();
+      var u = (a && a.currentUser) || (window.CLOUD && CLOUD.user && CLOUD.user.uid && !CLOUD.user.__gb352Fake ? CLOUD.user : null) || null;
+      if(u && u.uid) return u;
+      if(!a || !a.onAuthStateChanged) return null;
+      return await new Promise(function(resolve){
+        var done = false, unsub = null;
+        function finish(x){ if(done) return; done = true; try{ unsub && unsub(); }catch(_){ } resolve((x && x.uid) ? x : null); }
+        var t = setTimeout(function(){ finish((a && a.currentUser) || null); }, ms);
+        try{ unsub = a.onAuthStateChanged(function(user){ clearTimeout(t); finish(user || (a && a.currentUser) || null); }); }catch(_){ clearTimeout(t); finish((a && a.currentUser) || null); }
+      });
+    }catch(_){ return null; }
+  }
+  function readState(){
+    try{ if(window.state && typeof state === 'object') return state; }catch(_){ }
+    try{ if(typeof loadState === 'function'){ var st = loadState(); if(st && typeof st === 'object') return st; } }catch(_){ }
+    try{ return JSON.parse(localStorage.getItem(LS_KEY_GB353) || '{}') || {}; }catch(_){ return {}; }
+  }
+  function writeState(st){
+    try{ window.state = st; }catch(_){ }
+    try{ if(typeof saveState === 'function') saveState(); else localStorage.setItem(LS_KEY_GB353, JSON.stringify(st)); }catch(_){ try{ localStorage.setItem(LS_KEY_GB353, JSON.stringify(st)); }catch(__){ } }
+  }
+  function byAnyId(obj, id){
+    id = S(id);
+    if(!id || !obj) return false;
+    return [obj.id,obj.customerId,obj.petId,obj.dogId,obj.ownerId,obj.uid,obj.portalUid,obj.customerUid,obj.userUid].some(function(v){ return S(v) === id; });
+  }
+  function userProfileFromSession(){
+    var a = authObj();
+    var u = (a && a.currentUser) || (window.CLOUD && CLOUD.user && CLOUD.user.uid && !CLOUD.user.__gb352Fake ? CLOUD.user : null) || null;
+    var ssUid='', ssEmail='', ssName='';
+    try{ ssUid = S(sessionStorage.getItem('ds_customer_auth_handoff_uid') || ''); }catch(_){ }
+    try{ ssEmail = L(sessionStorage.getItem('ds_customer_auth_handoff_email') || ''); }catch(_){ }
+    try{ ssName = S(sessionStorage.getItem('ds_customer_auth_handoff_name') || ''); }catch(_){ }
+    var uid = S((u && u.uid) || ssUid || '');
+    var email = L((u && u.email) || ssEmail || '');
+    var name = S((u && (u.displayName || u.email)) || ssName || email || 'Kunde');
+    return { user:u || null, uid:uid, email:email, displayName:name };
+  }
+  function readHandoff(){
+    try{ var raw = S(sessionStorage.getItem('ds_customer_main_handoff') || ''); return raw ? (JSON.parse(raw) || null) : null; }catch(_){ return null; }
+  }
+  function handoffMatchesUser(handoff, prof){
+    try{
+      if(!handoff || typeof handoff !== 'object') return false;
+      var hAuth = handoff.auth || {};
+      var hUid = S(hAuth.uid || handoff.uid || (handoff.customer && (handoff.customer.portalUid || handoff.customer.customerUid || handoff.customer.uid)) || '');
+      var hEmail = L(hAuth.email || handoff.email || (handoff.customer && handoff.customer.email) || '');
+      if(prof.uid && hUid && prof.uid !== hUid) return false;
+      if(prof.email && hEmail && prof.email !== hEmail) return false;
+      if(!prof.uid && !prof.email && !hUid && !hEmail) return false;
+      return true;
+    }catch(_){ return false; }
+  }
+  function customerMatchesUser(c, prof){
+    if(!c) return false;
+    var uid = prof && prof.uid ? S(prof.uid) : '';
+    var email = prof && prof.email ? L(prof.email) : '';
+    if(uid && [c.portalUid,c.customerUid,c.uid,c.userUid,c.authUid].some(function(v){ return S(v) === uid; })) return true;
+    if(email && [c.email,c.customerEmail,c.mail].some(function(v){ return L(v) === email; })) return true;
+    return false;
+  }
+  function petMatchesUser(p, prof){
+    if(!p) return false;
+    var uid = prof && prof.uid ? S(prof.uid) : '';
+    var email = prof && prof.email ? L(prof.email) : '';
+    if(uid && [p.customerUid,p.portalUid,p.uid,p.ownerUid,p.userUid].some(function(v){ return S(v) === uid; })) return true;
+    if(email && [p.customerEmail,p.ownerEmail,p.email].some(function(v){ return L(v) === email; })) return true;
+    return false;
+  }
+  function resolveCustomerScope(){
+    var st = readState();
+    try{ if(typeof ensureStateShape === 'function') ensureStateShape(); }catch(_){ }
+    var prof = userProfileFromSession();
+    var customers = A(st.customers);
+    var petsAll = A(st.pets && st.pets.length ? st.pets : st.dogs);
+    var handoff = readHandoff();
+    var customer = null, pets = [];
+    if(handoffMatchesUser(handoff, prof)){
+      var hc = (handoff.customer && typeof handoff.customer === 'object') ? handoff.customer : {};
+      var hcid = S(hc.customerId || hc.id || '');
+      if(hcid){ customer = customers.find(function(c){ return S(c.customerId || c.id) === hcid; }) || null; }
+      if(!customer && hc && (hc.email || hc.portalUid || hc.customerUid || hc.uid)){
+        customer = customers.find(function(c){ return customerMatchesUser(Object.assign({}, c, hc), {uid:S(hc.portalUid||hc.customerUid||hc.uid||prof.uid), email:L(hc.email||prof.email)}); }) || null;
+      }
+      customer = Object.assign({}, customer || {}, hc || {});
+      var hPets = A(handoff.pets).map(function(p){ return Object.assign({}, p || {}); }).filter(function(p){ return !!(S(p.id||p.petId||p.dogId||p.name)); });
+      if(hPets.length){ pets = hPets; }
+    }
+    if(!customer || !S(customer.id || customer.customerId)){
+      customer = customers.find(function(c){ return customerMatchesUser(c, prof); }) || null;
+    }
+    if(!customer){
+      var ownPet = petsAll.find(function(p){ return petMatchesUser(p, prof); }) || null;
+      if(ownPet){
+        var ownerId = S(ownPet.customerId || ownPet.ownerId || '');
+        customer = customers.find(function(c){ return ownerId && S(c.id || c.customerId) === ownerId; }) || null;
+      }
+    }
+    if(!customer){
+      customer = {
+        id:'', customerId:'', name:S(prof.displayName || prof.email || 'Kunde'), email:prof.email,
+        portalUid:prof.uid, customerUid:prof.uid, __customerShadow:true
+      };
+    }
+    var cid = S(customer.customerId || customer.id || '');
+    var cids = {};
+    [customer.id, customer.customerId].forEach(function(v){ v=S(v); if(v) cids[v]=true; });
+    if(!pets.length){
+      pets = petsAll.filter(function(p){
+        var pcid = S(p && (p.customerId || p.ownerId));
+        if(pcid && cids[pcid]) return true;
+        return petMatchesUser(p, prof);
+      });
+    }
+    pets = pets.map(function(p){
+      var pid = S(p.id || p.petId || p.dogId || p.name || '');
+      return Object.assign({}, p, { id:S(p.id || p.petId || p.dogId || pid), petId:S(p.petId || p.id || p.dogId || pid), dogId:S(p.dogId || p.id || p.petId || pid), customerId:S(p.customerId || p.ownerId || cid) });
+    });
+    if(!cid && customer && (customer.email || customer.portalUid || customer.customerUid)){
+      cid = S(customer.portalUid || customer.customerUid || customer.uid || customer.email || '');
+      customer.id = customer.id || cid; customer.customerId = customer.customerId || cid;
+    }
+    return { state:st, profile:prof, customer:customer, customerId:S(customer.customerId || customer.id || cid), pets:pets, pet:pets[0] || {}, strict:true, source:'gb353' };
+  }
+  window.dsGB353ResolveCustomerScope = resolveCustomerScope;
+  try{ window.dsGetCustomerScopeContext = resolveCustomerScope; dsGetCustomerScopeContext = resolveCustomerScope; }catch(_){ }
+  try{ window.getCustomerMainDogsContext = resolveCustomerScope; getCustomerMainDogsContext = resolveCustomerScope; }catch(_){ }
+
+  function isCustomerSurface(){
+    try{
+      var p = L(location.pathname || '');
+      var q = L(new URLSearchParams(String(location.search || '')).get('customer_mode') || '');
+      var ss = L(sessionStorage.getItem('ds_customer_main_mode') || '');
+      return p.indexOf('customer.html') >= 0 || ['dogs','contract','stay'].indexOf(q) >= 0 || ['dogs','contract','stay'].indexOf(ss) >= 0 || !!window.__dsCustomerMainModeActive || (window.CLOUD && CLOUD.role === 'customer');
+    }catch(_){ return false; }
+  }
+  function notice(msg, key){
+    try{
+      msg = S(msg) || '✅ Gespeichert.';
+      key = S(key || msg) || msg;
+      var t = now(); window.__dsGB353NoticeLast = window.__dsGB353NoticeLast || {};
+      if(window.__dsGB353NoticeLast[key] && t - window.__dsGB353NoticeLast[key] < 2200) return;
+      window.__dsGB353NoticeLast[key] = t;
+      try{ if(typeof cpSetStatus === 'function') cpSetStatus(msg.replace(/^✅\s*/,'')); }catch(_){ }
+      ['customerTaskSaveHint','contractSavedInfo','contractSaveInfo','cpStatus','assignDiag','cpHint'].forEach(function(id){ try{ var el=document.getElementById(id); if(el) el.textContent = msg; }catch(_){ } });
+      var box = document.getElementById('dsGB353Notice');
+      if(!box){
+        box = document.createElement('div'); box.id='dsGB353Notice'; box.setAttribute('role','status');
+        box.style.cssText = 'position:fixed;left:50%;top:92px;transform:translateX(-50%);z-index:2147483647;max-width:min(700px,calc(100vw - 32px));padding:16px 20px;border-radius:18px;background:rgba(31,41,35,.97);border:1px solid rgba(119,255,160,.44);box-shadow:0 18px 48px rgba(0,0,0,.45);color:#fff;font:700 16px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.35;text-align:center;white-space:normal;';
+        document.body.appendChild(box);
+      }
+      box.textContent = msg; box.style.display='block'; box.style.opacity='1';
+      clearTimeout(window.__dsGB353NoticeTimer); window.__dsGB353NoticeTimer = setTimeout(function(){ try{ box.style.opacity='0'; setTimeout(function(){ try{ box.style.display='none'; }catch(_){ } }, 260); }catch(_){ } }, 5200);
+    }catch(_){ }
+  }
+  window.dsGB353Notice = notice;
+  function localProposalStore(task){
+    try{ var list = JSON.parse(localStorage.getItem(PROP_KEY_GB353) || '[]') || []; list = A(list); list = list.filter(function(x){ return S(x && (x.id || x.taskId)) !== S(task.id || task.taskId); }); list.unshift(task); localStorage.setItem(PROP_KEY_GB353, JSON.stringify(list.slice(0,250))); }catch(_){ }
+    try{ if(typeof pushCustomerProposalBuffer === 'function') pushCustomerProposalBuffer(task); }catch(_){ }
+    try{
+      var st = readState(); st.inboxSubmissions = A(st.inboxSubmissions).filter(function(x){ return S(x && (x.id || x.taskId)) !== S(task.id || task.taskId); }); st.inboxSubmissions.unshift(task);
+      st.inboxAssignments = A(st.inboxAssignments).filter(function(x){ return S(x && (x.id || x.taskId)) !== S(task.id || task.taskId); }); st.inboxAssignments.unshift(task);
+      st._localUpdatedAt = now();
+      try{ localStorage.setItem(LS_KEY_GB353, JSON.stringify(st)); }catch(_){ }
+    }catch(_){ }
+  }
+  async function submitProposal(opts){
+    opts = opts || {};
+    var payload = clone(opts.payloadSubmitted || {});
+    var ctx = resolveCustomerScope();
+    var user = await waitUser(9000);
+    var profile = user && user.uid ? {uid:S(user.uid), email:L(user.email), displayName:S(user.displayName || user.email || '')} : ctx.profile;
+    var tpl = S(opts.templateId || payload.templateId || 'customer_data') || 'customer_data';
+    var cid = S(opts.customerId || payload.customerId || (payload.customer && (payload.customer.customerId || payload.customer.id)) || ctx.customerId || '');
+    var pid = S(opts.petId || opts.dogId || payload.petId || payload.dogId || (payload.pet && (payload.pet.petId || payload.pet.id || payload.pet.dogId)) || (ctx.pet && (ctx.pet.petId || ctx.pet.id || ctx.pet.dogId)) || '');
+    var cName = S(opts.customerName || (payload.customer && (payload.customer.name || payload.customer.fullName)) || (ctx.customer && ctx.customer.name) || profile.displayName || profile.email || 'Kunde');
+    if(payload.customer && typeof payload.customer === 'object'){
+      payload.customer.id = S(payload.customer.id || payload.customer.customerId || cid);
+      payload.customer.customerId = S(payload.customer.customerId || payload.customer.id || cid);
+      payload.customer.portalUid = S(payload.customer.portalUid || payload.customer.customerUid || profile.uid || '');
+      payload.customer.customerUid = S(payload.customer.customerUid || payload.customer.portalUid || profile.uid || '');
+      payload.customer.email = L(payload.customer.email || profile.email || '');
+    }
+    if(payload.pet && typeof payload.pet === 'object'){
+      payload.pet.id = S(payload.pet.id || payload.pet.petId || payload.pet.dogId || pid);
+      payload.pet.petId = S(payload.pet.petId || payload.pet.id || payload.pet.dogId || pid);
+      payload.pet.dogId = S(payload.pet.dogId || payload.pet.id || payload.pet.petId || pid);
+      payload.pet.customerId = S(payload.pet.customerId || payload.pet.ownerId || cid);
+      payload.pet.ownerId = S(payload.pet.ownerId || payload.pet.customerId || cid);
+    }
+    payload.customerId = S(payload.customerId || cid);
+    payload.petId = S(payload.petId || pid);
+    payload.dogId = S(payload.dogId || pid);
+    payload.mode = 'proposal'; payload.build = BUILD;
+    var id = S(opts.id || opts.taskId) || makeId('proposal');
+    var stamp = now();
+    var title = S(opts.title || (tpl === 'boarding_contract' ? 'Betreuungsvertrag Vorschlag' : (tpl === 'hundeannahme' ? 'Neuer Aufenthalt Vorschlag' : 'Kunde/Hund Änderungsvorschlag')));
+    var task = {
+      id:id, taskId:id, templateId:tpl, title:title,
+      status:'submitted', proposalStatus:'pending', kind:'proposal', proposalType:tpl,
+      submittedAt:stamp, createdAt:stamp, updatedAt:stamp,
+      customerUid:S(profile.uid), customerEmail:L(profile.email), customerName:cName,
+      customerId:cid, petId:pid, dogId:pid,
+      payloadSubmitted:payload,
+      build:BUILD, gb353Proposal:true
+    };
+    localProposalStore(task);
+    var db = getDb();
+    if(!user || !user.uid || !db){
+      notice('⚠️ Vorschlag lokal gespeichert. Cloud-Anmeldung bitte prüfen.', 'gb353-local-'+id);
+      return {ok:true, localOnly:true, task:task, path:'local-gb353'};
+    }
+    try{
+      task.customerUid = S(user.uid) || task.customerUid;
+      task.customerEmail = L(user.email) || task.customerEmail;
+      var mirror = Object.assign({}, task, { mirroredFromProposal:true, payloadSubmitted:payload, updatedAt:now() });
+      await Promise.all([
+        db.collection('orgs').doc(orgId()).collection('proposals').doc(id).set(task, {merge:true}),
+        db.collection('orgs').doc(orgId()).collection('tasks').doc(id).set(mirror, {merge:true})
+      ]);
+      try{ if(window.SYNC){ SYNC.cloudLastOkAt = now(); SYNC.cloudLastError=''; SYNC.cloudReachable=true; } if(typeof updateSyncUI === 'function') updateSyncUI(); }catch(_){ }
+      notice(tpl === 'boarding_contract' ? '✅ Betreuungsvertrag als Vorschlag gespeichert und an Eingänge übergeben.' : (tpl === 'hundeannahme' ? '✅ Aufenthaltsanfrage als Vorschlag gespeichert und an Eingänge übergeben.' : '✅ Änderungsvorschlag gespeichert und an Eingänge übergeben.'), 'gb353-cloud-'+id);
+      return {ok:true, task:task, path:'proposals+tasks-gb353'};
+    }catch(e){
+      console.warn('GB353 proposal cloud write failed', e);
+      notice('⚠️ Vorschlag lokal gespeichert. Cloud-Sicherung bitte prüfen.', 'gb353-cloudfail-'+id);
+      return {ok:true, localOnly:true, error:e, task:task, path:'local-after-cloud-fail-gb353'};
+    }
+  }
+  window.dsGB353SubmitProposal = submitProposal;
+  try{ window.dsSubmitCustomerPortalProposal = submitProposal; dsSubmitCustomerPortalProposal = submitProposal; }catch(_){ }
+
+  var oldContractSubmit = (typeof submitCustomerContractProposalMain === 'function') ? submitCustomerContractProposalMain : window.submitCustomerContractProposalMain;
+  async function contractSubmitGB353(){
+    if(!isCustomerSurface() && typeof oldContractSubmit === 'function') return oldContractSubmit.apply(this, arguments);
+    try{
+      if(window.__dsGB353ContractSubmitting) return {ok:false, skipped:true};
+      window.__dsGB353ContractSubmitting = true;
+      var ctx = resolveCustomerScope();
+      var cs = document.getElementById('contractCustomerSelect'), ps = document.getElementById('contractPetSelect'), accept = document.getElementById('contractAcceptChk');
+      var customerId = S((cs && cs.value) || ctx.customerId || '');
+      var petId = S((ps && ps.value) || (ctx.pet && (ctx.pet.id || ctx.pet.petId || ctx.pet.dogId)) || '');
+      if(!customerId || !petId){ alert('Bitte zuerst Kunde und Hund wählen.'); return {ok:false}; }
+      if(accept && !accept.checked){ alert('Bitte den Vertrag akzeptieren.'); return {ok:false}; }
+      var version = S((window.state && (state.contractVersion || (state.contract && state.contract.version))) || 'v1.0') || 'v1.0';
+      var sigKey = version + '__' + customerId + '__' + petId;
+      var sig = null;
+      try{ sig = state && state.contractSignatures && state.contractSignatures[sigKey] || null; }catch(_){ }
+      if(!sig || !(sig.dataUrl || sig.signatureDataUrl)){
+        try{ var cv=document.getElementById('contractSig'); var data=cv && cv.toDataURL ? S(cv.toDataURL('image/png')) : ''; if(data && data.length > 1200) sig={dataUrl:data, signatureDataUrl:data, signedAt:now(), signatureAt:now()}; }catch(_){ }
+      }
+      if(!sig || !(sig.dataUrl || sig.signatureDataUrl)){ alert('Bitte zuerst unterschreiben.'); return {ok:false}; }
+      var customer = (typeof getCustomer === 'function' && getCustomer(customerId)) || ctx.customer || {};
+      var pet = (typeof getPet === 'function' && getPet(petId)) || ctx.pet || {};
+      var cName = S(customer.name || customer.fullName || customer.email || ctx.profile.email || 'Kunde');
+      var pName = S(pet.name || pet.petName || pet.dogName || 'Hund');
+      var dataUrl = S(sig.dataUrl || sig.signatureDataUrl);
+      var at = sig.signedAt || sig.signatureAt || now();
+      var payload = {
+        source:'customer-contract-gb353', mode:'proposal', templateId:'boarding_contract',
+        customerId:customerId, petId:petId, dogId:petId, contractVersion:version, accepted:true,
+        customer:{ id:customerId, customerId:customerId, name:cName, fullName:cName, email:L(customer.email || ctx.profile.email || ''), phone:S(customer.phone || '') },
+        pet:{ id:petId, petId:petId, dogId:S(pet.dogId || petId), customerId:customerId, name:pName, petName:pName, dogName:pName, breed:S(pet.breed || ''), sex:S(pet.sex || '') },
+        fields:{ contractAccepted:true, accepted:true, contractVersion:version, customerName:cName, dogName:pName, petName:pName, signatureDataUrl:dataUrl, signatureAt:at },
+        meta:{ customerId:customerId, petId:petId, version:version, contractVersion:version, submittedFrom:'customer-contract', build:BUILD, signatureAt:at },
+        signature:{ dataUrl:dataUrl, signatureDataUrl:dataUrl, signedAt:at, signatureAt:at },
+        signatureRec:{ dataUrl:dataUrl, signatureDataUrl:dataUrl, signedAt:at, signatureAt:at, customerId:customerId, petId:petId, customerName:cName, petName:pName, version:version, contractVersion:version },
+        agreementRec:{ customerId:customerId, petId:petId, customerName:cName, petName:pName, version:version, contractVersion:version, accepted:true, contractAccepted:true, status:'pending', source:'customer-proposal-only-gb353' }
+      };
+      return await submitProposal({templateId:'boarding_contract', title:'Betreuungsvertrag Vorschlag', customerId:customerId, petId:petId, customerName:cName, payloadSubmitted:payload, litePayloadSubmitted:payload});
+    }catch(e){ console.error('GB353 contract submit failed', e); alert('Vertrag senden fehlgeschlagen: ' + S(e && e.message || e)); return {ok:false,error:e}; }
+    finally{ setTimeout(function(){ window.__dsGB353ContractSubmitting = false; window.__dsCustomerContractSubmittingProposal = false; window.__dsCustomerContractSubmitMainActive = false; }, 800); }
+  }
+  try{ submitCustomerContractProposalMain = contractSubmitGB353; window.submitCustomerContractProposalMain = contractSubmitGB353; window.__dsCustomerContractSubmitHook = contractSubmitGB353; }catch(_){ }
+
+  function extractPayload(row){ return clone(row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || row.snapshot) || {}); }
+  function proposalKind(row){
+    var p = extractPayload(row);
+    var s = L((row && (row.templateId || row.proposalType || row.kind || row.formKey)) || p.templateId || p.source || '');
+    if(s.indexOf('boarding_contract') >= 0 || s.indexOf('contract') >= 0 || s.indexOf('vertrag') >= 0) return 'contract';
+    if(s.indexOf('hundeannahme') >= 0 || s.indexOf('stay') >= 0 || s.indexOf('aufenthalt') >= 0) return 'stay';
+    if(s.indexOf('customer_data') >= 0 || s.indexOf('dogs') >= 0 || s.indexOf('kunde') >= 0) return 'customer_data';
+    return '';
+  }
+  function findRow(){
+    try{ if(window.__dsProposalReview && __dsProposalReview.row) return __dsProposalReview.row; }catch(_){ }
+    try{ if(window.__dsInboxCurrentTask) return window.__dsInboxCurrentTask; }catch(_){ }
+    try{ if(window.__dsInlineInboxReview && __dsInlineInboxReview.row) return __dsInlineInboxReview.row; }catch(_){ }
+    try{ if(window.__dsContractReviewSnapshot && __dsContractReviewSnapshot.row) return __dsContractReviewSnapshot.row; }catch(_){ }
+    return null;
+  }
+  function upsert(list, item, keys){
+    list = A(list); keys = keys || ['id'];
+    var idx = -1;
+    for(var i=0;i<list.length;i++){
+      for(var k=0;k<keys.length;k++){
+        var key=keys[k]; if(S(item && item[key]) && S(list[i] && list[i][key]) === S(item[key])){ idx=i; break; }
+      }
+      if(idx>=0) break;
+    }
+    if(idx>=0) list[idx] = Object.assign({}, list[idx] || {}, item || {}); else list.push(item);
+    return list;
+  }
+  function getCustomerByIdOrEmail(st, id, email){
+    id=S(id); email=L(email);
+    return A(st.customers).find(function(c){ return (id && (S(c.id)===id || S(c.customerId)===id)) || (email && L(c.email)===email); }) || null;
+  }
+  function getPetByIdOrName(st, id, cid, name){
+    id=S(id); cid=S(cid); name=L(name);
+    return A(st.pets).find(function(p){ return (id && [p.id,p.petId,p.dogId].some(function(v){ return S(v)===id; })) || (name && L(p.name||p.petName||p.dogName)===name && (!cid || S(p.customerId||p.ownerId)===cid)); }) || null;
+  }
+  function finalizeRow(row){
+    try{ if(typeof dsFinalizeAcceptedProposalLocal === 'function') dsFinalizeAcceptedProposalLocal(row); }catch(_){ }
+    try{ if(typeof removeInboxRowEverywhere === 'function') removeInboxRowEverywhere(row); }catch(_){ }
+    try{ if(typeof patchInboxRowStatus === 'function') Promise.resolve(patchInboxRowStatus(row,'adopted')).catch(function(){}); }catch(_){ }
+    try{
+      var id = S(row && (row.id || row.taskId || row.proposalId)); if(id){
+        var db = getDb(); if(db){
+          var patch = {status:'adopted', proposalStatus:'adopted', adoptedAt:now(), updatedAt:now(), adoptedBy:S(window.CLOUD && CLOUD.user && (CLOUD.user.email || CLOUD.user.uid) || '')};
+          db.collection('orgs').doc(orgId()).collection('proposals').doc(id).set(patch,{merge:true}).catch(function(){});
+          db.collection('orgs').doc(orgId()).collection('tasks').doc(id).set(patch,{merge:true}).catch(function(){});
+        }
+      }
+    }catch(_){ }
+    try{ if(window.__dsProposalReview){ __dsProposalReview.active=false; __dsProposalReview.row=null; } }catch(_){ }
+  }
+  async function persistAfterAccept(reason){
+    try{ writeState(readState()); }catch(_){ }
+    try{ if(typeof renderDogs === 'function') renderDogs(); }catch(_){ }
+    try{ if(typeof renderContractPanel === 'function' && (String(reason||'').indexOf('contract')>=0)) renderContractPanel(); }catch(_){ }
+    try{ if(typeof cloudPushNow === 'function') await cloudPushNow(); else if(typeof cloudSchedulePush === 'function') cloudSchedulePush(); }catch(e){ try{ if(typeof cloudSchedulePush === 'function') cloudSchedulePush(); }catch(_){ } }
+  }
+  async function acceptCustomerData(row){
+    var st = readState(); st.customers=A(st.customers); st.pets=A(st.pets); st.dogs=A(st.dogs);
+    var p = extractPayload(row), f = p.fields || {}, c0 = p.customer || {}, pet0 = p.pet || {};
+    var cid = S(row && row.customerId || p.customerId || c0.customerId || c0.id || f.customerId || '');
+    var email = L(c0.email || f.email || row && row.customerEmail || '');
+    var customer = getCustomerByIdOrEmail(st, cid, email) || {};
+    if(!cid) cid = S(customer.id || customer.customerId || email || ('customer_'+now()));
+    var cName = S(c0.name || c0.fullName || f.fullName || f.customerName || row && row.customerName || customer.name || email || 'Kunde');
+    var c = Object.assign({}, customer, c0, {
+      id:cid, customerId:cid, name:cName, fullName:cName,
+      email: email || L(customer.email || ''),
+      phone:S(c0.phone || f.phone || customer.phone || ''), street:S(c0.street || f.street || customer.street || ''), zip:S(c0.zip || f.zip || customer.zip || ''), city:S(c0.city || f.city || customer.city || ''),
+      emergencyName:S(c0.emergencyName || c0.emergencyContact || f.emergencyName || customer.emergencyName || ''), emergencyPhone:S(c0.emergencyPhone || f.emergencyPhone || customer.emergencyPhone || ''),
+      pickupAuth:S(c0.pickupAuth || f.pickupAuth || customer.pickupAuth || ''), note:S(c0.note || c0.notes || f.customerNote || f.note || customer.note || ''), updatedAt:now()
+    });
+    st.customers = upsert(st.customers, c, ['id','customerId']);
+    var pid = S(row && (row.petId || row.dogId) || p.petId || p.dogId || pet0.petId || pet0.id || pet0.dogId || f.petId || f.dogId || '');
+    var pName = S(pet0.name || pet0.petName || pet0.dogName || f.dogName || f.petName || f.p_name || 'Hund');
+    var oldPet = getPetByIdOrName(st, pid, cid, pName) || {};
+    if(!pid) pid = S(oldPet.id || oldPet.petId || oldPet.dogId || ('pet_'+now()));
+    var pet = Object.assign({}, oldPet, pet0, {
+      id:pid, petId:pid, dogId:S(pet0.dogId || oldPet.dogId || pid), customerId:cid, ownerId:cid,
+      name:pName, petName:pName, dogName:pName,
+      breed:S(pet0.breed || f.breed || oldPet.breed || ''), birthDate:S(pet0.birthDate || pet0.birthdate || f.birthDate || f.birthdate || oldPet.birthDate || ''), birthdate:S(pet0.birthdate || pet0.birthDate || f.birthdate || f.birthDate || oldPet.birthdate || ''),
+      sex:S(pet0.sex || f.sex || oldPet.sex || ''), chipStatus:S(pet0.chipStatus || f.chipStatus || oldPet.chipStatus || ''), chipNumber:S(pet0.chipNumber || f.chipNumber || oldPet.chipNumber || ''),
+      vet:S(pet0.vet || f.vet || oldPet.vet || ''), vetPhone:S(pet0.vetPhone || f.vetPhone || oldPet.vetPhone || ''), allergies:S(pet0.allergies || f.allergies || oldPet.allergies || ''), medicalConditions:S(pet0.medicalConditions || f.medicalConditions || oldPet.medicalConditions || ''),
+      vaccinatedConfirmed:!!(pet0.vaccinatedConfirmed || f.vaccinatedConfirmed || oldPet.vaccinatedConfirmed), rabiesDate:S(pet0.rabiesDate || f.rabiesDate || oldPet.rabiesDate || ''), mixedVaccineDate:S(pet0.mixedVaccineDate || f.mixedVaccineDate || oldPet.mixedVaccineDate || ''),
+      food:S(pet0.food || f.food || oldPet.food || ''), feeding:S(pet0.feeding || f.feeding || oldPet.feeding || ''), compat:S(pet0.compat || f.compat || oldPet.compat || ''), behavior:S(pet0.behavior || f.behavior || oldPet.behavior || ''), notes:S(pet0.notes || pet0.note || f.notes || f.note || oldPet.notes || ''), updatedAt:now()
+    });
+    st.pets = upsert(st.pets, pet, ['id','petId','dogId']);
+    try{ window.state = st; if(typeof upsertLegacyDogForPet === 'function') upsertLegacyDogForPet(pet, c); }catch(_){ }
+    writeState(st); finalizeRow(row); await persistAfterAccept('customer_data'); notice('✅ Vorschlag übernommen und in Kunde/Hund gespeichert.','gb353-accept-customer'); return true;
+  }
+  async function acceptContract(row){
+    var st = readState(); st.contractSignatures = (st.contractSignatures && typeof st.contractSignatures === 'object' && !Array.isArray(st.contractSignatures)) ? st.contractSignatures : {}; st.contractAgreements = (st.contractAgreements && typeof st.contractAgreements === 'object' && !Array.isArray(st.contractAgreements)) ? st.contractAgreements : {};
+    var p = extractPayload(row), f = p.fields || {}, m = p.meta || {}, sig = p.signature || p.signatureRec || {};
+    var cid = S(row && row.customerId || p.customerId || m.customerId || (p.customer && (p.customer.customerId || p.customer.id)) || (p.agreementRec && p.agreementRec.customerId) || '');
+    var pid = S(row && (row.petId || row.dogId) || p.petId || p.dogId || m.petId || (p.pet && (p.pet.petId || p.pet.id || p.pet.dogId)) || (p.agreementRec && p.agreementRec.petId) || '');
+    var ver = S(p.contractVersion || m.contractVersion || m.version || f.contractVersion || (p.agreementRec && (p.agreementRec.contractVersion || p.agreementRec.version)) || st.contractVersion || (st.contract && st.contract.version) || 'v1.0') || 'v1.0';
+    var dataUrl = S(sig.dataUrl || sig.signatureDataUrl || f.signatureDataUrl || m.signatureDataUrl || (p.signatureRec && (p.signatureRec.dataUrl || p.signatureRec.signatureDataUrl)) || '');
+    var accepted = !!(p.accepted || f.accepted || f.contractAccepted || m.accepted || m.contractAccepted || (p.agreementRec && (p.agreementRec.accepted || p.agreementRec.contractAccepted)));
+    if(!cid || !pid){ alert('Übernahme nicht möglich: Kunde/Hund nicht erkannt.'); return false; }
+    if(!accepted){ accepted = true; }
+    var sigAt = sig.signedAt || sig.signatureAt || f.signatureAt || m.signatureAt || now();
+    var cName = S((p.customer && (p.customer.name || p.customer.fullName)) || f.customerName || row && row.customerName || '');
+    var pName = S((p.pet && (p.pet.name || p.pet.petName || p.pet.dogName)) || f.petName || f.dogName || '');
+    if(dataUrl){ st.contractSignatures[ver + '__' + cid + '__' + pid] = {dataUrl:dataUrl, signatureDataUrl:dataUrl, signedAt:sigAt, signatureAt:sigAt, customerId:cid, petId:pid, customerName:cName, petName:pName, version:ver, contractVersion:ver, source:'gb353-proposal-accept'}; }
+    st.contractAgreements[ver + '__' + cid + '__' + pid + '::' + ver] = {customerId:cid, petId:pid, customerName:cName, petName:pName, version:ver, contractVersion:ver, accepted:true, contractAccepted:true, signatureAt:sigAt, savedAt:now(), updatedAt:now(), source:'gb353-proposal-accept'};
+    try{ window.state = st; if(typeof dsMirrorContractToPetOwner === 'function') dsMirrorContractToPetOwner(cid,pid,ver); }catch(_){ }
+    writeState(st); finalizeRow(row); await persistAfterAccept('contract'); notice('✅ Betreuungsvertrag übernommen und gespeichert.','gb353-accept-contract'); return true;
+  }
+  async function acceptStay(row){
+    var st = readState(); st.docs=A(st.docs);
+    var p = extractPayload(row), f = clone(p.fields || {}), m = clone(p.meta || {});
+    var cid = S(row && row.customerId || p.customerId || m.customerId || (p.customer && (p.customer.customerId || p.customer.id)) || '');
+    var pid = S(row && (row.petId || row.dogId) || p.petId || p.dogId || m.petId || (p.pet && (p.pet.petId || p.pet.id || p.pet.dogId)) || '');
+    if(!cid || !pid){ alert('Übernahme nicht möglich: Kunde/Hund nicht erkannt.'); return false; }
+    var doc = { id:makeId('stay'), templateId:'hundeannahme', templateName:'Aufenthalte', title:S(row && row.title || 'Aufenthaltsanfrage'), customerId:cid, petId:pid, dogId:pid, fields:f, meta:m, signature:clone(p.signature || {}), saved:true, createdAt:new Date().toISOString(), updatedAt:new Date().toISOString(), source:'gb353-proposal-accept' };
+    st.docs.unshift(doc); writeState(st); finalizeRow(row); await persistAfterAccept('stay'); notice('✅ Aufenthaltsvorschlag übernommen und gespeichert.','gb353-accept-stay'); return true;
+  }
+  async function acceptProposal(row){
+    row = row || findRow(); if(!row){ alert('Kein Vorschlag ausgewählt.'); return false; }
+    var k = proposalKind(row);
+    if(k === 'contract') return acceptContract(row);
+    if(k === 'stay') return acceptStay(row);
+    return acceptCustomerData(row);
+  }
+  window.dsGB353AcceptProposal = acceptProposal;
+  var oldSaveReview = (typeof dsSaveProposalReview === 'function') ? dsSaveProposalReview : window.dsSaveProposalReview;
+  async function saveReviewGB353(){
+    var row = findRow();
+    if(row) return acceptProposal(row);
+    if(typeof oldSaveReview === 'function') return oldSaveReview.apply(this, arguments);
+    return false;
+  }
+  try{ dsSaveProposalReview = saveReviewGB353; window.dsSaveProposalReview = saveReviewGB353; }catch(_){ }
+  try{ window.__dsInboxAdoptCurrent = function(){ return acceptProposal(findRow()); }; }catch(_){ }
+
+  // Sicherheitsnetz: Kunden-Vertrag-Speichern im Kundenmodus darf nie direkt final speichern.
+  document.addEventListener('click', function(ev){
+    try{
+      var btn = ev && ev.target && ev.target.closest && ev.target.closest('button');
+      if(!btn || btn.id !== 'contractSaveBtn') return;
+      if(!isCustomerSurface()) return;
+      ev.preventDefault(); ev.stopPropagation(); try{ ev.stopImmediatePropagation(); }catch(_){ }
+      contractSubmitGB353();
+      return false;
+    }catch(_){ }
+  }, true);
+
+  try{ window.__dsAppJsRuntimeBuild = 'GB354-appjs'; }catch(_){ }
+})();
+/* ===== END GB353 CUSTOMER SCOPE + PROPOSAL REVIEW STABILITY LAYER ===== */

@@ -1,1 +1,2 @@
-M50.9.9GB352_CUSTOMER_PORTAL_SAVE_LOGOUT_NOTICE_FIX_20260512_ROOTONLY
+M50.9.9GB354_VISIBLE_BUILD_CACHE_FORCE_20260518_ROOTONLY
+Build-Sichtprüfung: app.html, customer.html, app.js, sw.js, index.html, version.txt und verify.txt auf GB354 gesetzt.
