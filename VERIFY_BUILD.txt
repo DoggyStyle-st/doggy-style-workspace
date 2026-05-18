@@ -1,3 +1,4 @@
-M50.9.9GB355_DIAG_CUSTOMER_PROPOSAL_SCOPE_20260518_ROOTONLY
-Build-Sichtprüfung: app.html, customer.html, app.js, sw.js, index.html, version.txt und verify.txt auf GB355 gesetzt.
-Diagnose: GB355_DIAGNOSE_HINWEIS.txt beachten.
+Build unter links muss lauten:
+M50.9.9GB356_DIAG_ALWAYS_VISIBLE_SAVE_TRACE_20260518_ROOTONLY
+
+GB356: Diagnose erweitert + dauerhaft sichtbar in Kunden-App und Haupt-App.

@@ -10,7 +10,7 @@
   <link href="manifest.json" rel="manifest"/>
   <meta name="theme-color" content="#101014"/>
   <link href="assets/logo.png" rel="apple-touch-icon"/>
-  <link href="styles.css?v=M50.9.9GB355_DIAG_CUSTOMER_PROPOSAL_SCOPE_20260518_ROOTONLY" rel="stylesheet"/>
+  <link href="styles.css?v=M50.9.9GB356_DIAG_ALWAYS_VISIBLE_SAVE_TRACE_20260518_ROOTONLY" rel="stylesheet"/>
   <style>
     body.bg-watermark{background:radial-gradient(circle at top, rgba(255,255,255,.08), transparent 35%), linear-gradient(180deg,#0e1017 0%, #121521 100%) !important}
     body.bg-watermark::before{opacity:.12 !important;filter:none !important}
@@ -248,14 +248,14 @@
     <div class="customer-hidden" id="customerTaskListCard"></div>
     <div class="customer-hidden list" id="customerTaskList"></div>
     <div class="customer-hidden" id="customerPortalSubtitle"></div>
-    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9GB355_DIAG_CUSTOMER_PROPOSAL_SCOPE_20260518_ROOTONLY</div>
+    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9GB356_DIAG_ALWAYS_VISIBLE_SAVE_TRACE_20260518_ROOTONLY</div>
   </main>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
-  <script src="firebase-config.js?v=M50.9.9GB355_DIAG_CUSTOMER_PROPOSAL_SCOPE_20260518_ROOTONLY"></script>
+  <script src="firebase-config.js?v=M50.9.9GB356_DIAG_ALWAYS_VISIBLE_SAVE_TRACE_20260518_ROOTONLY"></script>
 
   <script>
   /* GB350 CUSTOMER PORTAL EARLY ACTION GUARD
@@ -265,7 +265,7 @@
     'use strict';
     if(window.__dsGB350CustomerEarlyGuardInstalled) return;
     window.__dsGB350CustomerEarlyGuardInstalled = true;
-    var BUILD = 'M50.9.9GB355_DIAG_CUSTOMER_PROPOSAL_SCOPE_20260518_ROOTONLY';
+    var BUILD = 'M50.9.9GB356_DIAG_ALWAYS_VISIBLE_SAVE_TRACE_20260518_ROOTONLY';
     var submitLockUntil = 0;
     function S(v){ try{return String(v == null ? '' : v).trim();}catch(_){return '';} }
     function L(v){ return S(v).toLowerCase(); }
@@ -450,10 +450,10 @@
   })();
   </script>
 
-  <script src="app.js?v=M50.9.9GB355_DIAG_CUSTOMER_PROPOSAL_SCOPE_20260518_ROOTONLY"></script>
+  <script src="app.js?v=M50.9.9GB356_DIAG_ALWAYS_VISIBLE_SAVE_TRACE_20260518_ROOTONLY"></script>
   <script>
     (function(){
-      const BUILD = 'Build CUSTOMER M50.9.9GB355_DIAG_CUSTOMER_PROPOSAL_SCOPE_20260518_ROOTONLY';
+      const BUILD = 'Build CUSTOMER M50.9.9GB356_DIAG_ALWAYS_VISIBLE_SAVE_TRACE_20260518_ROOTONLY';
       const DRAFT_KEY = 'ds_customer_app_drafts_v1';
       const viewNames = ['home','dogs','contract','stay','chat'];
       let currentView = 'home';
@@ -1062,7 +1062,7 @@ document.getElementById('btnCustomerTaskSubmit')?.addEventListener('click', ()=>
             customer: customerProposal,
             pet: petProposal,
             fields: f,
-            meta: { customerId, petId, submittedFrom: 'customer.html', build: 'M50.9.9GB355_DIAG_CUSTOMER_PROPOSAL_SCOPE_20260518_ROOTONLY' }
+            meta: { customerId, petId, submittedFrom: 'customer.html', build: 'M50.9.9GB356_DIAG_ALWAYS_VISIBLE_SAVE_TRACE_20260518_ROOTONLY' }
           };
           const litePayloadSubmitted = {
             source: 'customer-portal-dogs-gb350',
@@ -1523,7 +1523,7 @@ function renderStayRealForm(doc){
 
 <script>
 (function(){
-  const CURRENT_BUILD = 'M50.9.9GB355_DIAG_CUSTOMER_PROPOSAL_SCOPE_20260518_ROOTONLY';
+  const CURRENT_BUILD = 'M50.9.9GB356_DIAG_ALWAYS_VISIBLE_SAVE_TRACE_20260518_ROOTONLY';
   try{
     window.addEventListener('load', function(){
       try{
@@ -1549,8 +1549,84 @@ function renderStayRealForm(doc){
   'use strict';
   if(window.__dsGB350CustomerPostBootInstalled) return;
   window.__dsGB350CustomerPostBootInstalled = true;
-  var BUILD='M50.9.9GB355_DIAG_CUSTOMER_PROPOSAL_SCOPE_20260518_ROOTONLY';
+  var BUILD='M50.9.9GB356_DIAG_ALWAYS_VISIBLE_SAVE_TRACE_20260518_ROOTONLY';
   function S(v){try{return String(v==null?'':v).trim();}catch(_){return''}}
+  function traceSave(rec){
+    try{
+      rec=Object.assign({at:Date.now(), iso:new Date().toISOString(), build:BUILD, page:'customer', step:'trace'}, rec||{});
+      var box=window.__gb356Trace||(window.__gb356Trace={events:[]});
+      box.events.push(rec); if(box.events.length>150) box.events=box.events.slice(-150);
+      var k='ds_customer_portal_save_trace'; var list=localJSON(k,[]); list.push(rec); if(list.length>300) list=list.slice(-300); localStorage.setItem(k, JSON.stringify(list));
+      try{ console.log('GB356_SAVE_TRACE',rec); }catch(_){ }
+      try{ recSave(Object.assign({},rec,{step:'trace:'+S(rec.kind||rec.op||rec.fn||rec.step)})); }catch(_){ }
+      renderSoon();
+    }catch(_){ }
+  }
+  function payloadBytes(v){ try{ return JSON.stringify(v).length; }catch(_){ try{return String(v).length;}catch(__){return 0;} } }
+  function patchMoreDiag(){
+    try{
+      if(!window.__gb356DiagErrBound){
+        window.__gb356DiagErrBound=true;
+        window.addEventListener('error',function(ev){ traceSave({kind:'window.error',error:S((ev&&ev.message)||'')+' '+S(ev&&ev.filename)+':'+S(ev&&ev.lineno)}); });
+        window.addEventListener('unhandledrejection',function(ev){ traceSave({kind:'promise.reject',error:S(ev&&ev.reason&&ev.reason.message || ev&&ev.reason || '')}); });
+      }
+    }catch(_){ }
+    try{
+      var proto=Storage&&Storage.prototype;
+      if(proto && !proto.__gb356SetItemWrapped){
+        var orig=proto.setItem;
+        proto.setItem=function(k,v){
+          var key=S(k); var bytes=payloadBytes(v);
+          var interesting=/proposal|pending|task|inbox|customer|portal|vertrag|contract|workspace|state/i.test(key);
+          var skip=(key===LOG_KEY || key==='ds_customer_portal_save_trace' || key==='ds_diag_always_visible');
+          if(this===localStorage && interesting && !skip){
+            try{
+              var rec={at:Date.now(),iso:new Date().toISOString(),build:BUILD,page:'customer',kind:'localStorage.setItem',key:key,bytes:bytes};
+              var box=window.__gb356Trace||(window.__gb356Trace={events:[]}); box.events.push(rec); if(box.events.length>150) box.events=box.events.slice(-150);
+              var traceKey='ds_customer_portal_save_trace'; var list=[]; try{list=JSON.parse(orig.call(localStorage,traceKey)||'[]');}catch(__){list=[];}
+            }catch(__){ }
+          }
+          return orig.apply(this,arguments);
+        };
+        proto.__gb356SetItemWrapped=true;
+      }
+    }catch(_){ }
+    try{
+      if(!window.firebase || !firebase.firestore) return;
+      var DR=firebase.firestore.DocumentReference&&firebase.firestore.DocumentReference.prototype;
+      if(DR && !DR.__gb356AllWriteWrapped){
+        ['set','update','delete'].forEach(function(op){
+          var orig=DR[op]; if(typeof orig!=='function' || orig.__gb356Wrapped) return;
+          var wrapped=function(data,opts){
+            var path=S(this&&this.path); var bytes=payloadBytes(data||{});
+            var relevant=/proposal|task|inbox|contract|vertrag|customer|dog|pet|stay|aufenthalt/i.test(path);
+            if(relevant) traceSave({kind:'firestore.'+op+':start',op:op,path:path,bytes:bytes,customerId:S(data&&(data.customerId||(data.meta&&data.meta.customerId))),petId:S(data&&(data.petId||data.dogId||(data.meta&&data.meta.petId))),templateId:S(data&&(data.templateId||data.type)),status:S(data&&(data.status||data.proposalStatus))});
+            var out;
+            try{ out=orig.apply(this,arguments); }catch(e){ if(relevant) traceSave({kind:'firestore.'+op+':throw',op:op,path:path,error:S(e&&e.message||e)}); throw e; }
+            if(relevant && out && typeof out.then==='function') return out.then(function(v){ traceSave({kind:'firestore.'+op+':ok',op:op,path:path}); return v; }, function(e){ traceSave({kind:'firestore.'+op+':error',op:op,path:path,error:S(e&&e.message||e)}); throw e; });
+            return out;
+          };
+          wrapped.__gb356Wrapped=true; DR[op]=wrapped;
+        });
+        DR.__gb356AllWriteWrapped=true;
+      }
+      var CR=firebase.firestore.CollectionReference&&firebase.firestore.CollectionReference.prototype;
+      if(CR && !CR.__gb356AddWrapped){
+        var origAdd=CR.add;
+        if(typeof origAdd==='function'){
+          CR.add=function(data){
+            var path=S(this&&this.path); var bytes=payloadBytes(data||{}); var relevant=/proposal|task|inbox|contract|vertrag|customer|dog|pet|stay|aufenthalt/i.test(path);
+            if(relevant) traceSave({kind:'firestore.add:start',op:'add',path:path,bytes:bytes,customerId:S(data&&(data.customerId||(data.meta&&data.meta.customerId))),petId:S(data&&(data.petId||data.dogId||(data.meta&&data.meta.petId))),templateId:S(data&&(data.templateId||data.type)),status:S(data&&(data.status||data.proposalStatus))});
+            var out;
+            try{ out=origAdd.apply(this,arguments); }catch(e){ if(relevant) traceSave({kind:'firestore.add:throw',op:'add',path:path,error:S(e&&e.message||e)}); throw e; }
+            if(relevant && out && typeof out.then==='function') return out.then(function(v){ traceSave({kind:'firestore.add:ok',op:'add',path:path,id:S(v&&v.id)}); return v; }, function(e){ traceSave({kind:'firestore.add:error',op:'add',path:path,error:S(e&&e.message||e)}); throw e; });
+            return out;
+          };
+        }
+        CR.__gb356AddWrapped=true;
+      }
+    }catch(_){ }
+  }
   function bind(){
     try{ var b=document.getElementById('btnCustomerLogout'); if(b){ b.onclick=function(e){ try{e&&e.preventDefault();e&&e.stopPropagation();}catch(_){} (window.dsCustomerPortalLogoutGB350||window.dsCustomerPortalLogoutGB349)&& (window.dsCustomerPortalLogoutGB350||window.dsCustomerPortalLogoutGB349)(); return false; }; } }catch(_){ }
     try{
@@ -1576,7 +1652,7 @@ function renderStayRealForm(doc){
   'use strict';
   if(window.__dsGB351CustomerSuccessNoticeInstalled) return;
   window.__dsGB351CustomerSuccessNoticeInstalled = true;
-  var BUILD='M50.9.9GB355_DIAG_CUSTOMER_PROPOSAL_SCOPE_20260518_ROOTONLY';
+  var BUILD='M50.9.9GB356_DIAG_ALWAYS_VISIBLE_SAVE_TRACE_20260518_ROOTONLY';
   function S(v){try{return String(v==null?'':v).trim();}catch(_){return''}}
   function L(v){return S(v).toLowerCase()}
   function ok(res){return !!(res && (res.ok===true || (typeof res==='object' && !res.error && !res.skipped)))}
@@ -1662,7 +1738,7 @@ function renderStayRealForm(doc){
   'use strict';
   if(window.__dsGB352CustomerHtmlHardeningInstalled) return;
   window.__dsGB352CustomerHtmlHardeningInstalled = true;
-  var BUILD='M50.9.9GB355_DIAG_CUSTOMER_PROPOSAL_SCOPE_20260518_ROOTONLY';
+  var BUILD='M50.9.9GB356_DIAG_ALWAYS_VISIBLE_SAVE_TRACE_20260518_ROOTONLY';
   function S(v){try{return String(v==null?'':v).trim();}catch(_){return''}}
   function show(msg){
     try{
@@ -1703,7 +1779,7 @@ function renderStayRealForm(doc){
   'use strict';
   if(window.__dsGB353CustomerHtmlFinalInstalled) return;
   window.__dsGB353CustomerHtmlFinalInstalled = true;
-  var BUILD='M50.9.9GB355_DIAG_CUSTOMER_PROPOSAL_SCOPE_20260518_ROOTONLY';
+  var BUILD='M50.9.9GB356_DIAG_ALWAYS_VISIBLE_SAVE_TRACE_20260518_ROOTONLY';
   function S(v){try{return String(v==null?'':v).trim();}catch(_){return''}}
   function L(v){return S(v).toLowerCase()}
   function nowIso(){try{return new Date().toISOString();}catch(_){return String(Date.now())}}
@@ -1891,7 +1967,7 @@ function renderStayRealForm(doc){
   ['pointerdown','touchstart','click'].forEach(function(tp){try{document.addEventListener(tp,hardLogout,true);window.addEventListener(tp,hardLogout,true);}catch(_){} });
   function tick(){
     bindContractSave();
-    try{var bottom=document.getElementById('customerPortalBuildBottom'); if(bottom && bottom.textContent.indexOf('GB355')<0) bottom.textContent='Build CUSTOMER '+BUILD+' · Vorschlagmodus';}catch(_){ }
+    try{var bottom=document.getElementById('customerPortalBuildBottom'); if(bottom && bottom.textContent.indexOf('GB356')<0) bottom.textContent='Build CUSTOMER '+BUILD+' · Vorschlagmodus';}catch(_){ }
     try{
       if(typeof window.dsGetCustomerScopeContext!=='function' && window.dsGB353ResolveCustomerScope){window.dsGetCustomerScopeContext=window.dsGB353ResolveCustomerScope;}
     }catch(_){ }
@@ -1903,12 +1979,12 @@ function renderStayRealForm(doc){
 
 
 <script>
-/* ===== GB355 DIAGNOSE: Kunden-App Scope / Vorschlag-Speicherpfad / Vertrag ===== */
+/* ===== GB356 DIAGNOSE: Kunden-App Scope / Vorschlag-Speicherpfad / Vertrag ===== */
 (function(){
   'use strict';
   if(window.__gb355CustomerDiagInstalled) return;
   window.__gb355CustomerDiagInstalled = true;
-  var BUILD = 'M50.9.9GB355_DIAG_CUSTOMER_PROPOSAL_SCOPE_20260518_ROOTONLY';
+  var BUILD = 'M50.9.9GB356_DIAG_ALWAYS_VISIBLE_SAVE_TRACE_20260518_ROOTONLY';
   var LOG_KEY = 'ds_gb355_diag_log';
   function S(v){ try{return String(v == null ? '' : v).trim();}catch(_){return '';} }
   function L(v){ return S(v).toLowerCase(); }
@@ -1925,7 +2001,7 @@ function renderStayRealForm(doc){
       var box = window.__gb355Diag || (window.__gb355Diag = {events:[]});
       box.events.push(rec); if(box.events.length>100) box.events = box.events.slice(-100);
       var list = localJSON(LOG_KEY, []); list.push(rec); if(list.length>250) list = list.slice(-250); localStorage.setItem(LOG_KEY, JSON.stringify(list));
-      try{ console.log('GB355_CUSTOMER_DIAG', rec); }catch(_){ }
+      try{ console.log('GB356_CUSTOMER_DIAG', rec); }catch(_){ }
       renderSoon();
     }catch(_){ }
   }
@@ -2005,25 +2081,33 @@ function renderStayRealForm(doc){
       el.style.cssText='position:fixed;left:12px;bottom:48px;z-index:999999;max-width:720px;max-height:42vh;overflow:auto;background:rgba(7,16,12,.94);color:#dcfce7;border:1px solid rgba(34,197,94,.60);border-radius:14px;padding:10px 12px;font:12px/1.35 ui-monospace,SFMono-Regular,Menlo,monospace;box-shadow:0 10px 30px rgba(0,0,0,.38);white-space:pre-wrap;word-break:break-word;';
       document.body.appendChild(el);
     }
+    try{ el.style.display='block'; el.dataset.alwaysVisible='1'; if(el.parentNode!==document.body) document.body.appendChild(el); }catch(_){ }
     return el;
   }
   function render(){
     try{
       var d=compute(); var last=d.last||{}; var lines=[];
-      lines.push('GB355 DIAG Kunden-App');
+      lines.push('GB356 DIAG Kunden-App');
       lines.push('auth: '+(d.email||'-')+' uid='+d.uid+' org='+d.org);
       lines.push('scope: '+d.scope.source+' cid='+shortId(d.scope.customerId)+' pid='+shortId(d.scope.petId)+' '+(d.scope.customerName||'-')+' / '+(d.scope.petName||'-')+' pets='+d.scope.pets);
       lines.push('vertrag-auswahl: cid='+shortId(d.selected.customerId)+' pid='+shortId(d.selected.petId)+' '+(d.selected.customerText||'-')+' / '+(d.selected.petText||'-')+' accept='+(d.selected.accept?'1':'0'));
       lines.push('counts: kunden='+d.counts.customers+' hunde='+d.counts.pets+' docs='+d.counts.docs+' inbox='+d.counts.inbox+' localProps='+d.counts.localProposals+' pending='+d.counts.pending+' contracts='+d.counts.contracts+' match='+d.counts.contractMatches);
       lines.push('typen lokal: '+JSON.stringify(d.typesLocal));
+      try{ var activePanel=document.querySelector('.customer-panel.is-active'); lines.push('seite: '+String(location.pathname||'')+String(location.search||'')+' view='+(activePanel&&activePanel.id?activePanel.id:'-')+' always=1'); }catch(_){ }
+      try{ var cloud=(window.CLOUD||{}); lines.push('cloud: enabled='+(cloud.enabled?'1':'0')+' user='+(cloud.user&&cloud.user.email?cloud.user.email:'-')+' org='+(cloud.orgId||window.CLOUD_ORG_ID||'-')); }catch(_){ }
+      try{
+        var tr=(window.__gb356Trace&&window.__gb356Trace.events)||localJSON('ds_customer_portal_save_trace',[]);
+        lines.push('save-trace letzte '+Math.min((tr||[]).length,8)+':');
+        A(tr).slice(-8).forEach(function(x,i){ lines.push('  '+(i+1)+'. '+S(x.step||x.kind||'-')+' '+S(x.fn||x.op||'')+' '+S(x.status||'')+' cid='+shortId(x.customerId)+' pid='+shortId(x.petId)+' path='+S(x.path||x.key||'')+' bytes='+(x.bytes||'')+' '+S(x.error||'')); });
+      }catch(_){ }
       if(d.mismatches.length){ lines.push('WARN mismatch-verträge: '+d.mismatches.map(function(x){return x.source+' '+shortId(x.key)+' '+shortId(x.customerId)+'/'+shortId(x.petId)+' '+(x.customerName||'-')+'/'+(x.petName||'-');}).join(' | ')); }
       if(d.matches.length){ lines.push('match-verträge: '+d.matches.map(function(x){return x.source+' '+shortId(x.key)+' sig='+(x.hasSig?'1':'0');}).join(' | ')); }
       lines.push('letztes event: '+S(last.step||last.fn||last.type||'-')+' '+S(last.status||last.message||last.path||'')+' '+S(last.error||''));
       lines.push('neueste lokale Vorschläge:');
       (d.latest||[]).forEach(function(x,i){lines.push((i+1)+'. '+x);});
       var el=panel();
-      el.innerHTML='<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px"><b>GB355 Portal-Diagnose</b><button id="gb355CopyDiagCustomer" type="button" style="font:12px system-ui;padding:3px 8px;border-radius:8px;border:1px solid #22c55e;background:#111827;color:#dcfce7">Kopieren</button><button id="gb355HideDiagCustomer" type="button" style="font:12px system-ui;padding:3px 8px;border-radius:8px;border:1px solid #22c55e;background:#111827;color:#dcfce7">Ausblenden</button></div><pre style="margin:0;white-space:pre-wrap">'+esc(lines.join('\n'))+'</pre>';
-      var c=document.getElementById('gb355CopyDiagCustomer'); if(c && !c.__bound){ c.__bound=true; c.onclick=function(){ var dump=window.GB355_PORTAL_DIAG_DUMP&&window.GB355_PORTAL_DIAG_DUMP(); try{navigator.clipboard&&navigator.clipboard.writeText(dump||'');}catch(_){} alert('GB355 Portal-Diagnose kopiert.'); }; }
+      el.innerHTML='<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px"><b>GB356 Portal-Diagnose</b><button id="gb355CopyDiagCustomer" type="button" style="font:12px system-ui;padding:3px 8px;border-radius:8px;border:1px solid #22c55e;background:#111827;color:#dcfce7">Kopieren</button><button id="gb355HideDiagCustomer" type="button" style="font:12px system-ui;padding:3px 8px;border-radius:8px;border:1px solid #22c55e;background:#111827;color:#dcfce7">Ausblenden</button></div><pre style="margin:0;white-space:pre-wrap">'+esc(lines.join('\n'))+'</pre>';
+      var c=document.getElementById('gb355CopyDiagCustomer'); if(c && !c.__bound){ c.__bound=true; c.onclick=function(){ var dump=window.GB356_PORTAL_DIAG_DUMP&&window.GB356_PORTAL_DIAG_DUMP(); try{navigator.clipboard&&navigator.clipboard.writeText(dump||'');}catch(_){} alert('GB356 Portal-Diagnose kopiert.'); }; }
       var h=document.getElementById('gb355HideDiagCustomer'); if(h && !h.__bound){ h.__bound=true; h.onclick=function(){ panel().style.display='none'; }; }
     }catch(_){ }
   }
@@ -2062,15 +2146,94 @@ function renderStayRealForm(doc){
       proto.__gb355SetWrappedCustomer=true;
     }catch(_){ }
   }
+  function traceSaveGB356(rec){
+    try{
+      rec=Object.assign({at:Date.now(), iso:new Date().toISOString(), build:BUILD, page:'customer'}, rec||{});
+      var box=window.__gb356Trace||(window.__gb356Trace={events:[]});
+      box.events.push(rec); if(box.events.length>150) box.events=box.events.slice(-150);
+      var k='ds_customer_portal_save_trace'; var list=localJSON(k,[]); list.push(rec); if(list.length>300) list=list.slice(-300); localStorage.setItem(k, JSON.stringify(list));
+      try{ console.log('GB356_SAVE_TRACE',rec); }catch(_){ }
+      try{ recSave(Object.assign({},rec,{step:'trace:'+S(rec.kind||rec.op||rec.fn||rec.step||'event')})); }catch(_){ }
+      renderSoon();
+    }catch(_){ }
+  }
+  function payloadBytesGB356(v){ try{ return JSON.stringify(v).length; }catch(_){ try{return String(v).length;}catch(__){return 0;} } }
+  function patchMoreDiag(){
+    try{
+      if(!window.__gb356DiagErrBound){
+        window.__gb356DiagErrBound=true;
+        window.addEventListener('error',function(ev){ traceSaveGB356({kind:'window.error',error:S((ev&&ev.message)||'')+' '+S(ev&&ev.filename)+':'+S(ev&&ev.lineno)}); });
+        window.addEventListener('unhandledrejection',function(ev){ traceSaveGB356({kind:'promise.reject',error:S(ev&&ev.reason&&ev.reason.message || ev&&ev.reason || '')}); });
+      }
+    }catch(_){ }
+    try{
+      var proto=Storage&&Storage.prototype;
+      if(proto && !proto.__gb356SetItemWrappedReal){
+        var origSet=proto.setItem;
+        proto.setItem=function(k,v){
+          var key=S(k); var bytes=payloadBytesGB356(v);
+          var interesting=/proposal|pending|task|inbox|customer|portal|vertrag|contract|workspace|state/i.test(key);
+          var skip=(key===LOG_KEY || key==='ds_customer_portal_save_trace' || key==='ds_diag_always_visible');
+          if(this===localStorage && interesting && !skip){
+            try{
+              var rec={at:Date.now(),iso:new Date().toISOString(),build:BUILD,page:'customer',kind:'localStorage.setItem',key:key,bytes:bytes};
+              var box=window.__gb356Trace||(window.__gb356Trace={events:[]}); box.events.push(rec); if(box.events.length>150) box.events=box.events.slice(-150);
+              var traceKey='ds_customer_portal_save_trace'; var list=[];
+              try{list=JSON.parse(localStorage.getItem(traceKey)||'[]');}catch(__){list=[];}
+              list.push(rec); if(list.length>300) list=list.slice(-300);
+              origSet.call(localStorage, traceKey, JSON.stringify(list));
+            }catch(__){ }
+          }
+          return origSet.apply(this,arguments);
+        };
+        proto.__gb356SetItemWrappedReal=true;
+      }
+    }catch(_){ }
+    try{
+      if(!window.firebase || !firebase.firestore) return;
+      var DR=firebase.firestore.DocumentReference&&firebase.firestore.DocumentReference.prototype;
+      if(DR && !DR.__gb356AllWriteWrappedReal){
+        ['set','update','delete'].forEach(function(op){
+          var orig=DR[op]; if(typeof orig!=='function' || orig.__gb356WrappedReal) return;
+          var wrapped=function(data,opts){
+            var path=S(this&&this.path); var bytes=payloadBytesGB356(data||{});
+            var relevant=/proposal|task|inbox|contract|vertrag|customer|dog|pet|stay|aufenthalt/i.test(path);
+            if(relevant) traceSaveGB356({kind:'firestore.'+op+':start',op:op,path:path,bytes:bytes,customerId:S(data&&(data.customerId||(data.meta&&data.meta.customerId))),petId:S(data&&(data.petId||data.dogId||(data.meta&&data.meta.petId))),templateId:S(data&&(data.templateId||data.type)),status:S(data&&(data.status||data.proposalStatus))});
+            var out;
+            try{ out=orig.apply(this,arguments); }catch(e){ if(relevant) traceSaveGB356({kind:'firestore.'+op+':throw',op:op,path:path,error:S(e&&e.message||e)}); throw e; }
+            if(relevant && out && typeof out.then==='function') return out.then(function(v){ traceSaveGB356({kind:'firestore.'+op+':ok',op:op,path:path}); return v; }, function(e){ traceSaveGB356({kind:'firestore.'+op+':error',op:op,path:path,error:S(e&&e.message||e)}); throw e; });
+            return out;
+          };
+          wrapped.__gb356WrappedReal=true; DR[op]=wrapped;
+        });
+        DR.__gb356AllWriteWrappedReal=true;
+      }
+      var CR=firebase.firestore.CollectionReference&&firebase.firestore.CollectionReference.prototype;
+      if(CR && !CR.__gb356AddWrappedReal){
+        var origAdd=CR.add;
+        if(typeof origAdd==='function'){
+          CR.add=function(data){
+            var path=S(this&&this.path); var bytes=payloadBytesGB356(data||{}); var relevant=/proposal|task|inbox|contract|vertrag|customer|dog|pet|stay|aufenthalt/i.test(path);
+            if(relevant) traceSaveGB356({kind:'firestore.add:start',op:'add',path:path,bytes:bytes,customerId:S(data&&(data.customerId||(data.meta&&data.meta.customerId))),petId:S(data&&(data.petId||data.dogId||(data.meta&&data.meta.petId))),templateId:S(data&&(data.templateId||data.type)),status:S(data&&(data.status||data.proposalStatus))});
+            var out;
+            try{ out=origAdd.apply(this,arguments); }catch(e){ if(relevant) traceSaveGB356({kind:'firestore.add:throw',op:'add',path:path,error:S(e&&e.message||e)}); throw e; }
+            if(relevant && out && typeof out.then==='function') return out.then(function(v){ traceSaveGB356({kind:'firestore.add:ok',op:'add',path:path,id:S(v&&v.id)}); return v; }, function(e){ traceSaveGB356({kind:'firestore.add:error',op:'add',path:path,error:S(e&&e.message||e)}); throw e; });
+            return out;
+          };
+        }
+        CR.__gb356AddWrappedReal=true;
+      }
+    }catch(_){ }
+  }
   function bind(){
     ['dsSubmitCustomerPortalProposal','dsGB353CustomerSubmitProposalFinal','dsCustomerPortalSubmitContractGB353','dsCustomerPortalSubmitContractGB350','dsCustomerPortalSubmitContractGB349','dsCustomerPortalWriteProposalGB349','dsCustomerPortalWriteProposalGB350','__dsCustomerContractSubmitHook','dsOpenCustomerTask','dsCustomerPortalLogoutGB349'].forEach(wrapFunction);
-    patchFirestoreSet(); renderSoon();
+    patchFirestoreSet(); patchMoreDiag(); renderSoon();
   }
-  window.GB355_PORTAL_DIAG_DUMP=function(){ return JSON.stringify({runtime:compute(), events:(window.__gb355Diag&&window.__gb355Diag.events)||[], saved:localJSON(LOG_KEY,[])}, null, 2); };
+  window.GB356_PORTAL_DIAG_DUMP=function(){ return JSON.stringify({runtime:compute(), events:(window.__gb355Diag&&window.__gb355Diag.events)||[], trace:(window.__gb356Trace&&window.__gb356Trace.events)||localJSON('ds_customer_portal_save_trace',[]), saved:localJSON(LOG_KEY,[]), legacy:LEGACY_LOG_KEYS.map(function(k){return {key:k,items:localJSON(k,[]).slice(-25)};})}, null, 2); };
   document.addEventListener('click', function(ev){ try{ var b=ev.target&&ev.target.closest&&ev.target.closest('button'); if(!b) return; var txt=S(b.textContent); if(txt.indexOf('speichern')>=0 || txt.indexOf('Vorschlag')>=0 || txt.indexOf('Abmelden')>=0 || txt.indexOf('Aktualisieren')>=0 || txt.indexOf('Aufenthalt')>=0){ recSave({step:'ui.click',button:txt,id:S(b.id),view:S(document.body&&document.body.dataset&&document.body.dataset.view)}); } }catch(_){ } }, true);
   bind(); document.addEventListener('DOMContentLoaded', bind); window.addEventListener('load', bind); setInterval(bind,1200);
 })();
-/* ===== END GB355 DIAGNOSE ===== */
+/* ===== END GB356 DIAGNOSE ===== */
 </script>
 
 </body>

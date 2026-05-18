@@ -152,7 +152,7 @@ GB345 - MED_DASHBOARD_ACTIVE_STAYS_ONLY
 - §11-Medikationsstatus nutzt dieselbe Aktiv-Aufenthalt-Prüfung.
 
 
-[M50.9.9GB355_DIAG_CUSTOMER_PROPOSAL_SCOPE_20260518_ROOTONLY]
+[M50.9.9GB356_DIAG_ALWAYS_VISIBLE_SAVE_TRACE_20260518_ROOTONLY]
 - GB347: Hunde/Kunden-Aktionsbuttons Vertrag/Bearbeiten/Löschen repariert.
 - Destruktives row.innerHTML-Rewrite im Vertrags-Badge-Fix entfernt, damit Button-Handler erhalten bleiben.
 - Delegierter Sicherheits-Clickhandler für #dogList ergänzt.
@@ -163,3 +163,10 @@ GB349 - CUSTOMER_PORTAL_SAVE_LOGOUT_REVIEW_FIX - 2026-05-12
 - Kunden-App: Betreuungsvertrag wird wieder als Vorschlag in proposals/tasks geschrieben.
 - Kunden-App: Abmelden eigener früher Handler, damit Logout nicht mehr hängen bleibt.
 - Haupt-App: Kunde/Hund-Vorschläge werden beim Bestätigen direkt übernommen und blockieren nicht mehr bei Cloud-Persist.
+
+
+GB356 · M50.9.9GB356_DIAG_ALWAYS_VISIBLE_SAVE_TRACE_20260518_ROOTONLY
+- Diagnoseblock für Kunden-App dauerhaft sichtbar gemacht.
+- Diagnose-Brücke in app.html eingebaut, damit die Diagnose nach Weiterleitung in die Haupt-App sichtbar bleibt.
+- Save-Trace erweitert: UI-Klicks, Firestore set/update/delete/add, Promise-/Window-Fehler, cid/pid, Pfad, Payload-Größe.
+- Keine fachliche Übernahme-/Scope-Logik korrigiert; Build dient zur belastbaren Fehlerlokalisierung.
