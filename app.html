@@ -6,13 +6,13 @@
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
 <meta charset="utf-8"/>
-  <meta name="app-build" content="M50.9.9GB347_DIAG_CUSTOMER_PORTAL_SCOPE_FROM_GB346_20260518_ROOTONLY">
+  <meta name="app-build" content="M50.9.9GB348_FORCE_VISIBLE_CUSTOMER_DIAG_FROM_GB346_20260602_ROOTONLY">
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <title>Doggy Style Workspace · App</title>
 <link href="manifest.json" rel="manifest"/>
 <meta content="#101014" name="theme-color"/>
 <link href="assets/logo.png" rel="apple-touch-icon"/>
-<link href="styles.css?v=M50.9.9GB347_DIAG_CUSTOMER_PORTAL_SCOPE_FROM_GB346_20260518_ROOTONLY" rel="stylesheet"/>
+<link href="styles.css?v=M50.9.9GB348_FORCE_VISIBLE_CUSTOMER_DIAG_FROM_GB346_20260602_ROOTONLY" rel="stylesheet"/>
 <link href="dashboard_master.css?v=20260104v13logout" rel="stylesheet"/>
 <style>
   /* Topbar Layout (iPad & Desktop stabil) */
@@ -102,7 +102,7 @@
   .doc-modal__actions{ margin-left:auto; display:flex; flex-wrap: wrap; gap: 8px; }
   .doc-modal__frame{ width: 100%; border: 0; border-radius: 12px; background: #fff; flex:1; min-height: 0; }
 </style>
-  <meta name="app-version" content="M50.9.9GB347_DIAG_CUSTOMER_PORTAL_SCOPE_FROM_GB346_20260518_ROOTONLY">
+  <meta name="app-version" content="M50.9.9GB348_FORCE_VISIBLE_CUSTOMER_DIAG_FROM_GB346_20260602_ROOTONLY">
   <meta name="release-channel" content="MASTER">
 </head>
 <body class="bg-watermark page-app">
@@ -1199,7 +1199,7 @@
 </section>
 
 <section class="panel" id="statistics">
-<!-- Statistics panel is rendered by app.js?v=M50.9.9GB347_DIAG_CUSTOMER_PORTAL_SCOPE_FROM_GB346_20260518_ROOTONLY (renderStatisticsPanel) -->
+<!-- Statistics panel is rendered by app.js?v=M50.9.9GB348_FORCE_VISIBLE_CUSTOMER_DIAG_FROM_GB346_20260602_ROOTONLY (renderStatisticsPanel) -->
 </section>
 
 
@@ -1266,7 +1266,7 @@
 </footer>
 </div>
 <!-- Firebase (optional) + Config -->
-<script defer="defer" src="firebase-config.js?v=M50.9.9GB347_DIAG_CUSTOMER_PORTAL_SCOPE_FROM_GB346_20260518_ROOTONLY"></script>
+<script defer="defer" src="firebase-config.js?v=M50.9.9GB348_FORCE_VISIBLE_CUSTOMER_DIAG_FROM_GB346_20260602_ROOTONLY"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
@@ -1483,7 +1483,7 @@
 
 </script>
 
-<script defer="defer" src="app.js?v=M50.9.9GB347_DIAG_CUSTOMER_PORTAL_SCOPE_FROM_GB346_20260518_ROOTONLY"></script>
+<script defer="defer" src="app.js?v=M50.9.9GB348_FORCE_VISIBLE_CUSTOMER_DIAG_FROM_GB346_20260602_ROOTONLY"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1502,7 +1502,7 @@
 </script>
 
 <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB347_DIAG_CUSTOMER_PORTAL_SCOPE_FROM_GB346_20260518_ROOTONLY', { updateViaCache: 'none' });
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB348_FORCE_VISIBLE_CUSTOMER_DIAG_FROM_GB346_20260602_ROOTONLY', { updateViaCache: 'none' });
   </script>
 
 <script>
@@ -1604,7 +1604,7 @@
   <!-- Bottom logout button removed (duplicate of header logout; also overlaps editor on iPad) -->
 </div>
 <!-- test-badge removed (requested) -->
-  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB347_DIAG_CUSTOMER_PORTAL_SCOPE_FROM_GB346_20260518_ROOTONLY</div>
+  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB348_FORCE_VISIBLE_CUSTOMER_DIAG_FROM_GB346_20260602_ROOTONLY</div>
 
 <script>
 (function visibleMailFallback(){
@@ -4174,7 +4174,7 @@
 
 <script>
 (function(){
-  const CURRENT_BUILD = 'M50.9.9GB347_DIAG_CUSTOMER_PORTAL_SCOPE_FROM_GB346_20260518_ROOTONLY';
+  const CURRENT_BUILD = 'M50.9.9GB348_FORCE_VISIBLE_CUSTOMER_DIAG_FROM_GB346_20260602_ROOTONLY';
   try{
     window.addEventListener('load', function(){
       try{
@@ -4193,5 +4193,149 @@
   }catch(_){ }
 })();
 </script>
+
+<script id="gb348-force-visible-diagnose">
+(function(){
+  var BUILD = 'M50.9.9GB348_FORCE_VISIBLE_CUSTOMER_DIAG_FROM_GB346_20260602_ROOTONLY';
+  var LS_LOG = 'ds_gb348_force_diag_log';
+  var LS_OPEN = 'ds_gb348_diag_open';
+  try{ localStorage.setItem(LS_OPEN, '1'); }catch(_){ }
+  function now(){ try{ return new Date().toLocaleTimeString('de-DE'); }catch(_){ return String(Date.now()); } }
+  function short(v,n){ v = String(v==null?'':v); n=n||36; return v.length>n ? (v.slice(0,Math.floor(n/2))+'…'+v.slice(-Math.floor(n/2))) : v; }
+  function bytesOf(x){ try{ return new Blob([typeof x==='string'?x:JSON.stringify(x)]).size; }catch(_){ try{return JSON.stringify(x).length;}catch(__){return 0;} } }
+  function readLog(){ try{ var a=JSON.parse(localStorage.getItem(LS_LOG)||'[]'); return Array.isArray(a)?a:[]; }catch(_){ return []; } }
+  function writeLog(a){ try{ localStorage.setItem(LS_LOG, JSON.stringify((a||[]).slice(-80))); }catch(_){ } }
+  function log(type, data){
+    try{
+      var a=readLog();
+      var d=data||{};
+      a.push({ t:now(), type:String(type||'event'), path:short(d.path||'',86), cid:short(d.cid||d.customerId||'',18), pid:short(d.pid||d.petId||'',18), bytes:d.bytes||d.rawBytes||0, msg:short(d.msg||d.message||d.error||'',120) });
+      writeLog(a);
+    }catch(_){ }
+  }
+  window.__GB348_DIAG_LOG = log;
+  function esc(s){ return String(s==null?'':s).replace(/[&<>]/g,function(c){return c==='&'?'&amp;':c==='<'?'&lt;':'&gt;';}); }
+  function getAuth(){
+    var out={email:'-',uid:'-',org:'-'};
+    try{ if(window.CLOUD){ out.org = CLOUD.orgId || CLOUD.org || out.org; if(CLOUD.user){ out.email=CLOUD.user.email||out.email; out.uid=CLOUD.user.uid||out.uid; } } }catch(_){ }
+    try{ if(window.firebase && firebase.auth){ var u=firebase.auth().currentUser; if(u){ out.email=u.email||out.email; out.uid=u.uid||out.uid; } } }catch(_){ }
+    try{ out.org = out.org==='-' ? (localStorage.getItem('doggystyle_org_id') || localStorage.getItem('ds_org_id') || out.org) : out.org; }catch(_){ }
+    return out;
+  }
+  function getState(){
+    var st=null, src='-';
+    try{ if(typeof state !== 'undefined' && state){ st=state; src='global state'; } }catch(_){ }
+    if(!st){
+      var keys=['doggystyle_workspace_state_v1','ds_workspace_state','workspace_state'];
+      for(var i=0;i<keys.length;i++){
+        try{ var raw=localStorage.getItem(keys[i]); if(raw){ st=JSON.parse(raw); src='local '+keys[i]; break; } }catch(_){ }
+      }
+    }
+    if(!st) st={};
+    function arr(k){ return Array.isArray(st[k]) ? st[k] : []; }
+    return { src:src, obj:st, counts:{kunden:arr('customers').length, hunde:(arr('pets').length||arr('dogs').length), docs:arr('docs').length, inbox:(arr('inboxSubmissions').length+arr('inboxAssignments').length), tasks:arr('tasks').length, stays:arr('stays').length, contracts:arr('contractAdoptedRecords').length} };
+  }
+  function getScope(st){
+    var email=getAuth().email;
+    var uid=getAuth().uid;
+    var c=null,p=null;
+    var cs=Array.isArray(st.customers)?st.customers:[];
+    var ps=Array.isArray(st.pets)?st.pets:(Array.isArray(st.dogs)?st.dogs:[]);
+    function low(x){return String(x||'').toLowerCase().trim();}
+    function id(x){return String(x||'').trim();}
+    try{
+      c = cs.find(function(x){return low(x.email)===low(email);}) || cs.find(function(x){return id(x.uid)===id(uid)||id(x.portalUid)===id(uid)||id(x.customerUid)===id(uid);}) || null;
+      if(c){ var cid=id(c.id||c.customerId); p = ps.find(function(x){ return id(x.customerId||x.ownerId||x.cid)===cid || id(x.customerUid||x.ownerUid)===id(uid); }) || null; }
+    }catch(_){ }
+    return { customer:c, pet:p, cid:c?(c.id||c.customerId||''):'', pid:p?(p.id||p.petId||''):'', cname:c?(c.name||c.fullName||''):'', pname:p?(p.name||p.dogName||''):'' };
+  }
+  function selectInfo(){
+    var out=[];
+    try{
+      var sels=document.querySelectorAll('select');
+      for(var i=0;i<Math.min(sels.length,8);i++){
+        var s=sels[i]; var lab='';
+        try{ lab=(s.getAttribute('aria-label')||s.name||s.id||s.previousElementSibling&&s.previousElementSibling.textContent||'select').trim(); }catch(_){ }
+        var opt=s.options && s.selectedIndex>=0 ? s.options[s.selectedIndex] : null;
+        out.push(short(lab,18)+'='+short(opt?(opt.textContent||opt.value):s.value,28));
+      }
+    }catch(_){ }
+    return out.join(' | ');
+  }
+  function visibleContractText(){
+    try{
+      var txt=document.body ? document.body.innerText||'' : '';
+      var idx=txt.indexOf('Vorhandene Betreuungsverträge');
+      if(idx>=0) return short(txt.slice(idx, idx+260).replace(/\s+/g,' '),180);
+    }catch(_){ }
+    return '-';
+  }
+  function ensurePanel(){
+    var el=document.getElementById('gb348DiagPanel');
+    if(!el){
+      el=document.createElement('div'); el.id='gb348DiagPanel';
+      el.innerHTML='<div style="display:flex;gap:8px;align-items:center;margin-bottom:4px;"><b>GB348 Diagnose sichtbar</b><button id="gb348DiagCopy" style="margin-left:auto;border:1px solid #41c070;background:#0b2016;color:#dfffe8;border-radius:8px;padding:3px 8px;">Kopieren</button><button id="gb348DiagMini" style="border:1px solid #41c070;background:#0b2016;color:#dfffe8;border-radius:8px;padding:3px 8px;">klein</button></div><pre id="gb348DiagPre" style="white-space:pre-wrap;margin:0;font:12px/1.35 ui-monospace,SFMono-Regular,Menlo,monospace;color:#eaffef;"></pre>';
+      document.body.appendChild(el);
+      try{ document.getElementById('gb348DiagCopy').onclick=function(){ var t=document.getElementById('gb348DiagPre').textContent||''; try{ navigator.clipboard.writeText(t); }catch(_){ } }; }catch(_){ }
+      try{ document.getElementById('gb348DiagMini').onclick=function(){ var p=document.getElementById('gb348DiagPre'); if(!p)return; p.style.display=(p.style.display==='none'?'block':'none'); }; }catch(_){ }
+    }
+    el.setAttribute('style','position:fixed!important;left:12px!important;bottom:42px!important;width:min(760px,calc(100vw - 24px))!important;max-height:48vh!important;overflow:auto!important;z-index:2147483647!important;background:rgba(0,18,8,.88)!important;border:1px solid #22aa55!important;border-radius:12px!important;color:#eaffef!important;padding:10px 12px!important;box-shadow:0 10px 32px rgba(0,0,0,.45)!important;display:block!important;pointer-events:auto!important;');
+    return el;
+  }
+  function render(){
+    try{
+      if(!document.body) return;
+      var el=ensurePanel();
+      var pre=document.getElementById('gb348DiagPre'); if(!pre) return;
+      var a=getAuth(), s=getState(), sc=getScope(s.obj), logs=readLog().slice(-12);
+      var q=new URLSearchParams(location.search||'');
+      var lines=[];
+      lines.push('Build: '+BUILD);
+      lines.push('URL: '+location.pathname+location.search+' hash='+location.hash);
+      lines.push('customer_mode='+(q.get('customer_mode')||'-')+' view='+(q.get('view')||'-'));
+      lines.push('auth: '+short(a.email,32)+' uid='+short(a.uid,22)+' org='+a.org);
+      lines.push('state: '+s.src+' kunden='+s.counts.kunden+' hunde='+s.counts.hunde+' docs='+s.counts.docs+' inbox='+s.counts.inbox+' tasks='+s.counts.tasks+' stays='+s.counts.stays+' contracts='+s.counts.contracts);
+      lines.push('scope: cid='+short(sc.cid,22)+' pid='+short(sc.pid,22)+' '+(sc.cname||'-')+' / '+(sc.pname||'-'));
+      lines.push('selects: '+(selectInfo()||'-'));
+      lines.push('contractDom: '+visibleContractText());
+      lines.push('log letzte '+logs.length+':');
+      logs.forEach(function(x,i){ lines.push((i+1)+'. '+x.t+' '+x.type+' '+(x.path||'')+' bytes='+(x.bytes||0)+' cid='+short(x.cid||'',14)+' pid='+short(x.pid||'',14)+' '+(x.msg||'')); });
+      pre.textContent=lines.join('\n');
+      try{ window.__GB348_DIAG_STATE = { build:BUILD, url:location.href, auth:a, counts:s.counts, scope:sc, log:logs }; }catch(_){ }
+    }catch(e){ try{ console.error('GB348 diag render failed',e); }catch(_){ } }
+  }
+  function bindClicks(){
+    if(window.__gb348ClickBound) return; window.__gb348ClickBound=true;
+    var h=function(ev){ try{ var t=ev.target; var txt=''; var id=''; var path=[]; for(var n=t;n&&n!==document.body&&path.length<4;n=n.parentElement){ path.push((n.tagName||'')+(n.id?('#'+n.id):'')); if(!txt && n.textContent) txt=String(n.textContent).trim().replace(/\s+/g,' ').slice(0,80); if(!id && n.id) id=n.id; } log('ui.'+ev.type,{msg:(id?('id='+id+' '):'')+txt+' path='+path.join('>')}); }catch(_){ } };
+    document.addEventListener('click',h,true); document.addEventListener('touchend',h,true);
+  }
+  function bindErrors(){
+    if(window.__gb348ErrBound) return; window.__gb348ErrBound=true;
+    window.addEventListener('error',function(e){ log('window.error',{msg:(e.message||e.error||'')+' '+(e.filename||'')+':'+(e.lineno||'')}); });
+    window.addEventListener('unhandledrejection',function(e){ var r=e.reason; log('promise.reject',{msg:(r&&r.message)||r||'unhandled'}); });
+  }
+  function hookFirestore(){
+    if(window.__gb348FsHooked) return;
+    try{
+      if(!(window.firebase && firebase.firestore)) return;
+      var fs=firebase.firestore(); if(!fs) return;
+      var doc=fs.collection('__gb348_probe__').doc('__probe__');
+      var col=fs.collection('__gb348_probe__');
+      var dp=Object.getPrototypeOf(doc), cp=Object.getPrototypeOf(col);
+      function pathOf(ref){ try{return ref.path || (ref._delegate && ref._delegate.path) || '';}catch(_){return '';} }
+      if(dp && !dp.__gb348Set){
+        ['set','update','delete'].forEach(function(m){ var orig=dp[m]; if(typeof orig!=='function') return; dp[m]=function(data){ log('firestore.'+m+':start',{path:pathOf(this),bytes: m==='delete'?0:bytesOf(data), cid:data&&(data.customerId||data.cid), pid:data&&(data.petId||data.pid)}); try{ var r=orig.apply(this,arguments); if(r&&r.then){ return r.then(function(v){log('firestore.'+m+':ok',{path:pathOf(this)}); return v;}.bind(this)).catch(function(e){log('firestore.'+m+':error',{path:pathOf(this),msg:e&&e.message||e}); throw e;}.bind(this)); } return r; }catch(e){ log('firestore.'+m+':throw',{path:pathOf(this),msg:e&&e.message||e}); throw e; } }; });
+        dp.__gb348Set=true;
+      }
+      if(cp && !cp.__gb348Add){ var oa=cp.add; if(typeof oa==='function'){ cp.add=function(data){ log('firestore.add:start',{path:pathOf(this),bytes:bytesOf(data),cid:data&&(data.customerId||data.cid),pid:data&&(data.petId||data.pid)}); try{ var r=oa.apply(this,arguments); if(r&&r.then){ return r.then(function(v){log('firestore.add:ok',{path:pathOf(this)}); return v;}.bind(this)).catch(function(e){log('firestore.add:error',{path:pathOf(this),msg:e&&e.message||e}); throw e;}.bind(this)); } return r; }catch(e){ log('firestore.add:throw',{path:pathOf(this),msg:e&&e.message||e}); throw e; } }; cp.__gb348Add=true; } }
+      window.__gb348FsHooked=true; log('diag.fsHooked',{});
+    }catch(e){ log('diag.fsHookFail',{msg:e&&e.message||e}); }
+  }
+  function boot(){ bindErrors(); bindClicks(); hookFirestore(); render(); }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot); else boot();
+  setInterval(function(){ try{ hookFirestore(); render(); }catch(_){ } }, 1000);
+})();
+</script>
+
 </body>
 </html>

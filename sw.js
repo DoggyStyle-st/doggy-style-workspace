@@ -1,7 +1,7 @@
 // DoggyStyle Workspace Service Worker
 // Clean, consistent cache strategy (network-first for HTML, cache-first for static)
 
-const BUILD_VERSION = "M50.9.9GB347_DIAG_CUSTOMER_PORTAL_SCOPE_FROM_GB346_20260518_ROOTONLY";
+const BUILD_VERSION = "M50.9.9GB348_FORCE_VISIBLE_CUSTOMER_DIAG_FROM_GB346_20260602_ROOTONLY";
 const CACHE_NAME = "doggystyle-" + BUILD_VERSION;
 
 // Keep this list conservative; do NOT include versioned query variants.

@@ -1,29 +1,4 @@
-M50.9.9GB347_DIAG_CUSTOMER_PORTAL_SCOPE_FROM_GB346_20260518_ROOTONLY
-
-Basis:
-- GB346_MED_ACTIVE_STAYS_CONTRACT_PRESERVE_20260508_ROOTONLY
-
-Ziel:
-- Keine fachliche Reparatur.
-- Kundenportal und Haupt-App dauerhaft mit Diagnoseblock ausstatten.
-- Sichtbar machen, welcher Kunde/Hund/Vertrag/Vorschlag wirklich verwendet wird.
-
-Diagnose zeigt:
-- Build, Seite, Auth-UID/E-Mail/Rolle/Org
-- Scope customerId/petId + Kunde/Hund-Name
-- aktuelle Vertragsauswahl cid/pid/accept
-- Datenzähler: Kunden, Hunde/Pets, Docs, Inbox, lokale Vorschläge, Verträge, State-Größe
-- Proposal-Typen in Inbox/lokalen Puffern
-- Contract-Records inkl. IDs und Match auf aktuellen Scope
-- Klick-Trace für Speichern/Vorschlag/Übernehmen/Aufenthalt/Abmelden/Vertrag
-- Firestore set/update/delete/add inkl. Pfad, Payload-Größe, OK/Fehler/pending>8s
-- Funktions-Trace für Submit/Review/CloudPush/saveState
-
-Wichtig:
-- Diagnoseblock bleibt dauerhaft sichtbar in app.html und customer.html, solange app.js geladen wird.
-- Kein Fix der Kunden-/Vorschlagslogik in diesem Build.
-
-Geprüft:
-- node --check app.js
-- node --check sw.js
-- ZIP-Test
+Build: M50.9.9GB348_FORCE_VISIBLE_CUSTOMER_DIAG_FROM_GB346_20260602_ROOTONLY
+Basis: GB346 stabiler Haupt-App-Stand, GB347 Diagnoseversuch.
+Ziel GB348: Diagnose wirklich sichtbar erzwingen in app.html?customer_mode=... und customer.html.
+Keine fachliche Änderung an Kunden-/Vorschlagslogik.
