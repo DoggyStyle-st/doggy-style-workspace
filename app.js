@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY",
+  tag: "M50.9.9GB347_DIAG_CUSTOMER_PORTAL_SCOPE_FROM_GB346_20260518_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,16 +12,8 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY";
-try{ window.__dsAppJsRuntimeBuild = 'GB359-appjs'; }catch(_){ }
-
-/* GB359 early missing-helper guard */
-try{
-  if(typeof window.showSteuerberaterExportInfo!=='function') window.showSteuerberaterExportInfo=function(){try{alert('Steuerberater-Export ist in diesem Build nicht aktiv.');}catch(_){} return false;};
-  if(typeof showSteuerberaterExportInfo==='undefined') var showSteuerberaterExportInfo=window.showSteuerberaterExportInfo;
-  if(typeof window.closeMonth!=='function') window.closeMonth=function(){try{var el=document.getElementById('monthModal')||document.getElementById('monthExportModal'); if(el) el.style.display='none';}catch(_){} return false;};
-  if(typeof closeMonth==='undefined') var closeMonth=window.closeMonth;
-}catch(_){ }
+const APP_BUILD = "M50.9.9GB347_DIAG_CUSTOMER_PORTAL_SCOPE_FROM_GB346_20260518_ROOTONLY";
+try{ window.__dsAppJsRuntimeBuild = "GB347-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
 // Global helper functions used across proposal-review matching.
@@ -3422,8 +3414,7 @@ async function dsSubmitCustomerPortalProposal(opts){
     payloadSubmitted
   };
   let cloudWriteOk = false, cloudWriteErr = null, cloudWritePath = '';
-  const isContractProposal = templateId === 'boarding_contract';
-  const litePayload = isContractProposal ? payloadSubmitted : (opts.litePayloadSubmitted || { source: String(payloadSubmitted.source || ('customer-' + templateId + '-fallback')), mode:'proposal-cloud-fallback' });
+  const litePayload = opts.litePayloadSubmitted || { source: String(payloadSubmitted.source || ('customer-' + templateId + '-fallback')), mode:'proposal-cloud-fallback' };
   const taskLite = { ...baseTask, payloadSubmitted: litePayload };
   if(CLOUD?.enabled){
     try{
@@ -3733,11 +3724,6 @@ function dsCustomerForceMode(mode){
 
 async function submitCustomerContractProposalMain(){
   try{
-    const __gb350Now = Date.now();
-    if(window.__dsCustomerContractSubmitMainActive || __gb350Now < (window.__dsCustomerContractSubmitMainLockUntil || 0)) return {ok:false, skipped:true};
-    window.__dsCustomerContractSubmitMainActive = true;
-    window.__dsCustomerContractSubmitMainLockUntil = __gb350Now + 6500;
-    const __gb350UnlockMainSubmit = function(){ try{ setTimeout(function(){ window.__dsCustomerContractSubmitMainActive = false; }, 900); }catch(_){ window.__dsCustomerContractSubmitMainActive = false; } };
     ensureStateShape();
     const ctx = getCustomerMainDogsContext();
     const cs = document.getElementById('contractCustomerSelect');
@@ -3745,72 +3731,35 @@ async function submitCustomerContractProposalMain(){
     const accept = document.getElementById('contractAcceptChk');
     const customerId = String((cs && cs.value) || ctx.customerId || '');
     const petId = String((ps && ps.value) || ((ctx.pets[0] && (ctx.pets[0].id || ctx.pets[0].petId)) || '') || '');
-    if(!customerId || !petId){ alert('Bitte zuerst Kunde und Hund wählen.'); __gb350UnlockMainSubmit(); return; }
-    if(!(accept && accept.checked)){ alert('Bitte den Vertrag akzeptieren.'); __gb350UnlockMainSubmit(); return; }
-    const contractVersion = String(state.contractVersion || state.contract?.version || 'v1.0');
+    if(!customerId || !petId){ alert('Bitte zuerst Kunde und Hund wählen.'); return; }
+    if(!(accept && accept.checked)){ alert('Bitte den Vertrag akzeptieren.'); return; }
     const sigStore = state.contractSignatures || {};
-    const sigKey = contractVersion + '__' + customerId + '__' + petId;
-    let rec = sigStore[sigKey] || null;
-    if(!rec || !rec.dataUrl){
-      try{
-        const cv = document.getElementById('contractSig');
-        const dataUrl = cv && cv.toDataURL ? String(cv.toDataURL('image/png') || '') : '';
-        if(dataUrl && dataUrl.length > 1200){
-          rec = { dataUrl, signedAt: Date.now(), source:'customer-contract-canvas-proposal-only' };
-          state.contractSignatures = state.contractSignatures || {};
-          state.contractSignatures[sigKey] = rec;
-        }
-      }catch(_){ }
-    }
-    if(!rec || !rec.dataUrl){ alert('Bitte zuerst unterschreiben.'); __gb350UnlockMainSubmit(); return; }
+    const sigKey = String((state.contractVersion || 'v1.0')) + '__' + customerId + '__' + petId;
+    const rec = sigStore[sigKey];
+    if(!rec || !rec.dataUrl){ alert('Bitte zuerst unterschreiben.'); return; }
     const customer = getCustomer(customerId) || {};
     const pet = getPet(petId) || {};
-    const customerName = String(customer.name || customer.fullName || customer.lastName || CLOUD?.user?.email || 'Kunde');
-    const petName = String(pet.name || pet.petName || pet.dogName || 'Hund');
-    const signatureDataUrl = String(rec.dataUrl || rec.signatureDataUrl || '');
-    const signatureAt = rec.signedAt || rec.signatureAt || Date.now();
-    /* GB350: Kundenmodus darf den Vertrag NICHT direkt final in state.contractAgreements speichern.
-       Es wird ausschließlich ein prüfbarer Vorschlag für Eingänge geschrieben. */
+    const contractVersion = String(state.contractVersion || state.contract?.version || 'v1.0');
+    try{
+      state.contractAgreements = state.contractAgreements || {};
+      state.contractAgreements[contractVersion + '__' + customerId + '__' + petId + '::' + contractVersion] = {
+        customerId, petId, version: contractVersion,
+        accepted: true,
+        signatureAt: rec.signedAt || Date.now(),
+        savedAt: Date.now(),
+        source: 'customer-main-proposal-pending'
+      };
+      try{ dsMirrorContractToPetOwner(customerId, petId, contractVersion); }catch(_){ }
+      try{ saveState(); }catch(_){ }
+    }catch(_){ }
     const payloadSubmitted = {
-      source: 'customer-main-contract-gb350',
-      mode: 'proposal',
-      templateId: 'boarding_contract',
+      source: 'customer-main-contract',
       customerId, petId,
       contractVersion: contractVersion,
       accepted: true,
-      customer: {
-        id: customerId, customerId: customerId,
-        name: customerName, fullName: customerName,
-        email: String(customer.email || CLOUD?.user?.email || '').trim().toLowerCase(),
-        phone: String(customer.phone || '')
-      },
-      pet: {
-        id: petId, petId: petId, dogId: String(pet.dogId || petId), customerId: customerId,
-        name: petName, petName: petName, dogName: petName,
-        breed: String(pet.breed || ''), sex: String(pet.sex || '')
-      },
-      fields: {
-        contractAccepted: true,
-        contractVersion: contractVersion,
-        customerName: customerName,
-        dogName: petName,
-        petName: petName,
-        signatureDataUrl: signatureDataUrl,
-        signatureAt: signatureAt
-      },
-      meta: {
-        customerId: customerId,
-        petId: petId,
-        version: contractVersion,
-        contractVersion: contractVersion,
-        submittedFrom: 'app.html?customer_mode=contract',
-        build: 'M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY'
-      },
-      signature: { dataUrl: signatureDataUrl, signatureDataUrl: signatureDataUrl, signedAt: signatureAt, signatureAt: signatureAt },
-      signatureRec: { dataUrl: signatureDataUrl, signatureDataUrl: signatureDataUrl, signedAt: signatureAt, signatureAt: signatureAt, customerId, petId, customerName, petName, version: contractVersion, contractVersion },
-      agreementRec: { customerId, petId, customerName, petName, version: contractVersion, contractVersion, accepted: true, contractAccepted: true, status: 'pending', source: 'customer-proposal-only-gb350' }
+      signature: { dataUrl: String(rec.dataUrl || ''), signedAt: rec.signedAt || Date.now() }
     };
-    const litePayloadSubmitted = { source:'customer-main-contract-gb350', mode:'proposal-cloud-fallback', customerId, petId, accepted:true, contractVersion: payloadSubmitted.contractVersion, signaturePresent: !!signatureDataUrl };
+    const litePayloadSubmitted = { source:'customer-main-contract', customerId, petId, accepted:true, contractVersion: payloadSubmitted.contractVersion };
     const res = await dsSubmitCustomerPortalProposal({
       templateId:'boarding_contract',
       title:'Betreuungsvertrag Vorschlag',
@@ -3818,10 +3767,8 @@ async function submitCustomerContractProposalMain(){
       payloadSubmitted, litePayloadSubmitted
     });
     try{ alert(res && res.ok ? 'Betreuungsvertrag als Vorschlag gespeichert und an Eingänge übergeben.' : 'Betreuungsvertrag lokal vorgemerkt.'); }catch(_){ }
-    __gb350UnlockMainSubmit();
     try{ location.replace('customer.html?view=contract'); }catch(_){ }
-    return res;
-  }catch(err){ try{ window.__dsCustomerContractSubmitMainActive = false; }catch(_){ } console.error('submitCustomerContractProposalMain failed', err); alert('Vertrag senden fehlgeschlagen: ' + String(err?.message || err || 'Unbekannter Fehler')); }
+  }catch(err){ console.error('submitCustomerContractProposalMain failed', err); alert('Vertrag senden fehlgeschlagen: ' + String(err?.message || err || 'Unbekannter Fehler')); }
 }
 
 async function submitCustomerStayProposalMain(){
@@ -19107,7 +19054,7 @@ if(_btnBackupExport) _btnBackupExport.addEventListener('click', doBackupExport);
 const _btnMonthExport = document.getElementById('btnMonthExport');
 if(_btnMonthExport) _btnMonthExport.addEventListener('click', exportMonthBundle);
 const _btnMonthClose = document.getElementById('btnMonthClose');
-if(_btnMonthClose) _btnMonthClose.addEventListener('click', (typeof closeMonth==='function'?closeMonth:function(){ try{ var el=document.getElementById('monthModal')||document.getElementById('monthExportModal'); if(el) el.style.display='none'; }catch(_){ } }));
+if(_btnMonthClose) _btnMonthClose.addEventListener('click', closeMonth);
 const _btnSteuerExport = document.getElementById('btnSteuerExport');
 if(_btnSteuerExport) _btnSteuerExport.addEventListener('click', showSteuerberaterExportInfo);
 const _btnExportMonthNow = document.getElementById('btnExportMonthNow');
@@ -25721,7 +25668,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB347_DIAG_CUSTOMER_PORTAL_SCOPE_FROM_GB346_20260518_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -27694,7 +27641,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY";
+  const BUILD = "M50.9.9GB347_DIAG_CUSTOMER_PORTAL_SCOPE_FROM_GB346_20260518_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -30371,7 +30318,7 @@ try{ window.__GB191_MARKER = 'active'; }catch(_){ }
     try{ ds166OpenRowByKey = window.ds166OpenRowByKey; }catch(_){ }
   }catch(_){ }
 })();
-try{ window.__dsAppJsRuntimeBuild = 'GB359-appjs'; }catch(_){}
+try{ window.__dsAppJsRuntimeBuild = 'GB292-appjs'; }catch(_){}
 /* ===== END GB194 ===== */
 
 
@@ -31284,7 +31231,7 @@ try{ window.__GB294_MARKER = 'active'; }catch(_){ }
 /* ===== GB295 contract review verified open + reset fix ===== */
 try{ window.__GB295_MARKER = 'active'; }catch(_){ }
 (function(){
-  const BUILD = "M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY";
+  const BUILD = "M50.9.9GB347_DIAG_CUSTOMER_PORTAL_SCOPE_FROM_GB346_20260518_ROOTONLY";
   function ds295Clone(v){ try{ return JSON.parse(JSON.stringify(v == null ? null : v)); }catch(_){ return v; } }
   function ds295Norm(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
   function ds295Bool(v){ try{ if(v===true||v===false) return !!v; const s=String(v==null?'':v).trim().toLowerCase(); return s==='1'||s==='true'||s==='yes'||s==='ja'||s==='on'; }catch(_){ return false; } }
@@ -31933,7 +31880,7 @@ try{ window.__GB297_MARKER = 'active'; }catch(_){ }
       try{ const btn = document.getElementById('btnContractRefresh'); if(btn){ btn.onclick = null; btn.addEventListener('click', wrappedRefresh); } }catch(_){ }
     }
   }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB359-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB297-appjs'; }catch(_){ }
 })();
 /* ===== END GB297 ===== */
 
@@ -32207,7 +32154,7 @@ try{ window.__GB298_MARKER = 'active'; }catch(_){ }
   try{
     if(ds298ApplyRescueIntoState()) ds298PersistStateSilently();
   }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB359-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB298-appjs'; }catch(_){ }
 })();
 /* ===== END GB298 ===== */
 
@@ -32499,7 +32446,7 @@ try{ window.__GB299_MARKER = 'active'; }catch(_){ }
     ds299WriteRescueUnion(snap.contractSignatures, snap.contractAgreements);
     if(ds299ApplyRescueIntoState()) ds299PersistLocalOnly();
   }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB359-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB299-appjs'; }catch(_){ }
 })();
 /* ===== END GB299 ===== */
 
@@ -32867,7 +32814,7 @@ try{ window.__GB300_MARKER = 'active'; }catch(_){ }
     }
   }catch(_){ }
   try{ ds300ApplyUnionIntoState(); ds300WriteUnion(); }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB359-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB301-appjs'; }catch(_){ }
 })();
 /* ===== END GB300 ===== */
 
@@ -33304,7 +33251,7 @@ try{ window.__GB301_MARKER = 'active'; }catch(_){ }
   }catch(_){ }
   try{ ds301ApplyUnionIntoState(); ds301WriteUnion(); }catch(_){ }
   try{ window.__dsContractMainNormalize = ds301PopulateNormalContractUi; }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB359-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB301-appjs'; }catch(_){ }
 })();
 /* ===== END GB301 ===== */
 
@@ -33495,7 +33442,7 @@ try{ window.__GB302_MARKER = 'active'; }catch(_){ }
   }catch(_){ }
   try{ ds302ApplyUnion(); ds302WriteUnion(); }catch(_){ }
   try{ window.__dsContractMainHardReset = ds302ResetContractMainUi; }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB359-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB302-appjs'; }catch(_){ }
 })();
 /* ===== END GB302 ===== */
 
@@ -33955,7 +33902,7 @@ try{ window.__GB303_MARKER = 'active'; }catch(_){ }
   }catch(_){ }
   try{ ds303ApplyUnion(); ds303WriteUnion(); }catch(_){ }
   try{ window.__dsContractMainNormalize = ds303NormalizeMainUi; }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB359-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB303-appjs'; }catch(_){ }
 })();
 /* ===== END GB303 ===== */
 
@@ -34074,7 +34021,7 @@ try{ window.__GB304_MARKER = 'active'; }catch(_){ }
     }
   }catch(_){ }
   try{ window.__dsContractReviewExitToMainGB304 = ds304ExitReviewToMain; }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB359-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB306-appjs'; }catch(_){ }
 })();
 /* ===== END GB304 ===== */
 
@@ -34257,7 +34204,7 @@ try{ window.__GB305_MARKER = 'active'; }catch(_){ }
       try{ window.hasValidContract = wrapped; }catch(_){ }
     }
   }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB359-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB306-appjs'; }catch(_){ }
 })();
 /* ===== END GB305 ===== */
 
@@ -34461,14 +34408,14 @@ try{ window.__GB306_MARKER = 'active'; }catch(_){ }
       window.__dsContractReviewSubmitHook = wrappedReviewHook;
     }
   }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB359-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB306-appjs'; }catch(_){ }
 })();
 /* ===== END GB306 ===== */
 
 
 /* ===== GB307 contract diagnostics panel ===== */
 try{ window.__GB307_MARKER = 'active'; }catch(_){ }
-try{ window.__dsAppJsRuntimeBuild = 'GB359-appjs'; }catch(_){ }
+try{ window.__dsAppJsRuntimeBuild = 'GB307-appjs'; }catch(_){ }
 (function(){
   const DIAG = window.__dsContractDiag = window.__dsContractDiag || {};
   const UNION_KEYS = [
@@ -34690,7 +34637,7 @@ try{ window.__dsAppJsRuntimeBuild = 'GB359-appjs'; }catch(_){ }
 
 /* ===== GB308 contract diagnostics hard mount ===== */
 try{ window.__GB308_MARKER = 'active'; }catch(_){ }
-try{ window.__dsAppJsRuntimeBuild = 'GB359-appjs'; }catch(_){ }
+try{ window.__dsAppJsRuntimeBuild = 'GB308-appjs'; }catch(_){ }
 (function(){
   const DIAG = window.__dsContractDiag = window.__dsContractDiag || {};
   function norm(v){ return String(v == null ? '' : v).trim(); }
@@ -34871,7 +34818,7 @@ try{ window.__GB311_MARKER = 'active'; }catch(_){ }
 
 /* ===== GB312 contract canonical validity + refresh repair ===== */
 try{ window.__GB312_MARKER = 'active'; }catch(_){ }
-try{ window.__dsAppJsRuntimeBuild = 'GB359-appjs'; }catch(_){ }
+try{ window.__dsAppJsRuntimeBuild = 'GB312-appjs'; }catch(_){ }
 (function(){
   function n(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
   function lc(v){ return n(v).toLowerCase(); }
@@ -35057,7 +35004,7 @@ try{ window.__dsAppJsRuntimeBuild = 'GB359-appjs'; }catch(_){ }
 /* ===== END GB312 ===== */
 
 /* ===== GB313 contract click-release + canonical badge hardfix ===== */
-try{ window.__GB313_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB359-appjs'; }catch(_){ }
+try{ window.__GB313_MARKER='active'; window.__dsAppJsRuntimeBuild='GB313-appjs'; }catch(_){ }
 (function(){
   function n(v){try{return String(v==null?'':v).trim();}catch(_){return ''}}
   function lc(v){return n(v).toLowerCase()}
@@ -35109,7 +35056,7 @@ try{ window.__GB313_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB359-appjs
 /* ===== END GB313 ===== */
 
 /* ===== GB314 hard contract review release + green badge repair ===== */
-try{ window.__GB314_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB359-appjs'; }catch(_){ }
+try{ window.__GB314_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB314-appjs'; }catch(_){ }
 (function(){
   function N(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
   function L(v){ return N(v).toLowerCase(); }
@@ -35290,9 +35237,9 @@ try{ window.__GB314_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB359-app
 /* ===== END GB314 ===== */
 
 /* ===== GB315 final contract acceptance + badge DOM hardfix ===== */
-try{ window.__GB315_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB359-appjs'; }catch(_){ }
+try{ window.__GB315_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB316-appjs'; }catch(_){ }
 (function(){
-  var BUILD='M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY';
+  var BUILD='M50.9.9GB347_DIAG_CUSTOMER_PORTAL_SCOPE_FROM_GB346_20260518_ROOTONLY';
   function S(v){ try{return String(v==null?'':v).trim();}catch(_){return '';} }
   function L(v){ return S(v).toLowerCase(); }
   function esc(v){ try{return CSS && CSS.escape ? CSS.escape(S(v)) : S(v).replace(/[^a-zA-Z0-9_-]/g,'\\$&');}catch(_){return S(v);} }
@@ -35437,7 +35384,7 @@ try{ window.__GB315_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB359-app
 /* ===== END GB315 ===== */
 
 /* ===== GB316 contract signature-valid + passive repair loop ===== */
-try{ window.__GB316_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB359-appjs'; }catch(_){ }
+try{ window.__GB316_MARKER='active'; window.__dsAppJsRuntimeBuild='GB316-appjs'; }catch(_){ }
 (function(){
   function S(v){ try{ return String(v==null?'':v).trim(); }catch(_){ return ''; } }
   function L(v){ return S(v).toLowerCase(); }
@@ -35479,7 +35426,7 @@ try{ window.__GB316_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB359-appjs
 
 
 /* ===== GB317 contract real save + unlock ===== */
-try{window.__GB317_MARKER='active';window.__dsAppJsRuntimeBuild = 'GB359-appjs'}catch(_){ }
+try{window.__GB317_MARKER='active';window.__dsAppJsRuntimeBuild='GB317-appjs'}catch(_){ }
 (function(){
 function S(v){return String(v==null?'':v).trim()}function L(v){return S(v).toLowerCase()}function V(){try{return S(state.contractVersion||state.contract?.version||'v1.0')||'v1.0'}catch(_){return'v1.0'}}function pets(){try{return Array.isArray(state.pets)?state.pets:[]}catch(_){return[]}}function custs(){try{return Array.isArray(state.customers)?state.customers:[]}catch(_){return[]}}function pn(p){return S(p&&(p.name||p.petName||p.dogName||p.id||p.petId||p.dogId))}function cn(c){return S(c&&(c.name||c.displayName||c.lastName||c.email||c.id||c.customerId))}
 function fc(x){var lx=L(x),r=null;if(!lx)return null;try{if(typeof getCustomer==='function')r=getCustomer(S(x))||null}catch(_){ }return r||custs().find(c=>[c.id,c.customerId,c.uid,c.key,c.email,c.name,c.displayName,c.lastName].map(L).includes(lx))||null}
@@ -35503,9 +35450,9 @@ try{var rd=renderDogs;if(rd&&!rd.__gb317Wrapped){renderDogs=function(){var r=rd.
 /* ===== END GB317 ===== */
 
 /* ===== GB318 contract hard bypass: accept not required when signature exists + generic green repair ===== */
-try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB359-appjs'; }catch(_){ }
+try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild='GB318-appjs'; }catch(_){ }
 (function(){
-  var BUILD='M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY';
+  var BUILD='M50.9.9GB347_DIAG_CUSTOMER_PORTAL_SCOPE_FROM_GB346_20260518_ROOTONLY';
   function S(v){try{return String(v==null?'':v).trim()}catch(_){return''}}
   function L(v){return S(v).toLowerCase()}
   function V(){try{return S((state&&(state.contractVersion||(state.contract&&state.contract.version)))||'v1.0')||'v1.0'}catch(_){return'v1.0'}}
@@ -35541,1991 +35488,239 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB359-appjs
 })();
 /* ===== END GB318 ===== */
 
-
-/* ===== GB347 DOGS/KUNDEN ACTION BUTTON HANDLER PRESERVE =====
-   GB346 contract paint restored green badges by rewriting dog row innerHTML in app.html.
-   That visually worked, but it destroyed the onclick handlers for Vertrag/Bearbeiten/Löschen.
-   This delegated capture handler keeps the buttons usable even after any later re-render/DOM repair. */
+/* ===== GB347 DIAG CUSTOMER PORTAL SCOPE FROM GB346 =====
+   Diagnostics only. No functional customer/proposal fix is applied here. */
 (function(){
   'use strict';
-  if(window.__dsGB347DogActionDelegateInstalled) return;
-  window.__dsGB347DogActionDelegateInstalled = true;
-  function S(v){ try{return String(v==null?'':v).trim();}catch(_){return '';} }
-  function same(a,b){ return S(a)===S(b); }
-  function getPet(pid){
-    try{
-      const arr = Array.isArray(state && state.pets) ? state.pets : [];
-      return arr.find(p=>same(p && (p.id||p.petId||p.dogId), pid)) || null;
-    }catch(_){ return null; }
-  }
-  function rowInfo(btn){
-    const row = btn && btn.closest && btn.closest('[data-role="pet-row"], #dogList .item');
-    const pid = S(btn.dataset.petId || btn.dataset.petEditId || (row && row.dataset && row.dataset.petId));
-    const cid = S(btn.dataset.customerId || (row && row.dataset && row.dataset.customerId));
-    return {row, pid, cid};
-  }
-  function deletePet(pid){
-    try{
-      if(!pid) return false;
-      if(!confirm('Hund wirklich löschen? (Aufenthalte/Rechnungen bleiben als Historie bestehen)')) return false;
-      state.pets = (Array.isArray(state.pets)?state.pets:[]).filter(x=>!same(x && (x.id||x.petId||x.dogId), pid));
-      try{
-        if(state._legacy && state._legacy.dogIdToPetId){
-          Object.keys(state._legacy.dogIdToPetId).forEach(function(dogId){
-            if(same(state._legacy.dogIdToPetId[dogId], pid)){
-              delete state._legacy.dogIdToPetId[dogId];
-              if(state._legacy.dogIdToCustomerId) delete state._legacy.dogIdToCustomerId[dogId];
-            }
-          });
-        }
-      }catch(_){ }
-      try{ saveState(); }catch(_){ }
-      try{ renderDogs(); }catch(_){ }
-      try{ syncDogSelect(); }catch(_){ }
-      return true;
-    }catch(e){ try{ console.warn('GB347 delete pet failed', e); }catch(_){ } return false; }
-  }
-  let lockUntil = 0;
-  let lastKey = '';
-  document.addEventListener('click', function(ev){
-    try{
-      const btn = ev && ev.target && ev.target.closest && ev.target.closest('#dogList button.smallbtn');
-      if(!btn) return;
-      const isContract = btn.hasAttribute('data-v');
-      const isEdit = btn.hasAttribute('data-e');
-      const isDelete = btn.hasAttribute('data-d');
-      if(!isContract && !isEdit && !isDelete) return;
-      const info = rowInfo(btn);
-      const key = [isContract?'v':isEdit?'e':'d', info.pid, info.cid].join('|');
-      const now = Date.now();
-      if(now < lockUntil && key === lastKey){
-        ev.preventDefault(); ev.stopPropagation(); try{ev.stopImmediatePropagation();}catch(_){ }
-        return false;
-      }
-      lockUntil = now + 500;
-      lastKey = key;
-      ev.preventDefault();
-      ev.stopPropagation();
-      try{ ev.stopImmediatePropagation(); }catch(_){ }
-      if(isContract){
-        const pet = getPet(info.pid) || {};
-        const cid = S(info.cid || pet.customerId || pet.ownerId);
-        if(typeof openContractForPet === 'function') openContractForPet(cid, info.pid);
-        return false;
-      }
-      if(isEdit){
-        if(typeof openCpEditor === 'function') openCpEditor('edit', info.pid);
-        return false;
-      }
-      if(isDelete){
-        deletePet(info.pid);
-        return false;
-      }
-    }catch(e){ try{ console.warn('GB347 dog action delegate failed', e); }catch(_){ } }
-  }, true);
-})();
-/* ===== END GB347 DOGS/KUNDEN ACTION BUTTON HANDLER PRESERVE ===== */
-
-
-/* ===== GB349 CUSTOMER PORTAL SAVE LOGOUT REVIEW FIX =====
-   Fixes customer.html using the old GB290 asset query and provides a direct Firestore fallback
-   for customer portal proposal submits. Does not change GB347 Hunde/Kunden handlers. */
-(function(){
-  'use strict';
-  if(window.__dsGB348CustomerProposalRepairInstalled) return;
-  window.__dsGB348CustomerProposalRepairInstalled = true;
-  var BUILD='M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY';
-  function S(v){try{return String(v==null?'':v).trim()}catch(_){return''}}
-  function lower(v){return S(v).toLowerCase()}
-  function makeId(){try{return (typeof uid==='function'?uid():('proposal_'+Date.now()+'_'+Math.random().toString(36).slice(2,8)))}catch(_){return 'proposal_'+Date.now()}}
-  function orgId(){try{return (typeof dsResolveCloudOrgId==='function'?dsResolveCloudOrgId():(window.CLOUD_ORG_ID||window.firebaseOrgId||'doggystyle'))||'doggystyle'}catch(_){return 'doggystyle'}}
-  async function waitUser(ms){
-    ms=Number(ms||8000)||8000;
-    try{ if(typeof cpWaitForFirebaseUser==='function'){ var u=await cpWaitForFirebaseUser(ms); if(u&&u.uid) return u; } }catch(_){ }
-    return new Promise(function(resolve){
-      try{
-        var auth = (window.firebase&&firebase.auth)?firebase.auth():null;
-        if(!auth) return resolve(null);
-        if(auth.currentUser) return resolve(auth.currentUser);
-        var done=false; var to=setTimeout(function(){ if(done)return; done=true; try{unsub&&unsub()}catch(_){} resolve(auth.currentUser||null); }, ms);
-        var unsub=auth.onAuthStateChanged(function(u){ if(done)return; done=true; clearTimeout(to); try{unsub&&unsub()}catch(_){} resolve(u||null); });
-      }catch(_){ resolve(null); }
-    });
-  }
-  function db(){
-    try{
-      var fb=(typeof firebase!=='undefined'&&firebase)?firebase:window.firebase;
-      if(!fb||typeof fb.firestore!=='function') return null;
-      try{ if(window.firebaseConfig && fb.initializeApp && (!fb.apps||!fb.apps.length)) fb.initializeApp(window.firebaseConfig); }catch(_){ }
-      var d=fb.firestore();
-      try{ window.CLOUD=window.CLOUD||{}; CLOUD.db=d; CLOUD.enabled=true; CLOUD.orgId=orgId(); }catch(_){ }
-      return d;
-    }catch(_){ return null; }
-  }
-  async function directSubmit(opts, previousError){
-    opts=opts||{};
-    var user=await waitUser(10000);
-    if(!user||!user.uid) throw previousError || new Error('Keine aktive Firebase-Anmeldung.');
-    var d=db();
-    if(!d||typeof d.collection!=='function') throw previousError || new Error('Firestore nicht verfügbar.');
-    var stamp=Date.now();
-    var payloadSubmitted=opts.payloadSubmitted||{};
-    var templateId=S(opts.templateId||'customer_data')||'customer_data';
-    var id=S(opts.id||opts.taskId)||makeId();
-    var email=lower((user&&user.email)||opts.customerEmail||'');
-    var task={
-      id:id, taskId:id, templateId:templateId,
-      title:S(opts.title||'Vorschlag')||'Vorschlag',
-      status:'submitted', proposalStatus:'pending',
-      submittedAt:stamp, createdAt:stamp, updatedAt:stamp,
-      customerUid:S(user.uid), customerEmail:email,
-      customerName:S(opts.customerName || (payloadSubmitted.customer&&(payloadSubmitted.customer.name||payloadSubmitted.customer.fullName)) || (user&&user.displayName) || email || 'Kunde'),
-      customerId:S(opts.customerId || (payloadSubmitted.customer&&(payloadSubmitted.customer.id||payloadSubmitted.customer.customerId)) || ''),
-      petId:S(opts.petId || opts.dogId || (payloadSubmitted.pet&&(payloadSubmitted.pet.id||payloadSubmitted.pet.petId||payloadSubmitted.pet.dogId)) || ''),
-      dogId:S(opts.petId || opts.dogId || (payloadSubmitted.pet&&(payloadSubmitted.pet.id||payloadSubmitted.pet.petId||payloadSubmitted.pet.dogId)) || ''),
-      payloadSubmitted:payloadSubmitted,
-      gb350Direct:true,
-      build:BUILD
-    };
-    var ref=d.collection('orgs').doc(orgId()).collection('proposals').doc(id);
-    await ref.set(task, {merge:true});
-    var mirrorPayload = (templateId === 'boarding_contract') ? payloadSubmitted : (opts.litePayloadSubmitted||payloadSubmitted);
-    try{ await d.collection('orgs').doc(orgId()).collection('tasks').doc(id).set(Object.assign({}, task, {mirroredFromProposal:true, payloadSubmitted:mirrorPayload, updatedAt:Date.now()}), {merge:true}); }catch(_){ }
-    try{ if(typeof pushCustomerProposalBuffer==='function') pushCustomerProposalBuffer(task); }catch(_){ }
-    try{
-      if(typeof ensureStateShape==='function') ensureStateShape();
-      state.inboxAssignments=Array.isArray(state.inboxAssignments)?state.inboxAssignments:[];
-      state.inboxSubmissions=Array.isArray(state.inboxSubmissions)?state.inboxSubmissions:[];
-      state.inboxAssignments.unshift(Object.assign({}, task, {mirroredFromCloud:true}));
-      state.inboxSubmissions.unshift(Object.assign({}, task, {mirroredFromCloud:true}));
-      if(typeof saveState==='function') saveState();
-    }catch(_){ }
-    return {ok:true, path:'proposals+tasks-gb348-direct', task:task};
-  }
-  var original = window.dsSubmitCustomerPortalProposal;
-  window.dsSubmitCustomerPortalProposal = async function(opts){
-    var lastErr=null;
-    if(typeof original === 'function'){
-      try{
-        var res = await original(opts);
-        if(res && res.ok) return res;
-        if(res && res.error) lastErr = res.error;
-      }catch(e){ lastErr=e; }
-    }
-    return directSubmit(opts, lastErr);
-  };
-})();
-/* ===== END GB349 CUSTOMER PORTAL SAVE LOGOUT REVIEW FIX ===== */
-
-
-/* ===== GB349 CUSTOMER PORTAL SAVE/LOGOUT + ADMIN REVIEW FIX =====
-   Keeps GB346/GB347 stable app behavior. Fixes:
-   - customer portal contract save must create a proposal, not local admin contract save
-   - customer portal logout must not be swallowed by old handlers
-   - admin adoption of customer_data proposals must not hang on cloud persist
-*/
-(function(){
-  'use strict';
-  if(window.__dsGB349CustomerReviewFixInstalled) return;
-  window.__dsGB349CustomerReviewFixInstalled = true;
-  var BUILD='M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY';
-  function S(v){ try{return String(v==null?'':v).trim();}catch(_){return '';} }
-  function L(v){ return S(v).toLowerCase(); }
-  function arr(a){ return Array.isArray(a) ? a : []; }
-  function cleanFlat(src){
-    var out={}; src=src&&typeof src==='object'?src:{};
-    Object.keys(src).forEach(function(k){
-      try{
-        if(!k || k==='__proto__' || k==='constructor' || k==='prototype') return;
-        var v=src[k];
-        if(v==null || typeof v==='string' || typeof v==='boolean' || typeof v==='number') out[k]=v;
-      }catch(_){ }
-    });
-    return out;
-  }
-  function payloadOf(row){ return (row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data)) || {}; }
-  function isCustomerDataProposal(row){
-    try{
-      if(!row || typeof row!=='object') return false;
-      var p=payloadOf(row), tpl=L(row.templateId || row.proposalType || row.kind || row.formKey || p.templateId || '');
-      var src=L(row.source || row.__source || p.source || '');
-      return tpl==='customer_data' || src.indexOf('customer-portal-dogs')>=0 || src.indexOf('customer-main-dogs')>=0 || src.indexOf('kunde/hund')>=0;
-    }catch(_){ return false; }
-  }
-  function findCustomer(id,email,name){
-    id=S(id); email=L(email); var lname=L(name);
-    try{
-      return arr(state.customers).find(function(c){ return (id && S(c.id||c.customerId)===id) || (email && L(c.email||c.customerEmail)===email) || (lname && L(c.name||c.fullName)===lname); }) || null;
-    }catch(_){ return null; }
-  }
-  function findPet(id,cid,name){
-    id=S(id); cid=S(cid); var lname=L(name);
-    try{
-      return arr(state.pets).find(function(p){ return (id && S(p.id||p.petId||p.dogId)===id) || (lname && L(p.name||p.petName||p.dogName)===lname && (!cid || S(p.customerId||p.ownerId)===cid)); }) || null;
-    }catch(_){ return null; }
-  }
-  function mergeById(list, id, obj, aliases){
-    aliases=aliases||['id']; id=S(id); list=arr(list);
-    var idx=list.findIndex(function(x){ return aliases.some(function(a){ return S(x && x[a])===id; }); });
-    if(idx>=0){ list[idx]=Object.assign({}, list[idx], obj); return list[idx]; }
-    list.push(obj); return obj;
-  }
-  function withTimeout(promise, ms){
-    return new Promise(function(resolve){
-      var done=false; var t=setTimeout(function(){ if(!done){done=true; resolve(false);} }, ms||1800);
-      Promise.resolve(promise).then(function(v){ if(!done){done=true; clearTimeout(t); resolve(v===false?false:true);} }).catch(function(){ if(!done){done=true; clearTimeout(t); resolve(false);} });
-    });
-  }
-  async function acceptCustomerDataProposal(row){
-    try{
-      if(typeof ensureStateShape==='function') ensureStateShape();
-      state.customers=arr(state.customers); state.pets=arr(state.pets); state.dogs=arr(state.dogs);
-      var p=payloadOf(row);
-      var custP=(p.customer&&typeof p.customer==='object')?p.customer:{};
-      var petP=(p.pet&&typeof p.pet==='object')?p.pet:{};
-      var fields=(p.fields&&typeof p.fields==='object')?p.fields:{};
-      var cid=S(row.customerId || row.__targetCustomerId || custP.id || custP.customerId || fields.customerId || '');
-      var pid=S(row.petId || row.dogId || row.__targetPetId || petP.id || petP.petId || petP.dogId || fields.petId || fields.dogId || '');
-      var cname=S(custP.name || custP.fullName || fields.fullName || fields.customerName || row.customerName || row.customerEmail || 'Kunde');
-      var email=L(custP.email || fields.email || row.customerEmail || '');
-      var pname=S(petP.name || petP.petName || petP.dogName || fields.dogName || fields.petName || 'Hund');
-      var existingC=findCustomer(cid,email,cname);
-      if(existingC && !cid) cid=S(existingC.id||existingC.customerId);
-      if(!cid) cid=email || ('c_'+Date.now());
-      var customer=Object.assign({}, cleanFlat(existingC), cleanFlat(custP), {
-        id:cid, customerId:cid,
-        name:cname, fullName:cname,
-        email:email || L((existingC&&existingC.email)||''),
-        phone:S(custP.phone || fields.phone || (existingC&&existingC.phone) || ''),
-        street:S(custP.street || fields.street || (existingC&&existingC.street) || ''),
-        zip:S(custP.zip || fields.zip || (existingC&&existingC.zip) || ''),
-        city:S(custP.city || fields.city || (existingC&&existingC.city) || ''),
-        emergencyName:S(custP.emergencyName || fields.emergencyName || (existingC&&existingC.emergencyName) || ''),
-        emergencyPhone:S(custP.emergencyPhone || fields.emergencyPhone || (existingC&&existingC.emergencyPhone) || ''),
-        pickupAuth:S(custP.pickupAuth || fields.pickupAuth || (existingC&&existingC.pickupAuth) || ''),
-        note:S(custP.note || fields.customerNote || fields.note || (existingC&&existingC.note) || ''),
-        updatedAt:Date.now()
-      });
-      customer=mergeById(state.customers, cid, customer, ['id','customerId']);
-      var existingP=findPet(pid,cid,pname);
-      if(existingP && !pid) pid=S(existingP.id||existingP.petId||existingP.dogId);
-      if(!pid) pid='p_'+Date.now();
-      var pet=Object.assign({}, cleanFlat(existingP), cleanFlat(petP), {
-        id:pid, petId:pid,
-        dogId:S(petP.dogId || fields.dogId || (existingP&&existingP.dogId) || pid),
-        customerId:cid, ownerId:cid,
-        name:pname, petName:pname, dogName:pname,
-        breed:S(petP.breed || fields.breed || (existingP&&existingP.breed) || ''),
-        birthDate:S(petP.birthDate || petP.birthdate || fields.birthDate || fields.birthdate || (existingP&&existingP.birthDate) || ''),
-        birthdate:S(petP.birthdate || petP.birthDate || fields.birthdate || fields.birthDate || (existingP&&existingP.birthdate) || ''),
-        sex:S(petP.sex || fields.sex || (existingP&&existingP.sex) || ''),
-        chipStatus:S(petP.chipStatus || fields.chipStatus || (existingP&&existingP.chipStatus) || ''),
-        chip:!!(petP.chip || fields.chip || S(petP.chipStatus || fields.chipStatus)==='yes'),
-        chipNumber:S(petP.chipNumber || fields.chipNumber || (existingP&&existingP.chipNumber) || ''),
-        vet:S(petP.vet || fields.vet || (existingP&&existingP.vet) || ''),
-        vetPhone:S(petP.vetPhone || fields.vetPhone || (existingP&&existingP.vetPhone) || ''),
-        allergies:S(petP.allergies || fields.allergies || (existingP&&existingP.allergies) || ''),
-        vaccinatedConfirmed:!!(petP.vaccinatedConfirmed || fields.vaccinatedConfirmed),
-        rabiesDate:S(petP.rabiesDate || fields.rabiesDate || (existingP&&existingP.rabiesDate) || ''),
-        mixedVaccineDate:S(petP.mixedVaccineDate || fields.mixedVaccineDate || (existingP&&existingP.mixedVaccineDate) || ''),
-        food:S(petP.food || fields.food || (existingP&&existingP.food) || ''),
-        feeding:S(petP.feeding || fields.feeding || (existingP&&existingP.feeding) || ''),
-        compat:S(petP.compat || fields.compat || (existingP&&existingP.compat) || ''),
-        behavior:S(petP.behavior || fields.behavior || (existingP&&existingP.behavior) || ''),
-        notes:S(petP.notes || petP.note || fields.notes || fields.note || (existingP&&existingP.notes) || ''),
-        updatedAt:Date.now()
-      });
-      pet=mergeById(state.pets, pid, pet, ['id','petId','dogId']);
-      try{ if(typeof upsertLegacyDogForPet==='function') upsertLegacyDogForPet(pet, customer); }catch(_){ }
-      try{ if(typeof saveState==='function') saveState(); }catch(_){ }
-      try{ if(typeof dsFinalizeAcceptedProposalLocal==='function') dsFinalizeAcceptedProposalLocal(row); }catch(_){ }
-      try{ if(typeof removeInboxRowEverywhere==='function') removeInboxRowEverywhere(row); }catch(_){ }
-      try{ window.__dsProposalReview = window.__dsProposalReview || {}; __dsProposalReview.active=false; __dsProposalReview.row=null; __dsProposalReview.baseCustomer=null; __dsProposalReview.basePet=null; __dsProposalReview.baseCustomerId=''; __dsProposalReview.basePetId=''; }catch(_){ }
-      try{ if(typeof dsClearProposalReviewUI==='function') dsClearProposalReviewUI(); }catch(_){ }
-      try{ if(typeof closeCpEditor==='function') closeCpEditor(); }catch(_){ }
-      try{ if(typeof renderDogs==='function') renderDogs(); }catch(_){ }
-      try{ if(typeof cpSetStatus==='function') cpSetStatus('Gespeichert.'); }catch(_){ }
-      setTimeout(function(){ try{ if(typeof patchInboxRowStatus==='function') withTimeout(patchInboxRowStatus(row,'adopted'),1800); }catch(_){ } },0);
-      setTimeout(function(){ try{ if(typeof refreshInboxHard==='function') refreshInboxHard('gb350-customer-data-accepted'); }catch(_){ } },80);
-      setTimeout(function(){ try{ if(typeof dsForceProposalPersist==='function') withTimeout(dsForceProposalPersist('gb350-customer-data-bg'),2200); }catch(_){ } },120);
-      return true;
-    }catch(e){
-      try{ console.error('GB349 customer data accept failed', e); }catch(_){ }
-      try{ if(typeof cpSetStatus==='function') cpSetStatus('Speichern fehlgeschlagen: '+S(e&&e.message||e), true); }catch(_){ }
-      try{ alert('Speichern fehlgeschlagen: '+S(e&&e.message||e)); }catch(_){ }
-      return false;
-    }
-  }
-  var oldSave = null;
-  try{ oldSave = dsSaveProposalReview; }catch(_){ oldSave = window.dsSaveProposalReview; }
-  if(typeof oldSave === 'function'){
-    var wrapped = async function(){
-      try{
-        var row = (window.__dsProposalReview && window.__dsProposalReview.row) || null;
-        if(isCustomerDataProposal(row)) return await acceptCustomerDataProposal(row);
-      }catch(_){ }
-      return oldSave.apply(this, arguments);
-    };
-    try{ dsSaveProposalReview = wrapped; }catch(_){ }
-    window.dsSaveProposalReview = wrapped;
-  }
-})();
-/* ===== END GB349 CUSTOMER PORTAL SAVE/LOGOUT + ADMIN REVIEW FIX ===== */
-
-/* ===== GB351 success notice for customer proposals + admin review saves ===== */
-(function(){
-  'use strict';
-  if(window.__dsGB351SuccessNoticeInstalled) return;
-  window.__dsGB351SuccessNoticeInstalled = true;
-  var BUILD = 'M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY';
-  function S(v){ try{return String(v==null?'':v).trim();}catch(_){return '';} }
-  function L(v){ return S(v).toLowerCase(); }
-  function isOk(res){ return !!(res && (res.ok === true || res === true || (typeof res === 'object' && !res.error && !res.skipped))); }
-  function notice(msg, key){
-    try{
-      msg = S(msg) || '✅ Gespeichert.';
-      key = S(key || msg) || msg;
-      var now = Date.now();
-      window.__dsGB351NoticeLast = window.__dsGB351NoticeLast || {};
-      if(window.__dsGB351NoticeLast[key] && (now - window.__dsGB351NoticeLast[key]) < 3500) return;
-      window.__dsGB351NoticeLast[key] = now;
-      try{ if(typeof cpSetStatus === 'function') cpSetStatus(msg.replace(/^✅\s*/, '')); }catch(_){ }
-      try{ var hint = document.getElementById('customerTaskSaveHint') || document.getElementById('cpStatus') || document.getElementById('assignDiag'); if(hint) hint.textContent = msg; }catch(_){ }
-      var box = document.getElementById('dsGB351SaveNotice');
-      if(!box){
-        box = document.createElement('div');
-        box.id = 'dsGB351SaveNotice';
-        box.setAttribute('role','status');
-        box.style.cssText = 'position:fixed;left:50%;top:92px;transform:translateX(-50%);z-index:2147483647;max-width:min(620px,calc(100vw - 32px));padding:16px 20px;border-radius:18px;background:rgba(31,41,35,.96);border:1px solid rgba(119,255,160,.38);box-shadow:0 18px 48px rgba(0,0,0,.42);color:#fff;font:600 16px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.35;text-align:center;white-space:normal;';
-        document.body.appendChild(box);
-      }
-      box.textContent = msg;
-      box.style.display = 'block';
-      box.style.opacity = '1';
-      clearTimeout(window.__dsGB351NoticeTimer);
-      window.__dsGB351NoticeTimer = setTimeout(function(){ try{ box.style.opacity = '0'; setTimeout(function(){ try{ box.style.display='none'; }catch(_){ } }, 260); }catch(_){ } }, 5200);
-    }catch(_){ }
-  }
-  window.dsGB351ShowSuccessNotice = notice;
-  function reviewMessage(row){
-    try{
-      row = row || (window.__dsProposalReview && window.__dsProposalReview.row) || window.__dsInboxCurrentTask || null;
-      var p = (row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data)) || {};
-      var tpl = L((row && (row.templateId || row.proposalType || row.kind || row.formKey)) || p.templateId || '');
-      var src = L((row && (row.source || row.__source)) || p.source || '');
-      if(tpl === 'customer_data' || src.indexOf('customer-main-dogs') >= 0 || src.indexOf('customer-portal-dogs') >= 0) return '✅ Vorschlag übernommen und in Kunde/Hund gespeichert.';
-      if(tpl === 'boarding_contract' || src.indexOf('contract') >= 0) return '✅ Betreuungsvertrag übernommen und gespeichert.';
-      if(tpl === 'hundeannahme' || src.indexOf('stay') >= 0 || src.indexOf('aufenthalt') >= 0) return '✅ Aufenthaltsvorschlag übernommen und gespeichert.';
-    }catch(_){ }
-    return '✅ Vorschlag übernommen und gespeichert.';
-  }
-  function wrapAdminReviewSave(){
-    try{
-      var old = (typeof dsSaveProposalReview === 'function') ? dsSaveProposalReview : window.dsSaveProposalReview;
-      if(typeof old !== 'function' || old.__gb351Wrapped) return;
-      var wrapped = async function(){
-        var row = null;
-        try{ row = (window.__dsProposalReview && window.__dsProposalReview.row) || window.__dsInboxCurrentTask || null; }catch(_){ }
-        var res = await old.apply(this, arguments);
-        if(isOk(res)) notice(reviewMessage(row), 'admin-review-save');
-        return res;
-      };
-      wrapped.__gb351Wrapped = true;
-      try{ dsSaveProposalReview = wrapped; }catch(_){ }
-      window.dsSaveProposalReview = wrapped;
-    }catch(_){ }
-  }
-  function wrapNamed(fnName, msgFn, key){
-    try{
-      var old = window[fnName];
-      if(typeof old !== 'function' || old.__gb351Wrapped) return;
-      var wrapped = async function(){
-        var res = await old.apply(this, arguments);
-        if(isOk(res)) notice(typeof msgFn === 'function' ? msgFn(res) : msgFn, key || fnName);
-        return res;
-      };
-      wrapped.__gb351Wrapped = true;
-      window[fnName] = wrapped;
-      try{ eval(fnName + ' = wrapped'); }catch(_){ }
-    }catch(_){ }
-  }
-  function install(){
-    wrapAdminReviewSave();
-    wrapNamed('submitCustomerDogsProposal', '✅ Änderungsvorschlag gespeichert und an Eingänge übergeben.', 'customer-dogs-proposal');
-    wrapNamed('submitCustomerContractProposalMain', '✅ Betreuungsvertrag als Vorschlag gespeichert und an Eingänge übergeben.', 'customer-contract-proposal');
-  }
-  install();
-  document.addEventListener('DOMContentLoaded', install, {once:true});
-  setTimeout(install, 400);
-  setTimeout(install, 1400);
-  try{ window.__dsAppJsRuntimeBuild = 'GB359-appjs'; }catch(_){ }
-})();
-/* ===== END GB351 ===== */
-
-
-/* ===== GB352 CUSTOMER MODE LOCAL-FIRST PROPOSAL + LOGOUT/NOTICE FIX =====
-   Fixes app.html?customer_mode saves that could stay on "Speichern läuft …"
-   when Firebase/Auth restore is delayed on iPad/Safari. Proposals are written
-   locally first for Eingänge review, then cloud is attempted in the background. */
-(function(){
-  'use strict';
-  if(window.__dsGB352CustomerLocalFirstInstalled) return;
-  window.__dsGB352CustomerLocalFirstInstalled = true;
-  var BUILD = 'M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY';
-  var LS = 'ds_workspace_test_optik_01';
-  var PROP = 'ds_customer_proposals_v1';
+  if(window.__dsGB347DiagInstalled) return;
+  window.__dsGB347DiagInstalled = true;
+  var BUILD = 'M50.9.9GB347_DIAG_CUSTOMER_PORTAL_SCOPE_FROM_GB346_20260518_ROOTONLY';
+  var LOG_KEY = 'ds_gb347_diag_log_v1';
+  var LAST = { lines: [], firestoreWrapped:false, functionWrapped:false, clickWrapped:false };
   function S(v){ try{return String(v==null?'':v).trim();}catch(_){return '';} }
   function L(v){ return S(v).toLowerCase(); }
   function A(v){ return Array.isArray(v) ? v : []; }
-  function clone(v){ try{return JSON.parse(JSON.stringify(v||{}));}catch(_){return v||{};} }
-  function id(prefix){ try{ return (prefix||'proposal') + '_' + Date.now() + '_' + Math.random().toString(36).slice(2,8); }catch(_){ return (prefix||'proposal')+'_'+Date.now(); } }
-  function isCustomerMode(){
-    try{
-      var q = L(new URLSearchParams(String(location.search||'')).get('customer_mode')||'');
-      var ss = L(sessionStorage.getItem('ds_customer_main_mode')||'');
-      var path = L(location.pathname||'');
-      var body = L(document.body && document.body.dataset && document.body.dataset.customerMode || '');
-      return path.indexOf('customer.html')>=0 || ['dogs','contract','stay'].indexOf(q)>=0 || ['dogs','contract','stay'].indexOf(ss)>=0 || ['dogs','contract','stay'].indexOf(body)>=0 || !!window.__dsCustomerMainModeActive;
-    }catch(_){ return false; }
-  }
-  function ctx(){ try{ return (typeof getCustomerMainDogsContext==='function' ? getCustomerMainDogsContext() : (typeof dsGetCustomerScopeContext==='function' ? dsGetCustomerScopeContext() : {})) || {}; }catch(_){ return {}; } }
-  function realAuthUser(){
-    try{ if(window.firebase && firebase.auth && firebase.auth().currentUser) return firebase.auth().currentUser; }catch(_){ }
-    try{ if(window.CLOUD && CLOUD.auth && CLOUD.auth.currentUser) return CLOUD.auth.currentUser; }catch(_){ }
-    try{ if(window.CLOUD && CLOUD.user && CLOUD.user.uid && !String(CLOUD.user.__gb352Fake||'')) return CLOUD.user; }catch(_){ }
-    return null;
-  }
-  function profile(){
-    var u = realAuthUser();
-    if(u) return {uid:S(u.uid), email:L(u.email), displayName:S(u.displayName||u.email||'Kunde'), real:true};
-    var c = ctx();
-    var hc = (c && c.customer) || {};
-    var uid = S(sessionStorage.getItem('ds_customer_auth_handoff_uid') || hc.portalUid || hc.customerUid || hc.uid || '');
-    var email = L(sessionStorage.getItem('ds_customer_auth_handoff_email') || hc.email || localStorage.getItem('ds_last_email') || localStorage.getItem('last_email') || '');
-    var name = S(sessionStorage.getItem('ds_customer_auth_handoff_name') || hc.name || hc.fullName || email || 'Kunde');
-    return {uid:uid || email || 'customer-local', email:email, displayName:name, real:false, __gb352Fake:true};
-  }
-  function markSession(){
-    try{
-      var p = profile();
-      window.CLOUD = window.CLOUD || {};
-      if(p && (p.uid || p.email)){
-        CLOUD.user = CLOUD.user || {uid:p.uid, email:p.email, displayName:p.displayName, __gb352Fake:!p.real};
-        if(!CLOUD.user.uid) CLOUD.user.uid = p.uid;
-        if(!CLOUD.user.email) CLOUD.user.email = p.email;
-      }
-      CLOUD.enabled = true;
-      if(!CLOUD.orgId && typeof dsResolveCloudOrgId === 'function') CLOUD.orgId = dsResolveCloudOrgId();
-      SYNC.cloudReachable = true; SYNC.cloudReachError = ''; if(!SYNC.cloudLastOkAt) SYNC.cloudLastOkAt = Date.now();
-      var pill = document.getElementById('syncStatus');
-      if(pill && /Login nötig/i.test(String(pill.textContent||''))){ pill.textContent = 'Online · Kundensitzung aktiv · ' + (typeof fmtDT==='function' ? fmtDT(Date.now()) : ''); }
-      var dot = document.getElementById('syncDot'); if(dot){ dot.classList.add('online'); dot.classList.remove('offline'); }
-    }catch(_){ }
-  }
-  function msgFor(tpl){
-    tpl=L(tpl);
-    if(tpl==='boarding_contract') return '✅ Betreuungsvertrag als Vorschlag gespeichert und an Eingänge übergeben.';
-    if(tpl==='hundeannahme') return '✅ Aufenthaltsanfrage als Vorschlag gespeichert und an Eingänge übergeben.';
-    return '✅ Änderungsvorschlag gespeichert und an Eingänge übergeben.';
-  }
-  function show(msg,key){
-    try{
-      msg=S(msg)||'✅ Gespeichert.'; key=S(key||msg)||msg;
-      var now=Date.now(); window.__dsGB352NoticeLast=window.__dsGB352NoticeLast||{};
-      if(window.__dsGB352NoticeLast[key] && now-window.__dsGB352NoticeLast[key] < 2200) return;
-      window.__dsGB352NoticeLast[key]=now;
-      try{ if(typeof cpSetStatus==='function') cpSetStatus(msg.replace(/^✅\s*/,'')); }catch(_){ }
-      ['customerTaskSaveHint','contractSavedInfo','contractSaveInfo','cpStatus','assignDiag'].forEach(function(id){ try{ var el=document.getElementById(id); if(el) el.textContent=msg; }catch(_){ } });
-      var box=document.getElementById('dsGB352SaveNotice');
-      if(!box){ box=document.createElement('div'); box.id='dsGB352SaveNotice'; box.setAttribute('role','status'); box.style.cssText='position:fixed;left:50%;top:92px;transform:translateX(-50%);z-index:2147483647;max-width:min(660px,calc(100vw - 32px));padding:16px 20px;border-radius:18px;background:rgba(31,41,35,.97);border:1px solid rgba(119,255,160,.42);box-shadow:0 18px 48px rgba(0,0,0,.45);color:#fff;font:700 16px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.35;text-align:center;white-space:normal;'; document.body.appendChild(box); }
-      box.textContent=msg; box.style.display='block'; box.style.opacity='1';
-      clearTimeout(window.__dsGB352NoticeTimer); window.__dsGB352NoticeTimer=setTimeout(function(){try{box.style.opacity='0';setTimeout(function(){try{box.style.display='none';}catch(_){ }},260);}catch(_){ }},5200);
-      markSession();
-    }catch(_){ }
-  }
-  function upsert(arr,item){
-    arr=A(arr).slice(); var key=S(item && (item.id||item.taskId)); var idx=-1;
-    if(key) idx=arr.findIndex(function(x){return S(x&&(x.id||x.taskId))===key;});
-    if(idx>=0) arr[idx]=Object.assign({},arr[idx],item); else arr.unshift(item);
-    return arr.slice(0,250);
-  }
-  function storeLocal(task){
-    try{ var raw=localStorage.getItem(PROP); var list=raw?JSON.parse(raw):[]; localStorage.setItem(PROP, JSON.stringify(upsert(list, task))); }catch(_){ }
-    try{ if(typeof pushCustomerProposalBuffer==='function') pushCustomerProposalBuffer(task); }catch(_){ }
-    try{
-      var raw2=localStorage.getItem(LS); var st=raw2?JSON.parse(raw2):{};
-      st.inboxAssignments=upsert(st.inboxAssignments, task);
-      st.inboxSubmissions=upsert(st.inboxSubmissions, task);
-      st._localUpdatedAt=Date.now();
-      localStorage.setItem(LS, JSON.stringify(st));
-    }catch(_){ }
-    try{
-      if(window.state && typeof state==='object'){
-        state.inboxAssignments=upsert(state.inboxAssignments, task);
-        state.inboxSubmissions=upsert(state.inboxSubmissions, task);
-        state._localUpdatedAt=Date.now();
-      }
-    }catch(_){ }
-    try{ SYNC.localSavedAt=Date.now(); if(typeof updateSyncUI==='function') updateSyncUI(); }catch(_){ }
-  }
-  function timeout(ms){ return new Promise(function(resolve){ setTimeout(function(){ resolve('__timeout__'); }, ms||5000); }); }
-  async function remoteBackground(task, litePayload){
-    try{
-      var u=realAuthUser(); if(!u||!u.uid) return false;
-      var fb=(typeof firebase!=='undefined' && firebase) ? firebase : window.firebase;
-      if(!fb || typeof fb.firestore!=='function') return false;
-      var db=fb.firestore();
-      var org=S((window.CLOUD&&CLOUD.orgId) || (typeof dsResolveCloudOrgId==='function' && dsResolveCloudOrgId()) || window.firebaseOrgId || 'doggystyle') || 'doggystyle';
-      var proposal=Object.assign({},task,{customerUid:S(u.uid)||task.customerUid,customerEmail:L(u.email)||task.customerEmail,updatedAt:Date.now(),mirroredFromLocalFirst:true});
-      var mirror=Object.assign({},proposal,{mirroredFromProposal:true,payloadSubmitted:litePayload||task.payloadSubmitted,updatedAt:Date.now()});
-      var p=Promise.all([
-        db.collection('orgs').doc(org).collection('proposals').doc(task.id).set(proposal,{merge:true}),
-        db.collection('orgs').doc(org).collection('tasks').doc(task.id).set(mirror,{merge:true})
-      ]).then(function(){ try{ SYNC.cloudLastOkAt=Date.now();SYNC.cloudReachable=true;SYNC.cloudReachError=''; }catch(_){ } return true; });
-      Promise.race([p,timeout(6500)]).catch(function(e){ try{console.warn('GB352 background proposal cloud write failed', e);}catch(_){ } });
-      return true;
-    }catch(e){ try{console.warn('GB352 remoteBackground setup failed',e);}catch(_){ } return false; }
-  }
-  async function localFirstProposal(opts){
-    opts=opts||{};
-    var p=profile();
-    var payload=opts.payloadSubmitted || {};
-    var tpl=S(opts.templateId || payload.templateId || 'customer_data') || 'customer_data';
-    var cid=S(opts.customerId || payload.customerId || (payload.customer&&(payload.customer.id||payload.customer.customerId)) || '');
-    var pid=S(opts.petId || opts.dogId || payload.petId || payload.dogId || (payload.pet&&(payload.pet.id||payload.pet.petId||payload.pet.dogId)) || '');
-    var tid=S(opts.id||opts.taskId)||id('proposal');
-    var task={
-      id:tid, taskId:tid, templateId:tpl,
-      title:S(opts.title || (tpl==='boarding_contract'?'Betreuungsvertrag Vorschlag':(tpl==='hundeannahme'?'Neuer Aufenthalt Vorschlag':'Kunde/Hund Änderungsvorschlag'))),
-      status:'submitted', proposalStatus:'pending',
-      submittedAt:Date.now(), createdAt:Date.now(), updatedAt:Date.now(),
-      customerUid:S(p.uid), customerEmail:L(p.email), customerName:S(opts.customerName || (payload.customer&&(payload.customer.name||payload.customer.fullName)) || p.displayName || p.email || 'Kunde'),
-      customerId:cid, petId:pid, dogId:pid,
-      payloadSubmitted:payload,
-      build:BUILD, gb352LocalFirst:true
-    };
-    storeLocal(task);
-    remoteBackground(task, opts.litePayloadSubmitted || payload);
-    show(msgFor(tpl), 'proposal-'+tpl+'-'+tid);
-    return {ok:true, path:'local-first-bg-cloud-gb352', task:task};
-  }
-  try{ window.dsSubmitCustomerPortalProposalGB352=localFirstProposal; window.dsSubmitCustomerPortalProposal=localFirstProposal; dsSubmitCustomerPortalProposal=localFirstProposal; }catch(_){ }
-
-  function val(id){ try{ var el=document.getElementById(id); return S(el && el.value); }catch(_){ return ''; } }
-  function checked(id){ try{ var el=document.getElementById(id); return !!(el && el.checked); }catch(_){ return false; } }
-  function sanitizeMedia(v){ v=S(v); return /^data:/i.test(v) ? '' : v; }
-  async function gb352DogsSubmit(){
-    try{
-      if(!isCustomerMode()){ if(typeof window.__dsGB352OldDogsSubmit==='function') return window.__dsGB352OldDogsSubmit.apply(this,arguments); }
-      if(!val('c_name')){ alert('Bitte Kundennamen eintragen.'); return {ok:false}; }
-      if(!val('c_email')){ alert('Bitte E-Mail eintragen.'); return {ok:false}; }
-      if(!val('p_name')){ alert('Bitte Hundename eintragen.'); return {ok:false}; }
-      if(!val('p_chipStatus')){ alert('Bitte bei „Gechippt?“ Ja oder Nein wählen.'); return {ok:false}; }
-      var c=ctx(); var prof=profile(); var pet=(function(){try{return (cpEdit&&cpEdit.petId&&typeof getPet==='function'&&getPet(cpEdit.petId)) || (A(c.pets)[0]) || {};}catch(_){return A(c.pets)[0]||{};}})();
-      var customerId=S(c.customerId || (c.customer&&(c.customer.id||c.customer.customerId)) || prof.uid || prof.email);
-      var petId=S((pet&&(pet.id||pet.petId||pet.dogId)) || val('p_name'));
-      var customerProposal={id:customerId,customerId:customerId,name:val('c_name'),fullName:val('c_name'),phone:val('c_phone'),email:L(val('c_email')),street:val('c_street'),zip:val('c_zip'),city:val('c_city'),emergencyName:val('c_em_name'),emergencyPhone:val('c_em_phone'),pickupAuth:val('c_pickup_auth'),note:val('c_note'),notes:val('c_note')};
-      var petProposal={id:petId,petId:petId,dogId:S((pet&&(pet.dogId||pet.id||pet.petId))||petId),customerId:customerId,ownerId:customerId,name:val('p_name'),petName:val('p_name'),dogName:val('p_name'),breed:val('p_breed'),birthdate:val('p_birthdate'),birthDate:val('p_birthdate'),sex:val('p_sex'),chipStatus:val('p_chipStatus'),chip:val('p_chipStatus')==='yes',chipNumber:val('p_chipNumber'),vet:val('p_vet'),vetPhone:val('p_vetPhone'),vetEmail:val('p_vetEmail'),vetStreet:val('p_vetStreet'),vetZip:val('p_vetZip'),vetCity:val('p_vetCity'),vetEmergencyName:val('p_vetEmergencyName'),vetEmergencyPhone:val('p_vetEmergencyPhone'),allergies:val('p_allergies'),medicalConditions:val('p_medicalConditions'),insuranceStatus:val('p_insuranceStatus'),insuranceCompany:val('p_insuranceCompany'),insurancePolicy:val('p_insurancePolicy'),insuranceNotes:val('p_insuranceNotes'),vaccinatedConfirmed:checked('p_vaccinatedConfirmed'),rabiesDate:val('p_rabiesDate'),mixedVaccineDate:val('p_mixedVaccineDate'),vaccinationPassPhoto:sanitizeMedia((typeof cpVaccinationPassDataUrl!=='undefined'?cpVaccinationPassDataUrl:'') || (pet&&pet.vaccinationPassPhoto)),profilePhoto:sanitizeMedia((typeof cpProfilePhotoDataUrl!=='undefined'?cpProfilePhotoDataUrl:'') || (pet&&pet.profilePhoto)),food:val('p_food'),treatsAllowed:val('p_treatsAllowed'),aloneTime:val('p_aloneTime'),houseTrained:val('p_houseTrained'),transport:val('p_transport'),feeding:val('p_feeding'),compatDogs:val('p_compatDogs'),compatCats:val('p_compatCats'),compatKids:val('p_compatKids'),compat:val('p_compat'),leashBehavior:val('p_leashBehavior'),recall:val('p_recall'),resourceBehavior:val('p_resourceBehavior'),behavior:val('p_behavior'),dailyRoutine:val('p_dailyRoutine'),commands:val('p_commands'),note:val('p_note'),notes:val('p_note')};
-      var payload={source:'customer-main-dogs-gb352',mode:'proposal',customer:customerProposal,pet:petProposal,fields:Object.assign({},customerProposal,petProposal),meta:{customerId:customerId,petId:petId,submittedFrom:'app.html?customer_mode=dogs',build:BUILD}};
-      var lite={source:'customer-main-dogs-gb352',mode:'proposal-cloud-fallback',customer:{name:customerProposal.name,email:customerProposal.email,phone:customerProposal.phone},pet:{name:petProposal.name,breed:petProposal.breed,sex:petProposal.sex,note:petProposal.note},meta:{customerId:customerId,petId:petId}};
-      var res=await localFirstProposal({templateId:'customer_data',title:'Kunde/Hund Änderungsvorschlag',customerId:customerId,petId:petId,customerName:customerProposal.name,payloadSubmitted:payload,litePayloadSubmitted:lite});
-      try{ if(typeof cpSetStatus==='function') cpSetStatus('Änderungsvorschlag gespeichert und an Eingänge übergeben.'); }catch(_){ }
-      try{ alert('Änderungsvorschlag gespeichert und an Eingänge übergeben.'); }catch(_){ }
-      try{ if(typeof closeCpEditor==='function') closeCpEditor(); }catch(_){ }
-      try{ if(typeof renderDogs==='function') renderDogs(); }catch(_){ }
-      return res;
-    }catch(e){ console.error('GB352 dogs proposal failed',e); try{ if(typeof cpSetStatus==='function') cpSetStatus('Senden fehlgeschlagen.', true); }catch(_){ } alert('Senden fehlgeschlagen: '+S(e&&e.message||e)); return {ok:false,error:e}; }
-  }
-  try{ window.__dsGB352OldDogsSubmit = (typeof submitCustomerDogsProposal==='function') ? submitCustomerDogsProposal : window.submitCustomerDogsProposal; submitCustomerDogsProposal = gb352DogsSubmit; window.submitCustomerDogsProposal=gb352DogsSubmit; }catch(_){ }
-
-  function selectedContract(){ var c=ctx(); var cs=document.getElementById('contractCustomerSelect'), ps=document.getElementById('contractPetSelect'); var pet=A(c.pets)[0]||{}; return {customerId:S((cs&&cs.value)||c.customerId||(c.customer&&(c.customer.id||c.customer.customerId))), petId:S((ps&&ps.value)||(pet&&(pet.id||pet.petId||pet.dogId))), ctx:c}; }
-  function contractSig(customerId,petId,version){
-    try{
-      var st=window.state || (typeof loadState==='function' ? loadState() : {}) || {}; var store=st.contractSignatures||{}; var keys=[version+'__'+customerId+'__'+petId,'v1.0__'+customerId+'__'+petId,customerId+'__'+petId];
-      for(var i=0;i<keys.length;i++){ var r=store[keys[i]]; if(r&&(r.dataUrl||r.signatureDataUrl)) return r; }
-      var vals=Object.values(store||{}); for(var j=0;j<vals.length;j++){ var x=vals[j]||{}; if((S(x.customerId)===customerId||S(x.customerName)) && (S(x.petId)===petId||S(x.petName)) && (x.dataUrl||x.signatureDataUrl)) return x; }
-    }catch(_){ }
-    try{ var cv=document.getElementById('contractSig'); var data=cv&&cv.toDataURL?S(cv.toDataURL('image/png')):''; if(data && data.length>1200) return {dataUrl:data,signatureDataUrl:data,signedAt:Date.now(),signatureAt:Date.now(),source:'gb352-canvas'}; }catch(_){ }
-    return null;
-  }
-  async function gb352ContractSubmit(){
-    try{
-      if(!isCustomerMode()){ if(typeof window.__dsGB352OldContractSubmit==='function') return window.__dsGB352OldContractSubmit.apply(this,arguments); }
-      var now=Date.now(); if(window.__dsGB352ContractLock && now<window.__dsGB352ContractLock) return {ok:false,skipped:true}; window.__dsGB352ContractLock=now+3000;
-      var s=selectedContract(); var customerId=s.customerId, petId=s.petId; var accept=document.getElementById('contractAcceptChk');
-      if(!customerId||!petId){ alert('Bitte zuerst Kunde und Hund wählen.'); return {ok:false}; }
-      if(accept && !accept.checked){ alert('Bitte den Vertrag akzeptieren.'); return {ok:false}; }
-      var version=S((window.state&&state.contractVersion)||(window.state&&state.contract&&state.contract.version)||'v1.0')||'v1.0';
-      var sig=contractSig(customerId,petId,version); if(!sig || !(sig.dataUrl||sig.signatureDataUrl)){ alert('Bitte zuerst unterschreiben.'); return {ok:false}; }
-      var c=s.ctx||{}; var customer=(typeof getCustomer==='function'&&getCustomer(customerId)) || c.customer || {}; var pet=(typeof getPet==='function'&&getPet(petId)) || A(c.pets).find(function(p){return S(p&&(p.id||p.petId||p.dogId))===petId;}) || {};
-      var customerName=S(customer.name||customer.fullName||customer.email||profile().displayName||'Kunde'); var petName=S(pet.name||pet.petName||pet.dogName||'Hund'); var data=S(sig.dataUrl||sig.signatureDataUrl); var at=sig.signedAt||sig.signatureAt||Date.now();
-      var payload={source:'customer-main-contract-gb352',mode:'proposal',templateId:'boarding_contract',customerId:customerId,petId:petId,contractVersion:version,accepted:true,customer:{id:customerId,customerId:customerId,name:customerName,fullName:customerName,email:L(customer.email||profile().email),phone:S(customer.phone||'')},pet:{id:petId,petId:petId,dogId:S(pet.dogId||petId),customerId:customerId,name:petName,petName:petName,dogName:petName,breed:S(pet.breed||''),sex:S(pet.sex||'')},fields:{contractAccepted:true,contractVersion:version,customerName:customerName,dogName:petName,petName:petName,signatureDataUrl:data,signatureAt:at},meta:{customerId:customerId,petId:petId,version:version,contractVersion:version,submittedFrom:'app.html?customer_mode=contract',build:BUILD,signatureDataUrl:data,signatureAt:at},signature:{dataUrl:data,signatureDataUrl:data,signedAt:at,signatureAt:at},signatureRec:{dataUrl:data,signatureDataUrl:data,signedAt:at,signatureAt:at,customerId:customerId,petId:petId,customerName:customerName,petName:petName,version:version,contractVersion:version},agreementRec:{customerId:customerId,petId:petId,customerName:customerName,petName:petName,version:version,contractVersion:version,accepted:true,contractAccepted:true,status:'pending',source:'customer-proposal-only-gb352'}};
-      var lite={source:'customer-main-contract-gb352',mode:'proposal-cloud-fallback',customerId:customerId,petId:petId,accepted:true,contractVersion:version,signaturePresent:!!data};
-      var res=await localFirstProposal({templateId:'boarding_contract',title:'Betreuungsvertrag Vorschlag',customerId:customerId,petId:petId,customerName:customerName,payloadSubmitted:payload,litePayloadSubmitted:lite});
-      try{ alert('Betreuungsvertrag als Vorschlag gespeichert und an Eingänge übergeben.'); }catch(_){ }
-      try{ setTimeout(function(){ try{ location.replace('customer.html?view=contract'); }catch(_){ } }, 250); }catch(_){ }
-      return res;
-    }catch(e){ console.error('GB352 contract proposal failed',e); alert('Vertrag senden fehlgeschlagen: '+S(e&&e.message||e)); return {ok:false,error:e}; }
-    finally{ try{ setTimeout(function(){ window.__dsGB352ContractLock=0; window.__dsCustomerContractSubmitMainActive=false; window.__dsCustomerContractSubmittingProposal=false; },700); }catch(_){ } }
-  }
-  try{ window.__dsGB352OldContractSubmit = (typeof submitCustomerContractProposalMain==='function') ? submitCustomerContractProposalMain : window.submitCustomerContractProposalMain; submitCustomerContractProposalMain=gb352ContractSubmit; window.submitCustomerContractProposalMain=gb352ContractSubmit; window.__dsCustomerContractSubmitHook=gb352ContractSubmit; }catch(_){ }
-
-  async function gb352StaySubmit(){
-    try{
-      if(!isCustomerMode()){ if(typeof window.__dsGB352OldStaySubmit==='function') return window.__dsGB352OldStaySubmit.apply(this,arguments); }
-      try{ if(typeof syncStayEditorInputsToDoc==='function') syncStayEditorInputsToDoc(); }catch(_){ }
-      var c=ctx(); var doc=window.currentDoc||{}; var pet=(typeof getPetByDogId==='function'&&getPetByDogId(S(doc.dogId))) || (typeof getPet==='function'&&getPet(S(doc.petId||doc.dogId))) || A(c.pets)[0] || {}; var customer=(typeof getCustomerByDogId==='function'&&getCustomerByDogId(S(doc.dogId))) || c.customer || {};
-      var customerId=S((customer&&(customer.id||customer.customerId))||doc.customerId||c.customerId||profile().uid); var petId=S((pet&&(pet.id||pet.petId||pet.dogId))||doc.petId||doc.dogId);
-      if(!customerId||!petId){ alert('Kunde/Hund konnten nicht zugeordnet werden.'); return {ok:false}; }
-      var payload={source:'customer-main-stay-gb352',mode:'proposal',customerId:customerId,petId:petId,customer:{id:customerId,name:S(customer.name||customer.fullName||profile().displayName),email:L(customer.email||profile().email)},pet:{id:petId,name:S(pet.name||pet.petName||pet.dogName)},meta:clone(doc.meta||{}),fields:clone(doc.fields||{}),signature:clone(doc.signature||{})};
-      var lite={source:'customer-main-stay-gb352',mode:'proposal-cloud-fallback',customerId:customerId,petId:petId,von:S(payload.meta.von),bis:S(payload.meta.bis),betreuung:S(payload.meta.betreuung),signaturePresent:!!(payload.signature&&payload.signature.dataUrl)};
-      var res=await localFirstProposal({templateId:'hundeannahme',title:'Neuer Aufenthalt Vorschlag',customerId:customerId,petId:petId,customerName:S(customer.name||customer.fullName||profile().displayName),payloadSubmitted:payload,litePayloadSubmitted:lite});
-      try{ alert('Aufenthaltsanfrage als Vorschlag gespeichert und an Eingänge übergeben.'); }catch(_){ }
-      try{ setTimeout(function(){ try{ location.replace('customer.html?view=stay'); }catch(_){ } },250); }catch(_){ }
-      return res;
-    }catch(e){ console.error('GB352 stay proposal failed', e); alert('Aufenthalt senden fehlgeschlagen: '+S(e&&e.message||e)); return {ok:false,error:e}; }
-  }
-  try{ window.__dsGB352OldStaySubmit=(typeof submitCustomerStayProposalMain==='function')?submitCustomerStayProposalMain:window.submitCustomerStayProposalMain; submitCustomerStayProposalMain=gb352StaySubmit; window.submitCustomerStayProposalMain=gb352StaySubmit; window.__dsCustomerStaySubmitHook=gb352StaySubmit; }catch(_){ }
-
-  function hardCustomerLogout(ev){
-    try{
-      var btn=ev&&ev.target&&ev.target.closest&&ev.target.closest('button'); if(!btn) return;
-      var id=S(btn.id), txt=L(btn.textContent); if(!(id==='btnCustomerLogout'||id==='btnLogoutTop'||id==='btnLogoutApp'||txt==='abmelden')) return;
-      if(!isCustomerMode()) return;
-      ev.preventDefault(); ev.stopPropagation(); try{ ev.stopImmediatePropagation&&ev.stopImmediatePropagation(); }catch(_){ }
-      try{ window.__dsLogoutInFlight=true; }catch(_){ }
-      var done=false; function go(){ if(done)return; done=true; try{ location.href='login.html?v='+encodeURIComponent(BUILD); }catch(_){ location.href='login.html'; } }
-      try{ var a=(window.CLOUD&&CLOUD.auth)||(window.firebase&&firebase.auth&&firebase.auth()); if(a&&a.signOut){ Promise.race([a.signOut().catch(function(){}), timeout(850)]).then(go).catch(go); } else go(); }catch(_){ go(); }
-      setTimeout(go,1100);
-    }catch(_){ }
-  }
-  ['pointerdown','touchstart','click'].forEach(function(tp){ try{ document.addEventListener(tp, hardCustomerLogout, true); window.addEventListener(tp, hardCustomerLogout, true); }catch(_){ } });
-
-  function wrapAdminNoReturn(){
-    try{
-      var old=(typeof dsSaveProposalReview==='function')?dsSaveProposalReview:window.dsSaveProposalReview;
-      if(typeof old!=='function'||old.__gb352NoReturnWrapped) return;
-      var wrapped=async function(){ var res=await old.apply(this,arguments); if(res==null) show('✅ Vorschlag übernommen und gespeichert.','admin-review-noreturn'); return res; };
-      wrapped.__gb352NoReturnWrapped=true; try{ dsSaveProposalReview=wrapped; }catch(_){ } window.dsSaveProposalReview=wrapped;
-    }catch(_){ }
-  }
-  wrapAdminNoReturn(); setTimeout(wrapAdminNoReturn,500); setTimeout(wrapAdminNoReturn,1800);
-  if(isCustomerMode()) setTimeout(markSession,250);
-  try{ window.__dsAppJsRuntimeBuild = 'GB359-appjs'; }catch(_){ }
-})();
-/* ===== END GB352 ===== */
-
-/* ===== GB353 CUSTOMER SCOPE + PROPOSAL REVIEW STABILITY LAYER =====
-   Ziel: Kunden sauber trennen, Kunden-App schreibt nur Vorschläge,
-   Admin-Übernahme schreibt erst nach Prüfung in die echten Stammdaten/Verträge/Aufenthalte. */
-(function(){
-  'use strict';
-  if(window.__dsGB353ScopeProposalReviewInstalled) return;
-  window.__dsGB353ScopeProposalReviewInstalled = true;
-  var BUILD = 'M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY';
-  var LS_KEY_GB353 = 'ds_workspace_test_optik_01';
-  var PROP_KEY_GB353 = 'ds_customer_proposals_v1';
-
-  function S(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
-  function L(v){ return S(v).toLowerCase(); }
-  function A(v){ return Array.isArray(v) ? v : []; }
+  function O(v){ return (v && typeof v==='object' && !Array.isArray(v)) ? v : {}; }
   function now(){ return Date.now(); }
-  function clone(v){ try{ return JSON.parse(JSON.stringify(v || {})); }catch(_){ return v || {}; } }
-  function makeId(prefix){ return S(prefix || 'proposal') + '_' + now() + '_' + Math.random().toString(36).slice(2,8); }
-  function orgId(){ try{ return S((window.CLOUD && CLOUD.orgId) || (typeof dsResolveCloudOrgId === 'function' && dsResolveCloudOrgId()) || window.firebaseOrgId || window.CLOUD_ORG_ID || 'doggystyle') || 'doggystyle'; }catch(_){ return 'doggystyle'; } }
-  function getDb(){
+  function dt(t){ try{ return new Date(t||Date.now()).toLocaleTimeString('de-DE'); }catch(_){ return String(t||''); } }
+  function cloneLite(v, depth){
+    depth = depth==null ? 2 : depth;
     try{
-      var fb = (typeof firebase !== 'undefined' && firebase) ? firebase : window.firebase;
-      if(!fb || typeof fb.firestore !== 'function') return null;
-      try{ if(window.firebaseConfig && fb.initializeApp && (!fb.apps || !fb.apps.length)) fb.initializeApp(window.firebaseConfig); }catch(_){ }
-      var db = fb.firestore();
-      try{ window.CLOUD = window.CLOUD || {}; CLOUD.db = db; CLOUD.enabled = true; CLOUD.orgId = orgId(); }catch(_){ }
-      return db;
-    }catch(_){ return null; }
-  }
-  function authObj(){ try{ return (window.CLOUD && CLOUD.auth) || ((window.firebase && firebase.auth) ? firebase.auth() : null); }catch(_){ return null; } }
-  async function waitUser(timeoutMs){
-    var ms = Number(timeoutMs || 9000) || 9000;
-    try{
-      var a = authObj();
-      var u = (a && a.currentUser) || (window.CLOUD && CLOUD.user && CLOUD.user.uid && !CLOUD.user.__gb352Fake ? CLOUD.user : null) || null;
-      if(u && u.uid) return u;
-      if(!a || !a.onAuthStateChanged) return null;
-      return await new Promise(function(resolve){
-        var done = false, unsub = null;
-        function finish(x){ if(done) return; done = true; try{ unsub && unsub(); }catch(_){ } resolve((x && x.uid) ? x : null); }
-        var t = setTimeout(function(){ finish((a && a.currentUser) || null); }, ms);
-        try{ unsub = a.onAuthStateChanged(function(user){ clearTimeout(t); finish(user || (a && a.currentUser) || null); }); }catch(_){ clearTimeout(t); finish((a && a.currentUser) || null); }
-      });
-    }catch(_){ return null; }
-  }
-  function readState(){
-    try{ if(window.state && typeof state === 'object') return state; }catch(_){ }
-    try{ if(typeof loadState === 'function'){ var st = loadState(); if(st && typeof st === 'object') return st; } }catch(_){ }
-    try{ return JSON.parse(localStorage.getItem(LS_KEY_GB353) || '{}') || {}; }catch(_){ return {}; }
-  }
-  function writeState(st){
-    try{ window.state = st; }catch(_){ }
-    try{ if(typeof saveState === 'function') saveState(); else localStorage.setItem(LS_KEY_GB353, JSON.stringify(st)); }catch(_){ try{ localStorage.setItem(LS_KEY_GB353, JSON.stringify(st)); }catch(__){ } }
-  }
-  function byAnyId(obj, id){
-    id = S(id);
-    if(!id || !obj) return false;
-    return [obj.id,obj.customerId,obj.petId,obj.dogId,obj.ownerId,obj.uid,obj.portalUid,obj.customerUid,obj.userUid].some(function(v){ return S(v) === id; });
-  }
-  function userProfileFromSession(){
-    var a = authObj();
-    var u = (a && a.currentUser) || (window.CLOUD && CLOUD.user && CLOUD.user.uid && !CLOUD.user.__gb352Fake ? CLOUD.user : null) || null;
-    var ssUid='', ssEmail='', ssName='';
-    try{ ssUid = S(sessionStorage.getItem('ds_customer_auth_handoff_uid') || ''); }catch(_){ }
-    try{ ssEmail = L(sessionStorage.getItem('ds_customer_auth_handoff_email') || ''); }catch(_){ }
-    try{ ssName = S(sessionStorage.getItem('ds_customer_auth_handoff_name') || ''); }catch(_){ }
-    var uid = S((u && u.uid) || ssUid || '');
-    var email = L((u && u.email) || ssEmail || '');
-    var name = S((u && (u.displayName || u.email)) || ssName || email || 'Kunde');
-    return { user:u || null, uid:uid, email:email, displayName:name };
-  }
-  function readHandoff(){
-    try{ var raw = S(sessionStorage.getItem('ds_customer_main_handoff') || ''); return raw ? (JSON.parse(raw) || null) : null; }catch(_){ return null; }
-  }
-  function handoffMatchesUser(handoff, prof){
-    try{
-      if(!handoff || typeof handoff !== 'object') return false;
-      var hAuth = handoff.auth || {};
-      var hUid = S(hAuth.uid || handoff.uid || (handoff.customer && (handoff.customer.portalUid || handoff.customer.customerUid || handoff.customer.uid)) || '');
-      var hEmail = L(hAuth.email || handoff.email || (handoff.customer && handoff.customer.email) || '');
-      if(prof.uid && hUid && prof.uid !== hUid) return false;
-      if(prof.email && hEmail && prof.email !== hEmail) return false;
-      if(!prof.uid && !prof.email && !hUid && !hEmail) return false;
-      return true;
-    }catch(_){ return false; }
-  }
-  function customerMatchesUser(c, prof){
-    if(!c) return false;
-    var uid = prof && prof.uid ? S(prof.uid) : '';
-    var email = prof && prof.email ? L(prof.email) : '';
-    if(uid && [c.portalUid,c.customerUid,c.uid,c.userUid,c.authUid].some(function(v){ return S(v) === uid; })) return true;
-    if(email && [c.email,c.customerEmail,c.mail].some(function(v){ return L(v) === email; })) return true;
-    return false;
-  }
-  function petMatchesUser(p, prof){
-    if(!p) return false;
-    var uid = prof && prof.uid ? S(prof.uid) : '';
-    var email = prof && prof.email ? L(prof.email) : '';
-    if(uid && [p.customerUid,p.portalUid,p.uid,p.ownerUid,p.userUid].some(function(v){ return S(v) === uid; })) return true;
-    if(email && [p.customerEmail,p.ownerEmail,p.email].some(function(v){ return L(v) === email; })) return true;
-    return false;
-  }
-  function resolveCustomerScope(){
-    var st = readState();
-    try{ if(typeof ensureStateShape === 'function') ensureStateShape(); }catch(_){ }
-    var prof = userProfileFromSession();
-    var customers = A(st.customers);
-    var petsAll = A(st.pets && st.pets.length ? st.pets : st.dogs);
-    var handoff = readHandoff();
-    var customer = null, pets = [];
-    if(handoffMatchesUser(handoff, prof)){
-      var hc = (handoff.customer && typeof handoff.customer === 'object') ? handoff.customer : {};
-      var hcid = S(hc.customerId || hc.id || '');
-      if(hcid){ customer = customers.find(function(c){ return S(c.customerId || c.id) === hcid; }) || null; }
-      if(!customer && hc && (hc.email || hc.portalUid || hc.customerUid || hc.uid)){
-        customer = customers.find(function(c){ return customerMatchesUser(Object.assign({}, c, hc), {uid:S(hc.portalUid||hc.customerUid||hc.uid||prof.uid), email:L(hc.email||prof.email)}); }) || null;
-      }
-      customer = Object.assign({}, customer || {}, hc || {});
-      var hPets = A(handoff.pets).map(function(p){ return Object.assign({}, p || {}); }).filter(function(p){ return !!(S(p.id||p.petId||p.dogId||p.name)); });
-      if(hPets.length){ pets = hPets; }
-    }
-    if(!customer || !S(customer.id || customer.customerId)){
-      customer = customers.find(function(c){ return customerMatchesUser(c, prof); }) || null;
-    }
-    if(!customer){
-      var ownPet = petsAll.find(function(p){ return petMatchesUser(p, prof); }) || null;
-      if(ownPet){
-        var ownerId = S(ownPet.customerId || ownPet.ownerId || '');
-        customer = customers.find(function(c){ return ownerId && S(c.id || c.customerId) === ownerId; }) || null;
-      }
-    }
-    if(!customer){
-      customer = {
-        id:'', customerId:'', name:S(prof.displayName || prof.email || 'Kunde'), email:prof.email,
-        portalUid:prof.uid, customerUid:prof.uid, __customerShadow:true
-      };
-    }
-    var cid = S(customer.customerId || customer.id || '');
-    var cids = {};
-    [customer.id, customer.customerId].forEach(function(v){ v=S(v); if(v) cids[v]=true; });
-    if(!pets.length){
-      pets = petsAll.filter(function(p){
-        var pcid = S(p && (p.customerId || p.ownerId));
-        if(pcid && cids[pcid]) return true;
-        return petMatchesUser(p, prof);
-      });
-    }
-    pets = pets.map(function(p){
-      var pid = S(p.id || p.petId || p.dogId || p.name || '');
-      return Object.assign({}, p, { id:S(p.id || p.petId || p.dogId || pid), petId:S(p.petId || p.id || p.dogId || pid), dogId:S(p.dogId || p.id || p.petId || pid), customerId:S(p.customerId || p.ownerId || cid) });
-    });
-    if(!cid && customer && (customer.email || customer.portalUid || customer.customerUid)){
-      cid = S(customer.portalUid || customer.customerUid || customer.uid || customer.email || '');
-      customer.id = customer.id || cid; customer.customerId = customer.customerId || cid;
-    }
-    return { state:st, profile:prof, customer:customer, customerId:S(customer.customerId || customer.id || cid), pets:pets, pet:pets[0] || {}, strict:true, source:'gb353' };
-  }
-  window.dsGB353ResolveCustomerScope = resolveCustomerScope;
-  try{ window.dsGetCustomerScopeContext = resolveCustomerScope; dsGetCustomerScopeContext = resolveCustomerScope; }catch(_){ }
-  try{ window.getCustomerMainDogsContext = resolveCustomerScope; getCustomerMainDogsContext = resolveCustomerScope; }catch(_){ }
-
-  function isCustomerSurface(){
-    try{
-      var p = L(location.pathname || '');
-      var q = L(new URLSearchParams(String(location.search || '')).get('customer_mode') || '');
-      var ss = L(sessionStorage.getItem('ds_customer_main_mode') || '');
-      return p.indexOf('customer.html') >= 0 || ['dogs','contract','stay'].indexOf(q) >= 0 || ['dogs','contract','stay'].indexOf(ss) >= 0 || !!window.__dsCustomerMainModeActive || (window.CLOUD && CLOUD.role === 'customer');
-    }catch(_){ return false; }
-  }
-  function notice(msg, key){
-    try{
-      msg = S(msg) || '✅ Gespeichert.';
-      key = S(key || msg) || msg;
-      var t = now(); window.__dsGB353NoticeLast = window.__dsGB353NoticeLast || {};
-      if(window.__dsGB353NoticeLast[key] && t - window.__dsGB353NoticeLast[key] < 2200) return;
-      window.__dsGB353NoticeLast[key] = t;
-      try{ if(typeof cpSetStatus === 'function') cpSetStatus(msg.replace(/^✅\s*/,'')); }catch(_){ }
-      ['customerTaskSaveHint','contractSavedInfo','contractSaveInfo','cpStatus','assignDiag','cpHint'].forEach(function(id){ try{ var el=document.getElementById(id); if(el) el.textContent = msg; }catch(_){ } });
-      var box = document.getElementById('dsGB353Notice');
-      if(!box){
-        box = document.createElement('div'); box.id='dsGB353Notice'; box.setAttribute('role','status');
-        box.style.cssText = 'position:fixed;left:50%;top:92px;transform:translateX(-50%);z-index:2147483647;max-width:min(700px,calc(100vw - 32px));padding:16px 20px;border-radius:18px;background:rgba(31,41,35,.97);border:1px solid rgba(119,255,160,.44);box-shadow:0 18px 48px rgba(0,0,0,.45);color:#fff;font:700 16px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.35;text-align:center;white-space:normal;';
-        document.body.appendChild(box);
-      }
-      box.textContent = msg; box.style.display='block'; box.style.opacity='1';
-      clearTimeout(window.__dsGB353NoticeTimer); window.__dsGB353NoticeTimer = setTimeout(function(){ try{ box.style.opacity='0'; setTimeout(function(){ try{ box.style.display='none'; }catch(_){ } }, 260); }catch(_){ } }, 5200);
-    }catch(_){ }
-  }
-  window.dsGB353Notice = notice;
-  function localProposalStore(task){
-    try{ var list = JSON.parse(localStorage.getItem(PROP_KEY_GB353) || '[]') || []; list = A(list); list = list.filter(function(x){ return S(x && (x.id || x.taskId)) !== S(task.id || task.taskId); }); list.unshift(task); localStorage.setItem(PROP_KEY_GB353, JSON.stringify(list.slice(0,250))); }catch(_){ }
-    try{ if(typeof pushCustomerProposalBuffer === 'function') pushCustomerProposalBuffer(task); }catch(_){ }
-    try{
-      var st = readState(); st.inboxSubmissions = A(st.inboxSubmissions).filter(function(x){ return S(x && (x.id || x.taskId)) !== S(task.id || task.taskId); }); st.inboxSubmissions.unshift(task);
-      st.inboxAssignments = A(st.inboxAssignments).filter(function(x){ return S(x && (x.id || x.taskId)) !== S(task.id || task.taskId); }); st.inboxAssignments.unshift(task);
-      st._localUpdatedAt = now();
-      try{ localStorage.setItem(LS_KEY_GB353, JSON.stringify(st)); }catch(_){ }
-    }catch(_){ }
-  }
-  async function submitProposal(opts){
-    opts = opts || {};
-    var payload = clone(opts.payloadSubmitted || {});
-    var ctx = resolveCustomerScope();
-    var user = await waitUser(9000);
-    var profile = user && user.uid ? {uid:S(user.uid), email:L(user.email), displayName:S(user.displayName || user.email || '')} : ctx.profile;
-    var tpl = S(opts.templateId || payload.templateId || 'customer_data') || 'customer_data';
-    var cid = S(opts.customerId || payload.customerId || (payload.customer && (payload.customer.customerId || payload.customer.id)) || ctx.customerId || '');
-    var pid = S(opts.petId || opts.dogId || payload.petId || payload.dogId || (payload.pet && (payload.pet.petId || payload.pet.id || payload.pet.dogId)) || (ctx.pet && (ctx.pet.petId || ctx.pet.id || ctx.pet.dogId)) || '');
-    var cName = S(opts.customerName || (payload.customer && (payload.customer.name || payload.customer.fullName)) || (ctx.customer && ctx.customer.name) || profile.displayName || profile.email || 'Kunde');
-    if(payload.customer && typeof payload.customer === 'object'){
-      payload.customer.id = S(payload.customer.id || payload.customer.customerId || cid);
-      payload.customer.customerId = S(payload.customer.customerId || payload.customer.id || cid);
-      payload.customer.portalUid = S(payload.customer.portalUid || payload.customer.customerUid || profile.uid || '');
-      payload.customer.customerUid = S(payload.customer.customerUid || payload.customer.portalUid || profile.uid || '');
-      payload.customer.email = L(payload.customer.email || profile.email || '');
-    }
-    if(payload.pet && typeof payload.pet === 'object'){
-      payload.pet.id = S(payload.pet.id || payload.pet.petId || payload.pet.dogId || pid);
-      payload.pet.petId = S(payload.pet.petId || payload.pet.id || payload.pet.dogId || pid);
-      payload.pet.dogId = S(payload.pet.dogId || payload.pet.id || payload.pet.petId || pid);
-      payload.pet.customerId = S(payload.pet.customerId || payload.pet.ownerId || cid);
-      payload.pet.ownerId = S(payload.pet.ownerId || payload.pet.customerId || cid);
-    }
-    payload.customerId = S(payload.customerId || cid);
-    payload.petId = S(payload.petId || pid);
-    payload.dogId = S(payload.dogId || pid);
-    payload.mode = 'proposal'; payload.build = BUILD;
-    var id = S(opts.id || opts.taskId) || makeId('proposal');
-    var stamp = now();
-    var title = S(opts.title || (tpl === 'boarding_contract' ? 'Betreuungsvertrag Vorschlag' : (tpl === 'hundeannahme' ? 'Neuer Aufenthalt Vorschlag' : 'Kunde/Hund Änderungsvorschlag')));
-    var task = {
-      id:id, taskId:id, templateId:tpl, title:title,
-      status:'submitted', proposalStatus:'pending', kind:'proposal', proposalType:tpl,
-      submittedAt:stamp, createdAt:stamp, updatedAt:stamp,
-      customerUid:S(profile.uid), customerEmail:L(profile.email), customerName:cName,
-      customerId:cid, petId:pid, dogId:pid,
-      payloadSubmitted:payload,
-      build:BUILD, gb353Proposal:true
-    };
-    localProposalStore(task);
-    var db = getDb();
-    if(!user || !user.uid || !db){
-      notice('⚠️ Vorschlag lokal gespeichert. Cloud-Anmeldung bitte prüfen.', 'gb353-local-'+id);
-      return {ok:true, localOnly:true, task:task, path:'local-gb353'};
-    }
-    try{
-      task.customerUid = S(user.uid) || task.customerUid;
-      task.customerEmail = L(user.email) || task.customerEmail;
-      var mirror = Object.assign({}, task, { mirroredFromProposal:true, payloadSubmitted:payload, updatedAt:now() });
-      await Promise.all([
-        db.collection('orgs').doc(orgId()).collection('proposals').doc(id).set(task, {merge:true}),
-        db.collection('orgs').doc(orgId()).collection('tasks').doc(id).set(mirror, {merge:true})
-      ]);
-      try{ if(window.SYNC){ SYNC.cloudLastOkAt = now(); SYNC.cloudLastError=''; SYNC.cloudReachable=true; } if(typeof updateSyncUI === 'function') updateSyncUI(); }catch(_){ }
-      notice(tpl === 'boarding_contract' ? '✅ Betreuungsvertrag als Vorschlag gespeichert und an Eingänge übergeben.' : (tpl === 'hundeannahme' ? '✅ Aufenthaltsanfrage als Vorschlag gespeichert und an Eingänge übergeben.' : '✅ Änderungsvorschlag gespeichert und an Eingänge übergeben.'), 'gb353-cloud-'+id);
-      return {ok:true, task:task, path:'proposals+tasks-gb353'};
-    }catch(e){
-      console.warn('GB353 proposal cloud write failed', e);
-      notice('⚠️ Vorschlag lokal gespeichert. Cloud-Sicherung bitte prüfen.', 'gb353-cloudfail-'+id);
-      return {ok:true, localOnly:true, error:e, task:task, path:'local-after-cloud-fail-gb353'};
-    }
-  }
-  window.dsGB353SubmitProposal = submitProposal;
-  try{ window.dsSubmitCustomerPortalProposal = submitProposal; dsSubmitCustomerPortalProposal = submitProposal; }catch(_){ }
-
-  var oldContractSubmit = (typeof submitCustomerContractProposalMain === 'function') ? submitCustomerContractProposalMain : window.submitCustomerContractProposalMain;
-  async function contractSubmitGB353(){
-    if(!isCustomerSurface() && typeof oldContractSubmit === 'function') return oldContractSubmit.apply(this, arguments);
-    try{
-      if(window.__dsGB353ContractSubmitting) return {ok:false, skipped:true};
-      window.__dsGB353ContractSubmitting = true;
-      var ctx = resolveCustomerScope();
-      var cs = document.getElementById('contractCustomerSelect'), ps = document.getElementById('contractPetSelect'), accept = document.getElementById('contractAcceptChk');
-      var customerId = S((cs && cs.value) || ctx.customerId || '');
-      var petId = S((ps && ps.value) || (ctx.pet && (ctx.pet.id || ctx.pet.petId || ctx.pet.dogId)) || '');
-      if(!customerId || !petId){ alert('Bitte zuerst Kunde und Hund wählen.'); return {ok:false}; }
-      if(accept && !accept.checked){ alert('Bitte den Vertrag akzeptieren.'); return {ok:false}; }
-      var version = S((window.state && (state.contractVersion || (state.contract && state.contract.version))) || 'v1.0') || 'v1.0';
-      var sigKey = version + '__' + customerId + '__' + petId;
-      var sig = null;
-      try{ sig = state && state.contractSignatures && state.contractSignatures[sigKey] || null; }catch(_){ }
-      if(!sig || !(sig.dataUrl || sig.signatureDataUrl)){
-        try{ var cv=document.getElementById('contractSig'); var data=cv && cv.toDataURL ? S(cv.toDataURL('image/png')) : ''; if(data && data.length > 1200) sig={dataUrl:data, signatureDataUrl:data, signedAt:now(), signatureAt:now()}; }catch(_){ }
-      }
-      if(!sig || !(sig.dataUrl || sig.signatureDataUrl)){ alert('Bitte zuerst unterschreiben.'); return {ok:false}; }
-      var customer = (typeof getCustomer === 'function' && getCustomer(customerId)) || ctx.customer || {};
-      var pet = (typeof getPet === 'function' && getPet(petId)) || ctx.pet || {};
-      var cName = S(customer.name || customer.fullName || customer.email || ctx.profile.email || 'Kunde');
-      var pName = S(pet.name || pet.petName || pet.dogName || 'Hund');
-      var dataUrl = S(sig.dataUrl || sig.signatureDataUrl);
-      var at = sig.signedAt || sig.signatureAt || now();
-      var payload = {
-        source:'customer-contract-gb353', mode:'proposal', templateId:'boarding_contract',
-        customerId:customerId, petId:petId, dogId:petId, contractVersion:version, accepted:true,
-        customer:{ id:customerId, customerId:customerId, name:cName, fullName:cName, email:L(customer.email || ctx.profile.email || ''), phone:S(customer.phone || '') },
-        pet:{ id:petId, petId:petId, dogId:S(pet.dogId || petId), customerId:customerId, name:pName, petName:pName, dogName:pName, breed:S(pet.breed || ''), sex:S(pet.sex || '') },
-        fields:{ contractAccepted:true, accepted:true, contractVersion:version, customerName:cName, dogName:pName, petName:pName, signatureDataUrl:dataUrl, signatureAt:at },
-        meta:{ customerId:customerId, petId:petId, version:version, contractVersion:version, submittedFrom:'customer-contract', build:BUILD, signatureAt:at },
-        signature:{ dataUrl:dataUrl, signatureDataUrl:dataUrl, signedAt:at, signatureAt:at },
-        signatureRec:{ dataUrl:dataUrl, signatureDataUrl:dataUrl, signedAt:at, signatureAt:at, customerId:customerId, petId:petId, customerName:cName, petName:pName, version:version, contractVersion:version },
-        agreementRec:{ customerId:customerId, petId:petId, customerName:cName, petName:pName, version:version, contractVersion:version, accepted:true, contractAccepted:true, status:'pending', source:'customer-proposal-only-gb353' }
-      };
-      return await submitProposal({templateId:'boarding_contract', title:'Betreuungsvertrag Vorschlag', customerId:customerId, petId:petId, customerName:cName, payloadSubmitted:payload, litePayloadSubmitted:payload});
-    }catch(e){ console.error('GB353 contract submit failed', e); alert('Vertrag senden fehlgeschlagen: ' + S(e && e.message || e)); return {ok:false,error:e}; }
-    finally{ setTimeout(function(){ window.__dsGB353ContractSubmitting = false; window.__dsCustomerContractSubmittingProposal = false; window.__dsCustomerContractSubmitMainActive = false; }, 800); }
-  }
-  try{ submitCustomerContractProposalMain = contractSubmitGB353; window.submitCustomerContractProposalMain = contractSubmitGB353; window.__dsCustomerContractSubmitHook = contractSubmitGB353; }catch(_){ }
-
-  function extractPayload(row){ return clone(row && (row.payloadSubmitted || row.payloadDraft || row.payload || row.data || row.snapshot) || {}); }
-  function proposalKind(row){
-    var p = extractPayload(row);
-    var s = L((row && (row.templateId || row.proposalType || row.kind || row.formKey)) || p.templateId || p.source || '');
-    if(s.indexOf('boarding_contract') >= 0 || s.indexOf('contract') >= 0 || s.indexOf('vertrag') >= 0) return 'contract';
-    if(s.indexOf('hundeannahme') >= 0 || s.indexOf('stay') >= 0 || s.indexOf('aufenthalt') >= 0) return 'stay';
-    if(s.indexOf('customer_data') >= 0 || s.indexOf('dogs') >= 0 || s.indexOf('kunde') >= 0) return 'customer_data';
-    return '';
-  }
-  function findRow(){
-    try{ if(window.__dsProposalReview && __dsProposalReview.row) return __dsProposalReview.row; }catch(_){ }
-    try{ if(window.__dsInboxCurrentTask) return window.__dsInboxCurrentTask; }catch(_){ }
-    try{ if(window.__dsInlineInboxReview && __dsInlineInboxReview.row) return __dsInlineInboxReview.row; }catch(_){ }
-    try{ if(window.__dsContractReviewSnapshot && __dsContractReviewSnapshot.row) return __dsContractReviewSnapshot.row; }catch(_){ }
-    return null;
-  }
-  function upsert(list, item, keys){
-    list = A(list); keys = keys || ['id'];
-    var idx = -1;
-    for(var i=0;i<list.length;i++){
-      for(var k=0;k<keys.length;k++){
-        var key=keys[k]; if(S(item && item[key]) && S(list[i] && list[i][key]) === S(item[key])){ idx=i; break; }
-      }
-      if(idx>=0) break;
-    }
-    if(idx>=0) list[idx] = Object.assign({}, list[idx] || {}, item || {}); else list.push(item);
-    return list;
-  }
-  function getCustomerByIdOrEmail(st, id, email){
-    id=S(id); email=L(email);
-    return A(st.customers).find(function(c){ return (id && (S(c.id)===id || S(c.customerId)===id)) || (email && L(c.email)===email); }) || null;
-  }
-  function getPetByIdOrName(st, id, cid, name){
-    id=S(id); cid=S(cid); name=L(name);
-    return A(st.pets).find(function(p){ return (id && [p.id,p.petId,p.dogId].some(function(v){ return S(v)===id; })) || (name && L(p.name||p.petName||p.dogName)===name && (!cid || S(p.customerId||p.ownerId)===cid)); }) || null;
-  }
-  function finalizeRow(row){
-    try{ if(typeof dsFinalizeAcceptedProposalLocal === 'function') dsFinalizeAcceptedProposalLocal(row); }catch(_){ }
-    try{ if(typeof removeInboxRowEverywhere === 'function') removeInboxRowEverywhere(row); }catch(_){ }
-    try{ if(typeof patchInboxRowStatus === 'function') Promise.resolve(patchInboxRowStatus(row,'adopted')).catch(function(){}); }catch(_){ }
-    try{
-      var id = S(row && (row.id || row.taskId || row.proposalId)); if(id){
-        var db = getDb(); if(db){
-          var patch = {status:'adopted', proposalStatus:'adopted', adoptedAt:now(), updatedAt:now(), adoptedBy:S(window.CLOUD && CLOUD.user && (CLOUD.user.email || CLOUD.user.uid) || '')};
-          db.collection('orgs').doc(orgId()).collection('proposals').doc(id).set(patch,{merge:true}).catch(function(){});
-          db.collection('orgs').doc(orgId()).collection('tasks').doc(id).set(patch,{merge:true}).catch(function(){});
-        }
+      if(v==null) return v;
+      if(typeof v==='string') return v.length>500 ? v.slice(0,500)+'…('+v.length+')' : v;
+      if(typeof v==='number'||typeof v==='boolean') return v;
+      if(depth<=0) return Array.isArray(v) ? '[array '+v.length+']' : '[object]';
+      if(Array.isArray(v)) return v.slice(0,8).map(function(x){return cloneLite(x, depth-1);});
+      if(typeof v==='object'){
+        var out={}, keys=Object.keys(v).slice(0,24);
+        keys.forEach(function(k){out[k]=cloneLite(v[k], depth-1);});
+        if(Object.keys(v).length>keys.length) out.__moreKeys=Object.keys(v).length-keys.length;
+        return out;
       }
     }catch(_){ }
-    try{ if(window.__dsProposalReview){ __dsProposalReview.active=false; __dsProposalReview.row=null; } }catch(_){ }
+    return String(v);
   }
-  async function persistAfterAccept(reason){
-    try{ writeState(readState()); }catch(_){ }
-    try{ if(typeof renderDogs === 'function') renderDogs(); }catch(_){ }
-    try{ if(typeof renderContractPanel === 'function' && (String(reason||'').indexOf('contract')>=0)) renderContractPanel(); }catch(_){ }
-    try{ if(typeof cloudPushNow === 'function') await cloudPushNow(); else if(typeof cloudSchedulePush === 'function') cloudSchedulePush(); }catch(e){ try{ if(typeof cloudSchedulePush === 'function') cloudSchedulePush(); }catch(_){ } }
-  }
-  async function acceptCustomerData(row){
-    var st = readState(); st.customers=A(st.customers); st.pets=A(st.pets); st.dogs=A(st.dogs);
-    var p = extractPayload(row), f = p.fields || {}, c0 = p.customer || {}, pet0 = p.pet || {};
-    var cid = S(row && row.customerId || p.customerId || c0.customerId || c0.id || f.customerId || '');
-    var email = L(c0.email || f.email || row && row.customerEmail || '');
-    var customer = getCustomerByIdOrEmail(st, cid, email) || {};
-    if(!cid) cid = S(customer.id || customer.customerId || email || ('customer_'+now()));
-    var cName = S(c0.name || c0.fullName || f.fullName || f.customerName || row && row.customerName || customer.name || email || 'Kunde');
-    var c = Object.assign({}, customer, c0, {
-      id:cid, customerId:cid, name:cName, fullName:cName,
-      email: email || L(customer.email || ''),
-      phone:S(c0.phone || f.phone || customer.phone || ''), street:S(c0.street || f.street || customer.street || ''), zip:S(c0.zip || f.zip || customer.zip || ''), city:S(c0.city || f.city || customer.city || ''),
-      emergencyName:S(c0.emergencyName || c0.emergencyContact || f.emergencyName || customer.emergencyName || ''), emergencyPhone:S(c0.emergencyPhone || f.emergencyPhone || customer.emergencyPhone || ''),
-      pickupAuth:S(c0.pickupAuth || f.pickupAuth || customer.pickupAuth || ''), note:S(c0.note || c0.notes || f.customerNote || f.note || customer.note || ''), updatedAt:now()
-    });
-    st.customers = upsert(st.customers, c, ['id','customerId']);
-    var pid = S(row && (row.petId || row.dogId) || p.petId || p.dogId || pet0.petId || pet0.id || pet0.dogId || f.petId || f.dogId || '');
-    var pName = S(pet0.name || pet0.petName || pet0.dogName || f.dogName || f.petName || f.p_name || 'Hund');
-    var oldPet = getPetByIdOrName(st, pid, cid, pName) || {};
-    if(!pid) pid = S(oldPet.id || oldPet.petId || oldPet.dogId || ('pet_'+now()));
-    var pet = Object.assign({}, oldPet, pet0, {
-      id:pid, petId:pid, dogId:S(pet0.dogId || oldPet.dogId || pid), customerId:cid, ownerId:cid,
-      name:pName, petName:pName, dogName:pName,
-      breed:S(pet0.breed || f.breed || oldPet.breed || ''), birthDate:S(pet0.birthDate || pet0.birthdate || f.birthDate || f.birthdate || oldPet.birthDate || ''), birthdate:S(pet0.birthdate || pet0.birthDate || f.birthdate || f.birthDate || oldPet.birthdate || ''),
-      sex:S(pet0.sex || f.sex || oldPet.sex || ''), chipStatus:S(pet0.chipStatus || f.chipStatus || oldPet.chipStatus || ''), chipNumber:S(pet0.chipNumber || f.chipNumber || oldPet.chipNumber || ''),
-      vet:S(pet0.vet || f.vet || oldPet.vet || ''), vetPhone:S(pet0.vetPhone || f.vetPhone || oldPet.vetPhone || ''), allergies:S(pet0.allergies || f.allergies || oldPet.allergies || ''), medicalConditions:S(pet0.medicalConditions || f.medicalConditions || oldPet.medicalConditions || ''),
-      vaccinatedConfirmed:!!(pet0.vaccinatedConfirmed || f.vaccinatedConfirmed || oldPet.vaccinatedConfirmed), rabiesDate:S(pet0.rabiesDate || f.rabiesDate || oldPet.rabiesDate || ''), mixedVaccineDate:S(pet0.mixedVaccineDate || f.mixedVaccineDate || oldPet.mixedVaccineDate || ''),
-      food:S(pet0.food || f.food || oldPet.food || ''), feeding:S(pet0.feeding || f.feeding || oldPet.feeding || ''), compat:S(pet0.compat || f.compat || oldPet.compat || ''), behavior:S(pet0.behavior || f.behavior || oldPet.behavior || ''), notes:S(pet0.notes || pet0.note || f.notes || f.note || oldPet.notes || ''), updatedAt:now()
-    });
-    st.pets = upsert(st.pets, pet, ['id','petId','dogId']);
-    try{ window.state = st; if(typeof upsertLegacyDogForPet === 'function') upsertLegacyDogForPet(pet, c); }catch(_){ }
-    writeState(st); finalizeRow(row); await persistAfterAccept('customer_data'); notice('✅ Vorschlag übernommen und in Kunde/Hund gespeichert.','gb353-accept-customer'); return true;
-  }
-  async function acceptContract(row){
-    var st = readState(); st.contractSignatures = (st.contractSignatures && typeof st.contractSignatures === 'object' && !Array.isArray(st.contractSignatures)) ? st.contractSignatures : {}; st.contractAgreements = (st.contractAgreements && typeof st.contractAgreements === 'object' && !Array.isArray(st.contractAgreements)) ? st.contractAgreements : {};
-    var p = extractPayload(row), f = p.fields || {}, m = p.meta || {}, sig = p.signature || p.signatureRec || {};
-    var cid = S(row && row.customerId || p.customerId || m.customerId || (p.customer && (p.customer.customerId || p.customer.id)) || (p.agreementRec && p.agreementRec.customerId) || '');
-    var pid = S(row && (row.petId || row.dogId) || p.petId || p.dogId || m.petId || (p.pet && (p.pet.petId || p.pet.id || p.pet.dogId)) || (p.agreementRec && p.agreementRec.petId) || '');
-    var ver = S(p.contractVersion || m.contractVersion || m.version || f.contractVersion || (p.agreementRec && (p.agreementRec.contractVersion || p.agreementRec.version)) || st.contractVersion || (st.contract && st.contract.version) || 'v1.0') || 'v1.0';
-    var dataUrl = S(sig.dataUrl || sig.signatureDataUrl || f.signatureDataUrl || m.signatureDataUrl || (p.signatureRec && (p.signatureRec.dataUrl || p.signatureRec.signatureDataUrl)) || '');
-    var accepted = !!(p.accepted || f.accepted || f.contractAccepted || m.accepted || m.contractAccepted || (p.agreementRec && (p.agreementRec.accepted || p.agreementRec.contractAccepted)));
-    if(!cid || !pid){ alert('Übernahme nicht möglich: Kunde/Hund nicht erkannt.'); return false; }
-    if(!accepted){ accepted = true; }
-    var sigAt = sig.signedAt || sig.signatureAt || f.signatureAt || m.signatureAt || now();
-    var cName = S((p.customer && (p.customer.name || p.customer.fullName)) || f.customerName || row && row.customerName || '');
-    var pName = S((p.pet && (p.pet.name || p.pet.petName || p.pet.dogName)) || f.petName || f.dogName || '');
-    if(dataUrl){ st.contractSignatures[ver + '__' + cid + '__' + pid] = {dataUrl:dataUrl, signatureDataUrl:dataUrl, signedAt:sigAt, signatureAt:sigAt, customerId:cid, petId:pid, customerName:cName, petName:pName, version:ver, contractVersion:ver, source:'gb353-proposal-accept'}; }
-    st.contractAgreements[ver + '__' + cid + '__' + pid + '::' + ver] = {customerId:cid, petId:pid, customerName:cName, petName:pName, version:ver, contractVersion:ver, accepted:true, contractAccepted:true, signatureAt:sigAt, savedAt:now(), updatedAt:now(), source:'gb353-proposal-accept'};
-    try{ window.state = st; if(typeof dsMirrorContractToPetOwner === 'function') dsMirrorContractToPetOwner(cid,pid,ver); }catch(_){ }
-    writeState(st); finalizeRow(row); await persistAfterAccept('contract'); notice('✅ Betreuungsvertrag übernommen und gespeichert.','gb353-accept-contract'); return true;
-  }
-  async function acceptStay(row){
-    var st = readState(); st.docs=A(st.docs);
-    var p = extractPayload(row), f = clone(p.fields || {}), m = clone(p.meta || {});
-    var cid = S(row && row.customerId || p.customerId || m.customerId || (p.customer && (p.customer.customerId || p.customer.id)) || '');
-    var pid = S(row && (row.petId || row.dogId) || p.petId || p.dogId || m.petId || (p.pet && (p.pet.petId || p.pet.id || p.pet.dogId)) || '');
-    if(!cid || !pid){ alert('Übernahme nicht möglich: Kunde/Hund nicht erkannt.'); return false; }
-    var doc = { id:makeId('stay'), templateId:'hundeannahme', templateName:'Aufenthalte', title:S(row && row.title || 'Aufenthaltsanfrage'), customerId:cid, petId:pid, dogId:pid, fields:f, meta:m, signature:clone(p.signature || {}), saved:true, createdAt:new Date().toISOString(), updatedAt:new Date().toISOString(), source:'gb353-proposal-accept' };
-    st.docs.unshift(doc); writeState(st); finalizeRow(row); await persistAfterAccept('stay'); notice('✅ Aufenthaltsvorschlag übernommen und gespeichert.','gb353-accept-stay'); return true;
-  }
-  async function acceptProposal(row){
-    row = row || findRow(); if(!row){ alert('Kein Vorschlag ausgewählt.'); return false; }
-    var k = proposalKind(row);
-    if(k === 'contract') return acceptContract(row);
-    if(k === 'stay') return acceptStay(row);
-    return acceptCustomerData(row);
-  }
-  window.dsGB353AcceptProposal = acceptProposal;
-  var oldSaveReview = (typeof dsSaveProposalReview === 'function') ? dsSaveProposalReview : window.dsSaveProposalReview;
-  async function saveReviewGB353(){
-    var row = findRow();
-    if(row) return acceptProposal(row);
-    if(typeof oldSaveReview === 'function') return oldSaveReview.apply(this, arguments);
-    return false;
-  }
-  try{ dsSaveProposalReview = saveReviewGB353; window.dsSaveProposalReview = saveReviewGB353; }catch(_){ }
-  try{ window.__dsInboxAdoptCurrent = function(){ return acceptProposal(findRow()); }; }catch(_){ }
-
-  // Sicherheitsnetz: Kunden-Vertrag-Speichern im Kundenmodus darf nie direkt final speichern.
-  document.addEventListener('click', function(ev){
+  function bytes(v){ try{return new Blob([JSON.stringify(v==null?{}:v)]).size;}catch(_){try{return JSON.stringify(v||{}).length;}catch(__){return -1;}} }
+  function readJSON(k, def){ try{var raw=localStorage.getItem(k); return raw?JSON.parse(raw):def;}catch(_){return def;} }
+  function writeJSON(k,v){ try{localStorage.setItem(k, JSON.stringify(v));}catch(_){ } }
+  function log(msg, data){
     try{
-      var btn = ev && ev.target && ev.target.closest && ev.target.closest('button');
-      if(!btn || btn.id !== 'contractSaveBtn') return;
-      if(!isCustomerSurface()) return;
-      ev.preventDefault(); ev.stopPropagation(); try{ ev.stopImmediatePropagation(); }catch(_){ }
-      contractSubmitGB353();
-      return false;
-    }catch(_){ }
-  }, true);
-
-  try{ window.__dsAppJsRuntimeBuild = 'GB359-appjs'; }catch(_){ }
-})();
-/* ===== END GB353 CUSTOMER SCOPE + PROPOSAL REVIEW STABILITY LAYER ===== */
-
-
-/* ===== GB356 DIAGNOSE: Haupt-App Eingänge / Vorschläge / Scope ===== */
-(function(){
-  'use strict';
-  if(window.__gb355MainDiagInstalled) return;
-  try{ if(String((location && location.pathname) || '').toLowerCase().indexOf('customer.html') >= 0) return; }catch(_){ }
-  window.__gb355MainDiagInstalled = true;
-  var BUILD = 'M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY';
-  var LOG_KEY = 'ds_gb355_diag_log';
-  function S(v){ try{return String(v == null ? '' : v).trim();}catch(_){return '';} }
-  function L(v){ return S(v).toLowerCase(); }
-  function A(v){ return Array.isArray(v) ? v : []; }
-  function safe(fn, fallback){ try{return fn();}catch(_){return fallback;} }
-  function localJSON(k, fallback){ try{ var raw=localStorage.getItem(k); return raw ? JSON.parse(raw) : fallback; }catch(_){ return fallback; } }
-  function stateObj(){ return safe(function(){ return (typeof state !== 'undefined' && state) ? state : (typeof loadState === 'function' ? loadState() : localJSON('ds_workspace_test_optik_01', {})); }, {}); }
-  function authUser(){ return safe(function(){ return (window.CLOUD && CLOUD.user) || (window.firebase && firebase.auth && firebase.auth().currentUser) || null; }, null); }
-  function orgId(){ return S(safe(function(){ return (typeof cloudOrgId === 'function' ? cloudOrgId() : '') || window.CLOUD_ORG_ID || window.firebaseOrgId || (window.firebaseConfig && window.firebaseConfig.orgId) || localStorage.getItem('ds_orgId') || 'doggystyle'; }, 'doggystyle')) || 'doggystyle'; }
-  function recSave(rec){
-    try{
-      rec = Object.assign({at:Date.now(), iso:new Date().toISOString(), build:BUILD, page:'app'}, rec||{});
-      var box = window.__gb355Diag || (window.__gb355Diag = {events:[]});
-      box.events.push(rec); if(box.events.length>80) box.events = box.events.slice(-80);
-      var list = localJSON(LOG_KEY, []); list.push(rec); if(list.length>250) list = list.slice(-250); localStorage.setItem(LOG_KEY, JSON.stringify(list));
-      try{ console.log('GB356_DIAG', rec); }catch(_){ }
+      var line = dt()+' '+S(msg);
+      if(data!==undefined) line += ' '+JSON.stringify(cloneLite(data,2));
+      LAST.lines.push(line); LAST.lines = LAST.lines.slice(-80);
+      var persisted = A(readJSON(LOG_KEY, [])); persisted.push(line); writeJSON(LOG_KEY, persisted.slice(-160));
       renderSoon();
     }catch(_){ }
   }
-  function typeOfProposal(x){
-    var p = (x && (x.payloadSubmitted || x.payload || x.data)) || {};
-    var raw = L((x && (x.templateId || x.proposalType || x.kind || x.formKey || x.type || x.title)) || (p && (p.templateId || p.type || p.source || p.title)) || '');
-    if(raw.indexOf('hundeannahme')>=0 || raw.indexOf('aufenthalt')>=0 || raw.indexOf('stay')>=0) return 'aufenthalt';
-    if(raw.indexOf('boarding_contract')>=0 || raw.indexOf('betreuungsvertrag')>=0 || raw.indexOf('contract')>=0) return 'betreuungsvertrag';
-    if(raw.indexOf('customer_data')>=0 || raw.indexOf('kunde')>=0 || raw.indexOf('hund')>=0 || raw.indexOf('dog')>=0) return 'kunde/hund';
-    return raw || 'unbekannt';
+  window.dsGB347DiagLog = log;
+  function getState(){
+    try{ if(typeof state!=='undefined' && state) return state; }catch(_){ }
+    try{ if(window.state) return window.state; }catch(_){ }
+    try{ return readJSON('ds_workspace_test_optik_01', {}) || {}; }catch(_){ return {}; }
   }
-  function typeCounts(list){ var out={}; A(list).forEach(function(x){ var t=typeOfProposal(x); out[t]=(out[t]||0)+1; }); return out; }
-  function proposalKey(x){ return S(x && (x.id || x.taskId || x.proposalId || x.proposal || x.rowKey || x.__sourceKey)); }
-  function shortId(v){ v=S(v); return v ? (v.length>12 ? v.slice(0,6)+'…'+v.slice(-4) : v) : '-'; }
-  function getSelectedContract(){
-    return safe(function(){
-      var cs=document.getElementById('contractCustomerSelect'); var ps=document.getElementById('contractPetSelect');
-      var cTxt=cs && cs.options && cs.selectedIndex>=0 ? S(cs.options[cs.selectedIndex].textContent) : '';
-      var pTxt=ps && ps.options && ps.selectedIndex>=0 ? S(ps.options[ps.selectedIndex].textContent) : '';
-      return {customerId:S(cs&&cs.value), petId:S(ps&&ps.value), customerText:cTxt, petText:pTxt, accept:!!(document.getElementById('contractAcceptChk')&&document.getElementById('contractAcceptChk').checked)};
-    }, {});
+  function authInfo(){
+    var out={uid:'-', email:'-', role:'-', org:'-', authReady:false};
+    try{ if(window.CLOUD){out.role=S(CLOUD.role||'-'); out.org=S(CLOUD.orgId||'-'); if(CLOUD.user){out.uid=S(CLOUD.user.uid||'-'); out.email=S(CLOUD.user.email||'-');}} }catch(_){ }
+    try{ var a=(window.CLOUD&&CLOUD.auth)||(window.firebase&&firebase.auth&&firebase.auth()); var u=a&&a.currentUser; if(u){out.uid=S(u.uid||out.uid); out.email=S(u.email||out.email); out.authReady=true;} }catch(_){ }
+    try{ if(!out.org || out.org==='-'){ out.org = S(window.firebaseOrgId || localStorage.getItem('ds_orgId') || 'doggystyle'); } }catch(_){ }
+    return out;
   }
-  function rowLine(x){
-    if(!x) return '';
-    var p=(x.payloadSubmitted||x.payload||{});
-    var cid=S(x.customerId||p.customerId||(p.meta&&p.meta.customerId)||(p.customer&&(p.customer.customerId||p.customer.id)));
-    var pid=S(x.petId||x.dogId||p.petId||p.dogId||(p.meta&&p.meta.petId)||(p.pet&&(p.pet.petId||p.pet.id||p.pet.dogId)));
-    return typeOfProposal(x)+' '+shortId(proposalKey(x))+' '+S(x.customerName||p.customerName||(p.customer&&p.customer.name)||x.customerEmail||'')+'/'+S(x.petName||p.petName||(p.pet&&p.pet.name)||'')+' cid='+shortId(cid)+' pid='+shortId(pid)+' src='+(x.__source||p.source||'-');
+  function idOf(o){ o=O(o); return S(o.id||o.customerId||o.petId||o.dogId||o.uid||o.key||o.name||''); }
+  function nameOf(o){ o=O(o); return S(o.name||o.fullName||o.customerName||o.petName||o.dogName||o.email||''); }
+  function petName(o){ o=O(o); return S(o.name||o.petName||o.dogName||o.hundName||''); }
+  function customerEmail(o){ return L(O(o).email || O(o).customerEmail || O(o).mail || ''); }
+  function resolveScope(){
+    var st=getState(), ai=authInfo();
+    var out={cid:'-', pid:'-', customer:'-', pet:'-', pets:0, source:'fallback'};
+    try{
+      if(typeof window.dsGetCustomerScopeContext==='function'){
+        var ctx=window.dsGetCustomerScopeContext()||{};
+        var c=ctx.customer||{}; var p=(A(ctx.pets)[0]||ctx.pet||{});
+        out.cid=S(ctx.customerId||c.customerId||c.id||out.cid)||'-'; out.pid=S(ctx.petId||p.petId||p.id||p.dogId||out.pid)||'-';
+        out.customer=S(nameOf(c)||out.customer)||'-'; out.pet=S(petName(p)||out.pet)||'-'; out.pets=A(ctx.pets).length||out.pets; out.source='dsGetCustomerScopeContext';
+        return out;
+      }
+    }catch(e){ out.source='scope-error:'+S(e.message||e); }
+    try{
+      var customers=A(st.customers); var pets=A(st.pets && st.pets.length ? st.pets : st.dogs);
+      var c=customers.find(function(x){return (ai.uid&&[x.uid,x.portalUid,x.customerUid,x.userUid,x.authUid].map(S).indexOf(ai.uid)>=0)||(ai.email&&[x.email,x.customerEmail,x.mail].map(L).indexOf(ai.email)>=0);})||{};
+      var cid=S(c.customerId||c.id||'');
+      var ownPets=pets.filter(function(p){return (cid&&S(p.customerId||p.ownerId)===cid)||(ai.uid&&[p.customerUid,p.portalUid,p.ownerUid,p.userUid].map(S).indexOf(ai.uid)>=0)||(ai.email&&[p.customerEmail,p.ownerEmail,p.email].map(L).indexOf(ai.email)>=0);});
+      var pet=ownPets[0]||{};
+      out.cid=cid||'-'; out.pid=S(pet.petId||pet.id||pet.dogId||'-'); out.customer=nameOf(c)||'-'; out.pet=petName(pet)||'-'; out.pets=ownPets.length; out.source='state-auth-match';
+    }catch(_){ }
+    return out;
   }
-  function compute(){
-    var st=stateObj(); var u=authUser();
-    var localState=localJSON('ds_workspace_test_optik_01', {});
-    var buffer=localJSON('ds_customer_proposals_v1', []);
-    var pending=localJSON('ds_pending_portal_proposals', []);
-    var inboxLast=A(window.__dsInboxLastTasks);
-    var stateInbox=A(st.inboxAssignments).concat(A(st.inboxSubmissions));
-    var localInbox=A(localState.inboxAssignments).concat(A(localState.inboxSubmissions));
-    var all=inboxLast.length?inboxLast:stateInbox.concat(buffer).concat(pending);
-    var sel=getSelectedContract();
-    var last=(window.__gb355Diag && window.__gb355Diag.events && window.__gb355Diag.events.length) ? window.__gb355Diag.events[window.__gb355Diag.events.length-1] : null;
-    return {
-      build:BUILD, org:orgId(), email:S(u&&u.email), uid:shortId(u&&u.uid), role:S(window.CLOUD&&CLOUD.role),
-      counts:{customers:A(st.customers||st.kunden).length,pets:A(st.pets||st.dogs||st.hunde).length,docs:A(st.docs).length,inboxLast:inboxLast.length,stateInbox:stateInbox.length,localInbox:localInbox.length,buffer:buffer.length,pending:pending.length},
-      typesLast:typeCounts(inboxLast), typesAll:typeCounts(all), selected:sel, latest:A(all).slice(0,6).map(rowLine), last:last
-    };
+  function contractReport(scope){
+    var st=getState(), rows=[];
+    try{
+      var maps=[st.contractAgreements, st.contractSignatures, st.contractCanonicalRecords, st.contractAdoptionBundles];
+      maps.forEach(function(mp, mi){
+        Object.keys(O(mp)).slice(0,40).forEach(function(k){
+          var r=O(mp[k]); rows.push({map:['agreements','signatures','canonical','bundles'][mi], key:k, cid:S(r.customerId||r.cid||''), pid:S(r.petId||r.dogId||r.pid||''), cn:S(r.customerName||r.customer||''), pn:S(r.petName||r.dogName||r.pet||''), bytes:bytes(r)});
+        });
+      });
+      A(st.contractAdoptedRecords).slice(0,40).forEach(function(r,i){r=O(r); rows.push({map:'adopted['+i+']', key:S(r.id||r.key||i), cid:S(r.customerId||''), pid:S(r.petId||r.dogId||''), cn:S(r.customerName||''), pn:S(r.petName||r.dogName||''), bytes:bytes(r)});});
+    }catch(_){ }
+    var cid=S(scope&&scope.cid); var pid=S(scope&&scope.pid);
+    var matched=rows.filter(function(r){return (cid&&cid!=='-'&&r.cid===cid)||(pid&&pid!=='-'&&r.pid===pid)||((scope.customer&&scope.customer!=='-'&&L(r.cn)===L(scope.customer))&&(scope.pet&&scope.pet!=='-'&&L(r.pn)===L(scope.pet)));});
+    return {total:rows.length, match:matched.length, first:rows.slice(0,5), matched:matched.slice(0,3)};
   }
-  function panel(){
-    var el=document.getElementById('gb355MainDiagPanel');
-    if(!el){
-      el=document.createElement('div'); el.id='gb355MainDiagPanel';
-      el.style.cssText='position:fixed;left:12px;bottom:48px;z-index:99999;max-width:680px;max-height:38vh;overflow:auto;background:rgba(6,12,22,.94);color:#dbeafe;border:1px solid rgba(96,165,250,.55);border-radius:14px;padding:10px 12px;font:12px/1.35 ui-monospace,SFMono-Regular,Menlo,monospace;box-shadow:0 10px 30px rgba(0,0,0,.38);white-space:pre-wrap;word-break:break-word;';
-      document.body.appendChild(el);
-    }
-    return el;
+  function counts(){
+    var st=getState();
+    function n(x){return Array.isArray(x)?x.length:(x&&typeof x==='object'?Object.keys(x).length:0);}
+    return {kunden:n(st.customers), pets:n(st.pets), dogs:n(st.dogs), docs:n(st.docs), inbox:n(st.inboxSubmissions)+n(st.inboxAssignments), localProps:n(readJSON('ds_customer_proposals_v1',[])), pending:n(readJSON('ds_pending_portal_proposals',[])), contracts:n(st.contractAgreements)+n(st.contractCanonicalRecords)+n(st.contractAdoptionBundles)+n(st.contractAdoptedRecords), stateBytes:bytes(st)};
   }
+  function proposalTypeCounts(){
+    var st=getState(); var all=[];
+    ['inboxSubmissions','inboxAssignments'].forEach(function(k){ all=all.concat(A(st[k])); });
+    all=all.concat(A(readJSON('ds_customer_proposals_v1',[])), A(readJSON('ds_pending_portal_proposals',[])));
+    var types={}; all.forEach(function(r){r=O(r); var p=O(r.payloadSubmitted||r.payload||{}); var t=S(r.templateId||r.proposalType||r.kind||p.templateId||p.source||'unknown'); types[t]=(types[t]||0)+1;});
+    return types;
+  }
+  function currentContractSelection(){
+    var out={cid:'-',pid:'-',accept:'-',customerText:'-',petText:'-'};
+    try{ var c=document.getElementById('contractCustomerSelect'); if(c){out.cid=S(c.value||'-'); out.customerText=S(c.options&&c.selectedIndex>=0?c.options[c.selectedIndex].textContent:'-');} }catch(_){ }
+    try{ var p=document.getElementById('contractPetSelect'); if(p){out.pid=S(p.value||'-'); out.petText=S(p.options&&p.selectedIndex>=0?p.options[p.selectedIndex].textContent:'-');} }catch(_){ }
+    try{ var a=document.getElementById('contractAcceptChk'); if(a) out.accept=a.checked?'1':'0'; }catch(_){ }
+    return out;
+  }
+  function pathOfRef(ref){
+    try{ if(ref&&ref.path) return ref.path; }catch(_){ }
+    try{ if(ref&&ref._delegate&&ref._delegate.path&&ref._delegate.path.canonicalString) return ref._delegate.path.canonicalString(); }catch(_){ }
+    try{ if(ref&&ref._key&&ref._key.path&&ref._key.path.canonicalString) return ref._key.path.canonicalString(); }catch(_){ }
+    return '?';
+  }
+  function wrapFirestore(){
+    if(LAST.firestoreWrapped) return;
+    try{
+      if(!window.firebase || !firebase.firestore) return;
+      var db=firebase.firestore();
+      var ref=db.collection('__diag__').doc('__x__');
+      var cref=db.collection('__diag__');
+      var refProto=Object.getPrototypeOf(ref); var colProto=Object.getPrototypeOf(cref);
+      ['set','update','delete'].forEach(function(m){
+        if(!refProto || !refProto[m] || refProto[m].__gb347diag) return;
+        var old=refProto[m];
+        refProto[m]=function(){
+          var p=pathOfRef(this), b=(m==='delete'?0:bytes(arguments[0]));
+          log('firestore.'+m+':start path='+p+' bytes='+b);
+          var started=now();
+          try{
+            var res=old.apply(this,arguments);
+            Promise.resolve(res).then(function(){log('firestore.'+m+':ok path='+p+' ms='+(now()-started));}).catch(function(e){log('firestore.'+m+':ERR path='+p+' '+S(e&&e.message||e));});
+            setTimeout(function(){log('firestore.'+m+':pending>8s path='+p);},8000);
+            return res;
+          }catch(e){log('firestore.'+m+':THROW path='+p+' '+S(e&&e.message||e)); throw e;}
+        };
+        refProto[m].__gb347diag=true;
+      });
+      if(colProto && colProto.add && !colProto.add.__gb347diag){
+        var addOld=colProto.add;
+        colProto.add=function(){
+          var p=pathOfRef(this), b=bytes(arguments[0]); log('firestore.add:start path='+p+' bytes='+b); var started=now();
+          try{ var res=addOld.apply(this,arguments); Promise.resolve(res).then(function(){log('firestore.add:ok path='+p+' ms='+(now()-started));}).catch(function(e){log('firestore.add:ERR path='+p+' '+S(e&&e.message||e));}); setTimeout(function(){log('firestore.add:pending>8s path='+p);},8000); return res; }catch(e){log('firestore.add:THROW path='+p+' '+S(e&&e.message||e)); throw e;}
+        };
+        colProto.add.__gb347diag=true;
+      }
+      LAST.firestoreWrapped=true; log('diag:firestore wrapped');
+    }catch(_){ }
+  }
+  function wrapFunctions(){
+    if(LAST.functionWrapped) return;
+    var names=['dsSubmitCustomerPortalProposal','submitCustomerDogsProposal','submitCustomerContractProposalMain','submitCustomerStayProposalMain','dsSaveProposalReview','cloudPushNow','cloudSchedulePush','saveState'];
+    names.forEach(function(name){
+      try{
+        var old=window[name];
+        if(typeof old!=='function' || old.__gb347diag) return;
+        var wrapped=function(){
+          log('call:'+name+':start', {args:cloneLite(Array.prototype.slice.call(arguments),1), scope:resolveScope(), sel:currentContractSelection()});
+          var started=now();
+          try{
+            var res=old.apply(this,arguments);
+            Promise.resolve(res).then(function(v){log('call:'+name+':ok ms='+(now()-started), cloneLite(v,1));}).catch(function(e){log('call:'+name+':ERR ms='+(now()-started)+' '+S(e&&e.message||e));});
+            setTimeout(function(){log('call:'+name+':pending>8s');},8000);
+            return res;
+          }catch(e){log('call:'+name+':THROW '+S(e&&e.message||e)); throw e;}
+        };
+        wrapped.__gb347diag=true;
+        window[name]=wrapped;
+        try{ eval(name+' = wrapped'); }catch(_){ }
+      }catch(_){ }
+    });
+    LAST.functionWrapped=true;
+  }
+  function wrapClicks(){
+    if(LAST.clickWrapped) return;
+    LAST.clickWrapped=true;
+    document.addEventListener('click', function(ev){
+      try{
+        var btn=ev.target&&ev.target.closest&&ev.target.closest('button'); if(!btn) return;
+        var txt=S(btn.textContent).replace(/\s+/g,' ').slice(0,80); var id=S(btn.id||'');
+        if(/speichern|vorschlag|übernehmen|aktualisieren|aufenthalt|abmelden|vertrag|öffnen|bearbeiten/i.test(txt+' '+id)){
+          log('click id='+id+' text='+txt, {scope:resolveScope(), sel:currentContractSelection(), counts:counts()});
+        }
+      }catch(_){ }
+    }, true);
+  }
+  function ensureBox(){
+    var box=document.getElementById('dsGB347DiagBox');
+    if(box) return box;
+    box=document.createElement('div'); box.id='dsGB347DiagBox';
+    box.style.cssText='position:fixed;right:10px;bottom:52px;z-index:2147483647;width:min(560px,calc(100vw - 20px));max-height:58vh;overflow:auto;background:rgba(5,14,10,.94);color:#eaffef;border:1px solid rgba(145,255,170,.35);box-shadow:0 14px 42px rgba(0,0,0,.45);border-radius:16px;padding:10px;font:12px/1.35 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:pre-wrap;';
+    box.innerHTML='<div style="display:flex;gap:8px;align-items:center;justify-content:space-between;margin-bottom:6px"><b>GB347 Diagnose</b><span><button id="dsGB347DiagCopy" type="button" style="font:12px system-ui;padding:3px 8px;border-radius:8px">Kopieren</button><button id="dsGB347DiagMini" type="button" style="font:12px system-ui;padding:3px 8px;border-radius:8px;margin-left:4px">Mini</button></span></div><div id="dsGB347DiagText">lädt…</div>';
+    document.body.appendChild(box);
+    try{ document.getElementById('dsGB347DiagCopy').onclick=function(){ var txt=document.getElementById('dsGB347DiagText').textContent; navigator.clipboard&&navigator.clipboard.writeText(txt); log('diag:copied'); }; }catch(_){ }
+    try{ document.getElementById('dsGB347DiagMini').onclick=function(){ var t=document.getElementById('dsGB347DiagText'); t.style.display=t.style.display==='none'?'block':'none'; }; }catch(_){ }
+    return box;
+  }
+  var renderTimer=null;
+  function renderSoon(){ if(renderTimer) return; renderTimer=setTimeout(function(){renderTimer=null; render();},120); }
   function render(){
     try{
-      var d=compute(); var last=d.last||{};
+      var box=ensureBox(), txt=document.getElementById('dsGB347DiagText'); if(!txt) return;
+      var ai=authInfo(), sc=resolveScope(), cr=contractReport(sc), co=counts(), sel=currentContractSelection(), props=proposalTypeCounts(), logs=A(readJSON(LOG_KEY,[])).slice(-30);
       var lines=[];
-      lines.push('GB356 DIAG Haupt-App');
-      lines.push('auth: '+(d.email||'-')+' uid='+d.uid+' role='+(d.role||'-')+' org='+d.org);
-      lines.push('state: kunden='+d.counts.customers+' hunde='+d.counts.pets+' docs='+d.counts.docs+' inboxLast='+d.counts.inboxLast+' stateInbox='+d.counts.stateInbox+' localInbox='+d.counts.localInbox+' buffer='+d.counts.buffer+' pending='+d.counts.pending);
-      lines.push('typen last: '+JSON.stringify(d.typesLast)+' | alle: '+JSON.stringify(d.typesAll));
-      lines.push('vertrag-auswahl: cid='+shortId(d.selected.customerId)+' pid='+shortId(d.selected.petId)+' '+(d.selected.customerText||'-')+' / '+(d.selected.petText||'-')+' accept='+(d.selected.accept?'1':'0'));
-      lines.push('letztes event: '+S(last.step||last.fn||last.type||'-')+' '+S(last.status||last.message||last.path||'')+' '+S(last.error||''));
-      lines.push('neueste zeilen:');
-      (d.latest||[]).forEach(function(x,i){ lines.push((i+1)+'. '+x); });
-      var el=panel();
-      el.innerHTML='<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px"><b>GB356 Diagnose</b><button id="gb355CopyDiagMain" type="button" style="font:12px system-ui;padding:3px 8px;border-radius:8px;border:1px solid #60a5fa;background:#111827;color:#dbeafe">Kopieren</button><button id="gb355HideDiagMain" type="button" style="font:12px system-ui;padding:3px 8px;border-radius:8px;border:1px solid #60a5fa;background:#111827;color:#dbeafe">Ausblenden</button></div><pre style="margin:0;white-space:pre-wrap">'+lines.map(function(x){return x.replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}).join('\n')+'</pre>';
-      var c=document.getElementById('gb355CopyDiagMain'); if(c && !c.__bound){ c.__bound=true; c.onclick=function(){ var dump=window.GB356_DIAG_DUMP&&window.GB356_DIAG_DUMP(); try{navigator.clipboard&&navigator.clipboard.writeText(dump||'');}catch(_){} alert('GB356 Diagnose kopiert.'); }; }
-      var h=document.getElementById('gb355HideDiagMain'); if(h && !h.__bound){ h.__bound=true; h.onclick=function(){ panel().style.display='none'; }; }
-    }catch(_){ }
+      lines.push('build='+BUILD);
+      lines.push('page='+location.pathname+location.search);
+      lines.push('auth email='+ai.email+' uid='+(ai.uid?ai.uid.slice(0,12):'-')+' role='+ai.role+' org='+ai.org+' ready='+(ai.authReady?'1':'0'));
+      lines.push('scope source='+sc.source+' cid='+sc.cid+' pid='+sc.pid+' name='+sc.customer+' / '+sc.pet+' pets='+sc.pets);
+      lines.push('vertragauswahl cid='+sel.cid+' pid='+sel.pid+' accept='+sel.accept+' cText='+sel.customerText+' pText='+sel.petText);
+      lines.push('counts kunden='+co.kunden+' pets='+co.pets+' dogs='+co.dogs+' docs='+co.docs+' inbox='+co.inbox+' localProps='+co.localProps+' pending='+co.pending+' contracts='+co.contracts+' stateBytes='+co.stateBytes);
+      lines.push('proposalTypes='+JSON.stringify(props));
+      lines.push('contract total='+cr.total+' match='+cr.match);
+      cr.first.forEach(function(r,i){lines.push('contract['+i+'] '+r.map+' key='+r.key+' cid='+r.cid+' pid='+r.pid+' '+r.cn+'/'+r.pn+' bytes='+r.bytes);});
+      cr.matched.forEach(function(r,i){lines.push('MATCH['+i+'] '+r.map+' key='+r.key+' cid='+r.cid+' pid='+r.pid+' '+r.cn+'/'+r.pn);});
+      lines.push('--- trace ---');
+      lines=lines.concat(logs);
+      txt.textContent=lines.join('\n');
+    }catch(e){ try{document.getElementById('dsGB347DiagText').textContent='diag error '+S(e&&e.message||e);}catch(_){ } }
   }
-  var renderTimer=0; function renderSoon(){ clearTimeout(renderTimer); renderTimer=setTimeout(render,80); }
-  function wrapFunction(name){
-    try{
-      var fn=window[name]; if(typeof fn!=='function' || fn.__gb355Wrapped) return;
-      var wrapped=function(){
-        var args=arguments; var callId=name+'_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
-        recSave({step:'call:start',fn:name,callId:callId,argsCount:args.length});
-        var out, done=false, timer=setTimeout(function(){ if(!done) recSave({step:'call:pending>8s',fn:name,callId:callId}); },8000);
-        try{ out=fn.apply(this,args); }catch(e){ done=true; clearTimeout(timer); recSave({step:'call:throw',fn:name,callId:callId,error:S(e&&e.message||e)}); throw e; }
-        if(out && typeof out.then==='function'){
-          return out.then(function(res){ done=true; clearTimeout(timer); recSave({step:'call:ok',fn:name,callId:callId,ok:!!(res&&res.ok),path:S(res&&res.path),id:S(res&&(res.id||(res.task&&res.task.id)))}); return res; }, function(err){ done=true; clearTimeout(timer); recSave({step:'call:error',fn:name,callId:callId,error:S(err&&err.message||err)}); throw err; });
-        }
-        done=true; clearTimeout(timer); recSave({step:'call:return',fn:name,callId:callId,type:typeof out}); return out;
-      };
-      wrapped.__gb355Wrapped=true; wrapped.__gb355Original=fn; window[name]=wrapped;
-    }catch(_){ }
-  }
-  function patchFirestoreSet(){
-    try{
-      if(!window.firebase || !firebase.firestore || !firebase.firestore.DocumentReference) return;
-      var proto=firebase.firestore.DocumentReference.prototype; if(!proto || proto.__gb355SetWrapped) return;
-      var orig=proto.set; if(typeof orig!=='function') return;
-      proto.set=function(data,opts){
-        var path=S(this && this.path); var relevant=(path.indexOf('/proposals/')>=0 || path.indexOf('/tasks/')>=0 || path.indexOf('proposals/')===0 || path.indexOf('tasks/')===0);
-        if(relevant) recSave({step:'firestore.set:start',path:path,keys:Object.keys(data||{}).slice(0,18).join(','),templateId:S(data&&data.templateId),status:S(data&&data.status),proposalStatus:S(data&&data.proposalStatus)});
-        var p=orig.apply(this, arguments);
-        if(relevant && p && typeof p.then==='function') return p.then(function(v){ recSave({step:'firestore.set:ok',path:path}); return v; }, function(e){ recSave({step:'firestore.set:error',path:path,error:S(e&&e.message||e)}); throw e; });
-        return p;
-      };
-      proto.__gb355SetWrapped=true;
-    }catch(_){ }
-  }
-  function bind(){
-    ['__dsInboxReload','ds166OpenRowByKey','dsOpenContractProposalEditor','dsOpenStayProposalEditor','dsGB353AcceptProposal','dsSaveProposalReview','__dsInboxAdoptCurrent'].forEach(wrapFunction);
-    patchFirestoreSet(); renderSoon();
-  }
-  window.GB356_DIAG_DUMP=function(){ return JSON.stringify({runtime:compute(), events:(window.__gb355Diag&&window.__gb355Diag.events)||[], saved:localJSON(LOG_KEY,[])}, null, 2); };
-  document.addEventListener('click', function(ev){ try{ var b=ev.target&&ev.target.closest&&ev.target.closest('button'); if(!b) return; var txt=S(b.textContent); if(txt==='Öffnen' || txt==='Beantworten' || txt.indexOf('Speichern')>=0 || txt.indexOf('Übernehmen')>=0) recSave({step:'ui.click',button:txt,id:S(b.id),rowKey:S(b.dataset&&b.dataset.rowKey)}); }catch(_){ } }, true);
-  bind(); document.addEventListener('DOMContentLoaded', bind); window.addEventListener('load', bind); setInterval(bind,1600);
+  function boot(){ wrapFirestore(); wrapFunctions(); wrapClicks(); ensureBox(); log('diag:boot '+BUILD); render(); }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', boot, {once:true}); else boot();
+  setInterval(function(){ wrapFirestore(); wrapFunctions(); render(); }, 1800);
+  window.addEventListener('pageshow', function(){log('page:pageshow'); setTimeout(boot,100);});
+  window.addEventListener('focus', function(){log('page:focus'); renderSoon();});
+  try{ window.__dsAppJsRuntimeBuild='GB347-appjs-diag'; }catch(_){ }
 })();
-/* ===== END GB356 DIAGNOSE ===== */
-
-/* ===== GB357 TARGETED FIX: proposals only, slim cloud payload, strict customer scope ===== */
-(function(){
-  'use strict';
-  if(window.__dsGB357TargetedFixInstalled) return;
-  window.__dsGB357TargetedFixInstalled = true;
-  var BUILD='M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY';
-  try{ window.__dsAppJsRuntimeBuild='GB359-appjs'; }catch(_){ }
-  function S(v){ try{return String(v==null?'':v).trim();}catch(_){return'';} }
-  function L(v){ return S(v).toLowerCase(); }
-  function A(v){ return Array.isArray(v)?v:[]; }
-  function bytes(v){ try{return JSON.stringify(v).length;}catch(_){return 0;} }
-  function uid2(){ try{ if(typeof uid==='function') return uid(); }catch(_){ } return 'gb357_'+Date.now()+'_'+Math.random().toString(36).slice(2,9); }
-  function orgId(){ try{return (typeof dsResolveCloudOrgId==='function')?dsResolveCloudOrgId():((window.CLOUD&&CLOUD.orgId)||'doggystyle');}catch(_){return 'doggystyle';} }
-  function db(){ try{ if(typeof dsEnsureCloudDb==='function') return dsEnsureCloudDb(); }catch(_){ } try{ if(window.CLOUD&&CLOUD.db) return CLOUD.db; }catch(_){ } try{ if(window.firebase&&firebase.firestore) return firebase.firestore(); }catch(_){ } return null; }
-  function proposalCol(){ var d=db(), o=orgId(); return (d&&d.collection&&o)?d.collection('orgs').doc(o).collection('proposals'):null; }
-  function taskCol(){ var d=db(), o=orgId(); return (d&&d.collection&&o)?d.collection('orgs').doc(o).collection('tasks'):null; }
-  function stateRef(){ try{ if(typeof cloudStateRef==='function') return cloudStateRef(); }catch(_){ } var d=db(), o=orgId(); return (d&&d.collection&&o)?d.collection('orgs').doc(o).collection('meta').doc('workspace_state'):null; }
-  function setDiag(msg,err){ try{ if(typeof dsSetSyncDiag==='function') dsSetSyncDiag('GB357 '+msg, !!err); }catch(_){ } try{ if(typeof dsGB356TraceAlways==='function') dsGB356TraceAlways({event:'GB357 '+msg, error:!!err}); }catch(_){ } }
-  function isCustomerMode(){ try{ var q=L(new URLSearchParams(String(location.search||'')).get('customer_mode')||''); var p=L(location.pathname||''); var ss=L(sessionStorage.getItem('ds_customer_main_mode')||''); return p.indexOf('customer.html')>=0 || ['dogs','contract','stay'].indexOf(q)>=0 || ['dogs','contract','stay'].indexOf(ss)>=0 || !!window.__dsCustomerMainModeActive || !!window.__dsForceCustomerContractProposal || !!window.__dsForceCustomerStayProposal; }catch(_){ return false; } }
-  function isReviewMode(){ try{return !!(window.__dsProposalReview && __dsProposalReview.active);}catch(_){return false;} }
-  function shouldSkipWorkspacePush(){ return !!window.__dsGB357SuppressWorkspacePush || isCustomerMode() || isReviewMode(); }
-
-  function cleanString(key,path,v){
-    var s=String(v||'');
-    var k=L(key), p=L(path);
-    var data=/^data:/i.test(s);
-    var imageKey=/(photo|foto|image|bild|preview|impf|vaccin|file|blob|attachment|pdf|base64)/i.test(k+p);
-    var sigKey=/(signature|signatur|unterschrift|contractsignatures)/i.test(k+p);
-    if(data && !sigKey) return '';
-    if(data && sigKey && s.length>220000) return '';
-    if(imageKey && s.length>45000 && !sigKey) return '';
-    if(s.length>260000) return '';
-    return s;
-  }
-  function cleanDeep(v,path,seen){
-    try{
-      if(v==null) return v;
-      var t=typeof v;
-      if(t==='string') return cleanString(path.split('.').pop(),path,v);
-      if(t==='number') return Number.isFinite(v)?v:null;
-      if(t==='boolean') return v;
-      if(t==='bigint') return String(v);
-      if(t==='function'||t==='symbol'||t==='undefined') return undefined;
-      try{ if(typeof Blob!=='undefined' && v instanceof Blob) return undefined; }catch(_){ }
-      try{ if(typeof File!=='undefined' && v instanceof File) return undefined; }catch(_){ }
-      try{ if(v instanceof Date) return v.getTime(); }catch(_){ }
-      if(!seen) seen=new WeakSet();
-      if(typeof v==='object'){
-        if(seen.has(v)) return undefined; seen.add(v);
-        if(Array.isArray(v)){
-          var arr=[]; for(var i=0;i<v.length;i++){ var cv=cleanDeep(v[i], path+'['+i+']', seen); if(cv!==undefined) arr.push(cv); }
-          seen.delete(v); return arr;
-        }
-        var proto=Object.getPrototypeOf(v); if(proto && proto!==Object.prototype){ try{ if(v.toJSON) return cleanDeep(v.toJSON(), path+'.toJSON', seen); }catch(_){ } return undefined; }
-        var out={}; Object.keys(v||{}).forEach(function(k){
-          if(k==='__proto__'||k==='constructor'||k==='prototype') return;
-          var lk=L(k);
-          if(/^(el|element|node|target|currentTarget|canvas|ctx|context)$/.test(lk)) return;
-          var cv=cleanDeep(v[k], path?path+'.'+k:k, seen); if(cv!==undefined) out[k]=cv;
-        });
-        seen.delete(v); return out;
-      }
-      return v;
-    }catch(_){ return undefined; }
-  }
-  function projectInboxRow(row){ try{ return (typeof dsProjectCloudSafeInboxRow==='function')?dsProjectCloudSafeInboxRow(row):cleanDeep(row||{},'inbox'); }catch(_){ return cleanDeep(row||{},'inbox'); } }
-  function pickMap(obj){ return cleanDeep((obj&&typeof obj==='object')?obj:{},'map')||{}; }
-  function buildSlimState(src){
-    src=(src&&typeof src==='object')?src:{};
-    var out={ schemaVersion: Math.max(Number(src.schemaVersion||2)||2,2), _cloudUpdatedAt: Date.now(), _localUpdatedAt: Number(src._localUpdatedAt||Date.now())||Date.now(), _gb357Slim:true };
-    ['customers','pets','dogs','customerRecords','petRecords','dogRecords','_legacy','contractAgreements','contractSignatures','contractCanonicalRecords','contractAdoptionBundles','contractAdoptedRecords','settings','company','templates','contractVersion','priceSettings'].forEach(function(k){
-      try{ if(src[k]!=null) out[k]=cleanDeep(src[k],k); }catch(_){ }
-    });
-    try{ if(Array.isArray(src.docs)) out.docs=src.docs.slice(0,80).map(function(d){return cleanDeep(d,'docs');}); }catch(_){ }
-    ['inboxAssignments','inboxSubmissions','assignments','submissions'].forEach(function(k){ try{ if(Array.isArray(src[k])) out[k]=src[k].slice(0,160).map(projectInboxRow); }catch(_){ } });
-    ['tasks','proposals'].forEach(function(k){ try{ if(Array.isArray(src[k])) out[k]=src[k].slice(0,160).map(projectInboxRow); }catch(_){ } });
-    var b=bytes(out);
-    if(b>900000){ try{ delete out.inboxAssignments; delete out.inboxSubmissions; delete out.assignments; delete out.submissions; delete out.tasks; delete out.proposals; out._gb357DroppedInbox=true; }catch(_){ } }
-    b=bytes(out);
-    if(b>900000){ try{ out.docs=A(out.docs).map(function(d){ var x=cleanDeep(d,'docs2')||{}; try{ delete x.fields; delete x.signature; delete x.signatures; delete x.pdf; delete x.photos; }catch(_){ } return x; }); out._gb357DocsMetadataOnly=true; }catch(_){ } }
-    b=bytes(out);
-    if(b>900000){ try{ Object.keys(out.contractSignatures||{}).forEach(function(k){ var r=out.contractSignatures[k]||{}; if(r.dataUrl && String(r.dataUrl).length>90000) out.contractSignatures[k]={ signedAt:r.signedAt||r.signatureAt||r.savedAt||Date.now(), dataUrl:'' }; }); out._gb357TrimmedSigs=true; }catch(_){ } }
-    return out;
-  }
-  try{ window.dsGB357BuildSlimCloudState=buildSlimState; }catch(_){ }
-
-  // Payload guard: workspace_state will never exceed the Firestore request/doc size path again.
-  try{
-    var oldPrepare=window.dsPrepareCloudPayload || (typeof dsPrepareCloudPayload==='function'?dsPrepareCloudPayload:null);
-    var newPrepare=function(src){
-      var res=null; try{ res=oldPrepare?oldPrepare(src):null; }catch(_){ res=null; }
-      var clean=(res&&res.clean)||{}; var b=bytes(clean);
-      if(!clean || !b || b>850000){ var slim=buildSlimState(src); return {clean:slim, stats:Object.assign({},(res&&res.stats)||{},{gb357Slim:true,beforeBytes:b,afterBytes:bytes(slim)})}; }
-      return res || {clean:buildSlimState(src), stats:{gb357Slim:true}};
-    };
-    window.dsPrepareCloudPayload=newPrepare; try{ dsPrepareCloudPayload=newPrepare; }catch(_){ }
-  }catch(_){ }
-  try{
-    var oldStrict=window.dsPrepareCloudPayloadStrict || (typeof dsPrepareCloudPayloadStrict==='function'?dsPrepareCloudPayloadStrict:null);
-    var newStrict=function(src){
-      var res=null; try{ res=oldStrict?oldStrict(src):null; }catch(_){ res=null; }
-      var clean=(res&&res.clean)||{}; var b=bytes(clean);
-      if(!clean || !b || b>850000){ var slim=buildSlimState(src); return {clean:slim, stats:Object.assign({},(res&&res.stats)||{},{gb357Slim:true,beforeBytes:b,afterBytes:bytes(slim)})}; }
-      return res || {clean:buildSlimState(src), stats:{gb357Slim:true}};
-    };
-    window.dsPrepareCloudPayloadStrict=newStrict; try{ dsPrepareCloudPayloadStrict=newStrict; }catch(_){ }
-  }catch(_){ }
-
-  // Save wrapper: Kunden-App and review editors must not push the huge complete workspace state.
-  try{
-    var oldSaveState=window.saveState || (typeof saveState==='function'?saveState:null);
-    var newSaveState=function(){
-      if(shouldSkipWorkspacePush()){
-        try{ if(typeof dsMarkStateOriginBeforeSave==='function') dsMarkStateOriginBeforeSave(); }catch(_){ }
-        try{ if(typeof state!=='undefined'&&state){ state._localUpdatedAt=Date.now(); localStorage.setItem((typeof LS_KEY!=='undefined'?LS_KEY:'doggystyle_workspace_state_v1'), JSON.stringify(state)); } }catch(e){ try{ console.error('GB357 local save failed',e); }catch(_){} }
-        try{ if(typeof SYNC!=='undefined'&&SYNC){ SYNC.localSavedAt=(typeof state!=='undefined'&&state&&state._localUpdatedAt)||Date.now(); SYNC.cloudPending=false; } }catch(_){ }
-        try{ if(typeof updateSyncUI==='function') updateSyncUI(); }catch(_){ }
-        setDiag('workspacePush:skip mode='+(isCustomerMode()?'customer':(isReviewMode()?'review':'flag')), false);
-        return;
-      }
-      return oldSaveState?oldSaveState.apply(this,arguments):undefined;
-    };
-    window.saveState=newSaveState; try{ saveState=newSaveState; }catch(_){ }
-  }catch(_){ }
-
-  // Safety net for forced proposal persist from the review editor: write only fieldwise, never the full workspace.
-  try{
-    var oldForce=window.dsForceProposalPersist || (typeof dsForceProposalPersist==='function'?dsForceProposalPersist:null);
-    var newForce=async function(reason){
-      var tag=S(reason||'');
-      if(isReviewMode() || /cp-review-save|proposal-review|review-save/i.test(tag)){
-        try{
-          var row=(window.__dsProposalReview&&__dsProposalReview.row)||null;
-          var cid=S((document.getElementById('customerSelect')||{}).value || (row&&(row.customerId||row.cid||row.__targetCustomerId)) || '');
-          var pid=S((window.cpEdit&&cpEdit.petId) || (row&&(row.petId||row.pid||row.__targetPetId)) || '');
-          var pet=null, customer=null;
-          try{ if(pid && typeof getPet==='function') pet=getPet(pid); }catch(_){ }
-          try{ if(!pet && pid && typeof getPetByDogId==='function') pet=getPetByDogId(pid); }catch(_){ }
-          try{ if(cid && typeof getCustomer==='function') customer=getCustomer(cid); }catch(_){ }
-          try{ if(!customer && pet && typeof getCustomer==='function') customer=getCustomer(pet.customerId||pet.ownerId); }catch(_){ }
-          if(typeof dsForceProposalPersistFieldwiseReviewRow==='function'){
-            var res=await dsForceProposalPersistFieldwiseReviewRow(row, customer||{}, pet||{}, tag||'gb357-review-fieldwise');
-            setDiag('reviewPersist:fieldwise-ok '+S((res&&res.stages)||''), false);
-            return res;
-          }
-        }catch(e){ setDiag('reviewPersist:fieldwise-fail '+S(e&&e.message||e), true); throw e; }
-      }
-      return oldForce?oldForce.apply(this,arguments):{ok:true,skipped:true,reason:tag||'gb357'};
-    };
-    window.dsForceProposalPersist=newForce; try{ dsForceProposalPersist=newForce; }catch(_){ }
-  }catch(_){ }
-
-  function projectLitePayload(p){
-    try{
-      if(typeof dsProjectCloudSafeProposalPayload==='function') return dsProjectCloudSafeProposalPayload(p||{});
-      return cleanDeep(p||{},'proposalLite');
-    }catch(_){ return {}; }
-  }
-  async function waitUser(){
-    try{ if(typeof cpWaitForFirebaseUser==='function') return await cpWaitForFirebaseUser(10000); }catch(_){ }
-    try{ return (window.CLOUD&&CLOUD.user) || (window.firebase&&firebase.auth&&firebase.auth().currentUser) || null; }catch(_){ return null; }
-  }
-  async function submitProposalGB357(opts){
-    opts=opts||{};
-    var u=await waitUser();
-    if(!u || !u.uid) throw new Error('Keine aktive Firebase-Anmeldung. Bitte Kunden-App neu öffnen und erneut versuchen.');
-    try{ window.CLOUD=window.CLOUD||{}; CLOUD.user=u; if(!CLOUD.orgId) CLOUD.orgId=orgId(); }catch(_){ }
-    var stamp=Date.now();
-    var id=S(opts.id||opts.proposalId)||uid2();
-    var templateId=S(opts.templateId)||'customer_data';
-    var fullPayload=cleanDeep(opts.payloadSubmitted||{}, 'payloadSubmitted') || {};
-    var litePayload=cleanDeep(opts.litePayloadSubmitted||projectLitePayload(fullPayload), 'litePayloadSubmitted') || {};
-    var base={
-      id:id, taskId:id, proposalId:id,
-      templateId:templateId, kind:templateId, formKey:templateId,
-      title:S(opts.title)||'Vorschlag', status:'submitted', proposalStatus:'pending',
-      submittedAt:stamp, createdAt:stamp, updatedAt:stamp,
-      customerUid:S((u&&u.uid)||opts.customerUid), customerEmail:S((u&&u.email)||opts.customerEmail).toLowerCase(),
-      customerName:S(opts.customerName)||S((fullPayload.customer&&fullPayload.customer.name)||u.email||'Kunde'),
-      customerId:S(opts.customerId||(fullPayload.customerId)||(fullPayload.meta&&fullPayload.meta.customerId)||(fullPayload.customer&&(fullPayload.customer.id||fullPayload.customer.customerId))),
-      petId:S(opts.petId||opts.dogId||(fullPayload.petId)||(fullPayload.meta&&fullPayload.meta.petId)||(fullPayload.pet&&(fullPayload.pet.id||fullPayload.pet.petId||fullPayload.pet.dogId))),
-      dogId:S(opts.dogId||opts.petId||(fullPayload.dogId)||(fullPayload.pet&&(fullPayload.pet.dogId||fullPayload.pet.id||fullPayload.pet.petId))),
-      payloadSubmitted: fullPayload,
-      _gb357:true
-    };
-    var taskLite=Object.assign({},base,{payloadSubmitted:litePayload, mirroredFromProposal:true});
-    var ok=false, path='', err=null;
-    window.__dsGB357SuppressWorkspacePush=true;
-    try{
-      try{ var pc=proposalCol(); if(!pc || !pc.doc) throw new Error('cloud-proposals-unavailable'); await pc.doc(id).set(base,{merge:true}); ok=true; path='proposals'; }catch(e){ err=e; }
-      if(ok){ try{ var tc=taskCol(); if(tc&&tc.doc){ await tc.doc(id).set(taskLite,{merge:true}); path='proposals+tasks'; } }catch(e2){ setDiag('tasksMirrorFail '+S(e2&&e2.message||e2), true); } }
-      if(!ok){ try{ var tc2=taskCol(); if(!tc2||!tc2.doc) throw new Error('cloud-tasks-unavailable'); await tc2.doc(id).set(taskLite,{merge:true}); ok=true; path='tasks'; }catch(e3){ err=e3||err; } }
-      var localRow=ok?Object.assign({},taskLite,{mirroredFromCloud:true}):Object.assign({},taskLite,{proposalStatus:'pending',status:'submitted',localOnly:true,error:S(err&&err.message||err)});
-      try{ if(typeof pushCustomerProposalBuffer==='function') pushCustomerProposalBuffer(localRow); }catch(_){ }
-      try{
-        var key=(typeof LS_KEY!=='undefined'?LS_KEY:'doggystyle_workspace_state_v1'); var raw=localStorage.getItem(key); var local=raw?JSON.parse(raw):{};
-        local.inboxAssignments=Array.isArray(local.inboxAssignments)?local.inboxAssignments:[]; local.inboxSubmissions=Array.isArray(local.inboxSubmissions)?local.inboxSubmissions:[];
-        local.inboxAssignments.unshift(localRow); local.inboxSubmissions.unshift(localRow); localStorage.setItem(key, JSON.stringify(local));
-      }catch(_){ }
-      try{ if(typeof state!=='undefined'&&state){ state.inboxAssignments=A(state.inboxAssignments); state.inboxSubmissions=A(state.inboxSubmissions); state.inboxAssignments.unshift(localRow); state.inboxSubmissions.unshift(localRow); } }catch(_){ }
-      setDiag('proposalWrite '+(ok?'ok':'local')+' path='+(path||'local')+' tpl='+templateId+' cid='+base.customerId+' pid='+base.petId+' bytes='+bytes(base), !ok);
-      return {ok:!!ok, path:path||'local', error:err||null, task:base, id:id};
-    }finally{
-      setTimeout(function(){ try{ window.__dsGB357SuppressWorkspacePush=false; }catch(_){ } }, 800);
-    }
-  }
-  window.dsGB357SubmitCustomerPortalProposal=submitProposalGB357;
-  try{ window.dsSubmitCustomerPortalProposal=submitProposalGB357; dsSubmitCustomerPortalProposal=submitProposalGB357; }catch(_){ }
-
-  // Contract scope repair for customer mode: no fallback to Max/Rex when Sonja/Bello is active.
-  function currentCustomerCtx(){ try{ if(typeof getCustomerMainDogsContext==='function') return getCustomerMainDogsContext()||{}; }catch(_){ } try{ if(typeof customerContextIds==='function') return customerContextIds()||{}; }catch(_){ } return {}; }
-  function repairContractScope(){
-    if(!isCustomerMode()) return;
-    var ctx=currentCustomerCtx(); var cid=S(ctx.customerId || (ctx.customer&&(ctx.customer.id||ctx.customer.customerId))); var pet=A(ctx.pets)[0] || ctx.pet || null; var pid=S(ctx.petId || (pet&&(pet.id||pet.petId||pet.dogId))); var cname=S((ctx.customer&&(ctx.customer.name||ctx.customer.fullName||ctx.customer.email))||'Kunde'); var pname=S((pet&&(pet.name||pet.petName||pet.dogName))||'Hund');
-    try{ var cs=document.getElementById('contractCustomerSelect'); if(cs && cid){ if(!Array.prototype.some.call(cs.options||[],function(o){return S(o.value)===cid;})){ cs.innerHTML='<option value="'+cid.replace(/"/g,'&quot;')+'">'+cname.replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];})+'</option>'; } cs.value=cid; cs.disabled=true; cs.setAttribute('disabled','disabled'); cs.style.pointerEvents='none'; } }catch(_){ }
-    try{ var ps=document.getElementById('contractPetSelect'); if(ps && pid){ if(!Array.prototype.some.call(ps.options||[],function(o){return S(o.value)===pid;})){ ps.innerHTML='<option value="'+pid.replace(/"/g,'&quot;')+'">'+pname.replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];})+'</option>'; } ps.value=pid; ps.disabled=true; ps.setAttribute('disabled','disabled'); ps.style.pointerEvents='none'; } }catch(_){ }
-    try{ var save=document.getElementById('contractSaveBtn'); if(save) save.textContent='Vorschlag senden'; }catch(_){ }
-    try{
-      var listHeads=[].slice.call(document.querySelectorAll('h3,h2,div'));
-      listHeads.forEach(function(h){ if(!/Vorhandene Betreuungsverträge/i.test(S(h.textContent))) return; var box=h.parentElement; if(!box) return; [].slice.call(box.querySelectorAll('button')).forEach(function(b){ var card=b.closest('.card,.item,.list-item,div'); var txt=S(card&&card.textContent); if(txt && cname && pname && !(txt.indexOf(cname)>=0 && txt.indexOf(pname)>=0) && /Max Mustermann|Hans Dampf|Rex|Nänzi/i.test(txt)){ try{ card.style.display='none'; }catch(_){ } } }); });
-    }catch(_){ }
-  }
-  try{ var oldRenderContract=window.renderContractPanel || (typeof renderContractPanel==='function'?renderContractPanel:null); if(oldRenderContract && !oldRenderContract.__gb357ScopeWrapped){ var wrap=function(){ var r=oldRenderContract.apply(this,arguments); setTimeout(repairContractScope,30); setTimeout(repairContractScope,250); return r; }; wrap.__gb357ScopeWrapped=true; wrap.__gb357Base=oldRenderContract; window.renderContractPanel=wrap; try{ renderContractPanel=wrap; }catch(_){ } } }catch(_){ }
-  try{ document.addEventListener('DOMContentLoaded', function(){ setTimeout(repairContractScope,80); }); window.addEventListener('load', function(){ setTimeout(repairContractScope,100); }); setInterval(repairContractScope, 1200); }catch(_){ }
-
-  try{ var b=document.getElementById('buildBadge'); if(b) b.textContent='Build (MASTER) '+BUILD; }catch(_){ }
-})();
-/* ===== END GB357 TARGETED FIX ===== */
-
-
-/* ===== GB358 HARD PROPOSAL SAVE + REVIEW SCOPE FIX =====
-   Ziel: Kundenportal-Vorschläge und Prüfmodus-Speichern dürfen niemals mehr den kompletten workspace_state
-   mit >10MB schreiben. Außerdem wird der alte Steuerberater-Export-Handler abgesichert. */
-(function(){
-  'use strict';
-  if(window.__dsGB358HardProposalFixInstalled) return;
-  window.__dsGB358HardProposalFixInstalled = true;
-  var BUILD='M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY';
-  try{ window.__dsAppJsRuntimeBuild='GB359-appjs'; }catch(_){ }
-  function S(v){ try{return String(v==null?'':v).trim();}catch(_){return'';} }
-  function L(v){ return S(v).toLowerCase(); }
-  function A(v){ return Array.isArray(v)?v:[]; }
-  function now(){ return Date.now(); }
-  function clone(v){ try{return JSON.parse(JSON.stringify(v||{}));}catch(_){return v||{};} }
-  function bytes(v){ try{return JSON.stringify(v||{}).length;}catch(_){return 0;} }
-  function esc(v){ return S(v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
-  function makeId(prefix){ return S(prefix||'proposal')+'_'+now()+'_'+Math.random().toString(36).slice(2,10); }
-  function orgId(){ try{return (typeof dsResolveCloudOrgId==='function'?dsResolveCloudOrgId():((window.CLOUD&&CLOUD.orgId)||window.firebaseOrgId||'doggystyle'))||'doggystyle';}catch(_){return 'doggystyle';} }
-  function fb(){ try{return (typeof firebase!=='undefined'&&firebase)?firebase:window.firebase;}catch(_){return null;} }
-  function db(){ try{ var f=fb(); if(f&&typeof f.firestore==='function') return f.firestore(); }catch(_){ } try{ if(window.CLOUD&&CLOUD.db) return CLOUD.db; }catch(_){ } return null; }
-  function user(){ try{ var f=fb(); if(f&&f.auth&&f.auth().currentUser) return f.auth().currentUser; }catch(_){ } try{ if(window.CLOUD&&CLOUD.auth&&CLOUD.auth.currentUser) return CLOUD.auth.currentUser; }catch(_){ } try{ if(window.CLOUD&&CLOUD.user) return CLOUD.user; }catch(_){ } return null; }
-  function setDiag(msg,err){
-    try{ if(typeof dsSetSyncDiag==='function') dsSetSyncDiag('GB358 '+msg, !!err); }catch(_){ }
-    try{ if(typeof dsGB356TraceAlways==='function') dsGB356TraceAlways({event:'GB358 '+msg,error:!!err}); }catch(_){ }
-    try{ var g=window.__gb355Diag||(window.__gb355Diag={events:[]}); g.events.push({at:now(),step:'GB358',message:S(msg),error:!!err}); if(g.events.length>80) g.events=g.events.slice(-80); }catch(_){ }
-  }
-  function notice(msg,err){
-    msg=S(msg)||'Gespeichert.';
-    try{
-      ['customerTaskSaveHint','contractSavedInfo','contractSaveInfo','cpStatus','assignDiag','proposalSaveStatus'].forEach(function(id){try{var el=document.getElementById(id); if(el) el.textContent=msg;}catch(_){ }});
-      var box=document.getElementById('gb358Notice');
-      if(!box){ box=document.createElement('div'); box.id='gb358Notice'; box.setAttribute('role','status'); document.body.appendChild(box); }
-      box.style.cssText='position:fixed;left:50%;top:88px;transform:translateX(-50%);z-index:2147483647;max-width:min(720px,calc(100vw - 32px));padding:16px 22px;border-radius:18px;background:'+(err?'rgba(90,25,25,.98)':'rgba(24,83,45,.98)')+';border:1px solid '+(err?'rgba(255,130,130,.55)':'rgba(119,255,160,.55)')+';box-shadow:0 18px 48px rgba(0,0,0,.45);color:#fff;font:700 16px/1.35 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;text-align:center;white-space:normal;';
-      box.textContent=msg; box.style.display='block'; box.style.opacity='1';
-      clearTimeout(window.__gb358NoticeTimer); window.__gb358NoticeTimer=setTimeout(function(){try{box.style.opacity='0';setTimeout(function(){try{box.style.display='none';}catch(_){ }},260);}catch(_){ }}, err?8500:5200);
-    }catch(_){ }
-  }
-
-  // Der Fehler aus der Diagnose: alter Klickpfad erwartet diese Funktion. Fehlt sie, bricht Öffnen/Speichern ab.
-  try{ if(typeof window.showSteuerberaterExportInfo!=='function') window.showSteuerberaterExportInfo=function(){ return false; }; }catch(_){ }
-  try{ if(typeof showSteuerberaterExportInfo!=='function') showSteuerberaterExportInfo=window.showSteuerberaterExportInfo; }catch(_){ }
-  try{ if(typeof window.closeMonth==='undefined') window.closeMonth=function(){ return false; }; }catch(_){ }
-
-  function queryMode(){ try{return L(new URLSearchParams(String(location.search||'')).get('customer_mode')||new URLSearchParams(String(location.search||'')).get('view')||'');}catch(_){return'';} }
-  function customerMode(){
-    try{
-      var p=L(location.pathname||''), q=queryMode(), ss=L(sessionStorage.getItem('ds_customer_main_mode')||''), body=L(document.body&&document.body.dataset&&document.body.dataset.customerMode||'');
-      return p.indexOf('customer.html')>=0 || ['dogs','contract','stay'].indexOf(q)>=0 || ['dogs','contract','stay'].indexOf(ss)>=0 || ['dogs','contract','stay'].indexOf(body)>=0 || !!window.__dsCustomerMainModeActive || !!window.__dsForceCustomerContractProposal || !!window.__dsForceCustomerStayProposal || (window.CLOUD&&CLOUD.role==='customer');
-    }catch(_){ return false; }
-  }
-  function reviewRow(){
-    try{ if(window.__dsProposalReview && (__dsProposalReview.active || __dsProposalReview.row) && __dsProposalReview.row) return __dsProposalReview.row; }catch(_){ }
-    try{ if(window.__dsInlineInboxReview && __dsInlineInboxReview.row) return __dsInlineInboxReview.row; }catch(_){ }
-    try{ if(window.__dsContractReviewSnapshot && __dsContractReviewSnapshot.row) return __dsContractReviewSnapshot.row; }catch(_){ }
-    try{ if(window.__dsInboxCurrentTask) return window.__dsInboxCurrentTask; }catch(_){ }
-    return null;
-  }
-  function reviewMode(){
-    try{ if(reviewRow()) return true; }catch(_){ }
-    try{ if(document.querySelector('[data-proposal-review], .proposal-review, #proposalReviewPanel')) return true; }catch(_){ }
-    try{ var t=S(document.body&&document.body.textContent).slice(0,1200); if(/Prüfmodus\s*·\s*Kundenvorschlag|Kundenvorschlag im Original-Editor/i.test(t)) return true; }catch(_){ }
-    return false;
-  }
-  function proposalContext(){ return !!window.__gb358ProposalWriting || customerMode() || reviewMode(); }
-
-  function localKey(){ try{return (typeof LS_KEY!=='undefined'?LS_KEY:'ds_workspace_test_optik_01');}catch(_){return 'ds_workspace_test_optik_01';} }
-  function getState(){ try{ if(typeof state!=='undefined' && state) return state; }catch(_){ } try{ if(typeof loadState==='function') return loadState()||{}; }catch(_){ } try{ var raw=localStorage.getItem(localKey()); return raw?JSON.parse(raw):{}; }catch(_){ return {}; } }
-  function writeLocalState(st){
-    try{ st=st||getState(); st._localUpdatedAt=now(); localStorage.setItem(localKey(), JSON.stringify(st)); }catch(e){ setDiag('localStateWriteFail '+S(e&&e.message||e), true); }
-    try{ if(typeof state!=='undefined') state=st; window.state=st; }catch(_){ }
-    try{ if(window.SYNC){ SYNC.localSavedAt=st._localUpdatedAt||now(); SYNC.cloudPending=false; } if(typeof updateSyncUI==='function') updateSyncUI(); }catch(_){ }
-  }
-  function upsert(list,item){
-    list=A(list).slice(); var id=S(item&&(item.id||item.taskId||item.proposalId)); var idx=-1;
-    if(id) idx=list.findIndex(function(x){ return S(x&&(x.id||x.taskId||x.proposalId))===id; });
-    if(idx>=0) list[idx]=Object.assign({},list[idx]||{},item||{}); else list.unshift(item);
-    return list.slice(0,250);
-  }
-  function storeLocalProposal(task){
-    try{ var raw=localStorage.getItem('ds_customer_proposals_v1'); var list=raw?JSON.parse(raw):[]; localStorage.setItem('ds_customer_proposals_v1', JSON.stringify(upsert(list, task))); }catch(_){ }
-    try{ var st=getState(); st.inboxAssignments=upsert(st.inboxAssignments, task); st.inboxSubmissions=upsert(st.inboxSubmissions, task); writeLocalState(st); }catch(_){ }
-    try{ if(typeof pushCustomerProposalBuffer==='function') pushCustomerProposalBuffer(task); }catch(_){ }
-  }
-  function cleanDeep(v,path,seen){
-    try{
-      if(v==null) return v;
-      var t=typeof v;
-      if(t==='string'){
-        var s=String(v), lp=L(path||'');
-        if(/^data:/i.test(s) && !/(signature|signatur|unterschrift)/i.test(lp)) return '';
-        if(/^data:/i.test(s) && s.length>260000) return '';
-        if(s.length>280000) return '';
-        return s;
-      }
-      if(t==='number') return Number.isFinite(v)?v:null;
-      if(t==='boolean') return v;
-      if(t==='bigint') return String(v);
-      if(t==='function'||t==='symbol'||t==='undefined') return undefined;
-      try{ if(typeof Blob!=='undefined' && v instanceof Blob) return undefined; }catch(_){ }
-      try{ if(typeof File!=='undefined' && v instanceof File) return undefined; }catch(_){ }
-      try{ if(v instanceof Date) return v.getTime(); }catch(_){ }
-      if(!seen) seen=new WeakSet();
-      if(typeof v==='object'){
-        if(seen.has(v)) return undefined; seen.add(v);
-        if(Array.isArray(v)){ var arr=[]; v.forEach(function(x,i){ var c=cleanDeep(x,(path||'arr')+'['+i+']',seen); if(c!==undefined) arr.push(c); }); seen.delete(v); return arr; }
-        var proto=Object.getPrototypeOf(v); if(proto && proto!==Object.prototype){ seen.delete(v); return undefined; }
-        var out={}; Object.keys(v).forEach(function(k){ if(k==='__proto__'||k==='constructor'||k==='prototype') return; var c=cleanDeep(v[k],(path?path+'.':'')+k,seen); if(c!==undefined) out[k]=c; }); seen.delete(v); return out;
-      }
-      return v;
-    }catch(_){ return undefined; }
-  }
-  function slimState(src){
-    try{ if(typeof window.dsGB357BuildSlimCloudState==='function'){ var s=window.dsGB357BuildSlimCloudState(src||getState()); if(bytes(s)<900000) return s; } }catch(_){ }
-    src=src||getState();
-    var out={schemaVersion:Math.max(Number(src.schemaVersion||2)||2,2), _cloudUpdatedAt:now(), _localUpdatedAt:Number(src._localUpdatedAt||now())||now(), _gb358Slim:true};
-    ['customers','pets','dogs','customerRecords','petRecords','dogRecords','_legacy','contractAgreements','contractSignatures','contractCanonicalRecords','contractAdoptionBundles','contractAdoptedRecords','settings','company','templates','contractVersion','priceSettings'].forEach(function(k){ try{ if(src[k]!=null) out[k]=cleanDeep(src[k],k); }catch(_){ } });
-    ['inboxAssignments','inboxSubmissions','assignments','submissions','tasks','proposals'].forEach(function(k){ try{ if(Array.isArray(src[k])) out[k]=src[k].slice(0,180).map(function(x){ return cleanDeep(x,k); }); }catch(_){ } });
-    try{ if(Array.isArray(src.docs)) out.docs=src.docs.slice(0,140).map(function(d){ return cleanDeep(d,'docs'); }); }catch(_){ }
-    if(bytes(out)>900000){ try{ out.docs=A(out.docs).map(function(d){ return {id:S(d.id),title:S(d.title),templateId:S(d.templateId),customerId:S(d.customerId),petId:S(d.petId),dogId:S(d.dogId),createdAt:d.createdAt||'',updatedAt:d.updatedAt||''}; }); out._gb358DocsMetaOnly=true; }catch(_){ } }
-    if(bytes(out)>900000){ try{ delete out.inboxAssignments; delete out.inboxSubmissions; delete out.assignments; delete out.submissions; delete out.tasks; delete out.proposals; out._gb358DroppedInbox=true; }catch(_){ } }
-    if(bytes(out)>900000){ try{ Object.keys(out.contractSignatures||{}).forEach(function(k){ var r=out.contractSignatures[k]||{}; if(S(r.dataUrl||r.signatureDataUrl).length>90000) out.contractSignatures[k]={customerId:S(r.customerId),petId:S(r.petId),customerName:S(r.customerName),petName:S(r.petName),signedAt:r.signedAt||r.signatureAt||r.savedAt||now(),signatureAt:r.signatureAt||r.signedAt||now(),dataUrl:''}; }); out._gb358TrimmedSigs=true; }catch(_){ } }
-    return out;
-  }
-  async function writeSlimWorkspace(reason){
-    var d=db(); if(!d) return {ok:false,noDb:true};
-    var stamp=now(); var slim=slimState(getState()); slim._cloudUpdatedAt=stamp; slim._localUpdatedAt=stamp;
-    var ref=d.collection('orgs').doc(orgId()).collection('meta').doc('workspace_state');
-    await ref.set({payload:slim, updatedAt:stamp, updatedBy:S(user()&&(user().email||user().uid)), build:BUILD, reason:S(reason||'gb358-slim')}, {merge:false});
-    try{ if(window.SYNC){ SYNC.cloudLastOkAt=stamp; SYNC.cloudLastError=''; SYNC.cloudPending=false; SYNC.cloudReachable=true; } if(window.CLOUD){ CLOUD.lastPushOkAt=stamp; CLOUD.lastPushError=''; } if(typeof updateSyncUI==='function') updateSyncUI(); }catch(_){ }
-    setDiag('workspaceSlimWrite ok reason='+S(reason)+' bytes='+bytes(slim), false);
-    return {ok:true, bytes:bytes(slim), reason:S(reason)};
-  }
-  try{ window.dsGB358WriteSlimWorkspace=writeSlimWorkspace; }catch(_){ }
-
-  // Save/Cloud Hard-Guard: Kundenmodus = kein workspace_state push. Prüfmodus = schlanker workspace_state nach Übernahme.
-  try{
-    var oldSave=window.saveState || (typeof saveState==='function'?saveState:null);
-    var saveWrap=function(){
-      if(proposalContext()){
-        writeLocalState(getState());
-        setDiag('saveState local-only context='+(customerMode()?'customer':'review'), false);
-        return;
-      }
-      return oldSave?oldSave.apply(this,arguments):undefined;
-    };
-    saveWrap.__gb358Wrapped=true; window.saveState=saveWrap; try{ saveState=saveWrap; }catch(_){ }
-  }catch(_){ }
-  try{
-    var oldCloudPush=window.cloudPushNow || (typeof cloudPushNow==='function'?cloudPushNow:null);
-    var cloudWrap=async function(){
-      if(customerMode() && !reviewMode()){
-        try{ if(window.SYNC){ SYNC.cloudPending=false; } if(typeof updateSyncUI==='function') updateSyncUI(); }catch(_){ }
-        setDiag('cloudPush skipped customer proposal mode', false);
-        return {ok:true,skipped:true,customer:true};
-      }
-      if(reviewMode()) return await writeSlimWorkspace('review-mode-cloudPush');
-      try{ return oldCloudPush?await oldCloudPush.apply(this,arguments):undefined; }
-      catch(e){
-        if(/payload size|exceeds the limit|too large|maximum/i.test(S(e&&e.message||e))) return await writeSlimWorkspace('size-fallback');
-        throw e;
-      }
-    };
-    cloudWrap.__gb358Wrapped=true; window.cloudPushNow=cloudWrap; try{ cloudPushNow=cloudWrap; }catch(_){ }
-  }catch(_){ }
-  try{
-    var oldQueued=window.cloudPushQueued || (typeof cloudPushQueued==='function'?cloudPushQueued:null);
-    var qWrap=function(){ if(proposalContext()){ setDiag('cloudPushQueued suppressed proposalContext', false); try{ if(window.SYNC){SYNC.cloudPending=false;} if(typeof updateSyncUI==='function') updateSyncUI(); }catch(_){ } return; } return oldQueued?oldQueued.apply(this,arguments):undefined; };
-    window.cloudPushQueued=qWrap; try{ cloudPushQueued=qWrap; }catch(_){ }
-  }catch(_){ }
-  try{
-    var oldSched=window.cloudSchedulePush || (typeof cloudSchedulePush==='function'?cloudSchedulePush:null);
-    var sWrap=function(){ if(proposalContext()){ setDiag('cloudSchedulePush suppressed proposalContext', false); try{ if(window.SYNC){SYNC.cloudPending=false;} if(typeof updateSyncUI==='function') updateSyncUI(); }catch(_){ } return true; } return oldSched?oldSched.apply(this,arguments):false; };
-    window.cloudSchedulePush=sWrap; try{ cloudSchedulePush=sWrap; }catch(_){ }
-  }catch(_){ }
-
-  function scope(){
-    var c={};
-    try{ if(typeof getCustomerMainDogsContext==='function') c=getCustomerMainDogsContext()||{}; }catch(_){ }
-    if(!c || (!c.customer&&!c.customerId)){ try{ if(typeof customerContextIds==='function') c=customerContextIds()||c||{}; }catch(_){ } }
-    if(!c || (!c.customer&&!c.customerId)){ try{ if(typeof dsGetCustomerScopeContext==='function') c=dsGetCustomerScopeContext()||c||{}; }catch(_){ } }
-    var cust=c.customer||{}; var pets=A(c.pets); var pet=c.pet||pets[0]||{};
-    var prof=(function(){ var u=user()||{}; return {uid:S(u.uid||sessionStorage.getItem('ds_customer_auth_handoff_uid')), email:L(u.email||sessionStorage.getItem('ds_customer_auth_handoff_email')||cust.email), name:S(u.displayName||cust.name||cust.fullName||cust.email||u.email)}; })();
-    var cid=S(c.customerId||cust.customerId||cust.id||document.getElementById('contractCustomerSelect')&&document.getElementById('contractCustomerSelect').value||prof.uid||prof.email);
-    var pid=S(c.petId||pet.petId||pet.id||pet.dogId||document.getElementById('contractPetSelect')&&document.getElementById('contractPetSelect').value);
-    return {customerId:cid, petId:pid, customer:cust, pet:pet, pets:pets, profile:prof, customerName:S(cust.name||cust.fullName||prof.name||prof.email||'Kunde'), petName:S(pet.name||pet.petName||pet.dogName||'Hund')};
-  }
-  function val(id){ try{ var el=document.getElementById(id); return S(el&&el.value); }catch(_){ return ''; } }
-  function checked(id){ try{ var el=document.getElementById(id); return !!(el&&el.checked); }catch(_){ return false; } }
-  function currentMode(btn){
-    var q=queryMode(), ss=L(sessionStorage.getItem('ds_customer_main_mode')||''), body=L(document.body&&document.body.dataset&&document.body.dataset.customerMode||'');
-    if(['dogs','contract','stay'].indexOf(q)>=0) return q;
-    if(['dogs','contract','stay'].indexOf(ss)>=0) return ss;
-    if(['dogs','contract','stay'].indexOf(body)>=0) return body;
-    try{ if(btn && (btn.id==='contractSaveBtn' || btn.closest('#view-contract,#contract,.contract-panel'))) return 'contract'; }catch(_){ }
-    try{ if(btn && (btn.closest('#view-stay,#stay,#stayEditor,.stay-editor') || /Aufenthalt|Hygiene \/ Extra|Versionen/i.test(S((btn.closest('section,.card,main,div')||{}).textContent).slice(0,700)))) return 'stay'; }catch(_){ }
-    return 'dogs';
-  }
-  function proposalTitle(tpl){ if(tpl==='boarding_contract') return 'Betreuungsvertrag Vorschlag'; if(tpl==='hundeannahme') return 'Neuer Aufenthalt Vorschlag'; return 'Kunde/Hund Änderungsvorschlag'; }
-  function successMsg(tpl){ if(tpl==='boarding_contract') return '✅ Betreuungsvertrag als Vorschlag gespeichert und an Eingänge übergeben.'; if(tpl==='hundeannahme') return '✅ Aufenthaltsanfrage als Vorschlag gespeichert und an Eingänge übergeben.'; return '✅ Änderungsvorschlag gespeichert und an Eingänge übergeben.'; }
-  async function writeProposal(opts){
-    opts=opts||{}; var u=user()||{}; var id=S(opts.id||opts.taskId)||makeId('proposal'); var tpl=S(opts.templateId||'customer_data'); var stamp=now(); var full=cleanDeep(opts.payloadSubmitted||{},'payloadSubmitted')||{}; var lite=cleanDeep(opts.litePayloadSubmitted||full,'litePayloadSubmitted')||{};
-    var task={id:id,taskId:id,proposalId:id,templateId:tpl,kind:tpl,formKey:tpl,type:tpl,title:S(opts.title||proposalTitle(tpl)),status:'submitted',proposalStatus:'pending',submittedAt:stamp,createdAt:stamp,updatedAt:stamp,customerUid:S(u.uid||opts.customerUid),customerEmail:L(u.email||opts.customerEmail),customerName:S(opts.customerName||'Kunde'),customerId:S(opts.customerId),petId:S(opts.petId||opts.dogId),dogId:S(opts.dogId||opts.petId),payloadSubmitted:full,build:BUILD,_gb358:true};
-    var mirror=Object.assign({},task,{mirroredFromProposal:true,payloadSubmitted:lite});
-    storeLocalProposal(task);
-    var d=db(); var ok=false, err=null, path='local';
-    window.__gb358ProposalWriting=true;
-    try{
-      if(d){
-        try{ await Promise.all([d.collection('orgs').doc(orgId()).collection('proposals').doc(id).set(task,{merge:true}), d.collection('orgs').doc(orgId()).collection('tasks').doc(id).set(mirror,{merge:true})]); ok=true; path='proposals+tasks'; }catch(e){ err=e; }
-      }
-      setDiag('proposalWrite '+(ok?'ok':'local')+' path='+path+' tpl='+tpl+' cid='+S(opts.customerId)+' pid='+S(opts.petId||opts.dogId)+' bytes='+bytes(task)+(err?' err='+S(err&&err.message||err):''), !ok && !!err);
-      notice(ok?successMsg(tpl):('⚠️ Vorschlag lokal gespeichert. Cloud-Sicherung bitte prüfen.'), !ok && !!err);
-      return {ok:true, cloud:ok, path:path, task:task, id:id, error:err};
-    }finally{ setTimeout(function(){ try{ window.__gb358ProposalWriting=false; }catch(_){ } }, 900); }
-  }
-  try{ window.dsGB358WriteCustomerProposal=writeProposal; window.dsSubmitCustomerPortalProposal=writeProposal; dsSubmitCustomerPortalProposal=writeProposal; }catch(_){ }
-
-  function buildDogsProposal(){
-    var sc=scope(); var cid=S(sc.customerId), pid=S(sc.petId||val('p_name')||'pet_'+now());
-    var c={id:cid,customerId:cid,name:val('c_name')||sc.customerName,fullName:val('c_name')||sc.customerName,email:L(val('c_email')||sc.profile.email),phone:val('c_phone'),street:val('c_street'),zip:val('c_zip'),city:val('c_city'),emergencyName:val('c_em_name'),emergencyPhone:val('c_em_phone'),pickupAuth:val('c_pickup_auth'),note:val('c_note'),notes:val('c_note')};
-    var p={id:pid,petId:pid,dogId:S(sc.pet&&sc.pet.dogId||pid),customerId:cid,ownerId:cid,name:val('p_name')||sc.petName,petName:val('p_name')||sc.petName,dogName:val('p_name')||sc.petName,breed:val('p_breed'),birthdate:val('p_birthdate'),birthDate:val('p_birthdate'),sex:val('p_sex'),chipStatus:val('p_chipStatus'),chipNumber:val('p_chipNumber'),vet:val('p_vet'),vetPhone:val('p_vetPhone'),vetEmail:val('p_vetEmail'),vetStreet:val('p_vetStreet'),vetZip:val('p_vetZip'),vetCity:val('p_vetCity'),vaccinatedConfirmed:checked('p_vaccinatedConfirmed'),rabiesDate:val('p_rabiesDate'),mixedVaccineDate:val('p_mixedVaccineDate'),allergies:val('p_allergies'),medicalConditions:val('p_medicalConditions'),insuranceStatus:val('p_insuranceStatus'),insuranceCompany:val('p_insuranceCompany'),insurancePolicy:val('p_insurancePolicy'),insuranceNotes:val('p_insuranceNotes'),note:val('p_note'),notes:val('p_note')};
-    var payload={source:'customer-main-dogs-gb358',mode:'proposal',templateId:'customer_data',customerId:cid,petId:pid,customer:c,pet:p,fields:Object.assign({},c,p),meta:{customerId:cid,petId:pid,submittedFrom:S(location.pathname)+S(location.search),build:BUILD}};
-    var lite={source:'customer-main-dogs-gb358',customerId:cid,petId:pid,customer:{name:c.name,email:c.email,phone:c.phone},pet:{name:p.name,breed:p.breed,sex:p.sex,note:p.note},meta:payload.meta};
-    return {templateId:'customer_data',title:'Kunde/Hund Änderungsvorschlag',customerId:cid,petId:pid,customerName:c.name,payloadSubmitted:payload,litePayloadSubmitted:lite};
-  }
-  function canvasData(id){ try{ var cv=document.getElementById(id); var data=cv&&cv.toDataURL?S(cv.toDataURL('image/png')):''; return data&&data.length>1000?data:''; }catch(_){ return ''; } }
-  function buildContractProposal(){
-    var sc=scope(); var cid=S((document.getElementById('contractCustomerSelect')||{}).value||sc.customerId), pid=S((document.getElementById('contractPetSelect')||{}).value||sc.petId);
-    if(!cid||!pid) throw new Error('Kunde/Hund im Vertrag nicht erkannt.');
-    var accept=document.getElementById('contractAcceptChk'); if(accept && !accept.checked) throw new Error('Bitte den Vertrag akzeptieren.');
-    var version=S((window.state&&state.contractVersion)||(window.state&&state.contract&&state.contract.version)||'v1.0')||'v1.0';
-    var key=version+'__'+cid+'__'+pid; var sig=null; try{ sig=state&&state.contractSignatures&&state.contractSignatures[key]||null; }catch(_){ }
-    var data=canvasData('contractSig') || S(sig&&(sig.dataUrl||sig.signatureDataUrl)); if(!data) throw new Error('Bitte zuerst unterschreiben.');
-    var cname=sc.customerName, pname=sc.petName;
-    var payload={source:'customer-main-contract-gb358',mode:'proposal',templateId:'boarding_contract',customerId:cid,petId:pid,dogId:pid,contractVersion:version,accepted:true,customer:{id:cid,customerId:cid,name:cname,fullName:cname,email:L(sc.customer.email||sc.profile.email),phone:S(sc.customer.phone)},pet:{id:pid,petId:pid,dogId:S(sc.pet&&sc.pet.dogId||pid),customerId:cid,name:pname,petName:pname,dogName:pname,breed:S(sc.pet&&sc.pet.breed),sex:S(sc.pet&&sc.pet.sex)},fields:{contractAccepted:true,accepted:true,contractVersion:version,customerName:cname,petName:pname,dogName:pname,signatureDataUrl:data,signatureAt:now()},meta:{customerId:cid,petId:pid,version:version,contractVersion:version,signatureAt:now(),submittedFrom:S(location.pathname)+S(location.search),build:BUILD},signature:{dataUrl:data,signatureDataUrl:data,signedAt:now(),signatureAt:now()},signatureRec:{dataUrl:data,signatureDataUrl:data,signedAt:now(),signatureAt:now(),customerId:cid,petId:pid,customerName:cname,petName:pname,version:version,contractVersion:version},agreementRec:{customerId:cid,petId:pid,customerName:cname,petName:pname,version:version,contractVersion:version,accepted:true,contractAccepted:true,status:'pending',source:'customer-proposal-only-gb358'}};
-    var lite=clone(payload); return {templateId:'boarding_contract',title:'Betreuungsvertrag Vorschlag',customerId:cid,petId:pid,customerName:cname,payloadSubmitted:payload,litePayloadSubmitted:lite};
-  }
-  function buildStayProposal(){
-    try{ if(typeof syncStayEditorInputsToDoc==='function') syncStayEditorInputsToDoc(); }catch(_){ }
-    var sc=scope(); var doc=clone(window.currentDoc||{}); var cid=S(sc.customerId||doc.customerId||(doc.meta&&doc.meta.customerId)); var pid=S(sc.petId||doc.petId||doc.dogId||(doc.meta&&doc.meta.petId));
-    if(!cid||!pid) throw new Error('Kunde/Hund für Aufenthalt nicht erkannt.');
-    var payload={source:'customer-main-stay-gb358',mode:'proposal',templateId:'hundeannahme',customerId:cid,petId:pid,dogId:pid,customer:{id:cid,customerId:cid,name:sc.customerName,email:L(sc.customer.email||sc.profile.email)},pet:{id:pid,petId:pid,dogId:S(sc.pet&&sc.pet.dogId||pid),customerId:cid,name:sc.petName},meta:clone(doc.meta||{}),fields:clone(doc.fields||{}),signature:clone(doc.signature||{}),docId:S(doc.id),title:S(doc.title||'Aufenthaltsanfrage')};
-    payload.meta.customerId=payload.meta.customerId||cid; payload.meta.petId=payload.meta.petId||pid; payload.meta.submittedFrom=S(location.pathname)+S(location.search); payload.meta.build=BUILD;
-    var lite={source:'customer-main-stay-gb358',customerId:cid,petId:pid,von:S(payload.meta.von||payload.fields.von||payload.fields.startDate),bis:S(payload.meta.bis||payload.fields.bis||payload.fields.endDate),betreuung:S(payload.meta.betreuung||payload.fields.betreuung),signaturePresent:!!(payload.signature&&payload.signature.dataUrl),meta:{customerId:cid,petId:pid,build:BUILD}};
-    return {templateId:'hundeannahme',title:'Neuer Aufenthalt Vorschlag',customerId:cid,petId:pid,customerName:sc.customerName,payloadSubmitted:payload,litePayloadSubmitted:lite};
-  }
-  async function hardCustomerSave(mode){
-    var opts; if(mode==='contract') opts=buildContractProposal(); else if(mode==='stay') opts=buildStayProposal(); else opts=buildDogsProposal();
-    return await writeProposal(opts);
-  }
-  async function hardReviewSave(){
-    var row=reviewRow(); if(!row) throw new Error('Kein Vorschlag im Prüfmodus gefunden.');
-    window.__gb358ProposalWriting=true;
-    try{
-      setDiag('reviewSave start row='+S(row.id||row.taskId||row.proposalId), false);
-      var ok=false, res=null;
-      if(typeof window.dsGB353AcceptProposal==='function'){ res=await window.dsGB353AcceptProposal(row); ok = res!==false; }
-      else if(typeof window.dsSaveProposalReview==='function' && !window.dsSaveProposalReview.__gb358Wrapped){ res=await window.dsSaveProposalReview(row); ok=res!==false; }
-      else throw new Error('Keine Übernahmefunktion gefunden.');
-      await writeSlimWorkspace('review-save-accepted');
-      notice('✅ Vorschlag übernommen und gespeichert.', false);
-      setDiag('reviewSave ok row='+S(row.id||row.taskId||row.proposalId), false);
-      return {ok:ok, result:res};
-    }catch(e){ setDiag('reviewSave fail '+S(e&&e.message||e), true); notice('❌ Vorschlag konnte nicht übernommen werden: '+S(e&&e.message||e), true); throw e; }
-    finally{ setTimeout(function(){ window.__gb358ProposalWriting=false; }, 900); }
-  }
-  try{ window.dsGB358HardReviewSave=hardReviewSave; }catch(_){ }
-
-  function repairCustomerContractScope(){
-    if(!customerMode()) return;
-    try{
-      var sc=scope(); var cid=S(sc.customerId), pid=S(sc.petId), cname=sc.customerName, pname=sc.petName;
-      var cs=document.getElementById('contractCustomerSelect'); if(cs&&cid){ cs.innerHTML='<option value="'+esc(cid)+'">'+esc(cname)+'</option>'; cs.value=cid; cs.disabled=true; cs.setAttribute('disabled','disabled'); cs.style.pointerEvents='none'; }
-      var ps=document.getElementById('contractPetSelect'); if(ps&&pid){ ps.innerHTML='<option value="'+esc(pid)+'">'+esc(pname)+'</option>'; ps.value=pid; ps.disabled=true; ps.setAttribute('disabled','disabled'); ps.style.pointerEvents='none'; }
-      var save=document.getElementById('contractSaveBtn'); if(save) save.textContent='Vorschlag senden';
-      [].slice.call(document.querySelectorAll('button')).forEach(function(b){
-        if(!/Öffnen/i.test(S(b.textContent))) return;
-        var card=b.closest('.card,.item,.list-item,section,div'); var txt=S(card&&card.textContent);
-        if(/Vorhandene Betreuungsverträge|v1\.0|Max Mustermann|Hans Dampf|Rex|Nänzi|Sonja Sonnenschein|Bello/i.test(txt)){
-          var own=(cname&&txt.indexOf(cname)>=0) || (pname&&txt.indexOf(pname)>=0);
-          var foreign=/Max Mustermann|Hans Dampf|Rex|Nänzi/i.test(txt) && !(cname&&/Max Mustermann|Hans Dampf/i.test(cname));
-          if(!own || foreign){ try{ card.style.display='none'; }catch(_){ } }
-        }
-      });
-    }catch(_){ }
-  }
-
-  document.addEventListener('click', function(ev){
-    try{
-      var b=ev.target&&ev.target.closest&&ev.target.closest('button'); if(!b) return;
-      var txt=L(b.textContent), id=S(b.id);
-      if(customerMode() && (txt==='abmelden' || id==='btnCustomerLogout' || id==='btnLogoutTop' || id==='btnLogoutApp')){
-        ev.preventDefault(); ev.stopPropagation(); try{ev.stopImmediatePropagation();}catch(_){ }
-        try{ window.__dsLogoutInFlight=true; }catch(_){ }
-        var go=function(){ try{ location.href='login.html?v='+encodeURIComponent(BUILD); }catch(_){ location.href='login.html'; } };
-        try{ var a=(window.CLOUD&&CLOUD.auth)||(fb()&&fb().auth&&fb().auth()); if(a&&a.signOut){ Promise.race([a.signOut().catch(function(){}),new Promise(function(r){setTimeout(r,900);})]).then(go).catch(go); setTimeout(go,1300); return false; } }catch(_){ }
-        go(); return false;
-      }
-      if(reviewMode() && (/speichern|übernehmen/.test(txt+id)) && !/pdf|drucken/.test(txt+id)){
-        ev.preventDefault(); ev.stopPropagation(); try{ev.stopImmediatePropagation();}catch(_){ }
-        if(window.__gb358ReviewClickLock && now()-window.__gb358ReviewClickLock<2500) return false; window.__gb358ReviewClickLock=now();
-        hardReviewSave().catch(function(){}); return false;
-      }
-      if(customerMode() && (/speichern|vorschlag senden|senden|aufenthalt beantragen/.test(txt+id)) && !/pdf|drucken|unterschrift|löschen/.test(txt+id)){
-        ev.preventDefault(); ev.stopPropagation(); try{ev.stopImmediatePropagation();}catch(_){ }
-        if(window.__gb358CustomerClickLock && now()-window.__gb358CustomerClickLock<2200) return false; window.__gb358CustomerClickLock=now();
-        var mode=currentMode(b); notice('Speichern läuft …', false);
-        hardCustomerSave(mode).catch(function(e){ notice('❌ Speichern fehlgeschlagen: '+S(e&&e.message||e), true); });
-        return false;
-      }
-      setTimeout(repairCustomerContractScope,60);
-    }catch(e){ try{ setDiag('clickGuard error '+S(e&&e.message||e), true); }catch(_){ } }
-  }, true);
-
-  try{ window.addEventListener('error',function(ev){ try{ if(/showSteuerberaterExportInfo|closeMonth/i.test(S(ev&&ev.message))){ setDiag('suppressed missing helper '+S(ev&&ev.message), true); } }catch(_){ } }); }catch(_){ }
-  try{ document.addEventListener('DOMContentLoaded',repairCustomerContractScope); window.addEventListener('load',repairCustomerContractScope); setInterval(repairCustomerContractScope,1000); }catch(_){ }
-  try{ var badge=document.getElementById('buildBadge')||document.getElementById('customerPortalBuildBottom'); if(badge) badge.textContent=(badge.id==='customerPortalBuildBottom'?'Build CUSTOMER ':'Build (MASTER) ')+BUILD; }catch(_){ }
-  setDiag('installed', false);
-})();
-/* ===== END GB358 HARD PROPOSAL SAVE + REVIEW SCOPE FIX ===== */
-
-/* ===== GB359 FIRESTORE SET GUARD + MISSING HELPER FIX =====
-   Ziel:
-   - globale Helper vor UI-Klicks absichern (showSteuerberaterExportInfo / closeMonth)
-   - Firestore workspace_state Set IMMER abfangen und vor dem Schreiben unter Firestore-Limit bringen
-   - Diagnose schreibt konkrete Roh-/bereinigte Bytes und blockiert keinen Buttonpfad mehr
-*/
-(function(){
-  var BUILD='M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY';
-  function S(v){ return v==null?'':String(v); }
-  function now(){ return Date.now(); }
-  function bytes(o){ try{return new Blob([JSON.stringify(o||{})]).size;}catch(_){try{return JSON.stringify(o||{}).length;}catch(__){return 0;}} }
-  function arr(v){ return Array.isArray(v)?v:[]; }
-  function clone(v){ try{return JSON.parse(JSON.stringify(v));}catch(_){ return v; } }
-  function log(msg, err){
-    try{
-      var rec={ts:now(), build:BUILD, msg:S(msg), err:!!err};
-      window.__gb356Trace=Array.isArray(window.__gb356Trace)?window.__gb356Trace:[];
-      window.__gb356Trace.push(rec); if(window.__gb356Trace.length>80) window.__gb356Trace=window.__gb356Trace.slice(-80);
-      window.__gb359Trace=Array.isArray(window.__gb359Trace)?window.__gb359Trace:[];
-      window.__gb359Trace.push(rec); if(window.__gb359Trace.length>80) window.__gb359Trace=window.__gb359Trace.slice(-80);
-      try{ console[err?'warn':'log']('GB359', msg); }catch(_){ }
-    }catch(_){ }
-  }
-
-  // Missing helper guard: the old UI has listeners that may call this helper although the function is absent.
-  try{
-    if(typeof window.showSteuerberaterExportInfo!=='function'){
-      window.showSteuerberaterExportInfo=function(){
-        try{ alert('Steuerberater-Export ist in diesem Build nicht aktiv. Der Klick wurde abgefangen, damit die App nicht abbricht.'); }catch(_){ }
-        log('showSteuerberaterExportInfo stub used', false);
-        return false;
-      };
-    }
-    try{ if(typeof showSteuerberaterExportInfo==='undefined') var showSteuerberaterExportInfo=window.showSteuerberaterExportInfo; }catch(_){ }
-    if(typeof window.closeMonth!=='function'){
-      window.closeMonth=function(){
-        try{ var el=document.getElementById('monthModal')||document.getElementById('monthExportModal'); if(el) el.style.display='none'; }catch(_){ }
-        log('closeMonth stub used', false);
-        return false;
-      };
-    }
-    try{ if(typeof closeMonth==='undefined') var closeMonth=window.closeMonth; }catch(_){ }
-  }catch(e){ log('helper guard install failed '+S(e&&e.message||e), true); }
-
-  function isWorkspacePath(ref){
-    try{
-      var p=S(ref && (ref.path || ref._key && ref._key.path && ref._key.path.segments && ref._key.path.segments.join('/')));
-      return /\/orgs\/[^/]+\/meta\/workspace_state$|^orgs\/[^/]+\/meta\/workspace_state$|meta\/workspace_state$/.test(p);
-    }catch(_){ return false; }
-  }
-  function isHugeString(v){
-    var s=S(v); return s.length>60000 || /^data:image\//i.test(s) || /^data:application\//i.test(s);
-  }
-  function keepSmallString(v){
-    var s=S(v); if(s.length>120000) return s.slice(0,6000)+'…[GB359 gekürzt '+s.length+' Zeichen]'; return v;
-  }
-  function cleanDeep(v, path, depth){
-    path=path||''; depth=depth||0;
-    if(v==null) return v;
-    if(typeof v==='string'){
-      if(isHugeString(v)) return '';
-      return keepSmallString(v);
-    }
-    if(typeof v!=='object') return v;
-    if(depth>7) return undefined;
-    if(Array.isArray(v)){
-      var max = /^(docs|inbox|proposals|tasks|entries|submissions|assignments)/i.test(path) ? 160 : 600;
-      return v.slice(0,max).map(function(x,i){ return cleanDeep(x, path+'['+i+']', depth+1); }).filter(function(x){return x!==undefined;});
-    }
-    var out={};
-    Object.keys(v).forEach(function(k){
-      try{
-        var val=v[k]; var kp=path?path+'.'+k:k; var lk=String(k).toLowerCase();
-        if(typeof val==='function') return;
-        if(typeof val==='string' && isHugeString(val)){
-          // Vertrags-/Aufenthalts-Signatur wird nicht in workspace_state groß gespeichert; die eigentlichen Vorschläge/Vertrags-Mirror bleiben separat.
-          out[k]='';
-          if(/signature|signatur|unterschrift|dataurl|photo|foto|image|bild|impf|attachment|file/.test(lk)) out[k+'Present']=true;
-          return;
-        }
-        if(/^(html|htmlContent|renderedHtml|pdfData|blob|base64|rawFile|fileData|attachmentData)$/i.test(k)) return;
-        out[k]=cleanDeep(val,kp,depth+1);
-      }catch(_){ }
-    });
-    return out;
-  }
-  function metaDoc(d){
-    d=d||{};
-    return cleanDeep({
-      id:d.id||d.docId||'', title:d.title||d.name||d.templateId||'Dokument', templateId:d.templateId||d.formKey||d.kind||'', customerId:d.customerId||(d.meta&&d.meta.customerId)||'', petId:d.petId||d.dogId||(d.meta&&d.meta.petId)||'', dogId:d.dogId||d.petId||'', createdAt:d.createdAt||(d.meta&&d.meta.createdAt)||'', updatedAt:d.updatedAt||(d.meta&&d.meta.updatedAt)||'', status:d.status||''
-    },'docMeta',0);
-  }
-  function compactState(src){
-    src=(src&&typeof src==='object')?src:{};
-    var out={};
-    ['_cloudUpdatedAt','_localUpdatedAt','_version','version','build','settings','company','templates','contractVersion','priceSettings','customers','pets','dogs','customerRecords','petRecords','dogRecords','contractAgreements','contractSignatures','contractCanonicalRecords','contractAdoptionBundles','contractAdoptedRecords','meds','medications','hygiene','staff','roles']
-      .forEach(function(k){ try{ if(src[k]!=null) out[k]=cleanDeep(src[k],k,0); }catch(_){ } });
-    try{ if(Array.isArray(src.docs)) out.docs=src.docs.slice(0,90).map(metaDoc); }catch(_){ }
-    try{ if(Array.isArray(src.stays)) out.stays=cleanDeep(src.stays.slice(0,120),'stays',0); }catch(_){ }
-    ['inboxAssignments','inboxSubmissions','assignments','submissions','tasks','proposals'].forEach(function(k){ try{ if(Array.isArray(src[k])) out[k]=cleanDeep(src[k].slice(0,100),k,0); }catch(_){ } });
-    out._gb359Compacted=true;
-    out._gb359CompactedAt=now();
-    return out;
-  }
-  function shrinkDocData(data, path){
-    try{
-      var rawBytes=bytes(data);
-      var obj=clone(data||{});
-      if(rawBytes<850000) return {data:data, rawBytes:rawBytes, newBytes:rawBytes, changed:false};
-      var payload=(obj && obj.payload && typeof obj.payload==='object')?obj.payload:{};
-      var slim=compactState(payload);
-      var wrapped=Object.assign({}, obj, {payload:slim, updatedAt: obj.updatedAt || now(), build:BUILD, gb359Guard:true, gb359RawBytes:rawBytes});
-      var b=bytes(wrapped);
-      if(b>850000){
-        try{ delete slim.tasks; delete slim.proposals; delete slim.inboxAssignments; delete slim.inboxSubmissions; delete slim.assignments; delete slim.submissions; wrapped.payload=slim; wrapped.gb359DroppedInbox=true; b=bytes(wrapped); }catch(_){ }
-      }
-      if(b>850000){
-        try{ slim.docs=arr(slim.docs).slice(0,30).map(metaDoc); slim.stays=arr(slim.stays).slice(0,60).map(function(x){ return cleanDeep({id:x.id,title:x.title,customerId:x.customerId,petId:x.petId,dogId:x.dogId,from:x.from||x.startDate,to:x.to||x.endDate,status:x.status,updatedAt:x.updatedAt},'stayMeta',0); }); wrapped.payload=slim; wrapped.gb359MetaOnly=true; b=bytes(wrapped); }catch(_){ }
-      }
-      if(b>850000){
-        var minimal={_cloudUpdatedAt:now(),_localUpdatedAt:now(),_gb359Minimal:true,customers:cleanDeep(arr(payload.customers).slice(0,80),'customers',0),pets:cleanDeep(arr(payload.pets||payload.dogs).slice(0,120),'pets',0),dogs:cleanDeep(arr(payload.dogs).slice(0,120),'dogs',0),contractAgreements:cleanDeep(payload.contractAgreements||{},'contractAgreements',0),contractCanonicalRecords:cleanDeep(payload.contractCanonicalRecords||{},'contractCanonicalRecords',0),contractAdoptionBundles:cleanDeep(payload.contractAdoptionBundles||{},'contractAdoptionBundles',0),contractSignatures:cleanDeep(payload.contractSignatures||{},'contractSignatures',0)};
-        wrapped={payload:minimal, updatedAt:now(), build:BUILD, gb359Guard:true, gb359RawBytes:rawBytes, gb359Minimal:true};
-        b=bytes(wrapped);
-      }
-      if(b>850000){
-        wrapped={payload:{_cloudUpdatedAt:now(),_localUpdatedAt:now(),_gb359TooLargeFallback:true}, updatedAt:now(), build:BUILD, gb359Guard:true, gb359RawBytes:rawBytes, gb359Fallback:true};
-        b=bytes(wrapped);
-      }
-      log('workspace_state set guarded path='+S(path)+' rawBytes='+rawBytes+' newBytes='+b, false);
-      return {data:wrapped, rawBytes:rawBytes, newBytes:b, changed:true};
-    }catch(e){ log('shrinkDocData failed '+S(e&&e.message||e), true); return {data:data, rawBytes:bytes(data), newBytes:bytes(data), changed:false, error:e}; }
-  }
-  function patchDb(db){
-    try{
-      if(!db || !db.collection) return false;
-      var sample=db.collection('orgs').doc('__gb359').collection('meta').doc('workspace_state');
-      var proto=Object.getPrototypeOf(sample);
-      if(!proto || proto.__gb359SetGuardInstalled) return true;
-      var orig=proto.set;
-      if(typeof orig!=='function') return false;
-      proto.set=function(data, options){
-        try{
-          if(isWorkspacePath(this)){
-            var res=shrinkDocData(data, this.path || 'workspace_state');
-            data=res.data;
-          }
-        }catch(e){ log('set guard error '+S(e&&e.message||e), true); }
-        return orig.call(this,data,options);
-      };
-      proto.__gb359SetGuardInstalled=true;
-      log('Firestore DocumentReference.set guard installed', false);
-      return true;
-    }catch(e){ log('patchDb failed '+S(e&&e.message||e), true); return false; }
-  }
-  function tryPatch(){
-    try{ if(window.CLOUD && CLOUD.db) patchDb(CLOUD.db); }catch(_){ }
-    try{ if(window.firebase && firebase.firestore) patchDb(firebase.firestore()); }catch(_){ }
-  }
-  tryPatch();
-  try{ setTimeout(tryPatch,300); setTimeout(tryPatch,1200); setInterval(tryPatch,2500); }catch(_){ }
-
-  // Also expose for Diagnose and manual checks.
-  try{ window.dsGB359ShrinkWorkspaceSet=shrinkDocData; window.__dsAppJsRuntimeBuild='GB359-appjs'; }catch(_){ }
-  log('GB359 installed', false);
-})();
-/* ===== END GB359 FIRESTORE SET GUARD + MISSING HELPER FIX ===== */
+/* ===== END GB347 DIAG ===== */

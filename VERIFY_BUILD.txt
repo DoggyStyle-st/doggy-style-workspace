@@ -1,6 +1,1 @@
-Build: M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY
-Prüfung:
-- app.js, app.html, customer.html, sw.js und version.txt tragen GB359.
-- Diagnose muss bei workspace_state-Schreiben rawBytes/newBytes zeigen.
-- Keine ReferenceError-Meldung mehr zu showSteuerberaterExportInfo.
-- Bei Vorschlag-Speichern darf der Firestore-Limitfehler nicht mehr abbrechen.
+M50.9.9GB347_DIAG_CUSTOMER_PORTAL_SCOPE_FROM_GB346_20260518_ROOTONLY
