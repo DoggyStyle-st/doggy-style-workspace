@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY",
+  tag: "M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,8 +12,16 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY";
-try{ window.__dsAppJsRuntimeBuild = 'GB358-appjs'; }catch(_){ }
+const APP_BUILD = "M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY";
+try{ window.__dsAppJsRuntimeBuild = 'GB359-appjs'; }catch(_){ }
+
+/* GB359 early missing-helper guard */
+try{
+  if(typeof window.showSteuerberaterExportInfo!=='function') window.showSteuerberaterExportInfo=function(){try{alert('Steuerberater-Export ist in diesem Build nicht aktiv.');}catch(_){} return false;};
+  if(typeof showSteuerberaterExportInfo==='undefined') var showSteuerberaterExportInfo=window.showSteuerberaterExportInfo;
+  if(typeof window.closeMonth!=='function') window.closeMonth=function(){try{var el=document.getElementById('monthModal')||document.getElementById('monthExportModal'); if(el) el.style.display='none';}catch(_){} return false;};
+  if(typeof closeMonth==='undefined') var closeMonth=window.closeMonth;
+}catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
 // Global helper functions used across proposal-review matching.
@@ -3796,7 +3804,7 @@ async function submitCustomerContractProposalMain(){
         version: contractVersion,
         contractVersion: contractVersion,
         submittedFrom: 'app.html?customer_mode=contract',
-        build: 'M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY'
+        build: 'M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY'
       },
       signature: { dataUrl: signatureDataUrl, signatureDataUrl: signatureDataUrl, signedAt: signatureAt, signatureAt: signatureAt },
       signatureRec: { dataUrl: signatureDataUrl, signatureDataUrl: signatureDataUrl, signedAt: signatureAt, signatureAt: signatureAt, customerId, petId, customerName, petName, version: contractVersion, contractVersion },
@@ -25713,7 +25721,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -27686,7 +27694,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY";
+  const BUILD = "M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -30363,7 +30371,7 @@ try{ window.__GB191_MARKER = 'active'; }catch(_){ }
     try{ ds166OpenRowByKey = window.ds166OpenRowByKey; }catch(_){ }
   }catch(_){ }
 })();
-try{ window.__dsAppJsRuntimeBuild = 'GB358-appjs'; }catch(_){}
+try{ window.__dsAppJsRuntimeBuild = 'GB359-appjs'; }catch(_){}
 /* ===== END GB194 ===== */
 
 
@@ -31276,7 +31284,7 @@ try{ window.__GB294_MARKER = 'active'; }catch(_){ }
 /* ===== GB295 contract review verified open + reset fix ===== */
 try{ window.__GB295_MARKER = 'active'; }catch(_){ }
 (function(){
-  const BUILD = "M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY";
+  const BUILD = "M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY";
   function ds295Clone(v){ try{ return JSON.parse(JSON.stringify(v == null ? null : v)); }catch(_){ return v; } }
   function ds295Norm(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
   function ds295Bool(v){ try{ if(v===true||v===false) return !!v; const s=String(v==null?'':v).trim().toLowerCase(); return s==='1'||s==='true'||s==='yes'||s==='ja'||s==='on'; }catch(_){ return false; } }
@@ -31925,7 +31933,7 @@ try{ window.__GB297_MARKER = 'active'; }catch(_){ }
       try{ const btn = document.getElementById('btnContractRefresh'); if(btn){ btn.onclick = null; btn.addEventListener('click', wrappedRefresh); } }catch(_){ }
     }
   }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB358-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB359-appjs'; }catch(_){ }
 })();
 /* ===== END GB297 ===== */
 
@@ -32199,7 +32207,7 @@ try{ window.__GB298_MARKER = 'active'; }catch(_){ }
   try{
     if(ds298ApplyRescueIntoState()) ds298PersistStateSilently();
   }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB358-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB359-appjs'; }catch(_){ }
 })();
 /* ===== END GB298 ===== */
 
@@ -32491,7 +32499,7 @@ try{ window.__GB299_MARKER = 'active'; }catch(_){ }
     ds299WriteRescueUnion(snap.contractSignatures, snap.contractAgreements);
     if(ds299ApplyRescueIntoState()) ds299PersistLocalOnly();
   }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB358-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB359-appjs'; }catch(_){ }
 })();
 /* ===== END GB299 ===== */
 
@@ -32859,7 +32867,7 @@ try{ window.__GB300_MARKER = 'active'; }catch(_){ }
     }
   }catch(_){ }
   try{ ds300ApplyUnionIntoState(); ds300WriteUnion(); }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB358-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB359-appjs'; }catch(_){ }
 })();
 /* ===== END GB300 ===== */
 
@@ -33296,7 +33304,7 @@ try{ window.__GB301_MARKER = 'active'; }catch(_){ }
   }catch(_){ }
   try{ ds301ApplyUnionIntoState(); ds301WriteUnion(); }catch(_){ }
   try{ window.__dsContractMainNormalize = ds301PopulateNormalContractUi; }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB358-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB359-appjs'; }catch(_){ }
 })();
 /* ===== END GB301 ===== */
 
@@ -33487,7 +33495,7 @@ try{ window.__GB302_MARKER = 'active'; }catch(_){ }
   }catch(_){ }
   try{ ds302ApplyUnion(); ds302WriteUnion(); }catch(_){ }
   try{ window.__dsContractMainHardReset = ds302ResetContractMainUi; }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB358-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB359-appjs'; }catch(_){ }
 })();
 /* ===== END GB302 ===== */
 
@@ -33947,7 +33955,7 @@ try{ window.__GB303_MARKER = 'active'; }catch(_){ }
   }catch(_){ }
   try{ ds303ApplyUnion(); ds303WriteUnion(); }catch(_){ }
   try{ window.__dsContractMainNormalize = ds303NormalizeMainUi; }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB358-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB359-appjs'; }catch(_){ }
 })();
 /* ===== END GB303 ===== */
 
@@ -34066,7 +34074,7 @@ try{ window.__GB304_MARKER = 'active'; }catch(_){ }
     }
   }catch(_){ }
   try{ window.__dsContractReviewExitToMainGB304 = ds304ExitReviewToMain; }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB358-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB359-appjs'; }catch(_){ }
 })();
 /* ===== END GB304 ===== */
 
@@ -34249,7 +34257,7 @@ try{ window.__GB305_MARKER = 'active'; }catch(_){ }
       try{ window.hasValidContract = wrapped; }catch(_){ }
     }
   }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB358-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB359-appjs'; }catch(_){ }
 })();
 /* ===== END GB305 ===== */
 
@@ -34453,14 +34461,14 @@ try{ window.__GB306_MARKER = 'active'; }catch(_){ }
       window.__dsContractReviewSubmitHook = wrappedReviewHook;
     }
   }catch(_){ }
-  try{ window.__dsAppJsRuntimeBuild = 'GB358-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB359-appjs'; }catch(_){ }
 })();
 /* ===== END GB306 ===== */
 
 
 /* ===== GB307 contract diagnostics panel ===== */
 try{ window.__GB307_MARKER = 'active'; }catch(_){ }
-try{ window.__dsAppJsRuntimeBuild = 'GB358-appjs'; }catch(_){ }
+try{ window.__dsAppJsRuntimeBuild = 'GB359-appjs'; }catch(_){ }
 (function(){
   const DIAG = window.__dsContractDiag = window.__dsContractDiag || {};
   const UNION_KEYS = [
@@ -34682,7 +34690,7 @@ try{ window.__dsAppJsRuntimeBuild = 'GB358-appjs'; }catch(_){ }
 
 /* ===== GB308 contract diagnostics hard mount ===== */
 try{ window.__GB308_MARKER = 'active'; }catch(_){ }
-try{ window.__dsAppJsRuntimeBuild = 'GB358-appjs'; }catch(_){ }
+try{ window.__dsAppJsRuntimeBuild = 'GB359-appjs'; }catch(_){ }
 (function(){
   const DIAG = window.__dsContractDiag = window.__dsContractDiag || {};
   function norm(v){ return String(v == null ? '' : v).trim(); }
@@ -34863,7 +34871,7 @@ try{ window.__GB311_MARKER = 'active'; }catch(_){ }
 
 /* ===== GB312 contract canonical validity + refresh repair ===== */
 try{ window.__GB312_MARKER = 'active'; }catch(_){ }
-try{ window.__dsAppJsRuntimeBuild = 'GB358-appjs'; }catch(_){ }
+try{ window.__dsAppJsRuntimeBuild = 'GB359-appjs'; }catch(_){ }
 (function(){
   function n(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
   function lc(v){ return n(v).toLowerCase(); }
@@ -35049,7 +35057,7 @@ try{ window.__dsAppJsRuntimeBuild = 'GB358-appjs'; }catch(_){ }
 /* ===== END GB312 ===== */
 
 /* ===== GB313 contract click-release + canonical badge hardfix ===== */
-try{ window.__GB313_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB358-appjs'; }catch(_){ }
+try{ window.__GB313_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB359-appjs'; }catch(_){ }
 (function(){
   function n(v){try{return String(v==null?'':v).trim();}catch(_){return ''}}
   function lc(v){return n(v).toLowerCase()}
@@ -35101,7 +35109,7 @@ try{ window.__GB313_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB358-appjs
 /* ===== END GB313 ===== */
 
 /* ===== GB314 hard contract review release + green badge repair ===== */
-try{ window.__GB314_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB358-appjs'; }catch(_){ }
+try{ window.__GB314_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB359-appjs'; }catch(_){ }
 (function(){
   function N(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
   function L(v){ return N(v).toLowerCase(); }
@@ -35282,9 +35290,9 @@ try{ window.__GB314_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB358-app
 /* ===== END GB314 ===== */
 
 /* ===== GB315 final contract acceptance + badge DOM hardfix ===== */
-try{ window.__GB315_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB358-appjs'; }catch(_){ }
+try{ window.__GB315_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB359-appjs'; }catch(_){ }
 (function(){
-  var BUILD='M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY';
+  var BUILD='M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY';
   function S(v){ try{return String(v==null?'':v).trim();}catch(_){return '';} }
   function L(v){ return S(v).toLowerCase(); }
   function esc(v){ try{return CSS && CSS.escape ? CSS.escape(S(v)) : S(v).replace(/[^a-zA-Z0-9_-]/g,'\\$&');}catch(_){return S(v);} }
@@ -35429,7 +35437,7 @@ try{ window.__GB315_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB358-app
 /* ===== END GB315 ===== */
 
 /* ===== GB316 contract signature-valid + passive repair loop ===== */
-try{ window.__GB316_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB358-appjs'; }catch(_){ }
+try{ window.__GB316_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB359-appjs'; }catch(_){ }
 (function(){
   function S(v){ try{ return String(v==null?'':v).trim(); }catch(_){ return ''; } }
   function L(v){ return S(v).toLowerCase(); }
@@ -35471,7 +35479,7 @@ try{ window.__GB316_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB358-appjs
 
 
 /* ===== GB317 contract real save + unlock ===== */
-try{window.__GB317_MARKER='active';window.__dsAppJsRuntimeBuild = 'GB358-appjs'}catch(_){ }
+try{window.__GB317_MARKER='active';window.__dsAppJsRuntimeBuild = 'GB359-appjs'}catch(_){ }
 (function(){
 function S(v){return String(v==null?'':v).trim()}function L(v){return S(v).toLowerCase()}function V(){try{return S(state.contractVersion||state.contract?.version||'v1.0')||'v1.0'}catch(_){return'v1.0'}}function pets(){try{return Array.isArray(state.pets)?state.pets:[]}catch(_){return[]}}function custs(){try{return Array.isArray(state.customers)?state.customers:[]}catch(_){return[]}}function pn(p){return S(p&&(p.name||p.petName||p.dogName||p.id||p.petId||p.dogId))}function cn(c){return S(c&&(c.name||c.displayName||c.lastName||c.email||c.id||c.customerId))}
 function fc(x){var lx=L(x),r=null;if(!lx)return null;try{if(typeof getCustomer==='function')r=getCustomer(S(x))||null}catch(_){ }return r||custs().find(c=>[c.id,c.customerId,c.uid,c.key,c.email,c.name,c.displayName,c.lastName].map(L).includes(lx))||null}
@@ -35495,9 +35503,9 @@ try{var rd=renderDogs;if(rd&&!rd.__gb317Wrapped){renderDogs=function(){var r=rd.
 /* ===== END GB317 ===== */
 
 /* ===== GB318 contract hard bypass: accept not required when signature exists + generic green repair ===== */
-try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB358-appjs'; }catch(_){ }
+try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB359-appjs'; }catch(_){ }
 (function(){
-  var BUILD='M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY';
+  var BUILD='M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY';
   function S(v){try{return String(v==null?'':v).trim()}catch(_){return''}}
   function L(v){return S(v).toLowerCase()}
   function V(){try{return S((state&&(state.contractVersion||(state.contract&&state.contract.version)))||'v1.0')||'v1.0'}catch(_){return'v1.0'}}
@@ -35626,7 +35634,7 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB358-appjs
   'use strict';
   if(window.__dsGB348CustomerProposalRepairInstalled) return;
   window.__dsGB348CustomerProposalRepairInstalled = true;
-  var BUILD='M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY';
+  var BUILD='M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY';
   function S(v){try{return String(v==null?'':v).trim()}catch(_){return''}}
   function lower(v){return S(v).toLowerCase()}
   function makeId(){try{return (typeof uid==='function'?uid():('proposal_'+Date.now()+'_'+Math.random().toString(36).slice(2,8)))}catch(_){return 'proposal_'+Date.now()}}
@@ -35720,7 +35728,7 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB358-appjs
   'use strict';
   if(window.__dsGB349CustomerReviewFixInstalled) return;
   window.__dsGB349CustomerReviewFixInstalled = true;
-  var BUILD='M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY';
+  var BUILD='M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY';
   function S(v){ try{return String(v==null?'':v).trim();}catch(_){return '';} }
   function L(v){ return S(v).toLowerCase(); }
   function arr(a){ return Array.isArray(a) ? a : []; }
@@ -35869,7 +35877,7 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB358-appjs
   'use strict';
   if(window.__dsGB351SuccessNoticeInstalled) return;
   window.__dsGB351SuccessNoticeInstalled = true;
-  var BUILD = 'M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY';
+  var BUILD = 'M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY';
   function S(v){ try{return String(v==null?'':v).trim();}catch(_){return '';} }
   function L(v){ return S(v).toLowerCase(); }
   function isOk(res){ return !!(res && (res.ok === true || res === true || (typeof res === 'object' && !res.error && !res.skipped))); }
@@ -35950,7 +35958,7 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB358-appjs
   document.addEventListener('DOMContentLoaded', install, {once:true});
   setTimeout(install, 400);
   setTimeout(install, 1400);
-  try{ window.__dsAppJsRuntimeBuild = 'GB358-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB359-appjs'; }catch(_){ }
 })();
 /* ===== END GB351 ===== */
 
@@ -35963,7 +35971,7 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB358-appjs
   'use strict';
   if(window.__dsGB352CustomerLocalFirstInstalled) return;
   window.__dsGB352CustomerLocalFirstInstalled = true;
-  var BUILD = 'M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY';
+  var BUILD = 'M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY';
   var LS = 'ds_workspace_test_optik_01';
   var PROP = 'ds_customer_proposals_v1';
   function S(v){ try{return String(v==null?'':v).trim();}catch(_){return '';} }
@@ -36203,7 +36211,7 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB358-appjs
   }
   wrapAdminNoReturn(); setTimeout(wrapAdminNoReturn,500); setTimeout(wrapAdminNoReturn,1800);
   if(isCustomerMode()) setTimeout(markSession,250);
-  try{ window.__dsAppJsRuntimeBuild = 'GB358-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB359-appjs'; }catch(_){ }
 })();
 /* ===== END GB352 ===== */
 
@@ -36214,7 +36222,7 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB358-appjs
   'use strict';
   if(window.__dsGB353ScopeProposalReviewInstalled) return;
   window.__dsGB353ScopeProposalReviewInstalled = true;
-  var BUILD = 'M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY';
+  var BUILD = 'M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY';
   var LS_KEY_GB353 = 'ds_workspace_test_optik_01';
   var PROP_KEY_GB353 = 'ds_customer_proposals_v1';
 
@@ -36661,7 +36669,7 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB358-appjs
     }catch(_){ }
   }, true);
 
-  try{ window.__dsAppJsRuntimeBuild = 'GB358-appjs'; }catch(_){ }
+  try{ window.__dsAppJsRuntimeBuild = 'GB359-appjs'; }catch(_){ }
 })();
 /* ===== END GB353 CUSTOMER SCOPE + PROPOSAL REVIEW STABILITY LAYER ===== */
 
@@ -36672,7 +36680,7 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB358-appjs
   if(window.__gb355MainDiagInstalled) return;
   try{ if(String((location && location.pathname) || '').toLowerCase().indexOf('customer.html') >= 0) return; }catch(_){ }
   window.__gb355MainDiagInstalled = true;
-  var BUILD = 'M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY';
+  var BUILD = 'M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY';
   var LOG_KEY = 'ds_gb355_diag_log';
   function S(v){ try{return String(v == null ? '' : v).trim();}catch(_){return '';} }
   function L(v){ return S(v).toLowerCase(); }
@@ -36809,8 +36817,8 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB358-appjs
   'use strict';
   if(window.__dsGB357TargetedFixInstalled) return;
   window.__dsGB357TargetedFixInstalled = true;
-  var BUILD='M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY';
-  try{ window.__dsAppJsRuntimeBuild='GB358-appjs'; }catch(_){ }
+  var BUILD='M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY';
+  try{ window.__dsAppJsRuntimeBuild='GB359-appjs'; }catch(_){ }
   function S(v){ try{return String(v==null?'':v).trim();}catch(_){return'';} }
   function L(v){ return S(v).toLowerCase(); }
   function A(v){ return Array.isArray(v)?v:[]; }
@@ -37041,8 +37049,8 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB358-appjs
   'use strict';
   if(window.__dsGB358HardProposalFixInstalled) return;
   window.__dsGB358HardProposalFixInstalled = true;
-  var BUILD='M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY';
-  try{ window.__dsAppJsRuntimeBuild='GB358-appjs'; }catch(_){ }
+  var BUILD='M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY';
+  try{ window.__dsAppJsRuntimeBuild='GB359-appjs'; }catch(_){ }
   function S(v){ try{return String(v==null?'':v).trim();}catch(_){return'';} }
   function L(v){ return S(v).toLowerCase(); }
   function A(v){ return Array.isArray(v)?v:[]; }
@@ -37354,3 +37362,170 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild = 'GB358-appjs
   setDiag('installed', false);
 })();
 /* ===== END GB358 HARD PROPOSAL SAVE + REVIEW SCOPE FIX ===== */
+
+/* ===== GB359 FIRESTORE SET GUARD + MISSING HELPER FIX =====
+   Ziel:
+   - globale Helper vor UI-Klicks absichern (showSteuerberaterExportInfo / closeMonth)
+   - Firestore workspace_state Set IMMER abfangen und vor dem Schreiben unter Firestore-Limit bringen
+   - Diagnose schreibt konkrete Roh-/bereinigte Bytes und blockiert keinen Buttonpfad mehr
+*/
+(function(){
+  var BUILD='M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY';
+  function S(v){ return v==null?'':String(v); }
+  function now(){ return Date.now(); }
+  function bytes(o){ try{return new Blob([JSON.stringify(o||{})]).size;}catch(_){try{return JSON.stringify(o||{}).length;}catch(__){return 0;}} }
+  function arr(v){ return Array.isArray(v)?v:[]; }
+  function clone(v){ try{return JSON.parse(JSON.stringify(v));}catch(_){ return v; } }
+  function log(msg, err){
+    try{
+      var rec={ts:now(), build:BUILD, msg:S(msg), err:!!err};
+      window.__gb356Trace=Array.isArray(window.__gb356Trace)?window.__gb356Trace:[];
+      window.__gb356Trace.push(rec); if(window.__gb356Trace.length>80) window.__gb356Trace=window.__gb356Trace.slice(-80);
+      window.__gb359Trace=Array.isArray(window.__gb359Trace)?window.__gb359Trace:[];
+      window.__gb359Trace.push(rec); if(window.__gb359Trace.length>80) window.__gb359Trace=window.__gb359Trace.slice(-80);
+      try{ console[err?'warn':'log']('GB359', msg); }catch(_){ }
+    }catch(_){ }
+  }
+
+  // Missing helper guard: the old UI has listeners that may call this helper although the function is absent.
+  try{
+    if(typeof window.showSteuerberaterExportInfo!=='function'){
+      window.showSteuerberaterExportInfo=function(){
+        try{ alert('Steuerberater-Export ist in diesem Build nicht aktiv. Der Klick wurde abgefangen, damit die App nicht abbricht.'); }catch(_){ }
+        log('showSteuerberaterExportInfo stub used', false);
+        return false;
+      };
+    }
+    try{ if(typeof showSteuerberaterExportInfo==='undefined') var showSteuerberaterExportInfo=window.showSteuerberaterExportInfo; }catch(_){ }
+    if(typeof window.closeMonth!=='function'){
+      window.closeMonth=function(){
+        try{ var el=document.getElementById('monthModal')||document.getElementById('monthExportModal'); if(el) el.style.display='none'; }catch(_){ }
+        log('closeMonth stub used', false);
+        return false;
+      };
+    }
+    try{ if(typeof closeMonth==='undefined') var closeMonth=window.closeMonth; }catch(_){ }
+  }catch(e){ log('helper guard install failed '+S(e&&e.message||e), true); }
+
+  function isWorkspacePath(ref){
+    try{
+      var p=S(ref && (ref.path || ref._key && ref._key.path && ref._key.path.segments && ref._key.path.segments.join('/')));
+      return /\/orgs\/[^/]+\/meta\/workspace_state$|^orgs\/[^/]+\/meta\/workspace_state$|meta\/workspace_state$/.test(p);
+    }catch(_){ return false; }
+  }
+  function isHugeString(v){
+    var s=S(v); return s.length>60000 || /^data:image\//i.test(s) || /^data:application\//i.test(s);
+  }
+  function keepSmallString(v){
+    var s=S(v); if(s.length>120000) return s.slice(0,6000)+'…[GB359 gekürzt '+s.length+' Zeichen]'; return v;
+  }
+  function cleanDeep(v, path, depth){
+    path=path||''; depth=depth||0;
+    if(v==null) return v;
+    if(typeof v==='string'){
+      if(isHugeString(v)) return '';
+      return keepSmallString(v);
+    }
+    if(typeof v!=='object') return v;
+    if(depth>7) return undefined;
+    if(Array.isArray(v)){
+      var max = /^(docs|inbox|proposals|tasks|entries|submissions|assignments)/i.test(path) ? 160 : 600;
+      return v.slice(0,max).map(function(x,i){ return cleanDeep(x, path+'['+i+']', depth+1); }).filter(function(x){return x!==undefined;});
+    }
+    var out={};
+    Object.keys(v).forEach(function(k){
+      try{
+        var val=v[k]; var kp=path?path+'.'+k:k; var lk=String(k).toLowerCase();
+        if(typeof val==='function') return;
+        if(typeof val==='string' && isHugeString(val)){
+          // Vertrags-/Aufenthalts-Signatur wird nicht in workspace_state groß gespeichert; die eigentlichen Vorschläge/Vertrags-Mirror bleiben separat.
+          out[k]='';
+          if(/signature|signatur|unterschrift|dataurl|photo|foto|image|bild|impf|attachment|file/.test(lk)) out[k+'Present']=true;
+          return;
+        }
+        if(/^(html|htmlContent|renderedHtml|pdfData|blob|base64|rawFile|fileData|attachmentData)$/i.test(k)) return;
+        out[k]=cleanDeep(val,kp,depth+1);
+      }catch(_){ }
+    });
+    return out;
+  }
+  function metaDoc(d){
+    d=d||{};
+    return cleanDeep({
+      id:d.id||d.docId||'', title:d.title||d.name||d.templateId||'Dokument', templateId:d.templateId||d.formKey||d.kind||'', customerId:d.customerId||(d.meta&&d.meta.customerId)||'', petId:d.petId||d.dogId||(d.meta&&d.meta.petId)||'', dogId:d.dogId||d.petId||'', createdAt:d.createdAt||(d.meta&&d.meta.createdAt)||'', updatedAt:d.updatedAt||(d.meta&&d.meta.updatedAt)||'', status:d.status||''
+    },'docMeta',0);
+  }
+  function compactState(src){
+    src=(src&&typeof src==='object')?src:{};
+    var out={};
+    ['_cloudUpdatedAt','_localUpdatedAt','_version','version','build','settings','company','templates','contractVersion','priceSettings','customers','pets','dogs','customerRecords','petRecords','dogRecords','contractAgreements','contractSignatures','contractCanonicalRecords','contractAdoptionBundles','contractAdoptedRecords','meds','medications','hygiene','staff','roles']
+      .forEach(function(k){ try{ if(src[k]!=null) out[k]=cleanDeep(src[k],k,0); }catch(_){ } });
+    try{ if(Array.isArray(src.docs)) out.docs=src.docs.slice(0,90).map(metaDoc); }catch(_){ }
+    try{ if(Array.isArray(src.stays)) out.stays=cleanDeep(src.stays.slice(0,120),'stays',0); }catch(_){ }
+    ['inboxAssignments','inboxSubmissions','assignments','submissions','tasks','proposals'].forEach(function(k){ try{ if(Array.isArray(src[k])) out[k]=cleanDeep(src[k].slice(0,100),k,0); }catch(_){ } });
+    out._gb359Compacted=true;
+    out._gb359CompactedAt=now();
+    return out;
+  }
+  function shrinkDocData(data, path){
+    try{
+      var rawBytes=bytes(data);
+      var obj=clone(data||{});
+      if(rawBytes<850000) return {data:data, rawBytes:rawBytes, newBytes:rawBytes, changed:false};
+      var payload=(obj && obj.payload && typeof obj.payload==='object')?obj.payload:{};
+      var slim=compactState(payload);
+      var wrapped=Object.assign({}, obj, {payload:slim, updatedAt: obj.updatedAt || now(), build:BUILD, gb359Guard:true, gb359RawBytes:rawBytes});
+      var b=bytes(wrapped);
+      if(b>850000){
+        try{ delete slim.tasks; delete slim.proposals; delete slim.inboxAssignments; delete slim.inboxSubmissions; delete slim.assignments; delete slim.submissions; wrapped.payload=slim; wrapped.gb359DroppedInbox=true; b=bytes(wrapped); }catch(_){ }
+      }
+      if(b>850000){
+        try{ slim.docs=arr(slim.docs).slice(0,30).map(metaDoc); slim.stays=arr(slim.stays).slice(0,60).map(function(x){ return cleanDeep({id:x.id,title:x.title,customerId:x.customerId,petId:x.petId,dogId:x.dogId,from:x.from||x.startDate,to:x.to||x.endDate,status:x.status,updatedAt:x.updatedAt},'stayMeta',0); }); wrapped.payload=slim; wrapped.gb359MetaOnly=true; b=bytes(wrapped); }catch(_){ }
+      }
+      if(b>850000){
+        var minimal={_cloudUpdatedAt:now(),_localUpdatedAt:now(),_gb359Minimal:true,customers:cleanDeep(arr(payload.customers).slice(0,80),'customers',0),pets:cleanDeep(arr(payload.pets||payload.dogs).slice(0,120),'pets',0),dogs:cleanDeep(arr(payload.dogs).slice(0,120),'dogs',0),contractAgreements:cleanDeep(payload.contractAgreements||{},'contractAgreements',0),contractCanonicalRecords:cleanDeep(payload.contractCanonicalRecords||{},'contractCanonicalRecords',0),contractAdoptionBundles:cleanDeep(payload.contractAdoptionBundles||{},'contractAdoptionBundles',0),contractSignatures:cleanDeep(payload.contractSignatures||{},'contractSignatures',0)};
+        wrapped={payload:minimal, updatedAt:now(), build:BUILD, gb359Guard:true, gb359RawBytes:rawBytes, gb359Minimal:true};
+        b=bytes(wrapped);
+      }
+      if(b>850000){
+        wrapped={payload:{_cloudUpdatedAt:now(),_localUpdatedAt:now(),_gb359TooLargeFallback:true}, updatedAt:now(), build:BUILD, gb359Guard:true, gb359RawBytes:rawBytes, gb359Fallback:true};
+        b=bytes(wrapped);
+      }
+      log('workspace_state set guarded path='+S(path)+' rawBytes='+rawBytes+' newBytes='+b, false);
+      return {data:wrapped, rawBytes:rawBytes, newBytes:b, changed:true};
+    }catch(e){ log('shrinkDocData failed '+S(e&&e.message||e), true); return {data:data, rawBytes:bytes(data), newBytes:bytes(data), changed:false, error:e}; }
+  }
+  function patchDb(db){
+    try{
+      if(!db || !db.collection) return false;
+      var sample=db.collection('orgs').doc('__gb359').collection('meta').doc('workspace_state');
+      var proto=Object.getPrototypeOf(sample);
+      if(!proto || proto.__gb359SetGuardInstalled) return true;
+      var orig=proto.set;
+      if(typeof orig!=='function') return false;
+      proto.set=function(data, options){
+        try{
+          if(isWorkspacePath(this)){
+            var res=shrinkDocData(data, this.path || 'workspace_state');
+            data=res.data;
+          }
+        }catch(e){ log('set guard error '+S(e&&e.message||e), true); }
+        return orig.call(this,data,options);
+      };
+      proto.__gb359SetGuardInstalled=true;
+      log('Firestore DocumentReference.set guard installed', false);
+      return true;
+    }catch(e){ log('patchDb failed '+S(e&&e.message||e), true); return false; }
+  }
+  function tryPatch(){
+    try{ if(window.CLOUD && CLOUD.db) patchDb(CLOUD.db); }catch(_){ }
+    try{ if(window.firebase && firebase.firestore) patchDb(firebase.firestore()); }catch(_){ }
+  }
+  tryPatch();
+  try{ setTimeout(tryPatch,300); setTimeout(tryPatch,1200); setInterval(tryPatch,2500); }catch(_){ }
+
+  // Also expose for Diagnose and manual checks.
+  try{ window.dsGB359ShrinkWorkspaceSet=shrinkDocData; window.__dsAppJsRuntimeBuild='GB359-appjs'; }catch(_){ }
+  log('GB359 installed', false);
+})();
+/* ===== END GB359 FIRESTORE SET GUARD + MISSING HELPER FIX ===== */

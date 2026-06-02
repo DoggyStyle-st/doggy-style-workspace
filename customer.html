@@ -10,7 +10,7 @@
   <link href="manifest.json" rel="manifest"/>
   <meta name="theme-color" content="#101014"/>
   <link href="assets/logo.png" rel="apple-touch-icon"/>
-  <link href="styles.css?v=M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY" rel="stylesheet"/>
+  <link href="styles.css?v=M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY" rel="stylesheet"/>
   <style>
     body.bg-watermark{background:radial-gradient(circle at top, rgba(255,255,255,.08), transparent 35%), linear-gradient(180deg,#0e1017 0%, #121521 100%) !important}
     body.bg-watermark::before{opacity:.12 !important;filter:none !important}
@@ -248,14 +248,14 @@
     <div class="customer-hidden" id="customerTaskListCard"></div>
     <div class="customer-hidden list" id="customerTaskList"></div>
     <div class="customer-hidden" id="customerPortalSubtitle"></div>
-    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY</div>
+    <div id="customerPortalBuildBottom" style="position:fixed;left:10px;bottom:10px;z-index:9999;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.50);border:1px solid rgba(255,255,255,.12);font-size:12px;color:#ddd">Build CUSTOMER M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY</div>
   </main>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
-  <script src="firebase-config.js?v=M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY"></script>
+  <script src="firebase-config.js?v=M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY"></script>
 
   <script>
   /* GB350 CUSTOMER PORTAL EARLY ACTION GUARD
@@ -265,7 +265,7 @@
     'use strict';
     if(window.__dsGB350CustomerEarlyGuardInstalled) return;
     window.__dsGB350CustomerEarlyGuardInstalled = true;
-    var BUILD = 'M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY';
+    var BUILD = 'M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY';
     var submitLockUntil = 0;
     function S(v){ try{return String(v == null ? '' : v).trim();}catch(_){return '';} }
     function L(v){ return S(v).toLowerCase(); }
@@ -450,10 +450,10 @@
   })();
   </script>
 
-  <script src="app.js?v=M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY"></script>
+  <script src="app.js?v=M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY"></script>
   <script>
     (function(){
-      const BUILD = 'Build CUSTOMER M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY';
+      const BUILD = 'Build CUSTOMER M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY';
       const DRAFT_KEY = 'ds_customer_app_drafts_v1';
       const viewNames = ['home','dogs','contract','stay','chat'];
       let currentView = 'home';
@@ -1062,7 +1062,7 @@ document.getElementById('btnCustomerTaskSubmit')?.addEventListener('click', ()=>
             customer: customerProposal,
             pet: petProposal,
             fields: f,
-            meta: { customerId, petId, submittedFrom: 'customer.html', build: 'M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY' }
+            meta: { customerId, petId, submittedFrom: 'customer.html', build: 'M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY' }
           };
           const litePayloadSubmitted = {
             source: 'customer-portal-dogs-gb350',
@@ -1523,7 +1523,7 @@ function renderStayRealForm(doc){
 
 <script>
 (function(){
-  const CURRENT_BUILD = 'M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY';
+  const CURRENT_BUILD = 'M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY';
   try{
     window.addEventListener('load', function(){
       try{
@@ -1549,7 +1549,7 @@ function renderStayRealForm(doc){
   'use strict';
   if(window.__dsGB350CustomerPostBootInstalled) return;
   window.__dsGB350CustomerPostBootInstalled = true;
-  var BUILD='M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY';
+  var BUILD='M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY';
   function S(v){try{return String(v==null?'':v).trim();}catch(_){return''}}
   function traceSave(rec){
     try{
@@ -1557,7 +1557,7 @@ function renderStayRealForm(doc){
       var box=window.__gb356Trace||(window.__gb356Trace={events:[]});
       box.events.push(rec); if(box.events.length>150) box.events=box.events.slice(-150);
       var k='ds_customer_portal_save_trace'; var list=localJSON(k,[]); list.push(rec); if(list.length>300) list=list.slice(-300); localStorage.setItem(k, JSON.stringify(list));
-      try{ console.log('GB356_SAVE_TRACE',rec); }catch(_){ }
+      try{ console.log('GB359_SAVE_TRACE',rec); }catch(_){ }
       try{ recSave(Object.assign({},rec,{step:'trace:'+S(rec.kind||rec.op||rec.fn||rec.step)})); }catch(_){ }
       renderSoon();
     }catch(_){ }
@@ -1652,7 +1652,7 @@ function renderStayRealForm(doc){
   'use strict';
   if(window.__dsGB351CustomerSuccessNoticeInstalled) return;
   window.__dsGB351CustomerSuccessNoticeInstalled = true;
-  var BUILD='M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY';
+  var BUILD='M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY';
   function S(v){try{return String(v==null?'':v).trim();}catch(_){return''}}
   function L(v){return S(v).toLowerCase()}
   function ok(res){return !!(res && (res.ok===true || (typeof res==='object' && !res.error && !res.skipped)))}
@@ -1738,7 +1738,7 @@ function renderStayRealForm(doc){
   'use strict';
   if(window.__dsGB352CustomerHtmlHardeningInstalled) return;
   window.__dsGB352CustomerHtmlHardeningInstalled = true;
-  var BUILD='M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY';
+  var BUILD='M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY';
   function S(v){try{return String(v==null?'':v).trim();}catch(_){return''}}
   function show(msg){
     try{
@@ -1779,7 +1779,7 @@ function renderStayRealForm(doc){
   'use strict';
   if(window.__dsGB353CustomerHtmlFinalInstalled) return;
   window.__dsGB353CustomerHtmlFinalInstalled = true;
-  var BUILD='M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY';
+  var BUILD='M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY';
   function S(v){try{return String(v==null?'':v).trim();}catch(_){return''}}
   function L(v){return S(v).toLowerCase()}
   function nowIso(){try{return new Date().toISOString();}catch(_){return String(Date.now())}}
@@ -1984,7 +1984,7 @@ function renderStayRealForm(doc){
   'use strict';
   if(window.__gb355CustomerDiagInstalled) return;
   window.__gb355CustomerDiagInstalled = true;
-  var BUILD = 'M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY';
+  var BUILD = 'M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY';
   var LOG_KEY = 'ds_gb355_diag_log';
   function S(v){ try{return String(v == null ? '' : v).trim();}catch(_){return '';} }
   function L(v){ return S(v).toLowerCase(); }
@@ -2001,7 +2001,7 @@ function renderStayRealForm(doc){
       var box = window.__gb355Diag || (window.__gb355Diag = {events:[]});
       box.events.push(rec); if(box.events.length>100) box.events = box.events.slice(-100);
       var list = localJSON(LOG_KEY, []); list.push(rec); if(list.length>250) list = list.slice(-250); localStorage.setItem(LOG_KEY, JSON.stringify(list));
-      try{ console.log('GB356_CUSTOMER_DIAG', rec); }catch(_){ }
+      try{ console.log('GB359_CUSTOMER_DIAG', rec); }catch(_){ }
       renderSoon();
     }catch(_){ }
   }
@@ -2087,7 +2087,7 @@ function renderStayRealForm(doc){
   function render(){
     try{
       var d=compute(); var last=d.last||{}; var lines=[];
-      lines.push('GB356 DIAG Kunden-App');
+      lines.push('GB359 DIAG Kunden-App');
       lines.push('auth: '+(d.email||'-')+' uid='+d.uid+' org='+d.org);
       lines.push('scope: '+d.scope.source+' cid='+shortId(d.scope.customerId)+' pid='+shortId(d.scope.petId)+' '+(d.scope.customerName||'-')+' / '+(d.scope.petName||'-')+' pets='+d.scope.pets);
       lines.push('vertrag-auswahl: cid='+shortId(d.selected.customerId)+' pid='+shortId(d.selected.petId)+' '+(d.selected.customerText||'-')+' / '+(d.selected.petText||'-')+' accept='+(d.selected.accept?'1':'0'));
@@ -2106,8 +2106,8 @@ function renderStayRealForm(doc){
       lines.push('neueste lokale Vorschläge:');
       (d.latest||[]).forEach(function(x,i){lines.push((i+1)+'. '+x);});
       var el=panel();
-      el.innerHTML='<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px"><b>GB356 Portal-Diagnose</b><button id="gb355CopyDiagCustomer" type="button" style="font:12px system-ui;padding:3px 8px;border-radius:8px;border:1px solid #22c55e;background:#111827;color:#dcfce7">Kopieren</button><button id="gb355HideDiagCustomer" type="button" style="font:12px system-ui;padding:3px 8px;border-radius:8px;border:1px solid #22c55e;background:#111827;color:#dcfce7">Ausblenden</button></div><pre style="margin:0;white-space:pre-wrap">'+esc(lines.join('\n'))+'</pre>';
-      var c=document.getElementById('gb355CopyDiagCustomer'); if(c && !c.__bound){ c.__bound=true; c.onclick=function(){ var dump=window.GB356_PORTAL_DIAG_DUMP&&window.GB356_PORTAL_DIAG_DUMP(); try{navigator.clipboard&&navigator.clipboard.writeText(dump||'');}catch(_){} alert('GB356 Portal-Diagnose kopiert.'); }; }
+      el.innerHTML='<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px"><b>GB359 Portal-Diagnose</b><button id="gb355CopyDiagCustomer" type="button" style="font:12px system-ui;padding:3px 8px;border-radius:8px;border:1px solid #22c55e;background:#111827;color:#dcfce7">Kopieren</button><button id="gb355HideDiagCustomer" type="button" style="font:12px system-ui;padding:3px 8px;border-radius:8px;border:1px solid #22c55e;background:#111827;color:#dcfce7">Ausblenden</button></div><pre style="margin:0;white-space:pre-wrap">'+esc(lines.join('\n'))+'</pre>';
+      var c=document.getElementById('gb355CopyDiagCustomer'); if(c && !c.__bound){ c.__bound=true; c.onclick=function(){ var dump=window.GB356_PORTAL_DIAG_DUMP&&window.GB356_PORTAL_DIAG_DUMP(); try{navigator.clipboard&&navigator.clipboard.writeText(dump||'');}catch(_){} alert('GB359 Portal-Diagnose kopiert.'); }; }
       var h=document.getElementById('gb355HideDiagCustomer'); if(h && !h.__bound){ h.__bound=true; h.onclick=function(){ panel().style.display='none'; }; }
     }catch(_){ }
   }
@@ -2152,7 +2152,7 @@ function renderStayRealForm(doc){
       var box=window.__gb356Trace||(window.__gb356Trace={events:[]});
       box.events.push(rec); if(box.events.length>150) box.events=box.events.slice(-150);
       var k='ds_customer_portal_save_trace'; var list=localJSON(k,[]); list.push(rec); if(list.length>300) list=list.slice(-300); localStorage.setItem(k, JSON.stringify(list));
-      try{ console.log('GB356_SAVE_TRACE',rec); }catch(_){ }
+      try{ console.log('GB359_SAVE_TRACE',rec); }catch(_){ }
       try{ recSave(Object.assign({},rec,{step:'trace:'+S(rec.kind||rec.op||rec.fn||rec.step||'event')})); }catch(_){ }
       renderSoon();
     }catch(_){ }
@@ -2243,7 +2243,7 @@ function renderStayRealForm(doc){
   'use strict';
   if(window.__dsGB357CustomerFinalInstalled) return;
   window.__dsGB357CustomerFinalInstalled = true;
-  var BUILD='M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY';
+  var BUILD='M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY';
   function S(v){try{return String(v==null?'':v).trim();}catch(_){return''}}
   function L(v){return S(v).toLowerCase()}
   function A(v){return Array.isArray(v)?v:[]}
@@ -2337,8 +2337,8 @@ function renderStayRealForm(doc){
   'use strict';
   if(window.__dsGB358HardProposalFixInstalled) return;
   window.__dsGB358HardProposalFixInstalled = true;
-  var BUILD='M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY';
-  try{ window.__dsAppJsRuntimeBuild='GB358-appjs'; }catch(_){ }
+  var BUILD='M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY';
+  try{ window.__dsAppJsRuntimeBuild='GB359-appjs'; }catch(_){ }
   function S(v){ try{return String(v==null?'':v).trim();}catch(_){return'';} }
   function L(v){ return S(v).toLowerCase(); }
   function A(v){ return Array.isArray(v)?v:[]; }

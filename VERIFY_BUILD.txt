@@ -1,2 +1,6 @@
-Build M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY
-Geprüft: node --check app.js, ZIP enthält app.html/app.js/customer.html/sw.js/version.txt mit GB358 Tag.
+Build: M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY
+Prüfung:
+- app.js, app.html, customer.html, sw.js und version.txt tragen GB359.
+- Diagnose muss bei workspace_state-Schreiben rawBytes/newBytes zeigen.
+- Keine ReferenceError-Meldung mehr zu showSteuerberaterExportInfo.
+- Bei Vorschlag-Speichern darf der Firestore-Limitfehler nicht mehr abbrechen.

@@ -177,3 +177,10 @@ GB358 - HARD_PROPOSAL_SAVE_REVIEW_SCOPE
 - Direkte kleine Vorschlagsdokumente für Kunde/Hund, Betreuungsvertrag und Aufenthalt.
 - showSteuerberaterExportInfo Stub gegen ReferenceError.
 - Review-Speichern nutzt schlanken Persist statt 11MB Payload.
+
+GB359 - Firestore Set Guard + Helper Fix
+- Sichtbare Diagnose aus GB356 bleibt erhalten, Build ist GB359.
+- Missing helper showSteuerberaterExportInfo und closeMonth werden vor allen Klickpfaden abgesichert.
+- Firestore DocumentReference.set wird gezielt für orgs/{org}/meta/workspace_state abgefangen.
+- Große workspace_state Payloads werden vor dem Schreiben automatisch verschlankt, damit Firestore-Limit nicht mehr den Buttonpfad abbricht.
+- Kundenportal- und Prüfmodus-Vorschläge bleiben weiterhin über kleine proposals/tasks-Dokumente erhalten.

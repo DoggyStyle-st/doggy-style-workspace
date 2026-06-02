@@ -6,13 +6,13 @@
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
 <meta charset="utf-8"/>
-  <meta name="app-build" content="M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY">
+  <meta name="app-build" content="M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY">
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <title>Doggy Style Workspace · App</title>
 <link href="manifest.json" rel="manifest"/>
 <meta content="#101014" name="theme-color"/>
 <link href="assets/logo.png" rel="apple-touch-icon"/>
-<link href="styles.css?v=M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY" rel="stylesheet"/>
+<link href="styles.css?v=M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY" rel="stylesheet"/>
 <link href="dashboard_master.css?v=20260104v13logout" rel="stylesheet"/>
 <style>
   /* Topbar Layout (iPad & Desktop stabil) */
@@ -102,7 +102,7 @@
   .doc-modal__actions{ margin-left:auto; display:flex; flex-wrap: wrap; gap: 8px; }
   .doc-modal__frame{ width: 100%; border: 0; border-radius: 12px; background: #fff; flex:1; min-height: 0; }
 </style>
-  <meta name="app-version" content="M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY">
+  <meta name="app-version" content="M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY">
   <meta name="release-channel" content="MASTER">
 </head>
 <body class="bg-watermark page-app">
@@ -1199,7 +1199,7 @@
 </section>
 
 <section class="panel" id="statistics">
-<!-- Statistics panel is rendered by app.js?v=M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY (renderStatisticsPanel) -->
+<!-- Statistics panel is rendered by app.js?v=M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY (renderStatisticsPanel) -->
 </section>
 
 
@@ -1266,7 +1266,7 @@
 </footer>
 </div>
 <!-- Firebase (optional) + Config -->
-<script defer="defer" src="firebase-config.js?v=M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY"></script>
+<script defer="defer" src="firebase-config.js?v=M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
@@ -1377,7 +1377,7 @@
   function pullRemoteCanonicalGB340(reason){try{var refs=[];var ref=cloudRefGB340();var ref2=cloudContractCanonicalRefGB342();if(ref&&ref.get)refs.push(ref.get());if(ref2&&ref2.get)refs.push(ref2.get());var col=cloudContractMetaColGB344();if(col&&col.where)refs.push(col.where('type','==','contractCanonical').limit(100).get());if(!refs.length)return false;Promise.all(refs).then(function(snaps){try{var st=ensure(getState());snaps.forEach(function(snap){try{if(!snap)return;if(typeof snap.forEach==='function'){snap.forEach(function(doc){try{var d=doc&&doc.data&&doc.data()||{};if(d.patch)mergePatchGB340(st,d.patch);else if(d.payload||d.contractAgreements||d.contractCanonicalRecords)mergePatchGB340(st,d);else if(d.record){var rr=normalize(d.record,st);if(rr)applyRecord(rr,st,false);}}catch(_){ }});return;}if(snap.exists){var data=snap.data&&snap.data()||{};mergePatchGB340(st,data);}}catch(_){ }});rehydrateState(st,false);setState(st);try{if(typeof renderDogs==='function')renderDogs();}catch(_){ }try{renderList();paintDogs();}catch(_){ }if(typeof dsSetSyncDiag==='function')dsSetSyncDiag('gb343 contract cloud-pull ok '+S(reason||''),false);}catch(e){try{console.warn('GB344 contract cloud-pull apply failed',e);}catch(_){ }}}).catch(function(e){try{console.warn('GB344 contract cloud-pull failed',e);}catch(_){ }});return true;}catch(e){try{console.warn('GB344 pullRemoteCanonical failed',e);}catch(_){ }return false;}}
   async function accept(ev){try{if(ev){ev.preventDefault();ev.stopPropagation();ev.stopImmediatePropagation();}if(now()<SAVE_LOCK_UNTIL)return false;SAVE_LOCK_UNTIL=now()+4000;LOCK_UNTIL=now()+7000;CLEAR_FORM_UNTIL=0;var st=ensure(getState());var rec=uiRecord();if(!rec){alert('Übernahme konnte nicht gespeichert werden: Kunde/Hund nicht erkannt.');return false;}if(!(rec.signatureRec.dataUrl||rec.signatureRec.signatureDataUrl)){rec.signatureRec.dataUrl='gb335-existing-signature';rec.signatureRec.signatureDataUrl='gb335-existing-signature';rec.signatureRec.signedAt=rec.signatureRec.signedAt||now();rec.signatureRec.signatureAt=rec.signatureRec.signatureAt||rec.signatureRec.signedAt;}rec.savedAt=now();rec.agreementRec.savedAt=rec.savedAt;rec.agreementRec.acceptedAt=rec.savedAt;rec.agreementRec.signatureAt=rec.signatureRec.signatureAt||rec.savedAt;applyRecord(rec,st,true);persist(records(st));saveAll(st);var cloudOk=false;try{cloudOk=await pushRemoteCanonicalGB340(rec,'accept-await');}catch(_){cloudOk=false;}try{window.__dsInlineInboxReview=null;window.__dsContractReviewSnapshot=null;window.__dsContractReviewSubmitHook=null;}catch(_){ }try{if(typeof patchInboxRowStatus==='function')Promise.resolve(patchInboxRowStatus(reviewObj(),'adopted')).catch(function(){});}catch(_){ }try{if(typeof removeInboxRowEverywhere==='function')removeInboxRowEverywhere(reviewObj());}catch(_){ }try{if(typeof renderDogs==='function')renderDogs();}catch(_){ }try{if(typeof renderContractPanel==='function')renderContractPanel();}catch(_){ }[20,80,220,600,1200].forEach(function(ms){setTimeout(function(){rehydrateState(ensure(getState()),true);updateUi(rec);paintDogs();},ms);});if(cloudOk){alert('Betreuungsvertrag übernommen und vollständig gespeichert.');}else{alert('Betreuungsvertrag lokal gespeichert. Cloud-Sicherung bitte prüfen.');}return false;}catch(e){try{console.error('GB344 accept failed',e);}catch(_){ }alert('Fehler beim Speichern des Betreuungsvertrags.');return false;}}
   function refresh(ev){try{if(ev){ev.preventDefault();ev.stopPropagation();ev.stopImmediatePropagation();}LOCK_UNTIL=now()+6000;CLEAR_FORM_UNTIL=now()+6000;var st=ensure(getState());rehydrateState(st,true);try{if(typeof renderDogs==='function')renderDogs();}catch(_){ }try{if(typeof renderContractPanel==='function')renderContractPanel();}catch(_){ }[0,20,80,220,600,1200,2200].forEach(function(ms){setTimeout(function(){var s=ensure(getState());rehydrateState(s,true);clearContractFormGB339();paintDogs();renderList();},ms);});return false;}catch(e){try{console.warn('GB340 refresh clear failed',e);}catch(_){ }return false;}}
-  function installLogoutFlushGB344(){try{if(window.__dsGB344LogoutFlushInstalled)return;window.__dsGB344LogoutFlushInstalled=true;var inLogout=false;async function h(ev){try{var btn=ev&&ev.target&&ev.target.closest&&ev.target.closest('button');if(!btn)return;var id=S(btn.id);var txt=L(btn.textContent);if(!(id==='btnLogoutTop'||id==='btnLogoutApp'||id==='btnCustomerLogout'||txt==='abmelden'))return;if(inLogout)return;inLogout=true;ev.preventDefault();ev.stopPropagation();try{ev.stopImmediatePropagation&&ev.stopImmediatePropagation();}catch(_){ }try{var __gb352cm=(function(){try{var q=String(new URLSearchParams(String(location.search||'')).get('customer_mode')||'').toLowerCase();var ss=String(sessionStorage.getItem('ds_customer_main_mode')||'').toLowerCase();var p=String(location.pathname||'').toLowerCase();return p.indexOf('customer.html')>=0||q==='dogs'||q==='contract'||q==='stay'||ss==='dogs'||ss==='contract'||ss==='stay';}catch(_){return false;}})();if(__gb352cm){try{window.__dsLogoutInFlight=true;}catch(_){ }var __go=function(){try{location.href='login.html?v=M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY';}catch(_){location.href='login.html';}};try{var __a=(window.CLOUD&&CLOUD.auth)||(window.firebase&&firebase.auth&&firebase.auth());if(__a&&__a.signOut){Promise.race([__a.signOut().catch(function(){}),new Promise(function(r){setTimeout(r,850);})]).then(__go).catch(__go);}else __go();}catch(_){__go();}setTimeout(__go,1100);return;}}catch(_){ }try{var pending=window.__dsGB344PendingContractWrite;if(pending&&pending.then)await pending;}catch(_){ }try{var list=records(ensure(getState())).slice(0,25);for(var i=0;i<list.length;i++){try{await pushRemoteCanonicalGB340(list[i],'logout-flush');}catch(_){ }}}catch(_){ }try{window.__dsLogoutInFlight=true;}catch(_){ }try{if(window.CLOUD&&CLOUD.auth&&CLOUD.auth.signOut)await CLOUD.auth.signOut();else if(window.firebase&&firebase.auth)await firebase.auth().signOut();}catch(_){ }try{location.href='login.html';}catch(_){ }}catch(e){try{console.warn('GB344 logout flush failed',e);}catch(_){ }}}['pointerdown','touchstart','click'].forEach(function(tp){try{document.addEventListener(tp,h,true);window.addEventListener(tp,h,true);}catch(_){ }});}catch(_){ }}
+  function installLogoutFlushGB344(){try{if(window.__dsGB344LogoutFlushInstalled)return;window.__dsGB344LogoutFlushInstalled=true;var inLogout=false;async function h(ev){try{var btn=ev&&ev.target&&ev.target.closest&&ev.target.closest('button');if(!btn)return;var id=S(btn.id);var txt=L(btn.textContent);if(!(id==='btnLogoutTop'||id==='btnLogoutApp'||id==='btnCustomerLogout'||txt==='abmelden'))return;if(inLogout)return;inLogout=true;ev.preventDefault();ev.stopPropagation();try{ev.stopImmediatePropagation&&ev.stopImmediatePropagation();}catch(_){ }try{var __gb352cm=(function(){try{var q=String(new URLSearchParams(String(location.search||'')).get('customer_mode')||'').toLowerCase();var ss=String(sessionStorage.getItem('ds_customer_main_mode')||'').toLowerCase();var p=String(location.pathname||'').toLowerCase();return p.indexOf('customer.html')>=0||q==='dogs'||q==='contract'||q==='stay'||ss==='dogs'||ss==='contract'||ss==='stay';}catch(_){return false;}})();if(__gb352cm){try{window.__dsLogoutInFlight=true;}catch(_){ }var __go=function(){try{location.href='login.html?v=M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY';}catch(_){location.href='login.html';}};try{var __a=(window.CLOUD&&CLOUD.auth)||(window.firebase&&firebase.auth&&firebase.auth());if(__a&&__a.signOut){Promise.race([__a.signOut().catch(function(){}),new Promise(function(r){setTimeout(r,850);})]).then(__go).catch(__go);}else __go();}catch(_){__go();}setTimeout(__go,1100);return;}}catch(_){ }try{var pending=window.__dsGB344PendingContractWrite;if(pending&&pending.then)await pending;}catch(_){ }try{var list=records(ensure(getState())).slice(0,25);for(var i=0;i<list.length;i++){try{await pushRemoteCanonicalGB340(list[i],'logout-flush');}catch(_){ }}}catch(_){ }try{window.__dsLogoutInFlight=true;}catch(_){ }try{if(window.CLOUD&&CLOUD.auth&&CLOUD.auth.signOut)await CLOUD.auth.signOut();else if(window.firebase&&firebase.auth)await firebase.auth().signOut();}catch(_){ }try{location.href='login.html';}catch(_){ }}catch(e){try{console.warn('GB344 logout flush failed',e);}catch(_){ }}}['pointerdown','touchstart','click'].forEach(function(tp){try{document.addEventListener(tp,h,true);window.addEventListener(tp,h,true);}catch(_){ }});}catch(_){ }}
   function isBtn(btn){var id=S(btn&&btn.id),t=L(btn&&btn.textContent);return {save:/speichern|übernehmen|vorschlag senden/.test(t)||['contractSaveBtn','btnContractSave','contractSave','contractSaveButton'].indexOf(id)>=0,refresh:/aktualisieren/.test(t)||id==='btnContractRefresh'};}
   var CUSTOMER_CONTRACT_LOCK_UNTIL=0;
   function isCustomerProposalModeGB350(){try{var q='';try{q=S(new URLSearchParams(String(location.search||'')).get('customer_mode'));}catch(_){ }var ss='';try{ss=S(sessionStorage.getItem('ds_customer_main_mode')||'');}catch(_){ }var hand='';try{hand=S(sessionStorage.getItem('ds_customer_main_handoff')||'');}catch(_){ }var wm=S(window.__dsCustomerMainModeActive||'');var body=S(document.body&&document.body.getAttribute&&document.body.getAttribute('data-customer-mode'));var p=S(location.pathname||'').toLowerCase();return q==='contract'||ss==='contract'||wm==='contract'||body==='contract'||p.indexOf('customer.html')>=0||!!hand;}catch(_){return false;}}
@@ -1486,7 +1486,14 @@
 
 </script>
 
-<script defer="defer" src="app.js?v=M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY"></script>
+<script>
+/* GB359 early missing-helper guard before app.js */
+try{
+  if(typeof window.showSteuerberaterExportInfo!=='function') window.showSteuerberaterExportInfo=function(){try{alert('Steuerberater-Export ist in diesem Build nicht aktiv.');}catch(_){} return false;};
+  if(typeof window.closeMonth!=='function') window.closeMonth=function(){try{var el=document.getElementById('monthModal')||document.getElementById('monthExportModal'); if(el) el.style.display='none';}catch(_){} return false;};
+}catch(_){ }
+</script>
+<script defer="defer" src="app.js?v=M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1505,7 +1512,7 @@
 </script>
 
 <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY', { updateViaCache: 'none' });
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY', { updateViaCache: 'none' });
   </script>
 
 <script>
@@ -1607,7 +1614,7 @@
   <!-- Bottom logout button removed (duplicate of header logout; also overlaps editor on iPad) -->
 </div>
 <!-- test-badge removed (requested) -->
-  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY</div>
+  <div class="build-badge" id="buildBadge">Build (MASTER) M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY</div>
 
 <script>
 (function visibleMailFallback(){
@@ -4177,7 +4184,7 @@
 
 <script>
 (function(){
-  const CURRENT_BUILD = 'M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY';
+  const CURRENT_BUILD = 'M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY';
   try{
     window.addEventListener('load', function(){
       try{
@@ -4203,7 +4210,7 @@
   'use strict';
   if(window.__gb356AlwaysDiagBridgeInstalled) return;
   window.__gb356AlwaysDiagBridgeInstalled = true;
-  var BUILD='M50.9.9GB358_HARD_PROPOSAL_SAVE_REVIEW_SCOPE_20260518_ROOTONLY';
+  var BUILD='M50.9.9GB359_FIRESTORE_SET_GUARD_HELPER_FIX_20260518_ROOTONLY';
   var LOG_KEY='ds_customer_portal_diag_log';
   var TRACE_KEY='ds_customer_portal_save_trace';
   try{ localStorage.setItem('ds_diag_always_visible','1'); }catch(_){ }
@@ -4221,7 +4228,7 @@
       rec=Object.assign({at:Date.now(),iso:new Date().toISOString(),build:BUILD,page:'app'},rec||{});
       var box=window.__gb356MasterTrace||(window.__gb356MasterTrace={events:[]}); box.events.push(rec); if(box.events.length>150) box.events=box.events.slice(-150);
       var list=localJSON(TRACE_KEY,[]); list.push(rec); if(list.length>300) list=list.slice(-300); localStorage.setItem(TRACE_KEY,JSON.stringify(list));
-      try{console.log('GB356_MASTER_TRACE',rec);}catch(_){ }
+      try{console.log('GB359_MASTER_TRACE',rec);}catch(_){ }
       renderSoon();
     }catch(_){ }
   }
@@ -4265,7 +4272,7 @@
   function render(){
     try{
       var d=compute(); var lines=[];
-      lines.push('GB356 DIAG dauerhaft · MASTER/APP');
+      lines.push('GB359 DIAG dauerhaft · MASTER/APP');
       lines.push('seite: '+S(location.pathname)+S(location.search)+' always=1');
       lines.push('auth: '+(d.email||'-')+' uid='+d.uid+' org='+d.org);
       lines.push('counts: kunden='+d.counts.customers+' hunde='+d.counts.pets+' docs='+d.counts.docs+' inbox='+d.counts.inbox+' proposals/tasks='+d.counts.proposals+' localProps='+d.counts.localProps+' trace='+d.counts.trace+' portalLog='+d.counts.portalLog);
@@ -4277,7 +4284,7 @@
       if(d.latestInbox.length){lines.push('neueste Inbox:');d.latestInbox.forEach(function(x,i){lines.push('  '+(i+1)+'. '+x);});}
       if(d.latestLocal.length){lines.push('neueste lokale Vorschläge:');d.latestLocal.forEach(function(x,i){lines.push('  '+(i+1)+'. '+x);});}
       var el=panel();
-      el.innerHTML='<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px"><b>GB356 Diagnose bleibt sichtbar</b><button id="gb356CopyAlwaysDiag" type="button" style="font:12px system-ui;padding:3px 8px;border-radius:8px;border:1px solid #22c55e;background:#111827;color:#dcfce7">Kopieren</button></div><pre style="margin:0;white-space:pre-wrap">'+esc(lines.join('\n'))+'</pre>';
+      el.innerHTML='<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px"><b>GB359 Diagnose bleibt sichtbar</b><button id="gb356CopyAlwaysDiag" type="button" style="font:12px system-ui;padding:3px 8px;border-radius:8px;border:1px solid #22c55e;background:#111827;color:#dcfce7">Kopieren</button></div><pre style="margin:0;white-space:pre-wrap">'+esc(lines.join('\n'))+'</pre>';
       var b=document.getElementById('gb356CopyAlwaysDiag'); if(b&&!b.__bound){b.__bound=true;b.onclick=function(){try{navigator.clipboard&&navigator.clipboard.writeText(JSON.stringify(compute(),null,2));}catch(_){} try{alert('GB356 Diagnose kopiert.');}catch(_){}};}
     }catch(_){ }
   }
