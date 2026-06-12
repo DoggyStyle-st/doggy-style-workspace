@@ -1,0 +1,14 @@
+GB349_CUSTOMER_DOGS_DIRECT_PROPOSAL_SAVE
+
+Basis: GB346 stabiler Haupt-App-Stand + GB348 sichtbare Diagnose.
+
+Ziel:
+- Kunde/Hund-Speichern im Kundenmodus app.html?customer_mode=dogs zuverlässig als kleines Vorschlagsdokument speichern.
+- Alter Speichern-Button wird im Kundenmodus per Capture-Handler abgefangen.
+- Es wird kein kompletter workspace_state gespeichert.
+- Cloud-Schreibweg: orgs/{org}/proposals/{id}; zusätzlich kleiner tasks-Mirror.
+- Diagnose schreibt GB349-Einträge in den bestehenden Diagnose-Trace.
+
+Keine Änderungen:
+- Keine fachliche Übernahme-/Merge-Logik geändert.
+- Vertrags-/Aufenthaltslogik nicht umgebaut.

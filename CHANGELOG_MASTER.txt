@@ -136,15 +136,20 @@ GB345 - MED_DASHBOARD_ACTIVE_STAYS_ONLY
 - Startseite: Medikamente heute zeigt fällige Medikamentengaben nur noch für Hunde mit aktivem Aufenthalt am heutigen Datum.
 - Ohne aktuellen Aufenthalt werden Dauermedikationspläne nicht mehr als heutige Pensions-To-dos gewertet.
 - §11-Medikationsstatus nutzt dieselbe Aktiv-Aufenthalt-Prüfung.
-[M50.9.9GB348_FORCE_VISIBLE_CUSTOMER_DIAG_FROM_GB346_20260602_ROOTONLY]
+[M50.9.9GB349_CUSTOMER_DOGS_DIRECT_PROPOSAL_SAVE_20260602_ROOTONLY]
 - Diagnosebuild auf stabiler GB346-Basis.
 - Dauerdiagnose in app.js für Haupt-App und Kunden-App.
 - Trace für Firestore-Schreibpfade, Button-Klicks, Scope, Contract-Matching und Proposal-Typen.
 - Keine fachliche Reparatur / keine Änderung der Vorschlagslogik.
 
 
-## M50.9.9GB348_FORCE_VISIBLE_CUSTOMER_DIAG_FROM_GB346_20260602_ROOTONLY
+## M50.9.9GB349_CUSTOMER_DOGS_DIRECT_PROPOSAL_SAVE_20260602_ROOTONLY
 - Diagnosepanel wird hart in app.html und customer.html injiziert.
 - Panel bleibt sichtbar auch im Kundenmodus app.html?customer_mode=dogs/stay/contract.
 - Erfasst Auth, URL, State-Counts, Select-Werte, Kunden-/Hund-Scope, UI-Klicks, Firestore-Set/Add/Update/Delete mit Pfad und Payload-Größe.
 - Keine fachliche Reparatur der Kunden-/Vertrags-/Vorschlagslogik.
+
+## GB349_CUSTOMER_DOGS_DIRECT_PROPOSAL_SAVE_20260602
+- Kunde/Hund Kundenmodus: btnCpSave wird vor altem Handler abgefangen.
+- Kleine Proposal-Dokumente nach proposals/tasks, kein saveState/Full-State im direkten Kundenmodus.
+- GB349-Diagnoseeinträge in ds_gb347_diag_log_v1.

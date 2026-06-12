@@ -1,4 +1,3 @@
-Build: M50.9.9GB348_FORCE_VISIBLE_CUSTOMER_DIAG_FROM_GB346_20260602_ROOTONLY
-Basis: GB346 stabiler Haupt-App-Stand, GB347 Diagnoseversuch.
-Ziel GB348: Diagnose wirklich sichtbar erzwingen in app.html?customer_mode=... und customer.html.
-Keine fachliche Änderung an Kunden-/Vorschlagslogik.
+Build: M50.9.9GB349_CUSTOMER_DOGS_DIRECT_PROPOSAL_SAVE_20260602_ROOTONLY
+Basis: GB346 stabiler Haupt-App-Stand + GB348 sichtbare Diagnose.
+Ziel GB349: Kunde/Hund Speichern im Kundenmodus per kleinem Direkt-Vorschlag abfangen; kein Full-State-Save.
