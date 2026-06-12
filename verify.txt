@@ -1,3 +1,0 @@
-Build: M50.9.9GB349_CUSTOMER_DOGS_DIRECT_PROPOSAL_SAVE_20260602_ROOTONLY
-Basis: GB346 stabiler Haupt-App-Stand + GB348 sichtbare Diagnose.
-Ziel GB349: Kunde/Hund Speichern im Kundenmodus per kleinem Direkt-Vorschlag abfangen; kein Full-State-Save.
