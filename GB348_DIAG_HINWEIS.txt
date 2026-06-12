@@ -1,1 +1,0 @@
-GB348 erzwingt sichtbare Diagnose in app.html und customer.html. Keine fachlichen Funktionsänderungen. Test: Kunden-App öffnen, Diagnoseblock muss unten links sichtbar sein. Kopieren-Taste verwenden.
