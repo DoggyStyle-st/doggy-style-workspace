@@ -1,0 +1,17 @@
+GB352 - Customer Dogs Submit Function Fix
+Basis: GB351 / GB350 Clean-Audit.
+
+Ziel:
+- Nicht mehr nur nachträglich Buttons patchen.
+- Die eigentliche Funktion submitCustomerDogsProposal() wurde ersetzt.
+- Der bestehende Speichern-Button ruft damit direkt den kleinen Vorschlags-Schreibweg auf.
+
+Geändert:
+- Kunde/Hund im Kundenmodus schreibt nur noch kleine Dokumente nach proposals/tasks.
+- Kein saveState() und kein workspace_state in diesem Pfad.
+- Alte GB349/GB351 Nachpatch-Blöcke wurden aus app.js entfernt, damit kein Parallelhandler mehr stört.
+- Diagnose schreibt GB352.* Einträge über den bestehenden GB348/GB350 Diagnoseblock.
+
+Test:
+Kunden-App -> Kunde/Hund -> Feld ändern -> Speichern.
+Erwartung: Meldung "Änderungsvorschlag gespeichert und an Eingänge übergeben" und neuer Eintrag in Haupt-App -> Eingänge.

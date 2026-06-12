@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB351_CUSTOMER_DOGS_SAVE_BIND_FIX_20260612_ROOTONLY",
+  tag: "M50.9.9GB352_CUSTOMER_DOGS_SUBMIT_FUNCTION_FIX_20260612_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB351_CUSTOMER_DOGS_SAVE_BIND_FIX_20260612_ROOTONLY";
+const APP_BUILD = "M50.9.9GB352_CUSTOMER_DOGS_SUBMIT_FUNCTION_FIX_20260612_ROOTONLY";
 try{ window.__dsAppJsRuntimeBuild = "GB350-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -3475,201 +3475,141 @@ async function dsSubmitCustomerPortalProposal(opts){
 window.dsSubmitCustomerPortalProposal = dsSubmitCustomerPortalProposal;
 
 async function submitCustomerDogsProposal(){
+  // GB352: echte Quelle repariert. Dieser Funktionspfad wird vom vorhandenen Speichern-Button aufgerufen.
+  // Er schreibt im Kundenmodus NUR ein kleines Vorschlagsdokument und keinen workspace_state.
+  const GB352 = 'M50.9.9GB352_CUSTOMER_DOGS_SUBMIT_FUNCTION_FIX_20260612_ROOTONLY';
+  function S(v){ try{ return String(v==null?'':v); }catch(_){ return ''; } }
+  function V(id){ try{ const el=document.getElementById(id); return S(el && (el.value!=null ? el.value : '')).trim(); }catch(_){ return ''; } }
+  function C(id){ try{ const el=document.getElementById(id); return !!(el && el.checked); }catch(_){ return false; } }
+  function log(type, data){
+    try{ if(typeof window.__GB348_DIAG_LOG==='function') window.__GB348_DIAG_LOG('GB352.'+type, data||{}); }catch(_){ }
+    try{ if(typeof window.dsGB347DiagLog==='function') window.dsGB347DiagLog('GB352 '+type, data||{}); }catch(_){ }
+    try{ console.log('[GB352]', type, data||{}); }catch(_){ }
+  }
+  function getAuthFast(){
+    try{ if(window.CLOUD && CLOUD.user && CLOUD.user.uid) return CLOUD.user; }catch(_){ }
+    try{ if(window.CLOUD && CLOUD.auth && CLOUD.auth.currentUser && CLOUD.auth.currentUser.uid) return CLOUD.auth.currentUser; }catch(_){ }
+    try{ if(window.firebase && firebase.auth && firebase.auth().currentUser && firebase.auth().currentUser.uid) return firebase.auth().currentUser; }catch(_){ }
+    return null;
+  }
+  async function waitAuthShort(){
+    let u=getAuthFast(); if(u && u.uid) return u;
+    const started=Date.now();
+    while(Date.now()-started<2500){ await new Promise(r=>setTimeout(r,150)); u=getAuthFast(); if(u && u.uid) return u; }
+    return getAuthFast();
+  }
+  function makeId(){ try{ if(typeof uid==='function') return uid(); }catch(_){ } return 'gb352_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,10); }
+  function bytes(obj){ try{ return new Blob([JSON.stringify(obj||{})]).size; }catch(_){ try{return JSON.stringify(obj||{}).length;}catch(__){return 0;} } }
+  function orgId(){ try{ if(typeof dsResolveCloudOrgId==='function') return dsResolveCloudOrgId(); }catch(_){ } try{ return S(window.CLOUD && CLOUD.orgId) || 'doggystyle'; }catch(_){ return 'doggystyle'; } }
+  function getCol(name){
+    try{ if(name==='proposals' && typeof cloudProposalsCol==='function'){ const c=cloudProposalsCol(); if(c && typeof c.doc==='function') return c; } }catch(_){ }
+    try{ if(name==='tasks' && typeof cloudTasksCol==='function'){ const c=cloudTasksCol(); if(c && typeof c.doc==='function') return c; } }catch(_){ }
+    try{ const db=(window.CLOUD&&CLOUD.db)||(window.firebase&&firebase.firestore&&firebase.firestore()); if(db && typeof db.collection==='function') return db.collection('orgs').doc(orgId()).collection(name); }catch(_){ }
+    return null;
+  }
+  function sanitizeMedia(v){ v=S(v); return /^data:/i.test(v) ? '' : v; }
+  function ctxInfo(auth){
+    let ctx={};
+    try{ if(typeof getCustomerMainDogsContext==='function') ctx=getCustomerMainDogsContext()||{}; }catch(e){ log('ctx.error',{msg:S(e&&e.message||e)}); }
+    const c=(ctx.customer||{});
+    const p=((ctx.pets&&ctx.pets[0])||ctx.pet||{});
+    const customerSelect=document.getElementById('customerSelect');
+    const selectedCid=S(customerSelect&&customerSelect.value).trim();
+    let cid=S(ctx.customerId || c.id || c.customerId || selectedCid || auth.uid || auth.email).trim();
+    let pid=S((cpEdit&&cpEdit.petId) || ctx.petId || p.id || p.petId || p.dogId || '').trim();
+    if(!pid){ try{ const pets=(state&&Array.isArray(state.pets))?state.pets:[]; const found=pets.find(x=>S(x.customerId||x.ownerId)===cid); if(found) pid=S(found.id||found.petId||found.dogId); }catch(_){ } }
+    return {ctx, customer:c, pet:p, customerId:cid, petId:pid};
+  }
+  function buildPayload(auth){
+    const ci=ctxInfo(auth);
+    const customerName = V('c_name') || S(ci.customer.name || ci.customer.fullName).trim();
+    const customerEmail = (V('c_email') || S(auth.email || ci.customer.email).trim()).toLowerCase();
+    const petName = V('p_name') || S(ci.pet.name || ci.pet.petName || ci.pet.dogName).trim();
+    const chipStatus = V('p_chipStatus');
+    if(!customerName) throw new Error('Bitte Kundennamen eintragen.');
+    if(!customerEmail) throw new Error('Bitte E-Mail eintragen.');
+    if(!petName) throw new Error('Bitte Hundename eintragen.');
+    if(!chipStatus) throw new Error('Bitte bei „Gechippt?“ Ja oder Nein wählen.');
+    if(chipStatus==='yes' && !V('p_chipNumber')) throw new Error('Bitte die Chipnummer eintragen.');
+    const customerId = S(ci.customerId || auth.uid || customerEmail).trim();
+    const petId = S(ci.petId || '').trim();
+    const customer = {
+      id:customerId, customerId, name:customerName, email:customerEmail,
+      phone:V('c_phone'), street:V('c_street'), zip:V('c_zip'), city:V('c_city'),
+      emergencyName:V('c_em_name'), emergencyPhone:V('c_em_phone'), pickupAuth:V('c_pickup_auth'), note:V('c_note')
+    };
+    const pet = {
+      id:petId, petId, dogId:petId, customerId, name:petName,
+      breed:V('p_breed'), birthdate:V('p_birthdate'), sex:V('p_sex'),
+      chipStatus, chip:chipStatus==='yes', chipNumber:V('p_chipNumber'),
+      vet:V('p_vet'), vetPhone:V('p_vetPhone'), vetEmail:V('p_vetEmail'), vetStreet:V('p_vetStreet'), vetZip:V('p_vetZip'), vetCity:V('p_vetCity'), vetEmergencyName:V('p_vetEmergencyName'), vetEmergencyPhone:V('p_vetEmergencyPhone'),
+      allergies:V('p_allergies'), medicalConditions:V('p_medicalConditions'),
+      insuranceStatus:V('p_insuranceStatus'), insuranceCompany:V('p_insuranceCompany'), insurancePolicy:V('p_insurancePolicy'), insuranceNotes:V('p_insuranceNotes'),
+      vaccinatedConfirmed:C('p_vaccinatedConfirmed'), rabiesDate:V('p_rabiesDate'), mixedVaccineDate:V('p_mixedVaccineDate'),
+      vaccinationPassPhoto:sanitizeMedia(window.cpVaccinationPassDataUrl || S(ci.pet.vaccinationPassPhoto)),
+      profilePhoto:sanitizeMedia(window.cpProfilePhotoDataUrl || S(ci.pet.profilePhoto)),
+      food:V('p_food'), treatsAllowed:V('p_treatsAllowed'), aloneTime:V('p_aloneTime'), houseTrained:V('p_houseTrained'), transport:V('p_transport'), feeding:V('p_feeding'),
+      compatDogs:V('p_compatDogs'), compatCats:V('p_compatCats'), compatKids:V('p_compatKids'), compat:V('p_compat'), leashBehavior:V('p_leashBehavior'), recall:V('p_recall'), resourceBehavior:V('p_resourceBehavior'), behavior:V('p_behavior'), dailyRoutine:V('p_dailyRoutine'), commands:V('p_commands'), note:V('p_note')
+    };
+    const id=makeId(); const stamp=Date.now();
+    return {
+      id, taskId:id, proposalId:id,
+      templateId:'customer_data', formKey:'customer_data', kind:'kunde/hund', proposalType:'kunde/hund',
+      title:'Kunde/Hund Änderungsvorschlag', status:'submitted', proposalStatus:'pending',
+      submittedAt:stamp, createdAt:stamp, updatedAt:stamp,
+      customerUid:S(auth.uid), customerEmail, customerName, customerId, petId, dogId:petId,
+      payloadSubmitted:{source:'customer-main-dogs-gb352-submit-direct', mode:'proposal-direct-small-no-workspace-state', customer, pet},
+      __gb352Direct:true
+    };
+  }
+  function lite(task){
+    const c=(task.payloadSubmitted&&task.payloadSubmitted.customer)||{};
+    const p=(task.payloadSubmitted&&task.payloadSubmitted.pet)||{};
+    return {...task, payloadSubmitted:{source:'customer-main-dogs-gb352-submit-direct', mode:'proposal-direct-small-mirror', customer:{id:c.id||task.customerId||'', name:c.name||'', email:c.email||task.customerEmail||'', phone:c.phone||''}, pet:{id:p.id||task.petId||'', name:p.name||'', breed:p.breed||'', sex:p.sex||'', chipStatus:p.chipStatus||'', note:p.note||''}}, mirroredFromProposal:true, updatedAt:Date.now()};
+  }
+  async function writeSmall(task){
+    let ok=false, lastErr=null;
+    const pcol=getCol('proposals');
+    if(pcol && typeof pcol.doc==='function'){
+      try{ log('proposal.set.start',{path:'orgs/'+orgId()+'/proposals/'+task.id, bytes:bytes(task), cid:task.customerId, pid:task.petId}); await pcol.doc(task.id).set(task,{merge:true}); ok=true; log('proposal.set.ok',{path:'proposals/'+task.id}); }catch(e){ lastErr=e; log('proposal.set.error',{msg:S(e&&e.message||e)}); }
+    }
+    const tcol=getCol('tasks');
+    if(tcol && typeof tcol.doc==='function'){
+      try{ const lt=lite(task); log('task.set.start',{path:'orgs/'+orgId()+'/tasks/'+task.id, bytes:bytes(lt), cid:task.customerId, pid:task.petId}); await tcol.doc(task.id).set(lt,{merge:true}); ok=true; log('task.set.ok',{path:'tasks/'+task.id}); }catch(e){ lastErr=e; log('task.set.error',{msg:S(e&&e.message||e)}); }
+    }
+    if(!ok) throw new Error((lastErr && (lastErr.message||lastErr.code)) || 'Cloud proposals/tasks nicht verfügbar.');
+  }
+  function localBuffer(task){
+    try{ if(typeof pushCustomerProposalBuffer==='function') pushCustomerProposalBuffer(lite(task)); }catch(e){ log('buffer.helper.error',{msg:S(e&&e.message||e)}); }
+    try{ const key='ds_customer_proposals_v1'; let arr=[]; try{arr=JSON.parse(localStorage.getItem(key)||'[]')||[];}catch(_){arr=[];} arr.unshift(lite(task)); if(arr.length>80) arr=arr.slice(0,80); localStorage.setItem(key,JSON.stringify(arr)); log('buffer.local.ok',{bytes:bytes(arr[0])}); }catch(e){ log('buffer.local.error',{msg:S(e&&e.message||e)}); }
+  }
+  if(window.__gb352SubmitDogsBusy){ log('busy.skip',{}); return; }
+  window.__gb352SubmitDogsBusy=true;
   try{
-    ensureStateShape();
-    const ctx = getCustomerMainDogsContext();
-    try{ dsRenderCustomerModeDebug(ctx); }catch(_){ }
-    const authUser = await cpWaitForFirebaseUser(10000);
-    if(!authUser || !authUser.uid) throw new Error('Keine aktive Firebase-Anmeldung in der Haupt-App. Bitte Haupt-App kurz neu öffnen und erneut versuchen.');
-    try{ window.CLOUD = window.CLOUD || {}; CLOUD.user = authUser; if(!CLOUD.orgId) CLOUD.orgId = dsResolveCloudOrgId(); }catch(_){ }
-    const pet = (cpEdit && cpEdit.petId) ? (getPet(cpEdit.petId) || null) : (ctx.pets[0] || null);
-    const cs = document.getElementById('p_chipStatus')?.value || '';
-    if(!String(document.getElementById('c_name')?.value || '').trim()){ alert('Bitte Kundennamen eintragen.'); return; }
-    if(!String(document.getElementById('c_email')?.value || '').trim()){ alert('Bitte E-Mail eintragen.'); return; }
-    if(!String(document.getElementById('p_name')?.value || '').trim()){ alert('Bitte Hundename eintragen.'); return; }
-    if(!cs){ alert('Bitte bei „Gechippt?“ Ja oder Nein wählen.'); return; }
-    const resolvedCustomerId = String(ctx.customerId || authUser.uid || authUser.email || '').trim();
-    const customerProposal = {
-      id: resolvedCustomerId,
-      name: String(document.getElementById('c_name')?.value || '').trim(),
-      phone: String(document.getElementById('c_phone')?.value || '').trim(),
-      email: String(document.getElementById('c_email')?.value || '').trim(),
-      street: String(document.getElementById('c_street')?.value || '').trim(),
-      zip: String(document.getElementById('c_zip')?.value || '').trim(),
-      city: String(document.getElementById('c_city')?.value || '').trim(),
-      emergencyName: String(document.getElementById('c_em_name')?.value || '').trim(),
-      emergencyPhone: String(document.getElementById('c_em_phone')?.value || '').trim(),
-      pickupAuth: String(document.getElementById('c_pickup_auth')?.value || '').trim(),
-      note: String(document.getElementById('c_note')?.value || '').trim()
-    };
-    const petProposal = {
-      id: String((pet && (pet.id || pet.petId || pet.dogId)) || ''),
-      customerId: resolvedCustomerId,
-      name: String(document.getElementById('p_name')?.value || '').trim(),
-      breed: String(document.getElementById('p_breed')?.value || '').trim(),
-      birthdate: String(document.getElementById('p_birthdate')?.value || ''),
-      sex: String(document.getElementById('p_sex')?.value || ''),
-      chip: cs === 'yes',
-      chipNumber: String(document.getElementById('p_chipNumber')?.value || '').trim(),
-      vet: String(document.getElementById('p_vet')?.value || '').trim(),
-      vetPhone: String(document.getElementById('p_vetPhone')?.value || '').trim(),
-      vetEmail: String(document.getElementById('p_vetEmail')?.value || '').trim(),
-      vetStreet: String(document.getElementById('p_vetStreet')?.value || '').trim(),
-      vetZip: String(document.getElementById('p_vetZip')?.value || '').trim(),
-      vetCity: String(document.getElementById('p_vetCity')?.value || '').trim(),
-      vetEmergencyName: String(document.getElementById('p_vetEmergencyName')?.value || '').trim(),
-      vetEmergencyPhone: String(document.getElementById('p_vetEmergencyPhone')?.value || '').trim(),
-      allergies: String(document.getElementById('p_allergies')?.value || '').trim(),
-      medicalConditions: String(document.getElementById('p_medicalConditions')?.value || '').trim(),
-      insuranceStatus: String(document.getElementById('p_insuranceStatus')?.value || ''),
-      insuranceCompany: String(document.getElementById('p_insuranceCompany')?.value || '').trim(),
-      insurancePolicy: String(document.getElementById('p_insurancePolicy')?.value || '').trim(),
-      insuranceNotes: String(document.getElementById('p_insuranceNotes')?.value || '').trim(),
-      vaccinatedConfirmed: !!document.getElementById('p_vaccinatedConfirmed')?.checked,
-      rabiesDate: String(document.getElementById('p_rabiesDate')?.value || ''),
-      mixedVaccineDate: String(document.getElementById('p_mixedVaccineDate')?.value || ''),
-      vaccinationPassPhoto: cpVaccinationPassDataUrl || String((pet && pet.vaccinationPassPhoto) || ''),
-      profilePhoto: cpProfilePhotoDataUrl || String((pet && pet.profilePhoto) || ''),
-      food: String(document.getElementById('p_food')?.value || '').trim(),
-      treatsAllowed: String(document.getElementById('p_treatsAllowed')?.value || ''),
-      aloneTime: String(document.getElementById('p_aloneTime')?.value || '').trim(),
-      houseTrained: String(document.getElementById('p_houseTrained')?.value || ''),
-      transport: String(document.getElementById('p_transport')?.value || '').trim(),
-      feeding: String(document.getElementById('p_feeding')?.value || '').trim(),
-      compatDogs: String(document.getElementById('p_compatDogs')?.value || '').trim(),
-      compatCats: String(document.getElementById('p_compatCats')?.value || '').trim(),
-      compatKids: String(document.getElementById('p_compatKids')?.value || '').trim(),
-      compat: String(document.getElementById('p_compat')?.value || '').trim(),
-      leashBehavior: String(document.getElementById('p_leashBehavior')?.value || '').trim(),
-      recall: String(document.getElementById('p_recall')?.value || '').trim(),
-      resourceBehavior: String(document.getElementById('p_resourceBehavior')?.value || '').trim(),
-      behavior: String(document.getElementById('p_behavior')?.value || '').trim(),
-      dailyRoutine: String(document.getElementById('p_dailyRoutine')?.value || '').trim(),
-      commands: String(document.getElementById('p_commands')?.value || '').trim(),
-      note: String(document.getElementById('p_note')?.value || '').trim()
-    };
-    const stamp = Date.now();
-    const sanitizeProposalMedia = (value)=>{
-      const v = String(value || '');
-      if(!v) return '';
-      return /^data:/i.test(v) ? '' : v;
-    };
-    petProposal.vaccinationPassPhoto = sanitizeProposalMedia(petProposal.vaccinationPassPhoto);
-    petProposal.profilePhoto = sanitizeProposalMedia(petProposal.profilePhoto);
-    const task = {
-      id: uid(), taskId: uid(),
-      templateId: 'customer_data',
-      title: 'Kunde/Hund Änderungsvorschlag',
-      status: 'submitted',
-      proposalStatus: 'pending',
-      submittedAt: stamp,
-      createdAt: stamp,
-      updatedAt: stamp,
-      customerUid: String(CLOUD?.user?.uid || ''),
-      customerEmail: String(CLOUD?.user?.email || '').trim().toLowerCase(),
-      customerName: customerProposal.name || String(CLOUD?.user?.email || 'Kunde'),
-      customerId: resolvedCustomerId,
-      payloadSubmitted: { source: 'customer-main-dogs', mode: 'proposal', customer: customerProposal, pet: petProposal }
-    };
-    let cloudWriteOk = false;
-    let cloudWriteErr = null;
-    let cloudWritePath = '';
-    const taskLite = {
-      ...task,
-      payloadSubmitted: {
-        source: 'customer-main-dogs',
-        mode: 'proposal-cloud-fallback',
-        customer: {
-          name: customerProposal.name || '',
-          email: customerProposal.email || '',
-          phone: customerProposal.phone || ''
-        },
-        pet: {
-          name: petProposal.name || '',
-          breed: petProposal.breed || '',
-          sex: petProposal.sex || '',
-          note: petProposal.note || ''
-        }
-      }
-    };
-    if(CLOUD?.enabled){
-      try{
-        const col = cloudProposalsCol && cloudProposalsCol();
-        if(!col || typeof col.doc !== 'function') throw new Error('cloud-proposals-unavailable');
-        await col.doc(task.id).set(task, {merge:true});
-        cloudWriteOk = true;
-        cloudWritePath = 'proposals';
-      }catch(err){
-        cloudWriteErr = err;
-        console.warn('submitCustomerDogsProposal cloud proposal write failed, trying tasks fallback', err);
-      }
-      if(cloudWriteOk){
-        try{
-          const tcolMirror = cloudTasksCol && cloudTasksCol();
-          if(tcolMirror && typeof tcolMirror.doc === 'function'){
-            await tcolMirror.doc(task.id).set({ ...taskLite, mirroredFromProposal:true, updatedAt: Date.now() }, {merge:true});
-            cloudWritePath = 'proposals+tasks';
-          }
-        }catch(mirrorErr){
-          console.warn('submitCustomerDogsProposal tasks mirror after proposal write failed', mirrorErr);
-        }
-      }
-      if(!cloudWriteOk){
-        try{
-          const col = cloudTasksCol && cloudTasksCol();
-          if(!col || typeof col.doc !== 'function') throw new Error('cloud-tasks-unavailable');
-          await col.doc(task.id).set(taskLite, {merge:true});
-          cloudWriteOk = true;
-          cloudWritePath = 'tasks';
-        }catch(err2){
-          cloudWriteErr = err2 || cloudWriteErr;
-          console.warn('submitCustomerDogsProposal cloud tasks fallback failed, using local fallback', err2);
-        }
-      }
-    }
-    if(!cloudWriteOk){
-      const taskLocal = { ...taskLite, payloadSubmitted: { ...(taskLite.payloadSubmitted||{}), mode: 'proposal-local-fallback' } };
-      try{
-        const raw = localStorage.getItem(LS_KEY); const local = raw ? JSON.parse(raw) : {};
-        local.inboxAssignments = Array.isArray(local.inboxAssignments) ? local.inboxAssignments : [];
-        local.inboxAssignments.unshift(taskLocal);
-        localStorage.setItem(LS_KEY, JSON.stringify(local));
-      }catch(localErr){
-        const reason = [cloudWriteErr?.code, cloudWriteErr?.message, localErr?.message, localErr, cloudWriteErr, 'Unbekannter Fehler'].filter(Boolean).join(' · ');
-        throw new Error(String(reason));
-      }
-      try{ pushCustomerProposalBuffer(taskLocal); }catch(_){ }
-    } else {
-      try{
-        const mirroredTask = cloudWritePath==='tasks' ? taskLite : task;
-        pushCustomerProposalBuffer(mirroredTask);
-        try{
-          const raw = localStorage.getItem(LS_KEY); const local = raw ? JSON.parse(raw) : {};
-          local.inboxAssignments = Array.isArray(local.inboxAssignments) ? local.inboxAssignments : [];
-          const mirrorId = String(mirroredTask.id || mirroredTask.taskId || ('mirror_'+Date.now()));
-          const idx = local.inboxAssignments.findIndex(x => String((x && (x.id || x.taskId)) || '') === mirrorId);
-          const mergedMirror = { ...mirroredTask, id: mirrorId, taskId: mirrorId, status: String(mirroredTask.status || 'submitted') || 'submitted', proposalStatus: String(mirroredTask.proposalStatus || 'pending') || 'pending', mirroredFromCloud: true };
-          if(idx >= 0) local.inboxAssignments[idx] = { ...local.inboxAssignments[idx], ...mergedMirror };
-          else local.inboxAssignments.unshift(mergedMirror);
-          localStorage.setItem(LS_KEY, JSON.stringify(local));
-        }catch(_){ }
-        try{
-          ensureStateShape();
-          state.inboxAssignments = Array.isArray(state.inboxAssignments) ? state.inboxAssignments : [];
-          state.inboxSubmissions = Array.isArray(state.inboxSubmissions) ? state.inboxSubmissions : [];
-          const mirrored = { ...mirroredTask, id: String(mirroredTask.id || mirroredTask.taskId || ('mirror_'+Date.now())), taskId: String(mirroredTask.taskId || mirroredTask.id || ('mirror_'+Date.now())), status: String(mirroredTask.status || 'submitted') || 'submitted', proposalStatus: String(mirroredTask.proposalStatus || 'pending') || 'pending', mirroredFromCloud: true };
-          state.inboxAssignments.unshift(mirrored);
-          state.inboxSubmissions.unshift(mirrored);
-          saveState();
-        }catch(_){ }
-      }catch(_){ }
-    }
-    cpSetStatus(cloudWriteOk ? 'Dein Änderungsvorschlag wurde gespeichert und wird geprüft.' : 'Dein Änderungsvorschlag wurde lokal vorgemerkt.');
-    try{ alert(cloudWriteOk ? 'Dein Änderungsvorschlag wurde gespeichert und wird von uns geprüft.' : ('Dein Änderungsvorschlag wurde lokal vorgemerkt. Cloud-Speicherung fehlgeschlagen: ' + [cloudWriteErr?.code, cloudWriteErr?.message, cloudWriteErr || 'Unbekannter Fehler', 'orgId=' + String(dsResolveCloudOrgId()), 'uid=' + String(CLOUD?.user?.uid || CLOUD?.auth?.currentUser?.uid || ''), 'email=' + String(CLOUD?.user?.email || CLOUD?.auth?.currentUser?.email || ''), (!(CLOUD?.user?.uid || CLOUD?.auth?.currentUser?.uid) ? 'Hinweis=keine aktive Auth-Session in app.html' : '')].filter(Boolean).join(' · '))); }catch(_){ }
-    closeCpEditor();
-    renderDogs();
-  }catch(err){ console.error('submitCustomerDogsProposal failed', err); cpSetStatus('Senden fehlgeschlagen.', true); alert('Senden fehlgeschlagen: ' + String(err?.message || err || 'Unbekannter Fehler')); }
+    cpSetStatus('Änderungsvorschlag wird gespeichert …');
+    log('start',{});
+    const auth = await waitAuthShort();
+    if(!auth || !auth.uid) throw new Error('Keine aktive Anmeldung gefunden. Bitte neu anmelden.');
+    try{ window.CLOUD=window.CLOUD||{}; CLOUD.user=auth; CLOUD.orgId=CLOUD.orgId||orgId(); }catch(_){ }
+    const task=buildPayload(auth);
+    log('payload.ready',{id:task.id, bytes:bytes(task), cid:task.customerId, pid:task.petId});
+    await writeSmall(task);
+    localBuffer(task);
+    cpSetStatus('✅ Änderungsvorschlag gespeichert und an Eingänge übergeben.');
+    try{ alert('✅ Änderungsvorschlag gespeichert und an Eingänge übergeben.'); }catch(_){ }
+    try{ closeCpEditor(); }catch(_){ }
+    try{ renderDogs(); }catch(_){ }
+    log('done',{id:task.id});
+  }catch(err){
+    const msg=S(err&&err.message||err||'Unbekannter Fehler');
+    log('error',{msg});
+    cpSetStatus('Speichern fehlgeschlagen: '+msg, true);
+    try{ alert('Speichern fehlgeschlagen: '+msg); }catch(_){ }
+  }finally{
+    window.__gb352SubmitDogsBusy=false;
+  }
 }
+
 
 function enforceCustomerMainCustomerModeUI(){
   const mode = getCustomerMainMode() || 'dogs';
@@ -17264,7 +17204,7 @@ $("#btnCpSave").addEventListener("click",async (e)=>{
       return;
     }
     if(isCustomerMainDogsMode()){
-      submitCustomerDogsProposal();
+      await submitCustomerDogsProposal();
       return;
     }
     ensureStateShape();
@@ -25668,7 +25608,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB351_CUSTOMER_DOGS_SAVE_BIND_FIX_20260612_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB352_CUSTOMER_DOGS_SUBMIT_FUNCTION_FIX_20260612_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -27641,7 +27581,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB351_CUSTOMER_DOGS_SAVE_BIND_FIX_20260612_ROOTONLY";
+  const BUILD = "M50.9.9GB352_CUSTOMER_DOGS_SUBMIT_FUNCTION_FIX_20260612_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -31231,7 +31171,7 @@ try{ window.__GB294_MARKER = 'active'; }catch(_){ }
 /* ===== GB295 contract review verified open + reset fix ===== */
 try{ window.__GB295_MARKER = 'active'; }catch(_){ }
 (function(){
-  const BUILD = "M50.9.9GB351_CUSTOMER_DOGS_SAVE_BIND_FIX_20260612_ROOTONLY";
+  const BUILD = "M50.9.9GB352_CUSTOMER_DOGS_SUBMIT_FUNCTION_FIX_20260612_ROOTONLY";
   function ds295Clone(v){ try{ return JSON.parse(JSON.stringify(v == null ? null : v)); }catch(_){ return v; } }
   function ds295Norm(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
   function ds295Bool(v){ try{ if(v===true||v===false) return !!v; const s=String(v==null?'':v).trim().toLowerCase(); return s==='1'||s==='true'||s==='yes'||s==='ja'||s==='on'; }catch(_){ return false; } }
@@ -35239,7 +35179,7 @@ try{ window.__GB314_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB314-app
 /* ===== GB315 final contract acceptance + badge DOM hardfix ===== */
 try{ window.__GB315_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB316-appjs'; }catch(_){ }
 (function(){
-  var BUILD='M50.9.9GB351_CUSTOMER_DOGS_SAVE_BIND_FIX_20260612_ROOTONLY';
+  var BUILD='M50.9.9GB352_CUSTOMER_DOGS_SUBMIT_FUNCTION_FIX_20260612_ROOTONLY';
   function S(v){ try{return String(v==null?'':v).trim();}catch(_){return '';} }
   function L(v){ return S(v).toLowerCase(); }
   function esc(v){ try{return CSS && CSS.escape ? CSS.escape(S(v)) : S(v).replace(/[^a-zA-Z0-9_-]/g,'\\$&');}catch(_){return S(v);} }
@@ -35452,7 +35392,7 @@ try{var rd=renderDogs;if(rd&&!rd.__gb317Wrapped){renderDogs=function(){var r=rd.
 /* ===== GB318 contract hard bypass: accept not required when signature exists + generic green repair ===== */
 try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild='GB318-appjs'; }catch(_){ }
 (function(){
-  var BUILD='M50.9.9GB351_CUSTOMER_DOGS_SAVE_BIND_FIX_20260612_ROOTONLY';
+  var BUILD='M50.9.9GB352_CUSTOMER_DOGS_SUBMIT_FUNCTION_FIX_20260612_ROOTONLY';
   function S(v){try{return String(v==null?'':v).trim()}catch(_){return''}}
   function L(v){return S(v).toLowerCase()}
   function V(){try{return S((state&&(state.contractVersion||(state.contract&&state.contract.version)))||'v1.0')||'v1.0'}catch(_){return'v1.0'}}
@@ -35494,7 +35434,7 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild='GB318-appjs';
   'use strict';
   if(window.__dsGB347DiagInstalled) return;
   window.__dsGB347DiagInstalled = true;
-  var BUILD = 'M50.9.9GB351_CUSTOMER_DOGS_SAVE_BIND_FIX_20260612_ROOTONLY';
+  var BUILD = 'M50.9.9GB352_CUSTOMER_DOGS_SUBMIT_FUNCTION_FIX_20260612_ROOTONLY';
   var LOG_KEY = 'ds_gb347_diag_log_v1';
   var LAST = { lines: [], firestoreWrapped:false, functionWrapped:false, clickWrapped:false };
   function S(v){ try{return String(v==null?'':v).trim();}catch(_){return '';} }
@@ -35725,404 +35665,8 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild='GB318-appjs';
 })();
 /* ===== END GB347 DIAG ===== */
 
-/* ===== GB349 CUSTOMER DOGS DIRECT PROPOSAL SAVE ===== */
-(function(){
-  'use strict';
-  var BUILD='M50.9.9GB351_CUSTOMER_DOGS_SAVE_BIND_FIX_20260612_ROOTONLY';
-  if(window.__gb349CustomerDogsDirectSaveInstalled) return;
-  window.__gb349CustomerDogsDirectSaveInstalled=true;
-  function S(v){ try{ return String(v==null?'':v); }catch(_){ return ''; } }
-  function $(id){ try{ return document.getElementById(id); }catch(_){ return null; } }
-  function now(){ return Date.now(); }
-  function uid(){ return 'gb349_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,10); }
-  function short(v){ v=S(v); return v.length>180 ? v.slice(0,180)+'…' : v; }
-  function jsonSize(obj){ try{ return JSON.stringify(obj||{}).length; }catch(_){ return -1; } }
-  function diag(msg,obj){
-    try{
-      var line='GB349 '+new Date().toLocaleTimeString('de-DE')+' '+S(msg)+(obj?(' '+short(JSON.stringify(obj))):'');
-      window.__gb349DirectSaveLog = Array.isArray(window.__gb349DirectSaveLog) ? window.__gb349DirectSaveLog : [];
-      window.__gb349DirectSaveLog.push(line);
-      if(window.__gb349DirectSaveLog.length>80) window.__gb349DirectSaveLog.splice(0, window.__gb349DirectSaveLog.length-80);
-      var key='ds_gb347_diag_log_v1';
-      var arr=[]; try{ arr=JSON.parse(localStorage.getItem(key)||'[]')||[]; }catch(_){ arr=[]; }
-      arr.push(line); if(arr.length>120) arr=arr.slice(-120);
-      try{ localStorage.setItem(key, JSON.stringify(arr)); }catch(_){ }
-      try{ console.log(line); }catch(_){ }
-    }catch(_){ }
-  }
-  function isDogsCustomerMode(){
-    try{ if(typeof isCustomerMainDogsMode==='function' && isCustomerMainDogsMode()) return true; }catch(_){ }
-    try{ if(new URLSearchParams(location.search).get('customer_mode') === 'dogs') return true; }catch(_){ }
-    try{ if(document.body && String(document.body.dataset.customerMode||'') === 'dogs') return true; }catch(_){ }
-    return false;
-  }
-  function isSaveButton(ev){
-    try{
-      var btn=ev && ev.target && ev.target.closest && ev.target.closest('button');
-      if(!btn) return null;
-      var txt=S(btn.textContent).replace(/\s+/g,' ').trim().toLowerCase();
-      if(btn.id === 'btnCpSave') return btn;
-      if(txt === 'speichern' && document.getElementById('cpEditor')) return btn;
-    }catch(_){ }
-    return null;
-  }
-  function setStatus(text,isErr){
-    try{ if(typeof cpSetStatus === 'function') cpSetStatus(text, !!isErr); }catch(_){ }
-    try{ var hint=$('customerTaskSaveHint'); if(hint) hint.textContent=text; }catch(_){ }
-  }
-  async function waitUser(){
-    try{ if(typeof cpWaitForFirebaseUser === 'function'){ var u=await cpWaitForFirebaseUser(9000); if(u && u.uid) return u; } }catch(e){ diag('waitUser cpWait ERR '+S(e&&e.message||e)); }
-    var start=Date.now();
-    while(Date.now()-start<9000){
-      try{ if(window.CLOUD && CLOUD.user && CLOUD.user.uid) return CLOUD.user; }catch(_){ }
-      try{ if(window.CLOUD && CLOUD.auth && CLOUD.auth.currentUser && CLOUD.auth.currentUser.uid) return CLOUD.auth.currentUser; }catch(_){ }
-      try{ if(window.firebase && firebase.auth && firebase.auth().currentUser && firebase.auth().currentUser.uid) return firebase.auth().currentUser; }catch(_){ }
-      await new Promise(function(r){ setTimeout(r,250); });
-    }
-    return null;
-  }
-  function context(){
-    try{ if(typeof getCustomerMainDogsContext==='function'){ var c=getCustomerMainDogsContext(); if(c) return c; } }catch(e){ diag('context helper ERR '+S(e&&e.message||e)); }
-    var cust=null, pet=null;
-    try{ var sel=$('customerSelect'); var cid=sel && sel.value; if(cid && typeof getCustomer==='function') cust=getCustomer(cid); }catch(_){ }
-    try{ var pid=(window.cpEdit && cpEdit.petId) || ''; if(pid && typeof getPet==='function') pet=getPet(pid); }catch(_){ }
-    return { customer: cust||{}, pet: pet||{}, customerId:S((cust&&(cust.id||cust.customerId))||''), petId:S((pet&&(pet.id||pet.petId||pet.dogId))||''), pets: pet?[pet]:[] };
-  }
-  function val(id){ var el=$(id); return S(el && el.value).trim(); }
-  function checked(id){ var el=$(id); return !!(el && el.checked); }
-  function sanitizeMedia(v){ v=S(v); return /^data:/i.test(v) ? '' : v; }
-  function collectPayload(auth){
-    var ctx=context();
-    var pet0=ctx.pet || ((ctx.pets&&ctx.pets[0])||{});
-    var customerId=S(ctx.customerId || (ctx.customer && (ctx.customer.id||ctx.customer.customerId)) || (auth && auth.uid) || val('c_email') || '').trim();
-    var petId=S((pet0 && (pet0.id||pet0.petId||pet0.dogId)) || (window.cpEdit && cpEdit.petId) || '').trim();
-    var customer={
-      id: customerId,
-      name: val('c_name'), phone: val('c_phone'), email: val('c_email') || S(auth && auth.email), street: val('c_street'), zip: val('c_zip'), city: val('c_city'),
-      emergencyName: val('c_em_name'), emergencyPhone: val('c_em_phone'), pickupAuth: val('c_pickup_auth'), note: val('c_note')
-    };
-    var chipStatus=val('p_chipStatus');
-    var pet={
-      id: petId, customerId: customerId, name: val('p_name'), breed: val('p_breed'), birthdate: val('p_birthdate'), sex: val('p_sex'),
-      chip: chipStatus === 'yes', chipStatus: chipStatus, chipNumber: val('p_chipNumber'), vet: val('p_vet'), vetPhone: val('p_vetPhone'), vetEmail: val('p_vetEmail'),
-      vetStreet: val('p_vetStreet'), vetZip: val('p_vetZip'), vetCity: val('p_vetCity'), vetEmergencyName: val('p_vetEmergencyName'), vetEmergencyPhone: val('p_vetEmergencyPhone'),
-      allergies: val('p_allergies'), medicalConditions: val('p_medicalConditions'), insuranceStatus: val('p_insuranceStatus'), insuranceCompany: val('p_insuranceCompany'), insurancePolicy: val('p_insurancePolicy'), insuranceNotes: val('p_insuranceNotes'),
-      vaccinatedConfirmed: checked('p_vaccinatedConfirmed'), rabiesDate: val('p_rabiesDate'), mixedVaccineDate: val('p_mixedVaccineDate'),
-      vaccinationPassPhoto: sanitizeMedia(window.cpVaccinationPassDataUrl || (pet0 && pet0.vaccinationPassPhoto) || ''), profilePhoto: sanitizeMedia(window.cpProfilePhotoDataUrl || (pet0 && pet0.profilePhoto) || ''),
-      food: val('p_food'), treatsAllowed: val('p_treatsAllowed'), aloneTime: val('p_aloneTime'), houseTrained: val('p_houseTrained'), transport: val('p_transport'), feeding: val('p_feeding'),
-      compatDogs: val('p_compatDogs'), compatCats: val('p_compatCats'), compatKids: val('p_compatKids'), compat: val('p_compat'), leashBehavior: val('p_leashBehavior'), recall: val('p_recall'), resourceBehavior: val('p_resourceBehavior'), behavior: val('p_behavior'), dailyRoutine: val('p_dailyRoutine'), commands: val('p_commands'), note: val('p_note')
-    };
-    if(!customer.name) throw new Error('Bitte Kundennamen eintragen.');
-    if(!customer.email) throw new Error('Bitte E-Mail eintragen.');
-    if(!pet.name) throw new Error('Bitte Hundename eintragen.');
-    if(!chipStatus) throw new Error('Bitte bei „Gechippt?“ Ja oder Nein wählen.');
-    var id=uid(); var stamp=now();
-    return {
-      id:id, taskId:id, templateId:'customer_data', title:'Kunde/Hund Änderungsvorschlag', status:'submitted', proposalStatus:'pending', submittedAt:stamp, createdAt:stamp, updatedAt:stamp,
-      customerUid:S(auth && auth.uid), customerEmail:S(auth && auth.email).trim().toLowerCase(), customerName:customer.name, customerId:customerId, petId:petId, dogId:petId,
-      payloadSubmitted:{ source:'customer-main-dogs-gb349-direct', mode:'proposal-direct-small', customer:customer, pet:pet },
-      __gb349Direct:true
-    };
-  }
-  function liteTask(task){
-    var c=(task.payloadSubmitted&&task.payloadSubmitted.customer)||{};
-    var p=(task.payloadSubmitted&&task.payloadSubmitted.pet)||{};
-    return Object.assign({}, task, { payloadSubmitted:{ source:'customer-main-dogs-gb349-direct', mode:'proposal-direct-small-mirror', customer:{id:c.id||task.customerId||'', name:c.name||'', email:c.email||'', phone:c.phone||''}, pet:{id:p.id||task.petId||'', name:p.name||'', breed:p.breed||'', sex:p.sex||'', chipStatus:p.chipStatus||'', note:p.note||''} } });
-  }
-  function getCol(name){
-    try{ if(name==='proposals' && typeof cloudProposalsCol==='function') return cloudProposalsCol(); }catch(_){ }
-    try{ if(name==='tasks' && typeof cloudTasksCol==='function') return cloudTasksCol(); }catch(_){ }
-    try{
-      var db = (typeof dsEnsureCloudDb==='function' ? dsEnsureCloudDb() : (window.CLOUD&&CLOUD.db));
-      var org = (typeof dsResolveCloudOrgId==='function' ? dsResolveCloudOrgId() : ((window.CLOUD&&CLOUD.orgId)||'doggystyle'));
-      if(db && typeof db.collection==='function') return db.collection('orgs').doc(org).collection(name);
-    }catch(_){ }
-    return null;
-  }
-  function storeLocalSmall(task){
-    try{ if(typeof pushCustomerProposalBuffer==='function') pushCustomerProposalBuffer(task); }catch(e){ diag('push buffer ERR '+S(e&&e.message||e)); }
-    try{
-      var key='ds_customer_proposals_v1';
-      var arr=[]; try{ arr=JSON.parse(localStorage.getItem(key)||'[]')||[]; }catch(_){ arr=[]; }
-      arr.unshift(task); if(arr.length>50) arr=arr.slice(0,50);
-      localStorage.setItem(key, JSON.stringify(arr));
-      diag('local small mirror ok', {key:key, bytes:jsonSize(task)});
-    }catch(e){ diag('local small mirror ERR '+S(e&&e.message||e)); }
-  }
-  async function writeCloudSmall(task){
-    var col=getCol('proposals');
-    if(!col || typeof col.doc!=='function') throw new Error('Firestore proposals nicht verfügbar.');
-    diag('cloud proposal set start', {path:'orgs/'+(window.CLOUD&&CLOUD.orgId||'doggystyle')+'/proposals/'+task.id, bytes:jsonSize(task)});
-    await col.doc(task.id).set(task,{merge:true});
-    diag('cloud proposal set ok', {id:task.id, bytes:jsonSize(task)});
-    try{
-      var tcol=getCol('tasks');
-      if(tcol && typeof tcol.doc==='function'){
-        var mt=liteTask(task); mt.mirroredFromProposal=true; mt.updatedAt=now();
-        diag('cloud task mirror set start', {bytes:jsonSize(mt)});
-        await tcol.doc(task.id).set(mt,{merge:true});
-        diag('cloud task mirror set ok', {id:task.id, bytes:jsonSize(mt)});
-      }
-    }catch(e){ diag('cloud task mirror ERR '+S(e&&e.message||e)); }
-  }
-  async function directSave(ev){
-    var btn=isSaveButton(ev); if(!btn || !isDogsCustomerMode()) return;
-    try{ ev.preventDefault(); ev.stopPropagation(); ev.stopImmediatePropagation(); }catch(_){ }
-    diag('intercept btnCpSave direct dogs');
-    setStatus('Vorschlag wird gespeichert …');
-    try{
-      var auth=await waitUser();
-      if(!auth || !auth.uid) throw new Error('Keine aktive Anmeldung gefunden. Bitte einmal neu anmelden.');
-      try{ window.CLOUD=window.CLOUD||{}; CLOUD.user=auth; if(!CLOUD.orgId && typeof dsResolveCloudOrgId==='function') CLOUD.orgId=dsResolveCloudOrgId(); }catch(_){ }
-      var task=collectPayload(auth);
-      diag('payload built', {id:task.id, cid:task.customerId, pid:task.petId, bytes:jsonSize(task)});
-      await writeCloudSmall(task);
-      storeLocalSmall(liteTask(task));
-      setStatus('✅ Vorschlag gespeichert und an Eingänge übergeben.');
-      try{ alert('✅ Änderungsvorschlag gespeichert und an Eingänge übergeben.'); }catch(_){ }
-      try{ if(typeof closeCpEditor==='function') closeCpEditor(); }catch(_){ }
-      try{ if(typeof renderDogs==='function') renderDogs(); }catch(_){ }
-    }catch(e){
-      diag('direct save ERR '+S(e&&e.message||e));
-      setStatus('❌ Speichern fehlgeschlagen.', true);
-      try{ alert('Speichern fehlgeschlagen: '+S(e&&e.message||e)); }catch(_){ }
-    }
-    return false;
-  }
-  document.addEventListener('click', function(ev){ directSave(ev); }, true);
-  diag('installed '+BUILD);
-})();
-/* ===== END GB349 CUSTOMER DOGS DIRECT PROPOSAL SAVE ===== */
+/* Removed old GB349 CUSTOMER DOGS DIRECT PROPOSAL SAVE during GB352 source-function fix */
 
-/* ===== GB351 CUSTOMER DOGS SAVE BIND FIX ===== */
-(function(){
-  'use strict';
-  var BUILD='M50.9.9GB351_CUSTOMER_DOGS_SAVE_BIND_FIX_20260612_ROOTONLY';
-  if(window.__gb351CustomerDogsSaveBindFixInstalled) return;
-  window.__gb351CustomerDogsSaveBindFixInstalled=true;
 
-  function S(v){ try{ return String(v==null?'':v); }catch(_){ return ''; } }
-  function $(id){ try{ return document.getElementById(id); }catch(_){ return null; } }
-  function now(){ return Date.now(); }
-  function makeId(){ return 'gb351_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,10); }
-  function bytes(obj){ try{ return JSON.stringify(obj||{}).length; }catch(_){ return -1; } }
-  function clip(txt,n){ txt=S(txt); n=n||240; return txt.length>n ? txt.slice(0,n)+'…' : txt; }
-  function diag(msg,obj){
-    try{
-      var line='GB351 '+new Date().toLocaleTimeString('de-DE')+' '+S(msg)+(obj?(' '+clip(JSON.stringify(obj),360)):'');
-      window.__gb351DogsSaveLog = Array.isArray(window.__gb351DogsSaveLog) ? window.__gb351DogsSaveLog : [];
-      window.__gb351DogsSaveLog.push(line);
-      if(window.__gb351DogsSaveLog.length>100) window.__gb351DogsSaveLog.splice(0, window.__gb351DogsSaveLog.length-100);
-      var key='ds_gb347_diag_log_v1';
-      var arr=[]; try{ arr=JSON.parse(localStorage.getItem(key)||'[]')||[]; }catch(_){ arr=[]; }
-      arr.push(line); if(arr.length>160) arr=arr.slice(-160);
-      try{ localStorage.setItem(key, JSON.stringify(arr)); }catch(_){ }
-      try{ if(typeof dsSetSyncDiag==='function') dsSetSyncDiag(line, false); }catch(_){ }
-      try{ console.log(line); }catch(_){ }
-      try{ var box=document.getElementById('dsGB347DiagBox'); if(box && /GB35[0-9]|Diagnose/i.test(box.textContent||'')){ setTimeout(function(){ try{ if(typeof window.__dsGB347DiagRender==='function') window.__dsGB347DiagRender(); }catch(_){ } }, 40); } }catch(_){ }
-    }catch(_){ }
-  }
-  function isDogsMode(){
-    try{ if(new URLSearchParams(location.search||'').get('customer_mode') === 'dogs') return true; }catch(_){ }
-    try{ if(document.body && String(document.body.dataset.customerMode||'') === 'dogs') return true; }catch(_){ }
-    try{ if(typeof isCustomerMainDogsMode==='function' && isCustomerMainDogsMode()) return true; }catch(_){ }
-    try{ if(String(sessionStorage.getItem('ds_customer_main_mode')||'') === 'dogs') return true; }catch(_){ }
-    return false;
-  }
-  function setStatus(text,isErr){
-    try{ if(typeof cpSetStatus==='function') cpSetStatus(text, !!isErr); }catch(_){ }
-    try{ var el=$('cpStatus'); if(el){ el.textContent=S(text); el.classList.toggle('err', !!isErr); } }catch(_){ }
-    try{ var hint=$('customerTaskSaveHint'); if(hint) hint.textContent=S(text); }catch(_){ }
-  }
-  function safeVal(id){ var el=$(id); return S(el && (el.value != null ? el.value : '')).trim(); }
-  function safeChecked(id){ var el=$(id); return !!(el && el.checked); }
-  function stripMedia(v){ v=S(v); return /^data:/i.test(v) ? '' : v; }
-  function getAuthNow(){
-    try{ if(window.CLOUD && CLOUD.user && CLOUD.user.uid) return CLOUD.user; }catch(_){ }
-    try{ if(window.CLOUD && CLOUD.auth && CLOUD.auth.currentUser && CLOUD.auth.currentUser.uid) return CLOUD.auth.currentUser; }catch(_){ }
-    try{ if(window.firebase && firebase.auth && firebase.auth().currentUser && firebase.auth().currentUser.uid) return firebase.auth().currentUser; }catch(_){ }
-    return null;
-  }
-  async function waitAuth(){
-    try{ if(typeof cpWaitForFirebaseUser==='function'){ var u=await cpWaitForFirebaseUser(2500); if(u && u.uid) return u; } }catch(e){ diag('auth wait helper error', {msg:S(e&&e.message||e)}); }
-    var start=Date.now();
-    while(Date.now()-start<3000){
-      var u=getAuthNow(); if(u && u.uid) return u;
-      await new Promise(function(r){setTimeout(r,200);});
-    }
-    return getAuthNow();
-  }
-  function resolveContext(){
-    var ctx=null;
-    try{ if(typeof getCustomerMainDogsContext==='function') ctx=getCustomerMainDogsContext(); }catch(e){ diag('context helper error', {msg:S(e&&e.message||e)}); }
-    ctx=ctx||{};
-    var customer=ctx.customer||null;
-    var pet=(ctx.pets && ctx.pets[0]) || ctx.pet || null;
-    try{
-      if(!customer){ var sel=$('customerSelect'); var cid=sel && sel.value; if(cid && typeof getCustomer==='function') customer=getCustomer(cid); }
-    }catch(_){ }
-    try{
-      if(!pet){ var pid=(window.cpEdit && cpEdit.petId) || ''; if(pid && typeof getPet==='function') pet=getPet(pid); }
-    }catch(_){ }
-    var cid=S((ctx.customerId) || (customer && (customer.id || customer.customerId)) || '').trim();
-    var pid=S((pet && (pet.id || pet.petId || pet.dogId)) || (window.cpEdit && cpEdit.petId) || '').trim();
-    return {ctx:ctx, customer:customer||{}, pet:pet||{}, customerId:cid, petId:pid};
-  }
-  function collectProposal(auth){
-    var c=resolveContext();
-    var email=safeVal('c_email') || S(auth && auth.email).trim().toLowerCase();
-    var customerId=S(c.customerId || (c.customer && (c.customer.id || c.customer.customerId)) || email || (auth && auth.uid) || '').trim();
-    var petId=S(c.petId || (c.pet && (c.pet.id || c.pet.petId || c.pet.dogId)) || '').trim();
-    var chipStatus=safeVal('p_chipStatus');
-    var customer={
-      id: customerId,
-      customerId: customerId,
-      name: safeVal('c_name') || S(c.customer && (c.customer.name || c.customer.displayName || c.customer.fullName)).trim(),
-      phone: safeVal('c_phone'), email: email, street: safeVal('c_street'), zip: safeVal('c_zip'), city: safeVal('c_city'),
-      emergencyName: safeVal('c_em_name'), emergencyPhone: safeVal('c_em_phone'), pickupAuth: safeVal('c_pickup_auth'), note: safeVal('c_note')
-    };
-    var pet={
-      id: petId,
-      petId: petId,
-      dogId: petId,
-      customerId: customerId,
-      name: safeVal('p_name') || S(c.pet && (c.pet.name || c.pet.petName || c.pet.dogName)).trim(),
-      breed: safeVal('p_breed'), birthdate: safeVal('p_birthdate'), sex: safeVal('p_sex'), chipStatus: chipStatus,
-      chip: chipStatus === 'yes', chipNumber: safeVal('p_chipNumber'), vet: safeVal('p_vet'), vetPhone: safeVal('p_vetPhone'), vetEmail: safeVal('p_vetEmail'),
-      vetStreet: safeVal('p_vetStreet'), vetZip: safeVal('p_vetZip'), vetCity: safeVal('p_vetCity'), vetEmergencyName: safeVal('p_vetEmergencyName'), vetEmergencyPhone: safeVal('p_vetEmergencyPhone'),
-      allergies: safeVal('p_allergies'), medicalConditions: safeVal('p_medicalConditions'), insuranceStatus: safeVal('p_insuranceStatus'), insuranceCompany: safeVal('p_insuranceCompany'), insurancePolicy: safeVal('p_insurancePolicy'), insuranceNotes: safeVal('p_insuranceNotes'),
-      vaccinatedConfirmed: safeChecked('p_vaccinatedConfirmed'), rabiesDate: safeVal('p_rabiesDate'), mixedVaccineDate: safeVal('p_mixedVaccineDate'),
-      vaccinationPassPhoto: stripMedia(window.cpVaccinationPassDataUrl || S(c.pet && c.pet.vaccinationPassPhoto)), profilePhoto: stripMedia(window.cpProfilePhotoDataUrl || S(c.pet && c.pet.profilePhoto)),
-      food: safeVal('p_food'), treatsAllowed: safeVal('p_treatsAllowed'), aloneTime: safeVal('p_aloneTime'), houseTrained: safeVal('p_houseTrained'), transport: safeVal('p_transport'), feeding: safeVal('p_feeding'),
-      compatDogs: safeVal('p_compatDogs'), compatCats: safeVal('p_compatCats'), compatKids: safeVal('p_compatKids'), compat: safeVal('p_compat'), leashBehavior: safeVal('p_leashBehavior'), recall: safeVal('p_recall'), resourceBehavior: safeVal('p_resourceBehavior'), behavior: safeVal('p_behavior'), dailyRoutine: safeVal('p_dailyRoutine'), commands: safeVal('p_commands'), note: safeVal('p_note')
-    };
-    if(!customer.name) throw new Error('Bitte Kundennamen eintragen.');
-    if(!customer.email) throw new Error('Bitte E-Mail eintragen.');
-    if(!pet.name) throw new Error('Bitte Hundename eintragen.');
-    if(!chipStatus) throw new Error('Bitte bei „Gechippt?“ Ja oder Nein wählen.');
-    if(pet.chip && !pet.chipNumber) throw new Error('Bitte die Chipnummer eintragen.');
-    var id=makeId(), stamp=now();
-    return {
-      id:id, taskId:id, proposalId:id,
-      templateId:'customer_data', formKey:'customer_data', kind:'kunde/hund', proposalType:'kunde/hund',
-      title:'Kunde/Hund Änderungsvorschlag', status:'submitted', proposalStatus:'pending',
-      submittedAt:stamp, createdAt:stamp, updatedAt:stamp,
-      customerUid:S(auth && auth.uid), customerEmail:S(auth && auth.email).trim().toLowerCase() || customer.email, customerName:customer.name,
-      customerId:customerId, petId:petId, dogId:petId,
-      payloadSubmitted:{source:'customer-main-dogs-gb351-direct', mode:'proposal-direct-small', customer:customer, pet:pet},
-      __gb351Direct:true
-    };
-  }
-  function mirrorSmall(task){
-    var p=(task.payloadSubmitted&&task.payloadSubmitted.pet)||{};
-    var c=(task.payloadSubmitted&&task.payloadSubmitted.customer)||{};
-    return Object.assign({}, task, {payloadSubmitted:{source:'customer-main-dogs-gb351-direct', mode:'proposal-direct-small-mirror', customer:{id:c.id||task.customerId||'', name:c.name||'', email:c.email||task.customerEmail||'', phone:c.phone||''}, pet:{id:p.id||task.petId||'', name:p.name||'', breed:p.breed||'', sex:p.sex||'', chipStatus:p.chipStatus||'', note:p.note||''}}});
-  }
-  function getDb(){
-    try{ if(typeof dsEnsureCloudDb==='function'){ var d=dsEnsureCloudDb(); if(d) return d; } }catch(_){ }
-    try{ if(window.CLOUD && CLOUD.db) return CLOUD.db; }catch(_){ }
-    try{ if(window.firebase && firebase.firestore) return firebase.firestore(); }catch(_){ }
-    return null;
-  }
-  function orgId(){
-    try{ if(typeof dsResolveCloudOrgId==='function') return dsResolveCloudOrgId(); }catch(_){ }
-    try{ return S(window.CLOUD && CLOUD.orgId) || 'doggystyle'; }catch(_){ return 'doggystyle'; }
-  }
-  function col(name){
-    try{ if(name==='proposals' && typeof cloudProposalsCol==='function'){ var c=cloudProposalsCol(); if(c) return c; } }catch(_){ }
-    try{ if(name==='tasks' && typeof cloudTasksCol==='function'){ var t=cloudTasksCol(); if(t) return t; } }catch(_){ }
-    var db=getDb(); var org=orgId();
-    if(db && typeof db.collection==='function') return db.collection('orgs').doc(org).collection(name);
-    return null;
-  }
-  function localMirror(task){
-    try{ if(typeof pushCustomerProposalBuffer==='function') pushCustomerProposalBuffer(mirrorSmall(task)); }catch(e){ diag('pushCustomerProposalBuffer error',{msg:S(e&&e.message||e)}); }
-    try{
-      var key='ds_customer_proposals_v1';
-      var arr=[]; try{ arr=JSON.parse(localStorage.getItem(key)||'[]')||[]; }catch(_){ arr=[]; }
-      arr.unshift(mirrorSmall(task)); if(arr.length>80) arr=arr.slice(0,80);
-      localStorage.setItem(key, JSON.stringify(arr));
-      diag('local proposal mirror ok',{key:key, bytes:bytes(arr[0])});
-    }catch(e){ diag('local proposal mirror error',{msg:S(e&&e.message||e)}); }
-  }
-  async function writeProposal(task){
-    var pcol=col('proposals'); if(!pcol || typeof pcol.doc!=='function') throw new Error('Firestore proposals nicht verfügbar.');
-    diag('proposals.set start',{id:task.id, path:'orgs/'+orgId()+'/proposals/'+task.id, bytes:bytes(task)});
-    await pcol.doc(task.id).set(task,{merge:true});
-    diag('proposals.set ok',{id:task.id});
-    try{
-      var tcol=col('tasks');
-      if(tcol && typeof tcol.doc==='function'){
-        var mt=mirrorSmall(task); mt.mirroredFromProposal=true; mt.updatedAt=now();
-        diag('tasks.set start',{id:task.id, bytes:bytes(mt)});
-        await tcol.doc(task.id).set(mt,{merge:true});
-        diag('tasks.set ok',{id:task.id});
-      }
-    }catch(e){ diag('tasks mirror error',{msg:S(e&&e.message||e)}); }
-  }
-  async function saveDirect(ev){
-    if(ev){ try{ ev.preventDefault(); ev.stopPropagation(); ev.stopImmediatePropagation(); }catch(_){ } }
-    if(window.__gb351DogsSaveBusy) return false;
-    window.__gb351DogsSaveBusy=true;
-    setStatus('Vorschlag wird gespeichert …');
-    diag('direct handler start');
-    try{
-      var auth=await waitAuth();
-      if(!auth || !auth.uid) throw new Error('Keine aktive Anmeldung gefunden. Bitte einmal neu anmelden.');
-      try{ window.CLOUD=window.CLOUD||{}; CLOUD.user=auth; CLOUD.orgId=CLOUD.orgId||orgId(); }catch(_){ }
-      var task=collectProposal(auth);
-      diag('payload ready',{id:task.id, customerId:task.customerId, petId:task.petId, bytes:bytes(task)});
-      await writeProposal(task);
-      localMirror(task);
-      setStatus('✅ Änderungsvorschlag gespeichert und an Eingänge übergeben.');
-      try{ alert('✅ Änderungsvorschlag gespeichert und an Eingänge übergeben.'); }catch(_){ }
-      try{ if(typeof closeCpEditor==='function') closeCpEditor(); }catch(_){ }
-      try{ if(typeof renderDogs==='function') renderDogs(); }catch(_){ }
-      diag('direct handler done',{id:task.id});
-    }catch(e){
-      diag('direct handler error',{msg:S(e&&e.message||e)});
-      setStatus('❌ Speichern fehlgeschlagen: '+S(e&&e.message||e), true);
-      try{ alert('Speichern fehlgeschlagen: '+S(e&&e.message||e)); }catch(_){ }
-    }finally{
-      window.__gb351DogsSaveBusy=false;
-    }
-    return false;
-  }
-  function replaceAndBindSaveButton(){
-    if(!isDogsMode()) return;
-    var btn=$('btnCpSave');
-    if(!btn) return;
-    if(btn.__gb351Bound) return;
-    var clone=btn.cloneNode(true);
-    clone.__gb351Bound=true;
-    clone.setAttribute('data-gb351-bound','1');
-    clone.onclick=function(ev){ return saveDirect(ev); };
-    clone.addEventListener('click', function(ev){ return saveDirect(ev); }, true);
-    clone.addEventListener('touchend', function(ev){ return saveDirect(ev); }, true);
-    try{ btn.parentNode.replaceChild(clone, btn); diag('btnCpSave cloned and rebound'); }catch(e){ diag('btnCpSave clone error',{msg:S(e&&e.message||e)}); }
-  }
-  function bindForms(){
-    if(!isDogsMode()) return;
-    try{
-      var b=$('btnCpSave'); var form=b && b.closest && b.closest('form');
-      if(form && !form.__gb351SubmitBound){ form.__gb351SubmitBound=true; form.addEventListener('submit', function(ev){ return saveDirect(ev); }, true); diag('form submit rebound'); }
-    }catch(_){ }
-  }
-  function install(){
-    try{ replaceAndBindSaveButton(); bindForms(); }catch(e){ diag('install error',{msg:S(e&&e.message||e)}); }
-  }
-  document.addEventListener('DOMContentLoaded', install);
-  window.addEventListener('load', install);
-  document.addEventListener('click', function(ev){
-    if(!isDogsMode()) return;
-    var btn=null; try{ btn=ev.target && ev.target.closest && ev.target.closest('#btnCpSave,button'); }catch(_){ }
-    if(!btn) return;
-    var txt=S(btn.textContent).replace(/\s+/g,' ').trim().toLowerCase();
-    if(btn.id==='btnCpSave' || (txt==='speichern' && $('cpEditor'))){ return saveDirect(ev); }
-  }, true);
-  var n=0;
-  var timer=setInterval(function(){ n++; install(); if(n>80) clearInterval(timer); }, 500);
-  try{ window.__gb351DogsDirectSave=saveDirect; }catch(_){ }
-  diag('installed '+BUILD);
-})();
-/* ===== END GB351 CUSTOMER DOGS SAVE BIND FIX ===== */
+/* Removed old GB351 CUSTOMER DOGS SAVE BIND FIX during GB352 source-function fix */
+
