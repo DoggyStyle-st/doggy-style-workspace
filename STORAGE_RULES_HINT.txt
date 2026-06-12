@@ -1,0 +1,5 @@
+Für Bild-/Video-Upload in den Chats müssen die Firebase STORAGE Rules veröffentlicht werden.
+
+Wichtig: Firestore Rules allein reichen nicht.
+
+Bitte den Inhalt aus storage.rules in Firebase Console -> Storage -> Rules übernehmen/veröffentlichen.

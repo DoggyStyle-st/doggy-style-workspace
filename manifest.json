@@ -1,0 +1,22 @@
+{
+  "description": "Doggy Style Workspace (M50.9.9GB350_CLEAN_AUDIT_FROM_CURRENT_GITHUB_NOLOGIC_20260612_ROOTONLY)",
+  "name": "Doggy Style Workspace (Stand 27.12.2025)",
+  "short_name": "DoggyStyle",
+  "start_url": "./app.html",
+  "display": "standalone",
+  "background_color": "#0c0c10",
+  "theme_color": "#101014",
+  "icons": [
+    {
+      "src": "assets/logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "assets/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "scope": "./"
+}

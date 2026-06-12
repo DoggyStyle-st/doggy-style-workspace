@@ -1,0 +1,40 @@
+GB350 CLEAN-AUDIT OHNE FUNKTIONSÄNDERUNG
+Build: M50.9.9GB350_CLEAN_AUDIT_FROM_CURRENT_GITHUB_NOLOGIC_20260612_ROOTONLY
+Basis: aktuelle GitHub-ZIP / GB349-Online-Stand
+
+Ziel: Dateibaum bereinigen, Build-Referenzen vereinheitlichen, keine fachliche Änderung an Kunden-/Vertrags-/Vorschlagslogik.
+
+Entfernte Dateien:
+- customer.html.bak (75677 Bytes)
+- BUILD_GB310_NOTES.txt (602 Bytes)
+- README_GB151.txt (74 Bytes)
+- GB348_DIAG_HINWEIS.txt (202 Bytes)
+- GB349_HINWEIS.txt (638 Bytes)
+- GB355_DIAGNOSE_HINWEIS.txt (1164 Bytes)
+- GB356_DIAGNOSE_HINWEIS.txt (773 Bytes)
+- GB357_FIX_HINWEIS.txt (1392 Bytes)
+- GB358_FIX_HINWEIS.txt (1333 Bytes)
+- vendor/PDF/getkeep (1 Bytes)
+- assets/.getkeep (1 Bytes)
+- templates/.getkeep (1 Bytes)
+- assets/boarding.jpg (419418 Bytes)
+- assets/daycare.jpg (509879 Bytes)
+- assets/boarding_icon.jpg (4104 Bytes)
+- assets/daycare_icon.jpg (4023 Bytes)
+- assets/customer_chat_light.jpg (70228 Bytes)
+- assets/customer_contract_light.jpg (63472 Bytes)
+- assets/customer_dogs_dark.jpg (49398 Bytes)
+- assets/customer_start_light.jpg (60920 Bytes)
+- assets/customer_stay_dark.jpg (66901 Bytes)
+
+Bewusst behalten:
+- app.html, app.js, customer.html, auth.js, firebase-config.js
+- styles.css, dashboard_master.css, login.html, pwreset.html, reset.html
+- diag.html/diag.js als technische Prüfseite
+- firestore.rules, storage.rules, CLOUD_SETUP.md, STORAGE_RULES_HINT.txt als Projekt-/Firebase-Unterlagen
+- nur aktiv referenzierte Dashboard-/Kunden-App-Bilder
+
+Nicht geändert:
+- keine Änderung der Speichern-/Übernehmen-Logik
+- keine Änderung der Kunden-/Hund-/Vertragsdatenlogik
+- keine Änderung der Firestore-Datenstruktur

@@ -1,0 +1,84 @@
+/* LOGIN OVERRIDES – zuletzt geladen, damit iPad/Safari Layout stabil bleibt */
+
+/* 1) Schwarzer Header-Rahmen weg */
+body.page-login .topbar{
+  background: transparent !important;
+  border-bottom: none !important;
+  box-shadow: none !important;
+}
+
+/* 2) Brand-Bereich aufgeräumt */
+body.page-login .brandTitle,
+body.page-login .brandSubtitle{
+  display: block !important;
+  grid-column: 1 / -1 !important;
+}
+
+/* 3) Logo: groß, ohne weißen/hellen Rahmen */
+body.page-login .brand--login{
+  padding-top: 18px !important;
+  padding-bottom: 8px !important;
+}
+
+body.page-login .brandLogo{
+  width: clamp(240px, 38vw, 520px) !important;
+  height: auto !important;
+  background: transparent !important;
+  padding: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 28px !important;
+  display: block;
+  margin: 0 auto;
+}
+
+/* 4) Login-Card: Rahmen dezenter/transparenter */
+body.page-login .loginCard{
+  background: rgba(255,255,255,0.03) !important;
+  border: 1px solid rgba(255,255,255,0.10) !important;
+}
+
+/* 5) Felder: E-Mail und Passwort nebeneinander, keine leere Fläche */
+body.page-login .loginFields{
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 14px !important;
+  align-items: end !important;
+}
+
+/* Name-Feld sichtbar */
+body.page-login #regNameField{
+  display: block !important;
+  grid-column: 1 / -1 !important;
+}
+
+body.page-login #emailField,
+body.page-login #pwField{
+  min-width: 0 !important;
+}
+
+/* 6) Buttons: links Login/Registrieren, rechts Passwort vergessen */
+body.page-login .loginActions{
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  gap: 12px !important;
+  flex-wrap: wrap !important;
+}
+
+body.page-login .authActions-left{
+  display: flex !important;
+  gap: 10px !important;
+  flex-wrap: wrap !important;
+}
+
+body.page-login .btnLink{
+  opacity: 0.92;
+}
+
+/* Mobile: untereinander */
+@media (max-width: 700px){
+  body.page-login .loginFields{
+    grid-template-columns: 1fr !important;
+  }
+}
