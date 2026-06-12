@@ -1,0 +1,13 @@
+GB351 - Kundenmodus Kunde/Hund Speichern
+
+Basis: GB350 Clean-Audit.
+
+Ziel: Nur der Fehler, dass Kunde/Hund im Kundenmodus bei "Speichern läuft ..." hängen bleibt.
+
+Technik:
+- btnCpSave wird in app.html?customer_mode=dogs per Clone neu gebunden, damit alte Listener entfernt sind.
+- Der neue Handler schreibt ausschließlich kleine Dokumente in proposals und tasks.
+- Kein saveState()/workspace_state im Kundenmodus-Kunde/Hund-Speichern.
+- Diagnose über ds_gb347_diag_log_v1 und sichtbare Sync-Diagnose.
+
+Keine Änderungen an Vertrags-/Aufenthaltsübernahme.
