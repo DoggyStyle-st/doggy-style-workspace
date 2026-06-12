@@ -1,4 +1,4 @@
-GB352 - Customer Dogs Submit Function Fix
+GB353 - Customer Dogs Submit Function Fix
 Basis: GB351 / GB350 Clean-Audit.
 
 Ziel:
@@ -10,7 +10,7 @@ Geändert:
 - Kunde/Hund im Kundenmodus schreibt nur noch kleine Dokumente nach proposals/tasks.
 - Kein saveState() und kein workspace_state in diesem Pfad.
 - Alte GB349/GB351 Nachpatch-Blöcke wurden aus app.js entfernt, damit kein Parallelhandler mehr stört.
-- Diagnose schreibt GB352.* Einträge über den bestehenden GB348/GB350 Diagnoseblock.
+- Diagnose schreibt GB353.* Einträge über den bestehenden GB348/GB350 Diagnoseblock.
 
 Test:
 Kunden-App -> Kunde/Hund -> Feld ändern -> Speichern.

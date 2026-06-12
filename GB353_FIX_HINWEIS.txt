@@ -1,0 +1,1 @@
+GB353: Kunde/Hund-Speichern im Kundenmodus nutzt Firebase-Auth oder Kunden-Handoff. Wenn kein echter Firebase currentUser verfügbar ist, wird ein kleiner lokaler Vorschlag in ds_customer_proposals_v1 und lokale Eingänge geschrieben. Kein workspace_state-Cloud-Push in diesem Pfad.
