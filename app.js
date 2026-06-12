@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB350_CLEAN_AUDIT_FROM_CURRENT_GITHUB_NOLOGIC_20260612_ROOTONLY",
+  tag: "M50.9.9GB351_CUSTOMER_DOGS_SAVE_BIND_FIX_20260612_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB350_CLEAN_AUDIT_FROM_CURRENT_GITHUB_NOLOGIC_20260612_ROOTONLY";
+const APP_BUILD = "M50.9.9GB351_CUSTOMER_DOGS_SAVE_BIND_FIX_20260612_ROOTONLY";
 try{ window.__dsAppJsRuntimeBuild = "GB350-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -25668,7 +25668,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB350_CLEAN_AUDIT_FROM_CURRENT_GITHUB_NOLOGIC_20260612_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB351_CUSTOMER_DOGS_SAVE_BIND_FIX_20260612_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -27641,7 +27641,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB350_CLEAN_AUDIT_FROM_CURRENT_GITHUB_NOLOGIC_20260612_ROOTONLY";
+  const BUILD = "M50.9.9GB351_CUSTOMER_DOGS_SAVE_BIND_FIX_20260612_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -31231,7 +31231,7 @@ try{ window.__GB294_MARKER = 'active'; }catch(_){ }
 /* ===== GB295 contract review verified open + reset fix ===== */
 try{ window.__GB295_MARKER = 'active'; }catch(_){ }
 (function(){
-  const BUILD = "M50.9.9GB350_CLEAN_AUDIT_FROM_CURRENT_GITHUB_NOLOGIC_20260612_ROOTONLY";
+  const BUILD = "M50.9.9GB351_CUSTOMER_DOGS_SAVE_BIND_FIX_20260612_ROOTONLY";
   function ds295Clone(v){ try{ return JSON.parse(JSON.stringify(v == null ? null : v)); }catch(_){ return v; } }
   function ds295Norm(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
   function ds295Bool(v){ try{ if(v===true||v===false) return !!v; const s=String(v==null?'':v).trim().toLowerCase(); return s==='1'||s==='true'||s==='yes'||s==='ja'||s==='on'; }catch(_){ return false; } }
@@ -35239,7 +35239,7 @@ try{ window.__GB314_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB314-app
 /* ===== GB315 final contract acceptance + badge DOM hardfix ===== */
 try{ window.__GB315_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB316-appjs'; }catch(_){ }
 (function(){
-  var BUILD='M50.9.9GB350_CLEAN_AUDIT_FROM_CURRENT_GITHUB_NOLOGIC_20260612_ROOTONLY';
+  var BUILD='M50.9.9GB351_CUSTOMER_DOGS_SAVE_BIND_FIX_20260612_ROOTONLY';
   function S(v){ try{return String(v==null?'':v).trim();}catch(_){return '';} }
   function L(v){ return S(v).toLowerCase(); }
   function esc(v){ try{return CSS && CSS.escape ? CSS.escape(S(v)) : S(v).replace(/[^a-zA-Z0-9_-]/g,'\\$&');}catch(_){return S(v);} }
@@ -35452,7 +35452,7 @@ try{var rd=renderDogs;if(rd&&!rd.__gb317Wrapped){renderDogs=function(){var r=rd.
 /* ===== GB318 contract hard bypass: accept not required when signature exists + generic green repair ===== */
 try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild='GB318-appjs'; }catch(_){ }
 (function(){
-  var BUILD='M50.9.9GB350_CLEAN_AUDIT_FROM_CURRENT_GITHUB_NOLOGIC_20260612_ROOTONLY';
+  var BUILD='M50.9.9GB351_CUSTOMER_DOGS_SAVE_BIND_FIX_20260612_ROOTONLY';
   function S(v){try{return String(v==null?'':v).trim()}catch(_){return''}}
   function L(v){return S(v).toLowerCase()}
   function V(){try{return S((state&&(state.contractVersion||(state.contract&&state.contract.version)))||'v1.0')||'v1.0'}catch(_){return'v1.0'}}
@@ -35494,7 +35494,7 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild='GB318-appjs';
   'use strict';
   if(window.__dsGB347DiagInstalled) return;
   window.__dsGB347DiagInstalled = true;
-  var BUILD = 'M50.9.9GB350_CLEAN_AUDIT_FROM_CURRENT_GITHUB_NOLOGIC_20260612_ROOTONLY';
+  var BUILD = 'M50.9.9GB351_CUSTOMER_DOGS_SAVE_BIND_FIX_20260612_ROOTONLY';
   var LOG_KEY = 'ds_gb347_diag_log_v1';
   var LAST = { lines: [], firestoreWrapped:false, functionWrapped:false, clickWrapped:false };
   function S(v){ try{return String(v==null?'':v).trim();}catch(_){return '';} }
@@ -35728,7 +35728,7 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild='GB318-appjs';
 /* ===== GB349 CUSTOMER DOGS DIRECT PROPOSAL SAVE ===== */
 (function(){
   'use strict';
-  var BUILD='M50.9.9GB350_CLEAN_AUDIT_FROM_CURRENT_GITHUB_NOLOGIC_20260612_ROOTONLY';
+  var BUILD='M50.9.9GB351_CUSTOMER_DOGS_SAVE_BIND_FIX_20260612_ROOTONLY';
   if(window.__gb349CustomerDogsDirectSaveInstalled) return;
   window.__gb349CustomerDogsDirectSaveInstalled=true;
   function S(v){ try{ return String(v==null?'':v); }catch(_){ return ''; } }
@@ -35893,3 +35893,236 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild='GB318-appjs';
   diag('installed '+BUILD);
 })();
 /* ===== END GB349 CUSTOMER DOGS DIRECT PROPOSAL SAVE ===== */
+
+/* ===== GB351 CUSTOMER DOGS SAVE BIND FIX ===== */
+(function(){
+  'use strict';
+  var BUILD='M50.9.9GB351_CUSTOMER_DOGS_SAVE_BIND_FIX_20260612_ROOTONLY';
+  if(window.__gb351CustomerDogsSaveBindFixInstalled) return;
+  window.__gb351CustomerDogsSaveBindFixInstalled=true;
+
+  function S(v){ try{ return String(v==null?'':v); }catch(_){ return ''; } }
+  function $(id){ try{ return document.getElementById(id); }catch(_){ return null; } }
+  function now(){ return Date.now(); }
+  function makeId(){ return 'gb351_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,10); }
+  function bytes(obj){ try{ return JSON.stringify(obj||{}).length; }catch(_){ return -1; } }
+  function clip(txt,n){ txt=S(txt); n=n||240; return txt.length>n ? txt.slice(0,n)+'…' : txt; }
+  function diag(msg,obj){
+    try{
+      var line='GB351 '+new Date().toLocaleTimeString('de-DE')+' '+S(msg)+(obj?(' '+clip(JSON.stringify(obj),360)):'');
+      window.__gb351DogsSaveLog = Array.isArray(window.__gb351DogsSaveLog) ? window.__gb351DogsSaveLog : [];
+      window.__gb351DogsSaveLog.push(line);
+      if(window.__gb351DogsSaveLog.length>100) window.__gb351DogsSaveLog.splice(0, window.__gb351DogsSaveLog.length-100);
+      var key='ds_gb347_diag_log_v1';
+      var arr=[]; try{ arr=JSON.parse(localStorage.getItem(key)||'[]')||[]; }catch(_){ arr=[]; }
+      arr.push(line); if(arr.length>160) arr=arr.slice(-160);
+      try{ localStorage.setItem(key, JSON.stringify(arr)); }catch(_){ }
+      try{ if(typeof dsSetSyncDiag==='function') dsSetSyncDiag(line, false); }catch(_){ }
+      try{ console.log(line); }catch(_){ }
+      try{ var box=document.getElementById('dsGB347DiagBox'); if(box && /GB35[0-9]|Diagnose/i.test(box.textContent||'')){ setTimeout(function(){ try{ if(typeof window.__dsGB347DiagRender==='function') window.__dsGB347DiagRender(); }catch(_){ } }, 40); } }catch(_){ }
+    }catch(_){ }
+  }
+  function isDogsMode(){
+    try{ if(new URLSearchParams(location.search||'').get('customer_mode') === 'dogs') return true; }catch(_){ }
+    try{ if(document.body && String(document.body.dataset.customerMode||'') === 'dogs') return true; }catch(_){ }
+    try{ if(typeof isCustomerMainDogsMode==='function' && isCustomerMainDogsMode()) return true; }catch(_){ }
+    try{ if(String(sessionStorage.getItem('ds_customer_main_mode')||'') === 'dogs') return true; }catch(_){ }
+    return false;
+  }
+  function setStatus(text,isErr){
+    try{ if(typeof cpSetStatus==='function') cpSetStatus(text, !!isErr); }catch(_){ }
+    try{ var el=$('cpStatus'); if(el){ el.textContent=S(text); el.classList.toggle('err', !!isErr); } }catch(_){ }
+    try{ var hint=$('customerTaskSaveHint'); if(hint) hint.textContent=S(text); }catch(_){ }
+  }
+  function safeVal(id){ var el=$(id); return S(el && (el.value != null ? el.value : '')).trim(); }
+  function safeChecked(id){ var el=$(id); return !!(el && el.checked); }
+  function stripMedia(v){ v=S(v); return /^data:/i.test(v) ? '' : v; }
+  function getAuthNow(){
+    try{ if(window.CLOUD && CLOUD.user && CLOUD.user.uid) return CLOUD.user; }catch(_){ }
+    try{ if(window.CLOUD && CLOUD.auth && CLOUD.auth.currentUser && CLOUD.auth.currentUser.uid) return CLOUD.auth.currentUser; }catch(_){ }
+    try{ if(window.firebase && firebase.auth && firebase.auth().currentUser && firebase.auth().currentUser.uid) return firebase.auth().currentUser; }catch(_){ }
+    return null;
+  }
+  async function waitAuth(){
+    try{ if(typeof cpWaitForFirebaseUser==='function'){ var u=await cpWaitForFirebaseUser(2500); if(u && u.uid) return u; } }catch(e){ diag('auth wait helper error', {msg:S(e&&e.message||e)}); }
+    var start=Date.now();
+    while(Date.now()-start<3000){
+      var u=getAuthNow(); if(u && u.uid) return u;
+      await new Promise(function(r){setTimeout(r,200);});
+    }
+    return getAuthNow();
+  }
+  function resolveContext(){
+    var ctx=null;
+    try{ if(typeof getCustomerMainDogsContext==='function') ctx=getCustomerMainDogsContext(); }catch(e){ diag('context helper error', {msg:S(e&&e.message||e)}); }
+    ctx=ctx||{};
+    var customer=ctx.customer||null;
+    var pet=(ctx.pets && ctx.pets[0]) || ctx.pet || null;
+    try{
+      if(!customer){ var sel=$('customerSelect'); var cid=sel && sel.value; if(cid && typeof getCustomer==='function') customer=getCustomer(cid); }
+    }catch(_){ }
+    try{
+      if(!pet){ var pid=(window.cpEdit && cpEdit.petId) || ''; if(pid && typeof getPet==='function') pet=getPet(pid); }
+    }catch(_){ }
+    var cid=S((ctx.customerId) || (customer && (customer.id || customer.customerId)) || '').trim();
+    var pid=S((pet && (pet.id || pet.petId || pet.dogId)) || (window.cpEdit && cpEdit.petId) || '').trim();
+    return {ctx:ctx, customer:customer||{}, pet:pet||{}, customerId:cid, petId:pid};
+  }
+  function collectProposal(auth){
+    var c=resolveContext();
+    var email=safeVal('c_email') || S(auth && auth.email).trim().toLowerCase();
+    var customerId=S(c.customerId || (c.customer && (c.customer.id || c.customer.customerId)) || email || (auth && auth.uid) || '').trim();
+    var petId=S(c.petId || (c.pet && (c.pet.id || c.pet.petId || c.pet.dogId)) || '').trim();
+    var chipStatus=safeVal('p_chipStatus');
+    var customer={
+      id: customerId,
+      customerId: customerId,
+      name: safeVal('c_name') || S(c.customer && (c.customer.name || c.customer.displayName || c.customer.fullName)).trim(),
+      phone: safeVal('c_phone'), email: email, street: safeVal('c_street'), zip: safeVal('c_zip'), city: safeVal('c_city'),
+      emergencyName: safeVal('c_em_name'), emergencyPhone: safeVal('c_em_phone'), pickupAuth: safeVal('c_pickup_auth'), note: safeVal('c_note')
+    };
+    var pet={
+      id: petId,
+      petId: petId,
+      dogId: petId,
+      customerId: customerId,
+      name: safeVal('p_name') || S(c.pet && (c.pet.name || c.pet.petName || c.pet.dogName)).trim(),
+      breed: safeVal('p_breed'), birthdate: safeVal('p_birthdate'), sex: safeVal('p_sex'), chipStatus: chipStatus,
+      chip: chipStatus === 'yes', chipNumber: safeVal('p_chipNumber'), vet: safeVal('p_vet'), vetPhone: safeVal('p_vetPhone'), vetEmail: safeVal('p_vetEmail'),
+      vetStreet: safeVal('p_vetStreet'), vetZip: safeVal('p_vetZip'), vetCity: safeVal('p_vetCity'), vetEmergencyName: safeVal('p_vetEmergencyName'), vetEmergencyPhone: safeVal('p_vetEmergencyPhone'),
+      allergies: safeVal('p_allergies'), medicalConditions: safeVal('p_medicalConditions'), insuranceStatus: safeVal('p_insuranceStatus'), insuranceCompany: safeVal('p_insuranceCompany'), insurancePolicy: safeVal('p_insurancePolicy'), insuranceNotes: safeVal('p_insuranceNotes'),
+      vaccinatedConfirmed: safeChecked('p_vaccinatedConfirmed'), rabiesDate: safeVal('p_rabiesDate'), mixedVaccineDate: safeVal('p_mixedVaccineDate'),
+      vaccinationPassPhoto: stripMedia(window.cpVaccinationPassDataUrl || S(c.pet && c.pet.vaccinationPassPhoto)), profilePhoto: stripMedia(window.cpProfilePhotoDataUrl || S(c.pet && c.pet.profilePhoto)),
+      food: safeVal('p_food'), treatsAllowed: safeVal('p_treatsAllowed'), aloneTime: safeVal('p_aloneTime'), houseTrained: safeVal('p_houseTrained'), transport: safeVal('p_transport'), feeding: safeVal('p_feeding'),
+      compatDogs: safeVal('p_compatDogs'), compatCats: safeVal('p_compatCats'), compatKids: safeVal('p_compatKids'), compat: safeVal('p_compat'), leashBehavior: safeVal('p_leashBehavior'), recall: safeVal('p_recall'), resourceBehavior: safeVal('p_resourceBehavior'), behavior: safeVal('p_behavior'), dailyRoutine: safeVal('p_dailyRoutine'), commands: safeVal('p_commands'), note: safeVal('p_note')
+    };
+    if(!customer.name) throw new Error('Bitte Kundennamen eintragen.');
+    if(!customer.email) throw new Error('Bitte E-Mail eintragen.');
+    if(!pet.name) throw new Error('Bitte Hundename eintragen.');
+    if(!chipStatus) throw new Error('Bitte bei „Gechippt?“ Ja oder Nein wählen.');
+    if(pet.chip && !pet.chipNumber) throw new Error('Bitte die Chipnummer eintragen.');
+    var id=makeId(), stamp=now();
+    return {
+      id:id, taskId:id, proposalId:id,
+      templateId:'customer_data', formKey:'customer_data', kind:'kunde/hund', proposalType:'kunde/hund',
+      title:'Kunde/Hund Änderungsvorschlag', status:'submitted', proposalStatus:'pending',
+      submittedAt:stamp, createdAt:stamp, updatedAt:stamp,
+      customerUid:S(auth && auth.uid), customerEmail:S(auth && auth.email).trim().toLowerCase() || customer.email, customerName:customer.name,
+      customerId:customerId, petId:petId, dogId:petId,
+      payloadSubmitted:{source:'customer-main-dogs-gb351-direct', mode:'proposal-direct-small', customer:customer, pet:pet},
+      __gb351Direct:true
+    };
+  }
+  function mirrorSmall(task){
+    var p=(task.payloadSubmitted&&task.payloadSubmitted.pet)||{};
+    var c=(task.payloadSubmitted&&task.payloadSubmitted.customer)||{};
+    return Object.assign({}, task, {payloadSubmitted:{source:'customer-main-dogs-gb351-direct', mode:'proposal-direct-small-mirror', customer:{id:c.id||task.customerId||'', name:c.name||'', email:c.email||task.customerEmail||'', phone:c.phone||''}, pet:{id:p.id||task.petId||'', name:p.name||'', breed:p.breed||'', sex:p.sex||'', chipStatus:p.chipStatus||'', note:p.note||''}}});
+  }
+  function getDb(){
+    try{ if(typeof dsEnsureCloudDb==='function'){ var d=dsEnsureCloudDb(); if(d) return d; } }catch(_){ }
+    try{ if(window.CLOUD && CLOUD.db) return CLOUD.db; }catch(_){ }
+    try{ if(window.firebase && firebase.firestore) return firebase.firestore(); }catch(_){ }
+    return null;
+  }
+  function orgId(){
+    try{ if(typeof dsResolveCloudOrgId==='function') return dsResolveCloudOrgId(); }catch(_){ }
+    try{ return S(window.CLOUD && CLOUD.orgId) || 'doggystyle'; }catch(_){ return 'doggystyle'; }
+  }
+  function col(name){
+    try{ if(name==='proposals' && typeof cloudProposalsCol==='function'){ var c=cloudProposalsCol(); if(c) return c; } }catch(_){ }
+    try{ if(name==='tasks' && typeof cloudTasksCol==='function'){ var t=cloudTasksCol(); if(t) return t; } }catch(_){ }
+    var db=getDb(); var org=orgId();
+    if(db && typeof db.collection==='function') return db.collection('orgs').doc(org).collection(name);
+    return null;
+  }
+  function localMirror(task){
+    try{ if(typeof pushCustomerProposalBuffer==='function') pushCustomerProposalBuffer(mirrorSmall(task)); }catch(e){ diag('pushCustomerProposalBuffer error',{msg:S(e&&e.message||e)}); }
+    try{
+      var key='ds_customer_proposals_v1';
+      var arr=[]; try{ arr=JSON.parse(localStorage.getItem(key)||'[]')||[]; }catch(_){ arr=[]; }
+      arr.unshift(mirrorSmall(task)); if(arr.length>80) arr=arr.slice(0,80);
+      localStorage.setItem(key, JSON.stringify(arr));
+      diag('local proposal mirror ok',{key:key, bytes:bytes(arr[0])});
+    }catch(e){ diag('local proposal mirror error',{msg:S(e&&e.message||e)}); }
+  }
+  async function writeProposal(task){
+    var pcol=col('proposals'); if(!pcol || typeof pcol.doc!=='function') throw new Error('Firestore proposals nicht verfügbar.');
+    diag('proposals.set start',{id:task.id, path:'orgs/'+orgId()+'/proposals/'+task.id, bytes:bytes(task)});
+    await pcol.doc(task.id).set(task,{merge:true});
+    diag('proposals.set ok',{id:task.id});
+    try{
+      var tcol=col('tasks');
+      if(tcol && typeof tcol.doc==='function'){
+        var mt=mirrorSmall(task); mt.mirroredFromProposal=true; mt.updatedAt=now();
+        diag('tasks.set start',{id:task.id, bytes:bytes(mt)});
+        await tcol.doc(task.id).set(mt,{merge:true});
+        diag('tasks.set ok',{id:task.id});
+      }
+    }catch(e){ diag('tasks mirror error',{msg:S(e&&e.message||e)}); }
+  }
+  async function saveDirect(ev){
+    if(ev){ try{ ev.preventDefault(); ev.stopPropagation(); ev.stopImmediatePropagation(); }catch(_){ } }
+    if(window.__gb351DogsSaveBusy) return false;
+    window.__gb351DogsSaveBusy=true;
+    setStatus('Vorschlag wird gespeichert …');
+    diag('direct handler start');
+    try{
+      var auth=await waitAuth();
+      if(!auth || !auth.uid) throw new Error('Keine aktive Anmeldung gefunden. Bitte einmal neu anmelden.');
+      try{ window.CLOUD=window.CLOUD||{}; CLOUD.user=auth; CLOUD.orgId=CLOUD.orgId||orgId(); }catch(_){ }
+      var task=collectProposal(auth);
+      diag('payload ready',{id:task.id, customerId:task.customerId, petId:task.petId, bytes:bytes(task)});
+      await writeProposal(task);
+      localMirror(task);
+      setStatus('✅ Änderungsvorschlag gespeichert und an Eingänge übergeben.');
+      try{ alert('✅ Änderungsvorschlag gespeichert und an Eingänge übergeben.'); }catch(_){ }
+      try{ if(typeof closeCpEditor==='function') closeCpEditor(); }catch(_){ }
+      try{ if(typeof renderDogs==='function') renderDogs(); }catch(_){ }
+      diag('direct handler done',{id:task.id});
+    }catch(e){
+      diag('direct handler error',{msg:S(e&&e.message||e)});
+      setStatus('❌ Speichern fehlgeschlagen: '+S(e&&e.message||e), true);
+      try{ alert('Speichern fehlgeschlagen: '+S(e&&e.message||e)); }catch(_){ }
+    }finally{
+      window.__gb351DogsSaveBusy=false;
+    }
+    return false;
+  }
+  function replaceAndBindSaveButton(){
+    if(!isDogsMode()) return;
+    var btn=$('btnCpSave');
+    if(!btn) return;
+    if(btn.__gb351Bound) return;
+    var clone=btn.cloneNode(true);
+    clone.__gb351Bound=true;
+    clone.setAttribute('data-gb351-bound','1');
+    clone.onclick=function(ev){ return saveDirect(ev); };
+    clone.addEventListener('click', function(ev){ return saveDirect(ev); }, true);
+    clone.addEventListener('touchend', function(ev){ return saveDirect(ev); }, true);
+    try{ btn.parentNode.replaceChild(clone, btn); diag('btnCpSave cloned and rebound'); }catch(e){ diag('btnCpSave clone error',{msg:S(e&&e.message||e)}); }
+  }
+  function bindForms(){
+    if(!isDogsMode()) return;
+    try{
+      var b=$('btnCpSave'); var form=b && b.closest && b.closest('form');
+      if(form && !form.__gb351SubmitBound){ form.__gb351SubmitBound=true; form.addEventListener('submit', function(ev){ return saveDirect(ev); }, true); diag('form submit rebound'); }
+    }catch(_){ }
+  }
+  function install(){
+    try{ replaceAndBindSaveButton(); bindForms(); }catch(e){ diag('install error',{msg:S(e&&e.message||e)}); }
+  }
+  document.addEventListener('DOMContentLoaded', install);
+  window.addEventListener('load', install);
+  document.addEventListener('click', function(ev){
+    if(!isDogsMode()) return;
+    var btn=null; try{ btn=ev.target && ev.target.closest && ev.target.closest('#btnCpSave,button'); }catch(_){ }
+    if(!btn) return;
+    var txt=S(btn.textContent).replace(/\s+/g,' ').trim().toLowerCase();
+    if(btn.id==='btnCpSave' || (txt==='speichern' && $('cpEditor'))){ return saveDirect(ev); }
+  }, true);
+  var n=0;
+  var timer=setInterval(function(){ n++; install(); if(n>80) clearInterval(timer); }, 500);
+  try{ window.__gb351DogsDirectSave=saveDirect; }catch(_){ }
+  diag('installed '+BUILD);
+})();
+/* ===== END GB351 CUSTOMER DOGS SAVE BIND FIX ===== */
