@@ -165,3 +165,13 @@ GB345 - MED_DASHBOARD_ACTIVE_STAYS_ONLY
 - Kunde/Hund-Speichern: Auth-Fallback über Kunden-Handoff/Scope.
 - Bei fehlendem Firebase currentUser wird lokaler Vorschlag gespeichert statt Fehlerdialog.
 - Kein workspace_state-Cloud-Push im Kunde/Hund-Kundenmodus.
+
+## M50.9.9GB355_RELIABLE_CUSTOMER_PROPOSAL_QUEUE_20260613_ROOTONLY
+- Vollständige Kunden-Vorschläge werden einmalig in einer lokalen Pending-Queue gesichert.
+- Kunde/Hund, Betreuungsvertrag und Aufenthalt nutzen einen zuverlässigen Übertragungsweg nach Firestore.
+- Hintergrundübertragung wartet auf eine echte Firebase-Anmeldung und schreibt proposals sowie tasks.
+- Meldung „an Eingänge übergeben“ erscheint erst nach bestätigter Cloud-Speicherung.
+- Bei Auth-/Cloud-Fehler bleibt der vollständige Vorschlag lokal erhalten und wird automatisch erneut versucht.
+- Haupt-App liest normalen Vorschlagspuffer und Pending-Queue dedupliziert nach Vorschlags-ID.
+- Cross-Tab-Signal aktualisiert Eingänge bei neuer Queue- oder Cloud-Speicherung.
+- Keine Änderung an der fachlichen Stammdaten-, Vertrags-, Aufenthalts- oder Abrechnungslogik.

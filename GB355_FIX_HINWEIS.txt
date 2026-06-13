@@ -1,0 +1,15 @@
+GB355 – zuverlässige Vorschlags-Queue
+
+Basis: GB354 / bereinigter GB350-Stand.
+
+Geändert:
+- Kunde/Hund-Vorschläge werden einmalig und vollständig lokal in einer Pending-Queue gesichert.
+- Keine doppelte Ablage mehr im lokalen Vorschlagspuffer.
+- Die Oberfläche wird nach der lokalen Sicherung sofort freigegeben.
+- Im Hintergrund wird auf die echte Firebase-Anmeldung gewartet.
+- Erst nach bestätigter Speicherung in Firestore proposals UND tasks erscheint die Meldung „an Eingänge übergeben“.
+- Bei fehlender Anmeldung oder Firestore-Fehler bleibt der vollständige Vorschlag lokal erhalten und wird automatisch erneut übertragen.
+- Haupt-App liest normalen Vorschlagspuffer und Pending-Queue gemeinsam und dedupliziert nach Vorschlags-ID.
+- Cross-Tab-Signal aktualisiert die Eingänge nach neuer lokaler oder Cloud-Speicherung.
+
+Keine Änderung an Stammdaten-, Vertrags-, Aufenthalts- oder Abrechnungslogik außerhalb des Vorschlags-Transportwegs.
