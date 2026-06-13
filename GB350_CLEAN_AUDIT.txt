@@ -1,5 +1,5 @@
 GB350 CLEAN-AUDIT OHNE FUNKTIONSÄNDERUNG
-Build: M50.9.9GB353_CUSTOMER_DOGS_AUTH_HANDOFF_LOCAL_FALLBACK_20260612_ROOTONLY
+Build: M50.9.9GB354_CUSTOMER_DOGS_INSTANT_LOCAL_PROPOSAL_20260612_ROOTONLY
 Basis: aktuelle GitHub-ZIP / GB349-Online-Stand
 
 Ziel: Dateibaum bereinigen, Build-Referenzen vereinheitlichen, keine fachliche Änderung an Kunden-/Vertrags-/Vorschlagslogik.

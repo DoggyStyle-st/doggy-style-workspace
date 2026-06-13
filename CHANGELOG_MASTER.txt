@@ -136,14 +136,14 @@ GB345 - MED_DASHBOARD_ACTIVE_STAYS_ONLY
 - Startseite: Medikamente heute zeigt fällige Medikamentengaben nur noch für Hunde mit aktivem Aufenthalt am heutigen Datum.
 - Ohne aktuellen Aufenthalt werden Dauermedikationspläne nicht mehr als heutige Pensions-To-dos gewertet.
 - §11-Medikationsstatus nutzt dieselbe Aktiv-Aufenthalt-Prüfung.
-[M50.9.9GB353_CUSTOMER_DOGS_AUTH_HANDOFF_LOCAL_FALLBACK_20260612_ROOTONLY]
+[M50.9.9GB354_CUSTOMER_DOGS_INSTANT_LOCAL_PROPOSAL_20260612_ROOTONLY]
 - Diagnosebuild auf stabiler GB346-Basis.
 - Dauerdiagnose in app.js für Haupt-App und Kunden-App.
 - Trace für Firestore-Schreibpfade, Button-Klicks, Scope, Contract-Matching und Proposal-Typen.
 - Keine fachliche Reparatur / keine Änderung der Vorschlagslogik.
 
 
-## M50.9.9GB353_CUSTOMER_DOGS_AUTH_HANDOFF_LOCAL_FALLBACK_20260612_ROOTONLY
+## M50.9.9GB354_CUSTOMER_DOGS_INSTANT_LOCAL_PROPOSAL_20260612_ROOTONLY
 - Diagnosepanel wird hart in app.html und customer.html injiziert.
 - Panel bleibt sichtbar auch im Kundenmodus app.html?customer_mode=dogs/stay/contract.
 - Erfasst Auth, URL, State-Counts, Select-Werte, Kunden-/Hund-Scope, UI-Klicks, Firestore-Set/Add/Update/Delete mit Pfad und Payload-Größe.
@@ -161,7 +161,7 @@ GB345 - MED_DASHBOARD_ACTIVE_STAYS_ONLY
 - Alte GB349/GB351 Button-Nachpatch-Blöcke entfernt.
 
 
-## M50.9.9GB353_CUSTOMER_DOGS_AUTH_HANDOFF_LOCAL_FALLBACK_20260612_ROOTONLY
+## M50.9.9GB354_CUSTOMER_DOGS_INSTANT_LOCAL_PROPOSAL_20260612_ROOTONLY
 - Kunde/Hund-Speichern: Auth-Fallback über Kunden-Handoff/Scope.
 - Bei fehlendem Firebase currentUser wird lokaler Vorschlag gespeichert statt Fehlerdialog.
 - Kein workspace_state-Cloud-Push im Kunde/Hund-Kundenmodus.
