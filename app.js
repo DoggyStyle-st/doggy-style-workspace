@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB355_RELIABLE_CUSTOMER_PROPOSAL_QUEUE_20260613_ROOTONLY",
+  tag: "M50.9.9GB356_CAPACITY_4_20260918_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB355_RELIABLE_CUSTOMER_PROPOSAL_QUEUE_20260613_ROOTONLY";
+const APP_BUILD = "M50.9.9GB356_CAPACITY_4_20260918_ROOTONLY";
 try{ window.__dsAppJsRuntimeBuild = "GB350-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -561,8 +561,9 @@ try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=(dogs|contract|
 })();
 // ===== END DS_BUILD_GUARD_RECOVERY =====
 
-// Kapazitäts-Limit (Übernachtungshunde) – Stufe B Warnung
-const MAX_OVERNIGHT = 10;
+// Gemeinsame Höchstbelegung für Tages- und Urlaubshunde – Stufe B Warnung
+const MAX_DOGS = 4;
+const MAX_OVERNIGHT = MAX_DOGS;
 // ===== 4B-3: Soft-Warnung bei fehlender Unterschrift (Speichern bleibt erlaubt) =====
 function warnStaySignatureMissing(doc){
   try{
@@ -663,8 +664,8 @@ function toISODateLocal(date = new Date()){
   return d.toISOString().slice(0,10);
 }
 const CAPACITY = {
-  Tagesbetreuung: 13,
-  Urlaubsbetreuung: 10
+  Tagesbetreuung: MAX_DOGS,
+  Urlaubsbetreuung: MAX_DOGS
 };
 
 // ===== STAT CORE CONFIG (ORDER FINAL FIX) =====
@@ -866,7 +867,7 @@ function _canonicalBetreuungType(v){
   return v || '';
 }
 // === Dynamische Kapazitäten (Standard + Ausnahmen nach Zeitraum) ===
-// Ausnahme-Objekt: { from:"YYYY-MM-DD", to:"YYYY-MM-DD", Tagesbetreuung: 8, Urlaubsbetreuung: 6, note:"Event" }
+// Ausnahme-Objekt: { from:"YYYY-MM-DD", to:"YYYY-MM-DD", Tagesbetreuung: 3, Urlaubsbetreuung: 2, note:"Event" }
 function getCapacity(type, dateISO){
   try{
     type = _canonicalBetreuungType(type);
@@ -880,11 +881,12 @@ function getCapacity(type, dateISO){
       const to   = String(ex.to).slice(0,10);
       if(d >= from && d <= to){
         const v = Number(ex[type]);
-        if(Number.isFinite(v) && v >= 0) return v;
+        if(Number.isFinite(v) && v >= 0) return Math.min(v, MAX_DOGS);
       }
     }
     const base = Number(caps.default[type]);
-    return (Number.isFinite(base) && base >= 0) ? base : (CAPACITY[type] || 0);
+    // Gespeicherte/aus der Cloud geladene Altwerte dürfen die neue Grenze nicht erhöhen.
+    return (Number.isFinite(base) && base >= 0) ? Math.min(base, MAX_DOGS) : (CAPACITY[type] || 0);
   }catch(_){
     return (CAPACITY[type] || 0);
   }
@@ -3620,7 +3622,7 @@ function submitCustomerDogsProposal(){
   // GB355: vollständig lokal sichern, anschließend zuverlässig in proposals + tasks übertragen.
   // Die Oberfläche wird sofort freigegeben; die Erfolgsmeldung "an Eingänge übergeben"
   // erscheint ausschließlich nach bestätigter Firestore-Speicherung.
-  const GB355='M50.9.9GB355_RELIABLE_CUSTOMER_PROPOSAL_QUEUE_20260613_ROOTONLY';
+  const GB355='M50.9.9GB356_CAPACITY_4_20260918_ROOTONLY';
   function S(v){ try{return String(v==null?'':v);}catch(_){return '';} }
   function L(v){ return S(v).trim().toLowerCase(); }
   function V(id){ try{const el=document.getElementById(id);return S(el&&el.value!=null?el.value:'').trim();}catch(_){return '';} }
@@ -6229,8 +6231,11 @@ function renderDashboard(){
   const elBoardText = document.getElementById("todayBoardingText");
   const elDayBar = document.getElementById("todayDaycareBar");
   const elBoardBar = document.getElementById("todayBoardingBar");
-  if(elDayText) elDayText.textContent = dashboardStatusText(dayRatio);
-  if(elBoardText) elBoardText.textContent = dashboardStatusText(boardRatio);
+  const totalUsed = todayDayUsed + todayBoardUsed;
+  const totalStatus = totalUsed > MAX_DOGS ? `Gesamtgrenze überschritten (${totalUsed}/${MAX_DOGS})`
+    : totalUsed === MAX_DOGS ? `Insgesamt voll (${totalUsed}/${MAX_DOGS})` : '';
+  if(elDayText) elDayText.textContent = totalStatus || dashboardStatusText(dayRatio);
+  if(elBoardText) elBoardText.textContent = totalStatus || dashboardStatusText(boardRatio);
   if(elDayBar){
     elDayBar.style.width = `${Math.min(100, Math.max(0, dayRatio*100))}%`;
     elDayBar.style.background = dashboardStatusColor(dayRatio);
@@ -6280,6 +6285,11 @@ function renderDashboard(){
     const boardUsed = countOccupancy("Urlaubsbetreuung", d, d);
     const dayMaxD = getCapacity("Tagesbetreuung", d);
     const boardMaxD = getCapacity("Urlaubsbetreuung", d);
+    const totalUsed = dayUsed + boardUsed;
+    if(totalUsed >= MAX_DOGS - 1){
+      const status = totalUsed > MAX_DOGS ? 'Grenze überschritten' : totalUsed === MAX_DOGS ? 'voll' : 'fast voll';
+      warnings.push(`${formatDateDE(d)}: Gesamtbelegung ${status} (${totalUsed}/${MAX_DOGS})`);
+    }
     if(dayMaxD - dayUsed <= 1){
       warnings.push(`${formatDateDE(d)}: Tagesbetreuung fast voll (${dayUsed}/${dayMaxD})`);
     }
@@ -8339,13 +8349,13 @@ function renderCalendarPanel(){
     const dayNum = d.getDate();
     const board = countForDay('Urlaubsbetreuung', iso);
     const dayc = countForDay('Tagesbetreuung', iso);
-    const over = (board > getCapacity("Urlaubsbetreuung", iso)) || (dayc > getCapacity("Tagesbetreuung", iso));
+    const over = (board + dayc > MAX_DOGS) || (board > getCapacity("Urlaubsbetreuung", iso)) || (dayc > getCapacity("Tagesbetreuung", iso));
     const cell = document.createElement('div');
     cell.className = 'cal-cell' + (inMonth ? '' : ' is-other') + (iso===todayIso ? ' is-today':'') + (iso===CAL.selectedDay ? ' is-selected':'') + (over ? ' is-over':'');
     cell.dataset.day = iso;
     const f = getCalFilters();
-    const freeU = getCapacity("Urlaubsbetreuung", iso) - board;
-    const freeT = getCapacity("Tagesbetreuung", iso) - dayc;
+    const freeU = Math.min(getCapacity("Urlaubsbetreuung", iso) - board, MAX_DOGS - board - dayc);
+    const freeT = Math.min(getCapacity("Tagesbetreuung", iso) - dayc, MAX_DOGS - board - dayc);
     const uPct = clamp((board / Math.max(1,getCapacity("Urlaubsbetreuung", iso))) * 100, 0, 100);
     const tPct = clamp((dayc / Math.max(1,getCapacity("Tagesbetreuung", iso))) * 100, 0, 100);
     const badges = [];
@@ -8796,7 +8806,7 @@ function renderAnalyticsPanel(){
         // typeEl exists in UI (day/urlaub)
         const occType = String(typeEl?.value || 'urlaub');
         const label = (occType==='day') ? 'Tagesbetreuung' : 'Urlaubsbetreuung';
-        const capMax = (occType==='day') ? (CAPACITY?.day ?? 13) : (CAPACITY?.holiday ?? 10);
+        const capMax = CAPACITY[label];
         // parse YYYY-MM-DD as UTC midnight
         const parseYMD = (s) => {
           if(!s || typeof s !== 'string') return null;
@@ -8811,8 +8821,8 @@ function renderAnalyticsPanel(){
           let peakUsed=-1, peakDay='', peakCap=0;
           for(let d=fromD2; d<=toD2; d=addDaysUTC(d,1)){
             const ymd = formatYMD(d);
-            const used = countForDay(occType, ymd);
-            const cap  = getCapacity(occType, ymd);
+            const used = countForDay(label, ymd);
+            const cap  = getCapacity(label, ymd);
             days++; usedSum += used; capSum += cap;
             if(used>peakUsed){ peakUsed=used; peakDay=ymd; peakCap=cap; }
           }
@@ -9020,24 +9030,28 @@ function renderCalendarDayDetail(iso){
   const dayc = countForDay('Tagesbetreuung', iso);
   title.textContent = label;
   const f = getCalFilters();
-  const freeU = getCapacity("Urlaubsbetreuung", iso) - board;
-  const freeT = getCapacity("Tagesbetreuung", iso) - dayc;
+  const freeU = Math.min(getCapacity("Urlaubsbetreuung", iso) - board, MAX_DOGS - board - dayc);
+  const freeT = Math.min(getCapacity("Tagesbetreuung", iso) - dayc, MAX_DOGS - board - dayc);
   const parts = [];
   const freeParts = [];
   if(f.urlaub){ parts.push(`🏡 ${board}/${getCapacity("Urlaubsbetreuung", iso)}`); freeParts.push(`🏡 ${Math.max(0, freeU)} frei`); }
   if(f.tages){ parts.push(`🐕 ${dayc}/${getCapacity("Tagesbetreuung", iso)}`); freeParts.push(`🐕 ${Math.max(0, freeT)} frei`); }
+  parts.push(`Gesamt ${board + dayc}/${MAX_DOGS}`);
   meta.textContent = `${parts.join(' · ')}  —  ${freeParts.join(' · ')}`;
-  const stays = (state.docs||[]).filter(d=>{
+  const allStays = (state.docs||[]).filter(d=>{
     if(!d.saved) return false;
     if(d.type==='invoice') return false;
     if(!d.meta?.von || !d.meta?.bis) return false;
+    return (iso >= d.meta.von && iso <= d.meta.bis);
+  }).slice().sort((a,b)=> String(a.meta?.von||'').localeCompare(String(b.meta?.von||'')));
+  const stays = allStays.filter(d=>{
     const bt = d.meta?.betreuung||'';
     if(bt==='Urlaubsbetreuung' && !f.urlaub) return false;
     if(bt==='Tagesbetreuung' && !f.tages) return false;
-    return (iso >= d.meta.von && iso <= d.meta.bis);
-  }).slice().sort((a,b)=> String(a.meta?.von||'').localeCompare(String(b.meta?.von||'')));
+    return true;
+  });
   // 4A: Verursachende Aufenthalte bei Überbuchung markieren (Kalender-Tag-Detail)
-  // Logik: Wenn (Anzahl Aufenthalte je Betreuungsart) > Kapazität, markieren wir die "zusätzlichen" Aufenthalte
+  // Logik: Bei Überschreitung der gemeinsamen Grenze oder einer Betreuungsart markieren wir die "zusätzlichen" Aufenthalte
   // in einer stabilen Reihenfolge (ältere zuerst, neuere zuletzt). Die neueren, die über die Kapazität hinausgehen,
   // gelten als verursachend (planungspraktisch).
   const causing = new Set();
@@ -9048,10 +9062,10 @@ function renderCalendarDayDetail(iso){
     return String(ts) + '|' + String(d.id||'');
   };
   try{
-    const byType = (type)=> (stays||[]).filter(s => (s.meta?.betreuung||'') === type);
+    const byType = (type)=> allStays.filter(s => _canonicalBetreuungType(s.meta?.betreuung) === type);
     const markOverflow = (type)=>{
-      const arr = byType(type).slice().sort((a,b)=> getSortKey(a).localeCompare(getSortKey(b)));
-      const cap = getCapacity(type, iso);
+      const arr = (type ? byType(type) : allStays.filter(s => CAPACITY[_canonicalBetreuungType(s.meta?.betreuung)] != null)).slice().sort((a,b)=> getSortKey(a).localeCompare(getSortKey(b)));
+      const cap = type ? getCapacity(type, iso) : MAX_DOGS;
       if(!cap && cap !== 0) return;
       const overflow = arr.length - cap;
       if(overflow > 0){
@@ -9070,6 +9084,7 @@ function renderCalendarDayDetail(iso){
     };
     markOverflow('Urlaubsbetreuung');
     markOverflow('Tagesbetreuung');
+    markOverflow(null);
   }catch(e){ console.warn('4A causing-mark failed', e); }
   // Etappe 4: Medikamente pro Aufenthaltstag (Kalender-Tag-Detail)
   const stayPetIds = Array.from(new Set((stays||[]).map(s => (s.petId || s.dogId || "")).filter(Boolean)));
@@ -9438,6 +9453,18 @@ function ensureProfiDefaults(){
       const cur = (d.content!=null) ? String(d.content||'') : '';
       const isEmpty = !cur.trim();
       const isLegacy = cur.includes('Kurzvorlage') || cur.includes('Hinweis: Diese Vorlage');
+      if(k === 'hygiene' && !isEmpty && !isLegacy){
+        const next = cur.replace('Kapazität: max. 10 Übernachtungshunde / max. 13 Tageshunde',
+          'Kapazität: max. 4 Hunde insgesamt (Tages- und Urlaubsbetreuung zusammen)');
+        if(next !== cur){
+          const toV = bumpVersionStr(d.version);
+          d.history.push({fromVersion:d.version, toVersion:toV, changedAt:today,
+            note:'Höchstbelegung auf insgesamt 4 Hunde reduziert.', content:cur});
+          d.content = next;
+          d.version = toV;
+          d.lastChanged = today;
+        }
+      }
       if(isEmpty || isLegacy){
         // Special: Betreuungsvertrag-Vorlage soll den aktuellen Vertragstext enthalten.
         if(k === 'contract'){
@@ -9917,7 +9944,7 @@ function profiBumpPolicy(key){
 const POLICY_DEFAULTS = {
   hygiene: `HUNDEPENSION DOGGY STYLE – HYGIENEPLAN (behördentauglich, §11 TierSchG)
 Standort: Im Moos 4, 88167 Stiefenhofen
-Kapazität: max. 10 Übernachtungshunde / max. 13 Tageshunde
+Kapazität: max. 4 Hunde insgesamt (Tages- und Urlaubsbetreuung zusammen)
 Verantwortlich: Raphael Boch
 
 1) Ziel & Geltungsbereich
@@ -10607,7 +10634,7 @@ Geltungsbereich
 Unterbringung, Betreuung, Fütterung, Auslauf/Beaufsichtigung, Abbruchkriterien.
 
 Inhalte
-• Bestandsgrenzen/Belegung: Übernachtung max. 10, Tagesbetreuung max. 13 (betrieblicher Standard).
+• Bestandsgrenzen/Belegung: max. 4 Hunde insgesamt (Tages- und Urlaubsbetreuung zusammen; betrieblicher Standard).
 • Unterbringung: Zimmer/Größen/Trennmöglichkeiten, Ruhezeiten, Stressreduktion, Temperatur/Lüftung.
 • Betreuung: regelmäßige Sichtkontrollen, Wasser jederzeit, Fütterung nach Halterangaben.
 • Sozialmanagement: unverträgliche Hunde trennen, Gruppen nur nach Verträglichkeit, Konflikte vermeiden.
@@ -10700,6 +10727,11 @@ Vorfallprotokoll + Unterweisungsnachweis.`, updatedAt:Date.now() }
       // Volltext: wenn fehlt oder sehr kurz -> aus Katalog übernehmen
       const ft = (out.fullText || out.longText || "").toString();
       if(!ft || ft.trim().length < 160) out.fullText = base.fullText;
+      else if(out.id === 'trn_tierschutz'){
+        const next = ft.replace('Übernachtung max. 10, Tagesbetreuung max. 13 (betrieblicher Standard)',
+          'max. 4 Hunde insgesamt (Tages- und Urlaubsbetreuung zusammen; betrieblicher Standard)');
+        if(next !== ft){ out.fullText = next; out.updatedAt = Date.now(); }
+      }
       // Timestamp: falls fehlt
       out.updatedAt = out.updatedAt || base.updatedAt || Date.now();
       return out;
@@ -15689,6 +15721,21 @@ function countOccupancy(type, from, to, excludeDocId){
     return overlaps(d.meta.von, d.meta.bis, from, to);
   }).length;
 }
+function getPeakTotalOccupancy(from, to, excludeDocId){
+  const start = String(from||'').slice(0,10);
+  const end = String(to||'').slice(0,10);
+  if(!start || !end || start > end) return 0;
+  const date = new Date(start + 'T12:00:00');
+  if(isNaN(date.getTime())) return 0;
+  let peak = 0;
+  // Nur gleichzeitig anwesende Hunde zählen; der Abreisetag bleibt eingeschlossen.
+  for(let day = start; day <= end; date.setDate(date.getDate() + 1), day = toISODateLocal(date)){
+    const total = countOccupancy('Tagesbetreuung', day, day, excludeDocId)
+      + countOccupancy('Urlaubsbetreuung', day, day, excludeDocId);
+    peak = Math.max(peak, total);
+  }
+  return peak;
+}
 function getNextDays(n){
   const days = [];
   const d = new Date();
@@ -15719,8 +15766,9 @@ function renderTodayStatus(){
     const overCount = countOccupancy('Urlaubsbetreuung', dayISO, dayISO);
     const dayCap = getCapacity('Tagesbetreuung', dayISO);
     const overCap = getCapacity('Urlaubsbetreuung', dayISO);
-    const dayOk = dayCount <= dayCap;
-    const overOk = overCount <= overCap;
+    const totalOk = dayCount + overCount <= MAX_DOGS;
+    const dayOk = totalOk && dayCount <= dayCap;
+    const overOk = totalOk && overCount <= overCap;
     const el = document.getElementById('todayStatus');
     if(!el) return;
     el.innerHTML = `
@@ -15758,7 +15806,7 @@ function renderOccupancy(){
           const t = countForDay("Tagesbetreuung", day);
           return `
             <tr>
-              <td>${formatDateDE(day)}</td>
+              <td title="Gesamtbelegung: ${u + t} / ${MAX_DOGS}">${formatDateDE(day)}${u + t > MAX_DOGS ? ' ⚠️' : ''}</td>
               <td>${u} / ${getCapacity("Urlaubsbetreuung", day)}</td>
               <td>${t} / ${getCapacity("Tagesbetreuung", day)}</td>
             </tr>
@@ -18663,8 +18711,15 @@ const from = currentDoc.meta.von;
 const to   = currentDoc.meta.bis;
 const used = countOccupancy(type, from, to, currentDoc.id);
 const limit = getMinCapacityForRange(type, from, to);
+const totalUsed = isStay ? getPeakTotalOccupancy(from, to, currentDoc.id) : 0;
 // Wenn kein Limit konfiguriert ist (0/undefined), keine Kapazitätswarnung anzeigen.
-if (Number(limit||0) > 0 && used >= limit) {
+if (totalUsed >= MAX_DOGS) {
+  alert(
+    `⚠️ Achtung:\n\n` +
+    `Im Zeitraum ${from} – ${to} sind bereits bis zu ${totalUsed} von ${MAX_DOGS} Plätzen belegt.\n` +
+    `Die Grenze gilt für Tages- und Urlaubsbetreuung zusammen.`
+  );
+} else if (Number(limit||0) > 0 && used >= limit) {
   alert(
     `⚠️ Achtung:\n\n` +
     `${used} von ${limit} Plätzen für "${type}" ` +
@@ -25702,7 +25757,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB355_RELIABLE_CUSTOMER_PROPOSAL_QUEUE_20260613_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB356_CAPACITY_4_20260918_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -27675,7 +27730,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB355_RELIABLE_CUSTOMER_PROPOSAL_QUEUE_20260613_ROOTONLY";
+  const BUILD = "M50.9.9GB356_CAPACITY_4_20260918_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -31265,7 +31320,7 @@ try{ window.__GB294_MARKER = 'active'; }catch(_){ }
 /* ===== GB295 contract review verified open + reset fix ===== */
 try{ window.__GB295_MARKER = 'active'; }catch(_){ }
 (function(){
-  const BUILD = "M50.9.9GB355_RELIABLE_CUSTOMER_PROPOSAL_QUEUE_20260613_ROOTONLY";
+  const BUILD = "M50.9.9GB356_CAPACITY_4_20260918_ROOTONLY";
   function ds295Clone(v){ try{ return JSON.parse(JSON.stringify(v == null ? null : v)); }catch(_){ return v; } }
   function ds295Norm(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
   function ds295Bool(v){ try{ if(v===true||v===false) return !!v; const s=String(v==null?'':v).trim().toLowerCase(); return s==='1'||s==='true'||s==='yes'||s==='ja'||s==='on'; }catch(_){ return false; } }
@@ -35273,7 +35328,7 @@ try{ window.__GB314_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB314-app
 /* ===== GB315 final contract acceptance + badge DOM hardfix ===== */
 try{ window.__GB315_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB316-appjs'; }catch(_){ }
 (function(){
-  var BUILD='M50.9.9GB355_RELIABLE_CUSTOMER_PROPOSAL_QUEUE_20260613_ROOTONLY';
+  var BUILD='M50.9.9GB356_CAPACITY_4_20260918_ROOTONLY';
   function S(v){ try{return String(v==null?'':v).trim();}catch(_){return '';} }
   function L(v){ return S(v).toLowerCase(); }
   function esc(v){ try{return CSS && CSS.escape ? CSS.escape(S(v)) : S(v).replace(/[^a-zA-Z0-9_-]/g,'\\$&');}catch(_){return S(v);} }
@@ -35486,7 +35541,7 @@ try{var rd=renderDogs;if(rd&&!rd.__gb317Wrapped){renderDogs=function(){var r=rd.
 /* ===== GB318 contract hard bypass: accept not required when signature exists + generic green repair ===== */
 try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild='GB318-appjs'; }catch(_){ }
 (function(){
-  var BUILD='M50.9.9GB355_RELIABLE_CUSTOMER_PROPOSAL_QUEUE_20260613_ROOTONLY';
+  var BUILD='M50.9.9GB356_CAPACITY_4_20260918_ROOTONLY';
   function S(v){try{return String(v==null?'':v).trim()}catch(_){return''}}
   function L(v){return S(v).toLowerCase()}
   function V(){try{return S((state&&(state.contractVersion||(state.contract&&state.contract.version)))||'v1.0')||'v1.0'}catch(_){return'v1.0'}}
@@ -35528,7 +35583,7 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild='GB318-appjs';
   'use strict';
   if(window.__dsGB347DiagInstalled) return;
   window.__dsGB347DiagInstalled = true;
-  var BUILD = 'M50.9.9GB355_RELIABLE_CUSTOMER_PROPOSAL_QUEUE_20260613_ROOTONLY';
+  var BUILD = 'M50.9.9GB356_CAPACITY_4_20260918_ROOTONLY';
   var LOG_KEY = 'ds_gb347_diag_log_v1';
   var LAST = { lines: [], firestoreWrapped:false, functionWrapped:false, clickWrapped:false };
   function S(v){ try{return String(v==null?'':v).trim();}catch(_){return '';} }
