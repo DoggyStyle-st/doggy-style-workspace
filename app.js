@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB356_CAPACITY_4_20260918_ROOTONLY",
+  tag: "M50.9.9GB357_CUSTOMER_SYNC_CAP4_20260925_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB356_CAPACITY_4_20260918_ROOTONLY";
+const APP_BUILD = "M50.9.9GB357_CUSTOMER_SYNC_CAP4_20260925_ROOTONLY";
 try{ window.__dsAppJsRuntimeBuild = "GB350-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -561,9 +561,8 @@ try{ if (typeof window !== 'undefined' && /(?:\?|&)customer_mode=(dogs|contract|
 })();
 // ===== END DS_BUILD_GUARD_RECOVERY =====
 
-// Gemeinsame Höchstbelegung für Tages- und Urlaubshunde – Stufe B Warnung
-const MAX_DOGS = 4;
-const MAX_OVERNIGHT = MAX_DOGS;
+// Kapazitäts-Limit (Übernachtungshunde) – Stufe B Warnung
+const MAX_OVERNIGHT = 4;
 // ===== 4B-3: Soft-Warnung bei fehlender Unterschrift (Speichern bleibt erlaubt) =====
 function warnStaySignatureMissing(doc){
   try{
@@ -663,6 +662,7 @@ function toISODateLocal(date = new Date()){
   d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
   return d.toISOString().slice(0,10);
 }
+const MAX_DOGS = 4;
 const CAPACITY = {
   Tagesbetreuung: MAX_DOGS,
   Urlaubsbetreuung: MAX_DOGS
@@ -867,12 +867,12 @@ function _canonicalBetreuungType(v){
   return v || '';
 }
 // === Dynamische Kapazitäten (Standard + Ausnahmen nach Zeitraum) ===
-// Ausnahme-Objekt: { from:"YYYY-MM-DD", to:"YYYY-MM-DD", Tagesbetreuung: 3, Urlaubsbetreuung: 2, note:"Event" }
+// Ausnahme-Objekt: { from:"YYYY-MM-DD", to:"YYYY-MM-DD", Tagesbetreuung: 8, Urlaubsbetreuung: 6, note:"Event" }
 function getCapacity(type, dateISO){
   try{
     type = _canonicalBetreuungType(type);
     const caps = state && state.capacities;
-    if(!caps || !caps.default) return (CAPACITY[type] || 0);
+    if(!caps || !caps.default) return Math.min(MAX_DOGS, Number(CAPACITY[type] || 0));
     const d = String(dateISO||"").slice(0,10);
     const exs = Array.isArray(caps.exceptions) ? caps.exceptions : [];
     for(const ex of exs){
@@ -881,14 +881,13 @@ function getCapacity(type, dateISO){
       const to   = String(ex.to).slice(0,10);
       if(d >= from && d <= to){
         const v = Number(ex[type]);
-        if(Number.isFinite(v) && v >= 0) return Math.min(v, MAX_DOGS);
+        if(Number.isFinite(v) && v >= 0) return Math.min(MAX_DOGS, v);
       }
     }
     const base = Number(caps.default[type]);
-    // Gespeicherte/aus der Cloud geladene Altwerte dürfen die neue Grenze nicht erhöhen.
-    return (Number.isFinite(base) && base >= 0) ? Math.min(base, MAX_DOGS) : (CAPACITY[type] || 0);
+    return (Number.isFinite(base) && base >= 0) ? Math.min(MAX_DOGS, base) : Math.min(MAX_DOGS, Number(CAPACITY[type] || 0));
   }catch(_){
-    return (CAPACITY[type] || 0);
+    return Math.min(MAX_DOGS, Number(CAPACITY[type] || 0));
   }
 }
 // Für Plausibilitätswarnungen über einen Zeitraum: kleinste Kapazität im Zeitraum (sicherer als "ein Tag")
@@ -1985,7 +1984,7 @@ function loadCustomerProposalPendingQueue(){
   return dsProposalArrayFromStorage(CUSTOMER_PROPOSAL_PENDING_KEY);
 }
 function saveCustomerProposalPendingQueue(list){
-  try{ localStorage.setItem(CUSTOMER_PROPOSAL_PENDING_KEY, JSON.stringify(Array.isArray(list)?list:[])); }catch(_){ }
+  localStorage.setItem(CUSTOMER_PROPOSAL_PENDING_KEY, JSON.stringify(Array.isArray(list)?list:[]));
 }
 try{
   window.loadCustomerProposalBuffer = loadCustomerProposalBuffer;
@@ -2008,7 +2007,8 @@ function dsQueueCustomerProposal(task){
   const id=dsProposalIdentity(task);
   if(!id) throw new Error('Änderungsvorschlag ohne ID.');
   const queued={ ...task, __delivery:{ ...((task&&task.__delivery)||{}), queuedAt:Date.now(), pending:true } };
-  saveCustomerProposalPendingQueue(dsProposalUpsertList(loadCustomerProposalPendingQueue(), queued, 100));
+  const pendingBefore=loadCustomerProposalPendingQueue();
+  saveCustomerProposalPendingQueue(dsProposalUpsertList(pendingBefore, queued, Math.max(100,pendingBefore.length+1)));
   pushCustomerProposalBuffer(queued);
   try{ localStorage.setItem('ds_last_customer_proposal_v2', JSON.stringify(queued)); }catch(_){ }
   try{
@@ -2058,16 +2058,33 @@ function dsProposalCloudData(task, authUser){
   out.status='submitted'; out.proposalStatus='pending'; out.updatedAt=Date.now();
   return out;
 }
+function dsProposalSamePayload(a,b){
+  try{
+    const A=a||{}, B=b||{};
+    const sameOwner=String(A.customerUid||'')===String(B.customerUid||'') && String(A.customerEmail||'').toLowerCase()===String(B.customerEmail||'').toLowerCase();
+    const sameTemplate=String(A.templateId||'')===String(B.templateId||'');
+    const sameCustomer=String(A.customerId||'')===String(B.customerId||'');
+    const samePet=String(A.petId||A.dogId||'')===String(B.petId||B.dogId||'');
+    const samePayload=JSON.stringify(A.payloadSubmitted||{})===JSON.stringify(B.payloadSubmitted||{});
+    return sameOwner && sameTemplate && sameCustomer && samePet && samePayload;
+  }catch(_){ return false; }
+}
 async function dsSetProposalDocCreateOrVerify(ref, data){
   try{ await ref.set(data); return 'created'; }
   catch(firstErr){
     try{
       const snap=await ref.get();
-      if(snap && snap.exists) return 'exists';
-    }catch(_){ }
+      if(snap && snap.exists){
+        const existing=snap.data()||{};
+        if(dsProposalSamePayload(existing,data)) return 'exists';
+        const e=new Error('Unter dieser Vorschlags-ID liegen bereits andere Daten. Es wurde nichts überschrieben.');
+        e.code='proposal-id-conflict'; throw e;
+      }
+    }catch(verifyErr){ if(verifyErr && verifyErr.code==='proposal-id-conflict') throw verifyErr; }
     throw firstErr;
   }
 }
+
 async function dsDeliverCustomerProposal(task, timeoutMs){
   const id=dsProposalIdentity(task); if(!id) throw new Error('Änderungsvorschlag ohne ID.');
   const authUser=await cpWaitForFirebaseUser(Number(timeoutMs||12000));
@@ -2470,7 +2487,7 @@ async function cloudLoadStateWithRetry(maxTries=3){
   return {remote:null, err:lastErr};
 }
 function cloudPushQueued(){
-  if(!CLOUD.enabled) return;
+  if(!CLOUD.enabled || !CLOUD.user || !isStaff()) return;
   clearTimeout(CLOUD._pushTimer);
   SYNC.cloudPending = true;
   updateSyncUI();
@@ -2490,6 +2507,7 @@ function cloudSchedulePush(){
 async function cloudPushNow(){
   if(!CLOUD.enabled) return;
   if(!CLOUD.user) throw new Error("Nicht angemeldet");
+  if(!isStaff()) return;
   SYNC.cloudPending = true;
   try{ dsSetSyncDiag('cloudPush:start user=' + String((CLOUD.user && (CLOUD.user.email || CLOUD.user.uid)) || '--') + ' · ' + dsSyncDiagStateSummary(), false); }catch(_){ }
   updateSyncUI();
@@ -3605,6 +3623,7 @@ async function dsSubmitCustomerPortalProposal(opts){
     customerId:String(opts.customerId||''),
     dogId:String(opts.petId||opts.dogId||''),
     petId:String(opts.petId||opts.dogId||''),
+    sourceTaskId:String(opts.sourceTaskId||''),
     payloadSubmitted
   };
   dsQueueCustomerProposal(task);
@@ -3622,7 +3641,7 @@ function submitCustomerDogsProposal(){
   // GB355: vollständig lokal sichern, anschließend zuverlässig in proposals + tasks übertragen.
   // Die Oberfläche wird sofort freigegeben; die Erfolgsmeldung "an Eingänge übergeben"
   // erscheint ausschließlich nach bestätigter Firestore-Speicherung.
-  const GB355='M50.9.9GB356_CAPACITY_4_20260918_ROOTONLY';
+  const GB355='M50.9.9GB357_CUSTOMER_SYNC_CAP4_20260925_ROOTONLY';
   function S(v){ try{return String(v==null?'':v);}catch(_){return '';} }
   function L(v){ return S(v).trim().toLowerCase(); }
   function V(id){ try{const el=document.getElementById(id);return S(el&&el.value!=null?el.value:'').trim();}catch(_){return '';} }
@@ -3647,15 +3666,26 @@ function submitCustomerDogsProposal(){
     const hc=(prof&&prof.handoffCustomer)||((h&&h.customer)||{})||{};
     const hp=((prof&&prof.handoffPets)||(h&&h.pets)||[])||[];
     const cp=(ctx&&ctx.customer)||{};
-    const pp=((ctx&&ctx.pets&&ctx.pets[0])||(ctx&&ctx.pet)||(hp&&hp[0])||{})||{};
+    const selectedPetId=(typeof cpEdit!=='undefined' && cpEdit && cpEdit.mode==='edit')?S(cpEdit.petId).trim():'';
+    const pp=(selectedPetId && ctx && Array.isArray(ctx.pets) ? ctx.pets.find(p=>S(p&& (p.id||p.petId||p.dogId)).trim()===selectedPetId) : null) || ((ctx&&ctx.pet)||(hp&&hp[0])||{})||{};
     const email=L((prof&&prof.email)||(prof&&prof.handoffEmail)||(h&&h.auth&&h.auth.email)||hc.email||cp.email||V('c_email'));
     const uidVal=S((prof&&prof.uid)||(prof&&prof.handoffUid)||(h&&h.auth&&h.auth.uid)||hc.portalUid||hc.customerUid||hc.uid||cp.portalUid||cp.customerUid||cp.uid).trim();
     const cid=S((ctx&&ctx.customerId)||hc.id||hc.customerId||cp.id||cp.customerId||uidVal||email).trim();
-    const pid=S((window.cpEdit&&cpEdit.petId)||(ctx&&ctx.petId)||pp.id||pp.petId||pp.dogId).trim();
+    const pid=S(selectedPetId||(ctx&&ctx.petId)||pp.id||pp.petId||pp.dogId).trim();
     const name=S((prof&&prof.displayName)||(prof&&prof.handoffName)||(h&&h.auth&&h.auth.name)||hc.name||cp.name||V('c_name')||(email?email.split('@')[0]:'Kunde')).trim();
     return {uid:uidVal,email,displayName:name,customerId:cid,petId:pid,customer:cp||hc||{},pet:pp||{}};
   }
-  function sanitizeMedia(v){v=S(v);return /^data:/i.test(v)?'':v;}
+  function sanitizeMedia(v){return S(v);}
+  function sourceTaskIdFor(templateId){
+    try{
+      const raw=sessionStorage.getItem('ds_customer_source_task');
+      const rec=raw?JSON.parse(raw):null;
+      const real=currentAuthFast();
+      if(!rec || !real || String(rec.uid||'')!==String(real.uid||'')) return '';
+      if(String(rec.templateId||'')!==String(templateId||'')) return '';
+      return S(rec.id).trim();
+    }catch(_){ return ''; }
+  }
   function buildTask(){
     const real=currentAuthFast(); const hf=handoff();
     const customerName=V('c_name')||S((hf.customer&&(hf.customer.name||hf.customer.fullName))||(real&&real.displayName)||hf.displayName).trim();
@@ -3668,12 +3698,11 @@ function submitCustomerDogsProposal(){
     if(!chipStatus)throw new Error('Bitte bei „Gechippt?“ Ja oder Nein wählen.');
     if(chipStatus==='yes'&&!V('p_chipNumber'))throw new Error('Bitte die Chipnummer eintragen.');
     const customerId=S(hf.customerId||(real&&real.uid)||customerEmail).trim();
-    let petId=S(hf.petId).trim();
-    if(!petId){try{const pets=(state&&Array.isArray(state.pets))?state.pets:[];const found=pets.find(x=>S(x.customerId||x.ownerId)===customerId||L(x.customerEmail)===customerEmail||L(x.ownerEmail)===customerEmail);if(found)petId=S(found.id||found.petId||found.dogId);}catch(_){ }}
+    let petId=(typeof cpEdit!=='undefined' && cpEdit && cpEdit.mode==='edit') ? S(hf.petId).trim() : '';
     const id=makeId(),stamp=Date.now();
     const customer={id:customerId,customerId,name:customerName,email:customerEmail,phone:V('c_phone'),street:V('c_street'),zip:V('c_zip'),city:V('c_city'),emergencyName:V('c_em_name'),emergencyPhone:V('c_em_phone'),pickupAuth:V('c_pickup_auth'),note:V('c_note')};
-    const pet={id:petId,petId,dogId:petId,customerId,name:petName,breed:V('p_breed'),birthdate:V('p_birthdate'),sex:V('p_sex'),chipStatus,chip:chipStatus==='yes',chipNumber:V('p_chipNumber'),vet:V('p_vet'),vetPhone:V('p_vetPhone'),vetEmail:V('p_vetEmail'),vetStreet:V('p_vetStreet'),vetZip:V('p_vetZip'),vetCity:V('p_vetCity'),vetEmergencyName:V('p_vetEmergencyName'),vetEmergencyPhone:V('p_vetEmergencyPhone'),allergies:V('p_allergies'),medicalConditions:V('p_medicalConditions'),insuranceStatus:V('p_insuranceStatus'),insuranceCompany:V('p_insuranceCompany'),insurancePolicy:V('p_insurancePolicy'),insuranceNotes:V('p_insuranceNotes'),vaccinatedConfirmed:C('p_vaccinatedConfirmed'),rabiesDate:V('p_rabiesDate'),mixedVaccineDate:V('p_mixedVaccineDate'),vaccinationPassPhoto:sanitizeMedia(window.cpVaccinationPassDataUrl||S(hf.pet&&hf.pet.vaccinationPassPhoto)),profilePhoto:sanitizeMedia(window.cpProfilePhotoDataUrl||S(hf.pet&&hf.pet.profilePhoto)),food:V('p_food'),treatsAllowed:V('p_treatsAllowed'),aloneTime:V('p_aloneTime'),houseTrained:V('p_houseTrained'),transport:V('p_transport'),feeding:V('p_feeding'),compatDogs:V('p_compatDogs'),compatCats:V('p_compatCats'),compatKids:V('p_compatKids'),compat:V('p_compat'),leashBehavior:V('p_leashBehavior'),recall:V('p_recall'),resourceBehavior:V('p_resourceBehavior'),behavior:V('p_behavior'),dailyRoutine:V('p_dailyRoutine'),commands:V('p_commands'),note:V('p_note')};
-    return {id,taskId:id,proposalId:id,templateId:'customer_data',formKey:'customer_data',kind:'kunde/hund',proposalType:'kunde/hund',title:'Kunde/Hund Änderungsvorschlag',status:'submitted',proposalStatus:'pending',submittedAt:stamp,createdAt:stamp,updatedAt:stamp,customerUid:S((real&&real.uid)||hf.uid),customerEmail,customerName,customerId,petId,dogId:petId,payloadSubmitted:{source:'customer-main-dogs-gb355-reliable',mode:'proposal-pending-cloud',customer,pet},__gb355Reliable:true};
+    const pet={id:petId,petId,dogId:petId,customerId,name:petName,breed:V('p_breed'),birthdate:V('p_birthdate'),sex:V('p_sex'),chipStatus,chip:chipStatus==='yes',chipNumber:V('p_chipNumber'),vet:V('p_vet'),vetPhone:V('p_vetPhone'),vetEmail:V('p_vetEmail'),vetStreet:V('p_vetStreet'),vetZip:V('p_vetZip'),vetCity:V('p_vetCity'),vetEmergencyName:V('p_vetEmergencyName'),vetEmergencyPhone:V('p_vetEmergencyPhone'),allergies:V('p_allergies'),medicalConditions:V('p_medicalConditions'),insuranceStatus:V('p_insuranceStatus'),insuranceCompany:V('p_insuranceCompany'),insurancePolicy:V('p_insurancePolicy'),insuranceNotes:V('p_insuranceNotes'),vaccinatedConfirmed:C('p_vaccinatedConfirmed'),rabiesDate:V('p_rabiesDate'),mixedVaccineDate:V('p_mixedVaccineDate'),vaccinationPassPhoto:sanitizeMedia(cpVaccinationPassDataUrl||S(hf.pet&&hf.pet.vaccinationPassPhoto)),profilePhoto:sanitizeMedia(cpProfilePhotoDataUrl||S(hf.pet&&hf.pet.profilePhoto)),food:V('p_food'),treatsAllowed:V('p_treatsAllowed'),aloneTime:V('p_aloneTime'),houseTrained:V('p_houseTrained'),transport:V('p_transport'),feeding:V('p_feeding'),compatDogs:V('p_compatDogs'),compatCats:V('p_compatCats'),compatKids:V('p_compatKids'),compat:V('p_compat'),leashBehavior:V('p_leashBehavior'),recall:V('p_recall'),resourceBehavior:V('p_resourceBehavior'),behavior:V('p_behavior'),dailyRoutine:V('p_dailyRoutine'),commands:V('p_commands'),note:V('p_note')};
+    return {id,taskId:id,proposalId:id,templateId:'customer_data',formKey:'customer_data',kind:'kunde/hund',proposalType:'kunde/hund',title:'Kunde/Hund Änderungsvorschlag',status:'submitted',proposalStatus:'pending',submittedAt:stamp,createdAt:stamp,updatedAt:stamp,customerUid:S((real&&real.uid)||hf.uid),customerEmail,customerName,customerId,petId,dogId:petId,sourceTaskId:sourceTaskIdFor('customer_data'),payloadSubmitted:{source:'customer-main-dogs-gb357',mode:'proposal-pending-cloud',petMode:(typeof cpEdit!=='undefined'&&cpEdit&&cpEdit.mode)||'edit',isNewPet:!!(typeof cpEdit!=='undefined'&&cpEdit&&cpEdit.mode==='new'),customer,pet},__gb357Reliable:true};
   }
   if(window.__gb355SubmitDogsBusy){try{cpSetStatus('Speichern läuft bereits …');}catch(_){ }return;}
   window.__gb355SubmitDogsBusy=true;
@@ -4106,38 +4135,48 @@ async function initCustomerPortal(){
     try{ listCard?.scrollIntoView({behavior:'smooth', block:'start'}); }catch(_){ }
   };
   const tasksCol = cloudTasksCol();
+  const proposalsCol = cloudProposalsCol();
   const unsubs = [];
-  const seen = new Map();
+  const taskBuckets = new Map();
+  const proposalBuckets = new Map();
+  const flattenBuckets=(buckets)=>{
+    const merged=new Map();
+    buckets.forEach(map=>map.forEach((value,key)=>merged.set(key,value)));
+    return Array.from(merged.values());
+  };
   const publish = ()=>{
     const merged = new Map();
-    Array.from(seen.values()).forEach(t=> merged.set(String(t.id||t.taskId||Math.random()), t));
+    flattenBuckets(taskBuckets).forEach(t=> merged.set(String(t.id||t.taskId||Math.random()), t));
     getLocalCustomerTasks().forEach(t=>{
       const key = String(t.id || t.taskId || Math.random());
       if(!merged.has(key)) merged.set(key, t);
     });
-    const tasks = Array.from(merged.values()).sort((a,b)=>Number(b.createdAt||0)-Number(a.createdAt||0));
+    const allTasks = Array.from(merged.values()).sort((a,b)=>Number(b.createdAt||0)-Number(a.createdAt||0));
+    const tasks=allTasks.filter(t=>String(t.status||'open').toLowerCase()==='open');
+    window.__dsCustomerTasks=allTasks;
+    window.__dsCustomerProposals=flattenBuckets(proposalBuckets).sort((a,b)=>Number(b.submittedAt||b.updatedAt||0)-Number(a.submittedAt||a.updatedAt||0));
+    try{ window.dispatchEvent(new CustomEvent('ds-customer-data-ready')); }catch(_){ }
     renderCustomerTaskList(tasks);
     if(subtitle){
       subtitle.textContent = tasks.length ? 'Doggy Style Hundepension hat Aufgaben für dich.' : 'Aktuell liegen keine Aufgaben für dich vor.';
     }
   };
-  if(!tasksCol){
-    publish();
-  } else {
-    const attach = (query)=> query.onSnapshot((snap)=>{
-      snap.docChanges().forEach(ch=>{
-        const data = {id: ch.doc.id, ...ch.doc.data()};
-        if(ch.type === 'removed') seen.delete(ch.doc.id); else seen.set(ch.doc.id, data);
-      });
+  const attach=(collection,field,value,key,buckets,label)=>{
+    if(!collection || !value) return;
+    const bucket=new Map(); buckets.set(key,bucket);
+    unsubs.push(collection.where(field,'==',value).onSnapshot((snap)=>{
+      bucket.clear();
+      snap.forEach(doc=>bucket.set(doc.id,{id:doc.id,...doc.data()}));
       publish();
-    }, (err)=>{
-      console.error('customer tasks listener', err);
-      publish();
-      if(subtitle && !getLocalCustomerTasks().length) subtitle.textContent = 'Fehler beim Laden der Aufgaben.';
-    });
-    if(uid) unsubs.push(attach(tasksCol.where('customerUid','==',uid).where('status','==','open').orderBy('createdAt','desc')));
-    if(email) unsubs.push(attach(tasksCol.where('customerEmail','==',email).where('status','==','open').orderBy('createdAt','desc')));
-  }
+    },err=>{
+      console.error(label+' listener',err); publish();
+      if(subtitle && !getLocalCustomerTasks().length) subtitle.textContent='Fehler beim Laden der Kundendaten.';
+    }));
+  };
+  if(uid){ attach(tasksCol,'customerUid',uid,'task-uid',taskBuckets,'customer tasks'); attach(proposalsCol,'customerUid',uid,'proposal-uid',proposalBuckets,'customer proposals'); }
+  if(email){ attach(tasksCol,'customerEmail',email,'task-email',taskBuckets,'customer tasks'); attach(proposalsCol,'customerEmail',email,'proposal-email',proposalBuckets,'customer proposals'); }
+  if(!uid && !email) publish();
+  window.__dsCustomerPortalUnsubscribe=()=>{ unsubs.splice(0).forEach(fn=>{try{fn();}catch(_){}}); };
   function renderCustomerTaskList(tasks){
     if(!listEl) return;
     window.__dsCustomerTasks = Array.isArray(tasks) ? tasks.slice() : [];
@@ -4224,27 +4263,14 @@ async function initCustomerPortal(){
       try{
         const { fields, meta } = collectForm();
         currentDoc.fields = fields; currentDoc.meta = meta;
-        const patch = { payloadDraft: { fields, meta }, updatedAt: Date.now() };
-        const col = cloudTasksCol();
-        let wroteRemote = false;
-        if(col && typeof col.doc === 'function' && task.id){
-          await col.doc(task.id).set(patch, {merge:true});
-          wroteRemote = true;
-        }
-        try{
-          const raw = localStorage.getItem(LS_KEY);
-          const data = raw ? JSON.parse(raw) : {};
-          const list = Array.isArray(data.inboxAssignments) ? data.inboxAssignments : [];
-          const idx = list.findIndex(x => String((x && (x.id || x.taskId)) || '') === String(task.id || ''));
-          const merged = Object.assign({}, idx >= 0 ? list[idx] : task, patch, { id: task.id || task.taskId || ('local_'+Date.now()) });
-          if(idx >= 0) list[idx] = merged; else list.unshift(merged);
-          data.inboxAssignments = list;
-          localStorage.setItem(LS_KEY, JSON.stringify(data));
-        }catch(_){ }
-        if(hint) hint.textContent = wroteRemote ? `✅ Gespeichert: ${fmtDT(Date.now())}` : `✅ Lokal gespeichert: ${fmtDT(Date.now())}`;
+        const draftKey='ds_customer_task_drafts_v2';
+        const drafts=JSON.parse(localStorage.getItem(draftKey)||'{}')||{};
+        drafts[String(task.id||task.taskId||currentDoc.id)]={fields,meta,updatedAt:Date.now()};
+        localStorage.setItem(draftKey,JSON.stringify(drafts));
+        if(hint) hint.textContent = `✅ Entwurf auf diesem Gerät gespeichert: ${fmtDT(Date.now())}`;
       }catch(e){
-        console.error('draft save', e);
-        if(hint) hint.textContent = '❌ Speichern fehlgeschlagen (bitte später erneut versuchen).';
+        console.error('draft save',e);
+        if(hint) hint.textContent='❌ Entwurf konnte nicht gespeichert werden.';
       }
     };
     let _draftTimer = null;
@@ -4265,43 +4291,25 @@ async function initCustomerPortal(){
       if(listCard) listCard.style.display = 'block';
     };
     if(submitBtn) submitBtn.onclick = async ()=>{
-      if(!confirm('Formular absenden? Danach kann es nicht mehr geändert werden.')) return;
+      if(!confirm('Formular absenden?')) return;
       try{
         const { fields, meta } = collectForm();
-        currentDoc.fields = fields; currentDoc.meta = meta;
-        const errs = validate(currentDoc, t);
-        if(errs.length){ alert('Bitte prüfen: ' + errs.join(', ')); return; }
-        const patch = {
-          payloadDraft: { fields, meta },
-          payloadSubmitted: { fields, meta },
-          status: 'submitted',
-          submittedAt: Date.now(),
-          updatedAt: Date.now()
-        };
-        const col = cloudTasksCol();
-        let wroteRemote = false;
-        if(col && typeof col.doc === 'function' && task.id){
-          await col.doc(task.id).set(patch, {merge:true});
-          wroteRemote = true;
+        currentDoc.fields=fields; currentDoc.meta=meta;
+        const errs=validate(currentDoc,t);
+        if(errs.length){ alert('Bitte prüfen: '+errs.join(', ')); return; }
+        const result=await dsSubmitCustomerPortalProposal({
+          templateId:task.templateId,title:task.title||t.name||task.templateId,
+          customerId:String(task.customerId||''),petId:String(task.petId||task.dogId||''),
+          sourceTaskId:String(task.id||task.taskId||''),
+          payloadSubmitted:{fields,meta}
+        });
+        if(result && result.ok){
+          alert('✅ Danke! Formular wurde übermittelt.');
+          if(editor) editor.style.display='none'; if(listEl) listEl.style.display=''; if(listCard) listCard.style.display='block';
+        }else{
+          alert('⚠️ Formular lokal vorgemerkt. Die Übertragung wird automatisch erneut versucht.');
         }
-        try{
-          const raw = localStorage.getItem(LS_KEY);
-          const data = raw ? JSON.parse(raw) : {};
-          const list = Array.isArray(data.inboxAssignments) ? data.inboxAssignments : [];
-          const idx = list.findIndex(x => String((x && (x.id || x.taskId)) || '') === String(task.id || ''));
-          const merged = Object.assign({}, idx >= 0 ? list[idx] : task, patch, { id: task.id || task.taskId || ('local_'+Date.now()) });
-          if(idx >= 0) list[idx] = merged; else list.unshift(merged);
-          data.inboxAssignments = list;
-          localStorage.setItem(LS_KEY, JSON.stringify(data));
-        }catch(_){ }
-        alert(wroteRemote ? '✅ Danke! Formular wurde übermittelt.' : '✅ Formular lokal als übermittelt markiert.');
-        if(editor) editor.style.display = 'none';
-        if(listEl) listEl.style.display = '';
-        if(listCard) listCard.style.display = 'block';
-      }catch(e){
-        console.error('submit', e);
-        alert('❌ Absenden fehlgeschlagen: '+(e.message||e));
-      }
+      }catch(e){ console.error('submit',e); alert('❌ Absenden fehlgeschlagen: '+(e.message||e)); }
     };
   }
   window.__dsOpenCustomerTask = openCustomerTask;
@@ -5093,6 +5101,21 @@ function populateInboxAssignmentControls(){
   return { customers: customers.length, templates: templatesForAssign.length };
 }
 
+function dsBuildPortalDataForCustomer(customer){
+  try{
+    const c=JSON.parse(JSON.stringify(customer||{}));
+    const cid=String(c.customerId||c.id||'').trim();
+    const email=String(c.email||'').trim().toLowerCase();
+    const uid=String(c.portalUid||c.customerUid||c.uid||'').trim();
+    const pets=(state && Array.isArray(state.pets)?state.pets:[]).filter(p=>{
+      const pcid=String((p&& (p.customerId||p.ownerId))||'').trim();
+      const pmail=String((p&& (p.customerEmail||p.ownerEmail))||'').trim().toLowerCase();
+      const puid=String((p&& (p.customerUid||p.portalUid||p.uid))||'').trim();
+      return (cid&&pcid===cid)||(uid&&puid===uid)||(email&&pmail===email);
+    }).map(p=>JSON.parse(JSON.stringify(p)));
+    return {customer:c,pets,updatedAt:Date.now()};
+  }catch(_){ return {customer:customer||{},pets:[],updatedAt:Date.now()}; }
+}
 async function wireInboxAssignments(){
   const card = document.getElementById('taskAssignCard');
   const legacyCard = document.getElementById('adminTaskCard');
@@ -5228,7 +5251,7 @@ async function wireInboxAssignments(){
         || mergedCustomers.find(c => optionLabel && `${String(c.name||'').trim()} · ${String(c.email||c.phone||'').trim()}`.trim() === optionLabel);
       if(!customer){ setMsg('Kunde konnte nicht aufgelöst werden.', true); try{ window.__dsInboxAssignDiag = { ...(window.__dsInboxAssignDiag||{}), createStatus: 'customer-not-resolved', error: 'customer-not-resolved' }; setDiag(); }catch(_){ } return; }
 
-      let portalUid = String(customer.portalUid || '').trim();
+      let portalUid = String(customer.portalUid || customer.customerUid || customer.uid || '').trim();
       let createVia = portalUid ? 'direct-portalUid' : 'local-only';
       if(!portalUid){
         const customerEmail = String(customer.email || '').trim().toLowerCase();
@@ -5246,14 +5269,15 @@ async function wireInboxAssignments(){
         customerUid: portalUid || '',
         customerEmail: String(customer.email || '').trim().toLowerCase(),
         customerName: customer.name || optionLabel || '',
-        customerId: customer.customerId || portalUid || customer.email || '',
+        customerId: customer.customerId || customer.id || portalUid || customer.email || '',
         taskId: templateId,
         templateId: templateId,
         title: templateMeta.name || templateId,
         status: 'open',
         createdAt: Date.now(),
         createdByUid: (CLOUD.user && CLOUD.user.uid) || '',
-        createdByEmail: (CLOUD.user && CLOUD.user.email) || ''
+        createdByEmail: (CLOUD.user && CLOUD.user.email) || '',
+        portalData: dsBuildPortalDataForCustomer({ ...customer, portalUid: portalUid || customer.portalUid || '', customerUid: portalUid || customer.customerUid || '' })
       };
       const tasksCol = cloudTasksCol();
       if(!tasksCol){
@@ -6231,11 +6255,8 @@ function renderDashboard(){
   const elBoardText = document.getElementById("todayBoardingText");
   const elDayBar = document.getElementById("todayDaycareBar");
   const elBoardBar = document.getElementById("todayBoardingBar");
-  const totalUsed = todayDayUsed + todayBoardUsed;
-  const totalStatus = totalUsed > MAX_DOGS ? `Gesamtgrenze überschritten (${totalUsed}/${MAX_DOGS})`
-    : totalUsed === MAX_DOGS ? `Insgesamt voll (${totalUsed}/${MAX_DOGS})` : '';
-  if(elDayText) elDayText.textContent = totalStatus || dashboardStatusText(dayRatio);
-  if(elBoardText) elBoardText.textContent = totalStatus || dashboardStatusText(boardRatio);
+  if(elDayText) elDayText.textContent = dashboardStatusText(dayRatio);
+  if(elBoardText) elBoardText.textContent = dashboardStatusText(boardRatio);
   if(elDayBar){
     elDayBar.style.width = `${Math.min(100, Math.max(0, dayRatio*100))}%`;
     elDayBar.style.background = dashboardStatusColor(dayRatio);
@@ -6286,9 +6307,10 @@ function renderDashboard(){
     const dayMaxD = getCapacity("Tagesbetreuung", d);
     const boardMaxD = getCapacity("Urlaubsbetreuung", d);
     const totalUsed = dayUsed + boardUsed;
-    if(totalUsed >= MAX_DOGS - 1){
-      const status = totalUsed > MAX_DOGS ? 'Grenze überschritten' : totalUsed === MAX_DOGS ? 'voll' : 'fast voll';
-      warnings.push(`${formatDateDE(d)}: Gesamtbelegung ${status} (${totalUsed}/${MAX_DOGS})`);
+    if(totalUsed >= MAX_DOGS){
+      warnings.push(`${formatDateDE(d)}: Gesamtbelegung Grenze erreicht/überschritten (${totalUsed}/${MAX_DOGS})`);
+    } else if(MAX_DOGS - totalUsed <= 1){
+      warnings.push(`${formatDateDE(d)}: Insgesamt fast voll (${totalUsed}/${MAX_DOGS})`);
     }
     if(dayMaxD - dayUsed <= 1){
       warnings.push(`${formatDateDE(d)}: Tagesbetreuung fast voll (${dayUsed}/${dayMaxD})`);
@@ -8349,13 +8371,13 @@ function renderCalendarPanel(){
     const dayNum = d.getDate();
     const board = countForDay('Urlaubsbetreuung', iso);
     const dayc = countForDay('Tagesbetreuung', iso);
-    const over = (board + dayc > MAX_DOGS) || (board > getCapacity("Urlaubsbetreuung", iso)) || (dayc > getCapacity("Tagesbetreuung", iso));
+    const over = (board > getCapacity("Urlaubsbetreuung", iso)) || (dayc > getCapacity("Tagesbetreuung", iso));
     const cell = document.createElement('div');
     cell.className = 'cal-cell' + (inMonth ? '' : ' is-other') + (iso===todayIso ? ' is-today':'') + (iso===CAL.selectedDay ? ' is-selected':'') + (over ? ' is-over':'');
     cell.dataset.day = iso;
     const f = getCalFilters();
-    const freeU = Math.min(getCapacity("Urlaubsbetreuung", iso) - board, MAX_DOGS - board - dayc);
-    const freeT = Math.min(getCapacity("Tagesbetreuung", iso) - dayc, MAX_DOGS - board - dayc);
+    const freeU = getCapacity("Urlaubsbetreuung", iso) - board;
+    const freeT = getCapacity("Tagesbetreuung", iso) - dayc;
     const uPct = clamp((board / Math.max(1,getCapacity("Urlaubsbetreuung", iso))) * 100, 0, 100);
     const tPct = clamp((dayc / Math.max(1,getCapacity("Tagesbetreuung", iso))) * 100, 0, 100);
     const badges = [];
@@ -8806,7 +8828,7 @@ function renderAnalyticsPanel(){
         // typeEl exists in UI (day/urlaub)
         const occType = String(typeEl?.value || 'urlaub');
         const label = (occType==='day') ? 'Tagesbetreuung' : 'Urlaubsbetreuung';
-        const capMax = CAPACITY[label];
+        const capMax = (occType==='day') ? (CAPACITY?.day ?? 13) : (CAPACITY?.holiday ?? 10);
         // parse YYYY-MM-DD as UTC midnight
         const parseYMD = (s) => {
           if(!s || typeof s !== 'string') return null;
@@ -8821,8 +8843,8 @@ function renderAnalyticsPanel(){
           let peakUsed=-1, peakDay='', peakCap=0;
           for(let d=fromD2; d<=toD2; d=addDaysUTC(d,1)){
             const ymd = formatYMD(d);
-            const used = countForDay(label, ymd);
-            const cap  = getCapacity(label, ymd);
+            const used = countForDay(occType, ymd);
+            const cap  = getCapacity(occType, ymd);
             days++; usedSum += used; capSum += cap;
             if(used>peakUsed){ peakUsed=used; peakDay=ymd; peakCap=cap; }
           }
@@ -9030,28 +9052,24 @@ function renderCalendarDayDetail(iso){
   const dayc = countForDay('Tagesbetreuung', iso);
   title.textContent = label;
   const f = getCalFilters();
-  const freeU = Math.min(getCapacity("Urlaubsbetreuung", iso) - board, MAX_DOGS - board - dayc);
-  const freeT = Math.min(getCapacity("Tagesbetreuung", iso) - dayc, MAX_DOGS - board - dayc);
+  const freeU = getCapacity("Urlaubsbetreuung", iso) - board;
+  const freeT = getCapacity("Tagesbetreuung", iso) - dayc;
   const parts = [];
   const freeParts = [];
   if(f.urlaub){ parts.push(`🏡 ${board}/${getCapacity("Urlaubsbetreuung", iso)}`); freeParts.push(`🏡 ${Math.max(0, freeU)} frei`); }
   if(f.tages){ parts.push(`🐕 ${dayc}/${getCapacity("Tagesbetreuung", iso)}`); freeParts.push(`🐕 ${Math.max(0, freeT)} frei`); }
-  parts.push(`Gesamt ${board + dayc}/${MAX_DOGS}`);
   meta.textContent = `${parts.join(' · ')}  —  ${freeParts.join(' · ')}`;
-  const allStays = (state.docs||[]).filter(d=>{
+  const stays = (state.docs||[]).filter(d=>{
     if(!d.saved) return false;
     if(d.type==='invoice') return false;
     if(!d.meta?.von || !d.meta?.bis) return false;
-    return (iso >= d.meta.von && iso <= d.meta.bis);
-  }).slice().sort((a,b)=> String(a.meta?.von||'').localeCompare(String(b.meta?.von||'')));
-  const stays = allStays.filter(d=>{
     const bt = d.meta?.betreuung||'';
     if(bt==='Urlaubsbetreuung' && !f.urlaub) return false;
     if(bt==='Tagesbetreuung' && !f.tages) return false;
-    return true;
-  });
+    return (iso >= d.meta.von && iso <= d.meta.bis);
+  }).slice().sort((a,b)=> String(a.meta?.von||'').localeCompare(String(b.meta?.von||'')));
   // 4A: Verursachende Aufenthalte bei Überbuchung markieren (Kalender-Tag-Detail)
-  // Logik: Bei Überschreitung der gemeinsamen Grenze oder einer Betreuungsart markieren wir die "zusätzlichen" Aufenthalte
+  // Logik: Wenn (Anzahl Aufenthalte je Betreuungsart) > Kapazität, markieren wir die "zusätzlichen" Aufenthalte
   // in einer stabilen Reihenfolge (ältere zuerst, neuere zuletzt). Die neueren, die über die Kapazität hinausgehen,
   // gelten als verursachend (planungspraktisch).
   const causing = new Set();
@@ -9062,10 +9080,10 @@ function renderCalendarDayDetail(iso){
     return String(ts) + '|' + String(d.id||'');
   };
   try{
-    const byType = (type)=> allStays.filter(s => _canonicalBetreuungType(s.meta?.betreuung) === type);
+    const byType = (type)=> (stays||[]).filter(s => (s.meta?.betreuung||'') === type);
     const markOverflow = (type)=>{
-      const arr = (type ? byType(type) : allStays.filter(s => CAPACITY[_canonicalBetreuungType(s.meta?.betreuung)] != null)).slice().sort((a,b)=> getSortKey(a).localeCompare(getSortKey(b)));
-      const cap = type ? getCapacity(type, iso) : MAX_DOGS;
+      const arr = byType(type).slice().sort((a,b)=> getSortKey(a).localeCompare(getSortKey(b)));
+      const cap = getCapacity(type, iso);
       if(!cap && cap !== 0) return;
       const overflow = arr.length - cap;
       if(overflow > 0){
@@ -9084,7 +9102,6 @@ function renderCalendarDayDetail(iso){
     };
     markOverflow('Urlaubsbetreuung');
     markOverflow('Tagesbetreuung');
-    markOverflow(null);
   }catch(e){ console.warn('4A causing-mark failed', e); }
   // Etappe 4: Medikamente pro Aufenthaltstag (Kalender-Tag-Detail)
   const stayPetIds = Array.from(new Set((stays||[]).map(s => (s.petId || s.dogId || "")).filter(Boolean)));
@@ -9453,18 +9470,6 @@ function ensureProfiDefaults(){
       const cur = (d.content!=null) ? String(d.content||'') : '';
       const isEmpty = !cur.trim();
       const isLegacy = cur.includes('Kurzvorlage') || cur.includes('Hinweis: Diese Vorlage');
-      if(k === 'hygiene' && !isEmpty && !isLegacy){
-        const next = cur.replace('Kapazität: max. 10 Übernachtungshunde / max. 13 Tageshunde',
-          'Kapazität: max. 4 Hunde insgesamt (Tages- und Urlaubsbetreuung zusammen)');
-        if(next !== cur){
-          const toV = bumpVersionStr(d.version);
-          d.history.push({fromVersion:d.version, toVersion:toV, changedAt:today,
-            note:'Höchstbelegung auf insgesamt 4 Hunde reduziert.', content:cur});
-          d.content = next;
-          d.version = toV;
-          d.lastChanged = today;
-        }
-      }
       if(isEmpty || isLegacy){
         // Special: Betreuungsvertrag-Vorlage soll den aktuellen Vertragstext enthalten.
         if(k === 'contract'){
@@ -10634,7 +10639,7 @@ Geltungsbereich
 Unterbringung, Betreuung, Fütterung, Auslauf/Beaufsichtigung, Abbruchkriterien.
 
 Inhalte
-• Bestandsgrenzen/Belegung: max. 4 Hunde insgesamt (Tages- und Urlaubsbetreuung zusammen; betrieblicher Standard).
+• Bestandsgrenzen/Belegung: max. 4 Hunde insgesamt; Tages- und Urlaubsbetreuung zählen zusammen.
 • Unterbringung: Zimmer/Größen/Trennmöglichkeiten, Ruhezeiten, Stressreduktion, Temperatur/Lüftung.
 • Betreuung: regelmäßige Sichtkontrollen, Wasser jederzeit, Fütterung nach Halterangaben.
 • Sozialmanagement: unverträgliche Hunde trennen, Gruppen nur nach Verträglichkeit, Konflikte vermeiden.
@@ -10727,11 +10732,6 @@ Vorfallprotokoll + Unterweisungsnachweis.`, updatedAt:Date.now() }
       // Volltext: wenn fehlt oder sehr kurz -> aus Katalog übernehmen
       const ft = (out.fullText || out.longText || "").toString();
       if(!ft || ft.trim().length < 160) out.fullText = base.fullText;
-      else if(out.id === 'trn_tierschutz'){
-        const next = ft.replace('Übernachtung max. 10, Tagesbetreuung max. 13 (betrieblicher Standard)',
-          'max. 4 Hunde insgesamt (Tages- und Urlaubsbetreuung zusammen; betrieblicher Standard)');
-        if(next !== ft){ out.fullText = next; out.updatedAt = Date.now(); }
-      }
       // Timestamp: falls fehlt
       out.updatedAt = out.updatedAt || base.updatedAt || Date.now();
       return out;
@@ -13253,6 +13253,12 @@ function dsResolveProposalReviewTargets(sourceRow){
       const src = lower((payload && payload.source) || (row && row.source) || '');
       const tpl = lower((row && (row.templateId || row.proposalType || row.kind || row.formKey)) || '');
       const isCustomerDogsProposal = src.indexOf('customer-main-dogs') >= 0 || tpl === 'customer_data';
+      const explicitNewPet = !!(payload && (payload.isNewPet === true || lower(payload.petMode || '') === 'new'));
+      if(isCustomerDogsProposal && explicitNewPet){
+        const exactCid = norm((row && row.customerId) || (customerPayload && (customerPayload.customerId || customerPayload.id)) || '');
+        const exactCustomer = exactCid ? (customers.find(function(c){ return norm((c && (c.id || c.customerId || '')) || '') === exactCid; }) || null) : null;
+        return { customer: exactCustomer || rowBoundCustomer || null, pet:null, customerPayload, petPayload, newPet:true };
+      }
       if(isCustomerDogsProposal && (rowBoundCustomer || rowBoundPet)){
         customer = rowBoundCustomer || null;
         pet = rowBoundPet || null;
@@ -13890,8 +13896,23 @@ async function dsSaveProposalReview(){
   const savedPetId = String(pet.id || pet.petId || '--');
   const savedCustomerId = String(customer.id || customer.customerId || '--');
   const rowForBg = row ? JSON.parse(JSON.stringify(row)) : null;
+  if(rowForBg){
+    rowForBg.customerId = savedCustomerId;
+    rowForBg.__targetCustomerId = savedCustomerId;
+    rowForBg.petId = savedPetId;
+    rowForBg.__targetPetId = savedPetId;
+  }
+  let statusConfirmed = false;
+  try{ statusConfirmed = !!(rowForBg && await patchInboxRowStatus(rowForBg, 'adopted')); }catch(statusErr){
+    try{ dsSetProposalOpenDiag('save-status-fail pet=' + savedPetId + ' customer=' + savedCustomerId + ' msg=' + String((statusErr && statusErr.message) || statusErr || 'unknown'), true); }catch(_){ }
+  }
+  if(!statusConfirmed){
+    cpSetStatus('Stammdaten gespeichert, aber die Übernahme konnte in der Cloud nicht bestätigt werden. Bitte erneut speichern.', true);
+    try{ alert('Die Stammdaten wurden gespeichert, aber der Übernahmestatus konnte nicht bestätigt werden. Bitte erneut speichern.'); }catch(_){ }
+    return false;
+  }
 
-  try{ dsFinalizeAcceptedProposalLocal(row); }catch(_){ }
+  try{ dsFinalizeAcceptedProposalLocal(rowForBg || row); }catch(_){ }
 
   __dsProposalReview.active = false;
   __dsProposalReview.row = null;
@@ -13918,7 +13939,7 @@ async function dsSaveProposalReview(){
     setTimeout(async ()=>{
       let bgPatch = '0';
       let bgRefresh = '0';
-      try{ if(rowForBg) bgPatch = (await withTimeout(patchInboxRowStatus(rowForBg, 'adopted'), 1500)) ? '1' : '0'; }catch(_){ bgPatch = '0'; }
+      bgPatch = '1';
       try{ bgRefresh = (await withTimeout(refreshInboxHard('review-save-bg'), 1500)) ? '1' : '0'; }catch(_){ bgRefresh = '0'; }
       try{ var proposalId = String((rowForBg && (rowForBg.proposalId || rowForBg.proposal || rowForBg.id)) || '--'); var accLocal = ((rowForBg && dsIsProposalAcceptedDirect && dsIsProposalAcceptedDirect(rowForBg)) || (rowForBg && dsIsProposalAcceptedExact && dsIsProposalAcceptedExact(rowForBg))) ? '1' : '0'; var accPersist = ((rowForBg && dsIsProposalAcceptedPersistent && dsIsProposalAcceptedPersistent(rowForBg)) || (rowForBg && dsIsInboxRowHandled && dsIsInboxRowHandled(rowForBg))) ? '1' : '0'; var acc = (accLocal === '1' || accPersist === '1') ? '1' : '0'; dsSetProposalOpenDiag('proposalId=' + proposalId + ' proposalAccepted=' + acc + ' proposalAcceptedLocal=' + accLocal + ' proposalAcceptedPersist=' + accPersist + ' proposalRemovedLocal=1 proposalRefreshOk=' + bgRefresh + ' proposalWriteTried=1 proposalWriteOk=' + bgPatch + ' saveBgPatch=' + bgPatch + ' saveBgRefresh=' + bgRefresh + ' pet=' + savedPetId + ' customer=' + savedCustomerId, bgPatch !== '1' && acc !== '1'); }catch(_){ }
     }, 0);
@@ -15280,6 +15301,8 @@ function dsOpenProposalInCustomerEditor(row, opts){
       || !!(customerPayload && Object.keys(customerPayload).length)
       || !!(petPayload && Object.keys(petPayload).length);
     if(!isCustomerProposal) return false;
+    const explicitNewPet = !!(payload && (payload.isNewPet === true || String(payload.petMode || '').toLowerCase() === 'new'));
+    if(explicitNewPet) return !!dsOpenProposalAsNewCustomerReview(row, customerPayload, petPayload, opts);
 
     try{ dsSetProposalOpenDiag('entry row=' + String((row && (row.id || row.proposalId || row.taskId)) || '--') + ' cid=' + String((row && (row.customerId || row.cid || row.__targetCustomerId)) || '--') + ' pid=' + String((row && (row.petId || row.pid || row.__targetPetId)) || '--'), false); }catch(_){ }
 
@@ -15721,18 +15744,25 @@ function countOccupancy(type, from, to, excludeDocId){
     return overlaps(d.meta.von, d.meta.bis, from, to);
   }).length;
 }
-function getPeakTotalOccupancy(from, to, excludeDocId){
-  const start = String(from||'').slice(0,10);
-  const end = String(to||'').slice(0,10);
-  if(!start || !end || start > end) return 0;
-  const date = new Date(start + 'T12:00:00');
-  if(isNaN(date.getTime())) return 0;
-  let peak = 0;
-  // Nur gleichzeitig anwesende Hunde zählen; der Abreisetag bleibt eingeschlossen.
-  for(let day = start; day <= end; date.setDate(date.getDate() + 1), day = toISODateLocal(date)){
-    const total = countOccupancy('Tagesbetreuung', day, day, excludeDocId)
-      + countOccupancy('Urlaubsbetreuung', day, day, excludeDocId);
-    peak = Math.max(peak, total);
+function countTotalOccupancyForDay(day, excludeDocId){
+  return (state.docs || []).filter(d=>{
+    if(!d || !d.saved || d.id === excludeDocId) return false;
+    const type=_normBetreuungType(d.meta?.betreuung);
+    if(type!=="tagesbetreuung" && type!=="urlaubsbetreuung") return false;
+    if(!d.meta?.von || !d.meta?.bis) return false;
+    return day >= d.meta.von && day <= d.meta.bis;
+  }).length;
+}
+function getPeakTotalOccupancy(fromISO,toISO,excludeDocId){
+  const from=String(fromISO||"").slice(0,10), to=String(toISO||"").slice(0,10);
+  if(!from || !to || from>to) return 0;
+  let peak=0, cur=new Date(from+'T12:00:00');
+  const end=new Date(to+'T12:00:00');
+  if(isNaN(cur)||isNaN(end)) return 0;
+  while(cur<=end){
+    peak=Math.max(peak,countTotalOccupancyForDay(toISODateLocal(cur),excludeDocId));
+    if(peak>=MAX_DOGS) break;
+    cur.setDate(cur.getDate()+1);
   }
   return peak;
 }
@@ -15766,9 +15796,8 @@ function renderTodayStatus(){
     const overCount = countOccupancy('Urlaubsbetreuung', dayISO, dayISO);
     const dayCap = getCapacity('Tagesbetreuung', dayISO);
     const overCap = getCapacity('Urlaubsbetreuung', dayISO);
-    const totalOk = dayCount + overCount <= MAX_DOGS;
-    const dayOk = totalOk && dayCount <= dayCap;
-    const overOk = totalOk && overCount <= overCap;
+    const dayOk = dayCount <= dayCap;
+    const overOk = overCount <= overCap;
     const el = document.getElementById('todayStatus');
     if(!el) return;
     el.innerHTML = `
@@ -15806,7 +15835,7 @@ function renderOccupancy(){
           const t = countForDay("Tagesbetreuung", day);
           return `
             <tr>
-              <td title="Gesamtbelegung: ${u + t} / ${MAX_DOGS}">${formatDateDE(day)}${u + t > MAX_DOGS ? ' ⚠️' : ''}</td>
+              <td>${formatDateDE(day)}</td>
               <td>${u} / ${getCapacity("Urlaubsbetreuung", day)}</td>
               <td>${t} / ${getCapacity("Tagesbetreuung", day)}</td>
             </tr>
@@ -17047,7 +17076,11 @@ function dsCustomerMainArtifactsMatchUser(){
     const handoffUid = String(handoffAuth.uid || handoffCustomer.portalUid || handoffCustomer.customerUid || handoffCustomer.uid || sessionStorage.getItem('ds_customer_auth_handoff_uid') || '').trim();
     const currentEmail = String((rawUser && rawUser.email) || rawProfile.email || '').trim().toLowerCase();
     const currentUid = String((rawUser && rawUser.uid) || rawProfile.uid || '').trim();
-    if(role === 'customer') return true;
+    if(role === 'customer'){
+      if(handoffUid && currentUid) return handoffUid === currentUid;
+      if(handoffEmail && currentEmail) return handoffEmail === currentEmail;
+      return false;
+    }
     if(handoffUid && currentUid && handoffUid === currentUid) return true;
     if(handoffEmail && currentEmail && handoffEmail === currentEmail) return true;
     return false;
@@ -17065,7 +17098,7 @@ function saveState(){
   SYNC.localSavedAt = (state && state._localUpdatedAt) ? state._localUpdatedAt : Date.now();
   updateSyncUI();
   // Cloud Sync (Weg 2B): Änderungen nach außen spiegeln
-  if(CLOUD.enabled && CLOUD.user) cloudSchedulePush();
+  if(CLOUD.enabled && CLOUD.user && isStaff()) cloudSchedulePush();
 }
 function ensureDefaultDog(){
   if(!state.dogs || state.dogs.length===0){
@@ -18711,20 +18744,11 @@ const from = currentDoc.meta.von;
 const to   = currentDoc.meta.bis;
 const used = countOccupancy(type, from, to, currentDoc.id);
 const limit = getMinCapacityForRange(type, from, to);
-const totalUsed = isStay ? getPeakTotalOccupancy(from, to, currentDoc.id) : 0;
-// Wenn kein Limit konfiguriert ist (0/undefined), keine Kapazitätswarnung anzeigen.
+const totalUsed = getPeakTotalOccupancy(from, to, currentDoc.id);
 if (totalUsed >= MAX_DOGS) {
-  alert(
-    `⚠️ Achtung:\n\n` +
-    `Im Zeitraum ${from} – ${to} sind bereits bis zu ${totalUsed} von ${MAX_DOGS} Plätzen belegt.\n` +
-    `Die Grenze gilt für Tages- und Urlaubsbetreuung zusammen.`
-  );
+  alert(`⚠️ Achtung:\n\nDie Gesamtkapazität von ${MAX_DOGS} Hunden ist im Zeitraum ${from} – ${to} bereits erreicht. Tages- und Urlaubsbetreuung zählen zusammen.`);
 } else if (Number(limit||0) > 0 && used >= limit) {
-  alert(
-    `⚠️ Achtung:\n\n` +
-    `${used} von ${limit} Plätzen für "${type}" ` +
-    `im Zeitraum ${from} – ${to} sind bereits belegt.`
-  );
+  alert(`⚠️ Achtung:\n\n${used} von ${limit} Plätzen für "${type}" im Zeitraum ${from} – ${to} sind bereits belegt.`);
 }
   // ⚠️ Stufe A (Warnungen): fehlende Unterschrift blockiert NICHT mehr.
   // Abschlussstatus: nur wenn Unterschrift vorhanden.
@@ -19381,10 +19405,12 @@ async function startApp(){
     // Rolle (v2): aus Firestore (mit Whitelist-Override)
     try{
       CLOUD.userProfile = await loadOrCreateUserProfile(user);
-      CLOUD.role = (CLOUD.userProfile && CLOUD.userProfile.role) ? CLOUD.userProfile.role : ROLES.STAFF;
+      CLOUD.role = (CLOUD.userProfile && CLOUD.userProfile.role) ? CLOUD.userProfile.role : ROLES.CUSTOMER;
     }catch(e){
-      console.warn('Role load failed, fallback to staff', e);
-      CLOUD.role = ROLES.STAFF;
+      console.warn('Role load failed; no staff fallback', e);
+      const p=String((location&&location.pathname)||'').toLowerCase();
+      const q=String((location&&location.search)||'');
+      CLOUD.role=(p.endsWith('customer.html') || /customer_mode=/.test(q)) ? ROLES.CUSTOMER : 'guest';
     }
     try{
       if(CLOUD.role !== ROLES.CUSTOMER){
@@ -19492,7 +19518,7 @@ try{
       (Array.isArray(state.customers) && state.customers.length>0) ||
       (Array.isArray(state.docs) && state.docs.length>0) ||
       (Array.isArray(state.dogs) && state.dogs.filter(d=>d && !d.isPlaceholder).length>0);
-    if(hasLocalData && CLOUD.user){
+    if(hasLocalData && CLOUD.user && isStaff()) {
       try{ await cloudPushNow(); }catch(e){ console.warn('Initial cloud push failed', e); }
     } else if(err){
       console.warn("Initial cloud read failed (no remote), continuing local", err);
@@ -19520,7 +19546,7 @@ try{
       applyRemoteState(remote, remoteUpdated, "initial-read-contract-canonical");
     } else if(localUpdated && localUpdated > remoteUpdated){
       // Lokal ist neuer -> lokal behalten und pushen
-      if(CLOUD.user){
+      if(CLOUD.user && isStaff()){
         try{ cloudSchedulePush(); }catch(_){ }
       }
     } else if(remoteUpdated && remoteUpdated >= localCloudStamp){
@@ -25757,7 +25783,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB356_CAPACITY_4_20260918_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB357_CUSTOMER_SYNC_CAP4_20260925_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -27730,7 +27756,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB356_CAPACITY_4_20260918_ROOTONLY";
+  const BUILD = "M50.9.9GB357_CUSTOMER_SYNC_CAP4_20260925_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -28710,36 +28736,56 @@ function removeInboxRowEverywhere(row){
     }catch(_){ }
   }
   async function patchInboxRowStatus(row, status){
-    const payload = { proposalStatus: status, status: status === 'pending' ? 'submitted' : status, reviewedAt: Date.now(), resolvedAt: Date.now() };
-    let ok = false;
+    const now = Date.now();
+    const normalizedStatus = lower(status || '');
+    const payload = { proposalStatus: status, status: normalizedStatus === 'pending' ? 'submitted' : status, reviewedAt: now, resolvedAt: now, updatedAt: now };
     const pidDiag = norm(row && (row.proposalId || row.proposal || row.id));
     const tidDiag = norm(row && (row.taskId || row.task || row.id));
-    try{ dsSetSyncDiag('patchStatus:start status=' + String(status||'--') + ' pid=' + String(pidDiag||'--') + ' tid=' + String(tidDiag||'--'), false); }catch(_){ }
+    const sourceTid = norm(row && (row.sourceTaskId || row.assignmentId || row.sourceAssignmentId));
+    let proposalAttempted = false, proposalOk = false, taskOk = false, sourceTaskOk = false;
+    if(normalizedStatus === 'adopted'){
+      try{
+        ensureStateShape();
+        const submitted = row && (row.payloadSubmitted || row.payload || {}) || {};
+        const customerPayload = submitted && submitted.customer && typeof submitted.customer === 'object' ? submitted.customer : {};
+        const customerId = norm((row && (row.customerId || row.__targetCustomerId)) || customerPayload.customerId || customerPayload.id || '');
+        const customer = asArray(state && state.customers).find(function(c){ return norm((c && (c.id || c.customerId)) || '') === customerId; }) || null;
+        if(customer && typeof dsBuildPortalDataForCustomer === 'function') payload.portalData = dsBuildPortalDataForCustomer(customer);
+      }catch(_){ }
+    }
+    try{ dsSetSyncDiag('patchStatus:start status=' + String(status||'--') + ' pid=' + String(pidDiag||'--') + ' tid=' + String(tidDiag||'--') + ' sourceTid=' + String(sourceTid||'--'), false); }catch(_){ }
     try{
       const pcol = typeof cloudProposalsCol === 'function' ? cloudProposalsCol() : null;
-      const pid = pidDiag;
-      if(pcol && pid && typeof pcol.doc === 'function'){
-        await pcol.doc(pid).set(payload, { merge:true });
-        ok = true;
-        try{ dsSetSyncDiag('patchStatus:proposal-ok pid=' + String(pid||'--') + ' status=' + String(status||'--'), false); }catch(_){ }
+      if(pcol && pidDiag && typeof pcol.doc === 'function'){
+        proposalAttempted = true;
+        await pcol.doc(pidDiag).set(payload, { merge:true });
+        proposalOk = true;
+        try{ dsSetSyncDiag('patchStatus:proposal-ok pid=' + String(pidDiag||'--') + ' status=' + String(status||'--'), false); }catch(_){ }
       }
     }catch(err){ try{ dsSetSyncDiag('patchStatus:proposal-fail pid=' + String(pidDiag||'--') + ' msg=' + String((err && err.message) || err || 'unknown'), true); }catch(_){ } console.warn('patchInboxRowStatus proposal failed', err); }
     try{
       const tcol = typeof cloudTasksCol === 'function' ? cloudTasksCol() : null;
-      const tid = tidDiag;
-      if(tcol && tid && typeof tcol.doc === 'function'){
-        await tcol.doc(tid).set(payload, { merge:true });
-        ok = true;
-        try{ dsSetSyncDiag('patchStatus:task-ok tid=' + String(tid||'--') + ' status=' + String(status||'--'), false); }catch(_){ }
+      if(tcol && tidDiag && typeof tcol.doc === 'function'){
+        await tcol.doc(tidDiag).set(payload, { merge:true });
+        taskOk = true;
+        try{ dsSetSyncDiag('patchStatus:task-ok tid=' + String(tidDiag||'--') + ' status=' + String(status||'--'), false); }catch(_){ }
       }
-    }catch(err){ try{ dsSetSyncDiag('patchStatus:task-fail tid=' + String(tidDiag||'--') + ' msg=' + String((err && err.message) || err || 'unknown'), true); }catch(_){ } console.warn('patchInboxRowStatus task failed', err); }
-    try{ if(status && lower(status) !== 'pending') dsMarkAcceptedProposalId(row, status); }catch(_){ }
-    try{ if(status && lower(status) !== 'pending') dsMarkProposalAcceptedExact(row, status); }catch(_){ }
-    try{ if(status && lower(status) !== 'pending') dsMarkProposalAcceptedPersistent(row, status); }catch(_){ }
-    const result = ok || ((dsIsAcceptedProposalIdHit && dsIsAcceptedProposalIdHit(row)) || (dsIsProposalAcceptedExact && dsIsProposalAcceptedExact(row)) || (dsIsProposalAcceptedPersistent && dsIsProposalAcceptedPersistent(row)));
-    try{ dsSetSyncDiag('patchStatus:done result=' + (result ? '1':'0') + ' pid=' + String(pidDiag||'--') + ' tid=' + String(tidDiag||'--'), !result); }catch(_){ }
-    return result;
+      if(tcol && sourceTid && sourceTid !== tidDiag && typeof tcol.doc === 'function'){
+        await tcol.doc(sourceTid).set({ status: status, proposalStatus: status, answeredAt: now, resolvedAt: now, updatedAt: now }, { merge:true });
+        sourceTaskOk = true;
+        try{ dsSetSyncDiag('patchStatus:source-task-ok tid=' + String(sourceTid||'--') + ' status=' + String(status||'--'), false); }catch(_){ }
+      }
+    }catch(err){ try{ dsSetSyncDiag('patchStatus:task-fail tid=' + String(tidDiag||'--') + ' sourceTid=' + String(sourceTid||'--') + ' msg=' + String((err && err.message) || err || 'unknown'), true); }catch(_){ } console.warn('patchInboxRowStatus task failed', err); }
+    const authoritativeOk = proposalAttempted ? proposalOk : (taskOk || sourceTaskOk);
+    if(authoritativeOk && normalizedStatus !== 'pending'){
+      try{ dsMarkAcceptedProposalId(row, status); }catch(_){ }
+      try{ dsMarkProposalAcceptedExact(row, status); }catch(_){ }
+      try{ dsMarkProposalAcceptedPersistent(row, status); }catch(_){ }
+    }
+    try{ dsSetSyncDiag('patchStatus:done result=' + (authoritativeOk ? '1':'0') + ' proposal=' + (proposalOk?'1':'0') + ' task=' + (taskOk?'1':'0') + ' sourceTask=' + (sourceTaskOk?'1':'0'), !authoritativeOk); }catch(_){ }
+    return authoritativeOk;
   }
+
   function upsertCustomerFromProposal(row){
     ensureStateShape();
     const payload = row.payloadSubmitted || row.payload || {};
@@ -31320,7 +31366,7 @@ try{ window.__GB294_MARKER = 'active'; }catch(_){ }
 /* ===== GB295 contract review verified open + reset fix ===== */
 try{ window.__GB295_MARKER = 'active'; }catch(_){ }
 (function(){
-  const BUILD = "M50.9.9GB356_CAPACITY_4_20260918_ROOTONLY";
+  const BUILD = "M50.9.9GB357_CUSTOMER_SYNC_CAP4_20260925_ROOTONLY";
   function ds295Clone(v){ try{ return JSON.parse(JSON.stringify(v == null ? null : v)); }catch(_){ return v; } }
   function ds295Norm(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
   function ds295Bool(v){ try{ if(v===true||v===false) return !!v; const s=String(v==null?'':v).trim().toLowerCase(); return s==='1'||s==='true'||s==='yes'||s==='ja'||s==='on'; }catch(_){ return false; } }
@@ -35328,7 +35374,7 @@ try{ window.__GB314_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB314-app
 /* ===== GB315 final contract acceptance + badge DOM hardfix ===== */
 try{ window.__GB315_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB316-appjs'; }catch(_){ }
 (function(){
-  var BUILD='M50.9.9GB356_CAPACITY_4_20260918_ROOTONLY';
+  var BUILD='M50.9.9GB357_CUSTOMER_SYNC_CAP4_20260925_ROOTONLY';
   function S(v){ try{return String(v==null?'':v).trim();}catch(_){return '';} }
   function L(v){ return S(v).toLowerCase(); }
   function esc(v){ try{return CSS && CSS.escape ? CSS.escape(S(v)) : S(v).replace(/[^a-zA-Z0-9_-]/g,'\\$&');}catch(_){return S(v);} }
@@ -35541,7 +35587,7 @@ try{var rd=renderDogs;if(rd&&!rd.__gb317Wrapped){renderDogs=function(){var r=rd.
 /* ===== GB318 contract hard bypass: accept not required when signature exists + generic green repair ===== */
 try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild='GB318-appjs'; }catch(_){ }
 (function(){
-  var BUILD='M50.9.9GB356_CAPACITY_4_20260918_ROOTONLY';
+  var BUILD='M50.9.9GB357_CUSTOMER_SYNC_CAP4_20260925_ROOTONLY';
   function S(v){try{return String(v==null?'':v).trim()}catch(_){return''}}
   function L(v){return S(v).toLowerCase()}
   function V(){try{return S((state&&(state.contractVersion||(state.contract&&state.contract.version)))||'v1.0')||'v1.0'}catch(_){return'v1.0'}}
@@ -35583,7 +35629,7 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild='GB318-appjs';
   'use strict';
   if(window.__dsGB347DiagInstalled) return;
   window.__dsGB347DiagInstalled = true;
-  var BUILD = 'M50.9.9GB356_CAPACITY_4_20260918_ROOTONLY';
+  var BUILD = 'M50.9.9GB357_CUSTOMER_SYNC_CAP4_20260925_ROOTONLY';
   var LOG_KEY = 'ds_gb347_diag_log_v1';
   var LAST = { lines: [], firestoreWrapped:false, functionWrapped:false, clickWrapped:false };
   function S(v){ try{return String(v==null?'':v).trim();}catch(_){return '';} }

@@ -20,6 +20,25 @@ service firebase.storage {
       );
     }
 
+
+    match /orgs/{orgId}/pets/{petKey}/{fileName} {
+      allow create: if signedIn()
+        && request.resource != null
+        && request.resource.size < 8 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*')
+        && request.resource.metadata.uploadedBy == request.auth.uid
+        && request.resource.metadata.orgId == orgId;
+      allow read: if signedIn() && (
+        isStaffOrg(orgId)
+        || (resource.metadata.uploadedBy != null && resource.metadata.uploadedBy == request.auth.uid)
+      );
+      allow delete: if signedIn() && (
+        isStaffOrg(orgId)
+        || (resource.metadata.uploadedBy != null && resource.metadata.uploadedBy == request.auth.uid)
+      );
+      allow update: if false;
+    }
+
     match /orgs/{orgId}/chatMedia/{chatId}/{fileName} {
       allow read: if signedIn() && (isStaffOrg(orgId) || isChatOwner(orgId, chatId));
       allow create: if signedIn() && (isStaffOrg(orgId) || isChatOwner(orgId, chatId));
