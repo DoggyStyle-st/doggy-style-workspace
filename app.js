@@ -1,7 +1,7 @@
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB358_CLEAN_SYNC_20261010_ROOTONLY",
+  tag: "M50.9.9GB359_CONTRACT_CUSTOMER_SCOPE_20261010_ROOTONLY",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -12,7 +12,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB358_CLEAN_SYNC_20261010_ROOTONLY";
+const APP_BUILD = "M50.9.9GB359_CONTRACT_CUSTOMER_SCOPE_20261010_ROOTONLY";
 try{ window.__dsAppJsRuntimeBuild = "GB350-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -3659,7 +3659,7 @@ function submitCustomerDogsProposal(){
   // GB355: vollständig lokal sichern, anschließend zuverlässig in proposals + tasks übertragen.
   // Die Oberfläche wird sofort freigegeben; die Erfolgsmeldung "an Eingänge übergeben"
   // erscheint ausschließlich nach bestätigter Firestore-Speicherung.
-  const GB355='M50.9.9GB358_CLEAN_SYNC_20261010_ROOTONLY';
+  const GB355='M50.9.9GB359_CONTRACT_CUSTOMER_SCOPE_20261010_ROOTONLY';
   function S(v){ try{return String(v==null?'':v);}catch(_){return '';} }
   function L(v){ return S(v).trim().toLowerCase(); }
   function V(id){ try{const el=document.getElementById(id);return S(el&&el.value!=null?el.value:'').trim();}catch(_){return '';} }
@@ -3806,52 +3806,62 @@ function dsCustomerForceMode(mode){
 }
 
 async function submitCustomerContractProposalMain(){
+  // GB359: Kundenverträge sind ausschließlich Einreichungen, keine Workspace-Verträge.
+  if(window.__ds359ContractBusy) return {ok:false,busy:true};
+  window.__ds359ContractBusy=true;
   try{
-    ensureStateShape();
-    const ctx = getCustomerMainDogsContext();
-    const cs = document.getElementById('contractCustomerSelect');
-    const ps = document.getElementById('contractPetSelect');
-    const accept = document.getElementById('contractAcceptChk');
-    const customerId = String((cs && cs.value) || ctx.customerId || '');
-    const petId = String((ps && ps.value) || ((ctx.pets[0] && (ctx.pets[0].id || ctx.pets[0].petId)) || '') || '');
-    if(!customerId || !petId){ alert('Bitte zuerst Kunde und Hund wählen.'); return; }
-    if(!(accept && accept.checked)){ alert('Bitte den Vertrag akzeptieren.'); return; }
-    const sigStore = state.contractSignatures || {};
-    const sigKey = String((state.contractVersion || 'v1.0')) + '__' + customerId + '__' + petId;
-    const rec = sigStore[sigKey];
-    if(!rec || !rec.dataUrl){ alert('Bitte zuerst unterschreiben.'); return; }
-    const customer = getCustomer(customerId) || {};
-    const pet = getPet(petId) || {};
-    const contractVersion = String(state.contractVersion || state.contract?.version || 'v1.0');
-    try{
-      state.contractAgreements = state.contractAgreements || {};
-      state.contractAgreements[contractVersion + '__' + customerId + '__' + petId + '::' + contractVersion] = {
-        customerId, petId, version: contractVersion,
-        accepted: true,
-        signatureAt: rec.signedAt || Date.now(),
-        savedAt: Date.now(),
-        source: 'customer-main-proposal-pending'
-      };
-      try{ dsMirrorContractToPetOwner(customerId, petId, contractVersion); }catch(_){ }
-      try{ saveState(); }catch(_){ }
-    }catch(_){ }
-    const payloadSubmitted = {
-      source: 'customer-main-contract',
-      customerId, petId,
-      contractVersion: contractVersion,
-      accepted: true,
-      signature: { dataUrl: String(rec.dataUrl || ''), signedAt: rec.signedAt || Date.now() }
+    const auth=await cpWaitForFirebaseUser(12000);
+    if(!auth || !auth.uid || !auth.email) throw new Error('Bitte zuerst mit dem eigenen Kundenkonto anmelden.');
+    const ctx=getCustomerMainDogsContext();
+    const customer=ctx && ctx.customer;
+    const email=String(auth.email||'').trim().toLowerCase();
+    const ownEmail=String(customer && customer.email || ctx.email || '').trim().toLowerCase();
+    const ownUid=String(customer && (customer.portalUid||customer.customerUid||customer.uid) || ctx.uid || '').trim();
+    if(!customer || !ctx.customerId || !ownEmail || ownEmail!==email || (ownUid && ownUid!==auth.uid)){
+      throw new Error('Kundenzuordnung nicht eindeutig. Bitte das Team kontaktieren.');
+    }
+    const cs=document.getElementById('contractCustomerSelect');
+    const ps=document.getElementById('contractPetSelect');
+    const customerId=String(ctx.customerId||'').trim();
+    const petId=String(ps && ps.value || '').trim();
+    const pets=(Array.isArray(ctx.pets)?ctx.pets:[]);
+    const pet=pets.find(p=>String(p.id||p.petId||p.dogId||'').trim()===petId);
+    if(!pet || !petId || !cs || String(cs.value)!==customerId){
+      throw new Error('Bitte einen eigenen Hund auswählen.');
+    }
+    const accept=document.getElementById('contractAcceptChk');
+    if(!accept || !accept.checked) throw new Error('Bitte den Betreuungsvertrag akzeptieren.');
+    const sig=window.__ds359CustomerContractSignature;
+    if(!sig || !sig.dataUrl || sig.customerId!==customerId || sig.petId!==petId){
+      throw new Error('Bitte den Vertrag für diesen Hund zuerst unterschreiben.');
+    }
+    const version=String(state.contractVersion||'v1.0');
+    const payloadSubmitted={
+      source:'customer-main-contract-gb359',customerId,petId,contractVersion:version,
+      accepted:true,signature:{dataUrl:sig.dataUrl,signedAt:sig.signedAt}
     };
-    const litePayloadSubmitted = { source:'customer-main-contract', customerId, petId, accepted:true, contractVersion: payloadSubmitted.contractVersion };
-    const res = await dsSubmitCustomerPortalProposal({
-      templateId:'boarding_contract',
-      title:'Betreuungsvertrag Vorschlag',
-      customerId, petId, customerName:String(customer.name || customer.lastName || CLOUD?.user?.email || 'Kunde'),
-      payloadSubmitted, litePayloadSubmitted
+    const result=await dsSubmitCustomerPortalProposal({
+      templateId:'boarding_contract',title:'Betreuungsvertrag zur Prüfung',
+      customerId,petId,customerEmail:email,customerName:String(customer.name||email),
+      payloadSubmitted
     });
-    try{ alert(res && res.ok ? 'Betreuungsvertrag als Vorschlag gespeichert und an Eingänge übergeben.' : 'Betreuungsvertrag lokal vorgemerkt.'); }catch(_){ }
-    try{ location.replace('customer.html?view=contract'); }catch(_){ }
-  }catch(err){ console.error('submitCustomerContractProposalMain failed', err); alert('Vertrag senden fehlgeschlagen: ' + String(err?.message || err || 'Unbekannter Fehler')); }
+    if(result && result.ok){
+      window.__ds359CustomerContractSignature=null;
+      const info=document.getElementById('contractSavedInfo');
+      if(info){info.textContent='✅ Vertrag zur Prüfung an den Workspace übermittelt – noch nicht freigegeben.';info.className='ok';}
+      alert('Betreuungsvertrag eingereicht. Der Vertrag ist erst nach Prüfung durch das Team gültig.');
+    }else{
+      const err=String(result && result.error && result.error.message || 'Cloud-Übertragung ausstehend');
+      const info=document.getElementById('contractSavedInfo');
+      if(info){info.textContent='⚠ Noch nicht an das Team übermittelt: '+err;info.className='warn';}
+      alert('Vertrag noch nicht beim Team angekommen. Bitte Internetverbindung und Anmeldung prüfen.\n'+err);
+    }
+    return result;
+  }catch(err){
+    const msg=String(err && err.message || err);
+    alert('Vertrag nicht eingereicht: '+msg);
+    return {ok:false,error:err};
+  }finally{window.__ds359ContractBusy=false;}
 }
 
 async function submitCustomerStayProposalMain(){
@@ -25801,7 +25811,7 @@ try{
 }catch(err){ console.warn(err); }
 
 
-/* ===== CHAT (M50.9.9GB358_CLEAN_SYNC_20261010_ROOTONLY) ===== */
+/* ===== CHAT (M50.9.9GB359_CONTRACT_CUSTOMER_SCOPE_20261010_ROOTONLY) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -27774,7 +27784,7 @@ try{
 
 /* ===== GB31 EINGÄNGE HARDGUARD ===== */
 (function(){
-  const BUILD = "M50.9.9GB358_CLEAN_SYNC_20261010_ROOTONLY";
+  const BUILD = "M50.9.9GB359_CONTRACT_CUSTOMER_SCOPE_20261010_ROOTONLY";
   const norm = v => String(v == null ? '' : v).trim();
   const lower = v => norm(v).toLowerCase();
   const asArray = v => Array.isArray(v) ? v : [];
@@ -31384,7 +31394,7 @@ try{ window.__GB294_MARKER = 'active'; }catch(_){ }
 /* ===== GB295 contract review verified open + reset fix ===== */
 try{ window.__GB295_MARKER = 'active'; }catch(_){ }
 (function(){
-  const BUILD = "M50.9.9GB358_CLEAN_SYNC_20261010_ROOTONLY";
+  const BUILD = "M50.9.9GB359_CONTRACT_CUSTOMER_SCOPE_20261010_ROOTONLY";
   function ds295Clone(v){ try{ return JSON.parse(JSON.stringify(v == null ? null : v)); }catch(_){ return v; } }
   function ds295Norm(v){ try{ return String(v == null ? '' : v).trim(); }catch(_){ return ''; } }
   function ds295Bool(v){ try{ if(v===true||v===false) return !!v; const s=String(v==null?'':v).trim().toLowerCase(); return s==='1'||s==='true'||s==='yes'||s==='ja'||s==='on'; }catch(_){ return false; } }
@@ -35392,7 +35402,7 @@ try{ window.__GB314_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB314-app
 /* ===== GB315 final contract acceptance + badge DOM hardfix ===== */
 try{ window.__GB315_MARKER = 'active'; window.__dsAppJsRuntimeBuild = 'GB316-appjs'; }catch(_){ }
 (function(){
-  var BUILD='M50.9.9GB358_CLEAN_SYNC_20261010_ROOTONLY';
+  var BUILD='M50.9.9GB359_CONTRACT_CUSTOMER_SCOPE_20261010_ROOTONLY';
   function S(v){ try{return String(v==null?'':v).trim();}catch(_){return '';} }
   function L(v){ return S(v).toLowerCase(); }
   function esc(v){ try{return CSS && CSS.escape ? CSS.escape(S(v)) : S(v).replace(/[^a-zA-Z0-9_-]/g,'\\$&');}catch(_){return S(v);} }
@@ -35605,7 +35615,7 @@ try{var rd=renderDogs;if(rd&&!rd.__gb317Wrapped){renderDogs=function(){var r=rd.
 /* ===== GB318 contract hard bypass: accept not required when signature exists + generic green repair ===== */
 try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild='GB318-appjs'; }catch(_){ }
 (function(){
-  var BUILD='M50.9.9GB358_CLEAN_SYNC_20261010_ROOTONLY';
+  var BUILD='M50.9.9GB359_CONTRACT_CUSTOMER_SCOPE_20261010_ROOTONLY';
   function S(v){try{return String(v==null?'':v).trim()}catch(_){return''}}
   function L(v){return S(v).toLowerCase()}
   function V(){try{return S((state&&(state.contractVersion||(state.contract&&state.contract.version)))||'v1.0')||'v1.0'}catch(_){return'v1.0'}}
@@ -35647,7 +35657,7 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild='GB318-appjs';
   'use strict';
   if(window.__dsGB347DiagInstalled) return;
   window.__dsGB347DiagInstalled = true;
-  var BUILD = 'M50.9.9GB358_CLEAN_SYNC_20261010_ROOTONLY';
+  var BUILD = 'M50.9.9GB359_CONTRACT_CUSTOMER_SCOPE_20261010_ROOTONLY';
   var LOG_KEY = 'ds_gb347_diag_log_v1';
   var LAST = { lines: [], firestoreWrapped:false, functionWrapped:false, clickWrapped:false };
   function S(v){ try{return String(v==null?'':v).trim();}catch(_){return '';} }
@@ -35883,3 +35893,94 @@ try{ window.__GB318_MARKER='active'; window.__dsAppJsRuntimeBuild='GB318-appjs';
 
 /* Removed old GB351 CUSTOMER DOGS SAVE BIND FIX during GB353 source-function fix */
 
+
+/* GB359 customer contract isolation: customer UI must never operate on workspace contracts. */
+(function(){
+  const qs=new URLSearchParams(location.search||'');
+  if(qs.get('customer_mode')!=='contract') return;
+  const $=id=>document.getElementById(id);
+  const S=v=>String(v==null?'':v).trim();
+  const own=()=>{
+    const ctx=typeof getCustomerMainDogsContext==='function'?getCustomerMainDogsContext():{};
+    const auth=window.firebase&&firebase.auth?firebase.auth().currentUser:null;
+    if(!auth||!ctx||!ctx.customer||!ctx.customerId) return null;
+    const email=S(auth.email).toLowerCase();
+    const cemail=S(ctx.customer.email||ctx.email).toLowerCase();
+    const uid=S(ctx.customer.portalUid||ctx.customer.customerUid||ctx.customer.uid||ctx.uid);
+    if(!email||!cemail||email!==cemail||(uid&&uid!==S(auth.uid))) return null;
+    return ctx;
+  };
+  let adjusting=false;
+  function lock(){
+    if(adjusting)return;
+    adjusting=true;
+    try{
+      const ctx=own(),cs=$('contractCustomerSelect'),ps=$('contractPetSelect');
+      const list=$('contractSelectionListCard');if(list)list.remove();
+      for(const id of ['contractSelectionList','existingContractsList','contractList']){
+        const e=$(id);if(e)e.style.display='none';
+      }
+      if(cs){
+        const id=ctx?S(ctx.customerId):'';
+        const label=ctx?S(ctx.customer.name||ctx.customer.email):'Kundenkonto wird geprüft';
+        if(cs.options.length!==1||S(cs.options[0].value)!==id){cs.replaceChildren(new Option(label,id));}
+        cs.value=id;cs.disabled=true;
+      }
+      if(ps){
+        const pets=ctx&&Array.isArray(ctx.pets)?ctx.pets:[];
+        const valid=pets.map(p=>({id:S(p.id||p.petId||p.dogId),name:S(p.name||p.petName||p.dogName)})).filter(p=>p.id);
+        const old=S(ps.value);
+        const same=ps.options.length===valid.length && valid.every((p,i)=>S(ps.options[i].value)===p.id);
+        if(!same){ps.replaceChildren(...valid.map(p=>new Option(p.name||'Hund',p.id)));}
+        if(valid.some(p=>p.id===old))ps.value=old;
+        else if(valid.length)ps.value=valid[0].id;
+        else ps.value='';
+        ps.disabled=!ctx||valid.length===0;
+      }
+      const save=$('contractSaveBtn');if(save){save.textContent='Zur Prüfung einreichen';save.disabled=!ctx;}
+      const sign=$('contractSignBtn');if(sign)sign.disabled=!ctx;
+      const status=$('contractSavedInfo');
+      if(status&&!status.textContent.includes('zur Prüfung')&&!status.textContent.includes('Noch nicht an')){
+        status.textContent=ctx?'ℹ Noch nicht eingereicht – nach Prüfung durch das Team gültig.':'⚠ Kundenzuordnung konnte nicht bestätigt werden.';
+        status.className='muted';
+      }
+    }finally{adjusting=false;}
+  }
+  function signed(){
+    const ctx=own(),cs=$('contractCustomerSelect'),ps=$('contractPetSelect'),canvas=$('contractSig');
+    if(!ctx||!cs||!ps||!canvas||S(cs.value)!==S(ctx.customerId)){alert('Kundenkonto nicht eindeutig zugeordnet.');return;}
+    const petId=S(ps.value);
+    if(!ctx.pets.some(p=>S(p.id||p.petId||p.dogId)===petId)){alert('Bitte eigenen Hund auswählen.');return;}
+    const g=canvas.getContext('2d');const pixels=g.getImageData(0,0,canvas.width,canvas.height).data;
+    let ink=false;for(let i=3;i<pixels.length;i+=4){if(pixels[i]>0){ink=true;break;}}
+    if(!ink){alert('Bitte zuerst im Unterschriftenfeld unterschreiben.');return;}
+    window.__ds359CustomerContractSignature={customerId:S(ctx.customerId),petId,dataUrl:canvas.toDataURL('image/png'),signedAt:Date.now()};
+    const info=$('contractSignedInfo');if(info){info.textContent='✅ Unterschrift erfasst – bitte zur Prüfung einreichen.';info.className='ok';}
+  }
+  document.addEventListener('click',function(ev){
+    const btn=ev.target&&ev.target.closest&&ev.target.closest('button');if(!btn)return;
+    if(btn.id==='contractSignBtn'||btn.id==='contractSaveBtn'||btn.id==='contractSigClear'){
+      ev.preventDefault();ev.stopImmediatePropagation();
+      if(btn.id==='contractSignBtn')signed();
+      if(btn.id==='contractSaveBtn')submitCustomerContractProposalMain();
+      if(btn.id==='contractSigClear'){
+        window.__ds359CustomerContractSignature=null;
+        const canvas=$('contractSig');if(canvas)canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);
+        const info=$('contractSignedInfo');if(info)info.textContent='Unterschrift gelöscht.';
+      }
+    }
+  },true);
+  document.addEventListener('change',function(ev){
+    if(ev.target&&ev.target.id==='contractPetSelect'){
+      window.__ds359CustomerContractSignature=null;
+      const info=$('contractSignedInfo');if(info)info.textContent='Bitte für diesen Hund unterschreiben.';
+    }
+  },true);
+  function boot(){
+    lock();
+    const container=$('contract');
+    if(container){const mo=new MutationObserver(()=>lock());mo.observe(container,{childList:true,subtree:true});}
+    setInterval(lock,1000);
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+})();

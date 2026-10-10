@@ -2,17 +2,26 @@
 
 <html lang="de">
 <head>
+<style>
+/* GB359: prevent any customer from seeing workspace-wide contract history. */
+html:has(body[data-customer-mode="contract"]) #contractSelectionListCard,
+html:has(body[data-customer-mode="contract"]) #contractSelectionList,
+html:has(body[data-customer-mode="contract"]) #existingContractsList,
+html:has(body[data-customer-mode="contract"]) #contractList {display:none!important}
+</style>
+<script>if(new URLSearchParams(location.search).get('customer_mode')==='contract')document.documentElement.classList.add('ds359-customer-contract');</script>
+<style>.ds359-customer-contract #contractSelectionListCard,.ds359-customer-contract #contractSelectionList,.ds359-customer-contract #existingContractsList,.ds359-customer-contract #contractList{display:none!important}</style>
 <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
 <meta charset="utf-8"/>
-  <meta name="app-build" content="M50.9.9GB358_CLEAN_SYNC_20261010_ROOTONLY">
+  <meta name="app-build" content="M50.9.9GB359_CONTRACT_CUSTOMER_SCOPE_20261010_ROOTONLY">
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <title>Doggy Style Workspace · App</title>
 <link href="manifest.json" rel="manifest"/>
 <meta content="#101014" name="theme-color"/>
 <link href="assets/logo.png" rel="apple-touch-icon"/>
-<link href="styles.css?v=M50.9.9GB358_CLEAN_SYNC_20261010_ROOTONLY" rel="stylesheet"/>
+<link href="styles.css?v=M50.9.9GB359_CONTRACT_CUSTOMER_SCOPE_20261010_ROOTONLY" rel="stylesheet"/>
 <link href="dashboard_master.css?v=20260104v13logout" rel="stylesheet"/>
 <style>
   /* Topbar Layout (iPad & Desktop stabil) */
@@ -102,7 +111,7 @@
   .doc-modal__actions{ margin-left:auto; display:flex; flex-wrap: wrap; gap: 8px; }
   .doc-modal__frame{ width: 100%; border: 0; border-radius: 12px; background: #fff; flex:1; min-height: 0; }
 </style>
-  <meta name="app-version" content="M50.9.9GB358_CLEAN_SYNC_20261010_ROOTONLY">
+  <meta name="app-version" content="M50.9.9GB359_CONTRACT_CUSTOMER_SCOPE_20261010_ROOTONLY">
   <meta name="release-channel" content="MASTER">
 <style>
 /* GB358: interne Diagnose bleibt programmatisch vorhanden, wird aber nicht angezeigt. */
@@ -1203,7 +1212,7 @@
 </section>
 
 <section class="panel" id="statistics">
-<!-- Statistics panel is rendered by app.js?v=M50.9.9GB358_CLEAN_SYNC_20261010_ROOTONLY (renderStatisticsPanel) -->
+<!-- Statistics panel is rendered by app.js?v=M50.9.9GB359_CONTRACT_CUSTOMER_SCOPE_20261010_ROOTONLY (renderStatisticsPanel) -->
 </section>
 
 
@@ -1270,7 +1279,7 @@
 </footer>
 </div>
 <!-- Firebase (optional) + Config -->
-<script defer="defer" src="firebase-config.js?v=M50.9.9GB358_CLEAN_SYNC_20261010_ROOTONLY"></script>
+<script defer="defer" src="firebase-config.js?v=M50.9.9GB359_CONTRACT_CUSTOMER_SCOPE_20261010_ROOTONLY"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
@@ -1487,7 +1496,7 @@
 
 </script>
 
-<script defer="defer" src="app.js?v=M50.9.9GB358_CLEAN_SYNC_20261010_ROOTONLY"></script>
+<script defer="defer" src="app.js?v=M50.9.9GB359_CONTRACT_CUSTOMER_SCOPE_20261010_ROOTONLY"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1506,7 +1515,7 @@
 </script>
 
 <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB358_CLEAN_SYNC_20261010_ROOTONLY', { updateViaCache: 'none' });
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB359_CONTRACT_CUSTOMER_SCOPE_20261010_ROOTONLY', { updateViaCache: 'none' });
   </script>
 
 <script>
@@ -4178,7 +4187,7 @@
 
 <script>
 (function(){
-  const CURRENT_BUILD = 'M50.9.9GB358_CLEAN_SYNC_20261010_ROOTONLY';
+  const CURRENT_BUILD = 'M50.9.9GB359_CONTRACT_CUSTOMER_SCOPE_20261010_ROOTONLY';
   try{
     window.addEventListener('load', function(){
       try{
