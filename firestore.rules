@@ -1,0 +1,83 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function myEmail() { return signedIn() && request.auth.token.email != null ? request.auth.token.email : ''; }
+    function sameEmail(value) { return signedIn() && value is string && value == myEmail(); }
+    function userPath(orgId) { return /databases/$(database)/documents/orgs/$(orgId)/users/$(request.auth.uid); }
+    function role(orgId) {
+      return signedIn() && exists(userPath(orgId)) && get(userPath(orgId)).data.keys().hasAny(['role'])
+        ? get(userPath(orgId)).data.role : 'guest';
+    }
+    function ownerAdmin() { return signedIn() && myEmail() == 'raphael@boch-plan.de'; }
+    function isAdmin(orgId) { return ownerAdmin() || role(orgId) == 'admin'; }
+    function isStaff(orgId) { return isAdmin(orgId) || role(orgId) == 'staff'; }
+    function ownRecord(data) {
+      return signedIn() && data != null && (
+        (data.keys().hasAny(['customerUid']) && data.customerUid == request.auth.uid) ||
+        (data.keys().hasAny(['customerEmail']) && sameEmail(data.customerEmail))
+      );
+    }
+    function ownChat(data) { return ownRecord(data); }
+    function ownMessage(data) {
+      return signedIn() && data != null && (
+        (data.keys().hasAny(['senderUid']) && data.senderUid == request.auth.uid) ||
+        (data.keys().hasAny(['senderEmail']) && sameEmail(data.senderEmail))
+      );
+    }
+    function validSubmission() {
+      return request.resource.data.keys().hasAll(['customerUid','customerEmail','status','proposalStatus','templateId','payloadSubmitted'])
+        && request.resource.data.customerUid == request.auth.uid
+        && sameEmail(request.resource.data.customerEmail)
+        && request.resource.data.status == 'submitted'
+        && request.resource.data.proposalStatus == 'pending'
+        && request.resource.data.templateId in ['customer_data','boarding_contract','hundeannahme']
+        && request.resource.data.payloadSubmitted is map
+        && !request.resource.data.keys().hasAny(['portalData','role']);
+    }
+    match /orgs/{orgId}/users/{uid} {
+      allow read: if signedIn() && (isStaff(orgId) || request.auth.uid == uid);
+      allow create: if signedIn() && (isAdmin(orgId) || (
+        request.auth.uid == uid && request.resource.data.uid == uid
+        && sameEmail(request.resource.data.email)
+        && request.resource.data.role == 'customer'
+      ));
+      allow update: if signedIn() && (isAdmin(orgId) || (
+        request.auth.uid == uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName'])
+      ));
+      allow delete: if signedIn() && isAdmin(orgId);
+    }
+    match /orgs/{orgId}/meta/{docId} {
+      allow read, write: if signedIn() && isStaff(orgId);
+    }
+    match /orgs/{orgId}/tasks/{taskId} {
+      allow create: if signedIn() && (isStaff(orgId) || validSubmission());
+      allow read: if signedIn() && (isStaff(orgId) || ownRecord(resource.data));
+      allow update, delete: if signedIn() && isStaff(orgId);
+    }
+    match /orgs/{orgId}/proposals/{proposalId} {
+      allow create: if signedIn() && (isStaff(orgId) || validSubmission());
+      allow read: if signedIn() && (isStaff(orgId) || ownRecord(resource.data));
+      allow update, delete: if signedIn() && isStaff(orgId);
+    }
+    match /orgs/{orgId}/chats/{chatId} {
+      allow read: if signedIn() && (isStaff(orgId) || ownChat(resource.data));
+      allow create: if signedIn() && (isStaff(orgId) || (ownChat(request.resource.data)
+        && request.resource.data.customerUid == request.auth.uid && sameEmail(request.resource.data.customerEmail)));
+      allow update: if signedIn() && (isStaff(orgId) || (ownChat(resource.data)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['updatedAt','updatedAtMs','lastMessageAt','lastMessageAtMs','lastMessageText','lastMessageFromRole','unreadForStaff','unreadForCustomer','customerLastReadAt','customerLastReadAtMs','teamMemberKey','teamMemberLabel','status'])));
+      allow delete: if signedIn() && isStaff(orgId);
+      match /messages/{messageId} {
+        function chatOwner() { return ownChat(get(/databases/$(database)/documents/orgs/$(orgId)/chats/$(chatId)).data); }
+        allow read: if signedIn() && (isStaff(orgId) || chatOwner());
+        allow create: if signedIn() && (isStaff(orgId) || (chatOwner()
+          && ownMessage(request.resource.data) && request.resource.data.senderUid == request.auth.uid));
+        allow update, delete: if signedIn() && (isStaff(orgId) || (chatOwner() && ownMessage(resource.data)
+          && (request.method == 'delete' || (ownMessage(request.resource.data)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text','editedAt','deleted','deletedAt','attachments'])))));
+      }
+    }
+    match /{document=**} { allow read, write: if false; }
+  }
+}
