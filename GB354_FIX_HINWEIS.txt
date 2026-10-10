@@ -1,2 +1,0 @@
-GB354: Kunde/Hund Kundenmodus Sofort-Lokalvorschlag ohne await/cloudInit/saveState. Ziel: kein Hängen bei Änderungsvorschlag wird gespeichert.
-Build: M50.9.9GB354_CUSTOMER_DOGS_INSTANT_LOCAL_PROPOSAL_20260612_ROOTONLY
