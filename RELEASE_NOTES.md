@@ -1,22 +1,9 @@
-# Doggy Style Workspace – GB358
+# GB361 – Reparatur-Testfassung vom 18. Oktober 2026
 
-## Inhalt
-- Gesamtkapazität maximal vier Hunde (Tages- und Urlaubsbetreuung zusammen).
-- Kunden-App und Workspace mit bestehender Aufgaben- und Vorschlagsübernahme.
-- Automatisch eingeblendete GB348-Diagnose aus beiden Oberflächen entfernt.
-- Alte Diagnose-/Reparaturdateien aus dem Auslieferungspaket entfernt.
-- Firestore-Regeln gegen Rollen-Selbstvergabe und fremde Datensätze gehärtet.
-- Lokale Vorschlags-Warteschlange nach angemeldetem Konto getrennt; keine Übertragung unter fremdem Konto.
-- Neue Cache-Version für GitHub Pages.
+Ausgabe auf ausdrücklichen Wunsch als Test-ZIP. Keine abgeschlossene Firebase-Live-Freigabe.
 
-## Veröffentlichung
-1. Inhalt dieses Verzeichnisses vollständig ins GitHub-Pages-Repository übertragen.
-2. `firestore.rules` in Firebase → Firestore Database → Rules veröffentlichen.
-3. `storage.rules` in Firebase → Storage → Rules veröffentlichen.
-4. Mit zwei getrennten Firebase-Testkonten und echten Geräten prüfen: Aufgabe freigeben, Kunde bearbeitet, Vorschlag übernehmen, Kundendaten erneut öffnen, Foto hochladen.
-5. Alte zwischengespeicherte Seiten gegebenenfalls im Browser neu laden.
+Enthalten: konsolidierter Kunden-/Vertrags-/Eingangsablauf, administrativer Reparaturbereich mit Sicherung und Vorschau, Prüfung tatsächlicher Unterschriftenpixel, PNG-Strukturprüfung, Entfernung automatischer Datenkopien-Mischung, Schutz ungesendeter Änderungen und später Speicherantworten nach Kontowechsel. Vorhandene Stammdaten und Rollen wurden nicht im echten Firebase geändert.
 
-## Prüfgrenzen
-Automatisierte Syntax-, Struktur- und lokale Logiktests sind möglich.
-Ein echter Ende-zu-Ende-Test mit eurem produktiven Firebase-Projekt wurde nicht durchgeführt.
-Vor dem Ersetzen des GitHub-Stands ein Backup des bisherigen Releases behalten.
+Die vorherigen GB358-/GB359-Setup-Hinweise wurden durch die aktuelle Anleitung ersetzt. Die maximale Gesamtkapazität von vier Hunden und vorhandene Module/Assets bleiben Bestandteil des Pakets.
+
+Tatsächliche Tests und offene Punkte: `PRUEFBERICHT.md`, `pruefungen/firebase-results.json`, `pruefungen/ui-results.json`.

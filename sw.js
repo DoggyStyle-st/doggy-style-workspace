@@ -1,7 +1,7 @@
 // DoggyStyle Workspace Service Worker
 // Clean, consistent cache strategy (network-first for HTML, cache-first for static)
 
-const BUILD_VERSION = "M50.9.9GB359_CONTRACT_CUSTOMER_SCOPE_20261010_ROOTONLY";
+const BUILD_VERSION = "M50.9.9GB361_REPAIR_TEST_20261018";
 const CACHE_NAME = "doggystyle-" + BUILD_VERSION;
 
 // Keep this list conservative; do NOT include versioned query variants.
@@ -10,6 +10,10 @@ const STATIC_ASSETS = [
   "./index.html",
   "./app.html",
   "./app.js",
+  "./workflow-core.js",
+  "./workflow-ui.js",
+  "./workspace-repair-ui.js",
+  "./REGELN_ANZEIGEN.html",
   "./styles.css",
   "./dashboard_master.css",
   "./auth.js",
@@ -58,6 +62,7 @@ self.addEventListener("fetch", (event) => {
 
   // Only handle same-origin.
   if (url.origin !== self.location.origin) return;
+  if(req.method !== 'GET') return;
 
   // Network-first for HTML to avoid sticky old UI.
   if (isHTMLRequest(req)) {
@@ -66,11 +71,11 @@ self.addEventListener("fetch", (event) => {
         try {
           const fresh = await fetch(req);
           const cache = await caches.open(CACHE_NAME);
-          cache.put(req, fresh.clone());
+          if(fresh.ok)cache.put(req, fresh.clone());
           return fresh;
         } catch (e) {
-          const cached = await caches.match(req);
-          return cached || (await caches.match("./app.html")) || (await caches.match("./index.html"));
+          const cached = await caches.match(req) || await caches.match(url.pathname);
+          return cached || new Response('Diese Seite ist offline nicht verfügbar. Bitte eine Verbindung herstellen.',{status:503,headers:{'Content-Type':'text/plain; charset=utf-8'}});
         }
       })()
     );
@@ -84,7 +89,7 @@ self.addEventListener("fetch", (event) => {
       if (cached) return cached;
       const fresh = await fetch(req);
       const cache = await caches.open(CACHE_NAME);
-      cache.put(req, fresh.clone());
+      if(fresh.ok)cache.put(req, fresh.clone());
       return fresh;
     })()
   );

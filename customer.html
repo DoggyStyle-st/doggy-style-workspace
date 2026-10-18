@@ -7,7 +7,7 @@
   <link href="manifest.json" rel="manifest"/>
   <meta name="theme-color" content="#101014"/>
   <link href="assets/logo.png" rel="apple-touch-icon"/>
-  <link href="styles.css?v=M50.9.9GB359_CONTRACT_CUSTOMER_SCOPE_20261010_ROOTONLY" rel="stylesheet"/>
+  <link href="styles.css?v=M50.9.9GB361_REPAIR_TEST_20261018" rel="stylesheet"/>
   <style>
     body.bg-watermark{background:radial-gradient(circle at top, rgba(255,255,255,.08), transparent 35%), linear-gradient(180deg,#0e1017 0%, #121521 100%) !important}
     body.bg-watermark::before{opacity:.12 !important;filter:none !important}
@@ -252,11 +252,14 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
-  <script src="firebase-config.js?v=M50.9.9GB359_CONTRACT_CUSTOMER_SCOPE_20261010_ROOTONLY"></script>
-  <script src="app.js?v=M50.9.9GB359_CONTRACT_CUSTOMER_SCOPE_20261010_ROOTONLY"></script>
+  <script src="firebase-config.js?v=M50.9.9GB361_REPAIR_TEST_20261018"></script>
+  <script src="workflow-core.js"></script>
+<script src="workflow-ui.js"></script>
+<script src="workspace-repair-ui.js"></script>
+<script src="app.js?v=M50.9.9GB361_REPAIR_TEST_20261018"></script>
   <script>
     (function(){
-      const BUILD = 'Build CUSTOMER M50.9.9GB359_CONTRACT_CUSTOMER_SCOPE_20261010_ROOTONLY';
+      const BUILD = 'Build CUSTOMER M50.9.9GB361_REPAIR_TEST_20261018';
       const DRAFT_KEY_BASE = 'ds_customer_app_drafts_v2';
       function draftKey(){ const u=(window.CLOUD&&CLOUD.user)||((window.firebase&&firebase.auth)?firebase.auth().currentUser:null); return DRAFT_KEY_BASE+':'+String((u&&u.uid)||'guest'); }
       const viewNames = ['home','dogs','contract','stay','chat'];
@@ -311,89 +314,11 @@
         return pets.filter(p => ids.has(String(p?.id || '').trim()));
       }
 
-      function getRemotePortalBundle(){
-        try{
-          const ts=r=>Math.max(Number(r&&r.submittedAt||0),Number(r&&r.updatedAt||0),Number(r&&r.createdAt||0),Number(r&&r.reviewedAt||0));
-          const rows=[...(getTasks()||[]), ...((window.__dsCustomerProposals||[]))].filter(Boolean).sort((a,b)=>ts(b)-ts(a));
-          let customer=null, pets=[];
-          const base=rows.find(r=>r.portalData && r.portalData.customer);
-          const baseTs=base?ts(base):0;
-          if(base){
-            customer=JSON.parse(JSON.stringify(base.portalData.customer||{}));
-            pets=Array.isArray(base.portalData.pets)?JSON.parse(JSON.stringify(base.portalData.pets)):[];
-          }
-          const latest=rows.find(r=>{
-            if(String(r.templateId||'')!=='customer_data' || !r.payloadSubmitted || !r.payloadSubmitted.customer) return false;
-            const status=String(r.proposalStatus||r.status||'pending').toLowerCase();
-            return (status==='pending' || status==='submitted' || !status) && ts(r)>=baseTs;
-          });
-          if(latest){
-            customer=Object.assign({},customer||{},JSON.parse(JSON.stringify(latest.payloadSubmitted.customer||{})));
-            const pet=latest.payloadSubmitted.pet && JSON.parse(JSON.stringify(latest.payloadSubmitted.pet));
-            if(pet){
-              const isNew=!!(latest.payloadSubmitted.isNewPet || String(latest.payloadSubmitted.petMode||'').toLowerCase()==='new');
-              const pid=String(pet.id||pet.petId||pet.dogId||'');
-              const idx=pid?pets.findIndex(x=>String(x.id||x.petId||x.dogId||'')===pid):-1;
-              if(idx>=0) pets[idx]=Object.assign({},pets[idx],pet);
-              else if(isNew || pid || pet.name) pets.push(pet);
-            }
-          }
-          return customer?{customer,pets}:null;
-        }catch(_){ return null; }
-      }
+      function getRemotePortalBundle(){const ctx=DSWorkflow.context();return ctx.verified?ctx.bundle:null;}
 
-      function getStrictPortalHandoffContext(){
-        const state = getStateSafe();
-        const u = (window.firebase && firebase.auth) ? firebase.auth().currentUser : null;
-        const email = String((u && u.email) || getUserEmail() || '').trim().toLowerCase();
-        const uid = String((u && u.uid) || '').trim();
-        const pendingName = (function(){ try{ return String(localStorage.getItem('dstest_pending_name') || '').trim(); }catch(_){ return ''; } })();
-        const remote = getRemotePortalBundle();
-        const customers = Array.isArray(state?.customers) ? state.customers : [];
-        const petsAll = Array.isArray(state?.pets) ? state.pets : [];
-        let customer = remote?.customer || customers.find(c => String(c?.portalUid || c?.customerUid || c?.uid || '').trim() === uid)
-          || customers.find(c => String(c?.email || '').trim().toLowerCase() === email)
-          || null;
-        const baseName = String((customer && (customer.name || customer.displayName || customer.fullName)) || (u && (u.displayName || u.email)) || pendingName || (email ? email.split('@')[0] : '') || 'Kunde').trim();
-        if(!customer){
-          customer = {
-            id: '',
-            customerId: '',
-            name: baseName,
-            email,
-            phone: '',
-            portalUid: uid,
-            customerUid: uid,
-            __customerShadow: true
-          };
-        }
-        let pets = Array.isArray(remote?.pets) ? remote.pets.slice() : [];
-        const customerId = String(customer?.id || customer?.customerId || '').trim();
-        if(!pets.length && customerId){
-          pets = petsAll.filter(p => String(p?.customerId || p?.ownerId || '').trim() === customerId);
-        }
-        if(!pets.length && uid){
-          pets = petsAll.filter(p => String(p?.customerUid || p?.portalUid || p?.uid || '').trim() === uid);
-        }
-        if(!pets.length && email){
-          pets = petsAll.filter(p => String(p?.customerEmail || p?.ownerEmail || p?.email || '').trim().toLowerCase() === email);
-        }
-        return { state, customer, pets, pet: pets[0] || {}, scope: { strictPortal:true } };
-      }
+      function getStrictPortalHandoffContext(){const ctx=DSWorkflow.context();return {state:getStateSafe(),customer:ctx.customer||{},pets:ctx.pets,pet:ctx.pets[0]||{},scope:{strictPortal:true,verified:ctx.verified}};}
 
-      function getContext(){
-        const strictCtx = (typeof getStrictPortalHandoffContext === 'function') ? getStrictPortalHandoffContext() : null;
-        if(strictCtx && strictCtx.customer){
-          const strictCustomer = strictCtx.customer || {};
-          const strictPets = Array.isArray(strictCtx.pets) ? strictCtx.pets : [];
-          return { state: strictCtx.state || getStateSafe(), customer: strictCustomer, pets: strictPets, pet: strictPets[0] || strictCtx.pet || {}, scope: strictCtx.scope || { strictPortal:true } };
-        }
-        const state = getStateSafe();
-        const customer = findOwnCustomer(state) || taskMappedCustomer(state) || {};
-        const pets = findOwnPets(state, customer);
-        const pet = pets[0] || {};
-        return { state, customer, pets, pet, scope: { strictPortal:true } };
-      }
+      function getContext(){return getStrictPortalHandoffContext();}
       function makeSyntheticTask(templateId, title){
         const now = Date.now();
         return { id:'local_'+templateId+'_'+now, taskId:'local_'+templateId+'_'+now, templateId, title, createdAt:now, customerEmail:getUserEmail(), status:'open' };
@@ -831,6 +756,7 @@ document.getElementById('btnCustomerTaskSubmit')?.addEventListener('click', ()=>
         const hint = document.getElementById('customerTaskSaveHint');
         const templateId = String(forceTemplateId || currentTask?.templateId || '').trim();
         if(!templateId) return;
+        if(templateId === 'boarding_contract')return DSWorkflow.submitContract();
         if(templateId === 'customer_data' && typeof submitCustomerDogsProposal === 'function'){
           return submitCustomerDogsProposal();
         }
@@ -841,7 +767,7 @@ document.getElementById('btnCustomerTaskSubmit')?.addEventListener('click', ()=>
           const pet = info.pet || {};
           const customerName = String(customer.name || customer.fullName || getUserEmail() || 'Kunde');
           const baseCustomer = { id: info.customerId || '', name: customer.name || '', email: customer.email || getUserEmail() || '', phone: customer.phone || '' };
-          const basePet = { id: info.petId || '', name: pet.name || '', breed: pet.breed || '', sex: pet.sex || '' };
+          const basePet = { id: info.petId || '', customerId: info.customerId || '', name: pet.name || '', breed: pet.breed || '', sex: pet.sex || '' };
           let payloadSubmitted = { source: 'customer-'+templateId, mode:'proposal' };
           let litePayloadSubmitted = { source: 'customer-'+templateId, mode:'proposal-cloud-fallback' };
           let title = templateId === 'boarding_contract' ? 'Betreuungsvertrag Vorschlag' : 'Neuer Aufenthalt Vorschlag';
@@ -849,47 +775,10 @@ document.getElementById('btnCustomerTaskSubmit')?.addEventListener('click', ()=>
             collectCustomerRealEditor('hundeannahme');
             const fields = Object.assign({}, currentDoc?.fields || {});
             const meta = Object.assign({}, currentDoc?.meta || {});
+            for(const target of [fields,meta]){delete target.customerId;delete target.petId;delete target.dogId;}
             fields.dogName = fields.dogName || pet.name || '';
             payloadSubmitted = Object.assign(payloadSubmitted, { customer: baseCustomer, pet: basePet, fields, meta });
             litePayloadSubmitted = Object.assign(litePayloadSubmitted, { customer: { name: baseCustomer.name, email: baseCustomer.email }, pet: { name: basePet.name }, fields: { notes: String(fields.notes || '') }, meta: { von: String(meta.von || ''), bis: String(meta.bis || ''), betreuung: String(meta.betreuung || '') } });
-          } else if(templateId === 'boarding_contract'){
-            const cs = document.getElementById('contractCustomerSelect');
-            const ps = document.getElementById('contractPetSelect');
-            const accept = document.getElementById('contractAcceptChk');
-            const customerId = String(cs?.value || info.customerId || '');
-            const petId = String(ps?.value || info.petId || '');
-            if(!customerId || !petId){ alert('Bitte zuerst Kunde und Hund wählen.'); return; }
-            if(!accept?.checked){ alert('Bitte den Betreuungsvertrag bestätigen.'); return; }
-            const version = String((window.state && state.contractVersion) || 'v1.0');
-            const sigStore = (window.state && state.contractSignatures) || {};
-            const sigRec = sigStore[version + '__' + customerId + '__' + petId] || null;
-            if(!sigRec || !sigRec.dataUrl){ alert('Bitte zuerst unterschreiben.'); return; }
-            try{
-              window.state = window.state || {};
-              state.contractAgreements = state.contractAgreements || {};
-              state.contractAgreements[version + '__' + customerId + '__' + petId + '::' + version] = {
-                customerId, petId, version,
-                accepted: true,
-                signatureAt: sigRec.signedAt || Date.now(),
-                savedAt: Date.now(),
-                source: 'customer-portal-proposal-pending'
-              };
-              try{ if(typeof window.dsMirrorContractToPetOwner === 'function') window.dsMirrorContractToPetOwner(customerId, petId, version); }catch(_){ }
-              try{ if(typeof window.saveState === 'function') window.saveState(); }catch(_){ }
-            }catch(_){ }
-            const selectedCustomer = (info.ctx?.state?.customers || []).find(x => String(x?.id||x?.customerId||'') === customerId) || customer;
-            const selectedPet = (info.ctx?.pets || []).find(x => String(x?.id||x?.petId||'') === petId) || pet;
-            const fields = {
-              contractAccepted: true,
-              contractVersion: version,
-              customerName: String(selectedCustomer?.name || baseCustomer.name || ''),
-              dogName: String(selectedPet?.name || basePet.name || ''),
-              signatureDataUrl: String(sigRec.dataUrl || ''),
-              signatureAt: sigRec.signedAt || Date.now()
-            };
-            const meta = { customerId, petId, version };
-            payloadSubmitted = Object.assign(payloadSubmitted, { customer: { id: customerId, name: fields.customerName, email: selectedCustomer?.email || baseCustomer.email || '' }, pet: { id: petId, name: fields.dogName }, fields, meta });
-            litePayloadSubmitted = Object.assign(litePayloadSubmitted, { customer: { name: fields.customerName, email: selectedCustomer?.email || baseCustomer.email || '' }, pet: { name: fields.dogName }, fields: { contractAccepted: true, contractVersion: version }, meta });
           } else {
             return;
           }
@@ -903,10 +792,10 @@ document.getElementById('btnCustomerTaskSubmit')?.addEventListener('click', ()=>
             payloadSubmitted,
             litePayloadSubmitted
           }) : Promise.reject(new Error('Vorschlagsfunktion nicht verfügbar')));
-          if(currentTask) setDraft(currentTask.id || currentTask.taskId || currentTask.templateId, {});
-          if(hint) hint.textContent = res && res.ok ? '✅ Vorschlag gespeichert und an Eingänge übergeben.' : '✅ Vorschlag lokal vorgemerkt.';
-          alert(res && res.ok ? (templateId === 'boarding_contract' ? 'Betreuungsvertrag als Vorschlag gespeichert und an Eingänge übergeben.' : 'Aufenthaltsanfrage als Vorschlag gespeichert und an Eingänge übergeben.') : 'Vorschlag lokal vorgemerkt.');
-          if(templateId === 'hundeannahme') closeInlineEditor('hundeannahme');
+          if(res && res.ok && currentTask) setDraft(currentTask.id || currentTask.taskId || currentTask.templateId, {});
+          if(hint) hint.textContent = res && res.ok ? '✅ Vorschlag gespeichert und an Eingänge übergeben.' : '⚠ Noch nicht an Eingänge übertragen.';
+          alert(res && res.ok ? (templateId === 'boarding_contract' ? 'Betreuungsvertrag als Vorschlag gespeichert und an Eingänge übergeben.' : 'Aufenthaltsanfrage als Vorschlag gespeichert und an Eingänge übergeben.') : 'Noch nicht an Eingänge übertragen. Bitte erneut versuchen.');
+          if(res && res.ok && templateId === 'hundeannahme') closeInlineEditor('hundeannahme');
           setView(templateId === 'boarding_contract' ? 'contract' : 'stay');
           refreshCustomUI();
         }catch(err){
@@ -1232,13 +1121,14 @@ function renderStayRealForm(doc){
           const db = firebase.firestore();
           const orgId = (window.CLOUD_ORG_ID || window.firebaseOrgId || 'doggystyle');
           auth.onAuthStateChanged(async function(user){
-            if(!user){ location.href='login.html'; return; }
+            if(!user){ DSWorkflow.resetAccount();location.href='login.html'; return; }
             try{ window.CLOUD = window.CLOUD || {}; CLOUD.auth = auth; CLOUD.db = db; CLOUD.user = user; CLOUD.orgId = orgId; CLOUD.enabled = true; }catch(_){ }
             try{ clearCustomerPortalStaleMainHandoff(user); }catch(_){ }
             const btn = document.getElementById('btnCustomerLogout');
             if(btn) btn.onclick = async function(){ try{ await auth.signOut(); }catch(_){ } location.href='login.html'; };
             try{
-              setStatus('auth ok');
+              CLOUD.userProfile=await loadOrCreateUserProfile(user);CLOUD.role=CLOUD.userProfile.role;
+              await DSWorkflow.watchProfile(user);setStatus('auth ok');
               if(typeof initCustomerPortal === 'function') await initCustomerPortal();
               refreshCustomUI();
               try{ renderCustomerMainlikePanels(); }catch(_){ }
@@ -1263,7 +1153,7 @@ function renderStayRealForm(doc){
 
 <script>
 (function(){
-  const CURRENT_BUILD = 'M50.9.9GB359_CONTRACT_CUSTOMER_SCOPE_20261010_ROOTONLY';
+  const CURRENT_BUILD = 'M50.9.9GB361_REPAIR_TEST_20261018';
   try{
     window.addEventListener('load', function(){
       try{

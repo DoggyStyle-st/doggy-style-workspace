@@ -2,48 +2,39 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
     function signedIn() { return request.auth != null; }
-    function email() { return signedIn() && request.auth.token.email != null ? request.auth.token.email : ''; }
-    function isRaphael() { return signedIn() && email() == 'raphael@boch-plan.de'; }
-    function isStaffOrg(orgId) {
-      return signedIn() && (
-        isRaphael() ||
-        firestore.get(/databases/(default)/documents/orgs/$(orgId)/users/$(request.auth.uid)).data.role in ['admin','staff']
-      );
+    function orgAllowed(orgId) { return orgId == 'doggystyle'; }
+    function email() { return signedIn() ? request.auth.token.get('email', '').lower() : ''; }
+    function profile(orgId) { return firestore.get(/databases/(default)/documents/orgs/$(orgId)/users/$(request.auth.uid)).data; }
+    function staff(orgId) {
+      return signedIn() && orgAllowed(orgId) && ((email() == 'raphael@boch-plan.de' && request.auth.token.get('email_verified', false) == true)
+        || profile(orgId).get('role', 'guest') in ['admin','staff']);
     }
-    function chatDoc(orgId, chatId) {
-      return firestore.get(/databases/(default)/documents/orgs/$(orgId)/chats/$(chatId)).data;
+    function ownPet(orgId, petId) {
+      return signedIn() && orgAllowed(orgId) && profile(orgId).get('accessSchemaVersion', 0) == 3
+        && petId in profile(orgId).get('petIds', []);
     }
-    function isChatOwner(orgId, chatId) {
-      return signedIn() && chatDoc(orgId, chatId) != null && (
-        (chatDoc(orgId, chatId).customerUid != null && chatDoc(orgId, chatId).customerUid == request.auth.uid) ||
-        (chatDoc(orgId, chatId).customerEmail != null && chatDoc(orgId, chatId).customerEmail == email())
-      );
+    function ownChat(orgId, chatId) {
+      return signedIn() && orgAllowed(orgId)
+        && firestore.get(/databases/(default)/documents/orgs/$(orgId)/chats/$(chatId)).data.get('customerUid', '') == request.auth.uid;
     }
-
-
-    match /orgs/{orgId}/pets/{petKey}/{fileName} {
-      allow create: if signedIn()
-        && request.resource != null
-        && request.resource.size < 8 * 1024 * 1024
-        && request.resource.contentType.matches('image/.*')
-        && request.resource.metadata.uploadedBy == request.auth.uid
-        && request.resource.metadata.orgId == orgId;
-      allow read: if signedIn() && (
-        isStaffOrg(orgId)
-        || (resource.metadata.uploadedBy != null && resource.metadata.uploadedBy == request.auth.uid)
-      );
-      allow delete: if signedIn() && (
-        isStaffOrg(orgId)
-        || (resource.metadata.uploadedBy != null && resource.metadata.uploadedBy == request.auth.uid)
-      );
+    function uploadMetadata(orgId) {
+      return request.resource.metadata.get('uploadedBy', '') == request.auth.uid && request.resource.metadata.get('orgId', '') == orgId;
+    }
+    match /orgs/{orgId}/pets/{petId}/{fileName} {
+      allow read: if staff(orgId) || ownPet(orgId, petId);
+      allow create: if (staff(orgId) || ownPet(orgId, petId)) && uploadMetadata(orgId)
+        && request.resource.size < 8 * 1024 * 1024 && request.resource.contentType.matches('image/(jpeg|png|webp)');
+      allow delete: if staff(orgId) || (ownPet(orgId, petId) && resource.metadata.get('uploadedBy', '') == request.auth.uid);
       allow update: if false;
     }
-
     match /orgs/{orgId}/chatMedia/{chatId}/{fileName} {
-      allow read: if signedIn() && (isStaffOrg(orgId) || isChatOwner(orgId, chatId));
-      allow create: if signedIn() && (isStaffOrg(orgId) || isChatOwner(orgId, chatId));
-      allow delete: if signedIn() && (isStaffOrg(orgId) || isChatOwner(orgId, chatId));
+      allow read: if staff(orgId) || ownChat(orgId, chatId);
+      allow create: if (staff(orgId) || ownChat(orgId, chatId)) && uploadMetadata(orgId)
+        && request.resource.metadata.get('chatId', '') == chatId && request.resource.size < 25 * 1024 * 1024
+        && request.resource.contentType.matches('(image/(jpeg|png|webp)|video/mp4)');
+      allow delete: if staff(orgId) || (ownChat(orgId, chatId) && resource.metadata.get('uploadedBy', '') == request.auth.uid);
       allow update: if false;
     }
+    match /{path=**} { allow read, write: if false; }
   }
 }

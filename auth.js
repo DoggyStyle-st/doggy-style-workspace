@@ -1,3 +1,4 @@
+try{['ds_handoff_pass','ds_handoff_email','ds_handoff_ts'].forEach(k=>sessionStorage.removeItem(k));}catch(_){}
 // Login / Registrierung (stabil auf iPad/PWA)
 (function(){
   const $ = (id)=>document.getElementById(id);
@@ -19,7 +20,7 @@
       if(!u || !db) return 'guest';
       const email = String(u.email || '').trim().toLowerCase();
       const adminEmails = Array.isArray(window.firebaseAdminEmails) ? window.firebaseAdminEmails.map(x=>String(x||'').trim().toLowerCase()) : [];
-      if(email && adminEmails.includes(email)) return 'admin';
+      if(u.emailVerified && email && adminEmails.includes(email)) return 'admin';
       const ORG_ID = (window.CLOUD_ORG_ID || window.firebaseOrgId || 'doggystyle');
       const ref = db.collection('orgs').doc(ORG_ID).collection('users').doc(u.uid);
       const snap = await ref.get();
@@ -28,7 +29,7 @@
       const role = String(data.role || '').trim().toLowerCase();
       return role || 'customer';
     }catch(_){
-      return 'guest';
+      throw new Error('Rolle konnte nicht sicher aus Firebase geladen werden.');
     }
   }
 async function init(){
@@ -57,38 +58,12 @@ async function init(){
 
 
       async function ensureUserProfile(currentUser, preferredName){
-        try{
-          if(!db || !currentUser) return;
-          const uid = currentUser.uid;
-          const email = (currentUser.email || '').toLowerCase();
-          const adminEmails = Array.isArray(window.firebaseAdminEmails) ? window.firebaseAdminEmails.map(x=>String(x||'').trim().toLowerCase()) : [];
-          const isAdminEmail = !!(email && adminEmails.includes(email));
-          const ref = db.collection('orgs').doc(ORG_ID).collection('users').doc(uid);
-          const snap = await ref.get();
-          const existing = snap.exists ? (snap.data() || {}) : {};
-          const existingName = String(existing.displayName || existing.name || existing.fullName || '').trim();
-          const dn = (preferredName || '').trim() || existingName || (currentUser.displayName || '').trim() || (email.split('@')[0] || '');
-          const existingRole = String(existing.role || '').trim().toLowerCase();
-          const role = isAdminEmail ? 'admin' : (existingRole || 'customer');
-          const payload = {
-            uid,
-            email: currentUser.email || '',
-            displayName: dn,
-            name: dn,
-            fullName: dn,
-            role,
-            updatedAt: Date.now()
-          };
-          if(!snap.exists){
-            payload.createdAt = Date.now();
-          }
-          await ref.set(payload, { merge: true });
-          try{ if(currentUser && dn && currentUser.updateProfile && String(currentUser.displayName||'').trim() !== dn){ await currentUser.updateProfile({ displayName: dn }); } }catch(_){ }
-          try{ if(dn){ localStorage.setItem('dstest_pending_name', dn); } }catch(_){ }
-        }catch(e){
-          console.warn('ensureUserProfile failed', e);
-        }
-      }
+    if(!db || !currentUser)return;
+    const ref=db.collection('orgs').doc(ORG_ID).collection('users').doc(currentUser.uid);
+    const snap=await ref.get({source:'server'});
+    if(!snap.exists)await ref.set({uid:currentUser.uid,email:String(currentUser.email||'').toLowerCase(),displayName:String(preferredName||currentUser.displayName||''),role:'customer',createdAt:Date.now()});
+    else if(preferredName && preferredName!==snap.data().displayName)await ref.update({displayName:preferredName});
+  }
 
       const regNameField = $('regNameField');
       const regNameInput = $('regName');
@@ -163,9 +138,6 @@ async function init(){
           try{ localStorage.setItem('last_email', email.toLowerCase()); }catch(_){ }
           try{ sessionStorage.setItem('ds_last_email', email.toLowerCase()); }catch(_){ }
           // iPad/Safari handoff: Credentials nur kurzfristig in sessionStorage für app.html hinterlegen
-          try{ sessionStorage.setItem('ds_handoff_email', email.toLowerCase()); }catch(_){ }
-          try{ sessionStorage.setItem('ds_handoff_pass', pass); }catch(_){ }
-          try{ sessionStorage.setItem('ds_handoff_ts', String(Date.now())); }catch(_){ }
           // Warten bis der Auth-State im Login-Tab stabil ist
           try{ await auth.currentUser.getIdToken(true); }catch(_){ }
           await new Promise((resolve)=>{
@@ -199,9 +171,6 @@ async function init(){
           try{ localStorage.setItem('ds_last_email', email.toLowerCase()); }catch(_){ }
           try{ localStorage.setItem('last_email', email.toLowerCase()); }catch(_){ }
           try{ sessionStorage.setItem('ds_last_email', email.toLowerCase()); }catch(_){ }
-          try{ sessionStorage.setItem('ds_handoff_email', email.toLowerCase()); }catch(_){ }
-          try{ sessionStorage.setItem('ds_handoff_pass', pass); }catch(_){ }
-          try{ sessionStorage.setItem('ds_handoff_ts', String(Date.now())); }catch(_){ }
           try{ await auth.currentUser.getIdToken(true); }catch(_){ }
           await new Promise((resolve)=>{
             let done=false; let unsub=null;
