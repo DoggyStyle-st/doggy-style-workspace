@@ -22,7 +22,7 @@
   function install(){
     if(!allowed()){reset();return;}
     if($('dsOpenRepair'))return;
-    const host=$('taskAssignCard') || $('inboxList')?.parentElement;if(!host)return;
+    const host=$('inboxList')?.parentElement;if(!host)return;
     const launcher=button('Bestand prüfen und reparieren',open,host,'dsOpenRepair');host.prepend(launcher);
   }
   function preview(value,parent){

@@ -1,4 +1,6 @@
-# GB361 – Reparatur-Testfassung vom 18. Oktober 2026
+# GB362 – Reparatur-Testfassung vom 18. Oktober 2026
+
+Korrektur nach dem iPad-Befund aus GB361: Der Start brach nach der Anmeldung an einer nicht vorhandenen globalen Abmelden-Schaltfläche ab. Dadurch wurden Workspace-Lesen und Reparaturzugang nicht erreicht. Dieser Fehler ist lokal reproduziert und behoben. Die bisherigen 30 Oberflächenprüfungen hatten den vollständigen Anmeldestart ausgeklammert; 17 neue Prüfungen führen ihn aus. Benutzerverwaltung und Vorlagendownload blockieren den Serverabruf nicht. Starten sendet keine automatische Migration und bewahrt ungesendete Änderungen. Der vorhandene verifizierte Projektinhaberzugang wird wie in den Firebase-Regeln berücksichtigt; gespeicherte Rollen werden nicht geändert. Die frühere pauschale Cachelöschung und Weiterleitung beim Versionswechsel entfallen; die reguläre Bereinigung alter eigener App-Caches bleibt bestehen. „Neu laden“ löscht keine lokalen Datensätze oder Entwürfe.
 
 Ausgabe auf ausdrücklichen Wunsch als Test-ZIP. Keine abgeschlossene Firebase-Live-Freigabe.
 

@@ -15,13 +15,13 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
 <meta charset="utf-8"/>
-  <meta name="app-build" content="M50.9.9GB361_REPAIR_TEST_20261018">
+  <meta name="app-build" content="M50.9.9GB362_STARTUP_TEST_20261018">
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <title>Doggy Style Workspace · App</title>
 <link href="manifest.json" rel="manifest"/>
 <meta content="#101014" name="theme-color"/>
 <link href="assets/logo.png" rel="apple-touch-icon"/>
-<link href="styles.css?v=M50.9.9GB361_REPAIR_TEST_20261018" rel="stylesheet"/>
+<link href="styles.css?v=M50.9.9GB362_STARTUP_TEST_20261018" rel="stylesheet"/>
 <link href="dashboard_master.css?v=20260104v13logout" rel="stylesheet"/>
 <style>
   /* Topbar Layout (iPad & Desktop stabil) */
@@ -111,7 +111,7 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
   .doc-modal__actions{ margin-left:auto; display:flex; flex-wrap: wrap; gap: 8px; }
   .doc-modal__frame{ width: 100%; border: 0; border-radius: 12px; background: #fff; flex:1; min-height: 0; }
 </style>
-  <meta name="app-version" content="M50.9.9GB361_REPAIR_TEST_20261018">
+  <meta name="app-version" content="M50.9.9GB362_STARTUP_TEST_20261018">
   <meta name="release-channel" content="MASTER">
 <style>
 /* GB358: interne Diagnose bleibt programmatisch vorhanden, wird aber nicht angezeigt. */
@@ -1212,7 +1212,7 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
 </section>
 
 <section class="panel" id="statistics">
-<!-- Statistics panel is rendered by app.js?v=M50.9.9GB361_REPAIR_TEST_20261018 (renderStatisticsPanel) -->
+<!-- Statistics panel is rendered by app.js?v=M50.9.9GB362_STARTUP_TEST_20261018 (renderStatisticsPanel) -->
 </section>
 
 
@@ -1279,7 +1279,7 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
 </footer>
 </div>
 <!-- Firebase (optional) + Config -->
-<script defer="defer" src="firebase-config.js?v=M50.9.9GB361_REPAIR_TEST_20261018"></script>
+<script defer="defer" src="firebase-config.js?v=M50.9.9GB362_STARTUP_TEST_20261018"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
@@ -1288,10 +1288,10 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
 
 <!-- Competing legacy workflow/contract overrides removed. -->
 
-<script defer src="workflow-core.js"></script>
-<script defer src="workflow-ui.js"></script>
-<script defer src="workspace-repair-ui.js"></script>
-<script defer="defer" src="app.js?v=M50.9.9GB361_REPAIR_TEST_20261018"></script>
+<script defer src="workflow-core.js?v=M50.9.9GB362_STARTUP_TEST_20261018"></script>
+<script defer src="workflow-ui.js?v=M50.9.9GB362_STARTUP_TEST_20261018"></script>
+<script defer src="workspace-repair-ui.js?v=M50.9.9GB362_STARTUP_TEST_20261018"></script>
+<script defer="defer" src="app.js?v=M50.9.9GB362_STARTUP_TEST_20261018"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1310,7 +1310,7 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
 </script>
 
 <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB361_REPAIR_TEST_20261018', { updateViaCache: 'none' });
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB362_STARTUP_TEST_20261018', { updateViaCache: 'none' });
   </script>
 
 <script>
@@ -1428,7 +1428,7 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
     const details = document.getElementById('syncDetails');
     if(userEl && !userEl.textContent.trim()){ userEl.style.display='inline-flex'; userEl.textContent=email; }
     if(details && (!details.textContent || details.textContent.trim()==='—')){
-      details.textContent='Lokal gespeichert: —\nInternet: '+(navigator.onLine?'Online':'Offline')+'\nCloud: erfolgreich\nCloud-Ping: —';
+      details.textContent='Lokal gespeichert: —\nInternet: '+(navigator.onLine?'Online':'Offline')+'\nCloud: noch nicht bestätigt\nCloud-Ping: —';
     }
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', apply); else apply();
@@ -1442,7 +1442,7 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
 
 <script>
 (function(){
-  const CURRENT_BUILD = 'M50.9.9GB361_REPAIR_TEST_20261018';
+  const CURRENT_BUILD = 'M50.9.9GB362_STARTUP_TEST_20261018';
   try{
     window.addEventListener('load', function(){
       try{

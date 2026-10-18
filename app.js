@@ -2,7 +2,7 @@ try{sessionStorage.removeItem('ds_handoff_pass');}catch(_){}
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB361_REPAIR_TEST_20261018",
+  tag: "M50.9.9GB362_STARTUP_TEST_20261018",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -13,7 +13,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB361_REPAIR_TEST_20261018";
+const APP_BUILD = "M50.9.9GB362_STARTUP_TEST_20261018";
 try{ window.__dsAppJsRuntimeBuild = "GB350-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -568,49 +568,8 @@ function warnStaySignatureMissing(doc){
 // ===== END 4B-3 =====
 // --- Build-Sync (Anzeige + Migration) ---
 (function syncBuildBadge(){
-  try{
-    const el = document.getElementById('buildBadge');
-    if(el) el.textContent = 'Build (MASTER) ' + APP_BUILD;
-  }catch(_){}
-  try{
-    const key = 'ds_app_build';
-    const prev = localStorage.getItem(key);
-    if(prev !== APP_BUILD){
-      localStorage.setItem(key, APP_BUILD);
-      // Optional: mark that a version bump happened (useful for guarded migrations)
-      localStorage.setItem('ds_app_build_bumped_at', String(Date.now()));
-      // Cache-buster / Service-Worker Guard:
-      // If a new build is detected, try to drop SW + CacheStorage once, then reload with a version query.
-      try{
-        const onceKey = 'ds_app_build_refreshed_' + APP_BUILD;
-        if(!localStorage.getItem(onceKey)){
-          localStorage.setItem(onceKey, '1');
-          const go = () => {
-            try{
-              const base = location.href.split('#')[0].split('?')[0];
-              const hash = location.hash || '';
-              location.replace(base + '?v=' + encodeURIComponent(APP_BUILD) + hash);
-            }catch(_){
-              try{ location.reload(); }catch(__){}
-            }
-          };
-          if('caches' in window){
-            caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k)))).then(() => {
-              if(navigator.serviceWorker && navigator.serviceWorker.getRegistrations){
-                return navigator.serviceWorker.getRegistrations().then(regs => Promise.all(regs.map(r => r.unregister())));
-              }
-            }).finally(() => setTimeout(go, 150));
-          }else{
-            if(navigator.serviceWorker && navigator.serviceWorker.getRegistrations){
-              navigator.serviceWorker.getRegistrations().then(regs => Promise.all(regs.map(r => r.unregister()))).finally(() => setTimeout(go, 150));
-            }else{
-              setTimeout(go, 150);
-            }
-          }
-        }
-      }catch(_){}
-    }
-  }catch(_){}
+  const badge=document.getElementById('buildBadge');if(badge)badge.textContent='Build (TEST) '+APP_BUILD;
+  try{localStorage.setItem('ds_app_build',APP_BUILD);}catch(_){}
 })();
 // Selector helpers
 // $: accepts either an element id (e.g. 'contractSig') or a CSS selector (e.g. '#contractSig', '.btn')
@@ -1943,7 +1902,7 @@ function dsProposalSignalRefresh(){
 
 async function loadOrCreateUserProfile(user){
     if(!CLOUD.enabled || !user) throw new Error('Keine aktive Firebase-Anmeldung.');
-    const ref=cloudUserDoc(user.uid), snap=await ref.get({source:'server'});
+    const ref=cloudUserDoc(user.uid), snap=await DSWorkflow.readWithTimeout(ref.get({source:'server'}),'Benutzerprofil');
     if(snap.exists) return {...snap.data(),uid:user.uid};
     const role=user.emailVerified && String(user.email||'').toLowerCase()==='raphael@boch-plan.de'?'admin':'customer';
     const profile={uid:user.uid,email:String(user.email||'').toLowerCase(),displayName:String(user.displayName||''),role,createdAt:Date.now()};
@@ -2076,11 +2035,13 @@ function dsBuildMergedCloudDocPayload(data){
 function dsRemoteHasContractCanonical(){return false;}
 async function cloudLoadState(){
     const user=firebase.auth().currentUser;if(!CLOUD.enabled || !user)return null;
-    const snap=await cloudStateRef().get({source:'server'});
+    const snap=await DSWorkflow.readWithTimeout(cloudStateRef().get({source:'server'}),'Workspace');
     if(firebase.auth().currentUser?.uid!==user.uid)throw new Error('Konto gewechselt.');
-    CLOUD._workspaceReadConfirmedAt=Date.now();if(!snap.exists)return null;
-    const data=snap.data();CLOUD._lastRemoteStamp=Number(data.updatedAt||0);SYNC.cloudLastSeenAt=CLOUD._lastRemoteStamp;updateSyncUI();
-    return dsBuildMergedCloudDocPayload(data);
+    if(!snap.exists)throw new Error('Der Workspace-Serverstand fehlt. Es wird kein lokaler Ersatz veröffentlicht.');
+    const data=snap.data(),payload=dsBuildMergedCloudDocPayload(data);
+    if(!payload)throw new Error('Der Workspace-Serverstand enthält keinen gültigen Payload.');
+    CLOUD._workspaceReadConfirmedAt=Date.now();CLOUD._lastRemoteStamp=Number(data.updatedAt||0);SYNC.cloudLastSeenAt=CLOUD._lastRemoteStamp;updateSyncUI();
+    return payload;
   }
 // --- Robust Startup Sync Helpers ---
 // In iOS/Safari kann es vorkommen, dass beim Reload der erste Firestore-Read leer/zu früh ist.
@@ -2981,7 +2942,7 @@ async function submitCustomerDogsProposal(){
   // GB355: vollständig lokal sichern, anschließend zuverlässig in proposals + tasks übertragen.
   // Die Oberfläche wird sofort freigegeben; die Erfolgsmeldung "an Eingänge übergeben"
   // erscheint ausschließlich nach bestätigter Firestore-Speicherung.
-  const GB355='M50.9.9GB361_REPAIR_TEST_20261018';
+  const GB355='M50.9.9GB362_STARTUP_TEST_20261018';
   function S(v){ try{return String(v==null?'':v);}catch(_){return '';} }
   function L(v){ return S(v).trim().toLowerCase(); }
   function V(id){ try{const el=document.getElementById(id);return S(el&&el.value!=null?el.value:'').trim();}catch(_){return '';} }
@@ -3542,7 +3503,7 @@ async function initStaffFeatures(){
   // Task creation (staff+admin)
   try{ await wireTaskCreation(); }catch(e){ console.warn(e); }
   // User management (admin)
-  try{ if(CLOUD.role === ROLES.ADMIN) await wireUserManagement(); }catch(e){ console.warn(e); }
+  try{ if(CLOUD.role === ROLES.ADMIN) Promise.resolve(wireUserManagement()).catch(e=>console.warn(e)); }catch(e){ console.warn(e); }
   // Inbox: nicht blockierend initialisieren, damit Eingänge/Diagnose auch offline starten
   try{ Promise.resolve().then(()=>wireInbox()).catch(e=>console.warn(e)); }catch(e){ console.warn(e); }
   // Inbox: Aufgaben freigeben (offline-first, lokal)
@@ -17759,13 +17720,13 @@ $("#btnWipe").addEventListener("click",()=>{
   location.reload();
 });
 async function boot(){
+  const actor=firebase.auth().currentUser?.uid;
   await loadTemplates();
+  if(firebase.auth().currentUser?.uid!==actor || !isStaff())return;
   ensureStateShape();
   ensureContractDefaults();
-  migrateToV2();
   pruneInvoiceDocs();
   ensureDefaultDog();
-  saveState();
   renderDogs();
   renderDocs();
   renderInvoiceList();
@@ -17847,6 +17808,8 @@ function wireCoreUI(){
   }
 }
 async function startApp(){
+  const btnLogout=document.getElementById('btnLogout'),btnLogoutApp=document.getElementById('btnLogoutApp');
+  DSWorkflow.startupStatus('Firebase initialisieren');
   // Core UI wiring muss immer aktiv sein (auch wenn Cloud/Offline Pfad aktiv ist)
   wireCoreUI();
   // 1) Wenn Cloud aktiviert: Login + Sync
@@ -17903,6 +17866,7 @@ async function startApp(){
   // (UI wiring erfolgt zentral in wireCoreUI())
   // Auth state
   CLOUD.auth.onAuthStateChanged(async (user)=>{
+    try{
     const previousUid=CLOUD.user && CLOUD.user.uid;
     if(previousUid && previousUid!==(user && user.uid))DSWorkflow.resetAccount();
     CLOUD.user = user || null;
@@ -17937,17 +17901,22 @@ async function startApp(){
     // Login bei jedem Start erzwingen: wird beim Start durch signOut() erzwungen (kein Auto-Logout nach erfolgreichem Login)
     // Rolle (v2): aus Firestore (mit Whitelist-Override)
     try{
-      CLOUD.userProfile = await loadOrCreateUserProfile(user);
+      DSWorkflow.startupStatus('Benutzerprofil laden');
+      const loadedProfile=await loadOrCreateUserProfile(user);
+      if(firebase.auth().currentUser?.uid!==user.uid)return;
+      CLOUD.userProfile=loadedProfile;
       LS_KEY='ds_workspace_v3:'+window.firebaseConfig.projectId+':'+CLOUD.orgId+':'+user.uid;
       state=loadState();ensureStateShape();
       SYNC.cloudPending=Number(state._localUpdatedAt||0)>Number(state._cloudUpdatedAt||0);
       await DSWorkflow.watchProfile(user);
-      CLOUD.role = (CLOUD.userProfile && CLOUD.userProfile.role) ? CLOUD.userProfile.role : ROLES.CUSTOMER;
+      if(firebase.auth().currentUser?.uid!==user.uid)return;
+      CLOUD.role=DSWorkflow.workspaceRole(user,CLOUD.userProfile);
     }catch(e){
       console.warn('Role load failed; no staff fallback', e);
       const p=String((location&&location.pathname)||'').toLowerCase();
       const q=String((location&&location.search)||'');
       CLOUD.role='guest';DSWorkflow.resetAccount();
+      SYNC.cloudLastError=e.message;updateSyncUI();DSWorkflow.startupStatus('Benutzerprofil konnte nicht geladen werden',e);dsSetSyncDiag(e.message,true);setAuthMsg(e.message);
     }
     try{
       if(CLOUD.role !== ROLES.CUSTOMER){
@@ -17975,18 +17944,8 @@ async function startApp(){
       return;
     }
     showAuthGate(false);
-    try{
-      const stamp = Date.now();
-      if(!SYNC.cloudLastOkAt) SYNC.cloudLastOkAt = stamp;
-      if(!SYNC.cloudLastSeenAt) SYNC.cloudLastSeenAt = stamp;
-      SYNC.cloudPending = false;
-      SYNC.cloudLastError = '';
-      if(typeof navigator === 'undefined' || navigator.onLine){
-        SYNC.cloudReachable = true;
-        SYNC.cloudReachCheckedAt = stamp;
-        SYNC.cloudReachError = '';
-      }
-    }catch(_){ }
+    DSWorkflow.startupStatus('Workspace laden');
+    window.DSRepair?.install();
     try{
       const chatPanel = document.getElementById('panel-chat');
       if(chatPanel && chatPanel.classList.contains('is-active')) renderAdminChatPanel(true);
@@ -18005,7 +17964,8 @@ async function startApp(){
     updateSyncUI();
     
 // Erstes Boot lokal (stellt state sicher), dann Remote zuverlässig einspielen
-await bootOnce();
+const bootReady=bootOnce();
+bootReady.catch(e=>{if(firebase.auth().currentUser?.uid===user.uid){SYNC.cloudLastError=e.message;updateSyncUI();DSWorkflow.startupStatus('Oberfläche konnte nicht starten',e);dsSetSyncDiag(e.message,true);}});
 // Echtzeit-Listener (robust, inkl. erstem Snapshot)
 // Wichtig: Listener so früh wie möglich setzen, damit der initiale State auch bei iOS/Safari sicher kommt.
 try{
@@ -18016,11 +17976,12 @@ try{
   if(ref && ref.onSnapshot){
     CLOUD._unsubWorkspace = ref.onSnapshot((snap)=>{
       if(!snap || !snap.exists || snap.metadata.hasPendingWrites || snap.metadata.fromCache || firebase.auth().currentUser?.uid!==user.uid)return;
-      CLOUD._workspaceReadConfirmedAt=Date.now();
       const data = snap.data() || {};
+      const remotePayload = dsBuildMergedCloudDocPayload(data) || null;
+      if(!remotePayload){SYNC.cloudLastError='Der Workspace-Serverstand enthält keinen gültigen Payload.';updateSyncUI();DSWorkflow.startupStatus('Workspace konnte nicht geladen werden',SYNC.cloudLastError);return;}
+      CLOUD._workspaceReadConfirmedAt=Date.now();
       const stamp = Number(data.updatedAt || 0);
       if(stamp){ SYNC.cloudLastSeenAt = stamp; updateSyncUI(); }
-      const remotePayload = dsBuildMergedCloudDocPayload(data) || null;
       const localUpdated = Number(state && state._localUpdatedAt || 0);
       const localCloudStamp = Number(state && state._cloudUpdatedAt || 0);
       const localEmpty = isStateEffectivelyEmpty(state);
@@ -18051,10 +18012,17 @@ try{
   if(firebase.auth().currentUser?.uid!==user.uid)return;
   if(!remote)throw err || new Error('Kein bestätigter Workspace-Serverstand vorhanden.');
   applyRemoteState(remote,Number(CLOUD._lastRemoteStamp || remote._cloudUpdatedAt || 0),'initial-read');
+  DSWorkflow.startupStatus(SYNC.cloudPending?'Lokale Änderungen benötigen Prüfung':'Workspace geladen');
 }catch(e){
-  SYNC.cloudLastError=e.message;updateSyncUI();setAuthMsg('Serverstand konnte nicht geladen werden. Lokale Änderungen bleiben erhalten.');
+  SYNC.cloudLastError=e.message;updateSyncUI();DSWorkflow.startupStatus('Workspace konnte nicht geladen werden',e);dsSetSyncDiag(e.message,true);setAuthMsg('Serverstand konnte nicht geladen werden. Lokale Änderungen bleiben erhalten.');
 }
 
+    }catch(error){
+      if(firebase.auth().currentUser?.uid!==user?.uid)return;
+      SYNC.cloudLastError=error.message||String(error);updateSyncUI();
+      DSWorkflow.startupStatus('Anwendungsstart fehlgeschlagen',error);dsSetSyncDiag(SYNC.cloudLastError,true);setAuthMsg(SYNC.cloudLastError);
+      console.error('Workspace startup failed',error);
+    }
   });
 }
   // Option C (iPad/PWA): auch beim "Wieder-Öffnen" (ohne Reload) Login erzwingen
@@ -20713,6 +20681,10 @@ document.addEventListener('DOMContentLoaded', ()=>{
         "Build(HTML): " + safe(htmlBuild) + "\n" +
         "SW: " + safe(swv) + "\n" +
         "Net: " + online + "\n" +
+        "Rolle: " + safe(window.CLOUD?.role || 'unbekannt') + "\n" +
+        "Start: " + safe(window.__dsStartup?.stage || '—') + "\n" +
+        "Workspace vom Server: " + (window.CLOUD?._workspaceReadConfirmedAt ? 'bestätigt' : 'noch nicht bestätigt') + "\n" +
+        (window.__dsStartup?.error ? 'Fehler: '+safe(window.__dsStartup.error)+'\n' : '') +
         (lastSync?("LastSync: "+lastSync+"\n"):"") +
         (cacheKeys?("Caches: "+cacheKeys+"\n"):"") +
         "URL: " + location.pathname + location.search;
@@ -20757,6 +20729,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
   try{
     if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", render);
     else render();
+    window.addEventListener('ds-startup-status',render);
     window.addEventListener("online", render);
     window.addEventListener("offline", render);
   }catch(_ ){}
@@ -20765,44 +20738,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
 
 
 // ===== DS_HARD_RELOAD_BTN (4F-5) =====
-async function dsHardReload(){
-  try{
-    const ok = confirm("App-Cache zurücksetzen und neu laden?\n\nDas löscht Service Worker + Cache (Offline-Daten bleiben i.d.R. erhalten).");
-    if(!ok) return;
-  }catch(_ ){}
-
-  try{
-    if('serviceWorker' in navigator){
-      const regs = await navigator.serviceWorker.getRegistrations();
-      await Promise.all(regs.map(r=>r.unregister().catch(()=>null)));
-    }
-  }catch(_ ){}
-
-  try{
-    if(window.caches && caches.keys){
-      const keys = await caches.keys();
-      await Promise.all(keys.map(k=>caches.delete(k)));
-    }
-  }catch(_ ){}
-
-  try{
-    const toDelete = [];
-    for(let i=0;i<localStorage.length;i++){
-      const k = localStorage.key(i);
-      if(!k) continue;
-      if(k.startsWith('ds_') || k.includes('sw') || k.includes('cache') || k.includes('build') || k.includes('version')){
-        toDelete.push(k);
-      }
-    }
-    toDelete.forEach(k=>{ try{ localStorage.removeItem(k); }catch(_ ){} });
-  }catch(_ ){}
-
-  try{
-    const url = new URL(location.href);
-    url.searchParams.set('v', 'M39_4F5_HARD_RELOAD_BTN_20260207');
-    location.replace(url.toString());
-  }catch(_ ){ location.reload(); }
-}
+async function dsHardReload(){location.reload();}
 
 (function DS_HARD_RELOAD_BTN(){
   try{
@@ -20811,8 +20747,8 @@ async function dsHardReload(){
     const b=document.createElement("button");
     b.id=bid;
     b.type="button";
-    b.textContent="RESET";
-    b.title="Service Worker + Cache zurücksetzen";
+    b.textContent="Neu laden";
+    b.title="Seite neu laden; lokale Daten bleiben erhalten";
     b.style.position="fixed";
     b.style.right="10px";
     b.style.bottom="94px";
@@ -23906,7 +23842,7 @@ try{
 }catch(e){ console.warn(e); }
 
 
-/* ===== CHAT (M50.9.9GB361_REPAIR_TEST_20261018) ===== */
+/* ===== CHAT (M50.9.9GB362_STARTUP_TEST_20261018) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,

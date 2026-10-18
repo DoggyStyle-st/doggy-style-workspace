@@ -1,8 +1,10 @@
-# Doggy Style Workspace – GB361 Reparatur-Testfassung
+# Doggy Style Workspace – GB362 Reparatur-Testfassung
 
 Stand: 18. Oktober 2026. **Testfassung; keine abschließende Live-Freigabe.**
 
 Diese vollständige App-Fassung wurde auf Wunsch trotz noch ausstehender Firebase-Live-Ablauftests bereitgestellt. Die bestehenden Projekt- und Bucket-Angaben bleiben erhalten. Bei der Erstellung wurden keine Firebase-Bestandsdaten, Rollen, Konten, Regeln oder Dateien geändert.
+
+GB362 behebt den nach der GB361-Auslieferung gemeldeten Startabbruch: eine entfernte Abmelden-Schaltfläche wurde noch als globale Variable angesprochen. Der vollständige Anmeldestart ist jetzt zusätzlich geprüft. Die Reparatur-Schaltfläche steht direkt über der Eingangsliste. Starten führt keine automatische Migration oder Veröffentlichung aus; vorhandene ungesendete Änderungen bleiben erhalten. „Neu laden“ ersetzt den alten RESET-Knopf und löscht keine lokalen Daten. DIAG zeigt zusätzlich Rolle, Startphase und den konkreten Fehler.
 
 Start: `index.html` bzw. `login.html` auf dem bisherigen Webserver. JavaScript, Firebase und Internetzugang sind für die Online-Abläufe erforderlich. Ein lokales Öffnen der HTML-Datei aus „Dateien“ ersetzt den Webserver nicht.
 

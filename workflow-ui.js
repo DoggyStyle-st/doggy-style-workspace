@@ -6,6 +6,20 @@
   let busy=false, draft=null, mergeReview=null;
   const ink = new WeakSet(), blobs = new Map();
   const currentUser = ()=>window.firebase && firebase.auth().currentUser;
+  function workspaceRole(user,profile){
+    if(user?.emailVerified===true && S(user.email).toLowerCase()==='raphael@boch-plan.de')return 'admin';
+    return ['admin','staff','customer'].includes(profile?.role)?profile.role:'guest';
+  }
+  function startupStatus(stage,error){
+    window.__dsStartup={stage:String(stage||''),error:String(error?.message||error||''),at:Date.now()};
+    window.dispatchEvent(new CustomEvent('ds-startup-status'));
+  }
+  function readWithTimeout(operation,label,milliseconds=12000){
+    return new Promise((resolve,reject)=>{
+      const timer=setTimeout(()=>{const error=new Error(label+' antwortet nicht. Bitte Verbindung und Firebase-Zugriff prüfen.');error.code='read-timeout';reject(error);},milliseconds);
+      Promise.resolve(operation).then(value=>{clearTimeout(timer);resolve(value);},error=>{clearTimeout(timer);reject(error);});
+    });
+  }
   const scoped = ()=>location.pathname.endsWith('customer.html') || new URLSearchParams(location.search).has('customer_mode');
   function context(){ return Core.context(currentUser(),window.CLOUD && CLOUD.userProfile); }
   function api(){
@@ -47,7 +61,7 @@
     if(profileUnsub) profileUnsub();
     profileUid=user.uid;
     const ref=firebase.firestore().collection('orgs').doc(window.firebaseOrgId).collection('users').doc(user.uid);
-    const initial=await ref.get({source:'server'});
+    const initial=await readWithTimeout(ref.get({source:'server'}),'Kundenprofil');
     if(!initial.exists) throw new Error('Das Kundenkonto muss zuerst vom Administrator zugeordnet werden.');
     if(currentUser()?.uid!==user.uid) return;
     CLOUD._profileReadConfirmedAt=Date.now();CLOUD.userProfile=initial.data(); hydrate(CLOUD.userProfile);
@@ -418,7 +432,7 @@
     busy=true;b.disabled=true;
     Promise.resolve().then(action).catch(err=>error(err,b.closest('#dsSyncConflictDialog')?'dsSyncConflictStatus':b.closest('#contract')?'contractSavedInfo':'assignMsg')).finally(()=>{busy=false;b.disabled=false;});
   },true);
-  window.DSWorkflow={context,snapshot,hydrate,watchProfile,resetAccount,submit,submitContract,retryQueue,wireInbox,wireAssignments,openReview,renderContractStatus,api,scoped,mediaSource,scanMedia,prepareNewPetPhoto,signatureHasInk,rememberBase,showConflict,openConflict,resolveConflict};
+  window.DSWorkflow={context,snapshot,hydrate,watchProfile,resetAccount,submit,submitContract,retryQueue,wireInbox,wireAssignments,openReview,renderContractStatus,api,scoped,mediaSource,scanMedia,prepareNewPetPhoto,signatureHasInk,rememberBase,showConflict,openConflict,resolveConflict,startupStatus,readWithTimeout,workspaceRole};
   function observeMedia(){
     if(!document.body)return;
     scanMedia(document.body);

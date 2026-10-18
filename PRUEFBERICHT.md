@@ -1,14 +1,24 @@
-# Doggy Style Workspace – GB361 Reparatur-Testfassung
+# Doggy Style Workspace – GB362 Reparatur-Testfassung
 
 Stand: 18. Oktober 2026. **Vollständige Testfassung; keine abschließende Live-Freigabe.**
 
 Diese vollständige Test-ZIP wurde nach erfolgreichen lokalen Tests erstellt. Die vollständigen Tests im bestehenden Firebase-Projekt stehen noch aus.
 
+## Korrektur des GB361-Startfehlers
+
+Das iPad-Bild des Benutzers vom 18. Oktober, 20:16 Uhr, zeigt GB361 für HTML, JavaScript und Cache sowie eine gefüllte Eingangsliste, aber weiterhin „Firebase wird geprüft“ und keinen Reparaturzugang. Die zentralen öffentlich bereitgestellten App-Dateien wurden zuvor mit der Testfassung verglichen und stimmten bytegenau überein. Dieses Bild ist kein Nachweis einer erfolgreichen Workspace-Synchronisation.
+
+Der vollständige Anmeldestart von GB361 wurde anschließend mit einer simulierten Administrator-Anmeldung und dem vorhandenen HTML ausgeführt. Er bricht reproduzierbar mit `ReferenceError: btnLogout is not defined` ab. Die optionale Abmelden-Schaltfläche war bereits aus dem HTML entfernt, wurde im Startablauf aber noch als globale Variable verwendet. Dadurch werden der Workspace-Listener und der initiale Serverabruf nicht erreicht. Die bisherigen 30 DOM-Prüfungen übersprangen den Auth-Start; ihr früheres Bestehen erfasste diesen Fehler nicht. Das war ein Fehler in der ausgelieferten Testfassung.
+
+GB362 bindet die optionalen Elemente ausdrücklich, fängt asynchrone Startfehler sichtbar ab und zeigt den Reparaturzugang direkt über der Eingangsliste. Benutzerverwaltung und Vorlagendownload blockieren den Serverabruf nicht mehr. Der Start veröffentlicht keine Migration und setzt vorhandene ungesendete Änderungen nicht zurück. Fehlende oder ungültige Serverdokumente erhalten keine erfolgreiche Bestätigung. Serverabrufe erhalten eine Zeitgrenze. Der verifizierte Projektinhaber wird gemäß dem bereits vorgesehenen Eigentümerzugang behandelt; vorhandene Profile und Rollen werden nicht geändert. Die frühere pauschale Cache-Löschung und automatische Weiterleitung beim Versionswechsel entfallen; die reguläre Bereinigung alter eigener App-Caches durch den Service-Worker bleibt bestehen. Der frühere RESET-Knopf heißt „Neu laden“ und löscht keine lokalen Datensätze oder Entwürfe. DIAG enthält Rolle, Startphase und konkrete Startfehler.
+
+17 neue lokale Prüfungen führen den vollständigen Start und den Auth-Callback aus, einschließlich fehlender Schaltfläche, wartender Vorlagen/Benutzerverwaltung, lokaler Änderungen, fehlender Rechte, ungültigem Serverbestand, Rollen, Kontowechsel und Zeitüberschreitung. Netzwerk, Auth und Firestore sind dabei simuliert; diese Tests ersetzen keinen iPad- oder Firebase-Live-Durchlauf.
+
 ## Ergebnis und tatsächliche Grenzen
 
 Die bekannten Ursachen der fehlerhaften Kundenzuordnung, Vertragsanzeige und Eingangsübermittlung sind im Code konsolidiert. Hinzugekommen sind eine auf dem iPad bedienbare Bestandsprüfung, eine Sicherung zum Herunterladen, eine konkrete Änderungsvorschau und einzeln bestätigte Reparaturabläufe. Die Vorschau schreibt nichts. Es erfolgt keine automatische Übernahme unklarer Altverträge oder Zuordnung allein anhand von Hundenamen.
 
-**Bei der Bearbeitung wurden keine bestehenden Firebase-Daten, Konten, Rollen, Regeln, Fotos oder Unterschriften geändert.** Das bestehende Projekt und dessen öffentliche App-Konfiguration bleiben unverändert. Die Quell-ZIP wurde nicht ersetzt. Das Testpaket wurde nicht auf GitHub Pages veröffentlicht und nicht gegen das echte Projekt ausgeführt.
+**Bei der Bearbeitung wurden keine bestehenden Firebase-Daten, Konten, Rollen, Regeln, Fotos oder Unterschriften geändert.** Das bestehende Projekt und dessen öffentliche App-Konfiguration bleiben unverändert. Die Quell-ZIP wurde nicht ersetzt. GB361 wurde vom Benutzer auf GitHub Pages bereitgestellt; die hier erstellte GB362-Fassung wurde von uns nicht veröffentlicht oder gegen das echte Projekt ausgeführt.
 
 ## Ausgangsstand
 
@@ -17,7 +27,7 @@ Die bekannten Ursachen der fehlerhaften Kundenzuordnung, Vertragsanzeige und Ein
 - Bestehendes Projekt: `doggy-style-hundepension`.
 - Organisation: `orgs/doggystyle`.
 - Bucket: `doggy-style-hundepension.firebasestorage.app`.
-- Fassung: `M50.9.9GB361_REPAIR_TEST_20261018`.
+- Fassung: `M50.9.9GB362_STARTUP_TEST_20261018`.
 - Die maximale Gesamtkapazität von vier Hunden bleibt bestehen.
 
 ## Direkt im bestehenden Firebase gelesene Befunde
@@ -59,9 +69,10 @@ Diese Tabelle dokumentiert den gelesenen Bestand. Die neue App enthält keine fe
 
 | Prüfgruppe | Letzter erfolgreicher Lauf | Ergebnis | Grenze |
 | --- | --- | --- | --- |
-| Vier ursprüngliche Schwachstellen mit Originalregeln reproduziert | 2026-10-18T17:51:41.307Z | 4/4 bestätigt | Erwartete Fehlerreproduktion im Emulator; kein ausgeführter Angriff auf das echte Projekt. |
-| Reparaturregeln und Workflow | 2026-10-18T17:51:41.307Z | 60/60 bestanden | Echte Firestore-/Storage-Emulatorzugriffe, Transaktionen, Listener und Regelentscheidungen mit synthetischen Daten; Auth-Identitäten in der Regeltestumgebung simuliert. |
-| Oberfläche, Syntax, lokale Ressourcen, Regel-Kopierseite und Reparaturdialog | 2026-10-18T17:53:42.841Z | 30/30 bestanden | jsdom; Canvas-/Bilddekodierung, Downloads, Netzwerk und Firebase-Anbindung teilweise simuliert. Kein Safari-/iPad-Durchlauf. |
+| Vier ursprüngliche Schwachstellen mit Originalregeln reproduziert | 2026-10-18T18:25:17.510Z | 4/4 bestätigt | Erwartete Fehlerreproduktion im Emulator; kein ausgeführter Angriff auf das echte Projekt. |
+| Reparaturregeln und Workflow | 2026-10-18T18:25:17.510Z | 60/60 bestanden | Echte Firestore-/Storage-Emulatorzugriffe, Transaktionen, Listener und Regelentscheidungen mit synthetischen Daten; Auth-Identitäten in der Regeltestumgebung simuliert. |
+| Oberfläche, Syntax, lokale Ressourcen, Regel-Kopierseite und Reparaturdialog | 2026-10-18T18:25:05.697Z | 30/30 bestanden | jsdom; Canvas-/Bilddekodierung, Downloads, Netzwerk und Firebase-Anbindung teilweise simuliert. Kein Safari-/iPad-Durchlauf. |
+| Vollständiger Anmeldestart und Fehlerfälle | 2026-10-18T18:23:32.074Z | 17/17 bestanden | startApp und Auth-Callback laufen in jsdom; Firebase, Netzwerk und Canvas simuliert. Keine echten Konten verwendet. |
 | Vollständige Abläufe mit vorhandenen Testkonten im bestehenden Firebase | Nicht abgeschlossen | Offen | Kein bestätigter Kunden-SDK-Durchlauf der Testfassung. |
 
 Die UTC-Zeitstempel stammen aus den gespeicherten Testergebnissen. Die Browser-App verwendet Firebase Compat 10.12.5, die Emulator-API-Prüfungen Firebase 13.0.0. Das ersetzt keine Prüfung der ausgelieferten SDK-Version auf dem iPad. Echte PNG-Dateien werden als synthetische Testzeichnungen erzeugt; es wurden keine echten Unterschriften als Testdaten kopiert.

@@ -1,12 +1,16 @@
-Doggy Style GB361 – Reparatur-Testfassung
+Doggy Style GB362 – Reparatur-Testfassung
 Stand: 18. Oktober 2026
 
 Diese Fassung ist lokal getestet. Die vollständigen Tests im echten Firebase und auf deinem iPad sind noch offen. Die bestehende App und die bestehenden Daten wurden durch die Erstellung dieser ZIP nicht verändert.
 
+Wenn GB361 bereits auf deiner Website liegt: Ersetze im bisherigen App-Ordner diese sieben Dateien aus GB362: app.js, app.html, customer.html, workflow-ui.js, workspace-repair-ui.js, sw.js und version.txt. Die Anleitung und Prüfberichte sowie REGELN_ANZEIGEN.html ebenfalls aktualisieren. firebase-config.js, Bilder, Templates und beide Firebase-Regeldateien sind gegenüber GB361 unverändert. Vorherige GB361-Dateien als Rückweg behalten.
+
+Nach dem Hochladen die normale Workspace-Adresse neu laden. DIAG muss bei Build(JS) und Build(HTML) GB362_STARTUP_TEST_20261018 zeigen. „Bestand prüfen und reparieren“ befindet sich nun direkt ÜBER der Eingangsliste. Erst dort sichern, anschließend die Firebase-Einrichtung prüfen. Dieser Startfehler wird durch die neuen App-Dateien behoben; zusätzliche Firebase-Änderungen allein beheben ihn nicht.
+
 1. ZIP in der App „Dateien“ speichern und zum Entpacken antippen.
 2. Bisherige App-Dateien und bisherige Firebase-Regeln als Rückweg sichern.
 3. Die entpackten App-Dateien an derselben Stelle wie bisher einspielen. Für GitHub Pages: im vorhandenen Repository den bisherigen App-Ordner öffnen, „Add file“ → „Upload files“ wählen und die geänderten Stammdateien hochladen. Der Ordner mit app.html muss weiterhin derselbe bleiben. Die mitgelieferten Bilder und Templates entsprechen der vorhandenen Ausgangsfassung.
-4. Die gewohnte Workspace-Webadresse öffnen und die Seite neu laden. Mit dem vorhandenen Workspace-Administratorkonto anmelden. Der Versionsstand ist M50.9.9GB361_REPAIR_TEST_20261018. Die Google-Konsolenanmeldung und das Workspace-Konto sind getrennte Anmeldungen.
+4. Die gewohnte Workspace-Webadresse öffnen und die Seite neu laden. Mit dem vorhandenen Workspace-Administratorkonto anmelden. Der Versionsstand ist M50.9.9GB362_STARTUP_TEST_20261018. Die Google-Konsolenanmeldung und das Workspace-Konto sind getrennte Anmeldungen.
 5. Unter „Eingänge“ auf „Bestand prüfen und reparieren“ tippen. Das liest zuerst nur. „Sicherung herunterladen“ wählen und die JSON-Datei in „Dateien“ aufbewahren. Die Sicherung umfasst Workspace, Profile, Vorschläge und Aufgaben, aber keine Auth-Konten oder Storage-Dateien.
 6. Zunächst den Reparaturdialog schließen. Die Seite „REGELN_ANZEIGEN.html“ aus dem Paket auf derselben Website öffnen; der Reparaturbereich verlinkt sie ebenfalls. Die beiden Regeltexte in der eigenen Firebase-Konsole im Projekt doggy-style-hundepension prüfen und veröffentlichen. Details: CLOUD_SETUP.md. Ohne diese Aktivierung schützt die neue App allein den Firebase-Datenbestand nicht vollständig.
 7. Reparaturbereich erneut öffnen. Bei Max/Rex die vorgeschlagene Ergänzung mit vorhandenen IDs prüfen. Nach Sicherung und angehaktem Prüffeld einzeln speichern. Anschließend erneut sichern und die Kundenzuordnungen prüfen. Die App bietet keine Änderung an, wenn mehrere Konten oder widersprüchliche IDs passen.
