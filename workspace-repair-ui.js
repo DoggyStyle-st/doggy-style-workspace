@@ -33,6 +33,7 @@
     if(!allowed())throw new Error('Dieser Bereich ist nur für den Administrator verfügbar.');
     const mine=++revision,uid=user().uid;session=null;$('dsRepairDialog')?.remove();
     const dialog=element('dialog');dialog.id='dsRepairDialog';dialog.style.maxWidth='min(960px,95vw)';dialog.style.maxHeight='90vh';dialog.style.overflow='auto';
+    const style=element('style',undefined,dialog);style.textContent='#dsRepairDialog{background:#fff;color:#161616;color-scheme:light;border:1px solid #64748b;border-radius:14px;padding:20px}#dsRepairDialog .btn{background:#263445!important;color:#fff!important;border:1px solid #526378;min-height:44px;padding:10px 14px;margin:5px 8px 5px 0;border-radius:8px;font-weight:600}#dsRepairDialog .btn:disabled{background:#e2e8f0!important;color:#475569!important;opacity:1}#dsRepairDialog a{color:#1d4ed8}#dsRepairDialog fieldset{border:1px solid #94a3b8;margin:12px 0;padding:12px}#dsRepairDialog::backdrop{background:rgba(0,0,0,.55)}';
     element('h2','Workspace-Bestand prüfen',dialog);
     element('p','Es wird zuerst nur gelesen. Jede Reparatur benötigt eine heruntergeladene Sicherung und deine Prüfung.',dialog);
     const content=element('div',undefined,dialog);content.id='dsRepairContent';element('p','Bestand wird aus Firebase geladen …',content);
@@ -115,10 +116,22 @@
     else if(stage.kind==='pair')await api.repairPair(stage.id,stage.row);
     else throw new Error('Unbekannte Reparatur.');
     if(!allowed() || user().uid!==s.uid){reset();return;}
-    const latest=await api.workspace();
-    if(!allowed() || user().uid!==s.uid){reset();return;}
-    if(typeof window.applyRemoteState==='function')window.applyRemoteState(latest.payload,latest.stamp,'reviewed-repair');
-    await open();if($('dsRepairStatus'))$('dsRepairStatus').textContent='✅ Geprüfte Änderung in Firebase gespeichert. Bestand wurde erneut geladen.';
+    // The transaction has succeeded. A later refresh/cache error must never invite another write.
+    s.stage=null;renderStage();
+    try{
+      const latest=await api.workspace();
+      if(!allowed() || user().uid!==s.uid){reset();return;}
+      if(typeof window.applyRemoteState==='function')window.applyRemoteState(latest.payload,latest.stamp,'reviewed-repair');
+      const warnings=await window.DSBrowserStore.flush();
+      if(!allowed() || user().uid!==s.uid){reset();return;}
+      await open();if(!allowed() || user().uid!==s.uid){reset();return;}
+      if($('dsRepairStatus'))$('dsRepairStatus').textContent='✅ Geprüfte Änderung in Firebase gespeichert. Bestand wurde erneut geladen.'+(warnings.length?' Der lokale Zwischenspeicher ist nicht verfügbar; bitte den Speicherhinweis beachten.':'');
+      return {ok:true,committed:true};
+    }catch(error){
+      if(!allowed() || user().uid!==s.uid){reset();return;}
+      if($('dsRepairStatus'))$('dsRepairStatus').textContent='✅ Änderung wurde in Firebase gespeichert. Die anschließende Anzeige konnte nicht vollständig aktualisiert werden: '+error.message+' Bitte schließen und den Bestand erneut prüfen. Die Änderung nicht nochmals speichern.';
+      return {ok:true,committed:true,refreshError:error.message};
+    }
   }
   window.DSRepair={install,open,reset,stageRestore,stageLink,stagePair,download,commitStage};
 })();

@@ -72,6 +72,7 @@
     },e=>error(e,'customerTaskSaveHint'));
   }
   function resetAccount(){
+    window.DSBrowserStore.reset();
     window.DSRepair?.reset();
     if(profileUnsub) profileUnsub(); if(inboxUnsub) inboxUnsub();
     profileUnsub=inboxUnsub=null;profileUid=inboxUid='';reviewRow=null;inboxRows=[];draft=null;
@@ -89,15 +90,15 @@
     if(!currentUser() || scoped())return;
     const base={payload:JSON.parse(JSON.stringify(payload)),stamp:Number(stamp||0)};
     CLOUD._workflowBaseSnapshot=base;
-    try{localStorage.setItem(baseKey(),JSON.stringify(base));}catch(e){error(new Error('Ausgangsstand konnte nicht auf diesem Gerät gesichert werden.'),'syncDetails');}
+    DSBrowserStore.cache(baseKey(),JSON.stringify(base));
   }
   function readBase(){
     if(CLOUD._workflowBaseSnapshot)return CLOUD._workflowBaseSnapshot.payload;
-    try{return JSON.parse(localStorage.getItem(baseKey())||'null')?.payload || null;}catch(_){return null;}
+    try{return JSON.parse(DSBrowserStore.get(baseKey())||'null')?.payload || null;}catch(_){return null;}
   }
-  function backupLocal(){
+  async function backupLocal(){
     const key='ds_workspace_conflict_backup_v3:'+window.firebaseConfig.projectId+':'+window.firebaseOrgId+':'+currentUser().uid+':'+crypto.randomUUID();
-    try{localStorage.setItem(key,JSON.stringify({createdAt:Date.now(),payload:state}));}
+    try{await DSBrowserStore.put(key,JSON.stringify({createdAt:Date.now(),payload:state}));}
     catch(e){throw new Error('Lokale Änderungen konnten nicht gesichert werden. Bitte zuerst ein Backup exportieren. Der Server wurde nicht verändert.');}
   }
   function showConflict(remote,stamp){
@@ -169,7 +170,7 @@
       const decisions={};document.querySelectorAll('[data-merge-conflict]:checked').forEach(input=>decisions[input.dataset.mergeConflict]=input.value);
       resolved=Core.resolveMerge(review.plan,decisions);
     }
-    backupLocal();
+    await backupLocal();
     const result=useServer?{stamp:latest.stamp}:await api().publish(resolved,latest.stamp);
     if(currentUser()?.uid!==review.uid)throw new Error('Konto gewechselt.');
     Object.assign(SYNC,{cloudPending:false,cloudLastError:'',cloudLastOkAt:useServer?SYNC.cloudLastOkAt:result.stamp});
@@ -289,12 +290,13 @@
     CLOUD.userProfile=profile;
     const data=Core.submission({...opts,id:opts.id || crypto.randomUUID()},user,profile);
     const queueKey='ds_customer_proposal_queue_v3:'+user.uid;
-    const queue=JSON.parse(localStorage.getItem(queueKey)||'[]');
+    const queue=JSON.parse(DSBrowserStore.get(queueKey)||'[]');
     if(!queue.some(x=>x.id===data.id)) queue.push(data);
-    localStorage.setItem(queueKey,JSON.stringify(queue));
+    await DSBrowserStore.put(queueKey,JSON.stringify(queue));
+    if(currentUser()?.uid!==user.uid)throw new Error('Kundenkonto gewechselt.');
     try{
       await api().submit(data);
-      localStorage.setItem(queueKey,JSON.stringify(queue.filter(x=>x.id!==data.id)));
+      await DSBrowserStore.cache(queueKey,JSON.stringify(queue.filter(x=>x.id!==data.id)));
       window.dispatchEvent(new CustomEvent('ds-customer-data-ready'));
       return {ok:true,pending:false,task:data};
     }catch(e){if(typeof updateSyncUI==='function')updateSyncUI();return {ok:false,pending:true,error:e,task:data}; }
@@ -302,13 +304,13 @@
   async function retryQueue(){
     const user=currentUser();if(!user) return;
     const key='ds_customer_proposal_queue_v3:'+user.uid;
-    const items=JSON.parse(localStorage.getItem(key)||'[]');
+    const items=JSON.parse(DSBrowserStore.get(key)||'[]');
     for(const data of items){
       if(currentUser()?.uid!==user.uid) return;
       try{
         await api().submit(data);
-        const latest=JSON.parse(localStorage.getItem(key)||'[]');
-        localStorage.setItem(key,JSON.stringify(latest.filter(x=>x.id!==data.id)));
+        const latest=JSON.parse(DSBrowserStore.get(key)||'[]');
+        await DSBrowserStore.cache(key,JSON.stringify(latest.filter(x=>x.id!==data.id)));
       }catch(e){error(e,'customerTaskSaveHint');return;}
     }
   }

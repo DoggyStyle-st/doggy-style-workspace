@@ -1,8 +1,10 @@
-# Doggy Style Workspace – GB362 Reparatur-Testfassung
+# Doggy Style Workspace – GB363 Reparatur-Testfassung
 
 Stand: 18. Oktober 2026. **Testfassung; keine abschließende Live-Freigabe.**
 
 Diese vollständige App-Fassung wurde auf Wunsch trotz noch ausstehender Firebase-Live-Ablauftests bereitgestellt. Die bestehenden Projekt- und Bucket-Angaben bleiben erhalten. Bei der Erstellung wurden keine Firebase-Bestandsdaten, Rollen, Konten, Regeln oder Dateien geändert.
+
+GB363 behebt den nach GB362 gemeldeten lokalen Quotenfehler. Workspace, Ausgangsstand, Konfliktsicherungen und Kundeneinreichungen können in IndexedDB gespeichert werden. Vorhandene Browserdaten werden nicht pauschal gelöscht. Eine bereits bestätigte Firebase-Reparatur wird bei späterem Anzeigefehler nicht als gescheiterte Speicherung gemeldet. Der Reparaturdialog hat deutlich lesbare Schaltflächen. Wenn beide lokalen Speicher ausfallen, bleiben Änderungen im Arbeitsspeicher und ein Hinweis bietet eine eigene lokale Sicherung an; Kundeneinreichungen werden dann vor dem Übermitteln gestoppt.
 
 GB362 behebt den nach der GB361-Auslieferung gemeldeten Startabbruch: eine entfernte Abmelden-Schaltfläche wurde noch als globale Variable angesprochen. Der vollständige Anmeldestart ist jetzt zusätzlich geprüft. Die Reparatur-Schaltfläche steht direkt über der Eingangsliste. Starten führt keine automatische Migration oder Veröffentlichung aus; vorhandene ungesendete Änderungen bleiben erhalten. „Neu laden“ ersetzt den alten RESET-Knopf und löscht keine lokalen Daten. DIAG zeigt zusätzlich Rolle, Startphase und den konkreten Fehler.
 

@@ -1,4 +1,4 @@
-# Bestehendes Firebase-Projekt – GB362 Testfassung
+# Bestehendes Firebase-Projekt – GB363 Testfassung
 
 Verwenden: `doggy-style-hundepension`, Organisation `doggystyle`, Bucket `doggy-style-hundepension.firebasestorage.app`.
 Die vorhandene `firebase-config.js` ist unverändert. Kein neues Projekt, kein neues Kundenkonto und kein Zurücksetzen von Passwörtern sind für diese Reparatur vorgesehen.

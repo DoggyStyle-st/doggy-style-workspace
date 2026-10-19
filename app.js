@@ -2,7 +2,7 @@ try{sessionStorage.removeItem('ds_handoff_pass');}catch(_){}
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB362_STARTUP_TEST_20261018",
+  tag: "M50.9.9GB363_STORAGE_TEST_20261018",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -13,7 +13,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB362_STARTUP_TEST_20261018";
+const APP_BUILD = "M50.9.9GB363_STORAGE_TEST_20261018";
 try{ window.__dsAppJsRuntimeBuild = "GB350-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -1067,7 +1067,7 @@ function dsEffectiveNetOnline(){
 
 function updateSyncUI(){
     const user=firebase.auth().currentUser,online=navigator.onLine!==false;
-    let queued=0;try{queued=JSON.parse(localStorage.getItem('ds_customer_proposal_queue_v3:'+user?.uid)||'[]').length;}catch(_){}
+    let queued=0;try{queued=JSON.parse(DSBrowserStore.get('ds_customer_proposal_queue_v3:'+user?.uid)||'[]').length;}catch(_){}
     const pending=!!SYNC.cloudPending || queued>0,error=String(SYNC.cloudLastError||'');
     const confirmed=CLOUD.role==='customer'?Number(CLOUD._profileReadConfirmedAt||0):Number(CLOUD._workspaceReadConfirmedAt||0);
     const good=!!user && online && !!confirmed && !pending && !error;
@@ -2110,7 +2110,7 @@ function applyRemoteState(remote,remoteStamp,source){
     }
     state=JSON.parse(JSON.stringify(remote));state._cloudUpdatedAt=Number(remoteStamp||0);state._localUpdatedAt=Number(remoteStamp||0);
     CLOUD._lastRemoteStamp=Number(remoteStamp||0);ensureStateShape();ensureContractDefaults();
-    localStorage.setItem(LS_KEY,JSON.stringify(state));
+    DSBrowserStore.cache(LS_KEY,JSON.stringify(state));
     DSWorkflow.rememberBase(remote,remoteStamp);
     renderDogs();renderDocs();renderInvoiceList();updateSyncUI();DSWorkflow.wireAssignments().catch(console.error);return true;
   }
@@ -2163,7 +2163,7 @@ async function cloudPushNow(){
       state._cloudUpdatedAt=res.stamp;CLOUD._lastRemoteStamp=res.stamp;CLOUD.lastPushOkAt=res.stamp;
       DSWorkflow.rememberBase(payload,res.stamp);
       SYNC.cloudLastOkAt=res.stamp;SYNC.cloudPending=edited;SYNC.cloudLastError='';
-      localStorage.setItem(LS_KEY,JSON.stringify(state));
+      DSBrowserStore.cache(LS_KEY,JSON.stringify(state));
       const deferred=CLOUD._deferredRemoteSnapshot;CLOUD._deferredRemoteSnapshot=null;
       if(deferred && deferred.stamp>res.stamp){if(edited)DSWorkflow.showConflict(deferred.payload,deferred.stamp);else applyRemoteState(deferred.payload,deferred.stamp,'after-publish');}
       else{CLOUD._pendingRemoteSnapshot=null;document.getElementById('dsSyncConflictNotice')?.remove();}
@@ -2942,7 +2942,7 @@ async function submitCustomerDogsProposal(){
   // GB355: vollständig lokal sichern, anschließend zuverlässig in proposals + tasks übertragen.
   // Die Oberfläche wird sofort freigegeben; die Erfolgsmeldung "an Eingänge übergeben"
   // erscheint ausschließlich nach bestätigter Firestore-Speicherung.
-  const GB355='M50.9.9GB362_STARTUP_TEST_20261018';
+  const GB355='M50.9.9GB363_STORAGE_TEST_20261018';
   function S(v){ try{return String(v==null?'':v);}catch(_){return '';} }
   function L(v){ return S(v).trim().toLowerCase(); }
   function V(id){ try{const el=document.getElementById(id);return S(el&&el.value!=null?el.value:'').trim();}catch(_){return '';} }
@@ -15475,7 +15475,7 @@ function closePdfOverlay(){
 }
 function loadState(){
     try{if(DSWorkflow.scoped())return DSWorkflow.snapshot();
-      const raw=localStorage.getItem(LS_KEY);return raw?JSON.parse(raw):{dogs:[],docs:[]};
+      const raw=DSBrowserStore.get(LS_KEY);return raw?JSON.parse(raw):{dogs:[],docs:[]};
     }catch(_){return {dogs:[],docs:[]};}
   }
 function dsIsCustomerPortalRuntime(){
@@ -15583,7 +15583,7 @@ function saveState(){
   try{ dsMarkStateOriginBeforeSave(); }catch(_){ }
   try{
     state._localUpdatedAt = Date.now();
-    localStorage.setItem(LS_KEY,JSON.stringify(state));
+    DSBrowserStore.cache(LS_KEY,JSON.stringify(state));
   }catch(e){
     console.error("Local save failed", e);
   }
@@ -17905,6 +17905,8 @@ async function startApp(){
       const loadedProfile=await loadOrCreateUserProfile(user);
       if(firebase.auth().currentUser?.uid!==user.uid)return;
       CLOUD.userProfile=loadedProfile;
+      await DSBrowserStore.prepare(window.firebaseConfig.projectId,CLOUD.orgId,user.uid);
+      if(firebase.auth().currentUser?.uid!==user.uid)return;
       LS_KEY='ds_workspace_v3:'+window.firebaseConfig.projectId+':'+CLOUD.orgId+':'+user.uid;
       state=loadState();ensureStateShape();
       SYNC.cloudPending=Number(state._localUpdatedAt||0)>Number(state._cloudUpdatedAt||0);
@@ -23842,7 +23844,7 @@ try{
 }catch(e){ console.warn(e); }
 
 
-/* ===== CHAT (M50.9.9GB362_STARTUP_TEST_20261018) ===== */
+/* ===== CHAT (M50.9.9GB363_STORAGE_TEST_20261018) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,

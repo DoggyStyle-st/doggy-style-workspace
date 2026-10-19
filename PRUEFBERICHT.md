@@ -1,8 +1,24 @@
-# Doggy Style Workspace – GB362 Reparatur-Testfassung
+# Doggy Style Workspace – GB363 Reparatur-Testfassung
 
 Stand: 18. Oktober 2026. **Vollständige Testfassung; keine abschließende Live-Freigabe.**
 
 Diese vollständige Test-ZIP wurde nach erfolgreichen lokalen Tests erstellt. Die vollständigen Tests im bestehenden Firebase-Projekt stehen noch aus.
+
+## Korrektur des GB362-Speicherfehlers
+
+Das iPad-Bild vom 18. Oktober, 20:48 Uhr, zeigt bei der bestätigten Sonja/Bello-Zuordnung „The quota has been exceeded“. Zuvor war der Reparaturdialog auf dem echten Gerät erreichbar; dessen Schaltflächen hatten unzureichenden Kontrast. Aus diesem Bild allein lässt sich nicht sicher feststellen, ob die Zuordnung im echten Firebase bereits gespeichert wurde. Die Konsole wurde für diesen Folgeschritt nicht erneut authentifiziert geprüft.
+
+Der gleiche Ablauf wurde mit GB362, simuliertem Firebase und einem erzwungenen Safari-typischen `QuotaExceededError` ausgeführt: Die Zuordnung war im simulierten Server bereits gespeichert; erst danach scheiterte `applyRemoteState` am lokalen `setItem`. GB362 meldete diesen nachgelagerten Fehler als Fehler der gesamten Bestätigung. Das ist eine bestätigte Fehlerursache im Code, keine Messung des freien iPad-Speichers.
+
+GB363 speichert neue Workspace-Kopien, Ausgangsstände, Konfliktsicherungen und Kundenwarteschlangen in einer eigenen IndexedDB-Ablage, mit localStorage als Rückfall. Die Ablage greift nicht in Firebase-Auth-Speicher ein. Bestehende lokale Schlüssel werden nicht pauschal gelöscht. Vorhandene eigene Werte werden weiterhin gelesen; ein neuerer Legacy-Workspace bleibt erhalten. Beim Kontowechsel wird der geladene Arbeitsspeicher geleert. Gleichzeitige Schreibvorgänge unter demselben Schlüssel werden in Reihenfolge abgeschlossen.
+
+Wenn beide lokalen Speicher scheitern, bleiben die aktuellen Daten im Arbeitsspeicher und ein eigener Hinweis bietet „Lokale Sicherung herunterladen“ an. Diese Sicherung enthält aktuelle eigene Workspace-/Ausgangs-/Warteschlangenwerte und eigene Vertragsentwürfe; sie ist von der Server-Bestandssicherung getrennt. Ein automatischer Import ist für beide Sicherungsformate nicht implementiert. Alte gemeinsame Browserdaten und andere Konten werden nicht pauschal exportiert oder entfernt. Ohne funktionierenden dauerhaften Speicher besteht keine Offline-Garantie; der Benutzer muss ungesicherte Änderungen vor dem Schließen exportieren.
+
+Eine Kundeneinreichung wird erst nach dauerhafter lokaler Vorbereitung an Firebase gesendet. Nach bestätigtem Firebase-Erfolg wird ein lokaler Aktualisierungsfehler nicht als fehlgeschlagener Server-Schreibzugriff gemeldet. Die erledigte Reparaturvorschau wird entfernt; ein erneutes Bestätigen desselben alten Vorgangs ist gesperrt. Beim neuen Öffnen werden aktuelle Profile erneut gelesen. Der Reparaturdialog hat explizite helle Hintergrund-/dunkle Textfarben, kontrastreiche Schaltflächen und mindestens 44 Pixel Schaltflächenhöhe. Der Kontrast wurde rechnerisch über jsdom geprüft; eine erneute visuelle Safari-Prüfung auf dem Gerät steht aus.
+
+14 gezielte Speicherprüfungen bestehen: eine erwartete GB362-Fehlerreproduktion und 13 Prüfungen der korrigierten Abläufe. Zusätzlich wurden die echte Kunden-Übermittlungsfunktion mit voller localStorage-Ablage, der neuen IndexedDB-Ablage und den Firestore-Emulatorregeln gemeinsam getestet: Bei verfügbarem Speicher entsteht das vollständige Paar; bei Ausfall beider Speicher entstehen keine Eingangs-Dokumente.
+
+Hintergrund zur Browser-Speicherbehandlung: https://webkit.org/blog/14403/updates-to-storage-policy/ . Auch IndexedDB kann begrenzt, gesperrt oder vom Browser verworfen werden; die neue Ablage verspricht keine unbegrenzte Speicherung.
 
 ## Korrektur des GB361-Startfehlers
 
@@ -18,7 +34,7 @@ GB362 bindet die optionalen Elemente ausdrücklich, fängt asynchrone Startfehle
 
 Die bekannten Ursachen der fehlerhaften Kundenzuordnung, Vertragsanzeige und Eingangsübermittlung sind im Code konsolidiert. Hinzugekommen sind eine auf dem iPad bedienbare Bestandsprüfung, eine Sicherung zum Herunterladen, eine konkrete Änderungsvorschau und einzeln bestätigte Reparaturabläufe. Die Vorschau schreibt nichts. Es erfolgt keine automatische Übernahme unklarer Altverträge oder Zuordnung allein anhand von Hundenamen.
 
-**Bei der Bearbeitung wurden keine bestehenden Firebase-Daten, Konten, Rollen, Regeln, Fotos oder Unterschriften geändert.** Das bestehende Projekt und dessen öffentliche App-Konfiguration bleiben unverändert. Die Quell-ZIP wurde nicht ersetzt. GB361 wurde vom Benutzer auf GitHub Pages bereitgestellt; die hier erstellte GB362-Fassung wurde von uns nicht veröffentlicht oder gegen das echte Projekt ausgeführt.
+**Bei der Bearbeitung wurden keine bestehenden Firebase-Daten, Konten, Rollen, Regeln, Fotos oder Unterschriften geändert.** Das bestehende Projekt und dessen öffentliche App-Konfiguration bleiben unverändert. Die Quell-ZIP wurde nicht ersetzt. GB361 und GB362 wurden vom Benutzer auf GitHub Pages bereitgestellt; die hier erstellte GB363-Fassung wurde von uns nicht veröffentlicht oder gegen das echte Projekt ausgeführt.
 
 ## Ausgangsstand
 
@@ -27,7 +43,7 @@ Die bekannten Ursachen der fehlerhaften Kundenzuordnung, Vertragsanzeige und Ein
 - Bestehendes Projekt: `doggy-style-hundepension`.
 - Organisation: `orgs/doggystyle`.
 - Bucket: `doggy-style-hundepension.firebasestorage.app`.
-- Fassung: `M50.9.9GB362_STARTUP_TEST_20261018`.
+- Fassung: `M50.9.9GB363_STORAGE_TEST_20261018`.
 - Die maximale Gesamtkapazität von vier Hunden bleibt bestehen.
 
 ## Direkt im bestehenden Firebase gelesene Befunde
@@ -69,10 +85,11 @@ Diese Tabelle dokumentiert den gelesenen Bestand. Die neue App enthält keine fe
 
 | Prüfgruppe | Letzter erfolgreicher Lauf | Ergebnis | Grenze |
 | --- | --- | --- | --- |
-| Vier ursprüngliche Schwachstellen mit Originalregeln reproduziert | 2026-10-18T18:25:17.510Z | 4/4 bestätigt | Erwartete Fehlerreproduktion im Emulator; kein ausgeführter Angriff auf das echte Projekt. |
-| Reparaturregeln und Workflow | 2026-10-18T18:25:17.510Z | 60/60 bestanden | Echte Firestore-/Storage-Emulatorzugriffe, Transaktionen, Listener und Regelentscheidungen mit synthetischen Daten; Auth-Identitäten in der Regeltestumgebung simuliert. |
-| Oberfläche, Syntax, lokale Ressourcen, Regel-Kopierseite und Reparaturdialog | 2026-10-18T18:25:05.697Z | 30/30 bestanden | jsdom; Canvas-/Bilddekodierung, Downloads, Netzwerk und Firebase-Anbindung teilweise simuliert. Kein Safari-/iPad-Durchlauf. |
-| Vollständiger Anmeldestart und Fehlerfälle | 2026-10-18T18:23:32.074Z | 17/17 bestanden | startApp und Auth-Callback laufen in jsdom; Firebase, Netzwerk und Canvas simuliert. Keine echten Konten verwendet. |
+| Vier ursprüngliche Schwachstellen mit Originalregeln reproduziert | 2026-10-18T18:57:00.817Z | 4/4 bestätigt | Erwartete Fehlerreproduktion im Emulator; kein ausgeführter Angriff auf das echte Projekt. |
+| Reparaturregeln und Workflow | 2026-10-18T18:57:00.817Z | 62/62 bestanden | Echte Firestore-/Storage-Emulatorzugriffe, Transaktionen, Listener und Regelentscheidungen mit synthetischen Daten; Auth-Identitäten in der Regeltestumgebung simuliert. |
+| Oberfläche, Syntax, lokale Ressourcen, Regel-Kopierseite und Reparaturdialog | 2026-10-18T18:58:56.969Z | 30/30 bestanden | jsdom; Canvas-/Bilddekodierung, Downloads, Netzwerk und Firebase-Anbindung teilweise simuliert. Kein Safari-/iPad-Durchlauf. |
+| Vollständiger Anmeldestart und Fehlerfälle | 2026-10-18T18:56:01.539Z | 18/18 bestanden | startApp und Auth-Callback laufen in jsdom; Firebase, Netzwerk und Canvas simuliert. Keine echten Konten verwendet. |
+| Speicherfehler und Dialoglesbarkeit | 2026-10-18T18:58:57.814Z | 14/14 bestanden | Eine GB362-Fehlerreproduktion und 13 Reparaturprüfungen; jsdom und fake-indexeddb mit simulierten Quotenfehlern. |
 | Vollständige Abläufe mit vorhandenen Testkonten im bestehenden Firebase | Nicht abgeschlossen | Offen | Kein bestätigter Kunden-SDK-Durchlauf der Testfassung. |
 
 Die UTC-Zeitstempel stammen aus den gespeicherten Testergebnissen. Die Browser-App verwendet Firebase Compat 10.12.5, die Emulator-API-Prüfungen Firebase 13.0.0. Das ersetzt keine Prüfung der ausgelieferten SDK-Version auf dem iPad. Echte PNG-Dateien werden als synthetische Testzeichnungen erzeugt; es wurden keine echten Unterschriften als Testdaten kopiert.
