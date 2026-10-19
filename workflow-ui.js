@@ -76,6 +76,7 @@
     window.DSRepair?.reset();
     if(profileUnsub) profileUnsub(); if(inboxUnsub) inboxUnsub();
     profileUnsub=inboxUnsub=null;profileUid=inboxUid='';reviewRow=null;inboxRows=[];draft=null;
+    closeReview();if($('inboxFeedback'))$('inboxFeedback').textContent='';
     for(const url of blobs.values()) URL.revokeObjectURL(url); blobs.clear();
     if(window.__dsCustomerPortalUnsubscribe) window.__dsCustomerPortalUnsubscribe();
     window.__dsCustomerTasks=[];window.__dsCustomerProposals=[];
@@ -361,6 +362,21 @@
       inboxRows=snap.docs.map(d=>({...d.data(),id:d.id})).sort((a,b)=>b.submittedAt-a.submittedAt);renderInbox();
     },e=>error(e,'inboxProposalMsg'));
   }
+  function reviewControls(){
+    for(const id of ['btnInboxAdopt','btnInboxClose']){
+      const button=$(id);if(!button)continue;
+      button.hidden=false;button.style.removeProperty('display');button.style.removeProperty('visibility');
+      button.disabled=!reviewRow || busy || CLOUD.role!=='admin';
+    }
+  }
+  function closeReview(){
+    reviewRow=null;if($('inboxDetail'))$('inboxDetail').style.display='none';
+    $('inboxDetailForm')?.replaceChildren();if($('inboxDetailMeta'))$('inboxDetailMeta').textContent='';
+    if($('inboxReviewStatus'))$('inboxReviewStatus').textContent='';
+    if($('inboxList'))$('inboxList').style.display='';
+    if($('inboxProposalList'))$('inboxProposalList').style.display='none';
+    reviewControls();
+  }
   function openReview(row){
     reviewRow=row;const root=$('inboxDetailForm');if(!root)return;
     if($('inboxDetail')) $('inboxDetail').style.display='';
@@ -385,21 +401,25 @@
       const pre=document.createElement('pre');pre.style.whiteSpace='pre-wrap';pre.textContent=JSON.stringify({...p,signature:p.signature?'Unterschrift unten':''},null,2);root.append(pre);
       if(p.signature && Core.signatureValid(p.signature)){const image=document.createElement('img');image.src=p.signature.dataUrl;image.alt='Eingereichte Unterschrift';image.style.maxWidth='100%';root.append(image);}
     }
-    if($('btnInboxAdopt')) $('btnInboxAdopt').disabled=CLOUD.role!=='admin';
-    if($('btnInboxClose')) $('btnInboxClose').disabled=CLOUD.role!=='admin';
+    if($('inboxReviewStatus'))$('inboxReviewStatus').textContent=CLOUD.role==='admin'?'':'Nur der Administrator kann diesen Eingang übernehmen oder ablehnen.';
+    reviewControls();
   }
   async function review(decision){
     if(!reviewRow) throw new Error('Bitte zuerst einen Eingang öffnen.');
     const selected=reviewRow,actor=currentUser()?.uid;
+    if($('inboxReviewStatus'))$('inboxReviewStatus').textContent=decision==='adopted'?'Übernahme wird in Firebase gespeichert …':'Ablehnung wird in Firebase gespeichert …';
     if(decision==='adopted' && reviewRow.templateId==='boarding_contract')await signatureHasInk(reviewRow.payloadSubmitted?.signature);
     if(reviewRow!==selected || currentUser()?.uid!==actor)throw new Error('Eingang oder Konto wurde während der Prüfung gewechselt.');
     const edits=JSON.parse(JSON.stringify(reviewRow.payloadSubmitted || {}));
     document.querySelectorAll('[data-review-field]').forEach(input=>{
       edits[input.dataset.reviewKind][input.dataset.reviewField]=input.type==='checkbox'?input.checked:input.value;
     });
-    await api().review(reviewRow.id,decision,edits);
-    reviewRow=null;if($('inboxDetail')) $('inboxDetail').style.display='none';
-    if($('assignMsg')) $('assignMsg').textContent=decision==='adopted'?'✅ Übernahme und Rückmeldung in Firebase gespeichert.':'Vorschlag abgelehnt.';
+    await api().review(selected.id,decision,edits);
+    if(currentUser()?.uid!==actor)return;
+    if(reviewRow===selected)closeReview();
+    const message=decision==='adopted'?'✅ Übernahme und Rückmeldung in Firebase gespeichert.':'✅ Vorschlag abgelehnt.';
+    if($('inboxFeedback'))$('inboxFeedback').textContent=message;
+    if($('assignMsg'))$('assignMsg').textContent=message;
   }
   async function wireAssignments(){
     window.DSRepair?.install();
@@ -428,13 +448,13 @@
   document.addEventListener('click',e=>{
     if(e.target?.id==='contractSig'){e.stopImmediatePropagation();return;}
     const b=e.target?.closest?.('button');if(!b)return;
-    const actions={dsOpenSyncConflict:openConflict,dsApplySyncMerge:()=>resolveConflict(false),dsUseServerSnapshot:()=>resolveConflict(true),dsCloseSyncMerge:()=>{$('dsSyncConflictDialog')?.remove();mergeReview=null;},contractSignBtn:sign,contractSigClear:clearSignature,contractSaveBtn:submitContract,btnInboxAdopt:()=>review('adopted'),btnInboxClose:()=>review('rejected'),btnAssignTask:assign,btnInboxRefresh:wireInbox,btnInboxProposalLoad:wireInbox,btnInboxBack:()=>{reviewRow=null;if($('inboxDetail'))$('inboxDetail').style.display='none';}};
+    const actions={dsOpenSyncConflict:openConflict,dsApplySyncMerge:()=>resolveConflict(false),dsUseServerSnapshot:()=>resolveConflict(true),dsCloseSyncMerge:()=>{$('dsSyncConflictDialog')?.remove();mergeReview=null;},contractSignBtn:sign,contractSigClear:clearSignature,contractSaveBtn:submitContract,btnInboxAdopt:()=>review('adopted'),btnInboxClose:()=>review('rejected'),btnAssignTask:assign,btnInboxRefresh:wireInbox,btnInboxProposalLoad:wireInbox,btnInboxBack:closeReview};
     const action=actions[b.id];if(!action)return;
     e.preventDefault();e.stopImmediatePropagation();if(busy)return;
-    busy=true;b.disabled=true;
-    Promise.resolve().then(action).catch(err=>error(err,b.closest('#dsSyncConflictDialog')?'dsSyncConflictStatus':b.closest('#contract')?'contractSavedInfo':'assignMsg')).finally(()=>{busy=false;b.disabled=false;});
+    busy=true;b.disabled=true;reviewControls();
+    Promise.resolve().then(action).catch(err=>error(err,b.closest('#dsSyncConflictDialog')?'dsSyncConflictStatus':b.closest('#inboxDetail')?'inboxReviewStatus':b.closest('#contract')?'contractSavedInfo':'assignMsg')).finally(()=>{busy=false;b.disabled=false;reviewControls();});
   },true);
-  window.DSWorkflow={context,snapshot,hydrate,watchProfile,resetAccount,submit,submitContract,retryQueue,wireInbox,wireAssignments,openReview,renderContractStatus,api,scoped,mediaSource,scanMedia,prepareNewPetPhoto,signatureHasInk,rememberBase,showConflict,openConflict,resolveConflict,startupStatus,readWithTimeout,workspaceRole};
+  window.DSWorkflow={context,snapshot,hydrate,watchProfile,resetAccount,submit,submitContract,retryQueue,wireInbox,wireAssignments,openReview,closeReview,renderContractStatus,api,scoped,mediaSource,scanMedia,prepareNewPetPhoto,signatureHasInk,rememberBase,showConflict,openConflict,resolveConflict,startupStatus,readWithTimeout,workspaceRole};
   function observeMedia(){
     if(!document.body)return;
     scanMedia(document.body);

@@ -1,8 +1,10 @@
-# Doggy Style Workspace – GB364 Reparatur-Testfassung
+# Doggy Style Workspace – GB365 Reparatur-Testfassung
 
 Stand: 19. Oktober 2026. **Testfassung; keine abschließende Live-Freigabe.**
 
 Diese vollständige App-Fassung wurde auf Wunsch trotz noch ausstehender Firebase-Live-Ablauftests bereitgestellt. Die bestehenden Projekt- und Bucket-Angaben bleiben erhalten. Bei der Erstellung wurden keine Firebase-Bestandsdaten, Rollen, Konten, Regeln oder Dateien geändert.
+
+GB365 korrigiert die verborgenen Schaltflächen zur Übernahme und Ablehnung. Beim Wechsel zu „Eingänge“ setzt die App den Prüfbereich eindeutig zurück; beim Öffnen eines neuen Eingangs werden beide Entscheidungsschaltflächen sichtbar. Während einer Speicherung sind beide gesperrt. Fehler erscheinen direkt am geöffneten Eingang, die erfolgreiche Übernahme unter der Eingangsliste. Der Abschnitt zum Senden einer zusätzlichen Formularaufgabe ist jetzt optional und standardmäßig zugeklappt. Neue Einreichungen brauchen keine Aufgabenverteilung. Kontowechsel entfernt auch den offenen Prüfbereich. Sieben zusätzliche Oberflächenprüfungen und die Bestandskopie prüfen ausdrücklich die Navigation und die sichtbaren Bedienelemente.
 
 GB364 behebt anhand der Sicherung vom 19. Oktober einen Fehler bei neuen Vertragsfreigaben: Historische Alias-Einträge konnten denselben Vertrag mehrfach in das Kundenportal kopieren und die aktuelle Freigabe überlagern. Jetzt wird ausschließlich der geprüfte Eintrag unter der eindeutigen Vertragskennung synchronisiert. Die neue Unterschrift und die administrative Entscheidung bleiben exakt erhalten. Vorhandene alte Anfragen und Altverträge werden dabei nicht bearbeitet. Die Sicherung bestätigt inzwischen die korrekte getrennte Zuordnung Sonja/Bello und Max/Rex. Neue Abläufe wurden mit dieser Bestandskopie im Firebase-Emulator geprüft.
 

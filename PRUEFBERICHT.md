@@ -1,8 +1,22 @@
-# Doggy Style Workspace – GB364 Reparatur-Testfassung
+# Doggy Style Workspace – GB365 Reparatur-Testfassung
 
 Stand: 19. Oktober 2026. **Vollständige Testfassung; keine abschließende Live-Freigabe.**
 
 Diese vollständige Test-ZIP wurde nach erfolgreichen lokalen Tests erstellt. Die vollständigen Tests im bestehenden Firebase-Projekt stehen noch aus.
+
+## Fehlende Entscheidungsschaltflächen: reproduziert und in GB365 korrigiert
+
+Das iPad-Bild vom 19. Oktober, 12:08 Uhr, zeigt einen geöffneten Vertrag mit sichtbarer Unterschrift, aber ohne Übernahme-/Ablehnen-Schaltflächen. Darunter steht der Bereich zur zusätzlichen Aufgabenverteilung. Der neue Eingangsablauf setzt keine vorherige Aufgabenverteilung voraus.
+
+Ursache im ausgelieferten Code: `showPanel('inbox')` rief die historische Funktion `dsResetInboxDetailView` auf. Sie setzte beide Entscheidungsschaltflächen auf `display:none`. Die konsolidierte Funktion `openReview` zeigte zwar den Prüfbereich, setzte aber nur den gesperrten Zustand der Schaltflächen. Ihre Sichtbarkeit wurde nicht wiederhergestellt. Die bisherigen Tests klickten die Elemente programmgesteuert, was auch bei versteckten Elementen möglich war; sie hatten diesen Navigations- und Sichtbarkeitsfehler nicht erkannt.
+
+Der erweiterte Test ruft jetzt zuerst die tatsächliche Navigation auf und verlangt sichtbare sowie aktivierte Schaltflächen, bevor er die Entscheidung anklickt. Mit GB364 scheitern dabei beide administrativen Kundenänderungsprüfungen der Bestandskopie; zehn von zwölf Prüfungen bestehen. Diese Reproduktion ist in `gb364-inbox-visibility-reproduction.json` getrennt dokumentiert.
+
+GB365 bindet den historischen Reset an den konsolidierten Prüfbereich und setzt beim Öffnen Sichtbarkeit sowie Berechtigung ausdrücklich. Die beiden Entscheidungen stehen unter dem Formular bzw. der Unterschrift. Während der Übertragung sind beide gesperrt. Fehler bleiben unmittelbar am geöffneten Eingang sichtbar; erfolgreiche Übernahme oder Ablehnung erscheint unter der Eingangsliste. Ein Kontowechsel entfernt den geöffneten Inhalt. Beim Öffnen als Mitarbeiter sind beide administrativen Entscheidungen sichtbar, aber gesperrt.
+
+Der Bereich „Optional: Formular an Kunden senden“ ist standardmäßig zugeklappt. Für neue Kundenänderungen, Verträge und Aufenthaltsanfragen muss dort keine Aufgabe angelegt werden. Die Möglichkeit, bei Bedarf ein bestimmtes Formular anzufordern, bleibt erhalten; vorhandene Aufgaben werden nicht verändert.
+
+Sieben zusätzliche Prüfungen bestehen: Navigation und Wiederöffnung aller drei Formulararten, historisch verborgene Elemente, optionaler Aufgabenbereich ohne Voraussetzung für die Übernahme, sichtbarer Serverfehler mit erneutem Versuch, Sperre gegen doppelte Entscheidungen, Mitarbeitergrenze und Entfernen des geöffneten Eingangs beim Kontowechsel. Die vollständige Bestandskopie prüft neue administrative Kundenübernahmen und die Vertragsfreigabe jetzt über diese sichtbare Oberfläche nach tatsächlicher Navigation. Diese Prüfungen verwenden jsdom und Firebase-Emulatoren; eine Messung des echten Safari-Layouts ist damit nicht behauptet.
 
 ## Aktueller Bestand und neue Abläufe vom 19. Oktober
 
@@ -48,7 +62,7 @@ GB362 bindet die optionalen Elemente ausdrücklich, fängt asynchrone Startfehle
 
 Die bekannten Ursachen der fehlerhaften Kundenzuordnung, Vertragsanzeige und Eingangsübermittlung sind im Code konsolidiert. Hinzugekommen sind eine auf dem iPad bedienbare Bestandsprüfung, eine Sicherung zum Herunterladen, eine konkrete Änderungsvorschau und einzeln bestätigte Reparaturabläufe. Die Vorschau schreibt nichts. Es erfolgt keine automatische Übernahme unklarer Altverträge oder Zuordnung allein anhand von Hundenamen.
 
-**Bei der Bearbeitung wurden keine bestehenden Firebase-Daten, Konten, Rollen, Regeln, Fotos oder Unterschriften geändert.** Das bestehende Projekt und dessen öffentliche App-Konfiguration bleiben unverändert. Die Quell-ZIP wurde nicht ersetzt. GB361, GB362 und GB363 wurden vom Benutzer auf GitHub Pages bereitgestellt; die hier erstellte GB364-Fassung wurde von uns nicht veröffentlicht oder gegen das echte Projekt ausgeführt.
+**Bei der Bearbeitung wurden keine bestehenden Firebase-Daten, Konten, Rollen, Regeln, Fotos oder Unterschriften geändert.** Das bestehende Projekt und dessen öffentliche App-Konfiguration bleiben unverändert. Die Quell-ZIP wurde nicht ersetzt. GB361, GB362 und GB363 wurden vom Benutzer auf GitHub Pages bereitgestellt; die hier erstellte GB365-Fassung wurde von uns nicht veröffentlicht oder gegen das echte Projekt ausgeführt.
 
 ## Ausgangsstand
 
@@ -57,7 +71,7 @@ Die bekannten Ursachen der fehlerhaften Kundenzuordnung, Vertragsanzeige und Ein
 - Bestehendes Projekt: `doggy-style-hundepension`.
 - Organisation: `orgs/doggystyle`.
 - Bucket: `doggy-style-hundepension.firebasestorage.app`.
-- Fassung: `M50.9.9GB364_CONTRACT_SYNC_TEST_20261019`.
+- Fassung: `M50.9.9GB365_INBOX_TEST_20261019`.
 - Die maximale Gesamtkapazität von vier Hunden bleibt bestehen.
 
 ## Historische Konsolenbefunde vom 18. Oktober (aktueller Stand siehe oben)
@@ -70,12 +84,7 @@ Die Anmeldung in der Firebase-Konsole war am 18. Oktober zeitweise erfolgreich. 
 4. Ein als angenommen gespeicherter Vertrag für Sonja/Bello enthielt unter `contractAdoptedRecords/0/signatureRec/dataUrl` ein bei direkter Bildansicht visuell leeres PNG; Herkunft `gb340-cloud-canonical`. Der Feld-Dialog wurde nach Lesen mit Abbrechen geschlossen. Geprüft wurde dieser eine Bildwert, nicht jede gespeicherte Kopie. Die ursprüngliche Ursache ist nicht nachgewiesen.
 5. `proposals/c9ae9c422311919ebbff160c` war als `pending`/`submitted` gespeichert und verwies als `taskId` auf dieselbe ID. Der direkte Aufruf von `tasks/c9ae9c422311919ebbff160c` meldete „Dieses Dokument ist nicht vorhanden.“ Es wurde keine Aufgabe nachträglich angelegt oder übernommen.
 
-| Vorhandener Testbestand | Auth-/Profil-UID | Kunden-ID | Hunde-ID |
-| --- | --- | --- | --- |
-| Sonja Sonnenschein / Bello, Konto sieglinde@boch-plan.de | `D9VE5w84GgTIRDfEtGg2dVa5mmk2` | `b62bec2a457e9819d6c896992` | `94da2ab9569b4819d6c896992` |
-| Max Mustermann / Rex, Konto info@wild-westallgaeu-alpaka.de | `CxFlGgx7qCZFcFrK9zdc2jEnkrQ2` | `52901abad1c1919ce6c21818` | `052f916e2a40f819ce6c21819` |
-
-Diese Tabelle dokumentiert den gelesenen Bestand. Die neue App enthält keine fest eingebauten Kunden-UIDs. Eine Zuordnung wird anhand der jeweils aktuell aus Firebase gelesenen Daten vorgeschlagen und muss vom Administrator geprüft werden.
+Die beiden Testbestände Sonja/Bello und Max/Rex sind oben anhand der aktuellen Sicherung bestätigt. Der veröffentlichbare Bericht enthält keine vollständigen Kontokennungen oder Kunden-E-Mail-Adressen. Die App enthält keine fest eingebauten Kunden-UIDs; Zuordnungen werden anhand des aktuellen Firebase-Profils geprüft.
 
 ## Änderungen in der Testfassung
 
@@ -101,10 +110,11 @@ Diese Tabelle dokumentiert den gelesenen Bestand. Die neue App enthält keine fe
 | --- | --- | --- | --- |
 | Vier ursprüngliche Schwachstellen mit Originalregeln reproduziert | 2026-10-19T09:43:48.300Z | 4/4 bestätigt | Erwartete Fehlerreproduktion im Emulator; kein ausgeführter Angriff auf das echte Projekt. |
 | Reparaturregeln und Workflow | 2026-10-19T09:43:48.300Z | 62/62 bestanden | Echte Firestore-/Storage-Emulatorzugriffe, Transaktionen, Listener und Regelentscheidungen mit synthetischen Daten; Auth-Identitäten in der Regeltestumgebung simuliert. |
-| Oberfläche, Syntax, lokale Ressourcen, Regel-Kopierseite und Reparaturdialog | 2026-10-19T09:45:31.321Z | 30/30 bestanden | jsdom; Canvas-/Bilddekodierung, Downloads, Netzwerk und Firebase-Anbindung teilweise simuliert. Kein Safari-/iPad-Durchlauf. |
-| Vollständiger Anmeldestart und Fehlerfälle | 2026-10-19T09:45:38.264Z | 18/18 bestanden | startApp und Auth-Callback laufen in jsdom; Firebase, Netzwerk und Canvas simuliert. Keine echten Konten verwendet. |
-| Speicherfehler und Dialoglesbarkeit | 2026-10-19T09:45:33.028Z | 14/14 bestanden | Eine GB362-Fehlerreproduktion und 13 Reparaturprüfungen; jsdom und fake-indexeddb mit simulierten Quotenfehlern. |
-| Neue Abläufe mit vollständiger Sicherung vom 19. Oktober | 2026-10-19T09:45:41.982Z | 12/12 bestanden | Echte Emulatorregeln, vollständiges app.js in jsdom; Auth und Grafik sind simuliert. Kein produktiver Firebase-SDK-/Safari-Test. |
+| Oberfläche, Syntax, lokale Ressourcen, Regel-Kopierseite und Reparaturdialog | 2026-10-19T10:15:17.623Z | 30/30 bestanden | jsdom; Canvas-/Bilddekodierung, Downloads, Netzwerk und Firebase-Anbindung teilweise simuliert. Kein Safari-/iPad-Durchlauf. |
+| Vollständiger Anmeldestart und Fehlerfälle | 2026-10-19T10:15:24.325Z | 18/18 bestanden | startApp und Auth-Callback laufen in jsdom; Firebase, Netzwerk und Canvas simuliert. Keine echten Konten verwendet. |
+| Speicherfehler und Dialoglesbarkeit | 2026-10-19T10:15:19.071Z | 14/14 bestanden | Eine GB362-Fehlerreproduktion und 13 Reparaturprüfungen; jsdom und fake-indexeddb mit simulierten Quotenfehlern. |
+| Freigabeansicht nach Navigation, sichtbare Rückmeldungen, optionale Aufgaben | 2026-10-19T10:14:51.898Z | 7/7 bestanden | Vollständiges app.js in jsdom; sichtbare DOM-/CSS-Zustände und simulierte API-Fehler. Kein echter Safari-Test. |
+| Neue Abläufe mit vollständiger Sicherung vom 19. Oktober | 2026-10-19T10:15:27.868Z | 12/12 bestanden | Echte Emulatorregeln, vollständiges app.js in jsdom; Auth und Grafik sind simuliert. Kein produktiver Firebase-SDK-/Safari-Test. |
 | Vollständige Abläufe mit vorhandenen Testkonten im bestehenden Firebase | Nicht abgeschlossen | Offen | Kein bestätigter Kunden-SDK-Durchlauf der Testfassung. |
 
 Die UTC-Zeitstempel stammen aus den gespeicherten Testergebnissen. Die Browser-App verwendet Firebase Compat 10.12.5, die Emulator-API-Prüfungen Firebase 13.0.0. Das ersetzt keine Prüfung der ausgelieferten SDK-Version auf dem iPad. Neue Unterschriften werden als synthetische PNG-Testzeichnungen erzeugt. Die Bestandskopie enthält historische Signaturwerte aus der bereitgestellten Sicherung; diese werden im Emulator beibehalten, nicht zur Freigabe verwendet und nicht in die App-ZIP aufgenommen.
@@ -115,7 +125,7 @@ Die Tests umfassen fremde/verschachtelte Ziel-IDs, gefälschte UID, unvollständ
 
 | Priorität | Offener Punkt | Erforderlicher Abschluss |
 | --- | --- | --- |
-| P0 | Der vollständige neue Ablauf im bestehenden Firebase-Projekt ist noch nicht bestätigt. | Der Benutzer meldet veröffentlichte Regeln; die Sicherung bestätigt Sonja/Max. Mit GB364 einen neuen Vorgang einreichen, freigeben und nach Neuladen im richtigen sowie im zweiten Kundenkonto prüfen. |
+| P0 | Der vollständige neue Ablauf im bestehenden Firebase-Projekt ist noch nicht bestätigt. | Der Benutzer meldet veröffentlichte Regeln; die Sicherung bestätigt Sonja/Max. Mit GB365 einen neuen Vorgang einreichen, freigeben und nach Neuladen im richtigen sowie im zweiten Kundenkonto prüfen. |
 | P2 | Alte unklare Vertragskopien und das visuell leere Signaturbild bleiben historisch vorhanden. | Nach Benutzerwunsch keine Reparatur alter Anfragen. Neue Freigaben verwenden nur den bestätigten eindeutigen Vertragseintrag. Historische Unterschriften werden nicht nachbestätigt. |
 | P0 | Öffentliche Storage-Downloadtokens können bestehende Links weiterhin gültig halten. | Dateien/Links inventarisieren und konkrete Tokenänderungen nach Zustimmung durchführen. Die Testfassung widerruft sie nicht. |
 | P1 | Allgemeine Cloud-Speicherung und Vertragsfreigabe sind administrativ. Frühere Mitarbeiter-Schreibabläufe sind nicht vollständig wiederhergestellt. | Sichere Mitarbeiter-Schreibabläufe mit Portal-Synchronisation abschließen und live prüfen. Vorhandene Rollen wurden nicht erweitert. |
@@ -129,4 +139,4 @@ Die Tests umfassen fremde/verschachtelte Ziel-IDs, gefälschte UID, unvollständ
 
 Die Google-Konsolenanmeldung war zeitweise erfolgreich. Für die anschließend ausdrücklich erlaubte Firebase-CLI konnte die erneute Geräte-/Passkey-Bestätigung in diesem Browser nicht abgeschlossen werden. Der Benutzer erhielt Geräteanfragen nicht; zuletzt bot Google nur den Passkey an. Es gibt keinen bestätigten CLI-Zugang und keine nachgewiesene Bot-Sperrmeldung. Keine Sicherheitsvorkehrung wurde umgangen oder abgeschaltet. Das abgelehnte Firebase-Plugin wird nicht vorausgesetzt; es werden keine Kennwörter oder Autorisierungscodes im Chat verlangt.
 
-Weil nur iPad und iPhone verfügbar sind, ist der Reparaturbereich für die Ausführung durch den angemeldeten Administrator im Workspace vorgesehen. Die App-Dateien von GB364 müssen am bisherigen Ort aktualisiert werden. Die beiden bereits aktualisierten Regeltexte bleiben unverändert; die beiden Testkunden müssen nicht erneut zugeordnet werden. Alte Eingänge sind für den neuen Test nicht zu reparieren. Die Anleitung liegt als `INSTALLATION_IPAD.txt` im Paket. Erst nach den noch offenen Live-Prüfungen kann eine endgültige Freigabe erfolgen.
+Weil nur iPad und iPhone verfügbar sind, ist der Reparaturbereich für die Ausführung durch den angemeldeten Administrator im Workspace vorgesehen. Die App-Dateien von GB365 müssen am bisherigen Ort aktualisiert werden. Die beiden bereits aktualisierten Regeltexte bleiben unverändert; die beiden Testkunden müssen nicht erneut zugeordnet werden. Alte Eingänge sind für den neuen Test nicht zu reparieren. Die Anleitung liegt als `INSTALLATION_IPAD.txt` im Paket. Erst nach den noch offenen Live-Prüfungen kann eine endgültige Freigabe erfolgen.

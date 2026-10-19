@@ -1,4 +1,6 @@
-# GB364 – Reparatur-Testfassung vom 19. Oktober 2026
+# GB365 – Reparatur-Testfassung vom 19. Oktober 2026
+
+GB365 behebt die nach realer Navigation versteckten Übernahme-/Ablehnen-Schaltflächen. Der alte Reset-Aufruf wird an den konsolidierten Prüfbereich gebunden; die neue Ansicht setzt Sichtbarkeit und Berechtigung ausdrücklich. Fehler stehen am geöffneten Eingang und Erfolgsbestätigungen in der Eingangsliste. Doppelte Entscheidungen sind während des Speicherns gesperrt. Aufgabenverteilung ist optional und zugeklappt. Die bisherige Prüfung hatte verdeckte Schaltflächen per Code anklicken können; die ergänzten Tests prüfen die tatsächliche DOM-/CSS-Sichtbarkeit nach der Navigation. Mit GB364 schlagen zwei der zwölf Bestandsprüfungen in diesem verbesserten Test fehl. Die korrigierte Fassung wird damit erneut geprüft.
 
 GB364: Neue Vertragsfreigaben werden ausschließlich aus dem freigegebenen Eintrag unter der eindeutigen Vertragskennung ins Kundenportal kopiert. Alte Alias-Einträge konnten denselben Vertrag zuvor mehrfach kopieren; beim erneuten Laden konnte dadurch ein alter Zustimmungsstand die neue Freigabe überlagern. Mit der tatsächlichen Bestandskopie reproduziert und korrigiert. Neue Änderungen für Sonja und Max, administrative Übernahme, Vertrag und Unterschrift, Aufenthaltsanfrage, Fremdzugriffe und Storage-Pfade sind in zwölf zusätzlichen Emulatorprüfungen getestet. Die 71 alten Vorschläge und 58 Aufgaben bleiben dabei unverändert. Keine neue Bestandsreparatur erforderlich.
 

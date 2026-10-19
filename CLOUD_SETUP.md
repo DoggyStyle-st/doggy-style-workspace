@@ -1,10 +1,10 @@
-# Bestehendes Firebase-Projekt – GB364 Testfassung
+# Bestehendes Firebase-Projekt – GB365 Testfassung
 
 Verwenden: `doggy-style-hundepension`, Organisation `doggystyle`, Bucket `doggy-style-hundepension.firebasestorage.app`.
 Die vorhandene `firebase-config.js` ist unverändert. Kein neues Projekt, kein neues Kundenkonto und kein Zurücksetzen von Passwörtern sind für diese Reparatur vorgesehen.
 
 1. Bisherige App-Dateien und veröffentlichte Regeln als Rückweg behalten. Die bereits gespeicherte Bestandssicherung aufbewahren.
-2. GB364 am bisherigen Ort einspielen und neu öffnen. Die Regeldateien sind gegenüber GB363 unverändert. Bereits veröffentlichte identische Regeln müssen nicht erneut geändert werden.
+2. GB365 am bisherigen Ort einspielen und neu öffnen. Die Regeldateien sind gegenüber GB364 unverändert. Bereits veröffentlichte identische Regeln müssen nicht erneut geändert werden.
 3. Die Sicherung vom 19. Oktober bestätigt Sonja/Bello und Max/Rex jeweils unter ihrem richtigen Konto. Eine erneute Bestandsreparatur dieser beiden Zuordnungen ist dafür nicht erforderlich. Alte Anfragen können unbearbeitet bleiben.
 4. Neue Kundenänderung einreichen, als Administrator unter „Eingänge“ prüfen und übernehmen, im richtigen Kundenkonto erneut öffnen und im zweiten Konto die Trennung prüfen. Danach neue Unterschrift und neue Aufenthaltsanfrage durch denselben Ablauf prüfen.
 5. Weitere Kundenkonten benötigen vor der Nutzung eine eigene geprüfte Kunden-/Hundezuordnung. Das vorhandene Konto „Hans Dampf“ hat in dieser Sicherung noch keine solche Zuordnung. Ohne sie bleibt der Zugriff auf Kundendaten gesperrt.

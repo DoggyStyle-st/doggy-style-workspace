@@ -1,22 +1,19 @@
-Doggy Style GB364 – Reparatur-Testfassung
+Doggy Style GB365 – Freigabeansicht korrigiert
 Stand: 19. Oktober 2026
 
-Diese Fassung ist lokal getestet, einschließlich einer Kopie deiner Sicherung vom 19. Oktober. Die abschließenden Abläufe im echten Firebase und auf iPad/iPhone sind noch offen.
+Neue Eingänge müssen direkt unter „Eingänge“ prüfbar und übernehmbar sein. Aufgaben müssen dafür nicht vorher verteilt werden.
 
-GB364 korrigiert einen Fehler, bei dem alte doppelte Vertragseinträge eine neue Vertragsfreigabe im Kundenportal überlagern konnten. Für Sonja/Bello und Max/Rex bestätigt die Sicherung inzwischen die korrekten Zuordnungen. Alte Anfragen müssen für den Neustart nicht repariert werden.
+GB365 behebt eine alte Navigationsfunktion, die die Entscheidungsschaltflächen versteckt hat. Unter dem Inhalt des geöffneten Eingangs erscheinen jetzt „In Workspace übernehmen“ und „Vorschlag ablehnen“. Rückmeldungen und Fehler erscheinen an derselben Stelle. „Optional: Formular an Kunden senden“ ist zugeklappt und für den normalen Ablauf nicht erforderlich.
 
-Wenn GB363 bereits auf der Website liegt, diese fünf App-Dateien im bisherigen Ordner ersetzen: workflow-core.js, app.js, app.html, customer.html und sw.js. Zusätzlich version.txt und die aktualisierten Anleitungen/Prüfberichte übernehmen. auth.js, browser-store.js, workflow-ui.js, workspace-repair-ui.js, firebase-config.js, Bilder, Templates und beide Firebase-Regeldateien sind gegenüber GB363 unverändert.
+Bei vorhandenem GB364 diese fünf App-Dateien im bisherigen Ordner ersetzen: workflow-ui.js, app.js, app.html, customer.html und sw.js. Zusätzlich version.txt und die aktualisierten Anleitungen/Prüfberichte übernehmen. workflow-core.js, auth.js, browser-store.js, workspace-repair-ui.js, firebase-config.js, Bilder, Templates und beide Firebase-Regeldateien sind gegenüber GB364 unverändert. Bei älterem Stand den vollständigen App-Ordner aus der ZIP übernehmen.
 
-1. ZIP in „Dateien“ speichern und zum Entpacken antippen. Die vorherigen App-Dateien und die Bestandssicherung als Rückweg behalten.
-2. Im vorhandenen GitHub-Repository den bisherigen App-Ordner öffnen. „Add file“ → „Upload files“ verwenden und die geänderten Dateien aus dem entpackten Ordner hochladen. Der Ort von app.html bleibt derselbe.
-3. Andere Workspace-/Kunden-App-Tabs schließen, die normale Website neu öffnen und laden. DIAG muss bei Build(JS) und Build(HTML) GB364_CONTRACT_SYNC_TEST_20261019 zeigen. Keine Safari-Website-Daten löschen.
-4. Den Dialog „Bestand prüfen und reparieren“ schließen. Die beiden bereits aktualisierten Firebase-Regeln sind in GB364 unverändert und müssen bei identischem veröffentlichtem Text nicht nochmals geändert werden.
-5. In der Kunden-App mit Sonjas bestehendem Testkonto anmelden. Es dürfen nur Sonja und Bello erscheinen. Eine kleine Teständerung einreichen. Im Administrator-Workspace den NEUEN Eingang unter „Eingänge“ prüfen und übernehmen. Anschließend im Kundenkonto neu laden und die Änderung kontrollieren.
-6. Mit Max/Rex prüfen, dass Sonjas Änderung dort nicht erscheint. Eine eigene neue Änderung mit Max einreichen und übernehmen.
-7. Einen neuen Betreuungsvertrag unterschreiben und zur Prüfung einreichen. Vor der Freigabe bleibt er ausstehend. Als Administrator die Unterschrift prüfen und übernehmen. Im Kundenkonto neu laden: genau ein freigegebener Vertrag mit derselben Unterschrift muss erscheinen. Eine neue Aufenthaltsanfrage genauso testen.
+1. ZIP in „Dateien“ speichern und entpacken. Vorherige App-Dateien und vorhandene Bestandssicherung als Rückweg behalten.
+2. Im vorhandenen GitHub-Repository den bisherigen App-Ordner öffnen und die genannten Dateien über „Add file“ → „Upload files“ aktualisieren.
+3. Andere Workspace- und Kunden-App-Tabs schließen. Die normale Website neu öffnen und laden. DIAG muss bei Build(JS) und Build(HTML) GB365_INBOX_TEST_20261019 zeigen. Keine Safari-Website-Daten löschen.
+4. Als Administrator „Eingänge“ öffnen. Beim NEUEN Eingang „Prüfen“ wählen. Unter Formular bzw. Unterschrift müssen beide Entscheidungsschaltflächen sichtbar sein. Als Mitarbeiter bleiben sie gesperrt; die Freigabe ist administrativ.
+5. „In Workspace übernehmen“ wählen. Während der Übertragung sind die Entscheidungen gesperrt. Nach Erfolg erscheint eine Bestätigung unter der Eingangsliste. Bei Fehler bleibt der Eingang mit seiner konkreten Meldung offen.
+6. Im passenden Kundenkonto neu laden und die übernommenen Daten bzw. den Vertrag prüfen. Im anderen Testkonto kontrollieren, dass keine fremden Daten erscheinen.
 
-Falls ein neuer Vorgang scheitert: neue Einreichung und ihre genaue Meldung festhalten. Alte Eingänge müssen dafür nicht ergänzt oder übernommen werden. Das zusätzliche vorhandene Konto „Hans Dampf“ hat noch keine geprüfte Zuordnung und ist kein bereits vorbereiteter Testzugang.
+Eine Aufgabenverteilung und eine Reparatur der alten Anfragen sind für neue Einreichungen nicht nötig. Die Zuordnungen Sonja/Bello und Max/Rex sind in der Sicherung vom 19. Oktober korrekt. Die Regeln bleiben unverändert.
 
-Bei einem Gerätespeicherhinweis die angebotene lokale Sicherung speichern. Die Firebase-Bestandssicherung und die lokale Sicherung enthalten keine Auth-Konten oder Storage-Dateien und haben keinen automatischen Importweg. Bei Ausfall beider Gerätespeicher bleiben neue Übermittlungen bis zur Sicherung gesperrt.
-
-Verbleibende Grenzen stehen in PRUEFBERICHT.md. Die Entwicklung hat keine Daten im bestehenden Firebase-Projekt verändert.
+Die neuen Prüfungen verwenden die vollständige Bestandskopie im lokalen Firebase-Emulator und die echte App in jsdom. Der tatsächliche Ablauf im bestehenden Firebase-Projekt auf iPad/iPhone ist noch abzuschließen. Offene Grenzen stehen in PRUEFBERICHT.md. Es wurden keine bestehenden Firebase-Daten geändert.
