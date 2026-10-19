@@ -1,8 +1,10 @@
-# Doggy Style Workspace – GB363 Reparatur-Testfassung
+# Doggy Style Workspace – GB364 Reparatur-Testfassung
 
-Stand: 18. Oktober 2026. **Testfassung; keine abschließende Live-Freigabe.**
+Stand: 19. Oktober 2026. **Testfassung; keine abschließende Live-Freigabe.**
 
 Diese vollständige App-Fassung wurde auf Wunsch trotz noch ausstehender Firebase-Live-Ablauftests bereitgestellt. Die bestehenden Projekt- und Bucket-Angaben bleiben erhalten. Bei der Erstellung wurden keine Firebase-Bestandsdaten, Rollen, Konten, Regeln oder Dateien geändert.
+
+GB364 behebt anhand der Sicherung vom 19. Oktober einen Fehler bei neuen Vertragsfreigaben: Historische Alias-Einträge konnten denselben Vertrag mehrfach in das Kundenportal kopieren und die aktuelle Freigabe überlagern. Jetzt wird ausschließlich der geprüfte Eintrag unter der eindeutigen Vertragskennung synchronisiert. Die neue Unterschrift und die administrative Entscheidung bleiben exakt erhalten. Vorhandene alte Anfragen und Altverträge werden dabei nicht bearbeitet. Die Sicherung bestätigt inzwischen die korrekte getrennte Zuordnung Sonja/Bello und Max/Rex. Neue Abläufe wurden mit dieser Bestandskopie im Firebase-Emulator geprüft.
 
 GB363 behebt den nach GB362 gemeldeten lokalen Quotenfehler. Workspace, Ausgangsstand, Konfliktsicherungen und Kundeneinreichungen können in IndexedDB gespeichert werden. Vorhandene Browserdaten werden nicht pauschal gelöscht. Eine bereits bestätigte Firebase-Reparatur wird bei späterem Anzeigefehler nicht als gescheiterte Speicherung gemeldet. Der Reparaturdialog hat deutlich lesbare Schaltflächen. Wenn beide lokalen Speicher ausfallen, bleiben Änderungen im Arbeitsspeicher und ein Hinweis bietet eine eigene lokale Sicherung an; Kundeneinreichungen werden dann vor dem Übermitteln gestoppt.
 
@@ -14,7 +16,9 @@ Start: `index.html` bzw. `login.html` auf dem bisherigen Webserver. JavaScript, 
 
 Die Datei `INSTALLATION_IPAD.txt` beschreibt das Einspielen und die Reihenfolge. `REGELN_ANZEIGEN.html` zeigt die in diesem Paket enthaltenen Firestore-/Storage-Regeln mit einer Kopierfunktion. Die Regeln werden durch das Hochladen der App nicht automatisch in Firebase veröffentlicht.
 
-Nach administrativer Anmeldung: **Eingänge → Bestand prüfen und reparieren**. Die Prüfung liest zunächst nur den Bestand. Vor jeder angebotenen Änderung muss eine JSON-Sicherung heruntergeladen, in „Dateien“ gespeichert und die konkrete Vorschau bestätigt werden. Sie enthält Workspace, Profile, Vorschläge und Aufgaben; Auth-Konten und Storage-Dateien sind nicht enthalten.
+Für den nächsten Test den Reparaturdialog schließen und einen neuen Vorschlag mit Sonja/Bello einreichen. Nach der administrativen Übernahme im Kundenkonto neu laden. Danach mit Max/Rex die Trennung prüfen und einen neuen Vertrag unterschreiben, einreichen und freigeben. Alte Eingänge müssen dafür nicht repariert werden.
+
+Optional bei tatsächlich fehlenden Zuordnungen: **Eingänge → Bestand prüfen und reparieren**. Die Prüfung liest zunächst nur den Bestand. Vor jeder angebotenen Änderung muss eine JSON-Sicherung heruntergeladen, in „Dateien“ gespeichert und die konkrete Vorschau bestätigt werden. Sie enthält Workspace, Profile, Vorschläge und Aufgaben; Auth-Konten und Storage-Dateien sind nicht enthalten.
 
 ## Reparaturabläufe
 
@@ -27,6 +31,6 @@ Nach administrativer Anmeldung: **Eingänge → Bestand prüfen und reparieren**
 
 ## Vor Live-Freigabe offen
 
-Die Regeln und Zuordnungen müssen im bestehenden Projekt aktiviert und mit zwei echten Kundenkonten geprüft werden. Bereits ausgegebene öffentliche Storage-Downloadlinks sind nicht widerrufen. Allgemeines Cloud-Speichern und Freigeben ist in dieser Fassung administrativ; die bisherigen Mitarbeiter-Schreibabläufe sind nicht vollständig wiederhergestellt. Echte Safari-/iPad-Zeichnung, Druck/PDF, Medienabruf, Service-Worker-Update und vollständige Abläufe im echten Firebase sind noch nicht durchgehend geprüft. Die zentrale Firestore-Dokumentgröße bleibt begrenzt; zu große Schreibvorgänge brechen ab.
+Der Benutzer hat beide Firebase-Regeln nach eigener Angabe aktualisiert. Die Sicherung bestätigt die Zuordnungen für Sonja und Max. Der vollständige Ablauf mit zwei getrennten Kundenkonten im echten Projekt und auf den Geräten ist noch zu bestätigen. Bereits ausgegebene öffentliche Storage-Downloadlinks sind nicht widerrufen. Allgemeines Cloud-Speichern und Freigeben ist in dieser Fassung administrativ; die bisherigen Mitarbeiter-Schreibabläufe sind nicht vollständig wiederhergestellt. Echte Safari-/iPad-Zeichnung, Druck/PDF, Medienabruf, Service-Worker-Update und vollständige Abläufe im echten Firebase sind noch nicht durchgehend geprüft. Die zentrale Firestore-Dokumentgröße bleibt begrenzt; zu große Schreibvorgänge brechen ab.
 
 Details und tatsächliche Testergebnisse stehen in `PRUEFBERICHT.md` und `pruefungen/`. Das Paket enthält keine gespeicherten Passwörter, Sitzungstoken oder privaten Firebase-Schlüssel.

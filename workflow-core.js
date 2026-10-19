@@ -130,8 +130,9 @@
     const petIds = pets.map(idOf);
     if(petIds.some(x=>!x) || new Set(petIds).size !== petIds.length) fail('Hundezordnung ist nicht eindeutig.');
     const version = str(s.contractVersion || 'v1.0');
-    const contracts=Object.values(s.contractAgreements || {}).filter(agr=>agr && agr.customerId===str(cid) && petIds.includes(agr.petId)
-      && approvedContract(s,cid,agr.petId,agr.version)).map(agr=>({customerId:str(cid),petId:agr.petId,version:agr.version,
+    // Historic aliases may describe the same contract. Only its approved canonical record enters the portal.
+    const contracts=Object.entries(s.contractAgreements || {}).filter(([key,agr])=>agr && key===agreementKey(cid,agr.petId,agr.version)
+      && agr.customerId===str(cid) && petIds.includes(agr.petId) && approvedContract(s,cid,agr.petId,agr.version)).map(([,agr])=>({customerId:str(cid),petId:agr.petId,version:agr.version,
         signature:clone(s.contractSignatures[signatureKey(cid,agr.petId,agr.version)]),agreement:clone(agr)}));
     const stays = (s.docs || []).filter(d=>{
       if(!d || d.templateId !== 'hundeannahme')return false;
