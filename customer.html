@@ -7,7 +7,7 @@
   <link href="manifest.json" rel="manifest"/>
   <meta name="theme-color" content="#101014"/>
   <link href="assets/logo.png" rel="apple-touch-icon"/>
-  <link href="styles.css?v=M50.9.9GB365_INBOX_TEST_20261019" rel="stylesheet"/>
+  <link href="styles.css?v=M50.9.9GB366_PORTAL_CHAT_TEST_20261019" rel="stylesheet"/>
   <style>
     body.bg-watermark{background:radial-gradient(circle at top, rgba(255,255,255,.08), transparent 35%), linear-gradient(180deg,#0e1017 0%, #121521 100%) !important}
     body.bg-watermark::before{opacity:.12 !important;filter:none !important}
@@ -210,7 +210,7 @@
         </div>
       </div>
       <div class="mainlike-shell">
-        <div class="card"><div class="customer-section-note">Hier öffnest du Aufenthalte im echten Haupt-App-Editor.</div><div class="customer-topic-visual is-centered is-feature"><img src="assets/customer_stay_dark_wide.jpg" loading="lazy" alt="Bild Neuer Aufenthalt"/></div></div>
+        <div class="card"><div class="customer-section-note">Wähle deinen Hund und den gewünschten Zeitraum. Wir bestätigen dir die Entscheidung in der App.</div></div>
         <div id="stayEditorHost"></div>
       </div>
     </section>
@@ -252,15 +252,17 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
-  <script src="firebase-config.js?v=M50.9.9GB365_INBOX_TEST_20261019"></script>
-  <script src="browser-store.js?v=M50.9.9GB365_INBOX_TEST_20261019"></script>
-<script src="workflow-core.js?v=M50.9.9GB365_INBOX_TEST_20261019"></script>
-<script src="workflow-ui.js?v=M50.9.9GB365_INBOX_TEST_20261019"></script>
-<script src="workspace-repair-ui.js?v=M50.9.9GB365_INBOX_TEST_20261019"></script>
-<script src="app.js?v=M50.9.9GB365_INBOX_TEST_20261019"></script>
+  <script src="firebase-config.js?v=M50.9.9GB366_PORTAL_CHAT_TEST_20261019"></script>
+  <script src="browser-store.js?v=M50.9.9GB366_PORTAL_CHAT_TEST_20261019"></script>
+<script src="workflow-core.js?v=M50.9.9GB366_PORTAL_CHAT_TEST_20261019"></script>
+<script src="workflow-ui.js?v=M50.9.9GB366_PORTAL_CHAT_TEST_20261019"></script>
+<script src="workspace-repair-ui.js?v=M50.9.9GB366_PORTAL_CHAT_TEST_20261019"></script>
+<script src="communication-core.js?v=M50.9.9GB366_PORTAL_CHAT_TEST_20261019"></script>
+<script src="customer-portal.js?v=M50.9.9GB366_PORTAL_CHAT_TEST_20261019"></script>
+<script src="app.js?v=M50.9.9GB366_PORTAL_CHAT_TEST_20261019"></script>
   <script>
     (function(){
-      const BUILD = 'Build CUSTOMER M50.9.9GB365_INBOX_TEST_20261019';
+      const BUILD = 'Build CUSTOMER M50.9.9GB366_PORTAL_CHAT_TEST_20261019';
       const DRAFT_KEY_BASE = 'ds_customer_app_drafts_v2';
       function draftKey(){ const u=(window.CLOUD&&CLOUD.user)||((window.firebase&&firebase.auth)?firebase.auth().currentUser:null); return DRAFT_KEY_BASE+':'+String((u&&u.uid)||'guest'); }
       const viewNames = ['home','dogs','contract','stay','chat'];
@@ -1019,6 +1021,7 @@ function renderStayRealForm(doc){
       }
 
       function openCustomerMainAppMode(mode, sourceTask){
+        if(String(mode||'').toLowerCase()==='stay'){setView('stay');DSCustomerPortal.mountStay(document.getElementById('stayEditorHost'));return;}
         let safeMode = 'dogs';
         try{
           safeMode = ['dogs','contract','stay'].includes(String(mode||'')) ? String(mode||'') : 'dogs';
@@ -1076,14 +1079,7 @@ function renderStayRealForm(doc){
         bind('btnCustomerOpenContractTask', ()=> openCustomerMainAppMode('contract'));
       }
 
-      function ensureCustomerEditorVisible(view){
-        try{
-          if(view === 'stay'){
-            const host = document.getElementById('stayEditorHost');
-            if(host && !host.children.length) openRealSection('hundeannahme', getLatestTask('hundeannahme') || makeSyntheticTask('hundeannahme', 'Neuer Aufenthalt'));
-          }
-        }catch(e){ console.error('ensureCustomerEditorVisible failed', view, e); }
-      }
+      function ensureCustomerEditorVisible(view){if(view==='stay')window.DSCustomerPortal?.mountStay(document.getElementById('stayEditorHost'));}
 
       const __origSetView = setView;
       setView = function(name){
@@ -1144,17 +1140,14 @@ function renderStayRealForm(doc){
         }catch(e){ console.error('customer boot setup failed', e); }
       }
       window.addEventListener('ds-customer-data-ready',()=>{ try{ refreshCustomUI(); renderCustomerMainlikePanels(); }catch(_){ } });
-      const mo = new MutationObserver(()=>refreshCustomUI());
-      window.addEventListener('load', ()=>{ try{ mo.observe(document.getElementById('customerTaskList') || document.body, { childList:true, subtree:true }); }catch(_){ } });
-      setInterval(()=>{ try{ if(currentView === 'chat' || currentView === 'dogs') return; refreshCustomUI(); }catch(_){ } }, 3000);
-      setView('home');
+      setView(new URLSearchParams(location.search).get('view')||'home');
       if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootCustomerPortal); else bootCustomerPortal();
     })();
   </script>
 
 <script>
 (function(){
-  const CURRENT_BUILD = 'M50.9.9GB365_INBOX_TEST_20261019';
+  const CURRENT_BUILD = 'M50.9.9GB366_PORTAL_CHAT_TEST_20261019';
   try{
     window.addEventListener('load', function(){
       try{

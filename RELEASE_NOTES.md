@@ -1,4 +1,6 @@
-# GB365 – Reparatur-Testfassung vom 19. Oktober 2026
+# GB366 – Reparatur-Testfassung vom 19. Oktober 2026
+
+GB366: native Aufenthaltsanfrage für eigene Hunde mit Zeitraum und Bestätigungen; Pfoten-Taste führt zur Kunden-Startseite; Verwaltungsbindungen fehlen-tolerant für customer.html; Entscheidung und persönliche Rückmeldung atomar; Rückmeldungen auf Start und im Chat; Chatziele aus eindeutig zugeordneten aktiven Kundenkonten; UID-basierter Versand ohne E-Mail-Ersatzabfragen; persönlicher Verlauf ohne Löschen fremder Nachrichten; eigene einzelne Nachricht löschbar; atomarer/idempotenter Chatversand; Dateifehler mit eigener Wiederholung; Abmelden/Kontowechsel schließt Chat- und Rückmeldungslistener. Neue Firestore-Regeln erforderlich. Storage-Konfiguration und -Regeln unverändert.
 
 GB365 behebt die nach realer Navigation versteckten Übernahme-/Ablehnen-Schaltflächen. Der alte Reset-Aufruf wird an den konsolidierten Prüfbereich gebunden; die neue Ansicht setzt Sichtbarkeit und Berechtigung ausdrücklich. Fehler stehen am geöffneten Eingang und Erfolgsbestätigungen in der Eingangsliste. Doppelte Entscheidungen sind während des Speicherns gesperrt. Aufgabenverteilung ist optional und zugeklappt. Die bisherige Prüfung hatte verdeckte Schaltflächen per Code anklicken können; die ergänzten Tests prüfen die tatsächliche DOM-/CSS-Sichtbarkeit nach der Navigation. Mit GB364 schlagen zwei der zwölf Bestandsprüfungen in diesem verbesserten Test fehl. Die korrigierte Fassung wird damit erneut geprüft.
 

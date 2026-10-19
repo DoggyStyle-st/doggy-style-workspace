@@ -1,8 +1,12 @@
-# Doggy Style Workspace – GB365 Reparatur-Testfassung
+# Doggy Style Workspace – GB366 Reparatur-Testfassung
 
 Stand: 19. Oktober 2026. **Testfassung; keine abschließende Live-Freigabe.**
 
 Diese vollständige App-Fassung wurde auf Wunsch trotz noch ausstehender Firebase-Live-Ablauftests bereitgestellt. Die bestehenden Projekt- und Bucket-Angaben bleiben erhalten. Bei der Erstellung wurden keine Firebase-Bestandsdaten, Rollen, Konten, Regeln oder Dateien geändert.
+
+GB366 korrigiert die Kunden-Aufenthaltsanfrage mit einem eigenen Formular, den Pfoten-Rückweg, den Start auf customer.html, die Chat-Kundenauswahl und die Chataktionen. Annahme/Ablehnung wird mit der Entscheidung atomar als persönliche Rückmeldung gespeichert und auf Start sowie im Chat angezeigt. Chatverlauf kann für das eigene Konto geleert werden, ohne Nachrichten anderer Teilnehmer zu löschen. Eigene einzelne Nachrichten bleiben löschbar. Die Auswahl verwendet nur aktive, eindeutig zugeordnete Konten. Dateiabruf-Fehler stehen mit Wiederholung direkt an der Datei.
+
+Wichtig für GB366: Die neuen Firestore-Regeln aus diesem Paket veröffentlichen. Sie ermöglichen persönliche Rückmeldungen und das persönliche Leeren des Chatverlaufs. Storage-Regeln und Firebase-Konfiguration bleiben unverändert.
 
 GB365 korrigiert die verborgenen Schaltflächen zur Übernahme und Ablehnung. Beim Wechsel zu „Eingänge“ setzt die App den Prüfbereich eindeutig zurück; beim Öffnen eines neuen Eingangs werden beide Entscheidungsschaltflächen sichtbar. Während einer Speicherung sind beide gesperrt. Fehler erscheinen direkt am geöffneten Eingang, die erfolgreiche Übernahme unter der Eingangsliste. Der Abschnitt zum Senden einer zusätzlichen Formularaufgabe ist jetzt optional und standardmäßig zugeklappt. Neue Einreichungen brauchen keine Aufgabenverteilung. Kontowechsel entfernt auch den offenen Prüfbereich. Sieben zusätzliche Oberflächenprüfungen und die Bestandskopie prüfen ausdrücklich die Navigation und die sichtbaren Bedienelemente.
 

@@ -77,6 +77,8 @@
     if(profileUnsub) profileUnsub(); if(inboxUnsub) inboxUnsub();
     profileUnsub=inboxUnsub=null;profileUid=inboxUid='';reviewRow=null;inboxRows=[];draft=null;
     closeReview();if($('inboxFeedback'))$('inboxFeedback').textContent='';
+    window.DSCustomerPortal?.reset();
+    window.__dsMediaError=null;
     for(const url of blobs.values()) URL.revokeObjectURL(url); blobs.clear();
     if(window.__dsCustomerPortalUnsubscribe) window.__dsCustomerPortalUnsubscribe();
     window.__dsCustomerTasks=[];window.__dsCustomerProposals=[];
@@ -195,11 +197,12 @@
     const attr=el.tagName==='A'?'href':'src';
     const source=mediaSource(el.getAttribute(attr));
     if(!source.startsWith('ds-storage:')) return;
-    const path=source.slice(11), user=currentUser();el.removeAttribute(attr);
+    const path=source.slice(11), user=currentUser();if(el.dataset.dsLoading===path)return;el.removeAttribute(attr);
     if(!user || !path.startsWith('orgs/'+window.firebaseOrgId+'/')) return;
     el.dataset.dsMedia=path;
     const key=user.uid+':'+path;
     if(blobs.has(key)){el.setAttribute(attr,blobs.get(key));return;}
+    el.dataset.dsLoading=path;
     try{
       const token=await user.getIdToken();
       const bucket=window.firebaseConfig.storageBucket;
@@ -207,8 +210,13 @@
       if(!response.ok) throw new Error('Foto konnte nicht mit diesem Konto geladen werden.');
       const blob=await response.blob();
       if(currentUser()?.uid!==user.uid || el.dataset.dsMedia!==path) return;
-      const url=URL.createObjectURL(blob);blobs.set(key,url);el.setAttribute(attr,url);
-    }catch(e){error(e,'cpHint');}
+      const url=URL.createObjectURL(blob);blobs.set(key,url);el.setAttribute(attr,url);el.nextElementSibling?.matches('[data-ds-media-error]')&&el.nextElementSibling.remove();if(window.__dsMediaError?.path===path)window.__dsMediaError=null;
+    }catch(e){
+      if(currentUser()?.uid!==user.uid)return;
+      window.__dsMediaError={path,code:S(e.code||e.name),message:S(e.message),at:Date.now()};console.warn('Medienabruf fehlgeschlagen',path,e);
+      let message=el.nextElementSibling;if(!message?.matches('[data-ds-media-error]')){message=document.createElement('span');message.dataset.dsMediaError='1';message.setAttribute('role','status');el.after(message);}
+      message.replaceChildren(document.createTextNode('Datei konnte nicht geladen werden. '));const retry=document.createElement('button');retry.type='button';retry.className='btn';retry.textContent='Erneut laden';retry.onclick=()=>{el.setAttribute(attr,source);loadMedia(el);};message.append(retry);
+    }finally{if(el.dataset.dsLoading===path)delete el.dataset.dsLoading;}
   }
   function scanMedia(root){
     if(root?.matches?.('img[src],video[src],a[href]'))loadMedia(root);

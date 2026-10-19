@@ -385,6 +385,9 @@
           tx.update(uref,{portalData:snapshot,petIds:snapshot.pets.map(idOf),accessUpdatedAt:stamp});
           resolution.resolvedPetId = pet && pet.id || '';
         }
+        const kind={customer_data:'Änderung deiner Kunden-/Hundedaten',boarding_contract:'Betreuungsvertrag',hundeannahme:'Aufenthaltsanfrage'}[row.templateId]||'Einreichung';
+        tx.set(uref.collection('notifications').doc(row.id),{proposalId:row.id,customerUid:uid,customerId:row.customerId,petId:row.petId,templateId:row.templateId,decision,reviewedAt:stamp,reviewedByUid:admin.uid,read:false,
+          title:kind+(decision==='adopted'?' angenommen':' abgelehnt'),text:decision==='adopted'?'Deine Einreichung wurde geprüft und übernommen. Die bestätigten Daten sind in deiner App verfügbar.':'Deine Einreichung wurde geprüft und abgelehnt. Bei Rückfragen kannst du uns im Chat schreiben.'});
         tx.update(pref,resolution); tx.update(tref,resolution);
         if(sourceRef && sourceRef.id !== tref.id) tx.update(sourceRef,{status:decision,answeredAt:stamp,updatedAt:stamp});
         return {ok:true,id,decision};

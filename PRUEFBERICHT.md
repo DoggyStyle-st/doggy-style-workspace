@@ -1,8 +1,30 @@
-# Doggy Style Workspace – GB365 Reparatur-Testfassung
+# Doggy Style Workspace – GB366 Reparatur-Testfassung
 
 Stand: 19. Oktober 2026. **Vollständige Testfassung; keine abschließende Live-Freigabe.**
 
 Diese vollständige Test-ZIP wurde nach erfolgreichen lokalen Tests erstellt. Die vollständigen Tests im bestehenden Firebase-Projekt stehen noch aus.
+
+## Kundenportal und Chat: Korrekturen in GB366
+
+Die acht iPad-Bilder vom 19. Oktober zeigen GB365 für HTML und JavaScript, ein zugeordnetes Kundenkonto, einen leeren Aufenthaltsbereich nach dem Öffnen der Anfrage, doppelte/technische Einträge in der Chat-Kundenauswahl sowie eine verweigerte Chatlöschung. Der Benutzer meldet zusätzlich den unwirksamen Pfoten-Rückweg und fehlende neue Rückmeldungen auf administrative Entscheidungen.
+
+**Aufenthaltsanfrage:** Ein eigenes Formular öffnet sich direkt in der Kunden-App und im bisherigen Kunden-Stay-Link. Die Umleitung in den eingeschränkten Verwaltungseditor entfällt. Hund, Zeitraum, Betreuungsart, Zeiten, Hinweise und Bestätigungen werden als Vorschlag übertragen. Zur Auswahl stehen ausschließlich die eigenen zugeordneten Hunde. Ungültige Zeiträume werden vor dem Schreiben abgewiesen. Die Anfrage bleibt bis zur administrativen Entscheidung ausstehend. Wiederholung verwendet bei identischen Eingaben dieselbe Vorschlagskennung. Profilaktualisierungen aktualisieren eigene Hunde, ohne einen begonnenen Anfrageentwurf zu löschen.
+
+**Pfoten-Taste und Kundenstart:** Der Pfoten-Klick wird vor den alten Navigationshandlern abgefangen und führt zur Kunden-Startseite. Beim tatsächlichen Laden von customer.html wurde zusätzlich ein Startabbruch gefunden: app.js rief renderRecent auf, obwohl recentList dort nicht existiert; spätere Verwaltungsbindungen erwarteten ebenfalls fehlende Schaltflächen. Die Bindungen sind jetzt optional, und die Übersicht überspringt nicht vorhandene Verwaltungsbereiche. Ein vollständiger Kunden-Auth-Callback wird gegen den Emulator ausgeführt. Die alte DOM-Beobachtung mit fortlaufender Neuerzeugung und das zusätzliche Drei-Sekunden-Polling auf der Kunden-Seite entfallen; Profil-, Chat- und Rückmeldungslistener aktualisieren die relevanten Ansichten.
+
+**Chat-Kundenauswahl:** Ziel sind aktive Workspace-Kunden mit genau einem verifizierten registrierten Konto unter derselben Kunden-ID. Alte Chatkopien, Namens-/E-Mail-Aliasse und unzugeordnete Profilkopien werden nicht zusätzlich angeboten. Zwei gleichnamige unterschiedliche registrierte Konten werden nicht zusammengelegt. Der bestehende Sonja-/Max-Bestand ergibt genau zwei eindeutige Ziele. Bestehende Kundenchats werden nur per UID abgefragt. Eine E-Mail-Abfrage ersetzt keine UID. Vorhandene Chatnachrichten werden nicht automatisch migriert oder gelöscht.
+
+**Chatversand und Leeren:** Absender und Rolle stammen aus dem registrierten Konto, nicht aus möglicherweise vorhandenen Verwaltungsfeldern im DOM. Chatnachricht und Vorschau werden atomar geschrieben; eine erneute Übermittlung mit gleicher Nachrichtenkennung erzeugt kein Duplikat. Ein neuer Chat wird eindeutig unter UID und Teamziel angelegt, auch bei parallelem Öffnen. „Verlauf für mich leeren“ speichert einen persönlichen Sichtbarkeitszeitpunkt. Die Nachrichten des anderen Teilnehmers werden dadurch nicht gelöscht, und neue Nachrichten erscheinen wieder. Einzelne eigene Nachrichten dürfen endgültig gelöscht werden; fremde Nachrichten bieten diese Aktion in der Kundenansicht nicht mehr an. Das bisherige Recht wurde im Frontend zu weit ausgelegt und vom Server zu Recht verweigert. Der Server verweigert fremde Konten, fremde Nachrichten, manipulierte persönliche Sichtbarkeitsfelder und eine vorgetäuschte Teamrolle.
+
+**Persönliche Rückmeldungen:** Annahme/Ablehnung und Rückmeldung werden in derselben Firestore-Transaktion geschrieben. Die Rückmeldung liegt im eigenen Kontopfad unter notifications, mit der Vorschlagskennung als Dokumentkennung. Wiederholung erzeugt kein Duplikat; eine gescheiterte Prüfung erzeugt keine positive Nachricht. Eine Ablehnung ändert den freigegebenen Portalbestand nicht. Kunden sehen die Rückmeldung auf Start und im Chat und können ausschließlich ihre eigenen Rückmeldungen als gelesen markieren. Dies sind Nachrichten innerhalb der App; es wurde kein E-Mail-/Push-Versand eingerichtet und kein echter Kunde durch die Entwicklung angeschrieben.
+
+**Dateien und rote Diagnose:** „Load failed“ allein identifiziert keinen konkreten Request. Aus den Bildern sind weder CORS noch Bucketberechtigungen oder ein Netzproblem als tatsächliche Ursache nachgewiesen. Im Code wurde aber jeder fehlgeschlagene Medienabruf über die allgemeine Sync-Fehlermeldung angezeigt. GB366 ordnet diesen Fehler der Datei zu, bietet einen erneuten authentifizierten Abruf an und hält Code/Pfad für DIAG bereit. Nach erfolgreicher Wiederholung verschwindet der Dateifehler; beim Kontowechsel werden seine Daten entfernt. Globale Profil-/Speicherfehler bleiben sichtbar. Der echte Abruf im bestehenden Bucket und Safari bleibt zu prüfen; eine serverseitige CORS-Reparatur wurde nicht behauptet oder durchgeführt. Downloadtoken werden nicht als Berechtigungsumgehung verwendet.
+
+**Weitere zusammenhängende Fehler:** Neue Aufenthalte besitzen numerische Zeitstempel, während ältere Übersichten String-Sortierung verwendeten. Zwei neue übernommene Aufenthalte konnten deshalb die Anzeige abbrechen lassen. Die Sortierung verarbeitet jetzt numerische, ISO- und Firestore-Zeitstempel. Ein Kontowechsel schließt auch alle Chatlisten-Listener und leert ausgewählte Dateien, offene Inhalte, Chatziele und Rückmeldungen.
+
+**Erforderliche Aktivierung:** GB366 enthält neue Firestore-Regeln für persönliche Rückmeldungen, eigenes Leeren und korrektes Anlegen eines eigenen Chats. Diese Regeln müssen im bestehenden Projekt veröffentlicht werden. Storage-Regeln, Projekt, Bucket und Auth-Konfiguration sind gegenüber GB365 unverändert. Die Kopierseite und INSTALLATION_IPAD.txt enthalten den aktuellen Text bzw. die Reihenfolge. Frühere Bestätigungen veröffentlichter Regeln betreffen nicht automatisch diese neue Fassung.
+
+21 neue Prüfungen bestehen. Sie verwenden die tatsächliche customer.html einschließlich Inline-UI, app.js und die Firestore-/Storage-Emulatoren mit simulierten Auth-Identitäten. Neue Anfrage, Kundenstart, Pfoten-Klick, Entwurfserhalt, echte Kontozuordnungen, alter eigener Chat, Versand, paralleles Öffnen, persönliches Leeren, neue Antworten, eigene Löschung, fremde Zugriffe, Anhänge, Annahme/Ablehnung, Transaktionsfehler, Rückmeldungsanzeige, Lesemarkierung, mehrere angenommene Aufenthalte, Kontowechsel und Dateifehler/Wiederholung werden geprüft. Grafik und der Medien-HTTP-Abruf sind teilweise simuliert. Die produktive Safari-/Firebase-SDK-Prüfung bleibt offen.
 
 ## Fehlende Entscheidungsschaltflächen: reproduziert und in GB365 korrigiert
 
@@ -62,7 +84,7 @@ GB362 bindet die optionalen Elemente ausdrücklich, fängt asynchrone Startfehle
 
 Die bekannten Ursachen der fehlerhaften Kundenzuordnung, Vertragsanzeige und Eingangsübermittlung sind im Code konsolidiert. Hinzugekommen sind eine auf dem iPad bedienbare Bestandsprüfung, eine Sicherung zum Herunterladen, eine konkrete Änderungsvorschau und einzeln bestätigte Reparaturabläufe. Die Vorschau schreibt nichts. Es erfolgt keine automatische Übernahme unklarer Altverträge oder Zuordnung allein anhand von Hundenamen.
 
-**Bei der Bearbeitung wurden keine bestehenden Firebase-Daten, Konten, Rollen, Regeln, Fotos oder Unterschriften geändert.** Das bestehende Projekt und dessen öffentliche App-Konfiguration bleiben unverändert. Die Quell-ZIP wurde nicht ersetzt. GB361, GB362 und GB363 wurden vom Benutzer auf GitHub Pages bereitgestellt; die hier erstellte GB365-Fassung wurde von uns nicht veröffentlicht oder gegen das echte Projekt ausgeführt.
+**Bei der Bearbeitung wurden keine bestehenden Firebase-Daten, Konten, Rollen, Regeln, Fotos oder Unterschriften geändert.** Das bestehende Projekt und dessen öffentliche App-Konfiguration bleiben unverändert. Die Quell-ZIP wurde nicht ersetzt. GB361, GB362 und GB363 wurden vom Benutzer auf GitHub Pages bereitgestellt; die hier erstellte GB366-Fassung wurde von uns nicht veröffentlicht oder gegen das echte Projekt ausgeführt.
 
 ## Ausgangsstand
 
@@ -71,7 +93,7 @@ Die bekannten Ursachen der fehlerhaften Kundenzuordnung, Vertragsanzeige und Ein
 - Bestehendes Projekt: `doggy-style-hundepension`.
 - Organisation: `orgs/doggystyle`.
 - Bucket: `doggy-style-hundepension.firebasestorage.app`.
-- Fassung: `M50.9.9GB365_INBOX_TEST_20261019`.
+- Fassung: `M50.9.9GB366_PORTAL_CHAT_TEST_20261019`.
 - Die maximale Gesamtkapazität von vier Hunden bleibt bestehen.
 
 ## Historische Konsolenbefunde vom 18. Oktober (aktueller Stand siehe oben)
@@ -108,13 +130,14 @@ Die beiden Testbestände Sonja/Bello und Max/Rex sind oben anhand der aktuellen 
 
 | Prüfgruppe | Letzter erfolgreicher Lauf | Ergebnis | Grenze |
 | --- | --- | --- | --- |
-| Vier ursprüngliche Schwachstellen mit Originalregeln reproduziert | 2026-10-19T09:43:48.300Z | 4/4 bestätigt | Erwartete Fehlerreproduktion im Emulator; kein ausgeführter Angriff auf das echte Projekt. |
-| Reparaturregeln und Workflow | 2026-10-19T09:43:48.300Z | 62/62 bestanden | Echte Firestore-/Storage-Emulatorzugriffe, Transaktionen, Listener und Regelentscheidungen mit synthetischen Daten; Auth-Identitäten in der Regeltestumgebung simuliert. |
-| Oberfläche, Syntax, lokale Ressourcen, Regel-Kopierseite und Reparaturdialog | 2026-10-19T10:15:17.623Z | 30/30 bestanden | jsdom; Canvas-/Bilddekodierung, Downloads, Netzwerk und Firebase-Anbindung teilweise simuliert. Kein Safari-/iPad-Durchlauf. |
-| Vollständiger Anmeldestart und Fehlerfälle | 2026-10-19T10:15:24.325Z | 18/18 bestanden | startApp und Auth-Callback laufen in jsdom; Firebase, Netzwerk und Canvas simuliert. Keine echten Konten verwendet. |
-| Speicherfehler und Dialoglesbarkeit | 2026-10-19T10:15:19.071Z | 14/14 bestanden | Eine GB362-Fehlerreproduktion und 13 Reparaturprüfungen; jsdom und fake-indexeddb mit simulierten Quotenfehlern. |
-| Freigabeansicht nach Navigation, sichtbare Rückmeldungen, optionale Aufgaben | 2026-10-19T10:14:51.898Z | 7/7 bestanden | Vollständiges app.js in jsdom; sichtbare DOM-/CSS-Zustände und simulierte API-Fehler. Kein echter Safari-Test. |
-| Neue Abläufe mit vollständiger Sicherung vom 19. Oktober | 2026-10-19T10:15:27.868Z | 12/12 bestanden | Echte Emulatorregeln, vollständiges app.js in jsdom; Auth und Grafik sind simuliert. Kein produktiver Firebase-SDK-/Safari-Test. |
+| Vier ursprüngliche Schwachstellen mit Originalregeln reproduziert | 2026-10-19T17:05:14.613Z | 4/4 bestätigt | Erwartete Fehlerreproduktion im Emulator; kein ausgeführter Angriff auf das echte Projekt. |
+| Reparaturregeln und Workflow | 2026-10-19T17:05:14.613Z | 62/62 bestanden | Echte Firestore-/Storage-Emulatorzugriffe, Transaktionen, Listener und Regelentscheidungen mit synthetischen Daten; Auth-Identitäten in der Regeltestumgebung simuliert. |
+| Oberfläche, Syntax, lokale Ressourcen, Regel-Kopierseite und Reparaturdialog | 2026-10-19T17:09:25.344Z | 30/30 bestanden | jsdom; Canvas-/Bilddekodierung, Downloads, Netzwerk und Firebase-Anbindung teilweise simuliert. Kein Safari-/iPad-Durchlauf. |
+| Vollständiger Anmeldestart und Fehlerfälle | 2026-10-19T17:09:31.895Z | 18/18 bestanden | startApp und Auth-Callback laufen in jsdom; Firebase, Netzwerk und Canvas simuliert. Keine echten Konten verwendet. |
+| Speicherfehler und Dialoglesbarkeit | 2026-10-19T17:09:25.840Z | 14/14 bestanden | Eine GB362-Fehlerreproduktion und 13 Reparaturprüfungen; jsdom und fake-indexeddb mit simulierten Quotenfehlern. |
+| Freigabeansicht nach Navigation, sichtbare Rückmeldungen, optionale Aufgaben | 2026-10-19T17:09:25.768Z | 7/7 bestanden | Vollständiges app.js in jsdom; sichtbare DOM-/CSS-Zustände und simulierte API-Fehler. Kein echter Safari-Test. |
+| Neue Abläufe mit vollständiger Sicherung vom 19. Oktober | 2026-10-19T17:05:27.725Z | 12/12 bestanden | Echte Emulatorregeln, vollständiges app.js in jsdom; Auth und Grafik sind simuliert. Kein produktiver Firebase-SDK-/Safari-Test. |
+| Kundenportal, Aufenthalt, Navigation, Chat, Rückmeldungen und Fehlerfälle | 2026-10-19T17:09:37.551Z | 21/21 bestanden | Tatsächliche Kunden-Seite, Callback und Bedienaktionen in jsdom plus echte Emulatorregeln; Auth, Grafik und Medien-HTTP teilweise simuliert. |
 | Vollständige Abläufe mit vorhandenen Testkonten im bestehenden Firebase | Nicht abgeschlossen | Offen | Kein bestätigter Kunden-SDK-Durchlauf der Testfassung. |
 
 Die UTC-Zeitstempel stammen aus den gespeicherten Testergebnissen. Die Browser-App verwendet Firebase Compat 10.12.5, die Emulator-API-Prüfungen Firebase 13.0.0. Das ersetzt keine Prüfung der ausgelieferten SDK-Version auf dem iPad. Neue Unterschriften werden als synthetische PNG-Testzeichnungen erzeugt. Die Bestandskopie enthält historische Signaturwerte aus der bereitgestellten Sicherung; diese werden im Emulator beibehalten, nicht zur Freigabe verwendet und nicht in die App-ZIP aufgenommen.
@@ -125,12 +148,12 @@ Die Tests umfassen fremde/verschachtelte Ziel-IDs, gefälschte UID, unvollständ
 
 | Priorität | Offener Punkt | Erforderlicher Abschluss |
 | --- | --- | --- |
-| P0 | Der vollständige neue Ablauf im bestehenden Firebase-Projekt ist noch nicht bestätigt. | Der Benutzer meldet veröffentlichte Regeln; die Sicherung bestätigt Sonja/Max. Mit GB365 einen neuen Vorgang einreichen, freigeben und nach Neuladen im richtigen sowie im zweiten Kundenkonto prüfen. |
+| P0 | Der vollständige neue Ablauf im bestehenden Firebase-Projekt ist noch nicht bestätigt. | Der Benutzer meldet veröffentlichte Regeln; die Sicherung bestätigt Sonja/Max. Mit GB366 und den neuen Firestore-Regeln einen neuen Vorgang einreichen, freigeben und nach Neuladen im richtigen sowie im zweiten Kundenkonto prüfen. |
 | P2 | Alte unklare Vertragskopien und das visuell leere Signaturbild bleiben historisch vorhanden. | Nach Benutzerwunsch keine Reparatur alter Anfragen. Neue Freigaben verwenden nur den bestätigten eindeutigen Vertragseintrag. Historische Unterschriften werden nicht nachbestätigt. |
 | P0 | Öffentliche Storage-Downloadtokens können bestehende Links weiterhin gültig halten. | Dateien/Links inventarisieren und konkrete Tokenänderungen nach Zustimmung durchführen. Die Testfassung widerruft sie nicht. |
 | P1 | Allgemeine Cloud-Speicherung und Vertragsfreigabe sind administrativ. Frühere Mitarbeiter-Schreibabläufe sind nicht vollständig wiederhergestellt. | Sichere Mitarbeiter-Schreibabläufe mit Portal-Synchronisation abschließen und live prüfen. Vorhandene Rollen wurden nicht erweitert. |
 | P1 | Auth-Anmeldung, Firestore-/Storage-Regelzusammenspiel, CORS, Dienstberechtigungen und App Check sind nicht mit dieser Testfassung im echten Projekt geprüft. | Zwei echte getrennte Kundenkonten und den Administrator verwenden, einschließlich direkter fremder Pfade und Medienabruf. |
-| P1 | Echte iPad-/Safari-Zeichnung, Fotoverkleinerung, PDF/Druck, Aktualisierung des Service-Workers und Netzunterbrechung sind offen. | Reale Gerätetests mit Neuladen und Kontowechsel durchführen. |
+| P1 | Der konkrete Load-failed-Request, Medienabruf/CORS im echten Bucket sowie echte iPad-/Safari-Zeichnung, Fotoverkleinerung, PDF/Druck, Service-Worker und Netzunterbrechung sind offen. | Reale Gerätetests mit Neuladen und Kontowechsel durchführen. |
 | P1 | Konfliktabgleich wurde lokal, aber nicht mit zwei echten Firebase-Sitzungen geprüft. | Parallele Änderungen und erneute Serveränderung mit realen Sitzungen testen. |
 | P1 | Workspace bleibt ein zentrales Firestore-Dokument mit sicherer Schreibgrenze von 900.000 JSON-Bytes. | Das Sicherungsdokument umfasst rund 265 KB JSON und besteht die neuen Schreibtests. Größere spätere Bestände können eine Aufteilung erfordern; Größenfehler brechen ohne Teilübernahme ab. |
 | P1 | Alte gemeinsame Browserdaten wurden nicht pauschal gelöscht. | Ungesicherte lokale Änderungen vor einer Bereinigung sichern und prüfen. |
@@ -139,4 +162,4 @@ Die Tests umfassen fremde/verschachtelte Ziel-IDs, gefälschte UID, unvollständ
 
 Die Google-Konsolenanmeldung war zeitweise erfolgreich. Für die anschließend ausdrücklich erlaubte Firebase-CLI konnte die erneute Geräte-/Passkey-Bestätigung in diesem Browser nicht abgeschlossen werden. Der Benutzer erhielt Geräteanfragen nicht; zuletzt bot Google nur den Passkey an. Es gibt keinen bestätigten CLI-Zugang und keine nachgewiesene Bot-Sperrmeldung. Keine Sicherheitsvorkehrung wurde umgangen oder abgeschaltet. Das abgelehnte Firebase-Plugin wird nicht vorausgesetzt; es werden keine Kennwörter oder Autorisierungscodes im Chat verlangt.
 
-Weil nur iPad und iPhone verfügbar sind, ist der Reparaturbereich für die Ausführung durch den angemeldeten Administrator im Workspace vorgesehen. Die App-Dateien von GB365 müssen am bisherigen Ort aktualisiert werden. Die beiden bereits aktualisierten Regeltexte bleiben unverändert; die beiden Testkunden müssen nicht erneut zugeordnet werden. Alte Eingänge sind für den neuen Test nicht zu reparieren. Die Anleitung liegt als `INSTALLATION_IPAD.txt` im Paket. Erst nach den noch offenen Live-Prüfungen kann eine endgültige Freigabe erfolgen.
+Weil nur iPad und iPhone verfügbar sind, ist der Reparaturbereich für die Ausführung durch den angemeldeten Administrator im Workspace vorgesehen. Die App-Dateien von GB366 und die neuen Firestore-Regeln müssen am bisherigen Ort bzw. im bestehenden Projekt aktualisiert werden. Die Storage-Regeln bleiben unverändert; die beiden Testkunden müssen nicht erneut zugeordnet werden. Alte Eingänge sind für den neuen Test nicht zu reparieren. Die Anleitung liegt als `INSTALLATION_IPAD.txt` im Paket. Erst nach den noch offenen Live-Prüfungen kann eine endgültige Freigabe erfolgen.
