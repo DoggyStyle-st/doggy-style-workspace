@@ -34,7 +34,7 @@
   }
   function snapshot(profile){
     const ctx=Core.context(currentUser(),profile || window.CLOUD?.userProfile), b=ctx.bundle || {};
-    const next={dogs:[],docs:[],customers:[],pets:[],contractAgreements:{},contractSignatures:{},contractVersion:b.contractVersion || 'v1.0',contract:b.contract || {},_legacy:{dogIdToPetId:{},dogIdToCustomerId:{}}};
+    const next={dogs:[],docs:[],customers:[],pets:[],contractAgreements:{},contractSignatures:{},contractVersion:b.contractVersion || 'v1.0',contract:b.contract || {},legalTexts:b.legalTexts || {},_legacy:{dogIdToPetId:{},dogIdToCustomerId:{}}};
     if(ctx.verified){
       next.customers=[ctx.customer]; next.pets=ctx.pets; next.docs=b.stays || [];
       ctx.pets.forEach(p=>{
@@ -379,51 +379,126 @@
   }
   function closeReview(){
     reviewRow=null;if($('inboxDetail'))$('inboxDetail').style.display='none';
-    $('inboxDetailForm')?.replaceChildren();if($('inboxDetailMeta'))$('inboxDetailMeta').textContent='';
+    $('inboxDetailForm')?.replaceChildren();if($('inboxDetailForm'))delete $('inboxDetailForm').__dsReviewWorkspace;if($('inboxDetailMeta'))$('inboxDetailMeta').textContent='';
     if($('inboxReviewStatus'))$('inboxReviewStatus').textContent='';
     if($('inboxList'))$('inboxList').style.display='';
     if($('inboxProposalList'))$('inboxProposalList').style.display='none';
     reviewControls();
+  }
+  function reviewStyles(){
+    if($('dsReviewStyles'))return;const el=document.createElement('style');el.id='dsReviewStyles';el.textContent=`
+      #inboxDetailForm{font-size:16px;line-height:1.5;text-align:left;overflow-wrap:anywhere}
+      #inboxDetailForm .dsStaySummary{display:grid;grid-template-columns:minmax(90px,150px) minmax(0,1fr);gap:8px 16px}
+      #inboxDetailForm dt{font-weight:700}#inboxDetailForm dd{margin:0;white-space:pre-wrap}
+      #inboxDetailForm .dsReviewTableWrap{overflow-x:auto;max-width:100%;margin:14px 0}
+      #inboxDetailForm table{width:100%;border-collapse:collapse}#inboxDetailForm th,#inboxDetailForm td{padding:10px;text-align:left;border-bottom:1px solid #8888;vertical-align:top}
+      #inboxDetailForm [data-changed="true"]{border-left:5px solid #ff7777;padding-left:12px}
+      #inboxDetailForm [data-changed="true"]>span,#inboxDetailForm .dsChangedText{color:#ffaaaa;font-weight:700}
+      #inboxDetailForm [data-changed="true"] input{border:2px solid #ff7777}
+      #inboxDetailForm .dsStaySignaturePreview{background:#fff;border-radius:10px;max-width:100%;width:500px;height:auto;padding:8px;box-sizing:border-box}
+      #inboxDetailForm summary{cursor:pointer;min-height:44px;padding:10px 0}#inboxDetailForm .dsConsentText{white-space:pre-wrap}
+      #inboxDetailForm button{min-height:44px}#inboxDetailForm .dsOverCapacity{color:#ffaaaa;font-weight:700}
+      @media(max-width:600px){#inboxDetailForm .dsStaySummary{grid-template-columns:1fr}#inboxDetailForm dd{margin-bottom:8px}}
+    `;document.head.append(el);
+  }
+  function reviewNode(tag,text,parent){const el=document.createElement(tag);if(text!=null)el.textContent=text;if(parent)parent.append(el);return el;}
+  const reviewLabels={name:'Name',email:'E-Mail',phone:'Telefon',street:'Straße / Hausnummer',zip:'PLZ',city:'Ort',emergencyName:'Notfallkontakt',emergencyPhone:'Notfalltelefon',pickupAuth:'Abholberechtigte',note:'Hinweise',breed:'Rasse / Mix',birthdate:'Geburtsdatum',sex:'Geschlecht',chipStatus:'Gechippt?',chip:'Chip vorhanden',chipNumber:'Chipnummer',vet:'Tierarzt (Name / Praxis)',vetPhone:'Tierarzt Telefon',vetEmail:'Tierarzt E-Mail',vetStreet:'Straße / Hausnummer Tierarzt',vetZip:'PLZ Tierarzt',vetCity:'Ort Tierarzt',vetEmergencyName:'Tierärztlicher Notfallkontakt',vetEmergencyPhone:'Tierärztliche Notfallnummer',allergies:'Allergien',medicalConditions:'Erkrankungen',insuranceStatus:'Haftpflichtversicherung',insuranceCompany:'Versicherung',insurancePolicy:'Versicherungsnummer',insuranceNotes:'Hinweise zur Versicherung',vaccinatedConfirmed:'Impfstatus bestätigt',rabiesDate:'Tollwutimpfung',mixedVaccineDate:'Kombinationsimpfung',vaccinationPassPhoto:'Impfpassfoto',profilePhoto:'Profilfoto',food:'Futter',treatsAllowed:'Leckerli erlaubt',aloneTime:'Alleinbleiben',houseTrained:'Stubenrein',transport:'Transport',feeding:'Fütterung',compatDogs:'Verträglichkeit mit Hunden',compatCats:'Verträglichkeit mit Katzen',compatKids:'Verträglichkeit mit Kindern',compat:'Verträglichkeit',leashBehavior:'Leinenverhalten',recall:'Rückruf',resourceBehavior:'Ressourcenverhalten',behavior:'Verhalten',dailyRoutine:'Tagesablauf',commands:'Kommandos'};
+  function reviewValue(value,key){if(['profilePhoto','vaccinationPassPhoto'].includes(key))return value?'Foto vorhanden':'Kein Foto';if(value===true||value==='yes')return 'Ja';if(value===false||value==='no')return 'Nein';if(key==='sex')return{m:'männlich',w:'weiblich',f:'weiblich'}[value]||S(value)||'—';return S(value)||'—';}
+  function reviewDate(value){const date=Core.dateISO(value);return date?date.slice(8,10)+'.'+date.slice(5,7)+'.'+date.slice(0,4):'Nicht angegeben';}
+  function changedFields(root,row,workspace){
+    const p=row.payloadSubmitted||{},summary=$('dsReviewChanges');if(!summary)return;summary.replaceChildren();const changes=[];
+    for(const [kind,keys]of [['customer',Core.customerFields],['pet',Core.petFields]]){
+      const before=(workspace?.[kind==='customer'?'customers':'pets']||[]).find(x=>x.id===(kind==='customer'?row.customerId:row.petId));
+      for(const key of keys){if(p[kind]?.[key]===undefined)continue;const input=root.querySelector('[data-review-kind="'+kind+'"][data-review-field="'+key+'"]');
+        const value=input?(input.type==='checkbox'?input.checked:input.value):p[kind][key],previous=before?.[key],changed=JSON.stringify(previous??'')!==JSON.stringify(value??'');
+        const label=input?.closest('label')||root.querySelector('[data-review-photo="'+key+'"]');if(label){label.dataset.changed=String(changed);let line=label.querySelector('[data-review-before]');if(!line){line=reviewNode('small',null,label);line.dataset.reviewBefore='1';}line.textContent=changed?'Bisher: '+reviewValue(previous,key):'Unverändert';}
+        if(changed)changes.push({kind,key,value,previous});
+      }
+    }
+    if(!changes.length){reviewNode('p','Keine Abweichung zu den gespeicherten Angaben.',summary);return;}
+    reviewNode('h3',changes.length+' geänderte Angabe'+(changes.length===1?'':'n'),summary);const wrap=reviewNode('div',null,summary);wrap.className='dsReviewTableWrap';const table=reviewNode('table',null,wrap),head=reviewNode('tr',null,reviewNode('thead',null,table));for(const title of ['Angabe','Bisher','Vorgeschlagen'])reviewNode('th',title,head);const body=reviewNode('tbody',null,table);
+    for(const c of changes){const tr=reviewNode('tr',null,body);tr.dataset.changed='true';reviewNode('td',(c.kind==='customer'?'Kunde: ':'Hund: ')+(reviewLabels[c.key]||c.key),tr);reviewNode('td',reviewValue(c.previous,c.key),tr);reviewNode('td',reviewValue(c.value,c.key),tr).className='dsChangedText';}
+  }
+  function renderReviewOccupancy(host,row,workspace,stamp){
+    host.replaceChildren();reviewNode('h3','Belegung im angefragten Zeitraum',host);const p=row.payloadSubmitted||{},stay=Core.stayDetails(p);
+    try{
+      const days=Core.occupancyRange(workspace,stay.from,stay.to,{petId:row.petId,care:stay.care}),full=days.some(d=>d.exceeds);
+      const status=reviewNode('p',full?'Die Anfrage würde die Kapazität überschreiten.':'Die Anfrage passt in die bestätigte Belegung.',host);status.className=full?'dsOverCapacity':'';
+      reviewNode('p','Maximal 4 Hunde insgesamt. Der Abreisetag zählt mit. Offene Anfragen sind noch nicht reserviert.',host);
+      const wrap=reviewNode('div',null,host);wrap.className='dsReviewTableWrap';const table=reviewNode('table',null,wrap);table.id='dsStayOccupancyTable';const head=reviewNode('tr',null,reviewNode('thead',null,table));
+      for(const title of ['Datum','Tagesbetreuung','Urlaubsbetreuung','Gesamt bisher','Mit Anfrage'])reviewNode('th',title,head);
+      const body=reviewNode('tbody',null,table);for(const d of days){const tr=reviewNode('tr',null,body);tr.dataset.day=d.day;if(d.exceeds)tr.className='dsOverCapacity';for(const value of [reviewDate(d.day),d.daycare+' / '+d.daycareCapacity,d.boarding+' / '+d.boardingCapacity,d.total+' / 4',d.after.total+' / 4'+(d.exceeds?' · zu voll':'')])reviewNode('td',value,tr);}
+      reviewNode('small','Serverstand: '+new Date(stamp||Date.now()).toLocaleString('de-DE')+'. Beim Übernehmen wird die Kapazität erneut geprüft.',host);
+    }catch(e){reviewNode('p',e.message,host);}
+    const refresh=reviewNode('button','Belegung aktualisieren',host);refresh.type='button';refresh.className='btn';refresh.onclick=()=>loadReviewWorkspace(row,host.parentElement);
+  }
+  async function loadReviewWorkspace(row,root){
+    const actor=currentUser()?.uid,occupancy=$('dsStayOccupancy'),baseline=$('dsReviewBaseline');
+    try{const method=api().workspace;if(typeof method!=='function')return;const latest=await method();if(reviewRow!==row||currentUser()?.uid!==actor||!root.isConnected)return;
+      if(row.templateId==='hundeannahme'&&occupancy)renderReviewOccupancy(occupancy,row,latest.payload,latest.stamp);
+      if(row.templateId==='customer_data'){changedFields(root,row,latest.payload);root.__dsReviewWorkspace=latest.payload;if(baseline)baseline.textContent='Vergleich mit dem aktuellen Firebase-Stand vom '+new Date(latest.stamp||Date.now()).toLocaleString('de-DE')+'.';}
+    }catch(e){if(reviewRow!==row||currentUser()?.uid!==actor)return;const target=row.templateId==='hundeannahme'?occupancy:baseline;if(target){target.replaceChildren();reviewNode('p','Der aktuelle Serverstand konnte nicht geladen werden: '+e.message,target);const retry=reviewNode('button','Erneut laden',target);retry.type='button';retry.className='btn';retry.onclick=()=>loadReviewWorkspace(row,root);}}
+  }
+  function renderStayReview(root,row){
+    const p=row.payloadSubmitted||{},m=p.meta||{},f=p.fields||{},stay=Core.stayDetails(p),list=reviewNode('dl',null,root);list.className='dsStaySummary';
+    const customer=(state.customers||[]).find(c=>c.id===row.customerId),pet=(state.pets||[]).find(c=>c.id===row.petId);
+    for(const [label,value]of [['Kunde',row.customerName||customer?.name||f.halter_name||'Nicht angegeben'],['Hund',pet?.name||f.hund_name||'Nicht angegeben'],['Kontakt',row.customerEmail||f.halter_email||'—'],['Betreuungsart',m.betreuung||stay.care||'Nicht angegeben'],['Anreise',reviewDate(stay.from)+(stay.bringTime?' · '+stay.bringTime:'')],['Abreise',reviewDate(stay.to)+(stay.pickupTime?' · '+stay.pickupTime:'')],['Hinweise',stay.notes||'Keine Hinweise']]){reviewNode('dt',label,list);reviewNode('dd',value,list);}
+    const occupancy=reviewNode('section',null,root);occupancy.id='dsStayOccupancy';reviewNode('h3','Belegung im angefragten Zeitraum',occupancy);reviewNode('p','Aktueller Serverstand wird geladen …',occupancy);
+    const consents=reviewNode('section',null,root);reviewNode('h3','Bestätigungen des Kunden',consents);
+    for(const [key,label]of Object.entries(Core.stayConsents)){const details=reviewNode('details',null,consents);reviewNode('summary',(f[key]===true?'✓ Bestätigt: ':'⚠ Nicht bestätigt: ')+label,details);reviewNode('p',p.consentTexts?.[key]||'Bei dieser Einreichung wurde kein vollständiger Textstand mitgespeichert.',details).className='dsConsentText';}
+    reviewNode('h3','Unterschrift zum Aufenthalt',root);
+    if(Core.signatureValid(p.signature)){const img=reviewNode('img',null,root);img.src=p.signature.dataUrl;img.alt='Unterschrift des Kunden zu dieser Aufenthaltsanfrage';img.className='dsStaySignaturePreview';reviewNode('p','Unterschrieben am '+new Date(Number(p.signature.signedAt)).toLocaleString('de-DE'),root);}
+    else reviewNode('p','Keine gültige Unterschrift vorhanden. Für die Übernahme ist eine neue unterschriebene Anfrage erforderlich.',root).className='dsOverCapacity';
   }
   function openReview(row){
     reviewRow=row;const root=$('inboxDetailForm');if(!root)return;
     if($('inboxDetail')) $('inboxDetail').style.display='';
     if($('inboxDetailTitle')) $('inboxDetailTitle').textContent=row.title || row.templateId;
     root.replaceChildren();
-    const meta=document.createElement('p');meta.textContent='Kunde '+row.customerId+' · Hund '+row.petId+' · '+row.customerEmail;root.append(meta);
+    reviewStyles();
     const p=row.payloadSubmitted || {};
     if(row.templateId==='customer_data'){
+      reviewNode('p',[row.customerName||p.customer?.name||'Kundenänderung',row.customerEmail].filter(Boolean).join(' · '),root);
+      reviewNode('p','Vergleich mit dem geladenen Workspace. Aktueller Serverstand wird geprüft …',root).id='dsReviewBaseline';
+      reviewNode('section',null,root).id='dsReviewChanges';
+      const all=reviewNode('details',null,root);reviewNode('summary','Alle eingereichten Angaben prüfen oder bearbeiten',all);
       for(const [kind,keys] of [['customer',Core.customerFields],['pet',Core.petFields]]){
-        const heading=document.createElement('h3');heading.textContent=kind==='customer'?'Kundendaten':'Hund';root.append(heading);
+        const heading=document.createElement('h3');heading.textContent=kind==='customer'?'Kundendaten':'Hund';all.append(heading);
         for(const key of keys){
           const value=p[kind] && p[kind][key];if(value===undefined)continue;
-          if(['profilePhoto','vaccinationPassPhoto'].includes(key)){if(value){const image=document.createElement('img');image.src=mediaSource(value);image.alt=key==='profilePhoto'?'Profilfoto':'Impfpassfoto';image.style.maxWidth='200px';root.append(image);scanMedia(image);}continue;}
+          if(['profilePhoto','vaccinationPassPhoto'].includes(key)){const box=reviewNode('div',null,all);box.dataset.reviewPhoto=key;reviewNode('span',reviewLabels[key],box);if(value){const image=document.createElement('img');image.src=mediaSource(value);image.alt=key==='profilePhoto'?'Profilfoto':'Impfpassfoto';image.style.maxWidth='200px';box.append(image);scanMedia(image);}continue;}
           const label=document.createElement('label');label.className='field';const span=document.createElement('span');
-          span.textContent=document.getElementById((kind==='pet'?'p_':'c_')+key)?.closest('label')?.querySelector('span')?.textContent || key;
+          span.textContent=reviewLabels[key]||key;
           const input=document.createElement('input');input.dataset.reviewKind=kind;input.dataset.reviewField=key;
           if(typeof value==='boolean'){input.type='checkbox';input.checked=value;}else input.value=S(value);
-          label.append(span,input);root.append(label);
+          label.append(span,input);all.append(label);input.addEventListener('input',()=>changedFields(root,row,root.__dsReviewWorkspace||state));
         }
       }
+      root.__dsReviewWorkspace=state;changedFields(root,row,state);
+    }else if(row.templateId==='hundeannahme'){
+      renderStayReview(root,row);
     }else{
+      reviewNode('p',row.customerName||row.customerEmail||'Kundenvertrag',root);
       const pre=document.createElement('pre');pre.style.whiteSpace='pre-wrap';pre.textContent=JSON.stringify({...p,signature:p.signature?'Unterschrift unten':''},null,2);root.append(pre);
       if(p.signature && Core.signatureValid(p.signature)){const image=document.createElement('img');image.src=p.signature.dataUrl;image.alt='Eingereichte Unterschrift';image.style.maxWidth='100%';root.append(image);}
     }
     if($('inboxReviewStatus'))$('inboxReviewStatus').textContent=CLOUD.role==='admin'?'':'Nur der Administrator kann diesen Eingang übernehmen oder ablehnen.';
     reviewControls();
+    if(['customer_data','hundeannahme'].includes(row.templateId))loadReviewWorkspace(row,root);
   }
   async function review(decision){
     if(!reviewRow) throw new Error('Bitte zuerst einen Eingang öffnen.');
     const selected=reviewRow,actor=currentUser()?.uid;
     if($('inboxReviewStatus'))$('inboxReviewStatus').textContent=decision==='adopted'?'Übernahme wird in Firebase gespeichert …':'Ablehnung wird in Firebase gespeichert …';
-    if(decision==='adopted' && reviewRow.templateId==='boarding_contract')await signatureHasInk(reviewRow.payloadSubmitted?.signature);
+    if(decision==='adopted' && ['boarding_contract','hundeannahme'].includes(reviewRow.templateId))await signatureHasInk(reviewRow.payloadSubmitted?.signature);
     if(reviewRow!==selected || currentUser()?.uid!==actor)throw new Error('Eingang oder Konto wurde während der Prüfung gewechselt.');
     const edits=JSON.parse(JSON.stringify(reviewRow.payloadSubmitted || {}));
     document.querySelectorAll('[data-review-field]').forEach(input=>{
       edits[input.dataset.reviewKind][input.dataset.reviewField]=input.type==='checkbox'?input.checked:input.value;
     });
-    await api().review(selected.id,decision,edits);
+    const result=await api().review(selected.id,decision,edits);
     if(currentUser()?.uid!==actor)return;
+    if(result.workspace&&typeof applyRemoteState==='function')applyRemoteState(result.workspace.payload,result.workspace.stamp,'review');
     if(reviewRow===selected)closeReview();
     const message=decision==='adopted'?'✅ Übernahme und Rückmeldung in Firebase gespeichert.':'✅ Vorschlag abgelehnt.';
     if($('inboxFeedback'))$('inboxFeedback').textContent=message;

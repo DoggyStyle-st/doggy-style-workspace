@@ -2,7 +2,7 @@ try{sessionStorage.removeItem('ds_handoff_pass');}catch(_){}
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB366_PORTAL_CHAT_TEST_20261019",
+  tag: "M50.9.9GB367_STAY_REVIEW_TEST_20261019",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -13,7 +13,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB366_PORTAL_CHAT_TEST_20261019";
+const APP_BUILD = "M50.9.9GB367_STAY_REVIEW_TEST_20261019";
 try{ window.__dsAppJsRuntimeBuild = "GB350-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -792,14 +792,7 @@ const STAT_WEIGHTS_B = {
 // ===== END STAT CORE CONFIG =====
 
 // --- Betreuung / Kapazität: robuste Normalisierung ---
-function _normBetreuungType(v){
-  if(v == null) return '';
-  const s = String(v).trim().toLowerCase();
-  if(!s) return '';
-  if(s === 'urlaub' || s === 'urlaubs' || s.includes('urlaub')) return 'urlaubsbetreuung';
-  if(s === 'tag' || s === 'tage' || s === 'tages' || s.includes('tages')) return 'tagesbetreuung';
-  return s;
-}
+function _normBetreuungType(value){return DSWorkflowCore.careType(value).toLowerCase();}
 function _canonicalBetreuungType(v){
   const n = _normBetreuungType(v);
   if(n === 'urlaubsbetreuung') return 'Urlaubsbetreuung';
@@ -808,28 +801,7 @@ function _canonicalBetreuungType(v){
 }
 // === Dynamische Kapazitäten (Standard + Ausnahmen nach Zeitraum) ===
 // Ausnahme-Objekt: { from:"YYYY-MM-DD", to:"YYYY-MM-DD", Tagesbetreuung: 8, Urlaubsbetreuung: 6, note:"Event" }
-function getCapacity(type, dateISO){
-  try{
-    type = _canonicalBetreuungType(type);
-    const caps = state && state.capacities;
-    if(!caps || !caps.default) return Math.min(MAX_DOGS, Number(CAPACITY[type] || 0));
-    const d = String(dateISO||"").slice(0,10);
-    const exs = Array.isArray(caps.exceptions) ? caps.exceptions : [];
-    for(const ex of exs){
-      if(!ex || !ex.from || !ex.to) continue;
-      const from = String(ex.from).slice(0,10);
-      const to   = String(ex.to).slice(0,10);
-      if(d >= from && d <= to){
-        const v = Number(ex[type]);
-        if(Number.isFinite(v) && v >= 0) return Math.min(MAX_DOGS, v);
-      }
-    }
-    const base = Number(caps.default[type]);
-    return (Number.isFinite(base) && base >= 0) ? Math.min(MAX_DOGS, base) : Math.min(MAX_DOGS, Number(CAPACITY[type] || 0));
-  }catch(_){
-    return Math.min(MAX_DOGS, Number(CAPACITY[type] || 0));
-  }
-}
+function getCapacity(type,day){return DSWorkflowCore.capacity(state,type,day);}
 // Für Plausibilitätswarnungen über einen Zeitraum: kleinste Kapazität im Zeitraum (sicherer als "ein Tag")
 function getMinCapacityForRange(type, fromISO, toISO){
   const from = String(fromISO||"").slice(0,10);
@@ -1391,14 +1363,17 @@ Diese Erklärung wird pro Aufenthalt im Formular „Hundeannahme / Aufenthalt“
 }catch(_){}
 function _legalKey(kind){ return `ds_legal_${String(kind||'').toLowerCase()}`; }
 function getLegalText(kind){
-  try{
-    const v = localStorage.getItem(_legalKey(kind));
-    if(v && String(v).trim()) return String(v);
-  }catch(_){ }
-  return LEGAL_DEFAULTS[String(kind||'').toLowerCase()] || '';
-}
-function setLegalText(kind, value){ try{ localStorage.setItem(_legalKey(kind), String(value||'')); }catch(_){ } }
-function resetLegalText(kind){ try{ localStorage.removeItem(_legalKey(kind)); }catch(_){ } }
+    const key=String(kind||'').toLowerCase(),shared=state?.legalTexts?.[key];if(typeof shared==='string'&&shared.trim())return shared;
+    if(!DSWorkflow.scoped()){try{const old=localStorage.getItem(_legalKey(key));if(old&&old.trim())return old;}catch(_){}}
+    return LEGAL_DEFAULTS[key]||'';
+  }
+function setLegalText(kind,value){
+    if(DSWorkflow.scoped()||CLOUD.role!=='admin')throw new Error('Nur Administratoren können Bestätigungstexte ändern.');
+    const key=String(kind||'').toLowerCase();if(!['agb','dsgvo','tierarzt','wahrheit'].includes(key))return;
+    state.legalTexts={...(state.legalTexts||{}),[key]:String(value||'')};
+    try{localStorage.setItem(_legalKey(key),String(value||''));}catch(_){}saveState();
+  }
+function resetLegalText(kind){setLegalText(kind,LEGAL_DEFAULTS[String(kind||'').toLowerCase()]||'');}
 // Rechtstexte in einem iOS-stabilen Overlay (ohne iframe), inkl. Drucken/Speichern + Bearbeiten
 let _legalOverlayStyleInjected = false;
 function _injectLegalOverlayStyles(force=false){
@@ -2112,7 +2087,7 @@ function applyRemoteState(remote,remoteStamp,source){
     CLOUD._lastRemoteStamp=Number(remoteStamp||0);ensureStateShape();ensureContractDefaults();
     DSBrowserStore.cache(LS_KEY,JSON.stringify(state));
     DSWorkflow.rememberBase(remote,remoteStamp);
-    renderDogs();renderDocs();renderInvoiceList();updateSyncUI();DSWorkflow.wireAssignments().catch(console.error);return true;
+    renderDogs();renderDocs();renderInvoiceList();renderDashboard();renderTodayStatus();renderOccupancy();renderRecent();updateSyncUI();DSWorkflow.wireAssignments().catch(console.error);return true;
   }
 async function cloudLoadStateWithRetry(maxTries=3){
   let lastErr = null;
@@ -2153,6 +2128,7 @@ async function cloudPushNow(){
     let retryNewEdits=false;
     try{
       CLOUD._workflowPublishing=true;
+      state.legalTexts=Object.fromEntries(['agb','dsgvo','tierarzt','wahrheit'].map(key=>[key,getLegalText(key)]));
       const captured=JSON.stringify(state);
       const prepared=dsPrepareCloudPayloadStrict(state), payload=prepared.clean;
       const expected=Number(state._cloudUpdatedAt||CLOUD._lastRemoteStamp||0);
@@ -2942,7 +2918,7 @@ async function submitCustomerDogsProposal(){
   // GB355: vollständig lokal sichern, anschließend zuverlässig in proposals + tasks übertragen.
   // Die Oberfläche wird sofort freigegeben; die Erfolgsmeldung "an Eingänge übergeben"
   // erscheint ausschließlich nach bestätigter Firestore-Speicherung.
-  const GB355='M50.9.9GB366_PORTAL_CHAT_TEST_20261019';
+  const GB355='M50.9.9GB367_STAY_REVIEW_TEST_20261019';
   function S(v){ try{return String(v==null?'':v);}catch(_){return '';} }
   function L(v){ return S(v).trim().toLowerCase(); }
   function V(id){ try{const el=document.getElementById(id);return S(el&&el.value!=null?el.value:'').trim();}catch(_){return '';} }
@@ -3086,7 +3062,7 @@ async function submitCustomerStayProposalMain(){
       const signature=typeof ds212ExtractSignature==='function'?ds212ExtractSignature(currentDoc||{}):(currentDoc?.signature||null);
       const id=currentDoc._pendingProposalId || (currentDoc._pendingProposalId=crypto.randomUUID());
       const res=await DSWorkflow.submit({id,templateId:'hundeannahme',title:'Aufenthaltsanfrage',customerId:ctx.customerId,petId:pet.id,
-        payloadSubmitted:{customerId:ctx.customerId,petId:pet.id,meta,fields,signature:signature||null}});
+        payloadSubmitted:{staySchemaVersion:1,consentTexts:DSCustomerPortal.consentTexts(),customerId:ctx.customerId,petId:pet.id,meta,fields,signature:signature||null}});
       if(!res.ok)throw res.error;
       alert('An Eingänge übermittelt. Freigabe durch den Administrator ausstehend.');location.replace('customer.html?view=stay');return res;
     }catch(err){alert('Aufenthalt nicht übermittelt: '+err.message);return {ok:false,error:err};}
@@ -14144,24 +14120,11 @@ function escapeHtml(s){return String(s??"").replaceAll("&","&amp;").replaceAll("
 function overlaps(aFrom, aTo, bFrom, bTo){
   return !(aTo < bFrom || aFrom > bTo);
 }
-function countOccupancy(type, from, to, excludeDocId){
-  return state.docs.filter(d=>{
-    if(!d.saved) return false;
-    if(d.id === excludeDocId) return false;
-    if(_normBetreuungType(d.meta?.betreuung) !== _normBetreuungType(type)) return false;
-    if(!d.meta?.von || !d.meta?.bis) return false;
-    return overlaps(d.meta.von, d.meta.bis, from, to);
-  }).length;
-}
-function countTotalOccupancyForDay(day, excludeDocId){
-  return (state.docs || []).filter(d=>{
-    if(!d || !d.saved || d.id === excludeDocId) return false;
-    const type=_normBetreuungType(d.meta?.betreuung);
-    if(type!=="tagesbetreuung" && type!=="urlaubsbetreuung") return false;
-    if(!d.meta?.von || !d.meta?.bis) return false;
-    return day >= d.meta.von && day <= d.meta.bis;
-  }).length;
-}
+function countOccupancy(type,from,to,excludeDocId){
+    const label=DSWorkflowCore.careType(type);if(!label||!DSWorkflowCore.dateISO(from)||!DSWorkflowCore.dateISO(to)||to<from)return 0;
+    return Math.max(0,...DSWorkflowCore.dateRange(from,to).map(day=>{const n=DSWorkflowCore.occupancyForDay(state,day,excludeDocId);return label==='Urlaubsbetreuung'?n.boarding:n.daycare;}));
+  }
+function countTotalOccupancyForDay(day,excludeDocId){return DSWorkflowCore.occupancyForDay(state,day,excludeDocId).total;}
 function getPeakTotalOccupancy(fromISO,toISO,excludeDocId){
   const from=String(fromISO||"").slice(0,10), to=String(toISO||"").slice(0,10);
   if(!from || !to || from>to) return 0;
@@ -14185,14 +14148,7 @@ function getNextDays(n){
   }
   return days;
 }
-function countForDay(type, day){
-  return state.docs.filter(d=>{
-    if(!d.saved) return false;
-    if(_normBetreuungType(d.meta?.betreuung) !== _normBetreuungType(type)) return false;
-    if(!d.meta?.von || !d.meta?.bis) return false;
-    return day >= d.meta.von && day <= d.meta.bis;
-  }).length;
-}
+function countForDay(type,day){return countOccupancy(type,day,day);}
 function countToday(type){
   const today = toISODateLocal(new Date());
   return countForDay(type, today);
@@ -14200,7 +14156,7 @@ function countToday(type){
 function renderTodayStatus(){
   try{
     const today = new Date();
-    const dayISO = today.toISOString().slice(0,10);
+    const dayISO = toISODateLocal(today);
     const dayCount = countOccupancy('Tagesbetreuung', dayISO, dayISO);
     const overCount = countOccupancy('Urlaubsbetreuung', dayISO, dayISO);
     const dayCap = getCapacity('Tagesbetreuung', dayISO);
@@ -23767,7 +23723,7 @@ try{
 }catch(e){ console.warn(e); }
 
 
-/* ===== CHAT (M50.9.9GB366_PORTAL_CHAT_TEST_20261019) ===== */
+/* ===== CHAT (M50.9.9GB367_STAY_REVIEW_TEST_20261019) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,

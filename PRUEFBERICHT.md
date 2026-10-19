@@ -1,8 +1,28 @@
-# Doggy Style Workspace – GB366 Reparatur-Testfassung
+# Doggy Style Workspace – GB367 Reparatur-Testfassung
 
 Stand: 19. Oktober 2026. **Vollständige Testfassung; keine abschließende Live-Freigabe.**
 
 Diese vollständige Test-ZIP wurde nach erfolgreichen lokalen Tests erstellt. Die vollständigen Tests im bestehenden Firebase-Projekt stehen noch aus.
+
+## Aufenthaltsprüfung, Bestätigungstexte, Unterschrift und Startanzeige: GB367
+
+Die vier neuen iPad-Bilder zeigen die Bestätigungen ohne lesbare vollständige Texte, eine unübersichtliche Rohdatenansicht der Aufenthaltsanfrage mit leerer Unterschrift, die fehlende rote Kennzeichnung eines geänderten Tierarztes sowie eine weiterhin leere Startanzeige nach erfolgreicher Übernahme. Fünf zugehörige Fehler wurden vor der Änderung mit dem unveränderten GB366-Code reproduziert. Der getrennte Nachweis `gb366-stay-reproduction.json` enthält diese erwarteten Reproduktionen, keine bestandene Reparaturprüfung.
+
+**Bestätigungstexte:** Alle sechs Bestätigungen haben einen direkt aufklappbaren lesbaren Text. AGB, Datenschutzhinweis, Wahrheitsgemäß-Erklärung und Tierarzt-Erlaubnis verwenden die bereits in der App vorhandenen Texte; es wurden keine neuen rechtlichen Klauseln formuliert. Individuelle Administrator-Texte können über den normalen Workspace-Speichervorgang als `legalTexts` in das eigene Kundenportal synchronisiert werden. Frühere ausschließlich lokale Änderungen werden beim nächsten ausdrücklichen Speichern berücksichtigt. Die Kundenansicht liest dafür keine anderen Kunden oder den gemeinsamen Workspace. Der eingereichte vollständige Textstand wird unter `consentTexts` am Vorschlag und später am bestätigten Aufenthalt aufbewahrt.
+
+**Eigene Unterschrift je Anfrage:** Das Kundenformular enthält ein weißes Unterschriftenfeld mit schwarzer Zeichnung für Finger/Stift. Die Zeichenfläche wird beim ersten Strich an ihre tatsächlich sichtbare Größe angepasst, damit schmale Ansichten keine verzerrte Zeichnung erzeugen. Ein leeres Feld reicht nicht aus. Fehlt eine Bestätigung oder eine Unterschrift, entsteht kein neuer Eingang. Nach Änderungen an den Formulareingaben muss neu unterschrieben werden. Ändert sich der freigegebene Textstand während eines begonnenen Entwurfs, bleiben Zeitraum und Hinweise erhalten, aber Bestätigungen und Unterschrift müssen erneut abgegeben werden. Wiederholung benutzt unveränderte Daten einschließlich Signaturzeitpunkt. Unterschrift und Textstände bleiben im Eingangspaar, im übernommenen Dokument und im eigenen Kundenportal exakt erhalten. Eine fehlende historische Unterschrift wird weder erzeugt noch aus einem anderen Vertrag kopiert. Alte unsignierte Anfragen können abgelehnt werden; für eine neue Übernahme ist eine aktuelle unterschriebene Anfrage erforderlich.
+
+**Lesbare Eingangsprüfung:** Aufenthaltsanfragen zeigen Namen, Kontakt, Betreuung, An-/Abreisedatum, Bring-/Abholzeit und Hinweise als beschriftete Zusammenfassung. Die Rohdatenansicht entfällt für diese Anfrageart. Darunter stehen die tägliche Belegung, die sechs einzeln lesbaren Bestätigungen und die eingereichte Unterschrift mit Zeitpunkt. Die Belegung wird für den Administrator aus dem aktuellen Serverstand gelesen und kann erneut geladen werden. Ein fehlgeschlagener Abruf wird nicht als freie Belegung ausgegeben. Der Kunde erhält keine Liste fremder Kunden oder Hunde.
+
+**Belegung vor und nach der Anfrage:** Die Vorschau zeigt Tagesbetreuung, Urlaubsbetreuung, bisherige Gesamtzahl und die Zahl nach Übernahme für jeden Tag einschließlich Abreisetag. Maßgeblich bleiben maximal vier Hunde insgesamt sowie niedrigere eingestellte Tagesausnahmen. Probetage zählen zur Tagesbetreuung; derselbe Hund wird bei überlappenden Dokumenten/Mirror-Einträgen höchstens einmal gezählt. Offene Anfragen reservieren keinen Platz. Der administrative Übernahmevorgang liest den aktuellen Workspace in derselben Transaktion erneut und verweigert eine Überschreitung ohne Teilübernahme oder positive Rückmeldung. Bei zwei parallelen Freigaben auf den letzten freien Platz wird genau eine angenommen.
+
+**Startseite tatsächlich aktualisiert:** Die Fehlerursache war `applyRemoteState`: Der bestätigte Serverstand aktualisierte Hunde, Aufenthalts- und Rechnungslisten, aber weder die Startkarten noch die 14-Tage-Prognose. Diese Anzeige blieb deshalb beim anfänglichen Nullstand. Jetzt aktualisiert derselbe Serverstand auch Startkarten, Tagesstatus, Prognose und Belegungsliste. Die Übernahmetransaktion liefert den bestätigten Workspace zusätzlich direkt an die Oberfläche zurück; sie muss nicht erst auf einen weiteren Listener-Durchlauf warten. Die bestehende Konfliktprüfung schützt weiterhin ungespeicherte lokale Änderungen. Ein bereits mit GB366 bestätigter Aufenthalt wird beim Laden von GB367 gezählt, ohne den Datensatz erneut zu übernehmen oder zu ändern. Zukünftige Aufenthalte zählen weiterhin nur an ihren Aufenthaltstagen.
+
+**Rote Änderungsanzeige:** Eingereichte Kunden-/Hundefelder werden mit den aktuellen Serverwerten verglichen. Die Übersicht zeigt bisherige und vorgeschlagene Werte. Geänderte Zeilen und Felder sind rot markiert; ein Rücksetzen auf den bisherigen Wert entfernt die Markierung. Alle eingereichten Angaben sind zusätzlich aufklappbar und bearbeitbar. Die Beschriftungen sind lesbar, z.B. Tierarzt (Name / Praxis), statt technischer Feldnamen. Kontowechsel entfernt auch den für den Vergleich verwendeten Workspace aus dem Prüfbereich.
+
+**Aktivierung:** GB367 erfordert neue Firestore-Regeln. Diese verlangen bei neuen Aufenthaltsanfragen eine PNG-Unterschrift, sechs Bestätigungen und den Textstand. Die Regeln müssen erneut im bestehenden Projekt veröffentlicht werden; GitHub-Dateien allein aktivieren sie nicht. Storage-Regeln, Firebase-Projekt und Auth-Konfiguration bleiben gegenüber GB366 unverändert. Alte Daten werden durch die App-Aktualisierung nicht umgeschrieben.
+
+23 neue Prüfungen bestehen: echtes Kundenformular, lesbare Texte, erforderliche Bestätigungen, Zeichnung, Änderung nach Zeichnung, geänderte Textstände, lesbare Adminprüfung, tägliche Belegung inklusive Abreisetag, volle Mischbelegung, atomare Ablehnung bei Überschreitung, parallele Freigaben, Kapazitätsausnahmen, veraltete Vorschau, sichtbare Übernahmeschaltfläche mit sofortiger Startaktualisierung, Neuladen, Probetage und Spiegel-Datensätze, direkte manipulierte Schreibversuche, Ablehnung alter unsignierter Anfragen, exakter Erhalt von Signatur und Textständen, rote Tierarztänderung, individuelle Texte, Kontowechsel und unveränderte Sicherung. Firestore-/Storage-Emulatoren führen die Berechtigungs- und Transaktionsprüfungen aus. Grafik, Auth-Identitäten und Teile des Netzwerks sind simuliert. Das ist keine bestätigte Messung einer echten iPad-Zeichenbewegung und kein Live-Firebase-Durchlauf.
 
 ## Kundenportal und Chat: Korrekturen in GB366
 
@@ -84,7 +104,7 @@ GB362 bindet die optionalen Elemente ausdrücklich, fängt asynchrone Startfehle
 
 Die bekannten Ursachen der fehlerhaften Kundenzuordnung, Vertragsanzeige und Eingangsübermittlung sind im Code konsolidiert. Hinzugekommen sind eine auf dem iPad bedienbare Bestandsprüfung, eine Sicherung zum Herunterladen, eine konkrete Änderungsvorschau und einzeln bestätigte Reparaturabläufe. Die Vorschau schreibt nichts. Es erfolgt keine automatische Übernahme unklarer Altverträge oder Zuordnung allein anhand von Hundenamen.
 
-**Bei der Bearbeitung wurden keine bestehenden Firebase-Daten, Konten, Rollen, Regeln, Fotos oder Unterschriften geändert.** Das bestehende Projekt und dessen öffentliche App-Konfiguration bleiben unverändert. Die Quell-ZIP wurde nicht ersetzt. GB361, GB362 und GB363 wurden vom Benutzer auf GitHub Pages bereitgestellt; die hier erstellte GB366-Fassung wurde von uns nicht veröffentlicht oder gegen das echte Projekt ausgeführt.
+**Bei der Bearbeitung wurden keine bestehenden Firebase-Daten, Konten, Rollen, Regeln, Fotos oder Unterschriften geändert.** Das bestehende Projekt und dessen öffentliche App-Konfiguration bleiben unverändert. Die Quell-ZIP wurde nicht ersetzt. GB361, GB362 und GB363 wurden vom Benutzer auf GitHub Pages bereitgestellt; die hier erstellte GB367-Fassung wurde von uns nicht veröffentlicht oder gegen das echte Projekt ausgeführt.
 
 ## Ausgangsstand
 
@@ -93,7 +113,7 @@ Die bekannten Ursachen der fehlerhaften Kundenzuordnung, Vertragsanzeige und Ein
 - Bestehendes Projekt: `doggy-style-hundepension`.
 - Organisation: `orgs/doggystyle`.
 - Bucket: `doggy-style-hundepension.firebasestorage.app`.
-- Fassung: `M50.9.9GB366_PORTAL_CHAT_TEST_20261019`.
+- Fassung: `M50.9.9GB367_STAY_REVIEW_TEST_20261019`.
 - Die maximale Gesamtkapazität von vier Hunden bleibt bestehen.
 
 ## Historische Konsolenbefunde vom 18. Oktober (aktueller Stand siehe oben)
@@ -130,14 +150,15 @@ Die beiden Testbestände Sonja/Bello und Max/Rex sind oben anhand der aktuellen 
 
 | Prüfgruppe | Letzter erfolgreicher Lauf | Ergebnis | Grenze |
 | --- | --- | --- | --- |
-| Vier ursprüngliche Schwachstellen mit Originalregeln reproduziert | 2026-10-19T17:05:14.613Z | 4/4 bestätigt | Erwartete Fehlerreproduktion im Emulator; kein ausgeführter Angriff auf das echte Projekt. |
-| Reparaturregeln und Workflow | 2026-10-19T17:05:14.613Z | 62/62 bestanden | Echte Firestore-/Storage-Emulatorzugriffe, Transaktionen, Listener und Regelentscheidungen mit synthetischen Daten; Auth-Identitäten in der Regeltestumgebung simuliert. |
-| Oberfläche, Syntax, lokale Ressourcen, Regel-Kopierseite und Reparaturdialog | 2026-10-19T17:09:25.344Z | 30/30 bestanden | jsdom; Canvas-/Bilddekodierung, Downloads, Netzwerk und Firebase-Anbindung teilweise simuliert. Kein Safari-/iPad-Durchlauf. |
-| Vollständiger Anmeldestart und Fehlerfälle | 2026-10-19T17:09:31.895Z | 18/18 bestanden | startApp und Auth-Callback laufen in jsdom; Firebase, Netzwerk und Canvas simuliert. Keine echten Konten verwendet. |
-| Speicherfehler und Dialoglesbarkeit | 2026-10-19T17:09:25.840Z | 14/14 bestanden | Eine GB362-Fehlerreproduktion und 13 Reparaturprüfungen; jsdom und fake-indexeddb mit simulierten Quotenfehlern. |
-| Freigabeansicht nach Navigation, sichtbare Rückmeldungen, optionale Aufgaben | 2026-10-19T17:09:25.768Z | 7/7 bestanden | Vollständiges app.js in jsdom; sichtbare DOM-/CSS-Zustände und simulierte API-Fehler. Kein echter Safari-Test. |
-| Neue Abläufe mit vollständiger Sicherung vom 19. Oktober | 2026-10-19T17:05:27.725Z | 12/12 bestanden | Echte Emulatorregeln, vollständiges app.js in jsdom; Auth und Grafik sind simuliert. Kein produktiver Firebase-SDK-/Safari-Test. |
-| Kundenportal, Aufenthalt, Navigation, Chat, Rückmeldungen und Fehlerfälle | 2026-10-19T17:09:37.551Z | 21/21 bestanden | Tatsächliche Kunden-Seite, Callback und Bedienaktionen in jsdom plus echte Emulatorregeln; Auth, Grafik und Medien-HTTP teilweise simuliert. |
+| Vier ursprüngliche Schwachstellen mit Originalregeln reproduziert | 2026-10-19T19:40:47.206Z | 4/4 bestätigt | Erwartete Fehlerreproduktion im Emulator; kein ausgeführter Angriff auf das echte Projekt. |
+| Reparaturregeln und Workflow | 2026-10-19T19:40:47.206Z | 62/62 bestanden | Echte Firestore-/Storage-Emulatorzugriffe, Transaktionen, Listener und Regelentscheidungen mit synthetischen Daten; Auth-Identitäten in der Regeltestumgebung simuliert. |
+| Oberfläche, Syntax, lokale Ressourcen, Regel-Kopierseite und Reparaturdialog | 2026-10-19T19:40:32.507Z | 30/30 bestanden | jsdom; Canvas-/Bilddekodierung, Downloads, Netzwerk und Firebase-Anbindung teilweise simuliert. Kein Safari-/iPad-Durchlauf. |
+| Vollständiger Anmeldestart und Fehlerfälle | 2026-10-19T19:40:39.884Z | 18/18 bestanden | startApp und Auth-Callback laufen in jsdom; Firebase, Netzwerk und Canvas simuliert. Keine echten Konten verwendet. |
+| Speicherfehler und Dialoglesbarkeit | 2026-10-19T19:40:33.622Z | 14/14 bestanden | Eine GB362-Fehlerreproduktion und 13 Reparaturprüfungen; jsdom und fake-indexeddb mit simulierten Quotenfehlern. |
+| Freigabeansicht nach Navigation, sichtbare Rückmeldungen, optionale Aufgaben | 2026-10-19T19:40:31.510Z | 7/7 bestanden | Vollständiges app.js in jsdom; sichtbare DOM-/CSS-Zustände und simulierte API-Fehler. Kein echter Safari-Test. |
+| Neue Abläufe mit vollständiger Sicherung vom 19. Oktober | 2026-10-19T19:41:01.374Z | 12/12 bestanden | Echte Emulatorregeln, vollständiges app.js in jsdom; Auth und Grafik sind simuliert. Kein produktiver Firebase-SDK-/Safari-Test. |
+| Kundenportal, Aufenthalt, Navigation, Chat, Rückmeldungen und Fehlerfälle | 2026-10-19T19:43:17.061Z | 21/21 bestanden | Tatsächliche Kunden-Seite, Callback und Bedienaktionen in jsdom plus echte Emulatorregeln; Auth, Grafik und Medien-HTTP teilweise simuliert. |
+| Aufenthaltsprüfung, Texte, Unterschrift, Belegung, Startanzeige und rote Änderungen | 2026-10-19T19:43:35.004Z | 23/23 bestanden | Tatsächliche Kunden-/Adminbedienung in jsdom gegen Firebase-Emulatoren; Auth, Zeichenpixel und Netz teilweise simuliert. |
 | Vollständige Abläufe mit vorhandenen Testkonten im bestehenden Firebase | Nicht abgeschlossen | Offen | Kein bestätigter Kunden-SDK-Durchlauf der Testfassung. |
 
 Die UTC-Zeitstempel stammen aus den gespeicherten Testergebnissen. Die Browser-App verwendet Firebase Compat 10.12.5, die Emulator-API-Prüfungen Firebase 13.0.0. Das ersetzt keine Prüfung der ausgelieferten SDK-Version auf dem iPad. Neue Unterschriften werden als synthetische PNG-Testzeichnungen erzeugt. Die Bestandskopie enthält historische Signaturwerte aus der bereitgestellten Sicherung; diese werden im Emulator beibehalten, nicht zur Freigabe verwendet und nicht in die App-ZIP aufgenommen.
@@ -148,7 +169,7 @@ Die Tests umfassen fremde/verschachtelte Ziel-IDs, gefälschte UID, unvollständ
 
 | Priorität | Offener Punkt | Erforderlicher Abschluss |
 | --- | --- | --- |
-| P0 | Der vollständige neue Ablauf im bestehenden Firebase-Projekt ist noch nicht bestätigt. | Der Benutzer meldet veröffentlichte Regeln; die Sicherung bestätigt Sonja/Max. Mit GB366 und den neuen Firestore-Regeln einen neuen Vorgang einreichen, freigeben und nach Neuladen im richtigen sowie im zweiten Kundenkonto prüfen. |
+| P0 | Der vollständige neue Ablauf im bestehenden Firebase-Projekt ist noch nicht bestätigt. | Der Benutzer meldet veröffentlichte Regeln; die Sicherung bestätigt Sonja/Max. Mit GB367 und den neuen Firestore-Regeln einen neuen Vorgang einreichen, freigeben und nach Neuladen im richtigen sowie im zweiten Kundenkonto prüfen. |
 | P2 | Alte unklare Vertragskopien und das visuell leere Signaturbild bleiben historisch vorhanden. | Nach Benutzerwunsch keine Reparatur alter Anfragen. Neue Freigaben verwenden nur den bestätigten eindeutigen Vertragseintrag. Historische Unterschriften werden nicht nachbestätigt. |
 | P0 | Öffentliche Storage-Downloadtokens können bestehende Links weiterhin gültig halten. | Dateien/Links inventarisieren und konkrete Tokenänderungen nach Zustimmung durchführen. Die Testfassung widerruft sie nicht. |
 | P1 | Allgemeine Cloud-Speicherung und Vertragsfreigabe sind administrativ. Frühere Mitarbeiter-Schreibabläufe sind nicht vollständig wiederhergestellt. | Sichere Mitarbeiter-Schreibabläufe mit Portal-Synchronisation abschließen und live prüfen. Vorhandene Rollen wurden nicht erweitert. |
@@ -162,4 +183,4 @@ Die Tests umfassen fremde/verschachtelte Ziel-IDs, gefälschte UID, unvollständ
 
 Die Google-Konsolenanmeldung war zeitweise erfolgreich. Für die anschließend ausdrücklich erlaubte Firebase-CLI konnte die erneute Geräte-/Passkey-Bestätigung in diesem Browser nicht abgeschlossen werden. Der Benutzer erhielt Geräteanfragen nicht; zuletzt bot Google nur den Passkey an. Es gibt keinen bestätigten CLI-Zugang und keine nachgewiesene Bot-Sperrmeldung. Keine Sicherheitsvorkehrung wurde umgangen oder abgeschaltet. Das abgelehnte Firebase-Plugin wird nicht vorausgesetzt; es werden keine Kennwörter oder Autorisierungscodes im Chat verlangt.
 
-Weil nur iPad und iPhone verfügbar sind, ist der Reparaturbereich für die Ausführung durch den angemeldeten Administrator im Workspace vorgesehen. Die App-Dateien von GB366 und die neuen Firestore-Regeln müssen am bisherigen Ort bzw. im bestehenden Projekt aktualisiert werden. Die Storage-Regeln bleiben unverändert; die beiden Testkunden müssen nicht erneut zugeordnet werden. Alte Eingänge sind für den neuen Test nicht zu reparieren. Die Anleitung liegt als `INSTALLATION_IPAD.txt` im Paket. Erst nach den noch offenen Live-Prüfungen kann eine endgültige Freigabe erfolgen.
+Weil nur iPad und iPhone verfügbar sind, ist der Reparaturbereich für die Ausführung durch den angemeldeten Administrator im Workspace vorgesehen. Die App-Dateien von GB367 und die neuen Firestore-Regeln müssen am bisherigen Ort bzw. im bestehenden Projekt aktualisiert werden. Die Storage-Regeln bleiben unverändert; die beiden Testkunden müssen nicht erneut zugeordnet werden. Alte Eingänge sind für den neuen Test nicht zu reparieren. Die Anleitung liegt als `INSTALLATION_IPAD.txt` im Paket. Erst nach den noch offenen Live-Prüfungen kann eine endgültige Freigabe erfolgen.

@@ -10,6 +10,75 @@
   const idOf = v => str(v && (v.id || v.petId || v.customerId));
   const customerFields = ['name','email','phone','street','zip','city','emergencyName','emergencyPhone','pickupAuth','note'];
   const petFields = ['name','breed','birthdate','sex','chipStatus','chip','chipNumber','vet','vetPhone','vetEmail','vetStreet','vetZip','vetCity','vetEmergencyName','vetEmergencyPhone','allergies','medicalConditions','insuranceStatus','insuranceCompany','insurancePolicy','insuranceNotes','vaccinatedConfirmed','rabiesDate','mixedVaccineDate','vaccinationPassPhoto','profilePhoto','food','treatsAllowed','aloneTime','houseTrained','transport','feeding','compatDogs','compatCats','compatKids','compat','leashBehavior','recall','resourceBehavior','behavior','dailyRoutine','commands','note'];
+  const stayConsents = {ev_agb:'Ich habe die AGB gelesen und akzeptiere sie.',ev_dsgvo:'Ich habe die Datenschutzinformationen gelesen.',ev_wahr:'Meine Angaben sind vollständig und wahrheitsgemäß.',ev_hv:'Mein Hund ist haftpflichtversichert.',ev_gesund:'Mein Hund ist frei von ansteckenden Krankheiten.',ev_tierarzt:'Im Notfall darf mein Hund tierärztlich versorgt werden. Die Kosten trage ich.'};
+  function careType(value){
+    const v=str(value).toLowerCase();
+    if(v==='holiday'||v==='boarding'||v==='ub'||v.includes('urlaub'))return 'Urlaubsbetreuung';
+    if(v==='day'||v==='daycare'||v==='tag'||v==='tb'||v.includes('tages')||v.includes('probe'))return 'Tagesbetreuung';
+    return '';
+  }
+  function dateISO(value){
+    const s=str(value);if(!/^\d{4}-\d{2}-\d{2}$/.test(s))return '';
+    const d=new Date(s+'T12:00:00Z');return Number.isFinite(d.getTime())&&d.toISOString().slice(0,10)===s?s:'';
+  }
+  function stayDetails(value){
+    const p=value||{},m=p.meta||{};
+    return {from:dateISO(m.von||p.from||m.from),to:dateISO(m.bis||p.to||m.to),care:careType(m.betreuung||p.careType||p.type),
+      bringTime:str(m.bringzeit||p.bringTime),pickupTime:str(m.abholzeit||p.pickupTime),notes:str(p.fields?.notes||p.fields?.sonderfall_notiz||p.notes)};
+  }
+  function dateRange(from,to){
+    const a=dateISO(from),b=dateISO(to);if(!a||!b||b<a)fail('Bitte einen gültigen Zeitraum angeben.');
+    const start=Date.parse(a+'T12:00:00Z'),end=Date.parse(b+'T12:00:00Z');
+    if((end-start)/86400000>3660)fail('Der Zeitraum ist zu lang. Bitte einzelne Aufenthalte anfragen.');
+    const result=[];for(let t=start;t<=end;t+=86400000)result.push(new Date(t).toISOString().slice(0,10));return result;
+  }
+  function capacity(workspace,type,day){
+    const label=careType(type),caps=workspace?.capacities;
+    if(!label)return 0;
+    const ex=(caps?.exceptions||[]).find(x=>x&&dateISO(x.from)&&dateISO(x.to)&&day>=x.from&&day<=x.to&&Number.isFinite(Number(x[label]))&&Number(x[label])>=0);
+    const raw=ex?ex[label]:caps?.default?.[label];
+    return raw!=null&&Number.isFinite(Number(raw))&&Number(raw)>=0?Math.min(4,Math.floor(Number(raw))):4;
+  }
+  function confirmedStays(workspace){
+    const s=workspace||{},out=[],seen=new Set();
+    for(const d of s.docs||[]){
+      if(!d||!d.saved||!(d.templateId==='hundeannahme'||d.templateName==='Aufenthalte'||['stay','hundeannahme'].includes(d.type)))continue;
+      if(['cancelled','canceled','storniert','deleted','rejected'].includes(str(d.status||d.meta?.status).toLowerCase()))continue;
+      const info=stayDetails(d);if(!info.from||!info.to||!info.care||info.to<info.from)continue;
+      const pid=str(d.petId||s._legacy?.dogIdToPetId?.[d.dogId]||d.dogId||d.id);
+      out.push({...info,id:str(d.id),petId:pid});seen.add(str(d.id));
+    }
+    for(const d of s.stays||[]){
+      if(!d||seen.has(str(d.docId))||!(d.saved===true||['closed','confirmed','adopted'].includes(str(d.status).toLowerCase())))continue;
+      const info=stayDetails(d);if(!info.from||!info.to||!info.care||info.to<info.from)continue;
+      out.push({...info,id:str(d.docId||d.id),petId:str(d.petId||s._legacy?.dogIdToPetId?.[d.dogId]||d.dogId||d.id)});
+    }
+    return out;
+  }
+  function occupancyForDay(workspace,day,excludeId){
+    const animals=new Map();
+    for(const stay of confirmedStays(workspace))if(stay.id!==str(excludeId)&&day>=stay.from&&day<=stay.to){
+      if(!animals.has(stay.petId)||stay.care==='Urlaubsbetreuung')animals.set(stay.petId,stay.care);
+    }
+    const daycare=[...animals.values()].filter(x=>x==='Tagesbetreuung').length,boarding=animals.size-daycare;
+    return {day,daycare,boarding,total:animals.size,daycareCapacity:capacity(workspace,'Tagesbetreuung',day),boardingCapacity:capacity(workspace,'Urlaubsbetreuung',day),totalCapacity:4,petIds:[...animals.keys()]};
+  }
+  function occupancyRange(workspace,from,to,proposal){
+    const proposed=proposal?{id:'__request__',templateId:'hundeannahme',saved:true,petId:str(proposal.petId),meta:{von:from,bis:to,betreuung:proposal.care}}:null;
+    const after=proposed?{...workspace,docs:[...(workspace?.docs||[]),proposed]}:workspace;
+    return dateRange(from,to).map(day=>{const before=occupancyForDay(workspace,day),next=occupancyForDay(after,day);return {...before,after:next,exceeds:next.total>next.totalCapacity||next.daycare>next.daycareCapacity||next.boarding>next.boardingCapacity};});
+  }
+  function validateStay(payload){
+    const p=payload||{},info=stayDetails(p);dateRange(info.from,info.to);if(!info.care)fail('Betreuungsart fehlt oder ist ungültig.');
+    if(!signatureValid(p.signature))fail('Bitte den Aufenthalt mit einer eigenen Unterschrift bestätigen.','stay-signature-required');
+    for(const key of Object.keys(stayConsents))if(p.fields?.[key]!==true)fail('Bitte alle Bestätigungen zum Aufenthalt prüfen.','stay-consent-required');
+    if(p.staySchemaVersion!==1)fail('Der Textstand zur Anfrage fehlt. Bitte eine neue Anfrage mit der aktuellen App einreichen.','stay-consent-text-required');
+    for(const key of Object.keys(stayConsents))if(!str(p.consentTexts?.[key])||str(p.consentTexts[key]).length>80000)fail('Der Text einer Bestätigung fehlt oder ist zu lang.','stay-consent-text-required');
+    return info;
+  }
+  function legalTexts(workspace){
+    const out={};for(const key of ['agb','dsgvo','tierarzt','wahrheit'])if(typeof workspace?.legalTexts?.[key]==='string')out[key]=workspace.legalTexts[key];return out;
+  }
   function fail(message, code){ const e = new Error(message); e.code = code || 'workflow-validation'; throw e; }
   function pick(v, keys){ const out = {}; for(const k of keys) if(v && v[k] !== undefined) out[k] = clone(v[k]); return out; }
   function stable(value){
@@ -32,7 +101,7 @@
     if(ids.some(x=>!x) || new Set(ids).size !== ids.length) return empty;
     const pets = bundle.pets.filter(p=>p && ids.includes(idOf(p)) && str(p.customerId) === cid);
     if(pets.length !== ids.length || bundle.pets.length !== ids.length || new Set(pets.map(idOf)).size !== ids.length) return empty;
-    const safeBundle={customer:clone(bundle.customer),pets:clone(pets),contractVersion:str(bundle.contractVersion || 'v1.0'),contract:clone(bundle.contract || {}),updatedAt:bundle.updatedAt || 0,
+    const safeBundle={customer:clone(bundle.customer),pets:clone(pets),contractVersion:str(bundle.contractVersion || 'v1.0'),contract:clone(bundle.contract || {}),legalTexts:legalTexts(bundle),updatedAt:bundle.updatedAt || 0,
       contracts:(bundle.contracts || []).filter(c=>c && c.customerId===cid && ids.includes(c.petId)).map(clone),
       stays:(bundle.stays || []).filter(d=>d && d.customerId===cid && ids.includes(d.petId)).map(clone)};
     return {...empty, customerId:cid, customer:clone(bundle.customer), pets:clone(pets), verified:true, bundle:safeBundle};
@@ -140,9 +209,9 @@
       return petIds.includes(pid) && (!str(d.customerId) || str(d.customerId)===str(cid));
     }).map(d=>({...clone(d),customerId:str(cid),petId:str(d.petId || (s._legacy && s._legacy.dogIdToPetId && s._legacy.dogIdToPetId[d.dogId]) || d.dogId)}));
     // Health/contact information is copied only for this customer, never the global workspace.
-    return {customer:clone(customer),pets:clone(pets),contracts,stays:clone(stays),contractVersion:version,contract:clone(s.contract || {}),updatedAt:Date.now()};
+    return {customer:clone(customer),pets:clone(pets),contracts,stays:clone(stays),contractVersion:version,contract:clone(s.contract || {}),legalTexts:legalTexts(s),updatedAt:Date.now()};
   }
-  function validateTarget(data, ctx){
+  function validateTarget(data, ctx, options){
     if(!ctx || !ctx.verified || str(data.customerUid) !== ctx.uid || str(data.customerId) !== ctx.customerId) fail('Kundenkonto und Kundenzuordnung stimmen nicht überein.');
     const pid = str(data.petId), p = data.payloadSubmitted || {};
     const newPet = data.templateId === 'customer_data' && p.isNewPet === true && pid === '';
@@ -160,6 +229,7 @@
         && !(pid && photo.startsWith('ds-storage:orgs/doggystyle/pets/'+pid+'/') && photo.split('/').length===5)) fail('Foto verweist auf einen fremden Hund oder eine ungültige Bildquelle.');
     }
     if(data.templateId === 'boarding_contract' && (p.accepted !== true || !str(p.contractVersion) || !signatureValid(p.signature))) fail('Vertrag, Zustimmung oder Unterschrift fehlen.');
+    if(data.templateId === 'hundeannahme' && !options?.allowIncompleteStay)validateStay(p);
     return true;
   }
   function submission(opts, user, profile){
@@ -327,7 +397,7 @@
         const uid = str(row.customerUid), uref = users.doc(uid), us = await tx.get(uref);
         if(!us.exists) fail('Kundenkonto fehlt.');
         const account = us.data();
-        validateTarget(row,context({uid,email:account.email},account));
+        validateTarget(row,context({uid,email:account.email},account),{allowIncompleteStay:decision==='rejected'});
         let sourceRef = null;
         if(str(row.sourceTaskId)){
           sourceRef = tasks.doc(str(row.sourceTaskId));
@@ -336,6 +406,7 @@
             || src.data().templateId!==row.templateId || src.data().status!=='open' || (str(src.data().petId) && str(src.data().petId)!==str(row.petId))) fail('Die Ausgangsaufgabe gehört zu einem anderen Kunden, Hund oder Formular oder ist nicht mehr offen.');
         }
         const stamp = Math.max(Date.now(),Number(ws.data().updatedAt || 0)+1), resolution = {status:decision,proposalStatus:decision,reviewedAt:stamp,reviewedByUid:admin.uid,updatedAt:stamp};
+        let adoptedWorkspace=null;
         if(decision === 'adopted'){
           const workspace = decode(ws.data()), cid = row.customerId, input = row.payloadSubmitted || {};
           const customer = (workspace.customers || []).find(c=>idOf(c) === cid);
@@ -372,8 +443,11 @@
               signatureAt:Number(input.signature.signedAt),savedAt:stamp,approvedAt:stamp,approvedByUid:admin.uid,approvalId:row.id};
           }else if(row.templateId === 'hundeannahme'){
             if(!pet) fail('Zugeordneter Hund fehlt.');
+            const stay=validateStay(input),days=occupancyRange(workspace,stay.from,stay.to,{petId:pet.id,care:stay.care}),full=days.find(d=>d.exceeds);
+            if(full)fail('Am '+full.day+' würde die Kapazität überschritten. Der Eingang bleibt offen.','stay-capacity-exceeded');
             const doc = {id:newStayId,templateId:'hundeannahme',templateName:'Aufenthalte',customerId:cid,petId:pet.id,dogId:pet.dogId || pet.id,
               fields:clone(input.fields || {}),meta:clone(input.meta || {}),signature:input.signature ? clone(input.signature) : null,
+              staySchemaVersion:input.staySchemaVersion||0,consentTexts:clone(input.consentTexts||{}),
               sourceProposalId:row.id,createdAt:stamp,updatedAt:stamp,saved:true};
             (workspace.docs || (workspace.docs=[])).push(doc);
           }else fail('Nicht unterstütztes Formular.');
@@ -383,6 +457,7 @@
           if(new TextEncoder().encode(JSON.stringify({...ws.data(),...next})).length > 900000) fail('Workspace überschreitet die sichere Dokumentgröße. Eingang bleibt offen.','workspace-too-large');
           tx.update(stateRef,next);
           tx.update(uref,{portalData:snapshot,petIds:snapshot.pets.map(idOf),accessUpdatedAt:stamp});
+          adoptedWorkspace={payload:workspace,stamp};
           resolution.resolvedPetId = pet && pet.id || '';
         }
         const kind={customer_data:'Änderung deiner Kunden-/Hundedaten',boarding_contract:'Betreuungsvertrag',hundeannahme:'Aufenthaltsanfrage'}[row.templateId]||'Einreichung';
@@ -390,7 +465,7 @@
           title:kind+(decision==='adopted'?' angenommen':' abgelehnt'),text:decision==='adopted'?'Deine Einreichung wurde geprüft und übernommen. Die bestätigten Daten sind in deiner App verfügbar.':'Deine Einreichung wurde geprüft und abgelehnt. Bei Rückfragen kannst du uns im Chat schreiben.'});
         tx.update(pref,resolution); tx.update(tref,resolution);
         if(sourceRef && sourceRef.id !== tref.id) tx.update(sourceRef,{status:decision,answeredAt:stamp,updatedAt:stamp});
-        return {ok:true,id,decision};
+        return {ok:true,id,decision,...(adoptedWorkspace?{workspace:adoptedWorkspace}:{})};
       });
     }
     async function publish(workspace, expectedStamp){
@@ -435,5 +510,5 @@
     return {profile,workspace,submit,assign,review,publish,approveManualContract,maintenance,repairPair,
       linkCustomer:(uid,cid,stamp,account)=>assign(uid,cid,'',{stamp,account})};
   }
-  return {context,signatureValid,canvasHasInk,auditRecords,restoreRecords,signatureKey,agreementKey,approvedContract,portalSnapshot,validateTarget,submission,sameSubmission,mergePlan,resolveMerge,service,customerFields,petFields};
+  return {context,signatureValid,canvasHasInk,auditRecords,restoreRecords,signatureKey,agreementKey,approvedContract,portalSnapshot,validateTarget,submission,sameSubmission,mergePlan,resolveMerge,service,customerFields,petFields,stayConsents,careType,dateISO,stayDetails,dateRange,capacity,confirmedStays,occupancyForDay,occupancyRange,validateStay,legalTexts};
 });

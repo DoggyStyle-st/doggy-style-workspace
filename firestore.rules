@@ -47,6 +47,29 @@ service cloud.firestore {
         && p.signature.dataUrl.size() > 128 && p.signature.dataUrl.size() < 180000
         && p.signature.get('signedAt', 0) is number && p.signature.signedAt > 0);
     }
+    function stayPayload(data) {
+      let p = data.payloadSubmitted;
+      let f = p.get('fields', {});
+      let m = p.get('meta', {});
+      return data.templateId != 'hundeannahme' || (f is map && m is map
+        && m.get('von', '') is string && m.von.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}')
+        && m.get('bis', '') is string && m.bis.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}')
+        && m.get('betreuung', '') in ['Tagesbetreuung','Urlaubsbetreuung','Probetag']
+        && f.get('ev_agb', false) == true && f.get('ev_dsgvo', false) == true && f.get('ev_wahr', false) == true
+        && f.get('ev_hv', false) == true && f.get('ev_gesund', false) == true && f.get('ev_tierarzt', false) == true
+        && p.get('signature', {}) is map && p.signature.get('dataUrl', '') is string
+        && p.signature.dataUrl.matches('data:image/png;base64,iVBORw0KGgo[A-Za-z0-9+/=]+')
+        && p.signature.dataUrl.size() > 128 && p.signature.dataUrl.size() < 180000
+        && p.signature.get('signedAt', 0) is number && p.signature.signedAt > 0
+        && p.get('staySchemaVersion', 0) == 1 && (p.get('consentTexts', {}) is map
+          && p.consentTexts.keys().hasAll(['ev_agb','ev_dsgvo','ev_wahr','ev_hv','ev_gesund','ev_tierarzt'])
+          && p.consentTexts.ev_agb is string && p.consentTexts.ev_agb.size() > 0
+          && p.consentTexts.ev_dsgvo is string && p.consentTexts.ev_dsgvo.size() > 0
+          && p.consentTexts.ev_wahr is string && p.consentTexts.ev_wahr.size() > 0
+          && p.consentTexts.ev_hv is string && p.consentTexts.ev_hv.size() > 0
+          && p.consentTexts.ev_gesund is string && p.consentTexts.ev_gesund.size() > 0
+          && p.consentTexts.ev_tierarzt is string && p.consentTexts.ev_tierarzt.size() > 0));
+    }
     function sourceTask(data, orgId) {
       let path = /databases/$(database)/documents/orgs/$(orgId)/tasks/$(data.sourceTaskId);
       return data.sourceTaskId == '' || (exists(path) && get(path).data.get('customerUid', '') == request.auth.uid
@@ -63,7 +86,7 @@ service cloud.firestore {
         && d.templateId in ['customer_data','boarding_contract','hundeannahme']
         && d.petId is string && d.dogId == d.petId && d.sourceTaskId is string
         && (d.petId in profile(orgId).petIds || (d.templateId == 'customer_data' && d.petId == '' && d.payloadSubmitted.get('isNewPet', false) == true))
-        && payloadTarget(d, d.customerId, d.petId) && petPhotos(d, orgId) && contractPayload(d, orgId) && sourceTask(d, orgId);
+        && payloadTarget(d, d.customerId, d.petId) && petPhotos(d, orgId) && contractPayload(d, orgId) && stayPayload(d) && sourceTask(d, orgId);
     }
     function counterpart(orgId, collection, docId) {
       return getAfter(/databases/$(database)/documents/orgs/$(orgId)/$(collection)/$(docId)).data == request.resource.data;
