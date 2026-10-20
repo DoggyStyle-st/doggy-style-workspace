@@ -1,10 +1,28 @@
-# Doggy Style Workspace – GB369 Reparatur-Testfassung
+# Doggy Style Workspace – GB370 Reparatur-Testfassung
 
 Stand: 20. Oktober 2026. **Vollständige Testfassung; keine abschließende Live-Freigabe.**
 
 Diese vollständige Test-ZIP wurde nach erfolgreichen lokalen Tests erstellt. Die vollständigen Tests im bestehenden Firebase-Projekt stehen noch aus.
 
-## Fotoupload, sichtbare Änderungen und Übernahme: GB369
+## Privater Fotoabruf und genaue Fehler: GB370
+
+**Neuer Befund:** Der Kunde kann das Foto auswählen, hochladen und einreichen. Der Eingang erkennt das neue Bild, aber kleine Vorschau und Vergrößerung zeigen Datei konnte nicht geladen werden. Die öffentlich ausgelieferte workflow-ui.js war bei der Prüfung bytegleich mit GB369. Zwei Fehlerfälle wurden im unveränderten GB369-Loader reproduziert: HTTP 403 und HTTP 404 verlieren ihren Status und erzeugen denselben allgemeinen Hinweis. Die ursprüngliche Meldung allein erlaubt deshalb keine verlässliche Unterscheidung zwischen fehlender Leseberechtigung, fehlender Datei oder einem Transportproblem.
+
+**Schreibfreier Endpunkttest:** Zwei OPTIONS-Anfragen an den vorhandenen Firebase-Storage-Endpunkt für einen absichtlich nicht vorhandenen Sentinel-Pfad lieferten eine erlaubte GET-Methode und erlaubtes Authorization. Cache-Control und Pragma werden in dieser Antwort nicht als erlaubte Anfrageheader aufgeführt. Der GB369-Loader verwendete Fetch mit cache no-store. Ein Browser kann Cache-Vorgaben anders als der SDK-Transport behandeln. Das ist ein Kompatibilitätsverdacht, kein Nachweis, dass gerade diese beiden Header auf dem iPad die Ursache waren. Der OPTIONS-Test las keine Kundenobjekte und verwendete keine Anmeldung. Die konkrete HTTP-Antwort des privaten Fotos im echten Konto bleibt offen. Keine CORS-Einstellung oder andere Projektkonfiguration wurde geändert. Details stehen in storage-transport-probe.json.
+
+**Neuer Abruf:** GB370 verwendet für private Datei-Bytes einen authentifizierten XMLHttpRequest mit Blob-Antwort, entsprechend dem Browser-Transport des verwendeten Storage-SDKs. Er erzwingt keine Cache-Control-/Pragma-Header. Eine neue Anfragekennung in der URL verhindert die Wiederverwendung einer älteren HTTP-Antwort. Das Konto-Token steht ausschließlich im Authorization-Header; Downloadtokens oder ein anonymer Fallback werden nicht verwendet. HTTP 401 erneuert das Konto-Token höchstens einmal. Der vorhandene Bucket und die Regeln bleiben unverändert. Vorhandene gespeicherte Fotopfade können ohne erneuten Upload wieder geöffnet werden; eine tatsächlich fehlende Datei wird dadurch nicht rekonstruiert.
+
+**Sichtbare Diagnose:** Anmeldung (401), fehlende Leseberechtigung (403), fehlende Datei (404), zu viele Anfragen (429), Serverfehler, Netz/CORS, Zeitüberschreitung, leere Datei und ein nach dem Download nicht darstellbarer Inhalt werden unterschieden. Ein Netz/CORS-Fehler kann vom Browser ohne HTTP-Status gemeldet werden; die Oberfläche behauptet dann keine genauere Ursache. Erneut laden versucht dieselbe Datei erneut. HTTP-Status und genauer Fehler bleiben auch in DIAG erhalten, ohne Anmeldetokens auszugeben. Die neue Login-Seite trägt dieselbe Buildnummer und neue Versionsverweise wie die App; der alte Login-Verweis auf GB360 entfällt.
+
+**Kontogrenzen und parallele Vorschauen:** Vorschau und vergrößertes Bild teilen sich denselben laufenden Abruf. Die geladenen Blob-Adressen bleiben pro UID getrennt. Ein Kontoreset bricht laufende Anfragen ab und widerruft alle geladenen Adressen. Auch Abmelden und erneutes Anmelden derselben UID kann einen vor dem Reset wartenden Tokenabruf nicht fortsetzen. Verspätete Fehler eines alten Fotos dürfen keine Meldung an einem inzwischen ersetzten Bild erzeugen. Ein nicht darstellbarer Blob wird vor einem neuen Versuch aus dem privaten Vorschaucache entfernt.
+
+**Geprüft und offen:** 19 neue Transportprüfungen verwenden nativen XMLHttpRequest aus jsdom mit echten TCP-Anfragen und CORS-Vorabprüfungen gegen einen strengen lokalen, Firebase-förmigen Testendpunkt. Das sind keine echten Safari-Tests. Die 26 Fotoabläufe verwenden für die tatsächliche Vorschau jetzt ebenfalls nativen XMLHttpRequest gegen den Firebase-Storage-Emulator, statt eines Node-Fetch-Ersatzes ohne CORS-Prüfung. Upload, Einreichung, Sichtbarkeit, Übernahme und anschließendes Laden im eigenen Portal bestehen; andere Kunden erhalten weiter keinen Zugriff. Die übrigen Regressionen wurden erneut ausgeführt. Insgesamt bestehen 266 Prüfungen in den aktuellen Gruppen; ursprüngliche erwartete Fehlerreproduktionen sind in den jeweiligen Gruppen ausdrücklich gekennzeichnet. Die zwei neuen GB369-Fehlerreproduktionen und drei älteren GB368-Reproduktionen stehen gesondert.
+
+Ein angemeldeter Abruf im bestehenden Projekt und die Anzeige auf iPad/iPhone sind noch nicht erfolgreich nachgewiesen. Der öffentliche Browser-Aufruf endet an der Anmeldung; es wurde kein erneuter Google-/Passkey-Loginversuch begonnen. Deshalb bleibt GB370 eine vollständige TESTFASSUNG. Der Benutzer meldet die produktiven Einzelschritte, während Entwicklungstests ausschließlich in isolierten Emulatoren und lokalen Testservern schreiben.
+
+Technische Referenz: https://firebase.google.com/docs/storage/web/download-files – direkte authentifizierte Downloads, CORS-Voraussetzungen und Fehlerbehandlung. Der tatsächliche Endpunktbefund stammt aus dem separat dokumentierten schreibfreien Test, nicht aus einer allgemeinen Dokumentationsannahme.
+
+## Enthaltene Fotoupload-Reparaturen aus GB369
 
 Die Bilder vom 20. Oktober zeigen einen neuen Kundeneingang mit Keine Abweichung zu den gespeicherten Angaben und einen Editor ohne sichtbare Fotoübernahme. Aus den Bildern allein ist der konkrete Uploadfehler nicht erkennbar. Im unveränderten GB368-Code wurden drei zugehörige Fehlerfälle reproduziert: Ein abgelehnter Storage-Upload wird still abgefangen, eine Einreichung kann vor dem Uploadende ohne das neue Foto gespeichert werden, und ein bisher nicht direkt erlaubtes Bildformat verschwindet ohne verständliche Fehlermeldung. Der Nachweis gb368-photo-reproduction.json enthält diese erwarteten Reproduktionen, keine bestandenen Reparaturtests. Die bisherigen Fotoprüfungen hatten fertige Fotopfade im Vorschlag geprüft; sie führten die tatsächliche Dateiauswahl und ihre asynchronen Fehler nicht vollständig aus.
 
@@ -138,7 +156,7 @@ GB362 bindet die optionalen Elemente ausdrücklich, fängt asynchrone Startfehle
 
 Die bekannten Ursachen der fehlerhaften Kundenzuordnung, Vertragsanzeige und Eingangsübermittlung sind im Code konsolidiert. Hinzugekommen sind eine auf dem iPad bedienbare Bestandsprüfung, eine Sicherung zum Herunterladen, eine konkrete Änderungsvorschau und einzeln bestätigte Reparaturabläufe. Die Vorschau schreibt nichts. Es erfolgt keine automatische Übernahme unklarer Altverträge oder Zuordnung allein anhand von Hundenamen.
 
-**Bei der Bearbeitung wurden keine bestehenden Firebase-Daten, Konten, Rollen, Regeln, Fotos oder Unterschriften geändert.** Das bestehende Projekt und dessen öffentliche App-Konfiguration bleiben unverändert. Die Quell-ZIP wurde nicht ersetzt. GB361, GB362 und GB363 wurden vom Benutzer auf GitHub Pages bereitgestellt; die hier erstellte GB369-Fassung wurde von uns nicht veröffentlicht oder gegen das echte Projekt ausgeführt.
+**Bei der Bearbeitung wurden keine bestehenden Firebase-Daten, Konten, Rollen, Regeln, Fotos oder Unterschriften geändert.** Das bestehende Projekt und dessen öffentliche App-Konfiguration bleiben unverändert. Die Quell-ZIP wurde nicht ersetzt. GB361, GB362 und GB363 wurden vom Benutzer auf GitHub Pages bereitgestellt; die hier erstellte GB370-Fassung wurde von uns nicht veröffentlicht oder gegen das echte Projekt ausgeführt.
 
 ## Ausgangsstand
 
@@ -147,7 +165,7 @@ Die bekannten Ursachen der fehlerhaften Kundenzuordnung, Vertragsanzeige und Ein
 - Bestehendes Projekt: `doggy-style-hundepension`.
 - Organisation: `orgs/doggystyle`.
 - Bucket: `doggy-style-hundepension.firebasestorage.app`.
-- Fassung: `M50.9.9GB369_PHOTO_TEST_20261020`.
+- Fassung: `M50.9.9GB370_MEDIA_TEST_20261020`.
 - Die maximale Gesamtkapazität von vier Hunden bleibt bestehen.
 
 ## Historische Konsolenbefunde vom 18. Oktober (aktueller Stand siehe oben)
@@ -184,17 +202,20 @@ Die beiden Testbestände Sonja/Bello und Max/Rex sind oben anhand der aktuellen 
 
 | Prüfgruppe | Letzter erfolgreicher Lauf | Ergebnis | Grenze |
 | --- | --- | --- | --- |
-| Vier ursprüngliche Schwachstellen mit Originalregeln reproduziert | 2026-10-20T09:48:30.581Z | 4/4 bestätigt | Erwartete Fehlerreproduktion im Emulator; kein ausgeführter Angriff auf das echte Projekt. |
-| Reparaturregeln und Workflow | 2026-10-20T09:48:30.581Z | 62/62 bestanden | Echte Firestore-/Storage-Emulatorzugriffe, Transaktionen, Listener und Regelentscheidungen mit synthetischen Daten; Auth-Identitäten in der Regeltestumgebung simuliert. |
-| Oberfläche, Syntax, lokale Ressourcen, Regel-Kopierseite und Reparaturdialog | 2026-10-20T09:53:15.736Z | 30/30 bestanden | jsdom; Canvas-/Bilddekodierung, Downloads, Netzwerk und Firebase-Anbindung teilweise simuliert. Kein Safari-/iPad-Durchlauf. |
-| Vollständiger Anmeldestart und Fehlerfälle | 2026-10-20T09:53:31.781Z | 18/18 bestanden | startApp und Auth-Callback laufen in jsdom; Firebase, Netzwerk und Canvas simuliert. Keine echten Konten verwendet. |
-| Speicherfehler und Dialoglesbarkeit | 2026-10-20T09:53:22.100Z | 14/14 bestanden | Eine GB362-Fehlerreproduktion und 13 Reparaturprüfungen; jsdom und fake-indexeddb mit simulierten Quotenfehlern. |
-| Freigabeansicht nach Navigation, sichtbare Rückmeldungen, optionale Aufgaben | 2026-10-20T09:53:20.388Z | 7/7 bestanden | Vollständiges app.js in jsdom; sichtbare DOM-/CSS-Zustände und simulierte API-Fehler. Kein echter Safari-Test. |
-| Neue Abläufe mit vollständiger Sicherung vom 19. Oktober | 2026-10-20T09:49:28.235Z | 12/12 bestanden | Echte Emulatorregeln, vollständiges app.js in jsdom; Auth und Grafik sind simuliert. Kein produktiver Firebase-SDK-/Safari-Test. |
-| Kundenportal, Aufenthalt, Navigation, Chat, Rückmeldungen und Fehlerfälle | 2026-10-20T09:50:08.423Z | 21/21 bestanden | Tatsächliche Kunden-Seite, Callback und Bedienaktionen in jsdom plus echte Emulatorregeln; Auth, Grafik und Medien-HTTP teilweise simuliert. |
-| Aufenthaltsprüfung, Texte, Unterschrift, Belegung, Startanzeige und rote Änderungen | 2026-10-20T09:51:14.292Z | 23/23 bestanden | Tatsächliche Kunden-/Adminbedienung in jsdom gegen Firebase-Emulatoren; Auth, Zeichenpixel und Netz teilweise simuliert. |
-| Eingangsarchiv, Chatentscheidungen, persönliche Entfernung, alte Rückmeldungen und Berechtigungen | 2026-10-20T09:52:09.459Z | 30/30 bestanden | Vollständige Sicherung und echte Emulatorregeln; tatsächliche UI in jsdom, Auth und Teile des Netzwerks simuliert. |
-| Neue Fotoreparaturen mit echter Dateiauswahl, Upload, HTTP-Abruf, Vergleich und Übernahme | 2026-10-20T09:54:06.809Z | 26/26 bestanden | Echte Emulatorregeln und authentifizierter HTTP-Dateiabruf; jsdom, synthetische Bilddekodierung und Canvas-Ausgabe. Kein Safari-/Live-Durchlauf. |
+| Vier ursprüngliche Schwachstellen mit Originalregeln reproduziert | 2026-10-20T10:16:44.548Z | 4/4 bestätigt | Erwartete Fehlerreproduktion im Emulator; kein ausgeführter Angriff auf das echte Projekt. |
+| Reparaturregeln und Workflow | 2026-10-20T10:16:44.548Z | 62/62 bestanden | Echte Firestore-/Storage-Emulatorzugriffe, Transaktionen, Listener und Regelentscheidungen mit synthetischen Daten; Auth-Identitäten in der Regeltestumgebung simuliert. |
+| Oberfläche, Syntax, lokale Ressourcen, Regel-Kopierseite und Reparaturdialog | 2026-10-20T10:19:42.439Z | 30/30 bestanden | jsdom; Canvas-/Bilddekodierung, Downloads, Netzwerk und Firebase-Anbindung teilweise simuliert. Kein Safari-/iPad-Durchlauf. |
+| Vollständiger Anmeldestart und Fehlerfälle | 2026-10-20T10:18:20.172Z | 18/18 bestanden | startApp und Auth-Callback laufen in jsdom; Firebase, Netzwerk und Canvas simuliert. Keine echten Konten verwendet. |
+| Speicherfehler und Dialoglesbarkeit | 2026-10-20T10:15:46.663Z | 14/14 bestanden | Eine GB362-Fehlerreproduktion und 13 Reparaturprüfungen; jsdom und fake-indexeddb mit simulierten Quotenfehlern. |
+| Freigabeansicht nach Navigation, sichtbare Rückmeldungen, optionale Aufgaben | 2026-10-20T10:18:40.651Z | 7/7 bestanden | Vollständiges app.js in jsdom; sichtbare DOM-/CSS-Zustände und simulierte API-Fehler. Kein echter Safari-Test. |
+| Neue Abläufe mit vollständiger Sicherung vom 19. Oktober | 2026-10-20T10:17:49.101Z | 12/12 bestanden | Echte Emulatorregeln, vollständiges app.js in jsdom; Auth und Grafik sind simuliert. Kein produktiver Firebase-SDK-/Safari-Test. |
+| Kundenportal, Aufenthalt, Navigation, Chat, Rückmeldungen und Fehlerfälle | 2026-10-20T10:18:46.188Z | 21/21 bestanden | Tatsächliche Kunden-Seite, Callback und Bedienaktionen in jsdom plus echte Emulatorregeln; Auth, Grafik und Medien-HTTP teilweise simuliert. |
+| Aufenthaltsprüfung, Texte, Unterschrift, Belegung, Startanzeige und rote Änderungen | 2026-10-20T10:20:24.753Z | 23/23 bestanden | Tatsächliche Kunden-/Adminbedienung in jsdom gegen Firebase-Emulatoren; Auth, Zeichenpixel und Netz teilweise simuliert. |
+| Eingangsarchiv, Chatentscheidungen, persönliche Entfernung, alte Rückmeldungen und Berechtigungen | 2026-10-20T10:21:21.776Z | 30/30 bestanden | Vollständige Sicherung und echte Emulatorregeln; tatsächliche UI in jsdom, Auth und Teile des Netzwerks simuliert. |
+| Neue Fotoreparaturen mit echter Dateiauswahl, Upload, HTTP-Abruf, Vergleich und Übernahme | 2026-10-20T10:22:42.160Z | 26/26 bestanden | Echte Emulatorregeln und nativer XMLHttpRequest mit CORS zum Storage-Emulator; jsdom, synthetische Bilddekodierung und Canvas-Ausgabe. Kein Safari-/Live-Durchlauf. |
+| Privater Dateiabruf, echte CORS-Vorabprüfung, Fehlerstatus, Wiederholung und Kontoreset | 2026-10-20T10:18:44.998Z | 19/19 bestanden | Nativer XMLHttpRequest aus jsdom gegen strengen lokalen Testendpunkt; synthetische Anmeldung. Kein Safari oder angemeldeter Live-Bucket. |
+| Zwei allgemeine HTTP-Fehlermeldungen aus GB369 reproduziert | 2026-10-20T10:18:44.996Z | 2/2 bestätigt | Unveränderter GB369-Loader; echte lokale HTTP-Statusantworten, Node Fetch. |
+| Echter Storage-Endpunkt ohne Schreibzugriff | 2026-10-20T10:15:29.449941+00:00 | OPTIONS und öffentlicher JS-Vergleich dokumentiert | Kein angemeldeter Fotoabruf und kein Safari-Nachweis. |
 | Drei alte Fotofehler aus GB368 reproduziert | 2026-10-20T09:35:55.302Z | 3/3 bestätigt | Erwartete Fehlerreproduktion mit der vorherigen Fassung, getrennt von den Reparaturtests. |
 | Vollständige Abläufe mit vorhandenen Testkonten im bestehenden Firebase | Nicht abgeschlossen | Offen | Kein bestätigter Kunden-SDK-Durchlauf der Testfassung. |
 
@@ -206,12 +227,12 @@ Die Tests umfassen fremde/verschachtelte Ziel-IDs, gefälschte UID, unvollständ
 
 | Priorität | Offener Punkt | Erforderlicher Abschluss |
 | --- | --- | --- |
-| P0 | Der vollständige neue Ablauf im bestehenden Firebase-Projekt ist noch nicht bestätigt. | Der Benutzer meldet veröffentlichte Regeln; die Sicherung bestätigt Sonja/Max. Mit GB369 und den GB368-Regeln einen neuen Vorgang einreichen, freigeben und nach Neuladen im richtigen sowie im zweiten Kundenkonto prüfen. |
+| P0 | Der vollständige neue Ablauf im bestehenden Firebase-Projekt ist noch nicht bestätigt. | Der Benutzer meldet veröffentlichte Regeln; die Sicherung bestätigt Sonja/Max. Mit GB370 und den GB368/GB369-Regeln einen neuen Vorgang einreichen, freigeben und nach Neuladen im richtigen sowie im zweiten Kundenkonto prüfen. |
 | P2 | Alte unklare Vertragskopien und das visuell leere Signaturbild bleiben historisch vorhanden. | Nach Benutzerwunsch keine Reparatur alter Anfragen. Neue Freigaben verwenden nur den bestätigten eindeutigen Vertragseintrag. Historische Unterschriften werden nicht nachbestätigt. |
 | P0 | Öffentliche Storage-Downloadtokens können bestehende Links weiterhin gültig halten. | Dateien/Links inventarisieren und konkrete Tokenänderungen nach Zustimmung durchführen. Die Testfassung widerruft sie nicht. |
 | P1 | Allgemeine Cloud-Speicherung und Vertragsfreigabe sind administrativ. Frühere Mitarbeiter-Schreibabläufe sind nicht vollständig wiederhergestellt. | Sichere Mitarbeiter-Schreibabläufe mit Portal-Synchronisation abschließen und live prüfen. Vorhandene Rollen wurden nicht erweitert. |
 | P1 | Auth-Anmeldung, Firestore-/Storage-Regelzusammenspiel, CORS, Dienstberechtigungen und App Check sind nicht mit dieser Testfassung im echten Projekt geprüft. | Zwei echte getrennte Kundenkonten und den Administrator verwenden, einschließlich direkter fremder Pfade und Medienabruf. |
-| P1 | Der konkrete Load-failed-Request, Medienabruf/CORS im echten Bucket sowie echte iPad-/Safari-Zeichnung, Fotoverkleinerung, PDF/Druck, Service-Worker und Netzunterbrechung sind offen. | Reale Gerätetests mit Neuladen und Kontowechsel durchführen. |
+| P1 | Die genaue Ursache des privaten Fotoabrufs im echten Konto sowie echte iPad-/Safari-Anzeige, Zeichnung, Fotoverkleinerung, PDF/Druck, Service-Worker und Netzunterbrechung bleiben offen. | GB370 auf den Geräten prüfen; bei Fehler den jetzt differenzierten Status und DIAG verwenden. Der erfolgreiche OPTIONS-Test ersetzt den angemeldeten Dateiabruf nicht. |
 | P1 | Konfliktabgleich wurde lokal, aber nicht mit zwei echten Firebase-Sitzungen geprüft. | Parallele Änderungen und erneute Serveränderung mit realen Sitzungen testen. |
 | P1 | Workspace bleibt ein zentrales Firestore-Dokument mit sicherer Schreibgrenze von 900.000 JSON-Bytes. | Das Sicherungsdokument umfasst rund 265 KB JSON und besteht die neuen Schreibtests. Größere spätere Bestände können eine Aufteilung erfordern; Größenfehler brechen ohne Teilübernahme ab. |
 | P1 | Alte gemeinsame Browserdaten wurden nicht pauschal gelöscht. | Ungesicherte lokale Änderungen vor einer Bereinigung sichern und prüfen. |
@@ -220,4 +241,4 @@ Die Tests umfassen fremde/verschachtelte Ziel-IDs, gefälschte UID, unvollständ
 
 Die Google-Konsolenanmeldung war zeitweise erfolgreich. Für die anschließend ausdrücklich erlaubte Firebase-CLI konnte die erneute Geräte-/Passkey-Bestätigung in diesem Browser nicht abgeschlossen werden. Der Benutzer erhielt Geräteanfragen nicht; zuletzt bot Google nur den Passkey an. Es gibt keinen bestätigten CLI-Zugang und keine nachgewiesene Bot-Sperrmeldung. Keine Sicherheitsvorkehrung wurde umgangen oder abgeschaltet. Das abgelehnte Firebase-Plugin wird nicht vorausgesetzt; es werden keine Kennwörter oder Autorisierungscodes im Chat verlangt.
 
-Weil nur iPad und iPhone verfügbar sind, ist der Reparaturbereich für die Ausführung durch den angemeldeten Administrator im Workspace vorgesehen. Die App-Dateien von GB369 müssen am bisherigen Ort aktualisiert werden. Bereits veröffentlichte GB368-Regeln bleiben für diese Fotoreparatur unverändert gültig. Die Storage-Regeln bleiben unverändert; die beiden Testkunden müssen nicht erneut zugeordnet werden. Alte Eingänge sind für den neuen Test nicht zu reparieren. Die Anleitung liegt als `INSTALLATION_IPAD.txt` im Paket. Erst nach den noch offenen Live-Prüfungen kann eine endgültige Freigabe erfolgen.
+Weil nur iPad und iPhone verfügbar sind, ist der Reparaturbereich für die Ausführung durch den angemeldeten Administrator im Workspace vorgesehen. Die App-Dateien von GB370 müssen am bisherigen Ort aktualisiert werden. Bereits veröffentlichte GB368-Regeln bleiben für diese Fotoreparatur unverändert gültig. Die Storage-Regeln bleiben unverändert; die beiden Testkunden müssen nicht erneut zugeordnet werden. Alte Eingänge sind für den neuen Test nicht zu reparieren. Die Anleitung liegt als `INSTALLATION_IPAD.txt` im Paket. Erst nach den noch offenen Live-Prüfungen kann eine endgültige Freigabe erfolgen.

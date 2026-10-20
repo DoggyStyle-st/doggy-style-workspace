@@ -8,7 +8,8 @@
   let busy=false, draft=null, mergeReview=null;
   let photoEpoch=0,photoBindings=null;const photoRecords=new Map();
   const photoFields={profile:{input:'p_profilePhoto',preview:'p_profilePhotoPreview',remove:'p_profilePhotoRemove',label:'Profilfoto',get:()=>photoBindings?.get('profile')||'',set:value=>photoBindings?.set('profile',value),refresh:()=>cpRefreshProfilePhotoPreview()},vaccpass:{input:'p_vaccinationPhoto',preview:'p_vaccinationPhotoPreview',remove:'p_vaccinationPhotoRemove',label:'Impfpassfoto',get:()=>photoBindings?.get('vaccpass')||'',set:value=>photoBindings?.set('vaccpass',value),refresh:()=>cpRefreshVaccinationPhotoPreview()}};
-  const ink = new WeakSet(), blobs = new Map();
+  const ink = new WeakSet(), blobs = new Map(), mediaRequests = new Set(), mediaJobs = new Map(), mediaElements = new WeakMap();
+  let mediaEpoch=0,mediaRequestId=0;
   const currentUser = ()=>window.firebase && firebase.auth().currentUser;
   function workspaceRole(user,profile){
     if(user?.emailVerified===true && S(user.email).toLowerCase()==='raphael@boch-plan.de')return 'admin';
@@ -76,6 +77,7 @@
     },e=>error(e,'customerTaskSaveHint'));
   }
   function resetAccount(){
+    mediaEpoch++;for(const xhr of mediaRequests)xhr.abort();mediaRequests.clear();mediaJobs.clear();
     resetPhotoEditor();
     window.DSBrowserStore.reset();
     window.DSRepair?.reset();
@@ -200,30 +202,75 @@
     }
     return /^(data:image\/(png|jpeg|webp);base64,|blob:|\.\/assets\/|assets\/)/.test(v)?v:'';
   }
+  function mediaError(code,message,status=0){const e=new Error(message);e.code=code;e.status=status;return e;}
+  function mediaHttpError(status){
+    const message=status===401?'Die Anmeldung für den Dateiabruf ist abgelaufen. Bitte erneut anmelden.':status===403?'Dieses Konto darf die Datei nicht lesen. Bitte die Storage-Berechtigung prüfen.':status===404?'Die Datei wurde im Speicher nicht gefunden.':status===429?'Zu viele Dateiabrufe. Bitte kurz warten und erneut laden.':status>=500?'Der Dateispeicher antwortet mit einem Serverfehler. Bitte erneut laden.':'Der Dateispeicher hat den Abruf abgelehnt.';
+    return mediaError('media/http-'+status,message+' (HTTP '+status+')',status);
+  }
+  async function requestMedia(path,user,epoch){
+    // Blob downloads use the same browser transport as the Storage SDK. No
+    // no-store/no-cache request headers: Firebase's media CORS endpoint does
+    // not allow Cache-Control or Pragma. Each attempt has a fresh URL instead.
+    const active=()=>mediaEpoch===epoch&&currentUser()?.uid===user.uid;
+    for(let attempt=0;attempt<2;attempt++){
+      const token=await user.getIdToken(attempt===1);
+      if(!active())throw mediaError('media/canceled','Der Dateiabruf wurde nach einem Kontowechsel abgebrochen.');
+      if(!token)throw mediaError('media/unauthenticated','Bitte zum Laden der Datei anmelden.');
+      const bucket=S(window.firebaseConfig?.storageBucket);
+      if(!bucket)throw mediaError('media/config','Der Dateispeicher ist nicht eingerichtet.');
+      try{
+        return await new Promise((resolve,reject)=>{
+          const xhr=new XMLHttpRequest();mediaRequests.add(xhr);
+          const finish=(error,blob)=>{mediaRequests.delete(xhr);error?reject(error):resolve(blob);};
+          xhr.open('GET','https://firebasestorage.googleapis.com/v0/b/'+encodeURIComponent(bucket)+'/o/'+encodeURIComponent(path)+'?alt=media&ds_request='+Date.now()+'_'+(++mediaRequestId),true);
+          xhr.responseType='blob';xhr.timeout=25000;xhr.withCredentials=false;
+          xhr.setRequestHeader('Authorization','Firebase '+token);
+          xhr.onload=()=>{if(xhr.status>=200&&xhr.status<300){const blob=xhr.response;if(!blob||!blob.size)return finish(mediaError('media/empty','Die gespeicherte Datei ist leer.'));finish(null,blob);}else finish(mediaHttpError(xhr.status));};
+          xhr.onerror=()=>finish(mediaError('media/network','Verbindung zum Dateispeicher fehlgeschlagen. Möglich sind ein Netzfehler oder eine Browser-/CORS-Sperre.'));
+          xhr.ontimeout=()=>finish(mediaError('media/timeout','Der Dateiabruf hat zu lange gedauert. Bitte die Verbindung prüfen und erneut laden.'));
+          xhr.onabort=()=>finish(mediaError('media/canceled','Der Dateiabruf wurde abgebrochen.'));
+          try{xhr.send();}catch(e){finish(e);}
+        });
+      }catch(e){if(e.status===401&&attempt===0&&active())continue;throw e;}
+    }
+  }
   async function loadMedia(el){
-    const attr=el.tagName==='A'?'href':'src';
-    const source=mediaSource(el.getAttribute(attr));
-    if(!source.startsWith('ds-storage:')) return;
-    const path=source.slice(11), user=currentUser();if(el.dataset.dsLoading===path)return;el.removeAttribute(attr);
-    if(!user || !path.startsWith('orgs/'+window.firebaseOrgId+'/')) return;
-    el.dataset.dsMedia=path;
+    const attr=el.tagName==='A'?'href':'src',source=mediaSource(el.getAttribute(attr));
+    if(!source.startsWith('ds-storage:'))return;
+    const path=source.slice(11),user=currentUser(),epoch=mediaEpoch;
+    if(el.dataset.dsLoading===path&&mediaElements.get(el)?.epoch===epoch)return;
+    el.removeAttribute(attr);
+    if(!user||!path.startsWith('orgs/'+window.firebaseOrgId+'/'))return;
+    const view={epoch,path,url:null};mediaElements.set(el,view);el.dataset.dsMedia=path;el.dataset.dsLoading=path;
+    const active=()=>currentUser()?.uid===user.uid&&mediaEpoch===epoch&&mediaElements.get(el)===view&&el.dataset.dsMedia===path&&(!el.hasAttribute(attr)||el.getAttribute(attr)===source||el.getAttribute(attr)===view.url);
     const key=user.uid+':'+path;
-    if(blobs.has(key)){el.setAttribute(attr,blobs.get(key));return;}
-    el.dataset.dsLoading=path;
-    try{
-      const token=await user.getIdToken();
-      const bucket=window.firebaseConfig.storageBucket;
-      const response=await fetch('https://firebasestorage.googleapis.com/v0/b/'+encodeURIComponent(bucket)+'/o/'+encodeURIComponent(path)+'?alt=media',{headers:{Authorization:'Firebase '+token},cache:'no-store'});
-      if(!response.ok) throw new Error('Foto konnte nicht mit diesem Konto geladen werden.');
-      const blob=await response.blob();
-      if(currentUser()?.uid!==user.uid || el.dataset.dsMedia!==path) return;
-      const url=URL.createObjectURL(blob);blobs.set(key,url);el.setAttribute(attr,url);el.nextElementSibling?.matches('[data-ds-media-error]')&&el.nextElementSibling.remove();if(window.__dsMediaError?.path===path)window.__dsMediaError=null;
-    }catch(e){
-      if(currentUser()?.uid!==user.uid)return;
-      window.__dsMediaError={path,code:S(e.code||e.name),message:S(e.message),at:Date.now()};console.warn('Medienabruf fehlgeschlagen',path,e);
+    const clearError=()=>{el.nextElementSibling?.matches('[data-ds-media-error]')&&el.nextElementSibling.remove();if(window.__dsMediaError?.path===path)window.__dsMediaError=null;};
+    const failed=e=>{
+      if(!active()||e.code==='media/canceled')return;
+      window.__dsMediaError={path,code:S(e.code||e.name),message:S(e.message),status:Number(e.status||0),at:Date.now()};
+      console.warn('Medienabruf fehlgeschlagen',path,e.code||e.name,e.status||0);
       let message=el.nextElementSibling;if(!message?.matches('[data-ds-media-error]')){message=document.createElement('span');message.dataset.dsMediaError='1';message.setAttribute('role','status');el.after(message);}
-      message.replaceChildren(document.createTextNode('Datei konnte nicht geladen werden. '));const retry=document.createElement('button');retry.type='button';retry.className='btn';retry.textContent='Erneut laden';retry.onclick=()=>{el.setAttribute(attr,source);loadMedia(el);};message.append(retry);
-    }finally{if(el.dataset.dsLoading===path)delete el.dataset.dsLoading;}
+      message.replaceChildren(document.createTextNode('Datei konnte nicht geladen werden. '+S(e.message)+' '));
+      const retry=document.createElement('button');retry.type='button';retry.className='btn';retry.textContent='Erneut laden';retry.onclick=()=>{if(!active())return;el.setAttribute(attr,source);loadMedia(el);};message.append(retry);
+    };
+    try{
+      let url=blobs.get(key);
+      if(!url){
+        let job=mediaJobs.get(key);
+        if(!job){job=requestMedia(path,user,epoch);mediaJobs.set(key,job);job.finally(()=>{if(mediaJobs.get(key)===job)mediaJobs.delete(key);}).catch(()=>{});}
+        const blob=await job;
+        if(!active())return;
+        url=blobs.get(key);if(!url){url=URL.createObjectURL(blob);blobs.set(key,url);}
+      }
+      if(!active()||el.hasAttribute(attr)&&el.getAttribute(attr)!==source)return;
+      view.url=url;clearError();
+      if(attr==='src'){
+        const onError=()=>{el.removeEventListener('load',onLoad);if(!active()||el.getAttribute(attr)!==url)return;if(blobs.get(key)===url){blobs.delete(key);URL.revokeObjectURL(url);}failed(mediaError('media/decode','Die Datei wurde geladen, kann aber nicht als Bild oder Video angezeigt werden. Bitte ein gültiges JPEG-/PNG-Bild verwenden.'));};
+        const onLoad=()=>{el.removeEventListener('error',onError);if(active())clearError();};
+        el.addEventListener('error',onError,{once:true});el.addEventListener('load',onLoad,{once:true});
+      }
+      el.setAttribute(attr,url);
+    }catch(e){failed(e);}finally{if(mediaElements.get(el)===view)delete el.dataset.dsLoading;}
   }
   function scanMedia(root){
     if(root?.matches?.('img[src],video[src],a[href]'))loadMedia(root);

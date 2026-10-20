@@ -1,4 +1,18 @@
-# GB369 – Reparatur-Testfassung vom 20. Oktober 2026
+# GB370 – Reparatur-Testfassung vom 20. Oktober 2026
+
+## Neu in GB370: private Dateien wieder abrufen und Fehler unterscheiden
+
+Das Foto wird im zuletzt gemeldeten Stand erfolgreich hochgeladen und als Änderung erkannt. Die Anzeige scheitert danach beim privaten Dateiabruf. Die veröffentlichte workflow-ui.js entsprach bei der Untersuchung exakt GB369. Dessen Loader verbarg den tatsächlichen HTTP-Status und zeigte denselben allgemeinen Fehler für fehlende Datei und fehlende Berechtigung.
+
+GB370 ersetzt den Fetch-Abruf mit no-store durch einen authentifizierten XMLHttpRequest mit Blob-Antwort. Die Anfrage setzt ausschließlich den erforderlichen Authorization-Header; eine eigene Anfragekennung verhindert die Wiederverwendung einer alten HTTP-Antwort. Anmeldung erneuern bei 401 wird einmal versucht. 403, 404, 429, Serverfehler, Netz/CORS, Zeitüberschreitung, leere Datei und nicht darstellbarer Inhalt haben unterschiedliche Hinweise an der Datei und in DIAG. Kein anonymer oder öffentlicher Token-Fallback wurde eingeführt.
+
+Vorschau und vergrößertes Bild teilen sich einen laufenden Abruf. Kontowechsel bricht Downloads ab; eine verspätete Antwort oder Anmeldung derselben UID kann keinen alten Abruf fortsetzen. Private Blob-Adressen werden beim Kontoreset widerrufen. Ältere Fehler dürfen nicht an einem inzwischen ersetzten Bild erscheinen. Die Login-Seite verwendet nun dieselbe Buildnummer und neue Versionsverweise wie die App.
+
+19 gezielte Transportprüfungen verwenden den nativen XMLHttpRequest aus jsdom mit echten HTTP-Anfragen und CORS-Vorabprüfungen gegen einen strengen lokalen Testserver. Die 26 Fotoprüfungen verwenden bei der Vorschau ebenfalls nativen XMLHttpRequest gegen den echten Firebase-Storage-Emulator. Auth-Identitäten, Grafik und Bilddekodierung bleiben simuliert. Das ist kein bestandener Live-Firebase- oder Safari-Test.
+
+Firestore-/Storage-Regeln und Firebase-Konfiguration bleiben gegenüber GB369 unverändert. Bereits gespeicherte gültige Fotopfade sind weiterverwendbar. Fehlende Dateien oder historische Eingänge ohne Pfad können nicht durch diese Reparatur wiederhergestellt werden. Alle übrigen Reparaturen bleiben enthalten.
+
+## Enthaltene frühere Änderungen
 
 ## Neu in GB369: Fotos sicher einreichen und prüfen
 
