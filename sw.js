@@ -1,7 +1,7 @@
 // DoggyStyle Workspace Service Worker
 // Clean, consistent cache strategy (network-first for HTML, cache-first for static)
 
-const BUILD_VERSION = "M50.9.9GB370_MEDIA_TEST_20261020";
+const BUILD_VERSION = "M50.9.9GB371_PRINT_TEST_20261020";
 const CACHE_NAME = "doggystyle-" + BUILD_VERSION;
 
 // Keep this list conservative; do NOT include versioned query variants.
@@ -10,6 +10,11 @@ const STATIC_ASSETS = [
   "./index.html",
   "./app.html",
   "./app.js",
+  "./document-output.js",
+  "./document-output.css",
+  "./workforms-print.js",
+  "./vendor/jspdf.umd.min.js",
+  "./vendor/print-font.js",
   "./browser-store.js",
   "./workflow-core.js",
   "./communication-core.js",

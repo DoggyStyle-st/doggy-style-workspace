@@ -2,7 +2,7 @@ try{sessionStorage.removeItem('ds_handoff_pass');}catch(_){}
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB370_MEDIA_TEST_20261020",
+  tag: "M50.9.9GB371_PRINT_TEST_20261020",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -13,7 +13,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB370_MEDIA_TEST_20261020";
+const APP_BUILD = "M50.9.9GB371_PRINT_TEST_20261020";
 try{ window.__dsAppJsRuntimeBuild = "GB350-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -1089,209 +1089,13 @@ function suggestFilename(title){
   if(t.includes('vertrag')) return `Betreuungsvertrag.pdf`;
   return `${sanitizeFilename(title||'Dokument')}.pdf`;
 }
-function initDocModal(){
-  const modal = document.getElementById('docModal');
-  if(!modal || modal.dataset.bound) return;
-  modal.dataset.bound = '1';
-  const close = ()=> closeDocModal();
-  const btnClose = document.getElementById('docModalClose');
-  const backdrop = document.getElementById('docModalBackdrop');
-  const btnPrint = document.getElementById('docModalPrint');
-  const btnOpen = document.getElementById('docModalOpen');
-  const btnShare = document.getElementById('docModalShare');
-  const meta = document.getElementById('docModalMeta');
-  if(btnClose) btnClose.onclick = close;
-  if(backdrop) backdrop.onclick = close;
-  // Keyboard: ESC schließt, TAB bleibt im Modal
-  document.addEventListener('keydown', (e)=>{
-    if(!modal.classList.contains('is-open')) return;
-    if(e.key==='Escape') { e.preventDefault(); close(); return; }
-    if(e.key==='Tab'){
-      const focusables = modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
-      const list = Array.from(focusables).filter(el=> !el.disabled && el.offsetParent!==null);
-      if(!list.length) return;
-      const first = list[0], last = list[list.length-1];
-      const active = document.activeElement;
-      if(e.shiftKey && active===first){ e.preventDefault(); last.focus(); }
-      else if(!e.shiftKey && active===last){ e.preventDefault(); first.focus(); }
-    }
-  });
-  if(btnPrint) btnPrint.onclick = ()=>{
-    try{
-      const fr = document.getElementById('docModalFrame');
-      if(fr && fr.contentWindow) fr.contentWindow.print();
-    }catch(e){ alert('Drucken/Speichern ist auf diesem Gerät nicht verfügbar.'); }
-  };
-  if(btnOpen) btnOpen.onclick = ()=>{
-    if(DOCMOD.url) window.open(DOCMOD.url, '_blank');
-  };
-  // Share (iOS/Android, wenn verfügbar)
-  if(btnShare){
-    const canShare = !!navigator.share;
-    btnShare.style.display = canShare ? '' : 'none';
-    btnShare.onclick = async ()=>{
-      if(!navigator.share) return;
-      try{
-        // Für Blob-URLs teilen wir den Titel + Dateiname (iOS PWA kann Files teils nicht direkt)
-        await navigator.share({
-          title: document.getElementById('docModalTitle')?.textContent || 'Dokument',
-          text: `Dateiname: ${DOCMOD.filename || ''}`
-        });
-        showMiniToast('Teilen geöffnet');
-      }catch(_){ /* user cancelled */ }
-    };
-  }
-  // Copy filename tip
-  if(meta && !meta.dataset.bound){
-    meta.dataset.bound = '1';
-    meta.addEventListener('click', (e)=>{
-      const t = e.target;
-      if(t && t.id==='docModalCopyName'){
-        const name = DOCMOD.filename || '';
-        if(!name) return;
-        try{
-          navigator.clipboard?.writeText(name);
-          showMiniToast('Dateiname kopiert');
-          t.textContent = 'Kopiert ✓';
-          setTimeout(()=>{ t.textContent = 'Kopieren'; }, 1200);
-        }catch(_){
-          alert(name);
-        }
-      }
-    });
-  }
-}
-function openDocModal(url, title, hint, filename){
-  initDocModal();
-  const modal = document.getElementById('docModal');
-  const frame = document.getElementById('docModalFrame');
-  const ttl = document.getElementById('docModalTitle');
-  const h = document.getElementById('docModalHint');
-  const meta = document.getElementById('docModalMeta');
-  if(!modal || !frame) return;
-  // Focus restore
-  DOCMOD.__prevFocus = document.activeElement;
-  // cleanup old
-  if(DOCMOD.url){ try{ URL.revokeObjectURL(DOCMOD.url); }catch(_){ } }
-  DOCMOD.url = url;
-  DOCMOD.filename = filename || suggestFilename(title);
-  if(ttl) ttl.textContent = title || 'Dokument';
-  if(meta){
-    const fn = escapeHtml(DOCMOD.filename);
-    meta.innerHTML = `Dateiname‑Tipp: <code>${fn}</code> <button class="btn mini" type="button" id="docModalCopyName">Kopieren</button>`;
-  }
-  if(h) h.textContent = hint || 'Tipp: iPad/iPhone → „Drucken/Speichern“ → Teilen → „In Dateien sichern“. (So landet das PDF im gewünschten Ordner.)';
-  frame.title = title || 'Dokument';
-  frame.src = url;
-  modal.classList.add('is-open');
-  modal.setAttribute('aria-hidden','false');
-  // Scroll-Lock (robust on iOS Safari)
-  __docModalScrollY = window.scrollY || 0;
-  document.documentElement.style.overflow = 'hidden';
-  document.body.style.overflow = 'hidden';
-  document.body.style.position = 'fixed';
-  document.body.style.top = `-${__docModalScrollY}px`;
-  document.body.style.left = '0';
-  document.body.style.right = '0';
-  document.body.style.width = '100%';
-  // Focus first action for iPad keyboard users
-  setTimeout(()=>{ document.getElementById('docModalClose')?.focus(); }, 0);
-}
-function closeDocModal(){
-  const modal = document.getElementById('docModal');
-  const frame = document.getElementById('docModalFrame');
-  if(frame) frame.src = 'about:blank';
-  if(modal){
-    modal.classList.remove('is-open');
-    modal.setAttribute('aria-hidden','true');
-  }
-  // Restore scroll
-  document.documentElement.style.overflow = '';
-  document.body.style.overflow = '';
-  document.body.style.position = '';
-  document.body.style.top = '';
-  document.body.style.left = '';
-  document.body.style.right = '';
-  document.body.style.width = '';
-  try{ window.scrollTo(0, __docModalScrollY || 0); }catch(_){ }
-  // restore focus
-  try{ DOCMOD.__prevFocus?.focus(); }catch(_){ }
-  if(DOCMOD.url){ try{ URL.revokeObjectURL(DOCMOD.url); }catch(_){ } }
-  DOCMOD.url = null;
-  DOCMOD.filename = null;
-}
+function initDocModal(){return DSDocumentOutput.init();}
+function openDocModal(url,title,hint,filename){return DSDocumentOutput.open({url,title,hint,filename:filename||suggestFilename(title)});}
+function closeDocModal(){return window.DSDocumentOutput?.close();}
 // iOS/Safari: "overflow:hidden" allein verhindert Scrollen oft nicht zuverlässig.
 // Daher merken wir die Scrollposition und fixieren den Body beim Öffnen.
 let __docModalScrollY = 0;
-function openHtmlInModal(title, html, hint){
-  // iOS Safari / PWA: Blob-URLs inside iframes can render as a blank (white) page.
-  // Therefore we prefer srcdoc (inline HTML) for legal texts.
-  initDocModal();
-  const modal = $('#docModal');
-  const titleEl = $('#docModalTitle');
-  const hintEl  = $('#docModalHint');
-  const frame   = $('#docModalFrame');
-  const btnOpen = $('#docModalOpen');
-  const btnPrint= $('#docModalPrint');
-  const btnShare= $('#docModalShare');
-  const safeTitle = title || 'Dokument';
-  const safeHint  = hint  || 'Drucken/Speichern → Teilen → Daten sichern.';
-  const filename  = suggestFilename(safeTitle);
-  // Ensure title is present inside the document so iOS/print dialogs show a helpful name
-  let content = String(html || '');
-  if(!/<title>/i.test(content)){
-    const t = escapeHtml(safeTitle);
-    content = content.replace(/<head>/i, `<head><title>${t}</title>`);
-  }
-  DOCMOD.open = true;
-  DOCMOD.title = safeTitle;
-  DOCMOD.hint = safeHint;
-  DOCMOD.filename = filename;
-  DOCMOD.url = null; // no external URL
-  if(titleEl) titleEl.textContent = safeTitle;
-  if(hintEl)  hintEl.textContent  = safeHint;
-  // Open button does not apply for inline docs
-  if(btnOpen) btnOpen.style.display = 'none';
-  // Share button only works with a downloadable URL – keep hidden to avoid confusion
-  if(btnShare) btnShare.style.display = 'none';
-  // Print still works (prints iframe content)
-  if(btnPrint) btnPrint.style.display = '';
-  if(frame){
-    try{
-      frame.removeAttribute('src');
-      frame.setAttribute('src', 'about:blank');
-      frame.srcdoc = content;
-    }catch(e){
-      // Fallback: direct write
-      try{
-        const w = frame.contentWindow;
-        const d = w && w.document;
-        if(d){
-          d.open(); d.write(content); d.close();
-        }
-      }catch(e2){}
-    }
-  }
-  // IMPORTANT: state class must match closeDocModal()/CSS.
-  // A mismatched class causes the backdrop to dim without showing the modal content.
-  if(modal){
-    modal.classList.remove('open');
-    modal.classList.add('is-open');
-    modal.setAttribute('aria-hidden','false');
-  }
-  // Ensure backdrop + scroll lock behave consistently.
-  const backdrop = document.getElementById('docModalBackdrop');
-  if(backdrop) backdrop.style.display = 'block';
-  // Scroll-Lock (robust on iOS Safari)
-  __docModalScrollY = window.scrollY || 0;
-  document.documentElement.style.overflow = 'hidden';
-  document.body.style.overflow = 'hidden';
-  document.body.style.position = 'fixed';
-  document.body.style.top = `-${__docModalScrollY}px`;
-  document.body.style.left = '0';
-  document.body.style.right = '0';
-  document.body.style.width = '100%';
-}
+function openHtmlInModal(title,html,hint){return DSDocumentOutput.open({html,title,hint,filename:suggestFilename(title)});}
 // ===== Rechtstexte (AGB / DSGVO) – editierbar über Einstellungen =====
 const LEGAL_DEFAULTS = {
   dsgvo: `Datenschutzhinweis (DSGVO) – Doggy Style Hundepension
@@ -2918,7 +2722,7 @@ async function submitCustomerDogsProposal(){
   // GB355: vollständig lokal sichern, anschließend zuverlässig in proposals + tasks übertragen.
   // Die Oberfläche wird sofort freigegeben; die Erfolgsmeldung "an Eingänge übergeben"
   // erscheint ausschließlich nach bestätigter Firestore-Speicherung.
-  const GB355='M50.9.9GB370_MEDIA_TEST_20261020';
+  const GB355='M50.9.9GB371_PRINT_TEST_20261020';
   function S(v){ try{return String(v==null?'':v);}catch(_){return '';} }
   function L(v){ return S(v).trim().toLowerCase(); }
   function V(id){ try{const el=document.getElementById(id);return S(el&&el.value!=null?el.value:'').trim();}catch(_){return '';} }
@@ -9587,6 +9391,7 @@ async function cpUploadPetPhotoToStorage(file,kind){
     cpSetStatus('Foto wird hochgeladen …');
     await firebase.storage().ref().child(path).put(prepared,{contentType:prepared.type,customMetadata:{orgId,petId,uploadedBy:user.uid,kind}});
     if(!sameEditor())throw new Error('Konto oder geöffneter Hund wurde gewechselt.');
+    DSWorkflow.retainUploadedPhoto(path,prepared,user.uid);
     cpSetStatus('Foto hochgeladen. Änderung bitte zur Prüfung einreichen.');return 'ds-storage:'+path;
   }
 let cpEditorSnapshot = "";
@@ -19645,81 +19450,23 @@ function renderWorkformsPanel(){
   const host = document.getElementById("workformsView");
   if(!host) return;
   // bind buttons once
-  const b1 = document.getElementById("wfBtnHygiene");
+
   const b2 = document.getElementById("wfBtnShift");
   const b3 = document.getElementById("wfBtnIncident");
   const b4 = document.getElementById("wfBtnArchive");
   const b5 = document.getElementById("wfBtnTodayPrint");
-  if(b1 && !b1._bound){ b1._bound=true; b1.addEventListener("click", ()=>wfShowHygiene()); }
+
   if(b2 && !b2._bound){ b2._bound=true; b2.addEventListener("click", ()=>wfShowShift()); }
   if(b3 && !b3._bound){ b3._bound=true; b3.addEventListener("click", ()=>wfShowIncident()); }
   if(b4 && !b4._bound){ b4._bound=true; b4.addEventListener("click", ()=>wfShowArchive()); }
   if(b5 && !b5._bound){ b5._bound=true; b5.addEventListener("click", ()=>wfTodayPrint()); }
   // default view
-  if(!host.dataset.view){
+  if(!host.dataset.view || host.dataset.view==="hygiene"){
     wfShowArchive(true);
   }
 }
-function wfShowHygiene(){
-  const host = document.getElementById("workformsView");
-  host.dataset.view="hygiene";
-  const today = wfTodayKey();
-  host.innerHTML = `
-    <div class="wf-form">
-      <h3>Hygiene-Nachweis (${today})</h3>
-      <div class="muted">Täglich · Unterschrift Pflicht · Abschluss = Archivierung</div>
-      <div class="wf-row" style="margin-top:10px">
-        <label class="field"><input type="checkbox" id="wfHygClean"> Reinigung durchgeführt</label>
-        <label class="field"><input type="checkbox" id="wfHygDis"> Desinfektion durchgeführt</label>
-        <label class="field"><input type="checkbox" id="wfHygSep"> Trennung eingehalten</label>
-      </div>
-      <div style="margin-top:10px">
-        <label class="field" style="display:block">
-          Besonderheiten / Abweichungen (optional)
-          <textarea id="wfHygNotes" rows="3" style="width:100%"></textarea>
-        </label>
-      </div>
-      <div style="margin-top:10px">
-        <div class="muted">Unterschrift</div>
-        <div style="display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap">
-          <canvas id="wfSigCanvas" style="width:320px;max-width:100%;height:120px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:rgba(0,0,0,.18)"></canvas>
-          <button class="btn" id="wfSigClear" type="button">Löschen</button>
-        </div>
-      </div>
-      <div class="wf-actions">
-        <button class="btn primary" id="wfHygClose" type="button">Abschließen & bestätigen</button>
-        <button class="btn" id="wfHygPdf" type="button">PDF</button>
-      </div>
-      <div class="muted" style="margin-top:8px">Verantwortlich: ${wfUserLabel()}</div>
-    </div>
-  `;
-  initWfSignaturePad(document.getElementById("wfSigCanvas"), document.getElementById("wfSigClear"));
-  document.getElementById("wfHygClose").onclick = ()=> wfCloseHygiene();
-  document.getElementById("wfHygPdf").onclick = ()=> wfPreviewPdf("hygiene");
-}
-function wfCloseHygiene(){
-  const clean = document.getElementById("wfHygClean").checked;
-  const dis = document.getElementById("wfHygDis").checked;
-  const sep = document.getElementById("wfHygSep").checked;
-  const notes = (document.getElementById("wfHygNotes").value||"").trim();
-  const sig = wfSigDataUrl();
-  if(!sig){ alert("Bitte unterschreiben."); return; }
-  if(!clean || !dis || !sep){
-    if(!confirm("Nicht alle Punkte sind abgehakt. Trotzdem abschließen?")) return;
-  }
-  const entry = {
-    id: wfNewId(),
-    type: "hygiene",
-    date: wfTodayKey(),
-    createdAt: new Date().toISOString(),
-    createdBy: wfUserLabel(),
-    data: { clean, dis, sep, notes },
-    signature: sig
-  };
-  wfArchiveAdd(entry);
-  alert("Hygiene-Nachweis archiviert.");
-  wfShowArchive();
-}
+function wfShowHygiene(){selectTab('hygiene');}
+function wfCloseHygiene(){selectTab('hygiene');}
 function wfShowShift(){
   const host = document.getElementById("workformsView");
   host.dataset.view="shift";
@@ -20073,41 +19820,13 @@ function wfPreviewPdf(kind){
   wfOpenPdf(wfPdfTemplate(title, body));
 }
 function wfTodayPrint(){
-  // simple: reuse existing today dashboard pdf builder if present; otherwise fallback
-  // build a minimal overview from stays
-  const today = wfTodayKey();
-  const staysToday = (state.stays||[]).filter(s=>{
-    const from = s.fromDate || s.startDate || s.betreuungVon || "";
-    const to = s.toDate || s.endDate || s.betreuungBis || "";
-    if(!from || !to) return false;
-    return (today >= from && today <= to);
-  });
-  const rows = staysToday.map(s=>{
-    const dog = getPet(s.dogId||"") || {};
-    const cust = getCustomer(s.customerId||dog.customerId||"") || {};
-    return `<tr><td>${escapeHtml(dog.name||"")}</td><td>${escapeHtml(cust.name||"")}</td><td>${escapeHtml(s.type||s.betreuungsart||"")}</td></tr>`;
-  }).join("");
-  const body = `
-    <h1>Heute – Übersicht (${escapeHtml(today)})</h1>
-    <div class="meta">Erstellt: ${new Date().toLocaleString("de-DE")} · Verantwortlich: ${escapeHtml(wfUserLabel())}</div>
-    <div class="box">
-      <table>
-        <tr><th>Hund</th><th>Halter</th><th>Betreuung</th></tr>
-        ${rows || '<tr><td colspan="3">Keine Aufenthalte gefunden.</td></tr>'}
-      </table>
-    </div>
-    <div class="box">
-      <h2 style="font-size:14px;margin:0 0 6px">Übergabe / Schichtblatt</h2>
-      <div class="muted">Hinweis: Schichtblatt bitte in der App ausfüllen & abschließen, um es zu archivieren.</div>
-      <div style="margin-top:8px;border:1px dashed #aaa;padding:10px;border-radius:10px">
-        <div class="k">Heute aufgefallen</div><div style="height:60px"></div>
-        <div class="k">Morgen beachten</div><div style="height:60px"></div>
-        <div class="k">Unterschrift</div><div style="height:60px"></div>
-      </div>
-    </div>
-  `;
-  wfOpenPdf(wfPdfTemplate("Heute drucken", body));
-}
+    if(!CLOUD.user || !['admin','staff'].includes(CLOUD.role)){alert('Bitte mit einem Workspace-Konto anmelden.');return;}
+    try{
+      const model=DSWorkformsPrint.build(state,{day:wfTodayKey(),userLabel:wfUserLabel()});
+      const pdf=DSWorkformsPrint.pdf(model,window.jspdf?.jsPDF,window.DSPrintFont);
+      DSDocumentOutput.open({title:'Tages-Sammeldruck '+wfTodayKey(),html:DSWorkformsPrint.html(model),pdf,filename:model.filename,hint:'PDF speichern lädt die fertige Datei herunter. PDF teilen öffnet auf unterstützten Geräten das Teilen-Menü, zum Beispiel für „In Dateien sichern“. Drucken öffnet die Druckauswahl.'});
+    }catch(e){alert('Tages-Sammeldruck konnte nicht erstellt werden: '+(e.message||e));}
+  }
 try{ const bb=document.getElementById('buildBadge'); if(bb) bb.textContent = 'Build ' + APP_BUILD; }catch(e){}
 // ===== 4A-1 Aufenthalte Read-Only =====
 async function loadStays() {
@@ -23672,7 +23391,7 @@ try{
 }catch(e){ console.warn(e); }
 
 
-/* ===== CHAT (M50.9.9GB370_MEDIA_TEST_20261020) ===== */
+/* ===== CHAT (M50.9.9GB371_PRINT_TEST_20261020) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,

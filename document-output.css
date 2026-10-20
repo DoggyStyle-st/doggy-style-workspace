@@ -1,0 +1,18 @@
+/* The document dialog lives directly in body and uses the browser's top layer. */
+#docModal.ds-document{position:fixed!important;inset:0!important;width:100%!important;height:100%!important;height:100dvh!important;max-width:none!important;max-height:none!important;margin:0!important;padding:12px!important;border:0!important;background:transparent!important;color:#f3f3f6;z-index:2147483647!important;box-sizing:border-box;}
+#docModal.ds-document:not([open]){display:none!important;}
+#docModal.ds-document[open]{display:flex!important;align-items:stretch!important;justify-content:center!important;}
+#docModal.ds-document::backdrop{background:rgba(0,0,0,.65);}
+#docModal.ds-document .doc-modal__backdrop{display:none;}
+#docModal.ds-document .doc-modal__panel{position:relative!important;inset:auto!important;width:min(1100px,100%)!important;height:100%!important;max-height:100%!important;min-height:0;display:flex!important;flex-direction:column!important;border-radius:14px!important;background:#18181d!important;overflow:hidden!important;backdrop-filter:none!important;}
+#docModal.ds-document .doc-modal__bar{position:relative!important;top:auto!important;display:flex!important;flex-wrap:wrap;align-items:center!important;flex-shrink:0;gap:10px;padding:12px!important;}
+#docModal.ds-document .doc-modal__left{flex:1 1 160px;min-width:0;}
+#docModal.ds-document .doc-modal__title,#docModal.ds-document .doc-modal__meta{max-width:none;white-space:normal;overflow-wrap:anywhere;}
+#docModal.ds-document .doc-modal__actions{margin-left:auto;display:flex;flex-wrap:wrap;gap:8px;}
+#docModal.ds-document .doc-modal__actions .btn{min-height:44px;display:inline-flex;align-items:center;justify-content:center;text-decoration:none;color:#fff;font-size:14px;}
+#docModal.ds-document [hidden]{display:none!important;}
+#docModal.ds-document .doc-modal__frame{display:block;flex:1 1 0!important;min-height:0!important;width:100%!important;height:0!important;border:0;border-radius:0;background:#fff;}
+#docModal.ds-document #docModalStatus,#docModal.ds-document #docModalHint{flex:0 0 auto;margin:0!important;padding:7px 12px;font-size:13px;line-height:1.35;}
+#docModal.ds-document #docModalStatus{color:#fff;}
+@media(max-width:600px){#docModal.ds-document{padding:6px!important;}#docModal.ds-document .doc-modal__bar{gap:6px;padding:8px!important;}#docModal.ds-document .doc-modal__actions{width:100%;justify-content:flex-start;}#docModal.ds-document .doc-modal__actions .btn{padding:8px 10px;font-size:13px;}}
+@supports(padding:max(0px)){#docModal.ds-document{padding:max(8px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left))!important;}}

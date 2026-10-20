@@ -1,20 +1,11 @@
-# Bestehendes Firebase-Projekt – GB370 Testfassung
+# Bestehendes Firebase-Projekt - GB371
 
-Projekt: doggy-style-hundepension. Organisation: doggystyle. Bucket: doggy-style-hundepension.firebasestorage.app. Die vorhandene firebase-config.js bleibt unverändert.
+Das vorhandene Projekt doggy-style-hundepension mit Organisation doggystyle und Bucket doggy-style-hundepension.firebasestorage.app bleibt bestehen. Konfiguration, Firestore-Regeln und Storage-Regeln sind bytegleich mit GB370. Für dieses Update keine neuen Regeln veröffentlichen und keine Kundenzuordnung wiederholen.
 
-1. Bisherige App-Dateien, veröffentlichte Regeln und Bestandssicherung als Rückweg aufbewahren.
-2. Die vollständigen App-Dateien aus GB370 am bisherigen Ort einspielen. Keine neuen Projekte oder Kundenkonten anlegen.
-3. GB370 verwendet unveränderte GB368-Regeln. Falls diese bereits veröffentlicht sind, ist keine erneute Veröffentlichung nötig. Für ältere Fassungen: den enthaltenen Firestore-Text aus REGELN_ANZEIGEN.html bzw. firestore.rules im bestehenden Projekt veröffentlichen. Storage-Regeln sind gegenüber GB367 unverändert. Das Archiv benötigt die neue Sammlung inboxArchive; Kunden dürfen nur ihre eigenen gelesenen früheren Rückmeldungen löschen und eigene automatische Chat-Rückmeldungen für sich ausblenden.
-4. Tabs schließen, Website neu laden und HTML-/JS-Build in DIAG prüfen. Neue Kundenänderung und neuen Aufenthalt testen, administrativ annehmen/ablehnen, Rückmeldung im richtigen Kundenchat lesen und persönlich entfernen. Danach mit dem zweiten Kundenkonto die Trennung prüfen.
-5. Alte offene Eingänge können ohne Bestandsreparatur archiviert und wiederhergestellt werden. Die Entwicklung archiviert nichts im echten Projekt. Es wird keine alte Einreichung automatisch angenommen, abgelehnt oder gelöscht.
-6. Sonja/Bello und Max/Rex besitzen laut Sicherung bereits geprüfte eigene Zuordnungen. Hans Dampf hat darin keine solche Zuordnung. Weitere Kundenkonten brauchen eine geprüfte eigene Kunden-/Hundezuordnung. Keine Zuordnung über gleiche Namen oder Chat-E-Mail-Aliasse.
+Der Benutzer hat die CORS-Einstellung des vorhandenen Buckets selbst angepasst und anschließend die Fotoanzeige auf seinem iPad bestätigt. Der ursprüngliche CORS-Screenshot zeigte Nicht aktiviert. Diese Entwicklung hat keine CORS-Einstellung verändert.
 
-Freigaben, Bestandsreparaturen und Archivierung erfordern die vorhandene Administratorrolle bzw. den bereits vorgesehenen verifizierten Eigentümerzugang. Mitarbeiterrollen werden nicht erweitert.
+Neue Kunden werden nach Registrierung mit derselben hinterlegten E-Mail einmalig administrativ zugeordnet. Routineänderungen, Verträge und Aufenthaltsanfragen benötigen keine Aufgabenverteilung. Alte Eingänge müssen dafür nicht repariert werden.
 
-Storage-Regeln prüfen zugeordnete Hunde über Firestore-Profile. Tatsächlicher Medienabruf, produktive Dienstberechtigungen und CORS bleiben im bestehenden Projekt zu prüfen. Keine pauschalen öffentlichen Leserechte setzen. Neue Regeln widerrufen bestehende Downloadtokens nicht; konkrete Tokenänderungen bleiben einer gesonderten Prüfung und Zustimmung vorbehalten.
+Die JSON-Bestandssicherung enthält keine Storage-Dateien oder Auth-Konten. Frühere Nachweise und Signaturen werden durch das Update nicht gelöscht. Der neu erzeugte Sammeldruck verändert den Bestand nicht.
 
-Die JSON-Bestandssicherung enthält keine Storage-Dateien oder Auth-Konten. Archive sind reine zusätzliche Markierungen; alte Anfragen und Signaturen bleiben unverändert. Atomare Entscheidungen legen normale Chatnachrichten an, keine neue separate notifications-Meldung. Historische private Rückmeldungen bleiben ausschließlich im Chat als früherer Bestand erreichbar.
-
-Prüfergebnisse und Grenzen: PRUEFBERICHT.md. Referenzen: https://firebase.google.com/docs/firestore/security/get-started und https://firebase.google.com/docs/storage/security/start
-
-GB370 verwendet einen authentifizierten XMLHttpRequest für die Dateianzeige. Ein schreibfreier Vorabtest am bestehenden Storage-Endpunkt hat Authorization als erlaubten CORS-Header bestätigt; Cache-Control und Pragma werden dort nicht als erlaubte Anfrageheader aufgeführt. Der tatsächliche angemeldete Fotoabruf und die konkrete Safari-Ursache sind dadurch noch nicht bewiesen. Keine CORS- oder Regeländerung wurde veröffentlicht. Bei weiterhin fehlschlagender Vorschau den nun genauen Hinweis sowie DIAG verwenden, bevor eine weitere Konfigurationsänderung erfolgt.
+Die vollständige Live-Prüfung mit zwei Kundenkonten, fremden direkten Pfaden, parallelen Geräten und unterbrochener Verbindung bleibt offen. Tests dieser Entwicklung schreiben ausschließlich in isolierte Firebase-Emulatoren. Einzelheiten stehen im Prüfbericht.

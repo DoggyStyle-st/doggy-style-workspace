@@ -1,13 +1,15 @@
-# Doggy Style Workspace – GB370 Reparatur-Testfassung
+# Doggy Style Workspace - GB371 Druck-Testfassung
 
-Stand: 20. Oktober 2026. **Vollständige Testfassung; abschließender Test im bestehenden Firebase und auf iPad/iPhone steht aus.**
+Stand: 20. Oktober 2026. Vollständige Testfassung mit bereinigten Arbeitsblättern und Tages-Sammeldruck.
 
-GB370 überarbeitet den privaten Dateiabruf für Profilfotos, Impfpassfotos und Chatdateien. Der Browser lädt Dateien mit dem angemeldeten Konto als Blob über XMLHttpRequest, ohne zusätzliche Cache-Vorgaben. Jede neue Anfrage hat eine eigene Kennung. Es werden keine öffentlichen Downloadtokens als Ersatz verwendet und keine Berechtigungen erweitert.
+Der zweite Hygiene-Erfassungsbereich unter Arbeitsblätter entfällt. Der eigenständige Bereich Hygiene bleibt erhalten; frühere Hygiene-Nachweise bleiben im Arbeitsblattarchiv lesbar und exportierbar.
 
-Fehler unterscheiden Anmeldung (401), fehlende Leseberechtigung (403), fehlende Datei (404), zu viele Abrufe (429), Server-, Netz-/CORS-, Zeit- und Darstellungsfehler. Erneut laden versucht dieselbe gespeicherte Datei erneut. Beim Kontowechsel werden laufende Abrufe abgebrochen und geladene private Blob-Adressen widerrufen. Zwei Vorschauen derselben Datei teilen sich einen Abruf. Der Login zeigt ebenfalls die aktuelle Buildnummer.
+Heute drucken öffnet eine bedienbare Dokumentansicht mit Tagesübersicht, Anreisen und Abreisen, Hundeblättern und Schichtblatt. Sie verwendet bestätigte Aufenthalte und dieselbe Belegungsberechnung wie die Startseite, einschließlich Abreisetag und maximal vier Hunden. Offene und stornierte Anfragen zählen nicht.
 
-Bereits eingereichte Fotos mit gültigem gespeicherten Dateipfad können nach dem Update erneut geöffnet werden; ein erneuter Upload ist dafür nicht grundsätzlich nötig. Tatsächlich fehlende oder verlorene Dateien werden durch das Update nicht rekonstruiert.
+PDF speichern lädt eine echte PDF-Datei herunter. PDF teilen übergibt auf unterstützten Geräten diese Datei an das Teilen-Menü. PDF öffnen bietet die Datei separat an. Drucken ruft nur die geladene Dokumentansicht auf. Die PDF entsteht vollständig im Browser, ohne Übermittlung an einen zusätzlichen Dienst. Die benötigten PDF- und Schriftdateien liegen im Paket.
 
-Enthalten bleiben Fotoupload mit Wartezustand und verständlichen Fehlern, sichtbarer roter Fotovergleich, Freigabe und richtige Portal-Synchronisation, Chatentscheidungen und persönliche Entfernung, reversibles Eingangsarchiv, Aufenthaltsanfrage mit lesbaren Texten und Unterschrift, Belegungsprüfung mit vier Hunden sowie die übrigen Reparaturen.
+Auch bisherige HTML-Dokumente nutzen die überarbeitete Vorschau oberhalb der App-Kopfzeile. Altes srcdoc wird vor dem Dokumentwechsel entfernt; Kontoreset schließt die Vorschau und widerruft temporäre Datei-Adressen.
 
-Das vorhandene Projekt und alle Firebase-Regeln sind gegenüber GB369 unverändert. Keine produktiven Daten oder Dateien wurden durch die Entwicklung geändert. INSTALLATION_IPAD.txt beschreibt das Update. PRUEFBERICHT.md und pruefungen/ dokumentieren bestandene Tests und offene Punkte. Diese ZIP enthält keine Kundenbestandssicherung, Storage-Dateien oder Anmeldedaten.
+Enthalten bleiben alle bisherigen Kunden-, Vertrags-, Eingangs-, Chat-, Aufenthalts- und Fotoreparaturen. Eine erfolgreiche Fotoanzeige und Neukundenzuordnung auf dem echten Gerät wurden inzwischen vom Benutzer bestätigt. Der Schutz lokaler Uploadvorschauen aus dem bisherigen unveröffentlichten Entwurf ist enthalten.
+
+Firebase-Projekt, Konfiguration und beide Regeldateien sind gegenüber GB370 unverändert. Es ist keine erneute Regelveröffentlichung erforderlich. Die Entwicklung hat keine bestehenden Kundendaten oder Nachweise verändert. Details, Tests und verbleibende Prüfgrenzen: PRUEFBERICHT.md und pruefungen/.

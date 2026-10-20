@@ -77,6 +77,7 @@
     },e=>error(e,'customerTaskSaveHint'));
   }
   function resetAccount(){
+    window.DSDocumentOutput?.close();
     mediaEpoch++;for(const xhr of mediaRequests)xhr.abort();mediaRequests.clear();mediaJobs.clear();
     resetPhotoEditor();
     window.DSBrowserStore.reset();
@@ -207,6 +208,15 @@
     const message=status===401?'Die Anmeldung für den Dateiabruf ist abgelaufen. Bitte erneut anmelden.':status===403?'Dieses Konto darf die Datei nicht lesen. Bitte die Storage-Berechtigung prüfen.':status===404?'Die Datei wurde im Speicher nicht gefunden.':status===429?'Zu viele Dateiabrufe. Bitte kurz warten und erneut laden.':status>=500?'Der Dateispeicher antwortet mit einem Serverfehler. Bitte erneut laden.':'Der Dateispeicher hat den Abruf abgelehnt.';
     return mediaError('media/http-'+status,message+' (HTTP '+status+')',status);
   }
+  function retainUploadedPhoto(path,blob,uid){
+    // A confirmed upload already has the exact normalized bytes on this
+    // device. Keep those bytes for the uploading account's preview; reading
+    // the remote file in another session still requires Storage permission.
+    if(!uid||currentUser()?.uid!==uid||!S(path).startsWith('orgs/'+window.firebaseOrgId+'/pets/')||!blob?.size||!/^image\/(jpeg|png|webp)$/.test(blob.type))return false;
+    const key=uid+':'+path;
+    if(!blobs.has(key))blobs.set(key,URL.createObjectURL(blob));
+    return true;
+  }
   async function requestMedia(path,user,epoch){
     // Blob downloads use the same browser transport as the Storage SDK. No
     // no-store/no-cache request headers: Firebase's media CORS endpoint does
@@ -328,7 +338,7 @@
     const epoch=photoEpoch,uid=currentUser()?.uid,target=JSON.stringify(photoBindings?.target());
     const active=()=>epoch===photoEpoch&&currentUser()?.uid===uid&&JSON.stringify(photoBindings?.target())===target&&photoRecords.get(kind)===r;
     const r={phase:'uploading',file,previous:cfg.get(),message:cfg.label+' wird vorbereitet und hochgeladen …',job:null,previewUrl:''};photoRecords.set(kind,r);
-    const image=$(cfg.preview);if(image){delete image.dataset.dsMedia;delete image.dataset.dsLoading;try{r.previewUrl=URL.createObjectURL(file);image.src=r.previewUrl;image.style.display='block';}catch(_){}}
+    const image=$(cfg.preview);if(image){delete image.dataset.dsMedia;delete image.dataset.dsLoading;image.nextElementSibling?.matches('[data-ds-media-error]')&&image.nextElementSibling.remove();try{r.previewUrl=URL.createObjectURL(file);image.src=r.previewUrl;image.style.display='block';}catch(_){}}
     updatePhotoControls();cpSetStatus('Fotoübertragung läuft. Bitte warten, bevor du die Änderung sendest.');
     r.job=(async()=>{try{const value=await cpUploadPetPhotoToStorage(file,kind);if(!active())return;
       if(!value)throw new Error('Der Upload wurde nicht bestätigt.');cfg.set(value);r.phase='ready';r.message=cfg.label+' bereit: '+S(file.name)+'. Wird mit der Änderung zur Prüfung gesendet.';cfg.refresh();cpUpdateDirty();if(!photoBusy()&&!photoProblem())cpSetStatus('Fotos bereit. Änderung bitte zur Prüfung einreichen.');
@@ -704,7 +714,7 @@
     busy=true;b.disabled=true;reviewControls();
     Promise.resolve().then(action).catch(err=>error(err,b.closest('#dsSyncConflictDialog')?'dsSyncConflictStatus':b.closest('#inboxDetail')?'inboxReviewStatus':b.closest('#contract')?'contractSavedInfo':'assignMsg')).finally(()=>{busy=false;b.disabled=false;reviewControls();});
   },true);
-  window.DSWorkflow={context,snapshot,hydrate,watchProfile,resetAccount,submit,submitContract,retryQueue,wireInbox,wireAssignments,openReview,closeReview,renderContractStatus,api,scoped,mediaSource,scanMedia,prepareNewPetPhoto,preparePetPhoto,wirePhotoInputs,waitForPhotos,resetPhotoEditor,signatureHasInk,rememberBase,showConflict,openConflict,resolveConflict,startupStatus,readWithTimeout,workspaceRole};
+  window.DSWorkflow={context,snapshot,hydrate,watchProfile,resetAccount,submit,submitContract,retryQueue,wireInbox,wireAssignments,openReview,closeReview,renderContractStatus,api,scoped,mediaSource,scanMedia,prepareNewPetPhoto,preparePetPhoto,wirePhotoInputs,waitForPhotos,resetPhotoEditor,signatureHasInk,rememberBase,showConflict,openConflict,resolveConflict,startupStatus,readWithTimeout,workspaceRole,retainUploadedPhoto};
   function observeMedia(){
     if(!document.body)return;
     scanMedia(document.body);

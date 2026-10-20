@@ -1,16 +1,14 @@
-Doggy Style GB370 – private Fotos anzeigen
+Doggy Style Workspace - GB371 Druck-Testfassung
 Stand: 20. Oktober 2026
 
-Vollständige TESTFASSUNG für das bestehende Firebase-Projekt. Firestore-Regeln, Storage-Regeln und Firebase-Konfiguration sind gegenüber GB369 unverändert. Für GB370 müssen diese Regeln nicht erneut angepasst werden. Keine produktiven Daten wurden durch die Entwicklung geändert.
+1. Bisherige App-Dateien und vorhandene Bestandssicherung aufbewahren.
+2. ZIP in Dateien entpacken. Den Inhalt des Ordners DoggyStyle_Workspace_GB371_TEST am bisherigen GitHub-Pages-Ort einspielen. Unterordner assets, vendor und pruefungen ebenfalls übernehmen; keinen zusätzlichen verschachtelten App-Ordner anlegen.
+3. Firestore-Regeln, Storage-Regeln und Firebase-Konfiguration sind gegenüber GB370 unverändert. Für dieses Update dort nichts erneut ändern. Keine Bestandsreparatur erforderlich.
+4. Nach Veröffentlichung den Workspace neu laden. Login und DIAG müssen M50.9.9GB371_PRINT_TEST_20261020 zeigen. Kein Daten-Reset und keine Löschung der Safari-Websitedaten.
+5. Arbeitsblätter öffnen. Angeboten werden Heute drucken, Übergabe / Schichtblatt, Ereignisprotokoll und Archiv. Hygiene wird weiterhin über den eigenen Hygiene-Reiter bearbeitet. Alte Hygiene-Nachweise bleiben im Archiv.
+6. Heute drucken wählen. In der Vorschau stehen bestätigte Aufenthalte für den aktuellen Tag, Anreisen/Abreisen, Hundeblätter und das Schichtblatt. Der Abreisetag zählt mit; unbestätigte Anfragen zählen nicht.
+7. PDF speichern wählen. Die fertige Datei heißt DoggyStyle_Tages-Sammeldruck_JJJJ-MM-TT.pdf und erscheint bei den Safari-Downloads. Dort öffnen oder in Dateien ablegen. Alternativ PDF teilen wählen und In Dateien sichern nutzen, sofern das Gerät Dateifreigabe anbietet. PDF öffnen zeigt die Datei separat an.
+8. Drucken öffnet die Druckauswahl. Schließen kehrt zur vorherigen App-Ansicht zurück. Handschriftliche Ergänzungen auf einem gedruckten Schichtblatt werden nicht automatisch in der App gespeichert.
+9. Einmal auf dem eigenen iPad/iPhone prüfen: Vorschau, PDF in Dateien, Öffnen der gespeicherten PDF und gegebenenfalls tatsächlicher Druck. Diese OS-Dialoge und ein physischer Drucker können in der Entwicklungsumgebung nicht vollständig geprüft werden.
 
-1. ZIP in Dateien speichern und entpacken. Bisherige App-Fassung und Bestandssicherung behalten. Keine Safari-Website-Daten löschen und keinen Daten-Reset ausführen.
-2. Am bisherigen GitHub-App-Ort aktualisieren: workflow-ui.js, app.js, app.html, customer.html, login.html, sw.js, version.txt sowie Dokumentation und Prüfergebnisse. Die vollständige ZIP enthält alle weiteren bisherigen Dateien und Assets. Dateien auf derselben Ebene ersetzen; keinen zweiten App-Unterordner anlegen.
-3. Die vorhandenen Regeln aus GB368/GB369 reichen aus. Für die Fotoanzeige keine pauschalen Leserechte aktivieren, keine Kunden neu zuordnen und keine alte Einreichung reparieren. Falls noch ältere Regeln aktiv sind, zeigt REGELN_ANZEIGEN.html den aktuellen Paketstand.
-4. Tabs schließen, Website neu öffnen und neu laden. Der Login und DIAG bei HTML/JS müssen GB370_MEDIA_TEST_20261020 zeigen. Bei abweichender Buildnummer erneut laden; keinen Daten-Reset ausführen.
-5. Als Administrator den bereits eingegangenen Fotoänderungsvorschlag erneut prüfen und Foto ansehen öffnen. Ein vorhandenes Foto mit gültigem Pfad muss dafür nicht nochmals hochgeladen werden. Die kleine und vergrößerte Vorschau sollen dasselbe Bild zeigen.
-6. Bleibt ein Fehler, nennt die Vorschau jetzt den Grund. HTTP 403 bedeutet fehlende Leseberechtigung; HTTP 404 bedeutet fehlende Datei. 401 fordert nach einmaliger automatischer Erneuerung erneutes Anmelden. Ein Netz/CORS-Hinweis beweist allein noch keine konkrete CORS-Ursache. Den genauen Hinweis und gegebenenfalls DIAG für die weitere Diagnose festhalten; nicht vorsorglich Regeln öffnen.
-7. Bei vorübergehenden Fehlern Erneut laden wählen. Erst nach erfolgreicher Anzeige den Vorschlag übernehmen. Danach Foto im Workspace und nach Neuladen im richtigen Kundenkonto prüfen. Mit dem zweiten Kundenkonto prüfen, dass fremde Fotos nicht zugänglich sind.
-8. Profilfoto und Impfpassfoto bleiben getrennte Vorschläge. Neue Auswahl wartet weiterhin auf Upload; Fehler sperren den Versand. Erneut versuchen oder Auswahl verwerfen stehen am Foto bereit. Vorhandene Storage-Dateien werden weder automatisch überschrieben noch gelöscht.
-9. Archivierung, Chatentscheidungen, Aufenthaltsanfragen mit Unterschrift/Textstand, Belegungsprüfung und Startanzeige bleiben enthalten. Aufgabenverteilung bleibt optional.
-
-Die neue Dateianzeige wird mit nativem XMLHttpRequest und tatsächlichen CORS-Vorabprüfungen in jsdom sowie mit Firebase-Emulatoren getestet. Ein angemeldeter Durchlauf im echten Projekt und auf iPad/iPhone bleibt offen. PRUEFBERICHT.md dokumentiert die Grenzen. Die Entwicklung hat keine produktiven Dateien, Regeln oder Kundendaten geändert.
+Bestand, Regeln, Verträge und Originalsignaturen werden durch die Druckfunktion nicht geändert. PDF-Erstellung und Vorschau arbeiten lokal im Browser. Die bewährte Kundenanbindung bleibt enthalten. Prüfbericht und Einzelprüfungen liegen im Paket.
