@@ -3,6 +3,8 @@
   'use strict';
   const Core = window.DSWorkflowCore, S = v=>String(v == null ? '' : v).trim(), $ = id=>document.getElementById(id);
   let profileUnsub=null, profileUid='', inboxUnsub=null, inboxUid='', inboxRows=[], reviewRow=null;
+  let inboxArchiveUnsub=null,inboxMarkers=new Map(),inboxArchiveReady=false,inboxRowsReady=false,inboxLoadError='',inboxView='open',inboxMutating=false,inboxEpoch=0;
+  const inboxSelected=new Set();
   let busy=false, draft=null, mergeReview=null;
   const ink = new WeakSet(), blobs = new Map();
   const currentUser = ()=>window.firebase && firebase.auth().currentUser;
@@ -24,7 +26,7 @@
   function context(){ return Core.context(currentUser(),window.CLOUD && CLOUD.userProfile); }
   function api(){
     if(!currentUser()) throw new Error('Bitte anmelden.');
-    return Core.service(firebase.firestore(),window.firebaseOrgId,currentUser,d=>d.secureWorkflowVersion===3?d.payload:(typeof dsBuildMergedCloudDocPayload==='function'?dsBuildMergedCloudDocPayload(d):d.payload));
+    return Core.service(firebase.firestore(),window.firebaseOrgId,currentUser,d=>d.secureWorkflowVersion===3?d.payload:(typeof dsBuildMergedCloudDocPayload==='function'?dsBuildMergedCloudDocPayload(d):d.payload),()=>firebase.firestore.FieldValue?.serverTimestamp?.()||Date.now());
   }
   function error(e, id){
     const message=S(e && e.message || e);
@@ -74,8 +76,10 @@
   function resetAccount(){
     window.DSBrowserStore.reset();
     window.DSRepair?.reset();
-    if(profileUnsub) profileUnsub(); if(inboxUnsub) inboxUnsub();
+    if(profileUnsub) profileUnsub(); if(inboxUnsub) inboxUnsub();if(inboxArchiveUnsub)inboxArchiveUnsub();
     profileUnsub=inboxUnsub=null;profileUid=inboxUid='';reviewRow=null;inboxRows=[];draft=null;
+    inboxArchiveUnsub=null;inboxMarkers.clear();inboxSelected.clear();inboxArchiveReady=inboxRowsReady=false;inboxLoadError='';inboxView='open';inboxMutating=false;inboxEpoch++;
+    $('dsInboxToolbar')?.remove();
     closeReview();if($('inboxFeedback'))$('inboxFeedback').textContent='';
     window.DSCustomerPortal?.reset();
     window.__dsMediaError=null;
@@ -348,27 +352,59 @@
     }
   }
   function renderInbox(){
+    const ready=inboxRowsReady&&inboxArchiveReady&&!inboxLoadError,archived=inboxView==='archive',rows=inboxRows.filter(r=>inboxMarkers.has(r.id)===archived);
+    for(const id of inboxSelected)if(!rows.some(r=>r.id===id))inboxSelected.delete(id);
+    let toolbar=$('dsInboxToolbar');if(!toolbar&&$('inboxList')){toolbar=document.createElement('div');toolbar.id='dsInboxToolbar';toolbar.style.cssText='display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:14px 0';$('inboxList').before(toolbar);}
+    if(toolbar){toolbar.replaceChildren();for(const [view,label]of [['open','Offen'],['archive','Archiv']]){const button=reviewNode('button',label+' ('+inboxRows.filter(r=>inboxMarkers.has(r.id)===(view==='archive')).length+')',toolbar);button.type='button';button.className='btn';button.style.minHeight='44px';button.dataset.inboxView=view;button.setAttribute('aria-pressed',String(inboxView===view));button.disabled=inboxMutating;button.onclick=()=>{closeReview();inboxView=view;inboxSelected.clear();renderInbox();};}
+      if(CLOUD.role==='admin'&&ready&&rows.length){const label=reviewNode('label',null,toolbar);label.style.cssText='display:flex;gap:8px;align-items:center;min-height:44px';const all=reviewNode('input',null,label);all.type='checkbox';all.checked=rows.every(r=>inboxSelected.has(r.id));all.disabled=inboxMutating;all.dataset.inboxSelectAll='1';all.style.cssText='width:24px;height:24px';reviewNode('span','Alle auswählen',label);all.onchange=()=>{if(all.checked)rows.forEach(r=>inboxSelected.add(r.id));else inboxSelected.clear();renderInbox();};
+        const bulk=reviewNode('button',(archived?'Auswahl wiederherstellen':'Auswahl archivieren')+' ('+inboxSelected.size+')',toolbar);bulk.type='button';bulk.className='btn';bulk.style.minHeight='44px';bulk.dataset.inboxBulk=archived?'restore':'archive';bulk.disabled=inboxMutating||!inboxSelected.size;bulk.onclick=()=>changeInboxArchive(rows.filter(r=>inboxSelected.has(r.id)),!archived);
+      }
+    }
     for(const id of ['inboxList','inboxProposalList']){
       const list=$(id);if(!list)continue;list.replaceChildren();
-      if(!inboxRows.length){list.textContent='Keine offenen Eingänge.';continue;}
-      inboxRows.forEach(row=>{
-        const el=document.createElement('div');el.className='list-item';
+      if(!ready){list.textContent=inboxLoadError?'Eingänge konnten nicht vollständig geladen werden: '+inboxLoadError:'Eingänge und Archiv werden geladen …';continue;}
+      if(!rows.length){list.textContent=archived?'Keine archivierten offenen Eingänge.':'Keine offenen Eingänge.';continue;}
+      rows.forEach(row=>{
+        const el=document.createElement('div');el.className='list-item';el.dataset.inboxId=row.id;el.style.cssText='padding:12px 0;border-bottom:1px solid #8885';
         const text=document.createElement('div');text.textContent=(row.title || row.templateId)+' · '+(row.customerName || row.customerEmail);
-        const open=document.createElement('button');open.className='smallbtn';open.textContent='Prüfen';open.onclick=()=>openReview(row);
-        el.append(text,open);list.append(el);
+        el.append(text);const actions=reviewNode('div',null,el);actions.style.cssText='display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px';
+        if(CLOUD.role==='admin'){const select=reviewNode('input',null,actions);select.type='checkbox';select.setAttribute('aria-label','Eingang auswählen: '+text.textContent);select.dataset.inboxSelect=row.id;select.checked=inboxSelected.has(row.id);select.disabled=inboxMutating;select.style.cssText='width:24px;height:24px';select.onchange=()=>{if(select.checked)inboxSelected.add(row.id);else inboxSelected.delete(row.id);renderInbox();};}
+        if(!archived){const open=reviewNode('button','Prüfen',actions);open.type='button';open.className='smallbtn';open.style.minHeight='44px';open.disabled=inboxMutating;open.onclick=()=>openReview(row);}
+        if(CLOUD.role==='admin'){const move=reviewNode('button',archived?'Wiederherstellen':'Archivieren',actions);move.type='button';move.className='smallbtn';move.style.minHeight='44px';move.dataset.inboxAction=archived?'restore':'archive';move.disabled=inboxMutating;move.onclick=()=>changeInboxArchive([row],!archived);}
+        list.append(el);
       });
     }
-    if($('inboxProposalMsg')) $('inboxProposalMsg').textContent=inboxRows.length+' offene Eingänge aus Firebase.';
+    if($('inboxProposalMsg')) $('inboxProposalMsg').textContent=inboxLoadError||(!ready?'Eingänge werden geladen …':inboxRows.filter(r=>!inboxMarkers.has(r.id)).length+' offene Eingänge · '+inboxRows.filter(r=>inboxMarkers.has(r.id)).length+' im Archiv.');
   }
-  async function wireInbox(){
+  async function changeInboxArchive(rows,archived){
+    if(inboxMutating||CLOUD.role!=='admin'||!rows.length)return;const actor=currentUser()?.uid,epoch=inboxEpoch;inboxMutating=true;renderInbox();
+    try{
+      if(rows.length>100)throw new Error('Bitte höchstens 100 Eingänge auf einmal auswählen.');
+      await api().setInboxArchived(rows.map(row=>({id:row.id,expectedRow:row})),archived);
+      if(currentUser()?.uid!==actor||epoch!==inboxEpoch)return;
+      for(const row of rows)if(archived)inboxMarkers.set(row.id,{proposalId:row.id});else inboxMarkers.delete(row.id);
+      inboxSelected.clear();if(reviewRow&&rows.some(r=>r.id===reviewRow.id))closeReview();
+      if($('inboxFeedback'))$('inboxFeedback').textContent='✅ '+rows.length+(rows.length===1?' Eingang ':' Eingänge ')+(archived?'archiviert. Unter Archiv kannst du sie wiederherstellen.':'wieder in Offen.');
+    }catch(e){if(currentUser()?.uid===actor&&epoch===inboxEpoch&&$('inboxFeedback'))$('inboxFeedback').textContent='❌ '+e.message;}
+    finally{if(currentUser()?.uid===actor&&epoch===inboxEpoch){inboxMutating=false;renderInbox();}}
+  }
+  async function wireInbox(force=false){
     window.DSRepair?.install();
     const user=currentUser();if(!user || !['admin','staff'].includes(CLOUD.role)) return;
-    if(inboxUnsub && inboxUid===user.uid){renderInbox();return;}
-    if(inboxUnsub) inboxUnsub();inboxUid=user.uid;
-    inboxUnsub=firebase.firestore().collection('orgs').doc(window.firebaseOrgId).collection('proposals').where('proposalStatus','==','pending').onSnapshot(snap=>{
-      if(currentUser()?.uid!==user.uid || snap.metadata.hasPendingWrites) return;
+    if(inboxMutating&&inboxUid===user.uid)return;
+    if(!force&&!inboxLoadError&&inboxUnsub&&inboxArchiveUnsub&&inboxUid===user.uid){renderInbox();return;}
+    if(inboxUnsub)inboxUnsub();if(inboxArchiveUnsub)inboxArchiveUnsub();inboxUid=user.uid;const epoch=++inboxEpoch;
+    inboxRows=[];inboxMarkers.clear();inboxSelected.clear();inboxArchiveReady=inboxRowsReady=false;inboxLoadError='';renderInbox();
+    const org=firebase.firestore().collection('orgs').doc(window.firebaseOrgId),failed=e=>{if(currentUser()?.uid!==user.uid||epoch!==inboxEpoch)return;inboxLoadError=e.message;renderInbox();};
+    inboxUnsub=org.collection('proposals').where('proposalStatus','==','pending').onSnapshot({includeMetadataChanges:true},snap=>{
+      if(currentUser()?.uid!==user.uid||epoch!==inboxEpoch||snap.metadata.hasPendingWrites)return;
+      inboxRowsReady=true;
       inboxRows=snap.docs.map(d=>({...d.data(),id:d.id})).sort((a,b)=>b.submittedAt-a.submittedAt);renderInbox();
-    },e=>error(e,'inboxProposalMsg'));
+    },failed);
+    inboxArchiveUnsub=org.collection('inboxArchive').onSnapshot({includeMetadataChanges:true},snap=>{
+      if(currentUser()?.uid!==user.uid||epoch!==inboxEpoch||snap.metadata.hasPendingWrites)return;
+      inboxArchiveReady=true;inboxMarkers=new Map(snap.docs.map(d=>[d.id,d.data()]));renderInbox();
+    },failed);
   }
   function reviewControls(){
     for(const id of ['btnInboxAdopt','btnInboxClose']){
@@ -531,7 +567,7 @@
   document.addEventListener('click',e=>{
     if(e.target?.id==='contractSig'){e.stopImmediatePropagation();return;}
     const b=e.target?.closest?.('button');if(!b)return;
-    const actions={dsOpenSyncConflict:openConflict,dsApplySyncMerge:()=>resolveConflict(false),dsUseServerSnapshot:()=>resolveConflict(true),dsCloseSyncMerge:()=>{$('dsSyncConflictDialog')?.remove();mergeReview=null;},contractSignBtn:sign,contractSigClear:clearSignature,contractSaveBtn:submitContract,btnInboxAdopt:()=>review('adopted'),btnInboxClose:()=>review('rejected'),btnAssignTask:assign,btnInboxRefresh:wireInbox,btnInboxProposalLoad:wireInbox,btnInboxBack:closeReview};
+    const actions={dsOpenSyncConflict:openConflict,dsApplySyncMerge:()=>resolveConflict(false),dsUseServerSnapshot:()=>resolveConflict(true),dsCloseSyncMerge:()=>{$('dsSyncConflictDialog')?.remove();mergeReview=null;},contractSignBtn:sign,contractSigClear:clearSignature,contractSaveBtn:submitContract,btnInboxAdopt:()=>review('adopted'),btnInboxClose:()=>review('rejected'),btnAssignTask:assign,btnInboxRefresh:()=>wireInbox(true),btnInboxProposalLoad:()=>wireInbox(true),btnInboxBack:closeReview};
     const action=actions[b.id];if(!action)return;
     e.preventDefault();e.stopImmediatePropagation();if(busy)return;
     busy=true;b.disabled=true;reviewControls();

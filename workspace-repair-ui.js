@@ -48,7 +48,7 @@
   function render(){
     const s=requireSession(),host=$('dsRepairContent');host.replaceChildren();
     const report=Core.auditRecords(s.data.payload,s.data.profiles.map(x=>({...x.data,documentId:x.id})));
-    element('p','Sicherung: Workspace, Kundenprofile, Vorschläge und Aufgaben. Storage-Dateien und Firebase-Anmeldedaten sind nicht enthalten.',host);
+    element('p','Sicherung: Workspace, Kundenprofile, Vorschläge, Aufgaben und Eingangsarchiv. Storage-Dateien und Firebase-Anmeldedaten sind nicht enthalten.',host);
     button('Sicherung herunterladen',download,host,'dsRepairExport');
     const guide=element('a','Regeltexte für Firebase und Einrichtung öffnen',host);guide.href='REGELN_ANZEIGEN.html';guide.target='_blank';guide.rel='noopener';guide.style.display='block';
     element('p','Die Prüfung verändert keine Verträge, Unterschriften, Rollen oder bestehenden Einreichungen.',host);

@@ -2,7 +2,7 @@ try{sessionStorage.removeItem('ds_handoff_pass');}catch(_){}
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB367_STAY_REVIEW_TEST_20261019",
+  tag: "M50.9.9GB368_ARCHIVE_NOTICES_TEST_20261019",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -13,7 +13,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB367_STAY_REVIEW_TEST_20261019";
+const APP_BUILD = "M50.9.9GB368_ARCHIVE_NOTICES_TEST_20261019";
 try{ window.__dsAppJsRuntimeBuild = "GB350-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -2918,7 +2918,7 @@ async function submitCustomerDogsProposal(){
   // GB355: vollständig lokal sichern, anschließend zuverlässig in proposals + tasks übertragen.
   // Die Oberfläche wird sofort freigegeben; die Erfolgsmeldung "an Eingänge übergeben"
   // erscheint ausschließlich nach bestätigter Firestore-Speicherung.
-  const GB355='M50.9.9GB367_STAY_REVIEW_TEST_20261019';
+  const GB355='M50.9.9GB368_ARCHIVE_NOTICES_TEST_20261019';
   function S(v){ try{return String(v==null?'':v);}catch(_){return '';} }
   function L(v){ return S(v).trim().toLowerCase(); }
   function V(id){ try{const el=document.getElementById(id);return S(el&&el.value!=null?el.value:'').trim();}catch(_){return '';} }
@@ -23723,7 +23723,7 @@ try{
 }catch(e){ console.warn(e); }
 
 
-/* ===== CHAT (M50.9.9GB367_STAY_REVIEW_TEST_20261019) ===== */
+/* ===== CHAT (M50.9.9GB368_ARCHIVE_NOTICES_TEST_20261019) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -23902,7 +23902,7 @@ async function dsMarkChatReadUpTo(chatId, role, readMs, messages){
   const patch = String(role||'') === 'staff'
     ? { unreadForStaff: unreadCount, staffLastReadAt: dsServerTimestamp(), staffLastReadAtMs: nextRead }
     : { unreadForCustomer: unreadCount, customerLastReadAt: dsServerTimestamp(), customerLastReadAtMs: nextRead };
-  try{ await ref.set(patch, { merge:true }); }catch(_){ }
+  try{ await ref.set(patch, { merge:true }); }catch(error){alert('Lesestatus konnte nicht gespeichert werden: '+error.message);return false;}
   dsPatchLocalChatReadState(chatId, role, nextRead, unreadCount);
   try{ dsUpdateAdminUnreadBadge(); }catch(_){ }
   try{ dsUpdateCustomerUnreadBadge(); }catch(_){ }
@@ -24032,6 +24032,7 @@ function dsOpenChatPreviewModal(msg, role, chat, rerender){
   if(deleteBtn){
     const canDelete = dsCanDeleteChatMessage(msg, role, chat);
     deleteBtn.classList.toggle('is-hidden', !canDelete);
+    deleteBtn.textContent=role==='customer'&&msg.kind==='decision'&&msg.senderUid!==firebase.auth().currentUser?.uid?'Für mich entfernen':'Nachricht löschen';
     deleteBtn.onclick = async ()=>{
       try{ await dsDeleteChatMessage(chat?.id, msg, role, rerender, chat); }
       catch(err){ alert(String(err?.message || err || 'Löschen fehlgeschlagen.')); }
@@ -24262,7 +24263,7 @@ function dsRenderChatMessages(messages, ownRole, chat){
     const deletedHtml = msg?.deleted ? '<div class="ds-chat-deleted">Nachricht gelöscht.</div>' : '';
     const textHtml = !msg?.deleted && String(msg?.text || '').trim() ? `<div class="ds-chat-bubble__text">${escapeHtml(msg?.text || '')}</div>` : '';
     const mediaHtml = !msg?.deleted ? dsChatAttachmentHtml(msg?.attachments, true) : '';
-    const deletable = dsCanDeleteChatMessage(msg, ownRole, chat) ? '<span class="ds-chat-delete-chip">Löschen</span>' : '';
+    const deletable = dsCanDeleteChatMessage(msg, ownRole, chat) ? '<span class="ds-chat-delete-chip">'+(ownRole==='customer'&&msg.kind==='decision'&&msg.senderUid!==firebase.auth().currentUser?.uid?'Für mich entfernen':'Löschen')+'</span>' : '';
     return `<div class="ds-chat-msg ${own ? 'is-own' : ''}"><div class="ds-chat-bubble ${msg?.deleted ? 'is-deleted' : ''}" data-chat-msg-index="${idx}" tabindex="0" role="button" aria-label="Nachricht öffnen"><div class="ds-chat-bubble__meta">${meta}${deletable}</div>${deletedHtml}${textHtml}${mediaHtml}${statusHtml}</div></div>`;
   }).join('');
 }
@@ -24655,7 +24656,8 @@ function dsWatchAdminChatMessages(chatId){
   renderAdminChatMessages();
   const col = cloudChatMessagesCol(chatId);
   if(!col) return;
-  st.msgUnsub = col.orderBy('createdAt','asc').onSnapshot((snap)=>{
+  st.msgUnsub = col.orderBy('createdAt','asc').onSnapshot({includeMetadataChanges:true},(snap)=>{
+    if(snap.metadata.hasPendingWrites)return;
     st.currentMessages = snap.docs.map(doc=>({ id: doc.id, ...(doc.data()||{}) }));
     renderAdminChatMessages();
   }, (err)=>{
@@ -24863,7 +24865,8 @@ function dsWatchCustomerChatMessages(chatId){
   renderCustomerChatMessages();
   const col = cloudChatMessagesCol(chatId);
   if(!col) return;
-  st.msgUnsub = col.orderBy('createdAt','asc').onSnapshot((snap)=>{
+  st.msgUnsub = col.orderBy('createdAt','asc').onSnapshot({includeMetadataChanges:true},(snap)=>{
+    if(snap.metadata.hasPendingWrites)return;
     st.currentMessages = snap.docs.map(doc=>({ id: doc.id, ...(doc.data()||{}) }));
     renderCustomerChatMessages();
   }, (err)=>{

@@ -303,10 +303,10 @@
     }
     uniqueTargets(out);return out;
   }
-  function service(db, orgId, getUser, decodeWorkspace){
+  function service(db, orgId, getUser, decodeWorkspace, serverTime=stamp=>stamp){
     const org = db.collection('orgs').doc(str(orgId));
     const users = org.collection('users'), proposals = org.collection('proposals'), tasks = org.collection('tasks');
-    const stateRef = org.collection('meta').doc('workspace_state');
+    const stateRef = org.collection('meta').doc('workspace_state'), inboxArchive=org.collection('inboxArchive');
     const decode = d => clone((decodeWorkspace ? decodeWorkspace(d) : d && d.payload) || {});
     async function profile(uid){ const snap = await users.doc(uid).get({source:'server'}); if(!snap.exists) fail('Kundenkonto ist noch nicht zugeordnet.'); return snap.data(); }
     async function workspace(){const actor=getUser(),snap=await stateRef.get({source:'server'});if(!actor || getUser()?.uid!==actor.uid)fail('Konto gewechselt.');if(!snap.exists)fail('Workspace fehlt.');return {payload:decode(snap.data()),stamp:Number(snap.data().updatedAt || 0)};}
@@ -329,12 +329,32 @@
       if(!(snap.exists && snap.data().role === 'admin') && !(str(user.email).toLowerCase() === 'raphael@boch-plan.de' && user.emailVerified === true)) fail('Nur ein Administrator darf Vorschläge übernehmen.');
       return user;
     }
+    async function setInboxArchived(entries,archived=true){
+      const initiator=getUser();if(!initiator)fail('Bitte anmelden.');
+      if(!Array.isArray(entries)||!entries.length||entries.length>100)fail('Bitte 1 bis 100 Eingänge auswählen.');
+      const rows=entries.map(entry=>typeof entry==='string'?{id:entry}:entry);
+      if(rows.some(r=>!str(r?.id)||str(r.id).includes('/'))||new Set(rows.map(r=>str(r.id))).size!==rows.length)fail('Die Auswahl enthält ungültige oder doppelte Eingänge.');
+      return db.runTransaction(async tx=>{
+        const actor=await requireAdmin(tx);if(actor.uid!==initiator.uid)fail('Konto gewechselt.');
+        const snapshots=await Promise.all(rows.map(async entry=>({entry,proposal:await tx.get(proposals.doc(str(entry.id))),marker:await tx.get(inboxArchive.doc(str(entry.id)))})));
+        for(const {entry,proposal}of snapshots){
+          if(archived&&!proposal.exists)fail('Ein ausgewählter Eingang fehlt. Bitte die Liste aktualisieren.');
+          if(entry.expectedRow&&proposal.exists&&stable({...proposal.data(),id:proposal.id})!==stable(entry.expectedRow))fail('Ein Eingang wurde zwischenzeitlich geändert. Bitte die Liste aktualisieren.','inbox-changed');
+        }
+        if(getUser()?.uid!==actor.uid)fail('Konto gewechselt.');let count=0;
+        for(const {entry,marker}of snapshots){
+          if(archived&&!marker.exists){tx.set(inboxArchive.doc(str(entry.id)),{proposalId:str(entry.id),archivedAt:Date.now(),archivedByUid:actor.uid});count++;}
+          else if(!archived&&marker.exists){tx.delete(marker.ref);count++;}
+        }
+        return{ok:true,ids:rows.map(r=>str(r.id)),archived,count};
+      });
+    }
     async function maintenance(){
       const actor=await db.runTransaction(tx=>requireAdmin(tx));
-      const [w,accounts,ps,ts]=await Promise.all([stateRef.get({source:'server'}),users.get({source:'server'}),proposals.get({source:'server'}),tasks.get({source:'server'})]);
+      const [w,accounts,ps,ts,archives]=await Promise.all([stateRef.get({source:'server'}),users.get({source:'server'}),proposals.get({source:'server'}),tasks.get({source:'server'}),inboxArchive.get({source:'server'})]);
       if(getUser()?.uid!==actor.uid)fail('Konto gewechselt.');if(!w.exists)fail('Workspace fehlt.');
       const records=snap=>snap.docs.map(d=>({id:d.id,data:d.data()}));
-      return {projectId:db.app?.options?.projectId || '',orgId:str(orgId),createdAt:Date.now(),workspaceDocument:w.data(),payload:decode(w.data()),stamp:Number(w.data().updatedAt || 0),profiles:records(accounts),proposals:records(ps),tasks:records(ts)};
+      return {projectId:db.app?.options?.projectId || '',orgId:str(orgId),createdAt:Date.now(),workspaceDocument:w.data(),payload:decode(w.data()),stamp:Number(w.data().updatedAt || 0),profiles:records(accounts),proposals:records(ps),tasks:records(ts),inboxArchive:records(archives)};
     }
     async function assign(uid,cid,templateId,guard){
       if(!uid || !cid || (templateId && !['customer_data','boarding_contract','hundeannahme'].includes(templateId)) || (!templateId && !guard)) fail('Kundenkonto, Kunde und Vorlage sind erforderlich.');
@@ -382,11 +402,23 @@
     }
     async function review(id, decision, edits){
       if(!['adopted','rejected'].includes(decision)) fail('Unbekannte Prüfentscheidung.');
+      const initiator=getUser();if(!initiator)fail('Bitte anmelden.');
+      if(!str(id)||str(id).includes('/'))fail('Ungültige Vorschlagsnummer.');
+      const preflight=await proposals.doc(str(id)).get({source:'server'});
+      if(!preflight.exists)fail('Vorschlag fehlt.');
+      const targetUid=str(preflight.data().customerUid);if(!targetUid)fail('Kundenkonto fehlt.');
+      // Reuse the customer's existing team chat by UID, including historic chats.
+      const listed=await org.collection('chats').where('customerUid','==',targetUid).get({source:'server'});
+      const priorChats=listed.docs.map(d=>({id:d.id,...d.data()})).filter(c=>str(c.teamMemberKey||'raphael')==='raphael');
+      priorChats.sort((a,b)=>(Number(b.updatedAtMs)||b.updatedAt?.toMillis?.()||0)-(Number(a.updatedAtMs)||a.updatedAt?.toMillis?.()||0));
+      const chatRef=org.collection('chats').doc(priorChats[0]?.id||targetUid+'__raphael'),messageRef=chatRef.collection('messages').doc('decision__'+str(id));
       const newPetId = tasks.doc().id, newStayId = tasks.doc().id;
       return db.runTransaction(async tx=>{
         const admin = await requireAdmin(tx);
+        if(admin.uid!==initiator.uid)fail('Konto gewechselt.');
         const pref = proposals.doc(str(id)), tref = tasks.doc(str(id));
-        const [ps,ts,ws] = await Promise.all([tx.get(pref),tx.get(tref),tx.get(stateRef)]);
+        const [ps,ts,ws,archived] = await Promise.all([tx.get(pref),tx.get(tref),tx.get(stateRef),tx.get(inboxArchive.doc(str(id)))]);
+        if(archived.exists)fail('Dieser Eingang ist archiviert. Bitte zuerst aus dem Archiv wiederherstellen.','inbox-archived');
         if(!ps.exists || !ts.exists || !ws.exists) fail('Vorschlag, Gegenstück oder Workspace fehlt.');
         const row = ps.data(), task = ts.data();
         if(!sameSubmission(row,task)) fail('Vorschlag und Aufgabe enthalten unterschiedliche Daten.');
@@ -395,6 +427,7 @@
           fail('Der Eingang wurde bereits anders bearbeitet.');
         }
         const uid = str(row.customerUid), uref = users.doc(uid), us = await tx.get(uref);
+        if(uid!==targetUid)fail('Die Kundenzuordnung des Eingangs wurde geändert. Bitte erneut öffnen.');
         if(!us.exists) fail('Kundenkonto fehlt.');
         const account = us.data();
         validateTarget(row,context({uid,email:account.email},account),{allowIncompleteStay:decision==='rejected'});
@@ -405,6 +438,11 @@
           if(!src.exists || src.data().customerUid !== uid || src.data().customerId !== row.customerId
             || src.data().templateId!==row.templateId || src.data().status!=='open' || (str(src.data().petId) && str(src.data().petId)!==str(row.petId))) fail('Die Ausgangsaufgabe gehört zu einem anderen Kunden, Hund oder Formular oder ist nicht mehr offen.');
         }
+        const [chatSnap,messageSnap]=await Promise.all([tx.get(chatRef),tx.get(messageRef)]);
+        const chat=chatSnap.exists?chatSnap.data():null;
+        if(chat&&(chat.customerUid!==uid||str(chat.teamMemberKey||'raphael')!=='raphael'))fail('Der Chat gehört zu einem anderen Kunden oder Team.');
+        if(messageSnap.exists)fail('Zu diesem offenen Eingang gibt es bereits eine Rückmeldung. Bitte den Eingang prüfen.');
+        if(getUser()?.uid!==admin.uid)fail('Konto gewechselt.');
         const stamp = Math.max(Date.now(),Number(ws.data().updatedAt || 0)+1), resolution = {status:decision,proposalStatus:decision,reviewedAt:stamp,reviewedByUid:admin.uid,updatedAt:stamp};
         let adoptedWorkspace=null;
         if(decision === 'adopted'){
@@ -460,9 +498,14 @@
           adoptedWorkspace={payload:workspace,stamp};
           resolution.resolvedPetId = pet && pet.id || '';
         }
-        const kind={customer_data:'Änderung deiner Kunden-/Hundedaten',boarding_contract:'Betreuungsvertrag',hundeannahme:'Aufenthaltsanfrage'}[row.templateId]||'Einreichung';
-        tx.set(uref.collection('notifications').doc(row.id),{proposalId:row.id,customerUid:uid,customerId:row.customerId,petId:row.petId,templateId:row.templateId,decision,reviewedAt:stamp,reviewedByUid:admin.uid,read:false,
-          title:kind+(decision==='adopted'?' angenommen':' abgelehnt'),text:decision==='adopted'?'Deine Einreichung wurde geprüft und übernommen. Die bestätigten Daten sind in deiner App verfügbar.':'Deine Einreichung wurde geprüft und abgelehnt. Bei Rückfragen kannst du uns im Chat schreiben.'});
+        const kind={customer_data:'Deine Änderung der Kunden-/Hundedaten',boarding_contract:'Dein Betreuungsvertrag',hundeannahme:'Deine Aufenthaltsanfrage'}[row.templateId]||'Deine Einreichung';
+        const stay=row.templateId==='hundeannahme'?row.payloadSubmitted?.meta:null;
+        const period=stay?' ('+str(stay.von)+' bis '+str(stay.bis)+')':'';
+        const text=kind+period+' wurde '+(decision==='adopted'?'angenommen. Die bestätigten Daten sind in deiner App verfügbar.':'abgelehnt. Bei Rückfragen kannst du uns hier im Chat schreiben.');
+        const time=serverTime(stamp);
+        if(!chat)tx.set(chatRef,{customerUid:uid,customerId:row.customerId,customerEmail:str(account.email).toLowerCase(),customerName:str(account.portalData?.customer?.name||row.customerName),teamMemberKey:'raphael',teamMemberLabel:'Raphael',createdAt:time,createdAtMs:stamp,unreadForStaff:0});
+        tx.set(messageRef,{kind:'decision',proposalId:str(id),decision,templateId:row.templateId,senderUid:admin.uid,senderRole:'staff',senderName:'Doggy Style',senderEmail:str(admin.email),customerUid:uid,customerEmail:str(account.email).toLowerCase(),customerName:str(account.portalData?.customer?.name||row.customerName),teamMemberKey:'raphael',text,attachments:[],createdAt:time,createdAtMs:stamp});
+        tx.set(chatRef,{updatedAt:time,updatedAtMs:stamp,lastMessageAt:time,lastMessageAtMs:stamp,lastMessageText:text,lastMessageFromRole:'staff',unreadForCustomer:Number(chat?.unreadForCustomer||0)+1,status:'open'},{merge:true});
         tx.update(pref,resolution); tx.update(tref,resolution);
         if(sourceRef && sourceRef.id !== tref.id) tx.update(sourceRef,{status:decision,answeredAt:stamp,updatedAt:stamp});
         return {ok:true,id,decision,...(adoptedWorkspace?{workspace:adoptedWorkspace}:{})};
@@ -507,7 +550,7 @@
       // publish re-checks admin authority and the exact server revision before one atomic write.
       return publish(workspace,expectedStamp);
     }
-    return {profile,workspace,submit,assign,review,publish,approveManualContract,maintenance,repairPair,
+    return {profile,workspace,submit,assign,review,publish,approveManualContract,maintenance,repairPair,setInboxArchived,
       linkCustomer:(uid,cid,stamp,account)=>assign(uid,cid,'',{stamp,account})};
   }
   return {context,signatureValid,canvasHasInk,auditRecords,restoreRecords,signatureKey,agreementKey,approvedContract,portalSnapshot,validateTarget,submission,sameSubmission,mergePlan,resolveMerge,service,customerFields,petFields,stayConsents,careType,dateISO,stayDetails,dateRange,capacity,confirmedStays,occupancyForDay,occupancyRange,validateStay,legalTexts};

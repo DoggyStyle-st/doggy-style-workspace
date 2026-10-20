@@ -8,8 +8,8 @@
     return result.sort((a,b)=>a.name.localeCompare(b.name,'de'));
   }
   function milliseconds(v){if(typeof v?.toMillis==='function')return v.toMillis();if(v?.seconds)return Number(v.seconds)*1000;const n=Number(v||0);return Number.isFinite(n)?n:Date.parse(String(v))||0;}
-  function visibleMessages(messages,chat,uid){const cutoff=milliseconds(chat?.clearedAtByUid?.[uid]);return (messages||[]).filter(m=>milliseconds(m.createdAt||m.createdAtMs)>cutoff);}
-  function canDelete(message,user,role){return !!user?.uid&&!!message?.id&&(['admin','staff'].includes(role)||message.senderUid===user.uid);}
+  function visibleMessages(messages,chat,uid){const cutoff=milliseconds(chat?.clearedAtByUid?.[uid]);return (messages||[]).filter(m=>m.hiddenForUids?.[uid]!==true&&milliseconds(m.createdAt||m.createdAtMs)>cutoff);}
+  function canDelete(message,user,role){return !!user?.uid&&!!message?.id&&(['admin','staff'].includes(role)||message.senderUid===user.uid||(message.kind==='decision'&&message.customerUid===user.uid));}
   function service(db,orgId,getUser,timestamp=()=>Date.now()){
     if(orgId!=='doggystyle')fail('Unbekannter Workspace.');const org=db.collection('orgs').doc(orgId),users=org.collection('users'),chats=org.collection('chats');
     async function authority(){const user=getUser();if(!user)fail('Bitte anmelden.');const p=await users.doc(user.uid).get({source:'server'});const profile=p.exists?p.data():{};
@@ -36,11 +36,25 @@
         tx.set(messageRef,message);tx.update(ref,{updatedAt:timestamp(),lastMessageAt:timestamp(),updatedAtMs:now,lastMessageAtMs:now,lastMessageText:text||(files.length+' Datei(en)'),lastMessageFromRole:role,status:'open',unreadForStaff:a.staff?0:Number(data.unreadForStaff||0)+1,unreadForCustomer:a.staff?Number(data.unreadForCustomer||0)+1:0});return{ok:true,id:messageRef.id};});}
     async function clear(chatId){const a=await authority(),ref=chats.doc(str(chatId));return db.runTransaction(async tx=>{const chat=await tx.get(ref);if(!chat.exists)fail('Chat fehlt.');owns(a,chat.data());
       const messages=await ref.collection('messages').orderBy('createdAt','desc').limit(1).get({source:'server'});const cutoff=Math.max(Date.now(),milliseconds(messages.docs[0]?.data().createdAt||messages.docs[0]?.data().createdAtMs));
-      if(getUser()?.uid!==a.user.uid)fail('Konto gewechselt.');tx.update(ref,{['clearedAtByUid.'+a.user.uid]:cutoff});return{ok:true,cutoff,uid:a.user.uid};});}
+      if(getUser()?.uid!==a.user.uid)fail('Konto gewechselt.');const read=a.staff?{unreadForStaff:0,staffLastReadAt:timestamp(),staffLastReadAtMs:cutoff}:{unreadForCustomer:0,customerLastReadAt:timestamp(),customerLastReadAtMs:cutoff};
+      tx.update(ref,{['clearedAtByUid.'+a.user.uid]:cutoff,...read});return{ok:true,cutoff,uid:a.user.uid};});}
     async function remove(chatId,messageId){const a=await authority(),ref=chats.doc(str(chatId));return db.runTransaction(async tx=>{const [chat,message]=await Promise.all([tx.get(ref),tx.get(ref.collection('messages').doc(str(messageId)))]);if(!chat.exists)fail('Chat fehlt.');owns(a,chat.data());if(!message.exists)return{ok:true,attachments:[]};
-      const data=message.data();if(!a.staff&&data.senderUid!==a.user.uid)fail('Du kannst nur deine eigenen Nachrichten löschen.');if(getUser()?.uid!==a.user.uid)fail('Konto gewechselt.');tx.delete(message.ref);return{ok:true,attachments:(data.attachments||[]).filter(f=>str(f.path).startsWith('orgs/'+orgId+'/chatMedia/'+ref.id+'/'))};});}
-    async function markNoticeRead(id){const a=await authority();if(!a.ctx.verified)fail('Kein zugeordnetes Kundenkonto.');await users.doc(a.user.uid).collection('notifications').doc(str(id)).update({read:true});return{ok:true};}
-    return{listCustomers,findOwn,ensure,send,clear,remove,markNoticeRead};
+      const data=message.data();if(getUser()?.uid!==a.user.uid)fail('Konto gewechselt.');
+      if(!a.staff&&data.senderUid!==a.user.uid){if(data.kind!=='decision'||data.customerUid!==a.user.uid)fail('Du kannst nur deine eigenen Nachrichten löschen.');
+        const wasUnread=data.hiddenForUids?.[a.user.uid]!==true&&milliseconds(data.createdAt||data.createdAtMs)>milliseconds(chat.data().customerLastReadAtMs||chat.data().customerLastReadAt);
+        const unreadCount=Math.max(0,Number(chat.data().unreadForCustomer||0)-(wasUnread?1:0));
+        tx.update(message.ref,{['hiddenForUids.'+a.user.uid]:true});if(wasUnread)tx.update(ref,{unreadForCustomer:unreadCount});return{ok:true,hidden:true,uid:a.user.uid,unreadCount,attachments:[]};}
+      tx.delete(message.ref);return{ok:true,attachments:(data.attachments||[]).filter(f=>str(f.path).startsWith('orgs/'+orgId+'/chatMedia/'+ref.id+'/'))};});}
+    async function noticeAction(id,remove){
+      const a=await authority();if(!a.ctx.verified)fail('Kein zugeordnetes Kundenkonto.');id=str(id);if(!id||id.includes('/'))fail('Ungültige Rückmeldung.');
+      const ref=users.doc(a.user.uid).collection('notifications').doc(id);
+      return db.runTransaction(async tx=>{const notice=await tx.get(ref);if(getUser()?.uid!==a.user.uid)fail('Konto gewechselt.');if(!notice.exists)return{ok:true,missing:true};
+        if(remove){if(notice.data().read!==true)fail('Bitte die Rückmeldung zuerst als gelesen markieren.');tx.delete(ref);}
+        else if(notice.data().read!==true)tx.update(ref,{read:true});
+        return{ok:true,id};
+      });
+    }
+    return{listCustomers,findOwn,ensure,send,clear,remove,markNoticeRead:id=>noticeAction(id,false),deleteNotice:id=>noticeAction(id,true)};
   }
   return{customerOptions,milliseconds,visibleMessages,canDelete,service};
 });

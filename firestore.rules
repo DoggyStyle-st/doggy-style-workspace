@@ -102,10 +102,21 @@ service cloud.firestore {
       allow delete: if admin(orgId);
       match /notifications/{notificationId} {
         allow read: if orgAllowed(orgId) && signedIn() && (request.auth.uid == uid || staff(orgId));
-        allow create, delete: if admin(orgId);
+        allow create: if admin(orgId);
+        allow delete: if admin(orgId) || (orgAllowed(orgId) && signedIn() && request.auth.uid == uid && resource.data.get('read', false) == true);
         allow update: if admin(orgId) || (orgAllowed(orgId) && signedIn() && request.auth.uid == uid
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']) && request.resource.data.read == true);
       }
+    }
+    match /orgs/{orgId}/inboxArchive/{proposalId} {
+      allow read: if staff(orgId);
+      allow create: if admin(orgId)
+        && request.resource.data.keys().hasOnly(['proposalId','archivedAt','archivedByUid'])
+        && request.resource.data.proposalId == proposalId
+        && request.resource.data.archivedAt is number && request.resource.data.archivedAt > 0
+        && request.resource.data.archivedByUid == request.auth.uid;
+      allow update: if false;
+      allow delete: if admin(orgId);
     }
     match /orgs/{orgId}/meta/{docId} {
       allow read: if staff(orgId);
@@ -131,7 +142,7 @@ service cloud.firestore {
     }
     match /orgs/{orgId}/chats/{chatId} {
       function personalClear() {
-        return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['clearedAtByUid'])
+        return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['clearedAtByUid','unreadForCustomer','customerLastReadAt','customerLastReadAtMs'])
           && request.resource.data.clearedAtByUid is map
           && request.resource.data.clearedAtByUid.diff(resource.data.get('clearedAtByUid', {})).affectedKeys().hasOnly([request.auth.uid])
           && request.resource.data.clearedAtByUid[request.auth.uid] is number;
@@ -146,11 +157,19 @@ service cloud.firestore {
       allow delete: if admin(orgId);
       match /messages/{messageId} {
         function chatOwner() { return own(get(/databases/$(database)/documents/orgs/$(orgId)/chats/$(chatId)).data); }
+        function hideOwnDecision() {
+          return resource.data.get('kind', '') == 'decision' && resource.data.get('customerUid', '') == request.auth.uid
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['hiddenForUids'])
+            && request.resource.data.hiddenForUids is map
+            && request.resource.data.hiddenForUids.diff(resource.data.get('hiddenForUids', {})).affectedKeys().hasOnly([request.auth.uid])
+            && request.resource.data.hiddenForUids[request.auth.uid] == true;
+        }
         allow read: if orgAllowed(orgId) && (staff(orgId) || (signedIn() && chatOwner()));
         allow create: if staff(orgId) || (assigned(orgId) && chatOwner() && request.resource.data.get('senderUid', '') == request.auth.uid
           && request.resource.data.get('senderRole', '') == 'customer' && request.resource.data.get('customerUid', '') == request.auth.uid);
-        allow update: if staff(orgId) || (assigned(orgId) && chatOwner() && resource.data.get('senderUid', '') == request.auth.uid
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text','editedAt','deleted','deletedAt','attachments']));
+        allow update: if staff(orgId) || (assigned(orgId) && chatOwner() && (hideOwnDecision()
+          || (resource.data.get('senderUid', '') == request.auth.uid
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text','editedAt','deleted','deletedAt','attachments']))));
         allow delete: if staff(orgId) || (assigned(orgId) && chatOwner() && resource.data.get('senderUid', '') == request.auth.uid);
       }
     }
