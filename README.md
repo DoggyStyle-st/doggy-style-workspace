@@ -1,15 +1,11 @@
-# Doggy Style Workspace - GB371 Druck-Testfassung
+# Doggy Style Workspace - GB372 Ladefolge-Korrektur
 
-Stand: 20. Oktober 2026. Vollständige Testfassung mit bereinigten Arbeitsblättern und Tages-Sammeldruck.
+Stand: 20. Oktober 2026. Vollständige Testfassung.
 
-Der zweite Hygiene-Erfassungsbereich unter Arbeitsblätter entfällt. Der eigenständige Bereich Hygiene bleibt erhalten; frühere Hygiene-Nachweise bleiben im Arbeitsblattarchiv lesbar und exportierbar.
+GB371 lud workforms-print.js vor workflow-core.js. Das Druckmodul speicherte dadurch eine fehlende Abhängigkeit und scheiterte später bei Core.dateISO. GB372 lädt das Grundmodul vor der Druck-Erweiterung. Eine tatsächlich fehlende Abhängigkeit erzeugt zusätzlich eine verständliche Meldung.
 
-Heute drucken öffnet eine bedienbare Dokumentansicht mit Tagesübersicht, Anreisen und Abreisen, Hundeblättern und Schichtblatt. Sie verwendet bestätigte Aufenthalte und dieselbe Belegungsberechnung wie die Startseite, einschließlich Abreisetag und maximal vier Hunden. Offene und stornierte Anfragen zählen nicht.
+Die bisherigen Drucktests hatten die Module in einer manuell vorgegebenen Reihenfolge geladen. Sie prüften damit nicht die tatsächliche Reihenfolge der ausgelieferten HTML. Die neue Prüfung lädt die Original-Skript-Tags im Browser, führt die vollständigen lokalen App-Skripte aus und prüft den tatsächlichen Heute-drucken-Klick und die heruntergeladenen PDF-Bytes, auch bei langsamer Grundmodul-Antwort. Der Live-Auth-Bootstrap bleibt dabei isoliert; es werden keine echten Firebase-Zugangsdaten eingesetzt.
 
-PDF speichern lädt eine echte PDF-Datei herunter. PDF teilen übergibt auf unterstützten Geräten diese Datei an das Teilen-Menü. PDF öffnen bietet die Datei separat an. Drucken ruft nur die geladene Dokumentansicht auf. Die PDF entsteht vollständig im Browser, ohne Übermittlung an einen zusätzlichen Dienst. Die benötigten PDF- und Schriftdateien liegen im Paket.
+Doppelter Hygiene-Einstieg bleibt entfernt; alte Nachweise bleiben im Archiv. Tagesübersicht, Anreisen/Abreisen, Hundeblätter, Schichtblatt, PDF-Download und erreichbare Vorschau aus GB371 bleiben enthalten. Die PDF-Dateien werden lokal erstellt. Die mitgelieferten Dateien unter vendor bleiben erforderlich und unverändert.
 
-Auch bisherige HTML-Dokumente nutzen die überarbeitete Vorschau oberhalb der App-Kopfzeile. Altes srcdoc wird vor dem Dokumentwechsel entfernt; Kontoreset schließt die Vorschau und widerruft temporäre Datei-Adressen.
-
-Enthalten bleiben alle bisherigen Kunden-, Vertrags-, Eingangs-, Chat-, Aufenthalts- und Fotoreparaturen. Eine erfolgreiche Fotoanzeige und Neukundenzuordnung auf dem echten Gerät wurden inzwischen vom Benutzer bestätigt. Der Schutz lokaler Uploadvorschauen aus dem bisherigen unveröffentlichten Entwurf ist enthalten.
-
-Firebase-Projekt, Konfiguration und beide Regeldateien sind gegenüber GB370 unverändert. Es ist keine erneute Regelveröffentlichung erforderlich. Die Entwicklung hat keine bestehenden Kundendaten oder Nachweise verändert. Details, Tests und verbleibende Prüfgrenzen: PRUEFBERICHT.md und pruefungen/.
+Firebase-Projekt, Konfiguration und Regeln sind unverändert. Keine Bestandsreparatur und keine erneute Regelveröffentlichung erforderlich. PRUEFBERICHT.md unterscheidet neue Prüfungen, unverändert übernommene Backend-Nachweise und verbleibende native iOS-/Live-Prüfungen.

@@ -7,6 +7,7 @@
   const s=v=>String(v==null?'':v).trim(),esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const date=v=>/^\d{4}-\d{2}-\d{2}$/.test(s(v))?s(v).split('-').reverse().join('.'):s(v);
   function build(workspace,options){
+    if(!Core || ['dateISO','confirmedStays','occupancyForDay'].some(name=>typeof Core[name]!=='function'))throw new Error('Das Grundmodul für den Sammeldruck fehlt. Bitte die vollständigen App-Dateien aktualisieren und die Seite neu laden.');
     const w=workspace||{},o=options||{},day=Core.dateISO(o.day);if(!day)throw new Error('Druckdatum fehlt.');
     const stays=Core.confirmedStays(w).filter(x=>day>=x.from&&day<=x.to).map(x=>{
       const doc=(w.docs||[]).find(d=>s(d.id)===x.id)||(w.stays||[]).find(d=>s(d.id)===x.id||s(d.docId)===x.id)||{};

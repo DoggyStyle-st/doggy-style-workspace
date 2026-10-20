@@ -1,14 +1,12 @@
-Doggy Style Workspace - GB371 Druck-Testfassung
+Doggy Style Workspace - GB372 Ladefolge-Korrektur
 Stand: 20. Oktober 2026
 
-1. Bisherige App-Dateien und vorhandene Bestandssicherung aufbewahren.
-2. ZIP in Dateien entpacken. Den Inhalt des Ordners DoggyStyle_Workspace_GB371_TEST am bisherigen GitHub-Pages-Ort einspielen. Unterordner assets, vendor und pruefungen ebenfalls übernehmen; keinen zusätzlichen verschachtelten App-Ordner anlegen.
-3. Firestore-Regeln, Storage-Regeln und Firebase-Konfiguration sind gegenüber GB370 unverändert. Für dieses Update dort nichts erneut ändern. Keine Bestandsreparatur erforderlich.
-4. Nach Veröffentlichung den Workspace neu laden. Login und DIAG müssen M50.9.9GB371_PRINT_TEST_20261020 zeigen. Kein Daten-Reset und keine Löschung der Safari-Websitedaten.
-5. Arbeitsblätter öffnen. Angeboten werden Heute drucken, Übergabe / Schichtblatt, Ereignisprotokoll und Archiv. Hygiene wird weiterhin über den eigenen Hygiene-Reiter bearbeitet. Alte Hygiene-Nachweise bleiben im Archiv.
-6. Heute drucken wählen. In der Vorschau stehen bestätigte Aufenthalte für den aktuellen Tag, Anreisen/Abreisen, Hundeblätter und das Schichtblatt. Der Abreisetag zählt mit; unbestätigte Anfragen zählen nicht.
-7. PDF speichern wählen. Die fertige Datei heißt DoggyStyle_Tages-Sammeldruck_JJJJ-MM-TT.pdf und erscheint bei den Safari-Downloads. Dort öffnen oder in Dateien ablegen. Alternativ PDF teilen wählen und In Dateien sichern nutzen, sofern das Gerät Dateifreigabe anbietet. PDF öffnen zeigt die Datei separat an.
-8. Drucken öffnet die Druckauswahl. Schließen kehrt zur vorherigen App-Ansicht zurück. Handschriftliche Ergänzungen auf einem gedruckten Schichtblatt werden nicht automatisch in der App gespeichert.
-9. Einmal auf dem eigenen iPad/iPhone prüfen: Vorschau, PDF in Dateien, Öffnen der gespeicherten PDF und gegebenenfalls tatsächlicher Druck. Diese OS-Dialoge und ein physischer Drucker können in der Entwicklungsumgebung nicht vollständig geprüft werden.
+1. Die vollständige ZIP entpacken und die Dateien aus DoggyStyle_Workspace_GB372_TEST am bisherigen GitHub-Pages-Ort einspielen. Unterordner assets, vendor und pruefungen mit übernehmen. Der vendor-Inhalt ist gegenüber GB371 unverändert, gehört aber weiterhin zur vollständigen App.
+2. Nach der Veröffentlichung die App neu laden. Login und DIAG müssen M50.9.9GB372_LOAD_ORDER_TEST_20261020 zeigen. Kein Daten-Reset und keine Löschung von Safari-Websitedaten.
+3. Arbeitsblätter > Heute drucken wählen. Das Grundmodul wird jetzt vor der Druck-Erweiterung geladen. Die Meldung zu Core.dateISO darf bei vollständigem GB372-Stand nicht mehr auftreten.
+4. PDF speichern lädt die fertige PDF mit Tagesdatum herunter. Alternativ PDF öffnen oder, wenn vom Gerät unterstützt, PDF teilen > In Dateien sichern verwenden. Drucken öffnet die Druckauswahl für das Vorschau-Dokument.
+5. Die echten iPad-/iPhone-Druck- und Dateien-Dialoge einmal auf dem Gerät prüfen. In der Entwicklungsumgebung werden tatsächlicher Browserstart, Klick, Vorschau und Dateidownload geprüft, aber kein physischer Drucker.
 
-Bestand, Regeln, Verträge und Originalsignaturen werden durch die Druckfunktion nicht geändert. PDF-Erstellung und Vorschau arbeiten lokal im Browser. Die bewährte Kundenanbindung bleibt enthalten. Prüfbericht und Einzelprüfungen liegen im Paket.
+Firebase-Regeln und Projektkonfiguration bleiben unverändert. Keine Bestandsreparatur oder erneute Kundenzuordnung nötig. Bestehende Nachweise, Verträge, Signaturen und Anfragen werden nicht verändert. Der eigene Hygiene-Reiter bleibt bestehen; frühere Arbeitsblatt-Hygienenachweise bleiben im Archiv.
+
+GB371 hatte einen Fehler in der gelieferten Skriptreihenfolge. Die damaligen Drucktests sortierten Module manuell und erfassten diesen Fehler nicht. Der neue Test liest die tatsächliche HTML und führt ihre lokalen Skript-Tags in Browserreihenfolge aus. Details im Prüfbericht.

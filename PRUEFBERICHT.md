@@ -1,76 +1,58 @@
-# Doggy Style Workspace - GB371 Druck-Testfassung
+# Doggy Style Workspace - GB372 Ladefolge-Korrektur
 
-Stand: 20. Oktober 2026. Vollständige aktualisierte Testfassung. Keine pauschale Zusage einer vollständig geprüften produktiven Freigabe.
+Stand: 20. Oktober 2026. Vollständige korrigierte Testfassung. Native Safari-/iOS- und vollständige Live-Firebase-Prüfungen bleiben offen.
 
-## Aktueller Befund
+## Gemeldeter Fehler und bestätigte Ursache
 
-Der Benutzer bestätigt inzwischen die Fotoanzeige im Kundenbereich auf dem echten iPad (GB370) und die zuvor erklärte Neukundenregistrierung mit anschließender administrativer Zuordnung. Zuvor zeigte der Bucket-Screenshot CORS als Nicht aktiviert. Der Benutzer hat diese Einstellung selbst angepasst. Diese Angaben sind Benutzerbeobachtungen im bestehenden Projekt; die Entwicklung hat weder einen neuen authentifizierten Live-Durchlauf durchgeführt noch produktive CORS-Einstellungen verändert.
+Der Benutzer meldet auf dem iPad mit GB371 für HTML und JavaScript beim Klick auf Heute drucken: undefined is not an object (evaluating Core.dateISO). Firebase ist verbunden und der Workspace vom Server bestätigt.
 
-Neu gemeldet wurden ein zweiter, nicht mehr benötigter Hygiene-Erfassungsbereich unter Arbeitsblätter und ein fehlerhafter Tages-Sammeldruck mit verdeckten Bedienelementen und fehlender Druck-/Speichermöglichkeit.
+Die ausgelieferte GB371-HTML lädt workforms-print.js vor workflow-core.js. Das Druckmodul übernimmt beim Laden root.DSWorkflowCore in seine lokale Factory. Zu diesem Zeitpunkt ist der Wert undefined. Dass das Grundmodul danach erfolgreich geladen wird, ändert diesen bereits übernommenen Wert nicht. Beim späteren Drucken scheitert deshalb Core.dateISO. Der Integrationsgenerator setzte den Druckblock vor die übrigen Workflow-Abhängigkeiten.
 
-## Behobene Ursachen und Verhalten
+Der Fehler wurde mit der unveränderten GB371-HTML und ihren tatsächlichen lokalen Skript-Tags in Chromium reproduziert. Die reproduzierte Browsermeldung nennt ebenfalls dateISO. Der getrennte Nachweis gb371-load-reproduction.json enthält zwei erwartete Fehlerreproduktionen.
 
-**Doppelter Hygiene-Bereich:** Die Erfassungskarte Hygiene-Nachweis entfällt unter Arbeitsblätter. Die übrigen vier Karten besitzen korrekt geschlossene Schaltflächen. Der eigenständige Bereich Hygiene bleibt erhalten. Frühere Arbeitsblatt-Hygienenachweise bleiben unverändert im Archiv lesbar und über ihre bisherige Dokumentansicht druckbar. Es werden keine alten Nachweise gelöscht, migriert oder nachträglich abgeschlossen.
+## Lücke der bisherigen Tests
 
-**Verdeckte Dokumentvorschau:** Im unveränderten GB370 ließ sich reproduzieren, dass die Druckschaltfläche unter der App-Kopfzeile liegt. Die Vorschau befand sich innerhalb des Inhaltsbereichs mit eigenem Stapelkontext; ein höherer z-index allein innerhalb dieses Bereichs genügte nicht. Der neue Dokumentdialog liegt direkt unter body und verwendet auf unterstützten Browsern die native Dialogebene. Die Kopfzeile kann ihn dort nicht überlagern. Die Toolbar ist bei iPad quer/hoch und iPhone-Bildgrößen erreichbar; die Vorschau erhält die verbleibende Höhe. Schließen stellt Scrollzustand und Fokus wieder her. Vor einem Dokumentwechsel wird altes srcdoc entfernt; frühere HTML-Dokumente werden dadurch nicht vom zuletzt geöffneten Inhalt verdeckt.
+Die vorherigen 301 lokalen Prüfungen bestanden. Der Drucktest entfernte jedoch die Skript-Tags aus der HTML und lud ausgewählte Module selbst in einer funktionierenden Reihenfolge. Die eigentliche Ladefolge des ausgelieferten Pakets war dadurch nicht geprüft. Deshalb konnte GB371 trotz dieser Prüfergebnisse beim tatsächlichen Browseraufruf scheitern. Die damalige Ausgabe bleibt als historischer Nachweis erhalten und ist durch diese Korrektur überholt.
 
-**Falsche Aufenthaltsquelle:** GB370 las ausschließlich alte state.stays-Einträge mit fromDate/toDate und druckte bei aktuellen bestätigten state.docs-Aufenthalten Keine Aufenthalte gefunden. Dieser Fehler ist getrennt im unveränderten GB370 reproduziert. GB371 verwendet dieselbe bestätigte Aufenthalts- und Belegungsberechnung wie die Startseite. Abreisetage zählen mit; offene und stornierte Anfragen zählen nicht. Spiegel-Datensätze werden durch die bestehende gemeinsame Berechnung behandelt. Die Druckfunktion schreibt keine neue Belegung und verändert keinen Aufenthalt.
+## Reparatur
 
-**Vollständiger Tages-Sammeldruck:** Enthalten sind Tagesübersicht, Belegungszahlen, Anreisen und Abreisen mit angegebenen Uhrzeiten, je ein Hundeblatt mit Kontakt-, Notfall-, Futter-, Gesundheits-, Tierarzt- und Betreuungshinweisen sowie die archivierten Schichtblätter des Tages. Fehlt ein archiviertes Schichtblatt, erscheinen beschriftete Notizfelder mit entsprechendem Hinweis. Aktuelle Medikationspläne werden nicht als vermeintlich vollständiger Bestandteil dupliziert; das Hundeblatt verweist ausdrücklich auf den Bereich Medikamente. Handschriftliche Ergänzungen auf Papier werden nicht automatisch gespeichert.
+Der Generator ordnet die Skripte jetzt anhand ihrer Abhängigkeiten an: browser-store, workflow-core, workflow-ui, workspace-repair-ui, communication-core, customer-portal, PDF-Bibliothek und Schrift, document-output, workforms-print, app.js. Die bestehende defer-Ausführung bleibt erhalten. Das Grundmodul ist beim Erzeugen des Druckmoduls verfügbar. Fehlt eine benötigte Grundfunktion tatsächlich, gibt build eine verständliche Meldung über fehlende App-Dateien aus.
 
-**Tatsächliche PDF-Datei:** PDF speichern lädt echte application/pdf-Bytes mit dem Datum im Dateinamen herunter. PDF öffnen bietet dieselbe Datei separat an. PDF teilen übergibt auf unterstützten Geräten eine File-Datei und nicht nur einen Titel. Die Datei entsteht lokal mit der mitgelieferten Browserfassung jsPDF 4.2.1 und einer mitgelieferten DejaVu-Schrift; kein zusätzlicher externer PDF-Dienst erhält Kundendaten. Lange Texte werden mit wiederholten Tabellenköpfen über weitere A4-Seiten verteilt. Umlaut- und Langtext-Endmarkierungen sind in der erzeugten PDF nachgewiesen. Ein leerer Tag erzeugt ebenfalls ein gültiges Dokument.
+Alle betroffenen Build- und Cacheverweise verwenden M50.9.9GB372_LOAD_ORDER_TEST_20261020. Die vorhandenen vendor-Dateien bleiben unverändert. Die in GB371 bereinigten Arbeitsblätter, die erreichbare Dokumentvorschau, die aktuelle Aufenthaltsquelle und die echte PDF-Ausgabe bleiben enthalten. Frühere Nachweise werden nicht verändert oder entfernt.
 
-**Drucken und Kontowechsel:** Drucken wird erst nach Laden des Vorschau-Dokuments und seiner Bilder freigegeben und ruft den Dokumentrahmen auf. Ein Kontoreset schließt den Dialog und widerruft seine temporären Datei-Adressen. Der Serverzugriff auf den gemeinsamen Workspace bleibt für Kunden gesperrt. Die neue Druckfunktion erweitert keine Firestore- oder Storage-Berechtigung.
+Firebase-Konfiguration, Firestore- und Storage-Regeln sowie die sechs unveränderten Workflow-/Speichermodule sind bytegleich mit GB371. Auch Dokumentdialog, dessen CSS und die beiden PDF-/Schriftdateien sind unverändert. app.js, auth.js, customer.html, login.html, index.html, manifest.json und sw.js unterscheiden sich ausschließlich durch die Buildkennung. gb372-backend-preservation.json protokolliert diese Vergleiche. Es wird kein Bestand repariert und keine Regelveröffentlichung benötigt.
 
-**Foto-Vorschau:** Enthalten ist zusätzlich der bereits vorbereitete Schutz der lokalen Uploadvorschau. Ein erfolgreich hochgeladenes, aufbereitetes Bild bleibt pro UID im privaten Vorschaucache, statt bei einem anschließenden Abrufproblem sofort aus der Kundenansicht zu verschwinden. Der tatsächlich auf das Gerät geladene Blob wird verwendet. Es entsteht kein öffentlicher Downloadlink und keine pauschale Leseberechtigung. Kontoreset widerruft die Vorschau. Der reale erfolgreiche Fotoabruf wurde vom Benutzer noch mit GB370 bestätigt; der zusätzliche Schutz selbst wurde in isolierten Emulatoren geprüft.
+## Neue Prüfung mit tatsächlichen HTML-Skripten
 
-## Nachweise
+script-load-workflow.cjs lädt die ausgelieferte app.html über einen lokalen HTTP-Server. Der Browser führt deren lokale Skript-Tags in der angegebenen Reihenfolge aus. Die vollständigen lokalen App-Skripte und ihre echten Klickhandler werden verwendet. Bei einem zweiten Durchlauf wird die Antwort des Grundmoduls verzögert, während andere Dateien früher fertig werden können.
 
-301 Prüfungen bestehen in den unten aufgeführten Gruppen. Erwartete Reproduktionen früherer Fehler sind in den ursprünglichen Gruppen entsprechend gekennzeichnet; sie sind keine bestandenen Live-Tests. Die zwei neuen GB370-Druckfehler stehen zusätzlich getrennt in gb370-print-reproduction.json und werden nicht als bestandene Reparaturprüfungen gezählt.
+Geprüft werden Reihenfolge, fehlende unbehandelte JavaScript-Fehler, der echte Heute-drucken-Klick, die geladene Vorschau, eine heruntergeladene echte PDF und wiederholtes Öffnen. Auch der verzögerte Abruf besteht. Die automatisierte Live-Anmeldung ist kontrolliert deaktiviert, Firebase-SDK/Authentifizierung sind isoliert, und sämtliche nichtlokalen Datenanfragen werden blockiert. Dieser Test bestätigt die Browser-Ladefolge und Druckbedienung; er führt keine echte Firebase-Anmeldung aus.
 
-| Gruppe | Bestandene Prüfungen | Ausgeführt (UTC) |
+85 gezielte Prüfungen wurden mit dem aktuellen Quellstand neu ausgeführt und bestehen:
+
+| Gruppe | Bestanden | Ausgeführt (UTC) |
 | --- | ---: | --- |
-| firebase | 66 | 2026-10-20T19:13:16.133Z |
-| ui | 30 | 2026-10-20T19:09:42.943Z |
-| startup | 18 | 2026-10-20T19:10:03.851Z |
-| quota | 14 | 2026-10-20T19:10:13.036Z |
-| backup-forward | 12 | 2026-10-20T19:13:53.454Z |
-| inbox-review | 7 | 2026-10-20T19:10:19.334Z |
-| portal-features | 21 | 2026-10-20T19:14:27.469Z |
-| stay-review | 23 | 2026-10-20T19:15:15.459Z |
-| inbox-chat | 30 | 2026-10-20T19:15:57.096Z |
-| photo | 26 | 2026-10-20T19:16:52.873Z |
-| media | 19 | 2026-10-20T19:10:24.407Z |
-| photo-preview | 6 | 2026-10-20T19:17:23.936Z |
-| workforms-print | 24 | 2026-10-20T19:11:20.919Z |
-| pdf-output | 5 | 2026-10-20T19:15:19.757789+00:00 |
+| ui | 30 | 2026-10-20T21:22:21.276Z |
+| startup | 18 | 2026-10-20T21:22:40.758Z |
+| script-load | 8 | 2026-10-20T21:22:52.669Z |
+| workforms-print | 24 | 2026-10-20T21:23:24.841Z |
+| pdf-output | 5 | 2026-10-20T21:23:26.700352+00:00 |
 
-Die Druckgruppe verwendet den echten Firestore-Emulator mit den vorhandenen Testkunden als Ausgangspunkt. Zusätzliche Aufenthalte und Druckfälle entstehen ausschließlich in einer isolierten demo-Projektkopie. Die hochgeladene Sicherung wird nicht verändert. Die Dokumentansicht und ihr tatsächlicher Download laufen in Chromium 155 mit iPad-Querformat, iPad-Hochformat und iPhone-Bildgröße. Der Dateidownload wird als PDF eingelesen. Der Teilentest prüft den Aufruf mit tatsächlichen Dateibytes über einen simulierten OS-Endpunkt; der Drucktest prüft den Aufruf des richtigen Dokumentfensters. Zusätzlich erzeugt der Browser eine eigene mehrseitige PDF aus dem HTML-Drucklayout.
+Die 24 Druckabläufe verwenden erneut den echten Firestore-Emulator und die vorhandenen Testkunden in einer isolierten demo-Projektkopie. Der globale Workspace-Zugriff eines Kunden bleibt gesperrt. Die hochgeladene Sicherung und produktive Daten werden nicht verändert. Die 18 Anmeldestart-Prüfungen verwenden den bestehenden jsdom-Testaufbau mit simulierten Firebase-Callbacks. Die 30 UI-Prüfungen enthalten Syntax, lokale Abhängigkeiten, Kunden-/Vertragsansichten und Reparaturgrenzen.
 
-Vier erzeugte Dokumente mit insgesamt 15 Seiten wurden gerendert und visuell geprüft. Ergänzende PyMuPDF-Prüfungen bestätigen vollständigen Text, Umlaute, das Ende langer Notizen, A4-Seiten und Textbegrenzungen innerhalb der Seitenränder. Die internen Beispiel-PDFs und Bildschirmbilder werden wegen der Testkundendaten nicht in die App-ZIP aufgenommen.
+Die PDF-Ausgabe wird zusätzlich auf A4, vollständige Inhalte, Umlaute, lange Texte, leere Tage und Seitenränder geprüft. Die 15 Seiten der vier Druckbeispiele wurden gerendert und visuell geprüft. Die aus der tatsächlichen App-HTML heruntergeladene PDF enthält den Testhund Rex und wurde ebenfalls gerendert und kontrolliert. Interne Beispiel-PDFs und Bildschirmbilder werden nicht in die ZIP aufgenommen.
 
-Die bisherigen Firestore-/Storage-Prüfungen, Rollen- und Kundengrenzen, Vertrags-/Signaturabläufe, atomare Eingänge und Entscheidungen, Chat, Archiv, Aufenthalte, Kapazität, Konflikte, Start, lokaler Speichermangel sowie Fotoabläufe wurden mit dem aktuellen Quellstand erneut ausgeführt. Die Gesamtprüfung zeichnet die geprüften Quell-Hashes auf. Firebase-Konfiguration und beide Regeldateien sind bytegleich mit GB370; keine neuen Regeln veröffentlichen.
+Die unveränderten allgemeinen Backend-, Storage-, Chat-, Kapazitäts- und Konfliktprüfungen aus dem unmittelbar vorherigen GB371-Durchlauf wurden für diese gezielte Ladefolge-Korrektur nicht noch einmal vollständig ausgeführt. Ihre ursprünglichen Zeitpunkte und Ergebnisse bleiben erhalten. Der aktuelle Bericht trennt diese übernommenen Nachweise von den 85 neuen Prüfungen. Die geprüften aktuellen Quell-Hashes stehen in gb372-regression-run.json.
 
-## Verbleibende Prüfgrenzen
+## Verbleibende Prüfungen und Fehlerstand
 
-- Native Safari-/iOS-Druck- und Teilen-Dialoge, In Dateien sichern, ein physischer Drucker und echtes Hintergrund-/PWA-Verhalten wurden nicht durch die Entwicklungsumgebung bedient. Nach dem Update diese Schritte einmal auf dem vorhandenen iPad/iPhone durchführen.
-- Die vollständige angemeldete Live-Prüfung mit zwei getrennten Kundenkonten, direkten fremden Firebase-/Storage-Pfaden, parallelen Sitzungen und Netzunterbrechung steht weiterhin aus. Benutzerbestätigte Einzelfunktionen ersetzen diese negative Zugriffsprüfung nicht.
-- Der Workspace bleibt ein zentrales Firestore-Dokument mit der bisherigen sicheren JSON-Schreibgrenze. Diese Reparatur ändert das Datenmodell und seine Größenbegrenzung nicht.
-- Alte unvollständige Anfragen und historische Unterschriften werden weder erfunden noch automatisch repariert. Für den normalen weiteren Betrieb sind keine alten Anfragen zu beantworten. Archivierung bleibt optional.
+- Der gemeldete GB371-Ladefehler ist reproduziert und in den neuen Browserprüfungen behoben. In den 85 aktuellen Prüfungen bleibt kein fehlgeschlagener Test.
+- Native Safari-/iOS-Druck-, Teilen- und Dateien-Dialoge sowie ein physischer Drucker sind weiterhin auf dem eigenen Gerät zu prüfen. Chromium mit iPad-/iPhone-Bildgröße ist kein echter Safari-Test.
+- Ein vollständiger angemeldeter Live-Durchlauf im bestehenden Firebase mit zwei getrennten Kundenkonten, direkten fremden Dokument-/Dateipfaden, parallelen Sitzungen und Netzunterbrechung steht weiterhin aus. Frühere vom Benutzer bestätigte Fotoanzeige und Neukundenzuordnung sind separate Einzelfunktionsbeobachtungen.
+- Alte unvollständige Anfragen, historische Signaturen und das zentrale Workspace-Dokument behalten die bisher dokumentierten Grenzen. Diese Reparatur ändert das Datenmodell nicht.
 
-Es gibt in den aufgeführten aktuellen Prüfungen keinen verbleibenden fehlgeschlagenen Test. Das ist keine Behauptung, alle denkbaren Geräte- und Livefehler ausgeschlossen zu haben.
+## Update
 
-## Installation und Rückweg
+Die vollständigen Dateien aus DoggyStyle_Workspace_GB372_TEST am bisherigen Ort einspielen, einschließlich assets und vendor. Danach neu laden und GB372_LOAD_ORDER_TEST_20261020 in Login und DIAG prüfen. Arbeitsblätter > Heute drucken > PDF speichern testen. Firebase-Regeln und Kundenzuordnungen brauchen keine Änderung. Kein Daten-Reset. INSTALLATION_IPAD.txt enthält den Ablauf.
 
-Die vollständigen Dateien aus DoggyStyle_Workspace_GB371_TEST am bisherigen GitHub-Pages-Ort einspielen, einschließlich assets und vendor. Danach neu laden und GB371_PRINT_TEST_20261020 in Login und DIAG prüfen. Keine Daten zurücksetzen und keine Kundenzuordnung wiederholen. INSTALLATION_IPAD.txt enthält die Bedienung von PDF speichern, PDF öffnen, PDF teilen und Drucken. Vorherige App-Dateien bleiben der Rückweg. Entwicklung und Test verändern keine bestehenden Daten im produktiven Firebase-Projekt.
-
-## Quellen und Historie
-
-- Native Dialogebene: https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/dialog
-- Dateien teilen: https://developer.mozilla.org/en-US/docs/Web/API/Navigator/share
-- PDF-Bibliothek, geprüfte Veröffentlichung: https://github.com/parallax/jsPDF/releases/tag/v4.2.1
-- PDF-API: https://parallax.github.io/jsPDF/docs/jsPDF.html
-- Direkter Firebase-Dateiabruf und CORS: https://firebase.google.com/docs/storage/web/download-files
-- Bucket-CORS: https://docs.cloud.google.com/storage/docs/using-cors
-
-Der unveränderte historische GB370-Bericht liegt unter pruefungen/historischer-pruefbericht-gb370.md. Dortige offene Foto-/CORS-Befunde beschreiben den damaligen Prüfstand; für den aktuellen Stand gilt dieser Bericht. Er dient der Nachvollziehbarkeit früherer Reparaturen und ihrer damaligen Testgrenzen.
+Der historische GB371-Prüfbericht liegt unter pruefungen/historischer-pruefbericht-gb371.md. Seine positiven Druckprüfungen hatten die oben erklärte Lücke bei der HTML-Ladereihenfolge. Der aktuelle Bericht dokumentiert deren Korrektur und die neuen Grenzen.
