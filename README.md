@@ -1,17 +1,27 @@
-# Doggy Style Workspace – GB368 Reparatur-Testfassung
+# Doggy Style Workspace – GB369 Reparatur-Testfassung
 
-Stand: 19. Oktober 2026. **Vollständige Testfassung; Live-Freigabe steht aus.**
+Stand: 20. Oktober 2026. **Vollständige Testfassung; Live-Freigabe steht aus.**
 
 Die App verwendet weiterhin das vorhandene Projekt doggy-style-hundepension. Bei der Entwicklung wurden keine produktiven Daten, Konten, Rollen, Regeln oder Dateien geändert. Neue Abläufe wurden mit den vorhandenen Testkunden aus der unveränderten Sicherung in Firebase-Emulatoren geprüft.
 
-## Neu in GB368
+## Neu in GB369: Fotos sicher einreichen und prüfen
+
+Die bisherige Fassung konnte einen Uploadfehler verschweigen oder eine Änderung schon vor dem Uploadende senden. GB369 verfolgt Profilfoto und Impfpassfoto getrennt. Speichern wartet auf beide Übertragungen; bei Fehlern bleibt der Versand gesperrt. Erneut versuchen oder Auswahl verwerfen sind direkt am Foto verfügbar. Ein verworfener fehlgeschlagener Upload bewahrt das bisherige Foto. Ein Hund- oder Kontowechsel übernimmt keine verspätete Fotoantwort.
+
+Vom Browser lesbare Bilder werden vor dem Upload auf höchstens 2048 Pixel Kantenlänge verkleinert und in ein erlaubtes Bildformat umgewandelt. Originale über 25 MB werden mit einem verständlichen Hinweis abgewiesen. HEIC/HEIF funktioniert nur, wenn der Browser das Bild dekodieren kann; andernfalls wird JPEG/PNG angefordert. Echte Safari-Fotodekodierung bleibt zu prüfen.
+
+Die offene Eingangsprüfung zeigt neue, ersetzte und zur Entfernung vorgeschlagene Fotos rot mit bisherigem und eingereichtem Bild. Foto ansehen vergrößert die Vorschau. Erst die administrative Übernahme aktualisiert das bestätigte Foto im eigenen Kundenportal und Workspace. Bestehende Dateien werden nicht automatisch gelöscht oder überschrieben.
+
+Firestore-/Storage-Regeln und Firebase-Konfiguration sind gegenüber GB368 unverändert. Bereits veröffentlichte GB368-Regeln müssen für diese Fotoreparatur nicht erneut veröffentlicht werden. Die übrigen Reparaturen bleiben enthalten.
+
+## Enthalten aus GB368
 
 - Alte offene Eingänge einzeln oder gesammelt archivieren. Unter Eingänge → Archiv lassen sie sich wiederherstellen. Die ursprünglichen Anfragen, Aufgaben, Verträge, Signaturen und Kundendaten bleiben erhalten. Höchstens 100 Eingänge pro Sammelaktion. Archivierte Eingänge müssen vor einer Entscheidung wiederhergestellt werden.
 - Annahme und Ablehnung kommen direkt als automatische Nachricht im eigenen Kundenchat mit Raphael an. Entscheidung, bestätigte Daten und Chatnachricht werden zusammen gespeichert. Wiederholung erzeugt keine doppelte Nachricht; eine gescheiterte Übernahme erzeugt keine Erfolgsmeldung. Es gibt keine zusätzliche Meldungsübersicht auf der Startseite.
 - Kunden können diese automatischen Chat-Rückmeldungen über Nachricht öffnen → Für mich entfernen aus ihrer eigenen Ansicht nehmen. Die Entscheidung und der Administratorverlauf bleiben erhalten. Gelesene Nachrichten bleiben als normaler Chatverlauf sichtbar. Verlauf für mich leeren entfernt den bisherigen Verlauf nur für das eigene Konto und setzt den eigenen ungelesenen Zähler zurück; neue Nachrichten erscheinen wieder.
 - Früher separat gespeicherte Rückmeldungen bleiben ausschließlich unter Chat → Frühere Rückmeldungen aufklappbar. Als gelesen markieren verschiebt sie in Gelesen; dort sind sie löschbar. Fremde Kunden dürfen sie weder lesen noch ändern.
 
-**Die Firestore-Regeln aus GB368 müssen erneut im bestehenden Projekt veröffentlicht werden.** Sie enthalten die Rechte für das Eingangsarchiv, die persönliche Entfernung automatischer Chatnachrichten und das Löschen eigener gelesener früherer Rückmeldungen. Storage-Regeln und Firebase-Konfiguration sind gegenüber GB367 unverändert. Das Hochladen der App-Dateien veröffentlicht keine Firebase-Regeln.
+**GB369 verwendet unveränderte GB368-Regeln. Falls GB368 schon veröffentlicht ist, ist kein erneutes Veröffentlichen nötig.** Sie enthalten die Rechte für das Eingangsarchiv, die persönliche Entfernung automatischer Chatnachrichten und das Löschen eigener gelesener früherer Rückmeldungen. Storage-Regeln und Firebase-Konfiguration sind gegenüber GB367 unverändert. Das Hochladen der App-Dateien veröffentlicht keine Firebase-Regeln.
 
 ## Enthaltene frühere Reparaturen
 

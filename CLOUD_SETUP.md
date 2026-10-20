@@ -1,10 +1,10 @@
-# Bestehendes Firebase-Projekt – GB368 Testfassung
+# Bestehendes Firebase-Projekt – GB369 Testfassung
 
 Projekt: doggy-style-hundepension. Organisation: doggystyle. Bucket: doggy-style-hundepension.firebasestorage.app. Die vorhandene firebase-config.js bleibt unverändert.
 
 1. Bisherige App-Dateien, veröffentlichte Regeln und Bestandssicherung als Rückweg aufbewahren.
-2. Die vollständigen App-Dateien aus GB368 am bisherigen Ort einspielen. Keine neuen Projekte oder Kundenkonten anlegen.
-3. Den neuen Firestore-Text aus REGELN_ANZEIGEN.html bzw. firestore.rules im bestehenden Projekt veröffentlichen. Storage-Regeln sind gegenüber GB367 unverändert. Das Archiv benötigt die neue Sammlung inboxArchive; Kunden dürfen nur ihre eigenen gelesenen früheren Rückmeldungen löschen und eigene automatische Chat-Rückmeldungen für sich ausblenden.
+2. Die vollständigen App-Dateien aus GB369 am bisherigen Ort einspielen. Keine neuen Projekte oder Kundenkonten anlegen.
+3. GB369 verwendet unveränderte GB368-Regeln. Falls diese bereits veröffentlicht sind, ist keine erneute Veröffentlichung nötig. Für ältere Fassungen: den enthaltenen Firestore-Text aus REGELN_ANZEIGEN.html bzw. firestore.rules im bestehenden Projekt veröffentlichen. Storage-Regeln sind gegenüber GB367 unverändert. Das Archiv benötigt die neue Sammlung inboxArchive; Kunden dürfen nur ihre eigenen gelesenen früheren Rückmeldungen löschen und eigene automatische Chat-Rückmeldungen für sich ausblenden.
 4. Tabs schließen, Website neu laden und HTML-/JS-Build in DIAG prüfen. Neue Kundenänderung und neuen Aufenthalt testen, administrativ annehmen/ablehnen, Rückmeldung im richtigen Kundenchat lesen und persönlich entfernen. Danach mit dem zweiten Kundenkonto die Trennung prüfen.
 5. Alte offene Eingänge können ohne Bestandsreparatur archiviert und wiederhergestellt werden. Die Entwicklung archiviert nichts im echten Projekt. Es wird keine alte Einreichung automatisch angenommen, abgelehnt oder gelöscht.
 6. Sonja/Bello und Max/Rex besitzen laut Sicherung bereits geprüfte eigene Zuordnungen. Hans Dampf hat darin keine solche Zuordnung. Weitere Kundenkonten brauchen eine geprüfte eigene Kunden-/Hundezuordnung. Keine Zuordnung über gleiche Namen oder Chat-E-Mail-Aliasse.

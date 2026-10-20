@@ -6,6 +6,8 @@
   let inboxArchiveUnsub=null,inboxMarkers=new Map(),inboxArchiveReady=false,inboxRowsReady=false,inboxLoadError='',inboxView='open',inboxMutating=false,inboxEpoch=0;
   const inboxSelected=new Set();
   let busy=false, draft=null, mergeReview=null;
+  let photoEpoch=0,photoBindings=null;const photoRecords=new Map();
+  const photoFields={profile:{input:'p_profilePhoto',preview:'p_profilePhotoPreview',remove:'p_profilePhotoRemove',label:'Profilfoto',get:()=>photoBindings?.get('profile')||'',set:value=>photoBindings?.set('profile',value),refresh:()=>cpRefreshProfilePhotoPreview()},vaccpass:{input:'p_vaccinationPhoto',preview:'p_vaccinationPhotoPreview',remove:'p_vaccinationPhotoRemove',label:'Impfpassfoto',get:()=>photoBindings?.get('vaccpass')||'',set:value=>photoBindings?.set('vaccpass',value),refresh:()=>cpRefreshVaccinationPhotoPreview()}};
   const ink = new WeakSet(), blobs = new Map();
   const currentUser = ()=>window.firebase && firebase.auth().currentUser;
   function workspaceRole(user,profile){
@@ -74,6 +76,7 @@
     },e=>error(e,'customerTaskSaveHint'));
   }
   function resetAccount(){
+    resetPhotoEditor();
     window.DSBrowserStore.reset();
     window.DSRepair?.reset();
     if(profileUnsub) profileUnsub(); if(inboxUnsub) inboxUnsub();if(inboxArchiveUnsub)inboxArchiveUnsub();
@@ -235,6 +238,74 @@
     const result=canvas.toDataURL('image/jpeg',0.72);
     if(result.length>180000) throw new Error('Das Foto ist zu groß. Bitte einen kleineren Ausschnitt wählen.');
     return result;
+  }
+  async function preparePetPhoto(file){
+    const type=S(file?.type).toLowerCase(),name=S(file?.name);
+    if(!file||!(type.startsWith('image/')||(!type&&/\.(jpe?g|png|webp|hei[cf])$/i.test(name))))throw new Error('Bitte eine Bilddatei auswählen.');
+    if(file.size>25*1024*1024)throw new Error('Das Originalfoto ist größer als 25 MB. Bitte einen kleineren Ausschnitt wählen.');
+    const data=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(new Error('Das Foto konnte nicht gelesen werden. Bitte erneut auswählen.'));reader.readAsDataURL(file);});
+    const image=await new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=()=>reject(new Error('Dieses Bildformat kann auf diesem Gerät nicht gelesen werden. Bitte als JPEG oder PNG auswählen.'));img.src=data;});
+    const width=image.naturalWidth||image.width,height=image.naturalHeight||image.height;
+    if(!width||!height||width*height>60000000)throw new Error('Die Bildgröße kann nicht verarbeitet werden. Bitte einen kleineren Ausschnitt wählen.');
+    const scale=Math.min(1,2048/Math.max(width,height)),canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(width*scale));canvas.height=Math.max(1,Math.round(height*scale));
+    const ctx=canvas.getContext('2d');if(!ctx)throw new Error('Die Bildverarbeitung ist nicht verfügbar. Bitte die App erneut öffnen.');
+    ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(image,0,0,canvas.width,canvas.height);
+    const result=canvas.toDataURL('image/jpeg',0.88),match=result.match(/^data:image\/(jpeg|png);base64,(.+)$/);
+    if(!match)throw new Error('Das Foto konnte nicht vorbereitet werden.');
+    const raw=atob(match[2]),bytes=Uint8Array.from(raw,c=>c.charCodeAt(0));if(bytes.length>=8*1024*1024)throw new Error('Das vorbereitete Foto ist zu groß. Bitte einen kleineren Ausschnitt wählen.');
+    return new Blob([bytes],{type:'image/'+match[1]});
+  }
+  function photoBusy(){return Array.from(photoRecords.values()).some(r=>r.phase==='uploading');}
+  function photoProblem(){return Array.from(photoRecords.values()).find(r=>r.phase==='error');}
+  function updatePhotoControls(){
+    for(const [kind,cfg]of Object.entries(photoFields)){
+      const input=$(cfg.input);if(!input)continue;let status=$(cfg.input+'Status');
+      if(!status){status=document.createElement('div');status.id=cfg.input+'Status';status.setAttribute('role','status');status.setAttribute('aria-live','polite');status.style.cssText='margin:8px 0;overflow-wrap:anywhere';input.after(status);}
+      status.replaceChildren();const r=photoRecords.get(kind);
+      reviewNode('p',r?.message||(cfg.get()?cfg.label+' vorhanden.':'Noch kein '+cfg.label+' hinterlegt.'),status);
+      if(r?.phase==='error'){const retry=reviewNode('button','Erneut versuchen',status);retry.type='button';retry.className='btn';retry.style.minHeight='44px';retry.dataset.photoRetry=kind;retry.onclick=()=>startPhoto(kind,r.file);}
+      const remove=$(cfg.remove);if(remove){remove.type='button';remove.textContent=r&&['uploading','error'].includes(r.phase)?'Auswahl verwerfen':'Foto entfernen';remove.style.minHeight='44px';remove.style.display=(cfg.get()||r)?'inline-flex':'none';}
+    }
+    const blocked=photoBusy()||!!photoProblem();for(const id of ['btnCpSave','btnCpAddAnotherDog']){const button=$(id);if(!button)continue;
+      if(blocked){if(!button.hasAttribute('data-photo-blocked'))button.dataset.photoWasDisabled=String(button.disabled);button.dataset.photoBlocked='1';button.disabled=true;}
+      else if(button.hasAttribute('data-photo-blocked')){button.disabled=button.dataset.photoWasDisabled==='true';delete button.dataset.photoBlocked;delete button.dataset.photoWasDisabled;}
+    }
+  }
+  function resetPhotoEditor(){photoEpoch++;for(const r of photoRecords.values())if(r.previewUrl)URL.revokeObjectURL(r.previewUrl);photoRecords.clear();
+    for(const cfg of Object.values(photoFields)){const input=$(cfg.input);if(input)input.value='';}
+    for(const id of ['p_profilePhotoStatus','p_vaccinationPhotoStatus'])$(id)?.remove();
+    for(const id of ['btnCpSave','btnCpAddAnotherDog']){const button=$(id);if(button?.hasAttribute('data-photo-blocked')){button.disabled=button.dataset.photoWasDisabled==='true';delete button.dataset.photoBlocked;delete button.dataset.photoWasDisabled;}}
+  }
+  function startPhoto(kind,file){
+    const cfg=photoFields[kind];if(!cfg||!file)return;const previous=photoRecords.get(kind);if(previous?.previewUrl)URL.revokeObjectURL(previous.previewUrl);
+    const epoch=photoEpoch,uid=currentUser()?.uid,target=JSON.stringify(photoBindings?.target());
+    const active=()=>epoch===photoEpoch&&currentUser()?.uid===uid&&JSON.stringify(photoBindings?.target())===target&&photoRecords.get(kind)===r;
+    const r={phase:'uploading',file,previous:cfg.get(),message:cfg.label+' wird vorbereitet und hochgeladen …',job:null,previewUrl:''};photoRecords.set(kind,r);
+    const image=$(cfg.preview);if(image){delete image.dataset.dsMedia;delete image.dataset.dsLoading;try{r.previewUrl=URL.createObjectURL(file);image.src=r.previewUrl;image.style.display='block';}catch(_){}}
+    updatePhotoControls();cpSetStatus('Fotoübertragung läuft. Bitte warten, bevor du die Änderung sendest.');
+    r.job=(async()=>{try{const value=await cpUploadPetPhotoToStorage(file,kind);if(!active())return;
+      if(!value)throw new Error('Der Upload wurde nicht bestätigt.');cfg.set(value);r.phase='ready';r.message=cfg.label+' bereit: '+S(file.name)+'. Wird mit der Änderung zur Prüfung gesendet.';cfg.refresh();cpUpdateDirty();if(!photoBusy()&&!photoProblem())cpSetStatus('Fotos bereit. Änderung bitte zur Prüfung einreichen.');
+    }catch(e){if(!active())return;r.phase='error';r.message=cfg.label+' nicht übertragen: '+S(e.message||e)+'. Bitte erneut versuchen oder die Auswahl verwerfen.';cpSetStatus(r.message,true);}
+    finally{if(active()){r.job=null;updatePhotoControls();}
+      else if(photoRecords.get(kind)===r){photoRecords.delete(kind);if(epoch===photoEpoch&&currentUser()?.uid===uid)updatePhotoControls();}
+    }})();
+  }
+  function discardPhoto(kind){const cfg=photoFields[kind],r=photoRecords.get(kind);if(!cfg)return;if(r?.previewUrl)URL.revokeObjectURL(r.previewUrl);
+    const canceled=r&&['uploading','error'].includes(r.phase);if(canceled)cfg.set(r.previous||'');else cfg.set('');photoRecords.delete(kind);const input=$(cfg.input);if(input)input.value='';cfg.refresh();cpUpdateDirty();updatePhotoControls();cpSetStatus(canceled?'Fotoauswahl verworfen. Das bisherige Foto bleibt erhalten.':'Foto zur Entfernung vorgemerkt. Änderung bitte zur Prüfung einreichen.');
+  }
+  function wirePhotoInputs(bindings){if(bindings)photoBindings=bindings;
+    for(const [kind,cfg]of Object.entries(photoFields)){const input=$(cfg.input),remove=$(cfg.remove);
+      if(input&&!input.dataset.dsPhotoWired){input.dataset.dsPhotoWired='1';input.accept='image/*';input.addEventListener('change',()=>{const file=input.files?.[0];if(file)startPhoto(kind,file);});}
+      if(remove&&!remove.dataset.dsPhotoWired){remove.dataset.dsPhotoWired='1';remove.type='button';remove.addEventListener('click',()=>discardPhoto(kind));}
+      cfg.refresh();
+    }updatePhotoControls();
+  }
+  async function waitForPhotos(){const epoch=photoEpoch,uid=currentUser()?.uid,target=JSON.stringify(photoBindings?.target());while(photoBusy()){
+      const jobs=Array.from(photoRecords.values()).filter(r=>r.phase==='uploading'&&r.job).map(r=>r.job);if(!jobs.length)throw new Error('Die Fotoverarbeitung wurde unterbrochen. Bitte die Fotoauswahl verwerfen und erneut auswählen.');
+      await Promise.all(jobs);if(epoch!==photoEpoch||currentUser()?.uid!==uid||JSON.stringify(photoBindings?.target())!==target)throw new Error('Konto oder geöffneter Hund wurde während des Fotouploads gewechselt.');
+      if(photoBusy()&&!Array.from(photoRecords.values()).some(r=>r.phase==='uploading'&&r.job&&!jobs.includes(r.job)))throw new Error('Die Fotoverarbeitung wurde unterbrochen. Bitte die Fotoauswahl verwerfen und erneut auswählen.');
+    }
+    if(epoch!==photoEpoch||currentUser()?.uid!==uid)throw new Error('Konto oder geöffneter Hund wurde gewechselt.');const problem=photoProblem();if(problem)throw new Error(problem.message);
   }
   function signatureDraftKey(){
     const ctx=context(), pid=S($('contractPetSelect')?.value), v=S(typeof state!=='undefined'?state.contractVersion:'v1.0');
@@ -414,6 +485,7 @@
     }
   }
   function closeReview(){
+    $('dsReviewPhotoDialog')?.remove();
     reviewRow=null;if($('inboxDetail'))$('inboxDetail').style.display='none';
     $('inboxDetailForm')?.replaceChildren();if($('inboxDetailForm'))delete $('inboxDetailForm').__dsReviewWorkspace;if($('inboxDetailMeta'))$('inboxDetailMeta').textContent='';
     if($('inboxReviewStatus'))$('inboxReviewStatus').textContent='';
@@ -440,20 +512,31 @@
   function reviewNode(tag,text,parent){const el=document.createElement(tag);if(text!=null)el.textContent=text;if(parent)parent.append(el);return el;}
   const reviewLabels={name:'Name',email:'E-Mail',phone:'Telefon',street:'Straße / Hausnummer',zip:'PLZ',city:'Ort',emergencyName:'Notfallkontakt',emergencyPhone:'Notfalltelefon',pickupAuth:'Abholberechtigte',note:'Hinweise',breed:'Rasse / Mix',birthdate:'Geburtsdatum',sex:'Geschlecht',chipStatus:'Gechippt?',chip:'Chip vorhanden',chipNumber:'Chipnummer',vet:'Tierarzt (Name / Praxis)',vetPhone:'Tierarzt Telefon',vetEmail:'Tierarzt E-Mail',vetStreet:'Straße / Hausnummer Tierarzt',vetZip:'PLZ Tierarzt',vetCity:'Ort Tierarzt',vetEmergencyName:'Tierärztlicher Notfallkontakt',vetEmergencyPhone:'Tierärztliche Notfallnummer',allergies:'Allergien',medicalConditions:'Erkrankungen',insuranceStatus:'Haftpflichtversicherung',insuranceCompany:'Versicherung',insurancePolicy:'Versicherungsnummer',insuranceNotes:'Hinweise zur Versicherung',vaccinatedConfirmed:'Impfstatus bestätigt',rabiesDate:'Tollwutimpfung',mixedVaccineDate:'Kombinationsimpfung',vaccinationPassPhoto:'Impfpassfoto',profilePhoto:'Profilfoto',food:'Futter',treatsAllowed:'Leckerli erlaubt',aloneTime:'Alleinbleiben',houseTrained:'Stubenrein',transport:'Transport',feeding:'Fütterung',compatDogs:'Verträglichkeit mit Hunden',compatCats:'Verträglichkeit mit Katzen',compatKids:'Verträglichkeit mit Kindern',compat:'Verträglichkeit',leashBehavior:'Leinenverhalten',recall:'Rückruf',resourceBehavior:'Ressourcenverhalten',behavior:'Verhalten',dailyRoutine:'Tagesablauf',commands:'Kommandos'};
   function reviewValue(value,key){if(['profilePhoto','vaccinationPassPhoto'].includes(key))return value?'Foto vorhanden':'Kein Foto';if(value===true||value==='yes')return 'Ja';if(value===false||value==='no')return 'Nein';if(key==='sex')return{m:'männlich',w:'weiblich',f:'weiblich'}[value]||S(value)||'—';return S(value)||'—';}
+  function reviewPhoto(parent,value,label){
+    const source=mediaSource(value);if(!source){reviewNode('p','Kein Foto',parent);return;}
+    const image=reviewNode('img',null,parent);image.src=source;image.alt=label;image.style.cssText='display:block;max-width:min(240px,100%);max-height:200px;object-fit:contain;margin:8px 0';scanMedia(image);
+    const open=reviewNode('button','Foto ansehen',parent);open.type='button';open.className='btn';open.style.minHeight='44px';open.onclick=()=>{
+      $('dsReviewPhotoDialog')?.remove();const dialog=reviewNode('dialog',null,document.body);dialog.id='dsReviewPhotoDialog';dialog.style.cssText='max-width:min(1000px,95vw);max-height:90vh;overflow:auto;background:#20232b;color:#fff;border:1px solid #8c94a4;border-radius:12px;padding:18px';reviewNode('h2',label,dialog);
+      const full=reviewNode('img',null,dialog);full.src=source;full.alt=label;full.style.cssText='display:block;max-width:100%;height:auto';scanMedia(full);const close=reviewNode('button','Schließen',dialog);close.type='button';close.className='btn';close.style.minHeight='44px';close.onclick=()=>dialog.remove();if(typeof dialog.showModal==='function')dialog.showModal();else dialog.setAttribute('open','');
+    };
+  }
   function reviewDate(value){const date=Core.dateISO(value);return date?date.slice(8,10)+'.'+date.slice(5,7)+'.'+date.slice(0,4):'Nicht angegeben';}
   function changedFields(root,row,workspace){
     const p=row.payloadSubmitted||{},summary=$('dsReviewChanges');if(!summary)return;summary.replaceChildren();const changes=[];
     for(const [kind,keys]of [['customer',Core.customerFields],['pet',Core.petFields]]){
       const before=(workspace?.[kind==='customer'?'customers':'pets']||[]).find(x=>x.id===(kind==='customer'?row.customerId:row.petId));
       for(const key of keys){if(p[kind]?.[key]===undefined)continue;const input=root.querySelector('[data-review-kind="'+kind+'"][data-review-field="'+key+'"]');
-        const value=input?(input.type==='checkbox'?input.checked:input.value):p[kind][key],previous=before?.[key],changed=JSON.stringify(previous??'')!==JSON.stringify(value??'');
+        const value=input?(input.type==='checkbox'?input.checked:input.value):p[kind][key],previous=before?.[key],photo=['profilePhoto','vaccinationPassPhoto'].includes(key),changed=photo?mediaSource(previous)!==mediaSource(value):JSON.stringify(previous??'')!==JSON.stringify(value??'');
         const label=input?.closest('label')||root.querySelector('[data-review-photo="'+key+'"]');if(label){label.dataset.changed=String(changed);let line=label.querySelector('[data-review-before]');if(!line){line=reviewNode('small',null,label);line.dataset.reviewBefore='1';}line.textContent=changed?'Bisher: '+reviewValue(previous,key):'Unverändert';}
         if(changed)changes.push({kind,key,value,previous});
       }
     }
     if(!changes.length){reviewNode('p','Keine Abweichung zu den gespeicherten Angaben.',summary);return;}
     reviewNode('h3',changes.length+' geänderte Angabe'+(changes.length===1?'':'n'),summary);const wrap=reviewNode('div',null,summary);wrap.className='dsReviewTableWrap';const table=reviewNode('table',null,wrap),head=reviewNode('tr',null,reviewNode('thead',null,table));for(const title of ['Angabe','Bisher','Vorgeschlagen'])reviewNode('th',title,head);const body=reviewNode('tbody',null,table);
-    for(const c of changes){const tr=reviewNode('tr',null,body);tr.dataset.changed='true';reviewNode('td',(c.kind==='customer'?'Kunde: ':'Hund: ')+(reviewLabels[c.key]||c.key),tr);reviewNode('td',reviewValue(c.previous,c.key),tr);reviewNode('td',reviewValue(c.value,c.key),tr).className='dsChangedText';}
+    for(const c of changes){const tr=reviewNode('tr',null,body);tr.dataset.changed='true';tr.dataset.changeField=c.key;reviewNode('td',(c.kind==='customer'?'Kunde: ':'Hund: ')+(reviewLabels[c.key]||c.key),tr);const before=reviewNode('td',null,tr),after=reviewNode('td',null,tr);after.className='dsChangedText';
+      if(['profilePhoto','vaccinationPassPhoto'].includes(c.key)){reviewPhoto(before,c.previous,'Bisheriges '+reviewLabels[c.key]);reviewNode('p',c.value?(c.previous?'Foto ersetzt':'Neues Foto eingereicht'):'Foto zur Entfernung vorgeschlagen',after);if(c.value)reviewPhoto(after,c.value,'Eingereichtes '+reviewLabels[c.key]);}
+      else{before.textContent=reviewValue(c.previous,c.key);after.textContent=reviewValue(c.value,c.key);}
+    }
   }
   function renderReviewOccupancy(host,row,workspace,stamp){
     host.replaceChildren();reviewNode('h3','Belegung im angefragten Zeitraum',host);const p=row.payloadSubmitted||{},stay=Core.stayDetails(p);
@@ -565,6 +648,7 @@
   document.addEventListener('touchmove',e=>{if(e.target?.id==='contractSig' && e.touches?.length)ink.add(e.target);},true);
   document.addEventListener('change',e=>{if(['contractCustomerSelect','contractPetSelect'].includes(e.target?.id))changeSignatureSelection();},true);
   document.addEventListener('click',e=>{
+    if(e.target.closest?.('#btnCpSave,#btnCpAddAnotherDog')&&(photoBusy()||photoProblem())){e.preventDefault();e.stopImmediatePropagation();cpSetStatus(photoProblem()?.message||'Bitte warten, bis die Fotos vollständig übertragen wurden.',!!photoProblem());return;}
     if(e.target?.id==='contractSig'){e.stopImmediatePropagation();return;}
     const b=e.target?.closest?.('button');if(!b)return;
     const actions={dsOpenSyncConflict:openConflict,dsApplySyncMerge:()=>resolveConflict(false),dsUseServerSnapshot:()=>resolveConflict(true),dsCloseSyncMerge:()=>{$('dsSyncConflictDialog')?.remove();mergeReview=null;},contractSignBtn:sign,contractSigClear:clearSignature,contractSaveBtn:submitContract,btnInboxAdopt:()=>review('adopted'),btnInboxClose:()=>review('rejected'),btnAssignTask:assign,btnInboxRefresh:()=>wireInbox(true),btnInboxProposalLoad:()=>wireInbox(true),btnInboxBack:closeReview};
@@ -573,7 +657,7 @@
     busy=true;b.disabled=true;reviewControls();
     Promise.resolve().then(action).catch(err=>error(err,b.closest('#dsSyncConflictDialog')?'dsSyncConflictStatus':b.closest('#inboxDetail')?'inboxReviewStatus':b.closest('#contract')?'contractSavedInfo':'assignMsg')).finally(()=>{busy=false;b.disabled=false;reviewControls();});
   },true);
-  window.DSWorkflow={context,snapshot,hydrate,watchProfile,resetAccount,submit,submitContract,retryQueue,wireInbox,wireAssignments,openReview,closeReview,renderContractStatus,api,scoped,mediaSource,scanMedia,prepareNewPetPhoto,signatureHasInk,rememberBase,showConflict,openConflict,resolveConflict,startupStatus,readWithTimeout,workspaceRole};
+  window.DSWorkflow={context,snapshot,hydrate,watchProfile,resetAccount,submit,submitContract,retryQueue,wireInbox,wireAssignments,openReview,closeReview,renderContractStatus,api,scoped,mediaSource,scanMedia,prepareNewPetPhoto,preparePetPhoto,wirePhotoInputs,waitForPhotos,resetPhotoEditor,signatureHasInk,rememberBase,showConflict,openConflict,resolveConflict,startupStatus,readWithTimeout,workspaceRole};
   function observeMedia(){
     if(!document.body)return;
     scanMedia(document.body);

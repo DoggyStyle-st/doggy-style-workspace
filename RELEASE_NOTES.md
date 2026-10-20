@@ -1,4 +1,16 @@
-# GB368 – Reparatur-Testfassung vom 19. Oktober 2026
+# GB369 – Reparatur-Testfassung vom 20. Oktober 2026
+
+## Neu in GB369: Fotos sicher einreichen und prüfen
+
+Die bisherige Fassung konnte einen Uploadfehler verschweigen oder eine Änderung schon vor dem Uploadende senden. GB369 verfolgt Profilfoto und Impfpassfoto getrennt. Speichern wartet auf beide Übertragungen; bei Fehlern bleibt der Versand gesperrt. Erneut versuchen oder Auswahl verwerfen sind direkt am Foto verfügbar. Ein verworfener fehlgeschlagener Upload bewahrt das bisherige Foto. Ein Hund- oder Kontowechsel übernimmt keine verspätete Fotoantwort.
+
+Vom Browser lesbare Bilder werden vor dem Upload auf höchstens 2048 Pixel Kantenlänge verkleinert und in ein erlaubtes Bildformat umgewandelt. Originale über 25 MB werden mit einem verständlichen Hinweis abgewiesen. HEIC/HEIF funktioniert nur, wenn der Browser das Bild dekodieren kann; andernfalls wird JPEG/PNG angefordert. Echte Safari-Fotodekodierung bleibt zu prüfen.
+
+Die offene Eingangsprüfung zeigt neue, ersetzte und zur Entfernung vorgeschlagene Fotos rot mit bisherigem und eingereichtem Bild. Foto ansehen vergrößert die Vorschau. Erst die administrative Übernahme aktualisiert das bestätigte Foto im eigenen Kundenportal und Workspace. Bestehende Dateien werden nicht automatisch gelöscht oder überschrieben.
+
+Firestore-/Storage-Regeln und Firebase-Konfiguration sind gegenüber GB368 unverändert. Bereits veröffentlichte GB368-Regeln müssen für diese Fotoreparatur nicht erneut veröffentlicht werden. Die übrigen Reparaturen bleiben enthalten.
+
+## Enthalten aus GB368
 
 Alte offene Eingänge können einzeln oder gesammelt archiviert und wiederhergestellt werden. Eine separate Markierung bewahrt den unveränderten ursprünglichen Eingang samt Aufgabe und Unterschrift. Die Sammelaktion prüft die angezeigten Daten erneut und scheitert vollständig bei zwischenzeitlichen Änderungen. Archivierung und Prüfung können nicht denselben offenen Stand gleichzeitig übernehmen. Mitarbeiter sehen das Archiv, dürfen es nicht verwalten.
 

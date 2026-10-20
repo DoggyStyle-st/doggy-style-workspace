@@ -2,7 +2,7 @@ try{sessionStorage.removeItem('ds_handoff_pass');}catch(_){}
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB368_ARCHIVE_NOTICES_TEST_20261019",
+  tag: "M50.9.9GB369_PHOTO_TEST_20261020",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -13,7 +13,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB368_ARCHIVE_NOTICES_TEST_20261019";
+const APP_BUILD = "M50.9.9GB369_PHOTO_TEST_20261020";
 try{ window.__dsAppJsRuntimeBuild = "GB350-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -2918,7 +2918,7 @@ async function submitCustomerDogsProposal(){
   // GB355: vollständig lokal sichern, anschließend zuverlässig in proposals + tasks übertragen.
   // Die Oberfläche wird sofort freigegeben; die Erfolgsmeldung "an Eingänge übergeben"
   // erscheint ausschließlich nach bestätigter Firestore-Speicherung.
-  const GB355='M50.9.9GB368_ARCHIVE_NOTICES_TEST_20261019';
+  const GB355='M50.9.9GB369_PHOTO_TEST_20261020';
   function S(v){ try{return String(v==null?'':v);}catch(_){return '';} }
   function L(v){ return S(v).trim().toLowerCase(); }
   function V(id){ try{const el=document.getElementById(id);return S(el&&el.value!=null?el.value:'').trim();}catch(_){return '';} }
@@ -2984,6 +2984,7 @@ async function submitCustomerDogsProposal(){
   if(window.__gb355SubmitDogsBusy)return {ok:false,busy:true};
       window.__gb355SubmitDogsBusy=true;
       try{
+        await DSWorkflow.waitForPhotos();
         cpSetStatus('Übertragung an Eingänge läuft …');
         const task=buildTask();
         const previous=window.__dsDogsPendingTask;
@@ -9512,6 +9513,7 @@ function refreshCustomerSelect(){
   sel.innerHTML = customers.map(c=>`<option value="${escapeHtml(c.customerId||c.id)}">${escapeHtml(c.name||"Kunde")}${(c.email||c.phone)?(" · "+escapeHtml(c.email||c.phone)):""}</option>`).join("");
 }
 function clearCpEditor(){
+  DSWorkflow.resetPhotoEditor();
   ["c_name","c_phone","c_email","c_street","c_zip","c_city","c_em_name","c_em_phone","c_pickup_auth","c_note","p_name","p_breed","p_chipNumber","p_vet","p_vetPhone","p_vetEmail","p_vetStreet","p_vetZip","p_vetCity","p_vetEmergencyName","p_vetEmergencyPhone","p_food","p_feeding","p_compat","p_note","p_allergies","p_medicalConditions","p_behavior","p_treatsAllowed","p_aloneTime","p_houseTrained","p_transport","p_compatDogs","p_compatCats","p_compatKids","p_leashBehavior","p_recall","p_resourceBehavior","p_dailyRoutine","p_commands","p_insuranceCompany","p_insurancePolicy","p_insuranceNotes"].forEach(id=>{
     const el=document.getElementById(id); if(el) el.value="";
   });
@@ -9575,14 +9577,16 @@ async function cpWaitForFirebaseUser(timeoutMs){
 
 async function cpUploadPetPhotoToStorage(file,kind){
     if(!file)return '';const user=await cpWaitForFirebaseUser(8000);if(!user)throw new Error('Bitte anmelden.');
-    if(!['image/jpeg','image/png','image/webp'].includes(file.type))throw new Error('Bitte JPEG, PNG oder WebP auswählen.');
-    const ctx=DSWorkflow.context(),petId=String(cpEdit?.petId||'');
+    if(!['profile','vaccpass'].includes(kind))throw new Error('Unbekannte Fotoart.');
+    const ctx=DSWorkflow.context(),petId=String(cpEdit?.petId||''),mode=String(cpEdit?.mode||'');
     if(CLOUD.role==='customer' && (!ctx.verified || (petId && !ctx.pets.some(p=>p.id===petId))))throw new Error('Fremder Hund oder fehlende Zuordnung.');
-    if(!petId){const result=await DSWorkflow.prepareNewPetPhoto(file);cpSetStatus('Foto für den neuen Hund vorbereitet. Wird mit dem Vorschlag übertragen.');return result;}
-    if(file.size>8*1024*1024)throw new Error('Foto ist größer als 8 MB.');
-    const orgId=window.firebaseOrgId,path='orgs/'+orgId+'/pets/'+petId+'/'+kind+'_'+crypto.randomUUID()+'.'+({ 'image/jpeg':'jpg','image/png':'png','image/webp':'webp' }[file.type]);
+    const prepared=await DSWorkflow.preparePetPhoto(file),sameEditor=()=>firebase.auth().currentUser?.uid===user.uid&&String(cpEdit?.petId||'')===petId&&String(cpEdit?.mode||'')===mode;
+    if(!sameEditor())throw new Error('Konto oder geöffneter Hund wurde gewechselt.');
+    if(!petId){const result=await DSWorkflow.prepareNewPetPhoto(prepared);if(!sameEditor())throw new Error('Konto oder geöffneter Hund wurde gewechselt.');return result;}
+    const orgId=window.firebaseOrgId,path='orgs/'+orgId+'/pets/'+petId+'/'+kind+'_'+crypto.randomUUID()+'.'+({ 'image/jpeg':'jpg','image/png':'png' }[prepared.type]);
     cpSetStatus('Foto wird hochgeladen …');
-    await firebase.storage().ref().child(path).put(file,{contentType:file.type,customMetadata:{orgId,petId,uploadedBy:user.uid,kind}});
+    await firebase.storage().ref().child(path).put(prepared,{contentType:prepared.type,customMetadata:{orgId,petId,uploadedBy:user.uid,kind}});
+    if(!sameEditor())throw new Error('Konto oder geöffneter Hund wurde gewechselt.');
     cpSetStatus('Foto hochgeladen. Änderung bitte zur Prüfung einreichen.');return 'ds-storage:'+path;
   }
 let cpEditorSnapshot = "";
@@ -9628,75 +9632,18 @@ function cpArmDirtyTracking(){
 function cpRefreshVaccinationPhotoPreview(){
   const img = document.getElementById("p_vaccinationPhotoPreview");
   const btn = document.getElementById("p_vaccinationPhotoRemove");
-  if(!img || !btn) return;
+  if(!img || !btn) return;delete img.dataset.dsMedia;delete img.dataset.dsLoading;
   if(cpVaccinationPassDataUrl){ img.src = DSWorkflow.mediaSource(cpVaccinationPassDataUrl); img.style.display = "block"; btn.style.display = "inline-flex"; }
   else { img.removeAttribute('src'); img.style.display = "none"; btn.style.display = "none"; }
 }
 function cpRefreshProfilePhotoPreview(){
   const img = document.getElementById("p_profilePhotoPreview");
   const btn = document.getElementById("p_profilePhotoRemove");
-  if(!img || !btn) return;
+  if(!img || !btn) return;delete img.dataset.dsMedia;delete img.dataset.dsLoading;
   if(cpProfilePhotoDataUrl){ img.src = DSWorkflow.mediaSource(cpProfilePhotoDataUrl); img.style.display = "block"; btn.style.display = "inline-flex"; }
   else { img.removeAttribute('src'); img.style.display = "none"; btn.style.display = "none"; }
 }
-function cpWirePetPhotoInputs(){
-  const vaccInput = document.getElementById("p_vaccinationPhoto");
-  const vaccBtn = document.getElementById("p_vaccinationPhotoRemove");
-  const profileInput = document.getElementById("p_profilePhoto");
-  const profileBtn = document.getElementById("p_profilePhotoRemove");
-  if(vaccInput && !vaccInput.dataset.wired){
-    vaccInput.dataset.wired='1';
-    vaccInput.addEventListener('change', async ()=>{
-      const f=vaccInput.files && vaccInput.files[0]; if(!f) return;
-      try{
-        const r=new FileReader();
-        r.onload=()=>{
-          const img=document.getElementById("p_vaccinationPhotoPreview");
-          const btn=document.getElementById("p_vaccinationPhotoRemove");
-          if(img){ img.src=String(r.result||''); img.style.display='block'; }
-          if(btn) btn.style.display='inline-flex';
-        };
-        r.readAsDataURL(f);
-      }catch(_){ }
-      try{
-        cpVaccinationPassDataUrl = await cpUploadPetPhotoToStorage(f, 'vaccpass');
-        cpRefreshVaccinationPhotoPreview();
-        cpUpdateDirty();
-      }catch(_){ }
-    });
-  }
-  if(vaccBtn && !vaccBtn.dataset.wired){
-    vaccBtn.dataset.wired='1';
-    vaccBtn.addEventListener('click', ()=>{ cpVaccinationPassDataUrl=''; if(vaccInput) vaccInput.value=''; cpRefreshVaccinationPhotoPreview(); });
-  }
-  if(profileInput && !profileInput.dataset.wired){
-    profileInput.dataset.wired='1';
-    profileInput.addEventListener('change', async ()=>{
-      const f=profileInput.files && profileInput.files[0]; if(!f) return;
-      try{
-        const r=new FileReader();
-        r.onload=()=>{
-          const img=document.getElementById("p_profilePhotoPreview");
-          const btn=document.getElementById("p_profilePhotoRemove");
-          if(img){ img.src=String(r.result||''); img.style.display='block'; }
-          if(btn) btn.style.display='inline-flex';
-        };
-        r.readAsDataURL(f);
-      }catch(_){ }
-      try{
-        cpProfilePhotoDataUrl = await cpUploadPetPhotoToStorage(f, 'profile');
-        cpRefreshProfilePhotoPreview();
-        cpUpdateDirty();
-      }catch(_){ }
-    });
-  }
-  if(profileBtn && !profileBtn.dataset.wired){
-    profileBtn.dataset.wired='1';
-    profileBtn.addEventListener('click', ()=>{ cpProfilePhotoDataUrl=''; if(profileInput) profileInput.value=''; cpRefreshProfilePhotoPreview(); });
-  }
-  cpRefreshVaccinationPhotoPreview();
-  cpRefreshProfilePhotoPreview();
-}
+function cpWirePetPhotoInputs(){return DSWorkflow.wirePhotoInputs({get:kind=>kind==='profile'?cpProfilePhotoDataUrl:cpVaccinationPassDataUrl,set:(kind,value)=>{if(kind==='profile')cpProfilePhotoDataUrl=value;else cpVaccinationPassDataUrl=value;},target:()=>({petId:cpEdit?.petId||'',mode:cpEdit?.mode||''})});}
 
 function fillCpEditorForPet(pet){
   const c = getCustomer(pet.customerId);
@@ -9804,6 +9751,7 @@ function openCpEditor(mode, petId){
   try{ cpArmDirtyTracking(); }catch(_){ }
   cpEditorSnapshot = cpCaptureSnapshot();
   cpDirty = false;
+  cpWirePetPhotoInputs();
   cpSetStatus("");
   const list = document.getElementById("dogList");
   const __reviewOpening = !!((typeof window !== 'undefined' && window.__dsProposalReviewOpening) || (__dsProposalReview && __dsProposalReview.active));
@@ -9861,6 +9809,7 @@ function fillCustomerFieldsOnly(customerId){
   fillCpCustomerFieldsFromObject(c);
 }
 function clearPetFieldsOnly(){
+  DSWorkflow.resetPhotoEditor();
   $("#p_name").value = "";
   $("#p_breed").value = "";
   $("#p_birthdate").value = "";
@@ -15834,8 +15783,8 @@ $("#btnCpSave")?.addEventListener("click",async (e)=>{
       pet.vaccinatedConfirmed = !!document.getElementById("p_vaccinatedConfirmed")?.checked;
       pet.rabiesDate = document.getElementById("p_rabiesDate")?.value || "";
       pet.mixedVaccineDate = document.getElementById("p_mixedVaccineDate")?.value || "";
-      pet.vaccinationPassPhoto = cpVaccinationPassDataUrl || pet.vaccinationPassPhoto || "";
-      pet.profilePhoto = cpProfilePhotoDataUrl || pet.profilePhoto || "";
+      pet.vaccinationPassPhoto = cpVaccinationPassDataUrl || "";
+      pet.profilePhoto = cpProfilePhotoDataUrl || "";
       pet.food = $("#p_food").value.trim();
       pet.treatsAllowed = document.getElementById("p_treatsAllowed")?.value || "";
       pet.aloneTime = document.getElementById("p_aloneTime")?.value.trim() || "";
@@ -23723,7 +23672,7 @@ try{
 }catch(e){ console.warn(e); }
 
 
-/* ===== CHAT (M50.9.9GB368_ARCHIVE_NOTICES_TEST_20261019) ===== */
+/* ===== CHAT (M50.9.9GB369_PHOTO_TEST_20261020) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
