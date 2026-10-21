@@ -1,12 +1,12 @@
-Doggy Style Workspace - GB373 Statistik
+Doggy Style Workspace – GB374
 Stand: 21. Oktober 2026
 
-1. Vollständige ZIP entpacken. Alle Dateien aus DoggyStyle_Workspace_GB373_TEST am bisherigen GitHub-Pages-Ort übernehmen, einschließlich assets, vendor, statistics-store.js und pruefungen.
-2. REGELN_ANZEIGEN.html am selben Ort öffnen. Firestore wählen. Bisherige Firestore-Regeln in der eigenen Firebase-Konsole sichern und anschließend den vollständigen Regeltext dieses Pakets im vorhandenen Projekt doggy-style-hundepension veröffentlichen. Storage-Regeln bleiben unverändert.
-3. App neu laden. Login und DIAG müssen M50.9.9GB373_STATISTICS_TEST_20261021 zeigen. Keine Safari-Websitedaten löschen und keinen Daten-Reset ausführen.
-4. Als Administrator Statistik > Erfassung öffnen, Hund wählen, Skalen und tatsächlich beobachtete Gruppenmitglieder eintragen. Bewertung speichern. Erfolg wird erst nach Bestätigung aus Firebase angezeigt.
-5. Statistik > Bewertungen öffnen. Ohne Datumseinschränkung erscheinen auch ältere Bewertungen. Mit Ansehen sind die vollständigen Angaben lesbar. Neue Bewertungen nach einem Neuladen erneut prüfen.
-6. Nur auf diesem Gerät gespeicherte Altbewertungen werden gekennzeichnet. Auf dem ursprünglichen Gerät mit demselben Workspace-Konto zuerst Bewertungen sichern (JSON) verwenden. Anschließend bei Bedarf Lokale Bewertungen in Firebase sichern wählen und bestätigen. Vorhandene Einträge werden nicht überschrieben.
-7. Analyse, Rassenvergleich, Heatmap, Gruppenvergleich und CSV verwenden denselben Datenbestand. Für die Analyse ist zunächst der letzte Monat eingestellt; für ältere Einträge den Zeitraum erweitern. Gruppenanalysen verwenden ausschließlich ausdrücklich erfasste Gruppenmitglieder.
+1. Vollständige ZIP entpacken. Alle Dateien aus DoggyStyle_Workspace_GB374_TEST am bisherigen GitHub-Pages-Ort übernehmen, einschließlich assets, vendor, statistics-store.js, account-directory.js und pruefungen.
+2. REGELN_ANZEIGEN.html am selben Ort öffnen. Firestore wählen. Bisherige Regeln in der eigenen Firebase-Konsole sichern und den vollständigen Regeltext dieses Pakets im vorhandenen Projekt doggy-style-hundepension veröffentlichen. Storage-Regeln bleiben unverändert.
+3. App neu laden. Login und DIAG müssen M50.9.9GB374_RATINGS_EDIT_TEST_20261021 zeigen. Keine Safari-Websitedaten löschen und keinen Daten-Reset ausführen.
+4. Statistik > Bewertungen öffnen. Bearbeiten öffnet eine vorhandene Bewertung. Angaben korrigieren und Änderungen speichern wählen. Abbrechen verwirft die Eingabe. Auch ältere Teilbewertungen sind bearbeitbar; fehlende alte Skalen werden nicht automatisch gefüllt.
+5. Löschen entfernt eine ganze Bewertung erst nach Bestätigung. Die konkrete Bewertung wird im Dialog genannt. Sie erscheint anschließend nicht mehr in Liste, Analysen und Exporten. Andere Bewertungen bleiben bestehen. Nach Neuladen erneut prüfen.
+6. Einstellungen > Benutzer & Rollen: Name oder E-Mail suchen, bei Bedarf Rollenfilter verwenden. Je zehn Konten werden angezeigt. Zurück/Weiter blättert. Ein Konto aufklappen, Rolle wählen und Rolle speichern drücken. Suche zurücksetzen zeigt wieder alle Konten. Die Liste bleibt auch mit vielen Kunden in der Höhe begrenzt.
+7. Neue Bewertungen weiter über Statistik > Erfassung anlegen. Vorhandene lokale Altbewertungen sind gekennzeichnet und können bei Bedarf mit Lokale Bewertungen in Firebase sichern übertragen werden. Bewertungen sichern (JSON) enthält den aktuell sichtbaren Bewertungsstand.
 
-Bestehende Kunden, Verträge, Signaturen, Aufenthalte und alte Anfragen werden durch dieses Update nicht repariert oder verändert. Die Druckkorrektur aus GB372 ist enthalten. Native iPad-/iPhone-Dialoge und der vollständige Live-Durchlauf bleiben auf dem Gerät zu prüfen. Einzelheiten und verbleibende Grenzen stehen im Prüfbericht.
+Keine bestehenden Kunden, Verträge, Unterschriften, Aufenthalte oder Anfragen werden beim Einspielen automatisch geändert. Eine Kundenzuordnung bleibt ein gesonderter administrativer Vorgang. Vollständige Live- und native iPad-/iPhone-Tests stehen aus; Einzelheiten im Prüfbericht.

@@ -1,13 +1,11 @@
-# Doggy Style Workspace - GB373 Statistik
+# Doggy Style Workspace – GB374
 
 Stand: 21. Oktober 2026. Vollständige Testfassung.
 
-Bewertungen werden erst nach bestätigter Speicherung in Firebase als gespeichert gemeldet. Jede neue Bewertung erhält eine eigene ID. Bestehende Bewertungen bleiben unverändert. Unter Statistik > Bewertungen sind alle Zeiträume zunächst sichtbar. Ansehen öffnet Skalen, Kontext, Gruppenmitglieder, qualitative Angaben und die vollständige Notiz.
+Statistik > Bewertungen: Ansehen, Bearbeiten und Löschen sind für neue und ältere Einträge verfügbar. Bearbeiten öffnet die vorhandenen Angaben. Erst Änderungen speichern überträgt eine Korrektur. Abbrechen verändert nichts. Löschen zeigt die konkrete Bewertung zur Bestätigung und entfernt sie anschließend aus Liste, Auswertungen und Exporten. Andere Bewertungen bleiben erhalten. Erfolg wird erst nach Firebase-Bestätigung angezeigt. Bei gleichzeitiger Bearbeitung wird eine veraltete Änderung abgewiesen.
 
-Ältere Workspace-Bewertungen, ältere Firebase-Statistiken und eindeutig zum angemeldeten Konto gehörende lokale Altbewertungen werden mit angezeigt. Lokale Bewertungen sind entsprechend gekennzeichnet. Nur durch den ausdrücklichen Knopf Lokale Bewertungen in Firebase sichern und Bestätigung werden sie übertragen; ihre Originale bleiben erhalten. Nicht zuordenbare oder beschädigte Altdaten werden nicht automatisch umgeschrieben.
+Einstellungen > Benutzer & Rollen: Suche nach Name oder E-Mail, Rollenfilter, zehn Konten pro Seite und eine Liste mit begrenzter Höhe. Ein Konto aufklappen, Kunde/Mitarbeiter/Administrator wählen und Rolle speichern. Suchen und Blättern verändern keine Rollen. Konten ohne Erstellungsdatum werden ebenfalls gefunden.
 
-Analyse, Rassenvergleich, Heatmap, Gruppenvergleich, CSV und JSON-Sicherung verwenden denselben Bestand. Gruppenmitglieder sind jetzt erfassbar. Leere optionale Zahlen gelten als unbekannt. Der Gruppenvergleich beschreibt Beobachtungen; er ist keine KI-Prognose und belegt keine Ursache.
+Installation: vollständige Dateien übernehmen und die aktuellen Firestore-Regeln aus REGELN_ANZEIGEN.html im bestehenden Projekt veröffentlichen. Storage-Regeln und Firebase-Konfiguration sind unverändert. Keine Bestandsreparatur und kein Daten-Reset nötig. INSTALLATION_IPAD.txt enthält die Schritte.
 
-Installation: vollständige App-Dateien übernehmen und die Firestore-Regeln aus diesem Paket im bestehenden Projekt veröffentlichen. Storage-Regeln und Firebase-Konfiguration sind unverändert. INSTALLATION_IPAD.txt erklärt den Ablauf. Der vorherige Druckfix GB372 ist enthalten; vendor bleibt erforderlich.
-
-PRUEFBERICHT.md dokumentiert neue Emulator-/Browserprüfungen und die weiterhin offenen vollständigen Live-/nativen iOS-Prüfungen.
+Die bisherigen Statistik-, Foto-, Chat-, Vertrags-, Aufenthalts- und Druckkorrekturen sind enthalten; vendor bleibt erforderlich. PRUEFBERICHT.md dokumentiert die aktuellen Emulator-/Browserprüfungen und die verbleibenden Live-/iOS-Grenzen.

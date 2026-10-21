@@ -1,11 +1,13 @@
-# Bestehendes Firebase-Projekt - GB373
+# Bestehendes Firebase-Projekt – GB374
 
 Projekt doggy-style-hundepension, Organisation doggystyle, Bucket doggy-style-hundepension.firebasestorage.app bleiben erhalten.
 
-Die Firestore-Regeln dieses Updates ergänzen genau zwei interne Statistikpfade: orgs/doggystyle/statistics für neue Bewertungen und orgs/doggystyle/stats als lesbaren Altbestand. Nur Administratoren und Mitarbeiter dürfen lesen. Neue gültige Bewertungen dürfen sie ergänzen; vorhandene Bewertungen können über diese Pfade nicht überschrieben oder gelöscht werden. Kunden und unangemeldete Konten erhalten keinen Zugriff. Alle bisherigen Regelpfade bleiben unverändert.
+Vorhandene Firestore-Regeln in der eigenen Konsole sichern. REGELN_ANZEIGEN.html öffnen, Firestore auswählen und den vollständigen Regeltext dieses Pakets im vorhandenen Projekt veröffentlichen. Die Seite veröffentlicht selbst nichts. Storage-Regeln bleiben unverändert. Keine Bestandsreparatur, kein Reset und keine neuen Konten sind für dieses Update nötig.
 
-Vorhandene Regeln in der eigenen Konsole sichern. REGELN_ANZEIGEN.html öffnen, Firestore auswählen, den vollständigen Regeltext kopieren und im richtigen bestehenden Projekt veröffentlichen. Diese Seite veröffentlicht selbst nichts. Für dieses Update keine Storage-Regeln ändern, keine Bestandsreparatur ausführen und keine neuen Konten anlegen.
+Die zusätzliche interne Sammlung orgs/doggystyle/statisticChanges enthält ausdrückliche Korrekturen und Löschvermerke zu Bewertungen. Administratoren und Mitarbeiter dürfen sie lesen und geprüfte, fortlaufende Revisionen schreiben. Kunden und unangemeldete Konten sind ausgeschlossen. Ein Löschvermerk kann nicht entfernt oder aufgehoben werden. Ursprüngliche Bewertungen bleiben intern als unveränderte Quelle bestehen; die App entfernt gelöschte Bewertungen aus Listen, Analysen und den regulären Exporten. Dadurch erscheinen sie nicht erneut aus alten Geräte- oder Workspace-Kopien. Das ist eine logische Löschung, keine physische Löschung aller ursprünglichen Firebase-/Sicherungskopien.
 
-Neue Bewertungen werden im separaten Statistikbestand gespeichert. Die zusätzliche JSON-Sicherung unter Statistik > Bewertungen enthält auch diesen Bestand; die bisherige Workspace-Sicherung allein enthält die neue Sammlung nicht. Lokal verbliebene Altbewertungen auf dem ursprünglichen Gerät mit demselben Workspace-Konto prüfen und bewusst übertragen. Der alte lokale Speicher wird nicht gelöscht.
+Die bestehende Statistik-Sammlung für neue Beobachtungen und der lesbare Altbestand unter stats bleiben erhalten. Alle anderen Regelpfade sind unverändert. Die Kontensuche benötigt keine zusätzliche Freigabe und verändert Rollen nur nach Rolle speichern durch einen Administrator.
 
-Die Entwicklung liest und schreibt ausschließlich isolierte demo-Emulatorprojekte. Vollständige angemeldete Live-Tests und native Safari-/iOS-Bedienung bleiben offen.
+Die JSON-Sicherung unter Statistik > Bewertungen enthält den aktuell sichtbaren Stand, einschließlich Korrekturen und ohne gelöschte Bewertungen. Sie ist keine vollständige administrative Rohsicherung der ursprünglichen Quellen und Löschvermerke. Die allgemeine Workspace-Sicherung allein erfasst die separaten Statistik-Sammlungen nicht.
+
+Entwicklung und Tests verwenden ausschließlich isolierte demo-Emulatorprojekte. Vollständige angemeldete Live-Tests und native Safari-/iOS-Bedienung bleiben offen.

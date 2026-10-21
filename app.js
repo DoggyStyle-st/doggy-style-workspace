@@ -2,7 +2,7 @@ try{sessionStorage.removeItem('ds_handoff_pass');}catch(_){}
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB373_STATISTICS_TEST_20261021",
+  tag: "M50.9.9GB374_RATINGS_EDIT_TEST_20261021",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -13,7 +13,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB373_STATISTICS_TEST_20261021";
+const APP_BUILD = "M50.9.9GB374_RATINGS_EDIT_TEST_20261021";
 try{ window.__dsAppJsRuntimeBuild = "GB350-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -2722,7 +2722,7 @@ async function submitCustomerDogsProposal(){
   // GB355: vollständig lokal sichern, anschließend zuverlässig in proposals + tasks übertragen.
   // Die Oberfläche wird sofort freigegeben; die Erfolgsmeldung "an Eingänge übergeben"
   // erscheint ausschließlich nach bestätigter Firestore-Speicherung.
-  const GB355='M50.9.9GB373_STATISTICS_TEST_20261021';
+  const GB355='M50.9.9GB374_RATINGS_EDIT_TEST_20261021';
   function S(v){ try{return String(v==null?'':v);}catch(_){return '';} }
   function L(v){ return S(v).trim().toLowerCase(); }
   function V(id){ try{const el=document.getElementById(id);return S(el&&el.value!=null?el.value:'').trim();}catch(_){return '';} }
@@ -3230,65 +3230,7 @@ async function wireTaskCreation(){
   }catch(_){ }
   return;
 }
-async function wireUserManagement(){
-  const listEl = document.getElementById('usersList');
-  const btnRef = document.getElementById('btnUsersRefresh');
-  const msgEl = document.getElementById('usersMsg');
-  if(!listEl) return;
-  const load = async ()=>{
-    if(msgEl) msgEl.textContent = '… lädt …';
-    try{
-      const snap = await cloudUsersCol().orderBy('createdAt','desc').limit(200).get();
-      const users = [];
-      snap.forEach(d=>users.push({id:d.id, ...d.data()}));
-      listEl.innerHTML = '';
-      users.forEach(u=>{
-        const row = document.createElement('div');
-        row.className = 'list-item';
-        const who = escapeHtml(u.email||u.uid||u.id);
-        const when = u.createdAt ? fmtDT(u.createdAt) : '';
-        row.innerHTML = `<div><strong>${who}</strong><small>${escapeHtml(u.role||'')}${when?(' · '+when):''}</small></div>`;
-        const actions = document.createElement('div');
-        actions.className = 'actions';
-        const sel = document.createElement('select');
-        sel.innerHTML = `
-          <option value="admin">admin</option>
-          <option value="staff">staff</option>
-          <option value="customer">customer</option>
-        `;
-        sel.value = u.role || 'customer';
-        sel.onchange = async ()=>{
-          try{
-            await cloudUserDoc(u.uid||u.id).set({role: sel.value}, {merge:true});
-            if(msgEl) msgEl.textContent = '✅ Rolle gespeichert.';
-          }catch(e){
-            console.error(e);
-            const code = e && (e.code || e.name) || '';
-            if(code && String(code).includes('permission')){
-              if(msgEl) msgEl.textContent = '❌ Keine Berechtigung (Rules). Admin darf Rollen setzen.';
-            } else {
-              if(msgEl) msgEl.textContent = '❌ Fehler: '+(e.message||e);
-            }
-          }
-        };
-        actions.appendChild(sel);
-        row.appendChild(actions);
-        listEl.appendChild(row);
-      });
-      if(msgEl) msgEl.textContent = users.length ? '' : '— keine Benutzer gefunden —';
-    }catch(e){
-      console.error(e);
-      const code = e && (e.code || e.name) || '';
-      if(code && String(code).includes('permission')){
-        if(msgEl) msgEl.textContent = '❌ Laden fehlgeschlagen (permission-denied). Firestore-Regeln erlauben Admin/Staff das Lesen von orgs/doggystyle/users noch nicht.';
-      } else {
-        if(msgEl) msgEl.textContent = '❌ Laden fehlgeschlagen: ' + (e.message||e);
-      }
-    }
-  };
-  if(btnRef) btnRef.onclick = ()=>load().catch(e=>{ console.error(e); if(msgEl) msgEl.textContent='❌ Laden fehlgeschlagen.'; });
-  await load();
-}
+async function wireUserManagement(){return DSAccountDirectory.mount();}
 async function wireInbox(){return DSWorkflow.wireInbox();}
 
 // ===== Inbox: Aufgaben freigeben =====
@@ -22163,7 +22105,7 @@ function renderStatRatings(){
 
   host.innerHTML = `
     <div class="card">
-      <h3 style="margin:0 0 10px;">Gespeicherte Bewertungen</h3><p class="muted">Ohne Zeitraumfilter werden auch ältere Bewertungen angezeigt.</p><div class="row" style="gap:10px"><button class="btn" id="statTransferLocal">Lokale Bewertungen in Firebase sichern</button><button class="btn" id="statBackup">Bewertungen sichern (JSON)</button></div>
+      <h3 style="margin:0 0 10px;">Gespeicherte Bewertungen</h3><p class="muted">Ohne Zeitraumfilter werden auch ältere Bewertungen angezeigt. Mit Bearbeiten kannst du eine Bewertung korrigieren; Löschen entfernt die ganze Bewertung nach Bestätigung.</p><div class="row" style="gap:10px"><button class="btn" id="statTransferLocal">Lokale Bewertungen in Firebase sichern</button><button class="btn" id="statBackup">Bewertungen sichern (JSON)</button></div>
       <div class="row" style="flex-wrap:wrap; gap:10px; align-items:flex-end;">
         <div style="min-width:260px; flex:1;">
           <label class="muted" style="display:block; margin-bottom:4px;">Hund</label>
@@ -22236,8 +22178,8 @@ async function loadAndRenderStatRatings(){
       try{let rows=await _statLoadRange({from:filter('statListFrom'),to:filter('statListTo'),dogId:filter('statListDog')});
         if(!table.isConnected||table._loadTicket!==ticket)return;if(type)rows=rows.filter(r=>r.type===type);rows.reverse();
         table.innerHTML='<tr><th>Datum</th><th>Hund</th><th>Typ</th><th>Rasse</th><th>Index B</th><th>Speicherstand</th><th>Bewertung</th></tr>';
-        for(const r of rows){const tr=document.createElement('tr');for(const value of [r.date||'Datum fehlt',r.dogName,_statTypeLabel(r.type),r.breed||'—',r.__indexB??'—',DSStatistics.statusLabel(r)]){const td=document.createElement('td');td.textContent=value;tr.append(td);}
-          const td=document.createElement('td'),b=document.createElement('button');b.className='btn';b.textContent='Ansehen';b.onclick=()=>DSStatistics.detail(r,STAT_DIMENSIONS,STAT_QUAL_FIELDS);td.append(b);tr.append(td);table.append(tr);}
+        for(const r of rows){const tr=document.createElement('tr');tr.dataset.ratingId=r.docId;for(const value of [r.date||'Datum fehlt',r.dogName,_statTypeLabel(r.type),r.breed||'—',r.__indexB??'—',DSStatistics.statusLabel(r)]){const td=document.createElement('td');td.textContent=value;tr.append(td);}
+          const td=document.createElement('td'),b=document.createElement('button');b.className='btn';b.dataset.action='view';b.textContent='Ansehen';const changed=async(message)=>{await loadAndRenderStatRatings();const current=document.getElementById('statListMsg');if(current)current.append(' '+message);};b.onclick=()=>DSStatistics.detail(r,STAT_DIMENSIONS,STAT_QUAL_FIELDS,changed);td.append(b);DSStatistics.actions(td,r,STAT_DIMENSIONS,STAT_QUAL_FIELDS,changed);tr.append(td);table.append(tr);}
         if(!rows.length)table.insertAdjacentHTML('beforeend','<tr><td colspan="7">Keine Bewertung für diese Auswahl gefunden.</td></tr>');
         msg.textContent=DSStatistics.readMessage(rows.length);
         const sel=document.getElementById('statListDog');for(const r of rows)if(r.dogId&&!Array.from(sel.options).some(o=>o.value===r.dogId))sel.add(new Option(r.dogName,r.dogId));
@@ -23047,7 +22989,7 @@ function renderStatMethod(){
 
 
 
-/* ===== CHAT (M50.9.9GB373_STATISTICS_TEST_20261021) ===== */
+/* ===== CHAT (M50.9.9GB374_RATINGS_EDIT_TEST_20261021) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
