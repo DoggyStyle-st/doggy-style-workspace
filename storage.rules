@@ -20,6 +20,22 @@ service firebase.storage {
     function uploadMetadata(orgId) {
       return request.resource.metadata.get('uploadedBy', '') == request.auth.uid && request.resource.metadata.get('orgId', '') == orgId;
     }
+    function admin(orgId) {
+      return signedIn() && orgAllowed(orgId) && ((email() == 'raphael@boch-plan.de' && request.auth.token.get('email_verified', false) == true)
+        || profile(orgId).get('role', 'guest') == 'admin');
+    }
+    match /orgs/{orgId}/safetyDataSheets/{fileName} {
+      allow read: if staff(orgId);
+      allow create: if resource == null && admin(orgId) && uploadMetadata(orgId)
+        && fileName.matches('[a-f0-9]{64}[.]pdf')
+        && request.resource.metadata.get('sha256', '') + '.pdf' == fileName
+        && request.resource.metadata.get('kind', '') == 'sds'
+        && request.resource.metadata.keys().hasOnly(['orgId','uploadedBy','kind','sha256'])
+        && request.resource.size > 0 && request.resource.size <= 8 * 1024 * 1024
+        && request.resource.contentType == 'application/pdf';
+      // Content-addressed files remain immutable, including after a reference is removed.
+      allow update, delete: if false;
+    }
     match /orgs/{orgId}/pets/{petId}/{fileName} {
       allow read: if staff(orgId) || ownPet(orgId, petId);
       allow create: if (staff(orgId) || ownPet(orgId, petId)) && uploadMetadata(orgId)

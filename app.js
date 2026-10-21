@@ -2,7 +2,7 @@ try{sessionStorage.removeItem('ds_handoff_pass');}catch(_){}
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB375_SYNC_REVIEW_TEST_20261021",
+  tag: "M50.9.9GB376_SDS_STORAGE_TEST_20261021",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -13,7 +13,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB375_SYNC_REVIEW_TEST_20261021";
+const APP_BUILD = "M50.9.9GB376_SDS_STORAGE_TEST_20261021";
 try{ window.__dsAppJsRuntimeBuild = "GB350-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -1943,7 +1943,9 @@ async function cloudPushNow(){
       const edited=JSON.stringify(state)!==captured;
       retryNewEdits=edited;
       state._cloudUpdatedAt=res.stamp;CLOUD._lastRemoteStamp=res.stamp;CLOUD.lastPushOkAt=res.stamp;
-      DSWorkflow.rememberBase(payload,res.stamp,JSON.parse(captured));CLOUD.lastPushError='';
+      const persisted=res.payload||payload;
+      DSWorkflow.acceptPublishedFiles(state,payload,persisted);
+      DSWorkflow.rememberBase(persisted,res.stamp,DSWorkflow.acceptPublishedFiles(JSON.parse(captured),payload,persisted));CLOUD.lastPushError='';
       SYNC.cloudLastOkAt=res.stamp;SYNC.cloudPending=edited;SYNC.cloudLastError='';
       DSBrowserStore.cache(LS_KEY,JSON.stringify(state));
       const deferred=CLOUD._deferredRemoteSnapshot;CLOUD._deferredRemoteSnapshot=null;
@@ -1951,7 +1953,7 @@ async function cloudPushNow(){
       else{DSWorkflow.clearConflict();}
       updateSyncUI();return res;
     }catch(e){if(firebase.auth().currentUser?.uid!==actor)throw e;SYNC.cloudPending=true;SYNC.cloudLastError=e.code==='workspace-conflict'?'':e.message;CLOUD.lastPushError=SYNC.cloudLastError;updateSyncUI();
-      if(e.code==='workspace-conflict'){try{const latest=await DSWorkflow.api().workspace();DSWorkflow.showConflict(latest.payload,latest.stamp);}catch(_){} }
+      if(e.code==='workspace-conflict'){try{const latest=await DSWorkflow.api().workspace();DSWorkflow.showConflict(latest.payload,latest.stamp);updateSyncUI();}catch(_){} }
       throw e;}
     finally{CLOUD._workflowPublishing=false;if(retryNewEdits && firebase.auth().currentUser?.uid===actor && SYNC.cloudPending && !CLOUD._pendingRemoteSnapshot)setTimeout(()=>cloudSchedulePush(),0);}
   }
@@ -2724,7 +2726,7 @@ async function submitCustomerDogsProposal(){
   // GB355: vollständig lokal sichern, anschließend zuverlässig in proposals + tasks übertragen.
   // Die Oberfläche wird sofort freigegeben; die Erfolgsmeldung "an Eingänge übergeben"
   // erscheint ausschließlich nach bestätigter Firestore-Speicherung.
-  const GB355='M50.9.9GB375_SYNC_REVIEW_TEST_20261021';
+  const GB355='M50.9.9GB376_SDS_STORAGE_TEST_20261021';
   function S(v){ try{return String(v==null?'':v);}catch(_){return '';} }
   function L(v){ return S(v).trim().toLowerCase(); }
   function V(id){ try{const el=document.getElementById(id);return S(el&&el.value!=null?el.value:'').trim();}catch(_){return '';} }
@@ -20407,7 +20409,7 @@ function renderComplianceHazards(root){
   const list = root.querySelector('#hazList');
   if(list){
     list.innerHTML = hazards.map(h=>{
-      const has = !!(h.sds && h.sds.dataUrl);
+      const has = DSWorkflow.hasSafetyDataSheet(h.sds);
       return `
       <div class="list-row">
         <div style="flex:1">
@@ -20439,9 +20441,7 @@ function renderComplianceHazards(root){
       if(act==='upload') openHazardUpload(haz);
       if(act==='view') openHazardView(haz);
       if(act==='dl'){
-        if(haz.sds && haz.sds.dataUrl){
-          openPdfDocumentOverlay({title:`SDB – ${haz.name||''}`, dataUrl: haz.sds.dataUrl, filename:`SDB_${(haz.name||'Produkt').replace(/[^a-z0-9_-]+/gi,'_')}.pdf`});
-        }
+        openHazardView(haz);
       }
       if(act==='del'){
         if(confirm('Sicherheitsdatenblatt wirklich löschen?')){
@@ -20555,7 +20555,7 @@ function openHazardUpload(haz){
       haz.updatedAt = Date.now();
       saveState();
       renderCompliancePanel();
-      try{ toast('SDB hochgeladen.'); }catch(_){ }
+      try{ toast('SDB lokal gespeichert. Die Cloud-Speicherung wird geprüft.'); }catch(_){ }
     }catch(err){
       console.error('SDB upload failed', err);
       alert('SDB konnte nicht hochgeladen werden: ' + (err && err.message ? err.message : err));
@@ -20807,19 +20807,10 @@ function openPdfDocumentOverlay(opts){
     });
 }
 
-function openHazardView(haz){
-  if(!haz.sds || !haz.sds.dataUrl){ alert("Kein Sicherheitsdatenblatt hinterlegt."); return; }
-  openPdfDocumentOverlay({
-    title: `SDB – ${haz.name||''}`,
-    dataUrl: haz.sds.dataUrl,
-    filename: `SDB_${(haz.name||"Produkt").replace(/[^a-z0-9_-]+/gi,"_")}.pdf`,
-    onDelete: ()=>{
-      haz.sds = null;
-      saveState();
-      renderCompliancePanel();
-    }
-  });
-}
+async function openHazardView(haz){
+    try{await DSWorkflow.openSafetyDataSheet(haz);}
+    catch(e){alert('Sicherheitsdatenblatt konnte nicht geöffnet werden: '+e.message);}
+  }
 
 function renderComplianceTrainings(root){
   const tr = state.compliance.trainings || [];
@@ -22995,7 +22986,7 @@ function renderStatMethod(){
 
 
 
-/* ===== CHAT (M50.9.9GB375_SYNC_REVIEW_TEST_20261021) ===== */
+/* ===== CHAT (M50.9.9GB376_SDS_STORAGE_TEST_20261021) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,

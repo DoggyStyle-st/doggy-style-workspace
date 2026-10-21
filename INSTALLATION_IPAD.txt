@@ -1,15 +1,13 @@
-Doggy Style Workspace – GB375
-Stand: 21. Oktober 2026
+Doggy Style Workspace – GB376
+Build: M50.9.9GB376_SDS_STORAGE_TEST_20261021
 
-1. Vollständige ZIP entpacken. Alle Dateien aus DoggyStyle_Workspace_GB375_TEST am bisherigen GitHub-Pages-Ort übernehmen, einschließlich assets, vendor und aller JavaScript-Dateien.
-2. Von GB374 kommend keine Firestore- oder Storage-Regeln erneut ändern. Die Regeln und Firebase-Konfiguration sind unverändert. Wer dessen Regeln noch nicht veröffentlicht hat, kann den identischen Regeltext weiterhin über REGELN_ANZEIGEN.html öffnen.
-3. App neu laden. Login und DIAG müssen M50.9.9GB375_SYNC_REVIEW_TEST_20261021 anzeigen. Keine Safari-Websitedaten löschen und keinen Daten-Reset ausführen.
-4. Wenn lokale Angaben mit Firebase übereinstimmen, zeigt die App Firebase verbunden. Abweichende alte Zeitstempel allein lösen keinen Fehler mehr aus.
-5. Bei echten ungesendeten Angaben erscheint gelb Lokale Änderungen prüfen. Auf der Startseite steht Änderungen vergleichen. Auch die Statusmeldung öffnet den Vergleich. Abbrechen verändert keine Daten.
-6. Mit gespeichertem Ausgangsstand die konkret angezeigten Unterschiede prüfen und je Konflikt die gewünschte Fassung auswählen. Auswahl gemeinsam speichern übernimmt diese ausdrückliche Auswahl. Hat sich Firebase inzwischen geändert, muss der aktualisierte Vergleich erneut geprüft werden.
-7. Ohne Ausgangsstand ist Zusammenführen gesperrt. Lokales sichern und Serverstand anzeigen sichert zuerst die lokale Fassung im Gerätespeicher und zeigt dann den bestätigten Serverstand. Es wird dabei nichts in Firebase überschrieben. Bei fehlgeschlagener Sicherung bleiben die lokalen Daten unverändert. Die lokale Sicherung kann bei Bedarf unter Einstellungen > Cloud & Konto > Lokale Sicherung herunterladen gespeichert werden; gespeicherte Konfliktsicherungen bleiben nach Neuladen enthalten.
-8. Echte Verbindungs-, Anmelde- und Berechtigungsfehler bleiben rot. Ihr genauer Text steht unter Einstellungen > Cloud & Konto und in DIAG. Ein Reset ist keine Fehlerbehebung.
+1. Vor dem Austausch unter Einstellungen > Cloud & Konto > Lokale Sicherung herunterladen eine Gerätesicherung in Dateien behalten. Keine Safari-Websitedaten löschen und keinen Reset verwenden.
+2. Vollständigen Inhalt von DoggyStyle_Workspace_GB376_TEST am bisherigen GitHub-Pages-Ort übernehmen, einschließlich assets, vendor und aller JavaScript-Dateien.
+3. REGELN_ANZEIGEN.html öffnen und Storage wählen. Den vollständigen Text in der bestehenden Firebase-Konsole unter Storage > Regeln prüfen und veröffentlichen. Die Firestore-Regeln für diese Änderung unverändert lassen.
+4. Workspace neu laden. In DIAG muss M50.9.9GB376_SDS_STORAGE_TEST_20261021 stehen.
+5. Bei Lokale Änderungen prüfen auf Änderungen vergleichen tippen. Angaben prüfen und Auswahl gemeinsam speichern wählen. Die vorhandenen Sicherheitsdatenblätter werden separat übertragen; danach enthält der Workspace nur Dateiverweise. Bei einer widersprüchlichen Angabe vorher ausdrücklich den passenden Stand auswählen.
+6. Unter Compliance > Gefahrstoffe SDB öffnen oder Download verwenden. Im Dokumentfenster PDF speichern oder PDF teilen wählen. Auf dem iPad liegt der Download anschließend bei Safari-Downloads bzw. in Dateien.
 
-Bewertungen können weiterhin unter Statistik > Bewertungen bearbeitet und nach Bestätigung entfernt werden. Einstellungen > Benutzer & Rollen enthält weiterhin Suche, Rollenfilter und die kompakte Liste mit zehn Konten pro Seite. Diese Bereiche sind unverändert.
+Wichtig: Lokales sichern und Serverstand anzeigen verwirft keine Sicherung, übernimmt aber nur den bisherigen Serverstand in die Anzeige. Damit werden die lokalen PDFs nicht in die Cloud übertragen. Für die gezeigte PDF-Reparatur nach Prüfung Auswahl gemeinsam speichern benutzen.
 
-Keine bestehenden Firebase-Kunden, Rollen, Verträge, Unterschriften, Aufenthalte oder Anfragen werden beim Einspielen automatisch verändert. Vollständige Live- und native iPad-/iPhone-Tests bleiben offen; Details im Prüfbericht.
+Bei einer Fehlermeldung bleiben die lokalen PDFs erhalten. Aktuelle Storage-Regeln und Build prüfen; den konkreten Fehler aus dem Abgleich bzw. DIAG dokumentieren. Live-Abnahme im bestehenden Projekt und natives Safari/iOS bleiben noch offen.

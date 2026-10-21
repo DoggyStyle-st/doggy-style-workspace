@@ -29,7 +29,96 @@
   function context(){ return Core.context(currentUser(),window.CLOUD && CLOUD.userProfile); }
   function api(){
     if(!currentUser()) throw new Error('Bitte anmelden.');
-    return Core.service(firebase.firestore(),window.firebaseOrgId,currentUser,d=>d.secureWorkflowVersion===3?d.payload:(typeof dsBuildMergedCloudDocPayload==='function'?dsBuildMergedCloudDocPayload(d):d.payload),()=>firebase.firestore.FieldValue?.serverTimestamp?.()||Date.now());
+    const service=Core.service(firebase.firestore(),window.firebaseOrgId,currentUser,d=>d.secureWorkflowVersion===3?d.payload:(typeof dsBuildMergedCloudDocPayload==='function'?dsBuildMergedCloudDocPayload(d):d.payload),()=>firebase.firestore.FieldValue?.serverTimestamp?.()||Date.now());
+    const publish=service.publish;
+    service.publish=(workspace,stamp,options)=>publishWithSafetyDataSheets(service,publish,workspace,stamp,options);
+    return service;
+  }
+  function sdsPath(value){
+    const path=S(value?.storagePath),prefix='orgs/'+window.firebaseOrgId+'/safetyDataSheets/';
+    return path.startsWith(prefix)&&/^[a-f0-9]{64}\.pdf$/.test(path.slice(prefix.length))?path:'';
+  }
+  function hasSafetyDataSheet(value){return !!(value && (value.dataUrl || sdsPath(value)));}
+  async function pdfBytes(value){
+    const match=String(value||'').match(/^data:[^,]*;base64,([A-Za-z0-9+/=\s]+)$/);
+    if(!match)throw new Error('Das Sicherheitsdatenblatt enthält keine lesbare PDF-Datei. Die lokale Fassung bleibt erhalten.');
+    let binary;try{binary=atob(match[1].replace(/\s/g,''));}catch(_){throw new Error('Das Sicherheitsdatenblatt ist beschädigt. Die lokale Fassung bleibt erhalten.');}
+    const bytes=Uint8Array.from(binary,c=>c.charCodeAt(0));
+    validatePdf(bytes);return bytes;
+  }
+  function validatePdf(bytes){
+    if(!bytes.length||bytes.length>8*1024*1024)throw new Error('Das Sicherheitsdatenblatt muss eine PDF-Datei bis 8 MB sein.');
+    if(!new TextDecoder().decode(bytes.slice(0,1024)).includes('%PDF-'))throw new Error('Die ausgewählte Datei ist keine lesbare PDF.');
+  }
+  async function sha256(bytes){
+    return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),b=>b.toString(16).padStart(2,'0')).join('');
+  }
+  async function publishWithSafetyDataSheets(service,publish,workspace,stamp,options={}){
+    const hazards=workspace?.compliance?.hazards;
+    if(!Array.isArray(hazards)||!hazards.some(h=>h?.sds?.dataUrl))return publish(workspace,stamp);
+    const actor=currentUser()?.uid,epoch=mediaEpoch,orgId=window.firebaseOrgId;
+    const check=()=>{if(!actor||currentUser()?.uid!==actor||mediaEpoch!==epoch||window.firebaseOrgId!==orgId||CLOUD.role!=='admin'||scoped())throw new Error('Konto gewechselt oder keine Administrator-Berechtigung.');};
+    check();
+    const latest=await service.workspace();check();
+    if(Number(latest.stamp)!==Number(stamp||0)){const e=new Error('Der Workspace wurde auf einem anderen Gerät geändert. Bitte zuerst aktualisieren.');e.code='workspace-conflict';throw e;}
+    if(!options.localBackupDone)await backupLocal();check();
+    const prepared=JSON.parse(JSON.stringify(workspace));
+    // Convert only known SDS attachments on a copy. No change to local originals before ACK.
+    const files=[];
+    for(const h of prepared.compliance.hazards){
+      if(!h?.sds?.dataUrl)continue;
+      const bytes=await pdfBytes(h.sds.dataUrl),hash=await sha256(bytes);check();
+      const path='orgs/'+orgId+'/safetyDataSheets/'+hash+'.pdf',old=h.sds;
+      files.push({path,hash,bytes});
+      h.sds={...old,mime:'application/pdf',size:bytes.length,storagePath:path,sha256:hash};delete h.sds.dataUrl;
+    }
+    const matches=(metadata,file)=>metadata?.contentType==='application/pdf'&&Number(metadata.size)===file.bytes.length&&metadata.customMetadata?.sha256===file.hash&&metadata.customMetadata?.orgId===orgId&&metadata.customMetadata?.kind==='sds';
+    const storage=firebase.storage();storage.setMaxUploadRetryTime?.(30000);storage.setMaxOperationRetryTime?.(30000);
+    for(const file of files){
+      check();const ref=storage.ref().child(file.path);let metadata;
+      try{metadata=await ref.getMetadata();}catch(e){if(e.code!=='storage/object-not-found')throw sdsStorageError(e);}
+      check();
+      if(!metadata){
+        try{const result=await ref.put(new Blob([file.bytes],{type:'application/pdf'}),{contentType:'application/pdf',customMetadata:{orgId,uploadedBy:actor,kind:'sds',sha256:file.hash}});metadata=result.metadata;}
+        catch(e){
+          // A simultaneous upload may already have created the same immutable content.
+          try{metadata=await ref.getMetadata();}catch(_){throw sdsStorageError(e);}
+        }
+        check();
+      }
+      if(!matches(metadata,file))throw new Error('Die gespeicherte PDF stimmt nicht mit dem Sicherheitsdatenblatt überein. Die lokale Fassung bleibt erhalten.');
+    }
+    check();const result=await publish(prepared,stamp);check();
+    prepared._cloudUpdatedAt=result.stamp;return {...result,payload:prepared};
+  }
+  function sdsStorageError(error){
+    const e=new Error(error?.code==='storage/unauthorized'?'Sicherheitsdatenblatt konnte nicht gespeichert werden. Bitte die Storage-Regeln aus GB376 veröffentlichen. Die lokale PDF bleibt erhalten.':'Sicherheitsdatenblatt konnte nicht in Firebase Storage gespeichert werden. Die lokale PDF bleibt erhalten. '+String(error?.message||error));
+    e.code=error?.code||'sds/storage';return e;
+  }
+  function acceptPublishedFiles(target,submitted,published){
+    for(const old of submitted?.compliance?.hazards||[]){
+      if(!old?.sds?.dataUrl)continue;
+      const current=(target?.compliance?.hazards||[]).filter(h=>h?.id===old.id),saved=(published?.compliance?.hazards||[]).filter(h=>h?.id===old.id);
+      if(current.length===1&&saved.length===1&&sdsPath(saved[0].sds)&&JSON.stringify(current[0].sds)===JSON.stringify(old.sds))current[0].sds=JSON.parse(JSON.stringify(saved[0].sds));
+    }
+    return target;
+  }
+  async function openSafetyDataSheet(hazard){
+    const user=currentUser(),epoch=mediaEpoch,sds=hazard?.sds;
+    if(!user||scoped()||!['admin','staff'].includes(CLOUD.role))throw new Error('Bitte mit einem Workspace-Konto anmelden.');
+    if(!hasSafetyDataSheet(sds))throw new Error('Kein Sicherheitsdatenblatt hinterlegt.');
+    let blob;
+    if(sds.dataUrl)blob=new Blob([await pdfBytes(sds.dataUrl)],{type:'application/pdf'});
+    else{
+      blob=await requestMedia(sdsPath(sds),user,epoch);
+      const bytes=new Uint8Array(await blob.arrayBuffer());validatePdf(bytes);
+      const hash=await sha256(bytes);
+      if(hash!==sds.sha256||!sdsPath(sds).endsWith('/'+hash+'.pdf'))throw new Error('Die geladene PDF stimmt nicht mit dem gespeicherten Dateiverweis überein.');
+      blob=new Blob([bytes],{type:'application/pdf'});
+    }
+    if(currentUser()?.uid!==user.uid||mediaEpoch!==epoch)throw new Error('Konto gewechselt.');
+    const filename=String(sds.name||('SDB_'+(hazard.name||'Produkt')+'.pdf')).replace(/[\\/\x00-\x1f]/g,'_');
+    DSDocumentOutput.open({title:'Sicherheitsdatenblatt – '+(hazard.name||'Produkt'),filename,pdf:blob,url:URL.createObjectURL(blob)});
   }
   function error(e, id){
     const message=S(e && e.message || e);
@@ -240,11 +329,18 @@
       resolved=Core.resolveMerge(review.plan,decisions);
     }
     await backupLocal();
-    const result=useServer?{stamp:latest.stamp}:await api().publish(resolved,latest.stamp);
+    const result=useServer?{stamp:latest.stamp}:await api().publish(resolved,latest.stamp,{localBackupDone:true});
     if(currentUser()?.uid!==review.uid)throw new Error('Konto gewechselt.');
+    const persisted=result.payload||resolved;
+    if(JSON.stringify(state)!==JSON.stringify(review.local)){
+      if(!useServer)acceptPublishedFiles(state,resolved,persisted);
+      rememberBase(persisted,result.stamp);SYNC.cloudPending=true;
+      showConflict(persisted,result.stamp);openConflict();
+      throw new Error('Während des Abgleichs wurden weitere lokale Angaben geändert. Diese bleiben erhalten. Bitte den aktualisierten Vergleich prüfen.');
+    }
     Object.assign(SYNC,{cloudPending:false,cloudNeedsReview:false,cloudLastError:'',cloudLastOkAt:useServer?SYNC.cloudLastOkAt:result.stamp});
     CLOUD.lastPushError='';CLOUD._pendingRemoteSnapshot=null;
-    if(!applyRemoteState(resolved,result.stamp,'conflict-resolution'))throw new Error('Serverstand wurde gespeichert, konnte aber noch nicht angezeigt werden. Bitte neu laden.');
+    if(!applyRemoteState(persisted,result.stamp,'conflict-resolution'))throw new Error('Serverstand wurde gespeichert, konnte aber noch nicht angezeigt werden. Bitte neu laden.');
     clearConflict();
   }
   function mediaSource(value){
@@ -297,7 +393,7 @@
           xhr.onabort=()=>finish(mediaError('media/canceled','Der Dateiabruf wurde abgebrochen.'));
           try{xhr.send();}catch(e){finish(e);}
         });
-      }catch(e){if(e.status===401&&attempt===0&&active())continue;throw e;}
+      }catch(e){if(!active())throw mediaError('media/canceled','Der Dateiabruf wurde nach einem Kontowechsel abgebrochen.');if(e.status===401&&attempt===0)continue;throw e;}
     }
   }
   async function loadMedia(el){
@@ -770,7 +866,7 @@
     busy=true;b.disabled=true;reviewControls();
     Promise.resolve().then(action).catch(err=>error(err,b.closest('#dsSyncConflictDialog')?'dsSyncConflictStatus':b.closest('#inboxDetail')?'inboxReviewStatus':b.closest('#contract')?'contractSavedInfo':'assignMsg')).finally(()=>{busy=false;b.disabled=false;reviewControls();});
   },true);
-  window.DSWorkflow={context,snapshot,hydrate,watchProfile,resetAccount,submit,submitContract,retryQueue,wireInbox,wireAssignments,openReview,closeReview,renderContractStatus,api,scoped,mediaSource,scanMedia,prepareNewPetPhoto,preparePetPhoto,wirePhotoInputs,waitForPhotos,resetPhotoEditor,signatureHasInk,rememberBase,showConflict,openConflict,resolveConflict,startupStatus,readWithTimeout,workspaceRole,retainUploadedPhoto,workspaceContent,sameWorkspace,hasLocalChanges,clearConflict,captureStartup,markWorkspaceEdit,installSyncBackup};
+  window.DSWorkflow={context,snapshot,hydrate,watchProfile,resetAccount,submit,submitContract,retryQueue,wireInbox,wireAssignments,openReview,closeReview,renderContractStatus,api,scoped,mediaSource,scanMedia,prepareNewPetPhoto,preparePetPhoto,wirePhotoInputs,waitForPhotos,resetPhotoEditor,signatureHasInk,rememberBase,showConflict,openConflict,resolveConflict,startupStatus,readWithTimeout,workspaceRole,retainUploadedPhoto,workspaceContent,sameWorkspace,hasLocalChanges,clearConflict,captureStartup,markWorkspaceEdit,installSyncBackup,hasSafetyDataSheet,openSafetyDataSheet,acceptPublishedFiles};
   function observeMedia(){
     if(!document.body)return;
     scanMedia(document.body);
