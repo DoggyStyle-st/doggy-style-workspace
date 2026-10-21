@@ -1,13 +1,15 @@
-# Bestehendes Firebase-Projekt – GB374
+# Bestehendes Firebase-Projekt – GB375
 
-Projekt doggy-style-hundepension, Organisation doggystyle, Bucket doggy-style-hundepension.firebasestorage.app bleiben erhalten.
+Projekt doggy-style-hundepension, Organisation doggystyle und Bucket doggy-style-hundepension.firebasestorage.app bleiben erhalten.
 
-Vorhandene Firestore-Regeln in der eigenen Konsole sichern. REGELN_ANZEIGEN.html öffnen, Firestore auswählen und den vollständigen Regeltext dieses Pakets im vorhandenen Projekt veröffentlichen. Die Seite veröffentlicht selbst nichts. Storage-Regeln bleiben unverändert. Keine Bestandsreparatur, kein Reset und keine neuen Konten sind für dieses Update nötig.
+Für dieses Update müssen keine Firestore- oder Storage-Regeln geändert werden. Beide Regeldateien und die Firebase-Konfiguration sind unverändert gegenüber GB374. Wer von GB374 aktualisiert und dessen Regeln bereits veröffentlicht hat, übernimmt nur die vollständigen neuen App-Dateien. REGELN_ANZEIGEN.html liegt für spätere Einrichtung weiterhin bei.
 
-Die zusätzliche interne Sammlung orgs/doggystyle/statisticChanges enthält ausdrückliche Korrekturen und Löschvermerke zu Bewertungen. Administratoren und Mitarbeiter dürfen sie lesen und geprüfte, fortlaufende Revisionen schreiben. Kunden und unangemeldete Konten sind ausgeschlossen. Ein Löschvermerk kann nicht entfernt oder aufgehoben werden. Ursprüngliche Bewertungen bleiben intern als unveränderte Quelle bestehen; die App entfernt gelöschte Bewertungen aus Listen, Analysen und den regulären Exporten. Dadurch erscheinen sie nicht erneut aus alten Geräte- oder Workspace-Kopien. Das ist eine logische Löschung, keine physische Löschung aller ursprünglichen Firebase-/Sicherungskopien.
+Die neue Sync-Prüfung verwendet bestätigte Serverstände und den gespeicherten Ausgangsstand. Kunden, Hunde, Fotos, Dokumente, Verträge, Einwilligungen, Signaturen und unbekannte Datenfelder werden weiterhin vollständig verglichen. Nur Transportzeitstempel und ausdrücklich bekannte Ansichtspräferenzen werden nicht als fachliche Änderung bewertet. Eine laufende Veröffentlichung oder eine neu erfasste Änderung wird nicht durch einen passenden alten Snapshot als erledigt markiert.
 
-Die bestehende Statistik-Sammlung für neue Beobachtungen und der lesbare Altbestand unter stats bleiben erhalten. Alle anderen Regelpfade sind unverändert. Die Kontensuche benötigt keine zusätzliche Freigabe und verändert Rollen nur nach Rolle speichern durch einen Administrator.
+Lokale Fallback-Daten werden nicht gelöscht. Die dauerhafte IndexedDB-Kopie merkt sich zusätzlich, welche unveränderte Fallback-Kopie beim Abgleich bereits berücksichtigt wurde. So wird diese alte Kopie nicht erneut als ungesendet geladen. Eine danach tatsächlich neue Fallback-Fassung aus einem anderen Tab wird weiterhin erkannt. Konfliktsicherungen werden beim erneuten Anmelden wieder aus dem Gerätespeicher geladen und sind in der lokalen Sicherung enthalten.
 
-Die JSON-Sicherung unter Statistik > Bewertungen enthält den aktuell sichtbaren Stand, einschließlich Korrekturen und ohne gelöschte Bewertungen. Sie ist keine vollständige administrative Rohsicherung der ursprünglichen Quellen und Löschvermerke. Die allgemeine Workspace-Sicherung allein erfasst die separaten Statistik-Sammlungen nicht.
+Der Vergleich veröffentlicht nur nach einer ausdrücklichen Auswahl. Lokales sichern und Serverstand anzeigen schreibt keine Kundendaten in Firebase. Dafür wird die lokale Fassung zuerst dauerhaft gesichert. Ausgefallener Gerätespeicher verhindert das Verwerfen. Während ein Vergleich offen ist, umgehen weder automatisches noch manuelles Cloud-Speichern die Prüfung.
 
-Entwicklung und Tests verwenden ausschließlich isolierte demo-Emulatorprojekte. Vollständige angemeldete Live-Tests und native Safari-/iOS-Bedienung bleiben offen.
+Separate Statistikdaten und Korrekturen bleiben unverändert. Bewertungen sichern (JSON) enthält den sichtbaren Statistikstand; eine administrative Rohsicherung müsste auch statistics, stats und statisticChanges umfassen.
+
+Tests erfolgen ausschließlich in isolierten demo-Emulatorprojekten. Eine vollständige angemeldete Live-Abnahme und native Safari-/iOS-Prüfung bleiben offen.

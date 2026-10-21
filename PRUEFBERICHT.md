@@ -1,77 +1,78 @@
-# Doggy Style Workspace – GB374
+# Doggy Style Workspace – GB375 Sync-Abgleich
 
-Stand: 21. Oktober 2026. Build M50.9.9GB374_RATINGS_EDIT_TEST_20261021.
+Stand: 21. Oktober 2026. Build M50.9.9GB375_SYNC_REVIEW_TEST_20261021.
 
-Bewertungen können jetzt bearbeitet und nach Bestätigung aus dem Bewertungsbestand entfernt werden. Die Kontenliste unter Einstellungen ist durch Suche, Rollenfilter, Seiten und begrenzte Höhe kompakt. Alle 233 unten aufgeführten Prüfungen bestehen. Es wurden keine produktiven Daten verändert. Vollständige angemeldete Live- und native Safari-/iOS-Prüfungen bleiben offen.
+Die App unterscheidet jetzt echte Firebase-Fehler von lokalen Daten, die geprüft werden müssen. Der Vergleich steht sichtbar auf der Startseite und in jedem Workspace-Bereich bereit. Eine bereits abgeglichene ältere Gerätekopie wird nach Neuladen nicht erneut als ungesendet eingelesen. Alle 259 aktuellen Prüfungen bestehen. Es wurden keine produktiven Daten verändert. Die vollständige angemeldete Live-Abnahme und native Safari-/iOS-Prüfung bleiben offen.
 
-## Bewertungsverwaltung
+## Befund zum Screenshot
 
-Die vorherige Fassung bot nur Ansehen. Bestehende Statistikdokumente waren absichtlich vor Überschreiben und Löschen geschützt. GB374 ergänzt eine ausdrücklich bedienbare Bewertungsverwaltung für neue Bewertungen, ältere Firebase-Einträge, ältere Workspace-Bewertungen sowie eindeutig dem angemeldeten Konto zugehörige lokale Altbewertungen.
+Die Diagnose zeigt einen bestätigten Workspace-Serverstand und zugleich lokale Änderungen zur Prüfung. Der Screenshot allein zeigt nicht, welche privaten lokalen Angaben abweichen. Im GB374-Code wurden drei Probleme nachgestellt: eine allgemeine rote Fehlermeldung trotz bestätigtem Serverabruf, der nur innerhalb der ausgeblendeten Einstellungen verfügbare Vergleich und eine Konfliktmeldung allein aufgrund neuerer lokaler Zeitstempel.
 
-- Unter Statistik > Bewertungen gibt es Ansehen, Bearbeiten und Löschen. Die Aktionen sind auch aus der Detailansicht erreichbar.
-- Bearbeiten füllt die vorhandenen Angaben vor: Hund, Datum, Typ, Geschlecht, Rasse, Alter, Skalen, Kontext, Gruppe, qualitative Angaben und die vollständige Notiz. Speichern überträgt genau diese Korrektur; Abbrechen verändert nichts. Unbekannte ältere Skalen bleiben erhalten. Fehlende alte Werte werden nicht durch erfundene Skalen ergänzt.
-- Der Löschdialog nennt Hund, Datum, Typ und Notiz der konkreten Bewertung. Erst Bewertung löschen bestätigt die Entfernung. Der Eintrag verschwindet aus Liste, Auswertungen und den regulären JSON-/CSV-Exporten; andere Bewertungen bleiben erhalten.
-- Erfolg wird erst nach bestätigter Speicherung in Firebase gemeldet. Bei Schreibfehlern bleiben Eingaben bzw. Bewertung sichtbar und die Aktion ist wiederholbar. Eine veraltete zweite Bearbeitung überschreibt keine zwischenzeitliche Änderung.
-- Korrekturen und Löschungen gelten nach Neuladen und in einer zweiten Browser-Sitzung. Importierte alte Kopien werden nicht erneut angezeigt. Ältere Bewertungen ohne ID erhalten stabile Zuordnungen; auch identische ältere Einträge sind einzeln entfernbar.
+Die drei ursprünglichen Verhaltensweisen wurden mit dem unveränderten, aus der ausgegebenen GB374-ZIP entpackten Stand reproduziert. gb374-sync-reproduction.json nennt die Quell-Hashes und den isolierten Prüfumfang. Diese Reproduktionen verwenden jsdom und kontrollierte Firebase-Antworten; sie sind kein Live-Test.
 
-Technisch ist Löschen eine dauerhafte logische Löschung mit einem serverseitigen Löschvermerk. Die ursprünglichen Bewertungen bleiben intern in ihren bisherigen Quellen erhalten. Es erfolgt keine physische Löschung aller alten Firebase-/Workspace-/Geräte- oder Sicherungskopien. Die App berücksichtigt den Löschvermerk bei jeder Liste, Analyse und regulären Sicherung. So wird eine entfernte Bewertung nicht aus einer alten Kopie wiederhergestellt. Dieser Vorgang verändert keine Verträge oder Kundendaten.
+Der zusätzliche Test nach einem tatsächlichen Emulator-Abgleich zeigte außerdem: Eine ältere lokale Fallback-Kopie konnte wegen ihres höheren alten Zeitstempels wieder vor den bereits abgeglichenen IndexedDB-Stand gezogen werden. Die Sicherung vor dem Abgleich war dauerhaft vorhanden, wurde aber beim nächsten Start nicht in die herunterladbare lokale Sicherung geladen. Beide Fälle sind korrigiert und auf Neuladen geprüft.
 
-Korrekturen liegen in orgs/doggystyle/statisticChanges. Für eine noch sichtbare Bewertung wird der korrigierte Stand verwendet. Gelöschte Bewertungen können über die normale App nicht wieder aktiviert werden. Die JSON-Sicherung unter Statistik > Bewertungen enthält den sichtbaren, bereinigten Stand; sie ist keine vollständige administrative Rohsicherung der ursprünglichen Quellen oder Löschvermerke. Die allgemeine Workspace-Sicherung allein erfasst die separaten Statistik-Sammlungen nicht.
+## Repariertes Verhalten
 
-## Kompakte Kontenliste
+- Gleiche Inhalte mit anderen Transportzeitstempeln lösen keinen Konflikt mehr aus. Bekannte Anzeigepräferenzen wie der Statistik-Unterpunkt oder Hygiene-/Medikationsfilter zählen nicht als fachliche Änderung. Kunden, Hunde, Fotos, Dokumente, Rechtstexte, Verträge, Freigaben, Unterschriften und unbekannte Datenfelder werden weiterhin verglichen. Die Ausgangsdaten werden durch den Vergleich nicht verändert.
+- Ein bestätigter Serverabruf ohne ungesendete Fachänderung zeigt Firebase verbunden. Echte lokale Abweichungen bleiben erhalten und erscheinen gelb als Lokale Änderungen prüfen. Tatsächliche Netz-, Anmelde-, Speicher- und Berechtigungsfehler werden weiterhin als Fehler angezeigt. Der genaue Fehlertext steht zusätzlich in DIAG.
+- Änderungen vergleichen ist außerhalb einzelner Bereiche sichtbar. Auch die Statusmeldung lässt sich anklicken oder mit der Tastatur öffnen. Eine aufklappbare Tabelle zeigt konkrete Unterschiede zwischen Gerät und Firebase; bei sehr vielen Unterschieden werden die ersten 60 aufgeführt. Vollständige Angaben bleiben in der lokalen Sicherung erhalten.
+- Bei widersprüchlichen Änderungen muss weiterhin für jeden Konflikt eine konkrete Fassung ausgewählt werden. Verträge und Unterschriften bleiben als Gruppe zusammen. Vor dem Übernehmen wird der Serverstand erneut geprüft. Eine veraltete Auswahl überschreibt keine zwischenzeitlichen Änderungen.
+- Ohne gespeicherten Ausgangsstand ist Zusammenführen gesperrt. Lokales sichern und Serverstand anzeigen schreibt nichts in Firebase. Zuerst wird die lokale Fassung dauerhaft gesichert. Schlägt das fehl, bleiben die Daten unverändert. Abbrechen verändert nichts. Automatisches und manuelles Cloud-Speichern umgehen eine ausstehende Prüfung nicht.
+- Die normale lokale Sicherung ist unter Einstellungen > Cloud & Konto > Lokale Sicherung herunterladen zugänglich. Sie enthält auch ungesendete Daten und gesicherte Fassungen vor einem Abgleich. Diese Sicherungen werden nach Neuladen wieder aus IndexedDB geladen und sind erneut herunterladbar.
+- Beim dauerhaften Speichern wird in derselben IndexedDB-Transaktion festgehalten, welche ursprüngliche Fallback-Fassung bereits berücksichtigt wurde. Die ursprüngliche Fallback-Kopie bleibt unverändert. Eine danach tatsächlich neue Fassung aus einem anderen älteren Tab wird weiterhin als Änderung erkannt. Daten werden weder gelöscht noch allein aufgrund eines Zeitstempels als erledigt behandelt.
+- Ein laufender Speichervorgang und neue, während des Startabrufs oder Speicherns erfasste Angaben bleiben geschützt. Kontowechsel entfernt Hinweise, Vergleich, Ausgangsstand und alte Fehlermeldungen.
 
-Unter Einstellungen > Benutzer & Rollen gibt es eine Suche nach Name oder E-Mail und Filter für alle Konten, fehlende Kundenzuordnung, Kunden, Mitarbeiter und Administratoren. Es werden jeweils zehn Konten pro Seite angezeigt. Die Liste ist zusätzlich auf höchstens 420 Pixel bzw. die halbe Ansichtshöhe begrenzt und innerhalb dieses Bereichs scrollbar. Ein Konto lässt sich zum Zuteilen aufklappen.
+## Unveränderte Bereiche
 
-Die Rolle wird erst mit Rolle speichern geschrieben. Suchen, Filtern, Blättern und Aufklappen verändern keine Daten. Veraltete Rollenauswahlen werden vor dem Speichern geprüft. Die tatsächliche Firestore-Dokument-ID bestimmt das Zielkonto. Benutzer ohne Erstellungsdatum bleiben auffindbar; die frühere Begrenzung auf die neuesten 200 Konten ist entfernt. Der Test verwendet 109 Konten einschließlich Konten ohne Erstellungsdatum.
+Firestore-Regeln, Storage-Regeln und Firebase-Konfiguration sind bytegleich mit GB374. Es gibt keine neue Firebase-Sammlung, keine zusätzliche Freigabe und keine automatische Bestandsmigration. Nach bereits veröffentlichter GB374-Regelfassung müssen für dieses Update keine Regeln geändert werden.
 
-Eine Rolle als Kunde ersetzt nicht die geprüfte Zuordnung zum vorhandenen Kundendatensatz. Die bestehenden sicheren Zuordnungsabläufe bleiben erhalten. Die Suchfunktion vergibt keine Zugriffsrechte automatisch.
-
-## Berechtigungen und unveränderte Bereiche
-
-Der neue interne Pfad statisticChanges ist ausschließlich für Administratoren und Mitarbeiter les- und beschreibbar. Die Regeln prüfen Datenform, Autor, Serverzeit, zulässige Skalen, Gruppengröße und fortlaufende Revisionsnummern. Kunden, unangemeldete Konten und fremde Organisationen sind ausgeschlossen. Löschvermerke dürfen weder entfernt noch wieder aufgehoben werden. Die unveränderten ursprünglichen Statistikpfade bleiben als Quellen erhalten.
-
-Alle vorherigen Firestore-Regeln außerhalb dieser zusätzlichen Sammlung bleiben unverändert. Firebase-Projekt und Konfiguration, Storage-Regeln, Workflow-Kern, Kundenportal, Chat-Kern, Fotos, Bestandsreparatur, Druckmodule und deren Bibliotheken bleiben bytegleich mit GB373. app.js ändert außerhalb der Statistik nur die Benutzerlistenfunktion und Buildkennung. workflow-ui.js ergänzt ausschließlich das Leeren der Kontenliste beim Kontowechsel. HTML ergänzt das Kontenlistenmodul und seine Beschreibung; der Service Worker nimmt das Modul in den Cache auf. Die Vergleiche sind in gb374-preservation.json dokumentiert.
+Die Module für Statistik, Bewertungsbearbeitung/-löschung, Kontensuche, Kundenportal, Chat, Workflow-Kern, Bestandsreparatur, Dokumentausgabe und Tages-Sammeldruck bleiben bytegleich. Die Foto-Funktionen bleiben unverändert. app.js und workflow-ui.js ändern gezielt die Sync-Funktionen, Diagnose und die lokale Sicherung. browser-store.js ergänzt die sichere Erkennung alter Fallback-Kopien und das erneute Laden der Abgleichsicherungen. Die bisherigen Styles werden nur um Regeln für den neuen Hinweis und Vergleich ergänzt. HTML, Auth-Datei und Service Worker ändern ausschließlich die Buildkennung. gb375-preservation.json enthält die Vergleiche.
 
 ## Aktuelle Prüfungen
 
-233 Prüfungen mit dem endgültigen Quellstand bestehen:
+259 Prüfungen mit dem endgültigen Quellstand bestehen:
 
 | Gruppe | Bestanden | Ausgeführt (UTC) |
 | --- | ---: | --- |
-| management | 36 | 2026-10-21T08:06:53.168Z |
-| statistics | 40 | 2026-10-21T08:07:15.589Z |
-| ui | 30 | 2026-10-21T08:07:19.408Z |
-| startup | 18 | 2026-10-21T08:07:29.731Z |
-| quota | 14 | 2026-10-21T08:07:33.809Z |
-| firebase | 66 | 2026-10-21T08:07:56.270Z |
-| portal-features | 21 | 2026-10-21T08:08:14.488Z |
-| script-load | 8 | 2026-10-21T08:08:18.763Z |
+| sync-review | 16 | 2026-10-21T08:45:37.412Z |
+| sync-content | 10 | 2026-10-21T08:45:44.860Z |
+| management | 36 | 2026-10-21T08:46:33.574Z |
+| statistics | 40 | 2026-10-21T08:46:58.797Z |
+| ui | 30 | 2026-10-21T08:47:03.018Z |
+| startup | 18 | 2026-10-21T08:47:14.610Z |
+| quota | 14 | 2026-10-21T08:47:18.195Z |
+| firebase | 66 | 2026-10-21T08:47:41.827Z |
+| portal-features | 21 | 2026-10-21T08:48:03.801Z |
+| script-load | 8 | 2026-10-21T08:48:08.284Z |
 
-Die 36 neuen Verwaltungsprüfungen und 40 Statistikprüfungen laden die ausgelieferte app.html mit ihren tatsächlichen lokalen Skript-Tags und Klickhandlern. Die exakt referenzierte Firebase-Browser-SDK-Version 10.12.5 wird lokal bereitgestellt. Die Datenzugriffe sprechen tatsächlich mit isolierten Firestore-Emulatoren. Die Anmeldung ist eine kontrollierte Emulator-Testidentität; der automatische Live-Login ist deaktiviert. Produktive Datenzugriffe werden im Browser blockiert.
+Die 16 neuen Sync-Browserprüfungen laden die ausgelieferte app.html mit ihren tatsächlichen Skript-Tags und führen den vollständigen startApp-/Anmelde-Callback aus. Die exakt referenzierte Firebase-Browser-SDK-Version 10.12.5 spricht mit einem tatsächlichen isolierten Firestore-Emulator. Die Anmeldung bleibt eine kontrollierte Emulator-Testidentität. Nicht lokale Datenzugriffe sind blockiert; es wird kein Live-Konto verwendet.
 
-Geprüft sind unter anderem Korrektur und Löschung bei neuen und älteren Quellen, ganze und teilweise Bewertungen, Originale mit abweichender Dokument-ID, alte Bewertungen ohne ID, einzeln entfernbare identische Altbewertungen, Abbrechen, serverbestätigtes Speichern, Neuladen, zweite Sitzung, gleichzeitige Bearbeitung, neue Exportdateien, Auswertung nach Löschungen, erhaltene Eingaben bei Fehlern, dauerhafte Löschvermerke, gesperrte Kundenkonten, Mitarbeiterzugriff und Kontoabmeldung. Wenn der Löschindex nicht gelesen werden kann, werden alte Kopien nicht als wieder gültige Bewertungen angezeigt.
+Geprüft sind bestätigter Start, gleiche Daten mit neuerem lokalem Zeitstempel, erhaltene echte Änderungen, auf der Startseite sichtbarer Hinweis, Tastaturbedienung, konkrete Datenanzeige, Abbrechen, gesperrtes Umgehen der Prüfung, Sicherung vor dem Anzeigen des Servers ohne Firebase-Schreibzugriff, Download der Sicherung, Neuladen ohne Wiederkehr der alten Warnung, Drei-Wege-Vergleich, tatsächliche Übernahme der ausgewählten Änderung im Emulator und die Abweisung einer inzwischen veralteten Auswahl. Browser-Bildgrößen von iPad und iPhone sowie Kontowechsel werden ebenfalls geprüft.
 
-Die Kontentests prüfen 109 Konten, fehlende Erstellungsdaten, Suche nach Name/E-Mail, Kombination mit Rollenfilter, Seitenwechsel, begrenzte Höhe, ausdrücklich gespeicherte Rolle, verweigerte und veraltete Rollenzuteilung sowie das Leeren beim Kontowechsel. Die Suche und tatsächlichen Bewertungsaktionen werden in Browser-Bildgrößen von iPad und iPhone bedient. Dies sind Chromium-Prüfungen, keine nativen Safari-Tests.
+Die zehn zusätzlichen jsdom-/fake-indexeddb-Prüfungen schützen den Inhaltsvergleich, Fach- und Vertragsdaten, neue Änderungen während des Abrufs, laufende Veröffentlichungen, echte rote Fehler, fehlgeschlagene Sicherungen und unbekannte Ausgangsstände. Die ursprüngliche Fallback-Kopie bleibt bytegleich. Eine nachträglich neu geänderte Kopie aus einem anderen Tab wird weiterhin erhalten und zur Prüfung angeboten.
 
-Die übrigen Gruppen prüfen Syntax, Abhängigkeiten, Start, Gerätespeicherfehler, sichere Kunden-/Vertrags-/Eingangsabläufe und tatsächliche HTML-Ladefolge einschließlich Druckklick und PDF-Download. Die 66 allgemeinen Firebase-Prüfungen enthalten vier ausdrücklich erwartete Reproduktionen des ursprünglichen unsicheren Standes. Die DOM-Gruppen verwenden jsdom; die echten HTML-Prüfungen verwenden Chromium 155. gb374-regression-run.json enthält die geprüften Quell-Hashes und die erfolgreichen Gruppenläufe.
+Die übrigen acht Gruppen wiederholen die bisherigen 233 Prüfungen für Bewertungsverwaltung, Kontensuche mit 109 Konten, Statistik, Syntax und Abhängigkeiten, Start, Gerätespeicherfehler, sichere Kunden-/Vertrags-/Eingangsabläufe und die tatsächliche HTML-Ladefolge samt Druckklick und PDF-Download. DOM-Gruppen verwenden jsdom, echte HTML-Prüfungen Chromium 155. Die 66 allgemeinen Firebase-Prüfungen enthalten vier ausdrücklich erwartete Reproduktionen des ursprünglichen unsicheren Standes. gb375-regression-run.json enthält Quell-Hashes, Gruppenläufe und deren Abschluss.
 
-Vorhandene Testkunden Max Mustermann/Rex und Sonja Sonnenschein/Bello werden ausschließlich als isolierte Kopien verwendet. Zusätzliche Konten und Bewertungen sind synthetische Emulator-Testdaten. Die hochgeladene Kundensicherung und ursprünglichen Workspace-/Statistikquellen werden auf unveränderte Inhalte geprüft. Kein produktiver Kunde und keine produktive Rolle wurden bearbeitet.
+Die vorhandenen Testkunden Max Mustermann/Rex und Sonja Sonnenschein/Bello werden ausschließlich als isolierte Kopien verwendet. Zusätzliche Beobachtungen und Rollen sind synthetische Emulator-Testdaten. Die hochgeladene Sicherung bleibt unverändert. Neue Prüfbilder und Downloads bleiben interne Prüfdaten und werden nicht im Paket ausgegeben.
 
-Frühere Spezialprüfungen für Fotos, Chatarchiv und umfangreiche Druck-/PDF-Layouts wurden in diesem Update nicht vollständig wiederholt. Ihre ursprünglichen Ergebnisse und Zeitpunkte bleiben als historische Nachweise enthalten. Die zugehörigen Module sind unverändert. Neue Bildschirmbilder und Testexporte bleiben interne Prüfdaten und sind nicht im Paket enthalten.
+Frühere Spezialprüfungen für Fotos, Chatarchiv und umfangreiche Druck-/PDF-Layouts wurden nicht vollständig wiederholt. Die zugehörigen Module bleiben unverändert; deren ursprüngliche Ergebnisse und Zeitpunkte sind als historische Nachweise enthalten. Die tatsächliche HTML-Ladefolge samt Druckklick wird aktuell erneut geprüft.
 
 ## Verbleibende Grenzen
 
-- In den 233 aktuellen Prüfungen ist kein Test fehlgeschlagen.
-- Ein vollständiger angemeldeter Zwei-Kunden-Live-Durchlauf im vorhandenen Firebase-Projekt sowie native Safari-/iPad-/iPhone-Bedienung und ein physischer Ausdruck bleiben offen. Diese Testfassung ist keine vollständige Live-Freigabe.
-- Alte lokale Bewertungen sind zunächst auf ihrem ursprünglichen Gerät mit demselben Konto sichtbar. Erst eine ausdrückliche Übertragung oder Korrektur macht sie geräteübergreifend verfügbar. Nicht eindeutig zuordenbare Konten und unklare historische Skalen werden nicht automatisch umgedeutet.
-- Bewertungslöschungen sind logische Löschungen. Ursprüngliche Quellen und ältere Sicherungen werden nicht physisch bereinigt. Eine administrative Rohsicherung müsste die separaten Statistik-Sammlungen einschließlich statisticChanges umfassen.
-- Das zentrale Workspace-Dokument und die dokumentierten früheren Bestands-/Migrationsgrenzen bleiben bestehen. Dieses Update migriert oder repariert keine bestehenden Kunden, Verträge, Unterschriften, Aufenthalte oder Anfragen automatisch.
+- In den 259 aktuellen Prüfungen ist kein Test fehlgeschlagen.
+- Ein vollständiger angemeldeter Zwei-Kunden-Live-Durchlauf im vorhandenen Firebase-Projekt, native Safari-/iPad-/iPhone-Bedienung und ein physischer Ausdruck bleiben offen. Diese Fassung ist keine vollständige Live-Freigabe.
+- Eine gelbe Meldung kann bei tatsächlich ungesendeten Angaben oder einem nicht eindeutig belegbaren alten Ausgangsstand weiterhin erscheinen. Dann ist eine ausdrückliche Prüfung erforderlich. Die App veröffentlicht oder verwirft solche Angaben nicht automatisch.
+- Ist der Gerätespeicher ausgefallen, muss zuerst eine verfügbare Sicherung heruntergeladen werden. Website-Daten löschen oder Reset entfernt keine Ursache und kann lokale Angaben gefährden.
+- Die separate Statistik bleibt wie in GB374 logisch löschbar. Ursprüngliche Quellen und Sicherungen werden nicht physisch bereinigt. Die allgemeine Workspace-Sicherung erfasst nicht alle separaten Statistik-Sammlungen.
+- Das zentrale Workspace-Dokument und frühere Bestands-/Migrationsgrenzen bleiben bestehen. Dieses Update migriert oder repariert keine vorhandenen Firebase-Kunden, Verträge, Unterschriften, Aufenthalte oder Anfragen automatisch.
 
 ## Installation auf dem iPad
 
-1. Vollständige Dateien aus DoggyStyle_Workspace_GB374_TEST am bisherigen Ort einspielen, einschließlich assets, vendor, statistics-store.js und account-directory.js.
-2. Bisherige Firestore-Regeln sichern. REGELN_ANZEIGEN.html öffnen, Firestore auswählen und den vollständigen Regeltext dieses Pakets im vorhandenen Projekt doggy-style-hundepension veröffentlichen. Storage-Regeln bleiben unverändert.
-3. Neu laden und M50.9.9GB374_RATINGS_EDIT_TEST_20261021 in Login und DIAG prüfen. Keine Safari-Websitedaten löschen und keinen Daten-Reset ausführen.
-4. Statistik > Bewertungen für Bearbeiten/Löschen verwenden. Einstellungen > Benutzer & Rollen für Kontensuche, Rollenfilter und kompakte Liste öffnen. Eine Bestandsreparatur ist für diese neuen Funktionen nicht nötig.
+1. Vollständige Dateien aus DoggyStyle_Workspace_GB375_TEST am bisherigen Ort übernehmen, einschließlich assets, vendor und aller JavaScript-Dateien.
+2. Von GB374 kommend keine Firestore- oder Storage-Regeln erneut ändern. Beide Regeldateien und die Firebase-Konfiguration sind unverändert.
+3. Neu laden und M50.9.9GB375_SYNC_REVIEW_TEST_20261021 in Login und DIAG prüfen. Keine Safari-Websitedaten löschen und keinen Daten-Reset ausführen.
+4. Bei Lokale Änderungen prüfen den sichtbaren Knopf Änderungen vergleichen verwenden. Konkrete Angaben prüfen. Lokales sichern und Serverstand anzeigen erstellt zuerst eine dauerhafte Gerätesicherung und überschreibt nichts in Firebase. Mit gültigem Ausgangsstand kann eine ausdrücklich geprüfte Auswahl gemeinsam gespeichert werden.
+5. Lokale Sicherungen einschließlich Abgleichkopien lassen sich unter Einstellungen > Cloud & Konto herunterladen.
 
-INSTALLATION_IPAD.txt enthält diese Schritte. Historische Berichte unter pruefungen beschreiben frühere Fassungen; dieser Bericht beschreibt GB374.
+INSTALLATION_IPAD.txt enthält die Bedienung. Die historischen Vorberichte unter pruefungen beschreiben ihre jeweiligen älteren Fassungen; dieser Bericht beschreibt GB375.

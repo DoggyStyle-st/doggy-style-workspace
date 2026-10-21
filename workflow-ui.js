@@ -94,16 +94,16 @@
     for(const url of blobs.values()) URL.revokeObjectURL(url); blobs.clear();
     if(window.__dsCustomerPortalUnsubscribe) window.__dsCustomerPortalUnsubscribe();
     window.__dsCustomerTasks=[];window.__dsCustomerProposals=[];
-    mergeReview=null;$('dsSyncConflictDialog')?.remove();$('dsSyncConflictNotice')?.remove();
-    if(window.CLOUD){CLOUD.userProfile=null;CLOUD._profileReadConfirmedAt=0;CLOUD._workspaceReadConfirmedAt=0;CLOUD._lastRemoteStamp=0;CLOUD.lastPushOkAt=0;CLOUD._workflowBaseSnapshot=null;CLOUD._pendingRemoteSnapshot=null;CLOUD._deferredRemoteSnapshot=null;}
-    if(window.SYNC)Object.assign(SYNC,{cloudPending:false,cloudLastError:'',cloudLastOkAt:0,cloudLastSeenAt:0,cloudReachable:false});
+    mergeReview=null;$('dsSyncConflictDialog')?.remove();$('dsSyncConflictNotice')?.remove();$('dsSyncBackupBox')?.remove();
+    if(window.CLOUD){CLOUD.userProfile=null;CLOUD._profileReadConfirmedAt=0;CLOUD._workspaceReadConfirmedAt=0;CLOUD._lastRemoteStamp=0;CLOUD.lastPushOkAt=0;CLOUD.lastPushError='';CLOUD._workflowBaseSnapshot=null;CLOUD._pendingRemoteSnapshot=null;CLOUD._deferredRemoteSnapshot=null;CLOUD._startupLocalSnapshot=null;CLOUD._localEditRevision=0;}
+    if(window.SYNC)Object.assign(SYNC,{cloudPending:false,cloudNeedsReview:false,cloudLastError:'',cloudLastOkAt:0,cloudLastSeenAt:0,cloudReachable:false});
     if(typeof state!=='undefined') state={dogs:[],docs:[],customers:[],pets:[],contractAgreements:{},contractSignatures:{}};
     document.querySelectorAll('[data-ds-media]').forEach(el=>{el.removeAttribute('src');el.removeAttribute('href');});
   }
   function baseKey(){return 'ds_workspace_base_v3:'+window.firebaseConfig.projectId+':'+window.firebaseOrgId+':'+currentUser()?.uid;}
-  function rememberBase(payload,stamp){
+  function rememberBase(payload,stamp,localBaseline=payload){
     if(!currentUser() || scoped())return;
-    const base={payload:JSON.parse(JSON.stringify(payload)),stamp:Number(stamp||0)};
+    const base={payload:JSON.parse(JSON.stringify(payload)),localBaseline:JSON.parse(JSON.stringify(localBaseline)),stamp:Number(stamp||0)};
     CLOUD._workflowBaseSnapshot=base;
     DSBrowserStore.cache(baseKey(),JSON.stringify(base));
   }
@@ -111,20 +111,54 @@
     if(CLOUD._workflowBaseSnapshot)return CLOUD._workflowBaseSnapshot.payload;
     try{return JSON.parse(DSBrowserStore.get(baseKey())||'null')?.payload || null;}catch(_){return null;}
   }
+  function workspaceContent(value){
+    const out=JSON.parse(JSON.stringify(value||{}));
+    // Only transport stamps and known view preferences are excluded. Business data stays exact.
+    delete out._localUpdatedAt;delete out._cloudUpdatedAt;delete out.__statSub;
+    for(const key of ['hygiene','medication'])if(out[key]&&typeof out[key]==='object')delete out[key].ui;
+    if(Array.isArray(out.dogs))out.dogs=out.dogs.filter(d=>d?.isPlaceholder!==true);
+    return out;
+  }
+  function sameWorkspace(a,b){
+    const stable=v=>Array.isArray(v)?'['+v.map(stable).join(',')+']':v&&typeof v==='object'?'{'+Object.keys(v).sort().map(k=>JSON.stringify(k)+':'+stable(v[k])).join(',')+'}':JSON.stringify(v);
+    return stable(workspaceContent(a))===stable(workspaceContent(b));
+  }
+  function captureStartup(payload){CLOUD._startupLocalSnapshot={payload:JSON.parse(JSON.stringify(payload)),revision:Number(CLOUD._localEditRevision||0)};}
+  function markWorkspaceEdit(){CLOUD._localEditRevision=Number(CLOUD._localEditRevision||0)+1;}
+  function hasLocalChanges(remote){
+    if(CLOUD._workflowPublishing)return true;
+    if(sameWorkspace(state,remote))return false;
+    const startup=CLOUD._startupLocalSnapshot;
+    if(startup&&startup.revision===Number(CLOUD._localEditRevision||0)&&sameWorkspace(startup.payload,remote))return false;
+    let base=CLOUD._workflowBaseSnapshot;try{if(!base)base=JSON.parse(DSBrowserStore.get(baseKey())||'null');}catch(_){}
+    return !(base&&Number(base.stamp)===Number(state._cloudUpdatedAt||0)&&sameWorkspace(state,base.localBaseline||base.payload));
+  }
+  function clearConflict(){
+    CLOUD._pendingRemoteSnapshot=null;CLOUD._deferredRemoteSnapshot=null;SYNC.cloudNeedsReview=false;
+    mergeReview=null;$('dsSyncConflictDialog')?.remove();$('dsSyncConflictNotice')?.remove();
+  }
   async function backupLocal(){
     const key='ds_workspace_conflict_backup_v3:'+window.firebaseConfig.projectId+':'+window.firebaseOrgId+':'+currentUser().uid+':'+crypto.randomUUID();
     try{await DSBrowserStore.put(key,JSON.stringify({createdAt:Date.now(),payload:state}));}
     catch(e){throw new Error('Lokale Änderungen konnten nicht gesichert werden. Bitte zuerst ein Backup exportieren. Der Server wurde nicht verändert.');}
   }
+  function installSyncBackup(){
+    if(scoped()||!currentUser()||!['admin','staff'].includes(CLOUD.role)||$('dsSyncBackupBox'))return;
+    const host=$('syncDetails')?.closest('.card');if(!host)return;
+    const box=document.createElement('div');box.id='dsSyncBackupBox';const button=document.createElement('button');button.id='dsSyncLocalBackup';button.className='btn';button.type='button';button.textContent='Lokale Sicherung herunterladen';
+    button.onclick=()=>{try{DSBrowserStore.download();}catch(e){alert(e.message);}};
+    const hint=document.createElement('p');hint.className='muted';hint.textContent='Enthält auch lokal ungesendete Daten und gesicherte Fassungen vor einem Abgleich.';box.append(button,hint);host.append(box);
+  }
   function showConflict(remote,stamp){
     if(scoped() || CLOUD.role!=='admin' || !currentUser())return;
     CLOUD._pendingRemoteSnapshot={remote:JSON.parse(JSON.stringify(remote)),remoteStamp:Number(stamp||0)};
-    let notice=$('dsSyncConflictNotice');if(!notice){notice=document.createElement('div');notice.id='dsSyncConflictNotice';notice.className='card';($('syncDetails')?.parentElement || document.body).append(notice);}
-    notice.replaceChildren();const text=document.createElement('p');text.textContent='Ein neuer Serverstand ist vorhanden. Ungesendete Änderungen bleiben erhalten.';
+    SYNC.cloudNeedsReview=true;
+    let notice=$('dsSyncConflictNotice');if(!notice){notice=document.createElement('div');notice.id='dsSyncConflictNotice';notice.className='card ds-sync-review';notice.setAttribute('role','status');const main=document.querySelector('main');if(main)main.before(notice);else document.body.prepend(notice);}
+    notice.replaceChildren();const text=document.createElement('p');text.textContent='Der Serverstand wurde geladen. Auf diesem Gerät liegen Änderungen zur Prüfung vor. Sie werden weder automatisch überschrieben noch gesendet.';
     const button=document.createElement('button');button.id='dsOpenSyncConflict';button.className='btn';button.textContent='Änderungen vergleichen';notice.append(text,button);
   }
   function conflictLabel(path){
-    const names={customers:'Kunden',pets:'Hunde',dogs:'Hundeauswahl',docs:'Dokumente',phone:'Telefon',email:'E-Mail',name:'Name',note:'Notiz',street:'Straße',zip:'Postleitzahl',city:'Ort'};
+    const names={customers:'Kunden',pets:'Hunde',dogs:'Hundeauswahl',docs:'Dokumente',phone:'Telefon',email:'E-Mail',name:'Name',note:'Notiz',street:'Straße',zip:'Postleitzahl',city:'Ort',profilePhoto:'Profilfoto',vaccinationPassPhoto:'Impfpassfoto',contract:'Betreuungsvertrag',contractSignatures:'Unterschriften',contractAgreements:'Vertragsfreigaben'};
     return path.map(part=>{
       if(typeof part!=='object')return names[part] || part;
       const row=(state[path[0]] || []).find?.(x=>x.id===part.id);
@@ -139,14 +173,34 @@
     if(value && typeof value==='object')return S(value.name || value.title || value.templateName || value.id) || 'Mehrere Angaben';
     return S(value);
   }
+  function showWorkspaceDifferences(parent,local,remote){
+    const rows=[];let total=0;
+    const preview=v=>v===undefined?'Nicht vorhanden':Array.isArray(v)?v.length+' Einträge':v&&typeof v==='object'?JSON.stringify(v):typeof v==='boolean'?v?'Ja':'Nein':String(v);
+    const cell=v=>{let text=preview(v);if(text.startsWith('data:image'))return 'Bild vorhanden';return text.length>220?text.slice(0,220)+' …':text;};
+    const plain=v=>v&&typeof v==='object'&&!Array.isArray(v),identified=v=>Array.isArray(v)&&v.every(x=>plain(x)&&x.id)&&new Set(v.map(x=>x.id)).size===v.length;
+    const equal=(a,b)=>{if(a===undefined||b===undefined)return a===b;const stable=v=>Array.isArray(v)?'['+v.map(stable).join(',')+']':plain(v)?'{'+Object.keys(v).sort().map(k=>JSON.stringify(k)+':'+stable(v[k])).join(',')+'}':JSON.stringify(v);return stable(a)===stable(b);};
+    function walk(a,b,path){
+      if(equal(a,b))return;
+      if(plain(a)&&plain(b)){for(const key of new Set([...Object.keys(a),...Object.keys(b)]))walk(a[key],b[key],path.concat(key));return;}
+      if(identified(a)&&identified(b)){const aa=new Map(a.map(x=>[x.id,x])),bb=new Map(b.map(x=>[x.id,x]));for(const id of new Set([...aa.keys(),...bb.keys()]))walk(aa.get(id),bb.get(id),path.concat({id}));return;}
+      total++;if(rows.length<60)rows.push({path,local:a,remote:b});
+    }
+    walk(workspaceContent(local),workspaceContent(remote),[]);
+    if(!total)return;
+    const details=document.createElement('details');details.className='ds-sync-differences';const summary=document.createElement('summary');summary.textContent=total+' Unterschiede zwischen diesem Gerät und Firebase ansehen';details.append(summary);
+    const table=document.createElement('table'),head=document.createElement('tr');for(const title of ['Angabe','Auf diesem Gerät','In Firebase']){const th=document.createElement('th');th.textContent=title;head.append(th);}table.append(head);
+    for(const row of rows){const tr=document.createElement('tr');for(const text of [conflictLabel(row.path),cell(row.local),cell(row.remote)]){const td=document.createElement('td');td.textContent=text;tr.append(td);}table.append(tr);}details.append(table);
+    if(total>rows.length){const hint=document.createElement('p');hint.textContent='Die ersten '+rows.length+' Unterschiede sind aufgeführt. Die lokale Sicherung enthält alle Angaben.';details.append(hint);}parent.append(details);
+  }
   function openConflict(){
     if(scoped() || CLOUD.role!=='admin' || !CLOUD._pendingRemoteSnapshot)throw new Error('Kein administrativer Synchronisationskonflikt verfügbar.');
     const pending=CLOUD._pendingRemoteSnapshot,base=readBase(),local=JSON.parse(JSON.stringify(state));
     mergeReview={uid:currentUser().uid,local,remote:pending.remote,stamp:pending.remoteStamp,plan:base?Core.mergePlan(base,local,pending.remote):null};
-    $('dsSyncConflictDialog')?.remove();const dialog=document.createElement('dialog');dialog.id='dsSyncConflictDialog';dialog.style.maxWidth='min(960px,95vw)';
+    $('dsSyncConflictDialog')?.remove();const dialog=document.createElement('dialog');dialog.id='dsSyncConflictDialog';dialog.style.cssText='width:960px;max-width:95vw;max-height:85dvh;overflow:auto;box-sizing:border-box;background:#20242d;color:#fff;border:1px solid #9b803e;border-radius:14px;padding:20px';dialog.setAttribute('aria-label','Lokale Änderungen mit Firebase abgleichen');
     const title=document.createElement('h2');title.textContent='Lokale Änderungen mit Firebase abgleichen';
     const hint=document.createElement('p');hint.textContent=base?'Unterschiedliche Änderungen werden zusammengeführt. Für widersprüchliche Angaben bitte einen Stand wählen. Verträge und Unterschriften bleiben zusammen.':'Ein gespeicherter Ausgangsstand fehlt. Die lokale Fassung bleibt als Backup erhalten; ein automatisches Zusammenführen ist gesperrt.';
     dialog.append(title,hint);
+    showWorkspaceDifferences(dialog,local,pending.remote);
     if(mergeReview.plan){
       const conflicts=mergeReview.plan.conflicts;
       if(!conflicts.length){const text=document.createElement('p');text.textContent='Keine widersprüchlichen Änderungen. Die lokalen und die Serveränderungen können gemeinsam gespeichert werden.';dialog.append(text);}
@@ -188,10 +242,10 @@
     await backupLocal();
     const result=useServer?{stamp:latest.stamp}:await api().publish(resolved,latest.stamp);
     if(currentUser()?.uid!==review.uid)throw new Error('Konto gewechselt.');
-    Object.assign(SYNC,{cloudPending:false,cloudLastError:'',cloudLastOkAt:useServer?SYNC.cloudLastOkAt:result.stamp});
-    CLOUD._pendingRemoteSnapshot=null;
+    Object.assign(SYNC,{cloudPending:false,cloudNeedsReview:false,cloudLastError:'',cloudLastOkAt:useServer?SYNC.cloudLastOkAt:result.stamp});
+    CLOUD.lastPushError='';CLOUD._pendingRemoteSnapshot=null;
     if(!applyRemoteState(resolved,result.stamp,'conflict-resolution'))throw new Error('Serverstand wurde gespeichert, konnte aber noch nicht angezeigt werden. Bitte neu laden.');
-    rememberBase(resolved,result.stamp);mergeReview=null;$('dsSyncConflictDialog')?.remove();$('dsSyncConflictNotice')?.remove();
+    clearConflict();
   }
   function mediaSource(value){
     const v=S(value);
@@ -716,7 +770,7 @@
     busy=true;b.disabled=true;reviewControls();
     Promise.resolve().then(action).catch(err=>error(err,b.closest('#dsSyncConflictDialog')?'dsSyncConflictStatus':b.closest('#inboxDetail')?'inboxReviewStatus':b.closest('#contract')?'contractSavedInfo':'assignMsg')).finally(()=>{busy=false;b.disabled=false;reviewControls();});
   },true);
-  window.DSWorkflow={context,snapshot,hydrate,watchProfile,resetAccount,submit,submitContract,retryQueue,wireInbox,wireAssignments,openReview,closeReview,renderContractStatus,api,scoped,mediaSource,scanMedia,prepareNewPetPhoto,preparePetPhoto,wirePhotoInputs,waitForPhotos,resetPhotoEditor,signatureHasInk,rememberBase,showConflict,openConflict,resolveConflict,startupStatus,readWithTimeout,workspaceRole,retainUploadedPhoto};
+  window.DSWorkflow={context,snapshot,hydrate,watchProfile,resetAccount,submit,submitContract,retryQueue,wireInbox,wireAssignments,openReview,closeReview,renderContractStatus,api,scoped,mediaSource,scanMedia,prepareNewPetPhoto,preparePetPhoto,wirePhotoInputs,waitForPhotos,resetPhotoEditor,signatureHasInk,rememberBase,showConflict,openConflict,resolveConflict,startupStatus,readWithTimeout,workspaceRole,retainUploadedPhoto,workspaceContent,sameWorkspace,hasLocalChanges,clearConflict,captureStartup,markWorkspaceEdit,installSyncBackup};
   function observeMedia(){
     if(!document.body)return;
     scanMedia(document.body);

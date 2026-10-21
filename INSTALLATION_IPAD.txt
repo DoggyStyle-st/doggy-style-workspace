@@ -1,12 +1,15 @@
-Doggy Style Workspace – GB374
+Doggy Style Workspace – GB375
 Stand: 21. Oktober 2026
 
-1. Vollständige ZIP entpacken. Alle Dateien aus DoggyStyle_Workspace_GB374_TEST am bisherigen GitHub-Pages-Ort übernehmen, einschließlich assets, vendor, statistics-store.js, account-directory.js und pruefungen.
-2. REGELN_ANZEIGEN.html am selben Ort öffnen. Firestore wählen. Bisherige Regeln in der eigenen Firebase-Konsole sichern und den vollständigen Regeltext dieses Pakets im vorhandenen Projekt doggy-style-hundepension veröffentlichen. Storage-Regeln bleiben unverändert.
-3. App neu laden. Login und DIAG müssen M50.9.9GB374_RATINGS_EDIT_TEST_20261021 zeigen. Keine Safari-Websitedaten löschen und keinen Daten-Reset ausführen.
-4. Statistik > Bewertungen öffnen. Bearbeiten öffnet eine vorhandene Bewertung. Angaben korrigieren und Änderungen speichern wählen. Abbrechen verwirft die Eingabe. Auch ältere Teilbewertungen sind bearbeitbar; fehlende alte Skalen werden nicht automatisch gefüllt.
-5. Löschen entfernt eine ganze Bewertung erst nach Bestätigung. Die konkrete Bewertung wird im Dialog genannt. Sie erscheint anschließend nicht mehr in Liste, Analysen und Exporten. Andere Bewertungen bleiben bestehen. Nach Neuladen erneut prüfen.
-6. Einstellungen > Benutzer & Rollen: Name oder E-Mail suchen, bei Bedarf Rollenfilter verwenden. Je zehn Konten werden angezeigt. Zurück/Weiter blättert. Ein Konto aufklappen, Rolle wählen und Rolle speichern drücken. Suche zurücksetzen zeigt wieder alle Konten. Die Liste bleibt auch mit vielen Kunden in der Höhe begrenzt.
-7. Neue Bewertungen weiter über Statistik > Erfassung anlegen. Vorhandene lokale Altbewertungen sind gekennzeichnet und können bei Bedarf mit Lokale Bewertungen in Firebase sichern übertragen werden. Bewertungen sichern (JSON) enthält den aktuell sichtbaren Bewertungsstand.
+1. Vollständige ZIP entpacken. Alle Dateien aus DoggyStyle_Workspace_GB375_TEST am bisherigen GitHub-Pages-Ort übernehmen, einschließlich assets, vendor und aller JavaScript-Dateien.
+2. Von GB374 kommend keine Firestore- oder Storage-Regeln erneut ändern. Die Regeln und Firebase-Konfiguration sind unverändert. Wer dessen Regeln noch nicht veröffentlicht hat, kann den identischen Regeltext weiterhin über REGELN_ANZEIGEN.html öffnen.
+3. App neu laden. Login und DIAG müssen M50.9.9GB375_SYNC_REVIEW_TEST_20261021 anzeigen. Keine Safari-Websitedaten löschen und keinen Daten-Reset ausführen.
+4. Wenn lokale Angaben mit Firebase übereinstimmen, zeigt die App Firebase verbunden. Abweichende alte Zeitstempel allein lösen keinen Fehler mehr aus.
+5. Bei echten ungesendeten Angaben erscheint gelb Lokale Änderungen prüfen. Auf der Startseite steht Änderungen vergleichen. Auch die Statusmeldung öffnet den Vergleich. Abbrechen verändert keine Daten.
+6. Mit gespeichertem Ausgangsstand die konkret angezeigten Unterschiede prüfen und je Konflikt die gewünschte Fassung auswählen. Auswahl gemeinsam speichern übernimmt diese ausdrückliche Auswahl. Hat sich Firebase inzwischen geändert, muss der aktualisierte Vergleich erneut geprüft werden.
+7. Ohne Ausgangsstand ist Zusammenführen gesperrt. Lokales sichern und Serverstand anzeigen sichert zuerst die lokale Fassung im Gerätespeicher und zeigt dann den bestätigten Serverstand. Es wird dabei nichts in Firebase überschrieben. Bei fehlgeschlagener Sicherung bleiben die lokalen Daten unverändert. Die lokale Sicherung kann bei Bedarf unter Einstellungen > Cloud & Konto > Lokale Sicherung herunterladen gespeichert werden; gespeicherte Konfliktsicherungen bleiben nach Neuladen enthalten.
+8. Echte Verbindungs-, Anmelde- und Berechtigungsfehler bleiben rot. Ihr genauer Text steht unter Einstellungen > Cloud & Konto und in DIAG. Ein Reset ist keine Fehlerbehebung.
 
-Keine bestehenden Kunden, Verträge, Unterschriften, Aufenthalte oder Anfragen werden beim Einspielen automatisch geändert. Eine Kundenzuordnung bleibt ein gesonderter administrativer Vorgang. Vollständige Live- und native iPad-/iPhone-Tests stehen aus; Einzelheiten im Prüfbericht.
+Bewertungen können weiterhin unter Statistik > Bewertungen bearbeitet und nach Bestätigung entfernt werden. Einstellungen > Benutzer & Rollen enthält weiterhin Suche, Rollenfilter und die kompakte Liste mit zehn Konten pro Seite. Diese Bereiche sind unverändert.
+
+Keine bestehenden Firebase-Kunden, Rollen, Verträge, Unterschriften, Aufenthalte oder Anfragen werden beim Einspielen automatisch verändert. Vollständige Live- und native iPad-/iPhone-Tests bleiben offen; Details im Prüfbericht.

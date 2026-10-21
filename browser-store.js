@@ -1,7 +1,7 @@
 /* App-owned browser data only. Never intercept Firebase Auth storage or delete old data. */
 (function(){
   'use strict';
-  const values=new Map(),jobs=new Map(),warnings=new Map();
+  const values=new Map(),jobs=new Map(),warnings=new Map(),legacySources=new Map();
   let database=null,generation=0,activePrefix='',activeUid='';
   const supported=key=>/^ds_workspace_(?:v3|base_v3|conflict_backup_v3):/.test(key) || /^ds_customer_proposal_queue_v3:/.test(key) || /^ds_statistics_v3:/.test(key);
   function nativeValue(key){try{return localStorage.getItem(key);}catch(_){return null;}}
@@ -16,14 +16,21 @@
       request.onsuccess=()=>{clearTimeout(timer);const db=request.result;db.onversionchange=()=>{db.close();database=null;};resolve(db);};
     }).catch(error=>{database=null;throw error;});return database;
   }
-  async function record(key,value,write){
+  async function record(key,value,write,options={}){
     const db=await open();return new Promise((resolve,reject)=>{
       const tx=db.transaction('records',write?'readwrite':'readonly'),store=tx.objectStore('records');let result=null;
-      const request=write?store.put({key,value,writtenAt:Date.now()}):store.get(key);
+      const request=write?store.put({key,value,writtenAt:Date.now(),...(options.legacySource!==undefined?{legacySource:options.legacySource}:{})}):store.get(key);
       request.onsuccess=()=>{result=request.result;};
-      tx.oncomplete=()=>resolve(write?true:result?.value??null);
+      tx.oncomplete=()=>resolve(write?true:options.full?result||null:result?.value??null);
       tx.onerror=()=>reject(tx.error||request.error||new Error('Gerätespeicher konnte nicht gelesen werden.'));
       tx.onabort=()=>reject(tx.error||new Error('Gerätespeicherung wurde abgebrochen.'));
+    });
+  }
+  async function backups(prefix){
+    const db=await open();return new Promise((resolve,reject)=>{
+      const tx=db.transaction('records','readonly'),rows=[],request=tx.objectStore('records').openCursor();
+      request.onsuccess=()=>{const cursor=request.result;if(!cursor)return;if(String(cursor.key).startsWith(prefix))rows.push(cursor.value);cursor.continue();};
+      tx.oncomplete=()=>resolve(rows);tx.onerror=()=>reject(tx.error||request.error);tx.onabort=()=>reject(tx.error||new Error('Sicherungen konnten nicht gelesen werden.'));
     });
   }
   function showWarning(key,message,epoch){
@@ -36,10 +43,10 @@
   function clearWarning(key,epoch){if(epoch!==generation)return;warnings.delete(key);if(!warnings.size)document.getElementById('dsLocalStorageWarning')?.remove();}
   async function put(key,value){
     if(!supported(key))throw new Error('Unbekannter App-Speicherschlüssel.');
-    const text=String(value),epoch=generation;values.set(key,text);
+    const text=String(value),epoch=generation,legacySource=key.startsWith('ds_workspace_v3:')?legacySources.get(key):undefined;values.set(key,text);
     const previous=jobs.get(key)||Promise.resolve();
     const operation=previous.catch(()=>{}).then(async()=>{
-      try{await record(key,text,true);clearWarning(key,epoch);return {durable:true,kind:'indexeddb'};}
+      try{await record(key,text,true,{legacySource});clearWarning(key,epoch);return {durable:true,kind:'indexeddb'};}
       catch(databaseError){
         try{localStorage.setItem(key,text);clearWarning(key,epoch);return {durable:true,kind:'localStorage'};}
         catch(localError){
@@ -64,15 +71,17 @@
     const epoch=generation;activePrefix=project+':'+org+':';activeUid=uid;
     const keys=['ds_workspace_v3:'+activePrefix+uid,'ds_workspace_base_v3:'+activePrefix+uid,'ds_customer_proposal_queue_v3:'+uid,'ds_statistics_v3:'+activePrefix+uid];
     for(const key of keys){
-      let stored=null;try{stored=await record(key,null,false);}catch(_){}
+      let stored=null,storedRecord=null;try{storedRecord=await record(key,null,false,{full:true});stored=storedRecord?.value??null;}catch(_){}
       if(epoch!==generation || activeUid!==uid)return false;
-      const legacy=nativeValue(key);
+      const legacy=nativeValue(key);legacySources.set(key,legacy);
       // Preserve a newer legacy workspace edit, including edits made by an older open app tab.
-      if(stored!==null && legacy!==null && key.startsWith('ds_workspace_v3:')){
+      if(stored!==null && legacy!==null && legacy!==storedRecord?.legacySource && key.startsWith('ds_workspace_v3:')){
         try{if(Number(JSON.parse(legacy)._localUpdatedAt||0)>Number(JSON.parse(stored)._localUpdatedAt||0))stored=legacy;}catch(_){}
       }
       if(!values.has(key))values.set(key,stored!==null?stored:legacy);
-    }return true;
+    }
+    try{const saved=await backups('ds_workspace_conflict_backup_v3:'+activePrefix+uid+':');if(epoch!==generation||activeUid!==uid)return false;for(const row of saved)values.set(row.key,row.value);}catch(_){}
+    return true;
   }
   async function flush(){await Promise.allSettled([...jobs.values()]);return [...warnings.values()];}
   function download(){
@@ -84,6 +93,6 @@
     const blob=new Blob([JSON.stringify({format:'DoggyStyleLocalBackup-v1',uid:activeUid,createdAt:Date.now(),records},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');
     link.href=url;link.download='DoggyStyle_Lokale_Sicherung_'+new Date().toISOString().replace(/[:.]/g,'-')+'.json';document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
   }
-  function reset(){generation++;activeUid='';activePrefix='';values.clear();warnings.clear();document.getElementById('dsLocalStorageWarning')?.remove();}
+  function reset(){generation++;activeUid='';activePrefix='';values.clear();legacySources.clear();warnings.clear();document.getElementById('dsLocalStorageWarning')?.remove();}
   window.DSBrowserStore={get,read,put,cache,prepare,flush,reset,download};
 })();

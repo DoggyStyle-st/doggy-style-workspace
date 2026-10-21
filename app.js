@@ -2,7 +2,7 @@ try{sessionStorage.removeItem('ds_handoff_pass');}catch(_){}
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB374_RATINGS_EDIT_TEST_20261021",
+  tag: "M50.9.9GB375_SYNC_REVIEW_TEST_20261021",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -13,7 +13,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB374_RATINGS_EDIT_TEST_20261021";
+const APP_BUILD = "M50.9.9GB375_SYNC_REVIEW_TEST_20261021";
 try{ window.__dsAppJsRuntimeBuild = "GB350-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -941,20 +941,13 @@ function getCloudUserResolved(){
     return u || null;
   }catch(_){ return (window.CLOUD && CLOUD.user) || null; }
 }
-function forceSyncDotState(isOnline){
-  try{
-    const dot = document.getElementById('syncDot');
-    if(!dot) return;
-    const online = !!isOnline;
-    dot.classList.remove('online','offline');
-    dot.classList.add(online ? 'online' : 'offline');
-    dot.style.cssText = (dot.style.cssText || '') + ';background:#39d353 !important;background-color:#39d353 !important;border-color:#39d353 !important;box-shadow:0 0 0 2px rgba(255,255,255,.06) inset, 0 0 10px rgba(57,211,83,.35) !important;';
-    if(!online){
-      dot.style.cssText = (dot.style.cssText || '') + ';background:rgba(248,81,73,.85) !important;background-color:rgba(248,81,73,.85) !important;border-color:rgba(248,81,73,.85) !important;box-shadow:0 0 0 2px rgba(255,255,255,.06) inset, 0 0 10px rgba(248,81,73,.25) !important;';
-    }
-    dot.setAttribute('data-sync-state', online ? 'online' : 'offline');
-  }catch(_){ }
-}
+function forceSyncDotState(isOnline,needsReview=false){
+    const dot=document.getElementById('syncDot');if(!dot)return;
+    const status=isOnline?'online':needsReview?'review':'offline',color=isOnline?'#39d353':needsReview?'#e0ae42':'rgba(248,81,73,.85)';
+    dot.classList.remove('online','offline','review');dot.classList.add(status);
+    for(const key of ['background','background-color','border-color'])dot.style.setProperty(key,color,'important');
+    dot.style.setProperty('box-shadow','0 0 0 2px rgba(255,255,255,.06) inset','important');dot.dataset.syncState=status;
+  }
 function installSyncDotHardGuard(){return;}
 function dsNavigatorOnline(){
   try{ return (typeof navigator !== 'undefined') ? !!navigator.onLine : true; }catch(_){ return true; }
@@ -1041,14 +1034,21 @@ function updateSyncUI(){
     const user=firebase.auth().currentUser,online=navigator.onLine!==false;
     let queued=0;try{queued=JSON.parse(DSBrowserStore.get('ds_customer_proposal_queue_v3:'+user?.uid)||'[]').length;}catch(_){}
     const pending=!!SYNC.cloudPending || queued>0,error=String(SYNC.cloudLastError||'');
+    const review=!!SYNC.cloudNeedsReview&&!!CLOUD._pendingRemoteSnapshot&&CLOUD.role==='admin';
     const confirmed=CLOUD.role==='customer'?Number(CLOUD._profileReadConfirmedAt||0):Number(CLOUD._workspaceReadConfirmedAt||0);
-    const good=!!user && online && !!confirmed && !pending && !error;
-    const label=!user?'Anmeldung erforderlich':!online?'Offline':error?'Synchronisationsfehler':pending?'Übertragung ausstehend':confirmed?'Firebase verbunden':'Firebase wird geprüft';
-    const pill=document.getElementById('syncStatus');if(pill){pill.textContent=label;pill.classList.toggle('is-online',good);pill.classList.toggle('is-offline',!good);}
+    const good=!!user && online && !!confirmed && !pending && !error && !review;
+    const warning=!!user&&online&&!error&&review;
+    const label=!user?'Anmeldung erforderlich':!online?'Offline':error?'Synchronisationsfehler':review?'Lokale Änderungen prüfen':pending?'Übertragung ausstehend':confirmed?'Firebase verbunden':'Firebase wird geprüft';
+    const pill=document.getElementById('syncStatus');if(pill){pill.textContent=label;pill.classList.toggle('is-online',good);pill.classList.toggle('is-offline',!good&&!warning);pill.classList.toggle('is-warning',warning);
+      pill.title=error|| (review?'Lokale Änderungen vergleichen; es wird nichts automatisch überschrieben.':label);
+      if(review){pill.setAttribute('role','button');pill.tabIndex=0;pill.onclick=()=>DSWorkflow.openConflict();pill.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();DSWorkflow.openConflict();}};}
+      else{pill.removeAttribute('role');pill.removeAttribute('tabindex');pill.onclick=null;pill.onkeydown=null;}
+    }
     const userEl=document.getElementById('syncUser');if(userEl){userEl.textContent=user?.email||'';userEl.style.display=user?'inline-flex':'none';}
     const details=document.getElementById('syncDetails');if(details)details.textContent=label+(error?' · '+error:'')+(queued?' · '+queued+' Vorschläge noch nicht übertragen':'');
-    forceSyncDotState(good);
-    const manual=document.getElementById('manualSaveBtn');if(manual){manual.style.display=CLOUD.role==='admin'?'':'none';manual.disabled=!user || !online;}
+    forceSyncDotState(good,warning);
+    const manual=document.getElementById('manualSaveBtn');if(manual){manual.style.display=CLOUD.role==='admin'?'':'none';manual.disabled=!user || !online || review;manual.title=review?'Bitte zuerst Änderungen vergleichen.':'';}
+    window.dispatchEvent(new CustomEvent('ds-sync-status'));
   }
 installSyncDotHardGuard();
 /* ===== Dokument/PDF Modal (PWA/iPad-friendly) ===== */
@@ -1882,15 +1882,16 @@ function mergeStatePreferRemote(remoteRaw, localRaw){
 // --- /Merge-Strategie ---
 function applyRemoteState(remote,remoteStamp,source){
     if(!remote || DSWorkflow.scoped())return false;
-    if(SYNC.cloudPending){
+    if(SYNC.cloudPending && DSWorkflow.hasLocalChanges(remote)){
       CLOUD._deferredRemoteSnapshot={payload:JSON.parse(JSON.stringify(remote)),stamp:Number(remoteStamp||0)};
-      if(!CLOUD._workflowPublishing){DSWorkflow.showConflict(remote,remoteStamp);SYNC.cloudLastError='Neuer Cloud-Stand vorhanden. Lokale Änderungen bleiben erhalten; Konflikt bitte prüfen.';updateSyncUI();}
+      if(!CLOUD._workflowPublishing){DSWorkflow.showConflict(remote,remoteStamp);updateSyncUI();}
       return false;
     }
+    CLOUD._startupLocalSnapshot=null;SYNC.cloudPending=false;SYNC.cloudLastError='';CLOUD.lastPushError='';DSWorkflow.clearConflict();
     state=JSON.parse(JSON.stringify(remote));state._cloudUpdatedAt=Number(remoteStamp||0);state._localUpdatedAt=Number(remoteStamp||0);
     CLOUD._lastRemoteStamp=Number(remoteStamp||0);ensureStateShape();ensureContractDefaults();
     DSBrowserStore.cache(LS_KEY,JSON.stringify(state));
-    DSWorkflow.rememberBase(remote,remoteStamp);
+    DSWorkflow.rememberBase(remote,remoteStamp,state);
     renderDogs();renderDocs();renderInvoiceList();renderDashboard();renderTodayStatus();renderOccupancy();renderRecent();updateSyncUI();DSWorkflow.wireAssignments().catch(console.error);return true;
   }
 async function cloudLoadStateWithRetry(maxTries=3){
@@ -1928,6 +1929,7 @@ function cloudSchedulePush(){
 async function cloudPushNow(){
     if(!CLOUD.enabled || !CLOUD.user || CLOUD.role!=='admin')throw new Error('Administrator-Anmeldung für die Cloud-Synchronisation erforderlich.');
     const actor=firebase.auth().currentUser?.uid;
+    if(CLOUD._pendingRemoteSnapshot && SYNC.cloudNeedsReview){updateSyncUI();return {ok:false,needsReview:true};}
     if(CLOUD._workflowPublishing){SYNC.cloudPending=true;return {ok:false,pending:true};}
     let retryNewEdits=false;
     try{
@@ -1941,14 +1943,14 @@ async function cloudPushNow(){
       const edited=JSON.stringify(state)!==captured;
       retryNewEdits=edited;
       state._cloudUpdatedAt=res.stamp;CLOUD._lastRemoteStamp=res.stamp;CLOUD.lastPushOkAt=res.stamp;
-      DSWorkflow.rememberBase(payload,res.stamp);
+      DSWorkflow.rememberBase(payload,res.stamp,JSON.parse(captured));CLOUD.lastPushError='';
       SYNC.cloudLastOkAt=res.stamp;SYNC.cloudPending=edited;SYNC.cloudLastError='';
       DSBrowserStore.cache(LS_KEY,JSON.stringify(state));
       const deferred=CLOUD._deferredRemoteSnapshot;CLOUD._deferredRemoteSnapshot=null;
       if(deferred && deferred.stamp>res.stamp){if(edited)DSWorkflow.showConflict(deferred.payload,deferred.stamp);else applyRemoteState(deferred.payload,deferred.stamp,'after-publish');}
-      else{CLOUD._pendingRemoteSnapshot=null;document.getElementById('dsSyncConflictNotice')?.remove();}
+      else{DSWorkflow.clearConflict();}
       updateSyncUI();return res;
-    }catch(e){if(firebase.auth().currentUser?.uid!==actor)throw e;SYNC.cloudPending=true;SYNC.cloudLastError=e.message;CLOUD.lastPushError=e.message;updateSyncUI();
+    }catch(e){if(firebase.auth().currentUser?.uid!==actor)throw e;SYNC.cloudPending=true;SYNC.cloudLastError=e.code==='workspace-conflict'?'':e.message;CLOUD.lastPushError=SYNC.cloudLastError;updateSyncUI();
       if(e.code==='workspace-conflict'){try{const latest=await DSWorkflow.api().workspace();DSWorkflow.showConflict(latest.payload,latest.stamp);}catch(_){} }
       throw e;}
     finally{CLOUD._workflowPublishing=false;if(retryNewEdits && firebase.auth().currentUser?.uid===actor && SYNC.cloudPending && !CLOUD._pendingRemoteSnapshot)setTimeout(()=>cloudSchedulePush(),0);}
@@ -2722,7 +2724,7 @@ async function submitCustomerDogsProposal(){
   // GB355: vollständig lokal sichern, anschließend zuverlässig in proposals + tasks übertragen.
   // Die Oberfläche wird sofort freigegeben; die Erfolgsmeldung "an Eingänge übergeben"
   // erscheint ausschließlich nach bestätigter Firestore-Speicherung.
-  const GB355='M50.9.9GB374_RATINGS_EDIT_TEST_20261021';
+  const GB355='M50.9.9GB375_SYNC_REVIEW_TEST_20261021';
   function S(v){ try{return String(v==null?'':v);}catch(_){return '';} }
   function L(v){ return S(v).trim().toLowerCase(); }
   function V(id){ try{const el=document.getElementById(id);return S(el&&el.value!=null?el.value:'').trim();}catch(_){return '';} }
@@ -3194,7 +3196,7 @@ async function dsHardRefreshInboxUI(){return DSWorkflow.wireInbox();}
 function wireInboxRefreshHard(){return DSWorkflow.wireInbox();}
 
 async function initStaffFeatures(){
-  showStaffUI();
+  showStaffUI();DSWorkflow.installSyncBackup();
   updateSyncUI();
   // Kalender Controls (Monat vor/zurück/heute)
   try{ wireCalendarControls(); }catch(e){ console.warn(e); }
@@ -15153,6 +15155,7 @@ function dsCustomerMainArtifactsMatchUser(){
 }
 
 function saveState(){
+  DSWorkflow.markWorkspaceEdit();
   try{ dsMarkStateOriginBeforeSave(); }catch(_){ }
   try{
     state._localUpdatedAt = Date.now();
@@ -17481,7 +17484,7 @@ async function startApp(){
       await DSBrowserStore.prepare(window.firebaseConfig.projectId,CLOUD.orgId,user.uid);
       if(firebase.auth().currentUser?.uid!==user.uid)return;
       LS_KEY='ds_workspace_v3:'+window.firebaseConfig.projectId+':'+CLOUD.orgId+':'+user.uid;
-      state=loadState();ensureStateShape();
+      state=loadState();DSWorkflow.captureStartup(state);ensureStateShape();
       SYNC.cloudPending=Number(state._localUpdatedAt||0)>Number(state._cloudUpdatedAt||0);
       await DSWorkflow.watchProfile(user);
       if(firebase.auth().currentUser?.uid!==user.uid)return;
@@ -17588,7 +17591,8 @@ try{
   if(firebase.auth().currentUser?.uid!==user.uid)return;
   if(!remote)throw err || new Error('Kein bestätigter Workspace-Serverstand vorhanden.');
   applyRemoteState(remote,Number(CLOUD._lastRemoteStamp || remote._cloudUpdatedAt || 0),'initial-read');
-  DSWorkflow.startupStatus(SYNC.cloudPending?'Lokale Änderungen benötigen Prüfung':'Workspace geladen');
+  CLOUD._startupLocalSnapshot=null;
+  DSWorkflow.startupStatus(SYNC.cloudNeedsReview?'Lokale Änderungen prüfen':SYNC.cloudPending?'Übertragung ausstehend':'Workspace geladen');
 }catch(e){
   SYNC.cloudLastError=e.message;updateSyncUI();DSWorkflow.startupStatus('Workspace konnte nicht geladen werden',e);dsSetSyncDiag(e.message,true);setAuthMsg('Serverstand konnte nicht geladen werden. Lokale Änderungen bleiben erhalten.');
 }
@@ -20176,6 +20180,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
         (window.CLOUD?.role==='customer' ? 'Kundenprofil vom Server: '+(window.CLOUD?._profileReadConfirmedAt?'bestätigt':'noch nicht bestätigt') : 'Workspace vom Server: '+(window.CLOUD?._workspaceReadConfirmedAt?'bestätigt':'noch nicht bestätigt')) + "\n" +
         (window.__dsStartup?.error ? 'Fehler: '+safe(window.__dsStartup.error)+'\n' : '') +
         (window.__dsMediaError ? 'Dateiabruf: '+safe(window.__dsMediaError.code)+' · '+safe(window.__dsMediaError.message)+'\nPfad: '+safe(window.__dsMediaError.path)+'\n' : '') +
+        (window.SYNC?.cloudLastError ? 'Synchronisation: '+safe(window.SYNC.cloudLastError)+'\n' : '') +
         (lastSync?("LastSync: "+lastSync+"\n"):"") +
         (cacheKeys?("Caches: "+cacheKeys+"\n"):"") +
         "URL: " + location.pathname + location.search;
@@ -20221,6 +20226,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
     if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", render);
     else render();
     window.addEventListener('ds-startup-status',render);
+    window.addEventListener('ds-sync-status',render);
     window.addEventListener("online", render);
     window.addEventListener("offline", render);
   }catch(_ ){}
@@ -22989,7 +22995,7 @@ function renderStatMethod(){
 
 
 
-/* ===== CHAT (M50.9.9GB374_RATINGS_EDIT_TEST_20261021) ===== */
+/* ===== CHAT (M50.9.9GB375_SYNC_REVIEW_TEST_20261021) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
