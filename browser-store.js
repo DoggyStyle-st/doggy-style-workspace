@@ -3,7 +3,7 @@
   'use strict';
   const values=new Map(),jobs=new Map(),warnings=new Map();
   let database=null,generation=0,activePrefix='',activeUid='';
-  const supported=key=>/^ds_workspace_(?:v3|base_v3|conflict_backup_v3):/.test(key) || /^ds_customer_proposal_queue_v3:/.test(key);
+  const supported=key=>/^ds_workspace_(?:v3|base_v3|conflict_backup_v3):/.test(key) || /^ds_customer_proposal_queue_v3:/.test(key) || /^ds_statistics_v3:/.test(key);
   function nativeValue(key){try{return localStorage.getItem(key);}catch(_){return null;}}
   function get(key){return values.has(key)?values.get(key):nativeValue(key);}
   function open(){
@@ -50,11 +50,19 @@
     });
     jobs.set(key,operation);operation.finally(()=>{if(jobs.get(key)===operation)jobs.delete(key);}).catch(()=>{});return operation;
   }
+  async function read(key){
+    if(!supported(key))throw new Error('Unbekannter App-Speicherschlüssel.');
+    if(values.has(key))return values.get(key);
+    const epoch=generation;let stored=null;
+    try{stored=await record(key,null,false);}catch(_){}
+    if(epoch!==generation)throw new Error('Das angemeldete Konto wurde gewechselt.');
+    const value=stored!==null?stored:nativeValue(key);values.set(key,value);return value;
+  }
   function cache(key,value){return put(key,value).catch(error=>({durable:false,warning:error.message}));}
   async function prepare(project,org,uid){
     if(activeUid && (activeUid!==uid || activePrefix!==project+':'+org+':'))reset();
     const epoch=generation;activePrefix=project+':'+org+':';activeUid=uid;
-    const keys=['ds_workspace_v3:'+activePrefix+uid,'ds_workspace_base_v3:'+activePrefix+uid,'ds_customer_proposal_queue_v3:'+uid];
+    const keys=['ds_workspace_v3:'+activePrefix+uid,'ds_workspace_base_v3:'+activePrefix+uid,'ds_customer_proposal_queue_v3:'+uid,'ds_statistics_v3:'+activePrefix+uid];
     for(const key of keys){
       let stored=null;try{stored=await record(key,null,false);}catch(_){}
       if(epoch!==generation || activeUid!==uid)return false;
@@ -69,7 +77,7 @@
   async function flush(){await Promise.allSettled([...jobs.values()]);return [...warnings.values()];}
   function download(){
     if(!activeUid || window.firebase?.auth().currentUser?.uid!==activeUid)throw new Error('Bitte mit dem zu sichernden Konto anmelden.');
-    const keys=['ds_workspace_v3:'+activePrefix+activeUid,'ds_workspace_base_v3:'+activePrefix+activeUid,'ds_customer_proposal_queue_v3:'+activeUid],records={};
+    const keys=['ds_workspace_v3:'+activePrefix+activeUid,'ds_workspace_base_v3:'+activePrefix+activeUid,'ds_customer_proposal_queue_v3:'+activeUid,'ds_statistics_v3:'+activePrefix+activeUid],records={};
     for(const [key,value] of values)if(key.startsWith('ds_workspace_conflict_backup_v3:'+activePrefix+activeUid+':'))records[key]=value;
     for(const key of keys){const value=get(key);if(value!==null)records[key]=value;}
     try{for(let i=0;i<sessionStorage.length;i++){const key=sessionStorage.key(i);if(key.startsWith('ds_contract_draft_v3:'+activeUid+':'))records[key]=sessionStorage.getItem(key);}}catch(_){}
@@ -77,5 +85,5 @@
     link.href=url;link.download='DoggyStyle_Lokale_Sicherung_'+new Date().toISOString().replace(/[:.]/g,'-')+'.json';document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
   }
   function reset(){generation++;activeUid='';activePrefix='';values.clear();warnings.clear();document.getElementById('dsLocalStorageWarning')?.remove();}
-  window.DSBrowserStore={get,put,cache,prepare,flush,reset,download};
+  window.DSBrowserStore={get,read,put,cache,prepare,flush,reset,download};
 })();

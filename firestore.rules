@@ -126,6 +126,38 @@ service cloud.firestore {
         && request.resource.data.payload.get('contractAgreements', {}) == resource.data.payload.get('contractAgreements', {})
         && request.resource.data.payload.get('contractSignatures', {}) == resource.data.payload.get('contractSignatures', {}));
     }
+    // Internal behavior observations. Customer profiles do not receive statistics.
+    function validStatScore(scores, key) { return scores.get(key, 0) is int && scores[key] >= 1 && scores[key] <= 10; }
+    function validStatistic(id) {
+      let d = request.resource.data;
+      let keys = ['social','food','handling','leash','stress','noise','separation','play','health','hygiene'];
+      return d.keys().hasOnly(['docId','dogId','petId','dogName','customerId','date','type','sex','breed','ageYears','scores','scales','qualitative','context','dogsInGroup','indexB','notes','schema','updatedAtLocal','updatedBy','createdBy','createdAt','updatedAt','importKey'])
+        && d.docId == id && d.dogId is string && d.dogId != '' && d.petId == d.dogId
+        && d.customerId is string && d.dogName is string && d.breed is string && d.sex is string
+        && d.date is string && d.date.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}')
+        && d.type in ['arrival','mid','departure'] && d.schema == 'M50.10_STAT_CORE_V1'
+        && d.notes is string && d.notes.size() <= 10000 && d.qualitative is map && d.context is map
+        && (d.ageYears == null || (d.ageYears is number && d.ageYears >= 0 && d.ageYears <= 40))
+        && d.scores is map && d.scores.keys().hasOnly(keys) && d.scales == d.scores
+        && validStatScore(d.scores, 'social') && validStatScore(d.scores, 'food') && validStatScore(d.scores, 'handling')
+        && validStatScore(d.scores, 'leash') && validStatScore(d.scores, 'stress') && validStatScore(d.scores, 'noise')
+        && validStatScore(d.scores, 'separation') && validStatScore(d.scores, 'play') && validStatScore(d.scores, 'health') && validStatScore(d.scores, 'hygiene')
+        && d.dogsInGroup is list && d.dogsInGroup.size() >= 1 && d.dogsInGroup.size() <= 4 && d.dogId in d.dogsInGroup
+        && d.context.groupSize == d.dogsInGroup.size()
+        && d.indexB is number && d.indexB >= 1 && d.indexB <= 10 && d.updatedAtLocal is number
+        && d.createdBy == request.auth.uid && d.updatedBy == request.auth.uid
+        && d.createdAt == request.time && d.updatedAt == request.time;
+    }
+    match /orgs/{orgId}/statistics/{id} {
+      allow read: if staff(orgId);
+      allow create: if staff(orgId) && validStatistic(id);
+      // A new observation gets its own ID. Existing assessments stay intact.
+      allow update, delete: if false;
+    }
+    match /orgs/{orgId}/stats/{id} {
+      allow read: if staff(orgId);
+      allow write: if false;
+    }
     match /orgs/{orgId}/tasks/{docId} {
       allow get: if orgAllowed(orgId) && (staff(orgId) || (assigned(orgId) && resource == null) || (signedIn() && own(resource.data)));
       allow list: if orgAllowed(orgId) && (staff(orgId) || (signedIn() && own(resource.data)));

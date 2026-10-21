@@ -1,12 +1,12 @@
-Doggy Style Workspace - GB372 Ladefolge-Korrektur
-Stand: 20. Oktober 2026
+Doggy Style Workspace - GB373 Statistik
+Stand: 21. Oktober 2026
 
-1. Die vollständige ZIP entpacken und die Dateien aus DoggyStyle_Workspace_GB372_TEST am bisherigen GitHub-Pages-Ort einspielen. Unterordner assets, vendor und pruefungen mit übernehmen. Der vendor-Inhalt ist gegenüber GB371 unverändert, gehört aber weiterhin zur vollständigen App.
-2. Nach der Veröffentlichung die App neu laden. Login und DIAG müssen M50.9.9GB372_LOAD_ORDER_TEST_20261020 zeigen. Kein Daten-Reset und keine Löschung von Safari-Websitedaten.
-3. Arbeitsblätter > Heute drucken wählen. Das Grundmodul wird jetzt vor der Druck-Erweiterung geladen. Die Meldung zu Core.dateISO darf bei vollständigem GB372-Stand nicht mehr auftreten.
-4. PDF speichern lädt die fertige PDF mit Tagesdatum herunter. Alternativ PDF öffnen oder, wenn vom Gerät unterstützt, PDF teilen > In Dateien sichern verwenden. Drucken öffnet die Druckauswahl für das Vorschau-Dokument.
-5. Die echten iPad-/iPhone-Druck- und Dateien-Dialoge einmal auf dem Gerät prüfen. In der Entwicklungsumgebung werden tatsächlicher Browserstart, Klick, Vorschau und Dateidownload geprüft, aber kein physischer Drucker.
+1. Vollständige ZIP entpacken. Alle Dateien aus DoggyStyle_Workspace_GB373_TEST am bisherigen GitHub-Pages-Ort übernehmen, einschließlich assets, vendor, statistics-store.js und pruefungen.
+2. REGELN_ANZEIGEN.html am selben Ort öffnen. Firestore wählen. Bisherige Firestore-Regeln in der eigenen Firebase-Konsole sichern und anschließend den vollständigen Regeltext dieses Pakets im vorhandenen Projekt doggy-style-hundepension veröffentlichen. Storage-Regeln bleiben unverändert.
+3. App neu laden. Login und DIAG müssen M50.9.9GB373_STATISTICS_TEST_20261021 zeigen. Keine Safari-Websitedaten löschen und keinen Daten-Reset ausführen.
+4. Als Administrator Statistik > Erfassung öffnen, Hund wählen, Skalen und tatsächlich beobachtete Gruppenmitglieder eintragen. Bewertung speichern. Erfolg wird erst nach Bestätigung aus Firebase angezeigt.
+5. Statistik > Bewertungen öffnen. Ohne Datumseinschränkung erscheinen auch ältere Bewertungen. Mit Ansehen sind die vollständigen Angaben lesbar. Neue Bewertungen nach einem Neuladen erneut prüfen.
+6. Nur auf diesem Gerät gespeicherte Altbewertungen werden gekennzeichnet. Auf dem ursprünglichen Gerät mit demselben Workspace-Konto zuerst Bewertungen sichern (JSON) verwenden. Anschließend bei Bedarf Lokale Bewertungen in Firebase sichern wählen und bestätigen. Vorhandene Einträge werden nicht überschrieben.
+7. Analyse, Rassenvergleich, Heatmap, Gruppenvergleich und CSV verwenden denselben Datenbestand. Für die Analyse ist zunächst der letzte Monat eingestellt; für ältere Einträge den Zeitraum erweitern. Gruppenanalysen verwenden ausschließlich ausdrücklich erfasste Gruppenmitglieder.
 
-Firebase-Regeln und Projektkonfiguration bleiben unverändert. Keine Bestandsreparatur oder erneute Kundenzuordnung nötig. Bestehende Nachweise, Verträge, Signaturen und Anfragen werden nicht verändert. Der eigene Hygiene-Reiter bleibt bestehen; frühere Arbeitsblatt-Hygienenachweise bleiben im Archiv.
-
-GB371 hatte einen Fehler in der gelieferten Skriptreihenfolge. Die damaligen Drucktests sortierten Module manuell und erfassten diesen Fehler nicht. Der neue Test liest die tatsächliche HTML und führt ihre lokalen Skript-Tags in Browserreihenfolge aus. Details im Prüfbericht.
+Bestehende Kunden, Verträge, Signaturen, Aufenthalte und alte Anfragen werden durch dieses Update nicht repariert oder verändert. Die Druckkorrektur aus GB372 ist enthalten. Native iPad-/iPhone-Dialoge und der vollständige Live-Durchlauf bleiben auf dem Gerät zu prüfen. Einzelheiten und verbleibende Grenzen stehen im Prüfbericht.

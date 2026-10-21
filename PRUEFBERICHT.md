@@ -1,58 +1,69 @@
-# Doggy Style Workspace - GB372 Ladefolge-Korrektur
+# Doggy Style Workspace - GB373 Statistik-Reparatur
 
-Stand: 20. Oktober 2026. Vollständige korrigierte Testfassung. Native Safari-/iOS- und vollständige Live-Firebase-Prüfungen bleiben offen.
+Stand: 21. Oktober 2026. Build M50.9.9GB373_STATISTICS_TEST_20261021.
 
-## Gemeldeter Fehler und bestätigte Ursache
+Vollständige Testfassung. Die unten genannten Emulator- und Browserprüfungen bestehen. Ein vollständiger angemeldeter Live-Durchlauf im bestehenden Projekt und die native Safari-/iOS-Prüfung bleiben offen. Es wurden keine produktiven Daten verändert.
 
-Der Benutzer meldet auf dem iPad mit GB371 für HTML und JavaScript beim Klick auf Heute drucken: undefined is not an object (evaluating Core.dateISO). Firebase ist verbunden und der Workspace vom Server bestätigt.
+## Nachgestellte Ursachen
 
-Die ausgelieferte GB371-HTML lädt workforms-print.js vor workflow-core.js. Das Druckmodul übernimmt beim Laden root.DSWorkflowCore in seine lokale Factory. Zu diesem Zeitpunkt ist der Wert undefined. Dass das Grundmodul danach erfolgreich geladen wird, ändert diesen bereits übernommenen Wert nicht. Beim späteren Drucken scheitert deshalb Core.dateISO. Der Integrationsgenerator setzte den Druckblock vor die übrigen Workflow-Abhängigkeiten.
+Die bisherige Statistik meldete Gespeichert, obwohl die Firestore-Regeln den separaten Statistikpfad sperrten. Der Fehler wurde abgefangen und verschwiegen; die Bewertung blieb nur unter einem gemeinsamen lokalen Browserschlüssel. Andere Geräte konnten sie daher nicht finden. Außerdem fehlten ältere Bewertungen aus dem Workspace in der neuen Liste.
 
-Der Fehler wurde mit der unveränderten GB371-HTML und ihren tatsächlichen lokalen Skript-Tags in Chromium reproduziert. Die reproduzierte Browsermeldung nennt ebenfalls dateISO. Der getrennte Nachweis gb371-load-reproduction.json enthält zwei erwartete Fehlerreproduktionen.
+Die Datumsinitialisierung rief eine nicht vorhandene Funktion toISODate statt toISODateLocal auf. Der Fehler wurde ebenfalls verschwiegen. Gruppenanalysen erwarteten gespeicherte Gruppenmitglieder, die im Formular überhaupt nicht erfasst werden konnten. Teilweise unbekannte ältere Skalen konnten als günstiger Nullwert in Mittelwerten erscheinen. Die Hauptnavigation enthielt zusätzlich einen nicht geschlossenen Pfoten-Knopf und erzeugte auf schmalen Geräten Überbreite.
 
-## Lücke der bisherigen Tests
+Sechs erwartete Fehlerreproduktionen mit unveränderter GB372 sind separat in gb372-statistics-reproduction.json dokumentiert. Sie stammen vom vorangegangenen isolierten Durchlauf mit Browser-SDK 13. Der aktuelle Abschlusstest verwendet die tatsächlich referenzierte SDK-Version 10.12.5.
 
-Die vorherigen 301 lokalen Prüfungen bestanden. Der Drucktest entfernte jedoch die Skript-Tags aus der HTML und lud ausgewählte Module selbst in einer funktionierenden Reihenfolge. Die eigentliche Ladefolge des ausgelieferten Pakets war dadurch nicht geprüft. Deshalb konnte GB371 trotz dieser Prüfergebnisse beim tatsächlichen Browseraufruf scheitern. Die damalige Ausgabe bleibt als historischer Nachweis erhalten und ist durch diese Korrektur überholt.
+## Repariertes Verhalten
 
-## Reparatur
+- Neue Bewertungen erhalten eigene IDs und werden erst nach serverseitig bestätigtem Speichern als gespeichert gemeldet. Bestehende Bewertungen werden weder überschrieben noch gelöscht. Wiederholungen desselben fehlgeschlagenen Sendeversuchs verwenden dieselbe ID.
+- Statistik > Bewertungen zeigt ohne voreingestellte Datumsgrenze neue Firebase-Bewertungen, ältere Einträge unter orgs/doggystyle/stats, Workspace-Bewertungen und eindeutig zum angemeldeten Konto und vorhandenen Hund passende lokale Altbewertungen. Speicherorte sind gekennzeichnet. Ansehen öffnet sämtliche Skalen, Kontext, qualitative Angaben, Gruppenmitglieder und die vollständige Notiz.
+- Lokale Altbewertungen werden ausschließlich nach ausdrücklichem Übertragen und Bestätigen ergänzt. Die alten lokalen Originale bleiben erhalten. Andere Browserkonten werden nicht mit eingelesen. Neue Entwürfe verwenden einen nach Projekt, Organisation und UID getrennten Gerätespeicher; sie sind auch in der lokalen Sicherung enthalten.
+- Analyse, Rassenvergleich, Heatmap, Gruppenvergleich, CSV und JSON-Sicherung verwenden denselben zusammengeführten Bestand. Datumsgrenzen sind gültig, Hundwechsel leert unbekannte Metadaten, leere Zahlen bleiben unbekannt. Gruppenmitglieder sind jetzt ausdrücklich erfassbar. Der Gruppenvergleich beschreibt Beobachtungen und enthält keine KI-Prognose.
+- Neue und ältere erkennbare Skalen werden für Index B mit dem im Methodik-Menü angezeigten Modell ausgewertet. Unbekannte alte Skalen werden nicht erfunden, umgedeutet oder als Null gewertet. Sie bleiben im Original nachlesbar und in der JSON-Sicherung enthalten. Vergleiche aus unterschiedlich vollständigen Altbewertungen sind entsprechend vorsichtig zu interpretieren.
+- Serverfehler bleiben sichtbar, auch wenn lokale Daten angezeigt werden können. Kontowechsel schließt Details und entfernt vorherige Statistikansichten. Navigation und Statistikbedienung bleiben in schmalen Browser-Bildgrößen ohne Seitenüberbreite erreichbar.
 
-Der Generator ordnet die Skripte jetzt anhand ihrer Abhängigkeiten an: browser-store, workflow-core, workflow-ui, workspace-repair-ui, communication-core, customer-portal, PDF-Bibliothek und Schrift, document-output, workforms-print, app.js. Die bestehende defer-Ausführung bleibt erhalten. Das Grundmodul ist beim Erzeugen des Druckmoduls verfügbar. Fehlt eine benötigte Grundfunktion tatsächlich, gibt build eine verständliche Meldung über fehlende App-Dateien aus.
+## Firestore-Ergänzung
 
-Alle betroffenen Build- und Cacheverweise verwenden M50.9.9GB372_LOAD_ORDER_TEST_20261020. Die vorhandenen vendor-Dateien bleiben unverändert. Die in GB371 bereinigten Arbeitsblätter, die erreichbare Dokumentvorschau, die aktuelle Aufenthaltsquelle und die echte PDF-Ausgabe bleiben enthalten. Frühere Nachweise werden nicht verändert oder entfernt.
+Die bestehenden Regeln bleiben außerhalb zweier zusätzlicher Statistikpfade unverändert. orgs/doggystyle/statistics erlaubt nur Administratoren und Mitarbeitern das Lesen und Anlegen gültiger neuer Bewertungen. Kunden und unangemeldete Konten sind gesperrt. Autor, Datum, zehn ganzzahlige Skalen von 1 bis 10, Gruppenangaben und Serverzeit werden geprüft. Bestehende Statistikdokumente sind nicht überschreibbar oder löschbar. Der ältere Pfad orgs/doggystyle/stats ist für Mitarbeiter nur lesbar.
 
-Firebase-Konfiguration, Firestore- und Storage-Regeln sowie die sechs unveränderten Workflow-/Speichermodule sind bytegleich mit GB371. Auch Dokumentdialog, dessen CSS und die beiden PDF-/Schriftdateien sind unverändert. app.js, auth.js, customer.html, login.html, index.html, manifest.json und sw.js unterscheiden sich ausschließlich durch die Buildkennung. gb372-backend-preservation.json protokolliert diese Vergleiche. Es wird kein Bestand repariert und keine Regelveröffentlichung benötigt.
+Firebase-Projekt, öffentliche Browserkonfiguration, Storage-Regeln, Workflow-Core, Chat-/Kundenportal-Kern, Bestandsreparatur und Druckmodule bleiben bytegleich mit GB372. workflow-ui.js ergänzt ausschließlich den Statistikreset beim Kontowechsel. app.js bleibt außerhalb des Statistikblocks bis auf die Buildkennung unverändert. gb373-preservation.json enthält die Vergleiche. Das bestehende Projekt wird weiterverwendet.
 
-## Neue Prüfung mit tatsächlichen HTML-Skripten
+## Aktuelle Prüfungen
 
-script-load-workflow.cjs lädt die ausgelieferte app.html über einen lokalen HTTP-Server. Der Browser führt deren lokale Skript-Tags in der angegebenen Reihenfolge aus. Die vollständigen lokalen App-Skripte und ihre echten Klickhandler werden verwendet. Bei einem zweiten Durchlauf wird die Antwort des Grundmoduls verzögert, während andere Dateien früher fertig werden können.
-
-Geprüft werden Reihenfolge, fehlende unbehandelte JavaScript-Fehler, der echte Heute-drucken-Klick, die geladene Vorschau, eine heruntergeladene echte PDF und wiederholtes Öffnen. Auch der verzögerte Abruf besteht. Die automatisierte Live-Anmeldung ist kontrolliert deaktiviert, Firebase-SDK/Authentifizierung sind isoliert, und sämtliche nichtlokalen Datenanfragen werden blockiert. Dieser Test bestätigt die Browser-Ladefolge und Druckbedienung; er führt keine echte Firebase-Anmeldung aus.
-
-85 gezielte Prüfungen wurden mit dem aktuellen Quellstand neu ausgeführt und bestehen:
+197 gezielte Prüfungen wurden mit dem aktuellen Quellstand ausgeführt und bestehen:
 
 | Gruppe | Bestanden | Ausgeführt (UTC) |
 | --- | ---: | --- |
-| ui | 30 | 2026-10-20T21:22:21.276Z |
-| startup | 18 | 2026-10-20T21:22:40.758Z |
-| script-load | 8 | 2026-10-20T21:22:52.669Z |
-| workforms-print | 24 | 2026-10-20T21:23:24.841Z |
-| pdf-output | 5 | 2026-10-20T21:23:26.700352+00:00 |
+| statistics | 40 | 2026-10-21T07:32:46.632Z |
+| ui | 30 | 2026-10-21T07:32:52.218Z |
+| startup | 18 | 2026-10-21T07:33:04.301Z |
+| quota | 14 | 2026-10-21T07:33:08.476Z |
+| firebase | 66 | 2026-10-21T07:33:32.605Z |
+| portal-features | 21 | 2026-10-21T07:33:52.250Z |
+| script-load | 8 | 2026-10-21T07:33:57.145Z |
 
-Die 24 Druckabläufe verwenden erneut den echten Firestore-Emulator und die vorhandenen Testkunden in einer isolierten demo-Projektkopie. Der globale Workspace-Zugriff eines Kunden bleibt gesperrt. Die hochgeladene Sicherung und produktive Daten werden nicht verändert. Die 18 Anmeldestart-Prüfungen verwenden den bestehenden jsdom-Testaufbau mit simulierten Firebase-Callbacks. Die 30 UI-Prüfungen enthalten Syntax, lokale Abhängigkeiten, Kunden-/Vertragsansichten und Reparaturgrenzen.
+Die 40 Statistikprüfungen laden die ausgelieferte app.html mit ihren tatsächlichen lokalen Skript-Tags und Klickhandlern. Die exakt referenzierten öffentlichen Firebase-10.12.5-Browserdateien werden lokal bereitgestellt; Firestore spricht tatsächlich mit dem isolierten demo-doggy-statistics-Emulator. Die Anmeldung ist als Emulator-Testidentität kontrolliert, der automatische Live-Login ist deaktiviert. Produktive Anfragen werden blockiert.
 
-Die PDF-Ausgabe wird zusätzlich auf A4, vollständige Inhalte, Umlaute, lange Texte, leere Tage und Seitenränder geprüft. Die 15 Seiten der vier Druckbeispiele wurden gerendert und visuell geprüft. Die aus der tatsächlichen App-HTML heruntergeladene PDF enthält den Testhund Rex und wurde ebenfalls gerendert und kontrolliert. Interne Beispiel-PDFs und Bildschirmbilder werden nicht in die ZIP aufgenommen.
+Geprüft sind echte serverbestätigte Speicherung, Wiederfinden nach Neuladen und in einer zweiten Browser-Sitzung ohne lokalen Bestand, Altbestand, Details, Filter, JSON/CSV-Dateien, jede Auswertung, Übertragen lokaler Altbewertungen ohne Duplikate, verweigerte Schreib-/Lesezugriffe, anschließendes erneutes Senden, Mitarbeiterzugriff, zwei gesperrte Kundenkonten, unangemeldete und fremde Organisationen sowie das Verhindern von Überschreiben und Löschen. Fehlende historische Skalen werden ausdrücklich geprüft.
 
-Die unveränderten allgemeinen Backend-, Storage-, Chat-, Kapazitäts- und Konfliktprüfungen aus dem unmittelbar vorherigen GB371-Durchlauf wurden für diese gezielte Ladefolge-Korrektur nicht noch einmal vollständig ausgeführt. Ihre ursprünglichen Zeitpunkte und Ergebnisse bleiben erhalten. Der aktuelle Bericht trennt diese übernommenen Nachweise von den 85 neuen Prüfungen. Die geprüften aktuellen Quell-Hashes stehen in gb372-regression-run.json.
+Die vorhandenen Testkunden Max Mustermann/Rex und Sonja Sonnenschein/Bello werden als isolierte Kopien verwendet. Workspace, ältere Cloud-Daten und die hochgeladene Sicherung bleiben dabei unverändert. Zusätzliche Beobachtungen sind ausdrücklich synthetische Emulator-Testdaten. Es wurde kein Kundenbestand im bestehenden Firebase-Projekt bearbeitet.
 
-## Verbleibende Prüfungen und Fehlerstand
+Die übrigen Gruppen prüfen Syntax und Abhängigkeiten, Anmeldestart, Gerätespeicherfehler, die bestehenden sicheren Kunden-/Vertrags-/Eingangsabläufe und die tatsächliche HTML-Ladefolge samt Druckklick und PDF-Download. Die 66 allgemeinen Firebase-Prüfungen enthalten auch vier ausdrücklich erwartete Reproduktionen des ursprünglichen unsicheren Standes. DOM-Prüfungen verwenden jsdom; die tatsächlichen HTML-/Statistikprüfungen verwenden Chromium 155. Die Quell-Hashes des geprüften Standes stehen in gb373-regression-run.json.
 
-- Der gemeldete GB371-Ladefehler ist reproduziert und in den neuen Browserprüfungen behoben. In den 85 aktuellen Prüfungen bleibt kein fehlgeschlagener Test.
-- Native Safari-/iOS-Druck-, Teilen- und Dateien-Dialoge sowie ein physischer Drucker sind weiterhin auf dem eigenen Gerät zu prüfen. Chromium mit iPad-/iPhone-Bildgröße ist kein echter Safari-Test.
-- Ein vollständiger angemeldeter Live-Durchlauf im bestehenden Firebase mit zwei getrennten Kundenkonten, direkten fremden Dokument-/Dateipfaden, parallelen Sitzungen und Netzunterbrechung steht weiterhin aus. Frühere vom Benutzer bestätigte Fotoanzeige und Neukundenzuordnung sind separate Einzelfunktionsbeobachtungen.
-- Alte unvollständige Anfragen, historische Signaturen und das zentrale Workspace-Dokument behalten die bisher dokumentierten Grenzen. Diese Reparatur ändert das Datenmodell nicht.
+Die früheren Spezialprüfungen für Fotos, Chatarchiv und umfangreiche Druck-/PDF-Layouts wurden in diesem Statistikupdate nicht vollständig neu ausgeführt. Ihre ursprünglichen Ergebnisse und Zeitpunkte bleiben als historische Nachweise enthalten. Der vorherige Druckfix GB372 ist enthalten. Neue Bildschirmbilder und Test-PDFs bleiben interne Prüfdaten und sind nicht im Paket.
 
-## Update
+## Verbleibende Grenzen
 
-Die vollständigen Dateien aus DoggyStyle_Workspace_GB372_TEST am bisherigen Ort einspielen, einschließlich assets und vendor. Danach neu laden und GB372_LOAD_ORDER_TEST_20261020 in Login und DIAG prüfen. Arbeitsblätter > Heute drucken > PDF speichern testen. Firebase-Regeln und Kundenzuordnungen brauchen keine Änderung. Kein Daten-Reset. INSTALLATION_IPAD.txt enthält den Ablauf.
+- In den 197 aktuellen Prüfungen ist kein Test fehlgeschlagen. Nachprüfungen in nativer Safari auf dem eigenen iPad/iPhone stehen weiterhin aus; Chromium in gleicher Bildgröße ersetzt sie nicht.
+- Ein vollständiger angemeldeter Zwei-Kunden-Live-Test im vorhandenen Firebase-Projekt, direkte fremde Dokument-/Dateipfade, parallele Sitzungen und echte Netzunterbrechungen stehen weiterhin aus. Die neue Fassung ist daher keine vollständige Live-Freigabe.
+- Alte lokale Daten müssen auf dem ursprünglichen Gerät mit demselben Konto geprüft werden. Nicht eindeutig zuordenbare Konten, beschädigte lokale JSON-Daten oder inhaltlich unklare alte Skalen werden nicht automatisch repariert. Originale bleiben erhalten. Historische Angaben werden nicht nachträglich bestätigt.
+- Die neue Statistik-Sammlung ist in der zusätzlichen JSON-Sicherung unter Statistik > Bewertungen enthalten. Die bisherige allgemeine Workspace-Sicherung allein erfasst diese separate Sammlung nicht.
+- Das zentrale Workspace-Dokument und die bereits dokumentierten Altanfragen-/Migrationsgrenzen bleiben bestehen. Dieses Update führt keine Bestandsmigration aus.
 
-Der historische GB371-Prüfbericht liegt unter pruefungen/historischer-pruefbericht-gb371.md. Seine positiven Druckprüfungen hatten die oben erklärte Lücke bei der HTML-Ladereihenfolge. Der aktuelle Bericht dokumentiert deren Korrektur und die neuen Grenzen.
+## Installation
+
+1. Vollständige Dateien aus DoggyStyle_Workspace_GB373_TEST am bisherigen Ort einspielen, einschließlich assets, vendor und statistics-store.js.
+2. Die bisherige Firestore-Regelfassung sichern. REGELN_ANZEIGEN.html öffnen, Firestore wählen und den vollständigen GB373-Regeltext in der eigenen Konsole im vorhandenen Projekt doggy-style-hundepension veröffentlichen. Storage-Regeln bleiben unverändert.
+3. Neu laden und GB373_STATISTICS_TEST_20261021 in Login und DIAG prüfen. Statistik > Erfassung > Bewertung speichern > Bewertungen > Ansehen prüfen und anschließend neu laden.
+4. Für lokale Altbewertungen zuerst Bewertungen sichern (JSON) und dann bei Bedarf Lokale Bewertungen in Firebase sichern verwenden. Keine Safari-Websitedaten löschen und keinen Daten-Reset ausführen.
+
+INSTALLATION_IPAD.txt enthält diese Schritte. Die Vorberichte unter pruefungen sind historisch; dieser Bericht beschreibt die aktuelle Fassung und ihre Grenzen.

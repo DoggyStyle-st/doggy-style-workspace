@@ -2,7 +2,7 @@ try{sessionStorage.removeItem('ds_handoff_pass');}catch(_){}
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB372_LOAD_ORDER_TEST_20261020",
+  tag: "M50.9.9GB373_STATISTICS_TEST_20261021",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -13,7 +13,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB372_LOAD_ORDER_TEST_20261020";
+const APP_BUILD = "M50.9.9GB373_STATISTICS_TEST_20261021";
 try{ window.__dsAppJsRuntimeBuild = "GB350-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -2722,7 +2722,7 @@ async function submitCustomerDogsProposal(){
   // GB355: vollständig lokal sichern, anschließend zuverlässig in proposals + tasks übertragen.
   // Die Oberfläche wird sofort freigegeben; die Erfolgsmeldung "an Eingänge übergeben"
   // erscheint ausschließlich nach bestätigter Firestore-Speicherung.
-  const GB355='M50.9.9GB372_LOAD_ORDER_TEST_20261020';
+  const GB355='M50.9.9GB373_STATISTICS_TEST_20261021';
   function S(v){ try{return String(v==null?'':v);}catch(_){return '';} }
   function L(v){ return S(v).trim().toLowerCase(); }
   function V(id){ try{const el=document.getElementById(id);return S(el&&el.value!=null?el.value:'').trim();}catch(_){return '';} }
@@ -21858,31 +21858,9 @@ function _statGetPetIdsFallback(){
 
 // Modell B (M50.10) – Gewichtungen (nicht Prozent, sondern Faktoren)
 
-function _statComputeIndexB(scales){
-  try{
-    let sum = 0, wsum = 0;
-    Object.keys(STAT_WEIGHTS_B).forEach(k=>{
-      const v = Number(scales?.[k]);
-      const w = Number(STAT_WEIGHTS_B[k]);
-      if(!Number.isFinite(v) || !Number.isFinite(w)) return;
-      sum += v * w;
-      wsum += w;
-    });
-    if(wsum<=0) return null;
-    return Math.round((sum/wsum)*10)/10; // 1 Dezimalstelle, Skala 1–10
-  }catch(_){
-    return null;
-  }
-}
+function _statComputeIndexB(scales){return DSStatistics.index(scales);}
 
-function _statInterpretIndex(idx){
-  const v = Number(idx);
-  if(!Number.isFinite(v)) return { band:'—', text:'—' };
-  if(v<=3) return { band:'1–3', text:'sehr stabil' };
-  if(v<=5) return { band:'4–5', text:'moderat' };
-  if(v<=7) return { band:'6–7', text:'erhöhte Belastung' };
-  return { band:'8–10', text:'kritisch / Interventionsbedarf' };
-}
+function _statInterpretIndex(idx){if(idx===null||!Number.isFinite(Number(idx)))return {band:'—',text:'Keine auswertbaren Skalen'};const n=Number(idx);return n<=3?{band:'1–3',text:'sehr stabil'}:n<=5?{band:'>3–5',text:'moderat'}:n<=7?{band:'>5–7',text:'erhöhte Belastung'}:{band:'>7–10',text:'kritisch / Interventionsbedarf'};}
 
 // ---------- Firestore helpers ----------
 function _statFs(){
@@ -21914,6 +21892,7 @@ function _statColl(){
 
 // ---------- UI: main entry ----------
 function renderStatisticsPanel(){
+  try{DSStatistics.scope();DSStatistics.mountStyle();}catch(e){const p=document.getElementById('statistics');if(p)p.textContent=e.message;return;}
   const panel = document.getElementById('statistics');
   if(!panel) return;
 
@@ -21921,7 +21900,7 @@ function renderStatisticsPanel(){
     <div class="card" style="margin-top:10px;">
       <h1 style="margin:0 0 6px;">📈 Statistik</h1>
       <div class="muted" style="font-size:12px; line-height:1.35;">
-        Forschungsmodus: standardisierte Erfassung (1–10), Kontextvariablen & reproduzierbarer Belastungsindex (Modell B) – exportierbar für R/Python/SPSS.
+        Verhaltensbeobachtungen erfassen, gespeicherte Bewertungen nachlesen und gemeinsam auswerten. Neue Bewertungen werden erst nach Bestätigung durch Firebase als gespeichert gemeldet.
       </div>
       <div class="row" style="margin-top:10px; gap:8px; flex-wrap:wrap;">
         <button class="btn" id="statSub_capture">Erfassung</button>
@@ -21932,7 +21911,7 @@ function renderStatisticsPanel(){
       </div>
     </div>
 
-    <div id="statSubBody" style="margin-top:10px;"></div>
+    <p id="statDataWarning" role="status" hidden style="padding:14px;border:1px solid #d58939;color:#ffd59e"></p><div id="statSubBody" style="margin-top:10px;"></div>
   `;
 
   // bind
@@ -22100,9 +22079,10 @@ function renderStatCapture(){
       </div>
     </div>
 
+    <div class="card" style="margin-top:10px;"><h3>Gemeinsam beobachtete Hunde</h3><p class="muted">Wähle die Hunde aus, die bei dieser Beobachtung tatsächlich zusammen waren. Der bewertete Hund ist enthalten.</p><div id="statGroupDogs"></div></div>
     <div class="card" style="margin-top:10px;">
       <h3 style="margin:0 0 8px;">Notizen (optional)</h3>
-      <textarea id="statNotes" class="input" rows="2" style="width:100%" placeholder="Kurzbeobachtung / Kontext (Trigger, besondere Ereignisse, ...)"></textarea>
+      <textarea id="statNotes" maxlength="10000" class="input" rows="2" style="width:100%" placeholder="Kurzbeobachtung / Kontext (Trigger, besondere Ereignisse, ...)"></textarea>
       <div class="row" style="margin-top:10px; gap:10px; align-items:center;">
         <button class="btn btn-primary" id="btnStatSave">Bewertung speichern</button>
         <div id="statSaveMsg" class="muted" style="font-size:12px;"></div>
@@ -22114,7 +22094,7 @@ function renderStatCapture(){
   const sb = document.getElementById('statScaleBody');
   if(sb){
     sb.innerHTML = STAT_DIMENSIONS.map(d=>`
-      <div style="display:flex; gap:12px; align-items:center; padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.06);">
+      <div class="stat-range-row" style="display:flex; flex-wrap:wrap; gap:12px; align-items:center; padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.06);">
         <div style="min-width:220px;">
           <div>${escapeHtml(d.label)}</div>
           <div class="muted" style="font-size:11px; line-height:1.25;">${escapeHtml(d.hint||'')}</div>
@@ -22131,111 +22111,28 @@ function renderStatCapture(){
 }
 
 function initStatCaptureBindings(){
-  const dateEl = document.getElementById('statDate');
-  const saveBtn = document.getElementById('btnStatSave');
-  if(!dateEl || !saveBtn) return;
-
-  if(!dateEl.value){
-    try{ dateEl.value = toISODate(new Date()); }catch(_){ }
-  }
-
-  const repop = () => populateStatDogsForAll(dateEl.value);
-  dateEl.onchange = repop;
-  repop();
-
-  saveBtn.onclick = async () => {
-    const msg = document.getElementById('statSaveMsg');
-    saveBtn.disabled = true;
-    if(msg) msg.textContent = 'Speichere…';
-    try{
-      await saveStatRatingV2();
-      if(msg) msg.textContent = 'Gespeichert';
-    }catch(e){
-      console.error('[STAT] save failed', e);
-      if(msg) msg.textContent = 'Fehler beim Speichern';
-      try{
-        const detail = (e && (e.message || e.code)) ? `\n\nDetails: ${String(e.code||e.message)}` : '';
-        alert('Statistik speichern fehlgeschlagen.' + detail);
-      }catch(_){ }
-    }finally{
-      saveBtn.disabled = false;
-      setTimeout(()=>{ if(msg) msg.textContent=''; }, 2500);
-    }
-  };
-}
-
-
-function populateStatDogsForAll(dateISO){
-  const dogEl = document.getElementById('statDogSelect');
-  const breedEl = document.getElementById('statBreed');
-  const sexEl = document.getElementById('statSex');
-  const ageEl = document.getElementById('statAge');
-  if(!dogEl) return;
-
-  let petIds = [];
-  try{
-    if(typeof getPetIdsInCare === 'function' && dateISO){
-      petIds = getPetIdsInCare(dateISO) || [];
-    }
-  }catch(_){ }
-
-  if(!petIds.length){
-    petIds = _statGetPetIdsFallback();
-  }
-
-  const opts = petIds.map(pid => {
-    const p = _statGetPetByAnyId(pid);
-    const id = String((p && (p.id || p.petId || p.dogId)) || pid || '').trim();
-    const name = String((p && (p.name || p.petName || p.dogName || p.hundename)) || pid || 'Hund').trim() || 'Hund';
-    return {id, name, pet:p||null};
-  }).filter(o=>!!o.id).sort((a,b)=> String(a.name).localeCompare(String(b.name), 'de'));
-
-  dogEl.innerHTML = '<option value="">— bitte wählen —</option>' + opts.map(o=>`<option value="${escapeHtml(o.id)}">${escapeHtml(o.name)}</option>`).join('');
-
-  const updateMeta = ()=>{
-    const pid = dogEl.value || '';
-    const p = _statGetPetByAnyId(pid);
-
-    const breed = (p && (p.breed || p.race || p.rasse || p.mainBreed)) ? String(p.breed||p.race||p.rasse||p.mainBreed) : '';
-    if(breedEl) breedEl.value = breed || '—';
-
-    const sexCode = _statNormalizeSexCode((p && (p.sex || p.gender || p.geschlecht || p.sexLabel)) ? String(p.sex||p.gender||p.geschlecht||p.sexLabel) : '', p);
-    if(sexEl){
-      if(sexCode) sexEl.value = sexCode;
-      else if(!sexEl.value) sexEl.value = '';
+      const date=document.getElementById('statDate'),save=document.getElementById('btnStatSave');if(!date||!save)return;
+      date.value=toISODateLocal(new Date());date.onchange=()=>DSStatistics.metadata();populateStatDogsForAll();
+      save.onclick=async()=>{const msg=document.getElementById('statSaveMsg');save.disabled=true;msg.textContent='Wird in Firebase gespeichert …';
+        try{await saveStatRatingV2();msg.textContent='✅ In Firebase gespeichert. Unter Bewertungen nachlesbar.';
+          const open=document.createElement('button');open.type='button';open.className='btn';open.textContent='Bewertungen öffnen';open.onclick=()=>document.getElementById('statSub_ratings')?.click();msg.append(' ',open);
+          delete save.dataset.ratingId;delete save.dataset.fingerprint;
+        }catch(e){msg.textContent=e.message;}finally{if(save.isConnected)save.disabled=false;}
+      };
     }
 
-    const ageYearsRaw = (p && (p.ageYears || p.age || p.alter)) ? Number(p.ageYears||p.age||p.alter) : NaN;
-    let ageYears = Number.isFinite(ageYearsRaw) ? ageYearsRaw : NaN;
-    if(!Number.isFinite(ageYears)){
-      const bd = (p && (p.birthdate || p.birthday || p.dob || p.geburtsdatum)) ? String(p.birthdate||p.birthday||p.dob||p.geburtsdatum) : '';
-      if(bd){
-        const d = new Date(bd);
-        if(!isNaN(d.getTime())){
-          const now = new Date();
-          let years = now.getFullYear() - d.getFullYear();
-          const m = now.getMonth() - d.getMonth();
-          if(m < 0 || (m === 0 && now.getDate() < d.getDate())) years -= 1;
-          if(years >= 0 && years <= 40) ageYears = years;
-        }
-      }
+
+function populateStatDogsForAll(){
+      const sel=document.getElementById('statDogSelect');if(!sel)return;const previous=sel.value;
+      sel.replaceChildren(new Option('— bitte wählen —',''),...DSStatistics.pets().map(p=>new Option(p.name||p.id,p.id)));
+      if([...sel.options].some(o=>o.value===previous))sel.value=previous;
+      sel.onchange=()=>DSStatistics.metadata();DSStatistics.metadata();
     }
-    if(ageEl && Number.isFinite(ageYears)){
-      if(!ageEl.value) ageEl.value = String(ageYears);
-    }
-  };
-  dogEl.onchange = updateMeta;
-  updateMeta();
-}
 
 
 function _statLocalKey(){ return 'ds_statistics_local_v1'; }
-function _statLocalRead(){
-  try{ return JSON.parse(localStorage.getItem(_statLocalKey()) || '[]') || []; }catch(_){ return []; }
-}
-function _statLocalWrite(rows){
-  try{ localStorage.setItem(_statLocalKey(), JSON.stringify(rows||[])); }catch(_){ }
-}
+function _statLocalRead(){DSStatistics.scope();return [];}
+function _statLocalWrite(){throw new Error('Bitte die neue Statistik-Speicherung verwenden.');}
 function _statLocalUpsert(entry){
   const rows = _statLocalRead();
   const idx = rows.findIndex(x => x && x.docId === entry.docId);
@@ -22245,92 +22142,7 @@ function _statLocalUpsert(entry){
   return rows;
 }
 
-async function saveStatRatingV2(){
-  const dateISO = (document.getElementById('statDate')||{}).value || '';
-  const petId = (document.getElementById('statDogSelect')||{}).value || '';
-  const type = (document.getElementById('statType')||{}).value || 'arrival';
-  const sex = (document.getElementById('statSex')||{}).value || '';
-  const notes = (document.getElementById('statNotes')||{}).value || '';
-  const breed = (document.getElementById('statBreed')||{}).value || '';
-  const age = Number((document.getElementById('statAge')||{}).value || '');
-  if(!dateISO) throw new Error('missing date');
-  if(!petId) throw new Error('missing pet');
-
-  const scales = {};
-  STAT_DIMENSIONS.forEach(d=>{
-    const el = document.getElementById('stat_'+d.id);
-    if(el) scales[d.id] = Number(el.value||0);
-  });
-
-  const qualitative = {};
-  STAT_QUAL_FIELDS.forEach(q=>{
-    const el = document.getElementById('statQual_'+q.id);
-    if(el) qualitative[q.id] = el.value || '';
-  });
-
-  const context = {
-    groupSize: Number((document.getElementById('statGroupSize')||{}).value || ''),
-    groupStability: (document.getElementById('statGroupStability')||{}).value || '',
-    dominantCount: Number((document.getElementById('statDominantCount')||{}).value || ''),
-    occupancy: (document.getElementById('statOccupancy')||{}).value || '',
-    trainer: (document.getElementById('statTrainer')||{}).value || ''
-  };
-
-  const indexB = _statComputeIndexB(scales);
-  const uid = _statUid();
-  const docId = _statDocId(petId, dateISO, type);
-  const payload = {
-    docId,
-    dogId: petId,
-    petId,
-    date: dateISO,
-    type,
-    sex,
-    breed: breed || '',
-    ageYears: Number.isFinite(age) ? age : null,
-    scores: scales,
-    scales,
-    qualitative,
-    context,
-    indexB,
-    notes,
-    schema: 'M50.10_STAT_CORE_V1',
-    updatedAtLocal: Date.now(),
-    updatedBy: uid || (localStorage.getItem('login_email')||localStorage.getItem('ds_last_email')||'')
-  };
-
-  // always persist locally first
-  _statLocalUpsert(payload);
-  try{ state.__lastStatSavedAt = Date.now(); }catch(_){ }
-
-  // try cloud only as optional step; never fail local save because of missing firebase app
-  try{
-    const cloudReady = !!(typeof CLOUD !== 'undefined' && CLOUD && CLOUD.enabled && CLOUD.db);
-    const fbReady = !!(window.firebase && firebase.firestore && window.firebase.apps && window.firebase.apps.length);
-    if(cloudReady || fbReady){
-      const ref = _statColl().doc(docId);
-      const cloudPayload = {
-        ...payload,
-        updatedAt: (firebase && firebase.firestore && firebase.firestore.FieldValue) ? firebase.firestore.FieldValue.serverTimestamp() : Date.now()
-      };
-      // createdAt only if new in cache
-      try{
-        window.__STAT_CREATED_CACHE = window.__STAT_CREATED_CACHE || JSON.parse(localStorage.getItem('ds_stat_created_cache')||'{}');
-      }catch(_){ window.__STAT_CREATED_CACHE = window.__STAT_CREATED_CACHE || {}; }
-      const createdCache = window.__STAT_CREATED_CACHE || {};
-      if(!createdCache[docId]){
-        cloudPayload.createdAt = (firebase && firebase.firestore && firebase.firestore.FieldValue) ? firebase.firestore.FieldValue.serverTimestamp() : Date.now();
-        cloudPayload.createdBy = uid || '';
-        createdCache[docId] = 1;
-        try{ localStorage.setItem('ds_stat_created_cache', JSON.stringify(createdCache)); }catch(_){ }
-        window.__STAT_CREATED_CACHE = createdCache;
-      }
-      await ref.set(cloudPayload, { merge:true });
-    }
-  }catch(err){
-    try{ console.warn('[STAT] cloud save skipped/failed; local save kept', err); }catch(_){ }
-  }
-}
+async function saveStatRatingV2(){return DSStatistics.save(DSStatistics.capture(STAT_DIMENSIONS,STAT_QUAL_FIELDS));}
 
 function _statTypeLabel(v){
   const map = { arrival:'Ankunft', mid:'Zwischenbewertung', departure:'Abreise' };
@@ -22343,12 +22155,7 @@ function _statDogLabelById(id){
   return hit ? String(hit.name || hit.id || '—') : want || '—';
 }
 
-function _statAvgScore(row){
-  const sc = row && (row.__scores || row.scores || row.scales) || {};
-  const vals = Object.values(sc).map(v=>Number(v)).filter(v=>Number.isFinite(v));
-  if(!vals.length) return 0;
-  return vals.reduce((a,b)=>a+b,0) / vals.length;
-}
+function _statAvgScore(row){const a=Object.values(row?.__scores||row?.scores||row?.scales||{}).map(DSStatistics.number).filter(v=>v!==null&&v>=1&&v<=10);return a.length?a.reduce((a,b)=>a+b,0)/a.length:null;}
 
 function renderStatRatings(){
   const host = document.getElementById('statSubBody');
@@ -22356,7 +22163,7 @@ function renderStatRatings(){
 
   host.innerHTML = `
     <div class="card">
-      <h3 style="margin:0 0 10px;">Gespeicherte Bewertungen</h3>
+      <h3 style="margin:0 0 10px;">Gespeicherte Bewertungen</h3><p class="muted">Ohne Zeitraumfilter werden auch ältere Bewertungen angezeigt.</p><div class="row" style="gap:10px"><button class="btn" id="statTransferLocal">Lokale Bewertungen in Firebase sichern</button><button class="btn" id="statBackup">Bewertungen sichern (JSON)</button></div>
       <div class="row" style="flex-wrap:wrap; gap:10px; align-items:flex-end;">
         <div style="min-width:260px; flex:1;">
           <label class="muted" style="display:block; margin-bottom:4px;">Hund</label>
@@ -22407,11 +22214,13 @@ function renderStatRatings(){
   if(dogSel){
     dogSel.innerHTML = '<option value="">Alle Hunde</option>' + _statPetOptions().map(p=>`<option value="${escapeHtml(p.id)}">${escapeHtml(p.name || p.id)}</option>`).join('');
   }
+  document.getElementById('statTransferLocal').onclick=async()=>{const msg=document.getElementById('statListMsg');try{const n=await DSStatistics.transferLocal();await loadAndRenderStatRatings();if(n)msg.append(' '+n+' lokale Bewertung(en) in Firebase gesichert.');}catch(e){msg.textContent=e.message;}};
+  document.getElementById('statBackup').onclick=async()=>{try{const rows=await _statLoadRange();DSStatistics.download('DoggyStyle_Bewertungen_'+toISODateLocal()+'.json',{format:'DoggyStyleStatisticsBackup-v1',createdAt:new Date().toISOString(),rows:rows.map(r=>({source:r.__source,data:r.__raw}))});}catch(e){document.getElementById('statListMsg').textContent=e.message;}};
   const fromEl = document.getElementById('statListFrom');
   const toEl = document.getElementById('statListTo');
   try{
-    const today = toISODate(new Date());
-    if(toEl && !toEl.value) toEl.value = today;
+    const today = toISODateLocal(new Date());
+    // No implicit date cutoff: older and future-dated records remain discoverable.
   }catch(_){ }
   document.getElementById('btnStatListLoad')?.addEventListener('click', ()=>loadAndRenderStatRatings().catch(console.error));
   ;['statListDog','statListType','statListFrom','statListTo'].forEach(id=>{
@@ -22421,56 +22230,19 @@ function renderStatRatings(){
 }
 
 async function loadAndRenderStatRatings(){
-  const msg = document.getElementById('statListMsg');
-  const table = document.getElementById('statListTable');
-  const dogId = (document.getElementById('statListDog')||{}).value || '';
-  const type = (document.getElementById('statListType')||{}).value || '';
-  const from = (document.getElementById('statListFrom')||{}).value || '';
-  const to = (document.getElementById('statListTo')||{}).value || '';
-  if(msg) msg.textContent = 'Lade…';
-  try{
-    let rows = await _statLoadRange({from,to,dogId});
-    if(type) rows = rows.filter(r => String(r.type||'') === String(type));
-    rows.sort((a,b)=> String(b.date||'').localeCompare(String(a.date||'')) || String(b.type||'').localeCompare(String(a.type||'')));
-    if(table){
-      table.innerHTML = `
-        <tr>
-          <th>Datum</th>
-          <th>Hund</th>
-          <th>Typ</th>
-          <th>Rasse</th>
-          <th style="text-align:right;">Ø Skalen</th>
-          <th style="text-align:right;">Index B</th>
-          <th>Notiz</th>
-        </tr>
-      `;
-      if(!rows.length){
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td colspan="7" class="muted">— keine gespeicherten Bewertungen —</td>`;
-        table.appendChild(tr);
-      } else {
-        rows.forEach(r=>{
-          const tr = document.createElement('tr');
-          const avg = _statAvgScore(r);
-          tr.innerHTML = `
-            <td>${escapeHtml(r.date || '—')}</td>
-            <td>${escapeHtml(_statDogLabelById(r.dogId || r.petId || ''))}</td>
-            <td>${escapeHtml(_statTypeLabel(r.type || ''))}</td>
-            <td>${escapeHtml(r.breed || '—')}</td>
-            <td style="text-align:right;">${avg ? avg.toFixed(2) : '—'}</td>
-            <td style="text-align:right;">${Number.isFinite(Number(r.__indexB)) ? Number(r.__indexB).toFixed(2) : '—'}</td>
-            <td>${escapeHtml(String(r.notes || '').slice(0,160) || '—')}</td>
-          `;
-          table.appendChild(tr);
-        });
-      }
+      const msg=document.getElementById('statListMsg'),table=document.getElementById('statListTable');if(!msg||!table)return;
+      const filter=id=>document.getElementById(id)?.value||'',type=filter('statListType');msg.textContent='Lade …';
+      const ticket=(table._loadTicket||0)+1;table._loadTicket=ticket;
+      try{let rows=await _statLoadRange({from:filter('statListFrom'),to:filter('statListTo'),dogId:filter('statListDog')});
+        if(!table.isConnected||table._loadTicket!==ticket)return;if(type)rows=rows.filter(r=>r.type===type);rows.reverse();
+        table.innerHTML='<tr><th>Datum</th><th>Hund</th><th>Typ</th><th>Rasse</th><th>Index B</th><th>Speicherstand</th><th>Bewertung</th></tr>';
+        for(const r of rows){const tr=document.createElement('tr');for(const value of [r.date||'Datum fehlt',r.dogName,_statTypeLabel(r.type),r.breed||'—',r.__indexB??'—',DSStatistics.statusLabel(r)]){const td=document.createElement('td');td.textContent=value;tr.append(td);}
+          const td=document.createElement('td'),b=document.createElement('button');b.className='btn';b.textContent='Ansehen';b.onclick=()=>DSStatistics.detail(r,STAT_DIMENSIONS,STAT_QUAL_FIELDS);td.append(b);tr.append(td);table.append(tr);}
+        if(!rows.length)table.insertAdjacentHTML('beforeend','<tr><td colspan="7">Keine Bewertung für diese Auswahl gefunden.</td></tr>');
+        msg.textContent=DSStatistics.readMessage(rows.length);
+        const sel=document.getElementById('statListDog');for(const r of rows)if(r.dogId&&!Array.from(sel.options).some(o=>o.value===r.dogId))sel.add(new Option(r.dogName,r.dogId));
+      }catch(e){if(table.isConnected&&table._loadTicket===ticket){table.replaceChildren();msg.textContent=e.message;}}
     }
-    if(msg) msg.textContent = `${rows.length} Bewertung${rows.length===1?'':'en'} gefunden`;
-  }catch(e){
-    console.error('[STAT] ratings list failed', e);
-    if(msg) msg.textContent = 'Fehler beim Laden.';
-  }
-}
 
 
 // ---------- Sub: Analysis ----------
@@ -22564,22 +22336,22 @@ function renderStatAnalysis(){
         <div class="muted" id="statGroupMsg" style="font-size:12px;"></div>
       </div>
       <div class="list" id="statGroupList" style="margin-top:10px;"></div>
-      <div class="muted" style="font-size:12px; margin-top:8px;">Basis: Einträge mit <b>dogsInGroup</b> (Array). Ohne dieses Feld werden Einträge übersprungen.</div>
+      <div class="muted" style="font-size:12px; margin-top:8px;">Basis: erfasste Gruppenmitglieder. Ältere Bewertungen ohne Gruppenangabe bleiben erhalten und werden hier nicht verwendet. Die Zahlen beschreiben Beobachtungen und belegen keine Verträglichkeit oder Ursache.</div>
     </div>
 
     <div class="card" style="margin-top:10px;">
-      <h3 style="margin:0 0 8px;">Gruppen-KI Empfehlung</h3>
+      <h3 style="margin:0 0 8px;">Gruppenvergleich</h3>
       <div class="row" style="flex-wrap:wrap; gap:10px; align-items:center;">
-        <button class="btn btn-primary" id="btnStatGroupAIRun" type="button">Empfehlungen berechnen</button>
+        <button class="btn btn-primary" id="btnStatGroupAIRun" type="button">Beobachtungen vergleichen</button>
         <div class="muted" id="statGroupAIMsg" style="font-size:12px;"></div>
       </div>
       <div class="grid-2" style="margin-top:10px;">
         <div>
-          <div class="muted" style="font-weight:800; margin-bottom:6px;">Empfohlene Kombinationen</div>
+          <div class="muted" style="font-weight:800; margin-bottom:6px;">Niedrigere beobachtete Belastung</div>
           <div class="list" id="statGroupGood"></div>
         </div>
         <div>
-          <div class="muted" style="font-weight:800; margin-bottom:6px;">Problemkombinationen</div>
+          <div class="muted" style="font-weight:800; margin-bottom:6px;">Höhere beobachtete Belastung</div>
           <div class="list" id="statGroupBad"></div>
         </div>
       </div>
@@ -22589,28 +22361,8 @@ function renderStatAnalysis(){
   initStatAnalysisBindings();
 }
 
-function _statPetOptions(){
-  try{
-    const src = state && state.pets;
-    let list = [];
-    if(Array.isArray(src)){
-      list = src.filter(Boolean).map((p, idx)=>({
-        id: String(p.id || idx),
-        name: String(p.name || p.dogName || p.hundename || p.petName || p.id || idx)
-      }));
-    }else if(src && typeof src === 'object'){
-      list = Object.keys(src).map(pid=>{
-        const p = src[pid] || {};
-        return {
-          id: String(p.id || pid),
-          name: String(p.name || p.dogName || p.hundename || p.petName || pid)
-        };
-      });
-    }
-    return list.sort((a,b)=> String(a.name).localeCompare(String(b.name),'de'));
-  }catch(_){ return []; }
-}
-function _statFillDogSelect(selId, firstLabel='— bitte wählen —'){
+function _statPetOptions(){return DSStatistics.pets().map(p=>({id:p.id,name:p.name||p.id}));}
+function _statFillDogSelect(selId, firstLabel='Alle Hunde'){
   const sel = document.getElementById(selId);
   if(!sel) return;
   const opts = _statPetOptions();
@@ -22618,7 +22370,7 @@ function _statFillDogSelect(selId, firstLabel='— bitte wählen —'){
 }
 
 function initStatAnalysisBindings(){
-  _statFillDogSelect('statAnaDog');
+  _statFillDogSelect('statAnaDog','Alle Hunde');
 
   const fromEl = document.getElementById('statAnaFrom');
   const toEl = document.getElementById('statAnaTo');
@@ -22626,9 +22378,9 @@ function initStatAnalysisBindings(){
   if(fromEl && !fromEl.value){
     // default: last 30 days
     try{
-      const d=new Date(); const to=toISODate(d);
+      const d=new Date(); const to=toISODateLocal(d);
       const d2=new Date(); d2.setDate(d2.getDate()-30);
-      fromEl.value = toISODate(d2);
+      fromEl.value = toISODateLocal(d2);
       toEl.value = to;
     }catch(_){ }
   }
@@ -22650,6 +22402,7 @@ function initStatAnalysisBindings(){
   const bAI = document.getElementById('btnStatGroupAIRun');
   if(bAI) bAI.onclick = ()=>{ loadAndRenderStatGroupAI(); };
 
+  loadAndRenderStatAnalysis();
 }
 
 async function loadAndRenderStatAnalysis(){
@@ -22657,11 +22410,11 @@ async function loadAndRenderStatAnalysis(){
   const dogId = (document.getElementById('statAnaDog')||{}).value || '';
   const from = (document.getElementById('statAnaFrom')||{}).value || '';
   const to = (document.getElementById('statAnaTo')||{}).value || '';
-  if(!dogId){ if(msg) msg.textContent='Bitte Hund wählen.'; return; }
+
   if(msg) msg.textContent='Lade…';
 
   try{
-    const rows = await _statLoadRange({from,to,dogId});
+    const request=crypto.randomUUID();if(msg)msg.dataset.statRequest=request;const loaded = await _statLoadRange({from,to,dogId});if(msg&&(!msg.isConnected||msg.dataset.statRequest!==request))return;const rows=loaded.filter(r=>Number.isFinite(r.__indexB));
 
     if(!rows.length){
       if(msg) msg.textContent='Keine Daten im Zeitraum.';
@@ -22670,11 +22423,11 @@ async function loadAndRenderStatAnalysis(){
     }
 
     _statRenderAnalysis(rows);
-    if(msg) msg.textContent = `${rows.length} Einträge.`;
-    setTimeout(()=>{ if(msg) msg.textContent=''; }, 3000);
+    if(msg) msg.textContent = DSStatistics.readMessage(rows.length);
+
   }catch(e){
     console.error('[STAT] analysis load failed', e);
-    if(msg) msg.textContent='Fehler beim Laden.';
+    if(msg)msg.textContent=e.message;
   }
 }
 
@@ -22685,35 +22438,7 @@ async function loadAndRenderStatAnalysis(){
    - Gruppenanalyse / Gruppen-KI
    =========================== */
 
-function _statFillBreedSelect(selId){
-  const sel = document.getElementById(selId);
-  if(!sel) return;
-
-  // keep first option (Alle Rassen)
-  const keep0 = sel.querySelector('option[value=""]');
-  sel.innerHTML = '';
-  if(keep0){
-    sel.appendChild(keep0);
-  }else{
-    const o=document.createElement('option'); o.value=''; o.textContent='Alle Rassen'; sel.appendChild(o);
-  }
-
-  const breeds = new Set();
-  try{
-    const pets = state.pets || {};
-    Object.keys(pets).forEach(pid=>{
-      const p = pets[pid] || {};
-      const b = (p.breed || p.race || '').toString().trim();
-      if(b) breeds.add(b);
-    });
-  }catch(_){ }
-
-  Array.from(breeds).sort((a,b)=>a.localeCompare(b,'de')).forEach(b=>{
-    const o=document.createElement('option');
-    o.value=b; o.textContent=b;
-    sel.appendChild(o);
-  });
-}
+function _statFillBreedSelect(id){const sel=document.getElementById(id);if(!sel)return;sel.replaceChildren(new Option('Alle Rassen',''),...[...new Set(DSStatistics.pets().map(p=>p.breed||p.race).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'de')).map(b=>new Option(b,b)));}
 
 function _statLocalFilterRange({from='', to='', breed='', dogId='' }={}){
   let rows = _statLocalRead();
@@ -22728,46 +22453,7 @@ function _statLocalFilterRange({from='', to='', breed='', dogId='' }={}){
   });
 }
 
-async function _statLoadRange({from='', to='', breed='', dogId='' }={}){
-  const localRows = _statLocalFilterRange({from,to,breed,dogId});
-
-  const cloudReady = !!(typeof CLOUD !== 'undefined' && CLOUD && CLOUD.enabled && CLOUD.db && typeof _statColl === 'function');
-  const fbReady = !!(window.firebase && firebase.firestore && window.firebase.apps && window.firebase.apps.length);
-  if(!(cloudReady || fbReady)) return localRows;
-
-  try{
-    let q = _statColl();
-    if(dogId) q = q.where('dogId','==',dogId);
-    if(breed) q = q.where('breed','==',breed);
-    if(from) q = q.where('date','>=',from);
-    if(to) q = q.where('date','<=',to);
-    q = q.orderBy('date','asc');
-
-    const snap = await q.get();
-    const merged = new Map();
-    localRows.forEach(r => merged.set(String(r.docId || r.id || ''), r));
-
-    snap.forEach(doc=>{
-      const d = doc.data() || {};
-      const sc = d.scores || d.scales || {};
-      const row = { id:doc.id, ...d, __scores: sc, __indexB: Number.isFinite(Number(d.indexB)) ? Number(d.indexB) : _statComputeIndexB(sc) };
-      const key = String(row.docId || row.id || doc.id || '');
-      const prev = merged.get(key);
-      if(!prev){
-        merged.set(key, row);
-        return;
-      }
-      const prevTs = Number(prev.updatedAtLocal || prev.updatedAt || 0);
-      const nextTs = Number(row.updatedAtLocal || row.updatedAt || 0);
-      merged.set(key, nextTs >= prevTs ? { ...prev, ...row } : { ...row, ...prev });
-    });
-
-    return Array.from(merged.values()).sort((a,b)=> String(a.date||'').localeCompare(String(b.date||'')));
-  }catch(e){
-    console.warn('[STAT] _statLoadRange cloud fallback -> local', e);
-    return localRows;
-  }
-}
+async function _statLoadRange(filters){return DSStatistics.read(filters);}
 
 function _statAvg(arr){
   if(!arr || !arr.length) return 0;
@@ -22785,7 +22471,7 @@ async function loadAndRenderStatBreedComparison(){
   if(msg) msg.textContent='Lade…';
 
   try{
-    const rows = await _statLoadRange({from,to,breed});
+    const request=crypto.randomUUID();if(msg)msg.dataset.statRequest=request;const loaded = await _statLoadRange({from,to,breed});if(msg&&(!msg.isConnected||msg.dataset.statRequest!==request))return;const rows=loaded.filter(r=>Number.isFinite(r.__indexB));
     if(!rows.length){
       if(msg) msg.textContent='Keine Daten im Zeitraum.';
       if(table) table.innerHTML = '<tr><th>Rasse</th><th style="text-align:right;">Ø IndexB</th><th style="text-align:right;">n</th></tr>';
@@ -22817,7 +22503,7 @@ async function loadAndRenderStatBreedComparison(){
     setTimeout(()=>{ if(msg) msg.textContent=''; }, 4000);
   }catch(e){
     console.error('[STAT] breed comparison failed', e);
-    if(msg) msg.textContent='Fehler beim Laden.';
+    if(msg)msg.textContent=e.message;
   }
 }
 
@@ -22836,7 +22522,7 @@ async function loadAndRenderStatHeatmap(){
   if(msg) msg.textContent='Lade…';
 
   try{
-    const rows = await _statLoadRange({from,to,breed:''});
+    const request=crypto.randomUUID();if(msg)msg.dataset.statRequest=request;const loaded = await _statLoadRange({from,to,breed:''});if(msg&&(!msg.isConnected||msg.dataset.statRequest!==request))return;const rows=loaded.filter(r=>Number.isFinite(r.__indexB));
     if(!rows.length){
       if(msg) msg.textContent='Keine Daten im Zeitraum.';
       if(box) box.innerHTML='';
@@ -22881,7 +22567,7 @@ async function loadAndRenderStatHeatmap(){
     setTimeout(()=>{ if(msg) msg.textContent=''; }, 4000);
   }catch(e){
     console.error('[STAT] heatmap failed', e);
-    if(msg) msg.textContent='Fehler beim Laden.';
+    if(msg)msg.textContent=e.message;
   }
 }
 
@@ -22891,33 +22577,10 @@ function _statPairKey(a,b){
 }
 
 function _statBuildPairStats(rows){
-  const pairs = {};
-  let used=0;
-
-  rows.forEach(r=>{
-    const dogs = r.dogsInGroup;
-    if(!Array.isArray(dogs) || dogs.length < 2) return;
-    const clean = dogs.map(String).filter(Boolean);
-    if(clean.length < 2) return;
-
-    used++;
-
-    for(let i=0;i<clean.length;i++){
-      for(let j=i+1;j<clean.length;j++){
-        const key=_statPairKey(clean[i], clean[j]);
-        (pairs[key] ||= []).push(r.__indexB);
-      }
+      const pairs=new Map();let used=0;for(const r of rows){const dogs=[...new Set((r.dogsInGroup||[]).map(String).filter(Boolean))].sort();if(dogs.length<2||!Number.isFinite(r.__indexB))continue;used++;
+        for(let i=0;i<dogs.length;i++)for(let j=i+1;j<dogs.length;j++){const ids=[dogs[i],dogs[j]],key=JSON.stringify(ids),a=pairs.get(key)||{ids,values:[]};a.values.push(r.__indexB);pairs.set(key,a);}}
+      const list=[...pairs.values()].map(x=>({pair:x.ids.map(_statDogLabelById).join(' + '),avg:x.values.reduce((a,b)=>a+b,0)/x.values.length,n:x.values.length})).sort((a,b)=>b.avg-a.avg);return{list,used};
     }
-  });
-
-  const list = Object.keys(pairs).map(k=>{
-    const arr=pairs[k];
-    const avg=_statAvg(arr);
-    return {pair:k, avg, n:arr.length};
-  }).sort((a,b)=>b.avg-a.avg);
-
-  return {list, used};
-}
 
 async function loadAndRenderStatGroupPairs(){
   const msg = document.getElementById('statGroupMsg');
@@ -22927,7 +22590,7 @@ async function loadAndRenderStatGroupPairs(){
   if(msg) msg.textContent='Lade…';
 
   try{
-    const rows = await _statLoadRange({from,to,breed:''});
+    const request=crypto.randomUUID();if(msg)msg.dataset.statRequest=request;const loaded = await _statLoadRange({from,to,breed:''});if(msg&&(!msg.isConnected||msg.dataset.statRequest!==request))return;const rows=loaded.filter(r=>Number.isFinite(r.__indexB));
     if(!rows.length){
       if(msg) msg.textContent='Keine Daten im Zeitraum.';
       if(host) host.innerHTML='';
@@ -22940,7 +22603,7 @@ async function loadAndRenderStatGroupPairs(){
       host.innerHTML='';
       const top = list.slice(0, 25);
       if(!top.length){
-        host.innerHTML = '<div class="muted" style="font-size:12px;">Keine Paar-Daten – es fehlen dogsInGroup Arrays in den Statistik-Einträgen.</div>';
+        host.innerHTML = '<div class="muted" style="font-size:12px;">Keine gemeinsamen Beobachtungen im Zeitraum. Bei der Erfassung die tatsächlich beobachteten Gruppenmitglieder auswählen.</div>';
       }else{
         top.forEach(it=>{
           const div=document.createElement('div');
@@ -22959,7 +22622,7 @@ async function loadAndRenderStatGroupPairs(){
     setTimeout(()=>{ if(msg) msg.textContent=''; }, 5000);
   }catch(e){
     console.error('[STAT] group pairs failed', e);
-    if(msg) msg.textContent='Fehler beim Laden.';
+    if(msg)msg.textContent=e.message;
   }
 }
 
@@ -22972,7 +22635,7 @@ async function loadAndRenderStatGroupAI(){
   if(msg) msg.textContent='Lade…';
 
   try{
-    const rows = await _statLoadRange({from,to,breed:''});
+    const request=crypto.randomUUID();if(msg)msg.dataset.statRequest=request;const loaded = await _statLoadRange({from,to,breed:''});if(msg&&(!msg.isConnected||msg.dataset.statRequest!==request))return;const rows=loaded.filter(r=>Number.isFinite(r.__indexB));
     if(!rows.length){
       if(msg) msg.textContent='Keine Daten im Zeitraum.';
       if(goodHost) goodHost.innerHTML='';
@@ -22989,7 +22652,7 @@ async function loadAndRenderStatGroupAI(){
       if(!host) return;
       host.innerHTML='';
       if(!arr.length){
-        host.innerHTML = `<div class="muted" style="font-size:12px;">Keine ${icon==='✅'?'klaren Empfehlungen':'klaren Problemkombinationen'} im Zeitraum.</div>`;
+        host.innerHTML = `<div class="muted" style="font-size:12px;">Keine ${icon==='✅'?'klaren Empfehlungen':'klaren Höhere beobachtete Belastung'} im Zeitraum.</div>`;
         return;
       }
       arr.forEach(it=>{
@@ -23010,7 +22673,7 @@ async function loadAndRenderStatGroupAI(){
     setTimeout(()=>{ if(msg) msg.textContent=''; }, 5000);
   }catch(e){
     console.error('[STAT] group AI failed', e);
-    if(msg) msg.textContent='Fehler beim Laden.';
+    if(msg)msg.textContent=e.message;
   }
 }
 
@@ -23034,6 +22697,7 @@ function _statRenderAnalysisEmpty(){
 }
 
 function _statRenderAnalysis(rows){
+  rows=rows.filter(r=>Number.isFinite(r.__indexB));if(!rows.length){_statRenderAnalysisEmpty();return;}
   // Summary stats
   const idxs = rows.map(r=>r.__indexB).filter(v=>Number.isFinite(v));
   const mean = idxs.reduce((a,b)=>a+b,0)/Math.max(1,idxs.length);
@@ -23085,7 +22749,7 @@ function _statRenderAnalysis(rows){
   STAT_DIMENSIONS.forEach(d=>{ sums[d.id]=0; counts[d.id]=0; });
   rows.forEach(r=>{
     STAT_DIMENSIONS.forEach(d=>{
-      const v = Number(r.__scores?.[d.id]);
+      const v = DSStatistics.number(r.__scores?.[d.id]);
       if(Number.isFinite(v)){
         sums[d.id]+=v; counts[d.id]+=1;
       }
@@ -23116,7 +22780,7 @@ function _statRenderAnalysis(rows){
         <td>${escapeHtml(r.type||'')}</td>
         <td style="text-align:right;">${Number.isFinite(r.__indexB)? r.__indexB.toFixed(1):'—'}</td>
         ${STAT_DIMENSIONS.map(d=>{
-          const v = Number(r.__scores?.[d.id]);
+          const v = DSStatistics.number(r.__scores?.[d.id]);
           return `<td style="text-align:right;">${Number.isFinite(v)? v: '—'}</td>`;
         }).join('')}
       </tr>`;
@@ -23131,7 +22795,7 @@ function _statRenderAnalysis(rows){
 function _statDrawLineChart(canvasId, points){
   const c = document.getElementById(canvasId);
   if(!c) return;
-  const ctx = c.getContext('2d');
+  const ctx = c.getContext('2d');if(!ctx)return;ctx.strokeStyle='#d4a34f';ctx.fillStyle='#eee';
 
   // handle high-dpi
   const rect = c.getBoundingClientRect();
@@ -23155,7 +22819,7 @@ function _statDrawLineChart(canvasId, points){
   ctx.stroke();
   ctx.globalAlpha = 1;
 
-  const vals = points.map(p=>Number(p.y)).filter(v=>Number.isFinite(v));
+  const vals = points.map(p=>p.y).filter(v=>Number.isFinite(v));
   if(!vals.length){
     ctx.font='12px sans-serif';
     ctx.fillText('Keine Index-Werte', 10, 20);
@@ -23173,7 +22837,7 @@ function _statDrawLineChart(canvasId, points){
   ctx.lineWidth = 2;
   ctx.beginPath();
   points.forEach((p,i)=>{
-    const v = Number(p.y);
+    const v = p.y;
     if(!Number.isFinite(v)) return;
     const x = xToPx(i);
     const y = yToPx(v);
@@ -23185,7 +22849,7 @@ function _statDrawLineChart(canvasId, points){
   // points
   ctx.lineWidth = 1;
   points.forEach((p,i)=>{
-    const v = Number(p.y);
+    const v = p.y;
     if(!Number.isFinite(v)) return;
     const x=xToPx(i), y=yToPx(v);
     ctx.beginPath(); ctx.arc(x,y,3,0,Math.PI*2); ctx.fill();
@@ -23240,9 +22904,9 @@ function renderStatExport(){
   const toEl=document.getElementById('statExpTo');
   if(fromEl && !fromEl.value){
     try{
-      const d=new Date(); const to=toISODate(d);
+      const d=new Date(); const to=toISODateLocal(d);
       const d2=new Date(); d2.setDate(d2.getDate()-365);
-      fromEl.value = toISODate(d2);
+      fromEl.value = toISODateLocal(d2);
       toEl.value = to;
     }catch(_){ }
   }
@@ -23273,10 +22937,10 @@ async function exportStatCsv(){
       'groupSize','groupStability','dominantCount','occupancy','trainer',
       ...STAT_DIMENSIONS.map(d=>`score_${d.id}`),
       ...STAT_QUAL_FIELDS.map(q=>`qual_${q.id}`),
-      'indexB','notes','schema'
+      'indexB','notes','schema','dogsInGroup','storageSource'
     ];
     const esc = (v)=>{
-      const sv = (v==null)? '' : String(v);
+      let sv = (v==null)? '' : String(v);if(/^[\s]*[=+@-]/.test(sv))sv="'"+sv;
       return `"${sv.replace(/"/g,'""')}"`;
     };
     const lines = [headers.map(esc).join(',')];
@@ -23286,23 +22950,23 @@ async function exportStatCsv(){
       const did = String(r.dogId||r.petId||'');
       const dogName = petMap.get(did) || did;
       const line = [
-        r.id||'', did, dogName,
+        r.docId||r.id||'', did, dogName,
         r.date||'', r.type||'', r.sex||'', r.breed||'', (r.ageYears==null? '' : r.ageYears),
-        (Number.isFinite(Number(ctx.groupSize))? Number(ctx.groupSize) : ''),
+        (Number.isFinite(DSStatistics.number(ctx.groupSize))? DSStatistics.number(ctx.groupSize) : ''),
         ctx.groupStability||'',
-        (Number.isFinite(Number(ctx.dominantCount))? Number(ctx.dominantCount) : ''),
+        (Number.isFinite(DSStatistics.number(ctx.dominantCount))? DSStatistics.number(ctx.dominantCount) : ''),
         ctx.occupancy||'',
         ctx.trainer||'',
-        ...STAT_DIMENSIONS.map(d=>{ const v=Number(r.__scores?.[d.id]); return Number.isFinite(v)? v : ''; }),
+        ...STAT_DIMENSIONS.map(d=>{ const v=DSStatistics.number(r.__scores?.[d.id]); return Number.isFinite(v)? v : ''; }),
         ...STAT_QUAL_FIELDS.map(f=> q[f.id]||''),
         Number.isFinite(r.__indexB)? r.__indexB.toFixed(1):'',
         r.notes||'',
-        r.schema||''
+        r.schema||'',JSON.stringify(r.dogsInGroup||[]),DSStatistics.statusLabel(r)
       ];
       lines.push(line.map(esc).join(','));
     });
     const csv='\ufeff' + lines.join('\n');
-    const stamp=(typeof toISODate==='function' ? toISODate(new Date()) : new Date().toISOString().slice(0,10)).replace(/-/g,'');
+    const stamp=(typeof toISODate==='function' ? toISODateLocal(new Date()) : new Date().toISOString().slice(0,10)).replace(/-/g,'');
     const fn=`doggystyle_statistics_${stamp}.csv`;
 
     let exported=false;
@@ -23327,11 +22991,11 @@ async function exportStatCsv(){
       }catch(_){ }
     }
 
-    if(msg) msg.textContent = exported ? `Export: ${rows.length} Zeilen.` : 'Export vorbereitet, Download bitte manuell speichern.';
-    setTimeout(()=>{ if(msg) msg.textContent=''; }, 4000);
+    if(msg) msg.textContent = exported ? 'Export: '+DSStatistics.readMessage(rows.length) : 'Export vorbereitet, Download bitte manuell speichern.';
+
   }catch(e){
     console.error('[STAT] export failed', e);
-    if(msg) msg.textContent='Fehler beim Export.';
+    if(msg)msg.textContent=e.message;
   }
 }
 
@@ -23371,9 +23035,9 @@ function renderStatMethod(){
         <tr><td>8–10</td><td>kritisch / Interventionsbedarf</td></tr>
       </table>
 
-      <h4 style="margin:14px 0 6px;">Forschungs-Hinweis</h4>
+      <h4 style="margin:14px 0 6px;">Einordnung</h4>
       <div style="font-size:13px; line-height:1.4;">
-        Für Gesetzesargumentation: Rohdaten exportieren, dann multivariate Modelle (z.B. lineare Mixed Models) mit Prädiktoren wie
+        Diese Auswertung beschreibt Beobachtungen. Sie belegt keine Ursache und sagt keine Verträglichkeit voraus. Für weitergehende Analysen können die Rohdaten exportiert werden. Mögliche Kontextvariablen sind
         <b>Rasse</b>, <b>Gruppengröße</b>, <b>Gruppenstabilität</b>, <b>Auslastung</b>, <b>Aufenthaltsdauer</b> und <b>Trainer</b>.
         Wichtig: Bewertungsmanual konsequent anwenden (immer gleiche Definitionen).
       </div>
@@ -23381,17 +23045,9 @@ function renderStatMethod(){
   `;
 }
 
-// Bind statistics tab click (Panel wird dynamisch gerendert)
-try{
-  const tab = document.getElementById('tabStatistics');
-  if(tab && !tab.__statBound){
-    tab.__statBound = true;
-    tab.addEventListener('click', ()=>{ try{ renderStatisticsPanel(); }catch(e){ console.error(e); } }, {passive:true});
-  }
-}catch(e){ console.warn(e); }
 
 
-/* ===== CHAT (M50.9.9GB372_LOAD_ORDER_TEST_20261020) ===== */
+/* ===== CHAT (M50.9.9GB373_STATISTICS_TEST_20261021) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,

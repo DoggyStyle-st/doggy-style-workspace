@@ -77,6 +77,7 @@
     },e=>error(e,'customerTaskSaveHint'));
   }
   function resetAccount(){
+    window.DSStatistics?.reset();
     window.DSDocumentOutput?.close();
     mediaEpoch++;for(const xhr of mediaRequests)xhr.abort();mediaRequests.clear();mediaJobs.clear();
     resetPhotoEditor();
