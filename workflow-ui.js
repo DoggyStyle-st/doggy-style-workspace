@@ -166,6 +166,7 @@
     },e=>error(e,'customerTaskSaveHint'));
   }
   function resetAccount(){
+    window.DSBilling?.reset();
     window.DSAccountDirectory?.reset();
     window.DSStatistics?.reset();
     window.DSDocumentOutput?.close();

@@ -1,8 +1,8 @@
-# Doggy Style Workspace – GB376 Testfassung
+# Doggy Style Workspace – GB377 Testfassung
 
-Reparatur der Sicherheitsdatenblatt-Speicherung vom 21. Oktober 2026.
-PDFs werden vor der gemeinsamen Speicherung separat im vorhandenen Firebase Storage abgelegt. Der Workspace speichert Dateiverweise. Lokale Originale bleiben bis zur bestätigten Übernahme erhalten; zuvor wird eine dauerhafte Gerätesicherung erstellt. Öffnen und PDF-Speichern funktionieren auch nach Neuladen über angemeldete Dateiabrufe.
+Rechnungsreparatur vom 24. Oktober 2026.
+Probetage verwenden den hinterlegten Einzeltarif der Urlaubsbetreuung. Entwürfe und offene Rechnungen lassen sich direkt über Rechnung > Bearbeiten korrigieren, einschließlich Positionen, Betrag, MwSt und Leistungszeitraum. Wiederholtes Bearbeiten und Neuladen behalten die Änderungen. Kundenunterschriften und unterschriebene Aufenthalte werden durch die Rechnungsbearbeitung nicht verändert.
 
-INSTALLATION_IPAD.txt enthält die Schritte. PRUEFBERICHT.md nennt Testergebnisse und offene Live-/Safari-Prüfungen. Die vollständigen Dateien einschließlich assets und vendor übernehmen. Die Storage-Regeln sind für den neuen PDF-Pfad ergänzt; die Firestore-Regeln sind unverändert. Keine Websitedaten löschen und keinen Daten-Reset verwenden.
+Vollständige Dateien einschließlich billing.js, billing.css, assets und vendor übernehmen und neu laden. INSTALLATION_IPAD.txt enthält die Schritte. Von GB376 kommend ist keine Änderung der Firebase-Regeln erforderlich. PRUEFBERICHT.md nennt Testergebnisse und offene Live-/Safari-Prüfungen. Historische Protokolle unter pruefungen beschreiben ihre jeweiligen älteren Fassungen.
 
-Produktive Daten wurden bei der Entwicklung nicht verändert. Historische Prüfungen unter pruefungen beschreiben ältere Fassungen; maßgeblich ist der aktuelle Prüfbericht.
+Es wurden keine produktiven Kundendaten, Rechnungen oder Regeln bei der Entwicklung verändert.

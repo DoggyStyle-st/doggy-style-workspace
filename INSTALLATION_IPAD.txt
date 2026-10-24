@@ -1,13 +1,16 @@
-Doggy Style Workspace – GB376
-Build: M50.9.9GB376_SDS_STORAGE_TEST_20261021
+Doggy Style Workspace – GB377
+Build: M50.9.9GB377_INVOICE_TEST_20261024
 
-1. Vor dem Austausch unter Einstellungen > Cloud & Konto > Lokale Sicherung herunterladen eine Gerätesicherung in Dateien behalten. Keine Safari-Websitedaten löschen und keinen Reset verwenden.
-2. Vollständigen Inhalt von DoggyStyle_Workspace_GB376_TEST am bisherigen GitHub-Pages-Ort übernehmen, einschließlich assets, vendor und aller JavaScript-Dateien.
-3. REGELN_ANZEIGEN.html öffnen und Storage wählen. Den vollständigen Text in der bestehenden Firebase-Konsole unter Storage > Regeln prüfen und veröffentlichen. Die Firestore-Regeln für diese Änderung unverändert lassen.
-4. Workspace neu laden. In DIAG muss M50.9.9GB376_SDS_STORAGE_TEST_20261021 stehen.
-5. Bei Lokale Änderungen prüfen auf Änderungen vergleichen tippen. Angaben prüfen und Auswahl gemeinsam speichern wählen. Die vorhandenen Sicherheitsdatenblätter werden separat übertragen; danach enthält der Workspace nur Dateiverweise. Bei einer widersprüchlichen Angabe vorher ausdrücklich den passenden Stand auswählen.
-6. Unter Compliance > Gefahrstoffe SDB öffnen oder Download verwenden. Im Dokumentfenster PDF speichern oder PDF teilen wählen. Auf dem iPad liegt der Download anschließend bei Safari-Downloads bzw. in Dateien.
+1. Aktuelle lokale Sicherung unter Einstellungen > Cloud & Konto > Lokale Sicherung herunterladen in Dateien behalten.
+2. Vollständigen Inhalt aus DoggyStyle_Workspace_GB377_TEST am bisherigen GitHub-Pages-Ort übernehmen, einschließlich der neuen billing.js und billing.css sowie assets und vendor.
+3. Von GB376 kommend die Firebase-Regeln nicht erneut ändern. Firestore- und Storage-Regeln sind identisch.
+4. Workspace neu laden. In DIAG muss M50.9.9GB377_INVOICE_TEST_20261024 stehen. Keine Websitedaten löschen und keinen Reset verwenden.
+5. Aufenthalt öffnen bzw. in der Aufenthaltsliste Rechnung wählen. Im Rechnungsbereich Bearbeiten antippen, Positionen und Beträge prüfen und Änderungen speichern. Derselbe Weg funktioniert auch bei freien Rechnungen und bei weiteren Korrekturen.
+6. Probetag im Aufenthalt auswählen: Der Grundpreis verwendet den hinterlegten Preis für einen einzelnen Urlaubstag. Zusätzlich gewählte Leistungen werden weiterhin berechnet.
+7. Bereits vorhandene offene Probetag-Rechnungen mit 0 Euro nicht automatisch verändern: Nach Prüfung Aufschläge aus Aufenthalt übernehmen wählen. Dadurch wird der korrigierte Tarif ausdrücklich neu berechnet.
+8. Bei Entwürfen und offenen Rechnungen sind Korrekturen möglich. Bezahlte und stornierte Rechnungen sind abgeschlossen und bleiben gegen Neuberechnung geschützt.
+9. Nach manueller Rechnungsbearbeitung ersetzt Aufschläge aus Aufenthalt übernehmen die bearbeiteten Positionen nur nach Bestätigung. Normale Listenwechsel oder Neuladen setzen sie nicht zurück.
 
-Wichtig: Lokales sichern und Serverstand anzeigen verwirft keine Sicherung, übernimmt aber nur den bisherigen Serverstand in die Anzeige. Damit werden die lokalen PDFs nicht in die Cloud übertragen. Für die gezeigte PDF-Reparatur nach Prüfung Auswahl gemeinsam speichern benutzen.
+Die Kundenunterschrift am Aufenthalt wird durch Rechnung > Bearbeiten nicht geändert. Die Druckvorschau zeigt die gespeicherten Rechnungspositionen; Drucken öffnet die Druckauswahl, über die auf dem iPad auch als PDF gesichert werden kann.
 
-Bei einer Fehlermeldung bleiben die lokalen PDFs erhalten. Aktuelle Storage-Regeln und Build prüfen; den konkreten Fehler aus dem Abgleich bzw. DIAG dokumentieren. Live-Abnahme im bestehenden Projekt und natives Safari/iOS bleiben noch offen.
+Wenn eine Rechnung inzwischen in einer anderen Sitzung geändert wurde, die Bearbeitung abbrechen und die aktuelle Rechnung erneut öffnen. Bei einer allgemeinen Sync-Prüfmeldung den vorhandenen Datenvergleich verwenden. Live-Abnahme im bestehenden Projekt und native Safari-/iOS-Prüfung stehen noch aus.
