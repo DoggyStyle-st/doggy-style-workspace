@@ -2,7 +2,7 @@ try{sessionStorage.removeItem('ds_handoff_pass');}catch(_){}
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB377_INVOICE_TEST_20261024",
+  tag: "M50.9.9GB378_STAY_BILLING_TEST_20261024",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -13,7 +13,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB377_INVOICE_TEST_20261024";
+const APP_BUILD = "M50.9.9GB378_STAY_BILLING_TEST_20261024";
 try{ window.__dsAppJsRuntimeBuild = "GB350-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -2726,7 +2726,7 @@ async function submitCustomerDogsProposal(){
   // GB355: vollständig lokal sichern, anschließend zuverlässig in proposals + tasks übertragen.
   // Die Oberfläche wird sofort freigegeben; die Erfolgsmeldung "an Eingänge übergeben"
   // erscheint ausschließlich nach bestätigter Firestore-Speicherung.
-  const GB355='M50.9.9GB377_INVOICE_TEST_20261024';
+  const GB355='M50.9.9GB378_STAY_BILLING_TEST_20261024';
   function S(v){ try{return String(v==null?'':v);}catch(_){return '';} }
   function L(v){ return S(v).trim().toLowerCase(); }
   function V(id){ try{const el=document.getElementById(id);return S(el&&el.value!=null?el.value:'').trim();}catch(_){return '';} }
@@ -3808,7 +3808,7 @@ function renderStayPricingPreview(docObj){
 // ===== END 4C-1 =====
 function calculateInvoicePricing(doc){
   const meta = doc.meta || {};
-  const f = doc.fields || {};
+  const f = DSBilling.effectiveFields(doc);
   if(!meta.betreuung || !meta.von || !meta.bis){
     return null;
   }
@@ -3988,7 +3988,7 @@ function isInvoicePricingLocked(inv){
   return inv.pricingLocked === true || !!inv.pricingLockedAt || !!inv.pricingSnapshot;
 }
 function shouldFreezeInvoice(inv){return DSBilling.frozen(inv);}
-function getInvoiceSourceDoc(inv){if(!inv?.sourceDocId)return null;return (state.docs||[]).find(d=>d.id===inv.sourceDocId||d.docId===inv.sourceDocId)||(state.stays||[]).find(d=>d.id===inv.sourceDocId||d.docId===inv.sourceDocId)||null;}
+function getInvoiceSourceDoc(inv){return DSBilling.sourceDoc(inv);}
 function syncInvoicePricingBySource(inv){if(!inv?.sourceDocId||DSBilling.frozen(inv)||inv.pricingMode==='manual')return false;return DSBilling.recalcFromStay(inv,getInvoiceSourceDoc(inv));}
 // Batch sync before rendering lists (keeps UI totals correct)
 function syncAllInvoicePricingGuarded(){
@@ -7752,6 +7752,7 @@ function renderPolicySettings(){
   }).join('');
   const count = Object.values(state.compliance.docs||{}).reduce((a,d)=>a+((d&&Array.isArray(d.history))?d.history.length:0),0);
   el.innerHTML = rows + `<div class="hint" style="margin-top:10px">Archiv: ${count} Eintrag(e). (Inhalt bleibt in der App unverändert; Versionierung dient dem Nachweis.)</div>`;
+  Object.assign(window,{savePricingFromUI:()=>{if(DSBilling.requireEdit())savePricingFromUI();},resetPricingDefaults:()=>{if(DSBilling.requireEdit())resetPricingDefaults();},addPricingRule:key=>{if(DSBilling.requireEdit())addPricingRule(key);}});
   renderPricingSettingsBlock();
 // --- Preise in Einstellungen bearbeiten ---
 function renderPricingSettingsBlock(){
@@ -13883,7 +13884,7 @@ function ds207ResetStaleCloudForInvoice(reason){
 // Minimal: verknüpft Aufenthalt (doc) mit Rechnung (invoice) via doc.invoiceId
 function openOrCreateInvoiceForDocId(id){return DSBilling.openForStay(id);}
 // --- 3E: Rechnung -> Aufenthalt öffnen / Zuschläge übernehmen -----------------
-function openInvoiceSourceStay(id){const inv=getInvoiceById(id);if(!inv?.sourceDocId)return;selectTab('documents');openDoc(inv.sourceDocId);}
+function openInvoiceSourceStay(id){try{const doc=DSBilling.sourceDoc(getInvoiceById(id));if(!doc)return;selectTab('documents');openDoc(doc.id);}catch(e){alert(e.message);}}
 function refreshInvoiceFromStay(id){return DSBilling.refresh(id);}
 function renderInvoicePositions(inv){return DSBilling.positions(inv);}
 // --- 4C-5: Rechnungs-Historie (Audit Trail) UI -------------------------------
@@ -15711,7 +15712,8 @@ function createStayFromExisting(docId){
   copy.id = uid();
   copy.saved = false;
   copy.signature = null;
-  copy.versionOf = null;
+  copy.versionOf = null;DSBilling.clearSignature(copy);
+  for(const key of ["docId","stayId","invoiceId","invoiceNumber","sourceVersionId","billingOverrides","billingOriginal","billingAudit"])delete copy[key];
   // Zeitraum/Meta neu
   copy.meta = copy.meta || {};
   copy.meta.von = "";
@@ -15791,7 +15793,7 @@ function renderVersions(doc){
 function openDoc(id){
 updateCreateInvoiceButton();
   currentDoc=(state.docs||[]).find(d=>d.id===id);
-  if(!currentDoc) return;
+  if(!currentDoc) return;DSBilling.prepareStay(currentDoc);
   try{
     if(!currentDoc.petId && currentDoc.docId){
       const stayRec = (state.stays||[]).find(s=>String((s&&s.docId)||'')===String(currentDoc.id||'')) || null;
@@ -15898,7 +15900,7 @@ renderVersions(currentDoc);
   try{ renderStayQuickLinks(currentDoc); }catch(e){ console.warn('renderStayQuickLinks failed', e); }
   
   (function(){ const el = $("#dsGvoText") || $("#dsGvo-Text"); if(el) el.textContent = (getTemplate(currentDoc.templateId)?.dsGvoNote||""); })();
-  dirty=false;window.currentDoc=currentDoc;DSBilling.rememberStay(currentDoc);
+  dirty=false;window.currentDoc=currentDoc;DSBilling.afterOpenStay(currentDoc);
   showPanel("editor");
   window.scrollTo({top:0,behavior:"smooth"});
 }
@@ -16213,6 +16215,7 @@ function syncCurrentDocFromForm(){
 function syncStayEditorInputsToDoc(){
   try{
     if(!window.currentDoc) return;
+    if(DSBilling.admin()&&DSBilling.signedStay(currentDoc)){DSBilling.collectCharges(currentDoc);return;}
     currentDoc.meta = currentDoc.meta || {};
     currentDoc.fields = currentDoc.fields || {};
     const dogSel = document.getElementById('stayDogSelect');
@@ -16390,6 +16393,7 @@ updateCreateInvoiceButton();
   currentDoc.title=$("#docName").value.trim()||currentDoc.templateName;
   currentDoc.dogId=((isStay && document.getElementById('stayDogSelect')) ? document.getElementById('stayDogSelect').value : $("#dogSelect").value);
   ensureDocLinks(currentDoc);
+  if(isStay){const prepared=DSBilling.prepareStaySave(currentDoc,fields,meta);fields=prepared.fields;meta=prepared.meta;}
   currentDoc.fields=fields;
   currentDoc.meta=meta;
 // 🔢 Preislogik anwenden
@@ -16402,7 +16406,7 @@ if (currentDoc.meta?.betreuung && currentDoc.meta?.von && currentDoc.meta?.bis) 
   $("#docName").disabled = !!currentDoc.saved;
   $("#dogSelect").disabled = !!currentDoc.saved;
   
-  const errs=validate(currentDoc,t);
+  const errs=DSBilling.financialSave(currentDoc)?DSBilling.validateFinancial(currentDoc):validate(currentDoc,t);
   if(errs.length){
     alert("Bitte noch ausfüllen/abhaken:\n\n• "+errs.join("\n• "));
     return false;
@@ -16420,7 +16424,7 @@ if (totalUsed >= MAX_DOGS) {
 }
   // ⚠️ Stufe A (Warnungen): fehlende Unterschrift blockiert NICHT mehr.
   // Abschlussstatus: nur wenn Unterschrift vorhanden.
-  const warns = getStayWarnings(currentDoc, t);
+  const warns = DSBilling.financialSave(currentDoc)?[]:getStayWarnings(currentDoc, t);
   if(warns.length){
     alert("⚠️ Hinweis(e):\n\n• " + warns.join("\n• "));
   }
@@ -16429,11 +16433,11 @@ if (totalUsed >= MAX_DOGS) {
   if(!currentDoc.saved){
     currentDoc.saved = hasSig;
   }
-if(isStay && DSBilling.admin()){try{currentDoc=DSBilling.attachStay(currentDoc);window.currentDoc=currentDoc;DSBilling.syncLinked(currentDoc);}catch(e){alert(e.message);return false;}}
+if(isStay && DSBilling.admin()){try{currentDoc=DSBilling.attachStay(currentDoc);window.currentDoc=currentDoc;DSBilling.auditStay(currentDoc);DSBilling.syncLinked(currentDoc);}catch(e){alert(e.message);return false;}}
 currentDoc.updatedAt = new Date().toISOString();
 // 🧾 Variante A: Rechnung automatisch beim Abschließen erstellen
-if(currentDoc.saved && currentDoc.pricing && !(dsCustomerForceMode('stay') || isCustomerMainModeLoose('stay'))){
-  const exists = (state.invoices||[]).some(x=>x.sourceDocId===currentDoc.id);
+if(hasSig && currentDoc.pricing && !(dsCustomerForceMode('stay') || isCustomerMainModeLoose('stay'))){
+  const exists = !!DSBilling.findForStay(currentDoc);
   if(!exists){
     createInvoiceFromDoc(currentDoc);
   }
@@ -16470,13 +16474,14 @@ try{
     });
   }
 }catch(e){ console.warn('Stay snapshot restore failed', e); }
-DSBilling.rememberStay(currentDoc);
+DSBilling.afterSaveStay(currentDoc);
 return true;
 }
 function createInvoiceFromDoc(doc){const inv=DSBilling.create(doc);if(inv){saveState();renderInvoiceList();}return inv;}
 function forkDocument() {
-  if (!currentDoc || !currentDoc.saved) return;
-  const originalId = currentDoc.versionOf || currentDoc.id;
+  if (!currentDoc || !(currentDoc.saved||DSBilling.signedStay(currentDoc))) return;
+  const __billingParent=currentDoc;if(DSBilling.isStay(currentDoc)){if(!DSBilling.admin())return;DSBilling.findForStay(currentDoc); }
+  const originalId = DSBilling.isStay(currentDoc)?DSBilling.stayRoot(currentDoc):(currentDoc.versionOf||currentDoc.id);
   const fork = JSON.parse(JSON.stringify(currentDoc));
   fork.id = uid();
   fork.saved = false;
@@ -16486,7 +16491,7 @@ function forkDocument() {
   // neue Version → neue Unterschrift erforderlich
   fork.signature = null;
   state.docs.unshift(fork);
-  currentDoc = fork;
+  currentDoc = fork;DSBilling.finishFork(__billingParent,fork);
   saveState();
 }
 function getDocumentVersions(doc){
@@ -17802,7 +17807,7 @@ function renderStayEditorEmbedded(doc){
   // Auto-Defaults/Counts (Sonn-&Feiertage, Spaziergänge, Dauermedikation) aktualisieren
   try{ window.currentDoc = doc; updateAutoHolidayFields(); }catch(_e){}
   // Restore inputs after re-render (e.g., after signature capture)
-  populateStayEditorFromDoc(doc);
+  populateStayEditorFromDoc(doc);DSBilling.decorateStay(doc);
 }
 function renderEditor(doc){
   const template = getTemplate(doc.templateId);
@@ -17831,7 +17836,7 @@ if(template.id === "rechnung"){
     return;
   }
   // 🐶 Standard-Dokumente
-  renderForm(doc);
+  renderForm(doc);DSBilling.decorateStay(doc);
 }
 function renderInvoiceEditor(doc, template){
   const root = document.getElementById("formRoot");
@@ -22546,7 +22551,7 @@ function renderStatMethod(){
 
 
 
-/* ===== CHAT (M50.9.9GB377_INVOICE_TEST_20261024) ===== */
+/* ===== CHAT (M50.9.9GB378_STAY_BILLING_TEST_20261024) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,

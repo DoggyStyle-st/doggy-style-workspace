@@ -1,16 +1,16 @@
-Doggy Style Workspace – GB377
-Build: M50.9.9GB377_INVOICE_TEST_20261024
+Doggy Style Workspace – GB378 Testfassung
+Build: M50.9.9GB378_STAY_BILLING_TEST_20261024
 
-1. Aktuelle lokale Sicherung unter Einstellungen > Cloud & Konto > Lokale Sicherung herunterladen in Dateien behalten.
-2. Vollständigen Inhalt aus DoggyStyle_Workspace_GB377_TEST am bisherigen GitHub-Pages-Ort übernehmen, einschließlich der neuen billing.js und billing.css sowie assets und vendor.
-3. Von GB376 kommend die Firebase-Regeln nicht erneut ändern. Firestore- und Storage-Regeln sind identisch.
-4. Workspace neu laden. In DIAG muss M50.9.9GB377_INVOICE_TEST_20261024 stehen. Keine Websitedaten löschen und keinen Reset verwenden.
-5. Aufenthalt öffnen bzw. in der Aufenthaltsliste Rechnung wählen. Im Rechnungsbereich Bearbeiten antippen, Positionen und Beträge prüfen und Änderungen speichern. Derselbe Weg funktioniert auch bei freien Rechnungen und bei weiteren Korrekturen.
-6. Probetag im Aufenthalt auswählen: Der Grundpreis verwendet den hinterlegten Preis für einen einzelnen Urlaubstag. Zusätzlich gewählte Leistungen werden weiterhin berechnet.
-7. Bereits vorhandene offene Probetag-Rechnungen mit 0 Euro nicht automatisch verändern: Nach Prüfung Aufschläge aus Aufenthalt übernehmen wählen. Dadurch wird der korrigierte Tarif ausdrücklich neu berechnet.
-8. Bei Entwürfen und offenen Rechnungen sind Korrekturen möglich. Bezahlte und stornierte Rechnungen sind abgeschlossen und bleiben gegen Neuberechnung geschützt.
-9. Nach manueller Rechnungsbearbeitung ersetzt Aufschläge aus Aufenthalt übernehmen die bearbeiteten Positionen nur nach Bestätigung. Normale Listenwechsel oder Neuladen setzen sie nicht zurück.
+1. Aktuelle lokale Sicherung unter Einstellungen > Cloud & Konto herunterladen und in Dateien behalten.
+2. Vollständigen Inhalt aus DoggyStyle_Workspace_GB378_TEST am bisherigen GitHub-Pages-Ort übernehmen, einschließlich billing.js, billing.css, assets und vendor.
+3. Von GB377 kommend keine Firebase-Regeln erneut veröffentlichen. Beide Regeldateien sind unverändert.
+4. Neu laden und in DIAG M50.9.9GB378_STAY_BILLING_TEST_20261024 prüfen. Keine Websitedaten löschen und keinen Reset verwenden.
+5. Einstellungen > Preise: Preise ändern und den dortigen Speichern-Knopf verwenden. Probetag verwendet den Preis für einen einzelnen Urlaubstag. Zuschlagsbeträge und Formularbeschriftungen folgen diesen Einstellungen.
+6. Aufenthalt öffnen, Zuschläge/Mengen anpassen und Zuschläge speichern wählen. Dieselbe offene, automatisch berechnete Rechnung wird aktualisiert. Dafür entsteht keine neue Aufenthaltsversion und keine neue Rechnung. Vorhandene Kundenangaben und Unterschriften bleiben erhalten.
+7. Aufenthaltsangaben bearbeiten ist für eine bewusste neue Dokumentversion vorgesehen. Diese bleibt mit derselben Betreuung/Rechnung verknüpft und benötigt ihre eigene neue Unterschrift. Die alte unterschriebene Version bleibt bestehen.
+8. Neuer Aufenthalt erstellt eine unabhängige Betreuung ohne alte Unterschrift oder Rechnungszuordnung. Zeitraum neu eintragen.
+9. Rechnung > Bearbeiten erlaubt weiterhin manuelle Rechnungspositionen. Zuschlagskorrekturen überschreiben diese nicht. Aufschläge aus Aufenthalt übernehmen ersetzt manuelle Positionen nur nach Bestätigung.
+10. Bezahlte und stornierte Rechnungen bleiben abgeschlossen und gegen Neuberechnung geschützt.
+11. Bereits vorhandene Doppelrechnungen bleiben bestehen. Wenn mehrere infrage kommen und keine eindeutige Zuordnung vorliegt, Rechnung öffnen wählen und die richtige vorhandene Nummer auswählen. Nichts wird automatisch gelöscht oder storniert.
 
-Die Kundenunterschrift am Aufenthalt wird durch Rechnung > Bearbeiten nicht geändert. Die Druckvorschau zeigt die gespeicherten Rechnungspositionen; Drucken öffnet die Druckauswahl, über die auf dem iPad auch als PDF gesichert werden kann.
-
-Wenn eine Rechnung inzwischen in einer anderen Sitzung geändert wurde, die Bearbeitung abbrechen und die aktuelle Rechnung erneut öffnen. Bei einer allgemeinen Sync-Prüfmeldung den vorhandenen Datenvergleich verwenden. Live-Abnahme im bestehenden Projekt und native Safari-/iOS-Prüfung stehen noch aus.
+Nach der Installation mit einem Testaufenthalt Zuschlag anklicken, speichern, erneut ändern, neu laden und die gleiche Rechnungsnummer kontrollieren. Die Entwicklung hat diesen Ablauf in Chromium und isoliertem Firebase geprüft; native Safari-/iPad-/iPhone-Abnahme und die angemeldete Live-Abnahme stehen noch aus.

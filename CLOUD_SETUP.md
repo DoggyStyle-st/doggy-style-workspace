@@ -1,11 +1,11 @@
-# Firebase-Einrichtung GB377
+# Firebase-Einrichtung GB378
 
 Das bestehende Projekt doggy-style-hundepension, die Organisation doggystyle und der Bucket doggy-style-hundepension.firebasestorage.app werden weiterverwendet.
 
-Die Firestore- und Storage-Regeln sind bytegleich mit GB376. Für diese Rechnungsreparatur müssen keine Regeln erneut veröffentlicht werden. REGELN_ANZEIGEN.html enthält weiterhin die exakten bestehenden Regeltexte.
+Firestore- und Storage-Regeln sind bytegleich mit GB377. Für diese Reparatur keine Regeln erneut veröffentlichen. REGELN_ANZEIGEN.html zeigt weiterhin die exakten vorhandenen Regeltexte.
 
-Rechnungen bleiben im vorhandenen Workspace-Dokument und werden über die vorhandene Firestore-Transaktion mit Administrator- und Revisionsprüfung gespeichert. Kunden erhalten keinen Workspace-Zugriff. Ein geöffneter Rechnungsdialog prüft Konto und ursprünglichen Rechnungsstand vor dem Speichern; inzwischen geänderte Datensätze werden nicht überschrieben. Bezahlte und stornierte Rechnungen werden von Neuberechnungen ausgenommen.
+Aufenthalte und Rechnungen bleiben im bisherigen Workspace-Dokument und werden mit der vorhandenen Administrator-, Konto- und Revisionsprüfung gespeichert. Es gibt keine neuen Firebase-Pfade. Finanzielle Korrekturen an unterschriebenen Aufenthalten stehen als billingOverrides und billingAudit getrennt von den ursprünglichen Kundenangaben. Eine dokumentierte Versionskette ordnet dieselbe Betreuung ihrer vorhandenen Rechnung zu. Es wird nicht nach Namen oder Datum geraten.
 
-Die separate, private PDF-Ablage und der sichere lokale Abgleich aus GB376 sind erhalten. Sicherungen und bestehende Unterschriften werden nicht bereinigt oder migriert. Ein Serverkonflikt bleibt sichtbar und erfordert den vorhandenen geprüften Abgleich.
+Manuelle Rechnungspositionen bleiben erhalten; das ausdrückliche Übernehmen aus Aufenthalt verlangt eine Bestätigung. Bezahlte und stornierte Rechnungen werden nicht neu berechnet. Mehrere alte Rechnungen werden weder gelöscht noch zusammengelegt. Fehlt eine eindeutige Zuordnung, wird die Auswahl angezeigt.
 
-Abnahme: isolierte Firebase-Emulatoren und kopierte Testkunden. Produktives Firebase-Projekt, native Safari/iPad/iPhone und echte Drucker werden in dieser Umgebung nicht angemeldet getestet. Das Paket veröffentlicht selbst weder Regeln noch Hosting-Dateien.
+Bestehende private Dateiablage, Kundentrennung und geprüfter lokaler Abgleich bleiben erhalten. Die Entwicklung verwendet isolierte Emulatoren und kopierte Testkunden. Angemeldete Live-Abnahme sowie native Safari-/iOS-Prüfung stehen noch aus. Dieses Paket veröffentlicht selbst weder Regeln noch Hosting-Dateien.
