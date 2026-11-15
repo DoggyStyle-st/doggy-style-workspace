@@ -2,7 +2,7 @@ try{sessionStorage.removeItem('ds_handoff_pass');}catch(_){}
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB378_STAY_BILLING_TEST_20261024",
+  tag: "M50.9.9GB379_STAY_BILLING_20261115",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -13,7 +13,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB378_STAY_BILLING_TEST_20261024";
+const APP_BUILD = "M50.9.9GB379_STAY_BILLING_20261115";
 try{ window.__dsAppJsRuntimeBuild = "GB350-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -2726,7 +2726,7 @@ async function submitCustomerDogsProposal(){
   // GB355: vollständig lokal sichern, anschließend zuverlässig in proposals + tasks übertragen.
   // Die Oberfläche wird sofort freigegeben; die Erfolgsmeldung "an Eingänge übergeben"
   // erscheint ausschließlich nach bestätigter Firestore-Speicherung.
-  const GB355='M50.9.9GB378_STAY_BILLING_TEST_20261024';
+  const GB355='M50.9.9GB379_STAY_BILLING_20261115';
   function S(v){ try{return String(v==null?'':v);}catch(_){return '';} }
   function L(v){ return S(v).trim().toLowerCase(); }
   function V(id){ try{const el=document.getElementById(id);return S(el&&el.value!=null?el.value:'').trim();}catch(_){return '';} }
@@ -3555,11 +3555,7 @@ function savePricingSettings(next){
     console.error('savePricingSettings failed', e);
   }
 }
-function daysBetween(from, to){
-  const ms = new Date(to) - new Date(from);
-  return Math.max(1, Math.ceil(ms / (1000 * 60 * 60 * 24)));
-}
-// Feiertage Bayern (vereinfachte, praxisnahe Auswahl; Zeitraum-Berechnung offline)
+// Gesetzliche Feiertage am Standort der Hundepension in Stiefenhofen.
 function easterSunday(year){
   // Anonymous Gregorian algorithm (Meeus/Jones/Butcher)
   const a = year % 19;
@@ -3594,7 +3590,7 @@ function bavariaHolidaysSet(year){
   const easter = easterSunday(year);
   // Fixe Feiertage (Bayern)
   ["01-01","01-06","05-01","10-03","11-01","12-25","12-26"].forEach(md => set.add(`${year}-${md}`));
-  // Mariä Himmelfahrt (15.08.) – regional in Bayern, hier pauschal als „Bayern“ geführt
+  // Mariä Himmelfahrt ist in Stiefenhofen gesetzlicher Feiertag.
   set.add(`${year}-08-15`);
   // Bewegliche Feiertage (über Ostern)
   set.add(formatYMD(addDaysUTC(easter, -2)));  // Karfreitag
@@ -3604,41 +3600,10 @@ function bavariaHolidaysSet(year){
   set.add(formatYMD(addDaysUTC(easter, 60)));  // Fronleichnam
   return set;
 }
-function countBavariaHolidaysBetween(from,to){if(!DSWorkflowCore.dateISO(from)||!DSWorkflowCore.dateISO(to)||to<from)return 0;return DSBilling.billableDates(from,to).filter(day=>bavariaHolidaysSet(Number(day.slice(0,4))).has(day)).length;}
-function countSundaysBetween(from,to){if(!DSWorkflowCore.dateISO(from)||!DSWorkflowCore.dateISO(to)||to<from)return 0;return DSBilling.billableDates(from,to).filter(day=>new Date(day+'T12:00:00Z').getUTCDay()===0).length;}
-function updateAutoHolidayFields(){
-  if(!currentDoc) return;
-  const t = getTemplate(currentDoc.templateId);
-  if(!t || t.id !== "hundeannahme") return;
-  const from = currentDoc.meta?.von;
-  const to = currentDoc.meta?.bis;
-  const cnt = (from && to) ? countBavariaHolidaysBetween(from, to) : 0;
-  const sundays = (from && to) ? countSundaysBetween(from, to) : 0;
-  // Default: Sonn- & Feiertagszuschlag ist aktiv (kann im Aufenthalt deaktiviert werden)
+function updateStayChargeDefaults(){
+  if(!DSBilling.isStay(currentDoc)||DSBilling.signedStay(currentDoc))return;
   currentDoc.fields = currentDoc.fields || {};
   if(typeof currentDoc.fields.sun_hol_apply !== "boolean") currentDoc.fields.sun_hol_apply = true;
-  // Immer automatisch – Anzahl wird berechnet; bei Deaktivierung = 0
-  const sunHolApply = (currentDoc.fields.sun_hol_apply !== false);
-  currentDoc.fields.holiday_days = sunHolApply ? (cnt || 0) : 0;
-  currentDoc.fields.sunday_days  = sunHolApply ? (sundays || 0) : 0;
-  // UI: Anzahl-Feld (falls vorhanden) befüllen & sperren
-  const num = document.querySelector('input[data-key="holiday_days"]');
-  if(num){
-    num.value = String(currentDoc.fields.holiday_days || 0);
-    num.disabled = true;
-  }
-  const numS = document.querySelector('input[data-key="sunday_days"]');
-  if(numS){
-    numS.value = String(currentDoc.fields.sunday_days || 0);
-    numS.disabled = true;
-  }
-  // UI: Checkbox spiegeln
-  const cbSunHol = document.querySelector('input[type="checkbox"][data-key="sun_hol_apply"]');
-  if(cbSunHol) cbSunHol.checked = !!currentDoc.fields.sun_hol_apply;
-  // Defaults für zählbasierte Zuschläge
-  const days = daysBetween(from, to);
-  // Standardmäßig sind (zähl-/zählbar) Zuschläge im Aufenthalt aktiv, können aber pro Aufenthalt deaktiviert werden.
-  if(typeof currentDoc.fields.walks_enabled !== 'boolean') currentDoc.fields.walks_enabled = true;
   if(typeof currentDoc.fields.bandage_enabled !== 'boolean') currentDoc.fields.bandage_enabled = true;
   if(typeof currentDoc.fields.grooming_enabled !== 'boolean') currentDoc.fields.grooming_enabled = true;
   if(typeof currentDoc.fields.hygiene_enabled !== 'boolean') currentDoc.fields.hygiene_enabled = true;
@@ -3657,40 +3622,7 @@ function updateAutoHolidayFields(){
       }
     }
   }catch(e){ /* noop */ }
-  // Zusatz-Spaziergang: default Stückzahl = Aufenthaltstage (kann geändert oder auf 0 gesetzt werden)
-  // Wir merken uns, ob der Wert automatisch gesetzt wurde, damit er bei Datumsänderungen mitwandert.
-  const walkKey = 'walk_extra_count';
-  const autoKey = 'walk_extra_auto';
-  const curWalk = currentDoc.fields[walkKey];
-  if(curWalk === undefined || curWalk === null || String(curWalk) === ''){
-    currentDoc.fields[walkKey] = days;
-    currentDoc.fields[autoKey] = true;
-    const inp = document.querySelector(`input[data-key="${walkKey}"]`);
-    if(inp) inp.value = String(days);
-  }else{
-    // Wenn der Nutzer den Wert verändert (≠ days), Auto-Modus deaktivieren.
-    if(currentDoc.fields[autoKey] === true){
-      const n = Number(curWalk);
-      if(!Number.isFinite(n) || n !== days){
-        currentDoc.fields[autoKey] = false;
-      }else{
-        // Auto aktiv und unverändert -> an neue Tage anpassen
-        currentDoc.fields[walkKey] = days;
-        const inp = document.querySelector(`input[data-key="${walkKey}"]`);
-        if(inp) inp.value = String(days);
-      }
-    }
-  }
-  // Wenn per Aufenthalt deaktiviert, Werte auf 0 setzen und Eingaben sperren.
   try{
-    const walkInp = document.querySelector(`input[data-key="${walkKey}"]`);
-    if(currentDoc.fields.walks_enabled === false){
-      currentDoc.fields[walkKey] = 0;
-      currentDoc.fields[autoKey] = false;
-      if(walkInp){ walkInp.value = '0'; walkInp.disabled = true; }
-    }else{
-      if(walkInp) walkInp.disabled = false;
-    }
     const _lockCount = (flagKey, countKey)=>{
       const inp = document.querySelector(`input[data-key="${countKey}"]`);
       if(!inp) return;
@@ -3708,9 +3640,6 @@ function updateAutoHolidayFields(){
     _lockCount('pickup_dropoff_enabled','pickup_dropoff_count');
   }catch(_e){ /* noop */ }
   // Legacy-Key-Migration: alte Keys in neue Keys überführen (falls vorhanden)
-  if(currentDoc.fields.extra_walk_count !== undefined && currentDoc.fields[walkKey] === undefined){
-    currentDoc.fields[walkKey] = currentDoc.fields.extra_walk_count;
-  }
   if(currentDoc.fields.bandage_change_count !== undefined && currentDoc.fields.bandage_count === undefined){
     currentDoc.fields.bandage_count = currentDoc.fields.bandage_change_count;
   }
@@ -3728,7 +3657,7 @@ function getPricePerDay(type,days){
     const care=normalizeBetreuung(type),key=care==='Probetag'?'Urlaubsbetreuung':care,count=care==='Probetag'?1:Number(days);
     const list=(getPricingSettings().rules||{})[key]||PRICE_RULES_DEFAULT[key]||[];
     const rules=list.map(x=>({min:Number(x.min),price:Number(x.price)})).filter(x=>Number.isFinite(x.min)&&x.min>=1&&Number.isFinite(x.price)&&x.price>=0).sort((a,b)=>b.min-a.min);
-    const found=rules.find(x=>count>=x.min);if(!found)throw new Error('Für '+(care||'die Betreuung')+' fehlt ein passender Tagespreis. Bitte die Preise in den Einstellungen prüfen.');return found.price;
+    const found=rules.find(x=>count>=x.min);if(!found)throw new Error('Für '+(care||'die Betreuung')+' fehlt ein passender Tagespreis. Bitte die Preise in den Einstellungen prüfen.');return round2(found.price);
   }
 // ===== 4C-1: Preisvorschau im Aufenthalt (Brutto/Netto/MwSt) =====
 function formatEuro(n){
@@ -3736,29 +3665,36 @@ function formatEuro(n){
   return v.toFixed(2).replace(".", ",") + " €";
 }
 function computeNetVatFromGross(gross, vatRate){
-  const g = Number(gross||0);
+  const g = round2(gross);
   const r = Number(vatRate||0);
-  if(!(r>0)) return { net: round2(g), vat: 0, gross: round2(g), rate: r };
-  const net = g / (1 + r/100);
-  const vat = g - net;
-  return { net: round2(net), vat: round2(vat), gross: round2(g), rate: r };
+  const net = r>0 ? round2(g / (1 + r/100)) : g;
+  return { net, vat: round2(g-net), gross: g, rate: r };
 }
 function renderStayPricingPreview(docObj){
+  const root = document.getElementById("formRoot");
+  if(!root||!DSBilling.isStay(docObj))return;
+  let card = root.querySelector('#stayPricingPreview');
   try{
-    const root = document.getElementById("formRoot");
-    if(!root) return;
-    if(!docObj || docObj.templateId !== "hundeannahme") return;
-    // Pricing berechnen (setzt docObj.pricing)
-    const pricing = calculateInvoicePricing(docObj);
+    const calendar = DSBilling.stayCalendar(docObj.meta?.von,docObj.meta?.bis);
+    for(const [key,count] of [['holiday_days',calendar?.holidayDays],['sunday_days',calendar?.sundayDays]]){
+      const input=root.querySelector('[data-key="'+key+'"]');
+      if(input)input.value=count ?? 0;
+    }
+    const pricing = calculateInvoicePricing({...docObj},calendar);
     if(!pricing){
-      // Falls Pflicht-Meta fehlt: keine Karte zeigen
+      card?.remove();
       return;
     }
     const cfg = getPricingSettings();
     const vatRate = Number((state && state.settings && state.settings.vatRate) ?? cfg.vatPercent ?? 19) || 0;
     const nv = computeNetVatFromGross(pricing.total, vatRate);
-    const card = document.createElement("div");
-    card.className = "card";
+    if(!card){
+      card = document.createElement("div");
+      card.id = 'stayPricingPreview';
+      card.className = "card";
+      root.insertBefore(card,root.querySelector('#staySigCard'));
+    }
+    const surchargeLines = pricing.surchargeItems.map(it=>`<tr><td>${it.label} (${it.qty} × ${formatEuro(it.unit)})</td><td class="right">${it.rate}%</td><td class="right">${formatEuro(it.value)}</td></tr>`).join("");
     const percentLines = (pricing.percentItems||[]).map(it=>`<tr><td>${escapeHtml(it.label)}</td><td class="right">${it.rate>0?"+":""}${it.rate}%</td><td class="right">${formatEuro(it.value)}</td></tr>`).join("");
     const fixedLines = (pricing.fixedItems||[]).map(it=>{
       const qty = Number(it.qty||0);
@@ -3771,7 +3707,7 @@ function renderStayPricingPreview(docObj){
       <div class="row" style="gap:12px; flex-wrap:wrap;">
         <div style="min-width:220px;">
           <div class="muted">Betreuung / Tage</div>
-          <div><b>${escapeHtml(pricing.betreuungNorm)}</b> – ${pricing.days} Tage × ${formatEuro(pricing.daily)}</div>
+          <div><b>${escapeHtml(pricing.betreuungNorm)}</b> – ${pricing.days} ${pricing.days===1?'Tag':'Tage'} × ${formatEuro(pricing.daily)}</div>
         </div>
         <div style="min-width:220px;">
           <div class="muted">Brutto gesamt</div>
@@ -3779,12 +3715,13 @@ function renderStayPricingPreview(docObj){
           <div class="muted">Netto ${formatEuro(nv.net)} · MwSt (${vatRate}%) ${formatEuro(nv.vat)}</div>
         </div>
       </div>
+      ${calendar.holidaySundays&&pricing.surchargeItems.length?'<p class="muted">Feiertage am Sonntag sind im Feiertagszuschlag enthalten.</p>':''}
       <div style="margin-top:10px; overflow:auto;">
         <table class="table" style="min-width:520px;">
           <thead><tr><th>Position</th><th class="right">Rate</th><th class="right">Betrag</th></tr></thead>
           <tbody>
             <tr><td>Grundpreis</td><td></td><td class="right">${formatEuro(pricing.base)}</td></tr>
-            <tr><td>Sonn-/Feiertage (${pricing.sunHolDays} Tage)</td><td class="right">${pricing.sunHolRate}%</td><td class="right">${formatEuro(pricing.holidayValue)}</td></tr>
+            ${surchargeLines}
             ${percentLines}
             ${fixedLines}
             <tr><td colspan="2"><b>Gesamt (Brutto)</b></td><td class="right"><b>${formatEuro(pricing.total)}</b></td></tr>
@@ -3792,41 +3729,31 @@ function renderStayPricingPreview(docObj){
         </table>
       </div>
     `;
-    // Karte VOR der Unterschrift einfügen (ganz am Ende, aber vor letzter card falls signature card existiert)
-    const cards = root.querySelectorAll(".card");
-    if(cards && cards.length){
-      // Signature card ist i.d.R. die letzte. Wir hängen davor ein.
-      const last = cards[cards.length-1];
-      root.insertBefore(card, last);
-    }else{
-      root.appendChild(card);
-    }
   }catch(e){
+    card?.remove();
     console.warn("renderStayPricingPreview failed", e);
   }
 }
 // ===== END 4C-1 =====
-function calculateInvoicePricing(doc){
+function calculateInvoicePricing(doc,calendar=DSBilling.stayCalendar(doc.meta?.von,doc.meta?.bis)){
   const meta = doc.meta || {};
   const f = DSBilling.effectiveFields(doc);
-  if(!meta.betreuung || !meta.von || !meta.bis){
-    return null;
-  }
-  const days = DSBilling.billableDates(meta.von,meta.bis).length;
+  if(!meta.betreuung||!calendar)return null;
+  const {days,holidayDays,sundayDays,holidaySundays}=calendar;
+  const sundayOnlyDays=sundayDays-holidaySundays;
   const betreuungNorm = normalizeBetreuung(meta.betreuung);
   const daily = getPricePerDay(betreuungNorm, days);
-  const base = days * daily;
-  // Sonn- & Feiertags-Zuschlag (Standard: an)
+  const base = round2(days * daily);
   const cfg = getPricingSettings();
-  const holidayDays = countBavariaHolidaysBetween(meta.von, meta.bis);
-  const sundayDays = countSundaysBetween(meta.von, meta.bis);
-  const sunHolApply = (f.sun_hol_apply !== false);
-  const sunHolRate = Number((cfg.holidayPercent ?? cfg.sundayPercent ?? 0) || 0);
-  const sunHolDays = sunHolApply ? DSBilling.surchargeDays(meta.von,meta.bis) : 0;
-  const sunHolUnit = round2(daily * (sunHolRate/100));
-  const holidayValue = round2(sunHolDays * sunHolUnit);
+  const rate = cfg.holidayPercent;
+  const unit = round2(daily * (rate / 100));
+  const surchargeItems = [];
+  if(f.sun_hol_apply !== false && unit !== 0){
+    if(sundayOnlyDays)surchargeItems.push({key:'sunday',label:'Sonntagszuschlag',qty:sundayOnlyDays,rate,unit,value:round2(sundayOnlyDays * unit)});
+    if(holidayDays)surchargeItems.push({key:'holiday',label:'Feiertagszuschlag',qty:holidayDays,rate,unit,value:round2(holidayDays * unit)});
+  }
+  const holidayValue = round2(surchargeItems.reduce((sum,item)=>sum+item.value,0));
   let percentExtra = 0;
-  let fixedExtra = 0;
   const percentItems = [];
   // Prozent-Aufschläge (auf Basisbetrag)
   if(f.special_times){
@@ -3856,57 +3783,52 @@ function calculateInvoicePricing(doc){
     }
   }
   // Summe Prozent-Wert (kann negativ sein bei Rabatt)
-  const percentValue = round2(base * (percentExtra / 100));
+  const percentValue = round2(percentItems.reduce((sum,item)=>sum+item.value,0));
   // Fixe Extras
   const fixedItems = [];
   if(!!f.medication){
     const qty = days;
-    const unit = Number(cfg.extras?.medicationPerDay ?? 2);
+    const unit = round2(cfg.extras?.medicationPerDay ?? 2);
     const v = qty * unit;
-    fixedExtra += v;
     fixedItems.push({ key:'medication', label:`Medikamentengabe`, qty, unit, value: round2(v) });
   }
-  if(f.walks_enabled !== false && f.walk_extra_count){
-    const qty = Number(f.walk_extra_count||0);
-    const unit = Number(cfg.extras?.walkExtraPrice ?? 15);
+  const walkCount = DSWorkflowCore.stayWalkCount(f);
+  if(walkCount){
+    const qty = walkCount;
+    const unit = round2(cfg.extras?.walkExtraPrice ?? 15);
     const v = qty * unit;
-    fixedExtra += v;
     fixedItems.push({ key:'walk_extra_count', label:`Zusatz-Spaziergänge`, qty, unit, value: round2(v) });
   }
   if(f.bandage_enabled !== false && f.bandage_count){
     const qty = Number(f.bandage_count||0);
-    const unit = Number(cfg.extras?.bandagePrice ?? 2.5);
+    const unit = round2(cfg.extras?.bandagePrice ?? 2.5);
     const v = qty * unit;
-    fixedExtra += v;
     fixedItems.push({ key:'bandage_count', label:`Verbandwechsel`, qty, unit, value: round2(v) });
   }
   if(f.grooming_enabled !== false && f.grooming_count){
     const qty = Number(f.grooming_count||0);
-    const unit = Number(cfg.extras?.groomingPrice ?? 5);
+    const unit = round2(cfg.extras?.groomingPrice ?? 5);
     const v = qty * unit;
-    fixedExtra += v;
     fixedItems.push({ key:'grooming_count', label:`Pflege/Extra`, qty, unit, value: round2(v) });
   }
   // optionale fixe Zuschläge
   if(f.hygiene_enabled !== false && f.hygiene_days){
     const qty = Number(f.hygiene_days||0);
-    const unit = Number(cfg.extras?.hygienePerDay ?? 0);
+    const unit = round2(cfg.extras?.hygienePerDay ?? 0);
     const v = qty * unit;
     if(v){
-      fixedExtra += v;
       fixedItems.push({ key:'hygiene_days', label:`Hygiene/Extra`, qty, unit, value: round2(v) });
     }
   }
   if(f.pickup_dropoff_enabled !== false && f.pickup_dropoff_count){
     const qty = Number(f.pickup_dropoff_count||0);
-    const unit = Number(cfg.extras?.pickupDropoffPrice ?? 0);
+    const unit = round2(cfg.extras?.pickupDropoffPrice ?? 0);
     const v = qty * unit;
     if(v){
-      fixedExtra += v;
       fixedItems.push({ key:'pickup_dropoff_count', label:`Abhol-/Bringservice`, qty, unit, value: round2(v) });
     }
   }
-  fixedExtra = Math.round(fixedExtra * 100) / 100;
+  const fixedExtra = round2(fixedItems.reduce((sum,item)=>sum+item.value,0));
   // Alle Preise sind BRUTTO. total = zahlbarer Bruttobetrag.
   const total = round2(base + holidayValue + percentValue + fixedExtra);
   doc.pricing = {
@@ -3916,9 +3838,7 @@ function calculateInvoicePricing(doc){
     base,
     holidayDays,
     sundayDays,
-    sunHolDays,
-    sunHolRate,
-    sunHolUnit,
+    surchargeItems,
     holidayValue,
     percentExtra,
     percentValue,
@@ -3931,9 +3851,11 @@ function calculateInvoicePricing(doc){
 }
 // ===== 3A: Rechnungspreise aus Aufenthalt ableiten =====
 // Mapping: Aufenthalt.pricing -> Invoice.pricing (Basis + Zuschläge)
-// Hinweis: Feiertagszuschlag wird als eigener Wert berechnet und in percentExtra (Wert) mitgeführt,
-// damit die Rechnung bereits den korrekten Gesamtbetrag enthält, ohne das UI sofort zu erweitern.
-function round2(n){ return Math.round((Number(n)||0) * 100) / 100; }
+function round2(n){
+  const cents=(Number(n)||0)*100;
+  // Rundungsfehler bei Beträgen genau zwischen zwei Centwerten ausgleichen.
+  return Math.round(cents+Math.abs(cents)*Number.EPSILON)/100;
+}
 function recomputeInvoiceTotals(inv){
   inv.pricing = inv.pricing || {};
   DSBilling.parts(inv);
@@ -3951,11 +3873,10 @@ function recomputeInvoiceTotals(inv){
   const settingsVat = Number((state && state.settings && state.settings.vatRate) ?? cfg.vatPercent ?? 19) || 0;
   const vatRate = (typeof inv.vatRate === 'number' && !Number.isNaN(inv.vatRate)) ? inv.vatRate : settingsVat;
   inv.vatRate = vatRate;
-  const net = vatRate > 0 ? (gross / (1 + vatRate/100)) : gross;
-  const vatAmount = gross - net;
-  inv.pricing.net = round2(net);
-  inv.pricing.vatAmount = round2(vatAmount);
-  inv.pricing.total = round2(gross); // zahlbarer Bruttobetrag
+  const amounts = computeNetVatFromGross(gross,vatRate);
+  inv.pricing.net = amounts.net;
+  inv.pricing.vatAmount = amounts.vat;
+  inv.pricing.total = amounts.gross; // zahlbarer Bruttobetrag
   inv.pricing.totalNet = inv.pricing.net;
   inv.pricing.totalGross = inv.pricing.total;
 }
@@ -7404,7 +7325,7 @@ async function loadTemplates(){
   ];
   for(const f of files){
     try{
-      const res = await fetch(f.path, {cache: "no-store"});
+      const res = await fetch(f.path+'?v='+APP_BUILD, {cache: "no-store"});
       if(!res.ok) throw new Error(res.status);
       const t = normalizeTemplate(await res.json());
       if(!templates.some(x=>x.id===t.id)) templates.push(t);
@@ -7807,7 +7728,7 @@ function renderPricingSettingsBlock(){
         <input class="smallinp" style="width:96px" data-pr-ex="vatPercent" value="${escapeHtml(String(cfg.vatPercent ?? 19))}">
       </div>
       <div class="row" style="gap:10px; flex-wrap:wrap;">
-        <label class="muted" style="min-width:220px">Sonn-/Feiertagszuschlag (% pro Tag)</label>
+        <label class="muted" style="min-width:220px">Sonn- und Feiertagszuschlag (% je Datum)</label>
         <input class="smallinp" style="width:96px" data-pr-ex="holidayPercent" value="${escapeHtml(String(cfg.holidayPercent))}">
       </div>
       <div class="row" style="gap:10px; flex-wrap:wrap; margin-top:8px">
@@ -13933,7 +13854,10 @@ function renderInvoiceAudit(inv){
   }
 }
 function openInvoice(id){
-  const record=getInvoiceById(id);const inv=record?DSBilling.display(record):null;
+  const record=getInvoiceById(id);
+  try{DSBilling.updateDraft(record);}
+  catch(e){alert('Entwurf konnte nicht neu berechnet werden: '+e.message);}
+  const inv=record?DSBilling.display(record):null;
   if(!inv) return;
   const locked=DSBilling.frozen(inv);
   // 3C: Warnung wenn Source nach Lock geändert wurde
@@ -13982,7 +13906,7 @@ function openInvoice(id){
       ${inv.sourceDocId ? `
         <div class="row" style="gap:8px;flex-wrap:wrap;margin:10px 0 6px">
           <button class="smallbtn" onclick="openInvoiceSourceStay('${inv.id}')">📄 Aufenthalt öffnen</button>
-          <button class="smallbtn" ${locked?'disabled':''} onclick="refreshInvoiceFromStay('${inv.id}')">🔄 Aufschläge aus Aufenthalt übernehmen</button>
+          <button class="smallbtn" ${locked?'disabled':''} onclick="refreshInvoiceFromStay('${inv.id}')">🔄 Aus Aufenthalt neu berechnen</button>
         </div>
         <p class="muted" style="margin:0 0 10px">
           ${locked?'Diese Rechnung ist abgeschlossen.':inv.pricingMode==='manual'?'Die bearbeiteten Rechnungspositionen sind gespeichert.':'Mit Bearbeiten kannst du die Rechnungspositionen anpassen.'}
@@ -13997,7 +13921,7 @@ function openInvoice(id){
       ${renderInvoicePositions(inv)}
       <hr>
       <div style="margin:10px 0 10px">
-        <h3 style="margin:0 0 6px">Gesamt (Brutto): ${Number(inv.pricing.total||0).toFixed(2)} €</h3>
+        <h3 style="margin:0 0 6px">Gesamt (Brutto): ${formatEuro(inv.pricing.total)}</h3>
         ${Number(inv.vatRate||0) > 0 ? `<div><strong>Enthaltene MwSt (${Number(inv.vatRate||0).toFixed(2)}%):</strong> ${Number(inv.pricing.vatAmount||0).toFixed(2)} €</div>` : ``}
         ${Number(inv.vatRate||0) > 0 ? `<div class="muted" style="margin-top:4px"><strong>Netto (informativ):</strong> ${Number(inv.pricing.net||0).toFixed(2)} €</div>` : ``}
       </div>
@@ -14030,14 +13954,18 @@ function buildInvoiceLineItems(inv){
       key: 'base',
       label,
       qty: qty>0 ? qty : null,
-      unit: unit>0 ? unit : null,
+      unit: qty>0 ? unit : null,
       total: euro(p.parts?.base ?? p.basePrice ?? 0),
-      meta: { unitLabel: isUrlaub ? 'Nacht' : 'Tag' }
+      meta: { unitLabel: calc.unitLabel || (isUrlaub ? 'Nacht' : 'Tag') }
     });
     // Sonn-/Feiertag
     const bd = p.breakdown || {};
     const holTotal = euro(p.applied?.holiday ?? p.holidayExtra ?? p.parts?.holiday ?? 0);
-    if(holTotal !== 0){
+    if(Array.isArray(bd.surchargeItems)){
+      for(const item of bd.surchargeItems){
+        items.push({key:item.key,label:item.label,qty:item.qty,unit:item.unit,rate:item.rate,total:euro(item.value)});
+      }
+    }else if(holTotal !== 0){
       items.push({
         key: 'holiday',
         label: 'Sonn- & Feiertagszuschlag',
@@ -14113,7 +14041,7 @@ function snapshotInvoiceSourceMeta(inv){
     inv.sourceSnapshot.betreuungNorm = String(calc.betreuungNorm||'');
     inv.sourceSnapshot.days = Number(calc.days||0);
     inv.sourceSnapshot.daily = Number(calc.daily||0);
-    inv.sourceSnapshot.unitLabel = String(calc.betreuungNorm||'').toLowerCase().includes('urlaub') ? 'Nacht' : 'Tag';
+    inv.sourceSnapshot.unitLabel = calc.unitLabel || (String(calc.betreuungNorm||'').toLowerCase().includes('urlaub') ? 'Nacht' : 'Tag');
     inv.sourceSnapshot.capturedAt = new Date().toISOString();
     // Zeitraum ist bereits in inv.period, hier nur redundant
     if(inv.period){
@@ -14388,15 +14316,6 @@ if(!inv) return;
     ? `${pad2(cancelAt.getDate())}.${pad2(cancelAt.getMonth()+1)}.${cancelAt.getFullYear()} ${pad2(cancelAt.getHours())}:${pad2(cancelAt.getMinutes())}`
     : '';
   const euro = (n)=>`${(sign*Number(n||0)).toFixed(2)} €`;
-  const euroAbs = (n)=>`${Math.abs(Number(n||0)).toFixed(2)} €`;
-  const bd = (inv.pricing && inv.pricing.breakdown) ? inv.pricing.breakdown : {};
-  const doc = getInvoiceSourceDoc(inv);
-  const betreuungNorm = (doc?.pricing?.betreuungNorm) || (inv?.pricing?._calc?.betreuungNorm) || normalizeBetreuung(doc?.meta?.betreuung||'');
-  const qty = Number(inv?.pricing?._calc?.days ?? doc?.pricing?.days ?? 0);
-  const unitPrice = Number(inv?.pricing?._calc?.daily ?? doc?.pricing?.daily ?? 0);
-  const isUrlaub = String(betreuungNorm||'').toLowerCase().includes('urlaub');
-  const unitLabel = isUrlaub ? (qty===1?'Nacht':'Nächte') : (qty===1?'Tag':'Tage');
-  const betreuungLabel = isUrlaub ? 'Urlaubsbetreuung' : 'Tagesbetreuung';
   const rowsHtml=[DSBilling.positions(inv,true,sign)];
   // Inhalt (ohne <html>/<body>) – wird im Overlay gerendert
   const html = `
@@ -15714,6 +15633,9 @@ function createStayFromExisting(docId){
   copy.signature = null;
   copy.versionOf = null;DSBilling.clearSignature(copy);
   for(const key of ["docId","stayId","invoiceId","invoiceNumber","sourceVersionId","billingOverrides","billingOriginal","billingAudit"])delete copy[key];
+  if(copy.fields){
+    for(const key of ['walks_enabled','walk_extra_count','walk_extra_auto','extra_walk_count'])delete copy.fields[key];
+  }
   // Zeitraum/Meta neu
   copy.meta = copy.meta || {};
   copy.meta.von = "";
@@ -15907,6 +15829,8 @@ renderVersions(currentDoc);
 function renderForm(docObj){
   const root=$("#formRoot"); root.innerHTML="";
   const t=getTemplate(docObj.templateId);
+  const stay=DSBilling.isStay(docObj);
+  if(stay)updateStayChargeDefaults();
   t.sections.forEach(sec=>{
     const card=document.createElement("div");
     card.className="card";
@@ -15919,10 +15843,9 @@ function renderForm(docObj){
   meta.innerHTML=`<h2>Ort / Datum</h2>`;
   t.meta.forEach(f=>meta.appendChild(renderField(f, docObj.meta[f.key], docObj)));
   root.appendChild(meta);
-  updateAutoHolidayFields();
-  try{ renderStayPricingPreview(docObj); }catch(e){ console.warn('renderStayPricingPreview failed', e); }
 const sigCard = document.createElement("div");
 sigCard.className = "card";
+if(stay)sigCard.id = 'staySigCard';
 const sig = docObj.signature;
 sigCard.innerHTML = `
   <h2>Unterschrift</h2>
@@ -16039,6 +15962,7 @@ root.appendChild(sigCard);
     `;
   }
   root.appendChild(contractCard);
+  if(stay)renderStayPricingPreview(docObj);
 }
 function renderField(f,value,docObj){
   if(f.key==='betreuung'&&f.type==='select'){f={...f,options:[...(f.options||[])]};if(!f.options.some(x=>String(x).toLowerCase()==='probetag'))f.options.push('Probetag');value=f.options.find(x=>String(x).toLowerCase()===String(value||'').toLowerCase())||value;}
@@ -16050,21 +15974,38 @@ function renderField(f,value,docObj){
   else if(f.type==="select"){ input=document.createElement("select"); input.innerHTML=(f.options||[]).map(o=>`<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join(""); input.value=value||(f.options?.[0]||""); }
   else if(f.type==="checkbox"){ input=document.createElement("input"); input.type="checkbox"; input.checked=!!value; input.style.width="22px"; input.style.height="22px"; }
   else { input=document.createElement("input"); input.type=f.type||"text"; input.value=value||""; }
+  if(f.key==='walks_enabled')input.checked=DSBilling.walkSelection(DSBilling.effectiveFields(docObj)).enabled;
+  if(f.key==='walk_extra_count'){
+    const walks=DSBilling.walkSelection(DSBilling.effectiveFields(docObj));
+    input.min='0';
+    input.step='1';
+    input.value=walks.count||'';
+    input.disabled=!walks.enabled;
+  }
   input.dataset.key=f.key; input.dataset.ftype=f.type;
-  input.oninput = () => {
+  input.oninput = input.onchange = () => {
   if (currentDoc.saved) {
     forkDocument();
   }
   dirty = true;
-};
-input.onchange = () => {
-  if (currentDoc.saved) {
-    forkDocument();
+  if(!DSBilling.isStay(currentDoc))return;
+  if(['von','bis','betreuung'].includes(f.key)){
+    for(const key of ['von','bis','betreuung']){
+      const field=document.querySelector('#formRoot [data-key="'+key+'"]');
+      if(field)currentDoc.meta[key]=field.value;
+    }
+    renderStayPricingPreview(currentDoc);
   }
-  dirty = true;
-  // Auto-Feiertage neu berechnen, wenn Zeitraum geändert wird
-  if(f && (f.key==="von" || f.key==="bis")){
-    try { updateAutoHolidayFields(); } catch(e){}
+  if(f.key==='walks_enabled'||f.key==='walk_extra_count'){
+    const count=document.querySelector('#formRoot [data-key="walk_extra_count"]');
+    if(f.key==='walks_enabled'&&count){
+      currentDoc.fields.walks_enabled=input.checked;
+      count.disabled=!input.checked;
+      if(!input.checked)count.value='';
+    }
+    currentDoc.fields.walk_extra_count=count?.value||'';
+    currentDoc.fields.walk_extra_auto=false;
+    renderStayPricingPreview(currentDoc);
   }
 };
 if (currentDoc.saved) {
@@ -16204,8 +16145,8 @@ function syncCurrentDocFromForm(){
   currentDoc.title = (nameEl.value || "").trim() || currentDoc.templateName || currentDoc.title || "Dokument";
   currentDoc.dogId = dogEl.value || currentDoc.dogId || "";
   ensureDocLinks(currentDoc);
-  currentDoc.fields = fields;
-  currentDoc.meta = meta;
+  currentDoc.fields = {...currentDoc.fields,...fields};
+  currentDoc.meta = {...currentDoc.meta,...meta};
   // pricing logic (keep consistent with saveCurrent)
   if (currentDoc.meta?.betreuung && currentDoc.meta?.von && currentDoc.meta?.bis) {
     calculateInvoicePricing(currentDoc);
@@ -16333,7 +16274,12 @@ function populateStayEditorFromDoc(doc){
         if(discInp) discInp.disabled = (doc.fields.discount_enabled === false || !discCb || !discCb.checked);
         const walkInp = sur.querySelector('input[data-key="walk_extra_count"]');
         const walkCb  = sur.querySelector('input[data-key="walks_enabled"]');
-        if(walkInp) walkInp.disabled = (doc.fields.walks_enabled === false || (walkCb && !walkCb.checked));
+        const walks=DSBilling.walkSelection(DSBilling.effectiveFields(doc));
+        if(walkCb)walkCb.checked=walks.enabled;
+        if(walkInp){
+          walkInp.value=walks.count||'';
+          walkInp.disabled=!walks.enabled;
+        }
       }
     }catch(_e){ }
     try{ dsSyncGenericStayHeaderFromEmbedded(doc); }catch(_){ }
@@ -16363,6 +16309,14 @@ updateCreateInvoiceButton();
     }
   }catch(_){ }
   if(!currentDoc) return false;
+  const walkInput=document.querySelector('#formRoot [data-key="walk_extra_count"]');
+  if(DSBilling.isStay(currentDoc)&&walkInput&&!walkInput.disabled){
+    if(!walkInput.reportValidity())return false;
+    if(walkInput.value&&!Number.isSafeInteger(walkInput.valueAsNumber)){
+      alert('Bitte eine ganze Anzahl an Zusatz-Spaziergängen eingeben.');
+      return false;
+    }
+  }
   // Embedded stay editor: make sure the current DOM values are written into
   // currentDoc before persisting (prevents "values lost after signature save").
   try{
@@ -17403,7 +17357,7 @@ function renderStayEditorEmbedded(doc){
         <input id="stayVon" type="date" style="max-width:260px;width:260px;" />
       </label>
       <label class="field" style="max-width:280px;width:280px;flex:0 0 auto;">
-        <span>Bis</span>
+        <span>Bis einschließlich</span>
         <input id="stayBis" type="date" style="max-width:260px;width:260px;" />
       </label>
       <label class="field">
@@ -17514,15 +17468,15 @@ function renderStayEditorEmbedded(doc){
       </div>
       <div style="grid-column: 1 / -1;" class="checkrow">
         <input type="checkbox" id="staySunHolApply" data-key="sun_hol_apply">
-        <label for="staySunHolApply"><strong>Sonn- & Feiertagszuschlag anwenden</strong><br><span class="muted">Automatik (Bayern + Sonntage) – bei Bedarf deaktivieren.</span></label>
+        <label for="staySunHolApply"><strong>Sonn- & Feiertagszuschlag anwenden</strong><br><span class="muted">Ein Zuschlag je Sonntag oder gesetzlichem Feiertag in Stiefenhofen.</span></label>
       </div>
       <label class="field" style="max-width:240px">
         <span>Feiertage (Bayern) im Zeitraum</span>
-        <input type="number" min="0" step="1" id="stayHolidayDays" data-key="holiday_days" placeholder="0">
+        <input type="number" id="stayHolidayDays" data-key="holiday_days" readonly>
       </label>
       <label class="field" style="max-width:240px">
         <span>Sonntage im Zeitraum</span>
-        <input type="number" min="0" step="1" id="staySundayDays" data-key="sunday_days" placeholder="0">
+        <input type="number" id="staySundayDays" data-key="sunday_days" readonly>
       </label>
       <div style="grid-column: 1 / -1;"><hr style="opacity:.18"></div>
       <div class="checkrow">
@@ -17553,7 +17507,7 @@ function renderStayEditorEmbedded(doc){
       </div>
       <div class="checkrow">
         <input type="checkbox" id="stayWalksEnabled" data-key="walks_enabled">
-        <label for="stayWalksEnabled"><strong>Zusatz-Spaziergänge</strong><br><span class="muted">Stückzahl ist standardmäßig = Aufenthaltstage, kann angepasst werden.</span></label>
+        <label for="stayWalksEnabled"><strong>Zusatz-Spaziergänge buchen</strong></label>
       </div>
       <label class="field" style="max-width:240px">
         <span>Stückzahl (z.B. 5×)</span>
@@ -17619,37 +17573,21 @@ function renderStayEditorEmbedded(doc){
             if(inp) inp.disabled = (doc.fields.discount_enabled === false);
             if(doc.fields.discount_enabled === false) doc.fields.discount_percent = 0;
           }
-          if(key === 'walks_enabled'){
-            if(doc.fields.walks_enabled === false){
-              doc.fields.walk_extra_count = 0;
-              const inp = document.querySelector('input[data-key="walk_extra_count"]');
-              if(inp){ inp.value = '0'; inp.disabled = true; }
-            }else{
-              const inp = document.querySelector('input[data-key="walk_extra_count"]');
-              if(inp) inp.disabled = false;
-              // Wenn aktiv und kein Wert gesetzt: default = Tage
-              if((doc.fields.walk_extra_count === undefined || doc.fields.walk_extra_count === null || String(doc.fields.walk_extra_count) === '0' || String(doc.fields.walk_extra_count) === '') && doc.meta?.von && doc.meta?.bis){
-                const d = daysBetween(doc.meta.von, doc.meta.bis);
-                doc.fields.walk_extra_count = d;
-                const inp2 = document.querySelector('input[data-key="walk_extra_count"]');
-                if(inp2) inp2.value = String(d);
-              }
+          if(key==='walks_enabled'){
+            const count=surCard.querySelector('[data-key="walk_extra_count"]');
+            if(!el.checked||doc.fields.walk_extra_auto===true){
+              doc.fields.walk_extra_count=0;
+              count.value='';
             }
+            count.disabled=!el.checked;
+            doc.fields.walk_extra_auto=false;
           }
+          if(key==='walk_extra_count')doc.fields.walk_extra_auto=false;
           dirty = true;
-          // Auto-Recalc-Felder aktualisieren
-          if(key === 'sun_hol_apply' || key === 'walks_enabled' || key === 'medication'){
-            try{ updateAutoHolidayFields(); }catch(_e){}
-          }
+          renderStayPricingPreview(doc);
         };
         el.addEventListener('change', syncOne);
-        el.addEventListener('input', ()=>{
-          // Walk-Count: wenn manuell geändert → Auto aus
-          if(key === 'walk_extra_count'){
-            doc.fields.walk_extra_auto = false;
-          }
-          syncOne();
-        });
+        el.addEventListener('input',syncOne);
       });
     }catch(_e){}
   };
@@ -17723,7 +17661,7 @@ function renderStayEditorEmbedded(doc){
     }
     try{ ds219EnsureStayDogOption(dogSel, doc); }catch(_){ }
     dogSel.value = doc.dogId || doc.petId || "";
-    dogSel.onchange = e=>{ doc.dogId = e.target.value; try{ if(!doc.petId) doc.petId = String((typeof getPetByDogId === 'function' ? ((getPetByDogId(doc.dogId) || {}).id || '') : '') || '').trim(); }catch(_){ } dirty = true; try{ updateAutoHolidayFields(); populateStayEditorFromDoc(doc); }catch(_e){} };
+    dogSel.onchange = e=>{ doc.dogId = e.target.value; try{ if(!doc.petId) doc.petId = String((typeof getPetByDogId === 'function' ? ((getPetByDogId(doc.dogId) || {}).id || '') : '') || '').trim(); }catch(_){ } dirty = true; updateStayChargeDefaults(); populateStayEditorFromDoc(doc); renderStayPricingPreview(doc); };
     if(__stayScoped){
       dogSel.disabled = true;
       dogSel.setAttribute('disabled','disabled');
@@ -17753,19 +17691,19 @@ function renderStayEditorEmbedded(doc){
   const von = document.getElementById('stayVon');
   if(von){
     von.value = doc.meta.von || "";
-    von.oninput = e=>{ doc.meta.von = e.target.value; dirty = true; try{ updateAutoHolidayFields(); populateStayEditorFromDoc(doc); }catch(_e){} };
+    von.oninput = e=>{ doc.meta.von = e.target.value; dirty = true; renderStayPricingPreview(doc); };
     von.onchange = von.oninput;
   }
   const bis = document.getElementById('stayBis');
   if(bis){
     bis.value = doc.meta.bis || "";
-    bis.oninput = e=>{ doc.meta.bis = e.target.value; dirty = true; try{ updateAutoHolidayFields(); populateStayEditorFromDoc(doc); }catch(_e){} };
+    bis.oninput = e=>{ doc.meta.bis = e.target.value; dirty = true; renderStayPricingPreview(doc); };
     bis.onchange = bis.oninput;
   }
   const bet = document.getElementById('stayBetreuung');
   if(bet){
     bet.value = normalizeBetreuung(doc.meta.betreuung).toLowerCase();
-    bet.oninput = e=>{ doc.meta.betreuung = e.target.value; dirty = true; };
+    bet.oninput = e=>{ doc.meta.betreuung = e.target.value; dirty = true; renderStayPricingPreview(doc); };
     bet.onchange = bet.oninput;
   }
   const notes = document.getElementById('stayNotes');
@@ -17804,10 +17742,12 @@ function renderStayEditorEmbedded(doc){
       };
     }
   }catch(_){ /* ignore */ }
-  // Auto-Defaults/Counts (Sonn-&Feiertage, Spaziergänge, Dauermedikation) aktualisieren
-  try{ window.currentDoc = doc; updateAutoHolidayFields(); }catch(_e){}
+  window.currentDoc=doc;
+  updateStayChargeDefaults();
   // Restore inputs after re-render (e.g., after signature capture)
-  populateStayEditorFromDoc(doc);DSBilling.decorateStay(doc);
+  populateStayEditorFromDoc(doc);
+  renderStayPricingPreview(doc);
+  DSBilling.decorateStay(doc);
 }
 function renderEditor(doc){
   const template = getTemplate(doc.templateId);
@@ -22551,7 +22491,7 @@ function renderStatMethod(){
 
 
 
-/* ===== CHAT (M50.9.9GB378_STAY_BILLING_TEST_20261024) ===== */
+/* ===== CHAT (M50.9.9GB379_STAY_BILLING_20261115) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,

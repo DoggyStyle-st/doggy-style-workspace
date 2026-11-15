@@ -1,10 +1,9 @@
-# Doggy Style Workspace – GB378 Testfassung
+# Doggy Style Workspace – GB379
 
-Reparatur des Zusammenspiels von Einstellungen, Aufenthalt und Rechnung vom 24. Oktober 2026.
-Zuschläge lassen sich auch bei einem unterschriebenen Aufenthalt ändern. Sie werden getrennt von den unterschriebenen Kundenangaben gespeichert und mit der zugeordneten offenen, automatisch berechneten Rechnung abgeglichen. Rechnungskennung und Nummer bleiben erhalten. Eine neue Dokumentversion gehört weiterhin zum selben Aufenthalt. Ein bewusst neu angelegter Aufenthalt erhält eine eigene Zuordnung.
+Die Abrechnung zählt alle Kalendertage vom Anreisetag bis zum Abreisetag. Die Anzahl bestimmt auch die Preisstaffel. An Sonntagen und gesetzlichen Feiertagen am Standort Stiefenhofen fällt je Datum der hinterlegte Zuschlag an. Ein Feiertag am Sonntag erscheint als Feiertagszuschlag.
 
-Die Preise und Beschriftungen kommen aus Einstellungen > Preise. Auch die dortigen Speichern-/Regelknöpfe sind repariert. Manuell bearbeitete sowie bezahlte oder stornierte Rechnungen werden nicht still ersetzt. Bereits vorhandene Doppelrechnungen werden nicht gelöscht; bei unklarer Zuordnung ist eine ausdrückliche Auswahl erforderlich.
+Kunden können in der Aufenthaltsanfrage Zusatz-Spaziergänge auswählen und die Stückzahl eingeben. Die Auswahl erscheint im Eingang und nach der Übernahme im Aufenthalt sowie in der automatischen Rechnung. Als automatisch gekennzeichnete Mengen aus alten Aufenthalten zählen bei der Neuberechnung als null.
 
-Vollständiges Paket einschließlich billing.js, billing.css, assets und vendor übernehmen. INSTALLATION_IPAD.txt enthält die Schritte. Von GB377 kommend ist keine Änderung der Firebase-Regeln erforderlich. PRUEFBERICHT.md nennt Testergebnisse und offene Live-/Safari-Prüfungen.
+Ein vorhandener, automatisch berechneter Entwurf wird beim Öffnen mit der neuen Berechnung aktualisiert. Seine Rechnungsnummer wird weiterverwendet. In der Rechnungsansicht löst **Aus Aufenthalt neu berechnen** eine ausdrückliche Aktualisierung aus. Für manuell bearbeitete Positionen erscheint dabei eine Bestätigung. Bezahlte und stornierte Rechnungen sind abgeschlossen.
 
-Die Entwicklung hat keine produktiven Kunden-, Aufenthalts- oder Rechnungsdaten verändert. Dies ist eine Testfassung.
+INSTALLATION_IPAD.txt beschreibt die Installation. PRUEFBERICHT.md nennt die aktuellen lokalen Prüfungen. Die Abnahme am verbundenen Firebase und in Safari auf iPad und iPhone steht aus.

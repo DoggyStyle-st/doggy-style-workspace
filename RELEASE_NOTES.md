@@ -1,3 +1,11 @@
+# GB379 – Abrechnung von Aufenthalten
+
+An- und Abreise zählen jeweils als voller Betreuungstag. Der Workspace berechnet je Sonntag oder bayerischem Feiertag am Standort Stiefenhofen einen Zuschlag. Bei einer Überschneidung steht der Tag ausschließlich beim Feiertagszuschlag.
+
+Zusatz-Spaziergänge können im Kundenportal mit einer Stückzahl angefragt werden. Die Auswahl wird zusammen mit der Anfrage übernommen. Bei einem neuen Aufenthalt beginnt die Option ohne Auswahl.
+
+Die korrigierten Beträge erscheinen in der Preisvorschau, der Rechnung und der Druckansicht. Alte automatische Entwürfe lassen sich durch Öffnen auf die korrigierte Berechnung bringen. Weitere Angaben stehen in PRUEFBERICHT.md.
+
 # GB370 – Reparatur-Testfassung vom 20. Oktober 2026
 
 ## Neu in GB370: private Dateien wieder abrufen und Fehler unterscheiden

@@ -1,16 +1,12 @@
-Doggy Style Workspace – GB378 Testfassung
-Build: M50.9.9GB378_STAY_BILLING_TEST_20261024
+Doggy Style Workspace – GB379
+Build M50.9.9GB379_STAY_BILLING_20261115
 
-1. Aktuelle lokale Sicherung unter Einstellungen > Cloud & Konto herunterladen und in Dateien behalten.
-2. Vollständigen Inhalt aus DoggyStyle_Workspace_GB378_TEST am bisherigen GitHub-Pages-Ort übernehmen, einschließlich billing.js, billing.css, assets und vendor.
-3. Von GB377 kommend keine Firebase-Regeln erneut veröffentlichen. Beide Regeldateien sind unverändert.
-4. Neu laden und in DIAG M50.9.9GB378_STAY_BILLING_TEST_20261024 prüfen. Keine Websitedaten löschen und keinen Reset verwenden.
-5. Einstellungen > Preise: Preise ändern und den dortigen Speichern-Knopf verwenden. Probetag verwendet den Preis für einen einzelnen Urlaubstag. Zuschlagsbeträge und Formularbeschriftungen folgen diesen Einstellungen.
-6. Aufenthalt öffnen, Zuschläge/Mengen anpassen und Zuschläge speichern wählen. Dieselbe offene, automatisch berechnete Rechnung wird aktualisiert. Dafür entsteht keine neue Aufenthaltsversion und keine neue Rechnung. Vorhandene Kundenangaben und Unterschriften bleiben erhalten.
-7. Aufenthaltsangaben bearbeiten ist für eine bewusste neue Dokumentversion vorgesehen. Diese bleibt mit derselben Betreuung/Rechnung verknüpft und benötigt ihre eigene neue Unterschrift. Die alte unterschriebene Version bleibt bestehen.
-8. Neuer Aufenthalt erstellt eine unabhängige Betreuung ohne alte Unterschrift oder Rechnungszuordnung. Zeitraum neu eintragen.
-9. Rechnung > Bearbeiten erlaubt weiterhin manuelle Rechnungspositionen. Zuschlagskorrekturen überschreiben diese nicht. Aufschläge aus Aufenthalt übernehmen ersetzt manuelle Positionen nur nach Bestätigung.
-10. Bezahlte und stornierte Rechnungen bleiben abgeschlossen und gegen Neuberechnung geschützt.
-11. Bereits vorhandene Doppelrechnungen bleiben bestehen. Wenn mehrere infrage kommen und keine eindeutige Zuordnung vorliegt, Rechnung öffnen wählen und die richtige vorhandene Nummer auswählen. Nichts wird automatisch gelöscht oder storniert.
+1. Vor dem Austausch unter Einstellungen > Cloud & Konto die aktuelle lokale Sicherung herunterladen.
+2. Doggy-Style.zip entpacken und den vollständigen Inhalt des Ordners doggy-style-workspace-main am gewählten Hosting-Ort übernehmen.
+3. Bei einem Wechsel von GB378 verwendet diese Version die vorhandenen Firestore- und Storage-Regeln.
+4. Workspace und Kundenportal neu laden. Im Workspace zeigt DIAG die Buildkennung dieser Version.
+5. In Rechnungen den vorhandenen Entwurf zum Beispielaufenthalt öffnen. Bei den Standardpreisen stehen dort 14 Tage zu 40,00 €, 4,00 € Sonntagszuschlag und 4,00 € Feiertagszuschlag, insgesamt 568,00 € ohne Zusatz-Spaziergänge.
+6. Zum Prüfen im Kundenportal einen Testaufenthalt mit gewünschter Anzahl Zusatz-Spaziergänge senden. Im Workspace den Eingang prüfen und übernehmen. Im Aufenthalt die zugeordnete Rechnung öffnen und die Menge kontrollieren.
+7. Für eine gezielte Neuberechnung die Rechnung öffnen und Aus Aufenthalt neu berechnen wählen. Bei Entwürfen wird die vorhandene Rechnungsnummer weiterverwendet.
 
-Nach der Installation mit einem Testaufenthalt Zuschlag anklicken, speichern, erneut ändern, neu laden und die gleiche Rechnungsnummer kontrollieren. Die Entwicklung hat diesen Ablauf in Chromium und isoliertem Firebase geprüft; native Safari-/iPad-/iPhone-Abnahme und die angemeldete Live-Abnahme stehen noch aus.
+Die Abrechnung und der Ablauf mit simuliertem Formular und Testdaten wurden lokal geprüft. Die Abnahme am verbundenen Firebase und in Safari auf iPad und iPhone steht aus.

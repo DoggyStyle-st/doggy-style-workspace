@@ -4,8 +4,9 @@
   const clone=v=>JSON.parse(JSON.stringify(v)),text=v=>String(v??''),bases=new Map(),signedOpen=new Map();
   let edit=null;
   const actor=()=>window.firebase?.auth().currentUser?.uid||'';
-  const chargeKeys=new Set(['special_times','extra_care','short_notice','discount_enabled','discount_percent','medication','walks_enabled','walk_extra_count','walk_extra_auto','bandage_enabled','bandage_count','grooming_enabled','grooming_count','hygiene_enabled','hygiene_days','pickup_dropoff_enabled','pickup_dropoff_count','sun_hol_apply']);
-  function isStay(doc){return !!doc&&(doc.type==='stay'||doc.templateId==='hundeannahme'||doc.templateName==='Aufenthalte');}
+  const walkKeys=new Set(['walks_enabled','walk_extra_count','walk_extra_auto']);
+  const chargeKeys=new Set(['special_times','extra_care','short_notice','discount_enabled','discount_percent','medication',...walkKeys,'bandage_enabled','bandage_count','grooming_enabled','grooming_count','hygiene_enabled','hygiene_days','pickup_dropoff_enabled','pickup_dropoff_count','sun_hol_apply']);
+  function isStay(doc){return !!doc&&(doc.type==='stay'||['hundeannahme','stay'].includes(doc.templateId)||doc.templateName==='Aufenthalte');}
   function signedStay(doc){return isStay(doc)&&!!(doc.saved||doc.signature?.dataUrl);}
   function effectiveFields(doc){return {...(doc?.fields||{}),...(doc?.billingOverrides||{})};}
   function clearSignature(doc){doc.signature=null;delete doc.signatureDataUrl;delete doc.signatureAt;delete doc.signatures;for(const value of [doc.fields,doc.meta])if(value){delete value.signatureDataUrl;delete value.signatureAt;}}
@@ -40,7 +41,7 @@
     return explicit||versions.slice().sort((a,b)=>dsTsMs(b.createdAt)-dsTsMs(a.createdAt)||dsTsMs(b.updatedAt)-dsTsMs(a.updatedAt))[0]||original;
   }
   function admin(){return !!actor()&&window.CLOUD?.role==='admin'&&!window.DSWorkflow?.scoped();}
-  function frozen(inv){return ['paid','cancelled','bezahlt','storniert'].includes(text(inv?.status).trim().toLowerCase());}
+  function frozen(inv){return ['paid','cancelled','canceled','bezahlt','storniert'].includes(text(inv?.status).trim().toLowerCase());}
   function editable(inv){return admin()&&!!inv&&!frozen(inv);}
   function requireEdit(inv){
     if(!admin()){alert('Rechnungen können nur Administratoren bearbeiten.');return false;}
@@ -67,6 +68,7 @@
   }
   function lines(inv){
     const v=display(inv);
+    if(frozen(inv)&&Array.isArray(inv.lineItemsSnapshot)&&inv.lineItemsSnapshot.length)return clone(inv.lineItemsSnapshot);
     if(v.pricingMode==='manual'&&Array.isArray(v.lineItems))return clone(v.lineItems);
     if(v.sourceDocId)return buildInvoiceLineItems(v);
     const total=round2(v.pricing?.parts?.base??v.pricing?.basePrice??v.pricing?.total??0);
@@ -74,7 +76,10 @@
   }
   function lineDescription(line){
     const qty=Number(line.qty),unit=Number(line.unit);
-    if(Number.isFinite(qty)&&qty>0&&Number.isFinite(unit))return text(line.label)+' – '+qty+' × '+formatEuro(unit);
+    if(Number.isFinite(qty)&&qty>0&&Number.isFinite(unit)){
+      const days=line.meta?.unitLabel==='Tag'?' '+(qty===1?'Tag':'Tage'):'';
+      return text(line.label)+' – '+qty+days+' × '+formatEuro(unit);
+    }
     if(Number(line.rate))return text(line.label)+' – '+Number(line.rate)+' % von '+formatEuro(line.base||0);
     return text(line.label);
   }
@@ -88,21 +93,52 @@
     state.nextInvoiceNumber=next;return value;
   }
   function billableDates(from,to){
-    const dates=DSWorkflowCore.dateRange(from,to);return dates.length===1?dates:dates.slice(0,-1);
+    return DSWorkflowCore.dateRange(from,to);
   }
-  function surchargeDays(from,to){return billableDates(from,to).filter(day=>new Date(day+'T12:00:00Z').getUTCDay()===0||bavariaHolidaysSet(Number(day.slice(0,4))).has(day)).length;}
+  function stayCalendar(from,to){
+    const start=DSWorkflowCore.dateISO(from),end=DSWorkflowCore.dateISO(to);
+    if(!start||!end||end<start)return null;
+    const dates=billableDates(start,end),holidaysByYear=new Map();
+    let sundayDays=0,holidayDays=0,holidaySundays=0;
+    for(const day of dates){
+      const sunday=new Date(day+'T12:00:00Z').getUTCDay()===0;
+      if(sunday)sundayDays++;
+      const year=Number(day.slice(0,4));
+      if(!holidaysByYear.has(year))holidaysByYear.set(year,bavariaHolidaysSet(year));
+      if(holidaysByYear.get(year).has(day)){
+        holidayDays++;
+        if(sunday)holidaySundays++;
+      }
+    }
+    return {days:dates.length,sundayDays,holidayDays,holidaySundays};
+  }
   function recalcFromStay(inv,doc,force=false){
     if(!inv||!doc||frozen(inv)||(!force&&inv.pricingMode==='manual'))return false;
     const before=JSON.stringify({pricing:inv.pricing,period:inv.period,lineItems:inv.lineItems,sourceSnapshot:inv.sourceSnapshot});
-    const p=calculateInvoicePricing(doc);if(!p)throw new Error('Bitte Betreuung und Zeitraum im Aufenthalt prüfen.');
+    const p=calculateInvoicePricing({...doc});if(!p)throw new Error('Bitte Betreuung und Zeitraum im Aufenthalt prüfen.');
     const lastCapture=inv.sourceSnapshot?.capturedAt;
-    inv.pricing={...(inv.pricing||{}),basePrice:round2(p.base),percentExtra:round2(p.percentValue),percentRate:round2(p.percentExtra),holidayDays:Number(p.sunHolDays||0),holidayExtra:round2(p.holidayValue),fixedExtra:round2(p.fixedExtra),parts:{base:round2(p.base),percent:round2(p.percentValue),holiday:round2(p.holidayValue),fixed:round2(p.fixedExtra)},breakdown:{percentItems:clone(p.percentItems||[]),fixedItems:clone(p.fixedItems||[]),holidayDays:p.sunHolDays,sunHolDays:p.sunHolDays,sunHolRate:p.sunHolRate,sunHolUnit:p.sunHolUnit},_calc:{days:p.days,daily:p.daily,betreuungNorm:p.betreuungNorm,percentRate:p.percentExtra,percentValue:p.percentValue,holidayDays:p.sunHolDays,holidayExtra:p.holidayValue}};
+    inv.pricing={
+      ...(inv.pricing||{}),
+      basePrice:p.base,percentExtra:p.percentValue,percentRate:p.percentExtra,
+      holidayDays:p.holidayDays,sundayDays:p.sundayDays,holidayExtra:p.holidayValue,fixedExtra:p.fixedExtra,
+      parts:{base:p.base,percent:p.percentValue,holiday:p.holidayValue,fixed:p.fixedExtra},
+      breakdown:{surchargeItems:clone(p.surchargeItems),percentItems:clone(p.percentItems),fixedItems:clone(p.fixedItems)},
+      _calc:{days:p.days,daily:p.daily,betreuungNorm:p.betreuungNorm,unitLabel:'Tag'}
+    };
     delete inv.pricing.locked;inv.period={...(inv.period||{}),from:doc.meta.von,to:doc.meta.bis};
     recomputeInvoiceTotals(inv);inv.lineItems=buildInvoiceLineItems(inv);snapshotInvoiceSourceMeta(inv);
     if(lastCapture)inv.sourceSnapshot.capturedAt=lastCapture;
     if(force)inv.pricingMode='stay';
     const after=JSON.stringify({pricing:inv.pricing,period:inv.period,lineItems:inv.lineItems,sourceSnapshot:inv.sourceSnapshot});
     if(before!==after){inv.updatedAt=new Date().toISOString();inv.sourceSnapshot.capturedAt=inv.updatedAt;return true;}return false;
+  }
+  function updateDraft(inv){
+    if(!admin()||!['draft','entwurf'].includes(text(inv?.status).trim().toLowerCase())||
+       inv.pricingMode==='manual'||isInvoicePricingLocked(inv)||Array.isArray(inv.pricing?.breakdown?.surchargeItems))return;
+    const doc=sourceDoc(inv);
+    if(doc&&recalcFromStay(inv,doc)){
+      saveState();renderInvoiceList();
+    }
   }
   function create(doc){
     if(!requireEdit())return null;
@@ -111,10 +147,9 @@
     let inv=findForStay(doc);
     if(inv)return inv;
     if(!DSWorkflowCore.dateISO(doc.meta?.von)||!DSWorkflowCore.dateISO(doc.meta?.bis)||doc.meta.bis<doc.meta.von)throw new Error('Bitte einen gültigen Zeitraum im Aufenthalt angeben.');
-    if(!calculateInvoicePricing(doc))throw new Error('Bitte die Betreuung im Aufenthalt auswählen.');
     const at=new Date().toISOString();
-    inv={id:uid(),type:'invoice',sourceDocId:doc.id,sourceVersionId:doc.id,stayId:stayRoot(doc),dogId:doc.dogId||'',customerId:doc.customerId||getCustomerByDogId(doc.dogId)?.id||'',petId:doc.petId||getPetByDogId(doc.dogId)?.id||'',period:{from:doc.meta.von,to:doc.meta.bis},pricing:{},status:'draft',note:'',invoiceNumber:nextNumber(),invoiceDate:at,createdAt:at,updatedAt:at};
-    recalcFromStay(inv,doc);state.invoices.push(inv);doc.invoiceId=inv.id;doc.invoiceNumber=inv.invoiceNumber;return inv;
+    inv={id:uid(),type:'invoice',sourceDocId:doc.id,sourceVersionId:doc.id,stayId:stayRoot(doc),dogId:doc.dogId||'',customerId:doc.customerId||getCustomerByDogId(doc.dogId)?.id||'',petId:doc.petId||getPetByDogId(doc.dogId)?.id||'',period:{from:doc.meta.von,to:doc.meta.bis},pricing:{},status:'draft',note:'',invoiceDate:at,createdAt:at,updatedAt:at};
+    recalcFromStay(inv,doc);inv.invoiceNumber=nextNumber();state.invoices.push(inv);doc.invoiceId=inv.id;doc.invoiceNumber=inv.invoiceNumber;return inv;
   }
   function openForStay(id){
     if(!requireEdit())return;
@@ -129,7 +164,8 @@
     const inv=getInvoiceById(id);if(!requireEdit(inv)||!inv)return;
     if(inv.pricingMode==='manual'&&!confirm('Bearbeitete Rechnungspositionen durch die aktuellen Angaben aus dem Aufenthalt ersetzen?'))return;
     const doc=getInvoiceSourceDoc(inv);if(!doc){alert('Aufenthalt nicht gefunden.');return;}
-    recalcFromStay(inv,doc,true);saveState();renderInvoiceList();openInvoice(id);
+    try{recalcFromStay(inv,doc,true);saveState();renderInvoiceList();openInvoice(id);}
+    catch(e){alert('Rechnung konnte nicht neu berechnet werden: '+e.message);}
   }
   function saveRecord(inv){
     if(!requireEdit(inv))return false;
@@ -156,18 +192,26 @@
   function setCharge(doc,key,value){
     if(!admin()||!isStay(doc)||!chargeKeys.has(key))return;
     value=readCharge(key,value);
-    if(signedStay(doc))doc.billingOverrides={...(doc.billingOverrides||{}),[key]:value};else{doc.fields=doc.fields||{};doc.fields[key]=value;}
-    if(key==='walk_extra_count'){if(signedStay(doc))doc.billingOverrides.walk_extra_auto=false;else doc.fields.walk_extra_auto=false;}
+    const fields=effectiveFields(doc);
+    const target=signedStay(doc)?(doc.billingOverrides ||= {}):(doc.fields ||= {});
+    if(key==='walks_enabled'||key==='walk_extra_count'){
+      if(key==='walks_enabled'&&(!value||fields.walk_extra_auto===true))target.walk_extra_count=0;
+      target.walk_extra_auto=false;
+    }
+    target[key]=value;
   }
   function collectCharges(doc){
     if(!admin()||!isStay(doc))return;
-    document.querySelectorAll('#formRoot [data-key]').forEach(input=>{const key=input.dataset.key;if(chargeKeys.has(key))setCharge(doc,key,input.type==='checkbox'?input.checked:input.value);});
+    document.querySelectorAll('#formRoot [data-key]').forEach(input=>{
+      const key=input.dataset.key;
+      if(chargeKeys.has(key)&&!(key==='walk_extra_count'&&input.disabled))setCharge(doc,key,input.type==='checkbox'?input.checked:input.value);
+    });
   }
   function prepareStaySave(doc,fields,meta){
     if(!admin()||!signedStay(doc))return {fields,meta};
     const original=signedOpen.get(actor()+':'+doc.id)||bases.get(actor()+':'+doc.id)||clone(doc);
     if(!signedStay(original))return {fields,meta};
-    for(const [key,value]of Object.entries(fields||{}))if(chargeKeys.has(key))setCharge(doc,key,value);
+    for(const [key,value]of Object.entries(fields||{}))if(chargeKeys.has(key)&&!walkKeys.has(key))setCharge(doc,key,value);
     collectCharges(doc);
     if(!doc.billingOriginal)doc.billingOriginal={pricing:clone(original.pricing||{}),sourceDocId:doc.id,sourceUpdatedAt:original.updatedAt||null};
     return {fields:clone(original.fields||{}),meta:clone(original.meta||{})};
@@ -185,17 +229,32 @@
     const labels={special_times:'Sonderzeiten / Sonderaufwand ('+Number(ex.specialTimesPercent||0)+' %)',extra_care:'Besondere Betreuung ('+Number(ex.extraCarePercent||0)+' %)',short_notice:'Kurzfristig ('+Number(ex.shortNoticePercent||0)+' %)',medication:'Medikamentengabe ('+money(ex.medicationPerDay||0)+' pro Tag)',walk_extra_count:'Zusatz-Spaziergänge (Anzahl × '+money(ex.walkExtraPrice||0)+')',bandage_count:'Verbandwechsel (Anzahl × '+money(ex.bandagePrice||0)+')',grooming_count:'Pflege / Extra (Anzahl × '+money(ex.groomingPrice||0)+')',hygiene_days:'Hygiene / Extra (Tage × '+money(ex.hygienePerDay||0)+')',pickup_dropoff_count:'Abhol-/Bringservice (Fahrten × '+money(ex.pickupDropoffPrice||0)+')',sun_hol_apply:'Sonn- & Feiertagszuschlag ('+Number(cfg.holidayPercent||0)+' %)',discount_percent:'Sonderrabatt (%)'};
     return labels[key]||'';
   }
+  function walkSelection(fields){
+    const count=DSWorkflowCore.stayWalkCount(fields);
+    const enabled=count>0||(fields.walks_enabled===true&&fields.walk_extra_auto===false);
+    return {enabled,count};
+  }
   function decorateStay(doc){
     const root=document.getElementById('formRoot');if(!root||!admin()||!isStay(doc))return;
     const cfg=getPricingSettings(),getCurrent=()=>typeof currentDoc!=='undefined'&&currentDoc?.id===doc.id?currentDoc:doc;
     const refresh=()=>{
-      const current=getCurrent(),fields=effectiveFields(current);
-      const dependencies={walk_extra_count:'walks_enabled',bandage_count:'bandage_enabled',grooming_count:'grooming_enabled',hygiene_days:'hygiene_enabled',pickup_dropoff_count:'pickup_dropoff_enabled',discount_percent:'discount_enabled'};
+      const current=getCurrent(),fields=effectiveFields(current),walks=walkSelection(fields);
+      const dependencies={bandage_count:'bandage_enabled',grooming_count:'grooming_enabled',hygiene_days:'hygiene_enabled',pickup_dropoff_count:'pickup_dropoff_enabled',discount_percent:'discount_enabled'};
       root.querySelectorAll('[data-key]').forEach(input=>{const key=input.dataset.key;if(!chargeKeys.has(key))return;
-        if(input.type==='checkbox')input.checked=['sun_hol_apply','walks_enabled','bandage_enabled','grooming_enabled','hygiene_enabled','pickup_dropoff_enabled'].includes(key)?fields[key]!==false:key==='discount_enabled'?(fields[key]??!!Number(fields.discount_percent)):fields[key]===true;else input.value=fields[key]??'';
+        if(key==='walks_enabled'){
+          input.checked=walks.enabled;
+          input.disabled=false;
+          return;
+        }
+        if(key==='walk_extra_count'){
+          input.value=walks.enabled?(fields.walk_extra_count ?? (walks.count||'')):'';
+          input.disabled=!walks.enabled;
+          return;
+        }
+        if(input.type==='checkbox')input.checked=['sun_hol_apply','bandage_enabled','grooming_enabled','hygiene_enabled','pickup_dropoff_enabled'].includes(key)?fields[key]!==false:key==='discount_enabled'?(fields[key]??!!Number(fields.discount_percent)):fields[key]===true;else input.value=fields[key]??'';
         input.disabled=dependencies[key]?(dependencies[key]==='discount_enabled'?!(fields.discount_enabled??!!Number(fields.discount_percent)):fields[dependencies[key]]===false):false;
       });
-      try{renderStayPricingPreview(clone(current));}catch(_){}
+      renderStayPricingPreview(current);
     };
     root.querySelectorAll('[data-key]').forEach(old=>{
       const key=old.dataset.key;if(!chargeKeys.has(key))return;
@@ -211,7 +270,7 @@
     }
     let info=root.querySelector('#dsStayBillingInfo');if(!info){info=document.createElement('div');info.id='dsStayBillingInfo';info.className='card ds-stay-billing-info';root.prepend(info);}
     info.replaceChildren();const note=document.createElement('p');note.textContent=signedStay(doc)?'Zuschläge können ohne neue Aufenthaltsversion angepasst werden. Die ursprünglichen Kundenangaben und vorhandene Unterschriften bleiben erhalten.':'Zuschläge werden mit der zugeordneten offenen Rechnung abgeglichen.';info.append(note);
-    try{const inv=findForStay(doc);if(inv?.pricingMode==='manual'){const p=document.createElement('p');p.textContent='Rechnung '+inv.invoiceNumber+' enthält manuell bearbeitete Positionen. Mit „Aufschläge aus Aufenthalt übernehmen“ kannst du sie nach Bestätigung ersetzen.';info.append(p);}}catch(e){const p=document.createElement('p');p.textContent=e.message;info.append(p);}
+    try{const inv=findForStay(doc);if(inv?.pricingMode==='manual'){const p=document.createElement('p');p.textContent='Rechnung '+inv.invoiceNumber+' enthält manuell bearbeitete Positionen. Mit „Aus Aufenthalt neu berechnen“ kannst du sie nach Bestätigung ersetzen.';info.append(p);}}catch(e){const p=document.createElement('p');p.textContent=e.message;info.append(p);}
     const actions=document.createElement('div');actions.className='ds-billing-actions';
     for(const [label,fn]of [['Zuschläge speichern',()=>saveCurrent(true)],['Rechnung öffnen',()=>openForStay(doc.id)],...(signedStay(doc)?[['Aufenthaltsangaben bearbeiten',()=>beginRevision(doc.id)]]:[])]){const button=document.createElement('button');button.type='button';button.className='btn';button.textContent=label;button.onclick=fn;actions.append(button);}info.append(actions);
     refresh();
@@ -264,5 +323,5 @@
     }catch(e){error.textContent=e.message;}};
     draw();dialog.showModal();dialog.querySelector('input')?.focus();
   }
-  window.DSBilling={admin,frozen,editable,requireEdit,number,display,parts,lines,positions,nextNumber,billableDates,surchargeDays,recalcFromStay,create,openForStay,refresh,saveRecord,syncLinked,rememberStay,attachStay,openEdit,reset,isStay,signedStay,effectiveFields,clearSignature,stayRoot,family,findForStay,sourceDoc,prepareStay,collectCharges,prepareStaySave,financialSave,auditStay,validateFinancial,afterOpenStay,afterSaveStay,decorateStay,finishFork};
+  window.DSBilling={admin,frozen,editable,requireEdit,number,display,parts,lines,positions,nextNumber,billableDates,stayCalendar,recalcFromStay,updateDraft,create,openForStay,refresh,saveRecord,syncLinked,rememberStay,attachStay,openEdit,reset,isStay,signedStay,effectiveFields,clearSignature,stayRoot,family,findForStay,sourceDoc,prepareStay,collectCharges,prepareStaySave,financialSave,auditStay,validateFinancial,afterOpenStay,afterSaveStay,decorateStay,finishFork,walkSelection};
 })();

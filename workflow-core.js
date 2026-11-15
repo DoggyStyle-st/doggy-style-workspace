@@ -32,6 +32,12 @@
     if((end-start)/86400000>3660)fail('Der Zeitraum ist zu lang. Bitte einzelne Aufenthalte anfragen.');
     const result=[];for(let t=start;t<=end;t+=86400000)result.push(new Date(t).toISOString().slice(0,10));return result;
   }
+  function stayWalkCount(fields){
+    if(fields?.walks_enabled===false||fields?.walk_extra_auto===true)return 0;
+    const value=fields?.walk_extra_count ?? fields?.extra_walk_count;
+    const count=typeof value==='number'||typeof value==='string'?Number(value):0;
+    return Number.isSafeInteger(count)&&count>0?count:0;
+  }
   function capacity(workspace,type,day){
     const label=careType(type),caps=workspace?.capacities;
     if(!label)return 0;
@@ -553,5 +559,5 @@
     return {profile,workspace,submit,assign,review,publish,approveManualContract,maintenance,repairPair,setInboxArchived,
       linkCustomer:(uid,cid,stamp,account)=>assign(uid,cid,'',{stamp,account})};
   }
-  return {context,signatureValid,canvasHasInk,auditRecords,restoreRecords,signatureKey,agreementKey,approvedContract,portalSnapshot,validateTarget,submission,sameSubmission,mergePlan,resolveMerge,service,customerFields,petFields,stayConsents,careType,dateISO,stayDetails,dateRange,capacity,confirmedStays,occupancyForDay,occupancyRange,validateStay,legalTexts};
+  return {context,signatureValid,canvasHasInk,auditRecords,restoreRecords,signatureKey,agreementKey,approvedContract,portalSnapshot,validateTarget,submission,sameSubmission,mergePlan,resolveMerge,service,customerFields,petFields,stayConsents,careType,dateISO,stayDetails,dateRange,stayWalkCount,capacity,confirmedStays,occupancyForDay,occupancyRange,validateStay,legalTexts};
 });

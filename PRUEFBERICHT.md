@@ -1,3 +1,27 @@
+# Doggy Style Workspace – GB379
+
+Stand 15. November 2026 · Build M50.9.9GB379_STAY_BILLING_20261115
+
+## Beispiel vom 26.10. bis 08.11.2026
+
+| Position | Brutto |
+| --- | ---: |
+| Urlaubsbetreuung, 14 Tage × 40,00 € laut Standardstaffel | 560,00 € |
+| Feiertagszuschlag für Allerheiligen am 01.11.2026 | 4,00 € |
+| Sonntagszuschlag für den 08.11.2026 | 4,00 € |
+| Gesamt ohne Zusatz-Spaziergänge | **568,00 €** |
+
+Allerheiligen fällt in diesem Zeitraum auf einen Sonntag. Der 01.11.2026 erhält einen einzigen Zuschlag und erscheint unter dem Feiertagszuschlag. Die Berechnung nutzt die [gesetzlichen Feiertage in Bayern](https://www.gesetze-bayern.de/Content/Document/BayFTG-1) einschließlich [Mariä Himmelfahrt in Stiefenhofen](https://www.statistik.bayern.de/statistik/gebiet_bevoelkerung/zensus/himmelfahrt/index.php?Suchfeld=gemeindename&feiertag=ja&sort=gemeindename).
+
+## Prüfungen zu GB379
+
+- 13 Gruppen zur Abrechnung in den Zeitzonen Europe/Berlin und America/Los_Angeles geprüft. Enthalten sind der Beispielzeitraum, An- und Abreise am selben Tag, Staffelgrenzen, Jahreswechsel, Sommerzeit, Schaltjahr, bayerische Feiertage, von den Standardpreisen abweichende Einstellungen und Cent-Rundung.
+- Der vorhandene automatische Entwurf erhielt die korrigierten Beträge unter derselben Rechnungsnummer. Manuelle, offene und abgeschlossene Rechnungen wurden beim Öffnen anhand ihrer gespeicherten Beträge geprüft. Die geprüfte Druckansicht enthält dieselben Positionen wie die Rechnung.
+- Mit simuliertem Formular und isoliertem Firebase-Datenstand geprüft, dass die Auswahl im Kundenportal bei der Einreichung, bei der Übernahme und bei der Rechnung ankommt. Geprüft wurden zwei gewählte Spaziergänge, keine Auswahl und Abwählen vor dem Senden. Auch die Änderung der Menge im unterschriebenen Aufenthalt und ihre Übernahme in die bestehende Rechnung wurde geprüft.
+- Die Abnahme in Safari auf iPad und iPhone sowie im verbundenen Firebase steht aus. Diese Bearbeitung lief mit Testdaten.
+
+## Prüfung des vorigen Stands GB378
+
 # Doggy Style Workspace – GB378 Einstellungen, Aufenthalt und Rechnung
 
 Stand: 24. Oktober 2026. Build M50.9.9GB378_STAY_BILLING_TEST_20261024.

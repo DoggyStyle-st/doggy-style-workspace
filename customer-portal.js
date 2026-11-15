@@ -18,6 +18,7 @@
     #dsStayRequestForm{color:#f5f5f5;text-align:left;scroll-margin-top:180px}
     #dsStayRequestForm .dsStayFields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr));gap:14px}
     #dsStayRequestForm .field{display:flex;flex-direction:column;gap:6px;text-align:left;align-items:stretch}
+    #dsStayRequestForm .field[hidden]{display:none}
     #dsStayRequestForm input,#dsStayRequestForm select,#dsStayRequestForm textarea{box-sizing:border-box;width:100%;min-height:46px;font-size:16px}
     #dsStayRequestForm textarea{min-height:100px}#dsStayRequestForm fieldset{margin:18px 0;border:1px solid #818894;border-radius:12px;padding:14px}
     #dsStayRequestForm .dsConsent{padding:12px 0;border-bottom:1px solid #7778}#dsStayRequestForm .dsConsent:last-child{border-bottom:0}
@@ -56,6 +57,27 @@
     const pets=field(grid,'Hund','petId','select');for(const p of ctx.pets)pets.add(new Option(p.name,p.id));pets.required=true;
     const care=field(grid,'Betreuungsart','betreuung','select');for(const label of ['Urlaubsbetreuung','Tagesbetreuung','Probetag'])care.add(new Option(label,label));
     for(const [label,name,type]of [['Von','von','date'],['Bis einschließlich','bis','date'],['Bringzeit','bringzeit','time'],['Abholzeit','abholzeit','time']]){const el=field(grid,label,name,type);el.required=['von','bis'].includes(name);}field(form,'Hinweise zum Aufenthalt','notes','textarea');
+    const extras=node('fieldset',null,form);
+    node('legend','Zusatz-Spaziergänge',extras);
+    const walkChoice=node('div',null,extras);
+    walkChoice.className='dsConsent';
+    const walkLabel=node('label',null,walkChoice);
+    const walkEnabled=node('input',null,walkLabel);
+    walkEnabled.type='checkbox';
+    walkEnabled.name='walks_enabled';
+    node('span','Zusatz-Spaziergänge anfragen (je 30 Minuten)',walkLabel);
+    const walkCount=field(extras,'Anzahl der Zusatz-Spaziergänge','walk_extra_count','number');
+    walkCount.min='1';
+    walkCount.step='1';
+    walkCount.inputMode='numeric';
+    const updateWalkChoice=()=>{
+      walkCount.required=walkEnabled.checked;
+      walkCount.disabled=!walkEnabled.checked;
+      walkCount.parentElement.hidden=!walkEnabled.checked;
+      if(!walkEnabled.checked)walkCount.value='';
+    };
+    walkEnabled.addEventListener('change',updateWalkChoice);
+    updateWalkChoice();
     const consents=Object.entries(DSWorkflowCore.stayConsents),texts=consentTexts(),readLabels={ev_agb:'AGB lesen',ev_dsgvo:'Datenschutzinformationen lesen',ev_wahr:'Erklärung lesen',ev_hv:'Bestätigung nachlesen',ev_gesund:'Bestätigung nachlesen',ev_tierarzt:'Tierarzt-Erlaubnis lesen'};
     const consentBox=node('fieldset',null,form);node('legend','Bestätigungen – Texte vor dem Ankreuzen lesen',consentBox);
     for(const [name,label]of consents){const article=node('div',null,consentBox);article.className='dsConsent';const row=node('label',null,article),el=node('input',null,row);el.type='checkbox';el.name=name;el.required=true;node('span',label,row);const details=node('details',null,article);node('summary',readLabels[name],details);const text=node('p',texts[name],details);text.className='dsConsentText';text.dataset.consentText=name;}
@@ -71,6 +93,9 @@
         const data=new FormData(form),pid=S(data.get('petId')),pet=current.pets.find(p=>p.id===pid);if(!pet)throw new Error('Bitte einen eigenen Hund auswählen.');
         const von=S(data.get('von')),bis=S(data.get('bis'));if(!von||!bis||bis<von)throw new Error('Bitte einen gültigen Zeitraum angeben.');
         const fields={halter_name:current.customer.name,halter_email:current.customer.email||'',hund_name:pet.name,notes:S(data.get('notes'))};for(const [name]of consents){fields[name]=!!form.elements.namedItem(name).checked;if(!fields[name])throw new Error('Bitte alle Bestätigungen prüfen.');}
+        fields.walks_enabled=walkEnabled.checked;
+        fields.walk_extra_count=walkEnabled.checked?walkCount.valueAsNumber:0;
+        if(walkEnabled.checked&&!DSWorkflowCore.stayWalkCount(fields))throw new Error('Bitte eine ganze Anzahl an Zusatz-Spaziergängen eingeben.');
         const signature=pad.read();
         const payload={staySchemaVersion:1,customerId:current.customerId,petId:pid,meta:{customerId:current.customerId,petId:pid,dogId:pid,betreuung:S(data.get('betreuung')),von,bis,bringzeit:S(data.get('bringzeit')),abholzeit:S(data.get('abholzeit')),ort_datum:new Date(signature.signedAt).toLocaleDateString('de-DE')},fields,signature,consentTexts:{...st.texts}};
         DSWorkflowCore.validateStay(payload);
