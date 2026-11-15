@@ -1,0 +1,17 @@
+{
+  "name": "doggy-style-kalender",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "commonjs",
+  "dependencies": {
+    "firebase-admin": "14.5.1",
+    "firebase-functions": "7.4.0",
+    "luxon": "3.7.2",
+    "nodemailer": "10.6.0",
+    "web-push": "4.0.0"
+  },
+  "engines": {
+    "node": "22"
+  },
+  "private": true
+}
