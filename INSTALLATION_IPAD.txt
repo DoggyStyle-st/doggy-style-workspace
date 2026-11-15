@@ -1,12 +1,17 @@
-Doggy Style Workspace – GB379
-Build M50.9.9GB379_STAY_BILLING_20261115
+Doggy Style Workspace – GB381
+Build M50.9.9GB381_CUSTOMER_BILLING_20261115
 
 1. Vor dem Austausch unter Einstellungen > Cloud & Konto die aktuelle lokale Sicherung herunterladen.
 2. Doggy-Style.zip entpacken und den vollständigen Inhalt des Ordners doggy-style-workspace-main am gewählten Hosting-Ort übernehmen.
-3. Bei einem Wechsel von GB378 verwendet diese Version die vorhandenen Firestore- und Storage-Regeln.
+3. Bei einem Wechsel von GB380 verwendet diese Version die vorhandenen Firestore- und Storage-Regeln.
 4. Workspace und Kundenportal neu laden. Im Workspace zeigt DIAG die Buildkennung dieser Version.
 5. In Rechnungen den vorhandenen Entwurf zum Beispielaufenthalt öffnen. Bei den Standardpreisen stehen dort 14 Tage zu 40,00 €, 4,00 € Sonntagszuschlag und 4,00 € Feiertagszuschlag, insgesamt 568,00 € ohne Zusatz-Spaziergänge.
 6. Zum Prüfen im Kundenportal einen Testaufenthalt mit gewünschter Anzahl Zusatz-Spaziergänge senden. Im Workspace den Eingang prüfen und übernehmen. Im Aufenthalt die zugeordnete Rechnung öffnen und die Menge kontrollieren.
 7. Für eine gezielte Neuberechnung die Rechnung öffnen und Aus Aufenthalt neu berechnen wählen. Bei Entwürfen wird die vorhandene Rechnungsnummer weiterverwendet.
+
+8. Rechnung drucken / PDF öffnen und PDF speichern wählen. Die Kundenanschrift und den Abstand zwischen Zahlungsangaben und Seitennummer kontrollieren.
+
+9. Als Administrator anmelden und die erfolgreiche Synchronisierung abwarten. Die Kundennummer anschließend unter Hunde/Kunden prüfen.
+10. Unter Rechnungen > Freie Rechnung die Eingabe Name und Anschrift eingeben wählen. Beleg erstellen und über PDF speichern prüfen.
 
 Die Abrechnung und der Ablauf mit simuliertem Formular und Testdaten wurden lokal geprüft. Die Abnahme am verbundenen Firebase und in Safari auf iPad und iPhone steht aus.

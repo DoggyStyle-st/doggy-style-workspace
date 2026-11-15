@@ -98,6 +98,66 @@
       if(new Set(ids).size!==ids.length)fail('Doppelte Kunden- oder Hunde-ID im Workspace. Zuordnung muss vor der Freigabe geprüft werden.');
     }
   }
+  function customerNumberValue(value){
+    const match=/^K-(\d{4,})$/.exec(str(value)),number=match?Number(match[1]):0;
+    return Number.isSafeInteger(number)&&number>0?number:0;
+  }
+  function needsCustomerNumbers(workspace){
+    const seen=new Set();
+    for(const customer of workspace?.customers||[]){
+      if(!idOf(customer))continue;
+      const number=customerNumberValue(customer.customerNumber);
+      if(!number||seen.has(number))return true;
+      seen.add(number);
+    }
+    return false;
+  }
+  function fillInvoiceCustomerNumbers(workspace,numbers){
+    let changed=false;
+    for(const invoice of workspace.invoices||[]){
+      const number=numbers.get(str(invoice?.customerId));
+      if(number&&invoice?.recipientSnapshot&&!invoice.recipientSnapshot.customerNumber){
+        invoice.recipientSnapshot.customerNumber=number;
+        changed=true;
+      }
+    }
+    return changed;
+  }
+  function assignCustomerNumbers(workspace,previous=workspace){
+    const customers=(workspace.customers||[]).filter(idOf);
+    const saved=new Map(),used=new Set();
+    let next=Number(previous.nextCustomerNumber);
+    if(!Number.isSafeInteger(next)||next<1)next=1;
+    for(const customer of previous.customers||[]){
+      const id=idOf(customer),number=customerNumberValue(customer?.customerNumber);
+      if(!id||!number)continue;
+      if(!used.has(number))saved.set(id,number);
+      used.add(number);
+      next=Math.max(next,number+1);
+    }
+    let changed=false;
+    const numbers=new Map();
+    for(const customer of customers){
+      const id=idOf(customer);
+      const number=saved.get(id)??next++;
+      const label='K-'+String(number).padStart(4,'0');
+      if(customer.customerNumber!==label){customer.customerNumber=label;changed=true;}
+      numbers.set(id,label);
+    }
+    if((customers.length||next>1)&&workspace.nextCustomerNumber!==next){workspace.nextCustomerNumber=next;changed=true;}
+    return fillInvoiceCustomerNumbers(workspace,numbers)||changed;
+  }
+  function applyPublishedCustomerNumbers(target,published){
+    const numbers=new Map((published.customers||[]).filter(c=>idOf(c)&&customerNumberValue(c.customerNumber))
+      .map(c=>[idOf(c),c.customerNumber]));
+    let changed=false;
+    for(const customer of target.customers||[]){
+      const label=numbers.get(idOf(customer));
+      if(label&&customer.customerNumber!==label){customer.customerNumber=label;changed=true;}
+    }
+    if(published.nextCustomerNumber)target.nextCustomerNumber=published.nextCustomerNumber;
+    return fillInvoiceCustomerNumbers(target,numbers)||changed;
+  }
   function context(user, profile){
     const empty = {uid:str(user && user.uid), email:str(user && user.email).toLowerCase(), customer:null, customerId:'', pets:[], verified:false};
     if(!user || !user.uid || !profile || profile.uid !== user.uid || profile.accessSchemaVersion !== 3) return empty;
@@ -522,12 +582,14 @@
       // Query identities only; every snapshot is re-read inside the transaction.
       const listed=await users.where('accessSchemaVersion','==',3).get({source:'server'});
       if(listed.size>200) fail('Zu viele Konten für eine gemeinsame Synchronisation.');
-      const input=clone(workspace);uniqueTargets(input);
+      const requested=clone(workspace);uniqueTargets(requested);
       return db.runTransaction(async tx=>{
         const admin=await requireAdmin(tx), remote=await tx.get(stateRef);
         if(admin.uid!==actor.uid)fail('Konto gewechselt.');
         if(remote.exists && Number(remote.data().updatedAt || 0)!==Number(expectedStamp || 0)) fail('Der Workspace wurde auf einem anderen Gerät geändert. Bitte zuerst aktualisieren.','workspace-conflict');
         const accounts=await Promise.all(listed.docs.map(doc=>tx.get(doc.ref)));
+        const input=clone(requested);
+        const numbered=assignCustomerNumbers(input,remote.exists?decode(remote.data()):input);
         const stamp=Math.max(Date.now(),Number(remote.exists && remote.data().updatedAt || 0)+1);input._cloudUpdatedAt=stamp;
         const next={payload:input,secureWorkflowVersion:3,updatedAt:stamp,updatedBy:admin.uid};
         if(new TextEncoder().encode(JSON.stringify({...(remote.exists?remote.data():{}),...next})).length>900000) fail('Workspace ist zu groß. Die Cloud wurde nicht verändert.','workspace-too-large');
@@ -537,7 +599,7 @@
           tx.update(account.ref,{portalData:snapshot,petIds:snapshot.pets.map(idOf),accessUpdatedAt:stamp});
         }
         if(remote.exists)tx.update(stateRef,next);else tx.set(stateRef,next);
-        return {ok:true,stamp};
+        return {ok:true,stamp,...(numbered?{payload:input}:{})};
       });
     }
     async function approveManualContract(cid,pid,version,signature,accepted,expectedStamp){
@@ -559,5 +621,5 @@
     return {profile,workspace,submit,assign,review,publish,approveManualContract,maintenance,repairPair,setInboxArchived,
       linkCustomer:(uid,cid,stamp,account)=>assign(uid,cid,'',{stamp,account})};
   }
-  return {context,signatureValid,canvasHasInk,auditRecords,restoreRecords,signatureKey,agreementKey,approvedContract,portalSnapshot,validateTarget,submission,sameSubmission,mergePlan,resolveMerge,service,customerFields,petFields,stayConsents,careType,dateISO,stayDetails,dateRange,stayWalkCount,capacity,confirmedStays,occupancyForDay,occupancyRange,validateStay,legalTexts};
+  return {context,signatureValid,canvasHasInk,auditRecords,restoreRecords,signatureKey,agreementKey,approvedContract,portalSnapshot,validateTarget,submission,sameSubmission,mergePlan,resolveMerge,service,customerFields,petFields,stayConsents,careType,dateISO,stayDetails,dateRange,stayWalkCount,capacity,confirmedStays,occupancyForDay,occupancyRange,validateStay,legalTexts,needsCustomerNumbers,assignCustomerNumbers,applyPublishedCustomerNumbers};
 });

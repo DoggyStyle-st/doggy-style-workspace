@@ -1,3 +1,15 @@
+# GB381 – Freie Rechnungen und Kundennummern
+
+Bei freien Rechnungen lässt sich die Anschrift direkt im Beleg erfassen. Die Wahl eines Stammkunden mit optionaler Hundezuordnung ist weiterhin möglich.
+
+Die Workspace-Synchronisierung vergibt feste Kundennummern. Kundenprofile, Rechnungen und die Suche in Kunden-, Aufenthalts- und Rechnungslisten verwenden diese Nummern. Beim Ausstellen einer Rechnung speichert der Beleg Empfängername, Anschrift und eine vorhandene Kundennummer.
+
+# GB380 – Kundenanschrift und Rechnungsdruck
+
+Freie Rechnungen und Rechnungen aus Aufenthalten übernehmen Straße, Hausnummer, PLZ und Ort aus dem zugeordneten Kundendatensatz. Ältere gespeicherte Adressformate werden ebenfalls gelesen.
+
+Die Druckansicht setzt Zahlungsangaben und Dankzeile in den normalen Dokumentfluss. Über PDF speichern steht eine fertig gesetzte A4-Datei mit Seitennummern und reserviertem Platz für die Fußzeile bereit.
+
 # GB379 – Abrechnung von Aufenthalten
 
 An- und Abreise zählen jeweils als voller Betreuungstag. Der Workspace berechnet je Sonntag oder bayerischem Feiertag am Standort Stiefenhofen einen Zuschlag. Bei einer Überschneidung steht der Tag ausschließlich beim Feiertagszuschlag.

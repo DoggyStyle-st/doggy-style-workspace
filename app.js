@@ -2,7 +2,7 @@ try{sessionStorage.removeItem('ds_handoff_pass');}catch(_){}
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB379_STAY_BILLING_20261115",
+  tag: "M50.9.9GB381_CUSTOMER_BILLING_20261115",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -13,7 +13,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB379_STAY_BILLING_20261115";
+const APP_BUILD = "M50.9.9GB381_CUSTOMER_BILLING_20261115";
 try{ window.__dsAppJsRuntimeBuild = "GB350-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -1892,7 +1892,9 @@ function applyRemoteState(remote,remoteStamp,source){
     CLOUD._lastRemoteStamp=Number(remoteStamp||0);ensureStateShape();ensureContractDefaults();
     DSBrowserStore.cache(LS_KEY,JSON.stringify(state));
     DSWorkflow.rememberBase(remote,remoteStamp,state);
-    renderDogs();renderDocs();renderInvoiceList();renderDashboard();renderTodayStatus();renderOccupancy();renderRecent();updateSyncUI();DSWorkflow.wireAssignments().catch(console.error);return true;
+    renderDogs();renderDocs();renderInvoiceList();renderDashboard();renderTodayStatus();renderOccupancy();renderRecent();updateSyncUI();DSWorkflow.wireAssignments().catch(console.error);
+    if(CLOUD.enabled&&CLOUD.role==='admin'&&DSWorkflowCore.needsCustomerNumbers(remote))cloudSchedulePush();
+    return true;
   }
 async function cloudLoadStateWithRetry(maxTries=3){
   let lastErr = null;
@@ -1945,12 +1947,23 @@ async function cloudPushNow(){
       state._cloudUpdatedAt=res.stamp;CLOUD._lastRemoteStamp=res.stamp;CLOUD.lastPushOkAt=res.stamp;
       const persisted=res.payload||payload;
       DSWorkflow.acceptPublishedFiles(state,payload,persisted);
-      DSWorkflow.rememberBase(persisted,res.stamp,DSWorkflow.acceptPublishedFiles(JSON.parse(captured),payload,persisted));CLOUD.lastPushError='';
+      const localBaseline=DSWorkflow.acceptPublishedFiles(JSON.parse(captured),payload,persisted);
+      const numberChanged=DSWorkflowCore.applyPublishedCustomerNumbers(state,persisted);
+      DSWorkflowCore.applyPublishedCustomerNumbers(localBaseline,persisted);
+      DSWorkflow.rememberBase(persisted,res.stamp,localBaseline);CLOUD.lastPushError='';
       SYNC.cloudLastOkAt=res.stamp;SYNC.cloudPending=edited;SYNC.cloudLastError='';
       DSBrowserStore.cache(LS_KEY,JSON.stringify(state));
       const deferred=CLOUD._deferredRemoteSnapshot;CLOUD._deferredRemoteSnapshot=null;
       if(deferred && deferred.stamp>res.stamp){if(edited)DSWorkflow.showConflict(deferred.payload,deferred.stamp);else applyRemoteState(deferred.payload,deferred.stamp,'after-publish');}
       else{DSWorkflow.clearConflict();}
+      if(numberChanged){
+        try{
+          renderDogs();
+          renderInvoiceList();
+          renderDocs();
+          if($("#useExistingCustomer")?.checked)showCpCustomerNumber(getCustomer($("#customerSelect")?.value));
+        }catch(error){console.warn('Kundennummern konnten nicht direkt angezeigt werden.',error.message);}
+      }
       updateSyncUI();return res;
     }catch(e){if(firebase.auth().currentUser?.uid!==actor)throw e;SYNC.cloudPending=true;SYNC.cloudLastError=e.code==='workspace-conflict'?'':e.message;CLOUD.lastPushError=SYNC.cloudLastError;updateSyncUI();
       if(e.code==='workspace-conflict'){try{const latest=await DSWorkflow.api().workspace();DSWorkflow.showConflict(latest.payload,latest.stamp);updateSyncUI();}catch(_){} }
@@ -2726,7 +2739,7 @@ async function submitCustomerDogsProposal(){
   // GB355: vollständig lokal sichern, anschließend zuverlässig in proposals + tasks übertragen.
   // Die Oberfläche wird sofort freigegeben; die Erfolgsmeldung "an Eingänge übergeben"
   // erscheint ausschließlich nach bestätigter Firestore-Speicherung.
-  const GB355='M50.9.9GB379_STAY_BILLING_20261115';
+  const GB355='M50.9.9GB381_CUSTOMER_BILLING_20261115';
   function S(v){ try{return String(v==null?'':v);}catch(_){return '';} }
   function L(v){ return S(v).trim().toLowerCase(); }
   function V(id){ try{const el=document.getElementById(id);return S(el&&el.value!=null?el.value:'').trim();}catch(_){return '';} }
@@ -8883,6 +8896,20 @@ const cpEdit = { mode: "new", petId: "" };
 function getCustomer(id){
   return (state.customers||[]).find(c=>c.id===id) || null;
 }
+function matchesWorkspaceSearch(query,...values){
+  const fold=value=>String(value||'').normalize('NFD').replace(/\p{Diacritic}/gu,'').toLowerCase().trim();
+  const search=fold(query).split(/\s+/).filter(Boolean);
+  const fields=fold(values.join(' '));
+  const compact=fields.replace(/-/g,'');
+  return search.every(term=>fields.includes(term)||compact.includes(term));
+}
+function showCpCustomerNumber(customer){
+  const label=document.getElementById('cpCustomerNumber');
+  if(label){
+    label.hidden=!customer?.customerNumber;
+    label.textContent=customer?.customerNumber?'Kundennummer '+customer.customerNumber:'';
+  }
+}
 function getPet(id){
   return (state.pets||[]).find(p=>p.id===id) || null;
 }
@@ -8924,6 +8951,7 @@ function buildCanonicalCustomerList(){
       id: id || customerId || email || label,
       customerId: customerId || id || email || label,
       name: String(label).trim(),
+      customerNumber: String(raw.customerNumber||'').trim(),
       email,
       phone,
       portalUid
@@ -9028,10 +9056,13 @@ function refreshCustomerSelect(){
     sel.innerHTML = '<option value="">(Kunde wählen)</option>';
     return;
   }
-  sel.innerHTML = customers.map(c=>`<option value="${escapeHtml(c.customerId||c.id)}">${escapeHtml(c.name||"Kunde")}${(c.email||c.phone)?(" · "+escapeHtml(c.email||c.phone)):""}</option>`).join("");
+  const selected=sel.value;
+  sel.innerHTML = customers.map(c=>`<option value="${escapeHtml(c.customerId||c.id)}">${escapeHtml([c.name||'Kunde',c.email||c.phone,c.customerNumber].filter(Boolean).join(' · '))}</option>`).join("");
+  if(customers.some(c=>(c.customerId||c.id)===selected))sel.value=selected;
 }
 function clearCpEditor(){
   DSWorkflow.resetPhotoEditor();
+  showCpCustomerNumber(null);
   ["c_name","c_phone","c_email","c_street","c_zip","c_city","c_em_name","c_em_phone","c_pickup_auth","c_note","p_name","p_breed","p_chipNumber","p_vet","p_vetPhone","p_vetEmail","p_vetStreet","p_vetZip","p_vetCity","p_vetEmergencyName","p_vetEmergencyPhone","p_food","p_feeding","p_compat","p_note","p_allergies","p_medicalConditions","p_behavior","p_treatsAllowed","p_aloneTime","p_houseTrained","p_transport","p_compatDogs","p_compatCats","p_compatKids","p_leashBehavior","p_recall","p_resourceBehavior","p_dailyRoutine","p_commands","p_insuranceCompany","p_insurancePolicy","p_insuranceNotes"].forEach(id=>{
     const el=document.getElementById(id); if(el) el.value="";
   });
@@ -9166,6 +9197,7 @@ function cpWirePetPhotoInputs(){return DSWorkflow.wirePhotoInputs({get:kind=>kin
 
 function fillCpEditorForPet(pet){
   const c = getCustomer(pet.customerId);
+  showCpCustomerNumber(c);
   if(c){
     $("#c_name").value = c.name||"";
     $("#c_phone").value = c.phone||"";
@@ -9311,6 +9343,7 @@ function getCurrentCpCustomerId(){
 
 function fillCpCustomerFieldsFromObject(c){
   if(!c) return;
+  showCpCustomerNumber(c);
   try{ $("#c_name").value = c.name||c.displayName||c.fullName||""; }catch(_){ }
   try{ $("#c_phone").value = c.phone||""; }catch(_){ }
   try{ $("#c_email").value = c.email||""; }catch(_){ }
@@ -13691,13 +13724,48 @@ function getInvoiceById(id){
 function resolveInvoiceParties(inv){
   ensureStateShape();
   ensureContractDefaults();
-  const cust = inv?.customerId ? getCustomer(inv.customerId) : (inv?.dogId ? getCustomerByDogId(inv.dogId) : null);
+  if(inv?.manualRecipient)return {cust:null,pet:null,legacyDog:null};
   const pet  = inv?.petId ? getPet(inv.petId) : (inv?.dogId ? getPetByDogId(inv.dogId) : null);
-  const legacyDog = inv?.dogId ? (state.dogs||[]).find(d=>d.id===inv.dogId) : null;
+  const cust = inv?.customerId ? getCustomer(inv.customerId)
+    : (pet?.customerId ? getCustomer(pet.customerId) : null) || (inv?.dogId ? getCustomerByDogId(inv.dogId) : null);
+  const dog = inv?.dogId ? (state.dogs||[]).find(d=>d.id===inv.dogId) : null;
+  const dogOwner = dog && (state._legacy?.dogIdToCustomerId?.[dog.id] || dog.customerId);
+  const legacyDog = dogOwner && inv?.customerId && dogOwner!==inv.customerId ? null : dog;
   return { cust, pet, legacyDog };
 }
+function invoiceAddressLines(record){
+  const clean=value=>typeof value==='string'||typeof value==='number'?String(value).trim():'';
+  const legacy=record?.address;
+  const address=legacy&&typeof legacy==='object'?legacy:{};
+  const street=clean(record?.street)||clean(address.street)||clean(legacy);
+  const postalLine=[clean(record?.zip)||clean(address.zip),clean(record?.city)||clean(address.city)].filter(Boolean).join(' ');
+  const country=clean(record?.country)||clean(address.country);
+  const lines=street.split(/\r?\n/).map(line=>line.trim()).filter(Boolean);
+  for(const line of [postalLine,country]){
+    if(line&&!lines.some(value=>value===line||value.endsWith(', '+line)))lines.push(line);
+  }
+  return lines;
+}
+function resolveInvoiceAddress(inv,cust,legacyDog){
+  const address=invoiceAddressLines(cust);
+  if(address.length||!legacyDog)return address;
+  const customerId=inv.customerId||cust?.id;
+  const legacyOwner=state._legacy?.dogIdToCustomerId?.[legacyDog.id]||legacyDog.customerId;
+  return !customerId||legacyOwner===customerId?invoiceAddressLines(legacyDog):[];
+}
+function resolveInvoiceRecipient(inv,{cust,legacyDog}=resolveInvoiceParties(inv)){
+  if(inv.recipientSnapshot)return inv.recipientSnapshot;
+  if(inv.manualRecipient)return {
+    name:inv.manualRecipient.name||'—',addressLines:invoiceAddressLines(inv.manualRecipient),customerNumber:''
+  };
+  return {
+    name:cust?.name||cust?.fullName||legacyDog?.owner||'—',
+    addressLines:resolveInvoiceAddress(inv,cust,legacyDog),
+    customerNumber:cust?.customerNumber||''
+  };
+}
 function formatCustomerLine(cust, legacyDog){
-  const name = cust?.name || legacyDog?.owner || "";
+  const name = cust?.name || cust?.fullName || legacyDog?.owner || "";
   const phone = cust?.phone || legacyDog?.phone || "";
   const email = cust?.email || "";
   const parts = [name, phone, email].filter(Boolean);
@@ -13746,16 +13814,23 @@ function renderInvoiceList(){
 
   const el = document.getElementById("invoiceList");
   if(!el) return;
-  const invoices = getInvoices();
+  const query=document.getElementById('invoiceSearch')?.value||'';
+  const all=getInvoices();
+  const invoices = all.map(inv=>{
+    const parties=resolveInvoiceParties(inv);
+    return {inv,...parties,recipient:resolveInvoiceRecipient(inv,parties)};
+  }).filter(({inv,cust,pet,legacyDog,recipient})=>matchesWorkspaceSearch(
+    query,inv.invoiceNumber,recipient.name,recipient.customerNumber,cust?.customerNumber,pet?.name||legacyDog?.name
+  ));
   const actionBar = `
     <div class="row" style="gap:10px;flex-wrap:wrap;margin:10px 0 14px">
       <button class="btn" onclick="openFreeInvoiceForm()">➕ Freie Rechnung</button>
     </div>
   `;
   if(!invoices.length){
-    el.innerHTML = actionBar + "<p class='muted'>Noch keine Rechnungen vorhanden.</p>";
-    const view = document.getElementById("invoiceView");
-    if(view) view.innerHTML = "";
+    el.innerHTML=actionBar+`<p class="muted">${query?'Keine passenden Rechnungen.':'Noch keine Rechnungen vorhanden.'}</p>`;
+    const view=document.getElementById('invoiceView');
+    if(!all.length&&view&&!view.querySelector('#freeInvoiceForm'))view.innerHTML='';
     return;
   }
   el.innerHTML = actionBar + `
@@ -13770,10 +13845,10 @@ function renderInvoiceList(){
         </tr>
       </thead>
       <tbody>
-        ${invoices.map(inv=>`
+        ${invoices.map(({inv,pet,legacyDog,recipient})=>`
           <tr onclick="openInvoice('${inv.id}')">
-            <td>${inv.invoiceNumber || "-"}</td>
-            <td>${escapeHtml((resolveInvoiceParties(inv).cust?.name || resolveInvoiceParties(inv).legacyDog?.owner || "—"))} · ${escapeHtml((resolveInvoiceParties(inv).pet?.name || resolveInvoiceParties(inv).legacyDog?.name || "—"))}</td>
+            <td>${escapeHtml(inv.invoiceNumber||'—')}</td>
+            <td>${escapeHtml([recipient.name,recipient.customerNumber,pet?.name||legacyDog?.name].filter(Boolean).join(' · '))}</td>
             <td>${escapeHtml(inv.period?.from||"")} – ${escapeHtml(inv.period?.to||"")}</td>
             <td>${(inv.pricing?.total||0).toFixed(2)} €</td>
         <td>
@@ -13788,6 +13863,7 @@ function renderInvoiceList(){
     </table>
   `;
 }
+$("#invoiceSearch")?.addEventListener('input',renderInvoiceList);
 
 function ds207ResetStaleCloudForInvoice(reason){
   try{
@@ -13879,9 +13955,12 @@ function openInvoice(id){
   }catch(_){}
   const el = document.getElementById("invoiceView");
   if(!el) return;
-  const {cust, pet, legacyDog} = resolveInvoiceParties(inv);
-  const custLine = escapeHtml(formatCustomerLine(cust, legacyDog) || "—");
-  const petLine = escapeHtml(pet?.name || (legacyDog?.name||"—"));
+  const parties = resolveInvoiceParties(inv);
+  const {cust,pet,legacyDog}=parties;
+  const recipient=resolveInvoiceRecipient(inv,parties);
+  const custLine=escapeHtml(formatCustomerLine({...cust,name:recipient.name},legacyDog));
+  const address=(recipient.addressLines||[]).map(escapeHtml).join('<br>');
+  const petLine=escapeHtml(pet?.name||legacyDog?.name||'');
   const _cancelReason = inv.cancelReason || inv.stornoReason || '';
   const _cancelReasonHtml = (inv.status === 'cancelled' && _cancelReason)
     ? ` · <strong>Grund:</strong> ${escapeHtml(_cancelReason)}`
@@ -13912,8 +13991,10 @@ function openInvoice(id){
           ${locked?'Diese Rechnung ist abgeschlossen.':inv.pricingMode==='manual'?'Die bearbeiteten Rechnungspositionen sind gespeichert.':'Mit Bearbeiten kannst du die Rechnungspositionen anpassen.'}
         </p>
       ` : ``}
-      <p><strong>Kunde:</strong> ${custLine}<br>
-         <strong>Hund:</strong> ${petLine}
+      <p><strong>Rechnungsempfänger:</strong> ${custLine}<br>
+         ${address?'<span style="overflow-wrap:anywhere">'+address+'</span><br>':''}
+         ${recipient.customerNumber?'<strong>Kundennummer:</strong> '+escapeHtml(recipient.customerNumber)+'<br>':''}
+         ${petLine?'<strong>Hund:</strong> '+petLine:''}
       </p>
       <p><strong>Zeitraum:</strong>
         ${escapeHtml(formatDateDE(inv.period?.from||""))} – ${escapeHtml(formatDateDE(inv.period?.to||""))}
@@ -14115,6 +14196,9 @@ function setInvoiceStatus(id, status){
   }
 
   if(code===prev){renderInvoiceList();openInvoice(id);return;}
+  if(prev==='draft'&&code!=='draft'&&!inv.recipientSnapshot){
+    inv.recipientSnapshot=resolveInvoiceRecipient(inv);
+  }
   if(!DSBilling.frozen(inv)){
     DSBilling.parts(inv);recomputeInvoiceTotals(inv);
     inv.lineItems=DSBilling.lines(inv);snapshotInvoiceSourceMeta(inv);
@@ -14140,7 +14224,7 @@ function setInvoiceStatus(id, status){
   renderInvoiceList();
   openInvoice(id);
 }
-// ===== ETAPPE 4: Freie Rechnung (Kunde/Hund auswählen statt tippen) =====
+// ===== Freie Rechnung =====
 function openFreeInvoiceForm(){
   ensureStateShape();
   ensureContractDefaults();
@@ -14150,18 +14234,24 @@ function openFreeInvoiceForm(){
   const hasCustomers = customers.length>0;
   const today = toISODateLocal(new Date());
   view.innerHTML = `
-    <div class="card">
+    <form class="card" id="freeInvoiceForm" onsubmit="event.preventDefault();createFreeInvoice()">
       <div class="row between" style="gap:10px;flex-wrap:wrap">
         <h3 style="margin:0">Freie Rechnung</h3>
-        <button class="smallbtn" onclick="document.getElementById('invoiceView').innerHTML=''">Schließen</button>
+        <button type="button" class="smallbtn" onclick="document.getElementById('invoiceView').innerHTML=''">Schließen</button>
       </div>
-      ${hasCustomers ? "" : "<p class='muted'>Noch kein Kundenstamm vorhanden. Bitte zuerst unter Hunde/Kunden einen Kunden & Hund anlegen.</p>"}
-      <div class="row" style="gap:12px;flex-wrap:wrap;margin-top:10px">
+      <label class="field" style="margin-top:10px">
+        <span>Rechnungsempfänger</span>
+        <select id="freeInvRecipientMode" onchange="renderFreeInvoiceRecipientMode()">
+          <option value="customer" ${hasCustomers?'':'disabled'}>Stammkunde auswählen</option>
+          <option value="manual" ${hasCustomers?'':'selected'}>Name und Anschrift eingeben</option>
+        </select>
+      </label>
+      <fieldset class="ds-invoice-recipient" id="freeInvCustomerFields" ${hasCustomers?'':'hidden disabled'}>
         <label class="field" style="min-width:260px">
           <span>Kunde *</span>
-          <select id="freeInvCustomer" onchange="renderFreeInvoicePetOptions()">
+          <select id="freeInvCustomer" required onchange="renderFreeInvoicePetOptions()">
             <option value="">— Bitte auswählen —</option>
-            ${customers.map(c=>`<option value="${c.id}">${escapeHtml(c.name||"Kunde")}</option>`).join("")}
+            ${customers.map(c=>`<option value="${escapeHtml(c.id)}">${escapeHtml([c.name||'Kunde',c.customerNumber].filter(Boolean).join(' · '))}</option>`).join("")}
           </select>
         </label>
         <label class="field" style="min-width:260px">
@@ -14170,7 +14260,10 @@ function openFreeInvoiceForm(){
             <option value="">—</option>
           </select>
         </label>
-      </div>
+      </fieldset>
+      <fieldset class="ds-invoice-recipient" id="freeInvManualFields" ${hasCustomers?'hidden disabled':''}>
+        ${DSBilling.recipientInputs()}
+      </fieldset>
       <div class="row" style="gap:12px;flex-wrap:wrap">
         <label class="field" style="min-width:200px">
           <span>Von</span>
@@ -14192,11 +14285,19 @@ function openFreeInvoiceForm(){
         </label>
       </div>
       <div class="row" style="gap:10px;flex-wrap:wrap;margin-top:10px">
-        <button class="btn" onclick="createFreeInvoice()">🧾 Rechnung erstellen</button>
+        <button type="submit" class="btn">🧾 Rechnung erstellen</button>
       </div>
-    </div>
+    </form>
   `;
-  renderFreeInvoicePetOptions();
+  renderFreeInvoiceRecipientMode();
+}
+function renderFreeInvoiceRecipientMode(){
+  const manual=document.getElementById('freeInvRecipientMode')?.value==='manual';
+  const customerFields=document.getElementById('freeInvCustomerFields');
+  const manualFields=document.getElementById('freeInvManualFields');
+  if(customerFields)customerFields.hidden=customerFields.disabled=manual;
+  if(manualFields)manualFields.hidden=manualFields.disabled=!manual;
+  if(!manual)renderFreeInvoicePetOptions();
 }
 function renderFreeInvoicePetOptions(){
   ensureStateShape();
@@ -14206,7 +14307,9 @@ function renderFreeInvoicePetOptions(){
   if(!petSel) return;
   const pets = (state.pets||[]).filter(p=>p.customerId===customerId).slice()
     .sort((a,b)=>(a.name||"").localeCompare(b.name||"","de"));
-  petSel.innerHTML = `<option value="">—</option>` + pets.map(p=>`<option value="${p.id}">${escapeHtml(p.name||"Hund")}</option>`).join("");
+  const selected=petSel.value;
+  petSel.innerHTML = `<option value="">—</option>` + pets.map(p=>`<option value="${escapeHtml(p.id)}">${escapeHtml(p.name||"Hund")}</option>`).join("");
+  if(pets.some(p=>p.id===selected))petSel.value=selected;
 }
 function ensureLegacyDogForPetId(petId, customerId){
   ensureStateShape();
@@ -14235,13 +14338,21 @@ function createFreeInvoice(){
   if(!DSBilling.requireEdit())return;
   ensureStateShape();
   ensureContractDefaults();
-  const customerId = document.getElementById("freeInvCustomer")?.value || "";
-  const petId = document.getElementById("freeInvPet")?.value || "";
+  const manual=document.getElementById('freeInvRecipientMode')?.value==='manual';
+  const customerId=manual?'':document.getElementById('freeInvCustomer')?.value||'';
+  const petId=manual?'':document.getElementById('freeInvPet')?.value||'';
   const from = document.getElementById("freeInvFrom")?.value || "";
   const to = document.getElementById("freeInvTo")?.value || "";
   const note = (document.getElementById("freeInvNote")?.value || "").trim();
   let amount;try{amount=DSBilling.number(document.getElementById("freeInvAmount")?.value||'0');}catch(e){alert(e.message);return;}
-  if(!customerId){ alert("Bitte Kunde auswählen."); return; }
+  let manualRecipient;
+  if(manual){
+    try{manualRecipient=DSBilling.readManualRecipient(document.getElementById('freeInvManualFields'));}
+    catch(error){alert(error.message);return;}
+  }else{
+    if(!customerId||!getCustomer(customerId)){alert('Bitte einen Kunden auswählen.');return;}
+    if(petId&&getPet(petId)?.customerId!==customerId){alert('Bitte einen Hund des ausgewählten Kunden wählen.');return;}
+  }
   if(!(amount>0)){ alert("Bitte einen Betrag > 0 eingeben."); return; }
   const invoiceNumber=DSBilling.nextNumber();
   const dogId = petId ? ensureLegacyDogForPetId(petId, customerId) : "";
@@ -14252,6 +14363,7 @@ function createFreeInvoice(){
     dogId,
     customerId,
     petId,
+    ...(manualRecipient?{manualRecipient}:{}),
     period: { from: from || "", to: to || "" },
     pricing: {
       basePrice: amount,
@@ -14275,144 +14387,91 @@ function createFreeInvoice(){
   renderInvoiceList();
   openInvoice(invoice.id);
 }
-function printInvoice(id){
-  const record=getInvoiceById(id),inv=record?DSBilling.display(record):null;
-  
-  const logoUrl = (function(){
+let invoicePrintRequest=0;
+function buildInvoicePrintModel(inv){
+  const parties=resolveInvoiceParties(inv);
+  const {pet,legacyDog}=parties;
+  const account=resolveInvoiceRecipient(inv,parties);
+  const recipient=[account.name,...(account.addressLines||[])];
+  const dogName=pet?.name||legacyDog?.name;
+  const recipientDetails=[
+    dogName?'Hund: '+dogName:'',
+    pet?.chipNumber?'Chip: '+pet.chipNumber:''
+  ].filter(Boolean);
+  const logoUrl=new URL('assets/logo.png',location.href).href;
+  const sender=[COMPANY.name,COMPANY.owner,COMPANY.street,COMPANY.zipCity,
+    COMPANY.phone?'Tel: '+COMPANY.phone:'',COMPANY.email,
+    COMPANY.tax?.vatId?'USt-ID: '+COMPANY.tax.vatId:'',
+    COMPANY.tax?.taxNumber?'Steuernr.: '+COMPANY.tax.taxNumber:''
+  ].filter(Boolean);
+  const cancelled=['cancelled','canceled','storniert'].includes(String(inv.status||'').trim().toLowerCase());
+  const heading=cancelled?'Stornorechnung':'Rechnung';
+  const title=[heading,inv.invoiceNumber].filter(Boolean).join(' ');
+  const date=new Date(inv.invoiceDate||inv.createdAt||Date.now());
+  const metadata=[
+    ['Rechnungsnummer',inv.invoiceNumber||'—'],
+    ['Rechnungsdatum',date.toLocaleDateString('de-DE')]
+  ];
+  if(account.customerNumber)metadata.push(['Kundennummer',account.customerNumber]);
+  const periodDate=value=>DSWorkflowCore.dateISO(value)?.split('-').reverse().join('.');
+  const period=[periodDate(inv.period?.from),periodDate(inv.period?.to)].filter(Boolean).join(' - ');
+  if(period)metadata.push(['Leistungszeitraum',period]);
+  if(cancelled){
+    const event=Array.isArray(inv.audit)?inv.audit.slice().reverse().find(item=>item?.action==='cancel'):null;
+    const at=dsTsMs(inv.cancelledAt||event?.at);
+    const reason=inv.cancelReason||inv.stornoReason||event?.reason;
+    metadata.push(['Status',at?'Storniert am '+new Date(at).toLocaleString('de-DE'):'Storniert']);
+    if(reason)metadata.push(['Stornogrund',reason]);
+  }
+  const sign=cancelled?-1:1;
+  const money=number=>formatEuro(sign*Number(number||0));
+  const rows=DSBilling.lines(inv).map(item=>({
+    label:DSBilling.lineDescription({...item,unit:item.unit==null?item.unit:sign*Number(item.unit)}),
+    amount:money(item.total)
+  }));
+  const totals=[{label:'Gesamt (Brutto)',amount:money(inv.pricing?.total)}];
+  if(Number(inv.vatRate)>0){
+    const percent=Number(inv.vatRate).toLocaleString('de-DE',{maximumFractionDigits:2});
+    totals.push(
+      {label:'Enthaltene MwSt ('+percent+' %)',amount:money(inv.pricing?.vatAmount)},
+      {label:'Netto (informativ)',amount:money(inv.pricing?.net)}
+    );
+  }
+  const payment=[
+    'Bitte überweise den Rechnungsbetrag auf das unten angegebene Konto und gib die Rechnungsnummer als Verwendungszweck an.',
+    COMPANY.bank?.name,
+    COMPANY.bank?.iban?'IBAN: '+COMPANY.bank.iban:'',
+    COMPANY.bank?.bic?'BIC: '+COMPANY.bank.bic:''
+  ].filter(Boolean);
+  return {heading,title,logoUrl,sender,recipient,recipientDetails,metadata,rows,totals,payment};
+}
+async function printInvoice(id){
+  const record=getInvoiceById(id);
+  if(!record)return;
+  const request=++invoicePrintRequest;
+  const account=()=>window.firebase?.auth().currentUser?.uid||'';
+  const uid=account();
+  try{
+    const inv=DSBilling.display({...record,pricing:{...record.pricing}});
+    if(!DSBilling.frozen(inv)&&inv.pricing.parts)recomputeInvoiceTotals(inv);
+    const model=buildInvoicePrintModel(inv);
+    let logo;
     try{
-      const base = location.origin + location.pathname.replace(/\/[^\/]*$/, '/');
-      return base + 'assets/logo.png';
-    }catch(e){ return 'assets/logo.png'; }
-  })();
-if(!inv) return;
-  if(!DSBilling.frozen(inv) && inv.pricing && inv.pricing.parts){
-    recomputeInvoiceTotals(inv);
-  }
-  // In-App PDF/Print Overlay (kein neuer Tab)
-  ensurePdfOverlayStyles();
-  const {cust, pet, legacyDog} = resolveInvoiceParties(inv);
-  // Kunde: Name + Adresse (wenn vorhanden). Telefon wird NICHT auf der Rechnung ausgegeben.
-  const recipientName = escapeHtml((cust && (cust.name||cust.fullName)) || legacyDog?.owner || "—");
-  const addr = (cust && cust.address) ? cust.address : (legacyDog && legacyDog.address ? legacyDog.address : null);
-  const addrLines = [];
-  if(addr){
-    if(addr.street) addrLines.push(escapeHtml(addr.street));
-    const zipCity = [addr.zip, addr.city].filter(Boolean).join(' ');
-    if(zipCity) addrLines.push(escapeHtml(zipCity));
-  }
-  const recipient = [recipientName].concat(addrLines).join('<br>');
-  const recipientSub = [
-    (pet?.name || legacyDog?.name) ? `Hund: ${escapeHtml(pet?.name || legacyDog?.name)}` : "",
-    (pet?.chipNumber) ? `Chip: ${escapeHtml(pet.chipNumber)}` : ""
-  ].filter(Boolean).join("<br>");
-  const isCancelled = String(inv.status||'draft')==='cancelled';
-  const sign = isCancelled ? -1 : 1;
+      const bytes=await withTimeout(fetch(model.logoUrl).then(response=>response.ok?response.arrayBuffer():null),4000);
+      if(bytes)logo=new Uint8Array(bytes);
+    }catch(_){/* The preview also works without the logo. */}
+    if(request!==invoicePrintRequest||uid!==account())return;
+    if(!logo)model.logoUrl='';
 
-  // 4E-6: Storno-Infos fürs PDF (Datum + Grund, wenn vorhanden)
-  const cancelEvt = Array.isArray(inv.audit) ? [...inv.audit].reverse().find(a => (a && a.action === 'cancel')) : null;
-  const cancelReason = (cancelEvt && typeof cancelEvt.reason === 'string') ? cancelEvt.reason.trim() : (typeof inv.stornoReason === 'string' ? inv.stornoReason.trim() : '');
-  const cancelAt = cancelEvt && cancelEvt.at ? new Date(cancelEvt.at) : null;
-  const cancelAtStr = (cancelAt && !isNaN(cancelAt.getTime()))
-    ? `${pad2(cancelAt.getDate())}.${pad2(cancelAt.getMonth()+1)}.${cancelAt.getFullYear()} ${pad2(cancelAt.getHours())}:${pad2(cancelAt.getMinutes())}`
-    : '';
-  const euro = (n)=>`${(sign*Number(n||0)).toFixed(2)} €`;
-  const rowsHtml=[DSBilling.positions(inv,true,sign)];
-  // Inhalt (ohne <html>/<body>) – wird im Overlay gerendert
-  const html = `
-    <style>
-      /* Layout bewusst A4-sicher: Ränder über @page, Innenabstand in mm */
-      .pdf-page{font-family: Arial, sans-serif; color:#111; background:#fff;}
-      .page-inner{ padding: 0; }
-      h1 { margin: 18px 0 8px; }
-      .header { margin-bottom: 16px; display:flex; justify-content:space-between; gap:20px; align-items:flex-start; }
-      .block { font-size: 12px; color: #111; line-height:1.35; }
-      .company { font-size: 12px; color: #444; text-align:right; line-height:1.35; }
-      .small { font-size: 12px; color: #444; }
-      table { width: 100%; border-collapse: collapse; margin-top: 18px; }
-      td, th { border: 1px solid #ccc; padding: 8px; }
-      th { background: #f5f5f5; }
-      .right { text-align: right; }
-      .muted { color:#666; font-size:11px; }
-      /* Footer nur für Druck – verhindert "ganze Seite" und gibt Orientierung */
-      .pdf-footer{ display:none; }
-      @media print{
-        .pdf-footer{
-          display:block;
-          position: fixed;
-          left: 0; right: 0;
-          bottom: 0;
-          padding: 4mm 0;
-          font-size: 10px;
-          color:#666;
-        }
-        .pdf-footer .row{ display:flex; justify-content:space-between; }
-      }
-    </style>
-    <div class="pdf-page">
-      <div class="page-inner">
-        <div class="header">
-          <div class="block">
-            ${recipient}<br>
-            <span class="muted">${recipientSub}</span>
-          </div>
-          <div class="company">
-            <img src="${logoUrl}" alt="Doggy Style" style="max-height:56px;max-width:180px;object-fit:contain;margin-bottom:6px;" /><br>
-            <strong>${escapeHtml(COMPANY.name)}</strong><br>
-            ${escapeHtml(COMPANY.owner)}<br>
-            ${escapeHtml(COMPANY.street)}<br>
-            ${escapeHtml(COMPANY.zipCity)}<br>
-            Tel: ${escapeHtml(COMPANY.phone)}<br>
-            ${escapeHtml(COMPANY.email)}<br>
-            ${COMPANY.tax?.vatId ? "USt-ID: " + escapeHtml(COMPANY.tax.vatId) + "<br>" : ""}
-            ${COMPANY.tax?.taxNumber ? "Steuernr.: " + escapeHtml(COMPANY.tax.taxNumber) + "<br>" : ""}
-          </div>
-        </div>
-        <h1>${isCancelled ? 'Stornorechnung' : 'Rechnung'}</h1>
-        <p class="small">
-          <strong>Rechnungsnummer:</strong> ${escapeHtml(inv.invoiceNumber || "-")}<br>
-          <strong>Rechnungsdatum:</strong> ${new Date(inv.invoiceDate||Date.now()).toLocaleDateString("de-DE")}<br>
-          <strong>Leistungszeitraum:</strong> ${escapeHtml(formatDateDE(inv.period?.from||""))} – ${escapeHtml(formatDateDE(inv.period?.to||""))}
-          ${isCancelled ? `<br><strong>Status:</strong> STORNIERT${cancelAtStr ? ` (${escapeHtml(cancelAtStr)})` : ''}` : ''}
-          ${isCancelled && cancelReason ? `<br><strong>Storno-Grund:</strong> ${escapeHtml(cancelReason)}` : ''}
-        </p>
-        <table>
-          <tr>
-            <th>Position</th>
-            <th class="right">Betrag</th>
-          </tr>
-          ${rowsHtml.join('')}
-          <tr>
-            <th>Gesamt (Brutto)</th>
-            <th class="right">${euro(Number(inv.pricing?.total||0))}</th>
-          </tr>
-          ${Number(inv.vatRate||0) > 0 ? `<tr>
-            <td class="muted">Enthaltene MwSt (${Number(inv.vatRate||0).toFixed(2)}%)</td>
-            <td class="right muted">${euro(Number(inv.pricing?.vatAmount||0))}</td>
-          </tr>` : ``}
-          ${Number(inv.vatRate||0) > 0 ? `<tr>
-            <td class="muted">Netto (informativ)</td>
-            <td class="right muted">${euro(Number(inv.pricing?.net||0))}</td>
-          </tr>` : ``}
-        </table>
-        <p class="small" style="margin-top:16px">
-          Bitte überweise den Rechnungsbetrag unter Angabe der Rechnungsnummer auf folgendes Konto:<br>
-          <strong>${escapeHtml(COMPANY.bank?.name || "")}</strong><br>
-          IBAN: ${escapeHtml(COMPANY.bank?.iban || "")}<br>
-          BIC: ${escapeHtml(COMPANY.bank?.bic || "")}<br>
-          <br>
-          Vielen Dank!
-        </p>
-      </div>
-      <div class="pdf-footer">
-        <div class="row">
-          <div>${escapeHtml(COMPANY.name)}</div>
-          <div>Seite 1/1</div>
-        </div>
-      </div>
-    </div>
-  `;
-  openHtmlInModal("Rechnung "+(inv.invoiceNumber||""),html,"Drucken öffnet die Druckauswahl. Dort kann die Rechnung auch als PDF gespeichert werden.");
-  try{ dsHideProposalOpenDiag(); }catch(_){}
+    let pdf;
+    try{pdf=DSInvoicePrint.pdf(model,window.jspdf?.jsPDF,window.DSPrintFont,logo);}
+    catch(error){console.warn('Rechnung als PDF fehlgeschlagen',error.message);}
+    DSDocumentOutput.open({
+      title:model.title,html:DSInvoicePrint.html(model),pdf,filename:suggestFilename(model.title),
+      hint:pdf?'Mit „PDF speichern“ erhältst du die fertige Rechnung. „Drucken“ öffnet die Druckauswahl.':'Über „Drucken“ kannst du die Rechnung drucken oder als PDF sichern.'
+    });
+    try{dsHideProposalOpenDiag();}catch(_){}
+  }catch(error){alert('Rechnung konnte nicht geöffnet werden: '+error.message);}
 }
 function ensurePdfOverlayStyles(){
   if(document.getElementById("pdfOverlayStyles")) return;
@@ -14746,6 +14805,10 @@ function renderDogs(){
       petsAll = [];
     }
   }
+  const search=$("#workspaceCustomerSearch");
+  if(search?.parentElement)search.parentElement.style.display=__customerMainDogs?'none':'';
+  const query=__customerMainDogs?'':search?.value?.trim()||'';
+  const customers=__customerMainDogs?[]:(state.customers||[]).filter(c=>c?.id);
   // Sortierung: Kunden A-Z, Hunde je Kunde A-Z (de)
   const collator = new Intl.Collator("de", { sensitivity: "base", numeric: true });
   // Letzter Aufenthalt pro Kunde (für Übersicht in der Kundenzeile)
@@ -14788,6 +14851,7 @@ function renderDogs(){
     header.innerHTML = `
         <div>
           <strong>🧑🏼‍🦰 ${escapeHtml(currentName || 'Kunde')}</strong>
+          ${currentCustomer?.customerNumber?'<span class="muted"> · '+escapeHtml(currentCustomer.customerNumber)+'</span>':''}
           <small>${escapeHtml(currentEmail || 'Noch kein Hund erfasst')}</small>
         </div>
         <div class="actions"></div>`;
@@ -14802,9 +14866,9 @@ function renderDogs(){
     syncDogSelect();
     return;
   }
-  if(petsAll.length){
+  if(petsAll.length||customers.length){
     // Gruppieren nach Kunde
-    const groupsMap = new Map();
+    const groupsMap = new Map(customers.map(customer=>[customer.id,[]]));
     const noCustKey = "__NO_CUSTOMER__";
     for(const p of petsAll){
       const key = p.customerId || noCustKey;
@@ -14833,6 +14897,7 @@ function renderDogs(){
       return collator.compare(String(p1), String(p2));
     });
     for(const g of groups){
+      if(!matchesWorkspaceSearch(query,g.customer?.name,g.customer?.customerNumber,g.customer?.email,...g.pets.map(p=>p.name)))continue;
       // Kunden-Header
       const header = document.createElement("div");
       header.className = "item";
@@ -14852,6 +14917,7 @@ function renderDogs(){
       header.innerHTML = `
         <div>
           <strong>🧑🏼‍🦰 ${escapeHtml(cname)}</strong>
+          ${g.customer?.customerNumber?'<span class="muted"> · '+escapeHtml(g.customer.customerNumber)+'</span>':''}
           <small>${escapeHtml(cphone)}${cphone ? " · " : ""}${escapeHtml(cntTxt)}</small>
           ${(!g.isNoCustomer && _getLastStayTextForCustomer(g.customerId)) ? `<small style="display:block; opacity:.75; margin-top:2px">${escapeHtml(_getLastStayTextForCustomer(g.customerId))}</small>` : ``}
         </div>
@@ -14908,7 +14974,7 @@ function renderDogs(){
   } else {
     // fallback legacy
     ensureDefaultDog();
-    const dogs = state.dogs.filter(d=>!d.isPlaceholder);
+    const dogs = state.dogs.filter(d=>!d.isPlaceholder&&matchesWorkspaceSearch(query,d.name,d.owner));
     dogs.forEach(d=>{
       const el=document.createElement("div");
       el.className="item";
@@ -14923,11 +14989,13 @@ function renderDogs(){
       };
       list.appendChild(el);
     });
-    if(!dogs.length) list.innerHTML=`<div class="muted">Noch keine Hunde/Kunden angelegt.</div>`;
+    if(!dogs.length&&!query) list.innerHTML=`<div class="muted">Noch keine Hunde/Kunden angelegt.</div>`;
   }
+  if(query&&!list.children.length)list.innerHTML='<div class="muted">Keine passenden Kunden oder Hunde.</div>';
   refreshCustomerSelect();
   syncDogSelect();
 }
+$("#workspaceCustomerSearch")?.addEventListener('input',renderDogs);
 $("#btnAddDog")?.addEventListener("click",()=>openCpEditor("new"));
 $("#btnCpCancel")?.addEventListener("click",(e)=>{
   try{ e.preventDefault(); e.stopPropagation(); }catch(_){}
@@ -15467,6 +15535,7 @@ function renderDocs(){
   try{ ds208EnsureDocsFromStays(); }catch(_){ }
   try{ ds219RefreshStayTitles(); }catch(_){ }
   const list=$("docList");
+  if(!list)return;
   list.innerHTML="";
   let docs=(state.docs||[]).filter(d=>d.type!=="invoice").slice();
   try{
@@ -15487,11 +15556,19 @@ function renderDocs(){
       });
     }
   }catch(_){ }
+  const search=$("#stayCustomerSearch");
+  const query=DSWorkflow.scoped()?'':search?.value?.trim()||'';
+  if(search?.parentElement)search.parentElement.style.display=DSWorkflow.scoped()?'none':'';
+  if(query)docs=docs.filter(doc=>{
+    const {cust,pet,legacyDog}=resolveInvoiceParties(doc);
+    return matchesWorkspaceSearch(query,doc.title,cust?.name,cust?.customerNumber,pet?.name||legacyDog?.name);
+  });
   docs.sort((a,b)=> dsTsMs(b.updatedAt)-dsTsMs(a.updatedAt));
   docs.forEach(d=>list.appendChild(docItem(d)));
-  if(!docs.length) list.innerHTML=`<div class="muted">Noch keine Aufenthalte erstellt.</div>`;
+  if(!docs.length) list.innerHTML=`<div class="muted">${query?'Keine passenden Aufenthalte.':'Noch keine Aufenthalte erstellt.'}</div>`;
   renderRecent();
 }
+$("#stayCustomerSearch")?.addEventListener('input',renderDocs);
 function renderRecent(){
   try{ ds208EnsureDocsFromStays(); }catch(_){ }
   try{ ds219RefreshStayTitles(); }catch(_){ }
@@ -22491,7 +22568,7 @@ function renderStatMethod(){
 
 
 
-/* ===== CHAT (M50.9.9GB379_STAY_BILLING_20261115) ===== */
+/* ===== CHAT (M50.9.9GB381_CUSTOMER_BILLING_20261115) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,

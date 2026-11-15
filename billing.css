@@ -5,3 +5,6 @@
 #editor>.card.sticky{position:static!important;top:auto!important;z-index:auto!important}
 #dsStayBillingInfo p{line-height:1.5}#dsStayBillingInfo .ds-billing-actions{justify-content:flex-start}#dsStayBillingInfo button{min-height:44px}
 #dsChooseStayInvoice button{display:block;margin:12px 0;width:100%;text-align:left}
+.ds-invoice-recipient{display:flex;flex-wrap:wrap;gap:12px;margin:12px 0;padding:0;border:0;min-width:0}
+.ds-invoice-recipient[hidden]{display:none}
+.ds-invoice-recipient .field{flex:1 1 200px;min-width:0}

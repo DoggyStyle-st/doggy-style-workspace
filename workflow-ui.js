@@ -89,7 +89,7 @@
       if(!matches(metadata,file))throw new Error('Die gespeicherte PDF stimmt nicht mit dem Sicherheitsdatenblatt überein. Die lokale Fassung bleibt erhalten.');
     }
     check();const result=await publish(prepared,stamp);check();
-    prepared._cloudUpdatedAt=result.stamp;return {...result,payload:prepared};
+    prepared._cloudUpdatedAt=result.stamp;return {...result,payload:result.payload||prepared};
   }
   function sdsStorageError(error){
     const e=new Error(error?.code==='storage/unauthorized'?'Sicherheitsdatenblatt konnte nicht gespeichert werden. Bitte die Storage-Regeln aus GB376 veröffentlichen. Die lokale PDF bleibt erhalten.':'Sicherheitsdatenblatt konnte nicht in Firebase Storage gespeichert werden. Die lokale PDF bleibt erhalten. '+String(error?.message||error));
@@ -167,6 +167,10 @@
   }
   function resetAccount(){
     window.DSBilling?.reset();
+    $('invoiceView')?.replaceChildren();
+    for(const id of ['invoiceSearch','workspaceCustomerSearch','stayCustomerSearch']){
+      const input=$(id);if(input)input.value='';
+    }
     window.DSAccountDirectory?.reset();
     window.DSStatistics?.reset();
     window.DSDocumentOutput?.close();
@@ -334,7 +338,10 @@
     if(currentUser()?.uid!==review.uid)throw new Error('Konto gewechselt.');
     const persisted=result.payload||resolved;
     if(JSON.stringify(state)!==JSON.stringify(review.local)){
-      if(!useServer)acceptPublishedFiles(state,resolved,persisted);
+      if(!useServer){
+        acceptPublishedFiles(state,resolved,persisted);
+        Core.applyPublishedCustomerNumbers(state,persisted);
+      }
       rememberBase(persisted,result.stamp);SYNC.cloudPending=true;
       showConflict(persisted,result.stamp);openConflict();
       throw new Error('Während des Abgleichs wurden weitere lokale Angaben geändert. Diese bleiben erhalten. Bitte den aktualisierten Vergleich prüfen.');

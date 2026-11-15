@@ -1,3 +1,27 @@
+# Doggy Style Workspace – GB381
+
+Stand 15. November 2026 · Build M50.9.9GB381_CUSTOMER_BILLING_20261115
+
+- Freie Rechnung mit manuell eingegebenem Namen und Anschrift bei leerem Kundenstamm geprüft. Die Eingabe wurde in der Rechnungsansicht und im gerenderten PDF übernommen. Ein leeres Namensfeld wurde erkannt.
+- Bestehenden Kunden mit zugehörigem Hund für eine freie Rechnung ausgewählt. Die Rechnungssuche findet die Kundennummer und den manuell erfassten Namen.
+- Feste Kundennummern bei Übernahme des Bestands, bei Neuanlage, bei Adressänderungen und bei zwei konkurrierenden Speicherungen mit simuliertem Firebase geprüft. Das simulierte Profil im Kundenportal erhielt die Kundennummer des zugeordneten Kunden.
+- Beim Wechsel vom Entwurf auf Offen wurden die Empfängerdaten im Beleg gespeichert. Nach einer Änderung der Stammdaten wurde die Rechnung weiterhin mit der bei Ausstellung gespeicherten Anschrift und Kundennummer gedruckt.
+- Die Prüfungen zur Abrechnung und zu optionalen Spaziergängen liefen erneut. Safari auf iPad und iPhone sowie das verbundene Firebase stehen für die Abnahme aus.
+
+## Prüfung des vorigen Stands GB380
+
+# Doggy Style Workspace – GB380
+
+Stand 15. November 2026 · Build M50.9.9GB380_INVOICE_OUTPUT_20261115
+
+- Die Fälle mit getrennten Adressfeldern, älterem Adressobjekt, ein- und mehrzeiligem Adresstext sowie fehlenden Adressbestandteilen wurden mit Testdaten geprüft.
+- Die Rechnungsansicht und die Druckansicht zeigen die Anschrift des zugeordneten Kunden. Geprüft wurden freie Rechnungen, die Verknüpfung über einen Aufenthalt und die Zuordnung bei älteren Hundedatensätzen.
+- Die App hat Testrechnungen als A4-PDF erzeugt. Die gerenderten Seiten wurden auf Adressblock, Zeilenumbrüche, vollständige Beträge, Zahlungsdaten und den Abstand zur Seitennummer geprüft.
+- Die Abrechnung und die Anfragefälle aus GB379 wurden erneut mit Testdaten geprüft. Dazu gehören der Beispielzeitraum und die freiwillig buchbaren Spaziergänge.
+- Die Abnahme in Safari auf iPad und iPhone sowie mit dem verbundenen Firebase steht aus.
+
+## Prüfung des vorigen Stands GB379
+
 # Doggy Style Workspace – GB379
 
 Stand 15. November 2026 · Build M50.9.9GB379_STAY_BILLING_20261115

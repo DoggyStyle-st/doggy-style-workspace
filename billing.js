@@ -299,11 +299,31 @@
   }
   function close(){if(edit?.dialog){const d=edit.dialog;edit=null;d.close?.();d.remove();}}
   function reset(){close();bases.clear();signedOpen.clear();document.getElementById('dsChooseStayInvoice')?.remove();}
+  const recipientFields=[
+    ['name','Name oder Firma','name'],['street','Straße und Hausnummer','address-line1'],
+    ['zip','PLZ','postal-code'],['city','Ort','address-level2'],['country','Land (optional)','country-name']
+  ];
+  function recipientInputs(recipient={}){
+    return recipientFields.map(([key,label,autocomplete])=>
+      `<label class="field"><span>${label}${key==='name'?' *':''}</span>
+        <input type="text" autocomplete="${autocomplete}" data-recipient-field="${key}" value="${escapeHtml(recipient[key]||'')}" ${key==='name'?'required':''}>
+      </label>`
+    ).join('');
+  }
+  function readManualRecipient(form){
+    const recipient=Object.fromEntries(recipientFields.map(([key])=>[
+      key,text(form.querySelector('[data-recipient-field="'+key+'"]')?.value).trim()
+    ]));
+    if(!recipient.name)throw new Error('Bitte Name oder Firma des Rechnungsempfängers eingeben.');
+    return recipient;
+  }
   function openEdit(id){
     const inv=getInvoiceById(id);if(!inv||!requireEdit(inv))return;close();
     const initial=clone(inv),items=lines(inv).map((item,i)=>({...item,key:item.key||'manual-'+i,label:text(item.label),qty:Number(item.qty)>0?Number(item.qty):1,unit:Number(item.qty)>0&&Number.isFinite(Number(item.unit))?Number(item.unit):Number(item.total||0)}));
     const dialog=document.createElement('dialog');dialog.id='dsInvoiceEdit';dialog.className='ds-billing-dialog';
-    dialog.innerHTML='<form><h2>Rechnung bearbeiten</h2><p class="muted">'+escapeHtml(inv.invoiceNumber||'')+' · Beträge inklusive Mehrwertsteuer</p><label>Rechnungsdatum<input name="date" type="date" required></label><label>Leistungszeitraum von<input name="from" type="date"></label><label>Leistungszeitraum bis<input name="to" type="date"></label><label>Mehrwertsteuer (%)<input name="vat" type="text" inputmode="decimal" required></label><div data-lines></div><button type="button" data-add>Position hinzufügen</button><p data-total role="status"></p><label>Hinweis<textarea name="note" rows="3"></textarea></label><p data-error role="alert"></p><div class="ds-billing-actions"><button type="button" data-cancel>Abbrechen</button><button type="submit">Änderungen speichern</button></div></form>';
+    const editRecipient=!!inv.manualRecipient&&!inv.recipientSnapshot;
+    const recipientForm=editRecipient?'<fieldset><legend>Rechnungsempfänger</legend>'+recipientInputs(inv.manualRecipient)+'</fieldset>':'';
+    dialog.innerHTML='<form><h2>Rechnung bearbeiten</h2><p class="muted">'+escapeHtml(inv.invoiceNumber||'')+' · Beträge inklusive Mehrwertsteuer</p>'+recipientForm+'<label>Rechnungsdatum<input name="date" type="date" required></label><label>Leistungszeitraum von<input name="from" type="date"></label><label>Leistungszeitraum bis<input name="to" type="date"></label><label>Mehrwertsteuer (%)<input name="vat" type="text" inputmode="decimal" required></label><div data-lines></div><button type="button" data-add>Position hinzufügen</button><p data-total role="status"></p><label>Hinweis<textarea name="note" rows="3"></textarea></label><p data-error role="alert"></p><div class="ds-billing-actions"><button type="button" data-cancel>Abbrechen</button><button type="submit">Änderungen speichern</button></div></form>';
     document.body.append(dialog);edit={uid:actor(),id,initial,items,dialog};
     const form=dialog.querySelector('form'),error=dialog.querySelector('[data-error]');
     form.elements.date.value=text(inv.invoiceDate).slice(0,10)||toISODateLocal(new Date());form.elements.from.value=inv.period?.from||'';form.elements.to.value=inv.period?.to||'';form.elements.vat.value=text(inv.vatRate??getPricingSettings().vatPercent??19);form.elements.note.value=inv.note||'';
@@ -319,9 +339,10 @@
       if(!rows.length)throw new Error('Bitte mindestens eine Rechnungsposition angeben.');
       const gross=round2(rows.reduce((sum,x)=>sum+x.total,0));if(gross<0)throw new Error('Der Gesamtbetrag darf nicht negativ sein.');const vat=number(form.elements.vat.value);if(vat<0||vat>100)throw new Error('Bitte einen gültigen Mehrwertsteuersatz eingeben.');
       const next=clone(current),previousTotal=Number(next.pricing?.total||0);next.invoiceDate=form.elements.date.value+'T12:00:00.000Z';next.period={from:form.elements.from.value,to:form.elements.to.value};next.note=form.elements.note.value.trim();next.pricingMode='manual';next.vatRate=vat;next.lineItems=rows;next.pricing={...(next.pricing||{}),parts:{base:gross,holiday:0,percent:0,fixed:0},basePrice:gross,holidayExtra:0,percentExtra:0,fixedExtra:0};recomputeInvoiceTotals(next);
+      if(editRecipient)next.manualRecipient=readManualRecipient(form);
       next.auditTrail=Array.isArray(next.auditTrail)?next.auditTrail:[];next.auditTrail.push({at:new Date().toISOString(),field:'pricing',from:previousTotal,to:gross});saveRecord(next);close();
     }catch(e){error.textContent=e.message;}};
     draw();dialog.showModal();dialog.querySelector('input')?.focus();
   }
-  window.DSBilling={admin,frozen,editable,requireEdit,number,display,parts,lines,positions,nextNumber,billableDates,stayCalendar,recalcFromStay,updateDraft,create,openForStay,refresh,saveRecord,syncLinked,rememberStay,attachStay,openEdit,reset,isStay,signedStay,effectiveFields,clearSignature,stayRoot,family,findForStay,sourceDoc,prepareStay,collectCharges,prepareStaySave,financialSave,auditStay,validateFinancial,afterOpenStay,afterSaveStay,decorateStay,finishFork,walkSelection};
+  window.DSBilling={admin,frozen,editable,requireEdit,number,display,parts,lines,lineDescription,positions,nextNumber,billableDates,stayCalendar,recalcFromStay,updateDraft,create,openForStay,refresh,saveRecord,syncLinked,rememberStay,attachStay,openEdit,reset,isStay,signedStay,effectiveFields,clearSignature,stayRoot,family,findForStay,sourceDoc,prepareStay,collectCharges,prepareStaySave,financialSave,auditStay,validateFinancial,afterOpenStay,afterSaveStay,decorateStay,finishFork,walkSelection,recipientInputs,readManualRecipient};
 })();
