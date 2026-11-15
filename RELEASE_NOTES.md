@@ -1,3 +1,16 @@
+# GB383 – Auswertungen
+
+- Monatsübersicht mit Zahlungseingängen, offenen Belegen und Stornos. Zahlungseingänge werden mit Brutto, enthaltener MwSt. und Netto ausgewiesen.
+- Zeitraumfilter für Monat, Vormonat, Kalenderjahr und freie Datumswahl. CSV-Export aus denselben Daten wie die Anzeige.
+- Belegsuche nach Kunden- und Rechnungsnummer sowie Name und Hund. Rechnungen und Tage über Kapazität lassen sich aus der Auswertung öffnen.
+- Leistungsumsätze mit Zuschlägen und bestätigte Belegung aus derselben Aufenthaltslogik wie im Kalender.
+
+# GB382 – Eigene Termine und Erinnerungen
+
+- Eigene Termine stehen im Kalender und im Tagesablauf neben Bring- und Abholzeiten.
+- Firebase übernimmt Erinnerungen für angemeldete, aktivierte Geräte. Kalendereinladungen per E-Mail unterstützen Änderungen und Absagen zum selben Termin.
+- Die Belegung zeigt das gemeinsame Vier-Hunde-Limit. Die Tagesansicht nutzt dieselben bestätigten Aufenthalte wie die Monatsansicht. Beim Monatswechsel schließt sie den vormals gewählten Tag.
+
 # GB381 – Freie Rechnungen und Kundennummern
 
 Bei freien Rechnungen lässt sich die Anschrift direkt im Beleg erfassen. Die Wahl eines Stammkunden mit optionaler Hundezuordnung ist weiterhin möglich.

@@ -2,7 +2,7 @@ try{sessionStorage.removeItem('ds_handoff_pass');}catch(_){}
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB381_CUSTOMER_BILLING_20261115",
+  tag: "M50.9.9GB383_ANALYTICS_20261115",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -13,7 +13,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB381_CUSTOMER_BILLING_20261115";
+const APP_BUILD = "M50.9.9GB383_ANALYTICS_20261115";
 try{ window.__dsAppJsRuntimeBuild = "GB350-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -892,6 +892,7 @@ function fmtDT(ts){
 }
 async function performLogout(){
   try{ window.__dsLogoutInFlight = true; }catch(_){ }
+  try{ await window.DSCalendarEvents?.removeDeviceOnLogout(); }catch(_){ }
   try{ if(typeof window.__dsPrepareHardLogout === 'function') window.__dsPrepareHardLogout(); }catch(_){ }
   try{ if(CLOUD && CLOUD.enabled && CLOUD.auth){ await CLOUD.auth.signOut(); } }catch(e){}
   try{ sessionStorage.removeItem("dstest_sw_reloaded"); }catch(e){}
@@ -1892,7 +1893,9 @@ function applyRemoteState(remote,remoteStamp,source){
     CLOUD._lastRemoteStamp=Number(remoteStamp||0);ensureStateShape();ensureContractDefaults();
     DSBrowserStore.cache(LS_KEY,JSON.stringify(state));
     DSWorkflow.rememberBase(remote,remoteStamp,state);
-    renderDogs();renderDocs();renderInvoiceList();renderDashboard();renderTodayStatus();renderOccupancy();renderRecent();updateSyncUI();DSWorkflow.wireAssignments().catch(console.error);
+    renderDogs();renderDocs();renderInvoiceList();renderDashboard();renderTodayStatus();renderOccupancy();renderRecent();updateSyncUI();
+    globalThis.DSAnalyticsView?.schedule();
+    DSWorkflow.wireAssignments().catch(console.error);
     if(CLOUD.enabled&&CLOUD.role==='admin'&&DSWorkflowCore.needsCustomerNumbers(remote))cloudSchedulePush();
     return true;
   }
@@ -2739,7 +2742,7 @@ async function submitCustomerDogsProposal(){
   // GB355: vollständig lokal sichern, anschließend zuverlässig in proposals + tasks übertragen.
   // Die Oberfläche wird sofort freigegeben; die Erfolgsmeldung "an Eingänge übergeben"
   // erscheint ausschließlich nach bestätigter Firestore-Speicherung.
-  const GB355='M50.9.9GB381_CUSTOMER_BILLING_20261115';
+  const GB355='M50.9.9GB383_ANALYTICS_20261115';
   function S(v){ try{return String(v==null?'':v);}catch(_){return '';} }
   function L(v){ return S(v).trim().toLowerCase(); }
   function V(id){ try{const el=document.getElementById(id);return S(el&&el.value!=null?el.value:'').trim();}catch(_){return '';} }
@@ -4025,14 +4028,21 @@ function showPanel(id){
   if(id === "medication"){
     try{ renderMedicationPanel(); }catch(_){ }
   }
-    if(id === "analytics"){
-    scheduleAnaRefresh();
+  if(id === "analytics"){
+    renderAnalyticsPanel();
   }
   if(id === "statistics"){
     try{ renderStatisticsPanel(); }catch(_){ }
   }
-if(id === "calendar"){
-    renderCalendarPanel();
+  if(id === "calendar"){
+    window.DSCalendarEvents?.show({
+      selectedDate: calendarFormDate,
+      showDay: selectCalendarDay,
+      refresh: refreshCalendar
+    });
+    refreshCalendar();
+  } else {
+    window.DSCalendarEvents?.leave();
   }
   if(id === "settings"){
     try{
@@ -6265,12 +6275,12 @@ function applyCalFilterUI(){
   if(btnU){
     btnU.classList.toggle('is-off', !f.urlaub);
     btnU.setAttribute('aria-pressed', String(!!f.urlaub));
-    btnU.onclick = ()=>{ CAL.filters.urlaub = !CAL.filters.urlaub; applyCalFilterUI(); renderCalendarPanel(); if(CAL.selectedDay) renderCalendarDayDetail(CAL.selectedDay); };
+    btnU.onclick = ()=>{ CAL.filters.urlaub = !CAL.filters.urlaub; refreshCalendar(); };
   }
   if(btnT){
     btnT.classList.toggle('is-off', !f.tages);
     btnT.setAttribute('aria-pressed', String(!!f.tages));
-    btnT.onclick = ()=>{ CAL.filters.tages = !CAL.filters.tages; applyCalFilterUI(); renderCalendarPanel(); if(CAL.selectedDay) renderCalendarDayDetail(CAL.selectedDay); };
+    btnT.onclick = ()=>{ CAL.filters.tages = !CAL.filters.tages; refreshCalendar(); };
   }
 }
 function clamp(n,min,max){ return Math.max(min, Math.min(max, n)); }
@@ -6290,6 +6300,36 @@ function startOfCalendarGrid(year, month){
   start.setHours(0,0,0,0);
   return start;
 }
+function calendarFree(occupancy){
+  const perType = Math.max(0, occupancy.boardingCapacity - occupancy.boarding) +
+    Math.max(0, occupancy.daycareCapacity - occupancy.daycare);
+  return Math.max(0, Math.min(perType, occupancy.totalCapacity - occupancy.total));
+}
+function calendarOver(occupancy){
+  return DSWorkflowCore.exceedsCapacity(occupancy);
+}
+function calendarFormDate(){
+  if(CAL.selectedDay) return CAL.selectedDay;
+  const now = new Date();
+  return toISODateLocal(now.getFullYear() === CAL.year && now.getMonth() === CAL.month
+    ? now : new Date(CAL.year, CAL.month, 1));
+}
+function refreshCalendar(){
+  renderCalendarPanel();
+  if(CAL.selectedDay) renderCalendarDayDetail(CAL.selectedDay);
+  else {
+    const detail = document.getElementById('calDayDetail');
+    if(detail) detail.style.display = 'none';
+  }
+}
+function selectCalendarDay(iso){
+  if(!DSWorkflowCore.dateISO(iso)) return;
+  const day = new Date(iso + 'T12:00:00');
+  CAL.year = day.getFullYear();
+  CAL.month = day.getMonth();
+  CAL.selectedDay = iso;
+  refreshCalendar();
+}
 function renderCalendarPanel(){
   const grid = document.getElementById('calGrid');
   const title = document.getElementById('calMonthLabel');
@@ -6300,6 +6340,11 @@ function renderCalendarPanel(){
   const dows = ['Mo','Di','Mi','Do','Fr','Sa','So'];
   grid.innerHTML = dows.map(x=>`<div class="cal-dow">${x}</div>`).join('');
   const start = startOfCalendarGrid(CAL.year, CAL.month);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 41);
+  window.DSCalendarEvents?.watch(dateISO(start), dateISO(end));
+  const stays = DSWorkflowCore.confirmedStays(state);
+  const filters = getCalFilters();
   const todayIso = toISODateLocal(new Date());
   for(let i=0;i<42;i++){
     const d = new Date(start);
@@ -6307,676 +6352,74 @@ function renderCalendarPanel(){
     const iso = dateISO(d);
     const inMonth = (d.getMonth() === CAL.month);
     const dayNum = d.getDate();
-    const board = countForDay('Urlaubsbetreuung', iso);
-    const dayc = countForDay('Tagesbetreuung', iso);
-    const over = (board > getCapacity("Urlaubsbetreuung", iso)) || (dayc > getCapacity("Tagesbetreuung", iso));
-    const cell = document.createElement('div');
+    const visits = DSWorkflowCore.staysOnDay(stays, iso);
+    const occupancy = DSWorkflowCore.occupancyFromStays(state, iso, visits);
+    const over = calendarOver(occupancy);
+    const free = calendarFree(occupancy);
+    const count = window.DSCalendarEvents?.eventCount(iso) || 0;
+    const cell = document.createElement('button');
+    cell.type = 'button';
     cell.className = 'cal-cell' + (inMonth ? '' : ' is-other') + (iso===todayIso ? ' is-today':'') + (iso===CAL.selectedDay ? ' is-selected':'') + (over ? ' is-over':'');
     cell.dataset.day = iso;
-    const f = getCalFilters();
-    const freeU = getCapacity("Urlaubsbetreuung", iso) - board;
-    const freeT = getCapacity("Tagesbetreuung", iso) - dayc;
-    const uPct = clamp((board / Math.max(1,getCapacity("Urlaubsbetreuung", iso))) * 100, 0, 100);
-    const tPct = clamp((dayc / Math.max(1,getCapacity("Tagesbetreuung", iso))) * 100, 0, 100);
+    cell.setAttribute('aria-pressed', String(iso === CAL.selectedDay));
+    cell.setAttribute('aria-label', [
+      d.toLocaleDateString('de-DE'), `${occupancy.total} von ${occupancy.totalCapacity} Plätzen belegt`,
+      `${free} frei`, count ? `${count} eigene Termine` : '', over ? 'Über Kapazität' : ''
+    ].filter(Boolean).join(', '));
     const badges = [];
-    const bars = [];
-    const freeParts = [];
-    if(f.urlaub){
-      badges.push(`<div class="cal-badge" title="Urlaubsbetreuung"><span>🏡 <strong>${board}</strong></span><span class="muted">/ ${getCapacity("Urlaubsbetreuung", iso)}</span></div>`);
-      bars.push(`<div class="cal-bar" title="Urlaub: ${board}/${getCapacity("Urlaubsbetreuung", iso)}"><div class="fill" style="width:${uPct}%;"></div></div>`);
-      freeParts.push(`🏡 ${Math.max(0, freeU)}`);
-    }
-    if(f.tages){
-      badges.push(`<div class="cal-badge" title="Tagesbetreuung"><span>🐕 <strong>${dayc}</strong></span><span class="muted">/ ${getCapacity("Tagesbetreuung", iso)}</span></div>`);
-      bars.push(`<div class="cal-bar" title="Tages: ${dayc}/${getCapacity("Tagesbetreuung", iso)}"><div class="fill" style="width:${tPct}%;"></div></div>`);
-      freeParts.push(`🐕 ${Math.max(0, freeT)}`);
-    }
+    if(filters.urlaub) badges.push(`<span class="cal-badge" title="Urlaubsbetreuung">🏡 <strong>${occupancy.boarding}</strong></span>`);
+    if(filters.tages) badges.push(`<span class="cal-badge" title="Tagesbetreuung">🐕 <strong>${occupancy.daycare}</strong></span>`);
     cell.innerHTML = `
-      ${over ? `<div class="cal-warnchip" title="Über Kapazität">⚠️</div>` : ``}
-      <div class="cal-date">${dayNum}</div>
-      <div class="cal-badges">${badges.join('')}</div>
-      <div class="cal-free">frei: ${freeParts.join(' · ')}</div>
-      <div class="cal-bars">${bars.join('')}</div>
+      <span class="cal-date">${dayNum}${count ? '<span class="calendar-event-dot" aria-hidden="true"></span>' : ''}
+        ${over ? '<span class="calendar-capacity-warning" aria-hidden="true">!</span>' : ''}</span>
+      <span class="cal-badges">${badges.join('')}</span>
+      <span class="cal-free">${free} frei</span>
     `;
     cell.onclick = ()=>{
-      CAL.selectedDay = iso;
-      renderCalendarPanel();
-      renderCalendarDayDetail(iso);
+      selectCalendarDay(iso);
+      document.getElementById('calDayDetail')?.scrollIntoView?.({ block:'nearest' });
     };
     grid.appendChild(cell);
   }
 }
-// ===== 4D-1: Auswertungen (Basis) =====
-function _dsParseAnyDate(v){
-  if(!v) return null;
-  if(v instanceof Date) return v;
-  const s = String(v).trim();
-  // ISO YYYY-MM-DD or YYYY-MM-DDTHH:mm...
-  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if(m){
-    const d = new Date(Number(m[1]), Number(m[2])-1, Number(m[3]));
-    return isNaN(d.getTime()) ? null : d;
+// ===== Auswertungen =====
+function analyticsInvoiceLines(invoice, pricing){
+  const stored = pricing.parts || {};
+  const parts = {
+    base: stored.base ?? stored.baseGross ?? pricing.basePrice ?? pricing.baseGross ?? pricing.base,
+    holiday: stored.holiday ?? stored.holidayGross ?? pricing.holidayExtra ?? pricing.holidayGross,
+    percent: stored.percent ?? stored.percentGross ?? pricing.percentExtra,
+    fixed: stored.fixed ?? stored.fixedGross ?? pricing.fixedExtra
+  };
+  const breakdown = {...pricing.breakdown};
+  for(const key of ['surchargeItems','percentItems','fixedItems']){
+    if(!Array.isArray(breakdown[key])) continue;
+    breakdown[key] = breakdown[key].filter(Boolean).map(line => ({
+      ...line, value:line.value ?? line.gross ?? line.valueGross ?? line.amountGross
+    }));
   }
-  // German D.M.YYYY / DD.MM.YYYY
-  m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2,4})$/);
-  if(m){
-    const y = Number(m[3].length===2 ? ("20"+m[3]) : m[3]);
-    const d = new Date(y, Number(m[2])-1, Number(m[1]));
-    return isNaN(d.getTime()) ? null : d;
-  }
-  // fallback Date.parse
-  const d = new Date(s);
-  return isNaN(d.getTime()) ? null : d;
-}
-function _dsISODate(d){
-  const y = d.getFullYear();
-  const m = String(d.getMonth()+1).padStart(2,'0');
-  const da = String(d.getDate()).padStart(2,'0');
-  return `${y}-${m}-${da}`;
-}
-function _dsMonthKey(d){
-  const y = d.getFullYear();
-  const m = String(d.getMonth()+1).padStart(2,'0');
-  return `${y}-${m}`;
+  const snapshot = pricing._calc || invoice.sourceSnapshotAtLock || invoice.sourceSnapshot || {};
+  const lines = buildInvoiceLineItems({...invoice, pricing:{...pricing, parts, breakdown, _calc:snapshot}});
+  const label = pricing.baseLabel || breakdown.baseLabel || (!invoice.sourceDocId ? invoice.note || 'Freie Rechnung' : '');
+  if(label && lines[0]?.key === 'base') lines[0].label = label;
+  return lines.filter(line => line.total !== 0 || (line.key === 'base' && parts.base != null && Number(parts.base) === 0));
 }
 function renderAnalyticsPanel(){
-  try{
-    const fromEl = document.getElementById('anaFrom');
-    const toEl   = document.getElementById('anaTo');
-    // Default: letzte 12 Monate bis heute
-    const today = new Date();
-    if(fromEl && !fromEl.value){
-      const d = new Date(today.getFullYear(), today.getMonth()-11, 1);
-      fromEl.value = _dsISODate(d);
+  globalThis.DSAnalyticsView?.show({
+    allowed:()=>isStaff() && !DSWorkflow.scoped(),
+    workspace:()=>state,
+    legacyLines:analyticsInvoiceLines,
+    openInvoice:id=>{
+      selectTab('invoices');
+      openInvoice(id);
+      document.getElementById('invoiceView')?.scrollIntoView({block:'start'});
+    },
+    openDay:day=>{
+      selectTab('calendar');
+      selectCalendarDay(day);
+      document.getElementById('calDayDetail')?.scrollIntoView({block:'start'});
     }
-    if(toEl && !toEl.value){
-      toEl.value = _dsISODate(today);
-    }
-    // Restore last analytics range (if stored)
-    try{
-      const lf = localStorage.getItem('ds_ana_from');
-      const lt = localStorage.getItem('ds_ana_to');
-      if(lf) fromEl.value = lf;
-      if(lt) toEl.value = lt;
-    }catch(__){}
-
-    // Restore holiday opt-in
-    try{
-      const incEl = document.getElementById('anaIncludeHolidayToggle') || document.getElementById('anaIncludeHoliday');
-      if(incEl){
-        const v = localStorage.getItem('ds_ana_inc_holiday');
-        if(v !== null) incEl.checked = (v === '1');
-        window.__DS_ANA_INCLUDE_HOLIDAY = !!incEl.checked;
-      }
-    }catch(__){}
-    const fromD = _dsParseAnyDate(fromEl ? fromEl.value : null) || new Date(today.getFullYear(), today.getMonth()-11, 1);
-    const toD0  = _dsParseAnyDate(toEl ? toEl.value : null) || today;
-    const toD   = new Date(toD0.getFullYear(), toD0.getMonth(), toD0.getDate(), 23,59,59,999);
-    const fromStr = (fromEl && fromEl.value) ? fromEl.value : '';
-    const toStr = (toEl && toEl.value) ? toEl.value : '';
-    const invArr = Object.values(state.invoices || {});
-    // Nur "bezahlt" als Umsatz (Basis)
-    const paidInv = invArr.filter(inv => {
-      const st = String(inv.status||'').toLowerCase();
-
-  const stornoInv = invArr.filter(inv => {
-    if(!inv) return false;
-    const st = String(inv.status || '').toLowerCase();
-    if(!(st === 'storniert' || st === 'storno')) return false;
-    const d = _dsParseAnyDate(inv.dateISO || inv.date || inv.createdAt || inv.ts || inv.updatedAt);
-    if(!d) return false;
-    return d >= fromD && d <= toD;
   });
-
-  const stornoReasonRows = (() => {
-    const map = Object.create(null);
-    for(const inv of stornoInv){
-      let r = String(inv.stornoReason || inv.cancelReason || inv.reason || '').trim();
-      if(!r) r = '(ohne Grund)';
-      map[r] = (map[r] || 0) + 1;
-    }
-    return Object.entries(map).sort((a,b)=> b[1]-a[1]).slice(0, 8);
-  })();
-      const isPaid = (st==='bezahlt' || st==='paid');
-      if(!isPaid) return false;
-      const d = _dsParseAnyDate(inv.invoiceDate || inv.createdAt || inv.updatedAt || inv.ts);
-      if(!d) return false;
-      return d >= fromD && d <= toD;
-    });
-    // Expose last analytics result for exports/debug
-    try{
-      window.__DS_ANA_LAST_PAID = paidInv;
-      window.__DS_ANA_LAST_RANGE = { from: fromStr, to: toStr };
-    }catch(__){}
-    // Totals
-    let gross = 0;
-    let net = 0;
-    let vat = 0;
-    const VAT_DEFAULT = 0.19;
-    for(const inv of paidInv){
-      const g = Number(inv?.pricing?.totalGross ?? inv?.pricing?.grandTotalGross ?? inv?.pricing?.total ?? inv?.totalGross ?? inv?.total ?? 0) || 0;
-      gross += g;
-      const vr = Number(inv?.vatRate ?? inv?.pricing?.vatRate ?? VAT_DEFAULT) || VAT_DEFAULT;
-      const nv = computeNetVatFromGross(g, vr); // vorhanden seit 4C
-      net += nv.net;
-      vat += nv.vat;
-    }
-    const elNet = document.getElementById('anaRevenueNet');
-    const elVat = document.getElementById('anaRevenueVat');
-    const elCnt = document.getElementById('anaInvoiceCount');
-    if(elNet) elNet.textContent = formatEuro(net);
-    if(elVat) elVat.textContent = formatEuro(vat);
-    if(elCnt) elCnt.textContent = String(paidInv.length);
-    // Tabelle: Monatsumsatz (Gross) innerhalb Range
-    const bucket = {};
-    for(const inv of paidInv){
-      const d = _dsParseAnyDate(inv.invoiceDate || inv.createdAt || inv.updatedAt || inv.ts);
-      if(!d) continue;
-      const key = _dsMonthKey(d);
-      const g = Number(inv?.pricing?.totalGross ?? inv?.pricing?.grandTotalGross ?? inv?.pricing?.total ?? inv?.totalGross ?? inv?.total ?? 0) || 0;
-      bucket[key] = (bucket[key]||0) + g;
-    }
-    // Generate month list between fromD and toD
-    const months = [];
-    let cur = new Date(fromD.getFullYear(), fromD.getMonth(), 1);
-    const end = new Date(toD.getFullYear(), toD.getMonth(), 1);
-    while(cur <= end){
-      months.push(_dsMonthKey(cur));
-      cur = new Date(cur.getFullYear(), cur.getMonth()+1, 1);
-    }
-
-    // Build export data cache (used by CSV export)
-    try{
-      // invoices list (paid only)
-      const exportInvoices = paidInv.map(inv => {
-        const d = _dsParseAnyDate(inv.invoiceDate || inv.createdAt || inv.updatedAt || inv.ts);
-        const fromD2 = _dsParseAnyDate(inv?.period?.from || inv?.stayFrom || inv?.from);
-        const toD2   = _dsParseAnyDate(inv?.period?.to || inv?.stayTo || inv?.to);
-        const gross = Number(inv?.pricing?.totalGross ?? inv?.pricing?.grandTotalGross ?? inv?.pricing?.total ?? inv?.totalGross ?? inv?.total ?? 0) || 0;
-        const vat   = Number(inv?.pricing?.vatAmount ?? inv?.pricing?.includedVat ?? inv?.includedVat ?? 0) || 0;
-        const net   = Math.max(0, gross - vat);
-        return {
-          number: inv.number || inv.invoiceNumber || '',
-          date: d ? _dsISODate(d) : '',
-          customer: inv.customerName || inv.customer || (inv.customer && inv.customer.name) || '',
-          dog: inv.dogName || inv.dog || (inv.dog && inv.dog.name) || '',
-          from: fromD2 ? _dsISODate(fromD2) : '',
-          to: toD2 ? _dsISODate(toD2) : '',
-          gross: formatEuro(gross),
-          vat: formatEuro(vat),
-          net: formatEuro(net),
-          status: inv.status || '',
-          stornoReason: inv.stornoReason || inv.storno_reason || ''
-        };
-      });
-
-      // monthly aggregate
-      const monthCount = {};
-      const monthStorno = {};
-      for(const inv of invArr){
-        const d = _dsParseAnyDate(inv.invoiceDate || inv.createdAt || inv.updatedAt || inv.ts);
-        if(!d) continue;
-        const key = _dsMonthKey(d);
-        if(String(inv.status||'').toLowerCase()==='bezahlt'){
-          monthCount[key] = (monthCount[key]||0) + 1;
-        }
-        if(String(inv.status||'').toLowerCase()==='storniert'){
-          monthStorno[key] = (monthStorno[key]||0) + 1;
-        }
-      }
-      const exportMonthly = months.map(key => ({
-        month: key,
-        net: formatEuro(bucket[key]||0),
-        holiday: '',
-        count: monthCount[key] || 0,
-        storno: monthStorno[key] || 0
-      }));
-
-      // top customers & dogs (gross)
-      const custMap = {};
-      const dogMap = {};
-      for(const inv of paidInv){
-        const gross = Number(inv?.pricing?.totalGross ?? inv?.pricing?.grandTotalGross ?? inv?.pricing?.total ?? inv?.totalGross ?? inv?.total ?? 0) || 0;
-        const cn = inv.customerName || inv.customer || (inv.customer && inv.customer.name) || '';
-        const dn = inv.dogName || inv.dog || (inv.dog && inv.dog.name) || '';
-        if(cn){ custMap[cn] = (custMap[cn]||0) + gross; }
-        if(dn){ dogMap[dn] = (dogMap[dn]||0) + gross; }
-      }
-      const topN = (obj, n) => Object.entries(obj).sort((a,b)=>b[1]-a[1]).slice(0,n).map(([name, val])=>({name, gross: formatEuro(val), count: ''}));
-      const exportTopCustomers = topN(custMap, 20);
-      const exportTopDogs = topN(dogMap, 20);
-
-      window.__DS_ANA_LAST = {
-        fromStr, toStr,
-        includeHoliday: !!(document.getElementById('anaIncludeHolidayToggle') || document.getElementById('anaIncludeHoliday'))?.checked,
-        exportData: {
-          invoices: exportInvoices,
-          monthly: exportMonthly,
-          topCustomers: exportTopCustomers,
-          topDogs: exportTopDogs
-        }
-      };
-    }catch(__){}
-    const tbody = document.querySelector('#anaTable tbody');
-    if(tbody){
-      tbody.innerHTML = '';
-      for(const key of months){
-        const tr = document.createElement('tr');
-        const tdM = document.createElement('td');
-        const tdV = document.createElement('td');
-        tdM.textContent = key;
-        tdV.textContent = formatEuro(bucket[key]||0);
-        tr.appendChild(tdM);
-        tr.appendChild(tdV);
-        tbody.appendChild(tr);
-      }
-    }
-
-    // 4E-1: Monatsdiagramm (Umsatz) – leichtgewichtig, keine Libraries
-    try{
-      const tableEl = document.getElementById('anaTable');
-      if(tableEl && !document.getElementById('anaMonthChartWrap')){
-        tableEl.insertAdjacentHTML('afterend',
-          `<div id="anaMonthChartWrap" class="card" style="margin-top:12px;">
-             <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
-               <div style="font-weight:600;">Diagramm: Umsatz pro Monat</div>
-               <button class="btn" id="anaMonthChartToggle">Diagramm anzeigen</button>
-             </div>
-             <canvas id="anaMonthChart" width="1000" height="260" style="display:none;width:100%;max-width:100%;margin-top:10px;"></canvas>
-           </div>`
-        );
-      }
-
-      const btn = document.getElementById('anaMonthChartToggle');
-      const cvs = document.getElementById('anaMonthChart');
-      if(btn && cvs){
-        const draw = () => {
-          const ctx = cvs.getContext('2d');
-          if(!ctx) return;
-          const W = cvs.width, H = cvs.height;
-          ctx.clearRect(0,0,W,H);
-          const padL=60, padR=20, padT=20, padB=50;
-          const innerW = W - padL - padR;
-          const innerH = H - padT - padB;
-          const vals = months.map(k => Number(bucket[k]||0) || 0);
-          const maxV = Math.max(1, ...vals);
-          // axes
-          ctx.globalAlpha = 0.55;
-          ctx.strokeStyle = '#ffffff';
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.moveTo(padL, padT);
-          ctx.lineTo(padL, padT+innerH);
-          ctx.lineTo(padL+innerW, padT+innerH);
-          ctx.stroke();
-          ctx.globalAlpha = 1;
-          // bars
-          const n = Math.max(1, vals.length);
-          const gap = 6;
-          const barW = Math.max(4, (innerW - gap*(n-1)) / n);
-          for(let i=0;i<n;i++){
-            const v = vals[i];
-            const bh = Math.max(0, (v/maxV) * innerH);
-            const x = padL + i*(barW+gap);
-            const y = padT + innerH - bh;
-            ctx.fillStyle = 'rgba(245,182,46,0.55)';
-            ctx.fillRect(x, y, barW, bh);
-          }
-          // labels (every 2nd)
-          ctx.fillStyle = 'rgba(255,255,255,0.75)';
-          ctx.font = '12px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
-          for(let i=0;i<months.length;i+=2){
-            const label = months[i];
-            const x = padL + i*(barW+gap) + 2;
-            const y = padT + innerH + 18;
-            ctx.save();
-            ctx.translate(x, y);
-            ctx.rotate(-0.65);
-            ctx.fillText(label, 0, 0);
-            ctx.restore();
-          }
-          // max value label
-          ctx.fillText(formatEuro(maxV), 6, padT+10);
-        };
-
-        btn.onclick = () => {
-          const show = cvs.style.display === 'none';
-          cvs.style.display = show ? 'block' : 'none';
-          btn.textContent = show ? 'Diagramm ausblenden' : 'Diagramm anzeigen';
-          if(show) draw();
-        };
-      }
-    }catch(__){}
-      
-    // --- 4D-3: Umsatz nach Leistung (Top-Positionen) ---
-    try{
-      const map = {};
-      const add = (label, val) => {
-        if(!label) return;
-        const v = Number(val||0) || 0;
-        if(v===0) return;
-        map[label] = (map[label]||0) + v;
-      };
-      for(const inv of paidInv){
-        const p = inv.pricing || {};
-        // Base
-        const baseLabel = p.baseLabel || (p.breakdown && p.breakdown.baseLabel) || (String(inv.betreuungType||'').toLowerCase().startsWith('day') ? 'Tagesbetreuung' : 'Urlaubsbetreuung');
-        add(baseLabel, p.parts?.baseGross ?? p.baseGross ?? 0);
-        // Holiday
-        add('Sonn- & Feiertagszuschlag', p.parts?.holidayGross ?? p.holidayGross ?? 0);
-        // Percent items
-        const perc = (p.breakdown && Array.isArray(p.breakdown.percentItems)) ? p.breakdown.percentItems : [];
-        for(const it of perc){
-          add(it.label || it.name, it.gross ?? it.valueGross ?? it.amountGross ?? 0);
-        }
-        // Fixed items
-        const fix = (p.breakdown && Array.isArray(p.breakdown.fixedItems)) ? p.breakdown.fixedItems : [];
-        for(const it of fix){
-          add(it.label || it.name, it.gross ?? it.valueGross ?? it.amountGross ?? 0);
-        }
-      }
-      const rows = Object.entries(map)
-        .map(([label, val]) => ({label, val}))
-        .sort((a,b)=>b.val-a.val);
-      const tbody2 = document.querySelector('#anaItemTable tbody');
-      if(tbody2){
-        tbody2.innerHTML='';
-        const top = rows.slice(0, 12);
-        for(const r of top){
-          const tr=document.createElement('tr');
-          const tdL=document.createElement('td');
-          const tdV=document.createElement('td');
-          tdL.textContent=r.label;
-          tdV.textContent=formatEuro(r.val);
-          tr.appendChild(tdL);
-          tr.appendChild(tdV);
-          tbody2.appendChild(tr);
-        }
-        // Empty state
-        if(top.length===0){
-          const tr=document.createElement('tr');
-          const td=document.createElement('td');
-          td.colSpan=2;
-          td.textContent='Keine bezahlten Rechnungen im Zeitraum.';
-          tr.appendChild(td);
-          tbody2.appendChild(tr);
-        }
-      }
-    }catch(__e){
-      // ignore
-    }
-// --- 4D-4: Top Kunden & Top Hunde (Umsatz brutto) ---
-      try{
-        const topCustEl = document.getElementById('anaTopCustomerTable');
-        const topDogEl  = document.getElementById('anaTopDogTable');
-        if(topCustEl && topDogEl){
-          const mapCust = new Map(); // key -> {name, gross, count}
-          const mapDog  = new Map(); // key -> {name, gross, count}
-          (paidInv || []).forEach(inv=>{
-            const gross = (inv && inv.pricing && typeof inv.pricing.totalGross === 'number') ? inv.pricing.totalGross : 0;
-            // Customer
-            const cid = inv && inv.customerId ? String(inv.customerId) : '';
-            const custObj = cid ? getCustomer(cid) : null;
-            const custName = (custObj && (custObj.name||custObj.fullname||custObj.displayName)) || (inv && inv.customerName) || (inv && inv.kundeName) || '—';
-            const ckey = cid || custName;
-            const c = mapCust.get(ckey) || { name: custName, gross: 0, count: 0 };
-            c.gross += gross; c.count += 1;
-            if(!c.name && custName) c.name = custName;
-            mapCust.set(ckey, c);
-            // Dog
-            const did = inv && inv.dogId ? String(inv.dogId) : '';
-            const dogObj = did ? getPet(did) : null;
-            const dogName = (dogObj && (dogObj.name||dogObj.displayName)) || (inv && inv.dogName) || (inv && inv.hundName) || '—';
-            const dkey = did || dogName;
-            const d = mapDog.get(dkey) || { name: dogName, gross: 0, count: 0 };
-            d.gross += gross; d.count += 1;
-            if(!d.name && dogName) d.name = dogName;
-            mapDog.set(dkey, d);
-          });
-          const topCust = Array.from(mapCust.values()).sort((a,b)=>b.gross-a.gross).slice(0,10);
-          const topDog  = Array.from(mapDog.values()).sort((a,b)=>b.gross-a.gross).slice(0,10);
-          const renderTop = (el, rows, labelLeft)=>{
-            const head = `<tr><th>${esc(labelLeft)}</th><th style="text-align:right;">Umsatz</th><th style="text-align:right;">Rechn.</th></tr>`;
-            const body = rows.map(r=>`<tr><td>${esc(r.name||'—')}</td><td style="text-align:right;">${formatEUR(r.gross||0)}</td><td style="text-align:right;">${r.count||0}</td></tr>`).join('');
-            el.innerHTML = head + (body || `<tr><td colspan="3" style="opacity:.75;">Keine Daten im Zeitraum</td></tr>`);
-          };
-          renderTop(topCustEl, topCust, 'Kunde');
-          renderTop(topDogEl, topDog, 'Hund');
-        }
-      }catch(__e){
-        // ignore
-      }
-
-// --- 4E-2: Storno-Gründe (Top) ---
-      try{
-        const t = document.getElementById('anaStornoReasonTable');
-        if(t){
-          const head = `<tr><th>Grund</th><th style="text-align:right;">Anzahl</th></tr>`;
-          const body = (stornoReasonRows||[]).map(([r,c]) => 
-            `<tr><td>${esc(r)}</td><td style="text-align:right;">${c}</td></tr>`
-          ).join('');
-          t.innerHTML = head + (body || `<tr><td colspan="2" style="opacity:.75;">Keine Stornos im Zeitraum</td></tr>`);
-        }
-      }catch(__e){
-        // ignore
-      }
-
-// --- 4D-2: Auslastung/Kapazität im gewählten Zeitraum ---
-      try{
-        // typeEl exists in UI (day/urlaub)
-        const occType = String(typeEl?.value || 'urlaub');
-        const label = (occType==='day') ? 'Tagesbetreuung' : 'Urlaubsbetreuung';
-        const capMax = (occType==='day') ? (CAPACITY?.day ?? 13) : (CAPACITY?.holiday ?? 10);
-        // parse YYYY-MM-DD as UTC midnight
-        const parseYMD = (s) => {
-          if(!s || typeof s !== 'string') return null;
-          const parts = s.split('-').map(n => parseInt(n,10));
-          if(parts.length!==3 || parts.some(n => !Number.isFinite(n))) return null;
-          return new Date(Date.UTC(parts[0], parts[1]-1, parts[2]));
-        };
-        const fromD2 = parseYMD(fromEl?.value);
-        const toD2   = parseYMD(toEl?.value);
-        if(fromD2 && toD2 && fromD2<=toD2){
-          let days=0, usedSum=0, capSum=0;
-          let peakUsed=-1, peakDay='', peakCap=0;
-          for(let d=fromD2; d<=toD2; d=addDaysUTC(d,1)){
-            const ymd = formatYMD(d);
-            const used = countForDay(occType, ymd);
-            const cap  = getCapacity(occType, ymd);
-            days++; usedSum += used; capSum += cap;
-            if(used>peakUsed){ peakUsed=used; peakDay=ymd; peakCap=cap; }
-          }
-          const avgUsed = days ? (usedSum/days) : 0;
-          const avgCap  = days ? (capSum/days) : 0;
-          const utilPct = capSum ? (usedSum/capSum*100) : 0;
-          // spacer row
-          const trSp = document.createElement('tr');
-          trSp.innerHTML = '<td colspan="2" style="height:10px;border:0;"></td>';
-          tbody.appendChild(trSp);
-          const trHead = document.createElement('tr');
-          trHead.innerHTML = `<td colspan="2" style="font-weight:700;">Auslastung (${label})</td>`;
-          tbody.appendChild(trHead);
-          const tr1 = document.createElement('tr');
-          tr1.innerHTML = `<td>Ø belegt</td><td>${avgUsed.toFixed(2)} / ${avgCap.toFixed(2)} (${utilPct.toFixed(1)}%)</td>`;
-          tbody.appendChild(tr1);
-          const tr2 = document.createElement('tr');
-          tr2.innerHTML = `<td>Peak</td><td>${peakUsed} / ${peakCap} am ${peakDay}</td>`;
-          tbody.appendChild(tr2);
-          const tr3 = document.createElement('tr');
-          tr3.innerHTML = `<td>Slot‑Tage</td><td>${usedSum} von ${capSum} (Max/Tag: ${capMax})</td>`;
-          tbody.appendChild(tr3);
-        }
-      }catch(_){}
-    // bind refresh button once
-    const btn = document.getElementById('anaRefreshBtn') || document.getElementById('anaRefresh');
-    if(btn && !btn.__dsBound){
-      btn.__dsBound = true;
-      btn.addEventListener('click', () => renderAnalyticsPanel());
-      // Quick range buttons
-      const setRange = (fromDate, toDate) => {
-        try{
-          const f = document.getElementById('anaFrom');
-          const t = document.getElementById('anaTo');
-          if(f) f.value = fromDate;
-          if(t) t.value = toDate;
-          try{ localStorage.setItem('ds_ana_from', fromDate); }catch(_){ }
-          try{ localStorage.setItem('ds_ana_to', toDate); }catch(_){ }
-          scheduleAnaRefresh();
-        }catch(_){ }
-      };
-      const q12 = document.getElementById('anaQuick12m') || document.getElementById('anaQuick12mBtn');
-      if(q12 && !q12.__dsBound){
-        q12.__dsBound = true;
-        q12.addEventListener('click', () => {
-          const now = new Date();
-          const to = new Date(now.getFullYear(), now.getMonth()+1, 0);
-          const from = new Date(now.getFullYear(), now.getMonth()-11, 1);
-          setRange(fmtDateISO(from), fmtDateISO(to));
-        });
-      }
-      const q90 = document.getElementById('anaQuick90d') || document.getElementById('anaQuick90');
-      if(q90 && !q90.__dsBound){
-        q90.__dsBound = true;
-        q90.addEventListener('click', () => {
-          const now = new Date();
-          const to = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-          const from = new Date(to.getTime() - 89*24*3600*1000);
-          setRange(fmtDateISO(from), fmtDateISO(to));
-        });
-      }
-      
-  // 4D-6: Debounced auto-refresh for analytics controls
-  // (avoid recursive calls; trigger a safe panel re-render)
-  const scheduleAnaRefresh = (() => {
-    let t = null;
-    return () => {
-      try{ if(t) clearTimeout(t); }catch(__){}
-      t = setTimeout(() => {
-        try{ renderAnalyticsPanel(); }catch(__){}
-      }, 250);
-    };
-  })();
-
-      // Auto-refresh when date inputs are edited
-      try{
-        const fromEl2 = document.getElementById('anaFrom');
-        const toEl2   = document.getElementById('anaTo');
-        if(fromEl2 && !fromEl2.__dsAnaBound){
-          fromEl2.__dsAnaBound = true;
-          fromEl2.addEventListener('change', scheduleAnaRefresh);
-          fromEl2.addEventListener('input', scheduleAnaRefresh);
-        }
-        if(toEl2 && !toEl2.__dsAnaBound){
-          toEl2.__dsAnaBound = true;
-          toEl2.addEventListener('change', scheduleAnaRefresh);
-          toEl2.addEventListener('input', scheduleAnaRefresh);
-        }
-      }catch(__){}
-
-const q30 = document.getElementById('anaQuick30d') || document.getElementById('anaQuick30');
-      if(q30 && !q30.__dsBound){
-        q30.__dsBound = true;
-        q30.addEventListener('click', () => {
-          const now = new Date();
-          const to = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-          const from = new Date(to.getTime() - 29*24*3600*1000);
-          setRange(fmtDateISO(from), fmtDateISO(to));
-        });
-      }
-      // Export CSV
-      const exp = (document.getElementById('anaExportBtn') || document.getElementById('anaExport'));
-      if(exp && !exp.__dsBound){
-        exp.__dsBound = true;
-        exp.addEventListener('click', () => {
-      try{
-        const fromEl = document.getElementById('anaFrom');
-        const toEl   = document.getElementById('anaTo');
-        const incEl  = document.getElementById('anaIncludeHolidayToggle') || document.getElementById('anaIncludeHoliday');
-        const fromStr = (fromEl && fromEl.value) ? fromEl.value : '';
-        const toStr   = (toEl && toEl.value) ? toEl.value : '';
-        const includeHoliday = !!(incEl && incEl.checked);
-
-        // Mode chooser (keeps UI minimal & iOS-friendly)
-        const modeRaw = (prompt('CSV Export:\n- voll\n- belege\n- monate\n- topkunden\n- tophunde\n\nEingabe:', 'voll') || 'voll').toLowerCase().trim();
-        const mode = (['voll','belege','monate','topkunden','tophunde'].includes(modeRaw)) ? modeRaw : 'voll';
-
-        // Recompute analytics for export
-        const ana = window.__DS_ANA_LAST || null;
-        const data = ana && ana.exportData ? ana.exportData : null;
-
-        const lines = [];
-        const addLine = (...cols) => lines.push(cols.map(c => {
-          const v = (c===null || c===undefined) ? '' : String(c);
-          // semicolon CSV, quote if needed
-          return /[;"\n\r]/.test(v) ? '"' + v.replace(/"/g,'""') + '"' : v;
-        }).join(';'));
-
-        // Fallback if no cached exportData (should not happen): export nothing but headers
-        const ed = data || { invoices: [], monthly: [], topServices: [], topCustomers: [], topDogs: [] };
-
-        const metaHeader = () => {
-          addLine('Doggy Style Analytics Export');
-          addLine('Von', fromStr, 'Bis', toStr, 'Feiertagsumsatz', includeHoliday ? 'ja' : 'nein');
-          addLine('');
-        };
-
-        const exportInvoices = () => {
-          addLine('Belege (bezahlt)');
-          addLine('Rechnungsnr','Datum','Kunde','Hund','Zeitraum von','Zeitraum bis','Brutto','MwSt','Netto*','Status','Storno Grund');
-          (ed.invoices||[]).forEach(r => {
-            addLine(r.number, r.date, r.customer, r.dog, r.from, r.to, r.gross, r.vat, r.net, r.status, r.stornoReason||'');
-          });
-          addLine('');
-        };
-
-        const exportMonthly = () => {
-          addLine('Umsatz nach Monat (letzte 12 Monate)');
-          addLine('Monat','Umsatz netto*','Feiertag','Belege','Storno');
-          (ed.monthly||[]).forEach(r => addLine(r.month, r.net, r.holiday, r.count, r.storno));
-          addLine('');
-        };
-
-        const exportTopCustomers = () => {
-          addLine('Top Kunden (Umsatz brutto)');
-          addLine('Kunde','Umsatz brutto','Belege');
-          (ed.topCustomers||[]).forEach(r => addLine(r.name, r.gross, r.count));
-          addLine('');
-        };
-
-        const exportTopDogs = () => {
-          addLine('Top Hunde (Umsatz brutto)');
-          addLine('Hund','Umsatz brutto','Belege');
-          (ed.topDogs||[]).forEach(r => addLine(r.name, r.gross, r.count));
-          addLine('');
-        };
-
-        metaHeader();
-        if(mode==='voll' || mode==='belege') exportInvoices();
-        if(mode==='voll' || mode==='monate') exportMonthly();
-        if(mode==='voll' || mode==='topkunden') exportTopCustomers();
-        if(mode==='voll' || mode==='tophunde') exportTopDogs();
-
-        const csv = lines.join('\n');
-        const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        const safeFrom = fromStr || 'von';
-        const safeTo = toStr || 'bis';
-        a.href = url;
-        a.download = `doggystyle_auswertungen_${mode}_${safeFrom}_${safeTo}.csv`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 2000);
-      }catch(e){
-        alert('Export fehlgeschlagen: ' + (e && e.message ? e.message : e));
-      }
-    });
-      }
-    }
-  }catch(e){
-    console.warn("renderAnalyticsPanel failed", e);
-  }
 }
 function renderCalendarDayDetail(iso){
   const card = document.getElementById('calDayDetail');
@@ -6984,63 +6427,38 @@ function renderCalendarDayDetail(iso){
   const meta = document.getElementById('calDayMeta');
   const list = document.getElementById('calDayList');
   if(!card || !title || !meta || !list) return;
-  const dt = new Date(iso);
-  const label = dt.toLocaleDateString('de-DE', { weekday:'long', day:'2-digit', month:'2-digit', year:'numeric' });
-  const board = countForDay('Urlaubsbetreuung', iso);
-  const dayc = countForDay('Tagesbetreuung', iso);
-  title.textContent = label;
-  const f = getCalFilters();
-  const freeU = getCapacity("Urlaubsbetreuung", iso) - board;
-  const freeT = getCapacity("Tagesbetreuung", iso) - dayc;
-  const parts = [];
-  const freeParts = [];
-  if(f.urlaub){ parts.push(`🏡 ${board}/${getCapacity("Urlaubsbetreuung", iso)}`); freeParts.push(`🏡 ${Math.max(0, freeU)} frei`); }
-  if(f.tages){ parts.push(`🐕 ${dayc}/${getCapacity("Tagesbetreuung", iso)}`); freeParts.push(`🐕 ${Math.max(0, freeT)} frei`); }
-  meta.textContent = `${parts.join(' · ')}  —  ${freeParts.join(' · ')}`;
-  const stays = (state.docs||[]).filter(d=>{
-    if(!d.saved) return false;
-    if(d.type==='invoice') return false;
-    if(!d.meta?.von || !d.meta?.bis) return false;
-    const bt = d.meta?.betreuung||'';
-    if(bt==='Urlaubsbetreuung' && !f.urlaub) return false;
-    if(bt==='Tagesbetreuung' && !f.tages) return false;
-    return (iso >= d.meta.von && iso <= d.meta.bis);
-  }).slice().sort((a,b)=> String(a.meta?.von||'').localeCompare(String(b.meta?.von||'')));
-  // 4A: Verursachende Aufenthalte bei Überbuchung markieren (Kalender-Tag-Detail)
-  // Logik: Wenn (Anzahl Aufenthalte je Betreuungsart) > Kapazität, markieren wir die "zusätzlichen" Aufenthalte
-  // in einer stabilen Reihenfolge (ältere zuerst, neuere zuletzt). Die neueren, die über die Kapazität hinausgehen,
-  // gelten als verursachend (planungspraktisch).
-  const causing = new Set();
-  const causingOver = Object.create(null); // id -> +N ueber Limit
-  const getSortKey = (d)=>{
-    // bevorzugt updatedAt/createdAt; fallback auf meta-Timestamps; letztlich id
-    const ts = d.updatedAt || d.createdAt || d.meta?.updatedAt || d.meta?.createdAt || d.meta?.savedAt || '';
-    return String(ts) + '|' + String(d.id||'');
-  };
-  try{
-    const byType = (type)=> (stays||[]).filter(s => (s.meta?.betreuung||'') === type);
-    const markOverflow = (type)=>{
-      const arr = byType(type).slice().sort((a,b)=> getSortKey(a).localeCompare(getSortKey(b)));
-      const cap = getCapacity(type, iso);
-      if(!cap && cap !== 0) return;
-      const overflow = arr.length - cap;
-      if(overflow > 0){
-        // Markiere alle Aufenthalte oberhalb der Kapazitaet als "verursachend"
-        // und merke die Position (+1, +2, ...), damit im UI die Groessenordnung klar ist.
-        for(let i = cap; i < arr.length; i++){
-          const s = arr[i];
-          if(!s || !s.id) continue;
-          causing.add(s.id);
-          const n = (i - cap) + 1;
-          const prev = causingOver[s.id];
-          // falls ein Eintrag aus irgendeinem Grund mehrfach markiert wird, behalten wir den groessten Wert
-          causingOver[s.id] = (typeof prev === 'number') ? Math.max(prev, n) : n;
-        }
+  const dt = new Date(iso + 'T12:00:00');
+  title.textContent = dt.toLocaleDateString('de-DE', { weekday:'long', day:'2-digit', month:'2-digit', year:'numeric' });
+  const confirmed = DSWorkflowCore.staysOnDay(DSWorkflowCore.confirmedStays(state), iso);
+  const occupancy = DSWorkflowCore.occupancyFromStays(state, iso, confirmed);
+  const filters = getCalFilters();
+  const parts = [`${occupancy.total}/${occupancy.totalCapacity} belegt`, `${calendarFree(occupancy)} frei`];
+  if(filters.urlaub) parts.push(`🏡 ${occupancy.boarding}/${occupancy.boardingCapacity}`);
+  if(filters.tages) parts.push(`🐕 ${occupancy.daycare}/${occupancy.daycareCapacity}`);
+  if(calendarOver(occupancy)) parts.push('Über Kapazität');
+  meta.textContent = parts.join(' · ');
+
+  const stays = confirmed.filter(stay => stay.care === 'Urlaubsbetreuung' ? filters.urlaub : filters.tages);
+  const transfers = [];
+  for(const stay of stays){
+    for(const [day, rawTime, label] of [[stay.from, stay.bringTime, 'Bringen'], [stay.to, stay.pickupTime, 'Abholen']]){
+      if(iso === day && /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(rawTime)){
+        transfers.push({ time:rawTime.padStart(5, '0'), title:`${label} · ${stay.title}` });
       }
-    };
-    markOverflow('Urlaubsbetreuung');
-    markOverflow('Tagesbetreuung');
-  }catch(e){ console.warn('4A causing-mark failed', e); }
+    }
+  }
+  window.DSCalendarEvents?.dayList(iso, transfers);
+
+  const causing = new Map();
+  const byAge = (a,b) => a.stamp - b.stamp || a.id.localeCompare(b.id);
+  function markOverflow(bookings, capacity){
+    bookings.slice().sort(byAge).slice(capacity).forEach((stay, index) => {
+      causing.set(stay.id, Math.max(causing.get(stay.id) || 0, index + 1));
+    });
+  }
+  markOverflow(confirmed, occupancy.totalCapacity);
+  markOverflow(confirmed.filter(stay => stay.care === 'Urlaubsbetreuung'), occupancy.boardingCapacity);
+  markOverflow(confirmed.filter(stay => stay.care === 'Tagesbetreuung'), occupancy.daycareCapacity);
   // Etappe 4: Medikamente pro Aufenthaltstag (Kalender-Tag-Detail)
   const stayPetIds = Array.from(new Set((stays||[]).map(s => (s.petId || s.dogId || "")).filter(Boolean)));
   const medOcc = (stayPetIds.length ? medDueOccurrences(iso, stayPetIds) : []);
@@ -7128,10 +6546,10 @@ function renderCalendarDayDetail(iso){
       const item = document.createElement('div');
       item.className = 'item';
       const t = escapeHtml(d.title||'Aufenthalt');
-      const typ = escapeHtml(d.meta?.betreuung||'');
-      const range = `${escapeHtml(d.meta?.von||'')} – ${escapeHtml(d.meta?.bis||'')}`;
+      const typ = escapeHtml(d.label);
+      const range = `${escapeHtml(d.from)} – ${escapeHtml(d.to)}`;
       const isCausing = causing.has(d.id);
-      const overN = isCausing ? (causingOver[d.id] || 0) : 0;
+      const overN = causing.get(d.id) || 0;
       const overTxt = (overN > 0) ? ` <span class="pill warn" style="margin-left:8px;">+${overN} über Limit</span>` : '';
       const causePill = isCausing ? `<span class="pill warn" style="margin-left:8px;">verursacht Überbuchung</span>${overTxt}` : '';
       if(isCausing){
@@ -7139,14 +6557,16 @@ function renderCalendarDayDetail(iso){
         item.style.background = "rgba(244,67,54,.08)";
       }
       item.innerHTML = `<div><strong>${t}</strong>${causePill}<small>${typ} · ${range}</small></div>`;
-      const actions = document.createElement('div');
-      actions.className = 'actions';
-      const btn = document.createElement('button');
-      btn.className = 'smallbtn';
-      btn.textContent = 'Öffnen';
-      btn.onclick = ()=>openDoc(d.id);
-      actions.appendChild(btn);
-      item.appendChild(actions);
+      if(d.docId){
+        const actions = document.createElement('div');
+        actions.className = 'actions';
+        const btn = document.createElement('button');
+        btn.className = 'smallbtn';
+        btn.textContent = 'Öffnen';
+        btn.onclick = ()=>openDoc(d.docId);
+        actions.appendChild(btn);
+        item.appendChild(actions);
+      }
       list.appendChild(item);
     });
   }
@@ -7157,34 +6577,36 @@ function wireCalendarControls(){
   const next = document.getElementById('btnCalNext');
   const today = document.getElementById('btnCalToday');
   const close = document.getElementById('btnCalCloseDay');
-  if(prev) prev.onclick = ()=>{
-    const d = new Date(CAL.year, CAL.month, 1);
-    d.setMonth(d.getMonth()-1);
+  function moveMonth(offset){
+    const d = new Date(CAL.year, CAL.month + offset, 1);
     CAL.year = d.getFullYear();
     CAL.month = d.getMonth();
-    renderCalendarPanel();
-  };
-  if(next) next.onclick = ()=>{
-    const d = new Date(CAL.year, CAL.month, 1);
-    d.setMonth(d.getMonth()+1);
-    CAL.year = d.getFullYear();
-    CAL.month = d.getMonth();
-    renderCalendarPanel();
-  };
-  if(today) today.onclick = ()=>{
-    const d = new Date();
-    CAL.year = d.getFullYear();
-    CAL.month = d.getMonth();
-    CAL.selectedDay = toISODateLocal(d);
-    renderCalendarPanel();
-    renderCalendarDayDetail(CAL.selectedDay);
-  };
-  if(close) close.onclick = ()=>{
-    const card = document.getElementById('calDayDetail');
-    if(card) card.style.display = 'none';
     CAL.selectedDay = '';
-    renderCalendarPanel();
+    refreshCalendar();
+  }
+  if(prev) prev.onclick = ()=>moveMonth(-1);
+  if(next) next.onclick = ()=>moveMonth(1);
+  if(today) today.onclick = ()=>selectCalendarDay(toISODateLocal(new Date()));
+  if(close) close.onclick = ()=>{
+    CAL.selectedDay = '';
+    refreshCalendar();
   };
+}
+function openCalendarReminder(){
+  const match = location.hash.match(/^#termin=(\d{4}-\d{2}-\d{2})$/);
+  if(!match || !['admin','staff'].includes(CLOUD.role) || !CLOUD.auth?.currentUser) return;
+  selectTab('calendar');
+  selectCalendarDay(match[1]);
+  document.getElementById('calDayDetail')?.scrollIntoView?.({ block:'start' });
+}
+window.addEventListener('hashchange', openCalendarReminder);
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.addEventListener('message', event => {
+    if(event.data?.type !== 'DS_CALENDAR_REMINDER' || !DSWorkflowCore.dateISO(event.data.day)) return;
+    const hash = '#termin=' + event.data.day;
+    if(location.hash === hash) openCalendarReminder();
+    else location.hash = hash;
+  });
 }
 $$(".tab").forEach(b=>b.addEventListener("click",()=>{
   $$(".tab").forEach(x=>x.classList.toggle("is-active",x===b));
@@ -14745,6 +14167,7 @@ function saveState(){
   updateSyncUI();
   // Cloud Sync (Weg 2B): Änderungen nach außen spiegeln
   if(CLOUD.enabled && CLOUD.user && isStaff()) cloudSchedulePush();
+  globalThis.DSAnalyticsView?.schedule();
 }
 function ensureDefaultDog(){
   if(!state.dogs || state.dogs.length===0){
@@ -17042,7 +16465,11 @@ async function startApp(){
   CLOUD.auth.onAuthStateChanged(async (user)=>{
     try{
     const previousUid=CLOUD.user && CLOUD.user.uid;
-    if(previousUid && previousUid!==(user && user.uid))DSWorkflow.resetAccount();
+    if(previousUid && previousUid!==(user && user.uid)){
+      window.DSCalendarEvents?.reset();
+      globalThis.DSAnalyticsView?.reset();
+      DSWorkflow.resetAccount();
+    }
     CLOUD.user = user || null;
     if(!user){
       try{ const ba=document.querySelector(".bottom-actions"); if(ba) ba.style.display="none"; }catch(e){}
@@ -17142,6 +16569,7 @@ async function startApp(){
     
 // Erstes Boot lokal (stellt state sicher), dann Remote zuverlässig einspielen
 const bootReady=bootOnce();
+bootReady.then(openCalendarReminder).catch(()=>{});
 bootReady.catch(e=>{if(firebase.auth().currentUser?.uid===user.uid){SYNC.cloudLastError=e.message;updateSyncUI();DSWorkflow.startupStatus('Oberfläche konnte nicht starten',e);dsSetSyncDiag(e.message,true);}});
 // Echtzeit-Listener (robust, inkl. erstem Snapshot)
 // Wichtig: Listener so früh wie möglich setzen, damit der initiale State auch bei iOS/Safari sicher kommt.
@@ -22568,7 +21996,7 @@ function renderStatMethod(){
 
 
 
-/* ===== CHAT (M50.9.9GB381_CUSTOMER_BILLING_20261115) ===== */
+/* ===== CHAT (M50.9.9GB383_ANALYTICS_20261115) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,

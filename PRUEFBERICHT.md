@@ -1,3 +1,29 @@
+# Doggy Style Workspace – GB383
+
+Stand 15. November 2026 · Build M50.9.9GB383_ANALYTICS_20261115
+
+- Die Testrechnungen für Februar ergeben drei Zahlungseingänge mit 269,00 € brutto, 26,98 € MwSt. und 242,02 € netto. Darin enthalten sind eine Januarrechnung mit Zahlung im Februar und ein Beleg mit 0 % MwSt. Der offene Beleg und der Storno stehen in eigenen Spalten.
+- Datumsgrenzen für Europa/Berlin, Jahreswechsel, Schalttag, freie Auswahl und fehlende Angaben wurden geprüft. Rechnungen ohne erfasstes Zahlungsdatum können in der Belegliste geprüft werden. Abgeschlossene Belege werden anhand der gespeicherten Beträge und Positionen ausgewertet.
+- Die Belegungswerte wurden gegen die Kalenderberechnung geprüft. Der Fall deckt verschobene und stornierte Aufenthalte, An- und Abreisetage, Doppelbelegung eines Hundes und ein Tageslimit je Betreuungsart ab.
+- Der vollständige Workspace wurde bei 1024 × 768 und 390 × 844 Pixeln mit Testdaten geöffnet. Geprüft wurden die Filter, das Öffnen einer Rechnung und eines Kalendertages, die Aktualisierung nach dem Speichern sowie der CSV-Download unmittelbar nach einer Datumsänderung.
+- Bestehende Prüffälle für Aufenthalte, Zuschläge, Kundennummern und Rechnungen wurden erneut ausgeführt. Die Abnahme mit echten Kontodaten und Safari auf den eingesetzten Geräten steht aus.
+
+## Prüfung des vorigen Stands GB382
+
+# Doggy Style Workspace – GB382
+
+Stand 15. November 2026 · Build M50.9.9GB382_CALENDAR_20261115
+
+- Die Kalenderansicht im vollständigen Workspace wurde in Chromium in zwei Bildschirmgrößen geprüft. Ein neuer Termin blieb über zwei getrennte Sitzungen synchron. Beim Verschieben wechselte er den Monat. Die Absage entfernte seine Markierung. Die vier belegten Hundeplätze blieben währenddessen gleich.
+- Der Firebase-Auth- und Firestore-Emulator bestätigte den Zugriff für das Workspace-Team und die Ablehnung für Kundenkonten. Zwei gleichzeitige Änderungen am selben Termin wurden geprüft. Eine alte Version konnte die neuere Änderung nicht überschreiben.
+- Der lokale SMTP-Test prüfte zwei Empfänger, Einladungen, Aktualisierungen und Absagen. Die Kalenderdateien ließen sich parsen und behielten dieselbe Termin-ID mit aufsteigender Versionsnummer. Ein fehlgeschlagener Versand ließ sich gezielt erneut anstoßen.
+- Die Prüfung der Erinnerungen deckte Geräteanmeldung, Wiederholungsversuche bei vorübergehenden Fehlern, Abschalten auf einem Gerät, Terminänderungen und Zeitumstellung ab. Im Test reagierte der Service Worker ohne geöffnete App auf die Mitteilung und öffnete ihren Kalendertag.
+- Bestehende Prüfungen für Kundenanfrage und Freigabe, Rechnungsbeträge und Zuschläge, Kundennummern sowie freie Rechnungen und PDFs liefen erfolgreich.
+
+Für die Inbetriebnahme sind die Cloud-Funktionen, Firestore-Regeln und der Mailanbieter einzurichten. Die Geräteabnahme mit echten Push-Mitteilungen und der Annahme in Apple Kalender steht aus.
+
+## Prüfung des vorigen Stands GB381
+
 # Doggy Style Workspace – GB381
 
 Stand 15. November 2026 · Build M50.9.9GB381_CUSTOMER_BILLING_20261115

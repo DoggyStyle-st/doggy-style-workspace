@@ -1,7 +1,7 @@
 // DoggyStyle Workspace Service Worker
 // Clean, consistent cache strategy (network-first for HTML, cache-first for static)
 
-const BUILD_VERSION = "M50.9.9GB381_CUSTOMER_BILLING_20261115";
+const BUILD_VERSION = "M50.9.9GB383_ANALYTICS_20261115";
 const CACHE_NAME = "doggystyle-" + BUILD_VERSION;
 
 // Keep this list conservative; do NOT include versioned query variants.
@@ -15,6 +15,11 @@ const STATIC_ASSETS = [
   "./billing.css",
   "./account-directory.js",
   "./statistics-store.js",
+  "./analytics-core.js",
+  "./analytics-view.js",
+  "./analytics.css",
+  "./calendar-events.js",
+  "./calendar-events.css",
   "./document-output.js",
   "./document-output.css",
   "./workforms-print.js",
@@ -106,4 +111,37 @@ self.addEventListener("fetch", (event) => {
       return fresh;
     })()
   );
+});
+
+self.addEventListener("push", (event) => {
+  let payload;
+  try { payload = event.data?.json(); } catch (_) { payload = null; }
+  if (!payload || typeof payload.title !== "string" || typeof payload.body !== "string" ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(payload.day) || !/^[A-Za-z0-9-]{20,48}$/.test(payload.id)) return;
+  event.waitUntil(self.registration.showNotification(payload.title, {
+    body: payload.body,
+    tag: "calendar-" + payload.id,
+    icon: new URL("assets/logo.png", self.registration.scope).href,
+    data: { day: payload.day }
+  }));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  const day = event.notification.data?.day;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return;
+  event.notification.close();
+  event.waitUntil((async () => {
+    const app = new URL("app.html", self.registration.scope);
+    const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    const existing = windows.find(client => {
+      const current = new URL(client.url);
+      return current.origin === app.origin && current.pathname === app.pathname;
+    });
+    if (existing) {
+      existing.postMessage({ type: "DS_CALENDAR_REMINDER", day });
+      return existing.focus();
+    }
+    app.hash = "termin=" + day;
+    return self.clients.openWindow(app.href);
+  })());
 });

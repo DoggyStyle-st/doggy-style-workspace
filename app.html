@@ -15,14 +15,16 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
 <meta charset="utf-8"/>
-  <meta name="app-build" content="M50.9.9GB381_CUSTOMER_BILLING_20261115">
+  <meta name="app-build" content="M50.9.9GB383_ANALYTICS_20261115">
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <title>Doggy Style Workspace · App</title>
 <link href="manifest.json" rel="manifest"/>
 <meta content="#101014" name="theme-color"/>
 <link href="assets/logo.png" rel="apple-touch-icon"/>
-<link href="styles.css?v=M50.9.9GB381_CUSTOMER_BILLING_20261115" rel="stylesheet"/>
+<link href="styles.css?v=M50.9.9GB383_ANALYTICS_20261115" rel="stylesheet"/>
 <link href="dashboard_master.css?v=20260104v13logout" rel="stylesheet"/>
+<link href="analytics.css?v=M50.9.9GB383_ANALYTICS_20261115" rel="stylesheet"/>
+<link href="calendar-events.css?v=M50.9.9GB383_ANALYTICS_20261115" rel="stylesheet"/>
 <style>
   /* Topbar Layout (iPad & Desktop stabil) */
   .topbar{position:sticky; top:0; z-index:50;}
@@ -44,14 +46,14 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
 </style>
 
 
-  <meta name="app-version" content="M50.9.9GB381_CUSTOMER_BILLING_20261115">
+  <meta name="app-version" content="M50.9.9GB383_ANALYTICS_20261115">
   <meta name="release-channel" content="MASTER">
 <style>
 /* GB358: interne Diagnose bleibt programmatisch vorhanden, wird aber nicht angezeigt. */
 #assignDiag,#inboxDiag,#inboxDiagError,#inboxProposalDebug,#buildBadge,[id^="gb348Diag"]{display:none!important}
 </style>
-<link rel="stylesheet" href="document-output.css?v=M50.9.9GB381_CUSTOMER_BILLING_20261115">
-<link rel="stylesheet" href="billing.css?v=M50.9.9GB381_CUSTOMER_BILLING_20261115"></head>
+<link rel="stylesheet" href="document-output.css?v=M50.9.9GB383_ANALYTICS_20261115">
+<link rel="stylesheet" href="billing.css?v=M50.9.9GB383_ANALYTICS_20261115"></head>
 <body class="bg-watermark page-app">
 <header class="topbar">
   <div class="topbar__inner">
@@ -240,8 +242,7 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
   <div class="card">
     <div class="row between" style="gap:10px; flex-wrap:wrap; align-items:center;">
       <div>
-        <h1 style="margin:0">Belegungskalender</h1>
-        <p class="muted" style="margin:6px 0 0 0">Monatsansicht · Tagesbetreuung &amp; Urlaubsbetreuung · Kapazitätswarnungen</p>
+        <h1 style="margin:0">Kalender</h1>
       </div>
       <div class="row" style="gap:8px; flex-wrap:wrap; align-items:center;">
         <button class="btn" id="btnCalPrev">◀</button>
@@ -251,16 +252,24 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
       </div>
     </div>
 
+    <div class="calendar-tools">
+      <button class="btn primary" id="btnCalNewEvent" type="button" disabled>+ Termin</button>
+      <button class="btn" id="btnCalPush" type="button" disabled>Mitteilungen einschalten</button>
+      <button class="btn" id="btnCalSettings" type="button" hidden>Einladungen einrichten</button>
+    </div>
+    <p class="muted" id="calendarCloudStatus" role="status"></p>
+    <p class="muted" id="calendarPushStatus" role="status"></p>
     
     <div class="row" style="gap:10px; flex-wrap:wrap; margin-top:10px;">
       <div class="muted" style="font-weight:800;">Filter:</div>
       <button class="pill toggle" id="calFilterUrlaub" type="button">🏡 Urlaub</button>
       <button class="pill toggle" id="calFilterTages" type="button">🐕 Tages</button>
-      <div class="muted" id="calFreeHint" style="margin-left:auto;">Freie Plätze werden pro Tag angezeigt.</div>
+      <div class="muted" id="calFreeHint" style="margin-left:auto;">Freie Plätze gelten für beide Betreuungsarten zusammen.</div>
     </div>
 <div class="cal-legend" style="margin-top:10px;">
       <span class="pill">🏡 Urlaubsbetreuung</span>
       <span class="pill">🐕 Tagesbetreuung</span>
+      <span class="pill calendar-event-legend">• Eigene Termine</span>
       <span class="pill warn">⚠️ über Kapazität</span>
     </div>
 
@@ -277,8 +286,60 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
         <button class="btn" id="btnCalCloseDay">Schließen</button>
       </div>
     </div>
+    <div id="calEventList" class="list" aria-label="Tagesablauf"></div>
     <div class="list" id="calDayList" style="margin-top:10px"></div>
   </div>
+
+  <dialog class="calendar-dialog" id="calEventDialog" aria-labelledby="calEventHeading">
+    <form id="calEventForm">
+      <h2 id="calEventHeading">Neuer Termin</h2>
+      <label for="calEventTitle">Titel</label>
+      <input id="calEventTitle" name="title" maxlength="120" required>
+      <label for="calEventDate">Datum</label>
+      <input id="calEventDate" name="date" type="date" required>
+      <label class="calendar-check"><input id="calEventAllDay" name="allDay" type="checkbox"> Ganztägig</label>
+      <div class="calendar-time-fields" id="calEventTimeFields">
+        <label>Beginn <input name="startTime" type="time" required></label>
+        <label>Ende <input name="endTime" type="time" required></label>
+      </div>
+      <label for="calEventReminder">Workspace-Erinnerung</label>
+      <select id="calEventReminder" name="reminder">
+        <option value="">Keine</option>
+        <option value="0">Zum Termin</option>
+        <option value="15">15 Minuten vorher</option>
+        <option value="60">1 Stunde vorher</option>
+        <option value="1440">1 Tag vorher</option>
+      </select>
+      <small id="calEventReminderHint" class="muted"></small>
+      <label for="calEventNotes">Notiz</label>
+      <textarea id="calEventNotes" name="notes" rows="2" maxlength="1200"></textarea>
+      <label class="calendar-check"><input id="calEventInvite" name="invite" type="checkbox"> Kalendereinladung an Raphael und Anschi</label>
+      <small id="calEventInviteHint" class="muted"></small>
+      <p id="calEventFeedback" class="calendar-feedback" role="status"></p>
+      <div class="calendar-dialog-actions">
+        <button class="btn" type="button" data-calendar-close>Schließen</button>
+        <button class="btn" id="calEventRetry" type="button" hidden>Versand erneut versuchen</button>
+        <button class="btn" id="calEventCancel" type="button" hidden>Termin absagen</button>
+        <button class="btn primary" id="calEventSave" type="submit">Speichern</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="calendar-dialog" id="calSettingsDialog" aria-labelledby="calSettingsHeading">
+    <form id="calSettingsForm">
+      <h2 id="calSettingsHeading">Kalendereinladungen</h2>
+      <p class="muted">Sobald beide Adressen eingetragen sind und der E-Mail-Versand eingerichtet ist, erhalten Raphael und Anschi bei neuen Terminen standardmäßig eine Einladung.</p>
+      <label for="calRaphaelEmail">E-Mail für Raphael</label>
+      <input id="calRaphaelEmail" name="raphael" type="email" autocomplete="off" maxlength="254">
+      <label for="calAnschiEmail">E-Mail für Anschi</label>
+      <input id="calAnschiEmail" name="anschi" type="email" autocomplete="off" maxlength="254">
+      <p id="calSettingsFeedback" class="calendar-feedback" role="status"></p>
+      <div class="calendar-dialog-actions">
+        <button class="btn" type="button" data-calendar-close>Schließen</button>
+        <button class="btn primary" type="submit">Adressen speichern</button>
+      </div>
+    </form>
+  </dialog>
 </section>
 
 <!-- HYGIENE & REINIGUNG -->
@@ -1042,115 +1103,181 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
   </div>
 </section>
 
-<section class="panel" id="analytics">
-  <h2>Auswertungen</h2>
-
-      <div class="card" style="margin-top:10px;">
-        <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end;">
-          <div style="min-width:180px;">
-            <label class="muted" style="display:block; margin-bottom:4px;">Von</label>
-            <input id="anaFrom" type="date" class="input" style="width:100%;" />
-          </div>
-          <div style="min-width:180px;">
-            <label class="muted" style="display:block; margin-bottom:4px;">Bis</label>
-            <input id="anaTo" type="date" class="input" style="width:100%;" />
-          </div>
-          <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-            <button id="anaQuick30" class="btn" type="button" style="padding:8px 10px; font-size:12px;">30 Tage</button>
-            <button id="anaQuick90" class="btn" type="button" style="padding:8px 10px; font-size:12px;">90 Tage</button>
-            <button id="anaQuick365" class="btn" type="button" style="padding:8px 10px; font-size:12px;">12 Monate</button>
-          </div>
-          <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-left:auto;">
-            <button id="anaExportBtn" class="btn" type="button" style="padding:8px 10px; font-size:12px;">CSV Export</button>
-            <button id="anaRefreshBtn" class="btn primary" type="button" style="padding:8px 12px; font-size:12px;">Aktualisieren</button>
-          </div>
+<section class="panel analytics" id="analytics">
+  <div class="card analytics-card">
+    <h1>Auswertungen</h1>
+    <div class="analytics-controls">
+      <div class="analytics-period" role="group" aria-label="Zeitraum wählen">
+        <button class="btn" type="button" data-ana-preset="current" aria-pressed="false">Dieser Monat</button>
+        <button class="btn" type="button" data-ana-preset="previous" aria-pressed="false">Vormonat</button>
+        <button class="btn" type="button" data-ana-preset="year" aria-pressed="false">Dieses Jahr</button>
+      </div>
+      <div class="analytics-dates">
+        <label for="anaFrom">Von <input id="anaFrom" type="date"></label>
+        <label for="anaTo">Bis <input id="anaTo" type="date"></label>
+      </div>
+      <div class="analytics-export">
+        <label for="anaExportMode">CSV-Inhalt</label>
+        <div>
+          <select id="anaExportMode">
+            <option value="all">Gesamte Auswertung</option>
+            <option value="months">Monatsübersicht</option>
+            <option value="invoices">Belegliste</option>
+            <option value="services">Leistungen</option>
+            <option value="occupancy">Belegung</option>
+            <option value="customers">Top-Kunden</option>
+            <option value="dogs">Top-Hunde</option>
+          </select>
+          <button id="anaExportBtn" class="btn primary" type="button" disabled>CSV speichern</button>
         </div>
-        <div id="anaRangeHint" class="muted" style="margin-top:8px; font-size:12px;"></div>
-      </div>
-
-
-  <div class="card">
-    <div class="row between" style="gap:12px; flex-wrap:wrap;">
-      <div>
-        <div class="muted">Umsatz (ohne Feiertagszuschlag)</div>
-        <div style="font-size:34px; font-weight:800;" id="anaRevenueNet">–</div>
-      </div>
-      <div>
-        <div class="muted">Feiertagsumsatz</div>
-        <div style="font-size:22px; font-weight:700;" id="anaRevenueHoliday">–</div>
-        <label class="row" style="gap:10px; margin-top:8px;">
-          <input type="checkbox" id="anaIncludeHoliday"/>
-          <span class="muted">Feiertagsumsatz standardmäßig <strong>nicht</strong> mitzählen (Opt‑in)</span>
-        </label>
-      </div>
-      <div>
-        <div class="muted">Storno</div>
-        <div style="font-size:22px; font-weight:700;" id="anaCancelled">–</div>
       </div>
     </div>
+    <p id="anaRangeHint" class="muted" role="status"></p>
   </div>
 
-  <div class="card">
-    <h3>Umsatz nach Monat (letzte 12 Monate)</h3>
-    <div style="overflow:auto;">
-      <table style="width:100%; border-collapse:collapse;" id="anaTable">
-        <thead>
-          <tr>
-            <th style="text-align:left; padding:8px 6px; border-bottom:1px solid rgba(255,255,255,.12);">Monat</th>
-            <th style="text-align:right; padding:8px 6px; border-bottom:1px solid rgba(255,255,255,.12);">Umsatz (netto*)</th>
-            <th style="text-align:right; padding:8px 6px; border-bottom:1px solid rgba(255,255,255,.12);">Feiertag</th>
-            <th style="text-align:right; padding:8px 6px; border-bottom:1px solid rgba(255,255,255,.12);">Belege</th>
-            <th style="text-align:right; padding:8px 6px; border-bottom:1px solid rgba(255,255,255,.12);">Storno</th>
-          </tr>
-        </thead>
-        <tbody id="anaTbody"></tbody>
-      </table>
-
-        <div class="card" style="margin-top:12px;">
-          <div class="cardTitle">Umsatz nach Leistung (Top 12)</div>
-          <table id="anaItemTable" class="dsTable">
-            <thead>
-              <tr><th>Leistung</th><th>Umsatz (Brutto)</th></tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-          <div class="muted" style="margin-top:8px;">Basis: nur <b>bezahlte</b> Rechnungen im gewählten Zeitraum.</div>
-        </div>
-
+  <div id="anaReport" hidden>
+    <div class="analytics-metrics">
+      <button class="card analytics-metric" type="button" data-ana-kind="paid" aria-controls="anaReceipts">
+        <span>Zahlungseingänge</span>
+        <strong id="anaPaidGross">–</strong>
+        <small id="anaPaidCount"></small>
+        <span id="anaPaidTax" class="analytics-metric-note"></span>
+      </button>
+      <button class="card analytics-metric" type="button" data-ana-kind="open" aria-controls="anaReceipts">
+        <span>Offene Rechnungen</span>
+        <strong id="anaOpenGross">–</strong>
+        <small id="anaOpenCount"></small>
+        <span class="analytics-metric-note">Nach Rechnungsdatum</span>
+      </button>
+      <button class="card analytics-metric" type="button" data-ana-kind="cancelled" aria-controls="anaReceipts">
+        <span>Stornierte Belege</span>
+        <strong id="anaCancelled">–</strong>
+        <small id="anaCancelledCount"></small>
+        <span class="analytics-metric-note">Nach Stornodatum</span>
+      </button>
+      <button class="card analytics-metric" type="button" id="anaGoOccupancy" aria-controls="anaOccupancy">
+        <span>Bestätigte Belegung</span>
+        <strong id="anaOccupancyPct">–</strong>
+        <small id="anaOccupancyDays"></small>
+        <span id="anaOverCount" class="analytics-metric-note"></span>
+      </button>
     </div>
-    <p class="muted" style="margin-top:10px;">* „netto“ bedeutet hier: <strong>Gesamtbetrag ohne Feiertagszuschlag</strong> (wie gewünscht standardmäßig).</p>
-  </div>
+    <div class="card analytics-card analytics-notice" id="anaNotice" hidden>
+      <p id="anaAmountNotice" class="muted" hidden></p>
+      <button id="anaUndatedBtn" class="btn" type="button" data-ana-kind="undated" aria-controls="anaReceipts" hidden></button>
+    </div>
 
-      <div class="card" style="margin-top:12px;">
-        <div class="cardTitle">Top Kunden / Hunde (Umsatz brutto)</div>
-        <div class="mutedSmall" style="margin:-4px 0 10px 0;">Basis: bezahlte Rechnungen im gewählten Zeitraum.</div>
-        <div style="display:flex; gap:12px; flex-wrap:wrap;">
-          <div style="flex:1; min-width:320px;">
-            <div class="mutedSmall" style="margin:0 0 6px 0;">Top Kunden</div>
-            <table id="anaTopCustomerTable" class="dsTable">
-              <tr><th>Kunde</th><th style="text-align:right;">Umsatz</th><th style="text-align:right;">Rechn.</th></tr>
-            </table>
-          </div>
-          <div style="flex:1; min-width:320px;">
-            <div class="mutedSmall" style="margin:0 0 6px 0;">Top Hunde</div>
-            <table id="anaTopDogTable" class="dsTable">
-              <tr><th>Hund</th><th style="text-align:right;">Umsatz</th><th style="text-align:right;">Rechn.</th></tr>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <div class="card" style="margin-top:12px;">
-        <div class="cardTitle">Storno-Gründe (Top)</div>
-        <div class="mutedSmall" style="margin:-4px 0 10px 0;">Basis: stornierte Rechnungen im gewählten Zeitraum.</div>
-        <table id="anaStornoReasonTable" class="dsTable">
-          <tr><th>Grund</th><th style="text-align:right;">Anzahl</th></tr>
+    <section class="card analytics-card" aria-labelledby="anaMonthsHeading">
+      <h2 id="anaMonthsHeading">Monatsübersicht</h2>
+      <div class="analytics-table-wrap" tabindex="0" role="region" aria-label="Monatsübersicht">
+        <table id="anaTable" class="analytics-table analytics-months">
+          <thead><tr>
+            <th scope="col">Monat</th>
+            <th scope="col" class="ana-number">Zahlungen brutto</th>
+            <th scope="col" class="ana-number">MwSt.</th>
+            <th scope="col" class="ana-number">Zahlungen netto</th>
+            <th scope="col" class="ana-number">Offen brutto</th>
+            <th scope="col" class="ana-number">Stornierter Belegwert</th>
+          </tr></thead>
+          <tbody id="anaTbody"></tbody>
         </table>
       </div>
+    </section>
+
+    <section id="anaReceipts" class="card analytics-card" aria-labelledby="anaReceiptsHeading">
+      <h2 id="anaReceiptsHeading" tabindex="-1">Belegliste</h2>
+      <div class="analytics-receipt-controls">
+        <label for="anaReceiptKind">Vorgang
+          <select id="anaReceiptKind">
+            <option value="">Alle im Zeitraum</option>
+            <option value="paid">Zahlungseingänge</option>
+            <option value="open">Offene Rechnungen</option>
+            <option value="cancelled">Stornos</option>
+            <option value="undated">Belege ohne Datum</option>
+          </select>
+        </label>
+        <label for="anaReceiptSearch">Beleg suchen
+          <input id="anaReceiptSearch" type="search" placeholder="Nr., Kunde oder Hund" autocomplete="off">
+        </label>
+        <button id="anaClearMonth" class="btn" type="button" hidden></button>
+      </div>
+      <p id="anaReceiptCount" class="muted" role="status"></p>
+      <div class="analytics-table-wrap" tabindex="0" role="region" aria-label="Belege">
+        <table id="anaReceiptTable" class="analytics-table analytics-receipts">
+          <thead><tr>
+            <th scope="col">Rechnung</th>
+            <th scope="col">Kunde / Hund</th>
+            <th scope="col">Vorgang · Datum</th>
+            <th scope="col" class="ana-number">Brutto</th>
+            <th scope="col" class="ana-number">MwSt.</th>
+            <th scope="col" class="ana-number">Netto</th>
+          </tr></thead>
+          <tbody id="anaReceiptRows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <div class="analytics-columns">
+      <section class="card analytics-card" aria-labelledby="anaServicesHeading">
+        <h2 id="anaServicesHeading">Bezahlte Leistungen</h2>
+        <p class="muted analytics-description">Nach Zahlungseingang, einschließlich Zuschlägen.</p>
+        <div class="analytics-table-wrap" tabindex="0" role="region" aria-label="Bezahlte Leistungen">
+          <table id="anaItemTable" class="analytics-table">
+            <thead><tr><th scope="col">Leistung</th><th scope="col" class="ana-number">Brutto</th></tr></thead>
+            <tbody id="anaServiceRows"></tbody>
+          </table>
+        </div>
+      </section>
+      <section id="anaOccupancy" class="card analytics-card" aria-labelledby="anaOccupancyHeading">
+        <h2 id="anaOccupancyHeading" tabindex="-1">Bestätigte Belegung</h2>
+        <p id="anaOccupancyExplanation" class="muted analytics-description"></p>
+        <div class="analytics-table-wrap" tabindex="0" role="region" aria-label="Belegung nach Monat">
+          <table id="anaOccupancyTable" class="analytics-table">
+            <thead><tr>
+              <th scope="col">Monat</th>
+              <th scope="col" class="ana-number">Urlaub</th>
+              <th scope="col" class="ana-number">Tagesbetreuung</th>
+              <th scope="col" class="ana-number">Belegt</th>
+              <th scope="col" class="ana-number">Auslastung</th>
+            </tr></thead>
+            <tbody id="anaOccupancyRows"></tbody>
+          </table>
+        </div>
+        <div id="anaOverDays" class="analytics-over-days" hidden></div>
+      </section>
+    </div>
+
+    <details class="card analytics-card">
+      <summary>Kunden, Hunde und Stornogründe</summary>
+      <div class="analytics-rankings">
+        <div>
+          <h3>Top-Kunden</h3>
+          <table class="analytics-table" id="anaTopCustomerTable">
+            <thead><tr><th scope="col">Kunde</th><th scope="col" class="ana-number">Bezahlt brutto</th><th scope="col" class="ana-number">Belege</th></tr></thead>
+            <tbody id="anaCustomers"></tbody>
+          </table>
+        </div>
+        <div>
+          <h3>Top-Hunde</h3>
+          <table class="analytics-table" id="anaTopDogTable">
+            <thead><tr><th scope="col">Hund</th><th scope="col" class="ana-number">Bezahlt brutto</th><th scope="col" class="ana-number">Belege</th></tr></thead>
+            <tbody id="anaDogs"></tbody>
+          </table>
+        </div>
+        <div>
+          <h3>Stornogründe</h3>
+          <table class="analytics-table" id="anaStornoReasonTable">
+            <thead><tr><th scope="col">Grund</th><th scope="col" class="ana-number">Anzahl</th></tr></thead>
+            <tbody id="anaReasons"></tbody>
+          </table>
+        </div>
+      </div>
+    </details>
+  </div>
 </section>
 
 <section class="panel" id="statistics">
-<!-- Statistics panel is rendered by app.js?v=M50.9.9GB381_CUSTOMER_BILLING_20261115 (renderStatisticsPanel) -->
+<!-- Statistics panel is rendered by app.js?v=M50.9.9GB383_ANALYTICS_20261115 (renderStatisticsPanel) -->
 </section>
 
 
@@ -1217,29 +1344,33 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
 </footer>
 </div>
 <!-- Firebase (optional) + Config -->
-<script defer="defer" src="firebase-config.js?v=M50.9.9GB381_CUSTOMER_BILLING_20261115"></script>
+<script defer="defer" src="firebase-config.js?v=M50.9.9GB383_ANALYTICS_20261115"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+<script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-functions-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
 <script defer="defer" src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/pdf.min.js"></script>
 
 <!-- Competing legacy workflow/contract overrides removed. -->
 
-<script defer src="browser-store.js?v=M50.9.9GB381_CUSTOMER_BILLING_20261115"></script>
-<script defer src="workflow-core.js?v=M50.9.9GB381_CUSTOMER_BILLING_20261115"></script>
-<script defer src="workflow-ui.js?v=M50.9.9GB381_CUSTOMER_BILLING_20261115"></script>
-<script defer src="workspace-repair-ui.js?v=M50.9.9GB381_CUSTOMER_BILLING_20261115"></script>
-<script defer src="communication-core.js?v=M50.9.9GB381_CUSTOMER_BILLING_20261115"></script>
-<script defer src="customer-portal.js?v=M50.9.9GB381_CUSTOMER_BILLING_20261115"></script>
-<script defer src="account-directory.js?v=M50.9.9GB381_CUSTOMER_BILLING_20261115"></script>
-<script defer src="statistics-store.js?v=M50.9.9GB381_CUSTOMER_BILLING_20261115"></script>
+<script defer src="browser-store.js?v=M50.9.9GB383_ANALYTICS_20261115"></script>
+<script defer src="workflow-core.js?v=M50.9.9GB383_ANALYTICS_20261115"></script>
+<script defer src="workflow-ui.js?v=M50.9.9GB383_ANALYTICS_20261115"></script>
+<script defer src="workspace-repair-ui.js?v=M50.9.9GB383_ANALYTICS_20261115"></script>
+<script defer src="communication-core.js?v=M50.9.9GB383_ANALYTICS_20261115"></script>
+<script defer src="customer-portal.js?v=M50.9.9GB383_ANALYTICS_20261115"></script>
+<script defer src="account-directory.js?v=M50.9.9GB383_ANALYTICS_20261115"></script>
+<script defer src="statistics-store.js?v=M50.9.9GB383_ANALYTICS_20261115"></script>
+<script defer src="analytics-core.js?v=M50.9.9GB383_ANALYTICS_20261115"></script>
+<script defer src="analytics-view.js?v=M50.9.9GB383_ANALYTICS_20261115"></script>
+<script defer src="calendar-events.js?v=M50.9.9GB383_ANALYTICS_20261115"></script>
 <script defer src="vendor/jspdf.umd.min.js?v=4.2.1"></script>
 <script defer src="vendor/print-font.js?v=1"></script>
-<script defer src="document-output.js?v=M50.9.9GB381_CUSTOMER_BILLING_20261115"></script>
-<script defer src="workforms-print.js?v=M50.9.9GB381_CUSTOMER_BILLING_20261115"></script>
-<script defer src="invoice-print.js?v=M50.9.9GB381_CUSTOMER_BILLING_20261115"></script>
-<script defer src="billing.js?v=M50.9.9GB381_CUSTOMER_BILLING_20261115"></script><script defer="defer" src="app.js?v=M50.9.9GB381_CUSTOMER_BILLING_20261115"></script>
+<script defer src="document-output.js?v=M50.9.9GB383_ANALYTICS_20261115"></script>
+<script defer src="workforms-print.js?v=M50.9.9GB383_ANALYTICS_20261115"></script>
+<script defer src="invoice-print.js?v=M50.9.9GB383_ANALYTICS_20261115"></script>
+<script defer src="billing.js?v=M50.9.9GB383_ANALYTICS_20261115"></script><script defer="defer" src="app.js?v=M50.9.9GB383_ANALYTICS_20261115"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1258,7 +1389,7 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
 </script>
 
 <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB381_CUSTOMER_BILLING_20261115', { updateViaCache: 'none' });
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB383_ANALYTICS_20261115', { updateViaCache: 'none' });
   </script>
 
 <script>
@@ -1315,6 +1446,7 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
     if(window.__dsLogoutInFlight) return false;
     window.__dsLogoutInFlight = true;
     setBusy(true);
+    try{ await window.DSCalendarEvents?.removeDeviceOnLogout(); }catch(_){ }
     try{ if(typeof window.__dsPrepareHardLogout === 'function') window.__dsPrepareHardLogout(); }catch(_){ }
 
     try{
@@ -1390,7 +1522,7 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
 
 <script>
 (function(){
-  const CURRENT_BUILD = 'M50.9.9GB381_CUSTOMER_BILLING_20261115';
+  const CURRENT_BUILD = 'M50.9.9GB383_ANALYTICS_20261115';
   try{
     window.addEventListener('load', function(){
       try{

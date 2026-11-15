@@ -45,34 +45,96 @@
     const raw=ex?ex[label]:caps?.default?.[label];
     return raw!=null&&Number.isFinite(Number(raw))&&Number(raw)>=0?Math.min(4,Math.floor(Number(raw))):4;
   }
-  function confirmedStays(workspace){
-    const s=workspace||{},out=[],seen=new Set();
-    for(const d of s.docs||[]){
-      if(!d||!d.saved||!(d.templateId==='hundeannahme'||d.templateName==='Aufenthalte'||['stay','hundeannahme'].includes(d.type)))continue;
-      if(['cancelled','canceled','storniert','deleted','rejected'].includes(str(d.status||d.meta?.status).toLowerCase()))continue;
-      const info=stayDetails(d);if(!info.from||!info.to||!info.care||info.to<info.from)continue;
-      const pid=str(d.petId||s._legacy?.dogIdToPetId?.[d.dogId]||d.dogId||d.id);
-      out.push({...info,id:str(d.id),petId:pid});seen.add(str(d.id));
-    }
-    for(const d of s.stays||[]){
-      if(!d||seen.has(str(d.docId))||!(d.saved===true||['closed','confirmed','adopted'].includes(str(d.status).toLowerCase())))continue;
-      const info=stayDetails(d);if(!info.from||!info.to||!info.care||info.to<info.from)continue;
-      out.push({...info,id:str(d.docId||d.id),petId:str(d.petId||s._legacy?.dogIdToPetId?.[d.dogId]||d.dogId||d.id)});
-    }
-    return out;
+  function isStayRecord(d){
+    return d && (['hundeannahme','stay'].includes(d.templateId) || d.templateName === 'Aufenthalte' || ['stay','hundeannahme'].includes(d.type));
   }
-  function occupancyForDay(workspace,day,excludeId){
-    const animals=new Map();
-    for(const stay of confirmedStays(workspace))if(stay.id!==str(excludeId)&&day>=stay.from&&day<=stay.to){
-      if(!animals.has(stay.petId)||stay.care==='Urlaubsbetreuung')animals.set(stay.petId,stay.care);
+
+  function canceledStay(d){
+    const canceled = ['cancelled','canceled','storniert','deleted','rejected'];
+    return [d.status, d.meta?.status].some(status => canceled.includes(str(status).toLowerCase()));
+  }
+
+  function stayStamp(d){
+    const value = d.createdAt || d.meta?.createdAt || d.meta?.savedAt || d.updatedAt;
+    if(typeof value === 'number') return value;
+    return Date.parse(value) || 0;
+  }
+
+  function confirmedStays(workspace){
+    const state = workspace || {};
+    const records = (state.docs || []).filter(isStayRecord);
+    const byId = new Map(records.filter(d => d.id).map(d => [str(d.id), d]));
+    const latest = new Map();
+    const recordedIds = new Set();
+    const result = [];
+    for(const d of records){
+      if(!d.saved && !canceledStay(d)) continue;
+      let root = d;
+      const visited = new Set([str(d.id)]);
+      while(root.versionOf && byId.has(str(root.versionOf)) && !visited.has(str(root.versionOf))){
+        visited.add(str(root.versionOf));
+        root = byId.get(str(root.versionOf));
+      }
+      const key = str(root.versionOf || root.id) || d;
+      const previous = latest.get(key);
+      recordedIds.add(str(d.id));
+      if(typeof key === 'string') recordedIds.add(key);
+      // An unsaved revision leaves the last confirmed one in force.
+      if(!previous || (d.versionOf && !previous.versionOf) ||
+          (!!d.versionOf === !!previous.versionOf && stayStamp(d) > stayStamp(previous))) latest.set(key,d);
     }
-    const daycare=[...animals.values()].filter(x=>x==='Tagesbetreuung').length,boarding=animals.size-daycare;
-    return {day,daycare,boarding,total:animals.size,daycareCapacity:capacity(workspace,'Tagesbetreuung',day),boardingCapacity:capacity(workspace,'Urlaubsbetreuung',day),totalCapacity:4,petIds:[...animals.keys()]};
+    function add(d, document){
+      if(canceledStay(d)) return;
+      const info = stayDetails(d);
+      if(!info.from || !info.to || !info.care || info.to < info.from) return;
+      const id = str(document ? d.id : (d.docId || d.id));
+      const dogId = d.dogId || d.meta?.dogId;
+      const petId = str(d.petId || d.meta?.petId || state._legacy?.dogIdToPetId?.[dogId] || dogId || id);
+      result.push({
+        ...info, id, petId, docId: document ? id : '', stamp: stayStamp(d),
+        title: str(d.title || d.dogName) || 'Aufenthalt',
+        label: str(d.meta?.betreuung) || info.care
+      });
+    }
+    for(const d of latest.values()) add(d, true);
+    for(const d of state.stays || []){
+      if(!d || recordedIds.has(str(d.docId || d.id))) continue;
+      if(d.saved === true || ['closed','confirmed','adopted'].includes(str(d.status).toLowerCase())) add(d, false);
+    }
+    return result;
+  }
+
+  function staysOnDay(stays, day, excludeId){
+    const animals=new Map();
+    for(const stay of stays){
+      if(stay.id === str(excludeId) || day < stay.from || day > stay.to) continue;
+      const previous = animals.get(stay.petId);
+      if(!previous || (previous.care !== stay.care && stay.care === 'Urlaubsbetreuung') ||
+          (previous.care === stay.care && stay.stamp > previous.stamp)) animals.set(stay.petId, stay);
+    }
+    return [...animals.values()];
+  }
+
+  function occupancyFromStays(workspace, day, stays){
+    const daycare = stays.filter(stay => stay.care === 'Tagesbetreuung').length;
+    return {
+      day, daycare, boarding: stays.length - daycare, total: stays.length,
+      daycareCapacity: capacity(workspace,'Tagesbetreuung',day),
+      boardingCapacity: capacity(workspace,'Urlaubsbetreuung',day),
+      totalCapacity: 4, petIds: stays.map(stay => stay.petId)
+    };
+  }
+
+  function occupancyForDay(workspace,day,excludeId){
+    return occupancyFromStays(workspace, day, staysOnDay(confirmedStays(workspace), day, excludeId));
+  }
+  function exceedsCapacity(use){
+    return use.total > use.totalCapacity || use.daycare > use.daycareCapacity || use.boarding > use.boardingCapacity;
   }
   function occupancyRange(workspace,from,to,proposal){
     const proposed=proposal?{id:'__request__',templateId:'hundeannahme',saved:true,petId:str(proposal.petId),meta:{von:from,bis:to,betreuung:proposal.care}}:null;
     const after=proposed?{...workspace,docs:[...(workspace?.docs||[]),proposed]}:workspace;
-    return dateRange(from,to).map(day=>{const before=occupancyForDay(workspace,day),next=occupancyForDay(after,day);return {...before,after:next,exceeds:next.total>next.totalCapacity||next.daycare>next.daycareCapacity||next.boarding>next.boardingCapacity};});
+    return dateRange(from,to).map(day=>{const before=occupancyForDay(workspace,day),next=occupancyForDay(after,day);return {...before,after:next,exceeds:exceedsCapacity(next)};});
   }
   function validateStay(payload){
     const p=payload||{},info=stayDetails(p);dateRange(info.from,info.to);if(!info.care)fail('Betreuungsart fehlt oder ist ungültig.');
@@ -621,5 +683,5 @@
     return {profile,workspace,submit,assign,review,publish,approveManualContract,maintenance,repairPair,setInboxArchived,
       linkCustomer:(uid,cid,stamp,account)=>assign(uid,cid,'',{stamp,account})};
   }
-  return {context,signatureValid,canvasHasInk,auditRecords,restoreRecords,signatureKey,agreementKey,approvedContract,portalSnapshot,validateTarget,submission,sameSubmission,mergePlan,resolveMerge,service,customerFields,petFields,stayConsents,careType,dateISO,stayDetails,dateRange,stayWalkCount,capacity,confirmedStays,occupancyForDay,occupancyRange,validateStay,legalTexts,needsCustomerNumbers,assignCustomerNumbers,applyPublishedCustomerNumbers};
+  return {context,signatureValid,canvasHasInk,auditRecords,restoreRecords,signatureKey,agreementKey,approvedContract,portalSnapshot,validateTarget,submission,sameSubmission,mergePlan,resolveMerge,service,customerFields,petFields,stayConsents,careType,dateISO,stayDetails,dateRange,stayWalkCount,capacity,confirmedStays,staysOnDay,occupancyFromStays,occupancyForDay,exceedsCapacity,occupancyRange,validateStay,legalTexts,needsCustomerNumbers,assignCustomerNumbers,applyPublishedCustomerNumbers};
 });

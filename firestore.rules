@@ -118,6 +118,10 @@ service cloud.firestore {
       allow update: if false;
       allow delete: if admin(orgId);
     }
+    match /orgs/{orgId}/calendarEvents/{eventId} {
+      allow read: if staff(orgId);
+      allow write: if false;
+    }
     match /orgs/{orgId}/meta/{docId} {
       allow read: if staff(orgId);
       allow create, delete: if admin(orgId);
