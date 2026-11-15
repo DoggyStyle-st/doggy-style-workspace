@@ -151,9 +151,23 @@
       "title": "Aufschläge",
       "fields": [
         {
+          "key": "sun_hol_apply",
+          "label": "Sonn- und Feiertagszuschlag anwenden",
+          "type": "checkbox",
+          "required": false
+        },
+        {
           "key": "holiday_days",
-          "label": "🎉 Feiertage im Zeitraum (Anzahl – automatisch)",
+          "label": "Gesetzliche Feiertage in Stiefenhofen (automatisch)",
           "type": "number",
+          "readonly": true,
+          "required": false
+        },
+        {
+          "key": "sunday_days",
+          "label": "Sonntage im Zeitraum (automatisch)",
+          "type": "number",
+          "readonly": true,
           "required": false
         },
         {
@@ -175,8 +189,14 @@
           "required": false
         },
         {
+          "key": "walks_enabled",
+          "label": "Zusatz-Spaziergänge buchen",
+          "type": "checkbox",
+          "required": false
+        },
+        {
           "key": "walk_extra_count",
-          "label": "Extra Spaziergang (Anzahl × 15€)",
+          "label": "Anzahl der Zusatz-Spaziergänge",
           "type": "number",
           "required": false
         },
@@ -218,7 +238,7 @@
     },
     {
       "key": "bis",
-      "label": "Betreuung bis",
+      "label": "Betreuung bis einschließlich",
       "type": "date",
       "required": true
     },
