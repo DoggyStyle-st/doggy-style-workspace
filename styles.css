@@ -1186,6 +1186,15 @@ body.page-login .btnLink--text:hover{
 .ds-chat-bubble.is-deleted{opacity:.7;border-style:dashed;cursor:default}
 .ds-chat-bubble__meta{font-size:12px;opacity:.72;margin-bottom:6px;display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
 .ds-chat-bubble__text{white-space:pre-wrap}
+.ds-chat-bubble.ds-portal-action{cursor:auto;white-space:normal;overflow-wrap:anywhere}
+.ds-portal-action-buttons{margin-top:8px;flex-wrap:wrap;gap:6px}
+.ds-portal-action-buttons .btn{min-height:44px;white-space:normal}
+.ds-portal-action-feedback:not(:empty){margin-top:6px;font-size:.85rem}
+#customerAppointments .item{flex-wrap:wrap;gap:6px;overflow-wrap:anywhere}
+#dsPortalInvoiceActions:not(:empty){margin-top:12px}
+#dsPortalInvoiceActions p:empty{display:none}
+#dsPortalInvoiceActions [hidden]{display:none!important}
+#invoiceBankForm[hidden]{display:none!important}
 .ds-chat-delete-chip{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid rgba(255,255,255,.12);opacity:.82}
 .ds-chat-deleted{font-style:italic;opacity:.8}
 .ds-chat-compose{display:grid;gap:10px;margin-top:12px}

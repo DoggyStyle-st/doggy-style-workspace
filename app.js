@@ -2,7 +2,7 @@ try{sessionStorage.removeItem('ds_handoff_pass');}catch(_){}
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB384_ANALYTICS_VIEW_20261116",
+  tag: "M50.9.9GB385_CUSTOMER_CHAT_20261116",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -13,7 +13,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB384_ANALYTICS_VIEW_20261116";
+const APP_BUILD = "M50.9.9GB385_CUSTOMER_CHAT_20261116";
 try{ window.__dsAppJsRuntimeBuild = "GB350-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -2742,7 +2742,7 @@ async function submitCustomerDogsProposal(){
   // GB355: vollständig lokal sichern, anschließend zuverlässig in proposals + tasks übertragen.
   // Die Oberfläche wird sofort freigegeben; die Erfolgsmeldung "an Eingänge übergeben"
   // erscheint ausschließlich nach bestätigter Firestore-Speicherung.
-  const GB355='M50.9.9GB384_ANALYTICS_VIEW_20261116';
+  const GB355='M50.9.9GB385_CUSTOMER_CHAT_20261116';
   function S(v){ try{return String(v==null?'':v);}catch(_){return '';} }
   function L(v){ return S(v).trim().toLowerCase(); }
   function V(id){ try{const el=document.getElementById(id);return S(el&&el.value!=null?el.value:'').trim();}catch(_){return '';} }
@@ -4045,6 +4045,7 @@ function showPanel(id){
     window.DSCalendarEvents?.leave();
   }
   if(id === "settings"){
+    window.DSPortalActions?.renderBankSettings();
     try{
       initProfiSettingsBindings();
       renderStaffSettings();
@@ -13437,8 +13438,10 @@ function openInvoice(id){
         </div>
       </div>
       <button class="btn" onclick="printInvoice('${inv.id}')">🖨️ Rechnung drucken / PDF</button>
+      <div id="dsPortalInvoiceActions"></div>
     </div>
   `;
+  window.DSPortalActions?.invoiceControls(el.querySelector('#dsPortalInvoiceActions'), inv, cust);
 }
 // --- 4C-2: Rechnung-Positionen als Snapshot (revisionssicher) -----------------
 function buildInvoiceLineItems(inv){
@@ -13859,13 +13862,37 @@ function buildInvoicePrintModel(inv){
       {label:'Netto (informativ)',amount:money(inv.pricing?.net)}
     );
   }
+  const bank=state.settings?.invoiceBank || COMPANY.bank;
   const payment=[
     'Bitte überweise den Rechnungsbetrag auf das unten angegebene Konto und gib die Rechnungsnummer als Verwendungszweck an.',
-    COMPANY.bank?.name,
-    COMPANY.bank?.iban?'IBAN: '+COMPANY.bank.iban:'',
-    COMPANY.bank?.bic?'BIC: '+COMPANY.bank.bic:''
+    bank?.name,
+    bank?.iban?'IBAN: '+bank.iban:'',
+    bank?.bic?'BIC: '+bank.bic:''
   ].filter(Boolean);
   return {heading,title,logoUrl,sender,recipient,recipientDetails,metadata,rows,totals,payment};
+}
+function invoicePrintModel(record){
+  const inv=DSBilling.display({...record,pricing:{...record.pricing}});
+  if(!DSBilling.frozen(inv)&&inv.pricing.parts)recomputeInvoiceTotals(inv);
+  return buildInvoicePrintModel(inv);
+}
+async function openInvoiceDocument(data,{stillCurrent,warning}={}){
+  const model={...data,logoUrl:new URL('assets/logo.png',location.href).href};
+  let logo;
+  try{
+    const bytes=await withTimeout(fetch(model.logoUrl).then(response=>response.ok?response.arrayBuffer():null),4000);
+    if(bytes)logo=new Uint8Array(bytes);
+  }catch(_){/* The preview also works without the logo. */}
+  if(stillCurrent && !stillCurrent())return false;
+  if(!logo)model.logoUrl='';
+  let pdf;
+  try{pdf=DSInvoicePrint.pdf(model,window.jspdf?.jsPDF,window.DSPrintFont,logo);}
+  catch(error){console.warn('Rechnung als PDF fehlgeschlagen',error.message);}
+  DSDocumentOutput.open({
+    title:model.title,html:DSInvoicePrint.html(model),pdf,filename:suggestFilename(model.title),warning,
+    hint:pdf?'Mit „PDF speichern“ erhältst du die fertige Rechnung. „Drucken“ öffnet die Druckauswahl.':'Über „Drucken“ kannst du die Rechnung drucken oder als PDF sichern.'
+  });
+  return true;
 }
 async function printInvoice(id){
   const record=getInvoiceById(id);
@@ -13874,24 +13901,8 @@ async function printInvoice(id){
   const account=()=>window.firebase?.auth().currentUser?.uid||'';
   const uid=account();
   try{
-    const inv=DSBilling.display({...record,pricing:{...record.pricing}});
-    if(!DSBilling.frozen(inv)&&inv.pricing.parts)recomputeInvoiceTotals(inv);
-    const model=buildInvoicePrintModel(inv);
-    let logo;
-    try{
-      const bytes=await withTimeout(fetch(model.logoUrl).then(response=>response.ok?response.arrayBuffer():null),4000);
-      if(bytes)logo=new Uint8Array(bytes);
-    }catch(_){/* The preview also works without the logo. */}
-    if(request!==invoicePrintRequest||uid!==account())return;
-    if(!logo)model.logoUrl='';
-
-    let pdf;
-    try{pdf=DSInvoicePrint.pdf(model,window.jspdf?.jsPDF,window.DSPrintFont,logo);}
-    catch(error){console.warn('Rechnung als PDF fehlgeschlagen',error.message);}
-    DSDocumentOutput.open({
-      title:model.title,html:DSInvoicePrint.html(model),pdf,filename:suggestFilename(model.title),
-      hint:pdf?'Mit „PDF speichern“ erhältst du die fertige Rechnung. „Drucken“ öffnet die Druckauswahl.':'Über „Drucken“ kannst du die Rechnung drucken oder als PDF sichern.'
-    });
+    const opened=await openInvoiceDocument(invoicePrintModel(record),{stillCurrent:()=>request===invoicePrintRequest&&uid===account()});
+    if(!opened)return;
     try{dsHideProposalOpenDiag();}catch(_){}
   }catch(error){alert('Rechnung konnte nicht geöffnet werden: '+error.message);}
 }
@@ -21996,7 +22007,7 @@ function renderStatMethod(){
 
 
 
-/* ===== CHAT (M50.9.9GB384_ANALYTICS_VIEW_20261116) ===== */
+/* ===== CHAT (M50.9.9GB385_CUSTOMER_CHAT_20261116) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -22533,6 +22544,10 @@ function dsRenderChatMessages(messages, ownRole, chat){
     const meta = `${escapeHtml(msg?.senderName || (own ? 'Du' : 'Nachricht'))} · ${escapeHtml(dsChatDisplayTime(msg?.createdAt || msg?.createdAtMs || 0))}`;
     const status = dsMessageReadStateLabel(msg, ownRole, chat);
     const statusHtml = status ? `<div class="ds-chat-bubble__status ${status === 'gelesen' ? 'is-read' : 'is-unread'}">${escapeHtml(status)}</div>` : '';
+    if(ownRole==='customer' && !msg.deleted && window.DSPortalActions?.isAction(msg)){
+      const card=DSPortalActions.chatCard(msg);
+      return card ? `<div class="ds-chat-msg"><div class="ds-chat-bubble ds-portal-action" data-portal-msg-index="${idx}"><div class="ds-chat-bubble__meta">${meta}</div>${card}${statusHtml}</div></div>` : '';
+    }
     const deletedHtml = msg?.deleted ? '<div class="ds-chat-deleted">Nachricht gelöscht.</div>' : '';
     const textHtml = !msg?.deleted && String(msg?.text || '').trim() ? `<div class="ds-chat-bubble__text">${escapeHtml(msg?.text || '')}</div>` : '';
     const mediaHtml = !msg?.deleted ? dsChatAttachmentHtml(msg?.attachments, true) : '';
@@ -23104,6 +23119,10 @@ function renderCustomerChatMessages(){
     st.__lastRenderKey = renderKey;
     try{ body.scrollTop = body.scrollHeight; }catch(_){ }
     try{ dsBindMessageBubbleClicks(body, 'customer', current, visible, renderCustomerChatMessages); }catch(_){ }
+    window.DSPortalActions?.bindChat(body, visible, async message => {
+      const stamp = Number(message.createdAtMs || dsTsMs(message.createdAt) || 0);
+      if(current?.id && stamp) await dsMarkChatReadUpTo(current.id, 'customer', stamp, visible);
+    });
   }
   dsUpdateCustomerUnreadBadge();
 }

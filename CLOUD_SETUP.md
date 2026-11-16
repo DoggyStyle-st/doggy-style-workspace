@@ -1,10 +1,27 @@
-# Firebase-Einrichtung GB383
+# Firebase-Einrichtung GB385
 
 Das bestehende Projekt doggy-style-hundepension, die Organisation doggystyle und der Bucket doggy-style-hundepension.firebasestorage.app werden weiterverwendet.
 
+## Update eines eingerichteten Kalenders auf GB385
+
+1. Die ZIP entpacken und im Terminal den Ordner `doggy-style-workspace-main` öffnen. Übernimm die vorhandene `functions/.env.doggy-style-hundepension` aus der bisherigen Kalenderinstallation, damit die Konfiguration für Push und die Kalender-E-Mails weiter verwendet wird.
+2. Die Abhängigkeiten installieren und die neuen Firestore-Regeln sowie die beiden Funktionen für Kalender und Rechnungen bereitstellen.
+
+```sh
+npm ci --prefix functions
+firebase deploy --project doggy-style-hundepension --only firestore:rules,functions:calendar:calendarControl,functions:calendar:portalInvoice
+```
+
+3. Die App-Dateien am bisherigen Hosting-Ort aktualisieren. Den Workspace und das Kundenportal neu laden.
+4. Mit einem zugeordneten Testkonto den Terminvorschlag und die Rückmeldung prüfen. Eine Testrechnung auf **Offen** setzen und mit **Rechnung an Kunden weitergeben** im Chat bereitstellen. Dort das PDF öffnen und nach der Statusänderung auf **Bezahlt** erneut aufrufen.
+
+Terminvorschläge und Rechnungen im Kundenchat laufen direkt über Firebase. Die Mail-Konfiguration unten gehört zu den E-Mail-Einladungen an den Apple Kalender.
+
+## Grundlagen
+
 Die Auswertungen lesen den synchronisierten Rechnungs- und Aufenthaltsstand im Workspace. Die Kalenderfunktionen verwenden die nachfolgende Firebase-Einrichtung.
 
-Die Firestore-Regeln erlauben dem Workspace-Team, eigene Termine zu lesen. Firebase Functions übernehmen das Speichern. Die Storage-Regeln entsprechen dem vorigen Stand. REGELN_ANZEIGEN.html zeigt die Regeltexte dieser Version.
+Die Firestore-Regeln geben dem Workspace-Team Zugriff auf den internen Kalender und jedem Kundenkonto Zugriff auf seine zugeordneten Terminvorschläge. Firebase Functions übernehmen das Speichern. REGELN_ANZEIGEN.html zeigt die Regeltexte dieser Version.
 
 Die Kundennummern werden innerhalb der bestehenden Workspace-Transaktion vergeben. Die Synchronisierung übernimmt dabei die Nummern bereits vorhandener Kunden aus dem bestätigten Serverstand.
 
@@ -33,7 +50,7 @@ CALENDAR_MAIL_FROM=
 
 ```sh
 firebase functions:secrets:set CALENDAR_VAPID_PRIVATE_KEY --project doggy-style-hundepension
-firebase deploy --project doggy-style-hundepension --only firestore:rules,functions:calendar:calendarControl,functions:calendar:calendarReminders
+firebase deploy --project doggy-style-hundepension --only firestore:rules,functions:calendar:calendarControl,functions:calendar:calendarReminders,functions:calendar:portalInvoice
 ```
 
 4. Die App-Dateien per HTTPS veröffentlichen. Auf iPad und iPhone den Workspace über sein Symbol auf dem Home-Bildschirm öffnen und unter **Kalender → Mitteilungen einschalten** zustimmen. Jedes benutzte Gerät einmal aktivieren. Nach ausdrücklichem Abmelden beim nächsten Einsatz wieder einschalten. Beim Wechsel auf eine andere Domain die App unter der neuen Adresse zum Home-Bildschirm hinzufügen und die Mitteilungen dort aktivieren.

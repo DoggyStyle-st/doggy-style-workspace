@@ -6,7 +6,7 @@
   let noticeEpoch=0,noticeFeedback='',noticeError='';const noticeBusy=new Set();
   const stayForms=new WeakMap();
   function navigate(url){if(typeof window.__dsTestNavigate==='function')window.__dsTestNavigate(url);else location.assign(url);}
-  function reset(){noticeUnsub?.();noticeUnsub=null;noticeUid='';notices=[];noticeEpoch++;noticeFeedback=noticeError='';noticeBusy.clear();choices=[];choicesUid='';choicesPending=null;sends.clear();document.querySelectorAll('[data-ds-notices]').forEach(el=>el.remove());
+  function reset(){noticeUnsub?.();noticeUnsub=null;noticeUid='';notices=[];noticeEpoch++;noticeFeedback=noticeError='';noticeBusy.clear();choices=[];choicesUid='';choicesPending=null;sends.clear();window.DSPortalActions?.reset();document.querySelectorAll('[data-ds-notices]').forEach(el=>el.remove());
     for(const key of ['__dsAdminChatState','__dsCustomerChatState']){const st=window[key];for(const field of ['listUnsub','msgUnsub'])st?.[field]?.();for(const unsubscribe of st?.listUnsubs||[])unsubscribe();window[key]=null;}
     window.__dsChatComposeState=null;
     $('dsStayRequestForm')?.remove();

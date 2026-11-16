@@ -107,6 +107,13 @@ service cloud.firestore {
         allow update: if admin(orgId) || (orgAllowed(orgId) && signedIn() && request.auth.uid == uid
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']) && request.resource.data.read == true);
       }
+      match /calendarAppointments/{appointmentId} {
+        allow read: if assigned(orgId) && request.auth.uid == uid && role(orgId) == 'customer'
+          && profile(orgId).get('uid', '') == uid && resource.data.customerId == profile(orgId).customerId
+          && profile(orgId).get('portalData', {}).get('customer', {}).get('id',
+            profile(orgId).get('portalData', {}).get('customer', {}).get('customerId', '')) == profile(orgId).customerId;
+        allow write: if false;
+      }
     }
     match /orgs/{orgId}/inboxArchive/{proposalId} {
       allow read: if staff(orgId);
@@ -128,7 +135,8 @@ service cloud.firestore {
       allow update: if admin(orgId) || (staff(orgId) && docId == 'workspace_state'
         && request.resource.data.get('secureWorkflowVersion', 0) == resource.data.get('secureWorkflowVersion', 0)
         && request.resource.data.payload.get('contractAgreements', {}) == resource.data.payload.get('contractAgreements', {})
-        && request.resource.data.payload.get('contractSignatures', {}) == resource.data.payload.get('contractSignatures', {}));
+        && request.resource.data.payload.get('contractSignatures', {}) == resource.data.payload.get('contractSignatures', {})
+        && request.resource.data.payload.get('settings', {}).get('invoiceBank', {}) == resource.data.payload.get('settings', {}).get('invoiceBank', {}));
     }
     // Internal behavior observations. Customer profiles do not receive statistics.
     function validStatScore(scores, key) { return scores.get(key, 0) is int && scores[key] >= 1 && scores[key] <= 10; }

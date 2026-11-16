@@ -1,3 +1,10 @@
+# GB385 – Termine und Rechnungen im Kundenchat
+
+- Status **Offen** und Weitergabe im Chat sind getrennte Schritte. Mit **Rechnung an Kunden weitergeben** erhält das zugeordnete Kundenkonto einmalig die freigegebene Fassung als PDF. Beim Öffnen zeigt der Workspace den aktuellen Zahlungsstatus.
+- Das ausgewählte Kundenkonto erhält Terminvorschläge zur Zusage oder Ablehnung. Der Workspace zeigt die Rückmeldung. Zugesagte Termine stehen im Kundenportal unter **Meine Termine**.
+- Das Terminfenster passt Beschriftungen und Felder an die verfügbare Breite an. Die Schaltflächen zum Speichern und Schließen sind am unteren Rand erreichbar.
+- Die Bankverbindung für Rechnungen lässt sich in den Einstellungen hinterlegen.
+
 # GB384 – Ansichtsauswahl für Auswertungen
 
 - **Ansicht** zeigt sofort den ausgewählten Bereich. **CSV speichern** verwendet dieselbe Auswahl und den eingestellten Zeitraum.

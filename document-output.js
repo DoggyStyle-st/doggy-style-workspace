@@ -6,16 +6,26 @@
   function status(message){el('docModalStatus').textContent=message;}
   function init(){
     if(dialog)return dialog;
-    const old=el('docModal');if(!old)throw new Error('Dokumentansicht fehlt.');
     dialog=document.createElement('dialog');dialog.id='docModal';dialog.className='doc-modal ds-document';
     dialog.setAttribute('aria-labelledby','docModalTitle');
-    while(old.firstChild)dialog.append(old.firstChild);
-    old.replaceWith(dialog);document.body.append(dialog);
+    dialog.innerHTML=`<div class="doc-modal__panel">
+      <div class="doc-modal__bar">
+        <div class="doc-modal__left"><div class="doc-modal__title" id="docModalTitle">Dokument</div><div class="doc-modal__meta" id="docModalMeta"></div></div>
+        <div class="doc-modal__actions">
+          <button class="btn" type="button" id="docModalPrint">Drucken</button>
+          <button class="btn" type="button" id="docModalOpen">PDF öffnen</button>
+          <button class="btn" type="button" id="docModalShare">PDF teilen</button>
+          <button class="btn danger" type="button" id="docModalClose">Schließen</button>
+        </div>
+      </div>
+      <iframe class="doc-modal__frame" id="docModalFrame" title="Dokument"></iframe>
+      <div class="hint" id="docModalHint"></div>
+    </div>`;
+    document.body.append(dialog);
     const actions=dialog.querySelector('.doc-modal__actions');
     const save=document.createElement('a');save.id='docModalSave';save.className='btn';save.textContent='PDF speichern';actions.prepend(save);
     const hint=el('docModalHint'),message=document.createElement('p');message.id='docModalStatus';message.setAttribute('role','status');hint.before(message);
-    el('docModalPrint').textContent='Drucken';el('docModalOpen').textContent='PDF öffnen';el('docModalShare').textContent='PDF teilen';el('docModalClose').textContent='Schließen';
-    el('docModalClose').onclick=close;el('docModalBackdrop').onclick=close;
+    el('docModalClose').onclick=close;
     dialog.addEventListener('cancel',e=>{e.preventDefault();close();});
     el('docModalPrint').onclick=()=>{
       if(!active?.ready)return;

@@ -1,3 +1,13 @@
+# Doggy Style Workspace – GB385
+
+Stand 16. November 2026 · Build M50.9.9GB385_CUSTOMER_CHAT_20261116
+
+- Mit lokalem Firebase Auth und Firestore wurde geprüft, dass ein offener Beleg auf die ausdrückliche Weitergabe wartet. Mehrfachaufrufe zu demselben Beleg erzeugen insgesamt eine Chat-Nachricht. Das PDF verwendet die freigegebene Fassung und der Zahlungsstatus wird beim Öffnen gelesen.
+- Testkonten konnten eigene Termine annehmen und ablehnen. Verschieben fordert eine neue Antwort an, Absagen entfernen den Termin aus der Liste der bestätigten Termine. Der Emulator blockierte den Zugriff eines anderen oder neu zugeordneten Kundenkontos.
+- In Browser-Tests mit iPad- und iPhone-Größen wurden der Termin-Dialog, die Rückmeldung im Workspace, das Öffnen und Speichern des Rechnungs-PDFs, die hinterlegte Bankverbindung und die Anzeige von **Bezahlt** geprüft. Die Tests verwendeten Testkonten und lokale Daten.
+
+## Prüfung des vorigen Stands GB384
+
 # Doggy Style Workspace – GB384
 
 Stand 16. November 2026 · Build M50.9.9GB384_ANALYTICS_VIEW_20261116

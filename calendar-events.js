@@ -13,6 +13,7 @@
   let stopWatching = null;
   let monthKey = '';
   let editing = null;
+  let customerTargets = new Map();
   let saving = false;
   let pushBusy = false;
   let deviceRegistration = null;
@@ -54,6 +55,10 @@
         if (!open || account !== uid || monthKey !== key) return;
         eventsByDay = new Map();
         snapshot.forEach(doc => addToDay(doc.data()));
+        if (editing && byId('calEventDialog').open) {
+          const latest = (eventsByDay.get(editing.date) || []).find(event => event.id === editing.id);
+          if (latest) byId('calEventCustomerStatus').textContent = customerSummary(latest);
+        }
         controller.refresh();
       }, () => {
         if (account !== uid || monthKey !== key) return;
@@ -101,6 +106,12 @@
     return labels[event?.reminderStatus] || '';
   }
 
+  function customerSummary(event) {
+    const appointment = event?.appointment;
+    const labels = { pending: 'Antwort offen', accepted: 'Zugesagt', declined: 'Passt nicht', canceled: 'Abgesagt' };
+    return appointment ? [appointment.name, labels[appointment.status]].filter(Boolean).join(' · ') : '';
+  }
+
   function dayList(day, transfers) {
     const list = byId('calEventList');
     if (!list) return;
@@ -110,7 +121,7 @@
       time: event.allDay ? '' : event.startTime,
       title: event.title,
       trailing: event.allDay ? 'Ganztägig' : `${event.startTime}–${event.endTime} Uhr`,
-      detail: [event.status === 'canceled' ? 'Abgesagt' : '', mailSummary(event), reminderSummary(event)].filter(Boolean).join(' · '),
+      detail: [event.status === 'canceled' ? 'Abgesagt' : '', customerSummary(event), mailSummary(event), reminderSummary(event)].filter(Boolean).join(' · '),
       event
     }))).sort((a, b) => a.time.localeCompare(b.time) || a.title.localeCompare(b.title, 'de'));
 
@@ -157,6 +168,36 @@
       : (fields.invite.checked ? 'Die Einladung enthält Titel, Zeit und Notiz.' : '');
   }
 
+  async function loadCustomerChoices(entry) {
+    const select = eventForm().elements.customer;
+    const hint = byId('calEventCustomerHint');
+    const target = entry.appointment;
+    customerTargets = new Map();
+    select.replaceChildren(new Option('Kein Kunde', ''));
+    if (target) {
+      const key = `${target.uid}/${target.customerId}`;
+      customerTargets.set(key, target);
+      select.add(new Option(target.name, key, false, true));
+    }
+    select.disabled = true;
+    hint.textContent = 'Kundenkonten werden geladen …';
+    const uid = account;
+    try {
+      const options = await DSCustomerPortal.refreshChoices();
+      if (entry !== editing || uid !== account) return;
+      for (const option of options) {
+        const key = `${option.uid}/${option.id}`;
+        if (!customerTargets.has(key)) select.add(new Option(`${option.name} · ${option.email}`, key));
+        customerTargets.set(key, { uid: option.uid, customerId: option.id });
+      }
+      hint.textContent = options.length || target ? '' : 'Kundenkonten können unter Einstellungen zugeordnet werden.';
+    } catch (_) {
+      if (entry === editing && uid === account) hint.textContent = 'Kundenkonten konnten nicht geladen werden. Öffne den Termin erneut.';
+    } finally {
+      if (entry === editing && uid === account) select.disabled = entry.status === 'canceled';
+    }
+  }
+
   function showEvent(entry = null) {
     if (!configuration || !staffUser()) return;
     const dialog = byId('calEventDialog');
@@ -180,17 +221,22 @@
     byId('calEventSave').hidden = canceled;
     byId('calEventCancel').hidden = !entry || canceled;
     byId('calEventRetry').hidden = !Object.values(entry?.mailStatus || {}).includes('failed');
+    byId('calEventCustomerWrap').hidden = !configuration.customerAppointments;
+    byId('calEventCustomerStatus').textContent = customerSummary(entry);
+    if (configuration.customerAppointments) loadCustomerChoices(editing);
     updateOptions();
     if (!dialog.open) dialog.showModal();
   }
 
   function recordFromForm() {
     const fields = eventForm().elements;
+    const target = customerTargets.get(fields.customer.value);
     return {
       title: fields.title.value, date: fields.date.value, allDay: fields.allDay.checked,
       startTime: fields.startTime.value, endTime: fields.endTime.value, notes: fields.notes.value,
       reminderMinutes: fields.reminder.value === '' ? null : Number(fields.reminder.value),
-      invite: fields.invite.checked
+      invite: fields.invite.checked,
+      ...(configuration.customerAppointments ? { customerTarget: target ? { uid: target.uid, customerId: target.customerId } : null } : {})
     };
   }
 
@@ -215,7 +261,7 @@
       controller.refresh();
       byId('calendarCloudStatus').textContent = [
         updated.status === 'canceled' ? 'Termin abgesagt.' : 'Termin gespeichert.',
-        mailSummary(updated), reminderSummary(updated)
+        customerSummary(updated), mailSummary(updated), reminderSummary(updated)
       ].filter(Boolean).join(' ');
     } catch (error) {
       if (uid === account) status.textContent = messageFor(error);
@@ -382,6 +428,8 @@
     byId('btnCalNewEvent').disabled = true;
     byId('btnCalSettings').hidden = true;
     byId('calendarCloudStatus').textContent = '';
+    editing = null;
+    customerTargets.clear();
     if (byId('calEventDialog').open) byId('calEventDialog').close();
     if (byId('calSettingsDialog').open) byId('calSettingsDialog').close();
     renderPush();

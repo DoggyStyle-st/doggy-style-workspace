@@ -53,6 +53,8 @@
 
 .calendar-dialog {
   width: min(34rem, calc(100% - 24px));
+  max-width: calc(100% - 24px);
+  min-width: 0;
   max-height: calc(100dvh - 24px);
   box-sizing: border-box;
   padding: 20px;
@@ -60,7 +62,8 @@
   border-radius: 16px;
   background: #212127;
   color: #f5f4f7;
-  overflow-y: auto;
+  overflow: auto;
+  overflow-wrap: anywhere;
   color-scheme: dark;
 }
 
@@ -71,6 +74,18 @@
   display: block;
   margin: 9px 0 4px;
 }
+.calendar-date-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+}
+.calendar-date-fields input[type="date"] { display: block; margin-top: 4px; }
+.calendar-date-fields .calendar-check { min-height: 44px; }
+.calendar-dialog form,
+.calendar-dialog label,
+.calendar-dialog-actions .btn { min-width: 0; max-width: 100%; }
+.calendar-dialog-actions .btn { white-space: normal; overflow-wrap: anywhere; }
 
 .calendar-dialog input:not([type="checkbox"]),
 .calendar-dialog select,
@@ -78,6 +93,7 @@
   box-sizing: border-box;
   min-width: 0;
   width: 100%;
+  max-width: 100%;
   font-size: 16px;
 }
 
@@ -89,6 +105,9 @@
 }
 
 .calendar-dialog .calendar-check input {
+  width: 1.25rem;
+  height: 1.25rem;
+  padding: 0;
   margin: 0;
   flex: 0 0 auto;
 }
@@ -100,9 +119,17 @@
 }
 
 .calendar-dialog small { display: block; margin-top: 4px; }
+.calendar-dialog small:empty { display: none; }
 .calendar-dialog textarea { resize: vertical; }
 .calendar-feedback { color: #f7d9a2; margin: 10px 0 0; }
-.calendar-dialog-actions { justify-content: flex-end; }
+.calendar-dialog-actions {
+  position: sticky;
+  z-index: 1;
+  bottom: 0;
+  background: #212127;
+  padding: 8px 0 2px;
+  justify-content: flex-end;
+}
 
 @media (max-width: 600px) {
   #calendar .cal-grid { gap: 3px; }
@@ -113,4 +140,8 @@
   #calendar .cal-date { gap: 2px; font-size: 12px; }
   #calendar .calendar-event-dot { width: 5px; height: 5px; }
   .calendar-dialog { padding: 14px; }
+}
+
+@media (max-width: 420px) {
+  .calendar-time-fields { grid-template-columns: minmax(0, 1fr); }
 }

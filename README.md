@@ -1,4 +1,8 @@
-# Doggy Style Workspace – GB384
+# Doggy Style Workspace – GB385
+
+Im Kalender kannst du für einen Termin ein zugeordnetes Kundenkonto auswählen. Der Kunde erhält den Vorschlag im Chat und antwortet mit **Passt** oder **Passt nicht**. Der Tagesablauf im Workspace zeigt die Rückmeldung. Bestätigte Termine erscheinen im Kundenportal unter **Meine Termine**. Ein neuer Zeitpunkt braucht eine erneute Zusage.
+
+Unter **Rechnungen** stellst du den geprüften Beleg auf **Offen**. Mit **Rechnung an Kunden weitergeben** stellst du die Fassung gezielt im Chat des zugeordneten Kunden bereit. Der Kunde öffnet den Beleg dort, speichert ihn als PDF und sieht beim erneuten Öffnen den aktuellen Zahlungsstatus. Die Bankverbindung für Überweisungen kannst du in **Einstellungen → Bankverbindung für Rechnungen** hinterlegen.
 
 Unter **Auswertungen** wählst du **Dieser Monat**, **Vormonat**, **Dieses Jahr** oder eigene Start- und Enddaten.
 
