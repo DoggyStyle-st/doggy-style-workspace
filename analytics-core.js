@@ -416,5 +416,5 @@
     return '\uFEFF' + lines.map(row => row.map(csvCell).join(';')).join('\r\n') + '\r\n';
   }
 
-  return { date, datesFor, report, selectEntries, csv, totalValue, percent, labels, statusLabels };
+  return { date, datesFor, datesForInvoice: invoiceDates, report, selectEntries, csv, totalValue, percent, labels, statusLabels };
 });

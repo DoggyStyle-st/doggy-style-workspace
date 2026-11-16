@@ -1,3 +1,14 @@
+# Doggy Style Workspace – GB387
+
+Stand 16. November 2026 · Build M50.9.9GB387_INVOICE_WORKSPACE_20261116
+
+- Im Browser wurden 61 Testrechnungen bei iPad- und iPhone-Breiten geprüft. Statusfilter, Suche, offene Summe und Sortierung berücksichtigen auch ältere Statusbezeichnungen. Beim Öffnen und Schließen bleibt die gefilterte Liste an ihrer vorherigen Position.
+- Der Firebase-Emulator bestätigte das gebündelte Abrufen der Freigabezeitpunkte ausschließlich als Administrator. Eine bewusste Freigabe erzeugte eine Chat-Nachricht im zugeordneten Kundenkonto. Der Beleg und das heruntergeladene PDF wurden im Browser geprüft.
+- Ein Zahlungseingang für einen Vormonat wurde per Zahlungsdialog gespeichert. Die Historie und die Monatsauswertung zeigen das gewählte Datum. Die Angabe wurde im Firebase-Emulator nach der Synchronisierung erneut gelesen.
+- Die Abnahme mit dem verbundenen Firebase-Projekt und auf den echten Geräten steht aus.
+
+## Prüfung des vorigen Stands GB386
+
 # Doggy Style Workspace – GB386
 
 Stand 16. November 2026 · Build M50.9.9GB386_CALENDAR_CHAT_20261116

@@ -28,6 +28,11 @@
     return result.data;
   }
 
+  async function invoiceShareStatuses(ids) {
+    const { statuses } = await call('portalInvoice', 'statuses', { ids });
+    return statuses;
+  }
+
   function feedback(error) {
     const code = error?.code?.split('/').pop();
     if (['not-found', 'internal', 'unavailable', 'deadline-exceeded'].includes(code)) {
@@ -276,8 +281,12 @@
     host.append(button, status);
     const active = () => user()?.uid === uid && host.isConnected;
     const showShared = sharedAt => {
-      button.hidden = true;
-      status.textContent = `Im Kundenchat bereitgestellt am ${new Date(sharedAt).toLocaleDateString('de-DE')}.`;
+      if (user()?.uid !== uid) return;
+      if (host.isConnected) {
+        button.hidden = true;
+        status.textContent = `Im Kundenchat bereitgestellt am ${new Date(sharedAt).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' })}.`;
+      }
+      window.dispatchEvent(new CustomEvent('ds-invoice-shared', { detail: { id: invoice.id, owner: uid, sharedAt } }));
     };
     let busy = false;
     button.onclick = async () => {
@@ -291,7 +300,7 @@
           id: invoice.id, customerId: customer.id, workspaceStamp: state._cloudUpdatedAt,
           invoiceUpdatedAt: current.updatedAt || '', model: invoicePrintModel(current)
         });
-        if (active()) showShared(result.sharedAt);
+        showShared(result.sharedAt);
       } catch (error) {
         if (active()) status.textContent = feedback(error);
       } finally {
@@ -304,5 +313,5 @@
   }
 
   window.addEventListener('ds-customer-data-ready', watchAppointments);
-  window.DSPortalActions = { watchAppointments, reset, isAction, chatCard, bindChat, invoiceControls, renderBankSettings };
+  window.DSPortalActions = { watchAppointments, reset, isAction, chatCard, bindChat, invoiceControls, invoiceShareStatuses, renderBankSettings };
 })();

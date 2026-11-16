@@ -2,7 +2,7 @@ try{sessionStorage.removeItem('ds_handoff_pass');}catch(_){}
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB386_CALENDAR_CHAT_20261116",
+  tag: "M50.9.9GB387_INVOICE_WORKSPACE_20261116",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -13,7 +13,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB386_CALENDAR_CHAT_20261116";
+const APP_BUILD = "M50.9.9GB387_INVOICE_WORKSPACE_20261116";
 try{ window.__dsAppJsRuntimeBuild = "GB350-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -2742,7 +2742,7 @@ async function submitCustomerDogsProposal(){
   // GB355: vollständig lokal sichern, anschließend zuverlässig in proposals + tasks übertragen.
   // Die Oberfläche wird sofort freigegeben; die Erfolgsmeldung "an Eingänge übergeben"
   // erscheint ausschließlich nach bestätigter Firestore-Speicherung.
-  const GB355='M50.9.9GB386_CALENDAR_CHAT_20261116';
+  const GB355='M50.9.9GB387_INVOICE_WORKSPACE_20261116';
   function S(v){ try{return String(v==null?'':v);}catch(_){return '';} }
   function L(v){ return S(v).trim().toLowerCase(); }
   function V(id){ try{const el=document.getElementById(id);return S(el&&el.value!=null?el.value:'').trim();}catch(_){return '';} }
@@ -4014,7 +4014,9 @@ function showPanel(id){
     try{ renderDogs(); }catch(_){ }
   }
   if(id === "invoices"){
-    try{ renderInvoiceList(); }catch(_){ }
+    window.DSInvoiceWorkspace?.enter();
+  } else {
+    window.DSInvoiceWorkspace?.leave();
   }
   if(id === "contract"){
     renderContractPanel();
@@ -6413,7 +6415,6 @@ function renderAnalyticsPanel(){
     openInvoice:id=>{
       selectTab('invoices');
       openInvoice(id);
-      document.getElementById('invoiceView')?.scrollIntoView({block:'start'});
     },
     openDay:day=>{
       selectTab('calendar');
@@ -13144,13 +13145,18 @@ function getInvoiceById(id){
   ensureContractDefaults();
   return (state.invoices||[]).find(x=>x.id===id) || null;
 }
-function resolveInvoiceParties(inv){
-  ensureStateShape();
-  ensureContractDefaults();
+function resolveInvoiceParties(inv, defaultsReady = false){
+  if(!defaultsReady){
+    ensureStateShape();
+    ensureContractDefaults();
+  }
   if(inv?.manualRecipient)return {cust:null,pet:null,legacyDog:null};
-  const pet  = inv?.petId ? getPet(inv.petId) : (inv?.dogId ? getPetByDogId(inv.dogId) : null);
+  const mappedPet = state._legacy?.dogIdToPetId?.[inv?.dogId];
+  const mappedCustomer = state._legacy?.dogIdToCustomerId?.[inv?.dogId];
+  const petId = inv?.petId || mappedPet;
+  const pet = petId ? getPet(petId) : null;
   const cust = inv?.customerId ? getCustomer(inv.customerId)
-    : (pet?.customerId ? getCustomer(pet.customerId) : null) || (inv?.dogId ? getCustomerByDogId(inv.dogId) : null);
+    : (pet?.customerId ? getCustomer(pet.customerId) : null) || (mappedCustomer ? getCustomer(mappedCustomer) : null);
   const dog = inv?.dogId ? (state.dogs||[]).find(d=>d.id===inv.dogId) : null;
   const dogOwner = dog && (state._legacy?.dogIdToCustomerId?.[dog.id] || dog.customerId);
   const legacyDog = dogOwner && inv?.customerId && dogOwner!==inv.customerId ? null : dog;
@@ -13209,22 +13215,32 @@ function formatCustomerAddress(cust){
   return [street, city, country].filter(Boolean).join(', ');
 }
 // --- 2C: Rechnung UI (Deutsch, Status-Badge, Positionsbezeichnungen) -----------
+function invoiceStatusCode(status){
+  const code = String(status || '').trim().toLowerCase();
+  switch(code){
+    case 'entwurf': return 'draft';
+    case 'offen': return 'open';
+    case 'bezahlt': return 'paid';
+    case 'storniert':
+    case 'storno':
+    case 'canceled': return 'cancelled';
+    default: return code || 'draft';
+  }
+}
 function invoiceStatusLabel(status){
-  const s = String(status||"").toLowerCase().trim();
-  if(s==="draft" || s==="entwurf") return "Entwurf";
-  if(s==="open" || s==="offen") return "Offen";
-  if(s==="paid" || s==="bezahlt") return "Bezahlt";
-  if(s==="cancelled" || s==="storniert" || s==="canceled") return "Storniert";
-  if(!s) return "—";
-  return status; // fallback
+  switch(invoiceStatusCode(status)){
+    case 'draft': return 'Entwurf';
+    case 'open': return 'Offen';
+    case 'paid': return 'Bezahlt';
+    case 'cancelled': return 'Storniert';
+    default: return status;
+  }
 }
 function invoiceStatusStyle(status){
-  const s = String(status||"").toLowerCase().trim();
-  // Farben bewusst dezent (Master-Guard: keine CSS-Abhängigkeiten)
-  if(s==="paid" || s==="bezahlt") return "background:#1f6f3b;color:#fff;border:1px solid rgba(255,255,255,.15)";
-  if(s==="open" || s==="offen") return "background:#b7791f;color:#111;border:1px solid rgba(255,255,255,.15)";
-  if(s==="cancelled" || s==="storniert" || s==="canceled") return "background:#8b1e1e;color:#fff;border:1px solid rgba(255,255,255,.15)";
-  if(s==="draft" || s==="entwurf") return "background:#4a5568;color:#fff;border:1px solid rgba(255,255,255,.15)";
+  const s = invoiceStatusCode(status);
+  if(s==="paid") return "background:#1f6f3b;color:#fff;border:1px solid rgba(255,255,255,.15)";
+  if(s==="open") return "background:#b7791f;color:#111;border:1px solid rgba(255,255,255,.15)";
+  if(s==="cancelled") return "background:#8b1e1e;color:#fff;border:1px solid rgba(255,255,255,.15)";
   return "background:#4a5568;color:#fff;border:1px solid rgba(255,255,255,.15)";
 }
 function invoiceStatusBadge(status){
@@ -13233,60 +13249,8 @@ function invoiceStatusBadge(status){
   return `<span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;line-height:18px;${style}">${label}</span>`;
 }
 function renderInvoiceList(){
-  // 3A: Preise aus Aufenthalten synchronisieren (guarded)
-
-  const el = document.getElementById("invoiceList");
-  if(!el) return;
-  const query=document.getElementById('invoiceSearch')?.value||'';
-  const all=getInvoices();
-  const invoices = all.map(inv=>{
-    const parties=resolveInvoiceParties(inv);
-    return {inv,...parties,recipient:resolveInvoiceRecipient(inv,parties)};
-  }).filter(({inv,cust,pet,legacyDog,recipient})=>matchesWorkspaceSearch(
-    query,inv.invoiceNumber,recipient.name,recipient.customerNumber,cust?.customerNumber,pet?.name||legacyDog?.name
-  ));
-  const actionBar = `
-    <div class="row" style="gap:10px;flex-wrap:wrap;margin:10px 0 14px">
-      <button class="btn" onclick="openFreeInvoiceForm()">➕ Freie Rechnung</button>
-    </div>
-  `;
-  if(!invoices.length){
-    el.innerHTML=actionBar+`<p class="muted">${query?'Keine passenden Rechnungen.':'Noch keine Rechnungen vorhanden.'}</p>`;
-    const view=document.getElementById('invoiceView');
-    if(!all.length&&view&&!view.querySelector('#freeInvoiceForm'))view.innerHTML='';
-    return;
-  }
-  el.innerHTML = actionBar + `
-    <table class="invoice-table">
-      <thead>
-        <tr>
-          <th>Nr.</th>
-          <th>Kunde / Hund</th>
-          <th>Zeitraum</th>
-          <th>Betrag</th>
-          <th>Status</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${invoices.map(({inv,pet,legacyDog,recipient})=>`
-          <tr onclick="openInvoice('${inv.id}')">
-            <td>${escapeHtml(inv.invoiceNumber||'—')}</td>
-            <td>${escapeHtml([recipient.name,recipient.customerNumber,pet?.name||legacyDog?.name].filter(Boolean).join(' · '))}</td>
-            <td>${escapeHtml(inv.period?.from||"")} – ${escapeHtml(inv.period?.to||"")}</td>
-            <td>${(inv.pricing?.total||0).toFixed(2)} €</td>
-        <td>
-          ${invoiceStatusBadge(inv.status)}
-          ${(
-            inv.status === 'cancelled' && (inv.cancelReason || inv.stornoReason)
-          ) ? `<div class="muted" style="margin-top:2px;font-size:12px">Grund: ${escapeHtml(inv.cancelReason || inv.stornoReason)}</div>` : ''}
-        </td>
-          </tr>
-        `).join("")}
-      </tbody>
-    </table>
-  `;
+  window.DSInvoiceWorkspace?.render();
 }
-$("#invoiceSearch")?.addEventListener('input',renderInvoiceList);
 
 function ds207ResetStaleCloudForInvoice(reason){
   try{
@@ -13328,17 +13292,21 @@ function renderInvoiceAudit(inv){
       return escapeHtml(d.toLocaleString("de-DE"));
     };
     const rows = list.slice().reverse().map(ev=>{
-      const action = escapeHtml(String(ev.action||ev.type||""));
+      const action = escapeHtml(String(ev.action || ev.type || (ev.field === 'status' ? 'Status geändert' : '')));
       const at = fmt(ev.at || ev.ts || ev.time);
       const user = escapeHtml(String(ev.by||ev.user||""));
-      const reason = ev.reason ? `<div class="muted" style="margin-top:2px"><strong>Grund:</strong> ${escapeHtml(String(ev.reason))}</div>` : ``;
+      const reasonText = ev.reason || ev.meta?.reason;
+      const reason = reasonText ? `<div class="muted" style="margin-top:2px"><strong>Grund:</strong> ${escapeHtml(String(reasonText))}</div>` : '';
       const detailParts = [];
       if(ev.from!=null || ev.to!=null){
-        detailParts.push(`<span class="muted">(${escapeHtml(String(ev.from||""))} → ${escapeHtml(String(ev.to||""))})</span>`);
+        const label = ev.field === 'status' ? invoiceStatusLabel : String;
+        detailParts.push(`<span class="muted">(${escapeHtml(label(ev.from || ''))} → ${escapeHtml(label(ev.to || ''))})</span>`);
       }
-      if(ev.note){
-        detailParts.push(`<span class="muted">${escapeHtml(String(ev.note))}</span>`);
+      if(ev.note || ev.meta?.note){
+        detailParts.push(`<span class="muted">${escapeHtml(String(ev.note || ev.meta.note))}</span>`);
       }
+      const paymentDate = DSAnalytics.date(ev.meta?.paymentDate);
+      if(paymentDate) detailParts.push(`<span class="muted">Zahlungsdatum ${paymentDate.split('-').reverse().join('.')}</span>`);
       const details = detailParts.length ? `<div style="margin-top:2px">${detailParts.join(" ")}</div>` : ``;
       return `<div style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,.07)">
         <div><strong>${action||"Änderung"}</strong> <span class="muted">· ${at}</span> ${user?`<span class="muted">· ${user}</span>`:""}</div>
@@ -13359,6 +13327,8 @@ function openInvoice(id){
   const inv=record?DSBilling.display(record):null;
   if(!inv) return;
   const locked=DSBilling.frozen(inv);
+  const admin=DSBilling.admin();
+  const code=invoiceStatusCode(inv.status);
   // 3C: Warnung wenn Source nach Lock geändert wurde
   let freezeWarningHtml = "";
   try{
@@ -13384,63 +13354,64 @@ function openInvoice(id){
   const custLine=escapeHtml(formatCustomerLine({...cust,name:recipient.name},legacyDog));
   const address=(recipient.addressLines||[]).map(escapeHtml).join('<br>');
   const petLine=escapeHtml(pet?.name||legacyDog?.name||'');
-  const _cancelReason = inv.cancelReason || inv.stornoReason || '';
-  const _cancelReasonHtml = (inv.status === 'cancelled' && _cancelReason)
-    ? ` · <strong>Grund:</strong> ${escapeHtml(_cancelReason)}`
-    : '';
+  const cancelReason = inv.cancelReason || inv.stornoReason || '';
+  const dates = DSAnalytics.datesForInvoice(inv, code);
+  const day = iso => iso ? iso.split('-').reverse().join('.') : '—';
+  const from = DSAnalytics.date(inv.period?.from);
+  const to = DSAnalytics.date(inv.period?.to);
+  const period = from && to && from !== to ? `${day(from)} – ${day(to)}` : day(from || to);
+  const actions = [];
+  if(admin && code === 'draft') actions.push('<button type="button" class="btn" data-invoice-action="paid">Als bezahlt markieren</button>');
+  if(admin && code === 'open') actions.push('<button type="button" class="btn" data-invoice-action="draft">Auf Entwurf setzen</button>');
+  if(admin && code !== 'cancelled') actions.push('<button type="button" class="btn danger" data-invoice-action="cancelled">Stornieren</button>');
   el.innerHTML = `
-    <div class="card">
-      <div class="row between" style="gap:10px;flex-wrap:wrap">
-        <h3 style="margin:0">Rechnung</h3><button class="btn" id="dsInvoiceEditButton" ${locked?'disabled':''} onclick="DSBilling.openEdit('${inv.id}')">Bearbeiten</button>
-        <div class="row" style="gap:8px;flex-wrap:wrap">
-          <button class="smallbtn" onclick="setInvoiceStatus('${inv.id}','draft')">Entwurf</button>
-          <button class="smallbtn" onclick="setInvoiceStatus('${inv.id}','open')">Offen</button>
-          <button class="smallbtn" onclick="setInvoiceStatus('${inv.id}','paid')">Bezahlt</button>
-          <button class="smallbtn" onclick="setInvoiceStatus('${inv.id}','cancelled')">Storniert</button>
-        </div>
+    <article class="card invoice-document">
+      <div class="invoice-document-header">
+        <h3>Rechnung ${escapeHtml(inv.invoiceNumber || '')}</h3>
+        ${invoiceStatusBadge(inv.status)}
       </div>
-      <p class="muted" style="margin-top:6px">
-        <strong>Nr.:</strong> ${escapeHtml(inv.invoiceNumber||"-")} ·
-        <strong>Datum:</strong> ${escapeHtml(new Date(inv.invoiceDate||Date.now()).toLocaleDateString("de-DE"))} ·
-        <strong>Status:</strong> ${invoiceStatusBadge(inv.status)}${_cancelReasonHtml}
-      </p>
+      <div class="invoice-document-meta">
+        <p><strong>Rechnungsdatum</strong>${day(dates.invoiceDate)}</p>
+        <p><strong>Leistungszeitraum</strong>${period}</p>
+        ${locked && dates.paidDate ? `<p><strong>Zahlungsdatum</strong>${day(dates.paidDate)}</p>` : ''}
+      </div>
+      ${code === 'cancelled' && cancelReason ? `<p class="muted"><strong>Stornogrund</strong> ${escapeHtml(cancelReason)}</p>` : ''}
       ${freezeWarningHtml}
-      ${inv.sourceDocId ? `
-        <div class="row" style="gap:8px;flex-wrap:wrap;margin:10px 0 6px">
-          <button class="smallbtn" onclick="openInvoiceSourceStay('${inv.id}')">📄 Aufenthalt öffnen</button>
-          <button class="smallbtn" ${locked?'disabled':''} onclick="refreshInvoiceFromStay('${inv.id}')">🔄 Aus Aufenthalt neu berechnen</button>
-        </div>
-        <p class="muted" style="margin:0 0 10px">
-          ${locked?'Diese Rechnung ist abgeschlossen.':inv.pricingMode==='manual'?'Die bearbeiteten Rechnungspositionen sind gespeichert.':'Mit Bearbeiten kannst du die Rechnungspositionen anpassen.'}
-        </p>
-      ` : ``}
-      <p><strong>Rechnungsempfänger:</strong> ${custLine}<br>
+      <p class="invoice-document-recipient"><strong>Rechnungsempfänger:</strong> ${custLine || escapeHtml(recipient.name)}<br>
          ${address?'<span style="overflow-wrap:anywhere">'+address+'</span><br>':''}
          ${recipient.customerNumber?'<strong>Kundennummer:</strong> '+escapeHtml(recipient.customerNumber)+'<br>':''}
          ${petLine?'<strong>Hund:</strong> '+petLine:''}
       </p>
-      <p><strong>Zeitraum:</strong>
-        ${escapeHtml(formatDateDE(inv.period?.from||""))} – ${escapeHtml(formatDateDE(inv.period?.to||""))}
-      </p>
+      <div class="actions invoice-detail-actions">
+        ${admin && code === 'draft' ? '<button type="button" class="btn primary" data-invoice-action="open">Auf Offen setzen</button>' : ''}
+        <div id="dsPortalInvoiceActions"></div>
+        ${admin && code === 'open' ? '<button type="button" class="btn" data-invoice-action="paid">Als bezahlt markieren</button>' : ''}
+        ${admin && !locked ? '<button type="button" class="btn" id="dsInvoiceEditButton" data-invoice-action="edit">Bearbeiten</button>' : ''}
+        <button type="button" class="btn" data-invoice-action="pdf">Rechnung drucken / PDF</button>
+      </div>
+      ${actions.length ? `<details class="invoice-more"><summary>Weitere Aktionen</summary><div class="actions">${actions.join('')}</div></details>` : ''}
+      ${inv.sourceDocId ? `
+        <div class="actions invoice-detail-actions">
+          <button type="button" class="btn" data-invoice-action="source">Aufenthalt öffnen</button>
+          ${admin && !locked ? '<button type="button" class="btn" data-invoice-action="recalculate">Aus Aufenthalt neu berechnen</button>' : ''}
+        </div>
+      ` : ``}
       ${renderInvoicePositions(inv)}
       <hr>
       <div style="margin:10px 0 10px">
-        <h3 style="margin:0 0 6px">Gesamt (Brutto): ${formatEuro(inv.pricing.total)}</h3>
-        ${Number(inv.vatRate||0) > 0 ? `<div><strong>Enthaltene MwSt (${Number(inv.vatRate||0).toFixed(2)}%):</strong> ${Number(inv.pricing.vatAmount||0).toFixed(2)} €</div>` : ``}
-        ${Number(inv.vatRate||0) > 0 ? `<div class="muted" style="margin-top:4px"><strong>Netto (informativ):</strong> ${Number(inv.pricing.net||0).toFixed(2)} €</div>` : ``}
+        <h3 style="margin:0 0 6px">Gesamt (Brutto): ${formatEuro(inv.pricing?.total ?? inv.pricing?.totalGross ?? inv.totalGross ?? inv.total)}</h3>
+        ${Number(inv.vatRate||0) > 0 ? `<div><strong>Enthaltene MwSt (${Number(inv.vatRate||0).toFixed(2)}%):</strong> ${formatEuro(inv.pricing?.vatAmount)}</div>` : ``}
+        ${Number(inv.vatRate||0) > 0 ? `<div class="muted" style="margin-top:4px"><strong>Netto (informativ):</strong> ${formatEuro(inv.pricing?.net)}</div>` : ``}
       </div>
-      
-      
       <div style="margin:12px 0 12px">
-        <button class="smallbtn" onclick="toggleInvoiceAudit('${inv.id}')">🕓 Historie</button>
-        <div id="invAudit_${inv.id}" class="card" style="display:none;margin-top:8px;background:rgba(255,255,255,.03)">
+        <button type="button" class="btn" data-invoice-action="history">Historie</button>
+        <div id="invAudit_${escapeHtml(inv.id)}" class="card" style="display:none;margin-top:8px;background:rgba(255,255,255,.03)">
           ${renderInvoiceAudit(inv)}
         </div>
       </div>
-      <button class="btn" onclick="printInvoice('${inv.id}')">🖨️ Rechnung drucken / PDF</button>
-      <div id="dsPortalInvoiceActions"></div>
-    </div>
+    </article>
   `;
+  window.DSInvoiceWorkspace?.openDetail(inv.id);
   window.DSPortalActions?.invoiceControls(el.querySelector('#dsPortalInvoiceActions'), inv, cust);
 }
 // --- 4C-2: Rechnung-Positionen als Snapshot (revisionssicher) -----------------
@@ -13561,39 +13532,39 @@ function snapshotInvoiceSourceMeta(inv){
 function lockInvoicePricing(inv,reason){
     if(!inv)return;inv.pricingSnapshot=JSON.parse(JSON.stringify(inv.pricing||{}));inv.lineItemsSnapshot=JSON.parse(JSON.stringify(inv.lineItems||DSBilling.lines(inv)));inv.sourceSnapshotAtLock=JSON.parse(JSON.stringify(inv.sourceSnapshot||{}));inv.pricingLocked=true;inv.pricingLockedAt=new Date().toISOString();inv.pricingLockedReason=reason||inv.status;const doc=getInvoiceSourceDoc(inv);if(doc?.updatedAt)inv.sourceDocUpdatedAtAtLock=doc.updatedAt;
   }
-function setInvoiceStatus(id, status){
-  const inv = getInvoiceById(id);
-  if(!inv || !DSBilling.admin()){if(inv)alert('Rechnungen können nur Administratoren bearbeiten.');return;}
+function setInvoiceStatus(id, status, { paymentDate } = {}){
+  const record = getInvoiceById(id);
+  if(!record || !DSBilling.admin()){if(record)alert('Rechnungen können nur Administratoren bearbeiten.');return false;}
 
-  // akzeptiert auch deutsche Werte (falls irgendwo anders gesetzt)
-  const s = String(status||"").toLowerCase().trim();
-  let code = s;
-  if(s==="offen") code="open";
-  else if(s==="bezahlt") code="paid";
-  else if(s==="storniert") code="cancelled";
-  else if(s==="entwurf") code="draft";
-
-  if(!['draft','open','paid','cancelled'].includes(code)){alert('Ungültiger Rechnungsstatus.');return;}
-  const rawPrev=String(inv.status||'draft').toLowerCase();const prev=({bezahlt:'paid',storniert:'cancelled',offen:'open',entwurf:'draft'})[rawPrev]||rawPrev;
+  const code = status ? invoiceStatusCode(status) : '';
+  const prev = invoiceStatusCode(record.status);
+  if(!['draft','open','paid','cancelled'].includes(code)){alert('Ungültiger Rechnungsstatus.');return false;}
 
   // 4C-4: Storno ist endgültig (Revisionssicherheit)
   if(prev==="cancelled" && code!=="cancelled"){
     try{ alert("Diese Rechnung ist storniert und kann nicht mehr geändert werden."); }catch(_){}
-    return;
+    return false;
   }
 
   // 4C-3: Bezahlt ist endgültig (nur Storno erlaubt)
   if(prev==="paid" && code!=="paid" && code!=="cancelled"){
     try{ alert("Diese Rechnung ist bezahlt und wird nicht mehr zurückgesetzt."); }catch(_){}
-    return;
+    return false;
   }
+
+  if(code===prev){renderInvoiceList();openInvoice(id);return true;}
+  const inv = JSON.parse(JSON.stringify(record));
+  const paidOn = code === 'paid'
+    ? DSWorkflowCore.dateISO(paymentDate ?? (DSAnalytics.date(inv.paymentDate || inv.paidAt) || toISODateLocal(new Date())))
+    : '';
+  if(code === 'paid' && !paidOn){alert('Bitte gib ein gültiges Zahlungsdatum ein.');return false;}
 
   // 4E-4: Storno-Grund sicher VOR Audit/Status setzen, damit Audit den Grund enthält
   if(code==="cancelled" && prev!=="cancelled"){
     let reason = String(inv.stornoReason||inv.cancelReason||"").trim();
     if(!reason){
       const r = prompt("Storno-Grund (Kurz):", "Kunde storniert");
-      if(r===null) return; // Abbruch: keine Statusänderung
+      if(r===null) return false;
       reason = String(r||"").trim();
       if(!reason) reason = "Storno";
     }
@@ -13607,20 +13578,11 @@ function setInvoiceStatus(id, status){
     inv.cancelNote   = note;
   }
 
-  // Audit Trail (nachdem ggf. Storno-Grund gesetzt wurde)
   inv.auditTrail = Array.isArray(inv.auditTrail) ? inv.auditTrail : [];
-  if(code !== prev){
-    const meta = (code==="cancelled") ? { reason: (inv.cancelReason||""), note: (inv.cancelNote||"") } : undefined;
-    inv.auditTrail.push({
-      at: new Date().toISOString(),
-      field: "status",
-      from: prev,
-      to: code,
-      meta
-    });
-  }
-
-  if(code===prev){renderInvoiceList();openInvoice(id);return;}
+  const changedAt = new Date().toISOString();
+  const meta = paidOn ? { paymentDate: paidOn }
+    : code === 'cancelled' ? { reason: inv.cancelReason || '', note: inv.cancelNote || '' } : undefined;
+  inv.auditTrail.push({ at: changedAt, field: 'status', from: prev, to: code, meta });
   if(prev==='draft'&&code!=='draft'&&!inv.recipientSnapshot){
     inv.recipientSnapshot=resolveInvoiceRecipient(inv);
   }
@@ -13629,10 +13591,11 @@ function setInvoiceStatus(id, status){
     inv.lineItems=DSBilling.lines(inv);snapshotInvoiceSourceMeta(inv);
     if(code==='paid'||code==='cancelled')lockInvoicePricing(inv,code);
   }
-  inv.status = code;inv.updatedAt=new Date().toISOString();
+  inv.status = code;inv.updatedAt=changedAt;
 
   if(code==="paid"){
-    if(!inv.paidAt) inv.paidAt = new Date().toISOString();
+    inv.paymentDate = paidOn;
+    if(!inv.paidAt) inv.paidAt = changedAt;
     inv.locked = true;
   }
 
@@ -13645,12 +13608,15 @@ function setInvoiceStatus(id, status){
     }
   }
 
+  Object.assign(record, inv);
   saveState();
   renderInvoiceList();
   openInvoice(id);
+  return true;
 }
 // ===== Freie Rechnung =====
 function openFreeInvoiceForm(){
+  if(!DSBilling.requireEdit())return;
   ensureStateShape();
   ensureContractDefaults();
   const view = document.getElementById("invoiceView");
@@ -13660,10 +13626,7 @@ function openFreeInvoiceForm(){
   const today = toISODateLocal(new Date());
   view.innerHTML = `
     <form class="card" id="freeInvoiceForm" onsubmit="event.preventDefault();createFreeInvoice()">
-      <div class="row between" style="gap:10px;flex-wrap:wrap">
-        <h3 style="margin:0">Freie Rechnung</h3>
-        <button type="button" class="smallbtn" onclick="document.getElementById('invoiceView').innerHTML=''">Schließen</button>
-      </div>
+      <h3 style="margin:0">Freie Rechnung</h3>
       <label class="field" style="margin-top:10px">
         <span>Rechnungsempfänger</span>
         <select id="freeInvRecipientMode" onchange="renderFreeInvoiceRecipientMode()">
@@ -13715,6 +13678,7 @@ function openFreeInvoiceForm(){
     </form>
   `;
   renderFreeInvoiceRecipientMode();
+  window.DSInvoiceWorkspace?.openDetail();
 }
 function renderFreeInvoiceRecipientMode(){
   const manual=document.getElementById('freeInvRecipientMode')?.value==='manual';
@@ -22007,7 +21971,7 @@ function renderStatMethod(){
 
 
 
-/* ===== CHAT (M50.9.9GB386_CALENDAR_CHAT_20261116) ===== */
+/* ===== CHAT (M50.9.9GB387_INVOICE_WORKSPACE_20261116) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,

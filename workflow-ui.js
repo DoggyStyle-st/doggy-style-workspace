@@ -167,8 +167,8 @@
   }
   function resetAccount(){
     window.DSBilling?.reset();
-    $('invoiceView')?.replaceChildren();
-    for(const id of ['invoiceSearch','workspaceCustomerSearch','stayCustomerSearch']){
+    window.DSInvoiceWorkspace?.reset();
+    for(const id of ['workspaceCustomerSearch','stayCustomerSearch']){
       const input=$(id);if(input)input.value='';
     }
     window.DSAccountDirectory?.reset();

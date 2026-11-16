@@ -41,7 +41,7 @@
     return explicit||versions.slice().sort((a,b)=>dsTsMs(b.createdAt)-dsTsMs(a.createdAt)||dsTsMs(b.updatedAt)-dsTsMs(a.updatedAt))[0]||original;
   }
   function admin(){return !!actor()&&window.CLOUD?.role==='admin'&&!window.DSWorkflow?.scoped();}
-  function frozen(inv){return ['paid','cancelled','canceled','bezahlt','storniert'].includes(text(inv?.status).trim().toLowerCase());}
+  function frozen(inv){return ['paid','cancelled','canceled','bezahlt','storniert','storno'].includes(text(inv?.status).trim().toLowerCase());}
   function editable(inv){return admin()&&!!inv&&!frozen(inv);}
   function requireEdit(inv){
     if(!admin()){alert('Rechnungen können nur Administratoren bearbeiten.');return false;}

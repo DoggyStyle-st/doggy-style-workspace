@@ -1,8 +1,12 @@
-# Doggy Style Workspace – GB386
+# Doggy Style Workspace – GB387
 
 Im Kalender kannst du für einen Termin ein zugeordnetes Kundenkonto auswählen. Der Kunde erhält den Vorschlag im Chat und antwortet mit **Passt** oder **Passt nicht**. Die Rückmeldung erscheint im Tagesablauf und als neue Nachricht im Team-Chat. Bestätigte Termine erscheinen im Kundenportal unter **Meine Termine**. Ein neuer Zeitpunkt braucht eine erneute Zusage.
 
-Unter **Rechnungen** stellst du den geprüften Beleg auf **Offen**. Mit **Rechnung an Kunden weitergeben** stellst du die Fassung gezielt im Chat des zugeordneten Kunden bereit. Der Kunde öffnet den Beleg dort, speichert ihn als PDF und sieht beim erneuten Öffnen den aktuellen Zahlungsstatus. Die Bankverbindung für Überweisungen kannst du in **Einstellungen → Bankverbindung für Rechnungen** hinterlegen.
+Unter **Rechnungen** kannst du mit **Alle**, **Offen**, **Entwürfe**, **Bezahlt** und **Storniert** filtern und nach Rechnungsdatum sortieren. Suche und Statusfilter wirken zusammen. **Offen** zeigt die Summe der sichtbaren offenen Beträge. **Zur Liste** führt von einer Rechnung mit der bisherigen Suche, Sortierung und Scrollposition zurück.
+
+Stelle den geprüften Beleg auf **Offen**. Mit **Rechnung an Kunden weitergeben** stellst du die Fassung gezielt im Chat des zugeordneten Kunden bereit. Bei offenen Rechnungen mit zugeordnetem Stammkunden zeigt die Liste den Freigabestatus. Der Kunde öffnet den Beleg im Chat, speichert ihn als PDF und sieht beim erneuten Öffnen den aktuellen Zahlungsstatus. Die Bankverbindung für Überweisungen kannst du in **Einstellungen → Bankverbindung für Rechnungen** hinterlegen.
+
+Wähle nach dem Geldeingang **Als bezahlt markieren** und in **Zahlung verbuchen** das tatsächliche Zahlungsdatum. Dieses Datum wird in der Historie angezeigt und bestimmt den Monat des Zahlungseingangs in den Auswertungen.
 
 Unter **Auswertungen** wählst du **Dieser Monat**, **Vormonat**, **Dieses Jahr** oder eigene Start- und Enddaten.
 

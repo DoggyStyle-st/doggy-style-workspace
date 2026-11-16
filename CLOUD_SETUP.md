@@ -1,41 +1,39 @@
-# Firebase-Einrichtung GB386
+# Firebase-Einrichtung GB387
 
 Das bestehende Projekt doggy-style-hundepension, die Organisation doggystyle und der Bucket doggy-style-hundepension.firebasestorage.app werden weiterverwendet.
 
-## Update von GB385 auf GB386
+## Update von GB386 auf GB387
 
-Lade `DoggyStyle_Workspace_GB386_Kalenderchat.zip` in die Cloud Shell hoch. Kopiere den Block über die Kopier-Schaltfläche und füge ihn beim `$` in Cloud Shell ein. Der Block entpackt das Update, übernimmt die bisherigen Kalender-Einstellungen und veröffentlicht die geänderte Kalenderfunktion mit Node.js 24. Er kann auch mit einem bereits entpackten GB386 verwendet werden.
+Lade `DoggyStyle_Workspace_GB387_Rechnungen.zip` in die Cloud Shell hoch. Kopiere den Block über die Kopier-Schaltfläche und füge ihn beim `$` in Cloud Shell ein. Er entpackt die Version und veröffentlicht die Firebase-Funktion `portalInvoice` für den Chat-Freigabestatus. Die Kalenderkonfiguration aus GB386 wird übernommen, falls sie im bisherigen Ordner liegt.
 
 ```bash
 (
   set -e
-  gb386_zip=$(find "$HOME" -maxdepth 1 -type f -name 'DoggyStyle_Workspace_GB386_Kalenderchat*.zip' -print -quit)
-  if [ -z "$gb386_zip" ]; then
-    printf '%s\n' 'Bitte zuerst die GB386-ZIP in Cloud Shell hochladen.'
+  gb387_zip=$(find "$HOME" -maxdepth 1 -type f -name 'DoggyStyle_Workspace_GB387_Rechnungen*.zip' -print -quit)
+  if [ -z "$gb387_zip" ]; then
+    printf '%s\n' 'Bitte zuerst die GB387-ZIP in Cloud Shell hochladen.'
     exit 1
   fi
-  unzip -nq "$gb386_zip" -d "$HOME/doggystyle-gb386"
-  cd "$HOME/doggystyle-gb386/doggy-style-workspace-main"
-  grep -F 'GB386_CALENDAR_CHAT' version.txt
-  gb386_env='.env.doggy-style-hundepension'
-  if [ ! -f "functions/$gb386_env" ]; then
-    cp "$HOME/doggystyle-gb385/doggy-style-workspace-main/functions/$gb386_env" functions/
+  unzip -nq "$gb387_zip" -d "$HOME/doggystyle-gb387"
+  cd "$HOME/doggystyle-gb387/doggy-style-workspace-main"
+  grep -F 'GB387_INVOICE_WORKSPACE' version.txt
+  gb387_env='.env.doggy-style-hundepension'
+  gb387_previous="$HOME/doggystyle-gb386/doggy-style-workspace-main/functions/$gb387_env"
+  if [ ! -f "functions/$gb387_env" ] && [ -f "$gb387_previous" ]; then
+    cp "$gb387_previous" functions/
   fi
-  test -s "functions/$gb386_env"
   export NVM_DIR="$HOME/doggystyle-gb386/node-runtime"
   mkdir -p "$NVM_DIR"
   nvm install 24
   node --version
-  npm --prefix functions pkg set engines.node=24
-  npm install --prefix functions --package-lock-only --ignore-scripts --no-audit --no-fund
   npm ci --prefix functions --no-audit --no-fund
-  npx --yes firebase-tools@15.36.0 deploy --project doggy-style-hundepension --only functions:calendar:calendarControl
+  npx --yes firebase-tools@15.36.0 deploy --project doggy-style-hundepension --only functions:calendar:portalInvoice
 ) >&2
 ```
 
-Nach `Deploy complete!` die GB386-App-Dateien aktualisieren und den Workspace neu laden. Bei einer neuen Terminantwort erscheinen die Nachricht und das Ungelesen-Zeichen im Team-Chat. Im Kalender zeigt der Text unter den Schaltflächen die aktuelle Geräteverbindung.
+Nach `Deploy complete!` die GB387-App-Dateien am bisherigen Hosting-Ort aktualisieren. Workspace und Kundenportal neu laden. Als Administrator in **Rechnungen → Offen** den Freigabestatus in der Liste und **Als bezahlt markieren** mit einem Testbeleg prüfen.
 
-## Update eines eingerichteten Kalenders von einer Fassung vor GB385
+## Update eines eingerichteten Kalenders von einer Fassung vor GB386
 
 1. Die ZIP entpacken und im Terminal den Ordner `doggy-style-workspace-main` öffnen. Übernimm die vorhandene `functions/.env.doggy-style-hundepension` aus der bisherigen Kalenderinstallation, damit die Konfiguration für Push und die Kalender-E-Mails weiter verwendet wird.
 2. Die Abhängigkeiten installieren und die neuen Firestore-Regeln sowie die beiden Funktionen für Kalender und Rechnungen bereitstellen.

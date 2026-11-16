@@ -1,10 +1,10 @@
-Doggy Style Workspace – GB386
-Build M50.9.9GB386_CALENDAR_CHAT_20261116
+Doggy Style Workspace – GB387
+Build M50.9.9GB387_INVOICE_WORKSPACE_20261116
 
-Bei laufendem GB385 zuerst den Abschnitt „Update von GB385 auf GB386“ in CLOUD_SETUP.md ausführen. Danach die App-Dateien wie in Schritt 2 übernehmen und wie in Schritt 4 neu laden.
+Bei laufendem GB386 zuerst den Abschnitt „Update von GB386 auf GB387“ in CLOUD_SETUP.md ausführen. Danach die App-Dateien wie in Schritt 2 übernehmen und wie in Schritt 4 neu laden.
 
 1. Vor dem Austausch unter Einstellungen > Cloud & Konto die aktuelle lokale Sicherung herunterladen.
-2. DoggyStyle_Workspace_GB386_Kalenderchat.zip entpacken und die App-Dateien aus dem Ordner doggy-style-workspace-main am gewählten Hosting-Ort übernehmen.
+2. DoggyStyle_Workspace_GB387_Rechnungen.zip entpacken und die App-Dateien aus dem Ordner doggy-style-workspace-main am gewählten Hosting-Ort übernehmen.
 3. Die Firestore-Regeln und Funktionen gemäß CLOUD_SETUP.md bereitstellen.
 4. Workspace und Kundenportal neu laden. Im Workspace zeigt DIAG die Buildkennung dieser Version.
 5. In Rechnungen den vorhandenen Entwurf zum Beispielaufenthalt öffnen. Bei den Standardpreisen stehen dort 14 Tage zu 40,00 €, 4,00 € Sonntagszuschlag und 4,00 € Feiertagszuschlag, insgesamt 568,00 € ohne Zusatz-Spaziergänge.
@@ -25,5 +25,7 @@ Bei laufendem GB385 zuerst den Abschnitt „Update von GB385 auf GB386“ in CLO
 15. In Einstellungen unter Bankverbindung für Rechnungen die IBAN für Überweisungen hinterlegen. Die Bank und der BIC sind optional.
 16. Eine Rechnung für ein zugeordnetes Testkonto auf Offen setzen. Anschließend Rechnung an Kunden weitergeben wählen und im Kundenchat das PDF speichern.
 17. Im Kalender einen Termin für das Testkonto vorschlagen. Im Kundenchat Passt oder Passt nicht antippen und die Rückmeldung im Tagesablauf und im Team-Chat im Workspace prüfen.
+18. Unter Rechnungen zwischen Offen, Entwürfe, Bezahlt und Storniert wechseln. Suche und Sortierung mit einem Status kombinieren, einen Beleg öffnen und über Zur Liste zurückkehren.
+19. Bei einem offenen Testbeleg den Chat-Freigabestatus prüfen. Als bezahlt markieren wählen, das tatsächliche Zahlungsdatum eintragen und den Zahlungseingang im betreffenden Monat unter Auswertungen prüfen.
 
 Die Abnahme am verbundenen Firebase und auf iPad und iPhone steht aus.

@@ -1,3 +1,10 @@
+# GB387 – Rechnungen filtern, öffnen und verbuchen
+
+- Statusfilter mit Trefferzahlen, kombinierte Suche, offene Summe und Sortierung nach Rechnungsdatum.
+- Rechner und breites iPad zeigen Liste und Beleg nebeneinander. Auf dem iPhone nimmt der Beleg die Ansicht ein. **Zur Liste** stellt die bisherige Position wieder her.
+- Offene Rechnungen mit zugeordnetem Stammkunden zeigen den bestätigten Chat-Freigabestatus in der Liste. Die Freigabe erfolgt über die eigene Schaltfläche im Beleg.
+- **Als bezahlt markieren** öffnet die Auswahl des Zahlungsdatums. Der Zahlungseingang erscheint im entsprechenden Monat der Auswertungen.
+
 # GB386 – Terminantworten und Mitteilungen
 
 - Zusagen und Ablehnungen erscheinen als Nachricht mit Ungelesen-Zähler im zugehörigen Team-Chat.
