@@ -1,3 +1,9 @@
+# GB391 – Kompakte Startseite
+
+- Tagesablauf mit Anreisen, Abholungen und freien Plätzen sowie direkte Links zu offenen Aufgaben.
+- Logo, Originalspruch und Betreuungsgrafiken bleiben sichtbar.
+- Sieben Tage als klickbare Belegungsvorschau, kompakte §11-Ampel und aufklappbare letzte Aktivitäten.
+
 # GB390 – Steuerberater-Monatsexport
 
 - PDF mit Monatsübersicht nach Zahlungsdatum, Brutto, Netto, Umsatzsteuer und den zugehörigen Rechnungsseiten.

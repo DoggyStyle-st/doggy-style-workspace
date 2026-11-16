@@ -1,10 +1,10 @@
-Doggy Style Workspace – GB390
-Build M50.9.11GB390_TAX_EXPORT_20261116
+Doggy Style Workspace – GB391
+Build M50.9.12GB391_STARTSEITE_20261116
 
-Bei laufendem GB389 die GB390-App-Dateien am bisherigen Webhost übernehmen und neu laden. Für dieses Update ist kein erneuter Firebase-Deploy erforderlich.
+Bei laufendem GB390 die GB391-App-Dateien am bisherigen Webhost übernehmen und neu laden. Für dieses Update ist kein erneuter Firebase-Deploy erforderlich.
 
 1. Vor dem Austausch unter Einstellungen > Cloud & Konto die aktuelle lokale Sicherung herunterladen.
-2. DoggyStyle_Workspace_GB390_Steuerberater_Export.zip entpacken und die App-Dateien aus dem Ordner doggy-style-workspace-main am gewählten Hosting-Ort übernehmen.
+2. DoggyStyle_Workspace_GB391_Startseite.zip entpacken und die App-Dateien aus dem Ordner doggy-style-workspace-main am gewählten Hosting-Ort übernehmen.
 3. Bei einer Neuinstallation die Firestore-Regeln und Funktionen gemäß CLOUD_SETUP.md bereitstellen.
 4. Workspace und Kundenportal neu laden. Im Workspace zeigt DIAG die Buildkennung dieser Version.
 5. In Rechnungen den vorhandenen Entwurf zum Beispielaufenthalt öffnen. Bei den Standardpreisen stehen dort 14 Tage zu 40,00 €, 4,00 € Sonntagszuschlag und 4,00 € Feiertagszuschlag, insgesamt 568,00 € ohne Zusatz-Spaziergänge.
@@ -33,3 +33,5 @@ Die Abnahme am verbundenen Firebase und auf iPad und iPhone steht aus.
 Unter Compliance > Archiv „Ampel aktualisieren“ und „Monat abschließen“ prüfen. Unter Auswertungen den gewünschten Berichtsmonat wählen und die Vorschau öffnen.
 
 Unter Auswertungen > Steuerberater-Exports einen Monat wählen, „Monatsumsätze und Rechnungen (PDF)“ öffnen und die fertige PDF speichern.
+
+Auf der Startseite Tagesablauf und Belegung prüfen. In der Wochenvorschau einen Tag antippen und den Kalendertag kontrollieren.

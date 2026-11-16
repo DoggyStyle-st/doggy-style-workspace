@@ -2,7 +2,7 @@ try{sessionStorage.removeItem('ds_handoff_pass');}catch(_){}
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.11GB390_TAX_EXPORT_20261116",
+  tag: "M50.9.12GB391_STARTSEITE_20261116",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -13,7 +13,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.11GB390_TAX_EXPORT_20261116";
+const APP_BUILD = "M50.9.12GB391_STARTSEITE_20261116";
 try{ window.__dsAppJsRuntimeBuild = "GB350-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -2742,7 +2742,7 @@ async function submitCustomerDogsProposal(){
   // GB355: vollständig lokal sichern, anschließend zuverlässig in proposals + tasks übertragen.
   // Die Oberfläche wird sofort freigegeben; die Erfolgsmeldung "an Eingänge übergeben"
   // erscheint ausschließlich nach bestätigter Firestore-Speicherung.
-  const GB355='M50.9.11GB390_TAX_EXPORT_20261116';
+  const GB355='M50.9.12GB391_STARTSEITE_20261116';
   function S(v){ try{return String(v==null?'':v);}catch(_){return '';} }
   function L(v){ return S(v).trim().toLowerCase(); }
   function V(id){ try{const el=document.getElementById(id);return S(el&&el.value!=null?el.value:'').trim();}catch(_){return '';} }
@@ -4009,6 +4009,10 @@ function showPanel(id){
   // IMPORTANT: Each panel must trigger its renderer when activated.
   // Otherwise, after Reload/Login the panel can remain empty because its DOM
   // was never hydrated from state/cloud.
+  if(id === "home"){
+    renderDashboard();
+    renderRecent();
+  }
   if(id === "dogs"){
     try{ renderDogs(); }catch(_){ }
   }
@@ -4175,144 +4179,53 @@ function renderStayQuickLinks(doc){
   }
 }
 // ==== Dashboard renderer (Start) ====
-function dashboardStatusText(ratio){
-  if(!isFinite(ratio)) return "Ruhiger Tag";
-  if(ratio < 0.6) return "Ruhiger Tag";
-  if(ratio < 0.9) return "Gut ausgelastet";
-  return "Fast voll";
-}
-function dashboardStatusColor(ratio){
-  if(!isFinite(ratio)) return "#4caf50";
-  if(ratio < 0.7) return "#4caf50";
-  if(ratio < 0.9) return "#ffc107";
-  return "#f44336";
+function openDashboardDay(day){
+  selectTab('calendar');
+  selectCalendarDay(day);
+  document.getElementById('calDayDetail')?.scrollIntoView({block:'nearest'});
 }
 function renderDashboard(){
-  // Dashboard elements exist only on Start screen (home)
-  const elDayVal = document.getElementById("todayDaycareValue");
-  const elBoardVal = document.getElementById("todayBoardingValue");
-  const elForecast = document.getElementById("forecastList");
-  if(!elDayVal || !elBoardVal || !elForecast) return;
-  const today = getNextDays(1)[0];
-  const todayDayUsed = countOccupancy("Tagesbetreuung", today, today);
-  const todayBoardUsed = countOccupancy("Urlaubsbetreuung", today, today);
-  const dayMax = getCapacity("Tagesbetreuung", today);
-  const boardMax = getCapacity("Urlaubsbetreuung", today);
-  const dayRatio = dayMax ? (todayDayUsed/dayMax) : 0;
-  const boardRatio = boardMax ? (todayBoardUsed/boardMax) : 0;
-  elDayVal.textContent = `${todayDayUsed} / ${dayMax}`;
-  elBoardVal.textContent = `${todayBoardUsed} / ${boardMax}`;
-  const elDayText = document.getElementById("todayDaycareText");
-  const elBoardText = document.getElementById("todayBoardingText");
-  const elDayBar = document.getElementById("todayDaycareBar");
-  const elBoardBar = document.getElementById("todayBoardingBar");
-  if(elDayText) elDayText.textContent = dashboardStatusText(dayRatio);
-  if(elBoardText) elBoardText.textContent = dashboardStatusText(boardRatio);
-  if(elDayBar){
-    elDayBar.style.width = `${Math.min(100, Math.max(0, dayRatio*100))}%`;
-    elDayBar.style.background = dashboardStatusColor(dayRatio);
+  const forecast = document.getElementById('forecastList');
+  if(!forecast)return;
+  const today = todayISO();
+  const stays = DSWorkflowCore.confirmedStays(state);
+  const active = DSWorkflowCore.staysOnDay(stays,today);
+  const current = DSWorkflowCore.occupancyFromStays(state,today,active);
+  const dayLabel = iso=>new Date(iso+'T12:00:00');
+  document.getElementById('homeTodayDate').textContent = dayLabel(today).toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long'});
+  const free = calendarFree(current);
+  document.getElementById('homeOccupancy').textContent = `${current.total} in Betreuung · ${free} frei` +
+    (current.total>current.totalCapacity ? ` · ${current.total-current.totalCapacity} über Kapazität` : '');
+  document.getElementById('todayDaycareValue').textContent = `${current.daycare} / ${current.daycareCapacity}`;
+  document.getElementById('todayBoardingValue').textContent = `${current.boarding} / ${current.boardingCapacity}`;
+  const agenda = [];
+  for(const stay of stays){
+    const name = getPet(stay.petId)?.name || (state.dogs||[]).find(dog=>dog.id===stay.petId)?.name || stay.title;
+    if(stay.from===today)agenda.push({name,type:'Anreise',time:stay.bringTime});
+    if(stay.to===today)agenda.push({name,type:'Abholung',time:stay.pickupTime});
   }
-  if(elBoardBar){
-    elBoardBar.style.width = `${Math.min(100, Math.max(0, boardRatio*100))}%`;
-    elBoardBar.style.background = dashboardStatusColor(boardRatio);
+  agenda.sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
+  document.getElementById('homeAgenda').innerHTML = agenda.length ? agenda.slice(0,4).map(item=>
+    `<li><time>${escapeHtml(item.time || '—')}</time><strong>${escapeHtml(item.name)}</strong><span>${item.type}</span></li>`
+  ).join('') + (agenda.length>4 ? `<li><button type="button" class="btn" onclick="openDashboardDay(todayISO())">+${agenda.length-4} im Kalender</button></li>` : '')
+  : '<li class="muted">Keine Anreisen oder Abholungen geplant.</li>';
+  forecast.replaceChildren();
+  for(const day of getNextDays(7)){
+    const use = DSWorkflowCore.occupancyFromStays(state,day,DSWorkflowCore.staysOnDay(stays,day));
+    const status = DSWorkflowCore.exceedsCapacity(use) ? 'Überbelegt' :
+      (use.total===use.totalCapacity ? 'Voll' : (use.totalCapacity-use.total===1 ? 'Fast voll' : ''));
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'home-day';
+    button.dataset.day = day;
+    if(status)button.classList.add(status==='Überbelegt'?'home-day-danger':'home-day-busy');
+    button.innerHTML = `<span>${dayLabel(day).toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit'})}</span>
+      <strong>${use.total} / ${use.totalCapacity}</strong>${status ? '<small>'+status+'</small>' : ''}`;
+    button.onclick = ()=>openDashboardDay(day);
+    forecast.append(button);
   }
-  // Forecast next 14 days
-  const days = getNextDays(14);
-  elForecast.innerHTML = "";
-  days.forEach(d=>{
-    const dayUsed = countOccupancy("Tagesbetreuung", d, d);
-    const boardUsed = countOccupancy("Urlaubsbetreuung", d, d);
-    // capacities can vary per day (e.g. special limits)
-    const dayMaxD = getCapacity("Tagesbetreuung", d);
-    const boardMaxD = getCapacity("Urlaubsbetreuung", d);
-    const dayR = dayMaxD ? (dayUsed/dayMaxD) : 0;
-    const boardR = boardMaxD ? (boardUsed/boardMaxD) : 0;
-    const row = document.createElement("div");
-    row.className = "forecast-row";
-    // compact date (dd.mm)
-    const dt = new Date(d);
-    const label = `${String(dt.getDate()).padStart(2,"0")}.${String(dt.getMonth()+1).padStart(2,"0")}`;
-    row.innerHTML = `
-      <div class="forecast-date">${label}</div>
-      <div class="forecast-stack">
-        <div class="forecast-item">
-          <img class="forecast-icon-img" src="assets/dash_daycare.jpg" alt="Tagesbetreuung" />
-          <div class="mini-bar"><div class="mini-bar-fill" style="width:${Math.min(100,dayR*100)}%;background:${dashboardStatusColor(dayR)}"></div></div>
-          <div class="forecast-count">${dayUsed}/${dayMaxD}</div>
-        </div>
-        <div class="forecast-item">
-          <img class="forecast-icon-img" src="assets/dash_vacation.jpg" alt="Urlaubsbetreuung" />
-          <div class="mini-bar"><div class="mini-bar-fill" style="width:${Math.min(100,boardR*100)}%;background:${dashboardStatusColor(boardR)}"></div></div>
-          <div class="forecast-count">${boardUsed}/${boardMaxD}</div>
-        </div>
-      </div>
-    `;
-    elForecast.appendChild(row);
-  });
-  // Warnings
-  const warnings = [];
-  // capacity warnings for next 14 days
-  days.forEach(d=>{
-    const dayUsed = countOccupancy("Tagesbetreuung", d, d);
-    const boardUsed = countOccupancy("Urlaubsbetreuung", d, d);
-    const dayMaxD = getCapacity("Tagesbetreuung", d);
-    const boardMaxD = getCapacity("Urlaubsbetreuung", d);
-    const totalUsed = dayUsed + boardUsed;
-    if(totalUsed >= MAX_DOGS){
-      warnings.push(`${formatDateDE(d)}: Gesamtbelegung Grenze erreicht/überschritten (${totalUsed}/${MAX_DOGS})`);
-    } else if(MAX_DOGS - totalUsed <= 1){
-      warnings.push(`${formatDateDE(d)}: Insgesamt fast voll (${totalUsed}/${MAX_DOGS})`);
-    }
-    if(dayMaxD - dayUsed <= 1){
-      warnings.push(`${formatDateDE(d)}: Tagesbetreuung fast voll (${dayUsed}/${dayMaxD})`);
-    }
-    if(boardMaxD - boardUsed <= 1){
-      warnings.push(`${formatDateDE(d)}: Urlaubsbetreuung fast voll (${boardUsed}/${boardMaxD})`);
-    }
-  });
-  // stays ending today
-  const endingToday = state.docs.filter(doc=>doc.saved && doc.meta?.bis===today).length;
-  if(endingToday>0) warnings.unshift(`${endingToday} Aufenthalt(e) enden heute`);
-  // Medikamente: fällige Gaben heute
-  try{
-    const isoM = todayISO();
-    const inCareM = getPetIdsInCare(isoM);
-    // GB311: Medikamenten-To-do auf dem Dashboard nur anzeigen, wenn heute tatsächlich Hunde in Betreuung sind.
-    // Ohne Aufenthalt dürfen Dauermedikationen nicht als heutiges Pensions-To-do erscheinen.
-    const dueM = inCareM.length ? medDueOccurrences(isoM, inCareM) : [];
-    const openM = dueM.filter(x=>!x.done).length;
-    if(openM > 0) warnings.unshift(`💊 ${openM} Medikamenten‑Gabe(n) heute fällig (in Betreuung)`);
-  }catch(e){ /* ignore */ }
-  // Gesundheitsnotizen heute (Info)
-  try{
-    const iso = todayISO();
-    const notes = (state.medication?.healthNotes||[]).filter(n=>n && n.date===iso);
-    if(notes.length>0) warnings.push(`🩺 ${notes.length} Gesundheitsnotiz(en) heute erfasst`);
-  }catch(e){ /* ignore */ }
-  const warnBox = document.getElementById("dashboardWarnings");
-  if(warnBox){
-    if(warnings.length){
-      warnBox.style.display = "block";
-      // Bei Medikamenten-Hinweis einen Direktlink anbieten
-      const rows = warnings.slice(0,6).map(w=>{
-        const isMed = String(w||"").includes("💊");
-        const isHyg = String(w||"").includes("🧼") || String(w||"").toLowerCase().includes("hygiene");
-        const btn = isMed ? `<button class="smallbtn" style="margin-left:8px" onclick="openMedication()">Öffnen</button>`
-                  : isHyg ? `<button class="smallbtn" style="margin-left:8px" onclick="openHygiene()">Öffnen</button>`
-                  : "";
-        return `<div>⚠️ ${escapeHtml(w)} ${btn}</div>`;
-      }).join("");
-      warnBox.innerHTML = `<h3>Hinweise</h3><div class="warning-list">${rows}</div>`;
-    }else{
-      warnBox.style.display = "none";
-      warnBox.innerHTML = "";
-    }
-  }
-  // Hygiene Dashboard Card
-  renderHygieneDashboard();
-  // Medikamente Dashboard Card
   renderMedicationDashboard();
-  // §11 Ampel
+  renderHygieneDashboard(current.total>0);
   renderComplianceDashboard();
 }
 /* ===== Hygiene & Reinigung ===== */
@@ -4432,24 +4345,24 @@ function hygieneStatusPill(el, status){
     }catch(e){}
   }
 }
-function renderHygieneDashboard(){
+function renderHygieneDashboard(dogsToday = DSWorkflowCore.occupancyForDay(state,todayISO()).total>0){
   const card = document.getElementById("hygieneDashboardCard");
   if(!card) return;
   ensureStateShape();
   const iso = todayISO();
   const logs = hygieneGetLogsForDate(iso);
-  const status = hygieneOverallStatus();
   const meta = document.getElementById("hygieneTodayMeta");
   const pill = document.getElementById("hygieneTodayStatus");
-  const hint = document.getElementById("hygieneTodayHint");
-  if(meta) meta.textContent = `${new Date().toLocaleDateString('de-DE')} · ${logs.length} Eintrag(e)`;
-  hygieneStatusPill(pill, status);
-  if(hint){
-    const overdue = (state.hygiene.weeklyTasks||[]).filter(t=>hygieneTaskStatus(t).code==="overdue").length;
-    if(!logs.length) hint.innerHTML = `Heute noch nichts dokumentiert. <strong>Bitte kurz eintragen</strong> (z.B. Innenräume → Reinigung).`;
-    else if(overdue) hint.innerHTML = `Es gibt <strong>${overdue}</strong> überfällige Wochenaufgabe(n). Bitte nachtragen.`;
-    else hint.textContent = "Alles im grünen Bereich. Bei Bedarf weitere Einträge hinzufügen.";
-  }
+  const recurring = (state.hygiene.weeklyTasks||[]).filter(task=>['due','overdue'].includes(hygieneTaskStatus(task).code)).length;
+  const standard = (state.hygiene.quick?.standardTasks||[]).filter(task=>{
+    const log = logs.find(row=>row.area===task.area && row.action===task.action);
+    const code = String(log?.status || (dogsToday ? task.status || 'fällig' : '')).toLowerCase();
+    return ['fällig','überfällig','nicht durchgeführt'].includes(code);
+  }).length;
+  if(meta)meta.textContent=standard+recurring ? `${standard+recurring} Aufgaben offen` : 'Keine Aufgaben offen';
+  const overdue = (state.hygiene.weeklyTasks||[]).some(task=>hygieneTaskStatus(task).code==='overdue');
+  hygieneStatusPill(pill, overdue ? {code:'red',label:'Überfällig'} :
+    (standard+recurring ? {code:'yellow',label:'Offen'} : {code:'green',label:'OK'}));
 }
 // 🧼 Auto-Trigger: erzeugt Hygiene-Einträge aus Aufenthalte/Aufenthalt, wenn Parasiten/Quarantäne gesetzt ist
 function hygieneAutoFromStayDoc(doc){
@@ -5884,7 +5797,6 @@ function renderMedicationDashboard(){
   const open = due.filter(x=>!x.done).length;
   const meta = document.getElementById("medTodayMeta");
   const pill = document.getElementById("medTodayStatus");
-  const hint = document.getElementById("medTodayHint");
   const status = medOverallStatus({dateISO: iso, onlyPetIds: inCare});
   medStatusPill(pill, status);
   if(meta){
@@ -5892,13 +5804,7 @@ function renderMedicationDashboard(){
       ? "Keine Hunde aktuell in Betreuung."
       : (open===0 ? "Keine Gaben offen." : `${open} Gabe(n) offen (nur Hunde in Betreuung).`);
   }
-  if(hint){
-    hint.textContent = (!inCare.length)
-      ? "Dauermedikationen werden erst als fällig angezeigt, wenn der Hund heute in Betreuung ist."
-      : (open===0
-          ? "Alles erledigt – super. Gesundheitsnotizen kannst du jederzeit ergänzen."
-          : "Bitte fällige Gaben abhaken (gegeben / nicht gegeben) – mit Begründung bei Abweichung.");
-  }
+
 }
 function renderMedicationPanel(){
   ensureStateShape();
@@ -6938,29 +6844,13 @@ function computeCompliance(){
   return {today, items, worst};
 }
 function renderComplianceDashboard(){
-  const card = document.getElementById('complianceDashboardCard');
-  if(!card) return;
-  const meta = document.getElementById('complianceMeta');
   const pill = document.getElementById('complianceStatus');
-  const list = document.getElementById('complianceList');
-  const c = computeCompliance();
-  if(meta) meta.textContent = `Stand: ${formatDateDE(c.today)} · Tipp: Monat abschließen = Nachweis + Backup`;
-  if(pill){
-    pill.textContent = c.worst==='green' ? 'OK' : (c.worst==='yellow'?'Achtung':'Handlungsbedarf');
-    pill.classList.toggle('warn', c.worst==='yellow');
-    pill.classList.toggle('danger', c.worst==='red');
-  }
-  if(list){
-    list.innerHTML = c.items.map(i=>`
-      <div class="list-row">
-        <div>
-          <strong>${i.icon} ${escapeHtml(i.label)}</strong>
-          <div class="muted" style="margin-top:4px">${escapeHtml(i.detail||'')}</div>
-        </div>
-        <span class="pill ${i.pillClass}">${i.status==='green'?'OK':(i.status==='yellow'?'fällig':'überfällig')}</span>
-      </div>
-    `).join('');
-  }
+  if(!pill)return;
+  const {worst} = computeCompliance();
+  pill.textContent = worst==='green' ? 'OK' : (worst==='yellow'?'Achtung':'Handlungsbedarf');
+  pill.classList.toggle('warn', worst==='yellow');
+  pill.classList.toggle('danger', worst==='red');
+  pill.dataset.status=worst;
 }
 function renderComplianceInSettings(){
   const el = document.getElementById('complianceSettingsList');
@@ -16368,12 +16258,6 @@ const _btnExportAll = $("#btnExportAll");
 if(_btnExportAll) _btnExportAll.addEventListener("click", doBackupExport);
 const _btnBackupExport = document.getElementById('btnBackupExport');
 if(_btnBackupExport) _btnBackupExport.addEventListener('click', doBackupExport);
-const _btnMonthExport = document.getElementById('btnMonthExport');
-if(_btnMonthExport) _btnMonthExport.addEventListener('click', exportMonthBundle);
-const _btnMonthClose = document.getElementById('btnDashboardMonthClose');
-if(_btnMonthClose) _btnMonthClose.onclick = monthClose;
-const _btnSteuerExport = document.getElementById('btnSteuerExport');
-if(_btnSteuerExport) _btnSteuerExport.onclick = taxExportMonth;
 const _btnExportMonthNow = document.getElementById('btnExportMonthNow');
 if(_btnExportMonthNow) _btnExportMonthNow.addEventListener('click', exportMonthBundle);
 const _btnExportSteuerNow = document.getElementById('btnExportSteuerNow');
@@ -22068,7 +21952,7 @@ function renderStatMethod(){
 
 
 
-/* ===== CHAT (M50.9.11GB390_TAX_EXPORT_20261116) ===== */
+/* ===== CHAT (M50.9.12GB391_STARTSEITE_20261116) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,

@@ -1242,3 +1242,46 @@ body.page-login .btnLink--text:hover{
 #dsSyncConflictDialog button{min-height:44px;margin:6px;white-space:normal;color:#fff;background:#303a4e}
 #dsSyncConflictDialog fieldset{min-width:0;overflow-wrap:anywhere}#dsSyncConflictDialog fieldset label{padding:10px 0}
 #dsSyncConflictDialog .ds-sync-differences{margin:12px 0;padding:10px;border:1px solid #7c7f87;border-radius:8px}#dsSyncConflictDialog .ds-sync-differences summary{cursor:pointer;min-height:44px}#dsSyncConflictDialog .ds-sync-differences table{width:100%;table-layout:fixed;border-collapse:collapse}#dsSyncConflictDialog .ds-sync-differences th,#dsSyncConflictDialog .ds-sync-differences td{padding:8px;border-bottom:1px solid #646871;vertical-align:top;white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px;text-align:left}
+
+/* Startseite */
+#home .home-overview{gap:12px;padding-bottom:16px}
+.home-brand{display:flex;justify-content:center;align-items:center;gap:20px;padding:4px 8px}
+.home-brand img{width:clamp(72px,10vw,116px);height:auto;flex:none}
+.home-brand p{margin:0;text-align:center;font-size:clamp(16px,2.2vw,24px);line-height:1.25}
+.home-grid,.home-care{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+#home .home-card{margin:0;padding:14px;min-width:0}
+.home-heading,.home-compliance{display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap}
+.home-heading{justify-content:space-between}
+.home-card h2{margin:0;font-size:1.2rem}
+#homeOccupancy{margin:4px 0 10px;font-weight:650}
+.home-agenda{list-style:none;padding:0;margin:0 0 10px;display:grid;gap:4px}
+.home-agenda li{display:flex;align-items:baseline;gap:8px;min-width:0;overflow-wrap:anywhere}
+.home-agenda li span{margin-left:auto}
+.home-agenda time{min-width:42px;font-variant-numeric:tabular-nums}
+.home-actions{display:flex;gap:6px;flex-wrap:wrap}
+.home-actions .btn,.home-compliance .btn{min-height:44px}
+.home-tasks{display:grid;gap:4px;margin-top:6px}
+.home-task,.home-care-card,.home-day{border:1px solid rgba(255,255,255,.16);border-radius:12px;color:inherit;background:rgba(255,255,255,.06);cursor:pointer;font:inherit}
+.home-task{display:flex;align-items:center;justify-content:space-between;text-align:left;gap:6px;min-height:44px;padding:5px 10px}
+.home-task small{display:block;font-size:.78rem;opacity:.85}
+.home-care-card{display:flex;align-items:center;text-align:left;gap:12px;padding:0 12px 0 0;min-width:0;overflow:hidden}
+.home-care-card img{height:78px;width:clamp(70px,15vw,168px);object-fit:contain;background:rgba(255,255,255,.06)}
+.home-care-card strong{display:block;font-size:1.28rem;font-variant-numeric:tabular-nums}
+.home-week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;margin-top:8px}
+.home-day{display:grid;align-content:center;justify-items:center;gap:2px;padding:5px;min-height:52px;text-align:center}
+.home-day span,.home-day small{font-size:.76rem}
+.home-day-busy{background:rgba(255,172,55,.17);border-color:#c58b39}
+.home-day-danger{background:rgba(231,84,81,.22);border-color:#ec817f}
+.home-task:hover,.home-care-card:hover,.home-day:hover{border-color:currentColor}
+.home-compliance .btn{margin-left:auto}
+.home-card summary{cursor:pointer;font-weight:600;min-height:24px}
+@media(max-width:680px){
+  .home-grid,.home-care{grid-template-columns:1fr}
+  .home-week{grid-template-columns:repeat(4,minmax(0,1fr))}
+}
+@media(max-width:390px){
+  .home-brand{flex-wrap:wrap;gap:8px}
+}
+#home #complianceStatus[data-status="green"]::before{background:#61c997}
+#home #complianceStatus[data-status="yellow"]::before{background:#f4c06d}
+#home #complianceStatus[data-status="red"]::before{background:#ef8282}
