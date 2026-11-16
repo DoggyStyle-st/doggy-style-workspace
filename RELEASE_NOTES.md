@@ -1,3 +1,9 @@
+# GB386 – Terminantworten und Mitteilungen
+
+- Zusagen und Ablehnungen erscheinen als Nachricht mit Ungelesen-Zähler im zugehörigen Team-Chat.
+- Die Geräteanzeige prüft die aktuelle Firebase-Registrierung. Am Termin steht das Ergebnis des jeweiligen Erinnerungsversuchs.
+- Der Dialog für E-Mail-Einladungen beschriftet die gespeicherten Empfänger und erklärt die separate Einrichtung des Absenders. Der SMTP-Zugang wird beim Veröffentlichen der Mailfunktion geprüft.
+
 # GB385 – Termine und Rechnungen im Kundenchat
 
 - Status **Offen** und Weitergabe im Chat sind getrennte Schritte. Mit **Rechnung an Kunden weitergeben** erhält das zugeordnete Kundenkonto einmalig die freigegebene Fassung als PDF. Beim Öffnen zeigt der Workspace den aktuellen Zahlungsstatus.

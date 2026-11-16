@@ -16,6 +16,10 @@
   let customerTargets = new Map();
   let saving = false;
   let pushBusy = false;
+  let checkingDevice = false;
+  let verifiedDevice = false;
+  let deviceNotice = '';
+  let deviceCheckId = 0;
   let deviceRegistration = null;
   let subscription = null;
   let wired = false;
@@ -97,7 +101,7 @@
 
   function reminderSummary(event) {
     const labels = {
-      'no-devices': 'Keine Geräte für Mitteilungen aktiviert',
+      'no-devices': 'Beim Erinnerungsversuch war kein erreichbares Gerät registriert',
       expired: 'Erinnerungszeit verstrichen',
       partial: 'Ein Gerät konnte nicht erreicht werden',
       failed: 'Erinnerung konnte nicht zugestellt werden',
@@ -275,8 +279,10 @@
     const form = byId('calSettingsForm');
     form.elements.raphael.value = configuration.addresses.raphael;
     form.elements.anschi.value = configuration.addresses.anschi;
-    byId('calSettingsFeedback').textContent = configuration.mailReady
-      ? '' : 'Der E-Mail-Absender muss noch in Firebase eingerichtet werden.';
+    byId('calSettingsMailStatus').textContent = configuration.mailReady
+      ? 'Die Absenderadresse ist in Firebase hinterlegt. Zum Versand muss dort auch der SMTP-Zugang eingerichtet sein.'
+      : 'Für den Versand in Firebase noch die Absenderadresse und den SMTP-Zugang des Absenders hinterlegen.';
+    byId('calSettingsFeedback').textContent = '';
     byId('calSettingsDialog').showModal();
   }
 
@@ -291,8 +297,7 @@
       if (uid !== account) return;
       configuration = updated;
       byId('calSettingsDialog').close();
-      byId('calendarCloudStatus').textContent = configuration.inviteReady
-        ? 'Einladungen für neue Termine sind aktiviert.' : 'Einladungsadressen gespeichert.';
+      byId('calendarCloudStatus').textContent = 'Empfängeradressen gespeichert.';
     } catch (error) {
       byId('calSettingsFeedback').textContent = messageFor(error);
     } finally {
@@ -323,30 +328,68 @@
     return '';
   }
 
+  function ownSubscription() {
+    return !!(account && subscription && deviceOwner() === account);
+  }
+
   function renderPush(text) {
     const button = byId('btnCalPush');
     const status = byId('calendarPushStatus');
-    const active = subscription && deviceOwner() === account;
+    const owned = ownSubscription();
     const blocked = configuration?.pushKey ? pushUnsupported() : 'Mitteilungen sind für den Kalender noch nicht eingerichtet.';
-    button.textContent = active ? 'Mitteilungen ausschalten' : 'Mitteilungen einschalten';
-    button.disabled = pushBusy || (!active && !!blocked);
-    status.textContent = text || (active ? 'Mitteilungen sind auf diesem Gerät aktiv.' : blocked);
+    button.textContent = owned ? 'Mitteilungen ausschalten' : 'Mitteilungen einschalten';
+    button.disabled = checkingDevice || pushBusy || (!owned && !!blocked);
+    if (checkingDevice) status.textContent = 'Geräteregistrierung wird geprüft …';
+    else if (text || blocked) status.textContent = text || blocked;
+    else status.textContent = owned && verifiedDevice
+      ? 'Mitteilungen sind auf diesem Gerät aktiv. Firebase hat es als Empfangsgerät registriert.' : deviceNotice;
   }
 
   async function loadDevice(uid) {
-    if (!('serviceWorker' in navigator)) return;
-    const registration = await navigator.serviceWorker.ready;
-    if (uid !== account) return;
-    const existing = await registration.pushManager?.getSubscription();
-    if (uid !== account) return;
-    deviceRegistration = registration;
-    subscription = existing || null;
-    if (deviceOwner() && deviceOwner() !== uid) {
-      await subscription?.unsubscribe();
-      subscription = null;
-      deviceOwner(null);
-    }
+    if (!uid || !configuration?.pushKey || checkingDevice || pushBusy || !('serviceWorker' in navigator)) return;
+    const checkId = ++deviceCheckId;
+    const isCurrent = () => checkId === deviceCheckId && uid === account && uid === staffUser()?.uid;
+    checkingDevice = true;
+    verifiedDevice = false;
     renderPush();
+    try {
+      const registration = await withTimeout(navigator.serviceWorker.ready, 5000);
+      if (!isCurrent()) return;
+      const existing = await registration.pushManager?.getSubscription();
+      if (!isCurrent()) return;
+      deviceRegistration = registration;
+      subscription = existing || null;
+      const owner = deviceOwner();
+      if (owner && owner !== uid) {
+        await subscription?.unsubscribe();
+        if (!isCurrent()) return;
+        subscription = null;
+        deviceOwner(null);
+      } else if (ownSubscription() && !pushUnsupported()) {
+        const result = await call('push-status', { endpoint: existing.endpoint });
+        if (!isCurrent()) return;
+        if (result.enabled === false) {
+          await existing.unsubscribe();
+          if (!isCurrent()) return;
+          subscription = null;
+          deviceOwner(null);
+          deviceNotice = 'Dieses Gerät braucht eine neue Registrierung. Tippe auf „Mitteilungen einschalten“.';
+        } else {
+          verifiedDevice = result.enabled === true;
+          deviceNotice = verifiedDevice ? '' : 'Firebase konnte die Geräteregistrierung gerade nicht bestätigen.';
+        }
+      } else if (owner === uid && !subscription) {
+        deviceOwner(null);
+        deviceNotice = 'Dieses Gerät braucht eine neue Registrierung. Tippe auf „Mitteilungen einschalten“.';
+      }
+    } catch (_) {
+      if (isCurrent()) deviceNotice = 'Firebase konnte die Geräteregistrierung gerade nicht bestätigen.';
+    } finally {
+      if (isCurrent()) {
+        checkingDevice = false;
+        renderPush();
+      }
+    }
   }
 
   async function stopDevice() {
@@ -360,11 +403,16 @@
     } else {
       deviceOwner(null);
     }
+    verifiedDevice = false;
+    deviceNotice = '';
   }
 
   async function togglePush() {
-    const active = subscription && deviceOwner() === account;
-    if (pushBusy || (!active && !configuration?.pushKey)) return;
+    const active = ownSubscription();
+    if (checkingDevice || pushBusy || (!active && !configuration?.pushKey)) return;
+    const uid = account;
+    const checkId = deviceCheckId;
+    const isCurrent = () => checkId === deviceCheckId && uid === account && uid === staffUser()?.uid;
     pushBusy = true;
     renderPush();
     try {
@@ -373,21 +421,32 @@
       } else {
         const key = Uint8Array.from(atob(configuration.pushKey.replaceAll('-', '+').replaceAll('_', '/')), ch => ch.charCodeAt(0));
         // Start the subscription inside the button event. iOS requires a user gesture.
-        subscription = subscription || await deviceRegistration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
+        const existing = subscription || await deviceRegistration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
+        if (!isCurrent()) return;
+        subscription = existing;
         try {
-          await call('push-enable', { subscription: subscription.toJSON() });
-          deviceOwner(account);
+          await call('push-enable', { subscription: existing.toJSON() });
+          if (!isCurrent()) return;
+          deviceOwner(uid);
+          verifiedDevice = true;
+          deviceNotice = '';
         } catch (error) {
-          await subscription.unsubscribe();
-          subscription = null;
+          if (isCurrent()) {
+            await existing.unsubscribe();
+            if (isCurrent()) subscription = null;
+          }
           throw error;
         }
       }
-      pushBusy = false;
-      renderPush();
+      if (isCurrent()) {
+        pushBusy = false;
+        renderPush();
+      }
     } catch (error) {
-      pushBusy = false;
-      renderPush(pushUnsupported() || messageFor(error));
+      if (isCurrent()) {
+        pushBusy = false;
+        renderPush(pushUnsupported() || messageFor(error));
+      }
     }
   }
 
@@ -397,6 +456,9 @@
     byId('btnCalNewEvent').onclick = () => showEvent();
     byId('btnCalSettings').onclick = showSettings;
     byId('btnCalPush').onclick = togglePush;
+    document.addEventListener('visibilitychange', () => {
+      if (open && !document.hidden) loadDevice(account);
+    });
     byId('calEventAllDay').onchange = updateOptions;
     byId('calEventInvite').onchange = updateOptions;
     byId('calEventReminder').onchange = updateOptions;
@@ -425,6 +487,11 @@
     configuration = null;
     subscription = null;
     deviceRegistration = null;
+    deviceCheckId++;
+    pushBusy = false;
+    checkingDevice = false;
+    verifiedDevice = false;
+    deviceNotice = '';
     byId('btnCalNewEvent').disabled = true;
     byId('btnCalSettings').hidden = true;
     byId('calendarCloudStatus').textContent = '';
@@ -452,7 +519,10 @@
       byId('btnCalNewEvent').disabled = false;
       byId('btnCalSettings').hidden = !result.admin;
       renderPush();
-      if (open) controller.refresh();
+      if (open) {
+        loadDevice(uid);
+        controller.refresh();
+      }
     }).catch(() => {
       if (account !== uid) return;
       configuration = null;
@@ -461,7 +531,6 @@
       byId('calendarCloudStatus').textContent = 'Eigene Termine benötigen die Kalenderanbindung in Firebase.';
       renderPush();
     });
-    loadDevice(uid).catch(() => {});
   }
 
   async function removeDeviceOnLogout() {

@@ -1,8 +1,41 @@
-# Firebase-Einrichtung GB385
+# Firebase-Einrichtung GB386
 
 Das bestehende Projekt doggy-style-hundepension, die Organisation doggystyle und der Bucket doggy-style-hundepension.firebasestorage.app werden weiterverwendet.
 
-## Update eines eingerichteten Kalenders auf GB385
+## Update von GB385 auf GB386
+
+Lade `DoggyStyle_Workspace_GB386_Kalenderchat.zip` in die Cloud Shell hoch. Kopiere den Block über die Kopier-Schaltfläche und füge ihn beim `$` in Cloud Shell ein. Der Block entpackt das Update, übernimmt die bisherigen Kalender-Einstellungen und veröffentlicht die geänderte Kalenderfunktion mit Node.js 24. Er kann auch mit einem bereits entpackten GB386 verwendet werden.
+
+```bash
+(
+  set -e
+  gb386_zip=$(find "$HOME" -maxdepth 1 -type f -name 'DoggyStyle_Workspace_GB386_Kalenderchat*.zip' -print -quit)
+  if [ -z "$gb386_zip" ]; then
+    printf '%s\n' 'Bitte zuerst die GB386-ZIP in Cloud Shell hochladen.'
+    exit 1
+  fi
+  unzip -nq "$gb386_zip" -d "$HOME/doggystyle-gb386"
+  cd "$HOME/doggystyle-gb386/doggy-style-workspace-main"
+  grep -F 'GB386_CALENDAR_CHAT' version.txt
+  gb386_env='.env.doggy-style-hundepension'
+  if [ ! -f "functions/$gb386_env" ]; then
+    cp "$HOME/doggystyle-gb385/doggy-style-workspace-main/functions/$gb386_env" functions/
+  fi
+  test -s "functions/$gb386_env"
+  export NVM_DIR="$HOME/doggystyle-gb386/node-runtime"
+  mkdir -p "$NVM_DIR"
+  nvm install 24
+  node --version
+  npm --prefix functions pkg set engines.node=24
+  npm install --prefix functions --package-lock-only --ignore-scripts --no-audit --no-fund
+  npm ci --prefix functions --no-audit --no-fund
+  npx --yes firebase-tools@15.36.0 deploy --project doggy-style-hundepension --only functions:calendar:calendarControl
+) >&2
+```
+
+Nach `Deploy complete!` die GB386-App-Dateien aktualisieren und den Workspace neu laden. Bei einer neuen Terminantwort erscheinen die Nachricht und das Ungelesen-Zeichen im Team-Chat. Im Kalender zeigt der Text unter den Schaltflächen die aktuelle Geräteverbindung.
+
+## Update eines eingerichteten Kalenders von einer Fassung vor GB385
 
 1. Die ZIP entpacken und im Terminal den Ordner `doggy-style-workspace-main` öffnen. Übernimm die vorhandene `functions/.env.doggy-style-hundepension` aus der bisherigen Kalenderinstallation, damit die Konfiguration für Push und die Kalender-E-Mails weiter verwendet wird.
 2. Die Abhängigkeiten installieren und die neuen Firestore-Regeln sowie die beiden Funktionen für Kalender und Rechnungen bereitstellen.
@@ -37,7 +70,7 @@ Der Kalender nutzt Firebase Functions der zweiten Generation in `europe-west1`. 
 
 Das Laufzeit-Dienstkonto braucht Schreib- und Lesezugriff auf Firestore (`roles/datastore.user`). Für den Abgleich aktivierter Geräte braucht es lesenden Zugriff auf Firebase Authentication (`roles/firebaseauth.viewer`). Firebase bindet die Secrets an die jeweilige Funktion.
 
-1. Firebase CLI und Node.js 22 auf dem Rechner für die Veröffentlichung bereitstellen. Im entpackten Workspace die Abhängigkeiten mit `npm ci --prefix functions` installieren.
+1. Für die Veröffentlichung Node.js 24 ab 24.12.0 und Firebase CLI ab 14.26.0 verwenden. Im entpackten Workspace die Abhängigkeiten mit `npm ci --prefix functions` installieren.
 2. Ein VAPID-Schlüsselpaar mit `npm exec --prefix functions -- web-push generate-vapid-keys` erzeugen. Den öffentlichen Schlüssel und eine erreichbare technische Kontaktadresse in `functions/.env.doggy-style-hundepension` eintragen. `CALENDAR_MAIL_FROM` kann beim ersten Schritt leer bleiben.
 
 ```dotenv
@@ -59,6 +92,8 @@ firebase deploy --project doggy-style-hundepension --only firestore:rules,functi
 Alle Termine und Erinnerungszeiten verwenden die Zeitzone Europa/Berlin. Bei ganztägigen Terminen ist 9 Uhr der Bezugspunkt. Der öffentliche Schlüssel muss bei Versionswechseln gleich bleiben, damit vorhandene Geräte ihre Verbindung behalten.
 
 ## Automatische Kalendereinladungen
+
+Die beiden Adressen im Workspace sind Empfänger. Für den Versand braucht Firebase die Absenderadresse und den SMTP-Zugang eines Mailkontos, das diese Adresse als Absender verwenden darf.
 
 1. Einen freigegebenen Absender des Mailanbieters in `CALENDAR_MAIL_FROM` eintragen. Den SMTP-Zugang als Secret hinterlegen. Das Format ist `smtps://BENUTZER:PASSWORT@SMTP-HOST:465` oder `smtp://BENUTZER:PASSWORT@SMTP-HOST:587` mit STARTTLS. Sonderzeichen im Benutzernamen und Kennwort für eine URL kodieren.
 

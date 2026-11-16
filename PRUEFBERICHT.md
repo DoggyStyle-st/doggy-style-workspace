@@ -1,3 +1,14 @@
+# Doggy Style Workspace – GB386
+
+Stand 16. November 2026 · Build M50.9.9GB386_CALENDAR_CHAT_20261116
+
+- Zu- und Absagen erzeugten im Firebase-Emulator je eine ungelesene Chat-Nachricht. Parallele Antworten und ältere Vorschläge wurden geprüft. Das fremde Testkonto erhielt keinen Zugriff.
+- Der Browser-Test stellte eine entfernte Firebase-Geräteregistrierung fest und registrierte die Push-Verbindung erneut. Ein älterer Erinnerungsversuch war weiterhin als solcher erkennbar. Die Zustellung an ein echtes iPad wurde in diesem Test durch eine simulierte Geräteverbindung ersetzt.
+- Empfängeradressen wurden gespeichert und zusammen mit dem Hinweis zur Absender-Einrichtung wieder geladen. Die vorhandenen lokalen Prüfungen für Kalender-E-Mails, Rechnungsfreigabe und PDF-Download liefen erfolgreich.
+- Die Kalenderfunktionen verwenden Node.js 24. Die Installation der festgeschriebenen Abhängigkeiten lief unter Node.js 24.22.1 mit strenger Prüfung aller Node-Anforderungen. Die Firebase CLI ermittelte `nodejs24`; die Kalenderfunktion ließ sich im Emulator laden und verarbeitete Zu- und Absagen.
+
+## Prüfung des vorigen Stands GB385
+
 # Doggy Style Workspace – GB385
 
 Stand 16. November 2026 · Build M50.9.9GB385_CUSTOMER_CHAT_20261116

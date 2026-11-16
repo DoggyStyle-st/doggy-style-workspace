@@ -15,16 +15,16 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
 <meta charset="utf-8"/>
-  <meta name="app-build" content="M50.9.9GB385_CUSTOMER_CHAT_20261116">
+  <meta name="app-build" content="M50.9.9GB386_CALENDAR_CHAT_20261116">
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <title>Doggy Style Workspace · App</title>
 <link href="manifest.json" rel="manifest"/>
 <meta content="#101014" name="theme-color"/>
 <link href="assets/logo.png" rel="apple-touch-icon"/>
-<link href="styles.css?v=M50.9.9GB385_CUSTOMER_CHAT_20261116" rel="stylesheet"/>
+<link href="styles.css?v=M50.9.9GB386_CALENDAR_CHAT_20261116" rel="stylesheet"/>
 <link href="dashboard_master.css?v=20260104v13logout" rel="stylesheet"/>
-<link href="analytics.css?v=M50.9.9GB385_CUSTOMER_CHAT_20261116" rel="stylesheet"/>
-<link href="calendar-events.css?v=M50.9.9GB385_CUSTOMER_CHAT_20261116" rel="stylesheet"/>
+<link href="analytics.css?v=M50.9.9GB386_CALENDAR_CHAT_20261116" rel="stylesheet"/>
+<link href="calendar-events.css?v=M50.9.9GB386_CALENDAR_CHAT_20261116" rel="stylesheet"/>
 <style>
   /* Topbar Layout (iPad & Desktop stabil) */
   .topbar{position:sticky; top:0; z-index:50;}
@@ -46,14 +46,14 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
 </style>
 
 
-  <meta name="app-version" content="M50.9.9GB385_CUSTOMER_CHAT_20261116">
+  <meta name="app-version" content="M50.9.9GB386_CALENDAR_CHAT_20261116">
   <meta name="release-channel" content="MASTER">
 <style>
 /* GB358: interne Diagnose bleibt programmatisch vorhanden, wird aber nicht angezeigt. */
 #assignDiag,#inboxDiag,#inboxDiagError,#inboxProposalDebug,#buildBadge,[id^="gb348Diag"]{display:none!important}
 </style>
-<link rel="stylesheet" href="document-output.css?v=M50.9.9GB385_CUSTOMER_CHAT_20261116">
-<link rel="stylesheet" href="billing.css?v=M50.9.9GB385_CUSTOMER_CHAT_20261116"></head>
+<link rel="stylesheet" href="document-output.css?v=M50.9.9GB386_CALENDAR_CHAT_20261116">
+<link rel="stylesheet" href="billing.css?v=M50.9.9GB386_CALENDAR_CHAT_20261116"></head>
 <body class="bg-watermark page-app">
 <header class="topbar">
   <div class="topbar__inner">
@@ -337,15 +337,16 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
   <dialog class="calendar-dialog" id="calSettingsDialog" aria-labelledby="calSettingsHeading">
     <form id="calSettingsForm">
       <h2 id="calSettingsHeading">Kalendereinladungen</h2>
-      <p class="muted">Sobald beide Adressen eingetragen sind und der E-Mail-Versand eingerichtet ist, erhalten Raphael und Anschi bei neuen Terminen standardmäßig eine Einladung.</p>
-      <label for="calRaphaelEmail">E-Mail für Raphael</label>
+      <p class="muted">Hier speicherst du die Empfänger für eure Kalendereinladungen per E-Mail.</p>
+      <label for="calRaphaelEmail">Empfängeradresse für Raphael</label>
       <input id="calRaphaelEmail" name="raphael" type="email" autocomplete="off" maxlength="254">
-      <label for="calAnschiEmail">E-Mail für Anschi</label>
+      <label for="calAnschiEmail">Empfängeradresse für Anschi</label>
       <input id="calAnschiEmail" name="anschi" type="email" autocomplete="off" maxlength="254">
+      <p id="calSettingsMailStatus" class="muted"></p>
       <p id="calSettingsFeedback" class="calendar-feedback" role="status"></p>
       <div class="calendar-dialog-actions">
         <button class="btn" type="button" data-calendar-close>Schließen</button>
-        <button class="btn primary" type="submit">Adressen speichern</button>
+        <button class="btn primary" type="submit">Empfänger speichern</button>
       </div>
     </form>
   </dialog>
@@ -1278,7 +1279,7 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
 </section>
 
 <section class="panel" id="statistics">
-<!-- Statistics panel is rendered by app.js?v=M50.9.9GB385_CUSTOMER_CHAT_20261116 (renderStatisticsPanel) -->
+<!-- Statistics panel is rendered by app.js?v=M50.9.9GB386_CALENDAR_CHAT_20261116 (renderStatisticsPanel) -->
 </section>
 
 
@@ -1345,7 +1346,7 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
 </footer>
 </div>
 <!-- Firebase (optional) + Config -->
-<script defer="defer" src="firebase-config.js?v=M50.9.9GB385_CUSTOMER_CHAT_20261116"></script>
+<script defer="defer" src="firebase-config.js?v=M50.9.9GB386_CALENDAR_CHAT_20261116"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
@@ -1355,24 +1356,24 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
 
 <!-- Competing legacy workflow/contract overrides removed. -->
 
-<script defer src="browser-store.js?v=M50.9.9GB385_CUSTOMER_CHAT_20261116"></script>
-<script defer src="workflow-core.js?v=M50.9.9GB385_CUSTOMER_CHAT_20261116"></script>
-<script defer src="workflow-ui.js?v=M50.9.9GB385_CUSTOMER_CHAT_20261116"></script>
-<script defer src="workspace-repair-ui.js?v=M50.9.9GB385_CUSTOMER_CHAT_20261116"></script>
-<script defer src="communication-core.js?v=M50.9.9GB385_CUSTOMER_CHAT_20261116"></script>
-<script defer src="customer-portal.js?v=M50.9.9GB385_CUSTOMER_CHAT_20261116"></script>
-<script defer src="portal-actions.js?v=M50.9.9GB385_CUSTOMER_CHAT_20261116"></script>
-<script defer src="account-directory.js?v=M50.9.9GB385_CUSTOMER_CHAT_20261116"></script>
-<script defer src="statistics-store.js?v=M50.9.9GB385_CUSTOMER_CHAT_20261116"></script>
-<script defer src="analytics-core.js?v=M50.9.9GB385_CUSTOMER_CHAT_20261116"></script>
-<script defer src="analytics-view.js?v=M50.9.9GB385_CUSTOMER_CHAT_20261116"></script>
-<script defer src="calendar-events.js?v=M50.9.9GB385_CUSTOMER_CHAT_20261116"></script>
+<script defer src="browser-store.js?v=M50.9.9GB386_CALENDAR_CHAT_20261116"></script>
+<script defer src="workflow-core.js?v=M50.9.9GB386_CALENDAR_CHAT_20261116"></script>
+<script defer src="workflow-ui.js?v=M50.9.9GB386_CALENDAR_CHAT_20261116"></script>
+<script defer src="workspace-repair-ui.js?v=M50.9.9GB386_CALENDAR_CHAT_20261116"></script>
+<script defer src="communication-core.js?v=M50.9.9GB386_CALENDAR_CHAT_20261116"></script>
+<script defer src="customer-portal.js?v=M50.9.9GB386_CALENDAR_CHAT_20261116"></script>
+<script defer src="portal-actions.js?v=M50.9.9GB386_CALENDAR_CHAT_20261116"></script>
+<script defer src="account-directory.js?v=M50.9.9GB386_CALENDAR_CHAT_20261116"></script>
+<script defer src="statistics-store.js?v=M50.9.9GB386_CALENDAR_CHAT_20261116"></script>
+<script defer src="analytics-core.js?v=M50.9.9GB386_CALENDAR_CHAT_20261116"></script>
+<script defer src="analytics-view.js?v=M50.9.9GB386_CALENDAR_CHAT_20261116"></script>
+<script defer src="calendar-events.js?v=M50.9.9GB386_CALENDAR_CHAT_20261116"></script>
 <script defer src="vendor/jspdf.umd.min.js?v=4.2.1"></script>
 <script defer src="vendor/print-font.js?v=1"></script>
-<script defer src="document-output.js?v=M50.9.9GB385_CUSTOMER_CHAT_20261116"></script>
-<script defer src="workforms-print.js?v=M50.9.9GB385_CUSTOMER_CHAT_20261116"></script>
-<script defer src="invoice-print.js?v=M50.9.9GB385_CUSTOMER_CHAT_20261116"></script>
-<script defer src="billing.js?v=M50.9.9GB385_CUSTOMER_CHAT_20261116"></script><script defer="defer" src="app.js?v=M50.9.9GB385_CUSTOMER_CHAT_20261116"></script>
+<script defer src="document-output.js?v=M50.9.9GB386_CALENDAR_CHAT_20261116"></script>
+<script defer src="workforms-print.js?v=M50.9.9GB386_CALENDAR_CHAT_20261116"></script>
+<script defer src="invoice-print.js?v=M50.9.9GB386_CALENDAR_CHAT_20261116"></script>
+<script defer src="billing.js?v=M50.9.9GB386_CALENDAR_CHAT_20261116"></script><script defer="defer" src="app.js?v=M50.9.9GB386_CALENDAR_CHAT_20261116"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1391,7 +1392,7 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
 </script>
 
 <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB385_CUSTOMER_CHAT_20261116', { updateViaCache: 'none' });
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB386_CALENDAR_CHAT_20261116', { updateViaCache: 'none' });
   </script>
 
 <script>
@@ -1524,7 +1525,7 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
 
 <script>
 (function(){
-  const CURRENT_BUILD = 'M50.9.9GB385_CUSTOMER_CHAT_20261116';
+  const CURRENT_BUILD = 'M50.9.9GB386_CALENDAR_CHAT_20261116';
   try{
     window.addEventListener('load', function(){
       try{

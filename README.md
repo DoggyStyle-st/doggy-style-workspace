@@ -1,6 +1,6 @@
-# Doggy Style Workspace – GB385
+# Doggy Style Workspace – GB386
 
-Im Kalender kannst du für einen Termin ein zugeordnetes Kundenkonto auswählen. Der Kunde erhält den Vorschlag im Chat und antwortet mit **Passt** oder **Passt nicht**. Der Tagesablauf im Workspace zeigt die Rückmeldung. Bestätigte Termine erscheinen im Kundenportal unter **Meine Termine**. Ein neuer Zeitpunkt braucht eine erneute Zusage.
+Im Kalender kannst du für einen Termin ein zugeordnetes Kundenkonto auswählen. Der Kunde erhält den Vorschlag im Chat und antwortet mit **Passt** oder **Passt nicht**. Die Rückmeldung erscheint im Tagesablauf und als neue Nachricht im Team-Chat. Bestätigte Termine erscheinen im Kundenportal unter **Meine Termine**. Ein neuer Zeitpunkt braucht eine erneute Zusage.
 
 Unter **Rechnungen** stellst du den geprüften Beleg auf **Offen**. Mit **Rechnung an Kunden weitergeben** stellst du die Fassung gezielt im Chat des zugeordneten Kunden bereit. Der Kunde öffnet den Beleg dort, speichert ihn als PDF und sieht beim erneuten Öffnen den aktuellen Zahlungsstatus. Die Bankverbindung für Überweisungen kannst du in **Einstellungen → Bankverbindung für Rechnungen** hinterlegen.
 
@@ -16,6 +16,8 @@ Oben rechts unter **Ansicht** wechselst du zwischen der gesamten Auswertung und 
 - Der CSV-Export enthält numerische Beträge. Bei der Belegliste werden auch die sichtbaren Such- und Vorgangsfilter angewendet. Vorgänge ohne zuordenbares Datum stehen in einer gesonderten Liste.
 
 Unter **Kalender → + Termin** kannst du eigene Termine speichern, verschieben oder absagen. Wähle eine Erinnerung und aktiviere **Mitteilungen einschalten** auf jedem Gerät, das mitbekommen soll, wenn der Termin ansteht. Die Tagesansicht zeigt Termine sowie erfasste Bring- und Abholzeiten. Freie Hundeplätze gelten für beide Betreuungsarten zusammen.
+
+Die Geräteanzeige im Kalender prüft die Registrierung in Firebase. Die Zeile am einzelnen Termin beschreibt das Ergebnis des damaligen Erinnerungsversuchs.
 
 Unter **Kalender → Einladungen einrichten** können Administratoren die E-Mail-Adressen für Raphael und Anschi hinterlegen. Sobald der Mailversand eingerichtet ist, geht bei neuen Terminen standardmäßig an beide eine Kalendereinladung. Die Option lässt sich pro Termin abwählen. Setup und Geräteprüfung stehen in [CLOUD_SETUP.md](CLOUD_SETUP.md).
 
