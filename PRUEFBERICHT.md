@@ -1,3 +1,7 @@
+# Doggy Style Workspace – GB388
+
+Einstellungen im Browser bei 1024 × 768 und 390 × 844 geprüft. Preisvorschau, Absender beim Ausstellen, Mitarbeiteranlage, Rechtstext-Speicherung, Sicherungsvorschau mit Abbruch und Wiederherstellung liefen mit Testdaten. Preisberechnung und Auswertungen wurden erneut geprüft. Die Abnahme auf den echten Geräten steht aus.
+
 # Doggy Style Workspace – GB387
 
 Stand 16. November 2026 · Build M50.9.9GB387_INVOICE_WORKSPACE_20261116

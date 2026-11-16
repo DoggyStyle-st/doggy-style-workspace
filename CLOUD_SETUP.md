@@ -1,6 +1,10 @@
-# Firebase-Einrichtung GB387
+# Firebase-Einrichtung GB388
 
 Das bestehende Projekt doggy-style-hundepension, die Organisation doggystyle und der Bucket doggy-style-hundepension.firebasestorage.app werden weiterverwendet.
+
+## Update von GB387 auf GB388
+
+Die App-Dateien von GB388 am bisherigen Webhost übernehmen und Workspace und Kundenportal neu laden. Bei laufendem GB387 ist kein erneuter Firebase-Deploy erforderlich.
 
 ## Update von GB386 auf GB387
 

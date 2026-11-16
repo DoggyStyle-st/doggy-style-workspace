@@ -37,9 +37,18 @@
           same(s);const currentContext=context(),ref=currentContext.db.collection('orgs').doc(s.org).collection('users').doc(u.id);
           await currentContext.db.runTransaction(async tx=>{const current=await tx.get(ref);same(s);if(!current.exists||text(current.data().role)!==text(u.role))throw new Error('Die Rolle wurde inzwischen geändert. Bitte Aktualisieren wählen.');tx.update(ref,{role:next});});
           same(s);u.role=next;render();if($('usersMsg'))$('usersMsg').textContent='✅ Rolle für '+(u.email||name(u)||u.id)+' in Firebase gespeichert.';
-        }catch(e){try{same(s);status.textContent='Nicht gespeichert. '+text(e.message||e);select.value=u.role||'';}catch(_){}}
+        }catch(e){try{same(s);status.textContent='Nicht gespeichert. '+text(e.message||e);select.value=u.role||'';showPermissions();}catch(_){}}
         finally{save.disabled=false;select.disabled=false;}
       });
+      const permissions = {
+        admin: 'Verwaltet Konten und Kundenzuordnungen, ändert Preise, gibt Rechnungen im Chat frei und kann Sicherungen wiederherstellen.',
+        staff: 'Arbeitet mit Aufenthalten, Kalender, Chat und betrieblichen Listen. Preise, Rechnungsfreigaben und Wiederherstellung liegen bei der Administration.',
+        customer: 'Nutzt das eigene Kundenportal für Hunde, Anfragen, Chat und freigegebene Rechnungen.'
+      };
+      const hint=node(editor,'p');hint.className='muted';
+      const showPermissions=()=>{hint.textContent=permissions[select.value] || 'Rolle auswählen, um die Berechtigungen zu sehen.';};
+      select.addEventListener('change',showPermissions);
+      showPermissions();
       const status=node(d,'p');status.setAttribute('role','status');
     }
     if(!found.length)node(list,'p',rows.length?'Keine Konten für diese Suche gefunden.':'Keine registrierten Konten gefunden.');

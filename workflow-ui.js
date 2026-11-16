@@ -168,6 +168,7 @@
   function resetAccount(){
     window.DSBilling?.reset();
     window.DSInvoiceWorkspace?.reset();
+    window.DSSettingsWorkspace?.reset();
     for(const id of ['workspaceCustomerSearch','stayCustomerSearch']){
       const input=$(id);if(input)input.value='';
     }

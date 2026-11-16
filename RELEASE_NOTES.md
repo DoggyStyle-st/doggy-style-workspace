@@ -1,3 +1,10 @@
+# GB388 – Einstellungen
+
+- Vier Einstellungsbereiche mit eindeutigen Speicherrückmeldungen.
+- Beispielrechnung mit ungespeicherten Preisen und Absenderdaten. Beim Ausstellen wird der Absender im Beleg gespeichert.
+- Mitarbeiter können mit einem Klick hinzugefügt werden. Konten zeigen eine Erläuterung zur gewählten Rolle.
+- Sicherungsvorschau vor Wiederherstellung, Monatsabschluss unter Compliance und PDF-Monatsexport unter Auswertungen.
+
 # GB387 – Rechnungen filtern, öffnen und verbuchen
 
 - Statusfilter mit Trefferzahlen, kombinierte Suche, offene Summe und Sortierung nach Rechnungsdatum.

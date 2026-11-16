@@ -2,7 +2,7 @@ try{sessionStorage.removeItem('ds_handoff_pass');}catch(_){}
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB387_INVOICE_WORKSPACE_20261116",
+  tag: "M50.9.9GB388_SETTINGS_WORKSPACE_20261116",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -13,7 +13,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB387_INVOICE_WORKSPACE_20261116";
+const APP_BUILD = "M50.9.9GB388_SETTINGS_WORKSPACE_20261116";
 try{ window.__dsAppJsRuntimeBuild = "GB350-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -2742,7 +2742,7 @@ async function submitCustomerDogsProposal(){
   // GB355: vollständig lokal sichern, anschließend zuverlässig in proposals + tasks übertragen.
   // Die Oberfläche wird sofort freigegeben; die Erfolgsmeldung "an Eingänge übergeben"
   // erscheint ausschließlich nach bestätigter Firestore-Speicherung.
-  const GB355='M50.9.9GB387_INVOICE_WORKSPACE_20261116';
+  const GB355='M50.9.9GB388_SETTINGS_WORKSPACE_20261116';
   function S(v){ try{return String(v==null?'':v);}catch(_){return '';} }
   function L(v){ return S(v).trim().toLowerCase(); }
   function V(id){ try{const el=document.getElementById(id);return S(el&&el.value!=null?el.value:'').trim();}catch(_){return '';} }
@@ -3669,9 +3669,9 @@ function normalizeBetreuung(type){
     if(key==='urlaubsbetreuung')return 'Urlaubsbetreuung';
     if(key==='tagesbetreuung')return 'Tagesbetreuung';return value;
   }
-function getPricePerDay(type,days){
+function getPricePerDay(type,days,cfg=getPricingSettings()){
     const care=normalizeBetreuung(type),key=care==='Probetag'?'Urlaubsbetreuung':care,count=care==='Probetag'?1:Number(days);
-    const list=(getPricingSettings().rules||{})[key]||PRICE_RULES_DEFAULT[key]||[];
+    const list=(cfg.rules||{})[key]||PRICE_RULES_DEFAULT[key]||[];
     const rules=list.map(x=>({min:Number(x.min),price:Number(x.price)})).filter(x=>Number.isFinite(x.min)&&x.min>=1&&Number.isFinite(x.price)&&x.price>=0).sort((a,b)=>b.min-a.min);
     const found=rules.find(x=>count>=x.min);if(!found)throw new Error('Für '+(care||'die Betreuung')+' fehlt ein passender Tagespreis. Bitte die Preise in den Einstellungen prüfen.');return round2(found.price);
   }
@@ -3751,16 +3751,15 @@ function renderStayPricingPreview(docObj){
   }
 }
 // ===== END 4C-1 =====
-function calculateInvoicePricing(doc,calendar=DSBilling.stayCalendar(doc.meta?.von,doc.meta?.bis)){
+function calculateInvoicePricing(doc,calendar=DSBilling.stayCalendar(doc.meta?.von,doc.meta?.bis),cfg=getPricingSettings()){
   const meta = doc.meta || {};
   const f = DSBilling.effectiveFields(doc);
   if(!meta.betreuung||!calendar)return null;
   const {days,holidayDays,sundayDays,holidaySundays}=calendar;
   const sundayOnlyDays=sundayDays-holidaySundays;
   const betreuungNorm = normalizeBetreuung(meta.betreuung);
-  const daily = getPricePerDay(betreuungNorm, days);
+  const daily = getPricePerDay(betreuungNorm, days, cfg);
   const base = round2(days * daily);
-  const cfg = getPricingSettings();
   const rate = cfg.holidayPercent;
   const unit = round2(daily * (rate / 100));
   const surchargeItems = [];
@@ -3978,7 +3977,7 @@ const COMPANY = {
   state.nextInvoiceNumber = 1;
 }renderDashboard();renderRecent();
 try{ ensureStateShape(); }catch(_){ }
-try{ initProfiSettingsBindings(); renderStaffSettings(); renderPolicySettings(); renderComplianceInSettings(); }catch(_){ }
+try{ initProfiSettingsBindings(); renderStaffSettings(); renderPolicySettings(); renderComplianceInSettings(); renderSettingsLegal(); }catch(_){ }
 function formatDateDE(dateStr){
   const d = new Date(dateStr);
   return d.toLocaleDateString("de-DE");
@@ -4032,6 +4031,7 @@ function showPanel(id){
   }
   if(id === "analytics"){
     renderAnalyticsPanel();
+    window.DSSettingsWorkspace?.prepareExportMonth();
   }
   if(id === "statistics"){
     try{ renderStatisticsPanel(); }catch(_){ }
@@ -4052,8 +4052,8 @@ function showPanel(id){
       initProfiSettingsBindings();
       renderStaffSettings();
       renderPolicySettings();
-      renderComplianceInSettings();
-      renderDocVersions();
+      renderSettingsLegal();
+      window.DSSettingsWorkspace?.enter();
     }catch(_){ }
   }
 
@@ -6974,10 +6974,18 @@ function renderComplianceInSettings(){
       </div>
       <span class="pill ${i.pillClass}">${i.status==='green'?'OK':(i.status==='yellow'?'fällig':'überfällig')}</span>
     </div>
-  `).join('') + `
-    <div class="card" style="margin-top:12px">
+  `).join('');
+}
+function renderSettingsLegal(){
+  const editor = document.getElementById('settingsLegalEditor');
+  if(!editor)return;
+  editor.hidden = !DSBilling.admin();
+  if(editor.hidden){editor.replaceChildren();return;}
+  if(editor.hasAttribute('data-dirty'))return;
+  editor.innerHTML = `
+    <div class="card">
       <h2>Rechtstexte bearbeiten</h2>
-      <div class="muted" style="margin-bottom:10px">Hier kannst du AGB/DSGVO später selbst anpassen, ohne Code zu ändern. Änderungen wirken für „Anzeigen“ im Aufenthalt.</div>
+      <div class="muted" style="margin-bottom:10px">Änderungen werden mit Speichern übernommen.</div>
       <label class="field"><span>Datenschutz (DSGVO)</span>
         <textarea id="legalDsgvoText" style="min-height:140px"></textarea>
       </label>
@@ -6986,8 +6994,8 @@ function renderComplianceInSettings(){
       </label>
       <div class="row" style="gap:8px; justify-content:flex-end; flex-wrap:wrap;">
         <button class="btn" type="button" id="btnLegalReset">Auf Standard zurücksetzen</button>
-        <button class="btn primary" type="button" id="btnLegalSave">Speichern</button>
-      </div>
+        <button class="btn primary" type="button" id="btnLegalSave">Rechtstexte speichern</button>
+      </div><p class="muted" id="settingsLegalStatus" role="status"></p>
     </div>
   `;
   setTimeout(()=>{
@@ -6995,6 +7003,7 @@ function renderComplianceInSettings(){
     const a = document.getElementById('legalAgbText');
     if(d && !d.dataset.bound){ d.dataset.bound='1'; d.value = getLegalText('dsgvo'); }
     if(a && !a.dataset.bound){ a.dataset.bound='1'; a.value = getLegalText('agb'); }
+    window.DSSettingsWorkspace?.track(editor,'settingsLegalStatus');
     const btnS = document.getElementById('btnLegalSave');
     const btnR = document.getElementById('btnLegalReset');
     if(btnS && !btnS.dataset.bound){
@@ -7002,7 +7011,7 @@ function renderComplianceInSettings(){
       btnS.onclick = ()=>{
         setLegalText('dsgvo', document.getElementById('legalDsgvoText')?.value||'');
         setLegalText('agb', document.getElementById('legalAgbText')?.value||'');
-        miniToast('Rechtstexte gespeichert.');
+        window.DSSettingsWorkspace?.saved(editor,'settingsLegalStatus');
       };
     }
     if(btnR && !btnR.dataset.bound){
@@ -7013,7 +7022,7 @@ function renderComplianceInSettings(){
         const dd = document.getElementById('legalDsgvoText'); const aa = document.getElementById('legalAgbText');
         if(dd) dd.value = getLegalText('dsgvo');
         if(aa) aa.value = getLegalText('agb');
-        miniToast('Auf Standard zurückgesetzt.');
+        window.DSSettingsWorkspace?.saved(editor,'settingsLegalStatus');
       };
     }
   },0);
@@ -7051,6 +7060,7 @@ function profiAddStaff(){
   document.getElementById('staffNameInput').value='';
   document.getElementById('staffRoleInput').value='';
   renderStaffSettings();
+  window.DSSettingsWorkspace?.saved(document.getElementById('staffCard'),'staffSettingsStatus');
   // Refresh panels that use presets
   try{ renderHygienePanel(); }catch(_){ }
   try{ renderMedicationPanel(); }catch(_){ }
@@ -7066,6 +7076,7 @@ function profiToggleStaff(id){
   state.medication.staffPresets = uniq([...(state.medication.staffPresets||[]).filter(n=>names.includes(n)), ...names]);
   saveState();
   renderStaffSettings();
+  window.DSSettingsWorkspace?.saved(document.getElementById('staffCard'),'staffSettingsStatus');
 }
 function profiEditStaff(id){
   ensureProfiDefaults();
@@ -7083,6 +7094,7 @@ function profiEditStaff(id){
   state.medication.staffPresets = uniq([...(state.medication.staffPresets||[]), ...names]);
   saveState();
   renderStaffSettings();
+  window.DSSettingsWorkspace?.saved(document.getElementById('staffCard'),'staffSettingsStatus');
 }
 function renderPolicySettings(){
   const el = document.getElementById('policyList');
@@ -7110,11 +7122,11 @@ function renderPolicySettings(){
   }).join('');
   const count = Object.values(state.compliance.docs||{}).reduce((a,d)=>a+((d&&Array.isArray(d.history))?d.history.length:0),0);
   el.innerHTML = rows + `<div class="hint" style="margin-top:10px">Archiv: ${count} Eintrag(e). (Inhalt bleibt in der App unverändert; Versionierung dient dem Nachweis.)</div>`;
-  Object.assign(window,{savePricingFromUI:()=>{if(DSBilling.requireEdit())savePricingFromUI();},resetPricingDefaults:()=>{if(DSBilling.requireEdit())resetPricingDefaults();},addPricingRule:key=>{if(DSBilling.requireEdit())addPricingRule(key);}});
+  Object.assign(window,{readPricingForm:()=>readPricingForm(),savePricingFromUI:()=>{if(DSBilling.requireEdit())savePricingFromUI();},resetPricingDefaults:()=>{if(DSBilling.requireEdit())resetPricingDefaults();},addPricingRule:key=>{if(DSBilling.requireEdit())addPricingRule(key);}});
   renderPricingSettingsBlock();
 // --- Preise in Einstellungen bearbeiten ---
 function renderPricingSettingsBlock(){
-  const el = document.getElementById('policyList');
+  const el = document.getElementById('settingsPricing');
   if(!el) return;
   const cfg = getPricingSettings();
   const mkRows = (key)=>{
@@ -7124,15 +7136,16 @@ function renderPricingSettingsBlock(){
     return sorted.map((r,i)=>`
       <div class="row" style="gap:8px; align-items:center; margin:6px 0;">
         <span class="muted" style="min-width:74px">ab ${escapeHtml(String(r.min))} Tg</span>
-        <input data-pr-key="${escapeHtml(key)}" data-pr-idx="${i}" data-pr-field="min" class="smallinp" style="width:84px" value="${escapeHtml(String(r.min))}">
+        <input data-pr-key="${escapeHtml(key)}" data-pr-idx="${i}" data-pr-field="min" class="smallinp" inputmode="numeric" aria-label="Mindestanzahl Tage" style="width:84px" value="${escapeHtml(String(r.min))}">
         <span class="muted">→</span>
-        <input data-pr-key="${escapeHtml(key)}" data-pr-idx="${i}" data-pr-field="price" class="smallinp" style="width:96px" value="${escapeHtml(String(r.price))}">
+        <input data-pr-key="${escapeHtml(key)}" data-pr-idx="${i}" data-pr-field="price" class="smallinp" inputmode="decimal" aria-label="Preis je Tag" style="width:96px" value="${escapeHtml(String(r.price))}">
         <span class="muted">€/Tag</span>
       </div>
     `).join('') || `<div class="muted">— keine Regeln</div>`;
   };
   const block = document.getElementById('pricingSettingsBlock');
   if(block){
+    if(block.hasAttribute('data-dirty'))return;
     // refresh values only
     block.querySelector('[data-pr-ex="vatPercent"]').value = String(cfg.vatPercent ?? 19);
     block.querySelector('[data-pr-ex="holidayPercent"]').value = String(cfg.holidayPercent);
@@ -7153,11 +7166,11 @@ function renderPricingSettingsBlock(){
   const html = `
   <div id="pricingSettingsBlock" class="card" style="margin-top:12px; padding:12px;">
     <div class="row" style="justify-content:space-between; align-items:center; gap:10px;">
-      <strong>Preise</strong>
-      <button class="smallbtn" onclick="savePricingFromUI()">Speichern</button>
+      <h2>Preise und Zuschläge</h2>
+      <button class="btn" onclick="savePricingFromUI()">Preise speichern</button>
     </div>
     <div class="hint" style="margin-top:6px">
-      Änderungen wirken auf neue Berechnungen. Bereits gespeicherte/"eingefrorene" Rechnungen bleiben wie sie sind.
+      Die Beispielrechnung verwendet die aktuellen Eingaben.
     </div>
     <div style="margin-top:10px">
       <div class="row" style="gap:10px; flex-wrap:wrap;">
@@ -7213,34 +7226,36 @@ function renderPricingSettingsBlock(){
       <button class="smallbtn" onclick="resetPricingDefaults()">Auf Standard zurück</button>
       <button class="smallbtn" onclick="addPricingRule('Tagesbetreuung')">+ Regel Tages</button>
       <button class="smallbtn" onclick="addPricingRule('Urlaubsbetreuung')">+ Regel Urlaub</button>
-    </div>
+    </div><p class="muted" id="settingsPricingStatus" role="status"></p>
   </div>`;
   el.insertAdjacentHTML('beforeend', html);
+  window.DSSettingsWorkspace?.track(document.getElementById('pricingSettingsBlock'),'settingsPricingStatus');
 }
-function _readNumber(v, fallback){
-  const n = parseFloat(String(v).replace(',', '.'));
-  return Number.isFinite(n) ? n : fallback;
+function _readNumber(value){
+  const text = String(value).trim().replace(',', '.');
+  const number = Number(text);
+  if(!/^\d+(?:\.\d+)?$/.test(text) || !Number.isFinite(number))throw new Error('Bitte alle Preisfelder mit gültigen, nicht negativen Zahlen ausfüllen.');
+  return number;
 }
-function savePricingFromUI(){
-  try{
+function readPricingForm(){
     const block = document.getElementById('pricingSettingsBlock');
-    if(!block) return;
+    if(!block) return getPricingSettings();
     const cur = getPricingSettings();
     const next = JSON.parse(JSON.stringify(cur));
     // extras
-    next.vatPercent = _readNumber(block.querySelector('[data-pr-ex="vatPercent"]').value, cur.vatPercent ?? 19);
-    next.holidayPercent = _readNumber(block.querySelector('[data-pr-ex="holidayPercent"]').value, cur.holidayPercent);
-    next.extras.specialTimesPercent = _readNumber(block.querySelector('[data-pr-ex="specialTimesPercent"]').value, cur.extras.specialTimesPercent);
-    next.extras.extraCarePercent = _readNumber(block.querySelector('[data-pr-ex="extraCarePercent"]').value, cur.extras.extraCarePercent);
-    next.extras.medicationPerDay = _readNumber(block.querySelector('[data-pr-ex="medicationPerDay"]').value, cur.extras.medicationPerDay);
-    next.extras.walkExtraPrice = _readNumber(block.querySelector('[data-pr-ex="walkExtraPrice"]').value, cur.extras.walkExtraPrice);
-    next.extras.bandagePrice = _readNumber(block.querySelector('[data-pr-ex="bandagePrice"]').value, cur.extras.bandagePrice ?? 2.5);
-    next.extras.groomingPrice = _readNumber(block.querySelector('[data-pr-ex="groomingPrice"]').value, cur.extras.groomingPrice ?? 5);
-    next.extras.hygienePerDay = _readNumber(block.querySelector('[data-pr-ex="hygienePerDay"]').value, cur.extras.hygienePerDay ?? 0);
-    next.extras.pickupDropoffPrice = _readNumber(block.querySelector('[data-pr-ex="pickupDropoffPrice"]').value, cur.extras.pickupDropoffPrice ?? 0);
+    next.vatPercent = _readNumber(block.querySelector('[data-pr-ex="vatPercent"]').value);
+    next.holidayPercent = _readNumber(block.querySelector('[data-pr-ex="holidayPercent"]').value);
+    next.extras.specialTimesPercent = _readNumber(block.querySelector('[data-pr-ex="specialTimesPercent"]').value);
+    next.extras.extraCarePercent = _readNumber(block.querySelector('[data-pr-ex="extraCarePercent"]').value);
+    next.extras.medicationPerDay = _readNumber(block.querySelector('[data-pr-ex="medicationPerDay"]').value);
+    next.extras.walkExtraPrice = _readNumber(block.querySelector('[data-pr-ex="walkExtraPrice"]').value);
+    next.extras.bandagePrice = _readNumber(block.querySelector('[data-pr-ex="bandagePrice"]').value);
+    next.extras.groomingPrice = _readNumber(block.querySelector('[data-pr-ex="groomingPrice"]').value);
+    next.extras.hygienePerDay = _readNumber(block.querySelector('[data-pr-ex="hygienePerDay"]').value);
+    next.extras.pickupDropoffPrice = _readNumber(block.querySelector('[data-pr-ex="pickupDropoffPrice"]').value);
     // Sonntag wurde mit Feiertag zusammengelegt
     next.extras.sundayPercent = next.holidayPercent;
-    next.extras.shortNoticePercent = _readNumber(block.querySelector('[data-pr-ex="shortNoticePercent"]').value, cur.extras.shortNoticePercent ?? 0);
+    next.extras.shortNoticePercent = _readNumber(block.querySelector('[data-pr-ex="shortNoticePercent"]').value);
     // rules
     for(const key of ['Tagesbetreuung','Urlaubsbetreuung']){
       const container = block.querySelector(`[data-pr-rules="${key}"]`);
@@ -7255,37 +7270,49 @@ function savePricingFromUI(){
       }
       const arr = Object.keys(byIdx).map(k=>{
         const o = byIdx[k];
-        return {min: Math.max(1, Math.round(_readNumber(o.min, 1))), price: _readNumber(o.price, 0)};
+        return {min: Math.max(1, Math.round(_readNumber(o.min))), price: _readNumber(o.price)};
       }).filter(r=>Number.isFinite(r.min)&&Number.isFinite(r.price));
       // sort desc
       arr.sort((a,b)=>b.min-a.min);
       next.rules[key]=arr;
     }
-    savePricingSettings(next);
-    // MwSt auch als globaler Rechnungs-Default bereitstellen (kompatibel mit bestehenden Feldern)
-    try{ state.settings = state.settings || {}; state.settings.vatRate = next.vatPercent; saveState(); }catch(_){ }
-    alert('✅ Preise gespeichert');
+    return next;
+}
+function savePricingFromUI(){
+  const block = document.getElementById('pricingSettingsBlock');
+  if(!block)return;
+  try{
+    savePricingSettings(readPricingForm());
+    window.DSSettingsWorkspace?.saved(block,'settingsPricingStatus');
     renderPricingSettingsBlock();
-  }catch(e){
-    console.error(e);
-    alert('❌ Speichern fehlgeschlagen (siehe Konsole)');
+  }catch(error){
+    document.getElementById('settingsPricingStatus').textContent=error.message;
   }
 }
 function resetPricingDefaults(){
   if(!confirm('Preise wirklich auf Standard zurücksetzen?')) return;
-  const next = JSON.parse(JSON.stringify(PRICING_DEFAULTS));
-  savePricingSettings(next);
+  const block = document.getElementById('pricingSettingsBlock');
+  savePricingSettings(JSON.parse(JSON.stringify(PRICING_DEFAULTS)));
+  window.DSSettingsWorkspace?.saved(block,'settingsPricingStatus');
   renderPricingSettingsBlock();
 }
 function addPricingRule(key){
-  const cur = getPricingSettings();
-  const next = JSON.parse(JSON.stringify(cur));
-  next.rules[key] = Array.isArray(next.rules[key]) ? next.rules[key] : [];
-  next.rules[key].push({min:1, price:0});
-  savePricingSettings(next);
-  renderPricingSettingsBlock();
+  const rows = document.querySelector(`[data-pr-rules="${key}"]`);
+  const last = rows?.querySelector('input[data-pr-idx]')?.parentElement;
+  if(!last)return;
+  const row = last.cloneNode(true);
+  const index = rows.querySelectorAll('input[data-pr-field="min"]').length;
+  row.querySelector('span').textContent = 'ab';
+  for(const input of row.querySelectorAll('input')){
+    input.dataset.prIdx = index;
+    input.value = input.dataset.prField === 'min' ? '1' : '0';
+  }
+  rows.append(row);
+  row.querySelector('input').dispatchEvent(new Event('input',{bubbles:true}));
+  row.querySelector('input').focus();
 }
 }
+
 function bumpVersionStr(v){
   const m = String(v||'1.0').split('.').map(x=>parseInt(x,10));
   const a = Number.isFinite(m[0])?m[0]:1;
@@ -7594,7 +7621,7 @@ function downloadBlob(filename, blob){
 function exportMonthJson(){
   const today = new Date();
   const ym = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
-  const blob = new Blob([JSON.stringify(state,null,2)], {type:'application/json'});
+  const blob = new Blob([JSON.stringify({...state,_backupCreatedAt:new Date().toISOString()},null,2)], {type:'application/json'});
   downloadBlob(`02_MonatsBackup_${ym}.json`, blob);
 }
 function buildMonthReportHtml(monthISO){
@@ -7647,8 +7674,8 @@ function monthClose(){
   if(msg) msg.textContent = `Monat ${ym} abgeschlossen – Vorschau geöffnet (Drucken/Speichern = PDF).`;
 }
 function taxExportMonth(){
-  const now = new Date();
-  const ym = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const selected = document.getElementById('settingsExportMonth')?.value;
+  const ym = DSWorkflowCore.dateISO(selected+'-01') ? selected : toISODateLocal(new Date()).slice(0,7);
   const html = buildMonthReportHtml(ym);
   openHtmlInModal(`Monats‑Export ${ym}`, html, 'Tipp: iPad/iPhone → „Drucken/Speichern“ → Teilen → „In Dateien sichern“ → Dateien/DoggyStyle/Export.');
   const msg = document.getElementById('taxExportMsg');
@@ -13583,6 +13610,7 @@ function setInvoiceStatus(id, status, { paymentDate } = {}){
   const meta = paidOn ? { paymentDate: paidOn }
     : code === 'cancelled' ? { reason: inv.cancelReason || '', note: inv.cancelNote || '' } : undefined;
   inv.auditTrail.push({ at: changedAt, field: 'status', from: prev, to: code, meta });
+  if(!inv.issuerSnapshot)inv.issuerSnapshot=invoiceIssuer(inv);
   if(prev==='draft'&&code!=='draft'&&!inv.recipientSnapshot){
     inv.recipientSnapshot=resolveInvoiceRecipient(inv);
   }
@@ -13777,6 +13805,10 @@ function createFreeInvoice(){
   openInvoice(invoice.id);
 }
 let invoicePrintRequest=0;
+function invoiceIssuer(inv){
+  const overrides = inv.issuerSnapshot || (invoiceStatusCode(inv.status)==='draft' ? state.settings?.invoiceBusiness : null);
+  return {...COMPANY,...overrides};
+}
 function buildInvoicePrintModel(inv){
   const parties=resolveInvoiceParties(inv);
   const {pet,legacyDog}=parties;
@@ -13788,10 +13820,11 @@ function buildInvoicePrintModel(inv){
     pet?.chipNumber?'Chip: '+pet.chipNumber:''
   ].filter(Boolean);
   const logoUrl=new URL('assets/logo.png',location.href).href;
-  const sender=[COMPANY.name,COMPANY.owner,COMPANY.street,COMPANY.zipCity,
-    COMPANY.phone?'Tel: '+COMPANY.phone:'',COMPANY.email,
-    COMPANY.tax?.vatId?'USt-ID: '+COMPANY.tax.vatId:'',
-    COMPANY.tax?.taxNumber?'Steuernr.: '+COMPANY.tax.taxNumber:''
+  const issuer=invoiceIssuer(inv);
+  const sender=[issuer.name,issuer.owner,issuer.street,issuer.zipCity,
+    issuer.phone?'Tel: '+issuer.phone:'',issuer.email,
+    issuer.tax?.vatId?'USt-ID: '+issuer.tax.vatId:'',
+    issuer.tax?.taxNumber?'Steuernr.: '+issuer.tax.taxNumber:''
   ].filter(Boolean);
   const cancelled=['cancelled','canceled','storniert'].includes(String(inv.status||'').trim().toLowerCase());
   const heading=cancelled?'Stornorechnung':'Rechnung';
@@ -16212,7 +16245,7 @@ td.k{width:38%;background:#fafafa;font-weight:700}
 </style></head><body>${out}</body></html>`;
 }
 function doBackupExport(){
-  const blob=new Blob([JSON.stringify(state,null,2)],{type:"application/json"});
+  const blob=new Blob([JSON.stringify({...state,_backupCreatedAt:new Date().toISOString()},null,2)],{type:"application/json"});
   const a=document.createElement("a");
   const stamp = toISODateLocal(new Date());
   a.href=URL.createObjectURL(blob);
@@ -16238,56 +16271,12 @@ const _btnExportMonthNow = document.getElementById('btnExportMonthNow');
 if(_btnExportMonthNow) _btnExportMonthNow.addEventListener('click', exportMonthBundle);
 const _btnExportSteuerNow = document.getElementById('btnExportSteuerNow');
 if(_btnExportSteuerNow) _btnExportSteuerNow.onclick = taxExportMonth;
-const _btnStaffAdd = document.getElementById('btnStaffAdd');
-if(_btnStaffAdd) _btnStaffAdd.addEventListener('click', ()=>{
-  ensureStateShape();
-  const inp = document.getElementById('staffNewName');
-  const name = inp && inp.value ? inp.value.trim() : "";
-  if(!name) return alert("Bitte Name eingeben.");
-  state.staff.people.push({ id: uid("stf"), name, active: true, createdAt: Date.now() });
-  if(inp) inp.value="";
-  syncStaffPresets();
-  saveState();
-  renderStaffSettings();
-  renderAll();
-});
 const _btnDocVersionsEdit = document.getElementById('btnDocVersionsEdit');
 if(_btnDocVersionsEdit) _btnDocVersionsEdit.addEventListener('click', ()=>{
   alert("Tipp: Nutze „Version erhöhen“ bei den Dokumenten. Alte Versionen werden automatisch archiviert.");
 });
-const _btnBackupImport = document.getElementById('btnBackupImport');
-const _fileBackupImport = document.getElementById('fileBackupImport');
-if(_btnBackupImport && _fileBackupImport){
-  _btnBackupImport.addEventListener('click', ()=> _fileBackupImport.click());
-  _fileBackupImport.addEventListener('change', async (ev)=>{
-    const file = ev.target.files && ev.target.files[0];
-    if(!file) return;
-    try{
-      const txt = await file.text();
-      const data = JSON.parse(txt);
-      if(!data || typeof data !== 'object') throw new Error('Ungültiges Backup.');
-      if(!confirm('Backup importieren? Dies überschreibt den aktuellen Stand (lokal + Cloud).')) return;
-      state = data;
-      ensureStateShape();
-      ensureContractDefaults();
-      migrateToV2();
-      pruneInvoiceDocs();
-      ensureDefaultDog();
-      saveState();
-      renderDogs();
-      renderDocs();
-      renderInvoiceList();
-      alert('✅ Backup importiert.');
-    }catch(e){
-      console.error(e);
-      alert('❌ Import fehlgeschlagen: '+(e.message||e));
-    }finally{
-      try{ _fileBackupImport.value = ''; }catch(_){ }
-    }
-  });
-}
 $("#btnWipe")?.addEventListener("click",()=>{
-  if(!confirm("Wirklich alle lokalen Daten löschen?")) return;
+  if(!can('wipe_all') || !confirm("Alte lokale Workspace-Kopie entfernen?")) return;
   localStorage.removeItem(LS_KEY);
   location.reload();
 });
@@ -19433,6 +19422,7 @@ function renderComplianceHazards(root){
           haz.sds=null;
           saveState();
           renderCompliancePanel();
+    renderComplianceInSettings();
         }
       }
     };
@@ -21971,7 +21961,7 @@ function renderStatMethod(){
 
 
 
-/* ===== CHAT (M50.9.9GB387_INVOICE_WORKSPACE_20261116) ===== */
+/* ===== CHAT (M50.9.9GB388_SETTINGS_WORKSPACE_20261116) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,

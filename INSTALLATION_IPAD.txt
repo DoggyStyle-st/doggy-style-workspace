@@ -1,11 +1,11 @@
-Doggy Style Workspace – GB387
-Build M50.9.9GB387_INVOICE_WORKSPACE_20261116
+Doggy Style Workspace – GB388
+Build M50.9.9GB388_SETTINGS_WORKSPACE_20261116
 
-Bei laufendem GB386 zuerst den Abschnitt „Update von GB386 auf GB387“ in CLOUD_SETUP.md ausführen. Danach die App-Dateien wie in Schritt 2 übernehmen und wie in Schritt 4 neu laden.
+Bei laufendem GB387 die GB388-App-Dateien am bisherigen Webhost übernehmen und neu laden. Für dieses Update ist kein erneuter Firebase-Deploy erforderlich.
 
 1. Vor dem Austausch unter Einstellungen > Cloud & Konto die aktuelle lokale Sicherung herunterladen.
-2. DoggyStyle_Workspace_GB387_Rechnungen.zip entpacken und die App-Dateien aus dem Ordner doggy-style-workspace-main am gewählten Hosting-Ort übernehmen.
-3. Die Firestore-Regeln und Funktionen gemäß CLOUD_SETUP.md bereitstellen.
+2. DoggyStyle_Workspace_GB388_Einstellungen.zip entpacken und die App-Dateien aus dem Ordner doggy-style-workspace-main am gewählten Hosting-Ort übernehmen.
+3. Bei einer Neuinstallation die Firestore-Regeln und Funktionen gemäß CLOUD_SETUP.md bereitstellen.
 4. Workspace und Kundenportal neu laden. Im Workspace zeigt DIAG die Buildkennung dieser Version.
 5. In Rechnungen den vorhandenen Entwurf zum Beispielaufenthalt öffnen. Bei den Standardpreisen stehen dort 14 Tage zu 40,00 €, 4,00 € Sonntagszuschlag und 4,00 € Feiertagszuschlag, insgesamt 568,00 € ohne Zusatz-Spaziergänge.
 6. Zum Prüfen im Kundenportal einen Testaufenthalt mit gewünschter Anzahl Zusatz-Spaziergänge senden. Im Workspace den Eingang prüfen und übernehmen. Im Aufenthalt die zugeordnete Rechnung öffnen und die Menge kontrollieren.

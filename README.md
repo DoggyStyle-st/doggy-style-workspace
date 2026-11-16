@@ -1,4 +1,6 @@
-# Doggy Style Workspace – GB387
+# Doggy Style Workspace – GB388
+
+Die Einstellungen öffnen in vier Bereichen. Unter **Preise & Rechnungen** kannst du eine Beispielrechnung mit den aktuellen Eingaben berechnen und die Betriebsdaten für Rechnungen speichern. Unter **Konten & Team** stehen Rollen und Anmelderechte neben der Mitarbeiterliste. **Rechtstexte & Vorlagen** bündelt Texte und Versionen. **Cloud & Datensicherung** enthält die Vorschau vor der Wiederherstellung.
 
 Im Kalender kannst du für einen Termin ein zugeordnetes Kundenkonto auswählen. Der Kunde erhält den Vorschlag im Chat und antwortet mit **Passt** oder **Passt nicht**. Die Rückmeldung erscheint im Tagesablauf und als neue Nachricht im Team-Chat. Bestätigte Termine erscheinen im Kundenportal unter **Meine Termine**. Ein neuer Zeitpunkt braucht eine erneute Zusage.
 

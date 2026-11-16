@@ -208,7 +208,8 @@
     const form = byId('invoiceBankForm');
     if (!form) return;
     form.hidden = !DSBilling.admin();
-    if (form.hidden) return;
+    if (form.hidden || form.hasAttribute('data-dirty')) return;
+    window.DSSettingsWorkspace?.track(form, 'invoiceBankStatus');
     const { iban, bankName, bic } = form.elements;
     const bank = state.settings?.invoiceBank || {};
     iban.value = bank.iban || '';
@@ -238,6 +239,7 @@
       iban.value = formatted;
       bic.value = bankCode;
       status.textContent = 'Bankverbindung gespeichert.';
+      delete form.dataset.dirty;
     };
   }
 

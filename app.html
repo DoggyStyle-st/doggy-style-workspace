@@ -15,16 +15,16 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
 <meta charset="utf-8"/>
-  <meta name="app-build" content="M50.9.9GB387_INVOICE_WORKSPACE_20261116">
+  <meta name="app-build" content="M50.9.9GB388_SETTINGS_WORKSPACE_20261116">
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <title>Doggy Style Workspace · App</title>
 <link href="manifest.json" rel="manifest"/>
 <meta content="#101014" name="theme-color"/>
 <link href="assets/logo.png" rel="apple-touch-icon"/>
-<link href="styles.css?v=M50.9.9GB387_INVOICE_WORKSPACE_20261116" rel="stylesheet"/>
+<link href="styles.css?v=M50.9.9GB388_SETTINGS_WORKSPACE_20261116" rel="stylesheet"/>
 <link href="dashboard_master.css?v=20260104v13logout" rel="stylesheet"/>
-<link href="analytics.css?v=M50.9.9GB387_INVOICE_WORKSPACE_20261116" rel="stylesheet"/>
-<link href="calendar-events.css?v=M50.9.9GB387_INVOICE_WORKSPACE_20261116" rel="stylesheet"/>
+<link href="analytics.css?v=M50.9.9GB388_SETTINGS_WORKSPACE_20261116" rel="stylesheet"/>
+<link href="calendar-events.css?v=M50.9.9GB388_SETTINGS_WORKSPACE_20261116" rel="stylesheet"/>
 <style>
   /* Topbar Layout (iPad & Desktop stabil) */
   .topbar{position:sticky; top:0; z-index:50;}
@@ -46,15 +46,15 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
 </style>
 
 
-  <meta name="app-version" content="M50.9.9GB387_INVOICE_WORKSPACE_20261116">
+  <meta name="app-version" content="M50.9.9GB388_SETTINGS_WORKSPACE_20261116">
   <meta name="release-channel" content="MASTER">
 <style>
 /* GB358: interne Diagnose bleibt programmatisch vorhanden, wird aber nicht angezeigt. */
 #assignDiag,#inboxDiag,#inboxDiagError,#inboxProposalDebug,#buildBadge,[id^="gb348Diag"]{display:none!important}
 </style>
-<link rel="stylesheet" href="document-output.css?v=M50.9.9GB387_INVOICE_WORKSPACE_20261116">
-<link rel="stylesheet" href="billing.css?v=M50.9.9GB387_INVOICE_WORKSPACE_20261116">
-<link rel="stylesheet" href="invoice-workspace.css?v=M50.9.9GB387_INVOICE_WORKSPACE_20261116"></head>
+<link rel="stylesheet" href="document-output.css?v=M50.9.9GB388_SETTINGS_WORKSPACE_20261116">
+<link rel="stylesheet" href="billing.css?v=M50.9.9GB388_SETTINGS_WORKSPACE_20261116">
+<link rel="stylesheet" href="invoice-workspace.css?v=M50.9.9GB388_SETTINGS_WORKSPACE_20261116"><link rel="stylesheet" href="settings-workspace.css?v=M50.9.9GB388_SETTINGS_WORKSPACE_20261116"></head>
 <body class="bg-watermark page-app">
 <header class="topbar">
   <div class="topbar__inner">
@@ -850,26 +850,7 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
   <div id="workformsView" class="workforms-view"></div>
 </section>
 
-<section class="panel" id="settings">
-<div class="card">
-<h1>Einstellungen</h1>
-<p>Speichern passiert automatisch – lokal (Offline‑First) und optional zusätzlich in der Cloud (wenn Firebase aktiv ist).</p>
-<div class="card" style="margin-top:12px;">
-  <h2>Rechtstexte</h2>
-  <p class="muted" style="margin-top:6px">Anzeige der wichtigsten Rechtstexte. (In dieser Stufe nur lesen.)</p>
-  <div class="row" style="flex-wrap:wrap; gap:10px; margin-top:10px;">
-    <button class="btn" id="btnLegalDSGVO" type="button">📄 Datenschutz (DSGVO)</button>
-    <button class="btn" id="btnLegalAGB" type="button">📄 AGB</button>
-    <button class="btn" id="btnLegalTierarzt" type="button">📄 Tierarzt-Erlaubnis</button>
-    <button class="btn" id="btnLegalWahrheit" type="button">📄 Angaben wahrheitsgemäß</button>
-  </div>
-</div>
-<div class="row" style="flex-wrap:wrap; gap:10px; margin-top:10px;">
-  <button class="primary" id="manualSaveBtn" type="button">☁️ Manuell in Cloud speichern</button>
-  <span class="muted" id="manualSaveStatus"></span>
-</div>
-
-<form class="card" id="invoiceBankForm" aria-labelledby="invoiceBankHeading" hidden>
+<section class="panel" id="settings"><div class="card"><h1>Einstellungen</h1><div class="settings-nav" role="group" aria-label="Einstellungsbereich"><button class="btn" type="button" data-settings-section="billing" aria-pressed="false">Preise &amp; Rechnungen</button><button class="btn" type="button" data-settings-section="team" aria-pressed="false">Konten &amp; Team</button><button class="btn" type="button" data-settings-section="legal" aria-pressed="false">Rechtstexte &amp; Vorlagen</button><button class="btn" type="button" data-settings-section="storage" aria-pressed="false">Cloud &amp; Datensicherung</button></div></div><div data-settings-pane="billing"><div id="settingsPricing"></div><form class="card" id="invoiceBankForm" aria-labelledby="invoiceBankHeading" hidden>
   <h2 id="invoiceBankHeading">Bankverbindung für Rechnungen</h2>
   <div class="grid-2">
     <label class="field"><span>IBAN</span><input name="iban" autocomplete="off" autocapitalize="characters" spellcheck="false" required></label>
@@ -880,76 +861,67 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
     <button class="btn" type="submit">Bankverbindung speichern</button>
     <span id="invoiceBankStatus" class="muted" role="status"></span>
   </div>
+</form><form class="card" id="invoiceBusinessForm">
+  <h2>Betriebsdaten für Rechnungen</h2>
+  <div class="settings-fields">
+  <label class="field"><span>Betriebsname</span><input name="name" required maxlength="120"></label>
+  <label class="field"><span>Inhaber</span><input name="owner" maxlength="120"></label>
+  <label class="field"><span>Straße und Hausnummer</span><input name="street" required maxlength="120"></label>
+  <label class="field"><span>PLZ und Ort</span><input name="zipCity" required maxlength="120"></label>
+  <label class="field"><span>Telefon</span><input type="tel" name="phone" maxlength="60"></label>
+  <label class="field"><span>E-Mail</span><input type="email" name="email" maxlength="160"></label>
+  </div>
+  <div class="row"><button type="submit" class="btn">Betriebsdaten speichern</button></div>
+  <p id="settingsBusinessStatus" class="muted" role="status"></p>
 </form>
-
-
-
-<div class="card" id="adminUserCard" style="margin-top:12px; display:none;">
+<form class="card" id="settingsPricePreview">
+  <h2>Beispielrechnung</h2>
+  <div class="settings-fields">
+  <label class="field"><span>Betreuung</span><select name="care"><option>Urlaubsbetreuung</option><option>Tagesbetreuung</option><option>Probetag</option></select></label>
+  <label class="field"><span>Anreise</span><input type="date" name="from" required></label>
+  <label class="field"><span>Abreise</span><input type="date" name="to" required></label>
+  </div>
+  <button class="btn" type="submit">Vorschau berechnen</button>
+  <div id="settingsPreviewResult" role="status"></div>
+</form></div><div data-settings-pane="team" hidden><div class="card" id="adminUserCard" style="margin-top:12px; display:none;">
   <h2>Benutzer &amp; Rollen</h2>
+  <button class="btn" type="button" onclick="selectTab('inbox')">Zu den Kundenzuordnungen in Eingänge</button>
   <p class="muted" style="margin-top:6px">Konten nach Name oder E-Mail suchen. Zum Zuteilen ein Konto aufklappen und die Rolle speichern.</p>
   <div class="row between" style="gap:12px; flex-wrap:wrap; margin-top:10px;">
     <button class="btn" id="btnUsersRefresh">Aktualisieren</button>
     <span class="muted" id="usersMsg"></span>
   </div>
   <div class="list" id="usersList" style="margin-top:10px"></div>
-</div>
-
-<div class="card" style="margin-top:12px">
-  <h2>Speicher &amp; Backup</h2>
-  <div class="row">
-    <button class="btn" id="btnBackupExport">⬇️ Backup exportieren (JSON)</button>
-    <button class="btn" id="btnBackupImport">⬆️ Backup importieren</button>
-    <input id="fileBackupImport" type="file" accept="application/json" style="display:none"/>
-  </div>
-  <div class="hint" id="backupHint">Tipp: Backup-Dateien am besten in <strong>Dateien</strong> ablegen (z. B. <em>DoggyStyle/Backups</em>).</div>
-</div>
-
-<div class="card" style="margin-top:12px" id="profiComplianceCard">
-  <h2>§11‑Ampel &amp; Monatsabschluss</h2>
-  <p class="muted" style="margin-top:6px">Schnellcheck für Kontrollen + 1‑Klick Monatsnachweis (PDF‑Report) inkl. Backup‑Hinweis.</p>
-  <div class="row" style="flex-wrap:wrap; gap:10px; margin-top:10px; align-items:center;">
-    <button class="btn" id="btnComplianceRefresh" type="button">🟢 Ampel aktualisieren</button>
-    <button class="btn primary" id="btnMonthClose" type="button">🗓️ Monat abschließen</button>
-    <span class="muted" id="monthCloseMsg"></span>
-  </div>
-  <div class="list" id="complianceSettingsList" style="margin-top:10px"></div>
-</div>
-
-<div class="card" style="margin-top:12px" id="staffCard">
+</div><div class="card" style="margin-top:12px" id="staffCard">
   <h2>Mitarbeiter</h2>
-  <p class="muted" style="margin-top:6px">Standard: Raphael &amp; Anschi. Du kannst weitere Mitarbeitende anlegen. Alte Einträge bleiben revisionssicher.</p>
+  <p class="muted" style="margin-top:6px">Diese Namen stehen in Hygiene und Medikamenten zur Auswahl. Die Anmelderechte findest du unter Benutzer &amp; Rollen.</p>
   <div class="row" style="gap:10px; flex-wrap:wrap; align-items:flex-end; margin-top:10px;">
     <label class="field" style="min-width:240px; flex:1;">
       <span>Name</span>
       <input id="staffNameInput" placeholder="z. B. Max Mustermann" />
     </label>
     <label class="field" style="min-width:220px;">
-      <span>Rolle (optional)</span>
+      <span>Tätigkeit (optional)</span>
       <input id="staffRoleInput" placeholder="z. B. Aushilfe" />
     </label>
     <button class="btn" id="btnStaffAdd" type="button">➕ Hinzufügen</button>
   </div>
+  <p id="staffSettingsStatus" class="muted" role="status"></p>
   <div class="list" id="staffList" style="margin-top:10px"></div>
-</div>
-
-<div class="card" style="margin-top:12px" id="policyVersionsCard">
+</div></div><div data-settings-pane="legal" hidden><div class="card" style="margin-top:12px;">
+  <h2>Rechtstexte</h2>
+  <p class="muted" style="margin-top:6px">Anzeige der wichtigsten Rechtstexte. (In dieser Stufe nur lesen.)</p>
+  <div class="row" style="flex-wrap:wrap; gap:10px; margin-top:10px;">
+    <button class="btn" id="btnLegalDSGVO" type="button">📄 Datenschutz (DSGVO)</button>
+    <button class="btn" id="btnLegalAGB" type="button">📄 AGB</button>
+    <button class="btn" id="btnLegalTierarzt" type="button">📄 Tierarzt-Erlaubnis</button>
+    <button class="btn" id="btnLegalWahrheit" type="button">📄 Angaben wahrheitsgemäß</button>
+  </div>
+</div><div id="settingsLegalEditor"></div><div class="card" style="margin-top:12px" id="policyVersionsCard">
   <h2>Vorlagen‑Versionen (Archiv)</h2>
   <p class="muted" style="margin-top:6px">Für Kontrollen hilfreich: Version + Änderungsdatum für Konzepte und Vertrag. Änderungen erzeugen automatisch einen Archiv‑Eintrag.</p>
   <div class="list" id="policyList" style="margin-top:10px"></div>
-</div>
-
-<div class="card" style="margin-top:12px" id="taxExportCard">
-  <h2>Steuerberater‑Exports</h2>
-  <p class="muted" style="margin-top:6px">Erstellt PDF‑Reports mit Dateinamen‑Prefix (01–05), damit du sie in Dateien sauber sortieren kannst.</p>
-  <div class="row" style="flex-wrap:wrap; gap:10px; margin-top:10px;">
-    <button class="btn" id="btnTaxExportMonth" type="button">📁 Monats‑Export (PDF‑Report)</button>
-    <button class="btn" id="btnTaxExportJSON" type="button">📁 Monats‑Backup (JSON)</button>
-    <span class="muted" id="taxExportMsg"></span>
-  </div>
-  <div class="hint" style="margin-top:10px">Tipp: Lege in <strong>Dateien</strong> einen Ordner <em>DoggyStyle/Export</em> an und speichere dort monatlich (01_Aufenthalte, 02_Rechnungen, …).</div>
-</div>
-
-<div class="card" style="margin-top:12px">
+</div></div><div data-settings-pane="storage" hidden><div class="card" style="margin-top:12px">
   <h2>Cloud &amp; Konto</h2>
   <div class="row">
     <div class="field" style="min-width:260px;flex:2">
@@ -958,16 +930,26 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
     </div>
     <button class="btn" id="btnLogoutApp" style="display:none">Abmelden</button>
   </div>
-</div>
-
-<div class="row" style="margin-top:12px">
-  <button class="btn danger" id="btnWipe">Alle lokalen Daten löschen</button>
-</div>
-<div class="hint">
-          PDFs archivierst du am besten in <strong>Dateien</strong> in einem Ordner z. B. <em>DoggyStyle/Docs</em>.
-        </div>
-</div>
-</section>
+<div class="row">
+  <button class="btn" id="manualSaveBtn" type="button">Mit Cloud abgleichen</button>
+  <span class="muted" id="manualSaveStatus" role="status"></span>
+</div></div><div class="card" style="margin-top:12px">
+  <h2>Speicher &amp; Backup</h2>
+  <div class="row">
+    <button class="btn" id="btnBackupExport">⬇️ Workspace-Sicherung herunterladen</button>
+    <button class="btn" id="btnBackupImport">⬆️ Sicherung zur Wiederherstellung öffnen</button>
+    <input id="fileBackupImport" type="file" accept="application/json" style="display:none"/>
+  </div>
+  <div class="hint" id="backupHint">Tipp: Backup-Dateien am besten in <strong>Dateien</strong> ablegen (z. B. <em>DoggyStyle/Backups</em>).</div>
+<details><summary>Alte lokale Kopie</summary>
+<p class="muted">Entfernt die frühere Workspace-Kopie aus dem lokalen Browserspeicher.</p>
+<button type="button" class="btn danger" id="btnWipe">Alte lokale Kopie entfernen</button>
+</details></div><p id="settingsRestoreStatus" role="status"></p></div><dialog id="settingsRestoreDialog" class="ds-billing-dialog" aria-labelledby="settingsRestoreTitle">
+<h2 id="settingsRestoreTitle">Sicherung prüfen</h2>
+<p id="settingsRestoreDate"></p><ul id="settingsRestoreContents"></ul>
+<p>Beim Wiederherstellen wird der aktuelle Workspace-Stand auf diesem Gerät und bei erfolgreicher Synchronisation in Firebase ersetzt.</p>
+<div class="ds-billing-actions"><button type="button" id="settingsRestoreCancel">Abbrechen</button><button type="button" id="settingsRestoreConfirm">Workspace wiederherstellen</button></div>
+</dialog></section>
 <section class="panel" id="invoices">
   <div class="invoice-workspace" id="invoiceWorkspace">
     <div class="card invoice-index">
@@ -1324,10 +1306,20 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
       </div>
     </details>
   </div>
+<div class="card" style="margin-top:12px" id="taxExportCard">
+  <h2>Steuerberater‑Exports</h2>
+  <label class="field"><span>Monat für den PDF-Bericht</span><input type="month" id="settingsExportMonth"></label>
+  <div class="row" style="flex-wrap:wrap; gap:10px; margin-top:10px;">
+    <button class="btn" id="btnTaxExportMonth" type="button">📁 Monats‑Export (PDF‑Report)</button>
+    <button class="btn" id="btnTaxExportJSON" type="button">📁 Workspace-Sicherung (JSON)</button>
+    <span class="muted" id="taxExportMsg"></span>
+  </div>
+  
+</div>
 </section>
 
 <section class="panel" id="statistics">
-<!-- Statistics panel is rendered by app.js?v=M50.9.9GB387_INVOICE_WORKSPACE_20261116 (renderStatisticsPanel) -->
+<!-- Statistics panel is rendered by app.js?v=M50.9.9GB388_SETTINGS_WORKSPACE_20261116 (renderStatisticsPanel) -->
 </section>
 
 
@@ -1341,6 +1333,16 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
       <button class="btn" id="btnComplianceArchive" type="button">📁 Archiv</button>
     </div>
     <div id="compliancePanelBody"></div>
+<div class="card" style="margin-top:12px" id="profiComplianceCard">
+  <h2>§11‑Ampel &amp; Monatsabschluss</h2>
+  <p class="muted" style="margin-top:6px">Schnellcheck für Kontrollen + 1‑Klick Monatsnachweis (PDF‑Report) inkl. Backup‑Hinweis.</p>
+  <div class="row" style="flex-wrap:wrap; gap:10px; margin-top:10px; align-items:center;">
+    <button class="btn" id="btnComplianceRefresh" type="button">🟢 Ampel aktualisieren</button>
+    <button class="btn primary" id="btnMonthClose" type="button">🗓️ Monat abschließen</button>
+    <span class="muted" id="monthCloseMsg"></span>
+  </div>
+  <div class="list" id="complianceSettingsList" style="margin-top:10px"></div>
+</div>
   </div>
 </section>
 
@@ -1394,7 +1396,7 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
 </footer>
 </div>
 <!-- Firebase (optional) + Config -->
-<script defer="defer" src="firebase-config.js?v=M50.9.9GB387_INVOICE_WORKSPACE_20261116"></script>
+<script defer="defer" src="firebase-config.js?v=M50.9.9GB388_SETTINGS_WORKSPACE_20261116"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
@@ -1404,26 +1406,27 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
 
 <!-- Competing legacy workflow/contract overrides removed. -->
 
-<script defer src="browser-store.js?v=M50.9.9GB387_INVOICE_WORKSPACE_20261116"></script>
-<script defer src="workflow-core.js?v=M50.9.9GB387_INVOICE_WORKSPACE_20261116"></script>
-<script defer src="workflow-ui.js?v=M50.9.9GB387_INVOICE_WORKSPACE_20261116"></script>
-<script defer src="workspace-repair-ui.js?v=M50.9.9GB387_INVOICE_WORKSPACE_20261116"></script>
-<script defer src="communication-core.js?v=M50.9.9GB387_INVOICE_WORKSPACE_20261116"></script>
-<script defer src="customer-portal.js?v=M50.9.9GB387_INVOICE_WORKSPACE_20261116"></script>
-<script defer src="portal-actions.js?v=M50.9.9GB387_INVOICE_WORKSPACE_20261116"></script>
-<script defer src="account-directory.js?v=M50.9.9GB387_INVOICE_WORKSPACE_20261116"></script>
-<script defer src="statistics-store.js?v=M50.9.9GB387_INVOICE_WORKSPACE_20261116"></script>
-<script defer src="analytics-core.js?v=M50.9.9GB387_INVOICE_WORKSPACE_20261116"></script>
-<script defer src="analytics-view.js?v=M50.9.9GB387_INVOICE_WORKSPACE_20261116"></script>
-<script defer src="calendar-events.js?v=M50.9.9GB387_INVOICE_WORKSPACE_20261116"></script>
+<script defer src="browser-store.js?v=M50.9.9GB388_SETTINGS_WORKSPACE_20261116"></script>
+<script defer src="workflow-core.js?v=M50.9.9GB388_SETTINGS_WORKSPACE_20261116"></script>
+<script defer src="workflow-ui.js?v=M50.9.9GB388_SETTINGS_WORKSPACE_20261116"></script>
+<script defer src="workspace-repair-ui.js?v=M50.9.9GB388_SETTINGS_WORKSPACE_20261116"></script>
+<script defer src="communication-core.js?v=M50.9.9GB388_SETTINGS_WORKSPACE_20261116"></script>
+<script defer src="customer-portal.js?v=M50.9.9GB388_SETTINGS_WORKSPACE_20261116"></script>
+<script defer src="portal-actions.js?v=M50.9.9GB388_SETTINGS_WORKSPACE_20261116"></script>
+<script defer src="account-directory.js?v=M50.9.9GB388_SETTINGS_WORKSPACE_20261116"></script>
+<script defer src="statistics-store.js?v=M50.9.9GB388_SETTINGS_WORKSPACE_20261116"></script>
+<script defer src="analytics-core.js?v=M50.9.9GB388_SETTINGS_WORKSPACE_20261116"></script>
+<script defer src="analytics-view.js?v=M50.9.9GB388_SETTINGS_WORKSPACE_20261116"></script>
+<script defer src="calendar-events.js?v=M50.9.9GB388_SETTINGS_WORKSPACE_20261116"></script>
 <script defer src="vendor/jspdf.umd.min.js?v=4.2.1"></script>
 <script defer src="vendor/print-font.js?v=1"></script>
-<script defer src="document-output.js?v=M50.9.9GB387_INVOICE_WORKSPACE_20261116"></script>
-<script defer src="workforms-print.js?v=M50.9.9GB387_INVOICE_WORKSPACE_20261116"></script>
-<script defer src="invoice-print.js?v=M50.9.9GB387_INVOICE_WORKSPACE_20261116"></script>
-<script defer src="billing.js?v=M50.9.9GB387_INVOICE_WORKSPACE_20261116"></script>
-<script defer src="invoice-workspace.js?v=M50.9.9GB387_INVOICE_WORKSPACE_20261116"></script>
-<script defer="defer" src="app.js?v=M50.9.9GB387_INVOICE_WORKSPACE_20261116"></script>
+<script defer src="document-output.js?v=M50.9.9GB388_SETTINGS_WORKSPACE_20261116"></script>
+<script defer src="workforms-print.js?v=M50.9.9GB388_SETTINGS_WORKSPACE_20261116"></script>
+<script defer src="invoice-print.js?v=M50.9.9GB388_SETTINGS_WORKSPACE_20261116"></script>
+<script defer src="billing.js?v=M50.9.9GB388_SETTINGS_WORKSPACE_20261116"></script>
+<script defer src="invoice-workspace.js?v=M50.9.9GB388_SETTINGS_WORKSPACE_20261116"></script>
+<script defer src="settings-workspace.js?v=M50.9.9GB388_SETTINGS_WORKSPACE_20261116"></script>
+<script defer="defer" src="app.js?v=M50.9.9GB388_SETTINGS_WORKSPACE_20261116"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1442,7 +1445,7 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
 </script>
 
 <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB387_INVOICE_WORKSPACE_20261116', { updateViaCache: 'none' });
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB388_SETTINGS_WORKSPACE_20261116', { updateViaCache: 'none' });
   </script>
 
 <script>
@@ -1575,7 +1578,7 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
 
 <script>
 (function(){
-  const CURRENT_BUILD = 'M50.9.9GB387_INVOICE_WORKSPACE_20261116';
+  const CURRENT_BUILD = 'M50.9.9GB388_SETTINGS_WORKSPACE_20261116';
   try{
     window.addEventListener('load', function(){
       try{

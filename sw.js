@@ -1,7 +1,7 @@
 // DoggyStyle Workspace Service Worker
 // Clean, consistent cache strategy (network-first for HTML, cache-first for static)
 
-const BUILD_VERSION = "M50.9.9GB387_INVOICE_WORKSPACE_20261116";
+const BUILD_VERSION = "M50.9.9GB388_SETTINGS_WORKSPACE_20261116";
 const CACHE_NAME = "doggystyle-" + BUILD_VERSION;
 
 // Keep this list conservative; do NOT include versioned query variants.
@@ -12,6 +12,8 @@ const STATIC_ASSETS = [
   "./app.js",
   "./billing.js",
   "./invoice-workspace.js",
+  "./settings-workspace.js",
+  "./settings-workspace.css",
   "./invoice-workspace.css",
   "./invoice-print.js",
   "./billing.css",
