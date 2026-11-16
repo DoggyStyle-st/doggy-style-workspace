@@ -166,12 +166,15 @@
   gap: 12px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
+.analytics-focused .analytics-columns,
+.analytics-focused .analytics-rankings { grid-template-columns: minmax(0, 1fr); }
 .analytics-columns .card { align-self: start; }
 .analytics-description { margin: 0 0 10px; }
 .analytics-over-days { margin-top: 10px; }
 .analytics summary { font-weight: 700; cursor: pointer; }
 .analytics-day-links { display: flex; flex-wrap: wrap; gap: 8px; }
 .analytics-rankings h3 { font-size: .95rem; margin: 12px 0 6px; }
+.analytics-focused .analytics-rankings h3 { font-size: 1.18rem; margin-top: 0; }
 
 @media (max-width: 960px) {
   .analytics-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }

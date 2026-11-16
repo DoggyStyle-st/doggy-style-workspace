@@ -15,6 +15,7 @@
   let handlers;
   let current;
   let receiptMonth = '';
+  let overviewRankingsOpen;
   let wired = false;
   let pending = 0;
 
@@ -71,6 +72,11 @@
     byId('anaReceiptSearch').value = query;
     receiptMonth = current.months.length > 1 ? month : '';
     renderReceipts();
+    const view = byId('anaViewMode');
+    if (view.value !== 'all' && view.value !== 'invoices') {
+      view.value = 'invoices';
+      applyView();
+    }
     scrollToHeading('anaReceiptsHeading');
   }
 
@@ -128,8 +134,6 @@
     const missingDates = byId('anaUndatedBtn');
     missingDates.hidden = !result.undated.length;
     missingDates.textContent = num(result.undated.length, 'Vorgang ohne Datum', 'Vorgänge ohne Datum') + ' anzeigen';
-    byId('anaNotice').hidden = !incomplete && !result.undated.length;
-
     let maxPayment = 0;
     for (const month of result.months) maxPayment = Math.max(maxPayment, Core.totalValue(month.finance.paid, 'gross') || 0);
     function monthlyMoney(month, kind) {
@@ -198,6 +202,27 @@
       'Keine Stornos im Zeitraum.', 2);
   }
 
+  function applyView() {
+    const mode = byId('anaViewMode').value;
+    const report = byId('anaReport');
+    report.classList.toggle('analytics-focused', mode !== 'all');
+    for (const section of report.querySelectorAll('[data-ana-views]')) {
+      section.hidden = mode !== 'all' && !section.dataset.anaViews.split(' ').includes(mode);
+    }
+
+    const rankings = byId('anaRankings');
+    if (mode === 'customers' || mode === 'dogs') {
+      overviewRankingsOpen ??= rankings.open;
+      rankings.open = true;
+    } else if (overviewRankingsOpen !== undefined) {
+      rankings.open = overviewRankingsOpen;
+      overviewRankingsOpen = undefined;
+    }
+
+    const financialView = ['all', 'months', 'invoices'].includes(mode);
+    byId('anaNotice').hidden = !financialView || (byId('anaAmountNotice').hidden && byId('anaUndatedBtn').hidden);
+  }
+
   function render() {
     if (!handlers || !byId('analytics').classList.contains('is-active')) return null;
     const from = byId('anaFrom').value;
@@ -219,6 +244,7 @@
     renderMetrics(current);
     renderReceipts();
     renderDetails(current);
+    applyView();
     return current;
   }
 
@@ -237,7 +263,7 @@
   function exportCsv() {
     const report = render();
     if (!report) return;
-    const mode = byId('anaExportMode').value;
+    const mode = byId('anaViewMode').value;
     const suffix = { all: '', months: '_Monate', invoices: '_Belege', services: '_Leistungen',
       occupancy: '_Belegung', customers: '_Kunden', dogs: '_Hunde' }[mode] || '';
     const download = el('a');
@@ -271,6 +297,7 @@
     });
     byId('anaReceiptSearch').addEventListener('input', renderReceipts);
     byId('anaClearMonth').addEventListener('click', () => { receiptMonth = ''; renderReceipts(); });
+    byId('anaViewMode').addEventListener('change', applyView);
     byId('anaExportBtn').addEventListener('click', exportCsv);
   }
 
@@ -287,11 +314,13 @@
     handlers = null;
     current = null;
     receiptMonth = '';
+    byId('anaViewMode').value = 'all';
     byId('anaReceiptKind').value = '';
     byId('anaReceiptSearch').value = '';
     byId('anaReport').hidden = true;
     byId('anaExportBtn').disabled = true;
     byId('anaRangeHint').textContent = '';
+    applyView();
   }
 
   window.DSAnalyticsView = { show, schedule, reset };

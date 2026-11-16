@@ -1,3 +1,12 @@
+# Doggy Style Workspace – GB384
+
+Stand 16. November 2026 · Build M50.9.9GB384_ANALYTICS_VIEW_20261116
+
+- Alle Ansichten, der Wechsel zur gefilterten Belegliste und die Navigation zu Rechnung und Kalender wurden in Chromium bei 1024 × 768 und 390 × 844 Pixeln geprüft.
+- Der CSV-Download verwendet die aktive Ansicht und die Belegfilter. Datumsänderungen und aktualisierte Rechnungsdaten werden in der gewählten Ansicht berücksichtigt. Die Prüfung lief mit lokalen Testdaten.
+
+## Prüfung des vorigen Stands GB383
+
 # Doggy Style Workspace – GB383
 
 Stand 15. November 2026 · Build M50.9.9GB383_ANALYTICS_20261115

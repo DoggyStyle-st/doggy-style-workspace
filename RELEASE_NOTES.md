@@ -1,3 +1,8 @@
+# GB384 – Ansichtsauswahl für Auswertungen
+
+- **Ansicht** zeigt sofort den ausgewählten Bereich. **CSV speichern** verwendet dieselbe Auswahl und den eingestellten Zeitraum.
+- Beträge in der Monatsübersicht und Kundennummern unter Top-Kunden öffnen die zugehörige Belegliste mit passendem Filter.
+
 # GB383 – Auswertungen
 
 - Monatsübersicht mit Zahlungseingängen, offenen Belegen und Stornos. Zahlungseingänge werden mit Brutto, enthaltener MwSt. und Netto ausgewiesen.

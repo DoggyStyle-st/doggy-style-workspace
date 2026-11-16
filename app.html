@@ -15,16 +15,16 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
 <meta charset="utf-8"/>
-  <meta name="app-build" content="M50.9.9GB383_ANALYTICS_20261115">
+  <meta name="app-build" content="M50.9.9GB384_ANALYTICS_VIEW_20261116">
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <title>Doggy Style Workspace · App</title>
 <link href="manifest.json" rel="manifest"/>
 <meta content="#101014" name="theme-color"/>
 <link href="assets/logo.png" rel="apple-touch-icon"/>
-<link href="styles.css?v=M50.9.9GB383_ANALYTICS_20261115" rel="stylesheet"/>
+<link href="styles.css?v=M50.9.9GB384_ANALYTICS_VIEW_20261116" rel="stylesheet"/>
 <link href="dashboard_master.css?v=20260104v13logout" rel="stylesheet"/>
-<link href="analytics.css?v=M50.9.9GB383_ANALYTICS_20261115" rel="stylesheet"/>
-<link href="calendar-events.css?v=M50.9.9GB383_ANALYTICS_20261115" rel="stylesheet"/>
+<link href="analytics.css?v=M50.9.9GB384_ANALYTICS_VIEW_20261116" rel="stylesheet"/>
+<link href="calendar-events.css?v=M50.9.9GB384_ANALYTICS_VIEW_20261116" rel="stylesheet"/>
 <style>
   /* Topbar Layout (iPad & Desktop stabil) */
   .topbar{position:sticky; top:0; z-index:50;}
@@ -46,14 +46,14 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
 </style>
 
 
-  <meta name="app-version" content="M50.9.9GB383_ANALYTICS_20261115">
+  <meta name="app-version" content="M50.9.9GB384_ANALYTICS_VIEW_20261116">
   <meta name="release-channel" content="MASTER">
 <style>
 /* GB358: interne Diagnose bleibt programmatisch vorhanden, wird aber nicht angezeigt. */
 #assignDiag,#inboxDiag,#inboxDiagError,#inboxProposalDebug,#buildBadge,[id^="gb348Diag"]{display:none!important}
 </style>
-<link rel="stylesheet" href="document-output.css?v=M50.9.9GB383_ANALYTICS_20261115">
-<link rel="stylesheet" href="billing.css?v=M50.9.9GB383_ANALYTICS_20261115"></head>
+<link rel="stylesheet" href="document-output.css?v=M50.9.9GB384_ANALYTICS_VIEW_20261116">
+<link rel="stylesheet" href="billing.css?v=M50.9.9GB384_ANALYTICS_VIEW_20261116"></head>
 <body class="bg-watermark page-app">
 <header class="topbar">
   <div class="topbar__inner">
@@ -1117,9 +1117,9 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
         <label for="anaTo">Bis <input id="anaTo" type="date"></label>
       </div>
       <div class="analytics-export">
-        <label for="anaExportMode">CSV-Inhalt</label>
+        <label for="anaViewMode">Ansicht</label>
         <div>
-          <select id="anaExportMode">
+          <select id="anaViewMode" aria-controls="anaReport">
             <option value="all">Gesamte Auswertung</option>
             <option value="months">Monatsübersicht</option>
             <option value="invoices">Belegliste</option>
@@ -1136,7 +1136,7 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
   </div>
 
   <div id="anaReport" hidden>
-    <div class="analytics-metrics">
+    <div class="analytics-metrics" data-ana-views="">
       <button class="card analytics-metric" type="button" data-ana-kind="paid" aria-controls="anaReceipts">
         <span>Zahlungseingänge</span>
         <strong id="anaPaidGross">–</strong>
@@ -1167,7 +1167,7 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
       <button id="anaUndatedBtn" class="btn" type="button" data-ana-kind="undated" aria-controls="anaReceipts" hidden></button>
     </div>
 
-    <section class="card analytics-card" aria-labelledby="anaMonthsHeading">
+    <section class="card analytics-card" aria-labelledby="anaMonthsHeading" data-ana-views="months">
       <h2 id="anaMonthsHeading">Monatsübersicht</h2>
       <div class="analytics-table-wrap" tabindex="0" role="region" aria-label="Monatsübersicht">
         <table id="anaTable" class="analytics-table analytics-months">
@@ -1184,7 +1184,7 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
       </div>
     </section>
 
-    <section id="anaReceipts" class="card analytics-card" aria-labelledby="anaReceiptsHeading">
+    <section id="anaReceipts" class="card analytics-card" aria-labelledby="anaReceiptsHeading" data-ana-views="invoices">
       <h2 id="anaReceiptsHeading" tabindex="-1">Belegliste</h2>
       <div class="analytics-receipt-controls">
         <label for="anaReceiptKind">Vorgang
@@ -1217,8 +1217,8 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
       </div>
     </section>
 
-    <div class="analytics-columns">
-      <section class="card analytics-card" aria-labelledby="anaServicesHeading">
+    <div class="analytics-columns" data-ana-views="services occupancy">
+      <section class="card analytics-card" aria-labelledby="anaServicesHeading" data-ana-views="services">
         <h2 id="anaServicesHeading">Bezahlte Leistungen</h2>
         <p class="muted analytics-description">Nach Zahlungseingang, einschließlich Zuschlägen.</p>
         <div class="analytics-table-wrap" tabindex="0" role="region" aria-label="Bezahlte Leistungen">
@@ -1228,7 +1228,7 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
           </table>
         </div>
       </section>
-      <section id="anaOccupancy" class="card analytics-card" aria-labelledby="anaOccupancyHeading">
+      <section id="anaOccupancy" class="card analytics-card" aria-labelledby="anaOccupancyHeading" data-ana-views="occupancy">
         <h2 id="anaOccupancyHeading" tabindex="-1">Bestätigte Belegung</h2>
         <p id="anaOccupancyExplanation" class="muted analytics-description"></p>
         <div class="analytics-table-wrap" tabindex="0" role="region" aria-label="Belegung nach Monat">
@@ -1247,24 +1247,24 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
       </section>
     </div>
 
-    <details class="card analytics-card">
-      <summary>Kunden, Hunde und Stornogründe</summary>
+    <details id="anaRankings" class="card analytics-card" data-ana-views="customers dogs">
+      <summary data-ana-views="">Kunden, Hunde und Stornogründe</summary>
       <div class="analytics-rankings">
-        <div>
+        <div data-ana-views="customers">
           <h3>Top-Kunden</h3>
           <table class="analytics-table" id="anaTopCustomerTable">
             <thead><tr><th scope="col">Kunde</th><th scope="col" class="ana-number">Bezahlt brutto</th><th scope="col" class="ana-number">Belege</th></tr></thead>
             <tbody id="anaCustomers"></tbody>
           </table>
         </div>
-        <div>
+        <div data-ana-views="dogs">
           <h3>Top-Hunde</h3>
           <table class="analytics-table" id="anaTopDogTable">
             <thead><tr><th scope="col">Hund</th><th scope="col" class="ana-number">Bezahlt brutto</th><th scope="col" class="ana-number">Belege</th></tr></thead>
             <tbody id="anaDogs"></tbody>
           </table>
         </div>
-        <div>
+        <div data-ana-views="">
           <h3>Stornogründe</h3>
           <table class="analytics-table" id="anaStornoReasonTable">
             <thead><tr><th scope="col">Grund</th><th scope="col" class="ana-number">Anzahl</th></tr></thead>
@@ -1277,7 +1277,7 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
 </section>
 
 <section class="panel" id="statistics">
-<!-- Statistics panel is rendered by app.js?v=M50.9.9GB383_ANALYTICS_20261115 (renderStatisticsPanel) -->
+<!-- Statistics panel is rendered by app.js?v=M50.9.9GB384_ANALYTICS_VIEW_20261116 (renderStatisticsPanel) -->
 </section>
 
 
@@ -1344,7 +1344,7 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
 </footer>
 </div>
 <!-- Firebase (optional) + Config -->
-<script defer="defer" src="firebase-config.js?v=M50.9.9GB383_ANALYTICS_20261115"></script>
+<script defer="defer" src="firebase-config.js?v=M50.9.9GB384_ANALYTICS_VIEW_20261116"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
@@ -1354,23 +1354,23 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
 
 <!-- Competing legacy workflow/contract overrides removed. -->
 
-<script defer src="browser-store.js?v=M50.9.9GB383_ANALYTICS_20261115"></script>
-<script defer src="workflow-core.js?v=M50.9.9GB383_ANALYTICS_20261115"></script>
-<script defer src="workflow-ui.js?v=M50.9.9GB383_ANALYTICS_20261115"></script>
-<script defer src="workspace-repair-ui.js?v=M50.9.9GB383_ANALYTICS_20261115"></script>
-<script defer src="communication-core.js?v=M50.9.9GB383_ANALYTICS_20261115"></script>
-<script defer src="customer-portal.js?v=M50.9.9GB383_ANALYTICS_20261115"></script>
-<script defer src="account-directory.js?v=M50.9.9GB383_ANALYTICS_20261115"></script>
-<script defer src="statistics-store.js?v=M50.9.9GB383_ANALYTICS_20261115"></script>
-<script defer src="analytics-core.js?v=M50.9.9GB383_ANALYTICS_20261115"></script>
-<script defer src="analytics-view.js?v=M50.9.9GB383_ANALYTICS_20261115"></script>
-<script defer src="calendar-events.js?v=M50.9.9GB383_ANALYTICS_20261115"></script>
+<script defer src="browser-store.js?v=M50.9.9GB384_ANALYTICS_VIEW_20261116"></script>
+<script defer src="workflow-core.js?v=M50.9.9GB384_ANALYTICS_VIEW_20261116"></script>
+<script defer src="workflow-ui.js?v=M50.9.9GB384_ANALYTICS_VIEW_20261116"></script>
+<script defer src="workspace-repair-ui.js?v=M50.9.9GB384_ANALYTICS_VIEW_20261116"></script>
+<script defer src="communication-core.js?v=M50.9.9GB384_ANALYTICS_VIEW_20261116"></script>
+<script defer src="customer-portal.js?v=M50.9.9GB384_ANALYTICS_VIEW_20261116"></script>
+<script defer src="account-directory.js?v=M50.9.9GB384_ANALYTICS_VIEW_20261116"></script>
+<script defer src="statistics-store.js?v=M50.9.9GB384_ANALYTICS_VIEW_20261116"></script>
+<script defer src="analytics-core.js?v=M50.9.9GB384_ANALYTICS_VIEW_20261116"></script>
+<script defer src="analytics-view.js?v=M50.9.9GB384_ANALYTICS_VIEW_20261116"></script>
+<script defer src="calendar-events.js?v=M50.9.9GB384_ANALYTICS_VIEW_20261116"></script>
 <script defer src="vendor/jspdf.umd.min.js?v=4.2.1"></script>
 <script defer src="vendor/print-font.js?v=1"></script>
-<script defer src="document-output.js?v=M50.9.9GB383_ANALYTICS_20261115"></script>
-<script defer src="workforms-print.js?v=M50.9.9GB383_ANALYTICS_20261115"></script>
-<script defer src="invoice-print.js?v=M50.9.9GB383_ANALYTICS_20261115"></script>
-<script defer src="billing.js?v=M50.9.9GB383_ANALYTICS_20261115"></script><script defer="defer" src="app.js?v=M50.9.9GB383_ANALYTICS_20261115"></script>
+<script defer src="document-output.js?v=M50.9.9GB384_ANALYTICS_VIEW_20261116"></script>
+<script defer src="workforms-print.js?v=M50.9.9GB384_ANALYTICS_VIEW_20261116"></script>
+<script defer src="invoice-print.js?v=M50.9.9GB384_ANALYTICS_VIEW_20261116"></script>
+<script defer src="billing.js?v=M50.9.9GB384_ANALYTICS_VIEW_20261116"></script><script defer="defer" src="app.js?v=M50.9.9GB384_ANALYTICS_VIEW_20261116"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1389,7 +1389,7 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
 </script>
 
 <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB383_ANALYTICS_20261115', { updateViaCache: 'none' });
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.9GB384_ANALYTICS_VIEW_20261116', { updateViaCache: 'none' });
   </script>
 
 <script>
@@ -1522,7 +1522,7 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
 
 <script>
 (function(){
-  const CURRENT_BUILD = 'M50.9.9GB383_ANALYTICS_20261115';
+  const CURRENT_BUILD = 'M50.9.9GB384_ANALYTICS_VIEW_20261116';
   try{
     window.addEventListener('load', function(){
       try{

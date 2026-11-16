@@ -1,8 +1,10 @@
-Doggy Style Workspace – GB383
-Build M50.9.9GB383_ANALYTICS_20261115
+Doggy Style Workspace – GB384
+Build M50.9.9GB384_ANALYTICS_VIEW_20261116
+
+Beim Update von GB383 die App-Dateien wie in Schritt 2 übernehmen und wie in Schritt 4 neu laden. In Auswertungen oben rechts unter Ansicht zwischen Monatsübersicht, Belegliste und Belegung wechseln. CSV speichern verwendet die gewählte Ansicht.
 
 1. Vor dem Austausch unter Einstellungen > Cloud & Konto die aktuelle lokale Sicherung herunterladen.
-2. DoggyStyle_Workspace_GB383_Auswertungen.zip entpacken und die App-Dateien aus dem Ordner doggy-style-workspace-main am gewählten Hosting-Ort übernehmen.
+2. DoggyStyle_Workspace_GB384_Auswertungen.zip entpacken und die App-Dateien aus dem Ordner doggy-style-workspace-main am gewählten Hosting-Ort übernehmen.
 3. Für eigene Termine die Firestore-Regeln und Kalenderfunktionen gemäß CLOUD_SETUP.md bereitstellen.
 4. Workspace und Kundenportal neu laden. Im Workspace zeigt DIAG die Buildkennung dieser Version.
 5. In Rechnungen den vorhandenen Entwurf zum Beispielaufenthalt öffnen. Bei den Standardpreisen stehen dort 14 Tage zu 40,00 €, 4,00 € Sonntagszuschlag und 4,00 € Feiertagszuschlag, insgesamt 568,00 € ohne Zusatz-Spaziergänge.

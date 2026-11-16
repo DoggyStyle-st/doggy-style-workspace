@@ -1,13 +1,15 @@
-# Doggy Style Workspace – GB383
+# Doggy Style Workspace – GB384
 
 Unter **Auswertungen** wählst du **Dieser Monat**, **Vormonat**, **Dieses Jahr** oder eigene Start- und Enddaten.
+
+Oben rechts unter **Ansicht** wechselst du zwischen der gesamten Auswertung und den einzelnen Bereichen. **CSV speichern** exportiert die gewählte Ansicht für den eingestellten Zeitraum.
 
 - Die Monatsübersicht ordnet Zahlungseingänge nach dem erfassten Zahlungsdatum ein. Aktuell offene Belege erscheinen im Monat ihres Rechnungsdatums, Stornos im Monat ihres Stornodatums.
 - Brutto, enthaltene MwSt. und Netto stammen aus den gespeicherten Rechnungsbeträgen und Steuersätzen. Bezahlte Leistungen zeigen die Zuschläge als eigene Positionen.
 - Ein bereits bezahlter und später stornierter Beleg erscheint als Zahlung am Zahlungsdatum und als Storno am Stornodatum. Die Stornospalte zeigt den Belegwert.
 - Unter **Belegliste** kannst du nach Rechnungsnummer, Kundennummer, Name oder Hund suchen. Tippe auf die Rechnungsnummer, um die Rechnung zu öffnen. Beträge und Belegzahlen in der Monatsübersicht führen zu den zugehörigen Vorgängen.
 - Unter **Bestätigte Belegung** siehst du die Hundetage für beide Betreuungsarten und die gemeinsame Kapazität. An- und Abreisetage zählen. Tage über Kapazität lassen sich im Kalender öffnen.
-- **CSV speichern** exportiert den angezeigten Zeitraum mit numerischen Beträgen. Bei der Belegliste werden auch die sichtbaren Such- und Vorgangsfilter angewendet. Vorgänge ohne zuordenbares Datum stehen in einer gesonderten Liste.
+- Der CSV-Export enthält numerische Beträge. Bei der Belegliste werden auch die sichtbaren Such- und Vorgangsfilter angewendet. Vorgänge ohne zuordenbares Datum stehen in einer gesonderten Liste.
 
 Unter **Kalender → + Termin** kannst du eigene Termine speichern, verschieben oder absagen. Wähle eine Erinnerung und aktiviere **Mitteilungen einschalten** auf jedem Gerät, das mitbekommen soll, wenn der Termin ansteht. Die Tagesansicht zeigt Termine sowie erfasste Bring- und Abholzeiten. Freie Hundeplätze gelten für beide Betreuungsarten zusammen.
 
