@@ -2,7 +2,7 @@ try{sessionStorage.removeItem('ds_handoff_pass');}catch(_){}
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.10GB389_COMPLIANCE_20261116",
+  tag: "M50.9.11GB390_TAX_EXPORT_20261116",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -13,7 +13,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.10GB389_COMPLIANCE_20261116";
+const APP_BUILD = "M50.9.11GB390_TAX_EXPORT_20261116";
 try{ window.__dsAppJsRuntimeBuild = "GB350-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -2742,7 +2742,7 @@ async function submitCustomerDogsProposal(){
   // GB355: vollständig lokal sichern, anschließend zuverlässig in proposals + tasks übertragen.
   // Die Oberfläche wird sofort freigegeben; die Erfolgsmeldung "an Eingänge übergeben"
   // erscheint ausschließlich nach bestätigter Firestore-Speicherung.
-  const GB355='M50.9.10GB389_COMPLIANCE_20261116';
+  const GB355='M50.9.11GB390_TAX_EXPORT_20261116';
   function S(v){ try{return String(v==null?'':v);}catch(_){return '';} }
   function L(v){ return S(v).trim().toLowerCase(); }
   function V(id){ try{const el=document.getElementById(id);return S(el&&el.value!=null?el.value:'').trim();}catch(_){return '';} }
@@ -7683,13 +7683,98 @@ function monthClose(){
     if(msg) msg.textContent = 'Monatsnachweis konnte nicht geöffnet werden. Bitte erneut versuchen.';
   }
 }
-function taxExportMonth(){
+async function taxExportMonth(){
+  if(!isStaff() || DSWorkflow.scoped())return;
+  if(document.getElementById('btnTaxExportMonth')?.disabled)return;
   const selected = document.getElementById('settingsExportMonth')?.value;
   const ym = DSWorkflowCore.dateISO(selected+'-01') ? selected : toISODateLocal(new Date()).slice(0,7);
-  const html = buildMonthReportHtml(ym);
-  openHtmlInModal(`Monats‑Export ${ym}`, html, 'Tipp: iPad/iPhone → „Drucken/Speichern“ → Teilen → „In Dateien sichern“ → Dateien/DoggyStyle/Export.');
+  const from = ym+'-01';
+  const end = new Date(from+'T12:00:00Z');
+  end.setUTCMonth(end.getUTCMonth()+1,0);
+  const to = end.toISOString().slice(0,10);
+  const button = document.getElementById('btnTaxExportMonth');
   const msg = document.getElementById('taxExportMsg');
-  if(msg) msg.textContent = `PDF‑Report für ${ym} geöffnet (Dateiname‑Tipp: 01–05 in Dateien sortieren).`;
+  const account = ()=>window.firebase?.auth().currentUser?.uid||'';
+  const uid = account();
+  if(button)button.disabled=true;
+  if(msg)msg.textContent='Monatsexport wird erstellt …';
+  try{
+    const report = DSAnalytics.report(state,{from,to},analyticsInvoiceLines);
+    const paid = report.entries.filter(entry=>entry.kind==='paid').reverse();
+    const invoices = Object.values(state.invoices || {});
+    const money = cents=>cents===null?'Fehlt':formatEuro(cents/100);
+    const date = iso=>iso ? iso.split('-').reverse().join('.') : '—';
+    const receipts = paid.map(entry=>{
+      const record = entry.id
+        ? invoices.find(inv=>String(inv.id)===entry.id)
+        : entry.number && invoices.find(inv=>String(inv.invoiceNumber || inv.number)===entry.number);
+      if(!record)throw new Error('Die Rechnung '+(entry.number || 'ohne Nummer')+' fehlt im Workspace.');
+      const invoice = DSBilling.display({...record, status:'paid', invoiceNumber:record.invoiceNumber || entry.number});
+      const receipt = buildInvoicePrintModel(invoice);
+      receipt.rows=entry.lines.length
+        ? entry.lines.map(line=>({label:line.label,amount:money(line.gross)}))
+        : [{label:'Keine Einzelpositionen gespeichert',amount:''}];
+      receipt.metadata.find(([label])=>label==='Rechnungsdatum')[1]=date(entry.invoiceDate);
+      receipt.metadata.push(['Zahlungsdatum',date(entry.day)]);
+      receipt.totals=[
+        {label:'Gesamt (Brutto)',amount:money(entry.gross)},
+        {label:'Enthaltene Umsatzsteuer',amount:money(entry.vat)},
+        {label:'Netto',amount:money(entry.net)}
+      ];
+      receipt.payment=[];
+      return receipt;
+    });
+    const total = report.totals.paid;
+    const issuer = invoiceIssuer({status:'draft'});
+    const model = {
+      title:'Steuerberater-Monatsexport '+ym,
+      heading:'Monatsumsätze '+ym,
+      logoUrl:new URL('assets/logo.png',location.href).href,
+      sender:[issuer.name,issuer.owner,issuer.street,issuer.zipCity].filter(Boolean),
+      recipient:['Steuerberater-Export'],
+      recipientDetails:['Zahlungseingänge mit Rechnungsbelegen'],
+      metadata:[
+        ['Zeitraum',date(from)+' bis '+date(to)],
+        ['Auswahl','Nach Zahlungsdatum'],
+        ['Rechnungsbelege',String(receipts.length)]
+      ],
+      positionHeading:'Zahlung · Rechnung · Kunde',
+      rows:paid.length ? paid.map(entry=>({
+        label:[date(entry.day),entry.number || 'Beleg ohne Nummer',entry.customer,
+          entry.status==='cancelled'?'Rechnung später storniert':''].filter(Boolean).join(' · '),
+        amount:money(entry.gross)
+      })) : [{label:'Keine Zahlungseingänge im gewählten Monat.',amount:''}],
+      totals:[['Zahlungseingänge brutto','gross'],['Netto','net'],['Enthaltene Umsatzsteuer','vat']].map(([label,key])=>({
+        label, amount:money(DSAnalytics.totalValue(total,key))
+      })),
+      payment:[]
+    };
+    const undated = report.undated.filter(entry=>entry.kind==='paid');
+    if(undated.length)model.metadata.push(['Hinweis',undated.length+' Zahlung(en) ohne Zahlungsdatum konnten keinem Monat zugeordnet werden.']);
+    let logo;
+    try{
+      const bytes = await withTimeout(fetch(model.logoUrl).then(response=>response.ok?response.arrayBuffer():null),4000);
+      if(bytes)logo=new Uint8Array(bytes);
+    }catch(_){/* Die Absenderdaten sind auch ohne Logo vorhanden. */}
+    if(uid!==account())return;
+    if(!logo){
+      model.logoUrl='';
+      for(const receipt of receipts)receipt.logoUrl='';
+    }
+    let pdf;
+    try{pdf=DSInvoicePrint.pdf(model,window.jspdf?.jsPDF,window.DSPrintFont,logo,receipts);}
+    catch(error){console.warn('Steuerberater-PDF konnte nicht erstellt werden',error);}
+    DSDocumentOutput.open({
+      title:model.title,html:DSInvoicePrint.html(model,receipts),pdf,filename:model.title.replaceAll(' ','_')+'.pdf',
+      hint:pdf?'„PDF speichern“ lädt die Monatsübersicht mit den Rechnungsbelegen herunter.':'Über „Drucken“ kannst du die Übersicht mit den Rechnungsbelegen als PDF sichern.'
+    });
+    if(msg)msg.textContent=`Monatsübersicht mit ${receipts.length} Rechnungsbeleg(en) geöffnet.`;
+  }catch(error){
+    console.error('Steuerberater-Export fehlgeschlagen',error);
+    if(msg)msg.textContent='Monatsexport konnte nicht geöffnet werden. '+error.message;
+  }finally{
+    if(button)button.disabled=false;
+  }
 }
 function bindComplianceActions(){
   const ref = document.getElementById('btnComplianceRefresh');
@@ -21983,7 +22068,7 @@ function renderStatMethod(){
 
 
 
-/* ===== CHAT (M50.9.10GB389_COMPLIANCE_20261116) ===== */
+/* ===== CHAT (M50.9.11GB390_TAX_EXPORT_20261116) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,

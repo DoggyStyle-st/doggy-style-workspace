@@ -1,3 +1,8 @@
+# GB390 – Steuerberater-Monatsexport
+
+- PDF mit Monatsübersicht nach Zahlungsdatum, Brutto, Netto, Umsatzsteuer und den zugehörigen Rechnungsseiten.
+- Der Compliance-Monatsnachweis bleibt unter Compliance.
+
 # GB389 – Compliance und Monatsnachweis
 
 - Ampel-Aktualisierung zeigt die Uhrzeit der letzten Prüfung.

@@ -289,7 +289,7 @@
       const money = amounts(invoice, pricing, rows);
       const party = relatedNames(invoice, workspace, directory);
       const record = {
-        ...dates, ...party, ...money,
+        ...dates, ...party, ...money, lines: rows,
         id: text(invoice.id), number: text(invoice.invoiceNumber || invoice.number),
         from: firstDate(invoice.period?.from, invoice.stayFrom, invoice.from),
         to: firstDate(invoice.period?.to, invoice.stayTo, invoice.to),

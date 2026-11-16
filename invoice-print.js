@@ -7,10 +7,32 @@
   })[char]);
   const htmlLines=lines=>lines.map(line=>escape(line)).join('<br>');
 
-  function html(invoice){
+  function html(invoice, attachments=[]){
     const rows=(items)=>items.map(({label,amount})=>
       `<tr><td>${escape(label)}</td><td class="amount">${escape(amount)}</td></tr>`
     ).join('');
+    const render=invoice=>`<main>
+  <header>
+    <address><strong>${escape(invoice.recipient[0])}</strong>${invoice.recipient.length>1?'<br>'+htmlLines(invoice.recipient.slice(1)):''}
+      ${invoice.recipientDetails.length?'<div class="detail">'+htmlLines(invoice.recipientDetails)+'</div>':''}
+    </address>
+    <div class="sender">${invoice.logoUrl?'<img src="'+escape(invoice.logoUrl)+'" alt="">':''}
+      <strong>${escape(invoice.sender[0])}</strong><br>${htmlLines(invoice.sender.slice(1))}
+    </div>
+  </header>
+  <h1>${escape(invoice.heading)}</h1>
+  <div class="metadata">${invoice.metadata.map(([label,value])=>`<div><strong>${escape(label)}:</strong> ${escape(value)}</div>`).join('')}</div>
+  <table>
+    <thead><tr><th scope="col">${escape(invoice.positionHeading || 'Position')}</th><th scope="col" class="amount">Betrag</th></tr></thead>
+    <tbody>${rows(invoice.rows)}</tbody>
+    <tbody class="totals">${rows(invoice.totals)}</tbody>
+  </table>
+  ${invoice.payment.length?`<section class="payment">
+    <p>${escape(invoice.payment[0])}</p>
+    <div>${htmlLines(invoice.payment.slice(1))}</div>
+    <div class="closing">Vielen Dank!</div>
+  </section>`:''}
+</main>`;
     return `<!doctype html>
 <html lang="de">
 <head>
@@ -23,6 +45,7 @@
   *{box-sizing:border-box}
   body{margin:0;padding:20px;color:#161616;background:#fff;font:14px/1.45 Arial,sans-serif;overflow-wrap:anywhere}
   main{max-width:780px;margin:auto}
+  main+main{margin-top:24px;padding-top:20px;border-top:1px solid #ddd}
   header{display:flex;align-items:flex-start;gap:20px;margin-bottom:22px}
   address, .sender{flex:1 1 0;min-width:0}
   address{font-style:normal}
@@ -43,6 +66,7 @@
   @media print{
     body{padding:0;font-size:10.5pt}
     main{max-width:none}
+    main+main{break-before:page;margin-top:0;padding-top:0;border:0}
     h1{break-after:avoid}
     thead{display:table-header-group}
     tr,.totals,.payment{break-inside:avoid;page-break-inside:avoid}
@@ -50,33 +74,12 @@
 </style>
 </head>
 <body>
-<main>
-  <header>
-    <address><strong>${escape(invoice.recipient[0])}</strong>${invoice.recipient.length>1?'<br>'+htmlLines(invoice.recipient.slice(1)):''}
-      ${invoice.recipientDetails.length?'<div class="detail">'+htmlLines(invoice.recipientDetails)+'</div>':''}
-    </address>
-    <div class="sender">${invoice.logoUrl?'<img src="'+escape(invoice.logoUrl)+'" alt="">':''}
-      <strong>${escape(invoice.sender[0])}</strong><br>${htmlLines(invoice.sender.slice(1))}
-    </div>
-  </header>
-  <h1>${escape(invoice.heading)}</h1>
-  <div class="metadata">${invoice.metadata.map(([label,value])=>`<div><strong>${escape(label)}:</strong> ${escape(value)}</div>`).join('')}</div>
-  <table>
-    <thead><tr><th scope="col">Position</th><th scope="col" class="amount">Betrag</th></tr></thead>
-    <tbody>${rows(invoice.rows)}</tbody>
-    <tbody class="totals">${rows(invoice.totals)}</tbody>
-  </table>
-  <section class="payment">
-    <p>${escape(invoice.payment[0])}</p>
-    <div>${htmlLines(invoice.payment.slice(1))}</div>
-    <div class="closing">Vielen Dank!</div>
-  </section>
-</main>
+${[invoice,...attachments].map(render).join('')}
 </body>
 </html>`;
   }
 
-  function pdf(invoice,JsPDF,font,logo){
+  function pdf(invoice,JsPDF,font,logo,attachments=[]){
     if(!JsPDF)throw new Error('Die PDF-Erstellung ist noch nicht geladen.');
     const doc=new JsPDF({unit:'mm',format:'a4',compress:true,putOnlyUsedFonts:true});
     let face='helvetica';
@@ -87,6 +90,17 @@
     }
     doc.setFont(face);
     doc.setProperties({title:invoice.title,author:invoice.sender[0]});
+    drawPdf(doc,invoice,logo);
+    for(const attachment of attachments){
+      doc.addPage();
+      drawPdf(doc,attachment,logo);
+    }
+    return doc.output('blob');
+  }
+
+  function drawPdf(doc,invoice,logo){
+    doc.setTextColor(0);
+    const firstPage=doc.getNumberOfPages();
     const margin=16,right=194,width=right-margin,top=17,bottom=272,lineHeight=4.9;
     let y=top;
     const wrap=(text,maxWidth,size=10)=>{
@@ -153,7 +167,7 @@
       doc.line(margin,y+height,right,y+height);
       y+=height;
     }
-    function header(){drawRow(['Position'],['Betrag'],true,0,1);}
+    function header(){drawRow([invoice.positionHeading || 'Position'],['Betrag'],true,0,1);}
     const measure=row=>{
       const keepPrice=text=>text.replace(/(\d) €/g,'$1\u00a0€');
       const label=wrap(keepPrice(row.label),labelWidth-2*padding);
@@ -170,7 +184,7 @@
         offset+=count;
       }
     }
-    const payment=[...invoice.payment,'','Vielen Dank!'];
+    const payment=invoice.payment.length?[...invoice.payment,'','Vielen Dank!']:[];
     const paymentHeight=payment.reduce((sum,line)=>sum+wrap(line,width).length*lineHeight,0);
     const totals=invoice.totals.map(measure);
     const closingHeight=totals.reduce((sum,row)=>sum+rowHeight(row.lines),0)+8+paymentHeight;
@@ -182,18 +196,19 @@
     measured.forEach((row,i)=>tableRow(row,false,i===measured.length-1?closingHeight:0));
     totals.forEach((row,i)=>tableRow(row,i===0));
 
-    if(y+8+paymentHeight>bottom)page();else y+=8;
-    payment.forEach(line=>write(line));
+    if(payment.length){
+      if(y+8+paymentHeight>bottom)page();else y+=8;
+      payment.forEach(line=>write(line));
+    }
     const pages=doc.getNumberOfPages();
-    for(let i=1;i<=pages;i++){
+    for(let i=firstPage;i<=pages;i++){
       doc.setPage(i);
       doc.setDrawColor(208,208,208);
       doc.line(margin,280,right,280);
       doc.setTextColor(70);
       doc.setFontSize(8);
-      doc.text('Seite '+i+' / '+pages,right,285,{align:'right'});
+      doc.text('Seite '+(i-firstPage+1)+' / '+(pages-firstPage+1),right,285,{align:'right'});
     }
-    return doc.output('blob');
   }
 
   window.DSInvoicePrint={html,pdf};
