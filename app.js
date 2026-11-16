@@ -2,7 +2,7 @@ try{sessionStorage.removeItem('ds_handoff_pass');}catch(_){}
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.9GB388_SETTINGS_WORKSPACE_20261116",
+  tag: "M50.9.10GB389_COMPLIANCE_20261116",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -13,7 +13,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.9GB388_SETTINGS_WORKSPACE_20261116";
+const APP_BUILD = "M50.9.10GB389_COMPLIANCE_20261116";
 try{ window.__dsAppJsRuntimeBuild = "GB350-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -2742,7 +2742,7 @@ async function submitCustomerDogsProposal(){
   // GB355: vollständig lokal sichern, anschließend zuverlässig in proposals + tasks übertragen.
   // Die Oberfläche wird sofort freigegeben; die Erfolgsmeldung "an Eingänge übergeben"
   // erscheint ausschließlich nach bestätigter Firestore-Speicherung.
-  const GB355='M50.9.9GB388_SETTINGS_WORKSPACE_20261116';
+  const GB355='M50.9.10GB389_COMPLIANCE_20261116';
   function S(v){ try{return String(v==null?'':v);}catch(_){return '';} }
   function L(v){ return S(v).trim().toLowerCase(); }
   function V(id){ try{const el=document.getElementById(id);return S(el&&el.value!=null?el.value:'').trim();}catch(_){return '';} }
@@ -4058,7 +4058,7 @@ function showPanel(id){
   }
 
   if(id === "compliance"){
-    try{ renderCompliancePanel(); }catch(_){ }
+    try{ bindComplianceActions(); renderCompliancePanel(); }catch(_){ }
   }
   if(id === "chat"){
     try{ dsSetChatExplicitOpen('staff', true); }catch(_){ }
@@ -7632,7 +7632,9 @@ function buildMonthReportHtml(monthISO){
   const hyg = (state.hygiene?.logs||[]).filter(l=>l && l.date>=from && l.date<=to);
   const medRec = (state.medication?.records||[]).filter(r=>r && r.date>=from && r.date<=to);
   const hn = (state.medication?.healthNotes||[]).filter(n=>n && n.date>=from && n.date<=to);
-  const stays = (state.docs||[]).filter(d=>d && d.saved && d.meta?.von && d.meta?.von>=from && d.meta?.von<=to);
+  const stays = DSWorkflowCore.confirmedStays(state)
+    .filter(stay => stay.from <= to && stay.to >= from)
+    .sort((a, b) => a.from.localeCompare(b.from));
   const rows = (arr, cols)=> arr.map(x=>`<tr>${cols.map(c=>`<td>${escapeHtml(String((typeof c==='function'?c(x):x[c])??''))}</td>`).join('')}</tr>`).join('') || `<tr><td colspan="${cols.length}">—</td></tr>`;
   return `<!doctype html><html><head><meta charset="utf-8"><title>Monatsnachweis ${escapeHtml(ym)}</title>
   <style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;margin:24px} h1,h2{margin:0 0 10px} .meta{color:#555;margin:0 0 16px} table{width:100%;border-collapse:collapse;margin:10px 0 18px} th,td{border:1px solid #ddd;padding:8px;font-size:12px} th{background:#f4f4f4;text-align:left} .pill{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid #bbb;font-size:12px} .warn{border-color:#d8a000} .danger{border-color:#c00} </style></head><body>
@@ -7640,11 +7642,11 @@ function buildMonthReportHtml(monthISO){
   <p class="meta">Erstellt: ${escapeHtml(new Date().toLocaleString('de-DE'))} · Betrieb: ${escapeHtml(COMPANY.name)} · Adresse: ${escapeHtml(COMPANY.street)}, ${escapeHtml(COMPANY.zipCity)}</p>
   <h2>§11‑Ampel (Stand heute)</h2>
   <table><tr><th>Bereich</th><th>Status</th><th>Detail</th></tr>
-    ${c.items.map(i=>`<tr><td>${escapeHtml(i.label)}</td><td><span class="pill ${i.pillClass}">${escapeHtml(i.icon)} ${escapeHtml(i.status)}</span></td><td>${escapeHtml(i.detail||'')}</td></tr>`).join('')}
+    ${c.items.map(i=>`<tr><td>${escapeHtml(i.label)}</td><td><span class="pill ${i.pillClass}">${escapeHtml(i.icon)} ${i.status === 'green' ? 'OK' : (i.status === 'yellow' ? 'Fällig' : 'Überfällig')}</span></td><td>${escapeHtml(i.detail||'')}</td></tr>`).join('')}
   </table>
-  <h2>01_Aufenthalte (Start im Monat)</h2>
+  <h2>01_Aufenthalte im Monat</h2>
   <table><tr><th>Von</th><th>Bis</th><th>Hund</th><th>Betreuung</th></tr>
-    ${rows(stays, [x=>x.meta?.von||'', x=>x.meta?.bis||'', x=>(getPet(x.dogId||'')?.name||''), x=>x.meta?.betreuung||''])}
+    ${rows(stays, [x=>formatDateDE(x.from), x=>formatDateDE(x.to), x=>getPet(x.petId)?.name || (state.dogs||[]).find(d=>d.id===x.petId)?.name || x.title, x=>x.label])}
   </table>
   <h2>03_Medikation (Gaben-Protokoll)</h2>
   <table><tr><th>Datum</th><th>Uhrzeit</th><th>Hund</th><th>Medikament</th><th>Status</th><th>Begründung</th><th>Von</th></tr>
@@ -7663,15 +7665,23 @@ function buildMonthReportHtml(monthISO){
 }
 function monthClose(){
   ensureProfiDefaults();
-  const now = new Date();
-  const ym = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-  const c = computeCompliance();
-  state.compliance.monthClosings.push({ym, closedAt:Date.now(), complianceWorst:c.worst});
-  saveState();
-  const html = buildMonthReportHtml(ym);
-  openHtmlInModal(`Monatsnachweis ${ym}`, html, 'Schließen mit ✕. iPad/iPhone → „Drucken/Speichern“ → Teilen → „In Dateien sichern“ (am besten: Dateien/DoggyStyle/Export).');
+  const ym = toISODateLocal(new Date()).slice(0,7);
   const msg = document.getElementById('monthCloseMsg');
-  if(msg) msg.textContent = `Monat ${ym} abgeschlossen – Vorschau geöffnet (Drucken/Speichern = PDF).`;
+  try{
+    const html = buildMonthReportHtml(ym);
+    const previous = state.compliance.monthClosings.some(entry => entry?.ym === ym);
+    if(!previous){
+      state.compliance.monthClosings.push({ym, closedAt:Date.now(), complianceWorst:computeCompliance().worst});
+      saveState();
+    }
+    openHtmlInModal(`Monatsnachweis ${ym}`, html, 'Auf dem iPad: „Drucken“ → Teilen → „In Dateien sichern“.');
+    if(msg) msg.textContent = previous
+      ? `Monat ${ym} bereits abgeschlossen. Aktuelle Vorschau erneut geöffnet.`
+      : `Monat ${ym} abgeschlossen. Vorschau geöffnet.`;
+  }catch(error){
+    console.error('Monatsabschluss fehlgeschlagen', error);
+    if(msg) msg.textContent = 'Monatsnachweis konnte nicht geöffnet werden. Bitte erneut versuchen.';
+  }
 }
 function taxExportMonth(){
   const selected = document.getElementById('settingsExportMonth')?.value;
@@ -7681,13 +7691,25 @@ function taxExportMonth(){
   const msg = document.getElementById('taxExportMsg');
   if(msg) msg.textContent = `PDF‑Report für ${ym} geöffnet (Dateiname‑Tipp: 01–05 in Dateien sortieren).`;
 }
+function bindComplianceActions(){
+  const ref = document.getElementById('btnComplianceRefresh');
+  if(ref && !ref.dataset.bound){ ref.dataset.bound='1'; ref.onclick = ()=>{
+    const status = document.getElementById('monthCloseMsg');
+    try{
+      renderComplianceDashboard();
+      renderComplianceInSettings();
+      status.textContent = `Ampel aktualisiert um ${new Date().toLocaleTimeString('de-DE')} Uhr.`;
+    }catch(error){
+      console.error('Ampel konnte nicht aktualisiert werden', error);
+      status.textContent = 'Ampel konnte nicht aktualisiert werden. Bitte erneut versuchen.';
+    }
+  }; }
+  const mc = document.getElementById('btnMonthClose');
+  if(mc && !mc.dataset.bound){ mc.dataset.bound='1'; mc.onclick = monthClose; }
+}
 function initProfiSettingsBindings(){
   const add = document.getElementById('btnStaffAdd');
   if(add && !add.dataset.bound){ add.dataset.bound='1'; add.onclick = profiAddStaff; }
-  const ref = document.getElementById('btnComplianceRefresh');
-  if(ref && !ref.dataset.bound){ ref.dataset.bound='1'; ref.onclick = ()=>{ renderComplianceDashboard(); renderComplianceInSettings(); }; }
-  const mc = document.getElementById('btnMonthClose');
-  if(mc && !mc.dataset.bound){ mc.dataset.bound='1'; mc.onclick = monthClose; }
   const t1 = document.getElementById('btnTaxExportMonth');
   if(t1 && !t1.dataset.bound){ t1.dataset.bound='1'; t1.onclick = taxExportMonth; }
   const t2 = document.getElementById('btnTaxExportJSON');
@@ -16263,7 +16285,7 @@ const _btnBackupExport = document.getElementById('btnBackupExport');
 if(_btnBackupExport) _btnBackupExport.addEventListener('click', doBackupExport);
 const _btnMonthExport = document.getElementById('btnMonthExport');
 if(_btnMonthExport) _btnMonthExport.addEventListener('click', exportMonthBundle);
-const _btnMonthClose = document.getElementById('btnMonthClose');
+const _btnMonthClose = document.getElementById('btnDashboardMonthClose');
 if(_btnMonthClose) _btnMonthClose.onclick = monthClose;
 const _btnSteuerExport = document.getElementById('btnSteuerExport');
 if(_btnSteuerExport) _btnSteuerExport.onclick = taxExportMonth;
@@ -21961,7 +21983,7 @@ function renderStatMethod(){
 
 
 
-/* ===== CHAT (M50.9.9GB388_SETTINGS_WORKSPACE_20261116) ===== */
+/* ===== CHAT (M50.9.10GB389_COMPLIANCE_20261116) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,

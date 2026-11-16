@@ -1,10 +1,10 @@
-Doggy Style Workspace – GB388
-Build M50.9.9GB388_SETTINGS_WORKSPACE_20261116
+Doggy Style Workspace – GB389
+Build M50.9.10GB389_COMPLIANCE_20261116
 
-Bei laufendem GB387 die GB388-App-Dateien am bisherigen Webhost übernehmen und neu laden. Für dieses Update ist kein erneuter Firebase-Deploy erforderlich.
+Bei laufendem GB388 die GB389-App-Dateien am bisherigen Webhost übernehmen und neu laden. Für dieses Update ist kein erneuter Firebase-Deploy erforderlich.
 
 1. Vor dem Austausch unter Einstellungen > Cloud & Konto die aktuelle lokale Sicherung herunterladen.
-2. DoggyStyle_Workspace_GB388_Einstellungen.zip entpacken und die App-Dateien aus dem Ordner doggy-style-workspace-main am gewählten Hosting-Ort übernehmen.
+2. DoggyStyle_Workspace_GB389_Compliance.zip entpacken und die App-Dateien aus dem Ordner doggy-style-workspace-main am gewählten Hosting-Ort übernehmen.
 3. Bei einer Neuinstallation die Firestore-Regeln und Funktionen gemäß CLOUD_SETUP.md bereitstellen.
 4. Workspace und Kundenportal neu laden. Im Workspace zeigt DIAG die Buildkennung dieser Version.
 5. In Rechnungen den vorhandenen Entwurf zum Beispielaufenthalt öffnen. Bei den Standardpreisen stehen dort 14 Tage zu 40,00 €, 4,00 € Sonntagszuschlag und 4,00 € Feiertagszuschlag, insgesamt 568,00 € ohne Zusatz-Spaziergänge.
@@ -29,3 +29,5 @@ Bei laufendem GB387 die GB388-App-Dateien am bisherigen Webhost übernehmen und 
 19. Bei einem offenen Testbeleg den Chat-Freigabestatus prüfen. Als bezahlt markieren wählen, das tatsächliche Zahlungsdatum eintragen und den Zahlungseingang im betreffenden Monat unter Auswertungen prüfen.
 
 Die Abnahme am verbundenen Firebase und auf iPad und iPhone steht aus.
+
+Unter Compliance > Archiv „Ampel aktualisieren“ und „Monat abschließen“ prüfen. Unter Auswertungen den gewünschten Berichtsmonat wählen und die Vorschau öffnen.

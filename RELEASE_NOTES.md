@@ -1,3 +1,9 @@
+# GB389 – Compliance und Monatsnachweis
+
+- Ampel-Aktualisierung zeigt die Uhrzeit der letzten Prüfung.
+- Monatsabschluss öffnet die Vorschau im Compliance-Archiv. Erneutes Öffnen erzeugt keinen weiteren Abschluss.
+- Der Monatsnachweis enthält auch bestätigte Aufenthalte, die vor dem Berichtsmonat begonnen haben. Ampelstatus erscheinen auf Deutsch.
+
 # GB388 – Einstellungen
 
 - Vier Einstellungsbereiche mit eindeutigen Speicherrückmeldungen.
