@@ -1,3 +1,7 @@
+# GB392 – Größere Startseitenbilder
+
+- Größeres Logo und größere Betreuungsbilder im vollständigen Hochformat.
+
 # GB391 – Kompakte Startseite
 
 - Tagesablauf mit Anreisen, Abholungen und freien Plätzen sowie direkte Links zu offenen Aufgaben.
