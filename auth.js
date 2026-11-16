@@ -43,14 +43,17 @@ async function init(){
       try{ window.firebase.app(); }catch(_){ window.firebase.initializeApp(window.firebaseConfig); }
 
       const auth = window.firebase.auth();
-      // 🔐 Persistente Session erzwingen (wichtig für iOS/Safari)
-      try {
-        await auth.setPersistence(window.firebase.auth.Auth.Persistence.LOCAL);
-      } catch(e) {
-        console.warn('Persistence konnte nicht gesetzt werden', e);
-        // Fallback: SESSION (stabiler als DEFAULT auf manchen iOS/Safari Setups)
-        try{ await auth.setPersistence(window.firebase.auth.Auth.Persistence.SESSION); }catch(_){ }
+      const persistence = window.firebase.auth.Auth.Persistence;
+      const installedApp = DSAuthSession.isStandalone();
+      async function rememberSignIn(){
+        try{ await auth.setPersistence(persistence.LOCAL); }
+        catch(e){
+          console.warn('Persistence konnte nicht gesetzt werden', e);
+          try{ await auth.setPersistence(persistence.SESSION); }catch(_){ }
+        }
       }
+      if(installedApp)await auth.setPersistence(persistence.NONE);
+      else await rememberSignIn();
       let db = null;
       try{ db = window.firebase.firestore ? window.firebase.firestore() : null; }catch(_){ db = null; }
 
@@ -112,6 +115,14 @@ async function init(){
           }
           try{ sessionStorage.removeItem('ds_auth_required_return_to'); }catch(_){ }
         }catch(_){ }
+        if(installedApp && (role === 'admin' || role === 'staff')){
+          const uid = auth.currentUser.uid;
+          await auth.setPersistence(persistence.SESSION);
+          DSAuthSession.beginWorkspaceLogin(uid);
+          location.replace(target);
+          return;
+        }
+        if(installedApp && role === 'customer')await rememberSignIn();
         location.href = target;
       }
 
@@ -137,8 +148,7 @@ async function init(){
           try{ localStorage.setItem('ds_last_email', email.toLowerCase()); }catch(_){ }
           try{ localStorage.setItem('last_email', email.toLowerCase()); }catch(_){ }
           try{ sessionStorage.setItem('ds_last_email', email.toLowerCase()); }catch(_){ }
-          // iPad/Safari handoff: Credentials nur kurzfristig in sessionStorage für app.html hinterlegen
-          // Warten bis der Auth-State im Login-Tab stabil ist
+          // Warten bis der Auth-State vor dem Seitenwechsel stabil ist
           try{ await auth.currentUser.getIdToken(true); }catch(_){ }
           await new Promise((resolve)=>{
             let done=false; let unsub=null;

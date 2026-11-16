@@ -1,7 +1,7 @@
 // DoggyStyle Workspace Service Worker
 // Clean, consistent cache strategy (network-first for HTML, cache-first for static)
 
-const BUILD_VERSION = "M50.9.13GB392_STARTSEITENBILDER_20261116";
+const BUILD_VERSION = "M50.9.14GB393_APP_ANMELDUNG_20261116";
 const CACHE_NAME = "doggystyle-" + BUILD_VERSION;
 
 // Keep this list conservative; do NOT include versioned query variants.
@@ -40,6 +40,7 @@ const STATIC_ASSETS = [
   "./styles.css",
   "./dashboard_master.css",
   "./auth.js",
+  "./auth-session.js",
   "./firebase-config.js",
   "./manifest.json",
   "./login.html",

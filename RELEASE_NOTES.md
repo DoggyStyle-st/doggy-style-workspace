@@ -1,3 +1,8 @@
+# GB393 – Anmeldung in der installierten App
+
+- Teamkonten melden sich beim vollständigen Öffnen und Neuladen der installierten App erneut an.
+- Beim Wechsel in eine andere App bleibt die Anmeldung aktiv, solange der Workspace im Hintergrund geöffnet ist.
+
 # GB392 – Größere Startseitenbilder
 
 - Größeres Logo und größere Betreuungsbilder im vollständigen Hochformat.

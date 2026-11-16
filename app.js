@@ -2,7 +2,7 @@ try{sessionStorage.removeItem('ds_handoff_pass');}catch(_){}
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.13GB392_STARTSEITENBILDER_20261116",
+  tag: "M50.9.14GB393_APP_ANMELDUNG_20261116",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -13,7 +13,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.13GB392_STARTSEITENBILDER_20261116";
+const APP_BUILD = "M50.9.14GB393_APP_ANMELDUNG_20261116";
 try{ window.__dsAppJsRuntimeBuild = "GB350-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -831,8 +831,6 @@ const CLOUD = {
   auth: null,
   db: null,
   orgId: (window.firebaseOrgId || "doggystyle"),
-  // Wenn true: bei jedem App-Start Login erzwingen (kein "eingeloggt bleiben")
-  forceLoginAlways: false,
   adminEmails: (window.firebaseAdminEmails || []),
   user: null,
   role: "local", // local | guest | admin | staff | customer
@@ -1385,9 +1383,7 @@ function ds215StabilizeContractSync(reason="contract-open"){
   return false;
 }
 function showAuthGate(show){
-  const el = document.getElementById("authGate");
-  if(!el) return;
-  el.style.display = show ? "flex" : "none";
+  document.documentElement.classList.toggle('ds-app-auth-pending',show);
 }
 function setAuthMsg(msg){
   const el = document.getElementById("authMsg");
@@ -1416,14 +1412,12 @@ async function cloudInit(){
     CLOUD.auth = window.firebase.auth();
     CLOUD.db = window.firebase.firestore();
     try{ window.CLOUD = CLOUD; }catch(_){ }
-    // Firestore Offline-Persistenz (A: Testmodus) – sorgt dafür, dass Daten auch nach Reload / ohne Netz bleiben
-    // Customer data stays in per-user application storage; no shared Firestore disk cache.
-    // iOS/PWA: Persistenz IMMER auf LOCAL setzen (sonst springt man gerne wieder ins Login)
-    try {
-      if (CLOUD.auth && CLOUD.auth.setPersistence) {
+    // Die installierte App übernimmt die Persistenz vom Login und legt sie für Teamkonten nach der Rollenprüfung fest.
+    if(!DSAuthSession.isStandalone()){
+      try{
         await CLOUD.auth.setPersistence(window.firebase.auth.Auth.Persistence.LOCAL);
-      }
-    } catch(e) { /* ignore */ }
+      }catch(_){ }
+    }
     return true;
   }catch(err){
     console.error("Firebase init failed", err);
@@ -2742,7 +2736,7 @@ async function submitCustomerDogsProposal(){
   // GB355: vollständig lokal sichern, anschließend zuverlässig in proposals + tasks übertragen.
   // Die Oberfläche wird sofort freigegeben; die Erfolgsmeldung "an Eingänge übergeben"
   // erscheint ausschließlich nach bestätigter Firestore-Speicherung.
-  const GB355='M50.9.13GB392_STARTSEITENBILDER_20261116';
+  const GB355='M50.9.14GB393_APP_ANMELDUNG_20261116';
   function S(v){ try{return String(v==null?'':v);}catch(_){return '';} }
   function L(v){ return S(v).trim().toLowerCase(); }
   function V(id){ try{const el=document.getElementById(id);return S(el&&el.value!=null?el.value:'').trim();}catch(_){return '';} }
@@ -16361,6 +16355,8 @@ function wireCoreUI(){
 }
 async function startApp(){
   const btnLogout=document.getElementById('btnLogout'),btnLogoutApp=document.getElementById('btnLogoutApp');
+  const installedApp = DSAuthSession.isStandalone();
+  const workspaceLoginUid = installedApp ? DSAuthSession.takeWorkspaceLogin() : '';
   DSWorkflow.startupStatus('Firebase initialisieren');
   // Core UI wiring muss immer aktiv sein (auch wenn Cloud/Offline Pfad aktiv ist)
   wireCoreUI();
@@ -16368,6 +16364,7 @@ async function startApp(){
   const cloudOk = await cloudInit();
   if(!cloudOk){
     showAuthGate(true);
+    setAuthMsg('Anmeldung nicht verfügbar. Bitte prüfe deine Internetverbindung.');
     dsSetSyncDiag('Firebase konnte nicht geladen werden. Anmeldung erforderlich.',true);
     return;
   }
@@ -16410,11 +16407,6 @@ async function startApp(){
       }
     }
   }catch(_){ }
-  // Option C: immer Login erzwingen (Session bei jedem Start beenden)
-  if(CLOUD.forceLoginAlways){
-    try{ await CLOUD.auth.signOut(); }catch(e){}
-    showAuthGate(true);
-  }
   // (UI wiring erfolgt zentral in wireCoreUI())
   // Auth state
   CLOUD.auth.onAuthStateChanged(async (user)=>{
@@ -16427,6 +16419,7 @@ async function startApp(){
     }
     CLOUD.user = user || null;
     if(!user){
+      showAuthGate(true);
       try{ const ba=document.querySelector(".bottom-actions"); if(ba) ba.style.display="none"; }catch(e){}
       CLOUD.role = 'guest';
       try{ CLOUD.user = null; }catch(_){ }
@@ -16454,12 +16447,20 @@ async function startApp(){
       return;
     }
     try{ window.__dsLogoutInFlight = false; }catch(_){ }
-    // Login bei jedem Start erzwingen: wird beim Start durch signOut() erzwungen (kein Auto-Logout nach erfolgreichem Login)
     // Rolle (v2): aus Firestore (mit Whitelist-Override)
     try{
       DSWorkflow.startupStatus('Benutzerprofil laden');
       const loadedProfile=await loadOrCreateUserProfile(user);
       if(firebase.auth().currentUser?.uid!==user.uid)return;
+      const role = DSWorkflow.workspaceRole(user,loadedProfile);
+      if(installedApp && (role === ROLES.ADMIN || role === ROLES.STAFF)){
+        if(user.uid !== workspaceLoginUid){
+          await CLOUD.auth.signOut();
+          return;
+        }
+        await CLOUD.auth.setPersistence(window.firebase.auth.Auth.Persistence.NONE);
+        if(CLOUD.auth.currentUser?.uid!==user.uid)return;
+      }
       CLOUD.userProfile=loadedProfile;
       await DSBrowserStore.prepare(window.firebaseConfig.projectId,CLOUD.orgId,user.uid);
       if(firebase.auth().currentUser?.uid!==user.uid)return;
@@ -16585,30 +16586,6 @@ try{
       console.error('Workspace startup failed',error);
     }
   });
-}
-  // Option C (iPad/PWA): auch beim "Wieder-Öffnen" (ohne Reload) Login erzwingen
-  if (CLOUD.forceLoginAlways) {
-    let _forcing = false;
-    const forceLoginNow = async () => {
-      if (_forcing) return;
-      _forcing = true;
-      try {
-        const u = CLOUD.auth && CLOUD.auth.currentUser;
-        if (u) {
-          await CLOUD.auth.signOut();
-        }
-      } catch (e) { /* ignore */ }
-      try { showAuthGate(true); } catch(e) {}
-      _forcing = false;
-    };
-        let __wasHidden = document.hidden;
-// Wenn die App wieder in den Vordergrund kommt (iPad PWA lädt oft nicht neu)
-    window.addEventListener("pageshow", () => { forceLoginNow(); });
-document.addEventListener("visibilitychange", () => {
-      const nowHidden = document.hidden;
-      if (__wasHidden && !nowHidden) forceLoginNow();
-      __wasHidden = nowHidden;
-    });
 }
 // Manuelles Speichern (Einstellungen)
 (function bindManualSave(){
@@ -21952,7 +21929,7 @@ function renderStatMethod(){
 
 
 
-/* ===== CHAT (M50.9.13GB392_STARTSEITENBILDER_20261116) ===== */
+/* ===== CHAT (M50.9.14GB393_APP_ANMELDUNG_20261116) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
