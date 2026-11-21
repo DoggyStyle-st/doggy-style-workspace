@@ -5,8 +5,9 @@
   let noticeUid='',noticeUnsub=null,notices=[],choices=[],choicesUid='',choicesPending=null;const sends=new Map();
   let noticeEpoch=0,noticeFeedback='',noticeError='';const noticeBusy=new Set();
   const stayForms=new WeakMap();
+  let pendingUnsub=null,pendingKey='',pendingEpoch=0,pendingRows=[],pendingError='';
   function navigate(url){if(typeof window.__dsTestNavigate==='function')window.__dsTestNavigate(url);else location.assign(url);}
-  function reset(){noticeUnsub?.();noticeUnsub=null;noticeUid='';notices=[];noticeEpoch++;noticeFeedback=noticeError='';noticeBusy.clear();choices=[];choicesUid='';choicesPending=null;sends.clear();window.DSPortalActions?.reset();document.querySelectorAll('[data-ds-notices]').forEach(el=>el.remove());
+  function reset(){pendingUnsub?.();pendingUnsub=null;pendingKey='';pendingEpoch++;pendingRows=[];pendingError='';document.querySelectorAll('[data-ds-pending]').forEach(el=>el.remove());noticeUnsub?.();noticeUnsub=null;noticeUid='';notices=[];noticeEpoch++;noticeFeedback=noticeError='';noticeBusy.clear();choices=[];choicesUid='';choicesPending=null;sends.clear();window.DSPortalActions?.reset();document.querySelectorAll('[data-ds-notices]').forEach(el=>el.remove());
     for(const key of ['__dsAdminChatState','__dsCustomerChatState']){const st=window[key];for(const field of ['listUnsub','msgUnsub'])st?.[field]?.();for(const unsubscribe of st?.listUnsubs||[])unsubscribe();window[key]=null;}
     window.__dsChatComposeState=null;
     $('dsStayRequestForm')?.remove();
@@ -106,6 +107,27 @@
     });
   }
   function mountMainStay(){const host=$('documents');if(host){host.style.display='';host.classList.add('is-active');mountStay(host);const editor=$('editor');if(editor)editor.style.display='none';}}
+  function renderPending(){
+    const ctx=context();if(!ctx?.verified)return;
+    const parents=[$('view-home'),$('view-dogs'),DSWorkflow.scoped()?$('dogs'):null].filter(Boolean);
+    for(const parent of parents){
+      let host=parent.querySelector('[data-ds-pending]');if(!host){host=node('section',null);host.dataset.dsPending='1';host.className='card';host.setAttribute('role','status');parent.prepend(host);}
+      host.replaceChildren();host.hidden=!pendingRows.length&&!pendingError;
+      if(pendingRows.length){node('h3','Deine Anfragen werden geprüft',host);node('p','Deine Angaben sind bei uns eingegangen. Nach der Prüfung bekommst du eine Rückmeldung im Chat. Bis dahin bleiben die bisher bestätigten Daten sichtbar.',host);}
+      for(const row of pendingRows){const label={customer_data:'Änderung Kunde / Hund',boarding_contract:'Betreuungsvertrag',hundeannahme:'Aufenthaltsanfrage'}[row.templateId]||'Anfrage';node('p',label+' · '+new Date(Number(row.submittedAt||row.createdAt)).toLocaleDateString('de-DE')+' · Prüfung ausstehend',host);}
+      if(pendingError)node('p',pendingError,host);
+    }
+  }
+  function watchPending(){
+    const ctx=context();if(!ctx?.verified)return;const key=ctx.uid+':'+ctx.customerId;
+    if(pendingKey===key){renderPending();return;}
+    pendingUnsub?.();pendingKey=key;pendingRows=[];pendingError='';const epoch=++pendingEpoch;
+    pendingUnsub=firebase.firestore().collection('orgs').doc(window.firebaseOrgId).collection('proposals').where('customerUid','==',ctx.uid)
+      .onSnapshot({includeMetadataChanges:true},snap=>{
+        if(epoch!==pendingEpoch||context()?.uid!==ctx.uid||context()?.customerId!==ctx.customerId||snap.metadata.hasPendingWrites)return;
+        pendingRows=snap.docs.map(d=>({id:d.id,...d.data()})).filter(row=>row.customerId===ctx.customerId&&row.proposalStatus==='pending').sort((a,b)=>Number(b.submittedAt||0)-Number(a.submittedAt||0));pendingError='';renderPending();
+      },error=>{if(epoch!==pendingEpoch)return;pendingError='Status deiner Anfragen konnte nicht geladen werden: '+error.message;renderPending();});
+  }
   function noticeHost(parent,id){if(!parent)return null;let el=$(id);if(!el){el=node('section');el.id=id;el.className='card';el.dataset.dsNotices='1';parent.prepend(el);}return el;}
   function noticeStyles(){if($('dsNoticeStyles'))return;const style=node('style',null,document.head);style.id='dsNoticeStyles';style.textContent=`
     [data-ds-notices]{text-align:left}[data-ds-notices] article{padding:14px;margin:12px 0;border:1px solid #8c94a466;border-radius:12px}
@@ -155,8 +177,8 @@
     else{await dsDeleteChatAttachmentFiles({attachments:result.attachments});if(user()?.uid!==uid)return false;await dsRefreshChatMetaFromMessages(chatId);}
     if(user()?.uid!==uid)return false;dsCloseChatPreviewModal();rerender?.();return true;}
   async function sendMessage(chatId,text,meta={}){const key=user().uid+':'+chatId+':'+JSON.stringify([text,meta.attachments||[]]);if(!sends.has(key))sends.set(key,crypto.randomUUID());const result=await api().send(chatId,text,meta.attachments||[],sends.get(key));sends.delete(key);return result;}
-  function ready(){if(context()?.verified){watchNotices();if(location.pathname.endsWith('app.html')&&new URLSearchParams(location.search).get('customer_mode')==='stay')mountMainStay();if($('stayEditorHost'))mountStay($('stayEditorHost'));}}
+  function ready(){if(context()?.verified){watchPending();watchNotices();if(location.pathname.endsWith('app.html')&&new URLSearchParams(location.search).get('customer_mode')==='stay')mountMainStay();if($('stayEditorHost'))mountStay($('stayEditorHost'));}}
   document.addEventListener('click',event=>{const paw=event.target.closest?.('.paw-start');if(paw&&DSWorkflow.scoped()){event.preventDefault();event.stopImmediatePropagation();navigate('customer.html?view=home');}},true);
   window.addEventListener('ds-customer-data-ready',ready);
-  window.DSCustomerPortal={consentTexts,mountStay,mountMainStay,watchNotices,renderNotices,refreshChoices,customerOptions:()=>choices,clearChat,deleteMessage,sendMessage,reset,navigate,ready,api};
+  window.DSCustomerPortal={watchPending,renderPending,consentTexts,mountStay,mountMainStay,watchNotices,renderNotices,refreshChoices,customerOptions:()=>choices,clearChat,deleteMessage,sendMessage,reset,navigate,ready,api};
 })();

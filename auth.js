@@ -103,14 +103,15 @@ async function init(){
           }
           const url = new URL(location.href);
           const raw = String(url.searchParams.get('return_to') || sessionStorage.getItem('ds_auth_required_return_to') || '').trim();
-          if(raw && !/^https?:/i.test(raw) && !raw.startsWith('//')){
-            const clean = String(raw || '').trim();
-            const isCustomerScopedApp = /^app\.html\?/i.test(clean) && /(?:\?|&)customer_mode=(dogs|contract|stay)(?:&|$)/i.test(clean);
-            const isCustomerPortalTarget = /^customer\.html(?:[?#]|$)/i.test(clean);
-            if(role === 'customer'){
-              target = isCustomerScopedApp ? clean : 'customer.html';
-            }else{
-              target = (isCustomerScopedApp || isCustomerPortalTarget) ? ('app.html?login_email=' + encodeURIComponent(lowerEmail)) : clean;
+          if(raw){
+            const destination = new URL(raw, url);
+            const workspace = new URL('app.html', url);
+            if(destination.origin === workspace.origin && destination.pathname === workspace.pathname){
+              const customerMode = destination.searchParams.get('customer_mode');
+              const isCustomerScopedApp = ['dogs','contract','stay'].includes(customerMode);
+              if(role === 'customer' ? isCustomerScopedApp : !destination.searchParams.has('customer_mode')){
+                target = destination.href;
+              }
             }
           }
           try{ sessionStorage.removeItem('ds_auth_required_return_to'); }catch(_){ }

@@ -639,6 +639,34 @@
         return {ok:true,id,decision,...(adoptedWorkspace?{workspace:adoptedWorkspace}:{})};
       });
     }
+    async function publisher(tx){
+      const user=getUser();if(!user)fail('Bitte anmelden.');
+      const profile=await tx.get(users.doc(user.uid));
+      const isAdmin=(profile.exists&&profile.data().role==='admin')||(str(user.email).toLowerCase()==='raphael@boch-plan.de'&&user.emailVerified===true);
+      if(!isAdmin&&!(profile.exists&&profile.data().role==='staff'))fail('Keine Mitarbeiter-Berechtigung.','permission-denied');
+      return {uid:user.uid,email:user.email,workspaceAdmin:isAdmin};
+    }
+    function protectStaffChanges(input,previous){
+      for(const key of ['settings','contract','contractVersion','contractAgreements','contractSignatures','legalTexts']){
+        const value=key==='contractVersion'?str(input.contractVersion||input.contract?.version||'v1.0'):(input[key]??null);
+        const before=key==='contractVersion'?str(previous.contractVersion||previous.contract?.version||'v1.0'):(previous[key]??null);
+        if(stable(value)!==stable(before))fail('Dieser Bereich kann nur vom Administrator geändert werden: '+key,'permission-denied');
+      }
+      for(const doc of previous.docs||[]){
+        if(!doc.signature?.dataUrl)continue;
+        const next=(input.docs||[]).find(x=>x.id===doc.id);
+        for(const key of ['fields','meta','signature','customerId','petId','dogId'])if(!next||stable(next[key]??null)!==stable(doc[key]??null))fail('Unterschriebene Originalangaben dürfen nicht überschrieben werden.','permission-denied');
+      }
+      const invoices=previous.invoices||[],next=input.invoices||[],ids=next.map(x=>str(x.id));
+      if(ids.some(id=>!id)||new Set(ids).size!==ids.length)fail('Ungültige oder doppelte Rechnungs-ID.');
+      for(const invoice of invoices){
+        const saved=next.find(x=>x.id===invoice.id);
+        if(!saved||saved.invoiceNumber!==invoice.invoiceNumber||saved.status!==invoice.status)fail('Rechnungen löschen, umnummerieren oder freigeben kann nur der Administrator.','permission-denied');
+        if(!['draft','entwurf'].includes(str(invoice.status).toLowerCase())&&stable(saved)!==stable(invoice))fail('Freigegebene Rechnungen kann nur der Administrator bearbeiten.','permission-denied');
+      }
+      if(next.some(x=>!invoices.some(y=>y.id===x.id)&&(!str(x.invoiceNumber)||next.filter(y=>y.invoiceNumber===x.invoiceNumber).length!==1)))fail('Neue Rechnungsnummern müssen eindeutig sein.');
+      if(next.some(x=>!invoices.some(y=>x.id===y.id)&&!['draft','entwurf'].includes(str(x.status).toLowerCase())))fail('Neue Mitarbeiter-Rechnungen müssen Entwürfe sein.','permission-denied');
+    }
     async function publish(workspace, expectedStamp){
       const actor=getUser();if(!actor)fail('Bitte anmelden.');
       // Query identities only; every snapshot is re-read inside the transaction.
@@ -646,11 +674,12 @@
       if(listed.size>200) fail('Zu viele Konten für eine gemeinsame Synchronisation.');
       const requested=clone(workspace);uniqueTargets(requested);
       return db.runTransaction(async tx=>{
-        const admin=await requireAdmin(tx), remote=await tx.get(stateRef);
+        const admin=await publisher(tx), remote=await tx.get(stateRef);
         if(admin.uid!==actor.uid)fail('Konto gewechselt.');
         if(remote.exists && Number(remote.data().updatedAt || 0)!==Number(expectedStamp || 0)) fail('Der Workspace wurde auf einem anderen Gerät geändert. Bitte zuerst aktualisieren.','workspace-conflict');
         const accounts=await Promise.all(listed.docs.map(doc=>tx.get(doc.ref)));
         const input=clone(requested);
+        if(!admin.workspaceAdmin){if(!remote.exists)fail('Der Workspace muss zuerst vom Administrator eingerichtet werden.');protectStaffChanges(input,decode(remote.data()));}
         const numbered=assignCustomerNumbers(input,remote.exists?decode(remote.data()):input);
         const stamp=Math.max(Date.now(),Number(remote.exists && remote.data().updatedAt || 0)+1);input._cloudUpdatedAt=stamp;
         const next={payload:input,secureWorkflowVersion:3,updatedAt:stamp,updatedBy:admin.uid};

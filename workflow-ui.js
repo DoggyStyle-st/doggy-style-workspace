@@ -31,7 +31,14 @@
     if(!currentUser()) throw new Error('Bitte anmelden.');
     const service=Core.service(firebase.firestore(),window.firebaseOrgId,currentUser,d=>d.secureWorkflowVersion===3?d.payload:(typeof dsBuildMergedCloudDocPayload==='function'?dsBuildMergedCloudDocPayload(d):d.payload),()=>firebase.firestore.FieldValue?.serverTimestamp?.()||Date.now());
     const publish=service.publish;
-    service.publish=(workspace,stamp,options)=>publishWithSafetyDataSheets(service,publish,workspace,stamp,options);
+    service.publish=async(workspace,stamp,options)=>{
+      if(CLOUD.role==='staff'){
+        const uid=currentUser()?.uid;
+        try{const result=await firebase.app().functions('europe-west1').httpsCallable('workspaceSave',{timeout:30000})({payload:workspace,expectedStamp:Number(stamp||0)});if(currentUser()?.uid!==uid)throw new Error('Konto gewechselt.');return result.data;}
+        catch(error){if(error.details?.workflowCode)error.code=error.details.workflowCode;throw error;}
+      }
+      return publishWithSafetyDataSheets(service,publish,workspace,stamp,options);
+    };
     return service;
   }
   function sdsPath(value){
@@ -246,7 +253,7 @@
     const hint=document.createElement('p');hint.className='muted';hint.textContent='Enthält auch lokal ungesendete Daten und gesicherte Fassungen vor einem Abgleich.';box.append(button,hint);host.append(box);
   }
   function showConflict(remote,stamp){
-    if(scoped() || CLOUD.role!=='admin' || !currentUser())return;
+    if(scoped() || !['admin','staff'].includes(CLOUD.role) || !currentUser())return;
     CLOUD._pendingRemoteSnapshot={remote:JSON.parse(JSON.stringify(remote)),remoteStamp:Number(stamp||0)};
     SYNC.cloudNeedsReview=true;
     let notice=$('dsSyncConflictNotice');if(!notice){notice=document.createElement('div');notice.id='dsSyncConflictNotice';notice.className='card ds-sync-review';notice.setAttribute('role','status');const main=document.querySelector('main');if(main)main.before(notice);else document.body.prepend(notice);}
@@ -289,7 +296,7 @@
     if(total>rows.length){const hint=document.createElement('p');hint.textContent='Die ersten '+rows.length+' Unterschiede sind aufgeführt. Die lokale Sicherung enthält alle Angaben.';details.append(hint);}parent.append(details);
   }
   function openConflict(){
-    if(scoped() || CLOUD.role!=='admin' || !CLOUD._pendingRemoteSnapshot)throw new Error('Kein administrativer Synchronisationskonflikt verfügbar.');
+    if(scoped() || !['admin','staff'].includes(CLOUD.role) || !CLOUD._pendingRemoteSnapshot)throw new Error('Kein Synchronisationskonflikt verfügbar.');
     const pending=CLOUD._pendingRemoteSnapshot,base=readBase(),local=JSON.parse(JSON.stringify(state));
     mergeReview={uid:currentUser().uid,local,remote:pending.remote,stamp:pending.remoteStamp,plan:base?Core.mergePlan(base,local,pending.remote):null};
     $('dsSyncConflictDialog')?.remove();const dialog=document.createElement('dialog');dialog.id='dsSyncConflictDialog';dialog.style.cssText='width:960px;max-width:95vw;max-height:85dvh;overflow:auto;box-sizing:border-box;background:#20242d;color:#fff;border:1px solid #9b803e;border-radius:14px;padding:20px';dialog.setAttribute('aria-label','Lokale Änderungen mit Firebase abgleichen');
@@ -324,7 +331,7 @@
     document.body.append(dialog);if(typeof dialog.showModal==='function')dialog.showModal();else dialog.setAttribute('open','');
   }
   async function resolveConflict(useServer){
-    const review=mergeReview;if(!review || currentUser()?.uid!==review.uid || CLOUD.role!=='admin' || scoped())throw new Error('Konto oder Konfliktauswahl hat sich geändert.');
+    const review=mergeReview;if(!review || currentUser()?.uid!==review.uid || !['admin','staff'].includes(CLOUD.role) || scoped())throw new Error('Konto oder Konfliktauswahl hat sich geändert.');
     if(JSON.stringify(state)!==JSON.stringify(review.local))throw new Error('Lokale Daten wurden nach Öffnen des Vergleichs geändert. Bitte den Vergleich erneut öffnen.');
     const latest=await api().workspace();
     if(currentUser()?.uid!==review.uid)throw new Error('Konto gewechselt.');

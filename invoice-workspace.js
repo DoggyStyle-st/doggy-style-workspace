@@ -88,7 +88,7 @@
       button.setAttribute('aria-pressed', String(status === statusFilter));
       button.querySelector('[data-count]').textContent = counts[status];
     }
-    create.hidden = !DSBilling.admin();
+    create.hidden = !DSBilling.team();
 
     const direction = sort.value === 'oldest' ? 1 : -1;
     const entries = (statusFilter === 'all' ? matches : matches.filter(entry => entry.status === statusFilter))

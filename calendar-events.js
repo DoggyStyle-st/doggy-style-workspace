@@ -3,6 +3,8 @@
 
   const REGION = 'europe-west1';
   const DEVICE_OWNER = 'ds-calendar-push-owner';
+  const PREFERENCE = 'ds-calendar-push-enabled:';
+  function pushChoice(uid,value){try{if(uid&&value!==undefined)localStorage.setItem(PREFERENCE+uid,value?'1':'0');return uid&&localStorage.getItem(PREFERENCE+uid)==='1';}catch(_){return false;}}
   const byId = id => document.getElementById(id);
   const eventForm = () => byId('calEventForm');
   let account = '';
@@ -368,7 +370,11 @@
       } else if (ownSubscription() && !pushUnsupported()) {
         const result = await call('push-status', { endpoint: existing.endpoint });
         if (!isCurrent()) return;
-        if (result.enabled === false) {
+        if (result.enabled === false && pushChoice(uid)) {
+          await call('push-enable', {subscription:existing.toJSON()});
+          if(!isCurrent())return;
+          verifiedDevice=true;deviceNotice='';
+        } else if (result.enabled === false) {
           await existing.unsubscribe();
           if (!isCurrent()) return;
           subscription = null;
@@ -393,6 +399,7 @@
   }
 
   async function stopDevice() {
+    pushChoice(account,false);
     const existing = subscription || await (await navigator.serviceWorker?.getRegistration())?.pushManager?.getSubscription();
     if (existing) {
       const endpoint = existing.endpoint;
@@ -428,6 +435,7 @@
           await call('push-enable', { subscription: existing.toJSON() });
           if (!isCurrent()) return;
           deviceOwner(uid);
+          pushChoice(uid,true);
           verifiedDevice = true;
           deviceNotice = '';
         } catch (error) {
@@ -533,17 +541,21 @@
     });
   }
 
+  async function resumeDevice() {
+    const uid=staffUser()?.uid;if(!uid||!pushChoice(uid)||deviceOwner()!==uid)return;
+    if(account!==uid)reset();account=uid;
+    try{const result=await call('config');if(staffUser()?.uid!==uid)return;configuration=result;await loadDevice(uid);}catch(_){}
+  }
   async function removeDeviceOnLogout() {
-    if (deviceOwner() || subscription) {
-      let timer;
-      try {
-        await Promise.race([stopDevice(), new Promise(resolve => { timer = setTimeout(resolve, 1800); })]);
-      } finally {
-        clearTimeout(timer);
-      }
+    const owner=deviceOwner();
+    const existing=subscription||await(await navigator.serviceWorker?.getRegistration())?.pushManager?.getSubscription();
+    if(existing&&owner&&owner===staffUser()?.uid){
+      pushChoice(owner,true);
+      try{await withTimeout(call('push-disable',{endpoint:existing.endpoint}),1800);}
+      catch(_){await existing.unsubscribe();deviceOwner(null);}
     }
     reset();
   }
 
-  window.DSCalendarEvents = { show, leave, watch, eventCount, dayList, reset, removeDeviceOnLogout };
+  window.DSCalendarEvents = { show, leave, watch, eventCount, dayList, reset, resumeDevice, removeDeviceOnLogout };
 })();

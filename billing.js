@@ -42,9 +42,10 @@
   }
   function admin(){return !!actor()&&window.CLOUD?.role==='admin'&&!window.DSWorkflow?.scoped();}
   function frozen(inv){return ['paid','cancelled','canceled','bezahlt','storniert','storno'].includes(text(inv?.status).trim().toLowerCase());}
-  function editable(inv){return admin()&&!!inv&&!frozen(inv);}
+  function team(){return !!actor()&&['admin','staff'].includes(window.CLOUD?.role)&&!window.DSWorkflow?.scoped();}
+  function editable(inv){return !!inv&&!frozen(inv)&&(admin()||(team()&&['draft','entwurf'].includes(text(inv.status).trim().toLowerCase())));}
   function requireEdit(inv){
-    if(!admin()){alert('Rechnungen können nur Administratoren bearbeiten.');return false;}
+    if(!team()||(inv&&!editable(inv))){alert('Mitarbeiter können Rechnungsentwürfe anlegen und bearbeiten. Freigaben und abgeschlossene Rechnungen verwaltet der Administrator.');return false;}
     if(inv&&frozen(inv)){alert('Bezahlte und stornierte Rechnungen sind abgeschlossen.');return false;}
     return true;
   }
@@ -133,7 +134,7 @@
     if(before!==after){inv.updatedAt=new Date().toISOString();inv.sourceSnapshot.capturedAt=inv.updatedAt;return true;}return false;
   }
   function updateDraft(inv){
-    if(!admin()||!['draft','entwurf'].includes(text(inv?.status).trim().toLowerCase())||
+    if(!team()||!['draft','entwurf'].includes(text(inv?.status).trim().toLowerCase())||
        inv.pricingMode==='manual'||isInvoicePricingLocked(inv)||Array.isArray(inv.pricing?.breakdown?.surchargeItems))return;
     const doc=sourceDoc(inv);
     if(doc&&recalcFromStay(inv,doc)){
@@ -174,8 +175,8 @@
     if(!requireEdit(state.invoices[index]))return false;
     inv.updatedAt=new Date().toISOString();state.invoices[index]=inv;saveState();renderInvoiceList();openInvoice(inv.id);return true;
   }
-  function syncLinked(doc){const inv=findForStay(doc);if(!inv)return;if(!frozen(inv)){inv.stayId=stayRoot(doc);inv.sourceVersionId=doc.id;doc.invoiceId=inv.id;doc.invoiceNumber=inv.invoiceNumber;recalcFromStay(inv,doc);}}
-  function rememberStay(doc){if(admin()&&doc&&['hundeannahme','stay'].includes(doc.templateId||doc.type))bases.set(actor()+':'+doc.id,clone(doc));}
+  function syncLinked(doc){const inv=findForStay(doc);if(!inv)return;if(editable(inv)){inv.stayId=stayRoot(doc);inv.sourceVersionId=doc.id;doc.invoiceId=inv.id;doc.invoiceNumber=inv.invoiceNumber;recalcFromStay(inv,doc);}}
+  function rememberStay(doc){if(team()&&doc&&['hundeannahme','stay'].includes(doc.templateId||doc.type))bases.set(actor()+':'+doc.id,clone(doc));}
   function attachStay(doc){
     const index=(state.docs||[]).findIndex(d=>d.id===doc.id);if(index<0)throw new Error('Der Aufenthalt wurde inzwischen entfernt. Die Eingaben bleiben geöffnet.');
     if(state.docs[index]===doc)return doc;
@@ -184,13 +185,14 @@
     if(plan.conflicts.length)throw new Error('Der Aufenthalt wurde inzwischen an denselben Angaben geändert. Die Eingaben bleiben geöffnet; bitte zuerst den Serverstand prüfen.');
     const merged=DSWorkflowCore.resolveMerge(plan,{}).docs[0];state.docs[index]=merged;return merged;
   }
-  function prepareStay(doc){if(admin()&&signedStay(doc))signedOpen.set(actor()+':'+doc.id,clone(doc));}
+  function prepareStay(doc){if(team()&&signedStay(doc))signedOpen.set(actor()+':'+doc.id,clone(doc));}
   function readCharge(key,value){
     if(['special_times','extra_care','short_notice','discount_enabled','medication','walks_enabled','walk_extra_auto','bandage_enabled','grooming_enabled','hygiene_enabled','pickup_dropoff_enabled','sun_hol_apply'].includes(key))return value===true;
     if(value==='')return '';const n=Number(text(value).replace(',','.'));if(!Number.isFinite(n))throw new Error('Bitte einen gültigen Zuschlag eingeben.');return n;
   }
   function setCharge(doc,key,value){
-    if(!admin()||!isStay(doc)||!chargeKeys.has(key))return;
+    if(!team()||!isStay(doc)||!chargeKeys.has(key))return;
+    const invoice=findForStay(doc);if(invoice&&!editable(invoice))return;
     value=readCharge(key,value);
     const fields=effectiveFields(doc);
     const target=signedStay(doc)?(doc.billingOverrides ||= {}):(doc.fields ||= {});
@@ -201,14 +203,14 @@
     target[key]=value;
   }
   function collectCharges(doc){
-    if(!admin()||!isStay(doc))return;
+    if(!team()||!isStay(doc))return;
     document.querySelectorAll('#formRoot [data-key]').forEach(input=>{
       const key=input.dataset.key;
       if(chargeKeys.has(key)&&!(key==='walk_extra_count'&&input.disabled))setCharge(doc,key,input.type==='checkbox'?input.checked:input.value);
     });
   }
   function prepareStaySave(doc,fields,meta){
-    if(!admin()||!signedStay(doc))return {fields,meta};
+    if(!team()||!signedStay(doc))return {fields,meta};
     const original=signedOpen.get(actor()+':'+doc.id)||bases.get(actor()+':'+doc.id)||clone(doc);
     if(!signedStay(original))return {fields,meta};
     for(const [key,value]of Object.entries(fields||{}))if(chargeKeys.has(key)&&!walkKeys.has(key))setCharge(doc,key,value);
@@ -216,9 +218,9 @@
     if(!doc.billingOriginal)doc.billingOriginal={pricing:clone(original.pricing||{}),sourceDocId:doc.id,sourceUpdatedAt:original.updatedAt||null};
     return {fields:clone(original.fields||{}),meta:clone(original.meta||{})};
   }
-  function financialSave(doc){return admin()&&signedStay(doc)&&signedOpen.has(actor()+':'+doc.id);}
+  function financialSave(doc){return team()&&signedStay(doc)&&signedOpen.has(actor()+':'+doc.id);}
   function auditStay(doc){
-    const base=bases.get(actor()+':'+doc.id);if(!admin()||!base)return;
+    const base=bases.get(actor()+':'+doc.id);if(!team()||!base)return;
     const before=effectiveFields(base),after=effectiveFields(doc),changes=[];
     for(const key of chargeKeys){const a=before[key],b=after[key];if(JSON.stringify(a)!==JSON.stringify(b))changes.push({key,from:a===undefined?null:a,to:b===undefined?null:b});}
     if(changes.length){doc.billingAudit=Array.isArray(doc.billingAudit)?doc.billingAudit:[];doc.billingAudit.push({at:new Date().toISOString(),byUid:actor(),sourceDocId:doc.id,changes});}
@@ -235,7 +237,7 @@
     return {enabled,count};
   }
   function decorateStay(doc){
-    const root=document.getElementById('formRoot');if(!root||!admin()||!isStay(doc))return;
+    const root=document.getElementById('formRoot');if(!root||!team()||!isStay(doc))return;
     const cfg=getPricingSettings(),getCurrent=()=>typeof currentDoc!=='undefined'&&currentDoc?.id===doc.id?currentDoc:doc;
     const refresh=()=>{
       const current=getCurrent(),fields=effectiveFields(current),walks=walkSelection(fields);
@@ -272,16 +274,17 @@
     info.replaceChildren();const note=document.createElement('p');note.textContent=signedStay(doc)?'Zuschläge können ohne neue Aufenthaltsversion angepasst werden. Die ursprünglichen Kundenangaben und vorhandene Unterschriften bleiben erhalten.':'Zuschläge werden mit der zugeordneten offenen Rechnung abgeglichen.';info.append(note);
     try{const inv=findForStay(doc);if(inv?.pricingMode==='manual'){const p=document.createElement('p');p.textContent='Rechnung '+inv.invoiceNumber+' enthält manuell bearbeitete Positionen. Mit „Aus Aufenthalt neu berechnen“ kannst du sie nach Bestätigung ersetzen.';info.append(p);}}catch(e){const p=document.createElement('p');p.textContent=e.message;info.append(p);}
     const actions=document.createElement('div');actions.className='ds-billing-actions';
-    for(const [label,fn]of [['Zuschläge speichern',()=>saveCurrent(true)],['Rechnung öffnen',()=>openForStay(doc.id)],...(signedStay(doc)?[['Aufenthaltsangaben bearbeiten',()=>beginRevision(doc.id)]]:[])]){const button=document.createElement('button');button.type='button';button.className='btn';button.textContent=label;button.onclick=fn;actions.append(button);}info.append(actions);
+    for(const [label,fn]of [['Zuschläge speichern',()=>saveCurrent(true)],['Rechnung öffnen',()=>openForStay(doc.id)],...(admin()&&signedStay(doc)?[['Aufenthaltsangaben bearbeiten',()=>beginRevision(doc.id)]]:[])]){const button=document.createElement('button');button.type='button';button.className='btn';button.textContent=label;button.onclick=fn;actions.append(button);}info.append(actions);
     refresh();
+    if(!admin()){const invoice=findForStay(doc);if(invoice&&!editable(invoice)){root.querySelectorAll('[data-key]').forEach(input=>{if(chargeKeys.has(input.dataset.key))input.disabled=true;});note.textContent='Die Rechnung ist bereits freigegeben. Änderungen daran übernimmt der Administrator.';}}
   }
   function afterOpenStay(doc){
-    if(!admin()||!isStay(doc))return;
+    if(!team()||!isStay(doc))return;
     const original=signedOpen.get(actor()+':'+doc.id);
     if(original){doc.fields=clone(original.fields||{});doc.meta=clone(original.meta||{});doc.signature=clone(original.signature||null);doc.saved=original.saved;doc.pricing=clone(original.pricing||{});}
     decorateStay(doc);rememberStay(doc);
   }
-  function afterSaveStay(doc){if(admin()&&isStay(doc)){if(signedStay(doc))signedOpen.set(actor()+':'+doc.id,clone(doc));decorateStay(doc);rememberStay(doc);}}
+  function afterSaveStay(doc){if(team()&&isStay(doc)){if(signedStay(doc))signedOpen.set(actor()+':'+doc.id,clone(doc));decorateStay(doc);rememberStay(doc);}}
   function beginRevision(id){if(!admin())return;const doc=(state.docs||[]).find(d=>d.id===id);if(!doc||!signedStay(doc))return;try{findForStay(doc);openDoc(id);forkDocument();openDoc(currentDoc.id);}catch(e){if(e.code==='invoice-ambiguous')chooseInvoice(id,e.candidates);else alert(e.message);}}
   function finishFork(parent,fork){
     if(!isStay(parent))return;
@@ -331,7 +334,7 @@
     const draw=()=>{const host=dialog.querySelector('[data-lines]');host.replaceChildren();items.forEach((item,i)=>{const row=document.createElement('fieldset');row.innerHTML='<legend>Position '+(i+1)+'</legend><label>Bezeichnung<input data-label required></label><label>Menge<input data-qty type="text" inputmode="decimal" required></label><label>Einzelpreis brutto (€)<input data-unit type="text" inputmode="decimal" required></label><button type="button" data-remove>Entfernen</button>';for(const [selector,key]of [['[data-label]','label'],['[data-qty]','qty'],['[data-unit]','unit']]){const input=row.querySelector(selector);input.value=text(item[key]);input.oninput=()=>{item[key]=input.value;total();};}row.querySelector('[data-remove]').onclick=()=>{items.splice(i,1);draw();};host.append(row);});total();};
     dialog.querySelector('[data-add]').onclick=()=>{items.push({key:'manual-'+crypto.randomUUID(),label:'',qty:1,unit:0});draw();};dialog.querySelector('[data-cancel]').onclick=close;dialog.addEventListener('cancel',e=>{e.preventDefault();close();});form.elements.vat.oninput=total;
     form.onsubmit=e=>{e.preventDefault();try{
-      if(!edit||edit.uid!==actor()||!admin())throw new Error('Konto gewechselt. Bitte erneut anmelden.');
+      if(!edit||edit.uid!==actor()||!editable(getInvoiceById(id)))throw new Error('Konto gewechselt. Bitte erneut anmelden.');
       const current=getInvoiceById(id);if(!current||frozen(current)||JSON.stringify(current)!==JSON.stringify(initial))throw new Error('Die Rechnung wurde inzwischen geändert. Bitte die Bearbeitung erneut öffnen.');
       if(!DSWorkflowCore.dateISO(form.elements.date.value))throw new Error('Bitte ein gültiges Rechnungsdatum angeben.');
       const from=form.elements.from.value,to=form.elements.to.value;if((from||to)&&(!DSWorkflowCore.dateISO(from)||!DSWorkflowCore.dateISO(to)||to<from))throw new Error('Bitte einen gültigen Leistungszeitraum angeben.');
@@ -344,5 +347,5 @@
     }catch(e){error.textContent=e.message;}};
     draw();dialog.showModal();dialog.querySelector('input')?.focus();
   }
-  window.DSBilling={admin,frozen,editable,requireEdit,number,display,parts,lines,lineDescription,positions,nextNumber,billableDates,stayCalendar,recalcFromStay,updateDraft,create,openForStay,refresh,saveRecord,syncLinked,rememberStay,attachStay,openEdit,reset,isStay,signedStay,effectiveFields,clearSignature,stayRoot,family,findForStay,sourceDoc,prepareStay,collectCharges,prepareStaySave,financialSave,auditStay,validateFinancial,afterOpenStay,afterSaveStay,decorateStay,finishFork,walkSelection,recipientInputs,readManualRecipient};
+  window.DSBilling={admin,team,frozen,editable,requireEdit,number,display,parts,lines,lineDescription,positions,nextNumber,billableDates,stayCalendar,recalcFromStay,updateDraft,create,openForStay,refresh,saveRecord,syncLinked,rememberStay,attachStay,openEdit,reset,isStay,signedStay,effectiveFields,clearSignature,stayRoot,family,findForStay,sourceDoc,prepareStay,collectCharges,prepareStaySave,financialSave,auditStay,validateFinancial,afterOpenStay,afterSaveStay,decorateStay,finishFork,walkSelection,recipientInputs,readManualRecipient};
 })();

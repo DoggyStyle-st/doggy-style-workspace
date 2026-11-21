@@ -2,7 +2,7 @@ try{sessionStorage.removeItem('ds_handoff_pass');}catch(_){}
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.14GB393_APP_ANMELDUNG_20261116",
+  tag: "M50.9.15GB395_WORKSPACE_FIX_20261120",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -13,7 +13,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.14GB393_APP_ANMELDUNG_20261116";
+const APP_BUILD = "M50.9.15GB395_WORKSPACE_FIX_20261120";
 try{ window.__dsAppJsRuntimeBuild = "GB350-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -1033,7 +1033,7 @@ function updateSyncUI(){
     const user=firebase.auth().currentUser,online=navigator.onLine!==false;
     let queued=0;try{queued=JSON.parse(DSBrowserStore.get('ds_customer_proposal_queue_v3:'+user?.uid)||'[]').length;}catch(_){}
     const pending=!!SYNC.cloudPending || queued>0,error=String(SYNC.cloudLastError||'');
-    const review=!!SYNC.cloudNeedsReview&&!!CLOUD._pendingRemoteSnapshot&&CLOUD.role==='admin';
+    const review=!!SYNC.cloudNeedsReview&&!!CLOUD._pendingRemoteSnapshot&&isStaff();
     const confirmed=CLOUD.role==='customer'?Number(CLOUD._profileReadConfirmedAt||0):Number(CLOUD._workspaceReadConfirmedAt||0);
     const good=!!user && online && !!confirmed && !pending && !error && !review;
     const warning=!!user&&online&&!error&&review;
@@ -1046,7 +1046,7 @@ function updateSyncUI(){
     const userEl=document.getElementById('syncUser');if(userEl){userEl.textContent=user?.email||'';userEl.style.display=user?'inline-flex':'none';}
     const details=document.getElementById('syncDetails');if(details)details.textContent=label+(error?' · '+error:'')+(queued?' · '+queued+' Vorschläge noch nicht übertragen':'');
     forceSyncDotState(good,warning);
-    const manual=document.getElementById('manualSaveBtn');if(manual){manual.style.display=CLOUD.role==='admin'?'':'none';manual.disabled=!user || !online || review;manual.title=review?'Bitte zuerst Änderungen vergleichen.':'';}
+    const manual=document.getElementById('manualSaveBtn');if(manual){manual.style.display=isStaff()?'':'none';manual.disabled=!user || !online || review;manual.title=review?'Bitte zuerst Änderungen vergleichen.':'';}
     window.dispatchEvent(new CustomEvent('ds-sync-status'));
   }
 installSyncDotHardGuard();
@@ -1889,6 +1889,14 @@ function applyRemoteState(remote,remoteStamp,source){
     DSWorkflow.rememberBase(remote,remoteStamp,state);
     renderDogs();renderDocs();renderInvoiceList();renderDashboard();renderTodayStatus();renderOccupancy();renderRecent();updateSyncUI();
     globalThis.DSAnalyticsView?.schedule();
+    if(DSBilling.team()){
+      let created=false;const confirmed=new Set(DSWorkflowCore.confirmedStays(state).map(stay=>stay.docId));
+      for(const doc of state.docs||[]){
+        if(doc.templateId!=='hundeannahme'||!doc.sourceProposalId||!confirmed.has(doc.id))continue;
+        try{if(!DSBilling.findForStay(doc)){DSBilling.create(doc);created=true;}}catch(error){SYNC.cloudLastError='Rechnungsentwurf: '+error.message;}
+      }
+      if(created){saveState();renderInvoiceList();}
+    }
     DSWorkflow.wireAssignments().catch(console.error);
     if(CLOUD.enabled&&CLOUD.role==='admin'&&DSWorkflowCore.needsCustomerNumbers(remote))cloudSchedulePush();
     return true;
@@ -1926,7 +1934,7 @@ function cloudSchedulePush(){
   return false;
 }
 async function cloudPushNow(){
-    if(!CLOUD.enabled || !CLOUD.user || CLOUD.role!=='admin')throw new Error('Administrator-Anmeldung für die Cloud-Synchronisation erforderlich.');
+    if(!CLOUD.enabled || !CLOUD.user || !['admin','staff'].includes(CLOUD.role))throw new Error('Team-Anmeldung für die Cloud-Synchronisation erforderlich.');
     const actor=firebase.auth().currentUser?.uid;
     if(CLOUD._pendingRemoteSnapshot && SYNC.cloudNeedsReview){updateSyncUI();return {ok:false,needsReview:true};}
     if(CLOUD._workflowPublishing){SYNC.cloudPending=true;return {ok:false,pending:true};}
@@ -2736,7 +2744,7 @@ async function submitCustomerDogsProposal(){
   // GB355: vollständig lokal sichern, anschließend zuverlässig in proposals + tasks übertragen.
   // Die Oberfläche wird sofort freigegeben; die Erfolgsmeldung "an Eingänge übergeben"
   // erscheint ausschließlich nach bestätigter Firestore-Speicherung.
-  const GB355='M50.9.14GB393_APP_ANMELDUNG_20261116';
+  const GB355='M50.9.15GB395_WORKSPACE_FIX_20261120';
   function S(v){ try{return String(v==null?'':v);}catch(_){return '';} }
   function L(v){ return S(v).trim().toLowerCase(); }
   function V(id){ try{const el=document.getElementById(id);return S(el&&el.value!=null?el.value:'').trim();}catch(_){return '';} }
@@ -2810,7 +2818,7 @@ async function submitCustomerDogsProposal(){
         window.__dsDogsPendingTask=task;
         const res=await DSWorkflow.submit(task);
         if(!res.ok){cpSetStatus('Noch nicht an Eingänge übertragen: '+res.error.message,true);return res;}
-        window.__dsDogsPendingTask=null;cpSetStatus('✅ An Eingänge übermittelt. Freigabe ausstehend.');closeCpEditor();renderDogs();return res;
+        window.__dsDogsPendingTask=null;cpSetStatus('✅ An Eingänge übermittelt. Freigabe ausstehend.');closeCpEditor();renderDogs();window.DSCustomerPortal?.watchPending();return res;
       }catch(e){cpSetStatus('Übertragung fehlgeschlagen: '+e.message,true);return {ok:false,error:e};}
       finally{window.__gb355SubmitDogsBusy=false;}
     }
@@ -3521,37 +3529,18 @@ const PRICING_DEFAULTS = {
   }
 };
 function getPricingSettings(){
-  // bevorzugt: state.settings.pricing (wird mitgesynct), fallback: localStorage
-  try{
-    if(!window.state) return PRICING_DEFAULTS;
-    state.settings = state.settings || {};
-    let p = state.settings.pricing;
-    if(!p){
-      try{
-        const raw = localStorage.getItem('ds_pricing_settings_v1');
-        if(raw) p = JSON.parse(raw);
-      }catch(_){}
-    }
-    // merge defaults (robust bei Teilständen)
-    const out = JSON.parse(JSON.stringify(PRICING_DEFAULTS));
-    if(p && typeof p === 'object'){
-      if(p.rules && typeof p.rules === 'object') out.rules = p.rules;
-      if(Number.isFinite(+p.holidayPercent)) out.holidayPercent = +p.holidayPercent;
-      if(Number.isFinite(+p.vatPercent)) out.vatPercent = +p.vatPercent;
-      if(p.extras && typeof p.extras === 'object'){
-        for(const k of Object.keys(out.extras)){
-          if(Number.isFinite(+p.extras[k])) out.extras[k] = +p.extras[k];
-        }
-      }
-    }
-    // write back normalized
-    state.settings.pricing = out;
-    try{ localStorage.setItem('ds_pricing_settings_v1', JSON.stringify(out)); }catch(_){}
-    return out;
-  }catch(_){
-    return PRICING_DEFAULTS;
+  // Reading rates must not change protected settings or import another account's local cache.
+  const p=(typeof state!=='undefined'?state.settings?.pricing:null);
+  const out=JSON.parse(JSON.stringify(PRICING_DEFAULTS));
+  if(p && typeof p==='object'){
+    if(p.rules && typeof p.rules==='object')out.rules=p.rules;
+    if(Number.isFinite(+p.holidayPercent))out.holidayPercent=+p.holidayPercent;
+    if(Number.isFinite(+p.vatPercent))out.vatPercent=+p.vatPercent;
+    if(p.extras && typeof p.extras==='object')for(const key of Object.keys(out.extras))if(Number.isFinite(+p.extras[key]))out.extras[key]=+p.extras[key];
   }
+  return out;
 }
+
 function savePricingSettings(next){
   try{
     if(!next || typeof next !== 'object') return;
@@ -13404,7 +13393,7 @@ function openInvoice(id){
         ${admin && code === 'draft' ? '<button type="button" class="btn primary" data-invoice-action="open">Auf Offen setzen</button>' : ''}
         <div id="dsPortalInvoiceActions"></div>
         ${admin && code === 'open' ? '<button type="button" class="btn" data-invoice-action="paid">Als bezahlt markieren</button>' : ''}
-        ${admin && !locked ? '<button type="button" class="btn" id="dsInvoiceEditButton" data-invoice-action="edit">Bearbeiten</button>' : ''}
+        ${DSBilling.editable(inv) ? '<button type="button" class="btn" id="dsInvoiceEditButton" data-invoice-action="edit">Bearbeiten</button>' : ''}
         <button type="button" class="btn" data-invoice-action="pdf">Rechnung drucken / PDF</button>
       </div>
       ${actions.length ? `<details class="invoice-more"><summary>Weitere Aktionen</summary><div class="actions">${actions.join('')}</div></details>` : ''}
@@ -15886,10 +15875,10 @@ if (totalUsed >= MAX_DOGS) {
   if(!currentDoc.saved){
     currentDoc.saved = hasSig;
   }
-if(isStay && DSBilling.admin()){try{currentDoc=DSBilling.attachStay(currentDoc);window.currentDoc=currentDoc;DSBilling.auditStay(currentDoc);DSBilling.syncLinked(currentDoc);}catch(e){alert(e.message);return false;}}
+if(isStay && DSBilling.team()){try{currentDoc=DSBilling.attachStay(currentDoc);window.currentDoc=currentDoc;DSBilling.auditStay(currentDoc);DSBilling.syncLinked(currentDoc);}catch(e){alert(e.message);return false;}}
 currentDoc.updatedAt = new Date().toISOString();
 // 🧾 Variante A: Rechnung automatisch beim Abschließen erstellen
-if(hasSig && currentDoc.pricing && !(dsCustomerForceMode('stay') || isCustomerMainModeLoose('stay'))){
+if(isStay && DSBilling.team() && !(dsCustomerForceMode('stay') || isCustomerMainModeLoose('stay'))){
   const exists = !!DSBilling.findForStay(currentDoc);
   if(!exists){
     createInvoiceFromDoc(currentDoc);
@@ -16471,6 +16460,7 @@ async function startApp(){
       if(firebase.auth().currentUser?.uid!==user.uid)return;
       DSWorkflow.startupStatus('Kundenprofil geladen');window.DSCustomerPortal?.ready();
       CLOUD.role=DSWorkflow.workspaceRole(user,CLOUD.userProfile);
+      if(['admin','staff'].includes(CLOUD.role))window.DSCalendarEvents?.resumeDevice();
     }catch(e){
       console.warn('Role load failed; no staff fallback', e);
       const p=String((location&&location.pathname)||'').toLowerCase();
@@ -19233,48 +19223,9 @@ function getCompanyHeaderHtml(){
   `;
 }
 function openPrintWindow(title, bodyHtml){
-  const w = window.open("", "_blank");
-  if(!w){ alert("Pop-up blockiert. Bitte Pop-ups erlauben."); return; }
-
-  const css = `
-    <style>
-      @page{ margin:16mm; }
-      body{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; color:#111; margin:0; }
-      .topbar{ position:sticky; top:0; z-index:5; display:flex; align-items:center; justify-content:space-between; gap:10px;
-               padding:10px 12px; background:#fff; border-bottom:1px solid #ddd; }
-      .topbar .t{ font-weight:700; }
-      .topbar .btn{ padding:8px 10px; border:1px solid #bbb; border-radius:10px; background:#f7f7f7; cursor:pointer; }
-      .wrap{ padding:16mm; }
-      h1{ font-size:20px; margin:10px 0 6px; }
-      h2{ font-size:16px; margin:14px 0 6px; }
-      .muted{ color:#444; font-size:12px; }
-      .hr{ height:1px; background:#ddd; margin:10px 0; }
-      table{ width:100%; border-collapse:collapse; margin-top:8px; }
-      th,td{ border:1px solid #ddd; padding:8px; font-size:12px; vertical-align:top; }
-      th{ background:#f3f3f3; text-align:left; }
-      img.logo{ width:56px; height:56px; border-radius:10px; object-fit:cover; }
-      @media print{
-        .topbar{ display:none; }
-        body{ margin:0; }
-        .wrap{ padding:0; }
-      }
-    </style>
-  `;
-  const safeTitle = escapeHtml(title||"Dokument");
-  w.document.open();
-  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${safeTitle}</title>${css}</head>
-    <body>
-      <div class="topbar">
-        <div class="t">${safeTitle}</div>
-        <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end">
-          <button class="btn" onclick="window.print()">Drucken</button>
-          <button class="btn" onclick="window.close()">Schließen</button>
-        </div>
-      </div>
-      <div class="wrap">${bodyHtml||""}</div>
-    </body></html>`);
-  w.document.close();
+  try{DSCompliancePrint.open(title,bodyHtml);}catch(error){alert('Unterweisungs-PDF konnte nicht erstellt werden: '+error.message);}
 }
+
 function computeTrainingCompliance(){
   try{ ensureStateShape(); }catch(_){}
   const trainings = state.compliance?.trainings || [];
@@ -19611,7 +19562,7 @@ async function _renderPdfIntoOverlay(wrap, dataUrl, blobUrl){
     throw new Error('PDF.js ist nicht verfügbar.');
   }
   try{ if('disableWorker' in pdfjsLib) pdfjsLib.disableWorker = true; }catch(_){ }
-  const loadingTask = pdfjsLib.getDocument({ data: bytes, disableWorker: true });
+  const loadingTask = pdfjsLib.getDocument({ data: bytes, disableWorker: true, isEvalSupported: false });
   const pdf = await loadingTask.promise;
   const token = String(Date.now()) + '_' + Math.random().toString(36).slice(2);
   wrap.dataset.renderToken = token;
@@ -20031,7 +19982,7 @@ function trainingSessionHtml(t, s){
     return `<tr>
       <td style="width:28%"><strong>${escapeHtml(p)}</strong></td>
       <td style="width:22%">${escapeHtml(s.date)}</td>
-      <td style="width:50%">${sig ? `<img class="sigimg" src="${sig}" alt="Signatur"/>` : `<div class="sigbox"></div>`}</td>
+      <td style="width:50%">${sig ? `<img class="sigimg" src="${escapeHtml(sig)}" alt="Signatur"/>` : `<div class="sigbox"></div>`}</td>
     </tr>`;
   }).join('');
   return `
@@ -21929,7 +21880,7 @@ function renderStatMethod(){
 
 
 
-/* ===== CHAT (M50.9.14GB393_APP_ANMELDUNG_20261116) ===== */
+/* ===== CHAT (M50.9.15GB395_WORKSPACE_FIX_20261120) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
