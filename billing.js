@@ -79,7 +79,7 @@
     const qty=Number(line.qty),unit=Number(line.unit);
     if(Number.isFinite(qty)&&qty>0&&Number.isFinite(unit)){
       const days=line.meta?.unitLabel==='Tag'?' '+(qty===1?'Tag':'Tage'):'';
-      return text(line.label)+' – '+qty+days+' × '+formatEuro(unit);
+      return text(line.label)+' – '+qty.toLocaleString('de-DE',{maximumFractionDigits:2})+days+' × '+formatEuro(unit);
     }
     if(Number(line.rate))return text(line.label)+' – '+Number(line.rate)+' % von '+formatEuro(line.base||0);
     return text(line.label);

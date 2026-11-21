@@ -2,7 +2,7 @@ try{sessionStorage.removeItem('ds_handoff_pass');}catch(_){}
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.15GB395_WORKSPACE_FIX_20261120",
+  tag: "M50.9.15GB396_FREE_INVOICE_LINES_20261121",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -13,7 +13,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.15GB395_WORKSPACE_FIX_20261120";
+const APP_BUILD = "M50.9.15GB396_FREE_INVOICE_LINES_20261121";
 try{ window.__dsAppJsRuntimeBuild = "GB350-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -2744,7 +2744,7 @@ async function submitCustomerDogsProposal(){
   // GB355: vollständig lokal sichern, anschließend zuverlässig in proposals + tasks übertragen.
   // Die Oberfläche wird sofort freigegeben; die Erfolgsmeldung "an Eingänge übergeben"
   // erscheint ausschließlich nach bestätigter Firestore-Speicherung.
-  const GB355='M50.9.15GB395_WORKSPACE_FIX_20261120';
+  const GB355='M50.9.15GB396_FREE_INVOICE_LINES_20261121';
   function S(v){ try{return String(v==null?'':v);}catch(_){return '';} }
   function L(v){ return S(v).trim().toLowerCase(); }
   function V(id){ try{const el=document.getElementById(id);return S(el&&el.value!=null?el.value:'').trim();}catch(_){return '';} }
@@ -13670,23 +13670,66 @@ function openFreeInvoiceForm(){
           <input id="freeInvTo" type="date" value="${today}">
         </label>
       </div>
-      <div class="row" style="gap:12px;flex-wrap:wrap">
-        <label class="field" style="min-width:260px">
-          <span>Beschreibung</span>
-          <input id="freeInvNote" type="text" placeholder="z.B. Gutschein / Training / Sonstiges">
-        </label>
-        <label class="field" style="min-width:200px">
-          <span>Betrag (€) *</span>
-          <input id="freeInvAmount" type="number" step="0.01" min="0" placeholder="0,00">
-        </label>
-      </div>
+      <section aria-labelledby="freeInvPositionsTitle" class="free-invoice-positions">
+        <h4 id="freeInvPositionsTitle">Rechnungspositionen</h4>
+        <p class="muted">Einzelpreise inklusive Mehrwertsteuer. Menge × Einzelpreis ergibt den Positionsbetrag.</p>
+        <div id="freeInvPositions"></div>
+        <button type="button" class="btn" id="freeInvAddPosition">+ Position hinzufügen</button>
+        <p id="freeInvTotal" role="status" aria-live="polite"></p>
+        <p id="freeInvError" role="status" aria-live="polite"></p>
+      </section>
+      <label class="field">
+        <span>Hinweis zur Rechnung (optional)</span>
+        <textarea id="freeInvNote" rows="2" placeholder="Zusätzlicher Hinweis für den Rechnungsempfänger"></textarea>
+      </label>
       <div class="row" style="gap:10px;flex-wrap:wrap;margin-top:10px">
         <button type="submit" class="btn">🧾 Rechnung erstellen</button>
       </div>
     </form>
   `;
   renderFreeInvoiceRecipientMode();
+  document.getElementById('freeInvAddPosition').onclick=()=>addFreeInvoicePosition(true);
+  addFreeInvoicePosition();
   window.DSInvoiceWorkspace?.openDetail();
+}
+function readFreeInvoicePositions(requireComplete=true){
+  const rows=[...document.querySelectorAll('#freeInvPositions [data-free-position]')];
+  if(!rows.length)throw new Error('Bitte mindestens eine Rechnungsposition anlegen.');
+  return rows.map((row,index)=>{
+    const label=row.querySelector('[data-free-label]').value.trim();
+    const quantity=row.querySelector('[data-free-quantity]').value.trim();
+    const price=row.querySelector('[data-free-price]').value.trim();
+    if(requireComplete&&(!label||!quantity||!price))throw new Error('Bitte Position '+(index+1)+' vollständig mit Bezeichnung, Menge und Einzelpreis ausfüllen.');
+    let qty,unit;
+    try{qty=DSBilling.number(quantity||'0');unit=DSBilling.number(price||'0');}
+    catch(_){throw new Error('Position '+(index+1)+': Bitte gültige Zahlen mit höchstens zwei Nachkommastellen eingeben.');}
+    if(qty<=0||unit<0)throw new Error('Position '+(index+1)+': Die Menge muss größer als 0 sein; der Einzelpreis darf nicht negativ sein.');
+    return {key:row.dataset.freePosition,label,qty,unit,total:round2(qty*unit)};
+  });
+}
+function updateFreeInvoiceTotals(){
+  const host=document.getElementById('freeInvPositions');if(!host)return;
+  const rows=[...host.querySelectorAll('[data-free-position]')];
+  rows.forEach((row,i)=>{
+    row.querySelector('legend').textContent='Position '+(i+1);
+    row.querySelector('[data-free-remove]').disabled=rows.length===1;
+    try{const qty=DSBilling.number(row.querySelector('[data-free-quantity]').value||'0'),unit=DSBilling.number(row.querySelector('[data-free-price]').value||'0');row.querySelector('[data-free-total]').textContent=qty>0&&unit>=0?formatEuro(round2(qty*unit)):'—';}
+    catch(_){row.querySelector('[data-free-total]').textContent='—';}
+  });
+  const total=document.getElementById('freeInvTotal'),error=document.getElementById('freeInvError');
+  try{
+    const items=readFreeInvoicePositions(false),gross=round2(items.reduce((sum,item)=>sum+item.total,0)),vat=getPricingSettings().vatPercent??19,net=computeNetVatFromGross(gross,vat);
+    total.textContent='Gesamt: '+formatEuro(gross)+' brutto · Netto: '+formatEuro(net.net)+' · enthaltene MwSt ('+Number(vat).toLocaleString('de-DE')+' %): '+formatEuro(net.vat);error.textContent='';
+  }catch(e){total.textContent='Gesamtbetrag: —';error.textContent=e.message;}
+}
+function addFreeInvoicePosition(focus=false){
+  const host=document.getElementById('freeInvPositions');if(!host)return;
+  const row=document.createElement('fieldset');row.dataset.freePosition='manual-'+crypto.randomUUID();row.className='free-invoice-position';
+  row.innerHTML='<legend>Position</legend><div class="free-invoice-position-fields"><label class="field free-invoice-description"><span>Bezeichnung *</span><input data-free-label type="text" required placeholder="z. B. Training oder Zubehör"></label><label class="field"><span>Menge *</span><input data-free-quantity type="text" inputmode="decimal" required value="1" aria-label="Menge"></label><label class="field"><span>Einzelpreis brutto (€) *</span><input data-free-price type="text" inputmode="decimal" required value="0" aria-label="Einzelpreis brutto in Euro"></label><div class="free-invoice-position-sum"><span>Positionsbetrag</span><output data-free-total>0,00 €</output></div></div><button type="button" class="btn" data-free-remove>Position entfernen</button>';
+  row.addEventListener('input',updateFreeInvoiceTotals);
+  row.querySelector('[data-free-remove]').onclick=()=>{row.remove();updateFreeInvoiceTotals();};
+  host.append(row);updateFreeInvoiceTotals();
+  if(focus)row.querySelector('[data-free-label]').focus();
 }
 function renderFreeInvoiceRecipientMode(){
   const manual=document.getElementById('freeInvRecipientMode')?.value==='manual';
@@ -13741,7 +13784,12 @@ function createFreeInvoice(){
   const from = document.getElementById("freeInvFrom")?.value || "";
   const to = document.getElementById("freeInvTo")?.value || "";
   const note = (document.getElementById("freeInvNote")?.value || "").trim();
-  let amount;try{amount=DSBilling.number(document.getElementById("freeInvAmount")?.value||'0');}catch(e){alert(e.message);return;}
+  let items,amount;
+  try{
+    items=readFreeInvoicePositions();amount=round2(items.reduce((sum,item)=>sum+item.total,0));
+    if(!(amount>0))throw new Error('Der Gesamtbetrag muss größer als 0 sein.');
+    if((from||to)&&(!DSWorkflowCore.dateISO(from)||!DSWorkflowCore.dateISO(to)||to<from))throw new Error('Bitte einen gültigen Leistungszeitraum eingeben.');
+  }catch(e){document.getElementById('freeInvError').textContent=e.message;return;}
   let manualRecipient;
   if(manual){
     try{manualRecipient=DSBilling.readManualRecipient(document.getElementById('freeInvManualFields'));}
@@ -13750,7 +13798,6 @@ function createFreeInvoice(){
     if(!customerId||!getCustomer(customerId)){alert('Bitte einen Kunden auswählen.');return;}
     if(petId&&getPet(petId)?.customerId!==customerId){alert('Bitte einen Hund des ausgewählten Kunden wählen.');return;}
   }
-  if(!(amount>0)){ alert("Bitte einen Betrag > 0 eingeben."); return; }
   const invoiceNumber=DSBilling.nextNumber();
   const dogId = petId ? ensureLegacyDogForPetId(petId, customerId) : "";
   const invoice = {
@@ -13768,6 +13815,8 @@ function createFreeInvoice(){
       fixedExtra: 0,
       total: amount
     },
+    pricingMode: "manual",
+    lineItems: items,
     status: "draft",
     note,
     invoiceNumber,
@@ -21880,7 +21929,7 @@ function renderStatMethod(){
 
 
 
-/* ===== CHAT (M50.9.15GB395_WORKSPACE_FIX_20261120) ===== */
+/* ===== CHAT (M50.9.15GB396_FREE_INVOICE_LINES_20261121) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,

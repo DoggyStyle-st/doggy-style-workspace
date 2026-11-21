@@ -1,0 +1,10 @@
+Doggy Style Workspace – GB396 – 21. November 2026
+
+Freie Rechnungen unterstützen jetzt mehrere Positionen mit Bezeichnung, Menge und Einzelpreis brutto. Positionen können hinzugefügt und entfernt werden. Positionsbeträge sowie Gesamtbetrag, Netto und enthaltene MwSt. werden während der Eingabe berechnet. Dezimalmengen mit Komma sind möglich. Alle Positionen bleiben in der gespeicherten Rechnung, beim Bearbeiten und in der PDF erhalten. Auch für Anschis Mitarbeiterzugang.
+
+INSTALLATION:
+Die ZIP auf dem iPad entpacken. Den gesamten Inhalt direkt im bisherigen GitHub-Repository hochladen, wo app.html bereits liegt. Die Ordnerstruktur von assets, templates und vendor beibehalten. Dateien ersetzen, Änderungen committen und anschließend den Workspace neu laden.
+
+Diese ZIP enthält nur Webdateien. In Firebase muss für GB396 nichts geändert oder neu veröffentlicht werden. Die bereits eingerichtete Speicherfunktion und die veröffentlichten Regeln aus GB395 werden weiterverwendet.
+
+Version: M50.9.15GB396_FREE_INVOICE_LINES_20261121
