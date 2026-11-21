@@ -25,14 +25,16 @@
     list.replaceChildren();list.scrollTop=0;
     for(const u of found.slice(begin,begin+pageSize)){
       const d=node(list,'details');d.dataset.accountId=u.id;const summary=node(d,'summary');
-      node(summary,'strong',name(u)||u.email||u.id);node(summary,'span',roleLabel(u.role)+(missing(u)?' · Zuordnung fehlt':''));
+      node(summary,'strong',name(u)||u.email||u.id);const founder=['raphael@boch-plan.de','anschifessler@googlemail.com'].includes(text(u.email).toLowerCase());
+      const position=text(u.email).toLowerCase()==='anschifessler@googlemail.com'?'Inhaberin · ':text(u.email).toLowerCase()==='raphael@boch-plan.de'?'Mitarbeiter · ':'';
+      node(summary,'span',position+roleLabel(u.role)+(missing(u)?' · Zuordnung fehlt':''));
       if(u.email)node(summary,'small',u.email);
       node(d,'p','Konto: '+u.id);if(u.customerId)node(d,'p','Kundenzuordnung: '+(u.portalData?.customer?.name||u.customerId));
       const editor=node(d,'div');editor.className='account-edit';const label=node(editor,'label','Rolle '),select=node(label,'select');select.setAttribute('aria-label','Rolle für '+(u.email||name(u)||u.id));
       if(!['admin','staff','customer'].includes(u.role))select.add(new Option('Bitte zuteilen',''));
       for(const [v,t] of [['customer','Kunde'],['staff','Mitarbeiter'],['admin','Administrator']])select.add(new Option(t,v));select.value=['admin','staff','customer'].includes(u.role)?u.role:'';
       const save=button(editor,'Rolle speichern',async()=>{
-        const next=select.value;if(!next)return;save.disabled=true;select.disabled=true;status.textContent='Wird in Firebase gespeichert …';
+        const next=select.value;if(!next||founder)return;save.disabled=true;select.disabled=true;status.textContent='Wird in Firebase gespeichert …';
         try{
           same(s);const currentContext=context(),ref=currentContext.db.collection('orgs').doc(s.org).collection('users').doc(u.id);
           await currentContext.db.runTransaction(async tx=>{const current=await tx.get(ref);same(s);if(!current.exists||text(current.data().role)!==text(u.role))throw new Error('Die Rolle wurde inzwischen geändert. Bitte Aktualisieren wählen.');tx.update(ref,{role:next});});
@@ -40,9 +42,10 @@
         }catch(e){try{same(s);status.textContent='Nicht gespeichert. '+text(e.message||e);select.value=u.role||'';showPermissions();}catch(_){}}
         finally{save.disabled=false;select.disabled=false;}
       });
+      if(founder){select.disabled=true;save.disabled=true;node(editor,'p','Die beiden festen Adminzugänge bleiben erhalten. Weitere Mitarbeiter können hier zugeteilt werden.');}
       const permissions = {
         admin: 'Verwaltet Konten und Kundenzuordnungen, ändert Preise, gibt Rechnungen im Chat frei und kann Sicherungen wiederherstellen.',
-        staff: 'Arbeitet mit Aufenthalten, Kalender, Chat und betrieblichen Listen. Preise, Rechnungsfreigaben und Wiederherstellung liegen bei der Administration.',
+        staff: 'Arbeitet mit Aufenthalten, Kalender, Chat und betrieblichen Listen und legt freie Rechnungsentwürfe an. Preise, Rechnungsfreigaben und Wiederherstellung liegen bei der Administration.',
         customer: 'Nutzt das eigene Kundenportal für Hunde, Anfragen, Chat und freigegebene Rechnungen.'
       };
       const hint=node(editor,'p');hint.className='muted';

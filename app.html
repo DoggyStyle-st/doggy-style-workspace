@@ -3,7 +3,7 @@
 <html lang="de" class="ds-app-auth-pending">
 <head>
 <meta charset="utf-8"/>
-<script src="auth-session.js?v=M50.9.15GB396_FREE_INVOICE_LINES_20261121"></script>
+<script src="auth-session.js?v=M50.9.15GB397_INVOICE_YEARS_OWNER_20261121"></script>
 <script>if(window.DSAuthSession && !DSAuthSession.isStandalone())document.documentElement.classList.remove('ds-app-auth-pending');</script>
 <style>
   #authGate{display:none;min-height:100vh;align-items:center;justify-content:center;padding:16px}
@@ -22,16 +22,16 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
 <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
-  <meta name="app-build" content="M50.9.15GB396_FREE_INVOICE_LINES_20261121">
+  <meta name="app-build" content="M50.9.15GB397_INVOICE_YEARS_OWNER_20261121">
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <title>Doggy Style Workspace · App</title>
 <link href="manifest.json" rel="manifest"/>
 <meta content="#101014" name="theme-color"/>
 <link href="assets/logo.png" rel="apple-touch-icon"/>
-<link href="styles.css?v=M50.9.15GB396_FREE_INVOICE_LINES_20261121" rel="stylesheet"/>
+<link href="styles.css?v=M50.9.15GB397_INVOICE_YEARS_OWNER_20261121" rel="stylesheet"/>
 <link href="dashboard_master.css?v=20260104v13logout" rel="stylesheet"/>
-<link href="analytics.css?v=M50.9.15GB396_FREE_INVOICE_LINES_20261121" rel="stylesheet"/>
-<link href="calendar-events.css?v=M50.9.15GB396_FREE_INVOICE_LINES_20261121" rel="stylesheet"/>
+<link href="analytics.css?v=M50.9.15GB397_INVOICE_YEARS_OWNER_20261121" rel="stylesheet"/>
+<link href="calendar-events.css?v=M50.9.15GB397_INVOICE_YEARS_OWNER_20261121" rel="stylesheet"/>
 <style>
   /* Topbar Layout (iPad & Desktop stabil) */
   .topbar{position:sticky; top:0; z-index:50;}
@@ -53,15 +53,15 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
 </style>
 
 
-  <meta name="app-version" content="M50.9.15GB396_FREE_INVOICE_LINES_20261121">
+  <meta name="app-version" content="M50.9.15GB397_INVOICE_YEARS_OWNER_20261121">
   <meta name="release-channel" content="MASTER">
 <style>
 /* GB358: interne Diagnose bleibt programmatisch vorhanden, wird aber nicht angezeigt. */
 #assignDiag,#inboxDiag,#inboxDiagError,#inboxProposalDebug,#buildBadge,[id^="gb348Diag"]{display:none!important}
 </style>
-<link rel="stylesheet" href="document-output.css?v=M50.9.15GB396_FREE_INVOICE_LINES_20261121">
-<link rel="stylesheet" href="billing.css?v=M50.9.15GB396_FREE_INVOICE_LINES_20261121">
-<link rel="stylesheet" href="invoice-workspace.css?v=M50.9.15GB396_FREE_INVOICE_LINES_20261121"><link rel="stylesheet" href="settings-workspace.css?v=M50.9.15GB396_FREE_INVOICE_LINES_20261121"></head>
+<link rel="stylesheet" href="document-output.css?v=M50.9.15GB397_INVOICE_YEARS_OWNER_20261121">
+<link rel="stylesheet" href="billing.css?v=M50.9.15GB397_INVOICE_YEARS_OWNER_20261121">
+<link rel="stylesheet" href="invoice-workspace.css?v=M50.9.15GB397_INVOICE_YEARS_OWNER_20261121"><link rel="stylesheet" href="settings-workspace.css?v=M50.9.15GB397_INVOICE_YEARS_OWNER_20261121"></head>
 <body class="bg-watermark page-app">
 <div id="authGate">
   <section class="card" aria-label="Anmeldung">
@@ -101,7 +101,7 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
 
       <div class="tabs__row tabs__row--quick">
 <button class="tab" data-tab="calendar" id="tabCalendar"><span class="tab-ico" aria-hidden="true">📅</span>Kalender</button>
-        <button class="tab" data-tab="inbox" id="tabInbox"><span class="tab-ico" aria-hidden="true">📥</span>Eingänge</button>
+        <button class="tab" data-tab="inbox" id="tabInbox"><span class="tab-ico" aria-hidden="true">📥</span>Eingänge <span id="inboxNavBadge" class="inbox-count" hidden></span></button>
         <button class="tab" data-tab="chat" id="tabChat"><span class="tab-ico" aria-hidden="true">💬</span>Chat</button>
         <button class="tab" data-tab="documents"><span class="tab-ico" aria-hidden="true">🏠</span>Aufenthalte</button>
         <button class="tab" data-tab="settings" id="tabSettings"><span class="tab-ico" aria-hidden="true">⚙️</span>Einstellungen</button>
@@ -148,7 +148,7 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
             <span>🧼 Hygiene <small id="hygieneTodayMeta"></small></span><span class="sync-pill" id="hygieneTodayStatus"></span>
           </button>
           <button class="home-task" type="button" onclick="selectTab('inbox')" id="homeInbox">
-            <span>📥 Eingänge <small id="homeInboxStatus">Status noch nicht geladen</small></span><span aria-hidden="true">›</span>
+            <span>📥 Eingänge <small id="homeInboxStatus" role="status" aria-live="polite">Status noch nicht geladen</small></span><span id="homeInboxBadge" class="inbox-count" hidden></span>
           </button>
         </div>
       </section>
@@ -810,7 +810,7 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
   <h2>Betriebsdaten für Rechnungen</h2>
   <div class="settings-fields">
   <label class="field"><span>Betriebsname</span><input name="name" required maxlength="120"></label>
-  <label class="field"><span>Inhaber</span><input name="owner" maxlength="120"></label>
+  <label class="field"><span>Inhaberin / Inhaber</span><input name="owner" maxlength="120"></label>
   <label class="field"><span>Straße und Hausnummer</span><input name="street" required maxlength="120"></label>
   <label class="field"><span>PLZ und Ort</span><input name="zipCity" required maxlength="120"></label>
   <label class="field"><span>Telefon</span><input type="tel" name="phone" maxlength="60"></label>
@@ -829,7 +829,7 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
   <button class="btn" type="submit">Vorschau berechnen</button>
   <div id="settingsPreviewResult" role="status"></div>
 </form></div><div data-settings-pane="team" hidden><div class="card" id="adminUserCard" style="margin-top:12px; display:none;">
-  <h2>Benutzer &amp; Rollen</h2>
+  <h2>Benutzer &amp; Rollen</h2><p><strong>Angelika Boch (Anschi): Inhaberin · Admin</strong><br>Raphael Boch: Mitarbeiter · Admin</p><p class="muted">Neue Registrierungen sind automatisch als Kunde aktiv. Weitere Teammitglieder registrieren ihr eigenes Konto; ihr weist ihnen hier die Rolle Mitarbeiter zu. Ein Eintrag in der Namensliste allein vergibt keine Anmelderechte.</p>
   <button class="btn" type="button" onclick="selectTab('inbox')">Zu den Kundenzuordnungen in Eingänge</button>
   <p class="muted" style="margin-top:6px">Konten nach Name oder E-Mail suchen. Zum Zuteilen ein Konto aufklappen und die Rolle speichern.</p>
   <div class="row between" style="gap:12px; flex-wrap:wrap; margin-top:10px;">
@@ -909,6 +909,19 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
         <button type="button" class="btn" data-invoice-status="paid" aria-pressed="false">Bezahlt <span data-count></span></button>
         <button type="button" class="btn" data-invoice-status="cancelled" aria-pressed="false">Storniert <span data-count></span></button>
       </div>
+      <div class="invoice-time-filters">
+        <label class="field"><span>Jahr</span><select id="invoiceYear"></select></label>
+        <label class="field"><span>Zeitraum bezieht sich auf</span><select id="invoiceDateBasis"><option value="invoice">Rechnungsdatum</option><option value="service">Leistungszeitraum (Überschneidung)</option></select></label>
+        <label class="field"><span>Von</span><input type="date" id="invoiceFrom"></label>
+        <label class="field"><span>Bis</span><input type="date" id="invoiceTo"></label>
+      </div>
+      <div class="invoice-filters" id="invoicePresets" role="group" aria-label="Schnellauswahl Zeitraum">
+        <button type="button" class="btn" data-period="month">Dieser Monat</button><button type="button" class="btn" data-period="previousMonth">Vormonat</button>
+        <button type="button" class="btn" data-period="year">Dieses Jahr</button><button type="button" class="btn" data-period="previousYear">Vorjahr</button>
+        <button type="button" class="btn" id="invoiceAllOpen">Alle offenen · alle Jahre</button><button type="button" class="btn" id="invoiceReset">Filter zurücksetzen</button>
+      </div>
+      <p id="invoiceFilterSummary" class="muted" role="status"></p>
+      <p id="invoiceUndatedNotice" hidden><span></span> <button type="button" class="btn" id="invoiceUndated">Ohne Datum anzeigen</button></p>
       <div class="invoice-search-sort">
         <label class="field">
           <span>Rechnungen suchen</span>
@@ -918,7 +931,7 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
           <span>Sortierung</span>
           <select id="invoiceSort">
             <option value="newest">Neueste zuerst</option>
-            <option value="oldest">Älteste zuerst</option>
+            <option value="oldest">Älteste zuerst</option><option value="customer">Kunde A–Z</option><option value="amountDesc">Betrag absteigend</option><option value="amountAsc">Betrag aufsteigend</option>
           </select>
         </label>
       </div>
@@ -931,7 +944,7 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
         <span>Rechnungsnr.</span><span>Kunde / Hund</span><span>Rechnungsdatum</span>
         <span>Leistungszeitraum</span><span>Betrag</span><span>Status</span>
       </div>
-      <div id="invoiceList" class="invoice-list" role="region" aria-label="Rechnungsliste" tabindex="0"></div>
+      <div id="invoiceList" class="invoice-list" role="region" aria-label="Rechnungsliste" tabindex="0"></div><button type="button" class="btn" id="invoiceMore" hidden>Weitere 50 anzeigen</button>
     </div>
     <section class="invoice-detail" id="invoiceDetail" aria-label="Rechnungsdetail" hidden>
       <div class="invoice-detail-bar"><button type="button" class="btn" id="invoiceClose">← Zur Liste</button></div>
@@ -1264,7 +1277,7 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
 </section>
 
 <section class="panel" id="statistics">
-<!-- Statistics panel is rendered by app.js?v=M50.9.15GB396_FREE_INVOICE_LINES_20261121 (renderStatisticsPanel) -->
+<!-- Statistics panel is rendered by app.js?v=M50.9.15GB397_INVOICE_YEARS_OWNER_20261121 (renderStatisticsPanel) -->
 </section>
 
 
@@ -1341,7 +1354,7 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
 </footer>
 </div>
 <!-- Firebase (optional) + Config -->
-<script defer="defer" src="firebase-config.js?v=M50.9.15GB396_FREE_INVOICE_LINES_20261121"></script>
+<script defer="defer" src="firebase-config.js?v=M50.9.15GB397_INVOICE_YEARS_OWNER_20261121"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer="defer" src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
@@ -1351,28 +1364,29 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
 
 <!-- Competing legacy workflow/contract overrides removed. -->
 
-<script defer src="browser-store.js?v=M50.9.15GB396_FREE_INVOICE_LINES_20261121"></script>
-<script defer src="workflow-core.js?v=M50.9.15GB396_FREE_INVOICE_LINES_20261121"></script>
-<script defer src="workflow-ui.js?v=M50.9.15GB396_FREE_INVOICE_LINES_20261121"></script>
-<script defer src="workspace-repair-ui.js?v=M50.9.15GB396_FREE_INVOICE_LINES_20261121"></script>
-<script defer src="communication-core.js?v=M50.9.15GB396_FREE_INVOICE_LINES_20261121"></script>
-<script defer src="customer-portal.js?v=M50.9.15GB396_FREE_INVOICE_LINES_20261121"></script>
-<script defer src="portal-actions.js?v=M50.9.15GB396_FREE_INVOICE_LINES_20261121"></script>
-<script defer src="account-directory.js?v=M50.9.15GB396_FREE_INVOICE_LINES_20261121"></script>
-<script defer src="statistics-store.js?v=M50.9.15GB396_FREE_INVOICE_LINES_20261121"></script>
-<script defer src="analytics-core.js?v=M50.9.15GB396_FREE_INVOICE_LINES_20261121"></script>
-<script defer src="analytics-view.js?v=M50.9.15GB396_FREE_INVOICE_LINES_20261121"></script>
-<script defer src="calendar-events.js?v=M50.9.15GB396_FREE_INVOICE_LINES_20261121"></script>
+<script defer src="browser-store.js?v=M50.9.15GB397_INVOICE_YEARS_OWNER_20261121"></script>
+<script defer src="workflow-core.js?v=M50.9.15GB397_INVOICE_YEARS_OWNER_20261121"></script>
+<script defer src="workflow-ui.js?v=M50.9.15GB397_INVOICE_YEARS_OWNER_20261121"></script>
+<script defer src="workspace-repair-ui.js?v=M50.9.15GB397_INVOICE_YEARS_OWNER_20261121"></script>
+<script defer src="communication-core.js?v=M50.9.15GB397_INVOICE_YEARS_OWNER_20261121"></script>
+<script defer src="customer-portal.js?v=M50.9.15GB397_INVOICE_YEARS_OWNER_20261121"></script>
+<script defer src="portal-actions.js?v=M50.9.15GB397_INVOICE_YEARS_OWNER_20261121"></script>
+<script defer src="organization-ui.js?v=M50.9.15GB397_INVOICE_YEARS_OWNER_20261121"></script>
+<script defer src="account-directory.js?v=M50.9.15GB397_INVOICE_YEARS_OWNER_20261121"></script>
+<script defer src="statistics-store.js?v=M50.9.15GB397_INVOICE_YEARS_OWNER_20261121"></script>
+<script defer src="analytics-core.js?v=M50.9.15GB397_INVOICE_YEARS_OWNER_20261121"></script>
+<script defer src="analytics-view.js?v=M50.9.15GB397_INVOICE_YEARS_OWNER_20261121"></script>
+<script defer src="calendar-events.js?v=M50.9.15GB397_INVOICE_YEARS_OWNER_20261121"></script>
 <script defer src="vendor/jspdf.umd.min.js?v=4.2.1"></script>
 <script defer src="vendor/print-font.js?v=1"></script>
-<script defer src="document-output.js?v=M50.9.15GB396_FREE_INVOICE_LINES_20261121"></script>
-<script defer src="workforms-print.js?v=M50.9.15GB396_FREE_INVOICE_LINES_20261121"></script>
-<script defer src="compliance-print.js?v=M50.9.15GB396_FREE_INVOICE_LINES_20261121"></script>
-<script defer src="invoice-print.js?v=M50.9.15GB396_FREE_INVOICE_LINES_20261121"></script>
-<script defer src="billing.js?v=M50.9.15GB396_FREE_INVOICE_LINES_20261121"></script>
-<script defer src="invoice-workspace.js?v=M50.9.15GB396_FREE_INVOICE_LINES_20261121"></script>
-<script defer src="settings-workspace.js?v=M50.9.15GB396_FREE_INVOICE_LINES_20261121"></script>
-<script defer="defer" src="app.js?v=M50.9.15GB396_FREE_INVOICE_LINES_20261121"></script>
+<script defer src="document-output.js?v=M50.9.15GB397_INVOICE_YEARS_OWNER_20261121"></script>
+<script defer src="workforms-print.js?v=M50.9.15GB397_INVOICE_YEARS_OWNER_20261121"></script>
+<script defer src="compliance-print.js?v=M50.9.15GB397_INVOICE_YEARS_OWNER_20261121"></script>
+<script defer src="invoice-print.js?v=M50.9.15GB397_INVOICE_YEARS_OWNER_20261121"></script>
+<script defer src="billing.js?v=M50.9.15GB397_INVOICE_YEARS_OWNER_20261121"></script>
+<script defer src="invoice-workspace.js?v=M50.9.15GB397_INVOICE_YEARS_OWNER_20261121"></script>
+<script defer src="settings-workspace.js?v=M50.9.15GB397_INVOICE_YEARS_OWNER_20261121"></script>
+<script defer="defer" src="app.js?v=M50.9.15GB397_INVOICE_YEARS_OWNER_20261121"></script>
 <script>
 (function(){
   const btn = document.getElementById('btnLogoutTop');
@@ -1391,7 +1405,7 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
 </script>
 
 <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.15GB396_FREE_INVOICE_LINES_20261121', { updateViaCache: 'none' });
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v=M50.9.15GB397_INVOICE_YEARS_OWNER_20261121', { updateViaCache: 'none' });
   </script>
 
 <script>
@@ -1524,7 +1538,7 @@ html:has(body[data-customer-mode="contract"]) #contractList {display:none!import
 
 <script>
 (function(){
-  const CURRENT_BUILD = 'M50.9.15GB396_FREE_INVOICE_LINES_20261121';
+  const CURRENT_BUILD = 'M50.9.15GB397_INVOICE_YEARS_OWNER_20261121';
   try{
     window.addEventListener('load', function(){
       try{

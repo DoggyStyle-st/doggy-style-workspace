@@ -120,3 +120,5 @@
   .invoice-grid { padding: 10px; }
   .invoice-row small { font-size: .75rem; }
 }
+
+.invoice-time-filters{display:grid;grid-template-columns:1fr 2fr 1fr 1fr;gap:12px;margin:16px 0}.invoice-time-filters .field{min-width:0}.invoice-time-filters input,.invoice-time-filters select{width:100%;min-width:0;box-sizing:border-box}.invoice-month{font-size:1.05rem;margin:14px 0 4px;padding:8px 2px;border-bottom:1px solid #72747c}.invoice-list-meta{flex-wrap:wrap}.invoice-list-meta strong{font-size:.9rem}#invoiceMore{margin-top:12px}.inbox-count{display:inline-flex;align-items:center;justify-content:center;min-width:26px;min-height:26px;padding:2px 8px;border-radius:16px;background:#eab85c;color:#171311;font-weight:800}.inbox-count[hidden]{display:none!important}#homeInbox.has-pending-inbox{border:2px solid #eab85c;background:rgba(234,184,92,.15)}#tabInbox.has-pending-inbox{border-color:#eab85c}#homeInbox.has-pending-inbox small{font-weight:700;color:#ffe2a3}@media(max-width:900px){.invoice-time-filters{grid-template-columns:1fr 1fr}}@media(max-width:480px){.invoice-time-filters{grid-template-columns:1fr}.invoice-time-filters input{min-height:44px}}

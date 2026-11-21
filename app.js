@@ -2,7 +2,7 @@ try{sessionStorage.removeItem('ds_handoff_pass');}catch(_){}
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.15GB396_FREE_INVOICE_LINES_20261121",
+  tag: "M50.9.15GB397_INVOICE_YEARS_OWNER_20261121",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -13,7 +13,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.15GB396_FREE_INVOICE_LINES_20261121";
+const APP_BUILD = "M50.9.15GB397_INVOICE_YEARS_OWNER_20261121";
 try{ window.__dsAppJsRuntimeBuild = "GB350-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -1099,7 +1099,7 @@ function openHtmlInModal(title,html,hint){return DSDocumentOutput.open({html,tit
 const LEGAL_DEFAULTS = {
   dsgvo: `Datenschutzhinweis (DSGVO) – Doggy Style Hundepension
 Verantwortlicher:
-Raphael Boch, Im Moos 4, 88167 Stiefenhofen
+Angelika Boch, Im Moos 4, 88167 Stiefenhofen
 Telefon: 0170/7313587 · E-Mail: info@doggy-style.de
 Zweck der Verarbeitung
 Wir verarbeiten personenbezogene Daten und tierbezogene Daten zur Durchführung von Betreuungsverträgen, zur Organisation von Aufenthalten, zur Abrechnung, zur Kommunikation sowie zur Erfüllung gesetzlicher Pflichten.
@@ -1142,7 +1142,7 @@ Betreuung kann beendet werden, wenn Gefahr besteht, falsche Angaben gemacht wurd
 try{
   if(!LEGAL_DEFAULTS.tierarzt){
     LEGAL_DEFAULTS.tierarzt = `Tierarzt-Erlaubnis / Notfall-Vollmacht – Doggy Style Hundepension
-Hiermit erteile ich als Hundehalter/in dem Betreiber (Doggy Style Hundepension, Raphael Boch, Im Moos 4, 88167 Stiefenhofen) die Erlaubnis, im medizinischen Notfall oder bei akuten Beschwerden meines Hundes einen Tierarzt/Tierklinik aufzusuchen und notwendige Behandlungen veranlassen zu lassen, sofern ich nicht rechtzeitig erreichbar bin.
+Hiermit erteile ich als Hundehalter/in dem Betreiber (Doggy Style Hundepension, Angelika Boch, Im Moos 4, 88167 Stiefenhofen) die Erlaubnis, im medizinischen Notfall oder bei akuten Beschwerden meines Hundes einen Tierarzt/Tierklinik aufzusuchen und notwendige Behandlungen veranlassen zu lassen, sofern ich nicht rechtzeitig erreichbar bin.
 Umfang (Beispiele):
 - Untersuchung und diagnostische Maßnahmen (z. B. Blutbild, Röntgen, Ultraschall)
 - Notfallbehandlung (Schmerztherapie, Wundversorgung, Infusion)
@@ -1677,8 +1677,14 @@ function dsProposalSignalRefresh(){
 async function loadOrCreateUserProfile(user){
     if(!CLOUD.enabled || !user) throw new Error('Keine aktive Firebase-Anmeldung.');
     const ref=cloudUserDoc(user.uid), snap=await DSWorkflow.readWithTimeout(ref.get({source:'server'}),'Benutzerprofil');
-    if(snap.exists) return {...snap.data(),uid:user.uid};
-    const role=user.emailVerified && String(user.email||'').toLowerCase()==='raphael@boch-plan.de'?'admin':'customer';
+    if(snap.exists){
+      const data={...snap.data(),uid:user.uid};
+      if(user.emailVerified&&['raphael@boch-plan.de','anschifessler@googlemail.com'].includes(String(user.email||'').toLowerCase())&&data.role!=='admin'){
+        await ref.update({role:'admin'});data.role='admin';
+      }
+      return data;
+    }
+    const role=user.emailVerified && ['raphael@boch-plan.de','anschifessler@googlemail.com'].includes(String(user.email||'').toLowerCase())?'admin':'customer';
     const profile={uid:user.uid,email:String(user.email||'').toLowerCase(),displayName:String(user.displayName||''),role,createdAt:Date.now()};
     await ref.set(profile);return profile;
   }
@@ -1877,6 +1883,10 @@ function mergeStatePreferRemote(remoteRaw, localRaw){
 // --- /Merge-Strategie ---
 function applyRemoteState(remote,remoteStamp,source){
     if(!remote || DSWorkflow.scoped())return false;
+    // Initial read and realtime listener may deliver the same server revision.
+    // Keep pending local edits/migrations queued; an unchanged baseline is no conflict.
+    const baseline=CLOUD._workflowBaseSnapshot;
+    if(SYNC.cloudPending&&baseline&&Number(baseline.stamp)===Number(remoteStamp||0)&&DSWorkflow.sameWorkspace(baseline.payload,remote))return false;
     if(SYNC.cloudPending && DSWorkflow.hasLocalChanges(remote)){
       CLOUD._deferredRemoteSnapshot={payload:JSON.parse(JSON.stringify(remote)),stamp:Number(remoteStamp||0)};
       if(!CLOUD._workflowPublishing){DSWorkflow.showConflict(remote,remoteStamp);updateSyncUI();}
@@ -1887,6 +1897,8 @@ function applyRemoteState(remote,remoteStamp,source){
     CLOUD._lastRemoteStamp=Number(remoteStamp||0);ensureStateShape();ensureContractDefaults();
     DSBrowserStore.cache(LS_KEY,JSON.stringify(state));
     DSWorkflow.rememberBase(remote,remoteStamp,state);
+    if(window.DSOrganization?.apply(state)){saveState();}
+    window.DSOrganization?.syncAccounts().catch(error=>{SYNC.cloudLastError=error.message;updateSyncUI();});
     renderDogs();renderDocs();renderInvoiceList();renderDashboard();renderTodayStatus();renderOccupancy();renderRecent();updateSyncUI();
     globalThis.DSAnalyticsView?.schedule();
     if(DSBilling.team()){
@@ -2744,7 +2756,7 @@ async function submitCustomerDogsProposal(){
   // GB355: vollständig lokal sichern, anschließend zuverlässig in proposals + tasks übertragen.
   // Die Oberfläche wird sofort freigegeben; die Erfolgsmeldung "an Eingänge übergeben"
   // erscheint ausschließlich nach bestätigter Firestore-Speicherung.
-  const GB355='M50.9.15GB396_FREE_INVOICE_LINES_20261121';
+  const GB355='M50.9.15GB397_INVOICE_YEARS_OWNER_20261121';
   function S(v){ try{return String(v==null?'':v);}catch(_){return '';} }
   function L(v){ return S(v).trim().toLowerCase(); }
   function V(id){ try{const el=document.getElementById(id);return S(el&&el.value!=null?el.value:'').trim();}catch(_){return '';} }
@@ -3941,7 +3953,7 @@ try{ migrateToV2(); }catch(_){ }
 try{ ensureStateShape(); }catch(_){ }
 const COMPANY = {
   name: "Doggy Style Hundepension",
-  owner: "Raphael Boch",
+  owner: "Angelika Boch",
   street: "Im Moos 4",
   zipCity: "88167 Stiefenhofen",
   phone: "0170 7313587",
@@ -5474,7 +5486,7 @@ function exportHygienePDF(){
     th{background:#f3f3f3}
   </style></head><body>
   <h1>Hygiene- und Reinigungsnachweis</h1>
-  <p class="muted">Hundepension Doggy Style – Angelika &amp; Raphael Boch · Zeitraum: ${start.toLocaleDateString('de-DE')} – ${end.toLocaleDateString('de-DE')}</p>
+  <p class="muted">Hundepension Doggy Style – Inhaberin Angelika Boch · Zeitraum: ${start.toLocaleDateString('de-DE')} – ${end.toLocaleDateString('de-DE')}</p>
   <table>
     <thead><tr><th>Datum</th><th>Bereich</th><th>Maßnahme</th><th>Status</th><th>Begründung</th><th>Durchgeführt von</th><th>Notiz</th></tr></thead>
     <tbody>
@@ -6092,7 +6104,7 @@ function medExportPdf(){
     .pill{display:inline-block;border:1px solid #ddd;border-radius:999px;padding:2px 8px;margin:2px 4px 2px 0;font-size:11px;}
   </style></head><body>
   <h1>Medikamenten- &amp; Gesundheitsnachweis</h1>
-  <p class="muted">Hundepension Doggy Style – Angelika &amp; Raphael Boch · Zeitraum: ${start.toLocaleDateString('de-DE')} – ${end.toLocaleDateString('de-DE')}</p>
+  <p class="muted">Hundepension Doggy Style – Inhaberin Angelika Boch · Zeitraum: ${start.toLocaleDateString('de-DE')} – ${end.toLocaleDateString('de-DE')}</p>
   <h2>Medikamentenpläne</h2>
   <table>
     <thead><tr><th>Hund</th><th>Medikament</th><th>Dosis</th><th>Uhrzeiten</th><th>Hinweise</th><th>Status</th></tr></thead>
@@ -6729,7 +6741,7 @@ function ensureProfiDefaults(){
           d.content = (
 `BETREUUNGSVERTRAG – Hundepension ${COMPANY?.name || 'Doggy Style'}
 Standort: ${COMPANY?.street || ''}, ${COMPANY?.zipCity || ''}
-Inhaber: ${COMPANY?.owner || ''}
+Inhaberin: ${COMPANY?.owner || ''}
 
 ${baseTxt}
 
@@ -7213,7 +7225,7 @@ const POLICY_DEFAULTS = {
   hygiene: `HUNDEPENSION DOGGY STYLE – HYGIENEPLAN (behördentauglich, §11 TierSchG)
 Standort: Im Moos 4, 88167 Stiefenhofen
 Kapazität: max. 4 Hunde insgesamt (Tages- und Urlaubsbetreuung zusammen)
-Verantwortlich: Raphael Boch
+Verantwortlich: Angelika Boch
 
 1) Ziel & Geltungsbereich
 Dieser Hygieneplan regelt Reinigung/Desinfektion zur Vermeidung von Infektionen und Kreuzkontamination in allen Bereichen (Einzelzimmer, Großraum, Durchgangsraum, Freilauf).
@@ -7244,7 +7256,7 @@ Dieser Hygieneplan regelt Reinigung/Desinfektion zur Vermeidung von Infektionen 
 Reinigung/Desinfektion, Auffälligkeiten, Maßnahmen und Verantwortliche werden digital im Hygiene-Modul protokolliert.`,
   notfall: `NOTFALLPLAN (behördentauglich, §11 TierSchG)
 Standort: Im Moos 4, 88167 Stiefenhofen
-Verantwortlich: Raphael Boch · Vertretung (Schlüssel/Zugriff): Angelika Boch
+Verantwortlich: Angelika Boch · Vertretung (Schlüssel/Zugriff): Raphael Boch
 
 1) Medizinischer Notfall Hund
 - Hund sichern & separieren, Ersteinschätzung, Halter informieren.
@@ -7280,7 +7292,7 @@ Evakuierung
 5) Löschversuch nur ohne Eigengefährdung.
 
 Zuständigkeiten
-- Primär: Raphael Boch · Vertretung: Angelika Boch.`,
+- Primär: Angelika Boch · Vertretung: Raphael Boch.`,
   contract: `BETREUUNGSVERTRAG – Hinweis
 Der vollständige Vertragstext wird in der App unter „Betreuungsvertrag“ geführt und pro Aufenthalt dokumentiert.
 
@@ -19255,7 +19267,7 @@ async function dsHardReload(){location.reload();}
 function getCompanyHeaderHtml(){
   const c = (state && state.company) ? state.company : null;
   const name = c?.name || "Doggy Style Hundepension";
-  const owner = c?.owner || "Raphael Boch";
+  const owner = c?.owner || "Angelika Boch";
   const addr = c?.address || "Im Moos 4, 88167 Stiefenhofen";
   const phone = c?.phone || "0170/7313587";
   const mail = c?.email || "info@doggy-style.de";
@@ -21929,7 +21941,7 @@ function renderStatMethod(){
 
 
 
-/* ===== CHAT (M50.9.15GB396_FREE_INVOICE_LINES_20261121) ===== */
+/* ===== CHAT (M50.9.15GB397_INVOICE_YEARS_OWNER_20261121) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -22377,8 +22389,8 @@ function dsChatAdminAllowed(){
 function dsChatTeamMembers(){
   return [
     { key:'all', label:'Alle', fullLabel:'Alle Chats', roleLabel:'Übersicht', email:'' },
-    { key:'raphael', label:'Raphael', fullLabel:'Raphael', roleLabel:'Inhaber', email:'raphael@boch-plan.de' },
-    { key:'anschi', label:'Anschi', fullLabel:'Anschi', roleLabel:'Team', email:'anschi@doggystyle.local' }
+    { key:'raphael', label:'Raphael', fullLabel:'Raphael', roleLabel:'Mitarbeiter · Admin', email:'raphael@boch-plan.de' },
+    { key:'anschi', label:'Anschi', fullLabel:'Anschi', roleLabel:'Inhaberin · Admin', email:'anschifessler@googlemail.com' }
   ];
 }
 function dsChatTeamByKey(key){

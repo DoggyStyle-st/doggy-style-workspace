@@ -12,7 +12,7 @@
   let mediaEpoch=0,mediaRequestId=0;
   const currentUser = ()=>window.firebase && firebase.auth().currentUser;
   function workspaceRole(user,profile){
-    if(user?.emailVerified===true && S(user.email).toLowerCase()==='raphael@boch-plan.de')return 'admin';
+    if(user?.emailVerified===true && ['raphael@boch-plan.de','anschifessler@googlemail.com'].includes(S(user.email).toLowerCase()))return 'admin';
     return ['admin','staff','customer'].includes(profile?.role)?profile.role:'guest';
   }
   function startupStatus(stage,error){
@@ -191,6 +191,8 @@
     inboxArchiveUnsub=null;inboxMarkers.clear();inboxSelected.clear();inboxArchiveReady=inboxRowsReady=false;inboxLoadError='';inboxView='open';inboxMutating=false;inboxEpoch++;
     $('dsInboxToolbar')?.remove();
     if($('homeInboxStatus'))$('homeInboxStatus').textContent='Status noch nicht geladen';
+    for(const id of ['homeInboxBadge','inboxNavBadge'])if($(id))$(id).hidden=true;
+    $('homeInbox')?.classList.remove('has-pending-inbox');$('tabInbox')?.classList.remove('has-pending-inbox');
     closeReview();if($('inboxFeedback'))$('inboxFeedback').textContent='';
     window.DSCustomerPortal?.reset();
     window.__dsMediaError=null;
@@ -651,7 +653,11 @@
   function renderInbox(){
     const ready=inboxRowsReady&&inboxArchiveReady&&!inboxLoadError,archived=inboxView==='archive',rows=inboxRows.filter(r=>inboxMarkers.has(r.id)===archived);
     const status=$('homeInboxStatus');
-    if(status)status.textContent=ready ? inboxRows.filter(row=>!inboxMarkers.has(row.id)).length+' offen' : inboxLoadError ? 'Status nicht abrufbar' : 'Wird geladen …';
+    const count=inboxRows.filter(row=>!inboxMarkers.has(row.id)).length;
+    if(status)status.textContent=ready?(count===1?'1 Anfrage wartet auf Prüfung':count+' Anfragen warten auf Prüfung'):inboxLoadError?'Status nicht abrufbar':'Wird geladen …';
+    for(const id of ['homeInboxBadge','inboxNavBadge']){const badge=$(id);if(badge){badge.hidden=!ready||count===0;badge.textContent=String(count);badge.setAttribute('aria-label',count+' offene Eingänge');}}
+    $('homeInbox')?.classList.toggle('has-pending-inbox',ready&&count>0);
+    $('tabInbox')?.classList.toggle('has-pending-inbox',ready&&count>0);
     for(const id of inboxSelected)if(!rows.some(r=>r.id===id))inboxSelected.delete(id);
     let toolbar=$('dsInboxToolbar');if(!toolbar&&$('inboxList')){toolbar=document.createElement('div');toolbar.id='dsInboxToolbar';toolbar.style.cssText='display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:14px 0';$('inboxList').before(toolbar);}
     if(toolbar){toolbar.replaceChildren();for(const [view,label]of [['open','Offen'],['archive','Archiv']]){const button=reviewNode('button',label+' ('+inboxRows.filter(r=>inboxMarkers.has(r.id)===(view==='archive')).length+')',toolbar);button.type='button';button.className='btn';button.style.minHeight='44px';button.dataset.inboxView=view;button.setAttribute('aria-pressed',String(inboxView===view));button.disabled=inboxMutating;button.onclick=()=>{closeReview();inboxView=view;inboxSelected.clear();renderInbox();};}

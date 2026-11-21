@@ -1,6 +1,6 @@
 // Firebase Konfiguration (Doggy Style Workspace)
 // Hinweis: Diese Datei wird vor auth.js/app.js geladen.
-// Du kannst hier später weitere Admin-Emails ergänzen.
+// Weitere Mitarbeiter und Administratoren werden unter Einstellungen → Benutzer & Rollen zugeteilt.
 
 window.firebaseConfig = {
   apiKey: "AIzaSyD7Os8yl8FEFquvv5nEj270-NaF1BA8IJ8",
@@ -14,9 +14,10 @@ window.firebaseConfig = {
 // frei wählbar (wird als "Mandant" / Hof-Ordner genutzt)
 window.firebaseOrgId = "doggystyle";
 
-// Admin-Whitelist (du kannst Anschi hier später ergänzen)
+// Admin-Zugänge: Inhaberin Angelika Boch und Mitarbeiter Raphael Boch
 window.firebaseAdminEmails = [
-  "raphael@boch-plan.de"
+  "raphael@boch-plan.de",
+  "anschifessler@googlemail.com"
 ];
 
 window.CLOUD_ORG_ID = window.firebaseOrgId;

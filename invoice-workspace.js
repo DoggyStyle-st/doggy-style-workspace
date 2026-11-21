@@ -23,6 +23,36 @@
   const uid = () => window.firebase?.auth().currentUser?.uid || '';
   const dateLabel = iso => iso ? iso.split('-').reverse().join('.') : '—';
 
+  const year = byId('invoiceYear'), basis = byId('invoiceDateBasis'), from = byId('invoiceFrom'), to = byId('invoiceTo');
+  let yearChoice = '', visibleLimit = 50, onlyUndated = false;
+  function todayISO(){return new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Berlin',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());}
+  function currentYear(){return todayISO().slice(0,4);}
+  function chooseYear(value){
+    yearChoice=value;onlyUndated=false;
+    from.value=/^\d{4}$/.test(value)?value+'-01-01':'';
+    to.value=/^\d{4}$/.test(value)?value+'-12-31':'';
+  }
+  chooseYear(currentYear());
+  function periodFor(entry){
+    if(basis.value==='invoice')return [entry.issued,entry.issued];
+    const a=DSAnalytics.date(entry.invoice.period?.from),b=DSAnalytics.date(entry.invoice.period?.to);
+    return a&&b&&a>b?['','']:[a||b,b||a];
+  }
+  function validRange(){return !(from.value&&to.value&&from.value>to.value);}
+  function matchesDate(entry){
+    const [a,b]=periodFor(entry);
+    if(onlyUndated)return !a;
+    if(!validRange())return false;
+    if(!from.value&&!to.value)return true;
+    return !!a&&(!from.value||b>=from.value)&&(!to.value||a<=to.value);
+  }
+  function renderYears(entries){
+    const years=new Set([currentYear()]);
+    for(const e of entries){const [a,b]=periodFor(e);if(a){for(let y=+a.slice(0,4);y<=+b.slice(0,4)&&y<=+a.slice(0,4)+100;y++)years.add(String(y));}}
+    if(/^\d{4}$/.test(yearChoice))years.add(yearChoice);
+    year.replaceChildren(new Option('Alle Jahre','all'),...Array.from(years).sort().reverse().map(y=>new Option(y,y)),new Option('Eigener Zeitraum','custom'));
+    year.value=yearChoice;
+  }
   let statusFilter = 'all';
   let selectedId = null;
   let listPosition = null;
@@ -77,8 +107,15 @@
     const query = search.value;
     const invoices = getInvoices();
     if (selectedId && !invoices.some(invoice => invoice.id === selectedId)) closeDetail(false);
-    const matches = invoices.map(listEntry).filter(({ invoice, recipient, customerNumber, dog }) =>
-      matchesWorkspaceSearch(query, invoice.invoiceNumber, recipient.name, recipient.customerNumber, customerNumber, dog));
+    const allEntries=invoices.map(listEntry);
+    renderYears(allEntries);
+    const searched=allEntries.filter(({invoice,recipient,customerNumber,dog,issued})=>matchesWorkspaceSearch(query,invoice.invoiceNumber,recipient.name,recipient.customerNumber,customerNumber,dog,dateLabel(issued),invoice.period?.from,invoice.period?.to));
+    const missing=searched.filter(e=>!periodFor(e)[0]&&(statusFilter==='all'||e.status===statusFilter)).length;
+    const notice=byId('invoiceUndatedNotice');notice.hidden=!missing&&!onlyUndated;
+    notice.querySelector('span').textContent=`${missing} Rechnung(en) ohne gültiges ${basis.value==='service'?'Leistungsdatum':'Rechnungsdatum'}.`;
+    byId('invoiceUndated').textContent=onlyUndated?'Zurück zum Zeitraum':'Ohne Datum anzeigen';
+    byId('invoiceFilterSummary').textContent=onlyUndated?'Nur Rechnungen ohne Datum':!validRange()?'Bitte einen gültigen Zeitraum wählen: Von darf nicht nach Bis liegen.':`${basis.value==='service'?'Leistungszeitraum überschneidet':'Rechnungsdatum'}: ${from.value?dateLabel(from.value):'Anfang offen'} bis ${to.value?dateLabel(to.value):'Ende offen'}${yearChoice==='all'?' · alle Jahre':''}`;
+    const matches=searched.filter(matchesDate);
     const counts = { all: matches.length, draft: 0, open: 0, paid: 0, cancelled: 0 };
     for (const entry of matches) {
       if (Object.hasOwn(counts, entry.status) && entry.status !== 'all') counts[entry.status]++;
@@ -91,22 +128,31 @@
     create.hidden = !DSBilling.team();
 
     const direction = sort.value === 'oldest' ? 1 : -1;
-    const entries = (statusFilter === 'all' ? matches : matches.filter(entry => entry.status === statusFilter))
-      .sort((a, b) => Number(!a.issued) - Number(!b.issued) || direction * (
-        a.issued.localeCompare(b.issued) || numbers.compare(a.invoice.invoiceNumber || '', b.invoice.invoiceNumber || '')
-      ));
-    byId('invoiceResultCount').textContent = entries.length === 1 ? '1 Rechnung' : `${entries.length} Rechnungen`;
-    const openTotal = byId('invoiceOpenTotal');
-    openTotal.hidden = statusFilter !== 'open';
-    if (!openTotal.hidden) {
-      const total = entries.reduce((sum, entry) => sum + (entry.amount ?? 0), 0);
-      const missing = entries.filter(entry => entry.amount === null).length;
-      openTotal.textContent = `Offene Summe ${money.format(total / 100)}${missing ? ` · ${missing} ohne Betrag` : ''}`;
-    }
+    const entries=(statusFilter==='all'?matches:matches.filter(e=>e.status===statusFilter)).sort((a,b)=>{
+      if(sort.value==='customer')return numbers.compare(a.recipient.name||'',b.recipient.name||'')||numbers.compare(a.invoice.invoiceNumber||'',b.invoice.invoiceNumber||'');
+      if(sort.value.startsWith('amount'))return Number(a.amount===null)-Number(b.amount===null)||(sort.value==='amountAsc'?1:-1)*((a.amount??0)-(b.amount??0))||numbers.compare(a.invoice.invoiceNumber||'',b.invoice.invoiceNumber||'');
+      const ad=periodFor(a)[0],bd=periodFor(b)[0];
+      return Number(!ad)-Number(!bd)||direction*(ad.localeCompare(bd)||numbers.compare(a.invoice.invoiceNumber||'',b.invoice.invoiceNumber||''));
+    });
+    byId('invoiceResultCount').textContent=`${Math.min(visibleLimit,entries.length)} von ${entries.length} Rechnung(en)`;
+    const openTotal=byId('invoiceOpenTotal');openTotal.hidden=!entries.length;
+    const totals={};for(const e of entries){if(e.amount!==null)totals[e.status]=(totals[e.status]||0)+e.amount;}
+    const labels={open:'Offen',paid:'Bezahlt',draft:'Entwürfe',cancelled:'Stornierter Belegwert'};
+    openTotal.textContent=Object.entries(totals).map(([k,v])=>`${labels[k]||k}: ${money.format(v/100)}`).join(' · ')+(entries.some(e=>e.amount===null)?' · Beträge teilweise unbekannt':'');
+    byId('invoiceMore').hidden=entries.length<=visibleLimit;
     byId('invoiceColumns').hidden = !entries.length;
     const scrolled = list.scrollTop;
     const focusId = document.activeElement?.dataset.invoiceId;
-    list.innerHTML = entries.length ? entries.map(renderRow).join('') : '<p class="invoice-empty muted">Keine passenden Rechnungen.</p>';
+    let group='';
+    list.innerHTML=entries.length?entries.slice(0,visibleLimit).map(entry=>{
+      let heading='';
+      if(['newest','oldest'].includes(sort.value)){
+        const [start,end]=periodFor(entry),date=basis.value==='service'&&from.value&&start&&end>=from.value&&start<from.value?from.value:start;
+        const key=date?date.slice(0,7):'undated';
+        if(key!==group){group=key;const label=date?new Intl.DateTimeFormat('de-DE',{month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(date+'T12:00:00Z')):'Ohne Datum';heading=`<h3 class="invoice-month">${escapeHtml(label)}</h3>`;}
+      }
+      return heading+renderRow(entry);
+    }).join(''):'<p class="invoice-empty muted">Keine passenden Rechnungen.</p>';
     list.scrollTop = scrolled;
     rowFor(focusId)?.focus({ preventScroll: true });
     refreshShares();
@@ -163,6 +209,7 @@
   }
 
   function changeFilter() {
+    visibleLimit=50;
     list.scrollTop = 0;
     render();
     if (selectedId && !rowFor(selectedId)) closeDetail(false);
@@ -273,6 +320,7 @@
     leave();
     clearShares();
     statusFilter = 'all';
+    chooseYear(currentYear());basis.value='invoice';visibleLimit=50;
     search.value = '';
     sort.value = 'newest';
     list.replaceChildren();
@@ -292,6 +340,20 @@
     const button = event.target.closest('[data-invoice-status]');
     if (!button) return;
     statusFilter = button.dataset.invoiceStatus;
+    changeFilter();
+  });
+  year.addEventListener('change',()=>{chooseYear(year.value);changeFilter();});
+  basis.addEventListener('change',()=>{onlyUndated=false;changeFilter();});
+  for(const field of [from,to])field.addEventListener('change',()=>{yearChoice='custom';onlyUndated=false;changeFilter();});
+  byId('invoiceUndated').onclick=()=>{onlyUndated=!onlyUndated;changeFilter();};
+  byId('invoiceMore').onclick=()=>{visibleLimit+=50;render();};
+  byId('invoiceReset').onclick=()=>{statusFilter='all';search.value='';sort.value='newest';basis.value='invoice';chooseYear(currentYear());changeFilter();};
+  byId('invoiceAllOpen').onclick=()=>{statusFilter='open';search.value='';chooseYear('all');changeFilter();};
+  byId('invoicePresets').addEventListener('click',event=>{
+    const type=event.target.closest('[data-period]')?.dataset.period;if(!type)return;
+    const [y,m]=todayISO().split('-').map(Number);let start,end;
+    if(type==='year'||type==='previousYear'){const target=y-(type==='previousYear'?1:0);chooseYear(String(target));}
+    else{const month=m-(type==='previousMonth'?1:0);start=new Date(Date.UTC(y,month-1,1));end=new Date(Date.UTC(y,month,0));yearChoice='custom';onlyUndated=false;from.value=start.toISOString().slice(0,10);to.value=end.toISOString().slice(0,10);}
     changeFilter();
   });
   search.addEventListener('input', changeFilter);

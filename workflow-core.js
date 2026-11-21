@@ -454,7 +454,7 @@
     async function requireAdmin(tx){
       const user = getUser(); if(!user) fail('Bitte anmelden.');
       const snap = await tx.get(users.doc(user.uid));
-      if(!(snap.exists && snap.data().role === 'admin') && !(str(user.email).toLowerCase() === 'raphael@boch-plan.de' && user.emailVerified === true)) fail('Nur ein Administrator darf Vorschläge übernehmen.');
+      if(!(snap.exists && snap.data().role === 'admin') && !(['raphael@boch-plan.de','anschifessler@googlemail.com'].includes(str(user.email).toLowerCase()) && user.emailVerified === true)) fail('Nur ein Administrator darf Vorschläge übernehmen.');
       return user;
     }
     async function setInboxArchived(entries,archived=true){
@@ -642,12 +642,12 @@
     async function publisher(tx){
       const user=getUser();if(!user)fail('Bitte anmelden.');
       const profile=await tx.get(users.doc(user.uid));
-      const isAdmin=(profile.exists&&profile.data().role==='admin')||(str(user.email).toLowerCase()==='raphael@boch-plan.de'&&user.emailVerified===true);
+      const isAdmin=(profile.exists&&profile.data().role==='admin')||(['raphael@boch-plan.de','anschifessler@googlemail.com'].includes(str(user.email).toLowerCase())&&user.emailVerified===true);
       if(!isAdmin&&!(profile.exists&&profile.data().role==='staff'))fail('Keine Mitarbeiter-Berechtigung.','permission-denied');
       return {uid:user.uid,email:user.email,workspaceAdmin:isAdmin};
     }
     function protectStaffChanges(input,previous){
-      for(const key of ['settings','contract','contractVersion','contractAgreements','contractSignatures','legalTexts']){
+      for(const key of ['settings','organization','contract','contractVersion','contractAgreements','contractSignatures','legalTexts']){
         const value=key==='contractVersion'?str(input.contractVersion||input.contract?.version||'v1.0'):(input[key]??null);
         const before=key==='contractVersion'?str(previous.contractVersion||previous.contract?.version||'v1.0'):(previous[key]??null);
         if(stable(value)!==stable(before))fail('Dieser Bereich kann nur vom Administrator geändert werden: '+key,'permission-denied');
