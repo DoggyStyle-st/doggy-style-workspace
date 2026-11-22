@@ -165,9 +165,11 @@
     choicesPending=api().listCustomers(window.state||{}).then(items=>{if(user()?.uid!==current.uid)return [];choices=items;const select=$('chatAdminCustomerSelect');if(select){const selected=select.value;select.replaceChildren(new Option('Kunde auswählen …',''));for(const c of items)select.add(new Option(c.name+' · '+c.email,c.id));if(items.some(c=>c.id===selected))select.value=selected;}return items;}).finally(()=>{choicesPending=null;});return choicesPending;
   }
   async function clearChat(role){const st=role==='staff'?dsAdminChatState():dsCustomerChatState(),id=S(st.currentChatId);if(!id)throw new Error('Kein Chat ausgewählt.');
-    if(!confirm('Bisherigen Verlauf für dein Konto leeren? Neue Nachrichten bleiben sichtbar.'))return false;const result=await api().clear(id);
-    for(const list of [st.chats,st.filteredChats])for(const c of list||[])if(c.id===id)c.clearedAtByUid={...(c.clearedAtByUid||{}),[result.uid]:result.cutoff};
-    dsPatchLocalChatReadState(id,role,result.cutoff,0);dsUpdateCustomerUnreadBadge();dsUpdateAdminUnreadBadge();
+    if(!confirm('Bisherigen Verlauf für dein Konto leeren? Neue Nachrichten bleiben sichtbar.'))return false;const current=st.chats.find(c=>c.id===id);
+    for(const thread of st.chats.filter(c=>current&&dsThreadKey(c)===dsThreadKey(current))){
+    const result=await api().clear(thread.id);
+    for(const list of [st.chats,st.filteredChats])for(const c of list||[])if(c.id===thread.id)c.clearedAtByUid={...(c.clearedAtByUid||{}),[result.uid]:result.cutoff};
+    dsPatchLocalChatReadState(thread.id,role,result.cutoff,0); }dsUpdateCustomerUnreadBadge();dsUpdateAdminUnreadBadge();
     st.__lastRenderKey='';if(role==='staff')renderAdminChatMessages();else renderCustomerChatMessages();return true;}
   async function deleteMessage(chatId,message,role,rerender){if(!DSCommunicationCore.canDelete(message,user(),CLOUD.role))throw new Error('Du kannst nur deine eigenen Nachrichten löschen.');
     const uid=user()?.uid,personal=!['admin','staff'].includes(CLOUD.role)&&message.senderUid!==uid;

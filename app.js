@@ -2,7 +2,7 @@ try{sessionStorage.removeItem('ds_handoff_pass');}catch(_){}
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.16GB400_FAMILIENANSCHLUSS_20261122",
+  tag: "M50.9.16GB401_TEAMCHAT_20261122",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -13,7 +13,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.16GB400_FAMILIENANSCHLUSS_20261122";
+const APP_BUILD = "M50.9.16GB401_TEAMCHAT_20261122";
 try{ window.__dsAppJsRuntimeBuild = "GB350-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -2756,7 +2756,7 @@ async function submitCustomerDogsProposal(){
   // GB355: vollständig lokal sichern, anschließend zuverlässig in proposals + tasks übertragen.
   // Die Oberfläche wird sofort freigegeben; die Erfolgsmeldung "an Eingänge übergeben"
   // erscheint ausschließlich nach bestätigter Firestore-Speicherung.
-  const GB355='M50.9.16GB400_FAMILIENANSCHLUSS_20261122';
+  const GB355='M50.9.16GB401_TEAMCHAT_20261122';
   function S(v){ try{return String(v==null?'':v);}catch(_){return '';} }
   function L(v){ return S(v).trim().toLowerCase(); }
   function V(id){ try{const el=document.getElementById(id);return S(el&&el.value!=null?el.value:'').trim();}catch(_){return '';} }
@@ -21852,7 +21852,7 @@ function renderStatMethod(){
 
 
 
-/* ===== CHAT (M50.9.16GB400_FAMILIENANSCHLUSS_20261122) ===== */
+/* ===== CHAT (M50.9.16GB401_TEAMCHAT_20261122) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,
@@ -21969,7 +21969,7 @@ async function dsMarkChatRead(chatId, role){
   const patch = String(role||'') === 'staff'
     ? { unreadForStaff: 0, staffLastReadAt: dsServerTimestamp(), staffLastReadAtMs: Date.now() }
     : { unreadForCustomer: 0, customerLastReadAt: dsServerTimestamp(), customerLastReadAtMs: Date.now() };
-  try{ await ref.set(patch, { merge:true }); }catch(_){ }
+  try{ await ref.update(patch); }catch(_){ }
 }
 function dsGetChatReadMs(chat, role){
   return String(role||'') === 'staff'
@@ -22031,7 +22031,7 @@ async function dsMarkChatReadUpTo(chatId, role, readMs, messages){
   const patch = String(role||'') === 'staff'
     ? { unreadForStaff: unreadCount, staffLastReadAt: dsServerTimestamp(), staffLastReadAtMs: nextRead }
     : { unreadForCustomer: unreadCount, customerLastReadAt: dsServerTimestamp(), customerLastReadAtMs: nextRead };
-  try{ await ref.set(patch, { merge:true }); }catch(error){alert('Lesestatus konnte nicht gespeichert werden: '+error.message);return false;}
+  try{ await ref.update(patch); }catch(error){alert('Lesestatus konnte nicht gespeichert werden: '+error.message);return false;}
   dsPatchLocalChatReadState(chatId, role, nextRead, unreadCount);
   try{ dsUpdateAdminUnreadBadge(); }catch(_){ }
   try{ dsUpdateCustomerUnreadBadge(); }catch(_){ }
@@ -22156,7 +22156,7 @@ function dsOpenChatPreviewModal(msg, role, chat, rerender){
   const meta = modal.querySelector('#dsChatPreviewMeta');
   const body = modal.querySelector('#dsChatPreviewBody');
   const deleteBtn = modal.querySelector('#btnDsChatDeleteMessage');
-  if(meta) meta.textContent = `${String(msg?.senderName || 'Nachricht')} · ${dsChatDisplayTime(msg?.createdAt || msg?.createdAtMs || 0)}`;
+  if(meta) meta.textContent = `${dsAuthorLabel(msg)} · ${dsChatDisplayTime(msg?.createdAt || msg?.createdAtMs || 0)}`;
   if(body) body.innerHTML = dsChatPreviewBodyHtml(msg);
   if(deleteBtn){
     const canDelete = dsCanDeleteChatMessage(msg, role, chat);
@@ -22188,11 +22188,12 @@ function dsBindMessageBubbleClicks(container, role, chat, messages, rerender){
       const idx = Number(btn.getAttribute('data-chat-msg-index') || -1);
       const msg = Array.isArray(messages) ? messages[idx] : null;
       if(!msg || msg.deleted) return;
-      dsOpenChatPreviewModal(msg, role, chat, rerender);
+      const source=(role==='staff'?dsAdminChatState():dsCustomerChatState()).chats.find(c=>c.id===msg.sourceId)||chat;
+      dsOpenChatPreviewModal(msg, role, source, rerender);
       if(String(msg?.senderRole || '') !== String(role || '') && chat?.id){
         const msgMs = Number(msg?.createdAtMs || dsTsMs(msg?.createdAt) || 0);
         if(msgMs){
-          await dsMarkChatReadUpTo(chat.id, role, msgMs, messages);
+          await dsMarkChatReadUpTo(source.id, role, msgMs, messages.filter(m=>m.sourceId===source.id));
           if(typeof rerender === 'function') rerender();
         }
       }
@@ -22240,7 +22241,7 @@ function dsStartAdminUnreadWatcher(){
   ws.adminUnsub = col.onSnapshot((snap)=>{
     const st = dsAdminChatState();
     st.chats = dsChatSortByUpdated(snap.docs.map(doc=>({ id: doc.id, ...(doc.data()||{}) })));
-    st.filteredChats = dsChatFilterForTeam(st.chats, st.currentTeamKey || 'all');
+    st.filteredChats = dsChatGroups(st.chats,st.archived);
     dsUpdateAdminUnreadBadge();
     if(document.getElementById('chatAdminList')) renderAdminChatList();
   }, (_err)=>{ dsUpdateAdminUnreadBadge(); });
@@ -22263,7 +22264,6 @@ function dsStartCustomerUnreadWatcher(){
   }, (_err)=> publish());
   const unsubs = [];
   if(uid) unsubs.push(attach(col.where('customerUid','==',uid)));
-  if(email) unsubs.push(attach(col.where('customerEmail','==',email)));
   ws.customerUnsubs = unsubs;
   publish();
 }
@@ -22297,39 +22297,65 @@ function dsChatAdminAllowed(){
   return false;
 }
 
-function dsChatTeamMembers(){
-  return [
-    { key:'all', label:'Alle', fullLabel:'Alle Chats', roleLabel:'Übersicht', email:'' },
-    { key:'raphael', label:'Raphael', fullLabel:'Raphael', roleLabel:'Mitarbeiter · Admin', email:'raphael@boch-plan.de' },
-    { key:'anschi', label:'Anschi', fullLabel:'Anschi', roleLabel:'Inhaberin · Admin', email:'anschifessler@googlemail.com' }
-  ];
+function dsThreadKey(chat){
+  return chat.customerUid ? 'uid:' + chat.customerUid : 'legacy:' + chat.id;
 }
-function dsChatTeamByKey(key){
-  const k = String(key || '').trim().toLowerCase();
-  return dsChatTeamMembers().find(x=>x.key===k) || dsChatTeamMembers().find(x=>x.key==='raphael');
+function dsChatGroups(chats, archived){
+  const groups = new Map();
+  for(const chat of chats){
+    const key = dsThreadKey(chat);
+    if(!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(chat);
+  }
+  return [...groups.values()].filter(group=>group.every(chat=>chat.status==='archived')===!!archived)
+    .map(group=>{
+      const latest = group.slice().sort((a,b)=>Number(b.lastMessageAtMs||0)-Number(a.lastMessageAtMs||0))[0];
+      const preferred = group.find(chat=>chat.id===chat.customerUid+'__raphael') || group.slice().sort((a,b)=>a.id.localeCompare(b.id))[0];
+      return {...latest,id:preferred.id,unreadForStaff:group.reduce((n,c)=>n+dsUnreadCountForRole(c,'staff'),0)};
+    }).sort((a,b)=>Number(b.lastMessageAtMs||0)-Number(a.lastMessageAtMs||0));
 }
-function dsChatInferStaffKey(){
-  const email = dsChatUserEmail();
-  if(email === 'raphael@boch-plan.de') return 'raphael';
-  if(email && email.includes('anschi')) return 'anschi';
-  const profileName = String(CLOUD?.userProfile?.name || CLOUD?.user?.displayName || '').trim().toLowerCase();
-  if(profileName.includes('anschi') || profileName.includes('angelika')) return 'anschi';
-  return 'raphael';
+function dsWatchSharedChat(role){
+  const staff = role==='staff';
+  const st = staff ? dsAdminChatState() : dsCustomerChatState();
+  const render = staff ? renderAdminChatMessages : renderCustomerChatMessages;
+  const selected = st.chats.find(c=>c.id===st.currentChatId);
+  const sources = selected ? st.chats.filter(c=>dsThreadKey(c)===dsThreadKey(selected)) : [];
+  const key = JSON.stringify(sources.map(c=>c.id).sort());
+  if(st.subscriptionKey===key && st.msgUnsub) return;
+  st.msgUnsub?.();
+  st.subscriptionKey=key;
+  const messages=new Map(), subs=[];
+  let active=true;
+  st.msgUnsub=()=>{active=false;subs.forEach(fn=>fn());};
+  st.currentMessages=[];
+  render();
+  for(const chat of sources){
+    const sub=cloudChatMessagesCol(chat.id).orderBy('createdAt','asc').onSnapshot(snap=>{
+      if(!active || snap.metadata.hasPendingWrites)return;
+      messages.set(chat.id,snap.docs.map(doc=>({...doc.data(),id:doc.id,sourceId:chat.id})));
+      st.currentMessages=[...messages.values()].flat().sort((a,b)=>dsTsMs(a.createdAt)-dsTsMs(b.createdAt)||a.sourceId.localeCompare(b.sourceId)||a.id.localeCompare(b.id));
+      render();
+    },()=>{if(active) document.getElementById(staff?'chatAdminHint':'customerChatHint').textContent='Nachrichten konnten nicht vollständig geladen werden.';});
+    subs.push(sub);
+  }
 }
-function dsChatNormalizeTeamKey(value, allowAll){
-  const v = String(value || '').trim().toLowerCase();
-  if(allowAll && v === 'all') return 'all';
-  return dsChatTeamMembers().some(x=>x.key===v && x.key !== 'all') ? v : 'raphael';
+function dsVisibleThread(st){
+  const uid=dsChatUserUid();
+  const selected=st.chats.find(c=>c.id===st.currentChatId);
+  if(!selected)return [];
+  const sources=new Map(st.chats.filter(c=>dsThreadKey(c)===dsThreadKey(selected)).map(c=>[c.id,c]));
+  return st.currentMessages.filter(m=>sources.has(m.sourceId) && DSCommunicationCore.visibleMessages([m],sources.get(m.sourceId),uid).length);
 }
-function dsChatFilterForTeam(chats, teamKey){
-  const key = dsChatNormalizeTeamKey(teamKey, true);
-  const arr = Array.isArray(chats) ? chats : [];
-  if(key === 'all') return dsChatSortByUpdated(arr);
-  return arr.filter(chat=> dsChatNormalizeTeamKey(chat?.teamMemberKey || chat?.channel || '') === key);
+function dsAuthorLabel(msg){
+  const auto=['appointment','appointmentResponse','decision','invoiceShare'].includes(msg.kind)||msg.senderRole==='system';
+  const who=msg.senderRole==='customer'?(msg.senderName||'Kunde'):'Doggy Style';
+  return who+(auto?' · Automatisch':'');
 }
-function dsChatTargetLabel(teamKey){
-  const item = dsChatTeamByKey(teamKey);
-  return item?.fullLabel || item?.label || 'Team';
+async function dsReadShared(messages,role){
+  for(const id of new Set(messages.map(m=>m.sourceId))){
+    const source=messages.filter(m=>m.sourceId===id);
+    await dsMarkChatReadUpTo(id,role,dsLatestIncomingReadMs(source,role),source);
+  }
 }
 
 function dsChatErrorText(err){
@@ -22386,8 +22412,8 @@ function dsRenderChatMessages(messages, ownRole, chat){
   }
   return messages.map((msg, idx)=>{
     const own = String(msg?.senderRole || '') === String(ownRole || '');
-    const meta = `${escapeHtml(msg?.senderName || (own ? 'Du' : 'Nachricht'))} · ${escapeHtml(dsChatDisplayTime(msg?.createdAt || msg?.createdAtMs || 0))}`;
-    const status = dsMessageReadStateLabel(msg, ownRole, chat);
+    const meta = `${escapeHtml(dsAuthorLabel(msg))} · ${escapeHtml(dsChatDisplayTime(msg?.createdAt || msg?.createdAtMs || 0))}`;
+    const status = dsMessageReadStateLabel(msg, ownRole, (ownRole==='staff'?dsAdminChatState():dsCustomerChatState()).chats.find(c=>c.id===msg.sourceId)||chat);
     const statusHtml = status ? `<div class="ds-chat-bubble__status ${status === 'gelesen' ? 'is-read' : 'is-unread'}">${escapeHtml(status)}</div>` : '';
     if(ownRole==='customer' && !msg.deleted && window.DSPortalActions?.isAction(msg)){
       const card=DSPortalActions.chatCard(msg);
@@ -22443,7 +22469,7 @@ function dsClearChatSelectedFiles(role){
 function dsChatFileAccept(){ return 'image/*,video/*'; }
 function dsChatComposeMarkup(prefix){
   const attachBtnId = prefix === 'chatAdmin' ? 'btnChatAdminAttach' : 'btnCustomerChatAttach';
-  const clearBtnHtml = prefix === 'chatAdmin' ? '<button class="btn danger" id="btnChatAdminClear" type="button">Verlauf für mich leeren</button>' : '<button class="btn danger" id="btnCustomerChatClear" type="button">Verlauf für mich leeren</button>';
+  const clearBtnHtml = '';
   return `<div class="ds-chat-compose__tools"><input id="${prefix}FileInput" class="ds-chat-file-input" type="file" accept="${dsChatFileAccept()}" multiple /><button class="btn" id="${attachBtnId}" type="button">Bild/Video</button>${clearBtnHtml}</div><div id="${prefix}AttachList" class="ds-chat-attach-list"></div>`;
 }
 function dsFormatFileSize(bytes){
@@ -22526,21 +22552,17 @@ async function dsUploadChatMediaFiles(chatId, files, statusSetter){
 async function dsClearCurrentAdminChat(){return DSCustomerPortal.clearChat('staff');}
 async function dsClearCurrentCustomerChat(){return DSCustomerPortal.clearChat('customer');}
 function dsAdminChatRootMarkup(){
-  const teams = dsChatTeamMembers().filter(t=> t.key !== 'all');
   return `
     <div class="ds-chat-shell">
       <div class="ds-chat-col ds-chat-card">
         <div class="ds-chat-header">
           <div>
             <strong>Chats</strong>
-            <div class="muted">Kundenverläufe je Ansprechpartner</div>
+            <div class="muted">Gemeinsames Team-Postfach</div>
           </div>
           <div class="ds-chat-pill" id="chatAdminCount">0</div>
         </div>
-        <div id="chatAdminTeamPicker" class="seg" style="margin-bottom:10px; display:flex; gap:8px; flex-wrap:wrap;">
-          <button type="button" class="btn" data-chat-team="all">Alle</button>
-          ${teams.map(t=>`<button type="button" class="btn" data-chat-team="${escapeHtml(t.key)}">${escapeHtml(t.label)}</button>`).join('')}
-        </div>
+        <div class="seg"><button type="button" class="btn" data-archive="0">Posteingang</button> <button type="button" class="btn" data-archive="1">Archiv</button></div>
         <div style="display:grid; grid-template-columns:1fr auto; gap:8px; margin-bottom:10px; align-items:end;">
           <div>
             <div class="muted" style="margin-bottom:6px;">Kunde öffnen</div>
@@ -22557,6 +22579,7 @@ function dsAdminChatRootMarkup(){
             <div class="muted" id="chatAdminMeta">Bitte links einen Kundenchat auswählen.</div>
           </div>
         </div>
+        <details id="dsConversationMenu" hidden><summary class="btn" aria-label="Chat verwalten">⋯</summary><button class="btn" id="dsArchiveChat"></button> <button class="btn danger" id="dsDeleteChat">Chat für alle endgültig löschen</button></details>
         <div id="chatAdminMessages" class="ds-chat-thread"><div class="ds-chat-empty">Noch kein Chat ausgewählt.</div></div>
         <div class="ds-chat-compose">
           <textarea id="chatAdminInput" class="input" placeholder="Antwort an den Kunden …"></textarea>
@@ -22581,13 +22604,12 @@ async function dsAdminOpenChatForCustomer(){
   const hint = document.getElementById('chatAdminHint');
   const customer = await Promise.resolve(dsAdminSelectedCustomer());
   if(!customer){ if(hint) hint.textContent = 'Bitte zuerst einen Kunden auswählen.'; return; }
-  const teamKey = dsChatNormalizeTeamKey(dsAdminChatState().currentTeamKey, true) === 'all' ? dsChatInferStaffKey() : dsChatNormalizeTeamKey(dsAdminChatState().currentTeamKey);
-  const chat = await dsAdminEnsureChatForCustomer(customer, teamKey);
+  const chat = await dsAdminEnsureChatForCustomer(customer,'raphael');
   const st = dsAdminChatState();
   const existingIndex = (st.chats || []).findIndex(x=> String(x.id||'') === String(chat.id||''));
   if(existingIndex >= 0) st.chats[existingIndex] = { ...(st.chats[existingIndex]||{}), ...chat };
   else st.chats = dsChatSortByUpdated([chat].concat(st.chats || []));
-  st.currentTeamKey = teamKey;
+  st.archived=st.chats.filter(c=>dsThreadKey(c)===dsThreadKey(chat)).every(c=>c.status==='archived');
   st.currentChatId = String(chat.id || '');
   renderAdminChatList();
   await dsOpenAdminChat(chat.id);
@@ -22595,7 +22617,6 @@ async function dsAdminOpenChatForCustomer(){
 }
 
 function dsCustomerChatRootMarkup(){
-  const teams = dsChatTeamMembers().filter(t=> t.key !== 'all');
   return `
     <div class="ds-chat-card">
       <div class="ds-chat-header">
@@ -22604,9 +22625,7 @@ function dsCustomerChatRootMarkup(){
           <div class="muted" id="customerChatMeta">Direkter Austausch zu Betreuung, Aufenthalt und Rückfragen.</div>
         </div>
       </div>
-      <div id="customerChatTeamPicker" class="seg" style="margin-bottom:10px; display:flex; gap:8px; flex-wrap:wrap;">
-        ${teams.map(t=>`<button type="button" class="btn" data-customer-chat-team="${escapeHtml(t.key)}">${escapeHtml(t.label)}</button>`).join('')}
-      </div>
+      <details><summary class="btn" aria-label="Chat verwalten">⋯</summary><button class="btn" id="btnCustomerChatClear">Verlauf für mich leeren</button></details>
       <div id="customerChatMessages" class="ds-chat-thread"><div class="ds-chat-empty">Nachrichten werden geladen …</div></div>
       <div class="ds-chat-compose">
         <textarea id="customerChatInput" class="input" placeholder="Deine Nachricht an Doggy Style …"></textarea>
@@ -22622,10 +22641,9 @@ function renderAdminChatList(){
   const st = dsAdminChatState();
   const list = document.getElementById('chatAdminList');
   const count = document.getElementById('chatAdminCount');
-  const picker = document.getElementById('chatAdminTeamPicker');
   const customerSelect = document.getElementById('chatAdminCustomerSelect');
   const openCustomerBtn = document.getElementById('btnChatAdminOpenCustomer');
-  st.filteredChats = dsChatFilterForTeam(st.chats, st.currentTeamKey);
+  st.filteredChats = dsChatGroups(st.chats,st.archived);
   if(customerSelect){
     const prevValue = String(customerSelect.value || '').trim();
     const options = dsAdminCustomerOptions();
@@ -22644,25 +22662,14 @@ function renderAdminChatList(){
   }
   if(count) count.textContent = `${st.filteredChats.length} Chat${st.filteredChats.length===1?'':'s'}`;
   dsUpdateAdminUnreadBadge();
-  if(picker){
-    picker.querySelectorAll('[data-chat-team]').forEach(btn=>{
-      const key = dsChatNormalizeTeamKey(btn.getAttribute('data-chat-team'), true);
-      btn.classList.toggle('primary', key === st.currentTeamKey);
-      if(!btn.__teamBound){
-        btn.__teamBound = true;
-        btn.onclick = ()=>{
-          st.currentTeamKey = key;
-          const first = dsChatFilterForTeam(st.chats, st.currentTeamKey)[0];
-          st.currentChatId = first ? String(first.id || '') : '';
-          renderAdminChatList();
-          if(st.currentChatId) dsOpenAdminChat(st.currentChatId); else renderAdminChatMessages();
-        };
-      }
-    });
+  for(const btn of document.querySelectorAll('[data-archive]')){
+    const archived=btn.dataset.archive==='1';
+    btn.classList.toggle('primary',!!st.archived===archived);
+    btn.onclick=()=>{st.archived=archived;st.currentChatId='';dsWatchSharedChat('staff');renderAdminChatList();};
   }
   if(!list) return;
   if(!st.filteredChats.length){
-    list.innerHTML = '<div class="ds-chat-empty">Noch keine Chats für diesen Ansprechpartner vorhanden.</div>';
+    list.innerHTML = '<div class="ds-chat-empty">Hier sind keine Chats vorhanden.</div>';
     return;
   }
   list.innerHTML = st.filteredChats.map(chat=>{
@@ -22671,10 +22678,9 @@ function renderAdminChatList(){
     const sub = escapeHtml(chat.customerEmail || chat.customerUid || '');
     const when = escapeHtml(dsChatDisplayTime(chat.lastMessageAt || chat.updatedAt || chat.updatedAtMs || 0));
     const snippet = escapeHtml(chat.lastMessageText || 'Noch keine Nachricht.');
-    const team = escapeHtml(dsChatTargetLabel(chat.teamMemberKey));
     const unread = dsUnreadCountForRole(chat, 'staff');
     const unreadBadge = unread > 0 ? `<span class="ds-chat-list__badge">${unread}</span>` : '';
-    return `<button type="button" class="ds-chat-item ${active?'is-active':''}" data-chat-id="${escapeHtml(chat.id)}"><div class="ds-chat-item__title"><div class="ds-chat-item__name">${name}</div><div style="display:flex;align-items:center;gap:8px;"><div class="ds-chat-item__time">${when}</div>${unreadBadge}</div></div><div class="ds-chat-item__meta">${sub} · ${team}</div><div class="ds-chat-item__snippet">${snippet}</div></button>`;
+    return `<button type="button" class="ds-chat-item ${active?'is-active':''}" data-chat-id="${escapeHtml(chat.id)}"><div class="ds-chat-item__title"><div class="ds-chat-item__name">${name}</div><div style="display:flex;align-items:center;gap:8px;"><div class="ds-chat-item__time">${when}</div>${unreadBadge}</div></div><div class="ds-chat-item__meta">${sub}</div><div class="ds-chat-item__snippet">${snippet}</div></button>`;
   }).join('');
   list.querySelectorAll('[data-chat-id]').forEach(btn=>{
     btn.onclick = ()=> dsOpenAdminChat(btn.getAttribute('data-chat-id'));
@@ -22682,16 +22688,15 @@ function renderAdminChatList(){
 }
 function renderAdminChatMessages(){
   const st = dsAdminChatState();
-    const historyChat=(st.filteredChats||st.chats||[]).find(c=>c.id===st.currentChatId);
-    const visible=window.DSCommunicationCore?DSCommunicationCore.visibleMessages(st.currentMessages,historyChat,firebase.auth().currentUser?.uid):st.currentMessages;
+    const visible=dsVisibleThread(st);
   const title = document.getElementById('chatAdminTitle');
   const meta = document.getElementById('chatAdminMeta');
   const body = document.getElementById('chatAdminMessages');
   const clearBtn = document.getElementById('btnChatAdminClear');
   const current = (st.filteredChats || st.chats || []).find(c=> String(c.id||'') === String(st.currentChatId||''));
-  if(title) title.textContent = current ? `${current.customerName || current.customerEmail || 'Kunde'} · ${dsChatTargetLabel(current.teamMemberKey)}` : 'Kein Chat ausgewählt';
-  if(meta) meta.textContent = current ? `${current.customerEmail || 'ohne E-Mail'}${current.customerUid ? ' · UID ' + current.customerUid : ''}` : 'Bitte links einen Kundenchat auswählen.';
-  if(clearBtn) clearBtn.disabled = !current;
+  if(title) title.textContent = current ? (current.customerName || current.customerEmail || 'Kunde') : 'Kein Chat ausgewählt';
+  if(meta) meta.textContent = current ? (current.customerEmail||'') : 'Bitte links einen Kundenchat auswählen.';
+  dsBindConversationMenu(st,current);
   if(body) body.innerHTML = current ? dsRenderChatMessages(visible, 'staff', current) : '<div class="ds-chat-empty">Noch kein Chat ausgewählt.</div>';
   try{ if(body) body.scrollTop = body.scrollHeight; }catch(_){ }
   try{ dsBindMessageBubbleClicks(body, 'staff', current, visible, renderAdminChatMessages); }catch(_){ }
@@ -22726,7 +22731,7 @@ function dsBindAdminChatActions(){
       const cur = String(stNow.currentChatId || '');
       const latestIncoming = dsLatestIncomingReadMs(stNow.currentMessages, 'staff');
       if(cur && latestIncoming){
-        try{ await dsMarkChatReadUpTo(cur, 'staff', latestIncoming, stNow.currentMessages); }catch(_){ }
+        try{ await dsReadShared(stNow.currentMessages,'staff'); }catch(_){ }
       }
       renderAdminChatMessages();
       renderAdminChatList();
@@ -22757,18 +22762,18 @@ function dsBindAdminChatActions(){
         if(!chatId){
           const customer = await Promise.resolve(dsAdminSelectedCustomer());
           if(!customer) throw new Error('Bitte zuerst links einen Chat auswählen oder einen Kunden öffnen.');
-          const chat = await dsAdminEnsureChatForCustomer(customer, st.currentTeamKey || dsChatInferStaffKey());
+          const chat = await dsAdminEnsureChatForCustomer(customer, 'raphael');
           const existingIndex = (st.chats || []).findIndex(x=> String(x.id||'') === String(chat.id||''));
           if(existingIndex >= 0) st.chats[existingIndex] = { ...(st.chats[existingIndex]||{}), ...chat };
           else st.chats = dsChatSortByUpdated([chat].concat(st.chats || []));
           st.currentChatId = String(chat.id || '');
-          st.currentTeamKey = dsChatNormalizeTeamKey(chat.teamMemberKey || st.currentTeamKey, true);
+
           renderAdminChatList();
           await dsOpenAdminChat(chat.id);
           chatId = String(chat.id || '');
         }
         const attachments = selectedFiles.length ? await dsUploadChatMediaFiles(chatId, selectedFiles, (msg)=>{ if(hint) hint.textContent = msg; }) : [];
-        await dsSendChatMessage(chatId, value, { forceSenderRole:'staff', teamMemberKey: dsChatNormalizeTeamKey(st.currentTeamKey, true) === 'all' ? dsChatInferStaffKey() : dsChatNormalizeTeamKey(st.currentTeamKey), attachments });
+        await dsSendChatMessage(chatId, value, { forceSenderRole:'staff', attachments });
         if(input) input.value = '';
         dsClearChatSelectedFiles('staff');
         if(hint) hint.textContent = 'Nachricht gesendet · ' + dsChatNowLabel();
@@ -22781,38 +22786,55 @@ function dsBindAdminChatActions(){
     };
   }
 }
-function dsWatchAdminChatMessages(chatId){
-  const st = dsAdminChatState();
-  try{ if(st.msgUnsub) st.msgUnsub(); }catch(_){ }
-  st.msgUnsub = null;
-  st.currentMessages = [];
-  renderAdminChatMessages();
-  const col = cloudChatMessagesCol(chatId);
-  if(!col) return;
-  st.msgUnsub = col.orderBy('createdAt','asc').onSnapshot({includeMetadataChanges:true},(snap)=>{
-    if(snap.metadata.hasPendingWrites)return;
-    st.currentMessages = snap.docs.map(doc=>({ id: doc.id, ...(doc.data()||{}) }));
-    renderAdminChatMessages();
-  }, (err)=>{
-    console.error('admin chat messages', err);
-    const hint = document.getElementById('chatAdminHint');
-    if(hint) hint.textContent = '❌ Nachrichten konnten nicht geladen werden.';
+function dsBindConversationMenu(st,current){
+  const menu=document.getElementById('dsConversationMenu');
+  if(!menu)return;
+  menu.hidden=!current;
+  if(!current){menu.open=false;return;}
+  const archive=document.getElementById('dsArchiveChat');
+  const remove=document.getElementById('dsDeleteChat');
+  remove.hidden=CLOUD.role!=='admin';
+  archive.textContent=st.archived?'Zurück in den Posteingang':'Für das Team archivieren';
+  const sources=st.chats.filter(c=>dsThreadKey(c)===dsThreadKey(current));
+  const hint=document.getElementById('chatAdminHint');
+  async function run(action){
+    if(menu.dataset.busy)return;
+    menu.dataset.busy='1';
+    archive.disabled=remove.disabled=true;
+    try{await action();menu.open=false;}
+    catch(error){hint.textContent='Vorgang unterbrochen: '+error.message;}
+    finally{delete menu.dataset.busy;archive.disabled=remove.disabled=false;}
+  }
+  archive.onclick=()=>run(async()=>{
+    const archived=!!st.archived;
+    await firebase.firestore().runTransaction(async tx=>{
+      const refs=sources.map(c=>cloudChatDoc(c.id));
+      const docs=await Promise.all(refs.map(ref=>tx.get(ref)));
+      if(docs.some((d,i)=>!d.exists||d.data().customerUid!==current.customerUid||d.data().lastMessageAtMs!==sources[i].lastMessageAtMs))throw Error('Der Verlauf hat sich geändert. Bitte erneut prüfen.');
+      refs.forEach(ref=>tx.update(ref,{status:archived?'open':'archived'}));
+    });
+    hint.textContent=archived?'Chat im Posteingang.':'Für das Team archiviert.';
+  });
+  remove.onclick=()=>run(async()=>{
+    if(!confirm('Chat mit '+(current.customerName||current.customerEmail)+' für alle endgültig löschen? Nachrichten und Chat-Anhänge werden entfernt. Rechnungen und Termine bleiben erhalten.'))return;
+    const call=firebase.app().functions('europe-west1').httpsCallable('deleteCustomerChat',{timeout:90000});
+    const requestId=crypto.randomUUID();
+    hint.textContent='Chat und Anhänge werden gelöscht …';
+    let done=false;
+    while(!done){
+      const reply=await call({requestId,chatId:current.id,customerUid:current.customerUid});
+      done=reply.data.done===true;
+    }
+    hint.textContent='Chatverlauf gelöscht.';
   });
 }
-async function dsOpenAdminChat(chatId){
-  const st = dsAdminChatState();
-  st.currentChatId = String(chatId || '');
-  const current = (st.chats || []).find(c=> String(c?.id||'') === st.currentChatId) || {};
-  st.currentTeamKey = dsChatNormalizeTeamKey(current.teamMemberKey || st.currentTeamKey, true);
+
+function dsOpenAdminChat(chatId){
+  const st=dsAdminChatState();
+  st.currentChatId=chatId;
+  dsWatchSharedChat('staff');
   renderAdminChatList();
-  try{
-    await dsEnsureWelcomeMessage(st.currentChatId, {
-      customerUid: String(current.customerUid || ''),
-      customerEmail: String(current.customerEmail || ''),
-      customerName: String(current.customerName || 'Kunde')
-    });
-  }catch(e){ console.warn('admin welcome ensure failed', e); }
-  dsWatchAdminChatMessages(st.currentChatId);
+  renderAdminChatMessages();
 }
 function renderAdminChatPanel(forceReload){
     window.DSCustomerPortal?.refreshChoices().catch(e=>{const hint=document.getElementById('chatAdminHint');if(hint)hint.textContent='Kundenauswahl konnte nicht geladen werden: '+e.message;});
@@ -22850,15 +22872,16 @@ function renderAdminChatPanel(forceReload){
     return;
   }
   if(st.listUnsub) return renderAdminChatList();
-  st.listUnsub = col.limit(300).onSnapshot((snap)=>{
+  st.listUnsub = col.onSnapshot((snap)=>{
     st.chats = dsChatSortByUpdated(snap.docs.map(doc=>({ id: doc.id, ...(doc.data()||{}) })));
-    st.filteredChats = dsChatFilterForTeam(st.chats, st.currentTeamKey);
+    st.filteredChats = dsChatGroups(st.chats,st.archived);
     if(!st.currentChatId && st.filteredChats.length){ Promise.resolve(dsOpenAdminChat(st.filteredChats[0].id)).catch(console.warn); return; }
     const stillThere = st.filteredChats.some(c=> String(c.id||'') === String(st.currentChatId||''));
     if(st.currentChatId && !stillThere){
       st.currentChatId = st.filteredChats[0] ? st.filteredChats[0].id : '';
       if(st.currentChatId) Promise.resolve(dsOpenAdminChat(st.currentChatId)).catch(console.warn);
     }
+    dsWatchSharedChat('staff');
     renderAdminChatList();
     renderAdminChatMessages();
   }, (err)=>{
@@ -22882,7 +22905,7 @@ function dsBindCustomerChatActions(){
       const cur = String(stNow.currentChatId || '');
       const latestIncoming = dsLatestIncomingReadMs(stNow.currentMessages, 'customer');
       if(cur && latestIncoming){
-        try{ await dsMarkChatReadUpTo(cur, 'customer', latestIncoming, stNow.currentMessages); }catch(_){ }
+        try{ await dsReadShared(stNow.currentMessages,'customer'); }catch(_){ }
       }
       renderCustomerChatMessages();
       const hint = document.getElementById('customerChatHint');
@@ -22931,7 +22954,7 @@ function dsBindCustomerChatActions(){
         if(input) input.value = '';
         dsClearChatSelectedFiles('customer');
         st.currentChatId = chatId;
-        await dsLoadCustomerChatsForTeam(st.currentTeamKey, false).catch(console.warn);
+        dsWatchSharedChat('customer');
         if(hint) hint.textContent = 'Nachricht gesendet · ' + dsChatNowLabel();
       }catch(e){
         const msg = String(e?.message || e || 'Senden fehlgeschlagen');
@@ -22944,14 +22967,13 @@ function dsBindCustomerChatActions(){
 }
 function renderCustomerChatMessages(){
   const st = dsCustomerChatState();
-    const historyChat=(st.chats||[]).find(c=>c.id===st.currentChatId);
-    const visible=window.DSCommunicationCore?DSCommunicationCore.visibleMessages(st.currentMessages,historyChat,firebase.auth().currentUser?.uid):st.currentMessages;
+    const visible=dsVisibleThread(st);
   const body = document.getElementById('customerChatMessages');
   const title = document.getElementById('customerChatTitle');
   const meta = document.getElementById('customerChatMeta');
   const current = (st.chats || []).find(c=> String(c.id||'') === String(st.currentChatId||'')) || null;
-  if(title) title.textContent = 'Doggy Style Team · ' + dsChatTargetLabel(st.currentTeamKey);
-  if(meta) meta.textContent = st.currentChatId ? 'Antworten erscheinen direkt in diesem Verlauf.' : 'Starte einfach mit deiner ersten Nachricht an ' + dsChatTargetLabel(st.currentTeamKey) + '.';
+  if(title) title.textContent = 'Chat mit Doggy Style';
+  if(meta) meta.textContent = st.currentChatId ? 'Antworten erscheinen direkt in diesem Verlauf.' : 'Schreib deine erste Nachricht an Doggy Style.';
   const html = dsRenderChatMessages(visible, 'customer', current);
   const renderKey = JSON.stringify({
     chatId: String(st.currentChatId || ''),
@@ -22966,51 +22988,10 @@ function renderCustomerChatMessages(){
     try{ dsBindMessageBubbleClicks(body, 'customer', current, visible, renderCustomerChatMessages); }catch(_){ }
     window.DSPortalActions?.bindChat(body, visible, async message => {
       const stamp = Number(message.createdAtMs || dsTsMs(message.createdAt) || 0);
-      if(current?.id && stamp) await dsMarkChatReadUpTo(current.id, 'customer', stamp, visible);
+      if(current?.id && stamp) await dsMarkChatReadUpTo(message.sourceId, 'customer', stamp, visible.filter(m=>m.sourceId===message.sourceId));
     });
   }
   dsUpdateCustomerUnreadBadge();
-}
-async function dsLoadCustomerChatsForTeam(teamKey, autoCreate){
-  const st = dsCustomerChatState();
-  const key = dsChatNormalizeTeamKey(teamKey);
-  st.currentTeamKey = key;
-  st.currentMessages = [];
-  st.__lastRenderKey = '';
-  try{ if(st.msgUnsub) st.msgUnsub(); }catch(_){ }
-  st.msgUnsub = null;
-  let chats = await dsFindCurrentCustomerChats(key);
-  if(!chats.length && autoCreate){
-    const created = await ensureCurrentCustomerChat(key);
-    chats = created ? [created] : [];
-  }
-  st.chats = chats;
-  st.currentChatId = chats[0] ? String(chats[0].id || '') : '';
-  renderCustomerChatMessages();
-  if(st.currentChatId){
-    await dsEnsureWelcomeMessage(st.currentChatId, dsChatCustomerProfile()).catch(console.warn);
-    dsWatchCustomerChatMessages(st.currentChatId);
-  }
-  dsUpdateCustomerUnreadBadge();
-}
-
-function dsWatchCustomerChatMessages(chatId){
-  const st = dsCustomerChatState();
-  try{ if(st.msgUnsub) st.msgUnsub(); }catch(_){ }
-  st.msgUnsub = null;
-  st.currentMessages = [];
-  renderCustomerChatMessages();
-  const col = cloudChatMessagesCol(chatId);
-  if(!col) return;
-  st.msgUnsub = col.orderBy('createdAt','asc').onSnapshot({includeMetadataChanges:true},(snap)=>{
-    if(snap.metadata.hasPendingWrites)return;
-    st.currentMessages = snap.docs.map(doc=>({ id: doc.id, ...(doc.data()||{}) }));
-    renderCustomerChatMessages();
-  }, (err)=>{
-    console.error('customer chat messages', err);
-    const hint = document.getElementById('customerChatHint');
-    if(hint) hint.textContent = '❌ Nachrichten konnten nicht geladen werden.';
-  });
 }
 function renderCustomerChatPanel(forceReload){
   const root = document.getElementById('customerChatRoot');
@@ -23018,7 +22999,7 @@ function renderCustomerChatPanel(forceReload){
   let prevTeamKey = 'raphael';
   if(forceReload){
     const prev = dsCustomerChatState();
-    prevTeamKey = dsChatNormalizeTeamKey(prev.currentTeamKey || 'raphael');
+
     (prev.listUnsubs || []).forEach(fn=>{ try{ fn(); }catch(_){ } });
     try{ if(prev.msgUnsub) prev.msgUnsub(); }catch(_){ }
     root.innerHTML = '';
@@ -23037,55 +23018,17 @@ function renderCustomerChatPanel(forceReload){
   }
   const st = dsCustomerChatState();
   if(!st.currentTeamKey) st.currentTeamKey = prevTeamKey;
-  const picker = document.getElementById('customerChatTeamPicker');
-  if(picker){
-    picker.querySelectorAll('[data-customer-chat-team]').forEach(btn=>{
-      const key = dsChatNormalizeTeamKey(btn.getAttribute('data-customer-chat-team'));
-      btn.classList.toggle('primary', key === st.currentTeamKey);
-      btn.onclick = async ()=>{
-        if(dsChatNormalizeTeamKey(dsCustomerChatState().currentTeamKey) === key) return;
-        const hint = document.getElementById('customerChatHint');
-        try{
-          if(hint) hint.textContent = 'Lade Chat …';
-          const stNow = dsCustomerChatState();
-          stNow.currentTeamKey = key;
-          stNow.currentChatId = '';
-          stNow.currentMessages = [];
-          dsSetChatExplicitOpen('customer', true);
-          renderCustomerChatPanel(true);
-        }catch(err){
-          console.error('customer team switch', err);
-          if(hint) hint.textContent = '❌ Chat konnte nicht gewechselt werden.';
-        }
-      };
-    });
-  }
   if((st.listUnsubs || []).length){
     renderCustomerChatMessages();
     return;
   }
   const seen = new Map();
   const publish = async ()=>{
-    st.chats = dsChatSortByUpdated(dsChatFilterForTeam(Array.from(seen.values()), st.currentTeamKey));
-    dsUpdateCustomerUnreadBadge();
-    if(!st.currentChatId && st.chats.length){
-      st.currentChatId = st.chats[0].id;
-      await dsEnsureWelcomeMessage(st.currentChatId, dsChatCustomerProfile()).catch(console.warn);
-      dsWatchCustomerChatMessages(st.currentChatId);
-      return;
-    }
-    const stillThere = st.chats.some(c=> String(c.id||'') === String(st.currentChatId||''));
-    if(st.currentChatId && !stillThere){
-      st.currentChatId = st.chats[0] ? st.chats[0].id : '';
-      if(st.currentChatId){
-        await dsEnsureWelcomeMessage(st.currentChatId, dsChatCustomerProfile()).catch(console.warn);
-        dsWatchCustomerChatMessages(st.currentChatId);
-      } else {
-        st.currentMessages = [];
-        renderCustomerChatMessages();
-      }
-    }
+    st.chats=dsChatSortByUpdated([...seen.values()].filter(c=>c.customerUid===dsChatUserUid()));
+    if(!st.chats.some(c=>c.id===st.currentChatId))st.currentChatId=st.chats[0]?.id||'';
+    dsWatchSharedChat('customer');
     renderCustomerChatMessages();
+    dsUpdateCustomerUnreadBadge();
   };
   const attaches = [];
   const uid = dsChatUserUid();
@@ -23098,7 +23041,6 @@ function renderCustomerChatPanel(forceReload){
     publish().catch(console.warn);
   }, (err)=>{ console.error('customer chat list', err); publish().catch(console.warn); });
   if(uid) attaches.push(attach(col.where('customerUid','==',uid)));
-  if(email) attaches.push(attach(col.where('customerEmail','==',email)));
   st.listUnsubs = attaches;
   publish().catch(console.warn);
 }
