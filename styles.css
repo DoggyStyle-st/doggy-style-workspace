@@ -1286,3 +1286,28 @@ body.page-login .btnLink--text:hover{
 #home #complianceStatus[data-status="green"]::before{background:#61c997}
 #home #complianceStatus[data-status="yellow"]::before{background:#f4c06d}
 #home #complianceStatus[data-status="red"]::before{background:#ef8282}
+
+/* Workspace: Kunden mit ihren Hunden */
+#directoryFilters:not([hidden]) {display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}
+#directoryFilters [aria-pressed=true] {border-color:#ebbb64;background:#524532;color:#fff}
+.directory-group {min-width:0;border:1px solid rgba(255,255,255,.18);border-radius:15px;overflow:hidden;background:#212127;margin-bottom:10px}
+#dogList .directory-owner {margin:0;border:0;border-radius:0;background:#323139;padding:13px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.directory-owner strong,.directory-dog-name strong {display:block;font-size:1.04rem;overflow-wrap:anywhere}
+.directory-owner small,.directory-dog-name small,.directory-body small {display:block;margin-top:3px}
+#dogList .directory-pet {display:block;margin:0;border:0;border-top:1px solid rgba(255,255,255,.12);border-radius:0;padding:0;background:transparent}
+.directory-pet>summary {display:flex;align-items:center;gap:12px;cursor:pointer;padding:10px 16px;list-style:none}
+.directory-pet>summary::-webkit-details-marker {display:none}
+.directory-pet>summary::after {content:"⌄";margin-left:auto}
+.directory-pet[open]>summary::after {content:"⌃"}
+.directory-photo {width:58px;height:58px;border-radius:10px;object-fit:cover;flex:none}
+.directory-photo.paw {background:#38383e;display:grid;place-items:center;font-size:22px}
+.directory-dog-name {flex:1;min-width:0}.directory-badges {display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end}
+.directory-badges span {font-size:.8rem;padding:4px 9px;border-radius:12px;color:#bce9c9;background:#294238}
+.directory-badges .pending {color:#ffe2a6;background:#51432e}
+.directory-body {padding:0 16px 14px}.directory-body .actions {display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.directory-body .actions summary,.tr-assignment summary {cursor:pointer}
+#cpEditor[data-mode=owner]>.row:has(#useExistingCustomer),#cpEditor[data-mode=owner]>.grid2>.card:nth-child(2),#cpEditor[data-mode=owner] #btnCpAddAnotherDog {display:none!important}
+.tr-assignment {margin-top:8px}.tr-assignment label {display:inline-flex;align-items:center;gap:6px;margin:7px 14px 0 0}.tr-assignment input {width:20px;height:20px}
+@media(max-width:540px){.directory-pet>summary {padding:10px;gap:8px;flex-wrap:wrap}.directory-badges {max-width:38%}.directory-photo{width:48px;height:48px}.directory-owner .actions{flex-wrap:wrap}}
+
+.training-reading{margin-top:.65rem}.training-reading summary{cursor:pointer}.training-reading>div{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.55;margin-block:.65rem}

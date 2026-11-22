@@ -2,7 +2,7 @@ try{sessionStorage.removeItem('ds_handoff_pass');}catch(_){}
 
 // ===== DS_MASTER_FREEZE (4F-6) =====
 const DS_MASTER_FREEZE = {
-  tag: "M50.9.15GB399_CODEC_LOAD_20261122",
+  tag: "M50.9.16GB400_FAMILIENANSCHLUSS_20261122",
   channel: "MASTER",
   frozenAt: "2026-03-02"
 };
@@ -13,7 +13,7 @@ try{ window.__DS_MASTER = DS_MASTER_FREEZE; }catch(_ ){}
 // Build-ID (wird unten links angezeigt) – bitte synchron zu app.html halten.
 // NOTE: Keep this build id in sync with app.html (app.js?v=...) and sw.js (SW_VERSION).
 // Build identifier (keep in sync with app.html meta + sw.js BUILD_VERSION)
-const APP_BUILD = "M50.9.15GB399_CODEC_LOAD_20261122";
+const APP_BUILD = "M50.9.16GB400_FAMILIENANSCHLUSS_20261122";
 try{ window.__dsAppJsRuntimeBuild = "GB350-appjs"; }catch(_){ }
 try{ window.__dsAppJsRuntime = 'GB217-appjs'; }catch(_){ }
 
@@ -2756,7 +2756,7 @@ async function submitCustomerDogsProposal(){
   // GB355: vollständig lokal sichern, anschließend zuverlässig in proposals + tasks übertragen.
   // Die Oberfläche wird sofort freigegeben; die Erfolgsmeldung "an Eingänge übergeben"
   // erscheint ausschließlich nach bestätigter Firestore-Speicherung.
-  const GB355='M50.9.15GB399_CODEC_LOAD_20261122';
+  const GB355='M50.9.16GB400_FAMILIENANSCHLUSS_20261122';
   function S(v){ try{return String(v==null?'':v);}catch(_){return '';} }
   function L(v){ return S(v).trim().toLowerCase(); }
   function V(id){ try{const el=document.getElementById(id);return S(el&&el.value!=null?el.value:'').trim();}catch(_){return '';} }
@@ -6732,8 +6732,14 @@ function ensureProfiDefaults(){
       if(!d) return;
       const cur = (d.content!=null) ? String(d.content||'') : '';
       const isEmpty = !cur.trim();
-      const isLegacy = cur.includes('Kurzvorlage') || cur.includes('Hinweis: Diese Vorlage');
-      if(isEmpty || isLegacy){
+      const isLegacy = k==='contract' && (cur.includes('Kurzvorlage') || cur.includes('Hinweis: Diese Vorlage'));
+      if(isEmpty || isLegacy || previousPolicyMatches(k,cur)){
+        if(!isEmpty && !isLegacy){
+          const oldVersion=d.version||'1.0';
+          const nextVersion=oldVersion+'-F1';
+          d.history.push({fromVersion:oldVersion,toVersion:nextVersion,changedAt:today,note:'Umstellung auf Familienanschluss',content:cur});
+          d.version=nextVersion;
+        }
         // Special: Betreuungsvertrag-Vorlage soll den aktuellen Vertragstext enthalten.
         if(k === 'contract'){
           const srcHtml = (state.contract && state.contract.text) ? state.contract.text : (typeof DEFAULT_CONTRACT_TEXT === 'string' ? DEFAULT_CONTRACT_TEXT : '');
@@ -7222,30 +7228,29 @@ function profiBumpPolicy(key){
 }
 // Öffnen/Bearbeiten der Vorlagen (revisionssicher über Versionssprung)
 const POLICY_DEFAULTS = {
-  hygiene: `HUNDEPENSION DOGGY STYLE – HYGIENEPLAN (behördentauglich, §11 TierSchG)
+  hygiene: `HUNDEPENSION DOGGY STYLE – HYGIENEPLAN (Familienanschluss)
 Standort: Im Moos 4, 88167 Stiefenhofen
 Kapazität: max. 4 Hunde insgesamt (Tages- und Urlaubsbetreuung zusammen)
 Verantwortlich: Angelika Boch
 
 1) Ziel & Geltungsbereich
-Dieser Hygieneplan regelt Reinigung/Desinfektion zur Vermeidung von Infektionen und Kreuzkontamination in allen Bereichen (Einzelzimmer, Großraum, Durchgangsraum, Freilauf).
+Dieser Hygieneplan regelt Reinigung/Desinfektion zur Vermeidung von Infektionen und Kreuzkontamination in den genutzten Wohn-, Ruhe-, Fütterungs- und Außenbereichen.
 
 2) Betriebsbereiche (Kurzbeschreibung)
-- 6 Einzelzimmer je ca. 1,30 x 2,50 m; Front Gittertür 2,0 x 1,0 m; Holzverkleidung bis ca. 1,50 m; Trennwand bis ca. 1,25 m geschlossen, darüber Doppelstabmatte (Luftzirkulation).
-- Großraum ca. 3,90 x 2,50 m; 3 Gittertüren; optional in 3 Einheiten trennbar (Doppelstabmatten 2,50 x 1,80 m); Normalbetrieb Gruppenhaltung bis ca. 4 Hunde.
-- Durchgangsraum vor Freilauf: Liegeflächen für verträgliche Hunde (keine Dauerunterbringung).
+- Hunde leben mit Familienanschluss. Genutzte Wohn-, Ruhe- und Fütterungsbereiche sowie Wege zum Hof in den Reinigungsplan aufnehmen.
+- Für jeden Hund Rückzug und eigene Versorgung gewährleisten. Für einen Krankheitsverdacht eine betreute Trennmöglichkeit vorsehen.
 
 3) Aufnahme-/Infektionsprävention
 - Aufnahme nur klinisch gesund; kein akuter Durchfall/Erbrechen, kein Husten/Zwingerhusten-Verdacht.
 - Impfstatus (SHPPiL + Tollwut) wird bei Aufnahme kontrolliert und dokumentiert.
 
 4) Reinigungs-/Desinfektionsmittel
-- Standard-Desinfektion: Planet Sensitive (Aktivchlor ~0,1%) für Routine-Flächen.
+- Mittel nach aktueller produktbezogener Betriebsanweisung verwenden. Lagerort Speise: für Hunde unzugänglich; erforderliche Trennung von Lebensmitteln und Futter je Mittel prüfen.
 - Seuchen-/Infektionsverdacht: Virkon® S (viruzid wirksam) gemäß Herstellerangaben.
 
 5) Reinigungsintervalle (Kurzfassung)
 - Täglich: Kotentfernung sofort; Böden nass reinigen; Näpfe reinigen.
-- Wöchentlich: Grundreinigung Zimmer/Gitter/Trennwände; Standarddesinfektion.
+- Wöchentlich: Grundreinigung Liegeplätze, Türen und Trennbereiche; Standarddesinfektion.
 - Monatlich: Grunddesinfektion Innenräume + Bestandscheck Mittel/Handschuhe (siehe Hygiene-Modul).
 
 6) Krankheitsfall während Aufenthalt (Infektionsschutz)
@@ -7254,7 +7259,7 @@ Dieser Hygieneplan regelt Reinigung/Desinfektion zur Vermeidung von Infektionen 
 
 7) Dokumentation
 Reinigung/Desinfektion, Auffälligkeiten, Maßnahmen und Verantwortliche werden digital im Hygiene-Modul protokolliert.`,
-  notfall: `NOTFALLPLAN (behördentauglich, §11 TierSchG)
+  notfall: `NOTFALLPLAN (Familienanschluss)
 Standort: Im Moos 4, 88167 Stiefenhofen
 Verantwortlich: Angelika Boch · Vertretung (Schlüssel/Zugriff): Raphael Boch
 
@@ -7277,16 +7282,16 @@ Tierarzt (Notfall): Kleintierpraxis Immenstadt im Allgäu – Petra Geisser.
 
 5) Dokumentation
 - Notfallprotokoll (Datum/Uhrzeit, Hund, Symptome, Maßnahmen, Ansprechpartner).`,
-  brand: `BRANDFALL & EVAKUIERUNGSPLAN (behördentauglich)
+  brand: `BRANDFALL & EVAKUIERUNGSPLAN (Familienanschluss)
 Standort: Im Moos 4, 88167 Stiefenhofen
 
 Brandschutzausstattung
-- Feuerlöscher: 1x Büro Hundepension, 1x Durchgangsraum.
+- Feuerlöscher: im Treppenhaus unten und oben jeweils einer.
 - Rauchmelder vorhanden.
 
 Evakuierung
 1) Notruf 112, interne Alarmierung.
-2) Ausgänge öffnen, Hunde mit Leinen sichern, Evakuierung über nächstgelegene Ausgänge.
+2) Menschen über einen sicheren Weg ins Freie führen. Hunde nur ohne Selbstgefährdung und Verzögerung der Flucht mitnehmen. Nicht ins Gebäude zurückkehren.
 3) Sammelplatz: Wiese vor dem Haus im Bereich Hofeinfahrt.
 4) Bestand zählen, dokumentieren, Halter informieren (falls erforderlich).
 5) Löschversuch nur ohne Eigengefährdung.
@@ -7302,6 +7307,10 @@ Wichtige Betriebsregel:
 Tipp: Änderungen immer über „Neue Version“ dokumentieren.`
 };
 
+function previousPolicyMatches(key,text){
+  const old={"hygiene": "HUNDEPENSION DOGGY STYLE – HYGIENEPLAN (behördentauglich, §11 TierSchG)\nStandort: Im Moos 4, 88167 Stiefenhofen\nKapazität: max. 4 Hunde insgesamt (Tages- und Urlaubsbetreuung zusammen)\nVerantwortlich: Angelika Boch\n\n1) Ziel & Geltungsbereich\nDieser Hygieneplan regelt Reinigung/Desinfektion zur Vermeidung von Infektionen und Kreuzkontamination in allen Bereichen (Einzelzimmer, Großraum, Durchgangsraum, Freilauf).\n\n2) Betriebsbereiche (Kurzbeschreibung)\n- 6 Einzelzimmer je ca. 1,30 x 2,50 m; Front Gittertür 2,0 x 1,0 m; Holzverkleidung bis ca. 1,50 m; Trennwand bis ca. 1,25 m geschlossen, darüber Doppelstabmatte (Luftzirkulation).\n- Großraum ca. 3,90 x 2,50 m; 3 Gittertüren; optional in 3 Einheiten trennbar (Doppelstabmatten 2,50 x 1,80 m); Normalbetrieb Gruppenhaltung bis ca. 4 Hunde.\n- Durchgangsraum vor Freilauf: Liegeflächen für verträgliche Hunde (keine Dauerunterbringung).\n\n3) Aufnahme-/Infektionsprävention\n- Aufnahme nur klinisch gesund; kein akuter Durchfall/Erbrechen, kein Husten/Zwingerhusten-Verdacht.\n- Impfstatus (SHPPiL + Tollwut) wird bei Aufnahme kontrolliert und dokumentiert.\n\n4) Reinigungs-/Desinfektionsmittel\n- Standard-Desinfektion: Planet Sensitive (Aktivchlor ~0,1%) für Routine-Flächen.\n- Seuchen-/Infektionsverdacht: Virkon® S (viruzid wirksam) gemäß Herstellerangaben.\n\n5) Reinigungsintervalle (Kurzfassung)\n- Täglich: Kotentfernung sofort; Böden nass reinigen; Näpfe reinigen.\n- Wöchentlich: Grundreinigung Zimmer/Gitter/Trennwände; Standarddesinfektion.\n- Monatlich: Grunddesinfektion Innenräume + Bestandscheck Mittel/Handschuhe (siehe Hygiene-Modul).\n\n6) Krankheitsfall während Aufenthalt (Infektionsschutz)\n- Sofort separieren, Halter informieren, tierärztliche Rücksprache.\n- Bei Bedarf kann der Aufenthalt aus Infektionsschutz- oder Tierwohlgründen vorzeitig beendet werden (siehe Betreuungsvertrag).\n\n7) Dokumentation\nReinigung/Desinfektion, Auffälligkeiten, Maßnahmen und Verantwortliche werden digital im Hygiene-Modul protokolliert.", "notfall": "NOTFALLPLAN (behördentauglich, §11 TierSchG)\nStandort: Im Moos 4, 88167 Stiefenhofen\nVerantwortlich: Angelika Boch · Vertretung (Schlüssel/Zugriff): Raphael Boch\n\n1) Medizinischer Notfall Hund\n- Hund sichern & separieren, Ersteinschätzung, Halter informieren.\n- Tierarztkontakt und Transport nach Abstimmung.\nTierarzt (Notfall): Kleintierpraxis Immenstadt im Allgäu – Petra Geisser.\n\n2) Infektions-/Seuchenverdacht\n- Sofortige Isolation/Separierung, Kontaktminimierung.\n- Viruzide Desinfektion (Virkon® S), getrennte Utensilien, Dokumentation.\n- Ggf. vorzeitige Beendigung des Aufenthalts/Abholung.\n\n3) Stromausfall\n- Kontrolle Lüftung/Heizung, Wasser, sichere Unterbringung.\n- Bei längerem Ausfall: Halter informieren, Betrieb ggf. temporär einschränken.\n\n4) Wasserausfall\n- Trinkwasservorrat nutzen; bei längerem Ausfall Neuaufnahmen stoppen.\n\n5) Dokumentation\n- Notfallprotokoll (Datum/Uhrzeit, Hund, Symptome, Maßnahmen, Ansprechpartner).", "brand": "BRANDFALL & EVAKUIERUNGSPLAN (behördentauglich)\nStandort: Im Moos 4, 88167 Stiefenhofen\n\nBrandschutzausstattung\n- Feuerlöscher: 1x Büro Hundepension, 1x Durchgangsraum.\n- Rauchmelder vorhanden.\n\nEvakuierung\n1) Notruf 112, interne Alarmierung.\n2) Ausgänge öffnen, Hunde mit Leinen sichern, Evakuierung über nächstgelegene Ausgänge.\n3) Sammelplatz: Wiese vor dem Haus im Bereich Hofeinfahrt.\n4) Bestand zählen, dokumentieren, Halter informieren (falls erforderlich).\n5) Löschversuch nur ohne Eigengefährdung.\n\nZuständigkeiten\n- Primär: Angelika Boch · Vertretung: Raphael Boch."};
+  return !!old[key] && old[key]===text && text!==POLICY_DEFAULTS[key];
+}
 function getPolicyContent(key){
   ensureProfiDefaults();
   const doc = state.compliance?.docs?.[key] || {};
@@ -7862,242 +7871,38 @@ state._legacy = (state._legacy && typeof state._legacy === "object") ? state._le
   // Seed default hazards (only if empty)
   if(state.compliance.hazards.length === 0){
     state.compliance.hazards = [
-      { id:"haz_planet_sensitive", name:"Planet Sensitive", category:"Desinfektionsmittel", storage:"Büro – verschlossener Putzschrank", sds:null, updatedAt:Date.now() },
-      { id:"haz_virkon_s", name:"Virkon® S", category:"Desinfektionsmittel (viruzid)", storage:"Büro – verschlossener Putzschrank", sds:null, updatedAt:Date.now() }
+      { id:"haz_planet_sensitive", name:"Planet Sensitive", category:"Desinfektionsmittel", storage:"Speise – für Hunde unzugänglich", sds:null, updatedAt:Date.now() },
+      { id:"haz_virkon_s", name:"Virkon® S", category:"Desinfektionsmittel (viruzid)", storage:"Speise – für Hunde unzugänglich", sds:null, updatedAt:Date.now() }
     ];
   }else{
     // ensure storage default
     state.compliance.hazards.forEach(h=>{
-      if(h && !h.storage) h.storage = "Büro – verschlossener Putzschrank";
+      if(h && (!h.storage || h.storage === "Büro – verschlossener Putzschrank")) h.storage = "Speise – für Hunde unzugänglich";
     });
   }
   // Seed default trainings (only if empty) + migrate catalog (stabil bei Updates)
   const DEFAULT_TRAININGS_CATALOG = [
-      { id:"trn_gefahrstoffe", title:"Unterweisung: Gefahrstoffe", intervalMonths:12, level:"pflicht", legal:"GefStoffV §14 / TRGS 555", fullText:`Ziel
-Sicherer Umgang mit Gefahrstoffen/chemischen Produkten im Betrieb, Schutz von Mitarbeitenden, Tieren und Umwelt.
-
-Geltungsbereich
-Alle Tätigkeiten mit Reinigungs-, Desinfektions- und sonstigen chemischen Produkten (Annahme, Lagerung, Dosierung, Anwendung, Entsorgung).
-
-Inhalte
-• Gefahrstoffverzeichnis: Welche Produkte werden verwendet? Wo sind sie gelistet?
-• Kennzeichnung: GHS-Piktogramme, Signalwort, H-/P-Sätze, Herstellerangaben.
-• Sicherheitsdatenblatt (SDB): Auffinden/Lesen (Abschnitte 2, 4, 7, 8, 10, 13), Ablage in der App je Produkt.
-• Substitution/Minimierung: Nur notwendige Mittel, richtige Konzentration, keine Eigenmischungen ohne Freigabe.
-• Schutzmaßnahmen (TOP-Prinzip): Lüften, Dosierhilfen, PSA (Handschuhe, ggf. Schutzbrille), Hautschutzplan.
-• Lagerung: Originalgebinde, dicht verschlossen, getrennt von Lebensmitteln/Futter, kindersicher; Lagerort: Büro – verschlossener Putzschrank.
-• Anwendung: Dosierung/Einwirkzeit laut Hersteller, Materialverträglichkeit, niemals unterschiedliche Mittel unkontrolliert mischen.
-• Verhalten bei Störungen/Unfällen: Verschütten (Bereich sichern, aufnehmen, entsorgen), Augenkontakt (spülen), Hautkontakt (waschen), Einatmen (Frischluft), Notruf/Arzt.
-• Entsorgung: Reste/Leergut nach Hersteller/SDB; keine Vermischung; Abwasser/Umwelt beachten.
-
-Dokumentation
-Teilnehmer, Datum, Kurzprotokoll, Unterschriften; bei Bedarf Produktliste/SDB-Verweise mitschreiben.`, updatedAt:Date.now() },
-      { id:"trn_hyg_mittel", title:"Unterweisung: Reinigungs-/Desinfektionsmittel (Anwendung)", intervalMonths:12, level:"pflicht", legal:"GefStoffV / Hygieneplan", fullText:`Ziel
-Wirksame Reinigung/Desinfektion ohne Fehlanwendung (Unter- oder Überdosierung) und ohne unnötige Gefährdung.
-
-Geltungsbereich
-Alle Reinigungs- und Desinfektionsvorgänge (Innenbereiche, Kontaktflächen, Ausläufe/Schmutzschleusen, Textilien).
-
-Inhalte
-• Unterschied Reinigung vs. Desinfektion: Wann reicht Reinigung, wann ist Desinfektion erforderlich?
-• Dosierung & Einwirkzeit: strikt nach Herstellerangaben; Messbecher/Dosierhilfe nutzen.
-• Reihenfolge/Wegeführung: sauber → unrein; von oben nach unten; groben Schmutz zuerst entfernen.
-• Kontaktflächen: Näpfe, Türgriffe, Gitter, Böden, Liegeflächen – definierte Frequenz nach Hygieneplan.
-• Materialverträglichkeit: Metall, Kunststoff, Holz, Textilien – Schäden vermeiden.
-• PSA & Hautschutz: Handschuhe, ggf. Schutzbrille; Hautschutzplan (cremen, wechseln).
-• Tücher/Mopps: Farblogik/Zuordnung, Wechselintervalle, nicht „ein Tuch für alles“.
-• Lagerung/Bereitstellung: Mittel sicher, kindersicher, getrennt; keine offenen Gebinde im Hundebereich.
-• Lüftung: nach Anwendung; Hunde erst nach Trocknung/Wirkzeit wieder in den Bereich.
-• Dokumentation: Hygieneplan-Checklisten, besondere Ereignisse (Durchfall/Erbrechen/Infektionsverdacht) mit Zusatzmaßnahmen.
-
-Dokumentation
-Kurzprotokoll + Unterschriften; ggf. verwendete Mittel/Konzentrationen notieren.`, updatedAt:Date.now() },
-      { id:"trn_hygiene", title:"Unterweisung: Hygiene & Infektionsschutz", intervalMonths:12, level:"pflicht", legal:"§11 TierSchG / TierSchHuV", fullText:`Ziel
-Infektionsrisiken minimieren, Tierwohl sichern und prüffähige Nachweise führen.
-
-Geltungsbereich
-Tägliche Abläufe, Reinigungs-/Desinfektionsroutine, Wäsche, Umgang mit Ausscheidungen, Besucher- und Hundekontakte.
-
-Inhalte
-• Hygieneplan: tägliche/wöchentliche/monatliche Aufgaben, Zuständigkeiten, Nachweisführung.
-• Basismaßnahmen: Händehygiene, Wechselkleidung/Schuhe, Trennung sauber/unrein.
-• Reinigung/Desinfektion: Ablauf, Mittel, Einwirkzeiten, Reihenfolge, Tuch-/Moppmanagement.
-• Wäsche/Textilien: getrennte Sammelbehälter, Programme/Temperaturen, Trocknerhygiene, Filter/Siebe reinigen.
-• Umgang mit Kot/Erbrochenem/Blut: sichere Aufnahme, Flächendesinfektion, Entsorgung.
-• Futter/Wasser: Näpfe reinigen, Frischwasser, Lagerung von Futter.
-• Schädlingsprävention: Futterlager sauber, Müllmanagement, Sichtkontrollen.
-• Meldewege: Auffälligkeiten (Durchfall, Husten, Hautprobleme), Sofortmaßnahmen, Eintrag in Vorkommnisse.
-• Grenzen/Abbruch: Betreiber kann Aufenthalt im Krankheitsfall aus Tierschutz-/Sicherheitsgründen beenden; Halter informieren.
-
-Dokumentation
-Hygiene-Log, besondere Vorkommnisse, Teilnehmerliste/Unterschriften der Unterweisung.`, updatedAt:Date.now() },
-      { id:"trn_quar", title:"Unterweisung: Separierung / Infektionsverdacht", intervalMonths:12, level:"pflicht", legal:"Betriebliche Standards / Infektionsschutz", fullText:`Ziel
-Infektionsketten unterbrechen und trotzdem einen sicheren Betrieb gewährleisten.
-
-Geltungsbereich
-Verdacht auf ansteckende Erkrankungen, Parasiten, Durchfall/Erbrechen, Husten, Fieber, Hautbefall; auch nach Rückkehr von Veranstaltungen/anderen Betreuungen.
-
-Inhalte
-• Kriterien: Wann ist Separierung zwingend? (Symptome, Kontakt zu Erkrankten, Parasitenverdacht)
-• Sofortmaßnahmen: Hund separieren, Kontakt stoppen, eigenes Equipment (Leine, Napf, Decke).
-• Räumliche Trennung: Nutzung von Einzelzimmer/Übergangsbereich; Wegeführung (keine Kreuzungen).
-• Hygiene: Händedesinfektion, Flächen-/Kontaktpunkte, Wäsche separat, Müll separat.
-• Betreuung: Minimierung von Personalwechsel, klare Zuständigkeiten, PSA/Handschuhe.
-• Kommunikation: Halter sofort informieren; Tierarztkontakt nach Lage; ggf. Abholung/Abbruch.
-• Dokumentation: Symptom, Uhrzeit, Maßnahmen, Kontaktpersonen, Tierarzt/Empfehlungen.
-
-Dokumentation
-Maßnahmenprotokoll + Unterweisungsnachweis (Teilnehmer/Datum/Unterschriften).`, updatedAt:Date.now() },
-      { id:"trn_brand", title:"Unterweisung: Brand- & Evakuierungsplan", intervalMonths:12, level:"pflicht", legal:"Betriebspflichten / Brandschutz", fullText:`Ziel
-Sichere Evakuierung von Menschen und Tieren, minimierte Rauch-/Brandgefahren, klare Zuständigkeiten.
-
-Geltungsbereich
-Alle Mitarbeitenden, Besucher, alle Bereiche (Hunde-Zimmer, Gruppenraum, Lager, Büro, Außenbereiche).
-
-Inhalte
-• Alarmierung: Brand melden, Notruf 112, interne Rollen (wer ruft an, wer evakuiert).
-• Fluchtwege: Ausgänge/Wege gemäß Plan; Türen/Wege stets freihalten.
-• Sammelplatz: Wiese bei Hofeinfahrt; Vollzähligkeitskontrolle.
-• Erstmaßnahmen: Eigenschutz, keine Selbstgefährdung, Feuerlöscher nur wenn sicher.
-• Feuerlöscher: Standorte (Büro + Durchgangsraum), Arten, kurze Einweisung, Sicht-/Funktionskontrolle.
-• Evakuierung Hunde: Priorisierung, Leinen/Boxen/Transporthilfen, Gruppentrennung, Maulkörbe nach Bedarf.
-• Nachbereitung: Übergabe an Feuerwehr, Information Halter, Dokumentation des Ereignisses/Übung.
-
-Dokumentation
-Planversion, Datum, Teilnehmer/Unterschriften; ggf. Evakuierungsübung als Eintrag im Archiv.`, updatedAt:Date.now() },
-      { id:"trn_arbeitsschutz", title:"Unterweisung: Arbeitsschutz / UVV", intervalMonths:12, level:"pflicht", legal:"ArbSchG / DGUV Grundsätze", fullText:`Ziel
-Unfälle und arbeitsbedingte Gesundheitsgefahren vermeiden; sichere Arbeitsabläufe im Tagesbetrieb.
-
-Geltungsbereich
-Alle Tätigkeiten im Betrieb (Hundehandling, Reinigung, Transport, Lager, Außenbereiche).
-
-Inhalte
-• Ordnung & Sauberkeit: Stolperstellen, Kabel, nasse Böden, rutschfeste Wege, Beleuchtung.
-• Ergonomie: Heben/Tragen (Futter, Wasser, Boxen) – Technik, Hilfsmittel, Lastgrenzen.
-• Hundehandling: sichere Leinenführung, Trennmanagement, Türen/Schleusen, Beißschutz nach Bedarf.
-• PSA: Handschuhe, ggf. Schutzbrille; geeignete Schuhe; wetterangepasste Kleidung.
-• Arbeitsmittel: sichere Nutzung, Defekte sofort melden.
-• Alleinarbeit: Handy griffbereit, Notfallkette, keine riskanten Tätigkeiten allein.
-• Unterweisungspflicht: jährlich sowie bei Änderungen/Unfällen/Beinaheunfällen.
-
-Dokumentation
-Unterweisung (Datum/Teilnehmer/Unterschriften) und ggf. Maßnahmenliste aus Beinaheunfällen.`, updatedAt:Date.now() },
-      { id:"trn_erstehilfe", title:"Unterweisung: Erste Hilfe (Mensch)", intervalMonths:12, level:"pflicht", legal:"DGUV Vorschrift 1 (Betriebliche Erste Hilfe)", fullText:`Ziel
-Erstmaßnahmen bis zum Eintreffen des Rettungsdienstes; Eigenschutz und strukturierter Ablauf.
-
-Geltungsbereich
-Alle Mitarbeitenden; typische Unfälle im Umgang mit Hunden und bei Reinigungsarbeiten.
-
-Inhalte
-• Notrufkette: 112, Wer? Wo? Was? Wieviele? Warten auf Rückfragen.
-• Eigenschutz: Handschuhe, Abstand, Hunde sichern, keine Selbstgefährdung.
-• Erste-Hilfe-Ausstattung: Standort/Kontrolle (Vollständigkeit, Haltbarkeit), Augenspülung falls vorhanden.
-• Typische Verletzungen: Bisswunden, Schnitt-/Sturzverletzungen, Kreislaufprobleme, allergische Reaktionen.
-• Blutstillung: Druckverband, Hochlagern; Schockzeichen erkennen.
-• Hygiene: Wundversorgung, Entsorgung kontaminierter Materialien.
-• Dokumentation: Unfall/Beinaheunfall kurz erfassen, ggf. Arztbesuch/Arbeitsunfall.
-
-Dokumentation
-Teilnehmerliste/Unterschriften; ggf. Unterlagen/Standortplan ergänzen.`, updatedAt:Date.now() },
-      { id:"trn_hund_notfall", title:"Unterweisung: Erste Hilfe Hund / Notfallablauf", intervalMonths:12, level:"empfohlen", legal:"Betriebliche Standards / Tierarzt-Kooperation", fullText:`Ziel
-Schnelle Stabilisierung des Hundes, sichere Übergabe an Tierarzt, klare Kommunikation mit Halter.
-
-Geltungsbereich
-Alle Notfallsituationen während Betreuung/Transport/Auslauf.
-
-Inhalte
-• Notfall erkennen: Atemnot, Kollaps, Krampf, starke Blutung, Hitzschlag, Magendrehung-Verdacht.
-• Sofortmaßnahmen: Ruhe, Hund sichern, Temperaturmanagement (kühlen/wärmen), Druckverband, Stabilisierung.
-• Transport: sichere Fixierung, Box/Decke, zweite Person wenn möglich.
-• Ansprechpartner: Tierarzt/Notdienst (Betriebsstandard); Halter informieren.
-• Dokumentation: Zeitpunkt, Symptome, Maßnahmen, Transport, Rückmeldung Tierarzt/Halter.
-
-Dokumentation
-Vorfallprotokoll + Unterweisungsnachweis.`, updatedAt:Date.now() },
-      { id:"trn_tierschutz", title:"Unterweisung: §11 TierSchG – Betriebspflichten", intervalMonths:12, level:"pflicht", legal:"§11 TierSchG / TierSchHuV", fullText:`Ziel
-Tierschutzkonforme Betreuung, sichere Belegung und nachvollziehbare Kontrollen.
-
-Geltungsbereich
-Unterbringung, Betreuung, Fütterung, Auslauf/Beaufsichtigung, Abbruchkriterien.
-
-Inhalte
-• Bestandsgrenzen/Belegung: max. 4 Hunde insgesamt; Tages- und Urlaubsbetreuung zählen zusammen.
-• Unterbringung: Zimmer/Größen/Trennmöglichkeiten, Ruhezeiten, Stressreduktion, Temperatur/Lüftung.
-• Betreuung: regelmäßige Sichtkontrollen, Wasser jederzeit, Fütterung nach Halterangaben.
-• Sozialmanagement: unverträgliche Hunde trennen, Gruppen nur nach Verträglichkeit, Konflikte vermeiden.
-• Gesundheit: Auffälligkeiten früh erkennen, Tierarzt/Abholung, Abbruch aus Tierschutz/Sicherheitsgründen.
-• Dokumentation: Betreuungsvertrag, Kontroll-/Vorkommnisprotokolle, Unterweisungsnachweise.
-
-Dokumentation
-Unterweisung + Bezug auf Betriebsstandards (Belegung/Abbruch/Notfallkette).`, updatedAt:Date.now() },
-      { id:"trn_med", title:"Unterweisung: Medikamentenhandling & Dokumentation", intervalMonths:12, level:"pflicht", legal:"Betriebliche Pflicht / Sorgfaltspflichten", fullText:`Ziel
-Fehlerfreie Medikamentengabe und lückenlose Nachweisführung.
-
-Geltungsbereich
-Alle Medikamente/Nahrungsergänzer während Betreuung (auch Kühlware).
-
-Inhalte
-• Annahme: nur mit schriftlicher Anweisung (Dosierung, Zeiten, Dauer); Originalverpackung; Name/Charge.
-• Lagerung: kindersicher, getrennt von Futter; Kühlkette beachten; klare Beschriftung.
-• Gabe: nach Plan; 4-Augen-Prinzip wenn möglich; Abzeichnen im Medikamentenlog.
-• Abweichungen: Verweigerung/Erbrechen/Fehlgabe – dokumentieren, Halter/Tierarzt informieren.
-• Notfallmedikation: keine eigenmächtige Umstellung ohne Rücksprache.
-• Rückgabe: Restmengen/Verpackungen bei Abholung.
-
-Dokumentation
-Medikamentenlog (Datum/Uhrzeit/Dosis/Unterschrift) + Unterweisungsnachweis.`, updatedAt:Date.now() },
-      { id:"trn_datenschutz", title:"Unterweisung: Datenschutz (DSGVO)", intervalMonths:12, level:"pflicht", legal:"DSGVO / BDSG", fullText:`Ziel
-Schutz von Kunden- und Tierdaten; rechtssichere Verarbeitung im Alltag.
-
-Geltungsbereich
-Kundendaten, Vertrags-/Rechnungsdaten, Gesundheitsdaten (Impfungen/Medikamente), Fotos/Kommunikation.
-
-Inhalte
-• Grundsätze: Zweckbindung, Datenminimierung, Integrität/Vertraulichkeit, Speicherbegrenzung.
-• Rechte Betroffener: Auskunft, Berichtigung, Löschung, Widerspruch – Zuständigkeit intern.
-• Zugriff: Rollen (Admin/Staff/Customer), keine Weitergabe von Logins, Geräte sperren.
-• Kommunikation: Weitergabe an Tierarzt/Behörde nur mit Rechtsgrundlage/Einwilligung.
-• Aufbewahrung: Verträge/Rechnungen nach Fristen; sichere Ablage/Archiv.
-• Datenschutzvorfall: Verdacht melden, Sofortmaßnahmen (Zugang sperren), Dokumentation.
-
-Dokumentation
-Unterweisung + kurze Maßnahmenliste (z.B. Passwortrichtlinie).`, updatedAt:Date.now() },
-      { id:"trn_it", title:"Unterweisung: IT-Sicherheit / Passwörter", intervalMonths:12, level:"empfohlen", legal:"Betriebliche Standards", fullText:`Ziel
-Schutz vor unbefugtem Zugriff, Datenverlust und Betriebsunterbrechung.
-
-Geltungsbereich
-Alle Geräte/Accounts (PWA, E-Mail, Cloud, Druck/PDF, mobile Geräte).
-
-Inhalte
-• Passwörter: Länge/Komplexität, keine Wiederverwendung, Passwortmanager wenn möglich.
-• 2FA: wo verfügbar aktivieren.
-• Gerätesicherheit: Sperrcode/FaceID, automatische Sperre, Updates zeitnah.
-• Phishing: Links/Anhänge prüfen, Absender kontrollieren, keine Login-Daten eingeben.
-• Offline/Sync: Konflikte melden, keine unsicheren Zwischenkopien.
-• Backup: regelmäßige Sicherungen (Betriebsstandard), Wiederherstellung testen.
-
-Dokumentation
-Teilnehmer/Unterschriften; ggf. Checkliste (2FA/Update/Backup) ergänzen.`, updatedAt:Date.now() },
-      { id:"trn_biss", title:"Unterweisung: Beißvorfall / Unfallmanagement", intervalMonths:12, level:"empfohlen", legal:"Betriebliche Standards / Haftungsprävention", fullText:`Ziel
-Standardisierter, sicherer Ablauf bei Zwischenfällen – Schutz von Menschen/Tieren, saubere Dokumentation.
-
-Geltungsbereich
-Beißvorfälle, Rangeleien, Stürze, Sachschäden, Beinaheunfälle.
-
-Inhalte
-• Sofort: Hunde trennen, Eigenschutz, ggf. Maulkorb/Leine.
-• Erste Hilfe: Mensch (Wunde versorgen) und Hund (Sichtprüfung/Blutung/Schock).
-• Dokumentation: Zeitpunkt, Beteiligte, Auslöser, Maßnahmen, Zeugen, Fotos nach Bedarf.
-• Information: Halter beider Hunde, ggf. Tierarzt; bei schweren Vorfällen Behördenmeldung nach Lage.
-• Prävention: Auswertung, Anpassung Gruppenmanagement/Handling/Trennkonzept.
-
-Dokumentation
-Vorfallprotokoll + Unterweisungsnachweis.`, updatedAt:Date.now() }
+      { id:"trn_gefahrstoffe", title:"Unterweisung: Gefahrstoffe", intervalMonths:12, level:"pflicht", legal:"GefStoffV §14 / TRGS 555", fullText:"Ziel\nSicherer Umgang mit Gefahrstoffen/chemischen Produkten im Betrieb, Schutz von Mitarbeitenden, Tieren und Umwelt.\n\nGeltungsbereich\nAlle Tätigkeiten mit Reinigungs-, Desinfektions- und sonstigen chemischen Produkten (Annahme, Lagerung, Dosierung, Anwendung, Entsorgung).\n\nInhalte\n• Gefahrstoffverzeichnis: Welche Produkte werden verwendet? Wo sind sie gelistet?\n• Kennzeichnung: GHS-Piktogramme, Signalwort, H-/P-Sätze, Herstellerangaben.\n• Sicherheitsdatenblatt (SDB): Auffinden/Lesen (Abschnitte 2, 4, 7, 8, 10, 13), Ablage in der App je Produkt.\n• Substitution/Minimierung: Nur notwendige Mittel, richtige Konzentration, keine Eigenmischungen ohne Freigabe.\n• Schutzmaßnahmen (TOP-Prinzip): Lüften, Dosierhilfen, PSA (Handschuhe, ggf. Schutzbrille), Hautschutzplan.\n• Lagerung: Originalgebinde, dicht verschlossen, getrennt von Lebensmitteln/Futter, kindersicher; Lagerort: Speise, für Hunde unzugänglich; Trennung gemäß Betriebsanweisung.\n• Anwendung: Dosierung/Einwirkzeit laut Hersteller, Materialverträglichkeit, niemals unterschiedliche Mittel unkontrolliert mischen.\n• Verhalten bei Störungen/Unfällen: Verschütten (Bereich sichern, aufnehmen, entsorgen), Augenkontakt (spülen), Hautkontakt (waschen), Einatmen (Frischluft), Notruf/Arzt.\n• Entsorgung: Reste/Leergut nach Hersteller/SDB; keine Vermischung; Abwasser/Umwelt beachten.\n\nDurchführung im Betrieb\nVor Beginn der Tätigkeit und mindestens jährlich besprechen wir die Schutzmaßnahmen mündlich am Arbeitsplatz. Bei geänderten Produkten oder Abläufen prüfen wir den Unterweisungsbedarf erneut. Vor der ersten Verwendung zeigt die unterweisende Person das tatsächlich verwendete Gebinde, das zugehörige Sicherheitsdatenblatt und die schriftliche Betriebsanweisung. Gemeinsam klären wir die Gefährdung bei der vorgesehenen Tätigkeit, den vorgesehenen Haut- und Augenschutz und die erreichbare Hilfe. Fehlen eindeutige Kennzeichnung oder Betriebsanweisung, bleibt das Produkt außer Gebrauch. Die arbeitsmedizinisch-toxikologische Beratung einschließlich der Möglichkeit arbeitsmedizinischer Vorsorge wird anhand der vorhandenen Stoffe besprochen.\nDie Speise ist für Hunde unzugänglich. Die Originalgebinde werden verschlossen und aufrecht gelagert. Die nach Produkt und Menge erforderliche Trennung von Lebensmitteln, Hundefutter und Arzneimitteln ist vor Ort zu prüfen. Erfordert das Mittel einen separaten Raum oder lässt sich die Trennung in der Speise nicht einhalten, wird dort nicht gelagert. Wenn etwas ausläuft, Zugang sperren und nach der Betriebsanweisung Hilfe holen.\nPraxis: Eine Person zeigt am Gebinde die Kennzeichnung, findet im Sicherheitsdatenblatt die Schutzmaßnahmen und erklärt, was sie bei einem Spritzer oder einer Undichtigkeit tut. Produkt und besprochene Schutzmaßnahmen ins Protokoll eintragen.", edition:"Familienanschluss 1", updatedAt:Date.now() },
+      { id:"trn_hyg_mittel", title:"Unterweisung: Reinigungs-/Desinfektionsmittel (Anwendung)", intervalMonths:12, level:"pflicht", legal:"GefStoffV / Hygieneplan", fullText:"Ziel\nWirksame Reinigung/Desinfektion ohne Fehlanwendung (Unter- oder Überdosierung) und ohne unnötige Gefährdung.\n\nGeltungsbereich\nAlle Reinigungs- und Desinfektionsvorgänge (Innenbereiche, Kontaktflächen, Ausläufe/Schmutzschleusen, Textilien).\n\nInhalte\n• Unterschied Reinigung vs. Desinfektion: Wann reicht Reinigung, wann ist Desinfektion erforderlich?\n• Dosierung & Einwirkzeit: strikt nach Herstellerangaben; Messbecher/Dosierhilfe nutzen.\n• Reihenfolge/Wegeführung: sauber → unrein; von oben nach unten; groben Schmutz zuerst entfernen.\n• Kontaktflächen: Näpfe, Türgriffe, Gitter, Böden, Liegeflächen – definierte Frequenz nach Hygieneplan.\n• Materialverträglichkeit: Metall, Kunststoff, Holz, Textilien – Schäden vermeiden.\n• PSA & Hautschutz: Handschuhe, ggf. Schutzbrille; Hautschutzplan (cremen, wechseln).\n• Tücher/Mopps: Farblogik/Zuordnung, Wechselintervalle, nicht „ein Tuch für alles“.\n• Lagerung/Bereitstellung: Mittel sicher, kindersicher, getrennt; keine offenen Gebinde im Hundebereich.\n• Lüftung: nach Anwendung; Hunde erst nach Trocknung/Wirkzeit wieder in den Bereich.\n• Dokumentation: Hygieneplan-Checklisten, besondere Ereignisse (Durchfall/Erbrechen/Infektionsverdacht) mit Zusatzmaßnahmen.\n\nDurchführung im Betrieb\nVor Arbeitsbeginn bringen wir die Hunde in einen sicheren anderen Bereich, entfernen Näpfe und sichern den Zugang für die gesamte Anwendung. Das Teammitglied gleicht Produkt, Anwendungsfläche, Dosierung, Einwirkzeit und Schutzmaßnahmen mit der Betriebsanweisung ab. Nur vorgesehene Dosierhilfen verwenden. Ein Produktwechsel oder eine unlesbare Kennzeichnung wird mit der Inhaberin geklärt.\nGrobverschmutzungen zuerst entfernen. Anschließend den Bereich nach Hygieneplan bearbeiten. Die Fläche wird erst wieder freigegeben, wenn Einwirkzeit, gegebenenfalls Nachspülen und Trocknung nach Herstellervorgabe abgeschlossen sind. Arbeitsgeräte nach Bereich getrennt aufbereiten und das Produkt wieder am vorgesehenen Lagerplatz unterbringen.\nPraxis: Eine Person erläutert an einem tatsächlich genutzten Mittel den Ablauf vom Sperren der Fläche bis zur Freigabe und zeigt den zugehörigen Eintrag im Hygieneplan.", edition:"Familienanschluss 1", updatedAt:Date.now() },
+      { id:"trn_hygiene", title:"Unterweisung: Hygiene & Infektionsschutz", intervalMonths:12, level:"pflicht", legal:"§11 TierSchG / TierSchHuV", fullText:"Ziel\nInfektionsrisiken minimieren, Tierwohl sichern und prüffähige Nachweise führen.\n\nGeltungsbereich\nTägliche Abläufe, Reinigungs-/Desinfektionsroutine, Wäsche, Umgang mit Ausscheidungen, Besucher- und Hundekontakte.\n\nInhalte\n• Hygieneplan: tägliche/wöchentliche/monatliche Aufgaben, Zuständigkeiten, Nachweisführung.\n• Basismaßnahmen: Händehygiene, Wechselkleidung/Schuhe, Trennung sauber/unrein.\n• Reinigung/Desinfektion: Ablauf, Mittel, Einwirkzeiten, Reihenfolge, Tuch-/Moppmanagement.\n• Wäsche/Textilien: getrennte Sammelbehälter, Programme/Temperaturen, Trocknerhygiene, Filter/Siebe reinigen.\n• Umgang mit Kot/Erbrochenem/Blut: sichere Aufnahme, Flächendesinfektion, Entsorgung.\n• Futter/Wasser: Näpfe reinigen, Frischwasser, Lagerung von Futter.\n• Schädlingsprävention: Futterlager sauber, Müllmanagement, Sichtkontrollen.\n• Meldewege: Auffälligkeiten (Durchfall, Husten, Hautprobleme), Sofortmaßnahmen, Eintrag in Vorkommnisse.\n• Grenzen/Abbruch: Betreiber kann Aufenthalt im Krankheitsfall aus Tierschutz-/Sicherheitsgründen beenden; Halter informieren.\n\nDurchführung im Betrieb\nBei Arbeitsbeginn die benutzten Familien- und Hundebereiche gemeinsam abgehen. Küche und private Lebensmittelbereiche vor verschmutzten Leinen, Tüchern und Näpfen schützen. Saubere Wäsche getrennt von benutzten Decken aufbewahren. Für Futter und Trinkwasser saubere Gefäße bereitstellen. Nach Kontakt mit Ausscheidungen oder Schmutzwäsche Hände reinigen, bevor Futter zubereitet oder der nächste Hund versorgt wird.\nAuch für das Team besteht ein Infektionsrisiko durch vom Tier auf Menschen übertragbare Erreger (Zoonosen). Die örtliche Betriebsanweisung und die dort vorgesehenen Schutzmaßnahmen am Beispiel von Kontakt mit Ausscheidungen, Speichel und verletzter Haut besprechen. Geeignete Schutzkleidung an- und ablegen, offene Hautstellen schützen, Verschmutzungen sicher aufnehmen und Handhygiene durchführen. Nach einem Biss oder Kontakt mit Augen, Mund oder verletzter Haut die Erste-Hilfe-Maßnahmen der Betriebsanweisung einleiten, den Vorfall melden und medizinisch abklären lassen. Über arbeitsmedizinische Vorsorge und besondere persönliche Gefährdungen informieren. Vor der ersten Tätigkeit und bei der jährlichen Wiederholung den Umgang mit der Schutzausrüstung vorführen.\n\nBei Erbrechen oder Durchfall den betroffenen Hund betreut trennen, den Bereich für Hunde und Familienmitglieder sperren und die zuständige Person informieren. Verunreinigungen und Kontaktflächen nach Hygieneplan behandeln. Festhalten, welcher Hund betroffen war, wer versorgt hat und wann der Bereich wieder freigegeben wurde.\nPraxis: Das Team zeigt an einem typischen Betreuungsplatz, welchen Weg saubere Näpfe und benutzte Wäsche nehmen und wer die Freigabe übernimmt.", edition:"Familienanschluss 1", updatedAt:Date.now() },
+      { id:"trn_quar", title:"Unterweisung: Separierung / Infektionsverdacht", intervalMonths:12, level:"pflicht", legal:"Betriebliche Standards / Infektionsschutz", fullText:"Ziel\nInfektionsketten unterbrechen und trotzdem einen sicheren Betrieb gewährleisten.\n\nGeltungsbereich\nVerdacht auf ansteckende Erkrankungen, Parasiten, Durchfall/Erbrechen, Husten, Fieber, Hautbefall; auch nach Rückkehr von Veranstaltungen/anderen Betreuungen.\n\nInhalte\n• Kriterien: Wann ist Separierung zwingend? (Symptome, Kontakt zu Erkrankten, Parasitenverdacht)\n• Sofortmaßnahmen: Hund separieren, Kontakt stoppen, eigenes Equipment (Leine, Napf, Decke).\n• Räumliche Trennung: Nutzung eines geeigneten, betreut abtrennbaren Bereichs; Wegeführung (keine Kreuzungen).\n• Hygiene: Händedesinfektion, Flächen-/Kontaktpunkte, Wäsche separat, Müll separat.\n• Betreuung: Minimierung von Personalwechsel, klare Zuständigkeiten, PSA/Handschuhe.\n• Kommunikation: Halter sofort informieren; Tierarztkontakt nach Lage; ggf. Abholung/Abbruch.\n• Dokumentation: Symptom, Uhrzeit, Maßnahmen, Kontaktpersonen, Tierarzt/Empfehlungen.\n\nDurchführung im Betrieb\nVor der Aufnahme zeigt die diensthabende Person, wo ein Hund im Haus bei Verdacht vorübergehend sicher und betreut getrennt werden kann. Der Bereich braucht Wasser, eine eigene Liegefläche und geeignete, getrennte Utensilien. Kann die nötige Trennung im Familienhaushalt nicht gewährleistet werden, entscheidet die verantwortliche Person mit dem Tierarzt über Abholung oder anderweitige Versorgung.\nBei Auffälligkeiten die Gruppenbegegnung beenden, den Zustand und Zeitpunkt notieren, Tierarzt und Halter entsprechend der Lage kontaktieren. Bei akuter Not die tierärztliche Versorgung sofort anstoßen. Der betroffene Hund erhält eigene Näpfe, Decken und Leine. Kontakte und benutzte Bereiche für die Übergabe festhalten. Rückkehr in die Gruppe erst nach abgesprochener Freigabe.\nPraxis: Einen Verdachtsfall vom ersten Anzeichen bis zur Übergabe durchsprechen und vor Ort zeigen, wie Kontakte mit den eigenen Hunden vermieden werden.", edition:"Familienanschluss 1", updatedAt:Date.now() },
+      { id:"trn_brand", title:"Unterweisung: Brand- & Evakuierungsplan", intervalMonths:12, level:"pflicht", legal:"Betriebspflichten / Brandschutz", fullText:"Ziel\nSichere Evakuierung von Menschen und Tieren, minimierte Rauch-/Brandgefahren, klare Zuständigkeiten.\n\nGeltungsbereich\nAlle Mitarbeitenden, Besucher, alle Bereiche (genutzte Wohn- und Ruhebereiche, Lager, Treppenhaus, Außenbereiche).\n\nInhalte\n• Alarmierung: Brand melden, Notruf 112, interne Rollen (wer ruft an, wer evakuiert).\n• Fluchtwege: Ausgänge/Wege gemäß Plan; Türen/Wege stets freihalten.\n• Sammelplatz: Wiese vor dem Haus im Bereich Hofeinfahrt; Vollzähligkeitskontrolle.\n• Erstmaßnahmen: Eigenschutz, keine Selbstgefährdung, Feuerlöscher nur wenn sicher.\n• Feuerlöscher: Standorte (Treppenhaus unten und oben, jeweils ein Löscher), Arten, kurze Einweisung, Sicht-/Funktionskontrolle.\n• Evakuierung Hunde: Priorisierung, Leinen/Boxen/Transporthilfen, Gruppentrennung, Maulkörbe nach Bedarf.\n• Nachbereitung: Übergabe an Feuerwehr, Information Halter, Dokumentation des Ereignisses/Übung.\n\nDurchführung im Betrieb\nEntdeckt jemand Rauch oder Feuer, warnt die Person alle Anwesenden, verlässt den Gefahrenbereich und alarmiert die Feuerwehr unter 112. Adresse und Zugang nennen. Bei mehreren Helfenden Aufgaben direkt mit Namen verteilen. Menschen einschließlich Kindern und Besuchern gehen auf einem sicheren Weg zur Wiese vor dem Haus im Bereich Hofeinfahrt. Bei verrauchten Wegen einen sicheren alternativen Weg nutzen und die Feuerwehr über eingeschlossene Personen informieren.\nIm Treppenhaus befindet sich unten und oben jeweils ein Feuerlöscher. Ein Löschversuch kommt nur bei einem Entstehungsbrand, freiem Rückweg und ohne Eigengefährdung infrage. Hunde nur auf dem sicheren Weg mitnehmen, wenn dadurch keine Person gefährdet oder die Flucht verzögert wird. Niemand geht zum Holen eines Tieres zurück. Am Sammelplatz Menschen und Hunde zählen, fehlende Personen oder Tiere und deren letzten bekannten Ort der Feuerwehr mitteilen.\nPraxis: Beide Löscher und den Weg zum Sammelplatz zeigen, die Rollen bei Alleindienst und bei Doppelbesetzung besprechen und die Vollzähligkeitsmeldung üben.", edition:"Familienanschluss 1", updatedAt:Date.now() },
+      { id:"trn_arbeitsschutz", title:"Unterweisung: Arbeitsschutz / UVV", intervalMonths:12, level:"pflicht", legal:"ArbSchG / DGUV Grundsätze", fullText:"Ziel\nUnfälle und arbeitsbedingte Gesundheitsgefahren vermeiden; sichere Arbeitsabläufe im Tagesbetrieb.\n\nGeltungsbereich\nAlle Tätigkeiten im Betrieb (Hundehandling, Reinigung, Transport, Lager, Außenbereiche).\n\nInhalte\n• Ordnung & Sauberkeit: Stolperstellen, Kabel, nasse Böden, rutschfeste Wege, Beleuchtung.\n• Ergonomie: Heben/Tragen (Futter, Wasser, Boxen) – Technik, Hilfsmittel, Lastgrenzen.\n• Hundehandling: sichere Leinenführung, Trennmanagement, Türen/Schleusen, Beißschutz nach Bedarf.\n• PSA: Handschuhe, ggf. Schutzbrille; geeignete Schuhe; wetterangepasste Kleidung.\n• Arbeitsmittel: sichere Nutzung, Defekte sofort melden.\n• Alleinarbeit: Handy griffbereit, Notfallkette, keine riskanten Tätigkeiten allein.\n• Unterweisungspflicht: vor der ersten Tätigkeit, bei neuen Aufgaben und Arbeitsmitteln sowie regelmäßig. Nach Änderungen, Unfällen oder Beinaheunfällen den Unterweisungsbedarf prüfen.\n\nDurchführung im Betrieb\nVor der Schicht die tatsächlichen Wege zwischen Haus, Hof und Auslauf begehen. Türen und Sicherungen prüfen, Leinen griffbereit ablegen und nasse oder vereiste Stellen sichern. Besucher und Familienmitglieder werden vor dem Öffnen einer Außentür angesprochen. Lasten so aufteilen, dass Sicht und sicherer Stand erhalten bleiben. Mängel melden und betroffene Arbeitsmittel bis zur Klärung beiseitestellen.\nIm Alleindienst sind Rückmeldung, Erreichbarkeit und Vertretung vorher vereinbart. Eine risikoreiche Zusammenführung oder das Umsetzen eines auffälligen Hundes wird verschoben, bis Hilfe da ist. Nach einem Beinaheunfall Ablauf, Gefährdung und konkrete Änderung mit der Inhaberin besprechen.\nPraxis: Eine Übergabe bei gleichzeitigem Klingeln an der Haustür durchspielen. Das Teammitglied zeigt, wie es die Gruppe vor dem Öffnen sichert und Hilfe erreicht.", edition:"Familienanschluss 1", updatedAt:Date.now() },
+      { id:"trn_erstehilfe", title:"Unterweisung: Erste Hilfe (Mensch)", intervalMonths:12, level:"pflicht", legal:"DGUV Vorschrift 1 (Betriebliche Erste Hilfe)", fullText:"Ziel\nErstmaßnahmen bis zum Eintreffen des Rettungsdienstes; Eigenschutz und strukturierter Ablauf.\n\nGeltungsbereich\nAlle Mitarbeitenden; typische Unfälle im Umgang mit Hunden und bei Reinigungsarbeiten.\n\nInhalte\n• Notrufkette: 112, Wer? Wo? Was? Wieviele? Warten auf Rückfragen.\n• Eigenschutz: Handschuhe, Abstand, Hunde sichern, keine Selbstgefährdung.\n• Erste-Hilfe-Ausstattung: Standort/Kontrolle (Vollständigkeit, Haltbarkeit), Augenspülung falls vorhanden.\n• Typische Verletzungen: Bisswunden, Schnitt-/Sturzverletzungen, Kreislaufprobleme, allergische Reaktionen.\n• Blutstillung: Druckverband, Hochlagern; Schockzeichen erkennen.\n• Hygiene: Wundversorgung, Entsorgung kontaminierter Materialien.\n• Dokumentation: Unfall/Beinaheunfall kurz erfassen, ggf. Arztbesuch/Arbeitsunfall.\n\nDurchführung im Betrieb\nBei einem Unfall zuerst die Umgebung sichern und eine zweite Person mit der Sicherung der Hunde beauftragen. Bei einem akuten Notfall 112 verständigen, den genauen Zugang nennen und den Anweisungen der Leitstelle folgen. Bei mehreren Personen ausdrücklich zuweisen, wer Hilfe leistet, wer telefoniert und wer die Rettungskräfte an der Hofeinfahrt einweist. Im Alleindienst die eigene Sicherheit beachten.\nVor Ort Verbandmaterial und Kommunikationsmittel zeigen. Verletzungen, insbesondere Bissverletzungen, medizinisch abklären lassen. Erste-Hilfe-Leistungen vertraulich dokumentieren und die Inhaberin verständigen. Eintragungen mit persönlichen Gesundheitsangaben gehören nicht in den Kundenchat.\nPraxis: Den Weg zum Verbandmaterial abgehen, einen Notruf ohne tatsächlichen Anruf durchspielen und die Zufahrt beschreiben.", edition:"Familienanschluss 1", updatedAt:Date.now() },
+      { id:"trn_hund_notfall", title:"Unterweisung: Erste Hilfe Hund / Notfallablauf", intervalMonths:12, level:"empfohlen", legal:"Betriebliche Standards / Tierarzt-Kooperation", fullText:"Ziel\nSchnelle Stabilisierung des Hundes, sichere Übergabe an Tierarzt, klare Kommunikation mit Halter.\n\nGeltungsbereich\nAlle Notfallsituationen während Betreuung/Transport/Auslauf.\n\nInhalte\n• Notfall erkennen: Atemnot, Kollaps, Krampf, starke Blutung, Hitzschlag, Magendrehung-Verdacht.\n• Sofortmaßnahmen: Ruhe, Hund sichern, Temperaturmanagement (kühlen/wärmen), Druckverband, Stabilisierung.\n• Transport: sichere Fixierung, Box/Decke, zweite Person wenn möglich.\n• Ansprechpartner: Tierarzt/Notdienst (Betriebsstandard); Halter informieren.\n• Dokumentation: Zeitpunkt, Symptome, Maßnahmen, Transport, Rückmeldung Tierarzt/Halter.\n\nDurchführung im Betrieb\nBei plötzlich verändertem Verhalten, Atemnot, Kollaps oder starken Blutungen andere Hunde sichern und unverzüglich den tierärztlichen Notdienst kontaktieren. Eine Person bleibt beim Tier, soweit das sicher möglich ist. Am Telefon Beobachtungen, Zeitpunkt und bereits bekannte Medikamente nennen. Den Transport nach tierärztlicher Anleitung vorbereiten und den Halter über das Vorgehen informieren. Eine dringende Versorgung darf durch einen unerreichbaren Halter nicht verzögert werden.\nKeine zusätzlichen Medikamente oder Hausmittel ohne tierärztliche Anweisung geben. Bei der Übergabe Unterlagen, Anweisungen und Kontakt zum Halter bereithalten. Zurück im Betrieb den Ablauf mit Zeiten und Zuständigkeiten dokumentieren.\nPraxis: Am Beispiel eines abends auffälligen Hundes den Notdienstkontakt auffinden, Transport und Betreuung der übrigen Hunde organisieren und eine kurze Übergabe formulieren.", edition:"Familienanschluss 1", updatedAt:Date.now() },
+      { id:"trn_tierschutz", title:"Unterweisung: §11 TierSchG – Betriebspflichten", intervalMonths:12, level:"pflicht", legal:"§11 TierSchG / TierSchHuV", fullText:"Ziel\nTierschutzkonforme Betreuung, sichere Belegung und nachvollziehbare Kontrollen.\n\nGeltungsbereich\nUnterbringung, Betreuung, Fütterung, Auslauf/Beaufsichtigung, Abbruchkriterien.\n\nInhalte\n• Bestandsgrenzen/Belegung: genehmigte und betrieblich eingestellte Kapazität prüfen; Tages- und Urlaubsbetreuung gemeinsam berücksichtigen.\n• Unterbringung: Liegeplätze, Rückzug und sichere Trennmöglichkeiten, Ruhezeiten, Stressreduktion, Temperatur/Lüftung.\n• Betreuung: regelmäßige Sichtkontrollen, Wasser jederzeit, Fütterung nach Halterangaben.\n• Sozialmanagement: unverträgliche Hunde trennen, Gruppen nur nach Verträglichkeit, Konflikte vermeiden.\n• Gesundheit: Auffälligkeiten früh erkennen, Tierarzt/Abholung, Abbruch aus Tierschutz/Sicherheitsgründen.\n• Dokumentation: Betreuungsvertrag, Kontroll-/Vorkommnisprotokolle, Unterweisungsnachweise.\n\nDurchführung im Betrieb\nVor jeder Aufnahme prüft die diensthabende Person die zulässige Belegung nach den betrieblichen Vorgaben und der geltenden Erlaubnis, die Verträglichkeit sowie die verfügbaren Rückzugs- und Trennmöglichkeiten. Eigene und fremde Hunde in die Planung einbeziehen. Ist eine sichere Betreuung im Familienalltag nicht möglich, sagt die verantwortliche Person die Aufnahme ab oder vereinbart eine andere Lösung.\nFür jeden Hund liegen Informationen zu Bewegung, Fütterung, Verhalten und gesundheitlichen Besonderheiten vor. Jedem Tier einen eigenen Liegeplatz, Wasser und ungestörte Versorgung ermöglichen. Veränderungen bei Appetit, Verhalten oder Bewegung beobachten und mit Zeit und Maßnahme zur nächsten Schicht übergeben.\nPraxis: An einer Beispielbelegung zeigen, wie zwei Hunde getrennt gefüttert werden und wie ein unruhiger Hund Abstand von der Gruppe bekommt.", edition:"Familienanschluss 1", updatedAt:Date.now() },
+      { id:"trn_med", title:"Unterweisung: Medikamentenhandling & Dokumentation", intervalMonths:12, level:"pflicht", legal:"Betriebliche Pflicht / Sorgfaltspflichten", fullText:"Ziel\nFehlerfreie Medikamentengabe und lückenlose Nachweisführung.\n\nGeltungsbereich\nAlle Medikamente/Nahrungsergänzer während Betreuung (auch Kühlware).\n\nInhalte\n• Annahme: nur mit schriftlicher Anweisung (Dosierung, Zeiten, Dauer); Originalverpackung; Name/Charge.\n• Lagerung: kindersicher, getrennt von Futter; Kühlkette beachten; klare Beschriftung.\n• Gabe: nach Plan; 4-Augen-Prinzip wenn möglich; Abzeichnen im Medikamentenlog.\n• Abweichungen: Verweigerung/Erbrechen/Fehlgabe – dokumentieren, Halter/Tierarzt informieren.\n• Notfallmedikation: keine eigenmächtige Umstellung ohne Rücksprache.\n• Rückgabe: Restmengen/Verpackungen bei Abholung.\n\nDurchführung im Betrieb\nBei Übergabe den Namen des Hundes, die Beschriftung des Originalgebindes und die schriftliche Anweisung abgleichen. Nur eingewiesene Personen übernehmen die Gabe. Fehlen Angaben oder stimmen sie nicht überein, vor der Gabe Rücksprache halten. Kühl- und Lagerhinweise beachten und den Zugriff von Kindern und Hunden ausschließen.\nVor jeder Gabe kontrolliert die zuständige Person den Plan und den letzten Eintrag. Danach tatsächliche Gabe, Uhrzeit und verantwortliche Person sofort dokumentieren. Bei unklarer Aufnahme, Erbrechen, Verwechslung oder einer versäumten Gabe keine zusätzliche Dosis auf eigene Entscheidung geben. Den Tierarzt kontaktieren, dessen Anweisung dokumentieren und im Schichtwechsel ausdrücklich übergeben.\nPraxis: An einem Beispieldatensatz eine Übergabe zwischen Anschi und Raphael durchgehen und zeigen, woran die zweite Person eine schon erfolgte Gabe erkennt.", edition:"Familienanschluss 1", updatedAt:Date.now() },
+      { id:"trn_datenschutz", title:"Unterweisung: Datenschutz (DSGVO)", intervalMonths:12, level:"pflicht", legal:"DSGVO / BDSG", fullText:"Ziel\nSchutz von Kunden- und Tierdaten; rechtssichere Verarbeitung im Alltag.\n\nGeltungsbereich\nKundendaten, Vertrags-/Rechnungsdaten, Gesundheitsdaten (Impfungen/Medikamente), Fotos/Kommunikation.\n\nInhalte\n• Grundsätze: Zweckbindung, Datenminimierung, Integrität/Vertraulichkeit, Speicherbegrenzung.\n• Rechte Betroffener: Auskunft, Berichtigung, Löschung, Widerspruch – Zuständigkeit intern.\n• Zugriff: Rollen (Admin/Staff/Customer), keine Weitergabe von Logins, Geräte sperren.\n• Kommunikation: Weitergabe an Tierarzt/Behörde nur mit Rechtsgrundlage/Einwilligung.\n• Aufbewahrung: Verträge/Rechnungen nach Fristen; sichere Ablage/Archiv.\n• Datenschutzvorfall: Verdacht melden, Sofortmaßnahmen (Zugang sperren), Dokumentation.\n\nDurchführung im Betrieb\nBei Aufnahme und Übergabe Kundengespräche so führen, dass andere Halter und private Besucher keine vertraulichen Angaben mithören. Unterlagen und Geräte im gemeinsam genutzten Haus sicher aufbewahren. Vor jeder Chatnachricht, Freigabe, Rechnung oder Fotoübermittlung den richtigen Kunden anhand von Name und Kundennummer sowie den zugehörigen Hund prüfen.\nAuskunfts- oder Löschanfragen an die verantwortliche Inhaberin weitergeben. Bei einer Fehlversendung die Weitergabe unterbrechen und die Inhaberin umgehend mit Zeitpunkt, Empfänger und betroffenen Daten informieren. Sie koordiniert weitere Schritte und dokumentiert die Entscheidung.\nPraxis: An zwei gleichnamigen Hunden zeigen, wie der richtige Empfänger vor der Freigabe einer Nachricht identifiziert wird.", edition:"Familienanschluss 1", updatedAt:Date.now() },
+      { id:"trn_it", title:"Unterweisung: IT-Sicherheit / Passwörter", intervalMonths:12, level:"empfohlen", legal:"Betriebliche Standards", fullText:"Ziel\nSchutz vor unbefugtem Zugriff, Datenverlust und Betriebsunterbrechung.\n\nGeltungsbereich\nAlle Geräte/Accounts (PWA, E-Mail, Cloud, Druck/PDF, mobile Geräte).\n\nInhalte\n• Passwörter: Länge/Komplexität, keine Wiederverwendung, Passwortmanager wenn möglich.\n• 2FA: wo verfügbar aktivieren.\n• Gerätesicherheit: Sperrcode/FaceID, automatische Sperre, Updates zeitnah.\n• Phishing: Links/Anhänge prüfen, Absender kontrollieren, keine Login-Daten eingeben.\n• Offline/Sync: Konflikte melden, keine unsicheren Zwischenkopien.\n• Backup: regelmäßige Sicherungen (Betriebsstandard), Wiederherstellung testen.\n\nDurchführung im Betrieb\nDienstliche Geräte mit persönlichem Zugang verwenden und beim Verlassen sperren. Gerade bei Kundenverkehr und Familienbesuch darf ein offenes iPad keine Einsicht in Kundenakten ermöglichen. Ungewöhnliche Loginaufforderungen über einen bekannten zweiten Weg überprüfen. Bei Geräteverlust oder verdächtigem Zugriff sofort die verantwortliche Person informieren.\nVor einer Datenwiederherstellung Zuständigkeit und Sicherung klären. Bei einer Synchronisationsmeldung vorhandene Änderungen zuerst vergleichen und eine Sicherung erhalten. Die App-Daten bei einem unklaren Konflikt nicht vorschnell löschen. Zugangsdaten, Schlüssel und Sicherungen nicht über den Kundenchat versenden.\nPraxis: Gerätesperre, Abmeldung und den Meldeweg bei einem verlorenen Dienstgerät vorführen.", edition:"Familienanschluss 1", updatedAt:Date.now() },
+      { id:"trn_biss", title:"Unterweisung: Beißvorfall / Unfallmanagement", intervalMonths:12, level:"empfohlen", legal:"Betriebliche Standards / Haftungsprävention", fullText:"Ziel\nStandardisierter, sicherer Ablauf bei Zwischenfällen – Schutz von Menschen/Tieren, saubere Dokumentation.\n\nGeltungsbereich\nBeißvorfälle, Rangeleien, Stürze, Sachschäden, Beinaheunfälle.\n\nInhalte\n• Personen und übrige Hunde sichern, Hilfe holen und Distanz herstellen.\n• Erste Hilfe: Mensch (Wunde versorgen) und Hund (Sichtprüfung/Blutung/Schock).\n• Dokumentation: Zeitpunkt, Beteiligte, Auslöser, Maßnahmen, Zeugen, Fotos nach Bedarf.\n• Information: Halter beider Hunde, ggf. Tierarzt; bei schweren Vorfällen Behördenmeldung nach Lage.\n• Prävention: Auswertung, Anpassung Gruppenmanagement/Handling/Trennkonzept.\n\nDurchführung im Betrieb\nBei Anspannung Blickkontakt, Fixieren, Ausweichen oder Ressourcenverteidigung ernst nehmen und die Situation frühzeitig entschärfen. Besucher und andere Hunde aus dem Bereich führen. Bei einer Auseinandersetzung Abstand und bauliche Trennmöglichkeiten nutzen. Nicht zwischen kämpfende Hunde greifen oder am Halsband in die Auseinandersetzung fassen. Hilfe holen und den Gefahrenbereich sichern.\nNach einem Vorfall Menschen und Tiere getrennt versorgen, bei akuter Gefahr 112 und für verletzte Tiere tierärztliche Hilfe anfordern. Zeitpunkt, Beteiligte, Beobachtungen, Verletzungen und Maßnahmen sachlich erfassen. Die Inhaberin informiert die Halter und entscheidet über weitere Betreuung und Änderungen am Gruppenplan.\nPraxis: Die Aufgabenverteilung bei einem Konflikt an einer Tür durchgehen und zeigen, wie die übrigen Hunde und anwesende Kinder auf Abstand bleiben.", edition:"Familienanschluss 1", updatedAt:Date.now() },
+    {"id": "trn_probe", "title": "Probetag und Zusammenführung", "intervalMonths": 12, "level": "betrieb", "legal": "Betrieblicher Standard · Betreuung im Familienanschluss", "edition": "Familienanschluss 1", "fullText": "Neue Gäste, eigene Hunde und bestehende Gruppe\n\nVor dem Probetag erfragen wir Verhalten bei Hundebegegnungen, Futter, Ruheplätzen und Menschen sowie bekannte Auslöser. Die verantwortliche Person bestimmt, wer welchen Hund führt, wer die übrigen Tiere betreut und welche räumliche Trennung bei Bedarf möglich ist. Wenn die Gruppe oder das Personal dafür ungeeignet ist, wird die Zusammenführung verschoben.\nNicht aneinander gewöhnte Hunde werden ausschließlich unter Aufsicht zusammengeführt. Die erste Begegnung findet mit ausreichend Abstand und Ausweichmöglichkeiten statt. Reize und mögliche Konfliktauslöser wie Futter, enges Gedränge oder Spielzeug vermeiden. Die Hunde schrittweise kennenlernen lassen und für jedes Tier auf Körpersprache achten. Bei anhaltendem Stress, Fixieren, Bedrängen oder fehlender Ausweichmöglichkeit abbrechen und betreut trennen.\nIm Familienhaushalt Kontakte zu eigenen Hunden, Kindern, Besuchern und anderen Hoftieren einzeln planen. Niemand muss Kontakt aufnehmen. Die Eignung für eine Übernachtung wird erst nach Beobachtung von Ruhe, Futteraufnahme und Verhalten im Tagesablauf entschieden.\nPraxis: Zwei Personen gehen den geplanten Weg ohne Hunde ab. Sie zeigen Rückzug, Trennmöglichkeit und Abbruchsignal. Ergebnis des Probetags und Bedingungen für eine Folgeaufnahme in der Hundeakte festhalten."},
+    {"id": "trn_familie", "title": "Tagesablauf und Übernachtung im Familienhaushalt", "intervalMonths": 12, "level": "betrieb", "legal": "Betrieblicher Standard · Betreuung im Familienanschluss", "edition": "Familienanschluss 1", "fullText": "Für die Tages- und Nachtbetreuung\n\nZu Schichtbeginn Belegung und Besonderheiten jedes Hundes prüfen. Eine Person ist für die Gruppe zuständig. Wasser, individuell passende Bewegung, menschliche Zuwendung sowie ungestörte Ruhezeiten einplanen. Für jeden Hund gibt es einen geeigneten Liegeplatz und die Möglichkeit, Abstand zu halten. Bei Bedarf werden Tiere getrennt gefüttert und gesundheitlich einzeln versorgt.\nVor Haustüröffnung, Familienbesuch oder einem Wechsel zwischen Haus und Hof die Gruppe sichern. Kinder und Gäste übernehmen keine unbeaufsichtigte Betreuung. Eigene Hunde und andere Hoftiere in die Trennung einbeziehen. Giftige Lebensmittel, Medikamente und Reinigungsmittel für Tiere unzugänglich halten. Zeigt ein Hund Stress oder wird er am Ruheplatz bedrängt, die Situation beenden und eine sichere Alternative schaffen.\nVor der Nacht Bestandskontrolle, Trinkwasser, Liegeplätze, Türen und sichere Trennung prüfen. Zuständige erreichbare Person festlegen. Individuell erforderliche Kontrollen und Besonderheiten aus der Vorbetreuung übergeben. Bei Unruhe, Krankheit oder einem Ausfall der Aufsicht die vereinbarte Vertretung bzw. tierärztliche Hilfe hinzuziehen. Am Morgen Auffälligkeiten persönlich übergeben.\nPraxis: Für einen neu aufgenommenen Hund eine Abendübergabe durchspielen und benennen, wer bei nächtlicher Unruhe die übrigen Hunde betreut."},
+    {"id": "trn_uebergabe", "title": "Übergabe, Spaziergang und entlaufener Hund", "intervalMonths": 12, "level": "betrieb", "legal": "Betrieblicher Standard · Betreuung im Familienanschluss", "edition": "Familienanschluss 1", "fullText": "Für Annahme, Abholung und Ausführen\n\nVor Ankunft des Halters die übrigen Hunde hinter einer geschlossenen Trennung sichern. Eine Person übernimmt ausdrücklich den Hund und seine Leine. Vor der Übergabe Identität, Ausrüstung und Tagesbesonderheiten abgleichen. Bei Abholung die hinterlegte Abholberechtigung prüfen. Ein Hund wird erst freigegeben, wenn die übernehmende Person die Sicherung bestätigt.\nVor dem Spaziergang Sitz und Zustand von Halsband bzw. Geschirr, Leine und Verschluss prüfen. Strecke, Gruppengröße und Begleitung an den einzelnen Hund und die örtlichen Risiken anpassen. An Toren und bei Begegnungen Abstand schaffen. Unterwegs immer wissen, wie viele und welche Hunde geführt werden.\nEntläuft ein Hund, zuerst die übrigen Hunde und Menschen sichern. Unverzüglich die Inhaberin und den Halter informieren. Letzten Sichtort, Uhrzeit, Laufrichtung und Beschreibung notieren. Die Suche koordinieren, unnötiges Hinterherlaufen vermeiden. Bei unmittelbarer Verkehrsgefährdung die Polizei verständigen. Sichtungen zentral sammeln und die Rückkehr allen Beteiligten melden.\nPraxis: Eine Übergabe an der Tür und anschließend eine Entlaufmeldung ohne echten Alarm durchspielen. Klären, wer an der letzten Sichtstelle bleibt, wer die Gruppe sichert und wer telefoniert."}
   ];
   if(state.compliance.trainings.length === 0){
     state.compliance.trainings = DEFAULT_TRAININGS_CATALOG.map(t=>({ ...t }));
   }else{
-    // Merge: fehlende Felder ergänzen, kurze/fehlende Volltexte upgraden, neue Trainings ergänzen
+    // Fehlende Themen ergänzen und unveränderte frühere Standardtexte aktualisieren.
     const byId = Object.create(null);
     DEFAULT_TRAININGS_CATALOG.forEach(t=>byId[t.id]=t);
     const existing = Array.isArray(state.compliance.trainings) ? state.compliance.trainings : [];
@@ -8111,9 +7916,14 @@ Vorfallprotokoll + Unterweisungsnachweis.`, updatedAt:Date.now() }
       // Intervall: wenn leer/ungültig -> Default (gesetzl. Minimum hier: jährlich = 12 Monate)
       const im = Number(out.intervalMonths);
       out.intervalMonths = (isFinite(im) && im>0) ? im : Number(base.intervalMonths||12);
-      // Volltext: wenn fehlt oder sehr kurz -> aus Katalog übernehmen
-      const ft = (out.fullText || out.longText || "").toString();
-      if(!ft || ft.trim().length < 160) out.fullText = base.fullText;
+      // Eigene Texte bleiben bei der Migration erhalten.
+      const ft = (out.fullText || out.longText || out.legalFull || "").toString();
+      if(!ft.trim() || knownPriorTraining(t.id,ft)){
+        out.fullText = base.fullText;
+        out.edition = base.edition;
+      }else if(!out.edition){
+        out.edition = ft===base.fullText ? base.edition : 'Betriebliche Fassung';
+      }
       // Timestamp: falls fehlt
       out.updatedAt = out.updatedAt || base.updatedAt || Date.now();
       return out;
@@ -8124,6 +7934,10 @@ Vorfallprotokoll + Unterweisungsnachweis.`, updatedAt:Date.now() }
     state.compliance.trainings = merged;
   }
 
+}
+function knownPriorTraining(id,text){
+  const prior = {"trn_gefahrstoffe": "Ziel\nSicherer Umgang mit Gefahrstoffen/chemischen Produkten im Betrieb, Schutz von Mitarbeitenden, Tieren und Umwelt.\n\nGeltungsbereich\nAlle Tätigkeiten mit Reinigungs-, Desinfektions- und sonstigen chemischen Produkten (Annahme, Lagerung, Dosierung, Anwendung, Entsorgung).\n\nInhalte\n• Gefahrstoffverzeichnis: Welche Produkte werden verwendet? Wo sind sie gelistet?\n• Kennzeichnung: GHS-Piktogramme, Signalwort, H-/P-Sätze, Herstellerangaben.\n• Sicherheitsdatenblatt (SDB): Auffinden/Lesen (Abschnitte 2, 4, 7, 8, 10, 13), Ablage in der App je Produkt.\n• Substitution/Minimierung: Nur notwendige Mittel, richtige Konzentration, keine Eigenmischungen ohne Freigabe.\n• Schutzmaßnahmen (TOP-Prinzip): Lüften, Dosierhilfen, PSA (Handschuhe, ggf. Schutzbrille), Hautschutzplan.\n• Lagerung: Originalgebinde, dicht verschlossen, getrennt von Lebensmitteln/Futter, kindersicher; Lagerort: Büro – verschlossener Putzschrank.\n• Anwendung: Dosierung/Einwirkzeit laut Hersteller, Materialverträglichkeit, niemals unterschiedliche Mittel unkontrolliert mischen.\n• Verhalten bei Störungen/Unfällen: Verschütten (Bereich sichern, aufnehmen, entsorgen), Augenkontakt (spülen), Hautkontakt (waschen), Einatmen (Frischluft), Notruf/Arzt.\n• Entsorgung: Reste/Leergut nach Hersteller/SDB; keine Vermischung; Abwasser/Umwelt beachten.\n\nDokumentation\nTeilnehmer, Datum, Kurzprotokoll, Unterschriften; bei Bedarf Produktliste/SDB-Verweise mitschreiben.", "trn_hyg_mittel": "Ziel\nWirksame Reinigung/Desinfektion ohne Fehlanwendung (Unter- oder Überdosierung) und ohne unnötige Gefährdung.\n\nGeltungsbereich\nAlle Reinigungs- und Desinfektionsvorgänge (Innenbereiche, Kontaktflächen, Ausläufe/Schmutzschleusen, Textilien).\n\nInhalte\n• Unterschied Reinigung vs. Desinfektion: Wann reicht Reinigung, wann ist Desinfektion erforderlich?\n• Dosierung & Einwirkzeit: strikt nach Herstellerangaben; Messbecher/Dosierhilfe nutzen.\n• Reihenfolge/Wegeführung: sauber → unrein; von oben nach unten; groben Schmutz zuerst entfernen.\n• Kontaktflächen: Näpfe, Türgriffe, Gitter, Böden, Liegeflächen – definierte Frequenz nach Hygieneplan.\n• Materialverträglichkeit: Metall, Kunststoff, Holz, Textilien – Schäden vermeiden.\n• PSA & Hautschutz: Handschuhe, ggf. Schutzbrille; Hautschutzplan (cremen, wechseln).\n• Tücher/Mopps: Farblogik/Zuordnung, Wechselintervalle, nicht „ein Tuch für alles“.\n• Lagerung/Bereitstellung: Mittel sicher, kindersicher, getrennt; keine offenen Gebinde im Hundebereich.\n• Lüftung: nach Anwendung; Hunde erst nach Trocknung/Wirkzeit wieder in den Bereich.\n• Dokumentation: Hygieneplan-Checklisten, besondere Ereignisse (Durchfall/Erbrechen/Infektionsverdacht) mit Zusatzmaßnahmen.\n\nDokumentation\nKurzprotokoll + Unterschriften; ggf. verwendete Mittel/Konzentrationen notieren.", "trn_hygiene": "Ziel\nInfektionsrisiken minimieren, Tierwohl sichern und prüffähige Nachweise führen.\n\nGeltungsbereich\nTägliche Abläufe, Reinigungs-/Desinfektionsroutine, Wäsche, Umgang mit Ausscheidungen, Besucher- und Hundekontakte.\n\nInhalte\n• Hygieneplan: tägliche/wöchentliche/monatliche Aufgaben, Zuständigkeiten, Nachweisführung.\n• Basismaßnahmen: Händehygiene, Wechselkleidung/Schuhe, Trennung sauber/unrein.\n• Reinigung/Desinfektion: Ablauf, Mittel, Einwirkzeiten, Reihenfolge, Tuch-/Moppmanagement.\n• Wäsche/Textilien: getrennte Sammelbehälter, Programme/Temperaturen, Trocknerhygiene, Filter/Siebe reinigen.\n• Umgang mit Kot/Erbrochenem/Blut: sichere Aufnahme, Flächendesinfektion, Entsorgung.\n• Futter/Wasser: Näpfe reinigen, Frischwasser, Lagerung von Futter.\n• Schädlingsprävention: Futterlager sauber, Müllmanagement, Sichtkontrollen.\n• Meldewege: Auffälligkeiten (Durchfall, Husten, Hautprobleme), Sofortmaßnahmen, Eintrag in Vorkommnisse.\n• Grenzen/Abbruch: Betreiber kann Aufenthalt im Krankheitsfall aus Tierschutz-/Sicherheitsgründen beenden; Halter informieren.\n\nDokumentation\nHygiene-Log, besondere Vorkommnisse, Teilnehmerliste/Unterschriften der Unterweisung.", "trn_quar": "Ziel\nInfektionsketten unterbrechen und trotzdem einen sicheren Betrieb gewährleisten.\n\nGeltungsbereich\nVerdacht auf ansteckende Erkrankungen, Parasiten, Durchfall/Erbrechen, Husten, Fieber, Hautbefall; auch nach Rückkehr von Veranstaltungen/anderen Betreuungen.\n\nInhalte\n• Kriterien: Wann ist Separierung zwingend? (Symptome, Kontakt zu Erkrankten, Parasitenverdacht)\n• Sofortmaßnahmen: Hund separieren, Kontakt stoppen, eigenes Equipment (Leine, Napf, Decke).\n• Räumliche Trennung: Nutzung von Einzelzimmer/Übergangsbereich; Wegeführung (keine Kreuzungen).\n• Hygiene: Händedesinfektion, Flächen-/Kontaktpunkte, Wäsche separat, Müll separat.\n• Betreuung: Minimierung von Personalwechsel, klare Zuständigkeiten, PSA/Handschuhe.\n• Kommunikation: Halter sofort informieren; Tierarztkontakt nach Lage; ggf. Abholung/Abbruch.\n• Dokumentation: Symptom, Uhrzeit, Maßnahmen, Kontaktpersonen, Tierarzt/Empfehlungen.\n\nDokumentation\nMaßnahmenprotokoll + Unterweisungsnachweis (Teilnehmer/Datum/Unterschriften).", "trn_brand": "Ziel\nSichere Evakuierung von Menschen und Tieren, minimierte Rauch-/Brandgefahren, klare Zuständigkeiten.\n\nGeltungsbereich\nAlle Mitarbeitenden, Besucher, alle Bereiche (Hunde-Zimmer, Gruppenraum, Lager, Büro, Außenbereiche).\n\nInhalte\n• Alarmierung: Brand melden, Notruf 112, interne Rollen (wer ruft an, wer evakuiert).\n• Fluchtwege: Ausgänge/Wege gemäß Plan; Türen/Wege stets freihalten.\n• Sammelplatz: Wiese bei Hofeinfahrt; Vollzähligkeitskontrolle.\n• Erstmaßnahmen: Eigenschutz, keine Selbstgefährdung, Feuerlöscher nur wenn sicher.\n• Feuerlöscher: Standorte (Büro + Durchgangsraum), Arten, kurze Einweisung, Sicht-/Funktionskontrolle.\n• Evakuierung Hunde: Priorisierung, Leinen/Boxen/Transporthilfen, Gruppentrennung, Maulkörbe nach Bedarf.\n• Nachbereitung: Übergabe an Feuerwehr, Information Halter, Dokumentation des Ereignisses/Übung.\n\nDokumentation\nPlanversion, Datum, Teilnehmer/Unterschriften; ggf. Evakuierungsübung als Eintrag im Archiv.", "trn_arbeitsschutz": "Ziel\nUnfälle und arbeitsbedingte Gesundheitsgefahren vermeiden; sichere Arbeitsabläufe im Tagesbetrieb.\n\nGeltungsbereich\nAlle Tätigkeiten im Betrieb (Hundehandling, Reinigung, Transport, Lager, Außenbereiche).\n\nInhalte\n• Ordnung & Sauberkeit: Stolperstellen, Kabel, nasse Böden, rutschfeste Wege, Beleuchtung.\n• Ergonomie: Heben/Tragen (Futter, Wasser, Boxen) – Technik, Hilfsmittel, Lastgrenzen.\n• Hundehandling: sichere Leinenführung, Trennmanagement, Türen/Schleusen, Beißschutz nach Bedarf.\n• PSA: Handschuhe, ggf. Schutzbrille; geeignete Schuhe; wetterangepasste Kleidung.\n• Arbeitsmittel: sichere Nutzung, Defekte sofort melden.\n• Alleinarbeit: Handy griffbereit, Notfallkette, keine riskanten Tätigkeiten allein.\n• Unterweisungspflicht: jährlich sowie bei Änderungen/Unfällen/Beinaheunfällen.\n\nDokumentation\nUnterweisung (Datum/Teilnehmer/Unterschriften) und ggf. Maßnahmenliste aus Beinaheunfällen.", "trn_erstehilfe": "Ziel\nErstmaßnahmen bis zum Eintreffen des Rettungsdienstes; Eigenschutz und strukturierter Ablauf.\n\nGeltungsbereich\nAlle Mitarbeitenden; typische Unfälle im Umgang mit Hunden und bei Reinigungsarbeiten.\n\nInhalte\n• Notrufkette: 112, Wer? Wo? Was? Wieviele? Warten auf Rückfragen.\n• Eigenschutz: Handschuhe, Abstand, Hunde sichern, keine Selbstgefährdung.\n• Erste-Hilfe-Ausstattung: Standort/Kontrolle (Vollständigkeit, Haltbarkeit), Augenspülung falls vorhanden.\n• Typische Verletzungen: Bisswunden, Schnitt-/Sturzverletzungen, Kreislaufprobleme, allergische Reaktionen.\n• Blutstillung: Druckverband, Hochlagern; Schockzeichen erkennen.\n• Hygiene: Wundversorgung, Entsorgung kontaminierter Materialien.\n• Dokumentation: Unfall/Beinaheunfall kurz erfassen, ggf. Arztbesuch/Arbeitsunfall.\n\nDokumentation\nTeilnehmerliste/Unterschriften; ggf. Unterlagen/Standortplan ergänzen.", "trn_hund_notfall": "Ziel\nSchnelle Stabilisierung des Hundes, sichere Übergabe an Tierarzt, klare Kommunikation mit Halter.\n\nGeltungsbereich\nAlle Notfallsituationen während Betreuung/Transport/Auslauf.\n\nInhalte\n• Notfall erkennen: Atemnot, Kollaps, Krampf, starke Blutung, Hitzschlag, Magendrehung-Verdacht.\n• Sofortmaßnahmen: Ruhe, Hund sichern, Temperaturmanagement (kühlen/wärmen), Druckverband, Stabilisierung.\n• Transport: sichere Fixierung, Box/Decke, zweite Person wenn möglich.\n• Ansprechpartner: Tierarzt/Notdienst (Betriebsstandard); Halter informieren.\n• Dokumentation: Zeitpunkt, Symptome, Maßnahmen, Transport, Rückmeldung Tierarzt/Halter.\n\nDokumentation\nVorfallprotokoll + Unterweisungsnachweis.", "trn_tierschutz": "Ziel\nTierschutzkonforme Betreuung, sichere Belegung und nachvollziehbare Kontrollen.\n\nGeltungsbereich\nUnterbringung, Betreuung, Fütterung, Auslauf/Beaufsichtigung, Abbruchkriterien.\n\nInhalte\n• Bestandsgrenzen/Belegung: max. 4 Hunde insgesamt; Tages- und Urlaubsbetreuung zählen zusammen.\n• Unterbringung: Zimmer/Größen/Trennmöglichkeiten, Ruhezeiten, Stressreduktion, Temperatur/Lüftung.\n• Betreuung: regelmäßige Sichtkontrollen, Wasser jederzeit, Fütterung nach Halterangaben.\n• Sozialmanagement: unverträgliche Hunde trennen, Gruppen nur nach Verträglichkeit, Konflikte vermeiden.\n• Gesundheit: Auffälligkeiten früh erkennen, Tierarzt/Abholung, Abbruch aus Tierschutz/Sicherheitsgründen.\n• Dokumentation: Betreuungsvertrag, Kontroll-/Vorkommnisprotokolle, Unterweisungsnachweise.\n\nDokumentation\nUnterweisung + Bezug auf Betriebsstandards (Belegung/Abbruch/Notfallkette).", "trn_med": "Ziel\nFehlerfreie Medikamentengabe und lückenlose Nachweisführung.\n\nGeltungsbereich\nAlle Medikamente/Nahrungsergänzer während Betreuung (auch Kühlware).\n\nInhalte\n• Annahme: nur mit schriftlicher Anweisung (Dosierung, Zeiten, Dauer); Originalverpackung; Name/Charge.\n• Lagerung: kindersicher, getrennt von Futter; Kühlkette beachten; klare Beschriftung.\n• Gabe: nach Plan; 4-Augen-Prinzip wenn möglich; Abzeichnen im Medikamentenlog.\n• Abweichungen: Verweigerung/Erbrechen/Fehlgabe – dokumentieren, Halter/Tierarzt informieren.\n• Notfallmedikation: keine eigenmächtige Umstellung ohne Rücksprache.\n• Rückgabe: Restmengen/Verpackungen bei Abholung.\n\nDokumentation\nMedikamentenlog (Datum/Uhrzeit/Dosis/Unterschrift) + Unterweisungsnachweis.", "trn_datenschutz": "Ziel\nSchutz von Kunden- und Tierdaten; rechtssichere Verarbeitung im Alltag.\n\nGeltungsbereich\nKundendaten, Vertrags-/Rechnungsdaten, Gesundheitsdaten (Impfungen/Medikamente), Fotos/Kommunikation.\n\nInhalte\n• Grundsätze: Zweckbindung, Datenminimierung, Integrität/Vertraulichkeit, Speicherbegrenzung.\n• Rechte Betroffener: Auskunft, Berichtigung, Löschung, Widerspruch – Zuständigkeit intern.\n• Zugriff: Rollen (Admin/Staff/Customer), keine Weitergabe von Logins, Geräte sperren.\n• Kommunikation: Weitergabe an Tierarzt/Behörde nur mit Rechtsgrundlage/Einwilligung.\n• Aufbewahrung: Verträge/Rechnungen nach Fristen; sichere Ablage/Archiv.\n• Datenschutzvorfall: Verdacht melden, Sofortmaßnahmen (Zugang sperren), Dokumentation.\n\nDokumentation\nUnterweisung + kurze Maßnahmenliste (z.B. Passwortrichtlinie).", "trn_it": "Ziel\nSchutz vor unbefugtem Zugriff, Datenverlust und Betriebsunterbrechung.\n\nGeltungsbereich\nAlle Geräte/Accounts (PWA, E-Mail, Cloud, Druck/PDF, mobile Geräte).\n\nInhalte\n• Passwörter: Länge/Komplexität, keine Wiederverwendung, Passwortmanager wenn möglich.\n• 2FA: wo verfügbar aktivieren.\n• Gerätesicherheit: Sperrcode/FaceID, automatische Sperre, Updates zeitnah.\n• Phishing: Links/Anhänge prüfen, Absender kontrollieren, keine Login-Daten eingeben.\n• Offline/Sync: Konflikte melden, keine unsicheren Zwischenkopien.\n• Backup: regelmäßige Sicherungen (Betriebsstandard), Wiederherstellung testen.\n\nDokumentation\nTeilnehmer/Unterschriften; ggf. Checkliste (2FA/Update/Backup) ergänzen.", "trn_biss": "Ziel\nStandardisierter, sicherer Ablauf bei Zwischenfällen – Schutz von Menschen/Tieren, saubere Dokumentation.\n\nGeltungsbereich\nBeißvorfälle, Rangeleien, Stürze, Sachschäden, Beinaheunfälle.\n\nInhalte\n• Sofort: Hunde trennen, Eigenschutz, ggf. Maulkorb/Leine.\n• Erste Hilfe: Mensch (Wunde versorgen) und Hund (Sichtprüfung/Blutung/Schock).\n• Dokumentation: Zeitpunkt, Beteiligte, Auslöser, Maßnahmen, Zeugen, Fotos nach Bedarf.\n• Information: Halter beider Hunde, ggf. Tierarzt; bei schweren Vorfällen Behördenmeldung nach Lage.\n• Prävention: Auswertung, Anpassung Gruppenmanagement/Handling/Trennkonzept.\n\nDokumentation\nVorfallprotokoll + Unterweisungsnachweis."};
+  return prior[id]===text;
 }
 function ensureContractDefaults(){
   if(!state.contract || typeof state.contract !== "object"){
@@ -8701,13 +8515,14 @@ function fillCpEditorForPet(pet){
   try{ cpMedEnsureInlineUI(); }catch(_){ }
   try{ cpMedRenderInlineList(); }catch(_){ }
 }
-function openCpEditor(mode, petId){
+function openCpEditor(mode, petId, ownerId){
   ensureStateShape();
   ensureContractDefaults();
   cpEdit.mode = mode || "new";
   cpEdit.petId = petId || "";
   const box = document.getElementById("cpEditor");
-  if(box) box.style.display="block";
+  cpEdit.ownerId = ownerId || "";
+  if(box){box.dataset.mode=mode||"new";box.style.display="block";}
   try{ cpWirePetPhotoInputs(); }catch(_){ }
   const title = document.getElementById("cpEditorTitle");
   if(title) title.textContent = (mode==="edit") ? "Kunde & Hund bearbeiten" : "Kunde & Hund anlegen";
@@ -8733,6 +8548,12 @@ function openCpEditor(mode, petId){
       setCustomerFieldsDisabled(false); // beim Edit darfst du den Kunden auch korrigieren
       fillCpEditorForPet(pet);
     }
+  } else if(ownerId && getCustomer(ownerId)){
+    if(use) use.checked=true;
+    document.getElementById("customerSelect").value=ownerId;
+    fillCustomerFieldsOnly(ownerId);
+    setCustomerFieldsDisabled(mode!=="owner");
+    if(title) title.textContent=mode==="owner"?"Halter bearbeiten":"Hund für "+getCustomer(ownerId).name+" anlegen";
   } else {
     // New: wenn Kunden vorhanden, Auswahl anbieten, aber standardmäßig aus
     setCustomerFieldsDisabled(false);
@@ -8747,9 +8568,8 @@ function openCpEditor(mode, petId){
   cpDirty = false;
   cpWirePetPhotoInputs();
   cpSetStatus("");
-  const list = document.getElementById("dogList");
   const __reviewOpening = !!((typeof window !== 'undefined' && window.__dsProposalReviewOpening) || (__dsProposalReview && __dsProposalReview.active));
-  if(list && !__reviewOpening) list.scrollIntoView({behavior:"smooth", block:"start"});
+  if(box && !__reviewOpening) box.scrollIntoView({behavior:"smooth", block:"start"});
 }
 // === 2A.x Erweiterung: "Weiteren Hund" für bestehenden Kunden ===
 function getCurrentCpCustomerId(){
@@ -14256,6 +14076,7 @@ function renderDogs(){
   ensureContractDefaults();
   const list = $("#dogList");
   if(!list) return;
+  const expanded=new Set(Array.from(list.querySelectorAll("details.directory-pet[open]"),row=>row.dataset.petId));
   list.innerHTML = "";
   let petsAll = (state.pets||[]).slice();
   const __scopedCollections = (typeof dsGetScopedCustomerCollections === 'function') ? (dsGetScopedCustomerCollections() || null) : null;
@@ -14280,6 +14101,22 @@ function renderDogs(){
   const search=$("#workspaceCustomerSearch");
   if(search?.parentElement)search.parentElement.style.display=__customerMainDogs?'none':'';
   const query=__customerMainDogs?'':search?.value?.trim()||'';
+  const tools=document.getElementById("directoryFilters");
+  if(tools) tools.hidden=__customerMainDogs;
+  const filter=__customerMainDogs?"all":tools?.querySelector('[aria-pressed="true"]')?.dataset.filter||"all";
+  const stays=__customerMainDogs?[]:DSWorkflowCore.confirmedStays(state);
+  const here=new Set(DSWorkflowCore.staysOnDay(stays,toISODateLocal(new Date())).map(stay=>stay.petId));
+  const missingByPet=new Map();
+  function missing(p){
+    if(!missingByPet.has(p.id)){
+      const items=[];
+      if(!hasValidContract(p.customerId,p.id)) items.push("Betreuungsvertrag");
+      if(!p.vaccinationPassPhoto) items.push("Impfpassfoto");
+      if(p.insuranceStatus!=="yes") items.push("Haftpflichtbestätigung");
+      missingByPet.set(p.id,items);
+    }
+    return missingByPet.get(p.id);
+  }
   const customers=__customerMainDogs?[]:(state.customers||[]).filter(c=>c?.id);
   // Sortierung: Kunden A-Z, Hunde je Kunde A-Z (de)
   const collator = new Intl.Collator("de", { sensitivity: "base", numeric: true });
@@ -14369,7 +14206,19 @@ function renderDogs(){
       return collator.compare(String(p1), String(p2));
     });
     for(const g of groups){
-      if(!matchesWorkspaceSearch(query,g.customer?.name,g.customer?.customerNumber,g.customer?.email,...g.pets.map(p=>p.name)))continue;
+      let shown=g.pets;
+      if(!__customerMainDogs){
+        const c=g.customer||{};
+        const phoneDigits=value=>String(value||"").replace(/[^0-9]/g,"").replace(/^(?:0049|49)/,"0");
+        const number=phoneDigits(query);
+        const phoneMatch=/^[+0-9() ./-]+$/.test(query)&&number.length>=3&&phoneDigits(c.phone).includes(number);
+        const ownerMatch=matchesWorkspaceSearch(query,c.name,c.customerNumber,c.email,c.phone)||phoneMatch;
+        shown=shown.filter(p=>(ownerMatch||matchesWorkspaceSearch(query,c.name,c.customerNumber,p.name,p.chipNumber))&&
+          (filter==="all"||filter==="today"&&here.has(String(p.id))||filter==="missing"&&missing(p).length>0));
+        if(!shown.length && (g.pets.length||!ownerMatch||filter!=="all"))continue;
+      }
+      const group=__customerMainDogs?list:document.createElement("article");
+      if(group!==list){group.className="directory-group";list.appendChild(group);}
       // Kunden-Header
       const header = document.createElement("div");
       header.className = "item";
@@ -14394,10 +14243,20 @@ function renderDogs(){
           ${(!g.isNoCustomer && _getLastStayTextForCustomer(g.customerId)) ? `<small style="display:block; opacity:.75; margin-top:2px">${escapeHtml(_getLastStayTextForCustomer(g.customerId))}</small>` : ``}
         </div>
         <div class="actions"></div>`;
-      list.appendChild(header);
-      // Hunde-Einträge eingerückt
-      g.pets.forEach(p=>{
-        const el = document.createElement("div");
+      if(!__customerMainDogs){
+        header.className="item directory-owner";
+        header.innerHTML='<div><strong>'+escapeHtml(cname)+'</strong><small>'+[g.customer?.customerNumber,cntTxt,cphone].filter(Boolean).map(escapeHtml).join(' · ')+'</small></div><div class="actions"></div>';
+        if(g.customer){
+          for(const [mode,label] of [["owner","Halter bearbeiten"],["new","+ Hund"]]){
+            const button=document.createElement("button");button.className="smallbtn";button.type="button";button.textContent=label;
+            button.onclick=()=>openCpEditor(mode,null,g.customerId);
+            header.querySelector(".actions").appendChild(button);
+          }
+        }
+      }
+      group.appendChild(header);
+      shown.forEach(p=>{
+        const el = document.createElement(__customerMainDogs?"div":"details");
         el.className = "item";
         el.style.marginLeft = "14px";
         el.style.borderLeft = "3px solid rgba(255,255,255,.08)";
@@ -14421,6 +14280,16 @@ function renderDogs(){
             </div>
           </div>
           <div class="actions">${__customerMainDogs ? `<button class="smallbtn" data-e="1" data-pet-edit-id="${escapeHtml(p.id||'')}" data-pet-id="${escapeHtml(p.id||'')}">Bearbeiten</button>` : `<button class="smallbtn" data-v="1">Vertrag</button><button class="smallbtn" data-e="1" data-pet-edit-id="${escapeHtml(p.id||'')}" data-pet-id="${escapeHtml(p.id||'')}">Bearbeiten</button><button class="smallbtn" data-d="1">Löschen</button>`}</div>`;
+        if(!__customerMainDogs){
+          el.className="item directory-pet";
+          el.removeAttribute("style");
+          el.open=expanded.has(String(p.id));
+          const todo=missing(p);
+          const name=escapeHtml(p.name||"Hund");
+          const image=p.profilePhoto?'<img class="directory-photo" alt="" loading="lazy" src="'+escapeHtml(DSWorkflow.mediaSource(p.profilePhoto))+'">':'<span class="directory-photo paw" aria-hidden="true">🐾</span>';
+          const summary='<summary>'+image+'<span class="directory-dog-name"><strong>'+name+'</strong>'+ (p.breed?'<small>'+escapeHtml(p.breed)+'</small>':'')+'</span><span class="directory-badges">'+(here.has(String(p.id))?'<span>Heute in Betreuung</span>':'')+(todo.length?'<span class="pending">Unterlagen prüfen</span>':'')+'</span></summary>';
+          el.innerHTML=summary+'<div class="directory-body"><small>'+ (todo.length?'Zu prüfen: '+todo.map(escapeHtml).join(', '):'Vertrag, Impfpassfoto und Haftpflichtbestätigung hinterlegt.')+'</small>'+ (p.chipNumber?'<small>Chip: '+escapeHtml(p.chipNumber)+'</small>':'')+'<div class="actions"><button type="button" class="smallbtn" data-v="1">Vertrag</button><button type="button" class="smallbtn" data-e="1">Hund bearbeiten</button><details><summary>Weitere Aktionen</summary><button type="button" class="smallbtn" data-d="1">Hund löschen</button></details></div></div>';
+        }
         const btnV = el.querySelector('[data-v="1"]');
         const btnE = el.querySelector('[data-e="1"]');
         const btnD = el.querySelector('[data-d="1"]');
@@ -14440,13 +14309,13 @@ function renderDogs(){
             saveState(); renderDogs(); syncDogSelect();
           }
         };
-        list.appendChild(el);
+        group.appendChild(el);
       });
     }
   } else {
     // fallback legacy
     ensureDefaultDog();
-    const dogs = state.dogs.filter(d=>!d.isPlaceholder&&matchesWorkspaceSearch(query,d.name,d.owner));
+    const dogs = state.dogs.filter(d=>!d.isPlaceholder&&matchesWorkspaceSearch(query,d.name,d.owner,d.phone)&&(filter!=="today"||here.has(String(d.id))));
     dogs.forEach(d=>{
       const el=document.createElement("div");
       el.className="item";
@@ -14463,10 +14332,16 @@ function renderDogs(){
     });
     if(!dogs.length&&!query) list.innerHTML=`<div class="muted">Noch keine Hunde/Kunden angelegt.</div>`;
   }
-  if(query&&!list.children.length)list.innerHTML='<div class="muted">Keine passenden Kunden oder Hunde.</div>';
+  if((query||filter!=="all")&&!list.children.length)list.innerHTML='<div class="muted">Keine passenden Kunden oder Hunde.</div>';
   refreshCustomerSelect();
   syncDogSelect();
 }
+$("#directoryFilters")?.addEventListener("click",event=>{
+  const btn=event.target.closest("button[data-filter]");
+  if(!btn)return;
+  for(const item of btn.parentElement.querySelectorAll("button[data-filter]"))item.setAttribute("aria-pressed",String(item===btn));
+  renderDogs();
+});
 $("#workspaceCustomerSearch")?.addEventListener('input',renderDogs);
 $("#btnAddDog")?.addEventListener("click",()=>openCpEditor("new"));
 $("#btnCpCancel")?.addEventListener("click",(e)=>{
@@ -14512,6 +14387,19 @@ $("#btnCpSave")?.addEventListener("click",async (e)=>{
     ensureStateShape();
     ensureContractDefaults();
     const mode = cpEdit.mode;
+    if(mode==="owner"){
+      const owner=getCustomer(cpEdit.ownerId);
+      if(!owner){cpSetStatus("Halter wurde nicht gefunden.",true);return;}
+      const name=$("#c_name").value.trim(), email=$("#c_email").value.trim();
+      if(!name || !email || !$("#c_email").checkValidity()){cpSetStatus("Bitte Namen und gültige E-Mail-Adresse angeben.",true);return;}
+      const fields={phone:"c_phone",street:"c_street",zip:"c_zip",city:"c_city",emergencyName:"c_em_name",emergencyPhone:"c_em_phone",pickupAuth:"c_pickup_auth",note:"c_note"};
+      Object.assign(owner,{name,email,updatedAt:Date.now()});
+      for(const [field,id] of Object.entries(fields)) owner[field]=document.getElementById(id).value.trim();
+      for(const dog of state.dogs||[]){
+        if(state._legacy?.dogIdToCustomerId?.[dog.id]===owner.id){dog.owner=name;dog.phone=owner.phone;}
+      }
+      saveState();closeCpEditor();renderDogs();return;
+    }
     const useExisting = $("#useExistingCustomer").checked && (state.customers||[]).length>0;
     let customer = null;
     let customerId = "";
@@ -19287,42 +19175,46 @@ function openPrintWindow(title, bodyHtml){
   try{DSCompliancePrint.open(title,bodyHtml);}catch(error){alert('Unterweisungs-PDF konnte nicht erstellt werden: '+error.message);}
 }
 
-function computeTrainingCompliance(){
-  try{ ensureStateShape(); }catch(_){}
-  const trainings = state.compliance?.trainings || [];
-  const names = (typeof getActiveStaffNames === 'function') ? getActiveStaffNames() : (state.hygiene?.staffPresets||["Raphael","Anschi"]);
-  const statusMap = state.compliance?.trainingStatus || {};
-  const now = new Date();
-  let overdue = 0, soon = 0, missing = 0;
-  const soonDays = 30;
-  trainings.forEach(t=>{
-    const intervalMonths = Number(t.intervalMonths||12);
-    names.forEach(person=>{
-      const st = statusMap?.[t.id]?.[person];
-      const last = st?.lastDone ? _parseDateAny(st.lastDone) : null;
-      if(!last || isNaN(last.getTime())){
-        missing++;
-        overdue++;
-        return;
-      }
-      const due = new Date(last);
-      due.setMonth(due.getMonth()+intervalMonths);
-      const diffDays = Math.floor((due-now)/(1000*60*60*24));
-      if(diffDays < 0) overdue++;
-      else if(diffDays <= soonDays) soon++;
-    });
-  });
-  let worst = 'green';
-  let detail = 'Keine Unterweisungen fällig.';
-  if(overdue>0){
-    worst='red';
-    detail = `${overdue} Unterweisung(en) fällig/überfällig.`;
-  }else if(soon>0){
-    worst='yellow';
-    detail = `${soon} Unterweisung(en) laufen in 30 Tagen ab.`;
+function requiresTrainingSignature(id){
+  return ['trn_gefahrstoffe','trn_hyg_mittel','trn_hygiene'].includes(id);
+}
+function trainingDue(t,person,today){
+  if((t.excludedPeople||[]).includes(person)) return {status:'neutral',label:'Nicht zugeordnet'};
+  const rec=state.compliance.trainingStatus?.[t.id]?.[person];
+  const last=_parseDateAny(rec?.lastDone);
+  const optional=t.level==='empfohlen';
+  if(!last) return {status:optional?'neutral':'red',kind:'first',label:optional?'Empfohlen · noch offen':'Erstunterweisung offen'};
+  if(requiresTrainingSignature(t.id) && !rec.sigDataUrl){
+    return {status:'red',kind:'signature',label:'Unterschriftsnachweis prüfen'};
   }
-  if(trainings.length===0) detail='—';
-  return {worst, detail, overdue, soon, missing, people:names.length, trainings:trainings.length};
+  const next=new Date(last.getFullYear(),last.getMonth()+Number(t.intervalMonths||12),1);
+  const monthEnd=new Date(next.getFullYear(),next.getMonth()+1,0).getDate();
+  next.setDate(Math.min(last.getDate(),monthEnd));
+  const nextISO=toISODateLocal(next);
+  const days=Math.round((Date.parse(nextISO)-Date.parse(today))/86400000);
+  const label=days<0?'Wiederholung überfällig':days===0?'Wiederholung heute fällig':days<=30?'Wiederholung bald fällig':'Durchgeführt';
+  return {next:nextISO,status:optional?'neutral':days<0?'red':days<=30?'yellow':'green',kind:days<0?'late':days<=30?'soon':'done',label:optional?'Empfohlen · zuletzt durchgeführt':label};
+}
+function computeTrainingCompliance(){
+  ensureStateShape();
+  const trainings=state.compliance.trainings, people=getActiveStaffNames(), today=toISODateLocal(new Date());
+  let overdue=0, soon=0, missing=0, signatures=0;
+  for(const t of trainings){
+    if(t.level==='empfohlen') continue;
+    for(const person of people){
+      const due=trainingDue(t,person,today);
+      if(due.kind==='first') missing++;
+      if(due.kind==='signature') signatures++;
+      if(due.kind==='late') overdue++;
+      if(due.kind==='soon') soon++;
+    }
+  }
+  const details=[];
+  if(missing) details.push(missing+' Erstunterweisung(en) offen');
+  if(signatures) details.push(signatures+' Unterschriftsnachweis(e) prüfen');
+  if(overdue) details.push(overdue+' Wiederholung(en) überfällig');
+  if(soon) details.push(soon+' Wiederholung(en) in den nächsten 30 Tagen fällig');
+  return {worst:missing||signatures||overdue?'red':soon?'yellow':'green',detail:details.join(' · ')||'Keine zugeordneten Unterweisungen fällig.',overdue,soon,missing,people:people.length,trainings:trainings.length};
 }
 function _complianceSetView(view){
   const el = document.getElementById('compliancePanelBody');
@@ -19354,7 +19246,7 @@ function renderComplianceHazards(root){
   const hazards = state.compliance.hazards || [];
   root.innerHTML = `
     <h2 style="margin:0 0 8px 0">🧪 Gefahrstoffe</h2>
-    <div class="muted">Lagerung: ${escapeHtml("Büro – verschlossener Putzschrank")} · Sicherheitsdatenblatt (SDB) je Produkt hinterlegen.</div>
+    <div class="muted">Regellagerort: Speise (für Hunde unzugänglich). Trennung von Lebensmitteln und Futter je Produkt beachten. · Sicherheitsdatenblatt (SDB) je Produkt hinterlegen.</div>
     <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap">
       <button class="btn" id="btnHazAdd">+ Produkt</button>
     </div>
@@ -19410,7 +19302,7 @@ function renderComplianceHazards(root){
 }
 function openHazardEditor(haz){
   const isNew = !haz;
-  const h = haz ? {...haz} : { id: 'haz_'+Math.random().toString(36).slice(2,10), name:'', category:'', storage:'Büro – verschlossener Putzschrank', sds:null };
+  const h = haz ? {...haz} : { id: 'haz_'+Math.random().toString(36).slice(2,10), name:'', category:'', storage:'Speise – für Hunde unzugänglich', sds:null };
   const html = `
     <div class="modal-backdrop" id="hazModal" style="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:21474836479;display:flex;align-items:center;justify-content:center;padding:16px">
       <div class="modal-panel" style="width:min(680px, 100%); background:rgba(30,30,34,.98); border:1px solid rgba(255,255,255,.12); border-radius:14px; padding:14px">
@@ -19447,7 +19339,7 @@ function openHazardEditor(haz){
   wrap.querySelector('#hazSave').onclick = ()=>{
     h.name = (wrap.querySelector('#hazName').value||'').trim();
     h.category = (wrap.querySelector('#hazCat').value||'').trim();
-    h.storage = (wrap.querySelector('#hazStorage').value||'').trim() || 'Büro – verschlossener Putzschrank';
+    h.storage = (wrap.querySelector('#hazStorage').value||'').trim() || 'Speise – für Hunde unzugänglich';
     h.updatedAt = Date.now();
     const arr = state.compliance.hazards || [];
     const ix = arr.findIndex(x=>x.id===h.id);
@@ -19770,7 +19662,6 @@ async function openHazardView(haz){
 function renderComplianceTrainings(root){
   const tr = state.compliance.trainings || [];
   const people = (typeof getActiveStaffNames === 'function') ? getActiveStaffNames() : (state.hygiene?.staffPresets||["Raphael","Anschi"]);
-  const status = state.compliance.trainingStatus || {};
   const comp = computeTrainingCompliance();
   root.innerHTML = `
     <h2 style="margin:0 0 8px 0">🧑‍🏫 Unterweisungen</h2>
@@ -19785,19 +19676,21 @@ function renderComplianceTrainings(root){
   if(list){
     list.innerHTML = tr.map(t=>{
       const rows = people.map(p=>{
-        const st = status?.[t.id]?.[p];
-        const last = st?.lastDone ? new Date(st.lastDone).toLocaleDateString('de-DE') : '—';
+
         const due = computeTrainingDueDate(t.id, p);
-        const badge = due.status==='red'?'🔴':(due.status==='yellow'?'🟡':'🟢');
-        const next = due.next ? new Date(due.next).toLocaleDateString('de-DE') : '—';
-        return `<div class="muted" style="margin-top:3px">${badge} ${escapeHtml(p)}: zuletzt ${escapeHtml(last)} · fällig ${escapeHtml(next)}</div>`;
+        const badge = due.status==='red'?'🔴':(due.status==='yellow'?'🟡':due.status==='neutral'?'⚪':'🟢');
+        const next = due.next ? formatDateDE(due.next) : '';
+        return `<div class="muted" style="margin-top:3px">${badge} ${escapeHtml(p)}: ${escapeHtml(due.label)}${next?' · '+escapeHtml(next):''}</div>`;
       }).join('');
       return `
         <div class="list-row">
           <div style="flex:1">
             <strong>${escapeHtml(t.title)}</strong>
             <div class="muted" style="margin-top:4px">${escapeHtml(t.legal||'')} · Intervall: ${escapeHtml(String(t.intervalMonths||12))} Monate</div>
+            <small class="muted">${t.level==='empfohlen'?'Empfohlen':t.level==='betrieb'?'Betriebsstandard':'Tätigkeitsbezogene Unterweisung'}</small>
             ${rows}
+            <details class="training-reading"><summary>Volltext lesen</summary><div>${escapeHtml(t.fullText||t.longText||t.legalFull||'Für diese Vorlage fehlt der Volltext.')}</div></details>
+            ${window.DSBilling?.admin()?'<details class="tr-assignment"><summary>Team zuordnen</summary>'+people.map(p=>'<label><input type="checkbox" data-course="'+escapeHtml(t.id)+'" value="'+escapeHtml(p)+'" '+((t.excludedPeople||[]).includes(p)?'':'checked')+'> '+escapeHtml(p)+'</label>').join('')+'</details>':''}
           </div>
           <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end">
             <button class="btn" data-act="run" data-id="${escapeHtml(t.id)}">Durchführen</button>
@@ -19806,6 +19699,20 @@ function renderComplianceTrainings(root){
       `;
     }).join('');
   }
+  root.querySelectorAll('input[data-course]').forEach(input=>{
+    input.onchange=()=>{
+      if(!window.DSBilling?.admin()) return;
+      const t=state.compliance.trainings.find(item=>item.id===input.dataset.course);
+      if(!t) return;
+      const excluded=new Set(t.excludedPeople||[]);
+      if(input.checked) excluded.delete(input.value); else excluded.add(input.value);
+      t.excludedPeople=[...excluded];
+      saveState();
+      renderComplianceTrainings(root);
+      const checkbox=[...root.querySelectorAll('input[data-course]')].find(el=>el.dataset.course===t.id&&el.value===input.value);
+      if(checkbox){checkbox.closest('details').open=true;checkbox.focus();}
+    };
+  });
   root.querySelector('#btnTrnNew').onclick = ()=>openTrainingRunPicker();
   root.querySelector('#btnTrnPrintStatus').onclick = ()=>printTrainingStatus();
   root.querySelectorAll('button[data-act="run"]').forEach(b=>{
@@ -19835,20 +19742,9 @@ function _parseDateAny(v){
   return isNaN(d.getTime()) ? null : d;
 }
 
-function computeTrainingDueDate(trainingId, person){
-  const t = (state.compliance.trainings||[]).find(x=>x.id===trainingId);
-  const intervalMonths = Number(t?.intervalMonths||12);
-  const st = state.compliance.trainingStatus?.[trainingId]?.[person];
-  const last = st?.lastDone ? _parseDateAny(st.lastDone) : null;
-  if(!last || isNaN(last.getTime())){
-    return {status:'red', next:null};
-  }
-  const due = new Date(last);
-  due.setMonth(due.getMonth()+intervalMonths);
-  const now = new Date();
-  const diff = Math.floor((due-now)/(1000*60*60*24));
-  const status = diff<0 ? 'red' : (diff<=30 ? 'yellow' : 'green');
-  return {status, next: due.toISOString()};
+function computeTrainingDueDate(trainingId,person){
+  const training=state.compliance.trainings.find(t=>t.id===trainingId);
+  return trainingDue(training,person,toISODateLocal(new Date()));
 }
 function openTrainingRunPicker(){
   const tr = state.compliance.trainings||[];
@@ -19886,7 +19782,7 @@ function openTrainingRun(trainingId){
   if(!t){ alert("Unterweisung nicht gefunden."); return; }
   const people = (typeof getActiveStaffNames === 'function') ? getActiveStaffNames() : (state.hygiene?.staffPresets||["Raphael","Anschi"]);
   const wrap=document.createElement('div');
-  const today = new Date().toISOString().slice(0,10);
+  const today = toISODateLocal(new Date());
   wrap.innerHTML = `
     <div style="position:fixed;inset:0;z-index:21474836479;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px">
       <div style="width:min(900px,100%);max-height:calc(100vh - 32px);overflow:auto;background:rgba(30,30,34,.98);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:14px">
@@ -19896,27 +19792,28 @@ function openTrainingRun(trainingId){
         </div>
         <div class="muted" style="margin-top:6px">${escapeHtml(t.legal||'')}</div>
 
-        <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div style="margin-top:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(190px,100%),1fr));gap:10px">
           <div>
             <div class="muted">Datum</div>
             <input id="trRunDate" type="date" value="${escapeHtml(today)}" style="width:100%"/>
           </div>
           <div>
-            <div class="muted">Teilnehmer</div>
+            <label class="field"><span>Unterweisende Person</span><input id="trTrainer" required autocomplete="off" list="trTrainers" /></label><datalist id="trTrainers">${people.map(p=>'<option value="'+escapeHtml(p)+'">').join('')}</datalist>
+          </div><div><div class="muted">Teilnehmer</div>
             <div id="trRunPeople" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px">
-              ${people.map(p=>`<label class="trChip"><input type="checkbox" class="trPerson" value="${escapeHtml(p)}" checked/><span>${escapeHtml(p)}</span></label>`).join('')}
+              ${people.map(p=>`<label class="trChip"><input type="checkbox" class="trPerson" value="${escapeHtml(p)}" ${(t.excludedPeople||[]).includes(p)?'':'checked'}/><span>${escapeHtml(p)}</span></label>`).join('')}
             </div>
           </div>
         </div>
 
         <div style="margin-top:12px">
-          <div class="muted">Inhalt (Kurz)</div>
+          <div class="muted">Fassung · ${escapeHtml(t.edition||'Betriebliche Fassung')}</div>
     <div style="margin-top:8px"><button class="btn" id="btnTrToggleFull">Volltext anzeigen</button></div>
     <div id="trFullWrap" style="display:none;margin-top:8px">
       <div class="muted">Unterweisung (Volltext)</div>
       <div style="white-space:pre-wrap;border:1px solid rgba(255,255,255,.18);padding:10px;border-radius:12px;background:rgba(0,0,0,.18);max-height:42vh;overflow:auto" id="trFullText"></div>
     </div>
-          <textarea id="trRunNotes" style="width:100%;min-height:110px">${escapeHtml(defaultTrainingText(t.id))}</textarea>
+          <label for="trRunNotes">Besprochene Inhalte und praktische Übung</label><textarea id="trRunNotes" style="width:100%;min-height:110px">${escapeHtml(defaultTrainingText(t.id))}</textarea>
         </div>
 
         <div style="margin-top:12px">
@@ -19976,11 +19873,14 @@ function openTrainingRun(trainingId){
 renderSigRows();
 
   function buildSession(){
-    const date = wrap.querySelector('#trRunDate').value || today;
+    const date = wrap.querySelector('#trRunDate').value;
     const notes = wrap.querySelector('#trRunNotes').value || '';
     const participants = Array.from(wrap.querySelectorAll('.trPerson')).filter(x=>x.checked).map(x=>x.value);
     const missing = participants.filter(p=>!sigs[p]);
-    return {date, notes, participants, sigs, missing};
+    const instructor=wrap.querySelector('#trTrainer').value.trim();
+    const fullText=String(t.fullText||t.longText||t.legalFull||'').trim();
+    const selectedSigs=Object.fromEntries(participants.filter(p=>sigs[p]).map(p=>[p,sigs[p]]));
+    return {date,notes,participants,sigs:selectedSigs,missing,instructor,fullText,edition:t.edition||'Betriebliche Fassung'};
   }
   wrap.querySelector('#trRunPrint').onclick = ()=>{
     const s = buildSession();
@@ -19990,6 +19890,12 @@ renderSigRows();
   wrap.querySelector('#trRunSave').onclick = ()=>{
     const s = buildSession();
     if(s.participants.length===0){ alert("Bitte Teilnehmer auswählen."); return; }
+    if(!s.instructor){alert('Bitte die unterweisende Person eintragen.');wrap.querySelector('#trTrainer').focus();return;}
+    if(!s.fullText){alert('Der Unterweisungstext fehlt. Bitte die Vorlage zuerst vervollständigen.');return;}
+    if(!s.date || s.date>today){alert('Bitte das tatsächliche Durchführungsdatum angeben.');return;}
+    if(s.missing.length && requiresTrainingSignature(t.id)){
+      alert('Für diesen Nachweis fehlen Unterschriften von: '+s.missing.join(', '));return;
+    }
     if(s.missing.length>0){
       if(!confirm(`Es fehlen Unterschriften von: ${s.missing.join(', ')}. Trotzdem archivieren?`)) return;
     }
@@ -19997,6 +19903,8 @@ renderSigRows();
     state.compliance.trainingStatus = state.compliance.trainingStatus || {};
     state.compliance.trainingStatus[t.id] = state.compliance.trainingStatus[t.id] || {};
     s.participants.forEach(p=>{
+      const previous=_parseDateAny(state.compliance.trainingStatus[t.id][p]?.lastDone);
+      if(previous && previous>_parseDateAny(s.date)) return;
       state.compliance.trainingStatus[t.id][p] = { lastDone: s.date, sigDataUrl: sigs[p]||null };
     });
     // Archive log
@@ -20009,7 +19917,7 @@ renderSigRows();
       date: s.date,
       participants: s.participants,
       notes: s.notes,
-      sigs: sigs,
+      sigs: s.sigs, instructor:s.instructor, fullText:s.fullText, edition:s.edition,
       createdAt: Date.now()
     });
     saveState();
@@ -20021,7 +19929,10 @@ renderSigRows();
 function defaultTrainingText(id){
   // Kurzinhalt (Protokollfeld) – passend je Unterweisung
   const map = {
-    trn_gefahrstoffe: "Gefahrstoffverzeichnis/SDB, Kennzeichnung (GHS), Schutzmaßnahmen/PSA, Lagerung (verschlossener Putzschrank), Dosierung/Anwendung, Verhalten bei Verschütten/Unfall, Entsorgung.",
+    trn_probe:"Zusammenführung unter Aufsicht, Abbruchsignal und Rückzugsort besprochen.",
+    trn_familie:"Liegeplätze, Fütterung, Nachtdienst und Übergabe besprochen.",
+    trn_uebergabe:"Sichere Übergabe, Ausrüstungskontrolle und Meldekette besprochen.",
+    trn_gefahrstoffe: "Gefahrstoffverzeichnis/SDB, Kennzeichnung (GHS), Schutzmaßnahmen/PSA, Lagerung in der Speise und produktbezogene Trennung, Dosierung/Anwendung, Verhalten bei Verschütten/Unfall, Entsorgung.",
     trn_hyg_mittel: "Reinigungs-/Desinfektionsmittel: Dosierung, Einwirkzeit, Materialverträglichkeit, Reihenfolge (sauber→unrein), Tuch-/Moppwechsel, PSA, Dokumentation im Hygieneplan.",
     trn_hygiene: "Hygieneplan, Reinigung/Desinfektion, Wäsche-/Textilhygiene, Infektionsschutz, Trennung von sauber/unrein, Meldewege bei Auffälligkeiten, Dokumentation.",
     trn_quar: "Separierung/Infektionsverdacht: Kriterien, räumliche Trennung, separates Equipment, Wegeführung, Flächen- & Händedesinfektion, Kommunikation Halter/Tierarzt, Dokumentation.",
@@ -20049,8 +19960,8 @@ function trainingSessionHtml(t, s){
   return `
     <h1>${escapeHtml(t.title)}</h1>
     <div class="muted">${escapeHtml(t.legal||'')}</div>
-    <h2>Protokoll</h2>
-    <div class="muted">Inhalt (Kurz):</div>
+    ${s.fullText?`<p>Fassung: ${escapeHtml(s.edition||'Betriebliche Fassung')} · Unterweisende Person: ${escapeHtml(s.instructor||'Noch offen')} · Datum: ${escapeHtml(s.date)}</p><h2>Unterweisungsinhalt</h2>${s.fullText.split(/\n\s*\n/).map(paragraph=>'<p style="white-space:pre-wrap">'+escapeHtml(paragraph)+'</p>').join('')}`:'<p>Früheres Kurzprotokoll · Der damalige Volltext wurde nicht mitarchiviert.</p>'}
+    <h2>Besprochene Inhalte und Praxisnotizen</h2>
     <div style="white-space:pre-wrap; border:1px solid #ddd; padding:10px; border-radius:10px; margin-top:6px">${escapeHtml(s.notes||'')}</div>
     <h2>Teilnehmer & Unterschriften</h2>
     <table>
@@ -20065,9 +19976,9 @@ function printTrainingStatus(){
   const bodyRows = tr.map(t=>{
     const cells = people.map(p=>{
       const d = computeTrainingDueDate(t.id,p);
-      const badge = d.status==='red'?'🔴':(d.status==='yellow'?'🟡':'🟢');
-      const next = d.next ? new Date(d.next).toLocaleDateString('de-DE') : '—';
-      return `<div>${badge} ${escapeHtml(p)}: ${escapeHtml(next)}</div>`;
+      const badge = d.status==='red'?'🔴':(d.status==='yellow'?'🟡':d.status==='neutral'?'⚪':'🟢');
+      
+      return `<div>${badge} ${escapeHtml(p)}: ${escapeHtml(d.label)}${d.next?' · '+escapeHtml(formatDateDE(d.next)):''}</div>`;
     }).join('');
     return `<tr><td><strong>${escapeHtml(t.title)}</strong><div class="muted">${escapeHtml(t.legal||'')}</div></td><td>${cells}</td></tr>`;
   }).join('');
@@ -20093,11 +20004,11 @@ function renderComplianceArchive(root){
     if(logs.length===0){
       list.innerHTML = `<div class="muted">Noch keine archivierten Unterweisungen.</div>`;
     }else{
-      list.innerHTML = logs.slice(0,80).map(l=>`
+      list.innerHTML = logs.map(l=>`
         <div class="list-row">
           <div style="flex:1">
             <strong>${escapeHtml(l.title||'—')}</strong>
-            <div class="muted" style="margin-top:4px">${escapeHtml(l.date||'—')} · Teilnehmer: ${(l.participants||[]).map(escapeHtml).join(', ')}</div>
+            <div class="muted" style="margin-top:4px">${escapeHtml(l.date||'—')} · ${escapeHtml(l.edition||'Früheres Kurzprotokoll')} · Teilnehmer: ${(l.participants||[]).map(escapeHtml).join(', ')}</div>
           </div>
           <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end">
             <button class="btn" data-act="print" data-id="${escapeHtml(l.id)}">🖨 PDF</button>
@@ -20112,7 +20023,7 @@ function renderComplianceArchive(root){
       const l = (state.compliance.trainingLogs||[]).find(x=>x.id===id);
       if(!l) return;
       const t = { title:l.title, legal:l.legal };
-      const s = { date:l.date, notes:l.notes, participants:l.participants||[], sigs:l.sigs||{} };
+      const s = { date:l.date, notes:l.notes, participants:l.participants||[], sigs:l.sigs||{}, fullText:l.fullText, edition:l.edition, instructor:l.instructor };
       openPrintWindow(l.title, trainingSessionHtml(t,s));
     };
   });
@@ -21941,7 +21852,7 @@ function renderStatMethod(){
 
 
 
-/* ===== CHAT (M50.9.15GB399_CODEC_LOAD_20261122) ===== */
+/* ===== CHAT (M50.9.16GB400_FAMILIENANSCHLUSS_20261122) ===== */
 function dsResolveOrgId(){
   const raw = [
     CLOUD && CLOUD.orgId,

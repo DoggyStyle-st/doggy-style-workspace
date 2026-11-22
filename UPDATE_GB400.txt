@@ -1,0 +1,7 @@
+Doggy Style Workspace GB400 – Unterweisungen und Kundenübersicht
+
+Veröffentlichen: ZIP in der Dateien-App entpacken. Inhalt des entpackten Ordners am bisherigen Ort im GitHub-Pages-Repository hochladen, mit den Unterordnern assets, templates und vendor. app.html und version.txt liegen danach weiterhin auf derselben Ebene. Nach erfolgreichem Pages-Build im Workspace „Neu laden“ wählen. Für GB400 ist bei bestehendem GB399 kein Firebase-Update erforderlich.
+
+Unter Compliance → Unterweisungen stehen die Volltexte für die gemeinsame Durchführung bereit. Eigene Änderungen an bestehenden Texten bleiben erhalten. Neue Nachweise dokumentieren Textfassung, Datum, unterweisende Person, Teilnehmende und erfasste Unterschriften. Frühere Archivprotokolle werden als Kurzprotokoll angezeigt, wenn der frühere Volltext nicht mitgespeichert wurde. Anschi gleicht Inhalte und Zuständigkeiten mit der betrieblichen Gefährdungsbeurteilung, dem Erlaubnisbescheid und den vor Ort eingesetzten Produkten ab. Den gekennzeichneten Lagerort Speise je nach Stoffeinstufung und tatsächlicher Trennung vor Ort prüfen.
+
+Unter Hunde/Kunden eine Kundenkarte auswählen und einen Hund aufklappen. Telefon, E-Mail, Name, Kundennummer, Chipnummer oder Hundename sind durchsuchbar. „Heute in Betreuung“ zeigt bestätigte Aufenthalte. „Unterlagen prüfen“ berücksichtigt einen gültigen Vertrag, hinterlegtes Impfpassfoto und die Angabe zur Haftpflicht. Die Prüfung der Originalnachweise erfolgt durch das Team.
