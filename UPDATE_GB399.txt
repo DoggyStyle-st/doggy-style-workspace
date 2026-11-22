@@ -1,0 +1,25 @@
+DOGGY STYLE WORKSPACE – GB399 – FEHLER BEIM LADEN DER KOMPRIMIERUNG
+
+Die Fehlermeldung „undefined is not an object (evaluating globalThis.pako.deflate)“ bedeutet: Die separat benötigte Bibliothek wurde in der App nicht geladen. GB399 enthält diese Bibliothek fest innerhalb von workspace-codec.js und benötigt dafür keine zweite Skriptdatei und keine globale Variable „pako“ mehr.
+
+Dieses ZIP enthält alle öffentlichen App-Dateien, einschließlich der bisherigen Änderungen aus GB397/GB398.
+
+VORHER SICHERN
+Im Abgleich-Fenster „Abbrechen“ wählen, dann Einstellungen → Cloud & Datensicherung → Workspace-Sicherung herunterladen. Die JSON-Datei aufheben. Keine Browser- oder App-Daten löschen.
+
+GITHUB AKTUALISIEREN
+1. Dieses ZIP in der Dateien-App entpacken.
+2. Den kompletten Inhalt des entpackten Ordners in das Hauptverzeichnis des bestehenden GitHub-Repositories hochladen und gleichnamige Dateien ersetzen. app.html, customer.html, workspace-codec.js, sw.js usw. müssen direkt dort liegen. Die Ordner assets, templates und vendor ebenfalls übernehmen. Die ZIP selbst nicht hochladen.
+3. Nach der GitHub-Pages-Veröffentlichung im Workspace „Neu laden“ wählen. Die App anschließend vollständig schließen und wieder öffnen. Bei Bedarf erneut anmelden. Der aktuelle Build lautet GB399_CODEC_LOAD.
+4. Wieder „Änderungen vergleichen“ öffnen. Wenn weiterhin keine widersprüchlichen Änderungen vorliegen, „Auswahl gemeinsam speichern“ wählen und die erfolgreiche Cloud-Synchronisation abwarten.
+
+FIREBASE
+Für diesen Browser-Ladefehler ist keine erneute Firebase-Änderung nötig. Die Firebase-Aktualisierung aus GB398 (workspaceSave, portalInvoice und Regeln) bleibt Voraussetzung für das große Speicherformat. Wenn sie bereits erfolgreich abgeschlossen wurde, muss sie nicht wiederholt werden. Dieses ZIP ist ausschließlich für GitHub bestimmt und enthält keine Firebase-Deploymentdateien.
+
+DATEN
+Mit GB398 bereits komprimiert gespeicherte Daten bleiben kompatibel. Lokale Änderungen, Unterschriften und Rechnungsdaten werden durch diesen Ladefix nicht gelöscht oder neu angelegt. Die Komprimierung benötigt keine externe Verbindung.
+
+PRÜFUNG
+Lokal geprüft: fehlende und überschriebene globale pako-Variable, blockierte separate Bibliotheksdatei, AMD-/CommonJS-Umgebungsvariablen im Browser, iPad-/Handybreite, Lesen bestehender GB398-Daten, Schreiben für den unveränderten GB398-Server sowie tatsächliche Service-Worker-Installation und erneutes Laden. Der konkrete Abgleich-Dialog wurde mit einem vollständig lokalen Speicherersatz und über 3 MB Daten geprüft. Für das unveränderte GB398-Speicherformat liegen zusätzlich die bisherigen Firebase-Emulatortests zu Wiederanmeldung, Mitarbeiter-Speicherung und Rechnungszugriff im Kundenchat vor.
+
+Das Update wurde hier nicht automatisch auf GitHub oder Firebase veröffentlicht.
