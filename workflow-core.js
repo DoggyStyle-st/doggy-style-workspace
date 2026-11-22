@@ -1,9 +1,9 @@
 /* Customer identity and atomic review workflow. No local names/emails resolve ownership. */
 (function(root, factory){
-  const api = factory();
+  const api = factory(typeof module === 'object' && module.exports ? require('./workspace-codec') : root.DSWorkspaceCodec);
   if(typeof module === 'object' && module.exports) module.exports = api;
   else root.DSWorkflowCore = api;
-})(typeof globalThis !== 'undefined' ? globalThis : this, function(){
+})(typeof globalThis !== 'undefined' ? globalThis : this, function(Codec){
   'use strict';
   const str = v => String(v == null ? '' : v).trim();
   const clone = v => JSON.parse(JSON.stringify(v));
@@ -435,7 +435,7 @@
     const org = db.collection('orgs').doc(str(orgId));
     const users = org.collection('users'), proposals = org.collection('proposals'), tasks = org.collection('tasks');
     const stateRef = org.collection('meta').doc('workspace_state'), inboxArchive=org.collection('inboxArchive');
-    const decode = d => clone((decodeWorkspace ? decodeWorkspace(d) : d && d.payload) || {});
+    const decode = d => clone((typeof d?.payload==='string'?Codec.read(d):(decodeWorkspace?decodeWorkspace(d):Codec.read(d))) || {});
     async function profile(uid){ const snap = await users.doc(uid).get({source:'server'}); if(!snap.exists) fail('Kundenkonto ist noch nicht zugeordnet.'); return snap.data(); }
     async function workspace(){const actor=getUser(),snap=await stateRef.get({source:'server'});if(!actor || getUser()?.uid!==actor.uid)fail('Konto gewechselt.');if(!snap.exists)fail('Workspace fehlt.');return {payload:decode(snap.data()),stamp:Number(snap.data().updatedAt || 0)};}
     async function submit(data){
@@ -619,9 +619,8 @@
           }else fail('Nicht unterstütztes Formular.');
           workspace._cloudUpdatedAt = stamp;
           const snapshot = portalSnapshot(workspace,cid);
-          const next = {payload:workspace,secureWorkflowVersion:3,updatedAt:stamp,updatedBy:admin.uid};
-          if(new TextEncoder().encode(JSON.stringify({...ws.data(),...next})).length > 900000) fail('Workspace überschreitet die sichere Dokumentgröße. Eingang bleibt offen.','workspace-too-large');
-          tx.update(stateRef,next);
+          const next=Codec.envelope(ws.data(),{payload:workspace,secureWorkflowVersion:3,updatedAt:stamp,updatedBy:admin.uid});
+          tx.set(stateRef,next);
           tx.update(uref,{portalData:snapshot,petIds:snapshot.pets.map(idOf),accessUpdatedAt:stamp});
           adoptedWorkspace={payload:workspace,stamp};
           resolution.resolvedPetId = pet && pet.id || '';
@@ -682,14 +681,13 @@
         if(!admin.workspaceAdmin){if(!remote.exists)fail('Der Workspace muss zuerst vom Administrator eingerichtet werden.');protectStaffChanges(input,decode(remote.data()));}
         const numbered=assignCustomerNumbers(input,remote.exists?decode(remote.data()):input);
         const stamp=Math.max(Date.now(),Number(remote.exists && remote.data().updatedAt || 0)+1);input._cloudUpdatedAt=stamp;
-        const next={payload:input,secureWorkflowVersion:3,updatedAt:stamp,updatedBy:admin.uid};
-        if(new TextEncoder().encode(JSON.stringify({...(remote.exists?remote.data():{}),...next})).length>900000) fail('Workspace ist zu groß. Die Cloud wurde nicht verändert.','workspace-too-large');
+        const next=Codec.envelope(remote.exists?remote.data():{}, {payload:input,secureWorkflowVersion:3,updatedAt:stamp,updatedBy:admin.uid});
         for(const account of accounts){
           if(!account.exists || account.data().role!=='customer' || !account.data().customerId) continue;
           const snapshot=portalSnapshot(input,account.data().customerId);
           tx.update(account.ref,{portalData:snapshot,petIds:snapshot.pets.map(idOf),accessUpdatedAt:stamp});
         }
-        if(remote.exists)tx.update(stateRef,next);else tx.set(stateRef,next);
+        tx.set(stateRef,next);
         return {ok:true,stamp,...(numbered?{payload:input}:{})};
       });
     }

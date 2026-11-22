@@ -1,7 +1,7 @@
 // DoggyStyle Workspace Service Worker
 // Clean, consistent cache strategy (network-first for HTML, cache-first for static)
 
-const BUILD_VERSION = "M50.9.15GB397_INVOICE_YEARS_OWNER_20261121";
+const BUILD_VERSION = "M50.9.15GB398_WORKSPACE_SIZE_20261121";
 const CACHE_NAME = "doggystyle-" + BUILD_VERSION;
 
 // Keep this list conservative; do NOT include versioned query variants.
@@ -32,6 +32,8 @@ const STATIC_ASSETS = [
   "./vendor/jspdf.umd.min.js",
   "./vendor/print-font.js",
   "./browser-store.js",
+  "./vendor/pako-1.0.11.min.js",
+  "./workspace-codec.js",
   "./workflow-core.js",
   "./communication-core.js",
   "./customer-portal.js",
